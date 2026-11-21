@@ -286,3 +286,16 @@ protocol tests 420 pass / 2 fail (the sandbox-network pair);
 prepare verified ok end-to-end. Harness profile: **not
 measured locally** (skipped — CI to measure). D6 deferred
 (owner).
+
+End main island (worldgen-verify): vanilla 1.21.1's
+`minecraft:end_islands` includes the central island cone in the
+function itself, but the tree carried the 26.3 outer-only sampler
+and did not decode the `end_islands` name at all, so the End
+pipeline failed to build. Carried 26.2's fix:
+`GraphNode::EndIslands { central }`, with `end_islands`
+decoding to central: true and `end_outer_islands` to central:
+false; the cone formula was verified against the 1.21.11 named
+jar's EndIslandDensityFunction bytecode. The end-to-end worldgen
+test (`prepared_world_builds_and_generates_chunks`, run by the
+worldgen-verify CI job) now generates two chunks per dimension
+and dumps them as JSON; it caught this gap.

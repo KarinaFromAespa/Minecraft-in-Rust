@@ -746,3 +746,17 @@ decoding and none are in scope for this pass. Beware comparing
 against a run without `.local`: the level tests silently
 `return` (pass) when the fixture is missing, so a bare worktree
 reports 445 passed / 3 failed and looks healthier than it is.
+
+End main island (worldgen-verify): vanilla 1.21.7's
+`minecraft:end_islands` includes the central island cone in the
+function itself, but the end-to-end pass had aliased both
+`end_islands` and `end_outer_islands` to the 26.3 outer-only
+sampler, so the End generated as void (0 non-air blocks in
+chunk (0, 0)). Carried 26.2's fix: `GraphNode::EndIslands
+{ central }`, with `end_islands` decoding to central: true and
+`end_outer_islands` to central: false; the cone formula was
+verified against the 1.21.11 named jar's
+EndIslandDensityFunction bytecode. The 1.21.7 end-to-end test is
+now the shared `prepared_world_builds_and_generates_chunks`
+(two chunks per dimension plus a JSON dump, run by the
+worldgen-verify CI job); it caught this gap.

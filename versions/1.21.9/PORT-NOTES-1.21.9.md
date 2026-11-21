@@ -297,3 +297,16 @@ VM, Stream 2 building concurrently), and the
 `--no-default-features` retry was SIGTERM'd at ~28 min by the
 runtime. cargo check --workspace --all-targets (0/0) type-checks
 the test targets, and the gate runs on CI's 16 GB runners.
+
+End main island (worldgen-verify): vanilla 1.21.9's
+`minecraft:end_islands` includes the central island cone in the
+function itself, but the tree carried the 26.3 outer-only sampler
+and did not decode the `end_islands` name at all, so the End
+pipeline failed to build. Carried 26.2's fix:
+`GraphNode::EndIslands { central }`, with `end_islands`
+decoding to central: true and `end_outer_islands` to central:
+false; the cone formula was verified against the 1.21.11 named
+jar's EndIslandDensityFunction bytecode. The end-to-end worldgen
+test (`prepared_world_builds_and_generates_chunks`, run by the
+worldgen-verify CI job) now generates two chunks per dimension
+and dumps them as JSON; it caught this gap.

@@ -7927,3 +7927,16 @@ expected, since the report hashes semantic tokens, not bytes.
   item-100 collision oracles and the item-119 server-files
   oracle); text_display_render is not one of the 17
   port-verify harnesses.
+
+End main island (worldgen-verify): vanilla 1.21.8's
+`minecraft:end_islands` includes the central island cone in the
+function itself, but the tree carried the 26.3 outer-only sampler
+and did not decode the `end_islands` name at all, so the End
+pipeline failed to build. Carried 26.2's fix:
+`GraphNode::EndIslands { central }`, with `end_islands`
+decoding to central: true and `end_outer_islands` to central:
+false; the cone formula was verified against the 1.21.11 named
+jar's EndIslandDensityFunction bytecode. The end-to-end worldgen
+test (`prepared_world_builds_and_generates_chunks`, run by the
+worldgen-verify CI job) now generates two chunks per dimension
+and dumps them as JSON; it caught this gap.
