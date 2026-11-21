@@ -9729,12 +9729,43 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 221 —
+  CommonComponents:
+  - 1.21.6 only factored
+    the label choice into
+    CommonComponents (the
+    GUI_RETURN_TO_MENU
+    constant and
+    disconnectButtonLabel);
+    1.21.5 spells the same
+    ternary inline in
+    PauseScreen
+    (isLocalServer() ?
+    RETURN_TO_MENU :
+    GUI_DISCONNECT), and
+    the port already
+    implements exactly that
+    at both quit-button
+    sites — the pause menu
+    (remote ?
+    menu.disconnect :
+    menu.returnToMenu) and
+    the dialog-warning
+    screen
+    (external_server() the
+    same way). The
+    disconnect screen's
+    button is gui.toMenu,
+    untouched by this diff.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **220 of 426 are
-closed** (rank 1 complete, rank 2 at 211/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **221 of 426 are
+closed** (rank 1 complete, rank 2 at 212/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
