@@ -12536,3 +12536,7 @@ unchanged.
 ## Item 667 — horizon-protocol/src/frame.rs (CompressionEncoder, Varint21LengthFieldPrepender) — NO-CHANGE
 
 Zero diff: the bytecode is identical in both versions.
+
+## Item 668 — horizon-server/src/management_methods.rs (IpBanlistService$IncomingIpBanDto, PlayerService$KickDto) — NO-CHANGE
+
+Visibility only.
