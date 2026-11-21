@@ -11875,3 +11875,12 @@ water, potion/bottle fills, dyeable armour, banners, shulker boxes).
 `horizon-client/src/cauldron.rs` is already a complete port of the 1.21.11
 table, including the `minecraft:dyeable` tag (noted as renamed in 26.x with
 identical contents). Cauldron tests: 5 passed.
+
+## Item 559 — game/totem.rs (ScreenEffectRenderer) — NO-CHANGE
+
+26.1 takes a `SpriteGetter` and the first-person/hideGui gates as
+parameters, reads the window from the game render state, and calls it
+`Lightmap`; 1.21.11 takes a `MaterialSet`, reads the gates and window
+itself, and calls it `LightTexture`. Same sprites, same gates, same values,
+and the activation animation math is identical. The Rust matches the math
+exactly and applies the 1.21.11 hideGui gate itself ("Only F1 hides it").
