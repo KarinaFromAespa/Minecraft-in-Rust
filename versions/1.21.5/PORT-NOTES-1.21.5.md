@@ -8534,13 +8534,36 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 179 — Cow
+  save/load and
+  variant selection:**
+  - The save/load is the
+    ValueInput/ValueOutput
+    to CompoundTag refactor
+    over the identical
+    `variant` name, which
+    the port already writes
+    and reads for cows.
+    Spawn selection is the
+    1.21.5 per-type form:
+    `VariantRegistry::select`
+    takes the
+    highest-priority
+    entries whose condition
+    holds and picks one at
+    random, the same pick
+    1.21.6's generic picker
+    makes.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **178 of 426 are
-closed** (rank 1 complete, rank 2 at 169/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **179 of 426 are
+closed** (rank 1 complete, rank 2 at 170/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
