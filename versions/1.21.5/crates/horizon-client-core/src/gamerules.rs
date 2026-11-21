@@ -75,7 +75,6 @@ pub const RULES: &[Rule] = &[
     b("keep_inventory", "player", false),
     b("lava_source_conversion", "updates", false),
     b("limited_crafting", "player", false),
-    b("locator_bar", "player", true),
     b("log_admin_commands", "chat", true),
     i("max_block_modifications", "misc", 32768, 1, i32::MAX),
     i("max_command_forks", "misc", 65536, 0, i32::MAX),

@@ -6177,13 +6177,92 @@ is the oracle; decompiled code is a reading aid.
     the one `cargo check -j 1
     -p horizon-client --lib --tests`
     passed at item 129.
+- **Item 131 — Locator bar
+  game rule removed; sweep
+  and collisions verified:**
+  - CODE: `RULE_LOCATOR_BAR`
+    does not exist in 1.21.5.
+    Removed `locator_bar`
+    from the rule registry
+    (`gamerules.rs`, which
+    feeds `/gamerule` and its
+    suggestions) and from
+    the new-world defaults
+    table (`save.rs`
+    `GAME_RULES`, 58 → 57
+    entries), so a new
+    world's `game_rules.dat`
+    no longer carries a key
+    vanilla 1.21.5 would
+    reject. No code read the
+    rule. The datafix entries
+    stay: they are version-
+    upgrade history (item
+    108's decision), not the
+    live bar.
+  - `forEachBlockIntersectedBetween`:
+    1.21.6's visitor returns
+    boolean and stops the
+    traversal when the entity
+    dies mid-sweep; 1.21.5's
+    is void and visits on,
+    applying nothing after
+    death. The observable
+    outcome is identical —
+    no effects after death in
+    either version — so the
+    Rust sweep keeps its
+    bool-returning visitor,
+    whose early exit serves
+    hit detection (arrows,
+    projectiles, falling
+    blocks), mirroring
+    vanilla's raycast, not
+    the 1.21.6 visitor.
+  - The Ghast half was already
+    the 1.21.5 form:
+    `ghast_move_control`
+    steps the box one block
+    at a time with
+    `no_collision` and
+    accelerates by a fixed
+    0.1, with comments citing
+    the 1.21.6 sweep form it
+    is not.
+  - `getPreMoveCollisions`
+    (1.21.6-only) has no Rust
+    surface: the LAN move
+    check already uses
+    `getCollisions` via
+    `BlockCollisionScan`,
+    with a comment noting the
+    1.21.6 rename. The
+    `getBlockCollisions`
+    refactor (context built
+    inside vs outside) is
+    behaviour-identical.
+  - `GameType.STREAM_CODEC`
+    (1.21.6-only) has no
+    surface: the protocol
+    writes the mode as a
+    plain varint. The
+    `updateRules` copy-vs-
+    share distinction has
+    none either: Rust rule
+    values are `Copy`, so
+    there are no shared
+    mutable value objects.
+  - Verification: `cargo check
+    -j 1 -p horizon-client-core
+    -p horizon-client --lib`
+    0 errors / 0 warnings.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **130 of 426 are
-closed** (rank 1 complete, rank 2 at 121/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **131 of 426 are
+closed** (rank 1 complete, rank 2 at 122/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

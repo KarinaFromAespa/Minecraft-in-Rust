@@ -3559,7 +3559,7 @@ pub(crate) fn read_doubles<const N: usize>(tag: Option<&Tag>) -> Option<[f64; N]
 }
 
 /// Default game rules of a new 26.3 world (`data/minecraft/game_rules.dat`).
-const GAME_RULES: [(&str, i32); 58] = [
+const GAME_RULES: [(&str, i32); 57] = [
     ("spawn_wandering_traders", 1),
     ("block_drops", 1),
     ("reduced_debug_info", 0),
@@ -3596,7 +3596,6 @@ const GAME_RULES: [(&str, i32); 58] = [
     ("max_command_forks", 65536),
     ("drowning_damage", 1),
     ("command_block_output", 1),
-    ("locator_bar", 1),
     ("show_advancement_messages", 1),
     ("respawn_radius", 10),
     ("raids", 1),
