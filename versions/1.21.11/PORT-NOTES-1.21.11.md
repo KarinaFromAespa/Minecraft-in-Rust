@@ -9486,3 +9486,17 @@ logic; `ServerReconfigScreen` is only the
 argument; that belongs to the OptionsScreen item.) Doc
 citations updated (`extractRenderState` -> `render` /
 `renderToast`, `extractBackground` -> `renderBackground`).
+
+## Item 189 — mobs/goals.rs (rank 2, NO-CHANGE)
+
+7 classes, 8 methods, 2 named. No behavioural delta:
+`BreathAirGoal.start` drops 26.1's `getNavigation().stop()`
+after `findAirPosition()` — the Rust already matches
+1.21.11 (it stops the old path, then moves to air, and
+`nav_move_to` overwrites the path anyway); the powder-snow
+and hurt-by goals only change how the same type test is
+spelled; `EatBlockGoal` is identical;
+`NearestAttackableTargetGoal` only loses a `final`; the
+bee/polar-bear inner goals are renames + widening. Two doc
+citations corrected (`ClimbDangerPowderSnowGoal` ->
+`ClimbOnTopOfPowderSnowGoal`, the real class name).
