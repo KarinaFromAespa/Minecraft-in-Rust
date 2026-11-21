@@ -7138,13 +7138,55 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-command
     -p horizon-client --lib`
     passed at item 145.
+- **Item 151 — Explosion
+  water check verified
+  against 1.21.5:**
+  - 1.21.5's
+    `shouldAffectBlocklikeEntities`
+    spares blocklike
+    entities when the blast
+    source is in water;
+    1.21.6 dropped that
+    term (moving the water
+    check into
+    `BlockAttachedEntity.
+    ignoreExplosion`
+    alone, so it no longer
+    spares items or armour
+    stands). The Rust port
+    already has the 1.21.5
+    form in both places
+    the predicate feeds:
+    `items_ignore_explosion`
+    and
+    `blast_spares_decorations`
+    both return true on
+    `source_in_water`, with
+    doc comments recording
+    the version difference
+    and a test pinning it
+    ("a blast whose source
+    is in water never
+    affects blocklike
+    entities, griefing or
+    no"). The wind-charge
+    term is vacuous on the
+    Rust path: no wind
+    charge goes through
+    `server_explode`.
+  - Verification: no Rust
+    change; the tree state
+    is the one `cargo check
+    -j 1 -p horizon-command
+    -p horizon-client --lib`
+    passed at item 145.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **150 of 426 are
-closed** (rank 1 complete, rank 2 at 141/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **151 of 426 are
+closed** (rank 1 complete, rank 2 at 142/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
