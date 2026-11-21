@@ -12651,3 +12651,7 @@ Compiler artifact only (`typeSwitch` descriptor, as item 674).
 ## Item 694 — game/levels.rs (ChunkLoadCounter) — NO-CHANGE
 
 Method rename only (`ChunkPos.pack` vs `toLong`, same value).
+
+## Item 695 — game/mods.rs (TelemetryEventWidget$Content) — NO-CHANGE
+
+Visibility only.
