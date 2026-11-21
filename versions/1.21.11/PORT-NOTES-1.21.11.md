@@ -12245,3 +12245,9 @@ hover-only because its dialog focus tracks text inputs only — item
 parts are never focusable, so the 1.21.11 tooltip-on-focus has no
 surface. Making dialog item parts focusable is a dialog-focus feature,
 out of rank-3 scope.
+
+## Item 616 — game/shelf.rs (ShelfRenderer) — NO-CHANGE
+
+Only where the facing is read (cached in the render state in 26.1,
+from the block state in 1.21.11 — same value and rotation) and the
+`CameraRenderState` package move.
