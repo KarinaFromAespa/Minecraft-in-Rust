@@ -10364,3 +10364,14 @@ Zero differing constants — the mesh and render
 sequence are identical. The Rust already passes
 the range in through `Input`. No source change.
 `clouds`: 12 passed.
+
+## Item 276 — mipmap.rs (rank 2, NO-CHANGE)
+
+1 class, 3 methods, 1 named. 26.1 passes the
+transparency in as a `Transparency` record;
+1.21.11 scans frame 0 itself (`hasTransparentPixel`,
+any pixel with alpha 0). Same branch structure,
+same constants — the Rust's caller-computed
+`has_transparent` (same alpha-0 scan) is already
+the 1.21.11 form in substance. No source change.
+`mipmap`: 6 passed.
