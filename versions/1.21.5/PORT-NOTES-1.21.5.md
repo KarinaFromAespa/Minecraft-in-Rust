@@ -1235,13 +1235,23 @@ is the oracle; decompiled code is a reading aid.
     being API-only.
   - Verification: `cargo check -p horizon-client
     --all-targets` 0 errors / 0 warnings (1m49s).
+- **Item 31 — ByteBufCodecs (item/skip.rs), verified, no code
+  change:** the same 132-line diff item 20 verified, filed
+  under a second module. The five changed hunks —
+  `RGB_COLOR`, `optionalTagCodec`, `lenientJson`,
+  `fromCodec(DynamicOps, Codec)`, the `lengthPrefixed`
+  rename — have no surface in `skip.rs`: the named
+  methods it uses (`optional`, `holder`, `holderSet`,
+  `fromCodecWithRegistries`) are all unchanged in the
+  diff, and the component skip table itself is the
+  regenerated 1.21.5 one from the publish.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **30 of 426 are
-closed** (rank 1 complete, rank 2 at 21/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **31 of 426 are
+closed** (rank 1 complete, rank 2 at 22/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
