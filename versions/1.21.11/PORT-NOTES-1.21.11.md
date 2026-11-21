@@ -11666,3 +11666,13 @@ clamp, the (1 - distSq/256) strength falloff, the
 min(pow/0.5 - 1, radius) scan depth, the brightness > 3
 and full-collision gates, and the 0.5-per-block power
 falloff all match. `GiantMobRenderer` is byte-identical.
+
+## Item 537 — toasts.rs (rank 3, NO-CHANGE apart from citations)
+
+Pure renames: `extractToast` -> `renderToast`,
+`extractRenderState` -> `render` (both classes and
+the `Toast` interface), GuiGraphicsExtractor ->
+GuiGraphics, `text` -> `drawString`, plus
+`ToastInstance` field visibility. The toast drawing
+and slide/update logic are identical. Two citations
+re-pointed to the 1.21.11 names.
