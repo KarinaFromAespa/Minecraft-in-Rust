@@ -8873,6 +8873,20 @@ level (`Level.scheduled_events`, a new field written into
 new; the first run was OOM-killed at the lib-test link, the
 retry passed).
 
+## Item 152 — mobs/turtle.rs (rank 2, CHANGED)
+
+7 classes, 14 methods, 3 named. 1.21.11 has one concrete
+`TurtleModel` (26.1 split it into Adult/Baby): its
+`setupAnim` shows the egg belly whenever the turtle carries
+an egg and sinks the root one unit, with no baby gate — the
+Rust's `!s.baby` gate is dropped (the item-69 referral;
+unobservable in play, only a bred adult carries an egg).
+The baby transform lives in the prepared layer data. The
+entity and goals are unchanged (`getAgeScale` is 0.3 for
+babies in both versions, so `Baby::Scale(0.3, None)` stands;
+the lay-egg goal reads the same level random by field).
+Tests: `mobs::body_anim::` 8 passed (1 new).
+
 ## CI proof run 44850889695 (recorded below)
 
 Dispatched 01:33:40 UTC Nov 21, 2026 on behaviour/1.21.11 @

@@ -199,7 +199,10 @@ pub struct Turtle {
     pub laying_egg: bool,
     pub has_egg: bool,
 }
-/// `TurtleModel` / `AdultTurtleModel.setupAnim`.
+/// `TurtleModel.setupAnim`: one model serves both ages in 1.21.11 —
+/// the egg belly shows whenever the turtle carries an egg, with no
+/// baby gate (26.1 split the model into `AdultTurtleModel` /
+/// `BabyTurtleModel`).
 pub fn turtle(p: &mut Poses, s: &State, t: &Turtle) {
     quadruped(p, s);
     let (pos, speed) = (s.pos, s.speed);
@@ -221,11 +224,9 @@ pub fn turtle(p: &mut Poses, s: &State, t: &Turtle) {
         p.zrot("right_front_leg", -swing);
         p.zrot("left_front_leg", swing);
     }
-    if !s.baby {
-        p.visible("egg_belly", t.has_egg);
-        if t.has_egg {
-            adds(p, "root", 1, -1.0);
-        }
+    p.visible("egg_belly", t.has_egg);
+    if t.has_egg {
+        adds(p, "root", 1, -1.0);
     }
 }
 
@@ -1036,6 +1037,60 @@ mod tests {
         polar_bear(&mut p, &state(false), 1.0);
         near(p.get("head")[1], -24.0);
         near(p.get("head")[2], 13.0);
+    }
+
+    #[test]
+    fn a_turtles_egg_belly_shows_at_either_age() {
+        let m = model(&[
+            "head",
+            "body",
+            "egg_belly",
+            "right_front_leg",
+            "left_front_leg",
+            "right_hind_leg",
+            "left_hind_leg",
+        ]);
+        // An adult with an egg shows the belly and sinks one unit.
+        let mut p = Poses::new(&m);
+        turtle(
+            &mut p,
+            &state(false),
+            &Turtle {
+                on_land: true,
+                laying_egg: false,
+                has_egg: true,
+            },
+        );
+        assert!(!p.is_hidden_named("egg_belly"));
+        near(p.get("root")[1], -1.0);
+        // Without an egg the belly hides and the root stays put.
+        let mut p = Poses::new(&m);
+        turtle(
+            &mut p,
+            &state(false),
+            &Turtle {
+                on_land: true,
+                laying_egg: false,
+                has_egg: false,
+            },
+        );
+        assert!(p.is_hidden_named("egg_belly"));
+        near(p.get("root")[1], 0.0);
+        // 1.21.11's `TurtleModel.setupAnim` has no baby gate: a baby
+        // with an egg set shows the belly too (unreachable in play —
+        // only a bred adult carries one).
+        let mut p = Poses::new(&m);
+        turtle(
+            &mut p,
+            &state(true),
+            &Turtle {
+                on_land: true,
+                laying_egg: false,
+                has_egg: true,
+            },
+        );
+        assert!(!p.is_hidden_named("egg_belly"));
+        near(p.get("root")[1], -1.0);
     }
 
     #[test]
