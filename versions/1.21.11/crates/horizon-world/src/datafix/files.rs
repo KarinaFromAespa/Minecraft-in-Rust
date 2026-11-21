@@ -22,7 +22,11 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 /// The name `SharedConstants.getCurrentVersion().name()` writes in level.dat.
 pub const VERSION_NAME: &str = horizon_core::version::VANILLA_VERSION;
 
-/// `CanceledFileFixException`: the player pressed Cancel.
+/// The player pressed Cancel during the world upgrade.
+/// (`WorldUpgrader.cancel` in 1.21.11 just stops the worker by flag;
+/// the Rust unwinds with an Interrupted error instead. 26.1's filefix
+/// system raised `CanceledFileFixException` for this — 1.21.11 has no
+/// filefix system.)
 fn canceled() -> io::Error {
     io::Error::new(io::ErrorKind::Interrupted, "the world upgrade was canceled")
 }
@@ -74,7 +78,8 @@ pub fn write_dat(path: &Path, tag: &Tag) -> io::Result<()> {
     fs::write(path, Compression::Gzip.encode(&raw)?)
 }
 
-/// `NbtUtils.getDataVersion`.
+/// `NbtUtils.getDataVersion(Dynamic, int)` — the two-argument form that
+/// survives in 1.21.11 (the one-argument form, defaulting to -1, is gone).
 pub fn data_version(tag: &Tag, default: i32) -> i32 {
     match tag.get("DataVersion") {
         Some(Tag::Int(v)) => *v,
@@ -310,7 +315,7 @@ fn upgrade_region_file(path: &Path, staging: &Path, fix: &impl Fn(&mut Tag)) -> 
 
 /// The progress a data upgrade reports to and whether it may stop early: a
 /// cancel is honoured only while the world's files are still unmoved, since
-/// the DataVersion is stamped last and a retry would run the file fixes again.
+/// the DataVersion is stamped last and a retry would run the file upgrades again.
 struct Progress<'a> {
     progress: &'a UpgradeProgress,
     cancelable: bool,

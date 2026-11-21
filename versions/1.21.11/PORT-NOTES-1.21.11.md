@@ -8817,6 +8817,24 @@ clock was already removed). The farmland raid-target check
 was already fixed in item 27. Tests: `mobs::rabbit::` 11
 passed (1 new).
 
+## Item 149 — datafix/files.rs (rank 2, CHANGED, citations only)
+
+17 classes, 25 methods, 2 named. The whole `filefix` system
+(16 classes, 78 jar entries in 26.1) is absent in 1.21.11 —
+the module doc and layout code already say so, no behaviour
+change. `writeStateProperties` is inlined into
+`writeBlockState`/`writeFluidState` with identical output
+(the template.rs mirror already matches the 1.21.11 form);
+the one-argument `getDataVersion` is gone (the Rust takes a
+default, matching the surviving two-argument form);
+`addCurrentDataVersion` and the one-argument `prettyPrint`
+are new in 1.21.11. Citations fixed: `canceled()` no longer
+cites the 26.1-only `CanceledFileFixException` (1.21.11's
+`WorldUpgrader.cancel` just stops the worker by flag),
+`data_version` cites the two-argument form, and the
+`Progress` doc says "file upgrades". Tests:
+`datafix::files::` 5 passed.
+
 ## CI proof run 44839260120 (recorded below)
 
 Dispatched 05:31 NPT Nov 21, 2026 on behaviour/1.21.11 @
