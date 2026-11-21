@@ -11890,12 +11890,59 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no
     code changed.
 
+- **Item 283 — SectionRenderDispatcher**
+  - SectionRenderDispatcher
+    (outer) and RebuildTask:
+    verified, no code - the
+    same ground as items 57 and
+    176, extended to these
+    classes. The queue, upload
+    and buffer machinery
+    (toUpload, toBatchCount,
+    SectionBuffers, per-layer
+    GPU upload) is GPU
+    architecture with no port
+    surface; the port meshes
+    its own way (Job::Mesh) and
+    uploads synchronously. The
+    debug stats line renders pC
+    from streaming.pending()
+    and aB 0 (no buffer pool),
+    in vanilla's format; pU is
+    omitted, version-neutral,
+    since the port has no
+    pending-upload queue.
+    RebuildTask's null-region
+    to EMPTY has no surface -
+    the port never meshes
+    unloaded regions (lit-
+    columns gate) and continues
+    missing neighbours as
+    Source::Missing (item 57's
+    documented divergence).
+    updateGlobalBlockEntities
+    has no surface (no per-
+    section global block-entity
+    tracking, items 25/57/135).
+    hasAllNeighbors, the
+    translucency resort and
+    empty-section visibility
+    are items 57 / 176's
+    ground; the nested
+    CompiledSection,
+    SectionBuffers and
+    TranslucencyPointOfView
+    classes are item 403's
+    (rank 4).
+  - Verification: read only; no
+    code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **282 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 14/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **283 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 15/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
