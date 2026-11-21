@@ -12435,3 +12435,7 @@ parameter type.
 
 Only visibility and slot re-numbering from the `requireNonNull`
 removal.
+
+## Item 649 — horizon-command/src/tree_extra.rs (DebugCommand) — NO-CHANGE
+
+Only visibility and `requireNonNull`.
