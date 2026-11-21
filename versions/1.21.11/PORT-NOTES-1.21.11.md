@@ -10197,3 +10197,10 @@ reaches the same `114 + rows * 18` height by setting
 `imageHeight` after construction, and crafting
 `assemble` takes the registry lookup in 1.21.11 —
 both already the Rust's form. No code changed.
+
+## Item 257 — game/lan.rs (rank 2, NO-CHANGE)
+
+2 classes, 5 methods, 1 named. Pure noise:
+`ChunkPos.containing`/`unpack` -> constructors,
+dropped null checks, visibility widening. No code
+changed.
