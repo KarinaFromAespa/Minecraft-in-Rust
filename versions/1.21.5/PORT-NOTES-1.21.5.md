@@ -13128,12 +13128,38 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 319 — Ban reason codes**
+  - BanReason: CODE. The
+    ban-reason table had
+    the 1.21.6 arm (33 | 35
+    | 36 => sexually_inappr
+    opriate); in 1.21.5
+    only code 33 maps
+    there, and 35/36 fall
+    to the default null -
+    the ban screen shows
+    the unknown-reason text
+    for them. The rest of
+    the table already
+    matched 1.21.5 exactly
+    (2, 5, 16/25,
+    17/19/23/31, 21, 27,
+    28, 29, 30, 32, 34,
+    53). New test ban_reaso
+    n_codes_are_the_1_21_5_
+    table pins 33 in and
+    35/36 out.
+  - Verification: cargo test -j 1 -p
+    horizon-client-render
+    --lib ban_notice:: 6
+    passed, 0 failed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **318 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 50/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **319 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 51/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

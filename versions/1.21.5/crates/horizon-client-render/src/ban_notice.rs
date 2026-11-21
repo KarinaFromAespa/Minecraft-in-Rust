@@ -134,7 +134,8 @@ fn ban_reason(id: i32) -> Option<&'static str> {
         29 => "fraud",
         30 => "spam_or_advertising",
         32 => "nudity_or_pornography",
-        33 | 35 | 36 => "sexually_inappropriate",
+        // 1.21.5: only 33; 1.21.6 added 35 and 36 to this arm.
+        33 => "sexually_inappropriate",
         34 => "extreme_violence_or_gore",
         53 => "imminent_harm_to_person_or_property",
         _ => return None,
@@ -288,6 +289,15 @@ mod tests {
         )
         .unwrap();
         assert!(clean.servers_allowed && clean.multiplayer_ban.is_none());
+    }
+
+    #[test]
+    fn ban_reason_codes_are_the_1_21_5_table() {
+        assert_eq!(ban_reason(33), Some("sexually_inappropriate"));
+        // 1.21.6 maps 35 and 36 here too; 1.21.5 leaves them unknown.
+        assert_eq!(ban_reason(35), None);
+        assert_eq!(ban_reason(36), None);
+        assert_eq!(ban_reason(34), Some("extreme_violence_or_gore"));
     }
 
     #[test]
