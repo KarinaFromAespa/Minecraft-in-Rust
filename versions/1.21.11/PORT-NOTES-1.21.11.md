@@ -10804,3 +10804,15 @@ implements (`horizon-assets`' blockstate
 module: variants, weighted sets,
 conditions). No dispatcher surface in
 the tree. `horizon-assets`: 57 passed.
+
+## Item 356 — client/renderer/blockentity/state (rank 2, NO-CHANGE)
+
+5 classes, 5 methods, 0 named. 26.1
+carries the chest orientation as a
+`Direction` and the sign wood/transforms
+in the render state; 1.21.11 carries a
+float angle and derives the sign data at
+render time — which is what the Rust
+already does (`y_rot` from the facing,
+sign transforms from the block state).
+`block_entity_render`: 34 passed, 1 ignored.
