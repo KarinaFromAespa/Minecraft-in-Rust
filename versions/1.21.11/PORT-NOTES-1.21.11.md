@@ -12740,3 +12740,7 @@ Visibility only.
 ## Item 715 — horizon-protocol/src/item/skip.rs (StatePropertiesPredicate$ExactMatcher) — NO-CHANGE
 
 Visibility only.
+
+## Item 716 — horizon-server-files/src/properties.rs (Settings$MutableValue) — NO-CHANGE
+
+Visibility plus requireNonNull plus constructor field order.
