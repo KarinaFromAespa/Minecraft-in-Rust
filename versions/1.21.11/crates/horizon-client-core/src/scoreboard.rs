@@ -1,6 +1,6 @@
 //! The scoreboard (`Scoreboard`, `Objective`, `Score`, `PlayerTeam`,
 //! `ObjectiveCriteria`, `NumberFormat`) and its saved data
-//! (`data/minecraft/scoreboard.dat`, `ScoreboardSaveData.Packed`).
+//! (`data/scoreboard.dat`, `ScoreboardSaveData.Packed`).
 use crate::{
     component,
     fastutil_order::{HashSetOrder, OpenOrder},

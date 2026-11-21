@@ -388,7 +388,9 @@ pub fn saved_data_type(relative: &str) -> Option<Ty> {
     // through their codecs with no data fix in 1.21.11, so they are left
     // untouched.
     Some(match name {
-        "minecraft/scoreboard" => Ty::SavedScoreboard,
+        // 1.21.11's `ScoreboardSaveData` type id is "scoreboard", flat
+        // under `data/`; the namespaced form is 26.x's.
+        "scoreboard" | "minecraft/scoreboard" => Ty::SavedScoreboard,
         // 1.21.11's `TicketStorage` type id is "chunks", flat under
         // `data/`; the namespaced form is 26.x's.
         "chunks" | "minecraft/chunk_tickets" => Ty::SavedTickets,

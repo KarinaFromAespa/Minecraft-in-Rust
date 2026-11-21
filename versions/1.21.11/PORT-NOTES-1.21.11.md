@@ -10464,3 +10464,20 @@ absent. `VaultConfig` statics lose `final` in
 widening on two error types and
 `createTagPredicate`; `parse` is identical. No
 source change. `nbt_path`: 12 passed.
+
+## Item 288 — scoreboard.rs (rank 2, CHANGED)
+
+3 classes, 2 methods, 1 named. `load` itself is
+identical (dropped null check, field widening
+only); the real delta is the saved-data type id
+— 26.1's `ScoreboardSaveData.TYPE` is the
+Identifier `minecraft:scoreboard`, 1.21.11's is
+the plain string `"scoreboard"`, so the file is
+`data/scoreboard.dat` flat, not
+`data/minecraft/scoreboard.dat` (the item-232
+pattern, left to this item there). The runtime
+load/save path moved to flat, and
+`saved_data_type` now maps the flat key too
+(namespaced kept as fallback). New test
+`saved_data_types_cover_both_layouts`.
+`scoreboard`: 6 passed.
