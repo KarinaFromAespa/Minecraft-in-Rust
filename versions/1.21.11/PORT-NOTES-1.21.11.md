@@ -10496,3 +10496,17 @@ vs the `Level.random` field — same source, same
 draws; zero constant differences. The Rust
 already reads the field directly. No source
 change.
+
+## Item 291 — game/sculk_fixture.rs (rank 2, NO-CHANGE)
+
+1 class, 2 methods, 1 named. `serialize` is
+rewritten between versions (26.1 streams values
+through an anonymous consumer gated on
+`isSingletonState()`; 1.21.11 iterates the
+values map with `appendProperty` gated on an
+empty property list) but produces the identical
+string — verified piece by piece, including
+that `Property$Value.valueName()` is
+`property.getName(value)`. Plus the
+`typeHolder`/`getBlockHolder` rename. No source
+change. `block`: 2 passed.
