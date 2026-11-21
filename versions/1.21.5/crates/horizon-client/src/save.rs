@@ -4290,8 +4290,20 @@ impl Level {
             .get("abilities")
             .and_then(|a| float(a.get("flySpeed")))
             .map(|v| v as f32);
-        if let Some(d) = text(p.get("Dimension")) {
-            self.dimension = d;
+        // DimensionType.parseLegacy (PlayerList): a legacy numeric dimension
+        // (-1 the nether, 0 the overworld, 1 the end), else the resource key;
+        // anything else keeps the overworld default.
+        if let Some(d) = p.get("Dimension") {
+            match number(Some(d)) {
+                Some(-1) => self.dimension = "minecraft:the_nether".into(),
+                Some(0) => self.dimension = "minecraft:overworld".into(),
+                Some(1) => self.dimension = "minecraft:the_end".into(),
+                _ => {
+                    if let Some(d) = text(Some(d)) {
+                        self.dimension = d;
+                    }
+                }
+            }
         }
         if let Some(respawn) = p.get("respawn")
             && let Some(Tag::IntArray(pos)) = respawn.get("pos")
@@ -7987,6 +7999,27 @@ mod tests {
                 loaded.player_tag().get("respawn"),
                 level.player_tag().get("respawn")
             );
+        }
+    }
+
+    #[test]
+    fn legacy_numeric_dimension_ids_map_to_the_three_dimensions() {
+        // DimensionType.parseLegacy: -1 the nether, 0 the overworld, 1 the
+        // end; a string still parses as the key, and anything else keeps
+        // the overworld default.
+        for (tag, want) in [
+            (Tag::Int(-1), "minecraft:the_nether"),
+            (Tag::Int(0), "minecraft:overworld"),
+            (Tag::Int(1), "minecraft:the_end"),
+            (Tag::Int(2), "minecraft:overworld"),
+            (
+                Tag::String("minecraft:the_end".into()),
+                "minecraft:the_end",
+            ),
+        ] {
+            let mut loaded = Level::default();
+            loaded.read_player(&Tag::compound([("Dimension", tag)]));
+            assert_eq!(loaded.dimension, want);
         }
     }
 

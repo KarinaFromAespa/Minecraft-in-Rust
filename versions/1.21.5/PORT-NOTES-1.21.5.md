@@ -7632,13 +7632,62 @@ is the oracle; decompiled code is a reading aid.
     test-profile build was
     not run (OOM under
     load, item 122).
+- **Item 161 — Dimension
+  cloud height absent;
+  legacy dimension ids
+  parsed:**
+  - `DimensionType.cloud_height`
+    is 1.21.6-only: the
+    Rust `DimensionType`
+    has no such field and
+    the registry reader
+    never reads it, so
+    there is nothing to
+    remove. Cloud height
+    comes from the
+    `visual/cloud_height`
+    default 192.33, which
+    matches 1.21.5's
+    overworld form
+    (`getCloudHeight()`
+    192 + 0.33 in
+    `LevelRenderer`).
+    `parseLegacy` (1.21.5)
+    was a real gap: the
+    player load read
+    `Dimension` as a
+    string only, so a
+    legacy numeric id
+    (-1 nether, 1 end)
+    silently loaded as
+    the overworld. The
+    load now maps -1/0/1
+    to the three
+    dimensions, takes a
+    string as the key,
+    and keeps the
+    overworld default
+    otherwise — pinned by
+    a test. No datafix
+    converts the field,
+    which is why vanilla
+    keeps `parseLegacy`
+    in `PlayerList`.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests` 0/0 (49s).
+    The test-profile
+    build was not run
+    (OOM under load,
+    item 122).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **160 of 426 are
-closed** (rank 1 complete, rank 2 at 151/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **161 of 426 are
+closed** (rank 1 complete, rank 2 at 152/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
