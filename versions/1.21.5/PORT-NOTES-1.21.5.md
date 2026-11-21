@@ -11614,12 +11614,62 @@ is the oracle; decompiled code is a reading aid.
     --tests: 0 errors, 0
     warnings (1m48s).
 
+- **Item 276 — HangingEntity**
+  - HangingEntity: already the
+    1.21.5 form. Direction is a
+    plain field
+    (Painting/ItemFrame facing,
+    u8), rides the add-entity
+    packet's data int, no
+    DATA_DIRECTION; frame
+    item/rotation at 8/9 and
+    the painting variant at 8
+    are the 1.21.5 indices.
+    Spawn yaw/pitch follow
+    setDirection (yaw 2D*90;
+    frame pitch +-90 vertical).
+    rotate()'s yaw-base
+    difference has no surface:
+    the hanging NBT readers
+    discard Rotation, and save
+    writes yaw from facing. Its
+    bbox difference is moot:
+    placeEntities' snapTo
+    rebuilds the box from the
+    0.5x0.5 type dimensions in
+    both versions
+    (reapplyPosition -> setPos
+    -> makeBoundingBox). Known
+    gaps, version-neutral:
+    turn_facing applies mirror-
+    then-rotate while vanilla's
+    entity path applies rotate-
+    then-mirror (javap:
+    Mirror.getRotation is 180
+    on the mirrored axis, else
+    NONE; getClockWise
+    N->E->S->W), so a north-
+    facing painting under
+    mirror + 90-degree rotation
+    faces W in the port, E in
+    vanilla; vanilla's own
+    entity path disagrees with
+    its block path here.
+    place_entities yaw uses the
+    base Entity.rotate arms,
+    not the hanging override's
+    swapped arms -
+    unobservable, since hanging
+    yaw is discarded at spawn.
+  - Verification: read only; no
+    code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **275 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 7/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **276 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 8/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
