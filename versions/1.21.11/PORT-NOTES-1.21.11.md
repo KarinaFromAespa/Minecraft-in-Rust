@@ -12574,3 +12574,7 @@ Exception table only (`Exception` vs `RuntimeException` + `IOException`).
 ## Item 676 — horizon-client-core/src/text.rs (DrawableGizmoPrimitives$Text, HoverEvent$Action) — NO-CHANGE
 
 Visibility plus method order (identical lambda, emitted earlier).
+
+## Item 677 — horizon-client-render/src/core_shader.rs (GlslPreprocessor$Context) — NO-CHANGE
+
+Visibility only.
