@@ -3141,13 +3141,78 @@ is the oracle; decompiled code is a reading aid.
     and `cargo check -p
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings.
+- **Item 69 — TemptGoal / wolf & cat
+  variants / sit goal, verified:**
+  - `TemptGoal`: 1.21.5 hardcodes
+    the stop distance (6.25 =
+    2.5 squared); the Rust default
+    is 2.5. The 1.21.6
+    `ForNonPathfinders` subclass
+    has no 1.21.5 user (it serves
+    the happy ghast, already
+    removed). The armadillo's
+    1.0 / 2.0 stop distance maps
+    the brain `FollowTemptation`
+    close-enough distance, which
+    is unchanged between the
+    versions — not a `TemptGoal`
+    parameter.
+  - `ShoulderRidingEntity` and
+    `Cat` save/load: Java API-only
+    (`TagValueOutput` /
+    `ValueInput` vs `CompoundTag` +
+    `RegistryOps`). The content is
+    identical (`id` + the entity
+    tag; `CollarColor`, red
+    default, which the Rust NBT
+    code already reads and
+    writes).
+  - `WolfModel`: the right legs
+    are unmirrored in 1.21.5, but
+    the geometry comes from
+    `entity-models.json`, exported
+    from the version's own client
+    jar at prepare — the 1.21.5
+    data already has the 1.21.5
+    form. No Rust model code
+    names the legs' mirroring.
+  - `SitWhenOrderedToGoal`: 1.21.6
+    sits a pet whose owner is in
+    another level; in 1.21.5 the
+    owner lookup is level-scoped,
+    so it returns null and sits
+    anyway. The Rust lookup is
+    level-scoped the same way
+    (`w.player`), so a
+    cross-dimension owner yields
+    `None` and the pet sits.
+  - Variant selection: 1.21.5's
+    `CatVariants` /
+    `WolfVariants.selectVariantToSpawn`
+    and 1.21.6's `VariantUtils`
+    form are the same
+    `PriorityProvider.pick` over
+    the same registry and
+    selectors. The Rust
+    `cat_variant` matches the
+    moon cases (uniform over 11
+    on a full moon, 10
+    otherwise); the swamp-hut
+    always-black case is a
+    pre-existing gap in both
+    versions, not a delta.
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **68 of 426 are
-closed** (rank 1 complete, rank 2 at 59/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **69 of 426 are
+closed** (rank 1 complete, rank 2 at 60/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
