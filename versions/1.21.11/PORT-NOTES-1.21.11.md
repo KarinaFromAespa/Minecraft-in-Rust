@@ -12647,3 +12647,7 @@ Visibility plus anonymous-class constructor field order.
 ## Item 693 — game/launch_options.rs (QuickPlay) — NO-CHANGE
 
 Compiler artifact only (`typeSwitch` descriptor, as item 674).
+
+## Item 694 — game/levels.rs (ChunkLoadCounter) — NO-CHANGE
+
+Method rename only (`ChunkPos.pack` vs `toLong`, same value).
