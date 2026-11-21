@@ -127,11 +127,11 @@ pub fn register(m: &mut Mob) {
                 )
                 .interval(10),
             );
-            // DrownedMoveControl, AmphibiousPathNavigation, no water malus.
+            // DrownedMoveControl, the ground navigation until updateSwimming
+            // swaps in the water-bound one (1.21.5 keeps both; 1.21.6's
+            // single AmphibiousPathNavigation is gone), no water malus.
             m.ai.mov.kind = super::control::MoveKind::Custom;
-            m.ai.nav.kind = super::nav::NavKind::Amphibious {
-                prefers_shallow: false,
-            };
+            m.ai.nav.kind = super::nav::NavKind::Ground;
             m.ai.nav.can_float = false;
             m.set_malus(super::path::PathType::Water, 0.0);
         }
@@ -202,9 +202,22 @@ pub fn drowned_wants_to_swim(m: &Mob, w: &super::MobWorld) -> bool {
 }
 /// `Drowned.updateSwimming`: swimming under water while it wants to. `flag`
 /// holds `isSwimming`, which clients take from the entity's shared flags.
+/// 1.21.5 swaps the navigation here too: the water-bound one while swimming,
+/// the ground one otherwise. The swap drops the current path — vanilla swaps
+/// to a different navigation object, which starts pathless.
 pub fn drowned_update_swimming(m: &mut Mob, w: &super::MobWorld) {
-    m.extra.flag =
+    let swimming =
         !m.no_ai && m.was_eye_in_water && m.fluids.in_water && drowned_wants_to_swim(m, w);
+    m.extra.flag = swimming;
+    let kind = if swimming {
+        super::nav::NavKind::Water { breach: false }
+    } else {
+        super::nav::NavKind::Ground
+    };
+    if m.ai.nav.kind != kind {
+        m.ai.nav.kind = kind;
+        m.ai.nav.stop();
+    }
 }
 /// A drowned on a client: `LivingEntity.updateSwimAmount` follows the
 /// swimming flag (`Drowned.isVisuallySwimming`).
@@ -995,6 +1008,13 @@ impl Goal for DrownedGoToWater {
         !m.ai.nav.is_done()
     }
     fn start(&mut self, m: &mut Mob, cx: &mut Cx) {
+        // `DrownedGoToWaterGoal.start` puts the drowned on its ground
+        // navigation before it walks to the water (updateSwimming already
+        // did, out of water — this is vanilla's belt-and-braces).
+        if m.ai.nav.kind != super::nav::NavKind::Ground {
+            m.ai.nav.kind = super::nav::NavKind::Ground;
+            m.ai.nav.stop();
+        }
         m.nav_move_to(cx.w, self.wanted, 1.0);
     }
 }
@@ -1500,6 +1520,51 @@ mod go_to_water_tests {
             });
             let _ = ran;
         }
+    }
+
+    /// `Drowned.updateSwimming` swaps the navigation with the swimming
+    /// flag: water-bound under water while it wants to swim, ground
+    /// otherwise — and the swap drops the current path, as vanilla's
+    /// fresh navigation object starts pathless.
+    #[test]
+    fn a_drowned_swaps_navigation_with_its_swimming() {
+        let ran = crate::mobs::world::with_test_world(&[], |w, types| {
+            let mut kind = types.types["minecraft:drowned"].clone();
+            kind.species = Species::Drowned;
+            let mut m = Mob::new(1, Arc::new(kind), Vec3::new(0.5, 64.0, 0.5), 0.0);
+            assert_eq!(m.ai.nav.kind, crate::mobs::nav::NavKind::Ground);
+            m.extra.flag2 = true;
+            m.fluids.in_water = true;
+            m.was_eye_in_water = true;
+            m.ai.nav.path = Some(crate::mobs::path::Path {
+                nodes: vec![],
+                next: 0,
+                target: [0, 64, 0],
+                dist_to_target: f32::MAX,
+                reached: false,
+            });
+            drowned_update_swimming(&mut m, w);
+            assert!(m.extra.flag);
+            assert_eq!(
+                m.ai.nav.kind,
+                crate::mobs::nav::NavKind::Water { breach: false }
+            );
+            assert!(m.ai.nav.path.is_none());
+            m.fluids.in_water = false;
+            m.was_eye_in_water = false;
+            m.ai.nav.path = Some(crate::mobs::path::Path {
+                nodes: vec![],
+                next: 0,
+                target: [0, 64, 0],
+                dist_to_target: f32::MAX,
+                reached: false,
+            });
+            drowned_update_swimming(&mut m, w);
+            assert!(!m.extra.flag);
+            assert_eq!(m.ai.nav.kind, crate::mobs::nav::NavKind::Ground);
+            assert!(m.ai.nav.path.is_none());
+        });
+        let _ = ran;
     }
 }
 

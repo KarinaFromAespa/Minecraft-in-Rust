@@ -6051,13 +6051,79 @@ is the oracle; decompiled code is a reading aid.
     the one `cargo check -j 1
     -p horizon-client --lib`
     passed at item 126.
+- **Item 129 — Drowned
+  navigation back to the
+  1.21.5 dual form:**
+  - 1.21.6 gave the drowned
+    one `AmphibiousPathNavigation`;
+    1.21.5 keeps two
+    navigations and swaps
+    them in `updateSwimming`:
+    water-bound while
+    swimming, ground
+    otherwise, with
+    `DrownedGoToWaterGoal.start`
+    also selecting the ground
+    one. The port had the
+    1.21.6 form (a fixed
+    `NavKind::Amphibious`).
+  - CODE: the drowned now
+    starts on `NavKind::Ground`
+    (1.21.5's `createNavigation`
+    default — Drowned does
+    not override it),
+    `drowned_update_swimming`
+    swaps the kind with the
+    swimming flag
+    (`Water { breach: false }`
+    while swimming), and the
+    swap drops the current
+    path, as vanilla's fresh
+    navigation object starts
+    pathless. The go-to-water
+    goal's `start` selects
+    the ground navigation
+    before moving, as vanilla
+    does. The `Amphibious`
+    doc list in `nav.rs` no
+    longer names the drowned.
+  - The swap is observable
+    through the navigation
+    itself: the evaluator
+    (Swim vs Walk),
+    `can_update_path` (in
+    liquid vs on ground),
+    and the path origin
+    (mid-height vs surface)
+    all follow the kind, and
+    `can_navigate_ground`
+    now answers dynamically
+    as vanilla's
+    `hasGroundPathNavigation`
+    does.
+  - Axolotl, Turtle and Frog
+    keep `AmphibiousPathNavigation`
+    in 1.21.5 (verified in
+    the 1.21.5 decomp), so
+    only the drowned changes.
+  - Test added:
+    `a_drowned_swaps_navigation_with_its_swimming`
+    (Ground at rest, Water
+    under water while it
+    wants to swim, Ground
+    again out of water, path
+    dropped on each swap).
+  - Verification: `cargo check
+    -j 1 -p horizon-client
+    --lib --tests` 0 errors /
+    0 warnings; test 1 passed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **128 of 426 are
-closed** (rank 1 complete, rank 2 at 119/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **129 of 426 are
+closed** (rank 1 complete, rank 2 at 120/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

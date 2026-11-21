@@ -16,9 +16,11 @@ pub enum NavKind {
         breach: bool,
     },
     Flying,
-    /// `AmphibiousPathNavigation` (`Axolotl`, `Drowned`, `Turtle`, and the
+    /// `AmphibiousPathNavigation` (`Axolotl`, `Turtle`, and the
     /// `Frog`, whose `FrogPathNavigation.prefersShallowSwimming` costs the
-    /// water nodes deeper than ten blocks under sea level.
+    /// water nodes deeper than ten blocks under sea level). The `Drowned`
+    /// is not one of these in 1.21.5: it swaps a water-bound and a ground
+    /// navigation in `updateSwimming` (1.21.6 gave it this one).
     Amphibious {
         prefers_shallow: bool,
     },
