@@ -2284,13 +2284,87 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check, 5s).
+- **Item 57 — SectionRenderDispatcher /
+  WorldBorderRenderer / FogRenderer$FogMode,
+  verified, no code change:**
+  - The section dispatcher diff is
+    GPU architecture: 1.21.6's
+    `CompiledSectionMesh` /
+    `ChunkSectionLayer` upload
+    machinery against 1.21.5's
+    `CompiledSection` +
+    per-`RenderType` `SectionBuffers`.
+    The Rust's wgpu mesher has its
+    own section meshes and no
+    surface for any of it — no
+    `CompiledSectionMesh`, no
+    dispatcher queue or stats
+    (`pC` / `pU` / `aB`), no
+    `toBatchCount`, no per-section
+    global block entity tracking
+    (item 25).
+  - The one behavioural delta,
+    `hasAllNeighbors`, has no Rust
+    surface either: 1.21.5
+    short-circuits to true within
+    24 blocks of the player
+    (`getDistToPlayerSqr() <=
+    576.0`), 1.21.6 always checks
+    all eight neighbours — but the
+    Rust never gates meshing on
+    neighbours at all. It meshes
+    with missing neighbours by
+    continuing the edge column
+    (`Source::Missing`), a
+    deliberate divergence already
+    documented at mesher.rs ("Vanilla
+    draws no chunk without its
+    neighbours").
+  - The translucency resort matches
+    both versions: the Rust's
+    `SortState::update` computes
+    the same per-axis clamped
+    point of view and skips the
+    resort on an equal POV for a
+    diagonal view (1.21.5's
+    `pov.equals(pointOfView)` is
+    1.21.6's `!isDifferentPointOfView`;
+    the Rust's same-block
+    refinement for aligned views is
+    documented there and identical
+    in both versions).
+  - The world border math is
+    identical in both versions and
+    matches the Rust: alpha
+    `(1 - distance / renderDistance)^4`
+    clamped, the UV scroll
+    `(millis % 3000) / 3000`,
+    `v0 = -frac(camera.y * 0.5)`,
+    the status colour channels, and
+    sides drawn only within the
+    render distance. The diff is
+    GPU API only (`setShaderColor` /
+    `setTextureMatrix` /
+    `setModelOffset` vs
+    `DynamicUniforms`, `GpuTexture`
+    vs `GpuTextureView`,
+    `setFilter` vs `setUseMipmaps`).
+  - `FogRenderer$FogMode` has no
+    diff content in this item's
+    file (a report false positive);
+    FogRenderer itself was ported
+    to the 1.21.5 form under item 28.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check, 4s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **56 of 426 are
-closed** (rank 1 complete, rank 2 at 47/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **57 of 426 are
+closed** (rank 1 complete, rank 2 at 48/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
