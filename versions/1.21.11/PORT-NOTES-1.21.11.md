@@ -12549,3 +12549,8 @@ Visibility only.
 
 Visibility plus the `RandomSource` factory (`createThreadLocalInstance`
 vs `create` — same seed, same sequence).
+
+## Item 671 — launcher/src/screenshots.rs (Screenshot) — NO-CHANGE
+
+invokevirtual vs invokeinterface only (`GpuDevice`/`CommandEncoder`
+are interfaces in 1.21.11, classes in 26.1); same calls.
