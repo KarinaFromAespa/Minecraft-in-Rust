@@ -8659,13 +8659,44 @@ is the oracle; decompiled code is a reading aid.
     OOM-killed under
     load, test runs in
     CI.
+- **Item 183 — Chunk
+  section empty,
+  container size:**
+  - `isSectionEmpty` is a
+    trivial accessor 1.21.6
+    inlined away; the
+    port's section checks
+    already use the
+    `hasOnlyAir` form. The
+    `ProblemReporter` chunk
+    path is 1.21.6-only
+    diagnostics with no
+    Rust surface. The
+    container size formula
+    differs only as an
+    estimate: 1.21.5
+    overcounts by a VarInt
+    the wire form never
+    carries (`write` uses a
+    fixed-size long array
+    in both versions), and
+    the port measures
+    actual encoded bytes,
+    with no size function
+    at all. Its
+    `Paletted::write`
+    matches the shared wire
+    form.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **182 of 426 are
-closed** (rank 1 complete, rank 2 at 173/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **183 of 426 are
+closed** (rank 1 complete, rank 2 at 174/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
