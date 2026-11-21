@@ -10387,3 +10387,12 @@ overload is 26.1-only (item 210). The Rust
 already models the unseeded form; one doc
 citation updated to the 1.21.11 name.
 `random_source`: 1 passed.
+
+## Item 278 — sound_events.rs (rank 2, NO-CHANGE)
+
+3 classes, 3 methods, 1 named. The normalized
+bytecode diff is empty: `Sound`,
+`SoundEventRegistrationSerializer` and
+`WeighedSoundEvents` are identical in both
+versions. No source change. `sound_events`:
+5 passed.
