@@ -4392,13 +4392,39 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 102 — AABB, verified:**
+  - 1.21.6 added two
+    convenience methods.
+    `intersects(BlockPos)`
+    delegates to the existing
+    6-double intersects; no
+    Rust equivalent is
+    needed. `distanceToSqr(AABB)`
+    has exactly one vanilla
+    caller, the splash
+    potion — and item 22
+    already ported that to
+    the 1.21.5 form
+    (feet-to-feet distance,
+    direct hit at full
+    strength). The Rust
+    `Aabb` carries the same
+    formula as
+    `distance_squared_to_box`,
+    used only by the geometry
+    parity probe, not by
+    gameplay. No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **101 of 426 are
-closed** (rank 1 complete, rank 2 at 92/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **102 of 426 are
+closed** (rank 1 complete, rank 2 at 93/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
