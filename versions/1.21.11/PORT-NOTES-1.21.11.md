@@ -12414,3 +12414,9 @@ overload).
 
 Extractor rewire, plus `addClientSystemMessage` vs `addMessage` for
 the LAN-opened chat line (same system message).
+
+## Item 645 — game/mob_looting.rs (EnchantmentEffectComponents) — NO-CHANGE
+
+The registered effect-component sets are identical (31 names in both);
+the diff is registration order and the codec validation form (same
+loot validation refactor as item 628).
