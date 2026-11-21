@@ -10123,3 +10123,21 @@ type instead of its own codec — a registration
 pattern with no Rust analogue (the predicate is
 keyed by its string type). `test` itself is
 unchanged. No code changed.
+
+## Item 248 — game/loom.rs (rank 2, CHANGED)
+
+1 class, 6 methods, 1 named. Two real deltas under
+the render-state extraction rename: the scrollbar
+hover cursor checks only the 15-tall thumb in
+1.21.11 (26.1 checked the whole 56-tall track and
+gated on the scrollbar being active), and the dye
+colour comes from `DyeItem.getDyeColor` instead of
+the DYE component. Ported the thumb hover
+(`LoomState::thumb_hovered` + a pointing-hand
+request in `draw_loom`; vanilla's resize-while-
+dragging has no Rust cursor variant yet) and updated
+the doc citations to the 1.21.11 names. New test
+`only_the_thumb_hover_asks_for_the_hand` (verified
+by `cargo check --tests` plus a standalone run of
+the verbatim logic — the full exe lib test binary
+OOMs locally at -j 1).

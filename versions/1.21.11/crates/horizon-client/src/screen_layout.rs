@@ -62,7 +62,7 @@ pub enum ScreenDraw {
     },
 }
 
-/// What `LoomScreen.extractBackground` reads.
+/// What `LoomScreen.renderBg` reads.
 pub struct LoomView<'a> {
     pub width: i32,
     pub height: i32,
@@ -81,7 +81,7 @@ pub struct LoomView<'a> {
     pub start_row: usize,
     /// The result banner's colour and layers (`resultBannerPatterns`).
     pub result: Option<(&'a str, &'a [BannerLayer])>,
-    /// The dye stack's colour (`DataComponents.DYE`, white without one).
+    /// The dye stack's colour (`DyeItem.getDyeColor`, white without one).
     pub dye: &'a str,
     pub mouse: (f32, f32),
 }
@@ -101,7 +101,7 @@ fn sprite(id: &str, x: i32, y: i32, w: i32, h: i32) -> ScreenDraw {
     }
 }
 
-/// `LoomScreen.extractBackground`.
+/// `LoomScreen.renderBg`.
 pub fn loom(v: &LoomView, banners: &Banners) -> Vec<ScreenDraw> {
     let (xo, yo) = (v.left, v.top);
     let mut out = vec![

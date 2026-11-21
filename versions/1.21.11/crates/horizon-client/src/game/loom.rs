@@ -37,6 +37,14 @@ impl LoomState {
     fn row_for(&self, offs: f32) -> usize {
         ((offs * self.offscreen_rows() as f32 + 0.5) as i32).max(0) as usize
     }
+    /// `LoomScreen.renderBg`: the mouse over the scroller's thumb (12 wide,
+    /// 15 tall, at x 119 and y 13 + the scrolled offset). 1.21.11 checks
+    /// only the thumb; 26.1 checked the whole 56-tall track and gated on
+    /// `isScrollBarActive`.
+    fn thumb_hovered(&self, local: (f32, f32)) -> bool {
+        let y = 13.0 + (41.0 * self.scroll) as i32 as f32;
+        inside(local, 119.0, y, 12.0, 15.0)
+    }
 }
 
 const BUTTON: f32 = 14.0;
@@ -309,7 +317,7 @@ impl Game<'_> {
         }
         tooltip
     }
-    /// `LoomScreen.extractBackground` after the background (the verified
+    /// `LoomScreen.renderBg` after the background (the verified
     /// `screen_layout::loom`); returns the hovered pattern's tooltip.
     pub(super) fn draw_loom(
         &mut self,
@@ -320,6 +328,13 @@ impl Game<'_> {
     ) -> Option<Vec<(horizon_client::text::Text, u32)>> {
         let s = self.station.as_ref()?;
         let l = &s.loom;
+        // `LoomScreen.renderBg`: hovering the scroller's thumb asks for the
+        // pointing hand (vanilla asks for the resize cursor while dragging;
+        // the Rust cursor has no resize variant yet). Hovering the track
+        // outside the thumb asks for nothing.
+        if l.thumb_hovered(local) {
+            horizon_client::widgets::request_cursor(horizon_client::widgets::Cursor::PointingHand);
+        }
         let dye = s.inputs[1]
             .as_ref()
             .and_then(|d| self.items().get(&d.item))
@@ -381,5 +396,25 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(l.offscreen_rows(), 0);
+    }
+    #[test]
+    fn only_the_thumb_hover_asks_for_the_hand() {
+        let l = LoomState {
+            scroll: 0.0,
+            ..Default::default()
+        };
+        // The thumb at rest: x 119..131, y 13..28.
+        assert!(l.thumb_hovered((125.0, 20.0)));
+        assert!(!l.thumb_hovered((118.0, 20.0)));
+        // The track below the thumb is not the thumb (26.1 hovered the
+        // whole 56-tall track).
+        assert!(!l.thumb_hovered((125.0, 40.0)));
+        // Fully scrolled, the thumb sits at y 54..69.
+        let l = LoomState {
+            scroll: 1.0,
+            ..Default::default()
+        };
+        assert!(l.thumb_hovered((125.0, 60.0)));
+        assert!(!l.thumb_hovered((125.0, 20.0)));
     }
 }
