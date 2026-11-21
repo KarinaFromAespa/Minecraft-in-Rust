@@ -96,7 +96,7 @@ pub fn ai_step(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
         return;
     }
     // The speed lives in the attribute's base, which the save writes and the
-    // load restores (AttributeMap.pack and apply).
+    // load restores (AttributeMap.save and load).
     let speed = if immobile(m) {
         0.0
     } else {

@@ -581,7 +581,7 @@ pub fn store(guest: &Guest, level: &mut Level, vehicle: Option<Tag>) {
             }
         }
     }
-    // LivingEntity.addAdditionalSaveData: the live body's AttributeMap.pack,
+    // LivingEntity.addAdditionalSaveData: the live body's AttributeMap.save,
     // or the list the file had while the player has no body yet.
     // A player between two bodies (a respawn, a change of level) saves what
     // the next one takes over.

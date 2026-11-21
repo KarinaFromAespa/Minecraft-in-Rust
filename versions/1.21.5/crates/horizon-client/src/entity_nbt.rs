@@ -1074,7 +1074,7 @@ pub fn mob_to_nbt(
             } else {
                 map.insert("equipment".into(), Tag::compound(equipment));
             }
-            // AttributeMap.pack writes the instances that exist: the ones the
+            // AttributeMap.save writes the instances that exist: the ones the
             // entity was loaded with. When the tag had no attributes list,
             // instances are not synthesized (SummonCommand without finalizeSpawn
             // saves attributes: []).
@@ -1511,10 +1511,10 @@ pub fn mob_to_nbt(
     }
     put_sulfur_attributes(map, m);
     // The instances their own construction and load make (finalize::made_at_load),
-    // which AttributeMap.pack saves although the loaded tag had none.
+    // which AttributeMap.save saves although the loaded tag had none.
     use crate::mobs::finalize::Attr;
     let made = crate::mobs::finalize::made_at_load(m);
-    // AttributeMap.pack writes the list even when no instance exists.
+    // AttributeMap.save writes the list even when no instance exists.
     map.entry("attributes".into())
         .or_insert_with(|| Tag::List(Vec::new()));
     for attr in made {
@@ -1725,7 +1725,7 @@ const MOB_ONLY_KEYS: [&str; 10] = [
     "DeathLootTable",
     "DeathLootTableSeed",
 ];
-/// `AttributeMap.pack` for the attributes with a base or permanent modifier
+/// `AttributeMap.save` for the attributes with a base or permanent modifier
 /// finalizeSpawn set, over the saved list.
 fn put_attributes(map: &mut Compound, m: &Mob, a: &crate::mobs::finalize::Attributes) {
     use crate::mobs::finalize::{self, Attr, Op};
@@ -1774,7 +1774,7 @@ fn put_attributes(map: &mut Compound, m: &Mob, a: &crate::mobs::finalize::Attrib
     }
     map.insert("attributes".into(), Tag::List(list));
 }
-/// `AttributeMap.pack` of a sulfur cube's body archetype attributes: the
+/// `AttributeMap.save` of a sulfur cube's body archetype attributes: the
 /// base and permanent modifiers of each instance its own map holds (the
 /// archetype's transient modifiers are not saved).
 fn put_sulfur_attributes(map: &mut Compound, m: &Mob) {
@@ -3853,7 +3853,7 @@ pub fn armor_stand_to_nbt(a: &ArmorStand, uuid: [i32; 4], raw: Option<&Tag>) -> 
             ("AbsorptionAmount", Tag::Float(0)),
             ("FallFlying", Tag::Byte(0)),
             ("current_impulse_context_reset_grace_time", Tag::Int(0)),
-            // AttributeMap.pack: the movement_speed instance the stand's first
+            // AttributeMap.save: the movement_speed instance the stand's first
             // tick makes (removeFrost), at the registry default.
             (
                 "attributes",
@@ -5854,7 +5854,7 @@ mod tests {
     #[test]
     fn entities_without_fire_save_zero_and_a_mob_saves_its_speed_instance() {
         // Entity.remainingFireTicks starts at 0; LivingEntity.removeFrost makes
-        // the movement_speed instance AttributeMap.pack then saves.
+        // the movement_speed instance AttributeMap.save then saves.
         let orb = ExperienceOrb {
             rotation: [0.0, 0.0],
             join: Default::default(),

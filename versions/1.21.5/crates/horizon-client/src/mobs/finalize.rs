@@ -524,7 +524,7 @@ pub fn base_value_with(m: &Mob, a: Attr, default: impl FnOnce() -> Option<f64>) 
         })
 }
 /// The attribute instances the mob's own construction and load leave in its
-/// `AttributeMap`, which `AttributeMap.pack` saves although the loaded tag held
+/// `AttributeMap`, which `AttributeMap.save` saves although the loaded tag held
 /// none: `AttributeMap.getInstance` makes one for any `getAttribute`, a read or
 /// a `setBaseValue`. What `set_base` recorded (finalizeSpawn, a size, a baby
 /// growing up) is saved apart; these are the rest:
@@ -549,7 +549,7 @@ pub fn made_at_load(m: &Mob) -> Vec<Attr> {
     }
     made
 }
-/// The base of an instance `made_at_load` lists, as `AttributeMap.pack` writes it.
+/// The base of an instance `made_at_load` lists, as `AttributeMap.save` writes it.
 pub fn made_base(m: &Mob, a: Attr) -> f64 {
     match (m.species(), a) {
         // `Wolf.applyTamingSideEffects` sets 40 for a tame wolf and 8 for the others;

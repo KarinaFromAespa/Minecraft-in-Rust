@@ -2042,7 +2042,7 @@ pub struct ArmorStand {
     /// `Entity.mainSupportingBlockPos` after the last move.
     pub support: horizon_world::ground_support::GroundState,
     /// Its `AttributeMap` holds a `movement_speed` instance, which
-    /// `AttributeMap.pack` saves. `LivingEntity.aiStep`'s `removeFrost` makes it
+    /// `AttributeMap.save` saves. `LivingEntity.aiStep`'s `removeFrost` makes it
     /// (`getAttribute`) on the stand's first server tick, and a save that lists
     /// it loads it back, so a stand summoned this tick has none yet.
     pub speed_instance: bool,

@@ -778,7 +778,7 @@ impl PlayerMotion {
         }
         Ok(())
     }
-    /// `AttributeMap.pack` in `AttributeInstance.Packed.LIST_CODEC`'s form: the
+    /// `AttributeMap.save`'s ListTag form: the
     /// player's `attributes` list (LivingEntity.addAdditionalSaveData), each
     /// instance's id, base and permanent modifiers.
     pub fn saved_attributes(&self) -> horizon_world::nbt::Tag {
@@ -3364,7 +3364,7 @@ mod tests {
 
     #[test]
     fn attribute_bases_survive_a_save_and_reload() {
-        // #4425: LivingEntity.addAdditionalSaveData writes AttributeMap.pack
+        // #4425: LivingEntity.addAdditionalSaveData writes AttributeMap.save
         // and readAdditionalSaveData applies it (before the health).
         let root = std::env::var_os("HORIZON_TEST_RESOURCES")
             .map(std::path::PathBuf::from)

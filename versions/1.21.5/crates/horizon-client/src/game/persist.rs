@@ -4281,7 +4281,7 @@ mod attribute_instance_save_tests {
     }
 
     /// Expected values from the official 26.3 server: a fresh mob has no
-    /// attribute instance (AttributeMap.pack saves []); its first tick makes
+    /// attribute instance (AttributeMap.save saves []); its first tick makes
     /// movement_speed (aiStep -> removeFrost -> getAttribute); an instance it
     /// was loaded with stays.
     #[test]

@@ -5896,13 +5896,77 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-client
     --lib` 0 errors / 0
     warnings.
+- **Item 126 — Attribute
+  instance save/load verified
+  against 1.21.5:**
+  - The delta is the usual
+    API refactor: 1.21.6's
+    `AttributeInstance.Packed`
+    record and its codec
+    versus 1.21.5's
+    `save()`/`load(CompoundTag)`.
+    The serialized form is
+    identical in both
+    versions — `id`, `base`
+    (default 0.0),
+    `modifiers` only when
+    non-empty — and the Rust
+    port already writes and
+    reads exactly that form
+    (`put_attributes`,
+    `read_attribute_modifiers`,
+    the bases load in
+    `entity_nbt.rs`).
+  - Only the stale 1.21.6
+    names in comments needed
+    changing: `AttributeMap.pack`
+    → `AttributeMap.save`
+    (12 sites across
+    `entity_nbt.rs`,
+    `entities.rs`,
+    `motion.rs`, `game.rs`,
+    `persist.rs`,
+    `playerdata.rs`,
+    `finalize.rs`,
+    `finalize_load_tests.rs`,
+    `ravager.rs`) and
+    `AttributeInstance.apply`
+    → `AttributeInstance.load`
+    (`saved_attributes.rs`).
+    The `Packed.LIST_CODEC`
+    citation in `motion.rs`
+    is now `AttributeMap.save`'s
+    ListTag form.
+  - The Rust-side
+    `pack()`/`apply()` API
+    in `horizon-world`'s
+    attributes module is
+    left alone: it is an
+    internal Rust API, not
+    the serialized form,
+    and renaming it would be
+    churn with no observable
+    effect.
+  - Pre-existing edge, same
+    in both versions: a
+    saved entry with no
+    `base` is skipped by the
+    Rust load where vanilla
+    sets 0.0 — reachable
+    only from hand-edited
+    NBT, since `save`
+    always writes `base`.
+  - Verification: `cargo check
+    -j 1 -p horizon-client
+    --lib` 0 errors / 0
+    warnings.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **125 of 426 are
-closed** (rank 1 complete, rank 2 at 116/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **126 of 426 are
+closed** (rank 1 complete, rank 2 at 117/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

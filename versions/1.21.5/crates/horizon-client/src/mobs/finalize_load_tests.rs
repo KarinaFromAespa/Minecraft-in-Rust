@@ -1,5 +1,5 @@
 //! The attribute instances a mob's own construction and load leave in its
-//! `AttributeMap`, which `AttributeMap.pack` then saves (`LivingEntity.addAdditionalSaveData`).
+//! `AttributeMap`, which `AttributeMap.save` then saves (`LivingEntity.addAdditionalSaveData`).
 //!
 //! The expected lists are vanilla 26.3's: the saved `attributes` of
 //! `/summon minecraft:<id> ~ ~ ~ {<extra>}` read back before any tick
