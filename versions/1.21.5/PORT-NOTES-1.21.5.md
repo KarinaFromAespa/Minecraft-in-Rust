@@ -1635,13 +1635,47 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -p
     horizon-client --all-targets` 0 errors /
     0 warnings (3m27s).
+- **Item 41 — BaseSpawner / spawner and
+  command minecarts, ported:**
+  - The diff is the ValueInput/ValueOutput →
+    CompoundTag migration: 1.21.6 loads the
+    spawn entity through a
+    `ProblemReporter.ScopedCollector` +
+    `TagValueInput`, 1.21.5 reads the
+    `CompoundTag` directly, with identical
+    logic (spawn position formula, collision
+    and spawn-rule checks, `maxNearbyEntities`
+    count, finalize-when-unconfigured,
+    equipment, level event 2004). The Rust
+    was already compound-based and matches
+    on every point, as do the save/load keys
+    and defaults and the spawner/command
+    minecart NBT.
+  - Real fix, the item-26 referral: a spawn
+    egg used on a REGULAR spawner sets only
+    the type in 1.21.5 — `Spawner` has no
+    `setEntityData` at all, and
+    `SpawnEggItem.useOn` calls only
+    `setEntityId`, op or not. The op's
+    entity-data merge is removed:
+    `set_entity_data` (trait method, impl,
+    test) is gone, `spawn_egg_on_spawner`
+    returns just the type, and
+    `use_spawn_egg_on_spawner` takes no data
+    (trial spawners already took only the
+    type, item 26). The dispenser call site
+    (type selection only) is unchanged in
+    behaviour.
+  - Verification: `cargo check -p
+    horizon-client --all-targets` 0 errors /
+    0 warnings (1m32s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **40 of 426 are
-closed** (rank 1 complete, rank 2 at 31/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **41 of 426 are
+closed** (rank 1 complete, rank 2 at 32/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

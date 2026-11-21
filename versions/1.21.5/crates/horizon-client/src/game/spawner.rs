@@ -420,15 +420,14 @@ impl Game<'_> {
         };
         self.res.mob_types().contains_key(&id).then_some(id)
     }
-    /// `SpawnEggItem.useOn` on a spawner: the egg sets its mob, and an op's
-    /// egg its entity `data` too for a regular spawner
-    /// (`block_entity_item::spawn_egg_on_spawner`); a trial spawner takes
-    /// only the type in 1.21.5. None when the clicked block has no spawner.
+    /// `SpawnEggItem.useOn` on a spawner: the egg sets its mob, and only its
+    /// mob — `useOn` calls only `setEntityId`, so an op's entity data is
+    /// dropped for a regular spawner just as for a trial spawner.
+    /// None when the clicked block has no spawner.
     pub(super) fn use_spawn_egg_on_spawner(
         &mut self,
         pos: [i32; 3],
         kind: &str,
-        data: Option<&horizon_world::nbt::Compound>,
     ) -> Option<bool> {
         let key = (pos[0], pos[1], pos[2]);
         let trial = match self.world.block_entities.get(&key) {
@@ -447,8 +446,7 @@ impl Game<'_> {
             // TrialSpawnerBlockEntity.setEntityId: overrideEntityToSpawn,
             // which ends in setState(INACTIVE). A spawn egg's entity data
             // is dropped for a trial spawner in 1.21.5 (SpawnEggItem.useOn
-            // calls only setEntityId); the regular spawner below still
-            // takes it.
+            // calls only setEntityId), and for a regular spawner too.
             if let Some(BlockEntity::TrialSpawner(t)) = self.world.block_entities.get_mut(&key) {
                 t.override_entity(kind);
             }
@@ -461,10 +459,7 @@ impl Game<'_> {
                 horizon_core::random::LegacyRandom::new(0),
             );
             if let Some(BlockEntity::Spawner(s)) = self.world.block_entities.get_mut(&key) {
-                match data {
-                    Some(data) => s.set_entity_data(kind, data, &mut random, &mut events),
-                    None => s.set_entity_id(kind, &mut random, &mut events),
-                }
+                s.set_entity_id(kind, &mut random, &mut events);
             }
             self.world.random = random;
             let _ = self.apply_spawner_events(key, events, &HashMap::new(), None);
