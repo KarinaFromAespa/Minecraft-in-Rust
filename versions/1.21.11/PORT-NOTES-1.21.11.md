@@ -12175,3 +12175,10 @@ Only visibility and static vs instance lambdas, same bodies.
 ## Item 606 — horizon-command/src/packrat.rs (packrat parser) — NO-CHANGE
 
 Only visibility and a `requireNonNull` across eight parser classes.
+
+## Item 607 — adapter/translate/v1_21_1/recipes.rs (RecipeSerializer) — NO-CHANGE
+
+26.1 made `RecipeSerializer` a record; 1.21.11 keeps the interface
+with 22 registered constants. This file is the legacy recipe parser
+for 1.21/1.21.1 servers only (`at_most(V1_21_1)`); a 1.21.11 server
+sends recipe displays natively and never goes through it.
