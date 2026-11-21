@@ -1844,13 +1844,42 @@ is the oracle; decompiled code is a reading aid.
     horizon-assets -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (2m08s).
+- **Item 47 — ToastManager, ported:**
+  - The Now Playing toast is already gone
+    (item 37): no `nowPlayingToast` field,
+    no show/hide/create/remove, no Options
+    in the constructor. The slide (600 ms,
+    squared easing, `fullyVisibleFor`),
+    the five 32-pixel slots with a queue,
+    and the render formula (`guiWidth -
+    width * visiblePortion`, `slot * 32`)
+    already match 1.21.5's
+    `ToastInstance.render` — 1.21.6's
+    `xPos`/`yPos` methods, `nextStratum`
+    and `onFinishedRendering` have no Rust
+    surface (finished toasts are removed
+    in update, so the missing render guard
+    is unobservable).
+  - Real fix, found while verifying: a
+    system toast's width was
+    `max(160, widest) + 30` (minimum 190);
+    vanilla's is `max(160, 30 + widest)`
+    (minimum 160). Fixed, with the
+    `xPos` citation reworded to
+    `ToastInstance.render`. The `multiline`
+    form (message split at 200px) is not
+    modelled — a pre-existing gap, same in
+    1.21.6.
+  - Verification: `cargo check -p
+    horizon-client --all-targets` 0 errors /
+    0 warnings (1m20s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **46 of 426 are
-closed** (rank 1 complete, rank 2 at 37/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **47 of 426 are
+closed** (rank 1 complete, rank 2 at 38/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

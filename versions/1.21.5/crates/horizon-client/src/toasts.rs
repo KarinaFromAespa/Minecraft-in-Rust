@@ -134,15 +134,16 @@ impl SystemToast {
         })
     }
     /// `extractRenderState` at `y`, in from the right edge by the visible
-    /// portion (`Toast.xPos`).
+    /// portion (`ToastInstance.render`: `guiWidth - width * visiblePortion`).
     pub fn draw(&self, atlas: &HudAtlas, batch: &mut HudBatch, y: f32) {
-        let width = std::iter::once(&self.title)
-            .chain(&self.message)
-            .map(|line| HudBatch::text_width(atlas, line))
-            .fold(0.0, f32::max)
-            .ceil()
-            .max(160.0)
-            + 30.0;
+        // `SystemToast`'s width: `max(160, 30 + the widest line)`.
+        let width = (30.0
+            + std::iter::once(&self.title)
+                .chain(&self.message)
+                .map(|line| HudBatch::text_width(atlas, line))
+                .fold(0.0, f32::max)
+                .ceil())
+        .max(160.0);
         let x = batch.width - width * self.slide.portion;
         background(atlas, batch, x, y, width);
         let yellow = self.title_color;
