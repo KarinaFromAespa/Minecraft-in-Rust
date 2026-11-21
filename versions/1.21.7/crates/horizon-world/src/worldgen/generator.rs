@@ -5457,4 +5457,42 @@ mod tests {
             eprintln!("worldgen dump: {}", path.display());
         }
     }
+
+    /// Regression: chunk (11, -7) is grove (a mountain biome) at seed 12345,
+    /// but its surface used to sit at y ~ -48 — the weird_scaled_sampler
+    /// approximation made the cave branch of the final density negative
+    /// almost everywhere above the bedrock floor, so the whole chunk
+    /// generated as void and players spawned underground. The surface
+    /// heights below pin the fixed density: a mountain, not a floor.
+    #[test]
+    fn grove_chunk_surfaces_as_mountain() {
+        const SEED: i64 = 12345;
+        let version = horizon_core::version::VERSION_ID;
+        let root = std::env::var_os("HORIZON_TEST_RESOURCES")
+            .or_else(|| std::env::var_os("HORIZON_RESOURCES"))
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../.local/horizon-client")
+                    .join(version)
+            });
+        if !root.join("worldgen/world_presets.json").exists() {
+            eprintln!("skipping: no worldgen bundle at {}", root.display());
+            return;
+        }
+        let registry: &'static BlockRegistry = Box::leak(Box::new(
+            crate::level::data::load_registry(&root).expect("registry"),
+        ));
+        let data = GeneratorData::load(&root.join("worldgen"), registry).expect("worldgen data");
+        let generator = OverworldGenerator::new(data.clone(), SEED).expect("overworld pipeline");
+        let mut worker = generator.worker();
+        for (x, z) in [(176, -112), (184, -104), (191, -97), (180, -100)] {
+            let s = worker.surface_sample(x, z).expect("surface");
+            assert!(
+                (90..=160).contains(&s.height),
+                "grove column ({x}, {z}) surfaces at {}, expected a mountain (90..=160)",
+                s.height
+            );
+        }
+    }
 }
