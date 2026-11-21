@@ -12473,3 +12473,9 @@ Rust's clipboard goes through winit, never GLFW.
 ## Item 656 — atlas_sources.rs (PalettedPermutations, Unstitcher) — NO-CHANGE
 
 Only visibility (two constructor modifiers).
+
+## Item 657 — effects.rs (EffectsChangedTrigger$TriggerInstance) — NO-CHANGE
+
+Only the `validate` signature (`ValidationContextSource` vs
+`CriterionValidator`, same refactor as items 628/645); the predicate
+is unchanged.
