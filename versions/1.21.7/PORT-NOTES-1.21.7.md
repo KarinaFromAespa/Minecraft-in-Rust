@@ -504,3 +504,11 @@ the `Name`/`Properties` form; 26.x renamed the fields to
 codec now accepts both forms, which also covers state providers and
 material rules (all call sites share the codec). The noise settings'
 `default_block`/`default_fluid` were the first callers hit.
+
+Eighth launch crash, same morning (11:02 NPT): "invalid world
+generation field: base_octave". 1.21.7-era noise parameters use
+`firstOctave` and a raw `amplitudes` list; 26.3 replaced them with
+`base_octave` and friends, and the noise decoder only read the new
+form. The decoder now accepts both: the legacy form goes through
+`NormalNoise::create_parity`, the same constructor 26.2's decoder
+uses (the 26.3-base tree still carries it, unused until now).

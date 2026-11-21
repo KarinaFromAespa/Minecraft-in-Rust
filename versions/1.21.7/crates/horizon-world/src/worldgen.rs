@@ -244,11 +244,24 @@ fn double_range(
     }
 }
 
-/// Decode Java Edition 26.3's direct normal-noise parameters from strict JSON.
-/// Numeric tokens retain their decimal text; all rounding occurs at the target
-/// numeric width. Unknown object fields are ignored, as in vanilla's codec.
+/// Decode normal-noise parameters from strict JSON. Numeric tokens retain
+/// their decimal text; all rounding occurs at the target numeric width.
+/// Unknown object fields are ignored, as in vanilla's codec. 1.21.7-era
+/// parameters use `firstOctave` and a raw `amplitudes` list; 26.3 replaced
+/// them with `base_octave` and friends. The legacy form decodes through
+/// the parity constructor (same as 26.2).
 pub fn decode_noise(json: &str) -> Result<NormalNoise, DecodeError> {
     let object: Object = serde_json::from_str(json)?;
+    if optional(&object, "firstOctave").is_some() {
+        let base = integer(required(&object, "firstOctave")?)?;
+        let amplitudes: Vec<Box<RawValue>> =
+            serde_json::from_str(required(&object, "amplitudes")?.get())?;
+        let mut values = Vec::with_capacity(amplitudes.len());
+        for raw in &amplitudes {
+            values.push(double(raw)?);
+        }
+        return Ok(NormalNoise::create_parity(base, &values)?);
+    }
     let base = int_range(required(&object, "base_octave")?, "base_octave", -32, 32)?;
     let count = optional(&object, "octave_count")
         .map(|raw| int_range(raw, "octave_count", 1, 32))
@@ -332,5 +345,13 @@ mod tests {
             decode_noise(r#"{"base_octave":-7,"octave_count":2,"amplitude_modifiers":[1]}"#)
                 .is_err()
         );
+    }
+    #[test]
+    fn legacy_first_octave_amplitudes_decode() {
+        // 1.21.7's temperature noise: two live octaves out of six.
+        let noise =
+            decode_noise(r#"{"firstOctave":-10,"amplitudes":[1.5,0.0,1.0,0.0,0.0,0.0]}"#).unwrap();
+        assert_eq!(noise.octaves().len(), 2);
+        assert!(decode_noise(r#"{"firstOctave":-10,"amplitudes":[]}"#).is_err());
     }
 }
