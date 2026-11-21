@@ -106,7 +106,8 @@ fn eating(species: Species, item: &str) -> Option<(f32, i32, u8, bool)> {
         "minecraft:hay_block" => (20.0, 180, 0, false),
         "minecraft:apple" => (3.0, 60, 3, false),
         "minecraft:red_mushroom" => (3.0, 0, 3, false),
-        "minecraft:carrot" => (3.0, 60, 3, false),
+        // No plain carrot: 1.21.6 added it to the horse diet (3, 60, 3);
+        // 1.21.5's handleEating has no carrot branch.
         "minecraft:golden_carrot" => (4.0, 60, 5, true),
         "minecraft:golden_apple" | "minecraft:enchanted_golden_apple" => (10.0, 240, 10, true),
         _ => return None,
@@ -1168,6 +1169,11 @@ mod tests {
                 Some((2.0, 20, 3, false)),
                 "{species:?}: wheat is horse food"
             );
+            assert_eq!(
+                eating(species, "minecraft:carrot"),
+                None,
+                "{species:?}: no plain carrot before 1.21.6"
+            );
         }
         assert_eq!(
             eating(Species::Camel, "minecraft:cactus"),
@@ -1277,8 +1283,8 @@ mod tests {
             Some(("entity.horse.jump", 0.4))
         );
         assert_eq!(
-            horse.extra.counter, 20,
-            "standIfPossible rears for 20 ticks"
+            horse.extra.counter, 1,
+            "standIfPossible starts the counter at 1"
         );
         assert!(horse.extra.stand_sliding, "onPlayerJump slides on the keys");
         for (kind, sound) in [

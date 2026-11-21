@@ -1199,13 +1199,49 @@ is the oracle; decompiled code is a reading aid.
     by hand; the horizon-client test binary's link
     was still building after 17 min, so the run is
     left to CI per the standing rule.
+- **Item 30 — AbstractHorse (equine.rs), ported:**
+  - Plain carrots are not horse food in 1.21.5:
+    1.21.6 added the carrot branch to `handleEating`
+    (heal 3, age 60, temper 3) and to the
+    `#minecraft:horse_food` tag. The carrot arm is
+    out of the mounts food table and out of the
+    remote food matcher (the data-driven
+    `kind.food` already follows the 1.21.5 tag,
+    which lacks it); golden carrots are untouched.
+  - Rearing counts up: 1.21.5's `standIfPossible`
+    starts the counter at 1 and `tick` runs it up
+    past 20 (`isEffectiveAi`-gated — the server
+    for an ordinary mob, the client for the mount
+    it drives), where 1.21.6's `setStanding(20)`
+    counts down with no gate. `stand_if_possible`
+    sets 1, `stand_tick` increments and ends past
+    20; a client's synched rear (`CLIENT_STANDING`)
+    is a sentinel `stand_tick` leaves alone, so the
+    flag still ends it.
+  - No-ops verified: the leash hook is already
+    1.21.5's `handleLeashAtDistance` (item 19 — no
+    elastic pull, no quad leash); `makeMad` has no
+    client-side gate in either the Rust or 1.21.5;
+    the mount-start zeroing matches 1.21.5's
+    `setStanding(false)` observably (the flag is
+    what the animation follows — the stale counter
+    1.21.5 leaves behind is invisible); the
+    `isJumping` field has no Rust surface (the
+    ridden jump spends the pending scale at once
+    and only fires on the ground, so the
+    double-jump guard is subsumed); the NBT fields
+    (EatingHaystack, Bred, Temper, Tame, Owner)
+    are identical, CompoundTag vs ValueOutput
+    being API-only.
+  - Verification: `cargo check -p horizon-client
+    --all-targets` 0 errors / 0 warnings (1m49s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **29 of 426 are
-closed** (rank 1 complete, rank 2 at 20/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **30 of 426 are
+closed** (rank 1 complete, rank 2 at 21/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
