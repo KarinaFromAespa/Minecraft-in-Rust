@@ -11233,12 +11233,32 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 268 —
+  Difficulty**
+  - Difficulty: 1.21.6
+    added a STREAM_CODEC
+    (ByteBuf id mapper) and
+    deprecated byId; the
+    enum values and ids are
+    identical in both
+    versions. The port has
+    no Difficulty codec
+    type — it encodes
+    difficulty as a plain
+    i32 VarInt in both
+    directions, the same
+    wire form the codec
+    spells. No behaviour
+    change.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **267 of 426 are
-closed** (rank 1 complete, rank 2 at 258/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **268 of 426 are
+closed** (rank 1 complete, rank 2 complete). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
