@@ -9429,3 +9429,23 @@ which is already the Rust's behaviour (the shared
 `TeleportConsume::apply` runs only for the local player;
 the fox has its own implementation with no impulse reset).
 No code changed.
+
+## Item 185 — block_entity_anim.rs (rank 2, NO-CHANGE)
+
+3 classes, 19 methods, 1 named. No behavioural delta:
+`ChestModel`'s double-chest face culling (26.1 only) is
+invisible (hidden faces) and the geometry comes from the
+version's `entity-models.json` export anyway; the
+`entityCutoutCull` -> `entitySolid` change is invisible
+for the opaque chest texture; `DecoratedPotRenderer`'s
+wobble math and model transformation are identical in
+both versions and the Rust matches them term-for-term
+(the sprite/material rework is renderer infrastructure);
+`BlockTags`' removed/added tags match the 1.21.11 data
+files exactly (verified against both jars) and the Rust
+loads its tags from that data. NOTE: live reads of
+removed `supports_*` tags remain in survival/placement
+code — they belong to their owning plant classes, which
+are rank-3 items (e.g. `SugarCaneBlock` is not in the
+rank-2 triage); the `data.rs` fields stay until those
+items convert the reads. No code changed.
