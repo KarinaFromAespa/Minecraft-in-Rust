@@ -12171,3 +12171,7 @@ Only the `getGameRules` access path, record visibility and a
 ## Item 605 — title/create_world.rs (CreateWorldScreen$WorldTab, SwitchGrid) — NO-CHANGE
 
 Only visibility and static vs instance lambdas, same bodies.
+
+## Item 606 — horizon-command/src/packrat.rs (packrat parser) — NO-CHANGE
+
+Only visibility and a `requireNonNull` across eight parser classes.
