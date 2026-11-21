@@ -4297,13 +4297,42 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 99 — ARGB, verified:**
+  - 1.21.6 added two methods
+    1.21.5 lacks. `color(float,
+    int)` (float-alpha
+    variant) is a Java
+    convenience with no Rust
+    equivalent and no
+    behaviour. `setBrightness`
+    (HSV brightness) is dead
+    code in vanilla 1.21.6
+    itself — no callers
+    anywhere in the 1.21.6
+    source.
+  - The Rust port does have a
+    `set_brightness`
+    (`locator_bar.rs`), but
+    its only caller is the
+    locator bar's waypoint
+    dimming — a 1.21.6
+    feature whose removal
+    belongs to item 108, so
+    it stays here. Everything
+    else in ARGB is identical
+    in both versions.
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **98 of 426 are
-closed** (rank 1 complete, rank 2 at 89/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **99 of 426 are
+closed** (rank 1 complete, rank 2 at 90/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
