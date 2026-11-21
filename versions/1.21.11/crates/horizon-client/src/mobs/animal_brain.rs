@@ -20,10 +20,10 @@ use horizon_core::{
     random::{LegacyRandom, RandomSource},
 };
 
-/// `MemorySlot.NEVER_EXPIRE`.
+/// `ExpirableValue.of`'s never-expire sentinel (`Long.MAX_VALUE`).
 const NEVER: i64 = i64::MAX;
 
-/// `MemorySlot`: a value and its time to live.
+/// `ExpirableValue`: a value and its time to live.
 #[derive(Clone, Debug)]
 pub struct Slot<T> {
     v: Option<T>,
@@ -71,7 +71,7 @@ impl<T> Slot<T> {
     pub fn present(&self) -> bool {
         self.v.is_some()
     }
-    /// `MemorySlot.timeToLive`: `i64::MAX` denotes a permanent memory.
+    /// `ExpirableValue.getTimeToLive`: `i64::MAX` denotes a permanent memory.
     pub fn ttl(&self) -> i64 {
         self.ttl
     }

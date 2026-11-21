@@ -346,7 +346,7 @@ pub fn ai_step(
         m.ai.target = find_target(m, w, level_random);
     }
 }
-/// `MemorySlot.tick`: expire before decrementing a finite saved lifetime.
+/// `Brain.forgetOutdatedMemories`: expire before decrementing a finite saved lifetime.
 /// The existing NoAI gate controls this class step; this does not replace
 /// the legacy integer attack counter or its selection policy.
 fn tick_attack_memory(m: &mut Mob) {

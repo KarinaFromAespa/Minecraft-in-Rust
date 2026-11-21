@@ -10949,3 +10949,16 @@ passed, 43 ignored.
 cites 1.21.11's `ModelBlockRenderer`
 directly and has no surface for either.
 `mesher`: 71 passed, 24 ignored.
+
+## Item 426 — world/entity/ai/memory (rank 2, NO-CHANGE)
+
+2 classes, 2 methods, 0 named. 26.1's
+`MemorySlot` replaces 1.21.11's
+`ExpirableValue`, but `canExpire`,
+`hasExpired` and the tick timing are
+identical (a ttl-N memory is visible for
+exactly N ticks in both); the added
+`nearbyEntities()` accessor is a plain
+getter. All 11 `MemorySlot` citations
+re-pointed to `ExpirableValue`. `allay`:
+10 passed, 4 ignored.

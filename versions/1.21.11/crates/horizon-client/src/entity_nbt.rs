@@ -1220,7 +1220,7 @@ pub fn mob_to_nbt(
             );
             let mut memories: Vec<(&str, Tag)> = Vec::new();
             if m.extra.tame {
-                // `MemorySlot.visit`: the time to live only when it can expire.
+                // `ExpirableValue.codec`: the time to live only when it can expire.
                 let mut liked = vec![(
                     "value",
                     Tag::IntArray(m.extra.owner.unwrap_or([0, 0, 0, 1]).to_vec()),
@@ -2455,7 +2455,8 @@ pub fn mob_from_nbt_with_random(
             .and_then(|v| crate::save::uuid_from_tag(Some(v)));
         // `Brain.readAdditionalSaveData`: a memory saved with a time to live
         // (`Codec.LONG`, read from any integer tag). `Long.MAX_VALUE` is
-        // `MemorySlot.NEVER_EXPIRE`: that memory never expires.
+        // the never-expire sentinel (`ExpirableValue.of` uses it): that
+        // memory never expires.
         if let Some(st) = m.extra.allay.as_mut() {
             st.liked_player_ttl = liked
                 .and_then(|l| match l.get("ttl")? {
