@@ -7815,13 +7815,66 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 164 — Death,
+  loading overlay,
+  buffet, level
+  loading verified:**
+  - Death screen:
+    title (double size),
+    cause at y 85 and
+    score at y 100 are
+    all `u32::MAX` —
+    the opaque spelling
+    of 1.21.5's
+    `16777215`. Exit to
+    title goes through
+    `close_world` →
+    `leave_server(None)`
+    (no quit message,
+    the 1.21.5
+    `disconnect()`
+    form) or the
+    `menu.savingLevel`
+    screen. Clickable
+    cause-of-death
+    links are not
+    implemented in the
+    port at all, so
+    the 1.21.5/1.21.6
+    click-path
+    difference has no
+    surface (one stale
+    `disconnectWithSavingScreen`
+    comment fixed).
+    Loading overlay:
+    the port's is
+    fully opaque and
+    never renders the
+    screen behind, so
+    `render` vs
+    `renderWithTooltip`
+    has no surface;
+    logo halves and
+    the 0.8325 bar
+    match both
+    versions. Buffet
+    biome entries draw
+    the name at x+5 in
+    `u32::MAX`;
+    level-loading
+    progress text is
+    `u32::MAX` too.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib`
+    0/0 (47s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **163 of 426 are
-closed** (rank 1 complete, rank 2 at 154/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **164 of 426 are
+closed** (rank 1 complete, rank 2 at 155/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
