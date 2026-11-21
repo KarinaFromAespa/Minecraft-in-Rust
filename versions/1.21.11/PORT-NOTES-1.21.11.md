@@ -10561,3 +10561,16 @@ in 26.1 and `Object` in 1.21.11 — the same
 two-case switch — and the `TypeSettings`
 record fields lose `private`. No source
 change. `recipe_book`: 26 passed.
+
+## Item 296 — version.rs (rank 2, NO-CHANGE)
+
+1 class, 2 methods, 1 named. Protocol 775 ->
+774, already the Rust's value; the debug-flag
+set differs (1.21.11 adds
+DUMP_INTERPOLATED_TEXTURE_FRAMES and
+USE_WORKFLOWS_HOOKS, 26.1 adds CHAT_DISABLED
+and PREFER_WAYLAND) but the Rust models no
+SharedConstants debug flags; the rest is
+static-init renumbering with identical
+constants. No source change. `version`: 1
+passed.
