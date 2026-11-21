@@ -1873,13 +1873,42 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -p
     horizon-client --all-targets` 0 errors /
     0 warnings (1m20s).
+- **Item 48 — StructureTemplate /
+  BlockEntityWithBoundingBoxRenderer,
+  ported:**
+  - Real fix: 1.21.5's `fillFromWorld`
+    takes a single block to skip
+    (structure void, always); the
+    `ignoreBlocks` list is 1.21.6's, and
+    only test instances used it (for air).
+    The `ignore_air` parameter is removed
+    from `save_structure_area` /
+    `template_from_world`: test-instance
+    saves now include air blocks, as
+    1.21.5's `TestInstanceBlockEntity`
+    does.
+  - The rest is the ProblemReporter /
+    TagValueInput / TagValueOutput →
+    CompoundTag migration with identical
+    logic (`fillEntityList`, `place` with
+    its barrier pre-place, loot-seed
+    reroll, waterlogging and shape
+    update, `placeEntities` with its Pos
+    rewrite and UUID removal). The
+    `shouldRenderOffScreen` change is a
+    signature only (both return true);
+    the Rust's name-based never-cull set
+    is unchanged.
+  - Verification: `cargo check -p
+    horizon-client --all-targets` 0 errors /
+    0 warnings (1m10s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **47 of 426 are
-closed** (rank 1 complete, rank 2 at 38/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **48 of 426 are
+closed** (rank 1 complete, rank 2 at 39/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
