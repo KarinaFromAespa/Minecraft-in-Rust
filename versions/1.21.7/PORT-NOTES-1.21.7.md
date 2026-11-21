@@ -512,3 +512,18 @@ generation field: base_octave". 1.21.7-era noise parameters use
 form. The decoder now accepts both: the legacy form goes through
 `NormalNoise::create_parity`, the same constructor 26.2's decoder
 uses (the 26.3-base tree still carries it, unused until now).
+
+Ninth launch crash, same morning (11:28 NPT): "invalid world
+generation field: left". 1.21.7-era density functions name their
+children `argument` (unary/cache) and `argument1`/`argument2`
+(binary); 26.x renamed them `input` and `left`/`right`. The decoder
+accepts either spelling. Four more 1.21.7-era types needed arms:
+`flat_cache`/`cache_2d`/`cache_once` (all value-identity, decoded as
+the merged 26.x `cache`), `y_clamped_gradient` (the Y-only gradient
+26.x generalised), `shifted_noise` (the noise function with shifts,
+merged into `noise` in 26.x) and `end_islands` (renamed
+`end_outer_islands` in 26.x). `weird_scaled_sampler` has no 26.x
+equivalent: it decodes as clamp(input, 0, 1) * noise, an
+approximation of vanilla's rarity gating — the exact type_1/type_2
+mapper curves are not reproduced, so spaghetti caves land roughly
+where vanilla puts them, not exactly.

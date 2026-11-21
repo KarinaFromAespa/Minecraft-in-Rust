@@ -179,6 +179,21 @@ impl Loader {
     ) -> Result<FunctionId, DecodeError> {
         self.decode(required(object, name)?, depth + 1)
     }
+    /// 1.21.7-era density functions name their child `argument`
+    /// (unary/cache) or `argument1`/`argument2` (binary); 26.x renamed
+    /// them `input` and `left`/`right`. Accept either spelling.
+    fn input_named(
+        &mut self,
+        object: &Object,
+        primary: &'static str,
+        legacy: &'static str,
+        depth: usize,
+    ) -> Result<FunctionId, DecodeError> {
+        match optional(object, primary).or_else(|| optional(object, legacy)) {
+            Some(raw) => self.decode(raw, depth + 1),
+            None => Err(DecodeError::Field(primary)),
+        }
+    }
     fn optional_input(
         &mut self,
         object: &Object,
@@ -240,13 +255,13 @@ impl Loader {
         let node = if let Some(kind) = unary {
             GraphNode::Unary {
                 kind,
-                input: self.input(&object, "input", depth)?,
+                input: self.input_named(&object, "input", "argument", depth)?,
             }
         } else if let Some(kind) = binary {
             GraphNode::Binary {
                 kind,
-                left: self.input(&object, "left", depth)?,
-                right: self.input(&object, "right", depth)?,
+                left: self.input_named(&object, "left", "argument1", depth)?,
+                right: self.input_named(&object, "right", "argument2", depth)?,
             }
         } else {
             match kind.as_str() {
@@ -256,10 +271,18 @@ impl Loader {
                 "minecraft:blend_alpha" => GraphNode::WorldField(WorldField::BlendAlpha),
                 "minecraft:blend_offset" => GraphNode::WorldField(WorldField::BlendOffset),
                 "minecraft:beardifier" => GraphNode::WorldField(WorldField::Beardifier),
-                "minecraft:end_outer_islands" => GraphNode::EndIslands,
-                "minecraft:cache" => GraphNode::Cache(self.input(&object, "input", depth)?),
+                "minecraft:end_outer_islands" | "minecraft:end_islands" => GraphNode::EndIslands,
+                // 1.21.7 has three cache types (flat_cache, cache_2d,
+                // cache_once); 26.x merged them into one. All three are
+                // value-identity, so they decode to the same node.
+                "minecraft:cache"
+                | "minecraft:flat_cache"
+                | "minecraft:cache_2d"
+                | "minecraft:cache_once" => {
+                    GraphNode::Cache(self.input_named(&object, "input", "argument", depth)?)
+                }
                 "minecraft:blend_density" => {
-                    GraphNode::BlendDensity(self.input(&object, "input", depth)?)
+                    GraphNode::BlendDensity(self.input_named(&object, "input", "argument", depth)?)
                 }
                 "minecraft:pow" => GraphNode::Power {
                     base: self.input(&object, "base", depth)?,
@@ -275,6 +298,23 @@ impl Loader {
                         },
                         input: self.input(&object, "input", depth)?,
                         multiple: self.optional_input(&object, "multiple", 1.0, depth)?,
+                    }
+                }
+                // 1.21.7's y_clamped_gradient is the Y-only gradient 26.x
+                // generalised: same clamping, same fields under y names.
+                "minecraft:y_clamped_gradient" => {
+                    let from = integer(required(&object, "from_y")?)?;
+                    let to = integer(required(&object, "to_y")?)?;
+                    if from == to {
+                        return Err(DecodeError::Field("gradient coordinates"));
+                    }
+                    GraphNode::Gradient {
+                        axis: Axis::Y,
+                        tiling: TilingMode::ClampToEdge,
+                        from,
+                        to,
+                        low: noise_value(required(&object, "from_value")?)?,
+                        high: noise_value(required(&object, "to_value")?)?,
                     }
                 }
                 "minecraft:gradient" => {
@@ -302,7 +342,9 @@ impl Loader {
                         high: noise_value(required(&object, "to_value")?)?,
                     }
                 }
-                "minecraft:noise" => GraphNode::Noise {
+                // 1.21.7's shifted_noise is the noise function with shifts;
+                // 26.x merged it into `noise` (shifts optional there).
+                "minecraft:noise" | "minecraft:shifted_noise" => GraphNode::Noise {
                     noise: self.noise(&object)?,
                     xz_scale: double(required(&object, "xz_scale")?)?,
                     y_scale: double(required(&object, "y_scale")?)?,
@@ -353,7 +395,7 @@ impl Loader {
                     input: self.input(&object, "input", depth)?,
                 },
                 "minecraft:interpolated" => GraphNode::Interpolated {
-                    input: self.input(&object, "input", depth)?,
+                    input: self.input_named(&object, "input", "argument", depth)?,
                     xz: int_range(
                         required(&object, "cell_size_xz")?,
                         "cell_size_xz",
@@ -455,6 +497,37 @@ impl Loader {
                 "minecraft:spline" => {
                     GraphNode::Spline(self.spline(required(&object, "spline")?, depth + 1)?)
                 }
+                "minecraft:weird_scaled_sampler" => {
+                    // 1.21.7-only: 26.x dropped this type. Vanilla maps the
+                    // input through a rarity mapper (type_1/type_2) and
+                    // multiplies by the noise sampled at raw coordinates;
+                    // the exact mapper curves are not reproduced here —
+                    // the input is clamped to [0, 1] as the rarity gate,
+                    // which keeps spaghetti caves roughly where vanilla
+                    // puts them.
+                    match string(required(&object, "rarity_value_mapper")?)?.as_str() {
+                        "type_1" | "type_2" => {}
+                        _ => return Err(DecodeError::Field("rarity_value_mapper")),
+                    }
+                    let input = self.input(&object, "input", depth)?;
+                    let gated = self
+                        .graph
+                        .insert(GraphNode::Clamp { input, min: 0.0, max: 1.0 })?;
+                    let zero = self.graph.insert(GraphNode::Constant(0.0))?;
+                    let noise = self.graph.insert(GraphNode::Noise {
+                        noise: self.noise(&object)?,
+                        xz_scale: 1.0,
+                        y_scale: 1.0,
+                        shift_x: zero,
+                        shift_y: zero,
+                        shift_z: zero,
+                    })?;
+                    GraphNode::Binary {
+                        kind: GraphBinary::Multiply,
+                        left: gated,
+                        right: noise,
+                    }
+                }
                 _ => {
                     return Err(DecodeError::Registry(format!(
                         "unknown density type: {kind}"
@@ -555,6 +628,43 @@ mod tests {
         assert!(DensityRegistry::from_json(&BTreeMap::new(), &densities).is_err());
         densities.remove("minecraft:z");
         assert!(DensityRegistry::from_json(&BTreeMap::new(), &densities).is_err());
+    }
+    #[test]
+    fn legacy_argument_spellings_and_cache_types_decode() {
+        let densities = BTreeMap::from([(
+            "minecraft:a".into(),
+            r#"{"type":"add","argument1":1,"argument2":{"type":"y_clamped_gradient","from_y":0,"to_y":10,"from_value":0,"to_value":1}}"#.into(),
+        )]);
+        let registry = DensityRegistry::from_json(&BTreeMap::new(), &densities).unwrap();
+        let root = registry.value("minecraft:a").unwrap();
+        let compiler = DensityCompiler::new(registry.into_graph());
+        let compiled = compiler.compile_raw(root).unwrap();
+        let mut context = SamplerContext::default();
+        assert_eq!(
+            compiled.sample_value(&mut context, [0, 0, 0]).unwrap(),
+            1.0
+        );
+        assert_eq!(
+            compiled.sample_value(&mut context, [0, 5, 0]).unwrap(),
+            1.5
+        );
+        // The three 1.21.7 cache types decode (sampling them needs cache
+        // preparation, which only the generator does).
+        let caches = BTreeMap::from([
+            (
+                "minecraft:c1".into(),
+                r#"{"type":"cache_once","argument":1}"#.into(),
+            ),
+            (
+                "minecraft:c2".into(),
+                r#"{"type":"flat_cache","argument":1}"#.into(),
+            ),
+            (
+                "minecraft:c3".into(),
+                r#"{"type":"cache_2d","argument":1}"#.into(),
+            ),
+        ]);
+        DensityRegistry::from_json(&BTreeMap::new(), &caches).unwrap();
     }
     #[test]
     fn codec_validation_rejects_invalid_gradients_intervals_and_splines() {
