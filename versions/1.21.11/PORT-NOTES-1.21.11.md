@@ -9942,3 +9942,11 @@ slot classes differ only by dropped null-check codegen
 and `is` overload spellings (same tests); the
 26.1-only `ContainerInput` class changes no slot
 signature or body. No code changed.
+
+## Item 227 — skins.rs (rank 2, NO-CHANGE)
+
+10 classes, 11 methods, 1 named. The skin manager and
+render cache differ only by visibility widening and
+dropped null-check codegen; every method body
+(including `registerTextures`) is bytecode-identical.
+No code changed.
