@@ -10962,3 +10962,18 @@ exactly N ticks in both); the added
 getter. All 11 `MemorySlot` citations
 re-pointed to `ExpirableValue`. `allay`:
 10 passed, 4 ignored.
+
+## Item 439 — world/clock/WorldClocks (rank 2, NO-CHANGE)
+
+1 class, 0 methods named. `WorldClocks`
+is 26.1-only. The End sky flash ticks on
+game time in 1.21.11 (the End's clock in
+26.1) — the Rust already uses game time
+with LegacyRandom per cycle. The
+`end_clock` doc wrongly called it the
+flash's driver; corrected. Noted: on a
+1.21.11 server `day_time` never updates
+in the Nether/End (the packet carries
+only clock 0) — narrow, needs a
+clock-architecture decision, not this
+item. `world::`: 3 passed.
