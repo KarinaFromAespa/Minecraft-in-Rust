@@ -4268,13 +4268,42 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 98 — RecipeBookSettings,
+  verified:**
+  - A Java refactor with
+    identical formats: the
+    wire codec is 8 booleans
+    in type order in both
+    versions (the Rust packet
+    codec matches), and the
+    NBT keys are the same.
+    The one real difference
+    is the NBT write:
+    1.21.5 writes all eight
+    flags always, while
+    1.21.6's codec omits the
+    false ones — and the Rust
+    `Settings::write` already
+    does the 1.21.5 form
+    (its doc comment calls
+    out the 1.21.6 difference
+    explicitly). The EnumMap
+    vs four fields, and the
+    `equals`/`hashCode`
+    override, are internal
+    Java details.
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **97 of 426 are
-closed** (rank 1 complete, rank 2 at 88/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **98 of 426 are
+closed** (rank 1 complete, rank 2 at 89/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
