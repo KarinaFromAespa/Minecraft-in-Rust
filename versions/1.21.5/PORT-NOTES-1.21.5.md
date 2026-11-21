@@ -9859,12 +9859,41 @@ is the oracle; decompiled code is a reading aid.
     0/0 (2m05s); new test
     runs in CI.
 
+- **Item 224 — Entity/item
+  tag keys:
+  - Five tag keys are
+    1.21.6-only and none is
+    referenced anywhere in
+    the port:
+    can_equip_harness and f
+    ollowable_friendly_mobs
+    (entity tags),
+    harnesses,
+    happy_ghast_food and
+    happy_ghast_tempt_items
+    (item tags) — the
+    harness and happy ghast
+    have no Rust surface at
+    all (items 144/174).
+    The rest of the
+    ItemTags diff is
+    declaration reordering
+    of tags both versions
+    have, which has no
+    runtime effect; the
+    port loads tags by
+    scanning the data
+    directories, so it has
+    no tag list to reorder.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **223 of 426 are
-closed** (rank 1 complete, rank 2 at 214/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **224 of 426 are
+closed** (rank 1 complete, rank 2 at 215/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
