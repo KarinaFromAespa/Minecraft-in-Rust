@@ -9500,3 +9500,15 @@ spelled; `EatBlockGoal` is identical;
 bee/polar-bear inner goals are renames + widening. Two doc
 citations corrected (`ClimbDangerPowderSnowGoal` ->
 `ClimbOnTopOfPowderSnowGoal`, the real class name).
+
+## Item 190 — mobs/wither.rs (rank 2, NO-CHANGE)
+
+3 classes, 8 methods, 2 named. No behavioural delta:
+`WitherBossRenderer` is bytecode-identical; `WitherBoss`
+(`aiStep`, `customServerAiStep`, `performRangedAttack`,
+`hurtServer`, death loot, head tracking) is identical
+apart from names and the `is(tag)` / `getType().is(tag)`
+spelling; the boss-event construction difference (26.1
+draws a UUID from the entity's random, 1.21.11 takes no
+UUID) has no Rust analogue — the Rust models neither the
+boss-bar UUID nor a random draw for it. No code changed.
