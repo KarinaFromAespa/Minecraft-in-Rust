@@ -12145,3 +12145,8 @@ vs 1.21.11, where the throw sound lives in
 `GoAndGiveItemsToTarget.tick` — same gate (`game_time % 7 == 0`, 90%),
 same pitch list. `allay_deliver` already implements the 1.21.11 form;
 three comments re-pointed from the 26.1-only `AllayAi.throwItem`.
+
+## Item 601 — game/paintings.rs (PaintingRenderer) — NO-CHANGE
+
+Only `vertex` static vs instance (slot re-numbering), the
+`CameraRenderState` package move and `getLightCoords` vs `getLightColor`.
