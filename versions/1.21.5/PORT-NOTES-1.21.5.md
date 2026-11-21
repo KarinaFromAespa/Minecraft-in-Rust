@@ -9951,12 +9951,45 @@ is the oracle; decompiled code is a reading aid.
     client --lib --tests
     0/0 (2m26s).
 
+- **Item 226 —
+  PathNavigation members:
+  - Both 1.21.6-only
+    members are already
+    absent in the 1.21.5
+    form.
+    canNavigateGround: the
+    port's
+    can_navigate_ground is 
+    GoalUtils.hasGroundPath
+    Navigation (navigation
+    instanceof
+    GroundPathNavigation) —
+    Ground and WallClimber
+    only, Amphibious
+    excluded (item 170) —
+    not the 1.21.6 abstract
+    method.
+    setCanOpenDoors: no
+    such method exists on
+    the port's navigation;
+    callers set the nav
+    state's can_open_doors
+    flag directly (bee,
+    parrot, copper golem,
+    zombie door-breaking,
+    raiders when raided),
+    which is what 1.21.5's
+    evaluator-side setter
+    does.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **225 of 426 are
-closed** (rank 1 complete, rank 2 at 216/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **226 of 426 are
+closed** (rank 1 complete, rank 2 at 217/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
