@@ -10940,3 +10940,12 @@ collapsing packages); the Rust's
 only in visibility; `Flags` is a 26.1-only
 empty annotation interface. `mobs`: 706
 passed, 43 ignored.
+
+## Item 420 — renderer/block quad output (rank 2, NO-CHANGE)
+
+2 classes, 0 methods named. Both
+26.1-only (`BlockQuadOutput`,
+`FluidStateModelSet`); the Rust's mesher
+cites 1.21.11's `ModelBlockRenderer`
+directly and has no surface for either.
+`mesher`: 71 passed, 24 ignored.
