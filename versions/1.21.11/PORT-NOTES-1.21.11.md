@@ -9358,3 +9358,17 @@ provider reads the world, and the Rust already carries that
 delta in `state_provider.rs`; `IntProviders.codec` moved to
 `IntProvider.codec` (same codec); `PlacementContext` is pure
 renames. No code changed.
+
+## Item 180 — gamerules.rs (rank 2, NO-CHANGE)
+
+2 classes, 12 methods, 2 named. No behavioural delta: the
+rule registry is identical in both versions (59 rules,
+verified name-for-name against the Rust table); the
+1.21.11 `GameRules` constructor (fresh defaults + overlay
+of available rules) is already what `copy_with_features`
+and `from_nbt_with_features` implement; `set` throwing on
+an invalid rule (vs 26.1's warn-and-ignore) is unreachable
+on every path that matters and the Rust's bool-returning
+`set` is the idiomatic equivalent; the 26.1 `SavedData`
+superclass, `reset`, and the `List` constructor have no
+Rust analogue. No code changed.
