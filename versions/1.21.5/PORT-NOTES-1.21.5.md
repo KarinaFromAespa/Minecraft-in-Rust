@@ -2806,13 +2806,56 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check, 3s).
+- **Item 63 — LeashFenceKnotEntity,
+  verified, no code change**
+  (already the 1.21.5 form from
+  item 19):
+  - `use_knot` is the 1.21.5
+    `interact` exactly: the
+    player's leashed mobs in the
+    seven-block cube tie to the
+    knot with no attach check
+    (`bindPlayerMobs`); with
+    nothing to tie, the knot
+    discards itself silently and
+    a creative player takes the
+    leads hanging on it off
+    without dropping them; the
+    BLOCK_ATTACH game event fires
+    on an attach or a removal.
+    No shears branch, no
+    knot-to-player transfer, no
+    `canHaveALeashAttachedTo`
+    snap-range check, no sound
+    on interact — all 1.21.6-only.
+  - The sounds are the 1.21.5
+    names: `entity.leash_knot.break`
+    on a fence break
+    (`tick_explicit_knots`),
+    `entity.leash_knot.place`
+    on the `LeadItem.useOn` tie
+    only (the knot's own interact
+    plays none). `LEAD_TIED` /
+    `LEAD_UNTIED` are 1.21.6-only.
+  - No `notifyLeasheeRemoved`: a
+    knot outlives its last lead in
+    1.21.5, so a re-tie reuses the
+    same entity (`tie_knot`, and
+    the knot-identity test says so
+    outright). The save/load
+    methods are empty in both
+    versions.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check, 1s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **62 of 426 are
-closed** (rank 1 complete, rank 2 at 53/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **63 of 426 are
+closed** (rank 1 complete, rank 2 at 54/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
