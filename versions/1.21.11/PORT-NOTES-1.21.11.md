@@ -12666,3 +12666,7 @@ stack + transform only, so the call has no observable effect.
 ## Item 697 — game/pad_menu.rs (ComponentPath$Path) — NO-CHANGE
 
 Zero diff: the bytecode is identical in both versions.
+
+## Item 698 — game/respawn_anchor.rs (ServerPlayer$RespawnPosAngle) — NO-CHANGE
+
+Visibility only.
