@@ -9090,13 +9090,41 @@ is the oracle; decompiled code is a reading aid.
     horizon-client --lib
     --tests 0/0; no tests
     cover the boundary.
+- **Item 201 — CustomData
+  loadInto:**
+  - Both `loadInto` paths
+    are the same algorithm
+    in both versions: save,
+    merge the custom tag,
+    load back (the entity
+    keeps its UUID; the
+    block entity loads only
+    when the merge changed
+    anything, rolling back
+    on failure). Only the
+    plumbing differs
+    (CompoundTag vs
+    ValueOutput), and the
+    ProblemReporter wrapper
+    is diagnostics with no
+    Rust surface. The
+    port's block-entity
+    `place` already
+    implements the same
+    steps, and its merge is
+    the recursive
+    `CompoundTag.merge`
+    form.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **200 of 426 are
-closed** (rank 1 complete, rank 2 at 191/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **201 of 426 are
+closed** (rank 1 complete, rank 2 at 192/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
