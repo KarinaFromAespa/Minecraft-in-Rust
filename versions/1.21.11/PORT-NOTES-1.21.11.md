@@ -10816,3 +10816,12 @@ render time — which is what the Rust
 already does (`y_rot` from the facing,
 sign transforms from the block state).
 `block_entity_render`: 34 passed, 1 ignored.
+
+## Item 357 — com/mojang/blaze3d/audio (rank 2, NO-CHANGE)
+
+2 classes, 5 methods, 0 named. 26.1
+adds `SoundBuffer.size`/`format()`/
+`isValid()` and the `DeviceList` record;
+the shared buffer methods are unchanged,
+and the Rust has its own `DeviceProbe`
+with the same shape. `audio`: 30 passed.
