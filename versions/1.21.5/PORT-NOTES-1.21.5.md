@@ -11715,12 +11715,38 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no
     code changed.
 
+- **Item 278 — StructureBlockEntity**
+  - StructureBlockEntity:
+    already the 1.21.5 form.
+    save/load carry the full
+    field list (name, author,
+    metadata, pos, size,
+    rotation, mirror, mode,
+    ignoreEntities, strict,
+    powered, showair,
+    showboundingbox, integrity,
+    seed) with the 1.21.5
+    clamps (pos +-48, size
+    0..48) and defaults (pos
+    [0,1,0], mode Data,
+    ignoreEntities true,
+    showboundingbox true,
+    integrity 1.0).
+    template_from_world skips
+    only structure voids - the
+    1.21.6 ignoreBlocks list is
+    already gone. level() vs
+    getCommandSenderWorld() is
+    a pure rename.
+  - Verification: read only; no
+    code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **277 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 9/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **278 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 10/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
