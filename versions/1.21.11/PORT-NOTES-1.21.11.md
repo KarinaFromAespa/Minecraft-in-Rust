@@ -9231,3 +9231,13 @@ check, the interact order and the breeding roll already match
 1.21.11; 26.1's golden-dandelion exception is 26.x-only (the
 item does not exist here). Tests: `mobs::riders::` 13 passed
 (1 new: the baby seats).
+
+## Item 170 — game/natural_spawning.rs (rank 2, NO-CHANGE)
+
+1 class, 16 methods, 2 named. Pure renames: `SavedDataStorage`
+→ `DimensionDataStorage`, `ChunkPos.pack` → `asLong`/`toLong`,
+`ServerLevel.getRandom()` → the `random` field, and two fields
+widened to package-private. `tickChunks` / `tickSpawningChunk`
+are behaviourally identical — the Rust's `spawn_natural`
+already implements the shuffle, the 400-tick creature gate
+and the per-chunk gate. No code changed.
