@@ -9313,13 +9313,30 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 209 — Sound
+  source UI:**
+  - 1.21.6 added the `UI`
+    sound source; 1.21.5
+    has ten. The port's
+    single `SOUND_SOURCES`
+    table holds exactly
+    those ten in vanilla
+    order, with no `ui`,
+    and every use — the
+    options sliders, the
+    options file, the
+    per-source volume
+    lookup — reads from it.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **208 of 426 are
-closed** (rank 1 complete, rank 2 at 199/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **209 of 426 are
+closed** (rank 1 complete, rank 2 at 200/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
