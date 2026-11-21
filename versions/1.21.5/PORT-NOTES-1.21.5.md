@@ -13066,12 +13066,39 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 317 — Creaking model**
+  - CreakingModel:
+    verified, no code. The
+    same refactor as items
+    137/146/157/280/316:
+    1.21.6 bakes
+    KeyframeAnimation
+    fields, 1.21.5 looks
+    the definitions up per
+    call - and the port
+    already has the 1.21.5
+    shape. creaking::anim
+    sets the head rotations
+    from the state, runs
+    CREAKING_WALK via
+    apply_walk only while
+    can_move (false while a
+    player looks at it),
+    and runs
+    CREAKING_ATTACK,
+    CREAKING_INVULNERABLE
+    and CREAKING_DEATH per
+    call by name from the
+    animations map.
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **316 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 48/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **317 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 49/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
