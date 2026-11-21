@@ -6643,13 +6643,59 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-client
     --lib` passed at item
     138.
+- **Item 141 — Recipe
+  display lookup verified
+  against 1.21.5, with one
+  deliberate deviation:**
+  - `getRecipeFromDisplay`:
+    1.21.6 bounds-checks the
+    index and returns null
+    out of range; 1.21.5
+    indexes `allDisplays`
+    directly, so an
+    out-of-range display id
+    throws
+    `IndexOutOfBoundsException`
+    out of the packet
+    handler — a server
+    crash on a malformed
+    guest packet (the 1.21.6
+    bounds check is the fix
+    for it). The Rust port
+    keeps the safe form:
+    `recipe_of_display`
+    returns `Option` and
+    both server handlers
+    (`lan_place_recipe`,
+    the seen-recipe handler
+    in `hub.rs`) no-op on
+    `None`, matching the
+    behaviour the 1.21.5
+    handlers' own null
+    checks were written for.
+    The port does not
+    replicate the crash.
+  - Advancement validation:
+    the log-line change is
+    same-behaviour (log
+    only when problems
+    exist), and the Rust
+    port has no advancement
+    criterion validator at
+    all (items 71, 82, 97).
+  - Verification: no Rust
+    change; the tree state
+    is the one `cargo check
+    -j 1 -p horizon-client
+    --lib` passed at item
+    138.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **140 of 426 are
-closed** (rank 1 complete, rank 2 at 131/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **141 of 426 are
+closed** (rank 1 complete, rank 2 at 132/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
