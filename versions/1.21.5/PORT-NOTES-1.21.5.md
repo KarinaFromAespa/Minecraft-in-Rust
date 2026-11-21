@@ -1968,9 +1968,15 @@ is the oracle; decompiled code is a reading aid.
     1.21.6 name for the fold.
   - No-ops: `musicFrequency` /
     `showNowPlayingToast` (item 37), the
-    glint-strength callback (`glint_strength`
-    is stored but never consumed by the
-    renderer), the options-file JSON
+    glint-strength callback (the
+    `glintStrength` value is read from the
+    options file once per frame by
+    `capture_glint_frame` and fed to the
+    shaders as `GlintFrame.alpha`, so it
+    is always current at draw time, as
+    1.21.5's `setShaderGlintAlpha` call
+    makes it — see item 54), the
+    options-file JSON
     leniency (Gson's `JsonParser` and
     `LenientJsonParser` are both lenient),
     the `save()` version line (same value
@@ -2065,13 +2071,50 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -p
     horizon-client --all-targets` 0 errors /
     0 warnings (1m28s).
+- **Item 54 — RenderSystem, verified, no
+  code change:**
+  - 1.21.6 moved the shader state (fog,
+    lights, projection, glint alpha, game
+    time, shader colour) into GPU buffer
+    slices and `DynamicUniforms`;
+    1.21.5 keeps them as plain CPU-side
+    fields. The Rust is value-based
+    throughout and already matches the
+    1.21.5 form: the shader game time is
+    computed with 1.21.5's exact formula
+    (`(game_time % 24000 + partial) /
+    24000`), the GUI diffuse lighting
+    uses 1.21.5's exact matrices (flat:
+    `rotationY(-PI/8).rotateX(3PI/4)`; 3D:
+    the scale and `rotateYXZ(1.0821041,
+    3.2375858, 0)` chain), fog and
+    projection are plain values, and
+    there is no `DynamicUniforms` /
+    global-settings-uniform /
+    `bindDefaultUniforms` modelling to
+    remove. The glint alpha is read from
+    the options file once per frame
+    (`capture_glint_frame`), so it is
+    always current at draw time, as
+    1.21.5's `setShaderGlintAlpha`
+    callback makes it — this corrects
+    item 50's note, which wrongly said
+    the value was never consumed.
+    `setShaderColor` and the scissor
+    state have no Rust surface beyond
+    per-draw colours and the GUI scissor
+    rect.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (7s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **53 of 426 are
-closed** (rank 1 complete, rank 2 at 44/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **54 of 426 are
+closed** (rank 1 complete, rank 2 at 45/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
