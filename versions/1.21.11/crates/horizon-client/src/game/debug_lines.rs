@@ -1,13 +1,11 @@
-//! The F3 overlay's text entries (26.3 `DebugEntry*`): what each enabled
+//! The F3 overlay's text entries (1.21.11 `DebugEntry*`): what each enabled
 //! entry of `debug-profile.json` reports to the `DebugScreenDisplayer`, in
 //! `DebugScreenEntryList.rebuildCurrentList`'s order (by identifier). The
 //! entries that read the server's level ask the integrated server for their
 //! lines (`ServerDebug`); on another server they show what vanilla shows
 //! there, nothing or `??`.
 use super::Game;
-use horizon_client::{
-    debug_entries::ENTRIES, debug_overlay as overlay, debug_overlay::Displayer, java_text,
-};
+use horizon_client::{debug_entries::ENTRIES, debug_overlay as overlay, debug_overlay::Displayer};
 use horizon_world::{
     heightmap::{HeightmapState, HeightmapType},
     worldgen::terrain::TerrainBlockStates,
@@ -52,11 +50,6 @@ impl Game<'_> {
                 "biome" => self.debug_biome_line(d),
                 "chunk_render_stats" => self.debug_chunk_render_line(d),
                 "chunk_source_stats" => self.debug_chunk_source_lines(d, server.as_ref()),
-                "day_count" => {
-                    if self.player.is_some() {
-                        d.line(format!("Day #{}", self.world.day_time.div_euclid(24000)));
-                    }
-                }
                 "entity_render_stats" => self.debug_entity_render_line(d),
                 "entity_spawn_counts" => {
                     if let Some(line) = server.as_ref().and_then(|s| s.spawn_counts.clone()) {
@@ -81,22 +74,24 @@ impl Game<'_> {
                         d.line(line);
                     }
                 }
-                "looking_at_block_state" | "looking_at_block_tags" => {
-                    let lines = self.debug_looking_at_block(path == "looking_at_block_state");
+                "looking_at_block" => {
+                    // `DebugEntryLookingAtBlock`: the state lines, then
+                    // the tags, in one group (1.21.11 never split them).
+                    let mut lines = self.debug_looking_at_block(true);
+                    lines.extend(self.debug_looking_at_block(false));
                     d.group("looking_at_block", lines);
                 }
-                "looking_at_entity" | "looking_at_entity_tags" => {
+                "looking_at_entity" => {
                     let lines = self.crosshair_entity_type().map_or_else(Vec::new, |kind| {
-                        if path == "looking_at_entity" {
-                            vec![format!("{}Targeted Entity", overlay::UNDERLINE), kind]
-                        } else {
-                            overlay::tag_lines(&self.res.mob_data().entity_tags, &kind)
-                        }
+                        vec![format!("{}Targeted Entity", overlay::UNDERLINE), kind]
                     });
                     d.group("looking_at_entity", lines);
                 }
-                "looking_at_fluid_state" | "looking_at_fluid_tags" => {
-                    let lines = self.debug_looking_at_fluid(path == "looking_at_fluid_state");
+                "looking_at_fluid" => {
+                    // `DebugEntryLookingAtFluid`: the state lines, then
+                    // the tags, in one group (1.21.11 never split them).
+                    let mut lines = self.debug_looking_at_fluid(true);
+                    lines.extend(self.debug_looking_at_fluid(false));
                     d.group("looking_at_fluid", lines);
                 }
                 "memory" => {
@@ -122,19 +117,7 @@ impl Game<'_> {
                         }
                     }
                 }
-                "player_speed" => {
-                    if self.player.is_some() {
-                        let speed = self.known_player_movement();
-                        d.group(
-                            "position",
-                            [format!(
-                                "Speed: {} blocks/tick",
-                                java_text::format_fixed(speed.length(), 3)
-                            )],
-                        );
-                    }
-                }
-                "post_effects" => {
+                "post_effect" => {
                     let effects = self.requested_post_effects();
                     if !effects.is_empty() {
                         d.line(format!("Post: {}", effects.join(", ")));
@@ -200,8 +183,7 @@ impl Game<'_> {
                         }
                     }
                 }
-                // detailed_memory: the JVM's memory pools, which Horizon
-                // has none of. The rest are renderers (debug_renderers.rs).
+                // The rest are renderers (debug_renderers.rs).
                 _ => {}
             }
         }
@@ -393,7 +375,8 @@ impl Game<'_> {
         Some(self.clip_ray(origin, dir, LOOKING_AT_RANGE)?.pos)
     }
 
-    /// `DebugEntryLookingAt.BlockStateInfo` or `BlockTagInfo`.
+    /// `DebugEntryLookingAtBlock`: `state` selects the state lines or the
+    /// tag lines; 1.21.11 shows both, in that order, in one group.
     fn debug_looking_at_block(&self, state: bool) -> Vec<String> {
         let Some(pos) = self.debug_block_hit() else {
             return Vec::new();
@@ -463,7 +446,8 @@ impl Game<'_> {
         }
     }
 
-    /// `DebugEntryLookingAt.FluidStateInfo` or `FluidTagInfo`.
+    /// `DebugEntryLookingAtFluid`: `state` selects the state lines or the
+    /// tag lines; 1.21.11 shows both, in that order, in one group.
     fn debug_looking_at_fluid(&self, state: bool) -> Vec<String> {
         let Some(pos) = self.debug_fluid_hit() else {
             return Vec::new();

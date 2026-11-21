@@ -1,4 +1,4 @@
-//! The debug screen's entries (26.3 `DebugScreenEntries`, `DebugScreenEntryList`):
+//! The debug screen's entries (1.21.11 `DebugScreenEntries`, `DebugScreenEntryList`):
 //! what each F3 line block and debug renderer is, whether it shows always,
 //! only in the overlay or never, the two built-in profiles, and
 //! `debug-profile.json` beside `options.txt`, which keeps them.
@@ -122,20 +122,19 @@ const fn renderer(path: &'static str) -> Entry {
     }
 }
 
-/// `DebugScreenEntries`' registrations, in their order.
-pub const ENTRIES: [Entry; 45] = [
+/// `DebugScreenEntries`' registrations, in their order. 1.21.11 still has
+/// the merged `looking_at_block` / `looking_at_fluid` entries (the split
+/// into `_state` / `_tags` halves is a 26.x change), no `detailed_memory`,
+/// `player_speed` or `day_count`, and `post_effect` (singular).
+pub const ENTRIES: [Entry; 39] = [
     text("game_version", true),
     text("fps", true),
     text("tps", true),
     text("memory", true),
-    text("detailed_memory", true),
     text("system_specs", true),
-    text("looking_at_block_state", false),
-    text("looking_at_block_tags", false),
-    text("looking_at_fluid_state", false),
-    text("looking_at_fluid_tags", false),
+    text("looking_at_block", false),
+    text("looking_at_fluid", false),
     text("looking_at_entity", false),
-    text("looking_at_entity_tags", false),
     text("chunk_render_stats", true),
     text("chunk_generation_stats", false),
     text("entity_render_stats", true),
@@ -143,15 +142,13 @@ pub const ENTRIES: [Entry; 45] = [
     text("chunk_source_stats", true),
     text("player_position", false),
     text("player_section_position", true),
-    text("player_speed", false),
     text("light_levels", false),
     text("heightmap", false),
     text("biome", false),
     text("local_difficulty", false),
-    text("day_count", false),
     text("entity_spawn_counts", false),
     text("sound_mood", false),
-    text("post_effects", false),
+    text("post_effect", false),
     renderer("entity_hitboxes"),
     renderer("chunk_borders"),
     renderer("3d_crosshair"),
@@ -358,7 +355,10 @@ impl DebugEntries {
 const FIRST_VERSION: i64 = 4649;
 
 /// The `DataFixers` rules for `References.DEBUG_PROFILE`, each run when the
-/// file is older than its schema, on the `custom` map.
+/// file is older than its schema, on the `custom` map. Only fixes at or
+/// before this version's data version (4671) are in the chain: the 4763
+/// looking-at split and the 5001 `post_effect` rename postdate 1.21.11,
+/// so a 1.21.11 client never applies them.
 fn upgrade(json: &mut serde_json::Value) {
     let version = json
         .get("DataVersion")
@@ -374,30 +374,6 @@ fn upgrade(json: &mut serde_json::Value) {
                 *status = "inOverlay".into();
             }
         }
-    }
-    // 4763 DebugProfileLookingAtSplitFix: the targeted block and fluid
-    // entries became their `_state` halves; a key already there wins.
-    if version < 4763 {
-        for (old, new) in [
-            (
-                "minecraft:looking_at_block",
-                "minecraft:looking_at_block_state",
-            ),
-            (
-                "minecraft:looking_at_fluid",
-                "minecraft:looking_at_fluid_state",
-            ),
-        ] {
-            if let Some(status) = custom.remove(old) {
-                custom.entry(new).or_insert(status);
-            }
-        }
-    }
-    // 5001 DebugProfileRenameEntryFix: `post_effect` is `post_effects`.
-    if version < 5001
-        && let Some(status) = custom.remove("minecraft:post_effect")
-    {
-        custom.insert("minecraft:post_effects".into(), status);
     }
 }
 
@@ -463,27 +439,28 @@ mod tests {
 
     #[test]
     fn old_files_are_upgraded_by_their_data_version() {
-        // No DataVersion: every fix runs.
+        // No DataVersion: the only fix in 1.21.11's chain runs (4650).
+        // The merged looking-at entries and `post_effect` are already the
+        // 1.21.11 form — the 4763 split and 5001 rename postdate it.
         let (_, custom) = DebugEntries::parse(
             r#"{"custom":{"minecraft:fps":"inF3","minecraft:looking_at_block":"alwaysOn",
-            "minecraft:looking_at_fluid":"inF3","minecraft:looking_at_fluid_state":"never",
-            "minecraft:post_effect":"alwaysOn"}}"#,
+            "minecraft:looking_at_fluid":"inF3","minecraft:post_effect":"alwaysOn"}}"#,
         )
         .unwrap();
         assert_eq!(custom["minecraft:fps"], Status::InOverlay);
-        assert_eq!(custom["minecraft:looking_at_block_state"], Status::AlwaysOn);
-        assert_eq!(custom["minecraft:looking_at_fluid_state"], Status::Never);
-        assert_eq!(custom["minecraft:post_effects"], Status::AlwaysOn);
-        assert!(!custom.contains_key("minecraft:looking_at_block"));
-        assert!(!custom.contains_key("minecraft:post_effect"));
-        // From 4763 on, only the post effects rename is left.
+        assert_eq!(custom["minecraft:looking_at_block"], Status::AlwaysOn);
+        assert_eq!(custom["minecraft:looking_at_fluid"], Status::InOverlay);
+        assert_eq!(custom["minecraft:post_effect"], Status::AlwaysOn);
+        assert!(!custom.contains_key("minecraft:looking_at_block_state"));
+        assert!(!custom.contains_key("minecraft:post_effects"));
+        // From 4763 on, nothing runs: a newer file keeps its keys as-is.
         let (_, custom) = DebugEntries::parse(
             r#"{"DataVersion":4763,"custom":{"minecraft:looking_at_block":"alwaysOn",
             "minecraft:post_effect":"alwaysOn"}}"#,
         )
         .unwrap();
         assert_eq!(custom["minecraft:looking_at_block"], Status::AlwaysOn);
-        assert_eq!(custom["minecraft:post_effects"], Status::AlwaysOn);
+        assert_eq!(custom["minecraft:post_effect"], Status::AlwaysOn);
         // `inF3` is no status any more once the file is past 4650.
         assert!(DebugEntries::parse(r#"{"DataVersion":4650,"custom":{"fps":"inF3"}}"#).is_none());
     }
@@ -491,7 +468,7 @@ mod tests {
     #[test]
     fn the_list_sorts_text_before_renderers() {
         let all = search("");
-        assert_eq!(all.len(), 45);
+        assert_eq!(all.len(), 39);
         assert_eq!(all[0].path, "biome");
         let first_renderer = all
             .iter()
@@ -504,5 +481,35 @@ mod tests {
                 .all(|e| e.category == Category::Renderer)
         );
         assert_eq!(search("chunk_b").len(), 1);
+    }
+
+    #[test]
+    fn the_registry_is_the_1_21_11_form() {
+        // Merged looking-at entries, singular post effect.
+        assert!(entry("looking_at_block").is_some());
+        assert!(entry("looking_at_fluid").is_some());
+        assert!(entry("post_effect").is_some());
+        // 26.x additions the 1.21.11 registry predates.
+        for gone in [
+            "detailed_memory",
+            "looking_at_block_state",
+            "looking_at_block_tags",
+            "looking_at_fluid_state",
+            "looking_at_fluid_tags",
+            "looking_at_entity_tags",
+            "player_speed",
+            "day_count",
+            "post_effects",
+        ] {
+            assert!(entry(gone).is_none(), "{gone} is not a 1.21.11 entry");
+        }
+        // Registration order around the merged entries.
+        let paths: Vec<&str> = ENTRIES.iter().map(|e| e.path).collect();
+        let at = |p: &str| paths.iter().position(|q| *q == p).unwrap();
+        assert!(at("system_specs") < at("looking_at_block"));
+        assert!(at("looking_at_block") < at("looking_at_fluid"));
+        assert!(at("looking_at_fluid") < at("looking_at_entity"));
+        assert!(at("sound_mood") < at("post_effect"));
+        assert!(at("post_effect") < at("entity_hitboxes"));
     }
 }

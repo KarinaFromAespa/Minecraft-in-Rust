@@ -9195,3 +9195,23 @@ and the potion throw is always speed 0.75 in 1.21.11 (26.1 slowed
 close-range throws to 0.45 within 2 blocks). The potion selection,
 aim and throw sound already matched. Tests: `mobs::witch::` 4
 passed (1 new: the flat texture).
+
+## Item 168 — debug_entries.rs (rank 2, CHANGED)
+
+5 classes, 16 methods, 2 named. The debug-entries registry is the
+delta: 1.21.11 registers 39 entries, not the Rust's 45 (26.3 form).
+Gone: `detailed_memory`, the split `looking_at_*_state`/`_tags`
+halves, `looking_at_entity_tags`, `player_speed` (a 26.2+
+addition) and `day_count`; the merged `looking_at_block` /
+`looking_at_fluid` take their place, and `post_effects` is
+`post_effect` (singular). The F3 lines follow: the merged entries
+draw state lines then tag lines in one group, as 1.21.11's
+`DebugEntryLookingAtBlock`/`Fluid` do, and `looking_at_entity`
+shows only the type (1.21.11 has no entity-tags entry). The
+`debug-profile.json` upgrade chain ends at 4671: the 4763
+looking-at split and 5001 post-effect rename postdate 1.21.11 and
+no longer run. No delta: `load` / `rebuildCurrentList` / profiles
+/ status names are identical in both versions (refactors and
+renames only). Tests: `debug_entries::` 6 passed (1 new: the
+registry is the 1.21.11 form); `cargo check -p horizon-client`
+clean.
