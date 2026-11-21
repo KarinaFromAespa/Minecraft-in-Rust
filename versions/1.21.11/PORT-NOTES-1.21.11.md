@@ -12703,3 +12703,8 @@ Visibility only.
 ## Item 706 — mobs/nether.rs (GhastModel) — NO-CHANGE
 
 RandomSource factory only, as items 670/679.
+
+## Item 707 — mobs/skin.rs (BabyTurtleModel) — NO-CHANGE
+
+26.1-only class; already handled — body_anim.rs documents that one
+`TurtleModel` serves both ages in 1.21.11.
