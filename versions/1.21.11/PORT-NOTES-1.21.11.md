@@ -12679,3 +12679,7 @@ Visibility only.
 ## Item 700 — game/trident.rs (BlockAndLightGetter) — NO-CHANGE
 
 26.1-only interface; no usage anywhere in the Rust.
+
+## Item 701 — menu/equippable.rs (Equippable$Builder) — NO-CHANGE
+
+Visibility only.
