@@ -147,7 +147,8 @@ impl DebugCharts {
             (self.fps && !self.tick_times.is_empty()) || self.network,
         ]
     }
-    /// The charts along the bottom of the screen (`extractRenderState`):
+    /// The charts along the bottom of the screen (`drawChart`, 26.1's
+    /// `extractRenderState`):
     /// frame times left and tick times right, or bandwidth left (remote
     /// servers only) and ping right. `mspt` is the level's milliseconds
     /// per tick.
@@ -229,7 +230,7 @@ impl Chart {
     pub fn width(max_width: i32) -> i32 {
         (CAPACITY as i32 + 2).min(max_width)
     }
-    /// `AbstractDebugChart.extractRenderState`.
+    /// `AbstractDebugChart.drawChart` (26.1's `extractRenderState`).
     pub fn draw(
         self,
         font: &Font,
@@ -329,7 +330,8 @@ impl Chart {
             _ => samples.get(index, 0),
         }
     }
-    /// `extractAdditionalLinesAndLabels`.
+    /// `renderAdditionalLinesAndLabels` (26.1's
+    /// `extractAdditionalLinesAndLabels`).
     fn lines_and_labels(
         self,
         out: &mut Vec<GuiDraw>,
@@ -463,7 +465,8 @@ fn text(out: &mut Vec<GuiDraw>, s: String, x: i32, y: i32, color: u32, shadow: b
         shadow,
     });
 }
-/// `extractStringWithShade`: a label on a dark backdrop, without shadow.
+/// `drawStringWithShade` (26.1's `extractStringWithShade`): a label on
+/// a dark backdrop, without shadow.
 fn shaded(out: &mut Vec<GuiDraw>, font: &Font, s: &str, x: i32, y: i32) {
     out.push(fill(x, y, x + font.width(s) as i32 + 1, y + 9, BACKDROP));
     text(out, s.to_owned(), x + 1, y + 1, LABEL, false);

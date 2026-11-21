@@ -11383,3 +11383,21 @@ and `is(Object)` -> `is(Block)`/`is(Item)` overloads. Note:
 the old tag names also live in horizon-world (`level/data.rs`,
 `level/weather.rs`, `level/survive.rs`) — other items' files,
 not touched here.
+
+## Item 521 — debug_chart.rs (rank 3, NO-CHANGE apart from citations)
+
+The five debug-chart classes differ only by the
+render-state-extractor rewire: `extractRenderState` ->
+`drawChart`, `extractSampleBars` -> `drawDimensions`,
+`extractMainSampleBar` -> `drawMainDimension`,
+`extractAdditionalSampleBars` ->
+`drawAdditionalDimensions`,
+`extractAdditionalLinesAndLabels` ->
+`renderAdditionalLinesAndLabels`,
+`extractStringWithShade` -> `drawStringWithShade`,
+plus `hLine`/`vLine`/`drawString`/`drawCenteredString`.
+Every constant is identical (backdrop, text colours,
+the 60 FPS label, bandwidth lines at 64/1024/16384,
+the framerate-limit line, the TPS dimension colours).
+Four citations re-pointed to the 1.21.11 names; no
+logic touched.
