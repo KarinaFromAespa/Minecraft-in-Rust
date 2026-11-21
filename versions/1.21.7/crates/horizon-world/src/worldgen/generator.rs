@@ -483,14 +483,26 @@ impl GeneratorData {
             biome_carvers.push(carvers.decode_set(&value["carvers"].to_string())?);
             biome_json.push(json.clone());
         }
-        let carving_blocks = CarvingBlocks::from_registry(
-            registry,
-            &tag_set("minecraft:uncarvable")?
-                .into_iter()
-                .map(str::to_owned)
-                .collect(),
-        )
-        .map_err(|e| resource(format!("carving blocks: {e}")))?;
+        // 1.21.7 has no `minecraft:uncarvable` tag (26.3 added it):
+        // its carvers declare their replaceable sets, one per dimension
+        // in vanilla data. Everything outside both sets is uncarvable —
+        // ores, bedrock and fluids included, as in vanilla, where a
+        // carver only replaces what its set names.
+        let mut uncarvable: BTreeSet<String> = (0..registry.len())
+            .filter_map(|index| {
+                registry
+                    .state(BlockStateId(index as u32))
+                    .map(|state| state.name.clone())
+            })
+            .collect();
+        for name in tag_set("minecraft:overworld_carver_replaceables")?
+            .into_iter()
+            .chain(tag_set("minecraft:nether_carver_replaceables")?.into_iter())
+        {
+            uncarvable.remove(name);
+        }
+        let carving_blocks = CarvingBlocks::from_registry(registry, &uncarvable)
+            .map_err(|e| resource(format!("carving blocks: {e}")))?;
         let feature_resources = match (
             read_optional_bundle(dir, ov, "features")?,
             read_optional_bundle(dir, ov, "placed_features")?,

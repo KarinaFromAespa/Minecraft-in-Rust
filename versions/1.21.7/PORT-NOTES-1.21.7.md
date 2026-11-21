@@ -486,3 +486,12 @@ but 1.21.7's `nether_cave` is a third carver type
 Vanilla's NetherCaveCarver is a CaveCarver subclass with the same
 tunnel generation, so both the catalog dispatch and the cave decoder
 accept it as a cave (its config has the same fields).
+
+Sixth launch crash, same morning (10:21 NPT): "missing block tag
+minecraft:uncarvable". 1.21.7 has no uncarvable tag (26.3 added it);
+its carvers declare replaceable sets, one per dimension. The
+generator now derives the uncarvable set as every block outside both
+replaceable tags — ores, bedrock and fluids included, as in vanilla,
+where a carver only replaces what its set names. (26.2 solved the
+same gap differently, by porting its carving pass to per-dimension
+replaceable sets; that rework is out of scope here.)
