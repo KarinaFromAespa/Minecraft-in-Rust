@@ -10746,12 +10746,37 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 257 — Patch value
+  codec:
+  - 1.21.6 decodes
+    delimited component-
+    patch values with
+    registry context (regis
+    tryFriendlyLengthPrefix
+    ed); 1.21.5 uses the
+    plain lengthPrefixed
+    form. The wire form is
+    identical (VarInt
+    length + bytes) in
+    both. The port's
+    delimited read (item.rs
+    read_stack) already
+    takes the 1.21.5 form:
+    each value is sliced
+    out by its length and
+    decoded through a fresh
+    Reader over just those
+    bytes, with no registry
+    context passed.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **256 of 426 are
-closed** (rank 1 complete, rank 2 at 247/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **257 of 426 are
+closed** (rank 1 complete, rank 2 at 248/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
