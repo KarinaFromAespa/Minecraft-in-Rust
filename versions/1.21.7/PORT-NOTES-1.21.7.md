@@ -877,3 +877,84 @@ within +0.52, three exact). Regression test
 The "too mountainy" half of the report is not a generator
 defect: the terrain matches vanilla, and the spawn area is
 genuinely mountainous in vanilla too (grove/snowy slopes).
+
+Black sky: legacy environment attributes synthesized (2026-11-21).
+After the terrain fix the owner reported the sky all black in
+daytime (Level.dat Time=2002). The cause: 1.21.7's dimension types
+and biomes carry no `attributes` key — the environment-attribute
+system arrived in 1.21.11 (Polytone documents its
+`attributes_modifiers` as "1.21.11+ only"; 1.21.11's named jar
+already drives its SkyRenderer from `EnvironmentAttributes`, while
+1.21.7 still colours its sky from the biome's legacy `effects`) —
+so crash #3's fallback (warn + empty map) left every visual
+attribute at its default: sky and fog black, sun/moon/star angles
+0, star brightness 0, and no clouds at all (the cloud colour's
+alpha gates them). The run log confirmed both sites: the dimension
+map was empty and every biome was dropped with "attributes are not
+an object". The fix synthesizes the missing data in
+`crates/horizon-client-render/src/environment.rs` (`mod legacy`),
+the same pattern as the missing movement attributes (83d24e28):
+each biome's map comes from its legacy `effects` (sky_color,
+fog_color, water_fog_color — plains 0x78A7FF / 0xC0D8FF), each
+dimension gets constants from its legacy fields (overworld: plains
+sky/fog plus its own cloud_height 192; Nether: wastes fog 0x330808
+and fixed-midnight sky light 4; End: fog 0xA080A0, black sky with
+stars at vanilla's maximum 0.5), and the overworld gets a
+synthesized day timeline (period 24000) whose keyframe tracks are
+vanilla's classic formulas — linear sun/moon/star angles (0° at
+noon), star brightness from `Level.getStarBrightness`, sky light
+from `15 - Level.getSkyDarken`, sky and fog colours multiplied by
+`ClientLevel.getSkyColor`'s daylight factor, sky light factor as
+the level's fraction of 15, sky light colour to the engine's night
+colour, cloud colour white by day and black at night. The classic
+formulas couldn't be jar-verified (the 1.21.11 and 26.2 jars both
+already use attributes); they follow the Minecraft Wiki's Daylight
+cycle page and the engine's own probe-verified angle convention.
+One gap is deliberate: the sunrise/sunset colour is not
+synthesized (its exact vanilla constants couldn't be verified, and
+a wrong glow would look like a bug), so dawn and dusk have no
+sunset fan until the 26.x timeline values are available.
+Regression tests: `legacy_overworld_sky_follows_the_day` and
+`legacy_nether_and_end_get_sane_values` (hermetic fixtures),
+`prepared_1_21_7_overworld_sky_is_not_black` (real prepared data,
+skips without it).
+
+Commands: `/time set day` and the argument-type registry
+(2026-11-21). The owner couldn't set the time or run other
+commands. Two 1.21.7-only gaps were found and fixed. First, the
+Commands packet's argument-type list was still 26.3's (62
+entries): the five 26.3-only types (`context_float_provider`,
+`context_int_provider`, `slot_source`, `feature`,
+`swing_animation`) shifted `dialog` (55) and `uuid` (56) onto the
+wrong ids, so their tree nodes decoded with the wrong parsers.
+`ARGUMENT_TYPES` in
+`crates/horizon-protocol/src/packets/play/commands.rs` is now
+1.21.7's registry (57 entries, 26.2's list — the adapter's 1.21.7
+remap is the identity and the 26.2 jar's
+`ArgumentTypeInfos.bootstrap` order confirms it), and the five
+26.3-only arms are gone from `horizon-command/src/network.rs`.
+That alone didn't explain `/time set`: the send path, the
+integrated-server dispatch and the permissions (owner op 4,
+allowCommands=1) are all intact and identical to 26.2. The real
+`/time` gap was the tree's shape: 1.21.7's TimeCommand takes
+literal times (`set day|noon|night|midnight`, verified in the
+1.21.11 named jar's TimeCommand bytecode), but the ported tree
+only had the 26.x forms — a numeric time and a `timemarker`
+argument — and 1.21.7 has no time markers, so every named time
+failed both ways. `clock_nodes` in
+`horizon-command/src/vanilla.rs` now registers the four literals
+(they execute `time.set`; the executor resolves them to
+1000/6000/13000/18000 in `game/commands.rs`), plus 1.21.7's
+`query daytime` and `query day` forms, which were missing too
+(`query time` is the 26.x name). The 26.3-only already-at-time
+and already-at-marker errors are removed from `cmd_time`,
+mirroring 26.2. No systemic break was found for non-time
+commands: the full pipeline was traced in code and matches 26.2
+(`remote_chat.rs`, `lan_chat.rs`, `lan/commands.rs` are
+byte-identical); if other commands still fail in-game, the exact
+commands and what the owner sees (error text vs nothing) are
+needed, plus a check that the laptop's prepared data has
+`commands.json` (without it the server sends an empty tree — no
+suggestions, though execution still works). Regression tests:
+`argument_types_are_1_21_7s_registry` (protocol) and the updated
+`parses_vanilla_commands` / suggestion tests (horizon-command).

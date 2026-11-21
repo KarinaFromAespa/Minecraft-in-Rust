@@ -183,8 +183,15 @@ fn parses_vanilla_commands() {
     );
     assert_eq!(run("time set 1000").unwrap().0, "time.set");
     assert_eq!(run("time set 1d").unwrap().0, "time.set");
-    assert_eq!(run("time set day").unwrap().0, "time.set.marker");
+    // 1.21.7's literal times (TimeCommand's `set day|noon|night|midnight`),
+    // not the 26.x marker argument: 1.21.7 has no time markers.
+    assert_eq!(run("time set day").unwrap().0, "time.set");
+    assert_eq!(run("time set noon").unwrap().0, "time.set");
+    assert_eq!(run("time set night").unwrap().0, "time.set");
+    assert_eq!(run("time set midnight").unwrap().0, "time.set");
     assert_eq!(run("time query gametime").unwrap().0, "time.query.gametime");
+    assert_eq!(run("time query daytime").unwrap().0, "time.query.daytime");
+    assert_eq!(run("time query day").unwrap().0, "time.query.day");
     assert_eq!(run("weather rain 10s").unwrap().0, "weather");
     assert_eq!(run("xp add @s 5 levels").unwrap().0, "experience");
     assert_eq!(run("gamerule keep_inventory true").unwrap().0, "gamerule");
@@ -310,6 +317,14 @@ fn suggestions_like_vanilla() {
     );
     assert_eq!(suggestions("time set 5"), ["d", "s", "t"]);
     assert!(suggestions("time set ").contains(&"minecraft:day".to_owned()));
+    // The literal times are suggested too.
+    let set_suggestions = suggestions("time set ");
+    for name in ["day", "noon", "night", "midnight"] {
+        assert!(
+            set_suggestions.contains(&name.to_owned()),
+            "{name} suggested"
+        );
+    }
 }
 /// ClientSuggestionProvider: block and column positions offer the targeted
 /// block (`getRelevantCoordinates`), `Vec3` and `Vec2` the exact hit point

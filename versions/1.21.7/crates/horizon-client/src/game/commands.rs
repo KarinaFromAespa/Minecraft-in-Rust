@@ -2247,10 +2247,21 @@ impl Game<'_> {
         let total = self.command_clock_time(&clock);
         match id {
             "time.set" => {
-                let t = i64::from(Self::int(ctx, "time").unwrap_or(0));
-                if total == t {
-                    return Err(err("commands.time.set.already_at_time", &[&clock, &t]));
-                }
+                // 1.21.7's literal times (TimeCommand's `set day|noon|night|
+                // midnight`); otherwise the time argument's value.
+                let t = if ctx.has("day") {
+                    1000
+                } else if ctx.has("noon") {
+                    6000
+                } else if ctx.has("night") {
+                    13000
+                } else if ctx.has("midnight") {
+                    18000
+                } else {
+                    i64::from(Self::int(ctx, "time").unwrap_or(0))
+                };
+                // 1.21.7 sets unconditionally; the already-at-time error is
+                // 26.3-only.
                 self.jump_clock(&clock, total, t, "command");
                 self.feedback(Text::tr("commands.time.set.absolute", &[&clock, &t]));
                 Ok(t as i32)
@@ -2268,12 +2279,9 @@ impl Game<'_> {
                         &[&marker, &clock],
                     ));
                 };
-                if m.occurs_at(total) {
-                    return Err(err(
-                        "commands.time.set.already_at_time_marker",
-                        &[&clock, &marker],
-                    ));
-                }
+                // 1.21.7 has no already-at-marker error (26.3-only): the
+                // clock moves to the marker's resolved time even when it
+                // is already there.
                 let target = m.resolve(total);
                 let mut cancel = false;
                 self.native_time_skip(self.dim.id(), total, target, "command", &mut cancel);
@@ -2346,6 +2354,16 @@ impl Game<'_> {
                     &[&clock, &total],
                 ));
                 Ok((total % i64::from(i32::MAX)) as i32)
+            }
+            "time.query.daytime" => {
+                let daytime = total.rem_euclid(24_000);
+                self.feedback_unbroadcast(Text::tr("commands.time.query.daytime", &[&daytime]));
+                Ok(daytime as i32)
+            }
+            "time.query.day" => {
+                let day = total / 24_000;
+                self.feedback_unbroadcast(Text::tr("commands.time.query.day", &[&day]));
+                Ok((day % i64::from(i32::MAX)) as i32)
             }
             "time.query.timeline" | "time.query.repetition" => {
                 let Some(Arg::Resource(timeline)) = ctx.get("timeline").cloned() else {

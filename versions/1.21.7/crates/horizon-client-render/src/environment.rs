@@ -809,6 +809,211 @@ fn timeline_ids(root: &Path, json: &Json, out: &mut Vec<String>, depth: u32) {
     }
 }
 
+/// Legacy (pre-attribute-system) dimension data, synthesized at vanilla 1.21.7
+/// values. 1.21.7's dimension types and biomes carry no `attributes` — the
+/// environment-attribute system arrived in 1.21.11 (Polytone documents its
+/// `attributes_modifiers` as "1.21.11+ only"), and 1.21.7 still colours its
+/// sky from the biome's legacy `effects`. Without synthesis every visual
+/// attribute falls back to its default: a black sky and fog, a sun frozen at
+/// 0°, no stars, and no clouds (the cloud colour's alpha gates them) — the
+/// 2026-11-21 laptop playtest's black sky. The synthesis follows the same
+/// pattern as the missing movement attributes (83d24e28): derive what the
+/// data lacks from what it has, in code, at vanilla values.
+///
+/// The day-cycle curves are vanilla's classic formulas (Minecraft Wiki,
+/// "Daylight cycle"; the 1.21.11 and 26.2 jars can't verify them — both
+/// already drive the sky from attributes). `time_of_day` is
+/// `DimensionType.timeOfDay`: 0 at noon, 0.5 at midnight. The sky and fog
+/// darken by `ClientLevel.getSkyColor`'s factor, the stars by
+/// `Level.getStarBrightness`, the sky light by `15 - Level.getSkyDarken`
+/// (kept as a float; `sky_darken` truncates it to vanilla's int steps).
+/// `sun_angle` is linear in time, 0° at noon — the engine's `SUN_ANGLE`
+/// convention, probe-verified against the 26.x day timeline — not the
+/// wiki's non-linear visual angle. The sunrise/sunset colour is NOT
+/// synthesized: its exact vanilla constants couldn't be verified, and a
+/// wrong glow would look like a bug; the attribute stays transparent (no
+/// dawn/dusk fan) until the 26.x timeline values are available.
+mod legacy {
+    use super::*;
+
+    /// `DimensionType.timeOfDay` at `ticks` (0-23999): 0 at noon.
+    fn time_of_day(ticks: i32) -> f32 {
+        (ticks as f32 / 24_000.0 - 0.25).rem_euclid(1.0)
+    }
+
+    /// `Mth.cos(timeOfDay * 2π)`, the shared input of the daylight curves.
+    fn cos_day(ticks: i32) -> f32 {
+        (time_of_day(ticks) * 2.0 * std::f32::consts::PI).cos()
+    }
+
+    /// `ClientLevel.getSkyColor`'s daylight factor: 1 at noon, 0 at night.
+    fn daylight(ticks: i32) -> f32 {
+        (cos_day(ticks) * 2.0 + 0.5).clamp(0.0, 1.0)
+    }
+
+    /// `Level.getStarBrightness`: 0 by day, 0.5 at midnight.
+    fn star_brightness(ticks: i32) -> f32 {
+        let f = (1.0 - (cos_day(ticks) * 2.0 + 0.25)).clamp(0.0, 1.0);
+        f * f * 0.5
+    }
+
+    /// `15 - Level.getSkyDarken`: 15 by day, 4 at night.
+    fn sky_light_level(ticks: i32) -> f32 {
+        15.0 - (1.0 - (cos_day(ticks) * 2.0 + 0.2)).clamp(0.0, 1.0) * 11.0
+    }
+
+    /// A biome's legacy `effects` colours as an attribute map, or `None`
+    /// when the biome carries neither attributes nor colours.
+    pub fn biome_map(biome: &Json) -> Option<AttributeMap> {
+        let effects = biome.get("effects")?.as_object()?;
+        let mut entries = serde_json::Map::new();
+        for (legacy, attribute) in [
+            ("sky_color", "visual/sky_color"),
+            ("fog_color", "visual/fog_color"),
+            ("water_fog_color", "visual/water_fog_color"),
+        ] {
+            if let Some(value) = effects.get(legacy) {
+                entries.insert(attribute.to_owned(), value.clone());
+            }
+        }
+        if entries.is_empty() {
+            return None;
+        }
+        AttributeMap::parse(&Json::Object(entries)).ok()
+    }
+
+    /// A dimension's constant attributes, from its legacy fields. The
+    /// overworld takes the plains sky and fog as its dimension defaults (the
+    /// biome layer overrides them where the player stands) and its own
+    /// `cloud_height`; the Nether and the End take their fixed-time values
+    /// (Nether midnight: sky light 4; End noon: sky light 15, the default)
+    /// and their primary biome's colours. The End's stars are always out at
+    /// vanilla's maximum brightness — the End sky is black with stars.
+    pub fn dimension_map(dimension: &str, json: &Json) -> AttributeMap {
+        let mut entries = serde_json::Map::new();
+        let mut put = |id: &str, value: Json| {
+            entries.insert(id.to_owned(), value);
+        };
+        match dimension {
+            "overworld" | "overworld_caves" => {
+                // Plains, the vanilla overworld default sky and fog.
+                put("visual/sky_color", Json::from(7_907_327));
+                put("visual/fog_color", Json::from(12_638_463));
+                if let Some(height) = json.get("cloud_height") {
+                    put("visual/cloud_height", height.clone());
+                }
+            }
+            "the_nether" => {
+                // Nether wastes sky and fog; fixed time 18000 (midnight).
+                put("visual/sky_color", Json::from(7_254_527));
+                put("visual/fog_color", Json::from(3_344_392));
+                put("gameplay/sky_light_level", Json::from(4.0));
+                put("visual/sky_light_factor", Json::from(4.0 / 15.0));
+                put("visual/sun_angle", Json::from(180.0));
+                put("visual/star_angle", Json::from(180.0));
+            }
+            "the_end" => {
+                // The End's fog; its sky is black (the default) with stars.
+                put("visual/fog_color", Json::from(10_518_688));
+                put("visual/star_brightness", Json::from(0.5));
+                put("visual/moon_angle", Json::from(180.0));
+            }
+            _ => {}
+        }
+        AttributeMap::parse(&Json::Object(entries)).unwrap_or_default()
+    }
+
+    /// The overworld's day timeline: the classic day cycle as keyframe
+    /// tracks, one keyframe per 1000 ticks (linear interpolation over a
+    /// 15° arc is within 0.3% of the cosine curves). The angles are exact
+    /// with two keyframes each. Sky and fog colours multiply the biome's
+    /// colours by the daylight factor (vanilla darkens both at night); the
+    /// sky light factor is the sky light level as a fraction of 15, and
+    /// the sky light colour runs from white to the engine's
+    /// `NIGHT_SKY_LIGHT_COLOR` (0.48, 0.48, 1.0) as the day fades.
+    pub fn day_timeline() -> Option<Timeline> {
+        let mut tracks = serde_json::Map::new();
+        let keyframes = |values: &[(i32, Json)]| {
+            Json::Object(serde_json::Map::from_iter([(
+                "keyframes".to_owned(),
+                Json::Array(
+                    values
+                        .iter()
+                        .map(|(ticks, value)| serde_json::json!({"ticks": ticks, "value": value}))
+                        .collect(),
+                ),
+            )]))
+        };
+        let every_1000 =
+            |f: &dyn Fn(i32) -> Json| (0..24).map(|h| (h * 1000, f(h * 1000))).collect::<Vec<_>>();
+        let float_track = |f: &dyn Fn(i32) -> f32| keyframes(&every_1000(&|t| Json::from(f(t))));
+        let angle = |at_zero: f32| {
+            keyframes(&[
+                (0, Json::from(at_zero)),
+                (24_000, Json::from(at_zero + 360.0)),
+            ])
+        };
+        tracks.insert("visual/sun_angle".into(), angle(-90.0));
+        tracks.insert("visual/moon_angle".into(), angle(90.0));
+        tracks.insert("visual/star_angle".into(), angle(-90.0));
+        tracks.insert(
+            "visual/star_brightness".into(),
+            float_track(&star_brightness),
+        );
+        tracks.insert(
+            "gameplay/sky_light_level".into(),
+            float_track(&sky_light_level),
+        );
+        let mut multiply = |id: &str, f: &dyn Fn(i32) -> Json| {
+            let mut track = keyframes(&every_1000(f));
+            track
+                .as_object_mut()
+                .unwrap()
+                .insert("modifier".into(), Json::from("multiply"));
+            tracks.insert(id.into(), track);
+        };
+        multiply("visual/sky_color", &|t| {
+            let d = daylight(t);
+            serde_json::json!([d, d, d])
+        });
+        multiply("visual/fog_color", &|t| {
+            let d = daylight(t);
+            serde_json::json!([d, d, d])
+        });
+        tracks.insert(
+            "visual/sky_light_factor".into(),
+            float_track(&|t| sky_light_level(t) / 15.0),
+        );
+        tracks.insert(
+            "visual/sky_light_color".into(),
+            keyframes(&every_1000(&|t| {
+                let night = 1.0 - daylight(t);
+                let c = 1.0 - 0.52 * night;
+                serde_json::json!([c, c, 1.0])
+            })),
+        );
+        tracks.insert(
+            "visual/cloud_color".into(),
+            keyframes(&every_1000(&|t| {
+                let d = daylight(t);
+                serde_json::json!([d, d, d, 1.0])
+            })),
+        );
+        let json = serde_json::json!({
+            "clock": "minecraft:overworld",
+            "period_ticks": 24000,
+            "tracks": tracks,
+        });
+        match Timeline::parse(&json) {
+            Ok(timeline) => Some(timeline),
+            Err(e) => {
+                log::warn!("synthesized day timeline: {e}");
+                None
+            }
+        }
+    }
+}
+
 impl Environment {
     pub fn load(root: &Path) -> Result<Self> {
         Self::load_dimension(root, "overworld")
@@ -853,8 +1058,8 @@ impl Environment {
         };
         // 1.21.7 dimension types carry no "attributes" (the
         // environment-attributes system is a 26.x addition); a missing or
-        // malformed map leaves every attribute at its default, as the
-        // biome arm below does for biome files.
+        // malformed map is synthesized from the legacy fields instead of
+        // leaving every attribute at its default (a black sky).
         let mut dimension_map = match AttributeMap::parse(&json["attributes"]) {
             Ok(map) => map,
             Err(e) => {
@@ -862,6 +1067,14 @@ impl Environment {
                 AttributeMap::default()
             }
         };
+        // Legacy data (no attributes at all) is what the day timeline
+        // synthesis keys on below: a dimension with attributes but no
+        // timelines — a pack fixture, or a 26.x dimension with a constant
+        // sky — must not gain a day cycle it never had.
+        let legacy_dimension = dimension_map.is_empty();
+        if legacy_dimension {
+            dimension_map = legacy::dimension_map(dimension, &json);
+        }
         let (mut rain, mut thunder) = horizon_world::environment_system::weather_maps();
         let mut dimension_post = AttributeMap::default();
         for m in &mine {
@@ -881,12 +1094,19 @@ impl Environment {
             for file in folder.files.iter().filter(|f| !f.name.contains('/')) {
                 let biome: Json = horizon_world::json_file::parse(&file.path, file.bytes()?)?;
                 let name = format!("minecraft:{}", file.name);
+                // 1.21.7 biomes carry no "attributes" either; their legacy
+                // `effects` colours synthesize the map, so the biome layer
+                // survives (dropping every biome left the sky black). Only
+                // a biome with neither attributes nor colours is dropped.
                 let mut map = match AttributeMap::parse(&biome["attributes"]) {
                     Ok(map) => map,
-                    Err(e) => {
-                        log::warn!("biome {}: {e}", file.name);
-                        continue;
-                    }
+                    Err(e) => match legacy::biome_map(&biome) {
+                        Some(map) => map,
+                        None => {
+                            log::warn!("biome {}: {e}", file.name);
+                            continue;
+                        }
+                    },
                 };
                 let mut post_map = AttributeMap::default();
                 for m in &packs.biomes {
@@ -905,6 +1125,7 @@ impl Environment {
         builder.biome_layer(biomes.values());
         let mut ids = Vec::new();
         timeline_ids(root, &json["timelines"], &mut ids, 0);
+        let no_timelines = ids.is_empty();
         for id in ids {
             let (namespace, path) = id.split_once(':').unwrap_or(("minecraft", &id));
             let file = root.join(format!("data/{namespace}/timeline/{path}.json"));
@@ -916,6 +1137,17 @@ impl Environment {
                     builder.timeline_layer(&timeline);
                 }
                 Err(e) => log::warn!("timeline {id}: {e}"),
+            }
+        }
+        // Legacy data lists no timelines at all: the overworld's day cycle
+        // is synthesized (the Nether and the End have fixed times, carried
+        // by their dimension maps above). Only for a legacy dimension, and
+        // only when it lists none — a listed-but-unreadable timeline
+        // already warned above.
+        if no_timelines && legacy_dimension && matches!(dimension, "overworld" | "overworld_caves")
+        {
+            if let Some(timeline) = legacy::day_timeline() {
+                builder.timeline_layer(&timeline);
             }
         }
         let weather = json["has_skylight"].as_bool() == Some(true)
@@ -1322,5 +1554,145 @@ mod tests {
         assert_eq!(sky("minecraft:forest"), [1.0, 0.0, 0.0]);
         // Plains land on the transparent pixel: the colour before stays.
         assert_eq!(sky("minecraft:plains"), [128.0 / 255.0; 3]);
+    }
+
+    /// A legacy (1.21.7-shaped) fixture: dimension types and biomes with no
+    /// `attributes`, biomes coloured by their legacy `effects`.
+    fn legacy_root() -> std::path::PathBuf {
+        static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let dir = std::env::temp_dir().join(format!(
+            "horizon-env-legacy-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let write = |path: &str, text: &str| {
+            let path = dir.join(path);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, text).unwrap();
+        };
+        write(
+            "data/minecraft/dimension_type/overworld.json",
+            r#"{"has_skylight": true, "has_ceiling": false, "cloud_height": 192}"#,
+        );
+        write(
+            "data/minecraft/dimension_type/the_nether.json",
+            r#"{"has_skylight": false, "has_ceiling": true, "fixed_time": 18000}"#,
+        );
+        write(
+            "data/minecraft/dimension_type/the_end.json",
+            r#"{"has_skylight": false, "has_ceiling": false, "fixed_time": 6000}"#,
+        );
+        write(
+            "data/minecraft/worldgen/biome/plains.json",
+            r#"{"effects": {"sky_color": 7907327, "fog_color": 12638463, "water_color": 4159204, "water_fog_color": 329011}}"#,
+        );
+        write(
+            "data/minecraft/worldgen/biome/nether_wastes.json",
+            r#"{"effects": {"sky_color": 7254527, "fog_color": 3344392, "water_color": 4159204, "water_fog_color": 329011}}"#,
+        );
+        write(
+            "data/minecraft/worldgen/biome/the_end.json",
+            r#"{"effects": {"sky_color": 0, "fog_color": 10518688, "water_color": 4159204, "water_fog_color": 329011}}"#,
+        );
+        dir
+    }
+
+    fn legacy_sample(env: &Environment, biome: &str, day_time: i64) -> Sky {
+        let map = env.biome(biome).unwrap();
+        env.sample(&Sample {
+            day_time,
+            biome: Some(map),
+            ..Sample::default()
+        })
+    }
+
+    /// The 2026-11-21 laptop playtest's black sky: a legacy overworld's
+    /// plains sky is its vanilla colour by day and black at night, with the
+    /// sun, stars and sky light following the day cycle.
+    #[test]
+    fn legacy_overworld_sky_follows_the_day() {
+        let root = legacy_root();
+        let env = Environment::load_dimension(&root, "overworld").unwrap();
+        // Morning (the playtest world's Time=2002): full plains sky.
+        let morning = legacy_sample(&env, "minecraft:plains", 2002);
+        assert_eq!(
+            morning.sky_color,
+            [120.0 / 255.0, 167.0 / 255.0, 1.0],
+            "plains 0x78A7FF, not black"
+        );
+        assert_eq!(
+            morning.fog_color,
+            [192.0 / 255.0, 216.0 / 255.0, 1.0],
+            "plains fog 0xC0D8FF"
+        );
+        assert!((morning.sun_angle - -59.97).abs() < 0.01, "morning sun");
+        assert!((morning.moon_angle - 120.03).abs() < 0.01, "moon opposite");
+        assert_eq!(morning.star_brightness, 0.0, "no stars by day");
+        assert_eq!(morning.sky_light_level, 1.0, "full sky light by day");
+        assert_eq!(morning.cloud_color, [1.0, 1.0, 1.0, 1.0], "white clouds");
+        assert_eq!(morning.cloud_height, 192.0, "the dimension's own height");
+        // Noon: the sun overhead, still full light.
+        let noon = legacy_sample(&env, "minecraft:plains", 6000);
+        assert_eq!(noon.sun_angle, 0.0, "0 at noon");
+        assert_eq!(noon.sky_light_level, 1.0);
+        // Midnight: a black sky with stars at vanilla's maximum, sky light 4.
+        let night = legacy_sample(&env, "minecraft:plains", 18000);
+        assert_eq!(night.sky_color, [0.0; 3], "black at night");
+        assert_eq!(night.fog_color, [0.0; 3], "fog darkens too");
+        assert_eq!(night.star_brightness, 0.5, "vanilla's maximum");
+        assert_eq!(night.sky_light_level, 4.0 / 15.0, "sky light 4 at night");
+        assert_eq!(night.sun_angle, 180.0, "sun below at midnight");
+        assert_eq!(night.sky_light_factor, 4.0 / 15.0);
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// The fixed-time dimensions: the Nether dark with its red fog, the End
+    /// black with stars.
+    #[test]
+    fn legacy_nether_and_end_get_sane_values() {
+        let root = legacy_root();
+        let nether = Environment::load_dimension(&root, "the_nether").unwrap();
+        let sky = legacy_sample(&nether, "minecraft:nether_wastes", 6000);
+        assert_eq!(
+            sky.fog_color,
+            [51.0 / 255.0, 8.0 / 255.0, 8.0 / 255.0],
+            "nether wastes fog 0x330808"
+        );
+        assert_eq!(sky.sky_light_level, 4.0 / 15.0, "midnight sky light");
+        assert_eq!(sky.star_brightness, 0.0, "no stars in the Nether");
+        let end = Environment::load_dimension(&root, "the_end").unwrap();
+        let sky = legacy_sample(&end, "minecraft:the_end", 6000);
+        assert_eq!(sky.sky_color, [0.0; 3], "the End sky is black");
+        assert_eq!(sky.star_brightness, 0.5, "but its stars are out");
+        assert_eq!(sky.sky_light_level, 1.0, "the End stays lit");
+        assert_eq!(
+            sky.fog_color,
+            [160.0 / 255.0, 128.0 / 255.0, 160.0 / 255.0],
+            "the End fog 0xA080A0"
+        );
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// The real prepared 1.21.7 data: the plains sky at the playtest world's
+    /// time is its vanilla colour. Skips without prepared data.
+    #[test]
+    fn prepared_1_21_7_overworld_sky_is_not_black() {
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../.local/horizon-client/1.21.7");
+        if !root
+            .join("data/minecraft/dimension_type/overworld.json")
+            .exists()
+        {
+            return;
+        }
+        let env = Environment::load(&root).unwrap();
+        let sky = legacy_sample(&env, "minecraft:plains", 2002);
+        assert_eq!(
+            sky.sky_color,
+            [120.0 / 255.0, 167.0 / 255.0, 1.0],
+            "plains 0x78A7FF"
+        );
+        assert_ne!(sky.fog_color, [0.0; 3], "fog is not black either");
     }
 }
