@@ -11802,3 +11802,10 @@ loading logic — the same move as item 526. Everything else is visibility
 (`private` vs package-private). The Rust cites
 `BlockStateModelLoader.loadBlockStateDefinitionStack` by name (shared) and
 keeps raw JSON layers for the catalog, so the rename has no surface.
+
+## Item 551 — game/commands/world_cmds.rs (Ride/SpreadPlayers/ResourceKeyArgument) — NO-CHANGE
+
+Only visibility, a `requireNonNull` on a never-null outer instance,
+`entity.is(PLAYER)` vs `getType() == PLAYER` (same test) and
+`createThreadLocalInstance` vs `create` (same sequence). The Rust already
+cites the 1.21.11 `getType() == EntityType.PLAYER` form.
