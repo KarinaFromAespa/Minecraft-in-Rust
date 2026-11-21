@@ -9641,3 +9641,17 @@ the jar's version.json. Fixtures updated in
 `datapack.rs` (create-world install, folder-metadata)
 and `packs.rs` (compatibility ranges, overlays). No
 production code changed.
+
+## Item 200 — mobs/parrot.rs (rank 2, NO-CHANGE)
+
+3 classes, 6 methods, 2 named. No behavioural delta:
+the PathType renames (`FIRE`/`FIRE_IN_NEIGHBOR` ->
+`DAMAGE_FIRE`/`DANGER_FIRE`) are already the Rust's
+names; `imitateNearbyMobs` is identical apart from the
+order of the random load (same draws); the rest is
+`is`/`getRandom` renames and widening. Noted: vanilla
+picks from all non-parrot mobs and falls back to
+`PARROT_AMBIENT` for unmapped types, where the Rust
+filters to imitable species first — a pre-existing
+divergence from both versions, not this item's delta.
+No code changed.
