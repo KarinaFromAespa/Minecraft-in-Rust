@@ -1231,11 +1231,7 @@ fn onboarding_common_buttons_show_their_tooltip_while_hovered() {
             "onboarding button {id} drew no tooltip"
         );
     }
-    for id in [
-        onboarding::NARRATOR,
-        onboarding::SOUNDS,
-        onboarding::CONTINUE,
-    ] {
+    for id in [onboarding::NARRATOR, onboarding::CONTINUE] {
         let mouse = button_middle(&f.title, id);
         let (tooltip, _) = draw_hovered(&f.title, &atlas, mouse, &mut frame);
         assert_eq!(tooltip, None, "onboarding button {id}");

@@ -9809,3 +9809,19 @@ grows). `entityInside`'s fox/bee exemption and
 `useItemOn`'s bone-meal pass differ only by the
 `getType()` / `is(Item)` spelling and the 26.1-only
 `ItemInstance` type name. No production code changed.
+
+## Item 212 — onboarding.rs (rank 2, CHANGED)
+
+2 classes, 14 methods, 1 named. The onboarding screen
+differs: 26.1 shows four buttons in a 2x2 grid
+(narrator, sounds, accessibility, language), 1.21.11
+shows three in a single column (narrator, accessibility,
+language — no sounds button). Ported: the layout is
+now a column of three 150-wide buttons in 4 px cells,
+the SOUNDS id and its click arm are removed, and the
+layout test pins the new positions. Fade timings,
+title, footer and logo are identical.
+`WorldGenSettings` changes from a 26.1 `SavedData`
+subclass to a 1.21.11 plain record with the same CODEC;
+the Rust already writes the settings into level.dat's
+`Data`, the 1.21.11 form — no change.
