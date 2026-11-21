@@ -10278,3 +10278,15 @@ reports the wrapped value too. New test
 `the_clone_area_wraps_like_java_ints` (verified by
 `cargo check --tests` plus a standalone run of the
 verbatim logic).
+
+## Item 268 — game/lan_entities.rs (rank 2, NO-CHANGE)
+
+2 classes, 4 methods, 1 named. The display
+transformation defaults to identity in both
+versions (26.1's `Transformation.IDENTITY` field
+vs 1.21.11's `identity()` static; record
+accessors vs getters); the furnace minecart's
+`interact` drops an unused hit-vector parameter
+in 1.21.11. The Rust already implements the
+1.21.11 form; one doc citation updated to the
+1.21.11 spelling. `text_display`: 7 passed.
