@@ -10213,12 +10213,40 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 236 — Model
+  rotation angles:
+  - ElementRotation::decode
+    now rejects single-axis
+    angles outside the
+    1.21.5 five (0,
+    +/-22.5, +/-45) with
+    vanilla's message,
+    instead of accepting
+    any angle: 1.21.5's
+    BlockElement
+    deserializer throws on
+    anything else, while
+    1.21.6 widened the
+    check to any angle
+    within [-45, 45]. The
+    port's EulerXyz branch
+    (x/y/z keys, a non-
+    vanilla extension) is
+    untouched.
+  - Verification: cargo
+    test -j 1 -p horizon-
+    assets --lib 53/53,
+    incl. the new element_r
+    otation_angles_are_the_
+    1_21_5_five_only (10
+    assertions).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **235 of 426 are
-closed** (rank 1 complete, rank 2 at 226/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **236 of 426 are
+closed** (rank 1 complete, rank 2 at 227/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

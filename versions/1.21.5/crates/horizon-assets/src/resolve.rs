@@ -843,4 +843,18 @@ mod tests {
             (Some(-1), Some(15), None)
         );
     }
+    #[test]
+    fn element_rotation_angles_are_the_1_21_5_five_only() {
+        let model = |angle: f32| {
+            CuboidModel::from_json(&format!(
+                r#"{{"elements":[{{"from":[0,0,0],"to":[16,16,16],"rotation":{{"origin":[8,8,8],"axis":"y","angle":{angle}}},"faces":{{"up":{{"texture":"stone"}}}}}}]}}"#
+            ))
+        };
+        for ok in [0.0, 22.5, -22.5, 45.0, -45.0] {
+            assert!(model(ok).is_ok(), "{ok} must decode");
+        }
+        for bad in [30.0, -30.0, 44.0, 46.0, 90.0] {
+            assert!(model(bad).is_err(), "{bad} must fail");
+        }
+    }
 }
