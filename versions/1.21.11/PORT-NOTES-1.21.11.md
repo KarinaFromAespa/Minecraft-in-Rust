@@ -12251,3 +12251,12 @@ out of rank-3 scope.
 Only where the facing is read (cached in the render state in 26.1,
 from the block state in 1.21.11 — same value and rotation) and the
 `CameraRenderState` package move.
+
+## Item 617 — realms/download.rs (LevelResource) — NO-CHANGE
+
+26.1 reorganised the save layout under `players/` (and made
+`LevelResource` a record); 1.21.11 keeps the flat `playerdata/`,
+`stats/`, `advancements/`, `resources.zip` layout. The engine saves
+in its own layout, per the rank-2 raids precedent (item 51): the
+data-file migration gap is save/world-data scope, version-neutral.
+Internally consistent (the `resources.zip` writer and reader agree).
