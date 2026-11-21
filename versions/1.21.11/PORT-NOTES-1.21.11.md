@@ -12055,3 +12055,7 @@ air-or-(water-and-full) check matches both.
 
 Only `RandomSource.createThreadLocalInstance` vs `create` (same sequence)
 and the `is` overload.
+
+## Item 585 — falling_block.rs (AnvilBlock) — NO-CHANGE
+
+Only the `is(Object)` vs `is(Block)` overload widening in `damage`.
