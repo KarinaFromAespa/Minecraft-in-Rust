@@ -9546,3 +9546,28 @@ has no NBT effect (the id -> bar map codec is unchanged);
 `game/bossbars_tests.rs` asserts the bar gets a fresh UUID
 and the level random's next draw is unchanged (runs in CI;
 needs prepared resources).
+
+## Item 194 — lan/chunks.rs (rank 2, NO-CHANGE)
+
+1 class, 7 methods, 2 named. The protocol delta is
+already ported by the version adapters, both wired:
+`translate::v1_21_11::chunk` reads one short per section
+and writes two (fluids: 0) for the 26.1-layout interior,
+`client_session::step_1_21_11::chunk` drops the fluids
+short going the other way; the internal `Section` keeps
+`fluids` as the 26.1 form and the client goes by the
+states. Known gap, NOT ported: 1.21.11's `setBlockState`
+counts ANY non-empty fluid toward `tickingFluidCount`
+(no random-tick gate — verified in bytecode), where
+`recalcBlockCounts` keeps the gate, so a section that
+gains water via setBlockState reports
+`isRandomlyTicking()` in 1.21.11; the Rust's
+`RandomTickSections` is content-derived (the recalc
+form) and misses it. Observable only as random-draw
+drift — the random-tick-sections parity harness measures
+it, but that harness is not in the CI profile. The
+faithful port needs a per-section load-time fluid
+baseline (see rank2-item-194-TRIAGE.md); a half-port
+with the baseline defaulting to 0 would regress every
+loaded water section, so it is left for a later item
+with the oracle harness to verify.
