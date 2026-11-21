@@ -12370,3 +12370,10 @@ prepared 1.21.11 registry data, so the engine already uses 0. The
 ## Item 636 — horizon-narrator/src/lib.rs (ScreenNarrationCollector) — NO-CHANGE
 
 Only visibility and `requireNonNull` across the 4 narration classes.
+
+## Item 637 — port-pack/carry.rs (NumberProviders) — NO-CHANGE
+
+26.1 registers 8 number providers, 1.21.11 only 6 — no `sum` and no
+`environment_attribute`. The Rust handles constant/uniform/binomial
+and gives 0 for unknown types, so the two 26.1-only providers are
+safely out of reach.
