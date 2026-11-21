@@ -12479,3 +12479,8 @@ Only visibility (two constructor modifiers).
 Only the `validate` signature (`ValidationContextSource` vs
 `CriterionValidator`, same refactor as items 628/645); the predicate
 is unchanged.
+
+## Item 658 — screen_effects.rs (Lightmap, MobEffectInstance$BlendState) — NO-CHANGE
+
+26.1's `Lightmap` is 1.21.11's `LightTexture` (the item 559 finding);
+`BlendState` is visibility only.
