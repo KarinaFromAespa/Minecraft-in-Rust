@@ -11559,3 +11559,13 @@ in its own class — dead code. The Rust's one
 `RegistryDataCollector` surface, `fill_known_entries`,
 models the known-pack lambdas, which are identical in
 both versions.
+
+## Item 531 — game/brush.rs (rank 3, NO-CHANGE)
+
+All renames and no-ops: `getLightCoords` vs
+`getLightColor`, the `CameraRenderState` package move,
+`ItemInstance` vs `ItemStack` in `unpackLootTable`,
+`ServerLevel.getRandom()` vs the `random` field. The
+Rust matches 1.21.11: reset 40, cooldown 10, complete
+at count 10, completion thresholds 0/1-2/3-5/6+, and
+the completion drop takes `10 + nextInt(21)`.
