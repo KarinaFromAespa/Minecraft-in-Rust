@@ -215,9 +215,6 @@ impl Game<'_> {
                     };
                     let mut edit = MultiLineEdit::new(font, 0.0, 0.0, *width as f32, height);
                     edit.set_character_limit((*max_length).max(0) as usize);
-                    if let Some(lines) = max_lines {
-                        edit.set_line_limit((*lines).max(0) as usize);
-                    }
                     edit.set_value(font, initial);
                     Some(Field::Multi(Box::new(edit)))
                 }

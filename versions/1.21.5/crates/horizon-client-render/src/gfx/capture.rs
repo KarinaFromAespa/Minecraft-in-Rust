@@ -525,7 +525,6 @@ impl Scene {
             pvp: Default::default(),
             debug_lines: &[],
             debug_lines_on_top: &[],
-            debug_crosshair: &[],
             hud,
             glint_alpha: f.glint_alpha,
             glint_ticks: f.glint_ticks,

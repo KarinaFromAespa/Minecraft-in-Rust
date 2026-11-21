@@ -232,13 +232,6 @@ fn glfw_button_indices_are_glfw_indices() {
     }
 }
 
-/// F3 left on when leaving a world kept the axes on the title screen.
-#[test]
-fn the_debug_crosshair_is_gone_once_the_world_is() {
-    assert!(debug_crosshair_drawn(true, true, false, false));
-    assert!(!debug_crosshair_drawn(true, true, false, true));
-}
-
 /// Opening a world in front of a block left its outline over Loading terrain's panorama (#12872).
 #[test]
 fn the_block_outline_stays_off_the_panorama() {

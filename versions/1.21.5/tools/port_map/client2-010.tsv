@@ -1,7 +1,7 @@
 BossHealthOverlay.extractBar	port	crates/horizon-client-render/src/hud_overlays.rs::boss_overlay	background bar, then progress at the lerped width; the notch overlay only when not PROGRESS
 BossHealthOverlay.shouldDarkenScreen	port	crates/horizon-client/src/boss_overlay.rs::BossOverlay::should_darken	any bar asks to darken
 Button.Builder.build	skip:java		builder: makes a Plain button and sets its tooltip
-ChatComponent.forEachLine	port	crates/horizon-client-render/src/chat.rs::Chat::layout	visible lines bottom-up with the alpha filter, inlined in layout
+ChatComponent.render	port	crates/horizon-client-render/src/chat.rs::Chat::layout	visible lines bottom-up with the alpha filter; a line whose text alpha is 3 or below draws nothing but still counts for the scrollbar
 ChatComponent.addMessageToDisplayQueue	port	crates/horizon-client-render/src/chat.rs::Chat::add_lines	wrap at width/scale, keep the scroll when chatting, trim to 100 lines
 ChatComponent.addMessageToQueue	port	crates/horizon-client-render/src/chat.rs::Chat::add_message	newest first, trimmed to 100 messages
 ChatComponent.processMessageDeletionQueue	port	crates/horizon-client-render/src/chat.rs::Chat::process_deletions	
@@ -92,6 +92,7 @@ DebugScreenOverlay.toggleFpsCharts	port	crates/horizon-client/src/debug_chart.rs
 DebugScreenOverlay.toggleLightmapTexture	port	crates/horizon-client/src/debug_chart.rs::DebugCharts::toggle_lightmap	toggles the lightmap and clears the others
 DebugScreenOverlay.toggleProfilerChart	port	crates/horizon-client/src/debug_chart.rs::DebugCharts::toggle_fps	the chart key turns the FPS chart on (and the F3 overlay with it), turning the network and lightmap charts off
 DebugScreenOverlay.logRemoteSample	missing		minor: unsure: the debug_sample packet is only named in horizon-protocol/src/ids.rs, so a server's samples are not logged
+DebugScreenOverlay.render3dCrosshair	port	crates/horizon-client-render/src/hud_layout.rs::debug_crosshair_3d	the world axes at the screen centre, 10 units long, rotated by the camera pitch and yaw; black 4-device-pixel arms under coloured 2-device-pixel ones
 EditBox.createNarrationMessage	inline	crates/horizon-client/src/screen_narrator.rs::narrate	narrate's edit-box arm: gui.narrate.editBox(message, value); Narratable::edit_box is recorded by ui::EditBox::draw and screen_draw's field
 EditBox.getHighlighted	port	crates/horizon-client-render/src/ui.rs::EditBox::selected_text	the text between cursor and highlight
 EditBox.moveCursorTo	port	crates/horizon-client-render/src/ui.rs::EditBox::set_cursor	sets the cursor and keeps the highlight unless extending
@@ -139,6 +140,5 @@ MultiLineEditBox.extractDecorations	port	crates/horizon-client-render/src/multil
 MultiLineEditBox.scrollToCursor	port	crates/horizon-client-render/src/screen_draw.rs::TextField::scroll_to	keeps the cursor line in view
 MultiLineEditBox.seekCursorScreen	port	crates/horizon-client-render/src/screen_draw.rs::TextField::click	maps the pointer to a cursor position
 MultiLineEditBox.setFocused	inline	crates/horizon-client-render/src/screen_draw.rs::TextField::draw	gap: minor: focus does not restart the caret blink here; the caller passes the blink clock
-MultiLineEditBox.Builder.build	skip:java		builder
 MultiLineTextWidget.getHeight	skip:ui		layout: wrapped line count times 9; Measure::split does the wrap when drawing
 MultiLineTextWidget.getFreshCacheKey	skip:java		cache key for the wrapped lines

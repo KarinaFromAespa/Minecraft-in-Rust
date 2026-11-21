@@ -2479,13 +2479,140 @@ is the oracle; decompiled code is a reading aid.
     --all-targets` 0 errors / 0 warnings
     (3m38s full, 49s re-check after
     removing the dead `B::reset`).
+- **Item 59 — GUI components
+  (MultiLineEditBox, DebugScreenOverlay,
+  MultiLineTextWidget,
+  FocusableTextWidget, ChatComponent,
+  AbstractSelectionList,
+  BossHealthOverlay, CycleButton,
+  AbstractButton, AbstractScrollArea,
+  AbstractSliderButton,
+  FittingMultiLineTextWidget,
+  ImageButton, StringWidget), ported:**
+  - The multiline edit box loses its
+    line limit: `setLineLimit` /
+    `overflowsLineLimit` are
+    1.21.6-only, so `line_limit`,
+    `set_line_limit` and the limit
+    checks in `set_value` /
+    `insert_text` go, with the
+    line-limit test and the dialog
+    field's `set_line_limit` call
+    (the dialog still sizes the box
+    from `max_lines`). The rest
+    already matches 1.21.5: fixed
+    text colour 0xE0E0E0, cursor
+    0xD0D0D0, shadowed text, the
+    character-limit label, and the
+    cursor-at-line-end rule
+    (`cursor <= end` renders inline;
+    1.21.6's `<` falls to the "_"
+    append). The configurable
+    colours/shadow and the Builder
+    never had a Rust surface.
+  - The debug 3D crosshair is a
+    different drawing in 1.21.5:
+    screen-space at the screen
+    centre, 10 units long, rotated
+    by the camera's pitch and yaw
+    (`Gui.renderCrosshair`'s model
+    view), not the 1.21.6 world-space
+    gizmo 1 block ahead of the
+    camera at 0.01 * gui scale.
+    `hud_layout::debug_crosshair_3d`
+    computes the six quads (black
+    4-device-pixel arms under the
+    coloured 2-device-pixel ones;
+    an arm along the view direction
+    has no screen length and is
+    skipped), drawn in the
+    `minecraft:crosshair` layer
+    under the same gate as the 2D
+    sprite, with the main camera's
+    rotation (`posed_rotation` or
+    the player's yaw/pitch). The
+    world-space path is deleted:
+    `Gizmos::debug_crosshair`, the
+    game.rs producer, the
+    `debug_crosshair_drawn` gate,
+    the `Frame.debug_crosshair`
+    field, both gfx pipelines, the
+    crosshair globals/group and
+    the render pass, and the field
+    inits in the examples, capture
+    and pack tests.
+  - Chat: 1.21.5 draws a line only
+    while its text alpha is over 3
+    — at 3 or below it draws no
+    background, tag or text, though
+    it still counts for the
+    scrollbar. The Rust had the
+    1.21.6 `forEachLine` form
+    (background + tag for every
+    line over the 1e-5 fade floor);
+    both passes now skip lines at
+    text alpha 3 or below. The
+    fade gate itself agrees at
+    integer ticks (age 199 kept,
+    age 200 dropped, in both
+    forms), and the count is
+    unchanged. The tag icon was
+    never drawn — a pre-existing
+    gap, the same in both versions.
+  - No Rust surface: the
+    MultiLineTextWidget hover/click
+    handling (`configureStyleHandling`,
+    `getComponentStyleAt` — the
+    Rust's text widget only
+    narrates), the
+    FocusableTextWidget
+    `fillBackground` (only dialog
+    code references it, and the
+    dialog item owns that), the
+    CycleButton
+    `displayOnlyValue(boolean)`
+    overload (only the no-arg form
+    is named, in a narration
+    comment), the slider
+    `DEFAULT_HEIGHT`, and the
+    ScrollableLayout class (the
+    screens' own scroll areas stay;
+    the dialog item owns the dialog
+    one). StringWidget has no diff
+    content (a report false
+    positive — its one method is
+    the inherited `getColor`,
+    item 350). The rest is GPU-API
+    churn (`RenderPipelines` →
+    `RenderType`, `pushMatrix` →
+    `pushPose`, `nextStratum`) or
+    same-value colour math (`-1`
+    vs `16777215`,
+    `ARGB.color(alpha, …)` vs
+    `… | ceil(alpha*255)<<24`).
+  - The port map drops the
+    `ChatComponent.forEachLine`
+    row (replaced by a
+    `ChatComponent.render` row),
+    the `MultiLineEditBox.Builder.build`
+    row and all 11
+    `ScrollableLayout` rows, and
+    gains a
+    `DebugScreenOverlay.render3dCrosshair`
+    row. The
+    `MultilineTextField.setLineLimit`
+    row stays for item 307 (rank 3).
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (1m46s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **58 of 426 are
-closed** (rank 1 complete, rank 2 at 49/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **59 of 426 are
+closed** (rank 1 complete, rank 2 at 50/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

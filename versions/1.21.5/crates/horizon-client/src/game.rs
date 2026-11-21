@@ -5974,25 +5974,41 @@ impl Game<'_> {
             let strength = self.hand_strength.scale(0.0, self.main_hand_attack_speed());
             // The 3D crosshair (F3) takes the 2D one's place.
             // Hud.extractCrosshair: a spectator only sees it over something to open.
-            if self.camera_type.first_person()
-                && (!spectator || self.spectator_crosshair())
-                && !self.debug_crosshair()
-            {
-                let attack = (indicator == 1).then_some(strength);
-                let full = attack.is_some_and(|a| {
-                    hud_layout::full_attack_indicator(a, delay, self.crosshair_living())
-                });
-                let draws = hud_layout::crosshair(wi, hi, attack, full);
-                self.gui_layer("minecraft:crosshair", &mut batch, |g, batch| {
-                    // The custom crosshair takes the sprite's place (the first draw); the
-                    // attack indicator stays.
-                    if g.custom_crosshair() {
-                        g.draw_custom_crosshair(batch, wi, hi);
-                        hud_layout::paint(batch, &g.gui.atlas, &draws[1..]);
-                    } else {
-                        hud_layout::paint(batch, &g.gui.atlas, &draws);
-                    }
-                });
+            if self.camera_type.first_person() && (!spectator || self.spectator_crosshair()) {
+                if self.debug_crosshair() {
+                    // `Gui.renderCrosshair` (1.21.5): the 3D crosshair is
+                    // screen-space, at the screen centre, rotated by the
+                    // main camera's pitch and yaw.
+                    let (yaw, pitch) = self.posed_rotation.unwrap_or((self.yaw, self.pitch));
+                    self.gui_layer("minecraft:crosshair", &mut batch, |g, batch| {
+                        let scale = batch.scale;
+                        for (corners, color) in hud_layout::debug_crosshair_3d(
+                            (wi / 2) as f32,
+                            (hi / 2) as f32,
+                            pitch,
+                            yaw,
+                            scale,
+                        ) {
+                            batch.fill_quad(&g.gui.atlas, corners, color);
+                        }
+                    });
+                } else {
+                    let attack = (indicator == 1).then_some(strength);
+                    let full = attack.is_some_and(|a| {
+                        hud_layout::full_attack_indicator(a, delay, self.crosshair_living())
+                    });
+                    let draws = hud_layout::crosshair(wi, hi, attack, full);
+                    self.gui_layer("minecraft:crosshair", &mut batch, |g, batch| {
+                        // The custom crosshair takes the sprite's place (the first draw); the
+                        // attack indicator stays.
+                        if g.custom_crosshair() {
+                            g.draw_custom_crosshair(batch, wi, hi);
+                            hud_layout::paint(batch, &g.gui.atlas, &draws[1..]);
+                        } else {
+                            hud_layout::paint(batch, &g.gui.atlas, &draws);
+                        }
+                    });
+                }
             }
             self.gui_layer("minecraft:hotbar", &mut batch, |g, batch| {
                 if spectator {
@@ -9461,20 +9477,8 @@ impl Game<'_> {
         };
         pr.lap("pr_primitives");
         let at = camera.to_array();
-        // GameRenderer.render3dHud: the debug crosshair, first person with the HUD shown.
-        let mut crosshair = horizon_client::gizmos::Gizmos::default();
-        if debug_crosshair_drawn(
-            self.debug_crosshair(),
-            self.camera_type.first_person(),
-            self.ui.hide_gui,
-            self.shows_panorama(),
-        ) {
-            let scale = HudBatch::new(size).scale;
-            crosshair.debug_crosshair(at, view_pitch, view_yaw, scale);
-        }
         let debug_lines = horizon_client::gizmos::camera_relative(&lines, at, view);
         let debug_lines_on_top = horizon_client::gizmos::camera_relative(&on_top, at, view);
-        let debug_crosshair = horizon_client::gizmos::camera_relative(&crosshair.on_top, at, view);
         // LevelExtractor.extractBlockOutline: model translucency controls draw order;
         // no outline when an entity is targeted (Minecraft.hitResult an EntityHitResult).
         let mut outline_after_terrain = false;
@@ -9850,7 +9854,6 @@ impl Game<'_> {
             pvp: self.settings.extras.pvp.frame(),
             debug_lines: &debug_lines,
             debug_lines_on_top: &debug_lines_on_top,
-            debug_crosshair: &debug_crosshair,
             hud: &hud,
             glint_alpha: self.glint_frame.alpha,
             glint_ticks: self.glint_frame.scroll_ticks(),
@@ -12928,7 +12931,7 @@ use subtitles::{Subtitles, in_game_ui, subtitles};
 
 mod hud_render;
 
-use hud_render::{block_outline_drawn, debug_crosshair_drawn, is_game_master_block};
+use hud_render::{block_outline_drawn, is_game_master_block};
 mod subtitles;
 
 #[cfg(test)]

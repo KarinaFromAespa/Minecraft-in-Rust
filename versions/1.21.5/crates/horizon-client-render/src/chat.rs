@@ -803,6 +803,12 @@ impl Chat {
         ])];
         for &(i, _, alpha, slide) in &lines {
             let bottom = chat_bottom - i as i32 * entry_height;
+            // 1.21.5 draws a line only while its text alpha is over 3; a
+            // line at 3 or below draws nothing — no background, no tag, no
+            // text — though it still counts for the scrollbar below.
+            if hud_layout::as8(alpha * text_opacity) <= 3 {
+                continue;
+            }
             if slide != 0.0 {
                 out.push(GuiDraw::Push(vec![PoseOp::Translate(slide, 0.0)]));
             }
@@ -819,20 +825,21 @@ impl Chat {
         }
         for &(i, line, alpha, slide) in &lines {
             let bottom = chat_bottom - i as i32 * entry_height;
+            if hud_layout::as8(alpha * text_opacity) <= 3 {
+                continue;
+            }
             if slide != 0.0 {
                 out.push(GuiDraw::Push(vec![PoseOp::Translate(slide, 0.0)]));
             }
             let opacity = alpha * text_opacity;
             let color = hud_layout::white(opacity);
-            if color >> 24 != 0 {
-                out.push(GuiDraw::Text {
-                    text: line.content.clone(),
-                    x: 0,
-                    y: bottom - bottom_to_text,
-                    color,
-                    shadow: true,
-                });
-            }
+            out.push(GuiDraw::Text {
+                text: line.content.clone(),
+                x: 0,
+                y: bottom - bottom_to_text,
+                color,
+                shadow: true,
+            });
             if let Some(tag) = line.tag.as_ref().filter(|_| !self.hide_indicator) {
                 let color = hud_layout::as8(opacity) << 24 | tag.color & 0xFF_FFFF;
                 out.push(hud_layout::fill(
