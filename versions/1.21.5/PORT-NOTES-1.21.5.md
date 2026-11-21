@@ -7994,13 +7994,48 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 168 — Beacon
+  screen verified:**
+  - Labels are
+    `0xFFE0_E0E0` at
+    cx 62/169, y 10 —
+    the opaque
+    spelling of
+    1.21.5's
+    `14737632`. The
+    five payment
+    items draw after
+    the background
+    at x 20/41/63/86/
+    108, y 109, in
+    vanilla's order
+    (netherite first);
+    the 1.21.5 z=100
+    translate has no
+    surface (HUD draw
+    order). Effect
+    icons are the
+    `mob_effect/<name>`
+    sprite at +2,+2
+    scaled 18x18,
+    matching
+    `renderIcon`;
+    the
+    ResourceLocation
+    vs
+    TextureAtlasSprite
+    difference is
+    plumbing.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **167 of 426 are
-closed** (rank 1 complete, rank 2 at 158/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **168 of 426 are
+closed** (rank 1 complete, rank 2 at 159/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
