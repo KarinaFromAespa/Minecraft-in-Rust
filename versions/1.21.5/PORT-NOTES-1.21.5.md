@@ -11779,12 +11779,43 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no
     code changed.
 
+- **Item 280 — Armadillo, bat, frog models**
+  - Armadillo, bat, frog
+    models: already the 1.21.5
+    form, the same refactor as
+    items 137/146/157. The port
+    looks animations up per
+    call by name from the
+    animations map (run =
+    Model.animate, walk  =
+    animateWalk) - no baked
+    KeyframeAnimation exists;
+    keyframes ::Animation is
+    pure definition data
+    (length, looping, bones by
+    name). Armadillo walks at
+    (16.5, 2.5) with roll-out,
+    roll-up and peek runs; bat
+    runs BAT_FLYING and
+    BAT_RESTING; frog runs
+    jump, croak and tongue,
+    swims at (1.0, 2.5) or
+    walks at (1.5, 2.5), runs
+    the idle-water animation,
+    and shows croaking_body
+    only while the croak state
+    runs. The definitions
+    themselves are unchanged
+    between versions.
+  - Verification: read only; no
+    code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **279 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 11/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **280 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 12/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
