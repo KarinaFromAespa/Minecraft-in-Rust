@@ -10173,3 +10173,10 @@ checks. No code changed.
 1 class, 5 methods, 1 named. Pure renames:
 `ChunkPos.x()`/`z()` -> fields, `pack` -> `asLong`,
 plus visibility widening. No code changed.
+
+## Item 254 — old_world_fixture.rs (rank 2, NO-CHANGE)
+
+1 class, 5 methods, 1 named. Pure renames:
+`ChunkPos.x()`/`z()` -> fields, `pack` -> `asLong`,
+plus visibility widening. The blending logic is
+identical. No code changed.
