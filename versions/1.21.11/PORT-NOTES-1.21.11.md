@@ -11820,3 +11820,13 @@ screen_info.rs models no popup (PopupScreen overrides no narration method in
 either version); the realms notification already returns the single message
 string. One citation re-pointed: the `level_loading` doc's
 `extractRenderState` -> `render`.
+
+## Item 553 — game/moving_pistons.rs (PistonHeadRenderer) — NO-CHANGE
+
+Only the `CameraRenderState` package move, `createMovingBlock` taking a
+`ClientLevel` (26.1, with an `instanceof` guard) vs a plain `Level`
+(1.21.11), and the `is` overload widening — the render logic (SHORT at
+progress <= 0.5, retracting source piston builds the head, base gets
+EXTENDED) is identical. The Rust's citations (`extractRenderState`,
+`submit`, `createMovingBlock`) are names shared by both versions:
+`extractRenderState` already exists in 1.21.11 for block-entity renderers.
