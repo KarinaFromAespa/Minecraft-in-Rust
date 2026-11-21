@@ -8709,3 +8709,28 @@ all (`ignite_tnt` shows the disabled overlay and returns PASS).
 Recorded, not fixed: the redirectable-projectile owner transfer
 is missing from the Rust's blast loop in both versions'
 mirror. Tests: `game::explosion::tests::` 11 passed, 2 ignored.
+
+## Item 142 — game/menu_clicks.rs (rank 2, NO-CHANGE)
+
+9 classes, 16 methods, 3 named (`clicked`, `doClick`,
+`getQuickCraftPlaceCount`). The delta is the `ContainerInput`
+-> `ClickType` rename (the Rust already uses `ClickType`) and
+the `getQuickCraftPlaceCount` signature change (int count ->
+the slot set, same values); the doClick bodies are otherwise
+identical. The Rust's quick-craft distribution already matches
+1.21.11, including the stage-1 `>` / stage-2 `>=` count gates.
+Tests: `menu::tests::` 53 passed.
+
+## CI proof run 44839260120 (recorded below)
+
+Dispatched 05:31 NPT Nov 21, 2026 on behaviour/1.21.11 @
+3e19296 (item 126); completed SUCCESS 01:31 UTC Nov 21, 2026
+(1h45m). Profile 5/18/0 of 23 — same five passing as run
+44789092726 (block_properties, component_patch, food, lan,
+resource_pack). Verdict FAILED: D1 fail (24 dead production
+tags, unchanged), D2 fail (one `unused_mut` warning in
+mesher/tint_tests.rs:311, counted twice across the two check
+logs — fixed in the commit after this record), D3 fail (pin
+work-items.json lagged at 280/492 at dispatch), D4/D5 blocked
+(profile-stamp quirk), D6 deferred (no playtest.md). Protocol
+tests 440/440 on CI.
