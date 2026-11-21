@@ -205,7 +205,6 @@ pub struct LayerRender {
 pub struct ItemRenderState {
     pub display: DisplayContext,
     pub layers: Vec<LayerRender>,
-    pub oversized_in_gui: bool,
     pub animated: bool,
     /// The OptiFine CIT glint layers the stack draws in the GUI (`cit_glint`).
     pub cit_glint: Option<Arc<crate::cit_glint::StackGlint>>,
@@ -985,7 +984,6 @@ impl ItemRenderer {
         ItemRenderState {
             display,
             layers,
-            oversized_in_gui: resolved.oversized_in_gui,
             animated,
             cit_glint: None,
             hdr_tier: 0,
@@ -1335,7 +1333,6 @@ mod tests {
                     Vec3::new(0.5, 1.0, 0.25),
                 ]),
             }],
-            oversized_in_gui: false,
             animated: false,
             cit_glint: None,
             hdr_tier: 0,

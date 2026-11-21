@@ -360,11 +360,10 @@ fn channel(v: f32) -> i32 {
 pub struct ClientItem {
     pub model: ItemModelNode,
     pub hand_animation_on_swap: bool,
-    pub oversized_in_gui: bool,
     pub swap_animation_scale: f32,
 }
 impl ClientItem {
-    pub const DEFAULT_PROPERTIES: (bool, bool, f32) = (true, false, 1.0);
+    pub const DEFAULT_PROPERTIES: (bool, f32) = (true, 1.0);
     pub fn from_json(text: &str) -> Result<Self> {
         let value: Value = serde_json::from_str(text.strip_prefix('\u{feff}').unwrap_or(text))?;
         Self::decode(&value)
@@ -374,7 +373,6 @@ impl ClientItem {
         Ok(Self {
             model: ItemModelNode::decode(required(m, "model")?)?,
             hand_animation_on_swap: get(m, "hand_animation_on_swap").map_or(Ok(true), boolean)?,
-            oversized_in_gui: get(m, "oversized_in_gui").map_or(Ok(false), boolean)?,
             swap_animation_scale: get(m, "swap_animation_scale").map_or(Ok(1.0), float)?,
         })
     }
@@ -1108,7 +1106,6 @@ pub struct Layer {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ResolvedItem {
     pub layers: Vec<Layer>,
-    pub oversized_in_gui: bool,
 }
 
 /// All item definitions and the default components of every item.
@@ -1159,7 +1156,6 @@ impl ItemModels {
         };
         let id = identifier(model_id).unwrap_or_else(|_| model_id.clone());
         let definition = self.definitions.get(&id);
-        out.oversized_in_gui = definition.is_some_and(|d| d.oversized_in_gui);
         let mut state = Resolve {
             models: self,
             stack,
@@ -1176,21 +1172,19 @@ impl ItemModels {
     pub fn hand_animation_on_swap(&self, stack: &StackView) -> bool {
         self.properties(stack).0
     }
-    /// `ItemModelResolver.swapAnimationScale`.
+    /// The item definition's `swap_animation_scale` (a later-version
+    /// property; 1.21.5's `ClientItem.Properties` has no such field, so
+    /// vanilla content always yields the 1.0 default).
     pub fn swap_animation_scale(&self, stack: &StackView) -> f32 {
-        self.properties(stack).2
+        self.properties(stack).1
     }
-    fn properties(&self, stack: &StackView) -> (bool, bool, f32) {
+    fn properties(&self, stack: &StackView) -> (bool, f32) {
         match self.components_view(stack).get("minecraft:item_model") {
             Some(Value::String(id)) => identifier(id)
                 .ok()
                 .and_then(|id| self.definitions.get(&id))
                 .map_or(ClientItem::DEFAULT_PROPERTIES, |d| {
-                    (
-                        d.hand_animation_on_swap,
-                        d.oversized_in_gui,
-                        d.swap_animation_scale,
-                    )
+                    (d.hand_animation_on_swap, d.swap_animation_scale)
                 }),
             _ => ClientItem::DEFAULT_PROPERTIES,
         }

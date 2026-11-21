@@ -5561,13 +5561,109 @@ is the oracle; decompiled code is a reading aid.
     the one `cargo check -j 1
     -p horizon-client --lib --tests`
     passed at item 119.
+- **Item 121 — Item model
+  resolver: oversized-in-GUI
+  removed, skull fixup and
+  dialog registries verified:**
+  - 1.21.6's `appendItemLayers`
+    sets `oversizedInGui` from
+    the item properties; the
+    concept does not exist in
+    1.21.5 at all (verified
+    against the 1.21.5 jar:
+    `ClientItem.Properties`
+    has only
+    `handAnimationOnSwap`,
+    `ItemStackRenderState`
+    has no oversized field).
+    The Rust port carried
+    the whole concept
+    (`ClientItem` /
+    `ResolvedItem` /
+    `ItemRenderState`
+    fields, the JSON decode,
+    the GUI slot clip) — item
+    101's entry claimed it
+    had none, which was
+    wrong. All of it is
+    gone: the GUI item draw
+    now clips only by the
+    caller's scissor, as
+    1.21.5's `GuiGraphics.renderItem`
+    does (1.21.6's
+    `GuiRenderer` clips each
+    item to its 16x16 slot).
+    Item 138 owns the
+    `ClientItem.Properties`
+    record itself; the
+    property half is
+    removed here because
+    the call site cannot
+    go without it.
+  - The item-model oracle
+    and fixture drop the
+    `oversized` output
+    together, and the
+    harness's bool-coercion
+    cases move to
+    `hand_animation_on_swap`.
+  - `fixupSkullProfile` is
+    1.21.5-only (an
+    unresolved skull
+    profile is dropped and
+    re-set once resolved).
+    The Rust skull-item path
+    already has its
+    observable behaviour:
+    `head_skin` resolves
+    the profile on every
+    draw and falls back to
+    the default skin while
+    it is pending, so no
+    fixup hook is needed.
+  - `appendModelIdentityElement`
+    (1.21.6) has no Rust
+    surface: the port has
+    no model-identity
+    concept. The dialog
+    registries and packets
+    are already gone (the
+    mechanical publish);
+    the game-side dialog
+    types stay, local-only,
+    per that publish's
+    decision.
+  - Pre-existing harness
+    debt, same as 1.21.6
+    (whose published
+    profile has item_model
+    failing): the oracle
+    still uses the
+    later-version
+    `ItemOwner` type and
+    `swapAnimationScale`,
+    neither of which exists
+    on the 1.21.5 jar, so
+    it still does not
+    compile there. The
+    Rust `swap_animation_scale`
+    stays too: the game
+    uses it for the hand
+    swap, defaulting to
+    1.0, which is 1.21.5's
+    behaviour for all
+    vanilla content.
+  - Verification: `cargo check -j 1
+    -p horizon-assets --all-targets
+    -p horizon-client --lib --tests`
+    0 errors / 0 warnings.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **120 of 426 are
-closed** (rank 1 complete, rank 2 at 111/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **121 of 426 are
+closed** (rank 1 complete, rank 2 at 112/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

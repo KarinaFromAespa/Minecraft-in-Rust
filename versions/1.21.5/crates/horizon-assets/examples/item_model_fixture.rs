@@ -375,7 +375,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         writeln!(
             output,
             "{}",
-            json!({"row":"case","id":id,"layers":layers,"oversized":resolved.oversized_in_gui,
+            json!({"row":"case","id":id,"layers":layers,
                 "swap":{"play":models.hand_animation_on_swap(&stack),"scale":bits(models.swap_animation_scale(&stack))}})
         )?;
     }

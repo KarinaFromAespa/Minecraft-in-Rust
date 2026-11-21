@@ -2,9 +2,10 @@
 //! submitted under the GUI item pose (`translate(x + 8, y + 8)`,
 //! `scale(16, -16, 16)`), lit with `Lighting.Entry.ITEMS_3D` or `ITEMS_FLAT`
 //! (`minecraft_mix_light` on the transformed normals), back faces culled,
-//! drawn far to near, and clipped to the item's 16x16 slot unless the model
-//! is oversized in the GUI (`GuiItemAtlas` draws each item into a scissored
-//! 16x16 slot; oversized items get a picture-in-picture of their bounds).
+//! drawn far to near, and clipped only by the caller's scissor: 1.21.5 draws
+//! an item wherever its geometry goes, with no per-item scissor (1.21.6's
+//! `GuiRenderer` clips each item to its 16x16 slot unless it is oversized
+//! in the GUI).
 use super::{Foil, Glint, ItemQuad, ItemRenderState, ItemRenderer, SpecialHost};
 use crate::cit::Rule;
 use crate::cit_glint::StackGlint;
@@ -274,7 +275,6 @@ pub(crate) struct DrawnKey {
     renderer: usize,
     sprites: (usize, usize),
     at: [u32; 2],
-    oversized: bool,
     layers: Vec<(usize, Vec<i32>, [u32; 16], bool)>,
 }
 impl DrawnKey {
@@ -307,7 +307,6 @@ impl DrawnKey {
             renderer: std::ptr::from_ref(renderer) as usize,
             sprites: (std::ptr::from_ref(sprites) as usize, sprites.len()),
             at: [x.to_bits(), y.to_bits()],
-            oversized: state.oversized_in_gui,
             layers,
         })
     }
@@ -337,16 +336,14 @@ fn draw_now(
     } else {
         items_flat_lights()
     };
-    let rect = if state.oversized_in_gui {
-        [
-            f32::NEG_INFINITY,
-            f32::NEG_INFINITY,
-            f32::INFINITY,
-            f32::INFINITY,
-        ]
-    } else {
-        [x, y, x + 16.0, y + 16.0]
-    };
+    // 1.21.5 has no per-item scissor: the item draws wherever its geometry
+    // goes, and only the caller's scissor (if any) clips it.
+    let rect = [
+        f32::NEG_INFINITY,
+        f32::NEG_INFINITY,
+        f32::INFINITY,
+        f32::INFINITY,
+    ];
     let rect = match scissor {
         Some([x0, y0, x1, y1]) => [
             rect[0].max(x0),

@@ -230,7 +230,6 @@ public final class VanillaItemModelOracle {
         @Override public void appendItemLayers(ItemStackRenderState output, ItemStack item, ItemDisplayContext context, Level level, ItemOwner owner, int seed) {
             ResourceLocation id = item.get(DataComponents.ITEM_MODEL);
             if (id != null) {
-                output.setOversizedInGui(properties.getOrDefault(id, ClientItem.Properties.DEFAULT).oversizedInGui());
                 models.getOrDefault(id, missing).update(output, item, this, context, level instanceof ClientLevel c ? c : null, owner, seed);
             }
         }
@@ -437,7 +436,6 @@ public final class VanillaItemModelOracle {
                     var list = new ArrayList<Object>();
                     for (int i = 0; i < count; i++) list.add(layer(state, layers[i], context));
                     result.put("layers", list);
-                    result.put("oversized", state.isOversizedInGui());
                     result.put("swap", map("play", resolver.shouldPlaySwapAnimation(stack), "scale", bits(resolver.swapAnimationScale(stack))));
                 } catch (Throwable e) {
                     Throwable cause = e; while (cause.getCause() != null) cause = cause.getCause();
