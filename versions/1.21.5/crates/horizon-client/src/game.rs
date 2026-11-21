@@ -2650,8 +2650,6 @@ struct Game<'a> {
     waypoint_styles: horizon_client::locator_bar::WaypointStyles,
     /// `ClientWaypointManager`: the locator bar's waypoints.
     waypoints: horizon_client::locator_bar::ClientWaypoints,
-    /// The camera the last frame drew from (position, yaw, pitch, fov), for the locator bar.
-    locator_camera: Option<([f64; 3], f32, f32, f32)>,
     native_camera_frame: Option<horizon_client::mod_api::NativeCamera>,
     native_tasks: native_tasks::NativeTasks,
     /// The yaw and pitch a native mod's camera drew the last frame from (`native_camera_pose`),
@@ -6047,21 +6045,11 @@ impl Game<'_> {
             self.draw_extras(&mut batch);
         }
         if show_hud {
-            // Hud.nextContextualInfoState: the jump bar, the experience bar or
-            // the locator bar above the hotbar.
+            // `Hud.extractHotbarAndDecorations`: 1.21.5 has no contextual bar
+            // system — the jump bar when riding a jumpable vehicle, else the
+            // experience bar. (The locator bar itself is item 108's removal.)
             let has_experience = !self.creative && !spectator;
-            let contextual = horizon_client::locator_bar::ContextualBar::next(
-                self.waypoints.has_waypoints(),
-                !spectator && self.jumpable_mount(),
-                self.mount_jumping(),
-                has_experience,
-                // 1.21.5 has no `experienceDisplayStartTick` /
-                // `willPrioritizeExperienceInfo`: the experience bar is
-                // never suppressed by recency (the locator bar itself is
-                // item 108's removal).
-                true,
-            );
-            use horizon_client::locator_bar::ContextualBar;
+            let jumpable = !spectator && self.jumpable_mount();
             // The mount's hearts.
             let vehicle_hearts = if spectator {
                 0
@@ -6135,25 +6123,12 @@ impl Game<'_> {
                     self.audio.capture = capture;
                 }
             }
-            // After the health rows (Hud.extractHotbarAndDecorations): jump, locator or XP bar.
-            self.gui_layer("minecraft:contextual_info_bar", &mut batch, |g, batch| {
-                if contextual == ContextualBar::JumpableVehicle {
+            // After the health rows (`Hud.extractHotbarAndDecorations`): the
+            // jump meter, or the experience bar with its level.
+            self.gui_layer("minecraft:experience_bar", &mut batch, |g, batch| {
+                if jumpable {
                     g.draw_jump_bar(batch, wi, hi);
-                }
-                if contextual == ContextualBar::Locator {
-                    let (sprite, [x, y, w, h]) = horizon_client::locator_bar::background(wi, hi);
-                    horizon_client::ui::nine_slice(
-                        batch,
-                        &g.gui.atlas,
-                        sprite,
-                        x as f32,
-                        y as f32,
-                        w as f32,
-                        h as f32,
-                        u32::MAX,
-                    );
-                }
-                if has_experience && g.player.is_some() {
+                } else if has_experience && g.player.is_some() {
                     let atlas = &g.gui.atlas;
                     let width = |s: &str| HudBatch::text_width(atlas, s) as i32;
                     let draws = hud_layout::experience_colored(
@@ -6162,14 +6137,10 @@ impl Game<'_> {
                         hi,
                         g.experience.progress,
                         g.experience.level,
-                        contextual == ContextualBar::Experience,
+                        true,
                         &width,
                     );
                     hud_layout::paint(batch, atlas, &draws);
-                }
-                if contextual == ContextualBar::Locator {
-                    let draws = g.locator_bar_draws(wi, hi);
-                    hud_layout::paint(batch, &g.gui.atlas, &draws);
                 }
             });
             if !spectator {
@@ -9657,8 +9628,6 @@ impl Game<'_> {
         self.native_gui_render_post(&mut hud, self.ui.hide_gui, self.focused);
         self.resolve_inline_profiles(&hud.inline_profiles);
         pr.lap("pr_hud");
-        self.locator_camera =
-            (!title).then_some((camera.to_array(), view_yaw, view_pitch, fov_degrees));
         let mut requested_post_effects = self.requested_post_effects();
         // The packs' Polytone post chains, after vanilla's (#11486).
         let game_ticks = self.world.game_time as f64 + alpha;
@@ -12046,7 +12015,6 @@ impl<'a> Game<'a> {
             armor_stand_assets: prepared.armor_stand_assets,
             waypoint_styles: prepared.waypoint_styles,
             waypoints: Default::default(),
-            locator_camera: None,
             native_camera_frame: None,
             native_tasks: native_tasks::NativeTasks::new(),
             posed_rotation: None,

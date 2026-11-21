@@ -1,15 +1,9 @@
-//! The locator bar on this client (horizon_client::locator_bar): the
-//! waypoints a server tracks for the player (`handleWaypoint`; on a served
-//! world the host's own connection in lan/waypoints.rs), and the dots drawn
-//! from the last frame's camera.
+//! The waypoints a server tracks for the player (`handleWaypoint`; on a
+//! served world the host's own connection in lan/waypoints.rs). 1.21.5 has
+//! no locator bar, so nothing here draws (item 108 removes the bar's
+//! rendering and state outright).
 use super::Game;
-use horizon_client::{
-    hud_layout::GuiDraw,
-    locator_bar::{ClientWaypoints, View},
-};
-
-/// `Player.getEyeHeight` while standing.
-const PLAYER_EYES: f64 = 1.62;
+use horizon_client::locator_bar::ClientWaypoints;
 
 fn uuid(ints: [i32; 4]) -> u128 {
     ints.iter()
@@ -27,65 +21,5 @@ impl Game<'_> {
             Some(r) => r.profile(),
             None => self.level.player_uuid.map_or(0, uuid),
         }
-    }
-    /// An entity's block position and (interpolated) eyes, by UUID.
-    fn waypoint_entity(&self, id: u128, alpha: f64) -> Option<([i32; 3], [f64; 3])> {
-        let at = |p: [f64; 3], q: [f64; 3], eyes: f64| {
-            let pos: [f64; 3] = std::array::from_fn(|i| q[i] + (p[i] - q[i]) * alpha);
-            (p.map(|c| c.floor() as i32), [pos[0], pos[1] + eyes, pos[2]])
-        };
-        if let Some(r) = &self.remote {
-            let entity = r.player_entity(id)?;
-            let m = self.mobs.iter().find(|m| m.id == entity)?;
-            let v = |v: horizon_core::geometry::Vec3| [v.x, v.y, v.z];
-            return Some(at(v(m.position), v(m.previous), m.eye_height()));
-        }
-        let host = self.lan.as_ref()?;
-        let g = host.hub.guests.iter().find(|g| g.uuid == id && g.placed)?;
-        Some(at(g.position, g.previous_position, PLAYER_EYES))
-    }
-    /// `LocatorBar.extractRenderState` from the last frame's camera.
-    pub(super) fn locator_bar_draws(&self, gui_width: i32, gui_height: i32) -> Vec<GuiDraw> {
-        let (Some((camera_pos, yaw, pitch, fov)), Some(p)) = (self.locator_camera, &self.player)
-        else {
-            return Vec::new();
-        };
-        let alpha = self.clock.camera_fraction();
-        // Camera.getViewRotationProjectionMatrix, through view space: the
-        // depth along the look direction and the height on screen.
-        let (sy, cy) = (
-            f64::from(yaw.to_radians()).sin(),
-            f64::from(yaw.to_radians()).cos(),
-        );
-        let (sp, cp) = (
-            f64::from(pitch.to_radians()).sin(),
-            f64::from(pitch.to_radians()).cos(),
-        );
-        let forward = [-sy * cp, -sp, cy * cp];
-        let up = [-sy * sp, cp, cy * sp];
-        let focal = 1.0 / f64::from((fov / 2.0).to_radians()).tan();
-        let project = |o: [f64; 3]| {
-            let dot = |a: [f64; 3]| a[0] * o[0] + a[1] * o[1] + a[2] * o[2];
-            let depth = dot(forward);
-            let y = dot(up) * focal / depth;
-            // Points behind the camera land past the far plane (z > 1).
-            [0.0, y, if depth < 0.0 { 2.0 } else { 0.5 }]
-        };
-        let entity = |id: u128| self.waypoint_entity(id, alpha);
-        let view = View {
-            gui_width,
-            gui_height,
-            camera_uuid: self.own_uuid(),
-            camera_entity_pos: [p.position.x, p.position.y, p.position.z],
-            camera_pos,
-            yaw,
-            pitch,
-            fov,
-            project: &project,
-            entity: &entity,
-            styles: &self.waypoint_styles,
-            tick: self.visual_ticks(),
-        };
-        self.waypoints.draw(&view)
     }
 }

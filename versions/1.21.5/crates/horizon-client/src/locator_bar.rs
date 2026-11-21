@@ -521,40 +521,6 @@ impl ClientWaypoints {
 
 /// `Hud.ContextualInfo`: which bar sits above the hotbar.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ContextualBar {
-    Empty,
-    Experience,
-    Locator,
-    JumpableVehicle,
-}
-impl ContextualBar {
-    /// `Hud.nextContextualInfoState`: `recent_experience` is
-    /// `willPrioritizeExperienceInfo` (experience changed in the last 100
-    /// ticks), `jumping` is `willPrioritizeJumpInfo`.
-    pub fn next(
-        waypoints: bool,
-        jumpable_vehicle: bool,
-        jumping: bool,
-        has_experience: bool,
-        recent_experience: bool,
-    ) -> Self {
-        if waypoints {
-            if jumpable_vehicle && jumping {
-                Self::JumpableVehicle
-            } else if has_experience && recent_experience {
-                Self::Experience
-            } else {
-                Self::Locator
-            }
-        } else if jumpable_vehicle {
-            Self::JumpableVehicle
-        } else if has_experience {
-            Self::Experience
-        } else {
-            Self::Empty
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -726,17 +692,5 @@ mod tests {
             panic!();
         };
         assert_eq!(x, 209 + 43);
-    }
-
-    #[test]
-    fn contextual_bar_priorities() {
-        use ContextualBar as B;
-        assert_eq!(B::next(true, false, false, true, false), B::Locator);
-        assert_eq!(B::next(true, false, false, true, true), B::Experience);
-        assert_eq!(B::next(true, true, true, true, true), B::JumpableVehicle);
-        assert_eq!(B::next(false, false, false, true, true), B::Experience);
-        assert_eq!(B::next(false, false, false, false, false), B::Empty);
-        // Creative players see the bar too.
-        assert_eq!(B::next(true, false, false, false, false), B::Locator);
     }
 }

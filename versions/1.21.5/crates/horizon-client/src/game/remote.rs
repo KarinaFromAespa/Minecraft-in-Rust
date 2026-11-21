@@ -11815,13 +11815,6 @@ impl Remote {
     pub(super) fn profile(&self) -> u128 {
         self.profile
     }
-    /// The entity id of a player in the level, by profile UUID.
-    pub(super) fn player_entity(&self, uuid: u128) -> Option<u32> {
-        self.level_players
-            .iter()
-            .find(|(_, u)| **u == uuid)
-            .map(|(id, _)| *id as u32)
-    }
     /// The kind and last sent position of a tracked server entity.
     pub(super) fn tracked(&self, id: i32) -> Option<(&str, [f64; 3])> {
         self.entities.get(&id).map(|t| (&*t.kind, t.position))

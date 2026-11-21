@@ -424,7 +424,7 @@ fn crosshair_draws(w: i32, h: i32, attack: Option<f32>, full: bool) -> Vec<GuiDr
     out
 }
 
-/// `ExperienceBar.extractBackground` and `ContextualBar.extractExperienceLevel`;
+/// `Gui.renderExperienceBar` and `Gui.renderExperienceLevel`;
 /// `width` measures text with the font.
 pub fn experience(
     w: i32,
@@ -463,7 +463,10 @@ pub fn experience_colored(
             ));
         }
     }
-    if level > 0 {
+    // `Gui.renderExperienceLevel` draws only when the bar itself is visible
+    // (`isExperienceBarVisible`: no jumpable vehicle, has experience), so a
+    // rider sees neither the bar nor the level.
+    if bar && level > 0 {
         let text = level.to_string();
         let x = (w - width(&text)) / 2;
         let y = h - 24 - 9 - 2;

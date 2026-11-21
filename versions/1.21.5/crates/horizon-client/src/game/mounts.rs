@@ -841,10 +841,6 @@ impl Game<'_> {
         self.mount_index()
             .is_some_and(|i| self.mobs[i].extra.saddled && Self::jumps(self.mobs[i].species()))
     }
-    /// `willPrioritizeJumpInfo`: charging a jump or recharging.
-    pub(super) fn mount_jumping(&self) -> bool {
-        self.mount.jump_scale > 0.0 || self.mount.jump_ticks < 0
-    }
     /// `Hud.extractVehicleHealth` (a native mod's `minecraft:vehicle_health`
     /// layer, only while riding a mount). Returns the mount's heart count
     /// (`getVehicleMaxHearts`).
@@ -860,13 +856,14 @@ impl Game<'_> {
         });
         hearts
     }
-    /// The jump bar when it is the contextual bar.
+    /// `Hud.extractJumpMeter`: the jump bar above the hotbar while riding a
+    /// jumpable vehicle.
     pub(super) fn draw_jump_bar(&self, batch: &mut HudBatch, w: i32, h: i32) {
         let Some(i) = self.mount_index() else {
             return;
         };
         let m = &self.mobs[i];
-        // JumpableVehicleBar: `getJumpCooldown`, which only the camel's and
+        // `Gui.renderJumpMeter`: `getJumpCooldown`, which only the camel's and
         // the nautilus' dash have; a horse always shows the progress.
         let cooldown = i32::from(
             self.mount.jump_ticks < 0

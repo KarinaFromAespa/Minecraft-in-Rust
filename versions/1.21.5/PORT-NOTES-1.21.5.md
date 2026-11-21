@@ -2108,13 +2108,126 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (7s).
+- **Item 55 — Gui, ported:**
+  - The contextual bar system is
+    1.21.6-only and is gone:
+    `ContextualBar` (the enum and its
+    `next` state machine, with the
+    `contextual_bar_priorities` test)
+    is deleted from `locator_bar.rs`,
+    `mount_jumping`
+    (`willPrioritizeJumpInfo`) is
+    deleted from `mounts.rs`, and the
+    HUD layer is the 1.21.5 direct
+    form: the jump bar when riding a
+    jumpable vehicle, else the
+    experience bar — no waypoint /
+    recency / jump prioritisation.
+    The layer id becomes
+    `minecraft:experience_bar` (the
+    1.21.6 `minecraft:contextual_info_bar`
+    id no longer exists) and the
+    native-hooks layer list follows.
+    The Game-side locator-bar draw
+    path goes with it:
+    `locator_bar_draws`,
+    `waypoint_entity`, the
+    `locator_camera` field (and its
+    per-frame set), and
+    `Remote::player_entity`, whose
+    only caller was the waypoint
+    lookup. The lib `locator_bar`
+    module (waypoint state, styles,
+    `background`, `draw`) stays for
+    item 108; the LAN waypoint sync
+    stays for item 86.
+  - The experience level is gated on
+    the bar's visibility:
+    1.21.5's `renderExperienceLevel`
+    draws only when
+    `isExperienceBarVisible` (no
+    jumpable vehicle, has
+    experience), so a rider sees
+    neither the bar nor the level —
+    the Rust drew the level while
+    riding. The bar formula
+    (`(progress * 183) as i32`,
+    `h - 32 + 3`) and the level
+    position (`h - 31 - 4`, centred)
+    already matched.
+  - The jump bar fill is
+    `(scale * 183.0) as i32`:
+    1.21.5's `renderJumpMeter` uses
+    the 183-wide fill like the XP
+    bar; the Rust used
+    `Mth.lerpDiscrete` (1.21.6's
+    `JumpableVehicleBar` form,
+    topping out at 182). Position,
+    background and cooldown sprite
+    already matched.
+  - Effects icons are deferred:
+    1.21.5 draws every background
+    first, then runs the icon blits
+    (`MobEffectTextureManager` lookups
+    resolve the same `mob_effect/<id>`
+    sprites the Rust builds). The
+    Rust drew each icon right after
+    its background; the cells never
+    overlap, so this is order-only.
+  - The overlay message, the title
+    (with its subtitle) and the
+    saving indicator draw only above
+    alpha 8 in 1.21.5; the Rust
+    gated on `> 0` (the 1.21.6 form).
+    The selected-item name keeps its
+    `> 0` gate — both versions use
+    it there.
+  - No-ops: the debug crosshair gate
+    (1.21.5's inline form is inside
+    the first-person branch, as is
+    1.21.6's extracted
+    `shouldRenderDebugCrosshair`;
+    the Rust's `debug_crosshair_drawn`
+    already requires first person),
+    the crosshair and attack-indicator
+    geometry (identical), the
+    spectator tooltip (already
+    `renderTooltip`, the 1.21.5 name),
+    `setNowPlaying` (already `say_now`
+    under item 51), the
+    `ReceivingLevelScreen` gate
+    (1.21.6-only, no Rust surface),
+    the hotbar's `z = -90` translate
+    and the spyglass fill `z` (draw
+    order, handled by the batch),
+    `RenderType` vs `RenderPipelines`,
+    `pushPose` vs `pushMatrix`,
+    `nextStratum`, and the
+    `Gui$RenderFunction` interface
+    (no Rust surface).
+  - Known gap (pre-existing, not a
+    delta): the Rust's layer order
+    (effects and boss bars before the
+    health rows; scoreboard after the
+    title; subtitles before chat)
+    matches neither version's
+    `LayeredDraw` order; the regions
+    never overlap, so nothing visible
+    differs.
+  - Verification: `cargo check -j 1 -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (5m36s; the first run OOM'd at default
+    parallelism under 3-stream load and
+    also surfaced the now-deleted
+    `player_entity` dead code).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **54 of 426 are
-closed** (rank 1 complete, rank 2 at 45/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **55 of 426 are
+closed** (rank 1 complete, rank 2 at 46/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

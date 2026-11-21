@@ -2536,9 +2536,9 @@ impl Game<'_> {
     /// it. `layer` is the layer's id, in the order Horizon draws them:
     /// `minecraft:crosshair`, `hotbar`, `effects`, `boss_overlay`,
     /// `vehicle_health` (only riding a mount), `player_health` (the health,
-    /// armor, food and air rows, drawn in one pass), `contextual_info_bar` (the
-    /// mount's jump bar, the locator bar or the experience bar, with the level
-    /// number), `selected_item_name`, `sleep_overlay`, `overlay_message`
+    /// armor, food and air rows, drawn in one pass), `experience_bar` (the
+    /// mount's jump bar or the experience bar, with the level number),
+    /// `selected_item_name`, `sleep_overlay`, `overlay_message`
     /// (the action bar), `title`, `scoreboard_sidebar`, `subtitle_overlay`,
     /// `chat` and `tab_list`. A layer F1 hides fires nothing, and the chat
     /// screen draws the focused chat itself, so `chat` is only the unfocused
