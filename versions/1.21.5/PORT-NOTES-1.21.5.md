@@ -9346,13 +9346,47 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 211 —
+  ColorLerper:**
+  - 1.21.6's new
+    `ColorLerper` factored
+    the jeb_ sheep colour
+    cycle out of
+    `SheepRenderState` —
+    and dropped the
+    entity-id offset:
+    1.21.5 adds `this.id`
+    to the cycle index, so
+    two jeb_ sheep do not
+    cycle in sync. The port
+    had the 1.21.6 form;
+    `jeb_wool_rgb` now
+    takes the id and the
+    call site passes
+    `m.id`. The wool colour
+    table is identical in
+    both versions (white
+    -1644826, the rest at
+    0.75). The toast half
+    has no port surface:
+    the port has no Now
+    Playing toast.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests` 0/0 (3m08s);
+    test-profile build
+    OOM-killed under load,
+    10 assertions verified
+    by a standalone rustc
+    run; test runs in CI.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **210 of 426 are
-closed** (rank 1 complete, rank 2 at 201/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **211 of 426 are
+closed** (rank 1 complete, rank 2 at 202/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
