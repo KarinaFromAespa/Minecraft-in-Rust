@@ -8986,6 +8986,21 @@ jar: "Unbound values in registry" is in `MappedRegistry`, and
 between the versions. Tests: `game::dedicated::predicate_graph::`
 3 passed.
 
+## Item 157 — game/fishing.rs (rank 2, CHANGED)
+
+2 classes, 11 methods, 3 named. The bobber texture moved:
+`textures/entity/fishing/fishing_hook.png` (26.1) →
+`textures/entity/fishing_hook.png` (1.21.11) — the Rust looked it
+up at the old path and the lookup silently failed, so the bobber
+never drew (the item-145 lead-knot failure mode). Fixed to
+`entity/fishing_hook`. The render type also changed
+(`entityCutoutCull` → `entityCutout`), but the Rust's entity
+pipeline already uses no culling, so that is already the 1.21.11
+form. The `getNearPlane(fov)` comment updated to the no-arg
+1.21.11 form (the Rust computes the point itself from the FOV).
+The `FishingHook` entity delta is only `is` overload changes.
+Tests: `game::fishing::` 13 passed, 5 ignored.
+
 ## CI proof run 44850889695 (recorded below)
 
 Dispatched 01:33:40 UTC Nov 21, 2026 on behaviour/1.21.11 @
