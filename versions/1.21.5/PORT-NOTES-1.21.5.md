@@ -3371,13 +3371,40 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 74 — MeleeAttackGoal /
+  MoveToBlockGoal / RandomPos,
+  verified:**
+  - Pure renames: 1.21.6 renamed
+    `isWithinRestriction` /
+    `hasRestriction` /
+    `getRestrictCenter` to
+    `isWithinHome` / `hasHome` /
+    `getHomePosition`; the
+    checks are identical (a
+    mob outside its restriction
+    centre + radius fails the
+    goal, and random positions
+    bias back toward the
+    centre). The Rust AI keeps
+    the 1.21.6 `home` naming
+    internally (`home: Option<(pos,
+    radius)>`, radius -1 meaning
+    unrestricted, matching
+    vanilla), which is naming
+    only — the behaviour is
+    the same in both versions.
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **73 of 426 are
-closed** (rank 1 complete, rank 2 at 64/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **74 of 426 are
+closed** (rank 1 complete, rank 2 at 65/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
