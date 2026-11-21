@@ -12732,3 +12732,7 @@ Class rename only (`FarmlandBlock` vs `FarmBlock`, same `turnToDirt`).
 ## Item 713 — horizon-prepare/src/artifacts.rs (EventLoopGroupHolder) — NO-CHANGE
 
 Visibility only.
+
+## Item 714 — horizon-prepare/src/inventory.rs (SoundBufferLibrary$DebugOutput$Counter) — NO-CHANGE
+
+26.1-only debug class; nothing in the Rust references it.
