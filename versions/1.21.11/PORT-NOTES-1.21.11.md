@@ -11845,3 +11845,13 @@ Only visibility (fitter constructors and `RoomDefinition` fields are
 `private` in 26.1, package-private in 1.21.11) and `ChunkPos.x()`/`z()`
 accessors vs field reads — all behaviour-free. The Rust cites only the
 class names, which are shared.
+
+## Item 556 — gamepad.rs (ContainerEventHandler) — NO-CHANGE
+
+26.1 added IME (`preeditUpdated`), a `getBorderForArrowNavigation`
+override, a `setFocused(boolean)` default that clears focus, and
+previousFocus tracking in arrow navigation; 1.21.11 starts arrow navigation
+from the focused element's full rectangle (opposite border when nothing is
+focused). The shared `nextFocusPathInDirection` algorithm is identical, and
+the Rust models the 1.21.11 start points: `focus_step_rect` from the focused
+rect, `key_focus.rs` from the screen's opposite edge when unfocused.
