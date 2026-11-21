@@ -9624,3 +9624,20 @@ widening, `is` overloads, and the `getCraftingRemainder`
 template/stack distinction (same as item 184) with
 identical slot-or-drop logic, which the Rust's `brew()`
 already matches. No code changed.
+
+## Item 199 — datapack.rs (rank 2, CHANGED — test fixtures only)
+
+5 classes, 6 methods, 2 named. No behavioural delta in
+vanilla: `MacroFunction.stringify`'s cases are identical
+(javac codegen only); `Pack.readPackMetadata`'s fallback
+is reached with the same result in both versions (the
+fallback codec needs only a description — the Rust's
+folder gate already requires exactly that); the other
+two classes are widening/rename. Fixed three tests that
+failed on the clean branch tip: their fixtures used
+26.x pack formats (data 121, resource 97) while 1.21.11
+is data (94, 1), resource (75, 0) — verified against
+the jar's version.json. Fixtures updated in
+`datapack.rs` (create-world install, folder-metadata)
+and `packs.rs` (compatibility ranges, overlays). No
+production code changed.
