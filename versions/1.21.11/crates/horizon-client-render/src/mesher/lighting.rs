@@ -105,7 +105,7 @@ fn weighted_blend(c: [u32; 4], w: [f32; 4]) -> u32 {
     };
     channel(0) | channel(16) << 16
 }
-/// `ARGB.gray` channel: `Mth.floor(brightness * 255)`. Without the `floorf`
+/// `ARGB.as8BitChannel`: `Mth.floor(brightness * 255)`. Without the `floorf`
 /// call x86-64's baseline instruction set makes of `f32::floor`: truncation,
 /// one lower where that rounded a negative value up (saturating as `as` does).
 pub(super) fn gray(brightness: f32) -> i32 {

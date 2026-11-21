@@ -10590,3 +10590,15 @@ occurrences of the `BlockState.is(Object)`
 vs `is(Block)` overload tightening; the mode
 mapping is identical. No source change.
 `command_block`: 4 passed.
+
+## Item 299 — mesher/lighting.rs (rank 2, NO-CHANGE)
+
+1 class, 1 method, 1 named. `ARGB.gray` is
+26.1-only; 1.21.11's tinted-vertex path
+multiplies the tint as a float and floors
+once (`as8BitChannel`), differing by up to
+one per channel. The Rust's `lit_channel`
+already implements the 1.21.11 form and
+documents the difference; one stale doc
+citation updated to `as8BitChannel`.
+`mesher::lighting`: 11 passed.
