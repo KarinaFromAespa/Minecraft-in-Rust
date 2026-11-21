@@ -11501,3 +11501,24 @@ Rust already follows the 1.21.11 shape — it looks
 the component's id up in the instrument registry (or
 parses an inline instrument) and fails on unknown —
 and `use_ticks()` is the same floor.
+
+## Item 528 — graphics_ui.rs (rank 3, NO-CHANGE)
+
+26.1 made the scroll area configurable
+(`ScrollbarSettings`: sprites, width, min height,
+scroll rate, disabled scroller) where 1.21.11
+hardcodes the same values — width 6, thumb clamped
+to [32, height - 8] — and `defaultSettings(int)`
+builds exactly those defaults. The interaction
+logic (`updateScrolling`, `mouseScrolled`,
+`mouseDragged`, `onRelease`, `setScrollAmount`,
+`scrollerHeight`, `maxScrollAmount`) is identical
+in both versions; the rest is the
+`scrollable()`/`scrollbarVisible()` rename, the
+`extractScrollbar`/`renderScrollbar` rename plus
+26.1's disabled-scroller branch (dead under the
+defaults), a `scrollBarY` zero-guard, and
+`scrollRate` concrete-vs-abstract. The Rust cites
+only `updateScrolling`, and its scroll constants
+(SCROLLER_W 6.0, thumb 32) live in settings_shell.rs
+(item 87) and match 1.21.11.
