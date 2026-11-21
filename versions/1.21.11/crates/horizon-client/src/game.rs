@@ -9473,6 +9473,9 @@ impl Game<'_> {
             post_blend: Some(&post_blend),
             post_biome: Some(post_of(biome)),
         });
+        // `LightTexture.updateLightTexture`: the lightmap's
+        // `AmbientLightFactor` is the dimension type's ambient light.
+        sky.ambient_light = self.dimension_type().ambient_light;
         self.end_flash_sky(&mut sky, alpha);
         if self.flash > 0 && !self.settings.file.bool("hideLightningFlashes") {
             // ClientLevel's flash layer while skyFlashTime > 0: the sky colour

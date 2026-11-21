@@ -8939,6 +8939,39 @@ confirms the `export` strings are the only literal differences
 across all 25 classes. `cargo check -p horizon-client --lib
 --tests --no-default-features` clean.
 
+## Item 155 — environment_attributes.rs (rank 2, CHANGED)
+
+12 classes, 22 methods, 2 named. `AttributeType.toFloat` and
+`AttributeTypes.INTEGER` are 26.1-only (no Rust mirror either way),
+and three environment attributes are 26.1-only:
+`visual/block_light_tint`, `visual/night_vision_color`,
+`visual/ambient_light_color` — removed from the table (51 → 48).
+They were the uniforms 26.1's `lightmap.fsh` read, and 1.21.11's
+shader is a different algorithm, so `update_lightmap` is rewritten
+to it: the hardcoded cubic block-light tint, the dimension's
+ambient light as the mix factor (0 / 0.1 / 0.25), the end-flash
+colour as the ambient colour, block factor flicker + 1.5 (26.1:
+1.4), boss darkening and darkness only where the ambient factor is
+0, night vision as a scale-up to white, and the two 0.75 mixes. The
+per-pixel math is extracted as `Renderer::lightmap_pixel` with a
+test pinning four hand-computed pixels. `Sky` loses the two tint
+fields and gains `ambient_light` / `ambient_color`, set by the
+frame code and `end_flash_sky` (the flash colour is not gated by
+Hide Lightning Flashes, only the sky-factor addition is). The
+turtle-egg default is 0.0 in 1.21.11 (0.002 in 26.1) — the day
+timeline's track still supplies 0.002 where it runs, so only
+timeline-less dimensions change (eggs never hatch there); the
+table default and the `turtle_hatch_chance` fallback both fixed.
+The environment fixture no longer emits the removed attributes.
+Tests: `environment_attributes::` 1 passed (new),
+`gfx::tests::lightmap` 1 passed (new), `environment::` 8 passed,
+`environment_timeline::` 3 passed, `level::growth_tests::` 21
+passed, `fog::` 16 passed. Recorded, not fixed: the table still
+carries three 26.3-only entries (`natural_mob_spawns`,
+`creature_world_gen_spawn_probability`, `straw_bed_rule`) that
+exist in neither 26.1 nor 1.21.11 — not this item's delta (item
+107 already fixed the `natural_mob_spawns` reader).
+
 ## CI proof run 44850889695 (recorded below)
 
 Dispatched 01:33:40 UTC Nov 21, 2026 on behaviour/1.21.11 @

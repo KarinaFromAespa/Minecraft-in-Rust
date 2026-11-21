@@ -29,8 +29,14 @@ pub struct Sky {
     pub fog_color: [f32; 3],
     pub sky_light_factor: f32,
     pub sky_light_color: [f32; 3],
-    pub block_light_tint: [f32; 3],
-    pub ambient_light_color: [f32; 3],
+    /// `DimensionType.ambientLight`: the lightmap's `AmbientLightFactor`
+    /// (0 overworld, 0.1 nether, 0.25 end). Set by the caller after
+    /// sampling; the dimension is not part of the sample.
+    pub ambient_light: f32,
+    /// The lightmap's `AmbientColor`: the end-flash colour (0.99, 1.12,
+    /// 1.0) while a flash is active, white otherwise. Set by the caller
+    /// after sampling.
+    pub ambient_color: [f32; 3],
     pub sun_angle: f32,
     pub moon_angle: f32,
     pub star_angle: f32,
@@ -986,8 +992,8 @@ impl Environment {
             fog_color: rgb("visual/fog_color"),
             sky_light_factor: float("visual/sky_light_factor"),
             sky_light_color: rgb("visual/sky_light_color"),
-            block_light_tint: rgb("visual/block_light_tint"),
-            ambient_light_color: rgb("visual/ambient_light_color"),
+            ambient_light: 0.0,
+            ambient_color: [1.0; 3],
             sun_angle: float("visual/sun_angle"),
             moon_angle: float("visual/moon_angle"),
             star_angle: float("visual/star_angle"),
