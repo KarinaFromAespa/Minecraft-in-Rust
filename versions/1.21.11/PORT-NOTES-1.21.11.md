@@ -11942,3 +11942,12 @@ order and `ChunkPos` accessors. The 26.1-only `Tracker` adds a ~1e-5
 squared-length floor to `applyCurrentTo` that 1.21.11's inline fluid-pushing
 lacks; the Rust's `CurrentAccumulator::apply_to` already pushes on any
 nonzero current, with a comment noting the 26.x floor is gone.
+
+## Item 568 — item/hash/gameplay.rs (DamageResistant) — NO-CHANGE
+
+1.21.11's `DamageResistant.types` is a bare `TagKey<DamageType>` (stream
+codec `TagKey.streamCodec`); 26.1 made it a `HolderSet`. The adapter already
+handles the 1.21.11 form: with `either_holders_and_tag_resistance` set, the
+`DAMAGE_RESISTANT` arm reads the tag string and rewrites it into the pinned
+HolderSet form before the hash/skip readers see it. The other three classes
+have zero diff.
