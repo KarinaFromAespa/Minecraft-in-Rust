@@ -10310,3 +10310,16 @@ same overload tightening as item 269, no
 behavioural delta. The honey refusal is already
 implemented. No source change. `mobs::breeze`:
 7 passed.
+
+## Item 271 — spear.rs (rank 2, CHANGED)
+
+3 classes, 4 methods, 1 named. One real line in
+`UseParams.fromKineticWeapon`: 1.21.11 ends the
+spear sway at the knockback window's start
+(knockback + delay - 40), 26.1 at the dismount
+finish — for the iron spear the sway ramps over
+ticks 42..107, not 42..62. Ported; new test
+`the_sway_runs_to_the_knockback_window`.
+`multipart/Condition` only moved packages
+(`model` -> `dispatch`); its codec is identical.
+`spear`: 5 passed.

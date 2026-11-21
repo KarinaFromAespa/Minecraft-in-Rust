@@ -241,7 +241,11 @@ impl UseParams {
         let start_lowering = finish_lowering - 40;
         let finish_raising_back = k.damage.max_duration_ticks + finish_raising;
         let raise = progress(time, 0.0, finish_raising as f32);
-        let sway = progress(time, start_swaying as f32, finish_swaying as f32);
+        // 1.21.11 ends the sway at the knockback window's start
+        // (`fromKineticWeapon` passes the knockback start, slot 6);
+        // 26.1 ends it at `finish_swaying` instead, so the sway
+        // ramps over 20 ticks there and over the whole gap here.
+        let sway = progress(time, start_swaying as f32, start_lowering as f32);
         let lower = out_cubic(in_out_elastic(progress(
             time - 20.0,
             start_lowering as f32,
@@ -496,6 +500,20 @@ mod tests {
         assert!((third_person_attack_arm(0.05) - 90f32.to_radians()).abs() < 1e-5);
         assert!(third_person_attack_arm(0.2) < 0.0);
         assert!(third_person_attack_arm(1.0).abs() < 1e-5);
+    }
+
+    /// `SpearAnimations.UseParams.fromKineticWeapon` in 1.21.11
+    /// ends the sway at the knockback window's start, not the
+    /// dismount finish: for the iron spear the sway ramps over
+    /// ticks 42..107, not 42..62 as in 26.1.
+    #[test]
+    fn the_sway_runs_to_the_knockback_window() {
+        let k = Kinetic::of("minecraft:iron_spear").unwrap();
+        let sway = |time: f32| UseParams::of(&k, time).sway;
+        assert_eq!(sway(42.0), 0.0);
+        assert!((sway(62.0) - 20.0 / 65.0).abs() < 1e-6);
+        assert!((sway(74.5) - 0.5).abs() < 1e-6);
+        assert_eq!(sway(107.0), 1.0);
     }
 
     /// `Item.Properties.spear` in 1.21.11: the dismount condition's
