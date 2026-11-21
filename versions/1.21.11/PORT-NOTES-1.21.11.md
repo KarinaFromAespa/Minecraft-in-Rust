@@ -12708,3 +12708,7 @@ RandomSource factory only, as items 670/679.
 
 26.1-only class; already handled — body_anim.rs documents that one
 `TurtleModel` serves both ages in 1.21.11.
+
+## Item 708 — mobs/trader.rs (WanderingTrader$WanderToPositionGoal) — NO-CHANGE
+
+requireNonNull plus constructor field-init order.
