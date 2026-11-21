@@ -12197,12 +12197,48 @@ is the oracle; decompiled code is a reading aid.
     jitter/alpha test; WGSL
     validated by naga).
 
+- **Item 293 — GL uniform class**
+  - Uniform,
+    Uniform$Sampler,
+    Uniform$Ubo,
+    Uniform$Utb: verified,
+    no code - the diff is
+    the rendering-API
+    refactor (1.21.6's
+    sealed Ubo/Utb/Sampler
+    records vs 1.21.5's
+    set/dirty/upload GL
+    class). The port is
+    wgpu-native: shaders
+    take uniform buffers
+    written directly, and
+    no per-uniform set API
+    exists anywhere. The
+    class's only observable
+    behaviour,
+    warn-and-ignore on a
+    too-small set array,
+    never fires from any
+    vanilla path:
+    setOnRenderPass always
+    builds a full-count
+    array (single value
+    fills, else copy up to
+    count, rest 0 - item
+    271's ground), and the
+    system uniforms are
+    full values. The
+    dirty-flag upload
+    gating is unobservable.
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **292 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 24/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **293 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 25/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
