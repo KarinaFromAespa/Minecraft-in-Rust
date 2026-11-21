@@ -12769,12 +12769,52 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 308 — Cartography table screen**
+  - CartographyTableScreen,
+    MapRenderer: verified,
+    no code. The
+    cartography draw
+    matches vanilla's
+    geometry exactly: error
+    sprite at (35, 31) when
+    locked-and-(scaling or
+    locking) or scaling
+    past scale 4; scaled
+    preview at (85, 31,
+    0.226); duplicated pair
+    at (86, 16, 0.34) and
+    (70, 32, 0.34); locked
+    sprite at (118, 60)
+    drawn last; plain map
+    at (71, 17, 0.45). The
+    layering is draw order
+    in the port's batch -
+    the same visible result
+    as 1.21.6's nextStratum
+    and 1.21.5's z +1
+    pushPose. The map
+    decoration name matches
+    too: the 25/width scale
+    clamped to 6/9, the
+    (x/2 + 64, y/2 + 64 +
+    4) anchor, white text
+    on the 0x80000000
+    background. The
+    z-scale/translate flip
+    in the label pose and
+    the submitMapRenderStat
+    e/drawSpecial split are
+    render-API internals
+    with no 2D surface.
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **307 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 39/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **308 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 40/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
