@@ -10102,3 +10102,15 @@ instead of through the extracted render state, and
 `CameraRenderState` moves package. The Rust already
 cites `Options.getBackgroundOpacity(0.25)`. No code
 changed.
+
+## Item 246 — signs.rs (rank 2, NO-CHANGE)
+
+2 classes, 6 methods, 1 named. The sign model is
+picked from the block identity instead of an
+attachment point, the edit screen draws through
+`GuiGraphics` instead of the extractor, and click
+text resolves via `updateForEntity` instead of a
+`ResolutionContext` — all the same result. The Rust
+already picks the sign kind from the block name and
+implements the click-command execution. No code
+changed.
