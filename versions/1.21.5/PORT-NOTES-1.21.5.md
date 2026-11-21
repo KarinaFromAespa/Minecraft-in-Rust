@@ -1739,13 +1739,46 @@ is the oracle; decompiled code is a reading aid.
     horizon-client -p horizon-client-core -p
     horizon-items --all-targets` 0 errors /
     0 warnings (1m45s).
+- **Item 44 — Brushable / Crafter / Beehive /
+  Skull / Furnace / Barrel / Brewing /
+  Chest / CreakingHeart / SculkShrieker /
+  TestBlock block entities, ported:**
+  - Real fix, beehive: `IGNORED_BEE_TAGS`
+    is 1.21.5's 29-key list — equipment is
+    still `ArmorItems`/`HandItems` (the
+    `equipment` component key is 1.21.6's)
+    and the sleeping position is
+    `SleepingX`/`SleepingY`/`SleepingZ`
+    (not `sleeping_pos`). The rewrite also
+    restores `HurtByTimestamp`, missing
+    from the Rust's list against both
+    versions.
+  - The rest is the ValueInput/ValueOutput
+    → CompoundTag migration with identical
+    keys and defaults (loot tables,
+    container items, furnace timers and
+    `RecipesUsed`, `BrewTime`/`Fuel`,
+    `creaking`, `warning_level`/`listener`,
+    test-block mode/message/powered, skull
+    profile/note_block_sound/custom_name);
+    the Rust was already compound-based.
+    `removeComponentsFromTag` (`discard` →
+    `remove`) already strips the same keys
+    in block_entity_item.rs. The furnace's
+    `level()` → `serverLevel()` is the same
+    level for a ServerPlayer; the
+    test-block visibility change has no Rust
+    surface.
+  - Verification: `cargo check -p
+    horizon-client --all-targets` 0 errors /
+    0 warnings (1m15s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **43 of 426 are
-closed** (rank 1 complete, rank 2 at 34/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **44 of 426 are
+closed** (rank 1 complete, rank 2 at 35/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
