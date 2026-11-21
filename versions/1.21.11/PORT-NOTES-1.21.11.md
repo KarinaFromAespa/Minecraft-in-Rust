@@ -11569,3 +11569,15 @@ All renames and no-ops: `getLightCoords` vs
 Rust matches 1.21.11: reset 40, cooldown 10, complete
 at count 10, completion thresholds 0/1-2/3-5/6+, and
 the completion drop takes `10 + nextInt(21)`.
+
+## Item 532 — realms/client.rs (rank 3, NO-CHANGE)
+
+Five of the nine classes are byte-identical
+(including both JSON adapters the Rust cites); the
+rest is visibility changes (private ->
+package-private) and one rename,
+`PopupScreen$Builder.addMessage` (26.1) vs
+`setMessage` (1.21.11), inside
+`InfoPopup.buildScreen`. The Rust models the
+notification as a DTO and returns the single message
+string, so the builder rename has no surface here.
