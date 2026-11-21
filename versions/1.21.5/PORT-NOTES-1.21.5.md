@@ -1902,13 +1902,38 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -p
     horizon-client --all-targets` 0 errors /
     0 warnings (1m10s).
+- **Item 49 — CommandBlockEntity /
+  BaseCommandBlock, verified, no code
+  change:**
+  - The diff is the ValueInput/ValueOutput
+    → CompoundTag migration with identical
+    keys, defaults and order (Command,
+    SuccessCount, CustomName, TrackOutput
+    default true, LastOutput only when
+    tracking, UpdateLastExecution default
+    true, LastExecution only when updating
+    and set, powered, conditionMet, auto);
+    the Rust's `CommandBlock::load`/`save`
+    was already compound-based and matches
+    on every point, as does the
+    `removeComponentsFromTag` modelling
+    (CustomName/conditionMet/powered
+    stripped). The `save` return value and
+    the `level()` →
+    `getCommandSenderWorld()` client check
+    have no Rust surface (both are the
+    player's world).
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (25s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **48 of 426 are
-closed** (rank 1 complete, rank 2 at 39/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **49 of 426 are
+closed** (rank 1 complete, rank 2 at 40/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
