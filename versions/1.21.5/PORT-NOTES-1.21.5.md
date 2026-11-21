@@ -6117,13 +6117,73 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-client
     --lib --tests` 0 errors /
     0 warnings; test 1 passed.
+- **Item 130 — Minecarts
+  verified against 1.21.5:**
+  - `recreateFromPacket` is
+    1.21.6-only (it seeds the
+    new behaviour's lerp
+    motion from the packet
+    velocity); 1.21.5 has no
+    such override. The Rust
+    spawn path already
+    matches 1.21.5: AddEntity
+    inserts a fresh
+    `CartLerp` (zero movement,
+    empty steps) and sets the
+    cart's velocity directly;
+    the lerp is fed only by
+    later move packets.
+  - `applyEffectsFromBlocks`:
+    1.21.6's non-experimental
+    branch clears the
+    recorded movements after
+    applying the single-
+    segment effects, 1.21.5's
+    does not. No Rust surface:
+    the port has no
+    movement-recording system
+    (`movementThisTick` /
+    `finalMovementsThisTick`
+    exist nowhere in the
+    tree); the cart applies
+    its block effects directly
+    over the step
+    (`cart_inside_blocks`),
+    which is the 2-arg form
+    both versions call.
+  - Save/load is the usual
+    ValueInput/ValueOutput →
+    CompoundTag refactor with
+    identical fields, all
+    read and written by the
+    port: `DisplayState`,
+    `DisplayOffset` (default
+    when absent),
+    `FlippedRotation`,
+    `HasTicked`, hopper
+    `Enabled` (default true),
+    TNT `fuse` (default -1).
+  - Pre-existing gap, same in
+    both versions: the port
+    does not carry TNT carts'
+    `explosion_power` (it
+    explodes at the fixed
+    4.0 base); the field
+    exists identically in
+    1.21.5 and 1.21.6, so it
+    is not this delta.
+  - Verification: no Rust
+    change; the tree state is
+    the one `cargo check -j 1
+    -p horizon-client --lib --tests`
+    passed at item 129.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **129 of 426 are
-closed** (rank 1 complete, rank 2 at 120/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **130 of 426 are
+closed** (rank 1 complete, rank 2 at 121/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
