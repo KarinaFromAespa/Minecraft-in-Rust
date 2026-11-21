@@ -12618,3 +12618,7 @@ Zero diff: the bytecode is identical in both versions.
 ## Item 686 — game/command_minecarts.rs (MinecartCommandBlock$MinecartCommandBase) — NO-CHANGE
 
 Visibility plus requireNonNull.
+
+## Item 687 — game/commands/execute.rs (BuildContexts$Unbound) — NO-CHANGE
+
+Zero diff: the bytecode is identical in both versions.
