@@ -10513,12 +10513,34 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 247 — Raid
+  validPlayer:
+  - Pure accessor rename:
+    for a ServerPlayer,
+    level() and
+    serverLevel() return
+    the same ServerLevel,
+    so validPlayer is
+    identical in both
+    versions. The port's
+    raid code resolves
+    players through the
+    single level in scope
+    (level_players,
+    level.player_near) and
+    carries alive on
+    RaidPlayer — there is
+    no level/serverLevel
+    distinction to make.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **246 of 426 are
-closed** (rank 1 complete, rank 2 at 237/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **247 of 426 are
+closed** (rank 1 complete, rank 2 at 238/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
