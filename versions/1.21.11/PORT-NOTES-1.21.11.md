@@ -9449,3 +9449,18 @@ code — they belong to their owning plant classes, which
 are rank-3 items (e.g. `SugarCaneBlock` is not in the
 rank-2 triage); the `data.rs` fields stay until those
 items convert the reads. No code changed.
+
+## Item 186 — mobs/zombie_villager.rs (rank 2, CHANGED)
+
+1 class, 9 methods, 2 named. Real delta: 1.21.11 drops
+`VillagerDataFinalized` (26.1's synched flag + NBT tag;
+the finalize gate is the spawn reason instead). The
+finalize gate, baby dims and the regular Villager were
+already ported; what was left was the zombie villager's
+NBT: `write_nbt` no longer writes the flag, `read_nbt` no
+longer reads it, and the now-dead `data_finalized` field
+is removed from `villager::Ext`. No delta: `mobInteract`
+(golden apple + weakness -> cure), `startConverting`,
+cure progress, `finishConversion`. Test: a zombie
+villager save has no finalized flag (7 passed in
+`mobs::zombie_villager::`).
