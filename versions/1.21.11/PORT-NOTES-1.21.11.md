@@ -12494,3 +12494,8 @@ Only the `AtlasManager` package move (`model/sprite` vs `model`).
 Only the sprite-picking plumbing (`ItemStackTemplate` +
 `pickParticleMaterial` vs `ItemStack` + `pickParticleIcon`) and the
 `AtlasManager` package move; same sprite selection.
+
+## Item 661 — game/native_criteria.rs (SimpleCriterionTrigger$SimpleInstance) — NO-CHANGE
+
+Same `validate` signature refactor as item 657
+(`ValidationContextSource` vs `CriterionValidator`).
