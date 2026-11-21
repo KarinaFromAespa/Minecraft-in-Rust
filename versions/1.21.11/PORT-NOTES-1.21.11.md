@@ -10204,3 +10204,18 @@ both already the Rust's form. No code changed.
 `ChunkPos.containing`/`unpack` -> constructors,
 dropped null checks, visibility widening. No code
 changed.
+
+## Item 258 — game/nautili.rs (rank 2, CHANGED)
+
+1 class, 5 methods, 1 named. The feed heal is twice
+the fed item's FOOD nutrition (1.0 without one — a
+fish bucket), in both versions: 26.1's `feed(..., 2,
+1)` takes a multiplier and a default, which the Rust
+had misread as a flat heal of 2.0. Ported via
+`mobs/nautilus.rs::feed_heal` (cod heals 4, cooked
+salmon 12, a bucket 1). The 26.1-only
+`requiresCustomPersistence` override (tame persists)
+is unobservable in 1.21.11 — taming always goes
+through `interact`, which sets persistence required
+first. New test
+`feeding_heals_twice_the_nutrition_or_one_for_a_bucket`.

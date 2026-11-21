@@ -98,10 +98,21 @@ impl Game<'_> {
             }
             let m = &self.mobs[index];
             if food && m.health < m.attrs.max_health {
-                // feed(player, hand, stack, 2, 1).
+                // `AbstractNautilus.mobInteract` inlines the feed
+                // (`TamableAnimal.feed` is gone in 1.21.11): heals twice
+                // the nutrition, 1.0 without a FOOD component (a fish
+                // bucket) — not the flat 2.0 the 26.1 `feed(..., 2, 1)`
+                // call looked like.
+                let heal = nautilus::feed_heal(
+                    self.res
+                        .items()
+                        .get(item)
+                        .and_then(|i| i.food.as_ref())
+                        .map(|f| f.0),
+                );
                 let sound = nautilus::eat_sound(m);
                 let m = &mut self.mobs[index];
-                m.heal(2.0);
+                m.heal(heal);
                 self.use_nautilus_food(item);
                 self.nautilus_sound(index, sound);
                 return true;
