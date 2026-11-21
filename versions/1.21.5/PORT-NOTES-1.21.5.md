@@ -5960,13 +5960,60 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-client
     --lib` 0 errors / 0
     warnings.
+- **Item 127 — Cat save and
+  variant selection verified
+  against 1.21.5:**
+  - Same pattern as item 112
+    (chicken/pig/fish/salmon):
+    save/load is the usual
+    ValueInput/ValueOutput →
+    CompoundTag refactor with
+    identical fields —
+    variant via
+    `VariantUtils.writeVariant`
+    / `readVariant`, and
+    `CollarColor` via
+    `DyeColor.LEGACY_ID_CODEC`
+    defaulting to red. The
+    Rust port writes the
+    variant name (`Cat` is in
+    `saves_variant_name`) and
+    the collar colour as a
+    byte, and reads both back
+    with red as the default
+    (`tame::RED` = 14).
+  - Variant selection is
+    already the 1.21.5
+    per-type form:
+    `finalize` calls the cat
+    registry's `select`
+    (`VariantRegistry::select`,
+    highest-priority entries
+    whose condition holds,
+    one at random) — the
+    shape of 1.21.5's
+    `CatVariants.selectVariantToSpawn`,
+    not 1.21.6's generic
+    `VariantUtils.selectVariantToSpawn`.
+    The comments already cite
+    the 1.21.5 form.
+  - Pre-existing gap carried
+    from item 69: swamp-hut
+    cats are always black in
+    vanilla, uniform random
+    in the Rust port.
+  - Verification: no Rust
+    change; the tree state is
+    the one `cargo check -j 1
+    -p horizon-client --lib`
+    passed at item 126.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **126 of 426 are
-closed** (rank 1 complete, rank 2 at 117/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **127 of 426 are
+closed** (rank 1 complete, rank 2 at 118/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
