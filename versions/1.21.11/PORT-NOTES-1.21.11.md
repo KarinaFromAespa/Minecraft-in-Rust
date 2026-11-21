@@ -11961,3 +11961,18 @@ sequence) and a constructor visibility difference.
 
 Only constructor/`rebind` visibility (private in 26.1, package-private in
 1.21.11).
+
+## Item 571 — debug_overlay.rs (DebugEntry*) — CHANGED
+
+Four 1.21.11 forms restored. (1) Local difficulty: 1.21.11 formats
+`"Local Difficulty: %.2f // %.2f (Day %d)"` with `getDayCount()`; 26.1
+dropped the day into its own `DebugEntryDayCount` entry.
+`local_difficulty_line` gained a `day` parameter and the caller passes
+`day_time / 24000`. (2) Memory: 1.21.11 labels the units MB, 26.1 MiB —
+both divide by 1024 twice, so only the labels changed. (3) Sound mood:
+the mood suffix joins with two spaces (`"  (Mood %d%%)"`), not one.
+(4) Citations re-pointed from 26.1's unified `DebugEntryLookingAt` to
+1.21.11's split `DebugEntryLookingAtBlock`/`Entity`/`Fluid`; the lines
+themselves already matched. `DebugEntryPosition` differs only in
+`ChunkPos` construction/accessors. Tests: `cargo test -p
+horizon-client-lib --lib debug_overlay`, 9 passed.

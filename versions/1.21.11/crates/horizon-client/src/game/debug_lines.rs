@@ -12,7 +12,8 @@ use horizon_world::{
 };
 use std::collections::{HashMap, HashSet};
 
-/// `DebugEntryLookingAt.RANGE`.
+/// `DebugEntryLookingAtBlock.display`'s pick range (26.1's unified
+/// `DebugEntryLookingAt.RANGE`).
 const LOOKING_AT_RANGE: f64 = 20.0;
 
 /// The entries whose lines come from the server thread.
@@ -531,7 +532,11 @@ impl Game<'_> {
         });
         let difficulty = (loaded && inside).then(|| {
             let at = [f64::from(x), f64::from(y), f64::from(z)];
-            overlay::local_difficulty_line(self.local_difficulty(at).effective)
+            overlay::local_difficulty_line(
+                self.local_difficulty(at).effective,
+                // ServerLevel.getDayCount: the day time over 24000.
+                self.world.day_time.div_euclid(24000),
+            )
         });
         let spawn_counts = self
             .spawn_counts
