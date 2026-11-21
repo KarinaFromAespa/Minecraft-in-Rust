@@ -1530,16 +1530,6 @@ impl Game<'_> {
                 }
             }
             Some(ClickEvent::RunCommand(command)) => self.click_command(&command),
-            // Horizon's local dialogs: a ShowDialog click opens the dialog over the screen, and
-            // closes back to it. (Vanilla 1.21.5 has no ShowDialog click action.)
-            Some(ClickEvent::ShowDialog(dialog)) => self.show_dialog_ref(&dialog),
-            // A custom action has no packet in 1.21.5: `send_custom_click` is a no-op, so the
-            // click does nothing, as vanilla's default arm does.
-            Some(ClickEvent::Custom { id, payload }) => {
-                if let Some(remote) = &self.remote {
-                    remote.session.send_custom_click(&id, payload);
-                }
-            }
             // Screen.handleComponentClicked's default arm: a page link means nothing in chat.
             Some(ClickEvent::ChangePage(_)) | None => {}
         }

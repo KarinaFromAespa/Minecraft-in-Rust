@@ -8392,13 +8392,53 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 175 — Click
+  actions lose
+  `show_dialog` and
+  `custom`:**
+  - Both actions arrived
+    with dialogs in 1.21.6,
+    so the `ClickEvent`
+    variants, their parse
+    and serialize arms, and
+    the chat, book and
+    dialog-text handlers
+    are gone; an unknown
+    action now falls
+    through to the drop
+    arm, keeping the text.
+    The dialog model and UI
+    stay: dialog-internal
+    clicks still use them,
+    and items 219/222/258
+    own the registry and
+    client-side removal
+    (`send_custom_click`
+    stays live via the
+    dialog click handler).
+    `NbtAccounter`: the
+    Rust NBT reader has no
+    accounter or quota at
+    all, so the 1.21.6
+    negative-size throw has
+    no surface.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client-core -p
+    horizon-client --lib
+    --tests` 0/0 (2m31s);
+    `cargo test -j 1 -p
+    horizon-client-core
+    --lib
+    one_twenty_one_six` 1
+    passed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **174 of 426 are
-closed** (rank 1 complete, rank 2 at 165/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **175 of 426 are
+closed** (rank 1 complete, rank 2 at 166/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

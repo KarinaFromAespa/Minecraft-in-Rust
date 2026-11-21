@@ -479,7 +479,7 @@ mod tests {
             &serde_json::json!([
                 {"object": "atlas", "sprite": "minecraft:item/potion"},
                 {"object": "atlas", "sprite": "minecraft:item/potion", "click_event": {
-                    "action": "custom", "id": "test:shop"
+                    "action": "run_command", "command": "/test:shop"
                 }},
                 {"object": "atlas", "sprite": "minecraft:item/potion"},
             ]),
@@ -491,10 +491,7 @@ mod tests {
         for x in [18.0, 21.0, 25.9] {
             assert_eq!(
                 style(x, 24.0).unwrap().click,
-                Some(ClickEvent::Custom {
-                    id: "test:shop".into(),
-                    payload: None,
-                })
+                Some(ClickEvent::RunCommand("/test:shop".into()))
             );
         }
         assert_eq!(style(26.0, 20.0).unwrap().click, None);

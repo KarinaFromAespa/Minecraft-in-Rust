@@ -159,14 +159,6 @@ impl Game<'_> {
                 use horizon_client::clipboard::Clipboard;
                 self.clipboard.set(&value);
             }
-            // Horizon's local dialogs: the dialog opens over the book.
-            ClickEvent::ShowDialog(dialog) => self.show_dialog_ref(&dialog),
-            // A custom action has no packet in 1.21.5: `send_custom_click` is a no-op.
-            ClickEvent::Custom { id, payload } => {
-                if let Some(remote) = &self.remote {
-                    remote.session.send_custom_click(&id, payload);
-                }
-            }
             // SuggestCommand's insertText does nothing on a book; a server's
             // text never opens a file.
             ClickEvent::SuggestCommand(_) | ClickEvent::OpenFile(_) => {}
