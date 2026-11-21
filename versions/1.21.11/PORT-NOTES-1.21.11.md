@@ -12610,3 +12610,7 @@ a complete port of the 1.21.11 table.
 ## Item 684 — game/clone_dimensions_tests.rs (DimensionArgument) — NO-CHANGE
 
 Zero diff: the bytecode is identical in both versions.
+
+## Item 685 — game/combat.rs (FallLocation) — NO-CHANGE
+
+`is` overloads only; same fall-location predicates.
