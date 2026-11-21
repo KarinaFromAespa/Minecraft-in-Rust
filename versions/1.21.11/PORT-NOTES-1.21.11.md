@@ -8695,3 +8695,17 @@ because they are pixel-identical. Referrals: the particle-layer
 switch to items 354/192 (from item 28), the item-layer decision to
 the item-render item. Tests: `cargo check -p
 horizon-client-render --lib` clean.
+
+## Item 141 — game/explosion.rs (rank 2, NO-CHANGE)
+
+2 classes, 6 methods, 4 named (`hurtEntities`,
+`shouldAffectBlocklikeEntities`, `useItemOn`, `wasExploded`).
+The delta is API-shape noise: the tag/type checks move from
+`entity.is(...)` to `entity.getType().is(...)` / `==`, the
+`is` overloads, `getRandom()` -> the `random` field, and
+`sendOverlayMessage` -> `displayClientMessage(msg, true)` (the
+same overlay message and PASS). The Rust already mirrors it
+all (`ignite_tnt` shows the disabled overlay and returns PASS).
+Recorded, not fixed: the redirectable-projectile owner transfer
+is missing from the Rust's blast loop in both versions'
+mirror. Tests: `game::explosion::tests::` 11 passed, 2 ignored.
