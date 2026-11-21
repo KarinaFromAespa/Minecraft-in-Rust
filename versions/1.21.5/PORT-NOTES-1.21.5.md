@@ -11108,12 +11108,55 @@ is the oracle; decompiled code is a reading aid.
     client --lib 0/0; --lib
     --tests 0/0.
 
+- **Item 264 — Mob
+  effects**
+  - MobEffects: 1.21.6's
+    invisibility adds a
+    waypoint_transmit_range
+    modifier (-1.0,
+    ADD_MULTIPLIED_TOTAL);
+    1.21.5's has none. The
+    live effect-modifier
+    table (effects.rs,
+    applied on effect add)
+    already has no
+    invisibility arm; the
+    stale one was the
+    tooltip table, which
+    showed a waypoint
+    modifier on
+    invisibility potions —
+    removed, with both
+    waypoint ranges from
+    the tooltip's neutral-
+    colour list. No
+    waypoint_transmit_range
+    or
+    waypoint_receive_range
+    reference remains in
+    Rust code outside the
+    version adapters,
+    closing the waypoint
+    removal (items 108,
+    131, 145, 214, 225,
+    260). The harness
+    drivers still name the
+    attributes
+    (command_exec corpus,
+    live attribute updates,
+    native scene motion) —
+    out of subset, publish
+    debt.
+  - Verification: cargo
+    check -j 1 -p horizon-
+    client --lib 0/0.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **263 of 426 are
-closed** (rank 1 complete, rank 2 at 254/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **264 of 426 are
+closed** (rank 1 complete, rank 2 at 255/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
