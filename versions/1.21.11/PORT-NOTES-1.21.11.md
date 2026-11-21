@@ -11865,3 +11865,13 @@ The values are the same (FOV 85, near/far 0.05/10), as are the rotations,
 the PANORAMA pipeline and the 36-index draw; the GPU calls differ only in
 invokevirtual vs invokeinterface (the item 539 change). The Rust already
 encodes the shared values and cube order.
+
+## Item 558 — game/cauldrons.rs (CauldronInteraction) — NO-CHANGE
+
+In 26.1 the interface is a stub (interactions moved to a data-driven
+dispatcher); in 1.21.11 it is the registry, with `bootStrap` hardcoding the
+full table (bucket fills on all four maps, lava/powder-snow CONSUME under
+water, potion/bottle fills, dyeable armour, banners, shulker boxes).
+`horizon-client/src/cauldron.rs` is already a complete port of the 1.21.11
+table, including the `minecraft:dyeable` tag (noted as renamed in 26.x with
+identical contents). Cauldron tests: 5 passed.
