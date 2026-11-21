@@ -801,7 +801,9 @@ pub fn encode_block_entity(
                 entries.push(("item", item_to_nbt(item)));
             }
         }
-        // ConduitBlockEntity.saveAdditional: EntityReference.store.
+        // ConduitBlockEntity.saveAdditional: the resolved target's UUID
+        // through UUIDUtil.CODEC (an int array of four); a pending
+        // `Target` is not written.
         BlockEntity::Conduit(target) => {
             if let Some(uuid) = target {
                 entries.push(("Target", Tag::IntArray(uuid.to_vec())));
@@ -1143,8 +1145,8 @@ pub fn decode_block_entity(tag: &Tag) -> Option<((i32, i32, i32), crate::contain
         | BlockEntity::EndPortal
         | BlockEntity::EnchantingTable
         | BlockEntity::Mod(_) => {}
-        // ConduitBlockEntity.loadAdditional: EntityReference.read through
-        // UUIDUtil.CODEC, an int array of four.
+        // ConduitBlockEntity.loadAdditional: `Target` read through
+        // UUIDUtil.CODEC, an int array of four, into the pending UUID.
         BlockEntity::Conduit(target) => {
             *target = match tag.get("Target") {
                 Some(Tag::IntArray(v)) if v.len() == 4 => Some([v[0], v[1], v[2], v[3]]),

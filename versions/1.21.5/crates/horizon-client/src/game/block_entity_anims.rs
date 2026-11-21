@@ -587,6 +587,8 @@ impl Game<'_> {
             .conduit_servers
             .remove(&pos)
             .unwrap_or_default();
+        // `loadAdditional`'s `Target` becomes the server's pending UUID.
+        self.conduit_take_pending(&mut conduit, pos);
         let check = {
             let world = &self.world;
             let facts = self.res.facts();
@@ -688,33 +690,47 @@ impl Game<'_> {
         }
         self.with_level(|b, level, _| b.is_raining_at(level, p) || b.is_raining_at(level, up))
     }
-    /// `ConduitBlockEntity.updateAndAttackTarget`: while the conduit hunts
+    /// `ConduitBlockEntity.loadAdditional`: the block entity's `Target`
+    /// is the pending UUID (`destroyTargetUUID`), not the resolved
+    /// target — so it moves into the server's `pending` slot and out of
+    /// the block entity, which then holds the resolved target's UUID
+    /// only (what `saveAdditional` and the update packet carry). A
+    /// `Target` that is the resolved target's own UUID is already the
+    /// resolved one and stays. No block update: the resolved target
+    /// did not change.
+    fn conduit_take_pending(&mut self, conduit: &mut ConduitServer, pos: [i32; 3]) {
+        if conduit.pending.is_some() {
+            return;
+        }
+        let current = conduit.target.map(|id| self.mob_uuid(id));
+        let key = (pos[0], pos[1], pos[2]);
+        if let Some(BlockEntity::Conduit(target)) = self.world.block_entities.get_mut(&key)
+            && let Some(uuid) = *target
+            && Some(uuid) != current
+        {
+            conduit.pending = Some(uuid);
+            *target = None;
+        }
+    }
+    /// `ConduitBlockEntity.updateDestroyTarget`: while the conduit hunts
     /// (42 frame blocks) its target stays until it dies or leaves the 8
-    /// blocks, else a random enemy in water or rain is chosen; the target
-    /// takes 4 magic damage. The target is the block entity's (`Target`), so
-    /// a saved or `/data` one is kept or dropped as vanilla's reference is.
+    /// blocks; a pending UUID is resolved first (an unresolvable one is
+    /// dropped without a block update, and a new target is only picked
+    /// on the next check), else a random enemy in water or rain is
+    /// chosen; the target takes 4 magic damage. While the conduit does
+    /// not hunt, the resolved target is dropped but the pending UUID is
+    /// kept for the next hunt.
     fn conduit_attack(&mut self, conduit: &mut ConduitServer, pos: [i32; 3], hunting: bool) {
         let key = (pos[0], pos[1], pos[2]);
-        let saved = match self.world.block_entities.get(&key) {
-            Some(BlockEntity::Conduit(target)) => Some(*target),
-            _ => None,
-        };
-        // EntityReference.getLivingEntity: a reference no loaded mob answers
-        // is no target, and no new one is chosen in its place this time.
-        let current = match saved {
-            Some(Some(uuid)) => Some(self.mob_by_uuid(uuid)),
-            Some(None) => None,
-            None => conduit.target.map(Some),
-        };
-        conduit.target = match current {
-            _ if !hunting => None,
-            None => self.conduit_new_target(pos),
-            Some(None) => None,
-            Some(Some(id)) => self
+        let was = conduit.target;
+        if !hunting {
+            conduit.target = None;
+        } else if let Some(id) = conduit.target {
+            let keep = self
                 .mobs
                 .iter()
                 .find(|m| m.id == id && !m.removed)
-                .filter(|m| {
+                .is_some_and(|m| {
                     let at = [m.position.x, m.position.y, m.position.z].map(|v| v.floor() as i64);
                     m.alive()
                         && at
@@ -723,14 +739,19 @@ impl Game<'_> {
                             .map(|(a, b)| (a - i64::from(b)).pow(2))
                             .sum::<i64>()
                             < 64
-                })
-                .map(|m| m.id),
-        };
-        if saved.is_some() {
+                });
+            if !keep {
+                conduit.target = None;
+            }
+        } else if let Some(uuid) = conduit.pending.take() {
+            // `findDestroyTarget`: the pending UUID's mob, if loaded.
+            conduit.target = self.mob_by_uuid(uuid);
+        } else {
+            conduit.target = self.conduit_new_target(pos);
+        }
+        if conduit.target != was {
             let target = conduit.target.map(|id| self.mob_uuid(id));
-            if saved != Some(target)
-                && let Some(BlockEntity::Conduit(saved)) = self.world.block_entities.get_mut(&key)
-            {
+            if let Some(BlockEntity::Conduit(saved)) = self.world.block_entities.get_mut(&key) {
                 // `sendBlockUpdated`: the new target reaches the clients.
                 *saved = target;
                 self.mark_block_entity_updated(key);
@@ -747,8 +768,8 @@ impl Game<'_> {
         self.audio
             .play("minecraft:block.conduit.attack.target", Some(at), 1.0, 1.0);
     }
-    /// `ConduitBlockEntity.selectNewTarget`: one of the enemies in water or
-    /// rain whose box meets the conduit's block inflated by 8.
+    /// `ConduitBlockEntity.updateDestroyTarget`'s pick: one of the enemies
+    /// in water or rain whose box meets the conduit's block inflated by 8.
     fn conduit_new_target(&mut self, pos: [i32; 3]) -> Option<u32> {
         let [x, y, z] = pos.map(f64::from);
         let area = Aabb::new(
@@ -779,9 +800,55 @@ impl Game<'_> {
             .unwrap_or(0);
         Some(candidates[pick as usize])
     }
-    /// The conduit's `destroyTarget` as the client draws it.
-    fn conduit_target(&self, pos: [i32; 3]) -> Option<ConduitTarget> {
-        let id = self.be_anims.conduit_servers.get(&pos)?.target?;
+    /// The conduit's `destroyTarget` as the client draws it: the
+    /// integrated server's resolved target, or — where there is no
+    /// server entry (a client of a server, or a conduit in a chunk that
+    /// does not tick blocks) — the block entity's `Target` UUID
+    /// resolved against the loaded mobs
+    /// (`ConduitBlockEntity.updateClientTarget`). A UUID no loaded mob
+    /// in range answers is dropped, not retried, until the next update
+    /// packet names the target again; on the integrated server the
+    /// block entity's `Target` is the server's pending UUID, so the
+    /// drop only happens on a client of a server.
+    fn conduit_target(&mut self, pos: [i32; 3]) -> Option<ConduitTarget> {
+        if let Some(id) = self
+            .be_anims
+            .conduit_servers
+            .get(&pos)
+            .and_then(|c| c.target)
+        {
+            return self.conduit_target_mob(id);
+        }
+        let key = (pos[0], pos[1], pos[2]);
+        let uuid = match self.world.block_entities.get(&key) {
+            Some(BlockEntity::Conduit(Some(uuid))) => *uuid,
+            _ => return None,
+        };
+        // `findDestroyTarget`: the UUID's mob, within the destroy range.
+        let [x, y, z] = pos.map(f64::from);
+        let area = Aabb::new(
+            Vec3::new(x - 8.0, y - 8.0, z - 8.0),
+            Vec3::new(x + 9.0, y + 9.0, z + 9.0),
+        );
+        let id = self.mob_by_uuid(uuid).filter(|&id| {
+            self.mobs
+                .iter()
+                .find(|m| m.id == id && !m.removed)
+                .is_some_and(|m| m.bounds().intersects(area))
+        });
+        let Some(id) = id else {
+            if self.remote.is_some()
+                && let Some(BlockEntity::Conduit(target)) =
+                    self.world.block_entities.get_mut(&key)
+            {
+                *target = None;
+            }
+            return None;
+        };
+        self.conduit_target_mob(id)
+    }
+    /// The conduit's target mob as a beam endpoint.
+    fn conduit_target_mob(&self, id: u32) -> Option<ConduitTarget> {
         let m = self.mobs.iter().find(|m| m.id == id && !m.removed)?;
         Some(ConduitTarget {
             position: [m.position.x, m.position.y, m.position.z],

@@ -1482,13 +1482,68 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -p
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings (5m19s).
+- **Item 38 — ConduitBlockEntity, ported:**
+  - The destroy target is 1.21.5's direct
+    entity + pending UUID pair, not 1.21.6's
+    `EntityReference`: `ConduitServer` gains a
+    `pending` slot (`destroyTargetUUID`) and
+    `conduit_take_pending` moves the block
+    entity's loaded `Target` into it (the block
+    entity then holds the resolved target's UUID
+    only — what `saveAdditional` and the update
+    packet carry — and no block update is sent
+    for the move). `conduit_attack` is 1.21.5's
+    `updateDestroyTarget`: the resolved target
+    stays while alive and within 8 blocks; a
+    pending UUID resolves first, an unresolvable
+    one is dropped WITHOUT a block update and a
+    new target is only picked on the next check;
+    while the conduit does not hunt the resolved
+    target is dropped but the pending UUID is
+    kept for the next hunt (the old code dropped
+    it and sent an update on the clear).
+  - The client resolves the target from the
+    block entity's `Target` UUID
+    (`updateClientTarget`, 1.21.5-only) where
+    there is no server entry — a client of a
+    server, or a conduit in a chunk that does
+    not tick blocks: the Rust never drew the
+    conduit's beam particles there before (the
+    target came from `conduit_servers` only).
+    The UUID resolves against the loaded mobs
+    within the destroy range; an unresolvable
+    one is dropped, not retried, until the next
+    update packet — on a client of a server
+    only, since on the integrated server the
+    block entity's `Target` is the server's
+    pending UUID.
+  - No-ops verified: the attack (4 magic
+    damage + sound, every 40 ticks when active),
+    the 8-block keep check, the random pick and
+    the destroy-range AABB (unit cube inflated
+    by 8) are identical in both versions; the
+    ValueInput/ValueOutput → CompoundTag API
+    migration is already the Rust's form; the
+    `Target` NBT shape (UUID int array) is
+    unchanged; `findDestroyTarget`'s exactly-one
+    rule is vacuous (UUIDs are unique).
+  - KNOWN GAP: a pending UUID in a chunk that
+    never ticks blocks stays in the block entity
+    until the chunk ticks, so a save in that
+    window writes it — 1.21.5's `saveAdditional`
+    omits a pending `Target`. The load-to-first-
+    tick window (at most 40 ticks) has the same
+    gap.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings (2m51s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **37 of 426 are
-closed** (rank 1 complete, rank 2 at 28/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **38 of 426 are
+closed** (rank 1 complete, rank 2 at 29/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
