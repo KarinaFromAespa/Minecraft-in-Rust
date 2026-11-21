@@ -4956,13 +4956,87 @@ is the oracle; decompiled code is a reading aid.
     the one `cargo check -j 1
     -p horizon-client --lib`
     passed at item 109.
+- **Item 111 — Display /
+  BlockDisplay / ItemDisplay
+  / TextDisplay, save/load
+  back to `CompoundTag`:**
+  - The same
+    `ValueInput` /
+    `ValueOutput` refactor
+    as item 109: 1.21.5
+    reads and writes the
+    display fields from a
+    `CompoundTag`, building
+    the `RegistryOps`
+    context explicitly for
+    the block-state, item
+    and text codecs. The
+    serialized form and the
+    field lists are
+    identical in both
+    versions.
+  - The Rust port already
+    implements 1.21.5's
+    `readAdditionalSaveData`
+    exactly, in
+    `text_display.rs`
+    (`display_data` /
+    `text_display_data`) and
+    `game/lan_entities.rs`:
+    start delay, durations,
+    teleport clamped 0..59,
+    the transformation
+    (four parts or a
+    MATRIX4F, else
+    identity), billboard,
+    brightness packed
+    block<<4 | sky<<20,
+    view range, shadow,
+    width, height, glow
+    colour override; text,
+    line width 200,
+    background
+    0x40000000, opacity -1,
+    the shadow / see-through
+    / default-background
+    flags and the alignment
+    bits; block state
+    defaulting to air, item
+    plus the display
+    context (0..9, the enum
+    unchanged between the
+    versions).
+  - The one nuance is in
+    TextDisplay's text
+    read: 1.21.5 sets the
+    text to empty when the
+    codec parses the tag to
+    null, 1.21.6 leaves it
+    unset. Unobservable: a
+    freshly loaded display
+    defaults to empty
+    either way, and the
+    read runs only at load.
+  - The write side
+    (`addAdditionalSaveData`)
+    has no Rust surface:
+    displays are kept
+    unsimulated and their
+    compounds pass through
+    unchanged. No code
+    change.
+  - Verification: no Rust
+    change; the tree state is
+    the one `cargo check -j 1
+    -p horizon-client --lib`
+    passed at item 109.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **110 of 426 are
-closed** (rank 1 complete, rank 2 at 101/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **111 of 426 are
+closed** (rank 1 complete, rank 2 at 102/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
