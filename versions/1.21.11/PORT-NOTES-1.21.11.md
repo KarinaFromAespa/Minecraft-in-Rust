@@ -12118,3 +12118,9 @@ Only the extractor rewire throughout the four edit screens
 `centeredText` -> `drawCenteredString`) plus two `requireNonNull`s. The
 one 26.1-only citation (`Screen.extractRenderState` on `LABEL`) is
 re-pointed to `Screen.render`.
+
+## Item 597 — lan/guest.rs (ProvidesTrimMaterial) — NO-CHANGE
+
+1.21.11's `material` is an `EitherHolder<TrimMaterial>`; 26.1 made it a
+plain `Holder`. The adapter already handles the 1.21.11 form under
+`either_holders_and_tag_resistance` (same quirk as item 568).
