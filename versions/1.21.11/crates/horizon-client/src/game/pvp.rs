@@ -49,7 +49,7 @@ pub(super) struct PvpState {
     /// What the chat box held when the search borrowed it.
     pub(super) chat_search_aside: String,
 }
-/// `GuiGraphicsExtractor`'s grey for a detail line (an effect's time left).
+/// `GuiGraphics`'s grey for a detail line (an effect's time left).
 const DETAIL: u32 = 0xFF7F_7F7F;
 /// How the widgets look: their boxes' colour (none without boxes), text colour and shadow.
 struct Style {

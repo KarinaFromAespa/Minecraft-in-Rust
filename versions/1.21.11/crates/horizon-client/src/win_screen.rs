@@ -293,7 +293,7 @@ impl WinScreen {
             }
             if y_pos + y_offs + 12.0 + 8.0 > 0.0 && y_pos + y_offs < h {
                 let x = if self.centered.contains(&i) {
-                    // GuiGraphicsExtractor.centeredText: x - width / 2.
+                    // GuiGraphics.drawCenteredString: x - width / 2.
                     logo_x + 128.0 - (atlas.font.width_text(line) as i32 / 2) as f32
                 } else {
                     logo_x

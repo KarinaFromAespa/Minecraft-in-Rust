@@ -1,4 +1,4 @@
-//! The loom and crafter screens' own drawing as `GuiGraphicsExtractor` calls:
+//! The loom and crafter screens' own drawing as `GuiGraphics` calls:
 //! `LoomScreen.extractBackground` (slot icons, the scroller, the pattern
 //! buttons with their banner swatches and tooltip, the result banner or the
 //! six-layer error) and `CrafterScreen`'s background, disabled slots and

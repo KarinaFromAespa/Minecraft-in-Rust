@@ -4,7 +4,7 @@
 //! timers of `Hud.tick`), the selected item name (`extractSelectedItemName`
 //! and its `toolHighlightTimer`), boss bars (`BossHealthOverlay`), the jump
 //! bar (`JumpableVehicleBar`), the scoreboard sidebar, item decorations
-//! (`GuiGraphicsExtractor.itemDecorations`), the camera overlays, the
+//! (`GuiGraphics.renderItemDecorations`), the camera overlays, the
 //! sleep overlay and the subtitles (`SubtitleOverlay`).
 use crate::{
     font::Font,
@@ -747,7 +747,7 @@ pub fn sidebar(
     out
 }
 
-/// What `GuiGraphicsExtractor.itemDecorations` draws over a stack.
+/// What `GuiGraphics.renderItemDecorations` draws over a stack.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ItemDecorations {
     pub count: u32,
@@ -771,7 +771,7 @@ pub fn damage_bar(damage: i32, max_damage: i32) -> Option<(i32, u32)> {
     Some((width, hsv_to_argb(health / 3.0, 1.0, 1.0, 0)))
 }
 
-/// `GuiGraphicsExtractor.itemDecorations` for a non-empty stack at (x, y):
+/// `GuiGraphics.renderItemDecorations` for a non-empty stack at (x, y):
 /// the durability bar, the cooldown shade and the count.
 pub fn item_decorations(x: i32, y: i32, d: &ItemDecorations, font: &Font) -> Vec<GuiDraw> {
     let mut out = vec![GuiDraw::Push(Vec::new())];

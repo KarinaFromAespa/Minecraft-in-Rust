@@ -192,7 +192,7 @@ impl Game<'_> {
             l.start_row = l.row_for(l.scroll);
         }
     }
-    /// `GuiGraphicsExtractor.bannerPattern`: the banner flag model with its
+    /// `GuiGraphics.submitBannerPatternRenderState`: the banner flag model with its
     /// layers in a 20x40 picture in picture at `(x, y)`.
     fn draw_banner_result(
         &self,

@@ -1767,7 +1767,7 @@ impl HudBatch {
             _ => self.blends.push((range, blend)),
         }
     }
-    /// `GuiGraphicsExtractor.textHighlight`: with `invert_text` the area's
+    /// `GuiGraphics.textHighlight`: with `invert_text` the area's
     /// colours are inverted first (white text on a dark field turns blue on
     /// white), then blue is added.
     pub fn text_highlight(

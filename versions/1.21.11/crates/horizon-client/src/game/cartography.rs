@@ -144,7 +144,7 @@ impl Game<'_> {
     }
 }
 impl Game<'_> {
-    /// `GuiGraphicsExtractor.map`: map `id`'s decorations over its image at
+    /// `GuiGraphics.submitMapRenderState`: map `id`'s decorations over its image at
     /// `(x, y)` drawn `scale` GUI pixels per map pixel. Only those with
     /// `renderOnFrame` (`MapDecorationType.showOnItemFrame`) are drawn: the
     /// screen's `map` skips the player arrows and the two markers.
@@ -341,7 +341,7 @@ mod tests {
 
     #[test]
     fn the_preview_skips_what_an_item_frame_skips() {
-        // GuiGraphicsExtractor.map: `if (decoration.renderOnFrame)`.
+        // GuiGraphics.submitMapRenderState: `if (decoration.renderOnFrame)`.
         assert!(!shown_on_frame("map/decorations/player"));
         assert!(!shown_on_frame("map/decorations/red_marker"));
         assert!(shown_on_frame("map/decorations/frame"));

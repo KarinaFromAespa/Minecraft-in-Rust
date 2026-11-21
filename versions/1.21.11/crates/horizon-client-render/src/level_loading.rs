@@ -536,7 +536,7 @@ pub fn file_fixer_cancel(w: f32, h: f32) -> (f32, f32) {
     (((w as i32 - 200) / 2) as f32, (h as i32 / 2 + 100) as f32)
 }
 
-/// `GuiGraphicsExtractor.centeredText` with the screen's grey (`-6250336`) or white.
+/// `GuiGraphics.drawCenteredString` with the screen's grey (`-6250336`) or white.
 fn centered_line(
     batch: &mut HudBatch,
     atlas: &HudAtlas,

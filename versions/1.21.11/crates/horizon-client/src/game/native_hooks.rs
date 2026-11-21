@@ -784,7 +784,7 @@
 //! API 61 adds mods' own sound events in `native_play_sound`: another
 //! namespace's event is sent by name, as vanilla sends an unregistered sound.
 //!
-//! API 60 adds the small bar under an item (`native_item_bar`): `GuiGraphicsExtractor.itemDecorations`
+//! API 60 adds the small bar under an item (`native_item_bar`): `GuiGraphics.renderItemDecorations`
 //! hands it vanilla's choice (the damage bar, or a bundle's fullness already applied), to replace or hide.
 //!
 //! API 59 adds entities for server mods (`native_summon`, `native_move_entity`,
@@ -8109,7 +8109,7 @@ impl Game<'_> {
         mod_api::dispatch_tooltip_render_pre(self, mod_api::mods(), stack, batch, x, y, cancel);
     }
 
-    /// The small bar `GuiGraphicsExtractor.itemDecorations` draws under an
+    /// The small bar `GuiGraphics.renderItemDecorations` draws under an
     /// item, wherever the game shows one: `bar` arrives holding vanilla's value
     /// (the damage bar, or a bundle's fullness already applied) and may be
     /// replaced (width `0..=13`, colour `rgb`) or set to `None` to hide it.
@@ -11225,7 +11225,7 @@ impl Game<'_> {
         at: [f32; 2],
         size: f32,
     ) -> bool {
-        // GuiGraphicsExtractor.item and itemDecorations draw nothing for an
+        // GuiGraphics.renderItem and itemDecorations draw nothing for an
         // empty stack.
         if &*stack.item == "minecraft:air" || stack.count == 0 {
             return false;

@@ -314,7 +314,7 @@ impl Game<'_> {
             window.set_cursor_visible(!self.captured);
         }
     }
-    /// `GuiGraphicsExtractor.applyCursor` -> `Window.selectCursor` at the end
+    /// `GuiGraphics.applyCursor` -> `Window.selectCursor` at the end
     /// of a frame: the cursor the frame's widgets asked for, set on the window
     /// only when it changes.
     pub(super) fn apply_cursor_icon(&mut self) {

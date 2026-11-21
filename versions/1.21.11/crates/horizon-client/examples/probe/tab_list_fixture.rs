@@ -1,7 +1,7 @@
 //! Headless transport for the player list parity gate: builds each case's
 //! scoreboard (teams, `list` objective, scores), listed players, header and
 //! footer, replays its frames through `horizon_client::tab_list` and writes
-//! the draw calls in vanilla's GuiGraphicsExtractor terms (text as styled
+//! the draw calls in vanilla's GuiGraphics terms (text as styled
 //! runs, faces as skin blits), each face's skin chosen by
 //! `horizon_client::skins` from the profile's `textures` property.
 #![forbid(unsafe_code)]

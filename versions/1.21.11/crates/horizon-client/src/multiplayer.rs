@@ -1057,7 +1057,7 @@ impl Screen {
         let max = self.max_length();
         crate::widgets::begin_screen(|| self.narration());
         crate::ui::menu_background(batch, atlas, 0.0, 0.0, w, h, false);
-        // GuiGraphicsExtractor.centeredText at width / 2: x - width(text) / 2.
+        // GuiGraphics.drawCenteredString at width / 2: x - width(text) / 2.
         let centered = |batch: &mut HudBatch, text: &str, y: f32, color: u32| {
             let tw = HudBatch::text_width(atlas, text);
             batch.text(atlas, text, centered_x(w, tw), y, color, true);

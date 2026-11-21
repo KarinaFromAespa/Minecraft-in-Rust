@@ -1,4 +1,4 @@
-//! Menu screens as the `GuiGraphicsExtractor` calls vanilla's widgets make
+//! Menu screens as the `GuiGraphics` calls vanilla's widgets make
 //! (sprites, texture blits, fills, text highlight, text, scissor and the
 //! tooltip), with ports of the widgets that make them: `StringWidget`,
 //! `MultiLineTextWidget`, `Button`, `EditBox` (a font-aware port, scrolling

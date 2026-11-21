@@ -10835,3 +10835,15 @@ exclusive set is `HolderSet.empty()` in
 visibility widening and two 26.1-only
 internal effect-action interfaces.
 `enchant`: 17 passed.
+
+## Item 371 — client/gui/GuiGraphicsExtractor (rank 2, NO-CHANGE)
+
+5 classes, 4 methods, 0 named. 26.1's
+`GuiGraphicsExtractor` is 1.21.11's
+`GuiGraphics` renamed, methods included
+(`itemDecorations`→`renderItemDecorations`,
+`centeredText`→`drawCenteredString`,
+`map`→`submitMapRenderState`, and so on);
+decompiled bodies are identical. All 28
+Rust citations re-pointed to the 1.21.11
+names. `hud_overlays`: 6 passed.

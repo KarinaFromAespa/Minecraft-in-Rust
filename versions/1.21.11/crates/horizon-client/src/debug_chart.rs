@@ -446,11 +446,11 @@ pub fn srgb_lerp(alpha: f32, p0: u32, p1: u32) -> u32 {
     };
     argb(channel(24), channel(16), channel(8), channel(0))
 }
-/// `GuiGraphicsExtractor.horizontalLine`.
+/// `GuiGraphics.hLine`.
 fn horizontal_line(out: &mut Vec<GuiDraw>, x0: i32, x1: i32, y: i32, color: u32) {
     out.push(fill(x0.min(x1), y, x0.max(x1) + 1, y + 1, color));
 }
-/// `GuiGraphicsExtractor.verticalLine`.
+/// `GuiGraphics.vLine`.
 fn vertical_line(out: &mut Vec<GuiDraw>, x: i32, y0: i32, y1: i32, color: u32) {
     out.push(fill(x, y0.min(y1) + 1, x + 1, y0.max(y1), color));
 }
