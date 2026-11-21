@@ -12398,3 +12398,8 @@ and no longer writes or reads the flag.
 ## Item 641 — game/chiseled_bookshelf.rs (ChiseledBookShelfBlock) — NO-CHANGE
 
 Only the `is` overload and a compiler artifact.
+
+## Item 642 — game/debug_options.rs (DebugOptionsScreen$OptionEntry) — NO-CHANGE
+
+Slot re-numbering from the `requireNonNull` removal plus the extractor
+rewire; all constants and geometry identical.
