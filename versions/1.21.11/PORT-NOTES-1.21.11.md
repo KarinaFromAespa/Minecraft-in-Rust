@@ -8773,6 +8773,16 @@ citation reworded). `interact` drops its `Vec3` parameter
 `FenceBlock` water check is the same predicate by type.
 Tests: `game::leads::` 6 passed, 1 ignored.
 
+## Item 146 — game/piston_push.rs (rank 2, NO-CHANGE)
+
+1 class, 5 methods, 4 named. The whole delta is five
+`BlockState.is(Object)` -> `BlockState.is(Block)` overload
+changes (sticky piston, slime, honey, moving piston x2);
+`finalTick`, `getCollisionRelatedBlockState`,
+`moveCollidedEntities` and `tick` are otherwise
+bytecode-identical, and the literal comparison returns zero
+differences. Tests: `game::piston_push::` 2 passed, 7 ignored.
+
 ## CI proof run 44839260120 (recorded below)
 
 Dispatched 05:31 NPT Nov 21, 2026 on behaviour/1.21.11 @
