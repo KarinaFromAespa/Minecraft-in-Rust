@@ -12302,3 +12302,8 @@ rename (same method, same melt condition); the Rust already cites the
 ## Item 624 — worldgen/iceberg.rs (IcebergFeature) — NO-CHANGE
 
 Only the `is` overload at 10 sites.
+
+## Item 625 — worldgen/structure/mansion.rs (WoodlandMansionPieces) — NO-CHANGE
+
+Only visibility (private vs package-private constructors/fields)
+across the 7 mansion piece classes.
