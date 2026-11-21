@@ -82,7 +82,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok((
                 name,
                 match kind.as_str() {
-                    "tagged_full" => SuffocationDefinition::TaggedFullCollision,
+                    "motion_full" => SuffocationDefinition::MotionFullCollision,
                     "always" => SuffocationDefinition::Always,
                     "never" => SuffocationDefinition::Never,
                     "not_extended" => SuffocationDefinition::NotExtendedPiston,

@@ -435,20 +435,6 @@ impl GeneratorData {
                 .map(String::as_str)
                 .collect())
         };
-        let motion = tag_set("minecraft:blocks_motion_in_heightmap")?;
-        let no_leaves = tag_set("minecraft:blocks_motion_in_heightmap_no_leaves")?;
-        let states = (0..registry.len())
-            .map(|i| {
-                let state = registry.state(BlockStateId(i as u32)).unwrap();
-                GenBlockState {
-                    air: flags[i].0,
-                    air_block: state.name == "minecraft:air",
-                    fluid: flags[i].1,
-                    motion: motion.contains(state.name.as_str()),
-                    no_leaves: no_leaves.contains(state.name.as_str()),
-                }
-            })
-            .collect::<Vec<_>>();
         let integers = super::block_feature::integer_properties(registry);
         let biomes = read_bundle(dir, ov, "biomes")?;
         let biome_tags = build_tags(
@@ -534,6 +520,27 @@ impl GeneratorData {
             _ => None,
         };
         let behaviours = joined(behaviours);
+        // 1.21.7 has no `blocks_motion*` tags (26.3 added them): the heightmap
+        // facts come from the per-state rule — `BlockState.blocksMotion()`,
+        // solid except cobweb and bamboo saplings — and the leaves exclusion
+        // is the block's class chain holding `LeavesBlock`.
+        let facts = behaviours
+            .as_ref()
+            .ok_or_else(|| resource("block behaviours are required for heightmap facts"))?;
+        let states = (0..registry.len())
+            .map(|i| {
+                let id = BlockStateId(i as u32);
+                let state = registry.state(id).unwrap();
+                let motion = facts.blocks_motion(id);
+                GenBlockState {
+                    air: flags[i].0,
+                    air_block: state.name == "minecraft:air",
+                    fluid: flags[i].1,
+                    motion,
+                    no_leaves: motion && !facts.data(id).is(crate::level::classes::Class::Leaves),
+                }
+            })
+            .collect::<Vec<_>>();
         Ok(Arc::new(Self {
             behaviours,
             structure_resources,

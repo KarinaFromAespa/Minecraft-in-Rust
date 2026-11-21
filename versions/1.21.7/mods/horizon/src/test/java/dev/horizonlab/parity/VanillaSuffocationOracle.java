@@ -24,7 +24,7 @@ public final class VanillaSuffocationOracle {
         var result=new TreeMap<String,String>();
         for(var state:Block.BLOCK_STATE_REGISTRY){
             var selected=predicate.get(state);String rule;
-            if(selected==defaults)rule="tagged_full";else if(selected==piston)rule="not_extended";else if(selected==shulker)rule="closed_shulker";
+            if(selected==defaults)rule="motion_full";else if(selected==piston)rule="not_extended";else if(selected==shulker)rule="closed_shulker";
             else {
                 Boolean constant=null;
                 for(var p:new BlockPos[]{BlockPos.ZERO,new BlockPos(17,-64,-33),new BlockPos(Integer.MIN_VALUE,Integer.MAX_VALUE,-1)}){

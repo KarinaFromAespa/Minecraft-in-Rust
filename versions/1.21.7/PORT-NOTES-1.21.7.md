@@ -330,3 +330,82 @@ port, and the fixes belong at the 1.21.11 level, flowing down the chain
 — triaging in this tree would duplicate Stream 2's work. D1 will fail
 on CI until the triage lands; the per-tag locations are recorded in
 the Stream 3 workdir (`dead-tags-1.21.7.json`).
+
+## Launch fix: the 26.3-era block tags (2026-11-21)
+
+The 1.21.7 client crashed on launch with "missing motion tag"
+(`Assets::load` requires `minecraft:blocks_motion_in_heightmap`,
+which 1.21.7's data does not define — the tag family was added in
+26.3). The same crash had already failed the `save_roundtrip` and
+`light` harnesses. Six dead tags blocked the launch path; they are
+fixed here, following the 26.2 pattern exactly (26.2 triaged its own
+launch-blocking tags in-tree the same way), rather than waiting for
+the 1.21.11 triage — the remaining ~31 dead tags still belong to
+Stream 2.
+
+The rule, in every site: `BlockState.blocksMotion()` is solid
+(`isSolid`, bit 0 of the exported behaviour flags), except cobweb and
+bamboo saplings. The heightmap, fluid flow, suffocation, spawn
+selection, feature placement, weather and ice melt all read that
+per-state rule instead of the tags. Leaves are the blocks whose class
+chain holds `LeavesBlock`.
+
+- `horizon-client-render/src/assets.rs`: the three tag lookups
+  (`blocks_motion_in_heightmap`, `..._no_leaves`, `blocks_fluid_flow`)
+  are replaced by the computed rule from `block-behaviours.json`;
+  `Assets.blocks_fluid_flow` changes type from `BTreeSet<String>` to
+  `Arc<[bool]>` indexed by `BlockStateId.0` (call sites in
+  `mesher.rs`, `motion/fluids.rs` and the mesher test updated to
+  match).
+- `horizon-items/src/blocks.rs`: new `BlockFacts::blocks_motion_names()`
+  (per-name form of the rule, for the suffocation registry).
+- `horizon-client/src/motion.rs`: `MotionResources.causes_suffocation`
+  becomes `blocks_motion`, loaded from the facts; the glide-through
+  set passed to `ClimbingRegistry::new` is empty (see below);
+  `suppresses_bounce` is honey alone.
+- `horizon-world/src/level/mod.rs`: new `Behaviours::blocks_motion()`
+  (per-state form); `level/data.rs` gains the `cobweb` named block
+  and drops the `blocks_fluid_flow` / `blocks_motion` tag names.
+- `horizon-world/src/level/weather.rs`, `level/hooks.rs` (ice melt),
+  `level/feature_world.rs` (feature-placement height), and
+  `horizon-client/src/mobs/spawn_selection.rs` (spawn heightmaps)
+  read `blocks_motion` / `legacy_solid` instead of the tags.
+- `horizon-world/src/worldgen/generator.rs`: the heightmap facts are
+  built from the loaded behaviours after the join, not from the tags
+  (the tag form would have crashed world entry next).
+- `horizon-client/src/game/world_entry.rs`: suffocation binds the
+  computed blocks-motion set; `game/cushions.rs`
+  (`state_suffocating`'s default arm) is `full_collision &&
+  legacy_solid`.
+- `SuffocationDefinition::TaggedFullCollision` becomes
+  `MotionFullCollision` (both suffocation files, both fixtures, and
+  the oracle's `tagged_full` key becomes `motion_full`).
+
+The two tags that are NOT blocks-motion, verified against the
+remapped 1.21.7 client jar on the playtest machine (`javap -c -p`):
+
+- `can_glide_through`: vanilla 1.21.7's `LivingEntity.onClimbable`
+  has no fall-flying exception at all (spectator → false, climbable
+  tag → true, trapdoor-over-ladder → true, else false). The
+  glide-through early return is removed from `mobs/living.rs` and
+  its test now asserts the 1.21.7 rule (a gliding mob in vines is
+  still on climbable). The `ClimbingRegistry` machinery keeps its
+  parameter for versions that have the tag; 1.21.7 passes an empty
+  set.
+- `suppresses_bounce`: vanilla 1.21.7's `HoneyBlock.fallOn` never
+  bounces — it plays the slide sound and calls `causeFallDamage`
+  with a 0.2 multiplier. Honey alone is the set (the 26.2 tag's sole
+  member); with no bounciness attribute in 1.21.7 the set is
+  behaviourally a no-op either way.
+
+Known remaining debt from this fix: the harness fixtures that index
+the motion tags (`heightmap_fixture`, `terrain_fixture`,
+`chunk_stage_fixture`, `feature_region_fixture`,
+`bulk_section_fixture`, `material_stage_fixture`,
+`decoration_storage`, `movement_registry_fixture`, the two
+suffocation fixtures) still read them from the prepared tag bundle
+and will panic on the missing tags when their harnesses run. 26.2's
+fixtures read the per-state facts from the oracle instead
+(`facts-server.json` entries 5/6, `motion.json`); carrying that over
+needs the oracle + driver changes and is harness work, not launch
+work — left for the 1.21.11 triage or a harness pass.

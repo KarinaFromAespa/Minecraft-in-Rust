@@ -60,8 +60,10 @@ pub struct MotionResources {
     pub attributes: Arc<Catalog>,
     pub blocks: BoundMovementProperties,
     pub climbable: BTreeSet<String>,
-    /// The bound BlockTags.CAUSES_SUFFOCATION predicate input.
-    pub causes_suffocation: BTreeSet<String>,
+    /// The 1.21.7 suffocation rule's input: blocks whose default state
+    /// blocks motion (`BlockFacts::blocks_motion_names`). 26.3 replaced
+    /// this with the `#causes_suffocation` tag, which 1.21.7 data has not.
+    pub blocks_motion: BTreeSet<String>,
     /// `BlockTags.SOUL_SPEED_BLOCKS`: what Soul Speed's effects look for.
     pub soul_speed_blocks: BTreeSet<String>,
     /// `LivingEntity.onClimbable` tags plus open trapdoors above a ladder.
@@ -119,11 +121,17 @@ impl MotionResources {
                 .cloned()
                 .collect())
         };
+        // 1.21.7 has no `can_glide_through` tag, and vanilla 1.21.7's
+        // `LivingEntity.onClimbable` has no fall-flying exception at all
+        // (verified against the remapped 1.21.7 client jar): a gliding
+        // entity in vines is on climbable, as in vanilla. The registry
+        // keeps the parameter for versions that do have the tag.
+        let no_glide_through: BTreeSet<String> = BTreeSet::new();
         let climbing = ClimbingRegistry::new(
             assets.registry,
             &tag("minecraft:trapdoors")?,
             &tag("minecraft:climbable")?,
-            &tag("minecraft:can_glide_through")?,
+            &no_glide_through,
         )?;
         Ok(Self {
             landing: crate::landing::load(root, &properties)?,
@@ -133,10 +141,14 @@ impl MotionResources {
             blocks: properties.bind(&MovementTags {
                 fences: tag("minecraft:fences")?,
                 walls: tag("minecraft:walls")?,
-                suppresses_bounce: tag("minecraft:suppresses_bounce")?,
+                // 1.21.7 has no `suppresses_bounce` tag: honey alone
+                // suppresses the bounce, the tag's sole member in 26.2 —
+                // and vanilla 1.21.7's `HoneyBlock.fallOn` never bounces,
+                // it only softens the fall (damage multiplier 0.2).
+                suppresses_bounce: BTreeSet::from(["minecraft:honey_block".to_string()]),
             })?,
             climbable: tag("minecraft:climbable")?,
-            causes_suffocation: tag("minecraft:causes_suffocation")?,
+            blocks_motion: facts.blocks_motion_names(),
             soul_speed_blocks: tag("minecraft:soul_speed_blocks")?,
             climbing,
             fall_reset: tag("minecraft:fall_damage_resetting")?,

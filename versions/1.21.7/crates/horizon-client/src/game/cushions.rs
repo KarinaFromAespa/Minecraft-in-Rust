@@ -73,12 +73,13 @@ impl horizon_client::cushion::World for PlacementWorld<'_, '_> {
 
 impl Game<'_> {
     /// `BlockBehaviour.Properties.isSuffocating` of a state: the block's
-    /// explicit predicate, else `causes_suffocation` with a full collision
-    /// shape.
+    /// explicit predicate, else a solid state with a full collision shape
+    /// (1.21.7 has no `causes_suffocation` tag; the default rule is the
+    /// per-state `blocksMotion()` rule, as in the suffocation registry).
     pub(super) fn state_suffocating(&self, state: horizon_world::registry::BlockStateId) -> bool {
         let facts = self.res.facts().get(state);
         let name = facts.name.as_ref();
-        // Blocks' explicit predicates, then the default causes_suffocation/full-shape rule.
+        // Blocks' explicit predicates, then the default solid/full-shape rule.
         match name {
             "minecraft:dirt_path"
             | "minecraft:farmland"
@@ -101,11 +102,7 @@ impl Game<'_> {
             // here is rare enough to count as closed.
             _ if name.ends_with("shulker_box") => true,
             _ => {
-                facts.full_collision
-                    && self
-                        .res
-                        .items()
-                        .block_in_tag("minecraft:causes_suffocation", name)
+                facts.full_collision && facts.legacy_solid
             }
         }
     }

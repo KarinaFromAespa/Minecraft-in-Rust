@@ -7,7 +7,7 @@ use horizon_world::{
     registry::{BlockRegistry, BlockStateId},
 };
 use serde_json::Value;
-use std::{collections::HashMap, path::Path, sync::Arc};
+use std::{collections::{BTreeSet, HashMap}, path::Path, sync::Arc};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RenderShape {
@@ -251,6 +251,25 @@ impl BlockFacts {
         let behaviours: Value =
             horizon_world::json_file::read(&root.join("block-behaviours.json"))?;
         Self::load_with_behaviour_json(root, registry, &behaviours)
+    }
+
+    /// `BlockStateBase.blocksMotion` per block name (1.21.7): a name blocks
+    /// motion when any of its states has `legacy_solid`, except cobweb and
+    /// bamboo sapling, which the oracle excludes by name. One block mixes
+    /// legacy solidity across its states — `resin_brick_wall`, whose
+    /// `up=false` + all-sides-`none` states are not solid — but walls are
+    /// never full-collision blocks, so the suffocation outcome is the same
+    /// either way; the default state (up=true) is solid, matching the
+    /// oracle's per-name `defaultBlockState().blocksMotion()`.
+    pub fn blocks_motion_names(&self) -> BTreeSet<String> {
+        self.states
+            .iter()
+            .filter(|s| {
+                s.legacy_solid
+                    && !matches!(&*s.name, "minecraft:cobweb" | "minecraft:bamboo_sapling")
+            })
+            .map(|s| s.name.to_string())
+            .collect()
     }
 
     /// Load both tables from one resource root, sharing each JSON decode.
