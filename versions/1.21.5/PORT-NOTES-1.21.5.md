@@ -10491,12 +10491,34 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 246 — Login player
+  creation:
+  - 1.21.6 constructs the
+    ServerPlayer directly
+    at login; 1.21.5 asks P
+    layerList.getPlayerForL
+    ogin, a factory hook
+    whose vanilla default
+    constructs exactly the
+    same ServerPlayer —
+    identical behaviour, an
+    extension point only.
+    The port has no player-
+    construction hook: the
+    guest record is built
+    directly when the
+    connection configures,
+    and place_new_player
+    places it. No surface.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **245 of 426 are
-closed** (rank 1 complete, rank 2 at 236/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **246 of 426 are
+closed** (rank 1 complete, rank 2 at 237/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
