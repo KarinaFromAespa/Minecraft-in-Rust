@@ -9384,3 +9384,19 @@ numbers; `scrollbarWidth()` -> literal 6 and `scrollable()`
 on `AbstractScrollArea` (26.1's default width is 6, both
 predicates are `maxScrollAmount() > 0`). One doc citation
 updated (`Screen.extractRenderState` -> `Screen.render`).
+
+## Item 182 — mobs/camel.rs (rank 2, CHANGED)
+
+2 classes, 12 methods, 2 named. Real delta: `Camel.BABY_SCALE`
+is 0.45 in 1.21.11 (26.1: 0.6) — it reaches the seat and the
+lead via `LivingEntity.getPassengerRidingPosition` (scale =
+`getScale() * getAgeScale()`, verified by javap) and
+`getLeashOffset`. Ported: a `BABY_SCALE` const (0.45) now
+feeds `leash_offset` and `passenger_attachment_at` (both
+hardcoded 0.6). No delta: `FoodOnAStickItem.use` (the type
+test is the same either way), the golden-dandelion
+`mobInteract` branch (the item does not exist in this tree),
+`handleEating`'s `canAgeUp()` vs `isBaby()` (no age lock in
+the Rust), the Brain API rework (the Rust models camel AI
+with goals). Test: a baby camel seats/leashes at the 0.45
+scale (9 passed in `mobs::camel::`).
