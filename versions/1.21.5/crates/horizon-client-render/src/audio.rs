@@ -1608,6 +1608,13 @@ impl Audio {
         }
         for source in 0..11 {
             if self.engine.source_volumes[source] != volumes[source] {
+                // `SoundManager.updateSourceVolume` (1.21.5): silencing the
+                // master stops every sound, it does not just mute them — a
+                // stopped sound does not come back when the volume does.
+                // 1.21.6 dropped the stop.
+                if source == 0 && volumes[0] <= 0.0 {
+                    self.engine.stop_all(&mut self.backend);
+                }
                 self.engine.source_volumes[source] = volumes[source];
                 self.engine
                     .refresh_category_volume(source, &mut self.backend);

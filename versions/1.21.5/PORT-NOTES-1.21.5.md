@@ -925,13 +925,49 @@ is the oracle; decompiled code is a reading aid.
     migration (identical fields).
   - Verification: `cargo check -p horizon-client
     --all-targets` 0 errors / 0 warnings (1m27s).
+- **Item 25 — ClientLevel / SoundManager / AbstractWidget,
+  ported:**
+  - `SoundManager.updateSourceVolume` (1.21.5): silencing
+    the master stops every sound, it does not just mute
+    them — a stopped sound does not come back when the
+    volume does; 1.21.6 dropped the stop.
+    `Audio::sync_volumes` now stops all sounds when the
+    master changes to <= 0 (the change-detection fires it
+    once per transition). The pause half was already done
+    in item 15 (`Audio::pause` pauses every channel).
+  - Void darkness: no change — the Rust's fog math already
+    matches 1.21.5's `getClearColorScale` exactly
+    (`(camera_y - min_y) / 32`, squared, flat worlds 1.0;
+    1.21.6's `voidDarknessOnsetRange` is the same value
+    spelled as a range, and 0.03125 is exactly 1/32).
+  - No-ops verified: `globallyRenderedBlockEntities` (no
+    Rust surface — the Rust does not model off-screen
+    block-entity rendering, and the behaviour is the same
+    in both versions, 1.21.6 only moved the bookkeeping);
+    `disconnect(Component)` / `DEFAULT_QUIT_MESSAGE` (no
+    Rust surface; the same quitting message either way);
+    the SoundManager ctor's MusicManager parameter and
+    `play` returning `PlayResult` (internal, no Rust
+    surface); the Gson Component adapter (vanilla
+    `sounds.json` uses string subtitles only, which the
+    Rust parses — object-form subtitles are a
+    resource-pack edge the Rust rejects wholesale in both
+    versions); the widget hover test (identical logic in
+    both versions, `areCoordinatesInRectangle` only
+    extracted in 1.21.6; the Rust uses the same range
+    test) and the tooltip-refresh signature (no shared
+    Rust surface — tooltips render immediately per
+    screen).
+  - Verification: `cargo check -p horizon-client-render
+    -p horizon-client --all-targets` 0 errors / 0 warnings
+    (2m59s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **24 of 426 are
-closed** (rank 1 complete, rank 2 at 15/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **25 of 426 are
+closed** (rank 1 complete, rank 2 at 16/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
