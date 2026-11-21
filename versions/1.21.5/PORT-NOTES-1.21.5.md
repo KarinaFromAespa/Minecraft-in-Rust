@@ -6600,13 +6600,56 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-client
     --lib` passed at item
     138.
+- **Item 140 — Look control
+  verified against 1.21.5:**
+  - 1.21.5's
+    `setLookAt(Entity)` aims
+    at a living entity's eye
+    height and at a
+    non-living entity's
+    bounding-box centre;
+    1.21.6 always uses the
+    eye height. The Rust
+    `LookControl` takes a
+    raw point (no entity
+    overload), and every
+    call site that targets
+    an entity targets a
+    living one — combat
+    targets, players and
+    followed mobs via
+    `target_info` /
+    `eye_y`, the value
+    `getWantedY` returns
+    for living entities in
+    both versions. The
+    brain look-target sinks
+    resolve through
+    `Tracker::position`,
+    which also goes through
+    `target_info`; non-living
+    entities are not in the
+    mob world's target
+    table, so the 1.21.5
+    bounding-box-centre
+    branch is unreachable
+    in the Rust port. The
+    remaining call sites
+    aim at block positions
+    or computed points.
+  - Verification: no Rust
+    change; the tree state
+    is the one `cargo check
+    -j 1 -p horizon-client
+    --lib` passed at item
+    138.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **139 of 426 are
-closed** (rank 1 complete, rank 2 at 130/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **140 of 426 are
+closed** (rank 1 complete, rank 2 at 131/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
