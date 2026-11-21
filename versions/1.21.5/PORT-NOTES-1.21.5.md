@@ -10578,12 +10578,30 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 250 — Happy ghast
+  defaults:
+  - The happy ghast's
+    DefaultAttributes entry
+    is 1.21.6-only (no
+    happy ghast in 1.21.5).
+    The port has no happy-
+    ghast references at all
+    (item 144) and its
+    entity attribute
+    defaults are data-
+    driven from the 1.21.5
+    export (item 225),
+    which carries no such
+    entry.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **249 of 426 are
-closed** (rank 1 complete, rank 2 at 240/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **250 of 426 are
+closed** (rank 1 complete, rank 2 at 241/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
