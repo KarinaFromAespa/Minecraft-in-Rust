@@ -3043,13 +3043,59 @@ is the oracle; decompiled code is a reading aid.
     --all-targets` 0 errors / 0 warnings
     (47s re-check after dropping the
     now-unused `ItemStack` import).
+- **Item 67 — CommandSuggestions /
+  ChatScreen, verified:**
+  - The generics change
+    (`ClientSuggestionProvider` ->
+    `SharedSuggestionProvider` on
+    the dispatcher / parse /
+    context types) is type-erased
+    in Java and has no Rust
+    equivalent: the Rust
+    dispatcher and suggestion
+    types carry no provider type
+    parameter (only doc comments
+    name the two providers).
+  - The renames are API-only with
+    identical behaviour:
+    `setTooltipForNextFrame` ->
+    `renderTooltip`, `saySystemNow`
+    -> `sayNow`, `addRenderableWidget`
+    -> `addWidget`,
+    `RenderPipelines.GUI_TEXTURED`
+    -> `RenderType::guiTextured`.
+    The Rust narrator call is
+    already `say_now`
+    (`chat.rs:1794`).
+  - The one real difference,
+    `ChatScreen`'s render order,
+    already matches 1.21.5: game.rs
+    draws the chat lines
+    (`draw_chat`) before the screen
+    match calls `draw_chat_screen`,
+    which fills the input
+    background, draws the input,
+    then the suggestions last —
+    paint order is the 1.21.5
+    z+200. (1.21.6 fills before
+    the chat lines.)
+  - The command-block label colours
+    are the same values in a
+    different literal form (-1 ==
+    16777215, -6250336 == 10526880);
+    the Rust block editor cites
+    -6250336. No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **66 of 426 are
-closed** (rank 1 complete, rank 2 at 57/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **67 of 426 are
+closed** (rank 1 complete, rank 2 at 58/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
