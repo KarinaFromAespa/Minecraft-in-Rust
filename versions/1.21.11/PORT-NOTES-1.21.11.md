@@ -10025,3 +10025,13 @@ visual result); `considersEntityAsAlly` is the same
 test under the `getType().is(...)` spelling; the
 evoker diffs are visibility widening and dropped
 null-check codegen. No code changed.
+
+## Item 234 — game/sheep_dye.rs (rank 2, NO-CHANGE)
+
+1 class, 9 methods, 1 named. The dye colour moves
+from the stack's `DYE` component (26.1) to the item's
+own `dyeColor` field (1.21.11); the interaction
+itself is identical. The Rust already implements the
+1.21.11 form in both paths (sheep dyeing from the item
+name, sign dyeing from the item registry entry). No
+code changed.
