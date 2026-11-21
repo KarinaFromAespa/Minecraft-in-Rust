@@ -11270,3 +11270,17 @@ no-op patterns (`getRandom()` vs the
 `ItemStack` signature rename). No
 method body differs. `beehive`: 4
 passed.
+
+## Item 515 — game/commands/place.rs (rank 3, NO-CHANGE)
+
+1 class, 4 methods, 4 named. The whole diff is
+`ChunkPos.containing(pos)` vs `new ChunkPos(pos)` and
+`x()`/`z()` methods vs fields (same chunk, same values);
+the apparent `sendSuccess` gap is a difflib alignment
+artifact — both versions call it. Feature +/-1 chunk
+checkLoaded, jigsaw single-chunk checkLoaded +
+generateJigsaw(..., false), structure bounding-box
+range + rangeClosed placement, template pos..pos+size
+checkLoaded with flags 2 | (knownShape ? 816 : 0) all
+match the Rust (`load_settings`: UPDATE_CLIENTS=2 |
+(strict ? 816 : 0)). No code touched.
