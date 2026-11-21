@@ -2232,7 +2232,7 @@ pub fn mob_from_nbt_with_random(
             && let Some(Tag::List(items)) = tag.get("Inventory")
         {
             // InventoryCarrier.readInventoryFromTag -> SimpleContainer
-            // .fromItemList (eight slots).
+            // .fromTag (eight slots).
             m.extra.inventory = crate::mobs::villager::load_container(&m, items, 8);
         }
     }

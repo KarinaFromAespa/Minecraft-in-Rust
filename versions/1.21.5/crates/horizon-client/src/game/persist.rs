@@ -4529,7 +4529,7 @@ mod mob_inventory_merge_tests {
     }
 
     /// Expected values from the official 26.3 server: SimpleContainer
-    /// .fromItemList adds each saved stack with addItem, which fills earlier
+    /// .fromTag adds each saved stack with addItem, which fills earlier
     /// stacks of the same item and components up to the limit, then empty
     /// slots, and drops what does not fit in the eight.
     #[test]

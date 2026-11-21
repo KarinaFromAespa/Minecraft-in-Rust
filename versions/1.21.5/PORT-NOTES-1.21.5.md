@@ -4823,13 +4823,94 @@ is the oracle; decompiled code is a reading aid.
     (run at `-j 1`: the default parallel
     check OOM-killed both horizon-client
     rustc processes under 3-stream load).
+- **Item 109 — SimpleContainer /
+  Villager, the `ValueInput` /
+  `ValueOutput` save API back
+  to `CompoundTag`:**
+  - A pure API refactor, no
+    behavioural delta: 1.21.6
+    routes container and
+    entity saves through
+    `ValueInput` /
+    `ValueOutput`
+    (`fromItemList`,
+    `storeAsItemList`,
+    `addAdditionalSaveData
+    (ValueOutput)`); 1.21.5
+    uses `CompoundTag`
+    directly (`fromTag`,
+    `createTag`,
+    `addAdditionalSaveData
+    (CompoundTag)`). The
+    serialized form and the
+    field lists are identical
+    in both versions.
+  - The Rust port already
+    matches the 1.21.5 form:
+    `load_container`
+    (`mobs/villager.rs`)
+    parses each compound and
+    drops failures silently
+    (1.21.5's
+    `ItemStack.parse`
+    flatMap), `addItem`s
+    each stack at the type's
+    limit, and drops what
+    does not fit; the
+    inventory vec never
+    holds empty stacks, so
+    the write side matches
+    `createTag`'s non-empty
+    rule. The villager
+    save/load covers every
+    1.21.5 field:
+    VillagerData, FoodLevel,
+    Gossips, Xp,
+    LastRestock,
+    LastGossipDecay,
+    RestocksToday and the
+    inventory
+    (`entity_nbt.rs`,
+    `mobs/villager.rs`
+    `read_nbt` /
+    `write_nbt`).
+  - Only the stale 1.21.6
+    method names in comments
+    changed (`fromItemList`
+    to `fromTag`, in
+    `villager.rs`,
+    `entity_nbt.rs` and
+    `persist.rs`).
+  - Pre-existing gaps, the
+    same in 1.21.6 (not this
+    item's delta): the port
+    does not carry
+    `AssignProfessionWhenSpawned`,
+    and does not refresh the
+    brain on load. Two
+    oracles still use the
+    1.21.6 save API and
+    would not compile
+    against the 1.21.5 jar
+    (`VanillaArrowOracle`'s
+    `ValueInput` /
+    `ValueOutput` overrides,
+    `VanillaChestLoadOracle`'s
+    `TagValueInput`) —
+    publish debt, like the
+    cloud oracle; neither
+    harness is in the 1.21.5
+    subset.
+  - Verification: `cargo check -j 1
+    -p horizon-client --lib` 0 errors
+    / 0 warnings.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **108 of 426 are
-closed** (rank 1 complete, rank 2 at 99/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **109 of 426 are
+closed** (rank 1 complete, rank 2 at 100/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

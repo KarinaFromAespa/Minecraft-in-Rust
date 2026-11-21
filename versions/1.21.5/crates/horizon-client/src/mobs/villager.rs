@@ -466,7 +466,7 @@ pub(crate) fn add_to_container(
     (stack.count > 0).then_some(stack)
 }
 
-/// `SimpleContainer.fromItemList`: clear, then `addItem` each saved stack
+/// `SimpleContainer.fromTag`: clear, then `addItem` each saved stack
 /// at the type's limit for it; what does not fit is dropped.
 pub(crate) fn load_container(
     m: &Mob,
@@ -1022,7 +1022,7 @@ pub fn read_nbt(m: &mut Mob, tag: &horizon_world::nbt::Tag) {
         _ => None,
     };
     let asleep = e.sleeping_pos.is_some();
-    // InventoryCarrier.readInventoryFromTag -> SimpleContainer.fromItemList.
+    // InventoryCarrier.readInventoryFromTag -> SimpleContainer.fromTag.
     if let Some(Tag::List(items)) = tag.get("Inventory") {
         let inventory = load_container(m, items, INVENTORY_SLOTS);
         ext_mut(m).inventory = inventory;
@@ -1076,7 +1076,7 @@ mod tests {
 
     /// Added after the H138 baseline: eight kinds fill the eight slots; a
     /// later stack of a kind already held still fills its stack, and a
-    /// ninth kind does not fit (fromItemList drops it).
+    /// ninth kind does not fit (fromTag drops it).
     #[test]
     fn a_later_stack_still_merges_into_a_full_set_of_slots() {
         let kinds = [
