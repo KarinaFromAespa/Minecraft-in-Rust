@@ -9500,13 +9500,50 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 216 — Client
+  entry, quick play:**
+  - 1.21.6's
+    `QuickPlayVariant`
+    (with its only-one
+    check) and the optional
+    singleplayer argument
+    are gone in 1.21.5:
+    three plain strings, a
+    required value. The
+    port already parses
+    that way — separate
+    `quick_play` / `server`
+    fields, a missing value
+    is an error, no
+    exclusivity check. But
+    its startup precedence
+    was backwards: server
+    first. Vanilla 1.21.5's
+    `QuickPlay.connect`
+    tries singleplayer,
+    then multiplayer, then
+    realms (confirmed by
+    javap), so both startup
+    sites now take the
+    world first. Known gap:
+    the port has no
+    `--quickPlayRealms` at
+    all. The Tracy `name()`
+    / `getName()` rename
+    has no surface — the
+    port has no Tracy
+    client.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests` 0/0 (2m48s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **215 of 426 are
-closed** (rank 1 complete, rank 2 at 206/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **216 of 426 are
+closed** (rank 1 complete, rank 2 at 207/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

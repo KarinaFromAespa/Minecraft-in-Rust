@@ -360,7 +360,9 @@ pub(super) fn start_game<'a>(
         return Ok(None);
     }
     match game.options.world.clone() {
-        _ if game.options.server.is_some() => {
+        // `QuickPlay.connect` (1.21.5): singleplayer first, then multiplayer.
+        // The server arm only fires when no world was asked for.
+        _ if game.options.server.is_some() && game.options.world.is_none() => {
             let (address, name) = (
                 game.options.server.clone().unwrap_or_default(),
                 game.options.player_name(),

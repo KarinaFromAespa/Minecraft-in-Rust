@@ -58,7 +58,17 @@ pub(super) struct StartupMenu {
 
 impl StartupMenu {
     pub fn new(options: &Options, pack_error: Option<&str>) -> Result<Self> {
-        let pending = if let Some(address) = &options.server {
+        // `QuickPlay.connect` (1.21.5): singleplayer first, then multiplayer,
+        // then realms — the first non-blank quick-play value wins.
+        let pending = if let Some(folder) = &options.world {
+            Some(PendingWorldEntry::Local {
+                folder: folder.clone(),
+                name: None,
+                seed: Some(options.seed),
+                creative: options.creative,
+                create: None,
+            })
+        } else if let Some(address) = &options.server {
             Some(PendingWorldEntry::Server {
                 address: address.clone(),
                 name: options.player_name(),
@@ -67,16 +77,7 @@ impl StartupMenu {
                 realm: false,
             })
         } else {
-            options
-                .world
-                .as_ref()
-                .map(|folder| PendingWorldEntry::Local {
-                    folder: folder.clone(),
-                    name: None,
-                    seed: Some(options.seed),
-                    creative: options.creative,
-                    create: None,
-                })
+            None
         };
         let mut menu = Self {
             pending,
