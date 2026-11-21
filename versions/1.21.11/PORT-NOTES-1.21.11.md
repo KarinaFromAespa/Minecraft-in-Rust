@@ -12691,3 +12691,7 @@ Zero diff: the bytecode is identical in both versions.
 ## Item 703 — mobs/caravan.rs (LlamaFollowCaravanGoal) — NO-CHANGE
 
 Equivalent type check (`Entity.is` vs `getType() ==`).
+
+## Item 704 — mobs/doors.rs (AbstractIllager$RaiderOpenDoorGoal) — NO-CHANGE
+
+requireNonNull only.
