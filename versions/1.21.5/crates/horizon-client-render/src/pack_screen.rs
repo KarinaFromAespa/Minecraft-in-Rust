@@ -755,7 +755,7 @@ impl PackScreen {
         c: &Confirm,
     ) -> ((i32, i32), (Vec<(Text, i32)>, i32, i32), [(i32, i32); 2]) {
         let max = self.width - 50;
-        let lines = d::label_lines(m, &c.message, max, 15, &Style::default());
+        let lines = d::label_lines(m, &c.message, max, 15);
         let mw = d::label_width(&lines, max);
         let mh = lines.len() as i32 * 9;
         let tw = m.width(&c.title);
@@ -1251,7 +1251,6 @@ impl PackScreen {
                 &message.with_color(d::GRAY),
                 pw - 8,
                 6,
-                &Style::default(),
             );
             d::label(out, &lines, px + 4, py + 20, pw - 8, true);
             return;
@@ -1305,7 +1304,6 @@ impl PackScreen {
                 }),
                 text_w,
                 1,
-                &Style::default(),
             );
             d::label(out, &name, text_x, cy + CARD_PAD + 1, text_w, false);
             if !hit.author.is_empty() {
@@ -1314,7 +1312,6 @@ impl PackScreen {
                     &Text::literal(hit.author.clone()).with_color(d::GRAY),
                     text_w,
                     1,
-                    &Style::default(),
                 );
                 d::label(out, &author, text_x, cy + CARD_PAD + 12, text_w, false);
             }
@@ -1324,7 +1321,6 @@ impl PackScreen {
                 &Text::literal(hit.description.clone()).with_color(d::GRAY),
                 body_w,
                 2,
-                &Style::default(),
             );
             // Below the icon, which is the tallest thing in the top row.
             d::label(
@@ -1575,7 +1571,7 @@ impl PackScreen {
                         "textures/misc/unknown_pack.png".into()
                     };
                     d::blit(out, &icon, cx, cy, (0.0, 0.0), 32, 32, [32, 32]);
-                    let (mut name, (mut desc, mut desc_style)) =
+                    let (mut name, (mut desc, _)) =
                         (p.title.clone(), p.extended_description());
                     let focus_hover = l.selected == Some(i) && l.focused;
                     if self.overlay(id) && (hovered == Some(i) || focus_hover) {
@@ -1585,7 +1581,6 @@ impl PackScreen {
                             name = tr("pack.incompatible");
                             desc = tr(&format!("pack.incompatible.{}", p.compat.key()))
                                 .with_color(d::GRAY);
-                            desc_style = Style::color(d::GRAY);
                         }
                         let (sel, unsel, up, down) = self.flags(side, id);
                         let quarter = |x0: i32, x1: i32, y0: i32, y1: i32| {
@@ -1624,7 +1619,7 @@ impl PackScreen {
                         max -= OPTIONS_SIZE + 2;
                     }
                     d::string_widget(out, m, &name, cx + 34, cy + 1, max);
-                    let lines = d::label_lines(m, &desc, max, 2, &desc_style);
+                    let lines = d::label_lines(m, &desc, max, 2);
                     d::label(out, &lines, cx + 34, cy + 12, max, false);
                 }
             }

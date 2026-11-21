@@ -13154,12 +13154,55 @@ is the oracle; decompiled code is a reading aid.
     --lib ban_notice:: 6
     passed, 0 failed.
 
+- **Item 320 — Multi-line label, GuiGraphics**
+  - MultiLineLabel,
+    GuiGraphics: CODE.
+    label_lines had the
+    1.21.6 form - the last
+    kept line clipped and
+    "..." appended when
+    rows were cut - and is
+    now the 1.21.5 plain
+    subList truncation,
+    with the ellipsis
+    parameter gone from the
+    signature and its six
+    pack-screen call sites.
+    The rest of the
+    1084-line diff is the
+    render-API refactor
+    with no Rust surface:
+    the port is
+    wgpu-native, draws
+    tooltips in-frame (the
+    1.21.5 form, not
+    1.21.6's deferred
+    next-frame tooltip),
+    and its item
+    decorations already run
+    bar, count, cooldown -
+    the 1.21.5 order, where
+    1.21.6 draws the count
+    last. The 1.21.6-only g
+    etStyleAtCentered/getSt
+    yleAtLeftAligned have
+    no surface
+    (style-at-position
+    exists only for chat
+    and books), and the
+    renderItem z overload
+    gap is item 237's
+    recorded one.
+  - Verification: cargo check -j 1 -p
+    horizon-client-render
+    --lib passed (37s).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **319 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 51/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **320 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 52/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

@@ -407,29 +407,21 @@ pub fn string_widget(
     text(out, line, x, y, WHITE, true);
 }
 
-/// `MultiLineLabel.create(font, maxWidth, maxRows, message)`: the lines and their widths;
-/// the last kept line gets "..." in `ellipsis` (the message's own style) when rows were cut.
+/// `MultiLineLabel.create(font, maxWidth, maxRows, message)`: the lines and their widths.
+/// 1.21.5 truncates to `maxRows` with a plain subList; the "…" 1.21.6
+/// appends to the last kept line is not here.
 pub fn label_lines(
     m: &Measure,
     message: &Text,
     max_width: i32,
     max_rows: usize,
-    ellipsis: &Style,
 ) -> Vec<(Text, i32)> {
     let split = m.split(message, max_width);
-    let n = split.len().min(max_rows);
-    let mut out = Vec::new();
-    for (i, line) in split.iter().take(n).enumerate() {
-        if i == n - 1 && n == max_rows && n != split.len() {
-            let clipped = m.head(line, m.width(line) - m.width_str("..."));
-            let with = clipped.append(Text::styled("...", ellipsis.clone()));
-            let w = m.width(&with);
-            out.push((with, w));
-        } else {
-            out.push((line.clone(), m.width(line)));
-        }
-    }
-    out
+    split
+        .iter()
+        .take(max_rows)
+        .map(|line| (line.clone(), m.width(line)))
+        .collect()
 }
 /// `MultiLineTextWidget.getWidth`.
 pub fn label_width(lines: &[(Text, i32)], max_width: i32) -> i32 {
