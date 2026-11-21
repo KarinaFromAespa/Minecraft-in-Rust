@@ -11830,3 +11830,11 @@ progress <= 0.5, retracting source piston builds the head, base gets
 EXTENDED) is identical. The Rust's citations (`extractRenderState`,
 `submit`, `createMovingBlock`) are names shared by both versions:
 `extractRenderState` already exists in 1.21.11 for block-entity renderers.
+
+## Item 554 — scoreboard_cmd.rs (ComponentArgument, ScoreHolderArgument) — NO-CHANGE
+
+`getResolvedComponent` resolves through the new `ResolutionContext` builder
+API in 26.1 vs `ComponentUtils.updateForEntity(source, component, entity, 0)`
+in 1.21.11 — same resolution, different API. The Rust already cites
+`updateForEntity` (the 1.21.11 API) and `getResolvedComponent` by name
+(shared). The `ScoreHolderArgument` differences are visibility only.
