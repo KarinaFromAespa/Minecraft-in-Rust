@@ -8690,13 +8690,40 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 184 — Realms
+  disconnect, profile
+  key pair file:**
+  - The port has one
+    disconnect screen with
+    the same title, wrapped
+    reason and Back button
+    as both vanilla
+    screens. Its Back
+    always returns to the
+    server list where
+    vanilla returns to the
+    parent (the Realms
+    screen after a Realms
+    join) in both versions,
+    a version-neutral gap.
+    The profile key pair
+    file is never read or
+    written: the chat keys
+    come from the session
+    service and stay in
+    memory, so the JSON
+    parser change has no
+    surface.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **183 of 426 are
-closed** (rank 1 complete, rank 2 at 174/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **184 of 426 are
+closed** (rank 1 complete, rank 2 at 175/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
