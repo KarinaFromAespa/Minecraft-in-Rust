@@ -11767,3 +11767,10 @@ Only visibility (`buildParameterSpace`, `imposedPiece`,
 `private` in 26.1, package-private in 1.21.11) and `ChunkPos.x()`/`z()`
 accessors vs field reads in the seed setup — all behaviour-free. The Rust
 cites `generateAndAddPiece` by name, which is shared.
+
+## Item 547 — vault.rs (VaultRenderer, DefaultDispenseItemBehavior, VaultState) — NO-CHANGE
+
+Only the `CameraRenderState` package move, `Level.getRandom()` vs the
+`Level.random` field in `spawnItem` (same source, same draw order and
+constants), and `VaultState` constructor visibility — all behaviour-free.
+The Rust cites `spawnItem` and `VaultState` by name, both shared.
