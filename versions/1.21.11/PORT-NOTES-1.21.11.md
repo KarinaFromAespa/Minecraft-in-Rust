@@ -9400,3 +9400,17 @@ test is the same either way), the golden-dandelion
 the Rust), the Brain API rework (the Rust models camel AI
 with goals). Test: a baby camel seats/leashes at the 0.45
 scale (9 passed in `mobs::camel::`).
+
+## Item 183 — game/tnt.rs (rank 2, NO-CHANGE)
+
+2 classes, 11 methods, 2 named. No behavioural delta:
+`PrimedTnt.tick` calls `updateFluidInteraction()` in 26.1
+and `updateInWaterStateAndDoFluidPushing()` in 1.21.11 —
+the two versions' forms of the same step (verified by
+javap; the Rust's shared `push_by_fluid` already implements
+it and the TNT tick already calls it in the same place);
+the constructor's `getRandom()` -> `random` field is the
+same random; `TntRenderer` only changes how the block state
+reaches the render state (resolver vs direct assignment)
+while the fuse/swell/flash math the Rust implements is
+identical in both versions. No code changed.
