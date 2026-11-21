@@ -10880,3 +10880,15 @@ Rust's renderer already follows the
 `FluidModel` citations on the mod-fluid
 declaration were reworded to the liquid
 renderer's sprites. `fluid`: 1 passed.
+
+## Item 389 — world/clock + waypoints/ChunkWaypoint (rank 2, NO-CHANGE)
+
+3 classes, 3 methods, 0 named. The
+ChunkWaypoint diff is the ChunkPos
+accessor pattern; the world-clock system
+is 26.1-only, and the SetTime packet
+difference (1.21.11's day time +
+tick flag vs 26.1's per-clock states) is
+already translated both ways by the
+adapter. `translate::v1_21_11`: 1 passed;
+`step_1_21_11`: 5 passed.
