@@ -9844,3 +9844,16 @@ column test uses the `is(Block)` overload, and the
 underwater handler reads the level's `random` field
 instead of `getRandom()` — the same random, the same
 draws. No code changed.
+
+## Item 217 — wind.rs (rank 2, NO-CHANGE)
+
+3 classes, 3 methods, 2 named. `WindChargeItem.use`
+inlines 1.5f in 26.1 and reads the named
+`PROJECTILE_SHOOT_POWER` (1.5f) in 1.21.11 — the same
+value the Rust uses; `canHitEntity`'s end-crystal test
+is the same under the `getType()` spelling.
+`EntityRenderState.scoreText` is 26.1-only as a field,
+but the below-name behaviour it carries exists in
+1.21.11 (`ClientMannequin.belowNameDisplay()` is in
+the jar) and the Rust models the behaviour, not the
+field. No code changed.
