@@ -6256,13 +6256,51 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-client-core
     -p horizon-client --lib`
     0 errors / 0 warnings.
+- **Item 132 — Window GUI
+  scale verified against
+  1.21.5:**
+  - The delta is only the
+    storage type of
+    `Window.guiScale`: double
+    in 1.21.5, int in 1.21.6.
+    It is unobservable:
+    `calculateScale` returns
+    an int in both versions
+    and `setGuiScale` is only
+    ever called with that
+    int, so the stored value
+    is always whole. The
+    scaled-size computation
+    (ceil of framebuffer /
+    scale) is identical in
+    both versions.
+  - The Rust port matches:
+    `calculate_scale`
+    (`horizon-client-input`)
+    is the vanilla loop
+    verbatim, including the
+    framebuffer bounds and
+    the unicode even-bump;
+    `gui_scaled_size` is the
+    ceil division; `HudBatch`
+    stores the scale as
+    `f32` (the 1.21.5
+    double-storage analogue)
+    with ceil-divided width
+    and height.
+  - Verification: no Rust
+    change; the tree state is
+    the one `cargo check -j 1
+    -p horizon-client-core
+    -p horizon-client --lib`
+    passed at item 131.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **131 of 426 are
-closed** (rank 1 complete, rank 2 at 122/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **132 of 426 are
+closed** (rank 1 complete, rank 2 at 123/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
