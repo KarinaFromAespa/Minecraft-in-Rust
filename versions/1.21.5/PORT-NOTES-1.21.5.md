@@ -10186,12 +10186,39 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 235 — Subtitle
+  overlay:
+  - The 1.21.6
+    nextStratum() call
+    before the audible
+    subtitles has no port
+    surface: the stratum
+    concept is gone from
+    the port entirely (item
+    212), and the subtitle
+    overlay draws its rows
+    in plain draw-call
+    order — the 1.21.5
+    form. The pose rename (
+    pushMatrix/translate/sc
+    ale 2D vs pushPose/tran
+    slate/scale 3D with z
+    0) is a no-op: the
+    port's per-row pose
+    carries the same
+    translate (width -
+    half_width - 2, height
+    - 35 - row * 10) and
+    scale 1.0.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **234 of 426 are
-closed** (rank 1 complete, rank 2 at 225/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **235 of 426 are
+closed** (rank 1 complete, rank 2 at 226/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
