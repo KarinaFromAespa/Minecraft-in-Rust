@@ -10356,12 +10356,32 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 241 — Container
+  background:
+  - Pipeline swap only:
+    1.21.6's RenderPipeline
+    s.GUI_TEXTURED is
+    1.21.5's RenderType::gu
+    iTextured, over
+    identical blit
+    arguments. The port's
+    generic-container
+    background already
+    draws the same two
+    blits (top 176 x
+    rows*18+17 from v 0,
+    player half 176 x 96
+    from v 126) in
+    game/storage.rs.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **240 of 426 are
-closed** (rank 1 complete, rank 2 at 231/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **241 of 426 are
+closed** (rank 1 complete, rank 2 at 232/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
