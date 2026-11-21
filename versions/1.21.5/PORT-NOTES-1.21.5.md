@@ -5030,13 +5030,76 @@ is the oracle; decompiled code is a reading aid.
     the one `cargo check -j 1
     -p horizon-client --lib`
     passed at item 109.
+- **Item 112 — Chicken / Pig /
+  AbstractFish / Salmon,
+  save/load plus variant
+  selection:**
+  - The save/load half is the
+    same `ValueInput` /
+    `ValueOutput` refactor
+    as items 109/111: the
+    fields are identical in
+    both versions
+    (IsChickenJockey,
+    EggLayTime, the variant
+    name, FromBucket, the
+    salmon `type`), and the
+    Rust port already reads
+    and writes them all
+    (`entity_nbt.rs`,
+    `mobs/riders.rs`): the
+    variant as the
+    `minecraft:<name>`
+    string under `variant`,
+    EggLayTime only when
+    present, the salmon
+    `type` defaulting to
+    medium (vanilla's
+    DEFAULT).
+  - The selection half is
+    the generic extraction:
+    1.21.6 calls
+    `VariantUtils.
+    selectVariantToSpawn`,
+    1.21.5 the per-type
+    `ChickenVariants` /
+    `PigVariants.
+    selectVariantToSpawn`.
+    The Rust port already
+    implements the 1.21.5
+    per-type form:
+    `VariantRegistry::select`
+    (`mobs/finalize.rs`)
+    takes the entries of the
+    highest priority whose
+    condition holds and
+    picks one at random,
+    and `finalize` calls it
+    for pig, cow and chicken
+    before the sound variant
+    and the ageable step.
+  - Pre-existing gap, the
+    same in 1.21.6: the port
+    writes `IsChickenJockey`
+    but never reads it back,
+    so a loaded chicken
+    jockey resumes laying
+    eggs (vanilla jockey
+    chickens never lay).
+    Noted, not this item's
+    delta. No code change.
+  - Verification: no Rust
+    change; the tree state is
+    the one `cargo check -j 1
+    -p horizon-client --lib`
+    passed at item 109.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **111 of 426 are
-closed** (rank 1 complete, rank 2 at 102/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **112 of 426 are
+closed** (rank 1 complete, rank 2 at 103/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
