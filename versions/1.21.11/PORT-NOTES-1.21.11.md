@@ -12540,3 +12540,7 @@ Zero diff: the bytecode is identical in both versions.
 ## Item 668 — horizon-server/src/management_methods.rs (IpBanlistService$IncomingIpBanDto, PlayerService$KickDto) — NO-CHANGE
 
 Visibility only.
+
+## Item 669 — worldgen/structure.rs (SlabBlock) — NO-CHANGE
+
+`is` overloads only; the TOP/BOTTOM placement logic is identical.
