@@ -12003,3 +12003,10 @@ Only the `getTestBoundingBox` (26.1) vs `getStructureBoundingBox`
 ## Item 575 — game/golems.rs (CarvedPumpkinBlock) — NO-CHANGE
 
 Only the `is(Object)` vs `is(Block)` overload widening (3 sites).
+
+## Item 576 — game/lan_chat.rs (SignableCommand) — NO-CHANGE
+
+26.1 refactored `SignableCommand.of` onto `ArgumentVisitor.visitArguments`;
+1.21.11 walks the context chain by hand, stopping at a redirect back to
+the root. The Rust's `signable_arguments` already implements the 1.21.11
+walk (`child.root != root`) over `Message` arguments.
