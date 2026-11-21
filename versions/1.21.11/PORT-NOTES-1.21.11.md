@@ -11922,3 +11922,8 @@ both shared.
 level only) and a String id. The Rust already implements and documents the
 1.21.11 form, noting the 26.x generic `SavedDataType` and `Activation` are
 gone.
+
+## Item 565 — block_pattern.rs (WitherSkullBlock) — NO-CHANGE
+
+Only the `is(Object)` vs `is(Block)`/`is(Item)` overload widening in the
+wither-skull checks. The Rust cites the shared method names.
