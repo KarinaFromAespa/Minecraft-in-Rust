@@ -10433,3 +10433,13 @@ overload tightening (items 269/270) — the
 portal-block count, `isEmpty`, and the obsidian
 frame check. The Rust checks by block identity.
 No source change. `portal`: 2 passed.
+
+## Item 284 — worldgen/feature_region.rs (rank 2, NO-CHANGE)
+
+1 class, 3 methods, 1 named. Three renames:
+the `is` overload tightening, `ChunkPos.x()` /
+`z()` methods vs fields, and `isInsideBuildHeight`
+vs `isOutsideBuildHeight` (inverted predicate,
+same branch). The Rust already has the 1.21.11
+shapes. No source change.
+`worldgen::generator_decoration`: 2 passed.
