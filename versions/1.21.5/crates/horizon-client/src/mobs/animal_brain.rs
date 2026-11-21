@@ -92,24 +92,17 @@ impl<T> Slot<Vec<T>> {
     }
 }
 
-/// `PositionTracker`: an entity (`EntityTracker`: at its eyes or feet, and
-/// whether its block is the one at its eyes) or a block (`BlockPosTracker`).
+/// `PositionTracker`: an entity (`EntityTracker`: at its eyes or feet) or
+/// a block (`BlockPosTracker`). The block is always the one at the feet
+/// (`currentBlockPosition`); the eye-height block is 1.21.6-only.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Tracker {
-    Entity {
-        who: Who,
-        eye: bool,
-        block_eye: bool,
-    },
+    Entity { who: Who, eye: bool },
     Block([i32; 3]),
 }
 impl Tracker {
     fn entity(who: Who, eye: bool) -> Self {
-        Tracker::Entity {
-            who,
-            eye,
-            block_eye: false,
-        }
+        Tracker::Entity { who, eye }
     }
     /// `currentPosition`.
     fn position(&self, w: &MobWorld) -> Option<[f64; 3]> {
@@ -128,16 +121,12 @@ impl Tracker {
             ]),
         }
     }
-    /// `currentBlockPosition`.
+    /// `currentBlockPosition`: always the feet block.
     fn block(&self, w: &MobWorld) -> Option<[i32; 3]> {
         match *self {
-            Tracker::Entity { who, block_eye, .. } => w.target_info(who).map(|t| {
-                if block_eye {
-                    block_of(Vec3::new(t.position.x, t.eye_y, t.position.z))
-                } else {
-                    block_of(t.position)
-                }
-            }),
+            Tracker::Entity { who, .. } => {
+                w.target_info(who).map(|t| block_of(t.position))
+            }
             Tracker::Block(p) => Some(p),
         }
     }
@@ -805,13 +794,10 @@ enum B {
     },
     PlayDead(Timed),
     Swim(Timed),
-    /// `AnimalPanic`: flying (`AirAndWaterRandomPos`) or on land, and
-    /// whether the sniffer's override resets its sniffing first.
-    AnimalPanic {
-        t: Timed,
-        fly: bool,
-        speed: f32,
-    },
+    /// `AnimalPanic` on land (`LandRandomPos`), and whether the sniffer's
+    /// override resets its sniffing first. The flying form
+    /// (`AirAndWaterRandomPos`) is 1.21.6-only.
+    AnimalPanic { t: Timed, speed: f32 },
     MoveToTargetSink {
         t: Timed,
         cooldown: i32,
@@ -824,11 +810,9 @@ enum B {
         t: Timed,
         spawn_at: i64,
     },
-    /// `FollowTemptation` and how close is close enough.
-    FollowTemptation {
-        t: Timed,
-        look_in_the_eyes: bool,
-    },
+    /// `FollowTemptation` and how close is close enough. The walk target
+    /// never looks in the eyes in 1.21.5 (the 3-arg ctor is 1.21.6-only).
+    FollowTemptation(Timed),
     LookAtTargetSink(Timed),
     FeelingHappy(Timed),
     Digging(Timed),
@@ -853,11 +837,9 @@ enum B {
         /// Horizontal and vertical range (land strolls).
         range: (i32, i32),
     },
-    /// `BabyFollowAdult.create(3..16, 1.1, memory, true)`: the nearest
-    /// visible player or adult.
+    /// `BabyFollowAdult.create(3..16, 1.1)`: the nearest visible adult.
     FollowAdult {
         running: bool,
-        player: bool,
     },
     Gate(Box<Gate>),
     /// `CountDownCooldownTicks(GAZE_COOLDOWN_TICKS)` and
@@ -887,7 +869,7 @@ impl B {
             | B::MoveToTargetSink { t, .. }
             | B::CountDownTemptation(t)
             | B::MakeLove { t, .. }
-            | B::FollowTemptation { t, .. }
+            | B::FollowTemptation(t)
             | B::LookAtTargetSink(t)
             | B::FeelingHappy(t)
             | B::Digging(t)
@@ -979,7 +961,6 @@ impl B {
                 let mm = mem(m);
                 mm.is_panicking.set(true);
                 mm.walk_target.clear();
-                m.nav_stop();
                 true
             }
             B::MoveToTargetSink {
@@ -1069,7 +1050,7 @@ impl B {
                 *spawn_at = now + 60 + i64::from(m.random.next_int_bound(50).unwrap_or(0));
                 true
             }
-            B::FollowTemptation { t, .. } => {
+            B::FollowTemptation(t) => {
                 let mm = mem(m);
                 if mm.temptation_cooldown_ticks.present()
                     || !mm.tempting_player.present()
@@ -1304,14 +1285,11 @@ impl B {
                     .set_opt(pos.map(|p| WalkTarget::point(p, speed, 0)));
                 true
             }
-            B::FollowAdult { player, .. } => {
+            B::FollowAdult { .. } => {
                 let mm = mem(m);
-                let adult = if player {
-                    mm.nearest_visible_player.value()
-                } else {
-                    mm.nearest_visible_adult.value()
+                let Some(adult) = mm.nearest_visible_adult.value() else {
+                    return false;
                 };
-                let Some(adult) = adult else { return false };
                 if mm.walk_target.present() || !m.is_baby() {
                     return false;
                 }
@@ -1338,22 +1316,16 @@ impl B {
                 } else {
                     2
                 };
-                let eyes = m.species() != Species::Axolotl;
                 let mm = mem(m);
                 mm.walk_target.set(WalkTarget {
                     target: Tracker::Entity {
                         who: adult,
-                        eye: eyes,
-                        block_eye: eyes,
+                        eye: false,
                     },
                     speed,
                     close,
                 });
-                mm.look_target.set(Tracker::Entity {
-                    who: adult,
-                    eye: true,
-                    block_eye: eyes,
-                });
+                mm.look_target.set(Tracker::entity(adult, true));
                 true
             }
             _ => false,
@@ -1382,13 +1354,13 @@ impl B {
                     m.ai.jump = true;
                 }
             }
-            B::AnimalPanic { t, fly, speed } => {
+            B::AnimalPanic { t, speed } => {
                 if t.timed_out(now) {
                     self.do_stop(m, cx);
                     return;
                 }
                 if m.ai.nav.is_done() {
-                    let pos = panic_pos(m, cx.w, *fly);
+                    let pos = panic_pos(m, cx.w);
                     if let Some(p) = pos {
                         mem(m).walk_target.set(WalkTarget::point(p, *speed, 0));
                     }
@@ -1517,9 +1489,7 @@ impl B {
                     mem(m).breed_target.clear();
                 }
             }
-            B::FollowTemptation {
-                look_in_the_eyes, ..
-            } => {
+            B::FollowTemptation(..) => {
                 let mm = mem(m);
                 let still = mm.tempting_player.present()
                     && !mm.breed_target.present()
@@ -1528,7 +1498,6 @@ impl B {
                     self.do_stop(m, cx);
                     return;
                 }
-                let eyes = *look_in_the_eyes;
                 let player = mm.tempting_player.value().unwrap();
                 mm.look_target.set(Tracker::entity(player, true));
                 let close = follow_temptation_close(m);
@@ -1547,8 +1516,7 @@ impl B {
                     mm.walk_target.set(WalkTarget {
                         target: Tracker::Entity {
                             who: player,
-                            eye: eyes,
-                            block_eye: eyes,
+                            eye: false,
                         },
                         speed,
                         close: 2,
@@ -1669,7 +1637,7 @@ impl B {
                 mm.look_target.clear();
                 *spawn_at = 0;
             }
-            B::FollowTemptation { t, .. } => {
+            B::FollowTemptation(t) => {
                 t.running = false;
                 let mm = mem(m);
                 mm.temptation_cooldown_ticks.set(100);
@@ -1822,16 +1790,10 @@ fn compute_path(
     }
     false
 }
-/// `AnimalPanic.getPanicPos`: on land 5 blocks out and 4 up or down, or
-/// for a flyer the air and water around it ahead (water first when burning
-/// is not reproduced: no fire reaches these scenarios).
-fn panic_pos(m: &mut Mob, w: &MobWorld, fly: bool) -> Option<[f64; 3]> {
-    if fly {
-        let view = m.view_vector();
-        m.air_and_water_random_pos(w, 5, 4, 0, view[0], view[2])
-    } else {
-        m.land_random_pos(w, 5, 4)
-    }
+/// `AnimalPanic.getPanicPos`: on land 5 blocks out and 4 up or down
+/// (`LandRandomPos`).
+fn panic_pos(m: &mut Mob, w: &MobWorld) -> Option<[f64; 3]> {
+    m.land_random_pos(w, 5, 4)
 }
 /// `BehaviorUtils.lockGazeAndWalkToEachOther` (this mob's half; the
 /// partner's comes with the breed-target event).
@@ -1980,16 +1942,12 @@ fn sniffer_package(seed: i64) -> Vec<Entry> {
             Act::Core,
             B::AnimalPanic {
                 t: Timed::new(100, 120),
-                fly: false,
                 speed: 2.0,
             },
         ),
         e(
             Act::Idle,
-            B::FollowTemptation {
-                t: Timed::new(60, 60),
-                look_in_the_eyes: false,
-            },
+            B::FollowTemptation(Timed::new(60, 60)),
         ),
         // Priority 2.
         e(Act::Core, move_to_target_sink(500, 700)),
@@ -2041,7 +1999,6 @@ fn copper_golem_package(seed: i64) -> Vec<Entry> {
             Act::Core,
             B::AnimalPanic {
                 t: Timed::new(100, 120),
-                fly: false,
                 speed: 1.5,
             },
         ),
@@ -2486,7 +2443,6 @@ fn tadpole_package(seed: i64) -> Vec<Entry> {
             Core,
             B::AnimalPanic {
                 t: Timed::new(100, 120),
-                fly: false,
                 speed: 2.0,
             },
         ),
@@ -2495,10 +2451,7 @@ fn tadpole_package(seed: i64) -> Vec<Entry> {
         e(Core, B::LookAtTargetSink(Timed::new(45, 90))),
         e(
             Idle,
-            B::FollowTemptation {
-                t: Timed::new(60, 60),
-                look_in_the_eyes: false,
-            },
+            B::FollowTemptation(Timed::new(60, 60)),
         ),
         // Priority 2.
         e(Core, move_to_target_sink(150, 250)),
@@ -2553,16 +2506,12 @@ fn axolotl_package(seed: i64) -> Vec<Entry> {
                 seed,
                 vec![
                     (
-                        B::FollowTemptation {
-                            t: Timed::new(60, 60),
-                            look_in_the_eyes: false,
-                        },
+                        B::FollowTemptation(Timed::new(60, 60)),
                         1,
                     ),
                     (
                         B::FollowAdult {
                             running: false,
-                            player: false,
                         },
                         1,
                     ),

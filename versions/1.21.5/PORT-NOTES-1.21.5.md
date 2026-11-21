@@ -2849,13 +2849,84 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check, 1s).
+- **Item 64 — AnimalPanic /
+  FollowTemptation / BabyFollowAdult /
+  AxolotlAi, ported:**
+  - `AnimalPanic` loses its flying
+    form: the `positionGetter` /
+    `AirAndWaterRandomPos` variant
+    and the `(float, int)` ctor are
+    1.21.6-only (for the ghastling),
+    so the `fly` field goes and
+    `panic_pos` is land-only
+    (`LandRandomPos`, 5 out, 4 up
+    or down). `start` no longer
+    stops the navigation — 1.21.6
+    added the `getNavigation().stop()`;
+    1.21.5 only sets IS_PANICKING
+    and erases the walk target.
+  - `FollowTemptation` loses
+    `lookInTheEyes` (the 3-arg ctor
+    is 1.21.6-only): the field goes
+    and the walk target always
+    takes `EntityTracker(player,
+    false)`. The IS_TEMPTED
+    differences need no code: the
+    Rust derives "tempted" from the
+    tempting player's presence
+    rather than modelling the
+    memory, so 1.21.5's "set false
+    on stop" vs 1.21.6's "erase on
+    stop" and the start condition
+    (REGISTERED vs VALUE_ABSENT)
+    have no surface — the start
+    check has no tempted gate,
+    matching 1.21.5.
+  - `BabyFollowAdult` is
+    AgeableMob-only again: the
+    `player` variant (following
+    the nearest visible player)
+    was the ghastling's, so the
+    field goes and the trigger
+    reads NEAREST_VISIBLE_ADULT
+    only. The walk target takes
+    `EntityTracker(adult, false)`
+    and the look target
+    `EntityTracker(adult, true)`,
+    as in 1.21.5.
+  - `EntityTracker`'s second
+    boolean (`targetEyeHeight`,
+    making `currentBlockPosition`
+    the eye block) is 1.21.6-only:
+    the `block_eye` field goes and
+    `block()` always returns the
+    feet block. The only
+    `block_eye: true` sites were
+    the FollowAdult trigger (dead
+    in practice — only the axolotl
+    package builds it) and the
+    FollowTemptation tick (fed by
+    the removed `look_in_the_eyes`).
+  - `AdultSensorAnyType` and
+    `HappyGhastAi` were already
+    deleted under item 58. The
+    `Stroll` `fly` field stays:
+    `RandomStroll.fly` exists in
+    1.21.5, no species just uses
+    it now. The axolotl package's
+    `BabyFollowAdult.create` call
+    follows from the 2-arg form.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (58s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **63 of 426 are
-closed** (rank 1 complete, rank 2 at 54/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **64 of 426 are
+closed** (rank 1 complete, rank 2 at 55/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
