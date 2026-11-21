@@ -12188,3 +12188,11 @@ sends recipe displays natively and never goes through it.
 26.1 added a `previousFocus` rect to `ArrowNavigation`; 1.21.11
 carries only the direction. `Nav::Arrow(Button)` already matches the
 1.21.11 form.
+
+## Item 609 — game/lan_screen.rs (PopupScreen, DifficultyButtons) — NO-CHANGE
+
+26.1's popup holds a message list (`addMessage`); 1.21.11 holds a
+single message. `DifficultyButtons`/`InWorldGameRulesScreen` are
+26.1-only — the Rust's header already documents that 1.21.11 has no
+in-world game rules screen (rules via /gamerule) and the LAN screen is
+the 1.21.11 form.
