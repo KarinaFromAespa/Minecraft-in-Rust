@@ -62,7 +62,7 @@ pub fn loaded_motion(tag: &Tag) -> Vec3 {
 pub fn rotation(tag: &Tag) -> [f32; 2] {
     read_doubles::<2>(tag.get("Rotation")).map_or([0.0; 2], |r| [r[0] as f32, r[1] as f32])
 }
-/// `TagValueInput.getBooleanOr`: a numeric tag's byteValue is nonzero, with a false default.
+/// `CompoundTag.getBooleanOr`: a numeric tag's byteValue is nonzero, with a false default.
 pub fn flag(tag: &Tag, key: &str) -> bool {
     flag_or(tag, key, false)
 }
@@ -2904,7 +2904,7 @@ pub fn evoker_fangs_to_nbt(
 }
 
 /// `UUIDUtil.CODEC` via `NbtOps.getIntStream`: boxed Number conversions,
-/// with the first-four partial value retained by `TagValueInput.read`.
+/// with the first-four partial value retained by `CompoundTag.read`.
 fn item_uuid_from_tag(tag: Option<&Tag>) -> Option<[i32; 4]> {
     let values = horizon_world::datafix::dynamic::as_int_stream(tag)?;
     values.get(..4)?.try_into().ok()

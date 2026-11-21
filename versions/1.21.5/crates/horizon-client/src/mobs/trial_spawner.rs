@@ -36,7 +36,7 @@ pub const TRIAL_OMEN_TICKS_PER_LEVEL: i32 = 18000;
 /// `TrialSpawnerConfig`'s codec and targets, over the data in `chunk::block_entity`.
 pub trait TrialConfigExt: Sized {
     /// `TrialSpawnerConfig.DIRECT_CODEC`; None when the tag is not a
-    /// compound. Read as `TagValueInput` does, keeping the partial result:
+    /// compound. Read as `CompoundTag.read` does, keeping the partial result:
     /// a field that fails to decode takes its default, and the list entries
     /// that fail are dropped.
     fn decode(tag: &Tag) -> Option<Self>;

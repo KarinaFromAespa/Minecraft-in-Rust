@@ -1705,13 +1705,47 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -p
     horizon-client --all-targets` 0 errors /
     0 warnings (1m15s).
+- **Item 43 — EntityType / SpawnerBlockEntity,
+  citations only:**
+  - The diff is the ValueInput/ValueOutput →
+    CompoundTag migration (`create`, `by`,
+    `loadEntityRecursive`,
+    `loadEntitiesRecursive`,
+    `loadStaticEntity`, the spawner block
+    entity's load/save): the logic is
+    identical — passengers recurse and ride,
+    non-compound list entries are skipped,
+    the spawner keys are item 41's. The
+    Rust was already compound-based
+    throughout, so no code changes.
+  - Six doc citations reworded from the
+    1.21.6 `TagValueInput`/`ValueInput`
+    names to 1.21.5's `CompoundTag` methods
+    (`getBooleanOr`, `getFloatOr`,
+    `getIntOr`, `read`): entity_nbt.rs (2),
+    trial_spawner.rs, item_data.rs,
+    persist/display.rs,
+    brewing_speed_load_tests.rs. The
+    block_entity_nbt.rs mention stays: it
+    correctly contrasts 1.21.5's
+    `optionalFieldOf` omission with 1.21.6's
+    `ValueOutput.store` (item 35).
+  - NOT this item: the `HAPPY_GHAST`
+    `EntityType` removal belongs to item 58
+    (happy-ghast removal), with the model
+    layers, the mob, the render ropes and
+    the leash branches.
+  - Verification: `cargo check -p
+    horizon-client -p horizon-client-core -p
+    horizon-items --all-targets` 0 errors /
+    0 warnings (1m45s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **42 of 426 are
-closed** (rank 1 complete, rank 2 at 33/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **43 of 426 are
+closed** (rank 1 complete, rank 2 at 34/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
