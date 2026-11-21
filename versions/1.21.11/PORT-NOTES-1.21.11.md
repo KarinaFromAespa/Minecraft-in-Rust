@@ -12760,3 +12760,9 @@ RandomSource factory only, as items 670/679/706.
 ## Item 720 — horizon-world/src/datafix/dynamic.rs (ResolvableProfile$Dynamic) — NO-CHANGE
 
 Visibility only.
+
+## Item 721 — horizon-world/src/datafix/progress.rs (UpgradeProgress$FileFixStats) — NO-CHANGE
+
+26.1-only class; already handled — progress.rs:1-5 documents that
+1.21.11 has no file-fixing flow and the `FileFixStats` half is never
+shown.
