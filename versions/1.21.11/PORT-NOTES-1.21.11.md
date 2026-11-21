@@ -12639,3 +12639,7 @@ Visibility only.
 
 Codec factory location only (`IntProviders.codec` vs
 `IntProvider.codec`, same 0–10 range).
+
+## Item 692 — game/lan_crafting.rs (AbstractFurnaceMenu) — NO-CHANGE
+
+Visibility plus anonymous-class constructor field order.
