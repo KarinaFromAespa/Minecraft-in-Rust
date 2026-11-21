@@ -10375,3 +10375,15 @@ same constants — the Rust's caller-computed
 `has_transparent` (same alpha-0 scan) is already
 the 1.21.11 form in substance. No source change.
 `mipmap`: 6 passed.
+
+## Item 277 — random_source.rs (rank 2, NO-CHANGE)
+
+1 class, 3 methods, 1 named. The unseeded
+thread-local factory is `createThreadLocalInstance`
+in 26.1 and `createNewThreadLocalInstance` in
+1.21.11 (same `SingleThreadedRandomSource`
+seeded from `ThreadLocalRandom`); the seeded
+overload is 26.1-only (item 210). The Rust
+already models the unseeded form; one doc
+citation updated to the 1.21.11 name.
+`random_source`: 1 passed.
