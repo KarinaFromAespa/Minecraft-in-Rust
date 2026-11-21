@@ -11004,3 +11004,14 @@ re-pointed. `nbt::`: 14 passed.
 26.x-only IME preedit system (item 377);
 the Rust already takes only committed
 text. `ime`: 73 passed, 3 ignored.
+
+## Item 466 — renderer/state/GameRenderState (rank 2, NO-CHANGE)
+
+1 class, 0 methods named. 26.1-only
+(the render-state container); 1.21.11
+renders immediate-mode and the Rust has
+no surface for it. `hud`: 149 passed, 1
+failed — the HDR screenshot pixel test
+(float drift on llvmpipe), pre-existing
+and environmental, not this item (no code
+touched).
