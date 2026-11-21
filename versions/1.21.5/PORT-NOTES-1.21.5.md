@@ -12104,12 +12104,30 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no
     code changed.
 
+- **Item 290 — Interaction**
+  - Interaction: verified, no
+    code - the diff is only the
+    save-API refactor; the
+    serialized form is
+    identical in both versions
+    and the port already writes
+    it (InteractionState:
+    width/height floats default
+    1.0, response bool default
+    false, attack/interaction
+    as optional PlayerAction
+    records with player int
+    array and timestamp long,
+    omitted when unset).
+  - Verification: read only; no
+    code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **289 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 21/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **290 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 22/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
