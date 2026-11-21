@@ -3960,13 +3960,62 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 90 — TamableAnimal, sitting
+  parrots stay put on a lead:**
+  - The save/load half is pure
+    Java API shape (`ValueOutput`
+    / `ValueInput` back to
+    `CompoundTag`, the null
+    Owner check made explicit):
+    `Owner` and `Sitting`
+    round-trip identically, and
+    the Rust `entity_nbt.rs`
+    already saves both.
+  - The behaviour half is the
+    1.21.5-only
+    `handleLeashAtDistance`
+    override, which 1.21.6
+    deleted: a sitting pet is
+    not pulled, and its lead
+    drops past ten blocks.
+    The Rust leash tick already
+    had it for wolves and cats
+    — but not for parrots,
+    which sit when told to
+    (`SitWhenOrdered`, the
+    same `extra.sitting` flag)
+    and are `TamableAnimal`
+    too. The sitting check in
+    `mobs/leash.rs` now
+    covers parrots, with a
+    matching test.
+  - Drive-by: the diagonal case
+    of
+    `the_legacy_pull_is_the_signed_square_of_the_unit_direction`
+    failed before this item —
+    the test expected full f64
+    precision for a distance
+    that passes through f32
+    (vanilla's float). The
+    expected unit now comes
+    from the truncated value;
+    no behaviour change.
+  - Verification: `cargo test -p
+    horizon-client-lib --lib
+    mobs::leash::` 12 passed,
+    0 failed (incl. the new
+    parrot test); `cargo check
+    -p horizon-client-render
+    -p horizon-client
+    --all-targets` 0 errors /
+    0 warnings.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **89 of 426 are
-closed** (rank 1 complete, rank 2 at 80/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **90 of 426 are
+closed** (rank 1 complete, rank 2 at 81/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

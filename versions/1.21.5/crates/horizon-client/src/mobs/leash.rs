@@ -141,8 +141,11 @@ fn handle_leash_at_distance(
     events: &mut Vec<MobEvent>,
 ) -> bool {
     // TamableAnimal.handleLeashAtDistance: a sitting pet is not pulled, and
-    // its lead drops past ten blocks (dropLeash: no sound).
-    let sitting = m.species() == Species::Wolf && m.extra.sitting
+    // its lead drops past ten blocks (dropLeash: no sound). The override
+    // covers every tamable animal, parrots included: a parrot sits when
+    // told to (SitWhenOrdered), and a sitting parrot stays put too.
+    let sitting = (m.species() == Species::Wolf || m.species() == Species::Parrot)
+        && m.extra.sitting
         || m.species() == Species::Cat && super::tame::cat_sitting(m);
     if sitting {
         if distance > 10.0 {
@@ -442,7 +445,10 @@ mod tests {
         assert!((straight[0] - 0.4).abs() < 1e-12);
         assert_eq!((straight[1], straight[2]), (0.0, 0.0));
         let diagonal = legacy_pull(from, Vec3::new(6.0, 64.0, 6.0), 8.485_281_374_238_57);
-        let unit = 6.0 / 8.485_281_374_238_57;
+        // The distance passes through f32 (vanilla's float), so the
+        // expected unit must come from the truncated value, not the
+        // full-precision literal.
+        let unit = 6.0 / f64::from(8.485_281_374_238_57f32);
         assert!((diagonal[0] - unit * unit * 0.4).abs() < 1e-12);
         assert!((diagonal[2] - unit * unit * 0.4).abs() < 1e-12);
         let behind = legacy_pull(from, Vec3::new(-8.0, 64.0, 0.0), 8.0);
@@ -537,6 +543,45 @@ mod tests {
                     }
                 )),
                 "a sitting wolf past ten blocks loses its lead: {events:?}"
+            );
+        });
+    }
+
+    /// `TamableAnimal.handleLeashAtDistance`: a sitting parrot is not
+    /// pulled either, and its lead drops past ten blocks.
+    #[test]
+    fn a_sitting_parrot_is_not_pulled_but_loses_its_lead_past_ten() {
+        crate::mobs::world::with_test_world(&[], |world, types| {
+            let mut w = world.clone();
+            w.player = Some(crate::mobs::world::test_player(Vec3::new(0.5, 64.0, 0.5)));
+            let new = |x: f64| {
+                let mut parrot = Mob::new(
+                    1,
+                    std::sync::Arc::new(types.types["minecraft:parrot"].clone()),
+                    Vec3::new(x, 64.0, 0.5),
+                    0.0,
+                );
+                parrot.extra.leash = Some(Holder::Player);
+                parrot.extra.sitting = true;
+                parrot
+            };
+            let mut close = new(8.5);
+            let mut events = Vec::new();
+            tick(&mut close, &w, &mut events);
+            assert!(events.is_empty());
+            assert_eq!(close.velocity, Vec3::ZERO, "a sitting parrot stays put");
+            let mut far = new(11.5);
+            let mut events = Vec::new();
+            tick(&mut far, &w, &mut events);
+            assert!(
+                events.iter().any(|e| matches!(
+                    e,
+                    MobEvent::LeashBreak {
+                        drop: true,
+                        ..
+                    }
+                )),
+                "a sitting parrot past ten blocks loses its lead: {events:?}"
             );
         });
     }
