@@ -12260,3 +12260,9 @@ from the block state in 1.21.11 — same value and rotation) and the
 in its own layout, per the rank-2 raids precedent (item 51): the
 data-file migration gap is save/world-data scope, version-neutral.
 Internally consistent (the `resources.zip` writer and reader agree).
+
+## Item 618 — worldgen/tree/decorator.rs (TreeDecorator$Context) — NO-CHANGE
+
+Only the `Context.level` type (`WorldGenLevel` vs
+`LevelSimulatedReader`, same as items 538/562); the methods call the
+same `isStateAtPosition`.
