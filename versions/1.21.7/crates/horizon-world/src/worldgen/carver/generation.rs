@@ -25,7 +25,12 @@ impl WorldCarver {
         )?)?
         .as_str()
         {
-            "minecraft:cave" => Ok(Self::Cave(CaveCarver::from_json(&json)?)),
+            // 1.21.7's nether cave is its own carver type; 26.x folded
+            // it into the cave carver (vanilla's NetherCaveCarver is a
+            // CaveCarver subclass with the same tunnel generation).
+            "minecraft:cave" | "minecraft:nether_cave" => {
+                Ok(Self::Cave(CaveCarver::from_json(&json)?))
+            }
             "minecraft:canyon" => Ok(Self::Canyon(CanyonCarver::from_json(&json)?)),
             _ => Err(DecodeError::Field("world carver type")),
         }

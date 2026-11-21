@@ -67,7 +67,9 @@ impl CaveCarver {
         let kind = identifier(&serde_json::from_str::<String>(
             required(&object, "type")?.get(),
         )?)?;
-        if kind != "minecraft:cave" {
+        // 1.21.7's nether cave is its own carver type; 26.x folded it
+        // into the cave carver (see WorldCarver::from_json).
+        if kind != "minecraft:cave" && kind != "minecraft:nether_cave" {
             return Err(DecodeError::Field("cave carver type"));
         }
         let probability: f32 = number_text(required(&object, "probability")?)?

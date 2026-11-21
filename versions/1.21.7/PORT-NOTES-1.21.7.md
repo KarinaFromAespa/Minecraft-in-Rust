@@ -478,3 +478,11 @@ prepared data (configured_carver/configured_feature JSONs) with a
 script rather than a full re-prepare, since prepare has no
 worldgen-only subcommand and the full flow re-runs the Java
 exporters.
+
+Fifth launch crash, same morning (10:01 NPT): "invalid world
+generation field: world carver type" — the carver catalog now loaded,
+but 1.21.7's `nether_cave` is a third carver type
+(`minecraft:nether_cave`) that 26.x folded into the cave carver.
+Vanilla's NetherCaveCarver is a CaveCarver subclass with the same
+tunnel generation, so both the catalog dispatch and the cave decoder
+accept it as a cave (its config has the same fields).
