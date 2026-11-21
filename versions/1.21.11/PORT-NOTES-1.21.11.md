@@ -10114,3 +10114,12 @@ text resolves via `updateForEntity` instead of a
 already picks the sign kind from the block name and
 implements the click-command execution. No code
 changed.
+
+## Item 247 — terrain_cmds.rs (rank 2, NO-CHANGE)
+
+2 classes, 6 methods, 1 named. `ChunkPos.pack` ->
+`toLong`, and `LocationCheck` carries a condition
+type instead of its own codec — a registration
+pattern with no Rust analogue (the predicate is
+keyed by its string type). `test` itself is
+unchanged. No code changed.
