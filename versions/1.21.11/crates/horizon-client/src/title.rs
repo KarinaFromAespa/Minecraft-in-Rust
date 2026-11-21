@@ -4005,7 +4005,7 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                 let rules = options
                     .rules
                     .copy_with_features(&options.enabled_features(&self.resources));
-                *self.rules.get_mut() = Some(RulesScreen::for_creation(&rules));
+                *self.rules.get_mut() = Some(RulesScreen::new(&rules));
                 Action::None
             }
             // CreateBuffetWorldScreen for the single-biome preset.
@@ -4841,13 +4841,8 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
     /// rules (`setGameRules`), Cancel drops them.
     fn close_rules(&mut self, exit: Exit) {
         *self.rules.get_mut() = None;
-        if let (Exit::Apply(changes), Mode::Create { options, .. }) = (exit, &mut self.mode) {
-            options.rules = options
-                .rules
-                .copy_with_features(&options.enabled_features(&self.resources));
-            for (name, value) in changes {
-                options.rules.set(name, value);
-            }
+        if let (Exit::Apply(rules), Mode::Create { options, .. }) = (exit, &mut self.mode) {
+            options.rules = rules;
         }
     }
     /// `Gui.buildInitialScreens`' chain: the next queued ban notice, else the title.

@@ -2727,7 +2727,7 @@ fn native_field_visitor_excludes_preparing_and_game_rule_editors() {
             .edit_focused_text_field(|_| panic!("preparing has no editable native field"))
     );
     f.title.preparing = false;
-    *f.title.rules.get_mut() = Some(RulesScreen::for_creation(
+    *f.title.rules.get_mut() = Some(RulesScreen::new(
         &crate::gamerules::GameRules::default(),
     ));
     assert!(

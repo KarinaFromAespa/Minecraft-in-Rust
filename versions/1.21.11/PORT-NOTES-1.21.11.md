@@ -10510,3 +10510,23 @@ that `Property$Value.valueName()` is
 `property.getName(value)`. Plus the
 `typeHolder`/`getBlockHolder` rename. No source
 change. `block`: 2 passed.
+
+## Item 292 — game_rules_screen.rs (rank 2, CHANGED)
+
+12 classes, 12 methods, 0 named. 1.21.11 has
+the single concrete EditGameRulesScreen,
+opened only from CreateWorldScreen's More tab;
+26.1 split it into AbstractGameRulesScreen +
+WorldCreation/InWorld screens and added a
+search box, the in-world variant (with the
+set-game-rule packets, absent from the 1.21.11
+jar) and a 36-pixel header. The Rust is
+rewritten to the 1.21.11 form: no search, no
+in-world variant, no confirm-on-close; Done
+hands back the whole edited GameRules, Escape
+and Cancel discard unconditionally; header 33
+with the title centred; label split width 170
+-> 175. Entries, tooltips, narration, sorting
+and the box colours are identical in both
+versions. `game_rules_screen`: 6 passed; the
+title rules test: 1 passed.
