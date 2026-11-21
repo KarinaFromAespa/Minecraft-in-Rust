@@ -9752,3 +9752,16 @@ shape directly; `MapItem` drops a null ItemFrame
 argument; `ItemStack$1` renames `typeHolder` to
 `getItemHolder`; `ProjectileWeaponItem` uses the
 `is(Item)` overload.
+
+## Item 208 — chunk.rs (rank 2, NO-CHANGE)
+
+4 classes, 4 methods, 2 named. All noise:
+`SerializableChunkData` reads `ChunkPos.x`/`z` as
+fields instead of accessors and builds a `ChunkPos`
+with the constructor instead of `unpack(long)`, with
+the structure-reference validation (chessboard distance
+<= 8) identical; `SectionData` and
+`NeighborsUpdateRenderer$LastUpdate` widen record
+access; `Heightmap` widens its predicate fields and
+uses the `is(Block)` overload for the AIR test. No code
+changed.
