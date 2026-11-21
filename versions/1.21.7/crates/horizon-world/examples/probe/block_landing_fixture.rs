@@ -243,6 +243,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         let fall = match d["fall"].as_str().unwrap() {
             "Block" => FallDefinition::Default,
             "HayBlock" => FallDefinition::Hay,
+            "BedBlock" => FallDefinition::Bed,
             "HoneyBlock" => FallDefinition::Honey {
                 volume: single(&d["volume"]),
                 pitch: single(&d["pitch"]),
@@ -250,7 +251,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             "SlimeBlock" => FallDefinition::Slime,
             "PowderSnowBlock" => FallDefinition::PowderSnow,
             "PointedDripstoneBlock" => FallDefinition::PointedDripstone,
-            "FarmlandBlock" => FallDefinition::Farmland {
+            // 1.21.7 names the class FarmBlock (renamed FarmlandBlock later).
+            "FarmBlock" | "FarmlandBlock" => FallDefinition::Farmland {
                 base_block: d["base"].as_str().unwrap().into(),
             },
             "TurtleEggBlock" => FallDefinition::TurtleEgg,

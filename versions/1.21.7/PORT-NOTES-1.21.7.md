@@ -409,3 +409,17 @@ fixtures read the per-state facts from the oracle instead
 (`facts-server.json` entries 5/6, `motion.json`); carrying that over
 needs the oracle + driver changes and is harness work, not launch
 work — left for the 1.21.11 triage or a harness pass.
+
+Second launch crash, same morning (08:50 NPT): the client got past
+asset loading and died in `landing::load` with "unsupported landing
+family". The 1.21.7 `landing-definitions.json` has two families the
+inherited 26.3-base code does not know: `BedBlock` (16 beds) and
+`FarmBlock` (farmland — 1.21.7 names the class `FarmBlock`, renamed
+`FarmlandBlock` later). The bed fix is the 26.2 carry-over verbatim
+(commit 576d4a93, which fixed the identical crash in 26.2): a
+`FallDefinition::Bed` / `Rule::Bed` that halves the fall distance
+through the entity-owned fall source, verified against the remapped
+1.21.7 jar — `BedBlock.fallOn` is `super.fallOn(..., fallDistance *
+0.5d)`, and `updateEntityMovementAfterFallOn` bounces unless the
+entity suppresses it (the data's `bounce: true` for beds flows through
+the existing flag). The farmland arm accepts both spellings.

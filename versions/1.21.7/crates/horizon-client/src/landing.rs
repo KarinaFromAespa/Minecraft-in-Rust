@@ -53,6 +53,7 @@ pub fn load(root: &Path, properties: &MovementProperties<'_>) -> Result<BlockLan
         let fall = match d["fall"].as_str().ok_or("missing landing family")? {
             "Block" => FallDefinition::Default,
             "HayBlock" => FallDefinition::Hay,
+            "BedBlock" => FallDefinition::Bed,
             "HoneyBlock" => FallDefinition::Honey {
                 volume: float("volume")?,
                 pitch: float("pitch")?,
@@ -60,7 +61,9 @@ pub fn load(root: &Path, properties: &MovementProperties<'_>) -> Result<BlockLan
             "SlimeBlock" => FallDefinition::Slime,
             "PowderSnowBlock" => FallDefinition::PowderSnow,
             "PointedDripstoneBlock" => FallDefinition::PointedDripstone,
-            "FarmlandBlock" => FallDefinition::Farmland {
+            // 1.21.7 names the class FarmBlock (renamed FarmlandBlock later);
+            // the oracle exports the class simple name.
+            "FarmBlock" | "FarmlandBlock" => FallDefinition::Farmland {
                 base_block: d["base"].as_str().ok_or("missing farmland base")?.into(),
             },
             "TurtleEggBlock" => FallDefinition::TurtleEgg,
