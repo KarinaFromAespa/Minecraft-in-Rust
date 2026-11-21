@@ -10602,3 +10602,12 @@ already implements the 1.21.11 form and
 documents the difference; one stale doc
 citation updated to `as8BitChannel`.
 `mesher::lighting`: 11 passed.
+
+## Item 300 — falling_block_fixture.rs (rank 2, NO-CHANGE)
+
+1 class, 1 method, 1 named. The moving-piston
+check is the `BlockState.is` overload
+tightening and the water check is
+`FluidState.is(WATER)` vs `getType() ==
+WATER` — the same equality. No source change.
+`falling_block`: 7 passed, 1 ignored.
