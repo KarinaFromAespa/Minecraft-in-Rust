@@ -84,9 +84,11 @@ impl Game<'_> {
             self.particles.add(&options, p, [0.0, 0.0, 0.0]);
         }
     }
-    /// `Ravager.handleEntityEvent(69)`: forty puffs of smoke from the middle
+    /// `Ravager.roar` on the client: forty puffs of smoke from the middle
     /// of its box, then `applyRoarKnockbackClient`: this client's own player
-    /// within 4 blocks is thrown away from it.
+    /// within 4 blocks is thrown away from it. Fired by the client's own
+    /// tick on a 1.21.5-or-older server, and by entity event 69 on a
+    /// 1.21.6+ server.
     pub(super) fn remote_ravager_roar(&mut self, id: i32) {
         let Some(m) = self
             .mobs

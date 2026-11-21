@@ -3629,13 +3629,52 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 81 — Ravager roar to the
+  1.21.5 form, ported:**
+  - 1.21.6 moved the client's
+    half of the roar (40 poof
+    particles + the knockback)
+    behind entity event 69,
+    broadcast by the server;
+    1.21.5 runs it directly
+    from the client's own tick
+    when the roar clock reaches
+    10. The port now does the
+    1.21.5 form: the server
+    roar no longer broadcasts
+    69 to LAN guests (its local
+    event only drives the
+    host's armor-stand push
+    under mob_griefing), and
+    `tick_remote_entities`
+    fires `remote_ravager_roar`
+    when a ravager's client
+    roar clock reaches 10.
+    The event-69 handler stays
+    for 1.21.6+ servers only,
+    gated on the negotiated
+    server version (the pin
+    counts as 1.21.5), so a
+    newer server's broadcast
+    still works and never
+    double-fires with the
+    client tick.
+  - Save/load is Java API-only
+    (`AttackTick`, `StunTick`,
+    `RoarTick`).
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no ravager unit tests exist;
+    the roar path is exercised
+    through the client tick).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **80 of 426 are
-closed** (rank 1 complete, rank 2 at 71/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **81 of 426 are
+closed** (rank 1 complete, rank 2 at 72/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

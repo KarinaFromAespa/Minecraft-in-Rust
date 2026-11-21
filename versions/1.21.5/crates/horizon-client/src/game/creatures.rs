@@ -2426,7 +2426,13 @@ impl Game<'_> {
                     {
                         self.roar_pushes_armor_stands(area, at);
                     }
-                    self.lan_entity_event(mob as i32, event, at)
+                    // 1.21.5 has no roar broadcast: event 69 stays local
+                    // (the armor-stand push above). A remote client fires
+                    // the roar from its own tick; only a 1.21.6+ server
+                    // sends the real event.
+                    if event != 69 {
+                        self.lan_entity_event(mob as i32, event, at)
+                    }
                 }
                 MobEvent::LevelParticles {
                     kind,
