@@ -11467,3 +11467,21 @@ and the usual 26.1-only `requireNonNull` / redundant
 store / lambda-type noise. Two citations re-pointed
 to the 1.21.11 names; no logic touched. `multiplayer`:
 28 passed.
+
+## Item 526 — models/catalog.rs (rank 3, NO-CHANGE)
+
+26.1 moved the block-state model system into
+`client/renderer/block/dispatch`: the 1.21.11
+`BlockStateModel` interface (`collectParts` +
+`particleIcon()`, a sprite) became the dispatch
+`BlockStateModel` (`collectParts` +
+`particleMaterial()`, a baked material, plus
+`materialFlags()`), the old name became
+`BlockStateModelWrapper`, and the loader's
+`LoadedBlockStateModelDispatcher` record is 26.1-only
+(1.21.11 uses `LoadedBlockModelDefinition`). The Rust
+already matches 1.21.11: it cites `particleIcon` and
+its `particle()` returns a sprite layer id, and
+`loadBlockStateDefinitionStack` exists in both
+versions. The item's "named" `particleMaterial`
+appears nowhere in the Rust tree.
