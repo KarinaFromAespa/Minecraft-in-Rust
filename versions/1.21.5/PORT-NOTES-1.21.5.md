@@ -5093,13 +5093,76 @@ is the oracle; decompiled code is a reading aid.
     the one `cargo check -j 1
     -p horizon-client --lib`
     passed at item 109.
+- **Item 113 — SectionCompiler,
+  chunk layers keyed by
+  `RenderType`; off-screen
+  block entities stay in the
+  section list:**
+  - The layer half is a pure
+    refactor: 1.21.6 keys
+    the section's meshes by
+    the `ChunkSectionLayer`
+    enum, 1.21.5 by
+    `RenderType` directly
+    (and `RenderSectionRegion`
+    is still
+    `RenderChunkRegion`).
+    Same layers, same
+    translucent sort. The
+    Rust mesher has its own
+    layer buckets
+    (`mesher::OPAQUE_LAYER`
+    and friends) driven by
+    the 1.21.5 block tables;
+    no `ChunkSectionLayer`
+    equivalent exists to
+    remove. One comment in
+    `gfx/pack_atlas.rs`
+    named the 1.21.6 enum;
+    it now names
+    `RenderType.solid()`.
+  - The block-entity half
+    is real but already
+    matches 1.21.5: 1.21.6
+    drops off-screen block
+    entities from the
+    section's list, 1.21.5
+    keeps them in it (and
+    also in the global
+    list). The Rust mesher
+    pushes every
+    block-entity block into
+    the section's list with
+    no off-screen filter,
+    and the game never
+    culls the off-screen
+    set — beacon, end
+    gateway, structure
+    block, test instance
+    block (`game.rs`
+    `off_screen`, matching
+    vanilla 1.21.5's
+    `shouldRenderOffScreen`
+    overrides) — with the
+    end gateway kept at long
+    range too. The per-entity
+    argument 1.21.5's
+    `shouldRenderOffScreen`
+    takes is unused by every
+    override (all constant
+    true), so the 1.21.6
+    no-arg form changes
+    nothing observable.
+  - Verification: `cargo check -j 1
+    -p horizon-client-render --lib`
+    0 errors / 0 warnings.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **112 of 426 are
-closed** (rank 1 complete, rank 2 at 103/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **113 of 426 are
+closed** (rank 1 complete, rank 2 at 104/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
