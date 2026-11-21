@@ -7913,13 +7913,38 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 166 —
+  StreamCodec
+  composite, duplicate
+  of item 147:**
+  - This item's diff
+    is byte-identical
+    to item 147's (the
+    11-arity
+    `composite`,
+    1.21.6-only), and
+    item 147 already
+    verified it: the
+    Rust protocol
+    crate has no
+    composite
+    combinator, and no
+    1.21.6 changed
+    class calls the
+    11-arity form.
+    Nothing further to
+    do.
+  - Verification: `diff`
+    of the two item
+    files, identical;
+    see item 147.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **165 of 426 are
-closed** (rank 1 complete, rank 2 at 156/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **166 of 426 are
+closed** (rank 1 complete, rank 2 at 157/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
