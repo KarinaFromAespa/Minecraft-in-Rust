@@ -12366,3 +12366,7 @@ Pure extractor rewire.
 Default ROTATION 8 (26.1) vs 0 (1.21.11), but defaults come from the
 prepared 1.21.11 registry data, so the engine already uses 0. The
 `HangingSignBlock` attachment interface is 26.1-only.
+
+## Item 636 — horizon-narrator/src/lib.rs (ScreenNarrationCollector) — NO-CHANGE
+
+Only visibility and `requireNonNull` across the 4 narration classes.
