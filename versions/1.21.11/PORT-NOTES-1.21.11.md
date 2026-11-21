@@ -10067,3 +10067,12 @@ removal (item 224's pattern): 1.21.11's
 timeline sampler instead of a `ClockManager`; the
 Rust already samples timelines at `day_time`
 directly. No code changed.
+
+## Item 240 — light.rs (rank 2, NO-CHANGE)
+
+4 classes, 8 methods, 1 named. Pure renames:
+`getLightDampening` -> `getLightBlock`,
+`ChunkPos.x()`/`z()` -> fields, `pack` -> `asLong`,
+plus visibility widening. The Rust already cites
+`getLightBlock` and implements `isEdgeOccluded`.
+No code changed.
