@@ -11013,12 +11013,45 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 262 — JSON
+  reload listener**
+  - SimpleJsonResourceReloa
+    dListener: the same
+    ground as item 251.
+    1.21.5 parses datapack
+    JSON with Gson's
+    lenient
+    JsonParser.parseReader;
+    1.21.6 uses
+    StrictJsonParser. The
+    port parses datapack
+    JSON with strict
+    serde_json
+    (from_slice), so a
+    datapack file with
+    comments, trailing
+    commas or unquoted
+    strings loads in
+    vanilla 1.21.5 and is
+    rejected here — the
+    systematic gap recorded
+    in item 251, which
+    already verified this
+    class's call site.
+    Routing the loaders
+    through the lenient
+    parser is out of
+    proportion for this
+    item.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **261 of 426 are
-closed** (rank 1 complete, rank 2 at 252/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **262 of 426 are
+closed** (rank 1 complete, rank 2 at 253/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
