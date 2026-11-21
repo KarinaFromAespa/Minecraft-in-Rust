@@ -9699,12 +9699,42 @@ is the oracle; decompiled code is a reading aid.
     standalone rustc run,
     test runs in CI.
 
+- **Item 220 — System
+  report, Util:
+  - Both hunks are accessor
+    renames with identical
+    values:
+    getName()/getId() for
+    name()/id() in the
+    system report's version
+    details, and getDataVer
+    sion().getVersion() for
+    dataVersion().version()
+    in the datafixer schema
+    lookup (plus a line
+    rewrap). The port's
+    crash report writes
+    Minecraft Version from
+    the pin
+    (VANILLA_VERSION,
+    1.21.5); it has no
+    Minecraft Version ID
+    line and no Java lines
+    — its report is its own
+    format, the same in
+    both versions' terms.
+    The datafixer lookup's
+    value is DATA_VERSION,
+    4325.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **219 of 426 are
-closed** (rank 1 complete, rank 2 at 210/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **220 of 426 are
+closed** (rank 1 complete, rank 2 at 211/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
