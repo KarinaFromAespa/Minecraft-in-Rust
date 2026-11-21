@@ -11759,3 +11759,11 @@ Only `generateAndAddPiece`'s visibility (`private` in 26.1, package-private
 in 1.21.11) and the `BlockState.is(Object)` vs `is(Block)` overload widening
 in the corridor/piece checks — both behaviour-free. The Rust cites
 `generateAndAddPiece` by name, which is shared.
+
+## Item 546 — worldgen/structure/stronghold.rs (StrongholdPieces) — NO-CHANGE
+
+Only visibility (`buildParameterSpace`, `imposedPiece`,
+`SMOOTH_STONE_SELECTOR`, `generateAndAddPiece`, the selector constructor are
+`private` in 26.1, package-private in 1.21.11) and `ChunkPos.x()`/`z()`
+accessors vs field reads in the seed setup — all behaviour-free. The Rust
+cites `generateAndAddPiece` by name, which is shared.
