@@ -10300,3 +10300,13 @@ with the codec moving to `IntProviders` — pure
 Java signature noise; the pillager's 1-in-300
 piercing crossbow is already implemented. No
 source change.
+
+## Item 270 — mobs/breeze.rs (rank 2, NO-CHANGE)
+
+1 class, 4 methods, 1 named. A single-line diff:
+`BlockState.is(Object)` vs `BlockState.is(Block)`
+in the breeze long-jump honey-block check — the
+same overload tightening as item 269, no
+behavioural delta. The honey refusal is already
+implemented. No source change. `mobs::breeze`:
+7 passed.
