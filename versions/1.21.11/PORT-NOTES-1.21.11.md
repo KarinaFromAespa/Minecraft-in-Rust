@@ -9778,3 +9778,21 @@ extraction rename with identical bodies:
 (`text` -> `drawString`); `PlayerFaceExtractor`
 becomes `PlayerFaceRenderer.draw`. Four doc citations
 updated in tab_list.rs; no behavioural code changed.
+
+## Item 210 — screens.rs (rank 2, NO-CHANGE)
+
+3 classes, 14 methods, 1 named. Render-extraction
+renames with identical bodies (`WinScreen`'s
+`extractRenderState` / `extractBackground` /
+`extractVignette` / `extractMenuBackground` become
+`render` / `renderBackground` / `renderVignette` /
+`renderMenuBackground`; `SpriteIconButton`'s
+`extractSprite` / `extractContents` become
+`renderSprite` / `renderContents`). The poem random
+is a real version delta — 26.1's
+`createThreadLocalInstance(8124371L)` is Xoroshiro,
+1.21.11's `create(8124371L)` is a LegacyRandomSource
+(verified by javap on both jars) — but the Rust's
+`add_poem_file` already uses `LegacyRandom`, the
+1.21.11 form. Four doc citations updated; no
+behavioural code changed.

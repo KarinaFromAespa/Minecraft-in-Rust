@@ -232,8 +232,8 @@ impl WinScreen {
         self.scroll = scroll;
         self.scroll_speed = 0.0;
     }
-    /// `extractRenderState` after a frame of `delta_ticks` game ticks:
-    /// `extractBackground`, the vignette, then the logo and the lines
+    /// `render` after a frame of `delta_ticks` game ticks:
+    /// `renderBackground`, the vignette, then the logo and the lines
     /// scrolled up. The poem's End portal background samples `end_portal`;
     /// the credits draw the scrolling menu background (over the blurred
     /// panorama on the title screen).
@@ -253,7 +253,7 @@ impl WinScreen {
         } else {
             self.menu_background(batch, atlas, w, h);
         }
-        // extractVignette: credits_vignette.png stretched over the screen.
+        // renderVignette: credits_vignette.png stretched over the screen.
         if let Some(r) = atlas.sprites.get("misc/credits_vignette").copied() {
             let start = batch.vertices.len();
             batch.rect_uv(0.0, 0.0, w, h, r, u32::MAX);
@@ -303,7 +303,7 @@ impl WinScreen {
             y_pos += 12.0;
         }
     }
-    /// `extractMenuBackground`: `menu_background.png` tiled at 32 pixels,
+    /// `renderMenuBackground`: `menu_background.png` tiled at 32 pixels,
     /// scrolled by half the text's scroll.
     fn menu_background(&self, batch: &mut HudBatch, atlas: &HudAtlas, w: f32, h: f32) {
         let v = (self.scroll * 0.5).rem_euclid(32.0);

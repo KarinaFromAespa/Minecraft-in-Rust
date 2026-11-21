@@ -111,7 +111,7 @@ impl Screen {
             // The HUD editor shows the HUD it moves.
             | Self::HudEditor
             | Self::Studio => false,
-            // WinScreen.extractBackground: the poem fills the screen with the End portal, the
+            // WinScreen.renderBackground: the poem fills the screen with the End portal, the
             // credits alone blur. Game::menu_blur knows which one rolls.
             Self::Win => false,
         }
