@@ -10793,3 +10793,14 @@ fixture registry follow. `packets::recipes`:
 `lan::advancements`: 13 passed;
 `recipe_book`: 26 passed; `stations`:
 26 passed.
+
+## Item 355 — client/renderer/block/dispatch (rank 2, NO-CHANGE)
+
+5 classes, 0 methods named. The 26.1
+dispatch package is the restructure of
+1.21.11's `BlockStateModelLoader` +
+multipart system, which the Rust already
+implements (`horizon-assets`' blockstate
+module: variants, weighted sets,
+conditions). No dispatcher surface in
+the tree. `horizon-assets`: 57 passed.
