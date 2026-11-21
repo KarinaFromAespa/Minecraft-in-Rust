@@ -3527,13 +3527,51 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 78 — Camel leash & model,
+  verified:**
+  - The leash system is already
+    the 1.21.5 form (ported by
+    the earlier leash item):
+    `leash.rs` keeps the legacy
+    pull past 6 blocks, the
+    snap at 10 (1.21.6 raised
+    it to 12), and no break
+    sound. The camel's
+    `handleLeashAtDistance` is
+    implemented exactly as
+    1.21.5 has it — distance >
+    6 while sitting, not in
+    transition, and able to
+    change pose -> stand up —
+    and there is no quad-leash
+    offset or elastic-pull
+    handler anywhere in the
+    tree (only a doc note that
+    1.21.6 replaced the legacy
+    pull with the dampened-spring
+    `Wrench` system).
+  - Save/load is Java API-only
+    (`LastPoseTick`, same key);
+    the model change is the
+    1.21.6 baked
+    `KeyframeAnimation` vs the
+    1.21.5 `animate` /
+    `animateWalk` calls over
+    the same `CamelAnimation`
+    definitions with the same
+    parameters — rendering API
+    only. No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **77 of 426 are
-closed** (rank 1 complete, rank 2 at 68/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **78 of 426 are
+closed** (rank 1 complete, rank 2 at 69/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
