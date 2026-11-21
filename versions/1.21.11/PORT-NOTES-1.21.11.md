@@ -10259,3 +10259,10 @@ age update on the age lock — a 26.1-only system
 (`AgeableMob` in 1.21.11 has no age-lock methods).
 The Rust already implements the unconditional
 1.21.11 form. No code changed.
+
+## Item 266 — game/block_entity_anims.rs (rank 2, NO-CHANGE)
+
+1 class, 4 methods, 1 named. Pure noise: the typed
+`is(Block)` spelling and `getRandom()` -> the
+`random` field in target selection and the animation
+tick. No code changed.
