@@ -11956,3 +11956,8 @@ have zero diff.
 
 Only `RandomSource.createThreadLocalInstance` vs `create` (same LegacyRandom
 sequence) and a constructor visibility difference.
+
+## Item 570 — block_entities.rs (LevelChunk$RebindableTickingBlockEntityWrapper) — NO-CHANGE
+
+Only constructor/`rebind` visibility (private in 26.1, package-private in
+1.21.11).
