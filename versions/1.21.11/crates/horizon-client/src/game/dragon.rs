@@ -4590,7 +4590,8 @@ impl Game<'_> {
     }
 
     /// `EntityType.create` for an Ender Dragon from a spawn egg, by hand or from a dispenser
-    /// (`SpawnEggItem.spawnMob`, `SpawnEggItemBehavior`). Unlike the End fight's dragon, this
+    /// (`SpawnEggItem.spawnMob`, the spawn-egg behaviour registered in
+    /// `DispenseItemBehavior.bootstrap`). Unlike the End fight's dragon, this
     /// one is not the fight's (`EnderDragon.aiStep` adopts it only when its UUID is the fight's),
     /// so it can be spawned in any dimension. Horizon keeps one dragon per level, as `/summon`
     /// and loading do: with one already there, nothing spawns and the egg stays.

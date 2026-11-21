@@ -11193,3 +11193,24 @@ cache is the Rust's own optimization
 (1.21.11 recomputes; same lines).
 `cargo check -p horizon-client
 --tests` clean.
+
+## Item 510 — game/dispenser.rs (rank 3, CHANGED)
+
+17 classes, 34 methods, 2 named.
+All the anonymous behaviours are
+identical (compared by decompile —
+the `$N` numbering shifts between
+versions). The one delta is spawn
+eggs: 26.1 routes them through the
+default method (an egg without
+ENTITY_DATA drops as an item);
+1.21.11 registers one anonymous
+behaviour for all eggs, and an egg
+without ENTITY_DATA stays in the
+dispenser (`getType` returns null).
+Eggs moved into the `dispense_item`
+match as a registered arm, and
+`dispense_spawn_egg` returns the stack
+unchanged when ENTITY_DATA was
+removed. `cargo check -p
+horizon-client --tests` clean.
