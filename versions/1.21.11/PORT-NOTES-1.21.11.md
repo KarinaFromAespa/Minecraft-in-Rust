@@ -11785,3 +11785,10 @@ defaults (max 100, WHITE/PROGRESS) and the display-name hover are the same.
 The Rust models the `Packed` form with the same fields and defaults, mints a
 stable UUID per id (neither version saves the UUID), and needs no dirty
 tracking since pack/unpack are explicit.
+
+## Item 549 — gfx/lightning.rs (LightningBoltRenderer) — NO-CHANGE
+
+Only the `CameraRenderState` package move, `createThreadLocalInstance` vs
+`create` (same LegacyRandom sequence) and `Matrix4fc` vs `Matrix4f` in
+`quad` — all behaviour-free. The Rust cites `submit` by name, which is
+shared.
