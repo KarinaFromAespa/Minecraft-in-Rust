@@ -462,7 +462,7 @@ pub fn poi_type(state: &horizon_world::chunk::BlockState) -> Option<(&'static st
         "bee_nest" => ("minecraft:bee_nest", 0),
         "nether_portal" => ("minecraft:nether_portal", 0),
         "lodestone" => ("minecraft:lodestone", 0),
-        "test_instance_block" => ("minecraft:test_instance", 0),
+        // No test_instance POI in 1.21.5 (added in 1.21.6).
         // PoiTypes.BEDS is the sixteen colours: no straw bed.
         bed if bed.ends_with("_bed") && bed != "straw_bed" => {
             if state.properties.get("part").map(String::as_str) != Some("head") {

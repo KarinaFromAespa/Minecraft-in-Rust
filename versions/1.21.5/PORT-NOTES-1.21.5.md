@@ -9984,12 +9984,36 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 227 —
+  test_instance POI type:
+  - Removed the
+    test_instance_block arm
+    from save::poi_type:
+    the
+    minecraft:test_instance
+    POI type (max tickets
+    0, range 1) was added
+    in 1.21.6 and does not
+    exist in 1.21.5, so a
+    test instance block is
+    no longer a point of
+    interest. The block
+    itself, its beacon beam
+    and the /test locate
+    machinery stay — only
+    the POI registration is
+    gone.
+  - Verification: cargo
+    check -j 1 -p horizon-
+    client --lib --tests
+    0/0 (2m01s).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **226 of 426 are
-closed** (rank 1 complete, rank 2 at 217/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **227 of 426 are
+closed** (rank 1 complete, rank 2 at 218/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
