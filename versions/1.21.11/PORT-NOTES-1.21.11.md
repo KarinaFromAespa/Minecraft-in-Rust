@@ -11630,3 +11630,24 @@ sheet). `lightEmission` exists in 1.21.11 too, on
 names. Known gap, pre-existing: the special-foil
 decal for compasses/clocks is not modelled (only
 visible on a command-enchanted one).
+
+## Item 535 — game/wandering_trader.rs (rank 3, CHANGED)
+
+26.1 moved the trader clock into a `WanderingTraderData`
+saved-data file; 1.21.11 keeps it in level.dat
+(`WanderingTraderSpawnDelay`, `WanderingTraderSpawnChance`,
+`WanderingTraderId` — the id is write-only, never read
+by any 1.21.11 code). The Rust used the 26.x file, so a
+1.21.11 world's clock was ignored and level.dat's fields
+went stale. Now it mirrors the dragon-fight pattern: a
+`Level.wandering_trader` handover written into `Data` by
+`Level::write`, load from level.dat first with the 26.x
+file only as a read fallback, the vanilla both-zero ->
+24000/25 init rule, and the spawned trader's UUID
+recorded for `WanderingTraderId`. Also fixed:
+`findSpawnPositionNear` sampled the height from
+`MOTION_BLOCKING_NO_LEAVES` (26.1's registered type);
+1.21.11 hardcodes `WORLD_SURFACE`, so the Rust now uses
+`world_surface` — the trader can spawn on leaves again.
+The tick/spawn/llama logic already matched.
+`cargo check -p horizon-client` clean.

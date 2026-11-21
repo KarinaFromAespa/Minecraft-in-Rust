@@ -4001,6 +4001,13 @@ pub struct Level {
     /// written into `Data` when present. `None` keeps the loaded value
     /// (a remote game, or one that never entered the End).
     pub dragon_fight: Option<Tag>,
+    /// `PrimaryLevelData`'s wandering trader state
+    /// (`WanderingTraderSpawnDelay`, `WanderingTraderSpawnChance`,
+    /// `WanderingTraderId`), handed over by the game before a save and
+    /// written into `Data` when present. `None` keeps the loaded values
+    /// (a remote game, or one that never ticked the spawner); a `None` id
+    /// keeps the loaded id.
+    pub wandering_trader: Option<(i32, i32, Option<[i32; 4]>)>,
     pub difficulty: String,
     pub hardcore: bool,
     /// `DifficultyLocked` (LevelData.isDifficultyLocked).
@@ -4847,9 +4854,17 @@ impl Level {
         if let Some(fight) = &self.dragon_fight {
             put(&mut data, "DragonFight", fight.clone());
         }
-        // `CustomBossEvents`, the wandering trader and
-        // the world border are not modelled here: they survive because nothing above
-        // removes them from the loaded `Data`.
+        // The wandering trader's clock and the current trader's id,
+        // handed over by the game the same way.
+        if let Some((delay, chance, id)) = &self.wandering_trader {
+            put(&mut data, "WanderingTraderSpawnDelay", Tag::Int(*delay));
+            put(&mut data, "WanderingTraderSpawnChance", Tag::Int(*chance));
+            if let Some(id) = id {
+                put(&mut data, "WanderingTraderId", Tag::IntArray(id.to_vec()));
+            }
+        }
+        // `CustomBossEvents` and the world border are not modelled here:
+        // they survive because nothing above removes them from the loaded `Data`.
         write_dat(&dir.join("level.dat"), Tag::compound([("Data", data)]))?;
         Ok(())
     }

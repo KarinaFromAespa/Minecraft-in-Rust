@@ -4,7 +4,7 @@
 use super::{Dim, Game, creatures::Creatures};
 use horizon_client::{
     mobs::{Species, leash::Holder, spawning, trader},
-    save::{read_dat, write_dat},
+    save::read_dat,
 };
 use horizon_core::{geometry::Vec3, random::RandomSource};
 use horizon_world::nbt::Tag;
@@ -15,11 +15,14 @@ const MIN_CHANCE: i32 = 25;
 const MAX_CHANCE: i32 = 75;
 const ATTEMPTS: i32 = 10;
 
-/// The spawner's clock and the `WanderingTraderData` saved with the world.
+/// The spawner's clock, kept in level.dat's `WanderingTraderSpawnDelay`,
+/// `WanderingTraderSpawnChance` and `WanderingTraderId` (1.21.11 keeps the
+/// state there; the 26.x `WanderingTraderData` file is only a read fallback).
 pub(super) struct Spawner {
     tick_delay: i32,
     spawn_delay: i32,
     chance: i32,
+    trader_id: Option<[i32; 4]>,
     loaded: bool,
     dirty: bool,
 }
@@ -29,6 +32,7 @@ impl Default for Spawner {
             tick_delay: TICK_DELAY,
             spawn_delay: SPAWN_DELAY,
             chance: MIN_CHANCE,
+            trader_id: None,
             loaded: false,
             dirty: false,
         }
@@ -41,7 +45,10 @@ impl Creatures {
     }
 }
 impl Game<'_> {
-    fn trader_path(&self) -> std::path::PathBuf {
+    /// The 26.x trader file (`data/minecraft/wandering_trader.dat`):
+    /// 1.21.11 keeps the clock in level.dat, so this is only a read
+    /// fallback for worlds this tree already saved in the 26.x form.
+    fn legacy_trader_path(&self) -> std::path::PathBuf {
         self.world_root
             .join("data")
             .join("minecraft")
@@ -51,35 +58,57 @@ impl Game<'_> {
         if self.creatures.trader.loaded {
             return;
         }
-        let tag = read_dat(&self.trader_path());
-        let data = tag.as_ref().and_then(|t| t.get("data"));
-        let get = |k: &str, d: i32| match data.and_then(|d| d.get(k)) {
-            Some(Tag::Int(v)) => *v,
-            _ => d,
+        let level = read_dat(&self.world_root.join("level.dat"));
+        let data = level.as_ref().and_then(|t| t.get("Data"));
+        let int = |d: Option<&Tag>, k: &str| match d.and_then(|d| d.get(k)) {
+            Some(Tag::Int(v)) => Some(*v),
+            _ => None,
+        };
+        let (delay, chance, id) = match (int(data, "WanderingTraderSpawnDelay"), int(data, "WanderingTraderSpawnChance")) {
+            (Some(delay), Some(chance)) => (
+                delay,
+                chance,
+                match data.and_then(|d| d.get("WanderingTraderId")) {
+                    Some(Tag::IntArray(v)) if v.len() == 4 => {
+                        Some([v[0], v[1], v[2], v[3]])
+                    }
+                    _ => None,
+                },
+            ),
+            _ => {
+                let tag = read_dat(&self.legacy_trader_path());
+                let legacy = tag.as_ref().and_then(|t| t.get("data"));
+                (
+                    int(legacy, "spawn_delay").unwrap_or(SPAWN_DELAY),
+                    int(legacy, "spawn_chance").unwrap_or(MIN_CHANCE),
+                    None,
+                )
+            }
         };
         let t = &mut self.creatures.trader;
-        t.spawn_delay = get("spawn_delay", SPAWN_DELAY);
-        t.chance = get("spawn_chance", MIN_CHANCE);
+        // `WanderingTraderSpawner`'s constructor: a world with no clock yet
+        // (both values zero) starts at the defaults.
+        if delay == 0 && chance == 0 {
+            t.spawn_delay = SPAWN_DELAY;
+            t.chance = MIN_CHANCE;
+            t.dirty = true;
+        } else {
+            t.spawn_delay = delay;
+            t.chance = chance;
+        }
+        t.trader_id = id;
         t.loaded = true;
     }
+    /// `PrimaryLevelData.createTag`: the clock goes back into level.dat's
+    /// `Data` with the level write, so this hands the values to the level
+    /// instead of writing a file of its own.
     pub(super) fn save_wandering_trader(&mut self) {
         if !self.creatures.trader.loaded || !self.creatures.trader.dirty {
             return;
         }
         let t = &self.creatures.trader;
-        let tag = Tag::compound([
-            (
-                "data",
-                Tag::compound([
-                    ("spawn_delay", Tag::Int(t.spawn_delay)),
-                    ("spawn_chance", Tag::Int(t.chance)),
-                ]),
-            ),
-            ("DataVersion", Tag::Int(horizon_world::DATA_VERSION)),
-        ]);
-        if write_dat(&self.trader_path(), tag).is_ok() {
-            self.creatures.trader.dirty = false;
-        }
+        self.level.wandering_trader = Some((t.spawn_delay, t.chance, t.trader_id));
+        self.creatures.trader.dirty = false;
     }
     /// `WanderingTraderSpawner.tick`.
     pub(super) fn tick_wandering_trader(&mut self) {
@@ -160,6 +189,12 @@ impl Game<'_> {
         for _ in 0..2 {
             self.spawn_trader_llama(id, 4);
         }
+        // `ServerLevelData.setWanderingTraderId`: the trader's id goes
+        // into level.dat with the next save.
+        if let Some(uuid) = self.persist.uuid_of(id) {
+            self.creatures.trader.trader_id = Some(uuid);
+            self.creatures.trader.dirty = true;
+        }
         if let Some(m) = self.mobs.iter_mut().find(|m| m.id == id) {
             trader::start_visit(m, reference);
         }
@@ -193,7 +228,9 @@ impl Game<'_> {
         }
     }
     /// `findSpawnPositionNear`: ten tries at a column near the reference
-    /// where the trader could stand.
+    /// where the trader could stand. The height is the world surface
+    /// (`Heightmap$Types.WORLD_SURFACE`); 26.x reads the trader's
+    /// registered heightmap type instead (`MOTION_BLOCKING_NO_LEAVES`).
     fn find_trader_spawn_near(&mut self, reference: [i32; 3], radius: i32) -> Option<[i32; 3]> {
         for _ in 0..ATTEMPTS {
             let x =
@@ -203,7 +240,7 @@ impl Game<'_> {
             if !self.world.loaded(x, z) {
                 continue;
             }
-            let y = self.motion_top(x, z);
+            let y = self.world_surface(x, z);
             let w = self.mob_world_base(&[]);
             if spawning::placement_ok(Species::WanderingTrader, &w, x, y, z) {
                 return Some([x, y, z]);
