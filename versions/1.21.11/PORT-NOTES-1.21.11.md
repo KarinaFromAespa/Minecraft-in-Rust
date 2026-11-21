@@ -11719,3 +11719,13 @@ identical, and `releaseUsing`'s throw and riptide paths are identical — except
 26.1 blocks Riptide while riding (a passenger check 1.21.11 lacks).
 **Fix (in game/trident.rs, where the behaviour lives):** `release_trident`
 dropped the `self.riding.is_some()` arm from the Riptide gate.
+
+## Item 542 — snbt.rs (TextComponentTagVisitor) — NO-CHANGE
+
+26.1 refactored the visitor into a `Styling` strategy (`PlainStyling` /
+`RichStyling`, `Token` enum) and added a `sortKeys` constructor that defaults
+to `LOGGER.isDebugEnabled()`; 1.21.11 hardcodes the rich form. The output is
+identical either way: aqua keys, green strings, gold numbers, red type
+suffixes, gray `<...>`; thresholds 8/64/128; the same list-wrap rule. The
+Rust's `Pretty` matches the 1.21.11 form exactly, including HashMap compound
+order (both versions' normal, non-debug behaviour).
