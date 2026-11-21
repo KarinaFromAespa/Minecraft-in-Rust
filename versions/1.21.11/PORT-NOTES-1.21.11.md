@@ -10180,3 +10180,12 @@ plus visibility widening. No code changed.
 `ChunkPos.x()`/`z()` -> fields, `pack` -> `asLong`,
 plus visibility widening. The blending logic is
 identical. No code changed.
+
+## Item 255 — trading_fixture.rs (rank 2, NO-CHANGE)
+
+1 class, 5 methods, 1 named. The wandering
+trader's `updateTrades` uses the hardcoded
+`WANDERING_TRADER_TRADES` pairs in 1.21.11 instead
+of the three trade sets — item 751's work with the
+tables, as in item 235. The rest is spelling and
+visibility noise. No code changed.
