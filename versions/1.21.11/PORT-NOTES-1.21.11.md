@@ -12124,3 +12124,9 @@ re-pointed to `Screen.render`.
 1.21.11's `material` is an `EitherHolder<TrimMaterial>`; 26.1 made it a
 plain `Holder`. The adapter already handles the 1.21.11 form under
 `either_holders_and_tag_resistance` (same quirk as item 568).
+
+## Item 598 — worldgen/dripstone.rs (LargeDripstoneFeature) — NO-CHANGE
+
+Only the provider accessor renames (`minInclusive`/`maxInclusive` vs
+`getMinValue`/`getMaxValue`, same values), the interface-vs-class
+`sample` call, the `is` overload and visibility.
