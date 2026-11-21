@@ -393,18 +393,16 @@ impl Game<'_> {
             if f.invisible {
                 e.meta.push((0, serializer::BYTE, Value::Byte(0x20)));
             }
-            // HangingEntity.DATA_DIRECTION, south by default.
-            if f.facing != 3 {
-                e.meta
-                    .push((8, serializer::DIRECTION, Value::Id(i32::from(f.facing))));
-            }
+            // 1.21.5 has no HangingEntity.DATA_DIRECTION (1.21.6's): the
+            // direction rides the add-entity packet's data alone, and
+            // ItemFrame.DATA_ITEM is 8, DATA_ROTATION 9.
             if f.item.is_some() {
                 e.meta
-                    .push((9, serializer::ITEM_STACK, Value::Item(hub.stack(&f.item))));
+                    .push((8, serializer::ITEM_STACK, Value::Item(hub.stack(&f.item))));
             }
             if f.rotation != 0 {
                 e.meta
-                    .push((10, serializer::INT, Value::Int(i32::from(f.rotation))));
+                    .push((9, serializer::INT, Value::Int(i32::from(f.rotation))));
             }
         }
         for (p, &id) in self.knot_ids.iter().filter(|&(_, &id)| id > after) {
@@ -432,16 +430,15 @@ impl Game<'_> {
             let facing = [3, 4, 2, 5][usize::from(p.facing & 3)];
             e.yaw = f32::from(p.facing & 3) * 90.0;
             e.data = facing;
-            if facing != 3 {
-                e.meta.push((8, serializer::DIRECTION, Value::Id(facing)));
-            }
-            // Painting.DATA_PAINTING_VARIANT_ID, a registry holder (id + 1),
-            // set unless it is the registry's first variant (VariantUtils.getAny).
+            // Painting.DATA_PAINTING_VARIANT_ID is 8 in 1.21.5 (1.21.6's
+            // HangingEntity.DATA_DIRECTION took 8 and pushed it to 9); a
+            // registry holder (id + 1), set unless it is the registry's
+            // first variant (VariantUtils.getAny).
             if let Some(id) = hub.registry_id("minecraft:painting_variant", &p.variant)
                 && id != 0
             {
                 e.meta
-                    .push((9, serializer::PAINTING_VARIANT, Value::Id(id + 1)));
+                    .push((8, serializer::PAINTING_VARIANT, Value::Id(id + 1)));
             }
         }
         for c in self.cushions.iter().filter(|c| c.id > after) {

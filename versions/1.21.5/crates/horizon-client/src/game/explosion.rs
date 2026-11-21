@@ -122,12 +122,20 @@ pub(super) fn blast_reaches(center: [f64; 3], diameter: f64, at: [f64; 3]) -> bo
 }
 
 /// `ItemEntity.ignoreExplosion` through
-/// `ServerExplosion.shouldAffectBlocklikeEntities`: an explosion that does not
-/// affect blocklike entities is ignored entirely by a dropped item. With
-/// `mobGriefing` off that is every blast that keeps blocks; with it on, none
-/// (no wind charge goes through `server_explode`).
-fn items_ignore_explosion(mob_griefing: bool, interaction: BlockInteraction) -> bool {
-    !mob_griefing && interaction == BlockInteraction::Keep
+/// `ServerExplosion.shouldAffectBlocklikeEntities` (1.21.5): an explosion
+/// that does not affect blocklike entities is ignored entirely by a dropped
+/// item. With `mobGriefing` off that is every blast that keeps blocks; with
+/// it on, none (no wind charge goes through `server_explode`). A blast whose
+/// source is in water never affects blocklike entities in 1.21.5 — the
+/// water check lives in `shouldAffectBlocklikeEntities` there; 1.21.6 moved
+/// it into `BlockAttachedEntity.ignoreExplosion` alone, so it no longer
+/// spares items or armour stands.
+fn items_ignore_explosion(
+    mob_griefing: bool,
+    interaction: BlockInteraction,
+    source_in_water: bool,
+) -> bool {
+    source_in_water || (!mob_griefing && interaction == BlockInteraction::Keep)
 }
 
 /// Whether a blast leaves item frames, paintings, cushions and armour stands
@@ -135,14 +143,17 @@ fn items_ignore_explosion(mob_griefing: bool, interaction: BlockInteraction) -> 
 /// (`ServerExplosion.shouldAffectBlocklikeEntities` through their
 /// `ignoreExplosion`; no wind charge goes through `server_explode`), and one a
 /// mob causes does no harm (`BlockAttachedEntity.hurtServer` and
-/// `ArmorStand.hurtServer`: `source.getEntity() instanceof Mob`).
+/// `ArmorStand.hurtServer`: `source.getEntity() instanceof Mob`). A blast
+/// whose source is in water spares them all in 1.21.5: the water check lives
+/// in `shouldAffectBlocklikeEntities` there (1.21.6 moved it into
+/// `BlockAttachedEntity.ignoreExplosion` alone).
 pub(super) fn blast_spares_decorations(
     mob_griefing: bool,
     interaction: BlockInteraction,
     by_mob: bool,
     source_in_water: bool,
 ) -> bool {
-    // `BlockAttachedEntity.ignoreExplosion`: a source in water first.
+    // `ServerExplosion.shouldAffectBlocklikeEntities`: a source in water first.
     source_in_water || (!mob_griefing && (interaction == BlockInteraction::Keep || by_mob))
 }
 
@@ -670,7 +681,11 @@ impl Game<'_> {
             vehicles_ignore: self.combat.blast_owner.is_none()
                 && self.blast_attacker().is_some()
                 && !self.ui.rules.bool("mob_griefing"),
-            items_ignore: items_ignore_explosion(self.ui.rules.bool("mob_griefing"), interaction),
+            items_ignore: items_ignore_explosion(
+                self.ui.rules.bool("mob_griefing"),
+                interaction,
+                self.combat.explosion_in_water,
+            ),
             spared: exploding.filter(|_| self.combat.explosion_source_named),
         };
         let (items_len, orbs_len) = (self.dropped.len(), self.orbs.len());
@@ -864,13 +879,16 @@ impl Game<'_> {
         diameter: f64,
         interaction: BlockInteraction,
     ) {
-        // An armour stand is no `BlockAttachedEntity`: a source in water does not spare it.
+        // An armour stand is no `BlockAttachedEntity`, but 1.21.5 spares it
+        // from a blast whose source is in water all the same: the water
+        // check lives in `shouldAffectBlocklikeEntities`, which
+        // `ArmorStand.ignoreExplosion` also reads.
         let by_mob = self.blast_attacker().is_some();
         let spares_stands = blast_spares_decorations(
             self.ui.rules.bool("mob_griefing"),
             interaction,
             by_mob,
-            false,
+            self.combat.explosion_in_water,
         );
         if !self.blast_spares_decorations(interaction) {
             self.explosion_breaks_hanging(center, diameter);
@@ -1476,13 +1494,33 @@ mod tests {
     /// any blast with the rule back on.
     #[test]
     fn items_ignore_a_blast_that_keeps_blocks_with_griefing_off() {
-        assert!(items_ignore_explosion(false, BlockInteraction::Keep));
-        assert!(!items_ignore_explosion(false, BlockInteraction::Destroy));
+        assert!(items_ignore_explosion(
+            false,
+            BlockInteraction::Keep,
+            false
+        ));
         assert!(!items_ignore_explosion(
             false,
-            BlockInteraction::DestroyWithDecay
+            BlockInteraction::Destroy,
+            false
         ));
-        assert!(!items_ignore_explosion(true, BlockInteraction::Keep));
+        assert!(!items_ignore_explosion(
+            false,
+            BlockInteraction::DestroyWithDecay,
+            false
+        ));
+        assert!(!items_ignore_explosion(
+            true,
+            BlockInteraction::Keep,
+            false
+        ));
+        // 1.21.5: a blast whose source is in water never affects blocklike
+        // entities, griefing or no.
+        assert!(items_ignore_explosion(
+            true,
+            BlockInteraction::Destroy,
+            true
+        ));
     }
 
     #[test]

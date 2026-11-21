@@ -1001,13 +1001,54 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -p horizon-client-render
     -p horizon-client --all-targets` 0 errors / 0 warnings
     (1m49s).
+- **Item 27 — ItemFrame / Painting / BlockAttachedEntity,
+  ported:**
+  - The water check moved: 1.21.5's
+    `ServerExplosion.shouldAffectBlocklikeEntities` holds
+    it (`source == null || !source.isInWater()`), so a
+    blast whose source is in water spares blocklike
+    entities of every kind; 1.21.6 moved it into
+    `BlockAttachedEntity.ignoreExplosion` alone. The
+    hanging-entity side already matched (the water term
+    in `blast_spares_decorations` is correct for 1.21.5,
+    only its doc citation moved), but two paths had the
+    1.21.6 form: `items_ignore_explosion` now takes the
+    source-in-water flag (dropped items are spared by a
+    wet source in 1.21.5, griefing or no — new test
+    assert), and the armour-stand call passes the real
+    `explosion_in_water` instead of `false`
+    (`ArmorStand.ignoreExplosion` reads
+    `shouldAffectBlocklikeEntities` too).
+  - Hanging-entity metadata: 1.21.6 added
+    `HangingEntity.DATA_DIRECTION` at index 8, pushing
+    the subclasses' fields up one; 1.21.5 has no synced
+    direction (it rides the add-entity packet's data
+    alone). The LAN sync is renumbered to the 1.21.5 form
+    on both ends: item frames send/read DATA_ITEM 8 and
+    DATA_ROTATION 9 with no direction meta (host
+    `lan_entities.rs`, guest `remote_objects.rs`, dirty
+    defaults in `lan/entity.rs`); paintings send/read
+    DATA_PAINTING_VARIANT_ID 8 with no direction meta.
+    The guest spawn paths already read the facing from
+    the add-entity data. Consistent with the protocol
+    adapter (`v1_21_5.rs`, which shifts hanging indices
+    +1 for 1.21.6 servers).
+  - No-ops verified: the ItemFrame/Painting NBT
+    (identical fields, ValueInput/ValueOutput ->
+    CompoundTag migration); `recalculateBoundingBox`'s
+    `syncPacketPositionCodec` (1.21.6 network plumbing,
+    no Rust surface); `defineSynchedData` /
+    `onSyncedDataUpdated` super calls (the 1.21.6 synced
+    direction, removed with the renumbering above).
+  - Verification: `cargo check -p horizon-client
+    --all-targets` 0 errors / 0 warnings (3m00s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **26 of 426 are
-closed** (rank 1 complete, rank 2 at 17/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **27 of 426 are
+closed** (rank 1 complete, rank 2 at 18/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

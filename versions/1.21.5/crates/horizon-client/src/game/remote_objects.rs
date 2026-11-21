@@ -197,9 +197,11 @@ impl Game<'_> {
                     s.item = item;
                 }
             } else if self.item_frames.iter().any(|f| f.id == id) {
-                // HangingEntity.DATA_DIRECTION, ItemFrame.DATA_ITEM and DATA_ROTATION.
+                // ItemFrame.DATA_ITEM (8) and DATA_ROTATION (9); 1.21.5 has
+                // no HangingEntity.DATA_DIRECTION, the facing rides the
+                // add-entity packet's data and never changes after.
                 let item = match (index, value) {
-                    (9, Value::Item(stack)) => Some(self.to_stack(stack)),
+                    (8, Value::Item(stack)) => Some(self.to_stack(stack)),
                     _ => None,
                 };
                 let Some(f) = self.item_frames.iter_mut().find(|f| f.id == id) else {
@@ -207,16 +209,15 @@ impl Game<'_> {
                 };
                 match (index, value) {
                     (0, Value::Byte(flags)) => f.invisible = (*flags as u8 & 0x20) != 0,
-                    (8, Value::Id(d)) => f.facing = (*d).clamp(0, 5) as u8,
-                    (10, Value::Int(r)) => f.rotation = r.rem_euclid(8) as u8,
+                    (9, Value::Int(r)) => f.rotation = r.rem_euclid(8) as u8,
                     _ => {}
                 }
                 if let Some(item) = item {
                     f.item = item;
                 }
             } else if self.paintings.iter().any(|p| p.id == id) {
-                // Painting.DATA_PAINTING_VARIANT_ID: a registry holder (id + 1).
-                if let (9, Value::Id(holder)) = (index, value)
+                // Painting.DATA_PAINTING_VARIANT_ID (8): a registry holder (id + 1).
+                if let (8, Value::Id(holder)) = (index, value)
                     && let Some(v) = self.remote_painting_variant(holder - 1)
                     && let Some(p) = self.paintings.iter_mut().find(|p| p.id == id)
                 {

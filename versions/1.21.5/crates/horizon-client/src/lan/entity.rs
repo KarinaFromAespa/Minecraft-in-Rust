@@ -725,8 +725,8 @@ impl ServerEntity {
                     (0, serializer::BYTE) => Value::Byte(0),
                     (6, serializer::POSE) => Value::Id(0),
                     (14, serializer::OPTIONAL_BLOCK_POS) => Value::OptPos(None),
-                    (9, serializer::ITEM_STACK) if frame => Value::Item(None),
-                    (10, serializer::INT) if frame => Value::Int(0),
+                    (8, serializer::ITEM_STACK) if frame => Value::Item(None),
+                    (9, serializer::INT) if frame => Value::Int(0),
                     _ => match e.defaults.iter().find(|d| (d.0, d.1) == (*index, *kind)) {
                         Some(d) => d.2.clone(),
                         None => continue,
