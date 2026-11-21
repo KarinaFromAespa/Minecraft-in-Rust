@@ -5714,13 +5714,48 @@ is the oracle; decompiled code is a reading aid.
     assertions were verified
     by a standalone rustc
     run of the same function.
+- **Item 123 — Container block
+  entities: save/load and
+  `removeComponentsFromTag`
+  verified:**
+  - The delta is the usual
+    ValueInput/ValueOutput
+    refactor with identical
+    serialized form:
+    `lock`, `CustomName`,
+    `Items`. The Rust port
+    reads and writes all
+    three (`block_names`,
+    `block_lock`, chest
+    slots; the round-trip
+    test in `block_items.rs`
+    covers a locked barrel
+    through save and reload).
+  - `removeComponentsFromTag`
+    (drop `CustomName`,
+    `lock`, `Items` when the
+    block entity is picked
+    up as an item) is the
+    `parts` table in
+    `block_entity_item.rs`:
+    every container type
+    lists `NAME`, `LOCK`
+    and `Part::Items(n)`,
+    and `pick` removes
+    each part's key from
+    the carried data.
+  - Verification: no Rust
+    change; the tree state is
+    the one `cargo check -j 1
+    -p horizon-client --lib --tests`
+    passed at item 122.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **122 of 426 are
-closed** (rank 1 complete, rank 2 at 113/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **123 of 426 are
+closed** (rank 1 complete, rank 2 at 114/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
