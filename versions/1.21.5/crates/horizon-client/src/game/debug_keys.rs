@@ -572,23 +572,19 @@ impl Game<'_> {
     fn key_text(&self, mapping: &str) -> Text {
         keybinds::display_name(self.settings.keys.get(mapping))
     }
-    /// `KeyboardHandler.decorateDebugComponent`: `[Debug]:` in bold, a space,
-    /// the message, shown with `Minecraft.showDebugChat`.
+    /// `KeyboardHandler.debugComponent`: `[Debug]:` in bold, a space, the
+    /// message — added to the chat, not narrated (1.21.6's `showDebugChat`
+    /// also says it through the narrator).
     fn debug_decorated(&mut self, color: u32, message: Text) {
         let prefix = Text::translate("debug.prefix", &[])
             .with_color(color)
             .bold();
-        self.show_debug_chat(
+        self.system_message(
             Text::empty()
                 .append(prefix)
                 .append(Text::literal(" "))
                 .append(message),
         );
-    }
-    /// `Minecraft.showDebugChat`: a client system message the narrator says.
-    fn show_debug_chat(&mut self, message: Text) {
-        self.say_system_queued(&message);
-        self.system_message(message);
     }
     fn debug_feedback(&mut self, message: Text) {
         self.debug_decorated(YELLOW, message);
@@ -726,13 +722,6 @@ impl Game<'_> {
                         f2(f64::from(self.pitch)),
                     );
                     self.set_clipboard(&command);
-                }
-                true
-            }
-            DebugAction::DumpVersion => {
-                self.debug_translated("debug.version.header");
-                for line in self.version_lines() {
-                    self.show_debug_chat(line);
                 }
                 true
             }
@@ -967,14 +956,14 @@ impl Game<'_> {
             pos[0], pos[1], pos[2]
         ));
     }
-    /// `KeyboardHandler.copyCreateEntityCommand`: the data without its UUID
-    /// or position.
+    /// `KeyboardHandler.copyCreateEntityCommand`: the data without its UUID,
+    /// position or dimension.
     fn copy_create_entity_command(&mut self, kind: &str, pos: Vec3, tag: Option<Tag>) {
         use horizon_client::java_text::format_fixed2 as f2;
         let mut command = format!("/summon {kind} {} {} {}", f2(pos.x), f2(pos.y), f2(pos.z));
         if let Some(mut tag) = tag {
             if let Tag::Compound(c) = &mut tag {
-                for key in ["UUID", "Pos"] {
+                for key in ["UUID", "Pos", "Dimension"] {
                     c.remove(&key.into());
                 }
             }

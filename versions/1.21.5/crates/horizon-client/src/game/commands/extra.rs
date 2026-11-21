@@ -148,7 +148,10 @@ pub(in crate::game) struct CommandExtras {
     pub pregen: Option<super::pregen::PregenTask>,
 }
 
-use horizon_core::version::{BUILD_TIME, DATA_VERSION, STABLE, VANILLA_VERSION, VERSION_ID};
+use horizon_core::version::{
+    BUILD_TIME, DATA_PACK_FORMAT, DATA_VERSION, RESOURCE_PACK_FORMAT, STABLE, VANILLA_VERSION,
+    VERSION_ID,
+};
 
 fn num(n: impl std::fmt::Display) -> Text {
     Text::literal(n.to_string())
@@ -1181,9 +1184,9 @@ impl Game<'_> {
             ),
             (
                 "commands.version.pack.resource",
-                vec![Text::literal("97.1")],
+                vec![num(RESOURCE_PACK_FORMAT.0)],
             ),
-            ("commands.version.pack.data", vec![Text::literal("121.0")]),
+            ("commands.version.pack.data", vec![num(DATA_PACK_FORMAT.0)]),
         ]
         .into_iter()
         .map(|(key, args)| Text::translate(key, &args))

@@ -89,7 +89,6 @@ actions! {
     DebugReloadResourcePacks, "key.debug.reloadResourcePacks", None;
     DebugProfiling, "key.debug.profiling", None;
     DebugCopyLocation, "key.debug.copyLocation", None;
-    DebugDumpVersion, "key.debug.dumpVersion", None;
     DebugProfilingChart, "key.debug.profilingChart", None;
     DebugFpsCharts, "key.debug.fpsCharts", None;
     DebugNetworkCharts, "key.debug.networkCharts", None;

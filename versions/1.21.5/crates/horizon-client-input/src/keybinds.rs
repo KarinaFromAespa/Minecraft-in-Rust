@@ -67,7 +67,6 @@ pub const MAPPINGS: &[(&str, &str, &str)] = &[
     ("key.debug.reloadResourcePacks", "key.keyboard.t", "debug"),
     ("key.debug.profiling", "key.keyboard.l", "debug"),
     ("key.debug.copyLocation", "key.keyboard.c", "debug"),
-    ("key.debug.dumpVersion", "key.keyboard.v", "debug"),
     ("key.debug.profilingChart", "key.keyboard.1", "debug"),
     ("key.debug.fpsCharts", "key.keyboard.2", "debug"),
     ("key.debug.networkCharts", "key.keyboard.3", "debug"),

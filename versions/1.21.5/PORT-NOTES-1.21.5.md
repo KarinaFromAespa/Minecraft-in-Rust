@@ -1272,13 +1272,43 @@ is the oracle; decompiled code is a reading aid.
   unused.
   - Verification: `cargo check -p horizon-core
     --all-targets` 0 errors / 0 warnings (17s).
+- **Item 33 — KeyboardHandler / GameModeCommand, ported:**
+  - Debug feedback is not narrated in 1.21.5:
+    1.21.6's `showDebugChat` says every debug line
+    through the narrator, 1.21.5's `debugComponent`
+    only adds it to the chat. The narrator call is
+    out of the debug-feedback path (the method now
+    cites `debugComponent`); the screenshot callback
+    already adds its message without narrating.
+  - F3+V (version dump) is 1.21.6-only: the
+    `DumpVersion` action, its `key.debug.dumpVersion`
+    binding (V) and the `DebugDumpVersion` input
+    action are all removed. `/version` stays — it is
+    `VersionCommand`, which 1.21.5 has — and its
+    lines now read the pack formats from the version
+    pin (55 / 71) instead of the hardcoded 26.3
+    values (97.1 / 121.0).
+  - F3+I's `/summon` copy now strips `Dimension` as
+    well as `UUID` and `Pos` (1.21.6 dropped the
+    Dimension strip).
+  - No-ops verified: F4 already sends `/gamemode`
+    (the change-game-mode packet is unwired);
+    `GameModeCommand`'s delta is a pure refactor
+    (the Rust inlines set + log exactly as 1.21.5
+    does); the F3+Q help list has no Rust surface;
+    `translatableEscape` vs `translatable` can't
+    differ at the Rust's call sites (no arg can
+    carry a `%`).
+  - Verification: `cargo check -p
+    horizon-client-input -p horizon-client
+    --all-targets` 0 errors / 0 warnings (3m10s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **32 of 426 are
-closed** (rank 1 complete, rank 2 at 23/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **33 of 426 are
+closed** (rank 1 complete, rank 2 at 24/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
