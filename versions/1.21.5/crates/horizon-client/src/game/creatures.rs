@@ -6051,9 +6051,11 @@ impl Game<'_> {
                 result?;
             }
             // AbstractThrownPotion.onHit, then onHitAsPotion from the stack it
-            // flies as: the splash happens where the hit was, a lingering
-            // potion's cloud sits at the mob it hit (ThrownLingeringPotion),
-            // and the potion that lands names the hurt it deals.
+            // flies as: the splash centres on the potion's position before
+            // the step (`previous`: the tick moved it to the hit), a
+            // lingering potion's cloud sits at the mob it hit
+            // (ThrownLingeringPotion), and the potion that lands names the
+            // hurt it deals.
             (kind @ (ProjectileKind::Potion(..) | ProjectileKind::ExperienceBottle), hit) => {
                 // A bottle flies as the bottle item (`getDefaultItem`).
                 let bottle;
@@ -6094,12 +6096,11 @@ impl Game<'_> {
                     self.splash(
                         stack,
                         at,
+                        p.previous,
                         mob,
                         block,
-                        p.age,
                         &owner,
                         self.entity_silent(p.id),
-                        p.velocity,
                     );
                     if stack.item.as_ref() != "minecraft:experience_bottle" {
                         self.native_potion_splash(&item, [at.x, at.y, at.z]);

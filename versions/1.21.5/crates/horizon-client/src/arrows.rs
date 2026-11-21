@@ -10,7 +10,7 @@ use crate::{
     collisions::SceneCollisions,
     mobs::Who,
     motion::{FluidResources, LAVA, WATER},
-    projectiles::{Hit, Projectile, ProjectileKind},
+    projectiles::{ENTITY_HIT_MARGIN, Hit, Projectile, ProjectileKind},
     world::World,
 };
 use horizon_core::{
@@ -919,8 +919,8 @@ impl Ticker<'_, '_, '_, '_> {
             .then(|| self.block_position());
         let block = self.scene.clip(from, to, ignored);
         let end = block.map_or(to, |b| b.0);
-        // findHitEntities: ProjectileUtil.computeMargin and the search box.
-        let margin = f64::from(((self.p.age as i32 - 2) as f32 / 20.0).clamp(0.0, 0.3));
+        // findHitEntities: the 0.3 hit margin and the search box.
+        let margin = ENTITY_HIT_MARGIN;
         let area = bounds(from)
             .expand_towards(self.p.velocity)
             .inflate(Vec3::new(1.0, 1.0, 1.0));

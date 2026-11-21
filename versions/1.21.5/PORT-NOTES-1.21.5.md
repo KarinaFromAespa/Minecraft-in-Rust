@@ -799,13 +799,59 @@ is the oracle; decompiled code is a reading aid.
     change (`processPendingLoads` public → private).
   - Verification: `cargo check -p horizon-client
     --all-targets` 0 errors / 0 warnings (53s).
+- **Item 22 — potions.rs, ported:** `AreaEffectCloud` /
+  `ProjectileUtil` / `ThrownLingeringPotion` /
+  `ThrownSplashPotion` / `ThrownExperienceBottle`:
+  - `ProjectileUtil.computeMargin` is 1.21.6-only: 1.21.5
+    grows every target box by a flat 0.3
+    (`DEFAULT_ENTITY_HIT_RESULT_MARGIN`) from the first
+    tick. New shared const `projectiles::ENTITY_HIT_MARGIN`
+    replaces the ramp at all seven sites (`projectiles.rs`
+    `hit_margin`, `arrows.rs`, `fishing.rs`
+    `entity_hit_margin`, `fireworks.rs` rockets,
+    `potions.rs` `thrown_margin`, `trident.rs`, and the
+    splash distance); the three tests pinning the ramp
+    (pearl, hook, thrown potion) rewritten for the flat
+    margin.
+  - `ThrownSplashPotion.onHitAsPotion`: 1.21.5 centres the
+    (4, 2, 4) box on the potion's own position (before the
+    step — threaded through as `from`, `t.position` in the
+    thrown path, `p.previous` in the generic projectile
+    path, which moves the potion to the hit), measures
+    feet-to-feet distance, and gives the directly-hit
+    entity full strength 1.0. `splash_distance_sqr` becomes
+    `splash_intensity`; `affect_entities_around` and the
+    water-potion axolotl box already used the 1.21.5 form
+    and now take `from` too. `splash` drops the unused
+    `age` / `motion` params.
+  - `ThrownExperienceBottle.onHit`: plain `award`
+    (`spawn_orbs`), not 1.21.6's `awardWithDirection`; the
+    XP-bottle test now asserts the orbs start at the hit.
+  - `AreaEffectCloud`: 1.21.6's `customParticle` /
+    `updateParticle` reverted to 1.21.5's `Particle` /
+    `updateColor` — a saved colour particle takes the
+    potion's colour at load (black for an empty potion;
+    `potion_cloud_from_nbt` now detects the empty potion
+    instead of falling back to the base colour), other
+    particles are kept as saved. NBT key `custom_particle`
+    → `Particle` on both read and write; the cloud-particle
+    tests rewritten for the recolour. The owner change
+    (`EntityReference` → direct + UUID) has no Rust surface
+    (the cloud owner is not modelled from NBT), and the
+    `serverTick` discard rewording is identical arithmetic.
+  - Verification: `cargo check -p horizon-client
+    --all-targets` 0 errors / 0 warnings (1m02s). The
+    targeted unit-test run was not waited out (the test
+    profile builds from scratch in this workdir); the
+    rewritten tests compile under `--all-targets` and CI
+    runs them.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **21 of 426 are
-closed** (rank 1 complete, rank 2 at 12/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **22 of 426 are
+closed** (rank 1 complete, rank 2 at 13/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

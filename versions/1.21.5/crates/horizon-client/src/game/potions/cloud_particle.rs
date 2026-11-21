@@ -1,7 +1,31 @@
-//! The particle an `AreaEffectCloud` draws from its saved `custom_particle`.
+//! The particle an `AreaEffectCloud` draws from its saved `Particle`.
 
 use horizon_client::particles::{ParticleOptions, ParticleType};
 use horizon_world::nbt::Tag;
+
+/// `AreaEffectCloud.updateColor` at load: a saved `Particle` that is a
+/// colour particle (`entity_effect`, `tinted_leaves`) takes the potion's
+/// colour, opaque (0 for an empty potion); any other particle is kept as
+/// saved. The recolour is stored, so a later save writes the particle the
+/// cloud draws, as vanilla's `addAdditionalSaveData` writes `getParticle()`.
+pub(super) fn load_particle(tag: Option<Tag>, color: u32) -> Option<Tag> {
+    let mut tag = tag?;
+    let Tag::Compound(map) = &mut tag else {
+        return Some(tag);
+    };
+    let is_color = matches!(map.get(&"type".into()), Some(Tag::String(name)) if {
+        let name = name.to_string_lossy();
+        let name = name.strip_prefix("minecraft:").unwrap_or(&name);
+        name == "entity_effect" || name == "tinted_leaves"
+    });
+    if is_color {
+        map.insert(
+            "color".into(),
+            Tag::Int((0xFF00_0000u32 | color) as i32),
+        );
+    }
+    Some(tag)
+}
 
 /// A number tag as a float.
 fn tag_f32(tag: &Tag) -> Option<f32> {
@@ -53,10 +77,10 @@ fn tag_rgb(tag: Option<&Tag>) -> Option<[f32; 3]> {
     let [r, g, b, _] = tag_color(tag, 3)?;
     Some([r, g, b])
 }
-/// The particle a saved `custom_particle` names (`ParticleTypes.CODEC`), for
+/// The particle a saved `Particle` names (`ParticleTypes.CODEC`), for
 /// the types that need no world data. A type that carries a block, an item or a
 /// position, or one that does not decode, gives `None`.
-pub(super) fn custom_particle_options(tag: &Tag) -> Option<ParticleOptions> {
+pub(super) fn particle_options(tag: &Tag) -> Option<ParticleOptions> {
     let Tag::Compound(map) = tag else {
         return None;
     };
@@ -129,19 +153,20 @@ mod tests {
         Tag::Float(v.to_bits())
     }
 
-    /// `AreaEffectCloud.updateParticle` with a `custom_particle`: the codec's
-    /// type and payload win over the potion colour; none falls back to the
-    /// entity effect in that colour.
+    /// `AreaEffectCloud.updateColor` with a saved `Particle`: a particle
+    /// that is not a colour particle is drawn as saved; a colour particle
+    /// takes the potion's colour at load (black for an empty potion), and
+    /// none falls back to the entity effect in that colour.
     #[test]
-    fn cloud_custom_particle_overrides_potion_colour() {
-        let cloud = |custom: Option<Tag>| {
+    fn cloud_particle_keeps_its_type_and_takes_the_potion_colour() {
+        let cloud = |particle: Option<Tag>| {
             let mut tag = Tag::compound([
                 ("Pos", Tag::List(vec![Tag::Double(0f64.to_bits()); 3])),
                 ("Radius", flt(3.0)),
                 ("Duration", Tag::Int(200)),
             ]);
-            if let (Tag::Compound(map), Some(custom)) = (&mut tag, custom) {
-                map.insert("custom_particle".into(), custom);
+            if let (Tag::Compound(map), Some(particle)) = (&mut tag, particle) {
+                map.insert("Particle".into(), particle);
             }
             crate::game::potions::potion_cloud_from_nbt(&tag)
                 .unwrap()
@@ -151,6 +176,8 @@ mod tests {
         };
         let none = cloud(None).particle();
         assert_eq!(none.ty, ParticleType::EntityEffect);
+        // No potion: the empty potion recolours to black.
+        assert_eq!(none.color[..3], [0.0, 0.0, 0.0]);
         let flame = cloud(Some(Tag::compound([("type", Tag::String("flame".into()))])));
         assert_eq!(flame.particle().ty, ParticleType::Flame);
         let dust = cloud(Some(Tag::compound([
@@ -162,23 +189,25 @@ mod tests {
         assert_eq!(dust.ty, ParticleType::Dust);
         assert_eq!(dust.color[..3], [1.0, 0.0, 0.0]);
         assert_eq!(dust.scale, 2.0);
+        // A colour particle's saved colour is replaced by the potion's
+        // (black here, for the empty potion).
         let effect = cloud(Some(Tag::compound([
             ("type", Tag::String("entity_effect".into())),
             ("color", Tag::Int(0x00FF_8000u32 as i32)),
         ])))
         .particle();
         assert_eq!(effect.ty, ParticleType::EntityEffect);
-        assert_eq!(effect.color[..3], [1.0, 128.0 / 255.0, 0.0]);
+        assert_eq!(effect.color[..3], [0.0, 0.0, 0.0]);
     }
 
     /// The options codecs' rules: `ColorParticleOption` keeps the colour's
     /// alpha (an int's top byte, the fourth float), float lists have a fixed
     /// length and are packed to 8-bit channels, dust needs a scale in
     /// [0.01, 4], and a spell's colour defaults to white. What fails to decode
-    /// gives no custom particle.
+    /// gives no particle.
     #[test]
-    fn custom_particle_follows_the_option_codecs() {
-        let decode = |fields: Vec<(&str, Tag)>| custom_particle_options(&Tag::compound(fields));
+    fn particle_follows_the_option_codecs() {
+        let decode = |fields: Vec<(&str, Tag)>| particle_options(&Tag::compound(fields));
         let s = |v: &str| Tag::String(v.into());
         // 0x80FF0000: alpha 128, red.
         let tinted = decode(vec![
@@ -248,15 +277,15 @@ mod tests {
         );
     }
 
-    /// `AreaEffectCloud.addAdditionalSaveData` writes `custom_particle` back.
+    /// `AreaEffectCloud.addAdditionalSaveData` writes `Particle` back.
     #[test]
-    fn cloud_custom_particle_survives_a_save() {
+    fn cloud_particle_survives_a_save() {
         let particle = Tag::compound([("type", Tag::String("flame".into()))]);
         let tag = Tag::compound([
             ("Pos", Tag::List(vec![Tag::Double(0f64.to_bits()); 3])),
             ("Radius", flt(3.0)),
             ("Duration", Tag::Int(200)),
-            ("custom_particle", particle.clone()),
+            ("Particle", particle.clone()),
         ]);
         let (at, cloud) = crate::game::potions::potion_cloud_from_nbt(&tag).unwrap();
         let _ = at;
@@ -264,6 +293,6 @@ mod tests {
         let Tag::Compound(map) = saved else {
             panic!("not a compound");
         };
-        assert_eq!(map.get(&"custom_particle".into()), Some(&particle));
+        assert_eq!(map.get(&"Particle".into()), Some(&particle));
     }
 }

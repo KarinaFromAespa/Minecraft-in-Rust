@@ -12,6 +12,7 @@ use horizon_client::{
     mesher::Vertex,
     particles::{ParticleOptions, ParticleType},
     pose::Pose,
+    projectiles::ENTITY_HIT_MARGIN,
     random_source,
 };
 use horizon_core::{
@@ -166,11 +167,6 @@ fn segment_entry(start: Vec3, end: Vec3, bounds: Aabb) -> Option<f64> {
         }
     }
     (entry <= 1.0 && exit >= 0.0).then_some(entry)
-}
-/// `ProjectileUtil.computeMargin`: the fishing hook's target-box margin grows
-/// to 0.3 blocks over its first eight ticks.
-fn entity_hit_margin(tick_count: i32) -> f64 {
-    f64::from((tick_count - 2).clamp(0, 6)) / 20.0
 }
 fn first_entity_hit(
     start: Vec3,
@@ -994,7 +990,7 @@ impl Game<'_> {
                 let hit = first_entity_hit(
                     h.position,
                     entity_end,
-                    entity_hit_margin(h.tick_count),
+                    ENTITY_HIT_MARGIN,
                     self.mobs
                         .iter()
                         .filter(|m| m.alive())
@@ -1979,7 +1975,7 @@ fn cast_direction(yaw: f32, pitch: f32) -> (f32, f32, f32) {
 
 #[cfg(test)]
 mod tests {
-    use super::{Hook, cast_direction, entity_hit_margin, first_entity_hit, pull_item, rebound};
+    use super::{ENTITY_HIT_MARGIN, Hook, cast_direction, first_entity_hit, pull_item, rebound};
 
     /// Compare the production loot selector to a real FishingHook.retrieve oracle.
     #[test]
@@ -2219,20 +2215,19 @@ mod tests {
     }
 
     #[test]
-    fn a_flying_hook_uses_vanillas_growing_entity_hit_margin() {
+    fn a_flying_hook_uses_vanillas_flat_entity_hit_margin() {
         let start = Vec3::ZERO;
         let end = Vec3::new(1.0, 0.0, 0.0);
         let target = Aabb::new(Vec3::new(0.5, 0.31, -0.1), Vec3::new(0.7, 0.5, 0.1));
 
-        assert_eq!(entity_hit_margin(2), 0.0);
-        assert_eq!(entity_hit_margin(8), 0.3);
+        assert_eq!(ENTITY_HIT_MARGIN, 0.3);
         assert_eq!(
-            first_entity_hit(start, end, entity_hit_margin(8), [(1, target)]),
+            first_entity_hit(start, end, ENTITY_HIT_MARGIN, [(1, target)]),
             None
         );
         let within_margin = Aabb::new(Vec3::new(0.5, 0.29, -0.1), Vec3::new(0.7, 0.5, 0.1));
         assert_eq!(
-            first_entity_hit(start, end, entity_hit_margin(8), [(1, within_margin)]),
+            first_entity_hit(start, end, ENTITY_HIT_MARGIN, [(1, within_margin)]),
             Some(1)
         );
     }

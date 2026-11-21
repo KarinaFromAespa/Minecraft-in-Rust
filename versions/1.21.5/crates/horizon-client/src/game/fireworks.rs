@@ -12,7 +12,7 @@ use horizon_client::{
     mesher::Vertex,
     mobs::{Damage, Species, Who},
     particles::{FireworkExplosion, ParticleOptions, ParticleType},
-    projectiles::ProjectileWorld,
+    projectiles::{ENTITY_HIT_MARGIN, ProjectileWorld},
     random_source,
     text::Text,
 };
@@ -682,8 +682,7 @@ impl Game<'_> {
     }
     /// `ProjectileUtil.getHitResultOnMoveVector`: the nearest target on the
     /// move, short of the block it clips (`ClipContext.Block.COLLIDER`), each
-    /// box grown by `computeMargin` (`tickCount` is the rocket's life plus
-    /// one); else that block.
+    /// box grown by the 0.3 hit margin; else that block.
     fn rocket_struck(
         &self,
         targets: &[(Who, Aabb)],
@@ -703,7 +702,7 @@ impl Game<'_> {
         if let Some((at, ..)) = block {
             to = at;
         }
-        let margin = (f64::from(r.life - 1) / 20.0).clamp(0.0, 0.3);
+        let margin = ENTITY_HIT_MARGIN;
         targets
             .iter()
             .filter(|(who, _)| Some(*who) != skip)
