@@ -10695,3 +10695,12 @@ ChunkPos `x()`/`z()` methods vs fields;
 the tag keys are identical. No source
 change. `worldgen::structure::start`: 14
 passed.
+
+## Item 310 — worldgen/blending.rs (rank 2, NO-CHANGE)
+
+1 class, 1 method, 1 named. Three lines:
+`CELL_COLUMN_COUNT` loses `private`, and
+two `BlockState.is` calls on the mushroom
+blocks are the overload tightening. No
+source change. `worldgen::blending`: 3
+passed.
