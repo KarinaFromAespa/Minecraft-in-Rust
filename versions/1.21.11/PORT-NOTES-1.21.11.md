@@ -9765,3 +9765,16 @@ the structure-reference validation (chessboard distance
 access; `Heightmap` widens its predicate fields and
 uses the `is(Block)` overload for the AIR test. No code
 changed.
+
+## Item 209 — tab_list.rs (rank 2, NO-CHANGE)
+
+3 classes, 14 methods, 1 named. Pure render-state-
+extraction rename with identical bodies:
+`PlayerTabOverlay`'s `extractRenderState` /
+`extractPingIcon` / `extractTablistScore` /
+`extractTablistHearts` become `render` /
+`renderPingIcon` / `renderTablistScore` /
+`renderTablistHearts` on `GuiGraphics`
+(`text` -> `drawString`); `PlayerFaceExtractor`
+becomes `PlayerFaceRenderer.draw`. Four doc citations
+updated in tab_list.rs; no behavioural code changed.
