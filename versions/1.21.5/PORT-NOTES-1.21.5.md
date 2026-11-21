@@ -11741,12 +11741,50 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no
     code changed.
 
+- **Item 279 — Enchanting and station screens**
+  - Enchanting, bundle tooltip,
+    stonecutter, brewing,
+    grindstone: verified, no
+    code. The 1.21.6-only
+    containerTick line (pinning
+    experienceDisplayStartTick)
+    has no surface - the port
+    has no such concept and its
+    XP bar has no time-based
+    flash. The enchanting book
+    is already the 1.21.5
+    manual-pose form (translate
+    (19,17) in the 38x31 box,
+    scale 40, X 25 degrees, the
+    (1-open) offset, Y
+    -(1-open)*90-90, X 180;
+    page flips
+    clamp(frac(flip+0.25/0.75)
+    *1.6-0.3)). Offer colours
+    keep the opaque spellings
+    with identical RGB (the
+    established alpha-0
+    pattern). The bundle
+    tooltip draws back sprite,
+    item, front highlight in
+    the same order in both
+    versions; its empty text is
+    0xFFAAAAAA. Stonecutter,
+    brewing, grindstone and the
+    cycling slot background
+    differ only by the
+    RenderPipelines / tooltip
+    renames, same geometry and
+    sprites.
+  - Verification: read only; no
+    code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **278 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 10/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **279 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 11/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
