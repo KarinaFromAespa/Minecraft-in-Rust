@@ -5749,13 +5749,59 @@ is the oracle; decompiled code is a reading aid.
     the one `cargo check -j 1
     -p horizon-client --lib --tests`
     passed at item 122.
+- **Item 124 — Loom screen
+  verified against 1.21.5:**
+  - The delta is the 1.21.6
+    GuiRenderer refactor:
+    RenderPipelines blits,
+    a batched banner render
+    state, and a flat
+    pattern-sprite blit on
+    the buttons, versus
+    1.21.5's immediate-mode
+    flag-model draws. The
+    on-screen geometry is
+    identical in both
+    versions, verified from
+    the flag model itself
+    (box -10..10, 0..40,
+    pivot y=-44): the
+    1.21.5 result pose
+    lands the flag at
+    (141, 8, 20, 40), the
+    1.21.6 rect, and the
+    1.21.5 pattern-button
+    pose lands it at
+    (button+4, button+2,
+    5, 10), the 1.21.6
+    blit's rect. The Rust
+    layout uses those
+    rects, and the button's
+    grey fill plus pattern
+    blit reproduces the
+    flat-lit flag face.
+    (The 1.21.6 blit's UV
+    is one texel off the
+    flag face's — a quarter
+    of a swatch pixel, not
+    worth chasing.)
+  - Scroller, grid, slots
+    and error sprite all
+    share coordinates in
+    both versions, and the
+    Rust layout matches.
+  - Verification: no Rust
+    change; the tree state is
+    the one `cargo check -j 1
+    -p horizon-client --lib --tests`
+    passed at item 122.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **123 of 426 are
-closed** (rank 1 complete, rank 2 at 114/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **124 of 426 are
+closed** (rank 1 complete, rank 2 at 115/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
