@@ -25,27 +25,40 @@ pub struct SpawnEntry {
     /// A `ConstantInt` count (sampling draws nothing).
     pub constant: bool,
 }
-/// A `natural_mob_spawns` / `spawn_overrides` entry list.
+/// A `natural_mob_spawns` / `spawn_overrides` entry list. 1.21.9's
+/// `SpawnerData` is `(type, minCount, maxCount)` — the count is always
+/// `min + random.nextInt(1 + max - min)`, a draw even when `min == max`;
+/// there is no constant provider. The 26.3 `count` forms (a bare number, a
+/// `minecraft:constant` or a `minecraft:uniform`) read the same way, so a
+/// content mod's rewritten entries parse identically.
 pub fn parse_entries(list: &Value) -> Vec<SpawnEntry> {
     list.as_array()
         .into_iter()
         .flatten()
         .filter_map(|e| {
-            let count = &e["count"];
-            let (min, max, constant) = match count {
-                Value::Number(n) => {
-                    let n = n.as_u64().unwrap_or(1) as u32;
-                    (n, n, true)
-                }
-                c if c["type"].as_str() == Some("minecraft:constant") => {
-                    let n = c["value"].as_u64().unwrap_or(1) as u32;
-                    (n, n, true)
-                }
-                c => (
-                    c["min_inclusive"].as_u64().unwrap_or(1) as u32,
-                    c["max_inclusive"].as_u64().unwrap_or(1) as u32,
+            let (min, max, constant) = if e["minCount"].is_number() || e["maxCount"].is_number() {
+                (
+                    e["minCount"].as_u64().unwrap_or(1) as u32,
+                    e["maxCount"].as_u64().unwrap_or(1) as u32,
                     false,
-                ),
+                )
+            } else {
+                let count = &e["count"];
+                match count {
+                    Value::Number(n) => {
+                        let n = n.as_u64().unwrap_or(1) as u32;
+                        (n, n, true)
+                    }
+                    c if c["type"].as_str() == Some("minecraft:constant") => {
+                        let n = c["value"].as_u64().unwrap_or(1) as u32;
+                        (n, n, true)
+                    }
+                    c => (
+                        c["min_inclusive"].as_u64().unwrap_or(1) as u32,
+                        c["max_inclusive"].as_u64().unwrap_or(1) as u32,
+                        false,
+                    ),
+                }
             };
             Some(SpawnEntry {
                 entity: e["type"].as_str()?.to_owned(),
@@ -241,13 +254,32 @@ impl BiomeInfo {
             let list = parse_entries(entries);
             spawns.insert(category.clone(), list);
         }
+        // 1.21.9 has no `natural_mob_spawns` attribute (the environment
+        // attribute system arrived in 1.21.11): the spawns live in the
+        // biome file itself, under top-level `spawners` (per category,
+        // `minCount`/`maxCount`), with `spawn_costs` and
+        // `creature_spawn_probability` alongside. A content mod's rewritten
+        // attribute (above) wins when one is present.
+        let mut spawn_costs = parse_costs(&natural["spawn_costs"]);
+        if spawns.is_empty() {
+            for (category, entries) in v["spawners"].as_object().into_iter().flatten() {
+                let list = parse_entries(entries);
+                spawns.insert(category.clone(), list);
+            }
+        }
+        if spawn_costs.is_empty() {
+            spawn_costs = parse_costs(&v["spawn_costs"]);
+        }
+        let creature_probability = v["creature_spawn_probability"]
+            .as_f64()
+            .or_else(|| {
+                attributes["minecraft:gameplay/creature_world_gen_spawn_probability"].as_f64()
+            })
+            .unwrap_or(0.1) as f32;
         BiomeInfo {
             spawns,
-            spawn_costs: parse_costs(&natural["spawn_costs"]),
-            creature_probability:
-                attributes["minecraft:gameplay/creature_world_gen_spawn_probability"]
-                    .as_f64()
-                    .unwrap_or(0.1) as f32,
+            spawn_costs,
+            creature_probability,
             increased_fire_burnout: attributes["minecraft:gameplay/increased_fire_burnout"]
                 .as_bool()
                 .unwrap_or(false),
@@ -657,6 +689,101 @@ mod pack_tests {
         assert_eq!(next.name(stale), "minecraft:plains");
         assert_eq!(next.name(u16::MAX), "minecraft:plains");
         assert_eq!(next.name(2), "minecraft:river");
+    }
+
+    /// 1.21.9 has no `natural_mob_spawns` attribute: a biome file's spawns
+    /// live under top-level `spawners` (`minCount`/`maxCount`), with
+    /// `spawn_costs` and `creature_spawn_probability` alongside. Without
+    /// that fallback every biome's spawn list is empty and nothing ever
+    /// spawns — natural or chunk-generated. Values below are vanilla
+    /// 1.21.9 plains' own (sheep 4/4 weight 12, pig 4/4 weight 10, zombie
+    /// 4/4 weight 95, bat 8/8 weight 10).
+    #[test]
+    fn legacy_spawners_fill_spawns_without_attributes() {
+        let maps = Colormaps {
+            grass: Vec::new(),
+            foliage: Vec::new(),
+            dry: Vec::new(),
+        };
+        let v = json!({
+            "temperature": 0.8,
+            "downfall": 0.4,
+            "has_precipitation": true,
+            "effects": {"water_color": 0x3F76E4},
+            "spawners": {
+                "creature": [
+                    {"type": "minecraft:sheep", "weight": 12, "minCount": 4, "maxCount": 4},
+                    {"type": "minecraft:pig", "weight": 10, "minCount": 4, "maxCount": 4}
+                ],
+                "monster": [
+                    {"type": "minecraft:zombie", "weight": 95, "minCount": 4, "maxCount": 4}
+                ],
+                "ambient": [
+                    {"type": "minecraft:bat", "weight": 10, "minCount": 8, "maxCount": 8}
+                ]
+            },
+            "spawn_costs": {
+                "minecraft:zombie": {"energy_budget": 0.7, "charge": 1.0}
+            },
+            "creature_spawn_probability": 0.2
+        });
+        let info = BiomeInfo::from_json("minecraft:plains".to_owned(), &v, &maps);
+        let creature = &info.spawns["creature"];
+        assert_eq!(creature.len(), 2);
+        assert_eq!(creature[0].entity, "minecraft:sheep");
+        assert_eq!((creature[0].min, creature[0].max, creature[0].weight), (4, 4, 12));
+        // A legacy count always draws, even when min == max: never constant.
+        assert!(!creature[0].constant);
+        assert_eq!(creature[1].entity, "minecraft:pig");
+        assert_eq!((creature[1].min, creature[1].max, creature[1].weight), (4, 4, 10));
+        let monster = &info.spawns["monster"];
+        assert_eq!(monster.len(), 1);
+        assert_eq!(monster[0].entity, "minecraft:zombie");
+        assert_eq!((monster[0].min, monster[0].max, monster[0].weight), (4, 4, 95));
+        let ambient = &info.spawns["ambient"];
+        assert_eq!((ambient[0].min, ambient[0].max, ambient[0].weight), (8, 8, 10));
+        let cost = &info.spawn_costs["minecraft:zombie"];
+        assert_eq!((cost.energy_budget, cost.charge), (0.7, 1.0));
+        assert_eq!(info.creature_probability, 0.2);
+    }
+
+    /// A content mod's rewritten `natural_mob_spawns` attribute wins over
+    /// the legacy `spawners` when one is present, and its `count` forms
+    /// still parse (a bare number is a constant count).
+    #[test]
+    fn attribute_spawns_win_over_legacy_spawners() {
+        let maps = Colormaps {
+            grass: Vec::new(),
+            foliage: Vec::new(),
+            dry: Vec::new(),
+        };
+        let v = json!({
+            "temperature": 0.8,
+            "downfall": 0.4,
+            "has_precipitation": true,
+            "effects": {"water_color": 0x3F76E4},
+            "attributes": {
+                "minecraft:gameplay/natural_mob_spawns": {
+                    "spawns_by_category": {
+                        "creature": [
+                            {"type": "minecraft:cow", "weight": 8, "count": 3}
+                        ]
+                    },
+                    "spawn_costs": {}
+                }
+            },
+            "spawners": {
+                "creature": [
+                    {"type": "minecraft:sheep", "weight": 12, "minCount": 4, "maxCount": 4}
+                ]
+            }
+        });
+        let info = BiomeInfo::from_json("minecraft:plains".to_owned(), &v, &maps);
+        let creature = &info.spawns["creature"];
+        assert_eq!(creature.len(), 1);
+        assert_eq!(creature[0].entity, "minecraft:cow");
+        assert_eq!((creature[0].min, creature[0].max, creature[0].weight), (3, 3, 8));
+        assert!(creature[0].constant);
     }
 }
 
