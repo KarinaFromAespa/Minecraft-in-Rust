@@ -12670,3 +12670,8 @@ Zero diff: the bytecode is identical in both versions.
 ## Item 698 — game/respawn_anchor.rs (ServerPlayer$RespawnPosAngle) — NO-CHANGE
 
 Visibility only.
+
+## Item 699 — game/splash_water.rs (PotionTags) — NO-CHANGE
+
+26.1-only class; no `PotionTags` usage anywhere in the Rust.
+1.21.11 has no potion tags.
