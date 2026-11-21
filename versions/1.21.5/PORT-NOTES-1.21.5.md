@@ -9888,12 +9888,75 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 225 — Attribute
+  definitions, save/load:
+  - The three 1.21.6-only
+    attributes are gone
+    from the definitions by
+    construction: the
+    catalog is data-driven
+    (Catalog::from_json
+    over the 1.21.5 export,
+    checked against
+    DATA_VERSION 4325), so
+    camera_distance,
+    waypoint_transmit_range
+    and
+    waypoint_receive_range
+    simply are not in it.
+    The one hardcoded
+    registry-equivalent,
+    the /attribute
+    completion list in
+    game/chat.rs, lost
+    camera_distance (the
+    waypoint pair was never
+    in it).
+  - AttributeInstance.load:
+    a saved entry with no
+    base now reads as 0.0
+    (vanilla's
+    getDoubleOr("base",
+    0.0)) instead of being
+    skipped — the item-126
+    edge, fixed at the mob-
+    load site. The horse
+    jump-strength site
+    needs no change: its <=
+    0.0 default-back makes
+    a missing base behave
+    as 0.0 already. The
+    save form (id, base,
+    modifiers omitted when
+    empty) was already the
+    1.21.5 one.
+  - Left for their owners:
+    the waypoint tooltip
+    arms and attribute-
+    update events (items
+    260/264) — string
+    matches that never fire
+    while the attributes do
+    not exist. LivingCamera
+    .camera_distance and
+    the
+    native_camera_distance
+    mod hook stay: the live
+    camera ignores the
+    field and the hook is
+    Horizon API surface,
+    not vanilla behaviour.
+  - Verification: cargo
+    check -j 1 -p horizon-
+    client --lib --tests
+    0/0 (2m26s).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **224 of 426 are
-closed** (rank 1 complete, rank 2 at 215/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **225 of 426 are
+closed** (rank 1 complete, rank 2 at 216/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

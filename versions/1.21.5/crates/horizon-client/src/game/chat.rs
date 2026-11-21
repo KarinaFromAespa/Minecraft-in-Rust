@@ -866,7 +866,6 @@ impl Game<'_> {
             "block_break_speed",
             "block_interaction_range",
             "burning_time",
-            "camera_distance",
             "explosion_knockback_resistance",
             "entity_interaction_range",
             "fall_damage_multiplier",

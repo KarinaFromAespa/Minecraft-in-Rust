@@ -1925,9 +1925,12 @@ pub fn mob_from_nbt_with_random(
     // the health, the max health when there is none.
     if let Some(Tag::List(attrs)) = tag.get("attributes") {
         for a in attrs {
-            let (Some(id), Some(v)) = (text(a.get("id")), float(a.get("base"))) else {
+            let Some(id) = text(a.get("id")) else {
                 continue;
             };
+            // 1.21.5 `AttributeInstance.load`: a missing base is 0.0
+            // (`getDoubleOr("base", 0.0)`), not a skipped entry.
+            let v = float(a.get("base")).unwrap_or(0.0);
             // A mount's rolled health and speed stay attribute bases, which
             // the server syncs (its hearts over the rider's hotbar).
             let equine = crate::mobs::equine::is_equine(m.species());
