@@ -429,8 +429,11 @@ pub fn setup_fog(tables: &FogTables, state: &FogState, input: &FogInputs) -> Fog
             // boss bar) closes in to rd*0.05 / min(rd, 192)*0.5, for sky and
             // clouds as for terrain.
             fog.sky_end = rd.min(512.0);
-            // 1.21.5 has no Cloud Distance option: the cloud fog end is the
-            // dimension's `visual/cloud_fog_end_distance`, uncapped.
+            // 1.21.5 has no Cloud Distance option and no
+            // `visual/cloud_fog_end_distance` dimension field: the vanilla
+            // cloud fade is the render-distance fog (entity.wgsl). The
+            // `cloud_end` slot survives only for the pack-shader fog block,
+            // which mirrors the 1.21.6 Fog UBO layout.
             fog.cloud_end = sky.cloud_fog_end;
             if input.boss_world_fog || input.dimension_foggy {
                 fog.environmental_start = rd * 0.05;
@@ -780,7 +783,7 @@ mod tests {
         );
     }
     #[test]
-    fn cloud_fog_ends_at_the_dimension_cloud_fog_end() {
+    fn cloud_end_keeps_the_dimension_value_for_pack_shaders() {
         let sky = Sky {
             fog_end: 1024.0,
             cloud_fog_end: 2048.0,
@@ -791,8 +794,9 @@ mod tests {
         };
         let mut input = inputs(&sky);
         input.render_distance_chunks = 2;
-        // No Cloud Distance option in 1.21.5: the end is the dimension's,
-        // whatever the render distance.
+        // The slot is only the pack-shader fog block's value now (the
+        // vanilla cloud fade is the render-distance fog): it still carries
+        // the dimension's value, whatever the render distance.
         assert_eq!(
             setup_fog(&tables, &FogState::default(), &input).cloud_end,
             2048.0

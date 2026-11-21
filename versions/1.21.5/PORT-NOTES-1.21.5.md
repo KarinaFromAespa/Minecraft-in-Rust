@@ -4499,13 +4499,131 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 105 — CloudRenderer /
+  RenderPipelines /
+  SectionOcclusionGraph, clouds
+  to the 1.21.5 form:**
+  - The 1.21.6 cloud renderer
+    is a GPU rewrite (UTB face
+    buffer, CloudInfo UBO,
+    Cloud Distance option,
+    default 128 chunks); the
+    visual algorithm is the
+    same in both versions
+    (12-block cells, 4-block
+    height, 0.03 drift, the
+    same face colours and
+    camera-relative culling)
+    except the mesh extent
+    and the fog. 1.21.5 builds
+    a fixed 65x65-cell square
+    (-32..=32); the Rust mesh
+    iterated 1.21.6's circle
+    instead. `CellIter` now
+    walks the full square,
+    still nearest-first so the
+    single depth-writing pass
+    occludes far faces behind
+    near ones (the job
+    vanilla's 1.21.5-only
+    `CLOUDS_DEPTH_ONLY`
+    pre-pass does).
+  - The fog: 1.21.5's
+    `rendertype_clouds.fsh`
+    (read from the 1.21.5
+    client jar, sha1-verified)
+    is `linear_fog` over the
+    render-distance pair the
+    clouds pass inherits from
+    the particles pass — the
+    colour blends towards the
+    fog colour between
+    rd-clamp(rd/10, 4, 64)
+    and rd, cylindrical
+    distance, alpha untouched.
+    1.21.6 fades the alpha
+    linearly to its cloud fog
+    end (2048 by default).
+    The Rust shaders did the
+    1.21.6 form, so clouds
+    showed at ~80% alpha past
+    the render distance where
+    vanilla 1.21.5 has them
+    fully blended into the
+    sky. The cloud branch
+    (`entity.wgsl`, overlay
+    4), the OIT cloud colour
+    and the HDR cloud mark
+    now use the 1.21.5 form;
+    the vertex shader gives
+    clouds both fog distances
+    (they are no longer
+    exempt from the
+    render-distance fog).
+  - `FogData.cloud_end` is
+    kept, but only as the
+    pack-shader fog block's
+    value: 1.21.5 has no
+    `visual/cloud_fog_end_distance`
+    dimension field at all
+    (verified against the
+    1.21.5 server jar — no
+    `dimension` registry,
+    only `dimension_type`),
+    and nothing in the vanilla
+    cloud path reads the slot
+    any more. The fog test is
+    renamed to say so.
+  - RenderPipelines is the
+    1.21.6 uniform-buffer
+    refactor (DynamicTransforms
+    / Projection / Fog /
+    Globals UBOs vs 1.21.5's
+    individual uniforms) plus
+    1.21.5-only pipelines
+    (`GUI_OVERLAY`,
+    `GUI_GHOST_RECIPE_OVERLAY`,
+    `GUI_TEXTURED_OVERLAY`,
+    `CLOUDS_DEPTH_ONLY`) —
+    GPU plumbing with no Rust
+    surface; the Rust renderer
+    is its own wgpu
+    implementation and layers
+    the GUI its own way.
+    SectionOcclusionGraph is a
+    rename (`CompiledSection`
+    to `SectionMesh`):
+    identical traversal.
+    Pre-existing gaps, not
+    deltas: the snap margin
+    shows a ring of clouds
+    past vanilla's 32-cell
+    window at render distance
+    25-32 chunks (noted in
+    `clouds.rs`), and the
+    cloud parity oracle still
+    calls 1.21.6's
+    `buildMesh`/`buildExtrudedCell`
+    signatures, so it cannot
+    run against the 1.21.5 jar
+    (the harness is not in the
+    1.21.5 subset).
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings;
+    WGSL validated with naga 30.0.1
+    (entity + oit_clouds parse and
+    validate); the square iterator
+    checked standalone (radii 0-36:
+    full square, nearest-first,
+    unique, corners included).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **104 of 426 are
-closed** (rank 1 complete, rank 2 at 95/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **105 of 426 are
+closed** (rank 1 complete, rank 2 at 96/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

@@ -68,10 +68,11 @@ pub const CLOUD_RADIUS_CELLS: i32 = 32;
 /// camera's cell, so it used to be rebuilt, and the whole array re-uploaded, on every cell
 /// crossed — the worst frame of a flight.
 /// Anchoring the origin to a coarser grid rebuilds it once every `SNAP_CELLS` cells instead,
-/// and `Uniform::offset` carries the remaining shift. The ring of cells the shift can leave
-/// uncovered at the far side lies past the cloud fog end, where the cloud fade has already
-/// taken the alpha to 0 (`entity.wgsl`'s `fs_entity`), so the extra cells cost only the
-/// vertices they add.
+/// and `Uniform::offset` carries the remaining shift. The mesh radius carries one more ring
+/// than the fixed 32 (`MeshKey::radius`), so the shift can never uncover the window's far
+/// side. The price is a ring of cells past vanilla's 32-cell window, up to 7 cells deep in
+/// the worst direction; the render-distance fog hides it below ~25 chunks, and above that a
+/// few extra clouds show past the vanilla edge.
 const SNAP_CELLS: i64 = 4;
 
 #[derive(Clone)]
@@ -103,7 +104,11 @@ impl Iterator for CellIter {
             self.x += 1;
             return Some((x, z));
         }
-        let r2 = self.radius * self.radius;
+        // `CloudRenderer.buildMesh` (1.21.5): the mesh is the full square
+        // -radius..=radius, not 1.21.6's circle. The rings still expand
+        // nearest-first, so the single depth-writing pass occludes far
+        // faces behind near ones, the job vanilla's depth-only pre-pass
+        // (RenderPipelines.CLOUDS_DEPTH_ONLY) does.
         while self.ring <= 2 * self.radius {
             let min_abs = self.ring - self.radius;
             while self.x <= self.ring {
@@ -112,7 +117,7 @@ impl Iterator for CellIter {
                 }
                 let x = self.x;
                 let z = self.ring - x.abs();
-                if z <= self.radius && x * x + z * z <= r2 {
+                if x.abs() <= self.radius && z <= self.radius {
                     if z != 0 {
                         self.pending_z = Some(z);
                         return Some((x, -z));
@@ -130,7 +135,8 @@ impl Iterator for CellIter {
     }
 }
 
-/// CloudRenderer builds cells in expanding Manhattan rings, nearest first.
+/// CloudRenderer builds cells in expanding Manhattan rings, nearest first,
+/// over the full square.
 pub fn cells(radius: i32) -> CellIter {
     CellIter::new(radius)
 }
@@ -597,7 +603,11 @@ mod tests {
     fn cells_are_nearest_first_and_unique() {
         let cells: Vec<_> = cells(2).collect();
         assert_eq!(cells[0], (0, 0));
-        assert_eq!(cells.len(), 13);
+        // 1.21.5's mesh is the full square, corners included (1.21.6's
+        // circle holds 13 at this radius).
+        assert_eq!(cells.len(), 25);
+        assert!(cells.contains(&(2, 2)));
+        assert!(cells.contains(&(-2, -2)));
         assert!(
             cells
                 .windows(2)
