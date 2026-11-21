@@ -9141,3 +9141,17 @@ shield bases) or are name lookups (fluids, fire). Recorded:
 `DESTROY_STAGES_OIT` exists in neither version's ModelBakery and
 its sprites in neither jar — upstream-Horizon behaviour, not a
 vanilla delta. Tests: `model_library::` 2 passed.
+
+## Item 164 — worldgen/live.rs (rank 2, NO-CHANGE)
+
+3 classes, 8 methods, 3 named. The one real delta — 26.1's
+`getBoneMealFeatures` (tag-filtered) vs 1.21.11's
+`getFlowerFeatures` (flower-type-filtered) — was already ported in
+item 27: `LiveFeatures.flower_features` walks the biome steps in
+vanilla order and keeps `minecraft:flower` features. The rest is
+API shape (holders vs values, `getSubFeatures` vs `getFeatures`,
+empty-set construction). Recorded: the name-based list cannot
+represent an inline configured flower feature, which 1.21.11's
+type filter would include — impossible on vanilla data (verified:
+no inline placed features in the 1.21.11 data pack). Tests:
+bonemeal/grass filters pass.
