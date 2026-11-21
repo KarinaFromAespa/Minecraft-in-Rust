@@ -10582,3 +10582,11 @@ diff: the `typeSwitch` receiver in `of` is
 typed `Entity` in 26.1 and `Object` in
 1.21.11 — the same single-case switch. No
 source change. `collisions`: 11 passed.
+
+## Item 298 — command_block.rs (rank 2, NO-CHANGE)
+
+1 class, 1 method, 1 named. Three
+occurrences of the `BlockState.is(Object)`
+vs `is(Block)` overload tightening; the mode
+mapping is identical. No source change.
+`command_block`: 4 passed.
