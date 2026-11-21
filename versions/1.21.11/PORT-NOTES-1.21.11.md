@@ -10141,3 +10141,11 @@ the doc citations to the 1.21.11 names. New test
 by `cargo check --tests` plus a standalone run of
 the verbatim logic — the full exe lib test binary
 OOMs locally at -j 1).
+
+## Item 249 — game/ominous_item_spawner.rs (rank 2, NO-CHANGE)
+
+2 classes, 6 methods, 1 named. Pure noise: the
+`CameraRenderState` package move and
+`getRandom()` -> the `random` field for the 60-120
+warmup roll, which the Rust already rolls from the
+level random. No code changed.
