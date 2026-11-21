@@ -12558,3 +12558,7 @@ are interfaces in 1.21.11, classes in 26.1); same calls.
 ## Item 672 — client/gui/layouts (LinearLayout$Orientation) — NO-CHANGE
 
 Visibility plus compiler-inserted checkcasts; same layout logic.
+
+## Item 673 — client/gui/screens/multiplayer (WarningScreen) — NO-CHANGE
+
+Compiler noise only (redundant local store, lambda type widening).
