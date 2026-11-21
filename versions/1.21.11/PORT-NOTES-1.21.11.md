@@ -12425,3 +12425,8 @@ loot validation refactor as item 628).
 
 Only visibility, constructor field-init order and `requireNonNull`
 across the 6 pack classes.
+
+## Item 647 — title/confirm_experiments.rs (ConfirmExperimentalFeaturesScreen$DetailsScreen) — NO-CHANGE
+
+Only visibility, `requireNonNull`, field-init order and a lambda
+parameter type.
