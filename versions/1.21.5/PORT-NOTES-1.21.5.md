@@ -5657,13 +5657,70 @@ is the oracle; decompiled code is a reading aid.
     -p horizon-assets --all-targets
     -p horizon-client --lib --tests`
     0 errors / 0 warnings.
+- **Item 122 — Sign edit screen:
+  wall signs sit 35 lower;
+  `getDarkColor` verified:**
+  - 1.21.5's `SignEditScreen.offsetSign`
+    adds 35 for a non-standing
+    sign, so a wall sign's
+    text and model centre on
+    y=125, not y=90;
+    1.21.6's `getSignYOffset`
+    returns 90 for every
+    sign. The Rust editor
+    had the 1.21.6 form
+    (90 for any non-hanging
+    sign). It now centres
+    wall signs at 125, in
+    both the draw
+    (`draw_sign_editor`,
+    text and sprite) and
+    the click hit-test
+    (`sign_lines`), via
+    `sign_edit_centre_y`.
+    Hanging signs are 125
+    in both versions, and
+    the 1.21.5 immediate-mode
+    model draw versus
+    1.21.6's batched render
+    state is GPU plumbing
+    (the Rust editor draws
+    a 2D sprite either way).
+  - `getDarkColor`: 1.21.6
+    calls `ARGB.scaleRGB`
+    (float), 1.21.5 scales
+    each channel by 0.4 in
+    doubles with alpha 0.
+    The two agree for every
+    channel value 0–255
+    (checked exhaustively),
+    so the Rust float form
+    already matches 1.21.5
+    exactly; the
+    black-glowing special
+    case matches too (the
+    port's black text colour
+    is 0), and the caller
+    forces opaque alpha.
+    No code change.
+  - Verification: `cargo check -j 1
+    -p horizon-client --lib --tests`
+    0 errors / 0 warnings
+    (type-checks the new test).
+    The test-profile build was
+    OOM-killed under 3-stream
+    load, so the in-tree test
+    runs in CI; its three
+    assertions were verified
+    by a standalone rustc
+    run of the same function.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **121 of 426 are
-closed** (rank 1 complete, rank 2 at 112/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **122 of 426 are
+closed** (rank 1 complete, rank 2 at 113/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
