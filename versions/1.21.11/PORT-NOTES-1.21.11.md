@@ -12167,3 +12167,7 @@ already matches the 1.21.11 form.
 
 Only the `getGameRules` access path, record visibility and a
 `requireNonNull`.
+
+## Item 605 — title/create_world.rs (CreateWorldScreen$WorldTab, SwitchGrid) — NO-CHANGE
+
+Only visibility and static vs instance lambdas, same bodies.
