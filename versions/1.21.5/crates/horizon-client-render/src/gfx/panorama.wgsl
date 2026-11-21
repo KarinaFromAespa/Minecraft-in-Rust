@@ -1,6 +1,6 @@
 // CubeMap's position-only cube and panorama.vsh/fsh: sample its untransformed direction.
-override HDR_WRITE_LIGHT: bool = false;
-struct Projection { view_proj: mat4x4<f32> }
+// The uniform carries the pass's projection and its blur alpha (1.21.5's fade/(i+1)).
+struct Projection { view_proj: mat4x4<f32>, alpha: f32 }
 @group(0) @binding(0) var<uniform> projection: Projection;
 @group(0) @binding(1) var panorama: texture_cube<f32>;
 @group(0) @binding(2) var panorama_sampler: sampler;
@@ -28,5 +28,7 @@ struct Out {
 }
 @fragment fn fs_panorama(in: Out) -> @location(0) vec4<f32> {
     let color = textureSample(panorama, panorama_sampler, in.direction);
-    return vec4(color.rgb, select(color.a, 1.0, HDR_WRITE_LIGHT));
+    // The texture's alpha times the pass's blur alpha: the blend weight
+    // (position_tex multiplies the texture by the shader colour).
+    return vec4(color.rgb, color.a * projection.alpha);
 }

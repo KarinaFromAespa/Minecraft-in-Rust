@@ -1,4 +1,8 @@
-//! Vanilla 26.3's CubeMapTexture and CubeMap, separate from the pixel-filtered GUI atlas.
+//! The title panorama (CubeMap/PanoramaRenderer): the six faces as one GPU
+//! cube, drawn in 1.21.5's four jittered passes. Vanilla 1.21.5 binds the
+//! faces as six 2D textures and draws each with UVs; the port keeps the
+//! single cube (the same texels, seamless edges instead of per-face
+//! clamping), separate from the pixel-filtered GUI atlas.
 use crate::{Result, hud::decode_bytes};
 use glam::Mat4;
 use std::{
@@ -7,8 +11,16 @@ use std::{
 };
 use wgpu::util::DeviceExt;
 
-/// Native cube order: +X, -X, +Y, -Y, +Z, -Z (CubeMapTexture.SUFFIXES).
+/// Native cube order: +X, -X, +Y, -Y, +Z, -Z (the faces' layer suffixes:
+/// layer +X is face 1, -X face 3, +Y face 5, -Y face 4, +Z face 0, -Z
+/// face 2 - the same mapping as 1.21.5's side order).
 const FACE_ORDER: [u8; 6] = [1, 3, 5, 4, 0, 2];
+/// CubeMap.render's four blur passes, and the stride between their uniforms
+/// in the uniform buffer (wgpu's minimum uniform-buffer offset alignment).
+const PASSES: u32 = 4;
+const SLOT_BYTES: usize = 256;
+/// A uniform slot: the pass's projection (64 bytes) and its blur alpha.
+const SLOT_USED_BYTES: usize = 68;
 /// Where the cube's faces live in a resource root.
 const BACKGROUND: &str = "assets/minecraft/textures/gui/title/background";
 
@@ -28,11 +40,10 @@ pub struct Faces {
 
 impl Faces {
     /// The title artwork of `root` (the packs' overlay) over `defaults` (the
-    /// game's own resources). `CubeMapTexture` registers each face with the
-    /// resource manager, which takes the topmost pack that has it: a pack that
-    /// leaves a face alone keeps vanilla's, and only a cube no layer completes
-    /// falls back to the grey placeholder that an installation without the
-    /// imported panorama shows.
+    /// game's own resources). Each face comes from the topmost pack that has
+    /// it: a pack that leaves a face alone keeps vanilla's, and only a cube
+    /// no layer completes falls back to the grey placeholder that an
+    /// installation without the imported panorama shows.
     pub fn load(root: &Path, defaults: &Path) -> Self {
         Self::try_load(root, defaults).unwrap_or_else(|error| {
             log::warn!(
@@ -67,7 +78,7 @@ impl Faces {
                 .into());
             }
             size = w;
-            // CubeMapTexture copies each original image with flipY=true. Keep every texel.
+            // Each face's rows flip vertically: the cube lookup reads them bottom-up.
             for row in data.chunks_exact((w * 4) as usize).rev() {
                 texels.extend_from_slice(row);
             }
@@ -125,7 +136,7 @@ fn decode_faces(files: &[Vec<u8>]) -> Result<(u32, Vec<u8>)> {
             size = w;
             texels.reserve_exact((w * w * 4) as usize * files.len());
         }
-        // CubeMapTexture copies each original image with flipY=true. Keep every texel.
+        // Each face's rows flip vertically: the cube lookup reads them bottom-up.
         for row in data.chunks_exact((w * 4) as usize).rev() {
             texels.extend_from_slice(row);
         }
@@ -169,14 +180,31 @@ fn load_face(
     Err(tried.join("; ").into())
 }
 
-fn projection(width: u32, height: u32, yaw: f32, pitch: f32) -> Mat4 {
-    // CubeMap.render: 85-degree FOV, near/far 0.05/10, rotationX(PI), rotateX, rotateY.
+/// CubeMap.render's per-pass jitter: `((i % 2 / 2 - 0.5) / 256, (i / 2 / 2 - 0.5) / 256)`.
+fn jitter(pass: u32) -> (f32, f32) {
+    (
+        ((pass % 2) as f32 / 2.0 - 0.5) / 256.0,
+        ((pass / 2) as f32 / 2.0 - 0.5) / 256.0,
+    )
+}
+
+/// CubeMap.render's per-pass alpha, `fade / (i + 1)`: the passes average
+/// equally once the frame holds the first. The port has no title fade, so
+/// fade is 1.
+fn pass_alpha(pass: u32) -> f32 {
+    1.0 / (pass + 1) as f32
+}
+
+fn projection(width: u32, height: u32, yaw: f32, pitch: f32, jitter: (f32, f32)) -> Mat4 {
+    // CubeMap.render: 85-degree FOV, near/far 0.05/10, rotationX(PI), the
+    // pass's sub-pixel translate, rotateX, rotateY.
     Mat4::perspective_rh(
         85.0f32.to_radians(),
         width as f32 / height.max(1) as f32,
         0.05,
         10.0,
     ) * Mat4::from_rotation_x(std::f32::consts::PI)
+        * Mat4::from_translation(glam::Vec3::new(jitter.0, jitter.1, 0.0))
         * Mat4::from_rotation_x(pitch.to_radians())
         * Mat4::from_rotation_y(yaw.to_radians())
 }
@@ -205,8 +233,8 @@ impl Panorama {
             ..Default::default()
         });
         let uniform = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Title panorama projection"),
-            size: 64,
+            label: Some("Title panorama projections"),
+            size: (PASSES as usize * SLOT_BYTES) as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -215,11 +243,11 @@ impl Panorama {
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
+                        has_dynamic_offset: true,
+                        min_binding_size: std::num::NonZeroU64::new(SLOT_USED_BYTES as u64),
                     },
                     count: None,
                 },
@@ -274,17 +302,17 @@ impl Panorama {
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: Some("fs_panorama"),
-                compilation_options: wgpu::PipelineCompilationOptions {
-                    constants: &[(
-                        "HDR_WRITE_LIGHT",
-                        f64::from(u8::from(format == super::LINEAR_FRAME)),
-                    )],
-                    ..Default::default()
-                },
+                compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     format,
-                    blend: None,
-                    write_mask: wgpu::ColorWrites::ALL,
+                    // BlendFunction.PANORAMA (SRC_ALPHA, ONE_MINUS_SRC_ALPHA;
+                    // alpha ONE, ZERO), and colour write RGB only, as vanilla's
+                    // withColorWrite(true, false): the passes must not touch
+                    // the framebuffer's alpha.
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::RED
+                        | wgpu::ColorWrites::GREEN
+                        | wgpu::ColorWrites::BLUE,
                 })],
             }),
             multiview_mask: None,
@@ -300,7 +328,8 @@ impl Panorama {
         }
     }
 
-    /// Ready a title screen frame: the cube, made if it is not on the GPU.
+    /// Ready a title screen frame: the cube, made if it is not on the GPU,
+    /// and the four passes' projections and blur alphas.
     pub(super) fn prepare(
         &mut self,
         device: &wgpu::Device,
@@ -310,11 +339,14 @@ impl Panorama {
         yaw: f32,
         pitch: f32,
     ) {
-        queue.write_buffer(
-            &self.uniform,
-            0,
-            bytemuck::cast_slice(&projection(width, height, yaw, pitch).to_cols_array()),
-        );
+        let mut slots = [0u8; PASSES as usize * SLOT_BYTES];
+        for pass in 0..PASSES {
+            let base = pass as usize * SLOT_BYTES;
+            let cols = projection(width, height, yaw, pitch, jitter(pass)).to_cols_array();
+            slots[base..base + 64].copy_from_slice(bytemuck::cast_slice(&cols));
+            slots[base + 64..base + 68].copy_from_slice(&pass_alpha(pass).to_le_bytes());
+        }
+        queue.write_buffer(&self.uniform, 0, &slots);
         if self.cube.is_none() {
             self.cube = Some(self.cube(device, queue));
         }
@@ -370,14 +402,17 @@ impl Panorama {
         })
     }
 
-    /// Draw the cube `prepare` made for this frame.
+    /// Draw the cube `prepare` made for this frame, in 1.21.5's four
+    /// jittered passes (each at its dynamic-offset uniform).
     pub(super) fn draw(&self, pass: &mut wgpu::RenderPass<'_>) {
         let Some(cube) = &self.cube else {
             return;
         };
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, cube, &[]);
-        pass.draw(0..36, 0..1);
+        for i in 0..PASSES {
+            pass.set_bind_group(0, cube, &[i * SLOT_BYTES as u32]);
+            pass.draw(0..36, 0..1);
+        }
     }
 }
 
@@ -555,12 +590,30 @@ mod tests {
 
     #[test]
     fn vanilla_camera_centres_the_positive_z_face_and_pitches_ten_degrees() {
-        let straight = projection(1920, 1080, 0.0, 0.0) * glam::Vec4::new(0.0, 0.0, 1.0, 1.0);
+        let straight = projection(1920, 1080, 0.0, 0.0, (0.0, 0.0)) * glam::Vec4::new(0.0, 0.0, 1.0, 1.0);
         assert!((straight.x / straight.w).abs() < 1e-6);
         assert!((straight.y / straight.w).abs() < 1e-6);
         assert!(straight.w > 0.0);
-        let pitched = projection(1920, 1080, 0.0, 10.0) * glam::Vec4::new(0.0, 0.0, 1.0, 1.0);
+        let pitched = projection(1920, 1080, 0.0, 10.0, (0.0, 0.0)) * glam::Vec4::new(0.0, 0.0, 1.0, 1.0);
         let expected_y = 10.0f32.to_radians().tan() / 42.5f32.to_radians().tan();
         assert!((pitched.y / pitched.w - expected_y).abs() < 1e-6);
+    }
+
+    #[test]
+    fn jitter_offsets_and_blur_alphas_are_vanillas() {
+        let eighth = 1.0 / 512.0;
+        assert_eq!(jitter(0), (-eighth, -eighth));
+        assert_eq!(jitter(1), (0.0, -eighth));
+        assert_eq!(jitter(2), (-eighth, 0.0));
+        assert_eq!(jitter(3), (0.0, 0.0));
+        assert_eq!(pass_alpha(0), 1.0);
+        assert_eq!(pass_alpha(1), 0.5);
+        assert!((pass_alpha(2) - 1.0 / 3.0).abs() < 1e-7);
+        assert_eq!(pass_alpha(3), 0.25);
+        // The jitter is a sub-pixel translate between the flip and the
+        // pitch: the jittered view still centres the +Z face.
+        let j = projection(1920, 1080, 0.0, 10.0, jitter(0)) * glam::Vec4::new(0.0, 0.0, 1.0, 1.0);
+        assert!((j.x / j.w).abs() < 0.01);
+        assert!(j.y / j.w > 0.0);
     }
 }

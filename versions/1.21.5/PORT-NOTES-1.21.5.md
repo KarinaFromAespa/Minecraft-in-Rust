@@ -12139,13 +12139,70 @@ is the oracle; decompiled code is a reading aid.
     level 3 (ADMINS).
   - Verification: read only; no
     code changed.
+- **Item 292 — Panorama blur**
+  - CubeMap,
+    PanoramaRenderer,
+    CubeMapTexture: code -
+    the title panorama is
+    now the 1.21.5
+    four-pass jittered
+    blur: each pass draws
+    the cube at alpha
+    1/(i+1) with a
+    sub-pixel translate
+    ((i%2/2-0.5)/256,
+    (i/2/2-0.5)/256), an
+    equal four-tap average
+    once the frame holds
+    the first pass. The
+    uniform buffer holds
+    four 256-byte slots
+    (mat4 + alpha), bound
+    by dynamic offset; the
+    pipeline blends with
+    BlendFunction.PANORAMA
+    (ALPHA_BLENDING) and
+    writes RGB only, as
+    vanilla's
+    withColorWrite(true,
+    false) - the
+    framebuffer's alpha
+    stays at its clear
+    (1.0). The spin already
+    matches (always
+    advances, 2.0x
+    speed/sec). Kept: the
+    single GPU cubemap
+    (1.21.5 binds six 2D
+    face textures; same
+    texels, seamless
+    edges). Not ported: the
+    panorama overlay blit -
+    its 1.21.5 texture is a
+    fully transparent 1x1
+    pixel, so the blit is a
+    no-op in vanilla (a
+    pack's overlay still
+    would not show); the
+    title fade - the port
+    has none, so fade is 1.
+  - Verification: cargo check -j 1 -p
+    horizon-client-render
+    --lib --tests: clean (0
+    errors, 0 warnings);
+    cargo test -j 1 -p
+    horizon-client-render
+    --lib gfx::panorama:::
+    8 passed, 0 failed (new
+    jitter/alpha test; WGSL
+    validated by naga).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **291 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 23/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **292 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 24/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
