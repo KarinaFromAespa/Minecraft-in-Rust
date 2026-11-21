@@ -12578,3 +12578,7 @@ Visibility plus method order (identical lambda, emitted earlier).
 ## Item 677 — horizon-client-render/src/core_shader.rs (GlslPreprocessor$Context) — NO-CHANGE
 
 Visibility only.
+
+## Item 678 — horizon-client-render/src/gfx/core_lines.rs (ShapeRenderer) — NO-CHANGE
+
+Parameter type only (`Vector3fc` vs `Vector3f` on `setNormal`).
