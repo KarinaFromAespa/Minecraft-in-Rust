@@ -11518,12 +11518,44 @@ is the oracle; decompiled code is a reading aid.
     the test-profile build OOMs
     under load).
 
+- **Item 273 — Desert ambient sounds**
+  - Desert ambient sounds:
+    already the 1.21.5 form
+    (item 160).
+    playAmbientBlockSounds: the
+    block in #plays_ambient_des
+    ert_block_sounds under open
+    sky; idle 1/1600 and wind
+    1/10000 in desert or
+    badlands, each only when
+    three of the four surface
+    columns 8 away carry a tag
+    block; the draws run idle-
+    then-wind and
+    shouldPlayAmbientSound is
+    re-evaluated per branch.
+    Dead bush: 1/150, silenced
+    4 in 5 on red sand or
+    terracotta, sounding only
+    when the two blocks below
+    are both in the tag. Sand
+    and terracotta tick the
+    sounds; short and tall dry
+    grass have no animateTick
+    (Animate::None). No
+    1.21.6-only tag
+    (TRIGGERS_AMBIENT_DESERT_*)
+    or chance (2100/200/130)
+    remains anywhere.
+  - Verification: read only; no
+    code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **272 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 4/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **273 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 5/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
