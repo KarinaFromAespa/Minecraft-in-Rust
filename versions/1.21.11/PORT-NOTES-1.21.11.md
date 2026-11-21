@@ -10159,3 +10159,11 @@ through `renderBg`, and the sound pitch reads the
 `random` field instead of `getRandom()` — all the
 same result, all already the Rust's form. No code
 changed.
+
+## Item 251 — mobs/spawn_selection.rs (rank 2, NO-CHANGE)
+
+4 classes, 6 methods, 1 named. Pure noise: `pack`
+-> `toLong`, `ChunkPos.containing` -> the
+constructor, plus visibility widening. The Rust
+already implements `after_spawn` and the mob-cap
+checks. No code changed.
