@@ -1,5 +1,7 @@
 //! The eight terrain-router fields used by Java Edition 26.3.
-use super::{DecodeError, Object, climate::ClimateSampler, density::DensityRegistry, required};
+use super::{
+    DecodeError, Object, climate::ClimateSampler, density::DensityRegistry, optional, required,
+};
 use horizon_core::density::{
     DensitySampler,
     graph::{CompileError, DensityCompiler, FunctionId},
@@ -53,11 +55,23 @@ impl NoiseRouter {
     /// Decode the router object itself. Noise settings, aquifer and material
     /// configuration are separate codecs and are not parsed by this method.
     /// Missing/null fields or any invalid root leave the registry unchanged.
+    /// `chunk_surface_level` falls back to `preliminary_surface_level`:
+    /// 1.21.11 names the surface function that way, and 26.x wraps the same
+    /// function in an interpolated 16x1 cell (`chunk_surface_level`).
     pub fn from_json(json: &str, registry: &mut DensityRegistry) -> Result<Self, DecodeError> {
         let object: Object = serde_json::from_str(json)?;
         let inputs = RouterField::ALL
             .iter()
-            .map(|field| required(&object, field.name()).map(|raw| raw.get()))
+            .map(|field| -> Result<&str, DecodeError> {
+                let raw = if *field == RouterField::ChunkSurfaceLevel {
+                    optional(&object, field.name())
+                        .or_else(|| optional(&object, "preliminary_surface_level"))
+                        .ok_or(DecodeError::Field(field.name()))?
+                } else {
+                    required(&object, field.name())?
+                };
+                Ok(raw.get())
+            })
             .collect::<Result<Vec<_>, _>>()?;
         let functions = registry
             .decode_functions(&inputs)?
@@ -164,5 +178,53 @@ mod tests {
                 -0.5
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod preliminary_surface_level_test {
+    use super::*;
+    use horizon_core::density::SamplerContext;
+    use std::collections::BTreeMap;
+    /// `NoiseRouter` reads 1.21.11's `preliminary_surface_level` as the
+    /// surface field when `chunk_surface_level` is absent (the 1.21.11
+    /// overworld router has no `chunk_surface_level` key).
+    #[test]
+    fn preliminary_surface_level_fills_the_surface_field() {
+        let mut registry = DensityRegistry::from_json(
+            &BTreeMap::new(),
+            &BTreeMap::from([(
+                "minecraft:shared".into(),
+                r#"{"type":"constant","value":3.5}"#.into(),
+            )]),
+        )
+        .unwrap();
+        let object: BTreeMap<_, _> = RouterField::ALL
+            .iter()
+            .map(|field| {
+                let name = if *field == RouterField::ChunkSurfaceLevel {
+                    "preliminary_surface_level"
+                } else {
+                    field.name()
+                };
+                (name, "minecraft:shared")
+            })
+            .collect();
+        let json = serde_json::to_string(&object).unwrap();
+        let router = NoiseRouter::from_json(&json, &mut registry).unwrap();
+        assert_eq!(
+            router.function(RouterField::ChunkSurfaceLevel),
+            registry.reference("minecraft:shared").unwrap()
+        );
+        let mut compiler = DensityCompiler::new_seeded(registry.into_graph(), 0, false);
+        let samplers = router.compile(&mut compiler).unwrap();
+        let mut context = SamplerContext::cached();
+        assert_eq!(
+            samplers
+                .get(RouterField::ChunkSurfaceLevel)
+                .sample_value(&mut context, [4, 99, -32])
+                .unwrap(),
+            3.5
+        );
     }
 }

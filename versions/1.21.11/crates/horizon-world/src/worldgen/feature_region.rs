@@ -565,7 +565,10 @@ where
         _drop_resources: bool,
     ) -> Result<bool, PlacementQueryError> {
         // WorldGenRegion destruction is an air replacement through its write
-        // policy. It does not evaluate drops, unlike live-level destruction.
+        // policy. 1.21.11's WorldGenRegion.destroyBlock also drops the
+        // block's resources when asked (Block.dropResources into the level);
+        // no loot is evaluated during worldgen here, so the drops are lost.
+        // Only the end podium destroys with drops during generation.
         let chunk = self.region.chunk(position[0] >> 4, position[2] >> 4)?;
         let state = chunk.block(position[0], position[1], position[2]);
         if chunk.block_properties(state).is_air() {

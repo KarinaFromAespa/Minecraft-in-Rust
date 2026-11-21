@@ -8552,3 +8552,36 @@ reworded to the 1.21.11 path. Checked, no action: `display_light`
 mirrors the brightness override; the text background reads the
 option directly, the 1.21.11 form; the item display is identical
 in both versions. Tests: `game::text_displays::tests::` 5 passed.
+
+## Item 134 — mod_content_tests.rs / WorldGenRegion + NoiseBasedChunkGenerator (rank 2, CHANGED)
+
+2 classes, 8 methods, 4 named (`WorldGenRegion.ensureCanWrite`,
+`WorldGenRegion.getCurrentDifficultyAt`, `WorldGenRegion.setBlock`,
+`NoiseBasedChunkGenerator.addDebugScreenInfo`).
+
+Java delta: 1.21.11's `WorldGenRegion.destroyBlock` drops the
+resources when asked (26.1 just sets air); `setBlock`
+post-processing is `BlockState.hasPostProcess` marking the set pos
+(26.1's `getPostProcessPos` exists in no 1.21.11 class);
+`addDebugScreenInfo` puts N (final density) last (26.1 put the
+interpolated density first via the 26.1-only
+`getInterpolatedNoiseValue`).
+
+Changes: (1) `NoiseRouter::from_json` accepts 1.21.11's
+`preliminary_surface_level` for the surface field when
+`chunk_surface_level` is absent — verified against the real 1.21.11
+overworld router JSON, decoding failed with
+`Err(Field("chunk_surface_level"))` before the fix, so the tree
+could not load 1.21.11's own noise settings at all. (2)
+`debug_density_line` falls back to the hardcoded 1.21.11 router
+line (T V C E D W PV PS N) when the settings carry no
+`debug_functions`, with a new `peaks_and_valleys` (verified from
+the bytecode); the mod-content test now expects the 1.21.11 label
+order. (3) `getPostProcessPos` citation → `hasPostProcess` (the
+mechanism was already 1.21.11-shaped: brown/red mushroom + magma,
+all `Blocks.always`, nothing marks above). (4) Honest gap notes:
+no loot is evaluated during worldgen, so the 1.21.11 destroyBlock
+drops are lost (only the end podium destroys with drops during
+generation). Tests: `worldgen::router::` 2 passed (1 new),
+`peaks_and_valleys_matches_vanilla` 1 passed (new), `cargo check
+-p horizon-client --lib --tests` clean.
