@@ -3668,13 +3668,48 @@ is the oracle; decompiled code is a reading aid.
     (no ravager unit tests exist;
     the roar path is exercised
     through the client tick).
+- **Item 82 — Advancement
+  predicates, verified:**
+  - `NbtPredicate` is Java
+    API-only: 1.21.6 builds the
+    comparison tag through
+    `ProblemReporter` +
+    `TagValueOutput` and names
+    the `"SelectedItem"` key
+    with a constant, 1.21.5
+    through `saveWithoutId` on
+    a plain compound and the
+    literal key. The output is
+    the same (entity NBT, plus
+    the selected item for
+    players), and the Rust NBT
+    predicate matcher already
+    tests `SelectedItem` (the
+    spyglass test in
+    `advancements.rs`).
+  - The rest is diagnostics
+    and typing with no Rust
+    surface: the validation
+    path spellings (`"[n]"` /
+    `".victims"` / `".entity"`)
+    belong to the criterion
+    validator the port does
+    not implement (item 71),
+    and `level()` ->
+    `serverLevel()` only
+    narrows a type.
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **81 of 426 are
-closed** (rank 1 complete, rank 2 at 72/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **82 of 426 are
+closed** (rank 1 complete, rank 2 at 73/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
