@@ -9598,3 +9598,19 @@ early-return from `tripwire_hook_calculate`; the far
 `tripwire_emit` now always runs. `BaseRailBlock` is
 overload noise only; `onRemove`'s `onRemoved` inline is
 the same behaviour (the Rust keeps the shared helper).
+
+## Item 197 — world/level (rank 2, CHANGED)
+
+8 classes, 27 methods, 0 named. Two real deltas in
+`LevelSettings.parse` (the Rust already read the
+1.21.11 flat level.dat form): an out-of-range
+`Difficulty` id WRAPS (`Difficulty.byId`, `ByIdMap`
+WRAP — verified in the 1.21.11 jar) instead of falling
+back to normal, and a missing `allowCommands` key
+defaults to gameType == CREATIVE. Both ported in
+`save.rs::read_root`, with a new unit test. The rest is
+noise: `ClipContext$Block`'s fall-damage lambda is
+identical apart from the `is`/`getType` spelling,
+`LevelHeightAccessor` loses a 26.1-only overload,
+`DifficultySettings`/`withDifficultyLock` are gone
+(the lock lives in `DifficultyLocked`, already read).

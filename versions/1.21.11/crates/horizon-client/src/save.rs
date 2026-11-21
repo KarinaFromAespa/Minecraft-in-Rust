@@ -3892,10 +3892,7 @@ fn world_gen_settings_tag(
     };
     Tag::compound([
         ("seed", Tag::Long(seed)),
-        (
-            "generate_features",
-            Tag::Byte(i8::from(options.structures)),
-        ),
+        ("generate_features", Tag::Byte(i8::from(options.structures))),
         ("bonus_chest", Tag::Byte(i8::from(options.bonus_chest))),
         (
             "dimensions",
@@ -4128,17 +4125,19 @@ impl Level {
         };
         level.world_spawn_angle = [angle("yaw"), angle("pitch")];
         // `PrimaryLevelData.parse`: the flat `Difficulty` (a byte id), `hardcore` and
-        // `DifficultyLocked`, all in `Data`. A missing or out-of-range id is normal.
+        // `DifficultyLocked`, all in `Data`. A missing id is normal; an
+        // out-of-range id wraps (`Difficulty.byId`, `ByIdMap` WRAP).
         let difficulty_id = number(data.get("Difficulty")).unwrap_or(2);
-        level.difficulty = if (0..4).contains(&difficulty_id) {
-            crate::title::DIFFICULTIES[difficulty_id as usize]
-        } else {
-            "normal"
-        }
-        .into();
+        level.difficulty = crate::title::DIFFICULTIES[difficulty_id.rem_euclid(4) as usize].into();
         level.hardcore = n(data.get("hardcore")) != 0;
         level.difficulty_locked = n(data.get("DifficultyLocked")) != 0;
-        level.allow_commands = Some(n(data.get("allowCommands")) != 0);
+        // `LevelSettings.parse`: commands default on for Creative when the key
+        // is absent.
+        level.allow_commands = Some(
+            data.get("allowCommands")
+                .map(|t| n(Some(t)) != 0)
+                .unwrap_or(level.creative),
+        );
         // WorldDataConfiguration.MAP_CODEC's `enabled_features`, flat in the
         // Data compound and omitted when the flags are vanilla's default.
         if let Some(Tag::List(flags)) = data.get("enabled_features") {
@@ -4481,10 +4480,7 @@ impl Level {
                 Tag::compound([("memories", Tag::Compound(Default::default()))]),
             ),
             ("current_impulse_context_reset_grace_time", impulse_grace),
-            (
-                "ignore_fall_damage_from_current_explosion",
-                ignore_fall,
-            ),
+            ("ignore_fall_damage_from_current_explosion", ignore_fall),
             ("spawn_extra_particles_on_fall", fall_particles),
             ("AbsorptionAmount", Tag::Float(self.absorption.to_bits())),
             ("foodLevel", Tag::Int(self.food)),
@@ -5579,6 +5575,53 @@ mod tests {
         // A readable level.dat is left alone.
         assert!(!fall_back_to_level_dat_old(&world));
         let _ = fs::remove_dir_all(&world);
+    }
+
+    #[test]
+    fn level_settings_parse_wraps_difficulty_and_defaults_commands_to_creative() {
+        // `LevelSettings.parse`: `Difficulty` wraps through `Difficulty.byId`
+        // (a missing id is normal); `allowCommands` defaults to creative.
+        let level = |data: Tag| Level::read_root(Tag::compound([("Data", data)])).unwrap();
+        assert_eq!(
+            level(Tag::compound([("LevelName", Tag::String("World".into()))])).difficulty,
+            "normal"
+        );
+        assert_eq!(
+            level(Tag::compound([("Difficulty", Tag::Byte(4))])).difficulty,
+            "peaceful"
+        );
+        assert_eq!(
+            level(Tag::compound([("Difficulty", Tag::Byte(-1))])).difficulty,
+            "hard"
+        );
+        assert_eq!(
+            level(Tag::compound([("Difficulty", Tag::Byte(3))])).difficulty,
+            "hard"
+        );
+        assert_eq!(
+            level(Tag::compound([("GameType", Tag::Int(1))])).allow_commands,
+            Some(true)
+        );
+        assert_eq!(
+            level(Tag::compound([("GameType", Tag::Int(0))])).allow_commands,
+            Some(false)
+        );
+        assert_eq!(
+            level(Tag::compound([
+                ("GameType", Tag::Int(1)),
+                ("allowCommands", Tag::Byte(0)),
+            ]))
+            .allow_commands,
+            Some(false)
+        );
+        assert_eq!(
+            level(Tag::compound([
+                ("GameType", Tag::Int(0)),
+                ("allowCommands", Tag::Byte(1)),
+            ]))
+            .allow_commands,
+            Some(true)
+        );
     }
 
     #[test]
