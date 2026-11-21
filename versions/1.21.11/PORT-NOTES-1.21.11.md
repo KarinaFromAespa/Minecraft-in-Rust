@@ -11401,3 +11401,19 @@ the 60 FPS label, bandwidth lines at 64/1024/16384,
 the framerate-limit line, the TPS dimension colours).
 Four citations re-pointed to the 1.21.11 names; no
 logic touched.
+
+## Item 522 — game/debug_stick.rs (rank 3, NO-CHANGE)
+
+`DebugStickItem` is server-typed in 26.1 and
+player-typed in 1.21.11 with identical behaviour: the
+gates (`instanceof ServerPlayer` vs `!isClientSide &&
+instanceof Player`) are equivalent, the
+`canUseGameMasterBlocks` / `isSecondaryUseActive`
+calls move to `Player`, and `message` sends the
+action-bar text via `sendOverlayMessage` in 26.1 vs
+`sendSystemMessage(msg, true)` — the `true` is the
+overlay flag — in 1.21.11. `typeHolder()` became
+`getBlockHolder()`. The cycle/select logic, message
+keys and setBlock flags (18) are unchanged, and the
+Rust already cites the `Player` forms, so no code
+touched.
