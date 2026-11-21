@@ -10290,3 +10290,13 @@ accessors vs getters); the furnace minecart's
 in 1.21.11. The Rust already implements the
 1.21.11 form; one doc citation updated to the
 1.21.11 spelling. `text_display`: 7 passed.
+
+## Item 269 — game/mob_gear.rs (rank 2, NO-CHANGE)
+
+2 classes, 4 methods, 1 named. `ItemStack.is`
+overload tightening and `IntProvider` changing
+from abstract class (1.21.11) to interface (26.1)
+with the codec moving to `IntProviders` — pure
+Java signature noise; the pillager's 1-in-300
+piercing crossbow is already implemented. No
+source change.
