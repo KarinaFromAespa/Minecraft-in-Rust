@@ -12630,3 +12630,7 @@ Zero diff: the bytecode is identical in both versions.
 ## Item 689 — game/enderman.rs (EnderMan$EndermanLeaveBlockGoal) — NO-CHANGE
 
 `is` overload only.
+
+## Item 690 — game/interactions.rs (Interaction$PlayerAction) — NO-CHANGE
+
+Visibility only.
