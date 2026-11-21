@@ -12545,12 +12545,48 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 302 — Quick play**
+  - QuickPlay: verified, no
+    code - item 216's
+    ground. The precedence
+    is already the 1.21.5
+    form (singleplayer,
+    then multiplayer, then
+    realms;
+    StartupMenu::new cites
+    QuickPlay.connect). The
+    1.21.6-only parts are
+    absent: no QuickPlayVar
+    iant/Disabled model, no
+    latest-world fallback
+    for a blank
+    singleplayer value (the
+    port rejects a blank
+    value at parse time as
+    not a folder name,
+    where 1.21.5 falls
+    through - a degenerate
+    case). The Realms task
+    construction is pure
+    style. Known gaps, both
+    version-neutral: no
+    --quickPlayRealms (item
+    216), and a missing
+    quick-play world prints
+    to stderr and shows the
+    title screen where
+    vanilla shows the
+    DisconnectedScreen with
+    INVALID_IDENTIFIER.
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **301 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 33/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **302 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 34/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
