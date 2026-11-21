@@ -6751,13 +6751,57 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-client
     --lib` passed at item
     138.
+- **Item 143 — Block sweep
+  visitor verified against
+  1.21.5 (decided at item
+  131):**
+  - `forEachBlockIntersected
+    Between` takes a
+    boolean visitor in
+    1.21.6 and a void one
+    in 1.21.5. The only
+    caller that cares is
+    `Entity.checkInsideBlocks`:
+    1.21.6's visitor
+    returns false to stop
+    the sweep when the
+    entity is dead,
+    1.21.5's keeps visiting
+    but applies nothing
+    (every effect is behind
+    an `isAlive()` guard,
+    including the visited-
+    set add), so the extra
+    visits are
+    unobservable. The Rust
+    sweep keeps its bool
+    visitor: its early exit
+    serves hit detection
+    (arrows, projectiles,
+    falling blocks stop at
+    the first hit),
+    mirroring vanilla's
+    raycast — the decision
+    recorded at item 131.
+    The ghast caller is the
+    1.21.6 sweep form of
+    `canReach`; the Rust
+    ghast already uses the
+    1.21.5 stepped-box form
+    (item 131).
+  - Verification: no Rust
+    change; the tree state
+    is the one `cargo check
+    -j 1 -p horizon-client
+    --lib` passed at item
+    138.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **142 of 426 are
-closed** (rank 1 complete, rank 2 at 133/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **143 of 426 are
+closed** (rank 1 complete, rank 2 at 134/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
