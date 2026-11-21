@@ -12683,3 +12683,7 @@ Visibility only.
 ## Item 701 — menu/equippable.rs (Equippable$Builder) — NO-CHANGE
 
 Visibility only.
+
+## Item 702 — mobs/bat.rs (BatModel) — NO-CHANGE
+
+Zero diff: the bytecode is identical in both versions.
