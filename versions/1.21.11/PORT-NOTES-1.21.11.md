@@ -11792,3 +11792,13 @@ Only the `CameraRenderState` package move, `createThreadLocalInstance` vs
 `create` (same LegacyRandom sequence) and `Matrix4fc` vs `Matrix4f` in
 `quad` — all behaviour-free. The Rust cites `submit` by name, which is
 shared.
+
+## Item 550 — packs.rs (BlockStateModelLoader, pack classes) — NO-CHANGE
+
+26.1 moved the model system into `client/renderer/block/dispatch`
+(`BlockStateModelDispatcher`); 1.21.11 keeps it in
+`client/renderer/block/model` (`BlockModelDefinition`), with identical
+loading logic — the same move as item 526. Everything else is visibility
+(`private` vs package-private). The Rust cites
+`BlockStateModelLoader.loadBlockStateDefinitionStack` by name (shared) and
+keeps raw JSON layers for the catalog, so the rename has no surface.
