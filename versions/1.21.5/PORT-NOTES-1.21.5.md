@@ -8938,13 +8938,40 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 195 — Villager
+  offers and
+  inventory save/load:**
+  - The villager already
+    writes `Offers` in the
+    codec form, `Xp`,
+    `LastRestock`,
+    `RestocksToday`,
+    `VillagerData` and its
+    eight-slot `Inventory`,
+    and reads them back
+    with the unset
+    detection. The 1.21.5
+    form threads the
+    serialization context
+    explicitly where
+    1.21.6's ValueOutput
+    carried it; the port
+    writes NBT directly and
+    has no such context to
+    thread. The
+    ValueInput/ValueOutput
+    names have no Rust
+    surface (item 159).
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **194 of 426 are
-closed** (rank 1 complete, rank 2 at 185/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **195 of 426 are
+closed** (rank 1 complete, rank 2 at 186/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
