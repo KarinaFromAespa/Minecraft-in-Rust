@@ -9885,3 +9885,11 @@ asks only for the fluid above to be empty.
 field are removed as dead. `JigsawPlacement` is
 identical in both versions (`$$N` noise only). New
 level test: azalea at y 319 still takes bonemeal.
+
+## Item 221 — level/weather.rs (rank 2, NO-CHANGE)
+
+1 class, 3 methods, 2 named. `Biome.shouldFreeze` /
+`shouldSnow` are logic-identical: the only changes are
+visibility widening and the `is(Object)` →
+`is(Block)` / `getType() == WATER` spelling of the
+same tests. No code changed.
