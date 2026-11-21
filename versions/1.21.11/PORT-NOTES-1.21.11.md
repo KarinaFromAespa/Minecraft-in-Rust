@@ -12453,3 +12453,9 @@ Extractor rewire and visibility.
 26.1's `getSectionDraw` (returning the 26.1-only `SectionDraw`) vs
 1.21.11's `getBuffers` — both null-returning defaults; Blaze3D
 plumbing the native renderer never mirrors.
+
+## Item 653 — server/network/config (PrepareSpawnTask) — NO-CHANGE
+
+Visibility, `requireNonNull`, field-init order and the
+`ChunkPos.containing` vs `new ChunkPos` re-numbering artifact (as item
+590). Server-side spawn preparation.
