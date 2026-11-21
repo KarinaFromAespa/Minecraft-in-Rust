@@ -11550,12 +11550,45 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no
     code changed.
 
+- **Item 274 — Sky renderer**
+  - SkyRenderer: the diff is
+    the rendering-API refactor
+    between the versions
+    (DynamicTransforms uniform
+    blocks vs setShaderColor,
+    buffer-creation signatures,
+    GpuTextureView vs
+    GpuTexture, drawIndexed
+    arity) — none of it has a
+    Rust surface; the port is
+    wgpu-native. Every drawn
+    value is the same in both
+    versions: the sky disc's
+    colour, the dark disc's
+    black with the +12
+    translate, the star
+    brightness, the End sky's
+    white, the star seed 10842.
+    The one behavioural point —
+    1.21.5 disables fog for the
+    stars and restores it after
+    — is already the port's
+    form: stars.wgsl takes no
+    fog uniform and computes no
+    fog. The End sky's
+    setFilter(TriState.FALSE)
+    is the item-158 inert case
+    (the port's own texture
+    loading).
+  - Verification: read only; no
+    code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **273 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 5/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **274 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 6/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
