@@ -12298,3 +12298,7 @@ Rust's fox goal. (The priority-3 anger goal's `isAngryAt` selector and
 Only the `is` overload and the `getLightDampening`/`getLightBlock`
 rename (same method, same melt condition); the Rust already cites the
 1.21.11 name.
+
+## Item 624 — worldgen/iceberg.rs (IcebergFeature) — NO-CHANGE
+
+Only the `is` overload at 10 sites.
