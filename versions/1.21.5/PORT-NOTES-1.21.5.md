@@ -13093,12 +13093,47 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 318 — Experiments screen**
+  - ExperimentsScreen:
+    verified, no code. The
+    ScrollableLayout vs
+    inner ScrollArea split
+    has no port surface -
+    the port implements
+    neither scrolling
+    mechanism, and the
+    layout it does
+    implement matches both
+    versions (33px header
+    and footer, contents
+    from y 63, the 310-wide
+    warning, the 299-wide
+    switch grid, 44px
+    buttons, two 9px info
+    rows, 4px row spacing).
+    Version-neutral gap:
+    the port's list never
+    scrolls, so extra
+    data-pack flags past
+    the content height
+    would overflow - but
+    1.21.5 ships exactly
+    three experiment packs
+    (minecart_improvements,
+    redstone_experiments,
+    trade_rebalance,
+    verified from the jar),
+    126px of switches,
+    which fits.
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **317 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 49/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **318 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 50/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
