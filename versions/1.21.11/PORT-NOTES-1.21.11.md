@@ -10923,3 +10923,12 @@ tightening; `BlockStateParser$1` is
 26.1's serialize consumer, already
 covered by item 291 (identical outputs).
 `block`: 2 passed.
+
+## Item 404 — model/cuboid/CuboidModel (rank 2, NO-CHANGE)
+
+2 classes, 0 methods named. `CuboidModel`
+is the pure rename of 1.21.11's
+`BlockModel` (bytecode identical after
+collapsing packages); the Rust's
+`CuboidModel` already matches (item 318).
+`model`: 29 passed.
