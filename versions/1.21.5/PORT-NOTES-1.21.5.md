@@ -10886,12 +10886,88 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 260 — ServerPlayer
+  waypoint hooks removed**
+  - ServerPlayer: the
+    waypoint attribute
+    hooks are gone.
+    1.21.6's ServerPlayer.o
+    nAttributeUpdated
+    (receive range) and
+    updatePlayerAttributes
+    (crouch transmit
+    modifier) have no
+    1.21.5 counterpart, so
+    the port's dispatch
+    goes too: the receive-
+    range arm in dispatch_a
+    ttribute_updated, the
+    WaypointRange arm of
+    UpdatedAttribute and
+    its UpdateWorld trait
+    surface (level,
+    is_server_level,
+    waypoint_manager,
+    attributes_field,
+    attribute_value_in,
+    track_waypoint), the
+    waypoint_transmit_range
+    kind mapping, and the
+    MotionEvent::Waypoint
+    variant with its probe
+    arm. The crouch
+    modifier was already
+    absent. The Attributes
+    map handle moves from
+    UpdateWorld to
+    LiveAttributeWorld,
+    which is what refresh
+    and value actually use.
+    The two parity fixtures
+    lose the waypoint impls
+    (op 3 now falls through
+    to Other); the harness
+    drivers and oracles
+    still send waypoint ops
+    and call the 1.21.6
+    Java APIs — out of
+    subset, publish debt.
+    The rest of the diff
+    verifies: RootVehicle
+    round-trips the full
+    {Attach, Entity} form,
+    the spectator camera
+    ends when its target
+    teleports, the spawn
+    snap is item 253's, the
+    recipe book is item
+    223's, the
+    level()/serverLevel()
+    renames and the
+    save/load refactor have
+    no Rust surface, and
+    openDialog and the
+    happy-ghast stat are
+    gone with items 258 and
+    223. Known gap: the
+    port never persists in-
+    flight ender pearls
+    (vanilla 1.21.5 saves
+    and respawns them); the
+    tooltip waypoint arms
+    are item 264's.
+  - Verification: cargo
+    check -j 1 -p horizon-
+    world -p horizon-client
+    --lib 0/0; world_probe
+    0/0; client_probe 0/0.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **259 of 426 are
-closed** (rank 1 complete, rank 2 at 250/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **260 of 426 are
+closed** (rank 1 complete, rank 2 at 251/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

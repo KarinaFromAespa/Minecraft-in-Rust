@@ -1,13 +1,10 @@
 //! Resident ServerPlayer pending attribute callbacks over its owned live map.
-//! Waypoint requests are observable boundaries; manager/network delivery is
-//! still supplied by the eventual multiplayer runtime.
 use crate::{
     Result,
     health::Updates,
-    motion::{MotionEvent, PlayerMotion},
+    motion::PlayerMotion,
 };
 use horizon_world::{
-    attribute_map::ValueKind,
     attribute_updates::{self, UpdateWorld, UpdatedAttribute},
     attributes::live::{self, Handle, Key, LiveAttributes},
     live_attribute_updates::{self as live_updates, LiveAttributeWorld},
@@ -69,9 +66,6 @@ impl HealthWorld for PlayerMotion {
     }
 }
 impl UpdateWorld<Key> for PlayerMotion {
-    type Level = ();
-    type Manager = ();
-    type Attributes = ();
     fn attribute_kind(&self, attribute: &Key) -> UpdatedAttribute {
         live_updates::kind(attribute)
     }
@@ -81,30 +75,9 @@ impl UpdateWorld<Key> for PlayerMotion {
     fn refresh_dimensions(&mut self) -> Result<()> {
         PlayerMotion::refresh_dimensions(self)
     }
-    fn level(&mut self) -> Result<()> {
-        Ok(())
-    }
-    fn is_server_level(&self, _: ()) -> bool {
-        true
-    }
-    fn waypoint_manager(&mut self, _: ()) -> Result<()> {
-        Ok(())
-    }
-    fn attributes_field(&self) {}
-    fn attribute_value_in(&mut self, _: (), attribute: Key) -> Result<f64> {
-        self.attributes
-            .value(Some(attribute), ValueKind::Computed)
-            .map_err(Self::attribute_error)
-    }
-    fn track_waypoint(&mut self, _: (), track: bool) -> Result<()> {
-        self.events.push(MotionEvent::Waypoint {
-            receiver: false,
-            enabled: track,
-        });
-        Ok(())
-    }
 }
 impl LiveAttributeWorld for PlayerMotion {
+    type Attributes = ();
     type Identity = Box<dyn horizon_world::attributes::live::Identities>;
     fn get_attributes(&mut self) -> Result<()> {
         Ok(())
@@ -130,18 +103,9 @@ impl LiveAttributeWorld for PlayerMotion {
         io::Error::other(format!("resident attribute cursor: {error:?}")).into()
     }
     fn dispatch_attribute_updated(&mut self, attribute: Key) -> Result<()> {
-        // ServerPlayer.onAttributeUpdated handles receive range, then calls
-        // the inherited LivingEntity handler, including for this same holder.
-        if attribute.name() == "minecraft:waypoint_receive_range" {
-            let value = self
-                .attributes
-                .value(Some(attribute.clone()), ValueKind::Computed)
-                .map_err(Self::attribute_error)?;
-            self.events.push(MotionEvent::Waypoint {
-                receiver: true,
-                enabled: value > 0.0,
-            });
-        }
+        // 1.21.5 has no ServerPlayer.onAttributeUpdated waypoint hook (the
+        // waypoint attributes arrived in 1.21.6): the inherited
+        // LivingEntity handler is the whole dispatch.
         attribute_updates::updated(self, attribute)
     }
 }

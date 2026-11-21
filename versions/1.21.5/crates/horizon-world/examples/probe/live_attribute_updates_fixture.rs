@@ -307,9 +307,6 @@ mod integration {
         }
     }
     impl UpdateWorld<Key> for World<'_> {
-        type Attributes = usize;
-        type Level = bool;
-        type Manager = usize;
         fn attribute_kind(&self, key: &Key) -> UpdatedAttribute {
             live_updates::kind(key)
         }
@@ -320,28 +317,9 @@ mod integration {
         fn refresh_dimensions(&mut self) -> Result<()> {
             self.event("dimensions")
         }
-        fn level(&mut self) -> Result<bool> {
-            self.event("level")?;
-            Ok(self.server)
-        }
-        fn is_server_level(&self, level: bool) -> bool {
-            level
-        }
-        fn waypoint_manager(&mut self, _: bool) -> Result<usize> {
-            self.event("manager")?;
-            Ok(self.manager)
-        }
-        fn attributes_field(&self) -> usize {
-            self.direct
-        }
-        fn attribute_value_in(&mut self, map: usize, key: Key) -> Result<f64> {
-            live_updates::value_in(self, map, Some(key), ValueKind::Computed)
-        }
-        fn track_waypoint(&mut self, manager: usize, track: bool) -> Result<()> {
-            self.event(format!("waypoint {manager} {track}"))
-        }
     }
     impl LiveAttributeWorld for World<'_> {
+        type Attributes = usize;
         type Identity = Box<dyn FnMut() -> i32>;
         fn get_attributes(&mut self) -> Result<usize> {
             self.event("attributes")?;
@@ -400,7 +378,8 @@ mod integration {
             Ok(())
         }
         fn level(&mut self, _: &mut Storage) -> Result<bool> {
-            UpdateWorld::level(self)
+            self.event("level")?;
+            Ok(self.server)
         }
         fn is_client(&mut self, _: &mut Storage, level: bool) -> Result<bool> {
             if !level {

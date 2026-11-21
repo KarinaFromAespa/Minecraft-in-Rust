@@ -10,6 +10,7 @@ use crate::{
 /// entity's current attributes. Map and instance accessors are direct storage
 /// reads; virtual entity methods remain explicit dispatch points.
 pub trait LiveAttributeWorld: UpdateWorld<Key> {
+    type Attributes: Copy;
     type Identity: FnMut() -> i32;
     fn get_attributes(&mut self) -> Result<Self::Attributes, Self::Error>;
     fn live_attributes(&self, map: Self::Attributes) -> &LiveAttributes<Self::Identity>;
@@ -35,7 +36,6 @@ pub fn kind(attribute: &Key) -> UpdatedAttribute {
         "minecraft:max_health" => UpdatedAttribute::MaxHealth,
         "minecraft:max_absorption" => UpdatedAttribute::MaxAbsorption,
         "minecraft:scale" => UpdatedAttribute::Scale,
-        "minecraft:waypoint_transmit_range" => UpdatedAttribute::WaypointRange,
         _ => UpdatedAttribute::Other,
     }
 }
@@ -51,8 +51,7 @@ pub fn value<W: LiveAttributeWorld>(
     value_in(world, map, attribute, kind)
 }
 
-/// Query an already captured map, as used by waypoint updates after their
-/// direct attributes-field read. This does not call virtual getAttributes.
+/// Query an already captured map. This does not call virtual getAttributes.
 pub fn value_in<W: LiveAttributeWorld>(
     world: &mut W,
     map: W::Attributes,

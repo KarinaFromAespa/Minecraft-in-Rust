@@ -226,10 +226,6 @@ fn snapshot(out: &mut impl Write, player: &PlayerMotion) -> Result<()> {
             MotionEvent::Drown => Some("broadcast 67".into()),
             // The oracle marks every getAdvancements call (ENTER_BLOCK.trigger) so.
             MotionEvent::EnterBlock { .. } => Some("hurt-criterion".into()),
-            MotionEvent::Waypoint { receiver, enabled } => Some(format!(
-                "waypoint {} {enabled}",
-                if *receiver { "receive" } else { "transmit" }
-            )),
             _ => None,
         })
         .collect();

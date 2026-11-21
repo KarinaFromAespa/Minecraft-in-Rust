@@ -449,15 +449,11 @@ impl HealthWorld for Update<'_, '_> {
     }
 }
 impl UpdateWorld<i32> for Update<'_, '_> {
-    type Level = i32;
-    type Manager = usize;
-    type Attributes = usize;
     fn attribute_kind(&self, h: &i32) -> UpdatedAttribute {
         match *h {
             0 => UpdatedAttribute::MaxHealth,
             1 => UpdatedAttribute::MaxAbsorption,
             2 => UpdatedAttribute::Scale,
-            3 => UpdatedAttribute::WaypointRange,
             _ => UpdatedAttribute::Other,
         }
     }
@@ -467,28 +463,6 @@ impl UpdateWorld<i32> for Update<'_, '_> {
     }
     fn refresh_dimensions(&mut self) -> Result<(), Self::Error> {
         self.w.event(self.s, "dimensions".into())
-    }
-    fn level(&mut self) -> Result<i32, Self::Error> {
-        EffectHooks::level(self.w, self.s)
-    }
-    fn is_server_level(&self, l: i32) -> bool {
-        self.w.f["servers"][l as usize].as_bool().unwrap()
-    }
-    fn waypoint_manager(&mut self, l: i32) -> Result<usize, Self::Error> {
-        self.w.event(self.s, format!("manager {l}"))?;
-        Ok(self.w.config()["managers"][l as usize].as_u64().unwrap() as usize)
-    }
-    fn attributes_field(&self) -> usize {
-        n(self.w.config(), "direct_attributes") as usize
-    }
-    fn attribute_value_in(&mut self, a: usize, h: i32) -> Result<f64, Self::Error> {
-        self.w.event(self.s, format!("value-in {a} {h}"))?;
-        Ok(f64::from_bits(
-            self.w.config()["values"][a][h as usize].as_u64().unwrap(),
-        ))
-    }
-    fn track_waypoint(&mut self, m: usize, track: bool) -> Result<(), Self::Error> {
-        self.w.event(self.s, format!("waypoint {m} {track}"))
     }
 }
 fn run(f: Value, out: &mut dyn Write) {
