@@ -11095,3 +11095,21 @@ no method ever reads — dead state 26.1
 dropped. The one edit updates the
 `PiglinSpear` doc to the 1.21.11 4-arg
 construction. `spear`: 5 passed.
+
+## Item 505 — command/codec.rs (rank 3, NO-CHANGE)
+
+11 classes, 25 methods, 5 named.
+`ResourceOrIdArgument` (all 5
+`parse`), `HolderSetCodec` and
+`RegistryFileCodec` are byte-identical.
+The loot classes differ only in
+registration plumbing (`LootPoolEntryType`
+constants vs `bootstrap`, `MAP_CODEC` →
+`CODEC`, `codec()` → `getType()`) and
+in `validate` (validation-problem
+output only; the Rust decodes, it does
+not validate loot). 1.21.11's
+`InvertedLootItemCondition
+.getReferencedContextParams` has no Rust
+surface (no context-param tracking
+anywhere). `codec`: 3 passed.
