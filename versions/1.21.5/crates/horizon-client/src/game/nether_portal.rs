@@ -201,6 +201,39 @@ fn touches_end_portal(from: Vec3, to: Vec3, width: f32, height: f32, pos: BlockP
     );
     start.collided_along_vector(to.subtract(from), &[shape])
 }
+/// Whether a `width` by `height` box moving from `from` to `to` meets the
+/// Nether portal at `pos`: `Entity.collidedWithShapeMovingFrom` against its
+/// entity-inside shape, the 1.21.5 `getEntityInsideCollisionShape` — the
+/// portal's visual shape, a 4/16 slab across the cell (thin in Z for an
+/// X-axis portal, thin in X for a Z-axis one). 1.21.6 dropped the override
+/// and fell back to the whole block, so any cell overlap counted.
+fn touches_nether_portal(
+    from: Vec3,
+    to: Vec3,
+    width: f32,
+    height: f32,
+    pos: BlockPos,
+    x_axis: bool,
+) -> bool {
+    let half = f64::from(width) / 2.0;
+    let start = Aabb::new(
+        Vec3::new(from.x - half, from.y, from.z - half),
+        Vec3::new(from.x + half, from.y + f64::from(height), from.z + half),
+    );
+    let (x, y, z) = (f64::from(pos.x), f64::from(pos.y), f64::from(pos.z));
+    let shape = if x_axis {
+        Aabb::new(
+            Vec3::new(x, y, z + 0.375),
+            Vec3::new(x + 1.0, y + 1.0, z + 0.625),
+        )
+    } else {
+        Aabb::new(
+            Vec3::new(x + 0.375, y, z),
+            Vec3::new(x + 0.625, y + 1.0, z + 1.0),
+        )
+    };
+    start.collided_along_vector(to.subtract(from), &[shape])
+}
 /// `PositionMoveRotation.calculateAbsolute` for an End portal's transition
 /// of an entity facing `[yaw, pitch]`: into the End it faces west and keeps
 /// its pitch (`Relative.X_ROT`); out of it both turn by the world spawn's
@@ -954,7 +987,11 @@ impl Game<'_> {
             1_000_000,
             |p, _| {
                 let state = self.world.block(p.x, p.y, p.z);
-                if self.res.behaviours().portal_axis(state).is_some()
+                if self
+                    .res
+                    .behaviours()
+                    .portal_axis(state)
+                    .is_some_and(|x| touches_nether_portal(from, to, width, height, p, x))
                     || (self.is_end_portal(state) && touches_end_portal(from, to, width, height, p))
                 {
                     found = Some(p);
@@ -1571,6 +1608,23 @@ mod tests {
         // Beside it.
         let beside = Vec3::new(2.0, 100.0, 3.5);
         assert!(!touches_end_portal(beside, beside, 0.9, 1.4, portal));
+    }
+
+    #[test]
+    fn the_nether_portal_shape_is_its_slab_not_the_whole_cell() {
+        let portal = BlockPos::new(0, 100, 3);
+        // An X-axis portal: the slab is thin in Z, z 3.375..3.625.
+        let at = |z| Vec3::new(0.5, 100.0, z);
+        // A player walking through the slab.
+        assert!(touches_nether_portal(at(3.0), at(4.0), 0.6, 1.8, portal, true));
+        // One tick's move across the whole slab, in it at neither end.
+        assert!(touches_nether_portal(at(2.9), at(4.1), 0.6, 1.8, portal, true));
+        // Standing in the cell but clear of the slab, hugging the frame.
+        assert!(!touches_nether_portal(at(3.0), at(3.0), 0.6, 1.8, portal, true));
+        // A Z-axis portal: the slab is thin in X, x 0.375..0.625.
+        let side = |x| Vec3::new(x, 100.0, 3.5);
+        assert!(touches_nether_portal(side(0.5), side(0.5), 0.6, 1.8, portal, false));
+        assert!(!touches_nether_portal(side(0.05), side(0.05), 0.6, 1.8, portal, false));
     }
 
     #[test]

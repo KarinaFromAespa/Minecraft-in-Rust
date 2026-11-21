@@ -12,7 +12,7 @@ use super::nether_portal::{PLAYER_DELAY, Plan};
 use super::respawn_anchor::RespawnConfig;
 use super::{Dim, Game, Mob, boats, lan::LanHost, minecarts};
 use horizon_client::{lan::hub::TickCtx, world_spawn::PlayerSpawnFinder};
-use horizon_core::{geometry::Vec3, position::BlockPos};
+use horizon_core::{geometry::{Aabb, Vec3}, position::BlockPos};
 use horizon_protocol::packets::play::{self, Clientbound as C};
 
 /// A trip under way: the player is in the destination's level, whose
@@ -512,10 +512,37 @@ impl Game<'_> {
         let w = WIDTH / 2.0 - 1.0e-5;
         let lo = [at.x - w, at.y + 1.0e-5, at.z - w];
         let hi = [at.x + w, at.y + HEIGHT - 1.0e-5, at.z + w];
+        let bounds = Aabb::new(
+            Vec3::new(lo[0], lo[1], lo[2]),
+            Vec3::new(hi[0], hi[1], hi[2]),
+        );
         for x in lo[0].floor() as i32..=hi[0].floor() as i32 {
             for y in lo[1].floor() as i32..=hi[1].floor() as i32 {
                 for z in lo[2].floor() as i32..=hi[2].floor() as i32 {
-                    if &*self.block_name([x, y, z]) == "minecraft:nether_portal" {
+                    let Some(x_axis) = self
+                        .res
+                        .behaviours()
+                        .portal_axis(self.world.block(x, y, z))
+                    else {
+                        continue;
+                    };
+                    // The 1.21.5 `getEntityInsideCollisionShape`: the
+                    // portal's visual shape, a 4/16 slab across the cell.
+                    // 1.21.6 dropped the override and fell back to the
+                    // whole block, so any cell overlap counted.
+                    let (fx, fy, fz) = (f64::from(x), f64::from(y), f64::from(z));
+                    let slab = if x_axis {
+                        Aabb::new(
+                            Vec3::new(fx, fy, fz + 0.375),
+                            Vec3::new(fx + 1.0, fy + 1.0, fz + 0.625),
+                        )
+                    } else {
+                        Aabb::new(
+                            Vec3::new(fx + 0.375, fy, fz),
+                            Vec3::new(fx + 0.625, fy + 1.0, fz + 1.0),
+                        )
+                    };
+                    if bounds.intersects(slab) {
                         return Some(BlockPos::new(x, y, z));
                     }
                 }

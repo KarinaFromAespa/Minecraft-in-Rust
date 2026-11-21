@@ -1844,8 +1844,9 @@ impl MotionWorld<'_, '_, '_> {
                 matches!(name, "minecraft:water_cauldron" | "minecraft:powder_snow_cauldron");
             // getEntityInsideCollisionShape is the whole block but for powder
             // snow (its collision shape, the whole block when it is empty),
-            // filled cauldrons, end portals and tripwires; Horizon doesn't
-            // follow the player into those last two.
+            // filled cauldrons, nether portals (their visual shape, a 4/16
+            // slab across the cell), end portals and tripwires; Horizon
+            // doesn't follow the player into those last two.
             if matches!(name, "minecraft:end_portal" | "minecraft:tripwire") {
                 continue;
             }
@@ -1854,7 +1855,30 @@ impl MotionWorld<'_, '_, '_> {
             // on the AABB overlap the sweep already found, and the content
             // check lives in layered_cauldron_inside
             // (AbstractCauldronBlock.isEntityInsideContent).
-            let inside = layered || !(powder_snow || content_top.is_some()) || {
+            // A nether portal's entity-inside shape is its visual shape, the
+            // 1.21.5 `getEntityInsideCollisionShape`; 1.21.6 dropped the
+            // override and fell back to the whole block.
+            let portal = name == "minecraft:nether_portal";
+            let inside = layered || !(powder_snow || content_top.is_some() || portal) || if portal {
+                let x_axis =
+                    definition.properties.get("axis").map(String::as_str) == Some("x");
+                let (x, y, z) = (f64::from(p.x), f64::from(p.y), f64::from(p.z));
+                let slab = if x_axis {
+                    Aabb::new(
+                        Vec3::new(x, y, z + 0.375),
+                        Vec3::new(x + 1.0, y + 1.0, z + 0.625),
+                    )
+                } else {
+                    Aabb::new(
+                        Vec3::new(x + 0.375, y, z),
+                        Vec3::new(x + 0.625, y + 1.0, z + 1.0),
+                    )
+                };
+                self.player
+                    .dimensions
+                    .bounds(from)
+                    .collided_along_vector(to.subtract(from), &[slab])
+            } else {
                 let context = self.context();
                 let binding = self.collision_binding;
                 let shape = binding.collision_shape_with_context(

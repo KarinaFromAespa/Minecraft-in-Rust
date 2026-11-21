@@ -8612,13 +8612,60 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 182 — Nether
+  portal slab, cauldron
+  content, dried ghast:**
+  - The nether portal
+    inside test is the
+    1.21.5 slab now, a 4/16
+    slice across the cell,
+    at all three sites:
+    swept entities
+    (`touches_nether_portal`),
+    guest players
+    (`nether_portal_inside`)
+    and the local player
+    (`check_inside_blocks`).
+    1.21.6 dropped the
+    override and fell back
+    to the whole block.
+    Nether fossils no
+    longer place a dried
+    ghast
+    (`placeDriedGhast` is
+    1.21.6-only); the
+    remaining dried-ghast
+    references are inert.
+    The cauldron content
+    test was already the
+    1.21.5 form for the
+    player and item
+    entities; mobs have no
+    cauldron path, a
+    version-neutral gap.
+    Terracotta's desert
+    sounds were already
+    ported (item 160).
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests -p
+    horizon-world`, 0
+    errors, 0 warnings;
+    standalone rustc run
+    of the 5 slab
+    assertions passed;
+    lib test build
+    OOM-killed under
+    load, test runs in
+    CI.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **181 of 426 are
-closed** (rank 1 complete, rank 2 at 172/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **182 of 426 are
+closed** (rank 1 complete, rank 2 at 173/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
