@@ -12459,3 +12459,7 @@ plumbing the native renderer never mirrors.
 Visibility, `requireNonNull`, field-init order and the
 `ChunkPos.containing` vs `new ChunkPos` re-numbering artifact (as item
 590). Server-side spawn preparation.
+
+## Item 654 — world/level/levelgen/structure/pools (JigsawPlacement) — NO-CHANGE
+
+Only visibility.
