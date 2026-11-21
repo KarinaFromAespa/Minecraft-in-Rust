@@ -11284,3 +11284,18 @@ range + rangeClosed placement, template pos..pos+size
 checkLoaded with flags 2 | (knownShape ? 816 : 0) all
 match the Rust (`load_settings`: UPDATE_CLIENTS=2 |
 (strict ? 816 : 0)). No code touched.
+
+## Item 516 — mobs/nautilus.rs (rank 3, NO-CHANGE)
+
+4 classes, 33 methods, 1 named. The whole diff is the
+Brain API restructure (26.1 `ActivityData` via
+`getActivities()` vs 1.21.11 `Brain.addActivity` via
+`makeBrain` + `brainProvider` with SENSOR/MEMORY type
+lists) with identical activities, behaviours and
+parameters — panic 1.6, look 45/90, breed 0.4, charge
+80 ticks at 0.6 (zombie 0.5), 12.0/11.0 — plus
+`getRandom()` vs the `random` field, `is(X)` vs
+`getType().is/equals(X)`, and a `CameraRenderState`
+package move. `ChargeAttack` is byte-identical. The
+Rust's goal model has no Brain-API surface and matches
+every constant and priority. No code touched.
