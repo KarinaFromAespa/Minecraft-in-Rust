@@ -3824,13 +3824,48 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 86 — ServerScoreboard,
+  verified:**
+  - The team-change waypoint
+    hooks (`updatePlayerWaypoint`
+    / `updateTeamWaypoints`,
+    remaking waypoint
+    connections on team add /
+    remove / change) are
+    1.21.6-only: 1.21.5 team
+    changes touch no waypoint
+    state. The Rust scoreboard
+    has no waypoint hooks at
+    all — the LAN waypoint
+    tracker reads team state
+    fresh each tick, so team
+    changes propagate without
+    them.
+  - The `Method` enum
+    (`CHANGE`, `REMOVE`) that
+    1.21.5 declares in
+    `ServerScoreboard` is dead
+    code in vanilla itself:
+    no usage anywhere in the
+    1.21.5 source (1.21.6
+    deleted it). No Rust
+    surface. The whole
+    `net/minecraft/world/waypoints`
+    package is 1.21.6-only;
+    the locator-bar removal
+    is item 108's.
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **85 of 426 are
-closed** (rank 1 complete, rank 2 at 76/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **86 of 426 are
+closed** (rank 1 complete, rank 2 at 77/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
