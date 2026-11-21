@@ -3188,7 +3188,11 @@ fn big_dripleaf_stands_on_dirt_but_not_on_stone() {
     let leaf_pos = BlockPos::new(0, 2, 0);
     let leaf = w.id(
         "big_dripleaf",
-        &[("facing", "north"), ("tilt", "none"), ("waterlogged", "false")],
+        &[
+            ("facing", "north"),
+            ("tilt", "none"),
+            ("waterlogged", "false"),
+        ],
     );
     w.put(leaf_pos, leaf);
     for (ground, stands) in [
@@ -3400,7 +3404,10 @@ fn a_pitcher_crop_still_grows_at_the_build_ceiling() {
     // half fails to place above the ceiling.
     let mut w = world!();
     let pos = BlockPos::new(0, 319, 0);
-    w.put(pos, w.id("pitcher_crop", &[("half", "lower"), ("age", "2")]));
+    w.put(
+        pos,
+        w.id("pitcher_crop", &[("half", "lower"), ("age", "2")]),
+    );
     assert!(
         w.b().sim(&mut w.level, &mut w.ticks).grow_crop(pos),
         "bonemeal is consumed at the ceiling"
@@ -4700,6 +4707,30 @@ fn fresh_chunk_block_events_do_not_wait_for_ticking_readiness() {
             assert!(w.ticks.block_events.is_empty());
         }
     }
+}
+
+/// `DragonEggBlock.teleport`: 1.21.11 takes the first air block inside the
+/// build height, with no support below; 26.1 required a non-air block below
+/// the target, so in an all-air world the old rule never finds one.
+#[test]
+fn a_dragon_egg_teleports_without_support_below() {
+    let mut w = world!();
+    let pos = BlockPos::new(0, 64, 0);
+    let egg = w.id("dragon_egg", &[]);
+    w.put(pos, egg);
+    assert_eq!(w.use_block(pos), InteractionResult::Success);
+    assert_eq!(w.get(pos), w.b().air(), "the egg left its block");
+    let mut found = 0;
+    for x in -16..=16 {
+        for y in -8..=8 {
+            for z in -16..=16 {
+                if w.get(BlockPos::new(x, 64 + y, z)) == egg {
+                    found += 1;
+                }
+            }
+        }
+    }
+    assert_eq!(found, 1, "the egg landed exactly once, over air");
 }
 
 mod barrel;

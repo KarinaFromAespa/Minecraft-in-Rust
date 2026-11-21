@@ -575,7 +575,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         next
     }
 
-    /// `DragonEggBlock.teleport`.
+    /// `DragonEggBlock.teleport`. 1.21.11 takes the first air block inside
+    /// the build height; 26.1 also required a non-air block below it, so an
+    /// egg over the void never teleported there.
     fn dragon_egg_teleport(&mut self, pos: BlockPos, state: BlockStateId) {
         let b = self.b;
         for _ in 0..1000 {
@@ -586,10 +588,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             let dz = self.random().next_int_bound(16).unwrap_or(0)
                 - self.random().next_int_bound(16).unwrap_or(0);
             let test = pos.offset(dx, dy, dz);
-            if b.is_air(self.state(test))
-                && !b.is_air(self.below_state(test))
-                && self.is_inside_build_height(test.y)
-            {
+            if b.is_air(self.state(test)) && self.is_inside_build_height(test.y) {
                 // BlockUtil.packDifferenceInPosition(pos, test, 16, 8, 16)
                 let packed = ((dx + 16) << 16) | ((dy + 8) << 8) | (dz + 16);
                 self.level_event(2015, pos, packed);

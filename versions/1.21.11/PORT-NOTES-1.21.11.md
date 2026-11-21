@@ -9263,3 +9263,14 @@ valid + 4 invalid cases. Gaps (pre-existing): the component
 codec does not decode `container` at all, so codec-level
 container failures still parse; a container entry's patch
 removing `max_stack_size` is not honoured.
+
+## Item 173 — level/interact.rs (rank 2, CHANGED)
+
+`DragonEggBlock.teleport`: 1.21.11 drops 26.1's requirement
+that the teleport target have a non-air block below it — the
+egg now teleports to the first air block inside the build
+height and falls from there. `ComposterBlock` is unchanged
+(name noise, access widening and the `getRandom()` →
+`random` rename only; the compostables table diffs clean).
+The sim still has no world-border check on the teleport, a
+pre-existing gap in both versions.
