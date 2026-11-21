@@ -8717,13 +8717,38 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 185 — Skin
+  texture download
+  and insecure skin:**
+  - Both diffs are pure
+    refactors with
+    identical behaviour:
+    the texture
+    registration only
+    inlines a local, and
+    the new two-argument
+    `getInsecureSkin`
+    overload just names
+    what the one-argument
+    form already did (a
+    loaded skin or the
+    default). The port
+    resolves skins through
+    its own async cache
+    with the default-skin
+    fallback per call site,
+    and has no two-argument
+    form to match.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **184 of 426 are
-closed** (rank 1 complete, rank 2 at 175/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **185 of 426 are
+closed** (rank 1 complete, rank 2 at 176/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
