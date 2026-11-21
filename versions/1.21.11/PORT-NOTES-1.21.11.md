@@ -10892,3 +10892,14 @@ tick flag vs 26.1's per-clock states) is
 already translated both ways by the
 adapter. `translate::v1_21_11`: 1 passed;
 `step_1_21_11`: 5 passed.
+
+## Item 390 — valueproviders/IntProviders + CappedProcessor (rank 2, NO-CHANGE)
+
+2 classes, 3 methods, 0 named. The
+`IntProvider` interface-vs-class
+difference and the codec's move to
+`IntProviders` are 26.1-only; the
+CappedProcessor's random is LegacyRandom
+in 1.21.11 (Xoroshiro in 26.1), which
+the Rust already uses. Two citations
+re-pointed. `processor_bounds`: 2 passed.
