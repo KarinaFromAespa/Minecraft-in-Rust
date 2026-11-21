@@ -1800,13 +1800,57 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-core -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (1m20s).
+- **Item 46 — ModelPart / BannerRenderer /
+  ShieldSpecialRenderer /
+  SpecialModelRenderer / PlayerHeadSpecialRenderer,
+  ported:**
+  - `SpecialModelRenderer.getExtents` is
+    1.21.6-only: in 1.21.5 every special
+    model gets the unit cube's corners as
+    its extents (`SpecialModelWrapper.EXTENTS`),
+    so `special_extents` returns the eight
+    corners and the per-model computation
+    (`special::extents`, `extents_of`, the
+    `ModelPart.getExtentsForGui` port) is
+    deleted. `bounding_box`/`posed_bounds`
+    stay — 1.21.5 has `visitExtents` /
+    `getModelBoundingBox` too, and the
+    dropped-item placement, cluster poses
+    and shelf alignment all read it.
+  - `PlayerHeadSpecialRenderer` is
+    1.21.6-only: in 1.21.5 a player head
+    is `SkullSpecialRenderer` with kind
+    `player`. `SpecialKind::PlayerHead`
+    and the `minecraft:player_head` codec
+    id are removed; a `Head` with kind
+    `player` takes the profile argument
+    and draws the profile's skin
+    translucently, as the old arm did.
+    The worn-head sites (armor stands,
+    mobs) now build `Head` for every kind.
+  - The `createPartLookup` citations in
+    anim.rs are reworded to the Rust's own
+    first-wins rule (1.21.5 has no such
+    method). `getAllParts` (List vs Stream)
+    has no Rust surface; the traversal
+    order is the same either way.
+  - NOT this item: `oversized_in_gui`
+    belongs to items 101
+    (`ItemStackRenderState`) and 121
+    (`ItemModelResolver`); the registry
+    change (`SpecialModelRenderers`) is
+    item 208.
+  - Verification: `cargo check -p
+    horizon-assets -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (2m08s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **45 of 426 are
-closed** (rank 1 complete, rank 2 at 36/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **46 of 426 are
+closed** (rank 1 complete, rank 2 at 37/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

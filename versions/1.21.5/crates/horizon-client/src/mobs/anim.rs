@@ -197,7 +197,7 @@ impl Poses {
     /// a mob draws its body and every equipment layer each frame.
     pub fn reset(&mut self, model: &Part) {
         fn walk(p: &Part, map: &mut FxHashMap<u64, [f32; 9]>) {
-            // ModelPart.createPartLookup fills its map with putIfAbsent: the first part keeps a name.
+            // First wins: of two parts sharing a name, the first registered keeps it.
             map.entry(key(&p.name)).or_insert(p.pose);
             for c in &p.children {
                 walk(c, map);
@@ -1651,8 +1651,8 @@ mod flight_pose_tests {
         assert_eq!(p.get("right_arm")[4], 0.0);
     }
 
-    /// ModelPart.createPartLookup fills the name map with putIfAbsent, so of two
-    /// parts sharing a name the first registered keeps it, not the last.
+    /// The name map fills first-wins, so of two parts sharing a name the
+    /// first registered keeps it, not the last.
     #[test]
     fn a_name_two_parts_share_belongs_to_the_first() {
         let child = |xrot: f32| Part {

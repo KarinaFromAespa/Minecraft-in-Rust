@@ -1949,14 +1949,10 @@ impl Game<'_> {
         {
             let pose = head * glam::Mat4::from_scale(glam::Vec3::splat(1.1875));
             let special = horizon_assets::item_model::SpecialModel {
-                kind: if kind == "player" {
-                    horizon_assets::item_model::SpecialKind::PlayerHead
-                } else {
-                    horizon_assets::item_model::SpecialKind::Head {
-                        kind: kind.to_owned(),
-                        texture: None,
-                        animation: 0.0,
-                    }
+                kind: horizon_assets::item_model::SpecialKind::Head {
+                    kind: kind.to_owned(),
+                    texture: None,
+                    animation: 0.0,
                 },
             };
             let mut sink = horizon_client::item_render::WorldSink {
