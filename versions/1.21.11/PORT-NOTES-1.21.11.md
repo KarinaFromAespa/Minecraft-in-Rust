@@ -12025,3 +12025,8 @@ Only `Level.getRandom()` vs the `random` field (same source/draw order).
 
 Only compiler artifacts: a redundant `astore`/`aload` pair and a lambda
 parameter type (`AbstractWidget` vs `GuiEventListener`).
+
+## Item 580 — vanillagen.rs (ChunkStatusTasks) — NO-CHANGE
+
+Only the `WorldOptions` access path (`getWorldGenSettings().options()` vs
+`getWorldData().worldGenOptions()`, same value) and `ChunkPos` accessors.
