@@ -12277,3 +12277,11 @@ the 1.21.11 behaviour.
 ## Item 620 — pack_palette.rs (RedStoneWireBlock) — NO-CHANGE
 
 Only the `is` overload at 9 sites.
+
+## Item 621 — game/render_tick.rs (ClientLevel$ClientLevelData) — NO-CHANGE
+
+1.21.11's client level data keeps `dayTime` and `raining`, which 26.1
+dropped (time moved to the clock system). Already handled: the adapter
+translates 1.21.11's SetTime into the overworld clock and synthesises
+the `world_clock` registry; rain/thunder arrive via GameEvent, all
+handled in remote.rs.
