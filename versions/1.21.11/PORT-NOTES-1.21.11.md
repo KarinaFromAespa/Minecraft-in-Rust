@@ -11752,3 +11752,10 @@ five now use end stone directly, following the tree's established pattern
 (crops/farmland, kelp/magma, chorus flower): connections in `place.rs`,
 `updateShape` in `shapes.rs`, `canSurvive` in `survive.rs`, the survival
 table in `block_survival.rs`, and the worldgen feature's support set.
+
+## Item 545 — worldgen/structure/mineshaft.rs (MineshaftPieces) — NO-CHANGE
+
+Only `generateAndAddPiece`'s visibility (`private` in 26.1, package-private
+in 1.21.11) and the `BlockState.is(Object)` vs `is(Block)` overload widening
+in the corridor/piece checks — both behaviour-free. The Rust cites
+`generateAndAddPiece` by name, which is shared.
