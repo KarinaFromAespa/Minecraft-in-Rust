@@ -497,8 +497,9 @@ impl Game<'_> {
             return;
         };
         let riptide = stack.enchantment_level("minecraft:riptide");
-        // `releaseUsing` checks the wet/passenger conditions, then nextDamageWillBreak again.
-        if riptide > 0 && (!self.in_water_or_rain() || self.riding.is_some()) {
+        // `releaseUsing` checks the wet condition, then nextDamageWillBreak again.
+        // (26.1 also blocks Riptide while riding; 1.21.11 has no passenger check.)
+        if riptide > 0 && !self.in_water_or_rain() {
             return;
         }
         if stack.damage >= self.trident_max_damage(&stack).saturating_sub(1) {

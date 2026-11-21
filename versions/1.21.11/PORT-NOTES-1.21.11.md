@@ -11710,3 +11710,12 @@ Pure renames: `BundleItem.getSelectedItemIndex` (26.1) is `getSelectedItem` in
 Rust reads `bundle_selected` directly and already models the gate in
 `menu_clicks.rs` (`Input::QuickMove | Input::Swap` -> `unselect_bundle`), so
 neither rename has a Rust surface.
+
+## Item 541 — game/item_use.rs (ItemInHandRenderer, TridentItem) — CHANGED
+
+`ItemInHandRenderer` differs only in the `ItemStack.is` overload (26.1 widens
+it to `Object`); the bow/crossbow checks are identical. `TridentItem.use` is
+identical, and `releaseUsing`'s throw and riptide paths are identical — except
+26.1 blocks Riptide while riding (a passenger check 1.21.11 lacks).
+**Fix (in game/trident.rs, where the behaviour lives):** `release_trident`
+dropped the `self.riding.is_some()` arm from the Riptide gate.
