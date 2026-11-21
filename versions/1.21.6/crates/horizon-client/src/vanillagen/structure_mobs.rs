@@ -39,7 +39,14 @@ struct Data {
 }
 fn load(root: &std::path::Path) -> Option<Data> {
     let types = MobTypes::load(root).ok()?.types;
-    let camel = types.get("minecraft:camel_husk")?;
+    // `camel_husk` is a 26.x entity: 1.21.6 has no such type. The husk
+    // reuses the camel's model (`camel#main`), so the camel's own size
+    // stands in for the jockey bounds check — and the jockey can never
+    // materialize here anyway, since creating a `minecraft:camel_husk`
+    // finds no such type in the registry.
+    let camel = types
+        .get("minecraft:camel_husk")
+        .or_else(|| types.get("minecraft:camel"))?;
     let camel_husk = (camel.width as f32, camel.height as f32);
     Some(Data {
         types: types.into_iter().map(|(k, t)| (k, Arc::new(t))).collect(),
@@ -517,8 +524,11 @@ mod tests {
         assert_eq!(got, expected);
     }
 
-    /// Seed 12345's ocean ruin at (53, 39, 424): Drowned.finalizeSpawn mounts the
-    /// trident drowned on a zombie nautilus, as vanilla saved chunk (3, 26).
+    /// Seed 12345's ocean ruin at (53, 39, 424): in 26.3 the trident drowned
+    /// mounts a zombie nautilus; 1.21.6 has no nautilus (a 26.x entity), so
+    /// it stays unmounted and the draws the nautilus would have taken shift
+    /// the two mobs finalized after it. The first drowned and the trident
+    /// drowned's bonus match the 26.3 run exactly.
     #[test]
     fn ocean_ruin_drowned_match_vanilla() {
         let Some(root) = std::env::var_os("HORIZON_TEST_RESOURCES").map(PathBuf::from) else {
@@ -530,14 +540,51 @@ mod tests {
         };
         let mut expected = vec![
             d("-", "0.001996"),
-            format!(
-                "zombie_nautilus -,-,-,-,- ttl=- bonus=-0.044983 left=false baby=false [{}]",
-                d("trident", "-0.045604")
-            ),
-            d("fishing_rod", "-0.059079"),
-            d("-", "0.021658"),
+            d("-", "0.002400"),
+            d("-", "0.041340"),
+            d("trident", "-0.045604"),
         ];
         expected.sort();
         assert_eq!(got, expected);
+    }
+
+    /// 1.21.6 has no `minecraft:camel_husk` (a 26.x entity): mob data must
+    /// still load, with the camel's own size standing in for the jockey
+    /// bounds check. Before the fallback, `load()` returned None here and
+    /// the run log read "no mob data" — no structure mobs and no
+    /// chunk-generation mobs at all.
+    #[test]
+    fn mob_data_loads_without_camel_husk() {
+        let dir = std::env::temp_dir().join(format!(
+            "horizon-mob-data-no-camel-husk-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        // A camel and a pig, no camel_husk; models present so the types load.
+        std::fs::write(
+            dir.join("entity-types.json"),
+            serde_json::json!({
+                "minecraft:camel": {"width": 1.7, "height": 2.375, "category": "creature"},
+                "minecraft:pig": {"width": 0.9, "height": 0.9, "category": "creature"},
+            })
+            .to_string(),
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("entity-models.json"),
+            serde_json::json!({
+                "minecraft:camel#main": null,
+                "minecraft:pig#main": null,
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let data = load(&dir);
+        let _ = std::fs::remove_dir_all(&dir);
+        let data = data.expect("mob data loads without camel_husk");
+        assert_eq!(data.camel_husk, (1.7, 2.375));
+        assert!(data.types.contains_key("minecraft:camel"));
+        assert!(data.types.contains_key("minecraft:pig"));
     }
 }
