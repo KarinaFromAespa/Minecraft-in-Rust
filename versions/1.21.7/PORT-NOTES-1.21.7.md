@@ -728,3 +728,21 @@ Known approximation carried from the ninth crash entry:
 `weird_scaled_sampler` remains clamp(input, 0, 1) * noise, not
 vanilla parity — spaghetti caves land roughly where vanilla
 puts them, not exactly.
+
+Full-suite note, same afternoon: the horizon-world lib suite
+stands at 428 passed, 23 failed, 3 ignored with this pass
+applied. All 23 failures are pre-existing, verified by running
+the same suite at the parent commit (0f256e20) in a worktree
+with the same `.local` data: the baseline fails the same 20
+level tests plus 4 more growth tests (a_tree_with_bees,
+azalea_and_mangrove, oak_sapling_grows_with_bone_meal,
+random_ticks_advance_sapling_stage_then_grow) that this pass
+fixes via the tree `dirt_provider` change — 24 level failures
+at baseline, 20 with the pass. The 20 are level-simulation
+tests (water spread, redstone, pistons, doors/beds, crops,
+chests, dripstone cauldrons, bone-meal grass, saplings, huge
+mushrooms), the other 3 are datafix tests; none touch worldgen
+decoding and none are in scope for this pass. Beware comparing
+against a run without `.local`: the level tests silently
+`return` (pass) when the fixture is missing, so a bare worktree
+reports 445 passed / 3 failed and looks healthier than it is.
