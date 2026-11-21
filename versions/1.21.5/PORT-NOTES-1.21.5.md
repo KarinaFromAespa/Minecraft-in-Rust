@@ -9202,13 +9202,42 @@ is the oracle; decompiled code is a reading aid.
     check -j 1 -p
     horizon-client --lib` 0/0
     (28m58s, contended).
+- **Item 205 —
+  CommandSourceStack:**
+  - The `PermissionSource`
+    interface is
+    1.21.6-only plumbing:
+    `hasPermission` keeps
+    the same
+    `permissionLevel >=
+    level` body in both
+    versions, and the port
+    enforces permission at
+    the tree level, with no
+    command-source
+    `hasPermission` at all.
+    The suggestion change
+    is the same shape:
+    1.21.6's `getLookup`
+    falls back to the
+    reloadable registries,
+    1.21.5 reads
+    `registryAccess` only,
+    and the port suggests
+    from a single merged
+    registry table with no
+    reloadable layer and no
+    fallback.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **204 of 426 are
-closed** (rank 1 complete, rank 2 at 195/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **205 of 426 are
+closed** (rank 1 complete, rank 2 at 196/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
