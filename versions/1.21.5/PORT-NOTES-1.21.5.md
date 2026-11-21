@@ -13005,12 +13005,44 @@ is the oracle; decompiled code is a reading aid.
     horizon-client --lib
     passed (33s).
 
+- **Item 315 — Game mode switcher**
+  - GameModeSwitcherScreen:
+    CODE. The slot draw
+    order was the 1.21.6
+    form (slot, selection,
+    icon) and is now the
+    1.21.5 form: the
+    selection highlight
+    draws OVER the icon.
+    The switch mechanism
+    already matches 1.21.5
+    - change_game_mode
+    sends the unsigned
+    command "gamemode
+    <mode>" on a server
+    (item 261's ground),
+    with no ChangeGameMode
+    packet anywhere;
+    locally it sets the
+    mode with the success
+    feedback. The panel
+    (125x75 at w/2-62,
+    h/2-58), title at
+    h/2-51 and help at
+    h/2+5 all match, and
+    the help text keeps the
+    opaque spelling of
+    1.21.5's alpha-0 white.
+  - Verification: cargo check -j 1 -p
+    horizon-client --lib
+    passed (30s).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **314 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 46/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **315 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 47/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
