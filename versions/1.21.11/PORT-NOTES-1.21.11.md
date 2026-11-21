@@ -12724,3 +12724,7 @@ Zero diff: the bytecode is identical in both versions.
 ## Item 711 — horizon-command/src/tree_execute.rs (ExecuteCommand$ExecuteIfFunctionCustomModifier) — NO-CHANGE
 
 Visibility only.
+
+## Item 712 — horizon-port-pack/src/oracle.rs (DirtPathBlock) — NO-CHANGE
+
+Class rename only (`FarmlandBlock` vs `FarmBlock`, same `turnToDirt`).
