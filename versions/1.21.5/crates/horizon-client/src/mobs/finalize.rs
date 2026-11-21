@@ -266,7 +266,8 @@ impl VariantRegistry {
         let name = name.strip_prefix("minecraft:").unwrap_or(name);
         self.names.iter().position(|n| n == name)
     }
-    /// `VariantUtils.selectVariantToSpawn`: the entries of the highest
+    /// `PriorityProvider.pick`, as each variant class's
+    /// `selectVariantToSpawn` calls it in 1.21.5: the entries of the highest
     /// priority whose condition holds, one of them at random.
     pub fn select<L: FinalizeLevel + ?Sized>(
         &self,
@@ -1817,7 +1818,7 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
         let at = block(m);
         m.extra.variant = villager_type(&self.level.biome(at));
     }
-    /// `VariantUtils.selectVariantToSpawn` into `variant`, by registry name.
+    /// Each variant class's `selectVariantToSpawn` into `variant`, by registry name.
     fn variant(&mut self, m: &mut Mob, registry: fn(&SpawnRegistries) -> &VariantRegistry) {
         let r = registry(self.data.registries);
         let at = block(m);

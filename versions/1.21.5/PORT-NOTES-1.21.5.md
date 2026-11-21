@@ -2683,13 +2683,82 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (1m25s).
+- **Item 61 — VariantUtils /
+  PatrollingMonster / ProtoChunk,
+  verified, citations only:**
+  - `VariantUtils.selectVariantToSpawn`
+    is 1.21.6-only: 1.21.5 has the
+    same selection as per-class
+    static methods
+    (`PigVariants` / `CowVariants` /
+    `ChickenVariants` / `CatVariants` /
+    `FrogVariants.selectVariantToSpawn`,
+    taking the random, the registry
+    lookup and the `SpawnContext`).
+    Both call `PriorityProvider.pick`
+    over the registry's elements —
+    `PriorityProvider` and
+    `SpawnContext` are unchanged
+    between the versions (neither
+    appears in the report), and the
+    variant data model
+    (`spawn_conditions` with
+    `priority`) is the same. The
+    Rust's `VariantRegistry::select`
+    (highest priority whose
+    condition holds, one at random)
+    is correct for both versions
+    and is proven against the
+    1.21.5 oracle by the
+    finalize-spawn parity harness
+    (pig, cow, chicken, wolf, cat,
+    frog across the discriminating
+    biomes). Only the two doc
+    citations in finalize.rs
+    changed, to `PriorityProvider.pick`
+    and the per-class methods.
+    (`CatVariants` / `WolfVariants`
+    are item 69.)
+  - The rest is the ValueInput /
+    ValueOutput → CompoundTag
+    migration with identical keys
+    and defaults: `VariantUtils`
+    read/write on the `variant`
+    key, `PatrollingMonster` on
+    `patrol_target` (nullable),
+    `PatrolLeader` and `Patrolling`
+    (both default false). The Rust
+    is already compound-based and
+    matches exactly
+    (`raider::write_nbt` /
+    `read_nbt`: the IntArray target
+    removed when absent, the two
+    flags as bytes). The
+    `protected` → `public`
+    visibility change on the
+    save/load methods has no Rust
+    surface.
+  - `ProtoChunk.addEntity`: 1.21.6
+    wraps the entity save in a
+    `ProblemReporter.ScopedCollector`
+    + `TagValueOutput`; 1.21.5
+    saves straight to a
+    `CompoundTag`. The reporter
+    only collects problems for
+    logging — the saved tag is the
+    same, and the Rust has no
+    problem reporter.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (55s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **60 of 426 are
-closed** (rank 1 complete, rank 2 at 51/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **61 of 426 are
+closed** (rank 1 complete, rank 2 at 52/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
