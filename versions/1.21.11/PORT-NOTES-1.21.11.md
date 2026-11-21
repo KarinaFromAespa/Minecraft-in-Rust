@@ -12394,3 +12394,7 @@ the beached offset (`min - sizeY/2 - nextInt(3)`) each time. The Rust
 had the 26.1 form (cached Y, flag written and read); it now recomputes
 on every postProcess, still records the settled Y for the saved TPY,
 and no longer writes or reads the flag.
+
+## Item 641 — game/chiseled_bookshelf.rs (ChiseledBookShelfBlock) — NO-CHANGE
+
+Only the `is` overload and a compiler artifact.
