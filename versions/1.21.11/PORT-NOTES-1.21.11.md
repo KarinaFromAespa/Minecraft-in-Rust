@@ -10406,3 +10406,11 @@ widens to public, and the light read is
 1.21.11 (same value, same default). One doc
 citation updated to the 1.21.11 name.
 `cargo check -p horizon-client` passes.
+
+## Item 281 — game/quick_actions.rs (rank 2, NO-CHANGE)
+
+3 classes, 3 methods, 1 named. `RegistryAccess`
+itself (including `lookupOrThrow`) is identical;
+the only diffs are dropped null-check codegen in
+a constructor and a field widening. No source
+change.
