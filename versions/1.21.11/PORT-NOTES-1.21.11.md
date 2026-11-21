@@ -10457,3 +10457,10 @@ registry at every use and bails when it is
 absent. `VaultConfig` statics lose `final` in
 1.21.11 with no effect. No source change.
 `block_entity_nbt`: 13 passed.
+
+## Item 287 — nbt_path.rs (rank 2, NO-CHANGE)
+
+1 class, 2 methods, 1 named. Pure visibility
+widening on two error types and
+`createTagPredicate`; `parse` is identical. No
+source change. `nbt_path`: 12 passed.
