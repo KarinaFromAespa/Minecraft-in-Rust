@@ -98,7 +98,6 @@ fn parser_id(ty: &ArgType) -> String {
             "minecraft:predicate" => "minecraft:loot_predicate".into(),
             "minecraft:context_int_provider" => "minecraft:context_int_provider".into(),
             "minecraft:context_float_provider" => "minecraft:context_float_provider".into(),
-            "minecraft:dialog" => "minecraft:dialog".into(),
             _ => "minecraft:feature".into(),
         },
     }

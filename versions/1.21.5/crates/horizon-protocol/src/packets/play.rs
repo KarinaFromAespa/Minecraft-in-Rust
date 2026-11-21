@@ -247,31 +247,6 @@ impl Codec<i32> for HolderId {
         w.varint(v + 1)
     }
 }
-/// `Holder<Dialog>` as Dialog.STREAM_CODEC sends it: an entry of the
-/// `minecraft:dialog` registry the server sent in configuration, or the
-/// dialog itself.
-#[derive(Clone, Debug, PartialEq)]
-pub enum DialogHolder {
-    Registry(i32),
-    Direct(Tag),
-}
-impl Codec<DialogHolder> for DialogHolder {
-    fn read(r: &mut Reader) -> Result<Self> {
-        Ok(match r.varint()? {
-            0 => Self::Direct(r.nbt()?),
-            id => Self::Registry(id - 1),
-        })
-    }
-    fn write(v: &Self, w: &mut Writer) {
-        match v {
-            Self::Registry(id) => w.varint(id + 1),
-            Self::Direct(tag) => {
-                w.varint(0);
-                w.nbt(tag);
-            }
-        }
-    }
-}
 packet!(
     /// ChatType.Bound.
     ChatTypeBound { chat_type: i32 => HolderId, name: Tag => Nbt, target: Option<Tag> => Opt<Nbt> }

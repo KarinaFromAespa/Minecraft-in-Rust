@@ -10771,12 +10771,103 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 258 — Dialog
+  system:
+  - The five dialog
+    registry keys (DIALOG,
+    DIALOG_TYPE,
+    DIALOG_BODY_TYPE,
+    INPUT_CONTROL_TYPE,
+    DIALOG_ACTION_TYPE) are
+    1.21.6-only. The
+    minecraft:dialog
+    registry left the
+    loader in item 222;
+    this item removes the
+    rest of the system,
+    already unreachable (no
+    /dialog since item 145,
+    no show_dialog/custom
+    actions since item 175,
+    no dialog packets).
+  - Deleted: dialog.rs
+    (model),
+    dialog_screen.rs
+    (layout),
+    game/dialogs.rs (UI),
+    2,702 lines;
+    Game.dialogs state,
+    every dialog_open gate,
+    the close_dialogs
+    calls, the
+    send_custom_click no-op
+    and drop_held_behind_di
+    alog.
+  - The DialogWarning
+    screen is gone too:
+    1.21.5's
+    ServerLinksScreen has
+    no warning button
+    (verified in the
+    decomp), so the title
+    centres without the
+    30px offset.
+  - Protocol: the
+    DialogHolder codec and
+    dialog_tags sync are
+    gone; UpdateTags is now
+    ignored. Commands: the
+    dialog codec dispatch,
+    the show_dialog/custom
+    click-action entries
+    and the
+    minecraft:dialog
+    argument parser are
+    gone. Datapacks: the
+    dialog/ content kind is
+    gone (its test reworked
+    onto damage_type).
+  - The shared 17px
+    checkbox size (BOX)
+    moved to
+    widgets::CHECKBOX_BOX
+    for the title and code-
+    of-conduct screens. The
+    pad Context's dialog
+    flag became
+    code_of_conduct (it
+    also tracked that
+    screen).
+  - The dialog e2e checks
+    left server_e2e.py and
+    pad_menu_e2e.py; the
+    command corpora keep
+    their /dialog entries
+    as negative tests (the
+    waypoint precedent,
+    item 145).
+  - Verification: cargo
+    check -j 1 -p horizon-
+    client --lib 0/0
+    (4m30s);
+    protocol+command --all-
+    targets 0/0 (22s);
+    render --lib --tests
+    0/0 (6m02s); client
+    --bins 0/0; py_compile
+    both e2e scripts. The
+    client lib-test profile
+    OOM-killed under load
+    (known mode); the
+    core_tests rework type-
+    checks in CI.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **257 of 426 are
-closed** (rank 1 complete, rank 2 at 248/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **258 of 426 are
+closed** (rank 1 complete, rank 2 at 249/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

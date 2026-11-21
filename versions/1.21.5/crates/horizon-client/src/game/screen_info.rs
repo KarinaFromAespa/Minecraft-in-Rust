@@ -82,8 +82,7 @@ pub(super) fn name_container(title: impl FnOnce() -> String) {
 }
 
 /// `ConfirmScreen.getNarrationMessage` (`PackConfirmScreen`,
-/// `ConfirmLinkScreen`, `DialogScreen.WarningScreen`): the title and the
-/// message.
+/// `ConfirmLinkScreen`): the title and the message.
 pub(super) fn confirm(id: &str, title: &str, message: &str) -> ScreenInfo {
     ScreenInfo::new(id, join_for_narration(&[title, message]))
 }

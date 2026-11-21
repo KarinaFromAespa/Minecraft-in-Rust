@@ -1,7 +1,7 @@
 //! Title, world selection and world creation screens (TitleScreen,
 //! SelectWorldScreen, CreateWorldScreen layouts), drawn as HUD quads.
 use crate::{
-    dialog_screen::BOX,
+    widgets::CHECKBOX_BOX,
     game_rules_screen::{Exit, RulesScreen},
     hud::{HudAtlas, HudBatch, rgba},
     lang,
@@ -3130,23 +3130,23 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                 }
                 // The Checkbox: at `width / 2 - 155 + 80`, `76 + textSize`.
                 let label = lang::get_or("selectWorld.backupEraseCache", "Erase Cached Data");
-                let width = BOX + 4.0 + HudBatch::text_width(atlas, &label).ceil();
+                let width = CHECKBOX_BOX + 4.0 + HudBatch::text_width(atlas, &label).ceil();
                 let x = (w / 2.0).floor() - 155.0 + 80.0;
                 let y = 76.0 + (lines.len() as f32 + 1.0) * 9.0;
-                self.erase_check.set([x, y, width, BOX]);
-                crate::widgets::target([x, y, width, BOX]);
-                let hover = (x..x + width).contains(&cursor.0) && (y..y + BOX).contains(&cursor.1);
+                self.erase_check.set([x, y, width, CHECKBOX_BOX]);
+                crate::widgets::target([x, y, width, CHECKBOX_BOX]);
+                let hover = (x..x + width).contains(&cursor.0) && (y..y + CHECKBOX_BOX).contains(&cursor.1);
                 let sprite = match (*erase_cache, hover) {
                     (true, true) => "gui/sprites/widget/checkbox_selected_highlighted",
                     (true, false) => "gui/sprites/widget/checkbox_selected",
                     (false, true) => "gui/sprites/widget/checkbox_highlighted",
                     (false, false) => "gui/sprites/widget/checkbox",
                 };
-                batch.sprite_scaled(atlas, sprite, x, y, BOX, BOX, u32::MAX);
+                batch.sprite_scaled(atlas, sprite, x, y, CHECKBOX_BOX, CHECKBOX_BOX, u32::MAX);
                 batch.text(
                     atlas,
                     &label,
-                    x + BOX + 4.0,
+                    x + CHECKBOX_BOX + 4.0,
                     y + 4.0,
                     rgba(224, 224, 224, 255),
                     true,
@@ -3298,20 +3298,20 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                         true,
                     );
                 }
-                // Checkbox: the box, its label right of it (as the dialogs draw theirs).
+                // Checkbox: the box, its label right of it (as the code of conduct draws its own).
                 let label =
                     lang::get_or("multiplayerWarning.check", "Do not show this screen again");
-                let width = BOX + 4.0 + HudBatch::text_width(atlas, &label).ceil();
+                let width = CHECKBOX_BOX + 4.0 + HudBatch::text_width(atlas, &label).ceil();
                 let x = (w / 2.0).floor() - (width / 2.0).floor();
                 let y = top + 57.0 + lines.len() as f32 * 9.0;
-                self.warning_check.set([x, y, width, BOX]);
-                crate::widgets::target([x, y, width, BOX]);
-                let hover = (x..x + width).contains(&cursor.0) && (y..y + BOX).contains(&cursor.1);
+                self.warning_check.set([x, y, width, CHECKBOX_BOX]);
+                crate::widgets::target([x, y, width, CHECKBOX_BOX]);
+                let hover = (x..x + width).contains(&cursor.0) && (y..y + CHECKBOX_BOX).contains(&cursor.1);
                 crate::widgets::narratable(|| {
                     crate::widgets::Narratable::checkbox(
                         label.clone(),
                         *check,
-                        [x, y, width, BOX],
+                        [x, y, width, CHECKBOX_BOX],
                         true,
                     )
                     .hovered(hover)
@@ -3322,11 +3322,11 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                     (false, true) => "gui/sprites/widget/checkbox_highlighted",
                     (false, false) => "gui/sprites/widget/checkbox",
                 };
-                batch.sprite_scaled(atlas, sprite, x, y, BOX, BOX, u32::MAX);
+                batch.sprite_scaled(atlas, sprite, x, y, CHECKBOX_BOX, CHECKBOX_BOX, u32::MAX);
                 batch.text(
                     atlas,
                     &label,
-                    x + BOX + 4.0,
+                    x + CHECKBOX_BOX + 4.0,
                     y + 4.0,
                     rgba(224, 224, 224, 255),
                     true,

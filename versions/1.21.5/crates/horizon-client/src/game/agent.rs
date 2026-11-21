@@ -452,9 +452,6 @@ impl Game<'_> {
         Ok(())
     }
     pub(super) fn screen_label(&self) -> &'static str {
-        if self.dialog_open() {
-            return "dialog";
-        }
         if self.title.is_some() {
             return "title";
         }
@@ -483,7 +480,6 @@ impl Game<'_> {
             Screen::Social => "social",
             Screen::ServerLinks => "server-links",
             Screen::ConfirmLink => "confirm-link",
-            Screen::DialogWarning => "dialog-warning",
             Screen::CommandBlock => "command-block",
             Screen::BlockEditor => "block-editor",
             Screen::Win => "win",
@@ -566,7 +562,6 @@ impl Game<'_> {
             })
         });
         let mut state = json!({
-            "dialog": self.dialog_status(),
             "screen": self.screen_label(),
             "menu": (self.title.is_some() || self.split_profiles_open() || self.split_setup_open()).then(|| self.title_value()),
             "world": (self.title.is_none()).then(|| match &self.integrated {

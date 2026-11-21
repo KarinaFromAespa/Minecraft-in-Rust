@@ -3,28 +3,15 @@
 
 A vanilla server (the pinned server jar, offline mode, a flat world) and one Horizon game joined to it,
 driven by horizon-ctl. The server's console does what a server or its plugins do; the checks read what
-the game shows and what reaches the server (its console and, for custom click actions, its debug log).
+the game shows and what reaches the server (its console).
 
     python3 tools/server_e2e.py --bin-dir target/fast             # every check
-    python3 tools/server_e2e.py --bin-dir target/fast --check dialog
 
 Checks:
-- dialog: `/dialog show` with a multi-action dialog (a message, a text and a boolean input, three
-          buttons): the game shows it with its inputs and buttons, the text typed and the box ticked
-          go back in a command template (`trigger`, run by the server) and in a custom action's
-          payload (the server's "Received custom click action" line), `wait_for_response` leaves the
-          waiting screen, and `/dialog clear` closes a dialog (servers used to see nothing: the game
-          dropped the packets).
 - book_menu: an OpenBook packet over a retained container shows only the book; closing it restores
              the menu with an available pointer.
 - titles: a chest named with styles (`CustomName`, as a plugin's menu is): its screen's title keeps
           the colours and bold (it used to be flattened to plain grey).
-- dialog_close: a local frame proxy injects ContainerClose after a multi-action custom click,
-          reproducing Paper's closeInventory without a plugin. Covers the waiting screen,
-          parent screens, warning, lectern, replacement dialogs, key release and death;
-          clear_dialog and after_action close must retain their distinct parent semantics.
-- dialog_text: custom click events inherited by message text and inline sprites send their id and
-               optional payload, with the dialog's none/close/wait_for_response screen behaviour.
 
 The game runs offscreen with fresh HORIZON_HOME, launcher and XDG folders and without audio. Screenshots and both
 logs go to --out.
@@ -167,181 +154,6 @@ class PacketProxy:
                 sock.close()
 
 
-def check_dialog_close(server, game, out, proxy):
-    """Paper closeInventory's packet must close a waiting dialog and its parent."""
-    dialog = {
-        'type': 'minecraft:multi_action', 'title': 'Container close regression',
-        'can_close_with_escape': False, 'pause': False, 'columns': 1,
-        'after_action': 'wait_for_response',
-        'actions': [{'label': 'Close', 'width': 20,
-                     'action': {'type': 'minecraft:custom', 'id': 'horizon:close_dialog'}}],
-    }
-
-    def show(data=dialog):
-        server.console(f'dialog show {PLAYER} {snbt(data)}')
-        game.raw('wait-for', 'screen', 'dialog', '--timeout', 30)
-        game.until(lambda: game('state')['dialog'],
-                   lambda state: state['screen'] is None and state['open'] is not None
-                   and state['open']['title'] == data['title'])
-
-    def close():
-        proxy.close_container()
-        game.raw('wait-for', 'screen', 'playing', '--timeout', 10)
-        state = game('state')
-        assert state['dialog']['screen'] is None, state['dialog']
-        assert state['dialog']['open'] is None, state['dialog']
-
-    # WAIT_FOR_RESPONSE must survive clear_dialog, but not container_close.
-    show()
-    game.raw('click', 'close')
-    server.wait_for(r'Received custom click action horizon:close_dialog', timeout=30)
-    assert game('state')['dialog']['screen'] == 'waiting_for_response'
-    server.console(f'dialog clear {PLAYER}')
-    game.wait(10)
-    assert game('state')['dialog']['screen'] == 'waiting_for_response'
-    close()
-
-    # A normal server clear returns to the parent inventory. CLOSE does too.
-    game.raw('key', 'e', 'tap')
-    game.raw('wait-for', 'screen', 'inventory', '--timeout', 10)
-    show(dict(dialog, after_action='none'))
-    server.console(f'dialog clear {PLAYER}')
-    game.raw('wait-for', 'screen', 'inventory', '--timeout', 10)
-    show(dict(dialog, after_action='close'))
-    game.raw('click', 'close')
-    game.raw('wait-for', 'screen', 'inventory', '--timeout', 10)
-
-    # ContainerClose discards the waiting dialog AND that parent screen.
-    show()
-    game.raw('click', 'close')
-    assert game('state')['dialog']['screen'] == 'waiting_for_response'
-    close()
-    # An active dialog and its warning overlay must also close without Escape.
-    show(dict(dialog, after_action='none'))
-    close()
-    show()
-    game.raw('click', 'warning')
-    assert game('state')['dialog']['screen'] == 'warning'
-    close()
-
-    # A server response may replace the waiting screen with another dialog.
-    show()
-    game.raw('click', 'close')
-    show(dict(dialog, title='Replacement dialog', after_action='none'))
-    assert game('state')['dialog']['open']['title'] == 'Replacement dialog'
-    close()
-
-    # Closing a dialog over chat must not reveal the old chat input.
-    game.raw('key', 't', 'tap')
-    game.raw('wait-for', 'screen', 'chat', '--timeout', 10)
-    show(dict(dialog, after_action='none'))
-    close()
-
-    # Keep the existing lectern close path working, including a dialog over it.
-    x, y, z = (int(v // 1) for v in game('state')['player']['position'])
-    at = (x + 2, y, z)
-    book = ('{id:"minecraft:written_book",count:1,components:{"minecraft:written_book_content":'
-            '{title:"Dialog",author:"Test",pages:["one","two"]}}}')
-    server.console(f'setblock {at[0]} {at[1]} {at[2]} minecraft:lectern[has_book=true]{{Book:{book}}}')
-    game.wait(10)
-    for overlay in (False, True):
-        game.raw('interact', *at)
-        game.raw('wait-for', 'screen', 'book', '--timeout', 10)
-        if overlay:
-            show(dict(dialog, after_action='none'))
-        close()
-    server.console(f'setblock {at[0]} {at[1]} {at[2]} minecraft:air')
-    game.wait(10)
-
-    # Preserve releaseAll on dialog open: W must not remain held afterwards.
-    game.raw('key', 'w', 'down')
-    show()
-    game.raw('key', 'w', 'up')
-    close()
-    game.wait(10)
-    before = game('state')['player']['position']
-    game.wait(10)
-    after = game('state')['player']['position']
-    assert sum((after[i] - before[i]) ** 2 for i in (0, 2)) < .0001, (before, after)
-
-    # Preserve the prior fix closing server dialogs on player death.
-    show()
-    server.console(f'kill {PLAYER}')
-    game.raw('wait-for', 'screen', 'dead', '--timeout', 30)
-    assert game('state')['dialog'] == {'open': None, 'screen': None}
-    game.raw('respawn')
-    game.raw('wait-for', 'screen', 'playing', '--timeout', 30)
-    game.shot(out, 'dialog-closed')
-    return {'waiting_closed': True, 'parent_closed': True, 'warning_closed': True,
-            'clear_keeps_waiting': True, 'clear_and_close_restore_parent': True,
-            'replacement_dialog': True, 'chat_parent_closed': True,
-            'lectern_closes': True, 'held_keys_released': True, 'death_closes_dialog': True}
-
-
-def check_dialog(server, game, out):
-    server.console('scoreboard objectives add answer trigger')
-    server.console(f'scoreboard players enable {PLAYER} answer')
-    dialog = {
-        'type': 'minecraft:multi_action',
-        'title': {'text': 'Sign in', 'color': 'gold'},
-        'body': {'type': 'minecraft:plain_message', 'contents': 'Pick a number.'},
-        'inputs': [
-            {'type': 'minecraft:text', 'key': 'number', 'label': 'Number'},
-            {'type': 'minecraft:boolean', 'key': 'agree', 'label': 'Agree', 'on_true': '1', 'on_false': '0'},
-        ],
-        'actions': [
-            {'label': 'Send', 'action': {'type': 'minecraft:dynamic/run_command',
-                                         'template': 'trigger answer set $(number)$(agree)'}},
-            {'label': 'Submit', 'action': {'type': 'minecraft:dynamic/custom', 'id': 'horizon:e2e',
-                                           'additions': {'tag': 'x'}}},
-            {'label': 'Wait', 'action': {'type': 'minecraft:dynamic/custom', 'id': 'horizon:wait'}},
-        ],
-        'after_action': 'none',
-        'pause': False,  # a pausing dialog must close after an action
-    }
-    shown = {}
-    server.console(f'dialog show {PLAYER} {snbt(dialog)}')
-    game.raw('wait-for', 'screen', 'dialog', '--timeout', 30)
-    state = game('state')
-    shown['shown'] = state['dialog']['open']
-    assert shown['shown']['title'] == 'Sign in', shown
-    assert [i['key'] for i in shown['shown']['inputs']] == ['number', 'agree'], shown
-    assert shown['shown']['buttons'] == ['Send', 'Submit', 'Wait'], shown
-    game.shot(out, 'dialog')
-    # The text, the box, then the command the template makes of them.
-    game.raw('type', '4')
-    game.raw('click', 'agree')
-    game.raw('click', 'send')
-    time.sleep(1)
-    server.console(f'scoreboard players get {PLAYER} answer')
-    server.wait_for(rf'{PLAYER} has 41 \[answer\]', timeout=30)
-    shown['trigger'] = 41
-    # A custom action: its additions and every input's tag.
-    game.raw('click', 'submit')
-    server.wait_for(r'Received custom click action horizon:e2e with payload', timeout=30)
-    line = next(l for l in server.lines if 'horizon:e2e' in l)
-    shown['custom'] = line.split('payload ', 1)[1]
-    for part in ('agree:1b', 'number:"4"', 'tag:"x"'):
-        assert part in shown['custom'], shown
-    # after_action none: still open. Then clear it.
-    assert game('state')['dialog']['open'], 'the dialog closed after an action with after_action none'
-    server.console(f'dialog clear {PLAYER}')
-    game.raw('wait-for', 'screen', 'playing', '--timeout', 30)
-    # wait_for_response: the waiting screen until the server answers (here, never).
-    server.console(f'dialog show {PLAYER} {snbt(dict(dialog, after_action="wait_for_response"))}')
-    game.raw('wait-for', 'screen', 'dialog', '--timeout', 30)
-    game.raw('click', 'wait')
-    server.wait_for(r'Received custom click action horizon:wait', timeout=30)
-    shown['waiting'] = game('state')['dialog']['screen']
-    game.shot(out, 'waiting')
-    assert shown['waiting'] == 'waiting_for_response', shown
-    # Its Back works after 5 s, and so does Escape (clear_dialog leaves it open, as in vanilla).
-    time.sleep(5.5)
-    game.raw('key', 'esc', 'tap')
-    game.raw('wait-for', 'screen', 'playing', '--timeout', 10)
-    return shown
-
-
 def check_book_menu(server, game, out, proxy):
     """An active book is the only rendered/interactive screen over a menu."""
     server.console(f'item replace entity {PLAYER} weapon.mainhand with minecraft:written_book'
@@ -397,61 +209,9 @@ def check_titles(server, game, out):
     return {'title': title}
 
 
-def check_dialog_text(server, game, out):
-    """Custom component clicks (including an inherited inline sprite) reach the real server."""
-    results = {}
-    for after in ('none', 'close', 'wait_for_response'):
-        event = {'action': 'custom', 'id': f'horizon:text_{after}'}
-        if after != 'none':
-            event['payload'] = {'shop': 'potions', 'amount': 3}
-        dialog = {
-            'type': 'minecraft:multi_action', 'title': 'Text actions', 'pause': False,
-            'after_action': after,
-            'body': {'type': 'minecraft:plain_message', 'width': 325, 'contents': {
-                'text': '', 'click_event': event, 'extra': [
-                    {'object': 'atlas', 'atlas': 'minecraft:items', 'sprite': 'minecraft:item/potion'},
-                    ' Shop',
-                ],
-            }},
-            'actions': [{'label': 'Unused'}],
-        }
-        server.console(f'dialog show {PLAYER} {snbt(dialog)}')
-        game.raw('wait-for', 'screen', 'dialog', '--timeout', 30)
-        # Read the rendered layout without depending on simulation ticks: dialogs are UI.
-        width = game.raw('ui')['gui_size'][0]
-        # The single message starts at y=63 with four pixels of padding. Blank space
-        # within its 325-wide widget must not execute the component's click event.
-        game.raw('click-at', width / 2 + 100, 70)
-        time.sleep(0.25)
-        assert not any(f'Received custom click action {event["id"]} ' in line for line in server.lines)
-        # The icon and the letters inherit the same event. Exercise both paths.
-        game.raw('click-at', width / 2 - 15 if after == 'none' else width / 2 + 3, 70)
-        server.wait_for(rf'Received custom click action {event["id"]} with payload', timeout=10)
-        line = next(line for line in server.lines if f'Received custom click action {event["id"]} ' in line)
-        if 'payload' in event:
-            assert 'shop:"potions"' in line and 'amount:3' in line, line
-        else:
-            assert 'with payload null' in line, line
-        state = game('state')
-        if after == 'none':
-            assert state['dialog']['open'], state['dialog']
-            server.console(f'dialog clear {PLAYER}')
-        elif after == 'wait_for_response':
-            assert state['dialog']['screen'] == 'waiting_for_response', state['dialog']
-            game.shot(out, 'text-waiting')
-            time.sleep(5.5)
-            game.raw('key', 'esc', 'tap')
-        game.raw('wait-for', 'screen', 'playing', '--timeout', 10)
-        results[after] = line
-    return results
-
-
 CHECKS = {
-    'dialog': check_dialog,
-    'dialog_text': check_dialog_text,
     'titles': check_titles,
     'book_menu': check_book_menu,
-    'dialog_close': check_dialog_close,
 }
 
 

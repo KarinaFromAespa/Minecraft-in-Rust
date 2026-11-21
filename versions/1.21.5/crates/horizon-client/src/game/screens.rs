@@ -42,9 +42,9 @@ impl Screen {
     /// `DeathScreen`, `GameModeSwitcherScreen`, `SocialInteractionsScreen`
     /// and `LecternScreen`; Horizon's own screens over the world follow
     /// them. The book in hand (`BookViewScreen`, true), the win screen
-    /// (`WinScreen`, `!poem`) and a dialog (`DialogScreen`, its `pause`)
-    /// answer from their own state, so `Game::pauses_game` reads those where
-    /// they live and `Win` is not decided here.
+    /// (`WinScreen`, `!poem`) answers from its own state, so
+    /// `Game::pauses_game` reads it where it lives and `Win` is not
+    /// decided here.
     pub(super) fn is_pause_screen(self) -> bool {
         match self {
             // AbstractContainerScreen.isPauseScreen.
@@ -74,7 +74,6 @@ impl Screen {
             | Self::Friends
             | Self::ServerLinks
             | Self::ConfirmLink
-            | Self::DialogWarning
             | Self::CommandBlock
             | Self::BlockEditor
             | Self::DebugOptions
@@ -94,7 +93,6 @@ impl Screen {
             | Self::Social
             | Self::ServerLinks
             | Self::ConfirmLink
-            | Self::DialogWarning
             | Self::DebugOptions => true,
             Self::Playing
             | Self::GameModeSwitcher
@@ -913,7 +911,6 @@ mod tests {
             Screen::Friends,
             Screen::ServerLinks,
             Screen::ConfirmLink,
-            Screen::DialogWarning,
             Screen::CommandBlock,
             Screen::BlockEditor,
             Screen::DebugOptions,

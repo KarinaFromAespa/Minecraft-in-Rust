@@ -306,46 +306,34 @@ impl Game<'_> {
             self.server_packs.prompt.is_some(),
         )
             .hash(&mut hasher);
-        self.dialog_screen_key().hash(&mut hasher);
         Some(hasher.finish())
     }
 
     /// B or Start on a prompt: as Escape, the top one first. The code of conduct has no answer
-    /// by Escape (`shouldCloseOnEsc`), and a dialog only when it allows it.
+    /// by Escape (`shouldCloseOnEsc`).
     pub(super) fn pad_prompt_back(&mut self) -> Result<()> {
         if self.link_prompt.is_some() {
             self.answer_link_prompt(false);
         } else if self.code_of_conduct.is_some() {
         } else if self.server_packs.prompt.is_some() {
             self.answer_pack_prompt(false)?;
-        } else {
-            self.dialog_key(KeyCode::Escape, None, None)?;
         }
         Ok(())
     }
 
     /// Where the focus starts on a prompt: on what answers no, when it has that, so a press meant
-    /// for the game can't accept anything. A dialog with text to fill in starts on its first
-    /// input; its warning icon comes last.
+    /// for the game can't accept anything; else its first widget in tab order.
     fn pad_prompt_first(&self, targets: &[Target]) -> Option<Target> {
         use widgets::Action;
-        if !self.dialog_starts_typing() {
-            let declared = widgets::last_actions(self.key_screen());
-            let no = declared
-                .iter()
-                .filter(|d| d.enabled && matches!(d.action, Action::Cancel | Action::Back))
-                .find_map(|d| targets.iter().find(|t| t.rect == d.rect));
-            if let Some(no) = no {
-                return Some(*no);
-            }
-        }
-        let warning = self.dialog_warning_icon();
-        let rest: Vec<Target> = targets
+        let declared = widgets::last_actions(self.key_screen());
+        let no = declared
             .iter()
-            .filter(|t| Some(t.rect) != warning)
-            .copied()
-            .collect();
-        key_focus::tab_step(&rest, None, true).map(|i| rest[i])
+            .filter(|d| d.enabled && matches!(d.action, Action::Cancel | Action::Back))
+            .find_map(|d| targets.iter().find(|t| t.rect == d.rect));
+        if let Some(no) = no {
+            return Some(*no);
+        }
+        key_focus::tab_step(targets, None, true).map(|i| targets[i])
     }
 
     pub(super) fn gui_scale(&self) -> Option<HudBatch> {
@@ -2012,7 +2000,7 @@ impl Game<'_> {
 
     /// The screen keeps the navigation keys for itself: typing in chat (Tab
     /// completes a command), a sign, a book, the creative, recipe-book and
-    /// mods searches, the anvil's name, a command block, a dialog, a key or
+    /// mods searches, the anvil's name, a command block, a key or
     /// button being bound, the credits, the on-screen keyboard.
     fn key_focus_blocked(&self) -> bool {
         let playing_screen = |screen| self.title.is_none() && self.screen == screen;
@@ -2026,7 +2014,6 @@ impl Game<'_> {
             || self.station_typing()
             || self.screen == Screen::CommandBlock
             || self.screen == Screen::Win
-            || self.dialog_open()
             || (self.screen == Screen::Options
                 && (self.options_waiting_for_key()
                     || self.ui.options.selected_pad_action.is_some()))
@@ -2334,7 +2321,7 @@ impl Game<'_> {
 
     /// A text field has keyboard focus: chat, a sign, a book being written,
     /// a search box, the anvil's name, the title screens' and the options'
-    /// fields, the LAN port, a dialog's input, the command box and the edit
+    /// fields, the LAN port, the command box and the edit
     /// screens of the jigsaw, structure and test blocks.
     fn pad_typing(&self) -> bool {
         (self.screen == Screen::Chat && self.title.is_none())
@@ -2343,7 +2330,6 @@ impl Game<'_> {
             || (self.screen == Screen::Creative && self.creative_screen.tab().search)
             || self.recipe_search_focused()
             || self.station_typing()
-            || self.dialog_typing()
             || self.mod_browser_typing()
             || matches!(
                 self.screen,
@@ -2358,10 +2344,9 @@ impl Game<'_> {
             || matches!(self.screen, Screen::Options | Screen::WorldOptions)
     }
 
-    /// Enter on these goes on to a new line: a dialog's, a sign's or a book's page.
+    /// Enter on these goes on to a new line: a sign's or a book's page.
     fn pad_enter_keeps_typing(&self) -> bool {
-        self.dialog_typing_lines()
-            || self.sign_edit.is_some()
+        self.sign_edit.is_some()
             || matches!(
                 self.book,
                 Some(super::books::BookScreen::Edit { signing: false, .. })
@@ -2422,22 +2407,7 @@ impl Game<'_> {
             }
         };
         let backspace = key == Some(KeyCode::Backspace);
-        if self.dialog_open() {
-            // Over whatever else is open. Enter only ends the typing, but for a new line.
-            let result = match text {
-                Some(t) => {
-                    self.dialog_type(t);
-                    Ok(())
-                }
-                None if backspace || self.dialog_typing_lines() => {
-                    self.dialog_key(key.expect("a key"), None, None)
-                }
-                None => Ok(()),
-            };
-            if let Err(e) = result {
-                log::warn!("Horizon: on-screen keyboard: {e}");
-            }
-        } else if self.screen == Screen::Chat && self.title.is_none() {
+        if self.screen == Screen::Chat && self.title.is_none() {
             match text {
                 Some(t) => self.chat_type(t),
                 None => self.chat_key_code(key.expect("a key"), None),

@@ -1554,7 +1554,6 @@ impl Game<'_> {
         self.server_packs_disconnect();
         self.code_of_conduct = None;
         self.reset_tutorial();
-        self.close_dialogs();
         // Gui.setScreen -> KeyMapping.releaseAll: the title or disconnect
         // screen releases every held key. Its release goes to that screen,
         // so a key kept here would still be down in the next world (#3246).
@@ -2289,8 +2288,6 @@ impl Game<'_> {
                 } => {
                     self.set_registries(registries);
                     self.extras_joined();
-                    // handleLogin: the level loading screen replaces any dialog.
-                    self.close_dialogs();
                     if let Some(r) = self.remote.as_mut() {
                         r.joined = true;
                         // handleLogin: startWaitingForNewLevel with Reason.OTHER.
@@ -2333,8 +2330,7 @@ impl Game<'_> {
                     // clearClientLevel opens ServerReconfigScreen over no level.
                     self.flush_chat_queue();
                     self.send_chat_acknowledgement();
-                    self.close_dialogs();
-                    // The server configuring us now (a proxy's next one)
+                                // The server configuring us now (a proxy's next one)
                     // offers its own far terrain, or none, and announces its
                     // own features again (a Horizon server's quiet commands).
                     if let Some(remote) = &mut self.remote {
@@ -4897,8 +4893,7 @@ impl Game<'_> {
                 let shown = self.remote.as_ref().is_none_or(|r| r.show_death_screen);
                 if p.health <= 0.0 && shown && self.screen != Screen::Dead && self.player.is_some()
                 {
-                    self.close_dialogs();
-                    self.screen = Screen::Dead;
+                                self.screen = Screen::Dead;
                     self.ui.death_time = 0;
                     self.ui.death_confirm = None;
                     self.capture(false);
@@ -4918,8 +4913,7 @@ impl Game<'_> {
                 // once when it is hidden.
                 if me && self.screen != Screen::Dead && self.player.is_some() {
                     if self.remote.as_ref().is_none_or(|r| r.show_death_screen) {
-                        self.close_dialogs();
-                        self.screen = Screen::Dead;
+                                        self.screen = Screen::Dead;
                         self.ui.death_time = 0;
                         self.ui.death_confirm = None;
                         self.capture(false);
@@ -5182,16 +5176,8 @@ impl Game<'_> {
             C::MerchantOffers(p) => self.remote_merchant_offers(p),
             C::ContainerClose(_) => {
                 // `LocalPlayer.clientSideCloseContainer` sets the screen to
-                // null, including dialogs and WaitingForResponseScreen. This
-                // differs from clearDialog, which restores the parent screen.
-                let dialog = self.dialog_open();
-                if dialog {
-                    self.close_dialogs();
-                    self.ui.chat_screen = None;
-                    self.book = None;
-                    self.sign_edit = None;
-                }
-                if !self.remote_lectern_closed() && (self.screen == Screen::Inventory || dialog) {
+                // null.
+                if !self.remote_lectern_closed() && self.screen == Screen::Inventory {
                     self.remote_close_local();
                     self.screen = Screen::Playing;
                     self.capture(true);
@@ -6677,7 +6663,7 @@ impl Game<'_> {
             .remote
             .as_ref()
             .is_some_and(|r| r.level_load.is_active());
-        let playing = self.screen == Screen::Playing && !loading && !self.dialog_open();
+        let playing = self.screen == Screen::Playing && !loading;
         let held = |action| playing && self.keys.held(action);
         let mut keys = Keys {
             forward: held(Action::Forward),
@@ -9757,7 +9743,7 @@ impl Game<'_> {
         let mut input = std::mem::take(&mut r.input);
         let stop = std::mem::take(&mut r.stop_mining);
         // Minecraft.tick runs handleKeybinds only while `gui.screen() == null`: a
-        // book, a sign editor, a dialog or a prompt over the world (each a
+        // book, a sign editor or a prompt over the world (each a
         // `Screen` in vanilla) stops the attack and use mappings from acting,
         // and `KeyMapping.releaseAll` let go of the buttons when it opened
         // (`track_toggle_screens`), so a dig held into a book ends (#9729).
@@ -10164,9 +10150,9 @@ impl Game<'_> {
     /// the same invocation then releases an active use
     /// (`player.isUsingItem() && !keyUse.isDown()` → `releaseUsingItem`).
     /// Only the screens opened from those keybinds do this (inventory, chat,
-    /// advancements); the pause menu, server containers, mount inventories and
-    /// dialogs release on the first tick after closing instead, as vanilla
-    /// does.
+    /// advancements); the pause menu, server containers and mount
+    /// inventories release on the first tick after closing instead, as
+    /// vanilla does.
     pub(super) fn release_use_for_keybind_screen(&mut self) {
         // Only a server's client holds a use to release.
         if self.remote.is_none() {

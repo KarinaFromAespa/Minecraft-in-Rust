@@ -265,7 +265,7 @@ impl Game<'_> {
     }
 
     /// `ClientPacketListener.sendUnsignedCommand`: a command the player didn't
-    /// type (a clicked chat line or book, a dialog's button) goes as it is
+    /// type (a clicked chat line or book) goes as it is
     /// when it has no signed argument; one with a message argument is never
     /// sent from here, and the caller says so — the player can only send it
     /// themselves, from the chat box. So neither a server nor a mod can have

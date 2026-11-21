@@ -245,15 +245,12 @@ impl Game<'_> {
     }
     /// `hasNoEditboxFocused`'s opposite: the open screen's focus is an
     /// `EditBox` that `canConsumeInput`. The chat, command block, anvil
-    /// name, world options' port and rule boxes, a dialog's text input, a
+    /// name, world options' port and rule boxes, a
     /// focused options search and the title screens' fields count; a sign, a
     /// book (no `EditBox`), the recipe book (its component has the focus) and
     /// the creative search (focused as a widget, not as the screen's focus)
     /// do not.
     pub(super) fn edit_box_focused(&mut self) -> bool {
-        if self.dialog_open() {
-            return self.dialog_typing();
-        }
         match self.screen {
             Screen::Chat if self.title.is_none() => true,
             Screen::Options => self.ui.options.typing(),

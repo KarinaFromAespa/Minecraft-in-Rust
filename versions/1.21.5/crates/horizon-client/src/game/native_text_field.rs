@@ -77,7 +77,7 @@ fn edit_box(edit: &mut EditBox, replacement: Option<&NativeTextField>) -> Option
 }
 
 impl Game<'_> {
-    /// Specialized book/sign/dialog/rule, options and numeric editors retain
+    /// Specialized book/sign/rule, options and numeric editors retain
     /// their own validators; this hook does not expose those editors yet.
     fn focused_native_text_field(
         &mut self,
@@ -488,11 +488,11 @@ mod tests {
         );
         assert_eq!(target.calls, 0);
         assert_eq!(target.chat.value(), "underlying");
-        let mut dialog_input = EditBox::new(0.0, 0.0, 100.0, 20.0);
+        let mut field = EditBox::new(0.0, 0.0, 100.0, 20.0);
         if handled.is_none() {
-            dialog_input.insert_text("x");
+            field.insert_text("x");
         }
-        assert_eq!(dialog_input.value, "x");
+        assert_eq!(field.value, "x");
         assert_eq!(target.chat.value(), "underlying");
     }
 

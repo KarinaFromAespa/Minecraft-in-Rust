@@ -129,7 +129,6 @@ fn screen_ids_are_distinct_and_stable() {
         Screen::BlockEditor,
         Screen::ServerLinks,
         Screen::ConfirmLink,
-        Screen::DialogWarning,
         Screen::Win,
         Screen::DebugOptions,
         Screen::Mod,
@@ -365,24 +364,15 @@ fn a_held_key_bound_to_a_button_repeats_its_clicks() {
     }
 }
 
-/// A server dialog, a book, a sign editor or a prompt over the world is a
-/// screen: held keys and the mouse buttons are released
-/// (`KeyMapping.releaseAll`), and toggled sneak comes back when it closes
-/// (#4974, #9729).
+/// A book, a sign editor or a prompt over the world is a screen: held
+/// keys and the mouse buttons are released (`KeyMapping.releaseAll`), and
+/// toggled sneak comes back when it closes (#4974, #9729).
 #[test]
-fn a_dialog_releases_held_keys_like_a_screen() {
+fn a_screen_over_the_world_releases_held_keys() {
     assert!(gameplay_has_keyboard(Screen::Playing, false, false));
     assert!(!gameplay_has_keyboard(Screen::Playing, false, true));
     assert!(!gameplay_has_keyboard(Screen::Playing, true, false));
     assert!(!gameplay_has_keyboard(Screen::Chat, false, false));
-
-    let mut keys = horizon_client::held::HeldKeys::from_iter([KeyCode::KeyW]);
-    let mut left = true;
-    let mut right = true;
-    drop_held_behind_dialog(false, &mut keys, &mut left, &mut right);
-    assert!(keys.raw(&KeyCode::KeyW) && left && right);
-    drop_held_behind_dialog(true, &mut keys, &mut left, &mut right);
-    assert!(keys.is_empty() && !left && !right);
 
     let options = [true, false, false, false];
     let mut toggles = ToggleKeys::default();

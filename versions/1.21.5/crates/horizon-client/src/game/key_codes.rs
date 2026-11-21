@@ -100,26 +100,12 @@ pub(super) fn keyboard_button(playing: bool, action: KeyAction) -> Option<bool> 
 }
 
 /// Gameplay owns the keyboard: `Screen::Playing`, no title, and nothing open
-/// over the world (`screen_over_playing`: a server dialog, a book or lectern,
+/// over the world (`screen_over_playing`: a book or lectern,
 /// a sign editor, a prompt). Each is a `Screen` in vanilla, so `Gui.setScreen`
 /// runs `KeyMapping.releaseAll` and `Minecraft.tick` skips `handleKeybinds`
 /// while it is up: a mouse button held into it is let go of (#9729).
 pub(super) fn gameplay_has_keyboard(screen: Screen, title: bool, screen_over: bool) -> bool {
     screen == Screen::Playing && !title && !screen_over
-}
-
-/// A dialog drops held keys and mouse buttons it does not see (#4974).
-pub(super) fn drop_held_behind_dialog(
-    dialog: bool,
-    keys: &mut horizon_client::held::HeldKeys,
-    left: &mut bool,
-    right: &mut bool,
-) {
-    if dialog {
-        keys.clear();
-        *left = false;
-        *right = false;
-    }
 }
 
 /// `AbstractContainerScreen.keyPressed` for a key bound to a mouse mapping: a press or repeat of

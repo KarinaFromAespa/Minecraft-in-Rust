@@ -1,6 +1,6 @@
 //! ResourceOrIdArgument and the data-fixer-upper decoding of inline values
 //! commands accept (loot predicates, item modifiers, slot sources, context
-//! providers, dialogs), reproducing the codec error messages vanilla reports.
+//! providers), reproducing the codec error messages vanilla reports.
 use super::args::{Registries, is_id_char, parse_identifier, slot_ranges};
 use super::{CmdResult, CommandError, Reader};
 use horizon_world::nbt::{Compound, JavaString, Tag};
@@ -330,19 +330,6 @@ pub fn decode(registry: &str, t: &Tag, reg: &Registries) -> Result<(), String> {
                 }
                 Ok(())
             })
-        }),
-        // Dialog types: CommonDialogData's title, then each type's own.
-        "minecraft:dialog" => dispatch(t, reg, "minecraft:dialog_type", &|id, map, t| {
-            let own: &[&str] = match id {
-                "minecraft:confirmation" => &["yes", "no"],
-                "minecraft:multi_action" => &["actions"],
-                "minecraft:dialog_list" => &["dialogs"],
-                _ => &[],
-            };
-            let keys: Vec<&str> = std::iter::once("title")
-                .chain(own.iter().copied())
-                .collect();
-            require(map, t, &keys)
         }),
         // The ConfiguredFeature codec, where the source has the live features.
         "minecraft:worldgen/feature" => {

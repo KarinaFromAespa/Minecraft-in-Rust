@@ -11,9 +11,6 @@ use horizon_client::{
 impl Game<'_> {
     /// Whether a text box has focus right now (the fields `ime_commit` can fill).
     pub(super) fn text_field_focused(&mut self) -> bool {
-        if self.dialog_open() {
-            return self.dialog_has_text_field();
-        }
         if self.title_input_active()
             && let Some(title) = self.title.as_mut()
         {
@@ -109,8 +106,8 @@ impl Game<'_> {
         if text.is_empty() {
             return;
         }
-        // Dialogs have their own fields; the other topmost prompts take no text.
-        if self.prompt_open() && !self.dialog_open() {
+        // The topmost prompts take no text.
+        if self.prompt_open() {
             return;
         }
         let text: String = text.chars().filter(|c| !c.is_control()).collect();
@@ -128,9 +125,6 @@ impl Game<'_> {
             return;
         };
         if text.is_empty() || !self.text_field_focused() {
-            return;
-        }
-        if self.dialog_type(&text) {
             return;
         }
         if self.title_input_active() {

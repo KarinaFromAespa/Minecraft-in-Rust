@@ -127,7 +127,6 @@ mod debug_stick;
 mod decorated_pot;
 mod dedicated;
 mod deflect;
-mod dialogs;
 #[cfg(feature = "discord")]
 mod discord;
 mod dispense_fixture;
@@ -555,7 +554,7 @@ use horizon_world::{
     registry::BlockStateId,
 };
 use key_codes::{
-    container_key_clones, drop_held_behind_dialog, follow_named_keymap, gameplay_has_keyboard,
+    container_key_clones, follow_named_keymap, gameplay_has_keyboard,
     glfw_button, glfw_modifiers, keyboard_button,
 };
 use launch_options::Options;
@@ -655,12 +654,10 @@ enum Screen {
     CommandBlock,
     /// A game master block's edit screen (game/block_editor.rs).
     BlockEditor,
-    /// ServerLinksDialogScreen: a server's links (game/server_links.rs).
+    /// ServerLinksScreen: a server's links (game/server_links.rs).
     ServerLinks,
     /// ConfirmLinkScreen for a server link (game/server_links.rs).
     ConfirmLink,
-    /// DialogScreen.WarningScreen: the note about custom screens.
-    DialogWarning,
     /// WinScreen: the end poem and the credits (game/win.rs).
     Win,
     /// DebugOptionsScreen, F3+F6 (game/debug_options.rs).
@@ -698,7 +695,6 @@ impl Screen {
             Screen::BlockEditor => "block_editor",
             Screen::ServerLinks => "server_links",
             Screen::ConfirmLink => "confirm_link",
-            Screen::DialogWarning => "dialog_warning",
             Screen::Win => "win",
             Screen::DebugOptions => "debug_options",
             Screen::Mod => "mod",
@@ -2125,7 +2121,6 @@ struct Game<'a> {
     link_prompt: Option<String>,
     /// A server's Code of Conduct to accept (game/code_of_conduct.rs).
     code_of_conduct: Option<code_of_conduct::Prompt>,
-    dialogs: dialogs::DialogState,
     /// Single player's server while it loads its world (`Minecraft.doWorldLoad`).
     integrated_starting: Option<integrated::Starting>,
     world_renderer_ready: bool,
@@ -5204,7 +5199,7 @@ impl Game<'_> {
         if self.destroy_delay > 0 {
             self.destroy_delay -= 1;
         }
-        if !self.left || self.screen != Screen::Playing || self.dialog_open() {
+        if !self.left || self.screen != Screen::Playing {
             self.mining = None;
             return Ok(());
         }
@@ -5778,7 +5773,6 @@ impl Game<'_> {
             && self.use_delay == 0
             && self.using.is_none()
             && self.screen == Screen::Playing
-            && !self.dialog_open()
             && self.sleeping.is_none()
         {
             self.use_with_hand()?;
@@ -5802,15 +5796,13 @@ impl Game<'_> {
         // The pack prompt replaces the connecting screen (setScreen), but
         // in game it opens over the world.
         let mut batch = if (self.server_packs.prompt.is_some()
-            || self.code_of_conduct.is_some()
-            || self.dialog_open())
+            || self.code_of_conduct.is_some())
             && self.player.is_none()
         {
             HudBatch::new(size)
         } else {
             self.hud_layers(size)
         };
-        self.draw_dialog(&mut batch);
         self.draw_pack_prompt(&mut batch);
         self.draw_code_of_conduct(&mut batch);
         self.draw_link_prompt(&mut batch);
@@ -6216,7 +6208,6 @@ impl Game<'_> {
             Screen::Social => self.draw_social_screen(&mut batch),
             Screen::ServerLinks => self.draw_server_links(&mut batch),
             Screen::ConfirmLink => self.draw_confirm_link(&mut batch),
-            Screen::DialogWarning => self.draw_dialog_warning(&mut batch),
             Screen::CommandBlock => self.draw_command_block(&mut batch),
             Screen::BlockEditor => self.draw_block_editor(&mut batch),
             Screen::DebugOptions => self.draw_debug_options(&mut batch),
@@ -7707,8 +7698,7 @@ impl Game<'_> {
         if let Some(r) = self.renderer.as_mut() {
             r.clear_sections(self.world.layout());
         }
-        // Clear sync data (registries, dialog tags) so dialogs don't leak
-        // between worlds.
+        // Clear sync data (registries) so nothing leaks between worlds.
         lan::forget_sync_data();
         self.title = Some(
             Title::new(
@@ -10468,9 +10458,6 @@ impl Game<'_> {
                         if self.screen_mouse_dragged(previous) {
                             return Ok(());
                         }
-                        if self.dialog_open() {
-                            self.dialog_drag();
-                        }
                         if self.screen == Screen::BlockEditor {
                             self.block_editor_drag();
                         }
@@ -10573,8 +10560,6 @@ impl Game<'_> {
                         if self.link_prompt.is_some() {
                         } else if self.code_of_conduct.is_some() {
                             self.code_of_conduct_scroll(d);
-                        } else if self.server_packs.prompt.is_none() {
-                            self.dialog_scroll(d);
                         }
                         return Ok(());
                     }
@@ -10681,16 +10666,7 @@ impl Game<'_> {
                         self.pack_prompt_click()?;
                     }
                 }
-                WindowEvent::MouseInput { state, button, .. } if self.dialog_open() => {
-                    if button == MouseButton::Left {
-                        if state == ElementState::Pressed {
-                            self.dialog_click()?;
-                        } else {
-                            self.dialog_release();
-                        }
-                    }
-                }
-                // ConnectScreen's Cancel, under the prompts and dialogs above.
+                // ConnectScreen's Cancel, under the prompts above.
                 WindowEvent::MouseInput { state, button, .. } if self.remote_loading() => {
                     if state == ElementState::Pressed && button == MouseButton::Left {
                         self.connect_screen_click()?;
@@ -10989,9 +10965,6 @@ impl Game<'_> {
                         Screen::ConfirmLink if pressed && button == MouseButton::Left => {
                             self.confirm_link_click()
                         }
-                        Screen::DialogWarning if pressed && button == MouseButton::Left => {
-                            self.dialog_warning_click()?
-                        }
                         Screen::WorldOptions if button == MouseButton::Left => {
                             self.world_options_release()
                         }
@@ -11060,14 +11033,6 @@ impl Game<'_> {
                         && event.physical_key == PhysicalKey::Code(KeyCode::Escape)
                     {
                         self.answer_pack_prompt(false)?;
-                    }
-                }
-                WindowEvent::KeyboardInput { event, .. } if self.dialog_open() => {
-                    let shortcut = self.edit_shortcut(&event);
-                    if event.state == ElementState::Pressed
-                        && let PhysicalKey::Code(key) = event.physical_key
-                    {
-                        self.dialog_key(key, shortcut, event.text.as_deref())?
                     }
                 }
                 WindowEvent::KeyboardInput { event, .. }
@@ -11332,7 +11297,6 @@ impl Game<'_> {
                     self.previous = now;
                     if self.studio_freecam.active
                         && self.screen == Screen::Playing
-                        && !self.dialog_open()
                     {
                         let held = |key| f64::from(u8::from(self.keys.raw(&key)));
                         let forward = held(KeyCode::KeyW) - held(KeyCode::KeyS);
@@ -11354,7 +11318,6 @@ impl Game<'_> {
                         && self.title.is_none()
                         && self.sign_edit.is_none()
                         && self.book.is_none()
-                        && !self.dialog_open()
                     {
                         let turn = |k| f32::from(u8::from(self.keys.raw(&k)));
                         let secs = elapsed.as_secs_f32().min(0.1);
@@ -11715,7 +11678,6 @@ impl<'a> Game<'a> {
             server_packs: Default::default(),
             link_prompt: None,
             code_of_conduct: None,
-            dialogs: Default::default(),
             integrated_starting: None,
             world_renderer_ready: false,
             collision: res.collision(),

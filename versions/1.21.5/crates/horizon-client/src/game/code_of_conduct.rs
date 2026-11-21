@@ -6,7 +6,7 @@
 use super::{Game, Screen, server_packs::saves};
 use horizon_client::{
     Result,
-    dialog_screen::BOX,
+    widgets::CHECKBOX_BOX,
     font::Font,
     hud::{HudBatch, rgba},
     multiplayer,
@@ -65,21 +65,21 @@ impl Prompt {
             .collect();
         let content = LINE * lines.len() as f32 + 2.0 * PAD;
         let box_h = content.min((h - 100.0).max(LINE + 2.0 * PAD));
-        let fixed = LINE + GAP + MARGIN + MARGIN + GAP + BOX + GAP + BUTTON.1;
+        let fixed = LINE + GAP + MARGIN + MARGIN + GAP + CHECKBOX_BOX + GAP + BUTTON.1;
         let total = fixed + box_h;
         let ly = ((h - total) / 2.0).trunc();
         let cell = |cw: f32| ((w - cw) / 2.0).trunc();
         let area_y = ly + LINE + GAP + MARGIN;
         let check_y = area_y + box_h + MARGIN + GAP;
-        let check_w = BOX + 4.0 + font.width_text(&label);
-        let button_y = check_y + BOX + GAP;
+        let check_w = CHECKBOX_BOX + 4.0 + font.width_text(&label);
+        let button_y = check_y + CHECKBOX_BOX + GAP;
         let bx = cell(COLUMN);
         Layout {
             title: (title.clone(), cell(font.width_text(&title)), ly),
             lines,
             area: [cell(col), area_y, col, box_h],
             content,
-            check: [cell(check_w), check_y, check_w, BOX],
+            check: [cell(check_w), check_y, check_w, CHECKBOX_BOX],
             label,
             buttons: [
                 [bx, button_y, BUTTON.0, BUTTON.1],
@@ -216,11 +216,11 @@ impl Game<'_> {
             (false, true) => "gui/sprites/widget/checkbox_highlighted",
             (false, false) => "gui/sprites/widget/checkbox",
         };
-        batch.sprite_scaled(atlas, sprite, x, y, BOX, BOX, u32::MAX);
+        batch.sprite_scaled(atlas, sprite, x, y, CHECKBOX_BOX, CHECKBOX_BOX, u32::MAX);
         batch.text_styled(
             atlas,
             &layout.label,
-            x + BOX + 4.0,
+            x + CHECKBOX_BOX + 4.0,
             y + 4.0,
             rgba(224, 224, 224, 255),
             true,

@@ -45,7 +45,6 @@ impl Game<'_> {
             (self.link_prompt.is_some(), "link_prompt"),
             (self.code_of_conduct.is_some(), "code_of_conduct"),
             (self.server_packs.prompt.is_some(), "server_pack_prompt"),
-            (self.dialog_open(), "dialog"),
             (book.is_some(), book.unwrap_or("book_view")),
             (self.sign_edit.is_some(), "sign_editor"),
         ]);

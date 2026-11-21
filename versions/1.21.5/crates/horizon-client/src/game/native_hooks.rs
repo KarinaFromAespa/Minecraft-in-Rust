@@ -2367,7 +2367,7 @@ impl Game<'_> {
     /// is the overlay's key, `<kind>/<namespace>:<path>` without `.json`, over
     /// the kinds the tables read: `recipe/mymod:thing`,
     /// `tags/mymod:block/thing`, `loot_table/…`, `advancement/…`,
-    /// `trade_set/…`, `villager_trade/…`, `dialog/…`. A file that isn't JSON
+    /// `trade_set/…`, `villager_trade/…`. A file that isn't JSON
     /// is skipped with a warning. Asked once per load on both paths, so this
     /// is where a mod recomputes them.
     /// Contributed files sit below the world's own data packs: a pack's file
@@ -3726,15 +3726,15 @@ impl Game<'_> {
     /// `&self`, so it reads and draws only. The Win and Options screens call
     /// it on their own path, after their drawing.
     ///
-    /// It does not fire for the screens drawn over gameplay after it (a
-    /// server dialog, the server pack, link and code-of-conduct prompts, a
+    /// It does not fire for the screens drawn over gameplay after it (the
+    /// server pack, link and code-of-conduct prompts, a
     /// book, a sign editor): those keep `Screen::Playing`, which it skips (the
     /// server pack prompt hides an open screen too, and that screen does not
     /// fire under it), and draw over what it drew, while vanilla's
     /// `ScreenEvent.Render.Post` fires for them. The title's own screens
     /// (`title`, `world_select`, `world_create`, `multiplayer`…) fire it too,
     /// their `screen.id` from the title state machine and the whole window
-    /// their `rect` (API 326), and no dialog or prompt over them.
+    /// their `rect` (API 326), and no prompt over them.
     /// API 78.
     pub(super) fn native_screen_render_post(
         &self,
@@ -3758,8 +3758,8 @@ impl Game<'_> {
     /// and the pack list opened from the title screen count, with no player
     /// and no `menu`; the title's own screens since API 326, their
     /// `screen.id` from the title state machine). It does not fire on the
-    /// connect and loading screens, nor for a server
-    /// dialog, the server pack, link and code-of-conduct prompts, a book or a
+    /// connect and loading screens, nor for the server pack, link and
+    /// code-of-conduct prompts, a book or a
     /// sign editor drawn over gameplay, nor while a world loads or saves: the
     /// click there stays the game's own. A gamepad click or a click the
     /// keyboard's focus sends is not the mouse and fires nothing.
@@ -3878,7 +3878,7 @@ impl Game<'_> {
     /// pack list opened from the title screen count, with no player and no
     /// `menu`; the title's own since API 326). It
     /// does not fire on the connect and loading
-    /// screens, nor for a server dialog, the server pack, link and
+    /// screens, nor for the server pack, link and
     /// code-of-conduct prompts, a book or a sign editor drawn over gameplay,
     /// nor while a world loads or saves: the scroll there stays the game's
     /// own. A wheel a gamepad or the keyboard's focus sends is not the mouse
@@ -3943,7 +3943,7 @@ impl Game<'_> {
     /// keys and the narrator — and while a screen of the game's or the title's
     /// is open (Options and the pack list opened from the title screen count,
     /// with no player and no `menu`; the title's own since API 326). It does
-    /// not fire on the connect and loading screens, nor for a server dialog, the server pack,
+    /// not fire on the connect and loading screens, nor for the server pack,
     /// link and code-of-conduct prompts, a book or a sign editor drawn over
     /// gameplay, nor while a world loads or saves: the key there stays the
     /// game's own. A cancelled press's release still runs, so a `native_key`
@@ -4132,8 +4132,8 @@ impl Game<'_> {
     /// A screen the native mods' input hooks are for is open: the window has a
     /// renderer, either the title's own (`title`, `world_select`,
     /// `world_create`, `multiplayer`…) or a screen over the world
-    /// (`Screen::Playing` behind it, so not a book, a sign editor, a server
-    /// dialog or a prompt drawn over gameplay), and no connect or world load
+    /// (`Screen::Playing` behind it, so not a book, a sign editor or a prompt
+    /// drawn over gameplay), and no connect or world load
     /// is in progress. The one gate they all ask before they fire.
     pub(super) fn screen_hooks_open(&self) -> bool {
         self.renderer.is_some()
@@ -11300,7 +11300,7 @@ impl Game<'_> {
     /// check `native_mod_screen()` is its own before drawing. It doesn't pause
     /// a single-player game (as the inventory doesn't). True when it is open:
     /// false while another screen is (or another mod's), over the title
-    /// screen, a book, a sign editor, a dialog or a prompt, while the world
+    /// screen, a book, a sign editor or a prompt, while the world
     /// loads, and anywhere but the window's own client (the server thread, a
     /// dedicated server). A gamepad can close it (B, Start) but not click on
     /// it: its clicks don't reach the mouse hooks. API 111.

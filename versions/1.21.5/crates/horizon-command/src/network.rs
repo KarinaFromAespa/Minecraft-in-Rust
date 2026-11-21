@@ -268,7 +268,6 @@ pub fn argument_type(id: i32, props: &[u8]) -> ArgType {
         }
         "minecraft:context_int_provider" => ArgType::ResourceOrId("minecraft:context_int_provider"),
         "minecraft:slot_source" => ArgType::SlotSource,
-        "minecraft:dialog" => ArgType::ResourceOrId("minecraft:dialog"),
         "minecraft:feature" => ArgType::ResourceOrId("minecraft:worldgen/feature"),
         "minecraft:uuid" => ArgType::Uuid,
         _ => ArgType::Word,

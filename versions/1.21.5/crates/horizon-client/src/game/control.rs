@@ -261,11 +261,6 @@ impl Game<'_> {
     /// Nothing here is a key — the caller drops control characters. `Err` when
     /// no text box of the screen takes them.
     pub(super) fn type_chars_into_screen(&mut self, text: &str) -> Result<()> {
-        // Overlays own the input even when a text box remains focused behind them.
-        if self.dialog_open() {
-            self.dialog_type(text);
-            return Ok(());
-        }
         if self.prompt_open() {
             return Ok(());
         }
@@ -333,7 +328,7 @@ impl Game<'_> {
         reply: &Sender<String>,
         event_loop: &dyn EventLoopCtl,
     ) -> Result<Option<Value>> {
-        // A tap's or an up's release must run even when a dialog, the sign
+        // A tap's or an up's release must run even when the sign
         // editor or a screen consumes the key, there is no world, or a
         // command handler returns an error: a lost release keeps Shift down.
         let released = released_modifier(line);
@@ -645,13 +640,6 @@ impl Game<'_> {
                 }
                 if arg(2)? != "up" {
                     self.pad.keyboard_took_over = true;
-                }
-                // A server's dialog takes the keys, in configuration too.
-                if self.dialog_open() {
-                    if arg(2)? != "up" {
-                        self.dialog_key(key, None, None)?;
-                    }
-                    return ok();
                 }
                 self.require_world()?;
                 // KeyboardHandler.keyPress: the open screen's narration hears it.
@@ -1054,10 +1042,6 @@ impl Game<'_> {
                     .unwrap_or("")
                     .strip_prefix(' ')
                     .unwrap_or("");
-                // A server's dialog, in configuration too.
-                if self.dialog_type(text) {
-                    return ok();
-                }
                 self.require_world()?;
                 // Typed keys: the open screen's narration hears them.
                 self.narration.keyboard_action();
@@ -1367,7 +1351,6 @@ impl Game<'_> {
             Screen::Social => "social",
             Screen::ServerLinks => "server-links",
             Screen::ConfirmLink => "confirm-link",
-            Screen::DialogWarning => "dialog-warning",
             Screen::CommandBlock => "command-block",
             Screen::BlockEditor => "block-editor",
             Screen::Win => "win",

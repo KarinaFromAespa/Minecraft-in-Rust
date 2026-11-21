@@ -197,10 +197,8 @@ const CLICK_ACTIONS: &[(&str, &[&str])] = &[
     ("open_file", &["path"]),
     ("run_command", &["command"]),
     ("suggest_command", &["command"]),
-    ("show_dialog", &["dialog"]),
     ("change_page", &["page"]),
     ("copy_to_clipboard", &["value"]),
-    ("custom", &["id"]),
 ];
 const HOVER_ACTIONS: &[(&str, &[&str])] = &[
     ("show_text", &["value"]),

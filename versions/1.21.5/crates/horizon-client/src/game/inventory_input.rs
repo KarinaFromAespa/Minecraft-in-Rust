@@ -84,9 +84,8 @@ impl Game<'_> {
     /// menu (`AbstractContainerScreen.keyPressed`): `CLONE` with button 0. The
     /// search tab's box takes the key instead.
     pub(super) fn inventory_pick_key(&mut self) {
-        let menu = (self.screen == Screen::Inventory
-            || (self.screen == Screen::Creative && !self.creative_screen.tab().search))
-            && !self.dialog_open();
+        let menu = self.screen == Screen::Inventory
+            || (self.screen == Screen::Creative && !self.creative_screen.tab().search);
         let Some(size) = self
             .renderer
             .as_ref()

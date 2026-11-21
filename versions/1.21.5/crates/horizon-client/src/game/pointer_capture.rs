@@ -52,22 +52,21 @@ impl Game<'_> {
             && (self.screen.is_pause_screen() || self.book.is_some() || self.win_screen_pauses())
     }
     /// A screen open over gameplay while `screen` stays `Playing`: a book or
-    /// lectern, a sign, a server dialog, the code of conduct, a link or
-    /// server pack prompt (vanilla's `Minecraft.screen` is set for each).
+    /// lectern, a sign, the code of conduct, a link or server pack prompt
+    /// (vanilla's `Minecraft.screen` is set for each).
     pub(super) fn screen_over_playing(&self) -> bool {
         self.book.is_some() || self.sign_edit.is_some() || self.prompt_open()
     }
     /// A prompt is up: over the world or over another open screen, it takes the input and is
     /// answered first, in the order of `handle_window_event`'s arms and of what draws on top.
     pub(super) fn prompt_open(&self) -> bool {
-        self.dialog_open()
-            || self.code_of_conduct.is_some()
+        self.code_of_conduct.is_some()
             || self.link_prompt.is_some()
             || self.server_packs.prompt.is_some()
     }
     /// `Minecraft.pauseIfInactive`: a window without focus for more than 500 ms
-    /// pauses the game. An open screen (books, signs, the pack prompt, a server
-    /// dialog) stays instead of pausing (`Gui.setPauseScreen`).
+    /// pauses the game. An open screen (books, signs, the pack prompt)
+    /// stays instead of pausing (`Gui.setPauseScreen`).
     pub(super) fn pause_if_inactive(&mut self) {
         if self
             .focus_lost
@@ -85,7 +84,6 @@ impl Game<'_> {
             && self.book.is_none()
             && self.sign_edit.is_none()
             && self.server_packs.prompt.is_none()
-            && !self.dialog_open()
         {
             self.pause_focus = None;
             self.screen = Screen::Paused;
@@ -130,12 +128,11 @@ impl Game<'_> {
             return;
         }
         // MouseHandler.grabMouse never captures an inactive window, and vanilla
-        // grabs only on `setScreen(null)`: the pack prompt and server dialogs
-        // are screens over the world that keep the pointer.
+        // grabs only on `setScreen(null)`: the pack prompt is a screen
+        // over the world that keeps the pointer.
         if capture
             && ((!self.focused && !self.unclaimed_window && !self.scripted_run())
-                || self.server_packs.prompt.is_some()
-                || self.dialog_open())
+                || self.server_packs.prompt.is_some())
         {
             return;
         }

@@ -948,7 +948,7 @@ impl Game<'_> {
         // Timelines of the overworld clock and their time markers.
         self.ui.timelines = ids.timelines.iter().cloned().collect();
         self.ui.markers = ids.markers.iter().cloned().collect();
-        // Vanilla's built-in registries (mob effects, components, dialogs...).
+        // Vanilla's built-in registries (mob effects, components...).
         for dir in [&self.options.resources, &self.ui.vanilla_root] {
             if let Some(export) = command_export(dir, self.options.dedicated.is_none()) {
                 self.ui.registries.fill_from_exported(&export);
