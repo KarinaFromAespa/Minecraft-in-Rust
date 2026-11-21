@@ -9923,3 +9923,14 @@ identical, and `ValueSampler` is logic-identical. The
 Rust already implements the 1.21.11 form (`Timeline`
 with `period` + `tracks` only, day-time sampling, the
 codec-shape test). No code changed.
+
+## Item 225 — level/redstone.rs (rank 2, NO-CHANGE)
+
+2 classes, 2 methods, 2 named. `SignalGetter` is
+identical (`$$N` noise only). The daylight detector's
+`updateSignalStrength` differs only in spelling: 26.1
+calls `getEffectiveSkyBrightness`, 1.21.11 inlines
+`getBrightness(SKY) - getSkyDarken()` — verified by
+javap to be the same formula, so there is no
+behavioural delta; the Rust already implements the
+shared form. No code changed.
