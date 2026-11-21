@@ -10611,3 +10611,16 @@ tightening and the water check is
 `FluidState.is(WATER)` vs `getType() ==
 WATER` — the same equality. No source change.
 `falling_block`: 7 passed, 1 ignored.
+
+## Item 301 — game/narrator.rs (rank 2, NO-CHANGE)
+
+1 class, 1 method, 1 named. `checkStatus`
+shows the failed-TTS dialog via Blaze3D's
+`MessageBox.errorWithContinue` in 26.1 and
+via a direct `tinyfd_messageBox` call in
+1.21.11 — the same message, the same
+Continue semantics, the same exception on
+declining. The Rust logs the message and
+goes on (no native message box). No source
+change. `cargo check -p horizon-client
+--tests` passes.
