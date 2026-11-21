@@ -218,6 +218,9 @@ impl PackAtlas {
             .unwrap_or(0);
         let mip =
             stitch_mip_level(&sides, mip_option).min(array_levels.saturating_sub(deepest + 1));
+        // 1.21.11 counts anisotropy only with mipmaps (`mipLevel != 0`); 26.1
+        // counts it whenever filtering is anisotropic.
+        let anisotropy_bit = if mip == 0 { 0 } else { anisotropy_bit };
         let max = device.limits().max_texture_dimension_2d;
         let layout = stitch::stitch(&sides, mip, anisotropy_bit, max)?;
         let rects = layout
@@ -978,6 +981,44 @@ mod tests {
             ]
         );
         assert_eq!([at(9, 5), at(8, 4), at(10, 6)], [[100, 0, 0, 255]; 3]);
+    }
+
+    /// `SpriteLoader.stitch`: 1.21.11 counts anisotropy only with mipmaps. At
+    /// mip level 0 (the 1 px sprite forces it) an anisotropy bit of 4 stitches
+    /// exactly as 0 does; with mipmaps it still widens the padding.
+    #[test]
+    fn anisotropy_counts_only_with_mipmaps() {
+        let instance = crate::gfx::test_gpu::instance();
+        let Ok(adapter) = pollster::block_on(instance.request_adapter(&Default::default())) else {
+            return;
+        };
+        let (device, queue) =
+            pollster::block_on(adapter.request_device(&Default::default())).unwrap();
+        for bit in [0, 4] {
+            let array = upscaled_array(&device, &queue, &[2, 4, 1]);
+            let mut encoder = device.create_command_encoder(&Default::default());
+            let atlas =
+                PackAtlas::stitched(&device, &mut encoder, &[array], 3, 4, &[2, 4, 1], 0, bit)
+                    .unwrap();
+            assert_eq!(atlas.size(), [16, 8], "anisotropy bit {bit} at mip 0");
+            assert_eq!(
+                atlas.rects_table(),
+                [9 | 1 << 16, 2, 1 | 1 << 16, 4, 9 | 5 << 16, 1],
+                "anisotropy bit {bit} at mip 0"
+            );
+        }
+        let mut rects = Vec::new();
+        for bit in [0, 4] {
+            let array = upscaled_array(&device, &queue, &[4, 8]);
+            let mut encoder = device.create_command_encoder(&Default::default());
+            let atlas = PackAtlas::stitched(&device, &mut encoder, &[array], 2, 8, &[4, 8], 2, bit)
+                .unwrap();
+            rects.push(atlas.rects_table());
+        }
+        assert_ne!(
+            rects[0], rects[1],
+            "anisotropy must widen the padding at mip 2"
+        );
     }
 
     fn material_fixture(animated: bool) {

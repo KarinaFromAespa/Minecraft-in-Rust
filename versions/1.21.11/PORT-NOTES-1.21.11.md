@@ -9284,3 +9284,18 @@ test in both), and `TemplateStructurePiece`'s `template` /
 `placeSettings` fields lose `final`. `createChest`,
 `createDispenser`, `reorient` and the replaceability check are
 otherwise identical. No code changed.
+
+## Item 175 — gfx/pack_atlas.rs (rank 2, CHANGED)
+
+`SpriteLoader.stitch`: 1.21.11 counts anisotropy only with
+mipmaps (`mipLevel != 0`), where 26.1 counts it whenever
+filtering is anisotropic — at mip level 0 the atlas padding is
+1 px instead of `1 << (bit - 1)`. Ported in
+`PackAtlas::stitched`. The rest of `stitch` is identical.
+`ChunkSectionLayer` / `SectionCompiler` have no portable delta:
+1.21.11 adds a `TRIPWIRE` layer, but the Rust's mesh has two
+buckets (`solid`, `translucent`) and already folds tripwire
+into translucent; the leaves fancy/fast switch and translucent
+sorting are already modeled, and the buffer sizes, vertex
+formats and per-block crash report are GL-side details the
+wgpu renderer does not model.
