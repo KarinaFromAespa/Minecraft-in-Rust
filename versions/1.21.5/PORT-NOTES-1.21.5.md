@@ -9554,13 +9554,60 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 218 — Music
+  manager, sound
+  engine:**
+  - The 1.21.6 music rework
+    is absent throughout:
+    no `MusicFrequency`
+    option, no Now Playing
+    toast, the delay logic
+    is the plain min/max
+    form, the manager
+    freezes on pause, pause
+    silences every channel,
+    zero-volume sounds are
+    skipped unless they can
+    start silent (no MUSIC
+    exception), and the
+    tick stops zero-volume
+    sources at once — each
+    already cited as the
+    1.21.5 form in the
+    code. Two fixes: the
+    countdown checked after
+    decrementing, so menu
+    music started on tick
+    100 where vanilla's
+    `nextSongDelay-- <= 0`
+    starts it on tick 101;
+    and the probe fixture's
+    pause op kept the
+    1.21.6
+    `pauseAllExcept(MUSIC,
+    UI)` set, now empty.
+    Publish debt: the
+    sound-engine oracle
+    still calls it (and
+    prints `play`'s result,
+    which is void in
+    1.21.5) — out of
+    subset.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests` 0/0 (1m29s);
+    client_probe 0/0 (46s);
+    test-profile build
+    OOM-killed under load,
+    test runs in CI.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **217 of 426 are
-closed** (rank 1 complete, rank 2 at 208/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **218 of 426 are
+closed** (rank 1 complete, rank 2 at 209/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

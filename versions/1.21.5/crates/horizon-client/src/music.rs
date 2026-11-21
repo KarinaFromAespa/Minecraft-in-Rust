@@ -521,8 +521,10 @@ impl MusicManager {
         }
         self.next_song_delay = self.next_song_delay.min(music.max_delay);
         if self.current.is_none() && !loading {
+            // `nextSongDelay-- <= 0`: the check uses the pre-decrement value.
+            let delay = self.next_song_delay;
             self.next_song_delay -= 1;
-            if self.next_song_delay <= 0 {
+            if delay <= 0 {
                 self.start_playing(music, sounds);
             }
         }
@@ -801,8 +803,9 @@ mod tests {
             |m: &mut MusicManager, music: &Music, engine: &mut SoundEngine, backend: &mut Null| {
                 m.tick(Some(music), 1.0, false, &mut Bound { engine, backend });
             };
-        // nextSongDelay starts at 100, capped to MENU's max delay 600: starts on tick 100.
-        for _ in 0..99 {
+        // nextSongDelay starts at 100, capped to MENU's max delay 600: the
+        // check uses the pre-decrement value, so it starts on tick 101.
+        for _ in 0..100 {
             tick(&mut m, &menu, &mut engine, &mut backend);
         }
         assert!(m.current(&engine).is_none());

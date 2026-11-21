@@ -113,7 +113,9 @@ pub fn main() {
             "gain" => engine.update_category_volume(source(1), f(a[2]), &mut backend),
             "volume" => engine.source_volumes[source(1)] = f(a[2]),
             "refresh" => engine.refresh_category_volume(source(1), &mut backend),
-            "pause" => engine.pause_all_except(&[1, 10], &mut backend),
+            // 1.21.5's `pause()` pauses every channel; 1.21.6's
+            // `pauseAllExcept(MUSIC, UI)` left the music and UI playing.
+            "pause" => engine.pause_all_except(&[], &mut backend),
             "resume" => engine.resume(&mut backend),
             "player" => {
                 ctx.player_underwater = a[1] == "1";
