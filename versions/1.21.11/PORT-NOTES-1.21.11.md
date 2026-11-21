@@ -12736,3 +12736,7 @@ Visibility only.
 ## Item 714 — horizon-prepare/src/inventory.rs (SoundBufferLibrary$DebugOutput$Counter) — NO-CHANGE
 
 26.1-only debug class; nothing in the Rust references it.
+
+## Item 715 — horizon-protocol/src/item/skip.rs (StatePropertiesPredicate$ExactMatcher) — NO-CHANGE
+
+Visibility only.
