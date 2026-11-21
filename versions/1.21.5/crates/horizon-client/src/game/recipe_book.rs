@@ -1867,7 +1867,6 @@ impl Game<'_> {
                         tooltip = Some(lines);
                     }
                 }
-                Call::Stratum => {}
             }
             if d.pose != screen::IDENTITY {
                 let m = d.pose;

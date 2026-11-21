@@ -85,8 +85,6 @@ pub enum Call {
     /// The hovered recipe button's tooltip: its display stack's own tooltip,
     /// then "Right Click for More" when it has several recipes.
     ItemTooltip { stack: ItemStack, more: bool },
-    /// `nextStratum`.
-    Stratum,
 }
 
 /// A call and the pose (`Matrix3x2f` m00, m01, m10, m11, m20, m21) it is made under.
@@ -405,7 +403,6 @@ pub fn draw(s: &Screen) -> Vec<Drawn> {
             );
         }
     }
-    put(Call::Stratum, IDENTITY);
     if let Some(o) = s.overlay {
         overlay(s, o, &mut put);
     }

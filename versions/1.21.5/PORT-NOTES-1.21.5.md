@@ -9380,13 +9380,50 @@ is the oracle; decompiled code is a reading aid.
     10 assertions verified
     by a standalone rustc
     run; test runs in CI.
+- **Item 212 — Recipe
+  book page:**
+  - 1.21.6 added a
+    `nextStratum` before
+    the overlay and defers
+    the hover tooltip to
+    the next frame; 1.21.5
+    has no stratum and
+    renders the tooltip
+    in-frame. The port's
+    tooltip was already
+    in-frame
+    (`draw_tooltip_lines`
+    in the same frame), but
+    it still emitted a
+    `Call::Stratum` — a
+    no-op in the game
+    renderer, a real entry
+    in the probe fixture's
+    draws, which would
+    mismatch vanilla 1.21.5
+    (it never calls it).
+    The variant, its
+    emission, the match arm
+    and the fixture arm are
+    all removed; the
+    oracle's override
+    simply never fires
+    against the 1.21.5 jar.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests` 0/0 (4m19s);
+    `cargo check -j 1 -p
+    horizon-client-lib
+    --example client_probe`
+    0/0 (2m16s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **211 of 426 are
-closed** (rank 1 complete, rank 2 at 202/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **212 of 426 are
+closed** (rank 1 complete, rank 2 at 203/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
