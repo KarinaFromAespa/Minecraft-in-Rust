@@ -12695,3 +12695,7 @@ Equivalent type check (`Entity.is` vs `getType() ==`).
 ## Item 704 — mobs/doors.rs (AbstractIllager$RaiderOpenDoorGoal) — NO-CHANGE
 
 requireNonNull only.
+
+## Item 705 — mobs/farm.rs (SheepColorSpawnRules$SheepColorSpawnConfiguration) — NO-CHANGE
+
+Visibility only.
