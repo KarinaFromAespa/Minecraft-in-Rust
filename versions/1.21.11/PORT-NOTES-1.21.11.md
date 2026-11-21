@@ -10149,3 +10149,13 @@ OOMs locally at -j 1).
 `getRandom()` -> the `random` field for the 60-120
 warmup roll, which the Rust already rolls from the
 level random. No code changed.
+
+## Item 250 — game/storage.rs (rank 2, NO-CHANGE)
+
+2 classes, 6 methods, 1 named. The shulker screen
+reaches the same 176x167 by `imageHeight += 1`
+instead of constructor args, the background draws
+through `renderBg`, and the sound pitch reads the
+`random` field instead of `getRandom()` — all the
+same result, all already the Rust's form. No code
+changed.
