@@ -10241,3 +10241,12 @@ a test. No code changed.
 to dropped null-check codegen alone — the Vex class
 and its four goal classes are otherwise
 bytecode-identical. No code changed.
+
+## Item 262 — client (rank 2, NO-CHANGE)
+
+15 classes, 15 methods, 0 named. `FramerateLimiter`
+is 26.1-only — the extracted form of the framerate
+logic that 1.21.11 keeps inline in `Minecraft` and
+the Rust already implements as `getFramerateLimit`.
+The rest is null-check codegen, visibility widening
+and the extractor rename. No code changed.
