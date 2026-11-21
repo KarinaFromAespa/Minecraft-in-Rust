@@ -76,7 +76,13 @@ pub enum GraphNode {
         kind: ShiftNoiseKind,
     },
     BlendedNoise(BlendedNoise),
-    EndIslands,
+    /// End islands. `central` selects vanilla 1.21.8's `minecraft:end_islands`
+    /// (outer islands plus the central island cone); without it the node is
+    /// 26.3's `minecraft:end_outer_islands`, whose center island lives in the
+    /// data graph (`minecraft:end/islands`) instead.
+    EndIslands {
+        central: bool,
+    },
     WorldField(WorldField),
     BlendDensity(FunctionId),
     /// A direct holder compares by value; a registry holder by identity.
@@ -163,7 +169,7 @@ impl GraphNode {
             | Self::DistanceToPoint { .. }
             | Self::OffsetNoise { .. }
             | Self::BlendedNoise(_)
-            | Self::EndIslands
+            | Self::EndIslands { .. }
             | Self::WorldField(_) => vec![],
             Self::Noise {
                 shift_x,
@@ -216,7 +222,7 @@ impl GraphNode {
                 Some(holder) => vec![22, 1, holder.0 as u64],
                 None => vec![22, 0, id(input)],
             },
-            Self::EndIslands => vec![17],
+            Self::EndIslands { central } => vec![17, central as u64],
             Self::WorldField(field) => vec![20, field as u64],
             Self::BlendDensity(input) => vec![21, id(input)],
             Self::Power { base, exponent } => vec![19, id(base), id(exponent)],
@@ -589,7 +595,7 @@ impl DensityGraph {
             Definition::Node(node) => node.clone(),
         };
         let mask = match node {
-            GraphNode::EndIslands => return Ok(5),
+            GraphNode::EndIslands { .. } => return Ok(5),
             GraphNode::WorldField(field) => return Ok(field.domain_axes()),
             GraphNode::OffsetNoise { kind, .. } => {
                 return Ok(if kind == ShiftNoiseKind::Shift { 7 } else { 5 });
@@ -626,7 +632,7 @@ impl DensityGraph {
             Definition::Node(node) => node,
         };
         Ok(match *node {
-            GraphNode::EndIslands => Interval::new(-0.84375, 0.5625)?,
+            GraphNode::EndIslands { .. } => Interval::new(-0.84375, 0.5625)?,
             GraphNode::WorldField(field) => field.range(),
             GraphNode::Noise { noise, .. } => {
                 let [min, max] = self.noise_entry(noise)?.definition.range();

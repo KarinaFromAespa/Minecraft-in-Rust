@@ -27,6 +27,24 @@ name: worldgen-verify
 #   gh workflow run worldgen-verify.yml -f version=all
 # Results land in the job summary and the `worldgen-<version>` artifact
 # (one JSON dump + the test and prepare logs per version).
+#
+# Known gaps (matrix run 44890979811, 2026-11-21): 26.3, 26.2 and
+# 1.21.7 pass and upload dumps. Eleven E6 versions (1.20.5, 1.20.6,
+# 1.21, 1.21.1, 1.21.2, 1.21.3, 1.21.4, 1.21.5, 1.21.6, 1.21.8,
+# 1.21.9) fail at GeneratorData::load with "missing block tag
+# minecraft:blocks_motion_in_heightmap" — their data predates the
+# 26.3 tag family and they never got the motion-tag derivation
+# 1.21.7 carries (commit 789af860 + the end-to-end worldgen pass).
+# Carrying that fix set over is programme work, not a workflow fix;
+# the job's red rows are the queue. 26.3 failed the first matrix
+# only on Mojang's republished version JSON (lab-prepare rejects an
+# unknown manifest sha1); the lock now accepts ead839cb... and its
+# asset index f3df28b4... (jars verified byte-identical).
+#
+# The prepare and lab-prepare steps retry up to 3 times: a 14-way
+# parallel matrix hammers Mojang's and Maven Central's CDNs, and the
+# first full run lost jobs to a transient Maven 429/404 on the asm
+# jar and a lab-prepare download timeout.
 
 on:
   workflow_dispatch:
@@ -106,12 +124,21 @@ jobs:
       # Same download path as port-verify: fetch this version's jars
       # from Mojang's CDN into the version store (SHA-1 verified) and
       # run its data generator. Gate: a failed prepare fails the job.
+      # Retried: Mojang/Maven CDN flakes (429/404/timeout) are common
+      # under a 14-way parallel matrix; the prepare is idempotent
+      # (sha1-verified downloads are cached, datagen overwrites).
       - name: Prepare the version's data (pipeline download path)
         run: |
           set -o pipefail
           V="${{ matrix.version }}"
           cd "versions/$V"
-          python3 tools/version_port.py prepare "$V" --download 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/prepare.log"
+          ok=0
+          for attempt in 1 2 3; do
+            if python3 tools/version_port.py prepare "$V" --download 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/prepare.log"; then ok=1; break; fi
+            echo "prepare attempt $attempt failed; retrying in 30s"
+            sleep 30
+          done
+          test "$ok" = 1 || { echo "prepare failed after 3 attempts"; exit 1; }
 
       # Same launcher staging as port-verify, but lab-prepare runs in
       # the checked-out tree: no harness here needs a git worktree, and
@@ -151,9 +178,15 @@ jobs:
           print(f"staged launcher dir at {launcher}: {count} library files")
           EOF
           cd "versions/$V"
-          HORIZON_MINECRAFT_DIR="$LAUNCHER" \
-          HORIZON_SERVER_JAR="$HORIZON_VERSIONS/$V/jars/server.jar" \
-            python3 tools/lab.py prepare 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/lab-prepare.log"
+          ok=0
+          for attempt in 1 2 3; do
+            if HORIZON_MINECRAFT_DIR="$LAUNCHER" \
+               HORIZON_SERVER_JAR="$HORIZON_VERSIONS/$V/jars/server.jar" \
+               python3 tools/lab.py prepare 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/lab-prepare.log"; then ok=1; break; fi
+            echo "lab-prepare attempt $attempt failed; retrying in 30s"
+            sleep 30
+          done
+          test "$ok" = 1 || { echo "lab-prepare failed after 3 attempts"; exit 1; }
 
       # horizon-prepare builds .local/horizon-client/<v>/ (the worldgen
       # bundles the test reads) from the lab-prepared jars. Same
@@ -225,4 +258,5 @@ jobs:
             ci-out/prepare.log
             ci-out/lab-prepare.log
             ci-out/horizon-prepare.log
+            ci-out/horizon-prepare-build.log
           if-no-files-found: warn

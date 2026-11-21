@@ -5197,4 +5197,173 @@ mod tests {
         assert_ne!(normal, surface("minecraft:amplified"));
         assert_ne!(normal, surface("minecraft:large_biomes"));
     }
+
+    /// One generated chunk as JSON: the full block-name grid (a palette
+    /// plus indices, index `(y - min_y) * 256 + z * 16 + x`), the quart
+    /// biome grid, the surface heightmap, structure starts and block
+    /// entities. Block names, not state ids, so dumps compare across
+    /// versions, whose registries order states differently.
+    fn dump_chunk(chunk: &ProtoChunk) -> serde_json::Value {
+        let min_y = chunk.terrain.min_y();
+        let height = chunk.terrain.height();
+        let mut palette: Vec<&str> = Vec::new();
+        let mut index_of = std::collections::HashMap::new();
+        let mut blocks = Vec::with_capacity(16 * 16 * height as usize);
+        for y in min_y..min_y + height {
+            for z in 0..16 {
+                for x in 0..16 {
+                    let name = chunk.block_name(x, y, z);
+                    let idx = *index_of.entry(name).or_insert_with(|| {
+                        palette.push(name);
+                        palette.len() - 1
+                    });
+                    blocks.push(idx);
+                }
+            }
+        }
+        let min_quarty = min_y.div_euclid(4);
+        let quart_height = height.div_euclid(4);
+        let mut biome_palette: Vec<&str> = Vec::new();
+        let mut biome_index_of = std::collections::HashMap::new();
+        let mut biomes = Vec::with_capacity(16 * quart_height as usize);
+        for qy in min_quarty..min_quarty + quart_height {
+            for qz in 0..4 {
+                for qx in 0..4 {
+                    let name = chunk.biome_at(qx * 4, qy * 4, qz * 4);
+                    let idx = *biome_index_of.entry(name).or_insert_with(|| {
+                        biome_palette.push(name);
+                        biome_palette.len() - 1
+                    });
+                    biomes.push(idx);
+                }
+            }
+        }
+        let heightmap: Vec<i32> = (0..16)
+            .flat_map(|z| (0..16).map(move |x| chunk.surface_height(x, z)))
+            .collect();
+        let structures: Vec<serde_json::Value> = chunk
+            .structures()
+            .iter()
+            .map(|(name, start, min, max)| {
+                serde_json::json!({
+                    "name": name,
+                    "start": [start.x, start.z],
+                    "min": min,
+                    "max": max,
+                })
+            })
+            .collect();
+        let block_entities: Vec<[i32; 3]> =
+            chunk.block_entities.iter().map(|(pos, _)| *pos).collect();
+        serde_json::json!({
+            "pos": [chunk.position().x, chunk.position().z],
+            "min_y": min_y,
+            "height": height,
+            "palette": palette,
+            "blocks": blocks,
+            "biome_palette": biome_palette,
+            "biomes": biomes,
+            "min_quarty": min_quarty,
+            "heightmap": heightmap,
+            "structures": structures,
+            "block_entities": block_entities,
+        })
+    }
+
+    /// End-to-end worldgen verification, run per version by the
+    /// worldgen-verify CI job: the prepared bundles build every
+    /// dimension's Pipeline, two chunks generate per dimension, and —
+    /// when `HORIZON_WORLDGEN_DUMP` names a file — the generated
+    /// chunks are dumped as JSON for comparison across versions and
+    /// runs. Chunks are at TERRAIN status: terrain, biomes and
+    /// structure starts, before decoration places features. The
+    /// 1.21.7 launch path found its legacy decode gaps one crash at
+    /// a time; this test surfaces the whole class in one run.
+    #[test]
+    fn prepared_world_builds_and_generates_chunks() {
+        const SEED: i64 = 12345;
+        let version = horizon_core::version::VERSION_ID;
+        let root = std::env::var_os("HORIZON_TEST_RESOURCES")
+            .or_else(|| std::env::var_os("HORIZON_RESOURCES"))
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../.local/horizon-client")
+                    .join(version)
+            });
+        if !root.join("worldgen/world_presets.json").exists() {
+            eprintln!("skipping: no worldgen bundle at {}", root.display());
+            return;
+        }
+        let registry: &'static BlockRegistry = Box::leak(Box::new(
+            crate::level::data::load_registry(&root).expect("registry"),
+        ));
+        let data = GeneratorData::load(&root.join("worldgen"), registry).expect("worldgen data");
+        if !data.warnings().is_empty() {
+            eprintln!("worldgen warnings: {:?}", data.warnings());
+        }
+        let mut dimensions = serde_json::Map::new();
+        // The Nether and End pipelines build too: the player reaches
+        // them after the overworld, and their settings decode the same
+        // way. Each dimension's decoration covers only its own biomes'
+        // placed features, so every dimension's list must be checked.
+        for dimension in [
+            "minecraft:overworld",
+            "minecraft:the_nether",
+            "minecraft:the_end",
+        ] {
+            let generator = if dimension == "minecraft:overworld" {
+                OverworldGenerator::new(data.clone(), SEED).expect("overworld pipeline")
+            } else {
+                OverworldGenerator::for_dimension(data.clone(), SEED, "minecraft:normal", dimension)
+                    .unwrap_or_else(|e| panic!("{dimension} pipeline: {e}"))
+            };
+            let unsupported = generator.unsupported_features();
+            assert!(
+                unsupported.is_empty(),
+                "{dimension} unsupported features: {unsupported:?}"
+            );
+            let mut worker = generator.worker();
+            let mut chunks = Vec::new();
+            for pos in [ChunkPos::new(0, 0), ChunkPos::new(11, -7)] {
+                let chunk = worker
+                    .generate_proto(pos)
+                    .unwrap_or_else(|e| panic!("{dimension} chunk {pos:?}: {e}"));
+                // A real chunk: ground somewhere in it, and a biome
+                // assigned. The End's (11, -7) is void by design (no
+                // island that close to the main one), so only the
+                // overworld, the Nether and the End's origin chunk
+                // must have ground.
+                let needs_ground = dimension != "minecraft:the_end" || (pos.x == 0 && pos.z == 0);
+                if needs_ground {
+                    assert!(
+                        (0..16)
+                            .any(|x| (0..16)
+                                .any(|z| chunk.surface_height(x, z) > chunk.terrain.min_y())),
+                        "{dimension} chunk {pos:?} has no ground"
+                    );
+                }
+                let _ = chunk.biome_id_at(8, 64, 8);
+                chunks.push(dump_chunk(&chunk));
+            }
+            dimensions.insert(
+                dimension.to_owned(),
+                serde_json::json!({ "chunks": chunks }),
+            );
+        }
+        if let Some(path) = std::env::var_os("HORIZON_WORLDGEN_DUMP") {
+            let dump = serde_json::json!({
+                "version": version,
+                "seed": SEED,
+                "dimensions": dimensions,
+            });
+            let path = std::path::PathBuf::from(path);
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent).expect("dump dir");
+            }
+            std::fs::write(&path, serde_json::to_string(&dump).expect("dump json"))
+                .expect("write dump");
+            eprintln!("worldgen dump: {}", path.display());
+        }
+    }
 }

@@ -644,7 +644,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             "gready" => writeln!(out, "graph-ready")?,
             "gend" => {
-                functions.push(graph_compiler.graph_mut().insert(GraphNode::EndIslands)?);
+                functions.push(
+                    graph_compiler
+                        .graph_mut()
+                        .insert(GraphNode::EndIslands { central: true })?,
+                );
                 writeln!(out, "graph-create {}", functions.len() - 1)?;
             }
             "gregister" => {

@@ -574,3 +574,16 @@ both fail in the profile — datafix on oracle-compile failures,
 save_roundtrip on a server-closed connection) and D5 fails 7/8
 (only block_properties passes of the E6 subset). D6 blocked — no
 playtest.md; the playtest is deferred by the owner, never claimed.
+
+End main island (worldgen-verify): vanilla 1.21.6's
+`minecraft:end_islands` includes the central island cone in the
+function itself, but the tree carried the 26.3 outer-only sampler
+and did not decode the `end_islands` name at all, so the End
+pipeline failed to build. Carried 26.2's fix:
+`GraphNode::EndIslands { central }`, with `end_islands`
+decoding to central: true and `end_outer_islands` to central:
+false; the cone formula was verified against the 1.21.11 named
+jar's EndIslandDensityFunction bytecode. The end-to-end worldgen
+test (`prepared_world_builds_and_generates_chunks`, run by the
+worldgen-verify CI job) now generates two chunks per dimension
+and dumps them as JSON; it caught this gap.
