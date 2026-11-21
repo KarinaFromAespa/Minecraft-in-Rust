@@ -9990,3 +9990,14 @@ against both versions). `maybeTransferFluid` and the
 rest are identical. New level test: water-source
 column grows, waterlogged-fence column does not (runs
 in CI; skips locally without prepared resources).
+
+## Item 231 — game/creaking.rs (rank 2, NO-CHANGE)
+
+6 classes, 10 methods, 1 named. The creaking and its
+heart block entity are identical apart from the Brain
+provider restructure (item 218's pattern), the
+PathType renames (item 200's pattern, same malus
+values), `getRandom()` → the `random` field, and
+dropped null-check codegen. The Rust's
+`set_transient` already uses the 1.21.11 names. No
+code changed.
