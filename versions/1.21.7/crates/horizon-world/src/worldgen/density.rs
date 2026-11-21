@@ -3,8 +3,8 @@
 use super::*;
 use horizon_core::{
     density::{
-        BlendedNoise, CubicSpline, DistanceMetric, RoundMode, ShiftNoiseKind, SplinePoint,
-        TilingMode, WorldField,
+        BlendedNoise, CubicSpline, DistanceMetric, RarityValueMapper, RoundMode, ShiftNoiseKind,
+        SplinePoint, TilingMode, WorldField,
         graph::{DensityGraph, FunctionId, GraphBinary, GraphNode, GraphUnary, NoiseId},
     },
     geometry::Axis,
@@ -532,37 +532,19 @@ impl Loader {
                 "minecraft:spline" => {
                     GraphNode::Spline(self.spline(required(&object, "spline")?, depth + 1)?)
                 }
-                "minecraft:weird_scaled_sampler" => {
-                    // 1.21.7-only: 26.x dropped this type. Vanilla maps the
-                    // input through a rarity mapper (type_1/type_2) and
-                    // multiplies by the noise sampled at raw coordinates;
-                    // the exact mapper curves are not reproduced here —
-                    // the input is clamped to [0, 1] as the rarity gate,
-                    // which keeps spaghetti caves roughly where vanilla
-                    // puts them.
-                    match string(required(&object, "rarity_value_mapper")?)?.as_str() {
-                        "type_1" | "type_2" => {}
+                "minecraft:weird_scaled_sampler" => GraphNode::WeirdScaledSampler {
+                    input: self.input(&object, "input", depth)?,
+                    noise: self.noise(&object)?,
+                    // Vanilla maps the input through the quantized rarity
+                    // curve and samples the noise at coordinates divided
+                    // by the result (see horizon-core's WeirdScaledSampler;
+                    // curves verified against the 1.21.11 named jar).
+                    mapper: match string(required(&object, "rarity_value_mapper")?)?.as_str() {
+                        "type_1" => RarityValueMapper::Type1,
+                        "type_2" => RarityValueMapper::Type2,
                         _ => return Err(DecodeError::Field("rarity_value_mapper")),
-                    }
-                    let input = self.input(&object, "input", depth)?;
-                    let gated = self
-                        .graph
-                        .insert(GraphNode::Clamp { input, min: 0.0, max: 1.0 })?;
-                    let zero = self.graph.insert(GraphNode::Constant(0.0))?;
-                    let noise = self.graph.insert(GraphNode::Noise {
-                        noise: self.noise(&object)?,
-                        xz_scale: 1.0,
-                        y_scale: 1.0,
-                        shift_x: zero,
-                        shift_y: zero,
-                        shift_z: zero,
-                    })?;
-                    GraphNode::Binary {
-                        kind: GraphBinary::Multiply,
-                        left: gated,
-                        right: noise,
-                    }
-                }
+                    },
+                },
                 _ => {
                     return Err(DecodeError::Registry(format!(
                         "unknown density type: {kind}"
@@ -675,14 +657,8 @@ mod tests {
         let compiler = DensityCompiler::new(registry.into_graph());
         let compiled = compiler.compile_raw(root).unwrap();
         let mut context = SamplerContext::default();
-        assert_eq!(
-            compiled.sample_value(&mut context, [0, 0, 0]).unwrap(),
-            1.0
-        );
-        assert_eq!(
-            compiled.sample_value(&mut context, [0, 5, 0]).unwrap(),
-            1.5
-        );
+        assert_eq!(compiled.sample_value(&mut context, [0, 0, 0]).unwrap(), 1.0);
+        assert_eq!(compiled.sample_value(&mut context, [0, 5, 0]).unwrap(), 1.5);
         // The three 1.21.7 cache types decode (sampling them needs cache
         // preparation, which only the generator does).
         let caches = BTreeMap::from([

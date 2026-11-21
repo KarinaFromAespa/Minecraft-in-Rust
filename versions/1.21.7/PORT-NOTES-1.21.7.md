@@ -727,7 +727,10 @@ level test.
 Known approximation carried from the ninth crash entry:
 `weird_scaled_sampler` remains clamp(input, 0, 1) * noise, not
 vanilla parity — spaghetti caves land roughly where vanilla
-puts them, not exactly.
+puts them, not exactly. SUPERSEDED 2026-11-21 (see the
+weird_scaled_sampler entry at the end of this file): the
+approximation turned out to void the whole overworld, and the
+sampler is now implemented at vanilla parity.
 
 Full-suite note, same afternoon: the horizon-world lib suite
 stands at 428 passed, 23 failed, 3 ignored with this pass
@@ -775,3 +778,43 @@ EndIslandDensityFunction bytecode. The 1.21.7 end-to-end test is
 now the shared `prepared_world_builds_and_generates_chunks`
 (two chunks per dimension plus a JSON dump, run by the
 worldgen-verify CI job); it caught this gap.
+
+Overworld void terrain: the `weird_scaled_sampler` approximation
+(2026-11-21). The owner generated three new worlds and reported
+them "too weird": no sky, spawning underground. The CI
+worldgen-verify dump (seed 12345) showed chunk (11, -7) — grove,
+a mountain biome — as 95.5% air with its surface at y ~ -48,
+while the same chunk/seed in 26.2 is a mountain surfacing at
+y ~ 133. Probing the density chain at the grove column showed
+the climate inputs correct (continents 0.116, erosion -0.666,
+ridges 0.877) and `sloped_cheese` crossing zero at y ~ 130, but
+the final density stuck at ~ -0.02 at every y above -48. The
+culprit was the approximation: vanilla's real formula is
+`d * |noise(x/d, y/d, z/d)|` with `d` the rarity-mapped input
+(always >= 0), while the stand-in was `clamp(input, 0, 1) *
+noise(raw coords)` — wrong mapper curves, unscaled coordinates,
+and no absolute value, so whenever the rarity noise went
+negative the cave branch collapsed to a constant ~ -0.068 and
+the final density went negative everywhere. The sampler is now
+implemented at vanilla parity as `WeirdScaledSampler` in
+horizon-core (graph node tag 23, compiler arm, decoder arm),
+with both mapper curves verified against the 1.21.11 named
+jar's `DensityFunctions$WeirdScaledSampler` bytecode: type_1
+steps 0.75/1.0/1.5/2.0 at -0.5/0.0/0.5, type_2 steps
+0.5/0.75/1.0/2.0/3.0 at -0.75/-0.5/0.5/0.75, NaN falling
+through to the last step as in Java. After the fix the probe
+reads surface heights 132-135 across the chunk and the
+worldgen dump shows 24,706 stone + 11,874 deepslate with a
+heightmap mean of 132.7 (26.2 control: 133.2). The aquifer
+gap in the same report — the mountain chunk got no water while
+the ocean chunk did — was a symptom, not a second bug: the
+aquifer keys off the synthesized chunk surface level, which
+was correct (~133), so it saw no below-sea-level surface to
+fill; with the density fixed the ocean chunk's water fills
+from the floor with no air gap. Spawn and sky needed no code:
+`level_respawn_pos` already places the player on the top
+full-topped block, and the overworld dimension data carries
+`has_skylight: true` with the shared sky path — both symptoms
+were the missing terrain. Regression test
+`grove_chunk_surfaces_as_mountain` pins the four grove
+columns to 90..=160.

@@ -75,6 +75,14 @@ pub enum GraphNode {
         noise: NoiseId,
         kind: ShiftNoiseKind,
     },
+    /// Vanilla's `WeirdScaledSampler`: `d * |noise(x/d, y/d, z/d)|` with `d`
+    /// the rarity-mapped input. 1.21.7-era; 26.x dropped the type, so no
+    /// other tree decodes it.
+    WeirdScaledSampler {
+        input: FunctionId,
+        noise: NoiseId,
+        mapper: RarityValueMapper,
+    },
     BlendedNoise(BlendedNoise),
     /// End islands. `central` selects vanilla 1.21.7's `minecraft:end_islands`
     /// (outer islands plus the central island cone); without it the node is
@@ -183,6 +191,7 @@ impl GraphNode {
             | Self::Slice { input, .. }
             | Self::Cache(input)
             | Self::BlendDensity(input)
+            | Self::WeirdScaledSampler { input, .. }
             | Self::Interpolated { input, .. } => vec![input],
             Self::Binary { left, right, .. } => vec![left, right],
             Self::Round {
@@ -248,6 +257,11 @@ impl GraphNode {
                 id(shift_z),
             ],
             Self::OffsetNoise { noise, kind } => vec![15, noise.0 as u64, kind as u64],
+            Self::WeirdScaledSampler {
+                input,
+                noise,
+                mapper,
+            } => vec![23, id(input), noise.0 as u64, mapper as u64],
             Self::BlendedNoise(v) => vec![
                 16,
                 d(v.xz_scale),
@@ -425,7 +439,10 @@ impl DensityGraph {
         {
             return Err(CompileError::UnknownHolder);
         }
-        if let GraphNode::Noise { noise, .. } | GraphNode::OffsetNoise { noise, .. } = node {
+        if let GraphNode::Noise { noise, .. }
+        | GraphNode::OffsetNoise { noise, .. }
+        | GraphNode::WeirdScaledSampler { noise, .. } = node
+        {
             self.noise_entry(noise)?;
         }
         if let GraphNode::IntervalSelect {
@@ -601,6 +618,9 @@ impl DensityGraph {
                 return Ok(if kind == ShiftNoiseKind::Shift { 7 } else { 5 });
             }
             GraphNode::BlendedNoise(_) => return Ok(7),
+            // The noise is sampled at rarity-scaled coordinates, so the
+            // output varies along every axis whatever the input does.
+            GraphNode::WeirdScaledSampler { .. } => return Ok(7),
             GraphNode::Noise {
                 xz_scale, y_scale, ..
             } => {
@@ -641,6 +661,15 @@ impl DensityGraph {
             GraphNode::OffsetNoise { noise, .. } => {
                 let [min, max] = self.noise_entry(noise)?.definition.range();
                 Interval::new(min, max)?.multiply_range(Interval::exact(4.0)?)
+            }
+            // Vanilla's min/max: 0, and maxRarity times the noise's
+            // largest absolute value.
+            GraphNode::WeirdScaledSampler {
+                noise, mapper, ..
+            } => {
+                let [min, max] = self.noise_entry(noise)?.definition.range();
+                let loudest = min.abs().max(max.abs());
+                Interval::new(0.0, (mapper.max_rarity() * f64::from(loudest)) as f32)?
             }
             GraphNode::BlendedNoise(definition) => definition.range()?,
             GraphNode::Spline(ref spline) => spline.try_range(&mut |id| self.range(id))?,

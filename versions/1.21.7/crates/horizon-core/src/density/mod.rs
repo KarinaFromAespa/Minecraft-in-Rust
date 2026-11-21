@@ -40,6 +40,8 @@ mod surface;
 pub use surface::{FindTopSurfaceSampler, compile_surface_search};
 mod terrain_noise;
 pub use arithmetic::{BinaryOp, BinarySampler, UnaryOp, UnarySampler};
+mod weird_scaled;
+pub use weird_scaled::{RarityValueMapper, WeirdScaledSampler};
 pub use selection::{
     DensityValue, IntervalSelectSampler, InvalidIntervals, LerpSampler, RangeChoiceSampler,
 };
