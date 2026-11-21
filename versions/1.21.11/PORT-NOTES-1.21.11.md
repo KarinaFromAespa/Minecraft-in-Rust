@@ -10396,3 +10396,13 @@ bytecode diff is empty: `Sound`,
 `WeighedSoundEvents` are identical in both
 versions. No source change. `sound_events`:
 5 passed.
+
+## Item 280 — game/native_block_entity_draw.rs (rank 2, NO-CHANGE)
+
+2 classes, 3 methods, 1 named. Three renames:
+`CameraRenderState` moves package, `blockState`
+widens to public, and the light read is
+`getLightCoords` in 26.1 vs `getLightColor` in
+1.21.11 (same value, same default). One doc
+citation updated to the 1.21.11 name.
+`cargo check -p horizon-client` passes.
