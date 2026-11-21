@@ -12319,3 +12319,10 @@ A sync/async refactor of `doTask` with identical observable logic
 (same early-cancel checks, same sort, same POV set on success). The
 Rust's `update` already implements the POV rule exactly; the plumbing
 is Blaze3D machinery the native renderer never mirrors.
+
+## Item 628 — options_file.rs (UnitDouble, IntRange) — NO-CHANGE
+
+`UnitDouble` is a compiler artifact; `IntRange` swaps the 26.1
+`LootContextUser.validate` form for 1.21.11's
+`getReferencedContextParams`, with the predicate unchanged. The Rust
+models neither validation nor context-param collection.
