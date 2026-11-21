@@ -11993,3 +11993,9 @@ gated on an attachment. New test:
 
 Only a `requireNonNull` on the outer instance and the `is(Object)` vs
 `is(Block)` overload in the chain check.
+
+## Item 574 — game/commands/test_runs.rs (TestCommand, TestFinder) — NO-CHANGE
+
+Only the `getTestBoundingBox` (26.1) vs `getStructureBoundingBox`
+(1.21.11) rename — the Rust already cites the 1.21.11 name — and
+`TestFinder` visibility.
