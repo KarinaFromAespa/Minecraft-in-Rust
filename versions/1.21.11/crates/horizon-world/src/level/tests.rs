@@ -4733,5 +4733,65 @@ fn a_dragon_egg_teleports_without_support_below() {
     assert_eq!(found, 1, "the egg landed exactly once, over air");
 }
 
+#[test]
+fn soul_sand_under_water_forms_a_push_up_bubble_column() {
+    let mut w = world!();
+    w.floor(0, 2, "stone");
+    let water = w.id("water", &[]);
+    // A stone shaft so the source water cannot spread sideways.
+    for y in 1..=3 {
+        w.put(BlockPos::new(0, y, 0), water);
+        for (x, z) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            w.put(BlockPos::new(x, y, z), w.id("stone", &[]));
+        }
+    }
+    w.set(BlockPos::new(0, 0, 0), w.id("soul_sand", &[]));
+    for _ in 0..21 {
+        w.tick();
+    }
+    let up = w.id("bubble_column", &[("drag_down", "false")]);
+    for y in 1..=3 {
+        assert_eq!(w.get(BlockPos::new(0, y, 0)), up, "column at y={y}");
+    }
+}
+
+#[test]
+fn magma_under_water_forms_a_drag_down_bubble_column() {
+    let mut w = world!();
+    w.floor(0, 2, "stone");
+    let water = w.id("water", &[]);
+    for y in 1..=3 {
+        w.put(BlockPos::new(0, y, 0), water);
+        for (x, z) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            w.put(BlockPos::new(x, y, z), w.id("stone", &[]));
+        }
+    }
+    w.set(BlockPos::new(0, 0, 0), w.id("magma_block", &[]));
+    for _ in 0..21 {
+        w.tick();
+    }
+    let down = w.id("bubble_column", &[("drag_down", "true")]);
+    for y in 1..=3 {
+        assert_eq!(w.get(BlockPos::new(0, y, 0)), down, "column at y={y}");
+    }
+}
+
+#[test]
+fn a_bubble_column_without_support_becomes_water() {
+    let mut w = world!();
+    w.floor(0, 2, "stone");
+    w.put(
+        BlockPos::new(0, 1, 0),
+        w.id("bubble_column", &[("drag_down", "true")]),
+    );
+    // A neighbour change runs the column's updateShape, which finds no
+    // support below and schedules the 5-tick column check.
+    w.set(BlockPos::new(0, 1, 1), w.id("stone", &[]));
+    for _ in 0..6 {
+        w.tick();
+    }
+    assert_eq!(w.get(BlockPos::new(0, 1, 0)), w.id("water", &[]));
+}
+
 mod barrel;
 mod trigger_tests;

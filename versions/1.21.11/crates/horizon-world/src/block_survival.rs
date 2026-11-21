@@ -618,8 +618,12 @@ impl<'r> BlockSurvivalRegistry<'r> {
                 fluid_tag("minecraft:supports_sugar_cane_adjacently")?,
                 fluid_tag("minecraft:lava")?,
             ],
-            bubble_up: tag_states("minecraft:enables_bubble_column_push_up")?,
-            bubble_down: tag_states("minecraft:enables_bubble_column_drag_down")?,
+            // `BubbleColumnBlock.canSurvive` / `getColumnState` in
+            // 1.21.11: soul sand pushes up, magma drags down,
+            // hardcoded (the `enables_bubble_column_*` tags are
+            // gone; each held only its one block).
+            bubble_up: block_states("minecraft:soul_sand")?,
+            bubble_down: block_states("minecraft:magma_block")?,
         })
     }
     fn read<W: SurvivalWorld>(

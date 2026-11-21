@@ -78,9 +78,13 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             }
             Class::BubbleColumn => {
                 let below = self.below_state(pos);
+                // `BubbleColumnBlock.canSurvive` in 1.21.11: the block
+                // below is a bubble column, magma or soul sand,
+                // hardcoded (26.1 reads the `enables_bubble_column_*`
+                // tags instead, gone in 1.21.11).
                 b.is_block(below, block)
-                    || b.in_set(below, &t.enables_bubble_column_push_up)
-                    || b.in_set(below, &t.enables_bubble_column_drag_down)
+                    || b.is_block(below, n.magma_block)
+                    || b.is_block(below, n.soul_sand)
             }
             Class::Cactus => {
                 for direction in HORIZONTAL {

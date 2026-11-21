@@ -9325,3 +9325,24 @@ tick, `updateBase` and `applyEffects` is identical.
 methods to the `render*` forms with every layout number
 identical. No code changed. (The Rust's block-facts field
 keeps the 26.1 name `dampening` for the same value.)
+
+## Item 178 — level/shapes.rs + tick.rs + survive.rs + block_survival.rs (rank 2, CHANGED)
+
+3 classes, 13 methods, 2 named. Real delta: 1.21.11 hardcodes
+what 26.1 reads from three bubble-column tags that do not
+exist in 1.21.11 (`bubble_column_can_occupy`,
+`enables_bubble_column_push_up`, `enables_bubble_column_drag_down`
+— each held only its one block/fluid in 26.1's data). Missing
+tags resolve to empty sets in the Rust, so the tag-based code
+would never extend a column into water and would fail survival
+above soul sand/magma. Ported: `canOccupy` -> `canExistIn`
+(bubble column, or source water with amount >= 8);
+`canSurvive`/`getColumnState` check soul sand/magma directly;
+`updateColumn` drops its block parameter and returns water
+when the below block supports neither; the survival oracle's
+`bubble_up`/`bubble_down` sets are the hardcoded blocks.
+Coral placement (`isFull()` == `getAmount() == 8`) and stair
+placement (`is(WATER)` == `getType() == WATER`) are pure
+renames — no change. Tests: 3 new level tests (push-up,
+drag-down, unsupported -> water); they skip locally for
+missing prepared resources and run in CI.

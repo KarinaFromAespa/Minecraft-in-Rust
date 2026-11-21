@@ -71,12 +71,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     // bubble column there.
                     let above_pos = above(pos);
                     let above_state = self.state(above_pos);
-                    self.bubble_column_update_for(
-                        b.named.bubble_column,
-                        above_pos,
-                        above_state,
-                        state,
-                    );
+                    self.bubble_column_update_for(above_pos, above_state, state);
                 }
                 Class::SoulSand => {
                     // SoulSandBlock.tick: BubbleColumnBlock.updateColumn
@@ -84,12 +79,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     // stops) the bubble column there.
                     let above_pos = above(pos);
                     let above_state = self.state(above_pos);
-                    self.bubble_column_update_for(
-                        b.named.bubble_column,
-                        above_pos,
-                        above_state,
-                        state,
-                    );
+                    self.bubble_column_update_for(above_pos, above_state, state);
                 }
                 Class::Button => self.button_tick(pos, state),
                 Class::Diode => self.diode_tick(pos, state),
@@ -555,35 +545,36 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         state: BlockStateId,
         below_state: BlockStateId,
     ) {
-        let column = self.b.block(state);
-        self.bubble_column_update_for(column, pos, state, below_state);
+        self.bubble_column_update_for(pos, state, below_state);
     }
-    /// `BubbleColumnBlock.updateColumn(column, level, pos, occupyState, belowState)`.
+    /// `BubbleColumnBlock.updateColumn(level, pos, occupyState, belowState)`.
     pub(crate) fn bubble_column_update_for(
         &mut self,
-        column: super::states::BlockId,
         pos: BlockPos,
         occupy: BlockStateId,
         below_state: BlockStateId,
     ) {
         let b = self.b;
-        if !self.bubble_column_can_occupy(occupy) {
+        let column = b.named.bubble_column;
+        if !self.bubble_column_can_exist_in(occupy) {
             return;
         }
+        // `BubbleColumnBlock.getColumnState` in 1.21.11: soul sand
+        // pushes up and magma drags down, hardcoded (26.1 reads the
+        // `enables_bubble_column_*` tags instead, gone in 1.21.11);
+        // a below block that supports neither leaves water.
         let column_state = if b.is_block(below_state, column) {
             below_state
-        } else if b.in_set(below_state, &b.tags.enables_bubble_column_push_up) {
+        } else if b.is_block(below_state, b.named.soul_sand) {
             b.table.set_bool(b.default_of(column), b.props.drag, false)
-        } else if b.in_set(below_state, &b.tags.enables_bubble_column_drag_down) {
+        } else if b.is_block(below_state, b.named.magma_block) {
             b.table.set_bool(b.default_of(column), b.props.drag, true)
-        } else if b.is_block(occupy, column) {
-            b.default_of(b.named.water)
         } else {
-            occupy
+            b.default_of(b.named.water)
         };
         self.set_block(pos, column_state, 2);
         let mut up = above(pos);
-        while self.bubble_column_can_occupy(self.state(up)) {
+        while self.bubble_column_can_exist_in(self.state(up)) {
             if !self.set_block(up, column_state, 2) {
                 return;
             }

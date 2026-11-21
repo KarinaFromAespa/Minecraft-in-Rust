@@ -267,7 +267,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     || dir == Direction::Down
                     || (dir == Direction::Up
                         && !b.is_block(nstate, block)
-                        && self.bubble_column_can_occupy(nstate))
+                        && self.bubble_column_can_exist_in(nstate))
                 {
                     self.schedule_tick(pos, block, 5);
                 }
@@ -1138,15 +1138,14 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             self.schedule_tick(pos, block, delay);
         }
     }
-    /// `BubbleColumnBlock.canOccupy`.
-    pub(crate) fn bubble_column_can_occupy(&self, state: BlockStateId) -> bool {
+    /// `BubbleColumnBlock.canExistIn` in 1.21.11: a bubble column, or
+    /// source water (26.1 reads the `bubble_column_can_occupy` fluid
+    /// tag instead, gone in 1.21.11; it held only water).
+    pub(crate) fn bubble_column_can_exist_in(&self, state: BlockStateId) -> bool {
         let b = self.b;
         let fluid = b.fluid(state);
         b.is_block(state, b.named.bubble_column)
-            || (b.fluid_in(fluid.kind(), b.fluid_tags.bubble_column_can_occupy)
-                && b.instance_of(state, Class::Liquid)
-                && fluid.is_source()
-                && fluid.amount() >= 8)
+            || (b.is_block(state, b.named.water) && fluid.is_source() && fluid.amount() >= 8)
     }
     /// `NoteBlock.setInstrument`.
     pub(crate) fn note_block_instrument(&self, pos: BlockPos, state: BlockStateId) -> BlockStateId {
