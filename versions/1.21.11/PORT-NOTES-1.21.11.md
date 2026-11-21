@@ -11651,3 +11651,18 @@ recorded for `WanderingTraderId`. Also fixed:
 `world_surface` — the trader can spawn on leaves again.
 The tick/spawn/llama logic already matched.
 `cargo check -p horizon-client` clean.
+
+## Item 536 — shadows.rs (rank 3, NO-CHANGE)
+
+The renderer diffs are 26.1's adult/baby model and
+texture splits (strider, turtle, villager) plus the
+`renderTranslucent`/`render` and `Matrix4fc`/`Matrix4f`
+renames in `ShadowFeatureRenderer`; the shadow radii,
+baby factors and all shadow math are identical in both
+versions. Verified against 1.21.11's `extractShadow`
+(which exists in 1.21.11 and not in 26.1, so the Rust's
+citation is already the 1.21.11 name): the 32.0 radius
+clamp, the (1 - distSq/256) strength falloff, the
+min(pow/0.5 - 1, radius) scan depth, the brightness > 3
+and full-collision gates, and the 0.5-per-block power
+falloff all match. `GiantMobRenderer` is byte-identical.
