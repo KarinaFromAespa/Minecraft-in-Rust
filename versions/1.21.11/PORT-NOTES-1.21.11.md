@@ -12554,3 +12554,7 @@ vs `create` — same seed, same sequence).
 
 invokevirtual vs invokeinterface only (`GpuDevice`/`CommandEncoder`
 are interfaces in 1.21.11, classes in 26.1); same calls.
+
+## Item 672 — client/gui/layouts (LinearLayout$Orientation) — NO-CHANGE
+
+Visibility plus compiler-inserted checkcasts; same layout logic.
