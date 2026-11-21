@@ -9537,13 +9537,30 @@ is the oracle; decompiled code is a reading aid.
     check -j 1 -p
     horizon-client --lib
     --tests` 0/0 (2m48s).
+- **Item 217 — Beacon
+  off-screen render:**
+  - `shouldRenderOffScreen`
+    takes the block entity
+    in 1.21.5 and no
+    argument in 1.21.6;
+    both return true. A
+    signature change only —
+    the port's never-culled
+    set already includes
+    the beacon, with the
+    end gateway, structure
+    block and test instance
+    block.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **216 of 426 are
-closed** (rank 1 complete, rank 2 at 207/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **217 of 426 are
+closed** (rank 1 complete, rank 2 at 208/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
