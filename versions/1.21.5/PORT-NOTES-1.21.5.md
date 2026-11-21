@@ -10165,12 +10165,33 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 234 —
+  BiomeAmbientSoundsHandler
+  :
+  - Report false positive:
+    the report flags one
+    changed method, but the
+    decompiled sources are
+    byte-identical in both
+    versions (5756 bytes
+    each) and the per-item
+    diff file is empty, so
+    there is no
+    1.21.6-to-1.21.5
+    difference to port. The
+    biome ambient sounds
+    themselves are already
+    the 1.21.5 form (item
+    160).
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **233 of 426 are
-closed** (rank 1 complete, rank 2 at 224/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **234 of 426 are
+closed** (rank 1 complete, rank 2 at 225/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
