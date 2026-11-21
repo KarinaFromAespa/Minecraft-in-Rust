@@ -12875,12 +12875,42 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 311 — Jigsaw block entity**
+  - JigsawBlockEntity:
+    verified, no code. The
+    diff is the
+    ValueInput/ValueOutput
+    refactor with an
+    identical form, and the
+    port already implements
+    the 1.21.5 direct form:
+    save writes name,
+    target, pool,
+    final_state, joint,
+    placement_priority,
+    selection_priority;
+    load defaults
+    name/target/pool to the
+    empty id, final_state
+    to minecraft:air,
+    priorities to 0, and a
+    missing joint to the
+    block state's default
+    (the caller's
+    default_joint, Structur
+    eTemplate.getDefaultJoi
+    ntType). Pinned by save
+    s_and_loads_like_jigsaw
+    _block_entity.
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **310 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 42/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **311 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 43/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
