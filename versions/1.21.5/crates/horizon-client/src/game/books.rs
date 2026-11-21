@@ -148,8 +148,8 @@ impl Game<'_> {
                 }
             }
             ClickEvent::OpenUrl(url) => self.click_url(url),
-            // closeContainerOnServer, then the RunCommand arm with no screen after the command:
-            // the book closes and the command runs, unsigned.
+            // handleComponentClicked's RunCommand arm (1.21.5): the book
+            // closes and the command runs, unsigned.
             ClickEvent::RunCommand(command) => {
                 self.close_book();
                 self.click_command(&command);
@@ -1516,10 +1516,11 @@ impl Game<'_> {
                 page,
                 lectern,
             } => {
-                widgets::begin_screen(|| {
-                    let text = pages.get(*page).map(Text::plain).unwrap_or_default();
-                    screen_info::book_view(*page, pages.len(), &text, &screen_info::tr)
-                });
+                // BookViewScreen in 1.21.5 has GameNarrator.NO_TITLE and no
+                // getNarrationMessage override: the screen narrates nothing
+                // (1.21.6 added the title, page indicator and page text).
+                // The page buttons stay narratable widgets.
+                widgets::begin_screen(|| ScreenInfo::new("book/view", ""));
                 // createMenuControls comes before createPageControlButtons
                 // (forward, then back).
                 page_narratables(*page > 0, *page + 1 < pages.len(), true);

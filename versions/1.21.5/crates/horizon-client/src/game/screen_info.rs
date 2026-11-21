@@ -69,19 +69,6 @@ pub(super) fn book_edit(page: usize, pages: usize, tr: Tr<'_>) -> ScreenInfo {
     )
 }
 
-/// `BookViewScreen.getNarrationMessage` (and `LecternScreen`'s): its title,
-/// the page indicator and the page's text, a line each.
-pub(super) fn book_view(page: usize, pages: usize, text: &str, tr: Tr<'_>) -> ScreenInfo {
-    let indicator = tr(
-        "book.pageIndicator",
-        &[&(page + 1).to_string(), &pages.to_string()],
-    );
-    ScreenInfo::new(
-        "book/view",
-        join_lines(&[&tr("book.view.title", &[]), &indicator, text]),
-    )
-}
-
 /// An `AbstractContainerScreen` opens: its narration is its title, which
 /// its drawer names with `name_container` once it knows the menu (the
 /// creative inventory's is empty). Slots are never narrated.
@@ -169,13 +156,11 @@ mod tests {
     #[test]
     fn books_name_their_page() {
         // An empty book still counts one page while it is written.
+        // (The view screen narrates nothing in 1.21.5 — NO_TITLE and no
+        // getNarrationMessage override — so it has no helper to test.)
         assert_eq!(
             book_edit(0, 0, &keys).title,
             "book.edit.title. book.pageIndicator(1, 1)"
-        );
-        assert_eq!(
-            book_view(1, 3, "Second page", &keys).title,
-            "book.view.title\nbook.pageIndicator(2, 3)\nSecond page"
         );
     }
 

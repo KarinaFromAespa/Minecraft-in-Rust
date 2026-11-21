@@ -8114,13 +8114,92 @@ is the oracle; decompiled code is a reading aid.
     was not run (OOM
     under load, item
     122).
+- **Item 171 — Book
+  view narration
+  removed; container
+  screens verified:**
+  - BookViewScreen in
+    1.21.5 has
+    `NO_TITLE` and no
+    narration
+    override, but the
+    port narrated the
+    1.21.6 form
+    (title + page
+    indicator + page
+    text). The view
+    screen's
+    `ScreenInfo` now
+    carries `""`
+    (same shape as
+    item 155); the
+    page buttons stay
+    narratable
+    widgets, and the
+    now-dead
+    `book_view`
+    helper and its
+    test assertion are
+    gone. RunCommand
+    links already do
+    the 1.21.5 form
+    (book closes,
+    command runs
+    unsigned; lectern
+    closes its menu);
+    one stale
+    `closeContainerOnServer`
+    comment fixed.
+    Page text and
+    indicator are the
+    opaque `BLACK`
+    spelling at
+    vanilla's
+    positions
+    (x+36, y 32+9/line;
+    indicator at
+    left+148-width,
+    y 18). Container
+    screens: labels
+    draw before slots
+    in the port (the
+    1.21.6 order) but
+    labels never
+    overlap slots, so
+    it is
+    unobservable;
+    tooltips render
+    in-frame (the
+    1.21.5 form, not
+    1.21.6's
+    next-frame defer);
+    the snapback
+    animation is not
+    implemented at
+    all (version-neutral
+    gap), so the
+    record-vs-fields
+    difference has no
+    surface; blit
+    offsets and
+    strata are
+    plumbing (HUD
+    draw order).
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests` 0/0 (45s).
+    The test-profile
+    build was not run
+    (OOM under load,
+    item 122).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **170 of 426 are
-closed** (rank 1 complete, rank 2 at 161/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **171 of 426 are
+closed** (rank 1 complete, rank 2 at 162/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
