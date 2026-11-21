@@ -11976,3 +11976,15 @@ the mood suffix joins with two spaces (`"  (Mood %d%%)"`), not one.
 themselves already matched. `DebugEntryPosition` differs only in
 `ChunkPos` construction/accessors. Tests: `cargo test -p
 horizon-client-lib --lib debug_overlay`, 9 passed.
+
+## Item 572 — game/boat_leads.rs (LeadItem.bindPlayerMobs) — CHANGED
+
+1.21.11's `bindPlayerMobs` makes the knot (`getOrCreateKnot`) and plays its
+placement sound on the first leashable mob, before the attach check — a
+fence clicked with a lead keeps its knot and the sound even when nothing
+attaches. 26.1 waits for an attachment and discards a knot nothing hung
+on. `use_knot` now does the 1.21.11 form on the fence click only (the
+knot's own interact keeps event + sound on an attachment, verified against
+1.21.11's `LeashFenceKnotEntity.interact`); the BLOCK_ATTACH event stays
+gated on an attachment. New test:
+`a_fence_clicked_with_a_lead_keeps_its_knot_when_nothing_attaches`.

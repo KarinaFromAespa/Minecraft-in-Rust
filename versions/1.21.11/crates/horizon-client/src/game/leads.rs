@@ -642,6 +642,19 @@ impl Game<'_> {
             return true;
         }
         self.forget_untied_knots();
+        // `LeadItem.bindPlayerMobs` (1.21.11): the first leashable mob makes
+        // the knot (`getOrCreateKnot`) and plays its placement sound before
+        // the attach check, so a fence clicked with a lead keeps its knot
+        // and the sound even when nothing attaches. 26.1 waits for an
+        // attachment and discards a knot nothing hung on. The knot's own
+        // interact keeps the sound on an attachment, so this is the fence
+        // click only.
+        let binding =
+            !knot_hit && (!in_hand.is_empty() || !boats_in_hand.is_empty());
+        if binding {
+            self.tie_knot(knot_pos);
+            self.lead_sound("tied", at);
+        }
         let mut attached = self.tie_player_boats(center, Holder::Knot(knot_pos));
         for j in in_hand {
             if self.can_attach_lead(j, center) {
@@ -671,7 +684,10 @@ impl Game<'_> {
                 knot_pos.map(|v| f64::from(v) + 0.5)
             };
             self.lead_game_event("minecraft:block_attach", event_at);
-            self.lead_sound("tied", at);
+            // The fence click already played the tied sound above.
+            if !binding {
+                self.lead_sound("tied", at);
+            }
             self.swing_arm();
         }
         attached
