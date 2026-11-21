@@ -241,7 +241,7 @@ impl Levels {
     }
 }
 
-/// A `TicketType.PORTAL` ticket, as `chunk_tickets.dat` saves it.
+/// A `TicketType.PORTAL` ticket, as `chunks.dat` saves it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PortalTicket {
     pub chunk: (i32, i32),

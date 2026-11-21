@@ -10001,3 +10001,17 @@ values), `getRandom()` → the `random` field, and
 dropped null-check codegen. The Rust's
 `set_transient` already uses the 1.21.11 names. No
 code changed.
+
+## Item 232 — ticket_levels.rs (rank 2, CHANGED)
+
+1 class, 10 methods, 1 named. The ticket logic is
+identical (`ChunkPos.pack`/`unpack` spelling only).
+The saved-data type id changes: 26.1's
+`minecraft:chunk_tickets` (`data/minecraft/chunk_tickets.dat`)
+is 1.21.11's plain `"chunks"` (`data/chunks.dat`,
+flat). The save/load paths, the probe fixture and the
+datafix type mapping (`"chunks"` → `SavedTickets`)
+are ported; the forced-chunks test now pins the file
+location. The other `saved_data_type` entries keep
+their 26.x namespaced keys — their flat-layout port
+belongs to their owning items.

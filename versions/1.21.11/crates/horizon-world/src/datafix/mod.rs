@@ -389,7 +389,9 @@ pub fn saved_data_type(relative: &str) -> Option<Ty> {
     // untouched.
     Some(match name {
         "minecraft/scoreboard" => Ty::SavedScoreboard,
-        "minecraft/chunk_tickets" => Ty::SavedTickets,
+        // 1.21.11's `TicketStorage` type id is "chunks", flat under
+        // `data/`; the namespaced form is 26.x's.
+        "chunks" | "minecraft/chunk_tickets" => Ty::SavedTickets,
         "minecraft/world_border" => Ty::SavedWorldBorder,
         "minecraft/maps/last_id" => Ty::SavedMapIndex,
         "minecraft/random_sequences" => Ty::SavedRandomSequences,

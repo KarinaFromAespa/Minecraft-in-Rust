@@ -6,7 +6,7 @@
 //! - per dimension `dimensions/minecraft/<name>/region/r.X.Z.mca` (chunks:
 //!   paletted sections with light, heightmaps, block entities, scheduled
 //!   block/fluid ticks) and `entities/r.X.Z.mca` (entities, `entity_nbt`);
-//! - the real saved-data files (`data/minecraft/{chunk_tickets,scoreboard}.dat`,
+//! - the real saved-data files (`data/{chunks,scoreboard}.dat`,
 //!   the per-player files under `players/data/`).
 //!
 //! Data Horizon does not simulate (structure references, unknown block
@@ -2634,10 +2634,10 @@ impl SaveDir {
     pub fn calculated_blending(&self, x: i32, z: i32) -> Option<Arc<BlendingData>> {
         self.blending_lookup.get().and_then(|lookup| lookup(x, z))
     }
-    /// 26.3's TicketStorage: persistent tickets live in each dimension's
-    /// data/minecraft/chunk_tickets.dat, with ChunkPos.CODEC's [x, z] int array.
+    /// 1.21.11's TicketStorage: persistent tickets live in each dimension's
+    /// data/chunks.dat, with ChunkPos.CODEC's [x, z] int array.
     pub fn load_forced_chunks(&self) -> HashSet<(i32, i32)> {
-        let Some(data) = read_saved_data(&self.root, "chunk_tickets") else {
+        let Some(data) = read_saved_data(&self.root, "chunks") else {
             return HashSet::new();
         };
         let Some(Tag::List(tickets)) = data.get("tickets") else {
@@ -2656,7 +2656,7 @@ impl SaveDir {
     /// (`Ticket.CODEC`: a non-negative level, `ticks_left` 0 when missing).
     pub fn load_portal_tickets(&self) -> Vec<crate::ticket_levels::PortalTicket> {
         let Some(Tag::List(tickets)) =
-            read_saved_data(&self.root, "chunk_tickets").and_then(|d| d.get("tickets").cloned())
+            read_saved_data(&self.root, "chunks").and_then(|d| d.get("tickets").cloned())
         else {
             return Vec::new();
         };
@@ -2695,13 +2695,11 @@ impl SaveDir {
         forced: &HashSet<(i32, i32)>,
         portal: &[crate::ticket_levels::PortalTicket],
     ) -> Result<()> {
-        if forced.is_empty()
-            && portal.is_empty()
-            && !saved_data_path(&self.root, "chunk_tickets").exists()
+        if forced.is_empty() && portal.is_empty() && !saved_data_path(&self.root, "chunks").exists()
         {
             return Ok(());
         }
-        let mut data = compound_or_empty(read_saved_data(&self.root, "chunk_tickets"));
+        let mut data = compound_or_empty(read_saved_data(&self.root, "chunks"));
         // Preserve persistent tickets Horizon does not simulate.
         let mut tickets = match data.get("tickets") {
             Some(Tag::List(tickets)) => tickets
@@ -2733,7 +2731,7 @@ impl SaveDir {
             ticket
         }));
         put(&mut data, "tickets", Tag::List(tickets));
-        write_saved_data(&self.root, "chunk_tickets", data)
+        write_saved_data(&self.root, "chunks", data)
     }
     /// Whether chunk `x z` is in its region file, from a chunk list kept
     /// `LOD_REGION_TTL`. Far terrain asks for every column of the view: it
@@ -3411,12 +3409,12 @@ fn write_dat_as(path: &Path, tag: Tag, durable: bool) -> Result<()> {
     }
     Ok(())
 }
-/// `SavedDataStorage`: `{data: ..., DataVersion}` under `data/minecraft/`.
+/// `SavedDataStorage`: `{data: ..., DataVersion}` under `data/`.
+/// A dimension's saved-data file: 1.21.11 stores it flat under `data/`
+/// (`data/chunks.dat`); 26.x nests it under the namespace
+/// (`data/minecraft/chunk_tickets.dat`).
 fn saved_data_path(world: &Path, name: &str) -> PathBuf {
-    world
-        .join("data")
-        .join("minecraft")
-        .join(format!("{name}.dat"))
+    world.join("data").join(format!("{name}.dat"))
 }
 fn read_saved_data(world: &Path, name: &str) -> Option<Tag> {
     read_dat(&saved_data_path(world, name))?
@@ -8392,6 +8390,11 @@ mod tests {
             assert!(save.load_forced_chunks().is_empty());
             let forced = HashSet::from([(i as i32, -17), (-23, i as i32), (-1, -1)]);
             save.save_chunk_tickets(&forced, &[]).unwrap();
+            // 1.21.11's `TicketStorage` type id is "chunks", flat under
+            // `data/` — not 26.x's `data/minecraft/chunk_tickets.dat`.
+            let dir = dimension_dir(&root, dim);
+            assert!(dir.join("data/chunks.dat").exists());
+            assert!(!dir.join("data/minecraft/chunk_tickets.dat").exists());
         }
         for (i, dim) in dimensions.iter().enumerate() {
             let path = dimension_dir(&root, dim);
@@ -8401,7 +8404,7 @@ mod tests {
                 forced,
                 HashSet::from([(i as i32, -17), (-23, i as i32), (-1, -1)])
             );
-            let mut data = read_saved_data(&path, "chunk_tickets").unwrap();
+            let mut data = read_saved_data(&path, "chunks").unwrap();
             let other = Tag::compound([
                 ("type", Tag::String("example:loader".into())),
                 ("level", Tag::Int(30)),
@@ -8416,7 +8419,7 @@ mod tests {
                 );
                 tickets.push(other.clone());
             }
-            write_saved_data(&path, "chunk_tickets", data).unwrap();
+            write_saved_data(&path, "chunks", data).unwrap();
             forced.remove(&(-1, -1));
             save.save_chunk_tickets(&forced, &[]).unwrap();
             drop(save);
@@ -8429,9 +8432,7 @@ mod tests {
                     .is_empty()
             );
             assert_eq!(
-                read_saved_data(&path, "chunk_tickets")
-                    .unwrap()
-                    .get("tickets"),
+                read_saved_data(&path, "chunks").unwrap().get("tickets"),
                 Some(&Tag::List(vec![other]))
             );
         }
