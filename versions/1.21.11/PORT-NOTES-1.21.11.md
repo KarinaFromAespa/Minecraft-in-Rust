@@ -10640,3 +10640,15 @@ interfaces in the `implements` clause;
 `withCallback`'s bytecode is identical. No
 source change. `cargo check -p
 horizon-client --tests` passes.
+
+## Item 304 — game/spear.rs (rank 2, NO-CHANGE)
+
+1 class, 1 method, 1 named. The large diff
+collapses to one call: 26.1 reads the range
+with `getAttackRangeWith(stack)`, 1.21.11
+with `entityAttackRange()` — both are the
+stack's ATTACK_RANGE or the entity default,
+and the sole caller (`ItemStack.onUseTick`)
+passes the active item either way. Zero
+constant differences. No source change.
+`spear`: 5 passed.
