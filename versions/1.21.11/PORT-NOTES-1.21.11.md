@@ -10747,3 +10747,17 @@ map is sorted). Two citations re-pointed
 to the 1.21.11 loader. `crafting`: 39
 passed, 1 ignored; `lan::data`: 7 passed,
 1 ignored.
+
+## Item 346 — client/gui/screens/worldselection (rank 2, NO-CHANGE)
+
+5 classes, 6 methods, 0 named.
+`GameTab`/`WorldTab` identical apart from
+name noise; `WorldOpenFlows$1Data` is
+visibility only. `FileFixerProgressScreen`
+is 26.1-only (1.21.11 has no file-fixing
+step — the upgrade UI is the chunk-based
+`OptimizeWorldScreen`), but the Rust
+already disables the flow for 1.21.11:
+`set_file_fixing` has no callers, so the
+retained screen never shows. `create_world`:
+6 passed; `level_loading`: 12 passed.
