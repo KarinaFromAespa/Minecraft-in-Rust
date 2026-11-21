@@ -11691,3 +11691,13 @@ places `dirtProvider.getState`) and no accessor. The level type widened
 to `dirt_provider` (the 1.21.7 twin's fix). All 39 1.21.11 tree configs use a
 simple dirt provider, so the unconditional set is equivalent to vanilla's
 skip-when-already-dirt. `place_below_trunk` now cites `setDirtAt`.
+
+## Item 539 — gfx/submit.rs (CommandEncoder) — NO-CHANGE
+
+In 1.21.11 `CommandEncoder` is an abstract class (25 abstract methods); 26.1
+made it a concrete delegating class over a `CommandEncoderBackend` with
+validation (`verifyRegion`, `verifyColorTexture`, `verifyDepthTexture`) and
+logging. The method set is the same. The Rust is a pure native wgpu
+submit-thread layer that never mirrors Mojang's Blaze3D class (no Mojang
+citations; the `CommandEncoder` mentions are wgpu's type), so the difference
+is invisible to it.
