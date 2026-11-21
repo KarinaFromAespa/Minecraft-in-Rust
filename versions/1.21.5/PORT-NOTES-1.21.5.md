@@ -8060,13 +8060,67 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 170 — Frog
+  variant already
+  1.21.5; amphibious
+  navigation does
+  not walk:**
+  - Frog variant
+    selection uses
+    the per-type
+    `VariantRegistry::select`
+    form and the save
+    keeps the variant
+    name (items 112,
+    127's pattern);
+    save/load is the
+    usual `CompoundTag`
+    refactor.
+    `canNavigateGround`
+    does not exist in
+    1.21.5 at all —
+    the door code uses
+    `GoalUtils.hasGroundPathNavigation`
+    (`instanceof
+    GroundPathNavigation`),
+    and
+    `AmphibiousPathNavigation`
+    extends
+    `PathNavigation`
+    directly. The
+    port's
+    `can_navigate_ground`
+    wrongly returned
+    true for
+    amphibious (the
+    1.21.6 override);
+    the arm is
+    removed, pinned
+    by a test. The
+    callers are door
+    code no amphibious
+    mob runs, so this
+    is unobservable in
+    practice — but
+    the code now
+    states the 1.21.5
+    form.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests` 0/0 (1m
+    09s). The
+    test-profile build
+    was not run (OOM
+    under load, item
+    122).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **169 of 426 are
-closed** (rank 1 complete, rank 2 at 160/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **170 of 426 are
+closed** (rank 1 complete, rank 2 at 161/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
