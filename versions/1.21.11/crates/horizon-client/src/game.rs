@@ -7435,7 +7435,8 @@ impl Game<'_> {
             // shares its root vehicle and is never the hit, nor is the
             // camera entity the pick starts from. EntitySelector.CAN_BE_PICKED
             // is isPickable — `!isRemoved`, not alive: a health-0 fake player
-            // still answers a click.
+            // still answers a click. 1.21.11 also ANDs NO_SPECTATORS, but no
+            // mob here can be a spectator, so the filter is the same.
             if m.removed || Some(m.id) == self.riding || Some(m.id) == self.remote_camera_id() {
                 continue;
             }

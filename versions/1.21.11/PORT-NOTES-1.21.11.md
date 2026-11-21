@@ -10704,3 +10704,18 @@ two `BlockState.is` calls on the mushroom
 blocks are the overload tightening. No
 source change. `worldgen::blending`: 3
 passed.
+
+## Item 312 — world/entity (rank 2, NO-CHANGE)
+
+11 classes, 11 methods, 0 named. `Avatar`
+gains `getProfile()` and goes abstract in
+26.1; `EntityFluidInteraction` is a 26.1-only
+extraction of the fluid logic 1.21.11 keeps
+inline on `Entity`; `CAN_BE_PICKED` drops
+its spectator exclusion in 26.1 — none of
+the three has a Rust surface (the Rust's
+pick iterates only non-player mobs, which
+can never be spectators; one comment
+updated to say so). The rest is visibility
+widening and codegen noise. `mobs::living`:
+21 passed, 1 ignored.
