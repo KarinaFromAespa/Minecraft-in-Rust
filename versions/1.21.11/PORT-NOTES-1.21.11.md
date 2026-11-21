@@ -12443,3 +12443,7 @@ Only visibility and `requireNonNull`.
 ## Item 650 — launcher/src/java_launch.rs (VaultBlockEntity$Client) — NO-CHANGE
 
 Only `getRandom()` vs the `random` field at 3 sites.
+
+## Item 651 — client/gui/components/toasts (SystemToast) — NO-CHANGE
+
+Extractor rewire and visibility.
