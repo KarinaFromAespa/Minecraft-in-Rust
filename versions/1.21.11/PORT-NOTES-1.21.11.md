@@ -9464,3 +9464,13 @@ is removed from `villager::Ext`. No delta: `mobInteract`
 cure progress, `finishConversion`. Test: a zombie
 villager save has no finalized flag (7 passed in
 `mobs::zombie_villager::`).
+
+## Item 187 — gizmos.rs (rank 2, NO-CHANGE)
+
+5 classes, 9 methods, 2 named. No behavioural delta: the
+bounding-box renderer is pure renames; the chunk-border
+renderer only changes how it reaches the camera entity
+(the same entity either way); the hitbox renderer drops
+26.1's frozen-aware per-entity partial tick for the
+frame's partial — which is already what the Rust uses;
+`Gizmos` is renames + access widening. No code changed.
