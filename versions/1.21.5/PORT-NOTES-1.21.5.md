@@ -10686,12 +10686,33 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 254 — jeb_ wool
+  colour:
+  - Done by item 211: Sheep
+    RenderState.getWoolColo
+    r is the other half of
+    the ColorLerper change.
+    The port's jeb_wool_rgb
+    already implements the
+    1.21.5 inline form
+    exactly — cycle index
+    floor(age)/25 + id,
+    fraction (floor(age) %
+    25 + frac(age))/25,
+    per-channel lerp
+    between consecutive dye
+    wools — pinned by the
+    10-assertion test from
+    item 211.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **253 of 426 are
-closed** (rank 1 complete, rank 2 at 244/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **254 of 426 are
+closed** (rank 1 complete, rank 2 at 245/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
