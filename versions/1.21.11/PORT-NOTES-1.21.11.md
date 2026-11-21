@@ -9825,3 +9825,14 @@ title, footer and logo are identical.
 subclass to a 1.21.11 plain record with the same CODEC;
 the Rust already writes the settings into level.dat's
 `Data`, the 1.21.11 form — no change.
+
+## Item 215 — BlockItem (rank 2, NO-CHANGE)
+
+1 class, 3 methods, 2 named. `place` differs only by
+the `is(Block)` overload and the 26.1-only
+`ItemInstance` type name; `onDestroyed` spills the
+same container contents via an Iterable instead of a
+Stream. 1.21.11 adds `BlockItem.requiredFeatures()`
+(delegating to the block), but the Rust models no
+per-item/per-block feature-flag gating, so there is
+nothing to port it into. No code changed.
