@@ -10996,3 +10996,11 @@ template reading lives on
 with the same `unlimitedHeap` +
 `readCompressed` form. The one citation
 re-pointed. `nbt::`: 14 passed.
+
+## Item 462 — gui/components/events/GuiEventListener (rank 2, NO-CHANGE)
+
+1 class, 1 method, 0 named. 26.1's added
+`preeditUpdated` default is part of the
+26.x-only IME preedit system (item 377);
+the Rust already takes only committed
+text. `ime`: 73 passed, 3 ignored.
