@@ -9716,3 +9716,17 @@ the halved 0.2125). `create` and `isBlockDangerous`
 differ only by the `getRandom()` field access and the
 `is(Block)` overload spelling; 1.21.11 adds two `is`
 convenience overloads.
+
+## Item 205 — cartography.rs (rank 2, NO-CHANGE)
+
+7 classes, 15 methods, 1 named. The screen diff is
+pure render-extraction rename (`extractBackground` ->
+`renderBg`, `extractResultingMap` -> `renderResultingMap`,
+`extractMap` -> `renderMap`) with identical layout
+numbers and error conditions; the menu diff is
+parameter-name noise plus `lastSoundTime` widening —
+slots, `onTake`, `slotsChanged`, `setupResultSlot`
+(paper -> SCALE, glass pane -> LOCK, map -> x2) and
+`quickMoveStack` are all identical. One doc citation
+updated in `draw_cartography`; no behavioural code
+changed.

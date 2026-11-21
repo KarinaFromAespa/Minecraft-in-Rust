@@ -76,7 +76,7 @@ impl Game<'_> {
             debug_assert_eq!(new, id, "map ids follow peek_map_id");
         }
     }
-    /// `CartographyTableScreen.extractBackground` after the background.
+    /// `CartographyTableScreen.renderBg` after the background.
     pub(super) fn draw_cartography(&mut self, batch: &mut HudBatch, ox: f32, oy: f32) {
         let Some((map, extra)) = self
             .station
