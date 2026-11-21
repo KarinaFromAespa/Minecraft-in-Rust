@@ -10219,3 +10219,10 @@ is unobservable in 1.21.11 — taming always goes
 through `interact`, which sets persistence required
 first. New test
 `feeding_heals_twice_the_nutrition_or_one_for_a_bucket`.
+
+## Item 259 — mobs/creaking.rs (rank 2, NO-CHANGE)
+
+1 class, 5 methods, 1 named. The brain provider
+restructure (item 218's pattern) and the PathType
+renames in `setTransient` (item 200's pattern) —
+both already the Rust's form. No code changed.
