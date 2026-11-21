@@ -11774,3 +11774,14 @@ Only the `CameraRenderState` package move, `Level.getRandom()` vs the
 `Level.random` field in `spawnItem` (same source, same draw order and
 constants), and `VaultState` constructor visibility — all behaviour-free.
 The Rust cites `spawnItem` and `VaultState` by name, both shared.
+
+## Item 548 — bossbar.rs (CustomBossEvent) — NO-CHANGE
+
+26.1 added save-dirty tracking (`dirtyCallback` + `setDirty()`, called from
+every mutator), renamed `id`/`getTextId()` to `customId` and `getValue()`/
+`getMax()` to record-style accessors; 1.21.11 has no dirty tracking and loads
+saved players via `addOfflinePlayer`. The `Packed` record's 10 components,
+defaults (max 100, WHITE/PROGRESS) and the display-name hover are the same.
+The Rust models the `Packed` form with the same fields and defaults, mints a
+stable UUID per id (neither version saves the UUID), and needs no dirty
+tracking since pack/unpack are explicit.
