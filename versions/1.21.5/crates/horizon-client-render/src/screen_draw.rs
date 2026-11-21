@@ -612,7 +612,6 @@ pub struct TextField {
     pub height: i32,
     pub focused: bool,
     pub text_color: i32,
-    pub text_shadow: bool,
     pub hint: Option<Text>,
     pub suggestion: Option<String>,
     /// `getMessage`: what the narrator calls the box.
@@ -655,8 +654,11 @@ impl TextField {
             width,
             height,
             focused: false,
+            // `DEFAULT_TEXT_COLOR`: 1.21.5 spells it 14737632 (alpha 0,
+            // the font forces it opaque); the effective colour is this
+            // opaque 0xFFE0E0E0, which the renderer would drop as
+            // transparent if spelled the 1.21.5 way.
             text_color: -2039584,
-            text_shadow: true,
             hint: None,
             suggestion: None,
             message: String::new(),
@@ -909,7 +911,7 @@ impl TextField {
             };
             let t = styled(half, self.display);
             let w = m.width_drawn(&t);
-            text_as_typed(out, t, draw_x, ty, color, self.text_shadow);
+            text_as_typed(out, t, draw_x, ty, color, true);
             draw_x += w + 1;
         }
         let insert = self.cursor < len || len >= self.max_length;
@@ -922,7 +924,7 @@ impl TextField {
         }
         if !displayed.is_empty() && on_screen && (rel_cursor as usize) < shown_len {
             let t = styled(sub(&displayed, rel_cursor as usize, shown_len), self.cursor);
-            text_as_typed(out, t, draw_x, ty, color, self.text_shadow);
+            text_as_typed(out, t, draw_x, ty, color, true);
         }
         if let Some(hint) = &self.hint
             && displayed.is_empty()
@@ -937,19 +939,11 @@ impl TextField {
                 cursor_x - 1,
                 ty,
                 -8355712,
-                self.text_shadow,
+                true,
             );
         }
-        if rel_highlight as isize != rel_cursor {
-            let hx = tx + m.width_str(&sub(&displayed, 0, rel_highlight));
-            let right = self.x + self.width;
-            out.push(Draw::Highlight {
-                x0: cursor_x.min(right),
-                y0: ty - 1,
-                x1: (hx - 1).min(right),
-                y1: ty + 1 + 9,
-            });
-        }
+        // 1.21.5 draws the cursor before the highlight (1.21.6 reversed
+        // them), so the selection covers the caret.
         if show_cursor {
             if insert {
                 fill(out, cursor_x, ty - 1, cursor_x + 1, ty + 10, color);
@@ -960,9 +954,19 @@ impl TextField {
                     cursor_x,
                     ty,
                     color,
-                    self.text_shadow,
+                    true,
                 );
             }
+        }
+        if rel_highlight as isize != rel_cursor {
+            let hx = tx + m.width_str(&sub(&displayed, 0, rel_highlight));
+            let right = self.x + self.width;
+            out.push(Draw::Highlight {
+                x0: cursor_x.min(right),
+                y0: ty - 1,
+                x1: (hx - 1).min(right),
+                y1: ty + 1 + 9,
+            });
         }
         if self.focused {
             // `TextInputManager.setTextInputArea`, in GUI pixels: the caret

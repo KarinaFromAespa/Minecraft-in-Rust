@@ -3737,13 +3737,73 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 84 — EditBox to the
+  1.21.5 form, other widgets
+  verified:**
+  - The `TextField` (the
+    `EditBox` port) now draws
+    the cursor before the
+    highlight, as 1.21.5 does
+    (1.21.6 reversed them, so
+    the selection covers the
+    caret), and the 1.21.6-only
+    `textShadow` field is gone:
+    1.21.5 has no
+    `setTextShadow`, its text
+    is always shadowed, and
+    nothing in the tree ever
+    set the field false, so
+    the render now passes
+    shadow `true` directly.
+    Centering never existed
+    in the Rust field (1.21.5
+    has none either).
+  - The text colour stays
+    `-2039584`: 1.21.5 spells
+    the constant 14737632
+    (alpha 0, forced opaque
+    by the font), so the
+    effective colour is the
+    same opaque 0xFFE0E0E0 —
+    and the Rust renderer
+    drops fully transparent
+    text, so the 1.21.5
+    spelling would hide the
+    value. (Pre-existing gap,
+    not a delta: the insert
+    cursor is drawn in the
+    text colour, where vanilla
+    uses the fixed
+    `CURSOR_INSERT_COLOR`
+    -3092272 in both versions.)
+  - The tooltip z parameter
+    has no Rust surface (the
+    Rust tooltip is deferred
+    and drawn last, which is
+    what the 1.21.5 z-translate
+    achieves); the sprite
+    button's alpha argument
+    likewise (the Rust sprite
+    draw takes no alpha, so
+    sprites are opaque as in
+    1.21.5). The
+    `RenderPipelines` /
+    `RenderType` changes are
+    Java render-API renames.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no `TextField` unit tests
+    exist; the render test
+    profile did not finish
+    compiling under load).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **83 of 426 are
-closed** (rank 1 complete, rank 2 at 74/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **84 of 426 are
+closed** (rank 1 complete, rank 2 at 75/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
