@@ -12634,3 +12634,8 @@ Zero diff: the bytecode is identical in both versions.
 ## Item 690 — game/interactions.rs (Interaction$PlayerAction) — NO-CHANGE
 
 Visibility only.
+
+## Item 691 — game/item_entities.rs (DropExperienceBlock) — NO-CHANGE
+
+Codec factory location only (`IntProviders.codec` vs
+`IntProvider.codec`, same 0–10 range).
