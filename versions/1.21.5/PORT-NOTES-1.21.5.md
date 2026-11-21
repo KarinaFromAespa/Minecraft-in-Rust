@@ -5516,13 +5516,58 @@ is the oracle; decompiled code is a reading aid.
     ticket_levels::tests::
     portal_tickets_count_down_unconditionally`
     1 passed.
+- **Item 120 — Horse, skeleton
+  horse, chested horse, trader
+  llama save/load verified:**
+  - The save/load delta is the
+    usual ValueInput/ValueOutput
+    refactor with identical
+    fields: Horse `Variant`
+    (packed colour | marking
+    << 8), SkeletonHorse
+    `SkeletonTrap` /
+    `SkeletonTrapTime`,
+    chested horse
+    `ChestedHorse` + slotted
+    `Items`, trader llama
+    `DespawnDelay` (default
+    47999). The Rust port
+    reads and writes all of
+    them (`entity_nbt.rs`,
+    `mobs/riders.rs`,
+    `mobs/llama.rs`), and
+    `decode_items` matches
+    the 1.21.5 read exactly
+    (missing `Slot` defaults
+    to 0, out-of-range slots
+    dropped, unparseable
+    stacks empty).
+  - `AbstractChestedHorse`'s
+    `getQuadLeashOffsets` is
+    1.21.6-only; the port's
+    leash system is already
+    the 1.21.5 single-leash
+    form, with no quad-leash
+    code anywhere to remove.
+  - Pre-existing nit, same in
+    both versions: a chested
+    horse with an empty chest
+    writes no `Items` key
+    where vanilla writes an
+    empty list; the read
+    treats both the same.
+  - Verification: no Rust
+    change; the tree state is
+    the one `cargo check -j 1
+    -p horizon-client --lib --tests`
+    passed at item 119.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **119 of 426 are
-closed** (rank 1 complete, rank 2 at 110/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **120 of 426 are
+closed** (rank 1 complete, rank 2 at 111/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
