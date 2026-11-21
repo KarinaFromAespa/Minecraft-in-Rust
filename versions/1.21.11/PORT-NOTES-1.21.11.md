@@ -9669,3 +9669,19 @@ all 43 enchantment definitions are otherwise identical.
 already reflected — the data-driven trade system loads
 empty and the hardcoded `VillagerTrades` port is item
 751's work, as merchant.rs documents. No code changed.
+
+## Item 202 — util/valueproviders (rank 2, NO-CHANGE)
+
+3 classes, 26 methods, 0 named. The 26.1 interface /
+1.21.11 abstract-class restructure of `IntProvider`
+(and the `FloatProviders` factory folding into
+`FloatProvider`) changes no sampling or codec
+semantics: `UniformInt.sample` is
+`Mth.randomBetweenInclusive` in both, and the Rust's
+`worldgen/value_provider.rs` already implements the
+1.21.11 codec forms (bare number = constant, dispatched
+objects, max>=min validation) for all 6 registered int
+and 4 registered float types, verified against the
+1.21.11 jar. The Rust's extra `very_biased_to_bottom`
+/ `trapezoid` int variants are 26.1-only but
+unreachable on 1.21.11 data. No code changed.
