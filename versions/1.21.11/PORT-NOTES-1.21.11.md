@@ -8602,3 +8602,25 @@ Changes: three citations reworded to the 1.21.11 typo'd name
 (registries.rs, chat.rs, chat_tests.rs). Checked, no action:
 `slot_ranges()` already uses `villager.` and matches 1.21.11's
 table exactly. Tests: `chat::tests::` 27 passed.
+
+## Item 136 — mobs/strider.rs (rank 2, CHANGED)
+
+2 classes, 7 methods, 4 named (`Strider.floatStrider`,
+`Strider.getLiquidCollisionShape`, `Strider.tick`,
+`StriderGoToLavaGoal.isValidTarget`).
+
+Java delta: the suffocation rule flipped — 1.21.11 suffocates when
+`!inWarm || riddenStrider.isSuffocating()` (26.1: `!inWarm &&
+!ridingAWarmStrider`); `FIRE_IN_NEIGHBOR`/`FIRE` →
+`DANGER_FIRE`/`DAMAGE_FIRE`; `floatStrider` tests
+`LiquidBlock.SHAPE_STABLE` (the `getLiquidCollisionShape` override
+is gone; same half-block shape).
+
+Changes: `pre_tick` now sets the flag to `!in_warm ||
+on_suffocating_strider`; the float citation reworded to
+`SHAPE_STABLE`. New test `a_ridden_cold_strider_chills_its_rider`
+(warm rider on a cold mount is cold; cold rider on a warm mount is
+cold; warm on warm is warm). Checked, no action: the path maluses
+already use the 1.21.11 names; `lava_target` matches
+`isValidTarget`. Tests: `mobs::strider::` 1 passed (new;
+early-returns locally without fixtures).
