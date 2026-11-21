@@ -12809,12 +12809,40 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 309 — /raid command**
+  - RaidCommand: verified,
+    no code. Both deltas
+    are pure renames: the
+    permission predicate is
+    level 3 in either
+    spelling (Commands.hasP
+    ermission(3) vs the
+    hasPermission(3)
+    lambda), and level() vs
+    serverLevel() is the
+    rename items
+    149/153/247 already
+    established. The port's
+    /raid is level 3 with
+    the same subcommands
+    (start, stop, check,
+    sound, spawnleader,
+    setomen, glow) and the
+    same messages ("Raid
+    already started close
+    by", "Created a raid in
+    your local village",
+    "Stopped raid", "No
+    raid here").
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **308 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 40/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **309 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 41/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
