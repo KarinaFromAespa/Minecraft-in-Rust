@@ -181,8 +181,22 @@ impl Game<'_> {
             }
             // key.socialInteractions.
             KeyCode::KeyP if self.screen == Screen::Playing => {
-                self.open_social(false);
-                self.release_use_for_keybind_screen();
+                // 1.21.5 `Minecraft.handleKeybinds`: outside a
+                // multiplayer server the key shows the not-available
+                // message and narrates it instead of opening the
+                // screen. (The pause button opens the screen directly,
+                // ungated, as vanilla's PauseScreen does.)
+                if self.has_singleplayer_server() && !self.is_published() {
+                    let message = horizon_client::text::Text::translate(
+                        "multiplayer.socialInteractions.not_available",
+                        &[],
+                    );
+                    self.send_overlay_message(message.clone());
+                    self.say_now(&message);
+                } else {
+                    self.open_social(false);
+                    self.release_use_for_keybind_screen();
+                }
             }
             KeyCode::KeyL if self.screen == Screen::Advancements => self.close_advancements(),
             // key.emote (Horizon's): the emote wheel, a tap again closes it.

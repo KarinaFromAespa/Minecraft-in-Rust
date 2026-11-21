@@ -9602,12 +9602,109 @@ is the oracle; decompiled code is a reading aid.
     OOM-killed under load,
     test runs in CI.
 
+- **Item 219 — Minecraft
+  (client class):
+  - Situational music: the
+    port chose music from
+    the environment
+    attributes only, which
+    1.21.5 data never
+    carries, so no in-world
+    music played at all.
+    The 1.21.5 hardcoded
+    chain now runs when the
+    attributes are empty,
+    in vanilla's order: the
+    End plays Musics.END,
+    underwater music keeps
+    playing once started
+    and starts underwater
+    in a #minecraft:plays_u
+    nderwater_music biome,
+    creative music plays in
+    creative mode outside
+    the Nether, else
+    Musics.GAME; the
+    attribute selection
+    still wins when
+    present. Known gap: the
+    legacy biome music
+    field is not read yet,
+    so biome-specific
+    tracks fall back to
+    GAME. The situational-
+    music fixture follows
+    (it has no tag or
+    manager state, so the
+    underwater branch never
+    fires there); the
+    harness is pinned to
+    26.3 and out of subset
+    — it needs a 1.21.5
+    oracle before it can
+    run in this tree.
+  - Social interactions
+    key: in singleplayer
+    (unpublished) P now
+    shows the not-available
+    overlay message and
+    narrates it instead of
+    opening the screen; the
+    pause button still
+    opens directly, as
+    vanilla's PauseScreen
+    does.
+  - Verified, no code: no
+    quick-actions key or
+    dialog lookup (the
+    minecraft:quick_actions
+    registry entries belong
+    to items 222/258); no
+    waypoint styles; mob-
+    effect icons are atlas
+    sprites by effect id in
+    both (1.21.5's manager
+    is a TextureAtlasHolder
+    over textures/atlas/mob
+    _effects.png); the
+    disconnect screens are
+    identical behaviour
+    (1.21.5's disconnect()
+    is the progress screen;
+    the saving screen is
+    inlined at the same
+    call site); say_now is
+    already the 1.21.5
+    name; glint strength is
+    applied at draw time;
+    no panorama screenshot,
+    no gametest ticker, no
+    LogoRenderer (the title
+    draws
+    gui/title/minecraft
+    directly); the music
+    tick gating and pause
+    silencing are already
+    the 1.21.5 form (item
+    218).
+  - Verification: `cargo
+    check -j 1 -p horizon-
+    client --all-targets`
+    0/0 (3m02s);
+    client_probe 0/0 (49s);
+    test-profile build
+    killed past 15 min
+    under load, the 8 test
+    assertions verified by
+    standalone rustc run,
+    test runs in CI.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **218 of 426 are
-closed** (rank 1 complete, rank 2 at 209/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **219 of 426 are
+closed** (rank 1 complete, rank 2 at 210/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

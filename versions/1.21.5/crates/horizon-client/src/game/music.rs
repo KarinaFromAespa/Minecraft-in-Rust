@@ -156,6 +156,19 @@ impl Game<'_> {
             probe_volume,
             creative: self.creative,
             underwater: self.ambience.was_underwater(),
+            in_nether: self.dim == super::Dim::Nether,
+            // 1.21.5 `getSituationalMusic`: underwater music starts only
+            // in a `#minecraft:plays_underwater_music` biome.
+            plays_underwater_music: eye.is_some_and(|eye| {
+                self.res
+                    .mob_data()
+                    .biome_has("minecraft:plays_underwater_music", self.biome_at(eye))
+            }),
+            // 1.21.5 `getSituationalMusic`: underwater music keeps playing
+            // once started.
+            playing_underwater: self
+                .music
+                .is_playing_music(&Music::under_water(), &self.audio.engine),
         };
         (situation.music(), situation.volume())
     }

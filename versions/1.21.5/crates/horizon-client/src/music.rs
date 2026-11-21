@@ -222,6 +222,13 @@ pub struct Situation<'a> {
     pub creative: bool,
     /// `LocalPlayer.isUnderWater`.
     pub underwater: bool,
+    /// The player's level is the Nether (creative music never plays there).
+    pub in_nether: bool,
+    /// The biome at the eye is in `#minecraft:plays_underwater_music`.
+    pub plays_underwater_music: bool,
+    /// The manager is currently playing `Musics.UNDER_WATER` (it keeps
+    /// playing once started, even out of water or out of the biome).
+    pub playing_underwater: bool,
 }
 impl Situation<'_> {
     /// `Minecraft.getSituationalMusic`.
@@ -235,9 +242,31 @@ impl Situation<'_> {
         if self.in_end && self.boss_music {
             return Some(Music::end_boss());
         }
-        self.background
-            .select(self.creative, self.underwater)
-            .cloned()
+        // 1.21.11+ data carries the background music as environment
+        // attributes; 1.21.5 data has none, so for 1.21.5 the selection
+        // is empty and the hardcoded 1.21.5 chain below runs instead.
+        if let Some(music) = self.background.select(self.creative, self.underwater) {
+            return Some(music.clone());
+        }
+        // 1.21.5 `Minecraft.getSituationalMusic`, in its order: the End
+        // plays `Musics.END` (boss music is handled above); underwater
+        // music keeps playing once started and starts when the player is
+        // underwater in a `#minecraft:plays_underwater_music` biome;
+        // creative music plays in creative mode outside the Nether;
+        // otherwise the biome's own music or `Musics.GAME`. The biome's
+        // own music is a known gap: the legacy `music` field of the
+        // biome JSON is not read yet, so biome-specific tracks (basalt
+        // deltas, deep dark, ...) fall back to `Musics.GAME`.
+        if self.in_end {
+            return Some(Music::end());
+        }
+        if self.playing_underwater || (self.underwater && self.plays_underwater_music) {
+            return Some(Music::under_water());
+        }
+        if self.creative && !self.in_nether {
+            return Some(Music::creative());
+        }
+        Some(Music::game())
     }
     /// `Minecraft.getMusicVolume`.
     pub fn volume(&self) -> f32 {
@@ -1082,5 +1111,80 @@ mod tests {
             },
         ));
         assert!(m.current_instance().is_none());
+    }
+
+    /// 1.21.5 `Minecraft.getSituationalMusic` with no environment
+    /// attributes (1.21.5 data has none): the hardcoded chain, in
+    /// vanilla's order — End, underwater, creative, `Musics.GAME` —
+    /// and attributes still win when present.
+    #[test]
+    fn situational_music_falls_back_to_the_1_21_5_chain_without_attributes() {
+        let empty = BackgroundMusic::default();
+        let situation = |in_end: bool,
+                         in_nether: bool,
+                         creative: bool,
+                         underwater: bool,
+                         plays_underwater_music: bool,
+                         playing_underwater: bool,
+                         background: &BackgroundMusic| {
+            Situation {
+                screen_music: None,
+                in_world: true,
+                in_end,
+                boss_music: false,
+                background,
+                probe_volume: 1.0,
+                creative,
+                underwater,
+                in_nether,
+                plays_underwater_music,
+                playing_underwater,
+            }
+        };
+        let sound = |s: Situation<'_>| s.music().map(|m| m.sound);
+        // Survival in the overworld: GAME.
+        assert_eq!(
+            sound(situation(false, false, false, false, false, false, &empty)),
+            Some("minecraft:music.game".to_owned())
+        );
+        // Creative in the overworld: CREATIVE; in the Nether: GAME.
+        assert_eq!(
+            sound(situation(false, false, true, false, false, false, &empty)),
+            Some("minecraft:music.creative".to_owned())
+        );
+        assert_eq!(
+            sound(situation(false, true, true, false, false, false, &empty)),
+            Some("minecraft:music.game".to_owned())
+        );
+        // Underwater in a plays-underwater-music biome: UNDER_WATER;
+        // underwater elsewhere: GAME.
+        assert_eq!(
+            sound(situation(false, false, false, true, true, false, &empty)),
+            Some("minecraft:music.under_water".to_owned())
+        );
+        assert_eq!(
+            sound(situation(false, false, false, true, false, false, &empty)),
+            Some("minecraft:music.game".to_owned())
+        );
+        // Underwater music keeps playing once started.
+        assert_eq!(
+            sound(situation(false, false, false, false, false, true, &empty)),
+            Some("minecraft:music.under_water".to_owned())
+        );
+        // The End without a boss fight: END.
+        assert_eq!(
+            sound(situation(true, false, false, false, false, false, &empty)),
+            Some("minecraft:music.end".to_owned())
+        );
+        // Attributes still win when present.
+        let attributed = BackgroundMusic {
+            default: Some(Music::new("pack:music.dunes", 12000, 24000, false)),
+            creative: None,
+            underwater: None,
+        };
+        assert_eq!(
+            sound(situation(false, false, true, false, false, false, &attributed)),
+            Some("pack:music.dunes".to_owned())
+        );
     }
 }
