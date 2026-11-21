@@ -9042,13 +9042,33 @@ is the oracle; decompiled code is a reading aid.
     here); driver
     py_compile; full oracle
     compile runs in CI.
+- **Item 199 — Evoker
+  empty save/load
+  overrides:**
+  - 1.21.5's evoker
+    overrides are empty:
+    they only call super,
+    and 1.21.6 deleted them
+    as dead code. The port
+    matches: the evoker
+    saves nothing of its
+    own, and its
+    `SpellTicks` timer
+    comes from the shared
+    spellcaster path. The
+    empty synched data
+    override has no Rust
+    surface.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **198 of 426 are
-closed** (rank 1 complete, rank 2 at 189/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **199 of 426 are
+closed** (rank 1 complete, rank 2 at 190/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
