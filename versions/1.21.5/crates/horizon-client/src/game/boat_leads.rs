@@ -193,12 +193,21 @@ impl Game<'_> {
             return;
         }
         if f64::from(away) > leash::ELASTIC {
-            let pull = leash::legacy_pull(b.position, state.position, away);
-            b.velocity = Vec3::new(
-                b.velocity.x + pull[0],
-                b.velocity.y + pull[1],
-                b.velocity.z + pull[2],
-            );
+            // AbstractBoat.elasticRangeLeashBehaviour: the pull scales with
+            // how far past six blocks the boat is, and is weaker while the
+            // boat already moves toward the holder (1.21.6 deleted the
+            // override with the spring rewrite).
+            let pull = b
+                .position
+                .vector_to(state.position)
+                .normalize()
+                .scale(f64::from(away) - leash::ELASTIC);
+            let scale = if b.velocity.dot(pull) > 0.0 {
+                f64::from(0.15_f32)
+            } else {
+                f64::from(0.2_f32)
+            };
+            b.velocity = b.velocity.add_vector(pull.scale(scale));
         }
     }
 

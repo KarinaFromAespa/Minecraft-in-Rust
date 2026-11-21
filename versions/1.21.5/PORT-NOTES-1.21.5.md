@@ -764,13 +764,48 @@ is the oracle; decompiled code is a reading aid.
     `registryFriendlyLengthPrefixed` and added a plain-ByteBuf
     overload. Both call the same three-arg helper — no wire
     difference.
+- **Item 21 — boats.rs, ported:** `AbstractBoat` / `Wolf` /
+  `ComparatorBlockEntity` / `TagCommand` / `BlockDataAccessor` /
+  `PersistentEntitySectionManager`:
+  - `AbstractBoat.elasticRangeLeashBehaviour` (1.21.5-only
+    override, deleted by 1.21.6's spring rewrite): a boat's
+    leash pull is `normalize(holder − boat) * (dist − 6)`,
+    scaled 0.15 while the boat already moves toward the holder
+    and 0.2 otherwise — not the legacy `copySign` pull item 19
+    gave it. `tick_boat_leash` now uses the boat override.
+    `boat_leash_offset` already matches 1.21.5: boats set
+    `eyeHeight(0.5625)`, so `0.88 * eyeHeight` equals
+    `0.88 * bbHeight`. `canBeCollidedWith(Entity)` → `()` is
+    an unused-arg removal (body returns true either way); no
+    Rust surface.
+  - `Wolf.mobInteract` shears branch: 1.21.5 keeps it inline
+    with no sneaking gate (the `!sneaking` gate came from
+    1.21.6's generic shear-equipment path, `Entity.interact`),
+    and Curse of Binding (`PREVENT_ARMOR_CHANGE`) holds the
+    armor on outside creative. The Rust's shears arm drops
+    the `!sneaking` gate and gains the binding-curse check
+    against the armor's `body_extra` enchantments.
+  - Wolf variant selection is the same `PriorityProvider.pick`
+    in both versions (the Rust's deterministic
+    `wolf_variant_for` matches the biome table); the sound
+    variant's random differs (entity's in 1.21.5, level's in
+    1.21.6) and the production spawn path (`spawning.rs`)
+    already uses the mob's own random.
+  - The rest is the ValueInput/ValueOutput → CompoundTag
+    migration with identical fields (wolf `CollarColor` /
+    variant / `sound_variant`, comparator `OutputSignal`),
+    a permission-lambda spelling (`TagCommand`), a logging
+    wrapper (`BlockDataAccessor.setData`), and a visibility
+    change (`processPendingLoads` public → private).
+  - Verification: `cargo check -p horizon-client
+    --all-targets` 0 errors / 0 warnings (53s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **20 of 426 are
-closed** (rank 1 complete, rank 2 at 11/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **21 of 426 are
+closed** (rank 1 complete, rank 2 at 12/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

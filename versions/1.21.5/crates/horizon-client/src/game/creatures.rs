@@ -6566,8 +6566,7 @@ impl Game<'_> {
             .as_ref()
             .map(|p| [p.position.x, p.position.y, p.position.z]);
         let acting = self.acting_player_uuid();
-        let sneaking =
-            self.keys.held(Action::Sneak) || self.keys.raw(&winit::keyboard::KeyCode::ShiftRight);
+        let creative = self.creative;
         let held_damage = held.as_ref().map_or(0, |h| h.damage as i32);
         let held_extra = held.as_ref().and_then(|h| h.extra.clone());
         let m = &mut self.mobs[index];
@@ -6713,13 +6712,21 @@ impl Game<'_> {
                 wool = true;
                 self.damage_held_tool();
             }
-            // Entity.interact: shears take a tamed wolf's armor off for its owner.
+            // Wolf.mobInteract: shears take a tamed wolf's armor off for its
+            // owner (1.21.5's inline branch; 1.21.6 moved it to the generic
+            // shear-equipment path, which also gated it on not sneaking).
+            // Curse of Binding holds it on outside creative.
             Species::Wolf
                 if item == "minecraft:shears"
                     && m.extra.tame
                     && m.extra.owner == Some(acting)
                     && m.extra.body.is_some()
-                    && !sneaking =>
+                    && (creative
+                        || !m.extra.body_extra.as_ref().is_some_and(|e| {
+                            e.enchantments
+                                .iter()
+                                .any(|(id, _)| &**id == "minecraft:binding_curse")
+                        })) =>
             {
                 let mut stack = ItemStack::new("minecraft:wolf_armor", 1);
                 stack.damage = m.extra.body_damage.max(0) as u32;
