@@ -6795,13 +6795,90 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-client
     --lib` passed at item
     138.
+- **Item 144 — Leash system,
+  happy ghast, collision
+  predicate verified
+  against 1.21.5:**
+  - The leash system is
+    already the full 1.21.5
+    form (`mobs/leash.rs`,
+    items 69/90/120):
+    snap at 10.0 with no
+    sound, elastic at 6.0
+    with the legacy
+    `copySign(unit^2 * 0.4)`
+    pull, feet-to-feet
+    `distanceTo` narrowed
+    to float, the
+    `handleLeashAtDistance`
+    gate (sitting wolf /
+    parrot / cat not pulled,
+    lead drops past 10;
+    home set to the
+    holder's block, radius
+    5), `checkSlowFallDistance`
+    after the elastic pull,
+    and close-range
+    behaviour. Attach is
+    the 1.21.5
+    `canHaveALeashAttachedToIt`
+    form (`can_be_leashed
+    && alive && !leashed`,
+    no distance check). No
+    wrench, angular
+    momentum, quad-leash or
+    spring code exists
+    anywhere in the tree.
+  - Happy ghast: no Rust
+    surface at all — no
+    species, no spawn
+    placement, no entity.
+    That also settles the
+    `canBeCollidedWith`
+    parameter: only the
+    happy ghast's override
+    uses it (shulker and
+    boat ignore it), and
+    the Rust tree has no
+    `can_be_collided_with`
+    predicate at all.
+    (Name-keyed dried-ghast
+    block code in
+    `animate_tick` /
+    `level` is inert: the
+    block is not in the
+    1.21.5 tables.)
+  - `EntityAttachments.
+    getAverage` is
+    1.21.6-only and has no
+    Rust surface (no
+    attachment averaging).
+  - `RAVAGER_ROARED` (69)
+    not existing in 1.21.5
+    is item 81's ground:
+    the server no longer
+    broadcasts event 69 and
+    the client roar runs on
+    the client tick.
+  - LightningBolt / Marker
+    save and load nothing
+    in either version; the
+    `ValueInput` /
+    `ValueOutput` change
+    is the usual refactor.
+  - Verification: no Rust
+    change; the tree state
+    is the one `cargo check
+    -j 1 -p horizon-client
+    --lib` passed at item
+    138.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **143 of 426 are
-closed** (rank 1 complete, rank 2 at 134/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **144 of 426 are
+closed** (rank 1 complete, rank 2 at 135/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
