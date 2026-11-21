@@ -10141,12 +10141,36 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 233 —
+  addVertexWith2DPose:
+  - 1.21.6 added a
+    VertexConsumer default
+    that transforms a 2D
+    position by a
+    Matrix3x2f and emits
+    the vertex. The port
+    has no VertexConsumer
+    interface: its HUD
+    batch applies the same
+    JOML transformPosition
+    math (m00*x + m10*y +
+    m20, m01*x + m11*y +
+    m21) to the batched
+    vertices after the draw
+    calls, in hud_layout.rs
+    — identical arithmetic,
+    applied at a different
+    stage. Nothing version-
+    specific to port.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **232 of 426 are
-closed** (rank 1 complete, rank 2 at 223/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **233 of 426 are
+closed** (rank 1 complete, rank 2 at 224/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
