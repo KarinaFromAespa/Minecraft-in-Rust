@@ -6655,8 +6655,6 @@ impl Game<'_> {
         self.tick_hand();
         if running {
             self.tick_particles();
-        } else if self.clock.still() {
-            self.settle_rain_fog();
         }
         self.tick_frame_visuals(running);
         // Under `HORIZON_STILL` they wait for the world too: endermen's and blazes' particles

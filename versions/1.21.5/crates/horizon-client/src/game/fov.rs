@@ -130,7 +130,7 @@ impl Game<'_> {
             FogType::Water => CameraFluid::Water,
             FogType::Lava => CameraFluid::Lava,
             FogType::PowderSnow => CameraFluid::PowderSnow,
-            FogType::Atmospheric => CameraFluid::None,
+            FogType::None => CameraFluid::None,
         }
     }
     /// `Camera.calculateFov` with `modifyFovBasedOnDeathOrFluid`.

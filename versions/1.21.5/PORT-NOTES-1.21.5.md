@@ -1042,13 +1042,98 @@ is the oracle; decompiled code is a reading aid.
     direction, removed with the renumbering above).
   - Verification: `cargo check -p horizon-client
     --all-targets` 0 errors / 0 warnings (3m00s).
+- **Item 28 — LevelRenderer / FogType (FogRenderer),
+  ported:**
+  - 1.21.6 replaced 1.21.5's `FogRenderer` (one
+    `setupFog` + `computeFogColor`, `FogType` of LAVA /
+    WATER / POWDER_SNOW / NONE) with a `fog/`
+    environment package (`Atmospheric`,
+    `DIMENSION_OR_BOSS`, rain fog). The Rust followed
+    the 1.21.6 structure; it now follows 1.21.5's:
+    `FogType::Atmospheric` is `FogType::None` again,
+    and every 1.21.6 environment citation is re-cited
+    to `FogRenderer.setupFog` / the
+    `BlindnessFogFunction` / `DarknessFogFunction`.
+  - Rain fog is 1.21.6-only: 1.21.5's atmospheric
+    terrain fog is the render-distance pair alone, so
+    the environmental pair is inert (1e9, 2e9) in
+    clear air. `update_rain_fog` / `settle_rain_fog` /
+    `rain_fog_target`, `FogState.rain_fog_multiplier`,
+    the `rain_fog_inputs` helper and the
+    `HORIZON_STILL` settle call are deleted, and the
+    distant-terrain environmental scale (which only
+    ever scaled that pair) goes with them.
+  - The foggy branch is the formula, not the data:
+    1.21.5 closes a foggy dimension or a
+    createWorldFog boss bar in to rd*0.05 /
+    min(rd, 192)*0.5, for sky and clouds as for
+    terrain. A new `dimension_foggy` input (the
+    Nether's `isFoggyAt`) joins `boss_world_fog`;
+    the old form took the dimension's
+    `visual/fog_end_distance` (10, 96) and the pack's
+    `boss_fog_distance` (96), which only agree with
+    the formula at rd >= 192. `boss_fog_distance`
+    is removed from the Polytone environment
+    settings.
+  - Fluid fog colours are 1.21.5's literals: lava
+    (0.6, 0.1, 0.0) not 1.21.6's 0x991A00, powder
+    snow (0.623, 0.734, 0.785) not 1.21.6's
+    0x9FBACC (the pack override still wins when set).
+  - Effect void darkness REPLACES the void factor
+    in 1.21.5 (blindness: 1 - dur/20 while ending
+    within 19 ticks, else 0; darkness: 1 -
+    blendFactor); 1.21.6's environments take the
+    max. A blinded camera at the floor is dim, not
+    black.
+  - Rain and thunder darken the MIXED fog colour
+    in 1.21.5 (and 1.21.6); the Rust darkened the
+    sky colour before the mix, so rain did nothing
+    at high render distance. Order fixed.
+  - Water fog: the x0.85 for `HAS_CLOSER_WATER_FOG`
+    biomes is back — `FogTables::load` reads the
+    tag file (swamp, mangrove swamp) and multiplies
+    it in with any pack attribute factor; the
+    attribute alone never fired on 1.21.5 data.
+    The end-over-render-distance cap is subsumed by
+    the render-distance fog the shader maxes with
+    (its CYLINDER shape has no slot in the two-pair
+    uniform).
+  - No-ops verified: the branch order (lava, powder,
+    priority effect, water, foggy, sky/terrain) and
+    the blindness-over-darkness priority match;
+    lava/powder/blindness/darkness distances match;
+    the brightness-dependent fog colour is a uniform
+    scale, so 1.21.5's per-sample application equals
+    1.21.6's post-average one; the void-darkness
+    range (32, 1 flat), boss darken (0.7/0.6/0.6)
+    and night-vision brighten match; the sky pass is
+    skipped for lava/powder/effects/boss fog (the
+    Nether's fogginess is covered by the
+    overworld-only sky); cloud height 192.33 is
+    1.21.5's `OverworldEffects.getCloudHeight`;
+    the entity type-hash sort, the translucent
+    section order, the section rebuild neighbour
+    gate and the sun/moon fog parameter have no
+    Rust surface (per-quad translucent sorting, a
+    padded mesher with no compile queue, no
+    celestial fog fade). Pre-existing gaps, same
+    in both versions, not taken up: the 5-second
+    water-fog colour transition (the Rust blends
+    spatially instead) and the SPHERE/CYLINDER
+    shape distinction.
+  - Verification: `cargo check -p
+    horizon-polytone -p horizon-client-render -p
+    horizon-client --all-targets` 0 errors / 0
+    warnings (3m04s); `cargo test -p
+    horizon-client-render --lib fog` 24 passed / 0
+    failed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **27 of 426 are
-closed** (rank 1 complete, rank 2 at 18/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **28 of 426 are
+closed** (rank 1 complete, rank 2 at 19/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
