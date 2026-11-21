@@ -368,7 +368,7 @@ mod elder_home_tests {
     use horizon_core::random::LegacyRandom;
     use std::sync::Arc;
 
-    /// `ElderGuardian.customServerAiStep`: with no home yet, `setHomeTo(blockPosition(), 16)`,
+    /// `ElderGuardian.customServerAiStep`: with no home yet, `restrictTo(blockPosition(), 16)`,
     /// the restriction its wandering goals read (`Mob::restricted`); a home it has is kept.
     #[test]
     fn an_elder_guardian_homes_where_it_stands() {

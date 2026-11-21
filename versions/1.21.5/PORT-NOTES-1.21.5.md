@@ -7239,13 +7239,50 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-command
     -p horizon-client --lib`
     passed at item 145.
+- **Item 154 — Elder
+  guardian home verified
+  against 1.21.5:**
+  - `hasHome()` /
+    `setHomeTo(pos, 16)`
+    (1.21.6) vs
+    `hasRestriction()` /
+    `restrictTo(pos, 16)`
+    (1.21.5) is a rename
+    of the restriction API
+    with identical
+    behaviour. The Rust
+    `elder_server_ai_step`
+    already does the 1.21.5
+    form: the minute check
+    `(age + id) % 1200 ==
+    0` with mining fatigue
+    III in 50 blocks, then
+    a home at the block
+    position, radius 16,
+    when it has none
+    (pinned by the
+    `an_elder_guardian_homes_where_it_stands`
+    test). One stale
+    1.21.6 method name in
+    that test's comment
+    fixed (`setHomeTo` →
+    `restrictTo`); the
+    Rust `ai.home` field
+    name stays (internal
+    naming only, item 74).
+  - Verification: comment
+    only; the tree state is
+    the one `cargo check
+    -j 1 -p horizon-command
+    -p horizon-client --lib`
+    passed at item 145.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **153 of 426 are
-closed** (rank 1 complete, rank 2 at 144/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **154 of 426 are
+closed** (rank 1 complete, rank 2 at 145/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
