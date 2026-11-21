@@ -49,12 +49,13 @@ pub fn register(m: &mut Mob) {
         3,
         NearestTarget::player(true).when(|m, _| m.extra.anger > 0 && m.extra.flag2),
     );
+    // The fox goal has no selector in 1.21.11: cubs hunt foxes too. (26.1
+    // added a `!isBaby()` selector.)
     t.add(
         4,
         NearestTarget::species(&[Species::Fox], true)
             .interval(10)
-            .reach()
-            .when(|m, _| !m.is_baby()),
+            .reach(),
     );
 }
 

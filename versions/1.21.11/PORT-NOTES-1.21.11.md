@@ -12285,3 +12285,10 @@ dropped (time moved to the clock system). Already handled: the adapter
 translates 1.21.11's SetTime into the overworld clock and synthesises
 the `world_clock` registry; rain/thunder arrive via GameEvent, all
 handled in remote.rs.
+
+## Item 622 — mobs/polar_bear.rs (PolarBear) — CHANGED
+
+The priority-4 fox goal: 26.1 gates it on `!isBaby()`, 1.21.11 passes
+no selector, so cubs hunt foxes too. Removed the adult gate from the
+Rust's fox goal. (The priority-3 anger goal's `isAngryAt` selector and
+`PolarBearAttackPlayersGoal` are unchanged between versions.)
