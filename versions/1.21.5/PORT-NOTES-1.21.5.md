@@ -3206,13 +3206,42 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 70 — StringTag, verified:**
+  - 1.21.6 adds
+    `escapeWithoutQuotes` (and
+    its `StringBuilder` overload);
+    1.21.5 has no such method.
+    The Rust port has it as the
+    private `escape` in dialog.rs,
+    used only by dialog template
+    substitution (a text input's
+    value going into a command).
+    Nothing else in the tree
+    cites it, and the rest of
+    `StringTag` is unchanged
+    between the versions.
+  - Removing the function now
+    would change dialog behaviour
+    owned by the dialog item (the
+    `dialog/` screens package and
+    the `/dialog` command's
+    leftovers are that item's;
+    item 36 already took the
+    command out of the tree), so
+    it stays until the dialog
+    item takes it out with the
+    rest. No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **69 of 426 are
-closed** (rank 1 complete, rank 2 at 60/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **70 of 426 are
+closed** (rank 1 complete, rank 2 at 61/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
