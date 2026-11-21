@@ -8892,13 +8892,46 @@ is the oracle; decompiled code is a reading aid.
     cargo test -p
     horizon-command --lib
     snbt 7/7.
+- **Item 193 — Tadpole
+  age save/load;
+  no age lock:**
+  - The tadpole saves and
+    loads only `Age` now,
+    and the same fix
+    reaches every ageable
+    mob: 1.21.5 has no age
+    lock at all (no field
+    or setter on AgeableMob
+    in either version,
+    confirmed by javap), so
+    `AgeLocked` is no
+    longer written, read,
+    or carried in axolotl
+    and tadpole bucket
+    tags, and a stale key
+    from a raw tag is
+    dropped. Item 10 missed
+    this. The
+    golden-dandelion lock
+    interaction stays in
+    memory only; removing
+    the mechanic belongs to
+    no item, since it
+    exists in neither
+    version.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests 0/0; lib test
+    build OOM-killed under
+    load, tests run in CI.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **192 of 426 are
-closed** (rank 1 complete, rank 2 at 183/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **193 of 426 are
+closed** (rank 1 complete, rank 2 at 184/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

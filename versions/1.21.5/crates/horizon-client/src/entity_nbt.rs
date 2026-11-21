@@ -183,7 +183,7 @@ pub fn fill_common_defaults(tag: &mut Tag) {
     }
 }
 
-/// The mobs that save `Age` and `AgeLocked`.
+/// The mobs that save `Age` (ageables also `ForcedAge`; the tadpole only `Age`).
 fn saves_age(s: crate::mobs::Species) -> bool {
     use crate::mobs::{Species, finalize::ageable, species::can_be_a_baby};
     s == Species::Tadpole || (ageable(s) && can_be_a_baby(s))
@@ -814,9 +814,15 @@ pub fn mob_to_nbt(
     // parrot); a tadpole saves its own age.
     let species = m.species();
     if saves_age(species) {
+        // 1.21.5 has no age lock (no `AgeLocked` field on AgeableMob, and
+        // the tadpole is not an AgeableMob at all): the tadpole saves only
+        // `Age`, ageables `Age` and `ForcedAge`. A stale `AgeLocked` key a
+        // raw input compound carried is dropped.
         map.insert("Age".into(), Tag::Int(m.extra.age));
-        map.insert("AgeLocked".into(), Tag::Byte(i8::from(m.extra.age_locked)));
-        if species != crate::mobs::Species::Tadpole {
+        map.remove(&"AgeLocked".into());
+        if species == crate::mobs::Species::Tadpole {
+            map.remove(&"ForcedAge".into());
+        } else {
             map.insert("ForcedAge".into(), Tag::Int(m.extra.forced_age));
         }
     } else if crate::mobs::finalize::ageable(species) {
@@ -2128,8 +2134,12 @@ pub fn mob_from_nbt_with_random(
     }
     if saves_age(m.species()) {
         m.extra.age = tag.get("Age").and_then(int_value).unwrap_or(0);
-        m.extra.forced_age = tag.get("ForcedAge").and_then(int_value).unwrap_or(0);
-        m.extra.age_locked = flag(tag, "AgeLocked");
+        if m.species() != crate::mobs::Species::Tadpole {
+            // Tadpole.readAdditionalSaveData reads only `Age`.
+            m.extra.forced_age = tag.get("ForcedAge").and_then(int_value).unwrap_or(0);
+        }
+        // 1.21.5 has no age lock: `AgeLocked` is not read (an in-memory
+        // lock from the golden-dandelion interaction keeps its value).
     }
     if is_animal(&m.kind.id) {
         m.extra.in_love = tag.get("InLove").and_then(int_value).unwrap_or(0);
@@ -4587,7 +4597,6 @@ mod tests {
                 for (key, expected) in [
                     ("Age", Tag::Int(-123)),
                     ("ForcedAge", Tag::Int(19)),
-                    ("AgeLocked", Tag::Byte(1)),
                 ] {
                     if species == Species::ZombieNautilus {
                         assert!(saved.get(key).is_none(), "{id}: {key}");
@@ -4595,6 +4604,9 @@ mod tests {
                         assert_eq!(saved.get(key), Some(&expected), "{id}: {key}");
                     }
                 }
+                // 1.21.5 has no age lock: no species writes `AgeLocked`,
+                // even a locked model over a raw tag that carried the key.
+                assert!(saved.get("AgeLocked").is_none(), "{id}: AgeLocked");
                 if base.is_some() {
                     assert_eq!(saved.get("audit:unrelated"), Some(&Tag::Int(7)));
                 }
@@ -5731,7 +5743,8 @@ mod tests {
                 (expected, expected, expected),
                 "{input:?}"
             );
-            assert!(mob.no_ai && mob.no_gravity && mob.extra.age_locked);
+            // 1.21.5 has no age lock: the raw tag's `AgeLocked` is ignored.
+            assert!(mob.no_ai && mob.no_gravity && !mob.extra.age_locked);
             for source in [None, Some(&raw)] {
                 let saved = mob_to_nbt(&mob, [0, 0, 0, 55], source, None, |_| None);
                 for key in ["Age", "ForcedAge", "InLove"] {
@@ -5742,7 +5755,7 @@ mod tests {
                     );
                 }
                 assert_eq!(saved.get("NoAI"), Some(&Tag::Byte(1)));
-                assert_eq!(saved.get("AgeLocked"), Some(&Tag::Byte(1)));
+                assert!(saved.get("AgeLocked").is_none());
                 assert_eq!(
                     saved.get("Unrelated"),
                     source.and_then(|tag| tag.get("Unrelated"))
@@ -6199,12 +6212,9 @@ pub fn bucket_data(m: &Mob) -> Tag {
         m.species(),
         crate::mobs::Species::Axolotl | crate::mobs::Species::Tadpole
     ) {
+        // 1.21.5 bucket tags carry only `Age` (Axolotl/Tadpole
+        // .saveToBucketTag); there is no age lock in this version.
         put(&mut data, "Age", Tag::Int(m.extra.age));
-        put(
-            &mut data,
-            "AgeLocked",
-            Tag::Byte(i8::from(m.extra.age_locked)),
-        );
     }
     for (key, on) in [
         ("NoAI", m.no_ai),
@@ -6296,9 +6306,8 @@ pub fn apply_item_components(m: &mut Mob, stack: &crate::items::ItemStack) {
         if let Some(v) = number(data.get("Age")) {
             m.extra.age = v as i32;
         }
-        if let Some(v) = number(data.get("AgeLocked")) {
-            m.extra.age_locked = v != 0;
-        }
+        // 1.21.5 bucket tags carry no `AgeLocked` key; one a foreign tag
+        // carried is ignored.
         // Keep old Horizon buckets readable; the modern component below takes precedence.
         if let Some(v) = number(data.get("Variant")) {
             m.extra.variant = v as u8;
@@ -6600,13 +6609,15 @@ mod axolotl_nbt_tests {
             crate::mobs::animal_brain::hunting_cooldown(&restored),
             Some(123)
         );
+        // 1.21.5 buckets carry no `AgeLocked`: the lock does not survive
+        // the round-trip, though the age and variant do.
         assert_eq!(
             (
                 restored.extra.variant,
                 restored.extra.age,
                 restored.extra.age_locked
             ),
-            (4, -24000, true)
+            (4, -24000, false)
         );
         assert!(
             restored.no_ai
@@ -7156,7 +7167,7 @@ mod sheep_nbt_tests {
         assert_eq!(m.extra.age, -21359);
         let tag = mob_to_nbt(&m, [1, 2, 3, 4], None, None, |_| None);
         assert_eq!(number(tag.get("Age")), Some(-21359));
-        assert_eq!(number(tag.get("AgeLocked")), Some(0));
+        assert!(tag.get("AgeLocked").is_none());
         assert_eq!(number(tag.get("VillagerDataFinalized")), Some(1));
     }
 
