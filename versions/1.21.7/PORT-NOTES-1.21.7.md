@@ -550,3 +550,181 @@ chunk_surface_level slot to the noise router; 1.21.7's router has
 no such field. When it is absent, the router now synthesizes it
 from the preliminary surface level, exactly as the settings
 upgrader does — interpolated on a 16x1 cell.
+
+End-to-end worldgen pass, same afternoon (13:00–14:20 NPT): the
+owner asked whether the worldgen had been tested at all — the
+decoders had only ever been unit-tested, never run against the real
+1.21.7 data. A test was added that loads the real prepared data
+(`GeneratorData::load` on the laptop's `.local` copy) and builds
+the Nether, End and overworld pipelines, then generates chunks
+(0,0) and (11,-7) and asserts the unsupported-features list is
+empty for all three dimensions
+(`prepared_1_21_7_overworld_builds_and_generates_a_chunk` in
+`generator.rs`). It found twenty gaps in one pass; all are fixed
+below, and the test itself is the coverage for the Pipeline-level
+fixes — no separate unit tests were added for the individual
+feature decoders, the empty unsupported list across all three
+dimensions is the assertion.
+
+Correction to the twelfth crash entry above: the 0f256e20 fix
+cannot work on real data. 1.21.7's router has neither
+`chunk_surface_level` nor `preliminary_surface_level` — 1.21.6
+replaced the latter with `initial_density_without_jaggedness`.
+The synthesis now follows vanilla's
+`NoiseChunk.computePreliminarySurfaceLevel` (verified in the
+remapped jar): scan down from the top in cell-height steps over
+`initial_density_without_jaggedness` and return the first Y where
+the density exceeds 0.390625, else `Integer.MAX_VALUE`. It is
+synthesized as a `find_top_surface` over the raw initial density
+minus 0.390625, bounded by the dimension's min Y and height with
+a cell height of `size_vertical * 4`. Only the overworld uses
+it (`AbovePreliminarySurface` is the only reader).
+
+1.21.7 settings carry an inline `surface_rule` (or a holder
+reference to one), not 26.3's `material_rule`; the pipeline now
+reads `surface_rule` first and falls back to `material_rule`,
+feeding it to `MaterialRuleLibrary` under the inline name
+`minecraft:__settings_surface_rule`.
+
+The spawn finder was carried from 26.2 verbatim: 1.21.7's
+`spawn_target` is parameter-keyed (temperature, humidity,
+continentalness, erosion, depth, weirdness, offset), not
+density-function-keyed as 26.3 expects, so the old decoder died
+with "unknown material density". The pipeline stores the decoded
+parameter points and the finder samples them directly.
+
+The feature catalog's `expand_feature` read nested fields from
+the top-level object, but 1.21.7 definitions wrap them in
+`config`; it now unwraps the legacy config first.
+
+State providers: 26.3 shortened the provider type names, but
+1.21.7 data uses the long forms — `simple_state_provider` (199
+uses), `weighted_state_provider` (41), `rule_based_state_provider`,
+`rotated_block_provider`, `randomized_int_state_provider`, and the
+three noise providers — so all are accepted as aliases, in both
+the typed decoder and the noise-provider decoder (the latter was
+behind the flower-plain/meadow/flower-forest failures). Typeless
+`{fallback, rules}` objects (disk configs) now decode as
+rule-based when `type` is absent but `rules` is present.
+
+Spring fluids: `FluidState::from_json` now accepts `Name` as well
+as `id` and `Properties` as well as `properties` (26.2's fix,
+carried verbatim) — spring_water, spring_lava and
+spring_lava_frozen were failing with "missing fluid identifier".
+
+Dripstone: `SpeleothemClusterFeature` now accepts
+`minecraft:dripstone_cluster` as well as
+`minecraft:speleothem_cluster`; 1.21.7's cluster has no
+`base_block`/`pointed_block`/`replaceable_blocks`, so it defaults
+to dripstone_block/pointed_dripstone and the
+`#minecraft:dripstone_replaceable_blocks` tag, and accepts the
+legacy field names (`dripstone_block_layer_thickness`,
+`chance_of_dripstone_column_at_max_distance_from_center`,
+`max_distance_from_edge_affecting_chance_of_dripstone_column`).
+The same replaceable default was added to large dripstone, and
+the `column_radius` bounds widened from 1..16 to 1..32 (1.21.7
+data runs 3..=19).
+
+Aquatic, nether and desert-well features were carried from 26.2
+(verified field-by-field against the 1.21.7 configs): kelp,
+seagrass and sea pickle; basalt columns/pillars, glowstone blobs,
+nether forest vegetation, twisting and weeping vines; and the
+desert well, which needed 26.2's seeded loot-table trait method
+carried too (`set_block_entity_loot_table_seeded`, seed from the
+block position, for suspicious sand/gravel).
+
+Random patch / flower: verified in the jar that 1.21.7's FLOWER,
+NO_BONEMEAL_FLOWER and RANDOM_PATCH are all `RandomPatchFeature`
+with `RandomPatchConfiguration`. A new decoder places the nested
+placed feature `tries` times with the vanilla
+`nextInt(spread+1) - nextInt(spread+1)` offset per axis, and the
+catalog gained the missing flower/random_patch expansion arm.
+
+Ice spike: ported from the jar (`IceSpikeFeature.place`) — sink
+while air above minY+2, require snow_block below, height
+nextInt(4)+7 with a 1/60 tall-spike chance, tapered packed-ice
+cone with the 0.75 edge skip, mirrored root below, base columns
+to y=50. Replaceable is air plus `#minecraft:dirt`, snow_block
+and ice (`Feature.isDirt` is the dirt tag, `Feature.isStone` the
+base-stone-overworld tag, both verified in the jar).
+
+Forest rock: 1.21.7's FOREST_ROCK is a `BlockBlobFeature` with a
+bare `state` config (verified in the jar); the decoder builds the
+support predicate as dirt-or-stone, which vanilla hardcodes.
+
+Pointed dripstone: ported from the jar
+(`PointedDripstoneFeature.place`, `createPatchOfDripstoneBlocks`,
+`DripstoneUtils.growPointedDripstone`) — tip direction from the
+dripstone base above/below (both present: a coin flip), patch at
+the base position with the horizontal-plane order and the
+directional/radius chances, height 1 or 2. The config carries no
+blocks, so dripstone blocks and the replaceable tag are
+hardcoded.
+
+The router now carries 15 fields, not 8: 1.21.7 routers (all
+three dimensions verified) add `barrier`,
+`fluid_level_floodedness`, `fluid_level_spread`, `lava`,
+`vein_toggle`, `vein_ridged` and `vein_gap`. The six climate
+fields stay first so the climate compiler's `functions[..6]`
+still works.
+
+The synthesize module was carried from 26.2 (minus
+`peaks_and_valleys`, which 1.21.7 never uses): `y_function`, the
+aquifer exclusion (`min(-0.225 - erosion, max(depth - 0.9, 0))`),
+and copper/iron ore-vein roots. The aquifer is now built from
+the router when `aquifers_enabled` (overworld only), with the
+surface sampler being the synthesized `find_top_surface` — the
+`PreliminarySurfaceLevel` sampler does not exist in 1.21.7.
+Veins are synthesized when `ore_veins_enabled` (overworld only)
+and run BEFORE the surface rule as a `MaterialRule::Sequence`,
+or the deepslate gradient shadows them; the carver's top
+material uses the vein-free surface rule, matching 26.2's
+`CarvingContext.topMaterial` semantics.
+
+Trees: 1.21.7 names the below-trunk provider `dirt_provider`
+(39/39 simple providers in the data); 26.x renamed it
+`below_trunk_provider`. Either spelling is accepted. Vanilla
+skips the set when the block is already dirt and `force_dirt`
+is false, but every 1.21.7 dirt provider is simple, so the
+unconditional set draws nothing extra.
+
+Placement: `random_offset` (`xz_spread`/`y_spread`) was carried
+from 26.2 verbatim — it covers disk_grass, ice_patch, the lush
+caves features, cave vines and spore blossom.
+
+Lakes: 1.21.7 lake configs carry only `fluid` and `barrier`.
+Verified in the jar (`LakeFeature.place`, `canReplaceBlock`):
+the can-place check defaults to always-true (vanilla has no
+can-place check in the edge loop), air/fluid replacement
+defaults to NOT `#minecraft:features_cannot_replace`, and
+barrier replacement to NOT
+`#minecraft:lava_pool_stone_cannot_replace`.
+
+Huge mushrooms: 1.21.7 configs have no `can_place_on`. Verified
+in the jar (`AbstractHugeMushroomFeature.isValidPosition`): the
+default is dirt or `#minecraft:mushroom_grow_block`.
+
+Coral: 1.21.7's coral features carry empty configs and are a
+different shape from 26.3's. Ported from the jar
+(`CoralFeature`, `CoralTreeFeature`, `CoralClawFeature`,
+`CoralMushroomFeature`): the base picks a random block from
+`#minecraft:coral_blocks` (one bounded draw over the tag in tag
+order), requires water-or-coral at the position and water above,
+then 0.25 coral fan above (else 0.05 sea pickle, 1..4 pickles)
+and 0.2 wall coral per horizontal side. Tree (trunk 1..3 plus
+2..4 shuffled branches), claw (base plus 2..3 of claw/clockwise/
+counter-clockwise, shuffled) and mushroom (3..5 box per axis,
+face cells only, 0.1 skip) shapes are all ported. The decoder
+dispatches on the presence of a nested `feature`: 26.3-form
+goes to the existing `CoralFeature`, empty-config 1.21.7-form
+to the new legacy decoder.
+
+Root systems: 1.21.7's `RootSystemConfiguration` has no
+`level_test_distance`/`max_level_deviation` (26.x additions);
+both are now optional and default to 0, which disables the
+level test.
+
+Known approximation carried from the ninth crash entry:
+`weird_scaled_sampler` remains clamp(input, 0, 1) * noise, not
+vanilla parity — spaghetti caves land roughly where vanilla
+puts them, not exactly.

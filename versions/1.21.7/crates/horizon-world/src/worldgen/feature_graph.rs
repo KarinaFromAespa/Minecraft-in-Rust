@@ -14,8 +14,7 @@ use super::{
         FeaturePlacementError, FeaturePlacer, PlacementContext, PlacementModifier,
         PlacementQueryError,
     },
-    required,
-    unwrap_legacy_config,
+    required, unwrap_legacy_config,
     weighted::OptionalWeightedList,
 };
 use horizon_core::random::{InvalidBound, RandomSource};
@@ -53,6 +52,18 @@ pub enum FeatureDefinition {
     SnowAndFreeze(super::snow_freeze::SnowAndFreezeFeature),
     Delta(super::delta::DeltaFeature),
     Bamboo(super::bamboo::BambooFeature),
+    Kelp(super::aquatic::KelpFeature),
+    Seagrass(super::aquatic::SeagrassFeature),
+    SeaPickle(super::aquatic::SeaPickleFeature),
+    BasaltColumns(super::nether::BasaltColumnsFeature),
+    BasaltPillar(super::nether::BasaltPillarFeature),
+    Glowstone(super::nether::GlowstoneFeature),
+    NetherForestVegetation(super::nether::NetherForestVegetationFeature),
+    TwistingVines(super::nether::TwistingVinesFeature),
+    WeepingVines(super::nether::WeepingVinesFeature),
+    DesertWell(super::desert_well::DesertWellFeature),
+    IceSpike(super::ice_spike::IceSpikeFeature),
+    RandomPatch(Box<super::random_patch::RandomPatchFeature>),
     ReplaceBlobs(super::replace_blobs::ReplaceBlobsFeature),
     EndPodium(super::end_podium::EndPodiumFeature),
     EndGateway(super::end_gateway::EndGatewayFeature),
@@ -71,6 +82,7 @@ pub enum FeatureDefinition {
     Tree(Box<super::tree::TreeFeature>),
     VegetationPatch(Box<super::vegetation::VegetationPatchFeature>),
     Coral(Box<super::vegetation::CoralFeature>),
+    LegacyCoral(Box<super::coral::LegacyCoralFeature>),
     HugeMushroom(Box<super::vegetation::HugeMushroomFeature>),
     MultifaceGrowth(Box<super::vegetation::MultifaceGrowthFeature>),
     Lake(Box<super::cave::LakeFeature>),
@@ -79,6 +91,7 @@ pub enum FeatureDefinition {
     Iceberg(Box<super::iceberg::IcebergFeature>),
     RootSystem(Box<super::root_system::RootSystemFeature>),
     SpeleothemCluster(Box<super::dripstone::SpeleothemClusterFeature>),
+    PointedDripstone(Box<super::dripstone::PointedDripstoneFeature>),
     LargeDripstone(Box<super::dripstone::LargeDripstoneFeature>),
     HugeFungus(Box<super::fungus::HugeFungusFeature>),
     SculkPatch(Box<super::sculk::SculkPatchFeature>),
@@ -110,6 +123,10 @@ pub enum FeatureExecutionError<E> {
     SnowAndFreeze(super::snow_freeze::SnowAndFreezeError<E>),
     Delta(super::delta::DeltaError<E>),
     Bamboo(super::bamboo::BambooError<E>),
+    Aquatic(super::aquatic::AquaticError<E>),
+    Nether(super::nether::NetherFeatureError<E>),
+    DesertWell(super::desert_well::DesertWellError<E>),
+    IceSpike(super::ice_spike::IceSpikeError<E>),
     ReplaceBlobs(super::replace_blobs::ReplaceBlobsError<E>),
     EndPodium(super::end_podium::EndPodiumError<E>),
     EndGateway(super::end_gateway::EndGatewayError<E>),
@@ -139,6 +156,10 @@ impl<E: std::fmt::Display> std::fmt::Display for FeatureExecutionError<E> {
             Self::SnowAndFreeze(e) => e.fmt(f),
             Self::Delta(e) => e.fmt(f),
             Self::Bamboo(e) => e.fmt(f),
+            Self::Aquatic(e) => e.fmt(f),
+            Self::Nether(e) => e.fmt(f),
+            Self::DesertWell(e) => e.fmt(f),
+            Self::IceSpike(e) => e.fmt(f),
             Self::ReplaceBlobs(e) => e.fmt(f),
             Self::EndPodium(e) => e.fmt(f),
             Self::EndGateway(e) => e.fmt(f),
@@ -343,6 +364,89 @@ impl FeatureDefinition {
                 blocks.ok_or(DecodeError::Field("bamboo bindings"))?,
             )
             .map(Self::Bamboo),
+            "minecraft:kelp" => {
+                super::aquatic::KelpFeature::new(blocks.ok_or(DecodeError::Field("kelp bindings"))?)
+                    .map(Self::Kelp)
+            }
+            "minecraft:seagrass" => super::aquatic::SeagrassFeature::from_json(
+                json,
+                blocks.ok_or(DecodeError::Field("seagrass bindings"))?,
+            )
+            .map(Self::Seagrass),
+            "minecraft:sea_pickle" => super::aquatic::SeaPickleFeature::decode(
+                json,
+                blocks.ok_or(DecodeError::Field("sea pickle bindings"))?,
+                depth + 1,
+                remaining,
+            )
+            .map(Self::SeaPickle),
+            "minecraft:basalt_columns" => super::nether::BasaltColumnsFeature::decode(
+                json,
+                blocks.ok_or(DecodeError::Field("basalt columns bindings"))?,
+                depth + 1,
+                remaining,
+            )
+            .map(Self::BasaltColumns),
+            "minecraft:basalt_pillar" => super::nether::BasaltPillarFeature::new(
+                blocks.ok_or(DecodeError::Field("basalt pillar bindings"))?,
+            )
+            .map(Self::BasaltPillar),
+            "minecraft:glowstone_blob" => super::nether::GlowstoneFeature::new(
+                blocks.ok_or(DecodeError::Field("glowstone bindings"))?,
+            )
+            .map(Self::Glowstone),
+            "minecraft:nether_forest_vegetation" => {
+                super::nether::NetherForestVegetationFeature::decode(
+                    json,
+                    blocks.ok_or(DecodeError::Field("nether forest vegetation bindings"))?,
+                    depth + 1,
+                    remaining,
+                )
+                .map(Self::NetherForestVegetation)
+            }
+            "minecraft:twisting_vines" => super::nether::TwistingVinesFeature::from_json(
+                json,
+                blocks.ok_or(DecodeError::Field("twisting vines bindings"))?,
+            )
+            .map(Self::TwistingVines),
+            "minecraft:weeping_vines" => super::nether::WeepingVinesFeature::new(
+                blocks.ok_or(DecodeError::Field("weeping vines bindings"))?,
+            )
+            .map(Self::WeepingVines),
+            "minecraft:desert_well" => super::desert_well::DesertWellFeature::new(
+                blocks.ok_or(DecodeError::Field("desert well bindings"))?,
+            )
+            .map(Self::DesertWell),
+            "minecraft:ice_spike" => super::ice_spike::IceSpikeFeature::new(
+                blocks.ok_or(DecodeError::Field("ice spike bindings"))?,
+            )
+            .map(Self::IceSpike),
+            "minecraft:flower" | "minecraft:random_patch" | "minecraft:no_bonemeal_flower" => {
+                let nested = |json: &str, depth: usize, remaining: &mut usize| {
+                    PlacedFeatureDefinition::decode(json, depth, remaining, empty_tags, blocks)
+                };
+                super::random_patch::RandomPatchFeature::decode(json, depth, remaining, &nested)
+                    .map(|f| Self::RandomPatch(Box::new(f)))
+            }
+            "minecraft:forest_rock" => {
+                // 1.21.7's forest rock is a `BlockBlobFeature` with a bare
+                // `state` config; vanilla hardcodes the support check to
+                // dirt-or-stone (`Feature.isDirt` / `Feature.isStone`).
+                let bindings = blocks.ok_or(DecodeError::Field("forest rock bindings"))?;
+                let state = bindings
+                    .codec
+                    .decode(required(&object, "state")?.get(), false)
+                    .map_err(|e| DecodeError::Registry(e.to_string()))?;
+                let can_place_on = super::block_predicate::BlockPredicate::decode_with_blocks(
+                    r#"{"type":"minecraft:any_of","predicates":[{"type":"minecraft:matching_block_tag","tag":"minecraft:dirt"},{"type":"minecraft:matching_block_tag","tag":"minecraft:base_stone_overworld"}]}"#,
+                    depth + 1,
+                    remaining,
+                    Some(bindings),
+                )?;
+                Ok(Self::BlockBlob(
+                    super::block_blob::BlockBlobFeature::with_support(state, can_place_on),
+                ))
+            }
             "minecraft:netherrack_replace_blobs" => {
                 super::replace_blobs::ReplaceBlobsFeature::decode(
                     json,
@@ -600,12 +704,23 @@ impl FeatureDefinition {
                 )
                 .map(|f| Self::RootSystem(Box::new(f)))
             }
-            "minecraft:coral_tree" | "minecraft:coral_claw" => {
-                let nested = |json: &str, depth: usize, remaining: &mut usize| {
-                    PlacedFeatureDefinition::decode(json, depth, remaining, empty_tags, blocks)
-                };
-                super::vegetation::CoralFeature::decode(json, depth, remaining, &nested)
-                    .map(|f| Self::Coral(Box::new(f)))
+            "minecraft:coral_tree" | "minecraft:coral_claw" | "minecraft:coral_mushroom" => {
+                // 26.3-form corals carry a nested `feature`; 1.21.7's
+                // configs are empty and the coral block is picked from
+                // the tag at placement.
+                if object.contains_key("feature") {
+                    let nested = |json: &str, depth: usize, remaining: &mut usize| {
+                        PlacedFeatureDefinition::decode(json, depth, remaining, empty_tags, blocks)
+                    };
+                    super::vegetation::CoralFeature::decode(json, depth, remaining, &nested)
+                        .map(|f| Self::Coral(Box::new(f)))
+                } else {
+                    super::coral::LegacyCoralFeature::decode(
+                        json,
+                        blocks.ok_or(DecodeError::Field("coral bindings"))?,
+                    )
+                    .map(|f| Self::LegacyCoral(Box::new(f)))
+                }
             }
             "minecraft:huge_red_mushroom" | "minecraft:huge_brown_mushroom" => {
                 super::vegetation::HugeMushroomFeature::decode(
@@ -634,13 +749,15 @@ impl FeatureDefinition {
                 remaining,
             )
             .map(|f| Self::Geode(Box::new(f))),
-            "minecraft:speleothem_cluster" => super::dripstone::SpeleothemClusterFeature::decode(
-                json,
-                blocks.ok_or(DecodeError::Field("speleothem cluster bindings"))?,
-                depth,
-                remaining,
-            )
-            .map(|f| Self::SpeleothemCluster(Box::new(f))),
+            "minecraft:speleothem_cluster" | "minecraft:dripstone_cluster" => {
+                super::dripstone::SpeleothemClusterFeature::decode(
+                    json,
+                    blocks.ok_or(DecodeError::Field("speleothem cluster bindings"))?,
+                    depth,
+                    remaining,
+                )
+                .map(|f| Self::SpeleothemCluster(Box::new(f)))
+            }
             "minecraft:large_dripstone" => super::dripstone::LargeDripstoneFeature::decode(
                 json,
                 blocks.ok_or(DecodeError::Field("large dripstone bindings"))?,
@@ -648,6 +765,13 @@ impl FeatureDefinition {
                 remaining,
             )
             .map(|f| Self::LargeDripstone(Box::new(f))),
+            "minecraft:pointed_dripstone" => super::dripstone::PointedDripstoneFeature::decode(
+                json,
+                blocks.ok_or(DecodeError::Field("pointed dripstone bindings"))?,
+                depth,
+                remaining,
+            )
+            .map(|f| Self::PointedDripstone(Box::new(f))),
             "minecraft:projected_random_patchy_square" => {
                 super::projected::ProjectedPatchySquareFeature::decode(
                     json,
@@ -873,6 +997,44 @@ impl FeatureDefinition {
             Self::Bamboo(feature) => feature
                 .place(world, random, origin)
                 .map_err(FeatureExecutionError::Bamboo),
+            Self::Kelp(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Aquatic),
+            Self::Seagrass(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Aquatic),
+            Self::SeaPickle(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Aquatic),
+            Self::BasaltColumns(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Nether),
+            Self::BasaltPillar(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Nether),
+            Self::Glowstone(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Nether),
+            Self::NetherForestVegetation(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Nether),
+            Self::TwistingVines(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Nether),
+            Self::WeepingVines(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Nether),
+            Self::DesertWell(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::DesertWell),
+            Self::IceSpike(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::IceSpike),
+            Self::RandomPatch(feature) => {
+                feature.place(world, random, origin, &mut |f, w, r, p| {
+                    f.place_in(&mut placer, w, r, p, run)
+                })
+            }
             Self::ReplaceBlobs(feature) => feature
                 .place(world, random, origin)
                 .map_err(FeatureExecutionError::ReplaceBlobs),
@@ -1035,6 +1197,7 @@ impl FeatureDefinition {
             Self::Coral(feature) => feature.place(world, random, origin, &mut |f, w, r, p| {
                 f.place_in(&mut placer, w, r, p, run)
             }),
+            Self::LegacyCoral(feature) => feature.place(world, random, origin),
             Self::HugeMushroom(feature) => feature.place(world, random, origin),
             Self::MultifaceGrowth(feature) => feature.place(world, random, origin),
             Self::Lake(feature) => feature.place(world, random, origin),
@@ -1042,6 +1205,7 @@ impl FeatureDefinition {
             Self::Geode(feature) => feature.place(world, random, origin),
             Self::Iceberg(feature) => feature.place(world, random, origin),
             Self::SpeleothemCluster(feature) => feature.place(world, random, origin),
+            Self::PointedDripstone(feature) => feature.place(world, random, origin),
             Self::LargeDripstone(feature) => feature.place(world, random, origin),
             Self::HugeFungus(feature) => feature.place(world, random, origin),
             Self::SculkPatch(feature) => feature.place(world, random, origin),

@@ -21,7 +21,7 @@ use super::{
     biome_temperature::{BiomeTemperature, BiomeTemperatureSettings},
     carver::{CarverCatalog, WorldCarver, generate_carving_mask},
     carving::{CarvingBlocks, apply_carving_mask_shared},
-    climate::{ClimateSampler, decode_parameter, quantize},
+    climate::{ClimateSampler, ParameterPoint, decode_parameter_point, quantize},
     decode_noise,
     density::DensityRegistry,
     generator_structures::Starts,
@@ -36,7 +36,8 @@ use super::{
     overrides::{self, WorldgenOverrides},
     router::{NoiseRouter, RouterField, RouterSamplers},
     settings::NoiseSettings,
-    spawn_finder::{SpawnTargetPoint, find_spawn_position},
+    spawn_finder::find_spawn_position,
+    synthesize::{VeinKind, vein_roots},
     tags::TagDefinitions,
     terrain::{PreLightChunkStage, TerrainAquifer, TerrainBlockStates, TerrainChunk, fill_noise},
 };
@@ -222,6 +223,11 @@ type DecorationSlot =
     Arc<OnceLock<Result<Option<Arc<super::generator_decoration::Decoration>>, String>>>;
 /// Biome sources whose decoration is kept: the three dimensions and a spare.
 const DECORATION_CACHE_LIMIT: usize = 4;
+/// The library name for a settings' inline `surface_rule`: 1.21.7's settings
+/// carry the rule inline (or as a holder reference), not 26.3's
+/// `material_rule` name. The name cannot collide with vanilla data, which
+/// never uses a leading double underscore.
+const INLINE_SURFACE_RULE: &str = "minecraft:__settings_surface_rule";
 type Bundle = BTreeMap<String, String>;
 /// The bundle `name` with the data packs' entries over it.
 fn read_bundle(
@@ -948,6 +954,10 @@ struct Pipeline<R: RandomSource> {
     climate: ClimateSampler,
     aquifer: Option<[Arc<dyn DensitySampler>; 6]>,
     rule: MaterialRule,
+    /// The settings' surface rule without the ore veins: the carver's top
+    /// material applies only it, as vanilla's `CarvingContext.topMaterial`
+    /// applies only the surface RuleSource, never the vein filler.
+    surface_rule: MaterialRule,
     preliminary: Arc<dyn DensitySampler>,
     source: ResolvedBiomeSource,
     surface: MaterialSurface<R::Positional>,
@@ -965,8 +975,9 @@ struct Pipeline<R: RandomSource> {
     pub(super) structures: Option<super::generator_structures::StructureState>,
     /// Definitions for explicit placement when automatic structure starts are off.
     manual_structures: std::sync::OnceLock<Option<super::generator_structures::StructureState>>,
-    /// The noise settings' `spawn_target` points.
-    spawn_target: Vec<SpawnTargetPoint>,
+    /// The noise settings' `spawn_target` points (1.21.7 climate
+    /// `ParameterPoint`s over the six climate parameters plus offset).
+    spawn_target: Vec<ParameterPoint>,
     /// The chunks an older version generated, which new chunks blend with.
     old_world: std::sync::OnceLock<Arc<dyn super::blending::OldWorld>>,
     /// The noise settings' `debug_functions`: label and sampler.
@@ -1108,8 +1119,35 @@ where
         };
         let root = random.fork_positional();
         let mut densities = DensityRegistry::from_json(&data.noises, &data.densities)?;
-        let router =
-            NoiseRouter::from_json(&settings_json["noise_router"].to_string(), &mut densities)?;
+        // 1.21.7's router has neither chunk_surface_level (26.x) nor
+        // preliminary_surface_level (26.2 and earlier): 1.21.6 replaced
+        // the latter with initial_density_without_jaggedness, and vanilla
+        // computes the preliminary surface level by scanning that density
+        // down from the top of the noise range for the first cell above
+        // 0.390625 (NoiseChunk.computePreliminarySurfaceLevel). Synthesize
+        // the 26.3 surface search over the threshold-shifted density; the
+        // cell height is the noise size times 4, as in NoiseSettings.
+        let mut router_json = settings_json["noise_router"].clone();
+        if let Value::Object(router) = &mut router_json {
+            if !router.contains_key("chunk_surface_level")
+                && !router.contains_key("preliminary_surface_level")
+            {
+                if let Some(initial) = router.get("initial_density_without_jaggedness").cloned() {
+                    let cell_height = noise["size_vertical"].as_i64().unwrap_or(2) as i32 * 4;
+                    router.insert(
+                        "chunk_surface_level".to_owned(),
+                        serde_json::json!({
+                            "type": "minecraft:find_top_surface",
+                            "density": {"type": "minecraft:add", "argument1": initial, "argument2": -0.390625},
+                            "upper_bound": min_y + height,
+                            "lower_bound": min_y,
+                            "cell_height": cell_height,
+                        }),
+                    );
+                }
+            }
+        }
+        let router = NoiseRouter::from_json(&router_json.to_string(), &mut densities)?;
         // NoiseGeneratorSettings.debugFunctions: a registered density or an
         // inline one, each with its label.
         let debug_functions = settings_json
@@ -1130,13 +1168,42 @@ where
                 Ok((label.to_owned(), id))
             })
             .collect::<Result<Vec<_>, GeneratorError>>()?;
-        let aquifers = settings_json
-            .get("aquifers")
-            .filter(|v| !v.is_null())
-            .map(|v| AquiferConfig::from_json(&v.to_string(), &mut densities))
-            .transpose()?;
+        let aquifers = if settings_json["aquifers_enabled"].as_bool().unwrap_or(false) {
+            Some(AquiferConfig::from_router(&router, &mut densities)?)
+        } else {
+            None
+        };
+        // 1.21.7's ore veins are `OreVeinifier`, a noise-chunk filler, not
+        // material rules: synthesize their density roots from the router's
+        // vein fields now, while the registry is still owned here; the
+        // rules themselves are built after the library exists.
+        let mut veins = Vec::new();
+        if settings_json["ore_veins_enabled"]
+            .as_bool()
+            .unwrap_or(false)
+        {
+            for kind in VeinKind::ALL {
+                veins.push((kind, vein_roots(&router, &mut densities, kind)?));
+            }
+        }
+        // 1.21.7's `surface_rule` is an inline rule object (or a holder
+        // reference), not 26.3's `material_rule` name: feed an inline rule
+        // to the library under a synthetic name so it compiles like a named
+        // rule. A 26.3-form `material_rule` still wins when present.
+        let mut rules = data.rules.clone();
+        let rule_name = match settings_json.get("surface_rule") {
+            Some(Value::String(name)) => name.clone(),
+            Some(rule) => {
+                rules.insert(INLINE_SURFACE_RULE.to_owned(), rule.to_string());
+                INLINE_SURFACE_RULE.to_owned()
+            }
+            None => settings_json["material_rule"]
+                .as_str()
+                .ok_or_else(|| resource("material_rule"))?
+                .to_owned(),
+        };
         let mut library = MaterialRuleLibrary::from_json(
-            &data.rules,
+            &rules,
             &data.conditions,
             &codec,
             densities,
@@ -1148,33 +1215,52 @@ where
             .into_iter()
             .map(|(label, id)| Ok((label, library.function_sampler(id)?)))
             .collect::<Result<Vec<_>, GeneratorError>>()?;
+        let default = |name: &str| {
+            registry
+                .default_state(name)
+                .ok_or_else(|| resource(format!("missing block {name}")))
+        };
         let aquifer = aquifers
             .map(|config| library.compile_aquifer(config))
             .transpose()?
             .map(|samplers| AquiferField::ALL.map(|field| samplers.get(field).clone()));
-        let rule_name = settings_json["material_rule"]
-            .as_str()
-            .ok_or_else(|| resource("material_rule"))?;
-        let rule = library.rule(rule_name)?;
+        let surface_rule = library.rule(&rule_name)?;
+        // The vein rules run BEFORE the surface rule: in vanilla 1.21.7 the
+        // veins apply during the fill (`NoiseChunk`'s `OreVeinifier`
+        // filler) and the surface rule runs after — but
+        // `SurfaceSystem.buildSurface` only applies the rule where the
+        // block is still the default block (stone), so it never overwrites
+        // a vein's tuff or ore. Veins first in the sequence is exactly
+        // that order: where a vein places a block the surface rule never
+        // runs, and where it returns nothing the surface rule runs on the
+        // still-stone block. (Veins after the surface rule shadowed them
+        // entirely: the deepslate gradient below y 0 always produces
+        // first, so no vein ever placed a block.)
+        let rule = if veins.is_empty() {
+            surface_rule.clone()
+        } else {
+            let mut children = Vec::with_capacity(veins.len() + 1);
+            for (kind, roots) in veins {
+                let blocks = kind.blocks();
+                children.push(MaterialRule::OreVein {
+                    ore: default(blocks[0])?,
+                    raw_ore: default(blocks[1])?,
+                    filler: default(blocks[2])?,
+                    raw_ore_chance: 0.02,
+                    density: library.function_sampler(roots.density)?,
+                    richness: library.function_sampler(roots.richness)?,
+                    filler_gap: library.function_sampler(roots.filler_gap)?,
+                    positive_y: kind.positive_y(),
+                });
+            }
+            children.push(surface_rule.clone());
+            MaterialRule::Sequence(children)
+        };
         let preliminary = router.get(RouterField::ChunkSurfaceLevel).clone();
         let spawn_target = match settings_json.get("spawn_target") {
             Some(Value::Array(points)) => points
                 .iter()
-                .map(|point| {
-                    let Value::Object(fields) = point else {
-                        return Err(resource("spawn_target point"));
-                    };
-                    let parameters = fields
-                        .iter()
-                        .map(|(name, interval)| {
-                            Ok((
-                                library.named_density(name)?,
-                                decode_parameter(&interval.to_string())?,
-                            ))
-                        })
-                        .collect::<Result<_, GeneratorError>>()?;
-                    Ok(SpawnTargetPoint { parameters })
-                })
+                .map(|point| Ok(decode_parameter_point(&point.to_string())?))
                 .collect::<Result<_, GeneratorError>>()?,
             _ => Vec::new(),
         };
@@ -1207,11 +1293,6 @@ where
             noise("minecraft:surface")?,
             noise("minecraft:surface_secondary")?,
         );
-        let default = |name: &str| {
-            registry
-                .default_state(name)
-                .ok_or_else(|| resource(format!("missing block {name}")))
-        };
         let extensions = MaterialExtensions::new(
             root.clone(),
             ExtensionBlocks {
@@ -1246,6 +1327,7 @@ where
             climate,
             aquifer,
             rule,
+            surface_rule,
             preliminary,
             source,
             surface,
@@ -1282,9 +1364,10 @@ where
             if let Some(state) = pipeline.structures.as_mut() {
                 state.fixed_biome = generator["biome_source"]["type"] == "minecraft:fixed";
             }
-            // ChunkGenerator.createState reads getOrigin: a noise generator
-            // answers the chunk of its NoiseSpawnFinder position, others
-            // chunk 0 0. Only a dimension-origin structure set reads it.
+            // ChunkGenerator.createState reads the spawn column: a noise
+            // generator answers the chunk of its Climate.findSpawnPosition
+            // position, others chunk 0 0. Only a dimension-origin
+            // structure set reads it.
             if pipeline
                 .structures
                 .as_ref()
@@ -1304,19 +1387,23 @@ where
         dimension.clone_into(&mut self.dimension);
         self
     }
-    /// `NoiseBasedChunkGenerator.getOrigin`'s spawn column: the
-    /// NoiseSpawnFinder position, or 0 0 when the noise settings have no
-    /// spawn target (`ChunkGenerator.getOrigin`). Cached.
+    /// The spawn column: `Climate.findSpawnPosition` over the noise
+    /// settings' `spawn_target` points, or 0 0 when there is none.
+    /// Cached.
     fn spawn_column(&self) -> Result<[i32; 2], GeneratorError> {
         if let Some(position) = self.spawn_position.get() {
             return Ok(*position);
         }
-        // ChunkGenerator.getOrigin is 0 0 without a spawn target.
+        // Climate.Sampler.findSpawnPosition is 0 0 without a spawn target.
         let position = if self.spawn_target.is_empty() {
             [0, 0]
         } else {
-            find_spawn_position(&self.spawn_target, &mut SamplerContext::cached())
-                .map_err(|e| GeneratorError::Stage("spawn search", e.to_string()))?
+            find_spawn_position(
+                &self.spawn_target,
+                &self.climate,
+                &mut SamplerContext::cached(),
+            )
+            .map_err(|e| GeneratorError::Stage("spawn search", e.to_string()))?
         };
         Ok(*self.spawn_position.get_or_init(|| position))
     }
@@ -1882,7 +1969,7 @@ where
                 apply_carving_mask_shared(
                     &mut chunk,
                     &mask,
-                    &self.rule,
+                    &self.surface_rule,
                     &mut shared,
                     TopMaterialInputs::<R, _> {
                         generation,
@@ -3766,13 +3853,13 @@ impl OverworldGenerator {
     pub fn unsupported_features(&self) -> Vec<(String, String)> {
         self.pipeline.unsupported_features()
     }
-    /// NoiseBasedChunkGenerator.getOrigin: the chunk a new world's spawn
-    /// search starts from (NoiseSpawnFinder over the `spawn_target` points).
+    /// The chunk a new world's spawn search starts from
+    /// (`Climate.findSpawnPosition` over the `spawn_target` points).
     pub fn origin(&self) -> Result<ChunkPos, GeneratorError> {
         let [x, z] = self.spawn_position()?;
         Ok(ChunkPos::new(x >> 4, z >> 4))
     }
-    /// NoiseSpawnFinder.findSpawnPosition: the column `origin` is the chunk of.
+    /// `Climate.findSpawnPosition`: the column `origin` is the chunk of.
     pub fn spawn_position(&self) -> Result<[i32; 2], GeneratorError> {
         self.pipeline.spawn_position()
     }
@@ -5200,5 +5287,67 @@ mod tests {
         assert!(normal.iter().all(|height| (0..384).contains(height)));
         assert_ne!(normal, surface("minecraft:amplified"));
         assert_ne!(normal, surface("minecraft:large_biomes"));
+    }
+
+    /// The 1.21.7 launch path end to end: the prepared overworld bundles
+    /// build the integrated server's Pipeline, and a chunk generates.
+    /// Every legacy decode gap the laptop found one crash at a time
+    /// (motion tags, shift noise, chunk_surface_level, ...) surfaces
+    /// here in one run instead of one rebuild at a time.
+    #[test]
+    fn prepared_1_21_7_overworld_builds_and_generates_a_chunk() {
+        let root = std::env::var_os("HORIZON_TEST_RESOURCES")
+            .or_else(|| std::env::var_os("HORIZON_RESOURCES"))
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.local/horizon-client/1.21.7")
+            });
+        if !root.join("worldgen/world_presets.json").exists() {
+            eprintln!("skipping: no worldgen bundle at {}", root.display());
+            return;
+        }
+        let registry: &'static BlockRegistry = Box::leak(Box::new(
+            crate::level::data::load_registry(&root).expect("registry"),
+        ));
+        let data = GeneratorData::load(&root.join("worldgen"), registry).expect("worldgen data");
+        if !data.warnings().is_empty() {
+            eprintln!("worldgen warnings: {:?}", data.warnings());
+        }
+        // The Nether and End pipelines build too: the player reaches them
+        // after the overworld, and their settings decode the same way.
+        // Each dimension's decoration covers only its own biomes' placed
+        // features, so every dimension's list must be checked.
+        for dimension in ["minecraft:the_nether", "minecraft:the_end"] {
+            let generator = OverworldGenerator::for_dimension(
+                data.clone(),
+                12345,
+                "minecraft:normal",
+                dimension,
+            )
+            .unwrap_or_else(|e| panic!("{dimension} pipeline: {e}"));
+            let unsupported = generator.unsupported_features();
+            assert!(
+                unsupported.is_empty(),
+                "{dimension} unsupported features: {unsupported:?}"
+            );
+        }
+        let generator = OverworldGenerator::new(data.clone(), 12345).expect("overworld pipeline");
+        let unsupported = generator.unsupported_features();
+        assert!(
+            unsupported.is_empty(),
+            "overworld unsupported features: {unsupported:?}"
+        );
+        let mut worker = generator.worker();
+        for pos in [ChunkPos::new(0, 0), ChunkPos::new(11, -7)] {
+            let chunk = worker
+                .generate_proto(pos)
+                .unwrap_or_else(|e| panic!("chunk {pos:?}: {e}"));
+            // A real chunk: ground somewhere in it, and a biome assigned.
+            assert!(
+                (0..16).any(|x| (0..16).any(|z| chunk.surface_height(x, z) > -64)),
+                "chunk {pos:?} has no ground"
+            );
+            let _ = chunk.biome_id_at(8, 64, 8);
+        }
     }
 }

@@ -1,4 +1,6 @@
-//! The eight terrain-router fields used by Java Edition 26.3.
+//! The fifteen terrain-router fields of 1.21.7: the six climate fields, the
+//! four aquifer fields, the surface level and final density, and the three
+//! ore-vein fields.
 use super::{DecodeError, Object, climate::ClimateSampler, density::DensityRegistry, required};
 use horizon_core::density::{
     DensitySampler,
@@ -6,7 +8,9 @@ use horizon_core::density::{
 };
 use std::sync::Arc;
 
-/// Declaration and compilation order: the six climate fields, surface, density.
+/// Declaration and compilation order: the six climate fields (the climate
+/// sampler reads them positionally), then the aquifer fields, the surface
+/// level, the final density, and the ore-vein fields.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(usize)]
 pub enum RouterField {
@@ -16,19 +20,33 @@ pub enum RouterField {
     Erosion,
     Depth,
     Ridges,
+    Barrier,
+    FluidLevelFloodedness,
+    FluidLevelSpread,
+    Lava,
     ChunkSurfaceLevel,
     FinalDensity,
+    VeinToggle,
+    VeinRidged,
+    VeinGap,
 }
 impl RouterField {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 15] = [
         Self::Temperature,
         Self::Vegetation,
         Self::Continents,
         Self::Erosion,
         Self::Depth,
         Self::Ridges,
+        Self::Barrier,
+        Self::FluidLevelFloodedness,
+        Self::FluidLevelSpread,
+        Self::Lava,
         Self::ChunkSurfaceLevel,
         Self::FinalDensity,
+        Self::VeinToggle,
+        Self::VeinRidged,
+        Self::VeinGap,
     ];
     pub const fn name(self) -> &'static str {
         match self {
@@ -38,8 +56,15 @@ impl RouterField {
             Self::Erosion => "erosion",
             Self::Depth => "depth",
             Self::Ridges => "ridges",
+            Self::Barrier => "barrier",
+            Self::FluidLevelFloodedness => "fluid_level_floodedness",
+            Self::FluidLevelSpread => "fluid_level_spread",
+            Self::Lava => "lava",
             Self::ChunkSurfaceLevel => "chunk_surface_level",
             Self::FinalDensity => "final_density",
+            Self::VeinToggle => "vein_toggle",
+            Self::VeinRidged => "vein_ridged",
+            Self::VeinGap => "vein_gap",
         }
     }
 }
@@ -47,7 +72,7 @@ impl RouterField {
 /// Root IDs belong to the registry graph used to decode this router.
 #[derive(Clone, Copy, Debug)]
 pub struct NoiseRouter {
-    functions: [FunctionId; 8],
+    functions: [FunctionId; 15],
 }
 impl NoiseRouter {
     /// Decode the router object itself. Noise settings, aquifer and material
@@ -58,7 +83,7 @@ impl NoiseRouter {
         // 1.21.7's router has no chunk_surface_level (a 26.x addition):
         // synthesize it from the preliminary surface level, exactly as
         // the settings upgrader does — interpolated on a 16x1 cell.
-        let mut owned: Vec<String> = Vec::with_capacity(8);
+        let mut owned: Vec<String> = Vec::with_capacity(15);
         for field in RouterField::ALL {
             if field == RouterField::ChunkSurfaceLevel && !object.contains_key(field.name()) {
                 let raw = required(&object, "preliminary_surface_level")?.get();
@@ -88,7 +113,7 @@ impl NoiseRouter {
             .map(|id| compiler.get_sampler(*id))
             .collect::<Result<Vec<_>, _>>()?
             .try_into()
-            .expect("one sampler for each of eight router fields");
+            .expect("one sampler for each of fifteen router fields");
         Ok(RouterSamplers { samplers })
     }
     /// Compile only the six climate roots, in vanilla's sampler-binding order.
@@ -107,7 +132,7 @@ impl NoiseRouter {
 }
 #[derive(Debug)]
 pub struct RouterSamplers {
-    samplers: [Arc<dyn DensitySampler>; 8],
+    samplers: [Arc<dyn DensitySampler>; 15],
 }
 impl RouterSamplers {
     pub fn get(&self, field: RouterField) -> &Arc<dyn DensitySampler> {

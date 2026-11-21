@@ -8,6 +8,7 @@ use super::{
     feature_graph::{FeatureDefinition, PlacedFeatureDefinition},
     required,
     tags::TagDefinitions,
+    unwrap_legacy_config,
 };
 use serde_json::value::RawValue;
 use std::collections::{BTreeMap, BTreeSet};
@@ -223,7 +224,10 @@ impl FeatureCatalog {
         if let Ok(name) = serde_json::from_str::<String>(value.get()) {
             return self.named(&name, false, depth, work);
         }
-        let mut object: Object = serde_json::from_str(value.get())?;
+        // 1.21.7-era definitions wrap their fields in a `config` object;
+        // lift them before reading the nested feature fields below.
+        let unwrapped = unwrap_legacy_config(value.get())?;
+        let mut object: Object = serde_json::from_str(&unwrapped)?;
         let kind = identifier(&serde_json::from_str::<String>(
             required(&object, "type")?.get(),
         )?)?;
@@ -239,7 +243,20 @@ impl FeatureCatalog {
                     self.expand_placed(required(&object, "vegetation_feature")?, depth + 1, work)?;
                 object.insert("vegetation_feature".into(), raw(expanded)?);
             }
-            "minecraft:coral_tree" | "minecraft:coral_claw" | "minecraft:root_system" => {
+            "minecraft:coral_tree" | "minecraft:coral_claw" | "minecraft:coral_mushroom" => {
+                // 1.21.7's corals have no nested feature (empty config);
+                // 26.3-form corals carry one.
+                if let Some(value) = super::optional(&object, "feature") {
+                    let expanded = self.expand_placed(value, depth + 1, work)?;
+                    object.insert("feature".into(), raw(expanded)?);
+                }
+            }
+            "minecraft:root_system" => {
+                let expanded =
+                    self.expand_placed(required(&object, "feature")?, depth + 1, work)?;
+                object.insert("feature".into(), raw(expanded)?);
+            }
+            "minecraft:flower" | "minecraft:random_patch" | "minecraft:no_bonemeal_flower" => {
                 let expanded =
                     self.expand_placed(required(&object, "feature")?, depth + 1, work)?;
                 object.insert("feature".into(), raw(expanded)?);

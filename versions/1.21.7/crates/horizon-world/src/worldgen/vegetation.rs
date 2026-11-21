@@ -424,12 +424,23 @@ impl HugeMushroomFeature {
             .map(super::integer)
             .transpose()?
             .unwrap_or(2);
-        let can_place_on = BlockPredicate::decode_with_blocks(
-            required(&object, "can_place_on")?.get(),
-            depth + 1,
-            decoder.remaining,
-            Some(bindings),
-        )?;
+        let can_place_on = match optional(&object, "can_place_on") {
+            Some(raw) => BlockPredicate::decode_with_blocks(
+                raw.get(),
+                depth + 1,
+                decoder.remaining,
+                Some(bindings),
+            )?,
+            // 1.21.7's huge mushrooms carry no such field; vanilla
+            // hardcodes dirt-or-mushroom-grow-block below the origin
+            // (AbstractHugeMushroomFeature.isValidPosition).
+            None => BlockPredicate::decode_with_blocks(
+                r#"{"type":"minecraft:any_of","predicates":[{"type":"minecraft:matching_block_tag","tag":"minecraft:dirt"},{"type":"minecraft:matching_block_tag","tag":"minecraft:mushroom_grow_block"}]}"#,
+                depth + 1,
+                decoder.remaining,
+                Some(bindings),
+            )?,
+        };
         Ok(Self {
             red,
             cap,

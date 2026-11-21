@@ -36,6 +36,15 @@ impl BlockBlobFeature {
     pub fn from_json(json: &str, bindings: &FeatureBlockBindings<'_>) -> Result<Self, DecodeError> {
         Self::decode(json, bindings, 0, &mut 65536)
     }
+    /// A blob with a caller-supplied support predicate — for 1.21.7's
+    /// `forest_rock`, which is a `BlockBlobFeature` with no `can_place_on`
+    /// field (vanilla hardcodes dirt-or-stone there).
+    pub(crate) fn with_support(state: BlockStateId, can_place_on: BlockPredicate) -> Self {
+        Self {
+            state,
+            can_place_on,
+        }
+    }
     pub(crate) fn decode(
         json: &str,
         bindings: &FeatureBlockBindings<'_>,

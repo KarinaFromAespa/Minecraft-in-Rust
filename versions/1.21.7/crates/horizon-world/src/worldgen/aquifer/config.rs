@@ -1,5 +1,11 @@
 //! The six density roots in the 26.3 aquifer configuration.
-use super::super::{DecodeError, Object, density::DensityRegistry, required};
+use super::super::{
+    DecodeError, Object,
+    density::DensityRegistry,
+    required,
+    router::{NoiseRouter, RouterField},
+    synthesize,
+};
 use horizon_core::density::{
     DensitySampler,
     graph::{CompileError, DensityCompiler, FunctionId},
@@ -53,6 +59,28 @@ impl AquiferConfig {
             .try_into()
             .map_err(|_| DecodeError::Field("aquifer field count"))?;
         Ok(Self { functions })
+    }
+    /// Build the config from a 1.21.7 noise router: barrier, floodedness,
+    /// spread and lava are router fields, the surface level is the router's
+    /// (synthesized) chunk surface level, and the exclusion is synthesized
+    /// from the erosion and depth fields (1.21.7's `NoiseBasedAquifer`
+    /// takes its functions from the router; there is no config object in
+    /// the data).
+    pub fn from_router(
+        router: &NoiseRouter,
+        registry: &mut DensityRegistry,
+    ) -> Result<Self, DecodeError> {
+        let exclusion = synthesize::aquifer_exclusion(router, registry)?;
+        Ok(Self {
+            functions: [
+                router.function(RouterField::Barrier),
+                router.function(RouterField::FluidLevelFloodedness),
+                router.function(RouterField::FluidLevelSpread),
+                router.function(RouterField::Lava),
+                exclusion,
+                router.function(RouterField::ChunkSurfaceLevel),
+            ],
+        })
     }
     pub fn function(self, field: AquiferField) -> FunctionId {
         self.functions[field as usize]

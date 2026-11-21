@@ -391,6 +391,7 @@ impl FluidState {
             serde_json::from_str(json).map_err(|e| invalid(e.to_string()))?;
         let name = value
             .get("id")
+            .or_else(|| value.get("Name"))
             .and_then(serde_json::Value::as_str)
             .ok_or_else(|| invalid("missing fluid identifier"))?;
         let (namespace, path) = name.split_once(':').unwrap_or(("minecraft", name));
@@ -415,6 +416,7 @@ impl FluidState {
         };
         if let Some(properties) = value
             .get("properties")
+            .or_else(|| value.get("Properties"))
             .and_then(serde_json::Value::as_object)
         {
             if let Some(value) = properties

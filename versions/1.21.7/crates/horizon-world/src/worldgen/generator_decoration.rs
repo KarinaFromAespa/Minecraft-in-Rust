@@ -1079,6 +1079,26 @@ fn loot_table_nbt(
     nbt.insert("LootTableSeed".into(), Tag::Long(random.next_long()));
     Some(nbt)
 }
+fn brushable_loot_table_nbt(
+    registry: &crate::registry::BlockRegistry,
+    state: BlockStateId,
+    table: &str,
+    seed: i64,
+) -> Option<crate::nbt::Compound> {
+    use crate::nbt::Tag;
+    let name = registry.state(state)?.name.to_string();
+    if !matches!(
+        name.as_str(),
+        "minecraft:suspicious_sand" | "minecraft:suspicious_gravel"
+    ) {
+        return None;
+    }
+    let mut nbt = crate::nbt::Compound::new();
+    nbt.insert("id".into(), Tag::String("minecraft:brushable_block".into()));
+    nbt.insert("LootTable".into(), Tag::String(table.into()));
+    nbt.insert("LootTableSeed".into(), Tag::Long(seed));
+    Some(nbt)
+}
 impl<'a> World<'a> {
     fn blocks(&self) -> Result<&'a BlockBehavior, PlacementQueryError> {
         self.blocks.ok_or(PlacementQueryError::Unavailable)
@@ -1141,6 +1161,20 @@ impl PlacementContext for World<'_> {
         let state = chunk.block(position[0], position[1], position[2]);
         let registry = self.decoration.bindings.registry();
         let Some(nbt) = loot_table_nbt(registry, state, table, random) else {
+            return Ok(());
+        };
+        self.set_block_entity(position, nbt)
+    }
+    fn set_block_entity_loot_table_seeded(
+        &mut self,
+        position: [i32; 3],
+        table: &str,
+        seed: i64,
+    ) -> Result<(), PlacementQueryError> {
+        let chunk = self.region.chunk(position[0] >> 4, position[2] >> 4)?;
+        let state = chunk.block(position[0], position[1], position[2]);
+        let registry = self.decoration.bindings.registry();
+        let Some(nbt) = brushable_loot_table_nbt(registry, state, table, seed) else {
             return Ok(());
         };
         self.set_block_entity(position, nbt)

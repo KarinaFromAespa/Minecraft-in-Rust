@@ -532,7 +532,15 @@ impl TreeFeature {
             .map(|raw| serde_json::from_str::<bool>(raw.get()))
             .transpose()?
             .unwrap_or(false);
-        let below_trunk_provider = decoder.provider(required(&object, "below_trunk_provider")?)?;
+        // 1.21.7's trees name the below-trunk provider `dirt_provider`;
+        // 26.x renamed it `below_trunk_provider`. (Vanilla 1.21.7 skips
+        // the set when the block is already dirt and `force_dirt` is
+        // false, but every 1.21.7 dirt provider is a simple provider, so
+        // the unconditional set draws nothing extra.)
+        let below_trunk_provider = match optional(&object, "below_trunk_provider") {
+            Some(raw) => decoder.provider(raw)?,
+            None => decoder.provider(required(&object, "dirt_provider")?)?,
+        };
         Ok(Self {
             trunk_provider,
             trunk_placer,

@@ -103,6 +103,14 @@ impl DensityRegistry {
             noises: loader.noises,
         })
     }
+    /// Insert a synthetic node built by the caller rather than decoded from
+    /// JSON, and return its id. Vanilla 1.21.7 derives some functions from
+    /// the router instead of naming them in data (the aquifer's deep-dark
+    /// exclusion, the ore veins' density functions), so the generator
+    /// synthesizes their graph nodes.
+    pub fn insert(&mut self, node: GraphNode) -> Result<FunctionId, DecodeError> {
+        Ok(self.graph.insert(node)?)
+    }
     pub fn graph(&self) -> &DensityGraph {
         &self.graph
     }

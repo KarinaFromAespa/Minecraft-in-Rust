@@ -3,6 +3,7 @@
 use super::{
     DecodeError, Object,
     block_feature::FeatureBlockBindings,
+    block_predicate::PredicateBlockResolver,
     feature::FeatureWorld,
     feature_graph::FeatureExecutionError,
     int_range, number_text, optional,
@@ -13,7 +14,10 @@ use super::{
     value_provider::{FloatProvider, IntProvider},
 };
 use crate::{heightmap::HeightmapType, registry::BlockStateId};
-use horizon_core::{geometry::trig, random::RandomSource};
+use horizon_core::{
+    geometry::{Direction, trig},
+    random::RandomSource,
+};
 use std::{collections::BTreeSet, sync::Arc};
 
 fn query<E>(error: PlacementQueryError) -> FeatureExecutionError<E> {
@@ -246,7 +250,12 @@ impl SpeleothemClusterFeature {
         remaining: &mut usize,
     ) -> Result<Self, DecodeError> {
         let object: Object = serde_json::from_str(json)?;
-        if kind(&object)? != "minecraft:speleothem_cluster" {
+        // 1.21.7 calls this feature `minecraft:dripstone_cluster`; 26.3
+        // renamed it `minecraft:speleothem_cluster`.
+        if !matches!(
+            kind(&object)?.as_str(),
+            "minecraft:speleothem_cluster" | "minecraft:dripstone_cluster"
+        ) {
             return Err(DecodeError::Field("speleothem cluster type"));
         }
         let mut decoder = TreeDecoder {
@@ -257,30 +266,63 @@ impl SpeleothemClusterFeature {
         let int = |name: &'static str, low: i32, high: i32| {
             int_range(required(&object, name)?, name, low, high)
         };
+        // 1.21.7's dripstone cluster has no base/pointed/replaceable
+        // fields — vanilla hardcodes dripstone blocks and the
+        // dripstone replaceable tag.
+        let registry = bindings.registry();
+        let base_block = match optional(&object, "base_block") {
+            Some(raw) => block_state(bindings, raw)?,
+            None => registry
+                .default_state("minecraft:dripstone_block")
+                .ok_or(DecodeError::Field("dripstone block"))?,
+        };
+        let pointed_block = match optional(&object, "pointed_block") {
+            Some(raw) => block_state(bindings, raw)?,
+            None => registry
+                .default_state("minecraft:pointed_dripstone")
+                .ok_or(DecodeError::Field("pointed dripstone"))?,
+        };
+        let replaceable = match optional(&object, "replaceable_blocks") {
+            Some(raw) => decoder.block_set(raw)?,
+            None => bindings.predicate_block_set("\"#minecraft:dripstone_replaceable_blocks\"")?,
+        };
         Ok(Self {
-            speleothem: Speleothem::new(
-                bindings,
-                block_state(bindings, required(&object, "base_block")?)?,
-                block_state(bindings, required(&object, "pointed_block")?)?,
-                decoder.block_set(required(&object, "replaceable_blocks")?)?,
-            )?,
+            speleothem: Speleothem::new(bindings, base_block, pointed_block, replaceable)?,
             search_range: int("floor_to_ceiling_search_range", 1, 512)?,
             height: decoder.int_provider(required(&object, "height")?, 1, 128)?,
             radius: decoder.int_provider(required(&object, "radius")?, 1, 128)?,
             max_height_diff: int("max_stalagmite_stalactite_height_diff", 0, 64)?,
             height_deviation: int("height_deviation", 1, 64)?,
             layer_thickness: decoder.int_provider(
-                required(&object, "speleothem_block_layer_thickness")?,
+                required(&object, "speleothem_block_layer_thickness")
+                    .or_else(|_| required(&object, "dripstone_block_layer_thickness"))?,
                 0,
                 128,
             )?,
             density: float_provider(required(&object, "density")?, 0.0, 2.0)?,
             wetness: float_provider(required(&object, "wetness")?, 0.0, 2.0)?,
             chance_at_max_distance: unit_float(
-                required(&object, "chance_of_speleothem_at_max_distance_from_center")?,
+                required(&object, "chance_of_speleothem_at_max_distance_from_center").or_else(
+                    |_| {
+                        required(
+                            &object,
+                            "chance_of_dripstone_column_at_max_distance_from_center",
+                        )
+                    },
+                )?,
                 "chance_of_speleothem_at_max_distance_from_center",
             )?,
-            max_distance_from_edge: int(
+            max_distance_from_edge: int_range(
+                required(
+                    &object,
+                    "max_distance_from_edge_affecting_chance_of_speleothem",
+                )
+                .or_else(|_| {
+                    required(
+                        &object,
+                        "max_distance_from_edge_affecting_chance_of_dripstone_column",
+                    )
+                })?,
                 "max_distance_from_edge_affecting_chance_of_speleothem",
                 1,
                 64,
@@ -602,13 +644,24 @@ impl LargeDripstoneFeature {
                 bindings,
                 dripstone,
                 pointed,
-                decoder.block_set(required(&object, "replaceable_blocks")?)?,
+                // 1.21.7's large dripstone has no such field; vanilla
+                // hardcodes the dripstone replaceable tag.
+                match optional(&object, "replaceable_blocks") {
+                    Some(raw) => decoder.block_set(raw)?,
+                    None => bindings
+                        .predicate_block_set("\"#minecraft:dripstone_replaceable_blocks\"")?,
+                },
             )?,
             search_range: optional(&object, "floor_to_ceiling_search_range")
                 .map(|raw| int_range(raw, "floor_to_ceiling_search_range", 1, 512))
                 .transpose()?
                 .unwrap_or(30),
-            column_radius: decoder.int_provider(required(&object, "column_radius")?, 1, 16)?,
+            column_radius: decoder.int_provider(
+                required(&object, "column_radius")?,
+                1,
+                // 1.21.7's large dripstone spans 3..=19; 26.x narrowed it.
+                32,
+            )?,
             height_scale: float_provider(required(&object, "height_scale")?, 0.0, 20.0)?,
             max_radius_ratio: float_range(
                 required(&object, "max_column_radius_to_cave_height_ratio")?,
@@ -810,6 +863,126 @@ impl LargeDripstoneFeature {
                     i += 1;
                 }
             }
+        }
+        Ok(())
+    }
+}
+
+/// Vanilla 1.21.7 `PointedDripstoneFeature`: a single pointed dripstone
+/// (stalactite or stalagmite) with a patch of dripstone blocks at its
+/// base. 26.3 removed it, so the Rust had no decode arm for it.
+#[derive(Clone, Debug)]
+pub struct PointedDripstoneFeature {
+    speleothem: Speleothem,
+    chance_directional: f32,
+    chance_radius2: f32,
+    chance_radius3: f32,
+    chance_taller: f32,
+}
+impl PointedDripstoneFeature {
+    pub(crate) fn decode(
+        json: &str,
+        bindings: &FeatureBlockBindings<'_>,
+        _depth: usize,
+        _remaining: &mut usize,
+    ) -> Result<Self, DecodeError> {
+        let object: Object = serde_json::from_str(json)?;
+        if kind(&object)? != "minecraft:pointed_dripstone" {
+            return Err(DecodeError::Field("pointed dripstone type"));
+        }
+        let registry = bindings.registry();
+        let dripstone = registry
+            .default_state("minecraft:dripstone_block")
+            .ok_or(DecodeError::Field("dripstone block"))?;
+        let pointed = registry
+            .default_state("minecraft:pointed_dripstone")
+            .ok_or(DecodeError::Field("pointed dripstone"))?;
+        // 1.21.7's config carries no blocks: vanilla hardcodes the
+        // dripstone blocks and the dripstone replaceable tag.
+        let replaceable =
+            bindings.predicate_block_set("\"#minecraft:dripstone_replaceable_blocks\"")?;
+        Ok(Self {
+            speleothem: Speleothem::new(bindings, dripstone, pointed, replaceable)?,
+            chance_directional: unit_float(
+                required(&object, "chance_of_directional_spread")?,
+                "chance_of_directional_spread",
+            )?,
+            chance_radius2: unit_float(
+                required(&object, "chance_of_spread_radius2")?,
+                "chance_of_spread_radius2",
+            )?,
+            chance_radius3: unit_float(
+                required(&object, "chance_of_spread_radius3")?,
+                "chance_of_spread_radius3",
+            )?,
+            chance_taller: unit_float(
+                required(&object, "chance_of_taller_dripstone")?,
+                "chance_of_taller_dripstone",
+            )?,
+        })
+    }
+    pub(crate) fn place<W: FeatureWorld + PlacementContext, R: RandomSource>(
+        &self,
+        world: &mut W,
+        random: &mut R,
+        origin: [i32; 3],
+    ) -> TreeResult<bool, W::Error> {
+        let s = &self.speleothem;
+        let above_base = s.is_base(read(world, tb::offset(origin, 0, 1, 0))?);
+        let below_base = s.is_base(read(world, tb::offset(origin, 0, -1, 0))?);
+        // The tip points away from its base; with a base on both sides
+        // vanilla draws `nextBoolean() ? DOWN : UP`.
+        let up = match (above_base, below_base) {
+            (true, true) => !random.next_boolean(),
+            (true, false) => false,
+            (false, true) => true,
+            (false, false) => return Ok(false),
+        };
+        let base_pos = tb::offset(origin, 0, if up { -1 } else { 1 }, 0);
+        self.create_patch(world, random, base_pos)?;
+        let tip_pos = tb::offset(origin, 0, if up { 1 } else { -1 }, 0);
+        let height = if random.next_float() < self.chance_taller
+            && s.empty_or_water(read(world, tip_pos)?)
+        {
+            2
+        } else {
+            1
+        };
+        s.grow(world, origin, up, height, false)?;
+        Ok(true)
+    }
+    fn create_patch<W: FeatureWorld + PlacementContext, R: RandomSource>(
+        &self,
+        world: &mut W,
+        random: &mut R,
+        pos: [i32; 3],
+    ) -> TreeResult<(), W::Error> {
+        let s = &self.speleothem;
+        s.place_base_if_possible(world, pos)?;
+        // Direction.Plane.HORIZONTAL order: north, east, south, west.
+        for direction in [
+            Direction::North,
+            Direction::East,
+            Direction::South,
+            Direction::West,
+        ] {
+            if random.next_float() > self.chance_directional {
+                continue;
+            }
+            let p2 = tb::relative(pos, direction, 1);
+            s.place_base_if_possible(world, p2)?;
+            if random.next_float() > self.chance_radius2 {
+                continue;
+            }
+            // Direction.getRandom: one bounded draw over all six values,
+            // in declaration order.
+            let p3 = tb::relative(p2, Direction::ALL[random.next_int_bound(6)? as usize], 1);
+            s.place_base_if_possible(world, p3)?;
+            if random.next_float() > self.chance_radius3 {
+                continue;
+            }
+            let p4 = tb::relative(p3, Direction::ALL[random.next_int_bound(6)? as usize], 1);
+            s.place_base_if_possible(world, p4)?;
         }
         Ok(())
     }

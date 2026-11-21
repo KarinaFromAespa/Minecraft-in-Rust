@@ -6,7 +6,7 @@ use super::{
     block_predicate::BlockPredicate,
     feature::FeatureWorld,
     feature_graph::{FeatureExecutionError, PlacedFeatureDefinition},
-    int_range,
+    int_range, optional,
     placement::{PlacementContext, PlacementQueryError},
     required,
     state_provider::BlockStateProvider,
@@ -66,8 +66,16 @@ impl RootSystemFeature {
         Ok(Self {
             tree: Box::new(tree),
             required_vertical_space: int("required_vertical_space_for_tree", 1, 64)?,
-            level_test_distance: int("level_test_distance", 0, 16)?,
-            max_level_deviation: int("max_level_deviation", 0, 64)?,
+            // 1.21.7's root system has no level test (a 26.x addition);
+            // 0 disables it in `place`.
+            level_test_distance: optional(&object, "level_test_distance")
+                .map(|raw| int_range(raw, "level_test_distance", 0, 16))
+                .transpose()?
+                .unwrap_or(0),
+            max_level_deviation: optional(&object, "max_level_deviation")
+                .map(|raw| int_range(raw, "max_level_deviation", 0, 64))
+                .transpose()?
+                .unwrap_or(0),
             root_radius: int("root_radius", 1, 64)?,
             root_replaceable: decoder.block_set(required(&object, "root_replaceable")?)?,
             root_provider: decoder.provider(required(&object, "root_state_provider")?)?,

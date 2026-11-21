@@ -88,20 +88,38 @@ impl LakeFeature {
         };
         let fluid = decoder.provider(required(&object, "fluid")?)?;
         let barrier = decoder.provider(required(&object, "barrier")?)?;
-        let mut predicate = |name: &'static str| {
-            BlockPredicate::decode_with_blocks(
-                required(&object, name)?.get(),
-                depth + 1,
-                decoder.remaining,
-                Some(bindings),
-            )
+        let mut predicate = |name: &'static str, default: &'static str| {
+            match optional(&object, name) {
+                Some(raw) => BlockPredicate::decode_with_blocks(
+                    raw.get(),
+                    depth + 1,
+                    decoder.remaining,
+                    Some(bindings),
+                ),
+                // 1.21.7's lake config carries no predicates; vanilla
+                // hardcodes them (LakeFeature.canReplaceBlock and the
+                // barrier loop's lava-pool tag check), and has no
+                // can-place check at all in the edge loop.
+                None => BlockPredicate::decode_with_blocks(
+                    default,
+                    depth + 1,
+                    decoder.remaining,
+                    Some(bindings),
+                ),
+            }
         };
         Ok(Self {
             fluid,
             barrier,
-            can_place: predicate("can_place_feature")?,
-            can_replace_air_or_fluid: predicate("can_replace_with_air_or_fluid")?,
-            can_replace_barrier: predicate("can_replace_with_barrier")?,
+            can_place: predicate("can_place_feature", r#"{"type":"minecraft:true"}"#)?,
+            can_replace_air_or_fluid: predicate(
+                "can_replace_with_air_or_fluid",
+                r#"{"type":"minecraft:not","predicate":{"type":"minecraft:matching_block_tag","tag":"minecraft:features_cannot_replace"}}"#,
+            )?,
+            can_replace_barrier: predicate(
+                "can_replace_with_barrier",
+                r#"{"type":"minecraft:not","predicate":{"type":"minecraft:matching_block_tag","tag":"minecraft:lava_pool_stone_cannot_replace"}}"#,
+            )?,
             blocks,
         })
     }

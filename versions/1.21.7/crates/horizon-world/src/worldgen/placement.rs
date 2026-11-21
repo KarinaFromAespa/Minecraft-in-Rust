@@ -45,6 +45,10 @@ pub enum PlacementModifier {
         above: i32,
     },
     InSquare,
+    RandomOffset {
+        xz_spread: IntProvider,
+        y_spread: IntProvider,
+    },
     Cuboid {
         xz_size: IntProvider,
         y_size: IntProvider,
@@ -205,6 +209,13 @@ impl PlacementModifier {
             }
             "minecraft:count" => Ok(Self::Count(provider("count", 0, 4096)?)),
             "minecraft:in_square" => Ok(Self::InSquare),
+            // 1.21.7's random_offset: two providers, the xz spread sampled
+            // once for X and once for Z (26.3 renamed it `offset` with
+            // three independent providers x/y/z).
+            "minecraft:random_offset" => Ok(Self::RandomOffset {
+                xz_spread: provider("xz_spread", -16, 16)?,
+                y_spread: provider("y_spread", -16, 16)?,
+            }),
             "minecraft:cuboid" => Ok(Self::Cuboid {
                 xz_size: provider("xz_size", 1, 16)?,
                 y_size: provider("y_size", 1, 16)?,
@@ -460,6 +471,18 @@ impl PlacementModifier {
             Self::InSquare => {
                 let x = x.wrapping_add(random.next_int_bound(16)?);
                 let z = z.wrapping_add(random.next_int_bound(16)?);
+                emit(random, [x, y, z]).map_err(PlacementError::Output)?;
+            }
+            // 1.21.7's RandomOffsetPlacement.getPositions: the xz spread
+            // sampled for X, the y spread for Y, then the xz spread again
+            // for Z — in that draw order.
+            Self::RandomOffset {
+                xz_spread,
+                y_spread,
+            } => {
+                let x = x.wrapping_add(xz_spread.sample(random)?);
+                let y = y.wrapping_add(y_spread.sample(random)?);
+                let z = z.wrapping_add(xz_spread.sample(random)?);
                 emit(random, [x, y, z]).map_err(PlacementError::Output)?;
             }
             Self::Offset(offsets) => {

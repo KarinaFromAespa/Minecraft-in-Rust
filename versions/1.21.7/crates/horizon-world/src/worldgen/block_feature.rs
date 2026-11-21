@@ -35,6 +35,14 @@ pub struct BoundTags {
     >,
 }
 impl BoundTags {
+    /// The tag `name`'s block names, in tag order (for
+    /// `getRandomElementOf`, which picks a random block, not a state).
+    pub fn members<Q: Ord + ?Sized>(&self, name: &Q) -> Option<&[String]>
+    where
+        String: std::borrow::Borrow<Q>,
+    {
+        self.tags.get(name).map(|(blocks, _)| blocks.as_slice())
+    }
     /// The states of the tag `name`, bound on first use.
     pub fn get<Q: Ord + ?Sized>(&self, name: &Q) -> Option<&Arc<BTreeSet<BlockStateId>>>
     where

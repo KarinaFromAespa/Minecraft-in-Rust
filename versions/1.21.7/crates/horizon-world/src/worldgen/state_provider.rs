@@ -346,11 +346,17 @@ impl BlockStateProvider {
         }
         *remaining -= 1;
         let object: Object = serde_json::from_str(json)?;
-        let kind = identifier(&serde_json::from_str::<String>(
-            required(&object, "type")?.get(),
-        )?)?;
+        let kind = match optional(&object, "type") {
+            Some(raw) => identifier(&serde_json::from_str::<String>(raw.get())?)?,
+            // 1.21.7's disk configs carry a rule provider with no `type`
+            // field at all — just `fallback` and `rules`.
+            None if object.contains_key("rules") => "minecraft:rule_based".to_string(),
+            None => return Err(DecodeError::Field("type")),
+        };
         Ok(Self(match kind.as_str() {
-            "minecraft:rule_based" => {
+            // 26.3 shortened the provider type names; 1.21.7 data uses the
+            // long forms. Both decode the same fields.
+            "minecraft:rule_based" | "minecraft:rule_based_state_provider" => {
                 let fallback = optional(&object, "fallback")
                     .map(|raw| {
                         Self::decode_holder(raw.get(), bindings, depth + 1, remaining, catalog)
@@ -386,13 +392,18 @@ impl BlockStateProvider {
                 }
                 Node::RuleBased { fallback, rules }
             }
-            "minecraft:noise" | "minecraft:noise_threshold" | "minecraft:dual_noise" => {
+            "minecraft:noise"
+            | "minecraft:noise_threshold"
+            | "minecraft:dual_noise"
+            | "minecraft:noise_provider"
+            | "minecraft:noise_threshold_provider"
+            | "minecraft:dual_noise_provider" => {
                 Node::Noise(Box::new(NoiseProvider::decode(&object, bindings, &kind)?))
             }
-            "minecraft:simple" => {
+            "minecraft:simple" | "minecraft:simple_state_provider" => {
                 Node::Simple(bindings.state(required(&object, "state")?.get(), false)?)
             }
-            "minecraft:weighted" => {
+            "minecraft:weighted" | "minecraft:weighted_state_provider" => {
                 Node::Weighted(WeightedList::decode(required(&object, "entries")?, |v| {
                     bindings.state(v.get(), false)
                 })?)
@@ -400,7 +411,7 @@ impl BlockStateProvider {
             "minecraft:random_block" => {
                 Node::RandomBlock(bindings.block_set(required(&object, "blocks")?)?)
             }
-            "minecraft:rotated" => {
+            "minecraft:rotated" | "minecraft:rotated_block_provider" => {
                 let direction = optional(&object, "direction")
                     .map(|v| {
                         let name: String = serde_json::from_str(v.get())?;
@@ -432,18 +443,24 @@ impl BlockStateProvider {
                 )?),
                 bindings.properties()?,
             ),
-            "minecraft:randomized_int" => Node::RandomizedInt {
-                source: Box::new(Self::decode_holder(
-                    required(&object, "source")?.get(),
-                    bindings,
-                    depth + 1,
-                    remaining,
-                    catalog,
-                )?),
-                property: serde_json::from_str(required(&object, "property")?.get())?,
-                values: IntProvider::decode(required(&object, "values")?, depth + 1, remaining)?,
-                properties: bindings.properties()?,
-            },
+            "minecraft:randomized_int" | "minecraft:randomized_int_state_provider" => {
+                Node::RandomizedInt {
+                    source: Box::new(Self::decode_holder(
+                        required(&object, "source")?.get(),
+                        bindings,
+                        depth + 1,
+                        remaining,
+                        catalog,
+                    )?),
+                    property: serde_json::from_str(required(&object, "property")?.get())?,
+                    values: IntProvider::decode(
+                        required(&object, "values")?,
+                        depth + 1,
+                        remaining,
+                    )?,
+                    properties: bindings.properties()?,
+                }
+            }
             _ => return Err(DecodeError::Field("block state provider type")),
         }))
     }
