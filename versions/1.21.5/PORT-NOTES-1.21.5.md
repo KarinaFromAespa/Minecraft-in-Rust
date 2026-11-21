@@ -5404,13 +5404,69 @@ is the oracle; decompiled code is a reading aid.
     the one `cargo check -j 1
     -p horizon-client --lib --tests`
     passed at item 115.
+- **Item 118 — ZombieVillager:
+  the random profession moves
+  to the constructor:**
+  - 1.21.6 draws the random
+    profession in
+    `finalizeSpawn` (after
+    the biome type, before
+    the zombie's own
+    finalize); 1.21.5 draws
+    it in the constructor,
+    and `finalizeSpawn`
+    only sets the type by
+    biome. The Rust port
+    already models the
+    1.21.5 form:
+    `constructor_profession`
+    (`mobs/zombie_villager.rs`)
+    draws from a fresh
+    random derived from the
+    mob's state, leaving
+    the finalize sequence
+    untouched, and
+    `finalize` calls it
+    after `villager_type`
+    (which draws nothing)
+    and before the zombie
+    step. A load without
+    saved VillagerData gets
+    the constructor draw
+    too (`read_nbt`).
+  - The save/load half is
+    the usual `ValueInput` /
+    `ValueOutput` refactor
+    with identical fields:
+    VillagerData, Offers,
+    Gossips, ConversionTime
+    and ConversionPlayer
+    are all read and
+    written, and a
+    ConversionTime other
+    than -1 resumes the
+    cure. No code change.
+  - Pre-existing nit: the
+    zombie-villager write
+    omits an empty Gossips
+    list where vanilla
+    writes it (the villager
+    write always writes
+    it); the loaded state
+    is identical either
+    way.
+  - Verification: no Rust
+    change; the tree state is
+    the one `cargo check -j 1
+    -p horizon-client --lib --tests`
+    passed at item 115.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **117 of 426 are
-closed** (rank 1 complete, rank 2 at 108/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **118 of 426 are
+closed** (rank 1 complete, rank 2 at 109/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
