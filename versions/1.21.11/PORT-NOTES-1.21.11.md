@@ -12016,3 +12016,7 @@ walk (`child.root != root`) over `Message` arguments.
 Only the `is` overload, the `ItemInstance` (26.1) vs `ItemStack` (1.21.11)
 parameter rename, and `Level.getRandom()` vs the `random` field (same
 source/draw order). The seed-drop motion matches exactly.
+
+## Item 578 — game/sniffers.rs (SnifferEggBlock) — NO-CHANGE
+
+Only `Level.getRandom()` vs the `random` field (same source/draw order).
