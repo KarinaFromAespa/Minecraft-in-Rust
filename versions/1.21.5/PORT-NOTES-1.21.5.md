@@ -11151,12 +11151,45 @@ is the oracle; decompiled code is a reading aid.
     check -j 1 -p horizon-
     client --lib 0/0.
 
+- **Item 265 — Move
+  control**
+  - MoveControl: 1.21.6
+    added a public
+    setWait(); 1.21.5 has
+    no such method. The
+    port has no set_wait
+    either — its
+    MoveControl.operation
+    is a pub field, set
+    directly where
+    vanilla's own subclass
+    controls set it
+    internally (move
+    completion, species
+    stops). The only non-
+    happy-ghast caller of
+    setWait in 1.21.6 is Te
+    mptGoal.ForNonPathfinde
+    rs.stopNavigation,
+    itself 1.21.6-only
+    (1.21.5's TemptGoal has
+    no stopNavigation); the
+    port's tempt goal stops
+    via nav_stop, the
+    1.21.5 form. The
+    Creeper and lingering-
+    potion grep hits are
+    setWaitTime, a
+    different method.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **264 of 426 are
-closed** (rank 1 complete, rank 2 at 255/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **265 of 426 are
+closed** (rank 1 complete, rank 2 at 256/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
