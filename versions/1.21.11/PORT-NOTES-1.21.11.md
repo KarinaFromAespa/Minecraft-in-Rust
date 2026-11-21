@@ -9836,3 +9836,11 @@ Stream. 1.21.11 adds `BlockItem.requiredFeatures()`
 (delegating to the block), but the Rust models no
 per-item/per-block feature-flag gating, so there is
 nothing to port it into. No code changed.
+
+## Item 216 — ambience.rs (rank 2, NO-CHANGE)
+
+2 classes, 3 methods, 2 named. Pure noise: the bubble-
+column test uses the `is(Block)` overload, and the
+underwater handler reads the level's `random` field
+instead of `getRandom()` — the same random, the same
+draws. No code changed.
