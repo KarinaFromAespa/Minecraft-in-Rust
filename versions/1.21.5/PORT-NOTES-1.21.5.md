@@ -3703,13 +3703,47 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 83 — Llama /
+  PathfinderMob leash, verified:**
+  - The llama's save/load is
+    Java API-only (`Variant`,
+    `Strength`); the Rust side
+    already maps the variant
+    component and the Strength
+    tag. `supportQuadLeash`
+    is 1.21.6-only (the quad
+    leash has no Rust surface,
+    item 78).
+  - The leash hook differs in
+    shape but not in result:
+    1.21.6's `whenLeashedTo`
+    sets home to the holder's
+    block with radius
+    `(int)leashElasticDistance()
+    - 1` = 5, once on attach;
+    1.21.5's
+    `handleLeashAtDistance`
+    restricts to the holder's
+    block with radius 5 every
+    tick. The Rust leash tick
+    already does the 1.21.5
+    form (`handle_leash_at_distance`
+    sets `ai.home` to the
+    holder's block, radius 5,
+    each tick, so the home
+    follows a moving holder).
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **82 of 426 are
-closed** (rank 1 complete, rank 2 at 73/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **83 of 426 are
+closed** (rank 1 complete, rank 2 at 74/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
