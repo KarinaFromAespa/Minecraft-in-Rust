@@ -2017,13 +2017,39 @@ is the oracle; decompiled code is a reading aid.
     horizon-narrator -p horizon-client-render
     -p horizon-client --all-targets`
     0 errors / 0 warnings (2m33s).
+- **Item 52 — Commands, verified, no code
+  change:**
+  - The `/dialog`, `/version` and
+    `/waypoint` registrations are gone
+    already (item 36), with no remnants in
+    the tree, the order list or the
+    dispatch; the restricted-flag
+    `COMMAND_NODE_INSPECTOR` went with
+    them. The LAN tree builder already
+    matches 1.21.5's `fillUsableCommands`:
+    it filters by `canUse` (required level
+    against the player's), copies
+    `executable`, and carries no
+    requirements on the synced nodes — the
+    1.21.5 `requires(() -> true)` form —
+    with suggestion providers mapped from
+    the report. `COMMAND_PREFIX` /
+    `trimOptionalPrefix`, the
+    `hasPermission` / `PermissionCheck`
+    helper and the two `register`
+    signature differences are Java API
+    with no Rust surface.
+  - Verification: `cargo check -p
+    horizon-command -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (9s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **51 of 426 are
-closed** (rank 1 complete, rank 2 at 42/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **52 of 426 are
+closed** (rank 1 complete, rank 2 at 43/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
