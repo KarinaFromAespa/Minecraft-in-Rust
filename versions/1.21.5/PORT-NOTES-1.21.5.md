@@ -10376,12 +10376,60 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 242 — Options:
+  - The four 1.21.6-only
+    options have no port
+    surface at all:
+    cloudRange,
+    keyQuickActions,
+    musicFrequency and
+    showNowPlayingToast
+    (zero references; the
+    only NowPlaying mention
+    is the jukebox HUD
+    overlay comment). Glint
+    strength is applied at
+    draw time (item 219),
+    the 1.21.5
+    setShaderGlintAlpha
+    equivalent.
+  -
+    getFinalSoundSourceVolu
+    me is only a name for
+    the fold the port
+    already does:
+    final_source_volume
+    documents that 1.21.5
+    multiplies the source
+    volume and applies the
+    master as the listener
+    gain — the same
+    product. The options-
+    file version line
+    writes version:4325
+    from DATA_VERSION, and
+    the port parses
+    key:value lines, so the
+    LenientJsonParser vs
+    JsonParser.parseReader
+    change (both lenient in
+    Gson) has no surface.
+  - getCloudsType is
+    already the 1.21.5
+    form: clouds are off
+    below render distance
+    4, pinned by the settin
+    gs_and_packed_alpha_gat
+    e_clouds test.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **241 of 426 are
-closed** (rank 1 complete, rank 2 at 232/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **242 of 426 are
+closed** (rank 1 complete, rank 2 at 233/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
