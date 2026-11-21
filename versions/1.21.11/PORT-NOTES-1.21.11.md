@@ -12333,3 +12333,8 @@ models neither validation nor context-param collection.
 it); 1.21.11 has 18 layer types, no baby one. Already handled: the
 Rust renders baby armor with the adult's textures and documents the
 missing type.
+
+## Item 630 — zip.rs (FilePackResources) — NO-CHANGE
+
+Visibility, plus a log-format change in the invalid-namespace warning
+that renders the identical message.
