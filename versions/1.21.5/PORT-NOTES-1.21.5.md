@@ -11979,12 +11979,39 @@ is the oracle; decompiled code is a reading aid.
     -p horizon-client --lib:
     clean.
 
+- **Item 285 — GameTest framework**
+  - GameTest framework: code -
+    prepare_test_structure is
+    now the 1.21.5 direct form
+    (returns (), the block
+    entity required, never
+    null) and both callers
+    dropped their null checks:
+    the in-place spawner
+    prepares then starts
+    execution, the grid spawner
+    prepares then advances the
+    grid unconditionally. The
+    port inserts a default test
+    instance block when the
+    block has none, so prepare
+    never failed anyway - the
+    bool was dead.
+    makeMockPlayer and
+    assertBlockTag have no
+    surface (no mock player, no
+    such assertion in the
+    port's helper).
+  - Verification: cargo check
+    -j 1 -p horizon-client
+    --lib --tests: clean.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **284 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 16/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **285 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 17/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
