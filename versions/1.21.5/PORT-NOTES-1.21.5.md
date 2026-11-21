@@ -4117,13 +4117,36 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 94 — BlockItem, verified:**
+  - `setBlockEntityData` is pure
+    Java API shape
+    (`TagValueOutput` back to
+    `CompoundTag`): the logic
+    is identical — drop
+    "id", remove the component
+    when the data is empty,
+    else tag the entity type
+    and set it. The Rust
+    `block_entity_item::pick`
+    does exactly that
+    (`custom_only` strips
+    "id" with the other
+    metadata keys; the
+    component is only set
+    when data remains, with
+    the type id tagged back
+    in). No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **93 of 426 are
-closed** (rank 1 complete, rank 2 at 84/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **94 of 426 are
+closed** (rank 1 complete, rank 2 at 85/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
