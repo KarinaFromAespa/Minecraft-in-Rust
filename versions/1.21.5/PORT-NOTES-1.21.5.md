@@ -8584,13 +8584,41 @@ is the oracle; decompiled code is a reading aid.
     horizon-client --lib
     --tests`, 0 errors, 0
     warnings.
+- **Item 181 — Ender
+  dragon attributes
+  and save/load:**
+  - The dragon saves and
+    loads `DragonPhase` and
+    `DragonDeathTime` as
+    ints already, the phase
+    only when present (a
+    save without it keeps
+    the hovering default)
+    and the death time
+    defaulting to 0. The
+    1.21.6
+    `camera_distance`
+    attribute has no
+    surface: the dragon
+    carries no attributes
+    at all, and
+    `Camera.setup` is
+    already the 1.21.5 flat
+    4 times the scale,
+    ignoring the
+    1.21.6-only input the
+    camera structs still
+    carry.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **180 of 426 are
-closed** (rank 1 complete, rank 2 at 171/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **181 of 426 are
+closed** (rank 1 complete, rank 2 at 172/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
