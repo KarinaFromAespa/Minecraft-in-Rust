@@ -10443,3 +10443,17 @@ vs `isOutsideBuildHeight` (inverted predicate,
 same branch). The Rust already has the 1.21.11
 shapes. No source change.
 `worldgen::generator_decoration`: 2 passed.
+
+## Item 286 — block_entity_nbt.rs (rank 2, NO-CHANGE)
+
+2 classes, 2 methods, 1 named. `fromStack`
+takes a `HolderLookup.Provider` in 1.21.11
+because `JukeboxPlayable.song` is an
+`EitherHolder` (item 242's pattern) resolved
+via `unwrap` — empty for an unregistered key;
+26.1's is a pre-resolved `Holder`. The Rust
+already resolves the song id through the
+registry at every use and bails when it is
+absent. `VaultConfig` statics lose `final` in
+1.21.11 with no effect. No source change.
+`block_entity_nbt`: 13 passed.
