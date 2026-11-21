@@ -8852,6 +8852,27 @@ citations. The literal comparison across all 34 classes
 returns exactly the one field-name difference. Tests:
 `worldgen::router::` 2 passed.
 
+## Item 151 — game/functions.rs (rank 2, CHANGED)
+
+11 classes, 34 methods, 1 named. In 1.21.11 the `/schedule`
+queue is not a SavedData at all: `PrimaryLevelData` holds
+the `TimerQueue` and stores it in level.dat's
+`Data.ScheduledEvents` as `{Name, TriggerTime, Callback}`
+compounds, with the callback's function id under `Name`
+(the 26.1 codec form was `trigger_time` / `id` /
+`callback: {type, id}` in a separate
+`data/minecraft/scheduled_events.dat`). The Rust's schedule
+persistence was entirely 26.1-shaped and is now
+1.21.11-shaped: `load_schedule` reads level.dat's
+`ScheduledEvents` (unparseable callback drops the event,
+`Name` defaults to `""`, `TriggerTime` to 0);
+`save_schedule` builds the 1.21.11 list and hands it to the
+level (`Level.scheduled_events`, a new field written into
+`Data` by `write_internal` when set). Tests:
+`game::functions::tests::scheduled_events` 2 passed (both
+new; the first run was OOM-killed at the lib-test link, the
+retry passed).
+
 ## CI proof run 44839260120 (recorded below)
 
 Dispatched 05:31 NPT Nov 21, 2026 on behaviour/1.21.11 @

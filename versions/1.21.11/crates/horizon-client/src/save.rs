@@ -3996,6 +3996,11 @@ pub struct Level {
     pub world_spawn: Option<[i32; 3]>,
     /// The world spawn's yaw and pitch (`setworldspawn`'s rotation).
     pub world_spawn_angle: [f32; 2],
+    /// `PrimaryLevelData`'s `ScheduledEvents`: the `/schedule` queue as
+    /// `TimerQueue.store()` writes it, handed over by the game before a
+    /// save and written into `Data` when present. `None` keeps the loaded
+    /// value (a remote game, or one that never loaded its functions).
+    pub scheduled_events: Option<Tag>,
     pub difficulty: String,
     pub hardcore: bool,
     /// `DifficultyLocked` (LevelData.isDifficultyLocked).
@@ -4833,7 +4838,13 @@ impl Level {
             );
         }
         put(&mut data, "game_rules", rules);
-        // `DragonFight`, `ScheduledEvents`, `CustomBossEvents`, the wandering trader and
+        // `PrimaryLevelData.createTag` always writes `ScheduledEvents`;
+        // here it is written when the game handed over a queue, and the
+        // loaded value is kept otherwise.
+        if let Some(events) = &self.scheduled_events {
+            put(&mut data, "ScheduledEvents", events.clone());
+        }
+        // `DragonFight`, `CustomBossEvents`, the wandering trader and
         // the world border are not modelled here: they survive because nothing above
         // removes them from the loaded `Data`.
         write_dat(&dir.join("level.dat"), Tag::compound([("Data", data)]))?;
