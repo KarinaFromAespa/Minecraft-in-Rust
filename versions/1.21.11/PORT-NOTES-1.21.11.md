@@ -10825,3 +10825,13 @@ adds `SoundBuffer.size`/`format()`/
 the shared buffer methods are unchanged,
 and the Rust has its own `DeviceProbe`
 with the same shape. `audio`: 30 passed.
+
+## Item 359 — world/item/enchantment (rank 2, NO-CHANGE)
+
+5 classes, 5 methods, 0 named. The empty
+exclusive set is `HolderSet.empty()` in
+26.1 and `direct(new Holder[0])` in
+1.21.11 — the same empty set; the rest is
+visibility widening and two 26.1-only
+internal effect-action interfaces.
+`enchant`: 17 passed.
