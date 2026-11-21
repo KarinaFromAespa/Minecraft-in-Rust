@@ -9442,13 +9442,45 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 214 —
+  world.waypoints:**
+  - The whole package —
+    `Waypoint`,
+    `TrackedWaypoint`,
+    `WaypointTransmitter` —
+    is 1.21.6-only. Its
+    port surface is already
+    gone: the manager,
+    packets, command and
+    locator bar went in
+    items 108/131/145, and
+    no hide modifier, icon,
+    transmitter logic or
+    332-block rule survives
+    anywhere. The only
+    remnant was a stale
+    comment citing the
+    deleted
+    `lan_waypoints.rs`, now
+    removed. The waypoint
+    range attributes and
+    their update events
+    stay: items 225/260/264
+    own them. (Bot
+    navigation and
+    pathfinding waypoints
+    are unrelated.)
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib`
+    0/0 (3m29s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **213 of 426 are
-closed** (rank 1 complete, rank 2 at 204/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **214 of 426 are
+closed** (rank 1 complete, rank 2 at 205/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
