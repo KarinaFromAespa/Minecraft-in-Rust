@@ -9155,3 +9155,17 @@ represent an inline configured flower feature, which 1.21.11's
 type filter would include — impossible on vanilla data (verified:
 no inline placed features in the 1.21.11 data pack). Tests:
 bonemeal/grass filters pass.
+
+## Item 165 — game/commands/data.rs (rank 2, NO-CHANGE)
+
+4 classes, 17 methods, 2 named. No behaviour delta: `TagCommand`
+is an `entityTags()` → `getTags()` rename; the data accessors
+differ only by visibility; `PersistentEntitySectionManager`
+differs only by visibility and the `ChunkPos.pack` → `toLong` /
+`asLong` / `new ChunkPos(long)` renames, with identical
+`processPendingLoads` logic. The Rust's uniform `pack`/`unpack`
+naming across BlockPos/SectionPos/ChunkPos stays (1.21.11's Java
+names are inconsistent across the three types; renaming would be
+tree-wide churn for nothing). Tests: `game::commands::data::` 12
+ignored (fixture-gated). Disk note: the first test run hit quota
+exceeded; cleaned `target/debug/incremental` (24G), 103G → 93G.
