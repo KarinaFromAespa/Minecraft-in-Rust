@@ -7216,13 +7216,36 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-command
     -p horizon-client --lib`
     passed at item 145.
+- **Item 153 — Limited
+  crafting verified against
+  1.21.5:**
+  - `ServerPlayer.level()`
+    → `serverLevel()` in
+    `setRecipeUsed` is the
+    same pure rename as
+    item 149: both return
+    the same `ServerLevel`.
+    The gate itself is
+    implemented in the
+    Rust crafting menu:
+    with limited crafting
+    on, only special
+    recipes or recipes the
+    player's book knows
+    produce a result.
+  - Verification: no Rust
+    change; the tree state
+    is the one `cargo check
+    -j 1 -p horizon-command
+    -p horizon-client --lib`
+    passed at item 145.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **152 of 426 are
-closed** (rank 1 complete, rank 2 at 143/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **153 of 426 are
+closed** (rank 1 complete, rank 2 at 144/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
