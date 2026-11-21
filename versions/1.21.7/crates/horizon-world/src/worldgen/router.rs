@@ -3,7 +3,7 @@
 //! ore-vein fields.
 use super::{DecodeError, Object, climate::ClimateSampler, density::DensityRegistry, required};
 use horizon_core::density::{
-    DensitySampler,
+    BinaryOp, BinarySampler, ContextBoundSampler, DensitySampler, WorldField,
     graph::{CompileError, DensityCompiler, FunctionId},
 };
 use std::sync::Arc;
@@ -107,13 +107,27 @@ impl NoiseRouter {
     /// One compiler owns the cache namespace for every router field. Existing
     /// compiler samplers and cache IDs are reused rather than reset per root.
     pub fn compile(self, compiler: &mut DensityCompiler) -> Result<RouterSamplers, CompileError> {
-        let samplers = self
+        let mut samplers: [Arc<dyn DensitySampler>; 15] = self
             .functions
             .iter()
             .map(|id| compiler.get_sampler(*id))
             .collect::<Result<Vec<_>, _>>()?
             .try_into()
             .expect("one sampler for each of fifteen router fields");
+        // NoiseChunk: the terrain density is final_density + the beardifier.
+        // Neither vanilla's data nor ours has a beardifier node in the graph;
+        // the constructor adds the marker and swaps in the chunk's beardifier
+        // (Beardifier.forStructuresInChunk). Without this, bearded structures
+        // keep their halls full of rock: the ancient-city, trial-chamber and
+        // village templates carry no air blocks at all, so only the beard
+        // clears them. ContextBoundSampler falls back to 0 where no
+        // beardifier is bound, so chunks without bearded structures sample
+        // exactly as before.
+        samplers[RouterField::FinalDensity as usize] = Arc::new(BinarySampler {
+            left: samplers[RouterField::FinalDensity as usize].clone(),
+            right: Arc::new(ContextBoundSampler::new(WorldField::Beardifier)),
+            operation: BinaryOp::Add,
+        });
         Ok(RouterSamplers { samplers })
     }
     /// Compile only the six climate roots, in vanilla's sampler-binding order.

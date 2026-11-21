@@ -5580,4 +5580,79 @@ mod tests {
             );
         }
     }
+
+    /// The beardifier shapes bearded structures' terrain (NoiseChunk adds it
+    /// to final_density): the ancient city's halls are air before any piece
+    /// is placed, and trial chambers fill the density caves around them.
+    /// Expected values are vanilla-derived at the Test 1 seed
+    /// 8257987075890829262: the vanilla region files' post-decorate deep-band
+    /// air plus the structure blocks in the band (counted from the same
+    /// files), since generate_proto runs before decoration. Without the
+    /// beardifier, (2,-15) measures 0.04 and (13,-14) 22.00.
+    #[test]
+    fn beardifier_shapes_deep_band_at_test1_seed() {
+        const SEED: i64 = 8257987075890829262;
+        let version = horizon_core::version::VERSION_ID;
+        let root = std::env::var_os("HORIZON_TEST_RESOURCES")
+            .or_else(|| std::env::var_os("HORIZON_RESOURCES"))
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../.local/horizon-client")
+                    .join(version)
+            });
+        if !root.join("worldgen/world_presets.json").exists() {
+            eprintln!("skipping: no worldgen bundle at {}", root.display());
+            return;
+        }
+        let registry: &'static BlockRegistry = Box::leak(Box::new(
+            crate::level::data::load_registry(&root).expect("registry"),
+        ));
+        let data = GeneratorData::load(&root.join("worldgen"), registry).expect("worldgen data");
+        let generator = OverworldGenerator::new(data.clone(), SEED).expect("overworld pipeline");
+        let mut worker = generator.worker();
+        let classify = |name: &str| -> u8 {
+            match name {
+                "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air" => 0,
+                "minecraft:water" => 1,
+                _ => 3,
+            }
+        };
+        // (chunk, vanilla terrain-level deep-band air/col)
+        for (pos, vanilla_mean) in [
+            (ChunkPos::new(2, -15), 18.92),
+            (ChunkPos::new(13, -14), 1.2),
+        ] {
+            let chunk = worker
+                .generate_proto(pos)
+                .unwrap_or_else(|e| panic!("chunk {pos:?}: {e}"));
+            let min_y = chunk.terrain.min_y();
+            let height = chunk.terrain.height();
+            let mut total = 0usize;
+            for lz in 0..16 {
+                for lx in 0..16 {
+                    let mut ground = min_y - 1;
+                    for y in (min_y..min_y + height).rev() {
+                        if classify(chunk.block_name(lx, y, lz)) == 3 {
+                            ground = y;
+                            break;
+                        }
+                    }
+                    for y in -64..-32 {
+                        if y >= ground - 1 {
+                            continue;
+                        }
+                        if classify(chunk.block_name(lx, y, lz)) == 0 {
+                            total += 1;
+                        }
+                    }
+                }
+            }
+            let mean = total as f64 / 256.0;
+            assert!(
+                (mean - vanilla_mean).abs() < 2.0,
+                "chunk {pos:?} deep-band air mean {mean:.2}, vanilla {vanilla_mean:.2}"
+            );
+        }
+    }
 }
