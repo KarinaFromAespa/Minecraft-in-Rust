@@ -16,7 +16,8 @@ use std::{
     sync::{Arc, OnceLock, RwLock},
 };
 
-/// `SoundSource` indices (vanilla order).
+/// `SoundSource` indices (vanilla order). 1.21.5 has no UI source — UI
+/// sounds play on MASTER (`SimpleSoundInstance.forUI`); UI arrived in 1.21.6.
 pub const MASTER: usize = 0;
 pub const MUSIC: usize = 1;
 pub const RECORDS: usize = 2;
@@ -24,7 +25,6 @@ pub const WEATHER: usize = 3;
 pub const NEUTRAL: usize = 6;
 pub const PLAYERS: usize = 7;
 pub const AMBIENT: usize = 8;
-pub const UI: usize = 10;
 /// The pool sizes `Library.init` derives from OpenAL Soft's default 255 mono
 /// sources: `clamp((int) sqrt(255), 2, 8)` streaming, the rest static.
 pub const STATIC_CHANNELS: usize = 247;
@@ -298,11 +298,12 @@ impl SoundInstance {
             .as_ref()
             .is_none_or(|entity| !entity.state().silent)
     }
-    /// `SimpleSoundInstance.forUI(sound, pitch, volume)`.
+    /// `SimpleSoundInstance.forUI(sound, pitch, volume)`: on MASTER in
+    /// 1.21.5 (there is no UI source yet).
     pub fn for_ui(id: &str, pitch: f32, volume: f32, random: LegacyRandom) -> Self {
         Self::new(
             id,
-            UI,
+            MASTER,
             volume,
             pitch,
             random,
@@ -970,7 +971,7 @@ pub struct SoundEngine {
     next_handle: u64,
     /// `instanceBySource`.
     instance_by_source: Vec<(usize, InstanceId)>,
-    gain_by_source: [f32; 11],
+    gain_by_source: [f32; 10],
     ticking: Vec<InstanceId>,
     live_scratch: Vec<(u64, ChannelId)>,
     mapped_scratch: Vec<u64>,
@@ -983,7 +984,7 @@ pub struct SoundEngine {
     used: [usize; 2],
     pub limits: [usize; 2],
     /// `Options.getSoundSourceVolume` per source (index 0 is master).
-    pub source_volumes: [f32; 11],
+    pub source_volumes: [f32; 10],
     /// A `SoundEventListener` is registered.
     pub listening: bool,
     /// Static channels positional sounds leave free for the ones played to the
@@ -1011,7 +1012,7 @@ impl SoundEngine {
             handles: HashMap::new(),
             next_handle: 1,
             instance_by_source: Vec::new(),
-            gain_by_source: [1.0; 11],
+            gain_by_source: [1.0; 10],
             ticking: Vec::new(),
             live_scratch: Vec::new(),
             mapped_scratch: Vec::new(),
@@ -1022,7 +1023,7 @@ impl SoundEngine {
             queued_tickable: Vec::new(),
             used: [0, 0],
             limits: [STATIC_CHANNELS, STREAMING_CHANNELS],
-            source_volumes: [1.0; 11],
+            source_volumes: [1.0; 10],
             listening: false,
             listener_reserve: 0,
             notifications: Vec::new(),
@@ -1193,9 +1194,20 @@ impl SoundEngine {
                     h.pitch_edited = pitch_edited;
                 }
                 if let Some(c) = self.handles.get(&handle).and_then(handle_channel) {
-                    backend.set_volume(c, volume);
-                    if let Some(pitch) = pitch {
-                        backend.set_pitch(c, pitch);
+                    // 1.21.5's `updateCategoryVolume` stops a channel whose
+                    // calculated volume is zero — but only the option volumes
+                    // count: the category gain is Horizon's fade/ducking, and
+                    // a faded-out track must come back when the gain does
+                    // (vanilla fades music via per-instance `setVolume`).
+                    let option_volume =
+                        v.clamp(0.0, 1.0) * self.final_source_volume(s).clamp(0.0, 1.0);
+                    if option_volume <= 0.0 {
+                        backend.stop(c);
+                    } else {
+                        backend.set_volume(c, volume);
+                        if let Some(pitch) = pitch {
+                            backend.set_pitch(c, pitch);
+                        }
                     }
                 }
             }
@@ -1254,7 +1266,7 @@ impl SoundEngine {
         self.instance_by_source.clear();
         self.delete_time.clear();
         self.queued_tickable.clear();
-        self.gain_by_source = [1.0; 11];
+        self.gain_by_source = [1.0; 10];
         for id in ids {
             self.collect(id);
         }
@@ -1387,7 +1399,9 @@ impl SoundEngine {
         let volume = self.calculate_volume(instance_volume, source);
         let mut silently = false;
         if volume == 0.0 {
-            if !instance.can_start_silent && source != MUSIC {
+            // 1.21.5 skips a zero-volume sound unless it can start silent;
+            // 1.21.6 let MUSIC start silently too.
+            if !instance.can_start_silent {
                 return PlayResult::NotStarted;
             }
             silently = true;
@@ -1475,12 +1489,12 @@ impl SoundEngine {
     pub fn is_active(&self, id: InstanceId) -> bool {
         self.loaded && self.channel_of(id).is_some()
     }
-    /// `tick(paused)`, then `ChannelAccess.scheduleTick`.
+    /// `tick(paused)`, then `ChannelAccess.scheduleTick`. 1.21.5 ticks
+    /// nothing while paused (1.21.6's `tickMusicWhenPaused` cleaned up
+    /// stopped music channels).
     pub fn tick(&mut self, paused: bool, ctx: &TickContext, backend: &mut impl Backend) {
         if !paused {
             self.tick_in_game(ctx, backend);
-        } else {
-            self.tick_music_when_paused();
         }
         self.schedule_tick(backend);
     }
@@ -1569,10 +1583,22 @@ impl SoundEngine {
         let mut index = 0;
         while index < self.instance_to_channel.len() {
             let (id, handle) = self.instance_to_channel[index];
-            if self.handle_stopped(handle)
-                && self.delete_time.get(&id).copied().unwrap_or(0) <= self.tick_count
+            // 1.21.5's tick stops and removes a sound whose source volume is
+            // zero, at once rather than after its delete time (a
+            // can-start-silent instance that began at zero volume).
+            let silent_source = self
+                .instances
+                .get(&id)
+                .is_some_and(|i| self.source_volumes[i.source] <= 0.0);
+            if silent_source {
+                self.stop(id, backend);
+            }
+            if silent_source
+                || (self.handle_stopped(handle)
+                    && self.delete_time.get(&id).copied().unwrap_or(0) <= self.tick_count)
             {
-                if let Some(i) = self.instances.get(&id)
+                if !silent_source
+                    && let Some(i) = self.instances.get(&id)
                     && i.looping
                     && i.delay > 0
                 {
@@ -1617,23 +1643,6 @@ impl SoundEngine {
         }
         self.ticking_scratch = ticking;
         self.removed_scratch = removed;
-    }
-    fn tick_music_when_paused(&mut self) {
-        let mut index = 0;
-        while index < self.instance_to_channel.len() {
-            let (id, handle) = self.instance_to_channel[index];
-            let music = self.instances.get(&id).is_some_and(|i| i.source == MUSIC);
-            if music && self.handle_stopped(handle) {
-                self.instance_to_channel.remove(index);
-                self.handles.remove(&handle);
-                self.delete_time.remove(&id);
-                self.instance_by_source
-                    .retain(|e| e.0 != MUSIC || e.1 != id);
-                self.collect(id);
-            } else {
-                index += 1;
-            }
-        }
     }
     /// `pauseAllExcept`.
     pub fn pause_all_except(&mut self, sources: &[usize], backend: &mut impl Backend) {

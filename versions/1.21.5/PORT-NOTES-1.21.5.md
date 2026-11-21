@@ -2920,13 +2920,81 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (58s).
+- **Item 65 — SoundEngine /
+  SimpleSoundInstance, ported:**
+  - Zero volume stops sounds in
+    1.21.5: `updateCategoryVolume`
+    stops a channel whose calculated
+    volume is zero instead of
+    setting it, and the tick stops
+    and removes sounds whose source
+    volume is zero at once rather
+    than after their delete time.
+    `refresh_category_volume` now
+    stops at option-volume zero
+    (keyed on the option volumes,
+    not the category gain — the
+    gain is Horizon's fade/ducking,
+    and a faded-out track must come
+    back when the gain does, as
+    vanilla fades music via
+    per-instance `setVolume`), and
+    the tick cleanup removes
+    zero-source-volume sounds
+    immediately without re-queueing
+    them. The master-silence stop
+    was already 1.21.5 (item 25).
+  - `play` loses the MUSIC
+    exception: 1.21.6 let music
+    start silently at zero volume
+    (and past a zero master gain);
+    1.21.5 skips any zero-volume
+    sound unless it can start
+    silent. `StartedSilently`
+    survives for the
+    can-start-silent instances
+    (jukebox, riding, bee, music
+    layers).
+  - Nothing ticks while paused:
+    `tick_music_when_paused` (the
+    1.21.6 cleanup of stopped
+    music channels) is deleted.
+    `pause()` already paused every
+    channel (1.21.5's `pause()`,
+    not 1.21.6's
+    `pauseAllExcept(MUSIC, UI)`).
+  - The UI source is gone: 1.21.5
+    has 10 sound sources, no UI.
+    `for_ui` plays on MASTER,
+    `ui.*` events classify to
+    MASTER, `SOUND_SOURCES` drops
+    "ui", and every volume array
+    (`SOURCE_VOLUMES`,
+    `Settings.volumes`,
+    `source_volumes`,
+    `gain_by_source`, the sync
+    volumes) shrinks from 11 to
+    10. The options sliders and
+    the options file follow from
+    the source list, so they lose
+    the UI slider with no further
+    change. `for_music` was already
+    fixed volume 1.0, and the Now
+    Playing toast was already gone
+    (item 37).
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (1m25s re-check after fixing a
+    stale `UI` import in the sound
+    preview test).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **64 of 426 are
-closed** (rank 1 complete, rank 2 at 55/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **65 of 426 are
+closed** (rank 1 complete, rank 2 at 56/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

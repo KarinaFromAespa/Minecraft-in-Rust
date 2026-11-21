@@ -1602,11 +1602,11 @@ impl Audio {
     /// Sync the volume options, refreshing the categories that changed
     /// (the option sliders' `refreshCategoryVolume`).
     fn sync_volumes(&mut self) {
-        let mut volumes = [self.master; 11];
+        let mut volumes = [self.master; 10];
         for (i, v) in volumes.iter_mut().enumerate().skip(1) {
             *v = crate::settings::source_volume(i);
         }
-        for source in 0..11 {
+        for source in 0..10 {
             if self.engine.source_volumes[source] != volumes[source] {
                 // `SoundManager.updateSourceVolume` (1.21.5): silencing the
                 // master stops every sound, it does not just mute them — a
@@ -2271,7 +2271,7 @@ mod tests {
         audio.play_button_click();
         let instance = audio.engine.instance(1).expect("click reached the engine");
         assert_eq!(instance.identifier, "minecraft:ui.button.click");
-        assert_eq!(instance.source, crate::sound_engine::UI);
+        assert_eq!(instance.source, crate::sound_engine::MASTER);
         assert_eq!(instance.volume, 0.25);
         assert_eq!(instance.pitch, 1.0);
         assert_eq!(instance.attenuation, Attenuation::None);
