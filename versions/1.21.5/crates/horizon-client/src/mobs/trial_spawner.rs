@@ -1,5 +1,5 @@
 //! The trial spawner (`TrialSpawner` as `TrialSpawnerBlockEntity` runs it):
-//! its configs, saved state (`TrialSpawnerStateData`) and the server tick that
+//! its configs, saved state (`TrialSpawnerData`) and the server tick that
 //! walks `TrialSpawnerState`: waiting for players, spawning its waves while
 //! they fight, ejecting a reward per player, then cooling down.
 //!
@@ -390,19 +390,14 @@ pub trait TrialSpawnerExt: Sized {
     /// `TrialSpawner.store`: the state data's fields that differ from their
     /// defaults, then the configs.
     fn save(&self) -> Vec<(&'static str, Tag)>;
-    /// `TrialSpawnerStateData.getUpdateTag`.
+    /// `TrialSpawnerData.getUpdateTag`.
     fn update_tag(&self, state: TrialState) -> Tag;
-    /// `activeConfig`.
+    /// `getConfig`.
     fn active_config(&self) -> &TrialConfig;
     /// `overrideEntityToSpawn` (a spawn egg's `setEntityId`): the data resets
     /// and both configs spawn only `id` (`withSpawning`), saved inline as
     /// `Holder.direct`. The caller then sets the state to `inactive`.
     fn override_entity(&mut self, id: &str);
-    /// `overrideEntityToSpawn(TypedEntityData)` (an op's spawn egg with entity
-    /// data, `FullConfig.overrideEntityData`): as [`Self::override_entity`],
-    /// but each config's spawn data is `id` with `data` merged over it
-    /// (`TypedEntityData.loadInto`).
-    fn override_entity_data(&mut self, id: &str, data: &Compound);
     /// `resetStatistics`.
     fn reset_statistics(&mut self);
     /// `reset`.
@@ -515,7 +510,7 @@ impl TrialSpawnerExt for TrialSpawner {
             ejecting_loot_table: identifier(tag.get("ejecting_loot_table")),
             ..Self::default()
         };
-        // FullConfig.MAP_CODEC, partial result kept: a field that fails to
+        // TrialSpawner.codec(), partial result kept: a field that fails to
         // decode takes its default.
         let slot = |k: &str| -> ConfigSlot {
             let config = match tag.get(k) {
@@ -622,16 +617,6 @@ impl TrialSpawnerExt for TrialSpawner {
         for slot in [&mut self.normal, &mut self.ominous] {
             let mut entity = Compound::new();
             entity.insert("id".into(), Tag::String(id.into()));
-            slot.config.spawn_potentials = vec![(SpawnData::new(entity, None, None), 1)];
-            slot.saved = Some(slot.config.encode());
-        }
-    }
-    fn override_entity_data(&mut self, id: &str, data: &Compound) {
-        self.reset();
-        for slot in [&mut self.normal, &mut self.ominous] {
-            let mut entity = Compound::new();
-            entity.insert("id".into(), Tag::String(id.into()));
-            crate::data_cmd::merge_compound(&mut entity, data);
             slot.config.spawn_potentials = vec![(SpawnData::new(entity, None, None), 1)];
             slot.saved = Some(slot.config.encode());
         }

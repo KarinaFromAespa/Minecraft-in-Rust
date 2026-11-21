@@ -122,7 +122,7 @@ impl Game<'_> {
     /// What the LAN encoder builds update tags from beyond the block entity:
     /// the mods' hook (`native_block_entity_update_tag`), and the block
     /// states with `trial_spawner_state=active`, the only ones whose tag
-    /// holds `next_mob_spawns_at` (`TrialSpawnerStateData.getUpdateTag`).
+    /// holds `next_mob_spawns_at` (`TrialSpawnerData.getUpdateTag`).
     pub(super) fn lan_update_tag_sources(
         &self,
         encoder: &mut horizon_client::lan::chunks::ChunkEncoder,

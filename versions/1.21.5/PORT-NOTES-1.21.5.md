@@ -961,13 +961,53 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -p horizon-client-render
     -p horizon-client --all-targets` 0 errors / 0 warnings
     (2m59s).
+- **Item 26 — TrialSpawner / TrialSpawnerState, ported:**
+  - The diff is a refactor with identical behaviour: the
+    1.21.6 `FullConfig` record and `TrialSpawnerStateData`
+    / `Packed` are 1.21.5's separate fields and
+    `TrialSpawnerData`, with the same codec fields and
+    defaults (`normal_config`, `ominous_config`,
+    `target_cooldown_length` 36000, `required_player_range`
+    14; `registered_players`, `current_mobs`,
+    `cooldown_ends_at`, `next_mob_spawns_at`,
+    `total_mobs_spawned`, `spawn_data`,
+    `ejecting_loot_table` — verified field-for-field in
+    both codecs). `spawnMob` is the same logic with
+    CompoundTag plumbing instead of ValueInput, and
+    `TrialSpawnerState` only renames accessors
+    (`getStateData` -> `getData`, `activeConfig` ->
+    `getConfig`). The Rust's load/save already matches
+    1.21.5's NBT; the doc citations were reworded
+    (`TrialSpawnerStateData` -> `TrialSpawnerData`,
+    `activeConfig` -> `getConfig`, `FullConfig.MAP_CODEC`
+    -> `TrialSpawner.codec()`) in `mobs/trial_spawner.rs`,
+    `game/trial_spawner.rs`, `lan/chunks.rs`,
+    `block_entity_nbt.rs` and the render crate's
+    `block_entity.rs`.
+  - One real behaviour fix, found via the bogus citation:
+    `TrialSpawner::override_entity_data` cited
+    `FullConfig.overrideEntityData`, which exists in
+    neither version — 1.21.5's `TrialSpawnerBlockEntity`
+    has only `setEntityId`, and `SpawnEggItem.useOn`
+    (unchanged between versions) calls only `setEntityId`,
+    dropping the egg's entity data. The trial-spawner
+    branch of `use_spawn_egg_on_spawner` now always calls
+    `override_entity`, and `override_entity_data` is
+    deleted. NOTE for the regular-spawner item
+    (`SpawnerBlockEntity` changed too): the same 26.3-ism
+    lives on in `set_entity_data` / `spawn_egg_on_spawner`
+    (op eggs still pass data to regular spawners), which
+    1.21.5's `SpawnEggItem.useOn` does not do either.
+  - Verification: `cargo check -p horizon-client-render
+    -p horizon-client --all-targets` 0 errors / 0 warnings
+    (1m49s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **25 of 426 are
-closed** (rank 1 complete, rank 2 at 16/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **26 of 426 are
+closed** (rank 1 complete, rank 2 at 17/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

@@ -677,7 +677,7 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
             }
         }
         "minecraft:trial_spawner" => {
-            // `TrialSpawnerStateData.Packed` and `FullConfig`: every key is optional
+            // `TrialSpawnerData` and `TrialSpawner.codec()`: every key is optional
             // and defaulted by vanilla; they are kept as loaded. No `spawn_data` is
             // added: an absent one loads as Optional.empty and is not stored, and
             // an empty entity would keep the spawner from ever picking a mob.
