@@ -7777,13 +7777,51 @@ is the oracle; decompiled code is a reading aid.
     was not run (OOM
     under load, item
     122).
+- **Item 163 —
+  Inventory screen
+  verified:**
+  - The title is
+    `rgba(64, 64, 64,
+    255)` — the opaque
+    spelling of 1.21.5's
+    `4210752`, same
+    pixels via
+    `adjustColor`
+    (items 84, 106).
+    The effects panel
+    draws after the
+    slots and recipe
+    book, with its
+    tooltip last — the
+    1.21.5 single
+    `render` after
+    `super.render`, not
+    1.21.6's split
+    `renderEffects` /
+    `renderTooltip`.
+    The player figure
+    is (26, 8)–(75,
+    78) at scale 30,
+    0.0625 — identical
+    in both versions.
+    The `EntityRenderState`
+    submit vs the
+    direct pose-stack
+    render is GPU
+    plumbing with no
+    Rust surface (the
+    port draws the
+    preview itself).
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **162 of 426 are
-closed** (rank 1 complete, rank 2 at 153/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **163 of 426 are
+closed** (rank 1 complete, rank 2 at 154/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
