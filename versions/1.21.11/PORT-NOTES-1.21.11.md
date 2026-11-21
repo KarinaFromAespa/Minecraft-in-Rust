@@ -8645,3 +8645,15 @@ Changes: `has_mob_to_spawn` and `apply_ominous` test
 New test `flame_and_portal_light_go_to_their_12111_channels`.
 Tests: `mobs::trial_spawner::` 5 passed, `particles::` 58 passed
 + 1 ignored, new light test passes.
+
+## Item 138 — level/pistons.rs (rank 2, NO-CHANGE)
+
+2 classes, 7 methods, 4 named (`checkIfExtend`, `isPushable`,
+`moveBlocks`, `triggerEvent`). The javap diff is the `is(Object)`
+-> `is(Block)` overload noise plus `triggerEvent` renumbering
+(26.1 stores `level.getRandom()` in a local; 1.21.11 reads the
+`level.random` field inline — same stream, same pitch draws);
+the literal comparison returns zero differences across both
+classes. The Rust already mirrors the Java exactly (flags 67/276,
+pitches, volumes, game events, the sticky-pull gate). Test:
+`level::tests::pistons_push_and_sticky_pistons_pull` 1 passed.
