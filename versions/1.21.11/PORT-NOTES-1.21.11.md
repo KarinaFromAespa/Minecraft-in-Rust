@@ -11113,3 +11113,24 @@ not validate loot). 1.21.11's
 .getReferencedContextParams` has no Rust
 surface (no context-param tracking
 anywhere). `codec`: 3 passed.
+
+## Item 506 — item_render/gui.rs (rank 3, NO-CHANGE)
+
+8 classes, 31 methods, 3 named.
+The PiP renderers differ only in
+package moves (`renderer/state/gui` →
+`gui/render/state`), the sprite →
+material system, and the projection
+buffer restructure (same ±1000 ortho);
+`Lighting` differs only in the
+GpuDevice class/interface form and the
+`CardinalLighting$Type` →
+`DimensionType$CardinalLightType` move
+(same values). `GuiItemAtlas` is
+26.1-only, but 1.21.11's `GuiRenderer`
+holds the items atlas itself and
+`GuiItemRenderState` carries the same
+scissor/oversized bounds (verified
+identical) — the one edit re-points
+the module-doc citation there.
+`item_render::gui`: 8 passed.

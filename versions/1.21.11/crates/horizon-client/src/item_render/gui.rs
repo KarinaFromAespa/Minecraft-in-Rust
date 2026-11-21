@@ -3,8 +3,9 @@
 //! `scale(16, -16, 16)`), lit with `Lighting.Entry.ITEMS_3D` or `ITEMS_FLAT`
 //! (`minecraft_mix_light` on the transformed normals), back faces culled,
 //! drawn far to near, and clipped to the item's 16x16 slot unless the model
-//! is oversized in the GUI (`GuiItemAtlas` draws each item into a scissored
-//! 16x16 slot; oversized items get a picture-in-picture of their bounds).
+//! is oversized in the GUI (`GuiRenderer` draws each item into a scissored
+//! 16x16 slot of its items atlas; oversized items get a picture-in-picture
+//! of their bounds — `GuiItemRenderState.oversizedItemBounds`).
 use super::{Foil, Glint, ItemQuad, ItemRenderState, ItemRenderer, SpecialHost};
 use crate::cit::Rule;
 use crate::cit_glint::StackGlint;
