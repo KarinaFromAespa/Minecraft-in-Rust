@@ -534,3 +534,12 @@ cell sizes — it interpolates on the dimension's noise cell — while
 26.x made them explicit fields. They now default to 4 wide, 8 tall,
 the overworld's cell; only the overworld uses `interpolated` (noodle
 caves), so no other dimension is affected.
+
+Eleventh launch crash, same morning (12:29 NPT): "invalid world
+generation field: noise". 1.21.7's `shift_a`/`shift_b` name their
+noise through `argument` (a noise holder); 26.x renamed the field to
+`noise`, so the decoder died on the overworld's shift_x/shift_z.
+Carried 26.2's `shift_noise` helper over verbatim: it accepts either
+spelling, resolving the argument string against the noise registry
+(`minecraft:offset` is a noise, not a density function — there is no
+density_function/offset.json).

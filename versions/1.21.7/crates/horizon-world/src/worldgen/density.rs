@@ -206,6 +206,22 @@ impl Loader {
             None => Ok(self.graph.insert(GraphNode::Constant(fallback))?),
         }
     }
+    /// The noise a shift op offsets by: `noise` in 26.3, `argument` holding
+    /// the noise name in 1.21.7 (`singleArgumentCodec(NoiseHolder.CODEC)`).
+    fn shift_noise(&self, object: &Object) -> Result<NoiseId, DecodeError> {
+        if object.contains_key("noise") {
+            return self.noise(object);
+        }
+        let raw = required(object, "argument")?;
+        if !raw.get().starts_with('"') {
+            return Err(DecodeError::Field("shift noise"));
+        }
+        let name = identifier(&string(raw)?)?;
+        self.noises
+            .get(&name)
+            .copied()
+            .ok_or_else(|| DecodeError::Registry(format!("unknown noise reference: {name}")))
+    }
     fn noise(&self, object: &Object) -> Result<NoiseId, DecodeError> {
         let raw = required(object, "noise")?;
         if !raw.get().starts_with('"') {
@@ -354,7 +370,7 @@ impl Loader {
                 },
                 "minecraft:shift" | "minecraft:shift_a" | "minecraft:shift_b" => {
                     GraphNode::OffsetNoise {
-                        noise: self.noise(&object)?,
+                        noise: self.shift_noise(&object)?,
                         kind: match kind.as_str() {
                             "minecraft:shift" => ShiftNoiseKind::Shift,
                             "minecraft:shift_a" => ShiftNoiseKind::ShiftA,
@@ -667,6 +683,35 @@ mod tests {
             ),
         ]);
         DensityRegistry::from_json(&BTreeMap::new(), &caches).unwrap();
+    }
+    #[test]
+    fn shift_forms_accept_a_noise_name_or_an_argument() {
+        let noises = BTreeMap::from([(
+            "minecraft:offset".into(),
+            r#"{"firstOctave":0,"amplitudes":[1.0]}"#.into(),
+        )]);
+        let densities = BTreeMap::from([
+            (
+                "minecraft:shift_a".into(),
+                r#"{"type":"shift_a","argument":"minecraft:offset"}"#.into(),
+            ),
+            (
+                "minecraft:shift_b".into(),
+                r#"{"type":"shift_b","noise":"minecraft:offset"}"#.into(),
+            ),
+            (
+                "minecraft:shifted".into(),
+                r#"{"type":"shifted_noise","noise":"minecraft:offset","xz_scale":0.25,"y_scale":0,"shift_x":"minecraft:shift_a","shift_y":0,"shift_z":"minecraft:shift_b"}"#.into(),
+            ),
+        ]);
+        let registry = DensityRegistry::from_json(&noises, &densities).unwrap();
+        for name in [
+            "minecraft:shift_a",
+            "minecraft:shift_b",
+            "minecraft:shifted",
+        ] {
+            assert!(registry.value(name).is_some(), "{name}");
+        }
     }
     #[test]
     fn codec_validation_rejects_invalid_gradients_intervals_and_splines() {
