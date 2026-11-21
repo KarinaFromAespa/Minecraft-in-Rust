@@ -11158,3 +11158,19 @@ independent). Doc citations re-pointed
 to the 1.21.11 homes; the 26.1-shaped
 internal structure stays.
 `world_upgrader`: 13 passed.
+
+## Item 508 — assets/blockstate/choice.rs (rank 3, NO-CHANGE)
+
+8 classes, 55 methods, 0 named.
+26.1 moved the whole multipart system
+to `renderer/block/dispatch/` (item
+355); paired by hand, the only deltas
+are the 26.1-only sprite system
+(`particleMaterial` vs 1.21.11's
+`particleIcon`) and `materialFlags`,
+plus visibility. The selection logic
+(weighted pick, multipart re-seed,
+first-selector particle) is identical,
+and the Rust already cites
+`particleIcon`. horizon-assets: 57
+passed.
