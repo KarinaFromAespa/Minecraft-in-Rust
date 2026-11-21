@@ -4617,13 +4617,95 @@ is the oracle; decompiled code is a reading aid.
     checked standalone (radii 0-36:
     full square, nearest-first,
     unique, corners included).
+- **Item 106 — SkullBlockRenderer /
+  ShulkerBoxRenderer / Font /
+  LayerDefinitions /
+  HangingSignRenderer, Font's
+  adjustColor:**
+  - Font: 1.21.6 rewrote text
+    preparation (`PreparedText` /
+    `GlyphVisitor`, bounds for the
+    new GuiRenderer); 1.21.5 draws
+    through `StringRenderOutput`.
+    The one behavioural rule the
+    rewrite dropped is
+    `adjustColor`: 1.21.5 forces a
+    default colour with alpha
+    under 4 to opaque (callers
+    pass plain RGB colours), in
+    `drawInBatch` and in
+    `drawInBatch8xOutline` for
+    both colours. The Rust
+    `styled_text` used the alpha
+    as-is, and `screen_draw::text`
+    dropped alpha-0 draws
+    outright — the opposite of
+    vanilla. `styled_text` now
+    adjusts the default and the
+    outline colour at the top
+    (the per-style colours take
+    the default's alpha, as
+    `getTextColor` does), and the
+    drops are gone. The chat's
+    own alpha-3 cut (lines at 3
+    or below draw nothing) is
+    vanilla's guard against the
+    rule and is untouched; the
+    toast fade never drops below
+    alpha 64.
+  - The depths already match
+    1.21.5 (item 87): shadow
+    0.03 (1.21.6: 0.003), effect
+    lines +0.01 (1.21.6: 0.001),
+    bold +0.001; the line rects
+    (strike 3.5..4.5, underline
+    8..9) match, the top/bottom
+    swap in the diff being a
+    winding-only difference.
+    `ALPHA_CUTOFF` (8) is dead
+    in 1.21.5 itself (no users).
+    The `inverseDepth=false`
+    path has one caller
+    (MapRenderer) and no Rust
+    surface — the port draws no
+    map decoration text.
+  - Skull: the 1.21.6 split into
+    `getPlayerSkinRenderType` /
+    `getSkullRenderType` is a
+    pure refactor; the Rust
+    renderer already takes the
+    translucent path for a head
+    with a resolved profile and
+    cutout otherwise. Shulker:
+    the `prepareModel` extraction
+    is a pure refactor — the Rust
+    draw has the same 0.9995
+    scale, facing rotation and
+    lid animation;
+    `getExtents` is 1.21.6-only
+    GUI bounding-box plumbing.
+    LayerDefinitions only drops
+    the happy ghast models (a
+    1.21.6-only mob; no trace of
+    it in the Rust tree).
+    HangingSignRenderer only
+    narrows two members to
+    private. No code change for
+    any of those.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings;
+    `cargo test -p horizon-client-render
+    --lib screen_draw::scissor_tests::
+    text_with_alpha_under_four_draws_opaque`
+    1 passed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **105 of 426 are
-closed** (rank 1 complete, rank 2 at 96/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **106 of 426 are
+closed** (rank 1 complete, rank 2 at 97/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

@@ -145,32 +145,30 @@ pub fn blit(
         color: WHITE,
     });
 }
-/// `graphics.text`: dropped when fully transparent; legacy codes resolved.
+/// `graphics.text`: legacy codes resolved. A colour with alpha under 4
+/// draws opaque — `Font.drawInternal`'s adjustColor (1.21.5) forces it
+/// at the batch, so nothing is dropped here.
 pub fn text(out: &mut Vec<Draw>, text: Text, x: i32, y: i32, color: i32, shadow: bool) {
-    if (color as u32) >> 24 != 0 {
-        out.push(Draw::Text {
-            text: text.resolve_legacy(),
-            x,
-            y,
-            color,
-            shadow,
-        });
-    }
+    out.push(Draw::Text {
+        text: text.resolve_legacy(),
+        x,
+        y,
+        color,
+        shadow,
+    });
 }
 /// `graphics.text` on text the caller already styled, drawn as it is: a `§`
 /// in it stays a character, as `FormattedCharSequence.forward`
 /// (`StringDecomposer.iterate`, not `iterateFormatted`) draws it. An edit box
 /// builds its own sequence that way, so a `§` in its value shows.
 pub fn text_as_typed(out: &mut Vec<Draw>, text: Text, x: i32, y: i32, color: i32, shadow: bool) {
-    if (color as u32) >> 24 != 0 {
-        out.push(Draw::Text {
-            text,
-            x,
-            y,
-            color,
-            shadow,
-        });
-    }
+    out.push(Draw::Text {
+        text,
+        x,
+        y,
+        color,
+        shadow,
+    });
 }
 
 /// `StringDecomposer.iterateFormatted`: the drawn characters of `contents`,
@@ -1350,6 +1348,29 @@ mod scissor_tests {
 
     fn scissor(x0: i32, y0: i32, x1: i32, y1: i32) -> Draw {
         Draw::Scissor { x0, y0, x1, y1 }
+    }
+
+    /// `Font.drawInternal`'s adjustColor (1.21.5): a colour with alpha
+    /// under 4 draws opaque; alpha 4 and up keeps its alpha.
+    #[test]
+    fn text_with_alpha_under_four_draws_opaque() {
+        let atlas = atlas();
+        for (color, expected) in [
+            (0x00FF_0000i32, 0xFF),
+            (0x03FF_0000i32, 0xFF),
+            (0x04FF_0000i32, 0x04),
+        ] {
+            let mut batch = HudBatch::new([320, 240]);
+            let mut out = Vec::new();
+            text(&mut out, Text::literal("A"), 10, 10, color, false);
+            assert_eq!(out.len(), 1, "colour {color:#x} is drawn");
+            paint(&mut batch, &atlas, &out);
+            assert!(!batch.vertices.is_empty());
+            assert!(
+                batch.vertices.iter().all(|v| v.color >> 24 == expected),
+                "colour {color:#x}: every vertex at alpha {expected:#x}"
+            );
+        }
     }
 
     /// `GuiGraphicsExtractor.ScissorStack.push`: a scissor inside another is
