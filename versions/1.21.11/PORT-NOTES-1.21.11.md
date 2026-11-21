@@ -8757,6 +8757,22 @@ have zero javap hunks despite the report's changed-method
 counts — the item-73/91 decompile-noise pattern. Tests:
 `nbt::` 14 passed, `snbt::` 6 passed, `nbt_path::` 12 passed.
 
+## Item 145 — game/leads.rs (rank 2, CHANGED)
+
+4 classes, 15 methods, 3 named. `LeashKnotRenderer`'s
+KNOT_LOCATION moved in 1.21.11 from
+`textures/entity/lead_knot/lead_knot.png` to
+`textures/entity/lead_knot.png` (jar-verified both ways) —
+the Rust's sprite lookup found nothing in the 1.21.11 atlas,
+so the knot silently never drew; the lookup is now
+`entity/lead_knot`. `getOrCreateKnot` inlines the 26.1
+`getKnot` / `createKnot` split in 1.21.11 (same behaviour;
+citation reworded). `interact` drops its `Vec3` parameter
+(body identical); `renderSolid` -> `render`, `Matrix4fc` ->
+`Matrix4f`, `LightCoordsUtil.pack` -> `LightTexture.pack`;
+`FenceBlock` water check is the same predicate by type.
+Tests: `game::leads::` 6 passed, 1 ignored.
+
 ## CI proof run 44839260120 (recorded below)
 
 Dispatched 05:31 NPT Nov 21, 2026 on behaviour/1.21.11 @

@@ -157,11 +157,13 @@ impl Game<'_> {
         let fences = self.lead_fences();
         self.knot_ids.retain(|p, _| fences.contains(p));
     }
-    /// `LeashFenceKnotEntity.getOrCreateKnot` → `createKnot`: the first lead
-    /// tied to a fence makes its knot, a real entity with its own id (the
-    /// shared `Entity.id` counter) and UUID, whether or not anyone tracks
-    /// it. A fence that already has one keeps it. Call
-    /// [`Self::forget_untied_knots`] before the tie.
+    /// `LeashFenceKnotEntity.getOrCreateKnot`: the first lead tied to a
+    /// fence makes its knot, a real entity with its own id (the shared
+    /// `Entity.id` counter) and UUID, whether or not anyone tracks it. A
+    /// fence that already has one keeps it. (26.1 split the scan and the
+    /// creation into `getKnot` / `createKnot`; 1.21.11 inlines both into
+    /// `getOrCreateKnot`.) Call [`Self::forget_untied_knots`] before the
+    /// tie.
     pub(super) fn tie_knot(&mut self, fence: [i32; 3]) {
         if self.knot_ids.contains_key(&fence) {
             return;
@@ -865,7 +867,7 @@ impl Game<'_> {
         let Some(model) = self.entity_models.leash_knot.as_ref() else {
             return;
         };
-        let Some(r) = atlas.sprites.get("entity/lead_knot/lead_knot").copied() else {
+        let Some(r) = atlas.sprites.get("entity/lead_knot").copied() else {
             return;
         };
         for p in knots {
