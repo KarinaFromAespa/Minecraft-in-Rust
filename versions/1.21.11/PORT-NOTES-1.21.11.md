@@ -10868,3 +10868,15 @@ the Rust already implements the 1.21.11
 form — committed text only, the OS shows
 the composition window (`game/ime.rs`).
 `ime`: 73 passed, 3 ignored.
+
+## Item 388 — client/renderer/block/FluidModel (rank 2, NO-CHANGE)
+
+3 classes, 3 methods, 0 named. 26.1's
+`FluidModel` replaces `LiquidBlockRenderer`,
+which 1.21.11 keeps (five hardcoded water/
+lava sprites, no per-fluid model). The
+Rust's renderer already follows the
+`LiquidBlockRenderer` form; the two
+`FluidModel` citations on the mod-fluid
+declaration were reworded to the liquid
+renderer's sprites. `fluid`: 1 passed.
