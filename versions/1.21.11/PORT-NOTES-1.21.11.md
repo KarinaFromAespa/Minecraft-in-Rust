@@ -12590,3 +12590,7 @@ RandomSource factory only, as item 670.
 ## Item 680 — horizon-client-render/src/gfx/frame_gen.rs (Request$Post) — NO-CHANGE
 
 Zero diff: the bytecode is identical in both versions.
+
+## Item 681 — horizon-client-render/src/gfx/pack_atlas/stitch.rs (Stitcher$Holder) — NO-CHANGE
+
+Visibility only.
