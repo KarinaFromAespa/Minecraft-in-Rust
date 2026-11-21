@@ -196,7 +196,7 @@ fn pause_buttons(
 const FRIENDS_ICON: usize = 2;
 /// `CommonLinks.SNAPSHOT_BUGS_FEEDBACK`, behind `PauseScreen.REPORT_BUGS`.
 const BUGS_LINK: &str = "https://aka.ms/snapshotbugs?ref=game";
-/// `CommonLinks.RELEASE_FEEDBACK` / `SNAPSHOT_FEEDBACK`, by `WorldVersion.stable()`.
+/// `CommonLinks.RELEASE_FEEDBACK` / `SNAPSHOT_FEEDBACK`, by `WorldVersion.isStable()`.
 fn feedback_link() -> &'static str {
     if horizon_core::version::STABLE {
         "https://aka.ms/javafeedback?ref=game"

@@ -1245,13 +1245,40 @@ is the oracle; decompiled code is a reading aid.
   `fromCodecWithRegistries`) are all unchanged in the
   diff, and the component skip table itself is the
   regenerated 1.21.5 one from the publish.
+- **Item 32 — WorldVersion / SharedConstants, ported
+  (citations only):** the version pin itself was
+  already 1.21.5 from the publish (1.21.5, protocol
+  770, data 4325, resource pack 55, data pack 71,
+  stable, build time 25 Mar 2025) — all values
+  verified against the diff. What 1.21.6 changed was
+  the accessor shape: 1.21.5's `WorldVersion` uses
+  `get`-prefixed accessors (`getId`, `getName`,
+  `getDataVersion`, `getProtocolVersion`,
+  `getPackVersion`, `getBuildTime`, `isStable`) and
+  has no `Simple` record. The doc citations in
+  `version.rs`, its generator
+  (`gen_version_consts.py`), `screens.rs` and
+  `realms/client.rs` now cite the 1.21.5 names (the
+  generator couldn't be re-run — no full 1.21.5
+  client jar is in this workdir — so `version.rs`
+  was hand-synced to exactly what the updated
+  generator emits; values untouched). No-ops:
+  `SNBT_NAG_VERSION` (4292) and the four removed
+  debug flags (`DEBUG_SHUFFLE_UI_RENDERING_ORDER`,
+  `DEBUG_RENDER_UI_LAYERING_RECTANGLES`,
+  `DEBUG_DEFAULT_SKIN_OVERRIDE`,
+  `DEBUG_ENTITY_BLOCK_INTERSECTION`) have no Rust
+  surface; the snapshot protocol version (243) is
+  unused.
+  - Verification: `cargo check -p horizon-core
+    --all-targets` 0 errors / 0 warnings (17s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **31 of 426 are
-closed** (rank 1 complete, rank 2 at 22/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **32 of 426 are
+closed** (rank 1 complete, rank 2 at 23/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

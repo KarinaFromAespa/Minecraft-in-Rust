@@ -1158,7 +1158,7 @@ impl RealmsClient {
     }
 
     /// `RealmsClient.execute`'s cookies (`User.getSessionId`, `getName`,
-    /// `WorldVersion.name()`) and `Request.addVersionHeaders`, in that order.
+    /// `WorldVersion.getName()`) and `Request.addVersionHeaders`, in that order.
     pub fn headers(&self) -> Vec<(&'static str, String)> {
         vec![
             (
