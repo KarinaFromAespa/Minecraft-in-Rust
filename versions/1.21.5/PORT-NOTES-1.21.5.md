@@ -12645,12 +12645,58 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 305 — GUI lighting directions**
+  - Lighting, GuiBannerResu
+    ltRenderer,
+    GuiBookModelRenderer:
+    verified, no code. The
+    six direction constants
+    are identical in both
+    versions; only the
+    delivery differs
+    (1.21.6 precomputes
+    them into a UBO, 1.21.5
+    transforms them per
+    call) and the port is
+    wgpu-native, so that
+    has no surface. The
+    port's
+    items_flat_lights /
+    items_3d_lights
+    reproduce the shared
+    transforms exactly (rot
+    ationY(-PI/8).rotateX(3
+    PI/4) for flat; the
+    scale(1,-1,1) rotateYXZ
+    pair for 3D), and the
+    level lights (nether l1
+    y -1.0) match in
+    block_entity_render and
+    entity.wgsl. The
+    gui/render package is
+    1.21.6-only; the port
+    draws the banner result
+    and the enchanting book
+    directly in GUI space,
+    the 1.21.5 shape (book
+    pose already verified
+    by item 279).
+    Version-neutral note:
+    entity_in_ui_lights has
+    z -1.0 where vanilla's
+    constant is +1.0 in
+    both versions - the
+    book pose flips z with
+    scale(40, 40, -40).
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **304 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 36/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **305 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 37/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
