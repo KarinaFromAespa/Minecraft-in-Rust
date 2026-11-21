@@ -8835,6 +8835,23 @@ cites the 26.1-only `CanceledFileFixException` (1.21.11's
 `Progress` doc says "file upgrades". Tests:
 `datafix::files::` 5 passed.
 
+## Item 150 — widely named: world/level/levelgen (rank 2, NO-CHANGE)
+
+34 classes, 45 methods, 0 named. The `noNewCaves` refactor
+gives the nether, caves and floating-islands routers shifted
+overworld temperature/vegetation in 1.21.11 (26.1: zero
+climate for caves/floating-islands, unshifted nether noises
+for the nether) — covered by the 1.21.11 data-pack JSONs,
+which the Rust reads via `NoiseRouter::from_json`; no Rust
+mirror of NoiseRouterData's bootstrap exists. The
+`WorldOptions` codec field is `generate_features` in 1.21.11
+(`generate_structures` in 26.1) — `save.rs` already reads
+and writes the 1.21.11 form. `NoiseChunk.fullNoiseDensity` /
+`getInterpolatedDensity()` are 26.1-only with zero Rust
+citations. The literal comparison across all 34 classes
+returns exactly the one field-name difference. Tests:
+`worldgen::router::` 2 passed.
+
 ## CI proof run 44839260120 (recorded below)
 
 Dispatched 05:31 NPT Nov 21, 2026 on behaviour/1.21.11 @
