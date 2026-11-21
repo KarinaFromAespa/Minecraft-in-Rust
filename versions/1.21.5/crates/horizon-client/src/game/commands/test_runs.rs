@@ -48,10 +48,16 @@ impl Game<'_> {
         self.system_message(message.with_color(text::RED));
     }
 
-    /// `StructureUtils.findTestBlocks`: the test instance blocks within
-    /// `radius` of `center` (the POI search is a sphere).
+    /// `StructureUtils.findTestBlocks` (1.21.5): the test instance blocks in
+    /// the box at ground level - `getBoundingBoxAtGround` takes the
+    /// WORLD_SURFACE height at the centre column and inflates the box by
+    /// (radius, 10, radius). Not the 1.21.6 POI sphere (which is also why
+    /// 1.21.5 has no `test_instance` POI type).
     pub(super) fn find_test_instance_blocks(&self, center: Pos, radius: i32) -> Vec<Pos> {
-        let limit = i64::from(radius) * i64::from(radius);
+        let ground = self.world_surface(center.0, center.2);
+        let (x0, x1) = (center.0 - radius, center.0 + radius);
+        let (y0, y1) = (ground - 10, ground + 10);
+        let (z0, z1) = (center.2 - radius, center.2 + radius);
         let mut found: Vec<Pos> = self
             .world
             .block_entities
@@ -64,8 +70,7 @@ impl Game<'_> {
             })
             .map(|(p, _)| *p)
             .filter(|p| {
-                let d = [p.0 - center.0, p.1 - center.1, p.2 - center.2].map(i64::from);
-                d[0] * d[0] + d[1] * d[1] + d[2] * d[2] <= limit
+                p.0 >= x0 && p.0 <= x1 && p.1 >= y0 && p.1 <= y1 && p.2 >= z0 && p.2 <= z1
             })
             .collect();
         found.sort_unstable();

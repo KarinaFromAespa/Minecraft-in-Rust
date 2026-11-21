@@ -12940,12 +12940,44 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 313 — /test block search**
+  - StructureUtils: CODE. f
+    ind_test_instance_block
+    s was the 1.21.6 form -
+    a sphere around the
+    centre, the POI search
+    - and is now the 1.21.5
+    form:
+    getBoundingBoxAtGround
+    takes the WORLD_SURFACE
+    height at the centre
+    column and inflates the
+    box by (radius, 10,
+    radius), so a test
+    block counts only
+    inside that
+    ground-level box. A
+    block deep underground
+    near the centre no
+    longer matches, and one
+    near the surface above
+    the centre now does.
+    The scan still filters
+    the loaded block-entity
+    map, which is the same
+    set the 1.21.5
+    block-state scan sees
+    in loaded chunks.
+  - Verification: cargo check -j 1 -p
+    horizon-client --lib
+    passed (1m26s).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **312 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 44/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **313 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 45/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
