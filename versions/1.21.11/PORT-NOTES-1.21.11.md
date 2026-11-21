@@ -10015,3 +10015,13 @@ are ported; the forced-chunks test now pins the file
 location. The other `saved_data_type` entries keep
 their 26.x namespaced keys — their flat-layout port
 belongs to their owning items.
+
+## Item 233 — game/fangs.rs (rank 2, NO-CHANGE)
+
+4 classes, 9 methods, 1 named. The fang renderer
+differs only by the `CameraRenderState` package move
+and a `submitModel` RenderType API difference (same
+visual result); `considersEntityAsAlly` is the same
+test under the `getType().is(...)` spelling; the
+evoker diffs are visibility widening and dropped
+null-check codegen. No code changed.
