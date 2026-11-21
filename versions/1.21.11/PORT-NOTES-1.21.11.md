@@ -12614,3 +12614,7 @@ Zero diff: the bytecode is identical in both versions.
 ## Item 685 — game/combat.rs (FallLocation) — NO-CHANGE
 
 `is` overloads only; same fall-location predicates.
+
+## Item 686 — game/command_minecarts.rs (MinecartCommandBlock$MinecartCommandBase) — NO-CHANGE
+
+Visibility plus requireNonNull.
