@@ -8434,3 +8434,28 @@ Recorded: the game-level `try_light_portal` is an uncalled
 duplicate of the live `base_fire_on_place` path (cleanup, not
 fixed); the rest of the PortalShape mirror belongs to the
 PortalShape item.
+
+## Item 129 — merchant.rs (rank 2, CHANGED)
+
+6 classes, 29 methods, 2 named (`VillagerProfession.getTrades`,
+`SetEnchantmentsFunction.run`).
+
+Java delta: the data-driven trade system is 26.1-only —
+`tradeSetsByLevel` + `getTrades(int)` on the profession,
+`TradeCost` / `TradeSet` / `VillagerTrade` classes, and 746
+`trade_set`/`villager_trade` data files in the 26.1 jar vs 0 in
+1.21.11, where trades are hardcoded `VillagerTrades` listings.
+`SetEnchantmentsFunction.run` is identical in both versions.
+
+Changes: loot.rs `set_enchantments` now mirrors `run` — `add`
+adds to the existing level (was ignored, always set) and every
+level clamps to 0..255 (was unclamped); new test pins both.
+merchant.rs module doc now states the data-driven registries are
+26.1-only and `Trades` loads empty here. Recorded, item 751's
+scope: the Rust's offer generation is the 26.1 engine, so with
+no trade data every villager and wandering trader gets zero
+offers; porting the hardcoded `VillagerTrades` listings (item
+751, rank 4) is what restores trading. Report gaps:
+`WanderingTraderTrades` and the `VillagerTrades` outer class
+(TRADES table, updateTrades mechanics) are in no report item.
+Tests: `loot::` 35 passed (1 new).

@@ -3,6 +3,12 @@
 //! set's `RandomSequence`), `MerchantOffer` pricing, demand and stock, and the
 //! `VillagerData` level thresholds. The villager entity itself is not part of
 //! this module; anything that can trade calls [`Merchant`].
+//!
+//! The data-driven registries are 26.1-only: 1.21.11 has no `trade_set` or
+//! `villager_trade` data (and no `TradeSet` / `VillagerTrade` / `TradeCost`
+//! classes), so `Trades` loads empty here and villagers get no offers until
+//! the hardcoded `VillagerTrades` listings are ported (item 751). The offer,
+//! pricing, demand and restock machinery below is version-shared and live.
 use crate::{
     enchant::Enchantments,
     items::{ItemStack, Items},

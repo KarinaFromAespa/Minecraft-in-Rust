@@ -1601,9 +1601,18 @@ impl<R: RandomSource> Context<'_, R> {
                     if stack.item == "minecraft:book" {
                         stack.item = "minecraft:enchanted_book".into();
                     }
+                    // `SetEnchantmentsFunction.run`: with `add`, the level
+                    // adds to the one the stack already has; every level
+                    // clamps to 0..255.
+                    let add = f["add"].as_bool() == Some(true);
                     for (name, level) in map {
                         let level = self.int(level);
-                        enchant(&mut stack, name, level);
+                        let level = if add {
+                            item_level(&stack, name) + level
+                        } else {
+                            level
+                        };
+                        enchant(&mut stack, name, level.clamp(0, 255));
                     }
                 }
             }
@@ -2644,6 +2653,32 @@ mod namespace_tests {
                 "minecraft:sing_goat_horn",
             ]
         );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// `SetEnchantmentsFunction.run`: levels clamp to 0..255, and `add`
+    /// adds to the level the stack already has.
+    #[test]
+    fn set_enchantments_clamps_levels_and_adds_when_asked() {
+        let root = std::env::temp_dir().join(format!("horizon-loot-ench-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let table = r##"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:diamond_sword",
+            "modifier": [{"type": "minecraft:set_enchantments", "enchantments": {"minecraft:sharpness": 3, "minecraft:unbreaking": 300}},
+            {"type": "minecraft:set_enchantments", "add": true, "enchantments": {"minecraft:sharpness": 2}}]}]}]}"##;
+        let files = [
+            ("items.json", r#"{"minecraft:diamond_sword": {}}"#),
+            ("data/minecraft/loot_table/chests/ench.json", table),
+        ];
+        for (name, text) in files {
+            let path = root.join(name);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, text).unwrap();
+        }
+        let data = LootData::load(&root, &PackOverlay::NONE).unwrap();
+        let filled = data.fill("minecraft:chests/ench", 0, 27, None);
+        let sword = filled.iter().flatten().next().expect("a sword");
+        assert_eq!(item_level(sword, "minecraft:sharpness"), 5);
+        assert_eq!(item_level(sword, "minecraft:unbreaking"), 255);
         let _ = fs::remove_dir_all(&root);
     }
 
