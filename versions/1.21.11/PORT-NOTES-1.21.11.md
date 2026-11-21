@@ -9901,3 +9901,12 @@ only by visibility widening (private → package-private
 on the generator tables and `addPiece` / `addHelper` /
 `recursiveChildren`); every method body is
 bytecode-identical. No code changed.
+
+## Item 223 — mobs/illusioner.rs (rank 2, NO-CHANGE)
+
+4 classes, 12 methods, 1 named. `CameraRenderState`
+moves package in 1.21.11; the `submit` bodies, the
+illusion loop and the spell-goal logic are
+bytecode-identical. The constructor diffs are dropped
+null-check codegen plus visibility widening. No code
+changed.
