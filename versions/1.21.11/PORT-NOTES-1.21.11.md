@@ -10574,3 +10574,11 @@ SharedConstants debug flags; the rest is
 static-init renumbering with identical
 constants. No source change. `version`: 1
 passed.
+
+## Item 297 — collisions.rs (rank 2, NO-CHANGE)
+
+1 class, 1 method, 1 named. A single-line
+diff: the `typeSwitch` receiver in `of` is
+typed `Entity` in 26.1 and `Object` in
+1.21.11 — the same single-case switch. No
+source change. `collisions`: 11 passed.
