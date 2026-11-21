@@ -9586,3 +9586,15 @@ passed explicitly) with the same semantics, and the Rust
 resolves display text at render time anyway. The Rust's
 `text_display_data` matches vanilla field for field. No
 code changed.
+
+## Item 196 — level/rails.rs (rank 2, CHANGED)
+
+2 classes, 7 methods, 2 named. Real delta:
+`TripWireHookBlock.calculateState` in 26.1 bails after
+the far hook's notification if the near hook vanished
+(`onRemoved` + return, no state emitted); 1.21.11 drops
+the check and emits unconditionally. Removed the
+early-return from `tripwire_hook_calculate`; the far
+`tripwire_emit` now always runs. `BaseRailBlock` is
+overload noise only; `onRemove`'s `onRemoved` inline is
+the same behaviour (the Rust keeps the shared helper).
