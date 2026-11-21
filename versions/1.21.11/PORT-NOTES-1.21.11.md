@@ -10167,3 +10167,9 @@ changed.
 constructor, plus visibility widening. The Rust
 already implements `after_spawn` and the mob-cap
 checks. No code changed.
+
+## Item 253 — gfx/occlusion.rs (rank 2, NO-CHANGE)
+
+1 class, 5 methods, 1 named. Pure renames:
+`ChunkPos.x()`/`z()` -> fields, `pack` -> `asLong`,
+plus visibility widening. No code changed.
