@@ -10903,3 +10903,14 @@ CappedProcessor's random is LegacyRandom
 in 1.21.11 (Xoroshiro in 26.1), which
 the Rust already uses. Two citations
 re-pointed. `processor_bounds`: 2 passed.
+
+## Item 392 — client/resources/model/sprite (rank 2, NO-CHANGE)
+
+3 classes, 0 methods named. The 26.1
+sprite-material system (`Material$Baked`,
+`MaterialBaker`, `SpriteId`) has no
+1.21.11 counterpart (1.21.11 resolves
+`Material` through `MaterialSet`) and no
+Rust surface — the Rust's `Material` is
+its own texture reference. `resolve`:
+12 passed.
