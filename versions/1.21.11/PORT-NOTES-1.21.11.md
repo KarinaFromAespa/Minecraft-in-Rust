@@ -12030,3 +12030,10 @@ parameter type (`AbstractWidget` vs `GuiEventListener`).
 
 Only the `WorldOptions` access path (`getWorldGenSettings().options()` vs
 `getWorldData().worldGenOptions()`, same value) and `ChunkPos` accessors.
+
+## Item 581 — level/growth_tests.rs (SaplingBlock) — NO-CHANGE
+
+1.21.11's `SaplingBlock.isValidBonemealTarget` returns true unconditionally;
+26.1 gates on `TreeGrower.getMinimumHeight` against the build height. The
+Rust's Sapling arm already returns true with a comment noting exactly
+this (same pattern as item 533's mushrooms).
