@@ -7545,13 +7545,100 @@ is the oracle; decompiled code is a reading aid.
     horizon-client --lib
     --tests` passed at
     item 155.
+- **Item 160 — Desert
+  ambient sounds back to
+  the 1.21.5 single tag;
+  enchanting table and
+  pot extents verified:**
+  - 1.21.6 split the
+    desert ambient tag
+    into three
+    (`triggers_ambient_desert_*`);
+    1.21.5 has the one
+    `plays_ambient_desert_block_sounds`
+    tag. `animate_tick.rs`
+    now loads that single
+    table and plays the
+    1.21.5 sounds:
+    `playAmbientBlockSounds`
+    (tag member under open
+    sky; idle 1 in 1600,
+    wind 1 in 10000 in a
+    desert or badlands
+    biome, played at the
+    player, draws in
+    vanilla's order), with
+    the simple surrounding
+    check (three of the
+    four surface columns
+    eight blocks away
+    carry a tag block —
+    1.21.6's form needs
+    all four and scans
+    vertically). Terracotta
+    ticks the sounds too
+    (new `Terracotta`
+    kind); the `Falling`
+    kind lost its sand
+    flag (the tag decides).
+    Dead bush: 1 in 150
+    with the 4-in-5
+    red-sand/terracotta
+    silence (was 1 in 130
+    / 2 in 3). The dry
+    grass ambient sound
+    is gone
+    (`ShortDryGrassBlock`
+    / `TallDryGrassBlock`
+    have no animate tick
+    in 1.21.5). The dried
+    ghast branch stays
+    inert (its tag is
+    absent from the 1.21.5
+    data, so the table is
+    all false, and the
+    block is not in the
+    tables — item 144).
+    `HAPPY_GHAST_AVOIDS`
+    has no surface. The
+    rest of `BlockTags`
+    is a reorder.
+    Enchanting table: the
+    save already writes
+    `CustomName` only
+    when present and the
+    parts table strips it
+    (`NAME`) — the 1.21.5
+    `CompoundTag` form.
+    `DecoratedPotRenderer.getExtents`
+    (1.21.6-only) has no
+    surface (item 138).
+    Pre-existing gap,
+    version-neutral: the
+    port gives sand
+    falling dust, but
+    vanilla's
+    `SandBlock.animateTick`
+    never calls super in
+    either version.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests` 0/0 (1m 22s);
+    the classify test now
+    pins terracotta ticking
+    and dry grass not
+    ticking. The
+    test-profile build was
+    not run (OOM under
+    load, item 122).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **159 of 426 are
-closed** (rank 1 complete, rank 2 at 150/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **160 of 426 are
+closed** (rank 1 complete, rank 2 at 151/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
