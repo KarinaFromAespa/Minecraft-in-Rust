@@ -8504,13 +8504,43 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 178 — Ender
+  chest save/load,
+  shulker screen:**
+  - The ender chest already
+    saves and loads the
+    1.21.5 form:
+    `decode_items` clears
+    all 27 slots, then
+    fills from the list
+    with the `Slot` byte
+    masked to 0..255 and a
+    range check, a
+    malformed stack
+    becoming empty;
+    `encode_items` writes
+    `Slot`-tagged compounds
+    for non-empty slots
+    only. The
+    ValueInput/ValueOutput
+    names have no Rust
+    surface (item 159). The
+    shulker screen diff is
+    pipeline naming over
+    identical blit
+    arguments, and shulker
+    boxes open through the
+    generic container path.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **177 of 426 are
-closed** (rank 1 complete, rank 2 at 168/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **178 of 426 are
+closed** (rank 1 complete, rank 2 at 169/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
