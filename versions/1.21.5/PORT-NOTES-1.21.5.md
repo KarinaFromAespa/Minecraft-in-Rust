@@ -12621,12 +12621,36 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 304 — Social interactions list**
+  - PlayerEntry, SocialInte
+    ractionsPlayerList:
+    verified, no code. The
+    1.21.6-only
+    refreshHasDraftReport
+    has no surface: the
+    port has no report flow
+    at all (the report
+    button draws disabled -
+    Mojang's services,
+    reporting is off), so
+    there is no draft to
+    show or refresh. The
+    hide/show narration
+    already uses say_now,
+    the 1.21.5 name, with
+    the chat line (PlayerEn
+    try.onHiddenOrShown). R
+    enderPipelines/RenderTy
+    pe is a pure rename.
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **303 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 35/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **304 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 36/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
