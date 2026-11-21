@@ -9169,3 +9169,18 @@ names are inconsistent across the three types; renaming would be
 tree-wide churn for nothing). Tests: `game::commands::data::` 12
 ignored (fixture-gated). Disk note: the first test run hit quota
 exceeded; cleaned `target/debug/incremental` (24G), 103G → 93G.
+
+## Item 166 — mobs/sniffer.rs (rank 2, CHANGED)
+
+4 classes, 17 methods, 2 named. The baby sniffer is the delta:
+26.1 gives babies a separate SniffletModel + snifflet.png texture
+and never runs BABY_TRANSFORM; 1.21.11 uses the same model with
+the BABY_TRANSFORMER-scaled baby layer, the adult texture, and
+`babyTransform.applyStatic()` in setupAnim (head ×1.2, + (0, 1,
+1)). The texture, the 0.5 baby scale and the baby layer were
+already the 1.21.11 form; the animation was not — `anim` now
+applies BABY_TRANSFORM at t=0 for a baby, last, as vanilla does.
+The `BABY_START_AGE` doc fixed to the 1.21.11 `setBaby` form (the
+-48000 value is the same). No delta: the powder-snow path type,
+the brain sensors, the digging dimensions and the random source
+all already match. Tests: `mobs::sniffer::` 3 passed (2 new).
