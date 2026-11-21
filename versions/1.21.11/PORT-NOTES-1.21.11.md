@@ -12088,3 +12088,7 @@ from `ChunkPos.containing` (26.1) vs `new ChunkPos` (1.21.11).
 
 Only field/method visibility (private in 26.1, package-private in
 1.21.11).
+
+## Item 592 — game/stats.rs (PhantomSpawner) — NO-CHANGE
+
+Only `getRandom()` vs the `random` field (same source).
