@@ -1013,3 +1013,39 @@ didn't compile on main (`arrows_client_tests.rs` still passed a
 `BTreeSet` where `FluidResources::from_registry` now takes a
 `&[bool]`); the call now passes `&[]`, same meaning (no state blocks
 fluid flow), and the arrow tests pass.
+
+Deep caves missing at y -64..-32: the beardifier was never added to
+final_density (2026-11-21). The port generated only ~55% of vanilla's
+deep-band cave air (1.89 vs 3.41-3.45 blocks/column at the Test 1 seed
+8257987075890829262, confirmed against both the owner's Prism world and
+a vanilla server run), while every other Y band matched. Density,
+carver and aquifer were all exonerated by probes first: a 9,060-point
+differential density probe agreed with vanilla's codec exactly, and the
+deficit turned out to be spatially concentrated in the 244 structure
+chunks (99.2% of it; the 1,346 clean chunks matched at -0.015). The
+mechanism: the ancient-city, trial-chamber and village templates
+contain no air blocks at all — vanilla clears the halls with the
+Beardifier, which NoiseChunk adds to final_density in code
+(`add(finalDensity, BeardifierMarker)`, the marker swapped for the
+chunk's real beardifier). Horizon built the beardifier and registered
+it as a world field, but the density graph has no beardifier node (nor
+does vanilla's data), so it was never sampled and the halls stayed
+solid rock. `NoiseRouter::compile` in
+`crates/horizon-world/src/worldgen/router.rs` now wraps FinalDensity in
+`final_density + ContextBoundSampler(Beardifier)`, mirroring vanilla's
+NoiseChunk; where no beardifier is bound the sampler falls back to 0,
+so unaffected chunks sample exactly as before. Verified: chunk
+(2,-15) post-decorate deep air 18.16 vs vanilla 18.08 (was 0.04), city
+blocks 214 = 214; over all 244 structure chunks the terrain-level deep
+band matches vanilla within -0.03 on average (was -9.83), and the
+1590-chunk paired mean is ~+0.04 (was -1.52). Other bands unchanged
+(0..32: -0.02, 32..64: +0.01). Regression test:
+`beardifier_shapes_deep_band_at_test1_seed` (generator.rs) pins the
+deep band at (2,-15) and (13,-14) against vanilla-derived values.
+Known follow-up, not fixed here: trial chambers and mineshaft-adjacent
+chunks over-fill slightly (trial terrain delta -2.60, mine -1.95 across
+63 chunks; worst single chunk (12,-14) at -6.4 post-decorate) — the
+beardifier math, piece/junction selection and jigsaw assembly were all
+verified against vanilla 1.21.7 bytecode and the placed blocks match
+exactly, so the residual is a second-order effect (interpolation order
+or a junction subtlety) needing a Java-oracle comparison to isolate.
