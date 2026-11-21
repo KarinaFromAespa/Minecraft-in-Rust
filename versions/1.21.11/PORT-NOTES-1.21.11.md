@@ -12069,3 +12069,7 @@ and constants. The Rust's `drop_item_stack_at` matches exactly.
 ## Item 587 — game/cat_spawner.rs (CatSpawner) — NO-CHANGE
 
 Only `getRandom()` vs the `random` field (same source).
+
+## Item 588 — game/commands/raid.rs (RaidCommand) — NO-CHANGE
+
+Only `getRandom()` vs the `random` field (same source).
