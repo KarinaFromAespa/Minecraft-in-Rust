@@ -558,8 +558,8 @@ fn mod_commands_are_coloured_and_complete_like_vanilla_ones() {
 #[test]
 fn chat_completes_the_servers_custom_completions_with_the_players() {
     // CommandSuggestions.updateCommandInfo completes chat from
-    // ClientSuggestionProvider.getCustomTabSuggestions: the online players
-    // and what ClientboundCustomChatCompletionsPacket added.
+    // ClientSuggestionProvider.getCustomTabSugggestions (sic): the online
+    // players and what ClientboundCustomChatCompletionsPacket added.
     use crate::command::{CustomCompletionAction as Action, modify_custom_completions};
     let font = font();
     let m = Measure(&font);

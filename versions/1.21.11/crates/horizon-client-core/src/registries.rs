@@ -161,9 +161,9 @@ pub fn modify_custom_completions(
     }
 }
 impl Registries {
-    /// `ClientSuggestionProvider.getCustomTabSuggestions`: what chat (not a
-    /// command) completes, the online players' names with the server's custom
-    /// completions, each once.
+    /// `ClientSuggestionProvider.getCustomTabSugggestions` (sic, 1.21.11's
+    /// typo): what chat (not a command) completes, the online players' names
+    /// with the server's custom completions, each once.
     pub fn custom_tab_suggestions(&self) -> std::collections::BTreeSet<&str> {
         self.players
             .iter()

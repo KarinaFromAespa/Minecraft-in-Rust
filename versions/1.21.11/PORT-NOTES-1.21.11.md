@@ -8585,3 +8585,20 @@ drops are lost (only the end podium destroys with drops during
 generation). Tests: `worldgen::router::` 2 passed (1 new),
 `peaks_and_valleys_matches_vanilla` 1 passed (new), `cargo check
 -p horizon-client --lib --tests` clean.
+
+## Item 135 — horizon-command/src/args.rs (rank 2, CHANGED, citations only)
+
+34 classes, 48 methods, 0 named in Horizon.
+
+Java delta: SlotRanges names the 300+8 range `villager.` in
+1.21.11 (`mob.inventory.` in 26.1, with the 26.1-only
+`MOB_INVENTORY_SLOT_OFFSET`/`SIZE` constants); both suggestion
+providers spell the method `getCustomTabSugggestions` (sic) in
+1.21.11; everything else is visibility noise. The literal
+comparison across all 34 classes returned exactly one difference
+(the slot-range prefix).
+
+Changes: three citations reworded to the 1.21.11 typo'd name
+(registries.rs, chat.rs, chat_tests.rs). Checked, no action:
+`slot_ranges()` already uses `villager.` and matches 1.21.11's
+table exactly. Tests: `chat::tests::` 27 passed.
