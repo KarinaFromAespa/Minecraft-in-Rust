@@ -2303,40 +2303,45 @@ impl Game<'_> {
         batch.sprite(atlas, "gui/sprites/toast/advancement", x, y);
         let (key, color) = toast_label(frame);
         // AdvancementToast.extractRenderState: a title of one line sits under
-        // the frame's label; a longer one is wrapped at 125, the label fading
-        // out first (to 1.5 s) and the lines fading in after it over 0.3 s.
+        // the frame's label; a longer one is wrapped at 125, the label at
+        // full opacity until 1.5 s, then the lines fading in over 0.3 s
+        // from alpha 64 (1.21.5 ORs the fade with 0x40; 1.21.6's
+        // ARGB.color fades the label out and the lines in from 0).
         let lines = atlas.font.split(&title.resolve_legacy(), 125.0);
         let label = mod_label.unwrap_or_else(|| Text::translate(key, &[]));
-        let rgb = color & 0x00FF_FFFF;
         if let [line] = lines.as_slice() {
             batch.text_styled(atlas, &label, x + 30.0, y + 7.0, color, false);
             batch.text_styled(atlas, line, x + 30.0, y + 18.0, u32::MAX, false);
         } else if fully_for < 1500 {
-            let fade = ((1500 - fully_for) as f32 / 300.0).clamp(0.0, 1.0);
-            let alpha = (fade * 255.0).floor() as u32;
-            if alpha != 0 {
-                batch.text_styled(atlas, &label, x + 30.0, y + 11.0, alpha << 24 | rgb, false);
-            }
+            // 1.21.5 draws the label at full opacity: its `colour | alpha`
+            // is a no-op because the label colour already carries alpha
+            // 0xFF, so the fade-out 1.21.6 applies never happens.
+            batch.text_styled(atlas, &label, x + 30.0, y + 11.0, color, false);
         } else {
-            let fade = ((fully_for - 1500) as f32 / 300.0).clamp(0.0, 1.0);
-            let alpha = (fade * 252.0).floor() as u32;
-            if alpha != 0 {
-                let mut line_y = y + (16 - lines.len() as i32 * 9 / 2) as f32;
-                for line in &lines {
-                    batch.text_styled(
-                        atlas,
-                        line,
-                        x + 30.0,
-                        line_y,
-                        alpha << 24 | 0x00FF_FFFF,
-                        false,
-                    );
-                    line_y += 9.0;
-                }
+            let alpha = advancement_title_alpha(fully_for);
+            let mut line_y = y + (16 - lines.len() as i32 * 9 / 2) as f32;
+            for line in &lines {
+                batch.text_styled(
+                    atlas,
+                    line,
+                    x + 30.0,
+                    line_y,
+                    alpha << 24 | 0x00FF_FFFF,
+                    false,
+                );
+                line_y += 9.0;
             }
         }
         self.draw_item(batch, &ItemStack::new(&icon, 1), x + 8.0, y + 8.0);
     }
+}
+/// `AdvancementToast`'s title fade-in alpha, 1.5 s after the toast shows:
+/// `(elapsed - 1500) / 300 * 252`, floored — but 1.21.5 ORs the result
+/// with `0x40`, so the title is never more transparent than alpha 64
+/// (1.21.6's `ARGB.color` fades from 0).
+fn advancement_title_alpha(fully_for: i64) -> u32 {
+    let fade = ((fully_for - 1500) as f32 / 300.0).clamp(0.0, 1.0);
+    (fade * 252.0).floor() as u32 | 0x40
 }
 /// The toast's frame label and its colour (`AdvancementToast`: -30465, pink,
 /// for a challenge, else -256, yellow), packed as `hud::rgba` for the batch.
@@ -2846,6 +2851,13 @@ mod tests {
             toast_label(Frame::Challenge).1.to_le_bytes(),
             [255, 136, 255, 255]
         );
+    }
+
+    #[test]
+    fn advancement_title_fades_in_from_alpha_64() {
+        assert_eq!(advancement_title_alpha(1500), 64);
+        assert_eq!(advancement_title_alpha(1550), 106);
+        assert_eq!(advancement_title_alpha(1800), 252);
     }
 
     fn recipes(n: usize) -> Toast {

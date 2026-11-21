@@ -3235,13 +3235,66 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 71 — Advancement triggers &
+  toasts, ported:**
+  - The trigger changes are Java
+    typing and diagnostics only:
+    `level()` -> `serverLevel()`
+    narrows the type (same
+    instance), the validation
+    paths gain a leading dot
+    (`"location"` -> `".location"`,
+    and the entity fields), and
+    `placedBlockWithProperties`
+    is a 1.21.6-only datapack
+    builder helper. The Rust port
+    implements none of these
+    surfaces (no criterion
+    validator, no advancement
+    builders). `AdvancementRewards.grant`
+    is the same logic with the
+    server reached through the
+    player instead of the level.
+  - `AdvancementToast` is the one
+    real change, in the
+    multi-line fade: 1.21.5 draws
+    the frame label at full
+    opacity (its `colour | alpha`
+    is a no-op because the label
+    colour already carries alpha
+    0xFF), while 1.21.6 fades it
+    out with `ARGB.color`; and
+    the title fades in from alpha
+    64 (1.21.5 ORs the fade with
+    0x40), not from 0. The toast
+    draw now matches, with the
+    title alpha extracted as
+    `advancement_title_alpha`.
+  - `RecipeToast` and the `Toast`
+    defaults are renames and
+    1.21.6-only API (`xPos` /
+    `yPos` / `onFinishedRendering`)
+    with no Rust surface; the
+    recipe toast's 0.6 item scale
+    is unchanged.
+  - Test:
+    `advancement_title_fades_in_from_alpha_64`
+    pins 1500 -> 64, 1550 -> 106,
+    1800 -> 252.
+  - Verification: `cargo test -p
+    horizon-client --lib toast`
+    10 passed, 1 ignored, plus
+    `advancement_title_fades_in_from_alpha_64`,
+    and `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **70 of 426 are
-closed** (rank 1 complete, rank 2 at 61/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **71 of 426 are
+closed** (rank 1 complete, rank 2 at 62/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
