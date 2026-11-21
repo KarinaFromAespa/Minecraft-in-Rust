@@ -8742,13 +8742,34 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 186 — Creaking
+  home position
+  save/load:**
+  - The creaking already
+    saves and loads
+    `home_pos` the 1.21.5
+    way: the writer stores
+    it as an int array only
+    when the heart binding
+    exists and removes the
+    key otherwise, and the
+    reader calls
+    `set_transient` only
+    when a three-entry
+    array is present. The
+    ValueInput/ValueOutput
+    names have no Rust
+    surface (item 159).
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **185 of 426 are
-closed** (rank 1 complete, rank 2 at 176/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **186 of 426 are
+closed** (rank 1 complete, rank 2 at 177/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
