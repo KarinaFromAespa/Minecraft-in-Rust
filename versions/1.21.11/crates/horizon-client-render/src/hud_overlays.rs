@@ -529,7 +529,7 @@ const BOSS_OVERLAYS: [&str; 5] = [
     "notched_20",
 ];
 
-/// `BossHealthOverlay.extractRenderState`: the bars in event order, 19 pixels
+/// `BossHealthOverlay.render`: the bars in event order, 19 pixels
 /// apart from y = 12 until a third of the screen height.
 pub fn boss_overlay(w: i32, h: i32, bars: &[BossBar], font: &Font) -> Vec<GuiDraw> {
     let mut out = Vec::new();
@@ -584,7 +584,7 @@ pub const BOSS_BAR_HEIGHT: i32 = 5;
 /// A boss bar's sprite width, in GUI px; it is centred on the view.
 pub const BOSS_BAR_WIDTH: i32 = 182;
 
-/// How many of `n` boss bars `BossHealthOverlay.extractRenderState` draws on a view `h` GUI px
+/// How many of `n` boss bars `BossHealthOverlay.render` draws on a view `h` GUI px
 /// tall: it stops once the next bar's top reaches a third of the height (integer division,
 /// as vanilla's `guiHeight() / 3`), but always draws the first.
 pub fn boss_bars_drawn(h: i32, n: usize) -> usize {
@@ -1176,7 +1176,7 @@ impl SubtitleOverlay {
             looping,
         });
     }
-    /// `extractRenderState`: starts or stops listening as the option says,
+    /// `render`: starts or stops listening as the option says,
     /// forgets old plays and lays out the boxes at the bottom right.
     pub fn extract(&mut self, frame: &SubtitleFrame, font: &Font, now: i64) -> Vec<GuiDraw> {
         let mut out = Vec::new();
@@ -1425,7 +1425,7 @@ mod text_position_tests {
 mod boss_bar_room_tests {
     use super::*;
 
-    /// `BossHealthOverlay.extractRenderState` worked by hand: bars at y 12, 31, 50, 69, 88...,
+    /// `BossHealthOverlay.render` worked by hand: bars at y 12, 31, 50, 69, 88...,
     /// each 5 tall, until the next top reaches `guiHeight() / 3`.
     #[test]
     fn boss_bars_end_where_vanillas_overlay_stops() {

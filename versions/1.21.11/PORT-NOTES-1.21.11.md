@@ -9299,3 +9299,17 @@ into translucent; the leaves fancy/fast switch and translucent
 sorting are already modeled, and the buffer sizes, vertex
 formats and per-block crash report are GL-side details the
 wgpu renderer does not model.
+
+## Item 176 — hud_overlays.rs (rank 2, NO-CHANGE)
+
+6 classes, 13 methods, 2 named. No behavioural delta:
+`BossHealthOverlay` / `SubtitleOverlay` only rename
+`extractRenderState(GuiGraphicsExtractor)` to
+`render(GuiGraphics)` (the extractor does not exist in
+1.21.11) with every layout number identical;
+`DeltaTracker.Timer` fuses its two advances into
+`advanceTime(long, boolean)` with identical bodies;
+`MobEffectInstance` is bytecode-identical. Doc citations in
+`hud_overlays.rs` updated to the 1.21.11 method names. The
+`GuiGraphicsExtractor.itemDecorations` citations there belong
+to item 371, which owns the extractor rewire.
