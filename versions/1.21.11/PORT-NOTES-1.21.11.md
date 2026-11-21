@@ -12532,3 +12532,7 @@ that is still present, close, and visible. The Rust had the 26.1 form;
 `Swell::can_use` and `Swell::tick` now drop the alive checks (deflate
 only when the target is gone). Distances (9.0 / 49.0) and LOS
 unchanged.
+
+## Item 667 — horizon-protocol/src/frame.rs (CompressionEncoder, Varint21LengthFieldPrepender) — NO-CHANGE
+
+Zero diff: the bytecode is identical in both versions.
