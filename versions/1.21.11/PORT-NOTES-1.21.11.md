@@ -10631,3 +10631,12 @@ change. `cargo check -p horizon-client
 bytecode diff EMPTY: `prepare` is identical
 in both versions. No source change. `cargo
 check -p horizon-client --tests` passes.
+
+## Item 303 — game/native_server.rs (rank 2, NO-CHANGE)
+
+1 class, 1 method, 1 named. The only
+difference is the order of the two
+interfaces in the `implements` clause;
+`withCallback`'s bytecode is identical. No
+source change. `cargo check -p
+horizon-client --tests` passes.
