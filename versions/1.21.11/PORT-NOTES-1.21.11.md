@@ -11738,3 +11738,17 @@ in 26.1 (codec range 0-128, default 0); 1.21.11 has none. The Rust already
 matches 1.21.11: `TestDef` has no padding field, and `test_bounding_box`
 returns the un-inflated structure box with a comment noting the 26.x padding
 inflation 1.21.11 lacks.
+
+## Item 544 — level/place.rs (ScaffoldingBlockItem, ChorusPlantBlock) — CHANGED
+
+Scaffolding: only the `BlockState.is` overload widening and the build-limit
+message moving into `sendBuildLimitMessage` (26.1) vs inline `build.tooHigh`
+(1.21.11) — same message, same placement walk; the Rust already builds it
+inline. Chorus plant: 26.1 reads the `supports_chorus_plant` tag (which holds
+only end stone); 1.21.11 hardcodes end stone and has no such tag. **Fix:** the
+Rust read the 26.1-only tag in five places, each resolving to an empty set in
+1.21.11, so chorus plants could never connect to or survive on end stone. All
+five now use end stone directly, following the tree's established pattern
+(crops/farmland, kelp/magma, chorus flower): connections in `place.rs`,
+`updateShape` in `shapes.rs`, `canSurvive` in `survive.rs`, the survival
+table in `block_survival.rs`, and the worldgen feature's support set.

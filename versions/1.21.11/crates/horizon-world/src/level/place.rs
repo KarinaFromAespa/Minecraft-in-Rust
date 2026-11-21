@@ -1326,7 +1326,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             let neighbour = self.rel_state(pos, direction);
             let mut connect = b.is_block(neighbour, block) || b.is_block(neighbour, flower);
             if direction == Direction::Down {
-                connect |= b.in_set(neighbour, &b.tags.supports_chorus_plant);
+                // 1.21.11 hardcodes end stone (26.1 reads the
+                // `supports_chorus_plant` tag, which held only end stone).
+                connect |= b.is_block(neighbour, b.named.end_stone);
             }
             result = b
                 .table

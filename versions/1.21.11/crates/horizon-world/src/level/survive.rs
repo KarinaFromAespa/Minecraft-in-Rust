@@ -138,12 +138,14 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                             return Some(false);
                         }
                         let under = self.below_state(neighbour_pos);
-                        if b.is_block(under, block) || b.in_set(under, &t.supports_chorus_plant) {
+                        // 1.21.11 hardcodes end stone (26.1 reads the
+                        // `supports_chorus_plant` tag, which held only it).
+                        if b.is_block(under, block) || b.is_block(under, n.end_stone) {
                             return Some(true);
                         }
                     }
                 }
-                b.is_block(below_state, block) || b.in_set(below_state, &t.supports_chorus_plant)
+                b.is_block(below_state, block) || b.is_block(below_state, n.end_stone)
             }
             Class::Cocoa => b.in_set(self.rel_state(pos, b.facing(state)), &t.supports_cocoa),
             Class::Crop => {

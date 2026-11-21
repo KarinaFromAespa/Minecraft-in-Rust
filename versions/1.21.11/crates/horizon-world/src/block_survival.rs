@@ -602,7 +602,9 @@ impl<'r> BlockSurvivalRegistry<'r> {
             // `KelpBlock.canAttachTo` in 1.21.11: magma, hardcoded (the
             // `cannot_support_kelp` tag is gone; it held only magma).
             no_kelp: block_states("minecraft:magma_block")?,
-            chorus_plant: tag_states("minecraft:supports_chorus_plant")?,
+            // `ChorusPlantBlock.canSurvive` in 1.21.11: end stone, hardcoded
+            // (the `supports_chorus_plant` tag is gone; it held only end stone).
+            chorus_plant: block_states("minecraft:end_stone")?,
             lily_pad,
             frogspawn: tag_states("minecraft:supports_frogspawn")?,
             small_dripleaf: tag_states("minecraft:small_dripleaf_placeable")?,

@@ -342,9 +342,11 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     self.schedule_tick(pos, block, 1);
                     sup!()
                 } else {
+                    // 1.21.11 hardcodes end stone below (26.1 reads the
+                    // `supports_chorus_plant` tag, which held only end stone).
                     let connect = b.is_block(nstate, block)
                         || b.is_block(nstate, n.chorus_flower)
-                        || (dir == Direction::Down && b.in_set(nstate, &t.supports_chorus_plant));
+                        || (dir == Direction::Down && b.is_block(nstate, n.end_stone));
                     table.set_bool(state, self.direction_prop(dir), connect)
                 }
             }
