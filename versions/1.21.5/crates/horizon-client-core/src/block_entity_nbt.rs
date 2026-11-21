@@ -743,13 +743,15 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
     out.insert("y".into(), Tag::Int(y));
     out.insert("z".into(), Tag::Int(z));
     out.insert("keepPacked".into(), Tag::Byte(0));
-    out.insert(
-        "components".into(),
-        match tag.get("components") {
-            Some(c @ Tag::Compound(_)) => c.clone(),
-            _ => Tag::Compound(Compound::new()),
-        },
-    );
+    // `BlockEntity.saveWithoutMetadata`: `components` is
+    // `COMPONENTS_CODEC.optionalFieldOf("components", EMPTY)` — an empty
+    // component map is omitted, not written as an empty compound (1.21.6's
+    // `ValueOutput.store` writes it unconditionally).
+    if let Some(c @ Tag::Compound(map)) = tag.get("components")
+        && !map.is_empty()
+    {
+        out.insert("components".into(), c.clone());
+    }
     Some(Tag::Compound(out))
 }
 
@@ -859,13 +861,19 @@ mod tests {
             let out = canonical(&tag).unwrap_or_else(|| panic!("{id}"));
             assert_eq!(out.get("id"), tag.get("id"));
             assert_eq!(out.get("keepPacked"), Some(&Tag::Byte(0)), "{id}");
-            assert_eq!(
-                out.get("components"),
-                Some(&Tag::Compound(Compound::new())),
-                "{id}"
-            );
+            // `optionalFieldOf("components", EMPTY)`: no components, no key.
+            assert_eq!(out.get("components"), None, "{id}");
         }
         assert!(canonical(&snbt("{id:\"minecraft:nope\",x:1,y:2,z:3}")).is_none());
+        let with = canonical(
+            &snbt("{id:\"minecraft:chest\",x:1,y:2,z:3,components:{\"minecraft:custom_name\":\"Hi\"}}"),
+        )
+        .unwrap();
+        assert_eq!(
+            with.get("components"),
+            Some(&snbt("{\"minecraft:custom_name\":\"Hi\"}")),
+            "non-empty components are kept"
+        );
     }
 
     #[test]

@@ -1336,13 +1336,41 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -p
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings (5m16s).
+- **Item 35 — BlockEntity, ported:**
+  - A block entity with no components saves
+    WITHOUT the `components` key in 1.21.5:
+    `saveWithoutMetadata` stores it through
+    `COMPONENTS_CODEC.optionalFieldOf("components",
+    EMPTY)`, which omits an empty map; 1.21.6's
+    `ValueOutput.store` writes it unconditionally
+    (empty compound and all). `canonical` now
+    writes `components` only when the input's is
+    non-empty, and `every_type_has_defaults`
+    asserts the omission (plus that non-empty
+    components survive).
+  - No-ops verified: the rest of the diff is the
+    ValueInput/ValueOutput → CompoundTag API
+    migration (the Rust's NBT layer already works
+    in compounds — the 1.21.5 form); the save
+    order (saveAdditional, components, metadata)
+    matches in both versions; `saveCustomAndMetadata`
+    (1.21.5-only) has no callers anywhere in the
+    1.21.5 decomp; `parseCustomNameSafe`'s only
+    caller is BaseCommandBlock and the Rust's
+    `component()` already discards unparseable
+    custom names; `getNameForReporting`'s
+    visibility and the ProblemReporter path are
+    API-only.
+  - Verification: `cargo check -p
+    horizon-client-core -p horizon-client
+    --all-targets` 0 errors / 0 warnings (3m43s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **34 of 426 are
-closed** (rank 1 complete, rank 2 at 25/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **35 of 426 are
+closed** (rank 1 complete, rank 2 at 26/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
