@@ -11417,3 +11417,28 @@ overlay flag — in 1.21.11. `typeHolder()` became
 keys and setBlock flags (18) are unchanged, and the
 Rust already cites the `Player` forms, so no code
 touched.
+
+## Item 523 — game/social.rs (rank 3, CHANGED)
+
+One real difference, in `PlayerEntry`'s constructor:
+1.21.11 builds no row buttons at all unless the entry
+is not the local player AND the chat is allowed
+(`getChatStatus().isChatAllowed(isLocalServer())`)
+AND the player is not blocked; 26.1 builds them
+whenever the entry is not local, and passes
+`canReceivePlayerMessages() || isBlocked` as a
+boolean into the report flow instead (26.1's
+`ReportPlayerScreen` takes that boolean, 1.21.11's
+doesn't). The Rust now carries `SocialView.chat_allowed`
+(Hidden chat means not allowed, the same formula
+`remote_chat` uses), and `draw`/`click`/`tooltip`
+skip the row buttons when it is false; tabs and Done
+still answer. The `!isBlocked` leg needs no code —
+nobody is blocked without the Mojang service. The
+fix spans into `social_screen.rs` (item 611's file)
+because the gate is `PlayerEntry` behaviour; item 611
+should find it already in place. The rest is renames
+(`extractContent` -> `renderContent`,
+`PlayerFaceExtractor` -> `PlayerFaceRenderer`,
+`addClientSystemMessage` -> `addMessage`); one
+citation re-pointed.
