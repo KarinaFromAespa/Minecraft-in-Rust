@@ -9274,3 +9274,13 @@ height and falls from there. `ComposterBlock` is unchanged
 `random` rename only; the compostables table diffs clean).
 The sim still has no world-border check on the teleport, a
 pre-existing gap in both versions.
+
+## Item 174 — worldgen/structure/legacy.rs (rank 2, NO-CHANGE)
+
+2 classes, 4 methods, 3 named. No behavioural delta: six
+`BlockState.is(...)` calls resolve to the `is(Block)` overload
+in 1.21.11 where 26.1 called `is(Object)` (same block-identity
+test in both), and `TemplateStructurePiece`'s `template` /
+`placeSettings` fields lose `final`. `createChest`,
+`createDispenser`, `reorient` and the replaceability check are
+otherwise identical. No code changed.
