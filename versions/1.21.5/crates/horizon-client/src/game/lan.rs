@@ -1958,10 +1958,9 @@ impl Game<'_> {
                 continue;
             }
             let stack = hub.stack(&Some(d.stack.clone()));
-            // `ServerEntity.getRequiresPrecisePosition` is false for an item:
-            // `needs_sync` asks for its data again, not for an exact position.
-            // The collision case is `full_precision_required` in the tracker.
-            e.precise = false;
+            // `needs_sync` asks for its data again, not for an exact
+            // position. The collision case is `full_precision_required`
+            // in the tracker.
             e.needs_sync = d.needs_sync;
             e.vertical_collision = d.vertical_collision;
             e.horizontal_collision = d.horizontal_collision;

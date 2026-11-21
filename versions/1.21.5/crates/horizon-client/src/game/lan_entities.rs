@@ -689,12 +689,10 @@ impl Game<'_> {
         for t in self.tnts.iter().filter(|t| t.id > after) {
             let e = add_state(out, t.id, "minecraft:tnt", at(t.position), 0.0, t.on_ground);
             e.velocity = at(t.velocity);
-            // PrimedTnt.DATA_FUSE_ID, 80 by default; requiresPrecisePosition
-            // while it touches a block.
+            // PrimedTnt.DATA_FUSE_ID, 80 by default.
             if t.fuse != 80 {
                 e.meta.push((8, serializer::INT, Value::Int(t.fuse)));
             }
-            e.precise = t.on_ground;
         }
         for f in self.falling.iter().filter(|f| f.id > after) {
             let e = add_state(

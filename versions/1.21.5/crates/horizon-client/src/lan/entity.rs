@@ -64,9 +64,6 @@ pub struct EntityState {
     /// A living entity's client-syncable attribute instances
     /// (`AttributeMap.getSyncableAttributes`), by registry id.
     pub attributes: Vec<AttributeSnapshot>,
-    /// `Entity.getRequiresPrecisePosition` (primed TNT and falling blocks
-    /// touching a block): moves are sent as full position syncs.
-    pub precise: bool,
     /// `Entity.verticalCollision` and `Entity.horizontalCollision`: the last
     /// move's stops. An item that stopped on a block gets a full position
     /// sync rather than a 1/4096 delta whose decoded point is not the one it
@@ -122,7 +119,6 @@ impl EntityState {
         self.defaults.clear();
         self.equipment.clear();
         self.attributes.clear();
-        self.precise = false;
         self.vertical_collision = false;
         self.horizontal_collision = false;
         self.needs_sync = false;
@@ -562,8 +558,7 @@ impl ServerEntity {
                 on_ground: e.on_ground,
             };
             // ServerEntity.createMovePacket.
-            let packet = if e.precise
-                || self.teleport_delay > 400
+            let packet = if self.teleport_delay > 400
                 || self.was_riding
                 || self.was_on_ground != e.on_ground
             {
@@ -1518,7 +1513,6 @@ mod tests {
             defaults: Vec::new(),
             equipment: Vec::new(),
             attributes: Vec::new(),
-            precise: false,
             vertical_collision: false,
             horizontal_collision: false,
             needs_sync: false,
@@ -1645,9 +1639,9 @@ mod tests {
         ));
     }
 
-    /// `ServerEntity.getRequiresPrecisePosition` is false for an item, so a
-    /// drop whose data has to be sent again still moves by a delta; only the
-    /// collision case takes the exact-position packet.
+    /// 1.21.5 has no exact-position flag, so a drop whose data has to be
+    /// sent again still moves by a delta; only the collision case takes
+    /// the exact-position packet.
     #[test]
     fn an_item_that_needs_its_data_sent_again_still_moves_by_a_delta() {
         let mut e = state(0.0);
@@ -1746,15 +1740,17 @@ mod tests {
         assert!(matches!(&out[..], [play::Clientbound::MoveEntityPos(_)]));
     }
 
+    /// 1.21.5 has no `Entity.getRequiresPrecisePosition`: a primed TNT
+    /// resting on a block moves by a delta like any other entity, not a
+    /// full position sync.
     #[test]
-    fn precise_entities_sync_their_position() {
+    fn grounded_tnt_moves_by_a_delta() {
         let mut e = state(0.0);
         e.kind = "minecraft:tnt".into();
-        e.precise = true;
         let mut s = added(&e);
         assert!(matches!(
             changes(&mut s, &e)[..],
-            [play::Clientbound::EntityPositionSync(_)]
+            [play::Clientbound::MoveEntityPos(_)]
         ));
     }
 

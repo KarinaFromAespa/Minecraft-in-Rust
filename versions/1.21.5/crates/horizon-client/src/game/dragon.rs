@@ -3859,7 +3859,6 @@ impl Game<'_> {
             defaults: Vec::new(),
             equipment: Vec::new(),
             attributes: Vec::new(),
-            precise: false,
             vertical_collision: false,
             horizontal_collision: false,
             needs_sync: false,

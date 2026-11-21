@@ -7681,13 +7681,109 @@ is the oracle; decompiled code is a reading aid.
     build was not run
     (OOM under load,
     item 122).
+- **Item 162 — Entity:
+  exact-position flag
+  removed; fire, leash
+  and interact already
+  1.21.5:**
+  - `requiresPrecisePosition`
+    is 1.21.6-only, and
+    it was live: grounded
+    primed TNT set the
+    Rust `precise` flag
+    and forced a full
+    position sync every
+    tick. The field, the
+    tracker term and all
+    six construction
+    sites are gone; the
+    test now pins a
+    grounded TNT moving
+    by delta. (Item 104's
+    "never true in
+    production" was
+    wrong — the TNT
+    setter was missed
+    there.) Fire is
+    already the 1.21.5
+    form: default -1,
+    the `wasOnFire &&
+    ticks <= 0` reset
+    to -1, and the
+    fire-immune branch
+    unreachable (contact
+    never ignites an
+    immune mob). The
+    leash interact is
+    already 1.21.5 — no
+    sneak-tie, no
+    shears branch, no
+    tie/untie sounds —
+    and `canAttachLead`
+    is the no-distance
+    form; equipment
+    shearing has no
+    surface (snow golem
+    and bogged only).
+    The leash offset
+    default is
+    `(0, eyeHeight,
+    width * 0.4)`; the
+    spawn helper is the
+    float-Y form only;
+    `checkSlowFallDistance`
+    is the name the
+    code already cites.
+    No surface at all:
+    movement recording,
+    `isInClouds`,
+    `teleportSpectators`
+    (the spectator
+    camera just ends
+    when its target
+    goes), the quad
+    leash, `isFlyingVehicle`,
+    `getCommandSenderWorld`,
+    the waypoint hooks.
+    Save/load is the
+    usual
+    `ValueInput`/`ValueOutput`
+    → `CompoundTag`
+    refactor with the
+    same fields (motion
+    clamp 10.0 present);
+    the `Equippable`
+    shear fields live
+    only in the pinned
+    internal layout,
+    with the 1.21.5
+    adapter inserting
+    and stripping them
+    (item 66's ground).
+    Pre-existing gap,
+    version-neutral:
+    a fire-immune mob
+    that somehow holds
+    fire ticks is
+    cleared at once
+    instead of decaying
+    by 4 a tick.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests` 0/0 (1m
+    06s). The
+    test-profile build
+    was not run (OOM
+    under load, item
+    122).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **161 of 426 are
-closed** (rank 1 complete, rank 2 at 152/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **162 of 426 are
+closed** (rank 1 complete, rank 2 at 153/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
