@@ -10076,3 +10076,19 @@ directly. No code changed.
 plus visibility widening. The Rust already cites
 `getLightBlock` and implements `isEdgeOccluded`.
 No code changed.
+
+## Item 242 — core/component (rank 2, NO-CHANGE)
+
+10 classes, 18 methods, 0 named. The component
+registry shrinks 110 -> 104 (six 26.1-only types:
+`additional_trade_cost`, four sound variants,
+`dye`); five types change shape (`EitherHolder` for
+the variant/damage components, `TagKey` for banner
+patterns, the `ProvidesTrimMaterial` record). The
+Rust is value-generic over components, so the type
+changes are invisible at its level; the forms it
+reads are already the 1.21.11 ones, and component
+ids come from the prepared 1.21.11 registries
+report. The map/patch builder differences (validator,
+prototype-resolving `get`) are Java plumbing with no
+Rust analogue. No code changed.
