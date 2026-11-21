@@ -4904,13 +4904,65 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -j 1
     -p horizon-client --lib` 0 errors
     / 0 warnings.
+- **Item 110 — op / deop / pardon
+  / pardon-ip / place / save-all
+  / summon / teleport /
+  whitelist, `hasPermission`
+  inlined; `/version` gone:**
+  - A pure refactor, no
+    behavioural delta: 1.21.6
+    spells the requirement
+    `Commands.hasPermission(N)`,
+    1.21.5 the lambda
+    `$$0x -> $$0x.hasPermission(N)`;
+    the predicate is the
+    same. The summon
+    suggestion change is the
+    same kind of thing:
+    1.21.6 wraps the provider
+    in a generics cast,
+    1.21.5 passes it
+    directly.
+  - The Rust tree's levels
+    match 1.21.5 exactly:
+    op, deop, pardon,
+    pardon-ip and whitelist
+    at 3 (ADMINS),
+    save-all at 4 (OWNERS),
+    place, summon and
+    teleport (and the `tp`
+    alias) at 2
+    (GAMEMASTERS)
+    (`horizon-command`
+    `vanilla.rs`,
+    `tree_extra.rs`,
+    `tree_world.rs`); summon
+    suggests
+    `Suggests::SummonableEntities`,
+    the same provider.
+  - The one real delta is
+    `VersionCommand.java`,
+    removed in 1.21.5: the
+    publish already took
+    `/version` out of the
+    tree (the marker comment
+    in `game/commands/
+    extra.rs`); no `/version`
+    remains anywhere in the
+    Rust tree. No code
+    change.
+  - Verification: no Rust
+    change; the tree state is
+    the one `cargo check -j 1
+    -p horizon-client --lib`
+    passed at item 109.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **109 of 426 are
-closed** (rank 1 complete, rank 2 at 100/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **110 of 426 are
+closed** (rank 1 complete, rank 2 at 101/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
