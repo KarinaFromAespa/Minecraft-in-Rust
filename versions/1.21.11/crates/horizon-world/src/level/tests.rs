@@ -3364,6 +3364,22 @@ fn crop_growth_speed_counts_moist_farmland() {
 }
 
 #[test]
+fn bone_meal_still_feeds_a_sweet_berry_bush_with_a_block_above() {
+    // `SweetBerryBushBlock.isValidBonemealTarget` in 1.21.11 is age < 3
+    // only (26.1 also required air above inside the build height), so
+    // bonemeal on a growing bush under a solid block is still consumed.
+    let mut w = world!();
+    let pos = BlockPos::new(0, 1, 0);
+    w.put(pos, w.id("sweet_berry_bush", &[("age", "0")]));
+    w.put(BlockPos::new(0, 2, 0), w.id("stone", &[]));
+    assert!(
+        w.b().sim(&mut w.level, &mut w.ticks).grow_crop(pos),
+        "bonemeal is consumed under a solid block"
+    );
+    assert_eq!(w.prop(pos, "age"), "1", "the bush grows a stage");
+}
+
+#[test]
 fn bone_meal_still_feeds_grass_at_the_build_ceiling() {
     // `GrassBlock.isValidBonemealTarget` in 1.21.11 has no build-height
     // check (26.x added one), so bonemeal on grass at y 319 is consumed

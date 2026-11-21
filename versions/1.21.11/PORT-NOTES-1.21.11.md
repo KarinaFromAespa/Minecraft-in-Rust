@@ -9796,3 +9796,16 @@ is a real version delta — 26.1's
 `add_poem_file` already uses `LegacyRandom`, the
 1.21.11 form. Four doc citations updated; no
 behavioural code changed.
+
+## Item 211 — SweetBerryBushBlock (rank 2, CHANGED)
+
+1 class, 4 methods, 2 named. The real delta is
+`isValidBonemealTarget`: 26.1 requires age < 3 plus
+air above inside the build height, 1.21.11 requires
+only age < 3 — already the Rust's form in
+`bonemeal.rs`, now pinned by a level test (a bush at
+age 0 under solid stone still consumes bonemeal and
+grows). `entityInside`'s fox/bee exemption and
+`useItemOn`'s bone-meal pass differ only by the
+`getType()` / `is(Item)` spelling and the 26.1-only
+`ItemInstance` type name. No production code changed.
