@@ -2671,8 +2671,6 @@ struct Game<'a> {
     polytone_post_ticks: f64,
     /// `GameRenderer.spectatedEntityPostEffect` (`checkEntityPostEffect`).
     spectated_post_effect: Option<&'static str>,
-    /// `LocalPlayer.experienceDisplayStartTick`: (last progress, seen a change, tick).
-    experience_display: (f32, bool, u64),
     boats: horizon_client::join_seq::JoinList<boats::Boat>,
     /// The boats a mob's lead can hang on, for this tick's mob ticks.
     leash_boats: Vec<(u32, horizon_client::mobs::leash::HolderState)>,
@@ -5569,7 +5567,6 @@ impl Game<'_> {
         // their turns (`as_guest`), and the window's player is a client of it.
         self.ticks += 1;
         self.repro_tick();
-        self.track_experience_display();
         self.tick_enchanting_book();
         // `/tick freeze` stops the world but not the player.
         let running = match self.level_pass.running {
@@ -6067,7 +6064,11 @@ impl Game<'_> {
                 !spectator && self.jumpable_mount(),
                 self.mount_jumping(),
                 has_experience,
-                self.experience_recent(),
+                // 1.21.5 has no `experienceDisplayStartTick` /
+                // `willPrioritizeExperienceInfo`: the experience bar is
+                // never suppressed by recency (the locator bar itself is
+                // item 108's removal).
+                true,
             );
             use horizon_client::locator_bar::ContextualBar;
             // The mount's hearts.
@@ -12070,7 +12071,6 @@ impl<'a> Game<'a> {
             post_effects: Vec::new(),
             polytone_post_ticks: 0.0,
             spectated_post_effect: None,
-            experience_display: Default::default(),
             boats: Default::default(),
             leash_boats: Vec::new(),
             boat_models: prepared.boat_models,

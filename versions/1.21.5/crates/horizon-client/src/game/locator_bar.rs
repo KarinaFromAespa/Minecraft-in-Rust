@@ -1,8 +1,7 @@
 //! The locator bar on this client (horizon_client::locator_bar): the
 //! waypoints a server tracks for the player (`handleWaypoint`; on a served
-//! world the host's own connection in lan/waypoints.rs), the experience
-//! bar's priority after a change, and the dots drawn from the last frame's
-//! camera.
+//! world the host's own connection in lan/waypoints.rs), and the dots drawn
+//! from the last frame's camera.
 use super::Game;
 use horizon_client::{
     hud_layout::GuiDraw,
@@ -21,36 +20,6 @@ impl Game<'_> {
     /// A new connection or world starts with no waypoints.
     pub(super) fn clear_waypoints(&mut self) {
         self.waypoints = ClientWaypoints::default();
-    }
-    /// `LocalPlayer.setExperienceValues`: a change of progress shows the
-    /// experience bar for 100 ticks, except the first one
-    /// (`experienceDisplayStartTick` starts at `Integer.MIN_VALUE`).
-    pub(super) fn track_experience_display(&mut self) {
-        let progress = self.experience.progress;
-        let (last, seen, _) = &mut self.experience_display;
-        if progress != *last {
-            *last = progress;
-            if *seen {
-                self.experience_display.2 = self.visual_ticks().max(1);
-            } else {
-                *seen = true;
-            }
-        }
-        // EnchantmentScreen and AnvilScreen.containerTick keep it up.
-        if self.station.as_ref().is_some_and(|s| {
-            matches!(
-                s.kind,
-                super::stations::Kind::Enchanting | super::stations::Kind::Anvil
-            )
-        }) {
-            self.experience_display.2 = self.visual_ticks().max(1);
-        }
-    }
-    /// `Hud.willPrioritizeExperienceInfo`. A start of 0 is none: the stamps above are at least 1
-    /// (a new world under `HORIZON_STILL` is still at tick 0).
-    pub(super) fn experience_recent(&self) -> bool {
-        let (_, _, start) = self.experience_display;
-        start != 0 && start + 100 > self.visual_ticks()
     }
     /// The local player's UUID, as servers know it.
     pub(super) fn own_uuid(&self) -> u128 {

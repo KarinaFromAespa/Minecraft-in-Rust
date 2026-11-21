@@ -6563,7 +6563,6 @@ impl Game<'_> {
         let chat_ticks = self.visual_ticks();
         self.ui.chat.tick(&self.gui.atlas, chat_ticks);
         self.tick_sign_editor();
-        self.track_experience_display();
         self.tick_enchanting_book();
         // Leaving a slot clears its bundle's selection here and on the server.
         self.tick_bundle_hover();

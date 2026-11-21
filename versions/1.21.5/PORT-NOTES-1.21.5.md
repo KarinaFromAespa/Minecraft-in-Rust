@@ -1302,13 +1302,47 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -p
     horizon-client-input -p horizon-client
     --all-targets` 0 errors / 0 warnings (3m10s).
+- **Item 34 — LocalPlayer / UnderwaterAmbientSoundHandler,
+  ported:**
+  - No happy-ghast riding sound: 1.21.6's
+    `startRiding` plays `RidingHappyGhastSoundInstance`;
+    1.21.5 has no happy ghast. The ghast arm is out
+    of `start_riding_sound` (the nautilus arm stays)
+    and `SoundInstance::riding_happy_ghast` + its
+    test are deleted. (The ghast mob itself is item
+    58's removal.)
+  - No experience-display timer: 1.21.6's
+    `setExperienceValues` stamps
+    `experienceDisplayStartTick`, and the locator
+    bar yields to the XP bar for 100 ticks after a
+    change (`willPrioritizeExperienceInfo`). 1.21.5
+    has neither — the XP bar is never suppressed by
+    recency. The `experience_display` field, its
+    tracking and `experience_recent` are deleted;
+    the contextual-bar call passes `true` for
+    recency. (The locator bar itself is item 108's
+    removal; LAN waypoints are item 86's.)
+  - No-ops verified: `sendShiftKeyState` (shift
+    press/release as PlayerCommand 0/1, before the
+    input packet) is already the 1.21.5 form
+    (item 12's numbering); `openDialog` has no
+    client surface (no dialog packet handling in
+    remote.rs — dialogs.rs is Horizon's local-only
+    path, per item 29); `getLastSentInput` has no
+    Rust surface; `UnderwaterAmbientSoundHandler`
+    is byte-identical between the two decompiles
+    (the report's "1 method changed" is a false
+    positive).
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings (5m16s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **33 of 426 are
-closed** (rank 1 complete, rank 2 at 24/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **34 of 426 are
+closed** (rank 1 complete, rank 2 at 25/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
