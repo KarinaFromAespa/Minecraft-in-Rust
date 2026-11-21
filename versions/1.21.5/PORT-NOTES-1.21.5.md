@@ -3902,13 +3902,47 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 88 — FallingBlockEntity,
+  verified:**
+  - The diff is pure Java API
+    shape (`ValueOutput` /
+    `ValueInput` back to
+    `CompoundTag`): the saved
+    fields and defaults are
+    identical in both versions
+    — `BlockState` (default
+    sand), `Time` (0),
+    `DropItem` (true),
+    `HurtEntities` (defaults
+    to anvil-ness),
+    `FallHurtAmount` (0.0),
+    `FallHurtMax` (40),
+    `CancelDrop` (false) —
+    and the Rust round-trip
+    (`entity_nbt.rs`,
+    `falling_block.rs`) matches
+    every one. The landing
+    block-entity transfer is
+    the same merge through
+    different plumbing.
+  - Pre-existing gap, not a
+    delta: the port does not
+    carry `TileEntityData`
+    (`blockData`) on falling
+    blocks at all, in either
+    version's form.
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **87 of 426 are
-closed** (rank 1 complete, rank 2 at 78/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **88 of 426 are
+closed** (rank 1 complete, rank 2 at 79/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
