@@ -7507,13 +7507,51 @@ is the oracle; decompiled code is a reading aid.
     horizon-client --lib
     --tests` passed at
     item 155.
+- **Item 159 — ValueOutput
+  API verified absent
+  (1.21.6 only):**
+  - `ValueOutput` and
+    `TagValueOutput` exist
+    only in 1.21.6; 1.21.5
+    saves through
+    `CompoundTag`
+    directly. The Rust
+    tree has no
+    `ValueOutput` /
+    `TagValueOutput`
+    equivalent — every
+    save path writes NBT
+    directly via `Tag` /
+    `Compound` (items
+    109, 111, 112, 123,
+    126, 150, 156). The
+    single mention is a
+    comment in
+    `block_entity_nbt.rs`
+    contrasting 1.21.5's
+    `optionalFieldOf`
+    (empty component map
+    omitted) with 1.21.6's
+    unconditional store —
+    verified against the
+    1.21.5 decomp
+    (`COMPONENTS_CODEC`,
+    `saveWithoutMetadata`)
+    and left as is.
+  - Verification: no Rust
+    change; the tree state
+    is the one `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests` passed at
+    item 155.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **158 of 426 are
-closed** (rank 1 complete, rank 2 at 149/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **159 of 426 are
+closed** (rank 1 complete, rank 2 at 150/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
