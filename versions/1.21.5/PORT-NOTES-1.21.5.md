@@ -8557,13 +8557,40 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 180 — Parrot
+  imitation map:**
+  - The imitation table is
+    back to vanilla
+    1.21.5's 37 entries:
+    the ender dragon is in,
+    the happy ghast and the
+    26.x additions (camel
+    husk, parched, zombie
+    horse, zombie nautilus)
+    are out. The dragon has
+    no `Species` (a
+    separate boss entity),
+    so its key is `None`
+    and it feeds only the
+    random ambient draw, as
+    in vanilla; a parrot
+    never imitates a nearby
+    dragon, a known gap.
+    The `Variant` save/load
+    was already the 1.21.5
+    int form.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests`, 0 errors, 0
+    warnings.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **179 of 426 are
-closed** (rank 1 complete, rank 2 at 170/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **180 of 426 are
+closed** (rank 1 complete, rank 2 at 171/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
