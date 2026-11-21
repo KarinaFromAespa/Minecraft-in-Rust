@@ -9685,3 +9685,19 @@ and 4 registered float types, verified against the
 1.21.11 jar. The Rust's extra `very_biased_to_bottom`
 / `trapezoid` int variants are 26.1-only but
 unreachable on 1.21.11 data. No code changed.
+
+## Item 203 — screen_draw.rs (rank 2, NO-CHANGE)
+
+8 classes, 15 methods, 1 named. All render-state-
+extraction renames with identical bodies:
+`AbstractButton`'s `extract*` methods become
+`render*` (`renderWidget`, `renderContents`,
+`renderDefaultLabel`, `renderDefaultSprite`) on
+`GuiGraphics`; the scissor stack moves from
+`GuiGraphicsExtractor` to `GuiGraphics` itself (same
+push/pop/peek API, verified in the 1.21.11 jar).
+Four doc citations updated to the 1.21.11 names
+(screen_draw.rs, title.rs); no behavioural code
+changed. The remaining `extractWidgetRenderState`
+citations (multiline_edit.rs, multiplayer.rs) belong
+to their classes' own items / item 371.

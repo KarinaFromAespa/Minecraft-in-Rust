@@ -548,7 +548,7 @@ pub fn scrolling_string_over_contents(
     scrolling_with_default_center(out, m, message, left, right, y, y + h, now_ms);
 }
 
-/// `Button` (`extractDefaultSprite`, then `AbstractButton.extractDefaultLabel`:
+/// `Button` (`renderDefaultSprite`, then `AbstractButton.renderDefaultLabel`:
 /// `renderScrollingStringOverContents` with a margin of 2, which scrolls a
 /// label wider than the button with the clock, `now_ms`).
 pub fn button(
@@ -997,7 +997,7 @@ fn intersect(a: [i32; 4], b: [i32; 4]) -> [i32; 4] {
 /// the atlas (`textures/gui/x.png` is `gui/x`; tiled textures from their
 /// corner), scissor clipping, and the tooltip at the mouse.
 pub fn paint(batch: &mut HudBatch, atlas: &HudAtlas, draws: &[Draw]) {
-    // `GuiGraphicsExtractor.ScissorStack`: a scissor clips what is drawn since
+    // `GuiGraphics.ScissorStack`: a scissor clips what is drawn since
     // it opened, cut to the screen while none is open and to the one around it
     // otherwise; closing it puts the enclosing one back.
     let screen = [0, 0, batch.width as i32, batch.height as i32];
@@ -1349,7 +1349,7 @@ mod scissor_tests {
         Draw::Scissor { x0, y0, x1, y1 }
     }
 
-    /// `GuiGraphicsExtractor.ScissorStack.push`: a scissor inside another is
+    /// `GuiGraphics.ScissorStack.push`: a scissor inside another is
     /// intersected with it (`ScreenRectangle.intersection`), and the outer one
     /// still clips what is drawn after the inner one closes.
     #[test]

@@ -490,7 +490,7 @@ impl Button {
         self.action = Some(action);
         self
     }
-    /// `AbstractButton.extractDefaultLabel`: the label centred with a 2 px
+    /// `AbstractButton.renderDefaultLabel`: the label centred with a 2 px
     /// margin, and slid inside the button when it does not fit
     /// (`AbstractWidget.renderScrollingStringOverContents`), instead of being
     /// drawn past it over the buttons beside it (so_so's 590 px World Type
