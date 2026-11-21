@@ -11937,12 +11937,54 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no
     code changed.
 
+- **Item 284 — ResourceOrIdArgument**
+  - ResourceOrIdArgument,
+    NestedLootTable,
+    CompositeLootItemCondition:
+    code - resource_or_id
+    rewritten to the 1.21.5
+    parseInlineOrId form: the
+    inline SNBT value first,
+    then the id; an inline
+    string is a reference
+    decoded by the holder
+    codec, so an unknown id
+    reports failed_to_parse
+    with 'Failed to get element
+    ... from registry ...',
+    never the 1.21.6-only
+    no_such_element (also fixed
+    at the provider site in
+    compute.rs). Input that is
+    neither a whole value nor a
+    whole id is invalid; an id
+    read that finds nothing is
+    argument.id.invalid. The
+    lookup stays strict with an
+    empty table - the slot path
+    relies on unknown ids
+    erroring. The validation-
+    path spellings in
+    NestedLootTable and
+    CompositeLootItemCondition
+    have no surface (no loot
+    validation, items
+    229/248/252). Suggestions
+    already match: /loot and
+    /item modify attach their
+    own in 1.21.5.
+  - Verification: cargo test -j
+    1 -p horizon-command --lib:
+    54 passed; cargo check -j 1
+    -p horizon-client --lib:
+    clean.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **283 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 15/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **284 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 16/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
