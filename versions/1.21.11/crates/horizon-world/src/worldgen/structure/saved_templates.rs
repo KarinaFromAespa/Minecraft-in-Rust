@@ -175,9 +175,8 @@ pub(crate) fn read(
         ignore,
         handler,
     );
-    if id == "shipwreck" && flag(tag, "height_adjusted") {
-        *piece.state.lock().unwrap() = Some(piece.position[1]);
-    }
+    // 1.21.11 writes no `height_adjusted` flag (a 26.1 addition): a loaded
+    // shipwreck re-adjusts on its next postProcess, as in vanilla.
     if id == "ecp" {
         return Some(Box::new(EndCityPiece(piece, int(tag, "GD"))));
     }

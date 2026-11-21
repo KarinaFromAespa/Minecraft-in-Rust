@@ -12385,3 +12385,12 @@ Only the `is` overload and `getRandom()` vs the `random` field.
 ## Item 639 — worldgen/structure/ruined_portal.rs (RuinedPortalPiece) — NO-CHANGE
 
 Only the `is` overload at 6 sites.
+
+## Item 640 — worldgen/structure/saved_templates.rs (ShipwreckPiece) — CHANGED
+
+26.1 added a `height_adjusted` flag so a wreck's height is adjusted
+once; 1.21.11 re-runs the adjustment on every postProcess, re-rolling
+the beached offset (`min - sizeY/2 - nextInt(3)`) each time. The Rust
+had the 26.1 form (cached Y, flag written and read); it now recomputes
+on every postProcess, still records the settled Y for the saved TPY,
+and no longer writes or reads the flag.
