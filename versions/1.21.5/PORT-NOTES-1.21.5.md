@@ -8867,13 +8867,38 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 192 — SNBT
+  underscore error
+  key typo:**
+  - The SNBT parser used
+    1.21.6's corrected
+    error key spelling;
+    1.21.5 spells it
+    `undescore_not_allowed`,
+    and that typo is what
+    the 1.21.5 lang file
+    carries, so the key is
+    back to the typo'd
+    form. The NbtUtils half
+    is a rename plus
+    ValueOutput overloads
+    with no Rust surface
+    (item 159); DataVersion
+    stamping is already
+    4325.
+  - Verification: cargo check -j 1 -p
+    horizon-command
+    --all-targets 0/0;
+    cargo test -p
+    horizon-command --lib
+    snbt 7/7.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **191 of 426 are
-closed** (rank 1 complete, rank 2 at 182/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **192 of 426 are
+closed** (rank 1 complete, rank 2 at 183/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

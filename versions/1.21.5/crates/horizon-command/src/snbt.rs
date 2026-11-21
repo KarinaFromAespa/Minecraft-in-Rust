@@ -87,7 +87,9 @@ fn number_run(
     }
     let s = &rest[..len];
     if s.starts_with('_') || s.ends_with('_') {
-        state.store_at_mark(delayed("snbt.parser.underscore_not_allowed"));
+        // 1.21.5 spells this key `undescore_not_allowed` (a typo fixed in
+        // 1.21.6); the typo is what the 1.21.5 lang file carries.
+        state.store_at_mark(delayed("snbt.parser.undescore_not_allowed"));
         return None;
     }
     state.cursor = start + len;
