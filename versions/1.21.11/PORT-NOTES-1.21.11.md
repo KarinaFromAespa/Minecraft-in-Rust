@@ -12409,3 +12409,8 @@ rewire; all constants and geometry identical.
 Equivalent access paths only (`getCameraEntity` vs
 `getMainCamera().entity()`, `ChunkPos` accessors vs fields, the `is`
 overload).
+
+## Item 644 — game/friends.rs (ShareToLanScreen) — NO-CHANGE
+
+Extractor rewire, plus `addClientSystemMessage` vs `addMessage` for
+the LAN-opened chat line (same system message).
