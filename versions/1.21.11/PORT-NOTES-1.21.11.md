@@ -12515,3 +12515,7 @@ order and dedup semantics; out of rank-3 scope.
 ## Item 663 — game/saving.rs (GenericMessageScreen) — NO-CHANGE
 
 Pure extractor rewire.
+
+## Item 664 — game/zombie_villagers.rs (CuredZombieVillagerTrigger$TriggerInstance) — NO-CHANGE
+
+Same `validate` signature refactor as items 657/661.
