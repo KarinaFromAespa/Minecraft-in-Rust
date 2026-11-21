@@ -12469,3 +12469,7 @@ Only visibility.
 Only the GLFW error-callback plumbing (`GLFWErrorScope` vs manual
 set/restore) and a `memFree` overload; same observable behaviour. The
 Rust's clipboard goes through winit, never GLFW.
+
+## Item 656 — atlas_sources.rs (PalettedPermutations, Unstitcher) — NO-CHANGE
+
+Only visibility (two constructor modifiers).
