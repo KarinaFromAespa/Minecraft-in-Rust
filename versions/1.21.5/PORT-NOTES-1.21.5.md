@@ -10862,12 +10862,36 @@ is the oracle; decompiled code is a reading aid.
     core_tests rework type-
     checks in CI.
 
+- **Item 259 — Dialog
+  bootstrap:
+  - The built-in dialog
+    registry bootstrap
+    (Dialogs::bootstrap:
+    server_links,
+    quick_actions,
+    custom_options) is
+    1.21.6-only. The port
+    has no built-in dialog
+    entries anywhere — no
+    quick_actions, no
+    Dialogs bootstrap, no
+    minecraft:server_links
+    dialog id (the
+    custom_options hits are
+    legacy_custom_options
+    world-gen settings,
+    unrelated). The whole
+    system is gone after
+    item 258.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **258 of 426 are
-closed** (rank 1 complete, rank 2 at 249/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **259 of 426 are
+closed** (rank 1 complete, rank 2 at 250/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
