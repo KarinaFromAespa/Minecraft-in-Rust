@@ -357,7 +357,9 @@ pub struct Flags {
     /// WaterAnimal / fish: not affected by fluid physics (swims with its own control).
     pub aquatic_swimmer: bool,
     pub fall_immune: bool,
-    /// FlyingMob-style travel (ghast, phantom): travelFlying without gravity.
+    /// Flying-mob travel without gravity (ghast, phantom, happy ghast):
+    /// the travel dispatch picks the friction form for ghasts and
+    /// phantoms, the 0.91-drag form for the happy ghast.
     pub flying: bool,
     /// Spiders: onClimbable while colliding horizontally.
     pub climber: bool,
@@ -405,7 +407,7 @@ pub struct MobType {
     pub fall_damage_multiplier: f64,
     pub water_efficiency: f64,
     pub water_slowdown: f32,
-    /// Air speed for travelFlying mobs (ghast 0.02, phantom 0.2).
+    /// Air speed for flying mobs (ghast 0.02, phantom 0.2).
     pub air_speed: f32,
     pub baby_scale: f64,
     pub head_rot_speed: f32,

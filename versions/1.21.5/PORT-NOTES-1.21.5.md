@@ -878,13 +878,60 @@ is the oracle; decompiled code is a reading aid.
   in item 22.
   - Verification: `cargo check -p horizon-client
     --all-targets` 0 errors / 0 warnings (2m10s).
+- **Item 24 — LivingEntity / LayeredCauldronBlock, ported:**
+  - Layered cauldrons: 1.21.6's `FILLED_SHAPES`
+    `getEntityInsideCollisionShape` override and the
+    EXTINGUISH effect applier are gone in 1.21.5 —
+    `entityInside` fires on the AABB overlap and the
+    extinguish is gated on
+    `AbstractCauldronBlock.isEntityInsideContent` (feet
+    below the content top, head above the block's first
+    quarter). The block-contact pass now short-circuits
+    layered cauldrons to inside on the sweep overlap, and
+    `layered_cauldron_inside` takes the content top and
+    applies the content gate before clearing the fire or
+    asking for the level drop. The lava cauldron keeps the
+    shape test — `LavaCauldronBlock` changed too and owns
+    its own item. Mobs have no cauldron `entityInside` in
+    the Rust (pre-existing gap, same in both versions).
+  - `LivingEntity.travelFlying` is 1.21.6-only (extracted
+    for the happy ghast): 1.21.5 inlines the form per mob.
+    The behaviour is identical — the allay's travel was
+    verified against 1.21.5's `Allay.travel`, ghasts and
+    phantoms already use the friction `FlyingMob.travel`
+    form (item 10; `FlyingMob.java` is identical in both
+    versions), and only the happy ghast reaches
+    `travel_flying` (item 58 removes it) — so only the doc
+    citations were reworded (`travel_flying` /
+    `travel_flying_speeds`, the allay, `Flags.flying`, the
+    `air_speed` field, the travel dispatch).
+  - Waypoints: no change — the publish deliberately kept
+    the internal locator-bar/LAN tracker (wire unwired),
+    so the `waypoint_transmit_range` /
+    `waypoint_receive_range` reads stay as inert reads
+    against the catalog, per item 15's pattern for
+    `camera_distance`. The `locator_bar_icon` datafix
+    targets 4424, above 4325, so it never runs here.
+  - No-ops verified: the no-AI travel gate (the Rust
+    already travels no-AI mobs, the 1.21.5 form —
+    `canSimulateMovement()` only); `checkSlowFallDistance`
+    vs `checkFallDistanceAccumulation` (identical bodies,
+    a pure rename); the attribute NBT format (1.21.5's
+    `AttributeInstance.save` writes the same `{id, base,
+    modifiers}` the 1.21.6 Packed codec does); the brain
+    serialization (same empty-memories result);
+    `canBreatheUnderwater`'s `final` and `isJumping` (no
+    Rust surface); the ValueInput/ValueOutput → CompoundTag
+    migration (identical fields).
+  - Verification: `cargo check -p horizon-client
+    --all-targets` 0 errors / 0 warnings (1m27s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **23 of 426 are
-closed** (rank 1 complete, rank 2 at 14/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **24 of 426 are
+closed** (rank 1 complete, rank 2 at 15/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

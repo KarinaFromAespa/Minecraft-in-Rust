@@ -1824,7 +1824,7 @@ impl MotionWorld<'_, '_, '_> {
             let powder_snow = name == "minecraft:powder_snow";
             // A filled cauldron's content top in blocks: the lava's 15/16
             // (LavaCauldronBlock.FILLED_SHAPE), or a layered cauldron's
-            // getPixelContentHeight, 6 + 3 per level (FILLED_SHAPES).
+            // getContentHeight, 6 + 3 per level.
             let content_top = match name {
                 "minecraft:lava_cauldron" => Some(15.0 / 16.0),
                 "minecraft:water_cauldron" | "minecraft:powder_snow_cauldron" => {
@@ -1839,6 +1839,9 @@ impl MotionWorld<'_, '_, '_> {
                 }
                 _ => None,
             };
+            // A layered cauldron (water, powder snow).
+            let layered =
+                matches!(name, "minecraft:water_cauldron" | "minecraft:powder_snow_cauldron");
             // getEntityInsideCollisionShape is the whole block but for powder
             // snow (its collision shape, the whole block when it is empty),
             // filled cauldrons, end portals and tripwires; Horizon doesn't
@@ -1846,7 +1849,12 @@ impl MotionWorld<'_, '_, '_> {
             if matches!(name, "minecraft:end_portal" | "minecraft:tripwire") {
                 continue;
             }
-            let inside = !(powder_snow || content_top.is_some()) || {
+            // 1.21.5 has no FILLED_SHAPES override for layered cauldrons
+            // (1.21.6's getEntityInsideCollisionShape): entityInside fires
+            // on the AABB overlap the sweep already found, and the content
+            // check lives in layered_cauldron_inside
+            // (AbstractCauldronBlock.isEntityInsideContent).
+            let inside = layered || !(powder_snow || content_top.is_some()) || {
                 let context = self.context();
                 let binding = self.collision_binding;
                 let shape = binding.collision_shape_with_context(
@@ -1860,8 +1868,9 @@ impl MotionWorld<'_, '_, '_> {
                         let offset = Vec3::new(f64::from(p.x), f64::from(p.y), f64::from(p.z));
                         let mut boxes: Vec<_> = shape.moved(offset).boxes().to_vec();
                         if let Some(top) = content_top {
-                            // The cauldron's shape or its content,
-                            // Block.column(12, 4, top).
+                            // The lava cauldron's shape or its content,
+                            // Block.column(12, 4, top). (Layered cauldrons
+                            // never reach here: they short-circuit above.)
                             boxes.push(Aabb::new(
                                 Vec3::new(2.0 / 16.0, 4.0 / 16.0, 2.0 / 16.0).add_vector(offset),
                                 Vec3::new(14.0 / 16.0, top, 14.0 / 16.0).add_vector(offset),
@@ -1898,7 +1907,7 @@ impl MotionWorld<'_, '_, '_> {
                     "minecraft:cactus" => self.environment_hurt("minecraft:cactus", 1.0)?,
                     "minecraft:lava_cauldron" => self.lava_cauldron_inside()?,
                     "minecraft:water_cauldron" | "minecraft:powder_snow_cauldron" => {
-                        self.layered_cauldron_inside(p);
+                        self.layered_cauldron_inside(p, content_top.unwrap_or(0.0));
                     }
                     "minecraft:wither_rose" => {
                         self.player.events.push(MotionEvent::InsideWitherRose);
@@ -2035,11 +2044,20 @@ impl MotionWorld<'_, '_, '_> {
         self.player.ignite_for_ticks(300)?;
         self.environment_hurt("minecraft:lava", 4.0)
     }
-    /// `LayeredCauldronBlock.entityInside`: on a server, a burning player
-    /// asks for the cauldron's `handleEntityOnFireInside` (runBefore
-    /// EXTINGUISH, so while still burning), then EXTINGUISH
-    /// (`Entity.clearFire`) puts the fire out.
-    fn layered_cauldron_inside(&mut self, pos: BlockPos) {
+    /// `LayeredCauldronBlock.entityInside` (1.21.5): a burning player inside
+    /// the content asks for the cauldron's `handleEntityOnFireInside` (the
+    /// level drops) when it may interact, and `Entity.clearFire` puts the
+    /// fire out. `AbstractCauldronBlock.isEntityInsideContent`: the feet
+    /// below the content top, the head above the block's first quarter.
+    /// 1.21.6 replaced the content check with the FILLED_SHAPES
+    /// entity-inside shape and the EXTINGUISH effect applier.
+    fn layered_cauldron_inside(&mut self, pos: BlockPos, content_top: f64) {
+        let base = f64::from(pos.y);
+        if self.player.position.y >= base + content_top
+            || self.player.bounds().max_position().y <= base + 0.25
+        {
+            return;
+        }
         if self.player.fire_ticks > 0 && !self.player.spectator {
             self.player
                 .events

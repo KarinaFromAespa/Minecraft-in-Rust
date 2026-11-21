@@ -1477,9 +1477,8 @@ impl Mob {
         if super::ai::custom_travel(self, w, input, events) {
             return;
         }
-        // `FlyingMob.travel` (1.21.5): ghasts and phantoms fly the friction
-        // form, not `travelFlying` — 1.21.6 inlined `travelFlying` into
-        // both classes instead.
+        // `FlyingMob.travel`: ghasts and phantoms fly the friction form,
+        // not the 0.91-drag flying form — the same in both versions.
         if matches!(
             self.species(),
             super::Species::Ghast | super::Species::Phantom
@@ -1547,10 +1546,11 @@ impl Mob {
         }
     }
     /// `FlyingMob.travel`: the 1.21.5 flight of ghasts and phantoms. The
-    /// fluid branches match `travelFlying`; in air the drag is the ground
-    /// friction's when on the ground (0.91 otherwise) and the relative
-    /// speed on the ground is the standard 0.1 * 0.16277137 / f^3 — and a
-    /// phantom flies at 0.02 in the air, not 1.21.6's 0.2.
+    /// fluid branches match the other flying mobs' form; in air the drag
+    /// is the ground friction's when on the ground (0.91 otherwise) and
+    /// the relative speed on the ground is the standard
+    /// 0.1 * 0.16277137 / f^3 — and a phantom flies at 0.02 in the air,
+    /// not 1.21.6's 0.2.
     fn travel_flying_mob(&mut self, w: &MobWorld, input: Vec3, events: &mut Vec<MobEvent>) {
         if self.fluids.in_water {
             self.move_relative(0.02, input);
@@ -1576,9 +1576,11 @@ impl Mob {
             self.velocity = self.velocity.scale(f64::from(drag));
         }
     }
-    /// LivingEntity.travelFlying: no gravity, `0.91F` drag in the air,
-    /// `0.8F` in water and 0.5 in lava. A happy ghast swims as fast as it
-    /// flies (`HappyGhast.travel`); the others at 0.02.
+    /// The flying travel 1.21.5 inlines per mob (`Allay.travel` and the
+    /// like; 1.21.6 extracted it into `LivingEntity.travelFlying`): no
+    /// gravity, `0.91F` drag in the air, `0.8F` in water and 0.5 in lava.
+    /// A happy ghast swims as fast as it flies (`HappyGhast.travel`); the
+    /// others at 0.02.
     fn travel_flying(&mut self, w: &MobWorld, input: Vec3, events: &mut Vec<MobEvent>) {
         let fluid_speed = if self.species() == super::Species::HappyGhast {
             self.kind.air_speed
@@ -1594,9 +1596,10 @@ impl Mob {
             self.kind.air_speed,
         );
     }
-    /// `LivingEntity.travelFlying(input, waterSpeed, lavaSpeed, airSpeed)`:
-    /// the speeds vary per mob (an allay flies at the speed its move control
-    /// set, `Allay.travel`).
+    /// The flying travel 1.21.5 inlines per mob, with the speeds as
+    /// parameters: the speeds vary per mob (an allay flies at the speed
+    /// its move control set, `Allay.travel`). 1.21.6 extracted this into
+    /// `LivingEntity.travelFlying(input, waterSpeed, lavaSpeed, airSpeed)`.
     pub fn travel_flying_speeds(
         &mut self,
         w: &MobWorld,
