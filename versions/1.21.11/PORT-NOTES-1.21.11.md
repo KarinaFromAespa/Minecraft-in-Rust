@@ -8506,3 +8506,26 @@ removed with the branch. Checked, no action: the
 `restore_level_data_from_old` deviation stands (the function is
 identical in both versions); the watchdog mirror is identical.
 Tests: `crash::` 11 passed.
+
+## Item 132 — game/native_mob_draw.rs (rank 2, CHANGED, citations only)
+
+1 class, 8 methods, 4 named (`EntityRenderer.extractRenderState`,
+`EntityRenderer.getPackedLightCoords`, `EntityRenderer.submit`,
+`EntityRenderer.submitNameTag`).
+
+Java delta: in 26.1 the below-name score moved up to the base
+`EntityRenderer` (`Entity.belowNameDisplay()` + `scoreText`,
+drawn within 10 blocks); in 1.21.11 it lives on the player side
+only (`AvatarRenderer.submitNameTag` from
+`ClientAvatarEntity.belowNameDisplay()`). Renames:
+`LightCoordsUtil.pack` → `LightTexture.pack`,
+`Lightmap.getBrightness` → `LightTexture.getBrightness`,
+`submitNameDisplay` → `submitNameTag`.
+
+Changes: the two citations reworded (`LightTexture.pack`,
+`LightTexture.getBrightness`; both formulas verified against
+the 1.21.11 bytecode). Checked, no action: the below-name score
+is already players-only in names.rs with the 1.21.11 geometry;
+`getPackedLightCoords` is mirrored; the other `LightCoordsUtil`
+citations stay with item 191. Tests: `cargo check
+-p horizon-client-render --lib` clean.
