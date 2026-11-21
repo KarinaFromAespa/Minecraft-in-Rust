@@ -495,3 +495,12 @@ replaceable tags — ores, bedrock and fluids included, as in vanilla,
 where a carver only replaces what its set names. (26.2 solved the
 same gap differently, by porting its carving pass to per-dimension
 replaceable sets; that rework is out of scope here.)
+
+Seventh launch crash, same morning (10:42 NPT): "block state
+{"Name":"minecraft:stone"}: missing block identifier" when the
+integrated server started generating. 1.21.7-era block states use
+the `Name`/`Properties` form; 26.x renamed the fields to
+`id`/`properties`, and the state codec only read the new names. The
+codec now accepts both forms, which also covers state providers and
+material rules (all call sites share the codec). The noise settings'
+`default_block`/`default_fluid` were the first callers hit.
