@@ -12484,3 +12484,7 @@ is unchanged.
 
 26.1's `Lightmap` is 1.21.11's `LightTexture` (the item 559 finding);
 `BlendState` is visibility only.
+
+## Item 659 — extras_hud.rs (MapRenderer) — NO-CHANGE
+
+Only the `AtlasManager` package move (`model/sprite` vs `model`).
