@@ -11897,3 +11897,10 @@ each `DynamicOps.create*` call (a compiler artifact). The signed/unsigned
 parse paths, radix handling, `ERROR_EXPECTED_INTEGER_TYPE` and number-error
 reporting are identical, and the Rust's `IntegerLiteral::create` mirrors
 them exactly.
+
+## Item 562 — level/feature_world.rs (MonsterRoomFeature, BeehiveDecorator) — NO-CHANGE
+
+Only the `BlockState.is` overload widening, the `Context.level()` return
+type (`WorldGenLevel` vs `LevelSimulatedReader`, as in item 538) and a
+compiler-generated lambda name — all behaviour-free. The Rust cites the
+shared names.
