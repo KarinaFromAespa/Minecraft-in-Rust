@@ -1090,10 +1090,13 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             b.is_block(state, b.named.tripwire)
         }
     }
-    /// `LeavesBlock.getDistanceAt`.
+    /// `LeavesBlock.getOptionalDistanceAt`.
     pub(crate) fn leaf_distance_at(&self, state: BlockStateId) -> i32 {
         let b = self.b;
-        if b.in_set(state, &b.tags.prevents_nearby_leaf_decay) {
+        // 1.21.11 anchors on the logs tag; the
+        // `prevents_nearby_leaf_decay` tag is 26.1-only (and in 26.1
+        // it holds exactly the logs).
+        if b.in_set(state, &b.tags.logs) {
             0
         } else if b.table.has(state, b.props.distance) {
             b.table.int(state, b.props.distance)

@@ -10323,3 +10323,17 @@ ticks 42..107, not 42..62. Ported; new test
 `multipart/Condition` only moved packages
 (`model` -> `dispatch`); its codec is identical.
 `spear`: 5 passed.
+
+## Item 272 — worldgen/tree_blocks.rs (rank 2, CHANGED)
+
+1 class, 4 methods, 1 named. `getOptionalDistanceAt`
+anchors on `BlockTags.LOGS` in 1.21.11; 26.1
+anchors on the `prevents_nearby_leaf_decay` tag
+(which holds exactly the logs in 26.1, but does
+not exist at all in 1.21.11 — so the Rust's tag
+read resolved empty and logs counted as distance
+7). Both leaf-distance reads now anchor on logs;
+the dead `PREVENTS_LEAF_DECAY` flag and tag field
+are removed. The existing
+`crops_grow_and_leaves_decay` level test covers
+the fix in CI. `worldgen::tree_blocks`: 2 passed.

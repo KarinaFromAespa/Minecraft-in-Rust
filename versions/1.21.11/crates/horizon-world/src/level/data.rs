@@ -404,7 +404,6 @@ macro_rules! tags {
 tags! {
     leaves = "leaves",
     logs = "logs",
-    prevents_nearby_leaf_decay = "prevents_nearby_leaf_decay",
     walls = "walls",
     fences = "fences",
     wooden_fences = "wooden_fences",
