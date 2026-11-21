@@ -11607,3 +11607,26 @@ now returns true, matching the Sapling/Fungus arms.
 notifies spectators on a locked container, matching
 1.21.11. Tests: end_spike 1, growth_tests 21,
 survive 7, block_survival 1 — all pass.
+
+## Item 534 — item_render.rs (rank 3, NO-CHANGE apart from citations)
+
+26.1 reorganised item rendering around
+`ItemFeatureRenderer.renderSolid/renderTranslucent`
+plus `Transparency`, `OptionsRenderState` and
+`BakedQuad$MaterialInfo` (all 26.1-only); 1.21.11's
+`ItemFeatureRenderer` is a thin loop over
+`ItemRenderer.renderItem`, which holds the foil and
+tint logic (`getLayerColorSafe` identical, special
+foil 0.5 GUI / 0.75 first person inline).
+`setupGlintTexturing`'s math is identical — only the
+glintSpeed source differs (`Options` in 1.21.11).
+1.21.11 puts every item model on
+`translucentItemSheet` and block items on cutout or
+`translucentBlockItemSheet` by chunk layer; the Rust
+keeps its per-sprite alpha scan as the layer
+decision (opaque pixels blend identically on either
+sheet). `lightEmission` exists in 1.21.11 too, on
+`BlockElement`. Citations re-pointed to the 1.21.11
+names. Known gap, pre-existing: the special-foil
+decal for compasses/clocks is not modelled (only
+visible on a command-enchanted one).
