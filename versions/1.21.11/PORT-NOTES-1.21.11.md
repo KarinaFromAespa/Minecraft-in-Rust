@@ -10266,3 +10266,15 @@ The Rust already implements the unconditional
 `is(Block)` spelling and `getRandom()` -> the
 `random` field in target selection and the animation
 tick. No code changed.
+
+## Item 267 — game/clone_block_ticks_tests.rs (rank 2, CHANGED)
+
+5 classes, 4 methods, 1 named. The `/clone` area
+check multiplies the spans as `int` in 1.21.11
+(26.1 widens to `long`), so a huge region wraps —
+4096-cubed wraps to 0 and passes. Ported via
+`clone_area` (i32 `wrapping_mul`); the error now
+reports the wrapped value too. New test
+`the_clone_area_wraps_like_java_ints` (verified by
+`cargo check --tests` plus a standalone run of the
+verbatim logic).

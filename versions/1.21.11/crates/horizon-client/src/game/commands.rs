@@ -194,6 +194,14 @@ fn rotation_in((lo, hi): (Option<f64>, Option<f64>), angle: f32) -> bool {
         angle >= min && angle <= max
     }
 }
+/// `CloneCommands.clone`'s area check: the spans multiplied as 32-bit
+/// ints, wrapping — 1.21.11 multiplies `int`s, so a region whose true
+/// volume overflows 32 bits wraps (a 4096-cubed region wraps to 0 and
+/// passes the check; a 2000-cubed one wraps negative); 26.1 widens
+/// the product to `long`, so it rejects those.
+fn clone_area(spans: [i32; 3]) -> i32 {
+    spans.iter().fold(1i32, |a, &s| a.wrapping_mul(s))
+}
 /// `Mth.wrapDegrees`.
 fn wrap_degrees(angle: f32) -> f32 {
     let wrapped = angle % 360.0;
@@ -3261,9 +3269,9 @@ impl Game<'_> {
         if !ctx.has("force") && !moving && from_dim == to_dim && overlap {
             return Err(err("commands.clone.overlap", &[]));
         }
-        let area = (0..3).map(|i| i64::from(size[i] + 1)).product::<i64>();
+        let area = clone_area([size[0] + 1, size[1] + 1, size[2] + 1]);
         let limit = self.ui.rules.int("max_block_modifications");
-        if area > i64::from(limit) {
+        if area > limit {
             return Err(err("commands.clone.toobig", &[&limit, &area]));
         }
         self.clone_enter(to_dim)?;
@@ -5954,5 +5962,23 @@ mod global_selector_order_tests {
             failures.is_empty(),
             "actual registered selector order/limits: {failures:#?}"
         );
+    }
+}
+
+#[cfg(test)]
+mod clone_area_tests {
+    use super::clone_area;
+
+    #[test]
+    fn the_clone_area_wraps_like_java_ints() {
+        assert_eq!(clone_area([1, 1, 1]), 1);
+        assert_eq!(clone_area([16, 16, 16]), 4096);
+        // 4096^3 = 2^36 wraps to 0: the check passes in 1.21.11.
+        assert_eq!(clone_area([4096, 4096, 4096]), 0);
+        // 2000^3 = 8_000_000_000 wraps negative.
+        assert_eq!(clone_area([2000, 2000, 2000]), -589_934_592);
+        // 3000^3 = 27_000_000_000 wraps to 1_230_196_224 (still
+        // over the limit, but the error shows the wrapped value).
+        assert_eq!(clone_area([3000, 3000, 3000]), 1_230_196_224);
     }
 }
