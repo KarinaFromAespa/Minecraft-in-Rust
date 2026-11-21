@@ -12266,12 +12266,63 @@ is the oracle; decompiled code is a reading aid.
     prepared resources) and
     runs in CI.
 
+- **Item 295 — Clone command**
+  - CloneCommands,
+    CloneBlockInfo:
+    verified, no code. The
+    permission spelling is
+    the same predicate
+    (/clone is GAMEMASTERS,
+    level 2); the
+    loaded-check
+    restructure keeps the
+    same behaviour (checked
+    before any mutation);
+    the BE save is the
+    ValueOutput refactor
+    with an identical form,
+    and the port clones the
+    BE struct directly, so
+    it has no surface. The
+    neighbour-update delta
+    has no surface either:
+    the port's clone never
+    calls the deferred pass
+    - non-strict placements
+    notify neighbours
+    eagerly via UPDATE_ALL,
+    strict placements
+    suppress them, matching
+    both versions' strict
+    skip. The 1.21.5
+    updateNeighborsAt(pos,
+    block) form itself
+    exists in the tree
+    (commands.rs
+    update_neighbors_at,
+    used by /fill). Known
+    version-neutral gaps:
+    the eager updates fire
+    before the structure is
+    complete (a torch
+    cloned before its wall
+    pops mid-clone, where
+    vanilla's deferred pass
+    sees the finished
+    structure), and the
+    port has no barrier
+    pre-pass or
+    solid/BE/non-solid
+    placement split.
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **294 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 26/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **295 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 27/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
