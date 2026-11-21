@@ -12779,3 +12779,7 @@ Zero diff: the bytecode is identical in both versions.
 
 Level-type narrowing only (`WorldGenLevel` vs `LevelSimulatedReader`
 + checkcast), as items 538/562/618; same decorator logic.
+
+## Item 725 — worldgen/generator.rs (Structure$GenerationContext) — NO-CHANGE
+
+Visibility plus record-vs-field access (`ChunkPos.x()` vs `ChunkPos.x`).
