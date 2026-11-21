@@ -12087,12 +12087,29 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no
     code changed.
 
+- **Item 289 — Ban/save/stop commands**
+  - Ban, save and stop
+    commands: verified, no code
+    - the only delta is the
+    permission predicate's
+    spelling
+    (Commands.hasPermission(N)
+    vs a lambda calling
+    hasPermission(N)), the same
+    predicate in both versions.
+    The levels match: ban, ban-
+    ip, banlist and transfer at
+    3 (ADMINS), save-off, save-
+    on and stop at 4 (OWNERS).
+  - Verification: read only; no
+    code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **288 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 20/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **289 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 21/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
