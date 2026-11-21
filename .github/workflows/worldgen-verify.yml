@@ -28,17 +28,18 @@ name: worldgen-verify
 # Results land in the job summary and the `worldgen-<version>` artifact
 # (one JSON dump + the test and prepare logs per version).
 #
-# Known gaps (matrix run 44890101719, 2026-11-21): only 26.2 and
-# 1.21.7 passed. Eight E6 versions (1.20.6, 1.21, 1.21.2, 1.21.4,
-# 1.21.5, 1.21.6, 1.21.8, 1.21.9) fail at GeneratorData::load with
-# "missing block tag minecraft:blocks_motion_in_heightmap" — their
-# data predates the 26.3 tag family and they never got the motion-tag
-# derivation 1.21.7 carries (commit 789af860 + the end-to-end
-# worldgen pass). Carrying that fix set over is programme work, not a
-# workflow fix; the job's red rows are the queue. 26.3 failed in that
-# run only on Mojang's republished version JSON (lab-prepare rejects
-# an unknown manifest sha1); the lock now accepts ead839cb... and
-# its asset index f3df28b4... (jars verified byte-identical).
+# Known gaps (matrix run 44890979811, 2026-11-21): 26.3, 26.2 and
+# 1.21.7 pass and upload dumps. Eleven E6 versions (1.20.5, 1.20.6,
+# 1.21, 1.21.1, 1.21.2, 1.21.3, 1.21.4, 1.21.5, 1.21.6, 1.21.8,
+# 1.21.9) fail at GeneratorData::load with "missing block tag
+# minecraft:blocks_motion_in_heightmap" — their data predates the
+# 26.3 tag family and they never got the motion-tag derivation
+# 1.21.7 carries (commit 789af860 + the end-to-end worldgen pass).
+# Carrying that fix set over is programme work, not a workflow fix;
+# the job's red rows are the queue. 26.3 failed the first matrix
+# only on Mojang's republished version JSON (lab-prepare rejects an
+# unknown manifest sha1); the lock now accepts ead839cb... and its
+# asset index f3df28b4... (jars verified byte-identical).
 #
 # The prepare and lab-prepare steps retry up to 3 times: a 14-way
 # parallel matrix hammers Mojang's and Maven Central's CDNs, and the
