@@ -264,8 +264,11 @@ impl Placement {
         self.slots.is_empty()
     }
 }
-/// A recipe result: `ItemStackTemplate` (`id`, `count`, `components`), or a bare item id
-/// (`ItemStackTemplate.CODEC` falls back to `Item.CODEC`), with the id optional for the
+/// A recipe result: an `ItemStack` (`id`, `count`, `components`) as
+/// `ItemStack.STRICT_CODEC` reads it (1.21.11; 26.1 named the shape
+/// `ItemStackTemplate`), or a bare item id, which this loader reads
+/// leniently (vanilla 1.21.11 requires the object form — no vanilla
+/// recipe uses the bare form), with the id optional for the
 /// transmuting recipes that keep the input's item.
 #[derive(Clone, Debug)]
 pub struct Template {
@@ -276,7 +279,7 @@ pub struct Template {
     /// Result patch before decoding defaults, including explicit removals/zeroes.
     pub components: Option<Tag>,
 }
-/// `ItemStackTemplate.CODEC` count: absent means 1, present must be an
+/// `ItemStack.STRICT_CODEC` count: absent means 1, present must be an
 /// integer in `1..=99` (`ExtraCodecs.intRange(1, 99)`), else the recipe is
 /// not loaded.
 pub(crate) fn template_count(v: &Value) -> Option<u32> {
@@ -300,7 +303,10 @@ impl Template {
             components,
         })
     }
-    /// `ItemStackTemplate.create`.
+    /// Build the result stack from the decoded shape. In 1.21.11 the
+    /// result IS the stack (`ItemStack.STRICT_CODEC` decodes it
+    /// directly); 26.1 built it from an `ItemStackTemplate` via
+    /// `create`.
     pub fn create(&self) -> ItemStack {
         ItemStack {
             item: self
@@ -320,8 +326,9 @@ impl Template {
             .components
             .clone()
             .unwrap_or_else(|| assembly_components(&self.create()));
-        // ItemStackTemplate.apply: the second patch wins for each component;
-        // a removal replaces a value rather than coexisting with it.
+        // `DataComponentPatch` application: the second patch wins for each
+        // component; a removal replaces a value rather than coexisting
+        // with it.
         let entries = |tag: Tag| match tag {
             Tag::Compound(map) => map
                 .into_iter()
@@ -1258,7 +1265,8 @@ impl Special {
         };
         let mut made = made;
         made.tidy();
-        // ItemStackTemplate.validate: oversized stacks become empty.
+        // `ItemStack.validateStrict` (via `STRICT_CODEC`): oversized stacks
+        // become empty.
         (made.count > 0 && made.count <= ctx.max_stack(&made.item)).then_some(made)
     }
 }
@@ -1309,7 +1317,7 @@ pub struct CustomRecipe {
     pub id: String,
     pub json: Arc<Value>,
 }
-/// An item stack as a recipe's `result` names it (`ItemStackTemplate`); none
+/// An item stack as a recipe's `result` names it (`ItemStack.STRICT_CODEC`); none
 /// with no `id` or a count outside 1 to 99.
 pub fn recipe_result(v: &Value) -> Option<ItemStack> {
     let template = Template::parse(v)?;
@@ -1759,15 +1767,29 @@ impl Recipes {
                 | "minecraft:smoking"
                 | "minecraft:campfire_cooking") => {
                     if let (Some(ingredient), Some(result)) = (ing("ingredient"), result()) {
+                        // `AbstractCookingRecipe.Serializer`'s per-type
+                        // `cookingtime` default (1.21.11): smelting 200,
+                        // blasting, smoking and campfire 100.
+                        let default_time = if kind == "minecraft:smelting" {
+                            200
+                        } else {
+                            100
+                        };
+                        // The cooking `result` codec is
+                        // `ItemStack.STRICT_SINGLE_ITEM_CODEC`: no count
+                        // field, always one item (a `count` in the JSON is
+                        // ignored, as an unknown field).
+                        let mut made = result.create();
+                        made.count = 1;
                         cooking.push(Cooking {
                             id: name.clone(),
                             category: text("category"),
                             group: text("group"),
                             kind: kind.to_owned(),
                             ingredient,
-                            result: result.create(),
+                            result: made,
                             experience: v["experience"].as_f64().unwrap_or(0.0) as f32,
-                            time: v["cookingtime"].as_u64().unwrap_or(200) as u32,
+                            time: v["cookingtime"].as_u64().unwrap_or(default_time) as u32,
                         });
                     }
                     None
@@ -2027,7 +2049,8 @@ mod tests {
     use crate::banner::BannerLayer;
     use std::fs;
 
-    /// ItemStackTemplate.apply applies the result patch after the input patch.
+    /// The result patch applies after the input patch
+    /// (`TransmuteRecipe.createWithOriginalComponents`).
     #[test]
     fn transmute_result_patch_preserves_inheritance_and_explicit_removals() {
         let input_tag = json_tag(&serde_json::json!({
@@ -2400,9 +2423,64 @@ mod tests {
         assert!(result(r#"{"count":2}"#).is_none());
         assert!(result(r#"{"id":"minecraft:iron_ingot","count":0}"#).is_none());
     }
+    /// `AbstractCookingRecipe.Serializer`'s per-type `cookingtime`
+    /// default: smelting 200, blasting, smoking and campfire 100; and
+    /// the cooking result is always one item
+    /// (`ItemStack.STRICT_SINGLE_ITEM_CODEC` has no count field).
+    #[test]
+    fn cooking_recipes_default_their_time_by_kind_and_cook_one() {
+        let root =
+            std::env::temp_dir().join(format!("horizon-cooking-defaults-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("data/minecraft/recipe")).unwrap();
+        for (name, json) in [
+            (
+                "smelt",
+                r#"{"type":"minecraft:smelting","ingredient":"minecraft:beef","result":{"id":"minecraft:cooked_beef"}}"#,
+            ),
+            (
+                "blast",
+                r#"{"type":"minecraft:blasting","ingredient":"minecraft:beef","result":{"id":"minecraft:cooked_beef"}}"#,
+            ),
+            (
+                "smoke",
+                r#"{"type":"minecraft:smoking","ingredient":"minecraft:beef","result":{"id":"minecraft:cooked_beef"}}"#,
+            ),
+            (
+                "camp",
+                r#"{"type":"minecraft:campfire_cooking","ingredient":"minecraft:beef","result":{"id":"minecraft:cooked_beef"}}"#,
+            ),
+            (
+                "blast_fast",
+                r#"{"type":"minecraft:blasting","ingredient":"minecraft:beef","result":{"id":"minecraft:cooked_beef"},"cookingtime":60}"#,
+            ),
+            (
+                "smelt_three",
+                r#"{"type":"minecraft:smelting","ingredient":"minecraft:beef","result":{"id":"minecraft:cooked_beef","count":3}}"#,
+            ),
+        ] {
+            fs::write(
+                root.join(format!("data/minecraft/recipe/{name}.json")),
+                json,
+            )
+            .unwrap();
+        }
+        let items = Items::for_tests(HashMap::new());
+        let recipes = Recipes::load(&root, &items, &PackOverlay::NONE).unwrap();
+        let _ = fs::remove_dir_all(&root);
+        let by_id = |id: &str| recipes.cooking.iter().find(|c| c.id == id).unwrap();
+        assert_eq!(by_id("smelt").time, 200);
+        assert_eq!(by_id("blast").time, 100);
+        assert_eq!(by_id("smoke").time, 100);
+        assert_eq!(by_id("camp").time, 100);
+        assert_eq!(by_id("blast_fast").time, 60);
+        assert_eq!(by_id("smelt_three").result.count, 1);
+    }
     #[test]
     fn a_recipe_result_can_be_a_bare_item_id() {
-        // `ItemStackTemplate.CODEC` falls back to `Item.CODEC`: `"result": "mod:item"` is one item.
+        // A bare item id reads leniently as one item (vanilla 1.21.11's
+        // `STRICT_CODEC` requires the object form; no vanilla recipe uses
+        // the bare form, so this only ever fires for datapacks).
         let result = |json: &str| recipe_result(&serde_json::from_str(json).unwrap());
         let stack = result(r#""ruby:ruby""#).unwrap();
         assert_eq!((&*stack.item, stack.count), ("ruby:ruby", 1));

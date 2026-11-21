@@ -8783,6 +8783,25 @@ changes (sticky piston, slime, honey, moving piston x2);
 bytecode-identical, and the literal comparison returns zero
 differences. Tests: `game::piston_push::` 2 passed, 7 ignored.
 
+## Item 147 — lan/advancements.rs / cooking recipes (rank 2, CHANGED)
+
+7 classes, 35 methods, 1 named. The 26.1 wrapper types are
+gone in 1.21.11: `CookingBookInfo`, `Recipe$CommonInfo` and
+`ItemStackTemplate` — cooking recipes take a plain group
+string, category and `ItemStack`, and the codecs moved to
+`RecipeSerializer` with per-type `cookingtime` defaults
+(smelting 200, blasting/smoking/campfire 100, verified from
+the 1.21.11 jar). The Rust defaulted every kind to 200 — now
+per-kind — and the cooking result is forced to count 1
+(`STRICT_SINGLE_ITEM_CODEC` has no count field). The eight
+`ItemStackTemplate` citations in crafting.rs are reworded to
+the 1.21.11 codec names. Recorded, not fixed: the loader's
+lenient bare-id result read (0 vanilla uses) and
+`SlotDisplay::ItemStack`'s count-sensitive derived `PartialEq`
+(vanilla's 1.21.11 `equals` uses `ItemStack.matches`;
+production never compares displays). Tests: `crafting::` 25
+passed (1 new), `lan::advancements::` 13 passed.
+
 ## CI proof run 44839260120 (recorded below)
 
 Dispatched 05:31 NPT Nov 21, 2026 on behaviour/1.21.11 @
