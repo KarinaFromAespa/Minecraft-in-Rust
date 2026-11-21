@@ -11729,3 +11729,12 @@ identical either way: aqua keys, green strings, gold numbers, red type
 suffixes, gray `<...>`; thresholds 8/64/128; the same list-wrap rule. The
 Rust's `Pretty` matches the 1.21.11 form exactly, including HashMap compound
 order (both versions' normal, non-debug behaviour).
+
+## Item 543 — game/test_instances.rs (TestInstanceRenderer, TestData) — NO-CHANGE
+
+`TestInstanceRenderer` differs only in the `CameraRenderState` package move
+(26.1 `state.level` vs 1.21.11 `state`). `TestData` gained a `padding` field
+in 26.1 (codec range 0-128, default 0); 1.21.11 has none. The Rust already
+matches 1.21.11: `TestDef` has no padding field, and `test_bounding_box`
+returns the un-inflated structure box with a comment noting the 26.x padding
+inflation 1.21.11 lacks.
