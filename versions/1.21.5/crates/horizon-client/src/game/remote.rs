@@ -3275,8 +3275,9 @@ impl Game<'_> {
             {
                 return;
             }
-            // A fishing hook keeps a LinearInterpolationHandler: eased towards the
-            // update over three ticks, on top of its own movement (`tick_remote_hooks`).
+            // A fishing hook snaps to a server update (1.21.5 has no
+            // interpolation on it); its own movement between updates is
+            // `tick_remote_hooks`.
             if path.is_some() {
                 if let Some(h) = self.hook.as_mut().filter(|h| h.id() == id as u32) {
                     h.move_to(position, on_ground);

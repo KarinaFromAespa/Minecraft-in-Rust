@@ -5218,13 +5218,78 @@ is the oracle; decompiled code is a reading aid.
     the one `cargo check -j 1
     -p horizon-client-render --lib`
     passed at item 113.
+- **Item 115 — FishingHook:
+  no interpolation, gravity
+  out of water even on the
+  ground:**
+  - 1.21.6 gave the hook a
+    `LinearInterpolationHandler`
+    (three steps towards a
+    server update) and calls
+    `interpolate()` in
+    `tick`; 1.21.5 has
+    neither. The Rust port
+    had the 1.21.6 form
+    (`HookLerp`, three steps,
+    carried along by the
+    predicted movement). It
+    is removed: `Entity.
+    getInterpolation` is null
+    for a 1.21.5 hook, so
+    `moveOrInterpolateTo`
+    snaps it, and both
+    `move_to`s now set the
+    position at once. The
+    client prediction
+    (`client_hook_step`
+    between tracker updates)
+    stays — vanilla 1.21.5's
+    client simulates the hook
+    locally too. Test:
+    `a_server_update_snaps_a_remote_hook`.
+  - Gravity: 1.21.6 applies
+    it only out of water AND
+    off the ground AND
+    unhooked; 1.21.5
+    whenever out of water.
+    The hooked condition is
+    dead in both versions
+    (the state machine
+    returns before the line
+    whenever a hook is set),
+    and a flying hook's
+    motion is zeroed after
+    the move either way, so
+    the only observable
+    case is a bobbing hook
+    resting on dry ground,
+    which now keeps a
+    sinking velocity as in
+    1.21.5. Both copies of
+    the tick
+    (`tick_fishing`,
+    `client_hook_step`)
+    take the 1.21.5 form.
+  - Save/load is empty in
+    both versions; the API
+    change has no surface.
+  - Verification: `cargo check -j 1
+    -p horizon-client --lib --tests`
+    0 errors / 0 warnings;
+    `cargo test -j 1 -p horizon-client
+    --lib game::fishing::tests::
+    a_server_update_snaps_a_remote_hook`
+    1 passed. (The first test run
+    was SIGKILLed mid-codegen by
+    a runtime restart; the retry
+    passed.)
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **114 of 426 are
-closed** (rank 1 complete, rank 2 at 105/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **115 of 426 are
+closed** (rank 1 complete, rank 2 at 106/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
