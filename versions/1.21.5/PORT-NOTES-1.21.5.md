@@ -5156,13 +5156,75 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -j 1
     -p horizon-client-render --lib`
     0 errors / 0 warnings.
+- **Item 114 — CreativeModeInventoryScreen:**
+  - GPU plumbing only for the
+    pipeline swap
+    (`RenderPipelines` to
+    `RenderType`): the Rust
+    creative screen draws
+    with its own renderer.
+    No surface.
+  - The colour spellings
+    are the alpha-0 forms
+    1.21.5 writes (search
+    text 16777215, tab title
+    4210752) where 1.21.6
+    writes the opaque ones
+    (-1, -12566464). Both
+    render identically:
+    1.21.5's `adjustColor`
+    forces alpha under 4 to
+    opaque (item 106). The
+    Rust screen uses the
+    opaque spellings
+    (`u32::MAX` for the
+    search box, rgba(64, 64,
+    64, 255) for the title),
+    which the Rust renderer
+    needs — it drops fully
+    transparent text (item
+    84).
+  - The draw order is
+    already the 1.21.5
+    form: effects after the
+    panel and before the
+    tooltips
+    (`draw_inventory_effects`
+    at the end of
+    `draw_creative`, then
+    the tab and trash
+    tooltips), where 1.21.6
+    draws the effect icons
+    before the screen. The
+    tab icon position
+    (x+5, top +9 / bottom
+    +7) matches 1.21.5
+    exactly, and Rust's
+    `draw_item` draws the
+    decorations 1.21.5's
+    `renderItemDecorations`
+    call adds (1.21.6 drops
+    them) — invisible for
+    vanilla count-1
+    undamaged icons either
+    way. The hotbar save
+    calls `say_now`, the
+    1.21.5 narrator name
+    (1.21.6 renamed it
+    `saySystemNow`).
+  - No code change.
+  - Verification: no Rust
+    change; the tree state is
+    the one `cargo check -j 1
+    -p horizon-client-render --lib`
+    passed at item 113.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **113 of 426 are
-closed** (rank 1 complete, rank 2 at 104/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **114 of 426 are
+closed** (rank 1 complete, rank 2 at 105/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
