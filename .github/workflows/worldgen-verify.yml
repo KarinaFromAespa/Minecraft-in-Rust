@@ -1,0 +1,228 @@
+name: worldgen-verify
+
+# End-to-end world generation for every ported version: prepare the
+# version's data, build its worldgen test
+# (prepared_world_builds_and_generates_chunks), run it, and upload the
+# generated chunks as JSON for comparison across versions and runs.
+#
+# The test builds every dimension's Pipeline from the prepared bundles,
+# generates two chunks per dimension (seed 12345), asserts zero
+# unsupported features, and dumps the chunks (block-name grids, quart
+# biome grids, heightmaps, structure starts) to HORIZON_WORLDGEN_DUMP.
+# A version whose worldgen cannot build a Pipeline, leaves an
+# unsupported feature, or generates a void where ground belongs fails
+# its job — that is the signal, not an infrastructure failure. Chunks
+# are at TERRAIN status: terrain, biomes and structure starts, before
+# decoration places features.
+#
+# The prepare chain reuses port-verify's proven steps (pipeline
+# download prepare, launcher staging, lab-prepare) plus the harness
+# driver's horizon-prepare invocation; the sounds and panorama steps
+# are skipped — the test reads worldgen bundles only. No apt step:
+# horizon-world and horizon-prepare are pure Rust and the test needs
+# no display.
+#
+# Dispatched manually:
+#   gh workflow run worldgen-verify.yml -f version=1.21.7
+#   gh workflow run worldgen-verify.yml -f version=all
+# Results land in the job summary and the `worldgen-<version>` artifact
+# (one JSON dump + the test and prepare logs per version).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version directory under versions/ (e.g. 1.21.7), or 'all' for every covered version"
+        required: false
+        default: "all"
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  HORIZON_TELEMETRY_URL: "off"
+  HORIZON_VERSIONS: ${{ github.workspace }}/.horizon-versions
+
+jobs:
+  matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      versions: ${{ steps.pick.outputs.versions }}
+    steps:
+      - name: Pick the versions to verify
+        id: pick
+        run: |
+          ALL='["26.3","26.2","1.21.9","1.21.8","1.21.7","1.21.6","1.21.5","1.21.4","1.21.3","1.21.2","1.21.1","1.21","1.20.6","1.20.5"]'
+          V="${{ inputs.version }}"
+          if [ "$V" = "all" ] || [ -z "$V" ]; then
+            echo "versions=$ALL" >> "$GITHUB_OUTPUT"
+            echo "verifying all covered versions"
+          elif printf '%s' "$ALL" | V="$V" python3 -c "import json,os,sys; sys.exit(0 if os.environ['V'] in json.load(sys.stdin) else 1)"; then
+            echo "versions=[\"$V\"]" >> "$GITHUB_OUTPUT"
+            echo "verifying $V"
+          else
+            echo "version '$V' is not covered by worldgen-verify (covered: $ALL)"
+            exit 1
+          fi
+
+  verify:
+    needs: matrix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ${{ fromJSON(needs.matrix.outputs.versions) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log directory (created first, so artifacts exist even if a later step fails)
+        run: mkdir -p "$GITHUB_WORKSPACE/ci-out"
+
+      - name: Read the version's Java major from its research lock
+        id: lock
+        run: |
+          V="${{ matrix.version }}"
+          test -d "versions/$V" || { echo "no such version directory: versions/$V"; exit 1; }
+          JAVA_MAJOR=$(python3 -c "import json;print(json.load(open('versions/$V/research-lock.json'))['minecraft']['java_major'])")
+          echo "java_major=$JAVA_MAJOR" >> "$GITHUB_OUTPUT"
+          echo "Version $V pins Java $JAVA_MAJOR"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ steps.lock.outputs.java_major }}
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: versions/${{ matrix.version }}
+          cache-on-failure: true
+
+      # Same download path as port-verify: fetch this version's jars
+      # from Mojang's CDN into the version store (SHA-1 verified) and
+      # run its data generator. Gate: a failed prepare fails the job.
+      - name: Prepare the version's data (pipeline download path)
+        run: |
+          set -o pipefail
+          V="${{ matrix.version }}"
+          cd "versions/$V"
+          python3 tools/version_port.py prepare "$V" --download 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/prepare.log"
+
+      # Same launcher staging as port-verify, but lab-prepare runs in
+      # the checked-out tree: no harness here needs a git worktree, and
+      # the worldgen test reads .local relative to its own crate.
+      # Gate: a failed lab-prepare fails the job.
+      - name: Lab-prepare from a staged launcher directory
+        run: |
+          set -o pipefail
+          V="${{ matrix.version }}"
+          LAUNCHER="$GITHUB_WORKSPACE/.launcher"
+          python3 - "$V" "$LAUNCHER" <<'EOF'
+          import hashlib, json, os, shutil, sys, urllib.request
+          version, launcher = sys.argv[1], sys.argv[2]
+          store = os.path.join(os.environ["HORIZON_VERSIONS"], version)
+          meta = json.load(open(os.path.join(store, "version.json")))
+          vdir = os.path.join(launcher, "versions", version)
+          os.makedirs(vdir, exist_ok=True)
+          shutil.copy(os.path.join(store, "version.json"), os.path.join(vdir, version + ".json"))
+          shutil.copy(os.path.join(store, "jars", "client.jar"), os.path.join(vdir, version + ".jar"))
+          def fetch(url, dest, sha1):
+              if os.path.exists(dest) and hashlib.sha1(open(dest, "rb").read()).hexdigest() == sha1:
+                  return
+              os.makedirs(os.path.dirname(dest), exist_ok=True)
+              data = urllib.request.urlopen(url).read()
+              assert hashlib.sha1(data).hexdigest() == sha1, f"sha1 mismatch: {url}"
+              open(dest, "wb").write(data)
+          count = 0
+          for lib in meta.get("libraries", []):
+              downloads = lib.get("downloads", {})
+              entries = []
+              if "artifact" in downloads:
+                  entries.append(downloads["artifact"])
+              entries.extend(downloads.get("classifiers", {}).values())
+              for entry in entries:
+                  fetch(entry["url"], os.path.join(launcher, "libraries", entry["path"]), entry["sha1"])
+                  count += 1
+          print(f"staged launcher dir at {launcher}: {count} library files")
+          EOF
+          cd "versions/$V"
+          HORIZON_MINECRAFT_DIR="$LAUNCHER" \
+          HORIZON_SERVER_JAR="$HORIZON_VERSIONS/$V/jars/server.jar" \
+            python3 tools/lab.py prepare 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/lab-prepare.log"
+
+      # horizon-prepare builds .local/horizon-client/<v>/ (the worldgen
+      # bundles the test reads) from the lab-prepared jars. Same
+      # invocation as the harness driver (tools/port_harness.py):
+      # build the release binary, run it with --root. Gate: a failed
+      # prepare fails the job.
+      - name: Build the prepared resources (horizon-prepare)
+        run: |
+          set -o pipefail
+          V="${{ matrix.version }}"
+          cd "versions/$V"
+          cargo build --release -p horizon-prepare 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/horizon-prepare-build.log"
+          ./target/release/horizon-prepare --root . 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/horizon-prepare.log"
+
+      # The test SKIPS (passes vacuously) when the bundle is missing,
+      # so the bundle's presence is its own gate: without it the run
+      # proves nothing.
+      - name: Gate — the worldgen bundle must exist
+        run: |
+          V="${{ matrix.version }}"
+          BUNDLE="versions/$V/.local/horizon-client/$V/worldgen/world_presets.json"
+          test -f "$BUNDLE" || { echo "missing worldgen bundle: $BUNDLE"; echo "horizon-prepare did not produce it; see horizon-prepare.log"; exit 1; }
+          echo "bundle present: $BUNDLE"
+
+      # The verification itself. A failing test fails the job: an
+      # unbuildable Pipeline, an unsupported feature, or a void chunk
+      # is the signal this job exists to surface.
+      - name: Worldgen end-to-end test (+ chunk dump)
+        run: |
+          set -o pipefail
+          V="${{ matrix.version }}"
+          cd "versions/$V"
+          HORIZON_WORLDGEN_DUMP="$GITHUB_WORKSPACE/ci-out/worldgen-$V.json" \
+            cargo test -p horizon-world --lib prepared_world_builds_and_generates_chunks -- --nocapture 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/worldgen-test.log"
+
+      - name: Job summary
+        if: always()
+        run: |
+          V="${{ matrix.version }}"
+          {
+            echo "## worldgen-verify — $V"
+            echo
+            grep -E '^test worldgen::generator::tests::prepared_world_builds_and_generates_chunks' ci-out/worldgen-test.log 2>/dev/null || echo "test did not run (see worldgen-test.log)"
+            echo
+            if [ -f "ci-out/worldgen-$V.json" ]; then
+              echo "dump: worldgen-$V.json ($(stat -c%s "ci-out/worldgen-$V.json") bytes)"
+              python3 - "ci-out/worldgen-$V.json" <<'EOF'
+          import json, sys
+          d = json.load(open(sys.argv[1]))
+          for dim, v in d['dimensions'].items():
+              for c in v['chunks']:
+                  print(f"- {dim} {c['pos']}: {len(c['palette'])} block types, "
+                        f"{len(c['biome_palette'])} biomes, {len(c['structures'])} structures, "
+                        f"max height {max(c['heightmap'])}")
+          EOF
+            else
+              echo "no dump produced"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the generated world data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: worldgen-${{ matrix.version }}
+          path: |
+            ci-out/worldgen-${{ matrix.version }}.json
+            ci-out/worldgen-test.log
+            ci-out/prepare.log
+            ci-out/lab-prepare.log
+            ci-out/horizon-prepare.log
+          if-no-files-found: warn
