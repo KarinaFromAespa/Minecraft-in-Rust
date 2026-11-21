@@ -12581,12 +12581,52 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 303 — Anvil screen**
+  - AnvilScreen: verified,
+    no code. The
+    1.21.6-only
+    containerTick line
+    (pinning experienceDisp
+    layStartTick) has no
+    surface - zero
+    references in the tree,
+    item 279's ground. The
+    cost colours are the
+    alpha-0 pattern: the
+    port keeps the opaque
+    spellings
+    argb(-8323296) /
+    argb(-40864) with
+    identical RGB to
+    1.21.5's 8453920 /
+    16736352, and the cost
+    logic matches exactly
+    (>= 40 and not creative
+    is Too Expensive, no
+    result draws no line,
+    unpickable result draws
+    red). The error icon
+    sits at (99, 45) when
+    input is present and no
+    result exists. The name
+    field is drawn
+    explicitly after the
+    station
+    (draw_anvil_name, max
+    50 chars) - the 1.21.5
+    renderFg form, not
+    1.21.6's
+    renderable-widget
+    auto-draw.
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **302 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 34/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **303 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 35/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
