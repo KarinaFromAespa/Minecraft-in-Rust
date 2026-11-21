@@ -7180,13 +7180,49 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-command
     -p horizon-client --lib`
     passed at item 145.
+- **Item 152 — Anvil take
+  verified against 1.21.5:**
+  - 1.21.6's `onTake` calls
+    the text filter's
+    `processStreamMessage`
+    on the new item name;
+    1.21.5 has no such
+    call. The Rust take
+    path (`anvil_used`)
+    makes no filter call
+    either — it does the
+    12% damage roll, the
+    damage stages and the
+    level events (1029 on
+    break, 1030 otherwise),
+    matching 1.21.5's
+    `onTake`. (The port's
+    rename-time filter in
+    `lan_station_rename`
+    is a Horizon LAN
+    moderation feature,
+    not vanilla behaviour:
+    vanilla's
+    `handleRenameItem` is
+    identical in both
+    versions — direct
+    `setItemName`, no
+    filter — so it is
+    version-neutral and
+    out of scope here.)
+  - Verification: no Rust
+    change; the tree state
+    is the one `cargo check
+    -j 1 -p horizon-command
+    -p horizon-client --lib`
+    passed at item 145.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **151 of 426 are
-closed** (rank 1 complete, rank 2 at 142/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **152 of 426 are
+closed** (rank 1 complete, rank 2 at 143/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
