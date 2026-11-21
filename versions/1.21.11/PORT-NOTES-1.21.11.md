@@ -9080,3 +9080,25 @@ artefacts (26.1's local-variable names vs 1.21.11's `$$N` names,
 lambda numbering). Tests: `flatgen::` 4 passed
 (horizon-client-lib; the horizon-client lib binary runs 0 with that
 filter).
+
+## Item 160 — game/commands/extra.rs (rank 2, CHANGED)
+
+4 classes, 20 methods, 2 named. Two real deltas. (1) The
+`/fetchprofile entity` subcommand is 26.1-only (with
+`printForEntity`/`printForAvatar` and the `no_profile` error):
+removed from the command tree (tree_extra.rs) and from
+`cmd_fetchprofile`, whose fallthrough is now unreachable — 1.21.11
+has only `name` and `id`. (2) The NBT text component's `plain` flag
+and rich-styled rendering are 26.1-only: 1.21.11's `NbtContents`
+has no `plain` field and its non-interpret path is `asString`
+(string tag → raw value, else compact SNBT). `resolve_nbt_component`
+now uses a `nbt_as_string` helper with that form (unit-tested) and
+ignores `plain`; the stale `CompilableString` citation in the
+selector doc fixed to `SelectorPattern.CODEC`. No delta:
+`ScoreContents`/`SelectorContents` JSON shapes are identical,
+`ObjectContents.fallback` was already ported, and
+`ServerWaypointManager` has zero javap hunks (lambda renumbering
+only). Recorded, not fixed: the Rust ignores custom `separator`s on
+NBT/selector components (pre-existing gap, same in both versions).
+Tests: text_commands 4 passed (1 new), fetchprofile 2 passed,
+horizon-command 52 passed.

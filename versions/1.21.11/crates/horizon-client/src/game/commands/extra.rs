@@ -820,26 +820,9 @@ impl Game<'_> {
             });
             return Ok(1);
         }
-        let t = self.one_entity(ctx, "entity", false)?;
-        if t != Target::Player {
-            return Err(tr_error(
-                "commands.fetchprofile.no_profile",
-                &[self.target_name(t)],
-            ));
-        }
-        // The player in place: a guest's own profile while their command runs.
-        let id = horizon_client::lan::playerdata::ints_uuid(self.acting_uuid());
-        let name = self.acting_player_name().to_owned();
-        self.report_resolved_profile(
-            "commands.fetchprofile.entity.success",
-            Text::literal(&name),
-            &ResolvedProfile {
-                id,
-                name,
-                properties: Vec::new(),
-            },
-        );
-        Ok(1)
+        // 1.21.11's tree has no `entity` branch (26.1 added one): only
+        // `name` and `id` reach this command.
+        unreachable!("fetchprofile without a name or id literal")
     }
     /// The answers of the profile lookups that have come in
     /// (`server.execute(() -> result.ifPresentOrElse(...))`).
