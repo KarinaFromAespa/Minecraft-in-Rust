@@ -12594,3 +12594,9 @@ Zero diff: the bytecode is identical in both versions.
 ## Item 681 — horizon-client-render/src/gfx/pack_atlas/stitch.rs (Stitcher$Holder) — NO-CHANGE
 
 Visibility only.
+
+## Item 682 — horizon-client-render/src/sound_preview.rs (CowSoundVariants$SoundSet) — NO-CHANGE
+
+26.1-only class; already handled — 1.21.11 has no pig/cow/chicken
+sound variants (finalize.rs:1845) and the preview uses plain
+`entity.cow.ambient`.
