@@ -9102,3 +9102,15 @@ only). Recorded, not fixed: the Rust ignores custom `separator`s on
 NBT/selector components (pre-existing gap, same in both versions).
 Tests: text_commands 4 passed (1 new), fetchprofile 2 passed,
 horizon-command 52 passed.
+
+## Item 161 — game/machines.rs (rank 2, NO-CHANGE)
+
+5 classes, 10 methods, 3 named. No behaviour delta: the two
+screens differ only by the 26.1 `extractBackground(GuiGraphicsExtractor)`
+vs 1.21.11 `render` + `renderBg(GuiGraphics)` split (item 87's
+sweep owns the type rename; geometry and textures verified
+identical — hopper 176×133, label at height-94, dispenser 176×166);
+the composter check is an `is` overload change; dropper and hopper
+differ only by `getRandom()` vs the `random` field, the same source
+(the Rust uses `world.random` in both spots). Tests:
+`game::machines::` 24 passed, 5 ignored.
