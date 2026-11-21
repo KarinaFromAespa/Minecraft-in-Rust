@@ -12687,3 +12687,7 @@ Visibility only.
 ## Item 702 — mobs/bat.rs (BatModel) — NO-CHANGE
 
 Zero diff: the bytecode is identical in both versions.
+
+## Item 703 — mobs/caravan.rs (LlamaFollowCaravanGoal) — NO-CHANGE
+
+Equivalent type check (`Entity.is` vs `getType() ==`).
