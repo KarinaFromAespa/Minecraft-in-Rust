@@ -12069,12 +12069,30 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no
     code changed.
 
+- **Item 288 — ThrownTrident**
+  - ThrownTrident: verified, no
+    code - the diff is only the
+    save-API refactor
+    (ValueInput/ValueOutput vs
+    CompoundTag); the
+    serialized form is
+    identical in both versions
+    and the port already writes
+    it: DealtDamage as a byte,
+    read back with default
+    false, and loyalty re-
+    derived from the loaded
+    item's Loyalty enchantment
+    on load (trident.rs:111).
+  - Verification: read only; no
+    code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **287 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 19/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **288 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 20/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
