@@ -3859,13 +3859,56 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 87 — BakedGlyph, verified:**
+  - The glyph geometry is
+    identical in both versions
+    (italic shear `1 - 0.25 * v`,
+    bold thickness 0.1, the
+    same UVs) and matches the
+    Rust `styled_text` in
+    `hud.rs`. The shadow depth
+    is already the 1.21.5
+    value: the Rust front glyph
+    sits at 0.03 in front of
+    its shadow (1.21.6 shrank
+    it to 0.003).
+  - The remaining z deltas are
+    unobservable or deliberate:
+    the bold copy's +0.001
+    (1.21.5 puts it at the same
+    z as its glyph) cannot show,
+    because the copy and the
+    glyph share colour and
+    texture, so either depth
+    winner draws the same
+    pixels; and the
+    underline/strikethrough
+    lift (+0.01) is the port's
+    documented anti-z-fight
+    choice, where vanilla
+    1.21.5 puts the lines at
+    the glyphs' own z. The
+    GUI path sets no depth at
+    all.
+  - The 1.21.6-only additions
+    (the bounds methods, the
+    `GpuTextureView`, the GUI
+    pipeline) have no Rust
+    surface, and the effect
+    winding change is
+    invisible (a solid white
+    texel). No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **86 of 426 are
-closed** (rank 1 complete, rank 2 at 77/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **87 of 426 are
+closed** (rank 1 complete, rank 2 at 78/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
