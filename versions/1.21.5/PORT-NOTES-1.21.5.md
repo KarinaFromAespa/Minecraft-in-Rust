@@ -9062,13 +9062,41 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 200 — Ground
+  nav min-Y bound
+  (strict):**
+  - The ground path scan is
+    back to 1.21.5's strict
+    min-Y bound: the
+    down-scan and its check
+    use `>` now, so a floor
+    at exactly the world's
+    bottom is not a path
+    target (1.21.6 widened
+    both to `>=`). The
+    other two changes were
+    already the 1.21.5
+    form:
+    `can_navigate_ground`
+    is the `instanceof`
+    check (item 170), and
+    the nav
+    `can_open_doors` flag
+    is the
+    `setCanOpenDoors`
+    mechanism.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests 0/0; no tests
+    cover the boundary.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **199 of 426 are
-closed** (rank 1 complete, rank 2 at 190/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **200 of 426 are
+closed** (rank 1 complete, rank 2 at 191/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
