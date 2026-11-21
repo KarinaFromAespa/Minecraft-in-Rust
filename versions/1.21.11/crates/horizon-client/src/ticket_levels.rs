@@ -11,7 +11,7 @@
 //! chunk it arrived in; it keeps that level running with no player in it.
 //! A saved one comes back with the level and the ticks it had left.
 //! The dragon fight holds a `DRAGON` ticket of radius 9 for as long as a player
-//! watches it (`EnderDragonFight.tick`: level 24 of both kinds on the arena,
+//! watches it (`EndDragonFight.tick`: level 24 of both kinds on the arena,
 //! so its island ticks out to 7 chunks whatever the watcher's simulation
 //! distance), and drops it when the last watcher goes.
 //! Levels rise by one per chunk away from a ticket (`ChunkTracker`) and each
@@ -45,7 +45,7 @@ const PORTAL_TIMEOUT: i64 = 300;
 /// minus it.
 const PORTAL_RADIUS: i32 = 3;
 const PORTAL_LEVEL: i32 = BLOCK_TICKING as i32 + 1 - PORTAL_RADIUS;
-/// `EnderDragonFight.tick`'s radius on the arena it holds a ticket on:
+/// `EndDragonFight.tick`'s radius on the arena it holds a ticket on:
 /// `addTicketWithRadius(TicketType.DRAGON, new ChunkPos(0, 0), 9)`, whose level
 /// is `FULL` (33) minus the radius.
 const ARENA_RADIUS: i32 = 9;
@@ -61,7 +61,7 @@ pub struct Sources {
     /// Each `PORTAL` ticket's chunk and level.
     pub portal: Vec<((i32, i32), i32)>,
     /// The arena the dragon fight holds a `TicketType.DRAGON` ticket on while
-    /// its boss bar has a watcher (`EnderDragonFight.tick`), `None` once none
+    /// its boss bar has a watcher (`EndDragonFight.tick`), `None` once none
     /// has (its `removeTicketWithRadius`).
     pub dragon: Option<(i32, i32)>,
     pub view_distance: i32,
@@ -637,7 +637,7 @@ mod tests {
         assert!(everywhere.random_ticking(1000, -1000));
     }
 
-    /// `EnderDragonFight.tick` holds the arena's `TicketType.DRAGON` ticket
+    /// `EndDragonFight.tick` holds the arena's `TicketType.DRAGON` ticket
     /// (radius 9, level 24) for as long as a player watches the fight, so the
     /// island ticks with its watcher far outside their simulation distance,
     /// and drops it when the last watcher goes.

@@ -1,4 +1,4 @@
-//! The ender dragon fight (`EnderDragonFight`, `EnderDragon`, its phases,
+//! The ender dragon fight (`EndDragonFight`, `EnderDragon`, its phases,
 //! `EndCrystal`, `DragonFireball`): the fight state saved in the End's
 //! `ender_dragon_fight.dat`, the dragon spawned over the island, the
 //! holding pattern over the 24-node path graph, strafing with fireballs,
@@ -103,7 +103,10 @@ fn fireball_cloud_origin(feet: [f64; 3], targets: &[(Aabb, Vec3)]) -> [f64; 3] {
 /// (`SPECIAL + 16 + crystal`), so projectiles can target them.
 pub(super) const SPECIAL: u32 = u32::MAX - 4096;
 pub(super) const CRYSTAL_IDS: u32 = SPECIAL + 16;
-const FIGHT_FILE: &str = "data/minecraft/ender_dragon_fight.dat";
+/// The 26.x fight file (`data/minecraft/ender_dragon_fight.dat`): 1.21.11
+/// keeps the fight in level.dat's `DragonFight`, so this is only a read
+/// fallback for worlds this tree already saved in the 26.x form.
+const LEGACY_FIGHT_FILE: &str = "data/minecraft/ender_dragon_fight.dat";
 const MAX_HEALTH: f32 = 200.0;
 /// `Mob.getAmbientSoundInterval`.
 const AMBIENT_INTERVAL: i32 = 80;
@@ -152,7 +155,7 @@ enum Respawn {
     Summoning,
 }
 impl Fight {
-    /// `EnderDragonFight.tick`'s ticket condition: the fight's boss bar has a
+    /// `EndDragonFight.tick`'s ticket condition: the fight's boss bar has a
     /// player (`dragonEvent.getPlayers()` is not empty), which holds the
     /// arena's `TicketType.DRAGON` ticket. The bar is scanned every 20 ticks,
     /// as `updatePlayers` is.
@@ -579,7 +582,7 @@ impl Dragon {
         self.velocity = Vec3::ZERO;
     }
     /// `EnderDragon`'s constructor: full health, hovering (`EnderDragonPhase.HOVERING`). Only
-    /// `EnderDragonFight.createNewDragon` sets the holding pattern; a dragon from `/summon`, a
+    /// `EndDragonFight.createNewDragon` sets the holding pattern; a dragon from `/summon`, a
     /// spawn egg or a save without `DragonPhase` keeps hovering where it was put.
     fn new(position: Vec3, yaw: f32, seed: i64) -> Self {
         Self {
@@ -959,76 +962,151 @@ fn wrap64(d: f64) -> f64 {
     }
     r
 }
-impl Game<'_> {
-    fn fight_path(&self) -> std::path::PathBuf {
-        horizon_client::save::dimension_dir(&self.world_root, "minecraft:the_end").join(FIGHT_FILE)
+
+/// `EndDragonFight$Data` (level.dat's `DragonFight`) decoded into a `Fight`.
+/// `legacy` reads the 26.x file's snake_case keys instead (`data` compound
+/// of `ender_dragon_fight.dat`), which also carries the respawn stage and
+/// time 1.21.11 never saves. A 1.21.11 respawn comes back as `Start` at
+/// time 0 with no crystals yet — the first tick re-finds them
+/// (`EndDragonFight.tick`'s null-crystals branch).
+fn decode_fight_data(data: &Tag, legacy: bool) -> Fight {
+    let flag = |k: &str, lk: &str, default: bool| {
+        let key = if legacy { lk } else { k };
+        match data.get(key) {
+            Some(Tag::Byte(v)) => *v != 0,
+            _ => default,
+        }
+    };
+    let gateways = match data.get(if legacy { "gateways" } else { "Gateways" }) {
+        Some(Tag::IntArray(v)) => v.clone(),
+        Some(Tag::List(v)) => v
+            .iter()
+            .filter_map(|t| match t {
+                Tag::Int(i) => Some(*i),
+                _ => None,
+            })
+            .collect(),
+        _ => Vec::new(),
+    };
+    let respawn = if legacy {
+        match data.get("respawn_stage") {
+            Some(Tag::String(name)) => {
+                Respawn::from_name(&name.to_string().unwrap_or_default()).map(|r| {
+                    let time = match data.get("respawn_time") {
+                        Some(Tag::Int(t)) => *t,
+                        _ => 0,
+                    };
+                    (r, time)
+                })
+            }
+            _ => None,
+        }
+    } else if flag("IsRespawning", "", false) {
+        Some((Respawn::Start, 0))
+    } else {
+        None
+    };
+    let respawn_crystals = if legacy {
+        match data.get("horizon_respawn_crystals") {
+            Some(Tag::IntArray(v)) => v
+                .as_chunks::<3>()
+                .0
+                .iter()
+                .map(|b| {
+                    Vec3::new(
+                        f64::from(b[0]) + 0.5,
+                        f64::from(b[1]),
+                        f64::from(b[2]) + 0.5,
+                    )
+                })
+                .collect(),
+            _ => Vec::new(),
+        }
+    } else {
+        Vec::new()
+    };
+    Fight {
+        loaded: true,
+        needs_scan: flag("NeedsStateScanning", "needs_state_scanning", true),
+        killed: flag("DragonKilled", "dragon_killed", false),
+        previously_killed: flag("PreviouslyKilled", "previously_killed", false),
+        crystals_placed: flag("horizon_crystals_placed", "horizon_crystals_placed", false),
+        gateways,
+        respawn,
+        respawn_crystals,
+        exit_portal: match data.get(if legacy {
+            "exit_portal_location"
+        } else {
+            "ExitPortalLocation"
+        }) {
+            Some(Tag::IntArray(v)) if v.len() == 3 => Some([v[0], v[1], v[2]]),
+            _ => None,
+        },
+        dragon_uuid: match data.get(if legacy { "dragon_uuid" } else { "Dragon" }) {
+            Some(Tag::IntArray(v)) if v.len() == 4 => Some([v[0], v[1], v[2], v[3]]),
+            _ => None,
+        },
+        // The first tick scans for players.
+        player_scan: 21,
+        ..Default::default()
     }
-    /// The saved fight, or `createDefault` with the gateways shuffled by the seed.
+}
+
+/// A `Fight` encoded as `EndDragonFight$Data` for level.dat's `DragonFight`.
+/// 1.21.11 saves no respawn stage or time — only `IsRespawning` — and the
+/// gateways as a list, not an int array.
+fn encode_fight_data(f: &Fight) -> Tag {
+    let b = |v: bool| Tag::Byte(i8::from(v));
+    let mut data = vec![
+        ("NeedsStateScanning", b(f.needs_scan)),
+        ("DragonKilled", b(f.killed)),
+        ("PreviouslyKilled", b(f.previously_killed)),
+        ("IsRespawning", b(f.respawn.is_some())),
+        (
+            "Gateways",
+            Tag::List(f.gateways.iter().map(|g| Tag::Int(*g)).collect()),
+        ),
+        ("horizon_crystals_placed", b(f.crystals_placed)),
+    ];
+    if let Some(p) = f.exit_portal {
+        data.push(("ExitPortalLocation", Tag::IntArray(p.to_vec())));
+    }
+    if let Some(u) = f.dragon_uuid {
+        data.push(("Dragon", Tag::IntArray(u.to_vec())));
+    }
+    Tag::compound(data)
+}
+
+impl Game<'_> {
+    fn legacy_fight_path(&self) -> std::path::PathBuf {
+        horizon_client::save::dimension_dir(&self.world_root, "minecraft:the_end")
+            .join(LEGACY_FIGHT_FILE)
+    }
+    /// The saved fight, or `Data.DEFAULT` with the gateways shuffled by the seed.
+    /// 1.21.11 keeps the fight in level.dat's `DragonFight`; the 26.x file
+    /// is only a fallback for worlds this tree already saved.
     fn load_fight(&mut self) {
         if self.fight.loaded {
             return;
         }
-        let tag = horizon_client::save::read_dat(&self.fight_path());
-        let data = tag.as_ref().and_then(|t| t.get("data"));
-        let flag = |k: &str, default: bool| match data.and_then(|d| d.get(k)) {
-            Some(Tag::Byte(v)) => *v != 0,
-            _ => default,
-        };
-        let mut fight = Fight {
-            loaded: true,
-            needs_scan: flag("needs_state_scanning", true),
-            killed: flag("dragon_killed", false),
-            previously_killed: flag("previously_killed", false),
-            crystals_placed: flag("horizon_crystals_placed", false),
-            gateways: match data.and_then(|d| d.get("gateways")) {
-                Some(Tag::IntArray(v)) => v.clone(),
-                Some(Tag::List(v)) => v
-                    .iter()
-                    .filter_map(|t| match t {
-                        Tag::Int(i) => Some(*i),
-                        _ => None,
-                    })
-                    .collect(),
-                _ => Vec::new(),
+        let level = horizon_client::save::read_dat(&self.world_root.join("level.dat"));
+        let data = level
+            .as_ref()
+            .and_then(|t| t.get("Data"))
+            .and_then(|d| d.get("DragonFight"));
+        let legacy = horizon_client::save::read_dat(&self.legacy_fight_path());
+        let legacy_data = legacy.as_ref().and_then(|t| t.get("data"));
+        let have_data = data.is_some() || legacy_data.is_some();
+        let mut fight = match (data, legacy_data) {
+            (Some(d), _) => decode_fight_data(d, false),
+            (None, Some(d)) => decode_fight_data(d, true),
+            (None, None) => Fight {
+                loaded: true,
+                needs_scan: true,
+                // The first tick scans for players.
+                player_scan: 21,
+                ..Default::default()
             },
-            respawn: match data.and_then(|d| d.get("respawn_stage")) {
-                Some(Tag::String(name)) => {
-                    Respawn::from_name(&name.to_string().unwrap_or_default()).map(|r| {
-                        let time = match data.and_then(|d| d.get("respawn_time")) {
-                            Some(Tag::Int(t)) => *t,
-                            _ => 0,
-                        };
-                        (r, time)
-                    })
-                }
-                _ => None,
-            },
-            respawn_crystals: match data.and_then(|d| d.get("horizon_respawn_crystals")) {
-                Some(Tag::IntArray(v)) => v
-                    .as_chunks::<3>()
-                    .0
-                    .iter()
-                    .map(|b| {
-                        Vec3::new(
-                            f64::from(b[0]) + 0.5,
-                            f64::from(b[1]),
-                            f64::from(b[2]) + 0.5,
-                        )
-                    })
-                    .collect(),
-                _ => Vec::new(),
-            },
-            exit_portal: match data.and_then(|d| d.get("exit_portal_location")) {
-                Some(Tag::IntArray(v)) if v.len() == 3 => Some([v[0], v[1], v[2]]),
-                _ => None,
-            },
-            dragon_uuid: match data.and_then(|d| d.get("dragon_uuid")) {
-                Some(Tag::IntArray(v)) if v.len() == 4 => Some([v[0], v[1], v[2], v[3]]),
-                _ => None,
-            },
-            // The first tick scans for players.
-            player_scan: 21,
-            ..Default::default()
         };
         if fight.gateways.is_empty() {
             // Util.shuffle(0..20, RandomSource.create(seed)).
@@ -1043,7 +1121,7 @@ impl Game<'_> {
         }
         // A world from before this fight existed: one with an active portal
         // already won it.
-        if tag.is_none() && self.end_portal_active() {
+        if !have_data && self.end_portal_active() {
             fight.killed = true;
             fight.previously_killed = true;
             fight.crystals_placed = true;
@@ -1059,46 +1137,15 @@ impl Game<'_> {
                 })
         })
     }
+    /// `PrimaryLevelData.createTag`: the fight goes back into level.dat's
+    /// `Data.DragonFight` with the level write, so this hands the built
+    /// tag to the level instead of writing a file of its own.
     pub(super) fn save_fight(&mut self) {
         if !self.fight.loaded || !self.fight.dirty {
             return;
         }
-
-        let f = &self.fight;
-        let b = |v: bool| Tag::Byte(i8::from(v));
-        let mut data = vec![
-            ("needs_state_scanning", b(f.needs_scan)),
-            ("dragon_killed", b(f.killed)),
-            ("previously_killed", b(f.previously_killed)),
-            ("respawn_time", Tag::Int(f.respawn.map_or(0, |r| r.1))),
-            ("gateways", Tag::IntArray(f.gateways.clone())),
-            ("horizon_crystals_placed", b(f.crystals_placed)),
-        ];
-        if let Some(p) = f.exit_portal {
-            data.push(("exit_portal_location", Tag::IntArray(p.to_vec())));
-        }
-        if let Some(u) = f.dragon_uuid {
-            data.push(("dragon_uuid", Tag::IntArray(u.to_vec())));
-        }
-        if let Some((stage, _)) = f.respawn {
-            data.push(("respawn_stage", Tag::String(stage.name().into())));
-            data.push((
-                "horizon_respawn_crystals",
-                Tag::IntArray(
-                    f.respawn_crystals
-                        .iter()
-                        .flat_map(|p| [p.x.floor() as i32, p.y.floor() as i32, p.z.floor() as i32])
-                        .collect(),
-                ),
-            ));
-        }
-        let tag = Tag::compound([
-            ("data", Tag::compound(data)),
-            ("DataVersion", Tag::Int(horizon_world::DATA_VERSION)),
-        ]);
-        if horizon_client::save::write_dat(&self.fight_path(), tag).is_ok() {
-            self.fight.dirty = false;
-        }
+        self.level.dragon_fight = Some(encode_fight_data(&self.fight));
+        self.fight.dirty = false;
     }
     /// The island's centre chunks are lit (the arena is "loaded").
     fn arena_loaded(&self) -> bool {
@@ -1178,7 +1225,7 @@ impl Game<'_> {
             }
         }
     }
-    /// `EnderDragonFight.validPlayer`: the players alive within 192 blocks of
+    /// `EndDragonFight.validPlayer`: the players alive within 192 blocks of
     /// (0, 128, 0), the host and the guests in the level alike.
     fn fight_has_players(&self) -> bool {
         let near =
@@ -1193,7 +1240,7 @@ impl Game<'_> {
                 .any(|g| h.hub.here(g) && g.loaded && !g.dead && near(g.position))
         })
     }
-    /// `EnderDragonFight.tick` and the fight's entities, while the End is
+    /// `EndDragonFight.tick` and the fight's entities, while the End is
     /// ticked (in place for its player, or on a server with players in it).
     pub(super) fn tick_fight(&mut self) {
         // A dragon outside the End (`/summon`) has no fight: `ServerLevel.getDragonFight` is
@@ -1209,6 +1256,13 @@ impl Game<'_> {
             self.fight.player_scan = 0;
             self.fight.players = self.fight_has_players();
         }
+        // `EndDragonFight.tick`: the respawn stage ticks whenever players are
+        // present, arena or not — only the state scan, the dragon search and
+        // the crystal count wait for the arena. The dragon entity itself
+        // still waits (its chunk is the arena).
+        if self.fight.players && self.fight.respawn.is_some() {
+            self.tick_respawn();
+        }
         if !self.arena_loaded() {
             return;
         }
@@ -1222,9 +1276,6 @@ impl Game<'_> {
                 self.scan_state();
                 self.fight.needs_scan = false;
                 self.fight.dirty = true;
-            }
-            if self.fight.respawn.is_some() {
-                self.tick_respawn();
             }
             if !self.fight.killed {
                 // Without a dragon of its own, or 1200 ticks after it last
@@ -1388,7 +1439,7 @@ impl Game<'_> {
             self.abort_respawn();
             return;
         }
-        // EnderDragonFight.onCrystalDestroyed.
+        // EndDragonFight.onCrystalDestroyed.
         self.count_crystals();
         // EnderDragon.onCrystalDestroyed: the player behind the damage, else
         // the one nearest the crystal's block (`CRYSTAL_DESTROY_TARGETING`,
@@ -2873,7 +2924,7 @@ impl Game<'_> {
         self.post_game_event("minecraft:entity_die", at, ctx);
         self.catalyst_takes_experience(at, |_| 0);
     }
-    /// `EnderDragonFight.setDragonKilled`.
+    /// `EndDragonFight.setDragonKilled`.
     fn dragon_killed(&mut self) {
         let _ = self.activate_exit_portal();
         if let Some(g) = self.fight.gateways.pop() {
@@ -3188,7 +3239,7 @@ impl Game<'_> {
         hud_layout::paint(batch, &self.gui.atlas, &draws);
     }
     /// The dragon fight's bar for a player at `at`
-    /// (`EnderDragonFight.dragonEvent`, visible while the fight is not won
+    /// (`EndDragonFight.dragonEvent`, visible while the fight is not won
     /// and the player is alive within 192 blocks of (0, 128, 0)).
     pub(super) fn dragon_boss_progress(&self, at: [f64; 3], alive: bool) -> Option<f32> {
         if !self.dimension_type().has_ender_dragon_fight
@@ -3952,7 +4003,7 @@ impl Game<'_> {
     }
 }
 /// Respawning the dragon with end crystals on the exit portal
-/// (`EndCrystalItem.useOn`, `EnderDragonFight.tryRespawn`, `DragonRespawnAnimation`).
+/// (`EndCrystalItem.useOn`, `EndDragonFight.tryRespawn`, `DragonRespawnAnimation`).
 impl Game<'_> {
     /// `EndCrystalItem.useOn`: on obsidian or bedrock with room above.
     pub(super) fn place_end_crystal(
@@ -4080,7 +4131,7 @@ impl Game<'_> {
                 )
             })
     }
-    /// `EnderDragonFight.tryRespawn`: a crystal on each side of the portal.
+    /// `EndDragonFight.tryRespawn`: a crystal on each side of the portal.
     fn try_respawn(&mut self) {
         self.load_fight();
         if !self.fight.killed || self.fight.respawn.is_some() {
@@ -4098,8 +4149,8 @@ impl Game<'_> {
         };
         let mut found = Vec::new();
         for d in [[0, -1], [0, 1], [-1, 0], [1, 0]] {
-            // new AABB(center.relative(direction, 3)): the block cube.
-            let cell = [origin[0] + d[0] * 3, origin[1] + 1, origin[2] + d[1] * 3];
+            // new AABB(center.relative(direction, 2)): the block cube.
+            let cell = [origin[0] + d[0] * 2, origin[1] + 1, origin[2] + d[1] * 2];
             let lo = Vec3::new(f64::from(cell[0]), f64::from(cell[1]), f64::from(cell[2]));
             let hits: Vec<Vec3> = self
                 .crystals
@@ -4165,20 +4216,23 @@ impl Game<'_> {
         self.fight.respawn = stage.map(|s| (s, 0));
         self.fight.dirty = true;
     }
-    /// `EnderDragonFight.tick` with a respawn in progress.
+    /// `EndDragonFight.tick` with a respawn in progress.
     fn tick_respawn(&mut self) {
+        // `EndDragonFight.tick`: a respawn loaded from the save has no
+        // crystals yet (`IsRespawning` only); the first tick with the arena
+        // loaded re-finds them and the fresh START stage ticks at once.
+        // A crystal destroyed mid-sequence aborts through
+        // `onCrystalDestroyed`, not here.
+        if self.fight.respawn_crystals.is_empty() && self.fight.respawn.is_some() {
+            if !self.arena_loaded() {
+                return;
+            }
+            self.fight.respawn = None;
+            self.try_respawn();
+        }
         let Some((stage, time)) = self.fight.respawn else {
             return;
         };
-        let alive = self.fight.respawn_crystals.iter().any(|p| {
-            self.crystals
-                .iter()
-                .any(|c| p.distance_squared(c.position) < 0.01)
-        });
-        if !alive {
-            self.abort_respawn();
-            return;
-        }
         if let Some(r) = self.fight.respawn.as_mut() {
             r.1 += 1;
         }
@@ -4343,7 +4397,7 @@ impl Game<'_> {
             }
         }
     }
-    /// `EnderDragonFight.createNewDragon`: over the podium, holding pattern, a random yaw.
+    /// `EndDragonFight.createNewDragon`: over the podium, holding pattern, a random yaw.
     /// It becomes the fight's dragon (`dragonUUID = dragon.getUUID()`).
     fn create_new_dragon(&mut self) {
         let yaw = self.world.random.next_float() * 360.0;
@@ -4365,7 +4419,7 @@ impl Game<'_> {
         self.fight.dragon_uuid = Some(self.uuid_for(id));
         self.fight.dirty = true;
     }
-    /// `EnderDragonFight.findOrCreateDragon`: the End's dragon becomes the
+    /// `EndDragonFight.findOrCreateDragon`: the End's dragon becomes the
     /// fight's, or a new one is made.
     fn find_or_create_dragon(&mut self) {
         match self.dragon.as_ref().map(|d| (d.id, d.alive())) {
@@ -4380,7 +4434,7 @@ impl Game<'_> {
             Some((_, false)) => {}
         }
     }
-    /// `EnderDragonFight.scanState`, for a world from before the fight was
+    /// `EndDragonFight.scanState`, for a world from before the fight was
     /// saved: an active exit portal means the dragon was killed before. A
     /// living dragon there is the fight's, unless there is no active portal:
     /// then it is removed for a new one.
@@ -5898,3 +5952,120 @@ mod dragon_fireball_spawn_tests {
 #[cfg(test)]
 #[path = "thorns_tests.rs"]
 mod thorns_tests;
+
+#[cfg(test)]
+mod fight_data_tests {
+    use super::*;
+
+    fn fight_1_21_11_tag() -> Tag {
+        Tag::compound(vec![
+            ("NeedsStateScanning", Tag::Byte(0)),
+            ("DragonKilled", Tag::Byte(1)),
+            ("PreviouslyKilled", Tag::Byte(1)),
+            ("IsRespawning", Tag::Byte(1)),
+            ("Dragon", Tag::IntArray(vec![1, 2, 3, 4])),
+            ("ExitPortalLocation", Tag::IntArray(vec![0, 64, 0])),
+            ("Gateways", Tag::List(vec![Tag::Int(7), Tag::Int(3)])),
+            ("horizon_crystals_placed", Tag::Byte(1)),
+        ])
+    }
+
+    #[test]
+    fn decode_reads_1_21_11_data() {
+        let f = decode_fight_data(&fight_1_21_11_tag(), false);
+        assert!(!f.needs_scan);
+        assert!(f.killed);
+        assert!(f.previously_killed);
+        assert_eq!(f.dragon_uuid, Some([1, 2, 3, 4]));
+        assert_eq!(f.exit_portal, Some([0, 64, 0]));
+        assert_eq!(f.gateways, vec![7, 3]);
+        assert!(f.crystals_placed);
+        // `IsRespawning` only: the stage restarts at START with no
+        // crystals yet, re-found by the first tick.
+        assert_eq!(f.respawn, Some((Respawn::Start, 0)));
+        assert!(f.respawn_crystals.is_empty());
+    }
+
+    #[test]
+    fn decode_defaults_match_data_default() {
+        let empty: Vec<(&str, Tag)> = Vec::new();
+        let f = decode_fight_data(&Tag::compound(empty), false);
+        assert!(f.needs_scan);
+        assert!(!f.killed);
+        assert!(!f.previously_killed);
+        assert!(f.respawn.is_none());
+        assert!(f.gateways.is_empty());
+        assert!(f.dragon_uuid.is_none());
+        assert!(f.exit_portal.is_none());
+    }
+
+    #[test]
+    fn decode_reads_legacy_data() {
+        let tag = Tag::compound(vec![
+            ("needs_state_scanning", Tag::Byte(0)),
+            ("dragon_killed", Tag::Byte(1)),
+            ("previously_killed", Tag::Byte(0)),
+            ("respawn_stage", Tag::String("summoning_pillars".into())),
+            ("respawn_time", Tag::Int(42)),
+            ("gateways", Tag::IntArray(vec![5, 9])),
+            (
+                "horizon_respawn_crystals",
+                Tag::IntArray(vec![2, 65, 0, -2, 65, 0]),
+            ),
+            ("dragon_uuid", Tag::IntArray(vec![9, 8, 7, 6])),
+        ]);
+        let f = decode_fight_data(&tag, true);
+        assert!(!f.needs_scan);
+        assert!(f.killed);
+        assert!(!f.previously_killed);
+        assert_eq!(f.respawn, Some((Respawn::Pillars, 42)));
+        assert_eq!(f.gateways, vec![5, 9]);
+        assert_eq!(f.dragon_uuid, Some([9, 8, 7, 6]));
+        assert_eq!(f.respawn_crystals.len(), 2);
+        assert_eq!(f.respawn_crystals[0], Vec3::new(2.5, 65.0, 0.5));
+    }
+
+    #[test]
+    fn encode_uses_1_21_11_keys() {
+        let f = Fight {
+            loaded: true,
+            needs_scan: false,
+            killed: true,
+            previously_killed: true,
+            crystals_placed: true,
+            gateways: vec![7, 3],
+            respawn: Some((Respawn::Pillars, 42)),
+            exit_portal: Some([0, 64, 0]),
+            dragon_uuid: Some([1, 2, 3, 4]),
+            ..Default::default()
+        };
+        let tag = encode_fight_data(&f);
+        assert_eq!(tag.get("NeedsStateScanning"), Some(&Tag::Byte(0)));
+        assert_eq!(tag.get("DragonKilled"), Some(&Tag::Byte(1)));
+        assert_eq!(tag.get("PreviouslyKilled"), Some(&Tag::Byte(1)));
+        // No stage or time survives: only `IsRespawning`.
+        assert_eq!(tag.get("IsRespawning"), Some(&Tag::Byte(1)));
+        assert!(tag.get("respawn_stage").is_none());
+        assert!(tag.get("respawn_time").is_none());
+        assert!(tag.get("horizon_respawn_crystals").is_none());
+        // Gateways as a list, the dragon under `Dragon`.
+        assert_eq!(
+            tag.get("Gateways"),
+            Some(&Tag::List(vec![Tag::Int(7), Tag::Int(3)]))
+        );
+        assert_eq!(
+            tag.get("Dragon"),
+            Some(&Tag::IntArray(vec![1, 2, 3, 4]))
+        );
+        assert_eq!(
+            tag.get("ExitPortalLocation"),
+            Some(&Tag::IntArray(vec![0, 64, 0]))
+        );
+        assert!(tag.get("dragon_uuid").is_none());
+        assert!(tag.get("needs_state_scanning").is_none());
+        assert_eq!(
+            tag.get("horizon_crystals_placed"),
+            Some(&Tag::Byte(1))
+        );
+    }
+}

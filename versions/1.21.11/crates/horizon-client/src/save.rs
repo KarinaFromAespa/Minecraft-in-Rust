@@ -3996,6 +3996,11 @@ pub struct Level {
     /// save and written into `Data` when present. `None` keeps the loaded
     /// value (a remote game, or one that never loaded its functions).
     pub scheduled_events: Option<Tag>,
+    /// `PrimaryLevelData`'s `DragonFight`: the ender dragon fight's
+    /// `EndDragonFight$Data`, handed over by the game before a save and
+    /// written into `Data` when present. `None` keeps the loaded value
+    /// (a remote game, or one that never entered the End).
+    pub dragon_fight: Option<Tag>,
     pub difficulty: String,
     pub hardcore: bool,
     /// `DifficultyLocked` (LevelData.isDifficultyLocked).
@@ -4838,7 +4843,11 @@ impl Level {
         if let Some(events) = &self.scheduled_events {
             put(&mut data, "ScheduledEvents", events.clone());
         }
-        // `DragonFight`, `CustomBossEvents`, the wandering trader and
+        // `EndDragonFight$Data`, handed over by the game the same way.
+        if let Some(fight) = &self.dragon_fight {
+            put(&mut data, "DragonFight", fight.clone());
+        }
+        // `CustomBossEvents`, the wandering trader and
         // the world border are not modelled here: they survive because nothing above
         // removes them from the loaded `Data`.
         write_dat(&dir.join("level.dat"), Tag::compound([("Data", data)]))?;

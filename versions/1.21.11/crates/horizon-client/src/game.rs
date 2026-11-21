@@ -4155,7 +4155,7 @@ impl Game<'_> {
                     .collect(),
                 // Filled from the `PORTAL` tickets by `update`.
                 portal: Vec::new(),
-                // EnderDragonFight.tick: while a player watches the fight, the
+                // EndDragonFight.tick: while a player watches the fight, the
                 // arena holds a `DRAGON` ticket of radius 9 at (0, 0), so its
                 // island ticks out to 7 chunks whatever the watcher's
                 // simulation distance. The fight lives where the type has one.
@@ -4398,7 +4398,7 @@ impl Game<'_> {
                     pos,
                     data,
                 } => self.destroy_particles([pos.x, pos.y, pos.z], BlockStateId(data as u32)),
-                // EnderDragonFight.spawnNewGateway: an always-visible burst
+                // EndDragonFight.spawnNewGateway: an always-visible burst
                 // and a sound at the gateway for every nearby player.
                 LevelEvent::LevelEvent { id: 3000, pos, .. } => {
                     let at = [

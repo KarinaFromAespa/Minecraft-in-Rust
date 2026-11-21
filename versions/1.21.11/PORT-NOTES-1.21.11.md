@@ -11015,3 +11015,31 @@ failed — the HDR screenshot pixel test
 (float drift on llvmpipe), pre-existing
 and environmental, not this item (no code
 touched).
+
+## Item 483 — dimension/end/EnderDragonFight (rank 2, CHANGED)
+
+1 class, 7 methods named. 1.21.11's
+`EndDragonFight` is a plain class whose
+state (`EndDragonFight$Data`) lives in
+level.dat's `DragonFight`, not a
+SavedData file: the fight now loads
+from `Data.DragonFight` with the
+1.21.11 PascalCase keys (`Gateways` a
+list, `Dragon` for the UUID, only
+`IsRespawning` for the respawn — no
+stage or time) and saves by handing the
+built tag to a new `Level.dragon_fight`
+field, written with the level write
+(the `scheduled_events` pattern); the
+26.x `.dat` file is a read fallback
+only. `tryRespawn` searches 2 blocks
+out, not 3; the respawn stage ticks
+whenever players are present (only the
+scan, dragon search and crystal count
+wait for the arena); a respawn loaded
+from the save re-finds its crystals on
+the first arena-loaded tick instead of
+aborting when none is alive. All 24
+`EnderDragonFight` citations re-pointed
+to `EndDragonFight`. `fight_data`: 4
+passed.

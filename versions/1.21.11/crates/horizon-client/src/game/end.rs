@@ -28,7 +28,7 @@ const PORTAL_TICKET: u32 = 300;
 
 /// ServerLevel.END_SPAWN_POINT.
 pub(super) const END_SPAWN: [i32; 3] = [100, 50, 0];
-/// EnderDragonFight gateway ring radius and height.
+/// EndDragonFight gateway ring radius and height.
 const GATEWAY_RADIUS: f64 = 96.0;
 const GATEWAY_Y: i32 = 75;
 
@@ -766,7 +766,7 @@ impl Game<'_> {
         Ok(Some((Vec3::new(target.x, y, target.z), None)))
     }
 
-    /// EnderDragonFight without a dragon: once the centre of the main island
+    /// EndDragonFight without a dragon: once the centre of the main island
     /// is loaded, place the active exit portal (EndPodiumFeature) and the
     /// first gateway (spawnNewGateway) if the portal is not there yet. Like
     /// scanState and spawnExitPortal, only while the fight has no exit portal
@@ -859,7 +859,7 @@ impl Game<'_> {
         self.place_gateway(pos)
     }
 
-    /// The first gateway of the shuffled ring (EnderDragonFight constructor
+    /// The first gateway of the shuffled ring (EndDragonFight constructor
     /// and spawnNewGateway).
     fn first_gateway(&self) -> [i32; 3] {
         let mut gateways: Vec<i32> = (0..20).collect();
