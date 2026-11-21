@@ -9529,3 +9529,20 @@ implements those exact forms (both blends and the
 light-at-position formula verified against the 1.21.11
 jar). Doc citations updated to the 1.21.11 homes. No code
 changed.
+
+## Item 193 — game/bossbars.rs (rank 2, CHANGED)
+
+2 classes, 17 methods, 1 named. Real delta:
+`CustomBossEvents.create` takes no random in 1.21.11 —
+`ServerBossEvent` draws the bar's UUID from the static
+`Mth.RANDOM`, where 26.1 drew it from `level.random`.
+`/bossbar add` no longer advances the level random: the
+Rust now draws the fresh UUID from
+`random_source::entity()`, the tnt.rs precedent for a
+non-level random. The `SavedData` -> plain-class change
+has no NBT effect (the id -> bar map codec is unchanged);
+`BossBarCommands` is renames plus the
+`ComponentUtils.updateForEntity` resolution API. New
+`game/bossbars_tests.rs` asserts the bar gets a fresh UUID
+and the level random's next draw is unchanged (runs in CI;
+needs prepared resources).

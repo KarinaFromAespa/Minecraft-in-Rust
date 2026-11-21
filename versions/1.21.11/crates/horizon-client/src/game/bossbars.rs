@@ -174,9 +174,14 @@ impl Game<'_> {
                 let name = self.component_json(ctx, "name")?;
                 self.bosses.add_bar(&bar, name);
                 if let Some(b) = self.bosses.bars.get_mut(&bar) {
-                    // CustomBossEvents.create: Mth.createInsecureUUID(level.random).
+                    // CustomBossEvents.create: 1.21.11's ServerBossEvent
+                    // draws its UUID from Mth.RANDOM, not the level random
+                    // (26.1 drew it from level.random) — a fresh random,
+                    // as for entities.
                     b.uuid = horizon_client::lan::playerdata::ints_uuid(
-                        horizon_client::save::insecure_uuid(&mut self.world.random),
+                        horizon_client::save::insecure_uuid(
+                            &mut horizon_client::random_source::entity(),
+                        ),
                     );
                 }
                 let shown = self

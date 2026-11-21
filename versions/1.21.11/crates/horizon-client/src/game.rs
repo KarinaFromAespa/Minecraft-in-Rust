@@ -79,6 +79,8 @@ mod boat_rider_fixture;
 mod boats;
 mod books;
 mod bossbars;
+#[cfg(test)]
+mod bossbars_tests;
 mod breezes;
 mod brush;
 mod buckets;
