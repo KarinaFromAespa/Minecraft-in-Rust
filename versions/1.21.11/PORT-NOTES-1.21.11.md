@@ -10351,3 +10351,16 @@ visibility widening; the two missing-side
 an anonymous signed-argument visitor whose outer
 class is unchanged). No source change.
 `component`: 13 passed; `text::`: 4 passed.
+
+## Item 274 — clouds.rs (rank 2, NO-CHANGE)
+
+1 class, 3 methods, 1 named. A large diff that
+collapses to plumbing: 26.1 passes the cloud
+range into `render` as a parameter (shifting
+every local slot), 1.21.11 reads it from the
+options; Blaze3D GPU types are classes in 26.1
+and interfaces in 1.21.11; `prevType` renamed.
+Zero differing constants — the mesh and render
+sequence are identical. The Rust already passes
+the range in through `Input`. No source change.
+`clouds`: 12 passed.
