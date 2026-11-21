@@ -11676,3 +11676,18 @@ GuiGraphics, `text` -> `drawString`, plus
 `ToastInstance` field visibility. The toast drawing
 and slide/update logic are identical. Two citations
 re-pointed to the 1.21.11 names.
+
+## Item 538 — worldgen/tree/trunk.rs (TrunkPlacer) — CHANGED
+
+26.1 has `placeBelowTrunkBlock` (places
+`TreeConfiguration.belowTrunkProvider.getOptionalState` if non-null) and a
+`getBaseHeight()` accessor; 1.21.11 has `setDirtAt` (skips when `!forceDirt`
+and the block is already dirt — `Feature.isDirt` minus grass/mycelium — else
+places `dirtProvider.getState`) and no accessor. The level type widened
+(`LevelSimulatedReader` -> `WorldGenLevel`); `getTreeHeight`,
+`placeLog`/`placeLogIfFree`, `validTreePos`, `isFree` are otherwise identical.
+**Fix:** `TreeFeature::decode` REQUIRED `below_trunk_provider`, a key no
+1.21.11 tree config has, so no 1.21.11 tree decoded at all. It now falls back
+to `dirt_provider` (the 1.21.7 twin's fix). All 39 1.21.11 tree configs use a
+simple dirt provider, so the unconditional set is equivalent to vanilla's
+skip-when-already-dirt. `place_below_trunk` now cites `setDirtAt`.
