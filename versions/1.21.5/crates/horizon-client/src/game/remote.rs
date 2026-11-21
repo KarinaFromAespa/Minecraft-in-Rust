@@ -2359,11 +2359,9 @@ impl Game<'_> {
                 }
                 Event::Reconfigured(registries) => {
                     // handleConfigurationStart → clearClientLevel, and the next
-                    // ClientPacketListener starts with no players or scoreboard,
-                    // no waypoints (its own ClientWaypointManager: a proxy's next
-                    // server never untracks the last one's), and its new
-                    // ClientSuggestionProvider with no custom chat completions.
-                    // clearClientLevel clears the narrator.
+                    // ClientPacketListener starts with no players or scoreboard
+                    // and its new ClientSuggestionProvider with no custom chat
+                    // completions. clearClientLevel clears the narrator.
                     self.clear_narrator();
                     self.hud_disconnected();
                     self.score.board = Default::default();

@@ -5795,13 +5795,114 @@ is the oracle; decompiled code is a reading aid.
     the one `cargo check -j 1
     -p horizon-client --lib --tests`
     passed at item 122.
+- **Item 125 — Client packet
+  listener verified against
+  1.21.5:**
+  - Command system: 1.21.6's
+    NodeBuilder, its
+    restricted nodes and the
+    split suggestion
+    providers (UNRESTRICTED
+    vs RESTRICTED,
+    `allowsRestrictedCommands`)
+    are absent from the Rust
+    port. The protocol layer
+    decodes only 1.21.5's
+    node flags (executable,
+    redirect, suggestions;
+    the restricted flag is
+    1.21.6's), `from_packet`
+    sets every network node
+    to permission 0 ("the
+    server sent only what
+    the player may use"),
+    and the suggestion
+    permission is the
+    player's own level
+    (`owner_permission`),
+    which is 1.21.5's
+    `hasPermission`
+    delegating to the local
+    player.
+  - `sendUnsignedCommand`
+    already has the 1.21.5
+    form: no confirm window,
+    no parse or permission
+    check; used by click
+    commands and dialogs.
+    No confirm-command code
+    exists anywhere.
+  - The mount onboard
+    message already says
+    `say_now` (1.21.5's
+    name) with the overlay.
+    Demo events have no
+    surface: the game-event
+    handler has no arm for
+    event 5 and the port
+    implements no demo mode,
+    so the 1.21.6-only
+    narration is moot.
+  - Respawn: the port keeps
+    the local player object
+    across respawn and reads
+    input live from the
+    keyboard, so 1.21.6's
+    `getLastSentInput` vs
+    1.21.5's
+    `isShiftKeyDown`
+    distinction (the new
+    player's initial input)
+    has no surface.
+  - Rider reposition: the
+    inversion (1.21.5
+    repositions the rider
+    when the vehicle IS
+    interpolating, 1.21.6
+    when it is NOT) is a
+    one-frame render detail;
+    the port seats every
+    rider at its vehicle's
+    current position every
+    tick (`position_riders`),
+    so both forms collapse
+    to the same outcome.
+  - Chat signing: login
+    resets the secure-chat
+    session to default and
+    rebuilds it only in
+    online mode; no
+    `Encoder.UNSIGNED`
+    reset exists, matching
+    1.21.5 (which has no
+    such line).
+  - Block-entity load reads
+    the tag directly
+    (`remote_block_entity_data`),
+    no ValueInput layer;
+    difficulty is the same
+    two fields under
+    renamed accessors;
+    ServerData's renames
+    are accessor-only.
+  - One stale comment fixed:
+    the reconfigure note in
+    `remote.rs` cited
+    1.21.6's
+    `ClientWaypointManager`;
+    1.21.5 has no waypoint
+    manager at all.
+  - Verification: `cargo check
+    -j 1 -p horizon-client
+    --lib` 0 errors / 0
+    warnings.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **124 of 426 are
-closed** (rank 1 complete, rank 2 at 115/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **125 of 426 are
+closed** (rank 1 complete, rank 2 at 116/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
