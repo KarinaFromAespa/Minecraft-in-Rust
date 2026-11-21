@@ -4450,13 +4450,62 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 104 — ServerEntity,
+  verified:**
+  - The teleport condition:
+    1.21.6 always
+    teleport-syncs entities
+    with
+    `getRequiresPrecisePosition`,
+    which only the happy
+    ghast sets (a 1.21.6-only
+    mob). The Rust tracker
+    has a `precise` flag, but
+    nothing in production
+    ever sets it true (only
+    its test does), so the
+    behaviour is already the
+    1.21.5 form.
+  - Pairing motion: 1.21.5's
+    `sendPairingData` also
+    sends `SetEntityMotion`
+    (the last broadcast
+    velocity) for non-living
+    `trackDelta` entities;
+    1.21.6 and the Rust
+    `pairing` do not. It is
+    unobservable: the spawn
+    packet already carries
+    the current velocity, and
+    the last broadcast
+    velocity is kept within
+    the 1e-7 broadcast
+    threshold of it by the
+    regular tracking tick —
+    which is also why the
+    pairing motion only
+    applies to `trackDelta`
+    types. (The fall-flying
+    line in 1.21.5's pairing
+    is dead: it sets a flag
+    consumed only by a check
+    that excludes living
+    entities.) The main-branch
+    motion block is identical
+    in both versions and the
+    Rust tracker matches it.
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **103 of 426 are
-closed** (rank 1 complete, rank 2 at 94/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **104 of 426 are
+closed** (rank 1 complete, rank 2 at 95/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
