@@ -10761,3 +10761,16 @@ already disables the flow for 1.21.11:
 `set_file_fixing` has no callers, so the
 retained screen never shows. `create_world`:
 6 passed; `level_loading`: 12 passed.
+
+## Item 349 — com/mojang/blaze3d/vertex (rank 2, NO-CHANGE)
+
+4 classes, 6 methods, 0 named. `BufferBuilder`'s
+fast-format check and normal gate, the
+`mulPose(Transformation)` overload, and the
+normal-matrix fast-path check
+(`checkPropertyRaw(16)` vs `isOrthonormal`
+— JOML property 16 is `PROPERTY_ORTHONORMAL`)
+are internal optimisations with identical
+results; `QuadInstance` is 26.1-only. The
+Rust has no `PoseStack`/`BufferBuilder`
+surface. `item_render`: 47 passed, 2 ignored.
