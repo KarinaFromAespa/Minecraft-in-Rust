@@ -233,7 +233,6 @@ impl Opt {
             Opt::MaxAnisotropy => "options.maxAnisotropy",
             Opt::SmoothLighting => "options.ao",
             Opt::Clouds => "options.renderClouds",
-            Opt::CloudRange => "options.renderCloudsDistance",
             Opt::Particles => "options.particles",
             Opt::EntityDistance => "options.entityDistanceScaling",
             Opt::EntityShadows => "options.entityShadows",
@@ -364,7 +363,6 @@ impl Opt {
             }),
             Opt::Gamma => Kind::Slider(s.gamma),
             Opt::MaxFps => unit(s.max_fps as f32, 10.0, 260.0),
-            Opt::CloudRange => unit(s.cloud_range as f32, 2.0, 128.0),
             Opt::EntityDistance => unit(s.entity_distance, 0.5, 5.0),
             Opt::BiomeBlend => unit(s.biome_blend as f32, 0.0, 7.0),
             Opt::Preset => unit(preset_index(&s.graphics_preset) as f32, 0.0, 3.0),
@@ -451,7 +449,6 @@ impl Opt {
             Opt::RenderDistance => Some((crate::options_file::MAX_RENDER_DISTANCE - 2) as u32),
             Opt::SimulationDistance => Some(27),
             Opt::MaxFps => Some(25),
-            Opt::CloudRange => Some(126),
             Opt::EntityDistance => Some(18),
             Opt::BiomeBlend => Some(7),
             Opt::Preset => Some(3),
@@ -576,7 +573,6 @@ impl Opt {
                     generic(c, Text::tr("options.framerate", &[&s.max_fps]))
                 }
             }
-            Opt::CloudRange => generic(c, Text::tr("options.chunks", &[&s.cloud_range])),
             Opt::EntityDistance => percent(c, s.entity_distance),
             Opt::BiomeBlend => generic(
                 c,
@@ -899,7 +895,6 @@ impl Opt {
             Opt::Volume(i) => s.volumes[i] = v,
             Opt::Gamma => s.gamma = v,
             Opt::MaxFps => s.max_fps = (step(1.0, 26.0) as u32) * 10,
-            Opt::CloudRange => s.cloud_range = step(2.0, 128.0) as i32,
             Opt::EntityDistance => s.entity_distance = step(2.0, 20.0) / 4.0,
             Opt::BiomeBlend => s.biome_blend = step(0.0, 7.0) as i32,
             Opt::Preset => s.graphics_preset = PRESETS[step(0.0, 3.0) as usize].into(),
@@ -951,7 +946,6 @@ impl Opt {
                 | Opt::SimulationDistance
                 | Opt::SmoothLighting
                 | Opt::Clouds
-                | Opt::CloudRange
                 | Opt::Particles
                 | Opt::EntityDistance
                 | Opt::EntityShadows
@@ -1227,7 +1221,6 @@ pub fn apply_preset(s: &mut Settings) {
             s.entity_shadows = false;
             s.entity_distance = 0.75;
             s.menu_blur = 2;
-            s.cloud_range = 32;
             s.cutout_leaves = false;
             s.improved_transparency = false;
             s.weather_radius = 5;
@@ -1245,7 +1238,6 @@ pub fn apply_preset(s: &mut Settings) {
             s.entity_shadows = true;
             s.entity_distance = if fabulous { 1.25 } else { 1.0 };
             s.menu_blur = 5;
-            s.cloud_range = if fabulous { 128 } else { 64 };
             s.cutout_leaves = true;
             s.improved_transparency = fabulous;
             s.weather_radius = 10;
@@ -2732,7 +2724,6 @@ impl OptionsUi {
                     Opt::EntityShadows,
                     Opt::EntityDistance,
                     Opt::MenuBlur,
-                    Opt::CloudRange,
                     Opt::CutoutLeaves,
                     Opt::ImprovedTransparency,
                     Opt::TextureFiltering,
@@ -6686,18 +6677,17 @@ mod tests {
                 s.graphics_preset.clone(),
                 s.render_distance,
                 s.simulation_distance,
-                s.cloud_range,
             ));
         }
         ui.release();
         for expected in [
-            ("fast", 8, 6, 32),
-            ("fancy", 16, 12, 64),
-            ("fabulous", 32, 12, 128),
+            ("fast", 8, 6),
+            ("fancy", 16, 12),
+            ("fabulous", 32, 12),
         ] {
             assert!(
                 seen.iter()
-                    .any(|(p, r, d, c)| (p.as_str(), *r, *d, *c) == expected),
+                    .any(|(p, r, d)| (p.as_str(), *r, *d) == expected),
                 "{expected:?} in {seen:?}"
             );
         }
@@ -8052,7 +8042,6 @@ mod tests {
             Opt::RenderDistance,
             Opt::SimulationDistance,
             Opt::MaxFps,
-            Opt::CloudRange,
             Opt::EntityDistance,
             Opt::BiomeBlend,
             Opt::Preset,

@@ -1927,13 +1927,74 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (25s).
+- **Item 50 — Options, ported:**
+  - `key.quickActions` is 1.21.6-only: the
+    binding, the `QuickActions` action, the
+    gamepad entries and the G handler are
+    removed, and the whole
+    `game/quick_actions.rs` module (the
+    dialog-tag lookup) is deleted. The
+    `minecraft:quick_actions` dialog
+    registry entries in `lan/data.rs` and
+    the command corpus stay for the dialog
+    item.
+  - `cloudRange` is 1.21.6-only: the
+    setting, its options-file key, the
+    `Opt::CloudRange` slider, the preset
+    values and the fog cap are removed.
+    1.21.5's cloud mesh is a fixed ±32-cell
+    square, so `radius_cells` becomes the
+    `CLOUD_RADIUS_CELLS = 32` constant,
+    the fog cloud end is the dimension's
+    `visual/cloud_fog_end_distance`
+    uncapped, and the capture record and
+    the parity fixture follow. The options
+    parity key list and the perf-bench
+    fixture drop `cloudRange` too.
+  - `getCloudsType` (1.21.5) forces clouds
+    OFF below an effective render distance
+    of 4: `clouds::visible` takes the
+    render distance and gates on it (the
+    integrated server's view distance
+    follows the render distance, so that
+    is the effective one).
+  - `final_source_volume` keeps its
+    computation but is re-cited: 1.21.5
+    multiplies the source volume in
+    `calculateVolume` and applies master
+    as the listener gain, which is the
+    same product the fold computes;
+    `getFinalSoundSourceVolume` is the
+    1.21.6 name for the fold.
+  - No-ops: `musicFrequency` /
+    `showNowPlayingToast` (item 37), the
+    glint-strength callback (`glint_strength`
+    is stored but never consumed by the
+    renderer), the options-file JSON
+    leniency (Gson's `JsonParser` and
+    `LenientJsonParser` are both lenient),
+    the `save()` version line (same value
+    via the pin).
+  - Known gap: the cloud-render-parity
+    oracle still targets the 26.3
+    `CloudRenderer` signatures
+    (`buildMesh` with a `ByteBuffer` and a
+    radius) and cannot run against
+    1.21.5's `BufferBuilder`-based
+    builder; re-porting it is harness work
+    beyond this item.
+  - Verification: `cargo check -p
+    horizon-client-input -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (2m19s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **49 of 426 are
-closed** (rank 1 complete, rank 2 at 40/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **50 of 426 are
+closed** (rank 1 complete, rank 2 at 41/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

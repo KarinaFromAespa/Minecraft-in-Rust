@@ -143,7 +143,6 @@ impl Game<'_> {
             water_fog_color,
             biome,
             render_distance_chunks: self.terrain_distance(),
-            cloud_range_chunks: self.settings.cloud_range,
             camera_y: camera.y,
             min_y: self.level_min_y(),
             flat: self.level_flat(),

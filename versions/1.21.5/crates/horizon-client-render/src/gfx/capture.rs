@@ -174,7 +174,6 @@ pub struct Clouds {
     pub camera: [f64; 3],
     pub time: i64,
     pub partial_tick: f64,
-    pub range: i32,
     pub fast: bool,
     pub color: [f32; 4],
 }
@@ -437,7 +436,6 @@ impl Renderer {
                     camera: c.camera.to_array(),
                     time: c.time,
                     partial_tick: c.partial_tick,
-                    range: c.range,
                     fast: c.fast,
                     color: c.color,
                 }),
@@ -550,7 +548,6 @@ impl Scene {
                 camera: DVec3::from_array(c.camera),
                 time: c.time,
                 partial_tick: c.partial_tick,
-                range: c.range,
                 fast: c.fast,
                 color: c.color,
             }),

@@ -159,7 +159,6 @@ static TABLE: LazyLock<Vec<Def>> = LazyLock::new(|| {
         id("particles", 3, 0),
         b("reducedDebugInfo", false),
         def("renderClouds", O(Clouds), V::Int(2)),
-        i("cloudRange", 2, 128, 128),
         i("renderDistance", 2, MAX_RENDER_DISTANCE, 12),
         i("simulationDistance", 5, 32, 12),
         u("screenEffectScale", 1.0),

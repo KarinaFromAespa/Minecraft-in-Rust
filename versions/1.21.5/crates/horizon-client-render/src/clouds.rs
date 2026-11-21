@@ -8,8 +8,11 @@ pub fn has_color(alpha: f32) -> bool {
 }
 
 /// `LevelRenderer`: skip OFF clouds and colors with no packed alpha.
-pub fn visible(mode: &str, alpha: f32) -> bool {
-    mode != "false" && has_color(alpha)
+/// `Options.getCloudsType` (1.21.5): clouds are OFF below an effective render
+/// distance of 4 chunks; the integrated server's view distance follows the
+/// render distance, so the render distance is the effective one here.
+pub fn visible(mode: &str, alpha: f32, render_distance_chunks: i32) -> bool {
+    render_distance_chunks >= 4 && mode != "false" && has_color(alpha)
 }
 
 /// `buildFlatCell`: bottom plane, in both windings for the culled cloud pipeline.
@@ -56,15 +59,14 @@ pub fn faces(mask: u16) -> impl Iterator<Item = (u8, bool)> {
         )
 }
 
-/// `CloudRenderer.prepare`: the cell radius for the Cloud Distance option
-/// (in chunks), independent of the render distance.
-pub fn radius_cells(cloud_range_chunks: i32) -> i32 {
-    ((cloud_range_chunks * 16) as f32 / 12.0).ceil() as i32
-}
+/// `CloudRenderer.buildMesh` (1.21.5): the mesh is a fixed square of -32..=32
+/// cells around the camera's cell. There is no Cloud Distance option; the
+/// variable radius (and `radius_cells`) is 1.21.6's.
+pub const CLOUD_RADIUS_CELLS: i32 = 32;
 
 /// Cells the mesh's origin snaps to. The mesh is a window on the cloud pattern around the
 /// camera's cell, so it used to be rebuilt, and the whole array re-uploaded, on every cell
-/// crossed: 6.5 MB, about 11 ms at the default 128-chunk range, the worst frame of a flight.
+/// crossed — the worst frame of a flight.
 /// Anchoring the origin to a coarser grid rebuilds it once every `SNAP_CELLS` cells instead,
 /// and `Uniform::offset` carries the remaining shift. The ring of cells the shift can leave
 /// uncovered at the far side lies past the cloud fog end, where the cloud fade has already
@@ -141,7 +143,6 @@ pub struct Input<'a> {
     pub camera: glam::DVec3,
     pub time: i64,
     pub partial_tick: f64,
-    pub range: i32,
     pub fast: bool,
     pub color: [f32; 4],
 }
@@ -200,8 +201,9 @@ impl Input<'_> {
         let key = MeshKey {
             cell_x,
             cell_z,
-            // One more ring than the range, for the cells the snapped origin can uncover.
-            radius: radius_cells(self.range) + SNAP_CELLS as i32,
+            // One more ring than the fixed 32-cell radius, for the cells the
+            // snapped origin can uncover.
+            radius: CLOUD_RADIUS_CELLS + SNAP_CELLS as i32,
             fast: self.fast,
             top: bottom <= 0.0,
             bottom: bottom + 4.0 >= 0.0,
@@ -419,7 +421,6 @@ mod tests {
             camera: glam::DVec3::new(1.0, 100.0, 1.0),
             time: 0,
             partial_tick: 0.0,
-            range: 2,
             fast: false,
             color: [1.0; 4],
         };
@@ -449,16 +450,14 @@ mod tests {
         // One block into the second snap cell: every case below moves the snapped origin, or
         // another part of the key, so each one rebuilds.
         let far_cell = SNAP_CELLS as f64 * 12.0 + 1.0;
-        for (x, y, z, range, fast) in [
-            (far_cell, 101.0, 1.0, 2, false),
-            (far_cell, 101.0, -5.0, 2, false),
-            (far_cell, 192.33, -5.0, 2, false),
-            (far_cell, 196.34, -5.0, 2, false),
-            (far_cell, 196.34, -5.0, 3, false),
-            (far_cell, 196.34, -5.0, 3, true),
+        for (x, y, z, fast) in [
+            (far_cell, 101.0, 1.0, false),
+            (far_cell, 101.0, -5.0, false),
+            (far_cell, 192.33, -5.0, false),
+            (far_cell, 196.34, -5.0, false),
+            (far_cell, 196.34, -5.0, true),
         ] {
             input.camera = glam::DVec3::new(x, y, z);
-            input.range = range;
             input.fast = fast;
             assert!(mesh.prepare(&input).0);
             let mut fresh = Mesh::default();
@@ -496,7 +495,6 @@ mod tests {
             camera: glam::DVec3::new(1.0, 100.0, 1.0),
             time: 0,
             partial_tick: 0.0,
-            range: 2,
             fast: false,
             color: [1.0; 4],
         };
@@ -537,7 +535,6 @@ mod tests {
             camera: glam::DVec3::new(1.0, 101.0, 1.0),
             time: 0,
             partial_tick: 0.0,
-            range: 2,
             fast: false,
             color: [1.0; 4],
         };
@@ -564,11 +561,15 @@ mod tests {
     #[test]
     fn settings_and_packed_alpha_gate_clouds() {
         for mode in ["false", "fast", "true"] {
-            assert_eq!(visible(mode, 1.0), mode != "false");
-            assert!(!visible(mode, 0.0));
-            assert!(!visible(mode, 0.5 / 255.0));
+            assert_eq!(visible(mode, 1.0, 12), mode != "false");
+            assert!(!visible(mode, 0.0, 12));
+            assert!(!visible(mode, 0.5 / 255.0, 12));
         }
-        assert!(visible("fast", 1.0 / 255.0));
+        assert!(visible("fast", 1.0 / 255.0, 12));
+        // `Options.getCloudsType` (1.21.5): clouds are off below a render
+        // distance of 4 chunks.
+        assert!(!visible("true", 1.0, 3));
+        assert!(visible("true", 1.0, 4));
     }
 
     #[test]
@@ -614,10 +615,8 @@ mod tests {
         assert_eq!(face_mask(2, 2, 0.0, [false; 4]), 3);
     }
     #[test]
-    fn cloud_distance_sets_the_radius() {
-        assert_eq!(radius_cells(2), 3);
-        assert_eq!(radius_cells(12), 16);
-        assert_eq!(radius_cells(128), 171);
+    fn cloud_mesh_radius_is_the_fixed_32_cells() {
+        assert_eq!(CLOUD_RADIUS_CELLS, 32);
     }
     #[test]
     fn connected_cells_have_no_exterior_walls() {

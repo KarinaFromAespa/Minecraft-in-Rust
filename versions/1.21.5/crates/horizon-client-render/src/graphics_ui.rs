@@ -271,7 +271,6 @@ pub fn rows() -> Vec<(Page, Vec<(&'static str, Vec<Setting>)>)> {
                             Low,
                             "Cloud layer: off, flat (fast) or 3D (fancy).",
                         ),
-                        v(Opt::CloudRange, Low, "How far clouds reach, in chunks."),
                         h(H::Sky, Low, "Draws the sky, sun, moon and stars."),
                         h(
                             H::Fog,
@@ -1372,7 +1371,6 @@ fn read(s: &Settings) -> impl std::fmt::Debug + '_ {
     let distances = (
         s.render_distance,
         s.simulation_distance,
-        s.cloud_range,
         s.weather_radius,
         s.entity_distance,
         s.biome_blend,
@@ -1521,7 +1519,6 @@ impl Screen for GraphicsScreen {
         s.attack_indicator = b.attack_indicator;
         s.autosave_indicator = b.autosave_indicator;
         s.clouds = b.clouds.clone();
-        s.cloud_range = b.cloud_range;
         s.weather_radius = b.weather_radius;
         s.particles = b.particles;
         s.smooth_lighting = b.smooth_lighting;
@@ -1726,10 +1723,7 @@ mod tests {
         let found = ui.listed(&s, SIZE);
         assert_eq!(
             found,
-            [
-                (Page::Quality, Item::Vanilla(Opt::Clouds)),
-                (Page::Quality, Item::Vanilla(Opt::CloudRange))
-            ]
+            [(Page::Quality, Item::Vanilla(Opt::Clouds))]
         );
         // Words of a description find it too.
         ui.set_search("tearing");
@@ -1855,13 +1849,13 @@ mod tests {
         let preset = Item::Vanilla(Opt::Preset);
         preset.set_slider(&mut s, 0.0, &NONE);
         assert_eq!(
-            (s.graphics_preset.as_str(), s.render_distance, s.cloud_range),
-            ("fast", 8, 32)
+            (s.graphics_preset.as_str(), s.render_distance),
+            ("fast", 8)
         );
         preset.set_slider(&mut s, 2.0 / 3.0, &NONE);
         assert_eq!(
-            (s.graphics_preset.as_str(), s.render_distance, s.cloud_range),
-            ("fabulous", 32, 128)
+            (s.graphics_preset.as_str(), s.render_distance),
+            ("fabulous", 32)
         );
         let anisotropy = Item::Vanilla(Opt::MaxAnisotropy);
         let filtering = Item::Vanilla(Opt::TextureFiltering);

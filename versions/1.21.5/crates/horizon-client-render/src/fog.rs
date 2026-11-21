@@ -227,8 +227,6 @@ pub struct FogInputs<'a> {
     pub water_fog_color: [f32; 3],
     pub biome: u16,
     pub render_distance_chunks: i32,
-    /// The Cloud Distance option, in chunks.
-    pub cloud_range_chunks: i32,
     pub camera_y: f64,
     pub min_y: i32,
     /// Flat worlds use a 1-block void darkness range.
@@ -431,7 +429,9 @@ pub fn setup_fog(tables: &FogTables, state: &FogState, input: &FogInputs) -> Fog
             // boss bar) closes in to rd*0.05 / min(rd, 192)*0.5, for sky and
             // clouds as for terrain.
             fog.sky_end = rd.min(512.0);
-            fog.cloud_end = ((input.cloud_range_chunks * 16) as f32).min(sky.cloud_fog_end);
+            // 1.21.5 has no Cloud Distance option: the cloud fog end is the
+            // dimension's `visual/cloud_fog_end_distance`, uncapped.
+            fog.cloud_end = sky.cloud_fog_end;
             if input.boss_world_fog || input.dimension_foggy {
                 fog.environmental_start = rd * 0.05;
                 fog.environmental_end = rd.min(192.0) * 0.5;
@@ -490,7 +490,6 @@ mod tests {
             water_fog_color: [0.0, 0.0, 0.2],
             biome: 0,
             render_distance_chunks: 12,
-            cloud_range_chunks: 128,
             camera_y: 70.0,
             min_y: -64,
             flat: false,
@@ -781,7 +780,7 @@ mod tests {
         );
     }
     #[test]
-    fn cloud_fog_ends_at_the_cloud_distance() {
+    fn cloud_fog_ends_at_the_dimension_cloud_fog_end() {
         let sky = Sky {
             fog_end: 1024.0,
             cloud_fog_end: 2048.0,
@@ -792,12 +791,8 @@ mod tests {
         };
         let mut input = inputs(&sky);
         input.render_distance_chunks = 2;
-        input.cloud_range_chunks = 64;
-        assert_eq!(
-            setup_fog(&tables, &FogState::default(), &input).cloud_end,
-            1024.0
-        );
-        input.cloud_range_chunks = 128;
+        // No Cloud Distance option in 1.21.5: the end is the dimension's,
+        // whatever the render distance.
         assert_eq!(
             setup_fog(&tables, &FogState::default(), &input).cloud_end,
             2048.0

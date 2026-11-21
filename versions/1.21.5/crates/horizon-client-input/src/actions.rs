@@ -62,7 +62,6 @@ actions! {
     SaveToolbarActivator, "key.saveToolbarActivator", Some(KeyCode::KeyC);
     LoadToolbarActivator, "key.loadToolbarActivator", Some(KeyCode::KeyX);
     Advancements, "key.advancements", Some(KeyCode::KeyL);
-    QuickActions, "key.quickActions", Some(KeyCode::KeyG);
     DebugOverlay, "key.debug.overlay", None;
     DebugModifier, "key.debug.modifier", None;
     Hotbar1, "key.hotbar.1", Some(KeyCode::Digit1);

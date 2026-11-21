@@ -1138,7 +1138,11 @@ impl SoundEngine {
     pub fn tick_count(&self) -> i32 {
         self.tick_count
     }
-    /// `Options.getFinalSoundSourceVolume`.
+    /// The source's volume with the master folded in: 1.21.5's
+    /// `SoundEngine.calculateVolume` multiplies the source volume only, and
+    /// the master reaches the sound as the listener gain
+    /// (`listener.setGain(MASTER)`); the product is the same, so the fold
+    /// happens here. (1.21.6 named the fold `getFinalSoundSourceVolume`.)
     pub fn final_source_volume(&self, source: usize) -> f32 {
         if source == MASTER {
             self.source_volumes[MASTER]

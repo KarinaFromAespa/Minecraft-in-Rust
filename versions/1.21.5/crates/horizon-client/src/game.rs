@@ -384,7 +384,6 @@ mod powder_snow;
 mod prediction;
 mod pumpkin;
 mod pvp;
-mod quick_actions;
 mod raids;
 mod random_textures;
 mod recipe_book;
@@ -9893,7 +9892,11 @@ impl Game<'_> {
             glint_ticks: self.glint_frame.scroll_ticks(),
             clouds: (!title
                 && self.dim == Dim::Overworld
-                && horizon_client::clouds::visible(&self.settings.clouds, sky.cloud_color[3]))
+                && horizon_client::clouds::visible(
+                    &self.settings.clouds,
+                    sky.cloud_color[3],
+                    self.settings.render_distance,
+                ))
             .then(|| self.gui.atlas.sprites.get("horizon/white"))
             .flatten()
             .map(|white| horizon_client::clouds::Input {
@@ -9902,7 +9905,6 @@ impl Game<'_> {
                 camera,
                 time: self.world.game_time,
                 partial_tick: alpha,
-                range: self.settings.cloud_range,
                 fast: self.settings.clouds == "fast",
                 color: sky.cloud_color,
             }),

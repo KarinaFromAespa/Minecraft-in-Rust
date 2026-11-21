@@ -99,7 +99,6 @@ OPTIONS = {
     "prioritizeChunkUpdates": "1",
     "ao": "true",
     "renderClouds": '"true"',
-    "cloudRange": "64",
     "particles": "0",
     "mipmapLevels": "4",
     "entityShadows": "true",

@@ -203,12 +203,6 @@ impl Game<'_> {
                 let slot = (key as u32).wrapping_sub(KeyCode::Digit1 as u32) as usize;
                 self.close_emote_wheel(Some(slot));
             }
-            // key.quickActions: only open if a datapack provides dialog actions.
-            KeyCode::KeyG if self.screen == Screen::Playing => {
-                if self.has_quick_actions() {
-                    self.open_quick_actions();
-                }
-            }
             KeyCode::Slash if self.screen == Screen::Playing => self.open_chat_method("/"),
             // key.toggleGui is a KeyMapping: it clicks only with no screen open.
             KeyCode::F1 if self.screen == Screen::Playing => self.toggle_hide_gui(),

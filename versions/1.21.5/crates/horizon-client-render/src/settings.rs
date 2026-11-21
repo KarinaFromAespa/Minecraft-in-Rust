@@ -129,7 +129,6 @@ pub struct Settings {
     pub smooth_lighting: bool,
     /// "false", "fast" or "true" (renderClouds).
     pub clouds: String,
-    pub cloud_range: i32,
     /// 0 all, 1 decreased, 2 minimal.
     pub particles: u8,
     pub entity_distance: f32,
@@ -235,7 +234,6 @@ impl Default for Settings {
             fullscreen: false,
             smooth_lighting: true,
             clouds: "true".into(),
-            cloud_range: 128,
             particles: 0,
             entity_distance: 1.0,
             entity_shadows: true,
@@ -474,7 +472,6 @@ impl Settings {
             fullscreen: f.bool("fullscreen"),
             smooth_lighting: f.bool("ao"),
             clouds: f.name("renderClouds"),
-            cloud_range: f.int("cloudRange"),
             particles: f.int("particles") as u8,
             entity_distance: f.double("entityDistanceScaling") as f32,
             entity_shadows: f.bool("entityShadows"),
@@ -577,7 +574,6 @@ impl Settings {
         put_b(&mut f, "fullscreen", self.fullscreen);
         put_b(&mut f, "ao", self.smooth_lighting);
         put_name(&mut f, "renderClouds", &self.clouds);
-        put_i(&mut f, "cloudRange", self.cloud_range);
         put_i(&mut f, "particles", i32::from(self.particles));
         put_f(&mut f, "entityDistanceScaling", self.entity_distance);
         put_b(&mut f, "entityShadows", self.entity_shadows);
@@ -775,7 +771,6 @@ pub enum Opt {
     Fullscreen,
     SmoothLighting,
     Clouds,
-    CloudRange,
     Particles,
     EntityDistance,
     EntityShadows,

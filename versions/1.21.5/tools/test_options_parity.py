@@ -56,7 +56,7 @@ ALL_KEYS = [
     'glintSpeed', 'glintStrength', 'preferredGraphicsBackend', 'graphicsPreset', 'prioritizeChunkUpdates',
     'fullscreen', 'exclusiveFullscreen', 'macFullscreenMenuVisibility', 'gamma', 'guiScale', 'debugGuiScale',
     'maxAnisotropyBit', 'textureFiltering', 'maxFps', 'improvedTransparency', 'inactivityFpsLimit', 'mipmapLevels',
-    'narrator', 'particles', 'reducedDebugInfo', 'renderClouds', 'cloudRange', 'renderDistance',
+    'narrator', 'particles', 'reducedDebugInfo', 'renderClouds', 'renderDistance',
     'simulationDistance', 'screenEffectScale', 'soundDevice', 'vignette', 'weatherRadius', 'autoJump',
     'rotateWithMinecart', 'operatorItemsTab', 'autoSuggestions', 'chatColors', 'chatLinks', 'chatLinksPrompt',
     'discrete_mouse_scroll', 'invertXMouse', 'invertYMouse', 'realmsNotifications', 'showSubtitles',

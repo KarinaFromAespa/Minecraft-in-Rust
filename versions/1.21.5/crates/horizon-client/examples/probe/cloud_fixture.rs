@@ -21,7 +21,9 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
         let radius = if *kind == 2 {
-            clouds::radius_cells(*x)
+            // 1.21.5 has no Cloud Distance option: the mesh radius is the
+            // fixed 32 cells, whatever the case's range says.
+            clouds::CLOUD_RADIUS_CELLS
         } else {
             *x
         };
