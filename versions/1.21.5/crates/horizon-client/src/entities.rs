@@ -483,7 +483,7 @@ impl ItemEntity {
             self.fire_ticks -= 1;
         }
         let mut lava_hurt = false;
-        // LavaCauldronBlock.entityInside applies LAVA_IGNITE and then lavaHurt.
+        // LavaCauldronBlock.entityInside (1.21.5): lavaIgnite, then lavaHurt.
         // A cauldron is not a lava fluid, and removed items get no block effects.
         if self.health > 0 && !fire_immune {
             let contacts = usize::from(fluid == Fluid::Lava)
@@ -491,8 +491,8 @@ impl ItemEntity {
             if contacts > 0 {
                 self.fire_ticks = self.fire_ticks.max(300);
             }
-            // StepBasedCollector coalesces ignition, but keeps each block's
-            // runAfter(lavaHurt) callback. Stop once an item is destroyed.
+            // Ignition is idempotent, but each block's lavaHurt lands.
+            // Stop once an item is destroyed.
             for _ in 0..contacts {
                 if self.health <= 0 {
                     break;
@@ -1047,16 +1047,18 @@ impl ItemEntity {
     }
 }
 
-/// `LavaCauldronBlock.getEntityInsideCollisionShape`: the cauldron's solid
-/// shape plus its contents (12 pixels wide, from 4 through 15 pixels high).
-/// In particular, the rim and feet count too, but air above the contents does not.
+/// `LavaCauldronBlock.entityInside` (1.21.5): `isEntityInsideContent` — the
+/// entity's feet below the lava surface (0.9375) and its top above a quarter
+/// block. There is no horizontal test beyond the cell overlap the enumeration
+/// already implies, and the rim and feet do not count: an item lying flat at
+/// the cauldron's base (its top exactly 0.25 up) does not burn. 1.21.6
+/// replaced this with the filled-shape test
+/// (`getEntityInsideCollisionShape`), which also counts the rim and feet.
 fn lava_cauldron_contacts(
     world: &World,
     registry: &horizon_world::registry::BlockRegistry,
     bounds: Aabb,
 ) -> usize {
-    use horizon_core::geometry::ShapeOp;
-    static SHAPE: std::sync::OnceLock<VoxelShape> = std::sync::OnceLock::new();
     let epsilon = f64::from(1e-5_f32);
     let mut contacts = 0;
     let candidates = bounds.deflate(Vec3::new(epsilon, epsilon, epsilon));
@@ -1074,35 +1076,12 @@ fn lava_cauldron_contacts(
                 {
                     continue;
                 }
-                let shape = SHAPE.get_or_init(|| {
-                    let cuboid = |x0, y0, z0, x1, y1, z1| {
-                        VoxelShape::from_box(Aabb::new(
-                            Vec3::new(x0 / 16.0, y0 / 16.0, z0 / 16.0),
-                            Vec3::new(x1 / 16.0, y1 / 16.0, z1 / 16.0),
-                        ))
-                        .expect("valid cauldron box")
-                    };
-                    let mut solid = VoxelShape::block();
-                    // AbstractCauldronBlock.SHAPE: the openings under its feet
-                    // and its hollow centre are cut out of the unit block.
-                    for hole in [
-                        cuboid(0.0, 0.0, 4.0, 16.0, 3.0, 12.0),
-                        cuboid(4.0, 0.0, 0.0, 12.0, 3.0, 16.0),
-                        cuboid(2.0, 0.0, 2.0, 14.0, 3.0, 14.0),
-                        cuboid(2.0, 4.0, 2.0, 14.0, 16.0, 14.0),
-                    ] {
-                        solid = solid
-                            .join(&hole, ShapeOp::ONLY_FIRST)
-                            .expect("valid cauldron cutout");
-                    }
-                    solid
-                        .join(&cuboid(2.0, 4.0, 2.0, 14.0, 15.0, 14.0), ShapeOp::OR)
-                        .expect("valid filled cauldron")
-                });
-                let local = bounds.move_by(Vec3::new(-f64::from(x), -f64::from(y), -f64::from(z)));
-                // Only block enumeration uses the deflated box. The actual
-                // shape contact follows Entity.collidedWithShapeMovingFrom.
-                if local.collided_along_vector(Vec3::ZERO, shape.boxes()) {
+                // Only block enumeration uses the deflated box. The content
+                // test reads the raw feet and top, as vanilla does.
+                let base = f64::from(y);
+                if bounds.min_position().y < base + 0.9375
+                    && bounds.max_position().y > base + 0.25
+                {
                     contacts += 1;
                 }
             }
@@ -2863,6 +2842,61 @@ mod fire_environment_tests {
             assert!(stand.environment_tick(&world, &facts, assets.registry));
         }
         assert_eq!(stand.health, 20.0, "lava does not hurt armor stands");
+    }
+
+    /// `LavaCauldronBlock.entityInside` (1.21.5): an item inside the
+    /// cauldron's content burns, but one lying flat at its base — its top
+    /// exactly a quarter block up — does not. 1.21.6's filled-shape test
+    /// would burn the flat one too, through the cauldron's feet.
+    #[test]
+    fn a_lava_cauldron_burns_what_is_inside_it_but_not_what_lies_flat_at_its_base() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../.local/horizon-client")
+            .join(horizon_core::VANILLA_VERSION);
+        if !root.join("items.json").exists() {
+            return;
+        }
+        let assets = crate::assets::Assets::load(&root).unwrap();
+        let render = assets.reload(&root).unwrap();
+        let facts = BlockFacts::load(&root, assets.registry).unwrap();
+        let items =
+            crate::items::Items::load(&root, assets.registry, &facts, &PackOverlay::NONE).unwrap();
+        let mut world = World::test_scene(&assets, &render, 3).unwrap();
+        world
+            .set(
+                20,
+                4,
+                20,
+                assets
+                    .registry
+                    .default_state("minecraft:lava_cauldron")
+                    .unwrap(),
+            )
+            .unwrap();
+        let make = |at: Vec3| {
+            ItemEntity::new(
+                1,
+                ItemStack {
+                    item: std::sync::Arc::from("minecraft:oak_planks"),
+                    count: 1,
+                    damage: 0,
+                    extra: None,
+                },
+                at,
+                Vec3::ZERO,
+                0.0,
+            )
+        };
+        // Inside the cauldron, on its floor: feet 4.25, top 4.5.
+        let mut inside = make(Vec3::new(20.5, 4.25, 20.5));
+        let result = inside.environment_tick(&world, &facts, assets.registry, &items);
+        assert!(result.lava_hurt, "an item inside a lava cauldron burns");
+        assert!(inside.fire_ticks > 0);
+        // Flat at the cauldron's base: feet 4.0, top exactly 4.25.
+        let mut flat = make(Vec3::new(20.5, 4.0, 20.5));
+        let result = flat.environment_tick(&world, &facts, assets.registry, &items);
+        assert!(!result.lava_hurt, "an item flat at the base does not burn");
+        assert_eq!(flat.fire_ticks, 0);
     }
 }
 #[cfg(test)]
