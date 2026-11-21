@@ -12766,3 +12766,7 @@ Visibility only.
 26.1-only class; already handled — progress.rs:1-5 documents that
 1.21.11 has no file-fixing flow and the `FileFixStats` half is never
 shown.
+
+## Item 722 — horizon-world/src/level/orientation.rs (ExperimentalRedstoneUtils) — NO-CHANGE
+
+Accessor vs field (`Level.getRandom()` vs `Level.random`), as item 638.
