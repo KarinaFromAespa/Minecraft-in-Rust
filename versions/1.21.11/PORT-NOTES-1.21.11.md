@@ -12110,3 +12110,11 @@ Only the `is(Object)` vs `is(Block)` overload widening in
 
 Only the `setPart` method modifiers (private in 26.1, public default in
 1.21.11); the body is identical.
+
+## Item 596 — game/block_editor.rs (*BlockEditScreen) — NO-CHANGE apart from a citation
+
+Only the extractor rewire throughout the four edit screens
+(`extractRenderState` -> `render`, `Extractor.text` -> `drawString`,
+`centeredText` -> `drawCenteredString`) plus two `requireNonNull`s. The
+one 26.1-only citation (`Screen.extractRenderState` on `LABEL`) is
+re-pointed to `Screen.render`.

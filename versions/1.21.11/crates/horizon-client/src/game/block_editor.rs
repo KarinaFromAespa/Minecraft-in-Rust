@@ -19,7 +19,8 @@ use winit::{
 
 pub(super) type Pos = (i32, i32, i32);
 
-/// `Screen.extractRenderState`'s grey for the labels: `-6250336`.
+/// `Screen.render`'s grey for the labels: `-6250336` (26.1's
+/// `Screen.extractRenderState`).
 pub(super) const LABEL: u32 = 0xFFA0_A0A0;
 
 /// The job of an edit screen's footer button `id`, given the ids of its Done and Cancel.
