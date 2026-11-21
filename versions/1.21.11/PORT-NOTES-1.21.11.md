@@ -11442,3 +11442,13 @@ should find it already in place. The rest is renames
 `PlayerFaceExtractor` -> `PlayerFaceRenderer`,
 `addClientSystemMessage` -> `addMessage`); one
 citation re-pointed.
+
+## Item 524 — mobs/goat.rs (rank 3, NO-CHANGE)
+
+The goat ram behaviours differ in two lines only:
+`RamCandidate.target` is private in 26.1 and
+package-private in 1.21.11, and `RamTarget`'s
+cooldown sampling reads `ServerLevel.getRandom()` in
+26.1 vs the `random` field in 1.21.11. `tick`,
+`start` and `finishRam` are otherwise identical, and
+the Rust cites only names shared by both versions.
