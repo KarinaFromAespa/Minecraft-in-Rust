@@ -12544,3 +12544,8 @@ Visibility only.
 ## Item 669 — worldgen/structure.rs (SlabBlock) — NO-CHANGE
 
 `is` overloads only; the TOP/BOTTOM placement logic is identical.
+
+## Item 670 — worldgen/structure/fortress.rs (NetherFortressPieces) — NO-CHANGE
+
+Visibility plus the `RandomSource` factory (`createThreadLocalInstance`
+vs `create` — same seed, same sequence).
