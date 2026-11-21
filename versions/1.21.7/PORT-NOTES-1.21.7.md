@@ -527,3 +527,10 @@ equivalent: it decodes as clamp(input, 0, 1) * noise, an
 approximation of vanilla's rarity gating — the exact type_1/type_2
 mapper curves are not reproduced, so spaghetti caves land roughly
 where vanilla puts them, not exactly.
+
+Tenth launch crash, same morning (11:53 NPT): "invalid world
+generation field: cell_size_xz". 1.21.7's `interpolated` takes no
+cell sizes — it interpolates on the dimension's noise cell — while
+26.x made them explicit fields. They now default to 4 wide, 8 tall,
+the overworld's cell; only the overworld uses `interpolated` (noodle
+caves), so no other dimension is affected.

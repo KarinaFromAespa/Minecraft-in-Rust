@@ -394,21 +394,23 @@ impl Loader {
                     coordinate: integer(required(&object, "coordinate")?)?,
                     input: self.input(&object, "input", depth)?,
                 },
-                "minecraft:interpolated" => GraphNode::Interpolated {
-                    input: self.input_named(&object, "input", "argument", depth)?,
-                    xz: int_range(
-                        required(&object, "cell_size_xz")?,
-                        "cell_size_xz",
-                        1,
-                        i32::MAX,
-                    )?,
-                    y: int_range(
-                        required(&object, "cell_size_y")?,
-                        "cell_size_y",
-                        1,
-                        i32::MAX,
-                    )?,
-                },
+                "minecraft:interpolated" => {
+                    // 1.21.7's interpolated takes no cell sizes: it
+                    // interpolates on the dimension's noise cell. Only the
+                    // overworld uses it (noodle caves), and its cell is 4
+                    // wide, 8 tall.
+                    let cell = |name: &'static str, default: i32| {
+                        optional(&object, name)
+                            .map(|raw| int_range(raw, name, 1, i32::MAX))
+                            .transpose()
+                            .map(|value| value.unwrap_or(default))
+                    };
+                    GraphNode::Interpolated {
+                        input: self.input_named(&object, "input", "argument", depth)?,
+                        xz: cell("cell_size_xz", 4)?,
+                        y: cell("cell_size_y", 8)?,
+                    }
+                }
                 "minecraft:find_top_surface" => GraphNode::Surface {
                     density: self.input(&object, "density", depth)?,
                     upper: self.input(&object, "upper_bound", depth)?,
