@@ -1,13 +1,13 @@
 {
   "schema": "delta-verdict/1",
   "release": "1.21.11",
-  "commit": "e389abf693bc49dc7763c62bfe9ee05ad34c09c1",
+  "commit": "e59798adf5280d776ffb9fb8a4f29a08779110f9",
   "tree": ".horizon-ports/1.21.11",
   "pin": "pins/1.21.11",
   "mode": "recorded",
   "verified": false,
   "state": "failed",
-  "checked_at": "2026-11-20T19:38:29Z",
+  "checked_at": "2026-11-21T01:30:02Z",
   "scalars": {
     "tier": "D",
     "suite_pass": null,
@@ -17,7 +17,7 @@
     "items_total": null,
     "items_accepted": 0
   },
-  "index_line": "| 1.21.11 | D | \u2014 | \u2014 | 0 | failed 2026-11-20 |",
+  "index_line": "| 1.21.11 | D | \u2014 | \u2014 | 0 | failed 2026-11-21 |",
   "checks": {
     "D1": {
       "status": "fail",
@@ -34,20 +34,18 @@
       ]
     },
     "D2": {
-      "status": "pass",
+      "status": "fail",
       "notes": [
-        "cargo check --workspace --all-targets: 0 errors, 0 warnings",
-        "protocol tests: 440, none failing"
+        "cargo check: 2 warning(s) (bar is 0/0)"
       ],
       "evidence": [
-        "pins/1.21.11/ci-out/cargo-check.log",
-        "pins/1.21.11/ci-out/cargo-test-protocol.log"
+        "pins/1.21.11/ci-out/cargo-check.log"
       ]
     },
     "D3": {
       "status": "fail",
       "notes": [
-        "rank-2: 297 of 492 item(s) neither closed nor accepted"
+        "rank-2: 212 of 492 item(s) neither closed nor accepted"
       ],
       "evidence": [
         ".horizon-ports/1.21.11/diff-26.1-1.21.11/report.json",
@@ -57,7 +55,7 @@
     "D4": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 0f75c53425fb, HEAD is e389abf693bc \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 3e1929643e20, HEAD is e59798adf528 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/1.21.11/profile.json"
@@ -66,7 +64,7 @@
     "D5": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 0f75c53425fb, HEAD is e389abf693bc \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 3e1929643e20, HEAD is e59798adf528 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/1.21.11/profile.json"
