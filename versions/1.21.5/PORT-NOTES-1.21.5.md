@@ -7868,13 +7868,58 @@ is the oracle; decompiled code is a reading aid.
     check -j 1 -p
     horizon-client --lib`
     0/0 (47s).
+- **Item 165 —
+  FriendlyByteBuf
+  verified:**
+  - The only
+    `readJsonWithCodec`
+    caller in the
+    1.21.5 decomp is
+    the status-response
+    packet, and the
+    port parses that
+    JSON with strict
+    `serde_json::from_str`
+    — the 1.21.5
+    `GsonHelper` form,
+    not 1.21.6's
+    lenient parser.
+    Wire text
+    components are
+    NBT in the port
+    (`Text { text: Tag
+    => Nbt }`), as in
+    1.21.5. The
+    `parse_lenient`
+    uses in the tree
+    are all datafix
+    and options-file
+    paths, where
+    vanilla is lenient
+    too. The
+    `readEither` /
+    `writeEither`
+    helpers (1.21.6
+    only) have no
+    Rust equivalent
+    and no caller.
+    The "Failed to
+    decode json"
+    capitalisation is
+    a `DecoderException`
+    message, not
+    observable on the
+    wire.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **164 of 426 are
-closed** (rank 1 complete, rank 2 at 155/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **165 of 426 are
+closed** (rank 1 complete, rank 2 at 156/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
