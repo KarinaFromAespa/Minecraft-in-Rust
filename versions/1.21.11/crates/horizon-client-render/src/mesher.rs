@@ -1173,7 +1173,7 @@ impl MeshTables {
             colors[(index as usize).min(1)]
         }
     }
-    /// `ModelBlockRenderer.tesselateFlat`'s light coords (`LightCoordsUtil`
+    /// `ModelBlockRenderer.tesselateFlat`'s light coords (`LightTexture`
     /// packing, the quad's own emission included) for `quad` of `state`
     /// drawn as the only block at `pos`, as `MovingBlockRenderState` gives
     /// it: `light` is the world's stored light (sky << 4 | block) at a

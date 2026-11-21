@@ -9512,3 +9512,20 @@ spelling; the boss-event construction difference (26.1
 draws a UUID from the entity's random, 1.21.11 takes no
 UUID) has no Rust analogue — the Rust models neither the
 boss-bar UUID nor a random draw for it. No code changed.
+
+## Item 191 — util (rank 2, NO-CHANGE)
+
+17 classes, 28 methods, 0 named. No behavioural delta:
+`ArrayListDeque` is bytecode-identical; `CubicSpline` /
+`ProblemReporter` / `Util$OS` differ only by widening and
+unboxing; `ExtraCodecs` loses 26.1-only path codecs (Java
+plumbing, no Rust analogue); `SpawnUtil$Strategy` is
+`is(Object)` -> `is(Block)` overload noise;
+`LightCoordsUtil` is 26.1-only — its helpers live in
+`LightTexture` / `LevelRenderer.getLightColor` /
+`ModelBlockRenderer$AmbientOcclusionRenderStorage.blend`
+in 1.21.11, and the Rust's mesher lighting already
+implements those exact forms (both blends and the
+light-at-position formula verified against the 1.21.11
+jar). Doc citations updated to the 1.21.11 homes. No code
+changed.

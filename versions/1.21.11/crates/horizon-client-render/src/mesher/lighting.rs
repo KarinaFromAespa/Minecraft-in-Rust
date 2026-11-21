@@ -8,7 +8,7 @@ use super::{Info, Padded, pi};
 use crate::models::catalog::QuadShape;
 use horizon_assets::model::Direction as D;
 
-/// `LightCoordsUtil.FULL_BRIGHT`.
+/// `LightTexture.FULL_BRIGHT`.
 pub(super) const FULL_BRIGHT: u32 = 0x00F0_00F0;
 
 /// `CardinalLighting.DEFAULT`/`NETHER` by face.
@@ -55,7 +55,7 @@ pub(super) fn step(p: [i32; 3], face: D) -> [i32; 3] {
 pub(super) fn state_at<'a>(pad: &Padded, info: &'a [Info], i: usize) -> &'a Info {
     &info[pad.blocks[i] as usize]
 }
-/// `LightCoordsUtil.getLightCoords`: light at `p` as seen through `state`
+/// `LevelRenderer.getLightColor`: light at `p` as seen through `state`
 /// (block level << 4 | sky level << 20).
 pub(super) fn coords(pad: &Padded, state: &Info, p: [i32; 3]) -> u32 {
     packed_coords(state, pad.light[pi(p[0], p[1], p[2])])
@@ -73,11 +73,12 @@ pub(super) fn packed_coords(state: &Info, packed: u8) -> u32 {
     let block = u32::from((packed & 15).max(state.emission));
     block << 4 | u32::from(packed >> 4) << 20
 }
-/// `LightCoordsUtil.max`.
+/// `LiquidBlockRenderer.getLightColor`'s component-wise max of two packed
+/// coords (26.1 factored it into `LightCoordsUtil.max`).
 pub(super) fn max_coords(a: u32, b: u32) -> u32 {
     (a >> 4 & 15).max(b >> 4 & 15) << 4 | (a >> 20 & 15).max(b >> 20 & 15) << 20
 }
-/// `LightCoordsUtil.lightCoordsWithEmission` (a quad's element light emission), with
+/// `LightTexture.lightCoordsWithEmission` (a quad's element light emission), with
 /// NeoForge's separate block and sky minimums: `[emission; 2]` is vanilla's.
 pub(super) fn with_min(coords: u32, [block, sky]: [u8; 2]) -> u32 {
     if block == 0 && sky == 0 {
@@ -95,7 +96,8 @@ pub(super) fn blend(a: u32, b: u32, c: u32, center: u32) -> u32 {
     let c = if c == 0 { center } else { c };
     (a + b + c + center) >> 2 & 0x00FF_00FF
 }
-/// `LightCoordsUtil.smoothWeightedBlend` (Java float sums and int narrowing).
+/// `ModelBlockRenderer$AmbientOcclusionRenderStorage.blend`'s 8-arg form
+/// (Java float sums and int narrowing).
 fn weighted_blend(c: [u32; 4], w: [f32; 4]) -> u32 {
     let channel = |shift: u32| {
         let v = |i: usize| (c[i] >> shift & 0xFF) as f32 * w[i];
