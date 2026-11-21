@@ -9893,3 +9893,11 @@ level test: azalea at y 319 still takes bonemeal.
 visibility widening and the `is(Object)` →
 `is(Block)` / `getType() == WATER` spelling of the
 same tests. No code changed.
+
+## Item 222 — worldgen/structure/end_city.rs (rank 2, NO-CHANGE)
+
+1 class, 3 methods, 2 named. `EndCityPieces` differs
+only by visibility widening (private → package-private
+on the generator tables and `addPiece` / `addHelper` /
+`recursiveChildren`); every method body is
+bytecode-identical. No code changed.
