@@ -7276,13 +7276,80 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-command
     -p horizon-client --lib`
     passed at item 145.
+- **Item 155 — Win screen
+  narration removed (1.21.6
+  only):**
+  - 1.21.6 narrates the
+    poem and credits
+    (`narratorComponents`,
+    `getNarrationMessage`
+    joining them);
+    1.21.5 has no such
+    override and the
+    screen's title is
+    `GameNarrator.NO_TITLE`,
+    so it narrates
+    nothing. Removed the
+    narration build from
+    `win_screen.rs`: the
+    `narration` field, the
+    `narrated` collection
+    in `new`,
+    `add_poem_file` and
+    `add_credits_file`,
+    and the third argument
+    of `add_credits_line`
+    (back to 1.21.5's
+    two-argument form);
+    `screen_info` now
+    carries an empty
+    narration. The lines
+    themselves — poem
+    wrapping at 256 px,
+    credits headings and
+    names, scroll — are
+    untouched. The two
+    tests that pinned the
+    1.21.6 narration now
+    pin the 1.21.5 form
+    (empty title, id
+    still `win`). The
+    render-plumbing
+    differences
+    (`pushMatrix` /
+    `RenderPipelines`
+    vs `pushPose` /
+    `RenderType`) have no
+    Rust surface: the
+    poem's End-portal
+    background and the
+    vignette are drawn by
+    the port's own
+    renderer already.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests` 0/0 (4m 07s),
+    which type-checks the
+    reworked tests. The
+    test-profile build
+    itself was OOM-killed
+    under 3-stream load
+    (item 122's trap), so
+    the tests were not run
+    locally; they run in
+    CI. The reworked
+    assertions are direct
+    consequences of the
+    change (`screen_info`
+    now carries `""`).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **154 of 426 are
-closed** (rank 1 complete, rank 2 at 145/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **155 of 426 are
+closed** (rank 1 complete, rank 2 at 146/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
