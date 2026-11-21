@@ -9960,3 +9960,20 @@ codegen. The two 1.21.11-only overrides are no-ops:
 `getSoundVolume()` returns the 1.0f the 26.1 base
 already returns (verified by javap), and
 `canAttackType` returns true. No code changed.
+
+## Item 229 — registry.rs / dimension_type.rs (rank 2, CHANGED)
+
+1 class, 11 methods, 1 named.
+`DimensionType.hasEnderDragonFight` and
+`defaultClock` are 26.1-only codec fields (verified
+absent from the 1.21.11 jar's dimension-type data), so
+`DimensionFacts::from_json` now derives both from the
+type id: the fight belongs to the End, and the clock
+follows the adapter's 26.1-shaped mapping (Nether
+none, End its own, Overworld the overworld's). The
+`default_clock` field itself stays — it is the
+adapter's internal clock model, not a wire field.
+`getStorageFolder` already uses the 1.21.11
+DIM-1/DIM1 layout; `CardinalLightType` keeps the same
+values under its new home. New test pins the
+derivation and the ignoring of 26.x-shaped keys.

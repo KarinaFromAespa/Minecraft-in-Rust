@@ -274,15 +274,23 @@ impl DimensionFacts {
                 .collect(),
             _ => return Err(format!("{id} has invalid timelines")),
         };
-        let default_clock = match &json["default_clock"] {
-            Value::String(s) => Some(s.clone()),
-            Value::Object(o) => o.get("id").and_then(Value::as_str).map(str::to_owned),
+        // 1.21.11's `DimensionType` codec has no `default_clock` (the
+        // world-clock system is 26.x-only): the adapter's clock model
+        // keeps the 26.1-shaped mapping, derived from the type id.
+        let default_clock = match id {
+            "minecraft:the_nether" => None,
+            "minecraft:the_end" => Some("minecraft:the_end".to_owned()),
+            "minecraft:overworld" | "minecraft:overworld_caves" => {
+                Some("minecraft:overworld".to_owned())
+            }
             _ => None,
         };
         Ok(Self {
             id: id.to_owned(),
             has_fixed_time: flag("has_fixed_time", false),
-            has_ender_dragon_fight: flag("has_ender_dragon_fight", false),
+            // 1.21.11's `DimensionType` codec has no
+            // `has_ender_dragon_fight`: the fight belongs to the End.
+            has_ender_dragon_fight: id == "minecraft:the_end",
             coordinate_scale: number("coordinate_scale")?,
             height,
             infiniburn: name("infiniburn")
@@ -399,6 +407,53 @@ mod tests {
             b.monster_spawn_light_level = IntProvider::Constant(0);
             assert_eq!(format!("{a:?}"), format!("{b:?}"), "{id}");
         }
+    }
+
+    #[test]
+    fn from_json_derives_the_fight_and_clock_from_the_id() {
+        // 1.21.11's `DimensionType` codec has neither
+        // `has_ender_dragon_fight` nor `default_clock` (verified in the
+        // 1.21.11 jar's data), so both come from the type id — and a
+        // 26.x-shaped file carrying the keys is ignored, not honoured.
+        let json = || {
+            serde_json::json!({
+                "coordinate_scale": 1.0,
+                "min_y": 0,
+                "height": 256,
+                "logical_height": 256,
+                "has_skylight": true,
+                "has_ceiling": false,
+                "infiniburn": "#minecraft:infiniburn_end",
+                "ambient_light": 0.25,
+                "monster_spawn_light_level": 15,
+                "monster_spawn_block_light_limit": 0,
+            })
+        };
+        let no_tag = |_: &str| Vec::new();
+        let end = DimensionFacts::from_json("minecraft:the_end", &json(), &no_tag).expect("end");
+        assert!(end.has_ender_dragon_fight, "the End has the fight");
+        assert_eq!(
+            end.default_clock.as_deref(),
+            Some("minecraft:the_end"),
+            "the End keeps its clock"
+        );
+        let over =
+            DimensionFacts::from_json("minecraft:overworld", &json(), &no_tag).expect("overworld");
+        assert!(!over.has_ender_dragon_fight, "the Overworld has no fight");
+        assert_eq!(
+            over.default_clock.as_deref(),
+            Some("minecraft:overworld"),
+            "the Overworld keeps its clock"
+        );
+        let mut foreign = json();
+        foreign["has_ender_dragon_fight"] = serde_json::Value::Bool(true);
+        foreign["default_clock"] = serde_json::Value::String("minecraft:the_end".into());
+        let custom = DimensionFacts::from_json("example:sky", &foreign, &no_tag).expect("custom");
+        assert!(
+            !custom.has_ender_dragon_fight,
+            "a 26.x fight key on a custom type is ignored"
+        );
+        assert_eq!(custom.default_clock, None, "a 26.x clock key is ignored");
     }
 
     #[test]
