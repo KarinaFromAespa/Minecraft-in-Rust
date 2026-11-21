@@ -10535,12 +10535,38 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 248 —
+  LootPool.validate paths:
+  - The same validation-
+    path spelling change as
+    item 229, for loot
+    pools: 1.21.6 wraps the
+    child paths in
+    ProblemReporter path
+    elements, 1.21.5 passes
+    plain strings
+    (.condition[i],
+    .functions[i],
+    .entries[i], .rolls,
+    .bonusRolls) —
+    diagnostics only, and
+    the two spellings
+    differ in the
+    singular/plural and
+    camel/snake details
+    only. The port has no
+    loot-pool validation at
+    all, so neither
+    spelling has a surface.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **247 of 426 are
-closed** (rank 1 complete, rank 2 at 238/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **248 of 426 are
+closed** (rank 1 complete, rank 2 at 239/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
