@@ -12312,3 +12312,10 @@ across the 7 mansion piece classes.
 
 Only constructor field-init order and `requireNonNull` on the outer
 in the anonymous classes (same class as item 591).
+
+## Item 627 — gfx/translucency.rs (ResortTransparencyTask) — NO-CHANGE
+
+A sync/async refactor of `doTask` with identical observable logic
+(same early-cancel checks, same sort, same POV set on success). The
+Rust's `update` already implements the POV rule exactly; the plumbing
+is Blaze3D machinery the native renderer never mirrors.
