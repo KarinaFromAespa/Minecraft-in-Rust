@@ -11315,3 +11315,22 @@ Bodies identical — the hover body verified line-for-line
 after normalizing the names. One stale citation
 re-pointed: `extractHover` -> `drawHover`. No code
 touched.
+
+## Item 518 — dialog_screen.rs (rank 3, NO-CHANGE)
+
+17 classes, 31 methods, 1 named. The whole diff is
+renames, visibility and API shape: `ChildContainer`
+(26.1) is 1.21.11's `CellInhabitant`, with the child
+list split into `children` + `cellInhabitants` (same
+layout math, same visit order);
+`ScrollableLayout$ReserveStrategy` is 26.1-only;
+`ItemStackTemplate` vs `ItemStack` (ItemHandler builds
+the same controls in both branches); extractor renames
+and the `GuiTextRenderState` package move; private ->
+package-private constructors; 26.1-only
+`requireNonNull` on captured outers; and a
+`repositionElements` call order with no Rust surface
+(the Rust computes final geometry directly). The Rust
+matches: item row 2px spacing, vertically centred;
+20-high EditBox, multiline 9*lines+8 capped at 512.
+`dialog_screen`: 4 passed.
