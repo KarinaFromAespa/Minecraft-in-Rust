@@ -5495,4 +5495,89 @@ mod tests {
             );
         }
     }
+
+    /// Regression: the 1.21.7 cave carver decoded its config's missing
+    /// fields with 26.x defaults — count bound 40, uniform 1..7 tunnel
+    /// thickness, no thickness bias, and the vertical multiplier for
+    /// room height — carving ~9x too much cave air (21.7 air blocks
+    /// per column against the vanilla 1.21.7 server's 9.4 at Test 1's
+    /// seed, -8343112210435233944). Vanilla 1.21.11's CaveWorldCarver
+    /// hardcodes bound 15, thickness `nextFloat() * 2 + nextFloat()`
+    /// with the 1-in-10 bias, and yScale for rooms. These two chunks
+    /// pin the fixed carving against the vanilla server's measured
+    /// means at the same seed; the old defaults gave 32.7 and 55.8.
+    #[test]
+    fn cave_carving_matches_vanilla_at_test1_seed() {
+        const SEED: i64 = -8343112210435233944;
+        let version = horizon_core::version::VERSION_ID;
+        let root = std::env::var_os("HORIZON_TEST_RESOURCES")
+            .or_else(|| std::env::var_os("HORIZON_RESOURCES"))
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../.local/horizon-client")
+                    .join(version)
+            });
+        if !root.join("worldgen/world_presets.json").exists() {
+            eprintln!("skipping: no worldgen bundle at {}", root.display());
+            return;
+        }
+        let registry: &'static BlockRegistry = Box::leak(Box::new(
+            crate::level::data::load_registry(&root).expect("registry"),
+        ));
+        let data = GeneratorData::load(&root.join("worldgen"), registry).expect("worldgen data");
+        let generator = OverworldGenerator::new(data.clone(), SEED).expect("overworld pipeline");
+        let mut worker = generator.worker();
+        // Air, water, leaves/log/plant, ground — the same classes the
+        // terrain comparison measures with.
+        let classify = |name: &str| -> u8 {
+            match name {
+                "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air" => 0,
+                "minecraft:water" => 1,
+                _ => {
+                    if name.ends_with("_leaves")
+                        || name.ends_with("_log")
+                        || name.ends_with("_stem")
+                        || name == "minecraft:snow"
+                    {
+                        2
+                    } else {
+                        3
+                    }
+                }
+            }
+        };
+        for (pos, vanilla_mean) in [
+            (ChunkPos::new(-13, -1), 4.50),
+            (ChunkPos::new(3, 14), 40.97),
+        ] {
+            let chunk = worker
+                .generate_proto(pos)
+                .unwrap_or_else(|e| panic!("chunk {pos:?}: {e}"));
+            let min_y = chunk.terrain.min_y();
+            let height = chunk.terrain.height();
+            let mut total = 0usize;
+            for lz in 0..16 {
+                for lx in 0..16 {
+                    let mut ground = min_y - 1;
+                    for y in (min_y..min_y + height).rev() {
+                        if classify(chunk.block_name(lx, y, lz)) == 3 {
+                            ground = y;
+                            break;
+                        }
+                    }
+                    for y in min_y..ground - 1 {
+                        if classify(chunk.block_name(lx, y, lz)) == 0 {
+                            total += 1;
+                        }
+                    }
+                }
+            }
+            let mean = total as f64 / 256.0;
+            assert!(
+                (mean - vanilla_mean).abs() < 2.0,
+                "chunk {pos:?} cave air mean {mean:.2}, vanilla {vanilla_mean:.2}"
+            );
+        }
+    }
 }

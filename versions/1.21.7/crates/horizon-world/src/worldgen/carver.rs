@@ -78,17 +78,31 @@ impl CaveCarver {
         if !(0.0..=1.0).contains(&probability) || probability.is_sign_negative() {
             return Err(DecodeError::Field("carver probability"));
         }
-        // 1.21.7's cave config has no count, thickness or room
-        // multiplier: vanilla draws the tunnel count as
-        // `nextInt(nextInt(nextInt(40) + 1) + 1)` — the same three
-        // nested draws as `VeryBiasedToBottom { 0, 39 }` — and each
-        // tunnel's thickness as `1.0 + nextFloat() * 6.0`; the room
-        // scales by the config's vertical multiplier, which 26.x split
-        // into its own provider.
+        // 1.21.7's cave config has no count, thickness, room
+        // multiplier or thickness bias: vanilla hardcodes them in
+        // CaveWorldCarver (verified against the 1.21.11 named jar).
+        // The tunnel count is
+        // `nextInt(nextInt(nextInt(bound) + 1) + 1)` with bound 15
+        // for caves and 10 for nether caves (`getCaveBound`) — the
+        // same three nested draws as `VeryBiasedToBottom { 0, bound
+        // - 1 }`. Each tunnel's thickness is `getThickness`:
+        // `nextFloat() * 2 + nextFloat()` — `Trapezoid { 0, 3, 1 }`
+        // draws the same two floats in the same order — with a
+        // 1-in-10 chance of the `nextFloat() * nextFloat() * 3 + 1`
+        // multiplier (so the bias defaults on, not off). The room's
+        // vertical radius scales by the config's yScale, not by the
+        // vertical multiplier. The old defaults (bound 40, uniform
+        // 1..7 thickness, no bias, vertical multiplier for rooms)
+        // carved ~9x too much cave air: measured +13.9 air/column
+        // over the density against vanilla's +1.6 at Test 1's seed.
+        let nether = kind == "minecraft:nether_cave";
         let count = optional(&object, "count")
             .map(|v| IntProvider::from_json(v.get()))
             .transpose()?
-            .unwrap_or(IntProvider::VeryBiasedToBottom { min: 0, max: 39 });
+            .unwrap_or(IntProvider::VeryBiasedToBottom {
+                min: 0,
+                max: if nether { 9 } else { 14 },
+            });
         if count.bounds()[0] < 0 {
             return Err(DecodeError::Field("carver count"));
         }
@@ -96,7 +110,11 @@ impl CaveCarver {
         let thickness = optional(&object, "thickness")
             .map(|v| FloatProvider::from_json(v.get()))
             .transpose()?
-            .unwrap_or(FloatProvider::Uniform { min: 1.0, max: 7.0 });
+            .unwrap_or(FloatProvider::Trapezoid {
+                min: 0.0,
+                max: 3.0,
+                plateau: 1.0,
+            });
         if thickness.bounds()[0] < 0. {
             return Err(DecodeError::Field("carver thickness"));
         }
@@ -105,10 +123,14 @@ impl CaveCarver {
             return Err(DecodeError::Field("carver floor"));
         }
         let vertical_radius_multiplier = provider("vertical_radius_multiplier")?;
-        let room_vertical_radius_multiplier = optional(&object, "room_vertical_radius_multiplier")
-            .map(|v| FloatProvider::from_json(v.get()))
-            .transpose()?
-            .unwrap_or_else(|| vertical_radius_multiplier.clone());
+        let room_vertical_radius_multiplier =
+            match optional(&object, "room_vertical_radius_multiplier") {
+                Some(v) => FloatProvider::from_json(v.get())?,
+                None => match optional(&object, "yScale") {
+                    Some(v) => FloatProvider::from_json(v.get())?,
+                    None => vertical_radius_multiplier.clone(),
+                },
+            };
         Ok(Self {
             probability,
             y: HeightProvider::from_json(required(&object, "y")?.get())?,
@@ -117,14 +139,15 @@ impl CaveCarver {
             weird_thickness_bias: optional(&object, "weird_thickness_bias")
                 .map(|v| serde_json::from_str(v.get()))
                 .transpose()?
-                .unwrap_or(false),
+                .unwrap_or(true),
             room_vertical_radius_multiplier,
             horizontal_radius_multiplier: provider("horizontal_radius_multiplier")?,
             vertical_radius_multiplier,
             start_vertical_radius_multiplier: optional(&object, "start_vertical_radius_multiplier")
                 .map(|v| FloatProvider::from_json(v.get()))
                 .transpose()?
-                .unwrap_or(FloatProvider::Constant(1.)),
+                // CaveWorldCarver.getYScale: 1.0; NetherWorldCarver: 5.0.
+                .unwrap_or(FloatProvider::Constant(if nether { 5.0 } else { 1.0 })),
             floor_level,
         })
     }

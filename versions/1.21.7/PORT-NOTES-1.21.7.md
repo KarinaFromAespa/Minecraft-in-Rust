@@ -818,3 +818,62 @@ full-topped block, and the overworld dimension data carries
 were the missing terrain. Regression test
 `grove_chunk_surfaces_as_mountain` pins the four grove
 columns to 90..=160.
+
+## Too cavey: the cave carver's 26.x defaults (2026-11-21)
+
+The owner playtested the terrain-fixed build and reported the terrain
+still too mountainy and too cavey across three worlds (Test 1, 2, 3).
+Measured against the vanilla 1.21.7 server at Test 1's seed
+(-8343112210435233944) over 1,018 paired chunks (260,608 columns),
+the terrain height was NOT wrong — surface delta mean -0.87, ground
+delta mean -0.29, median 0.0 both, biome agreement 1.000 — but the
+caves were: +8.4 cave-air blocks per column (horizon 21.7 vs vanilla
+9.4 over 12 sampled chunks), spread across every depth band below
+y=96. (An earlier reading of +7.4/+9.1 too-high terrain was a
+measurement artifact: horizon writes some palette entries as
+`{'': name}` and `{'id': name, 'properties': ...}`, which the first
+parser read as empty names and classified as solid ground — air
+above the surface counted as rock.)
+
+The density graph was exonerated first: a Java probe driving
+vanilla 1.21.11's own density codec against the Rust decoder
+agreed on all 1,607 aligned queries (max diff 0.000024), the
+final-density zero crossings reproduced vanilla's ground surface
+at every sampled column, and the fill's bulk `sample_volume`
+matched per-point evaluation exactly. The density alone predicts
+7.8 cave-air blocks per column; vanilla's save has 9.4 (carvers
+add +1.6); the horizon save had 21.7 (carvers added +13.9).
+
+Root cause: `CaveCarver::from_json` decoded the fields 1.21.7's
+carver configs lack with 26.x-era defaults that do not match
+vanilla 1.21.7's hardcoded `CaveWorldCarver` (verified against
+the 1.21.11 named jar's bytecode):
+
+- tunnel count bound 40 instead of 15 (`getCaveBound`; 10 for
+  nether caves) — ~2.8x too many tunnel starts;
+- tunnel thickness uniform 1..7 instead of `getThickness`:
+  `nextFloat() * 2 + nextFloat()` (mean 1.5, range 0..3) —
+  tunnels ~2.7x too thick. The old default was the ROOM
+  thickness formula (`1 + nextFloat() * 6`) applied to tunnels;
+- the 1-in-10 thickness bias multiplier defaulted off, while
+  vanilla always applies it;
+- room height scaled by the vertical multiplier (0.8..1.3)
+  instead of the config's yScale (0.1..0.9) — rooms ~2x too
+  tall. The tunnel start's vertical scale also now defaults to
+  `getYScale`: 1.0 for caves, 5.0 for nether caves.
+
+The fix (carver.rs) defaults count to
+`VeryBiasedToBottom { 0, 14 }` (nether `{ 0, 9 }`), thickness
+to `Trapezoid { 0, 3, 1 }` (samples `2*f1 + f2`, the same two
+floats in the same order as vanilla), the bias on, rooms on
+yScale, and nether start-vertical on 5.0. Configs that carry
+the fields (26.x) still use them. After the fix, generating
+the same 12 chunks gives 9.54 cave-air blocks per column
+against vanilla's 9.40 (delta +0.14, median 0.0; every chunk
+within +0.52, three exact). Regression test
+`cave_carving_matches_vanilla_at_test1_seed` pins chunks
+(-13, -1) and (3, 14) to vanilla's measured means (4.50 and
+40.97, tolerance 2.0); the old defaults gave 32.7 and 55.8.
+The "too mountainy" half of the report is not a generator
+defect: the terrain matches vanilla, and the spawn area is
+genuinely mountainous in vanilla too (grove/snowy slopes).
