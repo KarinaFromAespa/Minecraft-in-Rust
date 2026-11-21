@@ -397,20 +397,14 @@ impl Game<'_> {
         self.particles
             .add(&ParticleOptions::simple(ParticleType::Firework), at, v);
     }
-    /// `FireworkRocketItem.use` while gliding: drop the player's leads, then a
-    /// rocket attached to the player.
+    /// `FireworkRocketItem.use` while gliding: a rocket attached to the
+    /// player. (1.21.6's `use` drops the player's leads first, with
+    /// LEAD_BREAK; 1.21.5's does not.)
     pub(super) fn boost_firework(&mut self, stack: &ItemStack) -> bool {
         if &*stack.item != "minecraft:firework_rocket"
             || !self.player.as_ref().is_some_and(|p| p.fall_flying)
         {
             return false;
-        }
-        // Server path of `use`: `dropAllLeashConnections(null)`, and when that
-        // drops anything `playSound(null, player, LEAD_BREAK, NEUTRAL, 1, 1)`.
-        // The entity overload follows the player and excludes nobody, including
-        // the guest whose action is running while its hub is swapped out.
-        if self.drop_all_leash_connections() {
-            self.play_player_bound_sound("minecraft:item.lead.break", 6, 1.0, 1.0, false);
         }
         let at = self.player.as_ref().map_or(Vec3::ZERO, |p| p.position);
         let mut rocket = self.new_rocket(at, stack, true);

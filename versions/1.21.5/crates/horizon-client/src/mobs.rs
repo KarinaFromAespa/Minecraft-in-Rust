@@ -1306,13 +1306,11 @@ pub struct Extra {
     pub meeting: Option<[i32; 3]>,
     /// Villager and wandering trader offers and experience.
     pub trade: Option<Box<crate::merchant::Trader>>,
-    /// Who holds this mob's lead, a holder not yet found after loading, and
-    /// the spin the rope's torque gives it.
+    /// Who holds this mob's lead, and a holder not yet found after loading.
     pub leash: Option<leash::Holder>,
     pub leash_pending: Option<leash::Pending>,
     /// The UUID of the player behind `Holder::Player` (host or guest).
     pub leash_player: Option<[i32; 4]>,
-    pub leash_spin: f64,
     /// More species scratch values.
     pub scratch: [i32; 4],
     /// Block positions a species remembers (a sniffer's explored ground).
@@ -2470,11 +2468,6 @@ pub enum MobEvent {
         mob: u32,
         drop: bool,
         sound: bool,
-    },
-    /// `Leashable.whenLeashedTo`: the holder is told a quad-leashed mob hangs
-    /// on it (`HappyGhast.notifyLeashHolder`).
-    NotifyLeashHolder {
-        holder: u32,
     },
     /// A zombie villager's cure is complete: the game turns it back into a villager.
     CureZombieVillager {

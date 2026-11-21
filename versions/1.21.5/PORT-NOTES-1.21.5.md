@@ -705,13 +705,52 @@ is the oracle; decompiled code is a reading aid.
     playerdata, −1/0/1 → nether/overworld/end; 1.21.6 falls
     back to overworld) belongs to **item 161**
     (`dimension_type.rs`), not this item.
+- **Item 19 — boat_leads.rs, ported (the leash system):**
+  `Leashable` / `LeadItem` — the 1.21.6 leash-physics rewrite
+  (spring/wrench/quad-leash) reverted to 1.21.5's legacy pull:
+  - `mobs/leash.rs` rewritten: snap distance 12.0 → 10.0
+    (`LEASH_TOO_FAR_DIST`), elastic range still 6.0; the pull
+    is the legacy `copySign(unit² * 0.4, unit)` per axis over
+    the feet-to-feet float distance, with `checkSlowFallDistance`
+    after it; no spring, no angular momentum, no yaw change,
+    no relative-velocity term. `handle_leash_at_distance`
+    restored (sitting tamable: drop past 10, no pull;
+    `PathfinderMob` home = holder block radius 5; equine stop
+    eating and camel stand up past 6). Quad leash, `Wrench`,
+    `notifyLeashHolder` / `notifyLeasheeRemoved` and
+    `leash_spin` deleted.
+  - `game/leads.rs` rewritten: `can_attach_lead` is now
+    `canHaveALeashAttachedToIt` (leashable, alive, unleashed
+    — no distance check); `player_leashed` is the ±7 cube
+    around the fence block pos; `use_knot` is 1.21.5's
+    `bindPlayerMobs` + knot interact (ties all player-led mobs
+    and boats in range unconditionally, `LEASH_KNOT_PLACE` on
+    the useOn path only; a knot click with nothing to tie
+    discards the knot silently, creative removes hanging leads
+    without dropping). No sneak-tie, no shears branch, no
+    take-back, no LEAD_TIED / LEAD_UNTIED sounds; the knot
+    outlives its last lead (`forget_untied_knots` deleted —
+    a re-tie reuses the same knot entity, covered by the
+    renamed knot-identity test). Fence-break discards play
+    `LEASH_KNOT_BREAK` (1.21.6's `LEAD_UNTIED`).
+  - `game/boat_leads.rs` rewritten the same way: legacy pull,
+    snap past 10 with no sound, ±7 fence cube, no sneak or
+    shears branch. `game/fireworks.rs`: the firework boost no
+    longer drops leads (1.21.6-only).
+  - Render: one rope again (`EntityRenderer.renderLeash`),
+    width 0.05 → 0.025, sag math unchanged; the per-species
+    `leash_offset` overrides and the boat offset match 1.21.5.
+  - Verification: `cargo check -p horizon-client
+    --all-targets` 0 errors / 0 warnings (3m25s); three
+    newly-dead helpers (`drop_boat_leashes`, `player_center`,
+    `Boat::in_liquid`) removed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **18 of 426 are
-closed** (rank 1 complete, rank 2 at 9/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **19 of 426 are
+closed** (rank 1 complete, rank 2 at 10/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

@@ -18,12 +18,6 @@ use horizon_core::{
 // baby and 2 as an adult, `ai.home` the restriction, `counter`
 // the end tick of the follow-an-adult range pick.
 // `scratch[1]` is `leashHolderTime` on the server and `IS_LEASH_HOLDER` (1 or 0) on a client.
-/// `HappyGhast.notifyLeashHolder` for a leashed mob that supports a quad lead.
-pub fn notify_leash_holder(m: &mut Mob) {
-    if m.species() == super::Species::HappyGhast {
-        m.extra.scratch[1] = 5;
-    }
-}
 /// `HappyGhast.isLeashHolder`: `IS_LEASH_HOLDER`, true while a quad-leashed
 /// mob hangs on it (and four ticks after).
 pub fn is_leash_holder(m: &Mob) -> bool {

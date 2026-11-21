@@ -652,8 +652,6 @@ impl Game<'_> {
     pub(super) fn lan_assign_ids(&mut self) {
         // LeashFenceKnotEntity: the tie made the knot of a fence post
         // (game/leads.rs `tie_knot`); the tracker shows that same entity.
-        // `notifyLeasheeRemoved` discards it once the last lead is gone.
-        self.forget_untied_knots();
         let next = &mut self.next_entity;
         let mut give = |id: &mut u32| {
             assign_entity_id(next, id);
