@@ -20,8 +20,12 @@ pub struct CommandNode {
     /// Custom suggestion provider (`minecraft:ask_server`).
     pub suggestions: Option<String>,
 }
-/// The `minecraft:command_argument_type` registry of 26.3 in id order
-/// (ArgumentTypeInfos.bootstrap).
+/// The `minecraft:command_argument_type` registry of 1.21.7 in id order
+/// (ArgumentTypeInfos.bootstrap): 26.2's list, not 26.3's — the five 26.3
+/// types (`context_float_provider`, `context_int_provider`, `slot_source`,
+/// `feature`, `swing_animation`) don't exist here, and listing them shifted
+/// `dialog` (55) and `uuid` (56) onto the wrong ids, so the Commands packet
+/// decoded their nodes with the wrong parsers.
 pub const ARGUMENT_TYPES: &[&str] = &[
     "brigadier:bool",
     "brigadier:float",
@@ -78,17 +82,12 @@ pub const ARGUMENT_TYPES: &[&str] = &[
     "minecraft:loot_table",
     "minecraft:loot_predicate",
     "minecraft:loot_modifier",
-    "minecraft:context_float_provider",
-    "minecraft:context_int_provider",
-    "minecraft:slot_source",
     "minecraft:dialog",
-    "minecraft:feature",
-    "minecraft:swing_animation",
     "minecraft:uuid",
 ];
 
 /// The properties of an argument parser (`ArgumentTypeInfo.Template`) as
-/// one of the 26.3 parsers decoded from the network.
+/// one of the 1.21.7 parsers decoded from the network.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ArgumentProperties {
     None,
@@ -321,5 +320,25 @@ impl Codec<Commands> for Commands {
             }
         }
         w.varint(v.root);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 1.21.7's registry is 26.2's (57 entries): the 26.3 list shifted
+    /// `dialog` and `uuid` onto 26.3-only ids, so their tree nodes decoded
+    /// with the wrong parsers.
+    #[test]
+    fn argument_types_are_1_21_7s_registry() {
+        assert_eq!(ARGUMENT_TYPES.len(), 57);
+        assert_eq!(ARGUMENT_TYPES[55], "minecraft:dialog");
+        assert_eq!(ARGUMENT_TYPES[56], "minecraft:uuid");
+        assert!(!ARGUMENT_TYPES.contains(&"minecraft:swing_animation"));
+        assert!(!ARGUMENT_TYPES.contains(&"minecraft:context_float_provider"));
+        assert!(!ARGUMENT_TYPES.contains(&"minecraft:context_int_provider"));
+        assert!(!ARGUMENT_TYPES.contains(&"minecraft:slot_source"));
+        assert!(!ARGUMENT_TYPES.contains(&"minecraft:feature"));
     }
 }

@@ -472,9 +472,17 @@ fn advancement(d: &mut Dispatcher, root: usize) {
     }
 }
 
-/// TimeCommand.addClockNodes.
+/// TimeCommand's clock nodes, in 1.21.7's shape: `set` takes the literal
+/// times (`day`, `noon`, `night`, `midnight`, registered first as vanilla
+/// registers them) as well as a time value. The 26.x marker argument stays
+/// for the tree's shape, but 1.21.7 has no time markers, so the literals
+/// are the only named times that resolve.
 fn clock_nodes(d: &mut Dispatcher, node: usize) {
     let set = d.literal(node, "set");
+    for name in ["day", "noon", "night", "midnight"] {
+        let literal = d.literal(set, name);
+        d.executes(literal, "time.set");
+    }
     let t = d.argument(set, "time", ArgType::Time { min: 0 });
     d.executes(t, "time.set");
     let marker = d.argument(set, "timemarker", ArgType::Id("time_markers"));
@@ -500,6 +508,11 @@ fn clock_nodes(d: &mut Dispatcher, node: usize) {
     let query = d.literal(node, "query");
     let time = d.literal(query, "time");
     d.executes(time, "time.query.time");
+    // 1.21.7's query forms: the day time within the day, and the day count.
+    let daytime = d.literal(query, "daytime");
+    d.executes(daytime, "time.query.daytime");
+    let day = d.literal(query, "day");
+    d.executes(day, "time.query.day");
     let tl = d.argument(query, "timeline", ArgType::Resource(Resource::Timeline));
     d.executes(tl, "time.query.timeline");
     let rep = d.literal(tl, "repetition");
