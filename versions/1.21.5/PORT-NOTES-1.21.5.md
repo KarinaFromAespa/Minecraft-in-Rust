@@ -10008,12 +10008,44 @@ is the oracle; decompiled code is a reading aid.
     client --lib --tests
     0/0 (2m01s).
 
+- **Item 228 —
+  TrialSpawnerStateData:
+  - 1.21.6 renamed
+    TrialSpawnerData to
+    TrialSpawnerStateData
+    (and split its state
+    into a Packed record);
+    the serialized form is
+    identical in both
+    versions —
+    registered_players,
+    current_mobs,
+    cooldown_ends_at,
+    next_mob_spawns_at,
+    total_mobs_spawned,
+    spawn_data,
+    ejecting_loot_table,
+    same keys and defaults.
+    The port already uses
+    the 1.21.5 name (its
+    docs cite
+    TrialSpawnerData, the
+    update tag cites TrialS
+    pawnerData.getUpdateTag
+    ) and its
+    TrialSpawnerExt
+    load/save read and
+    write exactly those
+    seven keys.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **227 of 426 are
-closed** (rank 1 complete, rank 2 at 218/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **228 of 426 are
+closed** (rank 1 complete, rank 2 at 219/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
