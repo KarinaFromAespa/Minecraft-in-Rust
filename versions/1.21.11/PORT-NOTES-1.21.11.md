@@ -12059,3 +12059,9 @@ and the `is` overload.
 ## Item 585 — falling_block.rs (AnvilBlock) — NO-CHANGE
 
 Only the `is(Object)` vs `is(Block)` overload widening in `damage`.
+
+## Item 586 — furnace.rs (Containers) — NO-CHANGE
+
+`dropContents` differs only in that 26.1 caches `getRandom()` in a local
+while 1.21.11 reads the `random` field each time — same source, draw order
+and constants. The Rust's `drop_item_stack_at` matches exactly.
