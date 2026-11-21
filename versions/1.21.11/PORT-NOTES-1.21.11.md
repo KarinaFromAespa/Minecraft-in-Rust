@@ -12430,3 +12430,8 @@ across the 6 pack classes.
 
 Only visibility, `requireNonNull`, field-init order and a lambda
 parameter type.
+
+## Item 648 — title/flat.rs (CreateFlatWorldScreen$DetailsList, PresetFlatWorldScreen$PresetsList) — NO-CHANGE
+
+Only visibility and slot re-numbering from the `requireNonNull`
+removal.
