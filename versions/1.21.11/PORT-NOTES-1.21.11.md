@@ -11452,3 +11452,18 @@ cooldown sampling reads `ServerLevel.getRandom()` in
 26.1 vs the `random` field in 1.21.11. `tick`,
 `start` and `finishRam` are otherwise identical, and
 the Rust cites only names shared by both versions.
+
+## Item 525 — multiplayer.rs (rank 3, NO-CHANGE apart from citations)
+
+The multiplayer screens differ only by the extractor
+rewire (`extractRenderState` -> `render`,
+`extractContent` -> `renderContent`,
+`extractWidgetRenderState` -> `renderWidget`,
+`extractIcon` -> `drawIcon`, list background /
+separators likewise), a visibility loosening on
+`ServerSelectionList`'s statics (private in 26.1,
+package-private in 1.21.11, same fields and methods),
+and the usual 26.1-only `requireNonNull` / redundant
+store / lambda-type noise. Two citations re-pointed
+to the 1.21.11 names; no logic touched. `multiplayer`:
+28 passed.
