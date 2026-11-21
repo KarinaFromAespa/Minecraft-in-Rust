@@ -12105,3 +12105,8 @@ downloaded world's level.dat), not the extraction; the
 
 Only the `is(Object)` vs `is(Block)` overload widening in
 `isBurningBlock`.
+
+## Item 595 — level/shelf.rs (SideChainPartBlock) — NO-CHANGE
+
+Only the `setPart` method modifiers (private in 26.1, public default in
+1.21.11); the body is identical.
