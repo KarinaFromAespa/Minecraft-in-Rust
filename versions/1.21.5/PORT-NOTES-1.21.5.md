@@ -2221,13 +2221,76 @@ is the oracle; decompiled code is a reading aid.
     parallelism under 3-stream load and
     also surfaced the now-deleted
     `player_entity` dead code).
+- **Item 56 — TrialSpawner / Jukebox /
+  SculkCatalyst / SculkSensor / Vault
+  block entities, verified, no code
+  change:**
+  - The diff is the ValueInput /
+    ValueOutput → CompoundTag
+    migration with identical keys,
+    defaults and order. The Rust is
+    already compound-based
+    throughout and matches on every
+    point: the trial spawner load
+    REPLACES the whole spawner
+    (`**s = TrialSpawner::load(tag)`,
+    1.21.5's `tag.read(codec)
+    .orElseGet(default)`; 1.21.6
+    mutated in place), with the
+    config defaulting from the
+    registry when the tag lacks one;
+    the vault reads `config` /
+    `server_data` / `shared_data`
+    with the config defaulting and
+    `VaultServerData.set` leaving
+    the ejection total out (so a
+    vault loaded mid-ejection counts
+    from 0), and saves all three
+    keys; the jukebox writes
+    `RecordItem` only when non-empty
+    and `ticks_since_song_started`
+    only when the song clock is
+    present; the sensor writes
+    `last_vibration_frequency`
+    (default 0) and `listener`, the
+    catalyst its `cursors`.
+  - The sculk `load` keeps a field
+    when its key is absent rather
+    than resetting it, but the only
+    caller is the chunk-load path,
+    where the entity is freshly
+    constructed — identical to
+    1.21.5's `orElseGet(Data::new)`.
+    The jukebox stop-on-change
+    branch cannot fire on a fresh
+    load either (the item starts
+    empty), as in vanilla.
+  - The update tag already cites
+    1.21.5's `TrialSpawnerData
+    .getUpdateTag` (via `getData()`,
+    not 1.21.6's `getStateData()`),
+    and the components codec is
+    already cited as
+    `COMPONENTS_CODEC.optionalFieldOf`
+    (item 35). No `ValueInput` /
+    `ValueOutput` citations remain
+    in the tree. `problemPath` /
+    `BlockEntityPathElement`,
+    `getNameForReporting`'s
+    visibility, `saveCustomAndMetadata`
+    and the `loadAdditional` ctor
+    shapes have no Rust surface.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check, 5s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **55 of 426 are
-closed** (rank 1 complete, rank 2 at 46/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **56 of 426 are
+closed** (rank 1 complete, rank 2 at 47/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
