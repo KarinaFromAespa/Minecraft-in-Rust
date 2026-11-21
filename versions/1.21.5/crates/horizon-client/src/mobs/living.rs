@@ -920,11 +920,19 @@ impl Mob {
         }
     }
     /// `checkFallDamage` as the species has it: Strider's lava breaks any fall
-    /// (the fluid state waits for the next baseTick); Bat's and Bee's do nothing.
+    /// (the fluid state waits for the next baseTick); Bat's, Bee's, Ghast's
+    /// and Phantom's do nothing (the last two are FlyingMob's no-op in
+    /// 1.21.5, their own no-op overrides in 1.21.6 - the same either way).
     fn species_check_fall_damage(&mut self, w: &MobWorld, moved: Vec3, events: &mut Vec<MobEvent>) {
         if self.kind.flags.lava_walker && self.fluids.in_lava {
             self.fall_distance = 0.0;
-        } else if !matches!(self.kind.species, super::Species::Bat | super::Species::Bee) {
+        } else if !matches!(
+            self.kind.species,
+            super::Species::Bat
+                | super::Species::Bee
+                | super::Species::Ghast
+                | super::Species::Phantom
+        ) {
             self.check_fall_damage(w, moved, events);
         }
     }

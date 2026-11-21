@@ -12006,12 +12006,44 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-client
     --lib --tests: clean.
 
+- **Item 286 — GhastModel and Ghast**
+  - GhastModel and Ghast: code
+    - the 1.21.5 forms were
+    already ported (move
+    control's stepped-box
+    canReach with fixed 0.1
+    acceleration, the single-
+    draw random float, the look
+    goal, the tentacle formula
+    0.2*sin(age*0.3+i)+0.4 over
+    tentacle0..8,
+    ExplosionPower byte default
+    1, no quad leash or 10/16
+    distances, no FLYING_SPEED
+    read). One gap fixed:
+    ghasts and phantoms now
+    skip fall damage
+    (FlyingMob's no-op in
+    1.21.5, their own overrides
+    in 1.21.6 - the same either
+    way); the port had exempted
+    only bats and bees. The
+    model renames
+    (PartNames.tentacle vs
+    createTentacleName,
+    animateTentacles inline vs
+    static) produce identical
+    names and poses.
+  - Verification: cargo check
+    -j 1 -p horizon-client
+    --lib --tests: clean.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **285 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 17/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **286 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 18/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
