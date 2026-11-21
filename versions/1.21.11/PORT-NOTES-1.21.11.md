@@ -12752,3 +12752,7 @@ Visibility only.
 ## Item 718 — horizon-server/src/management.rs (ManagementServer) — NO-CHANGE
 
 Visibility plus anonymous-class constructor field order, as item 692.
+
+## Item 719 — horizon-server/src/query.rs (QueryThreadGs4$RequestChallenge) — NO-CHANGE
+
+RandomSource factory only, as items 670/679/706.
