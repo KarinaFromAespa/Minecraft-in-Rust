@@ -5283,13 +5283,73 @@ is the oracle; decompiled code is a reading aid.
     was SIGKILLed mid-codegen by
     a runtime restart; the retry
     passed.)
+- **Item 116 — PlayerTabOverlay /
+  EntitySelectorOptions (nbt):**
+  - Tab list: the narrator
+    call is `sayNow` in
+    1.21.5 (`saySystemNow`
+    is the 1.21.6 rename) —
+    the Rust call in
+    `game/scoreboard.rs`
+    already says `say_now`.
+    The ping icon's z+100
+    lift in 1.21.5 (drawn
+    above the row) matches
+    the Rust draw list,
+    which pushes the ping
+    sprite after the row's
+    name and score. The
+    score colour 16777215
+    and the hearts number's
+    red-green gradient are
+    alpha-0 spellings that
+    1.21.5's `adjustColor`
+    forces opaque (item
+    106); the Rust port
+    writes the opaque forms
+    (`0xFFFF_FFFF`, the
+    gradient OR'd with
+    `0xFF00_0000`). The
+    `RenderPipelines` to
+    `RenderType` swap is GPU
+    plumbing. No code
+    change.
+  - Selector `nbt`: the
+    same `ValueInput` /
+    `ValueOutput` refactor
+    as items 109/111 — the
+    1.21.5 form builds the
+    entity's compound with
+    `saveWithoutId` and
+    adds `SelectedItem` for
+    a player, exactly as
+    `NbtPredicate.
+    getEntityTagToCompare`
+    does in 1.21.5 (the
+    helper exists in both
+    versions; 1.21.6's
+    selector just routes
+    through `TagValueOutput`
+    instead). The Rust
+    `player_nbt`
+    (`game/commands/
+    data.rs`) implements
+    it: the saved tag plus
+    the held stack with
+    its `Slot` key removed.
+    No code change.
+  - Verification: no Rust
+    change; the tree state is
+    the one `cargo check -j 1
+    -p horizon-client --lib --tests`
+    passed at item 115.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **115 of 426 are
-closed** (rank 1 complete, rank 2 at 106/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **116 of 426 are
+closed** (rank 1 complete, rank 2 at 107/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
