@@ -12675,3 +12675,7 @@ Visibility only.
 
 26.1-only class; no `PotionTags` usage anywhere in the Rust.
 1.21.11 has no potion tags.
+
+## Item 700 — game/trident.rs (BlockAndLightGetter) — NO-CHANGE
+
+26.1-only interface; no usage anywhere in the Rust.
