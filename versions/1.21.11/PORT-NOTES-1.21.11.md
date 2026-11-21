@@ -11951,3 +11951,8 @@ handles the 1.21.11 form: with `either_holders_and_tag_resistance` set, the
 `DAMAGE_RESISTANT` arm reads the tag string and rewrites it into the pinned
 HolderSet form before the hash/skip readers see it. The other three classes
 have zero diff.
+
+## Item 569 — worldgen/structure/temple.rs (DesertPyramid, JungleTemple) — NO-CHANGE
+
+Only `RandomSource.createThreadLocalInstance` vs `create` (same LegacyRandom
+sequence) and a constructor visibility difference.
