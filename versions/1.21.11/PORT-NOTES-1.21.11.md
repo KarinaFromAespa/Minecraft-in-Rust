@@ -9346,3 +9346,15 @@ placement (`is(WATER)` == `getType() == WATER`) are pure
 renames — no change. Tests: 3 new level tests (push-up,
 drag-down, unsupported -> water); they skip locally for
 missing prepared resources and run in CI.
+
+## Item 179 — worldgen/tree.rs (rank 2, NO-CHANGE)
+
+4 classes, 23 methods, 1 named. No behavioural delta:
+`WorldGenLevel` parameters widen to `LevelSimulatedReader`
+in `FoliagePlacer` and `TreeFeature.getMaxFreeTreeHeight`;
+`tryPlaceLeaf` calls `foliageProvider.getState(random, pos)`
+instead of `getState(level, random, pos)` — no vanilla
+provider reads the world, and the Rust already carries that
+delta in `state_provider.rs`; `IntProviders.codec` moved to
+`IntProvider.codec` (same codec); `PlacementContext` is pure
+renames. No code changed.
