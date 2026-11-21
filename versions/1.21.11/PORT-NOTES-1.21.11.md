@@ -12447,3 +12447,9 @@ Only `getRandom()` vs the `random` field at 3 sites.
 ## Item 651 — client/gui/components/toasts (SystemToast) — NO-CHANGE
 
 Extractor rewire and visibility.
+
+## Item 652 — client/renderer/chunk (SectionMesh) — NO-CHANGE
+
+26.1's `getSectionDraw` (returning the 26.1-only `SectionDraw`) vs
+1.21.11's `getBuffers` — both null-returning defaults; Blaze3D
+plumbing the native renderer never mirrors.
