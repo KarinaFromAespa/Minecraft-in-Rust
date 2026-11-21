@@ -9241,3 +9241,25 @@ widened to package-private. `tickChunks` / `tickSpawningChunk`
 are behaviourally identical — the Rust's `spawn_natural`
 already implements the shuffle, the 400-tick creature gate
 and the per-chunk gate. No code changed.
+
+## Item 171 — command/item.rs (rank 2, CHANGED)
+
+1.21.11's `ItemParser.parse` validates the parsed stack
+(`ItemStack.validateComponents` on the patched map) and 26.1
+does not. Ported: a damageable item cannot stack ("Item cannot
+be both damageable and stackable"), and a container's stacks
+cannot exceed their maximum ("Item stack with count of {n} was
+larger than maximum: {m}"), both as `arguments.item.malformed`
+with the cursor at the end of the argument. The parser had no
+per-item defaults, so the oracle's `registries` export now
+carries `item_defaults` (each item's default `max_stack_size`,
+plus `max_damage` when damageable), read into the new
+`Registries.item_defaults` by `fill_from_export` /
+`fill_from_exported` and the parse fixture; an item the export
+does not list skips the check. The predicate grammar,
+`IdentifierParseRule` and the parser's state machine are
+unchanged (name noise + access widening only). Corpus gains 6
+valid + 4 invalid cases. Gaps (pre-existing): the component
+codec does not decode `container` at all, so codec-level
+container failures still parse; a container entry's patch
+removing `max_stack_size` is not honoured.

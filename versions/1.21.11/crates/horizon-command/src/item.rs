@@ -166,6 +166,14 @@ struct ItemState<'r, 'a> {
     reader: &'r mut Reader<'a>,
     reg: &'r Registries,
     sugg: ISugg,
+    /// What the parsed patch does to `max_damage`: set / removed / untouched.
+    patch_max_damage: Option<bool>,
+    /// What the parsed patch does to `max_stack_size`: set to a value /
+    /// removed / untouched.
+    patch_max_stack_size: Option<Option<i64>>,
+    /// The `container` value the parsed patch sets, or None when it removes
+    /// it; untouched when the outer option is None.
+    patch_container: Option<Option<Tag>>,
 }
 impl ItemState<'_, '_> {
     fn parse(&mut self) -> CmdResult<ItemInput> {
@@ -188,12 +196,103 @@ impl ItemState<'_, '_> {
             self.read_components()?;
             components = Some(self.reader.string[start..self.reader.cursor].to_owned());
         }
+        self.validate(&id)?;
         Ok(ItemInput {
             id,
             tag: false,
             any: false,
             components,
         })
+    }
+    /// `ItemParser.validateComponents` (1.21.11 only; 26.1 parses without
+    /// it): the patched components — the item's defaults with this parse's
+    /// sets and removals — must not make a damageable item stackable, and a
+    /// container's stacks must not exceed their maximum. Runs after the
+    /// whole argument parses, so the error's cursor is at its end, as
+    /// vanilla's. An item the export does not list (a content mod's) skips
+    /// the check. Suggestions run through `parse` too, but by the time this
+    /// runs the suggestion state is already `Nothing`, exactly as vanilla's
+    /// `State.parse` (which never validates) leaves it.
+    fn validate(&self, id: &str) -> CmdResult<()> {
+        let Some(def) = self.reg.item_defaults.get(id) else {
+            return Ok(());
+        };
+        let damageable = self.patch_max_damage.unwrap_or(def.max_damage.is_some());
+        let stack_size = match self.patch_max_stack_size {
+            Some(Some(v)) => v,
+            // Removed: `getOrDefault(MAX_STACK_SIZE, 1)`.
+            Some(None) => 1,
+            None => i64::from(def.max_stack_size),
+        };
+        if damageable && stack_size > 1 {
+            return Err(CommandError::tr_at(
+                "arguments.item.malformed",
+                &[&"Item cannot be both damageable and stackable"],
+                self.reader,
+            ));
+        }
+        // Only a patch-set container can hold stacks: vanilla's defaults
+        // are always empty containers.
+        if let Some(Some(container)) = &self.patch_container {
+            self.validate_container(container)?;
+        }
+        Ok(())
+    }
+    /// The container half of `ItemStack.validateComponents`: each non-empty
+    /// stack's count against its own maximum (its item's default, or the
+    /// `max_stack_size` its own components patch sets). A stack the codec
+    /// would reject (an unknown item, a non-compound entry) is left to the
+    /// component codec, which does not decode containers yet.
+    fn validate_container(&self, container: &Tag) -> CmdResult<()> {
+        let Tag::List(entries) = container else {
+            return Ok(());
+        };
+        for entry in entries {
+            let Tag::Compound(c) = entry else {
+                continue;
+            };
+            let Some(Tag::String(raw)) = c.get(&"id".into()) else {
+                continue;
+            };
+            let raw = raw.to_string_lossy();
+            let entry_id = if raw.contains(':') {
+                raw
+            } else {
+                format!("minecraft:{raw}")
+            };
+            if entry_id == "minecraft:air" {
+                continue;
+            }
+            let count = c.get(&"count".into()).and_then(int_of).unwrap_or(1);
+            if count <= 0 {
+                continue;
+            }
+            let max = match c.get(&"components".into()) {
+                Some(Tag::Compound(patch)) => patch
+                    .get(&"minecraft:max_stack_size".into())
+                    .and_then(int_of),
+                _ => None,
+            }
+            .or_else(|| {
+                self.reg
+                    .item_defaults
+                    .get(&entry_id)
+                    .map(|d| i64::from(d.max_stack_size))
+            });
+            let Some(max) = max else {
+                continue;
+            };
+            if count > max {
+                return Err(CommandError::tr_at(
+                    "arguments.item.malformed",
+                    &[&format!(
+                        "Item stack with count of {count} was larger than maximum: {max}"
+                    )],
+                    self.reader,
+                ));
+            }
+        }
+        Ok(())
     }
     fn component_type(&mut self) -> CmdResult<String> {
         if !self.reader.can_read() {
@@ -231,7 +330,13 @@ impl ItemState<'_, '_> {
                         &[&ty],
                     ));
                 }
-                visited.push(ty);
+                visited.push(ty.clone());
+                match ty.as_str() {
+                    "minecraft:max_damage" => self.patch_max_damage = Some(false),
+                    "minecraft:max_stack_size" => self.patch_max_stack_size = Some(None),
+                    "minecraft:container" => self.patch_container = Some(None),
+                    _ => {}
+                }
                 self.sugg = ISugg::Nothing;
                 self.reader.skip_whitespace();
             } else {
@@ -257,6 +362,14 @@ impl ItemState<'_, '_> {
                         &[&ty, &m],
                         self.reader,
                     ));
+                }
+                match ty.as_str() {
+                    "minecraft:max_damage" => self.patch_max_damage = Some(true),
+                    "minecraft:max_stack_size" => {
+                        self.patch_max_stack_size = Some(int_of(&tag));
+                    }
+                    "minecraft:container" => self.patch_container = Some(Some(tag)),
+                    _ => {}
                 }
                 self.reader.skip_whitespace();
             }
@@ -333,6 +446,9 @@ pub fn parse_stack(reader: &mut Reader, reg: &Registries) -> CmdResult<ItemInput
         reader,
         reg,
         sugg: ISugg::Nothing,
+        patch_max_damage: None,
+        patch_max_stack_size: None,
+        patch_container: None,
     }
     .parse();
     if r.is_err() {
@@ -350,6 +466,9 @@ pub fn suggest_stack(builder: &mut SuggestionsBuilder, reg: &Registries) {
         reader: &mut reader,
         reg,
         sugg: ISugg::Nothing,
+        patch_max_damage: None,
+        patch_max_stack_size: None,
+        patch_container: None,
     };
     let _ = state.parse();
     state.fill(builder);
@@ -760,5 +879,82 @@ mod tests {
             check("{id:\"minecraft:stone\"}"),
             Err("Unknown registry key in ResourceKey[minecraft:root / minecraft:block_entity_type]: minecraft:stone".into())
         );
+    }
+
+    /// `ItemParser.validateComponents`: a parsed stack must not be both
+    /// damageable and stackable, and a container's stacks must not exceed
+    /// their maximum. The error is `arguments.item.malformed` with the
+    /// cursor at the end of the argument, where vanilla's validation runs.
+    #[test]
+    fn parsed_stacks_validate_components_against_the_item_defaults() {
+        use super::{Reader, Registries, parse_stack};
+        use crate::args::ItemDefaults;
+        let mut reg = Registries {
+            items: vec![
+                "minecraft:stone".into(),
+                "minecraft:diamond_sword".into(),
+                "minecraft:shulker_box".into(),
+                "minecraft:ender_pearl".into(),
+                "minecraft:stick".into(),
+            ],
+            persistent_components: vec![
+                "minecraft:damage".into(),
+                "minecraft:max_damage".into(),
+                "minecraft:max_stack_size".into(),
+                "minecraft:container".into(),
+            ],
+            ..Default::default()
+        };
+        for (id, max_stack_size, max_damage) in [
+            ("minecraft:stone", 64, None),
+            ("minecraft:diamond_sword", 1, Some(1561)),
+            ("minecraft:shulker_box", 1, None),
+            ("minecraft:ender_pearl", 16, None),
+        ] {
+            reg.item_defaults.insert(
+                id.into(),
+                ItemDefaults {
+                    max_stack_size,
+                    max_damage,
+                },
+            );
+        }
+        for input in [
+            "stone",
+            "diamond_sword",
+            "stone[damage=5]",
+            "diamond_sword[damage=5,max_damage=10]",
+            "stone[max_damage=100,max_stack_size=1]",
+            "stone[max_damage=100,!max_stack_size]",
+            "diamond_sword[!max_damage,max_stack_size=64]",
+            "shulker_box[container=[{id:\"minecraft:stone\",count:64}]]",
+            "shulker_box[container=[{id:\"minecraft:ender_pearl\",count:16}]]",
+            "shulker_box[container=[{id:\"minecraft:stone\",count:65,components:{\"minecraft:max_stack_size\":99}}]]",
+            // An empty stack is not a non-empty item; vanilla's codec would
+            // reject the zero count earlier, which the component codec does
+            // not decode yet.
+            "shulker_box[container=[{id:\"minecraft:stone\",count:0}]]",
+            "shulker_box[!container]",
+            "stone[container=[{id:\"minecraft:stone\",count:64}]]",
+            // An item the export does not list skips the check.
+            "stick[max_damage=100]",
+        ] {
+            let mut reader = Reader::new(input);
+            assert!(parse_stack(&mut reader, &reg).is_ok(), "{input}");
+            assert_eq!(reader.cursor, input.len());
+        }
+        for input in [
+            "stone[max_damage=100]",
+            "diamond_sword[max_stack_size=64]",
+            "diamond_sword[max_stack_size=2]",
+            "shulker_box[container=[{id:\"minecraft:stone\",count:65}]]",
+            "shulker_box[container=[{id:\"minecraft:ender_pearl\",count:17}]]",
+            "stone[container=[{id:\"minecraft:stone\",count:65}]]",
+            "shulker_box[container=[{id:\"minecraft:stone\",count:64},{id:\"minecraft:ender_pearl\",count:17}]]",
+        ] {
+            let err = parse_stack(&mut Reader::new(input), &reg).expect_err(input);
+            assert_eq!(err.key, "arguments.item.malformed", "{input}");
+            assert_eq!(err.cursor, input.len(), "{input}");
+        }
     }
 }

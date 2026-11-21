@@ -3,7 +3,7 @@
 use super::{CmdResult, CommandError, Context, Reader, SuggestionsBuilder};
 
 pub use horizon_client_core::registries::{
-    CustomCompletionAction, Registries, RegistryIds, modify_custom_completions,
+    CustomCompletionAction, ItemDefaults, Registries, RegistryIds, modify_custom_completions,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
