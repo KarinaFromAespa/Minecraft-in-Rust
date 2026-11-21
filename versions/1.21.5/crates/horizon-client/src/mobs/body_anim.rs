@@ -36,7 +36,7 @@ fn head_look(p: &mut Poses, s: &State) {
     p.xrot("head", s.x_rot.to_radians());
     p.yrot("head", s.y_rot.to_radians());
 }
-/// `KeyframeAnimation.apply(AnimationState, ageInTicks)`.
+/// `Model.animate(state, definition, ageInTicks)`.
 fn run(animations: &Animations, name: &str, state: &AnimationState, s: &State, p: &mut Poses) {
     if let (Some(ms), Some(a)) = (state.millis(s.age), animations.get(name)) {
         a.apply(ms, 1.0, p);

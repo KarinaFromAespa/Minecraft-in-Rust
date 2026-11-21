@@ -7403,13 +7403,61 @@ is the oracle; decompiled code is a reading aid.
     horizon-world --lib
     --tests --examples`
     0/0 (2m 17s).
+- **Item 157 — Model
+  animation helpers
+  verified against
+  1.21.5:**
+  - 1.21.5's base `Model`
+    carries `animate`,
+    `animateWalk` and
+    `applyStatic` (via
+    `KeyframeAnimations.animate`
+    on the definition);
+    1.21.6 deleted them
+    when it moved to baked
+    `KeyframeAnimation`
+    fields. The Rust port
+    already has the 1.21.5
+    shape: `Animation::apply`
+    and `apply_walk` in
+    `keyframes.rs`
+    evaluate the
+    definition per call,
+    and `apply_walk` is
+    `animateWalk` verbatim
+    (time `pos * 50 *
+    speed_factor`, scale
+    `min(speed *
+    scale_factor, 1)`).
+    `applyStatic` (time 0)
+    and
+    `getAnyDescendantWithName`
+    have no Rust surface
+    (nothing applies a
+    static pose; parts are
+    looked up by name in
+    the `Poses` map).
+    Five doc comments
+    that cited the 1.21.6
+    baked class fixed to
+    cite `Model.animate` /
+    `Model.animateWalk` /
+    `KeyframeAnimations.animate`
+    instead.
+  - Verification: comments
+    only; the tree state
+    is the one `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests` passed at
+    item 155.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **156 of 426 are
-closed** (rank 1 complete, rank 2 at 147/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **157 of 426 are
+closed** (rank 1 complete, rank 2 at 148/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
