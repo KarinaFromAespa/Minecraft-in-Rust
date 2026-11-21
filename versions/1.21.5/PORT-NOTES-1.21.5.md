@@ -5343,13 +5343,74 @@ is the oracle; decompiled code is a reading aid.
     the one `cargo check -j 1
     -p horizon-client --lib --tests`
     passed at item 115.
+- **Item 117 — Allay /
+  FlyingPathNavigation:**
+  - `Allay.travel` is the
+    extraction in reverse:
+    1.21.6 calls
+    `travelFlying`, 1.21.5
+    inlines it (0.02 in
+    water and lava, the
+    move-control speed in
+    the air; drag 0.8 /
+    0.5 / 0.91). The Rust
+    port already implements
+    the 1.21.5 inline form
+    (`mobs/allay.rs`
+    `travel` via
+    `travel_flying_speeds`,
+    whose comments cite
+    the 1.21.6 extraction).
+    The save/load half is
+    the usual
+    `ValueInput` /
+    `ValueOutput` refactor
+    with identical fields:
+    Inventory, the
+    vibration `listener`
+    and `DuplicationCooldown`
+    are all read and
+    written (`entity_nbt.rs`).
+  - Flying navigation: the
+    1.21.6
+    `canNavigateGround`
+    override (false) only
+    restates what 1.21.5's
+    `GoalUtils.
+    hasGroundPathNavigation`
+    already says — the Rust
+    `can_navigate_ground`
+    (`mobs/doors.rs`)
+    returns false for
+    `NavKind::Flying` in
+    both readings.
+    `setCanOpenDoors` in
+    1.21.5 is a plain
+    delegate to the node
+    evaluator; the Rust
+    `Nav.can_open_doors`
+    is a field no flying
+    mob sets, and no
+    vanilla flying mob
+    opens doors.
+    `isStableDestination`
+    is identical in both
+    versions (the Rust
+    flying case checks
+    `STURDY_TOP`).
+  - No code change.
+  - Verification: no Rust
+    change; the tree state is
+    the one `cargo check -j 1
+    -p horizon-client --lib --tests`
+    passed at item 115.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **116 of 426 are
-closed** (rank 1 complete, rank 2 at 107/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **117 of 426 are
+closed** (rank 1 complete, rank 2 at 108/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
