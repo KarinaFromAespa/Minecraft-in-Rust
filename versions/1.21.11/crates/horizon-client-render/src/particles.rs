@@ -217,16 +217,16 @@ enum Light {
     FullBright,
     /// `LightCoordsUtil.withBlock(light, 15)`.
     Block15,
-    /// `addSmoothBlockEmission` with the age fraction.
+    /// `FlameParticle.getLightColor` / `GlowParticle.getLightColor`: the
+    /// clamped age fraction times 15 * 16 added to the block channel.
     AgeEmission,
-    /// `addSmoothBlockEmission` with the age fraction to the fourth power.
-    AgeEmission4,
     /// 1.21.11's glowing-particle light: the constant 240 (sky 0, block 15).
     /// 26.x replaced it with `withBlock(light, 15)` (sky preserved).
     Bright240,
-    /// 1.21.11's non-glowing `FlyTowardsPositionParticle`: the age fraction
-    /// to the fourth power added to the SKY channel. 26.x's
-    /// `addSmoothBlockEmission` adds it to the block channel instead.
+    /// `PortalParticle.getLightColor` /
+    /// `FlyTowardsPositionParticle.getLightColor` (non-glowing): the age
+    /// fraction to the fourth power times 15 * 16 added to the SKY channel.
+    /// 26.x's `addSmoothBlockEmission` adds it to the block channel instead.
     AgeEmissionSky4,
     /// `FireflyParticle.getLightCoords`: block light fading in and out, no sky.
     Firefly,
@@ -1094,24 +1094,19 @@ impl Particle {
             self.velocity[2] *= f64::from(0.7f32);
         }
     }
-    /// `getLightCoords(a)` from the world's smooth sky and block light (0..=240).
+    /// `getLightColor(a)` from the world's smooth sky and block light (0..=240).
     fn light_coords(&self, partial: f32, sky: u32, block: u32) -> (u32, u32) {
         let t = ((self.age as f32 + partial) / self.lifetime as f32).clamp(0.0, 1.0);
         match self.light {
             Light::World => (sky, block),
             Light::FullBright => (240, 240),
             Light::Block15 => (sky, 240),
-            Light::AgeEmission => (sky, (block + (t * 240.0) as u32).min(240)),
-            Light::AgeEmission4 => {
-                let b = self.age as f32 / self.lifetime as f32;
-                let b = (b * b) * (b * b);
-                (sky, (block + (b.clamp(0.0, 1.0) * 240.0) as u32).min(240))
-            }
+            Light::AgeEmission => (sky, (block + (t * 15.0 * 16.0) as u32).min(240)),
             Light::Bright240 => (0, 240),
             Light::AgeEmissionSky4 => {
                 let b = self.age as f32 / self.lifetime as f32;
                 let b = (b * b) * (b * b);
-                ((sky + (b.clamp(0.0, 1.0) * 240.0) as u32).min(240), block)
+                ((sky + (b * 15.0 * 16.0) as u32).min(240), block)
             }
             Light::MinBlock(level) => (sky, block.max(u32::from(level) * 16)),
             Light::Firefly => (
@@ -2872,7 +2867,7 @@ impl ParticleEngine {
                 q.set_color(br * 0.9, br * 0.3, br);
                 q.lifetime = (r.next_float() * 10.0) as i32 + 40;
                 q.free_move = true;
-                q.light = Light::AgeEmission4;
+                q.light = Light::AgeEmissionSky4;
                 if ty == T::Portal {
                     q.size_curve = Size::Portal;
                     q.behaviour = Behaviour::Portal { start: p };
@@ -6019,6 +6014,28 @@ mod tests {
             .expect("the signal is made");
         let quad = engine.snapshot(&q).quad.expect("the signal renders");
         assert_eq!(quad.light, 240, "vibration light");
+    }
+    /// `FlameParticle.getLightColor` adds the clamped age fraction times
+    /// 15 * 16 to the BLOCK channel; `PortalParticle.getLightColor` adds
+    /// the age fraction to the fourth power times 15 * 16 to the SKY
+    /// channel (26.x's `addSmoothBlockEmission` put both on block).
+    #[test]
+    fn flame_and_portal_light_go_to_their_12111_channels() {
+        let mut engine = ParticleEngine::new(Path::new(""), &HashMap::new(), &HashSet::new());
+        let options = ParticleOptions::simple(ParticleType::Flame);
+        let mut q = engine
+            .make(&options, [0.0; 3], [0.0; 3], 1)
+            .expect("the flame is made");
+        q.lifetime = 10;
+        q.age = 5;
+        assert_eq!(q.light_coords(0.0, 0, 0), (0, 120));
+        let options = ParticleOptions::simple(ParticleType::Portal);
+        let mut q = engine
+            .make(&options, [0.0; 3], [0.0; 3], 1)
+            .expect("the portal mote is made");
+        q.lifetime = 10;
+        q.age = 5;
+        assert_eq!(q.light_coords(0.0, 0, 0), (15, 0));
     }
     /// `GlowParticle.getLayer` (item 28): TRANSLUCENT in 1.21.11, OPAQUE in
     /// 26.x — for the particle and every provider sharing the class.

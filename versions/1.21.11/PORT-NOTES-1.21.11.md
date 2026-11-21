@@ -8624,3 +8624,24 @@ cold; warm on warm is warm). Checked, no action: the path maluses
 already use the 1.21.11 names; `lava_target` matches
 `isValidTarget`. Tests: `mobs::strider::` 1 passed (new;
 early-returns locally without fixtures).
+
+## Item 137 — mobs/trial_spawner.rs (rank 2, CHANGED)
+
+4 classes, 17 methods, 3 named (`WeightedList.isEmpty`,
+`TrialSpawnerState.spawnOminousOminousItemSpawner`,
+`TrialSpawnerState.tickAndGetNext`).
+
+Java delta: `WeightedList.isEmpty` is `items.isEmpty()` in 1.21.11
+(26.1: total weight 0); `FlameParticle.getLightColor` inlines the
+emission as `(int)(progress * 15 * 16)` on the block channel;
+`PortalParticle.getLightColor` puts its fourth-power emission on
+the SKY channel in 1.21.11 (26.1's `addSmoothBlockEmission` put it
+on block); `tickAndGetNext` is renumbering only.
+
+Changes: `has_mob_to_spawn` and `apply_ominous` test
+`!spawn_potentials.is_empty()`; `AgeEmission` uses `* 15.0 *
+16.0`; Portal moved to the sky channel (`AgeEmissionSky4`, also
+`* 15.0 * 16.0`, unclamped); the `AgeEmission4` variant is removed.
+New test `flame_and_portal_light_go_to_their_12111_channels`.
+Tests: `mobs::trial_spawner::` 5 passed, `particles::` 58 passed
++ 1 ignored, new light test passes.
