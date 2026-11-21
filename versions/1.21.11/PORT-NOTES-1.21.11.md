@@ -12130,3 +12130,8 @@ plain `Holder`. The adapter already handles the 1.21.11 form under
 Only the provider accessor renames (`minInclusive`/`maxInclusive` vs
 `getMinValue`/`getMaxValue`, same values), the interface-vs-class
 `sample` call, the `is` overload and visibility.
+
+## Item 599 — horizon-bots/src/main.rs (ClientChunkCache$Storage) — NO-CHANGE
+
+Only visibility, field-init order, a `requireNonNull` and `ChunkPos`
+accessors.
