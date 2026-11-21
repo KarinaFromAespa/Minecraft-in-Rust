@@ -10552,3 +10552,12 @@ is the recurring no-op pattern: ChunkPos
 `asLong`, and the `implements` clause order.
 Zero constant differences. `old_world`: 1
 passed.
+
+## Item 295 — recipe_book.rs (rank 2, NO-CHANGE)
+
+2 classes, 2 methods, 1 named. The
+`typeSwitch` receiver is typed `RecipeDisplay`
+in 26.1 and `Object` in 1.21.11 — the same
+two-case switch — and the `TypeSettings`
+record fields lose `private`. No source
+change. `recipe_book`: 26 passed.
