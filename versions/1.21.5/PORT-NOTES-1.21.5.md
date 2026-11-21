@@ -3475,13 +3475,65 @@ is the oracle; decompiled code is a reading aid.
     and `cargo check -p
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings.
+- **Item 77 — Display /
+  MinecartFurnace / ArmorStand,
+  verified:**
+  - Display and MinecartFurnace
+    are Java API-only
+    (`ValueInput` / `ValueOutput`
+    vs `CompoundTag`): the keys
+    and defaults are identical
+    (`transformation`,
+    `interpolation_duration`,
+    `start_interpolation`,
+    `teleport_duration` clamped
+    0..59, `billboard`,
+    `view_range`, shadow and
+    size fields, `block_state`,
+    `item` / `item_display`,
+    the text-display flags;
+    `PushX` / `PushZ`). The Rust
+    side already handles them
+    (`persist.rs` display tests,
+    `minecarts.rs` PushX/PushZ
+    round-trip test). The
+    text-display parse differs
+    only in plumbing (codec
+    parse vs `ValueInput.read`);
+    the outcomes match.
+  - ArmorStand is the one
+    structural change, and the
+    Rust port already matches
+    the 1.21.5 form: 1.21.5
+    saves only the non-default
+    `Pose` parts and defaults
+    missing parts on load,
+    while 1.21.6 writes the
+    whole `ArmorStandPose`
+    record. `armor_stand_to_nbt`
+    filters to non-default
+    parts and
+    `armor_stand_from_nbt`
+    defaults the rest. The
+    1.21.5 field-plus-tick-sync
+    vs 1.21.6 entity-data-only
+    split collapses in the
+    Rust port's single `pose`
+    field, which NBT load, LAN
+    metadata (entries 16-21)
+    and rendering all read.
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **76 of 426 are
-closed** (rank 1 complete, rank 2 at 67/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **77 of 426 are
+closed** (rank 1 complete, rank 2 at 68/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
