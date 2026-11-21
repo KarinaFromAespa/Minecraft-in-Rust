@@ -10652,3 +10652,11 @@ and the sole caller (`ItemStack.onUseTick`)
 passes the active item either way. Zero
 constant differences. No source change.
 `spear`: 5 passed.
+
+## Item 305 — game/villagers.rs (rank 2, NO-CHANGE)
+
+1 class, 1 method, 1 named. A single line:
+the `BlockState.is(Object)` vs `is(Block)`
+overload tightening on the composter check.
+No source change. `cargo check -p
+horizon-client --tests` passes.
