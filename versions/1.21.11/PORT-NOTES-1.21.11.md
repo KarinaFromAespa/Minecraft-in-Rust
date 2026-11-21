@@ -9062,3 +9062,21 @@ Rust surface. Tests: prepare `survival::tests::` 4 passed (2 new);
 4 new level tests (early-return locally, run on CI); tag audit run
 locally still 23 dead — the `supports_*` literals were never audit
 positions, so D1 does not move on this item.
+
+## Item 159 — crates/horizon-client/src/flatgen.rs (rank 2, NO-CHANGE)
+
+3 classes, 10 methods, 3 named. No behaviour delta anywhere:
+`ChunkGenerator` differs only by the `getTypeNameForDataFixer`
+return type (no Rust mirror), `ChunkPos.x()`/`z()` method calls →
+field reads, and the `ChunkPos.pack` → `asLong` rename;
+`VoidStartPlatformFeature` is byte-identical apart from
+`ChunkPos.containing` → the `ChunkPos(BlockPos)` ctor, and the Rust
+mirror already matches 1.21.11 exactly (`PLATFORM_OFFSET` verified
+from the jar's `<clinit>` as (8, 3, 8)); `WorldDimensionData`
+differs only by ctor visibility. A javap-regex literal scan first
+flagged 26.1-only strings, but a direct constant-pool parse shows
+them in both pools — the only real CP differences are debug
+artefacts (26.1's local-variable names vs 1.21.11's `$$N` names,
+lambda numbering). Tests: `flatgen::` 4 passed
+(horizon-client-lib; the horizon-client lib binary runs 0 with that
+filter).
