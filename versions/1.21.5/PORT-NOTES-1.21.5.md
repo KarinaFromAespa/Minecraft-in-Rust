@@ -8925,13 +8925,26 @@ is the oracle; decompiled code is a reading aid.
     --tests 0/0; lib test
     build OOM-killed under
     load, tests run in CI.
+- **Item 194 — Wither
+  invulnerability
+  save/load:**
+  - The wither already
+    saves `Invul` as an int
+    and reads it back
+    defaulting to 0. The
+    ValueInput/ValueOutput
+    names have no Rust
+    surface (item 159).
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **193 of 426 are
-closed** (rank 1 complete, rank 2 at 184/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **194 of 426 are
+closed** (rank 1 complete, rank 2 at 185/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
