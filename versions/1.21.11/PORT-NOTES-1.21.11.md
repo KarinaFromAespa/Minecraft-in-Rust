@@ -12292,3 +12292,9 @@ The priority-4 fox goal: 26.1 gates it on `!isBaby()`, 1.21.11 passes
 no selector, so cubs hunt foxes too. Removed the adult gate from the
 Rust's fox goal. (The priority-3 anger goal's `isAngryAt` selector and
 `PolarBearAttackPlayersGoal` are unchanged between versions.)
+
+## Item 623 — level/hooks.rs (FrostedIceBlock, SpongeBlock) — NO-CHANGE
+
+Only the `is` overload and the `getLightDampening`/`getLightBlock`
+rename (same method, same melt condition); the Rust already cites the
+1.21.11 name.
