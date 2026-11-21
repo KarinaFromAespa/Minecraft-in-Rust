@@ -10987,3 +10987,12 @@ particle sprite comes from
 the 1.21.11 jar). The one citation
 re-pointed. `block_particles`: no tests
 under that filter; lib build clean.
+
+## Item 457 — templatesystem/loader/TemplateSource (rank 2, NO-CHANGE)
+
+1 class, 0 methods named. 26.1-only; the
+template reading lives on
+`StructureTemplateManager` in 1.21.11,
+with the same `unlimitedHeap` +
+`readCompressed` form. The one citation
+re-pointed. `nbt::`: 14 passed.
