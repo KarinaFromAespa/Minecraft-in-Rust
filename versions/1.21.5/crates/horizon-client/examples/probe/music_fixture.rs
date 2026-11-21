@@ -2,7 +2,7 @@
 //! `MusicManager` over its `SoundEngine`: `music_fixture ROOT INPUT OUTPUT`.
 use crate::audio_common as common;
 use common::{Fake, describe, f, flush};
-use horizon_client::music::{Music, MusicFrequency, MusicManager};
+use horizon_client::music::{Music, MusicManager};
 use horizon_client::sound_engine::{Bound, MUSIC, SoundEngine, TickContext};
 use horizon_client::sound_events::SoundRegistry;
 use std::io::Write;
@@ -38,7 +38,6 @@ pub fn main() {
                     engine.release(id);
                 }
                 manager = MusicManager::new(a[1].parse().expect("seed"));
-                manager.frequency = MusicFrequency::parse(a[2]);
                 engine.stop_all(&mut backend);
             }
             "situation" => {
@@ -58,26 +57,17 @@ pub fn main() {
                     horizon_client::sound_engine::Backend::stop(&mut backend, c);
                 }
             }
-            "stop" => manager.stop_playing(
-                situation.as_ref(),
-                &mut Bound {
-                    engine: &mut engine,
-                    backend: &mut backend,
-                },
-            ),
+            "stop" => manager.stop_playing(&mut Bound {
+                engine: &mut engine,
+                backend: &mut backend,
+            }),
             "stopmusic" => {
                 let m = music(a[1]).expect("music");
-                manager.stop_playing_music(
-                    &m,
-                    situation.as_ref(),
-                    &mut Bound {
-                        engine: &mut engine,
-                        backend: &mut backend,
-                    },
-                );
+                manager.stop_playing_music(&m, &mut Bound {
+                    engine: &mut engine,
+                    backend: &mut backend,
+                });
             }
-            "freq" => manager.set_frequency(MusicFrequency::parse(a[1]), situation.as_ref()),
-            "toast" => manager.show_now_playing_toast_if_needed(),
             "volume" => {
                 let source: usize = a[1].parse().expect("source");
                 engine.source_volumes[source] = f(a[2]);
@@ -88,17 +78,13 @@ pub fn main() {
         }
         writeln!(
             out,
-            "  current={} delay={} gain={:08x} toastShown={} musicGain={:08x}",
+            "  current={} delay={} gain={:08x} musicGain={:08x}",
             manager.current(&engine).unwrap_or("-"),
             manager.next_song_delay(),
             manager.current_gain().to_bits(),
-            manager.toast_shown(),
             engine.category_gain(MUSIC).to_bits()
         )
         .expect("write");
-        for show in std::mem::take(&mut manager.toast_requests) {
-            writeln!(out, "  toast {}", if show { "show" } else { "hide" }).expect("write");
-        }
         if let Some(id) = manager.current_instance() {
             writeln!(out, "{}", describe(&engine, &backend, "music", id)).expect("write");
         }

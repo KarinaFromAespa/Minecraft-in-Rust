@@ -3,7 +3,7 @@
 use super::Game;
 use horizon_client::{
     blocks::Fluid,
-    music::{BackgroundMusic, Music, MusicFrequency, Situation},
+    music::{BackgroundMusic, Music, Situation},
     options_ui::MusicGroup,
     random_source,
     sound_engine::{SoundInstance, Sounds, TickContext},
@@ -22,11 +22,6 @@ impl Game<'_> {
         let mut layers = Vec::new();
         self.native_music_layers(&mut layers);
         self.music_layers.tick(&layers, &mut self.audio);
-        // Options.musicFrequency's listener: MusicManager.setMinutesBetweenSongs.
-        let frequency = MusicFrequency::parse(&self.settings.file.name("musicFrequency"));
-        if frequency != self.music.frequency {
-            self.music.set_frequency(frequency, music.as_ref());
-        }
         // The Music page's off tracks leave every pool they play in (the
         // extra off: nothing is filtered, vanilla's pools play as they are).
         let off = if self.settings.extras.music_page {
@@ -47,32 +42,10 @@ impl Game<'_> {
                 .is_some_and(|r| r.reconfiguring.is_some());
         // `Minecraft.tick` (1.21.5): the music manager only ticks while
         // the game runs — a paused game freezes the track timer (1.21.6
-        // ticks it always). The option listeners and toast bookkeeping
-        // below are the client's own and still run.
+        // ticks it always).
         if !self.pause {
             self.music
                 .tick(music.as_ref(), volume, loading, &mut self.audio);
-        }
-        // Options.musicToast's listener: ToastManager.setMusicToastDisplayState.
-        let state = self.settings.file.int("musicToast").clamp(0, 2) as u8;
-        if state != self.music_toast_state {
-            self.music_toast_state = state;
-            self.set_music_toast_state(state);
-        }
-        // MusicManager's showNowPlayingToast and hideNowPlayingToast calls.
-        let multiplier = f64::from(self.settings.notification_display_time);
-        for show in std::mem::take(&mut self.music.toast_requests) {
-            // Each showing is a new toast to mods (`ToastAddEvent`).
-            if show && self.now_playing.is_some() && !self.toast_allowed("now_playing", "") {
-                continue;
-            }
-            if let Some(toast) = &mut self.now_playing {
-                if show {
-                    toast.show(multiplier);
-                } else {
-                    toast.hide();
-                }
-            }
         }
     }
     /// The Music page's groups: every track the loaded `sounds.json` can play,
@@ -83,88 +56,6 @@ impl Game<'_> {
     /// A Music page row: play this track of `event` now.
     pub(super) fn play_music_track(&mut self, event: &str, track: &str) {
         self.music.play_track(event, track, &mut self.audio);
-    }
-    /// `Options.getFinalSoundSourceVolume(SoundSource.MUSIC)`.
-    fn final_music_volume(&self) -> f32 {
-        self.settings.master_volume * self.settings.volumes[1]
-    }
-    /// `ToastManager.setMusicToastDisplayState`: Pause and Pause and Toast make
-    /// the toast (the second one shows it at once while music is audible),
-    /// Never drops it.
-    fn set_music_toast_state(&mut self, state: u8) {
-        self.now_playing = match state {
-            0 => None,
-            _ => {
-                let mut toast = horizon_client::toasts::NowPlayingToast::default();
-                if state == 2
-                    && self.final_music_volume() > 0.0
-                    && self.toast_allowed("now_playing", "")
-                {
-                    toast.show(f64::from(self.settings.notification_display_time));
-                }
-                Some(toast)
-            }
-        };
-    }
-    /// `NowPlayingToast.getNowPlayingString` of the song the music manager
-    /// plays: its file's short language key, slashes as dots.
-    fn now_playing_song(&self) -> Option<String> {
-        let id = self.music.current_instance()?;
-        let location = self
-            .audio
-            .engine
-            .instance(id)?
-            .sound
-            .as_ref()?
-            .location
-            .as_str();
-        let (namespace, path) = location.split_once(':').unwrap_or(("minecraft", location));
-        // Identifier.toShortLanguageKey.
-        let key = if namespace == "minecraft" {
-            path.to_owned()
-        } else {
-            format!("{namespace}.{path}")
-        }
-        .replace('/', ".");
-        Some(horizon_client::lang::get_or(&key, &key))
-    }
-    /// `ToastManager.update` (it plays no toast sound for this toast) and
-    /// `extractRenderState` for the Now Playing toast, which slides in at the
-    /// top left over every screen but the pause screen, and
-    /// `PauseScreen.extractRenderState` with its `tick`, which draws the song
-    /// name on the pause menu under the Pause and Pause and Toast settings
-    /// while music is audible. `hidden` (F1) keeps the toast
-    /// timing out without drawing it.
-    pub(super) fn draw_music_toast(
-        &mut self,
-        batch: &mut horizon_client::hud::HudBatch,
-        hidden: bool,
-    ) {
-        let song = self.now_playing_song();
-        let Some(toast) = self.now_playing.as_mut() else {
-            return;
-        };
-        toast.update(song.is_some(), &mut self.music_notes);
-        let Some(song) = song else {
-            return;
-        };
-        if self.screen == super::Screen::Paused {
-            if self.pause_menu && self.final_music_volume() > 0.0 {
-                self.music_notes.tick();
-                horizon_client::toasts::draw_now_playing(
-                    &self.gui.atlas,
-                    batch,
-                    0.0,
-                    &song,
-                    self.music_notes.color,
-                );
-            }
-        } else if !hidden
-            && self.music_toast_state == 2
-            && let Some(toast) = &self.now_playing
-        {
-            toast.draw(&self.gui.atlas, batch, &song, &self.music_notes);
-        }
     }
     /// `Minecraft.tick` -> `SoundManager.tick(pause)`, after the music, with
     /// `pause` (every channel) when the game pauses and `resume` when it

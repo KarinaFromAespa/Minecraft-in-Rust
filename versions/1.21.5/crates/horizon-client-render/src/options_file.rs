@@ -94,8 +94,6 @@ const INACTIVITY: &[&str] = &["minimized", "afk"];
 const CLOUDS: &[&str] = &["false", "fast", "true"];
 const MAIN_HAND: &[&str] = &["left", "right"];
 const PRESENCE: &[&str] = &["none", "limited", "all"];
-const MUSIC_TOAST: &[&str] = &["never", "pause", "pause_and_toast"];
-const MUSIC_FREQUENCY: &[&str] = &["DEFAULT", "FREQUENT", "CONSTANT"];
 
 fn def(key: &str, kind: Kind, default: V) -> Def {
     Def {
@@ -247,8 +245,6 @@ static TABLE: LazyLock<Vec<Def>> = LazyLock::new(|| {
         pb("onboardAccessibility", true),
         i("menuBackgroundBlurriness", 0, 10, 5),
         pb("startedCleanly", true),
-        n("musicToast", MUSIC_TOAST, 0),
-        n("musicFrequency", MUSIC_FREQUENCY, 0),
     ];
     for (name, key, _) in crate::keybinds::MAPPINGS {
         t.push(def(

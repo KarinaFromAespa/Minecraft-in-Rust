@@ -1543,7 +1543,7 @@ impl Game<'_> {
         // through finish_close_world, so the biome's ambient loop would
         // otherwise play on over the title screen until the next world.
         self.ambience.clear(&mut self.audio);
-        self.music.stop_playing(None, &mut self.audio);
+        self.music.stop_playing(&mut self.audio);
         self.audio.stop_all();
         // A world is leaving either way: its icon attempt goes with it.
         self.world_icon = None;
@@ -3774,8 +3774,7 @@ impl Game<'_> {
                 if dimension_changed {
                     // LevelExtractor.setLevel: a new level drops the highlights.
                     self.test_highlights.clear();
-                    let (music, _) = self.situational_music();
-                    self.music.stop_playing(music.as_ref(), &mut self.audio);
+                    self.music.stop_playing(&mut self.audio);
                 }
                 self.screen = Screen::Playing;
                 if let Some(r) = self.remote.as_mut() {

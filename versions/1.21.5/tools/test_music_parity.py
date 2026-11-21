@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Compare the music manager with the vanilla 26.3 client.
+"""Compare the music manager with the vanilla 1.21.5 client.
 
 The oracle runs the real `MusicManager` over the real `SoundEngine` (OpenAL
 Soft "No Output" device, see VanillaSoundRig). The situation
-(`getSituationalMusic`, `getMusicVolume`), the loading screen, pauses, the
-end of a track, `stopPlaying`, `setMinutesBetweenSongs`, the music category
-volume and `showNowPlayingToastIfNeeded` are script inputs; every step prints
-the current track, `nextSongDelay`, `currentGain`, `toastShown`, the toast
-calls, the MUSIC category gain and the music channel's AL source. Horizon's
-`MusicManager` and `SoundEngine` replay the scripts. Tracks use events whose
-variants share one volume, since `forMusic` resolves with an unseeded random.
+(`getSituationalMusic`), the loading screen, pauses, the end of a track,
+`stopPlaying` and the music category volume are script inputs; every step
+prints the current track, `nextSongDelay`, `currentGain`, the MUSIC category
+gain and the music channel's AL source. Horizon's `MusicManager` and
+`SoundEngine` replay the scripts. Tracks use events whose variants share one
+volume, since `forMusic` resolves with an unseeded random.
 """
 import random
 
@@ -40,7 +39,7 @@ class Script:
 
 def scripted(s):
     end, dragon, water, credits, cat = TRACKS[2], TRACKS[1], TRACKS[3], TRACKS[0], TRACKS[5]
-    s.add('start', 1, 'DEFAULT')
+    s.add('start', 1)
     # Menu-like music: 20..600 ticks, replacing.
     s.situation(end, 20, 600, 1)
     s.tick(3, loading=1)
@@ -52,11 +51,8 @@ def scripted(s):
     s.tick(5)
     s.add('finish')
     s.tick(30)
-    s.add('freq', 'FREQUENT')
     s.tick(3)
-    s.add('freq', 'CONSTANT')
     s.tick(110)
-    s.add('freq', 'DEFAULT')
     s.tick(2)
     # A replacing track stops the current one over the following ticks.
     s.situation(dragon, 0, 0, 1)
@@ -78,14 +74,12 @@ def scripted(s):
     s.tick(400)
     s.situation(cat, 0, 0, 1, volume=0.6)
     s.tick(80)
-    # Silent starts and the toast, stops, pauses.
+    # Silent starts, stops, pauses.
     s.add('volume', 1, h.bits(0.0))
     s.add('stop')
     s.situation(dragon, 0, 0, 1)
     s.tick(105)
-    s.add('toast')
     s.add('volume', 1, h.bits(0.5))
-    s.add('toast')
     s.tick(2)
     s.add('stopmusic', f'{end},0,0,1')
     s.add('stopmusic', f'{dragon},0,0,1')
@@ -98,7 +92,7 @@ def scripted(s):
     # Joining a world: the menu-like track plays, Minecraft.setLevel stops every
     # sound, and the game music (not replacing) waits its own delay; a respawn
     # into another dimension then stops the music manager's track too.
-    s.add('start', 11, 'DEFAULT')
+    s.add('start', 11)
     s.situation(end, 20, 600, 1)
     s.tick(110)
     s.add('stopall')
@@ -110,11 +104,11 @@ def scripted(s):
     s.tick(5)
     # Events that cannot play.
     for event in ODD:
-        s.add('start', 7, 'DEFAULT')
+        s.add('start', 7)
         s.situation(event, 0, 40, 1)
         s.tick(150)
     # Real Musics delays over a long session.
-    s.add('start', 99, 'DEFAULT')
+    s.add('start', 99)
     s.situation(water, 12000, 24000, 0)
     s.tick(130)
     s.add('finish')
@@ -122,7 +116,7 @@ def scripted(s):
 
 
 def fuzz(s, rng, steps):
-    s.add('start', rng.getrandbits(63), rng.choice(['DEFAULT', 'FREQUENT', 'CONSTANT']))
+    s.add('start', rng.getrandbits(63))
     for _ in range(steps):
         op = rng.random()
         if op < 0.08:
@@ -136,11 +130,7 @@ def fuzz(s, rng, steps):
             s.add('stop')
         elif op < 0.16:
             s.add('stopmusic', f'{rng.choice(TRACKS)},0,0,1')
-        elif op < 0.17:
-            s.add('freq', rng.choice(['DEFAULT', 'FREQUENT', 'CONSTANT']))
         elif op < 0.18:
-            s.add('toast')
-        elif op < 0.20:
             s.add('volume', rng.choice([0, 1]), h.bits(rng.choice([0.0, 1.0, 0.5])))
         elif op < 0.21:
             s.add('stopall')
@@ -169,10 +159,10 @@ def main():
                        h.lab.ROOT / 'crates/horizon-client/src/music.rs',
                        h.lab.ROOT / 'crates/horizon-client/examples/probe/audio_common/mod.rs'],
         java_args=[h.RESOURCES], rust_args=[h.RESOURCES],
-        scope='Real MusicManager.tick/startPlaying/stopPlaying/fadePlaying/setMinutesBetweenSongs/showNowPlayingToastIfNeeded with a seeded '
-              'random over the real SoundEngine: track starts and replacements, nextSongDelay draws, the three music frequencies, the loading '
-              'screen hold, fades and the MUSIC category gain, silent starts, toasts, pauses, track ends and unplayable events. The situation '
-              '(getSituationalMusic/getMusicVolume) is an input here; see test_audio_attributes_parity.py for the attribute values.')
+        scope='Real MusicManager.tick/startPlaying/stopPlaying/fadePlaying with a seeded '
+              'random over the real SoundEngine: track starts and replacements, nextSongDelay draws, the loading '
+              'screen hold, fades and the MUSIC category gain, silent starts, pauses, track ends and unplayable events. The situation '
+              '(getSituationalMusic) is an input here; see test_audio_attributes_parity.py for the attribute values.')
     print(f'{matched:,} music lines match the pinned client ({len(lines):,} steps): {report}', flush=True)
 
 

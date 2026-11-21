@@ -5,9 +5,9 @@ import java.nio.file.*;
 import java.util.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.components.toasts.ToastManager;
 import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.sounds.MusicInfo;
 import net.minecraft.client.sounds.MusicManager;
 import net.minecraft.client.sounds.SoundEngine;
 import net.minecraft.client.sounds.SoundManager;
@@ -20,10 +20,9 @@ import net.minecraft.util.RandomSource;
 
 /**
  * Drives the real MusicManager over the real SoundEngine (VanillaSoundRig).
- * The situation, Minecraft.getSituationalMusic and getMusicVolume, is the
- * script's input; the loading screen is a LevelLoadingScreen in the Gui; the
- * toast manager records showNowPlayingToast/hideNowPlayingToast. Each client
- * tick is musicManager.tick() then soundManager.tick(pause), as Minecraft.tick
+ * The situation, Minecraft.getSituationalMusic, is the script's input; the
+ * loading screen is a LevelLoadingScreen in the Gui. Each client tick is
+ * musicManager.tick() then soundManager.tick(pause), as Minecraft.tick
  * runs them. Prints the manager's state and the music channel every step.
  */
 public final class VanillaMusicOracle {
@@ -36,31 +35,8 @@ public final class VanillaMusicOracle {
         }
 
         @Override
-        public Music getSituationalMusic() {
-            return music;
-        }
-
-        @Override
-        public float getMusicVolume() {
-            return volume;
-        }
-    }
-
-    public static final class Toasts extends ToastManager {
-        final List<String> calls = new ArrayList<>();
-
-        Toasts() {
-            super(null, null);
-        }
-
-        @Override
-        public void showNowPlayingToast() {
-            calls.add("show");
-        }
-
-        @Override
-        public void hideNowPlayingToast() {
-            calls.add("hide");
+        public MusicInfo getSituationalMusic() {
+            return new MusicInfo(music, volume);
         }
     }
 
@@ -81,9 +57,6 @@ public final class VanillaMusicOracle {
         var rig = new VanillaSoundRig(Path.of(args[0]));
         Mc mc = VanillaSoundRig.make(Mc.class);
         Gui gui = VanillaSoundRig.make(Gui.class);
-        Toasts toasts = VanillaSoundRig.make(Toasts.class);
-        VanillaSoundRig.set(toasts, Toasts.class, "calls", new ArrayList<String>());
-        VanillaSoundRig.set(gui, Gui.class, "toastManager", toasts);
         VanillaSoundRig.set(mc, Minecraft.class, "gui", gui);
         VanillaSoundRig.set(mc, Minecraft.class, "soundManager", rig.manager);
         var loading = VanillaSoundRig.make(LevelLoadingScreen.class);
@@ -99,7 +72,6 @@ public final class VanillaMusicOracle {
                         manager = VanillaSoundRig.make(MusicManager.class);
                         VanillaSoundRig.set(manager, MusicManager.class, "minecraft", mc);
                         VanillaSoundRig.set(manager, MusicManager.class, "random", RandomSource.create(Long.parseLong(a[1])));
-                        VanillaSoundRig.set(manager, MusicManager.class, "gameMusicFrequency", MusicManager.MusicFrequency.valueOf(a[2]));
                         VanillaSoundRig.set(manager, MusicManager.class, "currentGain", 1.0F);
                         VanillaSoundRig.set(manager, MusicManager.class, "nextSongDelay", 100);
                         rig.manager.stop();
@@ -119,8 +91,6 @@ public final class VanillaMusicOracle {
                     }
                     case "stop" -> manager.stopPlaying();
                     case "stopmusic" -> manager.stopPlaying(music(a[1]));
-                    case "freq" -> manager.setMinutesBetweenSongs(MusicManager.MusicFrequency.valueOf(a[1]));
-                    case "toast" -> manager.showNowPlayingToastIfNeeded();
                     case "volume" -> {
                         rig.volume(SoundSource.values()[Integer.parseInt(a[1])], f(a[2]));
                         rig.manager.refreshCategoryVolume(SoundSource.values()[Integer.parseInt(a[1])]);
@@ -129,13 +99,10 @@ public final class VanillaMusicOracle {
                     default -> throw new IllegalArgumentException(line);
                 }
                 var current = (SoundInstance) VanillaSoundRig.get(manager, MusicManager.class, "currentMusic");
-                out.printf("  current=%s delay=%d gain=%08x toastShown=%s musicGain=%08x%n", current == null ? "-" : current.getIdentifier(),
+                out.printf("  current=%s delay=%d gain=%08x musicGain=%08x%n", current == null ? "-" : current.getIdentifier(),
                     (int) VanillaSoundRig.get(manager, MusicManager.class, "nextSongDelay"),
                     Float.floatToRawIntBits((float) VanillaSoundRig.get(manager, MusicManager.class, "currentGain")),
-                    VanillaSoundRig.get(manager, MusicManager.class, "toastShown"),
                     Float.floatToRawIntBits(((it.unimi.dsi.fastutil.objects.Object2FloatMap<SoundSource>) gains.get(rig.engine)).getFloat(SoundSource.MUSIC)));
-                for (String call : toasts.calls) out.println("  toast " + call);
-                toasts.calls.clear();
                 if (current != null) out.println(rig.describe("music", current));
                 rig.flush(out);
             }

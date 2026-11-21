@@ -307,16 +307,6 @@ pub fn update(raw: &mut Raw, version: i32) -> Result<(), FixFailed> {
         }
         raw.insert("graphicsPreset".into(), "custom".into());
     }
-    if version < 4661 {
-        rename(raw, "showNowPlayingToast", "musicToast", |v| {
-            if v == "false" {
-                "never"
-            } else {
-                "pause_and_toast"
-            }
-            .to_owned()
-        });
-    }
     if version < 4892 {
         raw.insert("preferredGraphicsBackend".into(), "default".into());
     }

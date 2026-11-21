@@ -6587,15 +6587,15 @@ impl Game<'_> {
     }
 
     /// NeoForge's `ToastAddEvent`: a new toast is about to be queued. `kind`
-    /// is `advancement`, `recipe`, `tutorial`, `system` or `now_playing`;
-    /// `id` is the advancement id, the first recipe id, the tutorial hint
-    /// (`move`, `look`, `find_tree`, `punch_tree`, `open_inventory`,
-    /// `craft_planks`, `socialInteractions`), the system toast's id (`narrator_toggle`,
+    /// is `advancement`, `recipe`, `tutorial` or `system`; `id` is the
+    /// advancement id, the first recipe id, the tutorial hint (`move`,
+    /// `look`, `find_tree`, `punch_tree`, `open_inventory`, `craft_planks`,
+    /// `socialInteractions`), or the system toast's id (`narrator_toggle`,
     /// `pack_load_failure`, `pack_download`, `low_disk_space`,
-    /// `chunk_load_failure`, `chunk_save_failure`), or empty for
-    /// `now_playing`. An update to a toast already queued or shown is not an
-    /// add. Set `cancel` and it isn't queued, shown or sounded. Title-screen
-    /// toasts are not told. Client-side. API @API:toast_add@.
+    /// `chunk_load_failure`, `chunk_save_failure`). An update to a toast
+    /// already queued or shown is not an add. Set `cancel` and it isn't
+    /// queued, shown or sounded. Title-screen toasts are not told.
+    /// Client-side. API @API:toast_add@.
     pub(super) fn native_toast_add(&mut self, kind: &str, id: &str, cancel: &mut bool) {
         mod_api::dispatch_toast_add(self, mod_api::mods(), kind, id, cancel);
     }

@@ -3,7 +3,7 @@
 //! and `minecraft:audio/music_volume` environment attributes of dimension
 //! types and biomes (a biome value overrides its dimension's).
 use crate::options_ui::{MusicGroup, MusicTrack};
-use crate::sound_engine::{InstanceId, MUSIC, PlayResult, SoundEngine, SoundInstance, Sounds};
+use crate::sound_engine::{InstanceId, MUSIC, SoundEngine, SoundInstance, Sounds};
 use crate::sound_events::{Sentinel, SoundRegistry};
 use horizon_core::random::{LegacyRandom, RandomSource};
 use serde_json::Value;
@@ -314,41 +314,6 @@ impl MusicTables {
         )
     }
 }
-/// `MusicManager.MusicFrequency` (the `musicFrequency` option).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum MusicFrequency {
-    #[default]
-    Default,
-    Frequent,
-    Constant,
-}
-impl MusicFrequency {
-    pub fn parse(name: &str) -> Self {
-        match name {
-            "FREQUENT" => Self::Frequent,
-            "CONSTANT" => Self::Constant,
-            _ => Self::Default,
-        }
-    }
-    fn max_frequency(self) -> i32 {
-        match self {
-            Self::Default => 20 * 1200,
-            Self::Frequent => 10 * 1200,
-            Self::Constant => 0,
-        }
-    }
-    fn next_song_delay(self, music: Option<&Music>, random: &mut LegacyRandom) -> i32 {
-        let Some(music) = music else {
-            return self.max_frequency();
-        };
-        if self == Self::Constant {
-            return 100;
-        }
-        let min = music.min_delay.min(self.max_frequency());
-        let max = music.max_delay.min(self.max_frequency());
-        next_int(random, min, max)
-    }
-}
 /// `Mth.nextInt(random, min, max)`: inclusive.
 fn next_int(random: &mut LegacyRandom, min: i32, max: i32) -> i32 {
     if min >= max {
@@ -459,17 +424,12 @@ pub struct MusicManager {
     current: Option<InstanceId>,
     current_gain: f32,
     next_song_delay: i32,
-    toast_shown: bool,
     /// The built-in tracks the Music page turned off (sound ids): every pool
     /// picks around them.
     off: Vec<String>,
     /// `current` was started by the Music page's "play now", not by the
     /// situation: its own music waits for it to end.
     forced: bool,
-    pub frequency: MusicFrequency,
-    /// `ToastManager.showNowPlayingToast` (true) / `hideNowPlayingToast`
-    /// (false) calls since the last drain.
-    pub toast_requests: Vec<bool>,
 }
 impl Default for MusicManager {
     fn default() -> Self {
@@ -484,11 +444,8 @@ impl MusicManager {
             current: None,
             current_gain: 1.0,
             next_song_delay: 100,
-            toast_shown: false,
             off: Vec::new(),
             forced: false,
-            frequency: MusicFrequency::Default,
-            toast_requests: Vec::new(),
         }
     }
     /// The sound event of the current track.
@@ -505,9 +462,6 @@ impl MusicManager {
     }
     pub fn current_gain(&self) -> f32 {
         self.current_gain
-    }
-    pub fn toast_shown(&self) -> bool {
-        self.toast_shown
     }
     fn set_current(&mut self, id: Option<InstanceId>, sounds: &mut impl Sounds) {
         if let Some(old) = self.current
@@ -538,7 +492,7 @@ impl MusicManager {
     ) {
         if self.current.is_some()
             && self.current_gain != volume
-            && !self.fade(volume, music, sounds)
+            && !self.fade(volume, sounds)
         {
             return;
         }
@@ -561,9 +515,7 @@ impl MusicManager {
             }
             if !sounds.is_active(current) {
                 self.set_current(None, sounds);
-                let delay = self
-                    .frequency
-                    .next_song_delay(Some(music), &mut self.random);
+                let delay = next_int(&mut self.random, music.min_delay, music.max_delay);
                 self.next_song_delay = self.next_song_delay.min(delay);
             }
         }
@@ -618,9 +570,8 @@ impl MusicManager {
             // the event is unknown): retry after a normal delay, so turning
             // a track back on is heard without reloading the music.
             if only.is_none() {
-                self.next_song_delay = self
-                    .frequency
-                    .next_song_delay(Some(music), &mut self.random);
+                self.next_song_delay =
+                    next_int(&mut self.random, music.min_delay, music.max_delay);
             }
             return false;
         };
@@ -646,63 +597,36 @@ impl MusicManager {
             sounds.stop_instance(current);
             self.set_current(None, sounds);
         }
-        let (id, result) = sounds.play_instance(instance, true);
+        let (id, _) = sounds.play_instance(instance, true);
         self.set_current(Some(id), sounds);
         self.forced = only.is_some();
-        match result {
-            PlayResult::Started => {
-                self.toast_requests.push(true);
-                self.toast_shown = true;
-            }
-            PlayResult::StartedSilently => self.toast_shown = false,
-            PlayResult::NotStarted => {}
-        }
         self.next_song_delay = i32::MAX;
         true
-    }
-    /// `MusicManager.showNowPlayingToastIfNeeded`.
-    pub fn show_now_playing_toast_if_needed(&mut self) {
-        if !self.toast_shown {
-            self.toast_requests.push(true);
-            self.toast_shown = true;
-        }
     }
     /// `MusicManager.stopPlaying(Music)`.
     pub fn stop_playing_music(
         &mut self,
         music: &Music,
-        situational: Option<&Music>,
         sounds: &mut impl Sounds,
     ) {
         if self.is_playing_music(music, sounds.engine()) {
-            self.stop_playing(situational, sounds);
+            self.stop_playing(sounds);
         }
     }
     /// `MusicManager.stopPlaying()`.
-    pub fn stop_playing(&mut self, situational: Option<&Music>, sounds: &mut impl Sounds) {
+    pub fn stop_playing(&mut self, sounds: &mut impl Sounds) {
         if let Some(current) = self.current {
             sounds.stop_instance(current);
             self.set_current(None, sounds);
-            self.toast_requests.push(false);
         }
-        self.next_song_delay = self
-            .frequency
-            .next_song_delay(situational, &mut self.random)
-            + 100;
+        self.next_song_delay += 100;
     }
     /// `MusicManager.isPlayingMusic`.
     pub fn is_playing_music(&self, music: &Music, sounds: &SoundEngine) -> bool {
         self.current(sounds) == Some(music.sound.as_str())
     }
-    /// `MusicManager.setMinutesBetweenSongs`.
-    pub fn set_frequency(&mut self, frequency: MusicFrequency, situational: Option<&Music>) {
-        self.frequency = frequency;
-        self.next_song_delay = self
-            .frequency
-            .next_song_delay(situational, &mut self.random);
-    }
     /// `MusicManager.fadePlaying`: false once the track faded out and stopped.
-    fn fade(&mut self, volume: f32, situational: Option<&Music>, sounds: &mut impl Sounds) -> bool {
+    fn fade(&mut self, volume: f32, sounds: &mut impl Sounds) -> bool {
         if self.current.is_none() {
             return false;
         }
@@ -722,7 +646,7 @@ impl MusicManager {
         }
         self.current_gain = self.current_gain.clamp(0.0, 1.0);
         if self.current_gain <= 1.0E-4 {
-            self.stop_playing(situational, sounds);
+            self.stop_playing(sounds);
             false
         } else {
             sounds.update_category_volume(MUSIC, self.current_gain);

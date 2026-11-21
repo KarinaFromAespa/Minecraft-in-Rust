@@ -193,7 +193,6 @@ impl Opt {
             Opt::NarratorHotkey => "narratorHotkey",
             Opt::RotateWithMinecarts => "rotateWithMinecart",
             Opt::HighContrastBlockOutlines => "highContrastBlockOutline",
-            Opt::MusicFrequency => "musicFrequency",
             Opt::SoundDevice => "soundDevice",
             Opt::OperatorItemsTab => "operatorItemsTab",
             Opt::QuitShortcuts => "quitShortcuts",
@@ -204,7 +203,6 @@ impl Opt {
             Opt::InGameNotification => "inGameNotification",
             Opt::SharePresence => "sharePresence",
             Opt::DirectionalAudio => "directionalAudio",
-            Opt::MusicToast => "musicToast",
             _ => return None,
         })
     }
@@ -279,7 +277,6 @@ impl Opt {
             Opt::ReducedDebugInfo => "options.reducedDebugInfo",
             Opt::HighContrast => "options.accessibility.high_contrast",
             Opt::ShowSubtitles => "options.showSubtitles",
-            Opt::MusicFrequency => "options.music_frequency",
             Opt::NotificationDisplayTime => "options.notifications.display_time",
             Opt::Narrator => "options.narrator",
             Opt::TextBackground => "options.accessibility.text_background",
@@ -338,7 +335,6 @@ impl Opt {
             Opt::InGameNotification => "options.inGameNotification",
             Opt::SharePresence => "options.sharePresence",
             Opt::DirectionalAudio => "options.directionalAudio",
-            Opt::MusicToast => "options.musicToast",
         }
     }
     pub(crate) fn kind(self, s: &Settings) -> Kind {
@@ -728,11 +724,6 @@ impl Opt {
                 "options.sharePresence.limited",
                 "options.sharePresence.all",
             ][s.file.int("sharePresence").clamp(0, 2) as usize]),
-            Opt::MusicToast => tr([
-                "options.musicToast.never",
-                "options.musicToast.pauseMenu",
-                "options.musicToast.pauseMenuAndToast",
-            ][s.file.int("musicToast").clamp(0, 2) as usize]),
             Opt::NarratorHotkey => on_off(s.file.bool("narratorHotkey")),
             Opt::RotateWithMinecarts => on_off(s.file.bool("rotateWithMinecart")),
             Opt::HighContrastBlockOutlines => on_off(s.file.bool("highContrastBlockOutline")),
@@ -833,11 +824,6 @@ impl Opt {
                     Text::literal(&s.sound_device)
                 }
             }
-            Opt::MusicFrequency => tr([
-                "options.music_frequency.default",
-                "options.music_frequency.frequent",
-                "options.music_frequency.constant",
-            ][s.file.int("musicFrequency").clamp(0, 2) as usize]),
             Opt::ForceUnicode => on_off(s.force_unicode),
             Opt::JapaneseGlyphs => on_off(s.japanese_glyphs),
             Opt::PadEnabled => on_off(s.controller.enabled),
@@ -1131,21 +1117,11 @@ impl Opt {
                 };
                 s.sound_device = all[next_idx].clone();
             }
-            Opt::MusicFrequency => {
-                let n = next(s.file.int("musicFrequency").clamp(0, 2) as u8, 3);
-                s.file
-                    .set("musicFrequency", crate::options_file::V::Int(i32::from(n)));
-            }
             Opt::MainHand => s.main_hand_left = !s.main_hand_left,
             Opt::SharePresence => {
                 let n = next(s.file.int("sharePresence").clamp(0, 2) as u8, 3);
                 s.file
                     .set("sharePresence", crate::options_file::V::Int(i32::from(n)));
-            }
-            Opt::MusicToast => {
-                let n = next(s.file.int("musicToast").clamp(0, 2) as u8, 3);
-                s.file
-                    .set("musicToast", crate::options_file::V::Int(i32::from(n)));
             }
             Opt::ForceUnicode => s.force_unicode = !s.force_unicode,
             Opt::JapaneseGlyphs => s.japanese_glyphs = !s.japanese_glyphs,
@@ -2779,7 +2755,6 @@ impl OptionsUi {
                 let others: Vec<Opt> = (1..SOUND_SOURCES.len()).map(Opt::Volume).collect();
                 rows.extend(pairs(&others));
                 rows.extend(pairs(&[Opt::ShowSubtitles, Opt::DirectionalAudio]));
-                rows.extend(pairs(&[Opt::MusicFrequency, Opt::MusicToast]));
                 rows.push(Row::Big(Opt::SoundDevice));
                 // Horizon's music page (an extra): the built-in tracks, by
                 // situation, once it is on in Horizon Extras.
@@ -5447,7 +5422,6 @@ mod tests {
             Opt::ImprovedTransparency,
             Opt::ChatDelay,
             Opt::SaveChatDrafts,
-            Opt::MusicToast,
             Opt::CtrlClickEmulatesRightClick,
         ] {
             assert!(opt.available(), "{opt:?} is read and must be clickable");

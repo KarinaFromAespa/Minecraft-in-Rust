@@ -39,7 +39,7 @@ KEY_TOKENS = [
 ]
 PLAIN_TOKENS = ['true', 'false', 'True', '1', '0', 'yes', '', ' true', 'abc', '5', '-1', '2147483648', '+3', '007', '1.0']
 STRING_TOKENS = ['en_us', 'FR_fr', '', ' a:b ', 'a:b:c', 'Ünïcode', '"quoted"', 'x' * 300]
-TAIL = 'musicFrequency:"FREQUENT"\nmodelPart_hat:false\n'  # shows whether a load was aborted
+TAIL = 'gamma:0.5\nmodelPart_hat:false\n'  # shows whether a load was aborted
 
 
 def option_keys():
@@ -48,7 +48,7 @@ def option_keys():
     return ALL_KEYS
 
 
-# Every key the 26.3 Options writes, in processing order (verified by the
+# Every key the 1.21.5 Options writes, in processing order (verified by the
 # defaults case: a mismatch in either name or order fails the comparison).
 ALL_KEYS = [
     'ao', 'biomeBlendRadius', 'chunkSectionFadeInTime', 'cutoutLeaves', 'enableVsync', 'entityDistanceScaling',
@@ -71,7 +71,7 @@ ALL_KEYS = [
     'glDebugVerbosity', 'skipMultiplayerWarning', 'hideMatchedNames', 'joinedFirstServer', 'syncChunkWrites',
     'showAutosaveIndicator', 'allowServerListing', 'inGameNotification', 'sharePresence', 'onlyShowSecureChat',
     'saveChatDrafts', 'panoramaScrollSpeed', 'telemetryOptInExtra', 'onboardAccessibility',
-    'menuBackgroundBlurriness', 'startedCleanly', 'musicToast', 'musicFrequency',
+    'menuBackgroundBlurriness', 'startedCleanly',
 ]
 PLAIN = {'lastServer', 'lang', 'hideServerAddress', 'advancedItemTooltips', 'pauseOnLostFocus', 'overrideWidth',
          'overrideHeight', 'useNativeTransport', 'glDebugVerbosity', 'skipMultiplayerWarning', 'joinedFirstServer',

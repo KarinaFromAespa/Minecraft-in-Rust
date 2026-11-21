@@ -1417,13 +1417,78 @@ is the oracle; decompiled code is a reading aid.
     horizon-command -p horizon-protocol -p
     horizon-world -p horizon-client --all-targets`
     0 errors / 0 warnings (13m48s).
+- **Item 37 — Music / MusicManager, ported:**
+  - The music frequency option is 1.21.6-only
+    (`MusicFrequency` DEFAULT/FREQUENT/CONSTANT,
+    `musicFrequency` in Options, `getNextSongDelay`
+    capping the delay at `id * 1200`): the enum,
+    `set_frequency`, the `frequency` field and the
+    `musicFrequency` option surface are all
+    removed (music.rs, game/music.rs, game.rs,
+    options_file.rs, settings.rs, options_ui.rs).
+    The delay is 1.21.5's plain
+    `Mth.nextInt(minDelay, maxDelay)` on track
+    end (and on the nothing-to-play retry), with
+    the outer `min(nextSongDelay, maxDelay)`.
+  - The Now Playing toast is 1.21.6-only
+    (`NowPlayingToast`, `showNowPlayingToast` /
+    `hideNowPlayingToast`, `toastShown`, the
+    `musicToast` option, the `showNowPlayingToast`
+    → `musicToast` options fixer): `toast_shown`,
+    `toast_requests` and
+    `show_now_playing_toast_if_needed` are out of
+    the manager, `NowPlayingToast` / `MusicNotes` /
+    `draw_now_playing` are out of toasts.rs, the
+    `now_playing` / `music_toast_state` /
+    `music_notes` fields and the four
+    `draw_music_toast` calls are out of game.rs,
+    and the toast kind is out of the
+    `ToastAddEvent` doc. `startPlaying` is
+    1.21.5's form: play the track and set its
+    volume when its sound is not the empty sound —
+    no PlayResult switch, no toast.
+  - `stopPlaying()` is 1.21.5's form: stop the
+    track and `nextSongDelay += 100` only — no
+    frequency draw, no toast hide. The
+    `situational` parameter is out of
+    `stop_playing` / `stop_playing_music`
+    (callers in game.rs, remote.rs, win.rs and
+    the fixture updated); the old code drew a
+    fresh frequency delay AND added 100.
+  - The music parity harness is ported to 1.21.5
+    too: the oracle's `Mc` now returns a
+    `MusicInfo(music, volume)` from
+    `getSituationalMusic` (1.21.5 has no
+    `getMusicVolume` — the volume rides in the
+    info) and the `Toasts` subclass, the
+    `gameMusicFrequency` field set and the
+    `freq` / `toast` commands are gone; the
+    driver drops the `freq` / `toast` script
+    lines and the `start` seed's frequency
+    argument; the fixture drops the matching
+    arms and the `toastShown` output line. The
+    options parity harness drops `musicToast` /
+    `musicFrequency` from `ALL_KEYS` and uses
+    `gamma:0.5` as the load-abort canary tail
+    (its `showNowPlayingToast` legacy bodies
+    stay: they now exercise unknown-key handling
+    on both sides).
+  - No-ops verified: `Music`'s codec is identical
+    in both versions (the record-vs-class shape
+    is API-only — the Rust struct is unchanged);
+    the replace branch (`nextInt(0, minDelay /
+    2)`) and the `min(nextSongDelay, maxDelay)`
+    outer line were already 1.21.5-form.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings (5m19s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **36 of 426 are
-closed** (rank 1 complete, rank 2 at 27/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **37 of 426 are
+closed** (rank 1 complete, rank 2 at 28/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

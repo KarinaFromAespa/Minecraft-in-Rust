@@ -819,7 +819,6 @@ pub enum Opt {
     SaveChatDrafts,
     HighContrast,
     ShowSubtitles,
-    MusicFrequency,
     NotificationDisplayTime,
     Narrator,
     TextBackground,
@@ -872,7 +871,6 @@ pub enum Opt {
     InGameNotification,
     SharePresence,
     DirectionalAudio,
-    MusicToast,
     /// `Options.exclusiveFullscreen`.
     ExclusiveFullscreen,
     /// VideoSettingsScreen's "Exclusive Fullscreen Mode": the monitor's mode to take.
