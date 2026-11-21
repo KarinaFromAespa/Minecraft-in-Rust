@@ -12092,3 +12092,11 @@ Only field/method visibility (private in 26.1, package-private in
 ## Item 592 — game/stats.rs (PhantomSpawner) — NO-CHANGE
 
 Only `getRandom()` vs the `random` field (same source).
+
+## Item 593 — lan/playerdata.rs (FileDownload) — NO-CHANGE
+
+26.1 rewrote the Realms world-download extraction onto NIO Paths with a
+zip-slip guard; 1.21.11 uses legacy `File` with a `String.replace` on
+entry names. The Rust models only the consequence (no `Player` in a
+downloaded world's level.dat), not the extraction; the
+`renameAndDropPlayer` step is identical in both.
