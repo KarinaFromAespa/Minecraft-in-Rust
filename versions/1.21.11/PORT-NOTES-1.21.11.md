@@ -10092,3 +10092,13 @@ ids come from the prepared 1.21.11 registries
 report. The map/patch builder differences (validator,
 prototype-resolving `get`) are Java plumbing with no
 Rust analogue. No code changed.
+
+## Item 243 — text_display_render_fixture.rs (rank 2, NO-CHANGE)
+
+1 class, 7 methods, 1 named. The diff collapses to
+two renames after stripping instruction numbers: the
+background opacity read goes direct to `Options`
+instead of through the extracted render state, and
+`CameraRenderState` moves package. The Rust already
+cites `Options.getBackgroundOpacity(0.25)`. No code
+changed.
