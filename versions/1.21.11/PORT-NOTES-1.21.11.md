@@ -10543,3 +10543,12 @@ via `is` vs `getType().equals`. The flag
 assignments are identical. The Rust already
 implements the raider rule species-wise.
 `mobs::riders`: 13 passed.
+
+## Item 294 — old_world.rs (rank 2, NO-CHANGE)
+
+1 class, 2 methods, 1 named. The whole diff
+is the recurring no-op pattern: ChunkPos
+`x()`/`z()` methods vs fields, `pack` vs
+`asLong`, and the `implements` clause order.
+Zero constant differences. `old_world`: 1
+passed.
