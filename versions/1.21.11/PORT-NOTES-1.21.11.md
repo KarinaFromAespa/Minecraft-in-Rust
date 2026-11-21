@@ -9215,3 +9215,19 @@ no longer run. No delta: `load` / `rebuildCurrentList` / profiles
 renames only). Tests: `debug_entries::` 6 passed (1 new: the
 registry is the 1.21.11 form); `cargo check -p horizon-client`
 clean.
+
+## Item 169 — game/llamas.rs (rank 2, CHANGED)
+
+2 classes, 6 methods, 3 named. The baby passenger seats are
+the delta: the Rust gave a baby chested horse or llama the
+adult seat halved, which matches neither version. 1.21.11's
+`BABY_DIMENSIONS` override the seat before the 0.5 scale — a
+baby chested horse sits at its height less 0.15625, centred
+(donkey 0.671875, mule 0.721875 after halving), a baby llama
+at its height less 0.8125 (0.52875, z -0.15). Heights verified
+from the 1.21.11 jar (donkey 1.5, mule 1.6, llama 1.87). No
+delta: the feeding values, the baby age-up without an age-lock
+check, the interact order and the breeding roll already match
+1.21.11; 26.1's golden-dandelion exception is 26.x-only (the
+item does not exist here). Tests: `mobs::riders::` 13 passed
+(1 new: the baby seats).
