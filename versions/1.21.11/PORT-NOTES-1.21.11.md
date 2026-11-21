@@ -12720,3 +12720,7 @@ Visibility plus requireNonNull; same super-constructor arguments.
 ## Item 710 — horizon-command/src/tests.rs (GameModeArgument) — NO-CHANGE
 
 Zero diff: the bytecode is identical in both versions.
+
+## Item 711 — horizon-command/src/tree_execute.rs (ExecuteCommand$ExecuteIfFunctionCustomModifier) — NO-CHANGE
+
+Visibility only.
