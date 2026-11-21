@@ -10859,3 +10859,12 @@ serve the live 1.21.11 `WorldUpgrader`
 port. Two stale doc comments fixed.
 `datafix`: 32 passed, 2 failed (the known
 pre-existing pair).
+
+## Item 377 — IME (TextInputManager / PreeditEvent) (rank 2, NO-CHANGE)
+
+3 classes, 0 methods named. The 26.1 IME
+preedit system has no 1.21.11 counterpart;
+the Rust already implements the 1.21.11
+form — committed text only, the OS shows
+the composition window (`game/ime.rs`).
+`ime`: 73 passed, 3 ignored.
