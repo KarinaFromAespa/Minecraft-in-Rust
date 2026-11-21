@@ -11838,3 +11838,10 @@ API in 26.1 vs `ComponentUtils.updateForEntity(source, component, entity, 0)`
 in 1.21.11 — same resolution, different API. The Rust already cites
 `updateForEntity` (the 1.21.11 API) and `getResolvedComponent` by name
 (shared). The `ScoreHolderArgument` differences are visibility only.
+
+## Item 555 — worldgen/structure/monument.rs (OceanMonumentPieces) — NO-CHANGE
+
+Only visibility (fitter constructors and `RoomDefinition` fields are
+`private` in 26.1, package-private in 1.21.11) and `ChunkPos.x()`/`z()`
+accessors vs field reads — all behaviour-free. The Rust cites only the
+class names, which are shared.
