@@ -6324,13 +6324,66 @@ is the oracle; decompiled code is a reading aid.
     -p horizon-client-core
     -p horizon-client --lib`
     passed at item 131.
+- **Item 134 — Advancement
+  load and /defaultgamemode
+  verified against 1.21.5:**
+  - The JSON parser change
+    is a refactor with the
+    same behaviour: 1.21.5
+    parses with a non-lenient
+    `JsonReader`, 1.21.6 with
+    `StrictJsonParser` —
+    both strict. The Rust
+    port loads with
+    `serde_json::from_str`,
+    strict by default, and
+    falls back to empty
+    progress on failure, as
+    vanilla does (it logs
+    and continues).
+  - `/defaultgamemode` is at
+    level 2 (`GAMEMASTERS`)
+    in the Rust tree, matching
+    1.21.5's `hasPermission(2)`;
+    the `Commands.hasPermission`
+    → lambda change is the
+    same pure refactor as
+    item 110. The `level()` →
+    `serverLevel()` change is
+    an accessor rename.
+  - The announcement gate
+    matches in structure:
+    display `announce` and
+    the advancement-messages
+    rule both true.
+  - Pre-existing base drift,
+    not this delta: the Rust
+    rule is named
+    `show_advancement_messages`
+    (the 26.3 name) where
+    both 1.21.5 and 1.21.6
+    call it
+    `announceAdvancements`.
+    The port reads its own
+    name consistently, so
+    behaviour is self-
+    consistent; only cross-
+    compat with vanilla
+    saves and `/gamerule`
+    spellings is affected.
+  - Verification: no Rust
+    change; the tree state is
+    the one `cargo check -j 1
+    -p horizon-client-core
+    -p horizon-client --lib`
+    passed at item 131.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **133 of 426 are
-closed** (rank 1 complete, rank 2 at 124/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **134 of 426 are
+closed** (rank 1 complete, rank 2 at 125/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
