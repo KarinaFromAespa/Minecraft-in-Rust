@@ -519,9 +519,6 @@ impl ClientWaypoints {
     }
 }
 
-/// `Hud.ContextualInfo`: which bar sits above the hotbar.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-
 #[cfg(test)]
 mod tests {
     use super::*;

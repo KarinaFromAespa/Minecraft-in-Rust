@@ -48,6 +48,7 @@ fn shape_tag(shape: &VoxelShape) -> Tag {
 }
 
 const TNT: u32 = 20;
+const POWDER_SNOW: u32 = 21;
 struct Rules<'o> {
     mob_griefing: bool,
     owners: &'o dyn OwnerLookup,
@@ -84,6 +85,7 @@ fn run_in(
         definitions.push(("bubble_column", Some(("drag", drag.to_string()))));
     }
     definitions.push(("tnt", None));
+    definitions.push(("powder_snow", None));
     let states: Vec<_> = definitions
         .iter()
         .map(|(name, property)| {
@@ -105,6 +107,7 @@ fn run_in(
                 ("minecraft:water", Tag::Int(2)),
                 ("minecraft:bubble_column", Tag::Int(18)),
                 ("minecraft:tnt", Tag::Int(TNT as i32)),
+                ("minecraft:powder_snow", Tag::Int(POWDER_SNOW as i32)),
             ]),
         ),
     ]))
@@ -121,7 +124,7 @@ fn run_in(
         serde_json::json!({"states":(0..states.len()).map(|id|serde_json::json!({"id":id})).collect::<Vec<_>>()} ).to_string(),
     )
     .unwrap();
-    let behaviours = serde_json::json!({"states":(0..states.len()).map(|id|if id==1||id==20{[63,0]}else{[0,0]}).collect::<Vec<_>>(),"blocks":(["air","stone","water","bubble_column","tnt"].iter().map(|name|serde_json::json!({"name":format!("minecraft:{name}"),"class":["Block"]})).collect::<Vec<_>>())});
+    let behaviours = serde_json::json!({"states":(0..states.len()).map(|id|if id==1||id==20{[63,0]}else{[0,0]}).collect::<Vec<_>>(),"blocks":(["air","stone","water","bubble_column","tnt","powder_snow"].iter().map(|name|serde_json::json!({"name":format!("minecraft:{name}"),"class":["Block"]})).collect::<Vec<_>>())});
     let facts = BlockFacts::load_with_behaviour_json(&root, &registry, &behaviours).unwrap();
     std::fs::remove_dir_all(root).unwrap();
     let table = Tag::compound([
@@ -136,7 +139,7 @@ fn run_in(
         ),
         (
             "cached_shapes",
-            Tag::IntArray((0..21).map(|id| i32::from(id == 1 || id == TNT)).collect()),
+            Tag::IntArray((0..22).map(|id| i32::from(id == 1 || id == TNT)).collect()),
         ),
     ]);
     let collision = BlockCollisionRegistry::new(Arc::new(
@@ -210,6 +213,26 @@ fn first_water_tick_moves_before_water_inertia_and_keeps_synced_flames() {
         for p in steps {
             let st = p.arrow.as_ref().unwrap();
             assert!(st.was_touching_water);
+            assert_eq!(st.fire_ticks, 0);
+            assert_eq!(st.on_fire(), shared_fire);
+        }
+    }
+}
+#[test]
+fn powder_snow_clears_a_burning_arrows_fire_like_water() {
+    let mut cells = Vec::new();
+    for x in -2..6 {
+        for y in 16..21 {
+            for z in -2..3 {
+                cells.push(([x, y, z], POWDER_SNOW));
+            }
+        }
+    }
+    for shared_fire in [false, true] {
+        let steps = run(&cells, 5, shared_fire);
+        for p in steps {
+            let st = p.arrow.as_ref().unwrap();
+            assert!(!st.was_touching_water);
             assert_eq!(st.fire_ticks, 0);
             assert_eq!(st.on_fire(), shared_fire);
         }

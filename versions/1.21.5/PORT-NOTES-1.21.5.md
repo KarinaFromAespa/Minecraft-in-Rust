@@ -3089,13 +3089,65 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 68 — AbstractArrow, ported:**
+  - 1.21.5 clears a burning arrow's
+    fire in powder snow too
+    (`isInWaterOrRain() ||
+    state.is(POWDER_SNOW)`); 1.21.6
+    dropped the powder-snow arm.
+    The arrow tick now checks the
+    block at its position through
+    a new `ArrowScene::is_powder_snow`
+    (registry name, the same shape
+    as motion's check).
+  - The save/load change is Java
+    API-only: 1.21.6 moved
+    `addAdditionalSaveData` /
+    `readAdditionalSaveData` to
+    `ValueInput` / `ValueOutput`,
+    1.21.5 keeps `CompoundTag` +
+    a `RegistryOps` context, but
+    the keys and values are
+    identical (`life`,
+    `inBlockState`, `shake`,
+    `inGround`, `damage`, `pickup`,
+    `crit`, `PierceLevel`,
+    `SoundEvent`, `item`, `weapon`)
+    and the Rust NBT code already
+    writes and reads them all.
+  - Test: `powder_snow_clears_a_burning_arrows_fire_like_water`
+    mirrors the water test — a
+    burning arrow flying through
+    powder snow has `fire_ticks`
+    0 after every tick, with
+    `on_fire` following only the
+    synced flag. The shared test
+    registry gains powder snow
+    (state 21).
+  - Drive-by: item 55's removal
+    of the contextual bar system
+    left an orphaned doc comment
+    and `#[derive]` above
+    `locator_bar.rs`'s test module
+    (E0774), which broke the whole
+    `horizon-client-lib` test
+    build; removed (the enum is
+    gone, only the comment named
+    it).
+  - Verification: `cargo test -p
+    horizon-client-lib --lib arrows::`
+    8 passed, 1 ignored (the
+    client-arrow parity fixture),
+    and `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **67 of 426 are
-closed** (rank 1 complete, rank 2 at 58/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **68 of 426 are
+closed** (rank 1 complete, rank 2 at 59/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
