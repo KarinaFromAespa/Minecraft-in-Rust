@@ -3212,6 +3212,125 @@ fn big_dripleaf_stands_on_dirt_but_not_on_stone() {
 }
 
 #[test]
+fn a_cactus_stands_on_sand_or_cactus() {
+    // `CactusBlock.mayPlaceOn` in 1.21.11: cactus or the sand tag (26.1
+    // renamed it `supports_cactus`, which does not exist in 1.21.11).
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let cactus_pos = BlockPos::new(0, 2, 0);
+    let cactus = w.id("cactus", &[("age", "0")]);
+    w.put(cactus_pos, cactus);
+    for (ground, stands) in [
+        ("sand", true),
+        ("red_sand", true),
+        ("cactus", true),
+        ("dirt", false),
+        ("stone", false),
+    ] {
+        w.put(ground_pos, w.id(ground, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(cactus, cactus_pos),
+            stands,
+            "a cactus on {ground}"
+        );
+    }
+}
+
+#[test]
+fn a_wither_rose_stands_on_dirt_farmland_or_soul_blocks() {
+    // `WitherRoseBlock.mayPlaceOn` in 1.21.11: its parent's check (the
+    // dirt tag or farmland) or netherrack, soul sand or soul soil (26.1
+    // reads the `supports_wither_rose` tag instead, gone in 1.21.11).
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let rose_pos = BlockPos::new(0, 2, 0);
+    let rose = w.id("wither_rose", &[]);
+    w.put(rose_pos, rose);
+    for (ground, stands) in [
+        ("dirt", true),
+        ("grass_block", true),
+        ("farmland", true),
+        ("netherrack", true),
+        ("soul_sand", true),
+        ("soul_soil", true),
+        ("stone", false),
+        ("sand", false),
+    ] {
+        w.put(ground_pos, w.id(ground, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(rose, rose_pos),
+            stands,
+            "a wither rose on {ground}"
+        );
+    }
+}
+
+#[test]
+fn a_lily_pad_stands_on_water_or_ice() {
+    // `WaterlilyBlock.mayPlaceOn` in 1.21.11: the fluid below is water,
+    // or the ground is an `IceBlock` (ice or frosted ice; packed and blue
+    // ice are plain `Block`), and the fluid above is empty.
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let pad_pos = BlockPos::new(0, 2, 0);
+    let pad = w.id("lily_pad", &[]);
+    w.put(pad_pos, pad);
+    for (ground, stands) in [
+        ("water", true),
+        ("ice", true),
+        ("frosted_ice", true),
+        ("packed_ice", false),
+        ("blue_ice", false),
+        ("dirt", false),
+    ] {
+        w.put(ground_pos, w.id(ground, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(pad, pad_pos),
+            stands,
+            "a lily pad on {ground}"
+        );
+    }
+}
+
+#[test]
+fn farmland_stands_under_a_fence_gate_or_moving_piston() {
+    // `FarmBlock.canSurvive` in 1.21.11: the block above is not solid, or
+    // a fence gate or a moving piston, hardcoded (26.1 consults the
+    // `maintains_farmland` tag, which 26.1's data extends with both).
+    let mut w = world!();
+    let farm_pos = BlockPos::new(0, 1, 0);
+    let above_pos = BlockPos::new(0, 2, 0);
+    let farm = w.id("farmland", &[("moisture", "0")]);
+    w.put(farm_pos, farm);
+    assert!(
+        w.b()
+            .sim(&mut w.level, &mut w.ticks)
+            .can_survive(farm, farm_pos),
+        "farmland under air"
+    );
+    for (above, stands) in [
+        ("stone", false),
+        ("oak_fence_gate", true),
+        ("moving_piston", true),
+    ] {
+        w.put(above_pos, w.id(above, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(farm, farm_pos),
+            stands,
+            "farmland under {above}"
+        );
+    }
+}
+
+#[test]
 fn crop_growth_speed_counts_moist_farmland() {
     // `CropBlock.getGrowthSpeed` in 1.21.11: farmland under the crop counts
     // (the `grows_crops` tag is gone); moist farmland counts 3, dry 1.

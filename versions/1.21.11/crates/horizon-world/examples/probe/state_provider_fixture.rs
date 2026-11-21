@@ -392,6 +392,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "CactusFlower" => CactusFlower,
 
                 "Vegetation" => Vegetation,
+                "WitherRose" => WitherRose,
                 "Seagrass" => Seagrass,
                 "BubbleColumn" => BubbleColumn,
                 "RedstoneWire" => RedstoneWire,

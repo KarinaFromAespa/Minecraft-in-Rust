@@ -40,6 +40,7 @@ fn rule(name: &str) -> Option<SurvivalRule> {
     Some(match name {
         "CactusFlower" => CactusFlower,
         "Vegetation" => Vegetation,
+        "WitherRose" => WitherRose,
         "Seagrass" => Seagrass,
         "BubbleColumn" => BubbleColumn,
         "RedstoneWire" => RedstoneWire,

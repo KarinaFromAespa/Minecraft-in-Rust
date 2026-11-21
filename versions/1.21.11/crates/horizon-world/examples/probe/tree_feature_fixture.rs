@@ -438,6 +438,7 @@ fn survival_rule(rule: &str) -> SurvivalRule {
         "CactusFlower" => CactusFlower,
 
         "Vegetation" => Vegetation,
+        "WitherRose" => WitherRose,
         "Seagrass" => Seagrass,
         "BubbleColumn" => BubbleColumn,
         "RedstoneWire" => RedstoneWire,

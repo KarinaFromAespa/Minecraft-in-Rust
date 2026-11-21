@@ -9029,3 +9029,36 @@ logs — fixed in the commit after this record), D3 fail (pin
 work-items.json lagged at 280/492 at dispatch), D4/D5 blocked
 (profile-stamp quirk), D6 deferred (no playtest.md). Protocol
 tests 440/440 on CI.
+
+## Item 158 — widely named: world/level/block (rank 2, CHANGED)
+
+31 classes, 41 methods, 0 named. The item-59 `supports_*` audit
+landing in this item: the Rust read four 26.1-only support tags that
+resolve to empty sets in the 1.21.11 tree, so cactus could only
+survive on cactus, wither roses and lily pads could never survive,
+and farmland under a fence gate died. Fixed in both survival systems
+(`level/survive.rs` and `block_survival.rs`): cactus → cactus or the
+sand tag; lily pad → water below or ice/frosted ice below (verified
+from the jar that `IceBlock` covers frosted ice too, while packed and
+blue ice are plain `Block`); wither rose → dirt tag, farmland,
+netherrack, soul sand or soul soil (new `SurvivalRule::WitherRose`,
+on the `Vegetation` precedent); farmland → not solid, or a fence gate
+or a moving piston, hardcoded (the moisture tick still reads the
+`maintains_farmland` tag — correct in both versions; only
+`canSurvive` diverges, because 26.1's tag data extends it with the
+two blocks and 1.21.11's holds only crops). The binding tables had
+the same disease one level up: `FarmBlock` was keyed as
+`FarmlandBlock`, so farmland bound NO prepare-time survival rule at
+all (fixed in both the Rust prepare table and the Python parity
+table, which also still keyed the lily pad as `LilyPadBlock`). The
+`Blocks` `<clinit>` (21k lines) holds only: two 26.1-only blocks
+(golden dandelion + potted), the `postProcess` →
+`hasPostProcess` mechanism change (soul sand gains it in 26.1; the
+Rust mirrors neither form), the FungusBlock split (item 757), the
+stem-tag ctors (already ported), and diff-misalignment cascades of
+the colour-variant registrations. The 26.1 `HangingSignBlock` /
+`PlainSignBlock` "classes" are 26.1-only render interfaces with no
+Rust surface. Tests: prepare `survival::tests::` 4 passed (2 new);
+4 new level tests (early-return locally, run on CI); tag audit run
+locally still 23 dead — the `supports_*` literals were never audit
+positions, so D1 does not move on this item.

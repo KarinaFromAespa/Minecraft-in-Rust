@@ -40,7 +40,7 @@ CLASS_RULES={
     'ChorusFlowerBlock':'ChorusFlower',
     'PitcherCropBlock':'PitcherCrop',
 
-    'BigDripleafBlock':'BigDripleaf','BigDripleafStemBlock':'BigDripleafStem','FarmlandBlock':'Farmland','CocoaBlock':'Cocoa',
+    'BigDripleafBlock':'BigDripleaf','BigDripleafStemBlock':'BigDripleafStem','FarmBlock':'Farmland','CocoaBlock':'Cocoa',
     'SugarCaneBlock':'SugarCane','SporeBlossomBlock':'SporeBlossom','FrogspawnBlock':'Frogspawn','SmallDripleafBlock':'SmallDripleaf','TallSeagrassBlock':'TallSeagrass',
     'DoorBlock':'Door',
     'BaseRailBlock':'RigidBelow','LeafLitterBlock':'FullBelow','WallSignBlock':'SolidBehind','GrindstoneBlock':'Always','RedstoneWallTorchBlock':'FullBehind','BubbleColumnBlock':'BubbleColumn','RedstoneWireBlock':'RedstoneWire','SoulFireBlock':'TagBelow:minecraft:soul_fire_base_blocks',
@@ -52,13 +52,13 @@ CLASS_RULES={
 }
 
 VEGETATION_RULES={
-    'LilyPadBlock':'LilyPad',
+    'WaterlilyBlock':'LilyPad',
     'VegetationBlock':'Vegetation',
     'AzaleaBlock':'TagBelow:minecraft:supports_azalea',
     'DryVegetationBlock':'TagBelow:minecraft:dry_vegetation_may_place_on',
     'NetherSproutsBlock':'TagBelow:minecraft:supports_nether_sprouts',
     'NetherWartBlock':'TagBelow:minecraft:supports_nether_wart',
-    'WitherRoseBlock':'TagBelow:minecraft:supports_wither_rose',
+    'WitherRoseBlock':'WitherRose',
     'CactusFlowerBlock':'CactusFlower','SeagrassBlock':'Seagrass',
 }
 

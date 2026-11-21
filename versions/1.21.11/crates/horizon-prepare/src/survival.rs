@@ -26,7 +26,9 @@ const CLASS_RULES: &[(&str, &str)] = &[
     ("PitcherCropBlock", "PitcherCrop"),
     ("BigDripleafBlock", "BigDripleaf"),
     ("BigDripleafStemBlock", "BigDripleafStem"),
-    ("FarmlandBlock", "Farmland"),
+    // 1.21.11's class is `FarmBlock` (26.1 renamed it `FarmlandBlock`);
+    // without the 1.21.11 name farmland binds no survival rule.
+    ("FarmBlock", "Farmland"),
     ("CocoaBlock", "Cocoa"),
     ("SugarCaneBlock", "SugarCane"),
     ("SporeBlossomBlock", "SporeBlossom"),
@@ -83,7 +85,10 @@ const VEGETATION_RULES: &[(&str, &str)] = &[
         "TagBelow:minecraft:supports_nether_sprouts",
     ),
     ("NetherWartBlock", "TagBelow:minecraft:supports_nether_wart"),
-    ("WitherRoseBlock", "TagBelow:minecraft:supports_wither_rose"),
+    // 1.21.11's wither rose stands on dirt, farmland, netherrack, soul
+    // sand or soul soil (26.1 reads the `supports_wither_rose` tag
+    // instead, gone in 1.21.11); no single tag says it.
+    ("WitherRoseBlock", "WitherRose"),
     ("CactusFlowerBlock", "CactusFlower"),
     ("SeagrassBlock", "Seagrass"),
 ];
@@ -178,6 +183,48 @@ mod tests {
                 .get("minecraft:lily_pad")
                 .and_then(Value::as_str),
             Some("LilyPad")
+        );
+    }
+
+    /// 1.21.11's farmland class is `FarmBlock` (26.1 renamed it
+    /// `FarmlandBlock`); without the 1.21.11 name farmland binds no
+    /// survival rule.
+    #[test]
+    fn farmland_binds_its_rule_from_the_1_21_11_class() {
+        let classes = Value::Object(vec![(
+            "minecraft:farmland".to_owned(),
+            Value::str("FarmBlock"),
+        )]);
+        let definitions =
+            bind_definitions(&classes, &Value::Object(vec![]), &Value::Object(vec![])).unwrap();
+        assert_eq!(
+            definitions
+                .get("minecraft:farmland")
+                .and_then(Value::as_str),
+            Some("Farmland")
+        );
+    }
+
+    /// 1.21.11's wither rose stands on dirt, farmland, netherrack, soul
+    /// sand or soul soil; 26.1 reads the `supports_wither_rose` tag
+    /// instead, which does not exist in 1.21.11, so the old name bound an
+    /// empty tag and wither roses could never survive.
+    #[test]
+    fn wither_rose_binds_its_own_rule_not_an_empty_tag() {
+        let classes = Value::Object(vec![(
+            "minecraft:wither_rose".to_owned(),
+            Value::str("VegetationBlock"),
+        )]);
+        let placement = Value::Object(vec![(
+            "minecraft:wither_rose".to_owned(),
+            Value::str("WitherRoseBlock"),
+        )]);
+        let definitions = bind_definitions(&classes, &placement, &Value::Object(vec![])).unwrap();
+        assert_eq!(
+            definitions
+                .get("minecraft:wither_rose")
+                .and_then(Value::as_str),
+            Some("WitherRose")
         );
     }
 

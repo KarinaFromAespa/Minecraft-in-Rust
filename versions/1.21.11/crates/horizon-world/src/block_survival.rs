@@ -51,6 +51,10 @@ pub enum SurvivalRule {
     /// `VegetationBlock.mayPlaceOn`: the dirt tag or farmland (1.21.11
     /// removed `BlockTags.SUPPORTS_VEGETATION`, so no single tag says it).
     Vegetation,
+    /// `WitherRoseBlock.mayPlaceOn`: its parent's check (the dirt tag or
+    /// farmland) or netherrack, soul sand or soul soil (1.21.11 removed
+    /// `BlockTags.SUPPORTS_WITHER_ROSE`, so no single tag says it).
+    WitherRose,
     /// The block below is the named block (`StemBlock.mayPlaceOn`:
     /// farmland, hardcoded in 1.21.11 with no tag field left to read).
     BlockBelow(String),
@@ -123,6 +127,7 @@ enum Rule {
     Door(bool),
     TagBelow(usize),
     Vegetation,
+    WitherRose,
     BlockBelow(usize),
     CactusFlower,
     Seagrass,
@@ -205,8 +210,9 @@ pub struct BlockSurvivalRegistry<'r> {
     cactus_flower: BTreeSet<BlockStateId>,
     no_seagrass: BTreeSet<BlockStateId>,
     vegetation: BTreeSet<BlockStateId>,
+    wither_rose: BTreeSet<BlockStateId>,
+    moving_piston: BTreeSet<BlockStateId>,
     dripleaf: BTreeSet<BlockStateId>,
-    maintains_farmland: BTreeSet<BlockStateId>,
     cocoa: BTreeSet<BlockStateId>,
     crops: BTreeSet<BlockStateId>,
     no_snow: BTreeSet<BlockStateId>,
@@ -416,6 +422,7 @@ impl<'r> BlockSurvivalRegistry<'r> {
                         }))
                     }
                     SurvivalRule::Vegetation => Rule::Vegetation,
+                    SurvivalRule::WitherRose => Rule::WitherRose,
                     SurvivalRule::BlockBelow(name) => {
                         Rule::BlockBelow(*block_indices.entry(name.clone()).or_insert_with(|| {
                             let index = block_names.len();
@@ -501,6 +508,17 @@ impl<'r> BlockSurvivalRegistry<'r> {
         // tag did, farmland aside, so the union is exactly the old set.
         let mut vegetation = tag_states("minecraft:dirt")?;
         vegetation.extend(block_states("minecraft:farmland")?);
+        // `WitherRoseBlock.mayPlaceOn` in 1.21.11: its parent's check plus
+        // netherrack, soul sand and soul soil.
+        let mut wither_rose = vegetation.clone();
+        wither_rose.extend(block_states("minecraft:netherrack")?);
+        wither_rose.extend(block_states("minecraft:soul_sand")?);
+        wither_rose.extend(block_states("minecraft:soul_soil")?);
+        // `WaterlilyBlock.mayPlaceOn` in 1.21.11: the ground is an
+        // `IceBlock` (ice or frosted ice; packed and blue ice are plain
+        // `Block`).
+        let mut lily_pad = block_states("minecraft:ice")?;
+        lily_pad.extend(block_states("minecraft:frosted_ice")?);
         let fluid_tag = |name: &str| -> io::Result<crate::fluid::FluidMask> {
             fluid_tags
                 .get(name)
@@ -542,7 +560,9 @@ impl<'r> BlockSurvivalRegistry<'r> {
                         .contains(&registry.state(*id).unwrap().name)
                 })
                 .collect(),
-            cactus_support: tag_states("minecraft:supports_cactus")?,
+            // `CactusBlock.mayPlaceOn` in 1.21.11: cactus or the sand tag
+            // (26.1 renamed it `supports_cactus`).
+            cactus_support: tag_states("minecraft:sand")?,
             mushroom_light_override: tag_states("minecraft:overrides_mushroom_light_requirement")?,
             rules,
             unstable_bottom_center: tag_states("minecraft:unstable_bottom_center")?,
@@ -561,10 +581,15 @@ impl<'r> BlockSurvivalRegistry<'r> {
             cactus_flower: tag_states("minecraft:support_override_cactus_flower")?,
             no_seagrass: tag_states("minecraft:cannot_support_seagrass")?,
             vegetation,
+            wither_rose,
+            // `FarmBlock.canSurvive` in 1.21.11 hardcodes the fence-gate
+            // and moving-piston exceptions (26.1 consults the
+            // `maintains_farmland` tag, which 26.1's data extends with
+            // both; 1.21.11's tag holds only crops).
+            moving_piston: block_states("minecraft:moving_piston")?,
             // `BigDripleafBlock.canSurvive` in 1.21.11: the tag was renamed
             // `big_dripleaf_placeable` (same members).
             dripleaf: tag_states("minecraft:big_dripleaf_placeable")?,
-            maintains_farmland: tag_states("minecraft:maintains_farmland")?,
             cocoa: tag_states("minecraft:supports_cocoa")?,
             // `CropBlock`/`PitcherCropBlock.mayPlaceOn` in 1.21.11: farmland,
             // hardcoded (the `supports_crops` tag is gone; it held only
@@ -578,14 +603,17 @@ impl<'r> BlockSurvivalRegistry<'r> {
             // `cannot_support_kelp` tag is gone; it held only magma).
             no_kelp: block_states("minecraft:magma_block")?,
             chorus_plant: tag_states("minecraft:supports_chorus_plant")?,
-            lily_pad: tag_states("minecraft:supports_lily_pad")?,
+            lily_pad,
             frogspawn: tag_states("minecraft:supports_frogspawn")?,
             small_dripleaf: tag_states("minecraft:small_dripleaf_placeable")?,
             sugar_cane: tag_states("minecraft:supports_sugar_cane")?,
             sugar_cane_adjacent: tag_states("minecraft:supports_sugar_cane_adjacently")?,
             fluid_tags: [
                 fluid_tag("minecraft:water")?,
-                fluid_tag("minecraft:supports_lily_pad")?,
+                // `WaterlilyBlock.mayPlaceOn` in 1.21.11: the fluid below
+                // is water (26.1 reads the `supports_lily_pad` fluid tag
+                // instead, gone in 1.21.11).
+                fluid_tag("minecraft:water")?,
                 fluid_tag("minecraft:supports_frogspawn")?,
                 fluid_tag("minecraft:supports_sugar_cane_adjacently")?,
                 fluid_tag("minecraft:lava")?,
@@ -1163,8 +1191,12 @@ impl<'r> BlockSurvivalRegistry<'r> {
             }
             Rule::Farmland => {
                 let above = relative(position, Direction::Up);
-                Ok(!self.solid.contains(self.read(world, above)?)
-                    || self.maintains_farmland.contains(&self.read(world, above)?))
+                let state = self.read(world, above)?;
+                // `FarmBlock.canSurvive` in 1.21.11: not solid, or a fence
+                // gate or a moving piston, hardcoded.
+                Ok(!self.solid.contains(state)
+                    || self.fence_gates.contains(&state)
+                    || self.moving_piston.contains(&state))
             }
             Rule::Cocoa(direction) => Ok(self
                 .cocoa
@@ -1203,6 +1235,9 @@ impl<'r> BlockSurvivalRegistry<'r> {
                 .contains(&self.read(world, relative(position, Direction::Down))?)),
             Rule::Vegetation => Ok(self
                 .vegetation
+                .contains(&self.read(world, relative(position, Direction::Down))?)),
+            Rule::WitherRose => Ok(self
+                .wither_rose
                 .contains(&self.read(world, relative(position, Direction::Down))?)),
             Rule::BlockBelow(index) => Ok(self.bound_blocks[index]
                 .contains(&self.read(world, relative(position, Direction::Down))?)),

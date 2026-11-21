@@ -90,7 +90,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     }
                 }
                 let below = self.below_state(pos);
-                (b.is_block(below, block) || b.in_set(below, &t.supports_cactus))
+                // `CactusBlock.mayPlaceOn` in 1.21.11: cactus or the sand
+                // tag (26.1 renamed it `supports_cactus`).
+                (b.is_block(below, block) || b.in_set(below, &t.sand))
                     && !b.liquid(self.above_state(pos))
             }
             Class::Carpet => !self.is_empty_block(below(pos)),
@@ -196,7 +198,15 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             Class::PistonHead => self.piston_head_can_survive(state, pos),
             Class::Farmland => {
                 let above = self.above_state(pos);
-                !b.is_solid(above) || b.in_set(above, &t.maintains_farmland)
+                // `FarmBlock.canSurvive` in 1.21.11: not solid, or a fence
+                // gate or a moving piston, hardcoded (26.1 consults the
+                // `maintains_farmland` tag, which 26.1's data extends with
+                // both; 1.21.11's tag holds only crops, so the tag read
+                // dropped farmland under a fence gate). The moisture tick
+                // still reads the tag (see `tick.rs`): both versions do.
+                !b.is_solid(above)
+                    || b.in_set(above, &t.fence_gates)
+                    || b.is_block(above, b.named.moving_piston)
             }
             Class::Fire => {
                 self.sturdy(below(pos), Direction::Up) || self.is_valid_fire_location(pos)
@@ -398,11 +408,17 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 // `dry_vegetation_may_place_on` tag (26.1 renamed it
                 // `supports_dry_vegetation`).
                 Class::DryVegetation => b.in_set(ground, &t.dry_vegetation_may_place_on),
+                // `WaterlilyBlock.mayPlaceOn` in 1.21.11: the fluid below
+                // is water, or the ground is an `IceBlock` (ice or frosted
+                // ice; packed and blue ice are plain `Block`), and the
+                // fluid above is empty (26.1 reads the `supports_lily_pad`
+                // tags instead, both gone in 1.21.11).
                 Class::LilyPad => {
                     let fluid = self.fluid_at(ground_pos);
                     let above = self.fluid_at(above(ground_pos));
-                    (b.fluid_in(fluid.kind(), b.fluid_tags.supports_lily_pad)
-                        || b.in_set(ground, &t.supports_lily_pad))
+                    (b.fluid_in(fluid.kind(), b.fluid_tags.water)
+                        || b.is_block(ground, b.named.ice)
+                        || b.is_block(ground, b.named.frosted_ice))
                         && above.kind() == crate::fluid::FluidKind::Empty
                 }
                 Class::MangrovePropagule => b.in_set(ground, &t.supports_mangrove_propagule),
@@ -424,7 +440,17 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                         || (self.fluid_at(above(ground_pos)) == crate::fluid::FluidState::WATER
                             && (b.in_set(ground, &t.dirt) || b.is_block(ground, b.named.farmland)))
                 }
-                Class::WitherRose => b.in_set(ground, &t.supports_wither_rose),
+                // `WitherRoseBlock.mayPlaceOn` in 1.21.11: its parent's
+                // check (the dirt tag or farmland) or netherrack, soul
+                // sand or soul soil (26.1 reads the `supports_wither_rose`
+                // tag instead, gone in 1.21.11).
+                Class::WitherRose => {
+                    b.in_set(ground, &t.dirt)
+                        || b.is_block(ground, b.named.farmland)
+                        || b.is_block(ground, b.named.netherrack)
+                        || b.is_block(ground, b.named.soul_sand)
+                        || b.is_block(ground, b.named.soul_soil)
+                }
                 // `VegetationBlock.mayPlaceOn`: the dirt tag or farmland in
                 // 1.21.11 (`BlockTags.SUPPORTS_VEGETATION` is gone; the dirt
                 // tag holds the same blocks the old tag did, farmland aside).
