@@ -1583,13 +1583,65 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -p
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings (3m21s).
+- **Item 40 — ConfirmScreen / PauseScreen,
+  ported:**
+  - `Choice` (ConfirmScreen and
+    ConfirmLinkScreen) is 1.21.5's manual
+    layout, not 1.21.6's LinearLayout column:
+    the title sits at `titleTop` (`clamp((h -
+    mh) / 2 - 29, 10, 80)`), the message 20
+    below it, the buttons 20 below the
+    message clamped to `h / 6 + 96 .. h - 24`
+    (`Mth.clamp` semantics, so a screen
+    shorter than 144 cannot panic); the
+    15-row message cap (1.21.6's
+    `setMaxRows(15)`) is gone. The button
+    row (width/2 ± 155, 10 apart for two of
+    150) was already 1.21.5's (item 29). A
+    layout test pins the three formulas.
+  - The pause menu's custom dialog additions
+    are 1.21.6-only (`getCustomAdditions`,
+    the `pause_screen_additions` tag, the
+    dialog button with
+    `CUSTOM_OPTIONS_TOOLTIP`):
+    `pause_screen_additions`, the id-14 arm
+    and the `additions` parameter are all
+    removed; the server links row (id 11,
+    opening `ServerLinksScreen`) stays, now
+    without the tooltip 1.21.6's dialog
+    button carried. The additions test is
+    deleted; the split-settings test drops
+    its additions cases.
+  - No-ops verified: the disconnect flow
+    already matches 1.21.5 (external server
+    leaves plainly, a local world goes
+    through the `menu.savingLevel` screen);
+    the disconnect label
+    (`menu.returnToMenu` / `menu.disconnect`)
+    is the same pair; the Now Playing toast
+    on the pause menu is already gone (item
+    37); the centered icon button already
+    draws its sprite at full opacity
+    (1.21.5's `blitSprite` takes no alpha);
+    the WorldVersion record → interface
+    change is item 32's (done); the
+    RenderPipelines → RenderType rename has
+    no wgpu surface.
+  - NOT this item: the `dialog/` screens
+    package (removed in 1.21.5) and the
+    `ServerLinksDialogScreen` citations in
+    server_links.rs belong to the dialog
+    item.
+  - Verification: `cargo check -p
+    horizon-client --all-targets` 0 errors /
+    0 warnings (3m27s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **39 of 426 are
-closed** (rank 1 complete, rank 2 at 30/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **40 of 426 are
+closed** (rank 1 complete, rank 2 at 31/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
