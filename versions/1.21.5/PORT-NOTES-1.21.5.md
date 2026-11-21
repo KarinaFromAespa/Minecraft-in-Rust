@@ -3428,13 +3428,60 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 76 — `/playsound` to the
+  1.21.5 form, other commands
+  verified:**
+  - `/playsound` is the one real
+    change, in two places.
+    1.21.6 only plays the sound
+    to targets in the source's
+    level; 1.21.5 has no level
+    check, so every target
+    hears it. The guest
+    dimension filter is gone.
+    And 1.21.6's feedback counts
+    the players who heard it
+    (and names the first
+    recipient), while 1.21.5's
+    counts the targets (and
+    names the first target);
+    the result still counts the
+    hearers, and zero hearers
+    still errors with
+    `commands.playsound.failed`.
+    `cmd_playsound` now counts
+    hearers and targets
+    separately instead of
+    tracking recipients.
+    The placement math
+    (`playsound_placement`) is
+    identical in both versions.
+  - The rest is Java-only:
+    `Commands.hasPermission(2)`
+    vs the same lambda in
+    Attribute / Damage /
+    Particle / Ride / Rotate /
+    SpreadPlayers / StopSound,
+    `SuggestionProviders.cast`
+    (generics) in PlaySound /
+    StopSound, and
+    `ResourceKeyArgument`'s
+    suggestion path (static
+    helper vs the same call on
+    the source).
+  - Verification: `cargo test -p
+    horizon-client --lib
+    world_cmds::tests` 5 passed,
+    and `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **75 of 426 are
-closed** (rank 1 complete, rank 2 at 66/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **76 of 426 are
+closed** (rank 1 complete, rank 2 at 67/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

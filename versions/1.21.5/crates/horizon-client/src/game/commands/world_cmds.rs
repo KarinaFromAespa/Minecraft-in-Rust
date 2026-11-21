@@ -639,16 +639,13 @@ impl Game<'_> {
         let range = if volume > 1.0 { 16.0 * volume } else { 16.0 };
         // PlaySoundCommand: one seed for every player.
         let seed = self.world.random.next_long();
-        let here = self.dim.id();
-        let mut tracker = Tracker::default();
+        // 1.21.5 counts targets in the feedback (and names the first
+        // target), while the result counts the players who heard it.
+        let target_count = targets.len();
+        let first_target = targets.first().copied();
+        let mut heard = 0;
         for t in targets {
             if !matches!(t, Target::Player | Target::Guest(_)) {
-                continue;
-            }
-            // Only players in the source's level hear it.
-            if let Target::Guest(conn) = t
-                && self.command_guest(conn).is_none_or(|g| g.dimension != here)
-            {
                 continue;
             }
             let Some(p) = self.target_position(t) else {
@@ -676,27 +673,24 @@ impl Game<'_> {
                 }
                 None => self.audio.play_on(source, &sound, Some(at), v, pitch),
             }
-            tracker.mark(&holder(self.target_name(t)));
+            heard += 1;
+        }
+        if heard == 0 {
+            return Err(err("commands.playsound.failed", &[]));
         }
         let name = Text::literal(sound.clone());
-        let (message, total) = tracker.message(
-            true,
-            Some(err("commands.playsound.failed", &[])),
-            |h, _| {
-                Text::translate(
-                    "commands.playsound.success.single",
-                    &[name.clone(), h.text.clone()],
-                )
-            },
-            |c, _| {
-                Text::translate(
-                    "commands.playsound.success.multiple",
-                    &[name.clone(), num(c)],
-                )
-            },
-        )?;
+        let message = match first_target {
+            Some(first) if target_count == 1 => Text::translate(
+                "commands.playsound.success.single",
+                &[name, self.target_name(first)],
+            ),
+            _ => Text::translate(
+                "commands.playsound.success.multiple",
+                &[name, num(target_count)],
+            ),
+        };
         self.feedback(message);
-        Ok(total)
+        Ok(heard)
     }
     pub(super) fn cmd_stopsound(&mut self, ctx: &Context) -> R<i32> {
         let targets = self.entities(ctx, "targets", true)?;
