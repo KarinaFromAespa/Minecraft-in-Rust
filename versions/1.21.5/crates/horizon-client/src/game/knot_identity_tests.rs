@@ -221,7 +221,7 @@ fn two_leads_on_one_fence_share_one_knot() {
     let uuid = knot_uuid(&mut game);
     let other = mob(&mut game, OTHER_PIG);
     let other = game.mobs[other].id;
-    game.break_leash(other, false, false);
+    game.break_leash(other, false);
     assert_eq!(knots(&game), [id]);
     assert_eq!(knot_uuid(&mut game), uuid);
 }
@@ -236,7 +236,7 @@ fn a_knot_tied_again_after_its_last_lead_is_the_same_entity() {
     let first_uuid = knot_uuid(&mut game);
     let pig = mob(&mut game, PIG);
     let pig = game.mobs[pig].id;
-    game.break_leash(pig, false, false);
+    game.break_leash(pig, false);
     // 1.21.5 has no `notifyLeasheeRemoved`: the knot outlives its last lead.
     assert_eq!(knots(&game), [first]);
     assert!(game.run_command(&format!("execute if entity {AT_FENCE}")));

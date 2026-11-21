@@ -191,7 +191,7 @@ impl Game<'_> {
         }
         let id = self.mobs[index].id;
         // Leashable.dropLeash, then discard.
-        self.break_leash(id, true, false);
+        self.break_leash(id, true);
         self.mobs[index].removed = true;
         // ItemUtils.createFilledResult.
         self.filled_result(filled);

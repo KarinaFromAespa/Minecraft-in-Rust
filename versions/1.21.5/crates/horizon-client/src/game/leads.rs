@@ -196,10 +196,6 @@ impl Game<'_> {
                 .play("entity.leash_knot.break", Some(at), 1.0, 1.0);
         }
     }
-    pub(super) fn lead_sound(&mut self, sound: &str, at: [f64; 3]) {
-        self.audio
-            .play(&format!("minecraft:item.lead.{sound}"), Some(at), 1.0, 1.0);
-    }
     /// `Leashable.canHaveALeashAttachedToIt` for the mob at `index`:
     /// leashable and not already leashed (1.21.5 checks no distance;
     /// 1.21.6's `canHaveALeashAttachedTo` added the snap-range check).
@@ -241,14 +237,17 @@ impl Game<'_> {
         self.spawn_item_own(ItemStack::new("minecraft:lead", 1), at, 10);
     }
     /// `Leashable.dropLeash` / `removeLeash`: the lead falls as an item.
-    pub(super) fn break_leash(&mut self, id: u32, drop: bool, sound: bool) {
-        self.drop_leash(id, drop, sound, false);
+    pub(super) fn break_leash(&mut self, id: u32, drop: bool) {
+        self.drop_leash(id, drop, false);
     }
     /// `break_leash` by the acting player's use (untying it).
     fn break_leash_used(&mut self, id: u32, drop: bool) {
-        self.drop_leash(id, drop, false, true);
+        self.drop_leash(id, drop, true);
     }
-    fn drop_leash(&mut self, id: u32, drop: bool, sound: bool, used: bool) {
+    // 1.21.5 plays no sound when a lead breaks (1.21.6 added LEAD_BREAK):
+    // the snap is silent, and a knot breaking plays LEASH_KNOT_BREAK
+    // through the knot's own path.
+    fn drop_leash(&mut self, id: u32, drop: bool, used: bool) {
         let killer = self.lead_killers.remove(&id).map(|(killer, _)| killer);
         let Some((alive, at, kind)) = self.mobs.iter_mut().find(|m| m.id == id).and_then(|m| {
             horizon_client::mobs::leash::remove(m)?;
@@ -268,9 +267,6 @@ impl Game<'_> {
         }
         // Leashable.tickLeash gates a dying entity's lead drop on entity_drops.
         let drop = drop && (alive || self.ui.rules.bool("entity_drops"));
-        if sound {
-            self.lead_sound("break", at);
-        }
         if !drop {
             return;
         }

@@ -2466,10 +2466,10 @@ pub enum MobEvent {
         pitch: f32,
     },
     /// A lead snaps or loses its holder: the lead item drops when asked.
+    /// 1.21.5 plays no sound for it (1.21.6 added LEAD_BREAK).
     LeashBreak {
         mob: u32,
         drop: bool,
-        sound: bool,
     },
     /// A zombie villager's cure is complete: the game turns it back into a villager.
     CureZombieVillager {

@@ -152,7 +152,6 @@ fn handle_leash_at_distance(
             events.push(MobEvent::LeashBreak {
                 mob: m.id,
                 drop: true,
-                sound: false,
             });
         }
         return false;
@@ -215,7 +214,6 @@ pub fn tick(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
         events.push(MobEvent::LeashBreak {
             mob: m.id,
             drop: true,
-            sound: false,
         });
         return;
     }
@@ -229,7 +227,6 @@ pub fn tick(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
         events.push(MobEvent::LeashBreak {
             mob: m.id,
             drop: true,
-            sound: false,
         });
         return;
     }
@@ -245,7 +242,6 @@ pub fn tick(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
             events.push(MobEvent::LeashBreak {
                 mob: m.id,
                 drop: true,
-                sound: false,
             });
         }
         return;
@@ -261,7 +257,6 @@ pub fn tick(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
         events.push(MobEvent::LeashBreak {
             mob: m.id,
             drop: true,
-            sound: false,
         });
         return;
     }
@@ -482,8 +477,7 @@ mod tests {
                     e,
                     MobEvent::LeashBreak {
                         drop: true,
-                        sound: false,
-                        ..
+                                ..
                     }
                 )),
                 "a snapped lead drops silently: {events:?}"

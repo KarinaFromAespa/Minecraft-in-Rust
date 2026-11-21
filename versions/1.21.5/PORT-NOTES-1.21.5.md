@@ -11046,12 +11046,74 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 263 — Sound
+  events**
+  - SoundEvents: sounds
+    resolve by name from
+    the loaded sounds.json
+    (1.21.5 data), so the
+    registry itself has no
+    code surface — the call
+    sites do. The dispenser
+    no longer shears leads
+    off (1.21.6's shearOffA
+    llLeashConnections,
+    with its SHEARS_SNIP);
+    1.21.5's dispenser only
+    tries the beehive and
+    Shearable, and each
+    species already plays
+    its own shear sound.
+    The lead-break sound is
+    gone end to end: the
+    sound flag left
+    LeashBreak, break_leash
+    and drop_leash, and
+    lead_sound
+    (item.lead.break) is
+    deleted — 1.21.5 plays
+    no sound when a lead
+    breaks. The gliding-
+    firework test pinned
+    the 1.21.6 form
+    (production was already
+    1.21.5) and now pins
+    leads kept and no lead
+    sound. Verified: the
+    knot sounds are the
+    1.21.5 pair (leash_knot
+    .break/place),
+    sand.wind plays, dry-
+    grass ambient is gone
+    (item 160), and the
+    ghastling/happy-ghast/h
+    arness/unequip/tears
+    sounds have no
+    references. The
+    protocol hash tables
+    pin shears.snip only on
+    the 26.3 side, where
+    the adapter supplies
+    it. Known gaps: the
+    dried-ghast ambient
+    code is inert (no block
+    in the tables), and the
+    port has no mob
+    ambient-sound system at
+    all, so the pufferfish
+    ambient has nothing to
+    land on.
+  - Verification: cargo
+    check -j 1 -p horizon-
+    client --lib 0/0; --lib
+    --tests 0/0.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **262 of 426 are
-closed** (rank 1 complete, rank 2 at 253/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **263 of 426 are
+closed** (rank 1 complete, rank 2 at 254/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

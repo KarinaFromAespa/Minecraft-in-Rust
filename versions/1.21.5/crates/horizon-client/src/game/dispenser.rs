@@ -1899,10 +1899,6 @@ impl Game<'_> {
     fn shear_entity(&mut self, target: Pos) -> Result<bool> {
         let shears = ItemStack::new("minecraft:shears", 1);
         for t in self.targets_at(target) {
-            // Entity.shearOffAllLeashConnections comes first, for any entity.
-            if self.shear_off_leashes(t) {
-                return Ok(true);
-            }
             let Target::Mob(i) = t else { continue };
             let m = &self.mobs[i];
             if !m.alive() {
@@ -2051,67 +2047,6 @@ impl Game<'_> {
     /// `Entity.shearOffAllLeashConnections(null)`: the entity's own lead and
     /// every lead held by it (within a 32 block box around its centre) drop;
     /// a shear game event at the entity and a snip at its block follow.
-    fn shear_off_leashes(&mut self, t: Target) -> bool {
-        use horizon_client::mobs::{Who, leash::Holder};
-        let (holder, centre, own) = match t {
-            Target::Mob(i) => {
-                let m = &self.mobs[i];
-                let b = m.bounds();
-                (Holder::Mob(m.id), b.center(), Some(i))
-            }
-            Target::Player => {
-                let Some(v) = self.player_view() else {
-                    return false;
-                };
-                (Holder::Player, v.bounds.center(), None)
-            }
-            Target::Stand(_) => return false,
-        };
-        let area = Aabb::new(centre, centre).inflate(Vec3::new(16.0, 16.0, 16.0));
-        let mut leashed: Vec<(u32, usize)> = self
-            .mobs
-            .iter()
-            .enumerate()
-            .filter(|(_, m)| {
-                !m.removed && m.extra.leash == Some(holder) && overlaps(m.bounds(), area)
-            })
-            .map(|(j, m)| (m.id, j))
-            .collect();
-        leashed.sort_unstable();
-        let own_leashed = own.is_some_and(|i| self.mobs[i].extra.leash.is_some());
-        if leashed.is_empty() && !own_leashed {
-            return false;
-        }
-        // Leashable.dropLeash: a lead item at the leashed entity's feet.
-        let drop = |game: &mut Self, j: usize| {
-            if horizon_client::mobs::leash::remove(&mut game.mobs[j]).is_some() {
-                let at = game.mobs[j].position;
-                game.spawn_at_location(at, 0.0, ItemStack::new("minecraft:lead", 1));
-            }
-        };
-        if let Some(i) = own.filter(|_| own_leashed) {
-            drop(self, i);
-        }
-        for (_, j) in leashed {
-            drop(self, j);
-        }
-        let (at, who) = match t {
-            Target::Mob(i) => {
-                let m = &self.mobs[i];
-                (m.position, Who::Mob(m.id))
-            }
-            _ => (
-                self.player.as_ref().map_or(Vec3::ZERO, |p| p.position),
-                Who::Player,
-            ),
-        };
-        let ctx = self.who_context(Some(who), None);
-        self.post_game_event("minecraft:shear", [at.x, at.y, at.z], ctx);
-        let block = [at.x.floor() + 0.5, at.y.floor() + 0.5, at.z.floor() + 0.5];
-        self.audio
-            .play("minecraft:item.shears.snip", Some(block), 1.0, 1.0);
-        true
-    }
     /// The brush behaviour: the first armadillo in front that `brushOffScute`s.
     fn dispense_brush(&mut self, pos: Pos, facing: Direction, stack: ItemStack) -> Dispensed {
         let target = offset(pos, facing);
