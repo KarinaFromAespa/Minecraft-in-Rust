@@ -10064,12 +10064,40 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 230 — Legacy chunk
+  entity load:
+  - The diff is the
+    ValueInput refactor
+    again (items 198/201):
+    1.21.6 wraps the legacy
+    entity load in a Proble
+    mReporter.ScopedCollect
+    or plus TagValueInput,
+    1.21.5 calls EntityType
+    .loadEntitiesRecursive
+    on the raw tag list.
+    The port has no
+    ProblemReporter,
+    TagValueInput or
+    ValueInput anywhere;
+    save::load_entities
+    returns the raw entity
+    tags, which is the
+    1.21.5 form. The block-
+    entity half
+    (keepPacked,
+    loadStatic) is
+    identical in both
+    versions.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **229 of 426 are
-closed** (rank 1 complete, rank 2 at 220/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **230 of 426 are
+closed** (rank 1 complete, rank 2 at 221/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
