@@ -10447,12 +10447,36 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 244 —
+  TrialSpawnerRenderer:
+  - The same rename as item
+    228, at the use site: T
+    rialSpawnerStateData/ge
+    tStateData() in 1.21.6
+    is TrialSpawnerData/get
+    Data() in 1.21.5. The
+    rendered behaviour is
+    identical (display
+    entity from getOrCreate
+    DisplayEntity, spun
+    with
+    getOSpin()/getSpin()).
+    The port has no
+    TrialSpawnerStateData
+    anywhere; its trial-
+    spawner render already
+    uses getOrCreateDisplay
+    Entity and the
+    spin/o_spin fields.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **243 of 426 are
-closed** (rank 1 complete, rank 2 at 234/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **244 of 426 are
+closed** (rank 1 complete, rank 2 at 235/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
