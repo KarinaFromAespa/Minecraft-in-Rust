@@ -12273,3 +12273,7 @@ Extractor rewire and visibility, plus 26.1's `updateWidth` re-arranging
 immediately vs 1.21.11's `setWidth` (arrange at layout time). The Rust
 computes tab layout fresh from the current width each time, which is
 the 1.21.11 behaviour.
+
+## Item 620 — pack_palette.rs (RedStoneWireBlock) — NO-CHANGE
+
+Only the `is` overload at 9 sites.
