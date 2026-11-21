@@ -7074,13 +7074,42 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-command
     -p horizon-client --lib`
     passed at item 145.
+- **Item 149 — Raid trigger
+  verified against 1.21.5:**
+  - `ServerPlayer.level()`
+    → `serverLevel()` in
+    `createOrExtendRaid` is
+    a pure rename: on a
+    server player both
+    return the same
+    `ServerLevel`, and the
+    disable-raids rule
+    check reads the same
+    object either way. No
+    behaviour change, no
+    Rust surface (the
+    port's raid code in
+    `game/raids.rs` reads
+    the rule from its own
+    level state; the port
+    names the rule `raids`,
+    inverted from vanilla's
+    `disableRaids`, a
+    version-neutral
+    convention).
+  - Verification: no Rust
+    change; the tree state
+    is the one `cargo check
+    -j 1 -p horizon-command
+    -p horizon-client --lib`
+    passed at item 145.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **148 of 426 are
-closed** (rank 1 complete, rank 2 at 139/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **149 of 426 are
+closed** (rank 1 complete, rank 2 at 140/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
