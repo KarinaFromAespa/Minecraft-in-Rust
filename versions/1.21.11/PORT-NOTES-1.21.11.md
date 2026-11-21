@@ -8916,6 +8916,29 @@ Recorded, not fixed: `monster_brain.rs:1-2,99` and
 `villager_brain.rs:1,312` still cite `BRAIN_PROVIDER` — their
 own items' scope.
 
+## Item 154 — widely named: world/level/block/entity (rank 2, CHANGED, citations only)
+
+25 classes, 44 methods, 0 named. Mostly noise: the eleven `$1`
+anonymous classes differ only by the `requireNonNull` compiler
+artifact, and five classes (`CopperGolemStatueBlockEntity`,
+`CrafterBlockEntity`, `JigsawBlockEntity`, `SkullBlockEntity`,
+`SpawnerBlockEntity`) are bytecode-identical — this discharges
+item 110's `CrafterBlockEntity` referral. The bell's RAIDERS check
+is `getType().is(tag)` in 1.21.11, which the Rust already mirrors
+(the tag is checked against the type id). Test-instance padding
+(`getPadding` / `getTestBoundingBox` / `getTestBounds`) is 26.1-only
+and the Rust already uses the unpadded structure box everywhere.
+The one behaviour delta is the test-instance `export`: 26.1 gates it
+on `testTemplates()` ("Test structure exporting is disabled"), while
+1.21.11 always converts the saved `.nbt` to SNBT under
+`StructureUtils.testStructuresDir`. The engine has no
+structure-template packer (`NbtUtils.structureToSnbt` packs the
+template before printing), so the export stays a stub and the
+`export_test` doc now says so honestly. The literal comparison
+confirms the `export` strings are the only literal differences
+across all 25 classes. `cargo check -p horizon-client --lib
+--tests --no-default-features` clean.
+
 ## CI proof run 44850889695 (recorded below)
 
 Dispatched 01:33:40 UTC Nov 21, 2026 on behaviour/1.21.11 @

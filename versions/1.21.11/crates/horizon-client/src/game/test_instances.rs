@@ -637,8 +637,13 @@ impl Game<'_> {
         Some(id)
     }
 
-    /// `exportTest`: saves, then writes to the test template folder, which
-    /// only a development build has.
+    /// `exportTest`: 1.21.11's `TestInstanceBlockEntity.export` always
+    /// converts the saved structure to SNBT under
+    /// `StructureUtils.testStructuresDir` — there is no disabled branch
+    /// (the 26.1 `testTemplates()` gate is gone). The engine has no
+    /// structure-template packer (`NbtUtils.structureToSnbt` packs the
+    /// template before printing it), so it saves and reports the export
+    /// as disabled instead of writing the `.snbt`.
     fn export_test(&mut self, pos: Pos) {
         if self.save_test(pos).is_some() {
             self.system_message(
