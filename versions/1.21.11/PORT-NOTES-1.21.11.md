@@ -9871,3 +9871,17 @@ unchanged. `Behavior.getRequiredMemories()` is a
 26.1-only getter. Two doc citations in brain.rs
 updated from `Brain.Packed` to the `memories` codec;
 no behavioural code changed.
+
+## Item 220 — level/growth.rs (rank 2, CHANGED)
+
+2 classes, 3 methods, 2 named.
+`TreeGrower.getMinimumHeight` is 26.1-only, so the
+sapling and azalea bonemeal checks lose their
+build-height gates: `SaplingBlock.isValidBonemealTarget`
+is unconditionally true in 1.21.11 (verified by javap
+on the jar) and `AzaleaBlock.isValidBonemealTarget`
+asks only for the fluid above to be empty.
+`tree_minimum_height` and the `TreeGrower.shortest`
+field are removed as dead. `JigsawPlacement` is
+identical in both versions (`$$N` noise only). New
+level test: azalea at y 319 still takes bonemeal.

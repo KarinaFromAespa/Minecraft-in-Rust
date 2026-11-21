@@ -335,8 +335,11 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 if b.live_features().is_none() || !self.tree_can_grow(g, pos, state) {
                     return false;
                 }
-                let height = self.tree_minimum_height(g);
-                self.is_inside_build_height(pos.y + height)
+                // `SaplingBlock.isValidBonemealTarget` in 1.21.11:
+                // always true (26.x also asked
+                // `TreeGrower.getMinimumHeight` against the build
+                // height, a method 1.21.11 does not have).
+                true
             }
             Kind::Propagule => !b.table.bool(state, p.hanging) || b.table.int(state, p.age) != 4,
             Kind::Mushroom => {
@@ -361,14 +364,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     .link
                     .is_some_and(|required| b.is_block(below_state, required))
             }
-            Kind::Azalea => {
-                let Some(g) = grower("azalea") else {
-                    return false;
-                };
-                let height = self.tree_minimum_height(g);
-                self.is_inside_build_height(pos.y + height + 2)
-                    && self.fluid_at(up) == FluidState::EMPTY
-            }
+            // `AzaleaBlock.isValidBonemealTarget` in 1.21.11:
+            // only the fluid above is empty (26.x also asked
+            // the build height via `TreeGrower.getMinimumHeight`).
+            Kind::Azalea => self.fluid_at(up) == FluidState::EMPTY,
             // `GrassBlock` / `NyliumBlock` / `BambooSaplingBlock`
             // `.isValidBonemealTarget` in 1.21.11: air above, no build-height
             // check (26.x added one, so bonemeal at the ceiling was kept).

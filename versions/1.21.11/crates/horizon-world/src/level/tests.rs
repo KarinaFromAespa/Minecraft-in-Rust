@@ -3394,6 +3394,21 @@ fn bone_meal_still_feeds_grass_at_the_build_ceiling() {
 }
 
 #[test]
+fn bone_meal_still_feeds_an_azalea_at_the_build_ceiling() {
+    // `AzaleaBlock.isValidBonemealTarget` in 1.21.11 asks only for the
+    // fluid above to be empty (26.x also asked the build height via
+    // `TreeGrower.getMinimumHeight`, a method 1.21.11 does not have), so
+    // bonemeal on an azalea at y 319 is consumed.
+    let mut w = world!();
+    let pos = BlockPos::new(0, 319, 0);
+    w.put(pos, w.id("azalea", &[]));
+    assert!(
+        w.b().sim(&mut w.level, &mut w.ticks).grow_crop(pos),
+        "bonemeal is consumed at the ceiling"
+    );
+}
+
+#[test]
 fn bone_meal_still_feeds_tall_grass_at_the_build_ceiling() {
     // `TallGrassBlock.isValidBonemealTarget` in 1.21.11 has no build-height
     // check (26.x added one): the short grass still grows into a tall one,
