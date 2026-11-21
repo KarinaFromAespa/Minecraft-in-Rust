@@ -12010,3 +12010,9 @@ Only the `is(Object)` vs `is(Block)` overload widening (3 sites).
 1.21.11 walks the context chain by hand, stopping at a redirect back to
 the root. The Rust's `signable_arguments` already implements the 1.21.11
 walk (`child.root != root`) over `Message` arguments.
+
+## Item 577 — game/pumpkin.rs (PumpkinBlock) — NO-CHANGE
+
+Only the `is` overload, the `ItemInstance` (26.1) vs `ItemStack` (1.21.11)
+parameter rename, and `Level.getRandom()` vs the `random` field (same
+source/draw order). The seed-drop motion matches exactly.
