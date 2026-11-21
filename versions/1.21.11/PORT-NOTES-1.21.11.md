@@ -11485,3 +11485,19 @@ its `particle()` returns a sprite layer id, and
 `loadBlockStateDefinitionStack` exists in both
 versions. The item's "named" `particleMaterial`
 appears nowhere in the Rust tree.
+
+## Item 527 — game/using_item.rs (rank 3, NO-CHANGE)
+
+`InstrumentItem.use` and `getUseDuration` are
+logic-identical in both versions (start using, play,
+cooldown `floor(useDuration * 20)`, used stat,
+CONSUME; unknown instrument fails). Only the
+resolution differs: 26.1's static `getInstrument`
+calls `InstrumentComponent.instrument()` for the
+resolved holder, while 1.21.11's takes a
+`HolderLookup.Provider` and calls `unwrap(provider)`,
+resolving the reference against the registry. The
+Rust already follows the 1.21.11 shape — it looks
+the component's id up in the instrument registry (or
+parses an inline instrument) and fails on unknown —
+and `use_ticks()` is the same floor.
