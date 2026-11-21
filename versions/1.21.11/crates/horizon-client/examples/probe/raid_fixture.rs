@@ -284,6 +284,18 @@ fn parse_state(spec: &str) -> BlockState {
             .collect(),
     }
 }
+/// The oracle's `Neutral` level random for raid mode: `nextInt` 0,
+/// `nextFloat` 0.75.
+struct NeutralRandom;
+impl raid::SpawnRandom for NeutralRandom {
+    fn next_float(&mut self) -> f32 {
+        0.75
+    }
+    fn next_int_bound(&mut self, _bound: i32) -> i32 {
+        0
+    }
+}
+
 fn bits64(v: f64) -> String {
     format!("{:x}", v.to_bits())
 }
@@ -640,6 +652,10 @@ pub fn main() -> horizon_client::Result<()> {
         // raid
         let seed: i64 = get("rseed", "1").parse()?;
         let mut raids = Raids::default();
+        // The oracle's `Neutral` level random for raid mode: `nextInt` 0,
+        // `nextFloat` 0.75 (1.21.11's `findRandomSpawnPos` draws from the
+        // level random, which the oracle holds neutral).
+        let mut level_random = NeutralRandom;
         let mut raiders: Vec<Raider> = Vec::new();
         let mut events: BTreeMap<i32, Vec<String>> = BTreeMap::new();
         for e in indexed("ev") {
@@ -904,7 +920,7 @@ pub fn main() -> horizon_client::Result<()> {
                     })
                     .collect()
             };
-            let actions = raids.tick(&world, world.raids, &members);
+            let actions = raids.tick(&world, &mut level_random, world.raids, &members);
             for (id, action) in actions {
                 match action {
                     Action::Spawn { pos, wave, spawns } => {

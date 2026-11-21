@@ -624,6 +624,13 @@ impl Game<'_> {
             })
             .collect();
         let mut raids = std::mem::take(&mut self.raiding.raids);
+        // `findRandomSpawnPos` draws from the level random in 1.21.11;
+        // taken out like the patrol spawner's (the `Lvl` below borrows
+        // the game, so the random cannot stay in place).
+        let mut random = std::mem::replace(
+            &mut self.world.random,
+            horizon_core::random::LegacyRandom::new(0),
+        );
         let actions = {
             let lvl = Lvl {
                 game: self,
@@ -631,8 +638,9 @@ impl Game<'_> {
                 centers: &centers,
             };
             let members = |id: i32| infos.get(&id).cloned().unwrap_or_default();
-            raids.tick(&lvl, self.ui.rules.bool("raids"), &members)
+            raids.tick(&lvl, &mut random, self.ui.rules.bool("raids"), &members)
         };
+        self.world.random = random;
         self.raiding.raids = raids;
         for (id, (old, _)) in old_states {
             if let Some(r) = self.raiding.raids.get(id)

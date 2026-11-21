@@ -1501,8 +1501,10 @@ mod tests {
     }
 
     /// The raid captain's banner keeps the name, rarity and hidden pattern
-    /// layers `Raid.getBannerComponentPatch` gives it, so a guest's copy reads
-    /// as the ominous banner rather than a white one (#12530).
+    /// layers `Raid.getOminousBannerInstance` gives it (1.21.11 builds the
+    /// stack directly; 26.1 built it from `getBannerComponentPatch`), so a
+    /// guest's copy reads as the ominous banner rather than a white one
+    /// (#12530).
     #[test]
     fn an_ominous_banner_keeps_its_name_across_the_wire() {
         use horizon_protocol::buf::{Codec, Reader, Writer};

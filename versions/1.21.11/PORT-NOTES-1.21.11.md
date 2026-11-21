@@ -8721,6 +8721,28 @@ identical. The Rust's quick-craft distribution already matches
 1.21.11, including the stage-1 `>` / stage-2 `>=` count gates.
 Tests: `menu::tests::` 53 passed.
 
+## Item 143 — item_sync.rs / Raid (rank 2, CHANGED)
+
+3 classes, 16 methods, 3 named. `Raid.findRandomSpawnPos`
+draws from the level random in 1.21.11 (the raid's own random
+in 26.1) — a real divergence: `find_spawn_pos` now takes a
+`SpawnRandom` (the two draws it makes) threaded through
+`Raid::tick` / `Raids::tick` from `game/raids.rs::tick_raids`,
+which takes the level random out of `self.world.random` with
+the patrol spawner's `mem::replace` dance. The raid fixture
+passes a `NeutralRandom` (nextInt 0, nextFloat 0.75) because
+the oracle holds the stand-in level's random neutral in raid
+mode. Wave composition and the horn seed still draw from the
+raid's own random (no javap hunks). The boss event lost its
+UUID in 1.21.11 (the Rust never had one — no edit); the
+ominous banner is built directly by `getOminousBannerInstance`
+(same 8 layers, already in `OMINOUS_LAYERS` — citations
+reworded in item_sync.rs, lan/guest.rs, item_data.rs);
+`RegistryDataLoader$RegistryData` trades `validator` for
+`requiredNonEmpty` (no Rust mirror); DataComponentMatchers is
+parameter-name noise only. Tests: `raid::tests::` 13 passed
+(horizon-client-lib); client_probe check clean.
+
 ## CI proof run 44839260120 (recorded below)
 
 Dispatched 05:31 NPT Nov 21, 2026 on behaviour/1.21.11 @
