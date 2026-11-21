@@ -8657,3 +8657,17 @@ the literal comparison returns zero differences across both
 classes. The Rust already mirrors the Java exactly (flags 67/276,
 pitches, volumes, game events, the sticky-pull gate). Test:
 `level::tests::pistons_push_and_sticky_pistons_pull` 1 passed.
+
+## Item 139 — world/level/storage (rank 2, NO-CHANGE)
+
+11 classes, 47 methods, 0 named. Java delta: `LevelDataAndDimensions`
+drops the `WorldDataAndGenSettings` inner record (holds `WorldData`
+directly); `LevelSummary.requiresFileFixing` is 26.1-only and gone in
+1.21.11; `ServerLevelData` reshuffles its accessors onto the interface
+and gains a "Level weather" crash-report line; the world-delete visitor
+uses `Files.delete` (throws on a vanished file) where 26.1 used
+`deleteIfExists`. None of it has a Rust mirror (no LevelSummary struct,
+no backup-status/primary-action mirror, no level-data crash category;
+the Rust deletes worlds with `remove_dir_all`). Tests:
+`save::tests::` 71 passed, 3 pre-existing datafix-upgrade failures on
+the unmodified tree.
