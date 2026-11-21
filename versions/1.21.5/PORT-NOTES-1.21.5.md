@@ -12464,12 +12464,44 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 300 — Test instance block**
+  - TestInstanceBlockEntity
+    : verified, no code.
+    The save/load delta is
+    the
+    ValueInput/ValueOutput
+    refactor with an
+    identical form, and the
+    port already implements
+    the 1.21.5 direct form:
+    TestInstanceBlock.save
+    writes the data key
+    (Data.CODEC: test,
+    size, rotation,
+    ignore_entities,
+    status, error_message),
+    load replaces the data
+    only when it decodes,
+    and getUpdateTag is
+    saveAdditional into a
+    fresh tag. The
+    saveStructure
+    ignore-blocks list is
+    the 1.21.6-only
+    parameter item 278
+    already removed
+    (template_from_world
+    skips only structure
+    voids).
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **299 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 31/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **300 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 32/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
