@@ -10488,3 +10488,11 @@ load/save path moved to flat, and
 bytecode diff is empty: `CreeperRenderer` is
 identical in both versions. No source change.
 `overlay`: 39 passed.
+
+## Item 290 — game/lightning.rs (rank 2, NO-CHANGE)
+
+1 class, 2 methods, 1 named. `Level.getRandom()`
+vs the `Level.random` field — same source, same
+draws; zero constant differences. The Rust
+already reads the field directly. No source
+change.
