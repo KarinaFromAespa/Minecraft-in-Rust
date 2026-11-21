@@ -11363,3 +11363,23 @@ permissions. Citations re-pointed to `Gui.render` and
 `extractRenderState`). The profiler chart stays
 always `hidden` (not drawn yet) and `Filtering: None`
 stays hardcoded — pre-existing gaps, not deltas.
+
+## Item 520 — mobs/golem.rs (rank 3, CHANGED)
+
+Two real differences. (1) `GolemRandomStrollInVillageGoal.getPosition`
+draws two floats — one against 0.3 (anywhere), one against 0.7
+(villager-first vs POI-first) — and the versions draw them in
+opposite orders: 26.1 draws the 0.3 roll first, 1.21.11 stores
+the first roll for the 0.7 check and draws a second for 0.3.
+Same distributions, different per-seed picks;
+`village_stroll_position` now draws the 0.7 roll first.
+(2) `SnowLayerBlock.canSurvive`'s tags are renamed:
+`CANNOT_SUPPORT_SNOW_LAYER` / `SUPPORT_OVERRIDE_SNOW_LAYER`
+became `SNOW_LAYER_CANNOT_SURVIVE_ON` /
+`SNOW_LAYER_CAN_SURVIVE_ON` (tag contents identical, verified
+in the jars); the snow trail in `snow_ai_step` now uses the
+1.21.11 names. The rest is `getRandom()` -> the `random` field
+and `is(Object)` -> `is(Block)`/`is(Item)` overloads. Note:
+the old tag names also live in horizon-world (`level/data.rs`,
+`level/weather.rs`, `level/survive.rs`) — other items' files,
+not touched here.
