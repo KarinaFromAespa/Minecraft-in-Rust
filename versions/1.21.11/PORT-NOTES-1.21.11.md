@@ -11999,3 +11999,7 @@ Only a `requireNonNull` on the outer instance and the `is(Object)` vs
 Only the `getTestBoundingBox` (26.1) vs `getStructureBoundingBox`
 (1.21.11) rename — the Rust already cites the 1.21.11 name — and
 `TestFinder` visibility.
+
+## Item 575 — game/golems.rs (CarvedPumpkinBlock) — NO-CHANGE
+
+Only the `is(Object)` vs `is(Block)` overload widening (3 sites).
