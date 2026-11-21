@@ -8193,13 +8193,105 @@ is the oracle; decompiled code is a reading aid.
     build was not run
     (OOM under load,
     item 122).
+- **Item 172 — Command
+  tree levels come
+  from the tree
+  (ArgumentUtils):**
+  - 1.21.5's
+    `commands.json`
+    carries no
+    permission info at
+    all — the
+    `required_level`
+    field only appears
+    in 1.21.6 (verified
+    against the real
+    reports: 1.21.5's
+    `op`/`ban`/`tp`
+    have no level key,
+    1.21.6's have
+    3/3/2) — but the
+    port's reader only
+    understood the
+    26.x `permissions`
+    object, so every
+    node read as level
+    0 and the LAN
+    server sent the
+    whole tree, /op
+    and /stop included,
+    to level-0 guests.
+    A silent vanilla
+    root now takes its
+    level from the
+    tree's own
+    registrations
+    (`vanilla::root_permission`,
+    built per server
+    selection so it
+    does not depend on
+    the process's
+    server-kind
+    atomics); a report
+    that does carry a
+    level still wins,
+    and the reader now
+    also parses the
+    1.21.6 integer
+    form. Mod roots and
+    the pregen tree
+    are untouched (the
+    pregen tree carries
+    its own
+    permissions).
+    `findUsedArgumentTypes`
+    has no surface
+    (the port reads
+    argument types
+    from the registry);
+    the rest of the
+    diff is refactor
+    (switch to
+    instanceof,
+    `isEmpty` to
+    `size() > 0`) over
+    identical JSON.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests` 0/0 (58s);
+    `cargo test -j 1 -p
+    horizon-command
+    --lib
+    root_permission` 1
+    passed (6m; 23
+    levels pinned
+    against the 1.21.6
+    report). The
+    horizon-client
+    test-profile build
+    OOM-killed under
+    3-stream load
+    (full features,
+    ~20m in) and the
+    `--no-default-features`
+    retry was killed
+    at ~23m to spare
+    the other streams'
+    builds, so the
+    `lan::commands`
+    tests (new
+    level-free-report
+    test, updated
+    filter test) run
+    in CI.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **171 of 426 are
-closed** (rank 1 complete, rank 2 at 162/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **172 of 426 are
+closed** (rank 1 complete, rank 2 at 163/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

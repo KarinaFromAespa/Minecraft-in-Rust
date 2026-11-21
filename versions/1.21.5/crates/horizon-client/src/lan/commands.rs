@@ -62,14 +62,21 @@ struct Node {
     suggestions: Option<&'static str>,
 }
 
-/// PermissionLevel names in the report's requirements.
-fn required_level(node: &Value) -> u8 {
+/// The level a commands-report node requires, when the report says: the
+/// `required_level` integer (1.21.6–1.21.10) or the `permissions` object
+/// (1.21.11 on). 1.21.5's report says nothing — `ArgumentUtils` only
+/// gained `required_level` in 1.21.6 — so a silent node is `None`, and
+/// the caller takes a vanilla root's level from the tree itself.
+fn report_level(node: &Value) -> Option<u8> {
+    if let Some(level) = node["required_level"].as_u64() {
+        return Some(level as u8);
+    }
     match node["permissions"]["permission"]["level"].as_str() {
-        Some("moderators") => 1,
-        Some("gamemasters") => 2,
-        Some("admins") => 3,
-        Some("owners") => 4,
-        _ => 0,
+        Some("moderators") => Some(1),
+        Some("gamemasters") => Some(2),
+        Some("admins") => Some(3),
+        Some("owners") => Some(4),
+        Some(_) | None => None,
     }
 }
 
@@ -159,7 +166,7 @@ impl CommandTree {
         ) {
             children.retain(|name, _| !mods.contains_key(name));
         }
-        for root in [&vanilla, extra, &horizon] {
+        for (i, root) in [&vanilla, extra, &horizon].into_iter().enumerate() {
             fill(
                 root,
                 0,
@@ -171,6 +178,10 @@ impl CommandTree {
                 &suggestions,
                 &mut nodes,
                 &mut paths,
+                // Only the vanilla report's roots take their level from
+                // the tree: a mod's root and the pregen tree carry (or
+                // need) their own.
+                i == 0,
             );
         }
         // enumerateNodes: breadth first from the root, each node's children
@@ -232,6 +243,7 @@ fn fill(
     suggestions: &HashMap<&str, &'static str>,
     nodes: &mut Vec<Node>,
     paths: &mut HashMap<Vec<String>, usize>,
+    levels_from_tree: bool,
 ) {
     let Some(children) = source["children"].as_object() else {
         return;
@@ -255,8 +267,15 @@ fn fill(
         let required =
             if path.is_empty() && !dedicated && OPEN_WHEN_INTEGRATED.contains(&name.as_str()) {
                 0
+            } else if path.is_empty() && levels_from_tree {
+                // 1.21.5's report carries no levels: a silent root takes
+                // its level from the tree's own registrations (a report
+                // that does carry one still wins).
+                report_level(child).unwrap_or_else(|| {
+                    crate::command::vanilla::root_permission(name, dedicated)
+                })
             } else {
-                required_level(child)
+                report_level(child).unwrap_or(0)
             };
         // A granted root, and what it leads to, as for its own level.
         let level = if path.is_empty() && granted.contains(name) {
@@ -319,6 +338,7 @@ fn fill(
             suggestions,
             nodes,
             paths,
+            levels_from_tree,
         );
         path.pop();
     }
@@ -505,10 +525,48 @@ mod tests {
         assert_eq!(guest.nodes[2].redirect, Some(1));
         let op = tree.packet(2, true, &builtin);
         let names: Vec<_> = op.nodes.iter().map(|n| n.name.as_str()).collect();
-        // The root's children in vanilla's registration order.
+        // The root's children in vanilla's registration order. `stop`
+        // carries no level in this report, so the tree's own level for
+        // it (4) keeps it from a level-2 player.
         assert_eq!(
             names,
-            ["", "me", "tell", "say", "stop", "action", "message"]
+            ["", "me", "tell", "say", "action", "message"]
+        );
+    }
+
+    /// 1.21.5's report carries no levels at all (`ArgumentUtils` only
+    /// gained `required_level` in 1.21.6): the packet takes each root's
+    /// level from the tree's own registrations — a guest sees only the
+    /// level-0 commands, a game master the level-2 ones, an admin on a
+    /// dedicated server the level-3 ones.
+    #[test]
+    fn a_level_free_report_takes_levels_from_the_tree() {
+        let report: Value = serde_json::from_str(
+            r#"{"type":"root","children":{
+                "op":{"type":"literal","executable":true},
+                "execute":{"type":"literal","executable":true},
+                "me":{"type":"literal","executable":true}}}"#,
+        )
+        .unwrap();
+        let tree = CommandTree { root: report };
+        let builtin = Builtin::default();
+        let names = |p: &Commands| {
+            let mut names: Vec<_> = p.nodes.iter().map(|n| n.name.as_str()).collect();
+            names.sort_unstable();
+            names
+        };
+        assert_eq!(names(&tree.packet(0, false, &builtin)), ["", "me"]);
+        assert_eq!(
+            names(&tree.packet(2, false, &builtin)),
+            ["", "execute", "me"]
+        );
+        assert_eq!(
+            names(&tree.packet(2, true, &builtin)),
+            ["", "execute", "me"]
+        );
+        assert_eq!(
+            names(&tree.packet(3, true, &builtin)),
+            ["", "execute", "me", "op"]
         );
     }
 

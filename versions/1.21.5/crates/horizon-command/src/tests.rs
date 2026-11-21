@@ -1262,3 +1262,41 @@ fn h149_oblique_local_offsets_are_grouped_before_the_origin() {
         "exact oblique local-coordinate bit mismatches: {failures:#?}"
     );
 }
+#[test]
+fn root_permission_matches_the_reports_levels() {
+    // The levels are 1.21.6's commands report's `required_level` values
+    // (1.21.5's report carries none, so the LAN packet takes them from
+    // the tree itself): a root the selection doesn't register reads 0.
+    let p = vanilla::root_permission;
+    for (name, want) in [
+        ("me", 0),
+        ("msg", 0),
+        ("help", 0),
+        ("execute", 2),
+        ("say", 2),
+        ("gamemode", 2),
+        ("tp", 2),
+        ("publish", 4),
+        ("seed", 0),
+        ("op", 0),
+        ("stop", 0),
+        ("no-such-command", 0),
+    ] {
+        assert_eq!(p(name, false), want, "{name} on an integrated server");
+    }
+    for (name, want) in [
+        ("op", 3),
+        ("ban", 3),
+        ("kick", 3),
+        ("whitelist", 3),
+        ("stop", 4),
+        ("save-all", 4),
+        ("jfr", 4),
+        ("seed", 2),
+        ("execute", 2),
+        ("publish", 0),
+        ("me", 0),
+    ] {
+        assert_eq!(p(name, true), want, "{name} on a dedicated server");
+    }
+}
