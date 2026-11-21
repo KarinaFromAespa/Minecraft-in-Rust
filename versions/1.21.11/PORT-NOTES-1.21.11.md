@@ -12266,3 +12266,10 @@ Internally consistent (the `resources.zip` writer and reader agree).
 Only the `Context.level` type (`WorldGenLevel` vs
 `LevelSimulatedReader`, same as items 538/562); the methods call the
 same `isStateAtPosition`.
+
+## Item 619 — client/gui/components/tabs (TabNavigationBar) — NO-CHANGE
+
+Extractor rewire and visibility, plus 26.1's `updateWidth` re-arranging
+immediately vs 1.21.11's `setWidth` (arrange at layout time). The Rust
+computes tab layout fresh from the current width each time, which is
+the 1.21.11 behaviour.
