@@ -12235,3 +12235,13 @@ parked level's set, each to its dimension folder
 (`dimensions/minecraft/<name>/data/minecraft/random_sequences.dat`,
 the `raids_path` pattern). The overworld load falls back to the old
 world-root path for worlds saved by older Horizon builds.
+
+## Item 615 — game/dialogs.rs (AbstractStringWidget, ItemDisplayWidget) — NO-CHANGE, known gap
+
+Extractor rewire throughout, plus one real difference:
+`ItemDisplayWidget` shows its tooltip when hovered OR focused in
+1.21.11, hover-only in 26.1. The Rust's dialog item parts are
+hover-only because its dialog focus tracks text inputs only — item
+parts are never focusable, so the 1.21.11 tooltip-on-focus has no
+surface. Making dialog item parts focusable is a dialog-focus feature,
+out of rank-3 scope.
