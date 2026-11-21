@@ -11214,12 +11214,31 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 267 — Section
+  storage**
+  - SectionStorage: a pure
+    accessor rename —
+    1.21.6's
+    dataVersion().version()
+    vs 1.21.5's getDataVers
+    ion().getVersion(), the
+    same current data
+    version in both spots
+    (write and version
+    check). No behaviour
+    change; the port reads
+    and writes DataVersion
+    from its own pin
+    (4325).
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **266 of 426 are
-closed** (rank 1 complete, rank 2 at 257/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **267 of 426 are
+closed** (rank 1 complete, rank 2 at 258/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
