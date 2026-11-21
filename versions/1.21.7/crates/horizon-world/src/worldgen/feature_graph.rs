@@ -15,6 +15,7 @@ use super::{
         PlacementQueryError,
     },
     required,
+    unwrap_legacy_config,
     weighted::OptionalWeightedList,
 };
 use horizon_core::random::{InvalidBound, RandomSource};
@@ -308,6 +309,8 @@ impl FeatureDefinition {
         blocks: Option<&FeatureBlockBindings<'_>>,
     ) -> Result<Self, DecodeError> {
         visit(depth, remaining)?;
+        let json = unwrap_legacy_config(json)?;
+        let json = json.as_str();
         let object: Object = serde_json::from_str(json)?;
         let kind = identifier(&serde_json::from_str::<String>(
             required(&object, "type")?.get(),

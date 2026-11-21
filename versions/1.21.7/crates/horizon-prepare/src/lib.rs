@@ -1495,10 +1495,16 @@ const WORLDGEN_BUNDLES: [(&str, &str); 19] = [
     ("rules", "worldgen/material_rule"),
     ("conditions", "worldgen/material_condition"),
     ("settings", "worldgen/noise_settings"),
-    ("carvers", "worldgen/carver"),
+    // 1.21.7 predates the registry renames: configured_carver and
+    // configured_feature became carver and feature in 26.x. The
+    // material_rule, material_condition and block_state_provider
+    // registries do not exist in 1.21.7 at all (surface rules and
+    // state providers are inline), and there are no feature tags, so
+    // those bundles are correctly empty.
+    ("carvers", "worldgen/configured_carver"),
     ("biomes", "worldgen/biome"),
     ("world_presets", "worldgen/world_preset"),
-    ("features", "worldgen/feature"),
+    ("features", "worldgen/configured_feature"),
     ("placed_features", "worldgen/placed_feature"),
     ("state_providers", "worldgen/block_state_provider"),
     ("biome_tags", "tags/worldgen/biome"),

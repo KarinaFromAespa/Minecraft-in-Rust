@@ -435,3 +435,46 @@ now does the same: warn and continue with an empty map, leaving
 every attribute at its default. 1.21.7's overworld.json was read to
 confirm the field is absent (and "timelines" too, which the loader
 already tolerates).
+
+Fourth launch crash, same morning (09:34 NPT): "unknown carver
+minecraft:cave" when the title panorama (and world creation) started
+worldgen. The prepared worldgen bundle had six empty registries:
+`carvers`, `features`, `rules`, `conditions`, `state_providers`,
+`feature_tags` are all `{}`. Three different causes:
+
+- `carvers` and `features`: 1.21.7 predates the registry renames —
+  its jars carry `worldgen/configured_carver` and
+  `worldgen/configured_feature`, while prepare read the 26.x paths
+  `worldgen/carver` and `worldgen/feature` and found nothing in
+  either jar (which prepare treats as "registry this version does
+  not have", not an error). Prepare's WORLDGEN_BUNDLES now reads the
+  1.21.7 paths.
+- `rules`, `conditions`, `state_providers`: those registries do not
+  exist in 1.21.7 at all — surface rules and state providers are
+  inline in noise settings and feature configs. The decoders already
+  accept inline objects (a string is a registry reference, an object
+  decodes inline), so the empty bundles are correct for 1.21.7.
+  Same for `feature_tags`: 1.21.7 has no feature tags.
+- The 1.21.7 definitions themselves wrap their fields in a `config`
+  object (`{"type": ..., "config": {...}}`); 26.x flattened the
+  config into the definition. The carver and feature decoders unwrap
+  it (`worldgen::unwrap_legacy_config`, applied in
+  `WorldCarver::from_json` and `FeatureDefinition::decode`).
+
+Two field gaps the unwrap alone does not close, both filled from
+vanilla 1.21.7's own behaviour (playability defaults, not oracle
+verified): the cave carver's config has no `count`, `thickness` or
+room multiplier — count defaults to `VeryBiasedToBottom { 0, 39 }`,
+the same three nested `nextInt` draws as vanilla's
+`nextInt(nextInt(nextInt(40) + 1) + 1)`; thickness to uniform
+1.0–7.0, vanilla's `1.0 + nextFloat() * 6.0` per tunnel; the room
+multiplier reuses the config's vertical multiplier, which 26.x
+split into its own provider. The canyon's `yScale` sits on the
+config in 1.21.7 (3.0 for the overworld canyon) and inside the shape
+in 26.x; the decoder falls back to the config-level value.
+
+The laptop's prepared bundles were regenerated from the already
+prepared data (configured_carver/configured_feature JSONs) with a
+script rather than a full re-prepare, since prepare has no
+worldgen-only subcommand and the full flow re-runs the Java
+exporters.

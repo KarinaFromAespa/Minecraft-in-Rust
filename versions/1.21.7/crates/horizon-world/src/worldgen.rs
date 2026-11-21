@@ -141,6 +141,31 @@ fn optional<'a>(object: &'a Object, name: &str) -> Option<&'a RawValue> {
 fn required<'a>(object: &'a Object, name: &'static str) -> Result<&'a RawValue, DecodeError> {
     optional(object, name).ok_or(DecodeError::Field(name))
 }
+
+/// 1.21.7-era definitions wrap their fields in a `config` object
+/// (`{"type": ..., "config": {...}}`); 26.x flattened the config into
+/// the definition. Lift the config's fields to the top level, keeping
+/// the outer `type` (and any outer field the config does not override).
+/// Definitions without a `config` object pass through unchanged.
+fn unwrap_legacy_config(json: &str) -> Result<String, DecodeError> {
+    let mut value: serde_json::Value = serde_json::from_str(json)?;
+    let Some(config) = value.get("config").cloned() else {
+        return Ok(json.to_owned());
+    };
+    let Some(config) = config.as_object() else {
+        return Ok(json.to_owned());
+    };
+    let Some(object) = value.as_object_mut() else {
+        return Ok(json.to_owned());
+    };
+    for (key, field) in config {
+        if key != "type" {
+            object.insert(key.clone(), field.clone());
+        }
+    }
+    object.remove("config");
+    Ok(serde_json::to_string(&value)?)
+}
 fn number_text(raw: &RawValue) -> Result<&str, DecodeError> {
     let text = raw.get();
     if text.starts_with('-') || text.starts_with(|c: char| c.is_ascii_digit()) {

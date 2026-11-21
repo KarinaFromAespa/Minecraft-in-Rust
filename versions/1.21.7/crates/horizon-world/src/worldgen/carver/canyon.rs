@@ -51,7 +51,13 @@ impl CanyonCarver {
                 horizontal_radius_factor: provider("horizontal_radius_factor")?,
                 vertical_radius_default_factor: scalar(&shape, "vertical_radius_default_factor")?,
                 vertical_radius_center_factor: scalar(&shape, "vertical_radius_center_factor")?,
-                y_scale: provider("y_scale")?,
+                // 1.21.7 keeps yScale on the config (3.0 for the overworld
+                // canyon); 26.x moved it into the shape.
+                y_scale: optional(&shape, "y_scale")
+                    .or_else(|| optional(&object, "yScale"))
+                    .map(|v| FloatProvider::from_json(v.get()))
+                    .transpose()?
+                    .ok_or(DecodeError::Field("canyon y scale"))?,
             },
         })
     }

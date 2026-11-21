@@ -76,12 +76,25 @@ impl CaveCarver {
         if !(0.0..=1.0).contains(&probability) || probability.is_sign_negative() {
             return Err(DecodeError::Field("carver probability"));
         }
-        let count = IntProvider::from_json(required(&object, "count")?.get())?;
+        // 1.21.7's cave config has no count, thickness or room
+        // multiplier: vanilla draws the tunnel count as
+        // `nextInt(nextInt(nextInt(40) + 1) + 1)` — the same three
+        // nested draws as `VeryBiasedToBottom { 0, 39 }` — and each
+        // tunnel's thickness as `1.0 + nextFloat() * 6.0`; the room
+        // scales by the config's vertical multiplier, which 26.x split
+        // into its own provider.
+        let count = optional(&object, "count")
+            .map(|v| IntProvider::from_json(v.get()))
+            .transpose()?
+            .unwrap_or(IntProvider::VeryBiasedToBottom { min: 0, max: 39 });
         if count.bounds()[0] < 0 {
             return Err(DecodeError::Field("carver count"));
         }
         let provider = |name| FloatProvider::from_json(required(&object, name)?.get());
-        let thickness = provider("thickness")?;
+        let thickness = optional(&object, "thickness")
+            .map(|v| FloatProvider::from_json(v.get()))
+            .transpose()?
+            .unwrap_or(FloatProvider::Uniform { min: 1.0, max: 7.0 });
         if thickness.bounds()[0] < 0. {
             return Err(DecodeError::Field("carver thickness"));
         }
@@ -89,6 +102,11 @@ impl CaveCarver {
         if floor_level.bounds()[0] < -1. || floor_level.bounds()[1] > 1. {
             return Err(DecodeError::Field("carver floor"));
         }
+        let vertical_radius_multiplier = provider("vertical_radius_multiplier")?;
+        let room_vertical_radius_multiplier = optional(&object, "room_vertical_radius_multiplier")
+            .map(|v| FloatProvider::from_json(v.get()))
+            .transpose()?
+            .unwrap_or_else(|| vertical_radius_multiplier.clone());
         Ok(Self {
             probability,
             y: HeightProvider::from_json(required(&object, "y")?.get())?,
@@ -98,9 +116,9 @@ impl CaveCarver {
                 .map(|v| serde_json::from_str(v.get()))
                 .transpose()?
                 .unwrap_or(false),
-            room_vertical_radius_multiplier: provider("room_vertical_radius_multiplier")?,
+            room_vertical_radius_multiplier,
             horizontal_radius_multiplier: provider("horizontal_radius_multiplier")?,
-            vertical_radius_multiplier: provider("vertical_radius_multiplier")?,
+            vertical_radius_multiplier,
             start_vertical_radius_multiplier: optional(&object, "start_vertical_radius_multiplier")
                 .map(|v| FloatProvider::from_json(v.get()))
                 .transpose()?

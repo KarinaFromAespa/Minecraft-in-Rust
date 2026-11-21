@@ -2,6 +2,7 @@
 use super::{CanyonCarver, CarverError, CaveCarver};
 use crate::worldgen::{
     DecodeError, Object, anchor::WorldGenerationContext, density::identifier, required,
+    unwrap_legacy_config,
 };
 use horizon_core::{
     carving::{CarverOutput, CarvingMask, CarvingMaskError},
@@ -17,14 +18,15 @@ pub enum WorldCarver {
 }
 impl WorldCarver {
     pub fn from_json(json: &str) -> Result<Self, DecodeError> {
-        let object: Object = serde_json::from_str(json)?;
+        let json = unwrap_legacy_config(json)?;
+        let object: Object = serde_json::from_str(&json)?;
         match identifier(&serde_json::from_str::<String>(
             required(&object, "type")?.get(),
         )?)?
         .as_str()
         {
-            "minecraft:cave" => Ok(Self::Cave(CaveCarver::from_json(json)?)),
-            "minecraft:canyon" => Ok(Self::Canyon(CanyonCarver::from_json(json)?)),
+            "minecraft:cave" => Ok(Self::Cave(CaveCarver::from_json(&json)?)),
+            "minecraft:canyon" => Ok(Self::Canyon(CanyonCarver::from_json(&json)?)),
             _ => Err(DecodeError::Field("world carver type")),
         }
     }
