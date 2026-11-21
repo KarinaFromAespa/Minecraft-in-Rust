@@ -423,3 +423,15 @@ through the entity-owned fall source, verified against the remapped
 0.5d)`, and `updateEntityMovementAfterFallOn` bounces unless the
 entity suppresses it (the data's `bounce: true` for beds flows through
 the existing flag). The farmland arm accepts both spellings.
+
+Third launch crash, same morning (09:16 NPT): "attributes are not an
+object" on the render thread right after the loading screen. The
+environment loader (`environment.rs load_dimension_with`) requires
+an "attributes" object in the dimension-type JSON, but 1.21.7
+dimension types have none — the environment-attributes system is a
+26.x addition (and 1.21.7 biome files have none either, which the
+biome arm already tolerates with warn-and-skip). The dimension arm
+now does the same: warn and continue with an empty map, leaving
+every attribute at its default. 1.21.7's overworld.json was read to
+confirm the field is absent (and "timelines" too, which the loader
+already tolerates).
