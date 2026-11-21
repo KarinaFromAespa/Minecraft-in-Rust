@@ -12360,3 +12360,9 @@ Pure extractor rewire (`extractIcon`→`renderIcon`,
 ## Item 634 — game/tutorial.rs (TutorialToast) — NO-CHANGE
 
 Pure extractor rewire.
+
+## Item 635 — game/use_hand.rs (CeilingHangingSignBlock) — NO-CHANGE
+
+Default ROTATION 8 (26.1) vs 0 (1.21.11), but defaults come from the
+prepared 1.21.11 registry data, so the engine already uses 0. The
+`HangingSignBlock` attachment interface is 26.1-only.
