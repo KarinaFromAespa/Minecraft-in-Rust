@@ -12020,3 +12020,8 @@ source/draw order). The seed-drop motion matches exactly.
 ## Item 578 — game/sniffers.rs (SnifferEggBlock) — NO-CHANGE
 
 Only `Level.getRandom()` vs the `random` field (same source/draw order).
+
+## Item 579 — title/experiments.rs (ExperimentsScreen) — NO-CHANGE
+
+Only compiler artifacts: a redundant `astore`/`aload` pair and a lambda
+parameter type (`AbstractWidget` vs `GuiEventListener`).
