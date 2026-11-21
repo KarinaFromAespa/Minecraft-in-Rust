@@ -2752,13 +2752,67 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (55s).
+- **Item 62 — ProblemReporter /
+  ExtraCodecs / Mth, verified, no
+  code change:**
+  - `ProblemReporter` is a different
+    interface in each version: 1.21.6
+    has `forChild(PathElement)` /
+    `report(Problem)` with the
+    `PathElement` records, the tree
+    report and the
+    `ScopedCollector`; 1.21.5 has
+    `forChild(String)` /
+    `report(String)` with a
+    `Multimap<String, String>` and
+    `get()` / `getReport()` returning
+    `Optional<String>`. The Rust has
+    no problem reporter at all
+    (zero references) — Horizon's
+    loaders report errors through
+    their own results — so neither
+    form has a surface.
+  - `ExtraCodecs.NBT`, `VECTOR2F`
+    and `VECTOR3I` are 1.21.6-only
+    additions. The Rust cites other
+    `ExtraCodecs` (`RGB_COLOR_CODEC`,
+    `MATRIX4F`, `UNTRUSTED_URI`,
+    `ARGB_COLOR_CODEC`, `intRange`),
+    all present in 1.21.5, and has
+    no vector codec; its `Codec<Tag>`
+    is the wire NBT codec, not the
+    DFU `NBT` converter.
+  - `Mth.smallestSquareSide`
+    (`ceil(sqrt(n))`) is 1.21.6-only.
+    The Rust's only `sqrt().ceil()`
+    is the shader-pack block atlas
+    grid in `PackAtlas::new`, an
+    independent computation (vanilla's
+    caller is the GUI item atlas,
+    which has no Rust counterpart).
+  - The port map drops 6 rows for
+    methods absent in 1.21.5
+    (`Mth.smallestSquareSide`,
+    `Collector.hasFatalProblems`,
+    `Collector.forEach`,
+    `Collector.getTreeReport`,
+    `ProblemTreeNode.getLines`,
+    `ScopedCollector.close`);
+    `Collector.getReport` stays —
+    it exists in both versions
+    (returning `Optional<String>`
+    in 1.21.5, `String` in 1.21.6).
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check, 3s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **61 of 426 are
-closed** (rank 1 complete, rank 2 at 52/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **62 of 426 are
+closed** (rank 1 complete, rank 2 at 53/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
