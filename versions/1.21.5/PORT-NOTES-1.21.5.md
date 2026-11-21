@@ -12317,12 +12317,54 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 296 — Server list screens**
+  - ServerSelectionList (+
+    entries),
+    DirectJoinServerScreen,
+    JoinMultiplayerScreen,
+    LoadingDotsWidget:
+    verified, no code. The
+    LAN-found narration
+    already uses say at
+    both call sites
+    (game.rs,
+    startup_menu.rs) - the
+    1.21.5 name. The colour
+    deltas are the alpha-0
+    pattern: the port keeps
+    opaque spellings with
+    identical RGB (titles
+    u32::MAX, the IP label
+    rgba(160,160,160,255),
+    MOTD 0x808080). The
+    protocol check compares
+    the server's protocol
+    against
+    PROTOCOL_VERSION, as
+    vanilla's
+    getProtocolVersion
+    comparison. The tooltip
+    API difference has no
+    surface: the port draws
+    its own tooltip at the
+    cursor after the list. 
+    RenderPipelines/RenderT
+    ype is a pure rename.
+    Known version-neutral
+    gap: the LAN address
+    line draws in 0x808080
+    where vanilla uses
+    0x303030 in both
+    versions.
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **295 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 27/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **296 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 28/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
