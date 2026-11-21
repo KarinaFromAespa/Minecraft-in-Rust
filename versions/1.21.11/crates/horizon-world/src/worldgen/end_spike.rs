@@ -26,7 +26,8 @@ pub struct EndSpike {
     pub height: i32,
     pub guarded: bool,
 }
-/// EndSpikeFeature.getSpikesForLevel (SpikeCacheLoader), from the world seed.
+/// `SpikeFeature.getSpikesForLevel` (26.1's `EndSpikeFeature.getSpikesForLevel`,
+/// via `SpikeCacheLoader`), from the world seed.
 pub fn spikes_for_seed(seed: i64) -> Vec<EndSpike> {
     let key = LegacyRandom::new(seed).next_long() & 65535;
     let mut random = LegacyRandom::new(key);

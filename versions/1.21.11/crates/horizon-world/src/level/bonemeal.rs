@@ -343,18 +343,12 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             }
             Kind::Propagule => !b.table.bool(state, p.hanging) || b.table.int(state, p.age) != 4,
             Kind::Mushroom => {
-                let Some(feature) = b.data(state).feature.as_deref() else {
-                    return false;
-                };
-                let Some(json) = b.live_features().and_then(|f| f.configured_json(feature)) else {
-                    return false;
-                };
-                let huge = matches!(
-                    json["type"].as_str(),
-                    Some("minecraft:huge_red_mushroom" | "minecraft:huge_brown_mushroom")
-                );
-                let radius = json["foliage_radius"].as_i64().unwrap_or(2) as i32;
-                huge && self.is_inside_build_height(pos.y + 4 + radius)
+                // `MushroomBlock.isValidBonemealTarget` in 1.21.11:
+                // always true (26.x also asked the configured
+                // feature to be a huge mushroom and the space
+                // above (4 + foliage radius) to be inside the
+                // build height).
+                true
             }
             Kind::Fungus => {
                 let below_state = self.below_state(pos);

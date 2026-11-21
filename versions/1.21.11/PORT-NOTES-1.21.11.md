@@ -11581,3 +11581,29 @@ package-private) and one rename,
 `InfoPopup.buildScreen`. The Rust models the
 notification as a DTO and returns the single message
 string, so the builder rename has no surface here.
+
+## Item 533 — generator_decoration.rs (rank 3, CHANGED)
+
+26.1 split `SpikeFeature` in two: 1.21.11's
+`SpikeFeature` (seed-derived End spikes) is 26.1's
+`EndSpikeFeature`, while 26.1's `SpikeFeature` is a
+different generic spike placer. The Rust's
+end_spike.rs already matches 1.21.11 exactly
+(`spikes_for_seed` key/shuffle/angle/radius/height/
+guarded, `place_spike` obsidian/air/cage/crystal/
+bedrock/fire); only its citation named 26.1's
+`EndSpikeFeature` and is re-pointed. `MushroomBlock`:
+the `canSurvive` tag is a pure rename
+(`mushroom_grow_block` in 1.21.11, same four blocks),
+but the Rust read the 26.1 name in survive.rs and
+block_survival.rs — a tag 1.21.11 data never defines,
+so the light exemption never fired; both now read
+`mushroom_grow_block`. And 1.21.11's
+`isValidBonemealTarget` returns true unconditionally
+where 26.1 required a huge-mushroom feature plus
+build-height headroom; bonemeal.rs's Mushroom arm
+now returns true, matching the Sapling/Fungus arms.
+`RandomizableContainerBlockEntity`: the Rust already
+notifies spectators on a locked container, matching
+1.21.11. Tests: end_spike 1, growth_tests 21,
+survive 7, block_survival 1 — all pass.

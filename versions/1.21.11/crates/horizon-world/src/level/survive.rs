@@ -280,7 +280,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             Class::Mushroom => {
                 let below_pos = below(pos);
                 let below_state = self.state(below_pos);
-                if b.in_set(below_state, &t.overrides_mushroom_light_requirement) {
+                if b.in_set(below_state, &t.mushroom_grow_block) {
                     true
                 } else {
                     self.raw_brightness(pos, 0) < 13

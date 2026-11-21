@@ -563,7 +563,7 @@ impl<'r> BlockSurvivalRegistry<'r> {
             // `CactusBlock.mayPlaceOn` in 1.21.11: cactus or the sand tag
             // (26.1 renamed it `supports_cactus`).
             cactus_support: tag_states("minecraft:sand")?,
-            mushroom_light_override: tag_states("minecraft:overrides_mushroom_light_requirement")?,
+            mushroom_light_override: tag_states("minecraft:mushroom_grow_block")?,
             rules,
             unstable_bottom_center: tag_states("minecraft:unstable_bottom_center")?,
             // `BambooStalkBlock` in 1.21.11: the `bamboo_plantable_on` tag
