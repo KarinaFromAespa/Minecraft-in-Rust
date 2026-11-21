@@ -12155,3 +12155,10 @@ Only `vertex` static vs instance (slot re-numbering), the
 
 Only the extractor rewire and `ComponentRenderUtils.clipText` vs
 `StringWidget.clipText`.
+
+## Item 603 — game/allays.rs (GoAndGiveItemsToTarget) — NO-CHANGE
+
+Confirms item 600: 26.1's `throwVelocity` field + `ItemThrower`
+callback vs 1.21.11's static `throwItem` with the same (0.2, 0.3, 0.2)
+velocity, same sound gate and same criterion trigger. `allay_deliver`
+already matches the 1.21.11 form.
