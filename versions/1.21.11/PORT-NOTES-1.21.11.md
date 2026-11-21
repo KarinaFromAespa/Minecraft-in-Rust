@@ -9950,3 +9950,13 @@ render cache differ only by visibility widening and
 dropped null-check codegen; every method body
 (including `registerTextures`) is bytecode-identical.
 No code changed.
+
+## Item 228 — mobs/phantom.rs (rank 2, NO-CHANGE)
+
+8 classes, 11 methods, 1 named. `Phantom.canAttack`
+and all seven inner goal classes are bytecode-identical
+apart from visibility widening and dropped null-check
+codegen. The two 1.21.11-only overrides are no-ops:
+`getSoundVolume()` returns the 1.0f the 26.1 base
+already returns (verified by javap), and
+`canAttackType` returns true. No code changed.
