@@ -4009,13 +4009,40 @@ is the oracle; decompiled code is a reading aid.
     -p horizon-client
     --all-targets` 0 errors /
     0 warnings.
+- **Item 91 — PlayerDataStorage,
+  verified:**
+  - Pure Java API shape
+    (`ProblemReporter` /
+    `TagValueOutput` /
+    `ValueInput` back to a
+    plain `CompoundTag`): the
+    save/load flow is identical
+    in both versions — gzip
+    NBT to a temp file, the
+    old `.dat` rotated to
+    `.dat_old`, atomic
+    replace; load tries `.dat`,
+    falls back to `.dat_old`,
+    then runs the PLAYER
+    datafix. The Rust side
+    (`save.rs` `write_dat_as`,
+    `lan/playerdata.rs`
+    `load`) implements exactly
+    that flow, including the
+    `.dat_old` fallback and
+    the safe-replace rotation.
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **90 of 426 are
-closed** (rank 1 complete, rank 2 at 81/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **91 of 426 are
+closed** (rank 1 complete, rank 2 at 82/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
