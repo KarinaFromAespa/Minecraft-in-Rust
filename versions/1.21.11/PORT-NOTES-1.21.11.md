@@ -12499,3 +12499,15 @@ Only the sprite-picking plumbing (`ItemStackTemplate` +
 
 Same `validate` signature refactor as item 657
 (`ValidationContextSource` vs `CriterionValidator`).
+
+## Item 662 — game/native_panel_recipes.rs (DataComponentLookup) — NO-CHANGE, known gap
+
+`DataComponentLookup` is 26.1-only. 26.1's `AnyFuel` groups fuels by
+component value (first occurrence sets the group order); 1.21.11's
+`AnyFuel` streams `FuelValues.fuelItems()`, the hardcoded
+`vanillaBurnTimes` insertion order (lava bucket, coal block, blaze rod,
+coal, charcoal, the log/plank tags, ...). The Rust's fuel grouping is
+the 26.1 form, so the recipe book's furnace fuel cycle order differs
+from 1.21.11 — the fuel set is the same, only the order. Matching
+1.21.11 needs the full `vanillaBurnTimes` sequence with tag expansion
+order and dedup semantics; out of rank-3 scope.

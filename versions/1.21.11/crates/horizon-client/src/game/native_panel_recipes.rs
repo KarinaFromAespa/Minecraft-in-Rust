@@ -170,8 +170,14 @@ impl Pages {
                 if official =>
             {
                 let fast = station != Some("minecraft:furnace");
-                // AnyFuel uses DataComponentLookup: first occurrence of each
-                // component value sets the group order, then registry order within it.
+                // 26.1's AnyFuel groups by component value via DataComponentLookup
+                // (first occurrence of each value sets the group order, then
+                // registry order within it). 1.21.11 has no DataComponentLookup:
+                // AnyFuel streams FuelValues.fuelItems, the vanillaBurnTimes
+                // insertion order (lava bucket first, then coal block, blaze
+                // rod, coal, charcoal, the log/plank tags, ...). The grouping
+                // below is the 26.1 form; matching 1.21.11's order needs the
+                // full vanillaBurnTimes sequence (see PORT-NOTES item 662).
                 let mut groups: Vec<(_, Vec<_>)> = Vec::new();
                 for id in &items.registry_order {
                     let Some(fuel) = items.get(id).and_then(|item| item.fuel.as_ref()) else {
