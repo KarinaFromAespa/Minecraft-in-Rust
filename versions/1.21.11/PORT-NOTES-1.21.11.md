@@ -11913,3 +11913,12 @@ Only the extractor rewire (`extractRenderState`/`extractBackground`/
 `drawSelection`, `centeredText` -> `drawCenteredString`) and visibility —
 no behaviour change. The Rust cites only `mouseReleased` and the class name,
 both shared.
+
+## Item 564 — game/test_environments.rs (TestEnvironmentDefinition, SavedDataType) — NO-CHANGE
+
+26.1 made `TestEnvironmentDefinition` generic with an `Activation` handle
+(`setup` returns it, `teardown` takes it back) and `SavedDataType.id` an
+`Identifier`; 1.21.11 has the raw interface (`setup`/`teardown` take the
+level only) and a String id. The Rust already implements and documents the
+1.21.11 form, noting the 26.x generic `SavedDataType` and `Activation` are
+gone.
