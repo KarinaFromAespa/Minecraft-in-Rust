@@ -1127,13 +1127,85 @@ is the oracle; decompiled code is a reading aid.
     warnings (3m04s); `cargo test -p
     horizon-client-render --lib fog` 24 passed / 0
     failed.
+- **Item 29 — Screen / ConfirmLinkScreen /
+  SuggestionProviders, ported:**
+  - Clicked commands: 1.21.5's
+    `handleComponentClicked` inlines the whole dispatch
+    and runs commands through
+    `ClientPacketListener.sendUnsignedCommand` — sent
+    as-is when it has no signed argument, refused
+    with an error log when it has one. 1.21.6 split
+    it into `handleClickEvent` /
+    `defaultHandleGameClickEvent` /
+    `defaultHandleClickEvent` / `clickUrlAction` /
+    `clickCommandAction` and runs commands through
+    `sendUnattendedCommand`, which asks first on parse
+    errors, permissions and signatures. The Rust had
+    the 1.21.6 form; `send_unattended_command` is
+    now `send_unsigned_command` (signable-args check
+    only, sent via the ordinary sender, which goes
+    unsigned when nothing needs signing) and the
+    whole confirmation machinery is gone:
+    `CommandCheck` / `verify_command` /
+    `CommandAccept` / `Behind` / `CommandPrompt` and
+    the prompt's layout/draw/key/click/answer, the
+    `command_prompt` field and its draw/input/pad/
+    pointer/observer wiring, `ClosedDialog` /
+    `reopen_dialog`, and the book's take-and-restore
+    around a click. The net harness drops its
+    `prompts` / `chat_box` report keys (`.answer`
+    lines are ignored) and the secure-chat e2e drops
+    the prompt expectations and the `/stop` click —
+    in 1.21.5 an op's clicked `/stop` would run with
+    no confirmation. Item 384's class
+    (`ClientPacketListener$CommandCheckResult`) is
+    removed under this item.
+  - Confirm buttons: 1.21.5 lays the row out by
+    absolute bounds spanning width/2 ± 155, so
+    `Choice` now fills the 310 span (10 apart for
+    two of 150, 5 for three of 100) instead of
+    1.21.6's `LinearLayout` 4 apart; the link
+    prompt's three 100-wide buttons land at
+    cx-155/cx-50/cx+55. The warning colour
+    (0xFFCCCC) and the texts (trusted
+    `chat.link.open`, untrusted `gui.yes`) already
+    matched.
+  - Citations reworded to 1.21.5's inlined
+    `handleComponentClicked` (chat, books,
+    dialogs, server links); the ShowDialog/Custom
+    arms stay as Horizon's local-only paths (no
+    packet behind them since the publish).
+  - No-ops verified: `SuggestionProviders` is a
+    rename (`Wrapper` for `RegisteredSuggestion`)
+    with identical semantics — `getProvider` falls
+    back to ASK_SERVER, `safelySwap` matches the
+    Rust's unknown-provider handling, the
+    summonable-entities tooltip
+    (`EntityType.getDescription`) is the same
+    translatable; the screen fade
+    (`fadeWidgets`/`FADE_IN_TIME`), the strata
+    background/blur plumbing and the deferred
+    tooltip have no Rust surface (item 16 already
+    covered the tooltip deferral). Referred:
+    the narrator rename (`sayNow`, item 51),
+    the panorama (`PANORAMA` static, item 292),
+    `BookViewScreen` proper (item 270) and
+    `ConfirmScreen` proper (item 40 — its button
+    gap is already 1.21.5's via `Choice`).
+  - Verification: `cargo check -p horizon-client
+    --all-targets` 0 errors / 0 warnings (4m45s).
+    The `Choice` test's new positions (85/190/295,
+    85/245) are arithmetic from the 310 span, checked
+    by hand; the horizon-client test binary's link
+    was still building after 17 min, so the run is
+    left to CI per the standing rule.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **28 of 426 are
-closed** (rank 1 complete, rank 2 at 19/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **29 of 426 are
+closed** (rank 1 complete, rank 2 at 20/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

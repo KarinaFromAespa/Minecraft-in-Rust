@@ -1530,20 +1530,21 @@ impl Game<'_> {
                 }
             }
             Some(ClickEvent::RunCommand(command)) => self.click_command(&command),
-            // Screen.defaultHandleGameClickEvent: the dialog opens over the
-            // screen, and closes back to it.
+            // Horizon's local dialogs: a ShowDialog click opens the dialog over the screen, and
+            // closes back to it. (Vanilla 1.21.5 has no ShowDialog click action.)
             Some(ClickEvent::ShowDialog(dialog)) => self.show_dialog_ref(&dialog),
-            // Screen.defaultHandleGameClickEvent: custom actions retain chat.
+            // A custom action has no packet in 1.21.5: `send_custom_click` is a no-op, so the
+            // click does nothing, as vanilla's default arm does.
             Some(ClickEvent::Custom { id, payload }) => {
                 if let Some(remote) = &self.remote {
                     remote.session.send_custom_click(&id, payload);
                 }
             }
-            // Screen.defaultHandleClickEvent: a page link means nothing in chat.
+            // Screen.handleComponentClicked's default arm: a page link means nothing in chat.
             Some(ClickEvent::ChangePage(_)) | None => {}
         }
     }
-    /// `Screen.clickUrlAction`: nothing with Web Links off, else the link
+    /// `Screen.handleComponentClicked`'s OpenUrl arm: nothing with Web Links off, else the link
     /// opens, after the confirmation unless Prompt on Links is off.
     pub(super) fn click_url(&mut self, url: String) {
         if !self.settings.chat_links {
@@ -1627,17 +1628,17 @@ impl Game<'_> {
             self.answer_link_prompt(button == LINK_YES);
         }
     }
-    /// `Screen.clickCommandAction`: run a clicked command as the player
-    /// without adding it to the chat history. A client mod's command goes
-    /// first, as `ClientPacketListener.sendUnattendedCommand` lets client
-    /// commands take it.
+    /// `Screen.handleComponentClicked`'s RunCommand arm: run a clicked command as the player
+    /// without adding it to the chat history, unsigned — and refused, with an error, when it
+    /// has a signed argument (`ClientPacketListener.sendUnsignedCommand`). A client mod's
+    /// command goes first.
     pub(super) fn click_command(&mut self, command: &str) {
         let command = command.strip_prefix('/').unwrap_or(command);
         if self.client_mod_command(command) {
             return;
         }
         if self.remote.is_some() {
-            self.send_unattended_command(command);
+            self.send_unsigned_command(command);
         } else {
             self.run_command(command);
         }

@@ -63,7 +63,6 @@ impl Game<'_> {
         self.dialog_open()
             || self.code_of_conduct.is_some()
             || self.link_prompt.is_some()
-            || self.command_prompt.is_some()
             || self.server_packs.prompt.is_some()
     }
     /// `Minecraft.pauseIfInactive`: a window without focus for more than 500 ms
@@ -136,8 +135,7 @@ impl Game<'_> {
         if capture
             && ((!self.focused && !self.unclaimed_window && !self.scripted_run())
                 || self.server_packs.prompt.is_some()
-                || self.dialog_open()
-                || self.command_prompt.is_some())
+                || self.dialog_open())
         {
             return;
         }

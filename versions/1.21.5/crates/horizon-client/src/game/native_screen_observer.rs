@@ -42,7 +42,6 @@ impl Game<'_> {
             None => None,
         };
         let overlay = observed_overlay_id(&[
-            (self.command_prompt.is_some(), "command_prompt"),
             (self.link_prompt.is_some(), "link_prompt"),
             (self.code_of_conduct.is_some(), "code_of_conduct"),
             (self.server_packs.prompt.is_some(), "server_pack_prompt"),

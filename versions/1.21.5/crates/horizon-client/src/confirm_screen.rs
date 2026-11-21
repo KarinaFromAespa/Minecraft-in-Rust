@@ -1,6 +1,6 @@
 //! `ConfirmScreen`: a title, a message wrapped to `width - 50` (15 lines at
-//! most) and two 150-wide buttons 4 apart and 16 below it, the whole column
-//! centred; Escape answers no.
+//! most) and two 150-wide buttons 10 apart and 16 below it — the row spans
+//! width/2 ± 155 — the whole column centred; Escape answers no.
 use crate::{
     font::Font,
     hud::{HudAtlas, HudBatch},
@@ -101,8 +101,10 @@ impl Confirm {
     }
 }
 
-/// `ConfirmScreen` with a row of `count` buttons `width` wide, 4 apart: `ConfirmLinkScreen`'s
-/// yes, copy and no are three of 100. `Confirm` is its two of 150.
+/// `ConfirmScreen` with a row of `count` buttons `width` wide: `ConfirmLinkScreen`'s
+/// yes, copy and no are three of 100, `Confirm` is its two of 150. 1.21.5 lays the row out by
+/// absolute bounds spanning width/2 ± 155, so the gap fills the 310 span (10 for two of 150, 5
+/// for three of 100); 1.21.6's `LinearLayout` puts them 4 apart.
 pub struct Choice {
     /// Each line and where it is drawn.
     pub lines: Vec<(Text, f32, f32)>,
@@ -134,7 +136,12 @@ impl Choice {
             .map(|l| font.width_text(l))
             .fold(0.0, f32::max);
         let mh = 9.0 * message.len() as f32;
-        let row = width * count as f32 + 4.0 * count.saturating_sub(1) as f32;
+        let gap = if count > 1 {
+            ((310.0 - width * count as f32) / (count - 1) as f32).max(0.0)
+        } else {
+            0.0
+        };
+        let row = width * count as f32 + gap * count.saturating_sub(1) as f32;
         let col = tw.max(mw).max(row);
         let total = 9.0 + 8.0 + mh + 8.0 + 36.0;
         let (lx, ly) = (((w - col) / 2.0).trunc(), ((h - total) / 2.0).trunc());
@@ -149,7 +156,7 @@ impl Choice {
         Self {
             lines,
             buttons: (0..count)
-                .map(|i| (bx + (width + 4.0) * i as f32, by))
+                .map(|i| (bx + (width + gap) * i as f32, by))
                 .collect(),
             width,
             focus: None,
@@ -257,18 +264,18 @@ mod tests {
     }
 
     #[test]
-    fn three_buttons_sit_four_apart_in_the_middle() {
+    fn three_buttons_span_width_over_two_plus_minus_155() {
         let (title, message) = (Text::literal("Open?"), Text::literal("https://x"));
         let c = Choice::new(&font(), (480.0, 270.0), &title, &message, 3, 100.0);
         let xs: Vec<f32> = c.buttons.iter().map(|b| b.0).collect();
-        // 3 x 100 + 2 x 4 = 308 wide, centred on 480.
-        assert_eq!(xs, vec![86.0, 190.0, 294.0]);
+        // 3 x 100 + 2 x 5 = 310 wide, centred on 480.
+        assert_eq!(xs, vec![85.0, 190.0, 295.0]);
         assert_eq!(c.pressed_at((191.0, c.buttons[1].1 + 1.0)), Some(1));
         assert_eq!(c.pressed_at((188.0, c.buttons[1].1 + 1.0)), None);
         // Confirm keeps its two 150-wide buttons where they were.
         let two = Confirm::new(&font(), (480.0, 270.0), &title, &message);
-        assert_eq!(two.buttons[0].0, 88.0);
-        assert_eq!(two.buttons[1].0, 242.0);
+        assert_eq!(two.buttons[0].0, 85.0);
+        assert_eq!(two.buttons[1].0, 245.0);
     }
 
     #[test]

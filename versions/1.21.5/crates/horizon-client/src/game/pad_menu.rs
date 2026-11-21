@@ -301,7 +301,6 @@ impl Game<'_> {
         }
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         (
-            self.command_prompt.is_some(),
             self.link_prompt.is_some(),
             self.code_of_conduct.is_some(),
             self.server_packs.prompt.is_some(),
@@ -314,9 +313,7 @@ impl Game<'_> {
     /// B or Start on a prompt: as Escape, the top one first. The code of conduct has no answer
     /// by Escape (`shouldCloseOnEsc`), and a dialog only when it allows it.
     pub(super) fn pad_prompt_back(&mut self) -> Result<()> {
-        if self.command_prompt.is_some() {
-            self.answer_command_prompt(false);
-        } else if self.link_prompt.is_some() {
+        if self.link_prompt.is_some() {
             self.answer_link_prompt(false);
         } else if self.code_of_conduct.is_some() {
         } else if self.server_packs.prompt.is_some() {

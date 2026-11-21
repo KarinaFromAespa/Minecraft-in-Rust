@@ -2146,9 +2146,6 @@ struct Game<'a> {
     server_packs: server_packs::ServerPackState,
     /// The link a chat click asks to open (`ConfirmLinkScreen`).
     link_prompt: Option<String>,
-    /// A command the player didn't type, waiting for their answer
-    /// (game/remote_chat.rs).
-    command_prompt: Option<remote_chat::CommandPrompt>,
     /// A server's Code of Conduct to accept (game/code_of_conduct.rs).
     code_of_conduct: Option<code_of_conduct::Prompt>,
     dialogs: dialogs::DialogState,
@@ -5855,14 +5852,10 @@ impl Game<'_> {
         } else {
             self.hud_layers(size)
         };
-        // Vanilla's confirmation replaces the dialog as the screen.
-        if self.command_prompt.is_none() {
-            self.draw_dialog(&mut batch);
-        }
+        self.draw_dialog(&mut batch);
         self.draw_pack_prompt(&mut batch);
         self.draw_code_of_conduct(&mut batch);
         self.draw_link_prompt(&mut batch);
-        self.draw_command_prompt(&mut batch);
         // The ToastManager draws over every screen, the title and the
         // options included: the narrator's toast follows the player there.
         self.draw_narrator_toast(&mut batch);
@@ -10639,7 +10632,7 @@ impl Game<'_> {
                     // tells: the top one hears the wheel, as the click arms below pick it, and
                     // nothing behind it does.
                     if self.prompt_open() {
-                        if self.command_prompt.is_some() || self.link_prompt.is_some() {
+                        if self.link_prompt.is_some() {
                         } else if self.code_of_conduct.is_some() {
                             self.code_of_conduct_scroll(d);
                         } else if self.server_packs.prompt.is_none() {
@@ -10731,11 +10724,6 @@ impl Game<'_> {
                     }
                     if self.screen == Screen::Advancements {
                         self.advancements_scroll(scaled(raw_x) as f32, d);
-                    }
-                }
-                WindowEvent::MouseInput { state, button, .. } if self.command_prompt.is_some() => {
-                    if state == ElementState::Pressed && button == MouseButton::Left {
-                        self.command_prompt_click();
                     }
                 }
                 WindowEvent::MouseInput { state, button, .. } if self.link_prompt.is_some() => {
@@ -11118,14 +11106,6 @@ impl Game<'_> {
                             .is_some_and(|t| t.elapsed().as_millis() >= 1000)
                     {
                         self.death_confirm_answer(false)?;
-                    }
-                }
-                // ConfirmScreen.keyPressed: Escape answers no.
-                WindowEvent::KeyboardInput { event, .. } if self.command_prompt.is_some() => {
-                    if event.state == ElementState::Pressed
-                        && let PhysicalKey::Code(key) = event.physical_key
-                    {
-                        self.command_prompt_key(key);
                     }
                 }
                 WindowEvent::KeyboardInput { event, .. } if self.link_prompt.is_some() => {
@@ -11796,7 +11776,6 @@ impl<'a> Game<'a> {
             pack_reload: None,
             server_packs: Default::default(),
             link_prompt: None,
-            command_prompt: None,
             code_of_conduct: None,
             dialogs: Default::default(),
             integrated_starting: None,

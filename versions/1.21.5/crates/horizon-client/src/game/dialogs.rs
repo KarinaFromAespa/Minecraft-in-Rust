@@ -4,7 +4,6 @@
 //! connecting screen in configuration), its inputs, and the actions its
 //! buttons send back.
 use super::Game;
-use super::remote_chat::Behind;
 use horizon_client::{
     Result,
     clipboard::EditShortcut,
@@ -35,9 +34,6 @@ struct Open {
     /// The multiline input the pointer is selecting in.
     selecting: Option<usize>,
 }
-
-/// A dialog a clicked command closed, kept for its confirmation's no.
-pub(super) struct ClosedDialog(Box<Open>);
 
 /// A text input's control: `EditBox`, or `MultiLineEditBox` for a multiline one.
 enum Field {
@@ -285,18 +281,12 @@ impl Game<'_> {
         }
     }
 
-    /// The confirmation's no: the dialog again, with what was typed in it.
-    pub(super) fn reopen_dialog(&mut self, dialog: ClosedDialog) {
-        self.dialogs.open = Some(*dialog.0);
-        self.dialogs.waiting = None;
-    }
-
     /// `DialogScreen.runAction`: the click event, then the screen the dialog's
     /// `after_action` leaves.
     fn run_dialog_action(&mut self, click: Option<Click>, after: AfterAction) -> Result<()> {
-        // defaultHandleClickEvent: an open_url never sets the screen itself, so
-        // the dialog stays unless the confirmation takes over (Web Links off,
-        // or Prompt on Links off, opens nothing or the browser behind it).
+        // Screen.handleComponentClicked's OpenUrl arm: an open_url never sets the screen itself,
+        // so the dialog stays unless the confirmation takes over (Web Links off, or Prompt on
+        // Links off, opens nothing or the browser behind it).
         if let Some(Click::OpenUrl(url)) = &click
             && !(self.settings.chat_links && self.settings.chat_links_prompt)
         {
@@ -305,14 +295,6 @@ impl Game<'_> {
             }
             return Ok(());
         }
-        // openSendConfirmationWindow's `currentScreen`: a command that asks
-        // first still has this dialog to go back to.
-        let closing = match (&click, &after) {
-            (Some(Click::RunCommand(_)), AfterAction::Close | AfterAction::WaitForResponse) => {
-                self.dialogs.open.take()
-            }
-            _ => None,
-        };
         match after {
             AfterAction::None => {}
             AfterAction::Close => self.dialogs.open = None,
@@ -330,12 +312,7 @@ impl Game<'_> {
             Some(Click::RunCommand(command)) => {
                 // In configuration there is nothing to run it (vanilla warns).
                 if self.player.is_some() {
-                    self.send_unattended_command(&command);
-                    if let Some(open) = closing {
-                        self.command_prompt_returns_to(Behind::Dialog(ClosedDialog(Box::new(
-                            open,
-                        ))));
-                    }
+                    self.send_unsigned_command(&command);
                 } else {
                     log::warn!(
                         "Horizon: commands are not supported in configuration, trying to run '{command}'"
@@ -349,7 +326,7 @@ impl Game<'_> {
             }
             // ConfirmLinkScreen over the screen the dialog leaves.
             Some(Click::OpenUrl(url)) => self.click_url(url),
-            // defaultHandleClickEvent: `activeScreen.insertText(command, true)`.
+            // Screen.handleComponentClicked: `activeScreen.insertText(command, true)`.
             // Only the chat screen (opened under the dialog) takes text.
             Some(Click::SuggestCommand(command)) => {
                 if !self.dialog_open() && self.ui.chat_screen.is_some() {

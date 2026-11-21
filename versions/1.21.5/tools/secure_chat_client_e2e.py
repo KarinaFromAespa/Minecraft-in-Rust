@@ -54,17 +54,11 @@ CHATS = ['hello from a signed client', 'a second message, after the first was se
 # Setting Chat Delay to 0 flushes the held message. If the flush didn't count it as seen, the next
 # message's last-seen update would no longer match the server's and it would disconnect the client.
 CLICKED = 'a clicked whisper the player never read'
-# Commands the player didn't type: one with no issue goes, one the server doesn't know asks and goes on yes, one that
-# needs permissions asks (and is /stop: it must not go on no), and one with a message argument only reaches the chat box.
-CLICKS = ['.click list', '.click nosuchcommand', '.answer yes', '.click stop', '.answer no',
-          f'.click msg {PLAYER} {CLICKED}', '.answer yes']
-PARSE_ERRORS = 'multiplayer.confirm_command.parse_errors'
-SIGNATURE_REQUIRED = 'multiplayer.confirm_command.signature_required'
-PROMPTS = {
-    # An op on the online server, where the account's id is known: /stop is in its tree. Offline, it isn't.
-    'online': [None, PARSE_ERRORS, 'multiplayer.confirm_command.permissions_required', SIGNATURE_REQUIRED],
-    'offline': [None, PARSE_ERRORS, PARSE_ERRORS, SIGNATURE_REQUIRED],
-}
+# Commands the player didn't type: one with no issue goes, one the server doesn't know goes too (1.21.5
+# asks nothing — no parse, permission or signature confirmation), and one with a message argument is refused
+# outright (`sendUnsignedCommand`): it never reaches the server or the chat box. No /stop click: on the online
+# server the player is op, and 1.21.5 would run it with no confirmation.
+CLICKS = ['.click list', '.click nosuchcommand', f'.click msg {PLAYER} {CLICKED}']
 LINES = [*CHATS[:2], '.delay 60', HELD, '.delay 0', AFTER, f'/msg {PLAYER} a whisper with a signed argument', '/list',
          *CLICKS]
 PROPERTIES = {
@@ -260,17 +254,10 @@ def run(args, scenario, services, out):
             problems.append(f'the client was not shown {line!r}')
     if not any('a whisper with a signed argument' in c for c in chat):
         problems.append('the whisper did not arrive')
-    if report.get('prompts') != PROMPTS[scenario]:
-        problems.append(f'clicked commands asked {report.get("prompts")}, not {PROMPTS[scenario]}')
     if not any('nosuchcommand' in c for c in chat):
-        problems.append('the unknown command, answered yes, did not reach the server')
-    if report.get('chat_box') != f'/msg {PLAYER} {CLICKED}':
-        problems.append(f'the chat box holds {report.get("chat_box")!r}')
+        problems.append('the unknown command did not reach the server')
     if any(CLICKED in c for c in chat) or any(CLICKED in l for l in log):
         problems.append('the clicked whisper was sent without the player sending it')
-    left = next(i for i, l in enumerate(log) if re.search(rf'{PLAYER} (left the game|lost connection)', l))
-    if any('Stopping the server' in l for l in log[:left]):
-        problems.append('/stop ran though it was answered no')
     refused = [c for c in chat if re.search(r'(?i)chat disabled|not secure|validation|invalid|missing profile', c)]
     refused += [l for l in log if re.search(r'chat_validation_failed|invalid_signature|missingProfileKey|'
                                             r'Failed to validate|unsigned', l)]

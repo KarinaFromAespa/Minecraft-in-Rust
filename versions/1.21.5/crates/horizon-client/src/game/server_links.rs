@@ -2,7 +2,7 @@
 //! the `minecraft:server_links` dialog (the `pause_screen_additions` tag's
 //! fallback when a server sent ClientboundServerLinksPacket): a scrollable
 //! list of the server's links, each opened through `ConfirmLinkScreen`
-//! (Screen.clickUrlAction), and the `dialog/warning_button`'s
+//! (`Screen.handleComponentClicked`'s OpenUrl arm), and the `dialog/warning_button`'s
 //! DialogScreen.WarningScreen ("Note about custom screens").
 //! https://mcsrc.dev/2/26.3/net/minecraft/client/gui/screens/dialog/ServerLinksDialogScreen
 use super::{Game, Screen, packs::open_uri};
@@ -278,7 +278,7 @@ impl Game<'_> {
         }
         Ok(())
     }
-    /// `Screen.clickUrlAction`: "Web Links" off ignores the click; "Prompt on
+    /// `Screen.handleComponentClicked`'s OpenUrl arm: "Web Links" off ignores the click; "Prompt on
     /// Links" asks with ConfirmLinkScreen, else the browser opens directly.
     fn click_link(&mut self, url: &str) {
         if !self.settings.chat_links {
