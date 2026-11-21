@@ -12083,3 +12083,8 @@ call.
 
 `place` is identical in both versions; the diff is a re-numbering artifact
 from `ChunkPos.containing` (26.1) vs `new ChunkPos` (1.21.11).
+
+## Item 591 — game/server_packs.rs (DownloadedPackSource) — NO-CHANGE
+
+Only field/method visibility (private in 26.1, package-private in
+1.21.11).
