@@ -9655,3 +9655,17 @@ picks from all non-parrot mobs and falls back to
 filters to imitable species first — a pre-existing
 divergence from both versions, not this item's delta.
 No code changed.
+
+## Item 201 — enchant.rs (rank 2, NO-CHANGE)
+
+2 classes, 16 methods, 1 named. The one enchantment
+delta (LUNGE's food/creative gate moving from the
+enchantment data in 26.1 into `Player.lungeForwardMaybe`
+in 1.21.11) is already the Rust's form
+(`post_piercing_attack` gates on creative-or-food->=7);
+all 43 enchantment definitions are otherwise identical.
+`RegistryDataLoader`'s missing 1.21.11 registries
+(sound variants, world clock, villager trade sets) are
+already reflected — the data-driven trade system loads
+empty and the hardcoded `VillagerTrades` port is item
+751's work, as merchant.rs documents. No code changed.
