@@ -4036,13 +4036,50 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 92 — Level, verified:**
+  - `precipitationAt` is a pure
+    1.21.6 extraction: the
+    logic it holds is
+    identical to 1.21.5's
+    inlined `isRainingAt`
+    (raining, sky visible,
+    nothing motion-blocking
+    above, biome precipitation
+    is rain). The Rust
+    `mobs/world.rs` already
+    has both forms with the
+    exact vanilla logic
+    (`precipitation_at` /
+    `raining_at`).
+  - `onBlockEntityAdded` is a
+    dead hook in 1.21.6: an
+    empty base method, no
+    overrides anywhere,
+    called from `LevelChunk`
+    but doing nothing. Absent
+    in 1.21.5; no behaviour
+    either way.
+  - `disconnect` lost its
+    empty base in 1.21.6 and
+    `ClientLevel`'s override
+    became `disconnect(Component)`
+    — the same disconnect,
+    the quit reason now
+    passed in instead of
+    hardcoded. No Rust
+    surface change.
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **91 of 426 are
-closed** (rank 1 complete, rank 2 at 82/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **92 of 426 are
+closed** (rank 1 complete, rank 2 at 83/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
