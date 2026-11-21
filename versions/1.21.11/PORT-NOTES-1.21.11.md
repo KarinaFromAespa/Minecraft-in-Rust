@@ -11334,3 +11334,32 @@ package-private constructors; 26.1-only
 matches: item row 2px spacing, vertically centred;
 20-high EditBox, multiline 9*lines+8 capped at 512.
 `dialog_screen`: 4 passed.
+
+## Item 519 — game/debug_keys.rs (rank 3, CHANGED)
+
+Three real differences, all in the debug overlay text.
+(1) Chart footer: 26.1 builds it in three lines via
+`formatChart`/`formatKeybind` (Profiler + FPS, then
+network + Lightmap, then the edit hint); 1.21.11
+inlines one concat with all three charts on one line,
+no trailing `;`, no lightmap chart.
+`debug_chart_lines` is now `[String; 2]` in the
+1.21.11 layout; the fps chart name casing was fixed
+at the same time (`FPS` / `FPS + TPS`, as in vanilla
+both versions — the Rust had lowercase). (2)
+Performance-impactors line: 1.21.11 formats
+`%s%s B: %d` with leading-space cloud labels, so the
+line starts with a space when improved transparency
+is off; the Rust now uses the 1.21.11 format and
+labels verbatim. (3) The lightmap texture debug view
+(keybinding, field, toggle, chart label, render block)
+is 26.1-only; the Rust has no lightmap surface. The
+rest is renames (`extractRenderState` -> `render`,
+chart `extractRenderState` -> `drawChart`), the
+`GpuDevice` class-to-interface move, `ChunkPos`
+methods -> fields, and 26.1-only `CHAT_*`
+permissions. Citations re-pointed to `Gui.render` and
+`DebugScreenOverlay.render` (26.1's
+`extractRenderState`). The profiler chart stays
+always `hidden` (not drawn yet) and `Filtering: None`
+stays hardcoded — pre-existing gaps, not deltas.

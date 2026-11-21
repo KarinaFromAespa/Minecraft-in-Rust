@@ -249,8 +249,9 @@ impl Game<'_> {
             self.send(Serverbound::PingRequest(Ping { time }));
         }
     }
-    /// The overlay's chart lines (`DebugScreenOverlay`'s "Debug charts").
-    pub(super) fn debug_chart_lines(&self) -> [String; 3] {
+    /// The overlay's chart lines (`DebugScreenOverlay`'s "Debug charts"):
+    /// all three charts on one line, then the edit hint.
+    pub(super) fn debug_chart_lines(&self) -> [String; 2] {
         let keys = &self.settings.keys;
         let modifier = keys.get("key.debug.modifier");
         let key = |mapping: &str| {
@@ -276,33 +277,35 @@ impl Game<'_> {
         let c = &self.debug_charts;
         [
             format!(
-                "Debug charts: {}; {};",
+                "Debug charts: {}; {}; {}",
                 chart("key.debug.profilingChart", "Profiler", false),
                 chart(
                     "key.debug.fpsCharts",
-                    if remote { "fps" } else { "fps + tps" },
+                    if remote { "FPS" } else { "FPS + TPS" },
                     c.fps
                 ),
-            ),
-            chart(
-                "key.debug.networkCharts",
-                if remote { "Bandwidth + Ping" } else { "Ping" },
-                c.network,
+                chart(
+                    "key.debug.networkCharts",
+                    if remote { "Bandwidth + Ping" } else { "Ping" },
+                    c.network,
+                ),
             ),
             format!("To edit: press {}", key("key.debug.debugOptions")),
         ]
     }
-    /// `Gui.extractRenderState`'s debug overlay, over everything the frame
-    /// drew (menus too); the debug options screen draws it under itself.
+    /// `Gui.render`'s debug overlay (26.1's `extractRenderState`), over
+    /// everything the frame drew (menus too); the debug options screen
+    /// draws it under itself.
     pub(super) fn draw_debug_overlay(&self, batch: &mut HudBatch, size: [u32; 2]) {
         if self.screen != Screen::DebugOptions {
             self.draw_debug_overlay_under(batch, size);
         }
     }
-    /// `DebugScreenOverlay.extractRenderState`: the enabled entries' lines
-    /// (`debug-profile.json`), at the debug GUI scale, and the charts while
-    /// the overlay is open. F1 hides it unless a screen is open. Horizon paints
-    /// it 20 times a second and copies those vertices in between.
+    /// `DebugScreenOverlay.render` (26.1's `extractRenderState`): the
+    /// enabled entries' lines (`debug-profile.json`), at the debug GUI
+    /// scale, and the charts while the overlay is open. F1 hides it unless
+    /// a screen is open. Horizon paints it 20 times a second and copies
+    /// those vertices in between.
     pub(super) fn draw_debug_overlay_under(&self, batch: &mut HudBatch, size: [u32; 2]) {
         let screen_open = self.title.is_some() || self.screen != Screen::Playing;
         let reduced = self.reduced_debug_info();
@@ -426,16 +429,16 @@ impl Game<'_> {
     pub(super) fn debug_performance_lines(&self, d: &mut debug_overlay::Displayer) {
         let s = &self.settings;
         d.line(format!(
-            "{}{}B: {}",
+            "{}{} B: {}",
             if s.improved_transparency {
-                "improved-transparency "
+                "improved-transparency"
             } else {
                 ""
             },
             match s.clouds.as_str() {
                 "false" => "",
-                "fast" => "fast-clouds ",
-                _ => "fancy-clouds ",
+                "fast" => " fast-clouds",
+                _ => " fancy-clouds",
             },
             s.biome_blend
         ));
