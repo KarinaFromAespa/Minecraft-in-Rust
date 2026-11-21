@@ -11809,3 +11809,14 @@ Only visibility, a `requireNonNull` on a never-null outer instance,
 `entity.is(PLAYER)` vs `getType() == PLAYER` (same test) and
 `createThreadLocalInstance` vs `create` (same sequence). The Rust already
 cites the 1.21.11 `getType() == EntityType.PLAYER` form.
+
+## Item 552 — game/screen_info.rs (PopupScreen) — NO-CHANGE apart from a citation
+
+26.1's popup holds a list of messages (one widget each) and tolerates a null
+background screen; 1.21.11 holds a single message and assumes a background
+screen. The layout is otherwise identical, and the background render is the
+usual extractor rewire (`extractBackground` vs `renderBackground`).
+screen_info.rs models no popup (PopupScreen overrides no narration method in
+either version); the realms notification already returns the single message
+string. One citation re-pointed: the `level_loading` doc's
+`extractRenderState` -> `render`.

@@ -36,8 +36,8 @@ pub(super) fn chat(in_bed: bool, value: &str, tr: Tr<'_>) -> ScreenInfo {
 
 /// `LevelLoadingScreen`: no title and no navigation; `updateNarratedWidget`
 /// says the server's progress (`loading.progress`, floored to a percent) in
-/// the title's place when there is one, and `extractRenderState` narrates
-/// what changed every 2 s.
+/// the title's place when there is one, and `render` (26.1's
+/// `extractRenderState`) narrates what changed every 2 s.
 pub(super) fn level_loading(progress: Option<f32>, tr: Tr<'_>) -> ScreenInfo {
     let info = ScreenInfo::new("level_loading", "")
         .without_widgets()
