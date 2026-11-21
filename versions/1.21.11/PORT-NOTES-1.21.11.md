@@ -10234,3 +10234,10 @@ restructure (item 218's pattern) and the typed
 `is(Item)` spelling in `wantsToPickUp` — the Rust
 already implements the golden-axe-only pickup with
 a test. No code changed.
+
+## Item 261 — mobs/vex.rs (rank 2, NO-CHANGE)
+
+5 classes, 5 methods, 1 named. The diff collapses
+to dropped null-check codegen alone — the Vex class
+and its four goal classes are otherwise
+bytecode-identical. No code changed.
