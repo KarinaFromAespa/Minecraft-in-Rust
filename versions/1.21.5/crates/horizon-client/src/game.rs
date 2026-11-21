@@ -2050,26 +2050,6 @@ fn ticking_chunk(world: &World, x: i32, z: i32) -> bool {
     };
     center.lit && world.chunks.surrounded((x, z))
 }
-/// `TicketStorage.canTicketExpire` for a `PORTAL` ticket: its chunk's holder is
-/// ready for saving once the futures of its level are done, the chunk lit and
-/// its neighbours loaded out to one chunk at a ticking level
-/// (`prepareTickingChunk`) and two at an entity-ticking one
-/// (`prepareEntityTickingChunk`). The ticket's own level stands for the
-/// holder's: the area it waits for is the one its own streaming loads.
-fn portal_ticket_can_expire(
-    world: &World,
-    ticket: &horizon_client::ticket_levels::PortalTicket,
-) -> bool {
-    use horizon_client::ticket_levels::{BLOCK_TICKING, ENTITY_TICKING};
-    let r = match ticket.level {
-        l if l <= i32::from(ENTITY_TICKING) => 2,
-        l if l == i32::from(BLOCK_TICKING) => 1,
-        _ => 0,
-    };
-    let (x, z) = ticket.chunk;
-    world.chunks.get(&(x, z)).is_some_and(|c| c.lit)
-        && (-r..=r).all(|dz| (-r..=r).all(|dx| world.chunks.contains_key(&(x + dx, z + dz))))
-}
 /// Key events carry the scancode's US-layout code, which ignores XKB options like
 /// `caps:swapescape`. For the keys whose meaning the keymap may remap, take the code
 /// from the keysym the keymap resolved instead. This includes function keys on

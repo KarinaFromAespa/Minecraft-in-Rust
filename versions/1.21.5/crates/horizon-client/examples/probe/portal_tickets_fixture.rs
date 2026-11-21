@@ -74,14 +74,8 @@ pub fn main() {
         for op in case["ops"].as_array().unwrap() {
             match op["op"].as_str().unwrap() {
                 "tick" => {
-                    let loading: HashSet<_> = op["loading"]
-                        .as_array()
-                        .into_iter()
-                        .flatten()
-                        .map(chunk)
-                        .collect();
                     for _ in 0..op["times"].as_u64().unwrap_or(1) {
-                        tickets.tick_portal(|t| !loading.contains(&t.chunk));
+                        tickets.tick_portal();
                     }
                 }
                 "portal" => tickets.add_portal(chunk(&op["pos"])),

@@ -374,14 +374,12 @@ impl ChunkTickets {
         });
     }
     /// `TicketStorage.purgeStaleTickets` for the `PORTAL` tickets, once a
-    /// tick: a ticket counts down only where `can_expire` (`canTicketExpire`:
-    /// `PORTAL` waits for its chunk to finish loading) and goes below zero,
-    /// `PORTAL_TIMEOUT + 1` counted ticks after it was placed.
-    pub fn tick_portal(&mut self, mut can_expire: impl FnMut(&PortalTicket) -> bool) {
+    /// tick: every ticket counts down and goes below zero,
+    /// `PORTAL_TIMEOUT + 1` counted ticks after it was placed. (1.21.6
+    /// holds a ticket while its chunk is still loading
+    /// (`canTicketExpire`); 1.21.5 has no such gate.)
+    pub fn tick_portal(&mut self) {
         self.portal.retain_mut(|t| {
-            if !can_expire(t) {
-                return true;
-            }
             // `Ticket.decreaseTicksLeft`: a long, which wraps.
             t.ticks_left = t.ticks_left.wrapping_sub(1);
             t.ticks_left >= 0
@@ -795,6 +793,23 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// `purgeStaleTickets` in 1.21.5 counts every `PORTAL` ticket down,
+    /// whatever its chunk is doing (1.21.6 holds one while its chunk is
+    /// still loading): a ticket at 1 lives one tick, then is gone.
+    #[test]
+    fn portal_tickets_count_down_unconditionally() {
+        let mut t = ChunkTickets::with_saved_portal(vec![PortalTicket {
+            chunk: (0, 0),
+            level: PORTAL_LEVEL,
+            ticks_left: 1,
+        }]);
+        t.tick_portal();
+        assert_eq!(t.portal_tickets().len(), 1);
+        assert_eq!(t.portal_tickets()[0].ticks_left, 0);
+        t.tick_portal();
+        assert!(t.portal_tickets().is_empty());
     }
 
     /// A saved `PORTAL` ticket keeps its own level, one more a chunk away

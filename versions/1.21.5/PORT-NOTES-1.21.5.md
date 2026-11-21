@@ -5460,13 +5460,69 @@ is the oracle; decompiled code is a reading aid.
     the one `cargo check -j 1
     -p horizon-client --lib --tests`
     passed at item 115.
+- **Item 119 — TicketStorage:
+  `purgeStaleTickets` counts
+  every ticket down:**
+  - 1.21.6's purge takes the
+    `ChunkMap` and holds a
+    simulation ticket while
+    its chunk's holder is
+    not ready for saving
+    (`canTicketExpire`);
+    1.21.5's takes nothing
+    and decrements every
+    ticket. The Rust port
+    had the 1.21.6 gate
+    (`tick_portal`'s
+    `can_expire` callback,
+    `portal_ticket_can_expire`
+    in `game.rs`). Both are
+    gone: `tick_portal`
+    counts every `PORTAL`
+    ticket down each tick.
+    Test:
+    `portal_tickets_count_down_unconditionally`.
+  - The parity harness
+    tested the 1.21.6 gate
+    too, and its oracle
+    called the 1.21.6
+    `purgeStaleTickets(map)`
+    signature, which does
+    not exist on the 1.21.5
+    jar. All three are
+    ported: the oracle now
+    calls `purgeStaleTickets()`
+    with no chunk-map or
+    holder allocation, the
+    fixture's `tick` op
+    drops its `loading`
+    set, and the harness
+    drops the `loading`
+    cases (the 301-tick
+    hold case is now a
+    plain timeout case).
+    `removeTicketIf`'s
+    arity change has no
+    Rust surface, and
+    `deactivateTicketsOnClosing`
+    behaves the same in
+    both versions.
+  - Verification: `cargo check -j 1
+    -p horizon-client --lib --tests`
+    and `-p horizon-client-lib
+    --example client_probe` 0 errors
+    / 0 warnings; `cargo test -j 1
+    -p horizon-client-lib --lib
+    ticket_levels::tests::
+    portal_tickets_count_down_unconditionally`
+    1 passed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **118 of 426 are
-closed** (rank 1 complete, rank 2 at 109/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **119 of 426 are
+closed** (rank 1 complete, rank 2 at 110/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

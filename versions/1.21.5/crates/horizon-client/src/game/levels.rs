@@ -864,8 +864,7 @@ impl Game<'_> {
     /// The areas the level in place's portal tickets keep streamed: around each
     /// exit its block-ticking chunks and their neighbours, the ring vanilla
     /// keeps `FULL` (level 33), so the outer block-ticking ring is a ticking
-    /// chunk too; and at least the chunks its expiry waits for
-    /// (`portal_ticket_can_expire`).
+    /// chunk too.
     pub(super) fn portal_ticket_areas(&self) -> Vec<((i32, i32), i32)> {
         let block_ticking = i32::from(horizon_client::ticket_levels::BLOCK_TICKING);
         self.tickets
