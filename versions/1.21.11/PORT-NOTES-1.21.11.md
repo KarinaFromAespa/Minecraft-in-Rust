@@ -9414,3 +9414,18 @@ same random; `TntRenderer` only changes how the block state
 reaches the render state (resolver vs direct assignment)
 while the fuse/swell/flash math the Rust implements is
 identical in both versions. No code changed.
+
+## Item 184 — game/consume.rs (rank 2, NO-CHANGE)
+
+2 classes, 10 methods, 2 named. No behavioural delta:
+`UseRemainder.convertIntoRemainder` is identical in both
+versions — the `ItemStackTemplate` vs `ItemStack` change
+is only how the remainder stack is produced, and the Rust
+abstracts that behind `use_remainder::convert`'s `create`
+callback fed by an `ItemTemplate` (the same JSON shape);
+`TeleportRandomlyConsumeEffect.apply` is identical except
+that 1.21.11 resets the impulse context only for players,
+which is already the Rust's behaviour (the shared
+`TeleportConsume::apply` runs only for the local player;
+the fox has its own implementation with no impulse reset).
+No code changed.
