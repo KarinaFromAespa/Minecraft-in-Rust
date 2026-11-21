@@ -12511,3 +12511,7 @@ the 26.1 form, so the recipe book's furnace fuel cycle order differs
 from 1.21.11 — the fuel set is the same, only the order. Matching
 1.21.11 needs the full `vanillaBurnTimes` sequence with tag expansion
 order and dedup semantics; out of rank-3 scope.
+
+## Item 663 — game/saving.rs (GenericMessageScreen) — NO-CHANGE
+
+Pure extractor rewire.
