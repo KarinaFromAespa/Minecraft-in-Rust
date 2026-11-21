@@ -906,7 +906,7 @@ pub const ALL: &[Def] = &[
         Witch,
         "witch",
         "witch#main",
-        "entity/witch/witch",
+        "entity/witch",
         A::Witch,
         [
             "entity.witch.ambient",

@@ -9184,3 +9184,14 @@ The `BABY_START_AGE` doc fixed to the 1.21.11 `setBaby` form (the
 -48000 value is the same). No delta: the powder-snow path type,
 the brain sensors, the digging dimensions and the random source
 all already match. Tests: `mobs::sniffer::` 3 passed (2 new).
+
+## Item 167 — mobs/witch.rs (rank 2, CHANGED)
+
+2 classes, 7 methods, 3 named. Two real deltas: the witch texture
+moved (`textures/entity/witch/witch.png` in 26.1 →
+`textures/entity/witch.png` in 1.21.11 — verified in both jars'
+asset lists; the Rust had the 26.1 path, so the witch never drew),
+and the potion throw is always speed 0.75 in 1.21.11 (26.1 slowed
+close-range throws to 0.45 within 2 blocks). The potion selection,
+aim and throw sound already matched. Tests: `mobs::witch::` 4
+passed (1 new: the flat texture).
