@@ -12073,3 +12073,8 @@ Only `getRandom()` vs the `random` field (same source).
 ## Item 588 — game/commands/raid.rs (RaidCommand) — NO-CHANGE
 
 Only `getRandom()` vs the `random` field (same source).
+
+## Item 589 — game/growth.rs (ShearsItem) — NO-CHANGE
+
+Only the `ItemInstance` vs `ItemStack` parameter rename in the trigger
+call.
