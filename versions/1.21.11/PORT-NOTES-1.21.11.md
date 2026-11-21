@@ -12655,3 +12655,10 @@ Method rename only (`ChunkPos.pack` vs `toLong`, same value).
 ## Item 695 — game/mods.rs (TelemetryEventWidget$Content) — NO-CHANGE
 
 Visibility only.
+
+## Item 696 — game/native_client_entities.rs (Display$ItemDisplay) — NO-CHANGE
+
+1.21.11 calls `ItemStack.setEntityRepresentation(this)` before
+building the item render state; 26.1 does not. The Rust has no
+entity-representation plumbing and builds the render state from the
+stack + transform only, so the call has no observable effect.
