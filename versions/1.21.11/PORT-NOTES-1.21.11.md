@@ -12196,3 +12196,7 @@ single message. `DifficultyButtons`/`InWorldGameRulesScreen` are
 26.1-only — the Rust's header already documents that 1.21.11 has no
 in-world game rules screen (rules via /gamerule) and the LAN screen is
 the 1.21.11 form.
+
+## Item 610 — server_packs/download.rs (DownloadCacheCleaner, DownloadQueue) — NO-CHANGE
+
+Only visibility and a `requireNonNull` across eight download classes.
