@@ -10962,12 +10962,63 @@ is the oracle; decompiled code is a reading aid.
     --lib 0/0; world_probe
     0/0; client_probe 0/0.
 
+- **Item 261 — Server
+  packet listener**
+  - ServerGamePacketListene
+    rImpl: every real delta
+    is already the 1.21.5
+    form. handlePlayerInput
+    only records the keys
+    (no idle-timer reset,
+    no shift state — 1.21.6
+    does both there); shift
+    arrives via
+    PlayerCommand actions
+    0/1, the 1.21.5
+    numbering 1.21.6
+    dropped. Move
+    validation is isPlayerC
+    ollidingWithAnythingNew
+    over plain
+    getCollisions, not
+    1.21.6's
+    getPreMoveCollisions
+    rename; the vehicle
+    move checks the box
+    deflated 0.0625 before
+    and after, with no
+    flying-vehicle
+    exemption in the
+    floating check. There
+    is no change-game-mode
+    packet in the protocol
+    — the F3+F4 switcher
+    sends /gamemode on a
+    server.
+    ChangeDifficulty
+    silently ignores an
+    under-permissioned
+    guest (1.21.6 warns).
+    Tag queries write NBT
+    directly. The
+    level()/serverLevel()
+    renames, the
+    send/connection.send
+    refactor and the ValueO
+    utput/ProblemReporter
+    refactor have no Rust
+    surface; movement
+    recording has none
+    either.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **260 of 426 are
-closed** (rank 1 complete, rank 2 at 251/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **261 of 426 are
+closed** (rank 1 complete, rank 2 at 252/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
