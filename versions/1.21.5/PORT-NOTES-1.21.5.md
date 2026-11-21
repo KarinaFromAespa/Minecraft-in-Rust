@@ -11810,12 +11810,54 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no
     code changed.
 
+- **Item 281 — GsonHelper**
+  - GsonHelper: verified, no
+    code - the same ground as
+    item 251, confirmed from
+    this side. 1.21.5's
+    fromJson / fromNullableJson
+    / parse take a lenient flag
+    and default to strict (the
+    no-boolean overloads pass
+    false), while 1.21.6 is
+    always strict; the port's
+    strict-everywhere default
+    therefore matches 1.21.5's
+    default. What it misses is
+    only the explicit lenient
+    call sites: 1.21.5's
+    datapack, tag, advancement,
+    stats, model and shader
+    loaders read through Gson's
+    lenient
+    JsonParser.parseReader (Sim
+    pleJsonResourceReloadListen
+    er confirmed), while the
+    port parses those with
+    strict serde_json. The port
+    HAS lenient parsers
+    (java_text::parse_lenient, 
+    datafix::json::parse_lenien
+    t) and strict ones
+    (parse_strict,
+    parse_prefix_strict), wired
+    in only for language files
+    and option values; routing
+    every JSON loader through
+    lenient - each site needing
+    a Json to serde_json
+    conversion - stays out of
+    proportion, as item 251
+    judged.
+  - Verification: read only; no
+    code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **280 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 12/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **281 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 13/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
