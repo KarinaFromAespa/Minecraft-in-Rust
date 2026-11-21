@@ -10733,3 +10733,17 @@ construction. The Rust's `CuboidModel` /
 `ElementRotation` already match the 1.21.11
 element system. `horizon-assets model`:
 29 passed.
+
+## Item 330 — resources/RegistryDataLoader (rank 2, NO-CHANGE)
+
+6 classes, 8 methods, 0 named. The
+26.1 task-based loader (`LoaderFactory`,
+`ResourceManagerRegistryLoadTask`) is
+absent in 1.21.11, which loads directly
+via `loadContentsFromManager`; the
+sorted-by-Identifier registration order
+still holds (the `listMatchingResources`
+map is sorted). Two citations re-pointed
+to the 1.21.11 loader. `crafting`: 39
+passed, 1 ignored; `lan::data`: 7 passed,
+1 ignored.

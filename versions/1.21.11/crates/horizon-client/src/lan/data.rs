@@ -178,8 +178,8 @@ fn pack_entries(
     }
 }
 
-/// ResourceManagerRegistryLoadTask.load: the entries register sorted by the
-/// file `Identifier` FileToIdConverter.listMatchingResources keys them by
+/// RegistryDataLoader.loadContentsFromManager: the entries register in the
+/// order `FileToIdConverter.listMatchingResources` keys them by
 /// (`<dir>/<path>.json`), path first, then namespace (Identifier.compareTo).
 /// The `.json` counts: `x-y` comes before `x`, as `-` sorts before `.`.
 fn file_order<T>(entries: &mut [((String, String), T, bool)]) {

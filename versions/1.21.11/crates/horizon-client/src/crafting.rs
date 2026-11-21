@@ -1336,8 +1336,9 @@ pub fn recipe_id(name: &str) -> String {
 /// The sort key of vanilla's recipe registration order, which first-match
 /// lookups (`RecipeManager.getRecipeFor`'s `findFirst`), the stonecutter's
 /// list and the recipe book's display numbers all follow:
-/// `ResourceManagerRegistryLoadTask` sorts the resource files by `Identifier`
-/// (path, then namespace) and `RecipeMap` keeps that order. The file's path
+/// `RegistryDataLoader.loadContentsFromManager` walks the resource files in
+/// `listMatchingResources`' `Identifier`-sorted order (path, then namespace)
+/// and `RecipeMap` keeps that order. The file's path
 /// ends in `.json`, so `prefix-early` sorts before `prefix`. `name` is a
 /// table name (`oak_planks`) or a whole id.
 pub fn registration_key(name: &str) -> (String, String) {
