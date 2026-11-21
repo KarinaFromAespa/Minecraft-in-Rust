@@ -11664,12 +11664,63 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no
     code changed.
 
+- **Item 277 — Tab bar and statistics screen**
+  - Tab bar and statistics
+    screen: verified, no code.
+    StatsScreen has no tab bar
+    in either version - plain
+    footer buttons, Items/Mobs
+    disabled when their lists
+    are empty (initButtons
+    identical in both); the
+    port's MenuTabBar gating
+    (empty tabs unchoosable,
+    the cycle skips them, a
+    digit naming one is taken
+    but switches nothing)
+    mirrors that shared
+    disabled-button rule, not
+    the 1.21.6 TabNavigationBar
+    API. isPauseScreen is
+    !isLoading in 1.21.5,
+    always true in 1.21.6 - but
+    the port has no loading
+    state (stats load
+    synchronously locally,
+    arrive via AwardStats
+    remotely with no loading
+    UI), so the conditional
+    collapses to always true
+    and Screen::Stats => true
+    stands. Create-world tab
+    cycling is already the
+    1.21.5 form (plain
+    floorMod, no active skip).
+    The Realms config tab bar's
+    active-state skip and
+    onSelected / onDeselected
+    (settings save and draft
+    refill) are the 1.21.6
+    tabbed config screen - the
+    structural gap item 11
+    documented and deferred to
+    item 404, not this item's.
+    GridLayoutTab's 1.21.6-only
+    getTabExtraNarration
+    returns empty; no narration
+    difference. The
+    RenderPipelines /
+    setTooltipForNextFrame
+    renames have no surface.
+  - Verification: read only; no
+    code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **276 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 8/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **277 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 9/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
