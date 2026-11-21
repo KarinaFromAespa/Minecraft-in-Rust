@@ -12050,3 +12050,8 @@ are untouched.
 Only equivalent forms: the `is` overload, `fluidState.is(WATER)` vs
 `getType() == WATER`, and `isFull()` vs `getAmount() == 8`. The Rust's
 air-or-(water-and-full) check matches both.
+
+## Item 584 — worldgen/structure/nether_fossil.rs (NetherFossil) — NO-CHANGE
+
+Only `RandomSource.createThreadLocalInstance` vs `create` (same sequence)
+and the `is` overload.
