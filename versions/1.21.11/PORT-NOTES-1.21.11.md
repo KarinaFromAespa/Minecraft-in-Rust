@@ -9730,3 +9730,25 @@ slots, `onTake`, `slotsChanged`, `setupResultSlot`
 `quickMoveStack` are all identical. One doc citation
 updated in `draw_cartography`; no behavioural code
 changed.
+
+## Item 207 — world/item (rank 2, CHANGED)
+
+8 classes, 25 methods, 0 named. The one real delta in
+the `Items` table: 1.21.11 lowers the spear dismount
+condition's attacker-speed threshold (`KineticWeapon`'s
+first `ofAttackerSpeed` argument) for every material
+but wood — stone 13->10, copper 12->9, iron 11->8,
+golden 13->10, diamond 10->7.5, netherite 9->7 blocks/s
+(verified against the 1.21.11 jar's
+`Item$Properties.spear`). Ported in
+`spear.rs::Kinetic::of` with a test pinning all seven
+thresholds. The rest is noise or data: `GOLDEN_DANDELION`
+is 26.1-only (registry comes from prepared data);
+eggs/dyes/nether star/shield/banner patterns/goat horn
+change only `delayedComponent` construction, same
+values; `ItemStackTemplate` is 26.1-only as a class but
+the Rust already reads its `{id, count?, components?}`
+shape directly; `MapItem` drops a null ItemFrame
+argument; `ItemStack$1` renames `typeHolder` to
+`getItemHolder`; `ProjectileWeaponItem` uses the
+`is(Item)` overload.
