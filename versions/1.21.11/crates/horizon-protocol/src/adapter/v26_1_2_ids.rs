@@ -84,6 +84,17 @@ pub const ENCHANTMENT_EFFECT_COMPONENT_TYPE_UP: &[(u16, u16, u16)] = &[
 pub const ENCHANTMENT_EFFECT_COMPONENT_TYPE_DOWN: &[(u16, u16, u16)] = &[
     (0, 0, 10), (10, 24, 1), (11, 10, 14), (25, 25, 6),
 ];
+/// `minecraft:slot_display`: 11 in this version, 8 in the codec's 1.21.11 numbering.
+/// The 26.x displays (with_any_potion 2, only_with_component 3, dyed 7) have no
+/// pinned counterpart and map to nothing.
+#[rustfmt::skip]
+pub const SLOT_DISPLAY_UP: &[(u16, u16, u16)] = &[
+    (0, 0, 2), (4, 2, 3), (8, 5, 3),
+];
+#[rustfmt::skip]
+pub const SLOT_DISPLAY_DOWN: &[(u16, u16, u16)] = &[
+    (0, 0, 2), (2, 4, 3), (5, 8, 3),
+];
 /// Data components 26.1.2 has and the pinned version lacks, by their 26.1.2 id.
 pub const DROPPED_COMPONENTS: &[(u16, &str)] = &[
     (41, "minecraft:additional_trade_cost"),
@@ -138,9 +149,10 @@ pub const IDS: super::ids::Ids = super::ids::Ids {
         up: RECIPE_SERIALIZER_UP,
         down: RECIPE_SERIALIZER_DOWN,
     },
-    // This version already numbers slot displays as the codec does (26.3 order),
-    // so the generator's 11->8 old->pin mapping is wrong here; identity instead.
-    slot_display: super::ids::Remap::Same,
+    slot_display: super::ids::Remap::Runs {
+        up: SLOT_DISPLAY_UP,
+        down: SLOT_DISPLAY_DOWN,
+    },
     recipe_display: super::ids::Remap::Same,
     recipe_book_category: super::ids::Remap::Same,
     villager_type: super::ids::Remap::Same,

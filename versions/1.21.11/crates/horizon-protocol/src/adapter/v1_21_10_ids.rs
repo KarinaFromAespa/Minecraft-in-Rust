@@ -96,22 +96,6 @@ pub const ENCHANTMENT_EFFECT_COMPONENT_TYPE_UP: &[(u16, u16, u16)] = &[
 pub const ENCHANTMENT_EFFECT_COMPONENT_TYPE_DOWN: &[(u16, u16, u16)] = &[
     (0, 0, 7), (8, 7, 23),
 ];
-/// `minecraft:slot_display`: 8 in this version, 11 in the codec's numbering.
-///
-/// Hand-corrected: the SlotDisplay codec still uses the 26.3 numbering
-/// (item=4, smithing_trim=8, composite=10), while this version and the pin
-/// both number the registry item=2, smithing_trim=5, composite=7. The
-/// generator's old->pin mapping is identity here, which the codec would read
-/// as the wrong display types. Regenerate to old->pin when the behaviour port
-/// rewires the codec to the 1.21.11 layout.
-#[rustfmt::skip]
-pub const SLOT_DISPLAY_UP: &[(u16, u16, u16)] = &[
-    (0, 0, 2), (2, 4, 3), (5, 8, 3),
-];
-#[rustfmt::skip]
-pub const SLOT_DISPLAY_DOWN: &[(u16, u16, u16)] = &[
-    (0, 0, 2), (4, 2, 3), (8, 5, 3),
-];
 /// Data components 1.21.10 has and the pinned version lacks, by their 1.21.10 id.
 pub const DROPPED_COMPONENTS: &[(u16, &str)] = &[];
 /// Every table above, as the adapter reads them.
@@ -159,10 +143,7 @@ pub const IDS: super::ids::Ids = super::ids::Ids {
     fluid: super::ids::Remap::Same,
     game_event: super::ids::Remap::Same,
     recipe_serializer: super::ids::Remap::Same,
-    slot_display: super::ids::Remap::Runs {
-        up: SLOT_DISPLAY_UP,
-        down: SLOT_DISPLAY_DOWN,
-    },
+    slot_display: super::ids::Remap::Same,
     recipe_display: super::ids::Remap::Same,
     recipe_book_category: super::ids::Remap::Same,
     villager_type: super::ids::Remap::Same,

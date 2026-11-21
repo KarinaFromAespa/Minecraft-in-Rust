@@ -736,9 +736,7 @@ impl PacketNames<'_> {
             HolderSet::Items(ids) => ids.iter().filter_map(|&id| (self.item)(id)).collect(),
         }
     }
-    /// The stacks a slot display shows, in order (`SlotDisplay.resolveForStacks`):
-    /// what a display builds from a component or a dye is not reproduced, it
-    /// shows its source.
+    /// The stacks a slot display shows, in order (`SlotDisplay.resolveForStacks`).
     fn stacks(&self, display: &SlotDisplay, out: &mut Vec<ItemStack>) {
         match display {
             SlotDisplay::Empty | SlotDisplay::AnyFuel => {}
@@ -749,10 +747,6 @@ impl PacketNames<'_> {
             SlotDisplay::Tag(set) => {
                 out.extend(self.holder_set(set).iter().map(|n| ItemStack::new(n, 1)))
             }
-            SlotDisplay::WithAnyPotion(source) | SlotDisplay::OnlyWithComponent(source, _) => {
-                self.stacks(source, out)
-            }
-            SlotDisplay::Dyed { target, .. } => self.stacks(target, out),
             SlotDisplay::SmithingTrim { base, .. } => self.stacks(base, out),
             SlotDisplay::WithRemainder { input, .. } => self.stacks(input, out),
             SlotDisplay::Composite(list) => list.iter().for_each(|d| self.stacks(d, out)),

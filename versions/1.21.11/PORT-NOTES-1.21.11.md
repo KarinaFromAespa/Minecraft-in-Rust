@@ -10774,3 +10774,22 @@ are internal optimisations with identical
 results; `QuadInstance` is 26.1-only. The
 Rust has no `PoseStack`/`BufferBuilder`
 surface. `item_render`: 47 passed, 2 ignored.
+
+## Item 350 — world/item/crafting/display/SlotDisplay (rank 2, CHANGED)
+
+4 classes, 6 methods, 0 named. The codec
+used the 26.3 slot-display numbering (11
+types); rewired to 1.21.11's 8 (item 2,
+item_stack 3, tag 4, smithing_trim 5,
+with_remainder 6, composite 7), dropping
+`WithAnyPotion`, `OnlyWithComponent` and
+`Dyed`. The 1.21.x adapter tables lose
+their hand-corrected runs (now identity);
+the 26.x tables gain the 11->8 mapping,
+so the three 26.x-only displays map to
+nothing. The resolver arms and the LAN
+fixture registry follow. `packets::recipes`:
+1 passed; `adapter::ids`: 11 passed;
+`lan::advancements`: 13 passed;
+`recipe_book`: 26 passed; `stations`:
+26 passed.
