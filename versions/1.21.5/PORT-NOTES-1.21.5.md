@@ -8029,13 +8029,44 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 169 — /loot
+  and /forceload
+  verified:**
+  - Both `loot_table`
+    arguments are
+    `ResourceOrId("minecraft:loot_table")`,
+    and the
+    suggestion engine
+    suggests that
+    registry's ids
+    for it — the same
+    list 1.21.5's
+    explicit
+    `SUGGEST_LOOT_TABLE`
+    produces (and
+    1.21.6's built-in
+    argument
+    suggestions too).
+    Both commands
+    require level 2
+    (`GAMEMASTERS`);
+    the
+    `hasPermission(2)`
+    → lambda change
+    is the pure
+    refactor seen in
+    items 110/134/
+    142/145.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **168 of 426 are
-closed** (rank 1 complete, rank 2 at 159/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **169 of 426 are
+closed** (rank 1 complete, rank 2 at 160/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
