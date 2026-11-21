@@ -12691,12 +12691,50 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 306 — Screenshot**
+  - Screenshot: verified,
+    no code. The
+    1.21.6-only downscale
+    factor has no surface:
+    the F2 path is always
+    full-size
+    (write_screenshot with
+    size None), and the
+    port's scaling is the
+    opposite direction - a
+    Horizon Screenshot
+    Quality setting that
+    re-renders the frame up
+    to 8x, not a
+    box-average downscale.
+    The pixel copy matches
+    both versions (alpha
+    forced to 255, the |
+    0xFF000000 form), the
+    file name is vanilla's 
+    yyyy-MM-dd_HH.mm.ss[_n]
+    .png, and the chat
+    reports are
+    screenshot.success with
+    the underlined OpenFile
+    link and
+    screenshot.failure with
+    the error. The buffer
+    API churn (MappedView
+    vs ReadView) has no
+    surface - the port
+    reads back via wgpu
+    map_async, item 297's
+    ground.
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **305 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 37/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **306 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 38/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
