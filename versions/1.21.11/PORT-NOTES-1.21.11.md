@@ -8459,3 +8459,27 @@ offers; porting the hardcoded `VillagerTrades` listings (item
 `WanderingTraderTrades` and the `VillagerTrades` outer class
 (TRADES table, updateTrades mechanics) are in no report item.
 Tests: `loot::` 35 passed (1 new).
+
+## Item 130 — mobs/finalize.rs (rank 2, CHANGED)
+
+2 classes, 9 methods, 4 named (`Zombie.finalizeSpawn`,
+`Zombie.handleAttributes`, `Zombie.hurtServer`,
+`Zombie.wantsToPickUp`).
+
+Java delta: 1.21.11's `handleAttributes(float)` never heals —
+26.1 heals the zombie to full after the leader bonus (unless
+CONVERSION/LOAD/DIMENSION_TRAVEL), so a 1.21.11 leader zombie
+spawns with its old health under its raised maximum.
+`onOffspringSpawnedFromEgg` is 26.1-only (no Rust mirror to
+remove). BABY_DIMENSIONS is the item-64 fix (scale 0.5, eye
+0.93). TropicalFish's diff is parameter-name noise; its
+`finalizeSpawn` and the group-data variant are identical.
+
+Changes: `zombie_attributes` drops the heal and its now-unused
+`reason` parameter (three call sites updated); new test pins a
+leader spawning with old health under a raised maximum.
+Checked, no action: ZombifiedPiglin's 0.0 reinforcements with
+no draw (verified in the 1.21.11 jar); the tropical-fish
+finalize (0.9 common, else lone + random pattern/colours);
+the zombie finalize order and draw order. Tests:
+`mobs::finalize::` 20 passed (1 new).

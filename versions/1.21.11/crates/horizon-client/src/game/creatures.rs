@@ -859,11 +859,7 @@ impl Game<'_> {
         if matches!(from.species(), Species::Zombie | Species::Husk) {
             let at = [from.position.x, from.position.y, from.position.z];
             let special = self.local_difficulty(at).special();
-            horizon_client::mobs::finalize::zombie_attributes(
-                &mut mob,
-                special,
-                horizon_client::mobs::finalize::Reason::Conversion,
-            );
+            horizon_client::mobs::finalize::zombie_attributes(&mut mob, special);
         }
         let id = mob.id;
         // ConversionType.SINGLE: the passengers get off and board the new mob.

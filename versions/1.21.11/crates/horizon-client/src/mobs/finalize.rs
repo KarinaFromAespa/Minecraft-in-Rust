@@ -740,8 +740,12 @@ pub fn mob_spawn(m: &mut Mob, random: &mut impl RandomSource) {
     }
     m.extra.left_handed = random.next_float() < 0.05;
 }
-/// `Zombie.handleAttributes`, from the zombie's own random.
-pub fn zombie_attributes(m: &mut Mob, special: f32, reason: Reason) {
+/// `Zombie.handleAttributes`, from the zombie's own random. 1.21.11's
+/// form takes only the difficulty multiplier and never heals: a leader
+/// zombie spawns with its old health under its raised maximum (the
+/// 26.1-only `setHealth(getMaxHealth())` after the leader bonus is
+/// gone, with the spawn-reason parameter that gated it).
+pub fn zombie_attributes(m: &mut Mob, special: f32) {
     let r = &mut m.random;
     let reinforcements = if m.kind.species == Species::ZombifiedPiglin {
         0.0
@@ -784,12 +788,6 @@ pub fn zombie_attributes(m: &mut Mob, special: f32, reason: Reason) {
             health,
             Op::AddMultipliedTotal,
         );
-        if !matches!(
-            reason,
-            Reason::Conversion | Reason::Load | Reason::DimensionTravel
-        ) {
-            m.health = max_health(m);
-        }
         super::doors::set_can_break_doors(m, true);
     }
 }
@@ -1546,7 +1544,7 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
             }
         }
         self.halloween(m);
-        zombie_attributes(m, special, reason);
+        zombie_attributes(m, special);
         g
     }
     fn husk(&mut self, m: &mut Mob, g: Option<Group>, reason: Reason) -> Option<Group> {
@@ -2613,6 +2611,34 @@ mod tests {
             "minecraft:cow"
         ));
         assert!(!spawn_egg_is_for("minecraft:stick", "minecraft:cow"));
+    }
+    /// `Zombie.handleAttributes` in 1.21.11 never heals: a leader zombie
+    /// spawns with its old health under its raised maximum (the 26.1
+    /// `setHealth(getMaxHealth())` after the leader bonus is gone).
+    #[test]
+    fn a_leader_zombie_spawns_with_its_old_health_under_its_raised_maximum() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../.local/horizon-client")
+            .join(horizon_core::VANILLA_VERSION);
+        if !root.join("items.json").exists() {
+            return;
+        }
+        let data = crate::mobs::MobTypes::load(&root).unwrap();
+        let kind = std::sync::Arc::new(data.types.get("minecraft:zombie").unwrap().clone());
+        let mut m = crate::mobs::Mob::new(
+            2,
+            kind,
+            horizon_core::geometry::Vec3::new(0.0, 4.0, 0.0),
+            0.0,
+        );
+        let health = m.health;
+        // special * 0.05 >= 1 forces the leader roll.
+        zombie_attributes(&mut m, 20.0);
+        assert!(
+            max_health(&m) > health,
+            "the leader bonus raises the maximum"
+        );
+        assert_eq!(m.health, health, "but nothing heals it to the new maximum");
     }
     /// #7877: `/attribute <mob> <attr> modifier add` hands `add_modifier` an
     /// id typed at run time; it lands in the value, reads back, and goes.

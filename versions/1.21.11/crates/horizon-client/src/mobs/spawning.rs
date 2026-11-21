@@ -345,11 +345,7 @@ pub fn finalize(m: &mut Mob, biome: &BiomeFacts, difficulty: &LocalDifficulty) {
         m.species(),
         S::Zombie | S::Husk | S::Drowned | S::ZombieVillager | S::ZombifiedPiglin
     ) {
-        super::finalize::zombie_attributes(
-            m,
-            difficulty.special(),
-            super::finalize::Reason::Natural,
-        );
+        super::finalize::zombie_attributes(m, difficulty.special());
     }
     // Drowned.finalizeSpawn, once Zombie.finalizeSpawn is done: a nautilus
     // shell in an empty offhand, as a guaranteed drop. Java draws it from the
