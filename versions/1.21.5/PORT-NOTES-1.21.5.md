@@ -6007,13 +6007,57 @@ is the oracle; decompiled code is a reading aid.
     the one `cargo check -j 1
     -p horizon-client --lib`
     passed at item 126.
+- **Item 128 — Crafter screen
+  verified against 1.21.5:**
+  - The RenderPipelines →
+    RenderType hunks are GPU
+    plumbing with no Rust
+    surface; the disabled-
+    slot sprite, the
+    powered/unpowered
+    redstone indicator and
+    the background are drawn
+    by the verified
+    `screen_layout::crafter`
+    layout.
+  - The tooltip half already
+    matches 1.21.5:
+    `crafter_tooltip` shows
+    `gui.togglable_slot`
+    over an empty, enabled
+    grid slot with nothing
+    carried and the player
+    not a spectator — the
+    exact 1.21.5 condition
+    — and `draw_slot_tooltip`
+    draws it in the same
+    frame, which is 1.21.5's
+    immediate `renderTooltip`,
+    not 1.21.6's deferred
+    `setTooltipForNextFrame`.
+    (The deferred form would
+    only cost one frame of
+    latency anyway, and the
+    tooltip's empty-carried
+    condition rules out any
+    z-order difference.)
+  - `CrafterMenu`'s
+    `level()` → `serverLevel()`
+    is an accessor rename
+    returning the same
+    ServerLevel.
+  - Verification: no Rust
+    change; the tree state is
+    the one `cargo check -j 1
+    -p horizon-client --lib`
+    passed at item 126.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **127 of 426 are
-closed** (rank 1 complete, rank 2 at 118/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **128 of 426 are
+closed** (rank 1 complete, rank 2 at 119/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
