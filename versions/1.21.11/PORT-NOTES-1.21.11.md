@@ -11701,3 +11701,12 @@ logging. The method set is the same. The Rust is a pure native wgpu
 submit-thread layer that never mirrors Mojang's Blaze3D class (no Mojang
 citations; the `CommandEncoder` mentions are wgpu's type), so the difference
 is invisible to it.
+
+## Item 540 — game/bundles.rs (BundleMouseActions) — NO-CHANGE
+
+Pure renames: `BundleItem.getSelectedItemIndex` (26.1) is `getSelectedItem` in
+1.21.11, and `onSlotClicked` takes `ClickType` (1.21.11) vs `ContainerInput`
+(26.1); the QUICK_MOVE/SWAP -> `unselectedBundleItem` gate is identical. The
+Rust reads `bundle_selected` directly and already models the gate in
+`menu_clicks.rs` (`Input::QuickMove | Input::Swap` -> `unselect_bundle`), so
+neither rename has a Rust surface.
