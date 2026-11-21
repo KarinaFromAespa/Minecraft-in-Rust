@@ -12748,3 +12748,7 @@ Visibility plus requireNonNull plus constructor field order.
 ## Item 717 — horizon-server-files/src/user_cache.rs (CachedUserNameToIdResolver$GameProfileInfo) — NO-CHANGE
 
 Visibility only.
+
+## Item 718 — horizon-server/src/management.rs (ManagementServer) — NO-CHANGE
+
+Visibility plus anonymous-class constructor field order, as item 692.
