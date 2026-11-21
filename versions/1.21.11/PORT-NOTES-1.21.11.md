@@ -11542,3 +11542,20 @@ from y-1 to y+10, "_" append cursor, cursor colour
 to the 1.21.11 names (`renderWidget`,
 `MultiLineEditBox.renderContents`). Tests:
 `multiline_edit` 8 passed.
+
+## Item 530 — net.rs (rank 3, NO-CHANGE)
+
+`LegacyServerPinger` is byte-identical, and so is
+the status handshake in `ServerStatusPinger` — the
+Rust's `ping`/`ping_legacy`/`parse_legacy_status`
+already match 1.21.11. The real differences sit
+elsewhere: 26.1 loads network registries
+asynchronously with a timing log where 1.21.11 loads
+synchronously (same result and crash path), 26.1's
+`updateComponents` applies DataComponentInitializers
+(a 26.x concept 1.21.11 lacks), and 26.1's
+`DESCRIPTION_SANITIZE_CONTEXT` is set but never read
+in its own class — dead code. The Rust's one
+`RegistryDataCollector` surface, `fill_known_entries`,
+models the known-pack lambdas, which are identical in
+both versions.
