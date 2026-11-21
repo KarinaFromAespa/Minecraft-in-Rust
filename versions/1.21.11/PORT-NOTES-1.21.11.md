@@ -12182,3 +12182,9 @@ Only visibility and a `requireNonNull` across eight parser classes.
 with 22 registered constants. This file is the legacy recipe parser
 for 1.21/1.21.1 servers only (`at_most(V1_21_1)`); a 1.21.11 server
 sends recipe displays natively and never goes through it.
+
+## Item 608 — game/key_focus.rs (ArrowNavigation) — NO-CHANGE
+
+26.1 added a `previousFocus` rect to `ArrowNavigation`; 1.21.11
+carries only the direction. `Nav::Arrow(Button)` already matches the
+1.21.11 form.
