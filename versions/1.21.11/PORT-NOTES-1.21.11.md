@@ -10058,3 +10058,12 @@ Mojang typo), which the Rust already cites; the
 helpers have no Rust analogue (the parser's resource
 argument is generic over the registry the command
 tree names). No code changed.
+
+## Item 239 — environment.rs (rank 2, NO-CHANGE)
+
+2 classes, 8 methods, 1 named. The world-clock
+removal (item 224's pattern): 1.21.11's
+`addDefaultLayers` passes `level::getDayTime` as the
+timeline sampler instead of a `ClockManager`; the
+Rust already samples timelines at `day_time`
+directly. No code changed.
