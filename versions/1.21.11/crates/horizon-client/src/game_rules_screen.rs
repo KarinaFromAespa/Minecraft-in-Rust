@@ -312,7 +312,7 @@ impl RulesScreen {
         }
     }
     /// Whether a click lands on a button (for its sound).
-    pub fn clicks_button(&self, atlas: &HudAtlas, cursor: (f32, f32), size: (f32, f32)) -> bool {
+    pub fn clicks_button(&self, _atlas: &HudAtlas, cursor: (f32, f32), size: (f32, f32)) -> bool {
         let (w, h) = size;
         let on = |(x, y): (f32, f32)| ui::hovered(cursor, x, y, 150.0, 20.0);
         let [done, cancel] = footer(w, h);
