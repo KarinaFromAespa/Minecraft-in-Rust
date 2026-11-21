@@ -10241,12 +10241,53 @@ is the oracle; decompiled code is a reading aid.
     1_21_5_five_only (10
     assertions).
 
+- **Item 237 —
+  RecipeButton:
+  - The button draw matches
+    1.21.5: the squeeze
+    pose (1 + 0.1 sin(t/15
+    pi) about x+8, y+12,
+    item 177), the 25x25
+    sprite blit, and the
+    multi-recipe double
+    draw — real item at
+    offset +5/+5, fake item
+    at +3/+3, same stack,
+    same call order. The
+    pose rename (pushMatrix
+    vs pushPose, 2D vs 3D
+    with z 0) and the
+    pipeline swap (RenderPi
+    pelines.GUI_TEXTURED vs
+    RenderType::guiTextured
+    ) have no surface.
+  - Known gap: 1.21.5's
+    renderItem passes z 10,
+    so the real item covers
+    the fake item where
+    they overlap; the
+    port's HUD batch has no
+    depth (order decides),
+    so the later fake-item
+    draw covers the real
+    one — the visible icon
+    sits 2px up-left of
+    vanilla on multi-recipe
+    buttons with identical
+    result displays.
+    Swapping the emission
+    order would break the
+    fixture's call-order
+    comparison.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **236 of 426 are
-closed** (rank 1 complete, rank 2 at 227/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **237 of 426 are
+closed** (rank 1 complete, rank 2 at 228/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
