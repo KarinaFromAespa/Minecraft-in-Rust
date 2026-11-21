@@ -10337,3 +10337,17 @@ the dead `PREVENTS_LEAF_DECAY` flag and tag field
 are removed. The existing
 `crops_grow_and_leaves_decay` level test covers
 the fix in CI. `worldgen::tree_blocks`: 2 passed.
+
+## Item 273 — network/chat (rank 2, NO-CHANGE)
+
+6 classes, 14 methods, 0 named. `ShowItem`
+holds an `ItemStackTemplate` in 26.1 and an
+`ItemStack` in 1.21.11 — the same
+`{id, count?, components?}` shape, read
+value-generically by the Rust; `Style`
+visibility widening; the two missing-side
+`$1` classes are 26.1-only compiler scaffolding
+(a `ResolutionContext` switch map from item 98,
+an anonymous signed-argument visitor whose outer
+class is unchanged). No source change.
+`component`: 13 passed; `text::`: 4 passed.
