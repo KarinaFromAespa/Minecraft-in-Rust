@@ -2988,13 +2988,68 @@ is the oracle; decompiled code is a reading aid.
     (1m25s re-check after fixing a
     stale `UI` import in the sound
     preview test).
+- **Item 66 — Equippable / Shulker,
+  ported:**
+  - The llama carpet shear goes:
+    1.21.5 has no shear-equipment
+    system (`attemptToShearEquipment`
+    / `canBeSheared` / the shearing
+    sound are 1.21.6-only — item 23
+    established this and deleted
+    the saddle path), and neither
+    `Llama` nor `AbstractHorse`
+    handles shears in 1.21.5, so
+    shears on a carpeted llama
+    fall through to the ride, as
+    `AbstractHorse.mobInteract`
+    does. (The wolf-armor shear
+    stays: 1.21.5 has it inline in
+    `Wolf.mobInteract`, item 21.)
+    The `harness(DyeColor)`
+    factory went with item 58.
+  - The protocol layer needs no
+    change: `Stack` always holds
+    the pinned (current) component
+    layout, and the `v1_21_5`
+    adapter adds the default
+    `canBeSheared` / shearing sound
+    when reading 1.21.5 data up
+    and strips them when writing
+    down — so the hash and skip
+    functions correctly read the
+    five-bool form. The client
+    `Equippable` structs (item
+    sync, menus) carry only slot /
+    asset / overlay / allowed
+    entities.
+  - Shulker: the save/load
+    migration keeps identical keys
+    and defaults (`AttachFace`
+    DOWN, `Peek` 0, `Color` 16),
+    and the Rust matches exactly.
+    `canBeCollidedWith` drops its
+    unused entity parameter in
+    1.21.5; both forms return
+    `isAlive()`, which is what
+    `blocks_mob` does (its doc now
+    cites the no-arg form).
+  - The port map drops the two
+    stale `Mob.attemptToShearEquipment`
+    / `Mob.shearItem` rows, which
+    still cited the `shear_saddle`
+    item 23 deleted.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (47s re-check after dropping the
+    now-unused `ItemStack` import).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **65 of 426 are
-closed** (rank 1 complete, rank 2 at 56/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **66 of 426 are
+closed** (rank 1 complete, rank 2 at 57/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

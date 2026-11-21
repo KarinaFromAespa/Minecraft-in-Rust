@@ -2652,8 +2652,8 @@ impl Seen {
     pub fn may_block_mobs(&self) -> bool {
         matches!(self.species, Species::Shulker)
     }
-    /// `canBeCollidedWith(mover)` for a mob of species `mover` moving into
-    /// it (`EntityGetter.getEntityCollisions`): a living shulker
+    /// `canBeCollidedWith()` for a mob moving into it
+    /// (`EntityGetter.getEntityCollisions`): a living shulker
     /// (`Shulker`). Every other mob keeps `Entity`'s false.
     pub fn blocks_mob(&self, _mover: Species) -> bool {
         match self.species {
