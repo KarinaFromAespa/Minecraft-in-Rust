@@ -8873,6 +8873,21 @@ level (`Level.scheduled_events`, a new field written into
 new; the first run was OOM-killed at the lib-test link, the
 retry passed).
 
+## CI proof run 44850889695 (recorded below)
+
+Dispatched 01:33:40 UTC Nov 21, 2026 on behaviour/1.21.11 @
+d967ed0 (the run-44839260120 record commit); completed SUCCESS
+03:00:29 UTC Nov 21, 2026 (1h27m). Profile 5/18/0 of 23 — same
+five passing (block_properties, component_patch, food, lan,
+resource_pack). Verdict FAILED: D1 fail (23 dead production
+tags, down from 24 — item 128 removed the
+`minecraft:nether_portal_frame` read), D2 pass (cargo check 0
+errors / 0 warnings — the `unused_mut` fix held — protocol
+tests 440/440), D3 fail (pin work-items.json lagged at 321/492
+at dispatch), D4/D5 blocked (profile-stamp quirk), D6 deferred
+(no playtest.md). Pin work-items.json updated to 330/492 at
+this record.
+
 ## CI proof run 44839260120 (recorded below)
 
 Dispatched 05:31 NPT Nov 21, 2026 on behaviour/1.21.11 @

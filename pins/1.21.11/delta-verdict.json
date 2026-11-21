@@ -1,13 +1,13 @@
 {
   "schema": "delta-verdict/1",
   "release": "1.21.11",
-  "commit": "e59798adf5280d776ffb9fb8a4f29a08779110f9",
+  "commit": "e974f98848bf3bd340744b51ea8c5df1353cf1f3",
   "tree": ".horizon-ports/1.21.11",
   "pin": "pins/1.21.11",
   "mode": "recorded",
   "verified": false,
   "state": "failed",
-  "checked_at": "2026-11-21T01:30:02Z",
+  "checked_at": "2026-11-21T03:00:25Z",
   "scalars": {
     "tier": "D",
     "suite_pass": null,
@@ -22,7 +22,7 @@
     "D1": {
       "status": "fail",
       "notes": [
-        "tag audit: dead production tag(s): minecraft:beneath_bamboo_podzol_replaceable, minecraft:blocks_dolphin_jump, minecraft:blocks_fluid_flow, minecraft:blocks_lava_fire_spread, minecraft:blocks_motion_in_heightmap (+19 more)"
+        "tag audit: dead production tag(s): minecraft:beneath_bamboo_podzol_replaceable, minecraft:blocks_dolphin_jump, minecraft:blocks_fluid_flow, minecraft:blocks_lava_fire_spread, minecraft:blocks_motion_in_heightmap (+18 more)"
       ],
       "evidence": [
         ".horizon-ports/1.21.11/research-lock.json",
@@ -34,18 +34,20 @@
       ]
     },
     "D2": {
-      "status": "fail",
+      "status": "pass",
       "notes": [
-        "cargo check: 2 warning(s) (bar is 0/0)"
+        "cargo check --workspace --all-targets: 0 errors, 0 warnings",
+        "protocol tests: 440, none failing"
       ],
       "evidence": [
-        "pins/1.21.11/ci-out/cargo-check.log"
+        "pins/1.21.11/ci-out/cargo-check.log",
+        "pins/1.21.11/ci-out/cargo-test-protocol.log"
       ]
     },
     "D3": {
       "status": "fail",
       "notes": [
-        "rank-2: 212 of 492 item(s) neither closed nor accepted"
+        "rank-2: 171 of 492 item(s) neither closed nor accepted"
       ],
       "evidence": [
         ".horizon-ports/1.21.11/diff-26.1-1.21.11/report.json",
@@ -55,7 +57,7 @@
     "D4": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 3e1929643e20, HEAD is e59798adf528 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit d967ed0ace98, HEAD is e974f98848bf \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/1.21.11/profile.json"
@@ -64,7 +66,7 @@
     "D5": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 3e1929643e20, HEAD is e59798adf528 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit d967ed0ace98, HEAD is e974f98848bf \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/1.21.11/profile.json"
