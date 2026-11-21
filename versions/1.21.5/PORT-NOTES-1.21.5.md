@@ -2606,13 +2606,90 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (1m46s).
+- **Item 60 — screens and widgets
+  (AccessibilityOnboardingScreen,
+  Toast, LogoRenderer,
+  WidgetTooltipHolder,
+  PresetFlatWorldScreen,
+  BackupConfirmScreen,
+  GenericWaitingScreen,
+  OptimizeWorldScreen,
+  SelectWorldScreen), ported:**
+  - The accessibility onboarding
+    screen loses its fades: the
+    two-second fade in and
+    one-second fade out are
+    1.21.6-only. In 1.21.5 the
+    screen appears at once and
+    `onClose` closes it at once
+    (`close(true, onClose)`), so
+    the `Onboarding` fade state
+    (`fade_in_start`, `fading_in`,
+    `fade_out_start`, `alpha`),
+    the fade math, `poll_onboarding`
+    and the per-frame poll go;
+    `onboarding_close` now switches
+    to the title and marks
+    onboarding finished directly,
+    and the logo draws at full
+    alpha after the buttons. The
+    fade test is replaced by one
+    asserting Escape closes at
+    once. The panorama call in
+    `renderPanorama` differs too,
+    but that belongs to the
+    panorama item (292).
+  - Flat-world preset strings keep
+    their zero-height layers: the
+    per-layer clamp to what fits
+    under Y_SIZE exists in both
+    versions (`getLayerInfoFromString`),
+    but only 1.21.6 drops layers
+    once the total reaches Y_SIZE
+    (`heightLimited` + the
+    `remaining > 0` guard in
+    `getLayersInfoFromString`).
+    `FlatSettings::parse` no longer
+    skips zero-height layers.
+  - No Rust surface: the `Toast`
+    `xPos` / `yPos` /
+    `onFinishedRendering` defaults
+    (the Rust computes the slide
+    position inline, the same
+    formula in both versions),
+    `LogoRenderer.keepLogoThroughFade`
+    (the getter only; the field
+    still exists in 1.21.5), the
+    `WidgetTooltipHolder`
+    signature change (the delay
+    logic is identical; only the
+    tooltip positioning is
+    modelled), and the
+    PresetFlatWorldScreen z=400
+    title lift (the Rust draws
+    screens in its own order).
+    The four inner-class entries
+    (`CreateFlatWorldScreen$DetailsList$Entry`,
+    `PresetFlatWorldScreen$PresetsList$Entry`,
+    `PlainTextButton`,
+    `ConfirmExperimentalFeaturesScreen$DetailsScreen$PackListEntry`)
+    have no diff content at all —
+    report false positives. The
+    rest is same-value colour math
+    (`-1` vs `16777215`,
+    `-6250336` vs `10526880`) and
+    `RenderType` churn.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (1m25s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **59 of 426 are
-closed** (rank 1 complete, rank 2 at 50/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **60 of 426 are
+closed** (rank 1 complete, rank 2 at 51/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

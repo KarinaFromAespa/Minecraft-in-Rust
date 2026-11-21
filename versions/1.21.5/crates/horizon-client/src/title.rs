@@ -1300,7 +1300,6 @@ impl Title {
     /// Polling is done once per rendered frame so filesystem work never blocks drawing.
     pub fn poll_backup(&mut self) {
         self.poll_realms();
-        self.poll_onboarding(std::time::Instant::now());
         self.poll_account();
         self.poll_optimize();
         if !self.backup_shown.get() {
@@ -2685,7 +2684,7 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
         if let Some(screen) = self.experiments.borrow().as_ref() {
             return screen.draw(batch, atlas, cursor);
         }
-        let mut fade_from = None;
+        let mut onboarding = false;
         if crate::widgets::narrating()
             && let Some(info) = self.narration()
         {
@@ -3333,7 +3332,10 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                     true,
                 );
             }
-            Mode::Onboarding(_) => fade_from = Some(self.draw_onboarding(atlas, batch, w, h)),
+            Mode::Onboarding(_) => {
+                self.draw_onboarding(atlas, batch, w, h);
+                onboarding = true;
+            }
             Mode::BanNotice(notice) => {
                 crate::ui::menu_background(batch, atlas, 0.0, 0.0, w, h, false);
                 let now = chrono::Utc::now().timestamp_millis();
@@ -3444,8 +3446,8 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
         if let Mode::Realms(screen) = &self.mode {
             screen.draw_header_badges(atlas, batch, w);
         }
-        if let Some(from) = fade_from {
-            self.draw_onboarding_logo(atlas, batch, w, from);
+        if onboarding {
+            self.draw_onboarding_logo(atlas, batch, w);
         }
         if let Mode::Create {
             name,
@@ -3467,8 +3469,7 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
         }
         // WidgetTooltipHolder.refreshTooltipForNextRenderPass: beside the
         // pointer and kept by its button (`MenuTooltipPositioner`), split at
-        // `Tooltip`'s 170. It comes after the onboarding fade: vanilla fades
-        // the widgets, not the tooltip.
+        // `Tooltip`'s 170.
         if let Some((key, rect)) = button_tooltip {
             let lines = atlas.font.split(&Text::translate(key, &[]), 170.0);
             crate::ui::tooltip_menu(batch, atlas, &lines, cursor, rect);
@@ -4988,7 +4989,7 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
             }
             Mode::CreateBuffet { .. } => self.close_buffet(false),
             Mode::Create { .. } => self.cancel_create(),
-            // Screen.keyPressed: Escape closes the screen, which fades out.
+            // Screen.keyPressed: Escape closes the screen at once.
             Mode::Onboarding(_) => self.onboarding_close(),
             // ConfirmScreen.keyPressed: Escape answers no, which runs `next`.
             Mode::BanNotice(_) => self.next_ban_notice(),
