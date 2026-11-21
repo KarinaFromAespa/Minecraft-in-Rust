@@ -9614,3 +9614,13 @@ identical apart from the `is`/`getType` spelling,
 `LevelHeightAccessor` loses a 26.1-only overload,
 `DifficultySettings`/`withDifficultyLock` are gone
 (the lock lives in `DifficultyLocked`, already read).
+
+## Item 198 — brewing.rs (rank 2, NO-CHANGE)
+
+3 classes, 6 methods, 2 named. No behavioural delta:
+`TippedArrowItem`/`RecipePropertySet` are a type
+widening and a rename; `BrewingStandBlockEntity` is
+widening, `is` overloads, and the `getCraftingRemainder`
+template/stack distinction (same as item 184) with
+identical slot-or-drop logic, which the Rust's `brew()`
+already matches. No code changed.
