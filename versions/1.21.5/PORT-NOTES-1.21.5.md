@@ -8980,13 +8980,45 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 197 — Collision
+  context: no
+  withPosition:**
+  - `withPosition` arrived
+    in 1.21.6, so it is
+    gone: the
+    `with_position`
+    constructor is removed
+    and `placement` builds
+    the context directly,
+    taking any entity as
+    1.21.5's widened
+    parameter allows. The
+    four `with_*` modes are
+    removed from the parity
+    fixture, the Java
+    oracle (which could not
+    compile against the
+    1.21.5 jar while it
+    called the method) and
+    the five collision
+    drivers. No production
+    code called it.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-world
+    --all-targets 0/0;
+    drivers py_compile; no
+    unit tests cover the
+    module; oracle edit
+    uncompiled here (no
+    full 1.21.5 jar).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **196 of 426 are
-closed** (rank 1 complete, rank 2 at 187/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **197 of 426 are
+closed** (rank 1 complete, rank 2 at 188/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

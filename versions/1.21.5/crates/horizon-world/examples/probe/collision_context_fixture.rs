@@ -261,21 +261,16 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             ..marker
         };
         let always = f["always"].as_bool().unwrap();
-        let other = number(&f["other"]);
         let context = match f["mode"].as_str().unwrap() {
             "empty" => CollisionContext::empty(always),
             "position" => CollisionContext::position(player.y),
             "player" => CollisionContext::for_entity(player, always),
             "marker" => CollisionContext::for_entity(marker, always),
             "falling" => CollisionContext::for_entity(falling, always),
-            "with_falling" => CollisionContext::with_position(Some(falling), other),
             "factory_player" => CollisionContext::for_entity(player, false),
             "factory_marker" => CollisionContext::for_entity(marker, false),
             "placement" => CollisionContext::placement(Some(player)),
             "placement_null" => CollisionContext::placement(None),
-            "with_player" => CollisionContext::with_position(Some(player), other),
-            "with_marker" => CollisionContext::with_position(Some(marker), other),
-            "with_null" => CollisionContext::with_position(None, other),
             _ => unreachable!(),
         };
         let held = ITEMS.iter().enumerate().fold(0, |mask, (i, item)| {

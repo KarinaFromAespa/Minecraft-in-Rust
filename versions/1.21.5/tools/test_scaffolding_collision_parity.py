@@ -20,7 +20,7 @@ def corpus():
     def bits(value):return struct.pack('>d',value).hex()
     epsilon=struct.unpack('>f',struct.pack('>f',1e-5))[0]
     positions=[-2147483648,-64,-1,0,1,320,2147483647]
-    modes=['empty','position','player','marker','placement','placement_null','with_player','with_marker','with_null']
+    modes=['empty','position','player','marker','placement','placement_null']
     for block_y in positions:
         heights=[-math.inf,math.inf,math.nan,block_y-0.5,block_y+0.5,block_y+1.5]
         for top in [0.0,1.0]:

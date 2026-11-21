@@ -17,7 +17,7 @@ except ImportError:
 
 def corpus():
     def bits(value):return struct.pack('>d',value).hex()
-    modes=['empty','position','player','marker','falling','placement','placement_null','with_player','with_marker','with_falling','with_null']
+    modes=['empty','position','player','marker','falling','placement','placement_null']
     positions=[[0,0,0],[17,-64,-33],[2147483647,2147483647,-2147483648]]
     for state in range(35723):
         for i,mode in enumerate(modes):

@@ -128,21 +128,18 @@ impl<'a> CollisionContext<'a> {
         }
     }
 
-    /// `player`, when present, must describe a player (and thus a living entity).
-    pub fn placement(player: Option<CollisionEntity<'a>>) -> Self {
-        let y = player.map_or(-f64::MAX, |player| player.y);
-        Self::with_position(player, y)
-    }
-
-    /// Native withPosition is a placement context. A missing entity ignores y.
-    pub fn with_position(entity: Option<CollisionEntity<'a>>, y: f64) -> Self {
+    /// `CollisionContext.placementContext`: any entity (1.21.5 widened the
+    /// parameter from Player to Entity); a missing entity ignores the
+    /// position. There is no `withPosition` in 1.21.5 — it arrived in
+    /// 1.21.6 — so the placement context is built directly here.
+    pub fn placement(entity: Option<CollisionEntity<'a>>) -> Self {
         let mut context = entity.map_or_else(
             || Self {
                 height: Height::Bottom(-f64::MAX),
                 ..Self::empty(false)
             },
             |entity| Self {
-                height: Height::Bottom(y),
+                height: Height::Bottom(entity.y),
                 ..Self::for_entity(entity, false)
             },
         );
