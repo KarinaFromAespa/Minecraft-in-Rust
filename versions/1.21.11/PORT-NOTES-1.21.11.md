@@ -12206,3 +12206,7 @@ Only visibility and a `requireNonNull` across eight download classes.
 Only the extractor rewire, visibility and compiler artifacts. Item
 523's `chat_allowed` row-button gate is already in place here. One
 citation re-pointed (`extractBackground` -> `renderBackground`).
+
+## Item 612 — commands/arguments (EntityArgument) — NO-CHANGE
+
+Only visibility, a `requireNonNull` and field-init order.
