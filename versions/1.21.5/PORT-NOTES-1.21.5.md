@@ -12038,12 +12038,43 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-client
     --lib --tests: clean.
 
+- **Item 287 — RenderType**
+  - RenderType: verified, no
+    code - the diff is the
+    rendering-API refactor
+    between the versions
+    (buffer sizes, the
+    DynamicTransforms uniform
+    block, GpuTextureView vs
+    GpuTexture, drawIndexed
+    arity, the GUI render types
+    moving out of RenderType),
+    none of which has a Rust
+    surface; the port is wgpu-
+    native with its own HUD
+    batch and pipelines. The
+    one structural point
+    already matches 1.21.5: the
+    port's layer enum carries
+    Translucent (with Solid,
+    Cutout, CutoutMipped,
+    Tripwire), the chunk-layer
+    set 1.21.6 dropped. The
+    TextureStateShard TriState
+    blur flag is inert (item
+    158's ground), and debug
+    lines are the port's own
+    triangle-strip shaders, not
+    a RenderType factory.
+  - Verification: read only; no
+    code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **286 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 18/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **287 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 19/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
