@@ -11884,3 +11884,8 @@ parameters, reads the window from the game render state, and calls it
 itself, and calls it `LightTexture`. Same sprites, same gates, same values,
 and the activation animation math is identical. The Rust matches the math
 exactly and applies the 1.21.11 hideGui gate itself ("Only F1 hides it").
+
+## Item 560 — game/fireworks.rs (FireworkEntityRenderer) — NO-CHANGE
+
+Only the `CameraRenderState` package move in `submit`. The Rust cites
+`submit` by name, which is shared.
