@@ -6377,13 +6377,51 @@ is the oracle; decompiled code is a reading aid.
     -p horizon-client-core
     -p horizon-client --lib`
     passed at item 131.
+- **Item 135 — Chunk block-
+  entity add verified
+  against 1.21.5:**
+  - `Level.onBlockEntityAdded`
+    is 1.21.6-only: a no-op
+    on the server, and on the
+    client it puts off-screen
+    block entities into the
+    global render list (the
+    1.21.6 mechanism behind
+    item 113's section-list
+    split). The Rust port has
+    no such hook and no
+    separate global list —
+    off-screen block entities
+    stay in the section list
+    and are exempted from
+    frustum culling at render
+    time, which is the 1.21.5
+    form item 113 verified.
+  - The block-entity load
+    half is the usual
+    refactor: 1.21.6 wraps it
+    in a `ProblemReporter`
+    collector and loads via
+    `TagValueInput`, 1.21.5
+    loads the tag directly.
+    The Rust port loads block
+    entities from NBT
+    directly; no
+    `ProblemReporter` exists
+    in the tree.
+  - Verification: no Rust
+    change; the tree state is
+    the one `cargo check -j 1
+    -p horizon-client-core
+    -p horizon-client --lib`
+    passed at item 131.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **134 of 426 are
-closed** (rank 1 complete, rank 2 at 125/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **135 of 426 are
+closed** (rank 1 complete, rank 2 at 126/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
