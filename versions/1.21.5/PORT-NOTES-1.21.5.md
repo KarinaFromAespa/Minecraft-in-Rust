@@ -8763,13 +8763,32 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 187 — Endermite
+  lifetime save/load:**
+  - The endermite already
+    saves `Lifetime` as an
+    int and reads it back
+    defaulting to 0, and
+    its life tick is the
+    vanilla form: the
+    counter climbs while
+    the mite is not
+    persistence-required
+    and it is discarded at
+    2400. The
+    ValueInput/ValueOutput
+    names have no Rust
+    surface (item 159).
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **186 of 426 are
-closed** (rank 1 complete, rank 2 at 177/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **187 of 426 are
+closed** (rank 1 complete, rank 2 at 178/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
