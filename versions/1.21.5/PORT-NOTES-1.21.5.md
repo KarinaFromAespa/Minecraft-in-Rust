@@ -6506,13 +6506,73 @@ is the oracle; decompiled code is a reading aid.
     -p horizon-client-core
     -p horizon-client --lib`
     passed at item 131.
+- **Item 138 — Item model
+  wrappers verified against
+  1.21.5:**
+  - `ClientItem.Properties`:
+    the `oversizedInGui`
+    half was already removed
+    by item 121; the Rust
+    `ClientItem` keeps only
+    `model`,
+    `hand_animation_on_swap`
+    and `swap_animation_scale`
+    (the last is a
+    later-version property
+    kept for the hand-swap
+    animation, default 1.0).
+  - Special-model extents
+    are already the 1.21.5
+    form: `special_extents`
+    returns the fixed
+    unit-cube corners
+    (`SpecialModelWrapper.
+    EXTENTS`) for every
+    special model, in
+    vanilla's order — not
+    the 1.21.6 per-renderer
+    `getExtents`. The stale
+    module doc in
+    `special.rs` still
+    described the 1.21.6
+    form; fixed to cite the
+    fixed extents.
+  - The four
+    `appendModelIdentityElement`
+    removals (special,
+    composite, conditional,
+    select) have no surface:
+    the Rust port has no
+    model-identity concept
+    (item 121).
+  - Foil `setAnimated`:
+    1.21.6's special-model
+    wrapper marks a foiled
+    stack animated, 1.21.5's
+    doesn't. The Rust port
+    sets `animated` for any
+    foiled layer, but the
+    only consumer is the GUI
+    draw cache, whose key
+    builder independently
+    excludes foiled layers
+    and every special-model
+    layer — so the flag is
+    unobservable for special
+    models and no change is
+    needed.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib`
+    0 errors, 0 warnings
+    (2m 58s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **137 of 426 are
-closed** (rank 1 complete, rank 2 at 128/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **138 of 426 are
+closed** (rank 1 complete, rank 2 at 129/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

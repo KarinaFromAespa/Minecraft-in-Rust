@@ -1,8 +1,9 @@
 //! `SpecialModelRenderer`s: items drawn with entity models (chests, shulker
 //! boxes, banners, heads, shields, tridents, decorated pots, conduits, bells,
 //! books and copper golem statues). Each submits its model at the layer pose
-//! as vanilla's `submit` does (no block-entity placement transform) and
-//! reports `getExtents` over the same posed parts.
+//! as vanilla's `submit` does (no block-entity placement transform); extents
+//! are the fixed unit-cube corners `SpecialModelWrapper.EXTENTS` gives every
+//! special model in 1.21.5 (see `ItemRenderer::special_extents`).
 use super::{Foil, ItemQuad, ItemRenderer, ItemSink, SpecialHost, argb};
 use crate::{block_entity_render::ModelPart, hud::Rect, mobs::EntityModelDocument};
 use glam::{Mat4, Quat, Vec3};
