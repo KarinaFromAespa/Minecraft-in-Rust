@@ -10414,3 +10414,13 @@ itself (including `lookupOrThrow`) is identical;
 the only diffs are dropped null-check codegen in
 a constructor and a field widening. No source
 change.
+
+## Item 282 — menu/place.rs (rank 2, NO-CHANGE)
+
+3 classes, 3 methods, 1 named. `typeHolder` vs
+`getItemHolder` (one call, a rename) plus two
+dropped null-check sequences; zero constant
+differences — the `RecipePicker` lines are pure
+renumbering. The Rust keys on the item id
+directly. No source change. `menu::place`:
+5 passed.
