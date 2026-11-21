@@ -10048,3 +10048,13 @@ work (rank 3); `merchant.rs` already documents that
 `AbstractVillager` is identical, and
 `LookAndFollowTradingPlayerSink` is bytecode-identical.
 No code changed.
+
+## Item 238 — registries.rs (rank 2, NO-CHANGE)
+
+4 classes, 8 methods, 1 named. 1.21.11 spells the
+method `getCustomTabSugggestions` (three g's — a
+Mojang typo), which the Rust already cites; the
+26.1-only `ResourceArgument.getClock`/`getTimeline`
+helpers have no Rust analogue (the parser's resource
+argument is generic over the registry the command
+tree names). No code changed.
