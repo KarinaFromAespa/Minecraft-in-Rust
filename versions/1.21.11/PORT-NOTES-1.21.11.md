@@ -12338,3 +12338,10 @@ missing type.
 
 Visibility, plus a log-format change in the invalid-namespace warning
 that renders the identical message.
+
+## Item 631 — game/code_of_conduct.rs (ClientConfigurationPacketListenerImpl) — NO-CHANGE
+
+26.1 filters the configuration registries through the integrated
+server's registry access on singleplayer; 1.21.11 uses the received
+registries as-is. The Rust has no integrated server and no filtering,
+so it already matches 1.21.11.
