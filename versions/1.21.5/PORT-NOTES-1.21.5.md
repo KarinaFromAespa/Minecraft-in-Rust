@@ -11310,12 +11310,68 @@ is the oracle; decompiled code is a reading aid.
     preferred-regions test is
     deleted.
 
+- **Item 270 — Book screens**
+  - Book screens: the port's
+    edit screen is now the
+    1.21.5 form. saveChanges is
+    gated on isModified (set by
+    any page or title change
+    and by appending a page),
+    so closing an untouched
+    book sends nothing. A page
+    holds at most 1023
+    characters (the filter is
+    length < 1024, not <=). A
+    click on the same page
+    index within 250 ms selects
+    the word there, and a third
+    selects the whole page.
+    Enter while signing signs
+    whenever the title is non-
+    empty (a title of spaces
+    signs); only the button
+    needs a non-blank title. A
+    RunCommand link runs first
+    and only then closes the
+    book. Narration: the edit
+    screen narrates nothing
+    (NO_TITLE, no
+    getNarrationMessage
+    override), the signing mode
+    narrates nothing, and the
+    page buttons have the EMPTY
+    message, so the 1.21.6 book
+    .page_button.next/previous
+    keys are gone. The in-
+    screen signing, the 14-line
+    limit, the cursor-to-end on
+    page change (set_value) and
+    the 300 ms blink were
+    already the 1.21.5 form.
+    Known gaps (version-
+    neutral, not changed):
+    Escape saves the book where
+    vanilla discards it; the
+    page has no drag selection;
+    the cursor at the end of
+    the text draws the 1 px bar
+    where vanilla draws _.
+  - Verification: cargo check -j 1 -p
+    horizon-client --lib
+    --tests: 0 errors, 0
+    warnings (2m40s). The book_
+    screens_narrate_nothing
+    test pins the empty
+    narration (run in CI; the
+    test-profile build OOMs
+    under load).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **269 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 1/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **270 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 2/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
