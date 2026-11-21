@@ -10596,12 +10596,55 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 251 —
+  StrictJsonParser:
+  - The class is
+    1.21.6-only and has no
+    port equivalent (no
+    StrictJsonParser type
+    anywhere). Its 1.21.6
+    call sites (SimpleJsonR
+    esourceReloadListener,
+    TagLoader,
+    RegistryDataLoader,
+    PlayerAdvancements,
+    ServerStatsCounter,
+    BlockStateModelLoader,
+    ShaderManager,
+    SpriteSourceList) use
+    JsonParser.parseReader
+    in 1.21.5 — Gson's
+    lenient reader — while
+    the port parses with
+    strict serde_json
+    throughout.
+  - Known systematic gap
+    (extending item 222):
+    datapack, tag,
+    advancement, stats,
+    model and shader JSONs
+    with comments, trailing
+    commas or unquoted
+    strings load in vanilla
+    1.21.5 but are rejected
+    here. The port has a
+    lenient parser (java_te
+    xt::parse_lenient), but
+    it is wired in only for
+    language files; routing
+    every JSON loader
+    through it is out of
+    proportion for this
+    item.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **250 of 426 are
-closed** (rank 1 complete, rank 2 at 241/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **251 of 426 are
+closed** (rank 1 complete, rank 2 at 242/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
