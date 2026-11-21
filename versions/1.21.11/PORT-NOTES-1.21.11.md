@@ -12377,3 +12377,7 @@ Only visibility and `requireNonNull` across the 4 narration classes.
 `environment_attribute`. The Rust handles constant/uniform/binomial
 and gives 0 for unknown types, so the two 26.1-only providers are
 safely out of reach.
+
+## Item 638 — level/redstone/experimental.rs (ExperimentalRedstoneWireEvaluator) — NO-CHANGE
+
+Only the `is` overload and `getRandom()` vs the `random` field.
