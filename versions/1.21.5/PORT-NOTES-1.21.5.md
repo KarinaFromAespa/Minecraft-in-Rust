@@ -8819,13 +8819,36 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 190 — Sculk
+  spreader cursors
+  save/load:**
+  - The catalyst already
+    saves its charge
+    cursors as a list of
+    compounds with pos,
+    charge, decay and
+    update delays and
+    optional facings, and
+    loads at most 32 of
+    them, skipping
+    malformed entries and
+    clamping the fields to
+    the codec's ranges; a
+    missing key leaves an
+    empty spreader. The
+    ValueInput/ValueOutput
+    names have no Rust
+    surface (item 159).
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **189 of 426 are
-closed** (rank 1 complete, rank 2 at 180/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **190 of 426 are
+closed** (rank 1 complete, rank 2 at 181/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
