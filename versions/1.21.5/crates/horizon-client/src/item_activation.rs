@@ -1,6 +1,6 @@
 //! The item that spins up to the screen when it activates (the totem of
-//! undying): `net.minecraft.client.player.ItemActivation`, set by
-//! `LocalPlayer.displayItemActivation`, ticked by `GameRenderer.tick`, and
+//! undying): set by `GameRenderer.displayItemActivation` (from
+//! ClientPacketListener's totem event), ticked by `GameRenderer.tick`, and
 //! posed by `ScreenEffectRenderer.renderItemActivationAnimation`.
 use crate::items::ItemStack;
 use glam::{Mat4, Vec3};
