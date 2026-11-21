@@ -12044,3 +12044,9 @@ Only the `MAP_CODEC` + `codec()` (26.1) vs `CODEC` + `getType()` (1.21.11)
 loot registry refactor, the `ItemInstance` vs `ItemStack` rename, and
 record-constructor visibility. The bonus formulas and the tool predicate
 are untouched.
+
+## Item 583 — worldgen/cave.rs (BuddingAmethystBlock) — NO-CHANGE
+
+Only equivalent forms: the `is` overload, `fluidState.is(WATER)` vs
+`getType() == WATER`, and `isFull()` vs `getAmount() == 8`. The Rust's
+air-or-(water-and-full) check matches both.
