@@ -236,12 +236,16 @@ fn template(tag: &Tag) -> Option<Tag> {
         _ => None,
     }
 }
-/// `ItemStackWithSlot` entries of a container of `size` slots, by ascending slot.
+/// `ContainerHelper.loadAllItems`/`saveAllItems` entries of a container of
+/// `size` slots, by ascending slot. A missing `Slot` defaults to 0
+/// (`getByteOr("Slot", 0)`), as the game's `decode_items` does; an entry
+/// whose stack does not parse is dropped, as 1.21.5's `orElse(EMPTY)` is.
 fn items(tag: Option<&Tag>, size: usize) -> Vec<Tag> {
     let mut slots: Vec<Option<Tag>> = vec![None; size];
     if let Some(Tag::List(list)) = tag {
         for entry in list {
-            let (Some(slot), Some(item)) = (int(entry.get("Slot")), stack(entry)) else {
+            let slot = int(entry.get("Slot")).unwrap_or(0);
+            let Some(item) = stack(entry) else {
                 continue;
             };
             if (0..size as i32).contains(&slot) {

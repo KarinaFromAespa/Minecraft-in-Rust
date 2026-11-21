@@ -1772,13 +1772,41 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -p
     horizon-client --all-targets` 0 errors /
     0 warnings (1m15s).
+- **Item 45 — ContainerHelper / LockCode /
+  RandomizableContainer, ported:**
+  - `ItemStackWithSlot` (1.21.6-only) is
+    gone from the tree; the container
+    codec is 1.21.5's manual list form
+    (`Slot` byte + `ItemStack.save`), which
+    the Rust's `encode_items`/`decode_items`
+    already matched — including the
+    missing-`Slot`-defaults-to-0 rule
+    (`getByteOr("Slot", 0) & 255`) and
+    unparseable-entries-become-EMPTY.
+  - Real fix: the canonicalizer's `items()`
+    dropped Slot-less entries instead of
+    defaulting them to slot 0; it now
+    defaults like the game path and
+    1.21.5's `loadAllItems`.
+  - No-ops verified: `LockCode` (`lock`
+    key, `NO_LOCK` default) and the loot
+    table/seed handling are unchanged
+    apart from the CompoundTag signatures;
+    the save-empty rule (the 3-arg
+    `saveAllItems` always writes `Items`)
+    matches the Rust's unconditional
+    writes.
+  - Verification: `cargo check -p
+    horizon-client-core -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (1m20s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **44 of 426 are
-closed** (rank 1 complete, rank 2 at 35/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **45 of 426 are
+closed** (rank 1 complete, rank 2 at 36/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
