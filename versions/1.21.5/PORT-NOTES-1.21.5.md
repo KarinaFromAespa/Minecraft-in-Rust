@@ -12496,12 +12496,61 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 301 — Suggestion providers**
+  - SuggestionProviders:
+    verified, no code. The
+    generic types (SharedSu
+    ggestionProvider vs
+    CommandSourceStack) are
+    Java-only; the
+    summonable-entities
+    tooltip lambda builds
+    exactly the component E
+    ntityType.getDescriptio
+    n returns (the port's
+    SummonableEntities
+    carries the type names
+    as tooltips); Wrapper
+    vs RegisteredSuggestion
+    is the same
+    delegate+name; the
+    duplicate-registration
+    message differs only in
+    quotes and only fires
+    on a programming error,
+    and the port has no
+    provider registry to
+    duplicate into
+    (network.rs provider()
+    is a static match on
+    ask_server and
+    summonable_entities). A
+    node with no mapped
+    provider falls back to
+    its argument type's own
+    suggestions, so a
+    remote /playsound still
+    suggests sounds from
+    the local tables, as
+    vanilla's
+    available_sounds does.
+    Known version-neutral
+    edge: a modded server's
+    custom registered
+    provider becomes the
+    arg type's local
+    suggestions here, where
+    vanilla asks the
+    server.
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **300 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 32/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **301 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 33/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
