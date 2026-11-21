@@ -244,7 +244,8 @@ fn set_evil(m: &mut Mob) {
 
 fn start_jumping(m: &mut Mob) {
     m.ai.jumping = true;
-    m.extra.ints[JUMP_DURATION] = 15;
+    // `Rabbit.jumpFromGround`: the hop lasts 10 ticks in 1.21.11 (15 in 26.1).
+    m.extra.ints[JUMP_DURATION] = 10;
     m.extra.ints[JUMP_TICKS] = 0;
     let pitch = ((m.random.next_float() - m.random.next_float()) * 0.2 + 1.0) * 0.8;
     if !m.silent {
@@ -297,7 +298,9 @@ pub fn server_ai_step(m: &mut Mob, target: Option<Vec3>) {
     if m.on_ground {
         if !m.extra.flag {
             m.ai.jumping = false;
-            m.extra.ints[MOVE_DELAY] = if m.ai.mov.speed_modifier < 2.2 { 10 } else { 3 };
+            // `Rabbit.setLandingDelay`: 10 ticks at a slow speed, 1 at 2.2
+            // or faster (3 in 26.1).
+            m.extra.ints[MOVE_DELAY] = if m.ai.mov.speed_modifier < 2.2 { 10 } else { 1 };
         }
         // A killer bunny within 4 blocks of its target faces it and hops at it.
         if m.extra.variant == EVIL
@@ -356,7 +359,7 @@ pub fn jump_control(m: &mut Mob) {
     }
 }
 
-/// Rabbit.aiStep runs after the living physics; the fifteenth tick still renders the hop.
+/// Rabbit.aiStep runs after the living physics; the tenth tick still renders the hop.
 pub fn post_tick(m: &mut Mob) {
     for (ticks, duration) in [
         (JUMP_TICKS, JUMP_DURATION),
@@ -411,10 +414,10 @@ fn apply_jump(m: &mut Mob, power: f32) {
     if m.ai.mov.speed_modifier > 0.0
         && m.velocity.x * m.velocity.x + m.velocity.z * m.velocity.z < 0.01
     {
-        m.move_relative(
-            0.1,
-            Vec3::new(0.0, if m.is_baby() { 0.5 } else { 1.5 }, 1.0),
-        );
+        // `Rabbit.jumpFromGround`: the forward push is flat in 1.21.11 —
+        // no vertical component (26.1 pushed up 0.5 for a baby, 1.5 for
+        // an adult).
+        m.move_relative(0.1, Vec3::new(0.0, 0.0, 1.0));
     }
     hop_event(m);
     m.outbox.push(MobEvent::RabbitHop {
@@ -437,7 +440,7 @@ pub fn jump_completion(m: &Mob, partial: f32) -> f32 {
 
 /// Rabbit.handleEntityEvent(1): reset the counter without starting the clock early.
 pub fn hop_event(m: &mut Mob) {
-    m.extra.ints[CLIENT_JUMP_DURATION] = 15;
+    m.extra.ints[CLIENT_JUMP_DURATION] = 10;
     m.extra.ints[CLIENT_JUMP_TICKS] = 0;
 }
 
@@ -581,11 +584,11 @@ mod tests {
         assert!(!m.ai.jumping);
         server_ai_step(&mut m, None);
         assert!(m.ai.jumping);
-        assert_eq!(m.extra.ints[JUMP_DURATION], 15);
+        assert_eq!(m.extra.ints[JUMP_DURATION], 10);
         assert_eq!(jump_completion(&m, 0.5), 0.0);
         apply_jump(&mut m, 0.2);
         post_tick(&mut m);
-        // jumpCompletion (1 + 0.5) / 15: the haunches rise, the front legs dip.
+        // jumpCompletion (1 + 0.5) / 10: the haunches rise, the front legs dip.
         let mut poses = Poses::new(&m.kind.model);
         let state = anim::state(&m, 0.5);
         body_anim::rabbit(&mut poses, &state, jump_completion(&m, 0.5));
@@ -593,10 +596,10 @@ mod tests {
         assert!(poses.get("right_haunch")[3] > 0.0);
         assert!(poses.get("left_front_leg")[3] < 0.0);
         assert!(poses.get("right_front_leg")[3] < 0.0);
-        for _ in 1..15 {
+        for _ in 1..10 {
             post_tick(&mut m);
         }
-        assert_eq!(m.extra.ints[JUMP_TICKS], 15);
+        assert_eq!(m.extra.ints[JUMP_TICKS], 10);
         assert!(m.ai.jumping);
         post_tick(&mut m);
         assert!(!m.ai.jumping);
@@ -609,12 +612,12 @@ mod tests {
         m.on_ground = true;
         m.ai.mov.set_wanted(0.0, 0.0, 5.0, 2.2);
         server_ai_step(&mut m, None);
-        assert_eq!(m.extra.ints[MOVE_DELAY], 3);
+        assert_eq!(m.extra.ints[MOVE_DELAY], 1);
         m.ai.jump = true;
         m.jump_control_tick();
         assert!(m.ai.jumping);
         assert!(!m.ai.jump);
-        assert_eq!(m.extra.ints[MOVE_DELAY], 3);
+        assert_eq!(m.extra.ints[MOVE_DELAY], 1);
         m.jump_control_tick();
         assert!(m.ai.jumping);
     }
@@ -623,10 +626,10 @@ mod tests {
     fn a_new_hop_resets_the_client_clock() {
         let mut m = rabbit();
         m.extra.ints[CLIENT_JUMP_TICKS] = 8;
-        m.extra.ints[CLIENT_JUMP_DURATION] = 15;
+        m.extra.ints[CLIENT_JUMP_DURATION] = 10;
         hop_event(&mut m);
         assert_eq!(m.extra.ints[CLIENT_JUMP_TICKS], 0);
-        assert_eq!(m.extra.ints[CLIENT_JUMP_DURATION], 15);
+        assert_eq!(m.extra.ints[CLIENT_JUMP_DURATION], 10);
         post_tick(&mut m);
         assert_eq!(m.extra.ints[CLIENT_JUMP_TICKS], 1);
         assert!(m.outbox.is_empty());
@@ -640,7 +643,7 @@ mod tests {
         m.ai.jump = true;
         jump_control(&mut m);
         assert!(m.ai.jumping);
-        assert_eq!(m.extra.ints[JUMP_DURATION], 15);
+        assert_eq!(m.extra.ints[JUMP_DURATION], 10);
         post_tick(&mut m);
         assert_eq!(m.extra.ints[JUMP_TICKS], 1);
         assert_eq!(m.extra.ints[CLIENT_JUMP_DURATION], 0);
@@ -679,7 +682,7 @@ mod tests {
     }
 
     #[test]
-    fn jump_impulse_scales_strength_terrain_boost_and_baby_kick() {
+    fn jump_impulse_scales_strength_and_terrain_boost() {
         let mut m = rabbit();
         m.ai.mov.speed_modifier = 0.6;
         near(f64::from(jump_power(&m, 1.0)), 0.2);
@@ -691,14 +694,31 @@ mod tests {
         m.extra.effects.push(("minecraft:jump_boost", 100, 1));
         near(f64::from(jump_power(&m, 0.5)), 0.7);
         apply_jump(&mut m, 0.2);
-        near(m.velocity.z, 0.1 / 3.25_f64.sqrt());
-        near(m.velocity.y, 0.2 + 0.15 / 3.25_f64.sqrt());
+        // The forward push is flat in 1.21.11: the whole 0.1 goes forward,
+        // none of it up (26.1 pushed up 1.5 for an adult, 0.5 for a baby).
+        near(m.velocity.z, 0.1);
+        near(m.velocity.y, 0.2);
         m.extra.age = -100;
         m.velocity = Vec3::ZERO;
         apply_jump(&mut m, 0.2);
-        near(m.velocity.z, 0.1 / 1.25_f64.sqrt());
-        near(m.velocity.y, 0.2 + 0.05 / 1.25_f64.sqrt());
-        assert_eq!(m.extra.ints[CLIENT_JUMP_DURATION], 15);
+        near(m.velocity.z, 0.1);
+        near(m.velocity.y, 0.2);
+        assert_eq!(m.extra.ints[CLIENT_JUMP_DURATION], 10);
+    }
+
+    /// `Rabbit` has no `BABY_DIMENSIONS` in 1.21.11: a baby rabbit is half
+    /// its adult box (26.1 overrode it with 0.24 x 0.4, eye 0.39).
+    #[test]
+    fn baby_rabbits_are_half_their_adult_box() {
+        use crate::mobs::species::{Baby, def};
+        assert_eq!(def(Species::Rabbit).baby_scale(), 0.5);
+        assert!(matches!(def(Species::Rabbit).baby, Baby::Scale(0.5, None)));
+        let mut m = rabbit();
+        m.extra.age = -100;
+        let (w, h, e) = m.awake_dims_in(false);
+        near(w, 0.2);
+        near(h, 0.25);
+        near(e, 0.2);
     }
 }
 #[cfg(test)]

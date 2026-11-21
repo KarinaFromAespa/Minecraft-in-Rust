@@ -202,7 +202,10 @@ pub const ALL: &[Def] = &[
             "entity.rabbit.death"
         ],
         None,
-        Baby::Abs(0.24, 0.4, 0.39)
+        // 1.21.11 has no `Rabbit.BABY_DIMENSIONS`: babies scale the adult
+        // box by the 0.5 age scale (26.1 overrode it with 0.24 x 0.4,
+        // eye 0.39).
+        Baby::Scale(0.5, None)
     ),
     def!(
         ZombieHorse,

@@ -8802,6 +8802,21 @@ lenient bare-id result read (0 vanilla uses) and
 production never compares displays). Tests: `crafting::` 25
 passed (1 new), `lan::advancements::` 13 passed.
 
+## Item 148 — mobs/rabbit.rs (rank 2, CHANGED)
+
+3 classes, 15 methods, 3 named. The hop lasts 10 ticks in
+1.21.11 (15 in 26.1, both clocks); the fast landing delay is
+1 tick (3 in 26.1); the hop's forward push is flat — no
+vertical component (26.1 pushed up 0.5 for a baby, 1.5 for an
+adult); and there are no baby dimensions — babies scale the
+adult box by 0.5 (`Baby::Abs(0.24, 0.4, 0.39)` ->
+`Baby::Scale(0.5, None)`). The animation states, their
+`baseTick` driver and the `setLeashData` override are
+26.1-only (the Rust's hop animation is procedural; the idle
+clock was already removed). The farmland raid-target check
+was already fixed in item 27. Tests: `mobs::rabbit::` 11
+passed (1 new).
+
 ## CI proof run 44839260120 (recorded below)
 
 Dispatched 05:31 NPT Nov 21, 2026 on behaviour/1.21.11 @
