@@ -547,7 +547,9 @@ struct FileSprites {
     permutations: Vec<PalettedPermutations>,
     cache: Mutex<HashMap<String, Option<SpriteMask>>>,
     /// Sprites with a pixel that is neither fully transparent nor opaque
-    /// (`Transparency.hasTranslucent`), filled in as sprites load.
+    /// (26.x's `Transparency.hasTranslucent` scan — 1.21.11's item models
+    /// always use the translucent sheet, so the layer decision is the
+    /// item-render item's scope), filled in as sprites load.
     translucent: Mutex<HashMap<String, bool>>,
 }
 impl SpriteLookup for FileSprites {

@@ -1319,8 +1319,9 @@ pub struct ParticleEngine {
     pub created_requests: Option<Vec<(ParticleOptions, [f64; 3], [f64; 3])>>,
     names: Vec<String>,
     rects: Vec<Option<Rect>>,
-    /// Each named sprite, and whether `SingleQuadParticle.Layer.bySprite` puts
-    /// it on the translucent layer (a texel with 0 < alpha < 255).
+    /// Each named sprite, and whether it has a texel with 0 < alpha < 255
+    /// (26.x's `SingleQuadParticle.Layer.bySprite` put such sprites on the
+    /// translucent layer; 1.21.11 picks the layer by atlas — items 354/192).
     atlas: HashMap<String, (Rect, bool)>,
     sets: HashMap<ParticleType, u32>,
     /// A native mod's sprite sets, by namespaced particle name.

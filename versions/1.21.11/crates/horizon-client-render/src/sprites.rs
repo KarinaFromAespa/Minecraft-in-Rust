@@ -228,8 +228,12 @@ impl Sprites {
     pub fn count(&self) -> usize {
         self.native.len()
     }
-    /// `SpriteContents.computeTransparency(u0, v0, u1, v1)` is NONE: every texel under
-    /// the quad's UV box is fully opaque in every frame, so the quad needs no alpha test.
+    /// Every texel under the quad's UV box is fully opaque in every frame,
+    /// so the quad needs no alpha test. (26.x computed this per quad as
+    /// `SpriteContents.computeTransparency`; 1.21.11 has no per-quad
+    /// transparency — the scan is this engine's own optimization, and the
+    /// pixels are identical either way: the alpha test never discards an
+    /// opaque texel.)
     pub fn region_opaque(&self, layer: u32, uv: &[[f32; 2]; 4]) -> bool {
         if self.opaque[layer as usize] {
             return true;

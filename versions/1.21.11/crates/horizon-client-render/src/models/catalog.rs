@@ -90,8 +90,9 @@ impl QuadShape {
 pub struct BakedFace {
     pub quad: ModelQuad,
     pub layer: u32,
-    /// The texels under the quad's UVs are all opaque (`SpriteContents.computeTransparency`):
-    /// drawn in the solid layer without an alpha test.
+    /// The texels under the quad's UVs are all opaque (this engine's own
+    /// pixel scan — 26.x's `SpriteContents.computeTransparency` is gone in
+    /// 1.21.11): drawn in the solid layer without an alpha test.
     pub opaque: bool,
     /// Fractional alpha: drawn in the sorted translucent pass.
     pub translucent: bool,

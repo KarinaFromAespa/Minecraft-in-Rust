@@ -589,7 +589,9 @@ const FACE: &str = "    uint hz_q = (uint(gl_VertexIndex) & ~3u) * 6u;\n    \
 /// `terrain` (`PackAtlas::terrain_inputs`) drawing only solid terrain, then only cutout terrain:
 /// each leaves the other part's quads outside the clip volume. Solid: the quads over opaque
 /// texels and opaque leaves (`mesher::OPAQUE_LAYER`), as vanilla picks `ChunkSectionLayer.SOLID`
-/// per quad (`FaceBakery.computeMaterialTransparency`, `SectionCompiler.compile`), and lava's
+/// per quad (26.x's `FaceBakery.computeMaterialTransparency`; 1.21.11 picks the layer from the
+/// block's render type instead, so the per-quad scan is this engine's own pixel-identical
+/// optimization), and lava's
 /// faces (sprite layers `lava`, its still and flowing sprites), which Iris 1.11.7 drew with
 /// `gbuffers_terrain_solid` in our probes, with and without `separateAo`.
 ///

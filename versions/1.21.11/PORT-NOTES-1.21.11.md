@@ -8671,3 +8671,27 @@ no backup-status/primary-action mirror, no level-data crash category;
 the Rust deletes worlds with `remove_dir_all`). Tests:
 `save::tests::` 71 passed, 3 pre-existing datafix-upgrade failures on
 the unmodified tree.
+
+## Item 140 — gfx/animate.rs (SpriteContents) (rank 2, CHANGED, citations only)
+
+3 classes, 16 methods, 3 named (`computeTransparency`,
+`increaseMipLevel`, `transparency`). Java delta: the whole
+sprite-transparency mechanism is 26.1-only — `NativeImage.
+computeTransparency`, `SpriteContents.transparency` /
+`computeTransparency`, `FaceBakery.computeMaterialTransparency`
+and `Layer.bySprite` are all gone in 1.21.11 (zero references in
+the client.jar). 1.21.11 picks block-quad layers from the block's
+render type, item-model layers by atlas (items atlas always the
+translucent sheet), and terrain/breaking particle layers by atlas
+(TERRAIN vs ITEMS). `generateMipLevels` drops the transparency
+parameter; AUTO now resolves via `hasTransparentPixel` (any alpha
+== 0) — the Rust's `has_transparent` already matches exactly.
+Frame textures get `byMipLevel.length + 1` mip levels in 1.21.11
+(no Rust mirror — one array texture, not per-frame textures).
+Changes: six doc rewords (sprites.rs, catalog.rs, hud.rs,
+particles.rs, item_render.rs, pack_atlas.rs) — the per-quad /
+per-sprite pixel scans are this engine's own optimizations, kept
+because they are pixel-identical. Referrals: the particle-layer
+switch to items 354/192 (from item 28), the item-layer decision to
+the item-render item. Tests: `cargo check -p
+horizon-client-render --lib` clean.

@@ -82,8 +82,10 @@ pub struct HudAtlas {
     /// Resolved player-profile names and UUIDs for inline head components.
     pub object_skins: HashMap<String, String>,
     pub object_skins_revision: u64,
-    /// Sprites with a 0 < alpha < 255 texel (`SpriteContents.transparency().hasTranslucent`),
-    /// which puts their particles on vanilla's translucent layer.
+    /// Sprites with a 0 < alpha < 255 texel, which puts their particles on
+    /// the translucent layer (26.x's `SpriteContents.transparency()` /
+    /// `Layer.bySprite` mechanism — 1.21.11 picks the terrain/breaking
+    /// particle layer by atlas instead; items 354/192 own that switch).
     pub translucent: HashSet<String>,
     /// Sprites whose `.png.mcmeta` sets `blur` or `clamp`; the others
     /// sample as vanilla's defaults (nearest, repeat).
