@@ -12326,3 +12326,10 @@ is Blaze3D machinery the native renderer never mirrors.
 `LootContextUser.validate` form for 1.21.11's
 `getReferencedContextParams`, with the predicate unchanged. The Rust
 models neither validation nor context-param collection.
+
+## Item 629 — trims.rs (EquipmentClientInfo) — NO-CHANGE
+
+26.1 added the `HUMANOID_BABY` layer type (and a leather layer for
+it); 1.21.11 has 18 layer types, no baby one. Already handled: the
+Rust renders baby armor with the adult's textures and documents the
+missing type.
