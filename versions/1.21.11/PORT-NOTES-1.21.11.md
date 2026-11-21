@@ -10719,3 +10719,17 @@ can never be spectators; one comment
 updated to say so). The rest is visibility
 widening and codegen noise. `mobs::living`:
 21 passed, 1 ignored.
+
+## Item 318 — client/resources/model/cuboid (rank 2, NO-CHANGE)
+
+10 classes, 10 methods, 0 named. The 26.1
+cuboid package is a package move + rename
+of 1.21.11's `renderer/block/model/BlockElement*`
+classes: paired bytecode is identical after
+renaming (Euler rotations included — they
+exist in 1.21.11 too). `MissingCuboidModel`
+is `MissingBlockModel` with the same
+construction. The Rust's `CuboidModel` /
+`ElementRotation` already match the 1.21.11
+element system. `horizon-assets model`:
+29 passed.
