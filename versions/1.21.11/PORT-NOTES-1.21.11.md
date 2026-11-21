@@ -10250,3 +10250,12 @@ logic that 1.21.11 keeps inline in `Minecraft` and
 the Rust already implements as `getFramerateLimit`.
 The rest is null-check codegen, visibility widening
 and the extractor rename. No code changed.
+
+## Item 265 — beehive.rs (rank 2, NO-CHANGE)
+
+2 classes, 4 methods, 1 named. `setBeeReleaseData`
+is the same in both versions except 26.1 gates the
+age update on the age lock — a 26.1-only system
+(`AgeableMob` in 1.21.11 has no age-lock methods).
+The Rust already implements the unconditional
+1.21.11 form. No code changed.
