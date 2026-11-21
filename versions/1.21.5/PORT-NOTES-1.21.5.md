@@ -11583,12 +11583,43 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no
     code changed.
 
+- **Item 275 — Datapack commands**
+  - Datapack commands:
+    /datapack create is
+    1.21.6-only, so the tree
+    nodes (create + id +
+    description), the
+    create_pack executor (pack
+    folder, data folder,
+    pack.mcmeta) and its
+    is_portable_name helper are
+    deleted; /datapack
+    list/enable/disable are
+    unchanged (enable keeps
+    first/last/before/after,
+    level 2).
+    FileUtil.isPathPartPortable
+    was create_pack-only — the
+    1.21.5 form inlines the
+    reserved-Windows-names
+    matcher at both call sites,
+    same behaviour. /function
+    and /reload keep level 2
+    (hasPermission vs the
+    lambda is the same
+    predicate).
+  - Verification: cargo check
+    -j 1 -p horizon-command -p
+    horizon-client --lib
+    --tests: 0 errors, 0
+    warnings (1m48s).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **274 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 6/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **275 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 7/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
