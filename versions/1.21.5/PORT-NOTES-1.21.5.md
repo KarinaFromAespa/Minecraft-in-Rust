@@ -4699,13 +4699,51 @@ is the oracle; decompiled code is a reading aid.
     --lib screen_draw::scissor_tests::
     text_with_alpha_under_four_draws_opaque`
     1 passed.
+- **Item 107 — FontTexture / glyph
+  providers / Font, unihex
+  `size_overrides` required:**
+  - The Font.java section is the
+    same diff as item 106 (the
+    splitter put the file in both
+    items) — covered there,
+    including adjustColor.
+  - The one new delta is
+    `UnihexProvider$Definition`:
+    1.21.6 made `size_overrides`
+    optional with an empty
+    default; 1.21.5's codec
+    requires the field, so a
+    definition without it fails
+    to load and the provider is
+    skipped. The Rust loader
+    treated a missing field as
+    no overrides (the 1.21.6
+    form). `load_set` now skips
+    a unihex provider without
+    the field, like the other
+    providers' load failures.
+  - The rest is GPU plumbing:
+    FontTexture's texture view
+    and `createTexture` arity,
+    and the glyph uploads'
+    `writeToTexture` mipmap
+    argument — same pixels, same
+    0.01 UV inset. No code
+    change for those.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings;
+    `cargo test -p horizon-client-render
+    --lib font::tests::
+    a_unihex_provider_without_size_overrides_is_skipped`
+    1 passed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **106 of 426 are
-closed** (rank 1 complete, rank 2 at 97/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **107 of 426 are
+closed** (rank 1 complete, rank 2 at 98/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
