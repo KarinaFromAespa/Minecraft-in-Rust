@@ -3398,13 +3398,43 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 75 — Dispenser / hopper
+  block entities & screens,
+  verified:**
+  - The block-entity changes are
+    Java API-only (`ValueInput` /
+    `ValueOutput` vs `CompoundTag`
+    + `Provider`); the stored
+    form is identical (`Items`
+    via `ContainerHelper`,
+    `TransferCooldown` for the
+    hopper). The Rust side
+    already canonicalizes
+    `TransferCooldown` (default
+    -1) and reads it for the
+    hopper's runtime cooldown
+    in `machines.rs`.
+  - The screen changes are a
+    render-API rename
+    (`RenderPipelines.GUI_TEXTURED`
+    vs `RenderType::guiTextured`)
+    with identical blit
+    parameters (same texture,
+    same centred position and
+    256x256 sheet); the Rust
+    GUI has its own pipeline.
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **74 of 426 are
-closed** (rank 1 complete, rank 2 at 65/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **75 of 426 are
+closed** (rank 1 complete, rank 2 at 66/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
