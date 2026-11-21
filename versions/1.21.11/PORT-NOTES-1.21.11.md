@@ -12345,3 +12345,9 @@ that renders the identical message.
 server's registry access on singleplayer; 1.21.11 uses the received
 registries as-is. The Rust has no integrated server and no filtering,
 so it already matches 1.21.11.
+
+## Item 632 — game/mount_menu.rs (HorseInventoryScreen) — NO-CHANGE
+
+The saddle/armor slot gates call `mount.is(tag)` (26.1) vs
+`mount.getType().is(tag)` (1.21.11) — the same predicate. The Rust
+gates by species. The Nautilus menu diff is `requireNonNull` noise.
