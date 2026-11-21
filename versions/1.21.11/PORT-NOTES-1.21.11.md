@@ -10977,3 +10977,13 @@ in the Nether/End (the packet carries
 only clock 0) — narrow, needs a
 clock-architecture decision, not this
 item. `world::`: 3 passed.
+
+## Item 442 — renderer/block/BlockStateModelSet (rank 2, NO-CHANGE)
+
+1 class, 0 methods named. 26.1-only; the
+particle sprite comes from
+`BlockStateModel.particleIcon()` in
+1.21.11 (no baked-model classes exist in
+the 1.21.11 jar). The one citation
+re-pointed. `block_particles`: no tests
+under that filter; lib build clean.
