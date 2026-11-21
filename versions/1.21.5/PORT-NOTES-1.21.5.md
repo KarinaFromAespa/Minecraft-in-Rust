@@ -9824,12 +9824,47 @@ is the oracle; decompiled code is a reading aid.
     0/0 (7m56s); reworked
     tests run in CI.
 
+- **Item 223 — Server
+  recipe book, stats:
+  - The save form is
+    already the 1.21.5
+    direct-NBT one:
+    Settings.write is toNbt
+    (all eight flags,
+    recipes, toBeDisplayed)
+    and read_valid is
+    fromNbt. One fix: a
+    missing list now reads
+    as empty (1.21.5's
+    orElse(List.of()))
+    instead of dropping the
+    whole compound — the
+    1.21.6 codec's
+    required-field
+    strictness. The
+    settings-packet copy
+    and copyOverData's
+    pack/apply round trip
+    are unobservable (same
+    bytes, same result);
+    the port has no copy-
+    over path.
+    HAPPY_GHAST_ONE_CM has
+    no surface: no happy
+    ghast anywhere in the
+    port.
+  - Verification: `cargo
+    check -j 1 -p horizon-
+    client --lib --tests`
+    0/0 (2m05s); new test
+    runs in CI.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **222 of 426 are
-closed** (rank 1 complete, rank 2 at 213/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **223 of 426 are
+closed** (rank 1 complete, rank 2 at 214/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
