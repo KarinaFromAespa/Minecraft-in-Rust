@@ -8483,3 +8483,26 @@ no draw (verified in the 1.21.11 jar); the tropical-fish
 finalize (0.9 common, else lone + random pattern/colours);
 the zombie finalize order and draw order. Tests:
 `mobs::finalize::` 20 passed (1 new).
+
+## Item 131 — crash.rs (rank 2, CHANGED)
+
+4 classes, 18 methods, 3 named (`BlockableEventLoop.relayDelayCrash`,
+`Util.onThreadException`, `Util.safeReplaceOrMoveFile`).
+
+Java delta: the delayed-crash mechanism is 26.1-only
+(`delayedCrash`, `propagatesCrashes`, `delayCrash`,
+`relayDelayCrash`, `hasDelayedCrash` — none exist in 1.21.11).
+`onThreadException` in 1.21.11 logs a plain worker-thread
+exception and carries on (only a ReportedException prints its
+report and exits -1); 26.1 relays a crash report to the main
+thread. `safeReplaceOrMoveFile` is identical in both versions;
+`safeMoveFile` is 26.1-only. ServerWatchdog differs only by the
+gamerules accessor path (same value).
+
+Changes: a worker-thread panic is now logged, not reported, and
+the game carries on — the pool already contains the panic, so
+only the hook's exit(101) ended the game. `worker_panic_report`
+removed with the branch. Checked, no action: the
+`restore_level_data_from_old` deviation stands (the function is
+identical in both versions); the watchdog mirror is identical.
+Tests: `crash::` 11 passed.
