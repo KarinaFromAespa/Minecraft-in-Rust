@@ -12774,3 +12774,8 @@ Accessor vs field (`Level.getRandom()` vs `Level.random`), as item 638.
 ## Item 723 — horizon-world/src/level/tests.rs (WeatheringCopperChestBlock) — NO-CHANGE
 
 Zero diff: the bytecode is identical in both versions.
+
+## Item 724 — worldgen/feature_catalog.rs (PaleMossDecorator) — NO-CHANGE
+
+Level-type narrowing only (`WorldGenLevel` vs `LevelSimulatedReader`
++ checkcast), as items 538/562/618; same decorator logic.
