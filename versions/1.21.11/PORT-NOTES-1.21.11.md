@@ -10424,3 +10424,12 @@ differences — the `RecipePicker` lines are pure
 renumbering. The Rust keys on the item id
 directly. No source change. `menu::place`:
 5 passed.
+
+## Item 283 — level/portal.rs (rank 2, NO-CHANGE)
+
+1 class, 3 methods, 1 named. Three occurrences
+of the `BlockState.is(Object)` vs `is(Block)`
+overload tightening (items 269/270) — the
+portal-block count, `isEmpty`, and the obsidian
+frame check. The Rust checks by block identity.
+No source change. `portal`: 2 passed.
