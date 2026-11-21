@@ -6689,13 +6689,75 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-client
     --lib` passed at item
     138.
+- **Item 142 — Command
+  suggestions and /recipe
+  verified against 1.21.5:**
+  - The suggestion delta is
+    plumbing: 1.21.6 routes
+    registry suggestions
+    through a static
+    `listSuggestions`
+    helper and a
+    `HolderLookup`, 1.21.5
+    suggests from the
+    argument's own registry
+    lookup directly. The
+    suggested content is
+    identical — tags with a
+    `#` prefix, then element
+    ids — and the Rust
+    engine already has the
+    1.21.5 shape: it always
+    suggests from the local
+    registry tables, tags
+    first with `#` for
+    `ResOrTag` /
+    `ResOrTagKey`, element
+    ids only for
+    `ResourceSelector`. The
+    non-provider-source
+    fallback differs
+    between the versions,
+    but every reachable
+    source (local player,
+    `CommandSourceStack`)
+    is a provider.
+  - `/recipe` is at level 2
+    (`GAMEMASTERS`) in the
+    tree; the
+    `Commands.hasPermission`
+    → lambda change is the
+    same pure refactor as
+    items 110 and 134.
+  - `HexColorArgument` is
+    1.21.6-only (used only
+    by `/waypoint modify ...
+    color hex`), but its
+    removal belongs with
+    the `/waypoint` command
+    items (36/52/145): the
+    Rust `ArgType::HexColor`
+    is still referenced by
+    the waypoint tree in
+    `tree_extra.rs`, and
+    removing the type
+    before the command
+    would break the tree.
+    Left in place, noted
+    here.
+  - Verification: no Rust
+    change; the tree state
+    is the one `cargo check
+    -j 1 -p horizon-client
+    --lib` passed at item
+    138.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **141 of 426 are
-closed** (rank 1 complete, rank 2 at 132/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **142 of 426 are
+closed** (rank 1 complete, rank 2 at 133/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
