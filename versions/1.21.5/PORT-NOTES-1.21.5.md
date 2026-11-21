@@ -8432,13 +8432,55 @@ is the oracle; decompiled code is a reading aid.
     --lib
     one_twenty_one_six` 1
     passed.
+- **Item 176 — Section
+  render dispatcher
+  (1.21.5 mesh model):**
+  - The 1.21.6
+    `SectionMesh` rewrite
+    has no surface: the
+    port meshes its own
+    way, and the observable
+    parts already match
+    1.21.5 — translucency
+    resorting is the
+    point-of-view plus
+    axis-aligned rule over
+    a stable by-distance
+    sort, an empty section
+    is all-visible, and the
+    stats string is
+    identical. Known
+    deviation, recorded at
+    the gate: 1.21.5
+    exempts sections within
+    24 blocks of the camera
+    from the neighbour
+    check, but the port
+    keeps its stricter
+    lit-neighbours gate
+    everywhere (Streaming
+    knows only the chunk
+    centre, not the camera,
+    and meshing an unlit
+    column would draw dark
+    borders until the
+    relight remesh), so
+    near sections at a load
+    edge wait here where
+    vanilla draws them at
+    once.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client-render
+    --lib` 0/0 (38s);
+    comment only.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **175 of 426 are
-closed** (rank 1 complete, rank 2 at 166/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **176 of 426 are
+closed** (rank 1 complete, rank 2 at 167/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

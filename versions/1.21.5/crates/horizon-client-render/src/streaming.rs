@@ -2071,6 +2071,14 @@ impl Streaming {
             // in `dirty_light` here can't be lit yet (a neighbour of theirs is
             // missing): waiting for them could last until the player comes
             // back.
+            //
+            // 1.21.5's `RenderSection.hasAllNeighbors` exempts sections within
+            // 24 blocks of the camera from the neighbour check; the port
+            // keeps the stricter lit-neighbours gate everywhere (Streaming
+            // knows only the chunk centre, not the camera, and meshing an
+            // unlit column would draw dark borders until the relight remesh).
+            // Near sections at a load edge wait for their neighbours here
+            // where vanilla 1.21.5 draws them at once.
             let ready = (-1..=1).all(|dz| {
                 (-1..=1).all(|dx| {
                     let n = (x + dx, z + dz);
