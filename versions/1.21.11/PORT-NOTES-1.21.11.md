@@ -8529,3 +8529,26 @@ is already players-only in names.rs with the 1.21.11 geometry;
 `getPackedLightCoords` is mirrored; the other `LightCoordsUtil`
 citations stay with item 191. Tests: `cargo check
 -p horizon-client-render --lib` clean.
+
+## Item 133 — game/text_displays.rs (rank 2, CHANGED, citations only)
+
+6 classes, 28 methods, 2 named (`DisplayRenderer.getBlockLightLevel`,
+`DisplayRenderer.getShadowRadius`).
+
+Java delta: `BlockModelResolver` + `CompositeBlockModel` are
+26.1-only — 1.21.11's BlockDisplayRenderer calls
+`submitBlock(poseStack, blockState, light, NO_OVERLAY,
+outlineColor)` and the model resolves at render time via
+`BlockRenderDispatcher.renderSingleBlock` →
+`ModelBlockRenderer.renderModel` (seed 42, verified from the
+bytecode), with the special model from
+`SpecialBlockModelRenderer.renderByBlock` (NONE) inside
+`SubmitNodeCollection.submitBlock`. `LightCoordsUtil.sky/block`
+→ `LightTexture.sky/block`; `mulPose(Transformation)` →
+`mulPose(getMatrix())`.
+
+Changes: the two citations in `block_item_display_geometry`
+reworded to the 1.21.11 path. Checked, no action: `display_light`
+mirrors the brightness override; the text background reads the
+option directly, the 1.21.11 form; the item display is identical
+in both versions. Tests: `game::text_displays::tests::` 5 passed.
