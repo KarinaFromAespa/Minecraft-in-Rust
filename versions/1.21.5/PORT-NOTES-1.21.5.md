@@ -744,13 +744,33 @@ is the oracle; decompiled code is a reading aid.
     --all-targets` 0 errors / 0 warnings (3m25s); three
     newly-dead helpers (`drop_boat_leashes`, `player_center`,
     `Boat::in_liquid`) removed.
+- **Item 20 — ByteBufCodecs, verified, no code change:**
+  `ByteBufCodecs.java` (132 lines, all 1.21.6-only additions):
+  - `RGB_COLOR` (three bytes → opaque ARGB): its only Rust
+    use is the `TrackedWaypoint` codec (`play.rs:1799`), and
+    the waypoint packet is unwired from the 1.21.5 wire
+    (`play.rs:1740-1741` — no waypoint packets in 1.21.5);
+    the struct survives only as the LAN tracker's internal
+    representation, which the codec choice doesn't affect.
+  - `optionalTagCodec` and `lenientJson`: no Rust surface
+    (the `lenient_json` test in `java_text.rs` is text-component
+    parsing, not a network codec).
+  - `fromCodec(DynamicOps, Codec)` (1.21.6) vs the inlined
+    `.map` in 1.21.5's `fromCodec(Codec, Supplier)`: the same
+    NbtOps parse/encode with the same exceptions — a pure
+    refactor.
+  - `lengthPrefixed(int)`: 1.21.5 has only the registry-friendly
+    form under that name; 1.21.6 renamed it
+    `registryFriendlyLengthPrefixed` and added a plain-ByteBuf
+    overload. Both call the same three-arg helper — no wire
+    difference.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **19 of 426 are
-closed** (rank 1 complete, rank 2 at 10/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **20 of 426 are
+closed** (rank 1 complete, rank 2 at 11/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
