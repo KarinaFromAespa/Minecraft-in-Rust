@@ -8972,6 +8972,20 @@ carries three 26.3-only entries (`natural_mob_spawns`,
 exist in neither 26.1 nor 1.21.11 — not this item's delta (item
 107 already fixed the `natural_mob_spawns` reader).
 
+## Item 156 — game/dedicated/predicate_graph.rs (rank 2, NO-CHANGE)
+
+6 classes, 21 methods, 2 named. `MappedRegistry.componentLookup`
+is 26.1-only (1.21.11's `freeze()` skips building it),
+`bindTags(Map)` becomes the single-tag `bindTag`, the loot
+validation drops the `ValidationContextSource` wrapper and the
+`Validatable` bound, `ValidationContext.forField*` are 26.1-only
+and `setContextKeySet` is new in 1.21.11 — none of it has a Rust
+mirror. The file's two citations check out against the 1.21.11
+jar: "Unbound values in registry" is in `MappedRegistry`, and
+`ValidationContext$RecursiveReferenceProblem` is byte-identical
+between the versions. Tests: `game::dedicated::predicate_graph::`
+3 passed.
+
 ## CI proof run 44850889695 (recorded below)
 
 Dispatched 01:33:40 UTC Nov 21, 2026 on behaviour/1.21.11 @
