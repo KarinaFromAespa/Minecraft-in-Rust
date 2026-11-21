@@ -11082,3 +11082,16 @@ all 6 citations re-pointed to
 sculk.rs, end.rs); none remain.
 `fog::`: 16 passed; `cargo check -p
 horizon-client --tests` clean.
+
+## Item 504 — mobs/spear_use.rs (rank 3, NO-CHANGE)
+
+5 classes, 11 methods, 9 named.
+The diff is visibility only (`private
+final` → package-private) except
+`SpearAttack`'s constructor: 1.21.11
+takes a 4th float, an approach
+distance (PiglinAi passes 10.0F), that
+no method ever reads — dead state 26.1
+dropped. The one edit updates the
+`PiglinSpear` doc to the 1.21.11 4-arg
+construction. `spear`: 5 passed.
