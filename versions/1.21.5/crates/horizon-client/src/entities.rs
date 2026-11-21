@@ -12,7 +12,7 @@ use crate::{
     world::World,
 };
 use horizon_core::{
-    geometry::{Aabb, Direction, Vec3, VoxelShape, border::BorderGeometry},
+    geometry::{Aabb, Direction, Vec3, border::BorderGeometry},
     position::BlockPos,
     random::{LegacyRandom, RandomSource},
 };

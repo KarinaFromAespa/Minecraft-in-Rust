@@ -4232,8 +4232,16 @@ is the oracle; decompiled code is a reading aid.
     No code change.
   - Verification: `cargo check -p
     horizon-client-render -p horizon-client
-    --all-targets` 0 errors / 0 warnings
-    (no-op re-check).
+    --all-targets` 0 errors / 1 warning
+    (an unused `VoxelShape` import
+    left by item 95's shape removal;
+    fixed in the follow-up commit
+    below).
+- **Item 95 follow-up — unused import:**
+  item 95 removed the only use of
+  `VoxelShape` in `entities.rs`;
+  the import is dropped, so the
+  check is warning-free again.
 
 ## What remains, by cause
 
