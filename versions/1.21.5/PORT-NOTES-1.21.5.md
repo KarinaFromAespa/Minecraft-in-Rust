@@ -10424,12 +10424,35 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 243 — RopesLayer:
+  - The layers directory's
+    Only-in line is a
+    sparse-tree artifact
+    (the layers package
+    exists in 1.21.5, with
+    no changed classes
+    extracted under it);
+    the one class the diff
+    actually carries,
+    RopesLayer, is
+    1.21.6-only by content:
+    it renders the harness
+    ropes on a leashed
+    happy ghast wearing a
+    harness. The port has
+    no happy ghast and no
+    harness (items
+    144/174/224), so there
+    is no surface.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **242 of 426 are
-closed** (rank 1 complete, rank 2 at 233/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **243 of 426 are
+closed** (rank 1 complete, rank 2 at 234/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
