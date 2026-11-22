@@ -1360,3 +1360,44 @@ pass / 0 fail. The `legacy` synthesis exists only in 1.21.7 -- no
 sibling carry-over. Known adjacent gap, not fixed here: the
 sunrise/sunset colour is still not synthesized (its constants
 couldn't be verified), so there is no dawn/dusk glow.
+
+Menus show raw language keys (2026-11-22). The owner reported "the
+menu are bugged out": the World Options screen showed raw keys for
+nearly every label (`options.worldOptions.title`,
+`options.worldOptions.game_mode`, `editGamerule.inGame.button`,
+`restrictions_screen.button`, `menu.multiplayerOptions.lan`,
+`menu.multiplayerOptions.applyChanges`, ...), the pause menu showed
+`worldOptions.button`, and the title screen's friends tooltip showed
+`gui.friends.open.tooltip`. Root cause: all of these are 26.x-only
+keys. Vanilla 1.21.7's en_us.json (verified against the 1.21.7
+client jar, 7,392 keys) has none of them, and the port's bundled
+horizon en_us.json didn't carry them either -- in 26.3 they resolve
+from vanilla's lang, so the bundle never needed them. Same defect
+class as the water/trees/leaves bugs: 26.x data the port reads that
+does not exist in 1.21.7. Fix: the 1.21.7 bundled horizon en_us.json
+now carries the 36 keys the menu code names that are missing from
+both vanilla 1.21.7 and the bundle, with vanilla 26.3's wording
+(verified against the Mojang 26.3 client jar, sha1-checked) -- the
+World Options labels, friends labels, title-screen tooltips, the
+upgrade-flow strings and the Edit Game Rules discard dialog. The
+bundled layer loads first, so a resource pack or a newer vanilla
+lang file can still override them; other languages fall back to
+these English strings, as vanilla does. Regression test:
+`bundled_layer_carries_the_26x_menu_keys_1_21_7_lacks` in
+horizon-client-core's lang.rs pins all 36 through `Language::load`.
+Not fixed here, for the owner to decide: (1) the pause menu's four
+icon buttons and the title screen's friends button are empty grey
+squares -- their sprites (`gui/sprites/pause_menu/bug`,
+`social_interactions`, `player_reporting`, `friends/friends`) do
+not exist in 1.21.7's assets (verified against the 1.21.7 client
+jar; `sprite_scaled` silently draws nothing for a missing sprite),
+and bundling Mojang's 26.3 sprites is forbidden. Vanilla 1.21.7
+has no icon row at all: its pause menu uses text buttons for Give
+Feedback / Report Bugs (`PauseScreen.addFeedbackButtons` builds
+plain `Button`s, jar-verified) and its only pause sprite is
+`icon/draft_report` for player reporting; its title screen has no
+friends button. (2) The World Options screen itself is a 26.x
+feature -- vanilla 1.21.7's pause menu has "Open to LAN" instead
+(`menu.shareToLan`). Restoring the 1.21.7 pause menu and title
+screen to their vanilla forms is a screen-parity rework, not part
+of this translation fix.
