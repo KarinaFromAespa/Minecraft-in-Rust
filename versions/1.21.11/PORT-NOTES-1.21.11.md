@@ -13426,3 +13426,16 @@ notification as `container_changed` calls.
 item 804), `ice_spike` (IceSpikeFeature, item 761),
 `forest_rock` (BlockBlobFeature::decode_forest_rock with the
 hardcoded dirt-or-stone support check). All five implemented.
+
+## Item 814 — 13 new vanilla classes in 10 packages Horizon doesn't port — NO-CHANGE
+
+The 13 classes (derived from the jar diff): `DontObfuscate` +
+3 `package-info` files (no behaviour); `references/Blocks` /
+`Items` (datagen key lists); `ItemListReport` and
+`RecipeProvider$FamilyRecipeProvider` (datagen);
+`LootNbtProviderType` / `LootScoreProviderType` (the same
+registry-plumbing record as items 805-808). Two the report
+mislabels: `RuleBasedBlockStateProvider` IS ported in full
+(state_provider.rs:505, used by disk.rs) and
+`WorldGenMaterialRule`'s behaviour is the Rust's material-rule
+system (`MaterialRuleLibrary`).
