@@ -13262,3 +13262,10 @@ format elements. Pure GPU vertex-layout plumbing, no Rust usage.
 
 1 class: `DontObfuscate` — a build-time annotation keeping names
 out of Mojang's obfuscator. No runtime behaviour.
+
+## Item 789 — commands/arguments/item (new-classes) — NO-CHANGE
+
+1 class: `ItemParser$ItemResult` — the item + component-patch
+record `ItemParser` returns. The Rust ports `ItemParser` in full
+(`horizon-command/src/item.rs`), including the 1.21.11-only
+`validateComponents`.
