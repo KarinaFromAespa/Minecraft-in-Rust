@@ -13348,3 +13348,9 @@ by the experimental trades the Rust deliberately does not port
 ResourceKey>`. The Rust handles its stream codec in the protocol
 layer (the either-flag + holder-or-key encoding, gated on the
 `either_holders_and_tag_resistance` quirk).
+
+## Item 802 — world/level/chunk/storage (new-classes) — NO-CHANGE
+
+1 class: `LegacyTagFixer` — the chunk-loading fixup interface
+implemented by `LegacyStructureDataHandler` (item 772). The
+Rust's datafix system handles old chunk tags its own way.
