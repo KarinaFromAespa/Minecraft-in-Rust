@@ -15002,12 +15002,35 @@ is the oracle; decompiled code is a reading aid.
     ordered wgpu HUD batch.
   - Verification: read / only; no code / changed.
 
+- **Item 381 — NowPlayingToast**
+  - NowPlayingToast:
+    verified, no code. The
+    class exists only in
+    1.21.6 - the
+    music-track toast, tied
+    to the
+    showNowPlayingToast
+    option item 326
+    verified absent - and
+    is removed in 1.21.5.
+    The port has no music
+    toast: the only
+    NowPlaying reference is
+    the jukebox record
+    overlay
+    (record.nowPlaying,
+    Hud.setNowPlaying),
+    which exists in both
+    versions. Item 37/40's
+    ground, same removal.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **380 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 112/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **381 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 113/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
