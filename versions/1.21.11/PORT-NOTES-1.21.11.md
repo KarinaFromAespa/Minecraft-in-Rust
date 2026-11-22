@@ -13198,3 +13198,12 @@ GUI-render plumbing, no Rust usage.
 (Buy/Later buttons, movement help). The Rust has no demo mode at
 all, so the screen has no entry point; demo mode as a whole is
 unimplemented, out of rank-4 scope.
+
+## Item 779 — client/model/animal/axolotl (new-classes) — CHANGED
+
+1 class: `AxolotlModel`. The Rust had the 26.1 form (babies ran
+the `BabyAxolotlAnimation` keyframe clips); 1.21.11 has one model
+— babies bake the `AXOLOTL_BABY` layer but pose with the same
+procedural setupAnim as adults. The baby branch is removed from
+`axolotl()`; the procedural path (verified exact) now runs for all
+ages.

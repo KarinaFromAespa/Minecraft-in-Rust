@@ -546,59 +546,11 @@ pub struct Axolotl {
     pub idle_underwater: AnimationState,
     pub play_dead: AnimationState,
 }
-/// `AdultAxolotlModel` / `BabyAxolotlModel.setupAnim`.
-pub fn axolotl(p: &mut Poses, s: &State, x: &Axolotl, a: &Animations) {
-    if s.baby {
-        if x.walk.started.is_some() {
-            walk(
-                a,
-                "BabyAxolotlAnimation.AXOLOTL_WALK_FLOOR",
-                s,
-                15.0,
-                30.0,
-                p,
-            );
-        }
-        run(a, "BabyAxolotlAnimation.BABY_AXOLOTL_SWIM", &x.swim, s, p);
-        run(
-            a,
-            "BabyAxolotlAnimation.WALK_FLOOR_UNDERWATER",
-            // The model reads `walkAnimationState` again here, not the
-            // underwater state the renderer also copies.
-            &x.walk,
-            s,
-            p,
-        );
-        run(
-            a,
-            "BabyAxolotlAnimation.BABY_AXOLOTL_IDLE_FLOOR",
-            &x.idle_on_ground,
-            s,
-            p,
-        );
-        run(
-            a,
-            "BabyAxolotlAnimation.IDLE_UNDERWATER",
-            &x.idle_underwater,
-            s,
-            p,
-        );
-        run(
-            a,
-            "BabyAxolotlAnimation.IDLE_FLOOR_UNDERWATER",
-            &x.idle_underwater_on_ground,
-            s,
-            p,
-        );
-        run(
-            a,
-            "BabyAxolotlAnimation.BABY_AXOLOTL_PLAY_DEAD",
-            &x.play_dead,
-            s,
-            p,
-        );
-        return;
-    }
+/// `AxolotlModel.setupAnim` (1.21.11: one model for adults and babies —
+/// the renderer bakes the `AXOLOTL_BABY` layer for babies, but the pose is
+/// the same procedural one; 26.1 split it into `AdultAxolotlModel` /
+/// `BabyAxolotlModel`, the baby running keyframe clips).
+pub fn axolotl(p: &mut Poses, s: &State, x: &Axolotl, _a: &Animations) {
     let not_moving = 1.0 - x.moving;
     let mirrored = 1.0 - x.on_ground.min(x.moving);
     adds(p, "body", 4, s.y_rot * rad(PI / 180.0));
