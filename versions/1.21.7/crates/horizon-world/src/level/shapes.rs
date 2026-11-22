@@ -1076,9 +1076,16 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
     }
     /// `LeavesBlock.getDistanceAt`.
+    ///
+    /// Vanilla 1.21.7's `getOptionalDistanceAt` returns 0 for
+    /// `BlockTags.LOGS` (jar-verified); the 26.x
+    /// `#prevents_nearby_leaf_decay` tag does not exist in 1.21.7 data, so
+    /// reading it resolved to an empty set and logs never counted as
+    /// distance 0 — every leaf-distance recompute inflated toward 7 and
+    /// whole canopies decayed in-game.
     pub(crate) fn leaf_distance_at(&self, state: BlockStateId) -> i32 {
         let b = self.b;
-        if b.in_set(state, &b.tags.prevents_nearby_leaf_decay) {
+        if b.in_set(state, &b.tags.logs) {
             0
         } else if b.table.has(state, b.props.distance) {
             b.table.int(state, b.props.distance)

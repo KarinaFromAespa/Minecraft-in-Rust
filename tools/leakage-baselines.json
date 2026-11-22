@@ -743,7 +743,6 @@
     "minecraft:nether_portal_frame",
     "minecraft:not_affected_by_geysers",
     "minecraft:overrides_mushroom_light_requirement",
-    "minecraft:prevents_nearby_leaf_decay",
     "minecraft:sculk_growth_inhibitors",
     "minecraft:shearable_from_copper_golem",
     "minecraft:shulker_does_not_teleport_to",
