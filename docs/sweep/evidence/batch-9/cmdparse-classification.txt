@@ -1,0 +1,133 @@
+=== kind counts ===
+  parse: 86971
+  suggestions: 16
+=== class totals ===
+  ERR_TEXT_KEY_VS_RESOLVED: 86241
+  CURSOR_DIFFERS: 345
+  OK_DIFFERS: 315
+  ERR_TEXT_OTHER: 70
+  kind:suggestions: 16
+=== ERR_TEXT_KEY_VS_RESOLVED: top rust keys (count, key, sample vanilla) ===
+   55949  command.unknown.command  | vanilla e.g.: 'Unknown or incomplete command, see below for error'
+   19824  command.unknown.argument  | vanilla e.g.: 'Incorrect argument for command'
+    7348  argument.resource_or_id.no_such_element  | vanilla e.g.: "Can't find element 'minecraft:thing' in registry 'minecraft:predicate'"
+     254  argument.literal.incorrect  | vanilla e.g.: 'Expected literal "'
+     200  argument.player.entities  | vanilla e.g.: 'Only players may be affected by this command, but the provided selector includes entities'
+     190  command.expected.separator  | vanilla e.g.: 'Expected whitespace to end one argument, but found trailing data'
+     168  argument.component.invalid  | vanilla e.g.: 'Invalid chat component: Failed to parse either. First: Failed to parse either. First: Not a string; Second: Not a list: 1b; Second: Not a map: 1b'
+     154  argument.resource.not_found  | vanilla e.g.: "Can't find element 'minecraft:nonexistent_thing' of type 'minecraft:attribute'"
+     140  parsing.int.invalid  | vanilla e.g.: "Invalid integer '1.5'"
+     126  parsing.double.expected  | vanilla e.g.: 'Expected double'
+      99  parsing.int.expected  | vanilla e.g.: 'Expected integer'
+      94  snbt.parser.expected_unquoted_string  | vanilla e.g.: 'Expected a valid unquoted string'
+      88  argument.resource_or_id.failed_to_parse  | vanilla e.g.: 'Failed to parse structure: Failed to parse either. First: Input does not contain a key [condition]: MapLike[{}]; Second: Not a list: {}'
+      66  parsing.expected  | vanilla e.g.: "Expected '='"
+      62  parsing.bool.invalid  | vanilla e.g.: "Invalid boolean, expected 'true' or 'false' but found 'maybe'"
+      60  argument.enum.invalid  | vanilla e.g.: 'Invalid value "x"'
+      60  snbt.parser.invalid_string_contents  | vanilla e.g.: 'Invalid string contents'
+      56  argument.range.empty  | vanilla e.g.: 'Expected value or range of values'
+      52  argument.gamemode.invalid  | vanilla e.g.: 'Unknown game mode: x'
+      48  argument.pos.mixed  | vanilla e.g.: 'Cannot mix world & local coordinates (everything must either use ^ or not)'
+      48  argument.criteria.invalid  | vanilla e.g.: "Unknown criterion 'teamkill.'"
+      46  parsing.float.expected  | vanilla e.g.: 'Expected float'
+      44  parsing.double.invalid  | vanilla e.g.: "Invalid double '1.2.3'"
+      43  argument.entity.options.unterminated  | vanilla e.g.: 'Expected end of options'
+      40  argument.entity.options.type.invalid  | vanilla e.g.: "Invalid or unknown entity type 'minecraft:nope'"
+      40  argument.style.invalid  | vanilla e.g.: 'Invalid style: Invalid color name: x'
+      36  argument.pos3d.incomplete  | vanilla e.g.: 'Incomplete (expected 3 coordinates)'
+      36  argument.block.id.invalid  | vanilla e.g.: "Unknown block type 'minecraft:nope'"
+      36  argument.item.id.invalid  | vanilla e.g.: "Unknown item 'minecraft:extra'"
+      34  argument.hexcolor.invalid  | vanilla e.g.: "Invalid hex color code ''"
+      32  argument.nbt.expected.compound  | vanilla e.g.: 'Expected compound tag'
+      32  argument.entity.invalid  | vanilla e.g.: 'Invalid name or UUID'
+      32  argument.block.property.invalid  | vanilla e.g.: "Block minecraft:oak_stairs does not accept 'up' for facing property"
+      32  arguments.nbtpath.node.invalid  | vanilla e.g.: 'Invalid NBT path element'
+      30  parsing.quote.expected.end  | vanilla e.g.: 'Unclosed quoted string'
+      30  arguments.item.component.unknown  | vanilla e.g.: "Unknown item component 'minecraft:count'"
+      28  argument.block.property.unknown  | vanilla e.g.: "Block minecraft:oak_stairs does not have property 'x'"
+      28  arguments.operation.invalid  | vanilla e.g.: 'Invalid operation'
+      26  argument.entity.options.limit.toosmall  | vanilla e.g.: 'Limit must be at least 1'
+      26  argument.integer.low  | vanilla e.g.: 'Integer must not be less than 0, found -1'
+=== ERR_TEXT_OTHER: top pairs ===
+       8  vanilla="Can't parse particle options: No key block_state in MapLike[{}]" rust='particle.invalidOptions'
+       8  vanilla='Unknown particle: minecraft:' rust='particle.notFound'
+       4  vanilla='Unknown particle: minecraft:nope' rust='particle.notFound'
+       4  vanilla="Can't parse particle options: No key scale in MapLike[{}]; No key color in MapLike[{}]" rust='particle.invalidOptions'
+       4  vanilla="Can't parse particle options: No key scale in MapLike[{color:1}]" rust='particle.invalidOptions'
+       4  vanilla="Unknown display slot 'foo'" rust='argument.scoreboardDisplaySlot.invalid'
+       4  vanilla="Unknown display slot 'sidebar.team'" rust='argument.scoreboardDisplaySlot.invalid'
+       4  vanilla="Unknown display slot 'sidebar.team.nocolor'" rust='argument.scoreboardDisplaySlot.invalid'
+       4  vanilla="Unknown display slot 'sidebar.'" rust='argument.scoreboardDisplaySlot.invalid'
+       4  vanilla="Unknown display slot 'Sidebar'" rust='argument.scoreboardDisplaySlot.invalid'
+       4  vanilla="Unknown display slot 'sidebar.team.'" rust='argument.scoreboardDisplaySlot.invalid'
+       2  vanilla='Unknown particle: minecraft:f' rust='particle.notFound'
+       2  vanilla='Unknown particle: minecraft:fl' rust='particle.notFound'
+       2  vanilla='Unknown particle: minecraft:fla' rust='particle.notFound'
+       2  vanilla='Unknown particle: minecraft:flam' rust='particle.notFound'
+       2  vanilla="Unknown display slot 's'" rust='argument.scoreboardDisplaySlot.invalid'
+       2  vanilla="Unknown display slot 'si'" rust='argument.scoreboardDisplaySlot.invalid'
+       2  vanilla="Unknown display slot 'sid'" rust='argument.scoreboardDisplaySlot.invalid'
+       2  vanilla="Unknown display slot 'side'" rust='argument.scoreboardDisplaySlot.invalid'
+       2  vanilla="Unknown display slot 'sideb'" rust='argument.scoreboardDisplaySlot.invalid'
+=== OK_DIFFERS combos ===
+     264  vanilla_ok=True rust_ok=False
+      51  vanilla_ok=False rust_ok=True
+=== CURSOR_DIFFERS combos (top 15) ===
+      24  vanilla_cursor=30 rust_cursor=9
+      18  vanilla_cursor=26 rust_cursor=9
+      18  vanilla_cursor=25 rust_cursor=9
+      16  vanilla_cursor=27 rust_cursor=9
+      14  vanilla_cursor=24 rust_cursor=9
+      14  vanilla_cursor=28 rust_cursor=9
+      10  vanilla_cursor=38 rust_cursor=9
+      10  vanilla_cursor=32 rust_cursor=9
+      10  vanilla_cursor=35 rust_cursor=9
+      10  vanilla_cursor=22 rust_cursor=9
+      10  vanilla_cursor=19 rust_cursor=9
+      10  vanilla_cursor=33 rust_cursor=9
+       8  vanilla_cursor=25 rust_cursor=33
+       8  vanilla_cursor=34 rust_cursor=30
+       8  vanilla_cursor=34 rust_cursor=9
+=== OK_DIFFERS examples ===
+   {"kind": "parse", "in": "gamerule allowFireTicksAwayFromPlayer", "vanilla": {"ok": true, "nodes": ["gamerule", "allowFireTicksAwayFromPlayer"]}, "rust": {"cursor": 9, "error": "command.unknown.argument", "ok": false}}
+   {"kind": "parse", "in": "gamerule allowFireTicksAwayFromPlayer true", "vanilla": {"ok": true, "nodes": ["gamerule", "allowFireTicksAwayFromPlayer", "value"]}, "rust": {"cursor": 9, "error": "command.unknown.argument", "ok": false}}
+   {"kind": "parse", "in": "gamerule announceAdvancements", "vanilla": {"ok": true, "nodes": ["gamerule", "announceAdvancements"]}, "rust": {"cursor": 9, "error": "command.unknown.argument", "ok": false}}
+   {"kind": "parse", "in": "gamerule announceAdvancements true", "vanilla": {"ok": true, "nodes": ["gamerule", "announceAdvancements", "value"]}, "rust": {"cursor": 9, "error": "command.unknown.argument", "ok": false}}
+   {"kind": "parse", "in": "gamerule blockExplosionDropDecay", "vanilla": {"ok": true, "nodes": ["gamerule", "blockExplosionDropDecay"]}, "rust": {"cursor": 9, "error": "command.unknown.argument", "ok": false}}
+   {"kind": "parse", "in": "gamerule blockExplosionDropDecay true", "vanilla": {"ok": true, "nodes": ["gamerule", "blockExplosionDropDecay", "value"]}, "rust": {"cursor": 9, "error": "command.unknown.argument", "ok": false}}
+   {"kind": "parse", "in": "gamerule commandBlockOutput", "vanilla": {"ok": true, "nodes": ["gamerule", "commandBlockOutput"]}, "rust": {"cursor": 9, "error": "command.unknown.argument", "ok": false}}
+   {"kind": "parse", "in": "gamerule commandBlockOutput true", "vanilla": {"ok": true, "nodes": ["gamerule", "commandBlockOutput", "value"]}, "rust": {"cursor": 9, "error": "command.unknown.argument", "ok": false}}
+   {"kind": "parse", "in": "gamerule commandModificationBlockLimit", "vanilla": {"ok": true, "nodes": ["gamerule", "commandModificationBlockLimit"]}, "rust": {"cursor": 9, "error": "command.unknown.argument", "ok": false}}
+   {"kind": "parse", "in": "gamerule commandModificationBlockLimit 0", "vanilla": {"ok": true, "nodes": ["gamerule", "commandModificationBlockLimit", "value"]}, "rust": {"cursor": 9, "error": "command.unknown.argument", "ok": false}}
+   {"kind": "parse", "in": "gamerule disableElytraMovementCheck", "vanilla": {"ok": true, "nodes": ["gamerule", "disableElytraMovementCheck"]}, "rust": {"cursor": 9, "error": "command.unknown.argument", "ok": false}}
+   {"kind": "parse", "in": "gamerule disableElytraMovementCheck true", "vanilla": {"ok": true, "nodes": ["gamerule", "disableElytraMovementCheck", "value"]}, "rust": {"cursor": 9, "error": "command.unknown.argument", "ok": false}}
+   {"kind": "parse", "in": "gamerule disablePlayerMovementCheck", "vanilla": {"ok": true, "nodes": ["gamerule", "disablePlayerMovementCheck"]}, "rust": {"cursor": 9, "error": "command.unknown.argument", "ok": false}}
+   {"kind": "parse", "in": "gamerule disablePlayerMovementCheck true", "vanilla": {"ok": true, "nodes": ["gamerule", "disablePlayerMovementCheck", "value"]}, "rust": {"cursor": 9, "error": "command.unknown.argument", "ok": false}}
+   {"kind": "parse", "in": "gamerule disableRaids", "vanilla": {"ok": true, "nodes": ["gamerule", "disableRaids"]}, "rust": {"cursor": 9, "error": "command.unknown.argument", "ok": false}}
+=== CURSOR_DIFFERS examples ===
+   {"kind": "parse", "in": "advancement grant @a[type=player]", "vanilla": {"ok": false, "error": "Option 'type' isn't applicable here", "cursor": 25}, "rust": {"cursor": 33, "error": "command.unknown.command", "ok": false}}
+   {"kind": "parse", "in": "advancement grant @a[type=player] ", "vanilla": {"ok": false, "error": "Option 'type' isn't applicable here", "cursor": 25}, "rust": {"cursor": 33, "error": "command.unknown.argument", "ok": false}}
+   {"kind": "parse", "in": "advancement grant @e[x=1,x=2]", "vanilla": {"ok": false, "error": "Option 'x' isn't applicable here", "cursor": 26}, "rust": {"cursor": 25, "error": "argument.entity.options.inapplicable", "ok": false}}
+   {"kind": "parse", "in": "advancement grant @e[x=1,x=2] ", "vanilla": {"ok": false, "error": "Option 'x' isn't applicable here", "cursor": 26}, "rust": {"cursor": 25, "error": "argument.entity.options.inapplicable", "ok": false}}
+   {"kind": "parse", "in": "advancement grant @e[limit=1,limit=2]", "vanilla": {"ok": false, "error": "Option 'limit' isn't applicable here", "cursor": 34}, "rust": {"cursor": 29, "error": "argument.entity.options.inapplicable", "ok": false}}
+   {"kind": "parse", "in": "advancement grant @e[limit=1,limit=2] ", "vanilla": {"ok": false, "error": "Option 'limit' isn't applicable here", "cursor": 34}, "rust": {"cursor": 29, "error": "argument.entity.options.inapplicable", "ok": false}}
+   {"kind": "parse", "in": "advancement grant @e[type=pig,type=cow]", "vanilla": {"ok": false, "error": "Option 'type' isn't applicable here", "cursor": 34}, "rust": {"cursor": 30, "error": "argument.entity.options.inapplicable", "ok": false}}
+   {"kind": "parse", "in": "advancement grant @e[type=pig,type=cow] ", "vanilla": {"ok": false, "error": "Option 'type' isn't applicable here", "cursor": 34}, "rust": {"cursor": 30, "error": "argument.entity.options.inapplicable", "ok": false}}
+   {"kind": "parse", "in": "advancement grant @e[distance=..5,distance=1..]", "vanilla": {"ok": false, "error": "Option 'distance' isn't applicable here", "cursor": 42}, "rust": {"cursor": 34, "error": "argument.entity.options.inapplicable", "ok": false}}
+   {"kind": "parse", "in": "advancement grant @e[distance=..5,distance=1..] ", "vanilla": {"ok": false, "error": "Option 'distance' isn't applicable here", "cursor": 42}, "rust": {"cursor": 34, "error": "argument.entity.options.inapplicable", "ok": false}}
+   {"kind": "parse", "in": "advancement grant @e[sort=nearest,sort=random]", "vanilla": {"ok": false, "error": "Option 'sort' isn't applicable here", "cursor": 38}, "rust": {"cursor": 34, "error": "argument.entity.options.inapplicable", "ok": false}}
+   {"kind": "parse", "in": "advancement grant @e[sort=nearest,sort=random] ", "vanilla": {"ok": false, "error": "Option 'sort' isn't applicable here", "cursor": 38}, "rust": {"cursor": 34, "error": "argument.entity.options.inapplicable", "ok": false}}
+   {"kind": "parse", "in": "advancement grant @e[gamemode=survival,gamemode=creative]", "vanilla": {"ok": false, "error": "Option 'gamemode' isn't applicable here", "cursor": 47}, "rust": {"cursor": 39, "error": "argument.entity.options.inapplicable", "ok": false}}
+   {"kind": "parse", "in": "advancement grant @e[gamemode=survival,gamemode=creative] ", "vanilla": {"ok": false, "error": "Option 'gamemode' isn't applicable here", "cursor": 47}, "rust": {"cursor": 39, "error": "argument.entity.options.inapplicable", "ok": false}}
+   {"kind": "parse", "in": "advancement grant @e[type=pig,type=!pig]", "vanilla": {"ok": false, "error": "Option 'type' isn't applicable here", "cursor": 34}, "rust": {"cursor": 30, "error": "argument.entity.options.inapplicable", "ok": false}}
+=== OTHER_FIELD_DIFF examples ===
+   {"kind": "suggestions", "in": "worldborder add 0 0", "vanilla": {"start": 0, "end": 0, "list": []}, "rust": {"end": 19, "list": ["d", "s", "t"], "start": 19}}
+   {"kind": "suggestions", "in": "worldborder set 0 0", "vanilla": {"start": 0, "end": 0, "list": []}, "rust": {"end": 19, "list": ["d", "s", "t"], "start": 19}}
+   {"kind": "suggestions", "in": "worldborder warning time 0", "vanilla": {"start": 0, "end": 0, "list": []}, "rust": {"end": 26, "list": ["d", "s", "t"], "start": 26}}
+   {"kind": "suggestions", "in": "summon pig", "vanilla": {"start": 7, "end": 10, "list": ["minecraft:pig\tPig", "minecraft:piglin\tPiglin", "minecraft:piglin_brute\tPiglin Brute", "minecraft:zombified_piglin\tZombified Piglin"]}, "rust": {"end": 10, "list": ["minecraft:pig\tentity.minecraft.pig", "minecraft:piglin\tentity.minecraft.piglin", "minecraft:piglin_brute\tentity.minecraft.piglin_brute", "minecraft:zombified_piglin\tentity.minecraft.zombified_piglin"], "start": 7}}
+   {"kind": "suggestions", "in": "worldborder set 100 10", "vanilla": {"start": 0, "end": 0, "list": []}, "rust": {"end": 22, "list": ["d", "s", "t"], "start": 22}}
+   {"kind": "suggestions", "in": "worldborder add 10 5", "vanilla": {"start": 0, "end": 0, "list": []}, "rust": {"end": 20, "list": ["d", "s", "t"], "start": 20}}
+   {"kind": "suggestions", "in": "worldborder warning time 5", "vanilla": {"start": 0, "end": 0, "list": []}, "rust": {"end": 26, "list": ["d", "s", "t"], "start": 26}}
+   {"kind": "suggestions", "in": "recipe give @s minecraft:stick", "vanilla": {"start": 0, "end": 0, "list": []}, "rust": {"end": 30, "list": ["minecraft:stick_from_bamboo_item", "minecraft:sticky_piston"], "start": 15}}
+   {"kind": "suggestions", "in": "worldborder add 0 0", "vanilla": {"start": 0, "end": 0, "list": []}, "rust": {"end": 19, "list": ["d", "s", "t"], "start": 19}}
+   {"kind": "suggestions", "in": "worldborder set 0 0", "vanilla": {"start": 0, "end": 0, "list": []}, "rust": {"end": 19, "list": ["d", "s", "t"], "start": 19}}

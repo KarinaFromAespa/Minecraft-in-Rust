@@ -1,0 +1,16 @@
+=== AnvilMenu createResult (cost order) ===
+22:        32: invokevirtual #196                // Method net/minecraft/world/item/ItemStack.isEmpty:()Z
+53:        99: getstatic     #301                // Field net/minecraft/core/component/DataComponents.REPAIR_COST:Lnet/minecraft/core/component/DataComponentType;
+61:       118: getstatic     #301                // Field net/minecraft/core/component/DataComponents.REPAIR_COST:Lnet/minecraft/core/component/DataComponentType;
+75:       145: invokevirtual #196                // Method net/minecraft/world/item/ItemStack.isEmpty:()Z
+115:       235: if_icmpge     281
+201:       421: if_icmpge     434
+415:       906: if_icmplt     918
+427:       932: if_icmplt     950
+435:       952: invokevirtual #196                // Method net/minecraft/world/item/ItemStack.isEmpty:()Z
+438:       960: getstatic     #301                // Field net/minecraft/core/component/DataComponents.REPAIR_COST:Lnet/minecraft/core/component/DataComponentType;
+447:       982: getstatic     #301                // Field net/minecraft/core/component/DataComponents.REPAIR_COST:Lnet/minecraft/core/component/DataComponentType;
+453:       998: if_icmpge     1021
+455:      1003: getstatic     #301                // Field net/minecraft/core/component/DataComponents.REPAIR_COST:Lnet/minecraft/core/component/DataComponentType;
+471:      1041: getstatic     #301                // Field net/minecraft/core/component/DataComponents.REPAIR_COST:Lnet/minecraft/core/component/DataComponentType;
+=== CartographyTableMenu slotsChanged ===

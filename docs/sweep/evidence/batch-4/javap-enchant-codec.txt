@@ -1,0 +1,3 @@
+        53: sipush        255
+        18: sipush        255
+        21: invokestatic  #274                // InterfaceMethod com/mojang/serialization/Codec.intRange:(II)Lcom/mojang/serialization/Codec;

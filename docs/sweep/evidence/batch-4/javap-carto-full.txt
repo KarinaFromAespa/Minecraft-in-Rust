@@ -1,0 +1,437 @@
+Compiled from "SourceFile"
+public class net.minecraft.world.inventory.CartographyTableMenu extends net.minecraft.world.inventory.AbstractContainerMenu {
+  public static final int MAP_SLOT;
+
+  public static final int ADDITIONAL_SLOT;
+
+  public static final int RESULT_SLOT;
+
+  private static final int INV_SLOT_START;
+
+  private static final int INV_SLOT_END;
+
+  private static final int USE_ROW_SLOT_START;
+
+  private static final int USE_ROW_SLOT_END;
+
+  private final net.minecraft.world.inventory.ContainerLevelAccess access;
+
+  long lastSoundTime;
+
+  public final net.minecraft.world.Container container;
+
+  private final net.minecraft.world.inventory.ResultContainer resultContainer;
+
+  public net.minecraft.world.inventory.CartographyTableMenu(int, net.minecraft.world.entity.player.Inventory);
+    Code:
+         0: aload_0
+         1: iload_1
+         2: aload_2
+         3: getstatic     #51                 // Field net/minecraft/world/inventory/ContainerLevelAccess.NULL:Lnet/minecraft/world/inventory/ContainerLevelAccess;
+         6: invokespecial #54                 // Method "<init>":(ILnet/minecraft/world/entity/player/Inventory;Lnet/minecraft/world/inventory/ContainerLevelAccess;)V
+         9: return
+
+  public net.minecraft.world.inventory.CartographyTableMenu(int, net.minecraft.world.entity.player.Inventory, net.minecraft.world.inventory.ContainerLevelAccess);
+    Code:
+         0: aload_0
+         1: getstatic     #64                 // Field net/minecraft/world/inventory/MenuType.CARTOGRAPHY_TABLE:Lnet/minecraft/world/inventory/MenuType;
+         4: iload_1
+         5: invokespecial #67                 // Method net/minecraft/world/inventory/AbstractContainerMenu."<init>":(Lnet/minecraft/world/inventory/MenuType;I)V
+         8: aload_0
+         9: new           #15                 // class net/minecraft/world/inventory/CartographyTableMenu$1
+        12: dup
+        13: aload_0
+        14: iconst_2
+        15: invokespecial #70                 // Method net/minecraft/world/inventory/CartographyTableMenu$1."<init>":(Lnet/minecraft/world/inventory/CartographyTableMenu;I)V
+        18: putfield      #72                 // Field container:Lnet/minecraft/world/Container;
+        21: aload_0
+        22: new           #13                 // class net/minecraft/world/inventory/CartographyTableMenu$2
+        25: dup
+        26: aload_0
+        27: invokespecial #75                 // Method net/minecraft/world/inventory/CartographyTableMenu$2."<init>":(Lnet/minecraft/world/inventory/CartographyTableMenu;)V
+        30: putfield      #77                 // Field resultContainer:Lnet/minecraft/world/inventory/ResultContainer;
+        33: aload_0
+        34: aload_3
+        35: putfield      #79                 // Field access:Lnet/minecraft/world/inventory/ContainerLevelAccess;
+        38: aload_0
+        39: new           #11                 // class net/minecraft/world/inventory/CartographyTableMenu$3
+        42: dup
+        43: aload_0
+        44: aload_0
+        45: getfield      #72                 // Field container:Lnet/minecraft/world/Container;
+        48: iconst_0
+        49: bipush        15
+        51: bipush        15
+        53: invokespecial #82                 // Method net/minecraft/world/inventory/CartographyTableMenu$3."<init>":(Lnet/minecraft/world/inventory/CartographyTableMenu;Lnet/minecraft/world/Container;III)V
+        56: invokevirtual #86                 // Method addSlot:(Lnet/minecraft/world/inventory/Slot;)Lnet/minecraft/world/inventory/Slot;
+        59: pop
+        60: aload_0
+        61: new           #9                  // class net/minecraft/world/inventory/CartographyTableMenu$4
+        64: dup
+        65: aload_0
+        66: aload_0
+        67: getfield      #72                 // Field container:Lnet/minecraft/world/Container;
+        70: iconst_1
+        71: bipush        15
+        73: bipush        52
+        75: invokespecial #87                 // Method net/minecraft/world/inventory/CartographyTableMenu$4."<init>":(Lnet/minecraft/world/inventory/CartographyTableMenu;Lnet/minecraft/world/Container;III)V
+        78: invokevirtual #86                 // Method addSlot:(Lnet/minecraft/world/inventory/Slot;)Lnet/minecraft/world/inventory/Slot;
+        81: pop
+        82: aload_0
+        83: new           #7                  // class net/minecraft/world/inventory/CartographyTableMenu$5
+        86: dup
+        87: aload_0
+        88: aload_0
+        89: getfield      #77                 // Field resultContainer:Lnet/minecraft/world/inventory/ResultContainer;
+        92: iconst_2
+        93: sipush        145
+        96: bipush        39
+        98: aload_3
+        99: invokespecial #90                 // Method net/minecraft/world/inventory/CartographyTableMenu$5."<init>":(Lnet/minecraft/world/inventory/CartographyTableMenu;Lnet/minecraft/world/Container;IIILnet/minecraft/world/inventory/ContainerLevelAccess;)V
+       102: invokevirtual #86                 // Method addSlot:(Lnet/minecraft/world/inventory/Slot;)Lnet/minecraft/world/inventory/Slot;
+       105: pop
+       106: aload_0
+       107: aload_2
+       108: bipush        8
+       110: bipush        84
+       112: invokevirtual #94                 // Method addStandardInventorySlots:(Lnet/minecraft/world/Container;II)V
+       115: return
+
+  public boolean stillValid(net.minecraft.world.entity.player.Player);
+    Code:
+         0: aload_0
+         1: getfield      #79                 // Field access:Lnet/minecraft/world/inventory/ContainerLevelAccess;
+         4: aload_1
+         5: getstatic     #101                // Field net/minecraft/world/level/block/Blocks.CARTOGRAPHY_TABLE:Lnet/minecraft/world/level/block/Block;
+         8: invokestatic  #104                // Method stillValid:(Lnet/minecraft/world/inventory/ContainerLevelAccess;Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/level/block/Block;)Z
+        11: ireturn
+
+  public void slotsChanged(net.minecraft.world.Container);
+    Code:
+         0: aload_0
+         1: getfield      #72                 // Field container:Lnet/minecraft/world/Container;
+         4: iconst_0
+         5: invokeinterface #113,  2          // InterfaceMethod net/minecraft/world/Container.getItem:(I)Lnet/minecraft/world/item/ItemStack;
+        10: astore_2
+        11: aload_0
+        12: getfield      #72                 // Field container:Lnet/minecraft/world/Container;
+        15: iconst_1
+        16: invokeinterface #113,  2          // InterfaceMethod net/minecraft/world/Container.getItem:(I)Lnet/minecraft/world/item/ItemStack;
+        21: astore_3
+        22: aload_0
+        23: getfield      #77                 // Field resultContainer:Lnet/minecraft/world/inventory/ResultContainer;
+        26: iconst_2
+        27: invokevirtual #116                // Method net/minecraft/world/inventory/ResultContainer.getItem:(I)Lnet/minecraft/world/item/ItemStack;
+        30: astore        4
+        32: aload         4
+        34: invokevirtual #122                // Method net/minecraft/world/item/ItemStack.isEmpty:()Z
+        37: ifne          66
+        40: aload_2
+        41: invokevirtual #122                // Method net/minecraft/world/item/ItemStack.isEmpty:()Z
+        44: ifne          54
+        47: aload_3
+        48: invokevirtual #122                // Method net/minecraft/world/item/ItemStack.isEmpty:()Z
+        51: ifeq          66
+        54: aload_0
+        55: getfield      #77                 // Field resultContainer:Lnet/minecraft/world/inventory/ResultContainer;
+        58: iconst_2
+        59: invokevirtual #125                // Method net/minecraft/world/inventory/ResultContainer.removeItemNoUpdate:(I)Lnet/minecraft/world/item/ItemStack;
+        62: pop
+        63: goto          88
+        66: aload_2
+        67: invokevirtual #122                // Method net/minecraft/world/item/ItemStack.isEmpty:()Z
+        70: ifne          88
+        73: aload_3
+        74: invokevirtual #122                // Method net/minecraft/world/item/ItemStack.isEmpty:()Z
+        77: ifne          88
+        80: aload_0
+        81: aload_2
+        82: aload_3
+        83: aload         4
+        85: invokevirtual #129                // Method setupResultSlot:(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemStack;)V
+        88: return
+
+  private void setupResultSlot(net.minecraft.world.item.ItemStack, net.minecraft.world.item.ItemStack, net.minecraft.world.item.ItemStack);
+    Code:
+         0: aload_0
+         1: getfield      #79                 // Field access:Lnet/minecraft/world/inventory/ContainerLevelAccess;
+         4: aload_0
+         5: aload_1
+         6: aload_2
+         7: aload_3
+         8: invokedynamic #151,  0            // InvokeDynamic #0:accept:(Lnet/minecraft/world/inventory/CartographyTableMenu;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemStack;)Ljava/util/function/BiConsumer;
+        13: invokeinterface #155,  2          // InterfaceMethod net/minecraft/world/inventory/ContainerLevelAccess.execute:(Ljava/util/function/BiConsumer;)V
+        18: return
+
+  public boolean canTakeItemForPickAll(net.minecraft.world.item.ItemStack, net.minecraft.world.inventory.Slot);
+    Code:
+         0: aload_2
+         1: getfield      #160                // Field net/minecraft/world/inventory/Slot.container:Lnet/minecraft/world/Container;
+         4: aload_0
+         5: getfield      #77                 // Field resultContainer:Lnet/minecraft/world/inventory/ResultContainer;
+         8: if_acmpeq     24
+        11: aload_0
+        12: aload_1
+        13: aload_2
+        14: invokespecial #162                // Method net/minecraft/world/inventory/AbstractContainerMenu.canTakeItemForPickAll:(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/inventory/Slot;)Z
+        17: ifeq          24
+        20: iconst_1
+        21: goto          25
+        24: iconst_0
+        25: ireturn
+
+  public net.minecraft.world.item.ItemStack quickMoveStack(net.minecraft.world.entity.player.Player, int);
+    Code:
+         0: getstatic     #168                // Field net/minecraft/world/item/ItemStack.EMPTY:Lnet/minecraft/world/item/ItemStack;
+         3: astore_3
+         4: aload_0
+         5: getfield      #172                // Field slots:Lnet/minecraft/core/NonNullList;
+         8: iload_2
+         9: invokevirtual #178                // Method net/minecraft/core/NonNullList.get:(I)Ljava/lang/Object;
+        12: checkcast     #159                // class net/minecraft/world/inventory/Slot
+        15: astore        4
+        17: aload         4
+        19: ifnull        296
+        22: aload         4
+        24: invokevirtual #181                // Method net/minecraft/world/inventory/Slot.hasItem:()Z
+        27: ifeq          296
+        30: aload         4
+        32: invokevirtual #184                // Method net/minecraft/world/inventory/Slot.getItem:()Lnet/minecraft/world/item/ItemStack;
+        35: astore        5
+        37: aload         5
+        39: invokevirtual #187                // Method net/minecraft/world/item/ItemStack.copy:()Lnet/minecraft/world/item/ItemStack;
+        42: astore_3
+        43: iload_2
+        44: iconst_2
+        45: if_icmpne     87
+        48: aload         5
+        50: invokevirtual #190                // Method net/minecraft/world/item/ItemStack.getItem:()Lnet/minecraft/world/item/Item;
+        53: aload         5
+        55: aload_1
+        56: invokevirtual #196                // Method net/minecraft/world/item/Item.onCraftedBy:(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/player/Player;)V
+        59: aload_0
+        60: aload         5
+        62: iconst_3
+        63: bipush        39
+        65: iconst_1
+        66: invokevirtual #200                // Method moveItemStackTo:(Lnet/minecraft/world/item/ItemStack;IIZ)Z
+        69: ifne          76
+        72: getstatic     #168                // Field net/minecraft/world/item/ItemStack.EMPTY:Lnet/minecraft/world/item/ItemStack;
+        75: areturn
+        76: aload         4
+        78: aload         5
+        80: aload_3
+        81: invokevirtual #206                // Method net/minecraft/world/inventory/Slot.onQuickCraft:(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemStack;)V
+        84: goto          247
+        87: iload_2
+        88: iconst_1
+        89: if_icmpeq     96
+        92: iload_2
+        93: ifne          113
+        96: aload_0
+        97: aload         5
+        99: iconst_3
+       100: bipush        39
+       102: iconst_0
+       103: invokevirtual #200                // Method moveItemStackTo:(Lnet/minecraft/world/item/ItemStack;IIZ)Z
+       106: ifne          247
+       109: getstatic     #168                // Field net/minecraft/world/item/ItemStack.EMPTY:Lnet/minecraft/world/item/ItemStack;
+       112: areturn
+       113: aload         5
+       115: getstatic     #212                // Field net/minecraft/core/component/DataComponents.MAP_ID:Lnet/minecraft/core/component/DataComponentType;
+       118: invokevirtual #216                // Method net/minecraft/world/item/ItemStack.has:(Lnet/minecraft/core/component/DataComponentType;)Z
+       121: ifeq          140
+       124: aload_0
+       125: aload         5
+       127: iconst_0
+       128: iconst_1
+       129: iconst_0
+       130: invokevirtual #200                // Method moveItemStackTo:(Lnet/minecraft/world/item/ItemStack;IIZ)Z
+       133: ifne          247
+       136: getstatic     #168                // Field net/minecraft/world/item/ItemStack.EMPTY:Lnet/minecraft/world/item/ItemStack;
+       139: areturn
+       140: aload         5
+       142: getstatic     #222                // Field net/minecraft/world/item/Items.PAPER:Lnet/minecraft/world/item/Item;
+       145: invokevirtual #226                // Method net/minecraft/world/item/ItemStack.is:(Lnet/minecraft/world/item/Item;)Z
+       148: ifne          173
+       151: aload         5
+       153: getstatic     #229                // Field net/minecraft/world/item/Items.MAP:Lnet/minecraft/world/item/Item;
+       156: invokevirtual #226                // Method net/minecraft/world/item/ItemStack.is:(Lnet/minecraft/world/item/Item;)Z
+       159: ifne          173
+       162: aload         5
+       164: getstatic     #232                // Field net/minecraft/world/item/Items.GLASS_PANE:Lnet/minecraft/world/item/Item;
+       167: invokevirtual #226                // Method net/minecraft/world/item/ItemStack.is:(Lnet/minecraft/world/item/Item;)Z
+       170: ifeq          189
+       173: aload_0
+       174: aload         5
+       176: iconst_1
+       177: iconst_2
+       178: iconst_0
+       179: invokevirtual #200                // Method moveItemStackTo:(Lnet/minecraft/world/item/ItemStack;IIZ)Z
+       182: ifne          247
+       185: getstatic     #168                // Field net/minecraft/world/item/ItemStack.EMPTY:Lnet/minecraft/world/item/ItemStack;
+       188: areturn
+       189: iload_2
+       190: iconst_3
+       191: if_icmplt     218
+       194: iload_2
+       195: bipush        30
+       197: if_icmpge     218
+       200: aload_0
+       201: aload         5
+       203: bipush        30
+       205: bipush        39
+       207: iconst_0
+       208: invokevirtual #200                // Method moveItemStackTo:(Lnet/minecraft/world/item/ItemStack;IIZ)Z
+       211: ifne          247
+       214: getstatic     #168                // Field net/minecraft/world/item/ItemStack.EMPTY:Lnet/minecraft/world/item/ItemStack;
+       217: areturn
+       218: iload_2
+       219: bipush        30
+       221: if_icmplt     247
+       224: iload_2
+       225: bipush        39
+       227: if_icmpge     247
+       230: aload_0
+       231: aload         5
+       233: iconst_3
+       234: bipush        30
+       236: iconst_0
+       237: invokevirtual #200                // Method moveItemStackTo:(Lnet/minecraft/world/item/ItemStack;IIZ)Z
+       240: ifne          247
+       243: getstatic     #168                // Field net/minecraft/world/item/ItemStack.EMPTY:Lnet/minecraft/world/item/ItemStack;
+       246: areturn
+       247: aload         5
+       249: invokevirtual #122                // Method net/minecraft/world/item/ItemStack.isEmpty:()Z
+       252: ifeq          263
+       255: aload         4
+       257: getstatic     #168                // Field net/minecraft/world/item/ItemStack.EMPTY:Lnet/minecraft/world/item/ItemStack;
+       260: invokevirtual #236                // Method net/minecraft/world/inventory/Slot.setByPlayer:(Lnet/minecraft/world/item/ItemStack;)V
+       263: aload         4
+       265: invokevirtual #240                // Method net/minecraft/world/inventory/Slot.setChanged:()V
+       268: aload         5
+       270: invokevirtual #244                // Method net/minecraft/world/item/ItemStack.getCount:()I
+       273: aload_3
+       274: invokevirtual #244                // Method net/minecraft/world/item/ItemStack.getCount:()I
+       277: if_icmpne     284
+       280: getstatic     #168                // Field net/minecraft/world/item/ItemStack.EMPTY:Lnet/minecraft/world/item/ItemStack;
+       283: areturn
+       284: aload         4
+       286: aload_1
+       287: aload         5
+       289: invokevirtual #248                // Method net/minecraft/world/inventory/Slot.onTake:(Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/item/ItemStack;)V
+       292: aload_0
+       293: invokevirtual #251                // Method broadcastChanges:()V
+       296: aload_3
+       297: areturn
+
+  public void removed(net.minecraft.world.entity.player.Player);
+    Code:
+         0: aload_0
+         1: aload_1
+         2: invokespecial #256                // Method net/minecraft/world/inventory/AbstractContainerMenu.removed:(Lnet/minecraft/world/entity/player/Player;)V
+         5: aload_0
+         6: getfield      #77                 // Field resultContainer:Lnet/minecraft/world/inventory/ResultContainer;
+         9: iconst_2
+        10: invokevirtual #125                // Method net/minecraft/world/inventory/ResultContainer.removeItemNoUpdate:(I)Lnet/minecraft/world/item/ItemStack;
+        13: pop
+        14: aload_0
+        15: getfield      #79                 // Field access:Lnet/minecraft/world/inventory/ContainerLevelAccess;
+        18: aload_0
+        19: aload_1
+        20: invokedynamic #264,  0            // InvokeDynamic #1:accept:(Lnet/minecraft/world/inventory/CartographyTableMenu;Lnet/minecraft/world/entity/player/Player;)Ljava/util/function/BiConsumer;
+        25: invokeinterface #155,  2          // InterfaceMethod net/minecraft/world/inventory/ContainerLevelAccess.execute:(Ljava/util/function/BiConsumer;)V
+        30: return
+
+  private void lambda$removed$1(net.minecraft.world.entity.player.Player, net.minecraft.world.level.Level, net.minecraft.core.BlockPos);
+    Code:
+         0: aload_0
+         1: aload_1
+         2: aload_0
+         3: getfield      #72                 // Field container:Lnet/minecraft/world/Container;
+         6: invokevirtual #268                // Method clearContainer:(Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/Container;)V
+         9: return
+
+  private void lambda$setupResultSlot$0(net.minecraft.world.item.ItemStack, net.minecraft.world.item.ItemStack, net.minecraft.world.item.ItemStack, net.minecraft.world.level.Level, net.minecraft.core.BlockPos);
+    Code:
+         0: aload_1
+         1: aload         4
+         3: invokestatic  #276                // Method net/minecraft/world/item/MapItem.getSavedData:(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/level/Level;)Lnet/minecraft/world/level/saveddata/maps/MapItemSavedData;
+         6: astore        6
+         8: aload         6
+        10: ifnonnull     14
+        13: return
+        14: aload_2
+        15: getstatic     #222                // Field net/minecraft/world/item/Items.PAPER:Lnet/minecraft/world/item/Item;
+        18: invokevirtual #226                // Method net/minecraft/world/item/ItemStack.is:(Lnet/minecraft/world/item/Item;)Z
+        21: ifeq          67
+        24: aload         6
+        26: getfield      #282                // Field net/minecraft/world/level/saveddata/maps/MapItemSavedData.locked:Z
+        29: ifne          67
+        32: aload         6
+        34: getfield      #286                // Field net/minecraft/world/level/saveddata/maps/MapItemSavedData.scale:B
+        37: iconst_4
+        38: if_icmpge     67
+        41: aload_1
+        42: iconst_1
+        43: invokevirtual #289                // Method net/minecraft/world/item/ItemStack.copyWithCount:(I)Lnet/minecraft/world/item/ItemStack;
+        46: astore        7
+        48: aload         7
+        50: getstatic     #292                // Field net/minecraft/core/component/DataComponents.MAP_POST_PROCESSING:Lnet/minecraft/core/component/DataComponentType;
+        53: getstatic     #298                // Field net/minecraft/world/item/component/MapPostProcessing.SCALE:Lnet/minecraft/world/item/component/MapPostProcessing;
+        56: invokevirtual #302                // Method net/minecraft/world/item/ItemStack.set:(Lnet/minecraft/core/component/DataComponentType;Ljava/lang/Object;)Ljava/lang/Object;
+        59: pop
+        60: aload_0
+        61: invokevirtual #251                // Method broadcastChanges:()V
+        64: goto          149
+        67: aload_2
+        68: getstatic     #232                // Field net/minecraft/world/item/Items.GLASS_PANE:Lnet/minecraft/world/item/Item;
+        71: invokevirtual #226                // Method net/minecraft/world/item/ItemStack.is:(Lnet/minecraft/world/item/Item;)Z
+        74: ifeq          111
+        77: aload         6
+        79: getfield      #282                // Field net/minecraft/world/level/saveddata/maps/MapItemSavedData.locked:Z
+        82: ifne          111
+        85: aload_1
+        86: iconst_1
+        87: invokevirtual #289                // Method net/minecraft/world/item/ItemStack.copyWithCount:(I)Lnet/minecraft/world/item/ItemStack;
+        90: astore        7
+        92: aload         7
+        94: getstatic     #292                // Field net/minecraft/core/component/DataComponents.MAP_POST_PROCESSING:Lnet/minecraft/core/component/DataComponentType;
+        97: getstatic     #305                // Field net/minecraft/world/item/component/MapPostProcessing.LOCK:Lnet/minecraft/world/item/component/MapPostProcessing;
+       100: invokevirtual #302                // Method net/minecraft/world/item/ItemStack.set:(Lnet/minecraft/core/component/DataComponentType;Ljava/lang/Object;)Ljava/lang/Object;
+       103: pop
+       104: aload_0
+       105: invokevirtual #251                // Method broadcastChanges:()V
+       108: goto          149
+       111: aload_2
+       112: getstatic     #229                // Field net/minecraft/world/item/Items.MAP:Lnet/minecraft/world/item/Item;
+       115: invokevirtual #226                // Method net/minecraft/world/item/ItemStack.is:(Lnet/minecraft/world/item/Item;)Z
+       118: ifeq          135
+       121: aload_1
+       122: iconst_2
+       123: invokevirtual #289                // Method net/minecraft/world/item/ItemStack.copyWithCount:(I)Lnet/minecraft/world/item/ItemStack;
+       126: astore        7
+       128: aload_0
+       129: invokevirtual #251                // Method broadcastChanges:()V
+       132: goto          149
+       135: aload_0
+       136: getfield      #77                 // Field resultContainer:Lnet/minecraft/world/inventory/ResultContainer;
+       139: iconst_2
+       140: invokevirtual #125                // Method net/minecraft/world/inventory/ResultContainer.removeItemNoUpdate:(I)Lnet/minecraft/world/item/ItemStack;
+       143: pop
+       144: aload_0
+       145: invokevirtual #251                // Method broadcastChanges:()V
+       148: return
+       149: aload         7
+       151: aload_3
+       152: invokestatic  #309                // Method net/minecraft/world/item/ItemStack.matches:(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemStack;)Z
+       155: ifne          172
+       158: aload_0
+       159: getfield      #77                 // Field resultContainer:Lnet/minecraft/world/inventory/ResultContainer;
+       162: iconst_2
+       163: aload         7
+       165: invokevirtual #313                // Method net/minecraft/world/inventory/ResultContainer.setItem:(ILnet/minecraft/world/item/ItemStack;)V
+       168: aload_0
+       169: invokevirtual #251                // Method broadcastChanges:()V
+       172: return
+}

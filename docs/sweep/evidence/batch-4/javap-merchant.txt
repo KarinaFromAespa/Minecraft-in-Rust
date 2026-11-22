@@ -1,0 +1,5 @@
+=== MerchantResultSlot onTake ===
+        64: invokeinterface #95,  2           // InterfaceMethod net/minecraft/world/item/trading/Merchant.notifyTrade:(Lnet/minecraft/world/item/trading/MerchantOffer;)V
+        70: getstatic     #101                // Field net/minecraft/stats/Stats.TRADED_WITH_VILLAGER:Lnet/minecraft/resources/ResourceLocation;
+        73: invokevirtual #105                // Method net/minecraft/world/entity/player/Player.awardStat:(Lnet/minecraft/resources/ResourceLocation;)V
+=== CraftingResultSlot onTake (control) ===

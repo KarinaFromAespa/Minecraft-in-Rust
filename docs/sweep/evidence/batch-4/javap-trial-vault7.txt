@@ -1,0 +1,375 @@
+=== TrialSpawnerState constants ===
+  private static final float DELAY_BEFORE_EJECT_AFTER_KILLING_LAST_MOB = 40.0f;
+  private static final int TIME_BETWEEN_EACH_EJECTION;
+=== tickAndGetNext full ===
+  net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerState tickAndGetNext(net.minecraft.core.BlockPos, net.minecraft.world.level.block.entity.trialspawner.TrialSpawner, net.minecraft.server.level.ServerLevel);
+    Code:
+         0: aload_2
+         1: invokevirtual #97                 // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawner.getStateData:()Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData;
+         4: astore        4
+         6: aload_2
+         7: invokevirtual #101                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawner.activeConfig:()Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerConfig;
+        10: astore        5
+        12: aload_0
+        13: invokevirtual #105                // Method ordinal:()I
+        16: tableswitch   { // 0 to 5
+                       0: 66
+                       1: 89
+                       2: 156
+                       3: 314
+                       4: 351
+                       5: 485
+                 default: 56
+            }
+        56: new           #107                // class java/lang/MatchException
+        59: dup
+        60: aconst_null
+        61: aconst_null
+        62: invokespecial #110                // Method java/lang/MatchException."<init>":(Ljava/lang/String;Ljava/lang/Throwable;)V
+        65: athrow
+        66: aload         4
+        68: aload_2
+        69: aload_3
+        70: getstatic     #116                // Field WAITING_FOR_PLAYERS:Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerState;
+        73: invokevirtual #120                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.getOrCreateDisplayEntity:(Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawner;Lnet/minecraft/world/level/Level;Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerState;)Lnet/minecraft/world/entity/Entity;
+        76: ifnonnull     83
+        79: aload_0
+        80: goto          551
+        83: getstatic     #116                // Field WAITING_FOR_PLAYERS:Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerState;
+        86: goto          551
+        89: aload_2
+        90: aload_3
+        91: invokevirtual #126                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawner.canSpawnInLevel:(Lnet/minecraft/server/level/ServerLevel;)Z
+        94: ifne          106
+        97: aload         4
+        99: invokevirtual #130                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.resetStatistics:()V
+       102: aload_0
+       103: goto          551
+       106: aload         4
+       108: aload_2
+       109: aload_3
+       110: getfield      #134                // Field net/minecraft/server/level/ServerLevel.random:Lnet/minecraft/util/RandomSource;
+       113: invokevirtual #138                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.hasMobToSpawn:(Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawner;Lnet/minecraft/util/RandomSource;)Z
+       116: ifne          125
+       119: getstatic     #140                // Field INACTIVE:Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerState;
+       122: goto          551
+       125: aload         4
+       127: aload_3
+       128: aload_1
+       129: aload_2
+       130: invokevirtual #144                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.tryDetectPlayers:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawner;)V
+       133: aload         4
+       135: getfield      #148                // Field net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.detectedPlayers:Ljava/util/Set;
+       138: invokeinterface #154,  1          // InterfaceMethod java/util/Set.isEmpty:()Z
+       143: ifeq          150
+       146: aload_0
+       147: goto          551
+       150: getstatic     #156                // Field ACTIVE:Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerState;
+       153: goto          551
+       156: aload_2
+       157: aload_3
+       158: invokevirtual #126                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawner.canSpawnInLevel:(Lnet/minecraft/server/level/ServerLevel;)Z
+       161: ifne          175
+       164: aload         4
+       166: invokevirtual #130                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.resetStatistics:()V
+       169: getstatic     #116                // Field WAITING_FOR_PLAYERS:Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerState;
+       172: goto          551
+       175: aload         4
+       177: aload_2
+       178: aload_3
+       179: getfield      #134                // Field net/minecraft/server/level/ServerLevel.random:Lnet/minecraft/util/RandomSource;
+       182: invokevirtual #138                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.hasMobToSpawn:(Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawner;Lnet/minecraft/util/RandomSource;)Z
+       185: ifne          194
+       188: getstatic     #140                // Field INACTIVE:Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerState;
+       191: goto          551
+       194: aload         4
+       196: aload_1
+       197: invokevirtual #162                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.countAdditionalPlayers:(Lnet/minecraft/core/BlockPos;)I
+       200: istore        6
+       202: aload         4
+       204: aload_3
+       205: aload_1
+       206: aload_2
+       207: invokevirtual #144                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.tryDetectPlayers:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawner;)V
+       210: aload_2
+       211: invokevirtual #165                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawner.isOminous:()Z
+       214: ifeq          224
+       217: aload_0
+       218: aload_3
+       219: aload_1
+       220: aload_2
+       221: invokevirtual #168                // Method spawnOminousOminousItemSpawner:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawner;)V
+       224: aload         4
+       226: aload         5
+       228: iload         6
+       230: invokevirtual #172                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.hasFinishedSpawningAllMobs:(Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerConfig;I)Z
+       233: ifeq          277
+       236: aload         4
+       238: invokevirtual #175                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.haveAllCurrentMobsDied:()Z
+       241: ifeq          310
+       244: aload         4
+       246: aload_3
+       247: invokevirtual #179                // Method net/minecraft/server/level/ServerLevel.getGameTime:()J
+       250: aload_2
+       251: invokevirtual #182                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawner.getTargetCooldownLength:()I
+       254: i2l
+       255: ladd
+       256: putfield      #186                // Field net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.cooldownEndsAt:J
+       259: aload         4
+       261: iconst_0
+       262: putfield      #189                // Field net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.totalMobsSpawned:I
+       265: aload         4
+       267: lconst_0
+       268: putfield      #192                // Field net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.nextMobSpawnsAt:J
+       271: getstatic     #194                // Field WAITING_FOR_REWARD_EJECTION:Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerState;
+       274: goto          551
+       277: aload         4
+       279: aload_3
+       280: aload         5
+       282: iload         6
+       284: invokevirtual #198                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.isReadyToSpawnNextMob:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerConfig;I)Z
+       287: ifeq          310
+       290: aload_2
+       291: aload_3
+       292: aload_1
+       293: invokevirtual #202                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawner.spawnMob:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/core/BlockPos;)Ljava/util/Optional;
+       296: aload         4
+       298: aload_3
+       299: aload         5
+       301: aload_2
+       302: invokedynamic #222,  0            // InvokeDynamic #0:accept:(Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData;Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerConfig;Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawner;)Ljava/util/function/Consumer;
+       307: invokevirtual #228                // Method java/util/Optional.ifPresent:(Ljava/util/function/Consumer;)V
+       310: aload_0
+       311: goto          551
+       314: aload         4
+       316: aload_3
+       317: ldc           #40                 // float 40.0f
+       319: aload_2
+       320: invokevirtual #182                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawner.getTargetCooldownLength:()I
+       323: invokevirtual #232                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.isReadyToOpenShutter:(Lnet/minecraft/server/level/ServerLevel;FI)Z
+       326: ifeq          347
+       329: aload_3
+       330: aconst_null
+       331: aload_1
+       332: getstatic     #238                // Field net/minecraft/sounds/SoundEvents.TRIAL_SPAWNER_OPEN_SHUTTER:Lnet/minecraft/sounds/SoundEvent;
+       335: getstatic     #244                // Field net/minecraft/sounds/SoundSource.BLOCKS:Lnet/minecraft/sounds/SoundSource;
+       338: invokevirtual #248                // Method net/minecraft/server/level/ServerLevel.playSound:(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/core/BlockPos;Lnet/minecraft/sounds/SoundEvent;Lnet/minecraft/sounds/SoundSource;)V
+       341: getstatic     #250                // Field EJECTING_REWARD:Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerState;
+       344: goto          551
+       347: aload_0
+       348: goto          551
+       351: aload         4
+       353: aload_3
+       354: getstatic     #252                // Field TIME_BETWEEN_EACH_EJECTION:I
+       357: i2f
+       358: aload_2
+       359: invokevirtual #182                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawner.getTargetCooldownLength:()I
+       362: invokevirtual #255                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.isReadyToEjectItems:(Lnet/minecraft/server/level/ServerLevel;FI)Z
+       365: ifne          372
+       368: aload_0
+       369: goto          551
+       372: aload         4
+       374: getfield      #148                // Field net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.detectedPlayers:Ljava/util/Set;
+       377: invokeinterface #154,  1          // InterfaceMethod java/util/Set.isEmpty:()Z
+       382: ifeq          411
+       385: aload_3
+       386: aconst_null
+       387: aload_1
+       388: getstatic     #258                // Field net/minecraft/sounds/SoundEvents.TRIAL_SPAWNER_CLOSE_SHUTTER:Lnet/minecraft/sounds/SoundEvent;
+       391: getstatic     #244                // Field net/minecraft/sounds/SoundSource.BLOCKS:Lnet/minecraft/sounds/SoundSource;
+       394: invokevirtual #248                // Method net/minecraft/server/level/ServerLevel.playSound:(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/core/BlockPos;Lnet/minecraft/sounds/SoundEvent;Lnet/minecraft/sounds/SoundSource;)V
+       397: aload         4
+       399: invokestatic  #262                // Method java/util/Optional.empty:()Ljava/util/Optional;
+       402: putfield      #266                // Field net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.ejectingLootTable:Ljava/util/Optional;
+       405: getstatic     #268                // Field COOLDOWN:Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerState;
+       408: goto          551
+       411: aload         4
+       413: getfield      #266                // Field net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.ejectingLootTable:Ljava/util/Optional;
+       416: invokevirtual #269                // Method java/util/Optional.isEmpty:()Z
+       419: ifeq          439
+       422: aload         4
+       424: aload         5
+       426: invokevirtual #273                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerConfig.lootTablesToEject:()Lnet/minecraft/util/random/WeightedList;
+       429: aload_3
+       430: invokevirtual #277                // Method net/minecraft/server/level/ServerLevel.getRandom:()Lnet/minecraft/util/RandomSource;
+       433: invokevirtual #282                // Method net/minecraft/util/random/WeightedList.getRandom:(Lnet/minecraft/util/RandomSource;)Ljava/util/Optional;
+       436: putfield      #266                // Field net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.ejectingLootTable:Ljava/util/Optional;
+       439: aload         4
+       441: getfield      #266                // Field net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.ejectingLootTable:Ljava/util/Optional;
+       444: aload_2
+       445: aload_3
+       446: aload_1
+       447: invokedynamic #292,  0            // InvokeDynamic #1:accept:(Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawner;Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/core/BlockPos;)Ljava/util/function/Consumer;
+       452: invokevirtual #228                // Method java/util/Optional.ifPresent:(Ljava/util/function/Consumer;)V
+       455: aload         4
+       457: getfield      #148                // Field net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.detectedPlayers:Ljava/util/Set;
+       460: aload         4
+       462: getfield      #148                // Field net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.detectedPlayers:Ljava/util/Set;
+       465: invokeinterface #296,  1          // InterfaceMethod java/util/Set.iterator:()Ljava/util/Iterator;
+       470: invokeinterface #301,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+       475: invokeinterface #305,  2          // InterfaceMethod java/util/Set.remove:(Ljava/lang/Object;)Z
+       480: pop
+       481: aload_0
+       482: goto          551
+       485: aload         4
+       487: aload_3
+       488: aload_1
+       489: aload_2
+       490: invokevirtual #144                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.tryDetectPlayers:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawner;)V
+       493: aload         4
+       495: getfield      #148                // Field net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.detectedPlayers:Ljava/util/Set;
+       498: invokeinterface #154,  1          // InterfaceMethod java/util/Set.isEmpty:()Z
+       503: ifne          524
+       506: aload         4
+       508: iconst_0
+       509: putfield      #189                // Field net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.totalMobsSpawned:I
+       512: aload         4
+       514: lconst_0
+       515: putfield      #192                // Field net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.nextMobSpawnsAt:J
+       518: getstatic     #156                // Field ACTIVE:Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerState;
+       521: goto          551
+       524: aload         4
+       526: aload_3
+       527: invokevirtual #308                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.isCooldownFinished:(Lnet/minecraft/server/level/ServerLevel;)Z
+       530: ifeq          550
+       533: aload_2
+       534: aload_3
+       535: aload_1
+       536: invokevirtual #312                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawner.removeOminous:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/core/BlockPos;)V
+       539: aload         4
+       541: invokevirtual #315                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.reset:()V
+       544: getstatic     #116                // Field WAITING_FOR_PLAYERS:Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerState;
+       547: goto          551
+       550: aload_0
+       551: areturn
+
+  private void spawnOminousOminousItemSpawner(net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos, net.minecraft.world.level.block.entity.trialspawner.TrialSpawner);
+    Code:
+         0: aload_3
+         1: invokevirtual #97                 // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawner.getStateData:()Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData;
+         4: astore        4
+         6: aload_3
+         7: invokevirtual #101                // Method net/minecraft/world/level/block/entity/trialspawner/TrialSpawner.activeConfig:()Lnet/minecraft/world/level/block/entity/trialspawner/TrialSpawnerConfig;
+        10: astore        5
+        12: aload         4
+=== Vault isValidToInsert + tryInsertKey ===
+  public static void tryInsertKey(net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos, net.minecraft.world.level.block.state.BlockState, net.minecraft.world.level.block.entity.vault.VaultConfig, net.minecraft.world.level.block.entity.vault.VaultServerData, net.minecraft.world.level.block.entity.vault.VaultSharedData, net.minecraft.world.entity.player.Player, net.minecraft.world.item.ItemStack);
+    Code:
+         0: aload_2
+         1: getstatic     #45                 // Field net/minecraft/world/level/block/VaultBlock.STATE:Lnet/minecraft/world/level/block/state/properties/Property;
+         4: invokevirtual #51                 // Method net/minecraft/world/level/block/state/BlockState.getValue:(Lnet/minecraft/world/level/block/state/properties/Property;)Ljava/lang/Comparable;
+         7: checkcast     #53                 // class net/minecraft/world/level/block/entity/vault/VaultState
+        10: astore        8
+        12: aload_3
+        13: aload         8
+        15: invokestatic  #116                // Method canEjectReward:(Lnet/minecraft/world/level/block/entity/vault/VaultConfig;Lnet/minecraft/world/level/block/entity/vault/VaultState;)Z
+        18: ifne          22
+        21: return
+        22: aload_3
+        23: aload         7
+        25: invokestatic  #120                // Method isValidToInsert:(Lnet/minecraft/world/level/block/entity/vault/VaultConfig;Lnet/minecraft/world/item/ItemStack;)Z
+        25: invokestatic  #120                // Method isValidToInsert:(Lnet/minecraft/world/level/block/entity/vault/VaultConfig;Lnet/minecraft/world/item/ItemStack;)Z
+        28: ifne          42
+        28: ifne          42
+        31: aload_0
+        31: aload_0
+        32: aload         4
+        32: aload         4
+        34: aload_1
+        34: aload_1
+        35: getstatic     #126                // Field net/minecraft/sounds/SoundEvents.VAULT_INSERT_ITEM_FAIL:Lnet/minecraft/sounds/SoundEvent;
+        35: getstatic     #126                // Field net/minecraft/sounds/SoundEvents.VAULT_INSERT_ITEM_FAIL:Lnet/minecraft/sounds/SoundEvent;
+        38: invokestatic  #130                // Method playInsertFailSound:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/block/entity/vault/VaultServerData;Lnet/minecraft/core/BlockPos;Lnet/minecraft/sounds/SoundEvent;)V
+        38: invokestatic  #130                // Method playInsertFailSound:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/block/entity/vault/VaultServerData;Lnet/minecraft/core/BlockPos;Lnet/minecraft/sounds/SoundEvent;)V
+        41: return
+        41: return
+        42: aload         4
+        42: aload         4
+        44: aload         6
+        44: aload         6
+        46: invokevirtual #134                // Method net/minecraft/world/level/block/entity/vault/VaultServerData.hasRewardedPlayer:(Lnet/minecraft/world/entity/player/Player;)Z
+        46: invokevirtual #134                // Method net/minecraft/world/level/block/entity/vault/VaultServerData.hasRewardedPlayer:(Lnet/minecraft/world/entity/player/Player;)Z
+        49: ifeq          63
+        49: ifeq          63
+        52: aload_0
+        52: aload_0
+        53: aload         4
+        53: aload         4
+        55: aload_1
+        55: aload_1
+        56: getstatic     #137                // Field net/minecraft/sounds/SoundEvents.VAULT_REJECT_REWARDED_PLAYER:Lnet/minecraft/sounds/SoundEvent;
+        56: getstatic     #137                // Field net/minecraft/sounds/SoundEvents.VAULT_REJECT_REWARDED_PLAYER:Lnet/minecraft/sounds/SoundEvent;
+        59: invokestatic  #130                // Method playInsertFailSound:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/block/entity/vault/VaultServerData;Lnet/minecraft/core/BlockPos;Lnet/minecraft/sounds/SoundEvent;)V
+        59: invokestatic  #130                // Method playInsertFailSound:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/block/entity/vault/VaultServerData;Lnet/minecraft/core/BlockPos;Lnet/minecraft/sounds/SoundEvent;)V
+        62: return
+        62: return
+        63: aload_0
+        63: aload_0
+        64: aload_3
+        64: aload_3
+        65: aload_1
+        65: aload_1
+        66: aload         6
+        66: aload         6
+        68: aload         7
+        68: aload         7
+        70: invokestatic  #141                // Method resolveItemsToEject:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/block/entity/vault/VaultConfig;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/item/ItemStack;)Ljava/util/List;
+        70: invokestatic  #141                // Method resolveItemsToEject:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/block/entity/vault/VaultConfig;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/item/ItemStack;)Ljava/util/List;
+        73: astore        9
+        73: astore        9
+        75: aload         9
+        75: aload         9
+        77: invokeinterface #147,  1          // InterfaceMethod java/util/List.isEmpty:()Z
+        77: invokeinterface #147,  1          // InterfaceMethod java/util/List.isEmpty:()Z
+        82: ifeq          86
+        82: ifeq          86
+        85: return
+        85: return
+        86: aload         6
+        86: aload         6
+        88: getstatic     #153                // Field net/minecraft/stats/Stats.ITEM_USED:Lnet/minecraft/stats/StatType;
+        88: getstatic     #153                // Field net/minecraft/stats/Stats.ITEM_USED:Lnet/minecraft/stats/StatType;
+        91: aload         7
+        91: aload         7
+        93: invokevirtual #159                // Method net/minecraft/world/item/ItemStack.getItem:()Lnet/minecraft/world/item/Item;
+        93: invokevirtual #159                // Method net/minecraft/world/item/ItemStack.getItem:()Lnet/minecraft/world/item/Item;
+        96: invokevirtual #165                // Method net/minecraft/stats/StatType.get:(Ljava/lang/Object;)Lnet/minecraft/stats/Stat;
+        96: invokevirtual #165                // Method net/minecraft/stats/StatType.get:(Ljava/lang/Object;)Lnet/minecraft/stats/Stat;
+        99: invokevirtual #171                // Method net/minecraft/world/entity/player/Player.awardStat:(Lnet/minecraft/stats/Stat;)V
+        99: invokevirtual #171                // Method net/minecraft/world/entity/player/Player.awardStat:(Lnet/minecraft/stats/Stat;)V
+       102: aload         7
+       102: aload         7
+       104: aload_3
+       104: aload_3
+       105: invokevirtual #177                // Method net/minecraft/world/level/block/entity/vault/VaultConfig.keyItem:()Lnet/minecraft/world/item/ItemStack;
+       105: invokevirtual #177                // Method net/minecraft/world/level/block/entity/vault/VaultConfig.keyItem:()Lnet/minecraft/world/item/ItemStack;
+       108: invokevirtual #181                // Method net/minecraft/world/item/ItemStack.getCount:()I
+       108: invokevirtual #181                // Method net/minecraft/world/item/ItemStack.getCount:()I
+       111: aload         6
+       111: aload         6
+       113: invokevirtual #185                // Method net/minecraft/world/item/ItemStack.consume:(ILnet/minecraft/world/entity/LivingEntity;)V
+       113: invokevirtual #185                // Method net/minecraft/world/item/ItemStack.consume:(ILnet/minecraft/world/entity/LivingEntity;)V
+       116: aload_0
+       116: aload_0
+       117: aload_2
+       117: aload_2
+       118: aload_1
+       118: aload_1
+       119: aload_3
+       119: aload_3
+       120: aload         4
+       120: aload         4
+       122: aload         5
+       122: aload         5
+       124: aload         9
+       124: aload         9
+       126: invokestatic  #189                // Method unlock:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/entity/vault/VaultConfig;Lnet/minecraft/world/level/block/entity/vault/VaultServerData;Lnet/minecraft/world/level/block/entity/vault/VaultSharedData;Ljava/util/List;)V
+       126: invokestatic  #189                // Method unlock:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/entity/vault/VaultConfig;Lnet/minecraft/world/level/block/entity/vault/VaultServerData;Lnet/minecraft/world/level/block/entity/vault/VaultSharedData;Ljava/util/List;)V
+       129: aload         4
+       129: aload         4
+       131: aload         6
+       131: aload         6
+       133: invokevirtual #193                // Method net/minecraft/world/level/block/entity/vault/VaultServerData.addToRewardedPlayers:(Lnet/minecraft/world/entity/player/Player;)V
+       133: invokevirtual #193                // Method net/minecraft/world/level/block/entity/vault/VaultServerData.addToRewardedPlayers:(Lnet/minecraft/world/entity/player/Player;)V
+       136: aload         5
+       136: aload         5

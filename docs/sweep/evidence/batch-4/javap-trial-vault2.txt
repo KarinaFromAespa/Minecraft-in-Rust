@@ -1,0 +1,12 @@
+=== StateData methods ===
+  final java.util.Set<java.util.UUID> detectedPlayers;
+  public int countAdditionalPlayers(net.minecraft.core.BlockPos);
+  public void tryDetectPlayers(net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos, net.minecraft.world.level.block.entity.trialspawner.TrialSpawner);
+  private static java.util.Optional<com.mojang.datafixers.util.Pair<net.minecraft.world.entity.player.Player, net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect>>> findPlayerWithOminousEffect(net.minecraft.server.level.ServerLevel, java.util.List<java.util.UUID>);
+  private static void transformBadOmenIntoTrialOmen(net.minecraft.world.entity.player.Player);
+  private static com.mojang.datafixers.util.Pair lambda$findPlayerWithOminousEffect$1(net.minecraft.world.entity.player.Player);
+  private static void lambda$tryDetectPlayers$0(net.minecraft.server.level.ServerLevel, net.minecraft.world.level.block.entity.trialspawner.TrialSpawner, net.minecraft.core.BlockPos, com.mojang.datafixers.util.Pair);
+=== PlayerDetector ===
+  public abstract java.util.List<java.util.UUID> detect(net.minecraft.server.level.ServerLevel, net.minecraft.world.level.block.entity.trialspawner.PlayerDetector$EntitySelector, net.minecraft.core.BlockPos, double, boolean);
+
+=== Vault Server methods ===

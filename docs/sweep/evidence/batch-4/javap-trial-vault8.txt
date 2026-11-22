@@ -1,0 +1,64 @@
+=== Vault isValidToInsert ===
+  private static boolean isValidToInsert(net.minecraft.world.level.block.entity.vault.VaultConfig, net.minecraft.world.item.ItemStack);
+    Code:
+         0: aload_1
+         1: aload_0
+         2: invokevirtual #177                // Method net/minecraft/world/level/block/entity/vault/VaultConfig.keyItem:()Lnet/minecraft/world/item/ItemStack;
+         5: invokestatic  #359                // Method net/minecraft/world/item/ItemStack.isSameItemSameComponents:(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemStack;)Z
+         8: ifeq          29
+        11: aload_1
+        12: invokevirtual #181                // Method net/minecraft/world/item/ItemStack.getCount:()I
+        15: aload_0
+        16: invokevirtual #177                // Method net/minecraft/world/level/block/entity/vault/VaultConfig.keyItem:()Lnet/minecraft/world/item/ItemStack;
+        19: invokevirtual #181                // Method net/minecraft/world/item/ItemStack.getCount:()I
+        22: if_icmplt     29
+        25: iconst_1
+        26: goto          30
+        29: iconst_0
+        30: ireturn
+
+=== countAdditionalPlayers ===
+  public int countAdditionalPlayers(net.minecraft.core.BlockPos);
+    Code:
+         0: aload_0
+         1: getfield      #85                 // Field detectedPlayers:Ljava/util/Set;
+         4: invokeinterface #189,  1          // InterfaceMethod java/util/Set.isEmpty:()Z
+         9: ifeq          24
+        12: aload_1
+        13: invokestatic  #213                // Method java/lang/String.valueOf:(Ljava/lang/Object;)Ljava/lang/String;
+        16: invokedynamic #225,  0            // InvokeDynamic #0:makeConcatWithConstants:(Ljava/lang/String;)Ljava/lang/String;
+        21: invokestatic  #231                // Method net/minecraft/Util.logAndPauseIfInIde:(Ljava/lang/String;)V
+        24: iconst_0
+        25: aload_0
+        26: getfield      #85                 // Field detectedPlayers:Ljava/util/Set;
+        29: invokeinterface #201,  1          // InterfaceMethod java/util/Set.size:()I
+        34: iconst_1
+        35: isub
+        36: invokestatic  #237                // Method java/lang/Math.max:(II)I
+        39: ireturn
+
+=== TrialSpawnerState clinit ===
+        61: bipush        8
+        87: bipush        8
+       113: bipush        8
+       165: putstatic     #252                // Field TIME_BETWEEN_EACH_EJECTION:I
+=== canSpawnInLevel ===
+  public boolean canSpawnInLevel(net.minecraft.server.level.ServerLevel);
+    Code:
+         0: aload_0
+         1: getfield      #289                // Field overridePeacefulAndMobSpawnRule:Z
+         4: ifeq          9
+         7: iconst_1
+         8: ireturn
+         9: aload_1
+        10: invokevirtual #293                // Method net/minecraft/server/level/ServerLevel.getDifficulty:()Lnet/minecraft/world/Difficulty;
+        13: getstatic     #299                // Field net/minecraft/world/Difficulty.PEACEFUL:Lnet/minecraft/world/Difficulty;
+        16: if_acmpne     21
+        19: iconst_0
+        20: ireturn
+        21: aload_1
+        22: invokevirtual #303                // Method net/minecraft/server/level/ServerLevel.getGameRules:()Lnet/minecraft/world/level/GameRules;
+        25: getstatic     #307                // Field net/minecraft/world/level/GameRules.RULE_DOMOBSPAWNING:Lnet/minecraft/world/level/GameRules$Key;
+        28: invokevirtual #311                // Method net/minecraft/world/level/GameRules.getBoolean:(Lnet/minecraft/world/level/GameRules$Key;)Z
+        31: ireturn
+

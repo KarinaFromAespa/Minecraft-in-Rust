@@ -1,0 +1,74 @@
+=== PlayerDetector classes in jar ===
+     2360  2026-11-12 14:40   net/minecraft/world/level/block/entity/trialspawner/PlayerDetector$EntitySelector$1.class
+     3630  2026-11-12 14:40   net/minecraft/world/level/block/entity/trialspawner/PlayerDetector$EntitySelector$2.class
+    11108  2026-11-12 14:40   net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerConfig.class
+     7711  2026-11-12 14:40   net/minecraft/world/level/block/entity/trialspawner/PlayerDetector.class
+    21105  2026-11-12 14:40   net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerState.class
+    21044  2026-11-12 14:40   net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData.class
+     6954  2026-11-12 14:40   net/minecraft/world/level/block/entity/vault/VaultBlockEntity.class
+    14089  2026-11-12 14:40   net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerConfigs.class
+    27856  2026-11-12 14:40   net/minecraft/world/level/block/entity/trialspawner/TrialSpawner.class
+     7668  2026-11-12 14:40   net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerStateData$Packed.class
+     8899  2026-11-12 14:40   net/minecraft/world/level/block/entity/vault/VaultBlockEntity$Client.class
+    13900  2026-11-12 14:40   net/minecraft/world/level/block/entity/vault/VaultBlockEntity$Server.class
+     2408  2026-11-12 14:40   net/minecraft/world/level/block/entity/trialspawner/PlayerDetector$EntitySelector.class
+     4173  2026-11-12 14:40   net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerConfig$Builder.class
+      539  2026-11-12 14:40   net/minecraft/world/level/block/entity/trialspawner/TrialSpawner$StateAccessor.class
+     6828  2026-11-12 14:40   net/minecraft/world/level/block/entity/trialspawner/TrialSpawner$FullConfig.class
+     2212  2026-11-12 14:40   net/minecraft/world/level/block/entity/trialspawner/TrialSpawner$FlameParticle.class
+      623  2026-11-12 14:40   net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerState$LightLevel.class
+      634  2026-11-12 14:40   net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerState$SpinningMob.class
+     3673  2026-11-12 14:40   net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerState$ParticleEmission.class
+=== PlayerDetector -p ===
+Compiled from "SourceFile"
+public interface net.minecraft.world.level.block.entity.trialspawner.PlayerDetector {
+  public static final net.minecraft.world.level.block.entity.trialspawner.PlayerDetector NO_CREATIVE_PLAYERS;
+  public static final net.minecraft.world.level.block.entity.trialspawner.PlayerDetector INCLUDING_CREATIVE_PLAYERS;
+  public static final net.minecraft.world.level.block.entity.trialspawner.PlayerDetector SHEEP;
+  public abstract java.util.List<java.util.UUID> detect(net.minecraft.server.level.ServerLevel, net.minecraft.world.level.block.entity.trialspawner.PlayerDetector$EntitySelector, net.minecraft.core.BlockPos, double, boolean);
+  private static boolean inLineOfSight(net.minecraft.world.level.Level, net.minecraft.world.phys.Vec3, net.minecraft.world.phys.Vec3);
+  private static java.util.List lambda$static$7(net.minecraft.server.level.ServerLevel, net.minecraft.world.level.block.entity.trialspawner.PlayerDetector$EntitySelector, net.minecraft.core.BlockPos, double, boolean);
+  private static boolean lambda$static$6(boolean, net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos, net.minecraft.world.entity.animal.sheep.Sheep);
+  private static java.util.List lambda$static$5(net.minecraft.server.level.ServerLevel, net.minecraft.world.level.block.entity.trialspawner.PlayerDetector$EntitySelector, net.minecraft.core.BlockPos, double, boolean);
+  private static boolean lambda$static$4(boolean, net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos, net.minecraft.world.entity.player.Player);
+  private static boolean lambda$static$3(net.minecraft.core.BlockPos, double, net.minecraft.world.entity.player.Player);
+  private static java.util.List lambda$static$2(net.minecraft.server.level.ServerLevel, net.minecraft.world.level.block.entity.trialspawner.PlayerDetector$EntitySelector, net.minecraft.core.BlockPos, double, boolean);
+  private static boolean lambda$static$1(boolean, net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos, net.minecraft.world.entity.player.Player);
+  private static boolean lambda$static$0(net.minecraft.core.BlockPos, double, net.minecraft.world.entity.player.Player);
+  static {};
+}
+=== TrialSpawner methods ===
+public final class net.minecraft.world.level.block.entity.trialspawner.TrialSpawner {
+  public static final int DETECT_PLAYER_SPAWN_BUFFER;
+  private static final float SPAWNING_AMBIENT_SOUND_CHANCE;
+  private final net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerStateData data;
+  private net.minecraft.world.level.block.entity.trialspawner.TrialSpawner$FullConfig config;
+  private final net.minecraft.world.level.block.entity.trialspawner.TrialSpawner$StateAccessor stateAccessor;
+  private net.minecraft.world.level.block.entity.trialspawner.PlayerDetector playerDetector;
+  private final net.minecraft.world.level.block.entity.trialspawner.PlayerDetector$EntitySelector entitySelector;
+  private boolean overridePeacefulAndMobSpawnRule;
+  public net.minecraft.world.level.block.entity.trialspawner.TrialSpawner(net.minecraft.world.level.block.entity.trialspawner.TrialSpawner$FullConfig, net.minecraft.world.level.block.entity.trialspawner.TrialSpawner$StateAccessor, net.minecraft.world.level.block.entity.trialspawner.PlayerDetector, net.minecraft.world.level.block.entity.trialspawner.PlayerDetector$EntitySelector);
+  public net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerConfig activeConfig();
+  public net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerConfig normalConfig();
+  public net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerConfig ominousConfig();
+  public net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerState getState();
+  public net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerStateData getStateData();
+  public void setState(net.minecraft.world.level.Level, net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerState);
+  public net.minecraft.world.level.block.entity.trialspawner.PlayerDetector getPlayerDetector();
+  public net.minecraft.world.level.block.entity.trialspawner.PlayerDetector$EntitySelector getEntitySelector();
+  public boolean canSpawnInLevel(net.minecraft.server.level.ServerLevel);
+  public java.util.Optional<java.util.UUID> spawnMob(net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos);
+  public void ejectReward(net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos, net.minecraft.resources.ResourceKey<net.minecraft.world.level.storage.loot.LootTable>);
+  public void tickClient(net.minecraft.world.level.Level, net.minecraft.core.BlockPos, boolean);
+  public void tickServer(net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos, boolean);
+  public static void addSpawnParticles(net.minecraft.world.level.Level, net.minecraft.core.BlockPos, net.minecraft.util.RandomSource, net.minecraft.core.particles.SimpleParticleType);
+  public static void addDetectPlayerParticles(net.minecraft.world.level.Level, net.minecraft.core.BlockPos, net.minecraft.util.RandomSource, int, net.minecraft.core.particles.ParticleOptions);
+  public static void addEjectItemParticles(net.minecraft.world.level.Level, net.minecraft.core.BlockPos, net.minecraft.util.RandomSource);
+  public void overrideEntityToSpawn(net.minecraft.world.entity.EntityType<?>, net.minecraft.world.level.Level);
+  public void setPlayerDetector(net.minecraft.world.level.block.entity.trialspawner.PlayerDetector);
+  public void overridePeacefulAndMobSpawnRule();
+  private static boolean lambda$tickServer$3(net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos, java.util.UUID);
+  private static net.minecraft.world.entity.Entity lambda$spawnMob$2(net.minecraft.world.phys.Vec3, net.minecraft.util.RandomSource, net.minecraft.world.entity.Entity);
+  private net.minecraft.world.phys.Vec3 lambda$spawnMob$1(net.minecraft.core.BlockPos, net.minecraft.util.RandomSource);
+  private static java.lang.String lambda$spawnMob$0(net.minecraft.core.BlockPos);
+=== VaultBlockEntity methods ===

@@ -1,0 +1,28 @@
+=== TrialSpawnerState methods ===
+  public static final net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerState WAITING_FOR_REWARD_EJECTION;
+  public static final net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerState EJECTING_REWARD;
+  private static final float DELAY_BEFORE_EJECT_AFTER_KILLING_LAST_MOB;
+  private static final int TIME_BETWEEN_EACH_EJECTION;
+  net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerState tickAndGetNext(net.minecraft.core.BlockPos, net.minecraft.world.level.block.entity.trialspawner.TrialSpawner, net.minecraft.server.level.ServerLevel);
+  private static void lambda$tickAndGetNext$2(net.minecraft.world.level.block.entity.trialspawner.TrialSpawner, net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos, net.minecraft.resources.ResourceKey);
+  private static void lambda$tickAndGetNext$1(net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerStateData, net.minecraft.server.level.ServerLevel, net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerConfig, net.minecraft.world.level.block.entity.trialspawner.TrialSpawner, java.util.UUID);
+  private static void lambda$tickAndGetNext$0(net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerStateData, net.minecraft.world.level.block.entity.trialspawner.TrialSpawner, net.minecraft.world.level.SpawnData);
+=== Vault Server -p ===
+Compiled from "SourceFile"
+public final class net.minecraft.world.level.block.entity.vault.VaultBlockEntity$Server {
+  private static final int UNLOCKING_DELAY_TICKS;
+  private static final int DISPLAY_CYCLE_TICK_RATE;
+  private static final int INSERT_FAIL_SOUND_BUFFER_TICKS;
+  public net.minecraft.world.level.block.entity.vault.VaultBlockEntity$Server();
+  public static void tick(net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos, net.minecraft.world.level.block.state.BlockState, net.minecraft.world.level.block.entity.vault.VaultConfig, net.minecraft.world.level.block.entity.vault.VaultServerData, net.minecraft.world.level.block.entity.vault.VaultSharedData);
+  public static void tryInsertKey(net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos, net.minecraft.world.level.block.state.BlockState, net.minecraft.world.level.block.entity.vault.VaultConfig, net.minecraft.world.level.block.entity.vault.VaultServerData, net.minecraft.world.level.block.entity.vault.VaultSharedData, net.minecraft.world.entity.player.Player, net.minecraft.world.item.ItemStack);
+  static void setVaultState(net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos, net.minecraft.world.level.block.state.BlockState, net.minecraft.world.level.block.state.BlockState, net.minecraft.world.level.block.entity.vault.VaultConfig, net.minecraft.world.level.block.entity.vault.VaultSharedData);
+  static void cycleDisplayItemFromLootTable(net.minecraft.server.level.ServerLevel, net.minecraft.world.level.block.entity.vault.VaultState, net.minecraft.world.level.block.entity.vault.VaultConfig, net.minecraft.world.level.block.entity.vault.VaultSharedData, net.minecraft.core.BlockPos);
+  private static net.minecraft.world.item.ItemStack getRandomDisplayItemFromLootTable(net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos, net.minecraft.resources.ResourceKey<net.minecraft.world.level.storage.loot.LootTable>);
+  private static void unlock(net.minecraft.server.level.ServerLevel, net.minecraft.world.level.block.state.BlockState, net.minecraft.core.BlockPos, net.minecraft.world.level.block.entity.vault.VaultConfig, net.minecraft.world.level.block.entity.vault.VaultServerData, net.minecraft.world.level.block.entity.vault.VaultSharedData, java.util.List<net.minecraft.world.item.ItemStack>);
+  private static java.util.List<net.minecraft.world.item.ItemStack> resolveItemsToEject(net.minecraft.server.level.ServerLevel, net.minecraft.world.level.block.entity.vault.VaultConfig, net.minecraft.core.BlockPos, net.minecraft.world.entity.player.Player, net.minecraft.world.item.ItemStack);
+  private static boolean canEjectReward(net.minecraft.world.level.block.entity.vault.VaultConfig, net.minecraft.world.level.block.entity.vault.VaultState);
+  private static boolean isValidToInsert(net.minecraft.world.level.block.entity.vault.VaultConfig, net.minecraft.world.item.ItemStack);
+  private static boolean shouldCycleDisplayItem(long, net.minecraft.world.level.block.entity.vault.VaultState);
+  private static void playInsertFailSound(net.minecraft.server.level.ServerLevel, net.minecraft.world.level.block.entity.vault.VaultServerData, net.minecraft.core.BlockPos, net.minecraft.sounds.SoundEvent);
+}

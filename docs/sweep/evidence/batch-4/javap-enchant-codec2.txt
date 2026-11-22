@@ -1,0 +1,30 @@
+  static {};
+    Code:
+         0: new           #2                  // class net/minecraft/world/item/enchantment/ItemEnchantments
+         3: dup
+         4: new           #68                 // class it/unimi/dsi/fastutil/objects/Object2IntOpenHashMap
+         7: dup
+         8: invokespecial #266                // Method it/unimi/dsi/fastutil/objects/Object2IntOpenHashMap."<init>":()V
+        11: invokespecial #263                // Method "<init>":(Lit/unimi/dsi/fastutil/objects/Object2IntOpenHashMap;)V
+        14: putstatic     #268                // Field EMPTY:Lnet/minecraft/world/item/enchantment/ItemEnchantments;
+        17: iconst_1
+        18: sipush        255
+        21: invokestatic  #274                // InterfaceMethod com/mojang/serialization/Codec.intRange:(II)Lcom/mojang/serialization/Codec;
+        24: putstatic     #276                // Field LEVEL_CODEC:Lcom/mojang/serialization/Codec;
+        27: getstatic     #278                // Field net/minecraft/world/item/enchantment/Enchantment.CODEC:Lcom/mojang/serialization/Codec;
+        30: getstatic     #276                // Field LEVEL_CODEC:Lcom/mojang/serialization/Codec;
+        33: invokestatic  #282                // InterfaceMethod com/mojang/serialization/Codec.unboundedMap:(Lcom/mojang/serialization/Codec;Lcom/mojang/serialization/Codec;)Lcom/mojang/serialization/codecs/UnboundedMapCodec;
+        36: invokedynamic #299,  0            // InvokeDynamic #2:apply:()Ljava/util/function/Function;
+        41: invokedynamic #304,  0            // InvokeDynamic #3:apply:()Ljava/util/function/Function;
+        46: invokevirtual #310                // Method com/mojang/serialization/codecs/UnboundedMapCodec.xmap:(Ljava/util/function/Function;Ljava/util/function/Function;)Lcom/mojang/serialization/Codec;
+        49: putstatic     #311                // Field CODEC:Lcom/mojang/serialization/Codec;
+        52: invokedynamic #322,  0            // InvokeDynamic #4:apply:()Ljava/util/function/IntFunction;
+        57: getstatic     #324                // Field net/minecraft/world/item/enchantment/Enchantment.STREAM_CODEC:Lnet/minecraft/network/codec/StreamCodec;
+        60: getstatic     #329                // Field net/minecraft/network/codec/ByteBufCodecs.VAR_INT:Lnet/minecraft/network/codec/StreamCodec;
+        63: invokestatic  #333                // InterfaceMethod net/minecraft/network/codec/ByteBufCodecs.map:(Ljava/util/function/IntFunction;Lnet/minecraft/network/codec/StreamCodec;Lnet/minecraft/network/codec/StreamCodec;)Lnet/minecraft/network/codec/StreamCodec;
+        66: invokedynamic #338,  0            // InvokeDynamic #5:apply:()Ljava/util/function/Function;
+        71: invokedynamic #342,  0            // InvokeDynamic #6:apply:()Ljava/util/function/Function;
+        76: invokestatic  #348                // InterfaceMethod net/minecraft/network/codec/StreamCodec.composite:(Lnet/minecraft/network/codec/StreamCodec;Ljava/util/function/Function;Ljava/util/function/Function;)Lnet/minecraft/network/codec/StreamCodec;
+        79: putstatic     #349                // Field STREAM_CODEC:Lnet/minecraft/network/codec/StreamCodec;
+        82: return
+}

@@ -1,0 +1,3 @@
+=== TrialSpawnerState tick EJECTING ===
+=== Vault Server full -p ===
+Error: class not found: net.minecraft.world.level.block.entity.VaultBlockEntity$Server

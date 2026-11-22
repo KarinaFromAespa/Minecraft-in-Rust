@@ -1,0 +1,110 @@
+=== PlayerDetector lambdas ===
+  private static java.util.List lambda$static$2(net.minecraft.server.level.ServerLevel, net.minecraft.world.level.block.entity.trialspawner.PlayerDetector$EntitySelector, net.minecraft.core.BlockPos, double, boolean);
+    Code:
+         0: aload_1
+         1: aload_0
+         2: aload_2
+         3: dload_3
+         4: invokedynamic #241,  0            // InvokeDynamic #6:test:(Lnet/minecraft/core/BlockPos;D)Ljava/util/function/Predicate;
+         9: invokeinterface #212,  3          // InterfaceMethod net/minecraft/world/level/block/entity/trialspawner/PlayerDetector$EntitySelector.getPlayers:(Lnet/minecraft/server/level/ServerLevel;Ljava/util/function/Predicate;)Ljava/util/List;
+        14: invokeinterface #141,  1          // InterfaceMethod java/util/List.stream:()Ljava/util/stream/Stream;
+        19: iload         5
+        21: aload_0
+        22: aload_2
+        23: invokedynamic #246,  0            // InvokeDynamic #7:test:(ZLnet/minecraft/server/level/ServerLevel;Lnet/minecraft/core/BlockPos;)Ljava/util/function/Predicate;
+        28: invokeinterface #155,  2          // InterfaceMethod java/util/stream/Stream.filter:(Ljava/util/function/Predicate;)Ljava/util/stream/Stream;
+        33: invokedynamic #221,  0            // InvokeDynamic #5:apply:()Ljava/util/function/Function;
+        38: invokeinterface #174,  2          // InterfaceMethod java/util/stream/Stream.map:(Ljava/util/function/Function;)Ljava/util/stream/Stream;
+        43: invokeinterface #178,  1          // InterfaceMethod java/util/stream/Stream.toList:()Ljava/util/List;
+        48: areturn
+
+  private static boolean lambda$static$1(boolean, net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos, net.minecraft.world.entity.player.Player);
+    Code:
+         0: iload_0
+         1: ifeq          19
+         4: aload_1
+         5: aload_2
+         6: invokevirtual #189                // Method net/minecraft/core/BlockPos.getCenter:()Lnet/minecraft/world/phys/Vec3;
+         9: aload_3
+        10: invokevirtual #224                // Method net/minecraft/world/entity/player/Player.getEyePosition:()Lnet/minecraft/world/phys/Vec3;
+        13: invokestatic  #196                // InterfaceMethod inLineOfSight:(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;)Z
+        16: ifeq          23
+        19: iconst_1
+        20: goto          24
+        23: iconst_0
+        24: ireturn
+
+  private static boolean lambda$static$0(net.minecraft.core.BlockPos, double, net.minecraft.world.entity.player.Player);
+  private static boolean lambda$static$0(net.minecraft.core.BlockPos, double, net.minecraft.world.entity.player.Player);
+    Code:
+    Code:
+         0: aload_3
+         0: aload_3
+         1: invokevirtual #228                // Method net/minecraft/world/entity/player/Player.blockPosition:()Lnet/minecraft/core/BlockPos;
+         1: invokevirtual #228                // Method net/minecraft/world/entity/player/Player.blockPosition:()Lnet/minecraft/core/BlockPos;
+         4: aload_0
+         4: aload_0
+         5: dload_1
+         5: dload_1
+         6: invokevirtual #232                // Method net/minecraft/core/BlockPos.closerThan:(Lnet/minecraft/core/Vec3i;D)Z
+         6: invokevirtual #232                // Method net/minecraft/core/BlockPos.closerThan:(Lnet/minecraft/core/Vec3i;D)Z
+         9: ifeq          30
+         9: ifeq          30
+        12: aload_3
+        12: aload_3
+        13: invokevirtual #249                // Method net/minecraft/world/entity/player/Player.isCreative:()Z
+        13: invokevirtual #249                // Method net/minecraft/world/entity/player/Player.isCreative:()Z
+        16: ifne          30
+        16: ifne          30
+        19: aload_3
+        19: aload_3
+        20: invokevirtual #235                // Method net/minecraft/world/entity/player/Player.isSpectator:()Z
+        20: invokevirtual #235                // Method net/minecraft/world/entity/player/Player.isSpectator:()Z
+        23: ifne          30
+        23: ifne          30
+        26: iconst_1
+        26: iconst_1
+        27: goto          31
+        27: goto          31
+        30: iconst_0
+        30: iconst_0
+        31: ireturn
+        31: ireturn
+
+
+  static {};
+  static {};
+    Code:
+    Code:
+         0: invokedynamic #258,  0            // InvokeDynamic #8:detect:()Lnet/minecraft/world/level/block/entity/trialspawner/PlayerDetector;
+         0: invokedynamic #258,  0            // InvokeDynamic #8:detect:()Lnet/minecraft/world/level/block/entity/trialspawner/PlayerDetector;
+         5: putstatic     #260                // Field NO_CREATIVE_PLAYERS:Lnet/minecraft/world/level/block/entity/trialspawner/PlayerDetector;
+         5: putstatic     #260                // Field NO_CREATIVE_PLAYERS:Lnet/minecraft/world/level/block/entity/trialspawner/PlayerDetector;
+         8: invokedynamic #264,  0            // InvokeDynamic #9:detect:()Lnet/minecraft/world/level/block/entity/trialspawner/PlayerDetector;
+         8: invokedynamic #264,  0            // InvokeDynamic #9:detect:()Lnet/minecraft/world/level/block/entity/trialspawner/PlayerDetector;
+        13: putstatic     #266                // Field INCLUDING_CREATIVE_PLAYERS:Lnet/minecraft/world/level/block/entity/trialspawner/PlayerDetector;
+        13: putstatic     #266                // Field INCLUDING_CREATIVE_PLAYERS:Lnet/minecraft/world/level/block/entity/trialspawner/PlayerDetector;
+        16: invokedynamic #270,  0            // InvokeDynamic #10:detect:()Lnet/minecraft/world/level/block/entity/trialspawner/PlayerDetector;
+        16: invokedynamic #270,  0            // InvokeDynamic #10:detect:()Lnet/minecraft/world/level/block/entity/trialspawner/PlayerDetector;
+        21: putstatic     #272                // Field SHEEP:Lnet/minecraft/world/level/block/entity/trialspawner/PlayerDetector;
+        21: putstatic     #272                // Field SHEEP:Lnet/minecraft/world/level/block/entity/trialspawner/PlayerDetector;
+        24: return
+        24: return
+}
+}
+=== TrialSpawner tickServer (eject + constants) ===
+20:        38: invokevirtual #753                // Method net/minecraft/server/level/ServerLevel.getGameTime:()J
+=== Vault classes methods ===
+--- Server ---
+--- VaultServerData ---
+  private final java.util.List<net.minecraft.world.item.ItemStack> itemsToEject;
+  private long lastInsertFailTimestamp;
+  private int totalEjectionsNeeded;
+  void setLastInsertFailTimestamp(long);
+  long getLastInsertFailTimestamp();
+  java.util.List<net.minecraft.world.item.ItemStack> getItemsToEject();
+  void markEjectionFinished();
+  void setItemsToEject(java.util.List<net.minecraft.world.item.ItemStack>);
+  net.minecraft.world.item.ItemStack getNextItemToEject();
+  net.minecraft.world.item.ItemStack popNextItemToEject();
+  public float ejectionProgress();

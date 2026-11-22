@@ -1,0 +1,47 @@
+=== TrialSpawnerStateData tick ===
+=== TrialSpawnerStateData detectPlayers ===
+=== TrialSpawner constants ===
+  private static final int MAX_MOB_TRACKING_DISTANCE = 47;
+  private static final int MAX_MOB_TRACKING_DISTANCE_SQR;
+=== VaultSharedData updateConnected ===
+  void updateConnectedPlayersWithinRange(net.minecraft.server.level.ServerLevel, net.minecraft.core.BlockPos, net.minecraft.world.level.block.entity.vault.VaultServerData, net.minecraft.world.level.block.entity.vault.VaultConfig, double);
+    Code:
+         0: aload         4
+         2: invokevirtual #114                // Method net/minecraft/world/level/block/entity/vault/VaultConfig.playerDetector:()Lnet/minecraft/world/level/block/entity/trialspawner/PlayerDetector;
+         5: aload_1
+         6: aload         4
+         8: invokevirtual #118                // Method net/minecraft/world/level/block/entity/vault/VaultConfig.entitySelector:()Lnet/minecraft/world/level/block/entity/trialspawner/PlayerDetector$EntitySelector;
+        11: aload_2
+        12: dload         5
+        14: iconst_0
+        15: invokeinterface #122,  7          // InterfaceMethod net/minecraft/world/level/block/entity/trialspawner/PlayerDetector.detect:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/block/entity/trialspawner/PlayerDetector$EntitySelector;Lnet/minecraft/core/BlockPos;DZ)Ljava/util/List;
+        20: invokeinterface #128,  1          // InterfaceMethod java/util/List.stream:()Ljava/util/stream/Stream;
+        25: aload_3
+        26: invokedynamic #148,  0            // InvokeDynamic #0:test:(Lnet/minecraft/world/level/block/entity/vault/VaultServerData;)Ljava/util/function/Predicate;
+        31: invokeinterface #154,  2          // InterfaceMethod java/util/stream/Stream.filter:(Ljava/util/function/Predicate;)Ljava/util/stream/Stream;
+        36: invokestatic  #160                // Method java/util/stream/Collectors.toSet:()Ljava/util/stream/Collector;
+        39: invokeinterface #164,  2          // InterfaceMethod java/util/stream/Stream.collect:(Ljava/util/stream/Collector;)Ljava/lang/Object;
+        44: checkcast     #76                 // class java/util/Set
+        47: astore        7
+        49: aload_0
+        50: getfield      #62                 // Field connectedPlayers:Ljava/util/Set;
+        53: aload         7
+        55: invokeinterface #167,  2          // InterfaceMethod java/util/Set.equals:(Ljava/lang/Object;)Z
+        60: ifne          73
+        63: aload_0
+        64: aload         7
+        66: putfield      #62                 // Field connectedPlayers:Ljava/util/Set;
+        69: aload_0
+        70: invokevirtual #101                // Method markDirty:()V
+        73: return
+
+  private static boolean lambda$updateConnectedPlayersWithinRange$4(net.minecraft.world.level.block.entity.vault.VaultServerData, java.util.UUID);
+    Code:
+         0: aload_0
+         1: invokevirtual #180                // Method net/minecraft/world/level/block/entity/vault/VaultServerData.getRewardedPlayers:()Ljava/util/Set;
+         4: aload_1
+         5: invokeinterface #183,  2          // InterfaceMethod java/util/Set.contains:(Ljava/lang/Object;)Z
+        10: ifne          17
+        13: iconst_1
+        14: goto          18
+=== Vault Server tryInsertKey ===
