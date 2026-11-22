@@ -12816,3 +12816,7 @@ Interface declaration order only.
 ## Item 729 — worldgen/structure/simple.rs (IglooPieces, ShipwreckPieces) — NO-CHANGE
 
 Visibility plus an `is` overload.
+
+## Item 730 — worldgen/structure/start.rs (RandomSpreadStructurePlacement) — NO-CHANGE
+
+Record-vs-field access (`ChunkPos.x()` vs `ChunkPos.x`), as item 725.
