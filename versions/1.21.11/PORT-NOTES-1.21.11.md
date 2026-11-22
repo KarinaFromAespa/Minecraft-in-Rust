@@ -13219,3 +13219,11 @@ no behaviour.
 holder (anim time, active, rotation, phase, hunting). The Rust
 carries the same fields in `BlockAnim.conduit` and renders the
 conduit from the shell/cage/wind/eye entity models.
+
+## Item 782 — client/renderer/entity (new-classes) — NO-CHANGE
+
+1 class: `ItemRenderer` — in 1.21.11 a small static utility
+(first-person rendering lives in `ItemInHandRenderer`): the foil
+constants and `renderItem` / `getFoilBuffer` /
+`getFoilRenderTypes`. The Rust's item_render.rs is its counterpart
+with the same foil structure and glint UV math.
