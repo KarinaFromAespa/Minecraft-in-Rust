@@ -15780,12 +15780,31 @@ is the oracle; decompiled code is a reading aid.
     wgpu-native renderer.
   - Verification: read / only; no code / changed.
 
+- **Item 409 — AbstractUniform / GlBuffer.ReadView**
+  - AbstractUniform /
+    GlBuffer.ReadView:
+    verified, no code. Both
+    are 1.21.5-only OpenGL
+    classes - the uniform
+    base class and the GL
+    buffer read view -
+    removed by 1.21.6's GPU
+    abstraction refactor.
+    Same ground as items
+    293 and 408: the port
+    is wgpu-native, drives
+    uniforms through its
+    own uniform buffers,
+    and references neither
+    class.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **408 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 7/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **409 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 8/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
