@@ -1,28 +1,28 @@
 {
   "schema": "delta-verdict/1",
   "release": "1.21.11",
-  "commit": "e974f98848bf3bd340744b51ea8c5df1353cf1f3",
+  "commit": "9e6c9bcf1378788e64064c25ea1a0dd656fcc247",
   "tree": ".horizon-ports/1.21.11",
   "pin": "pins/1.21.11",
   "mode": "recorded",
   "verified": false,
   "state": "failed",
-  "checked_at": "2026-11-21T03:00:25Z",
+  "checked_at": "2026-11-22T07:21:32Z",
   "scalars": {
     "tier": "D",
     "suite_pass": null,
     "suite_total": null,
     "suite_exempt": 0,
-    "items_closed": null,
-    "items_total": null,
+    "items_closed": 502,
+    "items_total": 502,
     "items_accepted": 0
   },
-  "index_line": "| 1.21.11 | D | \u2014 | \u2014 | 0 | failed 2026-11-21 |",
+  "index_line": "| 1.21.11 | D | \u2014 | 502/502 | 0 | failed 2026-11-22 |",
   "checks": {
     "D1": {
       "status": "fail",
       "notes": [
-        "tag audit: dead production tag(s): minecraft:beneath_bamboo_podzol_replaceable, minecraft:blocks_dolphin_jump, minecraft:blocks_fluid_flow, minecraft:blocks_lava_fire_spread, minecraft:blocks_motion_in_heightmap (+18 more)"
+        "tag audit: dead production tag(s): minecraft:beneath_bamboo_podzol_replaceable, minecraft:blocks_dolphin_jump, minecraft:blocks_fluid_flow, minecraft:blocks_lava_fire_spread, minecraft:blocks_motion_in_heightmap (+16 more)"
       ],
       "evidence": [
         ".horizon-ports/1.21.11/research-lock.json",
@@ -45,19 +45,27 @@
       ]
     },
     "D3": {
-      "status": "fail",
+      "status": "pass",
       "notes": [
-        "rank-2: 171 of 492 item(s) neither closed nor accepted"
+        "rank-1: 10 closed, 0 accepted, 10 total",
+        "rank-2: 492 closed, 0 accepted, 492 total",
+        "totals read from summary.ranks",
+        "rank-3+: This release IS the E6 template: rank-3+ items are the template's own answers, unmeasured until the behaviour port reaches them."
       ],
       "evidence": [
         ".horizon-ports/1.21.11/diff-26.1-1.21.11/report.json",
         "pins/1.21.11/work-items.json"
-      ]
+      ],
+      "metrics": {
+        "items_closed": 502,
+        "items_total": 502,
+        "items_accepted": 0
+      }
     },
     "D4": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit d967ed0ace98, HEAD is e974f98848bf \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 2856b1792f4f, HEAD is 9e6c9bcf1378 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/1.21.11/profile.json"
@@ -66,7 +74,7 @@
     "D5": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit d967ed0ace98, HEAD is e974f98848bf \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 2856b1792f4f, HEAD is 9e6c9bcf1378 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/1.21.11/profile.json"
