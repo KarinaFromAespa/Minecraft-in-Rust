@@ -12999,3 +12999,12 @@ and added search and packets). The Rust has a complete port in
 220px row width, integer-entry text colours -2039584/-65536, the
 44x20 number box at contentRight - 45, Done keeping the edited rules
 and Cancel/Escape discarding them.
+
+## Item 756 — util/worldupdate (new-classes) — NO-CHANGE
+
+7 classes: the `WorldUpgrader` inner classes, present in 1.21.11,
+extracted into `RegionStorageUpgrader` in 26.1. The Rust ports the
+work in 26.1's shape with identical per-chunk behaviour, verified
+against the decompile: the position check, the erase-cache branch,
+the `new_` prefix, the chunk/entities/poi folders, and the default
+versions (-1, 1945 for POI).
