@@ -13179,3 +13179,9 @@ spruce and birch constants, redstone power, stem age).
 1 class: `PlayerFaceRenderer`. The Rust ports `draw` in full
 (`tab_list.rs::face`): face at u=8, hat at u=40, 8x8 on a 64x64
 skin, with the Dinnerbone/Grumm flip.
+
+## Item 776 — client/gui/layouts (new-classes) — NO-CHANGE
+
+1 class: `GridLayout$CellInhabitant` — grid-cell bookkeeping
+(row/column + span). The Rust computes grid layouts directly per
+screen, citing the `GridLayout` behaviours where they matter.
