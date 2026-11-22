@@ -13334,3 +13334,10 @@ Rust's `Axolotl` struct are removed (struct, `from_mob`, fixture).
 1 class: `ClickType` — the 7-value container-click enum. The Rust
 documents the full id mapping (play.rs:1979) and uses the ids
 directly; the per-type behaviours live in the container handling.
+
+## Item 800 — world/item/enchantment/providers (new-classes) — NO-CHANGE
+
+1 class: `TradeRebalanceEnchantmentProviders` — resource keys for
+the trade-rebalance experiment's enchantment providers, used only
+by the experimental trades the Rust deliberately does not port
+(item 751).
