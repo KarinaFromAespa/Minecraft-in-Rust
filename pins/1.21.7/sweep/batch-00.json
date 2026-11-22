@@ -69,7 +69,7 @@
       "title": "VanillaStructureDensityOracle is unrepairable against 1.21.7 (26.x-only densityfunction API)"
     },
     {
-      "evidence": "VanillaClientRedstonePreviewOracle compiles clean on the client cp but throws NullPointerException at runtime (Unsafe-allocated ClientLevel subclass: dimensionTypeRegistration is null because the constructor never ran). Likely fix: set the field via reflection after Unsafe allocation, or override dimensionType() \u2014 not attempted in this batch. Every repaired oracle needs an end-to-end driver run to confirm it yields a measurement; driver runs cost ~10-30 min each on this VM for the large harnesses. Sample so far: block_properties PASS (464s); command_parse + component_patch re-running at write time (sample3 died silently after 26 min with no output; sample4 in progress).",
+      "evidence": "VanillaClientRedstonePreviewOracle compiles clean on the client cp but throws NullPointerException at runtime (Unsafe-allocated ClientLevel subclass: dimensionTypeRegistration is null because the constructor never ran). Likely fix: set the field via reflection after Unsafe allocation, or override dimensionType() \u2014 not attempted in this batch. The second known runtime failure, VanillaComponentPatchOracle (ClassNotFoundException on the 26.x-only Removed class), WAS repaired (see O10) and its driver now yields a real parity measurement. Sample now complete (5/5): block_properties PASS (464s); command_parse FAIL with a real parity measurement (86987 mismatches); component_patch FAIL with a real parity measurement (line 106152); food failed javac at sample time, oracle since repaired; client_redstone_preview still throws at runtime. Every repaired oracle needs an end-to-end driver run to confirm it yields a measurement; driver runs cost ~10-30 min each on this VM for the large harnesses (26s for component_patch once the probe was cached).",
       "id": "O8",
       "method": "end-to-end driver sample (tools/parity.py)",
       "severity": "major",
@@ -83,9 +83,18 @@
       "severity": "minor",
       "status": "gap",
       "title": "Repairs that changed oracle output formats expose probe-side 26.x assumptions (family-batch triage, not Batch 0 fixes)"
+    },
+    {
+      "id": "O10",
+      "title": "ComponentPatch oracle runtime crash: 26.x-only Removed class",
+      "method": "javap + end-to-end driver run",
+      "evidence": "VanillaComponentPatchOracle compiled clean but crashed at runtime (ClassNotFoundException: net.minecraft.core.component.Removed, absent from both 1.21.7 jars). 1.21.7 DataComponentPatch.map is Reference2ObjectMap<DataComponentType<?>, Optional<?>> (Optional.empty() = removed, javap-verified). Repair drops the reflective Removed lookup and unwraps the Optionals in patchText (empty -> null -> \"none\", same output text as the old sentinel). The driver then ran end-to-end: first divergence at output line 106152 (vanilla \"old none\" vs Rust \"result error\") \u2014 a real parity diff for the components family batch; the first 106151 lines match, including all patch-text snapshot lines.",
+      "status": "fixed",
+      "severity": "major",
+      "fix": "08666f22 (2026-11-22)"
     }
   ],
-  "method": "Fixpoint big-compile of all 391 Java oracles against the named 1.21.7 jars on three classpaths (server, client, both), one javac invocation per fixpoint round (~20s each on this VM); driver mapping by parsing oracle basenames + oracle-name string literals across all 648 drivers. Every repair javap/bytecode-verified against the 1.21.7 jars (never assumed from the 26.3 base or the 1.21.11 form) and compile-checked on its own classpath before commit. End-to-end sample: 5 drivers via tools/parity.py (block_properties PASS; food failed javac pre-repair, oracle since repaired; client_redstone_preview compiles but throws at runtime \u2014 see O8; command_parse + component_patch re-running at write time).",
+  "method": "Fixpoint big-compile of all 391 Java oracles against the named 1.21.7 jars on three classpaths (server, client, both), one javac invocation per fixpoint round (~20s each on this VM); driver mapping by parsing oracle basenames + oracle-name string literals across all 648 drivers. Every repair javap/bytecode-verified against the 1.21.7 jars (never assumed from the 26.3 base or the 1.21.11 form) and compile-checked on its own classpath before commit. End-to-end sample: 5 drivers via tools/parity.py (block_properties PASS; food failed javac pre-repair, oracle since repaired; client_redstone_preview compiles but throws at runtime \u2014 see O8; command_parse FAIL with a real parity measurement (86987 mismatches) and component_patch FAIL with a real parity measurement after its runtime repair (see O10)).",
   "name": "Oracle repair (measurement + javac repairs)",
   "out_of_scope_failures": "Parity defects found during repair, recorded not fixed (Batch 0 never touches port behaviour): the Suffocation tag-vs-motion gap (see O9); the FirstPerson/ItemModel swap-mechanic gap (see O9); the MobAi copper-golem/spear/age-lock content gap (see O5 \u2014 driver-gated, probe models 26.x content). The 20 drivers with no javac path and the 254 drivers with no oracle reference were mapped but not run (server-e2e/data/wrappers \u2014 outside the oracle-repair scope).",
   "source": "docs/PARITY-SWEEP.md \u00a74 Batch 0 + \u00a73 methodology \u2014 measurement and repair run 2026-11-22, checks + oracle/driver repair only, no port behaviour touched. Per-oracle table: docs/sweep/batch-0-oracles.json (regenerated post-repair); full report: docs/sweep/batch-0-oracle-repair.md.",

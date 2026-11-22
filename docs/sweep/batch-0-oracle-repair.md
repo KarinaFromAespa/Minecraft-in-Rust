@@ -29,7 +29,8 @@ both 133 pass / 258 fail. (The rerun measured 133 pass-any; Anchor and
 RegistryCollisionScan were repaired after the rerun and individually verified
 clean on server + client classpaths, hence 135.)
 
-**41 oracles repaired, 48 drivers newly runnable.** The remaining load is
+**41 oracles repaired (compile) + 1 runtime repair (ComponentPatch, §2.6),
+48 drivers newly runnable.** The remaining load is
 256 files failing on all three classpaths. First-error classes (server cp):
 missing-package 137, missing-symbol 99, no-override 13, other 8, cascade 7,
 constructor-mismatch 5, incompatible-types 4, missing-override 1.
@@ -119,6 +120,18 @@ Every `minecraft:` id in `test_mob_ai_parity.py` was checked against the
 those 27 for oracle and probe alike (267 remain). The oracle's `agelocked`
 and `cooldown` flag cases were deleted to match.
 
+### 2.6 Runtime repair: ComponentPatch (`08666f22`)
+
+`VanillaComponentPatchOracle` compiled clean but crashed at runtime
+(`ClassNotFoundException: net.minecraft.core.component.Removed`) — the
+`Removed` marker class is 26.x-only. 1.21.7's `DataComponentPatch.map` is a
+`Reference2ObjectMap<DataComponentType<?>, Optional<?>>` (`Optional.empty()`
+= removed, javap-verified). The repair drops the reflective `Removed`
+lookup and unwraps the Optionals in `patchText` (empty → null → `"none"`,
+the same output text as the old sentinel). The driver then ran end-to-end
+(see §3). This is the first repaired instance of the runtime layer (§4.2);
+the redstone-preview NPE is the second, still open.
+
 ## 3. Drivers newly yielding measurements
 
 | Stage | Runnable | Blocked |
@@ -138,9 +151,14 @@ sample (5 drivers via `tools/parity.py`):
 | Driver | Result |
 |---|---|
 | block_properties | **PASS** (464s) |
-| food | javac failure at sample time; oracle since repaired (`57c50808`) |
-| client_redstone_preview | Compiles, then the oracle throws at runtime (see §4.2) |
-| command_parse, component_patch | Re-running at write time (sample3 died silently after 26 min with no output — cause unknown, no traceback in the log; sample4 in progress). Update `docs/sweep/batch-0-measurement.md` §5 when they land. |
+| food | javac failure at sample time; oracle since repaired (`57c50808`); driver not re-run |
+| client_redstone_preview | Compiles, then the oracle throws at runtime (see §4.2) — still open |
+| command_parse | **FAIL — a real parity measurement.** Oracle ran (fresh on retry); dispatcher sound (4,971/32,321 match at permission 4). 86,987 mismatches across three permission levels (perm 4: 27,350; perm 2: 27,401; perm 0: 32,236); dominant pattern is error text — vanilla's resolved Brigadier message vs the probe's translation key. Finding for the commands family batch. |
+| component_patch | **FAIL — a real parity measurement, after the §2.6 runtime repair.** Oracle ran end-to-end; first divergence at output line 106,152 (vanilla `old none` vs Rust `result error`). Finding for the components family batch. |
+
+Sample: 5/5 complete (sample4, 21.8 min, plus a 26s component_patch re-run).
+1 pass, 2 fail with real measurements, 1 javac-fail at sample time (oracle
+since repaired), 1 runtime failure still open.
 
 ## 4. Unrepairable cases and accepted limitations
 
@@ -159,11 +177,15 @@ throws `NullPointerException` at runtime: it `Unsafe`-allocates a
 `ClientLevel` subclass without running the constructor, so 1.21.7's
 `dimensionTypeRegistration` field stays null and `onPlace` dereferences it.
 Likely fix: set the field via reflection after Unsafe allocation, or
-override `dimensionType()` — not attempted in this batch. Every repaired
-oracle needs an end-to-end driver run to confirm it yields a measurement;
-driver runs cost ~10–30 min each on this VM for the large harnesses, and
-the runtime-failure rate is unmeasured (sample: 1 of 2 compiling oracles
-threw — too small to generalize).
+override `dimensionType()` — not attempted in this batch. The second known
+runtime failure, `VanillaComponentPatchOracle` (`ClassNotFoundException` on
+the 26.x-only `Removed` class), WAS repaired in this batch (§2.6) — the
+driver now yields a real parity measurement. Every repaired oracle needs an
+end-to-end driver run to confirm it yields a measurement; driver runs cost
+~10–30 min each on this VM for the large harnesses (the component_patch
+re-run took 26s once the probe was cached), and the runtime-failure rate is
+unmeasured (sample: 2 of 5 drivers had a runtime-layer issue — one
+repaired, one open).
 
 ### 4.3 Repairs that changed oracle output formats (ledger O9)
 
@@ -263,6 +285,9 @@ oracles will bound it.
 | `5e6564e5` | ItemModel |
 | `f581ed0f` | RegistryCollisionScan |
 | `4c60aaf0` | Anchor |
+| `85e0d66c` | Deliverables: this report, ledger slice, regenerated oracle table |
+| `be7a2ee0` | Measurement doc: 17-harness table (8/9 now pass) |
+| `08666f22` | Runtime repair: ComponentPatch oracle (no `Removed` class in 1.21.7) |
 
 Environment notes for the next agent: builds at `-j 1`
 (`RUSTUP_HOME=~/workspace/tools/rustup CARGO_HOME=~/workspace/tools/cargo`,

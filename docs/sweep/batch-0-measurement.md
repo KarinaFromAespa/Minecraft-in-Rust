@@ -172,15 +172,13 @@ Compile status is not run status. A 5-driver sample across the classes:
 
 | Driver | Oracle status | End-to-end result |
 |---|---|---|
-| food | FAIL (server cp) | **javac failure, as measured** — `VanillaFoodOracle` fails on `net.minecraft.world.level.gamerules` |
-| client_redstone_preview | PASS (client cp) | **Compiles, then the oracle throws at runtime**: `NullPointerException: Cannot invoke Holder.value() because this.dimensionTypeRegistration is null` — the oracle `Unsafe`-allocates a `ClientLevel` subclass without running the constructor, so 1.21.7's `Level` field stays null and `onPlace` dereferences it. Compiling ≠ running: runtime repair is a second layer on top of compile repair. |
-| block_properties | PASS (server cp) | running at push time — cargo build of `world_probe` in progress |
-| command_parse | PASS (server cp) | running at push time — cargo build of `client_probe` in progress |
-| component_patch | PASS (server cp) | running at push time |
+| food | FAIL (server cp) | **javac failure, as measured** — `VanillaFoodOracle` fails on `net.minecraft.world.level.gamerules`. Oracle since repaired (`57c50808`); driver not re-run. |
+| client_redstone_preview | PASS (client cp) | **Compiles, then the oracle throws at runtime**: `NullPointerException: Cannot invoke Holder.value() because this.dimensionTypeRegistration is null` — the oracle `Unsafe`-allocates a `ClientLevel` subclass without running the constructor, so 1.21.7's `Level` field stays null and `onPlace` dereferences it. Compiling ≠ running: runtime repair is a second layer on top of compile repair. Still open (see `batch-0-oracle-repair.md` §4.2). |
+| block_properties | PASS (server cp) | **PASS in 464s** |
+| command_parse | PASS (server cp) | **FAIL — a real parity measurement, not an oracle failure.** The oracle ran (fresh on retry) and the dispatcher is sound (4,971/32,321 commands match at permission 4). 86,987 mismatches across the three permission levels (perm 4: 27,350; perm 2: 27,401; perm 0: 32,236). Dominant pattern: error text — vanilla's resolved Brigadier message ("Unknown or incomplete command, see below for error") vs the probe's translation key (`command.unknown.command`), with ok/cursor agreeing. A finding for the commands family batch. |
+| component_patch | PASS (both cps) | **FAIL — a real parity measurement, after a Batch 0 runtime repair.** The oracle crashed at first (`ClassNotFoundException: net.minecraft.core.component.Removed`, a 26.x class absent in 1.21.7); repaired in `08666f22` (1.21.7's `DataComponentPatch.map` holds `Optional<?>` values, `Optional.empty()` = removed). The driver then ran end-to-end: first divergence at output line 106,152 (vanilla `old none` vs Rust `result error`) — a finding for the components family batch. |
 
-Sample status at push: 2/5 complete, 3/5 running (cargo probe builds).
-This doc is updated when the remaining three land; the compile measurement
-above is complete and final regardless.
+Sample status: **5/5 complete** (sample4, 21.8 min, plus a 26s component_patch re-run after the runtime repair). 1 pass (block_properties), 2 fail with real parity measurements (command_parse, component_patch), 1 javac-fail at sample time with the oracle since repaired (food), 1 runtime failure still open (client_redstone_preview). The compile measurement above is complete and final regardless.
 
 ## Driver defects found (Batch 0 scope)
 
