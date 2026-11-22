@@ -1861,7 +1861,7 @@ impl Game<'_> {
         };
         let me = self.player_entity_for("minecraft:enter_block");
         self.trigger("minecraft:enter_block", move |c, w| {
-            let block_ok = adv::id_matches(&c["blocks"], "block", &definition.name, w);
+            let block_ok = adv::block_condition(c, &definition.name, w);
             let state_ok = c["state"]
                 .as_object()
                 .into_iter()
@@ -1876,7 +1876,10 @@ impl Game<'_> {
             block_ok && state_ok && adv::conditions(&c["player"], &pctx, w)
         });
     }
-    /// `SlideDownBlockTrigger`: match the actual block and its state.
+    /// `SlideDownBlockTrigger`: match the actual block and its state. The
+    /// instance holds one block (`block`, like `enter_block`), not a
+    /// `BlockPredicate`: passing the whole conditions object to `adv::block`
+    /// read the absent `blocks` key and matched any block slid down.
     pub(super) fn trigger_honey_slide(&mut self, pos: [i32; 3]) {
         let me = self.player_entity_for("minecraft:slide_down_block");
         self.trigger("minecraft:slide_down_block", move |c, w| {
@@ -1886,7 +1889,13 @@ impl Game<'_> {
                 tool: None,
                 block_pos: None,
             };
-            adv::conditions(&c["player"], &ctx, w) && adv::block(c, pos, w)
+            let (name, props) = w.block(pos);
+            let state_ok = c["state"]
+                .as_object()
+                .into_iter()
+                .flatten()
+                .all(|(k, v)| props.get(k).map(String::as_str) == v.as_str());
+            adv::conditions(&c["player"], &ctx, w) && state_ok && adv::block_condition(c, &name, w)
         });
     }
     /// `TargetBlockTrigger`: signal and projectile conditions are evaluated in
@@ -2053,7 +2062,7 @@ impl Game<'_> {
                 .into_iter()
                 .flatten()
                 .all(|(k, v)| definition.properties.get(k).map(String::as_str) == v.as_str());
-            adv::id_matches(&c["blocks"], "block", &definition.name, w)
+            adv::block_condition(c, &definition.name, w)
                 && state_ok
                 && adv::item(&c["item"], &tool, w)
                 && adv::range_i(&c["num_bees_inside"], bees)

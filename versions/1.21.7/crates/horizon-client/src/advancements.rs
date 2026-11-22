@@ -904,13 +904,31 @@ pub fn can_unlock(
     let empty = ItemView::default();
     spectator || item(lock, main_hand.unwrap_or(&empty), w)
 }
+/// The block condition of a trigger whose instance holds one block
+/// (`EnterBlockTrigger`, `BeeNestDestroyedTrigger`, `SlideDownBlockTrigger`):
+/// 1.21.7 names it with the singular `block` key, a bare `Holder<Block>` id.
+/// The 26.x form reads the plural `blocks` HolderSet instead — absent in
+/// 1.21.7 data, so the null read matched every block and the criterion fired
+/// on any block entered (Remote Getaway at spawn, with no end gateway near).
+pub fn block_condition(v: &Value, name: &str, w: &dyn World) -> bool {
+    id_matches(&v["block"], "block", name, w)
+}
 /// `BlockPredicate`.
 pub fn block(v: &Value, pos: [i32; 3], w: &dyn World) -> bool {
     if v.is_null() {
         return true;
     }
     let (name, props) = w.block(pos);
-    if !id_matches(&v["blocks"], "block", &name, w) {
+    // A `BlockPredicate` is a HolderSet or an object: 1.21.7 data writes the
+    // set bare (a single id, a `#tag` or a list) as often as `{"blocks": ...}`,
+    // and only the object form carries `state`/`nbt`. A bare predicate read
+    // only `v["blocks"]` matched every block.
+    let blocks = if v.is_string() || v.is_array() {
+        v
+    } else {
+        &v["blocks"]
+    };
+    if !id_matches(blocks, "block", &name, w) {
         return false;
     }
     if let Some(state) = v["state"].as_object() {
@@ -2153,6 +2171,80 @@ mod tests {
             !block(&beacon("{Levels:0b}"), [0, 0, 0], &Beacon),
             "an int, not a byte"
         );
+    }
+    /// A single-block trigger's condition names its block with the singular
+    /// `block` key (vanilla 1.21.7's `EnterBlockTrigger`, `BeeNestDestroyedTrigger`,
+    /// `SlideDownBlockTrigger`): the conditions below are the real
+    /// `minecraft:end/enter_end_gateway` criterion (Remote Getaway) and the
+    /// boat recipe's water one. Reading the 26.x plural `blocks` key instead
+    /// matched every block and granted Remote Getaway at spawn.
+    #[test]
+    fn single_block_trigger_conditions_match_only_their_block() {
+        let w = Flat;
+        let gateway = serde_json::json!({"block": "minecraft:end_gateway"});
+        assert!(
+            !block_condition(&gateway, "minecraft:grass_block", &w),
+            "a grass block is not an end gateway"
+        );
+        assert!(block_condition(&gateway, "minecraft:end_gateway", &w));
+        let water = serde_json::json!({"block": "minecraft:water"});
+        assert!(block_condition(&water, "minecraft:water", &w));
+        assert!(!block_condition(&water, "minecraft:stone", &w));
+        // No `block` key constrains nothing; the plural key is not read.
+        assert!(block_condition(
+            &serde_json::json!({}),
+            "minecraft:stone",
+            &w
+        ));
+        assert!(block_condition(
+            &serde_json::json!({"blocks": "minecraft:end_gateway"}),
+            "minecraft:grass_block",
+            &w
+        ));
+    }
+    /// A `BlockPredicate` written bare — a single id or a list, as 1.21.7
+    /// data writes it in location predicates and `match_block` — matches
+    /// only its blocks; the object form keeps working alongside.
+    #[test]
+    fn block_predicate_accepts_a_bare_holder_set() {
+        let w = Flat; // stone at every position
+        assert!(block(&serde_json::json!("minecraft:stone"), [0, 0, 0], &w));
+        assert!(
+            !block(&serde_json::json!("minecraft:honey_block"), [0, 0, 0], &w),
+            "a bare honey_block predicate must not match stone"
+        );
+        assert!(block(
+            &serde_json::json!(["minecraft:dirt", "minecraft:stone"]),
+            [0, 0, 0],
+            &w
+        ));
+        assert!(!block(
+            &serde_json::json!(["minecraft:dirt", "minecraft:grass_block"]),
+            [0, 0, 0],
+            &w
+        ));
+        assert!(block(
+            &serde_json::json!({"blocks": "minecraft:stone"}),
+            [0, 0, 0],
+            &w
+        ));
+        assert!(!block(
+            &serde_json::json!({"blocks": "minecraft:dirt"}),
+            [0, 0, 0],
+            &w
+        ));
+        assert!(block(&Value::Null, [0, 0, 0], &w));
+        // The location predicate the bare form reaches through.
+        assert!(location(
+            &serde_json::json!({"block": "minecraft:stone"}),
+            [0.5, 64.5, 0.5],
+            &w
+        ));
+        assert!(!location(
+            &serde_json::json!({"block": "minecraft:honey_block"}),
+            [0.5, 64.5, 0.5],
+            &w
+        ));
     }
     #[test]
     fn weather_conditions_leave_absent_fields_unconstrained_and_compose() {
