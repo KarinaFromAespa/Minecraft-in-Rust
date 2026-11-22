@@ -13058,3 +13058,11 @@ invisible in the port. The fix is to add the sign layers to
 `entity-models.json` / the MODELS list and a board-drawing arm on
 `Kind::Sign`. The `Kind::Sign` comment claiming "the boards are
 block models" is corrected here.
+
+## Item 761 — world/level/levelgen/feature (new-classes) — NO-CHANGE
+
+4 classes, all implemented and verified against the decompile:
+`IceSpikeFeature` (heights, radii, the 1-in-60 tall spike, rim
+skips), `RandomPatchFeature` (the nextInt-minus-nextInt offsets),
+`SpikeFeature$EndSpike` + `SpikeCacheLoader` (the seed-keyed
+shuffle, centre/radius/height/guarded formulas).
