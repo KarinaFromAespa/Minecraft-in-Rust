@@ -52,6 +52,16 @@
         "total": 50
       },
       "status": "complete"
+    },
+    "3": {
+      "name": "Entities / mobs",
+      "date": "2026-11-22",
+      "checks": {
+        "gap": 20,
+        "pass": 70,
+        "total": 90
+      },
+      "status": "complete"
     }
   },
   "items": [
@@ -582,6 +592,214 @@
       "severity": "minor",
       "status": "gap",
       "title": "VanillaPistonMovementOracle does not compile for 1.21.7 (1 break)"
+    },
+    {
+      "evidence": "Vanilla Bat.checkBatSpawnRules: limit 7 + no coin flip on Halloween (LocalDate Oct 31), else limit 4 + 50% nextBoolean fail. Port always applies coin flip + limit 4. SpawnLevel has no date, so the branch needs a trait addition.",
+      "id": "B3-G01",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Bat: missing Halloween branch (limit 7, no coin flip on Oct 31)"
+    },
+    {
+      "evidence": "Vanilla: nextFloat() < 0.5 && nextFloat() < moonBrightness && brightness <= nextInt(8) (two float draws, moon-phase dependent). Port: single nextFloat() < surface_slime_chance, reading the 26.x environment attribute gameplay/surface_slime_spawn_chance; the test fixture at spawn_rules.rs:600-603 computes 0.5 * MOON_BRIGHTNESS[phase], proving the port knows the right formula. Wrong rate + wrong RNG stream. Underground branch matches.",
+      "id": "B3-G02",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Slime surface spawn uses the 26.x environment-attribute form, ignoring moon phase"
+    },
+    {
+      "evidence": "Vanilla EntityType.Builder.immuneTo is hardcoded blocks: fox -> sweet_berry_bush; polar_bear/snow_golem/stray -> powder_snow; wither/wither_skeleton -> wither_rose. Port immune_tag() maps the same 6 species to tags minecraft:fox_immune_to etc. \u2014 none exist in the 1.21.7 jar's data or block-tags.json (194 tags; only dragon_immune/wither_immune, which are explosion tags). is_valid_empty_spawn treats those blocks as dangerous for those species.",
+      "id": "B3-G03",
+      "method": "javap + source + data",
+      "severity": "minor",
+      "status": "gap",
+      "title": "immune_tag tags don't exist in 1.21.7 (fox/polar bear/snow golem/stray/wither/wither skeleton)"
+    },
+    {
+      "evidence": "Vanilla checkHoglinSpawnRules has NO difficulty check, and Hoglin (extends Animal) has shouldDespawnInPeaceful()==false (Mob base). Port allowed_in_peaceful disallows Hoglin. No isAllowedInPeaceful exists anywhere in 1.21.7 (26.x-shaped mechanism). The port's disallowed list is otherwise exactly right.",
+      "id": "B3-G04",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Hoglin blocked in peaceful (vanilla spawns and keeps hoglins in peaceful)"
+    },
+    {
+      "evidence": "Jar has 25 *_food item tags including camel_food. Port food_tag() covers all EXCEPT camel; 'camel_food' appears nowhere in the port, so MobType.food is empty for camel and feeding/breeding/tempting (farm.rs, animal_brain.rs sense_tempting) never fire. Vanilla Camel.isFood = #camel_food (cactus).",
+      "id": "B3-G05",
+      "method": "javap + source + data",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Camel has no food \u2014 camels cannot breed"
+    },
+    {
+      "evidence": "Vanilla Armadillo.getMaxHeadYRot = isScared() ? 0 : 32. Port species.rs returns 32.0 unconditionally.",
+      "id": "B3-G06",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Armadillo scared head rotation ignored (vanilla: 0 when scared, 32 otherwise)"
+    },
+    {
+      "evidence": "Drowned extends Zombie and defines NEITHER aiStep NOR isSunSensitive (full method list verified) \u2014 it inherits Zombie.aiStep + isSunSensitive()==true, so a drowned on land in daylight burns in vanilla (in water, isSunBurnTick is false). Port species.rs:1550 excludes Drowned and its comment claims 'the drowned ... never call it' \u2014 wrong. Corrects the 651b43d3 claim. Burn formula itself matches vanilla exactly.",
+      "id": "B3-G08",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Drowned missing from burns_in_day (it inherits Zombie.aiStep and burns on land)"
+    },
+    {
+      "evidence": "Vanilla isSunBurnTick excludes isInPowderSnow || wasInPowderSnow; port sun_burn_tick checks only in-water / in-rain although Mob has in_powder_snow state (mobs.rs:1609). A skeleton standing in powder snow burns in the port, not in vanilla.",
+      "id": "B3-G09",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Sun-burn ignores powder snow (vanilla excludes isInPowderSnow || wasInPowderSnow)"
+    },
+    {
+      "evidence": "Vanilla EntityType.canSpawnFarFromPlayer is true only for MISC-category types (Builder default: category == MISC) + pillager + shulker (the only two explicit setter calls in EntityType.<clinit>). Port spawns_far_from_player also returns true for all CREATURE types, so creature attempts >128 blocks from the nearest player pass valid_position_for_type where vanilla rejects them. Reachable: candidate chunks need only their CENTRE <128 from a player.",
+      "id": "B3-G10",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Creatures spawn too far from players (port allows CREATURE far spawns; vanilla only MISC + pillager + shulker)"
+    },
+    {
+      "evidence": "Vanilla: y = randomBetweenInclusive(random, minY, getHeight(WORLD_SURFACE)+1) -> [minY, H+1]. Port (spawn_category_for_chunk): y = min + nextInt(H - min + 1) where top = world_surface = vanilla's getHeight value H -> [minY, H]. Port never picks the top value and consumes a different nextInt bound.",
+      "id": "B3-G11",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "getRandomPosWithin y-range off by one (port never picks H+1; RNG stream diverges)"
+    },
+    {
+      "evidence": "EnderMan.class contains ZERO occurrences of getWalkTargetValue \u2014 Enderman inherits Monster's -cost_from_light (negative in bright light -> spawn rejected). Port maps Enderman to Zero with the comment 'Monster subclasses that override it with 0' \u2014 wrong for Enderman (Creaking/Pillager/Warden do override to 0). Narrowly observable (monster spawn rules already require near-darkness).",
+      "id": "B3-G12",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Enderman walk-target value wrong (port maps it to Zero; vanilla inherits Monster's -cost_from_light)"
+    },
+    {
+      "evidence": "1.21.7 SpawnerData is a plain record (minCount, maxCount) \u2014 no IntProvider. Vanilla samples min + nextInt(max+1-min) UNCONDITIONALLY (nextInt(1) still consumes a LegacyRandom draw when min==max). Port sample_count draws nothing for constant entries (26.x count().sample form). Shifts the RNG stream for the rest of every attempt whose entry has min==max (4 of 5 fortress entries; many biome entries).",
+      "id": "B3-G13",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Constant-count packs skip an RNG draw (vanilla always draws nextInt, even for min==max)"
+    },
+    {
+      "evidence": "Vanilla 1.21.7 EnderMan.teleport grounds on blocksMotion() and LivingEntity.randomTeleport(x,y,z,true) grounds on blocksMotion() too \u2014 no tag anywhere; randomTeleport(DDDZ) has no tag parameter. Port mobs/enderman.rs:117 grounds on #entities_can_teleport_to and refuses #enderman_does_not_teleport_to \u2014 NEITHER tag exists in the 1.21.7 jar's data or prepared block-tags.json (194 tags); has_tag returns false for missing tags, so teleport_to ALWAYS returns false. All teleport paths funnel through it (random, towards, daylight flee, projectile dodge). Same root cause as Batch 7's B7-G09 (chorus fruit); this is the enderman instance. Secondary: port plays both teleport sounds at the new position; vanilla plays the first at xo/yo/zo (old position).",
+      "id": "B3-G14",
+      "method": "javap + source + data",
+      "severity": "major",
+      "status": "gap",
+      "title": "Endermen never teleport (grounding uses the absent 26.x tag #entities_can_teleport_to)"
+    },
+    {
+      "evidence": "tame.rs give_morning_gift grounds the hop on the absent #entities_can_teleport_to (line 1363), so the cat never hops; the gift itself still drops (DropGift is outside the hop gate). Same root cause as B3-G14 / B7-G09. Also references #dangerous_for_teleportation, likewise absent \u2014 harmless.",
+      "id": "B3-G15",
+      "method": "source + data",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Cat morning-gift hop never happens (same absent teleport tag)"
+    },
+    {
+      "evidence": "Trades::load reads data/minecraft/villager_trade/, tags/villager_trade/, trade_set/; the 1.21.7 jar's data contains ZERO such files and the prepared .local data has no villager_trade/trade_set dirs. In 1.21.7 trades are CODE-defined in VillagerTrades (ItemListing classes: EmeraldForItems, ItemsForEmeralds, EnchantedItemForEmeralds, EnchantBookForEmeralds, TreasureMapForEmeralds, etc.). The port has NO code-path implementation of any of them, and ensure_offers returns Vec::new() when the set is missing \u2014 every villager/wandering trader opens with zero offers. Pricing/demand/special-price machinery itself matches vanilla exactly.",
+      "id": "B3-G16",
+      "method": "javap + source + data",
+      "severity": "major",
+      "status": "gap",
+      "title": "Villagers and wandering traders have NO trades (port implements only the 26.x data-driven trade format)"
+    },
+    {
+      "evidence": "Vanilla Mob.serverAiStep alternates on (tickCount + id) % 2 (bytecode-verified) and the port mirrors it exactly (ai.rs:2067-2071), so non-every-tick goals tick every OTHER game tick in BOTH, and vanilla goal counters increment per goal-tick \u2014 a threshold of N goal-ticks is 2N game ticks in both. The correct conversion is identity. Port goals.rs reduced(ticks)=(ticks+1)/2 halves every threshold/interval for non-every-tick goals (~40 call sites: breed love_time, look times, recalc intervals, bee/fox/enderman/dolphin timers, random 1-in-N rolls). Evidence: LookAtPlayerGoal.start sets lookTime = 40 + nextInt(40) -> 80-160 game ticks in vanilla; port sets reduced(40+nextInt(40)) = 20-40 goal-ticks -> 40-80 game ticks. Breed: 120 game ticks vanilla vs 60 port. adjusted(false, ...) applies the same halving.",
+      "id": "B3-G17",
+      "method": "javap + source",
+      "severity": "major",
+      "status": "gap",
+      "title": "reduced() halves all non-every-tick goal delays \u2014 goal-timed behaviours run 2x fast (systemic)"
+    },
+    {
+      "evidence": "Driver reads criterion['conditions']['entity']['predicate'] and predicate['minecraft:components'] (26.x format). In 1.21.7, conditions.entity is a LIST of entity_properties loot conditions (verified in all 3 advancements: complete_catalogue 11 criteria, whole_pack 9, leash_all_frog_variants 3), each with predicate {components: {...}} \u2014 key 'components', not 'minecraft:components'. Driver raises TypeError on the first criterion. This is the '1 harness Python bug (entity_components)' in PARITY-SWEEP.md \u00a72; it blocks the only Batch 3 harness in the measured set.",
+      "id": "B3-G18",
+      "method": "driver read + data",
+      "severity": "minor",
+      "status": "gap",
+      "title": "DRIVER: test_entity_components_parity.py crashes on 1.21.7 advancement format"
+    },
+    {
+      "evidence": "Line 66: len(facts['states']) != 35723 -> AssertionError('Incomplete pinned registry'). 1.21.7 has 27,946 states, so the driver always fails. Same class as Batch 2's G13.",
+      "id": "B3-G19",
+      "method": "driver read",
+      "severity": "minor",
+      "status": "gap",
+      "title": "DRIVER: test_suffocation_parity.py hardcodes the 26.3 state count 35723"
+    },
+    {
+      "evidence": "Both build the Rust server command with lab.LOCAL / 'horizon-client/26.3' (lines 269 and 111); 1.21.7 resources live at horizon-client/1.21.7.",
+      "id": "B3-G20",
+      "method": "driver read",
+      "severity": "minor",
+      "status": "gap",
+      "title": "DRIVER: test_locator_bar_parity.py / test_server_dragon_parity.py hardcode the 26.3 resources path"
+    },
+    {
+      "evidence": "Vanilla Zombie.populateDefaultEquipmentSlots: super (Monster armour), then nextFloat < (hard ? 0.05 : 0.01), then nextInt(3): 0 -> iron sword, else iron shovel (1/3 sword, 2/3 shovel). Port uses nextInt(6): 0 -> sword, 1 -> minecraft:iron_spear (does not exist in 1.21.7), else shovel (1/6 sword, 1/6 spear, 4/6 shovel). The bug is in BOTH implementations: spawning.rs finalize Zombie arm AND finalize.rs populate() Zombie arm. Drowned equipment (nextFloat>0.9, nextInt(16)<10 trident else fishing rod) verified exact.",
+      "id": "B3-G21",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Zombies spawn holding iron spears (26.x-only item), with wrong sword/shovel odds"
+    },
+    {
+      "evidence": "VanillaAttributeHealthOracle, VanillaDamageImmunityOracle, VanillaEntityDeathLootOracle, VanillaNaturalSpawnOracle, VanillaRaidOracle, VanillaRegisteredPlayerCombatOracle, VanillaServerPlayerCombatOracle \u2014 all 'package net.minecraft.world.level.gamerules does not exist' (missing-package). 1.21.7 GameRules lives in net.minecraft.world.level.",
+      "id": "B3-O01",
+      "method": "batch-0-oracles.json",
+      "severity": "minor",
+      "status": "gap",
+      "title": "ORACLE: 7 oracles reference the 26.x gamerules package (net.minecraft.world.level.gamerules)"
+    },
+    {
+      "evidence": "VanillaAllayInteractionStateOracle, VanillaBoatRiderOracle, VanillaBreezeHookOracle, VanillaClientArrowOracle, VanillaZombieCureSoundOracle \u2014 all 'package net.minecraft.client.multiplayer does not exist' (missing-package).",
+      "id": "B3-O02",
+      "method": "batch-0-oracles.json",
+      "severity": "minor",
+      "status": "gap",
+      "title": "ORACLE: 5 oracles reference the 26.x client.multiplayer package"
+    },
+    {
+      "evidence": "VanillaArrowOracle + VanillaLateEntityPairOracle (projectile.arrow), VanillaMobBreathingOracle (animal.cow), VanillaEntitySoundPacketOracle (vehicle.minecart), VanillaFluidBoxOracle (vehicle.boat), VanillaEffectSyncOracle (monster.zombie), VanillaSpawnRulesOracle (util.debug) \u2014 all missing-package.",
+      "id": "B3-O03",
+      "method": "batch-0-oracles.json",
+      "severity": "minor",
+      "status": "gap",
+      "title": "ORACLE: 7 oracles reference 26.x entity subpackages"
+    },
+    {
+      "evidence": "VanillaAttributeUpdatesOracle, VanillaActiveEffectTickOracle \u2014 both 'package net.minecraft.world.clock does not exist' (missing-package).",
+      "id": "B3-O04",
+      "method": "batch-0-oracles.json",
+      "severity": "minor",
+      "status": "gap",
+      "title": "ORACLE: 2 oracles reference the 26.x world.clock package"
+    },
+    {
+      "evidence": "VanillaBoatAuthorityOracle (n=26), VanillaDragonContactsOracle (5), VanillaEntityFluidOracle (14), VanillaEntityMoveOracle (8), VanillaMobFallResetOracle (15), VanillaRegisteredEntityFluidOracle (2), VanillaShulkerBulletOracle (4), VanillaShulkerSpaceOracle (2), VanillaTradeComponentsOracle (7), VanillaVehicleContainerOracle (5), VanillaVillagerFarmingOracle (2), VanillaWorldSpawnOracle (8), VanillaWorldSpawnPacketOracle (2), EntityTranscript, LocatorBarClient (20) \u2014 all 'cannot find symbol' (missing-symbol).",
+      "id": "B3-O05",
+      "method": "batch-0-oracles.json",
+      "severity": "minor",
+      "status": "gap",
+      "title": "ORACLE: 15 oracles reference missing 26.x API symbols"
+    },
+    {
+      "evidence": "VanillaEffectNotificationsOracle, VanillaMobAttributesOracle, VanillaBlockingItemDamageOracle, VanillaLivingFallOracle \u2014 all 'method does not override or implement a method from a supertype' (no-override).",
+      "id": "B3-O06",
+      "method": "batch-0-oracles.json",
+      "severity": "minor",
+      "status": "gap",
+      "title": "ORACLE: 4 oracles override 26.x methods absent in 1.21.7"
     }
   ]
 }
