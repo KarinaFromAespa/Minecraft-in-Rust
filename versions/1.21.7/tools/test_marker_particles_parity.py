@@ -81,10 +81,10 @@ def zoo_states():
     return [
         # A torch burns with a smoke particle and a flame 0.7 up; a wall torch
         # is inset 0.27 into the face it hangs on, 0.22 up.
-        'minecraft:torch', 'minecraft:soul_torch', 'minecraft:copper_torch',
+        # No copper torch: 1.21.7 has no copper_torch / copper_wall_torch.
+        'minecraft:torch', 'minecraft:soul_torch',
         *[f'minecraft:wall_torch[facing={facing}]' for facing in FACINGS],
         *[f'minecraft:soul_wall_torch[facing={facing}]' for facing in FACINGS],
-        *[f'minecraft:copper_wall_torch[facing={facing}]' for facing in FACINGS],
         # A lit redstone torch breathes red dust inside a 0.2 cube about it.
         'minecraft:redstone_torch[lit=true]', 'minecraft:redstone_torch[lit=false]',
         *[f'minecraft:redstone_wall_torch[lit=true,facing={facing}]' for facing in FACINGS],
@@ -115,7 +115,7 @@ def zoo_states():
         'minecraft:oak_leaves[distance=1,persistent=false,waterlogged=false]',
         'minecraft:cherry_leaves[distance=7,persistent=true,waterlogged=false]',
         'minecraft:pale_oak_leaves[distance=3,persistent=false,waterlogged=false]',
-        'minecraft:red_poplar_leaves[distance=3,persistent=false,waterlogged=false]',
+        # No red poplar: 1.21.7 has no red_poplar_leaves.
         'minecraft:azalea_leaves[distance=3,persistent=false,waterlogged=false]',
         'minecraft:spruce_leaves[distance=5,persistent=false,waterlogged=false]',
         # Redstone dust along the wire's connections and out of a repeater's
@@ -229,12 +229,12 @@ def main():
         'all four facings, run through the whole ClientLevel.animateTick loop around the player (667 rounds of the '
         '16- and 32-block sample) on a world that is all campfire, with the crackle sound and the lava particles '
         'compared by name and exact position, volume and pitch bits in call order, and the level random compared '
-        'through the draw after the last one, and the same loop on a world that is all of one other state for the 79 '
+        'through the draw after the last one, and the same loop on a world that is all of one other state for the 73 '
         'block states whose own tick reads nothing but that state, the sampled position and the level random: the '
-        'three torches and their wall forms in all four facings, both redstone torches, the lit and unlit furnace, '
+        'two torches and their wall forms in all four facings, both redstone torches, the lit and unlit furnace, '
         'blast furnace and smoker in all four facings, both nether portal axes, the end portal, the end rod in all six '
         'facings, the ender chest, the spore blossom, the mycelium, one to four candles and the candle cake, the '
-        'brewing stand, six leaf blocks, three redstone wire states, two repeaters, two levers, fire, soul fire, a '
+        'brewing stand, five leaf blocks, three redstone wire states, two repeaters, two levers, fire, soul fire, a '
         'blinking sculk sensor and a charged respawn anchor, each at two seeds and forty of them at a random one, '
         'and the wither rose, whose three smoke puffs sit about the centre of the pick shape the flower\'s '
         'model offset moves with the column, at three seeds and twenty-four more at random ones, '

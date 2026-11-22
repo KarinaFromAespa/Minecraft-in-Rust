@@ -16,7 +16,8 @@ except ImportError:
 
 EVENTS = {
     'villager': [12, 13, 14, 42],
-    'cow': [18], 'wolf': [6, 7, 18], 'cat': [6, 7, 18], 'parrot': [6, 7], 'nautilus': [6, 7, 18],
+    # No nautilus: 1.21.7 has no nautilus entity (no such class in the jar).
+    'cow': [18], 'wolf': [6, 7, 18], 'cat': [6, 7, 18], 'parrot': [6, 7],
     'horse': [6, 7, 18], 'llama': [6, 7, 18], 'camel': [6, 7, 18],
     'ocelot': [40, 41, 18], 'dolphin': [38], 'allay': [18],
 }

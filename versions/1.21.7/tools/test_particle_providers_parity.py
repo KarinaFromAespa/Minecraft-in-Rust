@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compare Horizon's ParticleEngine with the pinned client's ParticleProviders:
 every supported particle type is built through its real registered provider
-(real ParticleResources, sprite sets bound to stand-in sprites named after the
+(real ParticleEngine, sprite sets bound to stand-in sprites named after the
 vanilla particles/*.json textures) in a stand-in ClientLevel (air, optionally a
 stone floor at y 63), then ticked; position, motion, age, lifetime, size,
 colour, roll, sprite, UVs and light are compared tick by tick, with the
@@ -20,22 +20,24 @@ try:
 except ImportError:
     import lab, oracle_harness as harness, test_rust_parity as base, test_model_baking_parity as baking
 
-STONE = 1  # Block.stateById(1) in 26.3
+STONE = 1  # Block.stateById(1): air is 0, stone is the second block registered.
 
 # Types Horizon implements, with the options each is built with.
+# 1.21.7 only: the 26.x types (copper_fire_flame, sulfur_cube_goo, the poplar
+# leaves, pause/reset_mob_growth, sulfur_bubbles, the geyser and noxious-gas
+# family) do not exist in this version's registry and are not sent.
 SIMPLE = """angry_villager ash bubble bubble_column_up bubble_pop campfire_cosy_smoke campfire_signal_smoke
 cherry_leaves cloud composter crimson_spore crit current_down damage_indicator dolphin dripping_dripstone_lava
 dripping_dripstone_water dripping_honey dripping_lava dripping_obsidian_tear dripping_water egg_crack enchant
 enchanted_hit end_rod explosion explosion_emitter falling_dripstone_lava falling_dripstone_water falling_honey
-falling_lava falling_nectar falling_obsidian_tear falling_spore_blossom falling_water firework flame copper_fire_flame
+falling_lava falling_nectar falling_obsidian_tear falling_spore_blossom falling_water firework flame
 gust gust_emitter_large gust_emitter_small happy_villager heart infested landing_honey landing_lava
 landing_obsidian_tear large_smoke lava mycelium nautilus note pale_oak_leaves poof portal rain reverse_portal
 sculk_charge_pop sculk_soul smoke small_flame small_gust sneeze snowflake sonic_boom soul soul_fire_flame splash
 spore_blossom_air totem_of_undying underwater vault_connection warped_spore white_ash white_smoke witch
 sweep_attack glow wax_on wax_off electric_spark scrape squid_ink glow_squid_ink item_slime item_snowball item_cobweb
-sulfur_cube_goo firefly trial_spawner_detection trial_spawner_detection_ominous trial_omen raid_omen ominous_spawning
-spit fishing dust_plume red_poplar_leaves orange_poplar_leaves yellow_poplar_leaves pause_mob_growth
-reset_mob_growth sulfur_bubbles""".split()
+elder_guardian firefly trial_spawner_detection trial_spawner_detection_ominous trial_omen raid_omen ominous_spawning
+spit fishing dust_plume""".split()
 
 
 def options(kind, rng):
@@ -57,10 +59,8 @@ def options(kind, rng):
         return dict(item=rng.choice(['minecraft:apple', 'minecraft:cooked_beef', 'minecraft:egg']))
     if kind == 'dragon_breath':
         return dict(scale=rng.choice([1.0, 0.25]))
-    if kind in ('geyser', 'geyser_plume'):
-        return dict(water_blocks=rng.choice([1, 2, 3, 5, 8]))
-    if kind in ('geyser_base', 'geyser_poof'):
-        return dict(water_blocks=rng.choice([1, 2, 3, 5, 8]), burst_impulse_base=rng.choice([0.0, 0.25, 0.5, 1.0]))
+    if kind == 'vibration':
+        return dict(target=[2, 67, -3], duration=rng.choice([10, 37]))
     if kind == 'sculk_charge':
         return dict(scale=rng.choice([0.0, 1.5707964, 3.1415927]))
     if kind == 'shriek':
@@ -73,7 +73,7 @@ def options(kind, rng):
 def cases(rng):
     kinds = SIMPLE + ['block', 'block_crumble', 'dust_pillar', 'falling_dust', 'dust', 'dust_color_transition', 'effect',
                       'instant_effect', 'entity_effect', 'tinted_leaves', 'dragon_breath', 'sculk_charge', 'shriek', 'trail',
-                      'block_marker', 'flash', 'item']
+                      'block_marker', 'flash', 'item', 'vibration']
     # Dyadic values: serde_json's decimal parsing may round others a unit off.
     starts = [([0.3125, 66.6875, -0.40625], False), ([0.3125, 64.046875, -0.40625], True), ([-5.75, 64.59375, 3.125], True)]
     velocities = [[0.0, 0.0, 0.0], [0.078125, 0.125, -0.046875], [0.0, -0.296875, 0.0], [0.5, 0.0, 0.25]]
@@ -83,23 +83,8 @@ def cases(rng):
                 yield dict(type=kind, options=options(kind, rng), pos=pos, vel=vel, floor=floor,
                            seed=rng.randrange(-2**63, 2**63), ticks=80)
     # In still water (sources from y 64 to 67): the bubbles rise until they leave it.
-    for kind in ['sulfur_bubbles', 'bubble', 'bubble_column_up']:
+    for kind in ['bubble', 'bubble_column_up']:
         for (pos, floor) in [([0.3125, 64.046875, -0.40625], True), ([-5.75, 66.59375, 3.125], False)]:
-            for vel in velocities:
-                yield dict(type=kind, options={}, pos=pos, vel=vel, floor=floor, water=True,
-                           seed=rng.randrange(-2**63, 2**63), ticks=80)
-    # The sulfur geyser and the noxious gas around it: the types whose options carry a water
-    # column (and, on the base and the poof, the burst impulse), the gas the cloud keeps
-    # spawning, and the plume that rises `water_blocks` blocks high.
-    for kind in ['noxious_gas', 'noxious_gas_cloud', 'geyser', 'geyser_plume', 'geyser_base', 'geyser_poof']:
-        for (pos, floor) in starts:
-            for vel in velocities:
-                yield dict(type=kind, options=options(kind, rng), pos=pos, vel=vel, floor=floor,
-                           seed=rng.randrange(-2**63, 2**63), ticks=80)
-    # In still water: the cloud spawns gas where PotentSulfurBlockEntity.canBeReachedByNoxiousGas
-    # finds a water source under the spawn point, drawing the level random for each attempt.
-    for kind in ['noxious_gas', 'noxious_gas_cloud']:
-        for (pos, floor) in [([0.3125, 65.046875, -0.40625], True), ([-5.75, 66.59375, 3.125], False)]:
             for vel in velocities:
                 yield dict(type=kind, options={}, pos=pos, vel=vel, floor=floor, water=True,
                            seed=rng.randrange(-2**63, 2**63), ticks=80)
@@ -133,8 +118,7 @@ def decode(token):
 # (Intel's libm) round a fraction of a percent of arguments a unit apart from
 # the platform libm horizon_core::jmath uses, so their motion is compared to
 # 1e-12 relative error; everything else about them, and every other type, exactly.
-LIBM = {'cherry_leaves', 'pale_oak_leaves', 'tinted_leaves', 'red_poplar_leaves', 'orange_poplar_leaves',
-        'yellow_poplar_leaves'}
+LIBM = {'cherry_leaves', 'pale_oak_leaves', 'tinted_leaves'}
 
 
 def sections(path):

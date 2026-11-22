@@ -11,6 +11,7 @@ use horizon_client::{
     particles::{ParticleEngine, ParticleLevel, ParticleOptions, ParticleSnapshot, ParticleType},
     world::World,
 };
+use horizon_protocol::entity_data::PositionSource;
 use serde_json::Value;
 use std::{
     collections::HashMap,
@@ -90,6 +91,19 @@ fn options(case: &Value) -> Option<ParticleOptions> {
             ParticleOptions::trail(
                 [t[0].as_f64()?, t[1].as_f64()?, t[2].as_f64()?],
                 c & 0xFF_FFFF,
+                o["duration"].as_i64()? as i32,
+            )
+        }
+        ParticleType::Vibration => {
+            // `VibrationParticleOption(BlockPositionSource(target), duration)`:
+            // the signal flies to the target block's centre (`Vec3.atCenterOf`).
+            let t = &o["target"];
+            let bx = t[0].as_i64()? as i32;
+            let by = t[1].as_i64()? as i32;
+            let bz = t[2].as_i64()? as i32;
+            ParticleOptions::vibration(
+                PositionSource::Block([bx, by, bz]),
+                [f64::from(bx) + 0.5, f64::from(by) + 0.5, f64::from(bz) + 0.5],
                 o["duration"].as_i64()? as i32,
             )
         }
