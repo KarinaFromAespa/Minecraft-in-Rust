@@ -13900,12 +13900,41 @@ is the oracle; decompiled code is a reading aid.
     same delta.
   - Verification: read / only; no code / changed.
 
+- **Item 341 — Equippable**
+  - Equippable: verified,
+    no code. The 104-line
+    diff is the 1.21.6-only
+    shearing fields -
+    canBeSheared,
+    shearingSound, the setC
+    anBeSheared/setShearing
+    Sound builder methods
+    and the harness()
+    factory (ghast
+    harnesses, a 1.21.6
+    feature) - none of
+    which exists in 1.21.5.
+    Neither Rust Equippable
+    model carries them:
+    item_sync.rs reads only
+    slot, asset_id and
+    camera_overlay,
+    menu/equippable.rs only
+    slot and
+    allowed_entities. The
+    shear behaviour itself
+    was already removed by
+    item 66 (llama carpet)
+    and item 314
+    (dispenser).
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **340 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 72/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **341 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 73/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
