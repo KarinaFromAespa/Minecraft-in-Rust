@@ -12808,3 +12808,7 @@ ShelfMushroom) correctly never match.
 ## Item 727 — worldgen/structure/formations.rs (StructurePlacement$ExclusionZone, LiquidSettings) — NO-CHANGE
 
 Visibility plus a dropped `final` on the CODEC field; same value.
+
+## Item 728 — worldgen/structure/piece_limited.rs (Direction$Plane) — NO-CHANGE
+
+Interface declaration order only.
