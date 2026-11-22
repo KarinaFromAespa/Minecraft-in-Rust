@@ -1861,3 +1861,50 @@ match the trim), `loot_table_conditions_match_only_their_table`
 `recipe_condition`, and the recipe-index + bare-id fixtures moved
 from `recipes` to `recipe` (they encoded the 26.x form and passed
 while real data failed).
+## Crate-test repairs: three 26.x datafix fixtures (2026-11-22)
+
+Three `horizon-world` datafix tests failed deterministically in
+crate-tests runs 4-6, all three test bugs, not product defects: each
+pinned a 26.x behaviour that vanilla 1.21.7 does not have, against a
+fixture from a future version. All three verified against the 1.21.7
+named jar (`1.21.7-server-named.jar`). No production code changed;
+the rewritten tests are the regression tests.
+
+- `failed_upgrade_keeps_old_data_version` (`datafix/files.rs`): the
+  fixture world was DataVersion 4899, a 26.x version in the future
+  for 1.21.7 (CURRENT 4438), so the upgrade correctly left it alone
+  and the stamp assertion compared 4899 to 4438. Fixture now 4000
+  (1.20-era, past the only applicable file fix, 1493). The same
+  future-version fixture in `upgrade_reports_one_operation_per_file`
+  and `cancel_stops_the_data_upgrade_and_keeps_the_version` --
+  passing only vacuously, since a future world has no pending stamp
+  for the cancel to withhold -- was changed to 4000 too.
+- `block_states_take_their_new_field_names`, renamed
+  `block_states_keep_their_1_21_7_field_names` (`datafix/tests.rs`):
+  the palette rename `Name`/`Properties` to `id`/`properties` is
+  fix 5006, a 26.3 fix above CURRENT, and the old fixture was a 4903
+  chunk (future here, left alone). Vanilla 1.21.7 palettes still use
+  `Name`/`Properties`: its jar's DataFixers top out at V4421, with no
+  5006 rename fix. The test now upgrades a 4435 (1.21.6) chunk and
+  asserts the fields are kept, `id` is absent, and the version is
+  stamped.
+- `level_data_of_1_20_moves_to_the_new_fields`, renamed
+  `level_data_of_1_20_keeps_its_1_21_7_fields` (`datafix/tests.rs`):
+  the expected fields are all 26.x moves above CURRENT --
+  `difficulty_settings` (4771), `game_rules` (4658), `spawn` (4548).
+  Vanilla 1.21.7's `PrimaryLevelData` still reads `Difficulty`,
+  `DifficultyLocked`, `GameRules` and `SpawnX`, and its jar's only
+  `Level*` fixes are the pre-1.20 ones
+  (`LevelDataGeneratorOptionsFix`, `LevelLegacyWorldGenSettingsFix`,
+  `LevelUUIDFix`, `LevelFlatGeneratorInfoFix`). The test now asserts
+  a 1.20 level keeps its fields and gains none of the 26.x
+  compounds. No fix in the 1.20 -> 1.21.7 range touches these
+  fields (checked: no `Ty::Level`/`GameRules` fix in `fixes_a`/
+  `fixes_b`, and the in-range `fixes_c` fixes are entity/player
+  only).
+
+Verification, run locally on this VM (`taskset -c 0 cargo test
+--offline -p horizon-world --lib`, ~20 min compile under load, suite
+325s): full lib suite **471 passed / 0 failed / 3 ignored** (the CI
+baseline was 468 passed / 3 failed / 3 ignored). The datafix subset
+is 35/35 and the `files::upgrade_tests` subset 7/7.
