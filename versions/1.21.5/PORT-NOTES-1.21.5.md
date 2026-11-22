@@ -15545,12 +15545,47 @@ is the oracle; decompiled code is a reading aid.
     palette.
   - Verification: read / only; no code / changed.
 
+- **Item 402 — FogParameters / FogRenderer fog functions / PostChainConfig**
+  - FogParameters /
+    FogRenderer fog
+    functions /
+    PostChainConfig
+    targets: verified, no
+    code. These are
+    1.21.5-only classes -
+    1.21.6 refactored fog
+    into a fog/ subpackage
+    and reworked the
+    post-chain config. The
+    port already has the
+    1.21.5 forms: setup_fog
+    matches
+    FogRenderer.setupFog
+    branch by branch (lava,
+    powder snow, blindness
+    before darkness, water
+    at 96 with the 0.85
+    closer-fog biome
+    factor, the foggy
+    rd*0.05 /
+    min(rd,192)*0.5 pair,
+    the 32-block void
+    darkness, no rain fog),
+    and the post-chain
+    parser implements the
+    1.21.5 codec (Fixed vs
+    FullScreen targets by
+    the either-codec,
+    Uniform
+    name/type/values).
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **401 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **402 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 1/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
