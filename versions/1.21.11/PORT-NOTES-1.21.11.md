@@ -13275,3 +13275,10 @@ record `ItemParser` returns. The Rust ports `ItemParser` in full
 1 class: `SelectorPattern` — a pattern-string + resolved-selector
 record for selectors stored in data. The Rust ports
 `EntitySelectorParser` in full and parses selectors on demand.
+
+## Item 791 — core/cauldron (new-classes) — NO-CHANGE
+
+1 class: `CauldronInteraction$InteractionMap` — the name +
+item-to-interaction map record 26.1 replaced with the Dispatcher.
+The Rust already cites `InteractionMap.get` and implements the
+1.21.11 form.
