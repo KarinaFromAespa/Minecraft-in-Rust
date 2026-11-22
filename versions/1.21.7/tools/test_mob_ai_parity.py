@@ -553,7 +553,13 @@ def scenarios():
             f'mob minecraft:{species} 0.5 -60 0.5 0 1 persistent noai',
         ], 'difficulty=0 time=18000')
 
-    return s
+    # 1.21.7 has no copper golem, copper chests or spears (all 1.21.9+), and
+    # no AgeableMob age lock: drop the scenarios that need them — the oracle
+    # cannot spawn what the version's registries do not contain (7 golem,
+    # 4 spear, 16 age-lock scenarios). The filter applies to oracle and probe
+    # alike, since both read this list.
+    absent = ('copper_golem', 'copper_chest', '_spear', ' agelocked')
+    return [sc for sc in s if not any(a in line for line in sc[3] for a in absent)]
 
 
 def write_scenarios(path, chosen):

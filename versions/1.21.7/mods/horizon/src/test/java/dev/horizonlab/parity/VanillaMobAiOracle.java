@@ -28,8 +28,6 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestServer;
-import net.minecraft.gizmos.GizmoCollector;
-import net.minecraft.gizmos.Gizmos;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
@@ -43,33 +41,26 @@ import net.minecraft.server.WorldLoader;
 import net.minecraft.server.WorldStem;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.level.progress.LoggingLevelLoadListener;
+import net.minecraft.server.level.progress.LoggerChunkProgressListener;
 import net.minecraft.server.network.CommonListenerCookie;
-import net.minecraft.server.notifications.EmptyNotificationService;
-import net.minecraft.server.notifications.NotificationManager;
 import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.server.packs.repository.ServerPacksSource;
-import net.minecraft.server.permissions.LevelBasedPermissionSet;
-import net.minecraft.server.permissions.PermissionSet;
-import net.minecraft.server.players.NameAndId;
 import net.minecraft.server.players.PlayerList;
-import net.minecraft.util.Util;
+import net.minecraft.Util;
+import net.minecraft.util.RandomSource;
 import net.minecraft.util.datafix.DataFixers;
 import net.minecraft.util.debugchart.LocalSampleLogger;
 import net.minecraft.util.debugchart.SampleLogger;
-import net.minecraft.world.clock.WorldClocks;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntitySpawnRequest;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.monster.creaking.Creaking;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.behavior.BehaviorControl;
 import net.minecraft.world.entity.ai.behavior.BlockPosTracker;
@@ -86,19 +77,18 @@ import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.ai.sensing.Sensor;
 import net.minecraft.world.flag.FeatureFlagSet;
 import net.minecraft.world.flag.FeatureFlags;
+import net.minecraft.world.Difficulty;
 import net.minecraft.world.level.DataPackConfig;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelSettings;
 import net.minecraft.world.level.WorldDataConfiguration;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.dimension.LevelStem;
-import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.levelgen.WorldDimensions;
-import net.minecraft.world.level.levelgen.WorldGenSettings;
 import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
-import net.minecraft.world.level.storage.LevelDataAndDimensions;
 import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraft.world.level.storage.PrimaryLevelData;
 import net.minecraft.world.phys.Vec3;
@@ -339,32 +329,37 @@ public final class VanillaMobAiOracle {
                 enabled.remove("vanilla");
                 enabled.addFirst("vanilla");
                 WorldDataConfiguration config = new WorldDataConfiguration(new DataPackConfig(enabled, List.of()), FEATURES);
-                LevelSettings settings = new LevelSettings("AI Level", GameType.SURVIVAL, LevelSettings.DifficultySettings.DEFAULT, true, config);
+                // 1.21.7's GameRules lives in net.minecraft.world.level, has no
+                // set(Key, value, server): each rule is set through its value.
+                // 1.21.7 has no separate doMonsterSpawning (doMobSpawning covers
+                // it) and its raids rule is the inverted disableRaids.
+                GameRules rules = new GameRules(FEATURES);
+                rules.getRule(GameRules.RULE_DOMOBSPAWNING).set(false, null);
+                rules.getRule(GameRules.RULE_DO_PATROL_SPAWNING).set(false, null);
+                rules.getRule(GameRules.RULE_DOINSOMNIA).set(false, null);
+                rules.getRule(GameRules.RULE_DO_TRADER_SPAWNING).set(false, null);
+                rules.getRule(GameRules.RULE_DO_WARDEN_SPAWNING).set(false, null);
+                rules.getRule(GameRules.RULE_DAYLIGHT).set(false, null);
+                rules.getRule(GameRules.RULE_WEATHER_CYCLE).set(false, null);
+                rules.getRule(GameRules.RULE_DISABLE_RAIDS).set(true, null);
+                // 1.21.7's LevelSettings is 7-arg and carries the GameRules, so
+                // the server reads them from its world data; the Server ctor
+                // takes no rules. InitConfig takes an int function level (4).
+                LevelSettings settings = new LevelSettings("AI Level", GameType.SURVIVAL, false, Difficulty.NORMAL, true, rules, config);
                 WorldLoader.PackConfig packConfig = new WorldLoader.PackConfig(packs, config, false, true);
-                WorldLoader.InitConfig init = new WorldLoader.InitConfig(packConfig, Commands.CommandSelection.DEDICATED, LevelBasedPermissionSet.OWNER);
+                WorldLoader.InitConfig init = new WorldLoader.InitConfig(packConfig, Commands.CommandSelection.DEDICATED, 4);
+                WorldOptions options = new WorldOptions(0L, false, false);
                 WorldStem stem = Util.<WorldStem>blockUntilDone(executor -> WorldLoader.load(init, context -> {
                     Registry<LevelStem> none = new MappedRegistry<>(Registries.LEVEL_STEM, Lifecycle.stable()).freeze();
-                    WorldDimensions dims = context.datapackWorldRegistries().lookupOrThrow(Registries.WORLD_PRESET)
+                    WorldDimensions dims = context.datapackWorldgen().lookupOrThrow(Registries.WORLD_PRESET)
                         .getOrThrow(WorldPresets.FLAT).value().createWorldDimensions();
                     WorldDimensions.Complete complete = dims.bake(none);
-                    PrimaryLevelData data = new PrimaryLevelData(settings, complete.specialWorldProperty(), complete.lifecycle());
-                    return new WorldLoader.DataLoadOutput<>(
-                        new LevelDataAndDimensions.WorldDataAndGenSettings(data, new WorldGenSettings(new WorldOptions(0L, false, false), dims)),
-                        complete.dimensionsRegistryAccess());
+                    PrimaryLevelData data = new PrimaryLevelData(settings, options, complete.specialWorldProperty(), complete.lifecycle());
+                    return new WorldLoader.DataLoadOutput<>(data, complete.dimensionsRegistryAccess());
                 }, WorldStem::new, Util.backgroundExecutor(), executor)).get();
-                GameRules rules = new GameRules(FEATURES);
-                rules.set(GameRules.SPAWN_MOBS, false, null);
-                rules.set(GameRules.SPAWN_MONSTERS, false, null);
-                rules.set(GameRules.SPAWN_PATROLS, false, null);
-                rules.set(GameRules.SPAWN_PHANTOMS, false, null);
-                rules.set(GameRules.SPAWN_WANDERING_TRADERS, false, null);
-                rules.set(GameRules.SPAWN_WARDENS, false, null);
-                rules.set(GameRules.ADVANCE_TIME, false, null);
-                rules.set(GameRules.ADVANCE_WEATHER, false, null);
-                rules.set(GameRules.RAIDS, false, null);
                 Field nf = GameTestServer.class.getDeclaredField("NO_SERVICES");
                 nf.setAccessible(true);
-                return new Server(thread, access, packs, stem, rules, (Services) nf.get(null));
+                return new Server(thread, access, packs, stem, (Services) nf.get(null));
             } catch (Exception e) {
                 e.printStackTrace();
                 System.exit(2);
@@ -372,20 +367,24 @@ public final class VanillaMobAiOracle {
             }
         }
 
-        Server(Thread thread, LevelStorageSource.LevelStorageAccess access, PackRepository packs, WorldStem stem, GameRules rules, Services services) {
-            super(thread, access, packs, stem, Optional.of(rules), Proxy.NO_PROXY, DataFixers.getDataFixer(), services,
-                LoggingLevelLoadListener.forDedicatedServer(), false, new NotificationManager());
+        Server(Thread thread, LevelStorageSource.LevelStorageAccess access, PackRepository packs, WorldStem stem, Services services) {
+            // 1.21.7's MinecraftServer ctor is 8-arg: no rules, no
+            // notification manager; the progress listener is
+            // LoggerChunkProgressListener::create.
+            super(thread, access, packs, stem, Proxy.NO_PROXY, DataFixers.getDataFixer(), services,
+                LoggerChunkProgressListener::create);
         }
 
         @Override
         protected boolean initServer() {
-            this.setPlayerList(new PlayerList(this, this.registries(), this.playerDataStorage, new EmptyNotificationService()) {
+            // 1.21.7's PlayerList is 4-arg (server, registries, storage,
+            // max players); no notification service.
+            this.setPlayerList(new PlayerList(this, this.registries(), this.playerDataStorage, 1) {
                 @Override
                 public void broadcast(Player except, double x, double y, double z, double range, ResourceKey<Level> dim, Packet<?> packet) {
                     capture(packet);
                 }
             });
-            Gizmos.withCollector(GizmoCollector.NOOP);
             this.loadLevel();
             return true;
         }
@@ -399,7 +398,7 @@ public final class VanillaMobAiOracle {
         }
 
         @Override
-        protected void tickServer(BooleanSupplier haveTime) {
+        public void tickServer(BooleanSupplier haveTime) {
             try {
                 step(haveTime);
             } catch (Throwable t) {
@@ -509,11 +508,11 @@ public final class VanillaMobAiOracle {
         }
 
         void run(Scenario s, ServerLevel level) throws Exception {
-            net.minecraft.world.entity.vehicle.boat.Boat boat = null;
+            net.minecraft.world.entity.vehicle.Boat boat = null;
             this.setDifficulty(net.minecraft.world.Difficulty.byId(s.difficulty), true);
             out.println("== " + s.name);
-            var clock = level.registryAccess().lookupOrThrow(Registries.WORLD_CLOCK).getOrThrow(WorldClocks.OVERWORLD);
-            this.clockManager().setTotalTicks(clock, s.time);
+            // 1.21.7 has no world clocks: the day time is set on the level data.
+            this.getWorldData().overworldData().setDayTime(s.time);
             // Every scenario starts at game time 1000.
             this.getWorldData().overworldData().setGameTime(1000L);
             // isRaining/isThundering read the rain and thunder levels only.
@@ -528,8 +527,10 @@ public final class VanillaMobAiOracle {
                     this.getPlayerList().placeNewPlayer(connection, player, cookie);
                     // A client that has finished loading: otherwise the player stays invulnerable
                     // until 60 of the server ticks between scenarios have passed, so whether mobs can
-                    // hurt it would depend on the scenario order.
-                    method(player.connection.getClass(), "markClientLoaded").invoke(player.connection);
+                    // hurt it would depend on the scenario order. 1.21.7's flag is on the
+                    // player itself (ServerPlayer.setClientLoaded, called by
+                    // handleAcceptPlayerLoad); there is no markClientLoaded.
+                    player.setClientLoaded(true);
                 }
                 player.setGameMode(s.creative ? GameType.CREATIVE : GameType.SURVIVAL);
                 player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, s.hand == null ? net.minecraft.world.item.ItemStack.EMPTY
@@ -547,12 +548,13 @@ public final class VanillaMobAiOracle {
                 if (s.boat != null) {
                     // A boat that does not tick (its physics are not under test): moved by the script, the
                     // player rides it and has the speed it moves at (Entity.computeSpeed, as Entity.tick).
-                    boat = new net.minecraft.world.entity.vehicle.boat.Boat(EntityTypes.OAK_BOAT, level, () -> net.minecraft.world.item.Items.OAK_BOAT) {
+                    boat = new net.minecraft.world.entity.vehicle.Boat(EntityType.OAK_BOAT, level, () -> net.minecraft.world.item.Items.OAK_BOAT) {
                         @Override public void tick() {}
                     };
                     boat.snapTo(s.player[0], s.player[1], s.player[2], 0.0F, 0.0F);
                     level.addFreshEntity(boat);
-                    if (!player.startRiding(boat, true, false)) throw new IllegalStateException("Could not board the boat");
+                    // 1.21.7's startRiding is 2-arg at most (vehicle, force).
+                    if (!player.startRiding(boat, true)) throw new IllegalStateException("Could not board the boat");
                     method(Entity.class, "computeSpeed").invoke(player);
                 }
             } else if (player != null) {
@@ -566,8 +568,9 @@ public final class VanillaMobAiOracle {
             for (MobSpec spec : s.mobs) {
                 EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.ResourceLocation.parse(spec.type));
                 // Ignore canSpawn: a Peaceful scenario's hostile mob is one that was already
-                // in the world when the difficulty changed (create returns null at Peaceful).
-                Mob mob = (Mob) type.create(level, new EntitySpawnRequest(EntitySpawnReason.COMMAND, true));
+                // in the world when the difficulty changed. 1.21.7 has no
+                // EntitySpawnRequest; its 2-arg create never checks spawn rules.
+                Mob mob = (Mob) type.create(level, EntitySpawnReason.COMMAND);
                 if (tracing(s)) field(Entity.class, "random").set(mob, new TracingRandom(0L, TRACE, ENTS.size()));
                 mob.setId(id++);
                 mob.snapTo(spec.x, spec.y, spec.z, spec.yaw, 0.0F);
@@ -591,7 +594,9 @@ public final class VanillaMobAiOracle {
                             new net.minecraft.world.item.ItemStack(BuiltInRegistries.ITEM.getValue(
                                 net.minecraft.resources.ResourceLocation.parse("minecraft:red_harness"))));
                         case "noai" -> mob.setNoAi(true);
-                        case "agelocked" -> method(AgeableMob.class, "setAgeLocked", boolean.class).invoke(mob, true);
+                        // No "agelocked" case: 1.21.7's AgeableMob has no age lock
+                        // at all (no setAgeLocked, no ageLocked field). The driver
+                        // does not generate agelocked scenarios for 1.21.7.
                         case "profession" -> {
                             Villager villager = (Villager) mob;
                             villager.setVillagerData(villager.getVillagerData().withProfession(level.registryAccess(),
@@ -635,15 +640,17 @@ public final class VanillaMobAiOracle {
                             }
                         }
                         case "inlove" -> ((net.minecraft.world.entity.animal.Animal) mob).setInLoveTime(600);
-                        case "nectar" -> method(net.minecraft.world.entity.animal.bee.Bee.class, "setHasNectar", boolean.class).invoke(mob, true);
-                        case "tame" -> { if (mob instanceof net.minecraft.world.entity.animal.equine.AbstractHorse horse) horse.setTamed(true); }
+                        case "nectar" -> method(net.minecraft.world.entity.animal.Bee.class, "setHasNectar", boolean.class).invoke(mob, true);
+                        case "tame" -> { if (mob instanceof net.minecraft.world.entity.animal.horse.AbstractHorse horse) horse.setTamed(true); }
                         // TamableAnimal.tame without the player entity: tamed (with its side effects) by the scenario's player.
                         case "owned" -> {
                             net.minecraft.world.entity.TamableAnimal pet = (net.minecraft.world.entity.TamableAnimal) mob;
                             pet.setTame(true, true);
-                            pet.setOwnerReference(net.minecraft.world.entity.EntityReference.of(PLAYER_UUID));
+                            // 1.21.7's EntityReference has no of(UUID) factory; the
+                            // constructor takes the UUID directly.
+                            pet.setOwnerReference(new net.minecraft.world.entity.EntityReference<>(PLAYER_UUID));
                         }
-                        case "strength" -> method(net.minecraft.world.entity.animal.equine.Llama.class, "setStrength", int.class)
+                        case "strength" -> method(net.minecraft.world.entity.animal.horse.Llama.class, "setStrength", int.class)
                             .invoke(mob, Integer.parseInt(v));
                         case "dead" -> mob.setHealth(0.0F);
                         // effect=<name>:<amplifier>, never running out.
@@ -662,16 +669,16 @@ public final class VanillaMobAiOracle {
                             mob.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, new net.minecraft.world.item.ItemStack(
                                 BuiltInRegistries.ITEM.getValue(net.minecraft.resources.ResourceLocation.parse(ic[0])), Integer.parseInt(ic[1])));
                         }
-                        case "cooldown" -> {
-                            // Set after the seeded constructor draw (below).
-                        }
+                        // No "cooldown" case: it only served the copper golem,
+                        // which 1.21.7 does not have. The driver does not
+                        // generate cooldown scenarios for 1.21.7.
                         default -> throw new IllegalArgumentException(flag);
                     }
                 }
                 level.addFreshEntity(mob);
                 for (Runnable r : afterAdd) r.run();
                 mob.getRandom().setSeed(spec.seed);
-                if (mob instanceof net.minecraft.world.entity.animal.fish.AbstractSchoolingFish fish) {
+                if (mob instanceof net.minecraft.world.entity.animal.AbstractSchoolingFish fish) {
                     // The constructor's nextStartTick draw (FollowFlockLeaderGoal), made again with the seeded random.
                     for (WrappedGoal g : ((GoalSelector) get(fish, "goalSelector")).getAvailableGoals()) {
                         if (g.getGoal() instanceof net.minecraft.world.entity.ai.goal.FollowFlockLeaderGoal goal)
@@ -679,19 +686,12 @@ public final class VanillaMobAiOracle {
                     }
                 }
                 Brain<?> brain = mob.getBrain();
-                if (mob instanceof net.minecraft.world.entity.animal.golem.CopperGolem) {
-                    // The constructor's TRANSPORT_ITEMS_COOLDOWN_TICKS draw, made with the seeded
-                    // random; "cooldown=N" then sets it (0: none, transporting at once).
-                    int cooldown = mob.getRandom().nextInt(60, 100);
-                    for (String flag : spec.flags)
-                        if (flag.startsWith("cooldown=")) cooldown = Integer.parseInt(flag.substring(9));
-                    if (cooldown > 0) brain.setMemory(MemoryModuleType.TRANSPORT_ITEMS_COOLDOWN_TICKS, cooldown);
-                    else brain.eraseMemory(MemoryModuleType.TRANSPORT_ITEMS_COOLDOWN_TICKS);
-                }
-                if (mob instanceof net.minecraft.world.entity.animal.bee.Bee bee) seedBee(bee);
+                // No copper-golem cooldown block: 1.21.7 has no copper golem
+                // and no TRANSPORT_ITEMS_COOLDOWN_TICKS memory.
+                if (mob instanceof net.minecraft.world.entity.animal.Bee bee) seedBee(bee);
                 @SuppressWarnings("unchecked")
                 Map<Object, Sensor<?>> sensors = (Map<Object, Sensor<?>>) get(brain, "sensors");
-                for (Sensor<?> sensor : sensors.values()) sensor.randomlyDelayStart(mob.getRandom());
+                for (Sensor<?> sensor : sensors.values()) randomlyDelayStart(sensor, mob.getRandom());
                 seedGates(brain, spec.seed);
                 LABELS.put(mob, ENTS.size());
                 ENTS.add(mob);
@@ -722,8 +722,8 @@ public final class VanillaMobAiOracle {
             // n-th with seed 1000 + n; they join the list once in the level.
             List<Mob> created = new ArrayList<>();
             Field factoryField = field(EntityType.class, "factory");
-            Object creakingFactory = factoryField.get(EntityTypes.CREAKING);
-            factoryField.set(EntityTypes.CREAKING, (EntityType.EntityFactory<Creaking>) (type, lvl) -> {
+            Object creakingFactory = factoryField.get(EntityType.CREAKING);
+            factoryField.set(EntityType.CREAKING, (EntityType.EntityFactory<Creaking>) (type, lvl) -> {
                 Creaking c = new Creaking(type, lvl);
                 try {
                     long seed = 1000 + created.size();
@@ -731,7 +731,7 @@ public final class VanillaMobAiOracle {
                     c.getRandom().setSeed(seed);
                     @SuppressWarnings("unchecked")
                     Map<Object, Sensor<?>> cs = (Map<Object, Sensor<?>>) get(c.getBrain(), "sensors");
-                    for (Sensor<?> sensor : cs.values()) sensor.randomlyDelayStart(c.getRandom());
+                    for (Sensor<?> sensor : cs.values()) randomlyDelayStart(sensor, c.getRandom());
                     seedGates(c.getBrain(), seed);
                 } catch (Exception e) {
                     throw new IllegalStateException(e);
@@ -739,15 +739,17 @@ public final class VanillaMobAiOracle {
                 created.add(c);
                 return c;
             });
-            boolean spawnMobs = this.getGameRules().get(GameRules.SPAWN_MOBS);
-            boolean spawnMonsters = this.getGameRules().get(GameRules.SPAWN_MONSTERS);
-            this.getGameRules().set(GameRules.SPAWN_MOBS, s.spawning, this);
-            this.getGameRules().set(GameRules.SPAWN_MONSTERS, s.spawning, this);
+            // 1.21.7 has no doMonsterSpawning: doMobSpawning covers monsters.
+            boolean spawnMobs = this.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING);
+            this.getGameRules().getRule(GameRules.RULE_DOMOBSPAWNING).set(s.spawning, this);
             level.getRandom().setSeed(s.levelSeed);
             // Loot drawn from random sequences starts afresh in every scenario.
-            this.getRandomSequences().clear();
+            // 1.21.7's random sequences live on the level, not the server.
+            level.getRandomSequences().clear();
             SOUNDS.clear();
             Method tickTime = method(ServerLevel.class, "tickTime");
+            // Level.tickBlockEntities is protected in 1.21.7.
+            Method tickBlockEntities = method(Level.class, "tickBlockEntities");
             Object manager = get(level, "entityManager");
             Method managerTick = method(manager.getClass(), "tick");
             Map<BlockPos, BlockState> watched = new java.util.LinkedHashMap<>();
@@ -761,14 +763,15 @@ public final class VanillaMobAiOracle {
             for (int i = 0; i < ENTS.size(); i++) print(0, i, ENTS.get(i));
             for (int t = 1; t <= s.ticks; t++) {
                 tickMark();
-                if (s.daycycle) this.clockManager().setTotalTicks(clock, s.time + t);
+                if (s.daycycle) this.getWorldData().overworldData().setDayTime(s.time + t);
                 for (Object[] e : s.timed) if ((Integer) e[0] == t) place((String[]) e[1], level);
-                level.environmentAttributes().invalidateTickCache();
+                // No environmentAttributes in 1.21.7: nothing to invalidate.
                 level.updateSkyBrightness();
                 tickTime.invoke(level);
                 if (player != null && s.player != null) {
                     player.setHealth(player.getMaxHealth());
-                    player.setInvulnerableTime(0);
+                    // 1.21.7 has no setInvulnerableTime; the field is public.
+                    player.invulnerableTime = 0;
                     // The hurt cooldown (only ServerPlayer.tick counts it down).
                     field(LivingEntity.class, "damageCooldownTime").setInt(player, 0);
                     player.hurtTime = 0;
@@ -823,9 +826,10 @@ public final class VanillaMobAiOracle {
                 if (s.blocks.stream().anyMatch(Server::isHive)) {
                     // A bee leaving its hive takes the id the probe gives it, 100000 + its index
                     // (goals run in full on ticks where tickCount + id is even).
-                    ((java.util.concurrent.atomic.AtomicInteger) field(ServerLevel.class, "ENTITY_COUNTER").get(null)).set(100000 + ENTS.size() - 1);
-                    level.tickBlockEntities();
-                } else if (!heartPositions.isEmpty()) level.tickBlockEntities();
+                    // 1.21.7's ENTITY_COUNTER is on Entity, not ServerLevel.
+                    ((java.util.concurrent.atomic.AtomicInteger) field(Entity.class, "ENTITY_COUNTER").get(null)).set(100000 + ENTS.size() - 1);
+                    tickBlockEntities.invoke(level);
+                } else if (!heartPositions.isEmpty()) tickBlockEntities.invoke(level);
                 managerTick.invoke(manager);
                 // Villagers the tick spawned (babies), the iron golems they summoned and a heart's
                 // creakings tick from the next one, in the order they were added, with a seeded
@@ -833,8 +837,8 @@ public final class VanillaMobAiOracle {
                 // as the probe leaves them.
                 List<Entity> fresh = new ArrayList<>();
                 for (Entity e : level.getAllEntities())
-                    if (!LABELS.containsKey(e) && (e instanceof Villager || e instanceof net.minecraft.world.entity.animal.bee.Bee
-                        || e instanceof net.minecraft.world.entity.animal.golem.IronGolem || created.contains(e))) fresh.add(e);
+                    if (!LABELS.containsKey(e) && (e instanceof Villager || e instanceof net.minecraft.world.entity.animal.Bee
+                        || e instanceof net.minecraft.world.entity.animal.IronGolem || created.contains(e))) fresh.add(e);
                 fresh.sort(java.util.Comparator.comparingInt(Entity::getId));
                 for (Entity e : fresh) {
                     int index = ENTS.size();
@@ -859,10 +863,10 @@ public final class VanillaMobAiOracle {
                         if (tracing(s)) field(Entity.class, "random").set(mob, new TracingRandom(0L, TRACE, index));
                         mob.getRandom().setSeed(seed);
                         // A bee out of a hive: its constructor drew from an unseeded random.
-                        if (mob instanceof net.minecraft.world.entity.animal.bee.Bee bee) seedBee(bee);
+                        if (mob instanceof net.minecraft.world.entity.animal.Bee bee) seedBee(bee);
                         @SuppressWarnings("unchecked")
                         Map<Object, Sensor<?>> sensors = (Map<Object, Sensor<?>>) get(mob.getBrain(), "sensors");
-                        for (Sensor<?> sensor : sensors.values()) sensor.randomlyDelayStart(mob.getRandom());
+                        for (Sensor<?> sensor : sensors.values()) randomlyDelayStart(sensor, mob.getRandom());
                         seedGates(mob.getBrain(), seed);
                         brains.add(mob.getBrain());
                     } else {
@@ -898,18 +902,27 @@ public final class VanillaMobAiOracle {
                 boat.discard();
             }
             for (BlockPos h : heartPositions) level.setBlock(h, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2 | 16);
-            factoryField.set(EntityTypes.CREAKING, creakingFactory);
-            this.getGameRules().set(GameRules.SPAWN_MOBS, spawnMobs, this);
-            this.getGameRules().set(GameRules.SPAWN_MONSTERS, spawnMonsters, this);
+            factoryField.set(EntityType.CREAKING, creakingFactory);
+            this.getGameRules().getRule(GameRules.RULE_DOMOBSPAWNING).set(spawnMobs, this);
             managerTick.invoke(manager);
             out.flush();
+        }
+
+        /**
+         * Sensor.randomlyDelayStart, which 1.21.7 lacks: the 1.21.11 form,
+         * verified against its jar — timeToTick is a countdown (Sensor.tick
+         * decrements it and runs doTick at zero), set to a random draw under
+         * the scan rate.
+         */
+        static void randomlyDelayStart(Sensor<?> sensor, RandomSource random) throws Exception {
+            field(Sensor.class, "timeToTick").setLong(sensor, random.nextInt(field(Sensor.class, "scanRate").getInt(sensor)));
         }
 
         /**
          * A bee's constructor draws, made again with its seeded random: the validate goals'
          * cooldowns (registerGoals), then the flower cooldown's initialiser.
          */
-        static void seedBee(net.minecraft.world.entity.animal.bee.Bee bee) throws Exception {
+        static void seedBee(net.minecraft.world.entity.animal.Bee bee) throws Exception {
             var rnd = bee.getRandom();
             int hive = net.minecraft.util.Mth.nextInt(rnd, 20, 40);
             int flower = net.minecraft.util.Mth.nextInt(rnd, 20, 40);
@@ -918,7 +931,7 @@ public final class VanillaMobAiOracle {
                 if (n.equals("ValidateHiveGoal")) field(g.getGoal().getClass(), "VALIDATE_HIVE_COOLDOWN").setInt(g.getGoal(), hive);
                 if (n.equals("ValidateFlowerGoal")) field(g.getGoal().getClass(), "validateFlowerCooldown").setInt(g.getGoal(), flower);
             }
-            field(net.minecraft.world.entity.animal.bee.Bee.class, "remainingCooldownBeforeLocatingNewFlower")
+            field(net.minecraft.world.entity.animal.Bee.class, "remainingCooldownBeforeLocatingNewFlower")
                 .setInt(bee, net.minecraft.util.Mth.nextInt(rnd, 20, 60));
         }
 
@@ -949,7 +962,9 @@ public final class VanillaMobAiOracle {
         static String stateName(BlockState state) {
             StringBuilder sb = new StringBuilder(BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString());
             List<String> props = new ArrayList<>();
-            state.getValues().forEach(v -> props.add(v.toString()));
+            // 1.21.7's getValues returns a map (property -> value), not a
+            // collection of values.
+            state.getValues().values().forEach(v -> props.add(v.toString()));
             props.sort(null);
             if (!props.isEmpty()) sb.append('[').append(String.join(",", props)).append(']');
             return sb.toString();
@@ -1118,36 +1133,39 @@ public final class VanillaMobAiOracle {
                 acts.sort(null);
                 sb.append("\tact ").append(String.join("|", acts));
                 List<String> mem = new ArrayList<>();
-                brain.forEach(new Brain.Visitor() {
-                    @Override public <U> void acceptEmpty(MemoryModuleType<U> type) {}
-                    @Override public <U> void accept(MemoryModuleType<U> type, U value) { mem.add(name(type) + "=" + value(value)); }
-                    @Override public <U> void accept(MemoryModuleType<U> type, U value, long ttl) { mem.add(name(type) + "=" + value(value) + "@" + ttl); }
-                });
+                // 1.21.7's Brain has no forEach/Visitor: iterate getMemories
+                // directly. Empty memories print nothing, as the Visitor's
+                // no-op acceptEmpty did; expiring ones carry their TTL.
+                for (var entry : brain.getMemories().entrySet()) {
+                    var memory = entry.getValue();
+                    if (memory.isEmpty()) continue;
+                    var expirable = memory.get();
+                    mem.add(name(entry.getKey()) + "=" + value(expirable.getValue())
+                        + (expirable.canExpire() ? "@" + expirable.getTimeToLive() : ""));
+                }
                 mem.sort(null);
                 sb.append("\tmem ").append(String.join(" ", mem));
             }
             if (m instanceof AgeableMob ageable) sb.append("\tage ").append(ageable.getAge());
             if (m instanceof Villager villager) sb.append("\tvx ").append(villager(villager));
-            if (m instanceof net.minecraft.world.entity.animal.golem.CopperGolem golem) {
-                Object opened = get(golem, "openedChestPos");
-                sb.append("\tcg ").append(golem.getState().ordinal()).append(' ').append(stack(golem.getMainHandItem())).append(' ')
-                    .append(opened == null ? "-" : pos((BlockPos) opened));
-            }
+            // No copper-golem line: 1.21.7 has no copper golem.
             if (m instanceof net.minecraft.world.entity.animal.wolf.Wolf wolf) {
                 // NeutralMob anger left (the angry texture), -1 when calm.
-                long end = wolf.getPersistentAngerEndTime();
-                sb.append("	wolf ").append(end > 0 ? end - wolf.level().getGameTime() : -1);
+                // 1.21.7 tracks the remaining ticks directly; there is no
+                // getPersistentAngerEndTime (an absolute game time).
+                int anger = wolf.getRemainingPersistentAngerTime();
+                sb.append("	wolf ").append(anger > 0 ? anger : -1);
             }
-            if (m instanceof net.minecraft.world.entity.animal.bee.Bee bee) {
+            if (m instanceof net.minecraft.world.entity.animal.Bee bee) {
                 // Flags (roll 2, stung 4, nectar 8), anger left, ticks without nectar, flower cooldown, flower.
-                Object acc = field(net.minecraft.world.entity.animal.bee.Bee.class, "DATA_FLAGS_ID").get(null);
+                Object acc = field(net.minecraft.world.entity.animal.Bee.class, "DATA_FLAGS_ID").get(null);
                 @SuppressWarnings("unchecked")
                 byte flags = bee.getEntityData().get((net.minecraft.network.syncher.EntityDataAccessor<Byte>) acc);
-                long end = bee.getPersistentAngerEndTime();
+                int anger = bee.getRemainingPersistentAngerTime();
                 BlockPos flower = bee.getSavedFlowerPos();
-                sb.append("\tbee ").append(flags).append(' ').append(end > 0 ? end - bee.level().getGameTime() : -1).append(' ')
-                    .append(field(net.minecraft.world.entity.animal.bee.Bee.class, "ticksWithoutNectarSinceExitingHive").getInt(bee)).append(' ')
-                    .append(field(net.minecraft.world.entity.animal.bee.Bee.class, "remainingCooldownBeforeLocatingNewFlower").getInt(bee)).append(' ')
+                sb.append("\tbee ").append(flags).append(' ').append(anger > 0 ? anger : -1).append(' ')
+                    .append(field(net.minecraft.world.entity.animal.Bee.class, "ticksWithoutNectarSinceExitingHive").getInt(bee)).append(' ')
+                    .append(field(net.minecraft.world.entity.animal.Bee.class, "remainingCooldownBeforeLocatingNewFlower").getInt(bee)).append(' ')
                     .append(flower == null ? "-" : pos(flower));
             }
             out.println(sb);
@@ -1203,20 +1221,22 @@ public final class VanillaMobAiOracle {
         @Override public boolean isTickTimeLoggingEnabled() { return false; }
         @Override protected void waitUntilNextTick() { this.runAllTasks(); }
         @Override public SystemReport fillServerSystemReport(SystemReport report) { report.setDetail("Type", "Mob AI oracle"); return report; }
-        @Override protected void onServerExit() { super.onServerExit(); System.exit(0); }
-        @Override protected void onServerCrash(net.minecraft.CrashReport report) { super.onServerCrash(report); System.exit(1); }
+        @Override public void onServerExit() { super.onServerExit(); System.exit(0); }
+        @Override public void onServerCrash(net.minecraft.CrashReport report) { super.onServerCrash(report); System.exit(1); }
         @Override public boolean isHardcore() { return false; }
-        @Override public LevelBasedPermissionSet operatorUserPermissions() { return LevelBasedPermissionSet.ALL; }
-        @Override public PermissionSet getFunctionCompilationPermissions() { return LevelBasedPermissionSet.OWNER; }
+        // 1.21.7's permissions are int levels, not PermissionSets: ALL and
+        // OWNER are both level 4. There are no command/chat spam threshold
+        // methods and no useNativeTransport (it is isEpollEnabled here).
+        @Override public int getOperatorUserPermissionLevel() { return 4; }
+        @Override public int getFunctionCompilationLevel() { return 4; }
+        @Override public boolean isEpollEnabled() { return false; }
+        @Override public boolean isCommandBlockEnabled() { return true; }
         @Override public boolean shouldRconBroadcast() { return false; }
         @Override public boolean isDedicatedServer() { return false; }
         @Override public int getRateLimitPacketsPerSecond() { return 0; }
-        @Override public int getCommandSpamThresholdSeconds() { return 0; }
-        @Override public int getChatSpamThresholdSeconds() { return 0; }
-        @Override public boolean useNativeTransport() { return false; }
         @Override public boolean isPublished() { return false; }
         @Override public boolean shouldInformAdmins() { return false; }
-        @Override public boolean isSingleplayerOwner(NameAndId nameAndId) { return false; }
+        @Override public boolean isSingleplayerOwner(GameProfile profile) { return false; }
         @Override public int getMaxPlayers() { return 1; }
     }
 }
