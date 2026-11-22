@@ -15430,12 +15430,51 @@ is the oracle; decompiled code is a reading aid.
     ground).
   - Verification: read / only; no code / changed.
 
+- **Item 398 — DownloadedPackSource**
+  - DownloadedPackSource:
+    CODE (test only). The
+    diff itself is accessor
+    renames only - name()/i
+    d()/packVersion() in
+    1.21.6 versus getName()
+    /getId()/getPackVersion
+    () in 1.21.5 - with
+    identical headers; the
+    port's headers() sends
+    the same six (Username,
+    UUID, Version,
+    Version-ID,
+    Pack-Format,
+    User-Agent) with
+    1.21.5's values. But
+    the download test
+    asserted a stale pack
+    format, 97.1 - the 26.x
+    value carried over from
+    the base - against the
+    port's correct 1.21.5
+    constant (55, 0); fixed
+    to 55.0. Two
+    pre-existing
+    test-compile errors
+    blocked the whole
+    horizon-client-lib test
+    target (closure
+    lifetimes in
+    lan/commands.rs and
+    music.rs); both
+    closures became local
+    fns, which get proper
+    elision, and the target
+    builds again.
+  - Verification: horizon-client-lib / server_packs::download 5/5, lan::commands 7/7, music situational test 1/1.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **397 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 129/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **398 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 130/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

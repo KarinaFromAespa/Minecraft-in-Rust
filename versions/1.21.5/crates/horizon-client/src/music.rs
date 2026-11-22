@@ -1120,13 +1120,15 @@ mod tests {
     #[test]
     fn situational_music_falls_back_to_the_1_21_5_chain_without_attributes() {
         let empty = BackgroundMusic::default();
-        let situation = |in_end: bool,
-                         in_nether: bool,
-                         creative: bool,
-                         underwater: bool,
-                         plays_underwater_music: bool,
-                         playing_underwater: bool,
-                         background: &BackgroundMusic| {
+        fn situation(
+            in_end: bool,
+            in_nether: bool,
+            creative: bool,
+            underwater: bool,
+            plays_underwater_music: bool,
+            playing_underwater: bool,
+            background: &BackgroundMusic,
+        ) -> Situation<'_> {
             Situation {
                 screen_music: None,
                 in_world: true,
@@ -1140,7 +1142,7 @@ mod tests {
                 plays_underwater_music,
                 playing_underwater,
             }
-        };
+        }
         let sound = |s: Situation<'_>| s.music().map(|m| m.sound);
         // Survival in the overworld: GAME.
         assert_eq!(

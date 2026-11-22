@@ -550,11 +550,11 @@ mod tests {
         .unwrap();
         let tree = CommandTree { root: report };
         let builtin = Builtin::default();
-        let names = |p: &Commands| {
+        fn names(p: &Commands) -> Vec<&str> {
             let mut names: Vec<_> = p.nodes.iter().map(|n| n.name.as_str()).collect();
             names.sort_unstable();
             names
-        };
+        }
         assert_eq!(names(&tree.packet(0, false, &builtin)), ["", "me"]);
         assert_eq!(
             names(&tree.packet(2, false, &builtin)),
