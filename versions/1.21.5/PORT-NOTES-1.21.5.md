@@ -15915,12 +15915,52 @@ is the oracle; decompiled code is a reading aid.
     stays deferred.
   - Verification: read / only; no code / changed.
 
+- **Item 414 — Screen / DeferredTooltipRendering**
+  - Screen / DeferredToolti
+    pRendering: verified,
+    no code. 1.21.5 defers
+    a tooltip to the end of
+    the same frame's render
+    (setTooltipForNextRende
+    rPass, drawn in
+    renderWithTooltip);
+    1.21.6 defers it to the
+    next frame behind the
+    strata system. The port
+    draws tooltips
+    in-frame, the 1.21.5
+    form. Its click
+    handling matches
+    1.21.5's inlined
+    handleComponentClicked
+    too: Shift inserts,
+    else the click event
+    runs - OpenUrl behind
+    the chat-links and
+    prompt settings,
+    RunCommand through
+    sendUnsignedCommand,
+    SuggestCommand into the
+    chat box,
+    CopyToClipboard to the
+    clipboard, no
+    ShowDialog or Custom
+    arms. The rest is
+    covered ground: the
+    1.21.6-only
+    fadeWidgets, the
+    blurred-background
+    signature (item 385),
+    the panorama statics
+    (item 292), sayNow.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **413 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 12/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **414 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 13/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
