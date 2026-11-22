@@ -10,7 +10,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.Holder;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.*;
-import net.minecraft.world.entity.animal.squid.Squid;
+import net.minecraft.world.entity.animal.Squid;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -22,9 +22,8 @@ public final class VanillaSquidClientOracle {
     }
     static final class Shell extends Squid {
         Level world; boolean water;
-        Shell() { super(EntityTypes.SQUID, null); }
+        Shell() { super(EntityType.SQUID, null); }
         @Override public Level level() { return world; }
-        @Override public boolean isAgeLocked() { return true; }
         @Override public boolean isInWater() { return water; }
         @Override protected boolean isImmobile() { return true; }
         @Override protected void applyInput() {}
@@ -53,7 +52,7 @@ public final class VanillaSquidClientOracle {
                 var row = JsonParser.parseString(line).getAsJsonObject();
                 var m = (Shell) allocate.invoke(unsafe, Shell.class);
                 m.world = world; field(Entity.class, "level").set(m, world); m.water = row.get("water").getAsBoolean();
-                field(Entity.class, "type").set(m, EntityTypes.SQUID);
+                field(Entity.class, "type").set(m, EntityType.SQUID);
                 field(LivingEntity.class, "equipment").set(m, new EntityEquipment());
                 field(Entity.class, "interpolationHandler").set(m, Proxy.newProxyInstance(
                     InterpolationHandler.class.getClassLoader(), new Class<?>[]{InterpolationHandler.class},
