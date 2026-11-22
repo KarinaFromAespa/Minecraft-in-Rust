@@ -12,8 +12,9 @@ use crate::{
 
 type Read = fn(&mut Reader) -> Result<()>;
 
-/// DataComponents' registry order (1.21.10) for the ids `Component::read`
-/// doesn't decode itself.
+/// DataComponents' registry order (1.21.7, jar-verified against
+/// `DataComponents`' registration order: 96 components, 0..=95) for the ids
+/// `Component::read` doesn't decode itself.
 pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
     match kind {
         // Unit.STREAM_CODEC: glider.
