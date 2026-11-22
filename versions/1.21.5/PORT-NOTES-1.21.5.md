@@ -15580,12 +15580,51 @@ is the oracle; decompiled code is a reading aid.
     name/type/values).
   - Verification: read / only; no code / changed.
 
+- **Item 403 — RenderChunk / CompiledSection / TranslucencyPointOfView**
+  - RenderChunk /
+    CompiledSection /
+    SectionBuffers / Transl
+    ucencyPointOfView:
+    verified, with a
+    one-line comment fix.
+    These are 1.21.5's
+    chunk-compile classes,
+    removed by 1.21.6's
+    SectionMesh refactor.
+    The port does not port
+    the plumbing - its
+    mesher and streaming
+    pipeline are its own -
+    but the one behavioural
+    surface, the
+    translucency resort,
+    matches 1.21.5 exactly:
+    SortState.update
+    computes the POV as the
+    per-axis section offset
+    clamped to -1..1 and
+    skips the resort when
+    the POV is unchanged on
+    a diagonal view,
+    resorting on
+    block-boundary
+    crossings for aligned
+    views, as
+    ResortTransparencyTask
+    does; the sort itself
+    is VertexSorting.byDist
+    ance, stable, far
+    first. The module doc
+    cited 26.3 for the
+    mechanism; now 1.21.5.
+  - Verification: horizon-client-render / gfx::translucency 4/4.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **402 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 1/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **403 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 2/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
