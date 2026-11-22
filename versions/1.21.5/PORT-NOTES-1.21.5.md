@@ -14851,12 +14851,37 @@ is the oracle; decompiled code is a reading aid.
     difference.
   - Verification: read / only; no code / changed.
 
+- **Item 376 — EffectsChangedTrigger**
+  - EffectsChangedTrigger:
+    verified, no code. The
+    10-line diff is a
+    validation-error path
+    string -
+    validateEntity(source,
+    "source") in 1.21.6,
+    ".source" in 1.21.5 -
+    used only when an
+    advancement's JSON
+    fails criterion
+    validation, to prefix
+    the error path. The
+    port implements the
+    trigger's runtime
+    behaviour (trigger_effe
+    cts_changed, with the
+    source entity) but has
+    no criterion-validator
+    at all, so the
+    diagnostic string has
+    no port surface.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **375 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 107/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **376 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 108/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
