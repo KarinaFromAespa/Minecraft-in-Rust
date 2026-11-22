@@ -13320,3 +13320,11 @@ frogspawn placement, the lay sound and clearing the pregnancy.
 (type + optional expirable value). The Rust covers the expiry
 semantics (`mobs/brain.rs`, `Ttl`) and the `ExpirableValue`
 serialization (`entity_nbt.rs`).
+
+## Item 798 — world/entity/animal/axolotl (new-classes) — CHANGED (cleanup)
+
+1 class: `Axolotl$AnimationState` (PLAYING_DEAD / IN_WATER /
+ON_GROUND / IN_AIR), selecting which render-state factor lerps
+toward 1. The Rust carries the four factors. Cleanup following
+item 779: the six dead keyframe `AnimationState` fields on the
+Rust's `Axolotl` struct are removed (struct, `from_mob`, fixture).

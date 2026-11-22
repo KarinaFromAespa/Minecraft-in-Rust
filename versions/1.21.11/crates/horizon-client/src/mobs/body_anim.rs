@@ -534,17 +534,15 @@ pub fn armadillo(p: &mut Poses, s: &State, st: &Armadillo, a: &Animations) {
 
 // ---- axolotl --------------------------------------------------------------
 #[derive(Clone, Debug, Default)]
+/// The `AxolotlRenderState` factors (`Axolotl$AnimationState`:
+/// PLAYING_DEAD / IN_WATER / ON_GROUND / IN_AIR selects which lerps
+/// toward 1). 1.21.11 has no keyframe animation states for axolotls
+/// — the 26.1 `BabyAxolotlAnimation` clips are gone (item 779).
 pub struct Axolotl {
     pub playing_dead: f32,
     pub in_water: f32,
     pub on_ground: f32,
     pub moving: f32,
-    pub swim: AnimationState,
-    pub walk: AnimationState,
-    pub idle_on_ground: AnimationState,
-    pub idle_underwater_on_ground: AnimationState,
-    pub idle_underwater: AnimationState,
-    pub play_dead: AnimationState,
 }
 /// `AxolotlModel.setupAnim` (1.21.11: one model for adults and babies —
 /// the renderer bakes the `AXOLOTL_BABY` layer for babies, but the pose is
@@ -927,13 +925,6 @@ impl Axolotl {
             in_water: x.factor(1, partial),
             on_ground: x.factor(2, partial),
             moving: x.factor(3, partial),
-            // Native baby model deliberately reads walkAnimationState, not its underwater counterpart.
-            walk: x.states[0],
-            swim: x.states[1],
-            idle_on_ground: x.states[3],
-            idle_underwater: x.states[4],
-            idle_underwater_on_ground: x.states[5],
-            play_dead: x.states[6],
         }
     }
 }
