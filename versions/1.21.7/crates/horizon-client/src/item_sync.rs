@@ -1682,7 +1682,7 @@ mod tests {
         assert_eq!(w.data, [1, 1, 0, 0]);
         let wire = Slot::read(&mut Reader::new(&w.data)).unwrap().unwrap();
         let client = from_network(&wire, &builtin, &dynamic);
-        assert_eq!(client.item, "minecraft:oak_sign");
+        assert_eq!(&*client.item, "minecraft:oak_sign");
         assert_eq!(client.count, 1);
         assert!(
             client.data().is_none(),
