@@ -12868,3 +12868,7 @@ Visibility only.
 ## Item 741 — horizon-client-render/src/gfx/gpu_culling.rs (RepeatedNarrator$Params) — NO-CHANGE
 
 Visibility only.
+
+## Item 742 — game/packs.rs (ReloadableResourceManager) — NO-CHANGE
+
+Interface declaration order only.
