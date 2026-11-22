@@ -14971,12 +14971,43 @@ is the oracle; decompiled code is a reading aid.
     colour.
   - Verification: read / only; no code / changed.
 
+- **Item 380 — PopupScreen**
+  - PopupScreen: verified,
+    no code. The 35-line
+    diff is the render-API
+    refactor: 1.21.5
+    renders the background
+    screen, flushes and
+    clears the depth
+    texture before the
+    translucent background
+    and popup, while 1.21.6
+    separates the layers
+    with nextStratum()
+    instead, plus the
+    RenderPipelines ->
+    RenderType rename on
+    the background sprite.
+    The port's popup (the
+    difficulty-lock
+    question) already draws
+    the background screen
+    first with the pointer
+    hidden, then the popup
+    - the same layering -
+    and the strata/flush/de
+    pth-clear machinery is
+    GPU architecture with
+    no surface in the
+    ordered wgpu HUD batch.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **379 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 111/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **380 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 112/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
