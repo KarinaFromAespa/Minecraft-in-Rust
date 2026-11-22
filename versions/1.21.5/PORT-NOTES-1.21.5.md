@@ -13268,12 +13268,42 @@ is the oracle; decompiled code is a reading aid.
     horizon-client --lib
     passed (66s).
 
+- **Item 323 — Wandering trader spawner**
+  - WanderingTraderSpawner:
+    verified, no code. The
+    11-line diff is a
+    single rename in the
+    same family as item 322
+    - the spawner calls
+    setHomeTo(wanderTarget,
+    16) in 1.21.6 and restr
+    ictTo(wanderTarget, 16)
+    in 1.21.5, same body.
+    The spawner itself has
+    no port surface (mob
+    spawning is
+    server-side; the port
+    handles mobs that
+    already exist, with
+    ai.home loaded from
+    saved data), and the
+    port's only restrict-to
+    site, the elder
+    guardian's, already
+    cites the 1.21.5
+    restrictTo name. The
+    trader's 48000-tick
+    despawn delay is
+    already the
+    DESPAWN_DELAY constant.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **322 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 54/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **323 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 55/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
