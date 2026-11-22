@@ -14114,12 +14114,44 @@ is the oracle; decompiled code is a reading aid.
     code / changed, no test
     run / needed.
 
+- **Item 349 — ClientConfigurationPacketListenerImpl**
+  - ClientConfigurationPack
+    etListenerImpl:
+    verified, no code. The
+    90-line diff is the
+    dialog system again -
+    the 1.21.6-only
+    createDialogAccess()
+    override, its dialog
+    imports and the Serverb
+    oundCustomClickActionPa
+    cket - all removed in
+    1.21.5, and all already
+    gone from the port
+    (item 258; net.rs notes
+    1.21.5 has no dialog
+    registry). The rest is
+    a LOGGER visibility
+    change and
+    serverLinks() becoming
+    the serverLinks field:
+    the port already keeps
+    the links as a field on
+    the remote connection
+    (server_links.rs), with
+    server_links() a plain
+    accessor. The
+    configuration-phase
+    behaviour is otherwise
+    identical.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **348 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 80/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **349 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 81/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
