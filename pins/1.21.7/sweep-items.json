@@ -72,6 +72,16 @@
         "total": 91
       },
       "status": "complete"
+    },
+    "5": {
+      "name": "Block behaviour (ticks, interaction, survival, support, updates, breaking)",
+      "date": "2026-11-22",
+      "checks": {
+        "gap": 27,
+        "pass": 59,
+        "total": 86
+      },
+      "status": "complete"
     }
   },
   "items": [
@@ -1146,6 +1156,182 @@
       "severity": "major",
       "status": "gap",
       "title": "VanillaGhostRecipeOracle does not compile for 1.21.7 (16 errors)"
+    },
+    {
+      "evidence": "Vanilla 1.21.7 names the class FarmBlock; the export says so (minecraft:farmland -> ['FarmBlock', 'Block']) but level/classes.rs only knows 'FarmlandBlock', so the chain is [Block] and every farmland arm is dead: farmland_random_tick (tick.rs:350, moisture dry/wet/decay \u2014 logic itself verified exact vs FarmBlock.randomTick bytecode), the scheduled-tick arm (tick.rs:197), the survive arm (survive.rs:194), the updateShape arm (shapes.rs:465) and the placement arm (place.rs:922). Farmland never dries, never reverts to dirt. Separately, FarmBlock.fallOn (jar: turnToDirt when an entity falls on it, fall distance > 0.5, random chance, mobGriefing-gated for mobs) has no implementation anywhere in level/ or the game layer \u2014 trampling is entirely absent. Latent error in the dead survive arm for the fix agent: the port uses a 'maintains_farmland' tag, but vanilla FarmBlock.canSurvive exempts only a fence gate or moving piston above.",
+      "id": "B5-G01",
+      "method": "javap + source + data",
+      "severity": "major",
+      "status": "gap",
+      "title": "Farmland is fully static: never dries, never reverts, never tramples (FarmBlock unmapped)"
+    },
+    {
+      "evidence": "Vanilla 1.21.7 names the classes SpreadingSnowyDirtBlock and SnowyDirtBlock; the export says so (grass_block/mycelium -> ['GrassBlock'|'MyceliumBlock', 'SpreadingSnowyDirtBlock', 'SnowyDirtBlock', 'Block']; podzol -> ['SnowyDirtBlock', 'Block']) but level/classes.rs only knows 'SpreadingSnowy'/'Snowy', so both names are skipped and the chains are [Grass|Mycelium, Block] / [Block]. The spreading_snowy_tick arm (tick.rs:450 \u2014 logic verified faithful vs SpreadingSnowyDirtBlock.randomTick) and the Snowy updateShape arm (shapes.rs:721 \u2014 logic verified vs SnowyDirtBlock.updateShape, uses the #snow tag which exists) never run: grass/mycelium never spread to dirt, snowy never updates. Explains the snowy half of pilot failure snowy_grass_and_chests_pair.",
+      "id": "B5-G02",
+      "method": "javap + source + data",
+      "severity": "major",
+      "status": "gap",
+      "title": "Grass/mycelium never spread; snowy never updates (SpreadingSnowyDirtBlock/SnowyDirtBlock unmapped)"
+    },
+    {
+      "evidence": "Vanilla 1.21.7 names the class DirtPathBlock; the export says so but level/classes.rs only knows 'PathBlock', so the chain is [Block] and the Path arms are dead: survive (survive.rs:273), updateShape (shapes.rs:465), tick (tick.rs tick_block Path arm -> turn_to_base_block) and placement (place.rs:929). Port logic verified exact vs DirtPathBlock bytecode (canSurvive: above not solid or fence gate; updateShape schedules tick 1; tick unconditionally reverts to dirt) \u2014 dead only due to dispatch. Dirt paths never revert to dirt.",
+      "id": "B5-G03",
+      "method": "javap + source + data",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Dirt path never reverts to dirt (DirtPathBlock unmapped)"
+    },
+    {
+      "evidence": "Vanilla 1.21.7 names the classes FungusBlock and RootsBlock; the export says so but level/classes.rs only knows 'NetherFungusBlock'/'NetherRootsBlock', so crimson/warped fungi and roots resolve to Vegetation and survive only on supports_vegetation (#dirt + farmland). Vanilla bytecode: FungusBlock.mayPlaceOn = #NYLIUM || MYCELIUM || SOUL_SOIL || super; RootsBlock.mayPlaceOn = #NYLIUM || SOUL_SOIL || super. Mycelium is already in #dirt, so the gap is nylium + soul soil: fungi/roots cannot be placed on, and pop off, their native Nether ground. Fix note: the port's NetherFungus/NetherRoots may_place_on arm (survive.rs:375) reads data.support_tag, which is None for fungi/roots (they carry requiredBlock instead of supportBlocks in the export), so a mere class-name alias would make survival return false \u2014 the fix needs the hardcoded nylium/soul-soil rule.",
+      "id": "B5-G04",
+      "method": "javap + source + data",
+      "severity": "major",
+      "status": "gap",
+      "title": "Nether fungi/roots cannot survive on nylium or soul soil (FungusBlock/RootsBlock unmapped)"
+    },
+    {
+      "evidence": "ZERO blocks in the 1.21.7 export carry stemSupportBlocks/supportBlocks/connectsTo/fruitSupportBlocks fields, so support_tag and support_tag2 are None for every block. The Stem/AttachedStem may_place_on arm (survive.rs:375) therefore returns false always, and placement() (place.rs:1595+) refuses any placement that fails can_survive \u2014 pumpkin/melon seeds cannot be planted at all. Vanilla StemBlock.mayPlaceOn = is(FARMLAND) (bytecode). The stem_random_tick fruit branch (tick.rs:913) requires support_tag2, so stems never fruit either; vanilla fruits when the target is air and the block below is FARMLAND or #DIRT (bytecode). The stem age-growth branch itself is correct.",
+      "id": "B5-G05",
+      "method": "javap + source + data",
+      "severity": "major",
+      "status": "gap",
+      "title": "Pumpkin/melon stems cannot be planted and never fruit (no stem support data in the export)"
+    },
+    {
+      "evidence": "Vanilla CropBlock.getGrowthSpeed is hardcoded: is(FARMLAND) below + MOISTURE > 0 gives 3.0 instead of 1.0 (bytecode-verified), so a hydrated single crop grows ~4x as fast and a hydrated field up to ~9x. The port (tick.rs:819-828) reads tag 'grows_crops', which does NOT exist in 1.21.7 jar data and is NOT synthesized (only data.rs:462 + tick.rs:828 reference it). Growth speed is always 1.0: crops grow ~4x too slow on hydrated farmland.",
+      "id": "B5-G06",
+      "method": "javap + source + data",
+      "severity": "major",
+      "status": "gap",
+      "title": "Crops grow ~4x too slow: growth speed reads the absent 26.x 'grows_crops' tag"
+    },
+    {
+      "evidence": "Vanilla MushroomBlock.canSurvive: below in #MUSHROOM_GROW_BLOCK returns true regardless of light, else rawBrightness < 13 and mayPlaceOn (bytecode-verified). The port (survive.rs:266) checks the absent 26.x tag 'overrides_mushroom_light_requirement' instead of 'mushroom_grow_block', which EXISTS in the 1.21.7 jar (mycelium, podzol, crimson/warped nylium) and is in the tags list. Mushrooms on mycelium/podzol/nylium die in bright light where vanilla keeps them.",
+      "id": "B5-G07",
+      "method": "javap + source + data",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Mushrooms die in bright light on mycelium/podzol/nylium (wrong tag name)"
+    },
+    {
+      "evidence": "Vanilla SnowLayerBlock.canSurvive (bytecode): below in #SNOW_LAYER_CANNOT_SURVIVE_ON (ice, packed_ice, barrier) -> false; in #SNOW_LAYER_CAN_SURVIVE_ON (honey_block, soul_sand, mud) -> true; else isFaceFull(collision, UP) or 8-layer snow below. The port (survive.rs:295) uses the absent 26.x tags 'cannot_support_snow_layer'/'support_override_snow_layer' plus a full-face fallback: snow survives on ice/packed ice/barrier (should pop) and pops on soul sand (should survive; honey/mud pass via the full-face check). The same absent tags are also used in weather.rs:114-117 (snow accumulation) \u2014 cross-reference, same fix. The port's full_faces fallback itself matches vanilla's isFaceFull predicate exactly.",
+      "id": "B5-G08",
+      "method": "javap + source + data",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Snow layer survival wrong on ice/packed ice/barrier and soul sand (absent 26.x tags)"
+    },
+    {
+      "evidence": "Vanilla SeagrassBlock.mayPlaceOn: face sturdy UP and NOT magma block (bytecode-verified hardcoded check). The port (survive.rs:407) checks the absent 26.x tag 'cannot_support_seagrass', so the magma exclusion never fires and seagrass survives on magma blocks.",
+      "id": "B5-G09",
+      "method": "javap + source + data",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Seagrass survives on magma blocks (absent 'cannot_support_seagrass' tag)"
+    },
+    {
+      "evidence": "Vanilla KelpBlock.canAttachTo: NOT magma block (bytecode-verified hardcoded check). The port (survive.rs:480, growing_plant_can_attach_to) checks the absent 26.x tag 'cannot_support_kelp', so the magma exclusion never fires and kelp attaches to magma blocks.",
+      "id": "B5-G10",
+      "method": "javap + source + data",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Kelp attaches to magma blocks (absent 'cannot_support_kelp' tag)"
+    },
+    {
+      "evidence": "Vanilla CactusFlowerBlock.mayPlaceOn: below is CACTUS || FARMLAND || isFaceSturdy(UP, CENTER) (bytecode-verified). The port (survive.rs:383) checks the absent 26.x tag 'support_override_cactus_flower' OR face-sturdy-center. Vanilla's own sturdy data (exporter calls state.isFaceSturdy for every state/direction/type) says cactus CENTER_UP is false and farmland CENTER_UP is false, so the port's arm returns false on both: cactus flowers cannot be placed on cacti or farmland, and flowers grown by cactus_random_tick (whose trigger is correct \u2014 it checks the cactus's own canSurvive, matching vanilla) pop on the next neighbour update.",
+      "id": "B5-G11",
+      "method": "javap + source + data",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Cactus flowers cannot survive on cacti or farmland (absent 'support_override_cactus_flower' tag)"
+    },
+    {
+      "evidence": "Vanilla FletchingTableBlock.useWithoutItem returns InteractionResult.PASS (bytecode: getstatic PASS; areturn) \u2014 a fletching table has no menu. The port resolves the fletching table to Class::CraftingTable (chain [FletchingTable, CraftingTable, Block] \u2014 FletchingTable is unmapped in classes.rs) and the CraftingTable arm (interact.rs:439) returns OpenMenu + Success. Clicking a fletching table opens a crafting menu.",
+      "id": "B5-G12",
+      "method": "javap + source + data",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Fletching table opens a crafting menu (resolves to CraftingTable; vanilla returns PASS)"
+    },
+    {
+      "evidence": "Every speleothem predicate goes through #minecraft:speleothems (speleothem.rs:15, falling.rs:54-58), a tag absent in 1.21.7 jar data and not synthesized. Vanilla uses hardcoded POINTED_DRIPSTONE checks. speleothem_grow, dripstone_transfer_fluid and spawn_falling_stalactite (its while loop never runs) are all dead: dripstone never grows and stalactites never fall. The randomTick growth chance (0.011377778f) is verified correct in the dead code. The cauldron-fill half is Batch 1's G6 \u2014 not duplicated here; this item is growth + falling only.",
+      "id": "B5-G13",
+      "method": "javap + source + data",
+      "severity": "major",
+      "status": "gap",
+      "title": "Dripstone never grows and stalactites never fall (absent '#speleothems' tag)"
+    },
+    {
+      "evidence": "Vanilla TreeGrower.growTree removes saplings by setting Blocks.AIR with flags 260 (bytecode-verified). The port's remove_sapling (growth.rs) sets the fluid's legacy block instead \u2014 a waterlogged sapling removed for tree growth leaves a water block at the trunk base where vanilla leaves air. The rest of growTree matches vanilla exactly (mega-first with 2x2 fall-through, flower check, weighted feature choice; all ten 1.21.7 growers' feature keys and secondary chances verified against TreeGrower bytecode: oak 0.1, spruce mega 0.5, mangrove 0.85, pale oak mega = PALE_OAK_BONEMEAL).",
+      "id": "B5-G14",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Tree growth from a waterlogged sapling leaves water (vanilla sets AIR)"
+    },
+    {
+      "evidence": "Vanilla SaplingBlock.isValidBonemealTarget returns true unconditionally and AzaleaBlock's likewise; MushroomBlock's returns only whether its feature exists (bytecode-verified). The port's bonemeal_valid (bonemeal.rs:331-360) adds growability gates (live features installed + tree_can_grow, which draws random and refuses a lone dark/pale oak sapling with no 2x2) and build-height gates for saplings/azalea/mushrooms. Vanilla consumes bonemeal 45% of the time on an un-growable sapling with no growth; the port refuses the meal outright. The 0.45 success roll itself matches vanilla exactly.",
+      "id": "B5-G15",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Bonemeal validity stricter than vanilla for saplings/azalea/mushrooms"
+    },
+    {
+      "evidence": "Batch 0 ledger: 1 error, 'cannot find symbol' at line 118. The oracle overrides Player.drop with a 3-arg signature (ItemStack, boolean, net.minecraft.util.Prediction); the 1.21.7 jar has only drop(ItemStack, boolean) \u2014 the Prediction parameter is a later-version addition. One-symbol repair: drop the third parameter. Blocks test_cauldron_parity.py.",
+      "id": "B5-O01",
+      "method": "javap + oracle source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaCauldronOracle: Player.drop override uses a 3-arg signature 1.21.7 lacks"
+    },
+    {
+      "evidence": "Batch 0 ledger: 1 error, 'cannot find symbol' at line 178. The oracle calls entity.getRelativePortalPosition(axis, area); the 1.21.7 Entity class has no such method (only portalCooldown/portalProcess accessors). One-symbol repair: inline the 1.21.7 portal-position computation. Blocks test_nether_portal_parity.py.",
+      "id": "B5-O02",
+      "method": "javap + oracle source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaPortalOracle: Entity.getRelativePortalPosition does not exist in 1.21.7"
+    },
+    {
+      "evidence": "Batch 0 ledger: 1 error, 'cannot find symbol' at line 58. In 1.21.7, DataComponents.BLOCK_ENTITY_DATA is DataComponentType<CustomData> \u2014 the BlockEntityData component class does not exist in the 1.21.7 jar at all (introduced in a later version), so data.type() and data.loadInto(entity, access) do not resolve. (BlockEntityType.onlyOpCanSetNbt() does exist.) Repair: read the block-entity NBT from CustomData and apply it via the 1.21.7 placement path. Blocks test_pick_block_data_parity.py.",
+      "id": "B5-O03",
+      "method": "javap + oracle source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaPickBlockDataOracle: BLOCK_ENTITY_DATA is CustomData in 1.21.7, not BlockEntityData"
+    },
+    {
+      "evidence": "Batch 0 ledger: 1 error, 'cannot find symbol' at line 36. The oracle uses Feature.DIRECT_CODEC; the 1.21.7 Feature class has no DIRECT_CODEC (only the configuredCodec() instance method). One-symbol repair: decode via the 1.21.7 codec path. Blocks test_replace_block_parity.py.",
+      "id": "B5-O04",
+      "method": "javap + oracle source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaReplaceBlockOracle: Feature.DIRECT_CODEC does not exist in 1.21.7"
+    },
+    {
+      "evidence": "Batch 0 ledger: 5 errors, first 'package net.minecraft.util.debug does not exist' (line 11 import of ServerDebugSubscribers). The debug-subscribers API is a 26.x addition; 1.21.7 has no such package. Repair: remove the debug-subscriber usage. Blocks test_falling_block_parity.py.",
+      "id": "B5-O05",
+      "method": "javap + oracle source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaFallingBlockOracle: imports the 26.x-only net.minecraft.util.debug package"
+    },
+    {
+      "evidence": "Batch 0 ledger: 54 errors, first 'package net.minecraft.world.level.gamerules does not exist' (line 27 import of GameRules). In 1.21.7 GameRules lives in net.minecraft.world.level; the gamerules package is a later-version move. Same root cause as Batch 2's O1 (VanillaBlockUpdateOracle, 69 errors, same package) \u2014 same fix pattern (re-point the import, then resolve any API deltas). Blocks test_block_removal_parity.py (dispenser side effects).",
+      "id": "B5-O06",
+      "method": "javap + oracle source",
+      "severity": "major",
+      "status": "gap",
+      "title": "VanillaDispenserOracle: imports the non-existent net.minecraft.world.level.gamerules package"
+    },
+    {
+      "evidence": "Batch 0 ledger: VanillaBreakingModelOracle 37 errors and VanillaSectionMeshOracle 99 errors, both first 'package com.mojang.blaze3d.platform does not exist' \u2014 client render classes, failing on both the server and client classpaths in the Batch 0 measurement (the measurement has no named client jar; only 1.21.7-server-named.jar exists in leakage-audit/jars/). Repair is a classpath question (run against a real client classpath or stub the render surface), bigger than the 1-symbol fixes above. Blocks test_breaking_model_parity.py.",
+      "id": "B5-O07",
+      "method": "oracle ledger + source",
+      "severity": "major",
+      "status": "gap",
+      "title": "VanillaBreakingModelOracle + VanillaSectionMeshOracle: depend on client blaze3d classes absent from both classpaths"
     }
   ]
 }
