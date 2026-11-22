@@ -115,7 +115,10 @@ public final class VanillaCauldronOracle {
         @Override public void setItemInHand(InteractionHand hand, ItemStack stack) { inv.setItem(0, stack); }
         @Override public ItemStack getItemInHand(InteractionHand hand) { return inv.getItem(0); }
         @Override public void awardStat(net.minecraft.stats.Stat<?> stat, int count) { }
-        @Override public ItemEntity drop(ItemStack stack, boolean thrown, net.minecraft.util.Prediction p) {
+        // 1.21.7: Player.drop(ItemStack, boolean); net.minecraft.util.Prediction
+        // does not exist in 1.21.7 (26.x-only), and the 3-arg override never
+        // compiled against the 1.21.7 jar (Batch 11 oracle repair, B11-O01).
+        @Override public ItemEntity drop(ItemStack stack, boolean thrown) {
             if (!stack.isEmpty()) events.add("drop " + ParityData.canon(stack));
             return null;
         }
