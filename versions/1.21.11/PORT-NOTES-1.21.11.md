@@ -12896,3 +12896,9 @@ Visibility only.
 ## Item 748 — worldgen/climate/index.rs (Climate$RTree$SubTree) — NO-CHANGE
 
 Visibility only.
+
+## Item 749 — worldgen/structure/ocean_ruin.rs (OceanRuinPieces) — NO-CHANGE
+
+Visibility only.
+
+Rank 3 COMPLETE (247/247).
