@@ -1176,3 +1176,44 @@ gameplay survival uses the separate class-based implementation in
 `level/survive.rs`. Same defect class as the carver-registry and
 motion-tag gaps: other pre-1.21.11 trees (1.21.5/1.21.6/1.21.8/1.21.9,
 1.20.x) need the same synthesis carried over.
+
+Undead daylight burning: no defect in the burn path, but the burn list
+over-burned (2026-11-22). The laptop playtest reported a skeleton in
+direct sunlight not catching fire. The burn path itself checks out end
+to end against the vanilla 1.21.7 jar and the live save: `burn_undead`
+/ `sun_burn_tick` (mobs/ai.rs) match `Mob.isSunBurnTick` exactly — the
+`monsters_burn` day gate, brightness over 0.5, the `(br - 0.4) * 2 / 30`
+per-tick chance, the wet and sky-exposure gates, 160 ticks (8 s) of
+fire, and the helmet exemption (which wears the helmet instead). The
+"New World" save proves it in the live game: 14 surface undead were
+burning (7 skeletons, 6 zombies, 1 zombie villager; Fire 56-157,
+health 14-16 from fire damage), and none of the 24 unburned
+skeletons/zombies was sky-exposed (sky light 0 at the eye for all of
+them — all underground). The client side was verified link by link too:
+the server sends the on-fire shared flag in the mob metadata, the
+tracker diffs and sends it on change, the client's `apply` sets
+`fire_ticks = 1` and never counts it down, and the renderer draws
+`block/fire_0`/`block/fire_1` flames for `is_on_fire` mobs (both
+sprites exist in the prepared data). The synthesized overworld day
+timeline (481494bd) does feed the mob logic's no-biome `sky_darken`
+path — noon gives sky_darken 0, midnight >= 4. The skeleton the owner
+saw was most likely shaded, helmeted, in water, or freshly spawned:
+ignition is probabilistic (4% a tick at full brightness, mean 1.25 s,
+about one in five takes over 2 s). No code change to the burn path was
+needed. What the jar check did turn up is a real list error in the
+other direction: `burns_in_day` (mobs/species.rs) burned three species
+vanilla 1.21.7 does not — the drowned and the zombie horse never call
+`isSunBurnTick` (Drowned.aiStep has no such call; ZombieHorse has no
+aiStep override at all), and the zombie nautilus does not exist in
+1.21.7. The list's comment claimed a `burn_in_daylight` entity tag
+that does not exist in 1.21.7's data. Corrected to the jar's list:
+skeleton, stray, bogged, wither skeleton (AbstractSkeleton.aiStep),
+zombie, zombie villager (Zombie.aiStep gated on isSunSensitive; the
+husk returns false there), phantom (Phantom.aiStep) — and the comment
+now cites the jar. The same 10-species list is in 1.21.5, 1.21.6,
+1.21.8, 1.21.9, 1.21.10, 1.21.11 and 26.2; each needs its own jar check
+before correcting (not done here). Regression tests: `sun_burn_tests`
+(mobs/ai.rs, 6 tests: skeleton burns in open daylight for 160 ticks,
+not at night, not under a roof; helmet wears instead of burning; zombie
+and phantom burn; drowned, zombie horse and husk do not) and
+`legacy_day_timeline_feeds_sky_darken` (environment.rs), all passing.

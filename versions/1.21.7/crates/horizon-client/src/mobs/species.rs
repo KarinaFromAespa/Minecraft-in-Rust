@@ -1539,19 +1539,23 @@ impl Def {
                         | S::Zoglin
                         | S::Wither
                 ),
-            // The `burn_in_daylight` entity type tag.
+            // Who `Mob.isSunBurnTick` burns in 1.21.7, verified against the
+            // vanilla jar: AbstractSkeleton's aiStep (skeleton, stray,
+            // bogged, wither skeleton), Zombie's aiStep gated on
+            // isSunSensitive (zombie, zombie villager; the husk returns
+            // false), and Phantom's aiStep. The drowned and the zombie
+            // horse never call it, and there is no `burn_in_daylight`
+            // entity tag in 1.21.7's data; the zombie nautilus does not
+            // exist in this version.
             burns_in_day: matches!(
                 s,
                 S::Zombie
-                    | S::ZombieHorse
-                    | S::Drowned
                     | S::ZombieVillager
                     | S::Skeleton
                     | S::Stray
                     | S::Bogged
                     | S::WitherSkeleton
                     | S::Phantom
-                    | S::ZombieNautilus
             ),
             undead,
             // `#can_breathe_under_water`, and the iron golem, whose
