@@ -39,7 +39,7 @@ public final class VanillaRegistryCollisionScanOracle {
     static final class StepLevel extends net.minecraft.server.level.ServerLevel {
         Trace trace;StepBorder border;List<VoxelShape> entities;CollisionGetter world;CollisionContext context;LevelReader liquidWorld;Collection<Chunk> chunks;
         boolean filterEntities;
-        private StepLevel(){super(null,null,null,null,null,null,false,0L,List.of(),false);}
+        private StepLevel(){super(null,null,null,null,null,null,null,false,0L,List.of(),false,null);}
         @Override public boolean containsAnyLiquid(AABB bounds){for(var c:chunks)c.liquidTrace=true;try{return liquidWorld.containsAnyLiquid(bounds);}finally{for(var c:chunks)c.liquidTrace=false;}}
         @Override public net.minecraft.world.level.border.WorldBorder getWorldBorder(){trace.query("border");return border;}
         @Override public List<VoxelShape> getEntityCollisions(net.minecraft.world.entity.Entity entity,AABB bounds){trace.query(boxText("entities",bounds));return filterEntities ? entities.stream().filter(s -> s.bounds().intersects(bounds.inflate(1.0e-7))).toList() : entities;}

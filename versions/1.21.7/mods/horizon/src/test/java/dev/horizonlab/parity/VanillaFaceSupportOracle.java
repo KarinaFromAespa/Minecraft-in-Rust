@@ -31,6 +31,8 @@ public final class VanillaFaceSupportOracle {
     public static void main(String[] args) throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();
         var array=ArrayVoxelShape.class.getDeclaredConstructor(DiscreteVoxelShape.class,double[].class,double[].class,double[].class);array.setAccessible(true);
+        // 1.21.7: CubeVoxelShape(DiscreteVoxelShape) is protected (public in 26.x); same reflection as ArrayVoxelShape above.
+        var cube=CubeVoxelShape.class.getDeclaredConstructor(DiscreteVoxelShape.class);cube.setAccessible(true);
         // Geometry-only snapshots bypass registration and block construction.
         var allocator=Class.forName("sun.misc.Unsafe");var access=allocator.getDeclaredField("theUnsafe");access.setAccessible(true);var unsafe=access.get(null);var allocate=allocator.getMethod("allocateInstance",Class.class);
         var block=(SupportBlock)allocate.invoke(unsafe,SupportBlock.class);var state=(BlockState)allocate.invoke(unsafe,BlockState.class);
@@ -42,7 +44,7 @@ public final class VanillaFaceSupportOracle {
                     var coords=f.getAsJsonArray("coords");double[] x=numbers(coords.get(0).getAsJsonArray()),y=numbers(coords.get(1).getAsJsonArray()),z=numbers(coords.get(2).getAsJsonArray());
                     int nx=x.length-1,ny=y.length-1,nz=z.length-1;var bits=new BitSetDiscreteVoxelShape(nx,ny,nz);var occupied=f.getAsJsonArray("occupied");
                     for(int i=0;i<nx;i++)for(int j=0;j<ny;j++)for(int k=0;k<nz;k++)if(occupied.get((i*ny+j)*nz+k).getAsBoolean())bits.fill(i,j,k);
-                    shape=f.get("cube").getAsBoolean()?new CubeVoxelShape(bits):array.newInstance(bits,x,y,z);
+                    shape=f.get("cube").getAsBoolean()?cube.newInstance(bits):array.newInstance(bits,x,y,z);
                 } else {shape=Shapes.empty();for(var v:f.getAsJsonArray("boxes")){var b=numbers(v.getAsJsonArray());shape=Shapes.or(shape,Shapes.create(new AABB(b[0],b[1],b[2],b[3],b[4],b[5])));}}
                 if(f.has("move")){var v=numbers(f.getAsJsonArray("move"));shape=shape.move(v[0],v[1],v[2]);}
                 for(var direction:Direction.values()) {

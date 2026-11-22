@@ -21,7 +21,7 @@ public final class VanillaWetFireOracle {
         int sounds;
         net.minecraft.world.level.chunk.ProtoChunk chunk;
         int next;
-        Scene() { super(null,null,null,null,null,null,false,0L,List.of(),false); }
+        Scene() { super(null,null,null,null,null,null,null,false,0L,List.of(),false,null); }
         @Override public int getNextEntityId() { return ++next; }
         @Override public RegistryAccess registryAccess() { return ParityData.access; }
         @Override public MinecraftServer getServer() { return SERVER; }

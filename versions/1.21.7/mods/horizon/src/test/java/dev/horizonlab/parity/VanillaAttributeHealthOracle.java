@@ -17,7 +17,7 @@ public final class VanillaAttributeHealthOracle {
         void effect(String s){out.println(s);if(calls++==f.get("fail").getAsInt())throw new Stop();}}
     static final class Rules extends GameRules {Data d;Rules(){super(net.minecraft.world.flag.FeatureFlagSet.of());}@SuppressWarnings("unchecked")@Override public <T>T get(GameRule<T> r){if(r!=GameRules.NATURAL_HEALTH_REGENERATION)throw new AssertionError();return (T)Boolean.valueOf(d.f.get("regen").getAsBoolean());}}
     static final class Sources extends DamageSources {DamageSource source;Sources(){super(null);}@Override public DamageSource starve(){return source;}}
-    static final class Level extends ServerLevel {Data d;Level(){super(null,null,null,null,null,null,false,0L,List.of(),false);}@Override public Difficulty getDifficulty(){return Difficulty.values()[d.f.get("difficulty").getAsInt()];}@Override public GameRules getGameRules(){return d.rules;}}
+    static final class Level extends ServerLevel {Data d;Level(){super(null,null,null,null,null,null,null,false,0L,List.of(),false,null);}@Override public Difficulty getDifficulty(){return Difficulty.values()[d.f.get("difficulty").getAsInt()];}@Override public GameRules getGameRules(){return d.rules;}}
     static final class Actor extends ServerPlayer {Data d;Actor(){super(null,null,null,null);}
         @Override public ServerLevel level(){return d.level;}
         @Override public double getAttributeValue(Holder<Attribute> a){return d.attributes.getValue(a);}

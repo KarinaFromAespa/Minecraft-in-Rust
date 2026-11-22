@@ -47,7 +47,7 @@ public final class VanillaActiveEffectTickOracle {
   @Override public Level level(){d.event("level");return d.levels[n(d.config(),"level")];}
   @Override public MobEffectInstance getEffect(Holder<MobEffect> e){d.event("get "+d.key(e));return super.getEffect(e);}
  }
- static final class EffectLevel extends ServerLevel{Data d;int id;EffectLevel(){super(null,null,null,null,null,null,false,0L,List.of(),false);}
+ static final class EffectLevel extends ServerLevel{Data d;int id;EffectLevel(){super(null,null,null,null,null,null,null,false,0L,List.of(),false,null);}
  @Override public void addParticle(ParticleOptions p,double x,double y,double z,double dx,double dy,double dz){if(dx!=1||dy!=1||dz!=1)throw new AssertionError();d.event("particle "+id+" "+particles.indexOf(p)+" "+Long.toUnsignedString(Double.doubleToLongBits(x))+" "+Long.toUnsignedString(Double.doubleToLongBits(y))+" "+Long.toUnsignedString(Double.doubleToLongBits(z)));}
  @Override public void playSound(Entity excluded,BlockPos p,SoundEvent sound,SoundSource category,float volume,float pitch){if(excluded!=null||volume!=1||pitch!=1)throw new AssertionError();int s=sound==SoundEvents.GENERIC_EAT.value()?0:sound==SoundEvents.PLAYER_BURP?1:-1;if(s<0)throw new AssertionError();d.event("sound "+id+" "+p.getX()+" "+p.getY()+" "+p.getZ()+" "+s+" "+category.ordinal());}
  @Override public boolean isClientSide(){d.event("client "+id);return d.config().get("client").getAsBoolean();}}

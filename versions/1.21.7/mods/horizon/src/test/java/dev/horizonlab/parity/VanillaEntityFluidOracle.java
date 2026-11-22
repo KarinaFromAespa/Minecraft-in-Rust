@@ -38,7 +38,7 @@ public final class VanillaEntityFluidOracle {
         Chunk(Data d,PalettedContainerFactory factory,int min,int height){super(new ChunkPos(0,0),UpgradeData.EMPTY,LevelHeightAccessor.create(min,height),factory,null);}
         @Override public LevelChunkSection[] getSections(){if(d!=null)d.query("sections");return super.getSections();}
     }
-    static final class World extends net.minecraft.server.level.ServerLevel {Data d;World(){super(null,null,null,null,null,null,false,0L,List.of(),false);}
+    static final class World extends net.minecraft.server.level.ServerLevel {Data d;World(){super(null,null,null,null,null,null,null,false,0L,List.of(),false,null);}
         @Override public net.minecraft.world.attribute.EnvironmentAttributeSystem environmentAttributes(){d.query("fast-lava");return net.minecraft.world.attribute.EnvironmentAttributeSystem.builder().addConstantLayer(net.minecraft.world.attribute.EnvironmentAttributes.FAST_LAVA,previous->d.op.get("fast_lava").getAsBoolean()).build();}
         @Override public ChunkAccess getChunk(int x,int z,ChunkStatus status,boolean create){if(status!=ChunkStatus.FULL||create)throw new AssertionError();d.query("chunk "+x+" "+z);return d.op.getAsJsonArray("missing").contains(new JsonPrimitive(x+" "+z))?null:d.chunk;}
         @Override public FluidState getFluidState(BlockPos p){d.query("fluid "+pos(p));return d.op.get("mode").getAsString().equals("registered")?Block.stateById(d.cell(p).get("state").getAsInt()).getFluidState():d.states[d.cell(p).get("kind").getAsInt()];}

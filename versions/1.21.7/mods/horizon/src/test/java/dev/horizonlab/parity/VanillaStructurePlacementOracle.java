@@ -52,7 +52,7 @@ public final class VanillaStructurePlacementOracle {
      */
     private static final class NoEntityLevel extends net.minecraft.server.level.ServerLevel {
         private NoEntityLevel() {
-            super(null, null, null, null, null, null, false, 0L, null, false);
+            super(null, null, null, null, null, null, null, false, 0L, null, false, null);
         }
         static long seed;
         @Override
