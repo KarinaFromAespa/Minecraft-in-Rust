@@ -12842,3 +12842,7 @@ present in both versions.
 ## Item 735 — core/cauldron (CauldronInteractions) — NO-CHANGE
 
 26.1-only class; no usage anywhere in the Rust (item 683).
+
+## Item 736 — core/component/predicates (DataComponentPredicate$Single) — NO-CHANGE
+
+Visibility only.
