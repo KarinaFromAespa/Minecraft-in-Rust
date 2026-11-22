@@ -5584,11 +5584,15 @@ mod tests {
     /// The beardifier shapes bearded structures' terrain (NoiseChunk adds it
     /// to final_density): the ancient city's halls are air before any piece
     /// is placed, and trial chambers fill the density caves around them.
-    /// Expected values are vanilla-derived at the Test 1 seed
-    /// 8257987075890829262: the vanilla region files' post-decorate deep-band
-    /// air plus the structure blocks in the band (counted from the same
-    /// files), since generate_proto runs before decoration. Without the
-    /// beardifier, (2,-15) measures 0.04 and (13,-14) 22.00.
+    /// (2,-15) is vanilla-derived at the Test 1 seed 8257987075890829262:
+    /// the ancient-city templates contain no air, so vanilla terrain-level
+    /// air there is the region files' post-decorate deep-band air plus the
+    /// structure blocks in the band (18.08 + 0.79). (13,-14) is a loose
+    /// smoke bound only: trial-chamber templates contain air, so vanilla
+    /// terrain-level air there is not recoverable from the post-decorate
+    /// world. Without the beardifier, (2,-15) measures 0.04 and (13,-14)
+    /// 22.00. See postdecorate_deep_band_matches_vanilla_at_trial_chambers
+    /// for the post-decorate pin at the trial-chamber chunks.
     #[test]
     fn beardifier_shapes_deep_band_at_test1_seed() {
         const SEED: i64 = 8257987075890829262;
@@ -5655,4 +5659,82 @@ mod tests {
             );
         }
     }
+
+    /// Post-decorate deep-band air at trial-chamber chunks matches vanilla
+    /// (owner's Prism world, Test 1 seed 8257987075890829262). This pins
+    /// the 2026-11-22 finding that the reported -6.4 air/col "beardifier
+    /// residual" at (12,-14) was a stage mismatch: the port's terrain-level
+    /// output (generate_proto, before placement) had been compared against
+    /// vanilla's post-decorate world. Trial-chamber templates contain air,
+    /// so placement carves the halls; post-decorate the port matches
+    /// vanilla. Structures-only decoration isolates terrain + placement
+    /// from placed-feature parity (sculk veins, tuff blobs), so the
+    /// expected air is vanilla's post-decorate air PLUS the sculk_vein
+    /// cells in the band (which structures-only leaves as air): (12,-14)
+    /// 2095+61, (11,-14) 1754+251, (12,-15) 671+0, (2,-15) 4628+22.
+    /// (13,-14) is excluded: it carries a 21-cell aquifer/fluid divergence
+    /// (vanilla water + obsidian where the port has air/fluid), a separate
+    /// known gap, not the beardifier.
+    #[test]
+    fn postdecorate_deep_band_matches_vanilla_at_trial_chambers() {
+        const SEED: i64 = 8257987075890829262;
+        let version = horizon_core::version::VERSION_ID;
+        let root = std::env::var_os("HORIZON_TEST_RESOURCES")
+            .or_else(|| std::env::var_os("HORIZON_RESOURCES"))
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../.local/horizon-client")
+                    .join(version)
+            });
+        if !root.join("worldgen/world_presets.json").exists() {
+            eprintln!("skipping: no worldgen bundle at {}", root.display());
+            return;
+        }
+        let registry: &'static BlockRegistry = Box::leak(Box::new(
+            crate::level::data::load_registry(&root).expect("registry"),
+        ));
+        let data = GeneratorData::load(&root.join("worldgen"), registry).expect("worldgen data");
+        let generator = OverworldGenerator::new(data.clone(), SEED).expect("overworld pipeline");
+        let mut worker = generator.worker();
+        worker.set_structures_only(true);
+        let is_air = |name: &str| {
+            matches!(
+                name,
+                "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air"
+            )
+        };
+        // (chunk, expected structures-only post-decorate deep-band air cells)
+        for (pos, expected) in [
+            (ChunkPos::new(12, -14), 2156),
+            (ChunkPos::new(11, -14), 2005),
+            (ChunkPos::new(12, -15), 671),
+            (ChunkPos::new(2, -15), 4650),
+        ] {
+            // 3x3 region, row-major: index (dz+1)*3 + (dx+1) around the center.
+            let mut region: [ProtoChunk; 9] = std::array::from_fn(|i| {
+                let dx = (i % 3) as i32 - 1;
+                let dz = (i / 3) as i32 - 1;
+                worker
+                    .generate_proto(ChunkPos::new(pos.x + dx, pos.z + dz))
+                    .unwrap_or_else(|e| panic!("chunk {:?}: {e}", (pos.x + dx, pos.z + dz)))
+            });
+            worker.decorate(&mut region).expect("decorate");
+            let chunk = &region[4];
+            let mut total = 0usize;
+            for lz in 0..16 {
+                for lx in 0..16 {
+                    for y in -64..-32 {
+                        if is_air(chunk.block_name(lx, y, lz)) {
+                            total += 1;
+                        }
+                    }
+                }
+            }
+            assert_eq!(
+                total, expected,
+                "chunk {pos:?} post-decorate deep-band air {total}, vanilla-derived {expected}"
+            );
+        }
+     }
 }
