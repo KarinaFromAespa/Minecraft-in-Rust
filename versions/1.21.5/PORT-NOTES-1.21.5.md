@@ -15499,12 +15499,36 @@ is the oracle; decompiled code is a reading aid.
     ground).
   - Verification: read / only; no code / changed.
 
+- **Item 400 — EntitySelectorParser**
+  - EntitySelectorParser:
+    verified, no code.
+    allowSelectors in
+    1.21.5 is
+    hasPermission(2);
+    1.21.6 routes it
+    through PermissionSourc
+    e.allowsSelectors().
+    The port already gates
+    on permission >= 2 at
+    all three selector
+    parse sites in args.rs
+    (and its test helper) -
+    the 1.21.5 form, with
+    no PermissionSource
+    anywhere. The two parse
+    calls that pass true
+    are probes (a
+    parse-check and a
+    component validator),
+    not permission gates.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **399 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 131/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **400 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 132/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
