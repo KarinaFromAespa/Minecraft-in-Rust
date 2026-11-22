@@ -15979,12 +15979,53 @@ is the oracle; decompiled code is a reading aid.
     cache.
   - Verification: read / only; no code / changed.
 
+- **Item 416 — SuggestionProviders / Wrapper**
+  - SuggestionProviders /
+    Wrapper: verified, no
+    code. The 1.21.5
+    Wrapper and the 1.21.6
+    RegisteredSuggestion
+    record are the same
+    named-delegate
+    plumbing, and
+    safelySwap/cast are
+    server-side only. The
+    port resolves
+    minecraft:ask_server
+    and minecraft:summonabl
+    e_entities by name (its
+    summonable list filters
+    player and
+    fishing_bobber, as
+    vanilla's canSummon
+    does); minecraft:availa
+    ble_sounds falls
+    through to the argument
+    type's own suggestions,
+    which for a sound
+    argument is the
+    client's sound list -
+    the same completions
+    vanilla's
+    AVAILABLE_SOUNDS
+    provider returns. The
+    summonable tooltip
+    differs only in
+    spelling: 1.21.5 builds
+    the entity.<ns>.<path>
+    translatable inline
+    where 1.21.6 calls
+    getDescription, which
+    returns exactly that
+    component.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **415 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 14/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **416 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 15/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
