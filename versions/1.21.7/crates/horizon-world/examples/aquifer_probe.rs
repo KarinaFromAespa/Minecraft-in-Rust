@@ -117,7 +117,7 @@ fn main() -> Result<(), Error> {
     println!("water positions (local x,y,z): {water_positions:?}");
     let fluid_ticks = chunk.terrain.fluid_ticks().pack(0);
     println!("scheduled fluid ticks: {}", fluid_ticks.len());
-    for t in &fluid_ticks {
+    for t in fluid_ticks.iter() {
         let kind = FluidKind::from_index(t.kind.0 as usize)
             .map(|k| format!("{k:?}"))
             .unwrap_or_else(|| format!("kind {}", t.kind.0));
@@ -135,7 +135,7 @@ fn main() -> Result<(), Error> {
     println!("postprocessing marks: {marks}");
     let block_ticks = chunk.terrain.block_ticks().pack(0);
     println!("scheduled block ticks: {}", block_ticks.len());
-    for t in &block_ticks {
+    for t in block_ticks.iter() {
         println!(
             "  block kind {} at ({},{},{}) delay {}",
             t.kind.0, t.pos.x, t.pos.y, t.pos.z, t.delay
