@@ -1278,3 +1278,46 @@ wire arm never runs); `cannot_support_*` /
 never form, parity-sweep G1). Same synthesis is needed in
 1.21.5/1.21.6/1.21.8/1.21.9/1.21.10 — carry-over sequenced
 separately.
+
+Undead don't burn at dawn: the synthesized day timeline used the wrong
+time-of-day curve (2026-11-22). The owner reported, playing the
+verification build, that undead spawned near him when the game first
+loads don't burn immediately -- some burn after a while, some never.
+The burn formula itself was already verified exact against vanilla
+1.21.7 (651b43d3); the gap was in the daylight gate around it. New
+worlds start at tick 0 (dawn), like vanilla, but the port's
+synthesized day timeline (`legacy::time_of_day` in
+crates/horizon-client-render/src/environment.rs) used the LINEAR day
+fraction `(ticks/24000 - 0.25) mod 1` where vanilla's
+`DimensionType.timeOfDay` is the non-linear blend `(2*d3 + d5)/3`
+with `d5 = 0.5 - cos(d3*PI)/2`, and its sky light used
+`(1 - (cos*2 + 0.2))` where vanilla's `Level.updateSkyBrightness`
+is `(1 - (0.5 + 2*clamp(cos(timeOfDay*2*PI), -0.25, 0.25))) * 11`
+(both verified against the 1.21.7 server jar's bytecode; the
+`getSkyColor` daylight factor against the 1.21.6 client jar). The
+port's curve kept `sky_darken` >= 4 -- no daylight, no burning -- for
+ticks 0..840 (~42 seconds of every dawn, including world creation)
+and from tick 11160 (dusk ~69 seconds early), while vanilla's
+`skyDarken` is already 0 at tick 0 and stays bright until tick
+12541: vanilla's night is 12541..23459, the port's was 0..840 plus
+11160..23999. The `monsters_burn` gate ([12542, 23460), the day.json
+step track) was already vanilla-correct; only the daylight curve
+was wrong. The fix replaces both formulas with vanilla's; the
+1000-tick keyframe interpolation shifts the night boundary by at
+most ~7 ticks (dawn opens at 23467 vs vanilla's 23460, dusk closes
+at 12534 vs 12541), and the exact `monsters_burn` gate masks the
+residual for burning. The same wrong base also made the visual
+daylight factor and star brightness wrong at dawn/dusk -- fixed by
+the same change, since they share `time_of_day`. The "some never
+burn" half is vanilla-correct: the 13 undead in the owner's fresh
+world ("New World (1)", Time 2976) are all genuinely underground
+(sky light 0 at the eye, solid roof above), and shade/canopy mobs
+don't burn in vanilla either. Regression test:
+`legacy_day_timeline_feeds_sky_darken` now pins dawn (0, 500),
+sunset (12000, 12500), dusk (13000), pre-dawn (23000) and night-end
+(23500), plus a 250-tick sweep of the whole day; it fails on the old
+curve at "clear dawn" (negative control). Suites: environment 15
+pass / 0 fail. The `legacy` synthesis exists only in 1.21.7 -- no
+sibling carry-over. Known adjacent gap, not fixed here: the
+sunrise/sunset colour is still not synthesized (its constants
+couldn't be verified), so there is no dawn/dusk glow.
