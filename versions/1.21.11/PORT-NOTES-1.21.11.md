@@ -13306,3 +13306,10 @@ own LAN/server code.
 1 class: `BuiltInMetadata` — a holder for a built-in pack's
 metadata sections. The Rust handles `pack.mcmeta` metadata its
 own way. No Rust usage.
+
+## Item 796 — world/entity/ai/behavior (new-classes) — NO-CHANGE
+
+1 class: `TryLaySpawnOnWaterNearLand`. The Rust ports it in full
+(`mobs/frog.rs`, `LaySpawn`): the pregnant/walk-target/on-ground
+gates, the UP-face-empty + water-fluid + air-above spot test,
+frogspawn placement, the lay sound and clearing the pregnancy.
