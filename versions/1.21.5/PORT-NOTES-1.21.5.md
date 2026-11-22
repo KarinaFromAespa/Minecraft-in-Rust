@@ -13666,12 +13666,59 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render
     --lib passed (18s).
 
+- **Item 334 — Face bakery**
+  - FaceBakery: CODE. The
+    100-line diff is the
+    element-rotation
+    rewrite, and it hides
+    one real behavioural
+    delta: 1.21.5's rescale
+    has no angle-0 case, so
+    a zero-angle element
+    with rescale takes the
+    RESCALE_45 branch and
+    is stretched by
+    1/cos(45) on its two
+    non-axis components,
+    while 1.21.6's
+    computeRescale returns
+    no rescale at angle 0.
+    The port had the 1.21.6
+    form (angle 0 always
+    identity); ElementMatri
+    x::from_rotation now
+    returns the 1.21.5
+    scale matrix for a
+    zero-angle rescale,
+    computed with vanilla's
+    float ops, with a new
+    test pinning diag(1,
+    sqrt 2, sqrt 2) for X
+    and the no-rescale
+    identity. The rest
+    matches already: the
+    port's general rescale
+    (1 over the rotation
+    column's largest
+    component) is the same
+    1/cos factor for 22.5
+    and 45 degrees, and
+    rotateVertexBy's
+    Vector4f form is
+    identical to
+    transformPosition for a
+    pure rotation.
+  - Verification: cargo test -j 1 -p
+    horizon-assets --lib
+    passed, 54/54 (new test
+    included).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **333 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 65/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **334 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 66/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

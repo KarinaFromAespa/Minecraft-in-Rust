@@ -64,6 +64,27 @@ pub struct ElementMatrix {
 impl ElementMatrix {
     pub fn from_rotation(rotation: &ElementRotation) -> Self {
         const DEG: f32 = std::f32::consts::PI / 180.0;
+        // FaceBakery.applyElementRotation, 1.21.5: rescale has no angle-0
+        // case - a zero angle takes the RESCALE_45 branch, so the element
+        // is stretched by 1/cos(45) on its two non-axis components even
+        // though it does not rotate. (1.21.6's computeRescale returns no
+        // rescale at angle 0.)
+        if let RotationValue::SingleAxis { angle: 0.0, axis } = rotation.value
+            && rotation.rescale
+        {
+            let cos45 = (std::f32::consts::FRAC_PI_4 as f64).cos() as f32;
+            let rescale_45 = 1.0f32 / cos45 - 1.0;
+            let s = rescale_45 + 1.0;
+            let rows = match axis {
+                Axis::X => [[1.0, 0.0, 0.0], [0.0, s, 0.0], [0.0, 0.0, s]],
+                Axis::Y => [[s, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, s]],
+                Axis::Z => [[s, 0.0, 0.0], [0.0, s, 0.0], [0.0, 0.0, 1.0]],
+            };
+            return Self {
+                rows,
+                identity: false,
+            };
+        }
         let mut matrix = match rotation.value {
             RotationValue::SingleAxis { angle: 0.0, .. } => Self {
                 rows: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
@@ -666,5 +687,48 @@ mod loader_tests {
         assert_eq!(quads.len(), 1);
         assert_eq!(quads[0].facing, Direction::Down);
         assert_eq!(bake(&library, "t:restoring").len(), 2);
+    }
+    #[test]
+    fn zero_angle_rescale_stretches_by_root_two() {
+        // 1.21.5's FaceBakery has no angle-0 rescale case: a zero angle
+        // takes the RESCALE_45 branch (1.21.6 returns no rescale).
+        let rot = |axis: Axis, angle: f32, rescale: bool| ElementRotation {
+            origin: [8.0, 8.0, 8.0],
+            value: RotationValue::SingleAxis { axis, angle },
+            rescale,
+        };
+        let m = ElementMatrix::from_rotation(&rot(Axis::X, 0.0, true));
+        assert_eq!(
+            m.rows,
+            [
+                [1.0, 0.0, 0.0],
+                [0.0, std::f32::consts::SQRT_2, 0.0],
+                [0.0, 0.0, std::f32::consts::SQRT_2],
+            ]
+        );
+        let m = ElementMatrix::from_rotation(&rot(Axis::Y, 0.0, true));
+        assert_eq!(m.rows[0][0], std::f32::consts::SQRT_2);
+        assert_eq!(m.rows[1][1], 1.0);
+        assert_eq!(m.rows[2][2], std::f32::consts::SQRT_2);
+        let m = ElementMatrix::from_rotation(&rot(Axis::X, 0.0, false));
+        assert_eq!(
+            m.rows,
+            [
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 1.0],
+            ]
+        );
+        // The general path is unchanged: 22.5 degrees rescales by 1/cos,
+        // so a unit Y offset comes out (0, 1, tan 22.5) - the rescale is
+        // baked into the rotation matrix's columns, not its diagonal.
+        let m = ElementMatrix::from_rotation(&rot(Axis::X, 22.5, true));
+        let p = m.position([0.0, 1.0, 0.0]);
+        assert!((p[1] - 1.0).abs() < 1e-6, "{p:?}");
+        assert!(
+            (p[2] - (22.5f32.to_radians()).tan()).abs() < 1e-6,
+            "{p:?}"
+        );
+        assert_eq!(m.rows[0][0], 1.0);
     }
 }
