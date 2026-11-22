@@ -13313,3 +13313,10 @@ own way. No Rust usage.
 (`mobs/frog.rs`, `LaySpawn`): the pregnant/walk-target/on-ground
 gates, the UP-face-empty + water-fluid + air-above spot test,
 frogspawn placement, the lay sound and clearing the pregnancy.
+
+## Item 797 — world/entity/ai (new-classes) — NO-CHANGE
+
+1 class: `Brain$MemoryValue` — the brain's internal memory holder
+(type + optional expirable value). The Rust covers the expiry
+semantics (`mobs/brain.rs`, `Ttl`) and the `ExpirableValue`
+serialization (`entity_nbt.rs`).
