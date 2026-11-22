@@ -12856,3 +12856,7 @@ Test scaffolding only (gametest structure dirs).
 Equivalent max-stack read (`MAX_STACK_SIZE` component vs
 `Item.getDefaultMaxStackSize()` — same value for recipe ingredient
 holders); the Rust already cites the 1.21.11 form.
+
+## Item 739 — world/entity/vehicle/minecart (NewMinecartBehavior$StepPartialTicks) — NO-CHANGE
+
+Visibility only.
