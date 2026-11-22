@@ -13775,12 +13775,51 @@ is the oracle; decompiled code is a reading aid.
     setTooltipForNextFrame.
   - Verification: read / only; no code / changed.
 
+- **Item 337 — Block edit screens**
+  - Block edit screens
+    (jigsaw, structure,
+    test block, test
+    instance): CODE. The
+    133-line diff is all
+    alpha-0 colour
+    spellings - labels
+    1.21.5's 10526880
+    against 1.21.6's
+    -6250336, titles
+    16777215 against -1,
+    same pixels - and the
+    port already keeps the
+    opaque forms, with the
+    label positions
+    matching exactly. One
+    real gap hid in it: the
+    test-instance screen's
+    labels are silver
+    0xC0C0C0 in both
+    versions (COLOR_SILVER,
+    1.21.5's 12632256), but
+    the port drew every
+    edit-screen label in
+    the shared 0xA0A0A0
+    grey. Item::Label now
+    carries its colour, the
+    test-instance screen
+    uses a new SILVER
+    constant, and the other
+    three screens keep
+    LABEL; the LABEL doc
+    comment now cites the
+    1.21.5 spelling.
+  - Verification: cargo check -j 1 -p
+    horizon-client --lib
+    passed (65s).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **336 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 68/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **337 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 69/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

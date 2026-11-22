@@ -2,7 +2,7 @@
 //! rotation and entity handling, and the reset, save and run actions.
 use super::{
     Game,
-    block_editor::{Editor, Item, Outcome, Pos, cycle, footer_action, on_off},
+    block_editor::{Editor, Item, Outcome, Pos, SILVER, cycle, footer_action, on_off},
 };
 use horizon_client::{
     containers::BlockEntity,
@@ -166,6 +166,7 @@ impl Editor for TestInstanceEditor {
                 150.0
             },
             right: false,
+            color: SILVER,
         };
         let mut items = vec![
             Item::Edit {
