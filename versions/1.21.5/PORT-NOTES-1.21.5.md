@@ -16083,12 +16083,36 @@ is the oracle; decompiled code is a reading aid.
     form (item 344).
   - Verification: read / only; no code / changed.
 
+- **Item 419 — LowerCaseEnumTypeAdapterFactory**
+  - LowerCaseEnumTypeAdapte
+    rFactory: verified, no
+    code. The 1.21.5-only
+    Gson adapter serialises
+    enums as their
+    lowercased names and
+    reads unknown strings
+    as null - but a
+    constant-pool scan of
+    the full 1.21.5 client
+    jar finds no class
+    referencing it at all,
+    so it is dead code on
+    the client; any users
+    are server-side. The
+    port parses JSON with
+    serde, where enum
+    casing is fixed by
+    explicit renames, so
+    the adapter has no
+    surface here.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **418 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 17/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **419 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 18/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
