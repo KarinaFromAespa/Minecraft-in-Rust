@@ -14710,12 +14710,38 @@ is the oracle; decompiled code is a reading aid.
     exist.
   - Verification: read / only; no code / changed.
 
+- **Item 371 — /test**
+  - /test: verified, no
+    code. The 71-line diff
+    is the predicate
+    spelling (level 2, both
+    versions) plus the
+    getSelectedResources
+    signature: 1.21.5
+    passes Registries.TEST_
+    INSTANCE explicitly,
+    1.21.6 infers it from
+    the argument type. The
+    port's tree already
+    requires GAMEMASTERS
+    (2) on the root and
+    builds the tests
+    argument as ResourceSel
+    ector("minecraft:test_i
+    nstance") - the
+    registry explicit, the
+    1.21.5 form. The
+    run/verify/locate
+    search box is item
+    313's ground.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **370 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 102/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **371 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 103/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
