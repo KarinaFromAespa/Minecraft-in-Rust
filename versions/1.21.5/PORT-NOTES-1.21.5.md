@@ -14351,12 +14351,29 @@ is the oracle; decompiled code is a reading aid.
     camel, camel husk).
   - Verification: read / only; no code / changed.
 
+- **Item 358 — /bossbar**
+  - /bossbar: verified, no
+    code. The 11-line diff
+    is pure predicate
+    spelling - Commands.has
+    Permission(2) in
+    1.21.6, the equivalent
+    lambda in 1.21.5 - with
+    the command at level 2
+    in both versions. The
+    port's tree already
+    requires GAMEMASTERS
+    (2) on the root. Item 2
+    89/330/338/340/344/355'
+    s ground, same delta.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **357 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 89/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **358 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 90/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
