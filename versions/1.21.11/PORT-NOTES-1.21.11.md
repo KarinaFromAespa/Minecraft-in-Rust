@@ -12872,3 +12872,7 @@ Visibility only.
 ## Item 742 — game/packs.rs (ReloadableResourceManager) — NO-CHANGE
 
 Interface declaration order only.
+
+## Item 743 — game/pickups.rs (ItemPickupParticleGroup$ParticleInstance) — NO-CHANGE
+
+Visibility only.
