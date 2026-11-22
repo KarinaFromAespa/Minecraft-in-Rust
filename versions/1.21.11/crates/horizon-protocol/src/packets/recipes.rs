@@ -176,22 +176,27 @@ impl SlotDisplay {
         Ok(())
     }
     pub fn write(&self, w: &mut Writer) {
+        // The type ids below are the codec's 1.21.11 numbering, so they are
+        // renumbered for the wire like any other registry id: writing them
+        // raw sends 1.21.11's ids to an older version, whose numbering
+        // differs (a tag written down to 26.2 as 4 arrives as its item id
+        // instead of 26.2's tag id 6).
         match self {
-            Self::Empty => w.varint(0),
-            Self::AnyFuel => w.varint(1),
+            Self::Empty => w.varint(crate::adapter::ids::slot_display(0)),
+            Self::AnyFuel => w.varint(crate::adapter::ids::slot_display(1)),
             Self::Item(id) => {
-                w.varint(2);
+                w.varint(crate::adapter::ids::slot_display(2));
                 w.varint(crate::adapter::ids::item(*id));
             }
             Self::ItemStack(stack) => {
-                w.varint(3);
+                w.varint(crate::adapter::ids::slot_display(3));
                 Template::write(stack, w);
             }
             Self::Tag(set) if crate::adapter::ids::quirks_written().tag_slot_display_is_id => {
                 match set {
                     // TagSlotDisplay of 26.2: the tag's bare id.
                     HolderSet::Tag(name) => {
-                        w.varint(4);
+                        w.varint(crate::adapter::ids::slot_display(4));
                         w.string(name);
                     }
                     // A list of items has no such form: a composite of item displays shows the same.
@@ -202,7 +207,7 @@ impl SlotDisplay {
                 }
             }
             Self::Tag(set) => {
-                w.varint(4);
+                w.varint(crate::adapter::ids::slot_display(4));
                 set.write(w);
             }
             Self::SmithingTrim {
@@ -210,7 +215,7 @@ impl SlotDisplay {
                 material,
                 pattern,
             } => {
-                w.varint(5);
+                w.varint(crate::adapter::ids::slot_display(5));
                 base.write(w);
                 material.write(w);
                 match pattern {
@@ -228,12 +233,12 @@ impl SlotDisplay {
                 }
             }
             Self::WithRemainder { input, remainder } => {
-                w.varint(6);
+                w.varint(crate::adapter::ids::slot_display(6));
                 input.write(w);
                 remainder.write(w);
             }
             Self::Composite(list) => {
-                w.varint(7);
+                w.varint(crate::adapter::ids::slot_display(7));
                 w.varint(list.len() as i32);
                 list.iter().for_each(|d| d.write(w));
             }
