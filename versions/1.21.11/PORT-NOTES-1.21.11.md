@@ -12989,3 +12989,13 @@ fluid citations used the 26.1 name `FluidRenderer` and now cite
 `LiquidBlockRenderer`. `BlockModelShaper` and `BlockRenderDispatcher`
 have no Rust usage (dispatch/plumbing; the mesher is the native
 equivalent).
+
+## Item 755 — client/gui/screens/worldselection (new-classes) — NO-CHANGE
+
+8 classes: `EditGameRulesScreen` and its 7 inner classes, present in
+1.21.11, absent in 26.1 (which split it into InWorldGameRulesScreen
+and added search and packets). The Rust has a complete port in
+`game_rules_screen.rs`, verified against the decompile: 24px rows,
+220px row width, integer-entry text colours -2039584/-65536, the
+44x20 number box at contentRight - 45, Done keeping the edited rules
+and Cancel/Escape discarding them.
