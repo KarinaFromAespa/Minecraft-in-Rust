@@ -14757,12 +14757,54 @@ is the oracle; decompiled code is a reading aid.
     item 339's ground.
   - Verification: read / only; no code / changed.
 
+- **Item 373 — DeprecatedTranslationsInfo**
+  - DeprecatedTranslationsI
+    nfo: CODE. The 27-line
+    diff is the JSON
+    parser: 1.21.5 reads
+    deprecated.json with
+    Gson's lenient reader,
+    1.21.6 with
+    StrictJsonParser. The
+    port's apply_deprecated
+    parsed strictly only -
+    the 1.21.6 form. It now
+    falls back to the
+    lenient reader
+    (parse_lenient, the
+    same one lang files
+    use, with the BOM
+    strip) when strict
+    parsing fails, with the
+    apply logic shared
+    between both paths. A
+    new test pins it: a
+    commented,
+    single-quoted file
+    removes and renames,
+    plain JSON still
+    applies, and a file
+    that is not JSON even
+    leniently changes
+    nothing. This narrows
+    the recorded
+    strict-JSON gap (items
+    251/281) by one loader;
+    the datapack/tag/advanc
+    ement loaders stay
+    strict.
+  - Verification: cargo test -j 1 -p
+    horizon-client-core
+    --lib lang:: passed,
+    17/17 (new test
+    included).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **372 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 104/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **373 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 105/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
