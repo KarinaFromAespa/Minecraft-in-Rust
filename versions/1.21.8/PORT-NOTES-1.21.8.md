@@ -8000,3 +8000,44 @@ motion-tag gap above. (The `arrows_client_tests` compile fix from
 `FluidResources::from_registry` still takes `&BTreeSet<String>`,
 so the original `&BTreeSet::new()` call is correct — only 1.21.7
 changed the signature to `&[bool]`.)
+
+Water never spreads: `canHoldAnyFluid` read a tag 1.21.8 does not have
+(2026-11-22, carry-over of the 1.21.7 fix ee7ab396). The owner reported
+water placed on top of a block at height just sitting there in 1.21.7 —
+no falling, no spreading — and the same defect was in this tree. Root
+cause: `FlowingFluid.canHoldAnyFluid` in
+`crates/horizon-world/src/level/fluids.rs` was the 26.3 form,
+`is_liquid_container(state) ||
+in_set(state, #washed_away_by_fluids)`, but the `#washed_away_by_fluids`
+tag is a 26.3 addition: 1.21.8's prepared block tags (194 tags) do not
+contain it, so `Tags::resolve` gave it an empty set and
+`can_hold_any_fluid` was false for every non-container block — water
+could not spread down OR sideways, and a placed source never moved.
+Vanilla 1.21.8's `FlowingFluid.canHoldAnyFluid` (verified against this
+version's own named server jar bytecode, not copied from 1.21.7) is the
+list form: a liquid container, or a state that does not block motion
+and is none of door, signs, ladder, sugar cane, bubble column,
+nether/end portal, end gateway, structure void. The fix restores that
+form; `blocks_motion` + the class/block exclusions match the bytecode
+instruction for instruction (the port's `Class::Sign` check covers the
+same blocks as vanilla's `#signs` tag). Carrying the fix also needed
+the `Behaviours::blocks_motion` helper (solid unless cobweb or bamboo
+sapling, verified against the 1.21.8 jar's
+`BlockStateBase.blocksMotion` bytecode) plus the `cobweb` named-block
+entry — this tree lacked both, where 1.21.7 gained them in its
+motion-tag fix. The same 26.x-tag pattern also affects
+`LavaFluid.randomTick` in the same file (it reads the
+`#blocks_lava_fire_spread` tag, also absent from 1.21.8, so the fire
+walk never stops at a motion-blocking state; vanilla 1.21.8 uses
+`blocksMotion()` there) — deliberately NOT fixed here; it is
+parity-sweep defect G3, a separate follow-up. Verified: the seven water
+tests that failed before the fix (`water_spreads_on_a_floor`,
+`water_falls_and_makes_sources`,
+`water_keeps_spreading_over_waterlogged_scaffolding`,
+`refused_spread_keeps_water_out_of_a_guarded_block`,
+`waterlogged_blocks_schedule_water`, `lava_meets_water`,
+`bucket_source_removal_drains_spread_water`) now pass. Regression test:
+`water_on_a_pillar_flows_off_the_edge_and_falls` (level/tests.rs)
+places a source on a one-block pillar and pins the falling column
+beside it (level 8 at the pillar's side down to the floor) and the
+spread on the floor.

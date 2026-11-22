@@ -357,7 +357,27 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         false
     }
     fn can_hold_any_fluid(&self, state: BlockStateId) -> bool {
-        self.is_liquid_container(state) || self.b.in_set(state, &self.b.tags.washed_away_by_fluids)
+        // 1.21.8's `canHoldAnyFluid`: a liquid container, or a state that does
+        // not block motion and is none of the listed blocks. The
+        // `#washed_away_by_fluids` tag is a 26.3 addition — 1.21.8 has no such
+        // tag, so the tag form reads as an empty set and water never spreads.
+        if self.is_liquid_container(state) {
+            return true;
+        }
+        if self.b.blocks_motion(state) {
+            return false;
+        }
+        let data = self.b.data(state);
+        let block = self.b.block(state);
+        !data.is(Class::Door)
+            && !data.is(Class::Sign)
+            && block != self.b.named.ladder
+            && block != self.b.named.sugar_cane
+            && block != self.b.named.bubble_column
+            && !data.is(Class::NetherPortal)
+            && !data.is(Class::EndPortal)
+            && !data.is(Class::EndGateway)
+            && !data.is(Class::StructureVoid)
     }
     fn can_hold_specific_fluid(&self, state: BlockStateId, fluid: FluidKind) -> bool {
         if self.is_liquid_container(state) {

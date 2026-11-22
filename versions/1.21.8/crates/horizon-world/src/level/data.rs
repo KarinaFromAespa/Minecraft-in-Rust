@@ -310,6 +310,7 @@ named_blocks! {
     sugar_cane = "sugar_cane",
     bamboo = "bamboo",
     bamboo_sapling = "bamboo_sapling",
+    cobweb = "cobweb",
     scaffolding = "scaffolding",
     melon = "melon",
     pumpkin = "pumpkin",

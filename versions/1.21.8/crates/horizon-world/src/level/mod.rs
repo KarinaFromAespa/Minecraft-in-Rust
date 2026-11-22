@@ -974,6 +974,18 @@ impl Behaviours {
     pub fn is_solid(&self, state: BlockStateId) -> bool {
         self.has_flag(state, data::state_flags::SOLID)
     }
+    /// `BlockState.blocksMotion`: the state is solid, unless the block is a
+    /// cobweb or a bamboo sapling (verified against the 1.21.8 named server
+    /// jar's `BlockStateBase.blocksMotion` bytecode). 1.21.8 has no
+    /// `blocks_motion` tag (26.3 added the tag family), so fluid flow reads
+    /// this per-state rule instead of the tag.
+    pub fn blocks_motion(&self, state: BlockStateId) -> bool {
+        if !self.is_solid(state) {
+            return false;
+        }
+        let block = self.block(state);
+        block != self.named.cobweb && block != self.named.bamboo_sapling
+    }
     pub fn is_replaceable(&self, state: BlockStateId) -> bool {
         self.has_flag(state, data::state_flags::REPLACEABLE)
     }
