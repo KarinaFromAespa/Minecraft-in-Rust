@@ -13341,3 +13341,10 @@ directly; the per-type behaviours live in the container handling.
 the trade-rebalance experiment's enchantment providers, used only
 by the experimental trades the Rust deliberately does not port
 (item 751).
+
+## Item 801 — world/item (new-classes) — NO-CHANGE
+
+1 class: `EitherHolder` — a record wrapping `Either<Holder,
+ResourceKey>`. The Rust handles its stream codec in the protocol
+layer (the either-flag + holder-or-key encoding, gated on the
+`either_holders_and_tag_resistance` quirk).
