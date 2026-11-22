@@ -22,7 +22,7 @@ const ROW: f32 = 24.0;
 const ROW_WIDTH: f32 = 220.0;
 const SEARCH_WIDTH: f32 = 200.0;
 /// EditBox text colours (`hud::rgba` order, ABGR): IntegerRuleEntry's valid
-/// (-2039584) and invalid (-65536).
+/// (14737632 in 1.21.5's spelling; -2039584 in 1.21.6's) and invalid (-65536).
 const VALID: u32 = 0xFFE0_E0E0;
 const INVALID: u32 = 0xFF00_00FF;
 

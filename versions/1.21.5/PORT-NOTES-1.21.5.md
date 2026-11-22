@@ -14539,12 +14539,44 @@ is the oracle; decompiled code is a reading aid.
     the wgpu port.
   - Verification: read / only; no code / changed.
 
+- **Item 365 — EditGameRulesScreen entries**
+  - EditGameRulesScreen
+    entries: comment fix.
+    The 22-line diff is the
+    alpha-0 pattern
+    (valid-input text
+    14737632 in 1.21.5,
+    -2039584 in 1.21.6 -
+    same pixels; invalid
+    stays -65536 in both)
+    plus the tooltip API
+    rename: 1.21.5's setToo
+    ltipForNextRenderPass
+    on the screen versus
+    1.21.6's
+    setTooltipForNextFrame
+    on GuiGraphics. The
+    port already draws
+    VALID as opaque
+    0xFFE0E0E0 and the
+    hovered rule's tooltip
+    in-frame (item
+    171/212's ground), so
+    only the VALID doc
+    comment needed fixing:
+    it cited the 1.21.6
+    spelling -2039584, now
+    the 1.21.5 one.
+  - Verification: Comment-only change; no
+    code / changed, no test
+    run / needed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **364 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 96/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **365 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 97/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
