@@ -14426,12 +14426,29 @@ is the oracle; decompiled code is a reading aid.
     shape changed, no test
     run / needed.
 
+- **Item 360 — HorseInventoryScreen**
+  - HorseInventoryScreen:
+    verified, no code. The
+    32-line diff is the
+    render-API refactor
+    only - RenderPipelines.
+    GUI_TEXTURED in 1.21.6,
+    RenderType::guiTextured
+    in 1.21.5 - on the
+    background blit, the
+    chest-slots sprite and
+    the slot sprite, with
+    identical geometry in
+    all three. No surface
+    in the wgpu port.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **359 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 91/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **360 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 92/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
