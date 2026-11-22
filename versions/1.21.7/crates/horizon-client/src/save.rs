@@ -8309,13 +8309,17 @@ mod tests {
             tag
         };
         // 26.3 layout moved back to the old one: settings in level.dat, no saved data file.
+        // 1.21.7 form: the fixture is a 1.12.2 world (DataVersion 1343), which genuinely
+        // needs file fixing in this build (1493 `LegacyStructureFileFix`). The 26.x
+        // fixture's 4700 is a future version here, past the current 4438, so it needs
+        // no file fixing and the assertion below would fail.
         fs::remove_file(saved_data_path(&dir, "world_gen_settings")).unwrap();
         write_dat(
             &dir.join("level.dat"),
             Tag::compound([(
                 "Data",
                 Tag::compound([
-                    ("DataVersion", Tag::Int(4700)),
+                    ("DataVersion", Tag::Int(1343)),
                     ("WorldGenSettings", customized),
                 ]),
             )]),
