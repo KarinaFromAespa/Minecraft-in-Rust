@@ -1,0 +1,285 @@
+name: leakage-audit
+
+# The standing guard against the bug class that broke 1.21.7's water:
+# code carried over from the 26.3 base reads a tag, attribute or
+# gamerule that does not exist in the target version's own vanilla data,
+# and the lookup silently degrades (empty set / false / 0) instead of
+# failing loudly. The tool is tools/audit_26_3_leakage.py; the findings
+# report and the reasoning behind this job live in docs/LEAKAGE-AUDIT.md.
+#
+# GATING — the baseline ratchet, not zero leaks. Every version fails
+# today (1.20.5 carries 90 leaks, 1.21.7 62, 26.1 23; only 26.2 is
+# clean), so a zero-leak gate would block all 19 trees on day one and
+# be disabled within a week. The job runs with
+# --baseline tools/leakage-baselines.json and fails ONLY on leaks that
+# are NEW against the recorded baseline. Fixes shrink the baseline;
+# the ratchet only ever tightens. Regenerate the baseline with
+# --write-baseline after a fix lands, and review the diff: a baseline
+# that grows is a regression, not an update.
+#
+# JAR SOURCE — downloaded from Mojang at job time, sha1-verified. The
+# audit needs the version's own vanilla data (tag inventory, attribute
+# registry strings, gamerule lang keys), and the jar is authoritative
+# for all three (the prepared-data path has only a partial attribute
+# inventory). The download step fetches the version's server jar from
+# Mojang's piston-meta manifest — the same approach as the tool
+# author's download_jars.py and port-verify's prepare — and verifies
+# it against the manifest sha1. No Java is needed: the tool is
+# stdlib-only Python, bundler-aware, and works on obfuscated jars
+# (the attribute scan matches string constants, not class names).
+# The jars are never committed and never uploaded as artifacts.
+#
+# EXIT CODES (the tool's, mirrored by the audit step):
+#   0  no leaks new against the baseline (review notes may exist)
+#   1  one or more leaks NEW against the baseline — the job fails and
+#      the new leaks list their file:line in the log and the summary
+#   3  the version is UNMEASURED (no usable data source) — the job
+#      fails with a clear message; unmeasured never passes silently
+#   2  usage error — the job fails
+#
+# NOT a D-gate change. Folding the audit into delta_verify.py (D1
+# gains a no-new-leaks check) is the natural end state, but gate
+# changes are Freebuff's call by programme discipline, and this tool
+# is one run old. The sequence is: run it here as its own job, let
+# one port cycle prove the signal, then propose the gate integration
+# with that evidence.
+#
+# Dispatch-only, like client-build and launcher-build:
+#   gh workflow run leakage-audit.yml -f version=1.21.7
+#   gh workflow run leakage-audit.yml -f version=all
+# Results land in the per-version job summary and the
+# leakage-audit-<version> artifact (the full JSON result).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version directory under versions/ (e.g. 1.21.7), or 'all' for every version tree"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  HORIZON_TELEMETRY_URL: "off"
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve the version input into the audit matrix
+        id: matrix
+        env:
+          WANTED: ${{ inputs.version }}
+        run: |
+          python3 - <<'EOF'
+          import json, os
+          wanted = os.environ["WANTED"]
+          # A version tree is a directory under versions/ with a
+          # workspace Cargo.toml — the same discovery rule the audit
+          # tool's --all uses.
+          def has_tree(v):
+              return os.path.isfile(os.path.join("versions", v, "Cargo.toml"))
+          if wanted == "all":
+              versions = sorted(d for d in os.listdir("versions") if has_tree(d))
+              if not versions:
+                  raise SystemExit("no version tree found under versions/")
+          else:
+              if not has_tree(wanted):
+                  raise SystemExit(f"no version tree at versions/{wanted}")
+              versions = [wanted]
+          print("versions:", ", ".join(versions))
+          include = [{"version": v} for v in versions]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("matrix=" + json.dumps({"include": include}) + "\n")
+          EOF
+
+  audit:
+    needs: resolve
+    name: audit ${{ matrix.version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.resolve.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The audit needs the version's own vanilla data, and the jar is
+      # authoritative for all three families (tags, attributes,
+      # gamerules). Download the server jar from Mojang's piston-meta
+      # manifest and verify it against the manifest sha1 — the same
+      # approach as the tool author's download_jars.py. curl with
+      # retries, not urllib: truncated reads kill plain urllib fetches.
+      # The jar is never committed and never uploaded.
+      - name: Download the vanilla server jar (sha1-verified)
+        run: |
+          V="${{ matrix.version }}"
+          mkdir -p jars
+          python3 - "$V" <<'EOF'
+          import hashlib, json, subprocess, sys
+          version = sys.argv[1]
+          MANIFEST = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
+          def fetch_json(url):
+              out = subprocess.run(
+                  ["curl", "-sS", "--retry", "3", "--retry-delay", "2",
+                   "-m", "120", url],
+                  capture_output=True, text=True, check=True)
+              return json.loads(out.stdout)
+          manifest = fetch_json(MANIFEST)
+          by_id = {v["id"]: v for v in manifest["versions"]}
+          entry = by_id.get(version)
+          if entry is None:
+              raise SystemExit(
+                  f"{version}: NOT in the Mojang version manifest")
+          detail = fetch_json(entry["url"])
+          server = detail.get("downloads", {}).get("server")
+          if not server:
+              raise SystemExit(
+                  f"{version}: no server download in its version detail")
+          dest = f"jars/{version}-server.jar"
+          subprocess.run(
+              ["curl", "-sS", "--retry", "3", "--retry-delay", "2",
+               "-m", "600", "-o", dest, server["url"]], check=True)
+          h = hashlib.sha1()
+          with open(dest, "rb") as f:
+              for chunk in iter(lambda: f.read(1 << 20), b""):
+                  h.update(chunk)
+          if h.hexdigest() != server["sha1"]:
+              raise SystemExit(
+                  f"{version}: SHA1 MISMATCH {h.hexdigest()} != {server['sha1']}")
+          print(f"{version}: server jar ok "
+                f"({server['size']} bytes, sha1 verified)")
+          EOF
+
+      # The gate. The tool runs once with --json into audit-<v>.json
+      # (the artifact), and a small reader prints the human summary to
+      # the log and translates the exit code into the job's verdict:
+      #   0 pass — no new leaks against the baseline
+      #   1 fail — new leaks, listed with file:line
+      #   3 fail — unmeasured; the data-source detail says why
+      #   2 fail — usage error (and no JSON output to read)
+      # `set +e` is load-bearing: the runner's shell is `bash -e`
+      # without it, a non-zero audit would end the step before the
+      # reader prints what failed.
+      - name: Run the leakage audit (baseline ratchet)
+        id: audit
+        run: |
+          V="${{ matrix.version }}"
+          set +e
+          python3 tools/audit_26_3_leakage.py "$V" --jar "jars/$V-server.jar" \
+            --exceptions tools/leakage-exceptions.json \
+            --baseline tools/leakage-baselines.json --json > "audit-$V.json"
+          RC=$?
+          set -e
+          echo "audit exit code: $RC"
+          python3 - "$V" "$RC" <<'EOF'
+          import json, sys
+          version, rc = sys.argv[1], int(sys.argv[2])
+          try:
+              result = json.load(open(f"audit-{version}.json"))["results"][0]
+          except (OSError, ValueError, KeyError, IndexError):
+              print(f"::error::leakage-audit: {version} produced no JSON "
+                    f"result (audit exit code {rc})")
+              sys.exit(1)
+          counts = result["counts"]
+          base = result.get("baseline", {})
+          new = base.get("new_leaks", [])
+          fixed = base.get("fixed_leaks", [])
+          print(f"{version}: status={result['status']} "
+                f"data={result['data_source']['kind']} "
+                f"leaks={counts.get('leak', 0)} "
+                f"review={counts.get('review', 0)} "
+                f"new={len(new)} fixed={len(fixed)}")
+          for name in new:
+              locs = next((f["locations"] for f in result["findings"]
+                           if f["name"] == name
+                           and f["severity"] == "leak"), [])
+              where = "; ".join(f"{loc['file']}:{loc['line']}"
+                                for loc in locs[:3])
+              print(f"  NEW LEAK: {name}  ({where})")
+          for name in fixed:
+              print(f"  fixed vs baseline: {name}")
+          if rc == 1:
+              print(f"::error::leakage-audit: {version} has {len(new)} NEW "
+                    f"leak(s) against the baseline")
+              sys.exit(1)
+          if rc == 3:
+              print(f"::error::leakage-audit: {version} UNMEASURED — "
+                    f"{result.get('reason', 'no usable data source')}")
+              sys.exit(1)
+          if rc != 0:
+              print(f"::error::leakage-audit: {version} audit failed "
+                    f"with exit code {rc}")
+              sys.exit(1)
+          print(f"{version}: no new leaks against the baseline")
+          EOF
+
+      - name: Job summary
+        if: always()
+        run: |
+          V="${{ matrix.version }}"
+          python3 - "$V" <<'EOF'
+          import json, os, sys
+          version = sys.argv[1]
+          summary = os.environ["GITHUB_STEP_SUMMARY"]
+          lines = [f"## leakage-audit — {version}", ""]
+          try:
+              result = json.load(open(f"audit-{version}.json"))["results"][0]
+          except (OSError, ValueError, KeyError, IndexError):
+              lines.append("No audit result: the audit step produced no "
+                           "JSON output (see the log).")
+              open(summary, "a").write("\n".join(lines) + "\n")
+              sys.exit(0)
+          counts = result["counts"]
+          base = result.get("baseline", {})
+          new = base.get("new_leaks", [])
+          fixed = base.get("fixed_leaks", [])
+          inv = result["inventory"]
+          lines.append(f"status: **{result['status']}** · "
+                       f"data source: {result['data_source']['kind']} "
+                       f"({result['data_source'].get('path') or 'n/a'})")
+          lines.append("")
+          lines.append("| leaks | review | new vs baseline | fixed vs baseline |")
+          lines.append("|---|---|---|---|")
+          lines.append(f"| {counts.get('leak', 0)} | {counts.get('review', 0)} "
+                       f"| **{len(new)}** | {len(fixed)} |")
+          lines.append("")
+          if result["status"] == "blocked":
+              lines.append(f"UNMEASURED: {result.get('reason', '')}")
+              lines.append("")
+          if new:
+              lines.append("### New leaks (fail the job)")
+              lines.append("")
+              for name in new:
+                  locs = next((f["locations"] for f in result["findings"]
+                               if f["name"] == name
+                               and f["severity"] == "leak"), [])
+                  where = "; ".join(f"`{loc['file']}:{loc['line']}`"
+                                    for loc in locs[:3])
+                  lines.append(f"- `{name}` — {where}")
+              lines.append("")
+          if fixed:
+              lines.append("### Fixed vs baseline")
+              lines.append("")
+              lines.append(", ".join(f"`{name}`" for name in fixed))
+              lines.append("")
+          lines.append(f"inventory: {inv.get('tags_total', '?')} tags, "
+                       f"{inv.get('attribute_ids', '?')} attributes, "
+                       f"{inv.get('gamerules', '?')} gamerules")
+          open(summary, "a").write("\n".join(lines) + "\n")
+          EOF
+
+      - name: Upload the audit result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: leakage-audit-${{ matrix.version }}
+          path: audit-${{ matrix.version }}.json
+          if-no-files-found: warn
