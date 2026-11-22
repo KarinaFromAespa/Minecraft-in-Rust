@@ -13173,3 +13173,9 @@ usage.
 behaviour lives in `BlockColors.createDefault`, which the Rust
 ports in full in the mesher (grass/foliage/water tints, the
 spruce and birch constants, redstone power, stem age).
+
+## Item 775 — client/gui/components (new-classes) — NO-CHANGE
+
+1 class: `PlayerFaceRenderer`. The Rust ports `draw` in full
+(`tab_list.rs::face`): face at u=8, hat at u=40, 8x8 on a 64x64
+skin, with the Dinnerbone/Grumm flip.
