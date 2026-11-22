@@ -14005,12 +14005,40 @@ is the oracle; decompiled code is a reading aid.
     ground, same delta.
   - Verification: read / only; no code / changed.
 
+- **Item 345 — ChunkStatusTasks**
+  - ChunkStatusTasks:
+    verified, no code. The
+    54-line diff is the
+    ValueInput refactor
+    again -
+    postLoadProtoChunk
+    takes a
+    List<CompoundTag> in
+    1.21.5, a
+    ValueInputList wrapped
+    in a ProblemReporter.Sc
+    opedCollector in 1.21.6
+    - with the behaviour
+    unchanged: a chunk that
+    reaches FULL loads its
+    stored entities
+    recursively with spawn
+    reason LOAD. The port's
+    spawn_loaded_entities
+    already reads the
+    chunk's entity tags as
+    CompoundTags and spawns
+    them; the 1.21.6
+    logging wrapper has no
+    port surface.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **344 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 76/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **345 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 77/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
