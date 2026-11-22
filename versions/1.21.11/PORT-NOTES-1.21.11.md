@@ -13354,3 +13354,10 @@ layer (the either-flag + holder-or-key encoding, gated on the
 1 class: `LegacyTagFixer` — the chunk-loading fixup interface
 implemented by `LegacyStructureDataHandler` (item 772). The
 Rust's datafix system handles old chunk tags its own way.
+
+## Item 803 — world/level/dimension (new-classes) — NO-CHANGE
+
+1 class: `DimensionType$CardinalLightType` (DEFAULT / NETHER).
+The Rust implements it as `CardinalLight`, parsed from the
+dimension type and wired into the mesher lighting (Nether
+brightens the up/down faces to 0.9).
