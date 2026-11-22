@@ -13207,3 +13207,8 @@ the `BabyAxolotlAnimation` keyframe clips); 1.21.11 has one model
 procedural setupAnim as adults. The baby branch is removed from
 `axolotl()`; the procedural path (verified exact) now runs for all
 ages.
+
+## Item 780 — client/renderer/block/model/multipart (new-classes) — NO-CHANGE
+
+1 class: `package-info` — the package documentation file. No code,
+no behaviour.
