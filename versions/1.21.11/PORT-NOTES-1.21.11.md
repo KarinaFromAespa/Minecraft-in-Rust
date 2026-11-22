@@ -13166,3 +13166,10 @@ Neither is named in the Rust.
 entity predicates in advancement criteria against a problem
 reporter. Pure datapack validation, no gameplay behaviour, no Rust
 usage.
+
+## Item 774 — client/color/block (new-classes) — NO-CHANGE
+
+1 class: `BlockColor` — a single-method tint interface. The
+behaviour lives in `BlockColors.createDefault`, which the Rust
+ports in full in the mesher (grass/foliage/water tints, the
+spruce and birch constants, redstone power, stem age).
