@@ -12892,3 +12892,7 @@ Visibility only.
 ## Item 747 — horizon-world/src/level/ticks.rs (RedstoneTorchBlock$Toggle) — NO-CHANGE
 
 Visibility only.
+
+## Item 748 — worldgen/climate/index.rs (Climate$RTree$SubTree) — NO-CHANGE
+
+Visibility only.
