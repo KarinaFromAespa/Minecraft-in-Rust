@@ -820,10 +820,11 @@ fn timeline_ids(root: &Path, json: &Json, out: &mut Vec<String>, depth: u32) {
 /// pattern as the missing movement attributes (83d24e28): derive what the
 /// data lacks from what it has, in code, at vanilla values.
 ///
-/// The day-cycle curves are vanilla's classic formulas (Minecraft Wiki,
-/// "Daylight cycle"; the 1.21.11 and 26.2 jars can't verify them — both
-/// already drive the sky from attributes). `time_of_day` is
-/// `DimensionType.timeOfDay`: 0 at noon, 0.5 at midnight. The sky and fog
+/// The day-cycle curves are vanilla 1.21.7's, verified against its server
+/// jar (`DimensionType.timeOfDay`, `Level.updateSkyBrightness`) and the
+/// 1.21.6 client jar (`ClientLevel.getSkyColor`). `time_of_day` is
+/// `DimensionType.timeOfDay`: 0 at noon, 0.5 at midnight — vanilla's
+/// non-linear blend, not the linear day fraction. The sky and fog
 /// darken by `ClientLevel.getSkyColor`'s factor, the stars by
 /// `Level.getStarBrightness`, the sky light by `15 - Level.getSkyDarken`
 /// (kept as a float; `sky_darken` truncates it to vanilla's int steps).
@@ -836,9 +837,16 @@ fn timeline_ids(root: &Path, json: &Json, out: &mut Vec<String>, depth: u32) {
 mod legacy {
     use super::*;
 
-    /// `DimensionType.timeOfDay` at `ticks` (0-23999): 0 at noon.
+    /// `DimensionType.timeOfDay` at `ticks` (0-23999): 0 at noon, 0.5 at
+    /// midnight. Vanilla blends the linear fraction `d3` with
+    /// `d5 = 0.5 - cos(d3*PI)/2` and returns `(2*d3 + d5)/3` (1.21.7
+    /// server jar) — the linear form kept dawn dark until tick ~841 and
+    /// brought dusk early from tick ~11160, so undead did not burn at
+    /// dawn, where vanilla's `skyDarken` is already 0 from tick 0.
     fn time_of_day(ticks: i32) -> f32 {
-        (ticks as f32 / 24_000.0 - 0.25).rem_euclid(1.0)
+        let d3 = (ticks as f64 / 24_000.0 - 0.25).rem_euclid(1.0);
+        let d5 = 0.5 - (d3 * std::f64::consts::PI).cos() / 2.0;
+        ((d3 * 2.0 + d5) / 3.0) as f32
     }
 
     /// `Mth.cos(timeOfDay * 2π)`, the shared input of the daylight curves.
@@ -857,9 +865,18 @@ mod legacy {
         f * f * 0.5
     }
 
-    /// `15 - Level.getSkyDarken`: 15 by day, 4 at night.
+    /// `15 - Level.getSkyDarken` at clear weather (the timeline models
+    /// clear; the weather layer darkens it separately): vanilla's
+    /// `Level.updateSkyBrightness` is
+    /// `(int)((1 - (0.5 + 2*clamp(cos(timeOfDay*2*PI), -0.25, 0.25))) * 11)`
+    /// (1.21.7 server jar), so the light is already full at dawn — the
+    /// old `(1 - (cos*2 + 0.2))` form kept it dark until tick ~841.
+    /// Computed in f64 like vanilla's `Math.cos` path.
     fn sky_light_level(ticks: i32) -> f32 {
-        15.0 - (1.0 - (cos_day(ticks) * 2.0 + 0.2)).clamp(0.0, 1.0) * 11.0
+        let c = (time_of_day(ticks) as f64 * 2.0 * std::f64::consts::PI)
+            .cos()
+            .clamp(-0.25, 0.25);
+        (15.0 - (1.0 - (0.5 + 2.0 * c)) * 11.0) as f32
     }
 
     /// A biome's legacy `effects` colours as an attribute map, or `None`
@@ -1662,6 +1679,30 @@ mod tests {
             sky_darken(&env, 6000, 1.0, 1.0) >= 4,
             "thunderstorm at noon"
         );
+        // Vanilla's `isBrightOutside` (skyDarken < 4) is already true at
+        // dawn: a new world starts at tick 0 with undead burning from the
+        // first tick. The old linear day curve kept dawn dark until tick
+        // ~841 and brought dusk early from tick ~11160 (follow-up burn
+        // report, Nov 22 2026). Vanilla's night boundary is
+        // 12541..23459; the 1000-tick keyframes shift it by at most ~7
+        // ticks, so the assertions sit well inside each side.
+        assert!(sky_darken(&env, 0, 0.0, 0.0) < 4, "clear dawn");
+        assert!(sky_darken(&env, 500, 0.0, 0.0) < 4, "dawn + 500");
+        assert!(sky_darken(&env, 12000, 0.0, 0.0) < 4, "clear sunset");
+        assert!(sky_darken(&env, 12500, 0.0, 0.0) < 4, "just before dusk");
+        assert!(sky_darken(&env, 13000, 0.0, 0.0) >= 4, "after dusk");
+        assert!(sky_darken(&env, 23000, 0.0, 0.0) >= 4, "before dawn");
+        assert!(sky_darken(&env, 23500, 0.0, 0.0) < 4, "night ends");
+        for t in (0..24000).step_by(250) {
+            let dark = sky_darken(&env, t, 0.0, 0.0) >= 4;
+            if (13000..23000).contains(&t) {
+                assert!(dark, "tick {t} is night");
+            } else if t < 12500 || t >= 23500 {
+                assert!(!dark, "tick {t} is day");
+            }
+            // 12500..13000 and 23000..23500 straddle the boundary; the
+            // named assertions above pin both sides of it.
+        }
         std::fs::remove_dir_all(&root).unwrap();
     }
 
