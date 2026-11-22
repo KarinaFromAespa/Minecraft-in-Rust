@@ -14571,12 +14571,45 @@ is the oracle; decompiled code is a reading aid.
     code / changed, no test
     run / needed.
 
+- **Item 366 — CreateFlatWorldScreen / FlatLayerInfo**
+  - CreateFlatWorldScreen.D
+    etailsList /
+    FlatLayerInfo:
+    verified, no code. The
+    DetailsList half is the
+    render-API refactor
+    only (one blitSprite
+    pipeline argument). The
+    real delta is FlatLayer
+    Info.heightLimited,
+    which 1.21.6's preset
+    parser uses to drop
+    layers once the total
+    reaches Y_SIZE;
+    1.21.5's
+    getLayersInfoFromString
+    adds every layer,
+    keeping zero-height
+    ones, with only the
+    per-layer clamp from
+    getLayerInfoFromString.
+    The port's flat preset
+    parse already matches
+    1.21.5 exactly - height
+    .max(0).min(Y_SIZE -
+    total), every layer
+    pushed - with the
+    1.21.5-vs-1.21.6
+    difference documented
+    in its comment.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **365 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 97/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **366 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 98/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
