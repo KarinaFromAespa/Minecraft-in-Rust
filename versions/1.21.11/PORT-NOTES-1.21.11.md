@@ -13212,3 +13212,10 @@ ages.
 
 1 class: `package-info` — the package documentation file. No code,
 no behaviour.
+
+## Item 781 — client/renderer/blockentity/state (new-classes) — NO-CHANGE
+
+1 class: `CondiutRenderState` (vanilla's typo) — a plain data
+holder (anim time, active, rotation, phase, hunting). The Rust
+carries the same fields in `BlockAnim.conduit` and renders the
+conduit from the shell/cage/wind/eye entity models.
