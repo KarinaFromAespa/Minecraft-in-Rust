@@ -13233,3 +13233,9 @@ with the same foil structure and glint UV math.
 1 class: `SpecialModelRenderer$BakingContext$Simple` — a record of
 the three inputs a special-model bake needs (entity model set,
 material set, skin cache). Pure baking plumbing, no Rust usage.
+
+## Item 784 — client/sounds (new-classes) — NO-CHANGE
+
+1 class: `SoundEngine$DeviceCheckState` — a 3-value enum for the
+sound engine's audio-device polling (ONGOING / CHANGE_DETECTED /
+NO_CHANGE). Platform plumbing, no Rust usage.
