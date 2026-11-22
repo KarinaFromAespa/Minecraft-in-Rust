@@ -1451,16 +1451,19 @@ mod tests {
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
             std::fs::write(path, t).unwrap();
         };
+        // 1.21.7's data pack format is 81 (version.json in its own jar);
+        // its packs declare `pack_format`, not min/max_format (a 26.x
+        // addition).
         write(
             "fns",
             "pack.mcmeta",
-            r#"{"pack":{"description":"fixture","min_format":121,"max_format":121}}"#,
+            r#"{"pack":{"description":"fixture","pack_format":81}}"#,
         );
         write("fns", "data/x/function/f.mcfunction", "say hi");
         write(
             "off",
             "pack.mcmeta",
-            r#"{"pack":{"description":"fixture","min_format":121,"max_format":121}}"#,
+            r#"{"pack":{"description":"fixture","pack_format":81,"supported_formats":[61,81]}}"#,
         );
         std::fs::create_dir_all(&dir).unwrap();
         let mut zip = zip::ZipWriter::new(std::fs::File::create(dir.join("old.zip")).unwrap());
