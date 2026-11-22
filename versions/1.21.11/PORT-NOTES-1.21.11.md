@@ -13401,3 +13401,28 @@ providers by string dispatch.
 1 class: `LootDataType$Validator` — a single-method interface for
 validating loaded loot data. Pure datapack validation (like item
 773's `CriterionValidator`), no gameplay behaviour.
+
+## Item 810 — world/level/storage (new-classes) — NO-CHANGE
+
+1 class: `DimensionDataStorage` — the per-dimension SavedData
+store. The Rust implements saved-data read/write itself in
+save.rs.
+
+## Item 811 — world/level (new-classes) — NO-CHANGE
+
+1 class: `EmptyBlockAndTintGetter` — a singleton all-air
+`BlockAndTintGetter`. The Rust has no empty-getter singleton —
+the mesher always works against real block data.
+
+## Item 812 — world (new-classes) — NO-CHANGE
+
+1 class: `ContainerListener` — the single-method
+`containerChanged` interface. The Rust implements the same
+notification as `container_changed` calls.
+
+## Item 813 — New worldgen/feature: 5 entries — NO-CHANGE
+
+`flower`, `no_bonemeal_flower`, `random_patch` (RandomPatchFeature,
+item 804), `ice_spike` (IceSpikeFeature, item 761),
+`forest_rock` (BlockBlobFeature::decode_forest_rock with the
+hardcoded dirt-or-stone support check). All five implemented.
