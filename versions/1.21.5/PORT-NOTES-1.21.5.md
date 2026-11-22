@@ -13962,12 +13962,37 @@ is the oracle; decompiled code is a reading aid.
     does not touch.
   - Verification: read / only; no code / changed.
 
+- **Item 343 — PolarBear**
+  - PolarBear: verified, no
+    code. The 35-line diff
+    is the
+    ValueInput/ValueOutput
+    refactor only -
+    readAdditionalSaveData
+    and
+    addAdditionalSaveData
+    take a CompoundTag in
+    1.21.5 - with the
+    serialized form
+    unchanged: the
+    persistent-anger data.
+    The port already reads
+    and writes the 1.21.5
+    form (neutral_anger.rs,
+    AngerTime/AngryAt, item
+    173's ground), and
+    PolarBear is in the
+    persistent-anger
+    species list. No other
+    method differs.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **342 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 74/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **343 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 75/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
