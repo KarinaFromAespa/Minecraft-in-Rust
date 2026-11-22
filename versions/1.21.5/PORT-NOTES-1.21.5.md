@@ -15619,12 +15619,59 @@ is the oracle; decompiled code is a reading aid.
     mechanism; now 1.21.5.
   - Verification: horizon-client-render / gfx::translucency 4/4.
 
+- **Item 404 — Realms configure screens (structural gap)**
+  - Realms configure
+    screens: structural gap
+    recorded, not rebuilt
+    (item 359's class).
+    1.21.5 configures a
+    Realm through separate
+    screens - RealmsConfigu
+    reWorldScreen as a hub
+    with Players / Settings
+    / Subscription buttons
+    opening
+    RealmsPlayerScreen,
+    RealmsSettingsScreen
+    and RealmsSubscriptionI
+    nfoScreen - while
+    1.21.6 reworked the
+    flow into tabs. The
+    port keeps the 1.21.6
+    tabbed navigation
+    (ConfigureTab in the
+    12,482-line realms.rs);
+    only the navigation
+    differs, the panels'
+    content is already
+    1.21.5-shaped (items
+    11, 269). Re-hosting as
+    separate screens is a
+    large UI refactor of
+    that module in an area
+    untestable on this VM
+    (Realms needs a live
+    account), for
+    navigation-only
+    fidelity - deferred,
+    with the shape recorded
+    here. The fourth class,
+    RealmsLongRunningMcoTic
+    kTaskScreen, is a
+    trivial tick-and-abort
+    subclass whose
+    behaviour the port's
+    single long-running
+    screen already
+    subsumes.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **403 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 2/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **404 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 3/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
