@@ -13298,12 +13298,48 @@ is the oracle; decompiled code is a reading aid.
     DESPAWN_DELAY constant.
   - Verification: read / only; no code / changed.
 
+- **Item 324 — Argument type registry**
+  - ArgumentTypeInfos:
+    verified, no code. The
+    26-line diff removes
+    two 1.21.6-only
+    registrations,
+    hex_color and dialog,
+    from the argument-type
+    registry. Both are
+    already absent from the
+    port: ARGUMENT_TYPES in
+    horizon-protocol is the
+    exact 1.21.5 registry
+    in id order - the six
+    brigadier types first,
+    then the 49 minecraft:
+    types, ending
+    loot_table,
+    loot_predicate,
+    loot_modifier, uuid,
+    with minecraft:color as
+    the colour parser - and
+    its doc comment already
+    records that 1.21.5 has
+    neither hex_color nor
+    dialog. The hex_color
+    in component.rs is the
+    chat-component #rrggbb
+    parser, present in both
+    versions, not the
+    removed argument type;
+    the dialog removal
+    itself was items
+    145/222/258.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **323 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 55/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **324 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 56/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
