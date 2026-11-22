@@ -15853,12 +15853,37 @@ is the oracle; decompiled code is a reading aid.
     373, 378).
   - Verification: read / only; no code / changed.
 
+- **Item 412 — PlayerSkinWidget.Model**
+  - PlayerSkinWidget.Model:
+    verified, no code. The
+    record is 1.21.5-only -
+    it bakes the wide and
+    slim PlayerModels and
+    renders one at
+    fullbright with a
+    z-flip for the skin
+    widget; 1.21.6
+    refactored the widget's
+    model handling away.
+    The port has no
+    PlayerSkinWidget at
+    all: UI player
+    representations are
+    head sprites, and
+    full-body skins render
+    through the port's own
+    mobs::skin system. The
+    record is render
+    plumbing with no port
+    surface.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **411 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 10/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **412 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 11/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
