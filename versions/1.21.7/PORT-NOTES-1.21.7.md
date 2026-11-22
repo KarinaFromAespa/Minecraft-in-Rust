@@ -1049,3 +1049,44 @@ beardifier math, piece/junction selection and jigsaw assembly were all
 verified against vanilla 1.21.7 bytecode and the placed blocks match
 exactly, so the residual is a second-order effect (interpolation order
 or a junction subtlety) needing a Java-oracle comparison to isolate.
+RESOLVED 2026-11-22 — see the next entry: the comparison showed the
+residual was a stage-mismatch artifact, and the beardifier matches
+vanilla exactly; no code change was needed.
+
+Beardifier "residual" at trial chambers: a measurement artifact, not a
+bug (2026-11-22). The follow-up above (worst chunk (12,-14) at -6.4
+post-decorate) compared the port's TERRAIN-level output (generate_proto,
+before placement) against vanilla's POST-decorate world. That comparison
+is only valid where the templates contain no air — true for ancient city
+(0 air blocks in the city_center/city templates), false for trial
+chambers (atrium_1: 4174 air of 12180 volume; end_1: 3076 of 7220) and
+villages (armorer_house_1: 337 air). Placement carves the trial-chamber
+halls; the beardifier's encapsulate term only buries the chamber, so the
+"terrain-level" figure (port 1.79 vs a derived 17.16 at (12,-14)) was
+never a real divergence. Post-decorate vs post-decorate at the Test 1
+seed, the port matches vanilla: (12,-14) 8.10 vs 8.18, (13,-14) 1.02 vs
+0.94, (2,-15) 18.16 vs 18.08, (11,-14) 7.26 vs 6.85, (12,-15) 2.62 vs
+2.62 — no systematic over-fill. The beardifier itself was exonerated
+three ways: its math matches the vanilla named jar's Beardifier bytecode
+exactly (compute, getBuryContribution, getBeardContribution,
+forStructuresInChunk, kernel table), piece/junction selection matches the
+vanilla NBT exactly (141 near pieces + 249 junctions at (12,-14),
+identical bounding boxes), and a block-level diff of the deep band shows
+zero port-solid/vanilla-air cells outside piece boxes. The small
+remaining post-decorate diffs are placed-feature parity, not density:
+sculk_vein placement differs (vanilla 61/251/22 cells at
+(12,-14)/(11,-14)/(2,-15); the port's sculk_patch places different
+cells), tuff-blob positions differ (639 cells at (13,-14)), and (13,-14)
+has a 21-cell aquifer/fluid divergence (vanilla water + obsidian where
+the port has air/fluid). No code change: the fix is the test.
+Regression test: `postdecorate_deep_band_matches_vanilla_at_trial_chambers`
+(generator.rs) pins structures-only post-decorate deep-band air at
+(12,-14), (11,-14), (12,-15) and (2,-15) to vanilla-derived exact
+counts (vanilla post-decorate air + sculk_vein cells, which
+structures-only leaves as air). The old "terrain-level" derivation
+(post-decorate air + structure blocks) is valid only for ancient city;
+do not reuse it for trial chambers or villages. One adjacent finding,
+not acted on: the port computes nonzero ground_level_delta on trial
+pieces where the vanilla NBT has GD=0 — irrelevant for encapsulate
+(GD is unused there in both vanilla and the port) but it would matter
+for BEARD_THIN/BEARD_BOX/BURY pieces, so it may be a separate bug.
