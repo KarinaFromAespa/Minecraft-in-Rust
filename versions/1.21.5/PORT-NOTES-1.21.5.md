@@ -13538,12 +13538,39 @@ is the oracle; decompiled code is a reading aid.
     positions all match.
   - Verification: read / only; no code / changed.
 
+- **Item 330 — /random and /tick**
+  - /random and /tick:
+    verified, no code. The
+    31-line diff is pure
+    predicate spelling - Co
+    mmands.hasPermission(N)
+    in 1.21.6, the
+    equivalent lambda in
+    1.21.5 - with the
+    levels unchanged:
+    /random reset and the
+    value/roll sequence
+    argument at 2, /tick at
+    3. The port's tree
+    already has exactly
+    that (reset and the
+    sequence argument
+    require GAMEMASTERS, 2;
+    the tick root requires
+    ADMINS, 3), and the
+    bare /random root
+    requires nothing in
+    both versions. Item
+    289's ground, same
+    delta.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **329 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 61/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **330 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 62/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
