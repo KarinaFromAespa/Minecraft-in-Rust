@@ -14680,12 +14680,42 @@ is the oracle; decompiled code is a reading aid.
     the refactor.
   - Verification: read / only; no code / changed.
 
+- **Item 370 — NetherFossilPiece**
+  - NetherFossilPiece:
+    verified, no code. The
+    34-line diff is
+    1.21.6's
+    placeDriedGhast - a 50%
+    chance to place a dried
+    ghast block at the
+    fossil's base, a 1.21.6
+    feature - absent in
+    1.21.5. The port's
+    nether fossil
+    post_process already
+    implements the 1.21.5
+    form (grow the chunk
+    box to the whole
+    fossil, place the
+    template, nothing
+    else), with the 1.21.6
+    addition documented in
+    its comment. The
+    dried-ghast
+    animate-tick branch
+    elsewhere keys off the
+    block name and never
+    fires in 1.21.5, where
+    the block does not
+    exist.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **369 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 101/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **370 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 102/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
