@@ -14906,12 +14906,53 @@ is the oracle; decompiled code is a reading aid.
     code / changed, no test
     run / needed.
 
+- **Item 378 — BlockStateModelLoader**
+  - BlockStateModelLoader:
+    verified, no code - the
+    known strict-JSON gap.
+    The 27-line diff is the
+    JSON parser: 1.21.5
+    reads blockstate files
+    with Gson's lenient
+    reader, 1.21.6 with
+    StrictJsonParser, and
+    the port's BlockStateDe
+    finition::from_json
+    parses strictly only. A
+    lenient fallback is not
+    cheap here, unlike item
+    373's deprecated.json:
+    the decoder is built on
+    serde RawValue to
+    preserve variant order
+    (overlapping selectors
+    are order-sensitive),
+    the only Json renderer
+    (to_stable_string)
+    SORTS object keys,
+    which would destroy
+    that order, and
+    horizon-assets does not
+    depend on
+    horizon-world, where
+    the lenient parser
+    lives. A resource pack
+    with a commented or
+    unquoted-key blockstate
+    file fails to load in
+    the port but loads in
+    vanilla 1.21.5 - the
+    recorded gap (items
+    251/281), unchanged by
+    this item.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **377 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 109/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **378 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 110/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
