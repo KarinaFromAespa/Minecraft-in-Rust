@@ -1125,3 +1125,54 @@ floor) and the spread on the floor. Known carry-over, not fixed here:
 the same tag-form `can_hold_any_fluid` is in 1.21.5, 1.21.6, 1.21.8,
 1.21.9 and 1.21.11 — all 1.21.x versions lack the tag, so their water
 is broken the same way.
+
+Trees missing outside groves: the 1.21.11 `supports_*` tags don't
+exist in 1.21.7 data (2026-11-22). The owner reported the spawn area
+bare in the port while vanilla at the same seed
+(8257987075890829262) spawns ringed by birch forest. Paired
+comparison of 1,498 chunks (port's fresh "New World" vs his vanilla
+world, same seed): port 978 trees vs vanilla 5,363 (ratio 0.18);
+birch 0 vs 2,108, oak 42 vs 1,760, spruce 934 vs 1,493. By biome,
+grove matched (3.94 vs 4.02 trees/chunk) and frozen_peaks matched,
+but taiga was 0.00 vs 4.59, birch_forest 0.03 vs 5.21, forest 0.10
+vs 4.95. Spawn 7x7 region: port 0 trees, vanilla 130 (all birch).
+The trees the port did place were in the right positions (90.8% of
+its trunk columns coincide with vanilla's), so this was feature
+selection, not RNG. Root cause: the Java-exported survival rules
+name `TagBelow:minecraft:supports_vegetation` for every sapling, but
+that tag (added in 1.21.11, when Mojang replaced the hardcoded
+`mayPlaceOn` checks with tags) doesn't exist in 1.21.7 — the lookup
+resolves to an empty set, so `would_survive` fails and every
+`_checked` / `_bees_*` tree child is filtered at placement. Grove
+survives because `spruce_on_snow` / `pine_on_snow` filter on
+matching snow blocks instead. The same gap also killed mangrove
+trees, cacti and sugar cane (`would_survive` states in the feature
+bundles), while flowers don't use `would_survive` and were
+unaffected. Fix: `GeneratorData::load` now synthesizes the missing
+tags from their 1.21.7 equivalents, verified against the 1.21.7
+jar's bytecode — `supports_vegetation` = dirt + farmland
+(`VegetationBlock.mayPlaceOn`), `supports_azalea` adds clay,
+`supports_mangrove_propagule` adds clay (hanging: mangrove leaves),
+`supports_dry_vegetation` = `dry_vegetation_may_place_on`,
+`supports_nether_sprouts` = nylium + soul soil + dirt + farmland,
+`supports_nether_wart` = soul sand, `supports_wither_rose` adds
+netherrack, soul sand, soul soil, `supports_cactus` = sand,
+`supports_sugar_cane` = dirt + sand with water / frosted ice beside
+(block + fluid tags). Tags the bundle already has keep their own
+members. Regression tests in generator.rs:
+`legacy_support_tags_synthesize_from_equivalents` (hermetic, pins
+the synthesis) and `birch_trees_decorate_at_test1_seed` (decorates
+chunk (-2,-2) at the owner's seed; vanilla has 40 birch logs / 271
+birch leaves there, the test requires >= 20 logs and >= 100 leaves).
+Known follow-up, not fixed here: the other 1.21.11-era survival tags
+(`supports_crops`, `supports_cocoa`, `supports_lily_pad`,
+`supports_frogspawn`, `supports_chorus_*`,
+`supports_small_dripleaf`, `supports_big_dripleaf`,
+`cannot_support_*`, `enables_bubble_column_*`, and the fluid
+`supports_lily_pad` / `supports_frogspawn`)
+are also absent from 1.21.7 data, but no worldgen feature uses
+`would_survive` with those states, so they are dormant in worldgen;
+gameplay survival uses the separate class-based implementation in
+`level/survive.rs`. Same defect class as the carver-registry and
+motion-tag gaps: other pre-1.21.11 trees (1.21.5/1.21.6/1.21.8/1.21.9,
+1.20.x) need the same synthesis carried over.
