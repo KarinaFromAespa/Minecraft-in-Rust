@@ -1836,8 +1836,8 @@ impl LootContext<'_> {
                     &mut produced,
                 );
                 for (mut stack, emitted) in produced {
-                    ctx.modifiers(&pool["modifier"], &mut stack, random);
-                    ctx.modifiers(&table["modifier"], &mut stack, random);
+                    ctx.modifiers(&pool["functions"], &mut stack, random);
+                    ctx.modifiers(&table["functions"], &mut stack, random);
                     if stack.count > 0 || (ctx.keep_empty && emitted) {
                         out.push(stack);
                     }
@@ -1954,7 +1954,14 @@ impl LootContext<'_> {
             Value::Null => return true,
             Value::Array(list) => return list.iter().all(|c| self.condition(c, random)),
             Value::String(s) => (s.as_str(), &Value::Null),
-            Value::Object(o) => (o.get("type").and_then(Value::as_str).unwrap_or(""), c),
+            // 1.21.7 names a condition's kind `condition`; 26.3 renamed it `type`.
+            Value::Object(o) => (
+                o.get("type")
+                    .or_else(|| o.get("condition"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                c,
+            ),
             _ => return false,
         };
         match kind {
@@ -2076,11 +2083,8 @@ impl LootContext<'_> {
         }
     }
     fn conditions<R: RandomSource>(&self, o: &Value, random: &mut R) -> bool {
-        if let Some(c) = o.get("condition")
-            && !self.condition(c, random)
-        {
-            return false;
-        }
+        // In 1.21.7 the conditions are the `conditions` list (all must
+        // pass); the single `condition` is 26.3's form.
         o.get("conditions")
             .and_then(Value::as_array)
             .into_iter()
@@ -2109,7 +2113,7 @@ impl LootContext<'_> {
                         damage: 0,
                         extra: None,
                     },
-                    e["modifier"].clone(),
+                    e["functions"].clone(),
                     true,
                 ));
                 true
@@ -2250,7 +2254,7 @@ impl LootContext<'_> {
         let stacks = self.evaluate(table, random);
         NESTED_ROLLS.with(|v| v.borrow_mut().pop());
         for mut stack in stacks {
-            self.modifiers(&entry["modifier"], &mut stack, random);
+            self.modifiers(&entry["functions"], &mut stack, random);
             produced.push((stack, true));
         }
     }
@@ -2978,7 +2982,7 @@ mod tests {
     fn command_loot_keeps_zero_positions_without_changing_filtered_rolls() {
         let mut items = Items::for_tests(HashMap::new());
         let zero = json!({"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:iron_ingot",
-            "modifier":{"type":"minecraft:set_count","count":0}}]});
+            "functions": [{"type":"minecraft:set_count","count":0}]}]});
         let positive =
             json!({"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:iron_ingot"}]});
         let flat = json!({"pools":[zero, positive]});
@@ -3013,7 +3017,7 @@ mod tests {
             "EmptyLootItem emits nothing, rather than an empty item position"
         );
         let deferred = json!({"pools":[{"rolls":1,"entries":[{"type":"minecraft:dynamic","name":"minecraft:contents"}],
-            "modifier":{"type":"minecraft:set_count","count":0}}]});
+            "functions": [{"type":"minecraft:set_count","count":0}]}]});
         assert!(
             items
                 .inline_loot_table_for_command(&deferred, None, &mut LegacyRandom::new(39), true)
@@ -3078,7 +3082,7 @@ mod tests {
         let table = |tool| {
             json!({"type":"minecraft:fishing","pools":[{"rolls":1,"entries":[{
                 "type":"minecraft:item","name":"minecraft:diamond",
-                "condition":{"type":"minecraft:match_tool","predicate":{"items":tool}}
+                "conditions": [{"type":"minecraft:match_tool","predicate":{"items":tool}}]
             }]}]})
         };
         let rod_table = table("minecraft:fishing_rod");
@@ -3221,7 +3225,7 @@ mod tests {
             [
                 ("test:inner", diamond.clone()),
                 ("test:outer", json!({"pools":[{"rolls":1,"entries":[{"type":"minecraft:loot_table",
-                    "value":"test:inner","modifier":[{"type":"minecraft:set_count","count":3}]}]}]})),
+                    "value":"test:inner","functions": [{"type":"minecraft:set_count","count":3}]}]}]})),
                 ("test:inline", json!({"pools":[{"rolls":1,"entries":[{"type":"minecraft:loot_table",
                     "value":diamond}]}]})),
                 ("test:loop", json!({"pools":[{"rolls":1,"entries":[{"type":"minecraft:loot_table",
@@ -3325,12 +3329,12 @@ mod tests {
         let mut items = Items::for_tests(HashMap::new());
         items.loot = Arc::new([("minecraft:entities/test".into(), json!({"pools":[{
             "rolls":{"type":"minecraft:uniform","min":1,"max":3},
-            "condition":{"type":"minecraft:all_of","terms":[
+            "conditions": [{"type":"minecraft:all_of","terms":[
                 {"type":"minecraft:killed_by_player"},
-                {"type":"minecraft:match_tool","predicate":{"items":"minecraft:stick"}}]},
+                {"type":"minecraft:match_tool","predicate":{"items":"minecraft:stick"}}]}],
             "entries":[{"type":"minecraft:item","name":"minecraft:diamond","weight":1},
                        {"type":"minecraft:item","name":"minecraft:iron_ingot","weight":3}],
-            "modifier":[{"type":"minecraft:set_count","count":{"type":"minecraft:uniform","min":1,"max":4}}]
+            "functions": [{"type":"minecraft:set_count","count":{"type":"minecraft:uniform","min":1,"max":4}}]
         }]}))].into_iter().collect());
         let target = horizon_world::loot::LootEntity::new("minecraft:sheep");
         let held = ItemStack::new("minecraft:stick", 1);
@@ -3375,9 +3379,9 @@ mod tests {
                     "minecraft:entities/sheep".into(),
                     json!({"pools":[{"rolls":1,"entries":[{
                         "type":"minecraft:item","name":"minecraft:white_wool",
-                        "condition":{"type":"minecraft:entity_properties","entity":who,"predicate":{
+                        "conditions": [{"type":"minecraft:entity_properties","entity":who,"predicate":{
                             "minecraft:components":{"minecraft:sheep/color":"white"},
-                            "minecraft:type_specific/sheep":{"sheared":false}}}
+                            "minecraft:type_specific/sheep":{"sheared":false}}}]
                     }]}]}),
                 )]
                 .into_iter()
@@ -3415,10 +3419,10 @@ mod tests {
         let mut items = Items::for_tests(HashMap::new());
         items.loot = Arc::new([("minecraft:blocks/stone".into(), json!({"pools":[{
             "rolls":{"type":"minecraft:uniform","min":1,"max":3},
-            "condition":{"type":"minecraft:match_tool","predicate":{"items":"minecraft:stick"}},
+            "conditions": [{"type":"minecraft:match_tool","predicate":{"items":"minecraft:stick"}}],
             "entries":[{"type":"minecraft:item","name":"minecraft:diamond","weight":1},
                        {"type":"minecraft:item","name":"minecraft:emerald","weight":3}],
-            "modifier":[{"type":"minecraft:set_count","count":{"type":"minecraft:uniform","min":1,"max":4}}]
+            "functions": [{"type":"minecraft:set_count","count":{"type":"minecraft:uniform","min":1,"max":4}}]
         }]}))].into_iter().collect());
         let unused = |_: &Value| -> Option<bool> {
             panic!("unaffected conditions must not invoke location reader")
@@ -3450,7 +3454,7 @@ mod tests {
         let items = Items::for_tests(HashMap::new());
         let properties = horizon_world::chunk::BlockProperties::new();
         let condition = json!({"type":"minecraft:location_check","predicate":{"block":{"blocks":"minecraft:stone"}}});
-        let table = json!({"pools":[{"rolls":1,"condition":condition,"entries":[{"type":"minecraft:item","name":"minecraft:diamond"}]}]});
+        let table = json!({"pools":[{"rolls":1,"conditions": [condition],"entries":[{"type":"minecraft:item","name":"minecraft:diamond"}]}]});
         let unbound = ctx(&items, None, &properties, "minecraft:stone");
         assert_eq!(
             unbound.evaluate(&table, &mut LegacyRandom::new(79)).len(),
@@ -3466,6 +3470,26 @@ mod tests {
                 bound.evaluate(&table, &mut LegacyRandom::new(79)).len(),
                 usize::from(value.unwrap_or(true))
             );
+        }
+    }
+
+    #[test]
+    fn conditions_read_the_1_21_7_condition_key_as_well_as_type() {
+        let items = Items::for_tests(HashMap::new());
+        let properties = horizon_world::chunk::BlockProperties::new();
+        // `survives_explosion` with no explosion always passes; a table
+        // naming it with 1.21.7's `condition` key must drop, as one using
+        // 26.3's `type` key does. Without the `condition` fallback every
+        // block table (which carries this condition) drops nothing.
+        for condition in [
+            json!({"condition": "minecraft:survives_explosion"}),
+            json!({"type": "minecraft:survives_explosion"}),
+        ] {
+            let table = json!({"pools":[{"rolls":1,"conditions": [condition],"entries":[{"type":"minecraft:item","name":"minecraft:dirt"}]}]});
+            let context = ctx(&items, None, &properties, "minecraft:dirt");
+            let drops = context.evaluate(&table, &mut LegacyRandom::new(79));
+            assert_eq!(drops.len(), 1, "{condition}");
+            assert_eq!(&*drops[0].item, "minecraft:dirt");
         }
     }
 
@@ -3497,7 +3521,7 @@ mod tests {
         let props = horizon_world::chunk::BlockProperties::new();
         let table = |condition: Value| {
             json!({"pools":[{"rolls":1,"entries":[
-                {"type":"minecraft:item","name":"minecraft:stone","condition":condition}]}]})
+                {"type":"minecraft:item","name":"minecraft:stone","conditions": [condition]}]}]})
         };
         let mut random = LegacyRandom::new(7);
         let mut drops = |condition: Value, block: &str| {
@@ -3582,7 +3606,7 @@ mod tests {
             {"type":"minecraft:item","name":"minecraft:stone"}]}]});
         let modded = json!({"pools":[{"rolls":1,"entries":[
             {"type":"minecraft:item","name":"minecraft:stone"}],
-            "modifier":[{"type":"mymod:duplicate","factor":2}]}]});
+            "functions": [{"type":"mymod:duplicate","factor":2}]}]});
         let mut a = LegacyRandom::new(100);
         let mut b = LegacyRandom::new(100);
         let _ = ctx(&items, None, &props, "minecraft:stone").evaluate(&vanilla, &mut a);
@@ -3608,8 +3632,8 @@ mod tests {
         let mut pick = ItemStack::new("minecraft:diamond_pickaxe", 1);
         pick.enchant("minecraft:fortune", 3);
         let ore = json!({"pools":[{"rolls":1,"entries":[{"type":"minecraft:alternatives","children":[
-            {"type":"minecraft:item","condition":"minecraft:tool/can_silk_touch","name":"minecraft:diamond_ore"},
-            {"type":"minecraft:item","name":"minecraft:diamond","modifier":[{"type":"minecraft:apply_bonus","enchantment":"minecraft:fortune","formula":"minecraft:ore_drops"}]}]}]}]});
+            {"type":"minecraft:item","conditions": ["minecraft:tool/can_silk_touch"],"name":"minecraft:diamond_ore"},
+            {"type":"minecraft:item","name":"minecraft:diamond","functions": [{"type":"minecraft:apply_bonus","enchantment":"minecraft:fortune","formula":"minecraft:ore_drops"}]}]}]}]});
         let mut random = LegacyRandom::new(7);
         let n = 20000;
         let total: u32 = (0..n)
@@ -3634,7 +3658,7 @@ mod tests {
             ctx(&items, Some(&plain), &props, "minecraft:diamond_ore").evaluate(&ore, &mut random);
         assert_eq!((&*drops[0].item, drops[0].count), ("minecraft:diamond", 1));
         // Looting III adds level x uniform(0, 1) on player kills.
-        let flesh = json!({"pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:rotten_flesh","modifier":[
+        let flesh = json!({"pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:rotten_flesh","functions": [
             {"type":"minecraft:set_count","count":{"type":"minecraft:uniform","min":0.0,"max":2.0}},
             {"type":"minecraft:enchanted_count_increase","count":{"type":"minecraft:uniform","min":0.0,"max":1.0},"enchantment":"minecraft:looting"}]}]}]});
         let mut sword = ItemStack::new("minecraft:iron_sword", 1);
@@ -3678,7 +3702,7 @@ mod tests {
         let items = Items::for_tests(HashMap::new());
         let props = horizon_world::chunk::BlockProperties::new();
         let table = json!({"pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:splash_potion",
-            "modifier":{"type":"minecraft:set_potion","id":"minecraft:fire_resistance"}}]}]});
+            "functions": [{"type":"minecraft:set_potion","id":"minecraft:fire_resistance"}]}]}]});
         let drops = ctx(&items, None, &props, "").evaluate(&table, &mut LegacyRandom::new(1));
         assert_eq!(drops.len(), 1);
         assert_eq!(&*drops[0].item, "minecraft:splash_potion");
@@ -3693,7 +3717,7 @@ mod tests {
         let props = horizon_world::chunk::BlockProperties::new();
         let effects = json!({"custom_effects":[{"id":"minecraft:absorption","duration":2400}]});
         let table = json!({"pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:potion",
-            "modifier":[
+            "functions": [
                 {"type":"minecraft:set_components","components":{"minecraft:potion_contents":effects}},
                 {"type":"minecraft:set_name","target":"item_name","name":{"text":"Potion of 1-Up","italic":false}},
                 {"type":"minecraft:set_name","name":"Lucky"},
@@ -3713,7 +3737,7 @@ mod tests {
         );
         // `!id` takes away a component the item has by default.
         let apple = json!({"pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:apple",
-            "modifier":{"type":"minecraft:set_components","components":{"!food":{}}}}]}]});
+            "functions": [{"type":"minecraft:set_components","components":{"!food":{}}}]}]}]});
         let drops = ctx(&items, None, &props, "").evaluate(&apple, &mut LegacyRandom::new(1));
         let saved = crate::item_data::encode_components(&drops[0]).expect("components");
         assert!(saved.get("!minecraft:food").is_some());
@@ -3731,7 +3755,7 @@ mod tests {
         let mut random = LegacyRandom::new(11);
         // A sword at levels 20..39 comes out enchanted, as in an End city.
         let levels = json!({"pools":[{"rolls":1,"entries":[{"type":"minecraft:item",
-            "name":"minecraft:diamond_sword","modifier":[
+            "name":"minecraft:diamond_sword","functions": [
             {"type":"minecraft:enchant_with_levels","levels":{"type":"minecraft:uniform","min":20.0,"max":39.0}}]}]}]});
         let mut enchanted = 0;
         for _ in 0..40 {
@@ -3758,7 +3782,7 @@ mod tests {
         // `enchant_randomly` on a book makes one enchanted book, its levels
         // stored; the pool is the enchantment tag it names.
         let book = json!({"pools":[{"rolls":1,"entries":[{"type":"minecraft:item",
-            "name":"minecraft:book","modifier":[
+            "name":"minecraft:book","functions": [
             {"type":"minecraft:enchant_randomly","options":"#minecraft:on_random_loot"}]}]}]});
         let drops = ctx(&items, None, &props, "").evaluate(&book, &mut random);
         assert_eq!(&*drops[0].item, "minecraft:enchanted_book");
@@ -3773,7 +3797,7 @@ mod tests {
         );
         // An item no enchantment accepts keeps none of them.
         let dirt = json!({"pools":[{"rolls":1,"entries":[{"type":"minecraft:item",
-            "name":"minecraft:dirt","modifier":[
+            "name":"minecraft:dirt","functions": [
             {"type":"minecraft:enchant_with_levels","levels":{"type":"minecraft:constant","value":30.0}}]}]}]});
         let drops = ctx(&items, None, &props, "").evaluate(&dirt, &mut random);
         assert!(drops[0].enchantments().is_empty());
@@ -3790,7 +3814,7 @@ mod tests {
         };
         let props = horizon_world::chunk::BlockProperties::new();
         let table = json!({"pools":[{"rolls":1,"entries":[{"type":"minecraft:item",
-            "name":"minecraft:book","modifier":[
+            "name":"minecraft:book","functions": [
             {"type":"minecraft:enchant_randomly","options":"minecraft:mending"},
             {"type":"minecraft:set_count","count":{"type":"minecraft:uniform","min":1.0,"max":64.0}}]}]}]});
         let drops = ctx(&items, None, &props, "").evaluate(&table, &mut LegacyRandom::new(11));

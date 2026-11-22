@@ -4,10 +4,10 @@
 //! (`native_loot_odds`).
 //!
 //! It follows `LootTable.getRandomItemsRaw` as [`LootData::roll`] does:
-//! each pool whose condition holds rolls `rolls` times, each roll picks one
+//! each pool whose conditions hold rolls `rolls` times, each roll picks one
 //! of the pool's valid entries by weight (luck 0, so `quality` and
-//! `bonus_rolls` count for nothing), and the entry's item modifiers set its
-//! count. Chances come from `random_chance` (and the unenchanted chances of
+//! `bonus_rolls` count for nothing), and the entry, pool and table
+//! functions set its count. Chances come from `random_chance` (and the unenchanted chances of
 //! `random_chance_with_enchanted_bonus` and `table_bonus`). A `match_tool`
 //! is judged with the tool given; with none, and for conditions on the
 //! world (weather, a killer, a place), it is taken as met and named in the
@@ -131,15 +131,14 @@ impl Judge<'_> {
             return Vec::new();
         }
         self.visited.push(name.to_owned());
-        let table_modifier = &table["modifier"];
+        let table_functions = &table["functions"];
         let mut all: Vec<Gives> = Vec::new();
         for pool in table["pools"].as_array().into_iter().flatten() {
-            let held = self.condition(&pool["condition"]);
-            let held = and(held, self.condition(&pool["conditions"]));
+            let held = self.condition(&pool["conditions"]);
             if held.p <= 0.0 {
                 continue;
             }
-            for g in self.pool(pool, &[&pool["modifier"], table_modifier]) {
+            for g in self.pool(pool, &[&pool["functions"], table_functions]) {
                 let g = Gives {
                     chance: g.chance * held.p,
                     notes: merge_notes(&held.notes, &g.notes),
@@ -153,7 +152,7 @@ impl Judge<'_> {
     }
 
     /// One pool's items: its rolls, each picking one valid entry by weight.
-    fn pool(&mut self, pool: &Value, modifiers: &[&Value]) -> Vec<Gives> {
+    fn pool(&mut self, pool: &Value, functions: &[&Value]) -> Vec<Gives> {
         let mut choices = Vec::new();
         // Which entries are valid, and how likely each such set is.
         let mut sets: Sets = vec![(1.0, Vec::new(), true)];
@@ -168,7 +167,7 @@ impl Judge<'_> {
             if chance <= 0.0 {
                 continue;
             }
-            for g in self.create(choice, modifiers) {
+            for g in self.create(choice, functions) {
                 let g = Gives {
                     chance: g.chance * chance,
                     notes: merge_notes(&choice.notes, &g.notes),
@@ -215,10 +214,7 @@ impl Judge<'_> {
         notes: &[String],
         out: &mut Vec<Choice<'v>>,
     ) -> Sets {
-        let held = and(
-            self.condition(&entry["condition"]),
-            self.condition(&entry["conditions"]),
-        );
+        let held = self.condition(&entry["conditions"]);
         if held.p <= 0.0 {
             return vec![(1.0, Vec::new(), false)];
         }
@@ -312,11 +308,13 @@ impl Judge<'_> {
         ways
     }
 
-    /// What a picked entry gives, its modifiers' counts applied.
-    fn create(&mut self, choice: &Choice<'_>, modifiers: &[&Value]) -> Vec<Gives> {
+    /// What a picked entry gives, its own functions' counts applied first,
+    /// then the pool and table functions' (the decoration order:
+    /// entry innermost, table outermost).
+    fn create(&mut self, choice: &Choice<'_>, functions: &[&Value]) -> Vec<Gives> {
         let entry = choice.entry;
-        let mut modifiers_here = vec![&entry["modifier"]];
-        modifiers_here.extend_from_slice(modifiers);
+        let mut functions_here = vec![&entry["functions"]];
+        functions_here.extend_from_slice(functions);
         let one = |judge: &mut Self, item: &str| -> Option<Gives> {
             if item == "minecraft:air" || item.is_empty() {
                 return None;
@@ -326,7 +324,7 @@ impl Judge<'_> {
                 max: 1,
                 zero: 0.0,
             };
-            for m in &modifiers_here {
+            for m in &functions_here {
                 count = judge.modify(m, count);
             }
             (count.max > 0).then(|| Gives {
@@ -359,7 +357,7 @@ impl Judge<'_> {
                     inline @ Value::Object(_) => self.table("<inline>", inline),
                     _ => Vec::new(),
                 };
-                // The entry's own modifiers change the nested table's stacks.
+                // The pool and table functions change the nested table's stacks.
                 gives
                     .into_iter()
                     .map(|g| {
@@ -368,7 +366,7 @@ impl Judge<'_> {
                             max: g.max as i64,
                             zero: 0.0,
                         };
-                        for m in &modifiers_here {
+                        for m in &functions_here {
                             count = self.modify(m, count);
                         }
                         Gives {
@@ -395,10 +393,7 @@ impl Judge<'_> {
                 None => count,
             },
             Value::Object(_) => {
-                let held = and(
-                    self.condition(&m["condition"]),
-                    self.condition(&m["conditions"]),
-                );
+                let held = self.condition(&m["conditions"]);
                 if held.p <= 0.0 {
                     return count;
                 }
