@@ -1740,3 +1740,71 @@ tree's pinned Template codec. Notes: the transmute `stack` closure
 has no test coverage (no transmute tests exist); the `{"blocks":
 {"tag": ...}}` HolderSet-object form is unused in 1.21.7 data and
 `id_matches` returns false for it.
+
+Menu sprites fall back to the 26.3 client jar at prepare time
+(2026-11-22). The pause-menu icon row (four buttons) and the
+title-screen friends button rendered as empty grey squares: a
+missing sprite resolves to the MISSING_SPRITE rect, and 1.21.7's
+jar ships no `pause_menu/` or `friends/` sprites at all. Owner
+decision 22:38 NPT Nov 22, reversing the 18:30 call to leave the
+icons empty: menu chrome does NOT need to be version-faithful --
+only the game, items, entities and their behaviours must
+correspond to the respective version -- so the 26.3 sprites are
+used for the 26.x menus. The owner's clarification ("or whatever
+the horizon launcher had set the menu for") was checked first:
+Horizon ships no menu icons of its own (bundled assets are lang
+files plus controller glyphs; launcher assets are loader logos
+and art), so the 26.3 fallback is the path.
+
+Census, jar-verified against sha1-verified client jars from
+Mojang: 1.21.7 has 442 `gui/sprites`, 26.3 has 469. Of the 129
+literal sprite references in the client code, 8 are missing from
+1.21.7, all present in 26.3: the four pause icons
+(`pause_menu/bug`, `pause_menu/social_interactions`,
+`pause_menu/player_reporting`, `friends/friends`), the two
+inventory effect backgrounds, `container/slot/nautilus_armor_inventory`
+and `widget/preedit`. The full jar diff is 29 sprites 26.3 has
+that 1.21.7 lacks: `friends/` 17, `pause_menu/` 3, the effect
+backgrounds 2, nautilus/spear slots 3, `widget/preedit` plus the
+three realms buttons. `assets/minecraft/atlases/gui.json` is
+identical in both jars (a single directory source over
+`gui/sprites`), so the dropped PNGs appear in the atlas with no
+atlas-builder change.
+
+Mechanism: `fallback_menu_sprites` in
+`crates/horizon-prepare/src/lib.rs`, called in the `files` lane
+after the version's own resources are extracted. It opens the
+sibling 26.3 client jar
+(`versions/26.3/.local/minecraft/26.3/jars/client.jar`, located
+through the sibling's `research-lock.json`) and extracts every
+member under `assets/minecraft/textures/gui/sprites/` whose file
+is missing from the prepared resources. Only missing files are
+filled, so 1.21.7's own art always wins; the fallback is bounded
+to the `gui/sprites/` subtree, so gameplay assets (blocks, items,
+entities, sounds) stay strictly 1.21.7. When the 26.3 jar is not
+prepared it logs one line and fills 0 -- no failure, and the menus
+stay as 1.21.7 ships them. No Mojang file is committed: the
+sprites arrive from the player's own jar at prepare time. The
+manifest's `resource_files` count is unchanged (it counts the
+version's own jar members only).
+
+No `OUTPUT_VERSION` bump, deliberately: what the fallback fills
+depends on an unpinned input (the sibling 26.3 jar), which the
+output digest cannot represent, and in any environment that
+enforces the digest (a single-version prepare, no sibling jar)
+the fallback is inert, so the v4 digest still holds. Consequence:
+an existing preparation needs one manual re-prepare to pick the
+sprites up; fresh preparations get them automatically.
+
+Test: `menu_sprites_fall_back_to_the_26_3_jar` (fake 1.21.7
+resources plus a fake 26.3 jar) -- fills only the missing
+sprites, never overwrites the version's own file, copies nothing
+outside `gui/sprites/`, fills 0 on a second prepare, and is a
+silent no-op without the jar. `horizon-prepare` lib suite on the
+VM: 66 pass / 0 fail; `cargo fmt --check` clean except one
+pre-existing diff at lib.rs:719, and `cargo clippy -D warnings`
+fails only on a pre-existing `nonminimal_bool` in
+artifacts.rs:1367, untouched here. Visual verification on the
+laptop is still owed, and it depends on the 26.3 client jar being
+prepared there -- if it is absent the fallback silently does
+nothing and the icons stay grey.
