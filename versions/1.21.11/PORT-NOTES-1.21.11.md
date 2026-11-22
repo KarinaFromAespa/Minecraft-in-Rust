@@ -13439,3 +13439,17 @@ mislabels: `RuleBasedBlockStateProvider` IS ported in full
 (state_provider.rs:505, used by disk.rs) and
 `WorldGenMaterialRule`'s behaviour is the Rust's material-rule
 system (`MaterialRuleLibrary`).
+
+## Item 815 — 1425 changed or removed vanilla classes Horizon doesn't port — NO-CHANGE
+
+Tail verified from the jars: of the 1968 Java names the Rust
+mentions but no item 1-813 lists, 1498 have identical signatures
+in both versions; of the 470 that differ, all but 62 are lambda
+numbering / `final` noise, and the 62 are name collisions in the
+comparison, pure visibility/generic/record-shape noise, or
+behaviour already handled by a rank 2/3/4 item (779/798 axolotl
+state, 813 forest rock, 814 disk config, 621 set-time, 799 click
+type, 726 snowy dirt, 760 signs, 721 datafixers, 769 float
+providers). Spot-checked: BannerBlock.byColor unused,
+TrimMaterials.getFromIngredient implemented, WolfSoundVariant's
+flat 1.21.11 form implemented. No missed port.
