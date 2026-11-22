@@ -247,7 +247,11 @@ impl Tree {
             .flatten()
         {
             // `read`: the index alone keeps none of the criteria read.
-            match self.list[ai].criteria[ci].conditions.read()["recipes"].as_str() {
+            // 1.21.7 names the recipe with the singular `recipe` key; the
+            // 26.x plural `recipes` is absent in 1.21.7 data, so reading it
+            // put every criterion in `recipes_any` and the trigger below
+            // never matched one (no recipe advancement ever granted).
+            match self.list[ai].criteria[ci].conditions.read()["recipe"].as_str() {
                 Some(r) => self
                     .by_recipe
                     .entry(full(r).into_owned())
@@ -912,6 +916,24 @@ pub fn can_unlock(
 /// on any block entered (Remote Getaway at spawn, with no end gateway near).
 pub fn block_condition(v: &Value, name: &str, w: &dyn World) -> bool {
     id_matches(&v["block"], "block", name, w)
+}
+/// The recipe condition of a trigger whose instance holds one recipe
+/// (`RecipeCraftedTrigger`, `CrafterRecipeCraftedTrigger` — the crafter
+/// trigger reuses `RecipeCraftedTrigger`'s instance): 1.21.7 names it with
+/// the singular `recipe_id` key, a bare recipe id. The 26.x form reads the
+/// plural `recipes` HolderSet instead — absent in 1.21.7 data, so the null
+/// read matched every recipe and the criterion fired on any craft (birch
+/// planks granting both smithing-trim advancements).
+pub fn recipe_condition(v: &Value, recipe: &str, w: &dyn World) -> bool {
+    id_matches(&v["recipe_id"], "recipe", recipe, w)
+}
+/// The loot-table condition of `LootTableTrigger`
+/// (`player_generates_container_loot`): 1.21.7 names it with the singular
+/// `loot_table` key, a bare loot-table id. The 26.x form reads the plural
+/// `loot_tables` HolderSet instead — absent in 1.21.7 data, so the null read
+/// matched every table and the criterion fired on any loot container opened.
+pub fn loot_table_condition(v: &Value, table: &str, w: &dyn World) -> bool {
+    id_matches(&v["loot_table"], "loot_table", table, w)
 }
 /// `BlockPredicate`.
 pub fn block(v: &Value, pos: [i32; 3], w: &dyn World) -> bool {
@@ -2246,6 +2268,76 @@ mod tests {
             &w
         ));
     }
+    /// A single-recipe trigger's condition names its recipe with the
+    /// singular `recipe_id` key (vanilla 1.21.7's `RecipeCraftedTrigger`,
+    /// shared by the crafter trigger): the conditions below are the real
+    /// smithing-trim criterion from `trim_with_any_armor_pattern`
+    /// ("Crafting a New Look") and the crafter one from
+    /// `crafters_crafting_crafters`. Reading the 26.x plural `recipes`
+    /// key instead matched every recipe and granted both trim
+    /// advancements on crafting birch planks.
+    #[test]
+    fn recipe_conditions_match_only_their_recipe() {
+        let w = Flat;
+        let trim = serde_json::json!({
+            "recipe_id": "minecraft:bolt_armor_trim_smithing_template_smithing_trim"
+        });
+        assert!(recipe_condition(
+            &trim,
+            "minecraft:bolt_armor_trim_smithing_template_smithing_trim",
+            &w
+        ));
+        assert!(
+            !recipe_condition(&trim, "minecraft:birch_planks", &w),
+            "birch planks are not a smithing trim"
+        );
+        let crafter = serde_json::json!({"recipe_id": "minecraft:crafter"});
+        assert!(recipe_condition(&crafter, "minecraft:crafter", &w));
+        assert!(!recipe_condition(&crafter, "minecraft:stick", &w));
+        // No `recipe_id` key constrains nothing; the plural key is not read.
+        assert!(recipe_condition(
+            &serde_json::json!({}),
+            "minecraft:birch_planks",
+            &w
+        ));
+        assert!(recipe_condition(
+            &serde_json::json!({"recipes": "minecraft:bolt_armor_trim_smithing_template_smithing_trim"}),
+            "minecraft:birch_planks",
+            &w
+        ));
+    }
+    /// A loot-table trigger's condition names its table with the singular
+    /// `loot_table` key (vanilla 1.21.7's `LootTableTrigger`): the
+    /// condition below is the real `loot_bastion_treasure` criterion from
+    /// `nether/loot_bastion`. Reading the 26.x plural `loot_tables` key
+    /// instead matched every table and granted the criterion on any loot
+    /// container opened.
+    #[test]
+    fn loot_table_conditions_match_only_their_table() {
+        let w = Flat;
+        let treasure =
+            serde_json::json!({"loot_table": "minecraft:chests/bastion_treasure"});
+        assert!(loot_table_condition(
+            &treasure,
+            "minecraft:chests/bastion_treasure",
+            &w
+        ));
+        assert!(
+            !loot_table_condition(&treasure, "minecraft:chests/bastion_bridge", &w),
+            "a bridge chest is not the treasure room"
+        );
+        // No `loot_table` key constrains nothing; the plural key is not read.
+        assert!(loot_table_condition(
+            &serde_json::json!({}),
+            "minecraft:chests/bastion_bridge",
+            &w
+        ));
+        assert!(loot_table_condition(
+            &serde_json::json!({"loot_tables": "minecraft:chests/bastion_treasure"}),
+            "minecraft:chests/bastion_bridge",
+            &w
+        ));
+    }
     #[test]
     fn weather_conditions_leave_absent_fields_unconstrained_and_compose() {
         let ctx = Entities {
@@ -2293,15 +2385,14 @@ mod tests {
     #[test]
     fn a_recipe_crafted_criterion_matches_the_whole_id_only() {
         let w = Flat;
-        let criterion = serde_json::json!({"recipes": "minecraft:folder_recipe"});
+        let criterion = serde_json::json!({"recipe_id": "minecraft:folder_recipe"});
         assert!(
-            !id_matches(&criterion["recipes"], "recipe", "folder_recipe", &w),
+            !recipe_condition(&criterion, "folder_recipe", &w),
             "the crafting copy's bare name never matched the criterion"
         );
         assert!(
-            id_matches(
-                &criterion["recipes"],
-                "recipe",
+            recipe_condition(
+                &criterion,
                 &crate::crafting::qualified("folder_recipe"),
                 &w
             ),
@@ -2727,10 +2818,10 @@ mod tests {
     fn recipe_index_keeps_the_criteria_of_the_recipe() {
         let mut tree = Tree::default();
         for (i, conditions) in [
-            serde_json::json!({"recipes": "minecraft:oak_planks"}),
-            serde_json::json!({"recipes": "minecraft:stick"}),
+            serde_json::json!({"recipe": "minecraft:oak_planks"}),
+            serde_json::json!({"recipe": "minecraft:stick"}),
             serde_json::json!({}),
-            serde_json::json!({"recipes": "minecraft:oak_planks"}),
+            serde_json::json!({"recipe": "minecraft:oak_planks"}),
         ]
         .into_iter()
         .enumerate()
@@ -2907,7 +2998,7 @@ mod tests {
             &serde_json::json!({"criteria": {
                 "items": {"trigger": "inventory_changed",
                     "conditions": {"items": [{"items": ["cobblestone", "#planks"]}]}},
-                "recipe": {"trigger": "recipe_unlocked", "conditions": {"recipes": "stick"}}
+                "recipe": {"trigger": "recipe_unlocked", "conditions": {"recipe": "stick"}}
             }}),
         )
         .unwrap();

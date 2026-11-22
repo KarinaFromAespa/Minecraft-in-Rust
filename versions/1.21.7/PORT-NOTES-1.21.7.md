@@ -1740,3 +1740,57 @@ tree's pinned Template codec. Notes: the transmute `stack` closure
 has no test coverage (no transmute tests exist); the `{"blocks":
 {"tag": ...}}` HolderSet-object form is unused in 1.21.7 data and
 `id_matches` returns false for it.
+
+Recipe/trim advancement misfire (2026-11-22). The owner crafted birch
+planks and was granted "Smithing with Style" (challenge) and "Crafting
+a New Look" -- both smithing-trim advancements. Same defect class as
+the Remote Getaway fix above, in four more triggers: the port read
+the 26.x plural condition keys while 1.21.7 data uses singular ones,
+so the condition was null and `id_matches` treated it as
+unconstrained. (1) `recipe_crafted` read `c["recipes"]`; 1.21.7 data
+uses `recipe_id` (27 criteria, all strings; jar-verified, and
+`RecipeCraftedTrigger$TriggerInstance` carries `recipeId`). Any craft
+matched every `recipe_crafted` criterion -- one birch-plank craft
+satisfied all 8 trim criteria of "Smithing with Style" at once.
+(2) `player_generates_container_loot` read `c["loot_tables"]`; 1.21.7
+uses `loot_table` (10 criteria: archaeology + bastion chests;
+`LootTableTrigger$TriggerInstance` carries `lootTable`). Any loot
+container opened matched every loot criterion. (3) `recipe_unlocked`
+read `c["recipes"]` in both `index_recipes` and the trigger
+predicate; 1.21.7 uses `recipe` (1,395 criteria). Opposite failure
+mode: the predicate required the absent key, so NO recipe advancement
+ever granted (and every criterion fell into the `recipes_any`
+fallback bucket). (4) `crafter_recipe_crafted` read `c["recipes"]`;
+1.21.7 uses `recipe_id` (1 criterion, `crafters_crafting_crafters`
+naming `minecraft:crafter`; the crafter trigger reuses
+`RecipeCraftedTrigger`'s instance). Any crafter craft granted it.
+Fix: new `adv::recipe_condition` (reads `recipe_id`) and
+`adv::loot_table_condition` (reads `loot_table`), used by the
+recipe, crafter and loot triggers; `index_recipes` and the
+`recipe_unlocked` predicate read `recipe`. The crafter's private
+`recipe_matches` helper is deleted (the shared helper covers it).
+Vanilla's `recipe`/`recipeId`/`lootTable` fields are required, not
+optional (javap on the 1.21.7 named jar), so a criterion naming none
+is invalid data and must not match -- the `recipe_unlocked` predicate
+keeps `is_some_and`. Full audit: every other trigger in
+`game/advancements.rs` was checked against a census of all 1,520
+1.21.7 advancement JSONs from the jar (condition keys per trigger)
+and reads the correct 1.21.7 keys, including `inventory_changed`
+(`items`/`slots`), `location` (`player` only -- the location
+predicate nests inside it), `bred_animals` (`parent`/`partner`/
+`child`), `killed_by_arrow` (`fired_from_weapon`/`victims`/
+`unique_entity_types`) and `placed_block`/`item_used_on_block`
+(`location` only in 1.21.7 data). The 26.x-only triggers
+(`spear_mobs`, `default_block_use`, `any_block_use`) have no 1.21.7
+data and cannot misfire. Diagnosed gaps, not fixed: `trigger_block`
+does not evaluate vanilla's `block`/`item` keys for placed_block /
+item_used_on_block (no 1.21.7 criterion uses them -- datapacks only);
+the 1.21.11 jar uses the same singular keys, so the E6 siblings
+share all four defects (re-base candidate, per-version jar checks
+still required). Regression tests: `recipe_conditions_match_only_
+their_recipe` (real trim + crafter criteria; birch planks do not
+match the trim), `loot_table_conditions_match_only_their_table`
+(real bastion criteria), the whole-id test rewritten through
+`recipe_condition`, and the recipe-index + bare-id fixtures moved
+from `recipes` to `recipe` (they encoded the 26.x form and passed
+while real data failed).
