@@ -16056,12 +16056,39 @@ is the oracle; decompiled code is a reading aid.
     live Realms account.
   - Verification: read / only; no code / changed.
 
+- **Item 418 — ServerScoreboard / Method**
+  - ServerScoreboard /
+    Method: verified, no
+    code. The diff is
+    server-side only.
+    1.21.6 calls
+    updatePlayerWaypoint
+    and updateTeamWaypoints
+    on team join, leave,
+    change and removal -
+    waypoint-manager hooks,
+    and the waypoint system
+    is already gone from
+    the port (items 108,
+    260). 1.21.5's Method
+    enum (CHANGE, REMOVE)
+    is declared on the
+    server scoreboard and
+    referenced by no client
+    path; the port, a
+    client, receives team
+    and score changes as
+    packets, already
+    handled in the 1.21.5
+    form (item 344).
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **417 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 16/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **418 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 17/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
