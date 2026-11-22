@@ -5095,6 +5095,181 @@ mod burn_and_rose_tests {
 }
 
 #[cfg(test)]
+mod sun_burn_tests {
+    use super::*;
+    use crate::mobs::world::with_built_test_world;
+    use horizon_world::registry::BlockRegistry;
+    use std::sync::Arc;
+
+    fn skeleton(types: &crate::mobs::MobTypes) -> Mob {
+        mob_of(types, "minecraft:skeleton")
+    }
+
+    fn mob_of(types: &crate::mobs::MobTypes, id: &str) -> Mob {
+        let kind = Arc::new(types.types[id].clone());
+        let mut m = Mob::new(1, kind, Vec3::new(0.5, 64.0, 0.5), 0.0);
+        register(&mut m);
+        m
+    }
+
+    /// Daylight at noon in the test world (its `monsters_burn` is false by
+    /// default, and its day time is midnight).
+    fn noon<'a>(w: &'a MobWorld<'a>) -> MobWorld<'a> {
+        let mut day = w.clone();
+        day.monsters_burn = true;
+        day.daylight = true;
+        day.day_time = 6000;
+        day
+    }
+
+    /// `burn_undead` for `ticks`, stopping on the first flame.
+    fn burn_for(m: &mut Mob, w: &MobWorld, ticks: u32) -> Vec<MobEvent> {
+        let mut events = Vec::new();
+        for _ in 0..ticks {
+            burn_undead(m, w, &mut events);
+            if m.fire_ticks > 0 {
+                break;
+            }
+        }
+        events
+    }
+
+    /// The 2026-11-22 laptop playtest: a skeleton in direct sunlight did
+    /// not catch fire. `Mob.isSunBurnTick` gives a 4%-a-tick chance at
+    /// full brightness, so 400 ticks of open daylight must ignite it, for
+    /// vanilla's 8 seconds.
+    #[test]
+    fn skeleton_in_open_daylight_catches_fire() {
+        let ran = with_built_test_world(
+            &[],
+            |_, _| {},
+            |w, types| {
+                let day = noon(w);
+                let mut m = skeleton(types);
+                burn_for(&mut m, &day, 400);
+                assert!(m.is_on_fire(), "skeleton did not catch fire in daylight");
+                assert_eq!(m.fire_ticks, 160, "sunburn sets 8 seconds of fire");
+            },
+        );
+        let _ = ran;
+    }
+
+    /// At night (`monsters_burn` false) the same skeleton never burns.
+    #[test]
+    fn skeleton_does_not_burn_at_night() {
+        let ran = with_built_test_world(
+            &[],
+            |_, _| {},
+            |w, types| {
+                let mut m = skeleton(types);
+                burn_for(&mut m, w, 400);
+                assert_eq!(m.fire_ticks, 0, "burned at night");
+            },
+        );
+        let _ = ran;
+    }
+
+    /// A helmet takes the burn instead: the sun-protection event fires and
+    /// the skeleton stays unlit.
+    #[test]
+    fn helmet_protects_a_skeleton_from_the_sun() {
+        let ran = with_built_test_world(
+            &[],
+            |_, _| {},
+            |w, types| {
+                let day = noon(w);
+                let mut m = skeleton(types);
+                m.extra.head = Some("minecraft:iron_helmet".into());
+                let events = burn_for(&mut m, &day, 400);
+                assert_eq!(m.fire_ticks, 0, "helmeted skeleton burned");
+                assert!(
+                    events
+                        .iter()
+                        .any(|e| matches!(e, MobEvent::SunProtectionWear { mob: 1 })),
+                    "no sun-protection wear event: {events:?}"
+                );
+            },
+        );
+        let _ = ran;
+    }
+
+    /// Under a roof (no sky light at the mob) the skeleton never burns.
+    /// The test world has no light engine run, so the build darkens every
+    /// section outright instead of placing blocks.
+    #[test]
+    fn skeleton_under_a_roof_does_not_burn() {
+        let darken = |world: &mut crate::world::World, _: &BlockRegistry| {
+            for cx in -1..1 {
+                for cz in -1..1 {
+                    world
+                        .chunks
+                        .insert((cx, cz), Arc::new(crate::chunk::Chunk::empty(cx, cz)));
+                }
+            }
+            for chunk in world.chunks.values_mut() {
+                let chunk = Arc::make_mut(chunk);
+                for section in &mut chunk.sections {
+                    Arc::make_mut(section).light = crate::chunk::Light::Uniform(0);
+                }
+            }
+        };
+        let ran = with_built_test_world(&[], darken, |w, types| {
+            let day = noon(w);
+            assert!(!day.can_see_sky(0, 65, 0), "the roof is not dark");
+            assert_eq!(day.brightness(0, 65, 0), 0.0, "no light under the roof");
+            let mut m = skeleton(types);
+            burn_for(&mut m, &day, 400);
+            assert_eq!(m.fire_ticks, 0, "burned under a roof");
+        });
+        let _ = ran;
+    }
+
+    /// The jar's burn list, not the 26.x one: a zombie (Zombie.aiStep,
+    /// gated on isSunSensitive) and a phantom (Phantom.aiStep) burn.
+    #[test]
+    fn zombie_and_phantom_burn_in_daylight() {
+        let ran = with_built_test_world(
+            &[],
+            |_, _| {},
+            |w, types| {
+                let day = noon(w);
+                for id in ["minecraft:zombie", "minecraft:phantom"] {
+                    let mut m = mob_of(types, id);
+                    burn_for(&mut m, &day, 400);
+                    assert!(m.is_on_fire(), "{id} did not catch fire in daylight");
+                    assert_eq!(m.fire_ticks, 160, "{id}: sunburn sets 8 seconds of fire");
+                }
+            },
+        );
+        let _ = ran;
+    }
+
+    /// The jar's non-burners: the drowned and the zombie horse never call
+    /// isSunBurnTick, and the husk's isSunSensitive returns false. None of
+    /// them may catch fire in open daylight.
+    #[test]
+    fn drowned_zombie_horse_and_husk_do_not_burn_in_daylight() {
+        let ran = with_built_test_world(
+            &[],
+            |_, _| {},
+            |w, types| {
+                let day = noon(w);
+                for id in [
+                    "minecraft:drowned",
+                    "minecraft:zombie_horse",
+                    "minecraft:husk",
+                ] {
+                    let mut m = mob_of(types, id);
+                    burn_for(&mut m, &day, 400);
+                    assert_eq!(m.fire_ticks, 0, "{id} burned in daylight");
+                }
+            },
+        );
+        let _ = ran;
+    }
+}
+
+#[cfg(test)]
 mod wither_block_slowdown_tests {
     use super::*;
     use crate::mobs::world::with_built_test_world;

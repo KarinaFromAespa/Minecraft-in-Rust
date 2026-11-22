@@ -1647,6 +1647,24 @@ mod tests {
         std::fs::remove_dir_all(&root).unwrap();
     }
 
+    /// The gameplay path sees the synthesized day timeline too: `sky_darken`
+    /// samples without a biome (the dimension value), as the mob logic does,
+    /// so a timeline visible only to the renderer's biome samples would
+    /// leave every day dark for gameplay — and undead would never burn.
+    #[test]
+    fn legacy_day_timeline_feeds_sky_darken() {
+        let root = legacy_root();
+        let env = Environment::load_dimension(&root, "overworld").unwrap();
+        assert_eq!(sky_darken(&env, 6000, 0.0, 0.0), 0, "clear noon");
+        assert!(sky_darken(&env, 1000, 0.0, 0.0) < 4, "clear morning");
+        assert!(sky_darken(&env, 18000, 0.0, 0.0) >= 4, "clear midnight");
+        assert!(
+            sky_darken(&env, 6000, 1.0, 1.0) >= 4,
+            "thunderstorm at noon"
+        );
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
     /// The fixed-time dimensions: the Nether dark with its red fog, the End
     /// black with stars.
     #[test]
