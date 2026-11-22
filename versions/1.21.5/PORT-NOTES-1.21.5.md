@@ -13459,12 +13459,58 @@ is the oracle; decompiled code is a reading aid.
     does.
   - Verification: read / only; no code / changed.
 
+- **Item 328 — Effects in inventory**
+  - Effects in inventory:
+    CODE (one literal). The
+    125-line diff is the
+    render-API refactor
+    plus the tooltip
+    timing: 1.21.6 stores
+    the hovered effect and
+    draws its tooltip next
+    frame, 1.21.5 draws it
+    immediately inside
+    renderEffects - the
+    port already returns
+    the name/duration
+    tooltip from the same
+    paint pass, the 1.21.5
+    form. The icon lookup
+    (1.21.6
+    Gui.getMobEffectSprite
+    vs 1.21.5 MobEffectText
+    ureManager) resolves
+    the same atlas sprite
+    by effect id, as the
+    port does, and the
+    label colours are the
+    alpha-0 pair (white
+    name, 0x7F7F7F
+    duration) - except the
+    port's duration grey
+    was 0x808080, one step
+    off vanilla's 0x7F7F7F
+    in both versions, now
+    fixed. The 32-pixel
+    visibility gate and the
+    18x18 icon at +7 match.
+    Version-neutral: the
+    port's label text sits
+    at +32/+7 against
+    vanilla's +28/+6, and
+    its icon is always at
+    +7 where vanilla uses
+    +6 on large panels.
+  - Verification: cargo check -j 1 -p
+    horizon-client-render
+    --lib passed (23s).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **327 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 59/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **328 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 60/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
