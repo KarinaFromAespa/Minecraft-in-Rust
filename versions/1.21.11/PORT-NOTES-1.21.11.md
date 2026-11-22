@@ -13185,3 +13185,9 @@ skin, with the Dinnerbone/Grumm flip.
 1 class: `GridLayout$CellInhabitant` — grid-cell bookkeeping
 (row/column + span). The Rust computes grid layouts directly per
 screen, citing the `GridLayout` behaviours where they matter.
+
+## Item 777 — client/gui/render (new-classes) — NO-CHANGE
+
+1 class: `GuiRenderer$AtlasPosition` — the GUI renderer's
+per-sprite atlas position record for animated sprites. Pure
+GUI-render plumbing, no Rust usage.
