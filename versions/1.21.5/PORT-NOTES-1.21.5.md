@@ -14302,12 +14302,40 @@ is the oracle; decompiled code is a reading aid.
     ground, same delta.
   - Verification: read / only; no code / changed.
 
+- **Item 356 — TransferableSelectionList**
+  - TransferableSelectionLi
+    st: verified, no code.
+    The 68-line diff is the
+    render-API refactor
+    (RenderPipelines ->
+    RenderType on every
+    blit/blitSprite, no
+    surface in the wgpu
+    port) plus the alpha-0
+    pattern: the pack name
+    is drawn in 16777215 in
+    1.21.5, -1 in 1.21.6,
+    the same pixels. The
+    port draws the name
+    through string_widget
+    (WHITE, opaque) at
+    cx+34, cy+1, matching
+    vanilla's x+32+2, y+1,
+    and the
+    select/unselect/move
+    arrow overlay quadrants
+    match vanilla's
+    conditions. The
+    description lines are
+    item 320's ground.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **355 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 87/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **356 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 88/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
