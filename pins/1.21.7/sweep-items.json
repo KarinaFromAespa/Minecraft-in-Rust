@@ -102,6 +102,16 @@
         "total": 40
       },
       "status": "complete"
+    },
+    "8": {
+      "name": "Particles",
+      "date": "2026-11-22",
+      "checks": {
+        "gap": 4,
+        "pass": 257,
+        "total": 261
+      },
+      "status": "complete"
     }
   },
   "items": [
@@ -1528,6 +1538,30 @@
       "severity": "minor",
       "status": "gap",
       "title": "Boat placement missing the eye-inside-entity PASS check"
+    },
+    {
+      "evidence": "Vanilla 1.21.7 registers ELDER_GUARDIAN (SimpleParticleType, wire id 16, overrideLimiter=true) with a MobAppearanceParticle$Provider (ParticleEngine.registerProviders, javap offset 281) and spawns it on game event 10. The port's ParticleType enum (127 variants) lacks it, so received_particle drops server-sent elder_guardian packets, /particle rejects it (particle.notFound), and the providers driver cannot pass its 12 elder_guardian cases (probe prints 'no provider'). The in-game curse apparition IS re-implemented via game event 10 + elder_apparition_geometry (30-tick lifetime), so the main visible path works through a different mechanism (fidelity unverified).",
+      "id": "B8-G01",
+      "method": "javap + source + data",
+      "severity": "minor",
+      "status": "gap",
+      "title": "elder_guardian has no port implementation at all: no ParticleType variant, no engine provider, no limiter entry"
+    },
+    {
+      "evidence": "Particle::read decodes wire id 41 (flash) as Color(i32) \u2014 a flash particle always carries a colour \u2014 but hub_particle has no Flash arm in its Color match, so the packet is built with data None and Particle::write (writes data by presence, not id) emits the id with no colour bytes; guests reading id 41 consume the next 4 stream bytes as the colour and desync. Reachable only via /particle flash on a LAN host (Flash is otherwise created client-side only, in firework explosions); the local player draws directly and is unaffected.",
+      "id": "B8-G02",
+      "method": "source + jar registry",
+      "severity": "minor",
+      "status": "gap",
+      "title": "/particle minecraft:flash sends a malformed packet to LAN guests"
+    },
+    {
+      "evidence": "Vanilla 1.21.7 registers SPRUCE_LEAVES as TintedParticleLeavesBlock with leafParticleChance 0.01 (Blocks.class BootstrapMethods -> lambda$static$36 -> TintedParticleLeavesBlock(0.01F); LeavesBlock.animateTick rolls nextFloat() < chance). The port maps spruce_leaves to Animate::Leaves(None, None, false) \u2014 no falling particle. All 10 other leaf blocks match vanilla (cherry 0.1, pale oak 0.02, rest tinted 0.01; azalea fixed colour -9399763 matches exactly). The marker driver would fail its spruce zoo cases (oracle emits, probe emits none); the driver's own comment ('the spruce that never falls') encodes the same wrong belief and needs correcting with the fix.",
+      "id": "B8-G03",
+      "method": "javap + class-file parse + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Spruce leaves never drop falling-leaf particles"
     }
   ]
 }
