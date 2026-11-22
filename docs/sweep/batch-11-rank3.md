@@ -297,8 +297,8 @@ systemic cause as the pilot G-defects (26.x tag-driven dispatch — the
 comment cites "Dispatcher.get: tags first, then the item map" — for a tag
 that doesn't exist in 1.21.7). The rest of the table was verified by
 inspection (buckets/bottles/potions/banners/shulker boxes all have explicit
-arms matching vanilla); the exhaustive driver comparison is still owed as
-confirmation (B11-H02).
+arms matching vanilla); the exhaustive driver comparison is BLOCKED on
+resources (B11-H02) — it does not change this verdict.
 
 ## §2 Oracle repair
 
@@ -339,18 +339,26 @@ If the harness shows shear in vanilla but not the port (or vice versa), the
 caching is a real divergence; if both agree, the caching is unobservable
 and the item closes as a pass.
 
-### Cauldron driver (items 558, 683, 735) — wash gap recorded; full comparison owed
+### B11-H02 — Cauldron driver comparison BLOCKED on resources (items 558, 683, 735)
 
 The oracle side is complete (20,475 cases, native.txt written) and the
 wash gap is already recorded as B11-G23 with oracle evidence (case 5835).
 The exhaustive Rust-fixture comparison (`cauldron_fixture` via
-client_probe) was still building at slice time after a disk-quota failure
-(first run) and a service-restart SIGTERM (second run, ~25 min). The
-resume path persists: `~/workspace/mcir-work/sweep-batch-11-scratch/
-resume-cauldron.py` reuses the completed oracle output
+client_probe) could NOT be completed on this VM: four attempts failed on
+resources, not on the code — (1) disk quota during the `ring` crate build
+(104G used); (2) a service-restart SIGTERM at ~25 min; (3) a `-j3` resume
+OOM-killed while compiling `horizon-world` (~41 min); (4) a `-j1` resume
+OOM-killed while compiling `horizon-client-render` (~26 min) — a SINGLE
+rustc on that crate exceeds the shared 6 GB memory budget under
+multi-agent load. The comparison is confirmatory for B11-G23 and may find
+further table differences; it needs a machine with more memory (or a
+quieter window) to run. The resume path persists:
+`~/workspace/mcir-work/sweep-batch-11-scratch/resume-cauldron-j1.py`
+reuses the completed oracle output
 (`.local/cauldron-parity/cases.jsonl` + `native.txt`) and runs only the
-fixture + compare. The comparison is confirmatory for B11-G23 and may find
-further table differences; update this section when it lands.
+fixture + compare; the cargo `target/` cache in the workdir holds the
+partial client_probe build. This block does NOT change the B11-G23
+verdict, which rests on static + oracle evidence.
 
 ## §4 Needs-in-game-probe
 
@@ -492,6 +500,13 @@ dead/unreachable, gap where the Rust reads the absent thing).
   run at ~25 min and two javap batches; all were re-run or resumed. No
   work was lost (scratch lives in `~/workspace/`, not `/tmp`, after an
   earlier `/tmp` wipe cost the first index build).
+- **OOM kills:** the client_probe build for the cauldron comparison was
+  OOM-killed twice — once at `-j3` (rustc on `horizon-world`, ~41 min)
+  and once at `-j1` (a single rustc on `horizon-client-render`, ~26 min;
+  that crate has ~40 externs). The comparison is recorded BLOCKED on
+  resources (B11-H02); it needs a bigger-memory machine or a quieter
+  window. Note `cargo_example` in interaction_lab.py hardcodes `-j3`,
+  overriding CARGO_BUILD_JOBS=1 — the `-j1` resume ran cargo directly.
 - **Execution-risk notice:** one exec result (listing the Stream 2
   workdir) failed an execution-risk check. Scope as interpreted: no
   execution/git/package-manager commands inside
