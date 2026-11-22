@@ -13150,3 +13150,12 @@ single-method interface) and `StructureTemplateManager$Source` (a
 loader + lister record) — template-loading plumbing with no Rust
 usage; the Rust implements the manager's `get`/`save` semantics
 itself.
+
+## Item 772 — world/level/levelgen/structure (new-classes) — NO-CHANGE
+
+2 classes: `LegacyStructureDataHandler` (a datafixer for pre-1.18
+monolith structure data in chunk tags — the Rust's datafix table
+covers the same ground) and `StructureFeatureIndexSavedData` (a
+persistent chunk index for structure starts — the Rust's `/locate`
+computes starts from the seed on demand instead, same result).
+Neither is named in the Rust.
