@@ -296,8 +296,13 @@ impl ServerAdvancements {
         if let Some(d) = &a.display {
             w.nbt(&json_to_nbt(&d.title));
             w.nbt(&json_to_nbt(&d.description));
-            w.varint(sync.id("minecraft:item", &d.icon).unwrap_or(0));
+            // The icon as the client reads it: `ItemStack.STREAM_CODEC` is
+            // count-first in 1.21.7 (the pinned 1.21.8 quirks' Template
+            // codec), so the count goes first. The 26.3 base writes the
+            // item first — here that decoded the count (1) as the item id,
+            // and every toast showed stone.
             w.varint(1);
+            w.varint(sync.id("minecraft:item", &d.icon).unwrap_or(0));
             w.varint(0);
             w.varint(0);
             w.varint(match d.frame {
@@ -431,15 +436,17 @@ impl ServerAdvancements {
             }
         };
         // The result as its ItemStackSlotDisplay, the station as its item.
+        // Count-first, like the advancement icon above: the client's
+        // Template codec reads the count first.
         let result = |w: &mut Writer| {
             w.varint(slot("minecraft:item_stack"));
+            w.varint(r["result"]["count"].as_i64().unwrap_or(1) as i32);
             w.varint(
                 item(
                     horizon_world::loot::recipe_result_id(&r["result"]).unwrap_or("minecraft:air"),
                 )
                 .unwrap_or(0),
             );
-            w.varint(r["result"]["count"].as_i64().unwrap_or(1) as i32);
             w.varint(0);
             w.varint(0);
         };
@@ -620,8 +627,8 @@ impl ServerAdvancements {
             let count = if add { n as i32 + base } else { base };
             let stack = |w: &mut Writer, id: i32| {
                 w.varint(empty_stack);
-                w.varint(id);
                 w.varint(count);
+                w.varint(id);
                 w.varint(0);
                 w.varint(0);
             };
@@ -741,9 +748,12 @@ fn holder_set(w: &mut Writer, v: &Value, item: &dyn Fn(&str) -> Option<i32>) {
 mod tests {
     use super::*;
     use horizon_protocol::{
-        buf::Reader,
+        buf::{Codec, Reader},
         item::Stack,
-        packets::recipes::{HolderSet, RecipeBookEntry, RecipeDisplay, SlotDisplay},
+        packets::{
+            play::UpdateAdvancements,
+            recipes::{HolderSet, RecipeBookEntry, RecipeDisplay, SlotDisplay},
+        },
     };
     use std::path::PathBuf;
 
@@ -756,7 +766,8 @@ mod tests {
         "minecraft:redstone_ore": {"protocol_id": 2},
         "minecraft:redstone": {"protocol_id": 3},
         "minecraft:furnace": {"protocol_id": 4},
-        "minecraft:blast_furnace": {"protocol_id": 5}
+        "minecraft:blast_furnace": {"protocol_id": 5},
+        "minecraft:ender_pearl": {"protocol_id": 6}
       }},
       "minecraft:slot_display": {"entries": {
         "minecraft:empty": {"protocol_id": 0},
@@ -959,6 +970,32 @@ mod tests {
             other => panic!("not a shapeless content recipe: {other:?}"),
         }
         let _ = entry(&root, "minecraft:control");
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// A recipe result reaches the client as its item and count: the
+    /// result display is written count-first, as the client's Template
+    /// codec reads it. No ingredients, so no tag display is written: the
+    /// tag form (the pinned quirks read a bare id, the writer writes a
+    /// holder set) misaligns the entry read, and that pre-existing
+    /// mismatch is out of scope here. The count (2) differs from the
+    /// item id (1), so a swapped write reads back as another item.
+    #[test]
+    fn a_recipe_result_reaches_the_client_as_its_item_and_count() {
+        let root = resources(
+            "result_only",
+            &[(
+                "result_only",
+                r#"{"type":"minecraft:crafting_shapeless","ingredients":[],"result":{"id":"minecraft:copper_ingot","count":2}}"#,
+            )],
+        );
+        let (_sync, e) = entry(&root, "minecraft:result_only");
+        match e.display {
+            RecipeDisplay::Shapeless { result, .. } => {
+                assert_eq!(result, SlotDisplay::ItemStack(Stack::new(1, 2)));
+            }
+            other => panic!("not a shapeless recipe: {other:?}"),
+        }
         std::fs::remove_dir_all(&root).unwrap();
     }
 
@@ -1376,5 +1413,57 @@ mod tests {
         assert_eq!(after.len(), before.len(), "entries were added");
         assert!(changed.is_empty(), "entries changed: {changed:?}");
         assert!(book.server_requirements.is_empty());
+    }
+
+    /// The advancement icon reaches the client as the item the display
+    /// names: Remote Getaway's ender pearl, not the count decoded as an
+    /// item id (stone). The fixture advancement is the real 1.21.7
+    /// `minecraft:end/enter_end_gateway`, with a root `kill_dragon` so the
+    /// tree walks to it; the pearl's fixture id (6) differs from the
+    /// count (1), so a swapped write reads back as another item.
+    #[test]
+    fn an_advancement_icon_reaches_the_client_as_its_item() {
+        let root = resources("advancement_icon", &[]);
+        let dir = root.join("data/minecraft/advancement/end");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("kill_dragon.json"),
+            r#"{"criteria": {"killed_dragon": {"trigger": "minecraft:player_killed_entity"}}, "display": {"title": {"translate": "advancements.end.kill_dragon.title"}, "description": {"translate": "advancements.end.kill_dragon.description"}, "icon": {"count": 1, "id": "minecraft:dragon_egg"}}, "requirements": [["killed_dragon"]]}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("enter_end_gateway.json"),
+            r#"{"parent": "minecraft:end/kill_dragon", "criteria": {"entered_end_gateway": {"conditions": {"block": "minecraft:end_gateway"}, "trigger": "minecraft:enter_block"}}, "display": {"title": {"translate": "advancements.end.enter_end_gateway.title"}, "description": {"translate": "advancements.end.enter_end_gateway.description"}, "icon": {"count": 1, "id": "minecraft:ender_pearl"}}, "requirements": [["entered_end_gateway"]]}"#,
+        )
+        .unwrap();
+        let sync = SyncData::load(&root, &horizon_world::loot::PackOverlay::NONE).unwrap();
+        let mut progress = Progress::default();
+        assert!(progress.grant(
+            "minecraft:end/enter_end_gateway",
+            "entered_end_gateway",
+            "2026-11-22"
+        ));
+        let bytes = sync
+            .advancements
+            .update(&sync, &progress, &mut Vec::new(), &BTreeSet::new(), true)
+            .expect("the first packet carries the granted advancement");
+        let mut r = Reader::new(&bytes);
+        let packet = UpdateAdvancements::read(&mut r).unwrap();
+        assert_eq!(r.remaining(), 0, "the packet ends with its show flag");
+        let gateway = packet
+            .added
+            .iter()
+            .find(|a| a.id == "minecraft:end/enter_end_gateway")
+            .expect("the granted advancement is sent");
+        let icon = &gateway.display.as_ref().expect("it has a display").icon;
+        assert_eq!(
+            (icon.item, icon.count),
+            (
+                sync.id("minecraft:item", "minecraft:ender_pearl").unwrap(),
+                1
+            ),
+            "the icon is the ender pearl, not the count as an item id"
+        );
+        std::fs::remove_dir_all(&root).unwrap();
     }
 }

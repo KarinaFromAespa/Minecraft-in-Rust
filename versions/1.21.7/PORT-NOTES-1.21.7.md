@@ -1653,3 +1653,90 @@ test now skips the table-dependent read when
 as the horizon-world mirror test); the `needs_file_fixes` gate
 assertion still runs everywhere. The full read still needs a run
 where `.local` exists (the laptop).
+Remote Getaway fires at spawn, with a stone icon (2026-11-22). The
+owner reported the toast "Advancement Made! Remote Getaway" (and
+the chat announcement) in a fresh survival world, standing at spawn
+with an empty hotbar, and the toast's icon a grey block instead of
+an ender pearl. Correction to the report's premise: in vanilla
+1.21.7 Remote Getaway is `minecraft:end/enter_end_gateway` (parent
+`minecraft:end/kill_dragon`, criterion `entered_end_gateway`,
+trigger `minecraft:enter_block`, conditions `{"block":
+"minecraft:end_gateway"}`, icon ender pearl) -- verified from the
+1.21.7 client named jar and the laptop's prepared data, not the
+pearl-through-a-portal of older versions. The misfire is real
+either way: no end gateway exists at an overworld spawn.
+
+Trigger root cause: the port read the wrong condition key.
+`trigger_enter_block` (`game/advancements.rs`) checked
+`adv::id_matches(&c["blocks"], ...)` -- the 26.x plural key -- but
+1.21.7 data uses the singular `block`, so `c["blocks"]` is null for
+every 1.21.7 criterion and `id_matches` returns true for null ("no
+condition"). The block condition was never checked: any
+`enter_block` event matched every `enter_block` criterion, and the
+motion system emits `EnterBlock` for every block the player's box
+intersects, so standing at spawn fired it. The same defect in four
+places: `trigger_enter_block` and `trigger_bee_nest_destroyed`
+read `c["blocks"]`; `adv::block` read only `v["blocks"]`, so a
+bare-string BlockPredicate matched everything; `trigger_honey_slide`
+passed the whole conditions object to `adv::block` instead of
+`c["block"]`. The fix adds `adv::block_condition`, which reads the
+singular `block` key; `adv::block` now accepts bare HolderSet forms
+(string, array, or object); the three triggers use it. Blast radius
+(census of all 1.21.7 advancement JSONs): top-level `"block"`
+conditions appear only for `enter_block` (11 criteria: 10 boat/raft
+recipe advancements with `{"block": "minecraft:water"}` plus
+`enter_end_gateway`), `slide_down_block` (1, honey block) and
+`bee_nest_destroyed` (1, bee nest). The fix also repairs location
+predicates with string-form blocks and the `match_block`
+sub-predicate. No parent gate was added: vanilla 1.21.7 has none --
+`PlayerAdvancements` registers listeners for every incomplete
+criterion regardless of parent, and awards whenever the
+advancement's own requirements complete -- and the port already
+matches that.
+
+Icon root cause: the server thread wrote the icon item-first
+(`lan/advancements.rs` `write_advancement`: item id, count 1, 0, 0
+-- the 26.3 base's Template layout), but the 1.21.7 tree's pinned
+quirks are 1.21.8's, whose Template codec is count-first (vanilla's
+`ItemStack.STREAM_CODEC` since 1.20.5). The client therefore read
+count 1070 (the ender pearl's id) and item 1 (stone): the grey cube
+in the screenshot. The fix writes count-first. The same swap was
+applied to the recipe-book result display and the transmute stack
+display in the same file (both `ItemStackSlotDisplay`, same codec);
+26.3's identical item-first write is correct for 26.3 (its pinned
+codec is item-first), so this is a 1.21.7-tree divergence, not an
+upstream bug.
+
+Regression tests: `single_block_trigger_conditions_match_only_their_block`
+(real `enter_end_gateway` conditions: grass block false, end gateway
+true, plus the water form, empty conditions, and the ignored
+`{"blocks": ...}` key), `block_predicate_accepts_a_bare_holder_set`
+(bare string/array/object forms, null, and a location predicate with
+a bare-string block), `an_advancement_icon_reaches_the_client_as_its_item`
+(the real 1.21.7 `enter_end_gateway.json` plus a root `kill_dragon`,
+granted and read back as `UpdateAdvancements`: icon ender pearl,
+count 1), and
+`a_recipe_result_reaches_the_client_as_its_item_and_count` (a
+no-ingredients shapeless recipe, so no tag display is written;
+result copper ingot, count 2). Suites, run under
+`--no-default-features` (the documented server build -- the
+full-features `horizon-client` lib test compile OOM-kills on this
+VM, a single rustc past 2.4 GB against the shared 6 GB cell, so
+full-features verification belongs to CI): `horizon-client`
+`game::advancements` 11 pass / 0 fail / 2 ignored (need prepared
+resources); `horizon-client-lib` `advancements::tests` 48 pass / 5
+fail / 1 ignored. The 5 failures are pre-existing and unrelated,
+verified identical on unmodified code by a baseline run: the five
+recipe-book entry tests misalign because the pinned quirks read a
+`TagSlotDisplay` as a bare id string while the writer writes a full
+HolderSet (`"unknown slot display 200"` is the cooking time read as
+a display type after the misalignment); the swapped-input test
+itself expects `HolderSet::Items`. That tag-display mismatch is a
+separate defect, out of scope here. Carry-over: the trigger-key
+defect likely affects every E6 sibling (the 26.3 base reads
+`c["blocks"]` too, and sibling data uses the singular key) -- a
+re-base candidate; the icon swap needs a per-tree check against each
+tree's pinned Template codec. Notes: the transmute `stack` closure
+has no test coverage (no transmute tests exist); the `{"blocks":
+{"tag": ...}}` HolderSet-object form is unused in 1.21.7 data and
+`id_matches` returns false for it.
