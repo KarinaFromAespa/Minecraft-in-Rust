@@ -1208,6 +1208,41 @@ fn water_falls_and_makes_sources() {
 }
 
 #[test]
+fn water_on_a_pillar_flows_off_the_edge_and_falls() {
+    // The owner's report: water placed on top of a block at height flows off
+    // the edge and falls, as in vanilla. (1.21.7's `canHoldAnyFluid` was
+    // reading the 26.3 `#washed_away_by_fluids` tag, which 1.21.7 lacks, so
+    // the source sat on the pillar and never spread at all.)
+    let mut w = world!();
+    w.floor(0, 12, "stone");
+    let stone = w.id("stone", &[]);
+    for y in 1..=4 {
+        w.put(BlockPos::new(0, y, 0), stone);
+    }
+    let water = w.id("water", &[]);
+    w.set(BlockPos::new(0, 5, 0), water);
+    for _ in 0..60 {
+        w.tick();
+    }
+    assert_eq!(w.get(BlockPos::new(0, 5, 0)), water);
+    assert_eq!(
+        w.prop(BlockPos::new(1, 4, 0), "level"),
+        "8",
+        "falling beside the pillar"
+    );
+    assert_eq!(
+        w.prop(BlockPos::new(1, 1, 0), "level"),
+        "8",
+        "falling column reaches the floor"
+    );
+    assert_ne!(
+        w.get(BlockPos::new(2, 1, 0)),
+        w.b().air(),
+        "fallen water spreads on the floor"
+    );
+}
+
+#[test]
 fn lava_meets_water() {
     let mut w = world!();
     w.floor(0, 4, "stone");

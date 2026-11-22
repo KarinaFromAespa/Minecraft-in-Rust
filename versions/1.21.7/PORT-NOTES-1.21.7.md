@@ -1090,3 +1090,38 @@ not acted on: the port computes nonzero ground_level_delta on trial
 pieces where the vanilla NBT has GD=0 — irrelevant for encapsulate
 (GD is unused there in both vanilla and the port) but it would matter
 for BEARD_THIN/BEARD_BOX/BURY pieces, so it may be a separate bug.
+
+Water never spreads: `canHoldAnyFluid` read a tag 1.21.7 does not have
+(2026-11-22). The owner reported water placed on top of a block at height
+just sitting there — no falling, no spreading. Root cause:
+`FlowingFluid.canHoldAnyFluid` in `crates/horizon-world/src/level/fluids.rs`
+was the 26.3 form, `is_liquid_container(state) ||
+in_set(state, #washed_away_by_fluids)`, but the `#washed_away_by_fluids`
+tag is a 26.3 addition: 1.21.7's prepared block tags (194 tags) do not
+contain it, so `Tags::resolve` gave it an empty set and
+`can_hold_any_fluid` was false for every non-container block — water
+could not spread down OR sideways, and a placed source never moved.
+Vanilla 1.21.7's `FlowingFluid.canHoldAnyFluid` (verified against the
+named 1.21.7 server jar's bytecode) is the list form: a liquid
+container, or a state that does not block motion and is none of door,
+signs, ladder, sugar cane, bubble column, nether/end portal, end
+gateway, structure void — exactly the form the 26.2 tree already
+carries. The fix restores that form; `blocks_motion` + the class/block
+exclusions match the bytecode instruction for instruction (the port's
+`Class::Sign` check covers the same blocks as vanilla's `#signs` tag).
+The same 26.x-tag pattern also affects `LavaFluid.randomTick` in the
+same file (it reads the `#blocks_lava_fire_spread` tag, also absent
+from 1.21.7, so the fire walk never stops at a motion-blocking state;
+vanilla 1.21.7 uses `blocksMotion()` there) — deliberately NOT fixed
+here; it is parity-sweep defect G3, a separate follow-up. Verified: the
+four water tests that failed on main (`water_spreads_on_a_floor`,
+`water_falls_and_makes_sources`,
+`water_keeps_spreading_over_waterlogged_scaffolding`,
+`refused_spread_keeps_water_out_of_a_guarded_block`) now pass.
+Regression test: `water_on_a_pillar_flows_off_the_edge_and_falls`
+(level/tests.rs) places a source on a one-block pillar and pins the
+falling column beside it (level 8 at the pillar's side down to the
+floor) and the spread on the floor. Known carry-over, not fixed here:
+the same tag-form `can_hold_any_fluid` is in 1.21.5, 1.21.6, 1.21.8,
+1.21.9 and 1.21.11 — all 1.21.x versions lack the tag, so their water
+is broken the same way.
