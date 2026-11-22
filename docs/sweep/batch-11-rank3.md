@@ -13,18 +13,18 @@
 | Verdict | Count |
 |---|---|
 | pass | 223 |
-| gap (defect attached) | 19 |
-| needs-new-harness | 1 (+ 3 cauldron items, see §3) |
+| gap (defect attached) | 22 |
+| needs-new-harness | 1 |
 | needs-in-game-probe | 1 |
 | accepted gap (recorded, not an item verdict) | 4 notes (§5) |
 
-Defects found: **22** (`B11-G01`–`B11-G22`), of which 3 major, 19 minor.
+Defects found: **23** (`B11-G01`–`B11-G23`), of which 3 major, 20 minor.
 Oracle repairs: **1** (`B11-O01`, committed separately as c754e3a2).
-The 22 defects include 6 from a systematic class-table sweep (§6.1) that
+The 23 defects include 6 from a systematic class-table sweep (§6.1) that
 cut across items, and 3 cross-cutting defects (beds, fungus/roots,
 speleothem) with no single owning rank-3 item — those are recorded as
-defects, not item verdicts, so the defect count (22) exceeds the gap-item
-count (19).
+defects, not item verdicts, so the defect count (23) exceeds the gap-item
+count (22).
 
 ## §1 Defects
 
@@ -278,6 +278,28 @@ dialog focus tracks text inputs only, so item parts are never focusable.
 Same known gap as the template (recorded in its PORT-NOTES as a
 dialog-focus feature, out of rank-3 scope).
 
+### B11-G23 — Washing dyed leather armour never works (items 558/683/735, minor)
+
+Vanilla 1.21.7's CauldronInteraction table has explicit wash entries for
+leather armour (LEATHER_BOOTS/CHESTPLATE/HELMET/LEGGINGS,
+LEATHER_HORSE_ARMOR) plus banners and shulker boxes (jar constants). The
+Rust handles banners (pop top pattern) and shulker boxes (transmute to
+plain) with explicit arms — but dyed leather goes ONLY through the
+`removes_dye` gate (cauldron.rs:214), which reads the item tag
+`minecraft:cauldron_can_remove_dye` (cauldron.rs:7-12, citing
+`ItemTags.CAULDRON_CAN_REMOVE_DYE`) — a tag file that exists in NEITHER
+the 1.21.7 NOR the 1.21.11 jar data. The gate is always false, so washing
+dyed leather armour/horse armour does nothing in the port. Oracle evidence
+(driver case 5835, dyed leather helmet on a water cauldron level 1,
+survival): vanilla returns `success`, the cauldron empties, and the helmet
+loses its `dyed_color` component; the port passes with no change. Same
+systemic cause as the pilot G-defects (26.x tag-driven dispatch — the
+comment cites "Dispatcher.get: tags first, then the item map" — for a tag
+that doesn't exist in 1.21.7). The rest of the table was verified by
+inspection (buckets/bottles/potions/banners/shulker boxes all have explicit
+arms matching vanilla); the exhaustive driver comparison is still owed as
+confirmation (B11-H02).
+
 ## §2 Oracle repair
 
 ### B11-O01 — VanillaCauldronOracle drop signature (fixed, c754e3a2)
@@ -317,13 +339,18 @@ If the harness shows shear in vanilla but not the port (or vice versa), the
 caching is a real divergence; if both agree, the caching is unobservable
 and the item closes as a pass.
 
-### Cauldron driver (items 558, 683, 735) — STATUS
+### Cauldron driver (items 558, 683, 735) — wash gap recorded; full comparison owed
 
-*PLACEHOLDER — the driver result lands here. The oracle side is complete
-(20,475 cases, native.txt written); the Rust fixture build
-(client_probe) was in progress when this draft was written. If the
-comparison completes, items 558/683/735 get driver verdicts; if not, they
-stay needs-harness with the disk-quota/restart blocker stated.*
+The oracle side is complete (20,475 cases, native.txt written) and the
+wash gap is already recorded as B11-G23 with oracle evidence (case 5835).
+The exhaustive Rust-fixture comparison (`cauldron_fixture` via
+client_probe) was still building at slice time after a disk-quota failure
+(first run) and a service-restart SIGTERM (second run, ~25 min). The
+resume path persists: `~/workspace/mcir-work/sweep-batch-11-scratch/
+resume-cauldron.py` reuses the completed oracle output
+(`.local/cauldron-parity/cases.jsonl` + `native.txt`) and runs only the
+fixture + compare. The comparison is confirmatory for B11-G23 and may find
+further table differences; update this section when it lands.
 
 ## §4 Needs-in-game-probe
 
@@ -396,11 +423,11 @@ locations and the template comparison.
 ### §6.2 The 26.x tag-name pattern keeps recurring
 
 B11-G13 (potion tags), B11-G16b (snow-layer tags), B11-G17b (mushroom tag),
-B11-G21 (chorus tags), B11-G06 (speleothems tag, second cause) — five more
-instances of the pilot's systemic cause: the port reads 26.x tag names for
+B11-G21 (chorus tags), B11-G23 (cauldron wash tag), B11-G06 (speleothems tag,
+second cause) — six more instances of the pilot's systemic cause: the port reads 26.x tag names for
 tags that don't exist in 1.21.7 data, and every such lookup silently
 degrades to empty/false. The leakage-audit tool (tools/audit_26_3_leakage.py)
-is the standing guard; these five are concrete instances it should already
+is the standing guard; these six are concrete instances it should already
 flag (verify: the tag names appear in the audit's baseline).
 
 ### §6.3 Template fixes NOT in the 1.21.7 tree (re-base input)
@@ -557,7 +584,7 @@ sniffer-egg hatch (578), beehive presence (514).
 | 555 | pass | Family: visibility + ChunkPos accessors. |
 | 556 | pass | 1.21.7 has NO preeditUpdated/getBorderForArrowNavigation (26.1-only); Rust is the 1.21.11 form. |
 | 557 | pass | Same projection values (FOV 85, 0.05/10), same rotation, same 36 indices / 6-face upload. |
-| 558 | pending | Cauldron driver — oracle ran 20,475 cases; Rust fixture comparison pending (see §3). |
+| 558 | gap | B11-G23 — washing dyed leather armour dead (removes_dye reads the absent cauldron_can_remove_dye tag); oracle case 5835 confirms vanilla washes. Rest of table verified by inspection. |
 | 559 | pass | Same sprites/gates/animation math; Lightmap vs LightTexture is a rename; 1.21.7 has LightTexture. |
 | 560 | pass | Family: package move only. |
 | 561 | pass | Family: visibility + checkcast artifact; parsing identical. |
@@ -682,7 +709,7 @@ sniffer-egg hatch (578), beehive presence (514).
 | 680 | pass | Family: bytecode identical (+0/-0). |
 | 681 | pass | Family: visibility only. |
 | 682 | pass | Only wolves have sound variants in 1.21.7 data; Rust random returns 0 for empty registries → plain sounds (NBT note §5). |
-| 683 | pending | Cauldron driver — oracle ran 20,475 cases; Rust fixture comparison pending (see §3). |
+| 683 | gap | B11-G23 — same root cause: the Rust uses the 26.x tag-driven Dispatcher form ("tags first, then the item map") for a tag absent in 1.21.7. |
 | 684 | pass | Family: bytecode identical (+0/-0). |
 | 685 | pass | Family: is() overloads only (ladder/trapdoors, vine, weeping/twisting vines, scaffolding). |
 | 686 | pass | Family: visibility + requireNonNull. |
@@ -734,7 +761,7 @@ sniffer-egg hatch (578), beehive presence (514).
 | 732 | pass | Family: visibility only. |
 | 733 | pass | exclusiveFullscreen NOT in 1.21.7 VideoSettingsScreen (26.1-only); Rust has no such option. |
 | 734 | pass | FaceBakery$1 is a 26.1-only synthetic class; Rust cites FaceBakery itself. |
-| 735 | pending | Cauldron driver — oracle ran 20,475 cases; Rust fixture comparison pending (see §3). |
+| 735 | gap | B11-G23 — the cauldron table's wash entries are dead via the absent tag (see 558). |
 | 736 | pass | Family: visibility only. |
 | 737 | pass | Test scaffolding only: 26.1 splits gametest structure dir into target/source; 1.21.11 single dir. |
 | 738 | pass | Equivalent max-stack read (MAX_STACK_SIZE component default 1 vs getDefaultMaxStackSize()); Rust cites 1.21.11 form. |
