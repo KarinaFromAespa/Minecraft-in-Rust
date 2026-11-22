@@ -6,14 +6,14 @@
 //! as `state.getBlock() instanceof LeavesBlock` for any recognised ancestor.
 
 macro_rules! classes {
-    ($($name:ident = $java:literal,)*) => {
+    ($($name:ident = $java:literal $(| $alias:literal)*,)*) => {
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
         #[repr(u16)]
         pub enum Class { $($name,)* }
         impl Class {
             pub const ALL: &'static [Class] = &[$(Class::$name,)*];
             pub fn from_java(name: &str) -> Option<Self> {
-                match name { $($java => Some(Class::$name),)* _ => None }
+                match name { $($java $(| $alias)* => Some(Class::$name),)* _ => None }
             }
         }
     };
@@ -188,7 +188,10 @@ classes! {
     Lectern = "LecternBlock",
     Lever = "LeverBlock",
     Light = "LightBlock",
-    LilyPad = "LilyPadBlock",
+    // Mojang renamed WaterlilyBlock to LilyPadBlock after 1.21.7; the
+    // 1.21.7 export still names the old class, so the LilyPad arm in
+    // survive.rs never ran for lily pads until this alias.
+    LilyPad = "LilyPadBlock" | "WaterlilyBlock",
     Liquid = "LiquidBlock",
     Loom = "LoomBlock",
     Magma = "MagmaBlock",
