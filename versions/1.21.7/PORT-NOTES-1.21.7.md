@@ -1360,3 +1360,31 @@ pass / 0 fail. The `legacy` synthesis exists only in 1.21.7 -- no
 sibling carry-over. Known adjacent gap, not fixed here: the
 sunrise/sunset colour is still not synthesized (its constants
 couldn't be verified), so there is no dawn/dusk glow.
+
+Snow layers on packed ice in frozen peaks (2026-11-22). The
+world-compare against vanilla (same seed 8257987075890829262, 4,145
+paired chunks) found the port placing +14,242 snow layers (+7.6%),
+92% of the excess in frozen_peaks: worst chunk (7,19) had 256 snow
+layers, one on every column, all on packed ice, while vanilla has
+zero snow in the chunk. Root cause: vanilla 1.21.7's
+`SnowLayerBlock.canSurvive` rejects the `snow_layer_cannot_survive_on`
+tag first ([ice, packed_ice, barrier], jar-verified, and
+`snow_layer_can_survive_on` = [honey_block, soul_sand, mud] overrides
+second), but the port bound the 26.x tag names
+`cannot_support_snow_layer` / `support_override_snow_layer`, which do
+not exist in 1.21.7 data -- both sets resolved empty, so snow survived
+on packed ice and `SnowAndFreezeFeature` placed it there. Same defect
+class as the water, trees and leaf-decay bugs: 26.x tag names for data
+1.21.7 carries under its own names. Fix: bind the two tag fields in
+`level/data.rs` (read by survive.rs and weather.rs) to the 1.21.7
+names, and the two literal readers (`block_survival.rs`, snow-golem
+trail in `mobs/golem.rs`) likewise. No synthesis needed -- the 1.21.7
+tags exist with the right contents. Regression tests:
+`snow_does_not_survive_on_ice` (fast: no snow settles on packed ice
+or ice, still settles on grass and soul sand) and
+`frozen_peaks_place_no_snow_on_packed_ice` (worldgen: chunk (7,19)
+has zero snow after decoration, zero snow on packed ice in the 3x3
+region -- both match vanilla). Leakage audit: 1.21.7 baseline 38 ->
+36, ratchet passes (exit 0). The same two 26.x names are recorded
+leaks for every version 1.20.5-1.21.11 -- carry-over sequenced
+separately (each version needs its own jar check for the tag names).

@@ -426,8 +426,13 @@ tags! {
     soul_fire_base_blocks = "soul_fire_base_blocks",
     washed_away_by_fluids = "washed_away_by_fluids",
     unstable_bottom_center = "unstable_bottom_center",
-    cannot_support_snow_layer = "cannot_support_snow_layer",
-    support_override_snow_layer = "support_override_snow_layer",
+    // 1.21.7 names these tags `snow_layer_cannot_survive_on` /
+    // `snow_layer_can_survive_on` (jar-verified: [ice, packed_ice, barrier]
+    // and [honey_block, soul_sand, mud]); the 26.x names above do not exist
+    // in 1.21.7 data, so binding them left both sets empty and snow
+    // survived on packed ice in frozen peaks.
+    cannot_support_snow_layer = "snow_layer_cannot_survive_on",
+    support_override_snow_layer = "snow_layer_can_survive_on",
     maintains_farmland = "maintains_farmland",
     supports_vegetation = "supports_vegetation",
     supports_crops = "supports_crops",

@@ -573,10 +573,13 @@ pub fn snow_ai_step(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
                 .get(tag)
                 .is_some_and(|t| t.contains(&*below.name))
         };
-        let supported = if in_tag("minecraft:cannot_support_snow_layer") {
+        // 1.21.7 names these tags `snow_layer_cannot_survive_on` /
+        // `snow_layer_can_survive_on` (jar-verified); the 26.x names do not
+        // exist in 1.21.7 data.
+        let supported = if in_tag("minecraft:snow_layer_cannot_survive_on") {
             false
         } else {
-            in_tag("minecraft:support_override_snow_layer") || below.full_collision
+            in_tag("minecraft:snow_layer_can_survive_on") || below.full_collision
         };
         if w.facts.is_air(w.world.block(xx, y, zz)) && supported && !placed.contains(&[xx, y, zz]) {
             placed.push([xx, y, zz]);
