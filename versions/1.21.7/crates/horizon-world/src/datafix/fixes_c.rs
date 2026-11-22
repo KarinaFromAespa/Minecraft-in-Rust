@@ -29,19 +29,14 @@ pub(super) fn register(out: &mut Vec<(Key, FixFn)>) {
     out.push((key(4424, 0), |cx| {
         cx.each(Ty::Entity, add_locator_bar_style)
     }));
-    // PORT ADAPTATION, not a vanilla fix: vanilla 1.21.7 keeps block states
-    // as `Name`/`Properties` (`StateHolder.codec`, jar-verified), while this
-    // port's decoder and writer speak the 26.x `id`/`properties` form (the
-    // 26.x fix at key 5006 does this rename for 26.3, past this build's
-    // CURRENT). An upgrade to this build's CURRENT normalizes block states
-    // to the port's form, last, after every fix that reads `Name` — without
-    // it an upgraded 1.20 chunk kept `Name` palettes the decoder reads as air.
-    out.push((key(4438, 0), |cx| {
-        cx.each(Ty::BlockState, |s| {
-            rename(s, "Name", "id");
-            rename(s, "Properties", "properties");
-        });
-    }));
+    // NOTE: no rename of `Name`/`Properties` to `id`/`properties` here, on
+    // purpose. Vanilla 1.21.7 keeps block states as `Name`/`Properties`
+    // (`StateHolder.codec`, jar-verified); the rename is fix 5006, a 26.3
+    // fix above this build's CURRENT (4438), so an upgrade to CURRENT keeps
+    // `Name`. The port's decoder reads both forms (`BlockState::from_nbt`
+    // falls back to `Name`/`Properties`), so no datafix normalization is
+    // needed — and a rename here would also wrongly normalize chunks vanilla
+    // 1.21.7 itself saved, which skip the upgrade entirely.
     out.push((key(4535, 0), |cx| {
         cx.entity("minecraft:copper_golem", |e| {
             update(e, "weather_state", |v| {

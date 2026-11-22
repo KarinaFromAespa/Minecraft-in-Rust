@@ -8560,12 +8560,17 @@ mod tests {
         else {
             panic!("no palette");
         };
+        // The rename ran (grass became short_grass) but the keys stay
+        // vanilla 1.21.7's `Name`/`Properties`: the rename to
+        // `id`/`properties` is fix 5006, a 26.3 fix above this build's
+        // CURRENT, so the upgrade keeps `Name` and the decoder reads it.
         assert_eq!(
-            text(palette[0].get("id")).as_deref(),
+            text(palette[0].get("Name")).as_deref(),
             Some("minecraft:short_grass")
         );
-        // Decoded, it keeps its blocks: read raw, the 26.x decoder finds no `id` in a
-        // 1.20 palette (`Name`) and the whole column is air.
+        assert!(palette[0].get("id").is_none());
+        // Decoded, it keeps its blocks: `BlockState::from_nbt` falls back to
+        // `Name` when no `id` is present, so the 1.20 palette decodes.
         if let Some(root) = std::env::var_os("HORIZON_TEST_RESOURCES") {
             let root = PathBuf::from(root);
             let assets = crate::assets::Assets::load(&root).expect("assets");

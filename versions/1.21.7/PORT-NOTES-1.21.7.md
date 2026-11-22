@@ -1777,15 +1777,23 @@ upgraded 1.20.1 palette had no `id` entry. The 1.20.3
 grass-to-short_grass rename (key 3692) ran; what was missing was the
 palette-key conversion `Name`/`Properties` to `id`/`properties`,
 which the 26.3 base does at key 5006 — past this build's CURRENT, so
-it never ran. A port-adaptation fix at key 4438 (CURRENT) does the
-same rename, last, after every fix that reads `Name`. Vanilla 1.21.7
-itself keeps `Name`/`Properties` (`StateHolder.codec`,
-jar-verified); the port's decoder and writer speak the 26.x form, so
-the upgrade normalizes to it. Note the remaining gap this does not
-close: a chunk vanilla 1.21.7 itself saved (DataVersion 4438,
-`Name` palettes) skips the upgrade entirely and still decodes as air
-— the decoder only reads `id`. That needs a `BlockState::from_nbt`
-fallback (or a read-path normalization), not a datafix change.
+it never ran. The first fix was a port-adaptation fix at key 4438
+(CURRENT) doing the same rename, last, after every fix that reads
+`Name` — but that conflicted with the world group's fix (a 4435
+chunk must keep `Name` through the upgrade, vanilla-faithfully), so
+it was dropped on adjudication. The fix instead is a decoder
+fallback: `BlockState::from_nbt` reads `id`/`properties` first and
+falls back to `Name`/`Properties`, so upgraded palettes keep vanilla
+1.21.7's keys (`StateHolder.codec`, jar-verified) and still decode.
+That also closes the gap the adaptation left open: a chunk vanilla
+1.21.7 itself saved (DataVersion 4438, `Name` palettes) skips the
+upgrade entirely and used to decode as air. The test now asserts the
+palette keeps `Name` = `minecraft:short_grass` with `id` absent, and
+`chunk::tests::block_states_decode_from_either_key_form` pins the
+decoder fallback. Note the writer still writes the 26.x
+`id`/`properties` form (`BlockState::to_nbt`): the port reads both
+forms but writes one, so a save the port writes is not one vanilla
+1.21.7 reads — a diagnosed gap, not fixed here.
 
 `a_finished_optimization_stamps_the_level_data`: a test bug, not a
 product gap. The fixture set level.dat's DataVersion to 4950, a
