@@ -13247,3 +13247,8 @@ DISABLED_BY_LAUNCHER / DISABLED_BY_PROFILE). The Rust handles the
 one status that can arise: hidden chat shows the red
 `chat.disabled.options` overlay and keeps the chat closed; the
 launcher/profile statuses need inputs this client does not have.
+
+## Item 786 — com/mojang/blaze3d/opengl (new-classes) — NO-CHANGE
+
+1 class: `GlStateManager$ColorMask` — four booleans for OpenGL
+colour-mask state. Pure GL plumbing, no Rust usage.
