@@ -15144,12 +15144,35 @@ is the oracle; decompiled code is a reading aid.
     has no surface.
   - Verification: read / only; no code / changed.
 
+- **Item 385 — GenericMessageScreen**
+  - GenericMessageScreen:
+    verified, no code. The
+    one-line diff is a
+    render-API signature
+    change only: 1.21.6
+    passes the GuiGraphics
+    to renderBlurredBackgro
+    und, 1.21.5 calls it
+    with no argument. The
+    port is wgpu-native and
+    has no GuiGraphics to
+    pass; its
+    GenericMessageScreen
+    equivalent draws the
+    menu background and the
+    centred message,
+    panorama and blur
+    through its own
+    pipeline. No
+    behavioural difference.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **384 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 116/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **385 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 117/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
