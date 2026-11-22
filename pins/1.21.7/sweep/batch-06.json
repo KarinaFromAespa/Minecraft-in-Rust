@@ -1,0 +1,97 @@
+{
+ "version": "1.21.7",
+ "batch": 6,
+ "name": "Worldgen / features",
+ "date": "2026-11-22",
+ "source": "docs/PARITY-SWEEP.md \u00a74 Batch 6 \u2014 checks + triage only, no fixes. Scope: chunk generation, biomes, features, structures, carvers, density. DRAFT: execution-risk notice blocked all repo execution (no driver runs, no cargo/javac, no commits); static analysis only (javap + source + data diffs + paired chunk comparison). Deliverables saved uncommitted under sweep-batch-6-deliverables/ awaiting the user's go-ahead (Batch 2 precedent).",
+ "method": "javap -c on the named 1.21.7 server jar for every vanilla method spot-checked (JigsawPlacement/Placer, StructurePoolElement, StructurePiece, PoolElementStructurePiece, SculkPatchFeature, SculkSpreader behaviours, MultiNoiseBiomeSourceParameterList Preset + OverworldBiomeBuilder, Aquifer fluid picker); exact data diffs of prepared resources vs jar (12 worldgen registries, 941 entries; structure NBTs 1202/1202; flat/world presets); paired chunk comparison port Test 1 vs vanilla Test World, same seed 8257987075890829262, 1,018 paired chunks (Nov 21 dumps \u2014 PRE-FIX code state, see report); decode-coverage audit of every worldgen dispatch arm; Batch 0 oracle-status triage for all 47 oracles referenced by the batch's 54 drivers (16 pass / 31 fail). No driver was run: 24 drivers have no oracle blocker (12 passing-oracle + 12 no-oracle) and are ready to run when the execution block lifts; 30 are blocked on failing oracles. Checks tally = 22 behaviour checks (18 pass, 4 gap) + 47 oracle status checks (16 pass, 31 fail).",
+ "checks": {
+  "gap": 35,
+  "pass": 34,
+  "total": 69
+ },
+ "items": [
+  {
+   "evidence": "Vanilla SculkPatchFeature.place (1.21.7 jar bytecode): after the spreader rounds, if random.nextFloat() <= catalystChance (0.5) and origin.below() is collision-full, sets SCULK_CATALYST at origin; then extraRareGrowths.sample(random) times places SCULK_SHRIEKER[can_summon=true] at origin.offset(nextInt(5)-2, 0, nextInt(5)-2) when air above a sturdy face. Port worldgen/sculk.rs place() ends after the spreader rounds; decode ignores catalyst_chance and extra_rare_growths; no 'catalyst' string anywhere in sculk.rs. Ancient-city templates contain zero catalysts (58 files: 10 sensors only), so all 1,278 vanilla catalysts come from sculk_patch. Explains the world-compare finding: sculk catalysts 0 (port) vs 1,278 (vanilla). The missing nextFloat/nextInt calls also shift the RNG stream for every feature placed after a sculk_patch in the same chunk \u2014 the likely mechanism behind the PORT-NOTES sculk-vein cell divergence (unconfirmed at HEAD). Affects sculk_patch_ancient_city (extra_rare_growths uniform 1..3) and sculk_patch_deep_dark (0). Spreader core itself verified faithful (all three behaviours match jar bytecode).",
+   "id": "B6-G01",
+   "method": "javap + source + paired world comparison",
+   "severity": "major",
+   "status": "gap",
+   "title": "sculk_patch never places sculk catalysts or extra rare growths (catalyst_chance / extra_rare_growths ignored)"
+  },
+  {
+   "evidence": "World comparison 2026-11-22 (port 'New World (1)' vs vanilla 'Test World', same seed 8257987075890829262, 4,145 paired chunks, both post-decorate): snow +7.6% systematic in frozen peaks \u2014 port places snow on packed ice where vanilla places none. Measured, not root-caused. Under separate authorized snow/aquifer investigation (see ~/workspace/mcir-work/world-compare/REPORT.md). Recorded here as the Batch 6 ledger entry for the divergence.",
+   "id": "B6-G02",
+   "method": "paired world comparison (method 3)",
+   "severity": "major",
+   "status": "gap",
+   "title": "Snow placed on packed ice in frozen peaks (+7.6% snow vs vanilla)"
+  },
+  {
+   "evidence": "World comparison 2026-11-22 (same setup as B6-G02): water -1.04% underground, surface matches. Related: PORT-NOTES 21-cell aquifer/fluid divergence at chunk (13,-14) (vanilla water + obsidian where port has air/fluid) from the earlier deep-cave comparison. Measured, not root-caused. Aquifer fluid picker spot-checked (sea level 63 water / below -54 lava matches jar); full noise-based aquifer audit not done. Under separate authorized snow/aquifer investigation (see ~/workspace/mcir-work/world-compare/REPORT.md). Recorded here as the Batch 6 ledger entry for the divergence.",
+   "id": "B6-G03",
+   "method": "paired world comparison (method 3)",
+   "severity": "major",
+   "status": "gap",
+   "title": "Underground water deficit (-1.04% water vs vanilla; aquifer divergence)"
+  },
+  {
+   "evidence": "Vanilla base StructurePiece serializes genDepth as 'GD' (always 0 for jigsaw pieces: trial chambers 245/245 GD=0, village_plains 210/210 GD=0 in the reference world) alongside PoolElementStructurePiece's live 'ground_level_delta'. Port jigsaw.rs PoolPiece save writes ground_level_delta but no GD (grep: 'GD' appears only in end_city.rs and legacy.rs). Cosmetic: vanilla's loader reads only ground_level_delta (default 0) for pool pieces, so saves load fine; but a strict structure-start NBT comparison (test_structure_start_nbt_parity, currently oracle-blocked) would flag the missing key.",
+   "id": "B6-G04",
+   "method": "javap + source + vanilla NBT",
+   "severity": "minor",
+   "status": "gap",
+   "title": "PoolPiece NBT omits the vestigial GD (genDepth) key vanilla writes"
+  },
+  {
+   "evidence": "Batch 0 big-compile (2026-11-22): VanillaBiomeSourceCodecOracle, VanillaBiomeSourceOracle, VanillaStructureDensityOracle, VanillaWorldgenOracle all fail 'package net.minecraft.world.level.levelgen.densityfunction does not exist'. Blocks test_biome_source_codec_parity, test_biome_source_parity, test_structure_density_parity, test_worldgen_parity. VanillaStructureDensityOracle is UNREPAIRABLE against 1.21.7 per the brief (26.x-only SamplerContext/DensityVolume API) \u2014 density must be verified via bytecode/chunk comparison, not by forcing this oracle. The other three need A3-style rewrites against the 1.21.7 density API (DensityFunction exists in 1.21.7 under world.level.levelgen.synth / densityfunction is 26.x-only packaging).",
+   "id": "B6-O01",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "major",
+   "status": "gap",
+   "title": "Oracles reference the 26.x-only densityfunction package (missing in 1.21.7)"
+  },
+  {
+   "evidence": "Batch 0 big-compile: VanillaBiomeGenerationOracle and VanillaTerrainOracle fail 'package net.minecraft.world.level.levelgen.material.rule does not exist'. Blocks test_biome_generation_parity and test_terrain_parity. The 1.21.7 surface-rule API lives elsewhere (net.minecraft.world.level.levelgen.SurfaceRules); oracle rewrite needed.",
+   "id": "B6-O02",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "major",
+   "status": "gap",
+   "title": "Oracles reference the missing material/rule package"
+  },
+  {
+   "evidence": "Batch 0 big-compile: VanillaBiomePlacementOracle and VanillaFeaturePlacementOracle fail 'constructor Feature in class Feature<FC> cannot be applied to given types'. Blocks test_biome_placement_parity and test_feature_placement_parity. Small in-family repair: adapt the constructor call to the 1.21.7 Feature signature (javap-verified).",
+   "id": "B6-O03",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "major",
+   "status": "gap",
+   "title": "Oracles use the 26.x Feature constructor signature"
+  },
+  {
+   "evidence": "Batch 0 big-compile, all 'cannot find symbol': VanillaBasicFeatureOracle, VanillaBiomeChunkOracle, VanillaCanyonCarverOracle, VanillaCaveCarverOracle, VanillaChunkStageOracle, VanillaDensityOracle, VanillaFeatureCatalogOracle, VanillaFeatureGraphOracle, VanillaFeatureRegionOracle, VanillaFeatureSortOracle, VanillaMaterialConditionOracle, VanillaMaterialSurfaceOracle, VanillaNoiseOracle, VanillaScatteredOreOracle, VanillaStructureStartOracle, VanillaTreeFeatureOracle, VanillaWorldSpawnOracle, VanillaWorldSpawnPacketOracle. Blocks 20 drivers (basic_feature, biome_chunk, canyon_carver, cave_carver, chunk_stage, density, feature_catalog, feature_graph, feature_region, feature_sort, biome_source_codec [also O01], material_surface, noise, scattered_ore, structure_start_nbt, tree_feature, world_spawn, world_spawn_sync, retrogen_chunk, biome_source_codec). Each needs its missing symbol javap-checked against the 1.21.7 jar and the oracle adapted; sizes vary, none yet attempted (execution block).",
+   "id": "B6-O04",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "major",
+   "status": "gap",
+   "title": "Oracles fail on missing symbols (26.x API drift, 18 oracles)"
+  },
+  {
+   "evidence": "Batch 0 big-compile: VanillaCushionPlacementOracle ('package net.minecraft.client.multiplayer does not exist' \u2014 client-only code on the server classpath), VanillaNaturalSpawnOracle ('package net.minecraft.world.level.gamerules does not exist'), VanillaSculkOracle ('package net.minecraft.gizmos does not exist' \u2014 26.x-only), VanillaSpawnRulesOracle ('package net.minecraft.util.debug does not exist'). Blocks test_cushion_placement_parity, test_natural_spawn_parity, test_sculk_parity, test_spawn_rules_parity. Each needs a 1.21.7-API rewrite (sculk oracle: drop the gizmos dependency).",
+   "id": "B6-O05",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "major",
+   "status": "gap",
+   "title": "Oracles reference other missing packages (client-only / moved, 4 oracles)"
+  },
+  {
+   "evidence": "Batch 0 big-compile: 'method getBiome in class BiomeManager cannot be applied to given types'. Blocks test_biome_zoom_parity. Small repair: match the 1.21.7 BiomeManager.getBiome signature (javap-verified).",
+   "id": "B6-O06",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "minor",
+   "status": "gap",
+   "title": "VanillaBiomeZoomOracle uses a wrong BiomeManager.getBiome signature"
+  }
+ ],
+ "systemic_note": "No single systemic cause across this batch's defects (unlike the pilot's tag pattern). B6-G01 is a dropped config tail (two fields silently ignored by decode \u2014 serde's unknown-field tolerance means a missing feature reads as success). B6-G02/G03 are measured-but-unroot-caused terrain divergences under separate investigation. The oracle failures share one pattern: the oracles were written against the 26.x API and 1.21.7 moved or never had those packages/signatures (densityfunction, material.rule, gizmos, gamerules, Feature ctor, BiomeManager.getBiome). Decode-coverage is complete (every dispatch arm present) but arm presence is not correctness \u2014 the one arm-level defect found (B6-G01) was a silent omission inside a present, well-tested arm, found only by javap-diffing the feature's tail.",
+ "out_of_scope_failures": "None. Adjacent findings NOT recorded as B6 defects: (1) bubble columns 0 vs 2,500 \u2014 owned by the pilot as G1; (2) beds block entities 0 vs 50 in the world comparison \u2014 a save-format gap, not worldgen; (3) PORT-NOTES sculk-vein cell divergence and tuff-blob position divergence \u2014 unconfirmed at HEAD (old-world measurements; ore feature and sculk spreader both verified faithful at code level; B6-G01's RNG-stream shift is the likely mechanism for the vein divergence); re-measurement at HEAD is an open item, not a defect. (4) The 12 no-oracle drivers and 12 passing-oracle drivers were not run (execution block) \u2014 they are unmeasured, not passing."
+}
