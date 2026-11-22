@@ -13742,12 +13742,45 @@ is the oracle; decompiled code is a reading aid.
     ground.
   - Verification: read / only; no code / changed.
 
+- **Item 336 — Smithing screen**
+  - Smithing screen:
+    verified, no code. The
+    armour-stand preview
+    looks like a real delta
+    - 1.21.6 draws it in
+    the box (121, 20) to
+    (161, 80) with a (0, 1,
+    0) translation, 1.21.5
+    at the point (141, 75)
+    with none - but the two
+    forms are the same
+    matrix: the box centre
+    (141, 50) plus one unit
+    of translation at scale
+    25 is exactly the point
+    (141, 75), so the
+    port's box form already
+    renders pixel-identical
+    to 1.21.5, at the same
+    scale 25 and
+    ARMOR_STAND_ANGLE. The
+    error icon sits at
+    +65/+46 with its 28x21
+    hover area, and the
+    onboarding tooltip is
+    built in-frame, split
+    at width 115 - the
+    1.21.5 immediate form,
+    not 1.21.6's deferred
+    setTooltipForNextFrame.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **335 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 67/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **336 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 68/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
