@@ -13111,3 +13111,9 @@ particle sprite, 9 display transforms, tints at render time.
 The render-type detection (items atlas vs blocks atlas) is
 verified; the Rust does not enforce the single-atlas rule, an
 error-handling difference only.
+
+## Item 767 — com/mojang/blaze3d/platform (new-classes) — NO-CHANGE
+
+2 classes: `DepthTestFunction`, `LogicOp` — Blaze3D/OpenGL
+GPU-state enums with no Rust usage; the wgpu renderer sets its
+own depth/compare state directly.
