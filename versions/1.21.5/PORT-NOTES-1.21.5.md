@@ -14799,12 +14799,38 @@ is the oracle; decompiled code is a reading aid.
     17/17 (new test
     included).
 
+- **Item 374 — FireflyParticle**
+  - FireflyParticle: CODE.
+    The 22-line diff is a
+    real numeric delta: the
+    firefly lifetime is
+    36-180 ticks in 1.21.5,
+    200-300 in 1.21.6. The
+    port's firefly provider
+    drew next_int_between_i
+    nclusive(200, 300) -
+    the 1.21.6 range. It
+    now draws 36-180, with
+    the 1.21.5 range
+    documented. A new test
+    makes 50 fireflies and
+    asserts every lifetime
+    in 36..=180. The fade
+    times (0.1/0.5/0.3) are
+    identical in both
+    versions and untouched.
+  - Verification: cargo test -j 1 -p
+    horizon-client-render
+    --lib particles::
+    passed, 57/57 (new test
+    included).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **373 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 105/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **374 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 106/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
