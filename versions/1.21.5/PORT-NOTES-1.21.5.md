@@ -13713,12 +13713,41 @@ is the oracle; decompiled code is a reading aid.
     passed, 54/54 (new test
     included).
 
+- **Item 335 — Enderman**
+  - Enderman: verified, no
+    code. The 51-line diff
+    is the
+    ValueInput/ValueOutput
+    refactor (plus a
+    protected-to-public
+    visibility change with
+    no Rust surface):
+    carriedBlockState
+    through the BlockState
+    codec, saved only while
+    carrying one, an air
+    state reading as no
+    block at all, and the
+    persistent anger save
+    data. The port already
+    does exactly that in
+    entity_nbt.rs - the key
+    is written only with a
+    carried state and a
+    registry, dropped when
+    not carrying, and the
+    load filters air - and
+    the anger form is item
+    173's AngerTime/AngryAt
+    ground.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **334 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 66/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **335 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 67/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
