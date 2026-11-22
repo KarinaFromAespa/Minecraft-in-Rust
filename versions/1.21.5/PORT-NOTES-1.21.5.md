@@ -15758,12 +15758,34 @@ is the oracle; decompiled code is a reading aid.
     layers 200 z apart.
   - Verification: read / only; no code / changed.
 
+- **Item 408 — BufferType / BufferUsage / GpuBuffer.ReadView**
+  - BufferType /
+    BufferUsage /
+    GpuBuffer.ReadView:
+    verified, no code.
+    These are 1.21.5's
+    Blaze3D GPU buffer
+    plumbing - a
+    buffer-kind enum, a
+    usage enum, and a
+    read-view handle -
+    removed by 1.21.6's
+    buffer refactor. The
+    port manages GPU
+    buffers through wgpu
+    directly and references
+    none of these classes;
+    the abstraction has no
+    surface in the
+    wgpu-native renderer.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **407 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 6/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **408 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 7/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
