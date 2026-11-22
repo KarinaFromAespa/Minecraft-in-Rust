@@ -16020,12 +16020,48 @@ is the oracle; decompiled code is a reading aid.
     component.
   - Verification: read / only; no code / changed.
 
+- **Item 417 — DisconnectedRealmsScreen**
+  - DisconnectedRealmsScree
+    n: verified, with a gap
+    recorded. 1.21.5 shows
+    its own disconnect
+    screen for a Realms
+    session - title and
+    reason centred, a Back
+    button returning to the
+    Realms parent screen,
+    and the downloaded-pack
+    cleanup on init - where
+    1.21.6 folds it into
+    the generic
+    DisconnectedScreen. The
+    port has no
+    Realms-specific
+    disconnect path:
+    leave_server always
+    routes to the generic
+    DisconnectedScreen, so
+    a Realms disconnect
+    returns to the
+    multiplayer list
+    instead of the Realms
+    list. The fix is a
+    small navigation thread
+    through the disconnect
+    path, but it belongs
+    with item 404's
+    deferred Realms
+    re-hosting - untestable
+    on this VM without a
+    live Realms account.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **416 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 15/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **417 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 16/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
