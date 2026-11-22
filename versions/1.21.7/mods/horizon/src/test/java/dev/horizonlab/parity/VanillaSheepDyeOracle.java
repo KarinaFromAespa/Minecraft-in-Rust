@@ -32,7 +32,7 @@ public final class VanillaSheepDyeOracle {
         }
     }
     static class Actor extends LocalPlayer {
-        Actor() { super(null, null, null, null, null, null, false, null, null); }
+        Actor() { super(null, null, null, null, null, null, false); }
         @Override public Level level() { return world; }
     }
     static class Subject extends Sheep {
@@ -48,23 +48,19 @@ public final class VanillaSheepDyeOracle {
         net.minecraft.SharedConstants.tryDetectVersion(); net.minecraft.server.Bootstrap.bootStrap();
         var u = Class.forName("sun.misc.Unsafe"); var f = u.getDeclaredField("theUnsafe");
         f.setAccessible(true); unsafe = f.get(null); allocate = u.getMethod("allocateInstance", Class.class);
-        Item[] items = {Items.DYE.white(), Items.DYE.red(), Items.DYE.black()};
-        DyeColor[] defaults = {DyeColor.WHITE, DyeColor.RED, DyeColor.BLACK};
-        for (int i = 0; i < items.length; i++) {
-            items[i].builtInRegistryHolder().bindComponents(DataComponentMap.builder().set(DataComponents.DYE, defaults[i]).build());
-        }
+        // 1.21.7 has no DataComponents.DYE and no Items.DYE accessor: the colour
+        // is the DyeItem's own (javap-verified on the named client jar).
+        Item[] items = {Items.WHITE_DYE, Items.RED_DYE, Items.BLACK_DYE};
         world = make(World.class); var actor = make(Actor.class);
         try (var out = new java.io.PrintWriter(java.nio.file.Files.newBufferedWriter(java.nio.file.Path.of(args[0])))) {
             for (var initial : new DyeColor[]{DyeColor.WHITE, DyeColor.GRAY, DyeColor.RED, DyeColor.BLACK})
-            for (var hand : InteractionHand.values()) for (var item : items) for (int patch = 0; patch < 3; patch++)
+            for (var hand : InteractionHand.values()) for (var item : items) for (int patch = 0; patch < 1; patch++)
             for (boolean sheared : new boolean[]{false, true}) for (boolean alive : new boolean[]{false, true})
             for (boolean client : new boolean[]{false, true}) {
                 set(world, Level.class, "isClientSide", client);
                 set(world, Level.class, "soundSeedGenerator", RandomSource.create(42));
                 var sheep = make(Subject.class); sheep.color = initial; sheep.sheared = sheared; sheep.alive = alive;
                 var stack = new ItemStack(item, 2);
-                if (patch == 1) stack.set(DataComponents.DYE, DyeColor.BLUE);
-                if (patch == 2) stack.remove(DataComponents.DYE);
                 for (int step = 0; step < 2; step++) {
                     heard.clear();
                     boolean result = ((DyeItem)item).interactLivingEntity(stack, actor, sheep, hand) == InteractionResult.SUCCESS;

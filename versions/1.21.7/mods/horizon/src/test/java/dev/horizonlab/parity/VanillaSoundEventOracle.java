@@ -52,7 +52,9 @@ public final class VanillaSoundEventOracle {
         var u = Class.forName("sun.misc.Unsafe");
         Object unsafe = field(u, "theUnsafe").get(null);
         Options options = (Options) u.getMethod("allocateInstance", Class.class).invoke(unsafe, Options.class);
-        var manager = new SoundManager(options);
+        // 1.21.7's SoundManager takes (Options, MusicManager); music is unused by
+        // prepare/apply, so null is safe here.
+        var manager = new SoundManager(options, null);
         Method prepare = SoundManager.class.getDeclaredMethod("prepare", ResourceManager.class, net.minecraft.util.profiling.ProfilerFiller.class);
         prepare.setAccessible(true);
         Object preparations = prepare.invoke(manager, resources, InactiveProfiler.INSTANCE);
@@ -80,7 +82,7 @@ public final class VanillaSoundEventOracle {
                 RandomSource random = RandomSource.create(seed);
                 var instance = new SimpleSoundInstance(ResourceLocation.parse(f[0]), SoundSource.MASTER, volume, pitch, random, false, 0,
                     SoundInstance.Attenuation.LINEAR, 0.0, 0.0, 0.0, false);
-                WeighedSoundEvents event = instance.getOrResolve(manager);
+                WeighedSoundEvents event = instance.resolve(manager);
                 Sound sound = instance.getSound();
                 StringBuilder sb = new StringBuilder(line);
                 if (event == null) {
@@ -101,7 +103,10 @@ public final class VanillaSoundEventOracle {
                     .append(" attenuation=").append(sound.getAttenuationDistance())
                     .append(" volume=").append(bits(v))
                     .append(" pitch=").append(bits(p))
-                    .append(" range=").append(bits(sound.getAttenuationDistance(v)))
+                    // 1.21.7's Sound exposes only the base attenuation distance; the
+                    // volume scaling is the 26.x getAttenuationDistance(volume) formula
+                    // (max(volume, 1) * base), mirrored by the Rust fixture.
+                    .append(" range=").append(bits(Math.max(v, 1.0F) * sound.getAttenuationDistance()))
                     .append(" next=").append(random.nextLong());
                 out.println(sb);
             }

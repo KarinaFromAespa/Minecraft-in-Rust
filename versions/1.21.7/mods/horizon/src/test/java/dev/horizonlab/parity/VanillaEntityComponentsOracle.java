@@ -8,7 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.function.Predicate;
-import net.minecraft.advancements.predicates.entity.EntityPredicate;
+import net.minecraft.advancements.critereon.EntityPredicate;
 import net.minecraft.core.*;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -22,7 +22,7 @@ import net.minecraft.world.damagesource.DamageSources;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.entity.EntityTypeTest;
-import net.minecraft.world.level.gamerules.GameRules;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -50,17 +50,13 @@ public final class VanillaEntityComponentsOracle {
         RegistryAccess registries;
         GameRules rules;
         @Override public net.minecraft.server.MinecraftServer getServer() { return fake; }
-        int next = 1;
         @Override public RegistryAccess registryAccess() { return registries; }
         @Override public net.minecraft.world.Difficulty getDifficulty() { return net.minecraft.world.Difficulty.NORMAL; }
         @Override public long getGameTime() { return 0L; }
-        @Override public int getNextEntityId() { return next++; }
         @Override public net.minecraft.world.flag.FeatureFlagSet enabledFeatures() { return net.minecraft.world.flag.FeatureFlags.REGISTRY.allFlags(); }
         @Override public GameRules getGameRules() { return rules; }
         @Override public boolean addFreshEntity(Entity entity) { return true; }
         @Override public <T extends Entity> List<T> getEntities(EntityTypeTest<Entity, T> type, AABB bb, Predicate<? super T> selector) { return new ArrayList<>(); }
-        net.minecraft.world.attribute.EnvironmentAttributeSystem attributes;
-        @Override public net.minecraft.world.attribute.EnvironmentAttributeSystem environmentAttributes() { return attributes; }
         @Override public int getSeaLevel() { return 63; }
         @Override public DifficultyInstance getCurrentDifficultyAt(BlockPos pos) { return new DifficultyInstance(net.minecraft.world.Difficulty.NORMAL, 0L, 0L, 0.0F); }
     }
@@ -77,12 +73,13 @@ public final class VanillaEntityComponentsOracle {
         RegistryAccess access = ParityData.access;
         Lvl level = (Lvl) allocate.invoke(unsafe, Lvl.class);
         level.registries = access;
-        // A server that only answers debug subscribers (PathNavigation asks).
+        // 1.21.7 has no debug-subscriber system on MinecraftServer and no
+        // environment attributes on Level (both 26.x additions): the server
+        // stand-in is bare, and entity ids come from Entity's static counter
+        // (Level has no getNextEntityId in 1.21.7).
         var server = (net.minecraft.server.MinecraftServer) allocate.invoke(unsafe, net.minecraft.server.dedicated.DedicatedServer.class);
-        put(server, net.minecraft.server.MinecraftServer.class, "debugSubscribers", allocate.invoke(unsafe, net.minecraft.util.debug.ServerDebugSubscribers.class));
         level.fake = server;
         put(level, ServerLevel.class, "server", server);
-        level.attributes = net.minecraft.world.attribute.EnvironmentAttributeSystem.builder().build();
         level.rules = new GameRules(net.minecraft.world.flag.FeatureFlags.REGISTRY.allFlags());
         put(level, Level.class, "damageSources", new DamageSources(access));
         put(level, Level.class, "random", RandomSource.create(0L));
