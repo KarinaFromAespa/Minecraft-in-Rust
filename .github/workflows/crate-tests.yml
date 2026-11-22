@@ -132,7 +132,7 @@ jobs:
         run: |
           for attempt in 1 2 3; do
             sudo apt-get update -o Acquire::Retries=3 && \
-            sudo apt-get install -y libxkbcommon-x11-dev libwayland-dev libx11-xcb-dev libfontconfig-dev libvulkan-dev libasound2-dev pkg-config && break
+            sudo apt-get install -y libxkbcommon-x11-dev libwayland-dev libx11-xcb-dev libfontconfig-dev libvulkan-dev libasound2-dev libudev-dev pkg-config && break
             echo "apt attempt $attempt failed; retrying in 20s"
             sleep 20
           done
