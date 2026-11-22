@@ -13142,3 +13142,11 @@ enum) and `FollowBoatGoal`. The Rust ports the goal in full
 to nautiluses too), verified against the decompile: the 5-block
 start radius, the 0.015/0.01 speeds, the 10-tick recalc, the
 behind/ahead navigation targets and the 4/12-block switches.
+
+## Item 771 — world/level/levelgen/structure/templatesystem (new-classes) — NO-CHANGE
+
+2 classes: `StructureTemplateManager$InputStreamOpener` (a
+single-method interface) and `StructureTemplateManager$Source` (a
+loader + lister record) — template-loading plumbing with no Rust
+usage; the Rust implements the manager's `get`/`save` semantics
+itself.
