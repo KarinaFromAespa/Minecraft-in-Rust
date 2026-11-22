@@ -12977,3 +12977,15 @@ panoramaSpeed * 0.1, cube at pitch 10, yaw -spin — the Rust matches
 `SpecialBlockModelRenderer` are cited and handled. The other 6 have
 no Rust usage: Blaze3D/render-submit plumbing the native renderer
 never mirrors.
+
+## Item 754 — client/renderer/block (new-classes) — NO-CHANGE apart from citations
+
+9 classes present in 1.21.11, absent in 26.1. The mesher is an explicit
+port of 1.21.11's `ModelBlockRenderer` and `LiquidBlockRenderer`,
+verified against the decompile: both `blend` forms, the
+`AmbientVertexRemap` table, `AdjacencyInfo`'s corners and SizeInfo
+weights, `MAX_FLUID_HEIGHT` (0.8888889) and the 0.001 epsilon. The
+fluid citations used the 26.1 name `FluidRenderer` and now cite
+`LiquidBlockRenderer`. `BlockModelShaper` and `BlockRenderDispatcher`
+have no Rust usage (dispatch/plumbing; the mesher is the native
+equivalent).

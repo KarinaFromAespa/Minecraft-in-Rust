@@ -1,4 +1,5 @@
-//! Fluid surfaces following `FluidRenderer.tesselate`: corner heights, face
+//! Fluid surfaces following `LiquidBlockRenderer.tesselate` (26.1's
+//! `FluidRenderer`): corner heights, face
 //! occlusion against neighbour shapes, flow-rotated top UVs, the water overlay
 //! beside glass and leaves, back faces, cardinal shading and max(self, above)
 //! light.
@@ -16,7 +17,7 @@ use horizon_world::{
 };
 use std::{convert::Infallible, sync::OnceLock};
 
-/// `FluidRenderer.MAX_FLUID_HEIGHT`.
+/// `LiquidBlockRenderer.MAX_FLUID_HEIGHT`.
 const MAX_HEIGHT: f32 = 0.888_888_9;
 const EPSILON: f32 = 0.001;
 /// `super::step_index` of the unit steps of the padded index: one block east
@@ -195,7 +196,7 @@ impl FluidFlowWorld for FlowView<'_> {
 }
 /// Whether a `shaders/` pack's fluid top with these corner heights is split into triangles along
 /// its north-east to south-west diagonal, as Iris 1.11.7 draws it, rather than along vanilla's
-/// north-west to south-east one (`FluidRenderer.tesselate` puts its vertices NW, SW, SE, NE, and
+/// north-west to south-east one (`LiquidBlockRenderer.tesselate` puts its vertices NW, SW, SE, NE, and
 /// `RenderSystem`'s quad indices join vertex 0 to 2).
 ///
 /// Our probe packs' readings of Iris (#8464) fit this: a top is split along the diagonal whose
@@ -520,7 +521,7 @@ mod tests {
     /// Corner heights read back from Iris 1.11.7 with a probe pack of ours (#8464), from water
     /// and lava spreading over a floor and from a still lake, and whether Iris split each top
     /// along north-east to south-west. Each height is the vanilla average it reads as (for
-    /// example 13/27 for 0.48047 + 0.001), less `FluidRenderer`'s 0.001.
+    /// example 13/27 for 0.48047 + 0.001), less `LiquidBlockRenderer`'s 0.001.
     #[test]
     fn fluid_tops_split_where_iris_splits_them() {
         let h = |num: f32, den: f32| num / den - 0.001;
