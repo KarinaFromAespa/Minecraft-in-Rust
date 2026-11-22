@@ -13594,12 +13594,41 @@ is the oracle; decompiled code is a reading aid.
     variant.
   - Verification: read / only; no code / changed.
 
+- **Item 332 — Screen rectangle**
+  - ScreenRectangle:
+    verified, no code. The
+    59-line diff adds three
+    1.21.6-only methods -
+    intersects, encompasses
+    and transformMaxBounds
+    - and retypes
+    transformAxisAligned
+    from a 3x2 matrix to a
+    4x4 one with an
+    identity fast path,
+    same result for
+    axis-aligned
+    transforms. The port
+    has no ScreenRectangle
+    type at all: rectangles
+    are plain [i32; 4]
+    arrays and only
+    intersection, present
+    in both versions, is
+    implemented (as the
+    intersect helper behind
+    the scissor stack).
+    None of the 1.21.6-only
+    methods has a port
+    surface.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **331 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 63/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **332 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 64/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
