@@ -16166,12 +16166,49 @@ is the oracle; decompiled code is a reading aid.
     surface.
   - Verification: read / only; no code / changed.
 
+- **Item 422 — BlockEntity / ComponentHelper**
+  - BlockEntity /
+    ComponentHelper:
+    verified, no code. The
+    diff is the
+    ValueInput/ValueOutput
+    refactor (ground 1):
+    1.21.6 routes
+    block-entity loads and
+    saves through
+    ValueInput/ValueOutput
+    with a ProblemReporter,
+    1.21.5 reads and writes
+    the CompoundTag
+    directly, its
+    components under
+    ComponentHelper's
+    optional 'components'
+    field defaulting to
+    empty. The serialized
+    form is identical
+    either way, and the
+    port already reads and
+    writes block-entity NBT
+    in the CompoundTag
+    form, components
+    included (a chest with
+    a custom-name component
+    round-trips in the
+    tests).
+    parseCustomNameSafe
+    likewise only changes
+    spelling: unparseable
+    names still come back
+    null.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **421 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 20/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **422 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 21/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
