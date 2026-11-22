@@ -12876,3 +12876,7 @@ Interface declaration order only.
 ## Item 743 — game/pickups.rs (ItemPickupParticleGroup$ParticleInstance) — NO-CHANGE
 
 Visibility only.
+
+## Item 744 — lan/commands.rs (Commands$CommandSelection) — NO-CHANGE
+
+Visibility only.
