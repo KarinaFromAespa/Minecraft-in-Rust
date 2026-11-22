@@ -13257,3 +13257,8 @@ colour-mask state. Pure GL plumbing, no Rust usage.
 
 1 class: `VertexFormatElement$Usage` — a 5-value enum for vertex
 format elements. Pure GPU vertex-layout plumbing, no Rust usage.
+
+## Item 788 — com/mojang/blaze3d (new-classes) — NO-CHANGE
+
+1 class: `DontObfuscate` — a build-time annotation keeping names
+out of Mojang's obfuscator. No runtime behaviour.
