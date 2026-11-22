@@ -15878,12 +15878,49 @@ is the oracle; decompiled code is a reading aid.
     surface.
   - Verification: read / only; no code / changed.
 
+- **Item 413 — ExperimentsScreen.ScrollArea**
+  - ExperimentsScreen.Scrol
+    lArea: verified, with
+    the known gap standing.
+    1.21.5's experiments
+    list scrolls inside its
+    own ScrollArea widget
+    (310 wide, 130 tall
+    growing to fill, scroll
+    rate 10 per notch,
+    scissor plus translate,
+    a scrollbar,
+    focus-follows
+    scrolling); 1.21.6
+    replaced it with the
+    generic
+    ScrollableLayout. The
+    port draws the flags in
+    vanilla's layout
+    (33-pixel header and
+    footer, 310-wide
+    warning, 299-wide
+    SwitchGrid) but has no
+    scroll container at all
+    - the gap item 318
+    already recorded.
+    Vanilla 1.21.5 ships
+    only a handful of
+    experiments, so the
+    list fits the grown
+    area in practice;
+    scrolling only matters
+    with many experimental
+    packs, and the rebuild
+    stays deferred.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **412 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 11/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **413 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 12/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
