@@ -16203,12 +16203,33 @@ is the oracle; decompiled code is a reading aid.
     null.
   - Verification: read / only; no code / changed.
 
+- **Item 423 — TerracottaBlock**
+  - TerracottaBlock:
+    verified, no code. The
+    1.21.5-only class
+    exists for one
+    behaviour: terracotta's
+    animateTick plays the
+    ambient desert block
+    sounds (1.21.6 removed
+    the class and split the
+    sound triggers). The
+    port already classifies
+    plain and all sixteen
+    coloured terracottas as
+    Animate::Terracotta,
+    with the comment citing
+    this very animateTick -
+    items 160 and 273's
+    ground, tests included.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **422 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 21/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **423 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 22/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
