@@ -14256,12 +14256,41 @@ is the oracle; decompiled code is a reading aid.
     in the wgpu port.
   - Verification: read / only; no code / changed.
 
+- **Item 354 — server/dialog package**
+  - server/dialog package:
+    verified, no code. The
+    whole net/minecraft/ser
+    ver/dialog/ package
+    exists only in 1.21.6 -
+    the dialog system,
+    removed in 1.21.5 - and
+    its removal from the
+    port is complete (items
+    145/175/219/222/258/259
+    , reconfirmed by item
+    299). A fresh grep
+    finds only deliberate
+    contrast comments:
+    show_dialog and custom
+    fall through to the
+    unknown-action arm, no
+    /dialog command, no
+    dialog registry in tag
+    updates, and the
+    protocol adapter drops
+    1.21.6's dialog
+    registries for 1.21.5
+    servers. No dialog
+    type, screen or packet
+    remains.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **353 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 85/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **354 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 86/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
