@@ -12812,3 +12812,7 @@ Visibility plus a dropped `final` on the CODEC field; same value.
 ## Item 728 — worldgen/structure/piece_limited.rs (Direction$Plane) — NO-CHANGE
 
 Interface declaration order only.
+
+## Item 729 — worldgen/structure/simple.rs (IglooPieces, ShipwreckPieces) — NO-CHANGE
+
+Visibility plus an `is` overload.
