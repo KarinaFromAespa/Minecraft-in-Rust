@@ -12864,3 +12864,7 @@ Visibility only.
 ## Item 740 — horizon-client-render/src/gfx/entity_skin.rs (ModelPart$Polygon) — NO-CHANGE
 
 Visibility only.
+
+## Item 741 — horizon-client-render/src/gfx/gpu_culling.rs (RepeatedNarrator$Params) — NO-CHANGE
+
+Visibility only.
