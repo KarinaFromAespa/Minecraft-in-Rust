@@ -13418,12 +13418,53 @@ is the oracle; decompiled code is a reading aid.
     them in both versions.
   - Verification: read / only; no code / changed.
 
+- **Item 327 — Resource-or-id argument**
+  - ResourceOrIdArgument:
+    verified, no code -
+    item 284's ground. The
+    207-line diff is the
+    whole class, and the
+    port already has the
+    1.21.5 form:
+    parseInlineOrId (inline
+    SNBT first, then the
+    id; an inline string is
+    a reference decoded by
+    the holder codec, so an
+    unknown id reports
+    failed_to_parse, never
+    the 1.21.6-only
+    no_such_element;
+    neither form is argumen
+    t.resource_or_id.invali
+    d, an empty id read is
+    argument.id.invalid),
+    with the lookup strict
+    even against an empty
+    table. The 1.21.6
+    packrat Grammar, Inline
+    Result/ReferenceResult
+    records and
+    DialogArgument are all
+    absent, the dialog
+    removal being items
+    145/222/258/324, and
+    the 1.21.6-only
+    listSuggestions
+    override (registry
+    ELEMENTS) has no port
+    surface - the port
+    suggests nothing for
+    these args, as 1.21.5
+    does.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **326 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 58/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **327 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 59/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
