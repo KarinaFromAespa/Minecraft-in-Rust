@@ -19,10 +19,14 @@ name: crate-tests
 #   cargo test -p horizon-client-core --lib --color=never
 #   cargo test -p horizon-client-render --lib --color=never
 #   cargo test -p horizon-client --lib --color=never
+#   cargo test -p horizon-client-lib --lib --color=never
 # horizon-protocol runs without --lib to match port-verify's D2 command.
-# horizon-client-lib is deliberately absent: its lib is a re-export
-# shim (../horizon-client/src/client_lib.rs) with no tests of its own;
-# its contents are covered by the horizon-client suite.
+# horizon-client-lib is the BIG client suite, not a shim: its lib root
+# is ../horizon-client/src/client_lib.rs, the tree carrying save, mobs,
+# and the rest of the client systems (4,328 test attrs in 1.21.7).
+# horizon-client's own lib is only src/lib.rs (entry, game, mod_api).
+# The first three runs omitted horizon-client-lib, so the save test
+# from the upgrade-play fix never executed until it was added.
 #
 # A crate absent from a version's tree — or one with no lib target —
 # is skipped, not failed; not every tree has identical crates. The step
@@ -150,7 +154,7 @@ jobs:
           OUT="$GITHUB_WORKSPACE/ci-out/crate-tests"
           mkdir -p "$OUT"
           : > "$OUT/_summary.txt"
-          CRATES="horizon-protocol horizon-items horizon-world horizon-client-core horizon-client-render horizon-client"
+          CRATES="horizon-protocol horizon-items horizon-world horizon-client-core horizon-client-render horizon-client horizon-client-lib"
           FAILED=""
           for crate in $CRATES; do
             if [ ! -f "crates/$crate/Cargo.toml" ]; then
