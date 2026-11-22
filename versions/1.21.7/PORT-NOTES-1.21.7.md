@@ -1278,3 +1278,42 @@ wire arm never runs); `cannot_support_*` /
 never form, parity-sweep G1). Same synthesis is needed in
 1.21.5/1.21.6/1.21.8/1.21.9/1.21.10 — carry-over sequenced
 separately.
+
+Tree leaves disappear in fresh worlds (2026-11-22). The owner
+reported leaves vanishing over time in two new worlds on the
+verification build. Root cause: the runtime leaf-distance lookup
+`leaf_distance_at` in `level/shapes.rs` checked the 26.x tag
+`#prevents_nearby_leaf_decay` for distance 0, but that tag does not
+exist in 1.21.7 data, so the set resolved empty and logs never
+counted as distance 0. Vanilla 1.21.7's
+`LeavesBlock.getOptionalDistanceAt` returns 0 for `BlockTags.LOGS`
+(jar-verified against the named 1.21.7 server jar). Every leaf tick
+and neighbour update therefore recomputed distances without log
+anchors: log-adjacent leaves inflated 1 -> 2 -> 3 ..., the wave
+spread across the canopy, leaves hit distance 7 and the random
+tick decayed them. The trigger is self-feeding: decoration runs
+the runtime `updateShape` on tree faces (`update_shape_at_edge`),
+and the broken lookup schedules spurious leaf ticks for
+log-adjacent leaves, which persist into the saved chunk and run
+on load. Worldgen itself was exonerated: a new test
+(`generated_tree_leaves_carry_distances_from_their_trunks`)
+generates the 3x3 region around chunk (-2,-2) at the Test 1 seed
+and finds zero birch leaves at distance 7 — the BFS in
+`TreeFeature.updateLeaves` places correct distances; the runtime
+destroys them. Region analysis of the owner's two fresh worlds
+confirmed the runtime signature: ~40-49% of leaves at default
+distance 7 (vs 2 leaves in the whole vanilla reference world),
+per-tree all-or-nothing, dark oak 0% (its dense 2x2 canopy
+inflates slowest). Fix: `leaf_distance_at` now reads `b.tags.logs`,
+and the worldgen `leaf_distance` helper in
+`worldgen/tree_blocks.rs` does the same (it is `getOptionalDistanceAt`
+by contract); the dead `prevents_nearby_leaf_decay` tag field and
+`PREVENTS_LEAF_DECAY` flag are removed. Regression tests: the
+existing `crops_grow_and_leaves_decay` (a leaf next to a log must
+get distance 1 after a tick) failed on the unmodified tree
+(distance 7) and passes with the fix; the new worldgen test
+guards the BFS. Leakage audit: 1.21.7 leaks 39 -> 38, baseline
+shrunk by the one name. Same defect class as the water and trees
+bugs: 26.x tag-based logic for a tag absent in 1.21.7. The same
+`prevents_nearby_leaf_decay` reference is a recorded leak for
+1.21.11 too — carry-over sequenced separately.

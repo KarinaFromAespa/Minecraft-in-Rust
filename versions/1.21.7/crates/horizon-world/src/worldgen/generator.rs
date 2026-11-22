@@ -5808,4 +5808,67 @@ mod tests {
             "chunk {center:?} has {leaves} birch leaves after decoration, vanilla has 271"
         );
     }
+
+    /// Worldgen must set leaf distances from the trunk (TreeFeature.updateLeaves):
+    /// vanilla's chunk (-2,-2) has 271 birch leaves and essentially none at
+    /// distance 7 — a leaf at distance 7 decays on random tick, so leaves the
+    /// BFS never reaches vanish in-game.
+    #[test]
+    fn generated_tree_leaves_carry_distances_from_their_trunks() {
+        const SEED: i64 = 8257987075890829262;
+        let version = horizon_core::version::VERSION_ID;
+        let root = std::env::var_os("HORIZON_TEST_RESOURCES")
+            .or_else(|| std::env::var_os("HORIZON_RESOURCES"))
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../.local/horizon-client")
+                    .join(version)
+            });
+        if !root.join("worldgen/world_presets.json").exists() {
+            eprintln!("skipping: no worldgen bundle at {}", root.display());
+            return;
+        }
+        let registry: &'static BlockRegistry = Box::leak(Box::new(
+            crate::level::data::load_registry(&root).expect("registry"),
+        ));
+        let data = GeneratorData::load(&root.join("worldgen"), registry).expect("worldgen data");
+        let generator = OverworldGenerator::new(data.clone(), SEED).expect("overworld pipeline");
+        let mut worker = generator.worker();
+        let center = ChunkPos::new(-2, -2);
+        let mut region: [ProtoChunk; 9] = std::array::from_fn(|i| {
+            let dx = (i % 3) as i32 - 1;
+            let dz = (i / 3) as i32 - 1;
+            worker
+                .generate_proto(ChunkPos::new(center.x + dx, center.z + dz))
+                .unwrap_or_else(|e| panic!("chunk {dx},{dz}: {e}"))
+        });
+        worker.decorate(&mut region).expect("decorate");
+        let chunk = &region[4];
+        let min_y = chunk.terrain.min_y();
+        let height = chunk.terrain.height();
+        let mut histogram = [0usize; 8];
+        for y in min_y..min_y + height {
+            for z in 0..16 {
+                for x in 0..16 {
+                    if chunk.block_name(x, y, z) == "minecraft:birch_leaves" {
+                        let state = registry.state(chunk.block(x, y, z)).unwrap();
+                        let distance: usize = state
+                            .properties
+                            .get("distance")
+                            .and_then(|v| v.parse().ok())
+                            .unwrap_or(7);
+                        histogram[distance] += 1;
+                    }
+                }
+            }
+        }
+        let total: usize = histogram.iter().sum();
+        eprintln!("chunk {center:?}: birch leaf distance histogram (1..=7): {histogram:?} (total {total}, vanilla has ~0 at 7)");
+        assert!(
+            histogram[7] == 0,
+            "chunk {center:?} has {} of {total} birch leaves at distance 7 after decoration — vanilla has ~0, and distance-7 leaves decay in-game",
+            histogram[7]
+        );
+    }
 }
