@@ -15091,12 +15091,65 @@ is the oracle; decompiled code is a reading aid.
     to do.
   - Verification: read / only; no code / changed.
 
+- **Item 384 — ClientPacketListener**
+  - ClientPacketListener:
+    verified, no code. The
+    465-line diff is mostly
+    already-closed ground -
+    the dialog and waypoint
+    removals
+    (handleWaypoint,
+    waypointManager,
+    createDialogAccess),
+    the ValueInput refactor
+    in the block-entity
+    load, the serverLinks
+    field form (item 349).
+    The live hunks all
+    check out: the 1.21.6
+    command-confirmation
+    flow
+    (sendUnattendedCommand,
+    verifyCommand, the
+    confirm window) is
+    absent and the port
+    already has 1.21.5's
+    send_unsigned_command,
+    with the contrast
+    documented; there is no
+    restricted-commands
+    gating on the client
+    tree; the mount.onboard
+    message already uses
+    say_now; the respawn
+    handler reuses the
+    player object, so the
+    createPlayer
+    input-state difference
+    has no surface; the
+    chat encoder is
+    session-coupled, the
+    1.21.5 shape. The
+    interpolation flip in h
+    andleEntityPositionSync
+    has no surface either -
+    the port repositions
+    the rider every tick,
+    subsuming the one-shot
+    call. Demo events are
+    unhandled entirely
+    (demo mode is not
+    implemented), so their
+    narration difference
+    has no surface.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **383 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 115/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **384 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 116/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
