@@ -13282,3 +13282,9 @@ record for selectors stored in data. The Rust ports
 item-to-interaction map record 26.1 replaced with the Dispatcher.
 The Rust already cites `InteractionMap.get` and implements the
 1.21.11 form.
+
+## Item 792 — gametest/framework (new-classes) — NO-CHANGE
+
+1 class: `TestEnvironmentDefinition$TimeOfDay` — a record whose
+setup calls `ServerLevel.setDayTime`, with no teardown. The Rust
+implements it in full (`test_environments.rs`).
