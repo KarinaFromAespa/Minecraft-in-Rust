@@ -12824,3 +12824,7 @@ Record-vs-field access (`ChunkPos.x()` vs `ChunkPos.x`), as item 725.
 ## Item 731 — launcher/src/wardrobe.rs (GLFWErrorCapture$Error) — NO-CHANGE
 
 26.1-only class; no usage anywhere in the Rust (winit, not GLFW).
+
+## Item 732 — client/gui/screens/advancements (AdvancementTabType$Sprites) — NO-CHANGE
+
+Visibility only.
