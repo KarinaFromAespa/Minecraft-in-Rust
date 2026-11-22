@@ -15302,12 +15302,39 @@ is the oracle; decompiled code is a reading aid.
     anywhere.
   - Verification: read / only; no code / changed.
 
+- **Item 392 — WoodlandMansionPieces SecondFloorRoomCollection**
+  - WoodlandMansionPieces S
+    econdFloorRoomCollectio
+    n: CODE. The
+    second/third-floor 1x1
+    rooms pick from
+    1x1_b1..b4 in 1.21.5
+    (nextInt(4)) and
+    1x1_b1..b5 in 1.21.6,
+    which added a fifth
+    room. The port's
+    room_name used n(5) -
+    the 1.21.6 form - now
+    n(4) for the upper
+    floors, with a comment.
+    The first floor's 1x1_a
+    keeps n(5) in both
+    versions. javap on the
+    1.21.6 named jar
+    confirmed ThirdFloorRoo
+    mCollection inherits
+    get1x1 with no
+    override, so the port's
+    shared upper-floor
+    branch is right.
+  - Verification: cargo / check -p / horizon-world / passes.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **391 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 123/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **392 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 124/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

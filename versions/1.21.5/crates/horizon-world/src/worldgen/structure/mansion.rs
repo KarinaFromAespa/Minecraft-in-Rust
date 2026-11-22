@@ -369,7 +369,9 @@ fn room_name(floor: usize, kind: &str, r: &mut impl RandomSource, stairs: bool) 
         }
     } else {
         match kind {
-            "1x1" => format!("1x1_b{}", n(5)),
+            // SecondFloorRoomCollection.get1x1: 1x1_b1..b4 in 1.21.5;
+            // 1.21.6 added a fifth room (nextInt(5)).
+            "1x1" => format!("1x1_b{}", n(4)),
             "1x1s" => format!("1x1_as{}", n(4)),
             "side" if stairs => "1x2_c_stairs".into(),
             "side" => format!("1x2_c{}", n(4)),
