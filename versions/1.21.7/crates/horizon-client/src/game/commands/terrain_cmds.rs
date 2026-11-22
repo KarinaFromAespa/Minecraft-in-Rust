@@ -1392,7 +1392,7 @@ mod loot_position_tests {
         let table = |counts: &[i32]| {
             serde_json::json!({"pools":counts.iter().map(|count| serde_json::json!({
             "rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:iron_ingot",
-                "modifier":{"type":"minecraft:set_count","count":count}}]
+                "functions": [{"type":"minecraft:set_count","count":count}]}]
         })).collect::<Vec<_>>()})
             .to_string()
         };
@@ -1554,7 +1554,7 @@ mod loot_mine_location_tests {
     use crate::game::{Audio, Options, Progress, Settings, load_resources};
     use horizon_client::{chunk::Chunk, containers::BlockEntity};
     use std::sync::Arc;
-    const TABLE: &str = r###"{"type":"minecraft:block","pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:emerald","modifier":{"type":"minecraft:set_count","count":2}}]},{"rolls":1,"condition":{"type":"minecraft:location_check","offsetX":1,"predicate":{"block":{"blocks":"minecraft:oak_log","state":{"axis":"x"}}}},"entries":[{"type":"minecraft:item","name":"minecraft:diamond"}]}]}"###;
+    const TABLE: &str = r###"{"type":"minecraft:block","pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:emerald","functions": [{"type":"minecraft:set_count","count":2}]}]},{"rolls":1,"conditions": [{"type":"minecraft:location_check","offsetX":1,"predicate":{"block":{"blocks":"minecraft:oak_log","state":{"axis":"x"}}}}],"entries":[{"type":"minecraft:item","name":"minecraft:diamond"}]}]}"###;
     #[test]
     #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES and scratch homes/cwd"]
     fn loot_mine_location_reads_actual_offset_block_state() {

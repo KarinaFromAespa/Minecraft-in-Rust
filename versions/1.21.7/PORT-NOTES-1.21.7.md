@@ -1401,3 +1401,62 @@ feature -- vanilla 1.21.7's pause menu has "Open to LAN" instead
 (`menu.shareToLan`). Restoring the 1.21.7 pause menu and title
 screen to their vanilla forms is a screen-parity rework, not part
 of this translation fix.
+Survival block breaking drops nothing: the loot evaluators read the
+26.3 field names (2026-11-22). The owner reported, playing the
+verification build, that breaking blocks in survival dropped nothing
+-- a log gave no wood, dirt gave no dirt; blocks vanished as if in
+creative mode, though the HUD and World Options both showed survival.
+Two hypotheses were checked. The game-mode desync was exonerated:
+the world was created creative and switched to survival in-game, but
+the mode change propagates intact (window `apply_world_options` ->
+server thread `set_owner_mode` -> `hub.set_game_mode` -> `GameEvent`
+packet -> window `set_mode_id`), the LAN hub exists at integrated
+server startup, and server-side breaks run inside `as_guest`, which
+swaps in the guest's mode -- the break path sees survival. The defect
+was the loot tables. `LootContext::condition` (horizon-items/items.rs)
+read a condition object's kind only from `"type"`, but 1.21.7 data
+names it `"condition"`: `dirt.json` and `oak_log.json` both carry
+`"conditions": [{"condition": "minecraft:survives_explosion"}]`, so
+the kind resolved to `""`, matched no arm, and the pool was skipped
+-- 733 of the 1,023 block tables carry that condition (counted in the
+laptop's prepared data), so most blocks dropped nothing at all. The
+failure is silent (an empty drop vec, no log error). This is the same
+defect class the 26.2 port fixed, never carried to 1.21.7; the fix
+mirrors 26.2 across all three evaluators. In `horizon-items` (block
+and entity drops): `condition()` now reads `"type"` or `"condition"`;
+`evaluate()` / `expand()` / nested entries apply `"functions"`
+instead of `"modifier"` (1.21.7 data puts entry functions there --
+diamond ore's fortune `apply_bonus` and `explosion_decay` were
+silently dropped too); `conditions()` drops the single-`"condition"`
+check (26.3's form). In `horizon-world` loot.rs (chests, fishing,
+dispensers, vaults, decorated pots): the same condition-kind fallback,
+plus the function-kind fallback (`"type"` or `"function"`) in `run()`
+and `"functions"` / `"conditions"` in `table_raw` / `expand` /
+`create` / `modify`. In `loot/odds.rs` (the odds calculator, whose
+kind reading already handled both keys): the container keys migrate
+to `"functions"` / `"conditions"`; odds.rs and odds_tests.rs are now
+byte-identical to 26.2's. Test fixtures in items.rs, loot.rs,
+odds_tests.rs and terrain_cmds.rs move to the 1.21.7 form (26.2 left
+its terrain_cmds fixtures in 26.3 form -- worth a look there).
+Regression tests: items.rs
+`conditions_read_the_1_21_7_condition_key_as_well_as_type` (a dirt
+table naming `survives_explosion` via each key drops dirt), loot.rs
+`conditions_read_the_1_21_7_condition_key_as_well_as_type`
+(`random_chance` 1.0 via each key) and
+`entry_functions_apply_before_pool_and_table_functions` (entry 2 +
+pool 3 + table 10 = 15); all three fail with their production line
+reverted (negative control) and pass with the fix. Suites:
+horizon-items lib 111 pass / 0 fail (1 ignored); horizon-world lib
+loot filter 39 pass / 0 fail. `cargo check` on both crates passes;
+clippy and the horizon-client suite were not run locally (VM
+contention -- one test build OOM-killed, the next needed
+`taskset -c 0`); CI covers them. Known adjacent gaps, not fixed here:
+loot.rs has no `survives_explosion` arm (no table reaching that
+evaluator carries it in 1.21.7 data, so it is dormant); the prepared
+data has no `item_modifier` / `predicate` directories, so registry
+references to them resolve to nothing; `horizon-port-pack`'s carry
+code still writes 26.3-form `"modifier"` / `"condition"` keys (26.2
+left it the same way). Same defect class as the water, trees and
+leaves bugs: 26.x field/tag names for things 1.21.7 names
+differently. Sibling versions that inherited the same 26.3-form
+evaluators need the same carry-over -- sequenced separately.
