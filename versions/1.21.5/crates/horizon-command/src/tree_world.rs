@@ -61,6 +61,9 @@ pub fn register(d: &mut Dispatcher, root: usize) {
         "feature",
         ArgType::ResourceOrId("minecraft:worldgen/feature"),
     );
+    // PlaceCommand's feature is a ResourceKeyArgument, whose listSuggestions
+    // offers the registry's keys in 1.21.5.
+    d.suggests(f, super::Suggests::Registry("minecraft:worldgen/feature"));
     d.executes(f, "place.feature");
     let pos = d.argument(f, "pos", ArgType::BlockPos);
     d.executes(pos, "place.feature");
@@ -388,6 +391,8 @@ fn loot(d: &mut Dispatcher, root: usize) {
             "loot_table",
             ArgType::ResourceOrId("minecraft:loot_table"),
         );
+        // LootCommand.SUGGEST_LOOT_TABLE.
+        d.suggests(table, super::Suggests::Registry("minecraft:loot_table"));
         let pos = d.argument(table, "pos", ArgType::BlockPos);
         d.executes(pos, "loot.fish");
         for hand in ["mainhand", "offhand"] {
@@ -402,6 +407,8 @@ fn loot(d: &mut Dispatcher, root: usize) {
             "loot_table",
             ArgType::ResourceOrId("minecraft:loot_table"),
         );
+        // LootCommand.SUGGEST_LOOT_TABLE.
+        d.suggests(lt, super::Suggests::Registry("minecraft:loot_table"));
         d.executes(lt, "loot.loot");
         let kill = d.literal(t, "kill");
         let target = d.argument(kill, "target", ENTITY);

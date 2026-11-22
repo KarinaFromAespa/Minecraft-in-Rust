@@ -324,6 +324,11 @@ pub enum Suggests {
     NonWhitelisted,
     /// WhitelistCommand `remove`: the whitelisted names (PlayerList.getWhiteListNames).
     Whitelisted,
+    /// A command's own registry provider (SharedSuggestionProvider.suggestResource):
+    /// ItemCommands.SUGGEST_MODIFIER, LootCommand.SUGGEST_LOOT_TABLE, and the
+    /// /place feature's ResourceKeyArgument listSuggestions. ResourceOrIdArgument
+    /// itself has no listSuggestions in 1.21.5, so these nodes carry their own.
+    Registry(&'static str),
 }
 impl Node {
     pub fn name(&self) -> &str {
@@ -738,6 +743,9 @@ impl Suggests {
             }
             Suggests::Whitelisted => {
                 builder.suggest_matching(reg.whitelisted.iter().map(String::as_str))
+            }
+            Suggests::Registry(registry) => {
+                args::suggest_resources(builder, reg.ids(registry), "")
             }
             Suggests::Nothing | Suggests::AskServer => {}
         }

@@ -13832,12 +13832,62 @@ is the oracle; decompiled code is a reading aid.
     delta.
   - Verification: read / only; no code / changed.
 
+- **Item 339 — /item**
+  - /item: CODE. The
+    92-line diff is the
+    permission spelling
+    (level 2, unchanged)
+    plus 1.21.5's
+    SUGGEST_MODIFIER on all
+    six modifier arguments
+    - 1.21.6 dropped the
+    explicit providers
+    because its
+    ResourceOrIdArgument
+    suggests registry
+    ELEMENTS itself. That
+    exposed a wrong claim
+    in item 327: the port
+    DID suggest for every
+    ResourceOrId argument,
+    through the arg-type
+    fallback - the 1.21.6
+    behaviour, not
+    1.21.5's. The mechanism
+    is now the 1.21.5 one:
+    the ResourceOrId
+    fallback suggests
+    nothing, and a new
+    Suggests::Registry
+    provider carries the
+    per-command lists -
+    item_modifier on both
+    /item modifier sites,
+    loot_table on both
+    /loot sites
+    (SUGGEST_LOOT_TABLE),
+    and worldgen/feature on
+    /place feature, whose
+    vanilla
+    ResourceKeyArgument
+    suggests in 1.21.5.
+    /execute's predicate
+    and the /compute and
+    /data providers now
+    suggest nothing, as
+    1.21.5 does. New test
+    pins all three cases.
+  - Verification: cargo test -j 1 -p
+    horizon-command --lib
+    passed, 55/55 (new test
+    included).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **338 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 70/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **339 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 71/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

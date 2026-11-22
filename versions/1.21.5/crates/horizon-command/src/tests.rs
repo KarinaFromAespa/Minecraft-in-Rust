@@ -311,6 +311,27 @@ fn suggestions_like_vanilla() {
     assert_eq!(suggestions("time set 5"), ["d", "s", "t"]);
     assert!(suggestions("time set ").contains(&"minecraft:day".to_owned()));
 }
+/// ResourceOrIdArgument has no listSuggestions in 1.21.5 (the ELEMENTS
+/// override is 1.21.6-only): only the nodes whose command adds its own
+/// provider suggest - /item's modifier (SUGGEST_MODIFIER) and /loot's
+/// loot_table (SUGGEST_LOOT_TABLE) - while /execute's predicate suggests
+/// nothing.
+#[test]
+fn resource_or_id_suggestions_are_per_command() {
+    assert_eq!(
+        suggestions("item modify entity @s weapon.mainhand "),
+        ["a:b"]
+    );
+    assert_eq!(
+        suggestions("loot give @s loot "),
+        [
+            "minecraft:chests/simple_dungeon",
+            "minecraft:chests/x",
+            "minecraft:gameplay/fishing",
+        ]
+    );
+    assert!(suggestions("execute if predicate ").is_empty());
+}
 /// ClientSuggestionProvider: block and column positions offer the targeted
 /// block (`getRelevantCoordinates`), `Vec3` and `Vec2` the exact hit point
 /// with two decimals (`getAbsoluteCoordinates`); with no block hit, `~`.

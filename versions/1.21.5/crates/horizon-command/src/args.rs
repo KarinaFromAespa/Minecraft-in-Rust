@@ -1816,7 +1816,10 @@ impl ArgType {
                 builder.add(sub);
                 suggest_resources(builder, reg.ids("minecraft:slot_source"), "");
             }
-            ArgType::ResourceOrId(registry) => suggest_resources(builder, reg.ids(registry), ""),
+            // ResourceOrIdArgument has no listSuggestions in 1.21.5 (the
+            // ELEMENTS override is 1.21.6-only); nodes that suggest carry
+            // their own provider (SUGGEST_MODIFIER, SUGGEST_LOOT_TABLE).
+            ArgType::ResourceOrId(_) => {}
             ArgType::TeamColor => {
                 builder.suggest_matching(horizon_client_core::scoreboard::team_colors())
             }

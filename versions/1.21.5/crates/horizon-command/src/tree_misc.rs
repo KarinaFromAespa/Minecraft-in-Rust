@@ -169,6 +169,9 @@ fn item(d: &mut Dispatcher, root: usize) {
             "modifier",
             ArgType::ResourceOrId("minecraft:item_modifier"),
         );
+        // ItemCommands.SUGGEST_MODIFIER: ResourceOrIdArgument itself has no
+        // listSuggestions in 1.21.5.
+        d.suggests(modifier, super::Suggests::Registry("minecraft:item_modifier"));
         d.executes(modifier, "item.modify");
     }
     for mode in ["replace", "fill", "override"] {
@@ -201,6 +204,8 @@ fn item(d: &mut Dispatcher, root: usize) {
                     "modifier",
                     ArgType::ResourceOrId("minecraft:item_modifier"),
                 );
+                // ItemCommands.SUGGEST_MODIFIER.
+                d.suggests(modifier, super::Suggests::Registry("minecraft:item_modifier"));
                 d.executes(modifier, "item");
             }
         }
