@@ -14185,12 +14185,35 @@ is the oracle; decompiled code is a reading aid.
     changed, no test run /
     needed.
 
+- **Item 351 — TestInstanceRenderer**
+  - TestInstanceRenderer:
+    verified, no code. The
+    14-line diff is the
+    shouldRenderOffScreen
+    signature - 1.21.6's
+    no-arg override versus
+    1.21.5's form taking
+    the block entity - with
+    the same body: beacon
+    OR box. The beacon
+    renderer always renders
+    off-screen, so the test
+    instance always does in
+    both versions, and the
+    port's frustum-culling
+    exemption already lists
+    minecraft:test_instance
+    _block unconditionally.
+    The interface signature
+    has no Rust surface.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **350 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 82/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **351 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 83/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
