@@ -13288,3 +13288,8 @@ The Rust already cites `InteractionMap.get` and implements the
 1 class: `TestEnvironmentDefinition$TimeOfDay` — a record whose
 setup calls `ServerLevel.setDayTime`, with no teardown. The Rust
 implements it in full (`test_environments.rs`).
+
+## Item 793 — realms (new-classes) — NO-CHANGE
+
+1 class: `RealmsLabel` — a trivial renderable drawing a centred
+string. The Rust cites it and draws the equivalent centred text.
