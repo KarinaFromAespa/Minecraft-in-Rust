@@ -1,0 +1,147 @@
+name: client-build
+
+# Builds the playable game client (horizon-client) for one version or for
+# all 19 version trees, on Windows, and uploads each binary as an
+# artifact — so a laptop can download a freshly built client instead of
+# compiling it locally. Dispatch-only: run it when a version is about to
+# be playtested, never automatically.
+#
+# The build is the laptop's own build command (build-<version>.bat):
+#   cargo build --release -p horizon-client -p horizon-client-lib --bins
+# run in versions/<version>/. It needs only the source tree and Rust:
+# no Java, no Mojang downloads, nothing committed. The client's build
+# script generates the native mod API from the tree and stamps the .exe
+# icon/resources; the language files it embeds are committed source
+# assets. The prepared game data (.local/) is runtime data only — the
+# laptop keeps its own copy from `prepare`, the build never touches it.
+#
+# Windows is the playtest target (the owner's laptop), so this workflow
+# builds Windows only. Rust 1.95.0 (the version trees' rust-version,
+# same as port-verify and launcher-build). -C target-feature=+crt-static
+# on Windows so the .exe runs without the Visual C++ redistributable
+# (upstream's launcher.yml does the same). No --locked: port-verify and
+# the laptop build do not use it, and a stale game-workspace lockfile in
+# any tree would fail its build.
+#
+# The binary cannot be smoke-tested headless (it is a GUI app with no
+# --version path), so the smoke step only checks the .exe exists and is
+# non-empty; the playtest itself is the verification.
+#
+# Dispatched manually:
+#   gh workflow run client-build.yml -f version=1.21.7
+#   gh workflow run client-build.yml -f version=all
+# Binaries land in the horizon-client-<version>-windows artifacts.
+# On the laptop, pull-client.bat (Muse Hub) downloads the latest build
+# for a version into versions/<version>/target/release/.
+#
+# Cache note: each version's rust-cache entry is large (the game
+# workspace), and GitHub evicts cache LRU past the 10 GB repo limit, so
+# a full-matrix run may rebuild some versions cold. Single-version
+# dispatches are the normal case and keep their cache.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version directory under versions/ (e.g. 1.21.7), or 'all' for every version tree"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  HORIZON_TELEMETRY_URL: "off"
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve the version input into the build matrix
+        id: matrix
+        env:
+          WANTED: ${{ inputs.version }}
+        run: |
+          python3 - <<'EOF'
+          import json, os
+          wanted = os.environ["WANTED"]
+          def has_client(v):
+              return os.path.isfile(os.path.join("versions", v, "crates", "horizon-client", "Cargo.toml"))
+          if wanted == "all":
+              versions = sorted(d for d in os.listdir("versions") if has_client(d))
+              if not versions:
+                  raise SystemExit("no version tree has a horizon-client crate")
+          else:
+              if not has_client(wanted):
+                  raise SystemExit(f"no horizon-client crate in versions/{wanted}")
+              versions = [wanted]
+          print("versions:", ", ".join(versions))
+          include = [{"version": v, "runs-on": "windows-latest"} for v in versions]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("matrix=" + json.dumps({"include": include}) + "\n")
+          EOF
+
+  build:
+    needs: resolve
+    name: build ${{ matrix.version }} (windows)
+    runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.resolve.outputs.matrix) }}
+    env:
+      RUSTFLAGS: -C target-feature=+crt-static
+    defaults:
+      run:
+        # Git Bash on Windows, so the build and smoke steps read the same
+        # as the launcher workflow's (upstream's launcher.yml does this too).
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: versions/${{ matrix.version }}
+          shared-key: client-${{ matrix.version }}-windows
+          cache-on-failure: true
+
+      # The laptop's own build command (build-<version>.bat), without
+      # --locked: port-verify and the laptop build do not use it.
+      - name: Build the client
+        run: |
+          cd "versions/${{ matrix.version }}"
+          cargo build --release -p horizon-client -p horizon-client-lib --bins --color=never
+
+      # No headless smoke run: the client is a GUI app with no --version
+      # path. Check the binary exists and is non-empty instead.
+      - name: The binary exists
+        run: |
+          BIN="versions/${{ matrix.version }}/target/release/horizon-client.exe"
+          [ -s "$BIN" ] || { echo "::error::binary missing or empty: $BIN"; exit 1; }
+          ls -l "$BIN"
+
+      - name: Upload the client binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: horizon-client-${{ matrix.version }}-windows
+          path: versions/${{ matrix.version }}/target/release/horizon-client.exe
+          if-no-files-found: error
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## client-build — ${{ matrix.version }} (windows)"
+            echo
+            echo "binary: \`versions/${{ matrix.version }}/target/release/horizon-client.exe\`"
+            ls -l "versions/${{ matrix.version }}/target/release/horizon-client.exe" 2>/dev/null || echo "binary missing"
+          } >> "$GITHUB_STEP_SUMMARY"
