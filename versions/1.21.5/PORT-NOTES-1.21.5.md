@@ -14604,12 +14604,34 @@ is the oracle; decompiled code is a reading aid.
     in its comment.
   - Verification: read / only; no code / changed.
 
+- **Item 367 — /debug**
+  - /debug: verified, no
+    code. The 16-line diff
+    is pure predicate
+    spelling - Commands.has
+    Permission(3) in
+    1.21.6, the equivalent
+    lambda in 1.21.5 - on
+    both the root and the
+    function subcommand,
+    level 3 in both
+    versions. The port's
+    tree already requires
+    ADMINS (3) on both
+    nodes, and the function
+    argument already
+    carries
+    SUGGEST_FUNCTION. Item
+    289/330's ground, same
+    delta.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **366 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 98/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **367 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 99/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
