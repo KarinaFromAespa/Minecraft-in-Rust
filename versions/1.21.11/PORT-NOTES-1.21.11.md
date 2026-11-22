@@ -13008,3 +13008,14 @@ work in 26.1's shape with identical per-chunk behaviour, verified
 against the decompile: the position check, the erase-cache branch,
 the `new_` prefix, the chunk/entities/poi folders, and the default
 versions (-1, 1945 for POI).
+
+## Item 757 — world/level/block (new-classes) — NO-CHANGE
+
+6 classes: the 1.21.11 block names 26.x renamed (`FarmBlock`,
+`FungusBlock`, `RootsBlock`, `SnowyDirtBlock`,
+`SpreadingSnowyDirtBlock`, `WaterlilyBlock`). All are covered by
+`Class` in classes.rs — item 726 added the 1.21.11 aliases for the
+first five, and `LilyPad` already matched `WaterlilyBlock` — each
+with live behaviour through the Class dispatch (farmland, fungus and
+roots survival, snowy placement, lily pad hooks). The farmland
+random tick was spot-checked against `FarmBlock.randomTick`.
