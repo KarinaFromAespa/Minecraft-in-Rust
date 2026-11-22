@@ -566,7 +566,8 @@ pub enum ListKind {
 }
 
 /// A row of an `ObjectSelectionList` (its `getNarration`) or a tab (its
-/// title and `getTabExtraNarration`).
+/// title; 1.21.5's Tab has no `getTabExtraNarration` - that is 1.21.6-only -
+/// so the port's tab rows carry an empty hint).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Row {
     pub index: usize,

@@ -14876,12 +14876,42 @@ is the oracle; decompiled code is a reading aid.
     no port surface.
   - Verification: read / only; no code / changed.
 
+- **Item 377 — Tab**
+  - Tab: comment fix. The
+    11-line diff is the
+    1.21.6-only
+    getTabExtraNarration()
+    method on the Tab
+    interface, absent in
+    1.21.5. The port's tab
+    narration already
+    matches 1.21.5: both
+    tab-row call sites
+    (stats screen, create
+    world) build their rows
+    from the tab title
+    alone with an empty
+    hint - the create-world
+    comment even notes its
+    tabs have no extra
+    narration. Only the Row
+    doc comment cited
+    getTabExtraNarration as
+    a tab's narration
+    source; it now says the
+    method is 1.21.6-only
+    and the port's tab rows
+    carry an empty hint.
+  - Verification: Comment-only change; no
+    code / changed, no test
+    run / needed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **376 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 108/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **377 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 109/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
