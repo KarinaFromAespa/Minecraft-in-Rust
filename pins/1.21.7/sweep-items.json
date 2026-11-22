@@ -92,6 +92,16 @@
         "total": 69
       },
       "status": "complete"
+    },
+    "7": {
+      "name": "Items",
+      "date": "2026-11-22",
+      "checks": {
+        "gap": 14,
+        "pass": 26,
+        "total": 40
+      },
+      "status": "complete"
     }
   },
   "items": [
@@ -1422,6 +1432,102 @@
       "severity": "minor",
       "status": "gap",
       "title": "VanillaBiomeZoomOracle uses a wrong BiomeManager.getBiome signature"
+    },
+    {
+      "evidence": "Batch 0's component_patch end-to-end sample: first divergence at output line 106,152; Rust has exactly 77 'result error' vs vanilla 0, and with old/result lines stripped both 527,506-line outputs are byte-identical. Vanilla PatchedDataComponentMap.set returns previous.orElse(prototype) \u2014 null with no prototype, never an error. Rust ComponentMap::set (horizon-world/src/component_patch.rs) returns Err(MissingPrototype) when overwriting a removal marker with no prototype default. Return-value-only divergence; requires a dangling removal marker (only unsanitized restore_patch creates one).",
+      "id": "B7-G01",
+      "method": "javap + source + Batch 0 oracle outputs",
+      "severity": "minor",
+      "status": "gap",
+      "title": "ComponentMap.set returns an error where vanilla returns null (dangling removal marker)"
+    },
+    {
+      "evidence": "Rust bucket_empty pours beside the clicked block when sneaking. Zero isShiftKeyDown references in vanilla BucketItem/MobBucketItem/SolidBucketItem use, emptyContents, or SimpleWaterloggedBlock.canPlaceLiquid (all javap-verified). Likely a 26.x behaviour leaked into the 1.21.7 port. Dispensers unaffected (beside=None).",
+      "id": "B7-G02",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Bucket sneak-redirect: the port pours beside the clicked block while sneaking; vanilla 1.21.7 has no sneak check in the bucket path"
+    },
+    {
+      "evidence": "Vanilla SpawnEggItem.getType reads entity_data's id via CustomData.parseEntityType and spawns that type; the Rust derives the type from the item name only (trim_end_matches(\"_spawn_egg\")). Commands/op-only edge.",
+      "id": "B7-G03",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Spawn egg entity_data id type override ignored"
+    },
+    {
+      "evidence": "Rust spawn_egg_allowed blocks the use (egg kept, no spawn). Vanilla has no difficulty gate in EntityType.spawn; the egg is consumed, the mob spawns, and Mob.checkDespawn discards it on the next tick (peaceful + shouldDespawnInPeaceful). The Rust also has tick-time peaceful removal (mobs/ai.rs), so the gate is an extra, divergent block.",
+      "id": "B7-G04",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Hostile spawn eggs refused in peaceful instead of spawn-then-despawn + consume"
+    },
+    {
+      "evidence": "Vanilla SpawnEggItem.useOn posts gameEvent(player, ENTITY_PLACE, blockPos) at the CLICKED pos; the Rust posts it at the spawn position. The fluid use path matches (entity position is the same block).",
+      "id": "B7-G05",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Spawn-egg useOn posts ENTITY_PLACE at the spawn position instead of the clicked block"
+    },
+    {
+      "evidence": "Vanilla EntityType.spawn plays the mob's ambient sound on placement. The Rust's mobs::ai::ambient_sound exists (comment: 'a spawn egg or a mob bucket just placed m') but is only called from the dispenser path and a test \u2014 zero callers in creatures.rs.",
+      "id": "B7-G06",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "No Mob.playAmbientSound() on spawn-egg or mob-bucket placement"
+    },
+    {
+      "evidence": "Vanilla 1.21.7 hardcodes the maps in AxeItem (STRIPPABLES 23 entries), HoeItem (TILLABLES 5 entries) and ShovelItem (FLATTENABLES 6 entries), all javap-extracted. The port has (a) no minecraft:block_transformer component on any item in prepared items.json, (b) no data/minecraft/block_transformer/ JSONs in prepared data, (c) ItemInfo.block_transformer sourced ONLY from the component with no synthesis, so block_transform returns None and use_block_transformer always returns false; (d) no fallback strip/till/path code anywhere in the game. The 1.21.7 prepare step never synthesized the registry from the jar's hardcoded maps.",
+      "id": "B7-G07",
+      "method": "javap + source + data",
+      "severity": "major",
+      "status": "gap",
+      "title": "Axe strip/scrape/wax-off, hoe till, shovel path-making entirely non-functional: the port routes them through the 26.x block_transformer registry, which does not exist in 1.21.7"
+    },
+    {
+      "evidence": "Rust campfire_to_douse checks the item tag minecraft:douses_campfires, which does not exist in the 1.21.7 jar (0 files) or prepared item tags, so the filter always fails. 1.21.7's CampfireBlock.useItemOn only places food; dousing lives only in ShovelItem.useOn's campfire branch (lit campfire -> dowse + level event 1009), which has no implementation.",
+      "id": "B7-G08",
+      "method": "javap + source + data",
+      "severity": "major",
+      "status": "gap",
+      "title": "Shovel campfire douse dead: the port gates it on the 26.x #douses_campfires item tag, absent in 1.21.7"
+    },
+    {
+      "evidence": "Rust Game::random_teleport walks down looking for a block in #minecraft:entities_can_teleport_to, a 26.x tag that does not exist in the 1.21.7 jar (0 files) and is not in prepared block-tags.json, so the loop always runs to min_y and returns false; all 16 attempts fail. Vanilla LivingEntity.randomTeleport grounds on BlockState.blocksMotion(), then checks noCollision + !containsAnyLiquid. The avoid tag minecraft:consumable_does_not_teleport_to is likewise absent in 1.21.7 (dead no-op check). Same tag is also used by endermen (mobs/enderman.rs) and spreadplayers-style code (game/commands/world_cmds.rs) \u2014 flagged for Batch 8 / commands routing; Batch 7 owns only the chorus-fruit instance.",
+      "id": "B7-G09",
+      "method": "javap + source + data",
+      "severity": "major",
+      "status": "gap",
+      "title": "Chorus fruit never teleports: the port grounds on the absent #entities_can_teleport_to tag"
+    },
+    {
+      "evidence": "Vanilla AbstractThrownPotion.onHit/onHitBlock gate onHitAsWater on PotionContents.is(Potions.WATER) directly (javap-verified). The Rust gates all three behaviours on potion tags (minecraft:douses_fire, minecraft:hurts_water_sensitive_entities, minecraft:extinguishes_entities) read from tags/potion \u2014 but the 1.21.7 jar has no PotionTags class and no data/minecraft/tags/potion/, and prepared data has no potion tag directory, so potion_in_tag always returns false. The douse positions, hurt amount (1.0 indirect magic) and extinguish logic are otherwise exactly right \u2014 only the gate is dead. Axolotl rehydrate works via a separate direct water check in splash().",
+      "id": "B7-G10",
+      "method": "javap + source + data",
+      "severity": "major",
+      "status": "gap",
+      "title": "Water splash/lingering bottles do nothing on impact except axolotl rehydrate: dowse-fire, hurt-water-sensitive and extinguish-entities are all gated on potion tags that do not exist in 1.21.7"
+    },
+    {
+      "evidence": "The real 1.21.7 tag is minecraft:convertable_to_mud (Mojang's spelling, with an A) \u2014 jar data/minecraft/tags/block/convertable_to_mud.json exists with dirt/coarse_dirt/rooted_dirt, and prepared block-tags.json carries the same key. The Rust looks up minecraft:convertible_to_mud (with an I) in three places (potions.rs use_water_bottle_on_block, dispenser.rs, remote.rs prediction) plus a data.rs enum entry, so the lookup always misses. PotionItem.useOn's mud conversion never fires (player use, dispenser and prediction all dead).",
+      "id": "B7-G11",
+      "method": "javap + source + data",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Water bottle on dirt never makes mud: the port checks the tag as convertible_to_mud, but 1.21.7 spells it convertable_to_mud"
+    },
+    {
+      "evidence": "Vanilla BoatItem.use returns PASS when the player's eye is inside a pickable entity's inflated bounding box (entities in the player bbox expanded 5.0 along the view + inflate 1.0). The Rust's boat_to_place only checks the boat's own bbox (unobstructed + boat_entity_collision). Edge case: standing inside a mob while placing a boat \u2014 the Rust places where vanilla passes.",
+      "id": "B7-G12",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Boat placement missing the eye-inside-entity PASS check"
     }
   ]
 }
