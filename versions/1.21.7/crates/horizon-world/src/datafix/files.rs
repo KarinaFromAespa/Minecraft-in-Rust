@@ -710,18 +710,66 @@ pub fn current_world_gen_settings(base: &Path) -> io::Result<Option<Tag>> {
 
 // ------------------------------------------------------------------ the read-time upgrades
 
-/// Chunk generator types per dimension from `world_gen_settings.dat`, the
-/// `generator` of the context the chunk fixes read.
+/// The generator type of each dimension of the world at `base`, as the chunk
+/// fixes read it from `__context`: vanilla 1.21.7 keeps the settings in
+/// level.dat's `Data.WorldGenSettings` — it never writes
+/// `world_gen_settings.dat` (that file is the 26.x `LevelDatToSavedDataFileFix`
+/// move, at 4772, past this build's CURRENT), so a lookup of the file alone
+/// found no generator for any 1.21.7 world and `ChunkHeightAndBiomeFix`
+/// never added `blending_data` to a pre-1.18 chunk. The file still wins per
+/// dimension when a 26.x client has moved the settings there. A vanilla
+/// dimension with no recorded generator gets vanilla's synthesized default:
+/// noise, except an overworld whose level.dat says flat or debug
+/// (`generatorName`, the pre-1.16 field, as `fix_1493` reads it).
 pub fn generators(base: &Path) -> io::Result<Vec<(String, String)>> {
-    let Some(tag) = read_dat(&base.join("data/minecraft/world_gen_settings.dat"))? else {
-        return Ok(Vec::new());
-    };
-    let mut out = Vec::new();
-    if let Some(Tag::Compound(dims)) = tag.get("data").and_then(|d| d.get("dimensions")) {
-        for (id, dim) in dims {
-            if let Some(ty) = dim.get("generator").and_then(|g| as_str(g.get("type"))) {
-                out.push((id.to_string_lossy(), ty));
+    fn set(out: &mut Vec<(String, String)>, id: String, ty: String) {
+        match out.iter_mut().find(|(d, _)| *d == id) {
+            Some((_, g)) => *g = ty,
+            None => out.push((id, ty)),
+        }
+    }
+    fn read_dimensions(out: &mut Vec<(String, String)>, settings: &Tag) {
+        if let Some(Tag::Compound(dims)) = settings.get("dimensions") {
+            for (id, dim) in dims {
+                if let Some(ty) = dim.get("generator").and_then(|g| as_str(g.get("type"))) {
+                    set(out, id.to_string_lossy(), ty);
+                }
             }
+        }
+    }
+    let mut out = Vec::new();
+    let mut level: Option<Tag> = None;
+    if let Some(root) = read_dat(&base.join("level.dat"))? {
+        let data = root
+            .get("Data")
+            .cloned()
+            .unwrap_or_else(|| Tag::Compound(Compound::new()));
+        if let Some(settings) = data.get("WorldGenSettings") {
+            read_dimensions(&mut out, settings);
+        }
+        level = Some(data);
+    }
+    if let Some(tag) = read_dat(&base.join("data/minecraft/world_gen_settings.dat"))? {
+        if let Some(settings) = tag.get("data") {
+            read_dimensions(&mut out, settings);
+        }
+    }
+    let overworld_default = match level
+        .as_ref()
+        .and_then(|d| as_str(d.get("generatorName")))
+        .as_deref()
+    {
+        Some("flat") => "minecraft:flat",
+        Some("debug_all_block_states") => "minecraft:debug",
+        _ => "minecraft:noise",
+    };
+    for (dimension, generator) in [
+        ("minecraft:overworld", overworld_default),
+        ("minecraft:the_nether", "minecraft:noise"),
+        ("minecraft:the_end", "minecraft:noise"),
+    ] {
+        if !out.iter().any(|(d, _)| d == dimension) {
+            out.push((dimension.to_string(), generator.to_string()));
         }
     }
     Ok(out)
@@ -1159,6 +1207,94 @@ mod upgrade_tests {
         assert!(!requires_file_fixing(1519)); // 1.13: past the only applicable fix
         assert!(requires_file_fixing(1343)); // 1.12.2
         assert!(requires_file_fixing(-1)); // no DataVersion: 1.8 and before
+    }
+
+    /// The generator lookup a chunk upgrade reads (`ChunkHeightAndBiomeFix`
+    /// blends only for `minecraft:noise`): vanilla 1.21.7 keeps the settings
+    /// in level.dat's `Data.WorldGenSettings`, never in
+    /// `world_gen_settings.dat`, so the file alone found no generator for
+    /// any 1.21.7 world. The file still wins per dimension when present; a
+    /// vanilla dimension with no recorded generator defaults to noise,
+    /// except a flat or debug overworld named by `generatorName`.
+    #[test]
+    fn generators_come_from_level_dat_with_noise_defaults() {
+        let base = std::env::temp_dir().join(format!("horizon-generators-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        // A bare world: no level.dat, no settings file.
+        let found = generators(&base).unwrap();
+        assert_eq!(
+            found
+                .iter()
+                .find(|(d, _)| d == "minecraft:overworld")
+                .map(|(_, g)| g.as_str()),
+            Some("minecraft:noise")
+        );
+        assert_eq!(
+            found
+                .iter()
+                .find(|(d, _)| d == "minecraft:the_end")
+                .map(|(_, g)| g.as_str()),
+            Some("minecraft:noise")
+        );
+        // A superflat 1.17 world: level.dat names flat, the file is absent.
+        let settings = Tag::compound([(
+            "dimensions",
+            Tag::compound([(
+                "minecraft:overworld",
+                Tag::compound([(
+                    "generator",
+                    Tag::compound([("type", Tag::String("minecraft:flat".into()))]),
+                )]),
+            )]),
+        )]);
+        let level = Tag::compound([(
+            "Data",
+            Tag::compound([
+                ("DataVersion", Tag::Int(2730)),
+                ("WorldGenSettings", settings.clone()),
+            ]),
+        )]);
+        write_dat(&base.join("level.dat"), &level).unwrap();
+        let found = generators(&base).unwrap();
+        assert_eq!(
+            found
+                .iter()
+                .find(|(d, _)| d == "minecraft:overworld")
+                .map(|(_, g)| g.as_str()),
+            Some("minecraft:flat")
+        );
+        assert_eq!(
+            found
+                .iter()
+                .find(|(d, _)| d == "minecraft:the_nether")
+                .map(|(_, g)| g.as_str()),
+            Some("minecraft:noise")
+        );
+        // The 26.x file wins per dimension when a later client moved the
+        // settings there.
+        let moved = Tag::compound([(
+            "data",
+            Tag::compound([(
+                "dimensions",
+                Tag::compound([(
+                    "minecraft:overworld",
+                    Tag::compound([(
+                        "generator",
+                        Tag::compound([("type", Tag::String("minecraft:noise".into()))]),
+                    )]),
+                )]),
+            )]),
+        )]);
+        write_dat(&base.join("data/minecraft/world_gen_settings.dat"), &moved).unwrap();
+        let found = generators(&base).unwrap();
+        assert_eq!(
+            found
+                .iter()
+                .find(|(d, _)| d == "minecraft:overworld")
+                .map(|(_, g)| g.as_str()),
+            Some("minecraft:noise")
+        );
+        let _ = fs::remove_dir_all(&base);
     }
 
     /// The in-memory settings read of a 1.12 world (`save.rs`'s

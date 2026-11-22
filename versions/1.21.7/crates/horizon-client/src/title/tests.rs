@@ -2287,8 +2287,13 @@ fn a_finished_optimization_stamps_the_level_data() {
     f.world("World", "World");
     let path = f.title.saves.join("World/level.dat");
     let mut root = crate::save::read_dat(&path).unwrap();
+    // 1.21.7 form: the fixture is a 1.21 world (DataVersion 3955), genuinely
+    // older than this build's CURRENT (4438) and past the only file fix
+    // (1493), so the optimization runs and stamps it. The 26.x fixture's
+    // 4950 is a future version here, which `fix_world_files` correctly
+    // leaves unstamped, so the assertion below could never pass.
     if let Some(Tag::Compound(data)) = root.get_mut("Data") {
-        data.insert("DataVersion".into(), Tag::Int(4950));
+        data.insert("DataVersion".into(), Tag::Int(3955));
     }
     crate::save::write_dat(&path, root).unwrap();
     f.select();

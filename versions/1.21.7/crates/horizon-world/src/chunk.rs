@@ -212,11 +212,24 @@ impl BlockState {
                 properties: BlockProperties::new(),
             });
         }
-        let Some(Tag::String(name)) = tag.get("id") else {
+        // Vanilla 1.21.7 palettes carry `Name`/`Properties`
+        // (`StateHolder.codec`, jar-verified); the 26.x form is
+        // `id`/`properties` (fix 5006, above this build's CURRENT). Read the
+        // 26.x keys first and fall back to the 1.21.7 keys, so a chunk
+        // vanilla 1.21.7 itself saved — or one upgraded to this build, which
+        // keeps `Name` — decodes instead of reading as air.
+        let name = ["id", "Name"].iter().find_map(|key| match tag.get(key) {
+            Some(Tag::String(name)) => Some(name),
+            _ => None,
+        });
+        let Some(name) = name else {
             return Err(invalid("block state is missing id"));
         };
         let mut properties = Vec::new();
-        if let Some(tag) = tag.get("properties") {
+        let props = ["properties", "Properties"]
+            .iter()
+            .find_map(|key| tag.get(key));
+        if let Some(tag) = props {
             let Tag::Compound(map) = tag else {
                 return Err(invalid("block properties are not a compound"));
             };
@@ -841,6 +854,44 @@ mod tests {
         };
         map.insert(key("data"), Tag::LongArray(vec![-1; 256]));
         assert!(PalettedContainer::from_nbt(&tag, 4096, 4).is_err());
+    }
+
+    /// A palette entry in vanilla 1.21.7's `Name`/`Properties` form decodes
+    /// to the same state as the 26.x `id`/`properties` form: vanilla 1.21.7
+    /// keeps `Name` (fix 5006 renamed it for 26.3 only), so a chunk vanilla
+    /// 1.21.7 itself saved — or one upgraded to this build — would otherwise
+    /// decode as air.
+    #[test]
+    fn block_states_decode_from_either_key_form() {
+        let old = Tag::compound([
+            ("Name", Tag::String(key("minecraft:chain"))),
+            (
+                "Properties",
+                Tag::compound([("axis", Tag::String(key("y")))]),
+            ),
+        ]);
+        let state = BlockState::from_nbt(&old).unwrap();
+        assert_eq!(state.name, "minecraft:chain");
+        assert_eq!(state.properties.get("axis").map(String::as_str), Some("y"));
+
+        let new = Tag::compound([
+            ("id", Tag::String(key("minecraft:chain"))),
+            (
+                "properties",
+                Tag::compound([("axis", Tag::String(key("y")))]),
+            ),
+        ]);
+        let state = BlockState::from_nbt(&new).unwrap();
+        assert_eq!(state.name, "minecraft:chain");
+        assert_eq!(state.properties.get("axis").map(String::as_str), Some("y"));
+
+        let bare = Tag::String(key("minecraft:air"));
+        let state = BlockState::from_nbt(&bare).unwrap();
+        assert_eq!(state.name, "minecraft:air");
+        assert!(state.properties.is_empty());
+
+        let neither = Tag::compound([("other", Tag::String(key("minecraft:air")))]);
+        assert!(BlockState::from_nbt(&neither).is_err());
     }
 
     /// The pre-optimization `get`, kept to compare against in the benchmark.
