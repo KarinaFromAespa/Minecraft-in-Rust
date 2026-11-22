@@ -13387,12 +13387,43 @@ is the oracle; decompiled code is a reading aid.
     client surface.
   - Verification: read / only; no code / changed.
 
+- **Item 326 — Sound options, narrator status**
+  - Sound options screen,
+    NarratorStatus:
+    verified, no code. The
+    1.21.6-only row -
+    musicFrequency plus
+    showNowPlayingToast -
+    has no port surface:
+    the Sound page is
+    master volume (big),
+    the other sound sources
+    in pairs, subtitles
+    plus directional audio,
+    and the sound device
+    (big), the 1.21.5 set. 
+    NarratorStatus.shouldNa
+    rrateSystemOrChat is
+    1.21.6-only and
+    likewise absent;
+    narration gating lives
+    in horizon-narrator
+    behind
+    say/say_chat/say_now.
+    Version-neutral: the
+    port puts the
+    sound-device row after
+    subtitles/directional,
+    vanilla puts it before
+    them in both versions.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **325 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 57/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **326 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 58/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
