@@ -13929,12 +13929,45 @@ is the oracle; decompiled code is a reading aid.
     (dispenser).
   - Verification: read / only; no code / changed.
 
+- **Item 342 — QuadrupedModel / SheepModel**
+  - QuadrupedModel /
+    SheepModel: verified,
+    no code. The 55-line
+    diff is the 1.21.6
+    createBodyMesh
+    signature gaining two
+    mirror flags and a
+    createLegs helper;
+    SheepModel is its only
+    caller and passes
+    (false, true), so
+    1.21.6 mirrors the
+    sheep's left legs while
+    1.21.5 builds all four
+    from one unmirrored
+    builder. The port has
+    no hand-written sheep
+    mesh: entity geometry
+    is baked by the Java
+    oracle into
+    entity-models.json from
+    the version's own
+    sources, so the 1.21.5
+    bake is unmirrored by
+    construction. The Rust
+    side only animates the
+    part names (leg swing,
+    the eat-grass head
+    lower), which the diff
+    does not touch.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **341 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 73/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **342 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 74/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
