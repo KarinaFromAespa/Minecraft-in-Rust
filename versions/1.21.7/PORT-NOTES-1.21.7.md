@@ -1740,3 +1740,41 @@ tree's pinned Template codec. Notes: the transmute `stack` closure
 has no test coverage (no transmute tests exist); the `{"blocks":
 {"tag": ...}}` HolderSet-object form is unused in 1.21.7 data and
 `id_matches` returns false for it.
+Crate-tests misc group: five `horizon-client-lib` failures, four test
+bugs and one port defect (2026-11-22, crate-tests runs 4-6, identical
+failure sets). Painting: `a_painting_keeps_its_variant_across_the_wire`
+failed with "unsupported item component 109" -- but 109 is the 26.x id;
+vanilla 1.21.7's `painting/variant` is id 89, jar-verified from
+`DataComponents`' registration order (96 components, 0..=95), and the
+codec already handled 89 (`Component::PaintingVariant`, the skip arm,
+the `PaintingVariant` direct layout width/height/assetId/title?/author?
+all match the jar). Test fixture corrected to 89 (registry sized to
+the real 96); `skip.rs`' header comment corrected too -- its table is
+1.21.7's order, not 1.21.10's, every arm checked against the jar. Sign:
+`a_signs_text_crosses_the_wire` failed because the test's premise is
+false for 1.21.7: `sign_text_front`/`sign_text_back` do not exist here
+(no `sign_text` string anywhere in the 1.21.7 server jar, and
+`SignBlockEntity` has no `collectImplicitComponents`). The test is
+rewritten as `a_sign_crosses_the_wire_without_text_components` and pins
+the 1.21.7 truth instead: text held in the saved form never reaches
+the wire (the -1001/-1002 internal-marker kinds are filtered by
+`write_patch`), the stack crosses as a plain sign (`[1, 1, 0, 0]`) and
+comes back with no components. The dead sign-text arms in `guest.rs` /
+`item_sync.rs` (keyed on those markers) are left in place. Projectiles:
+`mod_thrown_types_are_found_by_id_and_item_once_registered` failed
+because `lan::tracking::settings` lost the mod-thrown-type fallback in
+the port -- the one real product fix of the group: a registered mod
+thrown type takes its template snowball's settings (4, 10, true)
+instead of the builder defaults (5, 3, true), restoring the 26.3 form
+of `settings`. Realms:
+`requests_send_the_session_cookie_only_and_errors_never_hold_the_token`
+hardcoded 26.3 literals (cookie `version=26.3`, `Client-Ref: 26.3`,
+protocol 777, `Java/25`); the code already sent the right 1.21.7 values
+(1.21.7, 1.21.7, 772, `Java/21`), so the test's expectations were
+corrected. Server packs:
+`a_pack_lands_under_its_hash_and_is_reused_from_the_cache` hardcoded
+`X-Minecraft-Pack-Format: 97.1` (26.3); the code sends 64.0 from
+`RESOURCE_PACK_FORMAT`, correct for 1.21.7, so the test now expects
+64.0. Verification: the `horizon-client-lib` test compile OOM-kills
+on this VM even single-threaded, so no test in this group ran locally;
+execution is owed to the CI crate-tests run after merge.
