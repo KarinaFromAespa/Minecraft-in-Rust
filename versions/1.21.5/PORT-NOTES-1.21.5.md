@@ -13882,12 +13882,30 @@ is the oracle; decompiled code is a reading aid.
     passed, 55/55 (new test
     included).
 
+- **Item 340 — /tellraw and /title**
+  - /tellraw and /title:
+    verified, no code. The
+    22-line diff is pure
+    predicate spelling - Co
+    mmands.hasPermission(2)
+    in 1.21.6, the
+    equivalent lambda in
+    1.21.5 - with both
+    commands at level 2 in
+    both versions. The
+    port's tree already
+    requires GAMEMASTERS
+    (2) on both roots. Item
+    289/330/338's ground,
+    same delta.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **339 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 71/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **340 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 72/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
