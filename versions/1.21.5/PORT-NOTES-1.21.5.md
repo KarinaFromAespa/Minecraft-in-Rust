@@ -14146,12 +14146,51 @@ is the oracle; decompiled code is a reading aid.
     identical.
   - Verification: read / only; no code / changed.
 
+- **Item 350 — AbstractStringWidget / ItemDisplayWidget**
+  - AbstractStringWidget /
+    ItemDisplayWidget:
+    CODE.
+    AbstractStringWidget is
+    the alpha-0 pattern
+    plus a real difference:
+    1.21.5's getColor()
+    returns the raw colour,
+    1.21.6 multiplies in
+    the widget alpha - the
+    port's string_widget
+    already draws WHITE
+    with no alpha
+    multiplication, so no
+    change there. But
+    ItemDisplayWidget is
+    1.21.6-only, and the
+    stats screen cited it:
+    the port narrated item
+    rows with the 26.x
+    narration.item key
+    ("Item: <name>"), while
+    1.21.5's ItemStatistics
+    List.ItemRow narrates
+    narrator.select with
+    the item name - the
+    same key the
+    general-statistics and
+    mob rows already use.
+    The key is fixed and
+    the stale comment
+    reworded.
+  - Verification: One translation-key
+    literal plus a comment;
+    no code / shape
+    changed, no test run /
+    needed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **349 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 81/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **350 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 82/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

@@ -593,11 +593,12 @@ impl Game<'_> {
                         continue;
                     }
                     let stack = ItemStack::new(item, 1);
-                    // ItemRowWidget, an ItemDisplayWidget: "Item: <name>".
+                    // ItemStatisticsList.ItemRow.getNarration: narrator.select
+                    // with the item name (ItemDisplayWidget is 1.21.6-only).
                     horizon_client::widgets::narratable(|| {
                         let name = horizon_client::stations::hover_name(&self.pack.names, &stack);
                         horizon_client::widgets::Narratable::text(
-                            tr("narration.item", &[&name]),
+                            tr("narrator.select", &[&name]),
                             [left + 1.0, y + 1.0, 18.0, 18.0],
                         )
                         .key(horizon_client::widgets::key_of(&("stats/item", item)))
