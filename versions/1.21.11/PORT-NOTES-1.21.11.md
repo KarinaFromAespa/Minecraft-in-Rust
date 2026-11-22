@@ -13074,3 +13074,12 @@ already ports `FelineModel.setupAnim` in full (`mobs/tame.rs`),
 with 1.21.11's single model for adults and babies (ageScale 0.5)
 against 26.1's split `BabyFelineModel`. Leg phases, tail swings
 and lie-down lerps verified against the decompile.
+
+## Item 763 — world/level/dimension/end (new-classes) — NO-CHANGE
+
+3 classes: `DragonRespawnAnimation`, `EndDragonFight`,
+`EndDragonFight$Data`. `game/dragon.rs` is a full port, with
+1.21.11's fight in level.dat's `DragonFight` (26.x uses a separate
+file). The respawn sequence was verified tick by tick against the
+decompiled enum bodies (growl ticks, the %40 pillar cycle, the
+power-5 spike rebuild and power-6 crystal explosions).
