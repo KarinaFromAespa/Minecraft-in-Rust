@@ -12828,3 +12828,8 @@ Record-vs-field access (`ChunkPos.x()` vs `ChunkPos.x`), as item 725.
 ## Item 732 — client/gui/screens/advancements (AdvancementTabType$Sprites) — NO-CHANGE
 
 Visibility only.
+
+## Item 733 — client/gui/screens/options (VideoSettingsScreen) — NO-CHANGE
+
+26.1's display options include the 26.1-only `exclusiveFullscreen`
+toggle; 1.21.11 has no such option and neither does the Rust.
