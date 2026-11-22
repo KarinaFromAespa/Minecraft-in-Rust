@@ -1360,3 +1360,59 @@ pass / 0 fail. The `legacy` synthesis exists only in 1.21.7 -- no
 sibling carry-over. Known adjacent gap, not fixed here: the
 sunrise/sunset colour is still not synthesized (its constants
 couldn't be verified), so there is no dawn/dusk glow.
+
+Underground water deficit: not the aquifer -- the waterfalls never
+ticked (2026-11-22). The world comparison (same seed, 4,145
+paired-full chunks) showed water 1,392,233 vs vanilla 1,406,861
+(-14,628, -1.04%), all of it underground; worst chunk (-22,-18)
+43 vs 745. The aquifer is exonerated: a Java oracle driving
+vanilla 1.21.7's own `NoiseBasedAquifer` over that chunk agrees
+with the port on all 94 common cells -- identical levels,
+identical points, floodedness/spread/barrier identical to 4
+decimals -- and vanilla's aquifer also returns air at both water
+columns at density -1.0. The vanilla water is not placed water at
+all: the cave columns are level-8 falling / level-1 flowing water,
+one connected waterfall system fed by a single spring source at
+local (8,91,0) -- the only level-0 source in the chunk. Fresh
+generate+decorate of the port places exactly that source (and its
+delay-0 tick) and nothing else; the waterfall only exists after
+the chunk is ticked. Vanilla's chunk has InhabitedTime 0 in both
+worlds, yet vanilla's waterfall formed: InhabitedTime increments
+only for spawning chunks (within 128 blocks of a player), while
+fluid ticks run at simulation distance (10 chunks), so a chunk
+129-160 blocks from the player flows its waterfalls without ever
+incrementing InhabitedTime. The port's machinery is
+vanilla-faithful end to end -- postprocessing marks, scheduled
+ticks, persistence, the tick gate -- and where both sessions
+ticked a chunk the counts match exactly (e.g. (-15,-12) 1274=1274
+with 923 underground). The deficit is session geometry: the port
+world is a pregen-shaped rectangle (10,744 chunks, 2,653 with
+pending fluid ticks) whose chunks were generated and postprocessed
+but never ticked, while vanilla's world is an explored world whose
+chunks sat in ticking range. 55% of the deficit (7,994 of 14,628)
+sits in chunks with pending port fluid ticks -- waterfalls started
+and stalled. No behaviour fix: changing tick gating or postprocess
+timing would diverge from vanilla, which also leaves water
+unflowed in unticked chunks. Regression tests:
+`worst_chunk_places_the_single_spring_source` pins the placement
+(exactly one water block at (8,91,0) plus its delay-0 water tick);
+`pond_spring_waterfall_flows_into_cave_at_worst_chunk` and
+`spring_waterfall_flows_in_cave_at_18_6` generate + decorate +
+tick 1000 ticks and assert the waterfalls form ((-22,-18): 843
+total / 652 underground after 1000 ticks, vanilla 745/554 --
+vanilla's saved chunk was still mid-cascade with 13 pending ticks;
+(18,6): 312/312, vanilla 288/288). The (18,6) test also resolves
+that chunk's anomaly: the saved port world has stone at the spring
+and no water at all, but current code flows it correctly, so the
+saved chunk is stale morning generation (world created 08:06 with
+build 0e1b38b2, before the water-spread fix), not a current bug.
+The old probe test asserted `generate_proto` alone floods the
+cave -- a wrong premise, since neither vanilla nor the port places
+this water at generation; it is replaced by the tests above.
+Separate note, not this fix: the port's `FindTopSurfaceSampler`
+returns `lower_bound` (-64) when no surface is found; vanilla's
+`NoiseChunk.computePreliminarySurfaceLevel` returns
+`Integer.MAX_VALUE`. Real divergence, but not the (-22,-18)
+mechanism (mountains, surface found); the sampler is shared with
+26.3-form graphs, so check 26.3's not-found semantics before
+changing it.
