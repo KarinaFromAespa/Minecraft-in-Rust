@@ -13227,3 +13227,9 @@ conduit from the shell/cage/wind/eye entity models.
 constants and `renderItem` / `getFoilBuffer` /
 `getFoilRenderTypes`. The Rust's item_render.rs is its counterpart
 with the same foil structure and glint UV math.
+
+## Item 783 — client/renderer/special (new-classes) — NO-CHANGE
+
+1 class: `SpecialModelRenderer$BakingContext$Simple` — a record of
+the three inputs a special-model bake needs (entity model set,
+material set, skin cache). Pure baking plumbing, no Rust usage.
