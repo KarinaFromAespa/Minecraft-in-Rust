@@ -1250,6 +1250,7 @@ fn steps(
         let mut indexed = sounds::Assets::load(repo, Some(root), minecraft, &run.inputs, run.log);
         let (version, count) = extract_client_resources(&run.client, root, indexed.as_mut().ok())?;
         sounds::optional_imports(indexed.as_mut().map_err(|e| e.as_str()), run.log);
+        fallback_menu_sprites(repo, root, run.log)?;
         (run.log)(&format!(
             "Copied the client's assets and data{}",
             took(started)
@@ -1425,6 +1426,62 @@ fn extract_member(client: &mut Jar, name: &str, target: &Path) -> Result<(), Str
     }
     mkdir(target.parent().unwrap())?;
     write(target, &zip_bytes(client, name)?)
+}
+
+/// The version whose menu sprites fill what this version's jar lacks: the 26.x menus reference
+/// sprites this version never shipped (the pause-menu icon row, the friends screen), and a
+/// missing sprite renders as an empty grey square. The owner, 2026-11-22: menu chrome need not
+/// be version-faithful — only the game, items, entities and their behaviours must correspond to
+/// the respective version. No Mojang file is committed: the sprites come from the player's own
+/// 26.3 client jar at prepare time, and only under `gui/sprites/` — gameplay assets stay
+/// strictly this version's.
+const FALLBACK_SPRITES_VERSION: &str = "26.3";
+/// The subtree of the fallback jar the fallback may copy from (menu chrome only).
+const FALLBACK_SPRITES_PREFIX: &str = "assets/minecraft/textures/gui/sprites/";
+
+/// Fills the GUI sprites this version's jar lacks from the sibling 26.3 client jar, where the
+/// player has prepared 26.3: only files the resources directory does not already have are
+/// filled, so this version's own art always wins. Returns how many were filled — 0, without
+/// failing, when the 26.3 jar is absent (the menus then stay as this version ships them).
+/// Deliberately outside `OUTPUT_VERSION`: what it fills depends on an unpinned input (the
+/// sibling jar), which the output digest cannot represent, so an existing preparation needs
+/// one re-prepare to pick the sprites up.
+fn fallback_menu_sprites(repo: &Path, root: &Path, log: Log) -> Result<usize, String> {
+    let Some(sibling) = repo
+        .parent()
+        .map(|versions| versions.join(FALLBACK_SPRITES_VERSION))
+    else {
+        return Ok(0);
+    };
+    let Ok(lock) = artifacts::Lock::read(&sibling) else {
+        return Ok(0);
+    };
+    let jar = lock.directory.join("jars/client.jar");
+    if !jar.is_file() {
+        log(
+            "The 26.3 client jar is not prepared; the menu sprites stay as this version ships them",
+        );
+        return Ok(0);
+    }
+    let mut client = open_zip(&jar)?;
+    let mut filled = 0;
+    for name in zip_names(&client)? {
+        if !name.starts_with(FALLBACK_SPRITES_PREFIX) || name.ends_with('/') {
+            continue;
+        }
+        let target = root.join(member_path(&name, "Invalid resource path")?);
+        if target.is_file() {
+            continue;
+        }
+        extract_member(&mut client, &name, &target)?;
+        filled += 1;
+    }
+    if filled > 0 {
+        log(&format!(
+            "Filled {filled} menu sprites from the 26.3 client jar"
+        ));
+    }
+    Ok(filled)
 }
 
 fn datagen_reports_missing(root: &Path) -> bool {
@@ -1987,6 +2044,85 @@ mod tests {
         );
         check();
         assert_eq!(fs::metadata(&kept).unwrap().modified().unwrap(), before);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn menu_sprites_fall_back_to_the_26_3_jar() {
+        use std::io::Write;
+        let dir = std::env::temp_dir().join(format!(
+            "horizon-prepare-menu-sprites-{}",
+            std::process::id()
+        ));
+        mkdir(&dir).unwrap();
+        let repo = dir.join("1.21.7");
+        // The sibling 26.3 folder, as versions/26.3: its lock names its version, which is
+        // where its imported jars live.
+        let sibling = dir.join("26.3");
+        mkdir(&sibling).unwrap();
+        write(
+            &sibling.join("research-lock.json"),
+            b"{\"minecraft\": {\"version\": \"26.3\", \"java_major\": 25}}",
+        )
+        .unwrap();
+        let jar = sibling.join(".local/minecraft/26.3/jars/client.jar");
+        mkdir(jar.parent().unwrap()).unwrap();
+        let mut archive = zip::ZipWriter::new(fs::File::create(&jar).unwrap());
+        let options = zip::write::SimpleFileOptions::default();
+        let members = [
+            (
+                "assets/minecraft/textures/gui/sprites/pause_menu/bug.png",
+                b"bug-26-3".as_slice(),
+            ),
+            (
+                "assets/minecraft/textures/gui/sprites/friends/friends.png",
+                b"friends-26-3".as_slice(),
+            ),
+            (
+                "assets/minecraft/textures/gui/sprites/icon/language.png",
+                b"language-26-3".as_slice(),
+            ),
+            (
+                "assets/minecraft/textures/block/stone.png",
+                b"stone-26-3".as_slice(),
+            ),
+        ];
+        for (name, data) in members {
+            archive.start_file(name, options).unwrap();
+            archive.write_all(data).unwrap();
+        }
+        archive.finish().unwrap();
+        let root = dir.join("resources");
+        // This version's own sprite: the fallback must never overwrite it.
+        let own = root.join("assets/minecraft/textures/gui/sprites/icon/language.png");
+        mkdir(own.parent().unwrap()).unwrap();
+        write(&own, b"language-1-21-7").unwrap();
+        let log: Log = &|_| {};
+        let sprites = "assets/minecraft/textures/gui/sprites";
+        assert_eq!(fallback_menu_sprites(&repo, &root, log).unwrap(), 2);
+        assert_eq!(
+            read(&root.join(format!("{sprites}/pause_menu/bug.png")))
+                .unwrap()
+                .as_slice(),
+            b"bug-26-3"
+        );
+        assert_eq!(
+            read(&root.join(format!("{sprites}/friends/friends.png")))
+                .unwrap()
+                .as_slice(),
+            b"friends-26-3"
+        );
+        assert_eq!(read(&own).unwrap().as_slice(), b"language-1-21-7");
+        assert!(!root
+            .join("assets/minecraft/textures/block/stone.png")
+            .exists());
+        // A second prepare fills nothing: the filled files are already there.
+        assert_eq!(fallback_menu_sprites(&repo, &root, log).unwrap(), 0);
+        // Without the 26.3 jar the fallback is a silent no-op, not a failure.
+        fs::remove_file(&jar).unwrap();
+        let empty = dir.join("empty-resources");
+        assert_eq!(fallback_menu_sprites(&repo, &empty, log).unwrap(), 0);
+        assert!(!empty.join("assets").exists());
         fs::remove_dir_all(dir).unwrap();
     }
 
