@@ -13133,3 +13133,12 @@ holding the registered provider-type constants. The Rust
 implements every kind they register (`worldgen/value_provider.rs`),
 with the biased-to-bottom and trapezoid sampling formulas verified
 against the decompile.
+
+## Item 770 — world/entity/ai/goal (new-classes) — NO-CHANGE
+
+2 classes: `BoatGoals` (the GO_TO_BOAT / GO_IN_BOAT_DIRECTION
+enum) and `FollowBoatGoal`. The Rust ports the goal in full
+(`mobs/dolphin.rs`, priority 8, boats only — 26.1 generalized it
+to nautiluses too), verified against the decompile: the 5-block
+start radius, the 0.015/0.01 speeds, the 10-tick recalc, the
+behind/ahead navigation targets and the 4/12-block switches.
