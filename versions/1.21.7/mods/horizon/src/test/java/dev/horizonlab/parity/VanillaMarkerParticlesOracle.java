@@ -41,7 +41,7 @@ public final class VanillaMarkerParticlesOracle {
     static String bits(double v) { return String.format("%016x", Double.doubleToLongBits(v)); }
     public static final class Player extends LocalPlayer {
         ItemStack main, off;
-        Player() { super(null, null, null, null, null, null, false, null, null); }
+        Player() { super(null, null, null, null, null, null, false); }
         @Override public ItemStack getMainHandItem() { return main; }
         @Override public ItemStack getItemInHand(InteractionHand hand) {
             return hand == InteractionHand.MAIN_HAND ? main : off;
@@ -101,7 +101,8 @@ public final class VanillaMarkerParticlesOracle {
         BlockState floor = Blocks.AIR.defaultBlockState();
         java.util.List<String> particles;
         java.util.List<String> sounds;
-        net.minecraft.world.attribute.EnvironmentAttributeSystem attributes;
+        // No environment attributes: 1.21.7 has no EnvironmentAttributeSystem
+        // (26.x-only); Level.environmentAttributes() does not exist here.
         TickLevel() { super(null, null, null, null, 0, 0, null, false, 0L, 0); }
         @Override public BlockState getBlockState(BlockPos pos) { return pos.getY() < 64 ? floor : state; }
         /** The state's own fluid, as the probe's world reports it: a waterlogged
@@ -113,9 +114,6 @@ public final class VanillaMarkerParticlesOracle {
          * and a level built without a dimension type cannot answer. */
         @Override public int getMinY() { return -64; }
         @Override public int getHeight() { return 384; }
-        @Override public net.minecraft.world.attribute.EnvironmentAttributeSystem environmentAttributes() {
-            return attributes;
-        }
         @Override public void addParticle(ParticleOptions options, double x, double y, double z,
                                           double dx, double dy, double dz) {
             particles.add(BuiltInRegistries.PARTICLE_TYPE.getKey(options.getType()).getPath()
@@ -214,9 +212,8 @@ public final class VanillaMarkerParticlesOracle {
     public static void main(String[] args) throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();
         net.minecraft.server.Bootstrap.bootStrap();
-        for (var item : BuiltInRegistries.ITEM) {
-            item.builtInRegistryHolder().bindComponents(net.minecraft.core.component.DataComponentMap.EMPTY);
-        }
+        // No bindComponents step: 1.21.7 binds item default components at
+        // registration during Bootstrap (no DataComponentInitializers here).
         bindBlockTags();
         var allocator = Class.forName("sun.misc.Unsafe");
         var unsafe = field(allocator, "theUnsafe").get(null);
@@ -230,7 +227,6 @@ public final class VanillaMarkerParticlesOracle {
         field(ClientLevel.class, "minecraft").set(level, mc);
         field(ClientLevel.class, "minecraft").set(campfireLevel, mc);
         field(ClientLevel.class, "minecraft").set(tickLevel, mc);
-        tickLevel.attributes = net.minecraft.world.attribute.EnvironmentAttributeSystem.builder().build();
         tickLevel.particles = new java.util.ArrayList<>();
         tickLevel.sounds = new java.util.ArrayList<>();
         mc.player = player;

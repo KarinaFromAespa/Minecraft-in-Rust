@@ -2,36 +2,38 @@ package dev.horizonlab.parity;
 
 import com.google.gson.*;
 import com.mojang.blaze3d.platform.NativeImage;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import java.io.InputStreamReader;
 import java.lang.reflect.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.annotation.Nullable;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.*;
-import net.minecraft.client.renderer.block.BlockStateModelSet;
+import net.minecraft.client.renderer.block.BlockModelShaper;
+import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.texture.*;
 import net.minecraft.client.resources.metadata.animation.FrameSize;
 import net.minecraft.client.resources.model.ModelManager;
-import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.*;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.Bootstrap;
+import net.minecraft.server.packs.resources.ResourceMetadata;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.ItemOwner;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -43,21 +45,25 @@ import net.minecraft.world.level.levelgen.RandomSupport;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
 
 /** Builds each particle through its real registered ParticleProvider (the real
- * ParticleResources, sprite sets bound to stand-in sprites named after the
+ * ParticleEngine, sprite sets bound to stand-in sprites named after the
  * vanilla particles/*.json textures) in a stand-in ClientLevel (air, an
  * optional stone floor at y 63, optionally still water from y 64 to 67),
  * then ticks it and records its state, the particles and sounds it asks the
  * level for, tick by tick.
  *
- * Each vanilla Particle owns a RandomSource.create() random seeded from the
- * clock; its seed is recovered after construction (the SEED_UNIQUIFIER value
- * and the System.nanoTime window around the call, checked against the
- * random's state stepped back over its draws) and printed first so the probe
- * can replay the same draws. The provider random, the level random and
- * SpellParticle.RANDOM are seeded from the case. */
+ * Each vanilla Particle owns a clock-seeded RandomSource.create(); the oracle
+ * recovers that seed and runs first, and the probe replays the same seed. The
+ * level random and SpellParticle.RANDOM are seeded from the case.
+ *
+ * 1.21.7 form: there is no ParticleResources (26.x) — providers and sprite
+ * sets live on ParticleEngine itself; ParticleProvider.createParticle takes
+ * no RandomSource (26.x added it), so the provider random the probe seeds has
+ * no vanilla counterpart here and its first draw is printed unconsumed;
+ * EFFECT, INSTANT_EFFECT, DRAGON_BREATH and FLASH are SimpleParticleTypes
+ * (no Spell/Power options); block models resolve through BlockModelShaper;
+ * colour/roll live on Particle and the sprite on TextureSheetParticle. */
 public final class VanillaParticleProvidersOracle {
     private static Object unsafe;
     private static Method allocate;
@@ -97,31 +103,34 @@ public final class VanillaParticleProvidersOracle {
         @Override public void playLocalSound(double x, double y, double z, SoundEvent sound, SoundSource source, float volume, float pitch, boolean delay) {
             events.add("~ " + sound.location() + " " + d(x) + " " + d(y) + " " + d(z) + " " + f(volume) + " " + f(pitch));
         }
-        @Override public net.minecraft.world.entity.player.@Nullable Player getNearestPlayer(double x, double y, double z, double distance, boolean creative) { return null; }
+        @Override public @Nullable net.minecraft.world.entity.player.Player getNearestPlayer(double x, double y, double z, double distance, boolean creative) { return null; }
     }
     static String name(ParticleOptions o) { return BuiltInRegistries.PARTICLE_TYPE.getKey(o.getType()).getPath(); }
     static String d(double v) { return String.format("%016x", Double.doubleToRawLongBits(v)); }
     static String f(float v) { return String.format("%08x", Float.floatToRawIntBits(v)); }
 
     static final class Sprite extends TextureAtlasSprite {
-        Sprite(ResourceLocation atlas, ResourceLocation name) { super(atlas, new SpriteContents(name, new FrameSize(16, 16), new NativeImage(16, 16, true)), 16, 16, 0, 0, 0); }
+        Sprite(ResourceLocation atlas, ResourceLocation name) { super(atlas, new SpriteContents(name, new FrameSize(16, 16), new NativeImage(16, 16, true), ResourceMetadata.EMPTY), 16, 16, 0, 0); }
     }
     static final Map<String, TextureAtlasSprite> SPRITES = new HashMap<>();
     static TextureAtlasSprite sprite(ResourceLocation atlas, String name) {
         return SPRITES.computeIfAbsent(name, n -> new Sprite(atlas, ResourceLocation.withDefaultNamespace(n)));
     }
-    static final class Models extends BlockStateModelSet {
-        Models() { super(Map.of(), null); }
-        @Override public Material.Baked getParticleMaterial(BlockState state) {
-            return new Material.Baked(sprite(TextureAtlas.LOCATION_BLOCKS, "terrain"), false);
+    static final class Shaper extends BlockModelShaper {
+        Shaper() { super(null); }
+        @Override public TextureAtlasSprite getParticleIcon(BlockState state) {
+            return sprite(TextureAtlas.LOCATION_BLOCKS, "terrain");
         }
     }
     /** Every item resolves to one layer whose particle sprite is named after the item. */
     static final class Items0 extends ItemModelResolver {
-        Items0() { super(null); }
-        @Override public void updateForTopItem(ItemStackRenderState out, ItemStack item, ItemDisplayContext context, @Nullable Level level, @Nullable ItemOwner owner, int seed) {
+        // ItemModelResolver's constructor requireNonNulls its ModelManager, so
+        // the stub is built over an Unsafe-allocated one; updateForTopItem is
+        // overridden and never touches the superclass's functions.
+        Items0() throws Exception { super(make(ModelManager.class)); }
+        @Override public void updateForTopItem(ItemStackRenderState out, ItemStack item, ItemDisplayContext context, @Nullable Level level, @Nullable LivingEntity owner, int seed) {
             out.clear();
-            out.newLayer().setParticleMaterial(new Material.Baked(sprite(TextureAtlas.LOCATION_BLOCKS, "item_" + BuiltInRegistries.ITEM.getKey(item.getItem()).getPath()), false));
+            out.newLayer().setParticleIcon(sprite(TextureAtlas.LOCATION_BLOCKS, "item_" + BuiltInRegistries.ITEM.getKey(item.getItem()).getPath()));
         }
     }
 
@@ -136,18 +145,10 @@ public final class VanillaParticleProvidersOracle {
         float scale = o.has("scale") ? o.get("scale").getAsFloat() : 1.0F;
         if (type == ParticleTypes.DUST) return new DustParticleOptions(color, scale);
         if (type == ParticleTypes.DUST_COLOR_TRANSITION) return new DustColorTransitionOptions(color, (int) o.get("to").getAsLong(), scale);
-        if (type == ParticleTypes.EFFECT || type == ParticleTypes.INSTANT_EFFECT)
-            return SpellParticleOption.create(castSpell(type), color, scale);
-        if (type == ParticleTypes.DRAGON_BREATH) return PowerParticleOption.create(ParticleTypes.DRAGON_BREATH, scale);
         if (type == ParticleTypes.SCULK_CHARGE) return new SculkChargeParticleOptions(scale);
-        if (type == ParticleTypes.GEYSER || type == ParticleTypes.GEYSER_PLUME)
-            return new GeyserParticleOptions(geyser(type), o.get("water_blocks").getAsInt());
-        if (type == ParticleTypes.GEYSER_BASE || type == ParticleTypes.GEYSER_POOF)
-            return new GeyserBaseParticleOptions(geyserBase(type), o.get("water_blocks").getAsInt(),
-                                                 o.get("burst_impulse_base").getAsFloat());
         if (type == ParticleTypes.SHRIEK) return new ShriekParticleOption((int) scale);
         if (type == ParticleTypes.ITEM)
-            return new ItemParticleOption(ParticleTypes.ITEM, new ItemStackTemplate(BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(o.get("item").getAsString()))));
+            return new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(o.get("item").getAsString()))));
         if (type == ParticleTypes.TRAIL) {
             var t = o.getAsJsonArray("target");
             return new TrailParticleOption(new Vec3(t.get(0).getAsDouble(), t.get(1).getAsDouble(), t.get(2).getAsDouble()), color, o.get("duration").getAsInt());
@@ -160,9 +161,6 @@ public final class VanillaParticleProvidersOracle {
         if (o.has("color")) return ColorParticleOption.create(castColor(type), color);
         throw new AssertionError("no options for " + id);
     }
-    @SuppressWarnings("unchecked") static ParticleType<SpellParticleOption> castSpell(ParticleType<?> t) { return (ParticleType<SpellParticleOption>) t; }
-    @SuppressWarnings("unchecked") static ParticleType<GeyserParticleOptions> geyser(ParticleType<?> t) { return (ParticleType<GeyserParticleOptions>) t; }
-    @SuppressWarnings("unchecked") static ParticleType<GeyserBaseParticleOptions> geyserBase(ParticleType<?> t) { return (ParticleType<GeyserBaseParticleOptions>) t; }
     @SuppressWarnings("unchecked") static ParticleType<BlockParticleOption> castBlock(ParticleType<?> t) { return (ParticleType<BlockParticleOption>) t; }
     @SuppressWarnings("unchecked") static ParticleType<ColorParticleOption> castColor(ParticleType<?> t) { return (ParticleType<ColorParticleOption>) t; }
 
@@ -214,22 +212,27 @@ public final class VanillaParticleProvidersOracle {
         ParityData.init(); // item components, for the item particle providers' stacks
         var u = Class.forName("sun.misc.Unsafe"); unsafe = field(u, "theUnsafe").get(null); allocate = u.getMethod("allocateInstance", Class.class);
         var mc = make(Minecraft.class); field(Minecraft.class, "instance").set(null, mc);
-        var manager = make(ModelManager.class); field(ModelManager.class, "blockStateModelSet").set(manager, new Models());
-        field(Minecraft.class, "modelManager").set(mc, manager); field(Minecraft.class, "blockColors").set(mc, new BlockColors());
+        var dispatcher = make(BlockRenderDispatcher.class); field(BlockRenderDispatcher.class, "blockModelShaper").set(dispatcher, new Shaper());
+        field(Minecraft.class, "blockRenderer").set(mc, dispatcher); field(Minecraft.class, "blockColors").set(mc, new BlockColors());
         field(Minecraft.class, "itemModelResolver").set(mc, new Items0());
         var level = make(Level0.class); level.events = new ArrayList<>(); field(ClientLevel.class, "minecraft").set(level, mc);
-        field(Minecraft.class, "particleEngine").set(mc, new ParticleEngine(level, null));
+        // ParticleEngine's constructor registers its atlas with the texture
+        // manager, so it cannot be null.
+        var engine = new ParticleEngine(level, new TextureManager(null));
+        field(Minecraft.class, "particleEngine").set(mc, engine);
         X = field(Particle.class, "x"); Y = field(Particle.class, "y"); Z = field(Particle.class, "z");
         XO = field(Particle.class, "xo"); YO = field(Particle.class, "yo"); ZO = field(Particle.class, "zo");
         XD = field(Particle.class, "xd"); YD = field(Particle.class, "yd"); ZD = field(Particle.class, "zd");
         AGE = field(Particle.class, "age"); LIFETIME = field(Particle.class, "lifetime"); REMOVED = field(Particle.class, "removed");
         ON_GROUND = field(Particle.class, "onGround"); RANDOM = field(Particle.class, "random"); SEED = field(LegacyRandomSource.class, "seed");
-        QUAD = field(SingleQuadParticle.class, "quadSize"); R = field(SingleQuadParticle.class, "rCol"); G = field(SingleQuadParticle.class, "gCol");
-        B = field(SingleQuadParticle.class, "bCol"); A = field(SingleQuadParticle.class, "alpha"); ROLL = field(SingleQuadParticle.class, "roll");
-        O_ROLL = field(SingleQuadParticle.class, "oRoll"); SPRITE = field(SingleQuadParticle.class, "sprite");
+        QUAD = field(SingleQuadParticle.class, "quadSize");
+        // 1.21.7: colour/roll live on Particle, the sprite on TextureSheetParticle.
+        R = field(Particle.class, "rCol"); G = field(Particle.class, "gCol");
+        B = field(Particle.class, "bCol"); A = field(Particle.class, "alpha"); ROLL = field(Particle.class, "roll");
+        O_ROLL = field(Particle.class, "oRoll"); SPRITE = field(TextureSheetParticle.class, "sprite");
         U0 = SingleQuadParticle.class.getDeclaredMethod("getU0"); U1 = SingleQuadParticle.class.getDeclaredMethod("getU1");
         V0 = SingleQuadParticle.class.getDeclaredMethod("getV0"); V1 = SingleQuadParticle.class.getDeclaredMethod("getV1");
-        LIGHT = Particle.class.getDeclaredMethod("getLightCoords", float.class);
+        LIGHT = Particle.class.getDeclaredMethod("getLightColor", float.class);
         for (var m : new Method[] {U0, U1, V0, V1, LIGHT}) m.setAccessible(true);
         var uniquifier = (AtomicLong) field(RandomSupport.class, "SEED_UNIQUIFIER").get(null);
         // Initialise SpellParticle first: its static initializer would replace a seeded RANDOM.
@@ -241,8 +244,7 @@ public final class VanillaParticleProvidersOracle {
         var putObject = u.getMethod("putObject", Object.class, long.class, Object.class);
 
         // The real providers, their sprite sets bound to one stand-in sprite per listed texture.
-        var resources = new ParticleResources();
-        @SuppressWarnings("unchecked") var sets = (Map<ResourceLocation, Object>) field(ParticleResources.class, "spriteSets").get(resources);
+        @SuppressWarnings("unchecked") var sets = (Map<ResourceLocation, Object>) field(ParticleEngine.class, "spriteSets").get(engine);
         for (var e : sets.entrySet()) {
             var stream = Minecraft.class.getResourceAsStream("/assets/minecraft/particles/" + e.getKey().getPath() + ".json");
             var sprites = new ArrayList<TextureAtlasSprite>();
@@ -256,7 +258,7 @@ public final class VanillaParticleProvidersOracle {
             var rebind = e.getValue().getClass().getDeclaredMethod("rebind", List.class); rebind.setAccessible(true);
             rebind.invoke(e.getValue(), sprites);
         }
-        var providers = resources.getProviders();
+        @SuppressWarnings("unchecked") var providers = (Int2ObjectMap<ParticleProvider<?>>) field(ParticleEngine.class, "providers").get(engine);
         // Warm up the classes the providers touch so the clock window stays small.
         for (int i = 0; i < 3; i++) RandomSource.create();
 
@@ -278,12 +280,14 @@ public final class VanillaParticleProvidersOracle {
                 long before = 0, t0 = 0, t1 = 0;
                 for (int attempt = 0; attempt < 4; attempt++) {
                     level.events.clear();
+                    // 1.21.7 providers take no random: this one is created only
+                    // so its first draw can be compared with the probe's.
                     random = RandomSource.create(seed);
                     field(Level.class, "random").set(level, RandomSource.create(seed ^ 0x6C6576656CL));
                     putObject.invoke(unsafeObject, staticBase, staticOffset, RandomSource.create(seed ^ 0x7370656C6CL));
                     before = uniquifier.get(); t0 = System.nanoTime();
                     particle = provider.createParticle(options, level, p.get(0).getAsDouble(), p.get(1).getAsDouble(), p.get(2).getAsDouble(),
-                        v.get(0).getAsDouble(), v.get(1).getAsDouble(), v.get(2).getAsDouble(), random);
+                        v.get(0).getAsDouble(), v.get(1).getAsDouble(), v.get(2).getAsDouble());
                     t1 = System.nanoTime();
                     if (t1 - t0 < 50_000_000L) break;
                 }

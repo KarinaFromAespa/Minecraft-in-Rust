@@ -14,16 +14,15 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.animal.allay.Allay;
 import net.minecraft.world.entity.animal.camel.Camel;
-import net.minecraft.world.entity.animal.cow.Cow;
-import net.minecraft.world.entity.animal.dolphin.Dolphin;
-import net.minecraft.world.entity.animal.equine.Horse;
-import net.minecraft.world.entity.animal.equine.Llama;
-import net.minecraft.world.entity.animal.feline.Cat;
-import net.minecraft.world.entity.animal.feline.Ocelot;
-import net.minecraft.world.entity.animal.nautilus.Nautilus;
-import net.minecraft.world.entity.animal.parrot.Parrot;
+import net.minecraft.world.entity.animal.Cow;
+import net.minecraft.world.entity.animal.Dolphin;
+import net.minecraft.world.entity.animal.horse.Horse;
+import net.minecraft.world.entity.animal.horse.Llama;
+import net.minecraft.world.entity.animal.Cat;
+import net.minecraft.world.entity.animal.Ocelot;
+import net.minecraft.world.entity.animal.Parrot;
 import net.minecraft.world.entity.animal.wolf.Wolf;
-import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.phys.Vec3;
 
 /** Calls the real client handleEntityEvent of entities whose events are particle
@@ -47,7 +46,9 @@ public final class VanillaEntityParticlesOracle {
         Map.entry("villager", Villager.class), Map.entry("cow", Cow.class), Map.entry("wolf", Wolf.class),
         Map.entry("cat", Cat.class), Map.entry("parrot", Parrot.class), Map.entry("horse", Horse.class),
         Map.entry("llama", Llama.class), Map.entry("camel", Camel.class), Map.entry("ocelot", Ocelot.class),
-        Map.entry("dolphin", Dolphin.class), Map.entry("allay", Allay.class), Map.entry("nautilus", Nautilus.class));
+        Map.entry("dolphin", Dolphin.class), Map.entry("allay", Allay.class));
+    // No nautilus entry: 1.21.7 has no nautilus entity (no such class in the
+    // jar, no minecraft:nautilus entity type in the registry).
 
     public static void main(String[] args) throws Exception {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
