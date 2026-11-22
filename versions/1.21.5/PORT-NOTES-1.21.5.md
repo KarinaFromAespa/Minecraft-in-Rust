@@ -16317,12 +16317,53 @@ is the oracle; decompiled code is a reading aid.
     removed.
   - Verification: comment-only / change; no build / needed.
 
+- **Item 426 — New unported classes (4)**
+  - New unported classes
+    (4): verified, all four
+    named by comparing the
+    1.21.5 client mappings
+    against the 1.21.6
+    named jar. data/tags
+    holds three:
+    ItemTagsProvider, Intri
+    nsicHolderTagsProvider'
+    s IntrinsicTagAppender
+    and TagsProvider's
+    TagAppender - 1.21.6
+    promoted TagAppender to
+    a top-level class and
+    split item tags into
+    BlockItemTagsProvider
+    and KeyTagProvider. All
+    three are datagen
+    tag-provider plumbing;
+    the port regenerates
+    data from the 1.21.5
+    jar and never ports
+    datagen.
+    blaze3d/shaders holds
+    one: FogShape, the
+    SPHERE/CYLINDER
+    fog-shape enum, which
+    1.21.6 folded into its
+    fog-environment system.
+    The port implements
+    1.21.5's fog distances
+    (item 402) and its
+    fog.rs already records
+    that the cylinder shape
+    has no slot in the
+    two-pair fog uniform,
+    so the enum has no
+    surface here.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **425 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 complete, rank 5 at 1/2). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **426 of 426 are
+closed** (all ranks complete). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
