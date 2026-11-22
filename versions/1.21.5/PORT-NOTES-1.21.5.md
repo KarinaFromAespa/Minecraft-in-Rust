@@ -15799,12 +15799,36 @@ is the oracle; decompiled code is a reading aid.
     class.
   - Verification: read / only; no code / changed.
 
+- **Item 410 — RealmsServerAddress / RealmsSettings**
+  - RealmsServerAddress /
+    RealmsSettings:
+    verified, no code. Both
+    DTOs are 1.21.5-only -
+    1.21.6 renamed the
+    address DTO to
+    RealmsJoinInformation
+    and dropped the
+    settings record. The
+    port already models
+    both: RealmAddress
+    carries address,
+    resourcePackUrl and
+    resourcePackHash as
+    optional camelCase
+    fields with a parse
+    test, and the
+    RealmsSettings hardcore
+    flag rides on the
+    port's world and
+    options structs.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **409 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 8/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **410 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 9/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
