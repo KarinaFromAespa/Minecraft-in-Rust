@@ -12850,3 +12850,9 @@ Visibility only.
 ## Item 737 — gametest/framework (StructureUtils) — NO-CHANGE
 
 Test scaffolding only (gametest structure dirs).
+
+## Item 738 — recipebook (ServerPlaceRecipe) — NO-CHANGE
+
+Equivalent max-stack read (`MAX_STACK_SIZE` component vs
+`Item.getDefaultMaxStackSize()` — same value for recipe ingredient
+holders); the Rust already cites the 1.21.11 form.
