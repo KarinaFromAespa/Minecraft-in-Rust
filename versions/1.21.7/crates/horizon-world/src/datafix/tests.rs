@@ -34,48 +34,76 @@ fn item_stacks_of_1_20_take_components() {
     );
 }
 
+/// A 1.20 level upgraded to 1.21.7 keeps its fields: the 26.x moves this
+/// test used to expect — `Difficulty`/`DifficultyLocked` into
+/// `difficulty_settings` (fix 4771), `GameRules` into `game_rules`
+/// (4658), `SpawnX/Y/Z` into `spawn` (4548) — are all above CURRENT
+/// (4438), and vanilla 1.21.7 has none of them: its `PrimaryLevelData`
+/// still reads `Difficulty`, `DifficultyLocked`, `GameRules` and
+/// `SpawnX`, and its jar's only `Level*` fixes are the pre-1.20 ones
+/// (`LevelDataGeneratorOptionsFix`, `LevelLegacyWorldGenSettingsFix`,
+/// `LevelUUIDFix`, `LevelFlatGeneratorInfoFix`). No fix in the 1.20 →
+/// 1.21.7 range touches these fields, so they come out unchanged.
 #[test]
-fn level_data_of_1_20_moves_to_the_new_fields() {
+fn level_data_of_1_20_keeps_its_1_21_7_fields() {
     let mut level = snbt(
         "{DataVersion: 3465, Difficulty: 3b, DifficultyLocked: 1b, hardcore: 0b, SpawnX: 1, SpawnY: 64, SpawnZ: -3, \
          SpawnAngle: 90.0f, GameRules: {doFireTick: \"false\", keepInventory: \"true\", randomTickSpeed: \"5\"}}",
     );
     update(Ty::Level, &mut level, 3465, CURRENT);
-    let settings = level
-        .get("difficulty_settings")
-        .expect("difficulty settings");
+    assert_eq!(level.get("Difficulty"), Some(&Tag::Byte(3)));
+    assert_eq!(level.get("DifficultyLocked"), Some(&Tag::Byte(1)));
+    assert_eq!(level.get("hardcore"), Some(&Tag::Byte(0)));
+    assert_eq!(level.get("SpawnX"), Some(&Tag::Int(1)));
+    assert_eq!(level.get("SpawnY"), Some(&Tag::Int(64)));
+    assert_eq!(level.get("SpawnZ"), Some(&Tag::Int(-3)));
     assert_eq!(
-        dynamic::as_str(settings.get("difficulty")).as_deref(),
-        Some("hard")
+        dynamic::as_float(level.get("SpawnAngle"), 0.0),
+        90.0,
+        "SpawnAngle"
     );
-    assert_eq!(settings.get("locked"), Some(&Tag::Byte(1)));
-    let rules = level.get("game_rules").expect("game rules");
-    assert_eq!(rules.get("minecraft:keep_inventory"), Some(&Tag::Byte(1)));
-    assert_eq!(rules.get("minecraft:random_tick_speed"), Some(&Tag::Int(5)));
+    let rules = level.get("GameRules").expect("game rules");
     assert_eq!(
-        rules.get("minecraft:fire_spread_radius_around_player"),
-        Some(&Tag::Int(0))
+        dynamic::as_str(rules.get("doFireTick")).as_deref(),
+        Some("false")
     );
     assert_eq!(
-        level.get("spawn").and_then(|s| s.get("pos")),
-        Some(&Tag::IntArray(vec![1, 64, -3]))
+        dynamic::as_str(rules.get("keepInventory")).as_deref(),
+        Some("true")
     );
+    assert_eq!(
+        dynamic::as_str(rules.get("randomTickSpeed")).as_deref(),
+        Some("5")
+    );
+    assert!(level.get("difficulty_settings").is_none());
+    assert!(level.get("game_rules").is_none());
+    assert!(level.get("spawn").is_none());
 }
 
+/// A chunk's palette entries keep `Name`/`Properties` through the 1.21.7
+/// upgrade: the rename to `id`/`properties` is fix 5006, a 26.3 fix above
+/// CURRENT (4438), and vanilla 1.21.7's chunk palettes still use
+/// `Name`/`Properties` (its jar's DataFixers top out at V4421). The old
+/// fixture was a 4903 chunk — a future version here, which the upgrade
+/// leaves alone — and expected the 26.3 rename.
 #[test]
-fn block_states_take_their_new_field_names() {
+fn block_states_keep_their_1_21_7_field_names() {
     let mut chunk = snbt(
-        "{DataVersion: 4903, Status: \"minecraft:full\", sections: [{Y: 0b, block_states: \
+        "{DataVersion: 4435, Status: \"minecraft:full\", sections: [{Y: 0b, block_states: \
          {palette: [{Name: \"minecraft:chain\", Properties: {axis: \"y\"}}]}}]}",
     );
     update_chunk(&mut chunk, "minecraft:the_nether", Some("minecraft:noise"));
     let section = &dynamic::stream(chunk.get("sections"))[0];
     let state = &dynamic::stream(section.get("block_states").and_then(|b| b.get("palette")))[0];
     assert_eq!(
-        dynamic::as_str(state.get("id")).as_deref(),
+        dynamic::as_str(state.get("Name")).as_deref(),
         Some("minecraft:chain")
     );
-    assert!(state.get("properties").is_some());
+    assert_eq!(
+        dynamic::as_str(state.get("Properties").and_then(|p| p.get("axis"))).as_deref(),
+        Some("y")
+    );
+    assert!(state.get("id").is_none());
     assert_eq!(chunk.get("DataVersion"), Some(&Tag::Int(CURRENT)));
 }
 
