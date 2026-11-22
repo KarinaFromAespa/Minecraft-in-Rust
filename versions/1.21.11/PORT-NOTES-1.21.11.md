@@ -12860,3 +12860,7 @@ holders); the Rust already cites the 1.21.11 form.
 ## Item 739 — world/entity/vehicle/minecart (NewMinecartBehavior$StepPartialTicks) — NO-CHANGE
 
 Visibility only.
+
+## Item 740 — horizon-client-render/src/gfx/entity_skin.rs (ModelPart$Polygon) — NO-CHANGE
+
+Visibility only.
