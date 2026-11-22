@@ -14033,12 +14033,45 @@ is the oracle; decompiled code is a reading aid.
     port surface.
   - Verification: read / only; no code / changed.
 
+- **Item 346 — SocialInteractionsScreen**
+  - SocialInteractionsScree
+    n: verified, no code.
+    The 60-line diff is
+    three renames plus one
+    1.21.6-only method:
+    RenderPipelines ->
+    RenderType and the
+    blitSprite pipeline
+    argument (render-API
+    refactor, no surface in
+    the wgpu port),
+    saySystemNow -> sayNow
+    (the port never
+    narrates the empty-sear
+    ch/hidden/blocked
+    states - only the
+    per-entry hide/show
+    button narration, which
+    the diff does not
+    touch), and the
+    1.21.6-only added()
+    override refreshing the
+    draft report - the port
+    has no draft-report
+    system at all, so there
+    is nothing to refresh.
+    The background and
+    search sprite geometry
+    is identical in both
+    versions.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **345 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 77/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **346 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 78/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
