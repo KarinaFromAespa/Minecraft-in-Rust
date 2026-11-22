@@ -122,6 +122,16 @@
         "total": 18
       },
       "status": "complete"
+    },
+    "10": {
+      "name": "Rendering, sound, UI",
+      "date": "2026-11-22",
+      "checks": {
+        "gap": 11,
+        "pass": 6,
+        "total": 17
+      },
+      "status": "complete"
     }
   },
   "items": [
@@ -1708,6 +1718,94 @@
       "severity": "major",
       "status": "gap",
       "title": "command_parse fixture has no language data \u2014 86,241 error-text mismatches are raw keys (probe defect, not a game defect)"
+    },
+    {
+      "evidence": "All 24 block sign models in the vanilla 1.21.7 client jar are particle-only (no elements, no parent); vanilla draws the board in SignRenderer/HangingSignRenderer (javap: getSignModel/getSignMaterial/createSignModel). The port's block_entity_render.rs:366 assumes 'the boards are block models' and Kind::Sign carries text only \u2014 no board is ever submitted. Same wrong assumption at block_entity_render.rs:1010 and block_entity_cem.rs:11. The 1.21.11 sign-boards fix (ac8dd9dc) does not apply to 1.21.7 as-is. Sign ITEMS are unaffected (flat sprites in vanilla too).",
+      "id": "B10-G01",
+      "method": "javap + jar assets + source",
+      "severity": "major",
+      "status": "gap",
+      "title": "Sign boards are not rendered: placed signs show floating text only"
+    },
+    {
+      "evidence": "audio_harness.require_sounds() exits unless .local/horizon-client/1.21.7/assets/minecraft/sounds.json exists; the file is absent from the VM's prepared .local (no assets/ dir at all), from mob-spawn/resources (assets/minecraft/ holds only textures/), and from the client jar (sounds.json ships only in the asset index) \u2014 VM-wide search found no copy. Root cause is prepare: --prepare runs optional_imports (panorama/fonts/packs/languages) but sounds need the separate 'horizon-prepare sounds' step or --complete, and prepare-1.21.7.bat runs --prepare only \u2014 the laptop's .local almost certainly lacks it too, so the owner's game is very likely silent (verify on the laptop). Runtime: SoundRegistry::load silently skips a missing sounds.json, so every event resolves to Sound::empty(). Blocks sound_event, ambient_sound, music, situational_music, sound_engine, audio_attributes. The wiring spec itself is clean (1,727 sounds.json events vs 1,728 registry events; only the intentional_empty sentinel lacks an entry).",
+      "id": "B10-G02",
+      "method": "data + source",
+      "severity": "major",
+      "status": "gap",
+      "title": "No sounds.json in the prepared 1.21.7 resources: the game is silent and 6 audio drivers cannot run"
+    },
+    {
+      "evidence": "Placed: vanilla 1.21.7 models/block/bed.json is particle-only (no elements) and every bed blockstate points at it; BedRenderer draws the whole bed. The port has no Bed kind in block_entity_render.rs and no bed drawing code anywhere (only sleep mechanics in bed_geometry.rs / game/beds.rs), so the mesher emits nothing. Items: vanilla renders all 16 bed items via BedSpecialRenderer (items/red_bed.json: minecraft:special, model {type: minecraft:bed}); the port's SpecialModel::decode has no minecraft:bed arm and the error propagates (item_model.rs:550-554), so all 16 bed items fail ClientItem decode. The 1.21.11 sign-boards fix does NOT cover beds.",
+      "id": "B10-G03",
+      "method": "javap + jar assets + source",
+      "severity": "major",
+      "status": "gap",
+      "title": "Beds are invisible when placed, and bed items fail to decode"
+    },
+    {
+      "evidence": "Vanilla 1.21.7 registers 25 BE renderers; the port's Kind covers 13 plus beacon beams. Missing with visible effect: mob/trial spawner spinning mob (+ trial items) \u2014 cage is a block model, the mob is BE-rendered; campfire cooking items (logs are a block model, items are BE-rendered); moving piston \u2014 moving_piston's block model is EMPTY, PistonHeadRenderer draws the moving block, so it vanishes mid-stroke; brushable-block brushed item; vault display item (vault.rs is server-tick logic only). Structure-block and test-instance-block renderers are also absent but their visible in-play output is unverified (both have cube block models) \u2014 noted, not claimed.",
+      "id": "B10-G04",
+      "method": "javap + jar assets + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Five more vanilla block-entity renderers have no port equivalent"
+    },
+    {
+      "evidence": "Batch 0's FirstPerson repair (9dc5dc8d) dropped the swap-ticker columns \u2014 1.21.7 has no itemSwapTicker/getItemSwapScale (swap animation lives in ItemInHandRenderer hand heights); the repaired oracle's tick line has 20 fields. The Rust probe (first_person_probe.rs:379-380) still emits strength.swap_ticker and swap_scale \u2014 22 fields, 2 extra. The driver compares byte-identical output, so it fails on format alone. Probe-side fix (drop the two columns). Whether the game's first_person.rs swap-scale model equals vanilla's hand-height ticks needs the driver run.",
+      "id": "B10-G05",
+      "method": "oracle + probe source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "First-person probe emits swap-ticker columns the repaired oracle dropped: the driver cannot pass"
+    },
+    {
+      "evidence": "test_goat_voices_parity.py docstring: 'Silent ambient suppression is a separate gap: record those two controls, but gate only their hurt/death phases.' Not independently verified against the jar in this batch (goat ambient logic is Batch 3-adjacent); recorded because the driver documents it in Batch 10's sound scope. Needs the driver run (or a Batch 3 javap check) to confirm.",
+      "id": "B10-G06",
+      "method": "driver docstring",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Silent-goat ambient suppression is a known gap, gated out of the driver (driver-documented)"
+    },
+    {
+      "evidence": "10 errors; blocks test_options_parity (the only measured UI harness, still failing after Batch 0). Client-cp break verified directly: the oracle calls k.getCategory().id().getPath(), but 1.21.7's KeyMapping.getCategory() returns String \u2014 no KeyMapping$Category class exists. Everything else the oracle touches exists in 1.21.7 (Options(Minecraft, File) 2-arg ctor, keyMappings, getName/getDefaultKey, ToggleKeyMapping, Minecraft.instance/fixerUpper, DataFixers.getDataFixer()). Small repair: print the category string.",
+      "id": "B10-O01",
+      "method": "javap",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaOptionsOracle does not compile for 1.21.7 (getCategory returns String)"
+    },
+    {
+      "evidence": "43 errors, missing-package (com.mojang.blaze3d.font on server cp; 1.21.7 uses net.minecraft.client.gui.font). Blocks 7 drivers: block_entity_render, chat_screen, hud, pack_screen, recipe_book_render, subtitle, text_display_render. Top-leverage single repair for Batch 10, but each of the 7 also needs its own oracle repaired.",
+      "id": "B10-O02",
+      "method": "Batch 0 oracle table",
+      "severity": "major",
+      "status": "gap",
+      "title": "ParityFont does not compile for 1.21.7 (font package reorg)"
+    },
+    {
+      "evidence": "All fail on all three classpaths. BlockEntityRender 99e, BlockStateModel 13e (missing-symbol), BreakingModel 37e + SectionMesh 99e, DragonRender 26e, EntityAnim 61e, Environment 18e (EnvironmentAttributeSystem, 26.x-only), Mipmap 12e, ModelBaking 35e, ModelChoice 11e (net.minecraft.client.resources.model.sprite absent in 1.21.7), ModelResolution 11e (model.geometry absent in 1.21.7), TextDisplayRender 78e, TitleDebug 12e, WeatherRender 14e, WorldBorderRender 74e. Blocks block_entity_render, blockstate_model, breaking_model, dragon_render, entity_model, environment_render, mipmap, model_baking, model_choice, model_resolution, text_display_render, title_debug, weather_render, world_border_render. The block_entity_render driver would catch B10-G01/G03/G04 once repaired. Caveat: the table's first_error values are server-cp errors; client-cp breaks need per-file inspection.",
+      "id": "B10-O03",
+      "method": "Batch 0 oracle table",
+      "severity": "major",
+      "status": "gap",
+      "title": "Render/model oracle family does not compile for 1.21.7 (14 drivers blocked)"
+    },
+    {
+      "evidence": "All fail on all three classpaths. Ambient 58e, EntitySoundPacket 13e (world.entity.vehicle.minecart \u2014 1.21.7 keeps minecarts in world.entity.vehicle), SoundEngine 28e, SoundRig 72e, Music 38e, SituationalMusic 54e, FireStarterSound 5e, ZombieCureSound 8e, Subtitle 55e, AudioAttributes 23e (EnvironmentAttributeSystem, 26.x-only). Blocks ambient_sound, arrow_hit_sound, audio_attributes, entity_bound_sound, entity_sound_packet, fire_starter_sound, music, situational_music, sound_engine, subtitle, zombie_cure_sound. Note: the 6 audio_harness drivers ALSO need sounds.json (B10-G02) \u2014 oracle repair alone does not make them runnable. VanillaSoundEventOracle compiles (Batch 0 5933e844); sound_event is blocked on data only. Caveat: the table's first_error values are server-cp errors; client-cp breaks need per-file inspection.",
+      "id": "B10-O04",
+      "method": "Batch 0 oracle table",
+      "severity": "major",
+      "status": "gap",
+      "title": "Sound oracle family does not compile for 1.21.7 (11 drivers blocked)"
+    },
+    {
+      "evidence": "All fail on all three classpaths. ChatScreen 128e, Hud 228e, PackScreen 124e, RecipeBookScreen 112e, LoomScreen 76e (the last four import com.mojang.renderpearl.api.pipeline, absent in 1.21.7 \u2014 26.x render-pipeline API, needs rewrites against 1.21.7 screen APIs), ContainerScreen 54e, MenuOracle 9e (missing-symbol). Blocks chat_screen, container_screen, hud, menu_click, pack_screen, recipe_book_render, screen_layout. HudOracle at 228 errors is the largest single oracle failure in the batch. Caveat: the table's first_error values are server-cp errors; client-cp breaks need per-file inspection.",
+      "id": "B10-O05",
+      "method": "Batch 0 oracle table",
+      "severity": "major",
+      "status": "gap",
+      "title": "UI/screen oracle family does not compile for 1.21.7 (7 drivers blocked)"
     }
   ]
 }
