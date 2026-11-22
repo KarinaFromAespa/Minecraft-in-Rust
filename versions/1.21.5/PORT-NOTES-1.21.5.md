@@ -15364,12 +15364,35 @@ is the oracle; decompiled code is a reading aid.
     no surface.
   - Verification: read / only; no code / changed.
 
+- **Item 395 — client/gui/screens/dialog package**
+  - client/gui/screens/dial
+    og package: verified,
+    no code. The whole
+    client-side
+    dialog-screens package
+    is 1.21.6-only - the
+    same ground as items
+    354 and 383
+    (server/dialog). A
+    fresh grep finds no
+    dialog screen or dialog
+    UI anywhere in the
+    port; the only
+    remaining mentions are
+    deliberate contrast
+    comments (the /dialog
+    removal, the absent
+    dialog registry). The
+    dialog system deletion
+    (item 258) holds.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **394 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 126/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **395 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 127/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
