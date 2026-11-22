@@ -12880,3 +12880,7 @@ Visibility only.
 ## Item 744 — lan/commands.rs (Commands$CommandSelection) — NO-CHANGE
 
 Visibility only.
+
+## Item 745 — horizon-port-pack/src/upgrade/density.rs (DensityFunctions$WeirdScaledSampler$RarityValueMapper) — NO-CHANGE
+
+Visibility only.
