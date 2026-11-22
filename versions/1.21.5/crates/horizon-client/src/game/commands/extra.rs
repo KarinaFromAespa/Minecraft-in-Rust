@@ -1,9 +1,9 @@
 //! Commands that act on the player and the hosted game rather than the world:
 //! `/spectate` (SpectateCommand), `/posteffect` (PostEffectCommand), `/kick`,
-//! `/fetchprofile`, `/publish`, `/unpublish`, `/debug`, `/jfr` and
-//! `/version`, with vanilla's feedback and failures.
-//! No `/waypoint` (WaypointCommand) or `/dialog` (DialogCommand): both
-//! arrived in 1.21.6.
+//! `/fetchprofile`, `/publish`, `/unpublish`, `/debug` and `/jfr`, with
+//! vanilla's feedback and failures.
+//! No `/waypoint` (WaypointCommand), `/dialog` (DialogCommand) or `/version`
+//! (VersionCommand): all three arrived in 1.21.6.
 use super::{Arg, Context, Game, R, Target, err};
 use horizon_client::actions::Action;
 use horizon_client::{

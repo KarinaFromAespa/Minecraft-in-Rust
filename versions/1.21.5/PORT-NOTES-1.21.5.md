@@ -16255,12 +16255,74 @@ is the oracle; decompiled code is a reading aid.
     resolve when played.
   - Verification: read / only; no code / changed.
 
+- **Item 425 — Unported classes (369)**
+  - Unported classes (369,
+    in 109 packages):
+    verified by category,
+    plus one stale comment
+    fixed. Datagen
+    (data/tags, data/loot,
+    client/data, gametest)
+    is regenerated from the
+    1.21.5 jar, not ported.
+    Blaze3D, the renderer,
+    chunk and GUI
+    render-state plumbing
+    have no surface in the
+    wgpu-native port.
+    Dialog (server and
+    screens) and waypoints
+    are deleted systems.
+    Realms DTOs are
+    modelled in the port's
+    own client.rs and
+    realms.rs, not class
+    for class. The
+    server-command and loot
+    classes left are the
+    ones whose diffs the
+    ranks 1-3 items already
+    covered or that only
+    refactor (ValueInput,
+    permission spelling).
+    Spot-checked every
+    gameplay-adjacent class
+    present in the sparse
+    trees: PlayerPredicate
+    and LootContext$Builder
+    decompile identically;
+    HexColorArgument,
+    AdultSensorAnyType,
+    VersionCommand,
+    DialogCommand,
+    WaypointCommand,
+    TrialSpawnerStateData
+    and the
+    ValueInput/ValueOutput
+    classes are 1.21.6-only
+    with no port
+    equivalent; HappyGhast
+    and DriedGhastBlock are
+    1.21.6-only too - no
+    happy ghast entity
+    exists in the port, and
+    the dried-ghast
+    animateTick arm is dead
+    in 1.21.5, as its own
+    comment records. Fixed
+    the extra.rs header,
+    which still claimed
+    /version is implemented
+    when the command was
+    removed.
+  - Verification: comment-only / change; no build / needed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **424 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 complete). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **425 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 complete, rank 5 at 1/2). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
