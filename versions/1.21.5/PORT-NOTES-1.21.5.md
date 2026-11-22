@@ -13505,12 +13505,45 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render
     --lib passed (23s).
 
+- **Item 329 — Debug charts**
+  - Debug charts (abstract,
+    bandwidth, FPS, TPS):
+    verified, no code. The
+    140-line diff is the
+    render-API refactor -
+    1.21.5 passes
+    RenderType.guiOverlay()
+    to every
+    fill/hLine/vLine,
+    1.21.6 takes the
+    pipeline implicitly -
+    plus the alpha-0
+    COLOR_GREY: 1.21.5
+    spells it 14737632,
+    1.21.6 -2039584, both
+    0xE0E0E0. The port
+    keeps the opaque
+    0xFFE0E0E0 as LABEL for
+    the min/avg/max and
+    shade labels, the same
+    pixels (the renderer
+    would drop the alpha-0
+    spelling as
+    transparent, as
+    screen_draw documents
+    for the same constant).
+    The 60-pixel chart
+    height, backdrop, white
+    border lines and label
+    positions all match.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **328 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 60/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **329 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 61/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
