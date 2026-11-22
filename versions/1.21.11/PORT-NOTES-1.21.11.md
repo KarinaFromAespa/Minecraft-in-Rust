@@ -13066,3 +13066,11 @@ block models" is corrected here.
 skips), `RandomPatchFeature` (the nextInt-minus-nextInt offsets),
 `SpikeFeature$EndSpike` + `SpikeCacheLoader` (the seed-keyed
 shuffle, centre/radius/height/guarded formulas).
+
+## Item 762 — client/model/animal/feline (new-classes) — NO-CHANGE
+
+3 classes: `CatModel`, `FelineModel`, `OcelotModel`. The Rust
+already ports `FelineModel.setupAnim` in full (`mobs/tame.rs`),
+with 1.21.11's single model for adults and babies (ageScale 0.5)
+against 26.1's split `BabyFelineModel`. Leg phases, tail swings
+and lie-down lerps verified against the decompile.
