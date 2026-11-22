@@ -1,0 +1,8 @@
+{
+  "_note": "Deliberate exceptions to the 26.3-leakage audit. A finding listed here is reported as `accepted` instead of failing \u2014 but only when the port genuinely covers the missing name at every read site the tool flags. Each entry needs a reason and a code pointer; an exception without either is not an exception, it is a suppression. Nothing is excepted yet: see docs/LEAKAGE-AUDIT.md for the triage that decided the current findings are all real (in particular, 1.21.7's supports_* synthesis is worldgen-only \u2014 GeneratorData::load in worldgen/generator.rs \u2014 while the runtime survive.rs reads are still live leaks, so the supports_* tags are deliberately NOT listed here). Schema: version -> family (tags|attributes|gamerules) -> name -> reason.",
+  "1.21.7": {
+    "attributes": {},
+    "gamerules": {},
+    "tags": {}
+  }
+}
