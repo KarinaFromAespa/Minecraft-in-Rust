@@ -168,10 +168,6 @@ pub struct LocationEffects {
 /// hurt dispatch updates stored health synchronously before these are drained.
 #[derive(Clone, Copy, Debug)]
 pub enum MotionEvent {
-    Waypoint {
-        receiver: bool,
-        enabled: bool,
-    },
     Health(crate::health::HealthEvent),
     /// `LivingEntity.handleDamageEvent`: the hurt sound the player hears.
     HurtSound(&'static str),
@@ -778,7 +774,7 @@ impl PlayerMotion {
         }
         Ok(())
     }
-    /// `AttributeMap.pack` in `AttributeInstance.Packed.LIST_CODEC`'s form: the
+    /// `AttributeMap.save`'s ListTag form: the
     /// player's `attributes` list (LivingEntity.addAdditionalSaveData), each
     /// instance's id, base and permanent modifiers.
     pub fn saved_attributes(&self) -> horizon_world::nbt::Tag {
@@ -1641,6 +1637,11 @@ impl MotionWorld<'_, '_, '_> {
                 }
             }
         }
+        // `Entity.applyEffectsFromBlocks` snapshots burning before the
+        // block pass: a fire that goes out in the pass leaves
+        // -getFireImmuneTicks() (-20 for a player), a fire that burned
+        // out on its own stays 0.
+        let was_on_fire = self.player.fire_ticks > 0;
         let mut visited = crate::fast_hash::FxHashSet::default();
         let mut entered = Vec::new();
         for movement in &movements {
@@ -1648,8 +1649,12 @@ impl MotionWorld<'_, '_, '_> {
             let delta = movement.to.subtract(movement.from);
             let mut budget = 16;
             match movement.original {
-                Some(original) if delta.length_squared() > 0.0 => {
-                    for axis in Axis::step_order(original) {
+                // `Entity.move` splits the RESOLVED move into axis steps
+                // (`axisStepOrder` on the move's own delta, YZX when
+                // |x| < |z|, else YXZ); the pre-collision `original` only
+                // marks a recorded move, it never sets the order.
+                Some(_) if delta.length_squared() > 0.0 => {
+                    for axis in Axis::step_order(delta) {
                         let step = delta.component(axis);
                         if step != 0.0 {
                             let to = from.relative(
@@ -1725,6 +1730,13 @@ impl MotionWorld<'_, '_, '_> {
                 self.player.ticks_frozen =
                     (self.player.ticks_frozen + 1).min(PlayerMotion::TICKS_REQUIRED_TO_FREEZE);
             }
+        }
+        // `Entity.applyEffectsFromBlocks` (1.21.5): a fire that went out
+        // in this pass leaves -getFireImmuneTicks() (-20), so the next
+        // lightning strikes count toward reigniting it. 1.21.6 resets
+        // every non-burning entity to -20 each pass instead.
+        if was_on_fire && self.player.fire_ticks <= 0 {
+            self.player.fire_ticks = -20;
         }
         Ok(())
     }
@@ -1808,7 +1820,7 @@ impl MotionWorld<'_, '_, '_> {
             let powder_snow = name == "minecraft:powder_snow";
             // A filled cauldron's content top in blocks: the lava's 15/16
             // (LavaCauldronBlock.FILLED_SHAPE), or a layered cauldron's
-            // getPixelContentHeight, 6 + 3 per level (FILLED_SHAPES).
+            // getContentHeight, 6 + 3 per level.
             let content_top = match name {
                 "minecraft:lava_cauldron" => Some(15.0 / 16.0),
                 "minecraft:water_cauldron" | "minecraft:powder_snow_cauldron" => {
@@ -1823,14 +1835,46 @@ impl MotionWorld<'_, '_, '_> {
                 }
                 _ => None,
             };
+            // A layered cauldron (water, powder snow).
+            let layered =
+                matches!(name, "minecraft:water_cauldron" | "minecraft:powder_snow_cauldron");
             // getEntityInsideCollisionShape is the whole block but for powder
             // snow (its collision shape, the whole block when it is empty),
-            // filled cauldrons, end portals and tripwires; Horizon doesn't
-            // follow the player into those last two.
+            // filled cauldrons, nether portals (their visual shape, a 4/16
+            // slab across the cell), end portals and tripwires; Horizon
+            // doesn't follow the player into those last two.
             if matches!(name, "minecraft:end_portal" | "minecraft:tripwire") {
                 continue;
             }
-            let inside = !(powder_snow || content_top.is_some()) || {
+            // 1.21.5 has no FILLED_SHAPES override for layered cauldrons
+            // (1.21.6's getEntityInsideCollisionShape): entityInside fires
+            // on the AABB overlap the sweep already found, and the content
+            // check lives in layered_cauldron_inside
+            // (AbstractCauldronBlock.isEntityInsideContent).
+            // A nether portal's entity-inside shape is its visual shape, the
+            // 1.21.5 `getEntityInsideCollisionShape`; 1.21.6 dropped the
+            // override and fell back to the whole block.
+            let portal = name == "minecraft:nether_portal";
+            let inside = layered || !(powder_snow || content_top.is_some() || portal) || if portal {
+                let x_axis =
+                    definition.properties.get("axis").map(String::as_str) == Some("x");
+                let (x, y, z) = (f64::from(p.x), f64::from(p.y), f64::from(p.z));
+                let slab = if x_axis {
+                    Aabb::new(
+                        Vec3::new(x, y, z + 0.375),
+                        Vec3::new(x + 1.0, y + 1.0, z + 0.625),
+                    )
+                } else {
+                    Aabb::new(
+                        Vec3::new(x + 0.375, y, z),
+                        Vec3::new(x + 0.625, y + 1.0, z + 1.0),
+                    )
+                };
+                self.player
+                    .dimensions
+                    .bounds(from)
+                    .collided_along_vector(to.subtract(from), &[slab])
+            } else {
                 let context = self.context();
                 let binding = self.collision_binding;
                 let shape = binding.collision_shape_with_context(
@@ -1844,8 +1888,9 @@ impl MotionWorld<'_, '_, '_> {
                         let offset = Vec3::new(f64::from(p.x), f64::from(p.y), f64::from(p.z));
                         let mut boxes: Vec<_> = shape.moved(offset).boxes().to_vec();
                         if let Some(top) = content_top {
-                            // The cauldron's shape or its content,
-                            // Block.column(12, 4, top).
+                            // The lava cauldron's shape or its content,
+                            // Block.column(12, 4, top). (Layered cauldrons
+                            // never reach here: they short-circuit above.)
                             boxes.push(Aabb::new(
                                 Vec3::new(2.0 / 16.0, 4.0 / 16.0, 2.0 / 16.0).add_vector(offset),
                                 Vec3::new(14.0 / 16.0, top, 14.0 / 16.0).add_vector(offset),
@@ -1882,7 +1927,7 @@ impl MotionWorld<'_, '_, '_> {
                     "minecraft:cactus" => self.environment_hurt("minecraft:cactus", 1.0)?,
                     "minecraft:lava_cauldron" => self.lava_cauldron_inside()?,
                     "minecraft:water_cauldron" | "minecraft:powder_snow_cauldron" => {
-                        self.layered_cauldron_inside(p);
+                        self.layered_cauldron_inside(p, content_top.unwrap_or(0.0));
                     }
                     "minecraft:wither_rose" => {
                         self.player.events.push(MotionEvent::InsideWitherRose);
@@ -2019,11 +2064,20 @@ impl MotionWorld<'_, '_, '_> {
         self.player.ignite_for_ticks(300)?;
         self.environment_hurt("minecraft:lava", 4.0)
     }
-    /// `LayeredCauldronBlock.entityInside`: on a server, a burning player
-    /// asks for the cauldron's `handleEntityOnFireInside` (runBefore
-    /// EXTINGUISH, so while still burning), then EXTINGUISH
-    /// (`Entity.clearFire`) puts the fire out.
-    fn layered_cauldron_inside(&mut self, pos: BlockPos) {
+    /// `LayeredCauldronBlock.entityInside` (1.21.5): a burning player inside
+    /// the content asks for the cauldron's `handleEntityOnFireInside` (the
+    /// level drops) when it may interact, and `Entity.clearFire` puts the
+    /// fire out. `AbstractCauldronBlock.isEntityInsideContent`: the feet
+    /// below the content top, the head above the block's first quarter.
+    /// 1.21.6 replaced the content check with the FILLED_SHAPES
+    /// entity-inside shape and the EXTINGUISH effect applier.
+    fn layered_cauldron_inside(&mut self, pos: BlockPos, content_top: f64) {
+        let base = f64::from(pos.y);
+        if self.player.position.y >= base + content_top
+            || self.player.bounds().max_position().y <= base + 0.25
+        {
+            return;
+        }
         if self.player.fire_ticks > 0 && !self.player.spectator {
             self.player
                 .events
@@ -3330,7 +3384,7 @@ mod tests {
 
     #[test]
     fn attribute_bases_survive_a_save_and_reload() {
-        // #4425: LivingEntity.addAdditionalSaveData writes AttributeMap.pack
+        // #4425: LivingEntity.addAdditionalSaveData writes AttributeMap.save
         // and readAdditionalSaveData applies it (before the health).
         let root = std::env::var_os("HORIZON_TEST_RESOURCES")
             .map(std::path::PathBuf::from)

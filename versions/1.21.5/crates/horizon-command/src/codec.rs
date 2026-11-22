@@ -1,6 +1,6 @@
 //! ResourceOrIdArgument and the data-fixer-upper decoding of inline values
 //! commands accept (loot predicates, item modifiers, slot sources, context
-//! providers, dialogs), reproducing the codec error messages vanilla reports.
+//! providers), reproducing the codec error messages vanilla reports.
 use super::args::{Registries, is_id_char, parse_identifier, slot_ranges};
 use super::{CmdResult, CommandError, Reader};
 use horizon_world::nbt::{Compound, JavaString, Tag};
@@ -331,19 +331,6 @@ pub fn decode(registry: &str, t: &Tag, reg: &Registries) -> Result<(), String> {
                 Ok(())
             })
         }),
-        // Dialog types: CommonDialogData's title, then each type's own.
-        "minecraft:dialog" => dispatch(t, reg, "minecraft:dialog_type", &|id, map, t| {
-            let own: &[&str] = match id {
-                "minecraft:confirmation" => &["yes", "no"],
-                "minecraft:multi_action" => &["actions"],
-                "minecraft:dialog_list" => &["dialogs"],
-                _ => &[],
-            };
-            let keys: Vec<&str> = std::iter::once("title")
-                .chain(own.iter().copied())
-                .collect();
-            require(map, t, &keys)
-        }),
         // The ConfiguredFeature codec, where the source has the live features.
         "minecraft:worldgen/feature" => {
             check_feature(t, reg)?;
@@ -463,27 +450,61 @@ fn read_non_empty(reader: &mut Reader) -> Option<String> {
     id
 }
 
-/// ResourceOrIdArgument.parse: a registry id (checked) or an inline SNBT
-/// value decoded with the registry's codec.
+/// ResourceOrIdArgument.parse, the 1.21.5 form (parseInlineOrId): the
+/// inline SNBT value first, then the id. An inline string is a reference,
+/// decoded by the holder codec, so an unknown id fails that codec and
+/// reports failed_to_parse - never the 1.21.6-only no_such_element. Input
+/// that is neither a whole value nor a whole id is invalid; an id read
+/// that finds nothing is argument.id.invalid (ResourceLocation.read).
 pub fn resource_or_id(reader: &mut Reader, reg: &Registries, registry: &str) -> CmdResult<()> {
     let start = reader.cursor;
     let mut r = reader.clone();
     r.skip_whitespace();
-    if let Some(id) = read_non_empty(&mut r) {
+    let tag = super::snbt::parse_tag_argument(&mut r)?;
+    if !r.can_read() || r.peek() == ' ' {
         reader.cursor = r.cursor;
-        if !reg.ids(registry).contains(&id) {
-            return Err(CommandError::tr_at(
-                "argument.resource_or_id.no_such_element",
-                &[&id, &registry],
-                reader,
-            ));
+        if let Some(name) = as_string(&tag) {
+            return check_reference(&name, reg, registry, reader);
         }
-        return Ok(());
+        return decode(registry, &tag, reg)
+            .map_err(|m| CommandError::tr_at("argument.resource_or_id.failed_to_parse", &[&m], reader));
     }
     reader.cursor = start;
-    let tag = super::snbt::parse_tag_argument(reader)?;
-    decode(registry, &tag, reg)
-        .map_err(|m| CommandError::tr_at("argument.resource_or_id.failed_to_parse", &[&m], reader))
+    let mut r = reader.clone();
+    r.skip_whitespace();
+    let Some(id) = read_non_empty(&mut r) else {
+        reader.cursor = start;
+        return Err(CommandError::tr_at("argument.id.invalid", &[], reader));
+    };
+    if !r.can_read() || r.peek() == ' ' {
+        reader.cursor = r.cursor;
+        return check_reference(&id, reg, registry, reader);
+    }
+    reader.cursor = start;
+    Err(CommandError::tr_at("argument.resource_or_id.invalid", &[], reader))
+}
+
+/// The holder codec's id lookup: an unknown id fails the codec. Strict
+/// even when the table is empty - the lookup is the parse gate, and the
+/// slot path (`item replace ... nowhere.0`) relies on unknown ids
+/// erroring rather than passing through.
+fn check_reference(name: &str, reg: &Registries, registry: &str, reader: &Reader) -> CmdResult<()> {
+    let Some(id) = parse_identifier(name) else {
+        return Err(CommandError::tr_at(
+            "argument.resource_or_id.failed_to_parse",
+            &[&format!("Not a valid resource location: {name}")],
+            reader,
+        ));
+    };
+    let known = reg.ids(registry);
+    if !known.contains(&id) {
+        return Err(CommandError::tr_at(
+            "argument.resource_or_id.failed_to_parse",
+            &[&format!("Failed to get element {id} from registry {registry}")],
+            reader,
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -583,5 +604,94 @@ mod slot_range_tests {
                 ))
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod resource_or_id_tests {
+    use super::*;
+
+    fn tables() -> Registries {
+        let mut reg = Registries::default();
+        reg.loot_tables = vec![
+            "minecraft:chests/simple_dungeon".into(),
+            "minecraft:foo".into(),
+        ];
+        reg
+    }
+
+    fn key_of(input: &str, reg: &Registries, registry: &str) -> Result<usize, String> {
+        let mut reader = Reader::new(input);
+        match resource_or_id(&mut reader, reg, registry) {
+            Ok(()) => Ok(reader.cursor),
+            Err(e) => Err(e.key),
+        }
+    }
+
+    #[test]
+    fn ids_and_inline_values_follow_parse_inline_or_id() {
+        let reg = tables();
+        // A known id, whole arg and followed by more input.
+        assert_eq!(
+            key_of("minecraft:chests/simple_dungeon", &reg, "minecraft:loot_table"),
+            Ok(31)
+        );
+        assert_eq!(
+            key_of("minecraft:chests/simple_dungeon @p", &reg, "minecraft:loot_table"),
+            Ok(31)
+        );
+        // A bare word is an inline string, read as a reference.
+        assert_eq!(key_of("foo", &reg, "minecraft:loot_table"), Ok(3));
+        assert_eq!(
+            key_of("\"minecraft:chests/simple_dungeon\"", &reg, "minecraft:loot_table"),
+            Ok(33)
+        );
+        // An inline compound decodes; a bad one fails the codec.
+        assert_eq!(key_of("{pools:[]}", &reg, "minecraft:loot_table"), Ok(10));
+        assert_eq!(
+            key_of("{type:\"minecraft:all_of\"}", &reg, "minecraft:predicate"),
+            Err("argument.resource_or_id.failed_to_parse".into())
+        );
+        // A bare number is an inline value, not an id.
+        assert_eq!(
+            key_of("123", &reg, "minecraft:loot_table"),
+            Err("argument.resource_or_id.failed_to_parse".into())
+        );
+        assert_eq!(
+            key_of("123", &reg, "minecraft:context_int_provider"),
+            Ok(3)
+        );
+    }
+
+    #[test]
+    fn unknown_ids_fail_the_codec_and_neither_form_is_invalid() {
+        let reg = tables();
+        let mut reader = Reader::new("minecraft:nope");
+        let err = resource_or_id(&mut reader, &reg, "minecraft:loot_table").unwrap_err();
+        assert_eq!(err.key, "argument.resource_or_id.failed_to_parse");
+        assert!(
+            format!("{:?}", err.message)
+                .contains("Failed to get element minecraft:nope from registry minecraft:loot_table"),
+            "{:?}",
+            err.message
+        );
+        assert_eq!(
+            key_of("bar", &reg, "minecraft:loot_table"),
+            Err("argument.resource_or_id.failed_to_parse".into())
+        );
+        assert_eq!(
+            key_of("foo!bar", &reg, "minecraft:loot_table"),
+            Err("argument.resource_or_id.invalid".into())
+        );
+        assert_eq!(
+            key_of("{a:1}junk", &reg, "minecraft:loot_table"),
+            Err("argument.id.invalid".into())
+        );
+        // The lookup is strict even with an empty table: unknown ids
+        // error rather than passing through (the slot path relies on it).
+        assert_eq!(
+            key_of("minecraft:nope", &Registries::default(), "minecraft:loot_table"),
+            Err("argument.resource_or_id.failed_to_parse".into())
+        );
     }
 }

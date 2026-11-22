@@ -1,12 +1,8 @@
 //! Llamas on the game side: `AbstractChestedHorse.mobInteract` and
-//! `Llama.handleEating` (wheat and hay), chests, carpets, shearing a carpet
-//! off and riding.
+//! `Llama.handleEating` (wheat and hay), chests, carpets and riding.
 use super::Game;
 use horizon_client::actions::Action;
-use horizon_client::{
-    items::ItemStack,
-    mobs::{equine, llama},
-};
+use horizon_client::mobs::{equine, llama};
 use horizon_core::random::RandomSource;
 
 impl Game<'_> {
@@ -111,19 +107,9 @@ impl Game<'_> {
         let m = &self.mobs[index];
         let carpet = |i: &str| i.ends_with("_carpet") && i.starts_with("minecraft:");
         if !item.is_empty() {
-            if item == "minecraft:shears" && m.extra.body.as_deref().is_some_and(carpet) {
-                // Equippable.canBeSheared: the carpet comes off.
-                let at = m.center();
-                let carpet = self.mobs[index].extra.body.take().unwrap_or_default();
-                self.audio
-                    .play("minecraft:item.llama_carpet.unequip", Some(at), 1.0, 1.0);
-                self.spawn_item(ItemStack::new(&carpet, 1), at, [0.0, 0.2, 0.0], 10);
-                self.damage_held_tool();
-                let id = self.mobs[index].id;
-                let pos = self.mobs[index].position;
-                self.mob_equip_event(id, [pos.x, pos.y, pos.z], false);
-                return true;
-            }
+            // No shears branch: 1.21.5 has no shear-equipment system
+            // (`attemptToShearEquipment` is 1.21.6-only), so shears fall
+            // through to the ride below.
             if carpet(item) && m.extra.body.is_none() {
                 self.mobs[index].extra.body = Some(item.into());
                 self.llama_sound(index, "entity.llama.swag", 1.0);
@@ -143,7 +129,7 @@ impl Game<'_> {
         if !self.native_may_board(id) {
             return true;
         }
-        self.break_leash(id, true, false);
+        self.break_leash(id, true);
         let m = &mut self.mobs[index];
         m.extra.flag = false;
         m.extra.counter = 0;

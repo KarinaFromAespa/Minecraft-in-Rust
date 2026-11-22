@@ -145,32 +145,30 @@ pub fn blit(
         color: WHITE,
     });
 }
-/// `graphics.text`: dropped when fully transparent; legacy codes resolved.
+/// `graphics.text`: legacy codes resolved. A colour with alpha under 4
+/// draws opaque — `Font.drawInternal`'s adjustColor (1.21.5) forces it
+/// at the batch, so nothing is dropped here.
 pub fn text(out: &mut Vec<Draw>, text: Text, x: i32, y: i32, color: i32, shadow: bool) {
-    if (color as u32) >> 24 != 0 {
-        out.push(Draw::Text {
-            text: text.resolve_legacy(),
-            x,
-            y,
-            color,
-            shadow,
-        });
-    }
+    out.push(Draw::Text {
+        text: text.resolve_legacy(),
+        x,
+        y,
+        color,
+        shadow,
+    });
 }
 /// `graphics.text` on text the caller already styled, drawn as it is: a `§`
 /// in it stays a character, as `FormattedCharSequence.forward`
 /// (`StringDecomposer.iterate`, not `iterateFormatted`) draws it. An edit box
 /// builds its own sequence that way, so a `§` in its value shows.
 pub fn text_as_typed(out: &mut Vec<Draw>, text: Text, x: i32, y: i32, color: i32, shadow: bool) {
-    if (color as u32) >> 24 != 0 {
-        out.push(Draw::Text {
-            text,
-            x,
-            y,
-            color,
-            shadow,
-        });
-    }
+    out.push(Draw::Text {
+        text,
+        x,
+        y,
+        color,
+        shadow,
+    });
 }
 
 /// `StringDecomposer.iterateFormatted`: the drawn characters of `contents`,
@@ -409,29 +407,21 @@ pub fn string_widget(
     text(out, line, x, y, WHITE, true);
 }
 
-/// `MultiLineLabel.create(font, maxWidth, maxRows, message)`: the lines and their widths;
-/// the last kept line gets "..." in `ellipsis` (the message's own style) when rows were cut.
+/// `MultiLineLabel.create(font, maxWidth, maxRows, message)`: the lines and their widths.
+/// 1.21.5 truncates to `maxRows` with a plain subList; the "…" 1.21.6
+/// appends to the last kept line is not here.
 pub fn label_lines(
     m: &Measure,
     message: &Text,
     max_width: i32,
     max_rows: usize,
-    ellipsis: &Style,
 ) -> Vec<(Text, i32)> {
     let split = m.split(message, max_width);
-    let n = split.len().min(max_rows);
-    let mut out = Vec::new();
-    for (i, line) in split.iter().take(n).enumerate() {
-        if i == n - 1 && n == max_rows && n != split.len() {
-            let clipped = m.head(line, m.width(line) - m.width_str("..."));
-            let with = clipped.append(Text::styled("...", ellipsis.clone()));
-            let w = m.width(&with);
-            out.push((with, w));
-        } else {
-            out.push((line.clone(), m.width(line)));
-        }
-    }
-    out
+    split
+        .iter()
+        .take(max_rows)
+        .map(|line| (line.clone(), m.width(line)))
+        .collect()
 }
 /// `MultiLineTextWidget.getWidth`.
 pub fn label_width(lines: &[(Text, i32)], max_width: i32) -> i32 {
@@ -612,7 +602,6 @@ pub struct TextField {
     pub height: i32,
     pub focused: bool,
     pub text_color: i32,
-    pub text_shadow: bool,
     pub hint: Option<Text>,
     pub suggestion: Option<String>,
     /// `getMessage`: what the narrator calls the box.
@@ -655,8 +644,11 @@ impl TextField {
             width,
             height,
             focused: false,
+            // `DEFAULT_TEXT_COLOR`: 1.21.5 spells it 14737632 (alpha 0,
+            // the font forces it opaque); the effective colour is this
+            // opaque 0xFFE0E0E0, which the renderer would drop as
+            // transparent if spelled the 1.21.5 way.
             text_color: -2039584,
-            text_shadow: true,
             hint: None,
             suggestion: None,
             message: String::new(),
@@ -909,7 +901,7 @@ impl TextField {
             };
             let t = styled(half, self.display);
             let w = m.width_drawn(&t);
-            text_as_typed(out, t, draw_x, ty, color, self.text_shadow);
+            text_as_typed(out, t, draw_x, ty, color, true);
             draw_x += w + 1;
         }
         let insert = self.cursor < len || len >= self.max_length;
@@ -922,7 +914,7 @@ impl TextField {
         }
         if !displayed.is_empty() && on_screen && (rel_cursor as usize) < shown_len {
             let t = styled(sub(&displayed, rel_cursor as usize, shown_len), self.cursor);
-            text_as_typed(out, t, draw_x, ty, color, self.text_shadow);
+            text_as_typed(out, t, draw_x, ty, color, true);
         }
         if let Some(hint) = &self.hint
             && displayed.is_empty()
@@ -937,19 +929,11 @@ impl TextField {
                 cursor_x - 1,
                 ty,
                 -8355712,
-                self.text_shadow,
+                true,
             );
         }
-        if rel_highlight as isize != rel_cursor {
-            let hx = tx + m.width_str(&sub(&displayed, 0, rel_highlight));
-            let right = self.x + self.width;
-            out.push(Draw::Highlight {
-                x0: cursor_x.min(right),
-                y0: ty - 1,
-                x1: (hx - 1).min(right),
-                y1: ty + 1 + 9,
-            });
-        }
+        // 1.21.5 draws the cursor before the highlight (1.21.6 reversed
+        // them), so the selection covers the caret.
         if show_cursor {
             if insert {
                 fill(out, cursor_x, ty - 1, cursor_x + 1, ty + 10, color);
@@ -960,9 +944,19 @@ impl TextField {
                     cursor_x,
                     ty,
                     color,
-                    self.text_shadow,
+                    true,
                 );
             }
+        }
+        if rel_highlight as isize != rel_cursor {
+            let hx = tx + m.width_str(&sub(&displayed, 0, rel_highlight));
+            let right = self.x + self.width;
+            out.push(Draw::Highlight {
+                x0: cursor_x.min(right),
+                y0: ty - 1,
+                x1: (hx - 1).min(right),
+                y1: ty + 1 + 9,
+            });
         }
         if self.focused {
             // `TextInputManager.setTextInputArea`, in GUI pixels: the caret
@@ -1346,6 +1340,29 @@ mod scissor_tests {
 
     fn scissor(x0: i32, y0: i32, x1: i32, y1: i32) -> Draw {
         Draw::Scissor { x0, y0, x1, y1 }
+    }
+
+    /// `Font.drawInternal`'s adjustColor (1.21.5): a colour with alpha
+    /// under 4 draws opaque; alpha 4 and up keeps its alpha.
+    #[test]
+    fn text_with_alpha_under_four_draws_opaque() {
+        let atlas = atlas();
+        for (color, expected) in [
+            (0x00FF_0000i32, 0xFF),
+            (0x03FF_0000i32, 0xFF),
+            (0x04FF_0000i32, 0x04),
+        ] {
+            let mut batch = HudBatch::new([320, 240]);
+            let mut out = Vec::new();
+            text(&mut out, Text::literal("A"), 10, 10, color, false);
+            assert_eq!(out.len(), 1, "colour {color:#x} is drawn");
+            paint(&mut batch, &atlas, &out);
+            assert!(!batch.vertices.is_empty());
+            assert!(
+                batch.vertices.iter().all(|v| v.color >> 24 == expected),
+                "colour {color:#x}: every vertex at alpha {expected:#x}"
+            );
+        }
     }
 
     /// `GuiGraphicsExtractor.ScissorStack.push`: a scissor inside another is

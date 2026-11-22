@@ -16,7 +16,7 @@ pub(super) fn forget_stale_modifiers(list: &mut [Tag], attr: Attr) {
         entry.remove(&"modifiers".into());
     }
 }
-/// `AttributeInstance.apply` for the saved permanent modifiers of the attributes
+/// `AttributeInstance.load` for the saved permanent modifiers of the attributes
 /// the mob's store models (`LivingEntity.readAdditionalSaveData`, after the
 /// bases): each lands under its id, replacing one it already holds. A malformed
 /// entry is skipped; vanilla drops the whole list for one.
@@ -61,7 +61,7 @@ pub(super) fn read_attribute_modifiers(m: &mut Mob, tag: &Tag) {
 }
 
 /// `LivingEntity.readAdditionalSaveData` applies the saved permanent attribute
-/// modifiers (`AttributeInstance.apply`), then Zombie/Piglin `setBaby(IsBaby)`
+/// modifiers (`AttributeInstance.load`), then Zombie/Piglin `setBaby(IsBaby)`
 /// removes a saved `minecraft:baby`. Expected values come from the vanilla
 /// formula (`AttributeInstance.calculateValue`) worked by hand.
 #[cfg(test)]

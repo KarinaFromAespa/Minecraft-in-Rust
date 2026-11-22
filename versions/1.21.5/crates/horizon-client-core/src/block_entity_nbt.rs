@@ -236,12 +236,16 @@ fn template(tag: &Tag) -> Option<Tag> {
         _ => None,
     }
 }
-/// `ItemStackWithSlot` entries of a container of `size` slots, by ascending slot.
+/// `ContainerHelper.loadAllItems`/`saveAllItems` entries of a container of
+/// `size` slots, by ascending slot. A missing `Slot` defaults to 0
+/// (`getByteOr("Slot", 0)`), as the game's `decode_items` does; an entry
+/// whose stack does not parse is dropped, as 1.21.5's `orElse(EMPTY)` is.
 fn items(tag: Option<&Tag>, size: usize) -> Vec<Tag> {
     let mut slots: Vec<Option<Tag>> = vec![None; size];
     if let Some(Tag::List(list)) = tag {
         for entry in list {
-            let (Some(slot), Some(item)) = (int(entry.get("Slot")), stack(entry)) else {
+            let slot = int(entry.get("Slot")).unwrap_or(0);
+            let Some(item) = stack(entry) else {
                 continue;
             };
             if (0..size as i32).contains(&slot) {
@@ -677,7 +681,7 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
             }
         }
         "minecraft:trial_spawner" => {
-            // `TrialSpawnerStateData.Packed` and `FullConfig`: every key is optional
+            // `TrialSpawnerData` and `TrialSpawner.codec()`: every key is optional
             // and defaulted by vanilla; they are kept as loaded. No `spawn_data` is
             // added: an absent one loads as Optional.empty and is not stored, and
             // an empty entity would keep the spawner from ever picking a mob.
@@ -743,13 +747,15 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
     out.insert("y".into(), Tag::Int(y));
     out.insert("z".into(), Tag::Int(z));
     out.insert("keepPacked".into(), Tag::Byte(0));
-    out.insert(
-        "components".into(),
-        match tag.get("components") {
-            Some(c @ Tag::Compound(_)) => c.clone(),
-            _ => Tag::Compound(Compound::new()),
-        },
-    );
+    // `BlockEntity.saveWithoutMetadata`: `components` is
+    // `COMPONENTS_CODEC.optionalFieldOf("components", EMPTY)` — an empty
+    // component map is omitted, not written as an empty compound (1.21.6's
+    // `ValueOutput.store` writes it unconditionally).
+    if let Some(c @ Tag::Compound(map)) = tag.get("components")
+        && !map.is_empty()
+    {
+        out.insert("components".into(), c.clone());
+    }
     Some(Tag::Compound(out))
 }
 
@@ -859,13 +865,19 @@ mod tests {
             let out = canonical(&tag).unwrap_or_else(|| panic!("{id}"));
             assert_eq!(out.get("id"), tag.get("id"));
             assert_eq!(out.get("keepPacked"), Some(&Tag::Byte(0)), "{id}");
-            assert_eq!(
-                out.get("components"),
-                Some(&Tag::Compound(Compound::new())),
-                "{id}"
-            );
+            // `optionalFieldOf("components", EMPTY)`: no components, no key.
+            assert_eq!(out.get("components"), None, "{id}");
         }
         assert!(canonical(&snbt("{id:\"minecraft:nope\",x:1,y:2,z:3}")).is_none());
+        let with = canonical(
+            &snbt("{id:\"minecraft:chest\",x:1,y:2,z:3,components:{\"minecraft:custom_name\":\"Hi\"}}"),
+        )
+        .unwrap();
+        assert_eq!(
+            with.get("components"),
+            Some(&snbt("{\"minecraft:custom_name\":\"Hi\"}")),
+            "non-empty components are kept"
+        );
     }
 
     #[test]

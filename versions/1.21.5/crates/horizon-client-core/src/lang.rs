@@ -381,26 +381,67 @@ impl ResourceSource for std::path::PathBuf {
 
 /// DeprecatedTranslationsInfo.applyToMap: drop removed keys, then move each
 /// renamed key's text to its new key (a missing old key removes the new one).
+/// 1.21.5 parses deprecated.json with Gson's lenient reader (1.21.6's
+/// StrictJsonParser is 1.21.6-only), so a file that is not plain JSON falls
+/// back to the lenient reader, as lang files do.
 pub fn apply_deprecated(map: &mut HashMap<String, String>, json: &[u8]) {
-    let Ok(info) = serde_json::from_slice::<serde_json::Value>(json) else {
+    let mut apply = |removed: Vec<String>, renamed: Vec<(String, String)>| {
+        for key in removed {
+            map.remove(&key);
+        }
+        for (from, to) in renamed {
+            match map.remove(&from) {
+                Some(value) => {
+                    map.insert(to, value);
+                }
+                None => {
+                    map.remove(&to);
+                }
+            }
+        }
+    };
+    if let Ok(info) = serde_json::from_slice::<serde_json::Value>(json) {
+        let removed = info["removed"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|k| k.as_str().map(str::to_owned))
+            .collect();
+        let renamed = info["renamed"]
+            .as_object()
+            .into_iter()
+            .flatten()
+            .filter_map(|(from, to)| to.as_str().map(|to| (from.clone(), to.to_owned())))
+            .collect();
+        apply(removed, renamed);
+        return;
+    }
+    use horizon_world::datafix::json::{Json, parse_lenient};
+    let text = String::from_utf8_lossy(json);
+    // Gson's JsonReader skips a leading byte order mark.
+    let text = text.strip_prefix('\u{feff}').unwrap_or(&text);
+    let utf16: Vec<u16> = text.encode_utf16().collect();
+    let Some(info) = parse_lenient(&utf16) else {
         return;
     };
-    for key in info["removed"].as_array().into_iter().flatten() {
-        if let Some(k) = key.as_str() {
-            map.remove(k);
-        }
-    }
-    for (from, to) in info["renamed"].as_object().into_iter().flatten() {
-        let Some(to) = to.as_str() else { continue };
-        match map.remove(from) {
-            Some(value) => {
-                map.insert(to.to_owned(), value);
-            }
-            None => {
-                map.remove(to);
-            }
-        }
-    }
+    let str_of = |j: &Json| match j {
+        Json::Str(s) => Some(String::from_utf16_lossy(s)),
+        _ => None,
+    };
+    let removed = match info.get("removed") {
+        Some(Json::Arr(items)) => items.iter().filter_map(str_of).collect(),
+        _ => Vec::new(),
+    };
+    let renamed = match info.get("renamed") {
+        Some(Json::Obj(entries)) => entries
+            .iter()
+            .filter_map(|(from, to)| {
+                str_of(to).map(|to| (String::from_utf16_lossy(from), to))
+            })
+            .collect(),
+        _ => Vec::new(),
+    };
+    apply(removed, renamed);
 }
 
 /// `Language.loadFromJson` for one `lang/<code>.json`: its entries go into `map` in file order.
@@ -1014,6 +1055,31 @@ mod tests {
         ] {
             assert_eq!(read(body), HashMap::new(), "{body:?}");
         }
+    }
+
+    #[test]
+    fn deprecated_json_reads_leniently_like_1_21_5() {
+        // 1.21.5 parses deprecated.json with Gson's lenient reader; a file
+        // with a comment and single-quoted names still applies.
+        let mut map = entries(&[("old", "Old"), ("gone", "Gone"), ("kept", "Kept")]);
+        apply_deprecated(
+            &mut map,
+            b"// deprecated\n{removed: ['gone'], renamed: {'old': 'new'}}",
+        );
+        assert_eq!(
+            map,
+            entries(&[("new", "Old"), ("kept", "Kept")])
+        );
+        // Plain JSON still applies, and a file that is not JSON even
+        // leniently changes nothing.
+        let mut map = entries(&[("old", "Old"), ("gone", "Gone")]);
+        apply_deprecated(
+            &mut map,
+            br#"{"removed": ["gone"], "renamed": {"old": "new"}}"#,
+        );
+        assert_eq!(map, entries(&[("new", "Old")]));
+        apply_deprecated(&mut map, b"{removed: [}");
+        assert_eq!(map, entries(&[("new", "Old")]));
     }
 
     #[test]

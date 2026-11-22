@@ -2792,7 +2792,7 @@ impl Game<'_> {
             S::ContainerClick(p) if self.lan_mount_click(host, conn, &p) => {}
             // ServerboundPlayerCommandPacket OPEN_INVENTORY: the ridden
             // mount's inventory (`HasCustomInventoryScreen`).
-            S::PlayerCommand(p) if p.action == 5 => {
+            S::PlayerCommand(p) if p.action == 7 => {
                 self.as_guest(host, conn, |g| {
                     // HasCustomInventoryScreen: a tamed mount's horse
                     // inventory, or a chest boat's chest.
@@ -2801,14 +2801,14 @@ impl Game<'_> {
                     }
                 });
             }
-            S::PlayerCommand(p) if p.action == 6 => self.lan_start_gliding(host, conn),
+            S::PlayerCommand(p) if p.action == 8 => self.lan_start_gliding(host, conn),
             // START_RIDING_JUMP: the mount's handleStartJump.
-            S::PlayerCommand(p) if p.action == 3 => {
+            S::PlayerCommand(p) if p.action == 5 => {
                 self.lan_start_riding_jump(host, conn, p.data);
             }
             // STOP_RIDING_JUMP: AbstractHorse and Camel handleStopJump do
             // nothing, and a nautilus' dash is not stopped this way.
-            S::PlayerCommand(p) if p.action == 4 => {}
+            S::PlayerCommand(p) if p.action == 6 => {}
             // ServerboundResourcePackPacket in play: the server has nothing to
             // do with it (a declined required pack is handled on the connection).
             S::ResourcePack(r) => {
@@ -2820,10 +2820,10 @@ impl Game<'_> {
             }
             // START_SPRINTING and STOP_SPRINTING: the hub has set the sprint
             // and sends the packet on when it changed it.
-            S::PlayerCommand(p) if matches!(p.action, 1 | 2) => {
+            S::PlayerCommand(p) if matches!(p.action, 3 | 4) => {
                 let (uuid, name) = (host.hub.guests[gi].uuid, host.hub.guests[gi].name.clone());
                 self.as_guest(host, conn, |g| {
-                    g.native_player_sprint(uuid, &name, p.action == 1);
+                    g.native_player_sprint(uuid, &name, p.action == 3);
                 });
             }
             S::ContainerButtonClick(p) => {
@@ -4117,8 +4117,10 @@ impl Game<'_> {
                 [at.x, at.y, at.z]
             });
             if found.is_none() {
-                // TeleportTransition.missingRespawnBlock.
+                // TeleportTransition.missingRespawnBlock: the world spawn
+                // faces yaw 0 in 1.21.5.
                 host.hub.missing_respawn_block(conn);
+                host.hub.guests[i].yaw = 0.0;
                 self.world_spawn_trip(conn);
             }
             host.hub.teleport(i, Some(at));
@@ -7039,15 +7041,23 @@ mod connected_self_pose_tests {
         let mut actual = Vec::new();
         for (stage, key, expected) in [
             ("initial", None, Pose::Standing),
-            ("crouch", Some(32), Pose::Crouching),
-            ("crouch-repeat", Some(32), Pose::Crouching),
-            ("stand", Some(0), Pose::Standing),
-            ("stand-repeat", Some(0), Pose::Standing),
+            ("crouch", Some(0), Pose::Crouching),
+            ("crouch-repeat", Some(0), Pose::Crouching),
+            ("stand", Some(1), Pose::Standing),
+            ("stand-repeat", Some(1), Pose::Standing),
         ] {
-            if let Some(flags) = key {
-                host.hub.guests[0]
-                    .inbox
-                    .push_back((S::PlayerInput(play::PlayerInput { flags }), 0));
+            if let Some(action) = key {
+                // `handlePlayerCommand` PRESS_SHIFT_KEY (0) /
+                // RELEASE_SHIFT_KEY (1): 1.21.5 learns the shift from the
+                // command packet, not the input packet.
+                host.hub.guests[0].inbox.push_back((
+                    S::PlayerCommand(play::PlayerCommand {
+                        id: own,
+                        action,
+                        data: 0,
+                    }),
+                    0,
+                ));
                 game.world.game_time += 1;
             }
             hub_pass(&mut game, &mut host.hub, true);

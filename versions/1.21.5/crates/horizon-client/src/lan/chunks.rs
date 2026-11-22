@@ -1280,7 +1280,7 @@ pub fn entity_tag(entity: &BlockEntity, trial_active: bool) -> Option<Tag> {
         }
         // VaultBlockEntity.getUpdateTag: the shared data, which holds the display item.
         BlockEntity::Vault(v) => Some(v.update_tag()),
-        // TrialSpawnerStateData.getUpdateTag: next_mob_spawns_at (ACTIVE only,
+        // TrialSpawnerData.getUpdateTag: next_mob_spawns_at (ACTIVE only,
         // 0 included) and the spawn data the mob is drawn from.
         BlockEntity::TrialSpawner(t) => {
             let mut entries = Vec::with_capacity(2);

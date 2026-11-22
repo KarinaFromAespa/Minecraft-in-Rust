@@ -1553,11 +1553,16 @@ impl Game<'_> {
         for suspect in suspects {
             self.uuid_for(suspect);
         }
-        // `NeutralMob.addPersistentAngerSaveData`: the anger ends at an
-        // absolute game time, so it goes on while the chunk is unloaded, and
-        // the target is the entity the mob is angry at (`settle_anger_end`).
+        // `NeutralMob.addPersistentAngerSaveData` (1.21.5): the time left is
+        // written, from the absolute end time, so it goes on while the chunk
+        // is unloaded (`refresh_anger_for_save`, then `settle_anger_end`),
+        // and the target is the entity the mob is angry at.
         let anger = self.mobs[i].extra.anger;
         if horizon_client::mobs::persistent_anger(self.mobs[i].species()) {
+            horizon_client::mobs::refresh_anger_for_save(
+                &mut self.mobs[i],
+                self.world.game_time,
+            );
             horizon_client::mobs::settle_anger_end(&mut self.mobs[i], self.world.game_time);
         } else {
             self.mobs[i].extra.anger_end = if anger > 0 {
@@ -2293,7 +2298,7 @@ impl Game<'_> {
         Some((chunk_of(p.position), tag))
     }
     /// The UUID a save writes for a reference to `who`, as `mob_to_nbt`'s
-    /// `angry_at` does: the bridge's `who_uuid` over `EntityMemory::uuid_of`,
+    /// `AngryAt` does: the bridge's `who_uuid` over `EntityMemory::uuid_of`,
     /// which answers the UUID the entity was loaded or saved with. A mob the
     /// level has none for writes nothing.
     pub(in crate::game) fn save_who_uuid(&self, who: Who) -> Option<[i32; 4]> {
@@ -3223,8 +3228,8 @@ mod tests {
         game.mobs[0].extra.angry_at = Some(horizon_client::mobs::Who::Mob(2));
         assert_eq!(game.persist.uuid_of(2), None);
         let tag = game.mob_tree_nbt(0);
-        let Some(Tag::IntArray(named)) = tag.get("angry_at") else {
-            panic!("no angry_at in {tag:?}");
+        let Some(Tag::IntArray(named)) = tag.get("AngryAt") else {
+            panic!("no AngryAt in {tag:?}");
         };
         assert_eq!(
             Some(named.as_slice()),
@@ -4281,7 +4286,7 @@ mod attribute_instance_save_tests {
     }
 
     /// Expected values from the official 26.3 server: a fresh mob has no
-    /// attribute instance (AttributeMap.pack saves []); its first tick makes
+    /// attribute instance (AttributeMap.save saves []); its first tick makes
     /// movement_speed (aiStep -> removeFrost -> getAttribute); an instance it
     /// was loaded with stays.
     #[test]
@@ -4529,7 +4534,7 @@ mod mob_inventory_merge_tests {
     }
 
     /// Expected values from the official 26.3 server: SimpleContainer
-    /// .fromItemList adds each saved stack with addItem, which fills earlier
+    /// .fromTag adds each saved stack with addItem, which fills earlier
     /// stacks of the same item and components up to the limit, then empty
     /// slots, and drops what does not fit in the eight.
     #[test]
@@ -5280,9 +5285,9 @@ mod h262_enderman_absolute_anger_tests {
         game.world.random = LegacyRandom::new(262);
         test(&mut game);
     }
-    fn load(game: &mut Game<'_>, n: i32, end: Option<i64>) -> (u32, usize) {
-        let suffix = end
-            .map(|v| format!(",anger_end_time:{v}L"))
+    fn load(game: &mut Game<'_>, n: i32, anger: Option<i32>) -> (u32, usize) {
+        let suffix = anger
+            .map(|v| format!(",AngerTime:{v}"))
             .unwrap_or_default();
         let cmd = format!(
             "summon enderman 6.5 200 4.5 {{UUID:[I;262,1,0,{n}],Health:40f,NoAI:1b,NoGravity:1b,Motion:[0d,0d,0d],Tags:[h262],CustomName:\"end\"{suffix}}}"
@@ -5302,21 +5307,27 @@ mod h262_enderman_absolute_anger_tests {
         assert!(game.mobs[i].no_ai);
         assert_eq!(game.mobs[i].health, 40.0);
         assert_eq!(game.mobs[i].position, Vec3::new(6.5, 200.0, 4.5));
-        assert_eq!(game.mobs[i].extra.anger_end, end.unwrap_or(-1));
+        // 1.21.5 saves the time left: the end is the live clock plus it, or
+        // the plain default (0) when there is no anger to time.
+        let expected_end = match anger {
+            Some(a) if a > 0 => game.world.game_time + i64::from(a),
+            _ => 0,
+        };
+        assert_eq!(game.mobs[i].extra.anger_end, expected_end);
         (id, i)
     }
     fn check(
         game: &mut Game<'_>,
         i: usize,
-        expected: i64,
+        expected: i32,
         label: &str,
         failures: &mut Vec<String>,
     ) {
         let saved = game.mob_tree_nbt(i);
-        if saved.get("anger_end_time") != Some(&Tag::Long(expected)) {
+        if saved.get("AngerTime") != Some(&Tag::Int(expected)) {
             failures.push(format!(
-                "{label}: expected {expected}L, actual {:?}",
-                saved.get("anger_end_time")
+                "{label}: expected {expected}, actual {:?}",
+                saved.get("AngerTime")
             ));
         }
         assert_eq!(
@@ -5343,7 +5354,7 @@ mod h262_enderman_absolute_anger_tests {
         with_game(|game| {
             game.world.game_time = 100;
             assert!(game.run_command("gamerule spawn_mobs false"));
-            let (id, i) = load(game, 1, Some(999999));
+            let (id, i) = load(game, 1, Some(999899));
             let age = game.mobs[i].age;
             let mut failures = Vec::new();
             for tick in 0..=2 {
@@ -5358,16 +5369,19 @@ mod h262_enderman_absolute_anger_tests {
                 assert_eq!(game.world.game_time, 100 + i64::from(tick));
                 assert_eq!(game.mobs[i].position, Vec3::new(6.5, 200.0, 4.5));
                 assert_eq!(game.mobs[i].velocity, Vec3::ZERO);
-                check(game, i, 999999, "loaded/ticked", &mut failures);
-                check(game, i, 999999, "repeated", &mut failures);
+                // The saved time left shrinks with the clock while the
+                // absolute end it runs from stays put.
+                assert_eq!(game.mobs[i].extra.anger_end, 999999);
+                check(game, i, 999899 - tick as i32, "loaded/ticked", &mut failures);
+                check(game, i, 999899 - tick as i32, "repeated", &mut failures);
             }
             game.persist.raw.remove(&id);
             game.mobs[i].extra.anger_end = 777777;
-            check(game, i, 777777, "no raw/model mutation", &mut failures);
+            check(game, i, 777675, "no raw/model mutation", &mut failures);
             game.persist.raw.insert(
                 id,
                 Tag::compound([
-                    ("anger_end_time", Tag::Long(123)),
+                    ("AngerTime", Tag::Int(123)),
                     ("retained", Tag::Int(17)),
                 ]),
             );
@@ -5375,7 +5389,7 @@ mod h262_enderman_absolute_anger_tests {
             check(
                 game,
                 i,
-                888888,
+                888786,
                 "contradictory raw/model mutation",
                 &mut failures,
             );
@@ -5385,19 +5399,19 @@ mod h262_enderman_absolute_anger_tests {
     }
     #[test]
     #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-    fn h262_noai_enderman_absent_zero_past_and_future_are_actual_longs() {
+    fn h262_noai_enderman_absent_zero_past_and_future_are_actual_ints() {
         with_game(|game| {
             game.world.game_time = 100;
             let mut failures = Vec::new();
-            for (n, end) in [None, Some(0), Some(-5), Some(1), Some(999999)]
+            for (n, anger) in [None, Some(0), Some(-5), Some(1), Some(999899)]
                 .into_iter()
                 .enumerate()
             {
-                let (_, i) = load(game, n as i32 + 2, end);
+                let (_, i) = load(game, n as i32 + 2, anger);
                 check(
                     game,
                     i,
-                    end.unwrap_or(-1),
+                    anger.unwrap_or(0),
                     "typed loaded boundary",
                     &mut failures,
                 );
@@ -5410,11 +5424,11 @@ mod h262_enderman_absolute_anger_tests {
     fn h262_live_enderman_write_uses_actual_decoded_timestamp() {
         with_game(|game| {
             game.world.game_time = 100;
-            let (id, i) = load(game, 9, Some(999999));
+            let (id, i) = load(game, 9, Some(999899));
             let age = game.mobs[i].age;
-            assert!(game.run_command("data modify entity 00000106-0000-0001-0000-000000000009 anger_end_time set value 777777L"));
+            assert!(game.run_command("data modify entity 00000106-0000-0001-0000-000000000009 AngerTime set value 777777"));
             assert_eq!(
-                game.mobs[i].extra.anger_end, 777777,
+                game.mobs[i].extra.anger_end, 777877,
                 "actual adoption, before saved read"
             );
             assert_eq!(game.mobs[i].id, id);
@@ -5431,13 +5445,14 @@ mod h262_enderman_absolute_anger_tests {
     fn h262_existing_ai_and_other_neutral_counter_projection_is_unchanged() {
         with_game(|game| {
             game.world.game_time = 100;
-            let (_, i) = load(game, 20, Some(999999));
+            let (_, i) = load(game, 20, Some(999899));
             game.mobs[i].no_ai = false;
             game.mobs[i].extra.anger = 50;
             assert_eq!(
-                game.mob_tree_nbt(i).get("anger_end_time"),
-                Some(&Tag::Long(150))
+                game.mob_tree_nbt(i).get("AngerTime"),
+                Some(&Tag::Int(50))
             );
+            assert_eq!(game.mobs[i].extra.anger_end, 150);
             assert!(
                 game.run_command(
                     "summon wolf 8.5 200 4.5 {UUID:[I;262,1,0,21],NoAI:1b,NoGravity:1b}"
@@ -5450,14 +5465,17 @@ mod h262_enderman_absolute_anger_tests {
                 .unwrap();
             game.mobs[i].extra.anger = 50;
             assert_eq!(
-                game.mob_tree_nbt(i).get("anger_end_time"),
-                Some(&Tag::Long(150))
+                game.mob_tree_nbt(i).get("AngerTime"),
+                Some(&Tag::Int(50))
             );
+            assert_eq!(game.mobs[i].extra.anger_end, 150);
             game.world.game_time += 1;
+            // The saved time left shrinks while the absolute end stays (#13076).
             assert_eq!(
-                game.mob_tree_nbt(i).get("anger_end_time"),
-                Some(&Tag::Long(150)) // an absolute end (#13076)
+                game.mob_tree_nbt(i).get("AngerTime"),
+                Some(&Tag::Int(49))
             );
+            assert_eq!(game.mobs[i].extra.anger_end, 150);
         });
     }
 }

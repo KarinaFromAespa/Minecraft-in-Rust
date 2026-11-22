@@ -324,14 +324,6 @@ fn apply(m: &mut Mob, values: &[(u8, i32, Value)], builtin: &Builtin, local_enti
             // Pillager.IS_CHARGING_CROSSBOW: the charge pose (Raider's
             // IS_CELEBRATING takes 16).
             (Species::Pillager, 17, Value::Bool(charging)) => m.extra.flag = *charging,
-            // HappyGhast.STAYS_STILL (after AgeableMob's two and IS_LEASH_HOLDER):
-            // `isOnStillTimeout` on a client, which keeps the ghast solid to
-            // the player (`canBeCollidedWith`).
-            // HappyGhast.IS_LEASH_HOLDER: RopesLayer draws the ropes while set.
-            (Species::HappyGhast, 18, Value::Bool(holder)) => {
-                m.extra.scratch[1] = i32::from(*holder)
-            }
-            (Species::HappyGhast, 19, Value::Bool(still)) => m.extra.counter = i32::from(*still),
             // SpellcasterIllager.DATA_SPELL_CASTING_ID: the casting pose.
             (Species::Evoker | Species::Illusioner, 17, Value::Byte(spell)) => {
                 m.extra.variant2 = (*spell).max(0) as u8;
@@ -1018,11 +1010,11 @@ mod tests {
         assert!(!calf.is_baby());
     }
 
-    /// #6133: a server's baby happy ghast (a hatched dried ghast) and baby
+    /// #6133: a server's baby cow and baby
     /// nautilus come with AgeableMob.DATA_BABY_ID (16) like any other animal;
     /// a parrot never is one (`Parrot.canBeABaby`).
     #[test]
-    fn a_happy_ghast_and_a_nautilus_take_their_babyhood() {
+    fn a_cow_and_a_nautilus_take_their_babyhood() {
         use horizon_client::mobs::MobTypes;
         use std::{fs, sync::Arc};
 
@@ -1030,18 +1022,18 @@ mod tests {
         fs::create_dir_all(&root).unwrap();
         fs::write(
             root.join("entity-types.json"),
-            r#"{"minecraft:happy_ghast": {}, "minecraft:nautilus": {}, "minecraft:parrot": {}}"#,
+            r#"{"minecraft:cow": {}, "minecraft:nautilus": {}, "minecraft:parrot": {}}"#,
         )
         .unwrap();
         fs::write(
             root.join("entity-models.json"),
-            r#"{"minecraft:happy_ghast#main": {}, "minecraft:nautilus#main": {},
+            r#"{"minecraft:cow#main": {}, "minecraft:nautilus#main": {},
                 "minecraft:parrot#main": {}}"#,
         )
         .unwrap();
         let mut types = MobTypes::load(&root).unwrap();
         fs::remove_dir_all(root).unwrap();
-        for kind in ["minecraft:happy_ghast", "minecraft:nautilus"] {
+        for kind in ["minecraft:cow", "minecraft:nautilus"] {
             let t = Arc::new(types.types.remove(kind).unwrap());
             let mut m = Mob::new(1, t, horizon_core::geometry::Vec3::ZERO, 0.0);
             client_defaults(&mut m);

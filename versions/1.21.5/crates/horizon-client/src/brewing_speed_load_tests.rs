@@ -1,4 +1,4 @@
-//! A saved `speed_multiplier` is read by `ValueInput.getFloatOr`, which takes
+//! A saved `speed_multiplier` is read by `CompoundTag.getFloatOr`, which takes
 //! any numeric tag, not only a float.
 use horizon_client_lib::{containers::BlockEntity, save::decode_block_entity};
 use horizon_world::nbt::Tag;

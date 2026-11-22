@@ -11,7 +11,7 @@ use horizon_client::{
     items::ItemStack,
     mesher::Vertex,
     mobs::{Damage, DamageKind, Species, Who, anim::Poses},
-    projectiles::ProjectileWorld,
+    projectiles::{ENTITY_HIT_MARGIN, ProjectileWorld},
 };
 use horizon_core::{
     geometry::{Aabb, Vec3, traverse_blocks},
@@ -59,7 +59,7 @@ pub(super) struct ThrownTrident {
     pub(super) last_state: Option<horizon_world::registry::BlockStateId>,
     /// `Projectile.lastDeflectedBy`: the breeze that already turned this trident.
     deflected_by: Option<u32>,
-    /// `Entity.tickCount`: `ProjectileUtil.computeMargin` grows with it.
+    /// `Entity.tickCount`.
     age: u32,
     /// The entity id a server sent as its owner (the one Loyalty returns it to).
     pub(super) owner: u32,
@@ -927,9 +927,9 @@ impl Game<'_> {
                 t.turn_towards_movement();
                 // Mobs on the path, then blocks.
                 let mut hit_mob = None;
-                // ProjectileUtil.computeMargin: the boxes it meets grow from
-                // nothing to 0.3 over its first ticks.
-                let margin = f64::from(((t.age as i32 - 2) as f32 / 20.0).clamp(0.0, 0.3));
+                // ProjectileUtil.getHitResultOnMoveVector: the boxes it meets
+                // grow by the 0.3 hit margin.
+                let margin = ENTITY_HIT_MARGIN;
                 let grow = Vec3::new(margin, margin, margin);
                 if !t.dealt_damage {
                     for m in self.mobs.iter().filter(|m| m.alive()) {

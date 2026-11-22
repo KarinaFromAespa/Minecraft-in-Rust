@@ -6,6 +6,9 @@
 use crate::gamepad::ScrollArea;
 use std::cell::{Cell, RefCell};
 
+/// `Checkbox.getBoxSize`: the checkbox square's side, in GUI pixels.
+pub const CHECKBOX_BOX: f32 = 17.0;
+
 /// The mouse cursor a frame's widgets asked for (`CursorTypes`; the others
 /// aren't asked for yet).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -563,7 +566,8 @@ pub enum ListKind {
 }
 
 /// A row of an `ObjectSelectionList` (its `getNarration`) or a tab (its
-/// title and `getTabExtraNarration`).
+/// title; 1.21.5's Tab has no `getTabExtraNarration` - that is 1.21.6-only -
+/// so the port's tab rows carry an empty hint).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Row {
     pub index: usize,

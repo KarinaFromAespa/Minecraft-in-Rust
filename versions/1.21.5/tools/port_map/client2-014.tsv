@@ -98,7 +98,7 @@ PauseScreen.extractRenderState	port	crates/horizon-client/src/game/screens.rs::G
 PauseScreen.rendersNowPlayingToast	port	crates/horizon-client/src/game/music.rs::Game::draw_music_toast	on the pause menu the song name is drawn under the Pause and Pause and Toast settings while music is audible, instead of the toast; the Music Toast option still decides whether the toast exists
 PauseScreen.openScreenButton	inline	crates/horizon-client/src/game/screens.rs::Game::pause_click	the Advancements, Stats, Options and World Options actions
 PresetFlatWorldScreen.getLayerInfoFromString	inline	crates/horizon-client/src/title/flat.rs::FlatSettings::parse	one layer of the share text, parsed in the same loop
-PresetFlatWorldScreen.getLayersInfoFromString	port	crates/horizon-client/src/title/flat.rs::FlatSettings::parse	the share text's layers and biome; malformed text gives None
+PresetFlatWorldScreen.getLayersInfoFromString	port	crates/horizon-client/src/title/flat.rs::FlatSettings::parse	the share text's layers and biome; malformed text gives None; zero-height layers stay in the list
 PresetFlatWorldScreen.save	port	crates/horizon-client/src/title/flat.rs::FlatSettings::to_share	the share text
 PresetFlatWorldScreen.init	inline	crates/horizon-client/src/title/flat.rs::buttons	the share box and Select and Cancel buttons
 PresetFlatWorldScreen.resize	skip:ui		layout only; the screen keeps its state

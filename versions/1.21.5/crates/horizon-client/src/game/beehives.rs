@@ -156,7 +156,7 @@ impl Game<'_> {
             return;
         }
         if self.mobs[i].extra.leash.is_some() {
-            self.break_leash(mob, true, false);
+            self.break_leash(mob, true);
             self.mobs[i].extra.leash = None;
         }
         self.mobs[i].extra.mount = None;

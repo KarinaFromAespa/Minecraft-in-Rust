@@ -2071,98 +2071,6 @@ def key_row_a_x(args, name):
     return check.failures
 
 
-def show_dialog(game, snbt):
-    """A server's dialog over the world, once it is drawn."""
-    game.ctl('command', f'dialog show @s {snbt}')
-    time.sleep(1)
-    check_open = game.ctl('state')['dialog']['open']
-    if not check_open:
-        raise RuntimeError(f'no dialog from {snbt}')
-    game.wait_targets()
-
-
-def dialog_open(game):
-    return game.ctl('state')['dialog']['open'] is not None
-
-
-def prompt_dialog(args, name):
-    game = Game(args, name, world=True)
-    check = Check()
-    try:
-        show_dialog(game, '{type:"minecraft:confirmation",title:"Sure?",yes:{label:"Yes"},no:{label:"No"}}')
-        check(game.ctl('state')['screen'] == 'dialog', f"screen is {game.ctl('state')['screen']}")
-        # The first A only lands the focus, on what answers no.
-        game.pad('south')
-        check(dialog_open(game), 'the first A answered the dialog')
-        check(game.focused_label() == 'No', f'the focus starts on {game.focused_label()}')
-        check(glyphs(game).get('East') is not None, f'no B on No: {glyphs(game)}')
-        # The stick drives the focus: the player stays.
-        before = game.ctl('state')['player']['position']
-        game.ctl('pad', 'stick', 'left', -1, 0)
-        time.sleep(0.6)
-        game.ctl('pad', 'stick', 'left', 0, 0)
-        time.sleep(SETTLE)
-        check(game.ctl('state')['player']['position'] == before, 'the stick walked the player behind the dialog')
-        check(game.focused_label() == 'Yes', f'the stick left the focus on {game.focused_label()}')
-        game.pad('right')
-        check(game.focused_label() == 'No', f'the D-pad left the focus on {game.focused_label()}')
-        # A presses it on the way up.
-        game.ctl('pad', 'south', 'down')
-        time.sleep(SETTLE)
-        check(dialog_open(game), 'A down answered the dialog')
-        game.ctl('pad', 'south', 'up')
-        time.sleep(SETTLE)
-        check(not dialog_open(game), 'A up did not answer the dialog')
-        check(game.ctl('state')['screen'] == 'playing', f"screen is {game.ctl('state')['screen']}")
-        # B answers as Escape does, and doesn't open the pause menu as well.
-        show_dialog(game, '{type:"minecraft:notice",title:"Hello"}')
-        game.pad('east')
-        check(not dialog_open(game), 'B did not close the notice')
-        check(game.ctl('state')['screen'] == 'playing', f"B left the screen on {game.ctl('state')['screen']}")
-        # One that Escape can't close stays, and doesn't pause either; A still answers it.
-        show_dialog(game, '{type:"minecraft:notice",title:"Stay",can_close_with_escape:false}')
-        game.pad('east')
-        game.pad('start')
-        check(dialog_open(game), 'B or Start closed a dialog that Escape cannot')
-        game.pad('south')
-        game.pad('south')
-        check(not dialog_open(game), 'A did not answer it')
-    finally:
-        game.quit()
-    return check.failures
-
-
-def prompt_dialog_field(args, name):
-    game = Game(args, name, world=True)
-    check = Check()
-
-    def typed():
-        return game.ctl('state')['dialog']['open']['inputs'][0]['value']
-
-    try:
-        show_dialog(game, '{type:"minecraft:notice",title:"Name",inputs:[{type:"minecraft:text",key:"who",label:"Name"}]}')
-        game.pad('south')
-        field = next(t for t in game.menu()['targets'] if t['kind'] == 'field')
-        check(game.focus() == tuple(field['rect']), f"the focus starts on {game.focus()}, not {field['rect']}")
-        game.pad('south')
-        check(game.menu()['keyboard'], 'A did not open the keyboard')
-        game.pad('south')
-        check(len(typed()) == 1, f'A on a key typed {typed()!r}')
-        game.pad('south')
-        check(len(typed()) == 2, f'A on a key again typed {typed()!r}')
-        game.pad('west')
-        check(len(typed()) == 1, f'X left {typed()!r}')
-        check(game.menu()['keyboard'], 'typing closed the keyboard')
-        game.pad('start')
-        check(not game.menu()['keyboard'], 'Start did not end the typing')
-        check(dialog_open(game) and len(typed()) == 1, 'Start answered the dialog')
-        game.pad('east')
-        check(not dialog_open(game), 'B did not close the dialog')
-    finally:
-        game.quit()
-    return check.failures
-
-
 def walk_to_field(game, check):
     """The D-pad, towards the screen's text field."""
     game.pad('down')
@@ -3307,8 +3215,6 @@ CASES = {'idle_a': idle_a, 'idle_b': idle_b, 'idle_x': idle_x, 'release': releas
          'glyph_art_world': glyph_art_world,
          'nintendo_letters': nintendo_letters,
          'key_row_a_x': key_row_a_x,
-         'prompt_dialog': prompt_dialog,
-         'prompt_dialog_field': prompt_dialog_field,
          'prompt_keeps_typing': prompt_keeps_typing,
          'prompt_keeps_crosshair': prompt_keeps_crosshair,
          'osk_social': osk_social,

@@ -5,7 +5,7 @@
 // negated (`vs_quad_gl`, `vs_rotscale`) and read their textures as they are;
 // `vs_quad` with `fs_blit` is the flip between the frame and a chain's `main`.
 
-// OutSize, InSize | BlurSize, menu blur radius.
+// OutSize, InSize | BlurSize, unused.
 @group(0) @binding(0) var<uniform> info: array<vec4<f32>, 2>;
 // The vertex and fragment stage's uniform block, packed as std140.
 @group(0) @binding(1) var<uniform> vs_cfg: array<vec4<f32>, 8>;
@@ -102,11 +102,7 @@ fn corner(i: u32) -> vec2<f32> {
 
 @fragment fn fs_box_blur(in: Out) -> @location(0) vec4<f32> {
     let step = (1.0 / info[0].zw) * vec2(fcf(0u), fcf(1u));
-    let configured = fcf(2u);
-    var radius = info[1].z;
-    if configured >= 0.5 {
-        radius = round(configured);
-    }
+    let radius = round(fcf(2u));
     var blurred = vec4(0.0);
     for (var a = -radius + 0.5; a <= radius; a += 2.0) {
         blurred += read_in(in.uv + step * a);

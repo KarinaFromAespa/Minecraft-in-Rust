@@ -140,7 +140,6 @@ TARGETS = {
     'carved_pumpkin': ['zombie', 'armor_stand', 'snow_golem', 'copper_golem'],
     'elytra': ['armor_stand', 'zombie'],
     'wolf_armor': ['wolf'],
-    'white_harness': ['happy_ghast'],
     'shears': ['sheep', 'sheep', 'mooshroom', 'bogged', 'snow_golem', 'sulfur_cube', 'pig', 'cow', 'copper_golem', 'copper_golem'],
     'brush': ['armadillo'],
     'tnt': ['sulfur_cube'],

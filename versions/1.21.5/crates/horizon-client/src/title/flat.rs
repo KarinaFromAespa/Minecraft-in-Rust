@@ -191,10 +191,11 @@ impl FlatSettings {
             if !blocks.is_empty() && !blocks.contains(&block) {
                 return None;
             }
+            // `getLayerInfoFromString`: the height is clamped to what fits
+            // under Y_SIZE. 1.21.5 keeps a zero-height layer in the list
+            // (`getLayersInfoFromString` adds every layer); only 1.21.6
+            // drops layers once the total reaches Y_SIZE.
             let height = height.max(0).min(Y_SIZE - total);
-            if height == 0 {
-                continue;
-            }
             total += height;
             layers.push(FlatLayer { block, height });
         }

@@ -653,7 +653,6 @@ impl Game<'_> {
             block.data.ignore_entities,
             "",
             true,
-            true,
         );
         Some(id)
     }

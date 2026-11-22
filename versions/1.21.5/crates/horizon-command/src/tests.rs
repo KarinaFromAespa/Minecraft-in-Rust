@@ -265,13 +265,13 @@ fn commands_need_allow_commands() {
         .into_iter()
         .map(|s| s.text)
         .collect();
-    // Commands.java with CommandSelection.INTEGRATED: seed and version need no
-    // level (a dedicated server's tree: a_dedicated_server_keeps_seed_and_version_for_game_masters).
+    // Commands.java with CommandSelection.INTEGRATED: seed needs no
+    // level (a dedicated server's tree: a_dedicated_server_keeps_seed_for_game_masters).
     assert_eq!(
         root,
         [
             "help", "list", "me", "msg", "random", "seed", "teammsg", "tell", "tm", "trigger",
-            "version", "w"
+            "w"
         ]
     );
 }
@@ -310,6 +310,27 @@ fn suggestions_like_vanilla() {
     );
     assert_eq!(suggestions("time set 5"), ["d", "s", "t"]);
     assert!(suggestions("time set ").contains(&"minecraft:day".to_owned()));
+}
+/// ResourceOrIdArgument has no listSuggestions in 1.21.5 (the ELEMENTS
+/// override is 1.21.6-only): only the nodes whose command adds its own
+/// provider suggest - /item's modifier (SUGGEST_MODIFIER) and /loot's
+/// loot_table (SUGGEST_LOOT_TABLE) - while /execute's predicate suggests
+/// nothing.
+#[test]
+fn resource_or_id_suggestions_are_per_command() {
+    assert_eq!(
+        suggestions("item modify entity @s weapon.mainhand "),
+        ["a:b"]
+    );
+    assert_eq!(
+        suggestions("loot give @s loot "),
+        [
+            "minecraft:chests/simple_dungeon",
+            "minecraft:chests/x",
+            "minecraft:gameplay/fishing",
+        ]
+    );
+    assert!(suggestions("execute if predicate ").is_empty());
 }
 /// ClientSuggestionProvider: block and column positions offer the targeted
 /// block (`getRelevantCoordinates`), `Vec3` and `Vec2` the exact hit point
@@ -990,18 +1011,17 @@ fn root_commands(d: &Dispatcher, level: u8) -> Vec<String> {
         .collect()
 }
 #[test]
-fn a_dedicated_server_keeps_seed_and_version_for_game_masters() {
-    // Commands.java: SeedCommand.register(dispatcher, selection != INTEGRATED)
-    // and VersionCommand likewise; `checkPermissions` makes them require
-    // LEVEL_GAMEMASTERS instead of LEVEL_ALL. A dedicated server's player
-    // without op gets neither (a seed cracker's input on an SMP).
+fn a_dedicated_server_keeps_seed_for_game_masters() {
+    // Commands.java: SeedCommand.register(dispatcher, selection != INTEGRATED);
+    // `checkPermissions` makes it require LEVEL_GAMEMASTERS instead of
+    // LEVEL_ALL. A dedicated server's player without op gets neither (a seed
+    // cracker's input on an SMP).
     for dev in [false, true] {
         for horizon in [false, true] {
             let integrated = vanilla::game_tree(dev, horizon, false);
             let server = vanilla::game_tree(dev, horizon, true);
             let open = root_commands(integrated, 0);
             assert!(open.contains(&"seed".to_owned()), "{open:?}");
-            assert!(open.contains(&"version".to_owned()), "{open:?}");
             assert_eq!(
                 root_commands(server, 0),
                 [
@@ -1010,8 +1030,7 @@ fn a_dedicated_server_keeps_seed_and_version_for_game_masters() {
             );
             let gm = root_commands(server, 2);
             assert!(gm.contains(&"seed".to_owned()), "{gm:?}");
-            assert!(gm.contains(&"version".to_owned()), "{gm:?}");
-            for line in ["seed", "version"] {
+            for line in ["seed"] {
                 let player = Registries {
                     permission: 0,
                     ..reg()
@@ -1263,4 +1282,42 @@ fn h149_oblique_local_offsets_are_grouped_before_the_origin() {
         failures.is_empty(),
         "exact oblique local-coordinate bit mismatches: {failures:#?}"
     );
+}
+#[test]
+fn root_permission_matches_the_reports_levels() {
+    // The levels are 1.21.6's commands report's `required_level` values
+    // (1.21.5's report carries none, so the LAN packet takes them from
+    // the tree itself): a root the selection doesn't register reads 0.
+    let p = vanilla::root_permission;
+    for (name, want) in [
+        ("me", 0),
+        ("msg", 0),
+        ("help", 0),
+        ("execute", 2),
+        ("say", 2),
+        ("gamemode", 2),
+        ("tp", 2),
+        ("publish", 4),
+        ("seed", 0),
+        ("op", 0),
+        ("stop", 0),
+        ("no-such-command", 0),
+    ] {
+        assert_eq!(p(name, false), want, "{name} on an integrated server");
+    }
+    for (name, want) in [
+        ("op", 3),
+        ("ban", 3),
+        ("kick", 3),
+        ("whitelist", 3),
+        ("stop", 4),
+        ("save-all", 4),
+        ("jfr", 4),
+        ("seed", 2),
+        ("execute", 2),
+        ("publish", 0),
+        ("me", 0),
+    ] {
+        assert_eq!(p(name, true), want, "{name} on a dedicated server");
+    }
 }

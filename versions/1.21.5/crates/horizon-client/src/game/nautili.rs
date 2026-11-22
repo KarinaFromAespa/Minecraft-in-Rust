@@ -138,7 +138,7 @@ impl Game<'_> {
             if !self.native_may_board(id) {
                 return true;
             }
-            self.break_leash(id, true, false);
+            self.break_leash(id, true);
             self.yaw = self.mobs[index].yaw;
             self.mount.reset_jump();
             self.start_riding(id);

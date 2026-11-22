@@ -1602,12 +1602,19 @@ impl Audio {
     /// Sync the volume options, refreshing the categories that changed
     /// (the option sliders' `refreshCategoryVolume`).
     fn sync_volumes(&mut self) {
-        let mut volumes = [self.master; 11];
+        let mut volumes = [self.master; 10];
         for (i, v) in volumes.iter_mut().enumerate().skip(1) {
             *v = crate::settings::source_volume(i);
         }
-        for source in 0..11 {
+        for source in 0..10 {
             if self.engine.source_volumes[source] != volumes[source] {
+                // `SoundManager.updateSourceVolume` (1.21.5): silencing the
+                // master stops every sound, it does not just mute them — a
+                // stopped sound does not come back when the volume does.
+                // 1.21.6 dropped the stop.
+                if source == 0 && volumes[0] <= 0.0 {
+                    self.engine.stop_all(&mut self.backend);
+                }
                 self.engine.source_volumes[source] = volumes[source];
                 self.engine
                     .refresh_category_volume(source, &mut self.backend);
@@ -1792,12 +1799,11 @@ impl Audio {
             0
         };
     }
-    /// `SoundManager.pauseAllExcept(MUSIC, UI)`.
+    /// `SoundManager.pause()` (1.21.5): every channel pauses, music and UI
+    /// included — `pause_all_except` with nothing excepted. 1.21.6's
+    /// `pauseAllExcept(MUSIC, UI)` leaves the music and UI playing.
     pub fn pause(&mut self) {
-        self.engine.pause_all_except(
-            &[crate::sound_engine::MUSIC, crate::sound_engine::UI],
-            &mut self.backend,
-        );
+        self.engine.pause_all_except(&[], &mut self.backend);
     }
     /// `SoundManager.resume`.
     pub fn resume(&mut self) {
@@ -2265,7 +2271,7 @@ mod tests {
         audio.play_button_click();
         let instance = audio.engine.instance(1).expect("click reached the engine");
         assert_eq!(instance.identifier, "minecraft:ui.button.click");
-        assert_eq!(instance.source, crate::sound_engine::UI);
+        assert_eq!(instance.source, crate::sound_engine::MASTER);
         assert_eq!(instance.volume, 0.25);
         assert_eq!(instance.pitch, 1.0);
         assert_eq!(instance.attenuation, Attenuation::None);

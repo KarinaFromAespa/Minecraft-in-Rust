@@ -20,9 +20,7 @@ impl Game<'_> {
     ) -> Result<Option<usize>> {
         let mut laps = horizon_client::spans::laps();
         // ServerChunkCache.tick: the tickets that time out.
-        let world = &self.world;
-        self.tickets
-            .tick_portal(|ticket| portal_ticket_can_expire(world, ticket));
+        self.tickets.tick_portal();
         self.sync_tick_chunks();
         self.start_ticking_chunks();
         laps.lap("tb_tickets");

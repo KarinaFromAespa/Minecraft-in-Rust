@@ -1,6 +1,8 @@
-//! `ConfirmScreen`: a title, a message wrapped to `width - 50` (15 lines at
-//! most) and two 150-wide buttons 4 apart and 16 below it, the whole column
-//! centred; Escape answers no.
+//! `ConfirmScreen`: a title, a message wrapped to `width - 50` and two
+//! 150-wide buttons 10 apart — the row spans width/2 ± 155. The title
+//! sits 20 above the message (`titleTop`, clamped to 10..80) and the
+//! buttons 20 below it, not above `height / 6 + 96` and not below
+//! `height - 24`; Escape answers no.
 use crate::{
     font::Font,
     hud::{HudAtlas, HudBatch},
@@ -101,8 +103,10 @@ impl Confirm {
     }
 }
 
-/// `ConfirmScreen` with a row of `count` buttons `width` wide, 4 apart: `ConfirmLinkScreen`'s
-/// yes, copy and no are three of 100. `Confirm` is its two of 150.
+/// `ConfirmScreen` with a row of `count` buttons `width` wide: `ConfirmLinkScreen`'s
+/// yes, copy and no are three of 100, `Confirm` is its two of 150. 1.21.5 lays the row out by
+/// absolute bounds spanning width/2 ± 155, so the gap fills the 310 span (10 for two of 150, 5
+/// for three of 100); 1.21.6's `LinearLayout` puts them 4 apart and centres the whole column.
 pub struct Choice {
     /// Each line and where it is drawn.
     pub lines: Vec<(Text, f32, f32)>,
@@ -126,7 +130,6 @@ impl Choice {
             .split_lines(message, w - 50.0)
             .into_iter()
             .map(|(line, _)| line)
-            .take(15)
             .collect();
         let tw = font.width_text(title);
         let mw = message
@@ -134,22 +137,45 @@ impl Choice {
             .map(|l| font.width_text(l))
             .fold(0.0, f32::max);
         let mh = 9.0 * message.len() as f32;
-        let row = width * count as f32 + 4.0 * count.saturating_sub(1) as f32;
+        let gap = if count > 1 {
+            ((310.0 - width * count as f32) / (count - 1) as f32).max(0.0)
+        } else {
+            0.0
+        };
+        let row = width * count as f32 + gap * count.saturating_sub(1) as f32;
         let col = tw.max(mw).max(row);
-        let total = 9.0 + 8.0 + mh + 8.0 + 36.0;
-        let (lx, ly) = (((w - col) / 2.0).trunc(), ((h - total) / 2.0).trunc());
+        // `ConfirmScreen.titleTop` / `messageTop`: the title sits 20 above
+        // the message, the message's middle on the screen's, the title
+        // clamped to 10..80; the buttons sit 20 below the message, not
+        // above `height / 6 + 96` and not below `height - 24`. (1.21.6's
+        // LinearLayout centres the whole column instead, and caps the
+        // message at 15 rows.)
+        let title_top = (((h - mh) / 2.0 - 29.0).trunc()).clamp(10.0, 80.0);
+        let message_top = title_top + 20.0;
+        // `Mth.clamp` (not f32::clamp: on a screen shorter than 144 the
+        // lower bound passes the upper one, and Java still returns the
+        // lower bound for a value under it).
+        let lo = (h / 6.0).trunc() + 96.0;
+        let hi = h - 24.0;
+        let mut by = message_top + mh + 20.0;
+        if by < lo {
+            by = lo;
+        } else if by > hi {
+            by = hi;
+        }
+        let lx = ((w - col) / 2.0).trunc();
         let cell = |cw: f32| lx + ((col - cw) / 2.0).trunc();
         let mid = cell(mw) + (mw / 2.0).trunc();
-        let mut lines = vec![(title.clone(), cell(tw), ly)];
+        let mut lines = vec![(title.clone(), cell(tw), title_top)];
         for (i, line) in message.into_iter().enumerate() {
             let x = mid - (font.width_text(&line) / 2.0).trunc();
-            lines.push((line, x, ly + 17.0 + 9.0 * i as f32));
+            lines.push((line, x, message_top + 9.0 * i as f32));
         }
-        let (bx, by) = (cell(row), ly + 9.0 + 8.0 + mh + 8.0 + 16.0);
+        let bx = cell(row);
         Self {
             lines,
             buttons: (0..count)
-                .map(|i| (bx + (width + 4.0) * i as f32, by))
+                .map(|i| (bx + (width + gap) * i as f32, by))
                 .collect(),
             width,
             focus: None,
@@ -257,18 +283,50 @@ mod tests {
     }
 
     #[test]
-    fn three_buttons_sit_four_apart_in_the_middle() {
+    fn three_buttons_span_width_over_two_plus_minus_155() {
         let (title, message) = (Text::literal("Open?"), Text::literal("https://x"));
         let c = Choice::new(&font(), (480.0, 270.0), &title, &message, 3, 100.0);
         let xs: Vec<f32> = c.buttons.iter().map(|b| b.0).collect();
-        // 3 x 100 + 2 x 4 = 308 wide, centred on 480.
-        assert_eq!(xs, vec![86.0, 190.0, 294.0]);
+        // 3 x 100 + 2 x 5 = 310 wide, centred on 480.
+        assert_eq!(xs, vec![85.0, 190.0, 295.0]);
         assert_eq!(c.pressed_at((191.0, c.buttons[1].1 + 1.0)), Some(1));
         assert_eq!(c.pressed_at((188.0, c.buttons[1].1 + 1.0)), None);
         // Confirm keeps its two 150-wide buttons where they were.
         let two = Confirm::new(&font(), (480.0, 270.0), &title, &message);
-        assert_eq!(two.buttons[0].0, 88.0);
-        assert_eq!(two.buttons[1].0, 242.0);
+        assert_eq!(two.buttons[0].0, 85.0);
+        assert_eq!(two.buttons[1].0, 245.0);
+    }
+
+    #[test]
+    fn title_message_and_buttons_follow_the_1_21_5_formulas() {
+        let title = Text::literal("Title");
+        // One line at 480x270: titleTop clamps to 80, the message sits at
+        // 100, the buttons at height / 6 + 96 = 141.
+        let one = Choice::new(&font(), (480.0, 270.0), &title, &Text::literal("One"), 2, 150.0);
+        assert_eq!(one.lines[0].2, 80.0);
+        assert_eq!(one.lines[1].2, 100.0);
+        assert_eq!(one.buttons[0].1, 141.0);
+        // Twenty lines: the title drops to 16, the message to 36, the
+        // buttons to 236 — and a longer message is NOT capped at 15 rows
+        // (1.21.6's MultiLineTextWidget limit).
+        let long = "l\n".repeat(20);
+        let many = Choice::new(
+            &font(),
+            (480.0, 270.0),
+            &title,
+            &Text::literal(long.trim_end()),
+            2,
+            150.0,
+        );
+        assert_eq!(many.lines.len(), 21);
+        assert_eq!(many.lines[0].2, 16.0);
+        assert_eq!(many.lines[20].2, 36.0 + 9.0 * 19.0);
+        assert_eq!(many.buttons[0].1, 236.0);
+        // A short screen: the title's middle is 66, the buttons sit at
+        // height / 6 + 96 = 129.
+        let short = Choice::new(&font(), (480.0, 200.0), &title, &Text::literal("One"), 2, 150.0);
+        assert_eq!(short.lines[0].2, 66.0);
+        assert_eq!(short.buttons[0].1, 129.0);
     }
 
     #[test]

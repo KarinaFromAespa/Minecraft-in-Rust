@@ -23,7 +23,7 @@ impl Game<'_> {
     /// own screen (`title`, `world_select`, `world_create`, `multiplayer`…),
     /// once a frame, after it has drawn and before the toasts. Not when a
     /// screen of the game's own is over the title (Options draws and fires
-    /// its own), nor while a dialog, a prompt or a connect or load hides it.
+    /// its own), nor while a prompt or a connect or load hides it.
     /// Client only, read-only: what a mod draws is its own.
     pub(super) fn fire_title_screen_render_post(&self, batch: &mut HudBatch) {
         if self.screen != Screen::Playing || self.screen_over_playing() || self.remote_loading() {
@@ -107,7 +107,6 @@ impl Game<'_> {
             || (self.title.is_none()
                 && self.player.is_some()
                 && (self.screen.blurs_background(self.pause_menu)
-                    || self.dialog_open()
                     || (self.screen == Screen::Win && self.win_screen_pauses())))
             || self.screen_blur_requested.get();
         let radius = self.settings.menu_blur as f32;
@@ -156,8 +155,7 @@ impl Game<'_> {
             self.border_section = Some(section);
         }
         // Camera.depthFar, as the renderer's far plane.
-        let depth_far =
-            horizon_client::camera::depth_far(self.terrain_distance(), self.settings.cloud_range);
+        let depth_far = horizon_client::camera::depth_far(self.terrain_distance());
         if !self
             .border_renderer
             .prepare(&self.border_state, camera, distance, depth_far)

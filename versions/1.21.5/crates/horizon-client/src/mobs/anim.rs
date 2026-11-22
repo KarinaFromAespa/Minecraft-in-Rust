@@ -11,7 +11,6 @@ use std::f32::consts::{FRAC_PI_6, PI};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Anim {
     Nautilus,
-    HappyGhast,
     Sniffer,
     Breeze,
     Warden,
@@ -197,7 +196,7 @@ impl Poses {
     /// a mob draws its body and every equipment layer each frame.
     pub fn reset(&mut self, model: &Part) {
         fn walk(p: &Part, map: &mut FxHashMap<u64, [f32; 9]>) {
-            // ModelPart.createPartLookup fills its map with putIfAbsent: the first part keeps a name.
+            // First wins: of two parts sharing a name, the first registered keeps it.
             map.entry(key(&p.name)).or_insert(p.pose);
             for c in &p.children {
                 walk(c, map);
@@ -841,7 +840,6 @@ fn vanilla_setup(
         Anim::Breeze => super::breeze::anim(m, s, p, w_anims),
         Anim::Sniffer => super::sniffer::anim(m, s, p, w_anims),
         Anim::CopperGolem => super::copper_golem::anim(m, s, p, w_anims),
-        Anim::HappyGhast => super::happy_ghast::anim(m, s, p),
         Anim::Nautilus => super::nautilus::anim(m, s, p, w_anims),
         // body_anim::llama runs first.
         Anim::Llama => quadruped(p, s),
@@ -1651,8 +1649,8 @@ mod flight_pose_tests {
         assert_eq!(p.get("right_arm")[4], 0.0);
     }
 
-    /// ModelPart.createPartLookup fills the name map with putIfAbsent, so of two
-    /// parts sharing a name the first registered keeps it, not the last.
+    /// The name map fills first-wins, so of two parts sharing a name the
+    /// first registered keeps it, not the last.
     #[test]
     fn a_name_two_parts_share_belongs_to_the_first() {
         let child = |xrot: f32| Part {

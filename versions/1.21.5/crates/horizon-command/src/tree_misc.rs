@@ -146,11 +146,6 @@ pub fn register(d: &mut Dispatcher, root: usize) {
         let other = d.argument(l, "existing", ArgType::Name("datapacks_enabled"));
         d.executes(other, "datapack.enable");
     }
-    let create = d.literal(datapack, "create");
-    d.requires(create, 4);
-    let id = d.argument(create, "id", ArgType::Str);
-    let description = d.argument(id, "description", ArgType::Component);
-    d.executes(description, "datapack.create");
     let disable = d.literal(datapack, "disable");
     let name = d.argument(disable, "name", ArgType::Name("datapacks_enabled"));
     d.executes(name, "datapack.disable");
@@ -174,6 +169,9 @@ fn item(d: &mut Dispatcher, root: usize) {
             "modifier",
             ArgType::ResourceOrId("minecraft:item_modifier"),
         );
+        // ItemCommands.SUGGEST_MODIFIER: ResourceOrIdArgument itself has no
+        // listSuggestions in 1.21.5.
+        d.suggests(modifier, super::Suggests::Registry("minecraft:item_modifier"));
         d.executes(modifier, "item.modify");
     }
     for mode in ["replace", "fill", "override"] {
@@ -206,6 +204,8 @@ fn item(d: &mut Dispatcher, root: usize) {
                     "modifier",
                     ArgType::ResourceOrId("minecraft:item_modifier"),
                 );
+                // ItemCommands.SUGGEST_MODIFIER.
+                d.suggests(modifier, super::Suggests::Registry("minecraft:item_modifier"));
                 d.executes(modifier, "item");
             }
         }

@@ -221,14 +221,14 @@ fn two_leads_on_one_fence_share_one_knot() {
     let uuid = knot_uuid(&mut game);
     let other = mob(&mut game, OTHER_PIG);
     let other = game.mobs[other].id;
-    game.break_leash(other, false, false);
+    game.break_leash(other, false);
     assert_eq!(knots(&game), [id]);
     assert_eq!(knot_uuid(&mut game), uuid);
 }
 
 #[test]
 #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-fn a_knot_tied_again_after_its_last_lead_is_a_new_entity() {
+fn a_knot_tied_again_after_its_last_lead_is_the_same_entity() {
     let mut game = game();
     summon_pig(&mut game, 1, 13.5);
     step(&mut game);
@@ -236,9 +236,10 @@ fn a_knot_tied_again_after_its_last_lead_is_a_new_entity() {
     let first_uuid = knot_uuid(&mut game);
     let pig = mob(&mut game, PIG);
     let pig = game.mobs[pig].id;
-    game.break_leash(pig, false, false);
-    assert!(knots(&game).is_empty(), "no lead holds it: gone");
-    assert!(!game.run_command(&format!("execute if entity {AT_FENCE}")));
+    game.break_leash(pig, false);
+    // 1.21.5 has no `notifyLeasheeRemoved`: the knot outlives its last lead.
+    assert_eq!(knots(&game), [first]);
+    assert!(game.run_command(&format!("execute if entity {AT_FENCE}")));
     // The player leads the pig and ties it to the fence again.
     assert!(game.run_command("item replace entity @s weapon.mainhand with lead"));
     let i = mob(&mut game, PIG);
@@ -249,8 +250,8 @@ fn a_knot_tied_again_after_its_last_lead_is_a_new_entity() {
     let [second] = knots(&game)[..] else {
         panic!("{:?}", knots(&game));
     };
-    assert_ne!(second, first, "a new entity id");
-    assert_ne!(knot_uuid(&mut game), first_uuid, "a new UUID");
+    assert_eq!(second, first, "the same entity id");
+    assert_eq!(knot_uuid(&mut game), first_uuid, "the same UUID");
 }
 
 #[test]

@@ -41,7 +41,7 @@ WitherMobEffect.shouldApplyEffectTickThisTick	port	crates/horizon-client-render/
 AbstractInterpolationHandler.adjustInterpolationPosition	skip:other		Horizon moves a remote entity only through SteppedInterpolation, so there is no client-side move to add to the target
 AbstractInterpolationHandler.adjustInterpolationTargetFromDeltas	skip:other		same: the entity never drifts from where the interpolation put it (see SteppedInterpolation::interpolate)
 AbstractInterpolationHandler.setLastPositionAndRotation	skip:other		only feeds the delta adjustments above; Horizon's own last is the start of the step
-AgeableMob.defineSynchedData	port	crates/horizon-client/src/game/lan.rs::mob_meta	the baby flag (baby_index) and AGE_LOCKED after it; a kind outside baby_index (sulfur cube, nautilus, happy ghast) sends neither
+AgeableMob.defineSynchedData	port	crates/horizon-client/src/game/lan.rs::mob_meta	the baby flag (baby_index) and AGE_LOCKED after it; a kind outside baby_index (sulfur cube, nautilus) sends neither
 AgeableMob.getAge	inline	crates/horizon-client/src/game/remote_mob_data.rs::apply	m.extra.age on the host; a remote client only learns baby or not (-1 or 0)
 AgeableMob.addAdditionalSaveData	port	crates/horizon-client/src/entity_nbt.rs::mob_to_nbt	modeled Age, ForcedAge and AgeLocked for baby-capable creatures; zombie nautiluses omit ignored raw age keys
 AgeableMob.readAdditionalSaveData	port	crates/horizon-client/src/entity_nbt.rs::mob_from_nbt	Age/ForcedAge through NumericTag.intValue; AgeLocked unchanged

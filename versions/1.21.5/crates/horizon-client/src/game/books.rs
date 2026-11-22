@@ -1,8 +1,9 @@
-//! Books (`BookEditScreen`, `BookSignScreen`, `BookViewScreen`,
-//! `LecternScreen`): writing pages of a book and quill (14 lines of 114
-//! pixels, 1024 characters, 100 pages), signing it into a written book,
-//! reading written books, and lecterns (placing a book, turning its pages
-//! with a redstone pulse, the comparator output and taking the book).
+//! Books (`BookEditScreen`, `BookViewScreen`, `LecternScreen`):
+//! writing pages of a book and quill (14 lines of 114 pixels, at most
+//! 1023 characters, 100 pages), signing it into a written book on the
+//! edit screen itself (1.21.5 has no separate `BookSignScreen`), reading
+//! written books, and lecterns (placing a book, turning its pages with a
+//! redstone pulse, the comparator output and taking the book).
 use super::{Game, lan::LanHost, screen_info};
 use horizon_client::{
     containers::{BlockEntity, Lectern},
@@ -57,10 +58,14 @@ pub(super) enum BookScreen {
         page: usize,
         signing: bool,
         title: String,
-        /// BookSignScreen's title box (`EditBox` of 15).
+        /// The signing title box (`EditBox` of 15).
         title_edit: ui::EditBox,
-        /// BookEditScreen's page (`MultiLineEditBox`).
+        /// The page's text (`TextFieldHelper` in 1.21.5).
         page_edit: ui::EditBox,
+        /// `BookEditScreen.isModified`: set by any page or title change
+        /// and by appending a page; `saveChanges` sends nothing when
+        /// it is false.
+        modified: bool,
     },
     View {
         pages: Vec<Text>,
@@ -123,7 +128,7 @@ impl Game<'_> {
         }
         None
     }
-    /// `BookViewScreen.handleClickEvent`: a page link turns to its page
+    /// `BookViewScreen.handleComponentClicked`: a page link turns to its page
     /// (`forcePage`), a web link goes through the confirm-link flow.
     fn book_follow_link(
         &mut self,
@@ -148,36 +153,17 @@ impl Game<'_> {
                 }
             }
             ClickEvent::OpenUrl(url) => self.click_url(url),
-            // closeContainerOnServer, then clickCommandAction with no screen
-            // after the command: the book closes and the command runs. A
-            // lectern's screen goes with its menu; a book is still the screen
-            // a confirmation returns to.
+            // handleComponentClicked's RunCommand arm (1.21.5): the
+            // command runs first, through the screen, and only then does
+            // the book close (1.21.6 closed it first).
             ClickEvent::RunCommand(command) => {
-                let book = if lectern.is_none() {
-                    self.book.take()
-                } else {
-                    None
-                };
-                self.close_book();
                 self.click_command(&command);
-                if let Some(book) = book {
-                    self.command_prompt_returns_to(super::remote_chat::Behind::Book(Box::new(
-                        book,
-                    )));
-                }
+                self.close_book();
             }
-            // Screen.defaultHandleClickEvent: copied, the book stays open.
+            // Screen.handleComponentClicked: copied, the book stays open.
             ClickEvent::CopyToClipboard(value) => {
                 use horizon_client::clipboard::Clipboard;
                 self.clipboard.set(&value);
-            }
-            // defaultHandleGameClickEvent: the dialog opens over the book.
-            ClickEvent::ShowDialog(dialog) => self.show_dialog_ref(&dialog),
-            // Screen.defaultHandleGameClickEvent: custom actions retain the book.
-            ClickEvent::Custom { id, payload } => {
-                if let Some(remote) = &self.remote {
-                    remote.session.send_custom_click(&id, payload);
-                }
             }
             // SuggestCommand's insertText does nothing on a book; a server's
             // text never opens a file.
@@ -230,6 +216,7 @@ impl Game<'_> {
                     title: String::new(),
                     title_edit: book_title_box(),
                     page_edit,
+                    modified: false,
                 }
             }
             "minecraft:written_book" => BookScreen::View {
@@ -283,16 +270,25 @@ impl Game<'_> {
         self.book = None;
         self.capture(self.screen == super::Screen::Playing && !self.screen_over_playing());
     }
-    /// `BookEditScreen.saveChanges` and `BookSignScreen`'s Sign and Close:
-    /// trailing empty pages dropped, the book in hand updated here and, on a
+    /// `BookEditScreen.saveChanges`: nothing is sent or written when
+    /// the book is unmodified (`isModified`); otherwise trailing empty
+    /// pages are dropped, the book in hand updated here and, on a
     /// server's client, sent (ServerboundEditBookPacket).
     fn save_book(&mut self, sign: bool) {
         let Some(BookScreen::Edit {
-            slot, pages, title, ..
+            slot,
+            pages,
+            title,
+            modified,
+            ..
         }) = self.book.take()
         else {
             return;
         };
+        if !modified {
+            self.capture(true);
+            return;
+        }
         let mut pages = pages;
         while pages.len() > 1 && pages.last().is_some_and(String::is_empty) {
             pages.pop();
@@ -422,11 +418,15 @@ impl Game<'_> {
                         *signing = false;
                     }
                 }
+                // `titleKeyPressed`: Enter signs whenever the title
+                // is non-empty — a title of spaces signs, and saveChanges
+                // trims it to empty. Only the button needs a non-blank
+                // title (`StringUtil.isBlank`).
                 Some(KeyCode::Enter | KeyCode::NumpadEnter) => {
-                    let blank = self.book.as_ref().is_some_and(
-                        |b| matches!(b, BookScreen::Edit { title, .. } if title.trim().is_empty()),
+                    let empty = self.book.as_ref().is_some_and(
+                        |b| matches!(b, BookScreen::Edit { title, .. } if title.is_empty()),
                     );
-                    if !blank {
+                    if !empty {
                         self.save_book(true);
                     }
                 }
@@ -468,11 +468,14 @@ impl Game<'_> {
             _ => {}
         }
     }
-    /// `BookSignScreen.keyPressed` on the title box.
+    /// The title box's keys while signing (`titleKeyPressed`).
     fn book_title_key(&mut self, key: KeyCode) -> bool {
         let (ctrl, shift) = (self.has_control_down(), self.has_shift_down());
         let Some(BookScreen::Edit {
-            title, title_edit, ..
+            title,
+            title_edit,
+            modified,
+            ..
         }) = self.book.as_mut()
         else {
             return false;
@@ -480,17 +483,26 @@ impl Game<'_> {
         if !title_edit.key(key, ctrl, shift) {
             return false;
         }
+        if title_edit.value != *title {
+            *modified = true;
+        }
         title.clone_from(&title_edit.value);
         true
     }
     fn book_title_insert(&mut self, text: &str) {
         let Some(BookScreen::Edit {
-            title, title_edit, ..
+            title,
+            title_edit,
+            modified,
+            ..
         }) = self.book.as_mut()
         else {
             return;
         };
         title_edit.insert_text(text);
+        if title_edit.value != *title {
+            *modified = true;
+        }
         title.clone_from(&title_edit.value);
     }
     /// `BookEditScreen.keyPressed` on the page, apart from the line moves.
@@ -525,10 +537,16 @@ impl Game<'_> {
         let signing = matches!(self.book, Some(BookScreen::Edit { signing: true, .. }));
         if signing {
             if let Some(BookScreen::Edit {
-                title, title_edit, ..
+                title,
+                title_edit,
+                modified,
+                ..
             }) = self.book.as_mut()
             {
                 title_edit.shortcut(shortcut, &mut self.clipboard);
+                if title_edit.value != *title {
+                    *modified = true;
+                }
                 title.clone_from(&title_edit.value);
             }
             return;
@@ -546,7 +564,7 @@ impl Game<'_> {
         }
         self.page_keep(before);
     }
-    /// Edit the page box, then keep it only within 14 lines and 1024 characters.
+    /// Edit the page box, then keep it only within 14 lines and 1023 characters.
     fn page_change(&mut self, f: impl FnOnce(&mut ui::EditBox)) -> bool {
         let before = match self.book.as_ref() {
             Some(BookScreen::Edit { page_edit, .. }) => Some((
@@ -570,17 +588,24 @@ impl Game<'_> {
             Some(BookScreen::Edit { page_edit, .. }) => page_edit.value.clone(),
             _ => return false,
         };
-        let ok = next.chars().count() <= PAGE_CHARS && self.book_lines(&next).len() <= LINES;
+        // 1.21.5's page filter is `length < 1024` (at most 1023
+        // characters) and `wordWrapHeight <= 128` (at most 14 lines);
+        // 1.21.6's MultiLineEditBox allows 1024 characters.
+        let ok = next.chars().count() < PAGE_CHARS && self.book_lines(&next).len() <= LINES;
         let Some(BookScreen::Edit {
             pages,
             page,
             page_edit,
+            modified,
             ..
         }) = self.book.as_mut()
         else {
             return false;
         };
         if ok {
+            if pages[*page] != page_edit.value {
+                *modified = true;
+            }
             pages[*page].clone_from(&page_edit.value);
         } else if let Some((value, cursor, highlight)) = before {
             page_edit.value = value;
@@ -713,22 +738,35 @@ impl Game<'_> {
         let pos = self.gui.atlas.font.fit(title, rel);
         title_edit.set_cursor(pos, shift);
     }
-    /// A click on the open page (`MultiLineEditBox.onClick`): a double click
-    /// selects the word before the cursor and leaves the cursor where it is.
-    fn book_page_click(&mut self, origin_x: f32, origin_y: f32, mx: f32, my: f32, double: bool) {
-        if double {
-            if let Some(BookScreen::Edit { page_edit, .. }) = self.book.as_mut() {
-                page_edit.select_word_at_cursor();
-            }
-            return;
-        }
+    /// A click on the open page (`TextFieldHelper.mouseClicked`): a
+    /// click on the same index within 250 ms selects the word there, and
+    /// a third click on it selects the whole page; otherwise the cursor
+    /// moves.
+    fn book_page_click(&mut self, origin_x: f32, origin_y: f32, mx: f32, my: f32) {
+        use horizon_client::clipboard::Editable;
         let shift = self.has_shift_down();
         let text = match self.book.as_ref() {
             Some(BookScreen::Edit { pages, page, .. }) => pages[*page].clone(),
             _ => return,
         };
         let pos = self.page_index_at(&text, mx - origin_x, my - origin_y);
-        if let Some(BookScreen::Edit { page_edit, .. }) = self.book.as_mut() {
+        let now = std::time::Instant::now();
+        let same = self
+            .book_last_click
+            .is_some_and(|at| now.duration_since(at).as_millis() < 250)
+            && self.book_last_click_index == Some(pos);
+        self.book_last_click = Some(now);
+        self.book_last_click_index = Some(pos);
+        let Some(BookScreen::Edit { page_edit, .. }) = self.book.as_mut() else {
+            return;
+        };
+        let selecting = page_edit.cursor != page_edit.highlight;
+        if same && selecting {
+            page_edit.select_all();
+        } else if same {
+            page_edit.set_cursor(pos, false);
+            page_edit.select_word_at_cursor();
+        } else {
             page_edit.set_cursor(pos, shift);
         }
     }
@@ -740,12 +778,15 @@ impl Game<'_> {
                 pages,
                 page,
                 page_edit,
+                modified,
                 ..
             }) => {
                 let before = *page;
                 if forward {
                     if *page + 1 >= pages.len() && pages.len() < MAX_PAGES {
                         pages.push(String::new());
+                        // `appendPageToBook` sets `isModified`.
+                        *modified = true;
                     }
                     if *page + 1 < pages.len() {
                         *page += 1;
@@ -1149,12 +1190,6 @@ impl Game<'_> {
         let b = HudBatch::new(size);
         let (w, left) = (b.width, ((b.width - 192.0) / 2.0).floor());
         let (mx, my) = self.cursor;
-        // MouseHandler: a click within 250 ms of the last one on this screen is a double click.
-        let now = std::time::Instant::now();
-        let double = self
-            .book_last_click
-            .is_some_and(|at| now.duration_since(at).as_millis() < 250);
-        self.book_last_click = Some(now);
         let inside =
             |x: f32, y: f32, bw: f32, bh: f32| mx >= x && my >= y && mx < x + bw && my < y + bh;
         let click = |game: &mut Self| {
@@ -1195,7 +1230,7 @@ impl Game<'_> {
                     click(self);
                     self.save_book(false);
                 } else if inside(left + 36.0, 32.0, 114.0, 14.0 * 9.0) {
-                    self.book_page_click(left + 36.0, 32.0, mx, my, double);
+                    self.book_page_click(left + 36.0, 32.0, mx, my);
                 }
             }
             Some(BookScreen::View {
@@ -1281,21 +1316,23 @@ impl Game<'_> {
             let tw = HudBatch::text_width(atlas, &text);
             batch.text(atlas, &text, left + 148.0 - tw, top + 16.0, BLACK, false);
         };
-        // PageButton: a button named for where it turns, there while it can;
-        // the view adds the forward one first, the editor the back one.
+        // PageButton: its message is EMPTY in 1.21.5 (1.21.6 named it
+        // `book.page_button.next/previous`), so the buttons are there to
+        // focus but narrate nothing; the view adds the forward one first,
+        // the editor the back one.
         let page_narratables = |back: bool, forward: bool, view: bool| {
-            let back = (back, 43.0, "book.page_button.previous");
-            let forward = (forward, 116.0, "book.page_button.next");
+            let back = (back, 43.0);
+            let forward = (forward, 116.0);
             let order = if view {
                 [forward, back]
             } else {
                 [back, forward]
             };
-            for (show, x, key) in order {
+            for (show, x) in order {
                 if show {
                     widgets::narratable(|| {
                         let rect = [left + x, top + 157.0, 23.0, 13.0];
-                        Narratable::button(screen_info::tr(key, &[]), rect, true)
+                        Narratable::button(String::new(), rect, true)
                             .hovered(hover(rect[0], rect[1], rect[2], rect[3]))
                             .order(i32::from(view))
                     });
@@ -1336,18 +1373,14 @@ impl Game<'_> {
                 title_edit,
                 ..
             } => {
-                // BookSignScreen: its title, and the title box focused.
-                widgets::begin_screen(|| {
-                    ScreenInfo::new("book/sign", screen_info::tr("book.sign.title", &[]))
-                });
+                // Signing is part of the edit screen in 1.21.5 (no
+                // separate BookSignScreen): it narrates nothing, and the
+                // title field is not a widget.
+                widgets::begin_screen(|| ScreenInfo::new("book/sign", ""));
                 widgets::narratable(|| {
                     let rect = [((w - 114.0) / 2.0).floor() - 3.0, 50.0, 114.0, 20.0];
-                    Narratable::edit_box(
-                        screen_info::tr("book.sign.titlebox", &[]),
-                        title_edit.value.clone(),
-                        rect,
-                    )
-                    .focused(title_edit.focused)
+                    Narratable::edit_box("", title_edit.value.clone(), rect)
+                        .focused(title_edit.focused)
                 });
                 let edit = tr("book.editTitle", "Enter Book Title:");
                 let tw = HudBatch::text_width(atlas, &edit);
@@ -1391,7 +1424,7 @@ impl Game<'_> {
                         BLACK,
                     );
                 }
-                // BookSignScreen: `owner.getName()`, the account's name on a server.
+                // The signing screen shows `owner.getName()`, the account's name on a server.
                 let owner = self
                     .remote
                     .as_ref()
@@ -1446,10 +1479,8 @@ impl Game<'_> {
                 page_edit,
                 ..
             } => {
-                widgets::begin_screen(|| {
-                    screen_info::book_edit(*page, pages.len(), &screen_info::tr)
-                });
-                // The page's MultiLineEditBox (no message), focused, then the
+                widgets::begin_screen(|| screen_info::book_edit());
+                // The page's text field (no message), focused, then the
                 // page buttons.
                 widgets::narratable(|| {
                     let rect = [((w - 114.0) / 2.0).floor() - 8.0, 28.0, 122.0, 134.0];
@@ -1528,10 +1559,11 @@ impl Game<'_> {
                 page,
                 lectern,
             } => {
-                widgets::begin_screen(|| {
-                    let text = pages.get(*page).map(Text::plain).unwrap_or_default();
-                    screen_info::book_view(*page, pages.len(), &text, &screen_info::tr)
-                });
+                // BookViewScreen in 1.21.5 has GameNarrator.NO_TITLE and no
+                // getNarrationMessage override: the screen narrates nothing
+                // (1.21.6 added the title, page indicator and page text).
+                // The page buttons stay narratable widgets.
+                widgets::begin_screen(|| ScreenInfo::new("book/view", ""));
                 // createMenuControls comes before createPageControlButtons
                 // (forward, then back).
                 page_narratables(*page > 0, *page + 1 < pages.len(), true);

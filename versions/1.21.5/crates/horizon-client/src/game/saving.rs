@@ -257,8 +257,8 @@ impl Game<'_> {
         ) {
             return Ok(());
         }
-        // disconnectWithSavingScreen: a GenericMessageScreen, its title and
-        // no navigation.
+        // disconnect(new GenericMessageScreen("menu.savingLevel")): a
+        // GenericMessageScreen, its title and no navigation.
         horizon_client::widgets::begin_screen(|| {
             horizon_client::widgets::ScreenInfo::new(
                 "saving",

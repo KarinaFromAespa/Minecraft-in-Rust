@@ -2367,7 +2367,7 @@ impl Game<'_> {
     /// is the overlay's key, `<kind>/<namespace>:<path>` without `.json`, over
     /// the kinds the tables read: `recipe/mymod:thing`,
     /// `tags/mymod:block/thing`, `loot_table/…`, `advancement/…`,
-    /// `trade_set/…`, `villager_trade/…`, `dialog/…`. A file that isn't JSON
+    /// `trade_set/…`, `villager_trade/…`. A file that isn't JSON
     /// is skipped with a warning. Asked once per load on both paths, so this
     /// is where a mod recomputes them.
     /// Contributed files sit below the world's own data packs: a pack's file
@@ -2536,9 +2536,9 @@ impl Game<'_> {
     /// it. `layer` is the layer's id, in the order Horizon draws them:
     /// `minecraft:crosshair`, `hotbar`, `effects`, `boss_overlay`,
     /// `vehicle_health` (only riding a mount), `player_health` (the health,
-    /// armor, food and air rows, drawn in one pass), `contextual_info_bar` (the
-    /// mount's jump bar, the locator bar or the experience bar, with the level
-    /// number), `selected_item_name`, `sleep_overlay`, `overlay_message`
+    /// armor, food and air rows, drawn in one pass), `experience_bar` (the
+    /// mount's jump bar or the experience bar, with the level number),
+    /// `selected_item_name`, `sleep_overlay`, `overlay_message`
     /// (the action bar), `title`, `scoreboard_sidebar`, `subtitle_overlay`,
     /// `chat` and `tab_list`. A layer F1 hides fires nothing, and the chat
     /// screen draws the focused chat itself, so `chat` is only the unfocused
@@ -3726,15 +3726,15 @@ impl Game<'_> {
     /// `&self`, so it reads and draws only. The Win and Options screens call
     /// it on their own path, after their drawing.
     ///
-    /// It does not fire for the screens drawn over gameplay after it (a
-    /// server dialog, the server pack, link and code-of-conduct prompts, a
+    /// It does not fire for the screens drawn over gameplay after it (the
+    /// server pack, link and code-of-conduct prompts, a
     /// book, a sign editor): those keep `Screen::Playing`, which it skips (the
     /// server pack prompt hides an open screen too, and that screen does not
     /// fire under it), and draw over what it drew, while vanilla's
     /// `ScreenEvent.Render.Post` fires for them. The title's own screens
     /// (`title`, `world_select`, `world_create`, `multiplayer`…) fire it too,
     /// their `screen.id` from the title state machine and the whole window
-    /// their `rect` (API 326), and no dialog or prompt over them.
+    /// their `rect` (API 326), and no prompt over them.
     /// API 78.
     pub(super) fn native_screen_render_post(
         &self,
@@ -3758,8 +3758,8 @@ impl Game<'_> {
     /// and the pack list opened from the title screen count, with no player
     /// and no `menu`; the title's own screens since API 326, their
     /// `screen.id` from the title state machine). It does not fire on the
-    /// connect and loading screens, nor for a server
-    /// dialog, the server pack, link and code-of-conduct prompts, a book or a
+    /// connect and loading screens, nor for the server pack, link and
+    /// code-of-conduct prompts, a book or a
     /// sign editor drawn over gameplay, nor while a world loads or saves: the
     /// click there stays the game's own. A gamepad click or a click the
     /// keyboard's focus sends is not the mouse and fires nothing.
@@ -3878,7 +3878,7 @@ impl Game<'_> {
     /// pack list opened from the title screen count, with no player and no
     /// `menu`; the title's own since API 326). It
     /// does not fire on the connect and loading
-    /// screens, nor for a server dialog, the server pack, link and
+    /// screens, nor for the server pack, link and
     /// code-of-conduct prompts, a book or a sign editor drawn over gameplay,
     /// nor while a world loads or saves: the scroll there stays the game's
     /// own. A wheel a gamepad or the keyboard's focus sends is not the mouse
@@ -3943,7 +3943,7 @@ impl Game<'_> {
     /// keys and the narrator — and while a screen of the game's or the title's
     /// is open (Options and the pack list opened from the title screen count,
     /// with no player and no `menu`; the title's own since API 326). It does
-    /// not fire on the connect and loading screens, nor for a server dialog, the server pack,
+    /// not fire on the connect and loading screens, nor for the server pack,
     /// link and code-of-conduct prompts, a book or a sign editor drawn over
     /// gameplay, nor while a world loads or saves: the key there stays the
     /// game's own. A cancelled press's release still runs, so a `native_key`
@@ -4132,8 +4132,8 @@ impl Game<'_> {
     /// A screen the native mods' input hooks are for is open: the window has a
     /// renderer, either the title's own (`title`, `world_select`,
     /// `world_create`, `multiplayer`…) or a screen over the world
-    /// (`Screen::Playing` behind it, so not a book, a sign editor, a server
-    /// dialog or a prompt drawn over gameplay), and no connect or world load
+    /// (`Screen::Playing` behind it, so not a book, a sign editor or a prompt
+    /// drawn over gameplay), and no connect or world load
     /// is in progress. The one gate they all ask before they fire.
     pub(super) fn screen_hooks_open(&self) -> bool {
         self.renderer.is_some()
@@ -6587,15 +6587,15 @@ impl Game<'_> {
     }
 
     /// NeoForge's `ToastAddEvent`: a new toast is about to be queued. `kind`
-    /// is `advancement`, `recipe`, `tutorial`, `system` or `now_playing`;
-    /// `id` is the advancement id, the first recipe id, the tutorial hint
-    /// (`move`, `look`, `find_tree`, `punch_tree`, `open_inventory`,
-    /// `craft_planks`, `socialInteractions`), the system toast's id (`narrator_toggle`,
+    /// is `advancement`, `recipe`, `tutorial` or `system`; `id` is the
+    /// advancement id, the first recipe id, the tutorial hint (`move`,
+    /// `look`, `find_tree`, `punch_tree`, `open_inventory`, `craft_planks`,
+    /// `socialInteractions`), or the system toast's id (`narrator_toggle`,
     /// `pack_load_failure`, `pack_download`, `low_disk_space`,
-    /// `chunk_load_failure`, `chunk_save_failure`), or empty for
-    /// `now_playing`. An update to a toast already queued or shown is not an
-    /// add. Set `cancel` and it isn't queued, shown or sounded. Title-screen
-    /// toasts are not told. Client-side. API @API:toast_add@.
+    /// `chunk_load_failure`, `chunk_save_failure`). An update to a toast
+    /// already queued or shown is not an add. Set `cancel` and it isn't
+    /// queued, shown or sounded. Title-screen toasts are not told.
+    /// Client-side. API @API:toast_add@.
     pub(super) fn native_toast_add(&mut self, kind: &str, id: &str, cancel: &mut bool) {
         mod_api::dispatch_toast_add(self, mod_api::mods(), kind, id, cancel);
     }
@@ -9033,7 +9033,7 @@ impl Game<'_> {
     /// `minecraft:horse`, `minecraft:cushion`). Set `canceled` and it does not: a player stays
     /// where they were, a mob does not board, a `/ride` fails, and a rider whose dismount is
     /// canceled keeps riding. Told for a player boarding a boat, minecart, cushion or a mount (pig,
-    /// strider, horse and its kin, llama, nautilus, happy ghast) and getting off one by their
+    /// strider, horse and its kin, llama, nautilus) and getting off one by their
     /// own input, `/ride`, a stab, a buck, a teleport or spectator mode; and for the mobs
     /// Horizon seats on a vehicle (jockeys, raiders on a ravager, `/ride`) and lets off one
     /// (`/ride`, a stab). It is not told for a rider whose vehicle was removed from the
@@ -11300,7 +11300,7 @@ impl Game<'_> {
     /// check `native_mod_screen()` is its own before drawing. It doesn't pause
     /// a single-player game (as the inventory doesn't). True when it is open:
     /// false while another screen is (or another mod's), over the title
-    /// screen, a book, a sign editor, a dialog or a prompt, while the world
+    /// screen, a book, a sign editor or a prompt, while the world
     /// loads, and anywhere but the window's own client (the server thread, a
     /// dedicated server). A gamepad can close it (B, Start) but not click on
     /// it: its clicks don't reach the mouse hooks. API 111.

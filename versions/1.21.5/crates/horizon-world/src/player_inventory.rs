@@ -26,16 +26,19 @@ impl EquipmentSlot {
         Self::Body,
         Self::Saddle,
     ];
+    /// `Inventory.EQUIPMENT_SLOT_MAPPING`, the player inventory's
+    /// equipment slots: 36-39 the armor, 40 the offhand. 1.21.5's
+    /// mapping ends there — 41 (body) and 42 (saddle) are 1.21.6's
+    /// additions, so Body and Saddle have no player inventory index
+    /// here (they stay entity equipment slots for horses and wolves).
     pub fn inventory_slot(self) -> Option<usize> {
         match self {
-            Self::MainHand => None,
+            Self::MainHand | Self::Body | Self::Saddle => None,
             Self::OffHand => Some(40),
             Self::Feet => Some(36),
             Self::Legs => Some(37),
             Self::Chest => Some(38),
             Self::Head => Some(39),
-            Self::Body => Some(41),
-            Self::Saddle => Some(42),
         }
     }
     pub fn from_inventory_slot(index: i32) -> Option<Self> {
@@ -45,8 +48,6 @@ impl EquipmentSlot {
             38 => Some(Self::Chest),
             39 => Some(Self::Head),
             40 => Some(Self::OffHand),
-            41 => Some(Self::Body),
-            42 => Some(Self::Saddle),
             _ => None,
         }
     }
@@ -212,7 +213,7 @@ impl<I: Copy + Eq, K: Clone + Eq, V: Clone + PartialEq> PlayerInventory<I, K, V>
     pub fn remove_reference(
         &mut self,
         stack: &StackRef<I, K, V>,
-        equipment_order: &[EquipmentSlot; 7],
+        equipment_order: &[EquipmentSlot; 5],
     ) {
         for s in &mut self.items {
             if s.same_reference(stack) {

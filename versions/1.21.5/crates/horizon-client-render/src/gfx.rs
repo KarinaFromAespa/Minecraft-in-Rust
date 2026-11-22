@@ -1008,9 +1008,6 @@ pub struct Frame<'a> {
     /// over everything.
     pub debug_lines: &'a [[f32; 8]],
     pub debug_lines_on_top: &'a [[f32; 8]],
-    /// `DebugCrosshairRenderer`'s axes, camera relative like `debug_lines`:
-    /// drawn after the hand at its projection, without the bob or fog.
-    pub debug_crosshair: &'a [[f32; 8]],
     pub hud: &'a HudBatch,
     /// `GlintAlpha` (accessibility Glint Strength); the entity shader uses it
     /// for held/world items, independent of what the HUD batch last drew.
@@ -1270,17 +1267,10 @@ pub struct Renderer {
     debug_lines_opaque: wgpu::RenderPipeline,
     debug_lines: wgpu::RenderPipeline,
     debug_lines_on_top: wgpu::RenderPipeline,
-    debug_crosshair: Option<wgpu::RenderPipeline>,
-    /// The debug crosshair and the first-person hand in `overlay_format`, where it isn't the
-    /// frame's.
-    overlay_crosshair: Option<wgpu::RenderPipeline>,
+    /// The first-person hand in `overlay_format`, where it isn't the frame's.
     overlay_hand: Option<wgpu::RenderPipeline>,
     debug_line_buffer: wgpu::Buffer,
     debug_line_capacity: u64,
-    /// The terrain resources with the debug crosshair's projection
-    /// (`crosshair_globals`).
-    crosshair_group: wgpu::BindGroup,
-    crosshair_globals: wgpu::Buffer,
     /// The water mirror: its solid terrain pipeline, its camera's globals and their group,
     /// and its targets once drawn.
     solid_mirror: wgpu::RenderPipeline,
@@ -3510,26 +3500,6 @@ impl Renderer {
             false,
             Some(alpha_blend),
         );
-        // The debug crosshair with the HUD: with its coverage on the layered frame, and in the
-        // overlays' format where that isn't the frame's.
-        let crosshair = |coverage| {
-            pipeline_with(
-                &sprite_constants,
-                &layout,
-                "3d crosshair",
-                "vs_debug_line",
-                "fs_debug_line",
-                &debug_line_buffers,
-                wgpu::PrimitiveTopology::TriangleStrip,
-                None,
-                false,
-                false,
-                Some(alpha_blend),
-                Some(coverage),
-            )
-        };
-        let debug_crosshair = hud_coverage.then(|| crosshair(true));
-        let overlay_crosshair = (overlay_format != frame_format).then(|| crosshair(false));
         drop(terrain_step);
         let globals = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Horizon globals"),
@@ -3539,12 +3509,6 @@ impl Renderer {
         });
         let hand_globals = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("First-person hand globals"),
-            size: std::mem::size_of::<Globals>() as u64,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-        let crosshair_globals = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Debug crosshair globals"),
             size: std::mem::size_of::<Globals>() as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
@@ -3742,17 +3706,6 @@ impl Renderer {
             &globals,
             &sprite_views,
             &terrain_model_sampler,
-            &lightmap_view,
-            &lightmap_sampler,
-            &emission_stats.view,
-        );
-        let crosshair_group = terrain_group(
-            &device,
-            "Debug crosshair resources",
-            &bindings,
-            &crosshair_globals,
-            &sprite_views,
-            &sprite_sampler,
             &lightmap_view,
             &lightmap_sampler,
             &emission_stats.view,
@@ -5190,13 +5143,9 @@ impl Renderer {
             debug_lines_opaque,
             debug_lines,
             debug_lines_on_top,
-            debug_crosshair,
-            overlay_crosshair,
             overlay_hand,
             debug_line_buffer,
             debug_line_capacity: 4096,
-            crosshair_group,
-            crosshair_globals,
             solid_mirror,
             mirror_globals,
             mirror_group,
@@ -8596,19 +8545,6 @@ impl Renderer {
             0,
             bytemuck::bytes_of(&hand_globals),
         );
-        // GameRenderer.render3dHud: DebugCrosshairRenderer draws with the
-        // hand's projection but no bob, and FogMode.NONE (no fog colour).
-        let crosshair_globals = Globals {
-            view_proj: (hand_projection * view).to_cols_array_2d(),
-            fog_color: [0.0; 4],
-            ..globals
-        };
-        self.uploads.buffer(
-            &mut encoder,
-            &self.crosshair_globals,
-            0,
-            bytemuck::bytes_of(&crosshair_globals),
-        );
         let pack_terrain = !frame.title
             && self
                 .pack_post
@@ -9425,9 +9361,8 @@ impl Renderer {
             .filter(|l| debug_line_opaque(l))
             .count() as u32;
         let debug_top = frame.debug_lines_on_top.len() as u32;
-        let crosshair = frame.debug_crosshair.len() as u32;
-        if debug_depth + debug_top + crosshair > 0 {
-            let needed = u64::from(debug_depth + debug_top + crosshair);
+        if debug_depth + debug_top > 0 {
+            let needed = u64::from(debug_depth + debug_top);
             if needed > self.debug_line_capacity {
                 self.debug_line_capacity = needed.next_power_of_two();
                 self.debug_line_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
@@ -9442,7 +9377,6 @@ impl Renderer {
             lines.extend(
                 debug_lines_opaque_first(frame.debug_lines)
                     .chain(frame.debug_lines_on_top)
-                    .chain(frame.debug_crosshair)
                     .copied(),
             );
             self.uploads.buffer(
@@ -11841,8 +11775,6 @@ impl Renderer {
                 let overlay = Overlay {
                     hand_quads: hand_quads * u32::from(!pack_draws_hand),
                     first_hand_vertex: made_hand_vertex,
-                    crosshair,
-                    first_crosshair: debug_depth + debug_top,
                     world_depth: false,
                     real: false,
                     hand_drawn: !pack_draws_hand,
@@ -11916,8 +11848,6 @@ impl Renderer {
         let overlay = Overlay {
             hand_quads: hand_quads * u32::from(!pack_draws_hand && !hand_in_world),
             first_hand_vertex: ((world_quads + additive_quads) * 4) as i32,
-            crosshair,
-            first_crosshair: debug_depth + debug_top,
             world_depth: scaled.is_none(),
             real: true,
             hand_drawn: !pack_draws_hand,
@@ -12423,47 +12353,6 @@ impl Renderer {
         let coverage = self.hdr.as_ref().and_then(|h| h.coverage_view());
         if let Some(view) = &coverage {
             hud_coverage::clear(encoder, view);
-        }
-        // GameRenderer.render3dHud: the debug crosshair after the hand and
-        // the screen effects.
-        if overlay.crosshair > 0 {
-            let mut attachments = vec![Some(wgpu::RenderPassColorAttachment {
-                view: hud_target,
-                resolve_target: None,
-                depth_slice: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Load,
-                    store: wgpu::StoreOp::Store,
-                },
-            })];
-            if let Some(view) = &coverage {
-                attachments.push(Some(hud_coverage::attachment(view)));
-            }
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("3d crosshair"),
-                timestamp_writes: timing.as_mut().and_then(|t| t.writes("Crosshair")),
-                color_attachments: &attachments,
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.depth,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(0.0),
-                        store: wgpu::StoreOp::Discard,
-                    }),
-                    stencil_ops: None,
-                }),
-                ..Default::default()
-            });
-            pass.set_pipeline(match &coverage {
-                Some(_) => self.debug_crosshair.as_ref().unwrap(),
-                None => self
-                    .overlay_crosshair
-                    .as_ref()
-                    .unwrap_or(&self.debug_lines_on_top),
-            });
-            pass.set_bind_group(0, &self.crosshair_group, &[]);
-            pass.set_vertex_buffer(0, self.debug_line_buffer.slice(..));
-            let first = overlay.first_crosshair;
-            pass.draw(0..4, first..first + overlay.crosshair);
         }
         let menu_blur = frame
             .menu_blur
@@ -13046,8 +12935,6 @@ struct Overlay {
     /// Zero when a shader pack draws the hand.
     hand_quads: u32,
     first_hand_vertex: i32,
-    crosshair: u32,
-    first_crosshair: u32,
     /// The world drew into `depth` (post effects may read it), not a scaled target's.
     world_depth: bool,
     /// The real frame, not frame generation's made one: the world icon grabs it.

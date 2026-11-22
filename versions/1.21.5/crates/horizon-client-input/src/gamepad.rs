@@ -281,7 +281,6 @@ pub const ACTIONS: &[(&str, Option<Button>)] = &[
     ("key.emote", None),
     ("key.fullscreen", None),
     ("key.socialInteractions", None),
-    ("key.quickActions", None),
     ("key.saveToolbarActivator", None),
     ("key.loadToolbarActivator", None),
     ("key.hotbar.1", None),
@@ -1640,7 +1639,6 @@ mod tests {
         for action in [
             "key.fullscreen",
             "key.socialInteractions",
-            "key.quickActions",
             "key.saveToolbarActivator",
             "key.loadToolbarActivator",
             "key.hotbar.1",

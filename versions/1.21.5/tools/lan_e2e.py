@@ -228,7 +228,7 @@ address. The script then checks, from both sides, what a guest's game used to ge
              getting off; also with an End chunk force-loaded, and with the player and its horse in
              the Nether while the other player keeps the Overworld ticking (#5331).
 - riding:    the host and the guest each saddle and ride a horse (walk, jump), a pig and a strider
-             (with their sticks), a camel and a donkey, sit on a llama and fly a happy ghast, and
+             (with their sticks), a camel and a donkey, sit on a llama, and
              get off by sneaking; the other side sees the animal move.
 - cart_portal_rider: the host and the guest each ride a minecart along rails into a Nether portal: the
              cart carries the player, who arrives in the Nether still riding the same cart (#6021).
@@ -6454,8 +6454,8 @@ def check_hands(host, guest, out):
 
 
 # Animals a player rides: (kind, summon NBT, what readies it, what is held to ride, the test
-# while riding). `move` walks forward, `jump` charges the horse's jump bar, `rise` holds jump on
-# a happy ghast, `sit` only rides (a llama goes where it likes).
+# while riding). `move` walks forward, `jump` charges the horse's jump bar,
+# `sit` only rides (a llama goes where it likes).
 RIDES = [
     ('horse', '{Tame:1b}', 'minecraft:saddle', None, 'move jump'),
     ('pig', '', 'minecraft:saddle', 'minecraft:carrot_on_a_stick', 'move'),
@@ -6463,10 +6463,8 @@ RIDES = [
     ('camel', '', 'minecraft:saddle', None, 'move'),
     ('donkey', '{Tame:1b}', 'minecraft:saddle', None, 'move'),
     ('llama', '{Tame:1b}', None, None, 'sit'),
-    ('happy_ghast', '', 'minecraft:white_harness', None, 'rise'),
 ]
-HEIGHTS = {'horse': 1.6, 'donkey': 1.5, 'pig': 0.9, 'strider': 1.7, 'camel': 2.375, 'llama': 1.87,
-           'happy_ghast': 4.0}
+HEIGHTS = {'horse': 1.6, 'donkey': 1.5, 'pig': 0.9, 'strider': 1.7, 'camel': 2.375, 'llama': 1.87}
 
 
 def mob_seen(game, mob_id):
@@ -6481,12 +6479,12 @@ def hold(game, key, ticks):
 
 
 def ride(player, other, label, spot, kind, nbt, ready, stick, test):
-    """Summon `kind` in front of `player`, ready it (saddle, harness), get on with a right click,
+    """Summon `kind` in front of `player`, ready it (saddle), get on with a right click,
     run `test`, and get off by sneaking. The other side sees the animal move."""
     x, y, z = spot
-    # In reach (3 blocks), clear of the player: a happy ghast is 4 blocks wide.
-    at = (x + 0.5, z + {'happy_ghast': 3.2, 'camel': 3.0}.get(kind, 2.5))
-    # The first item in hand before it appears: a happy ghast drifts out of reach quickly.
+    # In reach (3 blocks), clear of the player: a camel is 2 blocks wide.
+    at = (x + 0.5, z + {'camel': 3.0}.get(kind, 2.5))
+    # The first item in hand before it appears.
     player('command', command=f'item replace entity @s weapon.mainhand with {ready or stick or "minecraft:air"}')
     player('command', command=f'summon minecraft:{kind} {at[0]} {y} {at[1]} {nbt}')
     player.wait(3)
@@ -6499,7 +6497,7 @@ def ride(player, other, label, spot, kind, nbt, ready, stick, test):
         m = mob_seen(player, mob['id'])
         assert m, f'the {label} lost its {kind}'
         p = m['pos']
-        # Back in front of it if it wandered off (a happy ghast drifts away fast).
+        # Back in front of it if it wandered off.
         if abs(p[0] - (x + 0.5)) > 0.5 or abs(p[2] - at[1]) > 0.5:
             player('command', command=f'tp @s {p[0]:.2f} {y} {p[2] - (at[1] - z - 0.5):.2f} 0 0')
             player.wait(1)
@@ -6540,13 +6538,6 @@ def ride(player, other, label, spot, kind, nbt, ready, stick, test):
                 top = max(top, mob_seen(player, mob['id'])['pos'][1])
             assert top - base > 0.4, f"the {label}'s {kind} jumped {top - base:.2f} blocks"
             result['jumped'] = round(top - base, 2)
-        if 'rise' in test:
-            base = mob_seen(player, mob['id'])['pos'][1]
-            hold(player, 'space', 40)
-            player.wait(5)
-            rose = mob_seen(player, mob['id'])['pos'][1] - base
-            assert rose > 0.5, f"the {label}'s {kind} rose {rose:.2f} blocks while it held jump"
-            result['rose'] = round(rose, 2)
         hold(player, 'shift', 10)
         player.wait(10)
         riding = player('status').get('riding')
@@ -6561,7 +6552,7 @@ def ride(player, other, label, spot, kind, nbt, ready, stick, test):
 def check_riding(host, guest, out):
     """The host (single player, on its server thread or not) and the guest each saddle and ride a
     horse (walk and jump), a pig and a strider (with their sticks), a camel and a donkey, sit on a
-    llama, and harness and fly a happy ghast; they get off by sneaking."""
+    llama; they get off by sneaking."""
     spots = apart(host, guest)
     result = {}
     for label, player, other in (('host', host, guest), ('guest', guest, host)):

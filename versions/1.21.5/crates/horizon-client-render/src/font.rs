@@ -760,7 +760,15 @@ impl Font {
                         self.metrics_only,
                     ),
                 )),
-                "unihex" => Some(Provider::Unihex(Filter::of(p), p.clone(), None)),
+                "unihex" => {
+                    // UnihexProvider$Definition (1.21.5):
+                    // `size_overrides` is a required codec field, so a
+                    // definition without it fails to load and the provider
+                    // is skipped. 1.21.6 made it optional, default empty.
+                    p["size_overrides"]
+                        .as_array()
+                        .map(|_| Provider::Unihex(Filter::of(p), p.clone(), None))
+                }
                 "ttf" => Some(Provider::TrueType(
                     Filter::of(p),
                     Box::new(load_true_type(&self.root, self.fallback.as_deref(), p)?),
@@ -1415,6 +1423,37 @@ mod tests {
         // Unparseable lines are skipped.
         parse_hex(b"zz:00\n", &mut out);
         assert_eq!(out.len(), 2);
+    }
+
+    #[test]
+    fn a_unihex_provider_without_size_overrides_is_skipped() {
+        // UnihexProvider$Definition (1.21.5): `size_overrides` is a
+        // required codec field; 1.21.6 made it optional, default empty.
+        let without = br#"{"providers":[{"type":"unihex","hex_file":"minecraft:font/unifont.hex"}]}"#;
+        let with =
+            br#"{"providers":[{"type":"unihex","hex_file":"minecraft:font/unifont.hex","size_overrides":[]}]}"#;
+        let root = root(
+            "unihex-required",
+            &[
+                ("assets/minecraft/font/default.json", without),
+                ("assets/minecraft/font/alt.json", with),
+            ],
+        );
+        let font = load(&root);
+        let cache = font.cache.borrow();
+        let (_, default) = cache
+            .sets
+            .iter()
+            .find(|(k, _)| k == DEFAULT)
+            .expect("the default set loads");
+        assert!(default.providers.is_empty());
+        let (_, alt) = cache
+            .sets
+            .iter()
+            .find(|(k, _)| k == "minecraft:alt")
+            .expect("the alt set loads");
+        assert_eq!(alt.providers.len(), 1);
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]

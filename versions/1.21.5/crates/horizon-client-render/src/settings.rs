@@ -9,8 +9,8 @@ use std::{fs, path::Path};
 pub use horizon_client_core::sound_source::SOUND_SOURCES;
 
 /// Per-source volumes for the mixer (soundCategory_* except master).
-static SOURCE_VOLUMES: std::sync::RwLock<[f32; 11]> = std::sync::RwLock::new([1.0; 11]);
-pub fn set_source_volumes(volumes: [f32; 11]) {
+static SOURCE_VOLUMES: std::sync::RwLock<[f32; 10]> = std::sync::RwLock::new([1.0; 10]);
+pub fn set_source_volumes(volumes: [f32; 10]) {
     *SOURCE_VOLUMES.write().unwrap_or_else(|e| e.into_inner()) = volumes;
 }
 /// The SoundSource an event plays on. Vanilla callers pick the source; this
@@ -72,7 +72,8 @@ pub fn sound_source(event: &str) -> usize {
     } else if e.starts_with("ambient.") {
         index("ambient")
     } else if e.starts_with("ui.") {
-        index("ui")
+        // 1.21.5 has no UI source: UI sounds play on MASTER.
+        index("master")
     } else if e.starts_with("entity.player.")
         || e.starts_with("item.")
         || e.starts_with("entity.item.")
@@ -113,7 +114,7 @@ pub struct Settings {
     /// 0..1 (soundCategory_master).
     pub master_volume: f32,
     /// Volumes of every other sound source, indexed like SOUND_SOURCES.
-    pub volumes: [f32; 11],
+    pub volumes: [f32; 10],
     /// Empty for system default, or a specific audio device name.
     pub sound_device: String,
     /// Requested scale (0 = auto); rendering caps it to the current framebuffer.
@@ -129,7 +130,6 @@ pub struct Settings {
     pub smooth_lighting: bool,
     /// "false", "fast" or "true" (renderClouds).
     pub clouds: String,
-    pub cloud_range: i32,
     /// 0 all, 1 decreased, 2 minimal.
     pub particles: u8,
     pub entity_distance: f32,
@@ -223,7 +223,7 @@ impl Default for Settings {
             simulation_distance: 12,
             sensitivity: 0.5,
             master_volume: 1.0,
-            volumes: [1.0; 11],
+            volumes: [1.0; 10],
             sound_device: String::new(),
             gui_scale: 0,
             view_bobbing: true,
@@ -235,7 +235,6 @@ impl Default for Settings {
             fullscreen: false,
             smooth_lighting: true,
             clouds: "true".into(),
-            cloud_range: 128,
             particles: 0,
             entity_distance: 1.0,
             entity_shadows: true,
@@ -454,7 +453,7 @@ impl Settings {
         for (name, _, _) in crate::keybinds::MAPPINGS {
             keys.set(name, &f.key_binding(name));
         }
-        let mut volumes = [1.0; 11];
+        let mut volumes = [1.0; 10];
         for (i, source) in SOUND_SOURCES.iter().enumerate() {
             volumes[i] = f.double(&format!("soundCategory_{source}")) as f32;
         }
@@ -474,7 +473,6 @@ impl Settings {
             fullscreen: f.bool("fullscreen"),
             smooth_lighting: f.bool("ao"),
             clouds: f.name("renderClouds"),
-            cloud_range: f.int("cloudRange"),
             particles: f.int("particles") as u8,
             entity_distance: f.double("entityDistanceScaling") as f32,
             entity_shadows: f.bool("entityShadows"),
@@ -577,7 +575,6 @@ impl Settings {
         put_b(&mut f, "fullscreen", self.fullscreen);
         put_b(&mut f, "ao", self.smooth_lighting);
         put_name(&mut f, "renderClouds", &self.clouds);
-        put_i(&mut f, "cloudRange", self.cloud_range);
         put_i(&mut f, "particles", i32::from(self.particles));
         put_f(&mut f, "entityDistanceScaling", self.entity_distance);
         put_b(&mut f, "entityShadows", self.entity_shadows);
@@ -714,7 +711,9 @@ impl Settings {
                 }
             })
     }
-    /// `Options.getFinalSoundSourceVolume`: a source's volume times master's.
+    /// A source's volume times master's: the fold 1.21.5 computes inline in
+    /// `GameNarrator.narrateMessage` (voice) and applies as the listener gain
+    /// for sounds. (1.21.6 named the fold `getFinalSoundSourceVolume`.)
     pub fn final_volume(&self, source: &str) -> f32 {
         if source == "master" {
             self.master_volume
@@ -775,7 +774,6 @@ pub enum Opt {
     Fullscreen,
     SmoothLighting,
     Clouds,
-    CloudRange,
     Particles,
     EntityDistance,
     EntityShadows,
@@ -819,7 +817,6 @@ pub enum Opt {
     SaveChatDrafts,
     HighContrast,
     ShowSubtitles,
-    MusicFrequency,
     NotificationDisplayTime,
     Narrator,
     TextBackground,
@@ -872,7 +869,6 @@ pub enum Opt {
     InGameNotification,
     SharePresence,
     DirectionalAudio,
-    MusicToast,
     /// `Options.exclusiveFullscreen`.
     ExclusiveFullscreen,
     /// VideoSettingsScreen's "Exclusive Fullscreen Mode": the monitor's mode to take.

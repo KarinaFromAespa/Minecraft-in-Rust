@@ -424,7 +424,61 @@ fn crosshair_draws(w: i32, h: i32, attack: Option<f32>, full: bool) -> Vec<GuiDr
     out
 }
 
-/// `ExperienceBar.extractBackground` and `ContextualBar.extractExperienceLevel`;
+/// `Gui.renderCrosshair`'s 3D crosshair (1.21.5): the world axes at the
+/// screen centre, 10 units long, rotated by the camera's pitch and yaw.
+/// Vanilla's model view is `translate(cx, cy, 0) * rotateX(-pitch) *
+/// rotateY(yaw) * scale(-1)` over the 10-long vertex axes, projected
+/// orthographically, which gives these screen offsets: X `(-10*cos yaw,
+/// 10*sin yaw * sin pitch)`, Y `(0, -10*cos pitch)`, Z `(-10*sin yaw,
+/// -10*cos yaw * sin pitch)`. Each arm is drawn twice: a 4-device-pixel
+/// black line under a 2-device-pixel coloured one (X red, Y green, Z
+/// light blue). Returns the quads (corners and colour) in GUI units,
+/// black arms first; an arm along the view direction has no screen
+/// length and is skipped.
+pub fn debug_crosshair_3d(
+    cx: f32,
+    cy: f32,
+    pitch: f32,
+    yaw: f32,
+    scale: f32,
+) -> Vec<([[f32; 2]; 4], u32)> {
+    let (sp, cp) = pitch.to_radians().sin_cos();
+    let (sy, cyaw) = yaw.to_radians().sin_cos();
+    let offsets = [
+        (-10.0 * cyaw, 10.0 * sy * sp),
+        (0.0, -10.0 * cp),
+        (-10.0 * sy, -10.0 * cyaw * sp),
+    ];
+    let colors = [0xFFFF_0000, 0xFF00_FF00, 0xFF7F_7FFF];
+    let quad = |o: (f32, f32), half_width: f32| -> Option<[[f32; 2]; 4]> {
+        let len = (o.0 * o.0 + o.1 * o.1).sqrt();
+        if len < 1e-6 {
+            return None;
+        }
+        let (dx, dy) = (o.0 / len, o.1 / len);
+        let (nx, ny) = (-dy * half_width, dx * half_width);
+        Some([
+            [cx + nx, cy + ny],
+            [cx + o.0 + nx, cy + o.1 + ny],
+            [cx + o.0 - nx, cy + o.1 - ny],
+            [cx - nx, cy - ny],
+        ])
+    };
+    let mut out = Vec::new();
+    for o in offsets {
+        if let Some(corners) = quad(o, 2.0 / scale) {
+            out.push((corners, 0xFF00_0000));
+        }
+    }
+    for (o, color) in offsets.into_iter().zip(colors) {
+        if let Some(corners) = quad(o, 1.0 / scale) {
+            out.push((corners, color));
+        }
+    }
+    out
+}
+
+/// `Gui.renderExperienceBar` and `Gui.renderExperienceLevel`;
 /// `width` measures text with the font.
 pub fn experience(
     w: i32,
@@ -463,7 +517,10 @@ pub fn experience_colored(
             ));
         }
     }
-    if level > 0 {
+    // `Gui.renderExperienceLevel` draws only when the bar itself is visible
+    // (`isExperienceBarVisible`: no jumpable vehicle, has experience), so a
+    // rider sees neither the bar nor the level.
+    if bar && level > 0 {
         let text = level.to_string();
         let x = (w - width(&text)) / 2;
         let y = h - 24 - 9 - 2;
@@ -968,5 +1025,60 @@ fn opaque(color: u32) -> u32 {
         color | 0xFF00_0000
     } else {
         color
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_debug_crosshair_is_the_world_axes_at_the_screen_centre() {
+        // Looking south (yaw 0), level (pitch 0), GUI scale 2: the X arm
+        // points left, the Y arm up, the Z arm straight at the viewer.
+        let quads = debug_crosshair_3d(100.0, 50.0, 0.0, 0.0, 2.0);
+        assert_eq!(quads.len(), 4);
+        // Black arms first (4 device pixels = 2 GUI units wide at scale 2),
+        // then the coloured cores (2 device pixels = 1 GUI unit).
+        assert_eq!(quads[0].1, 0xFF00_0000);
+        assert_eq!(
+            quads[0].0,
+            [[100.0, 49.0], [90.0, 49.0], [90.0, 51.0], [100.0, 51.0]]
+        );
+        assert_eq!(quads[1].1, 0xFF00_0000);
+        assert_eq!(
+            quads[1].0,
+            [[101.0, 50.0], [101.0, 40.0], [99.0, 40.0], [99.0, 50.0]]
+        );
+        assert_eq!(quads[2].1, 0xFFFF_0000);
+        assert_eq!(
+            quads[2].0,
+            [[100.0, 49.5], [90.0, 49.5], [90.0, 50.5], [100.0, 50.5]]
+        );
+        assert_eq!(quads[3].1, 0xFF00_FF00);
+        assert_eq!(
+            quads[3].0,
+            [[100.5, 50.0], [100.5, 40.0], [99.5, 40.0], [99.5, 50.0]]
+        );
+        // Looking west (yaw 90): the X arm is along the view, the Z arm
+        // points left (south is left of a westward viewer).
+        let quads = debug_crosshair_3d(100.0, 50.0, 0.0, 90.0, 2.0);
+        assert_eq!(quads.len(), 4);
+        assert_eq!(quads[2].1, 0xFF00_FF00);
+        assert_eq!(quads[3].1, 0xFF7F_7FFF);
+        assert_eq!(
+            quads[3].0,
+            [[100.0, 49.5], [90.0, 49.5], [90.0, 50.5], [100.0, 50.5]]
+        );
+        // Looking straight down (pitch 90): the Y arm is along the view,
+        // the Z arm points up-screen.
+        let quads = debug_crosshair_3d(100.0, 50.0, 90.0, 0.0, 2.0);
+        assert_eq!(quads.len(), 4);
+        assert_eq!(quads[2].1, 0xFFFF_0000);
+        assert_eq!(quads[3].1, 0xFF7F_7FFF);
+        assert_eq!(
+            quads[3].0,
+            [[100.5, 50.0], [100.5, 40.0], [99.5, 40.0], [99.5, 50.0]]
+        );
     }
 }

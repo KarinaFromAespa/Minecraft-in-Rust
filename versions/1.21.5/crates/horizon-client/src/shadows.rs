@@ -36,7 +36,6 @@ pub fn shadow_params(entity: &str) -> (f32, f32) {
         // GiantMobRenderer: 0.5 times its scale of 6.
         "giant" => 3.0,
         "elder_guardian" => 1.2,
-        "happy_ghast" => 2.0,
         // ShulkerRenderer: none.
         "shulker" => 0.0,
         "wither" => 1.0,
@@ -76,7 +75,6 @@ pub fn mob_shadow_radius(m: &Mob) -> f32 {
         S::Armadillo | S::Camel | S::CamelHusk => 0.6,
         S::Dolphin => 0.65,
         S::Goat => 0.55,
-        S::HappyGhast => 0.2375,
         S::Turtle => 0.3,
         _ => 0.5,
     };

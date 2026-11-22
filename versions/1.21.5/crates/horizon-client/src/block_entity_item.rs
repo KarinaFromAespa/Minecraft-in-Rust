@@ -71,25 +71,20 @@ pub fn spawn_egg_op_warning(stack: &crate::items::ItemStack) -> bool {
 }
 
 /// `SpawnEggItem.useOn` on a spawner: the type it sets (`getType`: the egg's
-/// entity data id, else the egg's own type) and, for an op
-/// (`PlayerList.isOp`), that entity data for `Spawner.setEntityData`; anyone
-/// else sets only the type (`setEntityId`).
-pub fn spawn_egg_on_spawner(
-    stack: &crate::items::ItemStack,
-    op: bool,
-) -> (String, Option<Compound>) {
+/// entity data id, else the egg's own type). Only the type: `Spawner` has no
+/// `setEntityData` in 1.21.5, so an op's egg data is dropped too.
+pub fn spawn_egg_on_spawner(stack: &crate::items::ItemStack) -> String {
     let data = match stack.data().and_then(|d| d.other("minecraft:entity_data")) {
         Some(Tag::Compound(c)) => Some(c),
         _ => None,
     };
-    let id = match data.and_then(|c| c.get(&JavaString::from("id"))) {
+    match data.and_then(|c| c.get(&JavaString::from("id"))) {
         Some(Tag::String(id)) => id.to_string_lossy(),
         _ => {
             let kind = stack.item.trim_end_matches("_spawn_egg");
             format!("minecraft:{}", kind.trim_start_matches("minecraft:"))
         }
-    };
-    (id, data.filter(|_| op).cloned())
+    }
 }
 
 /// `EntityType.updateCustomEntityTag`: the `minecraft:entity_data` a spawn egg
@@ -595,19 +590,15 @@ mod tests {
         };
         // A plain egg: its own type, no data, op or not.
         assert_eq!(
-            spawn_egg_on_spawner(&egg(None), true),
-            ("minecraft:zombie".into(), None)
+            spawn_egg_on_spawner(&egg(None)),
+            "minecraft:zombie".to_string()
         );
-        // Entity data: its type for anyone (getType), its data only for an op.
+        // Entity data: its type for anyone (getType); the data itself is
+        // dropped, even for an op — Spawner has no setEntityData.
         let custom = egg(Some("{id:\"minecraft:skeleton\",CustomName:\"Guard\"}"));
-        let (id, data) = spawn_egg_on_spawner(&custom, false);
-        assert_eq!((id.as_str(), data), ("minecraft:skeleton", None));
-        let (id, data) = spawn_egg_on_spawner(&custom, true);
-        assert_eq!(id, "minecraft:skeleton");
-        let data = data.expect("an op's egg carries its data");
         assert_eq!(
-            data.get(&JavaString::from("CustomName")),
-            Some(&Tag::String("Guard".into()))
+            spawn_egg_on_spawner(&custom),
+            "minecraft:skeleton".to_string()
         );
     }
 

@@ -52,12 +52,12 @@ fn build_for_features(dev: bool, dedicated: bool, minecart_improvements: bool) -
     d
 }
 /// Commands(CommandSelection.DEDICATED) where it differs from INTEGRATED:
-/// `seed` and `version` check permissions (SeedCommand.register and
-/// VersionCommand.register get `selection != INTEGRATED`), `publish` and
-/// `unpublish` are not registered (`includeIntegrated`), and the dedicated
-/// commands are (`includeDedicated`: `/op`, `/ban`, `/whitelist`...).
+/// `seed` checks permissions (SeedCommand.register gets
+/// `selection != INTEGRATED`), `publish` and `unpublish` are not registered
+/// (`includeIntegrated`), and the dedicated commands are (`includeDedicated`:
+/// `/op`, `/ban`, `/whitelist`...).
 fn dedicated_selection(d: &mut Dispatcher) {
-    for name in ["seed", "version"] {
+    for name in ["seed"] {
         if let Some(n) = d.find(name) {
             d.requires(n, GAMEMASTERS);
         }
@@ -323,12 +323,10 @@ fn registered_with_features(dev: bool, minecart_improvements: bool) -> Dispatche
         d.executes(l, "difficulty");
     }
 
-    // seed and version: everyone in the integrated server, game masters on a
+    // seed: everyone in the integrated server, game masters on a
     // dedicated one (`dedicated_selection`).
     let seed = d.literal(root, "seed");
     d.executes(seed, "seed");
-    let version = d.literal(root, "version");
-    d.executes(version, "version");
 
     // spawnpoint [<targets>] [<pos>] [<rotation>]
     let sp = d.literal(root, "spawnpoint");
@@ -601,6 +599,21 @@ pub fn game_dispatcher_with_features(features: &[String]) -> &'static Dispatcher
             d
         },
     )
+}
+/// The permission level a root command requires on a server of this
+/// selection (0 when the tree has no such root). Built from the tree
+/// itself, not the process's `game_dispatcher`: 1.21.5's commands report
+/// carries no levels — `ArgumentUtils` only gained `required_level` in
+/// 1.21.6 — so the LAN packet takes them from the registrations, and the
+/// lookup must not depend on which server kind this process set up.
+pub fn root_permission(name: &str, dedicated: bool) -> u8 {
+    let d = if dedicated {
+        static DEDICATED: std::sync::OnceLock<Dispatcher> = std::sync::OnceLock::new();
+        DEDICATED.get_or_init(|| build_for(false, true))
+    } else {
+        release_dispatcher()
+    };
+    d.find(name).map(|n| d.nodes[n].permission).unwrap_or(0)
 }
 /// Whether this process is a dedicated server, whose tree has the dedicated
 /// commands (`/op`, `/ban`, `/whitelist`...). Single player's server thread

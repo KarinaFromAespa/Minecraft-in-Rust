@@ -266,7 +266,8 @@ impl VariantRegistry {
         let name = name.strip_prefix("minecraft:").unwrap_or(name);
         self.names.iter().position(|n| n == name)
     }
-    /// `VariantUtils.selectVariantToSpawn`: the entries of the highest
+    /// `PriorityProvider.pick`, as each variant class's
+    /// `selectVariantToSpawn` calls it in 1.21.5: the entries of the highest
     /// priority whose condition holds, one of them at random.
     pub fn select<L: FinalizeLevel + ?Sized>(
         &self,
@@ -523,7 +524,7 @@ pub fn base_value_with(m: &Mob, a: Attr, default: impl FnOnce() -> Option<f64>) 
         })
 }
 /// The attribute instances the mob's own construction and load leave in its
-/// `AttributeMap`, which `AttributeMap.pack` saves although the loaded tag held
+/// `AttributeMap`, which `AttributeMap.save` saves although the loaded tag held
 /// none: `AttributeMap.getInstance` makes one for any `getAttribute`, a read or
 /// a `setBaseValue`. What `set_base` recorded (finalizeSpawn, a size, a baby
 /// growing up) is saved apart; these are the rest:
@@ -548,7 +549,7 @@ pub fn made_at_load(m: &Mob) -> Vec<Attr> {
     }
     made
 }
-/// The base of an instance `made_at_load` lists, as `AttributeMap.pack` writes it.
+/// The base of an instance `made_at_load` lists, as `AttributeMap.save` writes it.
 pub fn made_base(m: &Mob, a: Attr) -> f64 {
     match (m.species(), a) {
         // `Wolf.applyTamingSideEffects` sets 40 for a tame wolf and 8 for the others;
@@ -863,7 +864,6 @@ pub fn ageable(s: Species) -> bool {
             | S::Camel
             | S::CamelHusk
             | S::Sniffer
-            | S::HappyGhast
             | S::Nautilus
             | S::ZombieNautilus
             | S::ZombieHorse
@@ -965,11 +965,6 @@ fn age_boundary_reached(m: &mut Mob) {
             }
         }
         Species::SulfurCube if !baby => sulfur_size(m, 2),
-        // HappyGhast.ageBoundaryReached: adultGhastSetup or babyGhastSetup,
-        // then Animal's no-op. A hatched ghastling needs it before it is in
-        // the level (DriedGhastBlock.spawnGhastling sets the baby age before
-        // addFreshEntity), or its first tick flies the adult goals.
-        Species::HappyGhast => super::happy_ghast::ensure_setup(m),
         _ => {}
     }
 }
@@ -1823,7 +1818,7 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
         let at = block(m);
         m.extra.variant = villager_type(&self.level.biome(at));
     }
-    /// `VariantUtils.selectVariantToSpawn` into `variant`, by registry name.
+    /// Each variant class's `selectVariantToSpawn` into `variant`, by registry name.
     fn variant(&mut self, m: &mut Mob, registry: fn(&SpawnRegistries) -> &VariantRegistry) {
         let r = registry(self.data.registries);
         let at = block(m);

@@ -57,7 +57,7 @@ impl Game<'_> {
     /// and the empty chat input never draw behind the window. Escape closes
     /// it back to `Screen::Playing` (see `play_keys.rs`), as does
     /// `close_studio_screen`. True when open: false while another screen is,
-    /// over the title screen, a book, a sign editor, a dialog or a prompt,
+    /// over the title screen, a book, a sign editor or a prompt,
     /// while the world loads, and anywhere but the window's own client.
     pub(super) fn open_studio_screen(&mut self) -> bool {
         // What `native_mod_screen_open` refuses over the world: the Studio

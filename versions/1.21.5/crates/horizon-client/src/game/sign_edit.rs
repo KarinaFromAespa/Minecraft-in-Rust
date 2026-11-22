@@ -50,6 +50,13 @@ fn done_button(w: f32, h: f32) -> (f32, f32) {
         (h.ceil() / 4.0).floor() + 144.0,
     )
 }
+/// The edit screen's sign centre y (`AbstractSignEditScreen.offsetSign`):
+/// 90 for a standing sign, 125 for a hanging sign, and — in 1.21.5 only —
+/// 125 for a wall sign (`SignEditScreen.offsetSign` adds 35 for a
+/// non-standing sign; 1.21.6's `getSignYOffset` returns 90 for all of them).
+fn sign_edit_centre_y(hanging: bool, wall: bool) -> f32 {
+    if hanging || wall { 125.0 } else { 90.0 }
+}
 
 impl Game<'_> {
     /// `SignBlockEntity.getSlotPlayerIsFacing`: whether the player stands in
@@ -142,10 +149,10 @@ impl Game<'_> {
         }
     }
     /// `SignBlockEntity.executeClickCommandsIfPresent`: every line of the
-    /// side whose style has a `run_command`, `show_dialog` or `custom` click
-    /// event runs it as the acting player when the sign allows op features;
-    /// otherwise the player is told click actions are disabled. Whether any
-    /// line had one.
+    /// side whose style has a `run_command` click event runs it as the
+    /// acting player when the sign allows op features; otherwise the
+    /// player is told click actions are disabled. Whether any line had
+    /// one.
     fn execute_sign_click_commands(&mut self, pos: [i32; 3], front: bool) -> bool {
         let key = (pos[0], pos[1], pos[2]);
         let Some(BlockEntity::Sign(sign)) = self.world.block_entities.get(&key) else {
@@ -157,27 +164,11 @@ impl Game<'_> {
         let events: Vec<_> = side.click.iter().flatten().cloned().collect();
         let mut any_click_command = false;
         for event in &events {
-            match click_action(event) {
-                Some(ClickAction::RunCommand(command)) => {
-                    if allow_op_features {
-                        self.run_sign_command(pos, &command);
-                    }
-                    any_click_command = true;
+            if let Some(ClickAction::RunCommand(command)) = click_action(event) {
+                if allow_op_features {
+                    self.run_sign_command(pos, &command);
                 }
-                Some(ClickAction::ShowDialog(dialog)) => {
-                    if allow_op_features {
-                        self.show_click_dialog(dialog);
-                    }
-                    any_click_command = true;
-                }
-                // MinecraftServer.handleCustomClickAction only logs it.
-                Some(ClickAction::Custom { id, payload }) => {
-                    if allow_op_features {
-                        log::debug!("Received custom click action {id} with payload {payload:?}");
-                    }
-                    any_click_command = true;
-                }
-                None => {}
+                any_click_command = true;
             }
         }
         if !allow_op_features && any_click_command {
@@ -730,7 +721,10 @@ impl Game<'_> {
         };
         let text = if edit.front { &sign.front } else { &sign.back };
         let line_height = sign.line_height();
-        let y = if sign.hanging { 125.0 } else { 90.0 };
+        let facts = self.res.facts();
+        let block = facts.get(self.world.block(edit.pos.0, edit.pos.1, edit.pos.2));
+        let wall = block.sign_form().is_some_and(|f| f.wall);
+        let y = sign_edit_centre_y(sign.hanging, wall);
         let top = y - (4.0 * line_height / 2.0).floor();
         Some((
             width / 2.0,
@@ -782,18 +776,19 @@ impl Game<'_> {
             let s = 3.9;
             let wall = block.sign_form().is_some_and(|f| f.wall);
             let rows = if wall { 12.0 } else { 26.0 };
+            let cy = sign_edit_centre_y(sign.hanging, wall);
             if let Some(mut r) = atlas.sprites.get(&editor_sprite("signs", wood)).copied() {
                 r.v1 = r.v0 + (r.v1 - r.v0) * rows / 26.0;
                 batch.rect_uv(
                     cx - 12.0 * s,
-                    90.0 + 27.0 - 13.0 * s,
+                    cy + 27.0 - 13.0 * s,
                     24.0 * s,
                     rows * s,
                     r,
                     u32::MAX,
                 );
             }
-            90.0
+            cy
         };
         let text = if edit.front { &sign.front } else { &sign.back };
         let color = if text.glowing {
@@ -881,6 +876,16 @@ mod tests {
         // `width / 2 - 100, height / 4 + 144` in ints: 334 high is 83 + 144.
         assert_eq!(super::done_button(427.0, 334.0), (113.0, 227.0));
         assert_eq!(super::done_button(320.0, 240.0), (60.0, 204.0));
+    }
+
+    /// 1.21.5's `SignEditScreen.offsetSign` adds 35 for a non-standing sign,
+    /// so a wall sign's text sits at 125 like a hanging sign's, not at 90
+    /// with a standing sign's (1.21.6's `getSignYOffset` returns 90 for all).
+    #[test]
+    fn wall_sign_text_sits_lower_than_a_standing_signs() {
+        assert_eq!(super::sign_edit_centre_y(false, false), 90.0);
+        assert_eq!(super::sign_edit_centre_y(false, true), 125.0);
+        assert_eq!(super::sign_edit_centre_y(true, false), 125.0);
     }
 
     /// The Done button said "Done" in every language (#1927).

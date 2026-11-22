@@ -152,7 +152,7 @@ pub(super) fn reload_sync_data(
     overlay: &horizon_world::loot::PackOverlay,
     kept: &SyncData,
 ) -> std::result::Result<Arc<SyncData>, String> {
-    // Kept pack dialogs count as packs: a world opened without packs after
+    // Kept pack entries count as packs: a world opened without packs after
     // a `/reload` that dropped them must read its own registries again.
     let packs = !overlay.files.is_empty() || kept.has_pack_entries();
     let sync = SyncData::reload(root, overlay, kept).map(|mut sync| {
@@ -161,24 +161,6 @@ pub(super) fn reload_sync_data(
     });
     SYNC.lock().unwrap_or_else(|e| e.into_inner()).data = Some((packs, sync.clone()));
     sync
-}
-
-impl Game<'_> {
-    /// The commands' `minecraft:dialog` ids as the clients get them in the
-    /// configuration phase (`sync`, the world's packs' dialogs among them):
-    /// `/dialog show` parses an id against these and sends its index.
-    pub(super) fn sync_dialog_ids(&mut self, sync: &SyncData) {
-        let Some(names) = sync.dynamic.registries.get("minecraft:dialog") else {
-            return;
-        };
-        let ids = names.iter().map(|(name, _)| name.clone()).collect();
-        self.ui
-            .registries
-            .by_registry
-            .entry("minecraft:dialog".to_owned())
-            .or_default()
-            .ids = ids;
-    }
 }
 
 /// The registries and tags a server sends without data packs over them, read
@@ -246,11 +228,6 @@ pub(super) struct LanHost {
     pub mob_players: horizon_client::fast_hash::FxHashMap<u32, u32>,
     /// An integrated server's owner (game/integrated.rs).
     pub owner: Option<Owner>,
-    /// The players' locator bars, one waypoint manager per level by
-    /// dimension id (game/lan_waypoints.rs), and the guests who are dead,
-    /// whose respawn replaces their waypoint.
-    pub waypoints: std::collections::HashMap<String, lan::waypoints::Waypoints>,
-    pub waypoint_dead: std::collections::HashSet<u128>,
     /// The world border as the guests were last told of it (lan/border.rs).
     pub border_sent: Option<lan::border::Sent>,
     /// Guests' commands waiting for the hub to be back in `self.lan`, where
@@ -343,7 +320,7 @@ pub(super) fn entity_uuid(id: u32) -> u128 {
 /// The SynchedEntityData index of the baby flag: AgeableMob.DATA_BABY_ID and
 /// Zombie.DATA_BABY_ID (Zoglin's too) are the first entry after Mob's (16);
 /// Piglin's comes after AbstractPiglin's zombification flag (17). Every
-/// AgeableMob has one, the happy ghast and the nautilus included (#6133).
+/// AgeableMob has one, the nautilus included (#6133).
 pub(super) fn baby_index(species: Species) -> Option<u8> {
     use Species as S;
     match species {
@@ -748,19 +725,6 @@ pub(super) fn mob_meta(
             } else if (kind == "minecraft:donkey" || kind == "minecraft:mule") && e.chested {
                 meta.push((19, serializer::BOOLEAN, Value::Bool(true)));
             }
-        }
-        // HappyGhast.STAYS_STILL (after AgeableMob's two and IS_LEASH_HOLDER),
-        // set while `serverStillTimeout > 0` (`syncStayStillFlag`).
-        "minecraft:happy_ghast" => {
-            // HappyGhast.IS_LEASH_HOLDER (`setLeashHolder` in `tick`).
-            if horizon_client::mobs::happy_ghast::is_leash_holder(m) {
-                meta.push((18, serializer::BOOLEAN, Value::Bool(true)));
-            }
-            defaults.push((18, serializer::BOOLEAN, Value::Bool(false)));
-            if horizon_client::mobs::happy_ghast::on_still_timeout(m) {
-                meta.push((19, serializer::BOOLEAN, Value::Bool(true)));
-            }
-            defaults.push((19, serializer::BOOLEAN, Value::Bool(false)));
         }
         // Villager.DATA_VILLAGER_DATA and ZombieVillager's (after Zombie's three).
         "minecraft:villager" | "minecraft:zombie_villager" => {
@@ -1356,7 +1320,6 @@ impl Game<'_> {
             world_sync.features = features;
             sync = Arc::new(world_sync);
         }
-        self.sync_dialog_ids(&sync);
         // The table the world plays with (`world_biomes!`): a world with
         // biome data packs sends their ids past the built-in list, as the
         // encoder's `SectionCoder` expects.
@@ -1410,8 +1373,6 @@ impl Game<'_> {
             poses: HashMap::new(),
             mob_players: Default::default(),
             owner: None,
-            waypoints: Default::default(),
-            waypoint_dead: Default::default(),
             border_sent: None,
             commands: Vec::new(),
             quiet: std::collections::VecDeque::new(),
@@ -1953,9 +1914,6 @@ impl Game<'_> {
                 &mut e.meta,
                 &mut e.defaults,
             );
-            // HappyGhast.aiStep: requiresPrecisePosition while on a still timeout.
-            e.precise = m.species() == horizon_client::mobs::Species::HappyGhast
-                && horizon_client::mobs::happy_ghast::on_still_timeout(m);
             mob_freeze_meta(m, &mut e.meta, &mut e.defaults);
             mob_equipment(m, hub, &mut e.equipment);
             self.mob_attributes(m, &mut speeds, &mut e.attributes);
@@ -1981,10 +1939,9 @@ impl Game<'_> {
                 continue;
             }
             let stack = hub.stack(&Some(d.stack.clone()));
-            // `ServerEntity.getRequiresPrecisePosition` is false for an item:
-            // `needs_sync` asks for its data again, not for an exact position.
-            // The collision case is `full_precision_required` in the tracker.
-            e.precise = false;
+            // `needs_sync` asks for its data again, not for an exact
+            // position. The collision case is `full_precision_required`
+            // in the tracker.
             e.needs_sync = d.needs_sync;
             e.vertical_collision = d.vertical_collision;
             e.horizontal_collision = d.horizontal_collision;
@@ -2830,7 +2787,6 @@ impl Game<'_> {
         self.lan_swings(&mut host);
         self.lan_update_streaming(&host);
         self.lan_guest_poses(&mut host);
-        self.lan_update_waypoints(&mut host);
         self.lan_sync_scoreboard(&mut host);
         self.lan_sync_border(&mut host);
         host.hub.anticheat_ping();
@@ -3706,8 +3662,6 @@ mod tests {
             poses: Default::default(),
             mob_players: Default::default(),
             owner: None,
-            waypoints: Default::default(),
-            waypoint_dead: Default::default(),
             border_sent: None,
             commands: Default::default(),
             quiet: Default::default(),
@@ -3886,12 +3840,8 @@ mod tests {
             .join("../../.local/horizon-client")
             .join(horizon_core::VANILLA_VERSION);
         let damage = Catalog::load(&root, &PackOverlay::NONE).unwrap();
-        let initial = vec![(
-            "dialog/demo:before".into(),
-            vec![br#"{"type":"minecraft:notice"}"#.to_vec()],
-        )];
         let mut cache = SyncCache::default();
-        initialize_world_sync_data(&mut cache, &root, &PackOverlay { files: &initial }, &damage)
+        initialize_world_sync_data(&mut cache, &root, &PackOverlay::NONE, &damage)
             .unwrap();
         assert!(cache.data.is_none());
         // A late vanilla helper cannot install its overlay over this world.
@@ -3907,10 +3857,6 @@ mod tests {
                 vec![br#"{"message_id":"changed","scaling":"never","exhaustion":0.9}"#.to_vec()],
             ),
             (
-                "dialog/demo:after".into(),
-                vec![br#"{"type":"minecraft:notice"}"#.to_vec()],
-            ),
-            (
                 "tags/demo:damage_type/reloaded".into(),
                 vec![
                     br#"{"values":["minecraft:fall",{"id":"demo:too_late","required":false}]}"#
@@ -3924,11 +3870,6 @@ mod tests {
         let wire = cached_sync_data(&mut cache, &root, &overlay).unwrap();
         assert!(wire.id("minecraft:damage_type", "demo:too_late").is_none());
         assert!(health.id("demo:too_late").is_none());
-        assert!(wire.id("minecraft:dialog", "demo:before").is_none());
-        assert!(
-            wire.id("minecraft:dialog", "demo:after").is_some(),
-            "unrelated registries stay lazy"
-        );
         let fall = wire.id("minecraft:damage_type", "minecraft:fall").unwrap();
         let packets = wire.registry_packets(false, &horizon_client::chunk::LevelShapes::VANILLA);
         let packet = packets

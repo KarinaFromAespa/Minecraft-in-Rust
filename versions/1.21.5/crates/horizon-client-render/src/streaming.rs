@@ -514,8 +514,10 @@ pub struct Streaming {
     saves_beside_final: bool,
     lighting: FxHashMap<(i32, i32), u64>,
     meshing: FxHashMap<(i32, i32, i32), u64>,
-    /// The sequence each section's latest accepted mesh was dispatched at
-    /// (`CompiledSectionMesh.compileTaskStartTimeNs`).
+    /// The sequence each section's latest accepted mesh was dispatched at,
+    /// on the `sequence` clock below: the port's own dispatch order, since
+    /// 1.21.5 tracks no compile-task start time (CompiledSectionMesh, which
+    /// carries one in later versions, does not exist in 1.21.5).
     compile_started: FxHashMap<(i32, i32, i32), u64>,
     /// Chunks whose light is current.
     lit: FxHashSet<(i32, i32)>,
@@ -1600,7 +1602,8 @@ impl Streaming {
         self.sequence
     }
     /// When the section's latest accepted mesh started compiling, on the
-    /// `sequence` clock (`CompiledSectionMesh.getCompileTaskStartTime`).
+    /// `sequence` clock (the port's own dispatch order; 1.21.5's
+    /// SectionRenderDispatcher tracks no compile-task start time).
     pub fn compile_start(&self, section: (i32, i32, i32)) -> Option<u64> {
         self.compile_started.get(&section).copied()
     }
@@ -2071,6 +2074,14 @@ impl Streaming {
             // in `dirty_light` here can't be lit yet (a neighbour of theirs is
             // missing): waiting for them could last until the player comes
             // back.
+            //
+            // 1.21.5's `RenderSection.hasAllNeighbors` exempts sections within
+            // 24 blocks of the camera from the neighbour check; the port
+            // keeps the stricter lit-neighbours gate everywhere (Streaming
+            // knows only the chunk centre, not the camera, and meshing an
+            // unlit column would draw dark borders until the relight remesh).
+            // Near sections at a load edge wait for their neighbours here
+            // where vanilla 1.21.5 draws them at once.
             let ready = (-1..=1).all(|dz| {
                 (-1..=1).all(|dx| {
                     let n = (x + dx, z + dz);

@@ -46,7 +46,6 @@ pub mod goals;
 pub mod goat;
 pub mod golem;
 pub mod guardian;
-pub mod happy_ghast;
 pub mod hostile;
 pub mod illager;
 pub mod illusioner;
@@ -61,7 +60,8 @@ pub mod monster_brain;
 pub mod nautilus;
 pub mod neutral_anger;
 pub use neutral_anger::{
-    adopt_anger_end, anger_left, persistent_anger, resume_anger, settle_anger_end,
+    adopt_anger_end, anger_left, persistent_anger, refresh_anger_for_save, resume_anger,
+    settle_anger_end,
 };
 pub mod nav;
 pub mod nether;
@@ -357,7 +357,9 @@ pub struct Flags {
     /// WaterAnimal / fish: not affected by fluid physics (swims with its own control).
     pub aquatic_swimmer: bool,
     pub fall_immune: bool,
-    /// FlyingMob-style travel (ghast, phantom): travelFlying without gravity.
+    /// Flying-mob travel without gravity (ghast, phantom):
+    /// the travel dispatch picks the friction form for ghasts and
+    /// phantoms.
     pub flying: bool,
     /// Spiders: onClimbable while colliding horizontally.
     pub climber: bool,
@@ -405,7 +407,7 @@ pub struct MobType {
     pub fall_damage_multiplier: f64,
     pub water_efficiency: f64,
     pub water_slowdown: f32,
-    /// Air speed for travelFlying mobs (ghast 0.02, phantom 0.2).
+    /// Air speed for flying mobs (ghast 0.02, phantom 0.2).
     pub air_speed: f32,
     pub baby_scale: f64,
     pub head_rot_speed: f32,
@@ -1306,13 +1308,11 @@ pub struct Extra {
     pub meeting: Option<[i32; 3]>,
     /// Villager and wandering trader offers and experience.
     pub trade: Option<Box<crate::merchant::Trader>>,
-    /// Who holds this mob's lead, a holder not yet found after loading, and
-    /// the spin the rope's torque gives it.
+    /// Who holds this mob's lead, and a holder not yet found after loading.
     pub leash: Option<leash::Holder>,
     pub leash_pending: Option<leash::Pending>,
     /// The UUID of the player behind `Holder::Player` (host or guest).
     pub leash_player: Option<[i32; 4]>,
-    pub leash_spin: f64,
     /// More species scratch values.
     pub scratch: [i32; 4],
     /// Block positions a species remembers (a sniffer's explored ground).
@@ -1325,7 +1325,7 @@ pub struct Extra {
     pub raider: Option<Box<raider::State>>,
     /// A villager's raid activity and gossip.
     pub villager: Option<Box<villager::Ext>>,
-    /// The sniffer's and the ghastling's brain.
+    /// The sniffer's brain.
     pub animal_brain: Option<Box<animal_brain::Brain>>,
     pub axolotl: axolotl::Animation,
     /// The mob or boat this one rides, and the mob riding it (`getVehicle`,
@@ -2466,15 +2466,10 @@ pub enum MobEvent {
         pitch: f32,
     },
     /// A lead snaps or loses its holder: the lead item drops when asked.
+    /// 1.21.5 plays no sound for it (1.21.6 added LEAD_BREAK).
     LeashBreak {
         mob: u32,
         drop: bool,
-        sound: bool,
-    },
-    /// `Leashable.whenLeashedTo`: the holder is told a quad-leashed mob hangs
-    /// on it (`HappyGhast.notifyLeashHolder`).
-    NotifyLeashHolder {
-        holder: u32,
     },
     /// A zombie villager's cure is complete: the game turns it back into a villager.
     CureZombieVillager {
@@ -2649,8 +2644,6 @@ pub struct Seen {
     pub hurt_recently: bool,
     /// `Hoglin.canBeHunted`: an adult hoglin without `CannotBeHunted`.
     pub huntable: bool,
-    /// A happy ghast's `isOnStillTimeout` (a player on its back holds it).
-    pub still: bool,
     /// `Entity.isVehicle`: something rides it.
     pub carrying: bool,
 }
@@ -2658,21 +2651,14 @@ impl Seen {
     /// Whether `canBeCollidedWith` can ever hold for this kind: the slots
     /// [`MobWorld::others_solid`] lists.
     pub fn may_block_mobs(&self) -> bool {
-        matches!(self.species, Species::Shulker | Species::HappyGhast)
+        matches!(self.species, Species::Shulker)
     }
-    /// `canBeCollidedWith(mover)` for a mob of species `mover` moving into
-    /// it (`EntityGetter.getEntityCollisions`): a living shulker
-    /// (`Shulker`), or an adult happy ghast held still, or carrying someone
-    /// when the mover is a happy ghast too (`HappyGhast`). Every other mob
-    /// keeps `Entity`'s false.
-    pub fn blocks_mob(&self, mover: Species) -> bool {
+    /// `canBeCollidedWith()` for a mob moving into it
+    /// (`EntityGetter.getEntityCollisions`): a living shulker
+    /// (`Shulker`). Every other mob keeps `Entity`'s false.
+    pub fn blocks_mob(&self, _mover: Species) -> bool {
         match self.species {
             Species::Shulker => self.alive,
-            Species::HappyGhast => {
-                self.alive
-                    && !self.baby
-                    && (self.still || (self.carrying && mover == Species::HappyGhast))
-            }
             _ => false,
         }
     }
@@ -2772,8 +2758,10 @@ impl Mob {
     }
     /// `Entity.extinguishFire`: a burning mob first plays the extinguish sound
     /// (`playEntityOnFireExtinguishedSound`: volume 0.7, pitch from two draws
-    /// of its random, at its feet), then `clearFire` keeps only the
-    /// fire-immune countdown.
+    /// of its random, at its feet), then `clearFire` sets the timer to 0
+    /// exactly (it does not keep a negative fire-immune countdown; the
+    /// -1 after a block-effects extinguish comes from
+    /// `applyEffectsFromBlocks`' own post-check, in the mob tick).
     pub fn extinguish_fire(&mut self) {
         if self.is_on_fire() {
             let pitch = 1.6 + (self.random.next_float() - self.random.next_float()) * 0.4;
@@ -2785,7 +2773,7 @@ impl Mob {
                 pitch,
             ));
         }
-        self.fire_ticks = self.fire_ticks.min(0);
+        self.fire_ticks = 0;
     }
     /// `Entity.isFullyFrozen`.
     pub fn is_fully_frozen(&self) -> bool {
@@ -2865,7 +2853,6 @@ impl Mob {
             lying: m.species() == Species::Cat && (m.extra.flag || m.extra.relax_one),
             ridden: m.rider.is_some() || m.extra.rider.is_some() || m.extra.mount.is_some(),
             is_vehicle: equine::is_vehicle(m),
-            still: m.species() == Species::HappyGhast && happy_ghast::on_still_timeout(m),
             carrying: m.rider.is_some() || m.extra.rider.is_some(),
             knockback_resistance: m.attrs.knockback_resistance,
             effects: m
@@ -3439,7 +3426,11 @@ impl Mob {
             projectile_motion: None,
             climbing: false,
             on_climbable: false,
-            fire_ticks: 0,
+            // `Entity.remainingFireTicks` starts at -getFireImmuneTicks()
+            // (-1) in 1.21.5, so the first lightning strike ignites a
+            // fresh mob (`thunderHit`: +1, ignite iff 0). 1.21.6 starts
+            // at 0 and resets it to -1 every block-effects pass instead.
+            fire_ticks: -1,
             ticks_frozen: 0,
             in_powder_snow: false,
             glowing: false,
@@ -4646,22 +4637,12 @@ impl Mob {
         let at = [self.position.x, self.eye_y(), self.position.z];
         events.push(MobEvent::Sound(event, at, 1.0, 1.0));
     }
-    /// `Mob.getAmbientSoundInterval`; `HappyGhast` waits six times as long
-    /// while it carries a passenger.
+    /// `Mob.getAmbientSoundInterval`.
     pub fn ambient_interval(&self) -> i32 {
-        let ridden = self.rider.is_some() || self.extra.rider.is_some();
-        if self.species() == Species::HappyGhast && ridden {
-            self.kind.ambient_interval * 6
-        } else {
-            self.kind.ambient_interval
-        }
+        self.kind.ambient_interval
     }
     /// LivingEntity.getVoicePitch.
     pub fn voice_pitch(&mut self) -> f32 {
-        // HappyGhast.getVoicePitch: always 1.0, babies and all.
-        if self.species() == Species::HappyGhast {
-            return 1.0;
-        }
         // Parrot.getVoicePitch is `getPitch(random)`, the plain 1.0 ± 0.2 an
         // adult gets below: a parrot is never a baby (`Parrot.canBeABaby`), so
         // the 1.5 `AgeableMob` gives a baby cannot reach it and the override

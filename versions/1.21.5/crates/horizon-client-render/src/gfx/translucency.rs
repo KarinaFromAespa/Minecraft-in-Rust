@@ -1,4 +1,4 @@
-//! Vanilla 26.3 MeshData.SortState / VertexSorting.byDistance.
+//! Vanilla 1.21.5 MeshData.SortState / VertexSorting.byDistance.
 //! Keep vertex order intact; only the quad indices change as the camera moves.
 
 /// MeshData.decodeQuadCentroids uses the opposite corners, not all four vertices.

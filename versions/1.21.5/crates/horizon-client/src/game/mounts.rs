@@ -106,7 +106,8 @@ fn eating(species: Species, item: &str) -> Option<(f32, i32, u8, bool)> {
         "minecraft:hay_block" => (20.0, 180, 0, false),
         "minecraft:apple" => (3.0, 60, 3, false),
         "minecraft:red_mushroom" => (3.0, 0, 3, false),
-        "minecraft:carrot" => (3.0, 60, 3, false),
+        // No plain carrot: 1.21.6 added it to the horse diet (3, 60, 3);
+        // 1.21.5's handleEating has no carrot branch.
         "minecraft:golden_carrot" => (4.0, 60, 5, true),
         "minecraft:golden_apple" | "minecraft:enchanted_golden_apple" => (10.0, 240, 10, true),
         _ => return None,
@@ -120,7 +121,6 @@ pub(super) fn dismounts_underwater(species: Species) -> bool {
         Species::Camel
             | Species::Chicken
             | Species::Donkey
-            | Species::HappyGhast
             | Species::Horse
             | Species::Llama
             | Species::Mule
@@ -137,82 +137,6 @@ impl Game<'_> {
     pub(super) fn mount_index(&self) -> Option<usize> {
         let id = self.riding?;
         self.mobs.iter().position(|m| m.id == id)
-    }
-    /// `Entity.interact` / `Mob.canShearEquipment` / `Mob.attemptToShearEquipment`
-    /// / `Mob.shearItem`: the saddle of a `#can_equip_saddle` mob comes off
-    /// before its mobInteract can ride it, with the saddle's shearing sound.
-    /// An occupied mount is not sheared: its mobInteract runs instead.
-    pub(super) fn shear_saddle(&mut self, index: usize, item: &str) -> Option<bool> {
-        let m = &self.mobs[index];
-        // EntityTypeTags.CAN_EQUIP_SADDLE.
-        let saddleable = matches!(
-            m.species(),
-            Species::Horse
-                | Species::SkeletonHorse
-                | Species::ZombieHorse
-                | Species::Donkey
-                | Species::Mule
-                | Species::Pig
-                | Species::Strider
-                | Species::Camel
-                | Species::CamelHusk
-                | Species::Nautilus
-                | Species::ZombieNautilus
-        );
-        if item != "minecraft:shears" || !saddleable || m.is_baby() || !m.alive() {
-            return None;
-        }
-        let id = m.id;
-        if self.riding == Some(id)
-            || self.ridden_by_guest(id)
-            || equine::is_vehicle(m)
-            || self
-                .mobs
-                .iter()
-                .any(|r| r.alive() && !r.removed && r.extra.mount == Some(id))
-        {
-            // !canShearEquipment (isVehicle): the click goes on to mobInteract. A
-            // ridden pig or strider has nothing more to give, but a camel takes a
-            // second rider and a horse or nautilus opens its inventory.
-            return matches!(m.species(), Species::Pig | Species::Strider).then_some(false);
-        }
-        if self.keys.held(Action::Sneak) {
-            return None;
-        }
-        // attemptToShearEquipment takes the body slot before the saddle: horse
-        // and nautilus armor come off first (not modelled here).
-        if m.extra
-            .body
-            .as_deref()
-            .is_some_and(|b| b.ends_with("_horse_armor") || b.ends_with("_nautilus_armor"))
-        {
-            return None;
-        }
-        let saddle = m.saddle_item()?;
-        if &*saddle.item != "minecraft:saddle" {
-            return None;
-        }
-        let silent = m.silent;
-        let at = m.position;
-        let offset = horizon_client::mobs::riders::passenger_attachment(m)[1];
-        self.damage_held_tool();
-        self.mobs[index].set_saddle(None);
-        let context = self.who_context(Some(Who::Player), None);
-        self.post_game_event("minecraft:shear", [at.x, at.y, at.z], context);
-        self.mob_equip_event(id, [at.x, at.y, at.z], false);
-        self.spawn_at_location(at, offset, saddle.clone());
-        let target = self.mob_entity(&self.mobs[index]);
-        self.trigger_item_entity("minecraft:player_sheared_equipment", &saddle, &target);
-        // attemptToShearEquipment: playSound(equippable.shearingSound()).
-        if !silent {
-            self.audio.play(
-                "minecraft:item.saddle.unequip",
-                Some([at.x, at.y, at.z]),
-                1.0,
-                1.0,
-            );
-        }
-        Some(true)
     }
     /// `Pig` / `Strider.mobInteract`: saddle an adult, or ride a saddled one.
     fn interact_steerable(&mut self, index: usize, item: &str) -> bool {
@@ -311,9 +235,6 @@ impl Game<'_> {
         }
         if horizon_client::mobs::llama::is_llama(species) {
             return self.interact_llama(index, item);
-        }
-        if species == Species::HappyGhast {
-            return self.interact_happy_ghast(index, item);
         }
         if horizon_client::mobs::nautilus::is_nautilus(species) {
             return self.interact_nautilus(index, item);
@@ -635,18 +556,6 @@ impl Game<'_> {
                 m.position.z + turned.z,
             );
         }
-        if m.species() == Species::HappyGhast {
-            // The attachment of the player's seat on the harnessed back.
-            let seat = self.remote.as_ref().map_or(0, |r| r.passenger_index);
-            let a = horizon_client::mobs::riders::happy_ghast_attachment(seat);
-            let turned = Vec3::new(a[0], a[1], a[2])
-                .rotate_y(-m.yaw * (std::f64::consts::PI / 180.0) as f32);
-            at = Vec3::new(
-                m.position.x + turned.x,
-                m.position.y + turned.y - 0.6,
-                m.position.z + turned.z,
-            );
-        }
         if horizon_client::mobs::llama::is_llama(m.species()) {
             // The passenger attachment (0, 1.37, -0.3), half of it for a baby.
             let (y, z) = if m.is_baby() {
@@ -693,11 +602,6 @@ impl Game<'_> {
             return;
         };
         m.rider = None;
-        if m.species() == Species::HappyGhast {
-            let id = m.id;
-            self.dismount_happy_ghast(id);
-            return;
-        }
         let mount = Mount {
             species: m.species(),
             position: m.position,
@@ -916,10 +820,6 @@ impl Game<'_> {
         self.mount_index()
             .is_some_and(|i| self.mobs[i].extra.saddled && Self::jumps(self.mobs[i].species()))
     }
-    /// `willPrioritizeJumpInfo`: charging a jump or recharging.
-    pub(super) fn mount_jumping(&self) -> bool {
-        self.mount.jump_scale > 0.0 || self.mount.jump_ticks < 0
-    }
     /// `Hud.extractVehicleHealth` (a native mod's `minecraft:vehicle_health`
     /// layer, only while riding a mount). Returns the mount's heart count
     /// (`getVehicleMaxHearts`).
@@ -935,13 +835,14 @@ impl Game<'_> {
         });
         hearts
     }
-    /// The jump bar when it is the contextual bar.
+    /// `Hud.extractJumpMeter`: the jump bar above the hotbar while riding a
+    /// jumpable vehicle.
     pub(super) fn draw_jump_bar(&self, batch: &mut HudBatch, w: i32, h: i32) {
         let Some(i) = self.mount_index() else {
             return;
         };
         let m = &self.mobs[i];
-        // JumpableVehicleBar: `getJumpCooldown`, which only the camel's and
+        // `Gui.renderJumpMeter`: `getJumpCooldown`, which only the camel's and
         // the nautilus' dash have; a horse always shows the progress.
         let cooldown = i32::from(
             self.mount.jump_ticks < 0
@@ -1244,6 +1145,11 @@ mod tests {
                 Some((2.0, 20, 3, false)),
                 "{species:?}: wheat is horse food"
             );
+            assert_eq!(
+                eating(species, "minecraft:carrot"),
+                None,
+                "{species:?}: no plain carrot before 1.21.6"
+            );
         }
         assert_eq!(
             eating(Species::Camel, "minecraft:cactus"),
@@ -1262,7 +1168,6 @@ mod tests {
             Species::Camel,
             Species::Chicken,
             Species::Donkey,
-            Species::HappyGhast,
             Species::Horse,
             Species::Llama,
             Species::Mule,
@@ -1353,8 +1258,8 @@ mod tests {
             Some(("entity.horse.jump", 0.4))
         );
         assert_eq!(
-            horse.extra.counter, 20,
-            "standIfPossible rears for 20 ticks"
+            horse.extra.counter, 1,
+            "standIfPossible starts the counter at 1"
         );
         assert!(horse.extra.stand_sliding, "onPlayerJump slides on the keys");
         for (kind, sound) in [

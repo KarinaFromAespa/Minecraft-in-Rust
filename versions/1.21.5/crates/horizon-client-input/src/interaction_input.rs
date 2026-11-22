@@ -85,8 +85,8 @@ impl InteractionInput {
 /// `key.use` reads up and the same call releases an active use
 /// (`player.isUsingItem() && !keyUse.isDown()` → `MultiPlayerGameMode.releaseUsingItem`).
 /// Only the screens opened from the keybinds do this (the inventory, chat and
-/// advancements); the pause menu, server containers, mount inventories and
-/// dialogs release on the first tick after closing instead, as vanilla does.
+/// advancements); the pause menu, server containers and mount inventories
+/// release on the first tick after closing instead, as vanilla does.
 pub fn release_on_screen_open(world: &mut impl InteractionWorld) {
     if world.using_item() {
         world.release_using();

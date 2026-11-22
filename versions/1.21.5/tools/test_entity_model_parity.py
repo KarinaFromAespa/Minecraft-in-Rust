@@ -195,8 +195,6 @@ PIGLIN = [{'armPose': pose, 'maxCrossbowChageDuration': 25.0, 'ticksUsingItem': 
 EQUINE = [{'eatAnimation': 0.6}, {'standAnimation': 0.5}, {'eatAnimation': 0.3, 'standAnimation': 0.4, 'feedingAnimation': 0.7},
           {'isInWater': T}, {'standAnimation': 1.0, 'eatAnimation': 1.0}]
 WATER = [{'isInWater': T}, {'isInWater': F}]
-GHAST_BODY = [{'bodyItem': 'minecraft:white_harness'}, {'isRidden': T}, {'bodyItem': 'minecraft:red_harness', 'isRidden': T},
-              {'isLeashHolder': T, 'bodyItem': 'minecraft:blue_harness'}]
 SPECIES = {
     'horse': EQUINE, 'donkey': EQUINE + [{'hasChest': T}], 'mule': EQUINE + [{'hasChest': T}], 'zombie_horse': EQUINE, 'skeleton_horse': EQUINE,
     'iron_golem': [{'attackTicksRemaining': 7.0}, {'offerFlowerTick': 30}, {'attackTicksRemaining': 0.0, 'offerFlowerTick': 0}],
@@ -238,8 +236,6 @@ SPECIES = {
     'sniffer': [{'isSearching': T}, {'diggingAnimationState': 2}, {'sniffingAnimationState': 5}, {'risingAnimationState': 1},
                 {'feelingHappyAnimationState': 3}, {'scentingAnimationState': 0}, {'diggingAnimationState': 50, 'isSearching': T},
                 {'feelingHappyAnimationState': 30, 'scentingAnimationState': 20}],
-    'happy_ghast': GHAST_BODY, 'happy_ghast_ropes': GHAST_BODY, 'happy_ghast_baby_ropes': GHAST_BODY,
-    'happy_ghast_harness': GHAST_BODY, 'happy_ghast_baby_harness': GHAST_BODY,
     'trader_llama': [{'hasChest': T}, {'hasChest': F}],
     'turtle': [{'isOnLand': T}, {'isOnLand': T, 'isLayingEgg': T}, {'isOnLand': F, 'hasEgg': T}, {'isOnLand': T, 'hasEgg': T}],
     'strider': [{'isRidden': T}, {'isRidden': F}],

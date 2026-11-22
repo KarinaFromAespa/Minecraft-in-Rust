@@ -225,20 +225,23 @@ pub fn ghast_move_control(m: &mut Mob, w: &MobWorld) {
     if len < 1.0e-6 {
         return;
     }
-    // canReach: the swept box stays clear along the way.
+    // `canReach(direction, ceil(length))`: the box stepped one block at a
+    // time toward the target, 1..<ceil(length)> — the endpoint itself is
+    // never checked (1.21.6 sweeps the whole box at once instead).
     let b = m.bounds();
     let steps = len.ceil() as i32;
-    let clear = (1..=steps).all(|i| {
-        let f = f64::from(i) / f64::from(steps);
-        let d = Vec3::new(travel.x * f, travel.y * f, travel.z * f);
+    let dir = Vec3::new(travel.x / len, travel.y / len, travel.z / len);
+    let clear = (1..steps).all(|i| {
+        let d = dir.scale(f64::from(i));
         w.no_collision(Aabb::new(
             b.min_position().add_vector(d),
             b.max_position().add_vector(d),
         ))
     });
     if clear {
-        // FLYING_SPEED 0.06 * 5 / 3.
-        let speed = 0.06 * 5.0 / 3.0;
+        // 1.21.5 accelerates by a fixed 0.1 (1.21.6 reads
+        // FLYING_SPEED * 5 / 3, which is 0.1 for a default ghast).
+        let speed = 0.1;
         m.velocity = m.velocity.add_vector(Vec3::new(
             travel.x / len * speed,
             travel.y / len * speed,
@@ -275,9 +278,9 @@ impl Goal for RandomFloatAround {
     fn start(&mut self, m: &mut Mob, _: &mut Cx) {
         let c = m.position;
         let mut r = || f64::from(m.random.next_float() * 2.0 - 1.0) * 16.0;
-        // `getSuitableFlyToPosition` with distanceToBlocks 0: the first random
-        // position is the target (the mirror under the heightmap only follows
-        // 64 rejected tries, which a ghast without a home never has).
+        // 1.21.5 picks one random position and takes it (1.21.6 retries
+        // through `getSuitableFlyToPosition`, up to 64 tries with a
+        // heightmap mirror).
         let t = [c.x + r(), c.y + r(), c.z + r()];
         m.ai.mov.set_wanted(t[0], t[1], t[2], 1.0);
     }

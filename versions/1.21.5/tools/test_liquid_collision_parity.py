@@ -19,7 +19,7 @@ def corpus():
     import math
     def bits(value):return struct.pack('>d',value).hex()
     epsilon=struct.unpack('>f',struct.pack('>f',1e-5))[0]
-    modes=['empty','position','player','marker','factory_player','factory_marker','placement','placement_null','with_player','with_marker','with_null']
+    modes=['empty','position','player','marker','factory_player','factory_marker','placement','placement_null']
     def row(mode,y,lava,level,block_y,above,shape,stand,fail,always=False):
         return {'mode':mode,'y':bits(y),'other':bits(y),'descending':True,'always':always,'item':0,'count':0,'stand':stand,'fail':False,'liquid':[level,lava,block_y,above,shape,fail]}
     # Every liquid block level and context, including the always-fluid bypass.
@@ -33,7 +33,7 @@ def corpus():
                                 yield row(mode,block_y+2.0,lava,level,block_y,0,shape,True,fail,always)
     # Exact top boundaries and all source/flowing fluid states above the block.
     for lava in [False,True]:
-        for mode in ['player','placement','with_player']:
+        for mode in ['player','placement']:
             for block_y in [-64,0,2147483647]:
                 for shape,top in enumerate([-math.inf,1.0,0.5,1.5]):
                     threshold=(block_y+top)-epsilon
@@ -43,7 +43,7 @@ def corpus():
                             for stand in [False,True]:
                                 yield row(mode,y,lava,0,block_y,above,shape,stand,-1)
     # Inject failures after height checks on an allowed candidate.
-    for mode in ['player','placement','with_player']:
+    for mode in ['player','placement']:
         for lava in [False,True]:
             for above in range(-1,32):
                 for fail in [0,1,2,3]:

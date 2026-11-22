@@ -19,7 +19,7 @@ def corpus():
     import math
     def bits(value):return struct.pack('>d',value).hex()
     epsilon=struct.unpack('>f',struct.pack('>f',1e-5))[0]
-    modes=['empty','position','player','marker','falling','factory_player','factory_marker','placement','placement_null','with_player','with_marker','with_falling','with_null']
+    modes=['empty','position','player','marker','falling','factory_player','factory_marker','placement','placement_null']
     distances=[-math.inf,-1.0,-0.0,0.0,math.nextafter(2.5,-math.inf),2.5,math.nextafter(2.5,math.inf),100.0,math.inf,math.nan]
     def row(mode,y,block_y,fall,tag,item,count,descending,fail=-1):
         return {'mode':mode,'y':bits(y),'other':bits(y),'descending':descending,'always':True,'item':0,'count':0,'stand':False,'fail':False,'powder':[block_y,bits(fall),tag,item,count,fail]}

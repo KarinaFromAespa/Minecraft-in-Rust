@@ -10,7 +10,7 @@ use crate::{
     collisions::SceneCollisions,
     mobs::Who,
     motion::{FluidResources, LAVA, WATER},
-    projectiles::{Hit, Projectile, ProjectileKind},
+    projectiles::{ENTITY_HIT_MARGIN, Hit, Projectile, ProjectileKind},
     world::World,
 };
 use horizon_core::{
@@ -356,6 +356,11 @@ impl ArrowScene<'_, '_> {
     }
     fn is_air(&self, state: BlockStateId) -> bool {
         self.facts.is_air(state)
+    }
+    fn is_powder_snow(&self, state: BlockStateId) -> bool {
+        self.registry
+            .state(state)
+            .is_some_and(|s| s.name == "minecraft:powder_snow")
     }
     /// `BlockState.getCollisionShape(level, pos)` (an empty collision context).
     fn collision_boxes(&self, state: BlockStateId, p: BlockPos) -> Vec<Aabb> {
@@ -733,7 +738,9 @@ impl Ticker<'_, '_, '_, '_> {
         if self.st.shake > 0 {
             self.st.shake -= 1;
         }
-        if self.st.was_touching_water || self.in_rain() {
+        // 1.21.5 also clears a burning arrow's fire in powder snow
+        // (`AbstractArrow.tick`); 1.21.6 dropped the powder-snow arm.
+        if self.st.was_touching_water || self.in_rain() || self.scene.is_powder_snow(state) {
             self.st.clear_fire();
         }
         if self.st.in_ground && physics {
@@ -919,8 +926,8 @@ impl Ticker<'_, '_, '_, '_> {
             .then(|| self.block_position());
         let block = self.scene.clip(from, to, ignored);
         let end = block.map_or(to, |b| b.0);
-        // findHitEntities: ProjectileUtil.computeMargin and the search box.
-        let margin = f64::from(((self.p.age as i32 - 2) as f32 / 20.0).clamp(0.0, 0.3));
+        // findHitEntities: the 0.3 hit margin and the search box.
+        let margin = ENTITY_HIT_MARGIN;
         let area = bounds(from)
             .expand_towards(self.p.velocity)
             .inflate(Vec3::new(1.0, 1.0, 1.0));

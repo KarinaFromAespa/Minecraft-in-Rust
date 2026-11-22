@@ -252,7 +252,6 @@ impl Game<'_> {
         // A recording cannot cross into another world, and a replay feeding the
         // title screen is nonsense.
         self.repro_world_closed();
-        self.clear_waypoints();
         self.post_effects.clear();
         self.spectated_post_effect = None;
         if self.external_server() {

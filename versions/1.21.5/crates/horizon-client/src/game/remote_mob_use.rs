@@ -98,8 +98,6 @@ impl Game<'_> {
                     && self.riding != Some(m.id)
                     && !self.mobs.iter().any(|o| o.extra.mount == Some(m.id))
             }
-            // HappyGhast.mobInteract: a harnessed adult is ridden.
-            Species::HappyGhast => !baby && m.extra.body.is_some(),
             // TamableAnimal (wolf, cat, parrot) on a client: CONSUME once tame.
             Species::Wolf | Species::Cat | Species::Parrot => m.extra.tame,
             // Allay.mobInteract: gives an item or takes it back.
@@ -262,14 +260,14 @@ pub(super) fn ages_on_food(m: &Mob, item: &str) -> bool {
         s if llama::is_llama(s) => matches!(item, "minecraft:wheat" | "minecraft:hay_block"),
         // Camel.handleEating: its food ages it by 10.
         Species::Camel => m.kind.food.iter().any(|f| f.as_str() == item),
-        // AbstractHorse.handleEating: every food but the red mushroom.
+        // AbstractHorse.handleEating: every food but the red mushroom — and no plain carrot,
+        // which 1.21.6 added to the horse diet.
         Species::Horse | Species::Donkey | Species::Mule => matches!(
             item,
             "minecraft:wheat"
                 | "minecraft:sugar"
                 | "minecraft:hay_block"
                 | "minecraft:apple"
-                | "minecraft:carrot"
                 | "minecraft:golden_carrot"
                 | "minecraft:golden_apple"
                 | "minecraft:enchanted_golden_apple"

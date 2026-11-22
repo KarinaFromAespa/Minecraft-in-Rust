@@ -205,7 +205,6 @@ pub struct LayerRender {
 pub struct ItemRenderState {
     pub display: DisplayContext,
     pub layers: Vec<LayerRender>,
-    pub oversized_in_gui: bool,
     pub animated: bool,
     /// The OptiFine CIT glint layers the stack draws in the GUI (`cit_glint`).
     pub cit_glint: Option<Arc<crate::cit_glint::StackGlint>>,
@@ -879,6 +878,9 @@ impl ItemRenderer {
         }
         out
     }
+    /// `SpecialModelWrapper.EXTENTS`: in 1.21.5 every special model gets the
+    /// unit cube's corners as its extents (1.21.6 asks each renderer for its
+    /// own via `SpecialModelRenderer.getExtents`).
     fn special_extents(&self, model: &SpecialModel) -> Arc<Vec<Vec3>> {
         let key = model.to_json().to_string();
         if let Ok(cache) = self.extents.lock()
@@ -886,7 +888,16 @@ impl ItemRenderer {
         {
             return hit.clone();
         }
-        let out = Arc::new(special::extents(self, model));
+        let out = Arc::new(vec![
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(0.0, 0.0, 1.0),
+            Vec3::new(0.0, 1.0, 1.0),
+            Vec3::new(0.0, 1.0, 0.0),
+            Vec3::new(1.0, 1.0, 0.0),
+            Vec3::new(1.0, 1.0, 1.0),
+            Vec3::new(1.0, 0.0, 1.0),
+            Vec3::new(1.0, 0.0, 0.0),
+        ]);
         if let Ok(mut cache) = self.extents.lock() {
             cache.insert(key, out.clone());
         }
@@ -973,7 +984,6 @@ impl ItemRenderer {
         ItemRenderState {
             display,
             layers,
-            oversized_in_gui: resolved.oversized_in_gui,
             animated,
             cit_glint: None,
             hdr_tier: 0,
@@ -1323,7 +1333,6 @@ mod tests {
                     Vec3::new(0.5, 1.0, 0.25),
                 ]),
             }],
-            oversized_in_gui: false,
             animated: false,
             cit_glint: None,
             hdr_tier: 0,

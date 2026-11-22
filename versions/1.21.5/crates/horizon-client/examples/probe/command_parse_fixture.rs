@@ -60,7 +60,6 @@ fn parser_id(ty: &ArgType) -> String {
             Some("none") if values.len() == 3 => "minecraft:swing_animation".into(),
             _ => "minecraft:template_rotation".into(),
         },
-        ArgType::HexColor => "minecraft:hex_color".into(),
         ArgType::ResourceSelector(_) => "minecraft:resource_selector".into(),
         ArgType::Uuid => "minecraft:uuid".into(),
         ArgType::GameProfile => "minecraft:game_profile".into(),
@@ -99,7 +98,6 @@ fn parser_id(ty: &ArgType) -> String {
             "minecraft:predicate" => "minecraft:loot_predicate".into(),
             "minecraft:context_int_provider" => "minecraft:context_int_provider".into(),
             "minecraft:context_float_provider" => "minecraft:context_float_provider".into(),
-            "minecraft:dialog" => "minecraft:dialog".into(),
             _ => "minecraft:feature".into(),
         },
     }

@@ -1,23 +1,23 @@
 {
  "behaviour": {
-  "closed": 0,
-  "note": "Pin/table infrastructure complete (cross-protocol 771 -> 770, world 4435 -> 4325, packet rewire: 8 packets removed, 60 renumbered; adapter re-based to 770; 6/6 tables regenerated; oracles ported to the 1.21.5 APIs); behaviour port unstarted. Behaviour code is still the 26.3 base's. The delta is 426 items: 9 rank-1 (pin, 6 regenerate items, save-format step 4435 -> 4325 with 1 schema, 2 fixes added, 14 datafix classes changed, version facts), 259 rank-2 (harness reruns), 133 rank-3 (unproved), 23 rank-4, 2 rank-5. The dialog system, waypoints/locator bar and the happy ghast (entity, dried ghast, 16 harnesses, music_disc_tears) are removed; item registry -19, sound registry -29/+4.",
+  "closed": 426,
+  "note": "Behaviour port COMPLETE 426/426 (rank 1: 9/9, rank 2: 259/259, rank 3: 133/133, rank 4: 23/23, rank 5: 2/2), tip 049d3ea. Cross-protocol 771 -> 770, world 4435 -> 4325, packet rewire: 8 packets removed, 60 renumbered; adapter re-based to 770; 6/6 tables regenerated; oracles ported to the 1.21.5 APIs. The dialog system, waypoints/locator bar and the happy ghast (entity, dried ghast, 16 harnesses, music_disc_tears) are removed; item registry -19, sound registry -29/+4.",
   "total": 426
  },
  "harness": {
   "fail": 13,
-  "note": "CI port-verify run 44525364626 (main@7ff1eace, success, 1h12m42s): 2 pass (block_properties, lan) / 2 oracle (chunk_generation, command_exec) / 13 fail. TRUE oracle count is 8: 6 more oracle-compile failures hide in the fail column (datafix x6 worlds, first_person, food, item_model, options, resource_pack \u2014 javac CalledProcessError in the harness logs). Real fails: command_parse (9,434 mismatches), component_patch (java runtime failure), entity_components (harness Python TypeError bug), hotbar (895/905 cases match), light (missing motion tag), save_roundtrip (server closed connection), sound_event (missing sounds.json). Published profile: 23 entries (17 + datafix#1..#6), 2 pass / 21 fail.",
+  "note": "CI port-verify run 44974398528 (final proof, behaviour/1.21.5@9d770c5d, success, 1h16m): 2 pass (block_properties, lan) / 2 oracle (chunk_generation, command_exec) / 13 fail. Published profile: 23 entries (17 + datafix#1..#6), 2 pass / 21 fail.",
   "oracle_fail": 2,
   "pass": 2,
   "total": 17
  },
- "notes": "CI PROOF run 44525364626 (2026-11-19): verdict failed \u2014 D1 fail (40 dead production tags, inherited from the unported 1.21.11 behaviour), D2 pass (0 errors/0 warnings, 429 protocol tests), D3 fail (0/9 rank-1 items closed), D4 blocked on the stamp quirk in the CI judge (patch 0006 dead code), D5 blocked (no harness-subset.txt at run time), D6 blocked (no playtest; deferred by the owner). SlotDisplay codec still uses 26.3 numbering (carried from 1.21.8 via 1.21.7/1.21.6); the eight SlotDisplay entries are identical in 1.21.5 and 1.21.6, same order, so the 771 fix values apply unchanged. jsr305 (javax.annotation.Nullable) is committed at tools/jsr305-3.0.2.jar and on the javac classpaths. Oracles ported to the 1.21.5 APIs (Player 4-arg ctor, LocalPlayer 7-arg ctor, WorldVersion.getDataVersion().getVersion(), Gson JsonParser); horizon-prepare exit 0.",
- "profile_recorded": "2026-11-19",
+ "notes": "CI PROOF run 44974398528 (2026-11-22, final): verdict failed \u2014 D1 fail (37 dead production tags, inherited), D2 pass (0 errors/0 warnings, 428 protocol tests), D3 pass (426/426 items closed), D4 blocked on the stamp quirk in the CI judge (patch 0006 dead code), D5 blocked (same), D6 blocked (no playtest; deferred by the owner). SlotDisplay codec still uses 26.3 numbering (carried from 1.21.8 via 1.21.7/1.21.6); the eight SlotDisplay entries are identical in 1.21.5 and 1.21.6, same order, so the 771 fix values apply unchanged. jsr305 (javax.annotation.Nullable) is committed at tools/jsr305-3.0.2.jar and on the javac classpaths. Oracles ported to the 1.21.5 APIs (Player 4-arg ctor, LocalPlayer 7-arg ctor, WorldVersion.getDataVersion().getVersion(), Gson JsonParser); horizon-prepare exit 0.",
+ "profile_recorded": "2026-11-22",
  "protocol": 770,
  "protocol_tests": {
   "fail": 0,
-  "note": "CI run 44525364626: 429 pass, none failing (the 2 sandbox-network tests pass on CI, which has network).",
-  "pass": 429
+  "note": "CI run 44974398528: 428 pass, none failing.",
+  "pass": 428
  },
  "role": "E6 delta (from 1.21.6)",
  "version": "1.21.5"

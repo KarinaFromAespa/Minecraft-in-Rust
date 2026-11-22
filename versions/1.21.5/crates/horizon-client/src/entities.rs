@@ -12,13 +12,12 @@ use crate::{
     world::World,
 };
 use horizon_core::{
-    geometry::{Aabb, Direction, Vec3, VoxelShape, border::BorderGeometry},
+    geometry::{Aabb, Direction, Vec3, border::BorderGeometry},
     position::BlockPos,
     random::{LegacyRandom, RandomSource},
 };
 use horizon_world::{
     block_collision::BlockCollisionRegistry,
-    level::portal_travel::{BorderBounds, find_free_position},
     movement_properties::BoundMovementProperties,
 };
 
@@ -484,7 +483,7 @@ impl ItemEntity {
             self.fire_ticks -= 1;
         }
         let mut lava_hurt = false;
-        // LavaCauldronBlock.entityInside applies LAVA_IGNITE and then lavaHurt.
+        // LavaCauldronBlock.entityInside (1.21.5): lavaIgnite, then lavaHurt.
         // A cauldron is not a lava fluid, and removed items get no block effects.
         if self.health > 0 && !fire_immune {
             let contacts = usize::from(fluid == Fluid::Lava)
@@ -492,8 +491,8 @@ impl ItemEntity {
             if contacts > 0 {
                 self.fire_ticks = self.fire_ticks.max(300);
             }
-            // StepBasedCollector coalesces ignition, but keeps each block's
-            // runAfter(lavaHurt) callback. Stop once an item is destroyed.
+            // Ignition is idempotent, but each block's lavaHurt lands.
+            // Stop once an item is destroyed.
             for _ in 0..contacts {
                 if self.health <= 0 {
                     break;
@@ -713,7 +712,7 @@ impl ItemEntity {
                 wanted
             } else {
                 // `Entity.collide`: the entities that `canBeCollidedWith` the item stop it
-                // too (a boat, a shulker, a happy ghast held still; not a minecart), and
+                // too (a boat, a shulker; not a minecart), and
                 // so does the world border (`Entity.collectColliders`).
                 crate::collisions::EntityCollisions {
                     blocks: scene,
@@ -1048,16 +1047,18 @@ impl ItemEntity {
     }
 }
 
-/// `LavaCauldronBlock.getEntityInsideCollisionShape`: the cauldron's solid
-/// shape plus its contents (12 pixels wide, from 4 through 15 pixels high).
-/// In particular, the rim and feet count too, but air above the contents does not.
+/// `LavaCauldronBlock.entityInside` (1.21.5): `isEntityInsideContent` — the
+/// entity's feet below the lava surface (0.9375) and its top above a quarter
+/// block. There is no horizontal test beyond the cell overlap the enumeration
+/// already implies, and the rim and feet do not count: an item lying flat at
+/// the cauldron's base (its top exactly 0.25 up) does not burn. 1.21.6
+/// replaced this with the filled-shape test
+/// (`getEntityInsideCollisionShape`), which also counts the rim and feet.
 fn lava_cauldron_contacts(
     world: &World,
     registry: &horizon_world::registry::BlockRegistry,
     bounds: Aabb,
 ) -> usize {
-    use horizon_core::geometry::ShapeOp;
-    static SHAPE: std::sync::OnceLock<VoxelShape> = std::sync::OnceLock::new();
     let epsilon = f64::from(1e-5_f32);
     let mut contacts = 0;
     let candidates = bounds.deflate(Vec3::new(epsilon, epsilon, epsilon));
@@ -1075,35 +1076,12 @@ fn lava_cauldron_contacts(
                 {
                     continue;
                 }
-                let shape = SHAPE.get_or_init(|| {
-                    let cuboid = |x0, y0, z0, x1, y1, z1| {
-                        VoxelShape::from_box(Aabb::new(
-                            Vec3::new(x0 / 16.0, y0 / 16.0, z0 / 16.0),
-                            Vec3::new(x1 / 16.0, y1 / 16.0, z1 / 16.0),
-                        ))
-                        .expect("valid cauldron box")
-                    };
-                    let mut solid = VoxelShape::block();
-                    // AbstractCauldronBlock.SHAPE: the openings under its feet
-                    // and its hollow centre are cut out of the unit block.
-                    for hole in [
-                        cuboid(0.0, 0.0, 4.0, 16.0, 3.0, 12.0),
-                        cuboid(4.0, 0.0, 0.0, 12.0, 3.0, 16.0),
-                        cuboid(2.0, 0.0, 2.0, 14.0, 3.0, 14.0),
-                        cuboid(2.0, 4.0, 2.0, 14.0, 16.0, 14.0),
-                    ] {
-                        solid = solid
-                            .join(&hole, ShapeOp::ONLY_FIRST)
-                            .expect("valid cauldron cutout");
-                    }
-                    solid
-                        .join(&cuboid(2.0, 4.0, 2.0, 14.0, 15.0, 14.0), ShapeOp::OR)
-                        .expect("valid filled cauldron")
-                });
-                let local = bounds.move_by(Vec3::new(-f64::from(x), -f64::from(y), -f64::from(z)));
-                // Only block enumeration uses the deflated box. The actual
-                // shape contact follows Entity.collidedWithShapeMovingFrom.
-                if local.collided_along_vector(Vec3::ZERO, shape.boxes()) {
+                // Only block enumeration uses the deflated box. The content
+                // test reads the raw feet and top, as vanilla does.
+                let base = f64::from(y);
+                if bounds.min_position().y < base + 0.9375
+                    && bounds.max_position().y > base + 0.25
+                {
                     contacts += 1;
                 }
             }
@@ -1111,7 +1089,7 @@ fn lava_cauldron_contacts(
     }
     contacts
 }
-/// The boxes that stop a dropped item (boats, minecarts, shulkers, a held-still happy ghast),
+/// The boxes that stop a dropped item (boats, minecarts, shulkers),
 /// binned by 8-block cell, so an item looks only at the ones near it: a farm with many drops and
 /// many vehicles checks a handful of boxes per item, not every box in the level.
 #[derive(Default)]
@@ -1395,44 +1373,6 @@ impl ExperienceOrb {
     pub fn bounds(&self) -> Aabb {
         Self::box_at(self.position)
     }
-    /// `Entity.unstuckIfPossible`, which `ExperienceOrb`'s constructor runs as
-    /// `if (!level.noCollision(box)) unstuckIfPossible(box.getSize())`: the free
-    /// spot nearest the box's centre, searched in a cube of the box's size
-    /// around it. `None` when the box is already free (the orb then keeps its
-    /// exact position) or when nothing free is that close. `shape(p)` is the
-    /// block's collision shape at `p`, in world coordinates.
-    pub fn unstuck(
-        at: Vec3,
-        border: &BorderBounds,
-        mut shape: impl FnMut(BlockPos) -> Option<VoxelShape>,
-    ) -> Option<Vec3> {
-        let bounds = Self::box_at(at);
-        let size = bounds.average_size();
-        let lo = bounds.min_position();
-        let cells = |v: f64| (v - 1.0e-7).floor() as i32 - 1..=(v + 1.0e-7).floor() as i32 + 1;
-        // noCollision(box): a block shape reaching into it leaves the orb stuck.
-        let mut stuck = false;
-        'cells: for x in cells(lo.x) {
-            for y in cells(lo.y) {
-                for z in cells(lo.z) {
-                    if shape(BlockPos::new(x, y, z))
-                        .is_some_and(|s| s.boxes().iter().any(|b| b.intersects(bounds)))
-                    {
-                        stuck = true;
-                        break 'cells;
-                    }
-                }
-            }
-        }
-        if !stuck {
-            return None;
-        }
-        // `AABB.ofSize(center, size, size, size)`: where the box's centre may
-        // go, a cube of the box's mean size around its centre.
-        let allowed = Aabb::of_size(bounds.center(), Vec3::new(size, size, size));
-        find_free_position(allowed, bounds.center(), bounds.size(), border, shape)
-            .map(|p| p.subtract(Vec3::new(0.0, bounds.size().y / 2.0, 0.0)))
-    }
     /// `ExperienceOrb.canMerge(orb, id, value)` for an orb that is not removed:
     /// the same value and ids a multiple of 40 apart.
     pub fn can_merge(&self, id: u32, value: i32) -> bool {
@@ -1583,14 +1523,13 @@ impl ExperienceOrb {
             }
         }
         if player.is_none() && server && colliding {
-            // `followingPlayer == null && !level().isClientSide() && colliding`: an orb that would still
-            // be stuck at its next position gets
-            // `Entity.moveTowardsClosestSpace`, a nudge towards the nearest
-            // free side of its block.
-            if !crate::collisions::no_collision_empty(&mut scene, bounds.move_by(self.velocity)) {
-                let speed = next_float() * 0.2 + 0.1;
-                self.move_towards_closest_space(world, facts, speed);
-            }
+            // `followingPlayer == null && !level().isClientSide() && colliding`:
+            // a stuck orb gets `Entity.moveTowardsClosestSpace`, a nudge
+            // towards the nearest free side of its block — unconditionally
+            // in 1.21.5 (1.21.6 only pushes when the next move would still
+            // collide).
+            let speed = next_float() * 0.2 + 0.1;
+            self.move_towards_closest_space(world, facts, speed);
         }
         // `double fallSpeed = getDeltaMovement().y`, taken after the stuck
         // push and before the move.
@@ -2103,7 +2042,7 @@ pub struct ArmorStand {
     /// `Entity.mainSupportingBlockPos` after the last move.
     pub support: horizon_world::ground_support::GroundState,
     /// Its `AttributeMap` holds a `movement_speed` instance, which
-    /// `AttributeMap.pack` saves. `LivingEntity.aiStep`'s `removeFrost` makes it
+    /// `AttributeMap.save` saves. `LivingEntity.aiStep`'s `removeFrost` makes it
     /// (`getAttribute`) on the stand's first server tick, and a save that lists
     /// it loads it back, so a stand summoned this tick has none yet.
     pub speed_instance: bool,
@@ -2477,7 +2416,7 @@ impl ArmorStand {
     /// this up to the blocks' push, then the bubble column
     /// (`Entity::push_by_bubble_column`), then [`ArmorStand::tick_settle`].
     /// `entities` are the boxes `EntityGetter.getEntityCollisions` gives the
-    /// stand (a living shulker, a boat, a happy ghast held still), which stop
+    /// stand (a living shulker, a boat), which stop
     /// its move as blocks do. None: a marker or a stand with `NoGravity` does
     /// not travel.
     pub fn tick_move(
@@ -2903,6 +2842,61 @@ mod fire_environment_tests {
             assert!(stand.environment_tick(&world, &facts, assets.registry));
         }
         assert_eq!(stand.health, 20.0, "lava does not hurt armor stands");
+    }
+
+    /// `LavaCauldronBlock.entityInside` (1.21.5): an item inside the
+    /// cauldron's content burns, but one lying flat at its base — its top
+    /// exactly a quarter block up — does not. 1.21.6's filled-shape test
+    /// would burn the flat one too, through the cauldron's feet.
+    #[test]
+    fn a_lava_cauldron_burns_what_is_inside_it_but_not_what_lies_flat_at_its_base() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../.local/horizon-client")
+            .join(horizon_core::VANILLA_VERSION);
+        if !root.join("items.json").exists() {
+            return;
+        }
+        let assets = crate::assets::Assets::load(&root).unwrap();
+        let render = assets.reload(&root).unwrap();
+        let facts = BlockFacts::load(&root, assets.registry).unwrap();
+        let items =
+            crate::items::Items::load(&root, assets.registry, &facts, &PackOverlay::NONE).unwrap();
+        let mut world = World::test_scene(&assets, &render, 3).unwrap();
+        world
+            .set(
+                20,
+                4,
+                20,
+                assets
+                    .registry
+                    .default_state("minecraft:lava_cauldron")
+                    .unwrap(),
+            )
+            .unwrap();
+        let make = |at: Vec3| {
+            ItemEntity::new(
+                1,
+                ItemStack {
+                    item: std::sync::Arc::from("minecraft:oak_planks"),
+                    count: 1,
+                    damage: 0,
+                    extra: None,
+                },
+                at,
+                Vec3::ZERO,
+                0.0,
+            )
+        };
+        // Inside the cauldron, on its floor: feet 4.25, top 4.5.
+        let mut inside = make(Vec3::new(20.5, 4.25, 20.5));
+        let result = inside.environment_tick(&world, &facts, assets.registry, &items);
+        assert!(result.lava_hurt, "an item inside a lava cauldron burns");
+        assert!(inside.fire_ticks > 0);
+        // Flat at the cauldron's base: feet 4.0, top exactly 4.25.
+        let mut flat = make(Vec3::new(20.5, 4.0, 20.5));
+        let result = flat.environment_tick(&world, &facts, assets.registry, &items);
+        assert!(!result.lava_hurt, "an item flat at the base does not burn");
+        assert_eq!(flat.fire_ticks, 0);
     }
 }
 #[cfg(test)]
@@ -3962,63 +3956,12 @@ mod slime_bounce_tests {
 }
 
 #[cfg(test)]
-mod unstuck_tests {
-    use super::*;
-
-    const BORDER: BorderBounds = BorderBounds {
-        min_x: -1.0e6,
-        min_z: -1.0e6,
-        max_x: 1.0e6,
-        max_z: 1.0e6,
-    };
-
-    /// A level of full blocks at `solid`; every other cell is air.
-    fn shapes(solid: &[(i32, i32, i32)]) -> impl FnMut(BlockPos) -> Option<VoxelShape> + '_ {
-        move |p| {
-            if solid.contains(&(p.x, p.y, p.z)) {
-                VoxelShape::from_box(Aabb::block(p)).ok()
-            } else {
-                None
-            }
-        }
-    }
-
-    /// `level.noCollision(box)` over the same cells the search reads.
-    fn free(solid: &[(i32, i32, i32)], b: Aabb) -> bool {
-        !solid
-            .iter()
-            .any(|&(x, y, z)| Aabb::block(BlockPos::new(x, y, z)).intersects(b))
-    }
-
-    #[test]
-    fn an_orb_spawned_in_a_block_moves_to_a_free_box() {
-        // One block at y 0..1 and an orb standing in its upper half, as a mob
-        // killed inside one leaves it: its box overlaps the block by 0.1.
-        let solid = [(0, 0, 0)];
-        let at = Vec3::new(0.5, 0.9, 0.5);
-        let moved = ExperienceOrb::unstuck(at, &BORDER, shapes(&solid)).expect("the orb moves");
-        // The nearest free box sits on the block's top face.
-        assert_eq!(moved, Vec3::new(0.5, 1.0, 0.5));
-        assert!(!ExperienceOrb::box_at(moved).intersects(Aabb::block(BlockPos::new(0, 0, 0))));
-    }
-
-    #[test]
-    fn an_orb_in_open_air_keeps_its_position() {
-        let solid = [(0, 0, 0)];
-        let at = Vec3::new(0.5, 2.0, 0.5);
-        assert!(free(&solid, ExperienceOrb::box_at(at)));
-        // Nothing to move for: the spawn sites keep the position as given.
-        assert_eq!(ExperienceOrb::unstuck(at, &BORDER, shapes(&solid)), None);
-    }
-}
-
-#[cfg(test)]
 mod entity_collision_tests {
     use super::honey_slide_tests::falling_item;
     use super::*;
 
     /// `Entity.collide` stops an item at the entities that `canBeCollidedWith` it: dropped
-    /// above a boat's box (or a still happy ghast's) it lands on the box's top and rests,
+    /// above a boat's box it lands on the box's top and rests,
     /// where with no box it falls to the floor of the scene.
     #[test]
     fn an_item_lands_on_an_entity_box_under_it() {

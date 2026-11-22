@@ -3532,10 +3532,12 @@ impl ParticleEngine {
                 q.velocity[1] *= f64::from(0.8f32);
                 q.velocity[0] *= f64::from(0.8f32);
                 q.velocity[2] *= f64::from(0.8f32);
+                // FireflyParticle: 36 to 180 ticks in 1.21.5 (200 to 300
+                // is 1.21.6's).
                 q.lifetime = self
                     .random
-                    .next_int_between_inclusive(200, 300)
-                    .unwrap_or(200);
+                    .next_int_between_inclusive(36, 180)
+                    .unwrap_or(36);
                 q.scale(1.5);
                 q.rgba[3] = 0.0;
                 q.light = Light::Firefly;
@@ -5234,6 +5236,22 @@ mod tests {
                 Behaviour::Spell {
                     original_alpha: 0.8
                 }
+            );
+        }
+    }
+
+    #[test]
+    fn fireflies_live_36_to_180_ticks_like_1_21_5() {
+        let mut engine = ParticleEngine::new(Path::new(""), &HashMap::new(), &HashSet::new());
+        let options = ParticleOptions::simple(ParticleType::Firefly);
+        for _ in 0..50 {
+            let particle = engine
+                .make(&options, [0.0; 3], [0.0, 0.1, 0.0], 7)
+                .unwrap();
+            assert!(
+                (36..=180).contains(&particle.lifetime),
+                "firefly lifetime {} outside 36..=180",
+                particle.lifetime
             );
         }
     }

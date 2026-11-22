@@ -267,9 +267,6 @@ impl Vec3 {
         let s = trig::sin(angle as f64) as f64;
         Self::new(self.x * c + self.y * s, self.y * c - self.x * s, self.z)
     }
-    pub fn rotate_clockwise_90(self) -> Self {
-        Self::new(-self.z, self.y, self.x)
-    }
     pub fn direction_from_rotation(pitch: f32, yaw: f32) -> Self {
         let yaw_radians = -yaw * trig::DEG_TO_RAD - std::f32::consts::PI;
         let cy = trig::cos(yaw_radians as f64);

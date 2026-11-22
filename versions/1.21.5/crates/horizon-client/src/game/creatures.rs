@@ -2426,7 +2426,13 @@ impl Game<'_> {
                     {
                         self.roar_pushes_armor_stands(area, at);
                     }
-                    self.lan_entity_event(mob as i32, event, at)
+                    // 1.21.5 has no roar broadcast: event 69 stays local
+                    // (the armor-stand push above). A remote client fires
+                    // the roar from its own tick; only a 1.21.6+ server
+                    // sends the real event.
+                    if event != 69 {
+                        self.lan_entity_event(mob as i32, event, at)
+                    }
                 }
                 MobEvent::LevelParticles {
                     kind,
@@ -3537,12 +3543,7 @@ impl Game<'_> {
                 MobEvent::StartFollowing { .. }
                 | MobEvent::SchoolSize { .. }
                 | MobEvent::PufferfishSting { .. } => {}
-                MobEvent::LeashBreak { mob, drop, sound } => self.break_leash(mob, drop, sound),
-                MobEvent::NotifyLeashHolder { holder } => {
-                    if let Some(m) = self.mobs.iter_mut().find(|m| m.id == holder) {
-                        horizon_client::mobs::happy_ghast::notify_leash_holder(m);
-                    }
-                }
+                MobEvent::LeashBreak { mob, drop } => self.break_leash(mob, drop),
                 MobEvent::Vibration {
                     from,
                     to,
@@ -6056,9 +6057,11 @@ impl Game<'_> {
                 result?;
             }
             // AbstractThrownPotion.onHit, then onHitAsPotion from the stack it
-            // flies as: the splash happens where the hit was, a lingering
-            // potion's cloud sits at the mob it hit (ThrownLingeringPotion),
-            // and the potion that lands names the hurt it deals.
+            // flies as: the splash centres on the potion's position before
+            // the step (`previous`: the tick moved it to the hit), a
+            // lingering potion's cloud sits at the mob it hit
+            // (ThrownLingeringPotion), and the potion that lands names the
+            // hurt it deals.
             (kind @ (ProjectileKind::Potion(..) | ProjectileKind::ExperienceBottle), hit) => {
                 // A bottle flies as the bottle item (`getDefaultItem`).
                 let bottle;
@@ -6099,12 +6102,11 @@ impl Game<'_> {
                     self.splash(
                         stack,
                         at,
+                        p.previous,
                         mob,
                         block,
-                        p.age,
                         &owner,
                         self.entity_silent(p.id),
-                        p.velocity,
                     );
                     if stack.item.as_ref() != "minecraft:experience_bottle" {
                         self.native_potion_splash(&item, [at.x, at.y, at.z]);
@@ -6416,7 +6418,7 @@ impl Game<'_> {
             let species = bucket.trim_end_matches("_bucket").to_owned();
             let id = self.mobs[index].id as i32;
             // Leashable.dropLeash, then discard.
-            self.break_leash(id as u32, true, false);
+            self.break_leash(id as u32, true);
             self.mobs[index].removed = true;
             if self.creative {
                 if let Some(rest) = self.give(filled) {
@@ -6510,12 +6512,6 @@ impl Game<'_> {
             self.swing_arm();
             return Ok(true);
         }
-        if let Some(sheared) = self.shear_saddle(index, &item) {
-            if sheared {
-                self.swing_arm();
-            }
-            return Ok(sheared);
-        }
         // AbstractHorse.mobInteract: feed, equip or ride.
         if self.interact_mount(index, &item) {
             self.swing_arm();
@@ -6571,8 +6567,7 @@ impl Game<'_> {
             .as_ref()
             .map(|p| [p.position.x, p.position.y, p.position.z]);
         let acting = self.acting_player_uuid();
-        let sneaking =
-            self.keys.held(Action::Sneak) || self.keys.raw(&winit::keyboard::KeyCode::ShiftRight);
+        let creative = self.creative;
         let held_damage = held.as_ref().map_or(0, |h| h.damage as i32);
         let held_extra = held.as_ref().and_then(|h| h.extra.clone());
         let m = &mut self.mobs[index];
@@ -6718,13 +6713,21 @@ impl Game<'_> {
                 wool = true;
                 self.damage_held_tool();
             }
-            // Entity.interact: shears take a tamed wolf's armor off for its owner.
+            // Wolf.mobInteract: shears take a tamed wolf's armor off for its
+            // owner (1.21.5's inline branch; 1.21.6 moved it to the generic
+            // shear-equipment path, which also gated it on not sneaking).
+            // Curse of Binding holds it on outside creative.
             Species::Wolf
                 if item == "minecraft:shears"
                     && m.extra.tame
                     && m.extra.owner == Some(acting)
                     && m.extra.body.is_some()
-                    && !sneaking =>
+                    && (creative
+                        || !m.extra.body_extra.as_ref().is_some_and(|e| {
+                            e.enchantments
+                                .iter()
+                                .any(|(id, _)| &**id == "minecraft:binding_curse")
+                        })) =>
             {
                 let mut stack = ItemStack::new("minecraft:wolf_armor", 1);
                 stack.damage = m.extra.body_damage.max(0) as u32;
@@ -7074,11 +7077,9 @@ impl Game<'_> {
                 }
                 ocelot_trust = Some(trusts);
             }
-            // HappyGhast.canFallInLove: never, so only a ghastling takes food.
             _ if is_food
                 && m.kind.flags.animal
-                && species != Species::Parrot
-                && (species != Species::HappyGhast || m.is_baby()) =>
+                && species != Species::Parrot =>
             {
                 // Animal.mobInteract: breed adults, speed up babies, then
                 // playEatingSound (silent unless the species overrides it).
@@ -7210,9 +7211,9 @@ impl Game<'_> {
             }
         }
         if let Some(stack) = armor_drop {
-            // Mob.shearItem: PLAYER_SHEARED_EQUIPMENT with the armor and the wolf.
-            let target = self.mob_entity(&self.mobs[index]);
-            self.trigger_item_entity("minecraft:player_sheared_equipment", &stack, &target);
+            // Wolf.mobInteract: the armor drops at the wolf's feet (1.21.6's
+            // shear-equipment path also fires PLAYER_SHEARED_EQUIPMENT;
+            // the trigger does not exist in 1.21.5).
             self.spawn_item(stack, [center[0], center[1] + 0.5, center[2]], [0.0; 3], 10);
         }
         if let Some(equip) = equip_event {
@@ -7544,12 +7545,9 @@ impl Game<'_> {
             self.use_failed = true;
             return Ok(true);
         }
-        // SpawnEggItem.useOn on a spawner sets its mob (and an op's egg data).
-        let (spawner_id, data) = horizon_client::block_entity_item::spawn_egg_on_spawner(
-            stack,
-            self.acting_player_is_op(),
-        );
-        if let Some(done) = self.use_spawn_egg_on_spawner(hit.pos, &spawner_id, data.as_ref()) {
+        // SpawnEggItem.useOn on a spawner sets its mob (only the type).
+        let spawner_id = horizon_client::block_entity_item::spawn_egg_on_spawner(stack);
+        if let Some(done) = self.use_spawn_egg_on_spawner(hit.pos, &spawner_id) {
             if done {
                 self.swing_arm();
                 self.award_stat("used", &stack.item, 1);

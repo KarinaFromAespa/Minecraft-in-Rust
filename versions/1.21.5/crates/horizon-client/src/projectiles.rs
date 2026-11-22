@@ -11,6 +11,11 @@ use horizon_core::{
     random::RandomSource,
 };
 
+/// `ProjectileUtil.DEFAULT_ENTITY_HIT_RESULT_MARGIN`: 1.21.5 grows every
+/// target's box by a flat 0.3 from the first tick (1.21.6's
+/// `computeMargin` ramps it up over the projectile's first eight ticks).
+pub const ENTITY_HIT_MARGIN: f64 = 0.3;
+
 /// `AbstractArrow.startFalling`'s per-axis random velocity damping.
 pub fn start_falling_velocity(
     velocity: Vec3,
@@ -1069,7 +1074,7 @@ impl Projectile {
         let to = from.add_vector(self.velocity);
         let block = w.clip(from, to);
         let end = block.map_or(to, |b| b.0);
-        let margin = self.hit_margin();
+        let margin = ENTITY_HIT_MARGIN;
         let mut best: Option<(Who, Vec3, f64)> = None;
         for (who, b) in w.targets() {
             if Some(*who) == self.owner && !self.left_owner {
@@ -1373,12 +1378,6 @@ impl Projectile {
     pub fn take_shoot_event(&mut self) -> Option<Vec3> {
         self.shoot_event.take()
     }
-    /// `ProjectileUtil.computeMargin`: how far the boxes of the entities on
-    /// its way grow, from nothing for its first two ticks up to 0.3 at its
-    /// eighth (`tickCount`, which `age` counts, is raised before the tick).
-    fn hit_margin(&self) -> f64 {
-        f64::from(((self.age as i32 - 2) as f32 / 20.0).clamp(0.0, 0.3))
-    }
     fn tick_inner(&mut self, w: &impl ProjectileWorld, impact: bool) -> (bool, Hit) {
         // `Entity.setOldPosAndRot` (the previous position and rotation the
         // renderer interpolates from), kept across the `impact` flag's arrival
@@ -1434,8 +1433,8 @@ impl Projectile {
         );
         let block = w.clip(from, to);
         let end = block.map_or(to, |b| b.0);
-        // ProjectileUtil.getEntityHitResult: boxes inflated by `computeMargin` along the path.
-        let margin = self.hit_margin();
+        // ProjectileUtil.getEntityHitResult: boxes inflated by the hit margin along the path.
+        let margin = ENTITY_HIT_MARGIN;
         let mut best: Option<(Who, Vec3, f64)> = None;
         for (who, b) in w.targets() {
             if Some(*who) == self.owner && !self.left_owner {
@@ -2537,8 +2536,8 @@ mod tests {
 
     #[test]
     fn ender_pearl_hits_a_wind_charge_box() {
-        // Through the charge's box itself: a pearl on its first tick has no
-        // margin (`ProjectileUtil.computeMargin`) to reach one it passes near.
+        // Through the charge's box itself: the 0.3 hit margin applies from
+        // the first tick, so the pearl need not pass near it to collide.
         let mut pearl = Projectile::new(
             ProjectileKind::EnderPearl,
             Vec3::new(0.0, 1.1, 0.0),

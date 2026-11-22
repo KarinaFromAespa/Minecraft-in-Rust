@@ -688,7 +688,7 @@ fn an_advancement_tab_a_guest_opens_is_kept_and_answered() {
     let _ = std::fs::remove_dir_all(&data);
 }
 
-/// `handlePlayerCommand` START_RIDING_JUMP (3) and STOP_RIDING_JUMP (4): the
+/// `handlePlayerCommand` START_RIDING_JUMP (5) and STOP_RIDING_JUMP (6): the
 /// hub used to drop both, so a guest's released jump bar never reached the
 /// mount they ride, and neither did the horse's rear or its jump sound.
 #[test]
@@ -716,7 +716,7 @@ fn a_guests_riding_jump_reaches_the_game() {
         border: &border,
         streaming: None,
     };
-    for action in [3, 4] {
+    for action in [5, 6] {
         hub.guests[0].inbox.push_back((
             S::PlayerCommand(play::PlayerCommand {
                 id: 1,

@@ -227,7 +227,7 @@ impl Game<'_> {
         self.golem_drop_equipment(m);
         m.extra.opened_chest = None;
         if m.extra.leash.is_some() {
-            self.break_leash(m.id, true, false);
+            self.break_leash(m.id, true);
             m.extra.leash = None;
         }
         m.removed = true;

@@ -525,7 +525,7 @@ fn string(t: &Tag) -> Option<String> {
     }
 }
 /// The persistent `ItemEnchantments` codec uses integer levels in 1..=255.
-/// `TagValueInput.read` keeps the partial map when an entry fails decoding.
+/// `CompoundTag.read` keeps the partial map when an entry fails decoding.
 fn read_levels(t: Option<&Tag>) -> Levels {
     let Some(Tag::Compound(map)) = t else {
         return Vec::new();

@@ -13,7 +13,6 @@ pub(super) struct GameCpuResources {
     pub(super) map_frame_model: frames::FrameModel,
     pub(super) glow_map_frame_model: frames::FrameModel,
     pub(super) armor_stand_assets: armor_stands::ArmorStandAssets,
-    pub(super) waypoint_styles: horizon_client::locator_bar::WaypointStyles,
     pub(super) boat_models: boats::BoatModels,
     pub(super) cart_models: minecarts::CartModels,
     pub(super) crystal_model: Option<horizon_client::mobs::Part>,
@@ -84,7 +83,6 @@ impl GameCpuResources {
             map_frame_model,
             glow_map_frame_model,
             armor_stand_assets,
-            waypoint_styles,
             boat_models,
             cart_models,
             creative_screen,
@@ -106,9 +104,6 @@ impl GameCpuResources {
             });
             let armor_stand_assets = named_scope(scope, "game_cpu.armor_stands", move || {
                 armor_stands::ArmorStandAssets::load(root, document)
-            });
-            let waypoint_styles = named_scope(scope, "game_cpu.waypoints", move || {
-                horizon_client::locator_bar::WaypointStyles::load(root)
             });
             let boat_models = named_scope(scope, "game_cpu.boats", move || {
                 boats::BoatModels::load(document)
@@ -142,9 +137,6 @@ impl GameCpuResources {
                 armor_stand_assets
                     .join()
                     .unwrap_or_else(|panic| std::panic::resume_unwind(panic)),
-                waypoint_styles
-                    .join()
-                    .unwrap_or_else(|panic| std::panic::resume_unwind(panic)),
                 boat_models
                     .join()
                     .unwrap_or_else(|panic| std::panic::resume_unwind(panic)),
@@ -163,7 +155,6 @@ impl GameCpuResources {
             map_frame_model,
             glow_map_frame_model,
             armor_stand_assets,
-            waypoint_styles,
             boat_models,
             cart_models,
             crystal_model: model("minecraft:end_crystal#main"),

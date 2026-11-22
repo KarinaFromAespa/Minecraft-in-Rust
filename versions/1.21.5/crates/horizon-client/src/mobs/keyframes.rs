@@ -1,6 +1,7 @@
-//! Vanilla keyframe animations (`AnimationDefinition`, `AnimationChannel`,
-//! `KeyframeAnimation`) exported from the client's animation definitions,
-//! applied to a pose map exactly like `KeyframeAnimation.Entry.apply`.
+//! Vanilla keyframe animations (`AnimationDefinition`, `AnimationChannel`)
+//! exported from the client's animation definitions, applied to a pose map
+//! exactly like `KeyframeAnimations.animate` (via `Model.animate` /
+//! `Model.animateWalk`).
 use serde_json::Value;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -70,7 +71,7 @@ impl Animation {
             bones,
         }
     }
-    /// KeyframeAnimation.apply(millis, scale): offsets added to each bone's pose.
+    /// `Model.animate` / `KeyframeAnimations.animate`: offsets added to each bone's pose.
     pub fn apply(&self, millis: i64, scale: f32, poses: &mut super::anim::Poses) {
         let mut seconds = millis as f32 / 1000.0;
         if self.looping {
@@ -101,7 +102,7 @@ impl Animation {
             }
         }
     }
-    /// KeyframeAnimation.applyWalk(pos, speed, speedFactor, scaleFactor).
+    /// `Model.animateWalk(pos, speed, speedFactor, scaleFactor)`.
     pub fn apply_walk(
         &self,
         pos: f32,
@@ -121,7 +122,7 @@ fn catmullrom(t: f32, p0: f32, p1: f32, p2: f32, p3: f32) -> f32 {
         + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t * t
         + (3.0 * p1 - p0 - 3.0 * p2 + p3) * t * t * t)
 }
-/// KeyframeAnimation.Entry.apply interpolation.
+/// `KeyframeAnimations.animate` interpolation.
 fn sample(k: &[Keyframe], seconds: f32, scale: f32) -> [f32; 3] {
     if k.is_empty() {
         return [0.0; 3];

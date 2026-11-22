@@ -1,6 +1,6 @@
 //! The looping sound instances of mobs: a bee's buzz
 //! (`ClientPacketListener.postAddEntitySoundInstance`) and a guardian's
-//! attack hum (entity event 21), and the riding sound of a happy ghast or nautilus. The
+//! attack hum (entity event 21), and the riding sound of a nautilus. The
 //! sound engine ticks them with what `start_mob_sounds` and
 //! `start_riding_sound` read off the mobs.
 use super::Game;
@@ -11,9 +11,10 @@ use horizon_client::{
 };
 
 impl Game<'_> {
-    /// `LocalPlayer.startRiding` on a happy ghast or an `AbstractNautilus`:
-    /// its riding sound (a minecart's are `start_cart_sounds`'). Then what the
-    /// instance reads about the mob the player rides.
+    /// `LocalPlayer.startRiding` on an `AbstractNautilus`: its riding sound
+    /// (a minecart's are `start_cart_sounds`'). Then what the instance reads
+    /// about the mob the player rides. (1.21.6 also plays one for a happy
+    /// ghast; 1.21.5 has no happy ghast.)
     pub(super) fn start_riding_sound(&mut self) -> Option<RiddenSound> {
         let ridden = self
             .riding
@@ -31,26 +32,13 @@ impl Game<'_> {
                 (species, sound)
             });
         let started = ridden
-            .filter(|r| {
-                matches!(
-                    r.0,
-                    Species::HappyGhast | Species::Nautilus | Species::ZombieNautilus
-                )
-            })
+            .filter(|r| matches!(r.0, Species::Nautilus | Species::ZombieNautilus))
             .map(|r| r.1);
         if let Some(sound) = started
             && self.riding_sound != Some(sound.id)
             && !sound.silent
         {
-            let nautilus = matches!(
-                ridden.map(|r| r.0),
-                Some(Species::Nautilus | Species::ZombieNautilus)
-            );
-            let instance = if nautilus {
-                SoundInstance::riding_nautilus(&sound, random_source::create())
-            } else {
-                SoundInstance::riding_happy_ghast(&sound, random_source::create())
-            };
+            let instance = SoundInstance::riding_nautilus(&sound, random_source::create());
             self.audio.play_instance(instance, false);
         }
         self.riding_sound = started.map(|g| g.id);

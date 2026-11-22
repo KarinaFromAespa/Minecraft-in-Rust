@@ -1902,7 +1902,7 @@ impl Game<'_> {
                     m.ai.nav.stop();
                     m.needs_sync = true;
                     occupied = true;
-                    self.break_leash(mob, true, false);
+                    self.break_leash(mob, true);
                     self.note_started_riding(id);
                     self.vehicle_picked_up();
                 }
@@ -3103,7 +3103,7 @@ impl Minecart {
         c.on_ground = horizon_client::entity_nbt::flag(tag, "OnGround");
         c.pitch = horizon_client::entity_nbt::rotation(tag)[1];
         c.previous_pitch = c.pitch;
-        // ValueInput's numeric getters take any NumericTag: getIntOr is its
+        // CompoundTag's numeric getters take any NumericTag: getIntOr is its
         // intValue, getShortOr the low 16 bits of it, getBooleanOr
         // `byteValue() != 0` (the low 8), getDoubleOr its doubleValue.
         let int = |k: &str| {

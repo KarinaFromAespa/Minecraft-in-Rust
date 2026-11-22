@@ -527,8 +527,6 @@ impl Mob {
             1.0
         };
         match self.species() {
-            // HappyGhast.sanitizeScale: min(scale, 1), it never grows.
-            super::Species::HappyGhast => scale.min(1.0),
             // Shulker.sanitizeScale: min(scale, 3).
             super::Species::Shulker => scale.min(3.0),
             _ => scale,
@@ -762,7 +760,7 @@ impl Mob {
     /// and fall distance (Entity.checkFallDamage).
     /// `EntityGetter.getEntityCollisions(this, box.expandTowards(movement))`:
     /// the boxes of the mobs whose `canBeCollidedWith(this)` holds (a living
-    /// shulker, a happy ghast held still), but not this mob's vehicle or a
+    /// shulker), but not this mob's vehicle or a
     /// fellow passenger (`Entity.canCollideWith`).
     fn entity_collisions(&self, w: &MobWorld, movement: Vec3) -> Vec<Aabb> {
         let area = self.bounds().expand_towards(movement);
@@ -922,11 +920,19 @@ impl Mob {
         }
     }
     /// `checkFallDamage` as the species has it: Strider's lava breaks any fall
-    /// (the fluid state waits for the next baseTick); Bat's and Bee's do nothing.
+    /// (the fluid state waits for the next baseTick); Bat's, Bee's, Ghast's
+    /// and Phantom's do nothing (the last two are FlyingMob's no-op in
+    /// 1.21.5, their own no-op overrides in 1.21.6 - the same either way).
     fn species_check_fall_damage(&mut self, w: &MobWorld, moved: Vec3, events: &mut Vec<MobEvent>) {
         if self.kind.flags.lava_walker && self.fluids.in_lava {
             self.fall_distance = 0.0;
-        } else if !matches!(self.kind.species, super::Species::Bat | super::Species::Bee) {
+        } else if !matches!(
+            self.kind.species,
+            super::Species::Bat
+                | super::Species::Bee
+                | super::Species::Ghast
+                | super::Species::Phantom
+        ) {
             self.check_fall_damage(w, moved, events);
         }
     }
@@ -1477,6 +1483,14 @@ impl Mob {
         if super::ai::custom_travel(self, w, input, events) {
             return;
         }
+        // `FlyingMob.travel`: ghasts and phantoms fly the friction form,
+        // not the 0.91-drag flying form — the same in both versions.
+        if matches!(
+            self.species(),
+            super::Species::Ghast | super::Species::Phantom
+        ) {
+            return self.travel_flying_mob(w, input, events);
+        }
         if self.kind.flags.flying {
             return self.travel_flying(w, input, events);
         }
@@ -1537,27 +1551,47 @@ impl Mob {
             }
         }
     }
-    /// LivingEntity.travelFlying: no gravity, `0.91F` drag in the air,
-    /// `0.8F` in water and 0.5 in lava. A happy ghast swims as fast as it
-    /// flies (`HappyGhast.travel`); the others at 0.02.
-    fn travel_flying(&mut self, w: &MobWorld, input: Vec3, events: &mut Vec<MobEvent>) {
-        let fluid_speed = if self.species() == super::Species::HappyGhast {
-            self.kind.air_speed
+    /// `FlyingMob.travel`: the 1.21.5 flight of ghasts and phantoms. The
+    /// fluid branches match the other flying mobs' form; in air the drag
+    /// is the ground friction's when on the ground (0.91 otherwise) and
+    /// the relative speed on the ground is the standard
+    /// 0.1 * 0.16277137 / f^3 — and a phantom flies at 0.02 in the air,
+    /// not 1.21.6's 0.2.
+    fn travel_flying_mob(&mut self, w: &MobWorld, input: Vec3, events: &mut Vec<MobEvent>) {
+        if self.fluids.in_water {
+            self.move_relative(0.02, input);
+            self.do_move(w, events);
+            self.velocity = self.velocity.scale(f64::from(0.8_f32));
+        } else if self.fluids.in_lava {
+            self.move_relative(0.02, input);
+            self.do_move(w, events);
+            self.velocity = self.velocity.scale(0.5);
         } else {
-            0.02
-        };
-        self.travel_flying_speeds(
-            w,
-            input,
-            events,
-            fluid_speed,
-            fluid_speed,
-            self.kind.air_speed,
-        );
+            let drag: f32 = if self.on_ground {
+                self.block_friction(w) * 0.91
+            } else {
+                0.91
+            };
+            let speed: f32 = if self.on_ground {
+                0.1 * 0.16277137 / (drag * drag * drag)
+            } else {
+                0.02
+            };
+            self.move_relative(speed, input);
+            self.do_move(w, events);
+            self.velocity = self.velocity.scale(f64::from(drag));
+        }
     }
-    /// `LivingEntity.travelFlying(input, waterSpeed, lavaSpeed, airSpeed)`:
-    /// the speeds vary per mob (an allay flies at the speed its move control
-    /// set, `Allay.travel`).
+    /// The flying travel 1.21.5 inlines per mob (`Allay.travel` and the
+    /// like; 1.21.6 extracted it into `LivingEntity.travelFlying`): no
+    /// gravity, `0.91F` drag in the air, `0.8F` in water and 0.5 in lava.
+    fn travel_flying(&mut self, w: &MobWorld, input: Vec3, events: &mut Vec<MobEvent>) {
+        self.travel_flying_speeds(w, input, events, 0.02, 0.02, self.kind.air_speed);
+    }
+    /// The flying travel 1.21.5 inlines per mob, with the speeds as
+    /// parameters: the speeds vary per mob (an allay flies at the speed
+    /// its move control set, `Allay.travel`). 1.21.6 extracted this into
+    /// `LivingEntity.travelFlying(input, waterSpeed, lavaSpeed, airSpeed)`.
     pub fn travel_flying_speeds(
         &mut self,
         w: &MobWorld,

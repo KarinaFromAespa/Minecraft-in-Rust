@@ -393,18 +393,16 @@ impl Game<'_> {
             if f.invisible {
                 e.meta.push((0, serializer::BYTE, Value::Byte(0x20)));
             }
-            // HangingEntity.DATA_DIRECTION, south by default.
-            if f.facing != 3 {
-                e.meta
-                    .push((8, serializer::DIRECTION, Value::Id(i32::from(f.facing))));
-            }
+            // 1.21.5 has no HangingEntity.DATA_DIRECTION (1.21.6's): the
+            // direction rides the add-entity packet's data alone, and
+            // ItemFrame.DATA_ITEM is 8, DATA_ROTATION 9.
             if f.item.is_some() {
                 e.meta
-                    .push((9, serializer::ITEM_STACK, Value::Item(hub.stack(&f.item))));
+                    .push((8, serializer::ITEM_STACK, Value::Item(hub.stack(&f.item))));
             }
             if f.rotation != 0 {
                 e.meta
-                    .push((10, serializer::INT, Value::Int(i32::from(f.rotation))));
+                    .push((9, serializer::INT, Value::Int(i32::from(f.rotation))));
             }
         }
         for (p, &id) in self.knot_ids.iter().filter(|&(_, &id)| id > after) {
@@ -432,16 +430,15 @@ impl Game<'_> {
             let facing = [3, 4, 2, 5][usize::from(p.facing & 3)];
             e.yaw = f32::from(p.facing & 3) * 90.0;
             e.data = facing;
-            if facing != 3 {
-                e.meta.push((8, serializer::DIRECTION, Value::Id(facing)));
-            }
-            // Painting.DATA_PAINTING_VARIANT_ID, a registry holder (id + 1),
-            // set unless it is the registry's first variant (VariantUtils.getAny).
+            // Painting.DATA_PAINTING_VARIANT_ID is 8 in 1.21.5 (1.21.6's
+            // HangingEntity.DATA_DIRECTION took 8 and pushed it to 9); a
+            // registry holder (id + 1), set unless it is the registry's
+            // first variant (VariantUtils.getAny).
             if let Some(id) = hub.registry_id("minecraft:painting_variant", &p.variant)
                 && id != 0
             {
                 e.meta
-                    .push((9, serializer::PAINTING_VARIANT, Value::Id(id + 1)));
+                    .push((8, serializer::PAINTING_VARIANT, Value::Id(id + 1)));
             }
         }
         for c in self.cushions.iter().filter(|c| c.id > after) {
@@ -652,8 +649,6 @@ impl Game<'_> {
     pub(super) fn lan_assign_ids(&mut self) {
         // LeashFenceKnotEntity: the tie made the knot of a fence post
         // (game/leads.rs `tie_knot`); the tracker shows that same entity.
-        // `notifyLeasheeRemoved` discards it once the last lead is gone.
-        self.forget_untied_knots();
         let next = &mut self.next_entity;
         let mut give = |id: &mut u32| {
             assign_entity_id(next, id);
@@ -694,12 +689,10 @@ impl Game<'_> {
         for t in self.tnts.iter().filter(|t| t.id > after) {
             let e = add_state(out, t.id, "minecraft:tnt", at(t.position), 0.0, t.on_ground);
             e.velocity = at(t.velocity);
-            // PrimedTnt.DATA_FUSE_ID, 80 by default; requiresPrecisePosition
-            // while it touches a block.
+            // PrimedTnt.DATA_FUSE_ID, 80 by default.
             if t.fuse != 80 {
                 e.meta.push((8, serializer::INT, Value::Int(t.fuse)));
             }
-            e.precise = t.on_ground;
         }
         for f in self.falling.iter().filter(|f| f.id > after) {
             let e = add_state(

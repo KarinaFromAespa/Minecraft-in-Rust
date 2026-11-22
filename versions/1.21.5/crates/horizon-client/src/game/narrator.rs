@@ -1,6 +1,6 @@
 //! The narrator (`Minecraft.narrator`, horizon-narrator's `GameNarrator`):
 //! opened with the client, closed with it, and kept in step with the options
-//! it reads (`Options.narrator`, `getFinalSoundSourceVolume(VOICE)`); and its
+//! it reads (`Options.narrator`, the voice volume, voice times master); and its
 //! `NARRATOR_TOGGLE` toast.
 use super::{Game, Screen};
 use horizon_client::{
@@ -168,28 +168,22 @@ impl Game<'_> {
     fn narrates(&self) -> bool {
         self.options.execution_role.is_client()
     }
-    /// `GameNarrator.saySystemNow(message)`: cuts off what is being said.
-    pub(super) fn say_system_now(&self, message: &Text) {
+    /// `GameNarrator.sayNow(message)`: cuts off what is being said.
+    pub(super) fn say_now(&self, message: &Text) {
         if self.narrates() {
-            horizon_narrator::say_system_now(&message.plain());
+            horizon_narrator::say_now(&message.plain());
         }
     }
-    /// `GameNarrator.saySystemQueued(message)`.
-    pub(super) fn say_system_queued(&self, message: &Text) {
+    /// `GameNarrator.say(message)`: system narration.
+    pub(super) fn say(&self, message: &Text) {
         if self.narrates() {
-            horizon_narrator::say_system_queued(&message.plain());
+            horizon_narrator::say(&message.plain());
         }
     }
-    /// `GameNarrator.saySystemChatQueued(message)`.
-    pub(super) fn say_system_chat_queued(&self, message: &Text) {
+    /// `GameNarrator.sayChat(message)`, its text already made.
+    pub(super) fn say_chat(&self, message: &str) {
         if self.narrates() {
-            horizon_narrator::say_system_chat_queued(&message.plain());
-        }
-    }
-    /// `GameNarrator.sayChatQueued(message)`, its text already made.
-    pub(super) fn say_chat_queued(&self, message: &str) {
-        if self.narrates() {
-            horizon_narrator::say_chat_queued(message);
+            horizon_narrator::say_chat(message);
         }
     }
     /// `GameNarrator.clear()`: what is being said and queued stops.
@@ -251,15 +245,12 @@ impl Game<'_> {
     }
     /// `hasNoEditboxFocused`'s opposite: the open screen's focus is an
     /// `EditBox` that `canConsumeInput`. The chat, command block, anvil
-    /// name, world options' port and rule boxes, a dialog's text input, a
+    /// name, world options' port and rule boxes, a
     /// focused options search and the title screens' fields count; a sign, a
     /// book (no `EditBox`), the recipe book (its component has the focus) and
     /// the creative search (focused as a widget, not as the screen's focus)
     /// do not.
     pub(super) fn edit_box_focused(&mut self) -> bool {
-        if self.dialog_open() {
-            return self.dialog_typing();
-        }
         match self.screen {
             Screen::Chat if self.title.is_none() => true,
             Screen::Options => self.ui.options.typing(),

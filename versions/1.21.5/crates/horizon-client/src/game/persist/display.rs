@@ -22,7 +22,7 @@ impl Game<'_> {
         };
         let brightness = tag.get("brightness").and_then(|value| {
             let light = |key| {
-                // Codec.INT uses Number.intValue, unlike ValueInput.getIntOr,
+                // Codec.INT uses Number.intValue, unlike CompoundTag.getIntOr,
                 // which floors FloatTag and DoubleTag before narrowing.
                 let value = value.get(key)?;
                 let light = match value {

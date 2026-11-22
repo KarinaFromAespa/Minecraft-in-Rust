@@ -16,9 +16,11 @@ pub enum NavKind {
         breach: bool,
     },
     Flying,
-    /// `AmphibiousPathNavigation` (`Axolotl`, `Drowned`, `Turtle`, and the
+    /// `AmphibiousPathNavigation` (`Axolotl`, `Turtle`, and the
     /// `Frog`, whose `FrogPathNavigation.prefersShallowSwimming` costs the
-    /// water nodes deeper than ten blocks under sea level.
+    /// water nodes deeper than ten blocks under sea level). The `Drowned`
+    /// is not one of these in 1.21.5: it swaps a water-bound and a ground
+    /// navigation in `updateSwimming` (1.21.6 gave it this one).
     Amphibious {
         prefers_shallow: bool,
     },
@@ -279,10 +281,13 @@ impl Mob {
         let solid = |p: [i32; 3]| w.solid(p[0], p[1], p[2]);
         if air(p) {
             let mut q = [p[0], p[1] - 1, p[2]];
-            while q[1] >= w.world.bottom_y() && air(q) {
+            // 1.21.5 scans strictly above the world's bottom: a floor at
+            // exactly minY is not a path target (1.21.6 widened both
+            // tests to `>=`).
+            while q[1] > w.world.bottom_y() && air(q) {
                 q[1] -= 1;
             }
-            if q[1] >= w.world.bottom_y() {
+            if q[1] > w.world.bottom_y() {
                 return [q[0], q[1] + 1, q[2]];
             }
             q[1] = p[1] + 1;

@@ -493,7 +493,7 @@ fn vanilla_part(model: &str, part: &str) -> String {
         ("magma_cube", "core") => Some("inside_cube".into()),
         ("magma_cube", _) => n("segment").map(|i| format!("cube{}", i - 1)),
         ("blaze", _) => n("stick").map(|i| format!("part{}", i - 1)),
-        ("ghast" | "happy_ghast" | "happy_ghast_ropes" | "squid" | "glow_squid", _) => {
+        ("ghast" | "squid" | "glow_squid", _) => {
             n("tentacle").map(|i| format!("tentacle{}", i - 1))
         }
         ("silverfish", _) => n("body")

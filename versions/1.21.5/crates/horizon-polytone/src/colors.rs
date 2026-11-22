@@ -13,11 +13,11 @@ use serde_json::Value as Json;
 pub struct Environment {
     /// `powder_snow_fog`: the fog colour inside powder snow (RGB).
     pub powder_snow_fog: Option<u32>,
-    /// `blindness_fog_distance`, `darkness_fog_distance`, `boss_fog_distance`: the fog ends of
-    /// Blindness (5), Darkness (15) and bosses that add world fog (96).
+    /// `blindness_fog_distance`, `darkness_fog_distance`: the fog ends of Blindness (5) and
+    /// Darkness (15). (A boss's world fog ends at min(rd, 192)*0.5 by `FogRenderer.setupFog`'s
+    /// formula, not a setting.)
     pub blindness_fog_distance: f32,
     pub darkness_fog_distance: f32,
-    pub boss_fog_distance: f32,
     /// `water_fog_brightening`: how much the underwater fog colour washes out (1 vanilla, 0 none).
     pub water_fog_brightening: f32,
     /// `water_fog_brightening_time`: the ticks under water it takes (vanilla's 600).
@@ -33,7 +33,6 @@ impl Default for Environment {
             powder_snow_fog: None,
             blindness_fog_distance: 5.0,
             darkness_fog_distance: 15.0,
-            boss_fog_distance: 96.0,
             water_fog_brightening: 1.0,
             water_fog_brightening_time: 600.0,
             horizon_height: 63.0,
@@ -213,7 +212,6 @@ impl PackColors {
                 vanilla.blindness_fog_distance,
             ),
             darkness_fog_distance: number("darkness_fog_distance", vanilla.darkness_fog_distance),
-            boss_fog_distance: number("boss_fog_distance", vanilla.boss_fog_distance),
             water_fog_brightening: number("water_fog_brightening", vanilla.water_fog_brightening),
             water_fog_brightening_time: number(
                 "water_fog_brightening_time",

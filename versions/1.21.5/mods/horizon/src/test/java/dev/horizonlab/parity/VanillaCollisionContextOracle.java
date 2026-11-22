@@ -79,7 +79,7 @@ public final class VanillaCollisionContextOracle {
                 stackItem.set(player.held,ITEMS[f.get("item").getAsInt()].builtInRegistryHolder());
                 stackCount.setInt(player.held,f.get("count").getAsInt());
                 player.stand=f.get("stand").getAsBoolean();player.fail=f.get("fail").getAsBoolean();
-                double y=number(f.get("y")),other=number(f.get("other"));
+                double y=number(f.get("y"));
                 position.set(player,new Vec3(0,y,0));position.set(marker,new Vec3(0,y,0));position.set(falling,new Vec3(0,y,0));
                 boolean always=f.get("always").getAsBoolean();
                 var context=switch(f.get("mode").getAsString()){
@@ -88,14 +88,10 @@ public final class VanillaCollisionContextOracle {
                     case "player"->CollisionContext.of(player,always);
                     case "marker"->CollisionContext.of(marker,always);
                     case "falling"->CollisionContext.of(falling,always);
-                    case "with_falling"->CollisionContext.withPosition(falling,other);
                     case "factory_player"->CollisionContext.of(player);
                     case "factory_marker"->CollisionContext.of(marker);
                     case "placement"->CollisionContext.placementContext(player);
                     case "placement_null"->CollisionContext.placementContext(null);
-                    case "with_player"->CollisionContext.withPosition(player,other);
-                    case "with_marker"->CollisionContext.withPosition(marker,other);
-                    case "with_null"->CollisionContext.withPosition(null,other);
                     default->throw new AssertionError();
                 };
                 int entity=context instanceof EntityCollisionContext ec?(ec.getEntity()==player?1:ec.getEntity()==marker?2:ec.getEntity()==falling?3:0):0;

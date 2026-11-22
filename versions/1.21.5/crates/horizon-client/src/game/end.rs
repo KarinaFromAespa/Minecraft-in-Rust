@@ -264,7 +264,8 @@ impl EndState {
 }
 
 /// An eye of ender from `/summon` or a saved chunk. `signalTo` never ran for
-/// it, so it has no target and `surviveAfterDeath` stays false.
+/// it, so in 1.21.5 it steers towards (0, 0, 0), the default tx/ty/tz — there
+/// is no target to be null — and `surviveAfterDeath` stays false.
 #[derive(Clone, Copy, Debug)]
 pub(in crate::game) struct SummonedEye {
     /// `getDeltaMovement`, which nothing changes without a target.
@@ -317,7 +318,15 @@ impl Game<'_> {
                 return true;
             }
             let m = eye.motion;
-            o.position = Vec3::new(o.position.x + m.x, o.position.y + m.y, o.position.z + m.z);
+            let next = Vec3::new(o.position.x + m.x, o.position.y + m.y, o.position.z + m.z);
+            // No target to be null in 1.21.5: the eye steers towards (0, 0, 0).
+            let steered = EyeOfEnder::update_delta(
+                glam::DVec3::new(m.x, m.y, m.z),
+                glam::DVec3::new(next.x, next.y, next.z),
+                glam::DVec3::ZERO,
+            );
+            eye.motion = Vec3::new(steered.x, steered.y, steered.z);
+            o.position = next;
             eye.life += 1;
             if eye.life <= 80 {
                 return true;
@@ -345,10 +354,14 @@ struct EyeOfEnder {
     survive: bool,
 }
 impl EyeOfEnder {
-    /// EyeOfEnder.updateDeltaMovement.
+    /// `EyeOfEnder.tick`'s steering: towards the target's column at a speed
+    /// lerped from the old horizontal one, up or down towards its height.
+    /// 1.21.5 writes it with cos/sin of the angle, so an eye over its
+    /// target's column still steers (east) instead of dividing by zero.
     fn update_delta(old: glam::DVec3, position: glam::DVec3, target: glam::DVec3) -> glam::DVec3 {
-        let horizontal = glam::DVec3::new(target.x - position.x, 0.0, target.z - position.z);
-        let length = horizontal.length();
+        let dx = target.x - position.x;
+        let dz = target.z - position.z;
+        let length = dx.hypot(dz);
         let old_horizontal = old.x.hypot(old.z);
         let mut wanted_speed = old_horizontal + 0.0025 * (length - old_horizontal);
         let mut y = old.y;
@@ -361,8 +374,12 @@ impl EyeOfEnder {
         } else {
             -1.0
         };
-        horizontal * (wanted_speed / length)
-            + glam::DVec3::new(0.0, y + (wanted_y - y) * 0.015, 0.0)
+        let angle = dz.atan2(dx);
+        glam::DVec3::new(
+            angle.cos() * wanted_speed,
+            y + (wanted_y - y) * 0.015,
+            angle.sin() * wanted_speed,
+        )
     }
 }
 
@@ -746,10 +763,11 @@ impl Game<'_> {
         }
         let (x, z) = (target.x.floor() as i32, target.z.floor() as i32);
         // TeleportTransition.missingRespawnBlock: PlayerSpawnFinder around
-        // the world spawn.
+        // the world spawn, facing yaw 0 (1.21.5's yaw, not the shared spawn
+        // angle).
         if let Some(world) = self.level.world_spawn.filter(|w| w[0] == x && w[2] == z) {
             return Ok(match self.search_spawn(world, finder) {
-                Ok(at) => Some((at, None)),
+                Ok(at) => Some((at, Some(0.0))),
                 Err(chunk) => {
                     self.spawn_wait.push(chunk);
                     None
@@ -757,7 +775,7 @@ impl Game<'_> {
             });
         }
         let y = self.land_column(x, z).map_or(target.y, f64::from);
-        Ok(Some((Vec3::new(target.x, y, target.z), None)))
+        Ok(Some((Vec3::new(target.x, y, target.z), Some(0.0))))
     }
 
     /// EnderDragonFight without a dragon: once the centre of the main island
@@ -1339,6 +1357,45 @@ impl Game<'_> {
             let next = eye.position + eye.velocity;
             eye.velocity = EyeOfEnder::update_delta(eye.velocity, next, eye.target);
             eye.position = next;
+            // The trail, from the server too (1.21.5's tick spawns it on
+            // both sides, with the steered motion): the clients draw their
+            // own as well, so each sees two, as in vanilla.
+            let origin = (eye.position - eye.velocity * 0.25).to_array();
+            let block = origin.map(|v| v.floor() as i32);
+            let water = self
+                .res
+                .facts()
+                .get(self.world.block(block[0], block[1], block[2]))
+                .fluid
+                == horizon_client::blocks::Fluid::Water;
+            let velocity = eye.velocity.to_array();
+            if water {
+                for _ in 0..4 {
+                    self.lan_send_particles(super::lan_particles::QueuedParticle {
+                        dimension: self.dim.id(),
+                        options: ParticleOptions::simple(ParticleType::Bubble),
+                        state: None,
+                        at: origin,
+                        spread: [0.0; 3],
+                        speed: velocity,
+                        count: 1,
+                        randomization: 1,
+                    });
+                }
+            } else {
+                let x = origin[0] + self.world.random.next_double() * 0.6 - 0.3;
+                let z = origin[2] + self.world.random.next_double() * 0.6 - 0.3;
+                self.lan_send_particles(super::lan_particles::QueuedParticle {
+                    dimension: self.dim.id(),
+                    options: ParticleOptions::simple(ParticleType::Portal),
+                    state: None,
+                    at: [x, origin[1] - 0.5, z],
+                    spread: [0.0; 3],
+                    speed: velocity,
+                    count: 1,
+                    randomization: 1,
+                });
+            }
             eye.life += 1;
             if eye.life <= 80 {
                 return true;
@@ -1398,7 +1455,8 @@ impl Game<'_> {
     }
 
     /// `EyeOfEnder.tick` on a client: behind each eye (a quarter of its last
-    /// move back), four bubbles in water, else a portal particle.
+    /// move back), four bubbles in water, else a portal particle. The server
+    /// sends its own copy (`tick_eyes`), so each client sees two, as in 1.21.5.
     pub(super) fn eye_particles(&mut self) {
         for i in 0..self.end.eyes.len() {
             let e = &self.end.eyes[i];

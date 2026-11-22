@@ -88,7 +88,10 @@ pub(super) fn register(out: &mut Vec<(Key, FixFn)>) {
     }));
     out.push((key(1920, 0), new_village));
     out.push((key(1925, 0), |cx| {
-        cx.each(Ty::SavedMapIndex, |root| {
+        // `MapIdFix`: the map data gains its `data` wrapper. 1.21.5 wraps
+        // `SAVED_DATA_MAP_DATA`; 1.21.6 moved the wrapper into the base schemas
+        // and the fix targets the map index instead.
+        cx.each(Ty::SavedMapData, |root| {
             let old = std::mem::replace(root, Tag::End);
             *root = Tag::compound([("data", old)]);
         })
@@ -235,7 +238,6 @@ pub(super) fn register(out: &mut Vec<(Key, FixFn)>) {
     out.push((key(2531, 0), redstone_wire));
     out.push((key(2533, 0), villager_follow_range));
     out.push((key(2535, 0), shulker_rotation));
-    out.push((key(2537, 0), legacy_dimension_id));
     out.push((key(2538, 0), level_legacy_world_gen_settings));
     out.push((key(2550, 0), world_gen_settings));
     out.push((key(2552, 0), |cx| {
@@ -1115,29 +1117,7 @@ fn shulker_rotation(cx: &mut Cx) {
     });
 }
 
-// ------------------------------------------------------------------ 2537 to 2553
-
-/// `LegacyDimensionIdFix`: numeric dimensions of players and maps become names.
-fn legacy_dimension_id(cx: &mut Cx) {
-    let fix = |v: &mut Tag, field: &str| {
-        if let Some(id) = v.get(field)
-            && let Some(n) = as_number(id)
-        {
-            let name = match n.int_value() {
-                -1 => "minecraft:the_nether",
-                1 => "minecraft:the_end",
-                _ => "minecraft:overworld",
-            };
-            set(v, field, string(name));
-        }
-    };
-    cx.each(Ty::Player, |p| fix(p, "Dimension"));
-    cx.each(Ty::SavedMapData, |m| {
-        if let Some(data) = m.get_mut("data") {
-            fix(data, "dimension");
-        }
-    });
-}
+// ------------------------------------------------------------------ 2538 to 2553
 
 /// `LevelLegacyWorldGenSettingsFix`: the generator settings move into `WorldGenSettings`.
 fn level_legacy_world_gen_settings(cx: &mut Cx) {

@@ -11,7 +11,7 @@ use super::dynamic::{
 };
 use super::schema::{Key, Ty, key};
 use super::tables as t;
-use super::{Cx, FixFn, items, mark_read, reread, reread_as};
+use super::{Cx, FixFn, items, mark_read, reread_as};
 use crate::nbt::{Compound, JavaString, Tag};
 
 pub(super) fn register(out: &mut Vec<(Key, FixFn)>) {
@@ -474,25 +474,45 @@ fn item_flattening(cx: &mut Cx) {
 
 // ------------------------------------------------------------------ 1451.5
 
-const DROPPED_BLOCK_ENTITIES: [&str; 2] = ["minecraft:noteblock", "minecraft:flower_pot"];
+/// `ItemRemoveBlockEntityTagFix`: the items that lost their block entity data at
+/// the flattening. 1.21.5 matches on the ITEM id (23 items: the note block, the
+/// flower pot, and every flower, sapling, mushroom, cactus, dead bush and fern
+/// that could sit in one); 1.21.6 replaced this with `RemoveBlockEntityTagFix`,
+/// which matches on the tag's block entity id instead (noteblock, flower_pot)
+/// and also strips falling-block and structure data.
+const ITEMS_WITHOUT_BLOCK_ENTITY: [&str; 23] = [
+    "minecraft:noteblock",
+    "minecraft:flower_pot",
+    "minecraft:dandelion",
+    "minecraft:poppy",
+    "minecraft:blue_orchid",
+    "minecraft:allium",
+    "minecraft:azure_bluet",
+    "minecraft:red_tulip",
+    "minecraft:orange_tulip",
+    "minecraft:white_tulip",
+    "minecraft:pink_tulip",
+    "minecraft:oxeye_daisy",
+    "minecraft:cactus",
+    "minecraft:brown_mushroom",
+    "minecraft:red_mushroom",
+    "minecraft:oak_sapling",
+    "minecraft:spruce_sapling",
+    "minecraft:birch_sapling",
+    "minecraft:jungle_sapling",
+    "minecraft:acacia_sapling",
+    "minecraft:dark_oak_sapling",
+    "minecraft:dead_bush",
+    "minecraft:fern",
+];
 
-fn dropped_block_entity(tag: Option<&Tag>) -> bool {
-    tag.and_then(|be| as_str(be.get("id")))
-        .is_some_and(|id| DROPPED_BLOCK_ENTITIES.contains(&namespaced(&id).as_str()))
-}
-
-/// `RemoveBlockEntityTagFix` (legacy data structure).
 fn remove_block_entity_tags(cx: &mut Cx) {
     cx.each(Ty::ItemStack, |s| {
-        if let Some(tag) = s.get_mut("tag")
-            && dropped_block_entity(tag.get("BlockEntityTag"))
+        if as_str(s.get("id"))
+            .is_some_and(|id| ITEMS_WITHOUT_BLOCK_ENTITY.contains(&namespaced(&id).as_str()))
+            && let Some(tag) = s.get_mut("tag")
         {
             remove(tag, "BlockEntityTag");
-        }
-    });
-    cx.entity("minecraft:falling_block", |e| {
-        if dropped_block_entity(e.get("TileEntityData")) {
-            remove(e, "TileEntityData");
         }
     });
 }
@@ -751,16 +771,12 @@ fn villager_trades(cx: &mut Cx) {
 // ------------------------------------------------------------------ 1458
 
 fn entity_custom_name(cx: &mut Cx) {
-    let k = cx.k;
     cx.each(Ty::Entity, |e| {
         let Some(Tag::String(name)) = e.get("CustomName").cloned() else {
             return;
         };
-        if name.0.is_empty() {
-            remove(e, "CustomName");
-            reread(k, e);
-            return;
-        }
+        // 1.21.5 converts an empty name like any other (`{"text":""}`); 1.21.6
+        // removes the field instead.
         let id = as_str(e.get("id")).unwrap_or_default();
         let component = if id == "minecraft:commandblock_minecart" {
             Tag::String(name)

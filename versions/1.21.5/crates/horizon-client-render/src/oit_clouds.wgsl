@@ -2,12 +2,13 @@
 // entity.wgsl after oit.wgsl. The clouds' vertex shader and draw are the
 // classic ones; only the fragment colour goes through the three stages.
 
-// The cloud's colour; it fades out towards the cloud fog end everywhere but in
-// the depth bounds stage, which sees the unfaded alpha.
+// The cloud's colour; it blends towards the fog colour everywhere but in
+// the depth bounds stage, which sees the unfogged colour.
 fn oit_cloud_color(in: Out, front: bool, fade: bool) -> vec4<f32> {
     let color = textureSample(atlas, atlas_sampler, in.uv) * select(in.back_color, in.color, front);
-    let faded = 1.0 - linear_fog(in.fog_distance.x, 0.0, globals.fog_ends.y);
-    return vec4(color.rgb, color.a * select(1.0, faded, fade));
+    let f = max(linear_fog(in.fog_distance.x, globals.fog.x, globals.fog.y),
+                linear_fog(in.fog_distance.y, globals.fog.z, globals.fog.w)) * select(0.0, 1.0, fade);
+    return vec4(mix(color.rgb, globals.fog_color.rgb, f * globals.fog_color.a), color.a);
 }
 @fragment fn fs_oit_cloud_bounds(in: Out, @builtin(front_facing) front: bool) -> @location(0) vec4<f32> {
     let color = oit_cloud_color(in, front, false);

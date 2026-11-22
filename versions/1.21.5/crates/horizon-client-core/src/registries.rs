@@ -174,7 +174,7 @@ impl Registries {
     /// Fill what the game did not build itself from vanilla's exported
     /// registries (`command-registries.json`, written by
     /// `VanillaCommandParseOracle registries`): built-in registries such as
-    /// mob effects, data component types and dialogs, block entities and tag
+    /// mob effects, data component types, block entities and tag
     /// members. Registries that data packs reload stay with the game.
     pub fn fill_from_export(&mut self, r: &serde_json::Value) {
         fn strings(v: &serde_json::Value) -> Vec<String> {

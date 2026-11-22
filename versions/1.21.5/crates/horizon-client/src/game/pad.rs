@@ -107,7 +107,7 @@ struct Context {
     focus_navigation: bool,
     focused: bool,
     osk: bool,
-    dialog: bool,
+    code_of_conduct: bool,
     enabled: bool,
 }
 
@@ -292,7 +292,7 @@ impl Game<'_> {
             focus_navigation: self.pad_navigation_mode(),
             focused: self.focused,
             osk: self.pad.menu.osk.is_some(),
-            dialog: self.dialog_open() || self.code_of_conduct.is_some(),
+            code_of_conduct: self.code_of_conduct.is_some(),
             enabled: self.settings.controller.enabled,
         }
     }

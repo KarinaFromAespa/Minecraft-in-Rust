@@ -494,10 +494,16 @@ impl ElementRotation {
                 "z" => Axis::Z,
                 _ => return Err(error("invalid rotation axis")),
             };
-            RotationValue::SingleAxis {
-                axis,
-                angle: float(required(&obj, "angle")?)?,
+            let angle = float(required(&obj, "angle")?)?;
+            // 1.21.5 `BlockElement$Deserializer.getAngle`: only
+            // -45/-22.5/0/22.5/45 are allowed; 1.21.6 widened the check to
+            // any angle within [-45, 45].
+            if angle != 0.0 && angle.abs() != 22.5 && angle.abs() != 45.0 {
+                return Err(DecodeError(format!(
+                    "Invalid rotation {angle} found, only -45/-22.5/0/22.5/45 allowed"
+                )));
             }
+            RotationValue::SingleAxis { axis, angle }
         } else if ["x", "y", "z"].iter().any(|key| obj.contains_key(*key)) {
             let mut angles = [0.0; 3];
             for (angle, key) in angles.iter_mut().zip(["x", "y", "z"]) {

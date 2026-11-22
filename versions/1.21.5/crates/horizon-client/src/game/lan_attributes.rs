@@ -333,8 +333,7 @@ impl Game<'_> {
     /// The instances a server player's tick creates, and
     /// `ServerPlayer.updatePlayerAttributes`: a creative player reaches 0.5
     /// further to blocks and 2 to entities. Its client reads the reach from
-    /// these synced modifiers. (The crouching player's waypoint range is
-    /// server-side only: lan_waypoints.rs hides it.)
+    /// these synced modifiers.
     pub(super) fn update_player_attributes(&mut self) {
         let creative = self.mode_id() == 1;
         let Some(p) = self.player.as_mut() else {

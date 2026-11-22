@@ -12,7 +12,7 @@ use horizon_client::{
     mesher::Vertex,
     mobs::{Damage, Species, Who},
     particles::{FireworkExplosion, ParticleOptions, ParticleType},
-    projectiles::ProjectileWorld,
+    projectiles::{ENTITY_HIT_MARGIN, ProjectileWorld},
     random_source,
     text::Text,
 };
@@ -306,11 +306,11 @@ impl Game<'_> {
             silent: false,
         }
     }
-    /// `FireworkRocketItem.useOn`: launch from the clicked point.
+    /// `FireworkRocketItem.useOn`: launch from the clicked point. 1.21.5 has
+    /// no fall-flying guard: a gliding player clicking a block launches the
+    /// rocket there (1.21.6 returns PASS, leaving the boost to `use`).
     pub(super) fn launch_firework(&mut self, hit: &Hit, stack: &ItemStack) -> bool {
-        if &*stack.item != "minecraft:firework_rocket"
-            || use_on_passes(self.player.as_ref().is_some_and(|p| p.fall_flying))
-        {
+        if &*stack.item != "minecraft:firework_rocket" {
             return false;
         }
         let at = Vec3::new(
@@ -397,20 +397,14 @@ impl Game<'_> {
         self.particles
             .add(&ParticleOptions::simple(ParticleType::Firework), at, v);
     }
-    /// `FireworkRocketItem.use` while gliding: drop the player's leads, then a
-    /// rocket attached to the player.
+    /// `FireworkRocketItem.use` while gliding: a rocket attached to the
+    /// player. (1.21.6's `use` drops the player's leads first, with
+    /// LEAD_BREAK; 1.21.5's does not.)
     pub(super) fn boost_firework(&mut self, stack: &ItemStack) -> bool {
         if &*stack.item != "minecraft:firework_rocket"
             || !self.player.as_ref().is_some_and(|p| p.fall_flying)
         {
             return false;
-        }
-        // Server path of `use`: `dropAllLeashConnections(null)`, and when that
-        // drops anything `playSound(null, player, LEAD_BREAK, NEUTRAL, 1, 1)`.
-        // The entity overload follows the player and excludes nobody, including
-        // the guest whose action is running while its hub is swapped out.
-        if self.drop_all_leash_connections() {
-            self.play_player_bound_sound("minecraft:item.lead.break", 6, 1.0, 1.0, false);
         }
         let at = self.player.as_ref().map_or(Vec3::ZERO, |p| p.position);
         let mut rocket = self.new_rocket(at, stack, true);
@@ -688,8 +682,7 @@ impl Game<'_> {
     }
     /// `ProjectileUtil.getHitResultOnMoveVector`: the nearest target on the
     /// move, short of the block it clips (`ClipContext.Block.COLLIDER`), each
-    /// box grown by `computeMargin` (`tickCount` is the rocket's life plus
-    /// one); else that block.
+    /// box grown by the 0.3 hit margin; else that block.
     fn rocket_struck(
         &self,
         targets: &[(Who, Aabb)],
@@ -709,7 +702,7 @@ impl Game<'_> {
         if let Some((at, ..)) = block {
             to = at;
         }
-        let margin = (f64::from(r.life - 1) / 20.0).clamp(0.0, 0.3);
+        let margin = ENTITY_HIT_MARGIN;
         targets
             .iter()
             .filter(|(who, _)| Some(*who) != skip)
@@ -834,12 +827,6 @@ impl Game<'_> {
     }
 }
 
-/// `FireworkRocketItem.useOn` returns PASS while the player is fall flying,
-/// leaving the boost to `use` (a guest's UseItemOn must not launch a rocket).
-fn use_on_passes(fall_flying: bool) -> bool {
-    fall_flying
-}
-
 #[cfg(test)]
 mod tests {
     /// A flying rocket's vertices carry its own id for frame generation's and a temporal
@@ -900,20 +887,72 @@ mod tests {
         assert_eq!(marks.last(), Some(&(out.len() as u32, 0)));
     }
 
-    #[test]
-    fn use_on_passes_only_while_gliding() {
-        assert!(super::use_on_passes(true));
-        assert!(!super::use_on_passes(false));
-    }
-
-    /// `FireworkRocketItem.use` on the server, while fall-flying: a lead on a
-    /// mob within the 32-block box drops as an item and one
-    /// `minecraft:item.lead.break` follows the player on NEUTRAL, heard by the
-    /// acting player too. A lead outside that box, or held for another player,
-    /// stays. Standing still does neither.
+    /// `FireworkRocketItem.useOn` while fall-flying: 1.21.5 launches the
+    /// rocket from the clicked point (1.21.6 returns PASS, so the click
+    /// boosts instead). The rocket is unattached, at the click plus the
+    /// face's 0.15 offset.
     #[test]
     #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-    fn a_gliding_firework_drops_leads_and_plays_lead_break() {
+    fn a_gliding_firework_used_on_a_block_launches() {
+        use crate::game::{Audio, Hit, Options, Progress, Settings, load_resources};
+        use horizon_core::geometry::Vec3;
+
+        let root = std::path::PathBuf::from(std::env::var_os("HORIZON_TEST_RESOURCES").unwrap());
+        let settings = Settings::default();
+        let loaded = load_resources(
+            root.clone(),
+            None,
+            &root,
+            &settings,
+            std::time::Instant::now(),
+            false,
+            true,
+            &Progress::new(),
+            &mut |_, _| unreachable!(),
+        )
+        .unwrap();
+        let mut options = Options::parse(std::iter::empty()).unwrap().unwrap();
+        options.resources = root.clone();
+        options.execution_role = crate::game::execution_role::ExecutionRole::IntegratedServer;
+        let res: &'static _ = Box::leak(Box::new(loaded.resources));
+        let mut game = super::Game::new(
+            res,
+            loaded.pack,
+            loaded.gui.unwrap(),
+            options,
+            settings,
+            Audio::silent(&root),
+            None,
+        )
+        .unwrap();
+        game.player = Some(
+            horizon_client::motion::PlayerMotion::new(game.motion, Vec3::new(10.5, 64.0, -3.25))
+                .unwrap(),
+        );
+        game.player.as_mut().unwrap().fall_flying = true;
+        game.inventory[game.selected] = Some(super::ItemStack::new("minecraft:firework_rocket", 1));
+        let stack = game.inventory[game.selected].clone().unwrap();
+        let hit = Hit {
+            pos: [10, 64, -3],
+            face: [0, 1, 0],
+            point: [10.5, 65.0, -2.75],
+        };
+        assert!(game.launch_firework(&hit, &stack));
+        assert_eq!(game.rockets.len(), 1);
+        let r = &game.rockets[0];
+        assert!(!r.attached, "a block-launched rocket is not attached");
+        assert!((r.position.x - 10.5).abs() < 1e-9, "{}", r.position.x);
+        assert!((r.position.y - 65.15).abs() < 1e-9, "{}", r.position.y);
+        assert!((r.position.z + 2.75).abs() < 1e-9, "{}", r.position.z);
+    }
+
+    /// `FireworkRocketItem.use` on the server, while fall-flying: 1.21.5's
+    /// `use` only launches the rocket — it does not drop the player's
+    /// leads (1.21.6's drops them, with LEAD_BREAK). All three leashed
+    /// mobs keep their leads, nothing drops, no lead sound plays.
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn a_gliding_firework_keeps_leads() {
         use crate::game::{Audio, Options, Progress, Settings, load_resources};
         use horizon_client::mobs::{Mob, leash::Holder};
         use horizon_core::geometry::Vec3;
@@ -986,9 +1025,10 @@ mod tests {
 
         game.player.as_mut().unwrap().fall_flying = true;
         assert!(game.boost_firework(&stack));
-        assert!(
-            game.mobs[0].extra.leash.is_none(),
-            "the mob on the lead comes free"
+        assert_eq!(
+            game.mobs[0].extra.leash,
+            Some(Holder::Player),
+            "the mob on the lead keeps it"
         );
         assert_eq!(game.mobs[1].extra.leash, Some(Holder::Player));
         assert_eq!(game.mobs[2].extra.leash, Some(Holder::Player));
@@ -997,29 +1037,14 @@ mod tests {
             .iter()
             .filter(|d| &*d.stack.item == "minecraft:lead")
             .collect();
-        assert_eq!(leads.len(), 1);
+        assert!(leads.is_empty(), "no lead drops");
         let heard = game.audio.capture.take().unwrap_or_default();
-        let snaps: Vec<_> = heard
-            .iter()
-            .filter(|s| s.event == "minecraft:item.lead.break")
-            .collect();
-        assert_eq!(snaps.len(), 1);
-        let snap = snaps[0];
-        assert_eq!((snap.position, snap.volume, snap.pitch), (feet, 1.0, 1.0));
-        assert_eq!(
-            snap.entity,
-            Some(37),
-            "the snap must follow the acting guest"
+        assert!(
+            heard
+                .iter()
+                .all(|s| s.event != "minecraft:item.lead.break"),
+            "no lead-break sound: {heard:?}"
         );
-        assert_eq!(snap.source, 6, "SoundSource.NEUTRAL");
-        assert_eq!(snap.except_entity, None, "vanilla excludes no player");
-        let (packet, range) =
-            horizon_client::lan::containers::captured_sound_packet(snap, None, 42);
-        let horizon_protocol::packets::play::Clientbound::SoundEntity(packet) = packet else {
-            panic!("a firework lead snap must use the entity-bound packet");
-        };
-        assert_eq!((packet.id, packet.source, range), (37, 6, 16.0));
-        assert_eq!(packet.sound.1.unwrap().0, "minecraft:item.lead.break");
     }
 }
 horizon_client::impl_joined!(Rocket);

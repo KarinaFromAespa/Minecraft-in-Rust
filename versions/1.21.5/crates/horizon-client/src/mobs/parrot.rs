@@ -9,65 +9,63 @@ use horizon_core::{
     random::{LegacyRandom, RandomSource},
 };
 
-/// `Parrot.MOB_SOUND_MAP` (the happy ghast's is `SoundEvents.EMPTY`: "").
-const IMITATIONS: [(Species, &str); 41] = [
-    (Species::Blaze, "entity.parrot.imitate.blaze"),
-    (Species::Bogged, "entity.parrot.imitate.bogged"),
-    (Species::Breeze, "entity.parrot.imitate.breeze"),
-    (Species::CamelHusk, "entity.parrot.imitate.camel_husk"),
-    (Species::CaveSpider, "entity.parrot.imitate.spider"),
-    (Species::Creaking, "entity.parrot.imitate.creaking"),
-    (Species::Creeper, "entity.parrot.imitate.creeper"),
-    (Species::Drowned, "entity.parrot.imitate.drowned"),
+/// `Parrot.MOB_SOUND_MAP`, the 1.21.5 form: the ender dragon is imitated,
+/// and the happy ghast and the 26.x additions (camel husk, parched, zombie
+/// horse, zombie nautilus) are not in it. The dragon has no `Species`
+/// (it is a separate boss entity, not a mob), so its key is `None`: the
+/// entry only feeds the random ambient draw, as in vanilla, and a parrot
+/// never imitates a nearby dragon. That last part is a known gap.
+const IMITATIONS: [(Option<Species>, &str); 37] = [
+    (Some(Species::Blaze), "entity.parrot.imitate.blaze"),
+    (Some(Species::Bogged), "entity.parrot.imitate.bogged"),
+    (Some(Species::Breeze), "entity.parrot.imitate.breeze"),
+    (Some(Species::CaveSpider), "entity.parrot.imitate.spider"),
+    (Some(Species::Creaking), "entity.parrot.imitate.creaking"),
+    (Some(Species::Creeper), "entity.parrot.imitate.creeper"),
+    (Some(Species::Drowned), "entity.parrot.imitate.drowned"),
     (
-        Species::ElderGuardian,
+        Some(Species::ElderGuardian),
         "entity.parrot.imitate.elder_guardian",
     ),
-    (Species::Endermite, "entity.parrot.imitate.endermite"),
-    (Species::Evoker, "entity.parrot.imitate.evoker"),
-    (Species::Ghast, "entity.parrot.imitate.ghast"),
-    (Species::HappyGhast, ""),
-    (Species::Guardian, "entity.parrot.imitate.guardian"),
-    (Species::Hoglin, "entity.parrot.imitate.hoglin"),
-    (Species::Husk, "entity.parrot.imitate.husk"),
-    (Species::Illusioner, "entity.parrot.imitate.illusioner"),
-    (Species::MagmaCube, "entity.parrot.imitate.magma_cube"),
-    (Species::Parched, "entity.parrot.imitate.parched"),
-    (Species::Phantom, "entity.parrot.imitate.phantom"),
-    (Species::Piglin, "entity.parrot.imitate.piglin"),
-    (Species::PiglinBrute, "entity.parrot.imitate.piglin_brute"),
-    (Species::Pillager, "entity.parrot.imitate.pillager"),
-    (Species::Ravager, "entity.parrot.imitate.ravager"),
-    (Species::Shulker, "entity.parrot.imitate.shulker"),
-    (Species::Silverfish, "entity.parrot.imitate.silverfish"),
-    (Species::Skeleton, "entity.parrot.imitate.skeleton"),
-    (Species::Slime, "entity.parrot.imitate.slime"),
-    (Species::Spider, "entity.parrot.imitate.spider"),
-    (Species::Stray, "entity.parrot.imitate.stray"),
-    (Species::Vex, "entity.parrot.imitate.vex"),
-    (Species::Vindicator, "entity.parrot.imitate.vindicator"),
-    (Species::Warden, "entity.parrot.imitate.warden"),
-    (Species::Witch, "entity.parrot.imitate.witch"),
-    (Species::Wither, "entity.parrot.imitate.wither"),
+    (None, "entity.parrot.imitate.ender_dragon"),
+    (Some(Species::Endermite), "entity.parrot.imitate.endermite"),
+    (Some(Species::Evoker), "entity.parrot.imitate.evoker"),
+    (Some(Species::Ghast), "entity.parrot.imitate.ghast"),
+    (Some(Species::Guardian), "entity.parrot.imitate.guardian"),
+    (Some(Species::Hoglin), "entity.parrot.imitate.hoglin"),
+    (Some(Species::Husk), "entity.parrot.imitate.husk"),
+    (Some(Species::Illusioner), "entity.parrot.imitate.illusioner"),
+    (Some(Species::MagmaCube), "entity.parrot.imitate.magma_cube"),
+    (Some(Species::Phantom), "entity.parrot.imitate.phantom"),
+    (Some(Species::Piglin), "entity.parrot.imitate.piglin"),
+    (Some(Species::PiglinBrute), "entity.parrot.imitate.piglin_brute"),
+    (Some(Species::Pillager), "entity.parrot.imitate.pillager"),
+    (Some(Species::Ravager), "entity.parrot.imitate.ravager"),
+    (Some(Species::Shulker), "entity.parrot.imitate.shulker"),
+    (Some(Species::Silverfish), "entity.parrot.imitate.silverfish"),
+    (Some(Species::Skeleton), "entity.parrot.imitate.skeleton"),
+    (Some(Species::Slime), "entity.parrot.imitate.slime"),
+    (Some(Species::Spider), "entity.parrot.imitate.spider"),
+    (Some(Species::Stray), "entity.parrot.imitate.stray"),
+    (Some(Species::Vex), "entity.parrot.imitate.vex"),
+    (Some(Species::Vindicator), "entity.parrot.imitate.vindicator"),
+    (Some(Species::Warden), "entity.parrot.imitate.warden"),
+    (Some(Species::Witch), "entity.parrot.imitate.witch"),
+    (Some(Species::Wither), "entity.parrot.imitate.wither"),
     (
-        Species::WitherSkeleton,
+        Some(Species::WitherSkeleton),
         "entity.parrot.imitate.wither_skeleton",
     ),
-    (Species::Zoglin, "entity.parrot.imitate.zoglin"),
-    (Species::Zombie, "entity.parrot.imitate.zombie"),
-    (Species::ZombieHorse, "entity.parrot.imitate.zombie_horse"),
+    (Some(Species::Zoglin), "entity.parrot.imitate.zoglin"),
+    (Some(Species::Zombie), "entity.parrot.imitate.zombie"),
     (
-        Species::ZombieNautilus,
-        "entity.parrot.imitate.zombie_nautilus",
-    ),
-    (
-        Species::ZombieVillager,
+        Some(Species::ZombieVillager),
         "entity.parrot.imitate.zombie_villager",
     ),
 ];
 
 fn imitation(species: Species) -> Option<&'static str> {
-    IMITATIONS.iter().find(|i| i.0 == species).map(|i| i.1)
+    IMITATIONS.iter().find(|i| i.0 == Some(species)).map(|i| i.1)
 }
 
 /// `Parrot.getPitch`.
@@ -132,8 +130,7 @@ fn imitate_nearby_mobs(
 /// random imitable mob in `nearby` (`Parrot.imitateNearbyMobs`, half the time,
 /// those with a `silent` flag excluded after being picked), else its own
 /// ambient sound or a rare imitation (`Parrot.getAmbient`). `random` is drawn
-/// from in vanilla's order. Returns the sound, its volume and its pitch; the
-/// happy ghast's imitation is silent (`""`).
+/// from in vanilla's order. Returns the sound, its volume and its pitch.
 pub fn shoulder_sound(
     random: &mut LegacyRandom,
     player_alive: bool,
@@ -431,13 +428,5 @@ mod tests {
         let mut random = LegacyRandom::new(1);
         let (sound, volume, _) = shoulder_sound(&mut random, true, true, true, &nearby).unwrap();
         assert_eq!((sound, volume), ("entity.parrot.ambient", 1.0));
-        // The happy ghast's imitation is silent.
-        let ghast = [(Species::HappyGhast, false)];
-        let silent = (0..64_i64).filter(|&n| {
-            let seed = n.wrapping_mul(0x9E37_79B9_7F4A_7C15_u64 as i64);
-            let mut r = LegacyRandom::new(seed);
-            shoulder_sound(&mut r, true, false, true, &ghast).is_none()
-        });
-        assert!(silent.count() > 0);
     }
 }

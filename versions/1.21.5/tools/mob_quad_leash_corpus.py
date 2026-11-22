@@ -21,8 +21,7 @@ def mob_quad_leash(raw=False):
     out += setup('/scoreboard objectives add leash_audit dummy',
                  '/data modify storage h302:observer uuid set from entity @s UUID')
     out.append(cmd('/data get entity @s UUID', expect_result=4))
-    for scene, holder_type in enumerate(['happy_ghast', 'cow'], 1):
-        holder_health = 20 if holder_type == 'happy_ghast' else 10
+    for scene, (holder_type, holder_health) in enumerate([('husk', 20), ('cow', 10)], 1):
         holder_pos = '0.5 104 0.5' if scene == 1 else '-5.5 100 -4.5'
         holder_nbt_pos = '[0.5d,104d,0.5d]' if scene == 1 else '[-5.5d,100d,-4.5d]'
         holder = f'00000001-0000-0002-0000-00030000000{scene}'

@@ -73,7 +73,7 @@ impl SoundPreview {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sound_engine::{Bound, SoundEngine, TickContext, UI, test_backend::Null};
+    use crate::sound_engine::{Bound, MASTER, SoundEngine, TickContext, test_backend::Null};
     use crate::sound_events::SoundRegistry;
 
     fn engine() -> SoundEngine {
@@ -139,7 +139,7 @@ mod tests {
             .expect("the hostile slider plays a preview");
         let instance = engine.instance(first).unwrap();
         assert_eq!(instance.identifier, "minecraft:entity.zombie.ambient");
-        assert_eq!(instance.source, UI);
+        assert_eq!(instance.source, MASTER);
         assert_eq!((instance.volume, instance.pitch), (0.4, 1.0));
         assert!(instance.relative);
         assert!(engine.is_active(first));

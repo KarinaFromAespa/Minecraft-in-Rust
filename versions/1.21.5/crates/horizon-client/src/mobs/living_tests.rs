@@ -354,11 +354,10 @@ fn a_ridden_horse_floats_in_deep_water() {
 }
 
 /// `Entity.collide` takes `getEntityCollisions` too: a zombie dropping
-/// onto a living shulker or a happy ghast held still (a player on its
-/// back) lands on it; a dead shulker, a happy ghast that is not held, or
-/// a ghastling lets it through (`canBeCollidedWith`).
+/// onto a living shulker lands on it; a dead shulker lets it through
+/// (`canBeCollidedWith`).
 #[test]
-fn a_falling_mob_lands_on_a_shulker_or_a_held_happy_ghast() {
+fn a_falling_mob_lands_on_a_living_shulker() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../.local/horizon-client")
         .join(horizon_core::VANILLA_VERSION);
@@ -452,21 +451,6 @@ fn a_falling_mob_lands_on_a_shulker_or_a_held_happy_ghast() {
     assert_eq!(landing(&shulker), 0.0, "a living shulker holds it up");
     shulker.health = 0.0;
     assert!(landing(&shulker) < -5.0, "a dead shulker does not");
-    let mut ghast = mob(3, "minecraft:happy_ghast", Vec3::new(8.5, 64.0, 8.5));
-    assert!(
-        landing(&ghast) < -5.0,
-        "a happy ghast left alone is not solid"
-    );
-    ghast.extra.counter = 10;
-    assert_eq!(
-        landing(&ghast),
-        0.0,
-        "held still, its back holds the zombie"
-    );
-    let mut ghastling = mob(4, "minecraft:happy_ghast", Vec3::new(8.5, 64.0, 8.5));
-    super::super::finalize::set_baby(&mut ghastling, true);
-    ghastling.extra.counter = 10;
-    assert!(landing(&ghastling) < -5.0, "a ghastling never is");
 }
 
 /// `LivingEntity.aiStep` calls `travel` and only then
@@ -714,9 +698,6 @@ fn a_species_caps_the_scale_it_takes() {
         close(w, 3.0) && close(h, 3.0) && close(e, 1.5),
         "shulker: {w}x{h}x{e}"
     );
-    let mut ghast = mob("minecraft:happy_ghast", Species::HappyGhast);
-    ghast.extra.model_scale = 2.0;
-    assert_eq!(ghast.model_scale(), 1.0);
     // Every other species takes the attribute as it came.
     let mut cow = mob("minecraft:cow", Species::Cow);
     cow.extra.model_scale = 4.0;

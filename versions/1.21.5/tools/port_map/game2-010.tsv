@@ -58,7 +58,7 @@ EnchantmentHelper.enchantItemFromProvider	port	crates/horizon-client/src/game/mo
 Equippable.llamaSwag	skip:data		datagen factory for the carpet equippable data
 Equippable.saddle	skip:data		datagen factory for the saddle equippable data
 Equippable.harness	skip:data		datagen factory for the harness equippable data
-Equippable.equipOnTarget	port	crates/horizon-client/src/game/ghasts.rs::Game::interact_happy_ghast	gap: minor: the harness on a happy ghast only; saddles are put on in mounts.rs and nautili.rs
+Equippable.equipOnTarget	port	crates/horizon-client/src/game/mounts.rs::Game::interact_steerable	saddles are put on in mounts.rs (interact_steerable) and nautilus.rs
 Equippable.canBeEquippedBy	port	crates/horizon-client/src/game/mount_menu.rs::shows_saddle	gap: minor: the saddle slot's entity check only; the armour swap has no entity test
 Equippable.Builder	skip:data		datagen builder for equippable data
 ItemCost.withComponents	skip:data		datagen helper; no runtime caller in 26.3

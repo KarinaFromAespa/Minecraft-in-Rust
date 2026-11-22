@@ -127,7 +127,6 @@ mod debug_stick;
 mod decorated_pot;
 mod dedicated;
 mod deflect;
-mod dialogs;
 #[cfg(feature = "discord")]
 mod discord;
 mod dispense_fixture;
@@ -175,7 +174,7 @@ mod functions;
 mod game_mode;
 mod game_tests;
 mod gamemode_switcher;
-mod ghasts;
+mod entity_collisions;
 mod glowing;
 mod golems;
 mod growth;
@@ -225,7 +224,6 @@ mod lan_screen;
 mod lan_stations;
 mod lan_trading;
 mod lan_vehicles;
-mod lan_waypoints;
 mod launch_api;
 mod launch_options;
 mod leads;
@@ -236,7 +234,6 @@ mod lightning;
 mod llamas;
 mod loading_screen;
 mod loading_window;
-mod locator_bar;
 mod loom;
 mod mace;
 mod machines;
@@ -384,7 +381,6 @@ mod powder_snow;
 mod prediction;
 mod pumpkin;
 mod pvp;
-mod quick_actions;
 mod raids;
 mod random_textures;
 mod recipe_book;
@@ -558,7 +554,7 @@ use horizon_world::{
     registry::BlockStateId,
 };
 use key_codes::{
-    container_key_clones, drop_held_behind_dialog, follow_named_keymap, gameplay_has_keyboard,
+    container_key_clones, follow_named_keymap, gameplay_has_keyboard,
     glfw_button, glfw_modifiers, keyboard_button,
 };
 use launch_options::Options;
@@ -658,12 +654,10 @@ enum Screen {
     CommandBlock,
     /// A game master block's edit screen (game/block_editor.rs).
     BlockEditor,
-    /// ServerLinksDialogScreen: a server's links (game/server_links.rs).
+    /// ServerLinksScreen: a server's links (game/server_links.rs).
     ServerLinks,
     /// ConfirmLinkScreen for a server link (game/server_links.rs).
     ConfirmLink,
-    /// DialogScreen.WarningScreen: the note about custom screens.
-    DialogWarning,
     /// WinScreen: the end poem and the credits (game/win.rs).
     Win,
     /// DebugOptionsScreen, F3+F6 (game/debug_options.rs).
@@ -701,7 +695,6 @@ impl Screen {
             Screen::BlockEditor => "block_editor",
             Screen::ServerLinks => "server_links",
             Screen::ConfirmLink => "confirm_link",
-            Screen::DialogWarning => "dialog_warning",
             Screen::Win => "win",
             Screen::DebugOptions => "debug_options",
             Screen::Mod => "mod",
@@ -2053,26 +2046,6 @@ fn ticking_chunk(world: &World, x: i32, z: i32) -> bool {
     };
     center.lit && world.chunks.surrounded((x, z))
 }
-/// `TicketStorage.canTicketExpire` for a `PORTAL` ticket: its chunk's holder is
-/// ready for saving once the futures of its level are done, the chunk lit and
-/// its neighbours loaded out to one chunk at a ticking level
-/// (`prepareTickingChunk`) and two at an entity-ticking one
-/// (`prepareEntityTickingChunk`). The ticket's own level stands for the
-/// holder's: the area it waits for is the one its own streaming loads.
-fn portal_ticket_can_expire(
-    world: &World,
-    ticket: &horizon_client::ticket_levels::PortalTicket,
-) -> bool {
-    use horizon_client::ticket_levels::{BLOCK_TICKING, ENTITY_TICKING};
-    let r = match ticket.level {
-        l if l <= i32::from(ENTITY_TICKING) => 2,
-        l if l == i32::from(BLOCK_TICKING) => 1,
-        _ => 0,
-    };
-    let (x, z) = ticket.chunk;
-    world.chunks.get(&(x, z)).is_some_and(|c| c.lit)
-        && (-r..=r).all(|dz| (-r..=r).all(|dx| world.chunks.contains_key(&(x + dx, z + dz))))
-}
 /// Key events carry the scancode's US-layout code, which ignores XKB options like
 /// `caps:swapescape`. For the keys whose meaning the keymap may remap, take the code
 /// from the keysym the keymap resolved instead. This includes function keys on
@@ -2146,12 +2119,8 @@ struct Game<'a> {
     server_packs: server_packs::ServerPackState,
     /// The link a chat click asks to open (`ConfirmLinkScreen`).
     link_prompt: Option<String>,
-    /// A command the player didn't type, waiting for their answer
-    /// (game/remote_chat.rs).
-    command_prompt: Option<remote_chat::CommandPrompt>,
     /// A server's Code of Conduct to accept (game/code_of_conduct.rs).
     code_of_conduct: Option<code_of_conduct::Prompt>,
-    dialogs: dialogs::DialogState,
     /// Single player's server while it loads its world (`Minecraft.doWorldLoad`).
     integrated_starting: Option<integrated::Starting>,
     world_renderer_ready: bool,
@@ -2397,11 +2366,6 @@ struct Game<'a> {
     music: horizon_client::music::MusicManager,
     /// The tracks native mods play over the music (`native_music_layers`).
     music_layers: horizon_client::music::MusicLayers,
-    /// `ToastManager.nowPlayingToast`: there while Music Toast is not Never.
-    now_playing: Option<horizon_client::toasts::NowPlayingToast>,
-    /// The Music Toast option the toast was last set up for.
-    music_toast_state: u8,
-    music_notes: horizon_client::toasts::MusicNotes,
     ambience: horizon_client::ambience::Ambience,
     /// The sound engine was told the game paused (pauseAllExcept).
     sound_paused: bool,
@@ -2409,7 +2373,7 @@ struct Game<'a> {
     cart_sounds: HashSet<u32>,
     /// The minecart the riding sounds were started for (`LocalPlayer.startRiding`).
     riding_cart_sounds: Option<u32>,
-    /// The happy ghast its riding sound was started for (`LocalPlayer.startRiding`).
+    /// The nautilus its riding sound was started for (`LocalPlayer.startRiding`).
     riding_sound: Option<u32>,
     /// `LocalPlayer.wasFallFlying` for the elytra's flying sound.
     was_fall_flying: bool,
@@ -2437,8 +2401,9 @@ struct Game<'a> {
     sign_edit: Option<sign_edit::SignEditor>,
     /// An open book, book and quill or lectern screen.
     book: Option<books::BookScreen>,
-    /// The last click on the book screen, for double clicks.
+    /// The last click on a book page, for double and triple clicks.
     book_last_click: Option<std::time::Instant>,
+    book_last_click_index: Option<usize>,
     /// Lecterns whose page-turn pulse is running (ticks left).
     lectern_pulses: Vec<((i32, i32, i32), i32)>,
     /// LevelLoadingScreen.smoothedProgress while the player is not placed yet.
@@ -2655,12 +2620,6 @@ struct Game<'a> {
     /// Entities of types Horizon does not simulate.
     others: Vec<commands::OtherEntity>,
     armor_stand_assets: armor_stands::ArmorStandAssets,
-    /// `WaypointStyleManager`.
-    waypoint_styles: horizon_client::locator_bar::WaypointStyles,
-    /// `ClientWaypointManager`: the locator bar's waypoints.
-    waypoints: horizon_client::locator_bar::ClientWaypoints,
-    /// The camera the last frame drew from (position, yaw, pitch, fov), for the locator bar.
-    locator_camera: Option<([f64; 3], f32, f32, f32)>,
     native_camera_frame: Option<horizon_client::mod_api::NativeCamera>,
     native_tasks: native_tasks::NativeTasks,
     /// The yaw and pitch a native mod's camera drew the last frame from (`native_camera_pose`),
@@ -2674,8 +2633,6 @@ struct Game<'a> {
     polytone_post_ticks: f64,
     /// `GameRenderer.spectatedEntityPostEffect` (`checkEntityPostEffect`).
     spectated_post_effect: Option<&'static str>,
-    /// `LocalPlayer.experienceDisplayStartTick`: (last progress, seen a change, tick).
-    experience_display: (f32, bool, u64),
     boats: horizon_client::join_seq::JoinList<boats::Boat>,
     /// The boats a mob's lead can hang on, for this tick's mob ticks.
     leash_boats: Vec<(u32, horizon_client::mobs::leash::HolderState)>,
@@ -3124,7 +3081,7 @@ struct Game<'a> {
     /// A dedicated server's operator, whitelist and ban lists, for `/op`,
     /// `/ban` and friends (`DedicatedPlayerList`).
     server_lists: Option<std::sync::Arc<std::sync::Mutex<dedicated::Lists>>>,
-    /// State of `/spectate`, `/posteffect`, `/debug`, `/waypoint` and friends.
+    /// State of `/spectate`, `/posteffect`, `/debug` and friends.
     cmds: commands::extra::CommandExtras,
     ui: chat::UiState,
     combat: combat::CombatTracker,
@@ -4743,11 +4700,6 @@ impl Game<'_> {
                     kind: "portal_spawn",
                     ..
                 } => self.portal_spawn([pos.x, pos.y, pos.z]),
-                LevelEvent::BlockEvent {
-                    pos,
-                    state,
-                    kind: "spawn_ghastling",
-                } => self.spawn_ghastling([pos.x, pos.y, pos.z], state),
                 LevelEvent::GameEvent { pos, event, state } => {
                     self.sculk_level_event(pos, event, state)
                 }
@@ -5248,7 +5200,7 @@ impl Game<'_> {
         if self.destroy_delay > 0 {
             self.destroy_delay -= 1;
         }
-        if !self.left || self.screen != Screen::Playing || self.dialog_open() {
+        if !self.left || self.screen != Screen::Playing {
             self.mining = None;
             return Ok(());
         }
@@ -5572,7 +5524,6 @@ impl Game<'_> {
         // their turns (`as_guest`), and the window's player is a client of it.
         self.ticks += 1;
         self.repro_tick();
-        self.track_experience_display();
         self.tick_enchanting_book();
         // `/tick freeze` stops the world but not the player.
         let running = match self.level_pass.running {
@@ -5823,7 +5774,6 @@ impl Game<'_> {
             && self.use_delay == 0
             && self.using.is_none()
             && self.screen == Screen::Playing
-            && !self.dialog_open()
             && self.sleeping.is_none()
         {
             self.use_with_hand()?;
@@ -5847,22 +5797,16 @@ impl Game<'_> {
         // The pack prompt replaces the connecting screen (setScreen), but
         // in game it opens over the world.
         let mut batch = if (self.server_packs.prompt.is_some()
-            || self.code_of_conduct.is_some()
-            || self.dialog_open())
+            || self.code_of_conduct.is_some())
             && self.player.is_none()
         {
             HudBatch::new(size)
         } else {
             self.hud_layers(size)
         };
-        // Vanilla's confirmation replaces the dialog as the screen.
-        if self.command_prompt.is_none() {
-            self.draw_dialog(&mut batch);
-        }
         self.draw_pack_prompt(&mut batch);
         self.draw_code_of_conduct(&mut batch);
         self.draw_link_prompt(&mut batch);
-        self.draw_command_prompt(&mut batch);
         // The ToastManager draws over every screen, the title and the
         // options included: the narrator's toast follows the player there.
         self.draw_narrator_toast(&mut batch);
@@ -5921,7 +5865,7 @@ impl Game<'_> {
         }
         if let Some(title) = &self.title {
             for found in title.lan_found_narrations((w, h)) {
-                self.say_system_queued(&found);
+                self.say(&found);
             }
         }
         if self.screen == Screen::DebugOptions && self.title.is_some() {
@@ -5931,7 +5875,6 @@ impl Game<'_> {
             self.draw_toasts(&mut batch, false);
             self.draw_tutorial_toasts(&mut batch, false);
             self.draw_pack_toasts(&mut batch, false);
-            self.draw_music_toast(&mut batch, false);
             return batch;
         }
         if self.title.is_some() {
@@ -5955,7 +5898,6 @@ impl Game<'_> {
             self.draw_toasts(&mut batch, false);
             self.draw_tutorial_toasts(&mut batch, false);
             self.draw_pack_toasts(&mut batch, false);
-            self.draw_music_toast(&mut batch, false);
             return batch;
         }
         let atlas_ptr: *const HudAtlas = &self.gui.atlas;
@@ -5964,7 +5906,6 @@ impl Game<'_> {
         // download while the connection screen shows.
         if self.remote_overlay(&mut batch) {
             self.draw_pack_toasts(&mut batch, false);
-            self.draw_music_toast(&mut batch, false);
             return batch;
         }
         // Hud.extractRenderState: F1 (keyToggleGui) hides camera overlays, the
@@ -6000,25 +5941,41 @@ impl Game<'_> {
             let strength = self.hand_strength.scale(0.0, self.main_hand_attack_speed());
             // The 3D crosshair (F3) takes the 2D one's place.
             // Hud.extractCrosshair: a spectator only sees it over something to open.
-            if self.camera_type.first_person()
-                && (!spectator || self.spectator_crosshair())
-                && !self.debug_crosshair()
-            {
-                let attack = (indicator == 1).then_some(strength);
-                let full = attack.is_some_and(|a| {
-                    hud_layout::full_attack_indicator(a, delay, self.crosshair_living())
-                });
-                let draws = hud_layout::crosshair(wi, hi, attack, full);
-                self.gui_layer("minecraft:crosshair", &mut batch, |g, batch| {
-                    // The custom crosshair takes the sprite's place (the first draw); the
-                    // attack indicator stays.
-                    if g.custom_crosshair() {
-                        g.draw_custom_crosshair(batch, wi, hi);
-                        hud_layout::paint(batch, &g.gui.atlas, &draws[1..]);
-                    } else {
-                        hud_layout::paint(batch, &g.gui.atlas, &draws);
-                    }
-                });
+            if self.camera_type.first_person() && (!spectator || self.spectator_crosshair()) {
+                if self.debug_crosshair() {
+                    // `Gui.renderCrosshair` (1.21.5): the 3D crosshair is
+                    // screen-space, at the screen centre, rotated by the
+                    // main camera's pitch and yaw.
+                    let (yaw, pitch) = self.posed_rotation.unwrap_or((self.yaw, self.pitch));
+                    self.gui_layer("minecraft:crosshair", &mut batch, |g, batch| {
+                        let scale = batch.scale;
+                        for (corners, color) in hud_layout::debug_crosshair_3d(
+                            (wi / 2) as f32,
+                            (hi / 2) as f32,
+                            pitch,
+                            yaw,
+                            scale,
+                        ) {
+                            batch.fill_quad(&g.gui.atlas, corners, color);
+                        }
+                    });
+                } else {
+                    let attack = (indicator == 1).then_some(strength);
+                    let full = attack.is_some_and(|a| {
+                        hud_layout::full_attack_indicator(a, delay, self.crosshair_living())
+                    });
+                    let draws = hud_layout::crosshair(wi, hi, attack, full);
+                    self.gui_layer("minecraft:crosshair", &mut batch, |g, batch| {
+                        // The custom crosshair takes the sprite's place (the first draw); the
+                        // attack indicator stays.
+                        if g.custom_crosshair() {
+                            g.draw_custom_crosshair(batch, wi, hi);
+                            hud_layout::paint(batch, &g.gui.atlas, &draws[1..]);
+                        } else {
+                            hud_layout::paint(batch, &g.gui.atlas, &draws);
+                        }
+                    });
+                }
             }
             self.gui_layer("minecraft:hotbar", &mut batch, |g, batch| {
                 if spectator {
@@ -6066,17 +6023,11 @@ impl Game<'_> {
             self.draw_extras(&mut batch);
         }
         if show_hud {
-            // Hud.nextContextualInfoState: the jump bar, the experience bar or
-            // the locator bar above the hotbar.
+            // `Hud.extractHotbarAndDecorations`: 1.21.5 has no contextual bar
+            // system — the jump bar when riding a jumpable vehicle, else the
+            // experience bar. (The locator bar itself is item 108's removal.)
             let has_experience = !self.creative && !spectator;
-            let contextual = horizon_client::locator_bar::ContextualBar::next(
-                self.waypoints.has_waypoints(),
-                !spectator && self.jumpable_mount(),
-                self.mount_jumping(),
-                has_experience,
-                self.experience_recent(),
-            );
-            use horizon_client::locator_bar::ContextualBar;
+            let jumpable = !spectator && self.jumpable_mount();
             // The mount's hearts.
             let vehicle_hearts = if spectator {
                 0
@@ -6150,25 +6101,12 @@ impl Game<'_> {
                     self.audio.capture = capture;
                 }
             }
-            // After the health rows (Hud.extractHotbarAndDecorations): jump, locator or XP bar.
-            self.gui_layer("minecraft:contextual_info_bar", &mut batch, |g, batch| {
-                if contextual == ContextualBar::JumpableVehicle {
+            // After the health rows (`Hud.extractHotbarAndDecorations`): the
+            // jump meter, or the experience bar with its level.
+            self.gui_layer("minecraft:experience_bar", &mut batch, |g, batch| {
+                if jumpable {
                     g.draw_jump_bar(batch, wi, hi);
-                }
-                if contextual == ContextualBar::Locator {
-                    let (sprite, [x, y, w, h]) = horizon_client::locator_bar::background(wi, hi);
-                    horizon_client::ui::nine_slice(
-                        batch,
-                        &g.gui.atlas,
-                        sprite,
-                        x as f32,
-                        y as f32,
-                        w as f32,
-                        h as f32,
-                        u32::MAX,
-                    );
-                }
-                if has_experience && g.player.is_some() {
+                } else if has_experience && g.player.is_some() {
                     let atlas = &g.gui.atlas;
                     let width = |s: &str| HudBatch::text_width(atlas, s) as i32;
                     let draws = hud_layout::experience_colored(
@@ -6177,14 +6115,10 @@ impl Game<'_> {
                         hi,
                         g.experience.progress,
                         g.experience.level,
-                        contextual == ContextualBar::Experience,
+                        true,
                         &width,
                     );
                     hud_layout::paint(batch, atlas, &draws);
-                }
-                if contextual == ContextualBar::Locator {
-                    let draws = g.locator_bar_draws(wi, hi);
-                    hud_layout::paint(batch, &g.gui.atlas, &draws);
                 }
             });
             if !spectator {
@@ -6275,7 +6209,6 @@ impl Game<'_> {
             Screen::Social => self.draw_social_screen(&mut batch),
             Screen::ServerLinks => self.draw_server_links(&mut batch),
             Screen::ConfirmLink => self.draw_confirm_link(&mut batch),
-            Screen::DialogWarning => self.draw_dialog_warning(&mut batch),
             Screen::CommandBlock => self.draw_command_block(&mut batch),
             Screen::BlockEditor => self.draw_block_editor(&mut batch),
             Screen::DebugOptions => self.draw_debug_options(&mut batch),
@@ -6306,7 +6239,6 @@ impl Game<'_> {
         self.draw_toasts(&mut batch, !show_hud);
         self.draw_tutorial_toasts(&mut batch, !show_hud);
         self.draw_pack_toasts(&mut batch, !show_hud);
-        self.draw_music_toast(&mut batch, !show_hud);
         if self.server_packs.prompt.is_none() {
             self.remote_hud(&mut batch);
             self.draw_sign_editor(&mut batch);
@@ -6491,6 +6423,10 @@ impl Game<'_> {
         self.draw_inventory_slots(batch, ox, oy);
         self.draw_hovered_slot_highlight(batch, true, ox, oy);
         self.draw_sort_buttons(batch, ox, oy);
+        // 1.21.5 `AbstractRecipeBookScreen.render`: `super.render` draws the
+        // carried item, then the book — so the book covers a carried stack
+        // under the mouse, not the other way round.
+        self.draw_carried(batch);
         self.draw_recipe_book(batch);
         let effect_tip = if self.container.is_none() && self.craft_size == 2 && !self.mount_active()
         {
@@ -6498,7 +6434,6 @@ impl Game<'_> {
         } else {
             None
         };
-        self.draw_carried(batch);
         self.draw_slot_tooltip(batch);
         self.draw_native_screen_tooltip(batch);
         if let Some(lines) = effect_tip {
@@ -7732,7 +7667,7 @@ impl Game<'_> {
         self.ambience.clear(&mut self.audio);
         // updateLevelInEngines(null): every sound stops; the music manager
         // lets go of its track.
-        self.music.stop_playing(None, &mut self.audio);
+        self.music.stop_playing(&mut self.audio);
         self.audio.stop_all();
         if self.remote.is_some() {
             self.world_icon = None;
@@ -7764,8 +7699,7 @@ impl Game<'_> {
         if let Some(r) = self.renderer.as_mut() {
             r.clear_sections(self.world.layout());
         }
-        // Clear sync data (registries, dialog tags) so dialogs don't leak
-        // between worlds.
+        // Clear sync data (registries) so nothing leaks between worlds.
         lan::forget_sync_data();
         self.title = Some(
             Title::new(
@@ -9023,7 +8957,7 @@ impl Game<'_> {
                     ),
                 );
                 map.insert("Air".into(), horizon_world::nbt::Tag::Short(p.air as i16));
-                // LivingEntity.addAdditionalSaveData: AttributeMap.pack.
+                // LivingEntity.addAdditionalSaveData: AttributeMap.save.
                 map.insert("attributes".into(), p.saved_attributes());
             }
             level.fall_distance = p.fall_distance;
@@ -9511,20 +9445,8 @@ impl Game<'_> {
         };
         pr.lap("pr_primitives");
         let at = camera.to_array();
-        // GameRenderer.render3dHud: the debug crosshair, first person with the HUD shown.
-        let mut crosshair = horizon_client::gizmos::Gizmos::default();
-        if debug_crosshair_drawn(
-            self.debug_crosshair(),
-            self.camera_type.first_person(),
-            self.ui.hide_gui,
-            self.shows_panorama(),
-        ) {
-            let scale = HudBatch::new(size).scale;
-            crosshair.debug_crosshair(at, view_pitch, view_yaw, scale);
-        }
         let debug_lines = horizon_client::gizmos::camera_relative(&lines, at, view);
         let debug_lines_on_top = horizon_client::gizmos::camera_relative(&on_top, at, view);
-        let debug_crosshair = horizon_client::gizmos::camera_relative(&crosshair.on_top, at, view);
         // LevelExtractor.extractBlockOutline: model translucency controls draw order;
         // no outline when an entity is targeted (Minecraft.hitResult an EntityHitResult).
         let mut outline_after_terrain = false;
@@ -9638,8 +9560,7 @@ impl Game<'_> {
         };
         let terrain_distance = self.terrain_distance();
         let distance = (terrain_distance * 16) as f32;
-        let depth_far =
-            horizon_client::camera::depth_far(terrain_distance, self.settings.cloud_range);
+        let depth_far = horizon_client::camera::depth_far(terrain_distance);
         // Only native mods read it: no matrices or allocation per frame without one.
         let mods_read_camera = !horizon_client::mod_api::mods().is_empty();
         self.screen_blur_requested.set(false);
@@ -9674,8 +9595,6 @@ impl Game<'_> {
         self.native_gui_render_post(&mut hud, self.ui.hide_gui, self.focused);
         self.resolve_inline_profiles(&hud.inline_profiles);
         pr.lap("pr_hud");
-        self.locator_camera =
-            (!title).then_some((camera.to_array(), view_yaw, view_pitch, fov_degrees));
         let mut requested_post_effects = self.requested_post_effects();
         // The packs' Polytone post chains, after vanilla's (#11486).
         let game_ticks = self.world.game_time as f64 + alpha;
@@ -9903,13 +9822,16 @@ impl Game<'_> {
             pvp: self.settings.extras.pvp.frame(),
             debug_lines: &debug_lines,
             debug_lines_on_top: &debug_lines_on_top,
-            debug_crosshair: &debug_crosshair,
             hud: &hud,
             glint_alpha: self.glint_frame.alpha,
             glint_ticks: self.glint_frame.scroll_ticks(),
             clouds: (!title
                 && self.dim == Dim::Overworld
-                && horizon_client::clouds::visible(&self.settings.clouds, sky.cloud_color[3]))
+                && horizon_client::clouds::visible(
+                    &self.settings.clouds,
+                    sky.cloud_color[3],
+                    self.settings.render_distance,
+                ))
             .then(|| self.gui.atlas.sprites.get("horizon/white"))
             .flatten()
             .map(|white| horizon_client::clouds::Input {
@@ -9918,7 +9840,6 @@ impl Game<'_> {
                 camera,
                 time: self.world.game_time,
                 partial_tick: alpha,
-                range: self.settings.cloud_range,
                 fast: self.settings.clouds == "fast",
                 color: sky.cloud_color,
             }),
@@ -10538,9 +10459,6 @@ impl Game<'_> {
                         if self.screen_mouse_dragged(previous) {
                             return Ok(());
                         }
-                        if self.dialog_open() {
-                            self.dialog_drag();
-                        }
                         if self.screen == Screen::BlockEditor {
                             self.block_editor_drag();
                         }
@@ -10640,11 +10558,9 @@ impl Game<'_> {
                     // tells: the top one hears the wheel, as the click arms below pick it, and
                     // nothing behind it does.
                     if self.prompt_open() {
-                        if self.command_prompt.is_some() || self.link_prompt.is_some() {
+                        if self.link_prompt.is_some() {
                         } else if self.code_of_conduct.is_some() {
                             self.code_of_conduct_scroll(d);
-                        } else if self.server_packs.prompt.is_none() {
-                            self.dialog_scroll(d);
                         }
                         return Ok(());
                     }
@@ -10734,11 +10650,6 @@ impl Game<'_> {
                         self.advancements_scroll(scaled(raw_x) as f32, d);
                     }
                 }
-                WindowEvent::MouseInput { state, button, .. } if self.command_prompt.is_some() => {
-                    if state == ElementState::Pressed && button == MouseButton::Left {
-                        self.command_prompt_click();
-                    }
-                }
                 WindowEvent::MouseInput { state, button, .. } if self.link_prompt.is_some() => {
                     if state == ElementState::Pressed && button == MouseButton::Left {
                         self.link_prompt_click();
@@ -10756,16 +10667,7 @@ impl Game<'_> {
                         self.pack_prompt_click()?;
                     }
                 }
-                WindowEvent::MouseInput { state, button, .. } if self.dialog_open() => {
-                    if button == MouseButton::Left {
-                        if state == ElementState::Pressed {
-                            self.dialog_click()?;
-                        } else {
-                            self.dialog_release();
-                        }
-                    }
-                }
-                // ConnectScreen's Cancel, under the prompts and dialogs above.
+                // ConnectScreen's Cancel, under the prompts above.
                 WindowEvent::MouseInput { state, button, .. } if self.remote_loading() => {
                     if state == ElementState::Pressed && button == MouseButton::Left {
                         self.connect_screen_click()?;
@@ -11064,9 +10966,6 @@ impl Game<'_> {
                         Screen::ConfirmLink if pressed && button == MouseButton::Left => {
                             self.confirm_link_click()
                         }
-                        Screen::DialogWarning if pressed && button == MouseButton::Left => {
-                            self.dialog_warning_click()?
-                        }
                         Screen::WorldOptions if button == MouseButton::Left => {
                             self.world_options_release()
                         }
@@ -11121,14 +11020,6 @@ impl Game<'_> {
                         self.death_confirm_answer(false)?;
                     }
                 }
-                // ConfirmScreen.keyPressed: Escape answers no.
-                WindowEvent::KeyboardInput { event, .. } if self.command_prompt.is_some() => {
-                    if event.state == ElementState::Pressed
-                        && let PhysicalKey::Code(key) = event.physical_key
-                    {
-                        self.command_prompt_key(key);
-                    }
-                }
                 WindowEvent::KeyboardInput { event, .. } if self.link_prompt.is_some() => {
                     if event.state == ElementState::Pressed
                         && event.physical_key == PhysicalKey::Code(KeyCode::Escape)
@@ -11143,14 +11034,6 @@ impl Game<'_> {
                         && event.physical_key == PhysicalKey::Code(KeyCode::Escape)
                     {
                         self.answer_pack_prompt(false)?;
-                    }
-                }
-                WindowEvent::KeyboardInput { event, .. } if self.dialog_open() => {
-                    let shortcut = self.edit_shortcut(&event);
-                    if event.state == ElementState::Pressed
-                        && let PhysicalKey::Code(key) = event.physical_key
-                    {
-                        self.dialog_key(key, shortcut, event.text.as_deref())?
                     }
                 }
                 WindowEvent::KeyboardInput { event, .. }
@@ -11415,7 +11298,6 @@ impl Game<'_> {
                     self.previous = now;
                     if self.studio_freecam.active
                         && self.screen == Screen::Playing
-                        && !self.dialog_open()
                     {
                         let held = |key| f64::from(u8::from(self.keys.raw(&key)));
                         let forward = held(KeyCode::KeyW) - held(KeyCode::KeyS);
@@ -11437,7 +11319,6 @@ impl Game<'_> {
                         && self.title.is_none()
                         && self.sign_edit.is_none()
                         && self.book.is_none()
-                        && !self.dialog_open()
                     {
                         let turn = |k| f32::from(u8::from(self.keys.raw(&k)));
                         let secs = elapsed.as_secs_f32().min(0.1);
@@ -11797,9 +11678,7 @@ impl<'a> Game<'a> {
             pack_reload: None,
             server_packs: Default::default(),
             link_prompt: None,
-            command_prompt: None,
             code_of_conduct: None,
-            dialogs: Default::default(),
             integrated_starting: None,
             world_renderer_ready: false,
             collision: res.collision(),
@@ -11936,19 +11815,8 @@ impl<'a> Game<'a> {
             player_autosaves: Default::default(),
             session_lock: None,
             audio,
-            music: {
-                // The manager starts with the saved option (MusicManager's constructor).
-                let mut music = horizon_client::music::MusicManager::default();
-                music.frequency = horizon_client::music::MusicFrequency::parse(
-                    &settings.file.name("musicFrequency"),
-                );
-                music
-            },
+            music: Default::default(),
             music_layers: Default::default(),
-            // ToastManager.initializeMusicToast: Pause and Pause and Toast make the toast.
-            now_playing: (settings.file.int("musicToast").clamp(0, 2) != 0).then(Default::default),
-            music_toast_state: settings.file.int("musicToast").clamp(0, 2) as u8,
-            music_notes: Default::default(),
             ambience: Default::default(),
             sound_paused: false,
             cart_sounds: HashSet::new(),
@@ -11967,6 +11835,7 @@ impl<'a> Game<'a> {
             sign_edit: None,
             book: None,
             book_last_click: None,
+            book_last_click_index: None,
             lectern_pulses: Vec::new(),
             loading_progress: 0.0,
             creation_job: None,
@@ -12083,16 +11952,12 @@ impl<'a> Game<'a> {
             cushions: Vec::new(),
             others: Vec::new(),
             armor_stand_assets: prepared.armor_stand_assets,
-            waypoint_styles: prepared.waypoint_styles,
-            waypoints: Default::default(),
-            locator_camera: None,
             native_camera_frame: None,
             native_tasks: native_tasks::NativeTasks::new(),
             posed_rotation: None,
             post_effects: Vec::new(),
             polytone_post_ticks: 0.0,
             spectated_post_effect: None,
-            experience_display: Default::default(),
             boats: Default::default(),
             leash_boats: Vec::new(),
             boat_models: prepared.boat_models,
@@ -13005,7 +12870,7 @@ use subtitles::{Subtitles, in_game_ui, subtitles};
 
 mod hud_render;
 
-use hud_render::{block_outline_drawn, debug_crosshair_drawn, is_game_master_block};
+use hud_render::{block_outline_drawn, is_game_master_block};
 mod subtitles;
 
 #[cfg(test)]

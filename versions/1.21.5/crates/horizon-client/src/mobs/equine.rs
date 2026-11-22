@@ -59,7 +59,7 @@ pub struct Rider {
     pub steer: bool,
     /// Sprinting (camels run faster).
     pub sprint: bool,
-    /// Holding the jump key (a happy ghast rises).
+    /// Holding the jump key.
     pub jumping: bool,
     /// A server's player whose own client moves the mount
     /// (`Entity.isClientAuthoritative`): here it only turns (`tickRidden`).
@@ -141,14 +141,22 @@ pub fn rear_offset(m: &Mob) -> [f64; 3] {
 pub fn immobile(m: &Mob) -> bool {
     can_rear(m.species()) && (m.extra.flag || m.extra.counter > 0) && !controlled(m)
 }
-/// `AbstractHorse.onElasticLeashPull`: a lead pulled taut ends the horse's
-/// grazing, and `Camel.onElasticLeashPull` stands a sitting camel up.
-pub fn on_elastic_leash_pull(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
-    if grazes(m.species()) {
-        m.extra.flag = false;
-    }
-    if super::camel::is_camel(m.species()) {
-        super::camel::on_elastic_leash_pull(m, w, events);
+/// `AbstractHorse.handleLeashAtDistance` / `Camel.handleLeashAtDistance`:
+/// past six blocks a taut lead ends the horse's grazing and stands a
+/// sitting camel up.
+pub fn handle_leash_at_distance(
+    m: &mut Mob,
+    distance: f32,
+    w: &MobWorld,
+    events: &mut Vec<MobEvent>,
+) {
+    if distance > 6.0 {
+        if grazes(m.species()) {
+            m.extra.flag = false;
+        }
+        if super::camel::is_camel(m.species()) {
+            super::camel::handle_leash_at_distance(m, distance, w, events);
+        }
     }
 }
 /// `AbstractHorse.getJumpSound` (`playJumpSound` plays it at 0.4): the donkey
@@ -304,7 +312,6 @@ pub fn controlled(m: &Mob) -> bool {
     match m.species() {
         // Pig/Strider.getControllingPassenger: saddled, the rider holding the stick.
         Species::Pig | Species::Strider => m.extra.saddled && r.steer,
-        Species::HappyGhast => super::happy_ghast::controlled(m),
         Species::Nautilus | Species::ZombieNautilus => super::nautilus::controlled(m),
         // AbstractHorse.getControllingPassenger: saddled with a player on it. A
         // tamed skeleton horse (SkeletonTrapGoal only tames it) needs the saddle too.
@@ -421,11 +428,12 @@ impl Goal for RunAroundLikeCrazy {
         make_mad(m, cx.events);
     }
 }
-/// `AbstractHorse.standIfPossible`: `setStanding(20)` (which also stops the
-/// eating) when `canPerformRearing`.
+/// `AbstractHorse.standIfPossible`: the counter starts at 1 and `stand_tick`
+/// runs it up past 20 (which also stops the eating) when `canPerformRearing`.
+/// 1.21.6's `setStanding(20)` counts it down instead.
 pub fn stand_if_possible(m: &mut Mob) {
     if can_rear(m.species()) {
-        m.extra.counter = 20;
+        m.extra.counter = 1;
         m.extra.flag = false;
     }
 }
@@ -693,9 +701,6 @@ pub fn ridden_step(m: &mut Mob) {
     if super::nautilus::is_nautilus(m.species()) {
         return super::nautilus::ridden(m);
     }
-    if m.species() == Species::HappyGhast {
-        return super::happy_ghast::ridden(m);
-    }
     // AbstractHorse.tickRidden: setRot(getRiddenRotation), then the body and
     // head turn with it. A camel that refuses to move keeps its rotation
     // (Camel.getRiddenRotation).
@@ -890,11 +895,17 @@ pub fn follow_mommy(m: &mut Mob, w: &MobWorld) {
     let path = m.create_path_to_entity(w, [mommy.x, mommy.y, mommy.z], 0);
     m.nav_move_to_path(w, path, speed);
 }
-/// `AbstractHorse.tick`: the stand counter runs down to `clearStanding`. It is
-/// in `tick`, not `aiStep`, so a horse with no AI stops rearing too.
+/// `AbstractHorse.tick`: the stand counter runs up past 20, then the rear
+/// ends (`setStanding(false)`) — on the instance that runs the horse
+/// (`isEffectiveAi`: the server for an ordinary mob, the client for the mount
+/// it drives). A client's synched rear (`CLIENT_STANDING`) never advances:
+/// the flag ends it. 1.21.6 counts it down with no AI gate.
 pub fn stand_tick(m: &mut Mob) {
-    if m.extra.counter > 0 {
-        m.extra.counter -= 1;
+    if m.extra.counter > 0 && m.extra.counter != CLIENT_STANDING {
+        m.extra.counter += 1;
+        if m.extra.counter > 20 {
+            m.extra.counter = 0;
+        }
     }
 }
 /// `AbstractHorse.tick`'s eat, stand and mouth animations, which follow the
@@ -926,10 +937,10 @@ pub fn client_tick(m: &mut Mob) {
     animate(m);
 }
 /// How long a client counts a rear the server's flags say is on. A client
-/// never runs `standCounter` (`standIfPossible` only sets it on the server);
-/// `isStanding` is just the synched flag. The mount a client drives does run
-/// `stand_tick`, so a counter of 1 would end the rear a tick after the flag
-/// arrived, long before the jump lands. The next flags without the bit end it.
+/// never advances `standCounter` for a synched rear (`isEffectiveAi` is false
+/// for it — only the mount it drives runs the counter); `isStanding` is just
+/// the synched flag, and `stand_tick` leaves this sentinel alone. The next
+/// flags without the bit end it.
 const CLIENT_STANDING: i32 = 1 << 20;
 /// `AbstractHorse.DATA_ID_FLAGS` on a client: eating 16 and standing 32.
 pub fn set_flags(m: &mut Mob, flags: u8) {
@@ -1276,7 +1287,7 @@ mod tests {
             .filter(|&id| {
                 let mut m = equine(id, species, name);
                 assert!(m.damage(1.0, Damage::player([0.0, 64.0, 0.0])));
-                m.extra.counter == 20
+                m.extra.counter == 1
             })
             .count() as u32
     }
@@ -1291,7 +1302,8 @@ mod tests {
     #[test]
     fn a_synched_rear_lasts_until_the_flag_goes() {
         // The mount a client drives ticks `stand_tick` itself; the synched
-        // standing flag, not that counter, decides when the rear is over.
+        // standing flag, not that counter, decides when the rear is over
+        // (`CLIENT_STANDING` never advances).
         let mut m = equine(1, Species::Donkey, "minecraft:donkey");
         set_flags(&mut m, 32);
         for _ in 0..25 {
@@ -1309,7 +1321,7 @@ mod tests {
 
     #[test]
     fn the_rear_ends_after_twenty_ticks() {
-        // AbstractHorse.tick: standCounter runs down, then clearStanding.
+        // AbstractHorse.tick: standCounter runs up from 1, past 20 the rear ends.
         let mut m = equine(1, Species::Horse, "minecraft:horse");
         stand_if_possible(&mut m);
         for _ in 0..19 {

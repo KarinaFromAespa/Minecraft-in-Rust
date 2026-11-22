@@ -31,8 +31,7 @@ pub(super) fn register(out: &mut Vec<(Key, FixFn)>) {
         cx.entity("TippedArrow", |e| set(e, "id", string("Arrow")))
     }));
     out.push((key(147, 0), armor_stand_silent));
-    out.push((key(165, 0), sign_text_strict_json));
-    out.push((key(165, 0), written_book_pages_strict_json));
+    out.push((key(165, 0), text_component_strict_json));
     out.push((key(502, 0), |cx| {
         cx.rename(Ty::ItemName, |name| {
             (namespaced(name) == "minecraft:cooked_fished").then_some("minecraft:cooked_fish")
@@ -495,35 +494,17 @@ fn rewrite_from_lenient(text: &[u16]) -> Vec<u16> {
     json::text_component_json(text)
 }
 
-/// `SignTextStrictJsonFix`: the lines of a sign are strict JSON.
-fn sign_text_strict_json(cx: &mut Cx) {
-    cx.block_entity("Sign", |be| {
-        for line in ["Text1", "Text2", "Text3", "Text4"] {
-            if let Some(Tag::String(text)) = be.get(line) {
-                let fixed = rewrite_from_lenient(&text.0);
-                set(be, line, Tag::String(JavaString(fixed)));
-            }
+/// `TextComponentStrictJsonFix`: every text component is strict JSON. 1.21.5
+/// rewrites the type everywhere (signs, book pages, display names and lore,
+/// boss event names, objective display names, command output); 1.21.6 split
+/// this into `SignTextStrictJsonFix` + `WrittenBookPagesStrictJsonFix`.
+fn text_component_strict_json(cx: &mut Cx) {
+    cx.each(Ty::TextComponent, |v| {
+        if let Tag::String(text) = v {
+            let fixed = rewrite_from_lenient(&text.0);
+            *text = JavaString(fixed);
         }
     });
-}
-
-/// `WrittenBookPagesStrictJsonFix`: the pages of a written book are strict JSON.
-fn written_book_pages_strict_json(cx: &mut Cx) {
-    cx.item(
-        |id| id == "minecraft:written_book",
-        |s| {
-            let Some(Tag::List(pages)) = s.get_mut("tag").and_then(|t| t.get_mut("pages")) else {
-                return;
-            };
-            if pages.iter().all(|p| matches!(p, Tag::String(_))) {
-                for page in pages {
-                    if let Tag::String(text) = page {
-                        *text = JavaString(rewrite_from_lenient(&text.0));
-                    }
-                }
-            }
-        },
-    );
 }
 
 // ------------------------------------------------------------------ 502

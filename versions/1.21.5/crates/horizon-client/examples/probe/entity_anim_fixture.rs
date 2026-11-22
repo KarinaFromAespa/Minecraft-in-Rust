@@ -274,12 +274,6 @@ fn entity_state(mob: &mut Mob, species: Species, case: &Value) {
                 mob.anim.states[i].started = case[k].as_f64().map(|v| v as f32);
             }
         }
-        Species::HappyGhast => {
-            mob.extra.body = case["bodyItem"].as_str().map(Into::into);
-            if flag("isRidden") {
-                mob.rider = Some(Default::default());
-            }
-        }
         Species::Warden => {
             use horizon_client::mobs::warden;
             mob.anim.v[warden::TENDRIL] = num("tendrilAnimation") * 10.0;
@@ -335,12 +329,12 @@ pub fn main() -> horizon_client::Result<()> {
         // Variant layers (sizes, hatless villagers, climate cows...) animate
         // like their base model.
         let mut base = adult.clone();
-        // Armour layers (horse, wolf, nautilus), the coral zombie nautilus,
-        // the happy ghast's harness and ropes and hatless babies animate like
+        // Armour layers (horse, wolf, nautilus), the coral zombie nautilus
+        // and hatless babies animate like
         // their base model too; the undead horses share one armour layer.
         let cuts = [
-            "_no_hat", "_small", "_medium", "_large", "_big", "_armor", "_coral", "_harness",
-            "_ropes", "_baby",
+            "_no_hat", "_small", "_medium", "_large", "_big", "_armor", "_coral",
+            "_baby",
         ];
         let norm = |s: &str| {
             let mut s = s.to_owned();

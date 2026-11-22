@@ -144,6 +144,10 @@ pub fn effects(w: i32, demo: bool, effects: &[EffectIcon]) -> Vec<GuiDraw> {
     let mut sorted: Vec<&EffectIcon> = effects.iter().collect();
     // Ordering.natural().reverse().sortedCopy.
     java_sort(&mut sorted, |a, b| compare_effects(b, a));
+    // `Hud.extractEffects`: 1.21.5 draws every background first and runs the
+    // deferred icon blits after them all (1.21.6 drew each icon right after
+    // its own background).
+    let mut icons = Vec::new();
     let (mut beneficial, mut harmful) = (0, 0);
     for e in sorted.into_iter().filter(|e| e.show_icon) {
         let mut x = w;
@@ -181,7 +185,7 @@ pub fn effects(w: i32, demo: bool, effects: &[EffectIcon]) -> Vec<GuiDraw> {
             color: crate::hud_layout::WHITE,
             blend: crate::hud_layout::Blend::Textured,
         });
-        out.push(GuiDraw::Sprite {
+        icons.push(GuiDraw::Sprite {
             sprite: Cow::Owned(horizon_client_core::potions::sprite(&e.id)),
             x: x + 3,
             y: y + 3,
@@ -192,6 +196,7 @@ pub fn effects(w: i32, demo: bool, effects: &[EffectIcon]) -> Vec<GuiDraw> {
             blend: crate::hud_layout::Blend::Textured,
         });
     }
+    out.extend(icons);
     out
 }
 
@@ -225,7 +230,8 @@ impl SavingIndicator {
         }
         let fade = (self.last + (self.value - self.last) * partial).clamp(0.0, 1.0);
         let alpha = (255.0 * fade).floor() as u32;
-        if alpha > 0 {
+        // 1.21.5 draws only above alpha 8 (1.21.6: above 0).
+        if alpha > 8 {
             let label_width = width(font, &label);
             let color = crate::hud_layout::argb(alpha, 255, 255, 255);
             text_with_backdrop(
@@ -345,7 +351,8 @@ impl Titles {
         }
         let t = self.overlay_time as f32 - partial;
         let alpha = ((t * 255.0 / 20.0) as i32).min(255);
-        if alpha > 0 {
+        // 1.21.5 draws only above alpha 8 (1.21.6: above 0).
+        if alpha > 8 {
             let message = message.resolve_legacy();
             // `Hud.extractOverlayMessage` translates to `guiHeight - 68`, a
             // constant the bars above the hotbar never move.
@@ -390,7 +397,8 @@ impl Titles {
             alpha = (t * 255.0 / self.fade_out as f32) as i32;
         }
         let alpha = alpha.clamp(0, 255);
-        if alpha > 0 {
+        // 1.21.5 draws only above alpha 8 (1.21.6: above 0).
+        if alpha > 8 {
             let title = title.resolve_legacy();
             out.push(GuiDraw::Push(vec![PoseOp::Translate(
                 (w / 2) as f32,
@@ -628,7 +636,10 @@ pub fn jump_bar(w: i32, h: i32, cooldown: i32, scale: f32) -> Vec<GuiDraw> {
     if cooldown > 0 {
         out.push(sprite("hud/jump_bar_cooldown", 182, None));
     } else {
-        let progress = crate::hud_layout::lerp_discrete(scale, 0, 182);
+        // `Hud.extractJumpMeter`: `(int)(scale * 183.0F)`, the same 183-wide
+        // fill as the experience bar (1.21.6's `JumpableVehicleBar` used
+        // `Mth.lerpDiscrete`, which tops out at 182).
+        let progress = (scale * 183.0) as i32;
         if progress > 0 {
             out.push(sprite(
                 "hud/jump_bar_progress",
@@ -772,18 +783,15 @@ pub fn damage_bar(damage: i32, max_damage: i32) -> Option<(i32, u32)> {
 }
 
 /// `GuiGraphicsExtractor.itemDecorations` for a non-empty stack at (x, y):
-/// the durability bar, the cooldown shade and the count.
+/// the durability bar, the count and the cooldown shade (1.21.5's
+/// `renderItemDecorations` draws the cooldown veil over the count;
+/// 1.21.6 draws it under).
 pub fn item_decorations(x: i32, y: i32, d: &ItemDecorations, font: &Font) -> Vec<GuiDraw> {
     let mut out = vec![GuiDraw::Push(Vec::new())];
     if let Some((width, color)) = d.bar {
         let (left, top) = (x + 2, y + 13);
         out.push(fill(left, top, left + 13, top + 2, 0xFF00_0000));
         out.push(fill(left, top, left + width, top + 1, color | 0xFF00_0000));
-    }
-    if d.cooldown > 0.0 {
-        let top = y + crate::hud_layout::floor(16.0 * (1.0 - d.cooldown));
-        let bottom = top + crate::hud_layout::ceil(16.0 * d.cooldown);
-        out.push(fill(x, top, x + 16, bottom, 0x7FFF_FFFF));
     }
     if d.count != 1 || d.count_text.is_some() {
         let amount = d.count_text.clone().unwrap_or_else(|| d.count.to_string());
@@ -796,6 +804,11 @@ pub fn item_decorations(x: i32, y: i32, d: &ItemDecorations, font: &Font) -> Vec
             crate::hud_layout::WHITE,
             true,
         );
+    }
+    if d.cooldown > 0.0 {
+        let top = y + crate::hud_layout::floor(16.0 * (1.0 - d.cooldown));
+        let bottom = top + crate::hud_layout::ceil(16.0 * d.cooldown);
+        out.push(fill(x, top, x + 16, bottom, 0x7FFF_FFFF));
     }
     out.push(GuiDraw::Pop);
     out

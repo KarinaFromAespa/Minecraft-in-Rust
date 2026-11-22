@@ -58,10 +58,9 @@ PlayerItemInHandLayer.submitArmWithItem	port	crates/horizon-client/src/game/mob_
 PlayerItemInHandLayer.renderItemHeldToEye	port	crates/horizon-client/src/mobs/render.rs::held_to_eye_matrix	a spyglass in use, with no swing in progress, held at the eye
 RenderLayer.coloredCutoutModelCopyLayerRender	port	crates/horizon-client/src/mobs/render.rs::render_visible	coloured cutout layers drawn in render_visible
 RenderLayer.renderColoredCutoutModel	port	crates/horizon-client/src/mobs/render.rs::render_visible	coloured cutout layers drawn in render_visible
-RopesLayer.submit	inline	crates/horizon-client/src/mobs/render.rs::layers	the ropes layer over a harnessed happy ghast that holds a leash
 SheepWoolLayer.submit	port	crates/horizon-client/src/mobs/render.rs::layers	gap: minor: the outline-only pass for an invisible glowing sheep is not drawn
 SheepWoolUndercoatLayer.submit	port	crates/horizon-client/src/mobs/render.rs::layers	gap: player: a sheep named jeb_ gets no undercoat while its wool is white (vanilla always draws it for jeb_)
-SimpleEquipmentLayer.submit	port	crates/horizon-client/src/mobs/render.rs::layers	pig, strider and nautilus saddles and the happy ghast harness
+SimpleEquipmentLayer.submit	port	crates/horizon-client/src/mobs/render.rs::layers	pig, strider and nautilus saddles
 SkeletonClothingLayer.submit	port	crates/horizon-client/src/mobs/render.rs::layers	stray and bogged overlay
 SlimeOuterLayer.submit	port	crates/horizon-client/src/mobs/render.rs::layers	translucent outer slime cube
 SnowGolemHeadLayer.submit	port	crates/horizon-client/src/game/mob_blocks.rs::Game::worn_block_geometry	carved pumpkin on the snow golem

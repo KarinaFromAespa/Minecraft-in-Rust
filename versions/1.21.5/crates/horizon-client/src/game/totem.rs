@@ -150,11 +150,13 @@ impl Game<'_> {
             .play_unshared("minecraft:item.totem.use", Some(body.bounds.feet), 1.0, 1.0);
         if target == TrackingTarget::LocalPlayer {
             self.pad_rumble(horizon_client::gamepad::Rumble::Totem);
-            // findTotem, then LocalPlayer.displayItemActivation. The offsets
-            // come from the player's own random in vanilla, not the level's:
-            // the client-only particle random stands in for it. The server
-            // half hands over the stack it used up; only an event from a
-            // remote server, whose item is still in the hand, looks one up.
+            // findTotem, then GameRenderer.displayItemActivation, from
+            // ClientPacketListener's totem event. The offsets come from
+            // GameRenderer's own random in vanilla, not the player's or
+            // the level's: the client-only particle random stands in for
+            // it. The server half hands over the stack it used up; only
+            // an event from a remote server, whose item is still in the
+            // hand, looks one up.
             let totem = body.protector.unwrap_or_else(|| self.find_totem());
             self.item_activation
                 .activate(totem, self.particles.random());

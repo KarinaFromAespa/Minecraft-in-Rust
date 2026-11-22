@@ -19,8 +19,13 @@ use winit::{
 
 pub(super) type Pos = (i32, i32, i32);
 
-/// `Screen.extractRenderState`'s grey for the labels: `-6250336`.
+/// `Screen.extractRenderState`'s grey for the labels: 1.21.5 spells it
+/// 10526880 (alpha 0); the opaque form, which the renderer keeps.
 pub(super) const LABEL: u32 = 0xFFA0_A0A0;
+
+/// `TestInstanceBlockEditScreen.COLOR_SILVER`: 1.21.5 spells it 12632256
+/// (alpha 0); the opaque form.
+pub(super) const SILVER: u32 = 0xFFC0_C0C0;
 
 /// The job of an edit screen's footer button `id`, given the ids of its Done and Cancel.
 pub(super) fn footer_action(
@@ -44,6 +49,8 @@ pub(super) enum Item {
         y: f32,
         /// Right-aligned at `x` (the labels beside the right-hand buttons).
         right: bool,
+        /// The label colour (`LABEL`, or `SILVER` on the test-instance screen).
+        color: u32,
     },
     Title {
         text: Text,
@@ -311,13 +318,19 @@ impl Game<'_> {
                         true,
                     );
                 }
-                Item::Label { text, x, y, right } => {
+                Item::Label {
+                    text,
+                    x,
+                    y,
+                    right,
+                    color,
+                } => {
                     let x = if *right {
                         x - atlas.font.width_text(text)
                     } else {
                         *x
                     };
-                    batch.text_styled(atlas, text, x, *y, LABEL, true);
+                    batch.text_styled(atlas, text, x, *y, *color, true);
                 }
                 Item::Edit { index, x, y, w: ew } => {
                     if let Some(edit) = screen.editor.edits().get_mut(*index) {

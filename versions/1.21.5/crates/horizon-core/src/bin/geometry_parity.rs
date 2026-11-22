@@ -230,7 +230,6 @@ fn main() -> io::Result<()> {
                 vector(&mut out, "rotate-x", v.rotate_x(angle as f32))?;
                 vector(&mut out, "rotate-y", v.rotate_y(angle as f32))?;
                 vector(&mut out, "rotate-z", v.rotate_z(angle as f32))?;
-                vector(&mut out, "clockwise", v.rotate_clockwise_90())?;
                 vector(&mut out, "look", Vec3::direction_from_rotation(pitch, yaw))?;
                 values(&mut out, "rotation", v.rotation().map(|v| v as f64))?;
                 vector(

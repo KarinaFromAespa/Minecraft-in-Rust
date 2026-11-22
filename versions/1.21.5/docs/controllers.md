@@ -275,7 +275,7 @@ most for the narrator: the focused widget is the narration's focused one.
   their buttons (the recipe book button, trades, beacon effects).
 - Screens that keep the keys: chat (Tab completes commands), signs, books
   being written, the creative, recipe-book and mod searches, the anvil's
-  name, command blocks, dialogs, a key or button being bound on Controls,
+  name, command blocks, a key or button being bound on Controls,
   the credits, the on-screen keyboard.
 
 It looks as vanilla's keyboard focus does: the focused widget draws its
@@ -371,17 +371,15 @@ widget has that label, and otherwise by its rectangle.
 
 ### Prompts
 
-A prompt is a server dialog, the code of conduct, a link or command confirmation or a server pack
+A prompt is the code of conduct, a link or command confirmation or a server pack
 prompt (`Game::prompt_open`), over gameplay or over another screen. The pad drives it by focus, as a
 menu, and nothing it presses reaches the game or the screen behind:
 
 - Of the buttons only A, B, Start and the D-pad do anything.
 - The focus starts on what answers no (its enabled Cancel or Back), so a press meant for the game
-  can't accept anything. A dialog with text to fill in starts on its first input instead, and a prompt
-  with neither starts on its first widget in tab order, a dialog's warning icon last.
+  can't accept anything. A prompt with neither starts on its first widget in tab order.
 - B and Start answer as Escape, the top prompt first: a command or link confirmation or a pack prompt
-  says no, a dialog closes only if it allows that, and the code of conduct stays, since it has no
-  answer by Escape.
+  says no, and the code of conduct stays, since it has no answer by Escape.
 - The right stick and a step past a list's edge scroll only the prompt, as the mouse wheel does.
 - A prompt coming or going closes the on-screen keyboard and starts the focus again on the new frame.
   What a prompt covers stops counting (`widgets::cover_frame`): a buried button has no pad button.
@@ -400,7 +398,7 @@ sign, but not over the chat a sleeper gets (the game opens that one): there
 it waits for A on the chat box. It types into chat (local and server), signs, books being written, the title screens' fields,
 every options page's fields (searches, the packs', the language list's,
 splitscreen profiles), the creative and recipe-book searches, the mod browser's search, the anvil, the
-LAN screen's port and its game rules, a server dialog's inputs, command blocks, the game master blocks'
+LAN screen's port and its game rules, command blocks, the game master blocks'
 edit screens, Player Social's search and Debug Options' search. The one exception is a native mod's
 own screen (`Screen::Mod`), which takes its input through the screen hooks: the keyboard types nothing
 there.
@@ -409,8 +407,7 @@ Enter (Menu, or the keyboard's Done key) closes the keyboard, and on the way:
 
 - reaches the field as the key would in chat (it sends), on signs and books, on command blocks (their
   Done) and game master blocks, on the options pages and on the title's fields;
-- does nothing more on the searches, the anvil, the LAN screen and a dialog's one-line input;
-- on a dialog's input of many lines is a new line, and the keyboard stays.
+- does nothing more on the searches, the anvil and the LAN screen.
 
 
 On a Steam Deck under Steam (`SteamDeck=1`), A asks Steam for its own

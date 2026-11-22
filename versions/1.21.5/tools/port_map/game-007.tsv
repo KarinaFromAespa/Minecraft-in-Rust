@@ -93,9 +93,9 @@ AnimalMakeLove.canStillUse	inline	crates/horizon-client/src/mobs/animal_brain.rs
 AnimalMakeLove.stop	port	crates/horizon-client/src/mobs/animal_brain.rs::do_stop	
 AnimalMakeLove.hasBreedTargetOfRightType	inline	crates/horizon-client/src/mobs/animal_brain.rs::can_mate_with	same-species test on the remembered partner
 AnimalPanic.checkExtraStartConditions	inline	crates/horizon-client/src/mobs/animal_brain.rs::try_start	hurt by a panic cause, or already panicking
-AnimalPanic.start	port	crates/horizon-client/src/mobs/animal_brain.rs::try_start	panic memory set, walk target cleared, navigation stopped
-AnimalPanic.lookForWater	missing		minor: a burning brain animal (sniffer, ghastling) does not run for nearby water; goal-driven animals do (goals.rs Panic)
-BabyFollowAdult.create	port	crates/horizon-client/src/mobs/animal_brain.rs::trigger	B::FollowAdult for the ghastling; goat, camel, armadillo, axolotl and hoglin babies use the FollowParent goal
+AnimalPanic.start	port	crates/horizon-client/src/mobs/animal_brain.rs::try_start	panic memory set, walk target cleared
+AnimalPanic.lookForWater	missing		minor: a burning brain animal (sniffer) does not run for nearby water; goal-driven animals do (goals.rs Panic)
+BabyFollowAdult.create	port	crates/horizon-client/src/mobs/animal_brain.rs::trigger	B::FollowAdult in the axolotl package; goat, camel, armadillo and hoglin babies use the FollowParent goal
 BackUpIfTooClose.create	inline	crates/horizon-client/src/mobs/piglin.rs::too_close	goal stand-in for the piglin brain (no tick parity: the probe has no piglin brain); only a crossbow piglin, and the backward strafe is BackUpIfTooClose's Goal::tick
 BecomePassiveIfMemoryPresent.create	port	crates/horizon-client/src/mobs/piglin.rs::hoglin_repellent	a hoglin near a repellent is pacified for 200 ticks and drops its target
 Behavior.hasRequiredMemories	inline	crates/horizon-client/src/mobs/villager_brain.rs::try_start	each behaviour tests its memories at the top of its try_start arm

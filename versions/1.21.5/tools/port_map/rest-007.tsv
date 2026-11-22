@@ -82,7 +82,7 @@ DefaultedMappedRegistry.getValue	skip:data		registry bookkeeping; Horizon's tabl
 DefaultedMappedRegistry.byId	skip:data		registry bookkeeping; Horizon's tables fix the registry contents
 Direction.makeDirectionArray	skip:java		builds an array of the six directions
 Direction.rotate	port	crates/horizon-assets/src/bake/transform.rs::BlockModelTransform::direction	a facing turned by a block model's rotation, then snapped to the nearest direction
-Direction.getYRot	inline	crates/horizon-client/src/game/ghasts.rs::Game::spawn_ghastling	the facing-to-yaw table is inline there: north 180, east 270, west 90, others 0
+Direction.getYRot	missing		no Rust caller needs a facing-to-yaw table
 Direction.getFacingAxis	port	crates/horizon-world/src/level/place.rs::Ctx::nearest_looking_vertical	the Y axis only, which is the only axis vanilla asks for
 Direction.getClockWiseX	skip:other		reached only from getClockWise(Axis), which no 26.3 code calls
 Direction.getCounterClockWiseX	skip:other		reached only from getClockWise(Axis), which no 26.3 code calls

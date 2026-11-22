@@ -1,0 +1,8 @@
+1.21.5: NOT DELTA-VERIFIED
+  D1 fail     tag audit: dead production tag(s): minecraft:beneath_bamboo_podzol_replaceable, minecraft:blocks_dolphin_jump, minecraft:blocks_fluid_flow, minecraft:
+  D2 pass     cargo check --workspace --all-targets: 0 errors, 0 warnings; protocol tests: 428, none failing
+  D3 pass     rank-1: 9 closed, 0 accepted, 9 total; rank-2: 259 closed, 0 accepted, 259 total; totals read from summary.ranks; rank-3+: Inherits the 1.21.6 delta's
+  D4 blocked  profile.json is stamped for commit 9d770c5dbe1d, HEAD is 1be6893f08f1 — re-record the sweep for this tree
+  D5 blocked  profile.json is stamped for commit 9d770c5dbe1d, HEAD is 1be6893f08f1 — re-record the sweep for this tree
+  D6 blocked  no playtest.md: the play gate has not been recorded
+  verdict: /home/runner/work/Minecraft-in-Rust/Minecraft-in-Rust/pins/1.21.5/delta-verdict.json

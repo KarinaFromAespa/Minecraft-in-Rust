@@ -433,7 +433,6 @@ fn fixture_frame(hud: &HudBatch) -> Frame<'_> {
         pvp: Default::default(),
         debug_lines: &[],
         debug_lines_on_top: &[],
-        debug_crosshair: &[],
         hud,
         glint_alpha: 0.75,
         glint_ticks: 0.0,

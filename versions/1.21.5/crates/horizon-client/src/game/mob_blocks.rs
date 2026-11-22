@@ -602,22 +602,18 @@ impl Game<'_> {
                 * glam::Mat4::from_translation(glam::Vec3::new(0.0, y_offset, 0.0))
                 * glam::Mat4::from_scale(glam::Vec3::splat(1.1875));
             let special = horizon_assets::item_model::SpecialModel {
-                kind: if kind == "player" {
-                    horizon_assets::item_model::SpecialKind::PlayerHead
-                } else {
-                    horizon_assets::item_model::SpecialKind::Head {
-                        kind: kind.to_owned(),
-                        texture: None,
-                        animation: worn_head_animation(
-                            mob,
-                            // The local player's synthetic mob carries no `mount`.
-                            mob.extra
-                                .mount
-                                .or(if local_player { self.riding } else { None }),
-                            &self.mobs,
-                            alpha as f32,
-                        ),
-                    }
+                kind: horizon_assets::item_model::SpecialKind::Head {
+                    kind: kind.to_owned(),
+                    texture: None,
+                    animation: worn_head_animation(
+                        mob,
+                        // The local player's synthetic mob carries no `mount`.
+                        mob.extra
+                            .mount
+                            .or(if local_player { self.riding } else { None }),
+                        &self.mobs,
+                        alpha as f32,
+                    ),
                 },
             };
             let mut sink = horizon_client::item_render::WorldSink {

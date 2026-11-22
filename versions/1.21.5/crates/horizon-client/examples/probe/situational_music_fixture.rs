@@ -27,6 +27,11 @@ pub fn main() {
             probe_volume,
             creative: f[5] == "1" && f[6] == "1",
             underwater: f[7] == "1",
+            in_nether: f[2] == "minecraft:the_nether",
+            // The fixture has no tag data or manager state, so the
+            // hardcoded 1.21.5 underwater branch never fires here.
+            plays_underwater_music: false,
+            playing_underwater: false,
         };
         let music = situation.music().map_or("-".to_owned(), |m| {
             format!(

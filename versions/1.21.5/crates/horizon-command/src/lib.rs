@@ -288,9 +288,6 @@ pub struct Node {
     /// A custom suggestion provider (`.suggests(...)`), used instead of the
     /// argument type's own suggestions.
     pub suggests: Option<Suggests>,
-    /// ArgumentNodeStub's RESTRICTED_COMMAND: the server marked this node as
-    /// needing elevated permissions.
-    pub restricted: bool,
 }
 /// The custom SuggestionProviders vanilla command nodes use.
 #[derive(Clone, Debug, PartialEq)]
@@ -327,6 +324,11 @@ pub enum Suggests {
     NonWhitelisted,
     /// WhitelistCommand `remove`: the whitelisted names (PlayerList.getWhiteListNames).
     Whitelisted,
+    /// A command's own registry provider (SharedSuggestionProvider.suggestResource):
+    /// ItemCommands.SUGGEST_MODIFIER, LootCommand.SUGGEST_LOOT_TABLE, and the
+    /// /place feature's ResourceKeyArgument listSuggestions. ResourceOrIdArgument
+    /// itself has no listSuggestions in 1.21.5, so these nodes carry their own.
+    Registry(&'static str),
 }
 impl Node {
     pub fn name(&self) -> &str {
@@ -742,6 +744,9 @@ impl Suggests {
             Suggests::Whitelisted => {
                 builder.suggest_matching(reg.whitelisted.iter().map(String::as_str))
             }
+            Suggests::Registry(registry) => {
+                args::suggest_resources(builder, reg.ids(registry), "")
+            }
             Suggests::Nothing | Suggests::AskServer => {}
         }
     }
@@ -774,18 +779,8 @@ impl Dispatcher {
                 redirect: None,
                 permission: 0,
                 suggests: None,
-                restricted: false,
             }],
         }
-    }
-    /// This tree as a player without elevated permissions has it
-    /// (ClientPacketListener.restrictedSuggestionsProvider): no restricted node.
-    pub fn without_restricted(&self) -> Self {
-        let mut tree = self.clone();
-        for node in &mut tree.nodes {
-            node.children.retain(|&child| !self.nodes[child].restricted);
-        }
-        tree
     }
     fn add(&mut self, parent: usize, kind: NodeKind) -> usize {
         let name = match &kind {
@@ -809,7 +804,6 @@ impl Dispatcher {
             redirect: None,
             permission,
             suggests: None,
-            restricted: false,
         });
         let id = self.nodes.len() - 1;
         self.nodes[parent].children.push(id);

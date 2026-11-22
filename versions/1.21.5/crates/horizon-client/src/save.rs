@@ -462,7 +462,7 @@ pub fn poi_type(state: &horizon_world::chunk::BlockState) -> Option<(&'static st
         "bee_nest" => ("minecraft:bee_nest", 0),
         "nether_portal" => ("minecraft:nether_portal", 0),
         "lodestone" => ("minecraft:lodestone", 0),
-        "test_instance_block" => ("minecraft:test_instance", 0),
+        // No test_instance POI in 1.21.5 (added in 1.21.6).
         // PoiTypes.BEDS is the sixteen colours: no straw bed.
         bed if bed.ends_with("_bed") && bed != "straw_bed" => {
             if state.properties.get("part").map(String::as_str) != Some("head") {
@@ -801,7 +801,9 @@ pub fn encode_block_entity(
                 entries.push(("item", item_to_nbt(item)));
             }
         }
-        // ConduitBlockEntity.saveAdditional: EntityReference.store.
+        // ConduitBlockEntity.saveAdditional: the resolved target's UUID
+        // through UUIDUtil.CODEC (an int array of four); a pending
+        // `Target` is not written.
         BlockEntity::Conduit(target) => {
             if let Some(uuid) = target {
                 entries.push(("Target", Tag::IntArray(uuid.to_vec())));
@@ -1143,8 +1145,8 @@ pub fn decode_block_entity(tag: &Tag) -> Option<((i32, i32, i32), crate::contain
         | BlockEntity::EndPortal
         | BlockEntity::EnchantingTable
         | BlockEntity::Mod(_) => {}
-        // ConduitBlockEntity.loadAdditional: EntityReference.read through
-        // UUIDUtil.CODEC, an int array of four.
+        // ConduitBlockEntity.loadAdditional: `Target` read through
+        // UUIDUtil.CODEC, an int array of four, into the pending UUID.
         BlockEntity::Conduit(target) => {
             *target = match tag.get("Target") {
                 Some(Tag::IntArray(v)) if v.len() == 4 => Some([v[0], v[1], v[2], v[3]]),
@@ -3557,7 +3559,7 @@ pub(crate) fn read_doubles<const N: usize>(tag: Option<&Tag>) -> Option<[f64; N]
 }
 
 /// Default game rules of a new 26.3 world (`data/minecraft/game_rules.dat`).
-const GAME_RULES: [(&str, i32); 58] = [
+const GAME_RULES: [(&str, i32); 57] = [
     ("spawn_wandering_traders", 1),
     ("block_drops", 1),
     ("reduced_debug_info", 0),
@@ -3594,7 +3596,6 @@ const GAME_RULES: [(&str, i32); 58] = [
     ("max_command_forks", 65536),
     ("drowning_damage", 1),
     ("command_block_output", 1),
-    ("locator_bar", 1),
     ("show_advancement_messages", 1),
     ("respawn_radius", 10),
     ("raids", 1),
@@ -4289,8 +4290,20 @@ impl Level {
             .get("abilities")
             .and_then(|a| float(a.get("flySpeed")))
             .map(|v| v as f32);
-        if let Some(d) = text(p.get("Dimension")) {
-            self.dimension = d;
+        // DimensionType.parseLegacy (PlayerList): a legacy numeric dimension
+        // (-1 the nether, 0 the overworld, 1 the end), else the resource key;
+        // anything else keeps the overworld default.
+        if let Some(d) = p.get("Dimension") {
+            match number(Some(d)) {
+                Some(-1) => self.dimension = "minecraft:the_nether".into(),
+                Some(0) => self.dimension = "minecraft:overworld".into(),
+                Some(1) => self.dimension = "minecraft:the_end".into(),
+                _ => {
+                    if let Some(d) = text(Some(d)) {
+                        self.dimension = d;
+                    }
+                }
+            }
         }
         if let Some(respawn) = p.get("respawn")
             && let Some(Tag::IntArray(pos)) = respawn.get("pos")
@@ -7986,6 +7999,27 @@ mod tests {
                 loaded.player_tag().get("respawn"),
                 level.player_tag().get("respawn")
             );
+        }
+    }
+
+    #[test]
+    fn legacy_numeric_dimension_ids_map_to_the_three_dimensions() {
+        // DimensionType.parseLegacy: -1 the nether, 0 the overworld, 1 the
+        // end; a string still parses as the key, and anything else keeps
+        // the overworld default.
+        for (tag, want) in [
+            (Tag::Int(-1), "minecraft:the_nether"),
+            (Tag::Int(0), "minecraft:overworld"),
+            (Tag::Int(1), "minecraft:the_end"),
+            (Tag::Int(2), "minecraft:overworld"),
+            (
+                Tag::String("minecraft:the_end".into()),
+                "minecraft:the_end",
+            ),
+        ] {
+            let mut loaded = Level::default();
+            loaded.read_player(&Tag::compound([("Dimension", tag)]));
+            assert_eq!(loaded.dimension, want);
         }
     }
 

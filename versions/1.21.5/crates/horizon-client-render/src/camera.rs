@@ -577,12 +577,15 @@ pub struct CameraEntity {
     pub eye_height: f32,
     /// A living entity's `getScale()` and camera distance attribute.
     pub living: Option<LivingCamera>,
-    /// The vehicle's scale and camera distance when it is living.
+    /// The vehicle's scale and camera distance when it is living
+    /// (1.21.6 only; the 1.21.5 camera distance ignores the mount).
     pub mount: Option<(f32, f64)>,
 }
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LivingCamera {
     pub scale: f32,
+    /// `Attributes.CAMERA_DISTANCE` (1.21.6 only; the 1.21.5 camera
+    /// distance is a flat 4 times the scale and ignores this).
     pub camera_distance: f64,
     /// `isSleeping()` with `getBedOrientation()` as its `toYRot()`.
     pub sleeping: Option<Option<f32>>,
@@ -768,17 +771,14 @@ impl Camera {
             if camera_type.is_mirrored() {
                 self.set_rotation(self.y_rot + 180.0, -self.x_rot);
             }
-            let (mut distance, mut scale) = (4.0f32, 1.0f32);
-            if let Some(living) = &entity.living {
-                scale = living.scale;
-                distance = living.camera_distance as f32;
-            }
-            let (mut mount_scale, mut mount_distance) = (scale, distance);
-            if let Some((s, d)) = entity.mount {
-                mount_scale = s;
-                mount_distance = d as f32;
-            }
-            let vanilla = java_max(scale * distance, mount_scale * mount_distance);
+            // `Camera.setup` (1.21.5): a flat 4 blocks times the living
+            // entity's scale. 1.21.6 reads the `camera_distance`
+            // attribute instead (default 4, the happy ghast's 8) and
+            // takes the max with a living mount's scale times its own
+            // attribute — `living.camera_distance` and `entity.mount`
+            // carry those 1.21.6-only inputs and are ignored here.
+            let scale = entity.living.map_or(1.0, |living| living.scale);
+            let vanilla = 4.0 * scale;
             let adjusted = adjust_distance(vanilla);
             let distance = if adjusted.is_finite() && (0.0..=1024.0).contains(&adjusted) {
                 adjusted
@@ -852,10 +852,10 @@ impl Camera {
         modify_fov_based_on_death_or_fluid(partial, 70.0, effect_scale, dead, fluid)
     }
 }
-/// `Camera.update`: the far plane covers four times the render distance and
-/// the whole cloud range (`depthFar`).
-pub fn depth_far(render_distance_chunks: i32, cloud_range_chunks: i32) -> f32 {
-    (render_distance_chunks as f32 * 16.0 * 4.0).max((cloud_range_chunks * 16) as f32)
+/// `Camera.update`: the far plane is four times the render distance
+/// (`depthFar`). 1.21.6 also covers the whole cloud range.
+pub fn depth_far(render_distance_chunks: i32) -> f32 {
+    render_distance_chunks as f32 * 16.0 * 4.0
 }
 
 /// `Projection.getMatrix` for a perspective set up by `setupPerspective`:
@@ -1155,11 +1155,13 @@ mod tests {
     }
 
     #[test]
-    fn depth_far_covers_the_cloud_range() {
-        // renderDistance 2 with the default Cloud Distance (128 chunks).
-        assert_eq!(super::depth_far(2, 128), 2048.0);
-        assert_eq!(super::depth_far(32, 2), 2048.0);
-        assert_eq!(super::depth_far(12, 12), 768.0);
+    fn depth_far_is_four_times_the_render_distance() {
+        // 1.21.5's `getDepthFar` is the render distance (in blocks) times
+        // 4; the cloud range does not widen it (1.21.6's `max` with the
+        // cloud range is gone).
+        assert_eq!(super::depth_far(2), 128.0);
+        assert_eq!(super::depth_far(32), 2048.0);
+        assert_eq!(super::depth_far(12), 768.0);
     }
     use super::*;
     #[test]
@@ -1234,6 +1236,8 @@ mod tests {
             eye_height: 1.62,
             living: Some(LivingCamera {
                 scale: 2.0,
+                // 1.21.6-only inputs: the 1.21.5 distance is 4 times the
+                // scale (8.0), ignoring both the attribute and the mount.
                 camera_distance: 3.0,
                 sleeping: None,
                 dead: None,
@@ -1250,20 +1254,20 @@ mod tests {
                 1.0,
                 kind,
                 |distance| {
-                    assert_eq!(distance, 12.0);
-                    8.0
+                    assert_eq!(distance, 8.0);
+                    6.0
                 },
                 |_, _| None,
             );
-            assert!((camera.position[2] - z * 8.0).abs() < 1e-5);
+            assert!((camera.position[2] - z * 6.0).abs() < 1e-5);
             camera.align_with_entity_distance(
                 &entity,
                 1.0,
                 kind,
                 |distance| {
                     calls += 1;
-                    assert_eq!(distance, 12.0);
-                    8.0
+                    assert_eq!(distance, 8.0);
+                    6.0
                 },
                 |_, _| {
                     rays += 1;

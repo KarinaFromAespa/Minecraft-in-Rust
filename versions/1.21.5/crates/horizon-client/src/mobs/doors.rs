@@ -13,13 +13,13 @@ use horizon_core::{geometry::Vec3, random::RandomSource};
 /// `max(240, doorBreakTime)`, and the vindicator's 6 is below it.
 const DOOR_BREAK_TIME: i32 = 240;
 
-/// `GoalUtils.hasGroundPathNavigation`: ground, wall-climbing and
-/// amphibious navigations walk.
+/// `GoalUtils.hasGroundPathNavigation` (`navigation instanceof
+/// GroundPathNavigation`): ground and wall-climbing navigations walk.
+/// Amphibious does not — it extends `PathNavigation` directly, and
+/// 1.21.6's `canNavigateGround` override returning true for it does not
+/// exist in 1.21.5.
 pub fn can_navigate_ground(m: &Mob) -> bool {
-    matches!(
-        m.ai.nav.kind,
-        NavKind::Ground | NavKind::WallClimber | NavKind::Amphibious { .. }
-    )
+    matches!(m.ai.nav.kind, NavKind::Ground | NavKind::WallClimber)
 }
 /// `Zombie.setCanBreakDoors`: only a mob that walks can break doors, and
 /// then its navigation opens them.
@@ -344,5 +344,39 @@ impl Goal for InteractWithDoor {
             }
         }
         self.close_doors(m, cx, from, to);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    fn mob(kind: NavKind) -> Mob {
+        let mut m = Mob::new(
+            1,
+            Arc::new((*crate::mobs::sensor_scan_tests::kind()).clone()),
+            Vec3::ZERO,
+            0.0,
+        );
+        m.ai.nav.kind = kind;
+        m
+    }
+
+    /// `GoalUtils.hasGroundPathNavigation` is `instanceof
+    /// GroundPathNavigation`: ground and wall-climbing walk, amphibious
+    /// does not (1.21.6's `canNavigateGround` override for it does not
+    /// exist in 1.21.5).
+    #[test]
+    fn only_ground_and_wall_climbing_navigations_walk() {
+        assert!(can_navigate_ground(&mob(NavKind::Ground)));
+        assert!(can_navigate_ground(&mob(NavKind::WallClimber)));
+        assert!(!can_navigate_ground(&mob(NavKind::Amphibious {
+            prefers_shallow: true
+        })));
+        assert!(!can_navigate_ground(&mob(NavKind::Water {
+            breach: false
+        })));
+        assert!(!can_navigate_ground(&mob(NavKind::Flying)));
     }
 }

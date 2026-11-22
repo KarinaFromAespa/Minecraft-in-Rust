@@ -49,9 +49,8 @@ enum Animate {
     CandleCake,
     BrewingStand,
     EnderChest,
-    /// FallingBlock with its dust colour; sand also has the ambient desert sound
-    /// (`SandBlock.animateTick`).
-    Falling(u32, bool),
+    /// FallingBlock with its dust colour.
+    Falling(u32),
     /// A beehive or bee nest full of honey (`BeehiveBlock.animateTick`).
     Beehive,
     RedstoneOre,
@@ -99,8 +98,8 @@ enum Animate {
     PaleHangingMoss,
     /// `DryVegetationBlock`: a dead bush.
     DeadBush,
-    /// `ShortDryGrassBlock` and `TallDryGrassBlock`.
-    DryGrass,
+    /// `TerracottaBlock`: the ambient desert sounds, like sand.
+    Terracotta,
     /// A creaking heart that is not uprooted (`CreakingHeartBlock.animateTick`).
     CreakingHeart,
 }
@@ -157,17 +156,18 @@ fn classify(name: &str, prop: &dyn Fn(&str) -> Option<String>) -> Animate {
         "mycelium" => Animate::Mycelium,
         "brewing_stand" => Animate::BrewingStand,
         "ender_chest" => Animate::EnderChest,
-        "sand" => Animate::Falling(0xDBD3A0, true),
-        "red_sand" => Animate::Falling(0xA95821, true),
-        "gravel" => Animate::Falling(0x807C7B, false),
+        "sand" => Animate::Falling(0xDBD3A0),
+        "red_sand" => Animate::Falling(0xA95821),
+        "gravel" => Animate::Falling(0x807C7B),
         // AnvilBlock/ConcretePowderBlock.getDustColor is the map colour;
         // DragonEggBlock's is black.
-        "anvil" | "chipped_anvil" | "damaged_anvil" => Animate::Falling(0xA7A7A7, false),
-        "dragon_egg" => Animate::Falling(0x000000, false),
+        "anvil" | "chipped_anvil" | "damaged_anvil" => Animate::Falling(0xA7A7A7),
+        "dragon_egg" => Animate::Falling(0x000000),
         _ if name.ends_with("_concrete_powder") => Animate::Falling(
             concrete_powder_color(name.trim_end_matches("_concrete_powder")),
-            false,
         ),
+        // TerracottaBlock.animateTick plays the ambient desert sounds too.
+        _ if name == "terracotta" || name.ends_with("_terracotta") => Animate::Terracotta,
         "beehive" | "bee_nest" if prop("honey_level").as_deref() == Some("5") => Animate::Beehive,
         "redstone_ore" | "deepslate_redstone_ore" if lit => Animate::RedstoneOre,
         "redstone_wire" => {
@@ -233,8 +233,8 @@ fn classify(name: &str, prop: &dyn Fn(&str) -> Option<String>) -> Animate {
         }
         "wet_sponge" => Animate::WetSponge,
         // BrushableBlock has no dust colour of its own, so the dust is the map colour.
-        "suspicious_sand" => Animate::Falling(0xF7E9A3, false),
-        "suspicious_gravel" => Animate::Falling(0x707070, false),
+        "suspicious_sand" => Animate::Falling(0xF7E9A3),
+        "suspicious_gravel" => Animate::Falling(0x707070),
         "firefly_bush" => Animate::FireflyBush,
         "open_eyeblossom" => Animate::OpenEyeblossom,
         "pale_hanging_moss" => Animate::PaleHangingMoss,
@@ -242,7 +242,6 @@ fn classify(name: &str, prop: &dyn Fn(&str) -> Option<String>) -> Animate {
             Animate::CreakingHeart
         }
         "dead_bush" => Animate::DeadBush,
-        "short_dry_grass" | "tall_dry_grass" => Animate::DryGrass,
         "sculk_sensor" | "calibrated_sculk_sensor"
             if prop("sculk_sensor_phase").as_deref() == Some("active") =>
         {
@@ -313,13 +312,14 @@ pub struct AnimateTables {
     power_provider: Vec<bool>,
     power_transmitter: Vec<bool>,
     /// `#triggers_ambient_dried_ghast_block_sounds` (soul sand, soul soil).
+    /// The tag does not exist in 1.21.5 data, so this is all false — as is
+    /// the dried ghast branch itself (the block is not in the 1.21.5 tables).
     dried_ghast_sounds: Vec<bool>,
-    /// `#triggers_ambient_desert_sand_block_sounds` (sand, red sand).
-    desert_sand_sounds: Vec<bool>,
+    /// `#plays_ambient_desert_block_sounds`: the single 1.21.5 desert
+    /// ambient tag (sand, terracotta); 1.21.6 split it into three.
+    desert_sounds: Vec<bool>,
     /// `#required_for_poplar_leaf_ambience` (overworld natural logs).
     poplar_leaf_logs: Vec<bool>,
-    /// `#triggers_ambient_desert_dry_vegetation_block_sounds`.
-    desert_dry_vegetation_sounds: Vec<bool>,
     terracotta: Vec<bool>,
     pale_oak_logs: Vec<bool>,
     /// `FireBlock.canBurn`: states with ignite odds above zero (none waterlogged).
@@ -416,11 +416,8 @@ impl AnimateTables {
             power_provider: by_state("minecraft:enchantment_power_provider"),
             power_transmitter: by_state("minecraft:enchantment_power_transmitter"),
             dried_ghast_sounds: by_state("minecraft:triggers_ambient_dried_ghast_block_sounds"),
-            desert_sand_sounds: by_state("minecraft:triggers_ambient_desert_sand_block_sounds"),
+            desert_sounds: by_state("minecraft:plays_ambient_desert_block_sounds"),
             poplar_leaf_logs: by_state("minecraft:required_for_poplar_leaf_ambience"),
-            desert_dry_vegetation_sounds: by_state(
-                "minecraft:triggers_ambient_desert_dry_vegetation_block_sounds",
-            ),
             terracotta: by_state("minecraft:terracotta"),
             pale_oak_logs: by_state("minecraft:pale_oak_logs"),
             burnable,
@@ -489,6 +486,14 @@ impl AnimateContext<'_> {
     }
     fn is_air(&self, p: [i32; 3]) -> bool {
         self.facts.is_air(self.state(p))
+    }
+    /// `Level.canSeeSky`, as the advancement world's `can_see_sky` does it:
+    /// nothing with a full collision cube, and no fluid, above.
+    fn can_see_sky(&self, p: [i32; 3]) -> bool {
+        (p[1] + 1..p[1] + 256).all(|y| {
+            let f = self.facts.get(self.state([p[0], y, p[2]]));
+            !f.full_collision && f.fluid == Fluid::None
+        })
     }
     /// `isFaceSturdy` approximated by a full collision cube.
     fn sturdy(&self, p: [i32; 3]) -> bool {
@@ -778,21 +783,80 @@ fn beehive_drip(
     ];
     add(engine, T::DrippingHoney, p, [0.0; 3]);
 }
-/// `AmbientDesertBlockSoundsPlayer.shouldPlayDesertDryVegetationBlockSounds`:
-/// sand or terracotta two blocks deep.
-fn desert_dry_vegetation_sounds(
+/// `DryVegetationBlock.animateTick`: the block below and the one under it
+/// both in `#plays_ambient_desert_block_sounds`.
+fn desert_sounds_two_deep(
     tables: &AnimateTables,
     ctx: &AnimateContext,
     below: [i32; 3],
 ) -> bool {
     let triggers = |p: [i32; 3]| {
         tables
-            .desert_dry_vegetation_sounds
+            .desert_sounds
             .get(ctx.state(p).0 as usize)
             .copied()
             .unwrap_or(false)
     };
     triggers(below) && triggers([below[0], below[1] - 1, below[2]])
+}
+/// `AmbientDesertBlockSoundsPlayer.playAmbientBlockSounds` (1.21.5): the
+/// block in `#plays_ambient_desert_block_sounds` under open sky; the idle
+/// sound at 1 in 1600 and the wind at 1 in 10000 in a desert or badlands
+/// biome, each only when three of the four surrounding surface columns
+/// carry a tag block. The random draws run in vanilla's order (idle, then
+/// wind); `shouldPlayAmbientSound` is re-evaluated for the wind, as vanilla
+/// evaluates it in each branch.
+fn desert_block_sounds(
+    tables: &AnimateTables,
+    engine: &mut ParticleEngine,
+    ctx: &AnimateContext,
+    state: BlockStateId,
+    pos: [i32; 3],
+    player: [i32; 3],
+) {
+    let in_tag = tables
+        .desert_sounds
+        .get(state.0 as usize)
+        .copied()
+        .unwrap_or(false);
+    if !in_tag || !ctx.can_see_sky([pos[0], pos[1] + 1, pos[2]]) {
+        return;
+    }
+    let (fx, fy, fz) = (
+        f64::from(pos[0]),
+        f64::from(pos[1]),
+        f64::from(pos[2]),
+    );
+    if next_int(engine.random(), 1600) == 0 && sand_sound_nearby(tables, ctx, pos) {
+        sound(engine, "minecraft:block.sand.idle", [fx, fy, fz], 1.0, 1.0);
+    }
+    if next_int(engine.random(), 10000) == 0
+        && in_desert_sound_biome(ctx, pos)
+        && sand_sound_nearby(tables, ctx, pos)
+    {
+        let at = [
+            f64::from(player[0]) + 0.5,
+            f64::from(player[1]),
+            f64::from(player[2]) + 0.5,
+        ];
+        sound(engine, "minecraft:block.sand.wind", at, 1.0, 1.0);
+    }
+}
+/// `AmbientDesertBlockSoundsPlayer.isInAmbientSoundBiome`: the desert, or a
+/// badlands (`BiomeTags.IS_BADLANDS`: badlands, eroded and wooded).
+fn in_desert_sound_biome(ctx: &AnimateContext, pos: [i32; 3]) -> bool {
+    let id = ctx
+        .world
+        .chunks
+        .get(&(pos[0] >> 4, pos[2] >> 4))
+        .map_or(0, |c| c.biome(pos[0], pos[1], pos[2]));
+    matches!(
+        ctx.biomes.get(id).name.as_str(),
+        "minecraft:desert"
+            | "minecraft:badlands"
+            | "minecraft:eroded_badlands"
+            | "minecraft:wooded_badlands"
+    )
 }
 /// `WaterFluid.animateTick` / `LavaFluid.animateTick`.
 fn fluid_animate_tick(
@@ -1355,8 +1419,9 @@ fn block_animate_tick(
             }
         }
         Animate::DeadBush => {
-            // AmbientDesertBlockSoundsPlayer.playAmbientDeadBushSounds.
-            if next_int(engine.random(), 130) == 0 {
+            // DryVegetationBlock.animateTick: 1 in 150; red sand or
+            // terracotta below silences it 4 times in 5.
+            if next_int(engine.random(), 150) == 0 {
                 let below = [pos[0], pos[1] - 1, pos[2]];
                 let state = ctx.state(below);
                 let red_sand = ctx
@@ -1368,27 +1433,13 @@ fn block_animate_tick(
                     .get(state.0 as usize)
                     .copied()
                     .unwrap_or(false);
-                if (red_sand || terracotta) && next_int(engine.random(), 3) != 0 {
+                if (red_sand || terracotta) && next_int(engine.random(), 5) != 0 {
                     return;
                 }
-                if desert_dry_vegetation_sounds(tables, ctx, below) {
+                if desert_sounds_two_deep(tables, ctx, below) {
                     let name = "minecraft:block.deadbush.idle";
                     sound(engine, name, [fx, fy, fz], 1.0, 1.0);
                 }
-            }
-        }
-        Animate::DryGrass => {
-            // AmbientDesertBlockSoundsPlayer.playAmbientDryGrassSounds:
-            // played at the player.
-            if next_int(engine.random(), 200) == 0
-                && desert_dry_vegetation_sounds(tables, ctx, [pos[0], pos[1] - 1, pos[2]])
-            {
-                let at = [
-                    f64::from(player[0]) + 0.5,
-                    f64::from(player[1]),
-                    f64::from(player[2]) + 0.5,
-                ];
-                sound(engine, "minecraft:block.dry_grass.ambient", at, 1.0, 1.0);
             }
         }
         Animate::EndPortal => {
@@ -1510,7 +1561,7 @@ fn block_animate_tick(
                 add(engine, T::Portal, p, v);
             }
         }
-        Animate::Falling(color, sand) => {
+        Animate::Falling(color) => {
             if next_int(engine.random(), 16) == 0 {
                 let below = ctx.facts.get(ctx.state([pos[0], pos[1] - 1, pos[2]]));
                 // FallingBlock.isFree: air, fire, liquids or replaceable.
@@ -1527,14 +1578,12 @@ fn block_animate_tick(
                     );
                 }
             }
-            // AmbientDesertBlockSoundsPlayer.playAmbientSandSounds: only for the air block.
-            if sand
-                && ctx.state([pos[0], pos[1] + 1, pos[2]]) == ctx.world.air
-                && next_int(engine.random(), 2100) == 0
-                && sand_sound_nearby(tables, ctx, pos)
-            {
-                sound(engine, "minecraft:block.sand.idle", [fx, fy, fz], 1.0, 1.0);
-            }
+            // SandBlock.animateTick: the ambient desert sounds.
+            desert_block_sounds(tables, engine, ctx, state, pos, player);
+        }
+        Animate::Terracotta => {
+            // TerracottaBlock.animateTick: the ambient desert sounds.
+            desert_block_sounds(tables, engine, ctx, state, pos, player);
         }
         Animate::Beehive => {
             // BeehiveBlock.animateTick: `for (i = 0; i < random.nextInt(1) + 1; i++)`
@@ -1864,47 +1913,26 @@ fn dripstone_drip(
     ];
     add(engine, ty, p, [0.0; 3]);
 }
-/// `AmbientDesertBlockSoundsPlayer.shouldPlayAmbientSandSound`: sand in the
-/// surface column eight blocks away on all four sides.
+/// `AmbientDesertBlockSoundsPlayer.shouldPlayAmbientSound`: at least three
+/// of the four surface columns eight blocks away carry a
+/// `#plays_ambient_desert_block_sounds` block.
 fn sand_sound_nearby(tables: &AnimateTables, ctx: &AnimateContext, pos: [i32; 3]) -> bool {
-    let is_sand = |p: [i32; 3]| {
+    let is_desert = |p: [i32; 3]| {
         tables
-            .desert_sand_sounds
+            .desert_sounds
             .get(ctx.state(p).0 as usize)
             .copied()
             .unwrap_or(false)
     };
-    let (mut found, mut checked) = (0, 0);
+    let mut found = 0;
     for d in [[0, -8], [8, 0], [0, 8], [-8, 0]] {
         let (x, z) = (pos[0] + d[0], pos[2] + d[1]);
-        // columnContainsTriggeringBlock.
         let surface = ctx.world.world_surface(x, z, |s| ctx.facts.is_air(s)) - 1;
-        let matches = if (surface - pos[1]).abs() > 5 {
-            let mut y = pos[1] + 6;
-            let mut above_air = ctx.is_air([x, y, z]);
-            y -= 1;
-            let mut hit = false;
-            for _ in 0..10 {
-                if above_air && is_sand([x, y, z]) {
-                    hit = true;
-                    break;
-                }
-                above_air = ctx.is_air([x, y, z]);
-                y -= 1;
-            }
-            hit
-        } else {
-            ctx.is_air([x, surface + 1, z]) && is_sand([x, surface, z])
-        };
-        if matches {
+        if is_desert([x, surface, z]) {
             found += 1;
-            if found > 3 {
+            if found >= 3 {
                 return true;
             }
-        }
-        checked += 1;
-        if 4 - checked + found < 3 {
-            return false;
         }
     }
     false
@@ -2103,6 +2131,15 @@ mod tests {
             classify("minecraft:red_candle_cake", &lit),
             Animate::CandleCake
         );
+        // 1.21.5: terracotta ticks the ambient desert sounds; dry grass
+        // has no animate tick (its ambient sound is 1.21.6's).
+        assert_eq!(classify("minecraft:terracotta", &none), Animate::Terracotta);
+        assert_eq!(
+            classify("minecraft:white_terracotta", &none),
+            Animate::Terracotta
+        );
+        assert_eq!(classify("minecraft:short_dry_grass", &none), Animate::None);
+        assert_eq!(classify("minecraft:tall_dry_grass", &none), Animate::None);
     }
     #[test]
     fn redstone_colours_match_wire_table() {

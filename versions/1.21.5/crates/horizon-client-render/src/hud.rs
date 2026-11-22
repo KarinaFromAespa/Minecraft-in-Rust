@@ -2220,6 +2220,15 @@ impl HudBatch {
         let text = text.resolved();
         // Language.getVisualOrder: shaped and reordered for right-to-left text.
         let text = crate::bidi::visual(&text);
+        // Font.drawInternal's adjustColor (1.21.5): a colour whose alpha is
+        // under 4 draws opaque — vanilla callers pass plain RGB colours.
+        // The chat's own alpha-3 cut keeps fading lines from popping back
+        // to full opacity (chat.rs); 1.21.6 dropped the rule in the
+        // PreparedText rewrite. The outline colour gets the same rule
+        // (drawInBatch8xOutline adjusts both).
+        let adjust = |c: u32| if c >> 24 < 4 { c | 0xFF00_0000 } else { c };
+        let color = adjust(color);
+        let outline = outline.map(|(c, d)| (adjust(c), d));
         let font = &atlas.font;
         let alpha = (color >> 24) as u8;
         let mut glyphs = Vec::new();

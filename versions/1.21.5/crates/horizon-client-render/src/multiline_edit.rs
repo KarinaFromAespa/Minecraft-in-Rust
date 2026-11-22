@@ -70,7 +70,6 @@ pub struct MultiLineEdit {
     selecting: bool,
     /// `characterLimit` (`MultilineTextField.NO_LIMIT` is `None`).
     character_limit: Option<usize>,
-    line_limit: Option<usize>,
     /// `displayLines`.
     lines: Vec<(usize, usize)>,
     pub x: f32,
@@ -90,7 +89,6 @@ impl MultiLineEdit {
             select_cursor: 0,
             selecting: false,
             character_limit: None,
-            line_limit: None,
             lines: Vec::new(),
             x,
             y,
@@ -110,9 +108,6 @@ impl MultiLineEdit {
     }
     pub fn set_character_limit(&mut self, limit: usize) {
         self.character_limit = Some(limit);
-    }
-    pub fn set_line_limit(&mut self, limit: usize) {
-        self.line_limit = Some(limit);
     }
     pub fn value(&self) -> String {
         self.chars.iter().collect()
@@ -141,29 +136,16 @@ impl MultiLineEdit {
         self.chars[begin..end].iter().collect()
     }
 
-    /// `setValue(value, false)`: kept as it was when the text has more lines
-    /// than the limit allows.
+    /// `setValue`: the whole value, truncated to the character limit.
     pub fn set_value(&mut self, font: &Font, value: &str) {
         let mut chars: Vec<char> = value.chars().collect();
         if let Some(limit) = self.character_limit {
             chars.truncate(limit);
         }
-        if !self.overflows_line_limit(font, &chars) {
-            self.chars = chars;
-            self.cursor = self.chars.len();
-            self.select_cursor = self.cursor;
-            self.on_value_change(font);
-        }
-    }
-
-    /// `overflowsLineLimit`.
-    fn overflows_line_limit(&self, font: &Font, value: &[char]) -> bool {
-        let Some(limit) = self.line_limit else {
-            return false;
-        };
-        let lines = split_ranges(font, value, self.text_width()).len();
-        // `StringUtil.endsWithNewLine`.
-        lines + usize::from(value.last().is_some_and(|c| matches!(c, '\n' | '\r'))) > limit
+        self.chars = chars;
+        self.cursor = self.chars.len();
+        self.select_cursor = self.cursor;
+        self.on_value_change(font);
     }
 
     /// `insertText`.
@@ -179,12 +161,10 @@ impl MultiLineEdit {
         let mut value = self.chars[..begin].to_vec();
         value.extend_from_slice(&text);
         value.extend_from_slice(&self.chars[end..]);
-        if !self.overflows_line_limit(font, &value) {
-            self.chars = value;
-            self.cursor = begin + text.len();
-            self.select_cursor = self.cursor;
-            self.on_value_change(font);
-        }
+        self.chars = value;
+        self.cursor = begin + text.len();
+        self.select_cursor = self.cursor;
+        self.on_value_change(font);
     }
 
     /// `deleteText`.
@@ -688,28 +668,6 @@ mod tests {
         edit.key(&font, KeyCode::Backspace, false, false);
         edit.insert_text(&font, "wxyz");
         assert_eq!(edit.value(), "abcdw");
-    }
-
-    #[test]
-    fn the_line_limit_refuses_an_edit_that_adds_a_line() {
-        let font = font();
-        let mut edit = edit(&font, 8, 4);
-        edit.set_line_limit(2);
-        edit.set_value(&font, "a\nb");
-        assert_eq!(edit.value(), "a\nb");
-        // A third line, by a newline or by wrapping, changes nothing.
-        edit.key(&font, KeyCode::Enter, false, false);
-        edit.insert_text(&font, "\nc");
-        assert_eq!(edit.value(), "a\nb");
-        edit.insert_text(&font, " abcdefghijkl");
-        assert_eq!(edit.value(), "a\nb");
-        // A value over the limit is not set at all.
-        edit.set_value(&font, "1\n2\n3");
-        assert_eq!(edit.value(), "a\nb");
-        // A trailing newline counts as a line.
-        edit.set_value(&font, "a\n");
-        edit.insert_text(&font, "\n");
-        assert_eq!(edit.value(), "a\n");
     }
 
     #[test]

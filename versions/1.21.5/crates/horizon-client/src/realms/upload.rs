@@ -6,7 +6,7 @@
 //! headers, a name split into `prefix`/`name` when it is longer than 100 bytes, and two zero
 //! blocks at the end. A path that does not fit ustar's 255 bytes fails the packing rather than
 //! uploading a truncated archive.
-use super::client::{RealmSlot, RealmsClient, RealmsError, UploadFailure, UploadInfo};
+use super::client::{RealmWorldOptions, RealmsClient, RealmsError, UploadFailure, UploadInfo};
 use std::fs::File;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
@@ -80,7 +80,8 @@ pub enum UploadError {
 pub fn upload_world(
     client: &RealmsClient,
     realm_id: i64,
-    slot: &RealmSlot,
+    slot_id: i32,
+    options: &RealmWorldOptions,
     world_dir: &Path,
     progress: &UploadProgress,
 ) -> Result<(), UploadError> {
@@ -90,9 +91,9 @@ pub fn upload_world(
     client
         .upload_world(
             realm_id,
-            slot.slot_id,
+            slot_id,
             &info,
-            &slot.options.version,
+            &options.version,
             archive.path(),
             progress.counter(),
             progress.stop(),
@@ -102,7 +103,7 @@ pub fn upload_world(
             UploadFailure::Failed(message) => UploadError::Failed(message),
         })?;
     client
-        .update_slot(realm_id, slot)
+        .update_slot(realm_id, slot_id, options)
         .map_err(|e| UploadError::Failed(e.text()))
 }
 

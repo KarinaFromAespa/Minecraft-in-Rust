@@ -126,7 +126,6 @@ pub fn is_animal(s: Species) -> bool {
             | S::Donkey
             | S::Fox
             | S::Frog
-            | S::HappyGhast
             | S::Goat
             | S::Hoglin
             | S::Horse
@@ -182,7 +181,7 @@ fn is_raider(s: Species) -> bool {
 }
 /// The species whose body item Horizon draws and handles as armour (and whose
 /// sun-protection slot is the body): the equines (a horse's armour, a llama's
-/// carpet, a camel's harness) and the wolf, happy ghast, nautilus and sulfur cube.
+/// carpet, a camel's harness) and the wolf, nautilus and sulfur cube.
 pub fn body_slot_species(s: Species) -> bool {
     species::body_slot(s) || equine::is_equine(s)
 }

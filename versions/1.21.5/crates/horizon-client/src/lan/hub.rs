@@ -180,7 +180,7 @@ pub enum HostEvent {
         open: bool,
         filtering: bool,
     },
-    /// A guest changed sneaking in a player input packet, already applied.
+    /// A guest changed sneaking in a player command packet, already applied.
     Sneak {
         conn: u32,
         sneaking: bool,
@@ -2042,7 +2042,6 @@ impl Hub {
                 nodes: vec![play::CommandNode {
                     kind: 0,
                     executable: false,
-                    restricted: false,
                     children: Vec::new(),
                     redirect: None,
                     name: String::new(),
@@ -3382,7 +3381,6 @@ impl Hub {
             ],
             equipment,
             attributes,
-            precise: false,
             vertical_collision: false,
             horizontal_collision: false,
             needs_sync: false,
@@ -4033,7 +4031,8 @@ impl Hub {
             let conn = self.guests[i].conn;
             // ServerPlayer.resetLastActionTime: every handler of a player's
             // own action resets it, movement only when it moved
-            // (handlePlayerKnownMovement), PlayerInput once loaded.
+            // (handlePlayerKnownMovement). `handlePlayerInput` does not
+            // (1.21.6 added the reset there).
             let acted = match &packet {
                 S::AcceptTeleportation(_)
                 | S::PlayerAbilities(_)
@@ -4046,10 +4045,10 @@ impl Hub {
                 | S::RecipeBookSeenRecipe(_)
                 | S::ClientTickEnd(_)
                 | S::KeepAlive(_)
+                | S::PlayerInput(_)
                 | S::Pong(_) => false,
                 S::MovePlayerPos(p) => self.moved_far(i, [p.x, p.y, p.z]),
                 S::MovePlayerPosRot(p) => self.moved_far(i, [p.x, p.y, p.z]),
-                S::PlayerInput(_) => self.guests[i].client_loaded(),
                 _ => true,
             };
             if acted {
@@ -4238,43 +4237,51 @@ impl Hub {
                     }
                 }
                 S::PlayerInput(p) => {
+                    // `handlePlayerInput` (1.21.5) only records the keys
+                    // (`setLastClientInput`): the shift state comes from
+                    // `PlayerCommand`'s PRESS/RELEASE_SHIFT_KEY, and the
+                    // input packet does not reset the idle timer (1.21.6
+                    // does both here).
                     let g = &mut self.guests[i];
                     g.input = p.flags;
-                    if g.client_loaded() {
-                        // The events only tell the mods: nothing is queued with none loaded.
-                        let listening = self.mods_loaded;
-                        if listening {
-                            events.push(HostEvent::Input {
-                                conn,
-                                flags: i32::from(p.flags),
-                            });
-                        }
-                        let sneaking = p.flags & 32 != 0;
-                        if g.sneaking != sneaking {
-                            g.sneaking = sneaking;
-                            if listening {
-                                events.push(HostEvent::Sneak { conn, sneaking });
-                            }
-                        }
+                    if g.client_loaded() && self.mods_loaded {
+                        // The event only tells the mods: nothing is queued with none loaded.
+                        events.push(HostEvent::Input {
+                            conn,
+                            flags: i32::from(p.flags),
+                        });
                     }
-                    // handlePlayerInput only records keys and updates crouching.
                     // Sprinting persists after the sprint key is released (or
                     // starts with a double tap); PlayerCommand changes it.
+                }
+                // `ServerboundPlayerCommandPacket.Action` (1.21.5): the shift
+                // key's press and release are actions 0 and 1 (1.21.6 dropped
+                // both, so every other action sits two lower there).
+                // START_RIDING_JUMP and STOP_RIDING_JUMP: the vehicle's
+                // PlayerRideableJumping (handleStartJump / handleStopJump).
+                S::PlayerCommand(p) if matches!(p.action, 5 | 6) => {
+                    events.push(HostEvent::Packet(conn, Box::new(S::PlayerCommand(p))));
                 }
                 // OPEN_INVENTORY (the ridden mount's inventory) and
                 // START_FALL_FLYING (checked against the guest's chest slot
                 // and effects) are the game's.
-                // START_RIDING_JUMP and STOP_RIDING_JUMP: the vehicle's
-                // PlayerRideableJumping (handleStartJump / handleStopJump).
-                S::PlayerCommand(p) if matches!(p.action, 3 | 4) => {
-                    events.push(HostEvent::Packet(conn, Box::new(S::PlayerCommand(p))));
-                }
-                S::PlayerCommand(p) if matches!(p.action, 5 | 6) => {
+                S::PlayerCommand(p) if matches!(p.action, 7 | 8) => {
                     events.push(HostEvent::Packet(conn, Box::new(S::PlayerCommand(p))));
                 }
                 S::PlayerCommand(p) => match p.action {
-                    1 | 2 => {
-                        let sprinting = p.action == 1;
+                    // PRESS_SHIFT_KEY / RELEASE_SHIFT_KEY.
+                    0 | 1 => {
+                        let sneaking = p.action == 0;
+                        if self.guests[i].sneaking != sneaking {
+                            self.guests[i].sneaking = sneaking;
+                            if self.mods_loaded {
+                                events.push(HostEvent::Sneak { conn, sneaking });
+                            }
+                        }
+                    }
+                    // START_SPRINTING / STOP_SPRINTING.
+                    3 | 4 => {
+                        let sprinting = p.action == 3;
                         let changed = self.guests[i].sprinting != sprinting;
                         self.set_sprinting(i, sprinting);
                         // The game tells the mods of a change.
@@ -4283,7 +4290,7 @@ impl Hub {
                         }
                     }
                     // STOP_SLEEPING.
-                    0 => self.wake(i),
+                    2 => self.wake(i),
                     _ => {}
                 },
                 S::Chat(c) => self.handle_chat(i, c, events),
@@ -4745,8 +4752,9 @@ impl Hub {
         if fail && scene.unobstructed(old).unwrap_or(true) {
             return (true, true, stands);
         }
-        // isEntityCollidingWithAnythingNew: a block the old box did not
-        // already touch.
+        // isPlayerCollidingWithAnythingNew: a block the old box did not
+        // already touch (1.21.6 renamed it `isEntityCollidingWithAnythingNew`
+        // and queries `getPreMoveCollisions` instead of `getCollisions`).
         let shrink = f64::from(1.0E-5_f32);
         let shrink = Vec3::new(shrink, shrink, shrink);
         let Ok(old_shape) = VoxelShape::from_box(old.deflate(shrink)) else {

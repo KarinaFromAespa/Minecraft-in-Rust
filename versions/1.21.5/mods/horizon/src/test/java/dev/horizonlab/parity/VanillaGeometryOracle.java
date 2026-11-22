@@ -151,7 +151,7 @@ public final class VanillaGeometryOracle {
             }
             case "rotation" -> {
                 Vec3 v=in.vector();double angle=in.number();float pitch=(float)in.number(),yaw=(float)in.number();int axes=in.integer();Direction.Axis axis=Direction.Axis.values()[in.integer()];Direction direction=Direction.values()[in.integer()];double amount=in.number();
-                values("trig",Mth.sin(angle),Mth.cos(angle));vector("rotate-x",v.xRot((float)angle));vector("rotate-y",v.yRot((float)angle));vector("rotate-z",v.zRot((float)angle));vector("clockwise",v.rotateClockwise90());vector("look",Vec3.directionFromRotation(pitch,yaw));
+                values("trig",Mth.sin(angle),Mth.cos(angle));vector("rotate-x",v.xRot((float)angle));vector("rotate-y",v.yRot((float)angle));vector("rotate-z",v.zRot((float)angle));vector("look",Vec3.directionFromRotation(pitch,yaw));
                 Vec2 rotation=v.rotation();values("rotation",rotation.x,rotation.y);
                 EnumSet<Direction.Axis> selected=EnumSet.noneOf(Direction.Axis.class);for(Direction.Axis a:Direction.Axis.values())if((axes&(1<<a.ordinal()))!=0)selected.add(a);
                 vector("align",v.align(selected));vector("with",v.with(axis,amount));vector("relative",v.relative(direction,amount));

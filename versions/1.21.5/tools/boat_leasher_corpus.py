@@ -13,7 +13,7 @@ def boat_leasher(cmd, setup, raw_diagnostic=False):
     boat = '00000130-0000-0000-0000-000000000001'
     free = '00000130-0000-0000-0000-000000000002'
     mob = '00000130-0000-0000-0000-000000000003'
-    actors = [(holder, 'happy_ghast', 'h304_holder', holder_words, '[0.5d,104d,0.5d]', 20),
+    actors = [(holder, 'husk', 'h304_holder', holder_words, '[0.5d,104d,0.5d]', 20),
               (boat, 'oak_boat', 'h304_boat', '[I;304,0,0,1]', '[8.5d,100d,3.5d]', None),
               (free, 'oak_boat', 'h304_free', '[I;304,0,0,2]', '[-12.5d,100d,8.5d]', None),
               (mob, 'pig', 'h304_mob', '[I;304,0,0,3]', '[3.5d,104d,-3.5d]', 10)]
@@ -33,7 +33,7 @@ def boat_leasher(cmd, setup, raw_diagnostic=False):
     out += [cmd('/scoreboard objectives add h304 dummy', expect_result=1)]
     out += setup('/execute store result score start h304 run time query gametime')
     common = 'NoAI:1b,NoGravity:1b,Silent:1b,PersistenceRequired:1b'
-    out += [cmd('/summon happy_ghast 0.5 104 0.5 {UUID:' + holder_words +
+    out += [cmd('/summon husk 0.5 104 0.5 {UUID:' + holder_words +
                 ',Tags:["h304_holder"],' + common + ',Health:20f,Rotation:[30f,0f]}', expect_result=1),
             cmd('/summon oak_boat 8.5 100 3.5 {UUID:[I;304,0,0,1],Tags:["h304_boat"],'
                 'Rotation:[0f,0f],leash:{UUID:' + holder_words + '}}', expect_result=1),

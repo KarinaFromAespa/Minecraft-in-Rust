@@ -11,8 +11,8 @@
 //!
 //! The game keeps the narrator's [`Status`] and voice volume in step with its
 //! options ([`set_status`], [`set_volume`]); the narrator reads them where
-//! `GameNarrator` reads `options.narrator()` and
-//! `getFinalSoundSourceVolume(VOICE)`.
+//! `GameNarrator` reads `options.narrator()` and `narrateMessage`'s
+//! voice-times-master product.
 
 pub mod screen;
 mod speech;
@@ -58,9 +58,6 @@ impl Status {
     }
     pub fn should_narrate_system(self) -> bool {
         matches!(self, Status::All | Status::System)
-    }
-    pub fn should_narrate_system_or_chat(self) -> bool {
-        matches!(self, Status::All | Status::System | Status::Chat)
     }
 }
 
@@ -112,34 +109,28 @@ impl GameNarrator {
     pub fn status(&self) -> Status {
         self.status
     }
-    /// `getFinalSoundSourceVolume(SoundSource.VOICE)`: master times voice.
+    /// `GameNarrator.narrateMessage`'s volume: voice times master.
     pub fn set_volume(&mut self, volume: f32) {
         self.volume = volume;
     }
 
-    pub fn say_chat_queued(&mut self, message: &str) {
+    /// `GameNarrator.sayChat`: chat narration, with no empty check — an
+    /// empty message is still logged and handed to the narrator.
+    pub fn say_chat(&mut self, message: &str) {
         if self.status.should_narrate_chat() {
-            self.narrate_not_interrupting(message);
-        }
-    }
-    pub fn say_system_chat_queued(&mut self, message: &str) {
-        if self.status.should_narrate_system_or_chat() {
-            self.narrate_not_interrupting(message);
-        }
-    }
-    pub fn say_system_queued(&mut self, message: &str) {
-        if self.status.should_narrate_system() {
-            self.narrate_not_interrupting(message);
-        }
-    }
-    fn narrate_not_interrupting(&mut self, message: &str) {
-        if !message.is_empty() {
             self.log(message);
             self.narrate(message, false);
         }
     }
-    /// `saySystemNow`: what is said now cuts off whatever is being said.
-    pub fn say_system_now(&mut self, message: &str) {
+    /// `GameNarrator.say`: system narration; empty messages are skipped.
+    pub fn say(&mut self, message: &str) {
+        if self.status.should_narrate_system() && !message.is_empty() {
+            self.log(message);
+            self.narrate(message, false);
+        }
+    }
+    /// `sayNow`: what is said now cuts off whatever is being said.
+    pub fn say_now(&mut self, message: &str) {
         if self.status.should_narrate_system() && !message.is_empty() {
             self.log(message);
             if self.is_active() {
@@ -248,17 +239,14 @@ pub fn set_volume(volume: f32) {
 pub fn is_active() -> bool {
     narrator().is_active()
 }
-pub fn say_chat_queued(message: &str) {
-    narrator().say_chat_queued(message);
+pub fn say_chat(message: &str) {
+    narrator().say_chat(message);
 }
-pub fn say_system_chat_queued(message: &str) {
-    narrator().say_system_chat_queued(message);
+pub fn say(message: &str) {
+    narrator().say(message);
 }
-pub fn say_system_queued(message: &str) {
-    narrator().say_system_queued(message);
-}
-pub fn say_system_now(message: &str) {
-    narrator().say_system_now(message);
+pub fn say_now(message: &str) {
+    narrator().say_now(message);
 }
 pub fn update_status(status: Status, announcement: &str) {
     narrator().update_status(status, announcement);
@@ -326,46 +314,57 @@ mod tests {
 
     #[test]
     fn each_status_narrates_its_own_kinds_of_message() {
-        for (status, chat, system, either) in [
-            (Status::Off, false, false, false),
-            (Status::All, true, true, true),
-            (Status::Chat, true, false, true),
-            (Status::System, false, true, true),
+        for (status, chat, system) in [
+            (Status::Off, false, false),
+            (Status::All, true, true),
+            (Status::Chat, true, false),
+            (Status::System, false, true),
         ] {
             assert_eq!(status.should_narrate_chat(), chat);
             assert_eq!(status.should_narrate_system(), system);
-            assert_eq!(status.should_narrate_system_or_chat(), either);
         }
     }
 
     #[test]
-    fn queued_messages_wait_their_turn_and_empty_ones_are_skipped() {
+    fn queued_messages_wait_their_turn_chat_says_empty_ones_system_skips_them() {
         let (mut n, r) = narrator(Status::Chat);
         n.set_volume(0.5);
-        n.say_chat_queued("<Steve> hi");
-        n.say_system_queued("not in chat mode");
-        n.say_system_chat_queued("Steve joined the game");
-        n.say_chat_queued("");
+        n.say_chat("<Steve> hi");
+        n.say("not in chat mode");
+        // `sayChat` has no empty check: the empty message is logged and said.
+        n.say_chat("");
         assert_eq!(
             r.take(),
             vec![
                 Call::Say("<Steve> hi".into(), false, 0.5),
-                Call::Say("Steve joined the game".into(), false, 0.5),
+                Call::Say("".into(), false, 0.5),
             ]
         );
-        assert_eq!(n.recent(), ["<Steve> hi", "Steve joined the game"]);
+        assert_eq!(n.recent(), ["<Steve> hi", ""]);
+        // `say` skips empty messages.
+        n.set_status(Status::System);
+        n.say("");
+        n.say("Steve joined the game");
+        assert_eq!(
+            r.take(),
+            vec![Call::Say("Steve joined the game".into(), false, 0.5)]
+        );
+        assert_eq!(
+            n.recent(),
+            ["<Steve> hi", "", "Steve joined the game"]
+        );
     }
 
     #[test]
     fn saying_now_clears_and_interrupts_only_for_system_narration() {
         let (mut n, r) = narrator(Status::System);
-        n.say_system_now("Options");
+        n.say_now("Options");
         assert_eq!(
             r.take(),
             vec![Call::Clear, Call::Say("Options".into(), true, 1.0)]
         );
         n.set_status(Status::Chat);
-        n.say_system_now("Options");
+        n.say_now("Options");
         assert!(r.take().is_empty());
     }
 
@@ -377,7 +376,7 @@ mod tests {
         };
         let mut n = GameNarrator::with_sink(Box::new(recorder.clone()));
         n.set_status(Status::All);
-        n.say_system_now("Options");
+        n.say_now("Options");
         n.clear();
         assert!(recorder.take().is_empty());
         assert_eq!(n.recent(), ["Options"]);

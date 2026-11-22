@@ -894,7 +894,7 @@ impl Game<'_> {
         // ServerLevel.tick: only entities in entity-ticking chunks tick.
         let ticking = self.entity_ticking_area();
         // EntityGetter.getEntityCollisions: the boxes that stop a stand's move
-        // (a living shulker, a boat, a happy ghast held still), gathered when
+        // (a living shulker, a boat), gathered when
         // the first stand travels. A server's stand rides nothing (`vehicle`
         // is set on a server's client only), but mobs can ride it (`/ride`):
         // `isPassengerOfSameVehicle` leaves those riders out.
@@ -1949,14 +1949,10 @@ impl Game<'_> {
         {
             let pose = head * glam::Mat4::from_scale(glam::Vec3::splat(1.1875));
             let special = horizon_assets::item_model::SpecialModel {
-                kind: if kind == "player" {
-                    horizon_assets::item_model::SpecialKind::PlayerHead
-                } else {
-                    horizon_assets::item_model::SpecialKind::Head {
-                        kind: kind.to_owned(),
-                        texture: None,
-                        animation: 0.0,
-                    }
+                kind: horizon_assets::item_model::SpecialKind::Head {
+                    kind: kind.to_owned(),
+                    texture: None,
+                    animation: 0.0,
                 },
             };
             let mut sink = horizon_client::item_render::WorldSink {

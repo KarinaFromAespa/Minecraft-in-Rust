@@ -164,12 +164,13 @@ fn entity_vertex(position: vec3<f32>, uv: vec2<f32>,
     out.color = c;
     out.back_color = back;
     out.overlay_color = overlay_texel(overlay);
-    // Sky geometry (clouds, celestial bodies) is exempt from render-distance fog.
-    out.fog_distance.x = select(length(position), 0.0, overlay >= 2u && overlay <= 4u);
-    out.fog_distance.y = select(max(length(position.xz), abs(position.y)), 0.0, overlay >= 2u && overlay <= 4u);
+    // Celestial bodies are exempt from render-distance fog. Clouds are not:
+    // rendertype_clouds.fsh (1.21.5) fogs them over the render-distance
+    // pair, so they keep both distances.
+    out.fog_distance.x = select(length(position), 0.0, overlay >= 2u && overlay <= 3u);
+    out.fog_distance.y = select(max(length(position.xz), abs(position.y)), 0.0, overlay >= 2u && overlay <= 3u);
     out.overlay = overlay;
     out.glint_uv = vec2(0.0);
-    if overlay == 4u { out.fog_distance.x = length(position); }
     return out;
 }
 @vertex fn vs_entity(@location(0) position: vec3<f32>, @location(1) uv: vec2<f32>,
@@ -324,8 +325,13 @@ fn entity_color(in: Out, front: bool) -> vec4<f32> {
         }
         color = vec4(c, 1.0);
     } else if in.overlay == 4u {
-        // clouds.fsh: alpha fades out towards the cloud fog end.
-        return vec4(color.rgb, color.a * (1.0 - linear_fog(in.fog_distance.x, 0.0, globals.fog_ends.y)));
+        // rendertype_clouds.fsh (1.21.5): linear_fog over the
+        // render-distance fog, as any other fragment — the colour blends
+        // towards the fog colour and the alpha never fades. (1.21.6 fades
+        // the alpha out towards the cloud fog end instead.)
+        let f = max(linear_fog(in.fog_distance.x, globals.fog.x, globals.fog.y),
+                    linear_fog(in.fog_distance.y, globals.fog.z, globals.fog.w));
+        return vec4(mix(color.rgb, globals.fog_color.rgb, f * globals.fog_color.a), color.a);
     }
     if color.a < 0.1 || (in.cull != 0u && !front) { discard; }
     // entity.fsh calculateFinalColor: the overlay (hurt red, TNT white) over the
@@ -419,8 +425,8 @@ fn hdr_mark(tier: u32, y: f32) -> f32 {
 // HDR lighting on clouds, drawn again after them with only alpha written: they're lit by the
 // sky, so they take its value, which their blending would otherwise cover.
 @fragment fn fs_hdr_cloud_mark(in: Out) -> @location(0) vec4<f32> {
-    let a = in.color.a * (1.0 - linear_fog(in.fog_distance.x, 0.0, globals.fog_ends.y));
-    if a < 0.1 { discard; }
+    // 1.21.5 clouds never fade their alpha, so the mark is the vertex alpha.
+    if in.color.a < 0.1 { discard; }
     return vec4(0.0, 0.0, 0.0, hdr_scene_alpha(globals.hdr_light.y));
 }
 

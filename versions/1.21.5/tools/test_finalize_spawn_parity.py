@@ -43,7 +43,7 @@ OTHERS = ['pig', 'cow', 'mooshroom', 'sheep', 'chicken', 'rabbit', 'horse', 'don
           'axolotl', 'squid', 'glow_squid', 'cod', 'salmon', 'tropical_fish', 'pufferfish', 'dolphin', 'bat', 'villager',
           'wandering_trader', 'iron_golem', 'snow_golem', 'creeper', 'cave_spider', 'enderman', 'endermite',
           'silverfish', 'slime', 'magma_cube', 'phantom', 'hoglin', 'zoglin', 'ghast', 'blaze', 'strider', 'guardian',
-          'elder_guardian', 'shulker', 'camel', 'allay', 'breeze', 'sniffer', 'happy_ghast', 'warden', 'creaking',
+          'elder_guardian', 'shulker', 'camel', 'allay', 'breeze', 'sniffer', 'warden', 'creaking',
           'camel_husk', 'nautilus', 'zombie_nautilus', 'sulfur_cube', 'zombie_horse', 'skeleton_horse', 'tadpole',
           'giant', 'wither']
 BIOMES = ['minecraft:plains', 'minecraft:desert', 'minecraft:snowy_plains', 'minecraft:snowy_taiga', 'minecraft:taiga',

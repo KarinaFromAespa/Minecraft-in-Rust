@@ -186,26 +186,23 @@ impl Game<'_> {
 
     /// `StructureTemplate.fillFromWorld` for a box at `origin`: every block
     /// but structure voids with its block entity's data, and the entities
-    /// (never players) in it.
+    /// (never players) in it. 1.21.5 skips only the void: the `ignoreBlocks`
+    /// list (which test instances used for air) is 1.21.6's.
     fn template_from_world(
         &mut self,
         origin: [i32; 3],
         size: [i32; 3],
         include_entities: bool,
-        ignore_air: bool,
     ) -> Tag {
         let registry = self.pack.assets.registry;
         let void = registry.default_state("minecraft:structure_void");
-        let air = ignore_air
-            .then(|| registry.default_state("minecraft:air"))
-            .flatten();
         let mut blocks = Vec::new();
         for y in 0..size[1] {
             for z in 0..size[2] {
                 for x in 0..size[0] {
                     let at = (origin[0] + x, origin[1] + y, origin[2] + z);
                     let state = self.world.block(at.0, at.1, at.2);
-                    if Some(state) == void || Some(state) == air {
+                    if Some(state) == void {
                         continue;
                     }
                     let nbt = self.world.block_entities.get(&at).map(|entity| {
@@ -303,13 +300,12 @@ impl Game<'_> {
             b.ignore_entities,
             &b.author,
             to_disk,
-            false,
         )
     }
 
     /// The static `StructureBlockEntity.saveStructure`: `getOrCreate`, then
     /// `fillFromWorld`, which leaves a template alone when a side of the area
-    /// is empty; `ignore_air` is `ignoreBlocks = [AIR]`.
+    /// is empty.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn save_structure_area(
         &mut self,
@@ -319,11 +315,10 @@ impl Game<'_> {
         ignore_entities: bool,
         author: &str,
         to_disk: bool,
-        ignore_air: bool,
     ) -> bool {
         let existing = self.template_entry(name);
         let tag = if size.iter().all(|s| *s >= 1) {
-            self.template_from_world(origin, size, !ignore_entities, ignore_air)
+            self.template_from_world(origin, size, !ignore_entities)
         } else {
             existing.map_or_else(
                 || {

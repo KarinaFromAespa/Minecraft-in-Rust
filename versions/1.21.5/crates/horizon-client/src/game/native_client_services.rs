@@ -65,8 +65,8 @@ pub enum NativeScreenKind {
     Chat,
     /// The death screen (`DeathScreen`).
     Death,
-    /// Any other: the pause menu, an inventory or container, a sign, book,
-    /// dialog or prompt, the loading screen, the title's screens.
+    /// Any other: the pause menu, an inventory or container, a sign, book
+    /// or prompt, the loading screen, the title's screens.
     Other,
 }
 
@@ -640,7 +640,7 @@ mod tests {
         assert_eq!(
             NativeScreenKind::of(Screen::Chat, true),
             NativeScreenKind::Other,
-            "a sign or dialog over chat covers the world"
+            "a sign over chat covers the world"
         );
     }
 

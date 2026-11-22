@@ -57,29 +57,11 @@ pub(super) fn level_loading(progress: Option<f32>, tr: Tr<'_>) -> ScreenInfo {
     }
 }
 
-/// `BookEditScreen.getNarrationMessage`: its title and the page indicator.
-pub(super) fn book_edit(page: usize, pages: usize, tr: Tr<'_>) -> ScreenInfo {
-    let indicator = tr(
-        "book.pageIndicator",
-        &[&(page + 1).to_string(), &pages.max(1).to_string()],
-    );
-    ScreenInfo::new(
-        "book/edit",
-        join_for_narration(&[&tr("book.edit.title", &[]), &indicator]),
-    )
-}
-
-/// `BookViewScreen.getNarrationMessage` (and `LecternScreen`'s): its title,
-/// the page indicator and the page's text, a line each.
-pub(super) fn book_view(page: usize, pages: usize, text: &str, tr: Tr<'_>) -> ScreenInfo {
-    let indicator = tr(
-        "book.pageIndicator",
-        &[&(page + 1).to_string(), &pages.to_string()],
-    );
-    ScreenInfo::new(
-        "book/view",
-        join_lines(&[&tr("book.view.title", &[]), &indicator, text]),
-    )
+/// `BookEditScreen` in 1.21.5 has `GameNarrator.NO_TITLE` and no
+/// `getNarrationMessage` override: the screen narrates nothing (1.21.6
+/// added the title and the page indicator).
+pub(super) fn book_edit() -> ScreenInfo {
+    ScreenInfo::new("book/edit", "")
 }
 
 /// An `AbstractContainerScreen` opens: its narration is its title, which
@@ -95,8 +77,7 @@ pub(super) fn name_container(title: impl FnOnce() -> String) {
 }
 
 /// `ConfirmScreen.getNarrationMessage` (`PackConfirmScreen`,
-/// `ConfirmLinkScreen`, `DialogScreen.WarningScreen`): the title and the
-/// message.
+/// `ConfirmLinkScreen`): the title and the message.
 pub(super) fn confirm(id: &str, title: &str, message: &str) -> ScreenInfo {
     ScreenInfo::new(id, join_for_narration(&[title, message]))
 }
@@ -167,16 +148,11 @@ mod tests {
     }
 
     #[test]
-    fn books_name_their_page() {
-        // An empty book still counts one page while it is written.
-        assert_eq!(
-            book_edit(0, 0, &keys).title,
-            "book.edit.title. book.pageIndicator(1, 1)"
-        );
-        assert_eq!(
-            book_view(1, 3, "Second page", &keys).title,
-            "book.view.title\nbook.pageIndicator(2, 3)\nSecond page"
-        );
+    fn book_screens_narrate_nothing() {
+        // The edit screen narrates nothing in 1.21.5 — NO_TITLE and no
+        // getNarrationMessage override (1.21.6 added the title and the
+        // page indicator) — and neither does the view screen.
+        assert_eq!(book_edit().title, "");
     }
 
     #[test]

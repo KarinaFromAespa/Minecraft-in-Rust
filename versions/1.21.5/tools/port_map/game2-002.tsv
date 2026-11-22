@@ -77,10 +77,6 @@ Ghast.registerGoals	port	crates/horizon-client/src/mobs/nether.rs::register_ghas
 Ghast.isInvulnerableTo	inline	crates/horizon-client/src/mobs.rs::Mob::damage_with	reflected fireball and fire immunity checks are in damage_with
 Ghast.createAttributes	skip:data		attribute defaults come from data tables
 Ghast.checkGhastSpawnRules	port	crates/horizon-client/src/mobs/spawn_rules.rs::check_spawn_rules	
-Ghast.RandomFloatAroundGoal.getSuitableFlyToPosition	port	crates/horizon-client/src/mobs/happy_ghast.rs::FloatAround::start	gap: minor: plain Ghast uses one random point in RandomFloatAround::start; the 64-try search runs for happy ghasts here
-Ghast.RandomFloatAroundGoal.isGoodTarget	port	crates/horizon-client/src/mobs/happy_ghast.rs::FloatAround::good	
-Ghast.RandomFloatAroundGoal.chooseRandomPosition	inline	crates/horizon-client/src/mobs/happy_ghast.rs::FloatAround::start	the random point pick is in start
-Ghast.RandomFloatAroundGoal.chooseRandomPositionWithRestriction	inline	crates/horizon-client/src/mobs/happy_ghast.rs::FloatAround::start	the home check is in start; plain ghasts have no home
 Guardian.registerGoals	port	crates/horizon-client/src/mobs/guardian.rs::register	gap: minor: no MoveTowardsRestriction goal (5) and no look-at-guardian goal (8)
 Guardian.createAttributes	skip:data		attribute defaults come from data tables
 Guardian.defineSynchedData	skip:other		moving flag and attack target are Mob extra state read by beam

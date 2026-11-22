@@ -55,8 +55,6 @@ GuardianRenderer.getPosition	inline	crates/horizon-client/src/mobs/guardian.rs::
 GuardianRenderer.submit	port	crates/horizon-client/src/mobs/guardian.rs::beam_geometry	beam to the attack target
 GuardianRenderer.vertex	inline	crates/horizon-client/src/mobs/guardian.rs::beam_geometry	vertex built inline
 GuardianRenderer.extractRenderState	port	crates/horizon-client/src/mobs/guardian.rs::beam	beam attack scale and time
-HappyGhastRenderer.getBoundingBoxForCulling	port	crates/horizon-client/src/game/entity_culling.rs::cull_box	setMinY(minY - getBbHeight() / 2) for the riders hanging below it
-HappyGhastRenderer.extractRenderState	port	crates/horizon-client/src/mobs/happy_ghast.rs::wearing_harness	gap: player: the body item (harness) is not drawn on the ghast; only the harnessed state is read
 HoglinRenderer.isShaking	port	crates/horizon-client/src/mobs/render.rs::shaking	converting hoglin shakes
 HorseRenderer.getTextureLocation	port	crates/horizon-client/src/mobs/render.rs::body	variant and baby texture
 HorseRenderer.extractRenderState	port	crates/horizon-client/src/mobs/equine.rs::markings	variant, markings and armour layer

@@ -3,7 +3,7 @@
 //! and `minecraft:audio/music_volume` environment attributes of dimension
 //! types and biomes (a biome value overrides its dimension's).
 use crate::options_ui::{MusicGroup, MusicTrack};
-use crate::sound_engine::{InstanceId, MUSIC, PlayResult, SoundEngine, SoundInstance, Sounds};
+use crate::sound_engine::{InstanceId, MUSIC, SoundEngine, SoundInstance, Sounds};
 use crate::sound_events::{Sentinel, SoundRegistry};
 use horizon_core::random::{LegacyRandom, RandomSource};
 use serde_json::Value;
@@ -222,6 +222,13 @@ pub struct Situation<'a> {
     pub creative: bool,
     /// `LocalPlayer.isUnderWater`.
     pub underwater: bool,
+    /// The player's level is the Nether (creative music never plays there).
+    pub in_nether: bool,
+    /// The biome at the eye is in `#minecraft:plays_underwater_music`.
+    pub plays_underwater_music: bool,
+    /// The manager is currently playing `Musics.UNDER_WATER` (it keeps
+    /// playing once started, even out of water or out of the biome).
+    pub playing_underwater: bool,
 }
 impl Situation<'_> {
     /// `Minecraft.getSituationalMusic`.
@@ -235,9 +242,31 @@ impl Situation<'_> {
         if self.in_end && self.boss_music {
             return Some(Music::end_boss());
         }
-        self.background
-            .select(self.creative, self.underwater)
-            .cloned()
+        // 1.21.11+ data carries the background music as environment
+        // attributes; 1.21.5 data has none, so for 1.21.5 the selection
+        // is empty and the hardcoded 1.21.5 chain below runs instead.
+        if let Some(music) = self.background.select(self.creative, self.underwater) {
+            return Some(music.clone());
+        }
+        // 1.21.5 `Minecraft.getSituationalMusic`, in its order: the End
+        // plays `Musics.END` (boss music is handled above); underwater
+        // music keeps playing once started and starts when the player is
+        // underwater in a `#minecraft:plays_underwater_music` biome;
+        // creative music plays in creative mode outside the Nether;
+        // otherwise the biome's own music or `Musics.GAME`. The biome's
+        // own music is a known gap: the legacy `music` field of the
+        // biome JSON is not read yet, so biome-specific tracks (basalt
+        // deltas, deep dark, ...) fall back to `Musics.GAME`.
+        if self.in_end {
+            return Some(Music::end());
+        }
+        if self.playing_underwater || (self.underwater && self.plays_underwater_music) {
+            return Some(Music::under_water());
+        }
+        if self.creative && !self.in_nether {
+            return Some(Music::creative());
+        }
+        Some(Music::game())
     }
     /// `Minecraft.getMusicVolume`.
     pub fn volume(&self) -> f32 {
@@ -312,41 +341,6 @@ impl MusicTables {
                 .or_else(|| dimension.and_then(|l| l.volume))
                 .unwrap_or(1.0),
         )
-    }
-}
-/// `MusicManager.MusicFrequency` (the `musicFrequency` option).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum MusicFrequency {
-    #[default]
-    Default,
-    Frequent,
-    Constant,
-}
-impl MusicFrequency {
-    pub fn parse(name: &str) -> Self {
-        match name {
-            "FREQUENT" => Self::Frequent,
-            "CONSTANT" => Self::Constant,
-            _ => Self::Default,
-        }
-    }
-    fn max_frequency(self) -> i32 {
-        match self {
-            Self::Default => 20 * 1200,
-            Self::Frequent => 10 * 1200,
-            Self::Constant => 0,
-        }
-    }
-    fn next_song_delay(self, music: Option<&Music>, random: &mut LegacyRandom) -> i32 {
-        let Some(music) = music else {
-            return self.max_frequency();
-        };
-        if self == Self::Constant {
-            return 100;
-        }
-        let min = music.min_delay.min(self.max_frequency());
-        let max = music.max_delay.min(self.max_frequency());
-        next_int(random, min, max)
     }
 }
 /// `Mth.nextInt(random, min, max)`: inclusive.
@@ -459,17 +453,12 @@ pub struct MusicManager {
     current: Option<InstanceId>,
     current_gain: f32,
     next_song_delay: i32,
-    toast_shown: bool,
     /// The built-in tracks the Music page turned off (sound ids): every pool
     /// picks around them.
     off: Vec<String>,
     /// `current` was started by the Music page's "play now", not by the
     /// situation: its own music waits for it to end.
     forced: bool,
-    pub frequency: MusicFrequency,
-    /// `ToastManager.showNowPlayingToast` (true) / `hideNowPlayingToast`
-    /// (false) calls since the last drain.
-    pub toast_requests: Vec<bool>,
 }
 impl Default for MusicManager {
     fn default() -> Self {
@@ -484,11 +473,8 @@ impl MusicManager {
             current: None,
             current_gain: 1.0,
             next_song_delay: 100,
-            toast_shown: false,
             off: Vec::new(),
             forced: false,
-            frequency: MusicFrequency::Default,
-            toast_requests: Vec::new(),
         }
     }
     /// The sound event of the current track.
@@ -505,9 +491,6 @@ impl MusicManager {
     }
     pub fn current_gain(&self) -> f32 {
         self.current_gain
-    }
-    pub fn toast_shown(&self) -> bool {
-        self.toast_shown
     }
     fn set_current(&mut self, id: Option<InstanceId>, sounds: &mut impl Sounds) {
         if let Some(old) = self.current
@@ -538,7 +521,7 @@ impl MusicManager {
     ) {
         if self.current.is_some()
             && self.current_gain != volume
-            && !self.fade(volume, music, sounds)
+            && !self.fade(volume, sounds)
         {
             return;
         }
@@ -561,16 +544,16 @@ impl MusicManager {
             }
             if !sounds.is_active(current) {
                 self.set_current(None, sounds);
-                let delay = self
-                    .frequency
-                    .next_song_delay(Some(music), &mut self.random);
+                let delay = next_int(&mut self.random, music.min_delay, music.max_delay);
                 self.next_song_delay = self.next_song_delay.min(delay);
             }
         }
         self.next_song_delay = self.next_song_delay.min(music.max_delay);
         if self.current.is_none() && !loading {
+            // `nextSongDelay-- <= 0`: the check uses the pre-decrement value.
+            let delay = self.next_song_delay;
             self.next_song_delay -= 1;
-            if self.next_song_delay <= 0 {
+            if delay <= 0 {
                 self.start_playing(music, sounds);
             }
         }
@@ -618,9 +601,8 @@ impl MusicManager {
             // the event is unknown): retry after a normal delay, so turning
             // a track back on is heard without reloading the music.
             if only.is_none() {
-                self.next_song_delay = self
-                    .frequency
-                    .next_song_delay(Some(music), &mut self.random);
+                self.next_song_delay =
+                    next_int(&mut self.random, music.min_delay, music.max_delay);
             }
             return false;
         };
@@ -646,63 +628,36 @@ impl MusicManager {
             sounds.stop_instance(current);
             self.set_current(None, sounds);
         }
-        let (id, result) = sounds.play_instance(instance, true);
+        let (id, _) = sounds.play_instance(instance, true);
         self.set_current(Some(id), sounds);
         self.forced = only.is_some();
-        match result {
-            PlayResult::Started => {
-                self.toast_requests.push(true);
-                self.toast_shown = true;
-            }
-            PlayResult::StartedSilently => self.toast_shown = false,
-            PlayResult::NotStarted => {}
-        }
         self.next_song_delay = i32::MAX;
         true
-    }
-    /// `MusicManager.showNowPlayingToastIfNeeded`.
-    pub fn show_now_playing_toast_if_needed(&mut self) {
-        if !self.toast_shown {
-            self.toast_requests.push(true);
-            self.toast_shown = true;
-        }
     }
     /// `MusicManager.stopPlaying(Music)`.
     pub fn stop_playing_music(
         &mut self,
         music: &Music,
-        situational: Option<&Music>,
         sounds: &mut impl Sounds,
     ) {
         if self.is_playing_music(music, sounds.engine()) {
-            self.stop_playing(situational, sounds);
+            self.stop_playing(sounds);
         }
     }
     /// `MusicManager.stopPlaying()`.
-    pub fn stop_playing(&mut self, situational: Option<&Music>, sounds: &mut impl Sounds) {
+    pub fn stop_playing(&mut self, sounds: &mut impl Sounds) {
         if let Some(current) = self.current {
             sounds.stop_instance(current);
             self.set_current(None, sounds);
-            self.toast_requests.push(false);
         }
-        self.next_song_delay = self
-            .frequency
-            .next_song_delay(situational, &mut self.random)
-            + 100;
+        self.next_song_delay += 100;
     }
     /// `MusicManager.isPlayingMusic`.
     pub fn is_playing_music(&self, music: &Music, sounds: &SoundEngine) -> bool {
         self.current(sounds) == Some(music.sound.as_str())
     }
-    /// `MusicManager.setMinutesBetweenSongs`.
-    pub fn set_frequency(&mut self, frequency: MusicFrequency, situational: Option<&Music>) {
-        self.frequency = frequency;
-        self.next_song_delay = self
-            .frequency
-            .next_song_delay(situational, &mut self.random);
-    }
     /// `MusicManager.fadePlaying`: false once the track faded out and stopped.
-    fn fade(&mut self, volume: f32, situational: Option<&Music>, sounds: &mut impl Sounds) -> bool {
+    fn fade(&mut self, volume: f32, sounds: &mut impl Sounds) -> bool {
         if self.current.is_none() {
             return false;
         }
@@ -722,7 +677,7 @@ impl MusicManager {
         }
         self.current_gain = self.current_gain.clamp(0.0, 1.0);
         if self.current_gain <= 1.0E-4 {
-            self.stop_playing(situational, sounds);
+            self.stop_playing(sounds);
             false
         } else {
             sounds.update_category_volume(MUSIC, self.current_gain);
@@ -877,8 +832,9 @@ mod tests {
             |m: &mut MusicManager, music: &Music, engine: &mut SoundEngine, backend: &mut Null| {
                 m.tick(Some(music), 1.0, false, &mut Bound { engine, backend });
             };
-        // nextSongDelay starts at 100, capped to MENU's max delay 600: starts on tick 100.
-        for _ in 0..99 {
+        // nextSongDelay starts at 100, capped to MENU's max delay 600: the
+        // check uses the pre-decrement value, so it starts on tick 101.
+        for _ in 0..100 {
             tick(&mut m, &menu, &mut engine, &mut backend);
         }
         assert!(m.current(&engine).is_none());
@@ -1155,5 +1111,82 @@ mod tests {
             },
         ));
         assert!(m.current_instance().is_none());
+    }
+
+    /// 1.21.5 `Minecraft.getSituationalMusic` with no environment
+    /// attributes (1.21.5 data has none): the hardcoded chain, in
+    /// vanilla's order — End, underwater, creative, `Musics.GAME` —
+    /// and attributes still win when present.
+    #[test]
+    fn situational_music_falls_back_to_the_1_21_5_chain_without_attributes() {
+        let empty = BackgroundMusic::default();
+        fn situation(
+            in_end: bool,
+            in_nether: bool,
+            creative: bool,
+            underwater: bool,
+            plays_underwater_music: bool,
+            playing_underwater: bool,
+            background: &BackgroundMusic,
+        ) -> Situation<'_> {
+            Situation {
+                screen_music: None,
+                in_world: true,
+                in_end,
+                boss_music: false,
+                background,
+                probe_volume: 1.0,
+                creative,
+                underwater,
+                in_nether,
+                plays_underwater_music,
+                playing_underwater,
+            }
+        }
+        let sound = |s: Situation<'_>| s.music().map(|m| m.sound);
+        // Survival in the overworld: GAME.
+        assert_eq!(
+            sound(situation(false, false, false, false, false, false, &empty)),
+            Some("minecraft:music.game".to_owned())
+        );
+        // Creative in the overworld: CREATIVE; in the Nether: GAME.
+        assert_eq!(
+            sound(situation(false, false, true, false, false, false, &empty)),
+            Some("minecraft:music.creative".to_owned())
+        );
+        assert_eq!(
+            sound(situation(false, true, true, false, false, false, &empty)),
+            Some("minecraft:music.game".to_owned())
+        );
+        // Underwater in a plays-underwater-music biome: UNDER_WATER;
+        // underwater elsewhere: GAME.
+        assert_eq!(
+            sound(situation(false, false, false, true, true, false, &empty)),
+            Some("minecraft:music.under_water".to_owned())
+        );
+        assert_eq!(
+            sound(situation(false, false, false, true, false, false, &empty)),
+            Some("minecraft:music.game".to_owned())
+        );
+        // Underwater music keeps playing once started.
+        assert_eq!(
+            sound(situation(false, false, false, false, false, true, &empty)),
+            Some("minecraft:music.under_water".to_owned())
+        );
+        // The End without a boss fight: END.
+        assert_eq!(
+            sound(situation(true, false, false, false, false, false, &empty)),
+            Some("minecraft:music.end".to_owned())
+        );
+        // Attributes still win when present.
+        let attributed = BackgroundMusic {
+            default: Some(Music::new("pack:music.dunes", 12000, 24000, false)),
+            creative: None,
+            underwater: None,
+        };
+        assert_eq!(
+            sound(situation(false, false, true, false, false, false, &attributed)),
+            Some("pack:music.dunes".to_owned())
+        );
     }
 }

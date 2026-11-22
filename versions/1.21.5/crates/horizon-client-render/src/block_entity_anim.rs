@@ -655,7 +655,7 @@ pub struct ConduitCheck {
     /// The shape changed: `CONDUIT_ACTIVATE` (true) or `CONDUIT_DEACTIVATE`.
     pub toggled: Option<bool>,
     /// The frame blocks counted, while the conduit is active: `applyEffects`
-    /// and `updateAndAttackTarget` follow (the attack needs 42 or more).
+    /// and `updateDestroyTarget` follow (the attack needs 42 or more).
     pub frames: Option<usize>,
 }
 
@@ -665,6 +665,10 @@ pub struct ConduitServer {
     shape: Conduit,
     /// `destroyTarget`: the mob id of the enemy being struck.
     pub target: Option<u32>,
+    /// `destroyTargetUUID`: the `Target` a load (or `/data`) named, not
+    /// yet resolved to a mob. It is never saved: `saveAdditional` writes
+    /// the resolved target's UUID only.
+    pub pending: Option<[i32; 4]>,
     next_ambient_sound: i64,
 }
 

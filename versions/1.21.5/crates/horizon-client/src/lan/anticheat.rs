@@ -92,14 +92,13 @@ fn uuid_text(uuid: u128) -> String {
 const GROUND_GRACE: u64 = 10;
 
 /// Whether an entity of `kind` at `at` may carry a player standing at `player`: the entities players
-/// stand on (boats, rafts, minecarts, shulkers, happy ghasts, 4 blocks tall), within 4 blocks sideways and
-/// from a block above the player to a little more than a happy ghast's height below.
+/// stand on (boats, rafts, minecarts, shulkers), within 4 blocks sideways and
+/// from a block above the player to a little more than a shulker's height below.
 fn carries_player(kind: &str, at: [f64; 3], player: [f64; 3]) -> bool {
     let carrier = kind.ends_with("boat")
         || kind.ends_with("raft")
         || kind.contains("minecart")
-        || kind == "minecraft:shulker"
-        || kind == "minecraft:happy_ghast";
+        || kind == "minecraft:shulker";
     let up = player[1] - at[1];
     carrier
         && (at[0] - player[0]).abs() < 4.0
@@ -361,7 +360,7 @@ impl Hub {
     /// Whether something at `to` can hold guest `i` up; None: not judged. Only blocks that can't hold
     /// anyone are judged: nothing but air and fluids around the feet, and no collision a tenth of a block
     /// below. Anything else (powder snow, scaffolding, a block the server doesn't have yet) and a boat,
-    /// minecart, shulker or happy ghast under the player: not judged.
+    /// minecart or shulker under the player: not judged.
     fn ground_holds(&self, i: usize, to: [f64; 3], ctx: &TickCtx) -> Option<bool> {
         let g = &self.guests[i];
         // No fall damage to skip.
@@ -572,13 +571,7 @@ mod tests {
     }
 
     #[test]
-    fn a_happy_ghasts_rider_and_a_boats_are_carried() {
-        // HappyGhast is 4 blocks tall: its rider stands 4.0 above it.
-        assert!(carries_player(
-            "minecraft:happy_ghast",
-            [0.0, 70.0, 0.0],
-            [1.5, 74.0, -1.0]
-        ));
+    fn a_boats_rider_is_carried() {
         assert!(carries_player(
             "minecraft:oak_boat",
             [0.0, 62.0, 0.0],
@@ -590,8 +583,8 @@ mod tests {
             [0.0, 71.0, 0.0]
         ));
         assert!(!carries_player(
-            "minecraft:happy_ghast",
-            [0.0, 70.0, 0.0],
+            "minecraft:oak_boat",
+            [0.0, 62.0, 0.0],
             [0.0, 80.0, 0.0]
         ));
     }

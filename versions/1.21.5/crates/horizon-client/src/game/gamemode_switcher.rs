@@ -85,6 +85,14 @@ impl Game<'_> {
                 x as f32,
                 y as f32,
             );
+            self.draw_item_model(
+                batch,
+                &ItemStack::new(ICONS[index], 1),
+                (x + 5) as f32,
+                (y + 5) as f32,
+            );
+            // `GameModeSlot.renderWidget` (1.21.5): the selection draws over
+            // the icon; 1.21.6 drew the icon over the selection.
             if mode == selected {
                 batch.sprite(
                     &self.gui.atlas,
@@ -93,12 +101,6 @@ impl Game<'_> {
                     y as f32,
                 );
             }
-            self.draw_item_model(
-                batch,
-                &ItemStack::new(ICONS[index], 1),
-                (x + 5) as f32,
-                (y + 5) as f32,
-            );
         }
     }
 }

@@ -62,7 +62,6 @@ actions! {
     SaveToolbarActivator, "key.saveToolbarActivator", Some(KeyCode::KeyC);
     LoadToolbarActivator, "key.loadToolbarActivator", Some(KeyCode::KeyX);
     Advancements, "key.advancements", Some(KeyCode::KeyL);
-    QuickActions, "key.quickActions", Some(KeyCode::KeyG);
     DebugOverlay, "key.debug.overlay", None;
     DebugModifier, "key.debug.modifier", None;
     Hotbar1, "key.hotbar.1", Some(KeyCode::Digit1);
@@ -89,7 +88,6 @@ actions! {
     DebugReloadResourcePacks, "key.debug.reloadResourcePacks", None;
     DebugProfiling, "key.debug.profiling", None;
     DebugCopyLocation, "key.debug.copyLocation", None;
-    DebugDumpVersion, "key.debug.dumpVersion", None;
     DebugProfilingChart, "key.debug.profilingChart", None;
     DebugFpsCharts, "key.debug.fpsCharts", None;
     DebugNetworkCharts, "key.debug.networkCharts", None;

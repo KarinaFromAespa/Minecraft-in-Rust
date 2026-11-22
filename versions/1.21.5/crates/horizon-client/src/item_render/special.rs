@@ -1,8 +1,9 @@
 //! `SpecialModelRenderer`s: items drawn with entity models (chests, shulker
 //! boxes, banners, heads, shields, tridents, decorated pots, conduits, bells,
 //! books and copper golem statues). Each submits its model at the layer pose
-//! as vanilla's `submit` does (no block-entity placement transform) and
-//! reports `getExtents` over the same posed parts.
+//! as vanilla's `submit` does (no block-entity placement transform); extents
+//! are the fixed unit-cube corners `SpecialModelWrapper.EXTENTS` gives every
+//! special model in 1.21.5 (see `ItemRenderer::special_extents`).
 use super::{Foil, ItemQuad, ItemRenderer, ItemSink, SpecialHost, argb};
 use crate::{block_entity_render::ModelPart, hud::Rect, mobs::EntityModelDocument};
 use glam::{Mat4, Quat, Vec3};
@@ -160,26 +161,6 @@ fn draw(
         draw(child, child_name, m, adjust, sprite, color, foil, sink);
     }
 }
-/// `ModelPart.getExtentsForGui` from an identity pose.
-fn extents_of(part: &ModelPart, name: &str, parent: Mat4, adjust: Adjust, out: &mut Vec<Vec3>) {
-    if part.polygons.is_empty() && part.children.is_empty() {
-        return;
-    }
-    let mut p = part.pose;
-    adjust(name, &mut p);
-    let m = part_matrix(parent, &p);
-    for poly in &part.polygons {
-        for v in poly {
-            let q = m.transform_point3(Vec3::new(v[0], v[1], v[2]) / 16.0);
-            if !out.contains(&q) {
-                out.push(q);
-            }
-        }
-    }
-    for (child_name, child) in &part.children {
-        extents_of(child, child_name, m, adjust, out);
-    }
-}
 fn child<'a>(part: &'a ModelPart, name: &str) -> Option<&'a ModelPart> {
     part.child(name)
 }
@@ -311,59 +292,6 @@ fn statue_layer(pose: &str) -> &'static str {
         "star" => "copper_golem_star",
         _ => "copper_golem",
     }
-}
-
-/// `SpecialModelRenderer.getExtents`.
-pub(super) fn extents(renderer: &ItemRenderer, model: &SpecialModel) -> Vec<Vec3> {
-    let mut out = Vec::new();
-    let id = Mat4::IDENTITY;
-    let mut add = |key: &str, adjust: Adjust| {
-        if let Some(part) = renderer.part(key) {
-            extents_of(part, "root", id, adjust, &mut out);
-        }
-    };
-    match &model.kind {
-        SpecialKind::Bell => add("bell", &none),
-        SpecialKind::Banner { .. } => {
-            // `BannerRenderer.getExtents`: the standing models only.
-            add("standing_banner", &none);
-            add("standing_banner_flag", &flag_pose);
-        }
-        SpecialKind::Book {
-            open_angle,
-            page1,
-            page2,
-        } => add(
-            "book",
-            &book_pose(open_angle * (PI / 180.0), *page1, *page2),
-        ),
-        SpecialKind::Conduit => add("conduit_shell", &none),
-        SpecialKind::Chest {
-            openness,
-            chest_type,
-            ..
-        } => add(chest_model(chest_type), &chest_pose(*openness)),
-        SpecialKind::CopperGolemStatue { pose, .. } => add(statue_layer(pose), &statue_pose),
-        SpecialKind::DecoratedPot => {
-            if let Some(base) = renderer.part("decorated_pot_base") {
-                // `neck`, `top` and `bottom` are posed from an identity stack.
-                for name in ["neck", "top", "bottom"] {
-                    if let Some(part) = child(base, name) {
-                        extents_of(part, name, id, &none, &mut out);
-                    }
-                }
-            }
-        }
-        SpecialKind::EndCube { .. } => {}
-        SpecialKind::Head {
-            kind, animation, ..
-        } => add(skull_layer(kind), &skull_pose(kind, *animation)),
-        SpecialKind::PlayerHead => add("player", &none),
-        SpecialKind::ShulkerBox { openness, .. } => add("shulker_box", &shulker_pose(*openness)),
-        SpecialKind::Shield => add("shield", &none),
-        SpecialKind::Trident => add("trident", &none),
-    }
-    out
 }
 
 /// Banner pattern layers of a `minecraft:banner_patterns` value: the
@@ -541,34 +469,39 @@ pub(super) fn submit(
             texture,
             animation,
         } => {
-            let skin = texture
-                .as_deref()
-                .map(|t| format!("entity/{}", t.strip_prefix("minecraft:").unwrap_or(t)))
-                .unwrap_or_else(|| skull_texture(kind).to_owned());
-            part(
-                skull_layer(kind),
-                &skull_pose(kind, *animation),
-                &skin,
-                white,
-                Foil::None,
-            );
-        }
-        SpecialKind::PlayerHead => {
-            let skin = (!argument.is_null())
-                .then(|| host.player_skin(argument))
-                .flatten()
-                .unwrap_or_else(|| "entity/player/slim/steve".to_owned());
-            // `PlayerHeadSpecialRenderer`: the skin's `entityTranslucent` render type.
-            if let (Some(p), Some(r)) = (renderer.part("player"), sprites.get(&skin).copied()) {
-                draw(
-                    p,
-                    "root",
-                    pose,
-                    &none,
-                    r,
+            if kind == "player" {
+                // `SkullSpecialRenderer` for a player head: the profile's
+                // skin, drawn translucent (the skin's hat layer can be
+                // transparent). 1.21.5 has no separate
+                // `PlayerHeadSpecialRenderer`.
+                let skin = (!argument.is_null())
+                    .then(|| host.player_skin(argument))
+                    .flatten()
+                    .unwrap_or_else(|| "entity/player/slim/steve".to_owned());
+                if let (Some(p), Some(r)) = (renderer.part("player"), sprites.get(&skin).copied())
+                {
+                    draw(
+                        p,
+                        "root",
+                        pose,
+                        &none,
+                        r,
+                        white,
+                        Foil::None,
+                        &mut OitEntity(sink),
+                    );
+                }
+            } else {
+                let skin = texture
+                    .as_deref()
+                    .map(|t| format!("entity/{}", t.strip_prefix("minecraft:").unwrap_or(t)))
+                    .unwrap_or_else(|| skull_texture(kind).to_owned());
+                part(
+                    skull_layer(kind),
+                    &skull_pose(kind, *animation),
+                    &skin,
                     white,
                     Foil::None,
-                    &mut OitEntity(sink),
                 );
             }
         }

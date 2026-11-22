@@ -44,9 +44,11 @@ impl Game<'_> {
         } else {
             format!("minecraft:{raw}")
         };
-        let value = self
-            .provider_file(registry, &id)
-            .ok_or_else(|| err("argument.resource_or_id.no_such_element", &[&id, &registry]))?;
+        let value = self.provider_file(registry, &id).ok_or_else(|| {
+            // 1.21.5 has no no_such_element: the holder codec fails.
+            let message = format!("Failed to get element {id} from registry {registry}");
+            err("argument.resource_or_id.failed_to_parse", &[&message])
+        })?;
         Ok((Some(id), value))
     }
     /// A registered provider's definition.

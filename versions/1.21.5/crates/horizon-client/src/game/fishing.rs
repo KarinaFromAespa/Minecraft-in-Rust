@@ -12,6 +12,7 @@ use horizon_client::{
     mesher::Vertex,
     particles::{ParticleOptions, ParticleType},
     pose::Pose,
+    projectiles::ENTITY_HIT_MARGIN,
     random_source,
 };
 use horizon_core::{
@@ -93,8 +94,6 @@ pub(super) struct Hook {
     /// The fishing medium it last floated in outside water (`native_fishing_medium`): the
     /// table its catch rolls and the wait it draws. None in water.
     medium: Option<HookMedium>,
-    /// The position a server's update put it heading for.
-    lerp: HookLerp,
     pub(super) random: LegacyRandom,
 }
 /// What a hook keeps of the mod's fishing medium it floats in.
@@ -166,11 +165,6 @@ fn segment_entry(start: Vec3, end: Vec3, bounds: Aabb) -> Option<f64> {
         }
     }
     (entry <= 1.0 && exit >= 0.0).then_some(entry)
-}
-/// `ProjectileUtil.computeMargin`: the fishing hook's target-box margin grows
-/// to 0.3 blocks over its first eight ticks.
-fn entity_hit_margin(tick_count: i32) -> f64 {
-    f64::from((tick_count - 2).clamp(0, 6)) / 20.0
 }
 fn first_entity_hit(
     start: Vec3,
@@ -517,7 +511,6 @@ impl Game<'_> {
                 luck,
                 lure,
                 medium: None,
-                lerp: HookLerp::default(),
                 random,
             });
             // FishingRodItem.use counts a cast, not a reel-in.
@@ -994,7 +987,7 @@ impl Game<'_> {
                 let hit = first_entity_hit(
                     h.position,
                     entity_end,
-                    entity_hit_margin(h.tick_count),
+                    ENTITY_HIT_MARGIN,
                     self.mobs
                         .iter()
                         .filter(|m| m.alive())
@@ -1165,7 +1158,11 @@ impl Game<'_> {
                 }
             }
         }
-        if !in_water && !h.on_ground {
+        if !in_water {
+            // 1.21.5: gravity applies whenever the hook is out of water, even
+            // on the ground (1.21.6 skips it there); a flying hook's motion is
+            // zeroed after the move below either way, so only a bobbing hook
+            // resting on dry ground keeps the velocity.
             h.velocity.y -= f64::from(0.03_f32);
         }
         let mut scene = SceneCollisions {
@@ -1454,7 +1451,6 @@ pub(super) struct RemoteHook {
     velocity: Vec3,
     state: State,
     on_ground: bool,
-    lerp: HookLerp,
     pub(super) random: LegacyRandom,
 }
 
@@ -1465,67 +1461,30 @@ fn resting(was: bool, at: Vec3, target: [f64; 3], sent: bool) -> bool {
     sent || (was && target[1] <= at.y + 1.0e-3)
 }
 
-/// `LinearInterpolationHandler`: where a server's update has a hook heading
-/// and the steps left (`DEFAULT_INTERPOLATION_STEPS` 3).
-#[derive(Default)]
-pub(super) struct HookLerp {
-    target: Vec3,
-    steps: u32,
-}
-impl HookLerp {
-    /// `interpolateTo`: a new target restarts the steps, the same one does not.
-    fn start(&mut self, target: [f64; 3]) {
-        let target = Vec3::new(target[0], target[1], target[2]);
-        if self.steps == 0 || self.target != target {
-            self.target = target;
-            self.steps = 3;
-        }
-    }
-    /// `doInterpolate`: a step of the way there.
-    fn step(&mut self, at: Vec3) -> Vec3 {
-        if self.steps == 0 {
-            return at;
-        }
-        let n = f64::from(self.steps);
-        self.steps -= 1;
-        Vec3::new(
-            at.x + (self.target.x - at.x) / n,
-            at.y + (self.target.y - at.y) / n,
-            at.z + (self.target.z - at.z) / n,
-        )
-    }
-    /// `applyPredictedMovement`: what the hook moved by itself carries the
-    /// target along while it is heading there.
-    fn moved(&mut self, by: Vec3) {
-        if self.steps > 0 {
-            self.target = Vec3::new(
-                self.target.x + by.x,
-                self.target.y + by.y,
-                self.target.z + by.z,
-            );
-        }
-    }
-}
+// 1.21.5 has no interpolation on a fishing hook: `FishingHook` does not
+// override `Entity.getInterpolation` (null), so `moveOrInterpolateTo` snaps
+// it to a server update (`move_to` below). The 1.21.6
+// `LinearInterpolationHandler` (three steps towards the update) is gone.
 
 impl Hook {
     pub(super) fn id(&self) -> u32 {
         self.id
     }
     /// A server's update of this client's own hook (`handleMoveEntity` also
-    /// sets `onGround`).
+    /// sets `onGround`): 1.21.5 snaps it there, no interpolation.
     pub(super) fn move_to(&mut self, target: [f64; 3], on_ground: bool) {
         self.on_ground = resting(self.on_ground, self.position, target, on_ground);
-        self.lerp.start(target);
+        self.position = Vec3::new(target[0], target[1], target[2]);
     }
 }
 impl RemoteHook {
     pub(super) fn id(&self) -> u32 {
         self.id
     }
-    /// A server's update of another player's hook.
+    /// A server's update of another player's hook: 1.21.5 snaps it there.
     pub(super) fn move_to(&mut self, target: [f64; 3], on_ground: bool) {
         self.on_ground = resting(self.on_ground, self.position, target, on_ground);
-        self.lerp.start(target);
+        self.position = Vec3::new(target[0], target[1], target[2]);
     }
 }
 
@@ -1552,7 +1511,6 @@ impl Hook {
             luck: 0,
             lure: 0,
             medium: None,
-            lerp: HookLerp::default(),
             random: random_source::entity(),
         }
     }
@@ -1612,7 +1570,6 @@ impl Game<'_> {
                 velocity,
                 state: State::Flying,
                 on_ground: false,
-                lerp: HookLerp::default(),
                 random: random_source::entity(),
             });
         }
@@ -1676,18 +1633,16 @@ impl Game<'_> {
         true
     }
 
-    /// `FishingHook.tick` on a client: the interpolation step towards the
-    /// server's last update, then its own movement between the tracker's
+    /// `FishingHook.tick` on a client: its own movement between the tracker's
     /// updates (every five ticks), floating in water and riding what it
-    /// hooked, as the server's does.
+    /// hooked, as the server's does. A server update snaps the hook
+    /// (`move_to`); 1.21.5 has no interpolation on it.
     pub(super) fn tick_remote_hooks(&mut self) {
         if self.remote.is_none() {
             return;
         }
         if let Some(mut h) = self.hook.take() {
             h.previous = h.position;
-            h.position = h.lerp.step(h.position);
-            let before = h.position;
             let owner = self.player.as_ref().map(|p| p.position);
             (h.position, h.velocity, h.state, h.on_ground) = self.client_hook_step(
                 h.id,
@@ -1695,14 +1650,11 @@ impl Game<'_> {
                 (h.position, h.velocity, h.state, h.on_ground),
                 &mut h.random,
             );
-            h.lerp.moved(h.position.subtract(before));
             self.hook = Some(h);
         }
         let mut hooks = std::mem::take(&mut self.remote_hooks);
         for h in &mut hooks {
             h.previous = h.position;
-            h.position = h.lerp.step(h.position);
-            let before = h.position;
             let owner = self
                 .mobs
                 .iter()
@@ -1714,7 +1666,6 @@ impl Game<'_> {
                 (h.position, h.velocity, h.state, h.on_ground),
                 &mut h.random,
             );
-            h.lerp.moved(h.position.subtract(before));
         }
         self.remote_hooks = hooks;
     }
@@ -1854,7 +1805,9 @@ impl Game<'_> {
                 );
             }
         }
-        if !in_water && !on_ground {
+        // 1.21.5: gravity whenever out of water, even on the ground (see
+        // `tick_fishing`).
+        if !in_water {
             velocity.y -= f64::from(0.03_f32);
         }
         let mut scene = SceneCollisions {
@@ -1979,7 +1932,29 @@ fn cast_direction(yaw: f32, pitch: f32) -> (f32, f32, f32) {
 
 #[cfg(test)]
 mod tests {
-    use super::{Hook, cast_direction, entity_hit_margin, first_entity_hit, pull_item, rebound};
+    use super::{ENTITY_HIT_MARGIN, Hook, cast_direction, first_entity_hit, pull_item, rebound};
+
+    /// 1.21.5: a server update snaps a remote hook to its position —
+    /// `FishingHook` has no `InterpolationHandler` (the 1.21.6 form eases
+    /// it there over three ticks).
+    #[test]
+    fn a_server_update_snaps_a_remote_hook() {
+        use super::{RemoteHook, State};
+        use horizon_client::random_source;
+        use horizon_core::geometry::Vec3;
+        let mut hook = RemoteHook {
+            id: 7,
+            owner: 3,
+            position: Vec3::new(0.0, 64.0, 0.0),
+            previous: Vec3::new(0.0, 64.0, 0.0),
+            velocity: Vec3::ZERO,
+            state: State::Flying,
+            on_ground: false,
+            random: random_source::entity(),
+        };
+        hook.move_to([10.0, 60.0, -5.0], false);
+        assert_eq!(hook.position, Vec3::new(10.0, 60.0, -5.0));
+    }
 
     /// Compare the production loot selector to a real FishingHook.retrieve oracle.
     #[test]
@@ -2219,20 +2194,19 @@ mod tests {
     }
 
     #[test]
-    fn a_flying_hook_uses_vanillas_growing_entity_hit_margin() {
+    fn a_flying_hook_uses_vanillas_flat_entity_hit_margin() {
         let start = Vec3::ZERO;
         let end = Vec3::new(1.0, 0.0, 0.0);
         let target = Aabb::new(Vec3::new(0.5, 0.31, -0.1), Vec3::new(0.7, 0.5, 0.1));
 
-        assert_eq!(entity_hit_margin(2), 0.0);
-        assert_eq!(entity_hit_margin(8), 0.3);
+        assert_eq!(ENTITY_HIT_MARGIN, 0.3);
         assert_eq!(
-            first_entity_hit(start, end, entity_hit_margin(8), [(1, target)]),
+            first_entity_hit(start, end, ENTITY_HIT_MARGIN, [(1, target)]),
             None
         );
         let within_margin = Aabb::new(Vec3::new(0.5, 0.29, -0.1), Vec3::new(0.7, 0.5, 0.1));
         assert_eq!(
-            first_entity_hit(start, end, entity_hit_margin(8), [(1, within_margin)]),
+            first_entity_hit(start, end, ENTITY_HIT_MARGIN, [(1, within_margin)]),
             Some(1)
         );
     }

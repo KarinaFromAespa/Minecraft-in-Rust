@@ -458,12 +458,14 @@ impl Game<'_> {
                     slot.extra.adopted_body = old.extra.adopted_body;
                     slot.age = old.age;
                     slot.previous = slot.position;
-                    // Wolf.readAdditionalSaveData initializes persistent anger at
-                    // the live level clock, just as load_mob does on admission.
-                    if slot.species() == horizon_client::mobs::Species::Wolf {
+                    // `NeutralMob.readPersistentAngerSaveData` (1.21.5) reads
+                    // the time left, so the end time is settled from the live
+                    // level clock here, just as load_mob does on admission.
+                    if horizon_client::mobs::persistent_anger(slot.species()) {
                         horizon_client::mobs::adopt_anger_end(slot, self.world.game_time);
                     } else {
-                        // `readPersistentAngerSaveData` set the end time as written.
+                        // A species with no `NeutralMob` anger keeps its
+                        // countdown as read.
                         slot.extra.anger_stamp = Some((slot.extra.anger, slot.age));
                     }
                 }
@@ -1741,7 +1743,7 @@ mod wolf_live_anger_tests {
                     ("NoGravity".into(), Tag::Byte(1)),
                     ("Silent".into(), Tag::Byte(1)),
                     ("PersistenceRequired".into(), Tag::Byte(1)),
-                    ("anger_end_time".into(), Tag::Long(-1)),
+                    ("AngerTime".into(), Tag::Int(0)),
                 ]
                 .into_iter()
                 .collect(),
@@ -1752,19 +1754,28 @@ mod wolf_live_anger_tests {
             game.mobs[i].last_hurt = 2.0;
             game.mobs[i].age = 6;
             game.mobs[i].in_powder_snow = true;
-            for end in [12_395, 12_395, 12_420, -1] {
+            for remaining in [50, 50, 75, 0] {
                 let mut tag = game.mob_tree_nbt(i);
                 let Tag::Compound(fields) = &mut tag else {
                     panic!("mob compound")
                 };
-                fields.insert("anger_end_time".into(), Tag::Long(end));
+                fields.insert("AngerTime".into(), Tag::Int(remaining));
                 game.apply_entity_nbt(Target::Mob(id), tag).unwrap();
                 let saved = game.mob_tree_nbt(i);
                 assert_eq!(
-                    saved.get("anger_end_time"),
-                    Some(&Tag::Long(end)),
-                    "{kind} end={end}"
+                    saved.get("AngerTime"),
+                    Some(&Tag::Int(remaining)),
+                    "{kind} remaining={remaining}"
                 );
+                // The wolf's end is the live clock plus the time left it
+                // was given (the bee keeps its own state, untouched).
+                if kind == "wolf" && remaining > 0 {
+                    assert_eq!(
+                        game.mobs[i].extra.anger_end,
+                        12_345 + i64::from(remaining),
+                        "{kind} remaining={remaining}"
+                    );
+                }
                 assert_eq!(game.world.game_time, 12_345);
                 assert_eq!(game.persist.uuids.get(&id), Some(&[316, 1, 0, number]));
                 assert_eq!(game.mobs[i].health, health);
@@ -1777,7 +1788,7 @@ mod wolf_live_anger_tests {
                     ),
                     (17, 2.0, 6)
                 );
-                assert!(game.mobs[i].in_powder_snow, "{kind} end={end}");
+                assert!(game.mobs[i].in_powder_snow, "{kind} remaining={remaining}");
             }
         }
     }

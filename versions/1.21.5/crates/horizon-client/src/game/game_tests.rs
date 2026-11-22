@@ -863,9 +863,7 @@ impl Game<'_> {
             .as_ref()
             .is_some_and(|r| r.grid_for_existing);
         if info.has_pos && in_place {
-            if !self.prepare_test_structure(info) {
-                return false;
-            }
+            self.prepare_test_structure(info);
             info.start_execution(1);
             self.test_structure_loaded(info);
             return true;
@@ -891,29 +889,27 @@ impl Game<'_> {
         let state = &mut grid.states[at].1;
         info.pos = state.next;
         info.has_pos = true;
-        let prepared = self.prepare_test_structure(info);
-        if prepared {
-            state.last_batch.push(info.pos);
-            info.start_execution(1);
-            self.test_structure_loaded(info);
-            if let Some(b) = self.test_bounding_box(info.pos) {
-                // `getTestBounds()`: the structure's box and its padding.
-                let width = b.max[0] - b.min[0] + 1;
-                state.row_z = (state.row_z.0.min(b.min[2]), state.row_z.1.max(b.max[2] + 1));
-                state.next.0 += width + 5;
-                state.count += 1;
-                if state.count >= per_row {
-                    state.count = 0;
-                    state.next.2 += state.row_z.1 - state.row_z.0 + 6;
-                    state.next.0 = state.first.0;
-                    state.row_z = (state.next.2, state.next.2 + 1);
-                }
+        self.prepare_test_structure(info);
+        state.last_batch.push(info.pos);
+        info.start_execution(1);
+        self.test_structure_loaded(info);
+        if let Some(b) = self.test_bounding_box(info.pos) {
+            // `getTestBounds()`: the structure's box and its padding.
+            let width = b.max[0] - b.min[0] + 1;
+            state.row_z = (state.row_z.0.min(b.min[2]), state.row_z.1.max(b.max[2] + 1));
+            state.next.0 += width + 5;
+            state.count += 1;
+            if state.count >= per_row {
+                state.count = 0;
+                state.next.2 += state.row_z.1 - state.row_z.0 + 6;
+                state.next.0 = state.first.0;
+                state.row_z = (state.next.2, state.next.2 + 1);
             }
         }
         if let Some(runner) = self.game_tests.runner.as_mut() {
             runner.grid = Some(grid);
         }
-        prepared
+        true
     }
 
     /// Run `f` with `dim`'s level in place (`enter_level`, as a command
@@ -962,8 +958,11 @@ impl Game<'_> {
     }
 
     /// `GameTestInfo.prepareTestStructure`: the test instance block with the
-    /// test's data, then `placeStructure`. False when the block is gone.
-    fn prepare_test_structure(&mut self, info: &mut Info) -> bool {
+    /// test's data, then `placeStructure`. The 1.21.5 form: the block entity
+    /// is required, never null - the port inserts a default when the block
+    /// has none, so prepare never fails (1.21.6 made it nullable and its
+    /// callers handle the null).
+    fn prepare_test_structure(&mut self, info: &mut Info) {
         let pos = info.pos;
         self.load_test_chunks(&BoundingBox::new(
             [pos.0, pos.1, pos.2],
@@ -1004,7 +1003,6 @@ impl Game<'_> {
         if let Some(bounds) = self.test_bounding_box(pos) {
             self.clear_test_ticks(&bounds);
         }
-        true
     }
 
     /// `getTestBoundingBox`: the structure's box and its padding.
@@ -1474,7 +1472,7 @@ impl Game<'_> {
                 self.report_passed(info, &line);
                 false
             } else {
-                self.say(
+                self.say_report(
                     text::GREEN,
                     format!(
                         "Flaky test {} succeeded, attempt: {attempts} successes: {successes}",
@@ -1487,7 +1485,7 @@ impl Game<'_> {
             self.report_failure(info, None);
             if retry.has_retries() {
                 let line = retry_line(info, retry, attempts, successes, false);
-                self.say(text::RED, line);
+                self.say_report(text::RED, line);
                 retry.has_tries_left(attempts, successes)
             } else {
                 false
@@ -1500,7 +1498,7 @@ impl Game<'_> {
             if required > 1 {
                 line.push_str(&format!(", successes: {successes} ({required} required)"));
             }
-            self.say(text::YELLOW, line);
+            self.say_report(text::YELLOW, line);
             if max_attempts - attempts + successes >= required {
                 true
             } else {
@@ -1516,7 +1514,7 @@ impl Game<'_> {
     /// `ReportGameListener.reportPassed`.
     fn report_passed(&mut self, info: &Info, line: &str) {
         self.set_test_status(info.pos, Status::Finished, None);
-        self.say(text::GREEN, line.to_owned());
+        self.say_report(text::GREEN, line.to_owned());
     }
 
     /// `ReportGameListener.reportFailure`: the test's own error, or the
@@ -1549,7 +1547,7 @@ impl Game<'_> {
             info.key,
             message
         );
-        self.say(if required { text::RED } else { text::YELLOW }, message);
+        self.say_report(if required { text::RED } else { text::YELLOW }, message);
         if let TestError::AssertPos {
             message, absolute, ..
         } = error
@@ -1558,8 +1556,9 @@ impl Game<'_> {
         }
     }
 
-    /// `ReportGameListener.say`.
-    fn say(&mut self, color: u32, text: String) {
+    /// `ReportGameListener.say` (named `say_report`: `Game::say` is the
+    /// narrator's).
+    fn say_report(&mut self, color: u32, text: String) {
         self.game_tests
             .outbox
             .push(Out::Players(Text::literal(text).with_color(color)));

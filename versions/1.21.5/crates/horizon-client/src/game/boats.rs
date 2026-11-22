@@ -108,8 +108,6 @@ pub(super) struct Boat {
     pub leash_player: Option<[i32; 4]>,
     /// A holder read from a save that is not in the world yet.
     pub leash_pending: Option<Pending>,
-    /// `LeashData.angularMomentum`.
-    pub leash_spin: f64,
     /// `Entity.tickCount`, for the 100 ticks a saved holder is waited for.
     pub age: i32,
     pub random: LegacyRandom,
@@ -223,7 +221,6 @@ impl Boat {
             leash: None,
             leash_player: None,
             leash_pending: None,
-            leash_spin: 0.0,
             age: 0,
             random: horizon_client::random_source::entity(),
         }
@@ -279,13 +276,6 @@ impl Boat {
     /// `isEyeInFluid(WATER)` too.
     pub fn under_water(&self) -> bool {
         matches!(self.status, Status::UnderWater | Status::UnderFlowingWater)
-    }
-    /// `Entity.isInLiquid`, for `Leashable.angularFriction`.
-    pub fn in_liquid(&self) -> bool {
-        matches!(
-            self.status,
-            Status::InWater | Status::UnderWater | Status::UnderFlowingWater
-        )
     }
     /// `getMaxPassengers`: two, one beside a chest.
     pub fn max_passengers(&self) -> usize {
@@ -1592,7 +1582,11 @@ impl Game<'_> {
             return false;
         }
         // AbstractBoat.interact starts with Entity.interact: the lead.
-        if self.interact_boat_leash(i) {
+        // AbstractChestBoat.interact (1.21.5) only runs that step when the
+        // player is not sneaking; a sneaking player opens the chest
+        // instead, even with a lead in hand. 1.21.6 calls super.interact
+        // first, lead and all.
+        if !(self.boats[i].chest && sneaking) && self.interact_boat_leash(i) {
             self.swing_arm();
             return true;
         }

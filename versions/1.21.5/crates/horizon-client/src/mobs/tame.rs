@@ -2185,7 +2185,7 @@ mod universal_anger_tests {
                 w.universal_anger = universal_anger;
                 let kind = Arc::new(types.types["minecraft:wolf"].clone());
                 let mut m = Mob::new(1, kind, Vec3::new(0.5, 64.0, 0.5), 0.0);
-                // `anger_end_time` still running, `angry_at` gone: angry, with
+                // `AngerTime` still running, `AngryAt` gone: angry, with
                 // nobody left that it was angered by.
                 m.extra.anger = 600;
                 m.extra.angry_at = None;

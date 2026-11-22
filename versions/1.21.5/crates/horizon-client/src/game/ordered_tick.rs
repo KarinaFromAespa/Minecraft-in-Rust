@@ -140,7 +140,7 @@ impl Game<'_> {
             .for_each(|e| offer(e.join, Pending::Falling));
         pending.sort_unstable_by_key(|&(j, _)| j);
         // EntityGetter.getEntityCollisions: the boxes that stop these moves (a
-        // boat, a shulker, a happy ghast held still), gathered once for the
+        // boat, a shulker), gathered once for the
         // run and again after an explosion, which can move or remove them.
         let mut obstacles: Option<horizon_client::entities::ObstacleGrid> = None;
         let mut nearby = Vec::new();

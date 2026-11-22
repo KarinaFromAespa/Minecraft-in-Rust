@@ -1119,7 +1119,7 @@ pub fn main() -> horizon_client::Result<()> {
                 // As for villagers: the sensors delayed again, the RunOne seeded.
                 horizon_client::mobs::warden::init_brain(&mut m, spec.seed);
             }
-            // The same for the sniffer's and the happy ghast's brains.
+            // The same for the sniffer's brain.
             if horizon_client::mobs::animal_brain::kind_of(&m).is_some() {
                 horizon_client::mobs::animal_brain::init(&mut m, spec.seed);
             }

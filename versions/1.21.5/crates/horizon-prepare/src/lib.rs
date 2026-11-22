@@ -1145,7 +1145,7 @@ fn steps(
         run.close_worker(1);
 
         // Vanilla's built-in registries for in-game command parsing (mob effects,
-        // data component types, dialogs, block entity and tag members).
+        // data component types, block entity and tag members).
         let command_registries = root.join("command-registries.json");
         run.stage();
         if !(run.previous("command_registries_exporters_sha256") == Some(&command_sources)
