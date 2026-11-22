@@ -981,8 +981,14 @@ impl Game<'_> {
         let tree = self.adv.tree.clone();
         for r in &allowed {
             let list = tree.recipe_criteria(r);
+            // 1.21.7 names the recipe with the singular `recipe` key; the
+            // 26.x plural `recipes` is absent in 1.21.7 data, so reading it
+            // matched no criterion and no recipe advancement ever granted.
+            // (`recipe` is a required field in vanilla's
+            // `RecipeUnlockedTrigger`, so a criterion naming none is invalid
+            // data and must not match.)
             self.trigger_criteria(&tree, &list, |c, _| {
-                c["recipes"]
+                c["recipe"]
                     .as_str()
                     .is_some_and(|id| adv::full(id) == r.as_str())
             });
@@ -2123,7 +2129,7 @@ impl Game<'_> {
                 block_pos: None,
             };
             adv::conditions(&c["player"], &pctx, w)
-                && adv::id_matches(&c["recipes"], "recipe", &recipe, w)
+                && adv::recipe_condition(c, &recipe, w)
                 && adv::recipe_ingredients(&c["ingredients"], &used, w)
         });
     }
@@ -2140,7 +2146,7 @@ impl Game<'_> {
                 block_pos: None,
             };
             adv::conditions(&c["player"], &pctx, w)
-                && adv::id_matches(&c["loot_tables"], "loot_table", &table, w)
+                && adv::loot_table_condition(c, &table, w)
         });
     }
     /// `BredAnimalsTrigger`.
