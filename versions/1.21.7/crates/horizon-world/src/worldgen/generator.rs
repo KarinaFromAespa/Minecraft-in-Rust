@@ -3026,7 +3026,7 @@ where
             } else {
                 "other"
             };
-            let sample = |field: AquiferField| {
+            let mut sample = |field: AquiferField| {
                 fields
                     .get(field)
                     .sample_value(&mut context, [point.x, point.y, point.z])
