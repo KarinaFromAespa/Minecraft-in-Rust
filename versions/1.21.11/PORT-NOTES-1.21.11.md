@@ -13252,3 +13252,8 @@ launcher/profile statuses need inputs this client does not have.
 
 1 class: `GlStateManager$ColorMask` — four booleans for OpenGL
 colour-mask state. Pure GL plumbing, no Rust usage.
+
+## Item 787 — com/mojang/blaze3d/vertex (new-classes) — NO-CHANGE
+
+1 class: `VertexFormatElement$Usage` — a 5-value enum for vertex
+format elements. Pure GPU vertex-layout plumbing, no Rust usage.
