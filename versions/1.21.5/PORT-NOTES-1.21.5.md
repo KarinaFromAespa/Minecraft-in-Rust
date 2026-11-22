@@ -15329,12 +15329,29 @@ is the oracle; decompiled code is a reading aid.
     branch is right.
   - Verification: cargo / check -p / horizon-world / passes.
 
+- **Item 393 — CriteriaTriggers**
+  - CriteriaTriggers:
+    verified, no code. The 
+    player_sheared_equipmen
+    t trigger is
+    1.21.6-only, tied to
+    the shears-equipment
+    feature this port
+    already removed (items
+    66, 314, 341). A fresh
+    grep finds no trace of
+    it anywhere in the port
+    - no trigger
+    registration, no firing
+    site.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **392 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 124/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **393 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 125/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
