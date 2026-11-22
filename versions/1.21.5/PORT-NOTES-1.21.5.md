@@ -15469,12 +15469,42 @@ is the oracle; decompiled code is a reading aid.
     builds again.
   - Verification: horizon-client-lib / server_packs::download 5/5, lan::commands 7/7, music situational test 1/1.
 
+- **Item 399 — BlendFunction**
+  - BlendFunction:
+    verified, no code.
+    1.21.6 adds TRANSLUCENT
+    _PREMULTIPLIED_ALPHA
+    and drops 1.21.5's
+    PANORAMA constant -
+    render-pipeline
+    spellings, not
+    behaviour. The port
+    never had a
+    BlendFunction to port:
+    it sets wgpu blend
+    states per pipeline,
+    standard ALPHA_BLENDING
+    (SRC_ALPHA /
+    ONE_MINUS_SRC_ALPHA)
+    for translucent draws,
+    and its only
+    premultiplied blend is
+    the OIT composite pass,
+    the port's own
+    technique rather than
+    vanilla's GUI pipeline.
+    The panorama draws
+    through the standard
+    alpha blend (item 292's
+    ground).
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **398 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 130/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **399 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 131/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
