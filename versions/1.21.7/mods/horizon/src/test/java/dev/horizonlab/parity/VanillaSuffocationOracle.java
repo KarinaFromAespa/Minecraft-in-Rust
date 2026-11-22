@@ -6,7 +6,6 @@ import java.nio.file.*;
 import java.util.*;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.*;
-import net.minecraft.tags.*;
 import net.minecraft.world.level.*;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.*;
@@ -35,6 +34,11 @@ public final class VanillaSuffocationOracle {
             String name=BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();var previous=result.put(name,rule);if(previous!=null&&!previous.equals(rule))throw new AssertionError("unclassified state-dependent predicate: "+name);
         }
         Files.writeString(dir.resolve("definitions.json"),new Gson().toJson(result));
+        // 1.21.7 has no causes_suffocation tag: the default rule is motion-based
+        // (blocksMotion and a full collision shape), so export the motion set.
+        var motion=new ArrayList<String>();
+        for(var block:BuiltInRegistries.BLOCK){if(block.defaultBlockState().blocksMotion())motion.add(BuiltInRegistries.BLOCK.getKey(block).toString());}
+        Files.writeString(dir.resolve("motion.json"),new Gson().toJson(motion));
     }
     public static void main(String[] args)throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();Path dir=Path.of(args[1]);
@@ -42,14 +46,11 @@ public final class VanillaSuffocationOracle {
         if(args[0].equals("export")){
             VanillaCollisionOracle.main(new String[]{"generate",args[1]});VanillaBlockStateCodecOracle.main(new String[]{"export",dir.resolve("facts.json").toString()});definitions(dir);return;
         }
-        var registry=BuiltInRegistries.BLOCK;var natural=new ArrayList<Holder<Block>>();var all=new ArrayList<Holder<Block>>();
-        for(var block:registry){var holder=block.builtInRegistryHolder();all.add(holder);if(block.defaultBlockState().is(BlockTags.CAUSES_SUFFOCATION))natural.add(holder);}
         var allocator=Class.forName("sun.misc.Unsafe");var access=allocator.getDeclaredField("theUnsafe");access.setAccessible(true);var unsafe=access.get(null);var allocate=allocator.getMethod("allocateInstance",Class.class);
-        var animation=ShulkerBoxBlockEntity.class.getDeclaredField("animationStatus");animation.setAccessible(true);int activeTag=-1;
+        var animation=ShulkerBoxBlockEntity.class.getDeclaredField("animationStatus");animation.setAccessible(true);
         try(var out=new PrintWriter(Files.newBufferedWriter(dir.resolve(args[0]+".txt")));var lines=Files.lines(dir.resolve("inputs.txt"))){
             for(var line:(Iterable<String>)lines::iterator){
-                var f=JsonParser.parseString(line).getAsJsonObject();int tag=f.get("tags").getAsInt();
-                if(activeTag!=tag){List<Holder<Block>> members=tag==0?natural:tag==1?List.of():all;registry.prepareTagReload(new TagLoader.LoadResult<>(Registries.BLOCK,Map.of(BlockTags.CAUSES_SUFFOCATION,members))).apply();activeTag=tag;}
+                var f=JsonParser.parseString(line).getAsJsonObject();
                 var state=Block.stateById(f.get("state").getAsInt());var xyz=f.getAsJsonArray("position");var p=new BlockPos(xyz.get(0).getAsInt(),xyz.get(1).getAsInt(),xyz.get(2).getAsInt());String mode=f.get("entity").getAsString();Object entity=null;
                 if(mode.equals("other"))entity=allocate.invoke(unsafe,PistonMovingBlockEntity.class);
                 else if(!mode.equals("none")){

@@ -1,7 +1,7 @@
 package dev.horizonlab.parity;
 import com.google.gson.*;import java.io.*;import java.lang.reflect.*;import java.nio.file.*;import java.util.*;
 import net.minecraft.world.food.*;import net.minecraft.world.Difficulty;import net.minecraft.server.level.*;
-import net.minecraft.world.damagesource.*;import net.minecraft.world.level.gamerules.*;
+import net.minecraft.world.damagesource.*;import net.minecraft.world.level.GameRules;
 /** Actual FoodData arithmetic and tick with observable player/world callbacks. */
 public final class VanillaFoodOracle {
     static final class Stop extends RuntimeException {}
@@ -15,7 +15,10 @@ public final class VanillaFoodOracle {
         void query(String s){out.println(s);int n=calls++;if(n==f.get("fail").getAsInt())throw new Stop();if(n==f.get("mutate_at").getAsInt()){set(food,f.getAsJsonObject("after"));changed=true;}}
         JsonObject state(){return changed?f.getAsJsonObject("after_world"):f.getAsJsonObject("world");}
     }
-    static final class Rules extends GameRules {Data d;Rules(){super(net.minecraft.world.flag.FeatureFlagSet.of());}@SuppressWarnings("unchecked")@Override public <T>T get(GameRule<T> r){if(r!=GameRules.NATURAL_HEALTH_REGENERATION)throw new AssertionError();d.query("regeneration");return (T)Boolean.valueOf(d.state().get("regen").getAsBoolean());}}
+    // 1.21.7 has no gamerules package: GameRules lives in net.minecraft.world.level,
+    // rules are Key<T> constants (RULE_NATURAL_REGENERATION), and FoodData.tick reads
+    // them via getBoolean(Key<BooleanValue>) (javap-verified) - so override that.
+    static final class Rules extends GameRules {Data d;Rules(){super(net.minecraft.world.flag.FeatureFlagSet.of());}@Override public boolean getBoolean(GameRules.Key<GameRules.BooleanValue> r){if(r!=GameRules.RULE_NATURAL_REGENERATION)throw new AssertionError();d.query("regeneration");return d.state().get("regen").getAsBoolean();}}
     static final class Sources extends DamageSources {Data d;DamageSource source;Sources(){super(null);}@Override public DamageSource starve(){d.query("starve-source");return source;}}
     static final class Level extends ServerLevel {Data d;Level(){super(null,null,null,null,null,null,null,false,0L,List.of(),false,null);}
         @Override public Difficulty getDifficulty(){d.query("difficulty");return Difficulty.values()[d.state().get("difficulty").getAsInt()];}
@@ -40,7 +43,7 @@ public final class VanillaFoodOracle {
                 case "saturation":d.food.setSaturation(single(op.get("amount")));break;
                 case "tick":d.food.tick(actor);break;
                 default:throw new AssertionError();}
-                out.println("state "+d.food.getFoodLevel()+" "+bits(d.food.getSaturationLevel())+" "+bits(exhaustion.getFloat(d.food))+" "+timer.getInt(d.food)+" "+d.food.hasEnoughFood()+" "+d.food.needsFood());
+                out.println("state "+d.food.getFoodLevel()+" "+bits(d.food.getSaturationLevel())+" "+bits(exhaustion.getFloat(d.food))+" "+timer.getInt(d.food)+" "+(d.food.getFoodLevel()>6)+" "+d.food.needsFood());
             }out.println("result ok");}catch(Stop e){out.println("result error");}
             out.println("final "+d.food.getFoodLevel()+" "+bits(d.food.getSaturationLevel())+" "+bits(exhaustion.getFloat(d.food))+" "+timer.getInt(d.food));out.println("queries "+d.calls);
         }}
