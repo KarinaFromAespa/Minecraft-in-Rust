@@ -1,6 +1,6 @@
 {
  "generated": "2026-11-22",
- "method": "fixpoint big-compile per classpath; see docs/sweep/batch-0-measurement.md",
+ "method": "fixpoint big-compile per classpath (rerun2, after all Batch 0 repairs); VanillaAnchorOracle + VanillaRegistryCollisionScanOracle individually javac-verified clean on server+client cp after the rerun. See docs/sweep/batch-0-measurement.md and docs/sweep/batch-0-oracle-repair.md",
  "files": {
   "ComponentWireCapture": {
    "server": "fail",
@@ -118,15 +118,12 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "58: package net.minecraft.world.clock does not exist",
-   "n_errors": 12
+   "n_errors": 10
   },
   "VanillaActiveEffectsOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "36: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaAllayInteractionStateOracle": {
    "server": "fail",
@@ -145,12 +142,9 @@
    "n_errors": 58
   },
   "VanillaAnchorOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "missing-package",
-   "first_error": "14: package net.minecraft.world.level.levelgen.densityfunction does not exist",
-   "n_errors": 10
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaArrowOracle": {
    "server": "fail",
@@ -158,7 +152,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "10: package net.minecraft.world.entity.projectile.arrow does not exist",
-   "n_errors": 24
+   "n_errors": 22
   },
   "VanillaAttributeHealthOracle": {
    "server": "fail",
@@ -166,15 +160,12 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "5: package net.minecraft.world.level.gamerules does not exist",
-   "n_errors": 8
+   "n_errors": 6
   },
   "VanillaAttributeMapQueriesOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "31: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaAttributeOracle": {
    "server": "pass",
@@ -187,7 +178,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "53: package net.minecraft.world.clock does not exist",
-   "n_errors": 13
+   "n_errors": 11
   },
   "VanillaAudioAttributesOracle": {
    "server": "fail",
@@ -203,7 +194,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "9: package net.minecraft.client.player does not exist",
-   "n_errors": 18
+   "n_errors": 16
   },
   "VanillaBasicFeatureOracle": {
    "server": "fail",
@@ -277,12 +268,9 @@
    "both": "pass"
   },
   "VanillaBlockCollisionScanOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "cascade",
-   "first_error": "depends on broken: VanillaFaceSupportOracle",
-   "n_errors": null
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaBlockEntityAnimOracle": {
    "server": "fail",
@@ -314,15 +302,12 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "14: package net.minecraft.util.debug does not exist",
-   "n_errors": 10
+   "n_errors": 8
   },
   "VanillaBlockEventReadinessOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "24: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaBlockLandingOracle": {
    "server": "pass",
@@ -341,9 +326,9 @@
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "72: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 3
+   "class": "missing-symbol",
+   "first_error": "129: cannot find symbol",
+   "n_errors": 1
   },
   "VanillaBlockPropertiesOracle": {
    "server": "pass",
@@ -408,15 +393,15 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "16: package net.minecraft.world.level.gamerules does not exist",
-   "n_errors": 71
+   "n_errors": 69
   },
   "VanillaBlockingItemDamageOracle": {
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "17: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 4
+   "class": "no-override",
+   "first_error": "21: method does not override or implement a method from a supertype",
+   "n_errors": 2
   },
   "VanillaBlockingRulesOracle": {
    "server": "pass",
@@ -429,7 +414,7 @@
    "both": "fail",
    "class": "missing-symbol",
    "first_error": "14: cannot find symbol",
-   "n_errors": 28
+   "n_errors": 26
   },
   "VanillaBoatRiderOracle": {
    "server": "fail",
@@ -437,7 +422,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "9: package net.minecraft.client.multiplayer does not exist",
-   "n_errors": 47
+   "n_errors": 45
   },
   "VanillaBreakingModelOracle": {
    "server": "fail",
@@ -461,7 +446,7 @@
    "both": "fail",
    "class": "missing-symbol",
    "first_error": "13: cannot find symbol",
-   "n_errors": 10
+   "n_errors": 8
   },
   "VanillaBrewingOracle": {
    "server": "fail",
@@ -493,7 +478,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "4: package com.mojang.blaze3d.vertex does not exist",
-   "n_errors": 80
+   "n_errors": 78
   },
   "VanillaCanyonCarverOracle": {
    "server": "fail",
@@ -525,7 +510,7 @@
    "both": "fail",
    "class": "missing-symbol",
    "first_error": "118: cannot find symbol",
-   "n_errors": 3
+   "n_errors": 1
   },
   "VanillaCaveCarverOracle": {
    "server": "fail",
@@ -554,12 +539,9 @@
    "both": "pass"
   },
   "VanillaChunkGenerationOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "57: constructor ServerChunkCache in class ServerChunkCache cannot be applied to given types;",
-   "n_errors": 25
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaChunkStageOracle": {
    "server": "fail",
@@ -594,9 +576,9 @@
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "13: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 4
+   "class": "missing-symbol",
+   "first_error": "27: cannot find symbol",
+   "n_errors": 2
   },
   "VanillaCloudRenderOracle": {
    "server": "fail",
@@ -620,20 +602,14 @@
    "both": "pass"
   },
   "VanillaCombatRulesOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "14: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaCommandExecOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "missing-package",
-   "first_error": "8: package com.mojang.authlib.services does not exist",
-   "n_errors": 72
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaCommandParseOracle": {
    "server": "pass",
@@ -662,25 +638,22 @@
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "32: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 5
+   "class": "missing-symbol",
+   "first_error": "33: cannot find symbol",
+   "n_errors": 3
   },
   "VanillaConsumableOracle": {
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "69: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 6
+   "class": "missing-symbol",
+   "first_error": "72: cannot find symbol",
+   "n_errors": 4
   },
   "VanillaConsumeEffectOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "29: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaContainerScreenOracle": {
    "server": "fail",
@@ -723,9 +696,9 @@
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "35: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 3
+   "class": "no-override",
+   "first_error": "46: method does not override or implement a method from a supertype",
+   "n_errors": 1
   },
   "VanillaCreativeMiningOracle": {
    "server": "fail",
@@ -775,15 +748,12 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "3: package net.minecraft.world.level.gamerules does not exist",
-   "n_errors": 15
+   "n_errors": 13
   },
   "VanillaDamageReductionOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "19: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaDamageSourceOracle": {
    "server": "pass",
@@ -791,12 +761,9 @@
    "both": "pass"
   },
   "VanillaDataFixOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "missing-package",
-   "first_error": "24: package net.minecraft.util.filefix does not exist",
-   "n_errors": 26
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaDataFixTablesExporter": {
    "server": "pass",
@@ -852,20 +819,14 @@
    "n_errors": 26
   },
   "VanillaDynamicSupportOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "cascade",
-   "first_error": "depends on broken: VanillaFaceSupportOracle",
-   "n_errors": null
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaEdgeBackoffOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "22: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaEffectAttributeModifiersOracle": {
    "server": "pass",
@@ -878,7 +839,7 @@
    "both": "fail",
    "class": "no-override",
    "first_error": "32: method does not override or implement a method from a supertype",
-   "n_errors": 3
+   "n_errors": 1
   },
   "VanillaEffectParticlesOracle": {
    "server": "pass",
@@ -891,7 +852,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "100: package net.minecraft.world.entity.monster.zombie does not exist",
-   "n_errors": 27
+   "n_errors": 25
   },
   "VanillaEmitterParticlesOracle": {
    "server": "fail",
@@ -936,20 +897,14 @@
    "both": "pass"
   },
   "VanillaEntityCollisionOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "cascade",
-   "first_error": "depends on broken: VanillaFaceSupportOracle",
-   "n_errors": null
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaEntityComponentsOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "missing-package",
-   "first_error": "11: package net.minecraft.advancements.predicates.entity does not exist",
-   "n_errors": 14
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaEntityDeathLootOracle": {
    "server": "fail",
@@ -957,7 +912,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "42: package net.minecraft.world.level.gamerules does not exist",
-   "n_errors": 28
+   "n_errors": 26
   },
   "VanillaEntityFluidOracle": {
    "server": "fail",
@@ -965,7 +920,7 @@
    "both": "fail",
    "class": "missing-symbol",
    "first_error": "38: cannot find symbol",
-   "n_errors": 16
+   "n_errors": 14
   },
   "VanillaEntityModelExporter": {
    "server": "fail",
@@ -981,7 +936,7 @@
    "both": "fail",
    "class": "missing-symbol",
    "first_error": "66: cannot find symbol",
-   "n_errors": 10
+   "n_errors": 8
   },
   "VanillaEntityObstructionOracle": {
    "server": "pass",
@@ -1047,7 +1002,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "15: package net.minecraft.world.level.gamerules does not exist",
-   "n_errors": 7
+   "n_errors": 5
   },
   "VanillaExtraItemsOracle": {
    "server": "fail",
@@ -1058,12 +1013,9 @@
    "n_errors": 8
   },
   "VanillaFaceSupportOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "other",
-   "first_error": "45: CubeVoxelShape(DiscreteVoxelShape) has protected access in CubeVoxelShape",
-   "n_errors": 1
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaFaceVisibilityOracle": {
    "server": "pass",
@@ -1071,12 +1023,9 @@
    "both": "pass"
   },
   "VanillaFallDamageOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "32: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaFallingBlockOracle": {
    "server": "fail",
@@ -1135,12 +1084,9 @@
    "n_errors": 1
   },
   "VanillaFinalizeSpawnOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "missing-package",
-   "first_error": "47: package net.minecraft.world.level.gamerules does not exist",
-   "n_errors": 51
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaFireStarterSoundOracle": {
    "server": "fail",
@@ -1148,7 +1094,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "8: package net.minecraft.client.player does not exist",
-   "n_errors": 7
+   "n_errors": 5
   },
   "VanillaFireworkTooltipOracle": {
    "server": "pass",
@@ -1157,11 +1103,11 @@
   },
   "VanillaFirstPersonOracle": {
    "server": "fail",
-   "client": "fail",
-   "both": "fail",
+   "client": "pass",
+   "both": "pass",
    "class": "missing-package",
    "first_error": "9: package net.minecraft.client does not exist",
-   "n_errors": 108
+   "n_errors": 112
   },
   "VanillaFloatLogOracle": {
    "server": "fail",
@@ -1214,20 +1160,14 @@
    "both": "pass"
   },
   "VanillaFoodOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "missing-package",
-   "first_error": "4: package net.minecraft.world.level.gamerules does not exist",
-   "n_errors": 9
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaFoodPropertiesOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "22: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaFoodStorageOracle": {
    "server": "pass",
@@ -1288,9 +1228,9 @@
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "70: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 11
+   "class": "missing-symbol",
+   "first_error": "112: cannot find symbol",
+   "n_errors": 9
   },
   "VanillaGhostRecipeOracle": {
    "server": "fail",
@@ -1301,12 +1241,9 @@
    "n_errors": 16
   },
   "VanillaGroundStateOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "18: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaHeightProviderOracle": {
    "server": "fail",
@@ -1341,9 +1278,9 @@
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "34: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "class": "cascade",
+   "first_error": "depends on broken: VanillaBlockUpdateOracle",
+   "n_errors": null
   },
   "VanillaHotbarOracle": {
    "server": "fail",
@@ -1399,9 +1336,9 @@
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "19: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 5
+   "class": "missing-symbol",
+   "first_error": "35: cannot find symbol",
+   "n_errors": 3
   },
   "VanillaInventoryUseStartOracle": {
    "server": "fail",
@@ -1409,7 +1346,7 @@
    "both": "fail",
    "class": "constructor-mismatch",
    "first_error": "19: constructor ServerChunkCache in class ServerChunkCache cannot be applied to given types;",
-   "n_errors": 9
+   "n_errors": 7
   },
   "VanillaItemAfterUseOracle": {
    "server": "fail",
@@ -1425,7 +1362,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "20: package net.minecraft.world.entity.projectile.arrow does not exist",
-   "n_errors": 8
+   "n_errors": 6
   },
   "VanillaItemCooldownsOracle": {
    "server": "fail",
@@ -1445,19 +1382,19 @@
   },
   "VanillaItemModelOracle": {
    "server": "fail",
-   "client": "fail",
-   "both": "fail",
+   "client": "pass",
+   "both": "pass",
    "class": "missing-package",
    "first_error": "4: package com.mojang.blaze3d.platform does not exist",
-   "n_errors": 142
+   "n_errors": 136
   },
   "VanillaItemParticlesOracle": {
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "28: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 5
+   "class": "missing-symbol",
+   "first_error": "29: cannot find symbol",
+   "n_errors": 3
   },
   "VanillaItemStackStorageOracle": {
    "server": "fail",
@@ -1487,9 +1424,9 @@
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "16: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 4
+   "class": "missing-symbol",
+   "first_error": "34: cannot find symbol",
+   "n_errors": 2
   },
   "VanillaItemUseOracle": {
    "server": "fail",
@@ -1505,7 +1442,7 @@
    "both": "fail",
    "class": "constructor-mismatch",
    "first_error": "16: constructor ServerChunkCache in class ServerChunkCache cannot be applied to given types;",
-   "n_errors": 8
+   "n_errors": 6
   },
   "VanillaItemWireOracle": {
    "server": "fail",
@@ -1547,7 +1484,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "8: package net.minecraft.world.entity.projectile.arrow does not exist",
-   "n_errors": 11
+   "n_errors": 9
   },
   "VanillaLavaCauldronItemOracle": {
    "server": "fail",
@@ -1555,7 +1492,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "25: package net.minecraft.world.level.gamerules does not exist",
-   "n_errors": 7
+   "n_errors": 5
   },
   "VanillaLevelShapeOracle": {
    "server": "fail",
@@ -1566,12 +1503,9 @@
    "n_errors": 2
   },
   "VanillaLiveAttributeUpdatesOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "123: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaLiveAttributesOracle": {
    "server": "pass",
@@ -1582,33 +1516,30 @@
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "20: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 10
+   "class": "missing-symbol",
+   "first_error": "30: cannot find symbol",
+   "n_errors": 8
   },
   "VanillaLivingDamageOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "19: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaLivingFallOracle": {
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "23: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 11
+   "class": "no-override",
+   "first_error": "26: method does not override or implement a method from a supertype",
+   "n_errors": 9
   },
   "VanillaLivingFluidOracle": {
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "20: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 15
+   "class": "missing-symbol",
+   "first_error": "30: cannot find symbol",
+   "n_errors": 13
   },
   "VanillaLivingHealthOracle": {
    "server": "pass",
@@ -1619,9 +1550,9 @@
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "19: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 8
+   "class": "no-override",
+   "first_error": "31: method does not override or implement a method from a supertype",
+   "n_errors": 6
   },
   "VanillaLivingLandingOracle": {
    "server": "fail",
@@ -1629,7 +1560,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "42: package net.minecraft.world.clock does not exist",
-   "n_errors": 13
+   "n_errors": 11
   },
   "VanillaLivingMotionOracle": {
    "server": "fail",
@@ -1719,7 +1650,7 @@
    "both": "fail",
    "class": "missing-symbol",
    "first_error": "138: cannot find symbol",
-   "n_errors": 11
+   "n_errors": 9
   },
   "VanillaMipmapOracle": {
    "server": "fail",
@@ -1730,12 +1661,9 @@
    "n_errors": 12
   },
   "VanillaMobAiOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "missing-package",
-   "first_error": "31: package net.minecraft.gizmos does not exist",
-   "n_errors": 116
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaMobAirOracle": {
    "server": "pass",
@@ -1746,9 +1674,9 @@
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "18: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 7
+   "class": "no-override",
+   "first_error": "26: method does not override or implement a method from a supertype",
+   "n_errors": 5
   },
   "VanillaMobBreathingOracle": {
    "server": "fail",
@@ -1804,12 +1732,9 @@
    "n_errors": 11
   },
   "VanillaMovementEmissionOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "37: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaMovementRegistryOracle": {
    "server": "pass",
@@ -1817,12 +1742,9 @@
    "both": "pass"
   },
   "VanillaMovementSupportOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "37: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaMover": {
    "server": "fail",
@@ -1856,7 +1778,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "45: package net.minecraft.world.level.gamerules does not exist",
-   "n_errors": 45
+   "n_errors": 43
   },
   "VanillaNbtPathReaderOracle": {
    "server": "pass",
@@ -1907,11 +1829,11 @@
   },
   "VanillaPackResourcesOracle": {
    "server": "fail",
-   "client": "fail",
-   "both": "fail",
+   "client": "pass",
+   "both": "pass",
    "class": "missing-package",
    "first_error": "15: package net.minecraft.client.gui.font.providers does not exist",
-   "n_errors": 28
+   "n_errors": 27
   },
   "VanillaPackScreenOracle": {
    "server": "fail",
@@ -1962,12 +1884,9 @@
    "n_errors": 1
   },
   "VanillaPistonMovementOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "16: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaPistonPushOracle": {
    "server": "fail",
@@ -1978,12 +1897,9 @@
    "n_errors": 2
   },
   "VanillaPistonShapeOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "cascade",
-   "first_error": "depends on broken: VanillaFaceSupportOracle",
-   "n_errors": null
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaPlaceRecipeOracle": {
    "server": "fail",
@@ -2012,7 +1928,7 @@
    "both": "fail",
    "class": "no-override",
    "first_error": "16: method does not override or implement a method from a supertype",
-   "n_errors": 5
+   "n_errors": 3
   },
   "VanillaPlayerHealthOracle": {
    "server": "pass",
@@ -2025,7 +1941,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "21: package net.minecraft.world.entity.projectile.arrow does not exist",
-   "n_errors": 11
+   "n_errors": 9
   },
   "VanillaPlayerInventoryOracle": {
    "server": "fail",
@@ -2047,9 +1963,9 @@
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "17: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 4
+   "class": "no-override",
+   "first_error": "30: method does not override or implement a method from a supertype",
+   "n_errors": 2
   },
   "VanillaPortalOracle": {
    "server": "fail",
@@ -2091,7 +2007,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "50: package net.minecraft.world.level.gamerules does not exist",
-   "n_errors": 29
+   "n_errors": 27
   },
   "VanillaRaiderCelebrationOracle": {
    "server": "pass",
@@ -2147,12 +2063,9 @@
    "n_errors": 47
   },
   "VanillaRedstonePersistenceOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "32: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaRegisteredEntityFluidOracle": {
    "server": "fail",
@@ -2168,15 +2081,12 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "3: package net.minecraft.world.level.gamerules does not exist",
-   "n_errors": 24
+   "n_errors": 22
   },
   "VanillaRegistryCollisionScanOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "missing-symbol",
-   "first_error": "23: cannot find symbol",
-   "n_errors": 8
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaRegistryFallRayOracle": {
    "server": "fail",
@@ -2184,7 +2094,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "16: package net.minecraft.world.level.gamerules does not exist",
-   "n_errors": 8
+   "n_errors": 6
   },
   "VanillaRegistryFluidOracle": {
    "server": "fail",
@@ -2253,7 +2163,7 @@
    "both": "fail",
    "class": "missing-symbol",
    "first_error": "238: cannot find symbol",
-   "n_errors": 35
+   "n_errors": 33
   },
   "VanillaScoreboardOracle": {
    "server": "fail",
@@ -2301,15 +2211,12 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "3: package net.minecraft.world.level.gamerules does not exist",
-   "n_errors": 23
+   "n_errors": 21
   },
   "VanillaServerPlayerDamageOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "20: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaServerPropertyNumbersOracle": {
    "server": "fail",
@@ -2321,11 +2228,11 @@
   },
   "VanillaSheepDyeOracle": {
    "server": "fail",
-   "client": "fail",
-   "both": "fail",
+   "client": "pass",
+   "both": "pass",
    "class": "missing-package",
    "first_error": "4: package net.minecraft.client.multiplayer does not exist",
-   "n_errors": 16
+   "n_errors": 10
   },
   "VanillaShulkerBulletOracle": {
    "server": "fail",
@@ -2395,8 +2302,8 @@
   },
   "VanillaSoundEventOracle": {
    "server": "fail",
-   "client": "fail",
-   "both": "fail",
+   "client": "pass",
+   "both": "pass",
    "class": "missing-package",
    "first_error": "8: package net.minecraft.client does not exist",
    "n_errors": 20
@@ -2415,7 +2322,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "16: package net.minecraft.world.entity.projectile.throwableitemprojectile does not exist",
-   "n_errors": 28
+   "n_errors": 26
   },
   "VanillaSpawnRulesOracle": {
    "server": "fail",
@@ -2423,7 +2330,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "25: package net.minecraft.util.debug does not exist",
-   "n_errors": 17
+   "n_errors": 15
   },
   "VanillaSprintInputOracle": {
    "server": "fail",
@@ -2443,11 +2350,11 @@
   },
   "VanillaSquidClientOracle": {
    "server": "fail",
-   "client": "fail",
-   "both": "fail",
+   "client": "pass",
+   "both": "pass",
    "class": "missing-package",
    "first_error": "9: package net.minecraft.client.multiplayer does not exist",
-   "n_errors": 25
+   "n_errors": 3
   },
   "VanillaStackFoilOracle": {
    "server": "pass",
@@ -2512,12 +2419,9 @@
    "both": "pass"
   },
   "VanillaStoredConsumeOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "40: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaStoredEffectAttributesOracle": {
    "server": "pass",
@@ -2525,12 +2429,9 @@
    "both": "pass"
   },
   "VanillaStoredEffectNotificationsOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "19: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaStoredEnchantmentPatchOracle": {
    "server": "fail",
@@ -2557,9 +2458,9 @@
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "55: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 17
+   "class": "missing-symbol",
+   "first_error": "75: cannot find symbol",
+   "n_errors": 16
   },
   "VanillaStructureStartOracle": {
    "server": "fail",
@@ -2578,20 +2479,17 @@
    "n_errors": 55
   },
   "VanillaSuffocationOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "missing-symbol",
-   "first_error": "46: cannot find symbol",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaSwimmingOracle": {
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "15: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 3
+   "class": "missing-symbol",
+   "first_error": "33: cannot find symbol",
+   "n_errors": 1
   },
   "VanillaSyncedBytesOracle": {
    "server": "pass",
@@ -2630,7 +2528,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "32: package net.minecraft.world.entity.animal.fox does not exist",
-   "n_errors": 23
+   "n_errors": 21
   },
   "VanillaTerrainOracle": {
    "server": "fail",
@@ -2644,9 +2542,9 @@
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "19: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 3
+   "class": "no-override",
+   "first_error": "20: method does not override or implement a method from a supertype",
+   "n_errors": 1
   },
   "VanillaTextDisplayRenderOracle": {
    "server": "fail",
@@ -2654,7 +2552,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "4: package com.mojang.blaze3d.font does not exist",
-   "n_errors": 80
+   "n_errors": 78
   },
   "VanillaTextDisplayTransformOracle": {
    "server": "fail",
@@ -2742,9 +2640,9 @@
    "server": "fail",
    "client": "fail",
    "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "19: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 5
+   "class": "missing-symbol",
+   "first_error": "36: cannot find symbol",
+   "n_errors": 3
   },
   "VanillaUseRemainderOracle": {
    "server": "fail",
@@ -2768,7 +2666,7 @@
    "both": "fail",
    "class": "missing-symbol",
    "first_error": "20: cannot find symbol",
-   "n_errors": 7
+   "n_errors": 5
   },
   "VanillaViewDirectionOracle": {
    "server": "fail",
@@ -2787,12 +2685,9 @@
    "n_errors": 2
   },
   "VanillaWaterSplashOracle": {
-   "server": "fail",
-   "client": "fail",
-   "both": "fail",
-   "class": "constructor-mismatch",
-   "first_error": "14: constructor ServerLevel in class ServerLevel cannot be applied to given types;",
-   "n_errors": 2
+   "server": "pass",
+   "client": "pass",
+   "both": "pass"
   },
   "VanillaWeatherRenderOracle": {
    "server": "fail",
@@ -2808,7 +2703,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "36: package net.minecraft.world.attribute does not exist",
-   "n_errors": 12
+   "n_errors": 10
   },
   "VanillaWorldBorderOracle": {
    "server": "fail",
@@ -2845,7 +2740,7 @@
    "both": "fail",
    "class": "missing-package",
    "first_error": "14: package net.minecraft.world.level.gamerules does not exist",
-   "n_errors": 9
+   "n_errors": 7
   },
   "VanillaWorldSpawnOracle": {
    "server": "fail",

@@ -1,0 +1,94 @@
+{
+  "batch": 0,
+  "checks": {
+    "gap": 256,
+    "pass": 135,
+    "total": 391
+  },
+  "date": "2026-11-22",
+  "items": [
+    {
+      "evidence": "26.x ServerLevel subclasses call a 10-arg super() form; 1.21.7's ctor is 12-arg (ChunkProgressListener at position 7, RandomSequences appended). 88 files fixed + VanillaFaceSupportOracle reflection fix (CubeVoxelShape ctor is protected in 1.21.7). Rescued: VanillaActiveEffectsOracle, VanillaAttributeMapQueriesOracle, VanillaBlockCollisionScanOracle, VanillaBlockEventReadinessOracle, VanillaCombatRulesOracle, VanillaConsumeEffectOracle, VanillaDamageReductionOracle, VanillaDynamicSupportOracle, VanillaEdgeBackoffOracle, VanillaEntityCollisionOracle, VanillaFaceSupportOracle, VanillaFallDamageOracle, VanillaFoodPropertiesOracle, VanillaGroundStateOracle, VanillaLiveAttributeUpdatesOracle, VanillaLivingDamageOracle, VanillaMovementEmissionOracle, VanillaMovementSupportOracle, VanillaPistonMovementOracle, VanillaPistonShapeOracle, VanillaRedstonePersistenceOracle, VanillaServerPlayerDamageOracle, VanillaStoredConsumeOracle, VanillaStoredEffectNotificationsOracle, VanillaWaterSplashOracle.",
+      "fix": "47d650cb (2026-11-22)",
+      "id": "O1",
+      "method": "javap + javac fixpoint",
+      "severity": "major",
+      "status": "fixed",
+      "title": "ServerLevel 12-arg constructor group: 25 oracles rescued by one mechanical fix"
+    },
+    {
+      "evidence": "Without tools/jsr305-3.0.2.jar on the client classpath, javac CRASHES (rc=4, CompletionFailure: class file for javax.annotation.Nullable not found) on pre-1.21.11 jars. verify_artifacts() already did this for server libraries; the client path (86 oracle_harness drivers + 48 client_libraries() users) did not. tools/test_model_baking_parity.py:client_libraries() now appends jsr305 (70 client libraries).",
+      "fix": "d7a14e91 (2026-11-22)",
+      "id": "O2",
+      "method": "javac reproduction + driver fix",
+      "severity": "major",
+      "status": "fixed",
+      "title": "Client-classpath javac crash: jsr305 missing from client libraries"
+    },
+    {
+      "evidence": "Suffocation (no causes_suffocation tag; motion.json export), Food (no gamerules package; GameRules in world.level, getFoodLevel()>6 sprint threshold), EntityComponents (EntityPredicate in advancements.critereon), SheepDye (7-arg LocalPlayer, no Items.DYE/DataComponents.DYE), SoundEvent (2-arg SoundManager, no-arg getAttenuationDistance), ChunkGeneration (12-arg ServerChunkCache, static registry layers, 3-step terrain), SquidClient (flat animal.Squid), DataFix (no FileFixerUpper; ChunkStorage.injectDatafixingContext; 7 fix types), FinalizeSpawn (flat animal packages, inline Halloween check, no wolf variants/nautilus), PackResources (Pack.open() returns one PackResources), CommandExec (8-arg MinecraftServer, int permission levels, RandomSequences.reset int form), FirstPerson (classic swing model; no SwingState/FirstPersonHandsAndItems/itemSwapTicker), MobAi (full Server-shell + entity-package + GameRules + Brain/Sensor translation), ItemModel (older model system; record BakedQuad; no items atlas; render() not submit()). The 1.21.11 branch had repaired only 16 oracle files; MobAi's 1.21.11 diff was Identifier renames only, so its 1.21.7 repair was built from scratch.",
+      "fix": "57c50808, 5933e844, 626c8d87, c5b36e4e, 5203f6cb, 69e93c10, 9dc5dc8d, c9896b77, 5e6564e5 (2026-11-22)",
+      "id": "O3",
+      "method": "diff vs behaviour/1.21.11 + javap per API + javac",
+      "severity": "major",
+      "status": "fixed",
+      "title": "1.21.11 carry-over repairs: 14 oracles adapted to 1.21.7 (each API re-verified, never assumed)"
+    },
+    {
+      "evidence": "Anchor: 1.21.7 NoiseSettings is 4-arg, NoiseRouter 15-arg, NoiseGeneratorSettings takes a SurfaceRules RuleSource, no WorldGenerationContext.of, no sea-level anchor (emulated as absolute(seaLevel [+ value]) \u2014 same resolved Y, different codec encoding). RegistryCollisionScan: no PalettedContainerFactory (ProtoChunk takes a biome registry; 1.21.7 has no built-in biome registry, so a one-biome stand-in is built), no emptyWithFluidCollisions (emulated: 1.21.7's LiquidBlock needs isAbove AND canStandOnFluid, so an empty-delegating context with canStandOnFluid forced true), positionContext is withPosition(null, y) (null-safe per bytecode). Both verified clean on server AND client classpaths.",
+      "fix": "f581ed0f, 4c60aaf0 (2026-11-22)",
+      "id": "O4",
+      "method": "javap + bytecode + javac",
+      "severity": "major",
+      "status": "fixed",
+      "title": "High-leverage helpers repaired: Anchor (9 drivers) + RegistryCollisionScan (8 drivers)"
+    },
+    {
+      "evidence": "Every minecraft: id in test_mob_ai_parity.py checked against the 1.21.7 jar: only copper_golem (7 scenarios), copper chests (same 7), iron/wooden/stone spears (4 scenarios) and the AgeableMob age lock (16 scenarios; 1.21.7 has no setAgeLocked/ageLocked at all) are absent. scenarios() now filters them for oracle and probe alike (267 scenarios remain). The oracle's agelocked/cooldown cases were deleted to match.",
+      "fix": "c9896b77 (2026-11-22)",
+      "id": "O5",
+      "method": "jar registry check (Blocks/Items/EntityType/MobEffects fields) + driver filter",
+      "severity": "minor",
+      "status": "fixed",
+      "title": "MobAi driver gates 27 scenarios 1.21.7 cannot run (copper golem, spears, age lock)"
+    },
+    {
+      "evidence": "Server cp: 115 pass / 276 fail. Client cp: 133 pass / 258 fail. Fail-on-all: 256 (was 297 at measurement, 76.0%). First-error classes (server): missing-package 137, missing-symbol 99, no-override 13, other 8, cascade 7, constructor-mismatch 5, incompatible-types 4, missing-override 1. Errors/file: median 9, p90 54, max 251; \u226410 errors: 151 files; \u226420: 204. Zero files fail ONLY on missing-package \u2014 no purely mechanical import-fix group remains. Top missing packages: world.attribute (39), level.gamerules (23), levelgen.densityfunction (18), entity.projectile.arrow (10), server.permissions (10). Top remaining blockers: ParityFont (8 drivers), VanillaProtocolClient (8), VanillaDispenserOracle (6), LocatorBarClient (6), VanillaBlockUpdateOracle (6), VanillaMaterialConditionOracle (5), VanillaCollisionContextOracle (5). Full table: docs/sweep/batch-0-oracles.json.",
+      "id": "O6",
+      "method": "javac fixpoint (rerun2, post-repair)",
+      "severity": "major",
+      "status": "gap",
+      "title": "256 oracles still fail javac on all three classpaths (65.5%); 259 drivers blocked"
+    },
+    {
+      "evidence": "Imports SamplerContext/DensityVolume from net.minecraft.world.level.levelgen.densityfunction, which does not exist in 1.21.7 (or 1.21.11). No 1.21.7 equivalent API exists to translate to. Accepted limitation per plan \u00a73: density is verified via bytecode/chunk comparison instead. Do NOT force a repair.",
+      "id": "O7",
+      "method": "javap on the 1.21.7 jar",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaStructureDensityOracle is unrepairable against 1.21.7 (26.x-only densityfunction API)"
+    },
+    {
+      "evidence": "VanillaClientRedstonePreviewOracle compiles clean on the client cp but throws NullPointerException at runtime (Unsafe-allocated ClientLevel subclass: dimensionTypeRegistration is null because the constructor never ran). Likely fix: set the field via reflection after Unsafe allocation, or override dimensionType() \u2014 not attempted in this batch. Every repaired oracle needs an end-to-end driver run to confirm it yields a measurement; driver runs cost ~10-30 min each on this VM for the large harnesses. Sample so far: block_properties PASS (464s); command_parse + component_patch re-running at write time (sample3 died silently after 26 min with no output; sample4 in progress).",
+      "id": "O8",
+      "method": "end-to-end driver sample (tools/parity.py)",
+      "severity": "major",
+      "status": "gap",
+      "title": "Runtime-failure layer: compiling oracles can still throw at runtime; the 115 'runnable' drivers are runnable by javac only"
+    },
+    {
+      "evidence": "FirstPerson drops the swap-ticker/scale columns (1.21.7 has no itemSwapTicker/getItemSwapScale; the swap animation IS the hand heights). ItemModel drops the swap scale the same way. Anchor emulates sea-level anchors as absolute() (same Y, different codec encoding). Suffocation's tag-based probe expectation vs the motion.json export is a REAL parity gap for the E6 re-base (the 1.21.7 port's tag-based Rust probe vs vanilla's blocksMotion()/isSuffocating()). The probes model 26.x mechanics absent in 1.21.7; the family batches own the probe-side triage and any driver comparison changes.",
+      "id": "O9",
+      "method": "repair diffs vs probe expectations",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Repairs that changed oracle output formats expose probe-side 26.x assumptions (family-batch triage, not Batch 0 fixes)"
+    }
+  ],
+  "method": "Fixpoint big-compile of all 391 Java oracles against the named 1.21.7 jars on three classpaths (server, client, both), one javac invocation per fixpoint round (~20s each on this VM); driver mapping by parsing oracle basenames + oracle-name string literals across all 648 drivers. Every repair javap/bytecode-verified against the 1.21.7 jars (never assumed from the 26.3 base or the 1.21.11 form) and compile-checked on its own classpath before commit. End-to-end sample: 5 drivers via tools/parity.py (block_properties PASS; food failed javac pre-repair, oracle since repaired; client_redstone_preview compiles but throws at runtime \u2014 see O8; command_parse + component_patch re-running at write time).",
+  "name": "Oracle repair (measurement + javac repairs)",
+  "out_of_scope_failures": "Parity defects found during repair, recorded not fixed (Batch 0 never touches port behaviour): the Suffocation tag-vs-motion gap (see O9); the FirstPerson/ItemModel swap-mechanic gap (see O9); the MobAi copper-golem/spear/age-lock content gap (see O5 \u2014 driver-gated, probe models 26.x content). The 20 drivers with no javac path and the 254 drivers with no oracle reference were mapped but not run (server-e2e/data/wrappers \u2014 outside the oracle-repair scope).",
+  "source": "docs/PARITY-SWEEP.md \u00a74 Batch 0 + \u00a73 methodology \u2014 measurement and repair run 2026-11-22, checks + oracle/driver repair only, no port behaviour touched. Per-oracle table: docs/sweep/batch-0-oracles.json (regenerated post-repair); full report: docs/sweep/batch-0-oracle-repair.md.",
+  "systemic_note": "The same root cause as the pilot's G1/G3/G5/G6: the 1.21.7 tree carries 26.x API forms (packages, constructors, mechanics) for things that do not exist in vanilla 1.21.7, and every such reference fails loudly at javac time in the oracles (unlike the port code, where the same pattern silently degrades). The measurement found no purely mechanical repair group: zero files fail ONLY on missing-package, so each remaining file needs per-API translation verified against the 1.21.7 jar. Two systemic facts for the coordinator: (1) the 1.21.11 behaviour branch repaired only 16 oracle files, so there is no systematic repair to inherit \u2014 MobAi's 1.21.11 diff was Identifier renames only; (2) compiling is not running \u2014 the runtime layer (O8) is unmeasured and each oracle needs an end-to-end driver run.",
+  "version": "1.21.7"
+}
