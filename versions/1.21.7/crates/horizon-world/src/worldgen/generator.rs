@@ -5871,4 +5871,73 @@ mod tests {
             histogram[7]
         );
     }
+
+    /// The world comparison's worst chunk (-22,-18) holds 745 water blocks
+    /// in vanilla but 43 in the port's saved world. The aquifer is not the
+    /// cause: vanilla's water is one spring source at local (8,91,0) flowed
+    /// down the mountainside and into the cave. Generation's job is only to
+    /// place that single source (and schedule its tick); the waterfall
+    /// itself forms when the chunk is ticked (see the level test
+    /// `pond_spring_waterfall_flows_into_cave_at_worst_chunk`). Pin the
+    /// placement: exactly one water block, at the spring, with its tick.
+    #[test]
+    fn worst_chunk_places_the_single_spring_source() {
+        const SEED: i64 = 8257987075890829262;
+        let version = horizon_core::version::VERSION_ID;
+        let root = std::env::var_os("HORIZON_TEST_RESOURCES")
+            .or_else(|| std::env::var_os("HORIZON_RESOURCES"))
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../.local/horizon-client")
+                    .join(version)
+            });
+        if !root.join("worldgen/world_presets.json").exists() {
+            eprintln!("skipping: no worldgen bundle at {}", root.display());
+            return;
+        }
+        let registry: &'static BlockRegistry = Box::leak(Box::new(
+            crate::level::data::load_registry(&root).expect("registry"),
+        ));
+        let data = GeneratorData::load(&root.join("worldgen"), registry).expect("worldgen data");
+        let generator = OverworldGenerator::new(data.clone(), SEED).expect("overworld pipeline");
+        let mut worker = generator.worker();
+        let center = ChunkPos::new(-22, -18);
+        let mut region: [ProtoChunk; 9] = std::array::from_fn(|i| {
+            let dx = (i % 3) as i32 - 1;
+            let dz = (i / 3) as i32 - 1;
+            worker
+                .generate_proto(ChunkPos::new(center.x + dx, center.z + dz))
+                .unwrap_or_else(|e| panic!("chunk {dx},{dz}: {e}"))
+        });
+        worker.decorate(&mut region).expect("decorate");
+        let chunk = &region[4];
+        let min_y = chunk.terrain.min_y();
+        let height = chunk.terrain.height();
+        let mut water = Vec::new();
+        for y in min_y..min_y + height {
+            for z in 0..16 {
+                for x in 0..16 {
+                    if chunk.block_name(x, y, z) == "minecraft:water" {
+                        water.push((x, y, z));
+                    }
+                }
+            }
+        }
+        assert_eq!(
+            water,
+            vec![(8, 91, 0)],
+            "post-decorate water in chunk (-22,-18)"
+        );
+        let fluid_ticks = chunk.terrain.fluid_ticks().pack(0);
+        assert_eq!(fluid_ticks.len(), 1, "one scheduled fluid tick (the spring)");
+        let tick = &fluid_ticks[0];
+        assert_eq!((tick.pos.x, tick.pos.y, tick.pos.z), (-344, 91, -288));
+        assert_eq!(tick.delay, 0);
+        assert_eq!(
+            tick.kind.0,
+            crate::fluid::FluidKind::Water.index() as u32,
+            "the scheduled tick is a water tick"
+        );
+    }
 }
