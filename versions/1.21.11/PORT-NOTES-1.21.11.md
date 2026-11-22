@@ -12951,3 +12951,17 @@ passed (farmer 2 offers, wandering trader 9, unknown profession/level
 empty, dyed armor, plain-book fallback, book price doubling and cap,
 type-specific gating, treasure map without a map maker, failure
 listing, stew ticks).
+
+## Item 752 — world/item/crafting (new-classes) — NO-CHANGE
+
+13 classes present in 1.21.11, absent in 26.1: the recipe `$Serializer`
+classes, `ArmorDyeRecipe`, `MapCloningRecipe`, `TippedArrowRecipe`,
+`TransmuteResult`. The Rust was written against the 1.21.11 recipe
+system and cites these classes throughout crafting.rs; every checked
+behaviour matches: the cooking-time defaults (smelting 200, the other
+three 100, verified in `RecipeSerializer` bytecode),
+`CustomRecipe.Serializer` reading only `category`, `show_notification`
+defaulting to true (handled with a test), `TransmuteResult`'s codec
+(id, count 1..99 default 1, components patch, bare-item alternative)
+and `apply` semantics, and `MapCloningRecipe`'s matches/assemble
+compared line by line.
