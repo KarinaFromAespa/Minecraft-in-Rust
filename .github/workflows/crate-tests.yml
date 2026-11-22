@@ -1,0 +1,220 @@
+name: crate-tests
+
+# Runs the crate unit tests (cargo test --lib) for one version or for all
+# 19 version trees, on Linux, and uploads each crate's log as an artifact.
+# Dispatch-only: run it when a test needs running, never automatically.
+#
+# Why this exists: the VM cannot compile the horizon-client lib test
+# suite at all — a single rustc exceeds 3 GB against the shared 6 GB
+# cell and is OOM-killed even single-threaded via `taskset -c 0` (Nov 22,
+# 2026, upgrade-play fix). The owner's standing rule since then: any
+# test the VM can't run for resources goes to CI/Actions, never left
+# verified statically only. This workflow is that route.
+#
+# What it runs, per version (dependency order, smallest first, so a
+# cheap crate's result is never held up by the client's long compile):
+#   cargo test -p horizon-protocol --color=never
+#   cargo test -p horizon-items --lib --color=never
+#   cargo test -p horizon-world --lib --color=never
+#   cargo test -p horizon-client-core --lib --color=never
+#   cargo test -p horizon-client-render --lib --color=never
+#   cargo test -p horizon-client --lib --color=never
+# horizon-protocol runs without --lib to match port-verify's D2 command.
+# horizon-client-lib is deliberately absent: its lib is a re-export
+# shim (../horizon-client/src/client_lib.rs) with no tests of its own;
+# its contents are covered by the horizon-client suite.
+#
+# A crate absent from a version's tree — or one with no lib target —
+# is skipped, not failed; not every tree has identical crates. The step
+# runs every crate even after a failure and exits non-zero if any crate
+# failed, so one run reports all results. Skips are not failures: tests
+# that print "skipping: ..." need prepared .local data a clean runner
+# does not have, and exit 0.
+#
+# The workflow reports the raw result: it does not paper over failures.
+# Pre-existing failures exist in several trees (e.g. 1.21.7
+# horizon-world has 13, incl. datafix/dimension_type/growth/level), so
+# a red run is not by itself a regression — read the log in the
+# crate-tests-<version> artifact.
+#
+# Lean by design: cargo test only. No Mojang jars, no Java, no harness,
+# no prepare step. Rust 1.95.0 (the version trees' rust-version, same
+# as port-verify, client-build and launcher-build). No --locked:
+# port-verify and the laptop build do not use it, and a stale
+# game-workspace lockfile in any tree would fail its run.
+#
+# Dispatched manually:
+#   gh workflow run crate-tests.yml -f version=1.21.7
+#   gh workflow run crate-tests.yml -f version=all
+# Logs land in the crate-tests-<version> artifacts.
+#
+# Cache note: each version's rust-cache entry is large (the game
+# workspace), and GitHub evicts cache LRU past the 10 GB repo limit, so
+# a full-matrix run may rebuild some versions cold. Single-version
+# dispatches are the normal case and keep their cache.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version directory under versions/ (e.g. 1.21.7), or 'all' for every version tree"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  HORIZON_TELEMETRY_URL: "off"
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve the version input into the test matrix
+        id: matrix
+        env:
+          WANTED: ${{ inputs.version }}
+        run: |
+          python3 - <<'EOF'
+          import json, os
+          wanted = os.environ["WANTED"]
+          def is_tree(v):
+              return os.path.isfile(os.path.join("versions", v, "Cargo.toml"))
+          if wanted == "all":
+              versions = sorted(d for d in os.listdir("versions") if is_tree(d))
+              if not versions:
+                  raise SystemExit("no version tree found under versions/")
+          else:
+              if not is_tree(wanted):
+                  raise SystemExit(f"no version tree at versions/{wanted}")
+              versions = [wanted]
+          print("versions:", ", ".join(versions))
+          include = [{"version": v} for v in versions]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("matrix=" + json.dumps({"include": include}) + "\n")
+          EOF
+
+  test:
+    needs: resolve
+    name: crate tests ${{ matrix.version }} (linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.resolve.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: versions/${{ matrix.version }}
+          shared-key: crate-tests-${{ matrix.version }}-linux
+          cache-on-failure: true
+
+      # The Linux libraries the GUI crates link to (winit/wgpu via
+      # horizon-client and horizon-client-render) — the launcher
+      # workflow's list. A flaky archive mirror (port-verify run 1 died
+      # on a DNS failure resolving it) must not take the whole job down,
+      # so this stays continue-on-error, retried 3x; a failed install
+      # then surfaces as a build failure with a clear cause.
+      - name: Linux libraries the client crates link to
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3; do
+            sudo apt-get update -o Acquire::Retries=3 && \
+            sudo apt-get install -y libxkbcommon-x11-dev libwayland-dev libx11-xcb-dev libfontconfig-dev libvulkan-dev pkg-config && break
+            echo "apt attempt $attempt failed; retrying in 20s"
+            sleep 20
+          done
+
+      # pipefail (port-verify v6.1 lesson): without it the `| tee`
+      # would swallow a failing cargo exit code, as run 14 proved.
+      # The loop runs every crate even after a failure and exits
+      # non-zero if any crate failed; per-crate outcomes go to
+      # _summary.txt for the job summary step.
+      - name: Run the crate test suites
+        id: tests
+        run: |
+          set -o pipefail
+          cd "versions/${{ matrix.version }}"
+          OUT="$GITHUB_WORKSPACE/ci-out/crate-tests"
+          mkdir -p "$OUT"
+          : > "$OUT/_summary.txt"
+          CRATES="horizon-protocol horizon-items horizon-world horizon-client-core horizon-client-render horizon-client"
+          FAILED=""
+          for crate in $CRATES; do
+            if [ ! -f "crates/$crate/Cargo.toml" ]; then
+              echo "=== $crate: not in this tree, skipped ==="
+              echo "$crate SKIP (no such crate)" >> "$OUT/_summary.txt"
+              continue
+            fi
+            if [ ! -f "crates/$crate/src/lib.rs" ] && ! grep -q '^\[lib\]' "crates/$crate/Cargo.toml"; then
+              echo "=== $crate: no lib target, skipped ==="
+              echo "$crate SKIP (no lib target)" >> "$OUT/_summary.txt"
+              continue
+            fi
+            echo "=== $crate ==="
+            if [ "$crate" = "horizon-protocol" ]; then
+              # No --lib: match port-verify's D2 command exactly.
+              CMD="cargo test -p $crate --color=never"
+            else
+              CMD="cargo test -p $crate --lib --color=never"
+            fi
+            if $CMD 2>&1 | tee "$OUT/$crate.log"; then
+              echo "=== $crate: PASS ==="
+              echo "$crate PASS" >> "$OUT/_summary.txt"
+            else
+              echo "=== $crate: FAIL ==="
+              echo "$crate FAIL" >> "$OUT/_summary.txt"
+              FAILED="$FAILED $crate"
+            fi
+          done
+          if [ -n "$FAILED" ]; then
+            echo "::error::failing crates:${FAILED}"
+            exit 1
+          fi
+
+      - name: Upload the test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crate-tests-${{ matrix.version }}
+          path: ci-out/crate-tests/
+          if-no-files-found: warn
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## crate-tests — ${{ matrix.version }} (linux)"
+            echo
+            echo "artifact: \`crate-tests-${{ matrix.version }}\`"
+            echo
+            SUMMARY="$GITHUB_WORKSPACE/ci-out/crate-tests/_summary.txt"
+            if [ -f "$SUMMARY" ]; then
+              echo "| crate | result | test result |"
+              echo "|---|---|---|"
+              while read -r crate outcome rest; do
+                LOG="$GITHUB_WORKSPACE/ci-out/crate-tests/$crate.log"
+                if [ -f "$LOG" ]; then
+                  counts=$(grep '^test result:' "$LOG" | tail -1 | sed 's/^test result: //' || true)
+                  [ -n "$counts" ] || counts="no test-result line (see log)"
+                else
+                  counts="—"
+                fi
+                echo "| $crate | $outcome $rest | $counts |"
+              done < "$SUMMARY"
+            else
+              echo "no test summary — the run failed before any crate ran"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
