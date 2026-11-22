@@ -254,7 +254,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 Class::SculkSensor => self.sculk_sensor_tick(pos, state),
                 Class::SculkShrieker => self.sculk_shrieker_tick(pos, state),
                 Class::SculkCatalyst => self.sculk_catalyst_tick(pos, state),
-                Class::Speleothem => {
+                Class::Speleothem | Class::PointedDripstone => {
                     let tip = b.table.dir(state, p.vertical_direction);
                     if tip == Some(Direction::Up) && !self.can_survive(state, pos) {
                         self.destroy_block(pos, true, 512);
@@ -440,7 +440,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                         self.pitcher_grow(state, pos, 1);
                     }
                 }
-                Class::Speleothem => self.speleothem_random_tick(state, pos),
+                Class::Speleothem | Class::PointedDripstone => self.speleothem_random_tick(state, pos),
                 Class::RedStoneOre => {
                     if b.table.bool(state, p.lit) {
                         self.set_block_and_update(pos, b.table.set_bool(state, p.lit, false));

@@ -12783,3 +12783,24 @@ Level-type narrowing only (`WorldGenLevel` vs `LevelSimulatedReader`
 ## Item 725 — worldgen/generator.rs (Structure$GenerationContext) — NO-CHANGE
 
 Visibility plus record-vs-field access (`ChunkPos.x()` vs `ChunkPos.x`).
+
+## Item 726 — worldgen/snow_freeze.rs (SnowyBlock) — CHANGED
+
+In 1.21.11 the class is `SnowyDirtBlock` (with
+`SpreadingSnowyDirtBlock` above it); 26.x dropped "Dirt". The Rust's
+`Class::from_java` only knew the 26.x names, so `Class::Snowy` never
+matched the exported 1.21.11 class chain and the snowy placement and
+neighbour-update arms were dead. Auditing all 273 names in
+classes.rs against the 1.21.11 jar found the same defect in 8 more
+variants: `FarmlandBlock` -> `FarmBlock`, `NetherFungusBlock` ->
+`FungusBlock`, `NetherRootsBlock` -> `RootsBlock`, `PathBlock` ->
+`DirtPathBlock`, `RedstoneWireBlock` -> `RedStoneWireBlock`,
+`SpeleothemBlock` -> `PointedDripstoneBlock`, `AbstractBedBlock` ->
+`BedBlock` (`PathBlock`, `RedstoneWireBlock`, `SpeleothemBlock`,
+`AbstractBedBlock` exist in neither 26.1 nor 1.21.11 — 26.3 names).
+Fix: the `classes!` macro now accepts an optional 1.21.11 alias
+literal (7 aliases added); the 5 `Speleothem` arms gained
+`| Class::PointedDripstone` and the 5 `AbstractBed` uses gained
+`Class::Bed`. All 8 `Interface` names exist in 1.21.11. The 4
+26.3-only blocks (PotentSulfur, SulfurSpike, StrawBed,
+ShelfMushroom) correctly never match.

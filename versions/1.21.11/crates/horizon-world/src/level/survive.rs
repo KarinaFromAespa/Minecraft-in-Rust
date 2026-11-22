@@ -323,7 +323,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                             && b.table.int(below_state, p.layers) == 8)
                 }
             }
-            Class::Speleothem => {
+            Class::Speleothem | Class::PointedDripstone => {
                 let tip = b
                     .table
                     .dir(state, p.vertical_direction)

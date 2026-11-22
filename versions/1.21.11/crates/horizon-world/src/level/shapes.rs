@@ -121,7 +121,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             }};
         }
         Some(match class {
-            Class::AbstractBed => {
+            Class::AbstractBed | Class::Bed => {
                 if dir == self.bed_neighbour_direction(state) {
                     if b.is_block(nstate, block)
                         && table.text(nstate, p.part) != table.text(state, p.part)
@@ -742,7 +742,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     sup!()
                 }
             }
-            Class::Speleothem => {
+            Class::Speleothem | Class::PointedDripstone => {
                 self.waterlogged_tick(state, pos);
                 if !matches!(dir, Direction::Up | Direction::Down) {
                     return Some(state);
