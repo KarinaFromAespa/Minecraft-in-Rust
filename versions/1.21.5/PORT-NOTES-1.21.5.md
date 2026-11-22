@@ -13334,12 +13334,65 @@ is the oracle; decompiled code is a reading aid.
     145/222/258.
   - Verification: read / only; no code / changed.
 
+- **Item 325 — Display entities**
+  - Display entities
+    (block/item/text):
+    verified, no code. The
+    whole 187-line diff is
+    the
+    ValueInput/ValueOutput
+    refactor: 1.21.6 routes
+    the save through
+    ValueInput/ValueOutput,
+    1.21.5 reads and writes
+    the CompoundTag
+    directly, with the
+    RegistryOps context
+    threaded in by hand for
+    the codec fields. The
+    serialized forms are
+    identical in every case
+    - transformation,
+    interpolation_duration,
+    start_interpolation,
+    teleport_duration
+    (clamped 0-59),
+    billboard, view_range,
+    shadow_radius,
+    shadow_strength, width,
+    height,
+    glow_color_override,
+    brightness;
+    block_state; item (only
+    when non-empty) and
+    item_display; text,
+    line_width (200),
+    text_opacity (-1), the 
+    shadow/see_through/defa
+    ult_background flags
+    and alignment - and the
+    text-display read
+    resolves entity
+    selectors on a server
+    level in both versions,
+    else sets empty text.
+    The port already writes
+    the direct CompoundTag
+    form
+    (NativeDisplay::write,
+    with the 0-59 teleport
+    clamp in valid()), and
+    the server-side text
+    resolution has no
+    client surface.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **324 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 56/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **325 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 57/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
