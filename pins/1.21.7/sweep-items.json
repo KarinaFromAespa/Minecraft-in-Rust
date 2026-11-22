@@ -112,6 +112,16 @@
         "total": 261
       },
       "status": "complete"
+    },
+    "9": {
+      "name": "Commands",
+      "date": "2026-11-22",
+      "checks": {
+        "gap": 16,
+        "pass": 2,
+        "total": 18
+      },
+      "status": "complete"
     }
   },
   "items": [
@@ -1562,6 +1572,142 @@
       "severity": "minor",
       "status": "gap",
       "title": "Spruce leaves never drop falling-leaf particles"
+    },
+    {
+      "evidence": "gamerules.rs is the 26.3 snake_case table (keep_inventory, advance_time, spawn_mobs, max_block_modifications, ...); the /gamerule tree is built from it (vanilla.rs:301). Vanilla 1.21.7 rules are camelCase \u2014 javap on net.minecraft.world.level.GameRules: 56 rules (keepInventory, doFireTick, allowFireTicksAwayFromPlayer, ...). 220 corpus cases reject valid rules at cursor 9; 8 accept 26.3 names (keep_inventory). doFireTick is absent entirely (also pilot G4).",
+      "id": "B9-G01",
+      "method": "command_parse triage + javap",
+      "severity": "major",
+      "status": "gap",
+      "title": "/gamerule rejects every 1.21.7 rule name; accepts 26.3 snake_case names"
+    },
+    {
+      "evidence": "Top-level diff vs vanilla's tree.json (73 commands): Rust release tree adds /stopwatch, /swing, /fetchprofile, /unpublish, /compute, /posteffect (none in vanilla 1.21.7; corpus-proven for the first five), /time clock subcommands (pause, resume, rate, of <clock>, set <timemarker> \u2014 the timemarker node is why 'time set nope' parses; vanilla /time has only add/query/set), and /execute ... stopwatch. Dev-gated (raid, warden_spawn_tracker), Horizon-gated (pregen) and dedicated-only (ban, whitelist, ...) commands correctly excluded; tell/w redirects present; waypoint and dialog are in vanilla's tree (not defects).",
+      "id": "B9-G02",
+      "method": "command_parse triage + tree diff vs oracle tree.json",
+      "severity": "major",
+      "status": "gap",
+      "title": "26.x commands and subcommands in the 1.21.7 release tree"
+    },
+    {
+      "evidence": "tree_world.rs:62 uses ResourceOrId(\"minecraft:worldgen/feature\") (feature types). Vanilla PlaceCommand uses Registries.CONFIGURED_FEATURE (javap; placeFeature takes a ConfiguredFeature). minecraft:acacia is a configured feature (224 ids in the oracle registries), not a feature type \u2014 every /place feature <name> fails with no_such_element (22 cases). Fixture data is correct; the registry string is wrong.",
+      "id": "B9-G03",
+      "method": "command_parse triage + javap",
+      "severity": "minor",
+      "status": "gap",
+      "title": "/place feature looks up minecraft:worldgen/feature instead of configured_feature"
+    },
+    {
+      "evidence": "vanilla.rs uses ArgType::Rotation for the trailing angle. Vanilla uses AngleArgument (single float) \u2014 javap: SetSpawnCommand and SetWorldSpawnCommand both call AngleArgument.angle()/getAngle(). Rust rejects a single value (rotation.incomplete, 8 cases) and accepts two values vanilla rejects (4 cases).",
+      "id": "B9-G04",
+      "method": "command_parse triage + javap",
+      "severity": "minor",
+      "status": "gap",
+      "title": "spawnpoint/setworldspawn parse the angle as a rotation (yaw+pitch)"
+    },
+    {
+      "evidence": "tree_extra.rs: publish [<allowCommands>] [<port>]. Vanilla PublishCommand is publish [<allowCommands>] [<gamemode>] [<port>] (javap: BoolArgumentType, then GameModeArgument.gameMode, then IntegerArgumentType(0, 65535)). 'publish true survival' fails in Rust with parsing.int.expected (4 cases + follow-on cursor diffs).",
+      "id": "B9-G05",
+      "method": "command_parse triage + javap",
+      "severity": "minor",
+      "status": "gap",
+      "title": "/publish is missing the gamemode argument"
+    },
+    {
+      "evidence": "(a) NBT components with an entity source are rejected when the selector string doesn't parse (component.rs nbt arm). Vanilla accepts {\"nbt\":\"a\",\"entity\":\"@x\"}: EntityDataSource.compileSelector catches CommandSyntaxException and returns null (javap exception table). 4 OK-diff + 260 cursor-diff cases. (b) object components ({\"object\":\"atlas\"/\"player\"}) are accepted by Rust but rejected by vanilla \u2014 1.21.7 has NO object component type (jar network/chat/contents/ holds only PlainText, Translatable, Keybind, Score, Selector, Nbt). 8 cases. The object arm is a 26.x carry-over.",
+      "id": "B9-G06",
+      "method": "command_parse triage + javap",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Chat-component decoder: too strict on NBT sources, too lax on object components"
+    },
+    {
+      "evidence": "(a) codec.rs dispatch() reads the \"type\" key, but loot item modifiers use the \"function\" key ({\"function\":\"minecraft:set_count\",\"count\":1}) \u2014 every inline modifier fails with failed_to_parse (4 cases). (b) /item ... from entity <source> uses ENTITIES (multi) in tree_misc.rs; vanilla ItemCommands uses EntityArgument.entity() (single) for the source \u2014 'Only one entity is allowed' (2 cases).",
+      "id": "B9-G07",
+      "method": "command_parse triage + javap",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Item modifiers: inline JSON fails (wrong type key); multi-entity source accepted"
+    },
+    {
+      "evidence": "args.rs particle_options: for minecraft:block, any non-string block_state is an error. Vanilla accepts the BlockState-codec SNBT form block_state:{Name:\"minecraft:stone\"} (2 cases). Rust requires a string or a compound with id; the Name-form compound is the form vanilla's codec takes.",
+      "id": "B9-G08",
+      "method": "command_parse triage",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Particle block_state compound with Name is rejected"
+    },
+    {
+      "evidence": "(a) Duplicate-option errors roll back to the option-name start (selector.rs parse_options); vanilla reports at the end of the duplicated value (28 cases, e.g. @e[type=pig,type=cow]: vanilla cursor 34, Rust 30). (b) @a/@p/@r push minecraft:player into s.types but never mark type_option consumed, so can_use(\"type\") stays true and @a[type=player] parses \u2014 vanilla rejects it as inapplicable (16 cases; Rust then fails later with a generic error).",
+      "id": "B9-G09",
+      "method": "command_parse triage",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Selector option errors: wrong cursor on duplicates; type= accepted for @a/@p/@r"
+    },
+    {
+      "evidence": "tree_world.rs worldborder set/add time uses ArgType::Time (float + d/s/t suffix). Vanilla WorldBorderCommand uses IntegerArgumentType.integer(0) (javap: 4 call sites). Rust accepts 'worldborder set 100 10s' (2 cases) and suggests [\"d\",\"s\",\"t\"] after a complete time argument where vanilla suggests nothing (12 suggestion cases).",
+      "id": "B9-G10",
+      "method": "command_parse triage + javap",
+      "severity": "minor",
+      "status": "gap",
+      "title": "/worldborder time is a Time argument; vanilla uses an integer (seconds)"
+    },
+    {
+      "evidence": "'recipe give @s minecraft:stick': vanilla suggests nothing (start 0, end 0, empty list); Rust suggests prefix matches (minecraft:stick_from_bamboo_item, minecraft:sticky_piston) at the argument start (2 cases). Vanilla offers no completions once the last argument is complete and valid; Rust re-suggests.",
+      "id": "B9-G11",
+      "method": "command_parse triage",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Suggestions offered for complete valid arguments (recipe)"
+    },
+    {
+      "evidence": "'execute if items ... @@bad@@': vanilla \"Unknown slot '@@bad@@'\" at end of input; Rust reports an SNBT error mid-input (8 cases). 'item replace block ... <empty slot>': vanilla \"Unknown slot ''\"; Rust reports no_such_element one position later (2 cases). The slot-argument error path doesn't match vanilla's reporting.",
+      "id": "B9-G12",
+      "method": "command_parse triage",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Slot error text/cursor divergences"
+    },
+    {
+      "evidence": "ARGUMENT_TYPES (horizon-protocol play/commands.rs) is 57 entries with count and order identical to vanilla 1.21.7's ArgumentTypeInfos registration order (javap static initializer) \u2014 the 481494bd fix holds. One entry carries the 26.x name: minecraft:team_color where vanilla's registry has minecraft:color (index 16). Functionally harmless for network decode (numeric ids; index 16 decodes to TeamColor either way), but a latent inconsistency for name-based comparisons.",
+      "id": "B9-G13",
+      "method": "javap + registry diff",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Argument-type table carries the 26.x name at index 16 (team_color vs color)"
+    },
+    {
+      "evidence": "Fails both classpaths, missing-symbol at lines 44 (x3), 242, 436 (x2). Line 44 store() calls packObjectives()/packDisplaySlots()/packPlayerTeams(), which don't exist on 1.21.7's Scoreboard (only packPlayerScores; packing lives in ScoreboardSaveData.pack(); Packed itself exists with the same four components). Lines 242/436 use TeamColor \u2014 no such class in 1.21.7; PlayerTeam uses ChatFormatting. Repair scope (small, in-family, NOT attempted \u2014 compiling blocked): pack via ScoreboardSaveData, TeamColor -> ChatFormatting; needs an end-to-end driver run after repair.",
+      "id": "B9-O01",
+      "method": "batch-0-oracles.json + javap",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaScoreboardOracle fails javac (6 errors) \u2014 blocks scoreboard"
+    },
+    {
+      "evidence": "Client cp (the operative one \u2014 the driver uses the client jar): missing-symbol at 14, 51; 26.x-only package net.minecraft.world.entity.monster.zombie at 24; five method-does-not-override errors at 60-80 (26.x overrides of Entity/LivingEntityRenderer methods). Repair scope: re-home the zombie import to world.entity.monster, rework the five overrides against 1.21.7's APIs, resolve the two missing symbols. Medium; NOT attempted (compiling blocked).",
+      "id": "B9-O02",
+      "method": "batch-0-oracles.json",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaTeamRulesOracle fails javac (19 client errors) \u2014 blocks team_rules"
+    },
+    {
+      "evidence": "missing-symbol at 222, 231, 393-395, 407, 409, 413, ... (20 server-cp errors; also fails on client cp). test_exploration_map_command_parity.py compiles it as its Java packet client and runs a real Java server + the game. Repair scope: 20 missing symbols against the 1.21.7 client jar \u2014 per-symbol javap work; out of family for a commands batch (packet-client helper shared with the locator-bar harness). NOT attempted (compiling blocked).",
+      "id": "B9-O03",
+      "method": "batch-0-oracles.json",
+      "severity": "minor",
+      "status": "gap",
+      "title": "LocatorBarClient fails javac (20 errors) \u2014 blocks exploration_map_command"
+    },
+    {
+      "evidence": "The command_parse_fixture probe loads language only from the prepared-resources root (.local/horizon-client/1.21.7), which contains NO lang files, so lang::get(key) falls back to the key itself and every error renders as its translation key (command.unknown.command 55,949; command.unknown.argument 19,824; ...). The GAME is exonerated: it loads language from the pack root on the vanilla asset root (game/packs.rs startup_root), and the 1.21.7 client jar's en_us.json (7,392 keys) contains every key with exactly the vanilla text the oracle produced. Fix direction: load the fixture language from the vanilla asset root or resolve keys before comparing. Until fixed, the driver's error-text leg is unreadable.",
+      "id": "B9-O04",
+      "method": "command_parse triage + source + jar en_us.json",
+      "severity": "major",
+      "status": "gap",
+      "title": "command_parse fixture has no language data \u2014 86,241 error-text mismatches are raw keys (probe defect, not a game defect)"
     }
   ]
 }
