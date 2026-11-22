@@ -1242,6 +1242,157 @@ fn water_on_a_pillar_flows_off_the_edge_and_falls() {
     );
 }
 
+/// Generate + decorate the 3x3 around `center` at the Test 1 seed, copy all
+/// nine chunks into a ticking level, run the postprocess fluid ticks (as
+/// `Game::postprocess_chunks` does) and the scheduled ticks for `ticks`
+/// ticks, and count the water left in the center chunk. Returns (total,
+/// underground) or None when the resources are absent (the test skips).
+///
+/// The world comparison found the port 14,628 water blocks short of vanilla
+/// underground, worst chunk (-22,-18) 43 vs 745. The aquifer is exonerated
+/// (bit-for-bit vanilla for that chunk): the missing water is a spring-fed
+/// waterfall that only forms once the chunk is ticked. Generation places a
+/// single spring source; the cascade is the tick path's job.
+fn tick_generated_chunk(center: ChunkPos, ticks: u32) -> Option<(usize, usize)> {
+    use crate::{
+        fluid::FluidKind,
+        worldgen::generator::{GeneratorData, OverworldGenerator, ProtoChunk},
+    };
+    let f = fixture()?;
+    let root = std::env::var_os("HORIZON_TEST_RESOURCES")
+        .or_else(|| std::env::var_os("HORIZON_RESOURCES"))
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../.local/horizon-client")
+                .join(horizon_core::VANILLA_VERSION)
+        });
+    if !root.join("worldgen/world_presets.json").exists() {
+        eprintln!("skipping: no worldgen bundle at {}", root.display());
+        return None;
+    }
+    const SEED: i64 = 8257987075890829262;
+    let data = GeneratorData::load(&root.join("worldgen"), &f.registry).expect("worldgen data");
+    let generator = OverworldGenerator::new(data, SEED).expect("overworld pipeline");
+    let mut worker = generator.worker();
+    let mut region: [ProtoChunk; 9] = std::array::from_fn(|i| {
+        let dx = (i % 3) as i32 - 1;
+        let dz = (i / 3) as i32 - 1;
+        worker
+            .generate_proto(ChunkPos::new(center.x + dx, center.z + dz))
+            .expect("chunk")
+    });
+    worker.decorate(&mut region).expect("decorate");
+    let mut w = World::new(f);
+    for chunk in &region {
+        let _ = w.ticks.add_empty_chunk(chunk.position());
+        let pos = chunk.position();
+        let (bx, bz) = (pos.x * 16, pos.z * 16);
+        let min_y = chunk.terrain.min_y();
+        let height = chunk.terrain.height();
+        for y in min_y..min_y + height {
+            for z in 0..16 {
+                for x in 0..16 {
+                    w.put(BlockPos::new(bx + x, y, bz + z), chunk.block(x, y, z));
+                }
+            }
+        }
+    }
+    // The decorated chunks' scheduled fluid ticks (springs), as the level
+    // takes them over from the proto chunks.
+    for chunk in &region {
+        for t in chunk.terrain.fluid_ticks().pack(0) {
+            let Some(fluid) = FluidKind::from_index(t.kind.0 as usize) else {
+                continue;
+            };
+            w.ticks.schedule_fluid(0, t.pos, fluid, t.delay);
+        }
+    }
+    // `Game::postprocess_chunks`: tick each marked fluid once, which starts
+    // the waterfalls; the scheduled follow-ups run on the ticks below.
+    // (Block ticks are not scheduled: leaf decay does not affect the water.)
+    for chunk in &region {
+        let pos = chunk.position();
+        let (bx, bz) = (pos.x * 16, pos.z * 16);
+        let base_section = chunk.terrain.min_y() >> 4;
+        for (i, marks) in chunk.terrain.postprocessing().iter().enumerate() {
+            let sy = (base_section + i as i32) * 16;
+            for &packed in marks {
+                let p = i32::from(packed);
+                let at = BlockPos::new(
+                    bx + (p & 15),
+                    sy + ((p >> 4) & 15),
+                    bz + ((p >> 8) & 15),
+                );
+                let state = w.get(at);
+                let b = w.b();
+                if b.fluid(state).kind() != FluidKind::Empty {
+                    b.scheduled_fluid_tick(&mut w.level, &mut w.ticks, at);
+                }
+            }
+        }
+    }
+    for _ in 0..ticks {
+        w.tick();
+    }
+    let (bx, bz) = (center.x * 16, center.z * 16);
+    let min_y = region[4].terrain.min_y();
+    let height = region[4].terrain.height();
+    let mut total = 0usize;
+    let mut underground = 0usize;
+    for y in min_y..min_y + height {
+        for z in 0..16 {
+            for x in 0..16 {
+                let state = w.get(BlockPos::new(bx + x, y, bz + z));
+                if f.registry.state(state).unwrap().name == "minecraft:water" {
+                    total += 1;
+                    if y < 62 {
+                        underground += 1;
+                    }
+                }
+            }
+        }
+    }
+    Some((total, underground))
+}
+
+#[test]
+fn spring_waterfall_flows_in_cave_at_18_6() {
+    // Vanilla's chunk (18,6) holds 288 water blocks, all flowed from a
+    // single spring source at local (0,8,8) down to y -46. Generation places
+    // that source; the tick path must carry it down the cave. (The saved
+    // port world has stone at the source and no water at all in the chunk:
+    // it was generated before the water-spread fix, and the spring never
+    // flowed there.)
+    let Some((total, underground)) = tick_generated_chunk(ChunkPos::new(18, 6), 1000) else {
+        return;
+    };
+    eprintln!("chunk (18,6) after 1000 ticks: water total {total}, underground {underground} (vanilla 288/288)");
+    assert!(
+        underground > 100,
+        "chunk (18,6) has {underground} underground water after ticking, vanilla has 288"
+    );
+}
+
+#[test]
+fn pond_spring_waterfall_flows_into_cave_at_worst_chunk() {
+    // The world comparison's worst chunk: vanilla has 745 water (554
+    // underground), the port's saved world 43 — all of it one spring source
+    // at local (8,91,0) flowing down the mountainside and into the cave.
+    // Generation places the single source; the tick path must form the
+    // waterfall. (The old probe asserted this of `generate_proto` alone,
+    // which neither vanilla nor the port does: the water only exists after
+    // ticks.)
+    let Some((total, underground)) = tick_generated_chunk(ChunkPos::new(-22, -18), 1000) else {
+        return;
+    };
+    eprintln!("chunk (-22,-18) after 1000 ticks: water total {total}, underground {underground} (vanilla 745/554)");
+    assert!(
+        underground > 300,
+        "chunk (-22,-18) has {underground} underground water after ticking, vanilla has 554"
+    );
+}
+
 #[test]
 fn lava_meets_water() {
     let mut w = world!();

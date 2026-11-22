@@ -2709,13 +2709,6 @@ trait SeededPipeline: Send + Sync {
     ) -> Vec<(String, bool)> {
         Vec::new()
     }
-    /// TEMPORARY DIAGNOSTIC: the aquifer's per-cell fluid statuses and field
-    /// values for one chunk, as a printable dump. Remove once the 1.21.7
-    /// aquifer water deficit is root-caused.
-    #[cfg(test)]
-    fn aquifer_dump(&self, _chunk: ChunkPos) -> String {
-        String::new()
-    }
     fn spawn_position(&self) -> Result<[i32; 2], GeneratorError>;
     fn region_random(&self, center: ChunkPos) -> Box<dyn super::structure::legacy::PieceRandom>;
     fn locate(
@@ -2909,156 +2902,6 @@ where
             ),
             None => Vec::new(),
         }
-    }
-    /// TEMPORARY DIAGNOSTIC: build the chunk's aquifer exactly as `generate`
-    /// does, drive it over the chunk, and dump each cell's fluid status plus
-    /// the six aquifer field values at its point.
-    #[cfg(test)]
-    fn aquifer_dump(&self, chunk: ChunkPos) -> String {
-        use super::aquifer::AquiferBlockStates;
-        use std::fmt::Write as _;
-        let Some(samplers) = &self.aquifer else {
-            return "aquifers disabled\n".to_string();
-        };
-        let (min_y, height) = (self.settings.level_min_y, self.settings.level_height);
-        let volume = match DensityVolume::new(
-            [16, height, 16],
-            [chunk.x.wrapping_shl(4), min_y, chunk.z.wrapping_shl(4)],
-            [1; 3],
-        ) {
-            Ok(volume) => volume,
-            Err(e) => return format!("volume: {e}\n"),
-        };
-        let mut context = SamplerContext::cached();
-        let registry = self.data.registry;
-        let blocks = match RegistryAquiferBlockStates::new(registry) {
-            Ok(blocks) => blocks,
-            Err(e) => return format!("blocks: {e}\n"),
-        };
-        let mut aquifer = match NoiseBasedAquifer::new(
-            AquiferSamplers::new(samplers.clone()),
-            self.picker,
-            self.root
-                .from_hash_of("minecraft:aquifer")
-                .fork_positional(),
-            RegistryAquiferBlockStates::new(registry).expect("aquifer blocks"),
-            volume,
-            &mut context,
-        ) {
-            Ok(aquifer) => aquifer,
-            Err(e) => return format!("aquifer: {e}\n"),
-        };
-        let mut out = String::new();
-        let (cx, cz) = (chunk.x.wrapping_shl(4), chunk.z.wrapping_shl(4));
-        // Populate the caches: the two vanilla water columns of (-22,-18) at
-        // cave density, plus a coarse sweep over the chunk.
-        for y in min_y..min_y + height {
-            for (lx, lz) in [(13, 5), (5, 11)] {
-                let _ = aquifer.compute_substance(&mut context, [cx + lx, y, cz + lz], -1.0);
-            }
-        }
-        for y in (-60..140).step_by(4) {
-            for z in (0..16).step_by(4) {
-                for x in (0..16).step_by(4) {
-                    let _ = aquifer.compute_substance(&mut context, [cx + x, y, cz + z], -1.0);
-                }
-            }
-        }
-        // What the aquifer decides at the vanilla water columns, at cave density.
-        for (lx, lz, range) in [(13, 5, 13..59), (5, 11, 41..59)] {
-            let mut runs: Vec<(i32, i32, String)> = Vec::new();
-            let mut cur: Option<(i32, String)> = None;
-            for y in range.clone() {
-                let state =
-                    aquifer.compute_substance(&mut context, [cx + lx, y, cz + lz], -1.0);
-                let name = match state {
-                    Ok(None) => "stone".to_string(),
-                    Ok(Some(id)) => registry
-                        .state(id)
-                        .map(|s| s.name.clone())
-                        .unwrap_or_else(|| format!("id {id:?}")),
-                    Err(e) => format!("err {e}"),
-                };
-                match cur {
-                    Some((start, ref c)) if *c == name => {
-                        let _ = start;
-                    }
-                    Some((start, c)) => {
-                        runs.push((start, y - 1, c));
-                        cur = Some((y, name));
-                    }
-                    None => cur = Some((y, name)),
-                }
-            }
-            if let Some((start, c)) = cur {
-                runs.push((start, range.end - 1, c));
-            }
-            let _ = writeln!(
-                out,
-                "aquifer substance at column ({lx},{lz}) density -1: {runs:?}"
-            );
-        }
-        // Per-cell statuses + field values at the cell points.
-        let fields = AquiferSamplers::new(samplers.clone());
-        let mut cells = 0usize;
-        let mut water_cells = 0usize;
-        let mut lava_cells = 0usize;
-        for (key, status) in aquifer.cached_cells() {
-            if key == i64::MAX {
-                continue;
-            }
-            let point = BlockPos::unpack(key);
-            let grid = [
-                point.x.div_euclid(16),
-                point.y.div_euclid(12),
-                point.z.div_euclid(16),
-            ];
-            let Some(status) = status else { continue };
-            cells += 1;
-            let fluid = if blocks.is_water(status.state) {
-                water_cells += 1;
-                "water"
-            } else if blocks.is_lava(status.state) {
-                lava_cells += 1;
-                "lava"
-            } else if blocks.is_air(status.state) {
-                "air"
-            } else {
-                "other"
-            };
-            let mut sample = |field: AquiferField| {
-                fields
-                    .get(field)
-                    .sample_value(&mut context, [point.x, point.y, point.z])
-                    .unwrap_or(f32::NAN)
-            };
-            let _ = writeln!(
-                out,
-                "cell grid={grid:?} point=({},{},{}) level={} fluid={fluid} excl={:.4} flood={:.4} spread={:.4} lava_n={:.4} barrier={:.4}",
-                point.x,
-                point.y,
-                point.z,
-                status.level,
-                sample(AquiferField::Exclusion),
-                sample(AquiferField::Floodedness),
-                sample(AquiferField::Spread),
-                sample(AquiferField::Lava),
-                sample(AquiferField::Barrier),
-            );
-        }
-        let _ = writeln!(
-            out,
-            "cells with a status: {cells} (water {water_cells}, lava {lava_cells}); skip_above_y={}",
-            aquifer.skip_sampling_above_y()
-        );
-        // Surface levels the aquifer precomputed (find_top_surface values).
-        let mut surfaces: Vec<(i32, i32, i32)> = aquifer
-            .cached_surfaces()
-            .map(|(key, level)| (key as u32 as i32, (key >> 32) as u32 as i32, level))
-            .collect();
-        surfaces.sort();
-        let _ = writeln!(out, "surface levels (x,z,level): {surfaces:?}");
-        out
     }
     fn ring_positions(&self, worker: &mut WorkerState, set: &str) -> Option<Vec<ChunkPos>> {
         self.structures.as_ref()?.ring_positions(
@@ -4237,11 +4080,6 @@ impl GeneratorWorker {
     #[cfg(test)]
     fn may_start_answers(&mut self, chunk: ChunkPos) -> Vec<(String, bool)> {
         self.pipeline.may_start_answers(&mut self.state, chunk)
-    }
-    /// TEMPORARY DIAGNOSTIC: see `SeededPipeline::aquifer_dump`.
-    #[cfg(test)]
-    fn aquifer_dump(&mut self, chunk: ChunkPos) -> String {
-        self.pipeline.aquifer_dump(chunk)
     }
     pub fn stage_timings(&self) -> StageTimings {
         self.state.timings
@@ -6034,13 +5872,16 @@ mod tests {
         );
     }
 
-    /// PROBE (aquifer defect): chunk (-22,-18) at the Test 1 seed has 745
-    /// water blocks in vanilla (354 in underground-only columns, e.g. local
-    /// (13,5) water y 13..58) but the port's saved world has 43 (surface
-    /// pond only). Regenerating the chunk at terrain stage should show the
-    /// same deficit if the aquifer fails to fill the cave column.
+    /// The world comparison's worst chunk (-22,-18) holds 745 water blocks
+    /// in vanilla but 43 in the port's saved world. The aquifer is not the
+    /// cause: vanilla's water is one spring source at local (8,91,0) flowed
+    /// down the mountainside and into the cave. Generation's job is only to
+    /// place that single source (and schedule its tick); the waterfall
+    /// itself forms when the chunk is ticked (see the level test
+    /// `pond_spring_waterfall_flows_into_cave_at_worst_chunk`). Pin the
+    /// placement: exactly one water block, at the spring, with its tick.
     #[test]
-    fn aquifer_fills_cave_column_at_worst_chunk_probe() {
+    fn worst_chunk_places_the_single_spring_source() {
         const SEED: i64 = 8257987075890829262;
         let version = horizon_core::version::VERSION_ID;
         let root = std::env::var_os("HORIZON_TEST_RESOURCES")
@@ -6062,95 +5903,41 @@ mod tests {
         let generator = OverworldGenerator::new(data.clone(), SEED).expect("overworld pipeline");
         let mut worker = generator.worker();
         let center = ChunkPos::new(-22, -18);
-        let chunk = worker
-            .generate_proto(center)
-            .unwrap_or_else(|e| panic!("chunk {center:?}: {e}"));
+        let mut region: [ProtoChunk; 9] = std::array::from_fn(|i| {
+            let dx = (i % 3) as i32 - 1;
+            let dz = (i / 3) as i32 - 1;
+            worker
+                .generate_proto(ChunkPos::new(center.x + dx, center.z + dz))
+                .unwrap_or_else(|e| panic!("chunk {dx},{dz}: {e}"))
+        });
+        worker.decorate(&mut region).expect("decorate");
+        let chunk = &region[4];
         let min_y = chunk.terrain.min_y();
         let height = chunk.terrain.height();
-        let mut total_water = 0usize;
-        let mut underground_water = 0usize;
+        let mut water = Vec::new();
         for y in min_y..min_y + height {
             for z in 0..16 {
                 for x in 0..16 {
                     if chunk.block_name(x, y, z) == "minecraft:water" {
-                        total_water += 1;
-                        if y < 62 {
-                            underground_water += 1;
-                        }
+                        water.push((x, y, z));
                     }
                 }
             }
         }
-        eprintln!(
-            "chunk {center:?}: terrain-stage water total {total_water} (vanilla post-decorate 745), underground (y<62) {underground_water} (vanilla 354+)"
+        assert_eq!(
+            water,
+            vec![(8, 91, 0)],
+            "post-decorate water in chunk (-22,-18)"
         );
-        // Dump the water/air runs in the vanilla water columns, local (13,5)
-        // (vanilla water y 13..58) and (5,11) (vanilla water y 41..58).
-        for (lx, lz) in [(13, 5), (5, 11)] {
-            let mut runs: Vec<(i32, i32, &str)> = Vec::new();
-            let mut cur: Option<(i32, &str)> = None;
-            for y in min_y..min_y + height {
-                let name = chunk.block_name(lx, y, lz);
-                let cls = if name == "minecraft:water" {
-                    "water"
-                } else if matches!(name, "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air") {
-                    "air"
-                } else if name == "minecraft:lava" {
-                    "lava"
-                } else {
-                    "solid"
-                };
-                match cur {
-                    Some((start, c)) if c == cls => {
-                        let _ = start;
-                    }
-                    Some((start, c)) => {
-                        runs.push((start, y - 1, c));
-                        cur = Some((y, cls));
-                    }
-                    None => cur = Some((y, cls)),
-                }
-            }
-            if let Some((start, c)) = cur {
-                runs.push((start, min_y + height - 1, c));
-            }
-            // Only print the interesting underground part.
-            let interesting: Vec<_> = runs
-                .into_iter()
-                .filter(|(s, e, _)| *e >= 0 && *s <= 70)
-                .collect();
-            eprintln!("column ({lx},{lz}) runs y0..70: {interesting:?}");
-        }
-        assert!(
-            underground_water > 300,
-            "chunk {center:?} has {underground_water} underground water at terrain stage, vanilla has 354+"
+        let fluid_ticks = chunk.terrain.fluid_ticks().pack(0);
+        assert_eq!(fluid_ticks.len(), 1, "one scheduled fluid tick (the spring)");
+        let tick = &fluid_ticks[0];
+        assert_eq!((tick.pos.x, tick.pos.y, tick.pos.z), (-344, 91, -288));
+        assert_eq!(tick.delay, 0);
+        assert_eq!(
+            tick.kind.0,
+            crate::fluid::FluidKind::Water.index() as u32,
+            "the scheduled tick is a water tick"
         );
-    }
-
-    /// TEMPORARY DIAGNOSTIC (remove once the aquifer cause is found): print
-    /// the aquifer dump for chunk (-22,-18). Run with `-- --nocapture`.
-    #[test]
-    fn aquifer_cell_statuses_dump() {
-        const SEED: i64 = 8257987075890829262;
-        let version = horizon_core::version::VERSION_ID;
-        let root = std::env::var_os("HORIZON_TEST_RESOURCES")
-            .or_else(|| std::env::var_os("HORIZON_RESOURCES"))
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(|| {
-                Path::new(env!("CARGO_MANIFEST_DIR"))
-                    .join("../../.local/horizon-client")
-                    .join(version)
-            });
-        if !root.join("worldgen/world_presets.json").exists() {
-            eprintln!("skipping: no worldgen bundle at {}", root.display());
-            return;
-        }
-        let registry: &'static BlockRegistry = Box::leak(Box::new(
-            crate::level::data::load_registry(&root).expect("registry"),
-        ));
-        let data = GeneratorData::load(&root.join("worldgen"), registry).expect("worldgen data");
-        let generator = OverworldGenerator::new(data.clone(), SEED).expect("overworld pipeline");
-        let mut worker = generator.worker();
-        eprintln!("{}", worker.aquifer_dump(ChunkPos::new(-22, -18)));
     }
 }
