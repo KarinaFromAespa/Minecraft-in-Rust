@@ -13328,3 +13328,9 @@ ON_GROUND / IN_AIR), selecting which render-state factor lerps
 toward 1. The Rust carries the four factors. Cleanup following
 item 779: the six dead keyframe `AnimationState` fields on the
 Rust's `Axolotl` struct are removed (struct, `from_mob`, fixture).
+
+## Item 799 — world/inventory (new-classes) — NO-CHANGE
+
+1 class: `ClickType` — the 7-value container-click enum. The Rust
+documents the full id mapping (play.rs:1979) and uses the ids
+directly; the per-type behaviours live in the container handling.
