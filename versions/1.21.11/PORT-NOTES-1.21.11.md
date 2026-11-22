@@ -12838,3 +12838,7 @@ toggle; 1.21.11 has no such option and neither does the Rust.
 
 26.1-only anonymous class; the Rust cites `FaceBakery` itself,
 present in both versions.
+
+## Item 735 — core/cauldron (CauldronInteractions) — NO-CHANGE
+
+26.1-only class; no usage anywhere in the Rust (item 683).
