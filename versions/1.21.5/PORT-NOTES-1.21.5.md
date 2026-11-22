@@ -14066,12 +14066,26 @@ is the oracle; decompiled code is a reading aid.
     versions.
   - Verification: read / only; no code / changed.
 
+- **Item 347 — EnderDragonPart**
+  - EnderDragonPart:
+    verified, no code. The
+    33-line diff is the
+    ValueInput/ValueOutput
+    refactor only, and both
+    save methods are empty
+    bodies in both versions
+    - a dragon part saves
+    nothing of its own. No
+    port surface of any
+    kind.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **346 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 78/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **347 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 79/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
