@@ -65,6 +65,12 @@ def client_libraries():
         path=directory/'libraries/client'/relative
         if lab.digest(path,'sha1')!=artifact['sha1']: raise ValueError('Client dependency checksum changed: '+str(relative))
         libraries.append(path)
+    # Mojang's jars before 1.21.11 reference javax.annotation.Nullable but never shipped
+    # jsr305 as a library; javac crashes completing symbols without it on the classpath
+    # (CompletionFailure, rc=4). Same append as test_rust_parity.verify_artifacts.
+    jsr305 = lab.ROOT / 'tools/jsr305-3.0.2.jar'
+    if jsr305.is_file():
+        libraries.append(jsr305)
     return libraries
 
 
