@@ -13032,3 +13032,11 @@ intersects with the screen while the stack is empty — it does not
 (the screen clipping is GL's, downstream); the behaviour was already
 correct. `RenderingTextCollector` and `RenderFunction` have no Rust
 usage.
+
+## Item 759 — client/resources/model (new-classes) — NO-CHANGE
+
+5 classes present in 1.21.11, absent in 26.1's rewritten model
+system. `MissingBlockModel` verified: `builtin/missing`, a single
+0-16 cube with the `missingno` texture — the Rust resolves the same
+id as the fallback for states no definition covers. The other 4 are
+model-loading/baking plumbing with no Rust usage.
