@@ -12846,3 +12846,7 @@ present in both versions.
 ## Item 736 — core/component/predicates (DataComponentPredicate$Single) — NO-CHANGE
 
 Visibility only.
+
+## Item 737 — gametest/framework (StructureUtils) — NO-CHANGE
+
+Test scaffolding only (gametest structure dirs).
