@@ -13191,3 +13191,10 @@ screen, citing the `GridLayout` behaviours where they matter.
 1 class: `GuiRenderer$AtlasPosition` — the GUI renderer's
 per-sprite atlas position record for animated sprites. Pure
 GUI-render plumbing, no Rust usage.
+
+## Item 778 — client/gui/screens (new-classes) — NO-CHANGE
+
+1 class: `DemoIntroScreen` — the launcher-gated demo-mode intro
+(Buy/Later buttons, movement help). The Rust has no demo mode at
+all, so the screen has no entry point; demo mode as a whole is
+unimplemented, out of rank-4 scope.
