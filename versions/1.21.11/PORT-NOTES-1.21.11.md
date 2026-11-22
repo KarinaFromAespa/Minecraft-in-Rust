@@ -13293,3 +13293,10 @@ implements it in full (`test_environments.rs`).
 
 1 class: `RealmsLabel` — a trivial renderable drawing a centred
 string. The Rust cites it and draws the equivalent centred text.
+
+## Item 794 — server/network (new-classes) — NO-CHANGE
+
+1 class: `ServerGamePacketListenerImpl$EntityInteraction` — a
+single-method callback interface for dispatching entity
+interactions. The Rust implements the interaction handling in its
+own LAN/server code.
