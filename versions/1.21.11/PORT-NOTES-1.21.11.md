@@ -13019,3 +13019,16 @@ first five, and `LilyPad` already matched `WaterlilyBlock` — each
 with live behaviour through the Class dispatch (farmland, fungus and
 roots survival, snowy placement, lily pad hooks). The farmland
 random tick was spot-checked against `FarmBlock.randomTick`.
+
+## Item 758 — client/gui (new-classes) — NO-CHANGE apart from a comment
+
+5 classes: `Gui$RenderFunction`, `GuiGraphics` and its
+`HoveredTextEffects`, `RenderingTextCollector` and `ScissorStack`,
+present in 1.21.11, removed in 26.1's render rewrite. The HUD batch
+implements `GuiGraphics`' drawing calls, and the scissor stack is
+implemented with tests (nested scissors intersect, verified against
+the decompile). One comment fix: a test comment claimed `push`
+intersects with the screen while the stack is empty — it does not
+(the screen clipping is GL's, downstream); the behaviour was already
+correct. `RenderingTextCollector` and `RenderFunction` have no Rust
+usage.

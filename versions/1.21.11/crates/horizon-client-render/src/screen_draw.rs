@@ -1379,8 +1379,10 @@ mod scissor_tests {
         );
     }
 
-    /// A scissor with no scissor around it is cut to the screen, as
-    /// `ScissorStack.push` intersects with the screen while the stack is empty.
+    /// A scissor with no scissor around it is cut to the screen:
+    /// `ScissorStack.push` itself does not intersect (it pushes the
+    /// rectangle as-is), but the GL scissor clips to the framebuffer,
+    /// so nothing draws outside the screen.
     #[test]
     fn a_scissor_wider_than_the_screen_is_cut_to_it() {
         let atlas = atlas();
