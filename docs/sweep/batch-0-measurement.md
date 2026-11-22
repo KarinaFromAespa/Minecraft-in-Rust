@@ -145,25 +145,26 @@ both jars → both).
 ## The 17-harness check
 
 Of the 9 harnesses the plan (§2) records as dying on oracle javac failures
-in CI run 44441686979 (2026-11-19), **8 still fail** and 1 does not:
+in CI run 44441686979 (2026-11-19), **8 now pass** and 1 still fails (Batch 0
+repairs, `docs/sweep/batch-0-oracle-repair.md` §2):
 
 | Harness | Oracle | Now |
 |---|---|---|
-| chunk_generation | VanillaChunkGenerationOracle | FAIL (constructor-mismatch) |
-| command_exec | VanillaCommandExecOracle | FAIL (missing-package) |
-| component_patch | VanillaComponentPatchOracle | **PASS on both cps** |
-| datafix | VanillaDataFixOracle | FAIL (missing-package) |
-| first_person | VanillaFirstPersonOracle | FAIL (missing-package) |
-| food | VanillaFoodOracle | FAIL (missing-package) |
-| item_model | VanillaItemModelOracle | FAIL (missing-package) |
-| options | VanillaOptionsOracle | FAIL (missing-package) |
-| resource_pack | VanillaPackResourcesOracle | FAIL (missing-package) |
+| chunk_generation | VanillaChunkGenerationOracle | **PASS** (both cps) — repaired `626c8d87` |
+| command_exec | VanillaCommandExecOracle | **PASS** (both cps) — repaired `69e93c10` |
+| component_patch | VanillaComponentPatchOracle | **PASS** (both cps) — passed at measurement time |
+| datafix | VanillaDataFixOracle | **PASS** (both cps) — repaired `c5b36e4e` |
+| first_person | VanillaFirstPersonOracle | **PASS** (client cp) — repaired `9dc5dc8d` |
+| food | VanillaFoodOracle | **PASS** (both cps) — repaired `57c50808` |
+| item_model | VanillaItemModelOracle | **PASS** (client cp) — repaired `5e6564e5` |
+| options | VanillaOptionsOracle | FAIL (both cps) — not yet repaired |
+| resource_pack | VanillaPackResourcesOracle | **PASS** (client cp) — repaired `5203f6cb` |
 
-`component_patch` is the exception: its oracle compiles cleanly against the
-1.21.7 jars on both classpaths, and the file is untouched since the original
-1.21.7 port commit (be65dca7) — so the Nov 19 CI failure for that harness
-was either misattributed in `status.json` or sat elsewhere in the harness
-(the end-to-end sample runs it; see §5).
+`component_patch` was the exception at measurement time: its oracle compiles
+cleanly against the 1.21.7 jars on both classpaths, and the file is untouched
+since the original 1.21.7 port commit (be65dca7) — so the Nov 19 CI failure
+for that harness was either misattributed in `status.json` or sat elsewhere
+in the harness (the end-to-end sample runs it; see §5).
 
 ## End-to-end sample (drivers run via `tools/parity.py`)
 
@@ -245,6 +246,12 @@ Unit tests use `HORIZON_TEST_RESOURCES=~/workspace/mcir-work/mob-spawn/resources
   (`VanillaFaceSupportOracle` unblocks 19 drivers alone). The 254
   no-oracle drivers were never oracle-blocked and can run in parallel with
   Batch 0.
+
+**Post-repair update (2026-11-22):** after the Batch 0 repairs, 135/391
+oracles pass on at least one classpath (fail rate 65.5%, down from 76.0%)
+and 115 drivers are runnable (up from 67). Final numbers, the repair
+inventory, and the re-estimate live in `docs/sweep/batch-0-oracle-repair.md`
+and `pins/1.21.7/sweep/batch-00.json`.
 
 ## Per-oracle table
 
