@@ -5940,4 +5940,85 @@ mod tests {
             "the scheduled tick is a water tick"
         );
     }
+
+    #[test]
+    fn frozen_peaks_place_no_snow_on_packed_ice() {
+        // World-compare 2026-11-22 (seed 8257987075890829262): vanilla has
+        // ZERO snow layers in chunk (7,19) — every column's surface is packed
+        // ice, and `SnowLayerBlock.canSurvive` rejects
+        // `snow_layer_cannot_survive_on` ([ice, packed_ice, barrier]). The
+        // port placed 256 snow layers there, one per column, because it bound
+        // the 26.x tag names (`cannot_support_snow_layer`), which do not exist
+        // in 1.21.7 data, so the exclusion set resolved empty.
+        const SEED: i64 = 8257987075890829262;
+        let version = horizon_core::version::VERSION_ID;
+        let root = std::env::var_os("HORIZON_TEST_RESOURCES")
+            .or_else(|| std::env::var_os("HORIZON_RESOURCES"))
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../.local/horizon-client")
+                    .join(version)
+            });
+        if !root.join("worldgen/world_presets.json").exists() {
+            eprintln!("skipping: no worldgen bundle at {}", root.display());
+            return;
+        }
+        let registry: &'static BlockRegistry = Box::leak(Box::new(
+            crate::level::data::load_registry(&root).expect("registry"),
+        ));
+        let data = GeneratorData::load(&root.join("worldgen"), registry).expect("worldgen data");
+        let generator = OverworldGenerator::new(data.clone(), SEED).expect("overworld pipeline");
+        let mut worker = generator.worker();
+        let center = ChunkPos::new(7, 19);
+        let mut region: [ProtoChunk; 9] = std::array::from_fn(|i| {
+            let dx = (i % 3) as i32 - 1;
+            let dz = (i / 3) as i32 - 1;
+            worker
+                .generate_proto(ChunkPos::new(center.x + dx, center.z + dz))
+                .unwrap_or_else(|e| panic!("chunk {dx},{dz}: {e}"))
+        });
+        worker.decorate(&mut region).expect("decorate");
+        let mut snow_on_packed_ice = 0usize;
+        for chunk in &region {
+            let min_y = chunk.terrain.min_y();
+            let height = chunk.terrain.height();
+            for y in min_y..min_y + height {
+                for z in 0..16 {
+                    for x in 0..16 {
+                        if chunk.block_name(x, y, z) == "minecraft:snow"
+                            && y > min_y
+                            && chunk.block_name(x, y - 1, z) == "minecraft:packed_ice"
+                        {
+                            snow_on_packed_ice += 1;
+                        }
+                    }
+                }
+            }
+        }
+        let chunk = &region[4];
+        let min_y = chunk.terrain.min_y();
+        let height = chunk.terrain.height();
+        let mut snow_in_center = 0usize;
+        for y in min_y..min_y + height {
+            for z in 0..16 {
+                for x in 0..16 {
+                    if chunk.block_name(x, y, z) == "minecraft:snow" {
+                        snow_in_center += 1;
+                    }
+                }
+            }
+        }
+        eprintln!(
+            "chunk {center:?}: {snow_in_center} snow layers (vanilla: 0), {snow_on_packed_ice} on packed ice in the 3x3 region"
+        );
+        assert_eq!(
+            snow_on_packed_ice, 0,
+            "snow layers must never sit on packed ice (vanilla snow_layer_cannot_survive_on)"
+        );
+        assert_eq!(
+            snow_in_center, 0,
+            "chunk {center:?} has {snow_in_center} snow layers after decoration — vanilla has 0 (every column is packed ice)"
+        );
+    }
 }

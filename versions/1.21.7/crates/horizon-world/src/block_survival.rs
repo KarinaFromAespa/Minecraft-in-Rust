@@ -526,8 +526,11 @@ impl<'r> BlockSurvivalRegistry<'r> {
             maintains_farmland: tag_states("minecraft:maintains_farmland")?,
             cocoa: tag_states("minecraft:supports_cocoa")?,
             crops: tag_states("minecraft:supports_crops")?,
-            no_snow: tag_states("minecraft:cannot_support_snow_layer")?,
-            snow_override: tag_states("minecraft:support_override_snow_layer")?,
+            // 1.21.7 names these tags `snow_layer_cannot_survive_on` /
+            // `snow_layer_can_survive_on` (jar-verified); the 26.x names do
+            // not exist in 1.21.7 data.
+            no_snow: tag_states("minecraft:snow_layer_cannot_survive_on")?,
+            snow_override: tag_states("minecraft:snow_layer_can_survive_on")?,
             mangrove: tag_states("minecraft:supports_mangrove_propagule")?,
             hanging_mangrove: tag_states("minecraft:supports_hanging_mangrove_propagule")?,
             no_kelp: tag_states("minecraft:cannot_support_kelp")?,

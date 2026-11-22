@@ -571,6 +571,45 @@ fn snowy_biomes_freeze_and_snow() {
 }
 
 #[test]
+fn snow_does_not_survive_on_ice() {
+    // Vanilla 1.21.7 `SnowLayerBlock.canSurvive` (jar-verified) rejects the
+    // `snow_layer_cannot_survive_on` tag first: ice, packed_ice, barrier.
+    // The port used to bind the 26.x tag names, which do not exist in 1.21.7
+    // data, so both sets resolved empty and snow settled on packed ice in
+    // frozen peaks (world-compare 2026-11-22: +14,242 snow layers, 92% in
+    // frozen_peaks).
+    let Some(f) = fixture() else { return };
+    let b = &f.behaviours;
+    for floor in ["packed_ice", "ice"] {
+        let mut w = World::new(f, 1);
+        w.level.biome = "minecraft:snowy_plains";
+        w.floor(floor, 2);
+        let info = b
+            .precipitation_info(&w.level, BlockPos::new(0, 70, 0))
+            .unwrap();
+        assert_eq!(info.top, BlockPos::new(0, 64, 0));
+        assert!(
+            !info.snows_at_top,
+            "snow must not settle on {floor} (vanilla snow_layer_cannot_survive_on)"
+        );
+    }
+    // Control: grass still takes snow, and the override tag still holds it
+    // on soul sand (no full top face).
+    for floor in ["grass_block", "soul_sand"] {
+        let mut w = World::new(f, 1);
+        w.level.biome = "minecraft:snowy_plains";
+        w.floor(floor, 2);
+        let info = b
+            .precipitation_info(&w.level, BlockPos::new(0, 70, 0))
+            .unwrap();
+        assert!(
+            info.snows_at_top,
+            "snow must still settle on {floor}"
+        );
+    }
+}
+
+#[test]
 fn a_template_with_entities_and_no_blocks_places_them() {
     use crate::{
         nbt::{Compound, JavaString, Tag},
