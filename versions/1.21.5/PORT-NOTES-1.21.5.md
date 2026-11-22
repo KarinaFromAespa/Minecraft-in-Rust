@@ -15214,12 +15214,33 @@ is the oracle; decompiled code is a reading aid.
     position.
   - Verification: read / only; no code / changed.
 
+- **Item 388 — CuredZombieVillagerTrigger**
+  - CuredZombieVillagerTrig
+    ger: verified, no code.
+    The diff is a
+    validation path string
+    only: 1.21.5 validates
+    the zombie and villager
+    entity predicates under
+    ".zombie" and
+    ".villager", 1.21.6
+    under "zombie" and
+    "villager". The port
+    has no criterion
+    validator at all (same
+    ground as item 376), so
+    the path spelling has
+    no surface; the
+    trigger's matching
+    behaviour is unchanged.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **387 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 119/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **388 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 120/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
