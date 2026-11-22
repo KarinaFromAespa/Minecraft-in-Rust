@@ -85,14 +85,21 @@ pub fn data_version(tag: &Tag, default: i32) -> i32 {
     }
 }
 
-/// `FileFixerUpper.requiresFileFixing`.
+/// `FileFixerUpper.requiresFileFixing`, 1.21.7 form: vanilla 1.21.7 has no
+/// `FileFixerUpper` at all (it arrived with the 26.x layout moves, at
+/// DataVersion 4772 — no `net.minecraft.util.filefix` in the 1.21.7 jar,
+/// and 1.21.7's `LevelSummary` has no `requiresFileFixing` method), so the
+/// only file fix this build can apply is 1493 (`LegacyStructureFileFix`,
+/// for 1.12 worlds). A world needs file fixing only when a fix newer than
+/// it exists at or below the current version. The 26.x form compared
+/// against the last fix overall (4899) and mapped every pre-4772 world
+/// to 0, so it fired for every 1.21.7 world — including ones this client
+/// just generated at DataVersion 4438 — and the world list offered
+/// "Upgrade and Play" instead of "Play".
 pub fn requires_file_fixing(level_version: i32) -> bool {
-    let from = if level_version < FILE_FIXER_INTRODUCTION {
-        0
-    } else {
-        level_version
-    };
-    from < *FILE_FIXES.last().unwrap()
+    FILE_FIXES
+        .iter()
+        .any(|&fix| level_version < fix && fix <= CURRENT)
 }
 
 // ------------------------------------------------------------------ file operations
@@ -1137,6 +1144,96 @@ mod upgrade_tests {
     fn level_version(base: &Path) -> i32 {
         let root = read_dat(&base.join("level.dat")).unwrap().unwrap();
         data_version(root.get("Data").unwrap(), -1)
+    }
+
+    /// A world at the current version — one this client just generated — needs
+    /// no file fixing: the 26.x form fired for every 1.21.7 world (it compared
+    /// against the last fix overall, 4899, and mapped pre-4772 worlds to 0),
+    /// so the world list offered "Upgrade and Play" instead of "Play" and
+    /// greyed out Edit and Re-Create. Only a pre-1493 world (1.12 and
+    /// before, which still needs `LegacyStructureFileFix`) does.
+    #[test]
+    fn a_current_world_needs_no_file_fixing() {
+        assert!(!requires_file_fixing(CURRENT));
+        assert!(!requires_file_fixing(4435)); // 1.21.6
+        assert!(!requires_file_fixing(1519)); // 1.13: past the only applicable fix
+        assert!(requires_file_fixing(1343)); // 1.12.2
+        assert!(requires_file_fixing(-1)); // no DataVersion: 1.8 and before
+    }
+
+    /// The in-memory settings read of a 1.12 world (`save.rs`'s
+    /// `world_gen_settings_of_a_world_needing_file_fixes_are_read_in_memory`,
+    /// mirrored here because the horizon-client lib test cannot link on this
+    /// VM: its rustc peaks past the shared cell's memory): the 2550 fixer
+    /// rebuilds the settings as vanilla levels, 2832 converts the Overworld's
+    /// `vanilla_layered` source to the multi-noise overworld preset, the 4771
+    /// preparation renames the key, and the three dimensions come out in
+    /// exactly the shape `dimension_is_vanilla_like` accepts, so the world is
+    /// stable on first open. Skips without the prepared datafix tables, like
+    /// the other pre-flattening tests.
+    #[test]
+    fn current_world_gen_settings_of_a_1_12_world_are_vanilla_like() {
+        if !crate::datafix::tables::available() {
+            eprintln!("skipping: no prepared datafix tables");
+            return;
+        }
+        let base = std::env::temp_dir().join(format!("horizon-stem-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        // The 2550 fixer rebuilds the settings from the legacy fields alone,
+        // so only `legacy_custom_options` (carried over) matters here; the
+        // modern `dimensions` of the save test's fixture are discarded.
+        let level = Tag::compound([(
+            "Data",
+            Tag::compound([
+                ("DataVersion", Tag::Int(1343)),
+                (
+                    "WorldGenSettings",
+                    Tag::compound([(
+                        "legacy_custom_options",
+                        Tag::String("{\"seaLevel\":63}".into()),
+                    )]),
+                ),
+            ]),
+        )]);
+        write_dat(&base.join("level.dat"), &level).unwrap();
+
+        let settings = current_world_gen_settings(&base).unwrap().expect("settings");
+        assert_eq!(
+            as_str(settings.get("legacy_custom_options")).as_deref(),
+            Some("{\"seaLevel\":63}")
+        );
+        let Some(Tag::Compound(dimensions)) = settings.get("dimensions") else {
+            panic!("no dimensions in {settings:?}");
+        };
+        assert_eq!(dimensions.len(), 3);
+        let dimension = |key: &str| dimensions.get(&key.into()).expect(key);
+        let field = |tag: &Tag, key: &str| as_str(tag.get(key)).unwrap_or_default();
+        let overworld = dimension("minecraft:overworld");
+        assert_eq!(field(overworld, "type"), "minecraft:overworld");
+        let generator = overworld.get("generator").expect("overworld generator");
+        assert_eq!(field(generator, "type"), "minecraft:noise");
+        assert_eq!(field(generator, "settings"), "minecraft:overworld");
+        let source = generator.get("biome_source").expect("overworld source");
+        assert_eq!(field(source, "type"), "minecraft:multi_noise");
+        assert_eq!(field(source, "preset"), "minecraft:overworld");
+        let nether = dimension("minecraft:the_nether");
+        assert_eq!(field(nether, "type"), "minecraft:the_nether");
+        let generator = nether.get("generator").expect("nether generator");
+        assert_eq!(field(generator, "type"), "minecraft:noise");
+        assert_eq!(field(generator, "settings"), "minecraft:nether");
+        let source = generator.get("biome_source").expect("nether source");
+        assert_eq!(field(source, "type"), "minecraft:multi_noise");
+        assert_eq!(field(source, "preset"), "minecraft:nether");
+        let end = dimension("minecraft:the_end");
+        assert_eq!(field(end, "type"), "minecraft:the_end");
+        let generator = end.get("generator").expect("end generator");
+        assert_eq!(field(generator, "type"), "minecraft:noise");
+        assert_eq!(field(generator, "settings"), "minecraft:end");
+        assert_eq!(
+            field(generator.get("biome_source").expect("end source"), "type"),
+            "minecraft:the_end"
+        );
+        let _ = fs::remove_dir_all(&base);
     }
 
     /// `FileFixerProgressScreen` reads the upgrade's counts: the data stage is
