@@ -14080,12 +14080,46 @@ is the oracle; decompiled code is a reading aid.
     kind.
   - Verification: read / only; no code / changed.
 
+- **Item 348 — CompiledSectionMesh**
+  - CompiledSectionMesh:
+    comment fix. The class
+    exists only in 1.21.6 -
+    it is the 1.21.6
+    chunk-mesh type, absent
+    in 1.21.5 - and the
+    port's chunk meshing is
+    its own (Job::Mesh,
+    item 283's ground), so
+    there is no behaviour
+    to port. But two
+    streaming.rs doc
+    comments cited it
+    (compileTaskStartTimeNs
+    / getCompileTaskStartTi
+    me), and the member
+    does not even exist in
+    1.21.6's class: neither
+    version's chunk
+    renderer tracks a
+    compile-task start
+    time. Both comments now
+    say what the field
+    really is - the port's
+    own dispatch-order
+    clock, used by performT
+    ransientBlockRemovals -
+    with no vanilla
+    citation.
+  - Verification: Comment-only change; no
+    code / changed, no test
+    run / needed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **347 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 79/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **348 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 80/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

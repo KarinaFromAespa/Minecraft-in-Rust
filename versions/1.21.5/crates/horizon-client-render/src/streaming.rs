@@ -514,8 +514,10 @@ pub struct Streaming {
     saves_beside_final: bool,
     lighting: FxHashMap<(i32, i32), u64>,
     meshing: FxHashMap<(i32, i32, i32), u64>,
-    /// The sequence each section's latest accepted mesh was dispatched at
-    /// (`CompiledSectionMesh.compileTaskStartTimeNs`).
+    /// The sequence each section's latest accepted mesh was dispatched at,
+    /// on the `sequence` clock below: the port's own dispatch order, since
+    /// 1.21.5 tracks no compile-task start time (CompiledSectionMesh, which
+    /// carries one in later versions, does not exist in 1.21.5).
     compile_started: FxHashMap<(i32, i32, i32), u64>,
     /// Chunks whose light is current.
     lit: FxHashSet<(i32, i32)>,
@@ -1600,7 +1602,8 @@ impl Streaming {
         self.sequence
     }
     /// When the section's latest accepted mesh started compiling, on the
-    /// `sequence` clock (`CompiledSectionMesh.getCompileTaskStartTime`).
+    /// `sequence` clock (the port's own dispatch order; 1.21.5's
+    /// SectionRenderDispatcher tracks no compile-task start time).
     pub fn compile_start(&self, section: (i32, i32, i32)) -> Option<u64> {
         self.compile_started.get(&section).copied()
     }
