@@ -15666,12 +15666,46 @@ is the oracle; decompiled code is a reading aid.
     subsumes.
   - Verification: read / only; no code / changed.
 
+- **Item 405 — BookEditScreen**
+  - BookEditScreen:
+    verified, no code.
+    1.21.6 rebuilt book
+    editing around
+    MultiLineEditBox plus a
+    separate
+    BookSignScreen; 1.21.5
+    has the hand-rolled
+    TextFieldHelper editor
+    with DisplayCache and
+    in-screen signing. The
+    port already implements
+    the 1.21.5 form: the
+    page filter is length <
+    1024 with wrap height
+    <= 128 (14 lines, at
+    most 1023 chars,
+    documented against
+    1.21.6's 1024), the
+    title box holds 15,
+    signing is a mode of
+    the edit screen, and
+    save_book sends nothing
+    when unmodified, drops
+    trailing empty pages,
+    and sends the trimmed
+    title only when
+    signing. (The known
+    Escape-saves gap from
+    item 270 stands,
+    unchanged.)
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **404 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 3/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **405 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 4/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
