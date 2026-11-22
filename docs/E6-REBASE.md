@@ -211,3 +211,7 @@ Per version, on a branch `rebase/<version>` off main (after the 1.21.11 merge):
 - `trees_fix` — the 1.21.7-origin trees-fix row, same shape.
 - `specific` — 34 rows (unit, sha, item, kind, files, reason).
 - `uncertain` — 11 rows (same shape, with the split described in `reason`).
+
+## Additional shared fixes (post-triage)
+
+- **Daylight-burn list over-burning** (1.21.7 fix merged as 651b43d3, commit 5e549e54): the programme-wide `burns_in_day` list burned Drowned, ZombieHorse and ZombieNautilus, but the 1.21.7 jar shows none of them calls `isSunBurnTick` (and ZombieNautilus doesn't exist in 1.21.7). Corrected to the jar's list: Skeleton, Stray, Bogged, WitherSkeleton, Zombie, ZombieVillager, Phantom. The identical 10-species list is in 1.21.5, 1.21.6, 1.21.8, 1.21.9, 1.21.10, 1.21.11 and 26.2 — each version needs its own jar check before correcting (do not assume the 1.21.7 form applies). Treat as a shared fix to carry over during propagation, with per-version jar verification.
