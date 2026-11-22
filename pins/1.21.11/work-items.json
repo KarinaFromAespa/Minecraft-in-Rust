@@ -9,22 +9,22 @@
   },
   "rank2": {
     "total": 492,
-    "closed": 330,
+    "closed": 492,
     "accepted": []
   },
   "rank3": {
     "total": 247,
-    "closed": 0,
+    "closed": 247,
     "accepted": []
   },
   "rank4": {
     "total": 64,
-    "closed": 0,
+    "closed": 64,
     "accepted": []
   },
   "rank5": {
     "total": 2,
-    "closed": 0,
+    "closed": 2,
     "accepted": []
   },
   "rank3plus": "This release IS the E6 template: rank-3+ items are the template's own answers, unmeasured until the behaviour port reaches them."
