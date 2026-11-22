@@ -5871,4 +5871,97 @@ mod tests {
             histogram[7]
         );
     }
+
+    /// PROBE (aquifer defect): chunk (-22,-18) at the Test 1 seed has 745
+    /// water blocks in vanilla (354 in underground-only columns, e.g. local
+    /// (13,5) water y 13..58) but the port's saved world has 43 (surface
+    /// pond only). Regenerating the chunk at terrain stage should show the
+    /// same deficit if the aquifer fails to fill the cave column.
+    #[test]
+    fn aquifer_fills_cave_column_at_worst_chunk_probe() {
+        const SEED: i64 = 8257987075890829262;
+        let version = horizon_core::version::VERSION_ID;
+        let root = std::env::var_os("HORIZON_TEST_RESOURCES")
+            .or_else(|| std::env::var_os("HORIZON_RESOURCES"))
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../.local/horizon-client")
+                    .join(version)
+            });
+        if !root.join("worldgen/world_presets.json").exists() {
+            eprintln!("skipping: no worldgen bundle at {}", root.display());
+            return;
+        }
+        let registry: &'static BlockRegistry = Box::leak(Box::new(
+            crate::level::data::load_registry(&root).expect("registry"),
+        ));
+        let data = GeneratorData::load(&root.join("worldgen"), registry).expect("worldgen data");
+        let generator = OverworldGenerator::new(data.clone(), SEED).expect("overworld pipeline");
+        let mut worker = generator.worker();
+        let center = ChunkPos::new(-22, -18);
+        let chunk = worker
+            .generate_proto(center)
+            .unwrap_or_else(|e| panic!("chunk {center:?}: {e}"));
+        let min_y = chunk.terrain.min_y();
+        let height = chunk.terrain.height();
+        let mut total_water = 0usize;
+        let mut underground_water = 0usize;
+        for y in min_y..min_y + height {
+            for z in 0..16 {
+                for x in 0..16 {
+                    if chunk.block_name(x, y, z) == "minecraft:water" {
+                        total_water += 1;
+                        if y < 62 {
+                            underground_water += 1;
+                        }
+                    }
+                }
+            }
+        }
+        eprintln!(
+            "chunk {center:?}: terrain-stage water total {total_water} (vanilla post-decorate 745), underground (y<62) {underground_water} (vanilla 354+)"
+        );
+        // Dump the water/air runs in the vanilla water columns, local (13,5)
+        // (vanilla water y 13..58) and (5,11) (vanilla water y 41..58).
+        for (lx, lz) in [(13, 5), (5, 11)] {
+            let mut runs: Vec<(i32, i32, &str)> = Vec::new();
+            let mut cur: Option<(i32, &str)> = None;
+            for y in min_y..min_y + height {
+                let name = chunk.block_name(lx, y, lz);
+                let cls = if name == "minecraft:water" {
+                    "water"
+                } else if matches!(name, "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air") {
+                    "air"
+                } else if name == "minecraft:lava" {
+                    "lava"
+                } else {
+                    "solid"
+                };
+                match cur {
+                    Some((start, c)) if c == cls => {
+                        let _ = start;
+                    }
+                    Some((start, c)) => {
+                        runs.push((start, y - 1, c));
+                        cur = Some((y, cls));
+                    }
+                    None => cur = Some((y, cls)),
+                }
+            }
+            if let Some((start, c)) = cur {
+                runs.push((start, min_y + height - 1, c));
+            }
+            // Only print the interesting underground part.
+            let interesting: Vec<_> = runs
+                .into_iter()
+                .filter(|(s, e, _)| *e >= 0 && *s <= 70)
+                .collect();
+            eprintln!("column ({lx},{lz}) runs y0..70: {interesting:?}");
+        }
+        assert!(
+            underground_water > 300,
+            "chunk {center:?} has {underground_water} underground water at terrain stage, vanilla has 354+"
+        );
+    }
 }
