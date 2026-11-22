@@ -12833,3 +12833,8 @@ Visibility only.
 
 26.1's display options include the 26.1-only `exclusiveFullscreen`
 toggle; 1.21.11 has no such option and neither does the Rust.
+
+## Item 734 — client/renderer/block/model (FaceBakery$1) — NO-CHANGE
+
+26.1-only anonymous class; the Rust cites `FaceBakery` itself,
+present in both versions.
