@@ -13125,3 +13125,11 @@ own depth/compare state directly.
 single-method interface) — registry-loading plumbing with no Rust
 usage; the Rust cites the outer `RegistryDataLoader` for its load
 order and loads registries its own way.
+
+## Item 769 — util/valueproviders (new-classes) — NO-CHANGE
+
+2 classes: `FloatProviderType`, `IntProviderType` — interfaces
+holding the registered provider-type constants. The Rust
+implements every kind they register (`worldgen/value_provider.rs`),
+with the biased-to-bottom and trapezoid sampling formulas verified
+against the decompile.
