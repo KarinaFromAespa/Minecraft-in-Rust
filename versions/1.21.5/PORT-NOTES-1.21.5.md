@@ -15282,12 +15282,32 @@ is the oracle; decompiled code is a reading aid.
     citation.
   - Verification: read / only; no code / changed.
 
+- **Item 391 — ClickEvent Custom/ShowDialog**
+  - ClickEvent
+    Custom/ShowDialog:
+    verified, no code. Both
+    classes are 1.21.6-only
+    and removed in 1.21.5 -
+    item 175's ground. A
+    fresh check confirms
+    the port's ClickEvent
+    still carries exactly
+    the six 1.21.5 variants
+    (OpenUrl, ChangePage,
+    SuggestCommand,
+    RunCommand,
+    CopyToClipboard,
+    OpenFile), with no
+    Custom or ShowDialog
+    anywhere.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **390 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 122/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **391 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 123/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
