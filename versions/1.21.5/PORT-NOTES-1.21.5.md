@@ -16107,12 +16107,42 @@ is the oracle; decompiled code is a reading aid.
     surface here.
   - Verification: read / only; no code / changed.
 
+- **Item 420 — FlyingMob**
+  - FlyingMob: verified, no
+    code. The 1.21.5-only
+    abstract class (ghast
+    and phantom; 1.21.6
+    inlined it into both)
+    contributes three
+    behaviours: no fall
+    damage, the generic
+    travel integration, and
+    never climbable. The
+    port has no class
+    hierarchy - the
+    behaviours are
+    per-species already:
+    ghast and phantom are
+    both fall_immune in the
+    species flags (item
+    286), each has its own
+    move control
+    (ghast_move_control,
+    phantom move_control)
+    over the shared
+    movement integration,
+    and neither climbs. The
+    class itself is a Java
+    hierarchy artefact with
+    no port surface.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **419 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 18/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **420 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 19/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
