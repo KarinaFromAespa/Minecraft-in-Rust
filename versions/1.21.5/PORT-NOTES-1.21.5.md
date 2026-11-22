@@ -14465,12 +14465,51 @@ is the oracle; decompiled code is a reading aid.
     to do.
   - Verification: read / only; no code / changed.
 
+- **Item 362 — ClientLevel**
+  - ClientLevel: verified,
+    no code. The 84-line
+    diff has four pieces,
+    none with a port
+    surface beyond what is
+    already 1.21.5: the
+    1.21.6-only globallyRen
+    deredBlockEntities set
+    (the port's off-screen
+    exemption is the
+    name-based closure in
+    game.rs, item 351 - it
+    keeps no such set);
+    disconnect(Component)
+    becoming the no-arg
+    disconnect() that
+    always uses multiplayer
+    .status.quitting (the
+    port's
+    Session::disconnect
+    takes no message and
+    just closes the socket,
+    as a voluntary quit
+    does);
+    DEFAULT_QUIT_MESSAGE
+    inlined; and voidDarkne
+    ssOnsetRange() (32.0)
+    becoming
+    getClearColorScale()
+    (0.03125 = 1/32) - the
+    same 32-block ramp, and
+    fog.rs already computes
+    it in the 1.21.5 form
+    with the
+    1.21.5-vs-1.21.6
+    comment in place.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **361 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 93/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **362 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 94/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
