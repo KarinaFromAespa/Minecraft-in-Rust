@@ -13197,12 +13197,54 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render
     --lib passed (37s).
 
+- **Item 321 — Advancements screen**
+  - Advancements screen,
+    widget, tab, tab type:
+    verified, no code. The
+    whole 200-line diff is
+    the render-API refactor
+    with no Rust surface: R
+    enderPipelines.GUI_TEXT
+    URED vs RenderType::gui
+    Textured, the
+    1.21.6-only nextStratum
+    calls, pushMatrix vs
+    pushPose, and the
+    deferred
+    setTooltipForNextFrame
+    vs 1.21.5's immediate
+    renderTooltip - the
+    port draws tab tooltips
+    in-frame already. The
+    one behaviour spelling
+    is the title colour,
+    1.21.5's alpha-0
+    4210752 against
+    1.21.6's opaque
+    -12566464: the port
+    keeps the opaque
+    0xFF404040 at left+8,
+    top+6, the same pixels.
+    The 252x140 window,
+    234x113 inside area
+    with its black no-tab
+    fill, the scissor clip,
+    and the fade fill
+    (floor(fade*255) << 24)
+    all match; the 1.21.5 z
+    -200 pose translate
+    around the fade has no
+    wgpu surface - the port
+    emits the fade before
+    the tooltips.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **320 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 52/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **321 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 53/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
