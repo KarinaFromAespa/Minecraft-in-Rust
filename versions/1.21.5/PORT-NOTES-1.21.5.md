@@ -14626,12 +14626,39 @@ is the oracle; decompiled code is a reading aid.
     delta.
   - Verification: read / only; no code / changed.
 
+- **Item 368 — WorldUpgrader**
+  - WorldUpgrader:
+    verified, no code. The
+    22-line diff is the
+    DataVersion accessor
+    rename -
+    dataVersion().version()
+    in 1.21.6 (record), get
+    DataVersion().getVersio
+    n() in 1.21.5 (getters)
+    - with the same value
+    compared in both: a
+    chunk or region
+    upgrades when its
+    stored version is below
+    the current data
+    version. The port reads
+    the constant directly
+    (DATA_VERSION 4325, the
+    1.21.5 data version,
+    via datafix::CURRENT),
+    so the Java spelling
+    has no Rust surface.
+    Item 32's ground, same
+    delta.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **367 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 99/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **368 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 100/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
