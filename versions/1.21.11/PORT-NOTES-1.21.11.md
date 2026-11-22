@@ -13239,3 +13239,11 @@ material set, skin cache). Pure baking plumbing, no Rust usage.
 1 class: `SoundEngine$DeviceCheckState` — a 3-value enum for the
 sound engine's audio-device polling (ONGOING / CHANGE_DETECTED /
 NO_CHANGE). Platform plumbing, no Rust usage.
+
+## Item 785 — client (new-classes) — NO-CHANGE
+
+1 class: `Minecraft$ChatStatus` (ENABLED / DISABLED_BY_OPTIONS /
+DISABLED_BY_LAUNCHER / DISABLED_BY_PROFILE). The Rust handles the
+one status that can arise: hidden chat shows the red
+`chat.disabled.options` overlay and keeps the chat closed; the
+launcher/profile statuses need inputs this client does not have.
