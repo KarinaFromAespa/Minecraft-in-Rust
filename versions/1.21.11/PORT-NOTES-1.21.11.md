@@ -12902,3 +12902,10 @@ Visibility only.
 Visibility only.
 
 Rank 3 COMPLETE (247/247).
+
+## Item 750 — client/renderer/block/model (new-classes) — NO-CHANGE
+
+16 classes present in 1.21.11, absent in 26.1 (26.1 rewrote the model
+system). Only `BlockElement` is named in the Rust, in 2 doc comments
+about its default UVs — the classic cube-face mapping the mesher
+implements. The other 15 have no Rust usage.
