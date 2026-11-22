@@ -15823,12 +15823,42 @@ is the oracle; decompiled code is a reading aid.
     options structs.
   - Verification: read / only; no code / changed.
 
+- **Item 411 — Component.Serializer / SerializerAdapter**
+  - Component.Serializer /
+    SerializerAdapter:
+    verified, no code.
+    These are 1.21.5's
+    Gson-based component
+    JSON classes, replaced
+    in 1.21.6 by the
+    codec-based
+    ComponentSerialization.
+    The port's equivalent
+    is
+    component.rs::to_text,
+    which parses the same
+    1.21.5 forms - string
+    shorthand, text,
+    translate with fallback
+    and with-args, extra,
+    and the style fields -
+    with tests. The lenient
+    entry point
+    (fromJsonLenient) has
+    no port equivalent, the
+    same recorded
+    strict-JSON gap as the
+    other lenient call
+    sites (items 251, 281,
+    373, 378).
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **410 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 9/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **411 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 10/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
