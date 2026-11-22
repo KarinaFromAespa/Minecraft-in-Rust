@@ -13117,3 +13117,11 @@ error-handling difference only.
 2 classes: `DepthTestFunction`, `LogicOp` — Blaze3D/OpenGL
 GPU-state enums with no Rust usage; the wgpu renderer sets its
 own depth/compare state directly.
+
+## Item 768 — resources (new-classes) — NO-CHANGE
+
+2 classes: `RegistryDataLoader$Loader` (a record with
+`loadFromResources`) and `RegistryDataLoader$LoadingFunction` (a
+single-method interface) — registry-loading plumbing with no Rust
+usage; the Rust cites the outer `RegistryDataLoader` for its load
+order and loads registries its own way.
