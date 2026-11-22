@@ -1740,3 +1740,63 @@ tree's pinned Template codec. Notes: the transmute `stack` closure
 has no test coverage (no transmute tests exist); the `{"blocks":
 {"tag": ...}}` HolderSet-object form is unused in 1.21.7 data and
 `id_matches` returns false for it.
+
+Save/title crate-test failures: four pre-existing failures, three
+26.x carry-overs and one test bug (2026-11-22). All four failed
+identically across crate-tests runs 4, 5 and 6, so they are
+deterministic defects, not flakes.
+
+`a_chunk_from_before_1_18_is_brought_to_the_current_layout`: the
+upgraded 1.17.1 chunk had no `blending_data`. The 2832
+`ChunkHeightAndBiomeFix` is vanilla-faithful — it blends only when
+`__context.generator` is `minecraft:noise` (jar-verified) — but the
+port's generator lookup, `datafix::files::generators`, read only
+`data/minecraft/world_gen_settings.dat`, a file vanilla 1.21.7 never
+writes (the string occurs in the 1.21.7 jar only in the datafix
+`References` type; the file is the 26.x `LevelDatToSavedDataFileFix`
+move at 4772, past this build's CURRENT), so the generator was None
+for every 1.21.7 world and blending never happened. `generators` now
+reads level.dat's `Data.WorldGenSettings` (the 1.21.7 location), the
+file still winning per dimension when a 26.x client moved the
+settings there, and a vanilla dimension with no recorded generator
+gets vanilla's synthesized default — noise, except an overworld
+whose level.dat says flat or debug (`generatorName`, the pre-1.16
+field). This fixes the lazy-read path (`DatafixContext::of`) and the
+world-upgrade path (`upgrade_world_data_with`) together.
+
+`old_chunks_are_found_in_the_saved_records_and_old_poi_upgrade`: a
+chunk this version saved was classified old. `record_is_old` used
+the 26.3 base's threshold 4997, past this build's CURRENT (4438), so
+every 1.21.7 chunk counted as old. Vanilla 1.21.7's
+`IOWorker.isOldChunk` uses 4295 (jar-verified:
+`getIntOr("DataVersion", 0) < 4295 || blending_data present`); the
+threshold is now 4295.
+
+`older_records_of_a_current_world_upgrade_as_they_are_read`: the
+upgraded 1.20.1 palette had no `id` entry. The 1.20.3
+grass-to-short_grass rename (key 3692) ran; what was missing was the
+palette-key conversion `Name`/`Properties` to `id`/`properties`,
+which the 26.3 base does at key 5006 — past this build's CURRENT, so
+it never ran. A port-adaptation fix at key 4438 (CURRENT) does the
+same rename, last, after every fix that reads `Name`. Vanilla 1.21.7
+itself keeps `Name`/`Properties` (`StateHolder.codec`,
+jar-verified); the port's decoder and writer speak the 26.x form, so
+the upgrade normalizes to it. Note the remaining gap this does not
+close: a chunk vanilla 1.21.7 itself saved (DataVersion 4438,
+`Name` palettes) skips the upgrade entirely and still decodes as air
+— the decoder only reads `id`. That needs a `BlockState::from_nbt`
+fallback (or a read-path normalization), not a datafix change.
+
+`a_finished_optimization_stamps_the_level_data`: a test bug, not a
+product gap. The fixture set level.dat's DataVersion to 4950, a
+26.x-era version that is in the future for 1.21.7 (CURRENT 4438),
+which `fix_world_files` correctly leaves unstamped — vanilla never
+downgrades a DataVersion. The fixture is now 3955 (1.21), genuinely
+older than CURRENT and past the only file fix (1493), so the
+optimization runs and `add_versions` stamps 4438. Regression tests:
+the four named tests themselves (horizon-client-lib, CI execution
+owed — the lib test compile OOM-kills on this VM) plus the new
+`generators_come_from_level_dat_with_noise_defaults`
+(horizon-world `datafix::files::upgrade_tests`: bare world defaults
+to noise, a superflat level.dat yields flat, the 26.x file wins per
+dimension).
