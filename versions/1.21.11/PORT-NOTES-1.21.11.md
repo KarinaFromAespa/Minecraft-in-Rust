@@ -13159,3 +13159,10 @@ covers the same ground) and `StructureFeatureIndexSavedData` (a
 persistent chunk index for structure starts — the Rust's `/locate`
 computes starts from the seed on demand instead, same result).
 Neither is named in the Rust.
+
+## Item 773 — advancements/criterion (new-classes) — NO-CHANGE
+
+1 class: `CriterionValidator` — a load-time helper that validates
+entity predicates in advancement criteria against a problem
+reporter. Pure datapack validation, no gameplay behaviour, no Rust
+usage.
