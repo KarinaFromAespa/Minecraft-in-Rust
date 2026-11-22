@@ -1950,3 +1950,42 @@ pack_format-only reading. Stripping the machinery is a re-base
 candidate, not part of this fix. (The `a_resource_pack_overrides_a_texture`
 fixture still says pack_format 97; it never asserts compatibility,
 so it was left alone.)
+Crate-test repairs: vibration particle id, remote Game Rules button,
+launch reference (2026-11-22). Three pre-existing `horizon-client`
+failures from crate-tests run 45039219772, all 26.3-base leakage of
+one kind or another. (1) TEST BUG: the vibration test
+(`vibration_particles_carry_their_listener_and_arrival_ticks`) built
+its hub registry with `minecraft:vibration` at id 58, but vanilla
+1.21.7's `ParticleTypes` registration order puts it at 47 (verified
+with `javap -c` on the 1.21.7 named server jar's
+`ParticleTypes.<clinit>`; id 58 is `rain`, which carries no data --
+hence the 10 unread bytes: 1-byte source kind + 8-byte block position
++ 1-byte arrival ticks). Production `Particle::read` already reads
+vibration data at 47 (`horizon-protocol/src/entity_data.rs`), so only
+the fixture and the id assertion changed. (2) PRODUCT FIX:
+`remote_options_follow_vanilla_guest_layout_and_permissions` -- the
+remote World Options screen
+disabled the Game Rules button unconditionally, on a 1.21.11-era
+comment claiming there was no packet to fetch a server's rules.
+Vanilla 1.21.7 has no game-rule packets at all (jar check: no
+`*GameRule*` packet class among the 155 clientbound play packets;
+`/gamerule` requires permission level 2), and `close_game_rules`
+already sends the changes as `/gamerule` commands on a remote server,
+gated on permission >= 2 -- so the button now follows `gamemaster`
+(permission >= 2), including in hardcore, and the stale 1.21.11
+comments now say 1.21.7. (3) STALE DOC: `launch_api_reference_is_current` -- the
+`--resources` option text named
+`.local/horizon-client/26.3`, while the real default is
+`.local/horizon-client/<VANILLA_VERSION>` (`launch_options.rs`), i.e.
+`1.21.7` here. Regenerating `docs/api/launch-reference.md` with
+`HORIZON_WRITE_DOCS=1` also fixed three more 26.3 leftovers the doc
+had carried since it was copied from the base: `"minecraft": "26.3"`
+-> `"1.21.7"`, datapack format [121, 0] -> [81, 0], resourcepack
+format [97, 1] -> [64, 0]; everything else in the regen reproduced
+identically. Verification, run under `--no-default-features` (the
+documented server build -- the full-features `horizon-client` lib
+test compile OOM-kills on this VM, so full-features verification
+belongs to CI): the whole `horizon-client` lib suite passes, 1242
+pass / 0 fail / 470 ignored (need prepared resources), with the
+three target tests green and their module suites clean
+(`lan_particles` 5/5, `lan_screen` 6/6, `launch_api` 6/6).

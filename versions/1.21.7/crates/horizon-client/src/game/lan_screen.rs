@@ -359,9 +359,10 @@ impl WorldOptions {
                 Button::Difficulty | Button::Lock => {
                     self.gamemaster && !self.hardcore && !self.difficulty_locked
                 }
-                // 1.21.11 has no packet to fetch a server's rules: a gamemaster
-                // on an external server changes them with /gamerule, as in vanilla.
-                Button::GameRules => false,
+                // A gamemaster opens the rules screen from the window's own
+                // rules; Done sends the changes as /gamerule commands
+                // (close_game_rules), since 1.21.7 has no game-rule packets.
+                Button::GameRules => self.gamemaster,
                 Button::Restrictions | Button::Cancel => true,
                 Button::Apply => self.gamemaster && self.changed(),
                 _ => false,
@@ -632,7 +633,7 @@ impl Game<'_> {
     }
 
     /// InWorldGameRulesScreen's exit, back to the options. Done applies the
-    /// changed rules: 1.21.11 has no game-rule packets, so on a server the
+    /// changed rules: 1.21.7 has no game-rule packets, so on a server the
     /// change goes as `/gamerule` commands (which the server runs), and the
     /// window's own rules move with them.
     fn close_game_rules(&mut self, exit: Exit) {
@@ -1160,8 +1161,9 @@ impl Game<'_> {
             Some(Button::Lock) => o.locked = !o.locked,
             Some(Button::Restrictions) => o.view = View::Restrictions,
             Some(Button::GameRules) => {
-                // The window's own rules: 1.21.11 has no packet to fetch a
-                // server's, so an external server's rules are not shown here.
+                // The window's own rules: 1.21.7 has no packet to fetch a
+                // server's, so the screen edits what the window knows; Done
+                // sends the changes as /gamerule commands (close_game_rules).
                 o.rules = Some(RulesScreen::new(&self.ui.rules));
                 o.view = View::GameRules;
             }
@@ -1469,8 +1471,9 @@ impl Game<'_> {
                         Button::Lock => o.locked = !o.locked,
                         Button::Restrictions => o.view = View::Restrictions,
                         Button::GameRules => {
-                            // The window's own rules: 1.21.11 has no packet to fetch a
-                            // server's, so an external server's rules are not shown here.
+                            // The window's own rules: 1.21.7 has no packet to fetch a
+                            // server's, so the screen edits what the window knows; Done
+                            // sends the changes as /gamerule commands (close_game_rules).
                             o.rules = Some(RulesScreen::new(&self.ui.rules));
                             o.view = View::GameRules;
                         }
