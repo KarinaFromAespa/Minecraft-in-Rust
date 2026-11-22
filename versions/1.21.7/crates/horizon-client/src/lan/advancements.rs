@@ -422,15 +422,21 @@ impl ServerAdvancements {
         let slot = |n: &str| sync.id("minecraft:slot_display", n).unwrap_or(0);
         let mut w = Writer::new();
         w.varint(ids.start);
-        // The ingredients' TagSlotDisplays, an empty cell as an empty slot.
+        // The ingredients' displays (`Ingredient.display`), an empty cell
+        // as an empty slot.
         let slots = |w: &mut Writer, cells: &[Option<&Value>]| {
             w.varint(cells.len() as i32);
             for cell in cells {
                 match cell {
-                    Some(v) => {
-                        w.varint(slot("minecraft:tag"));
-                        holder_set(w, v, &item);
-                    }
+                    Some(v) => ingredient_display(
+                        w,
+                        v,
+                        &item,
+                        slot("minecraft:tag"),
+                        slot("minecraft:composite"),
+                        slot("minecraft:item"),
+                        slot("minecraft:empty"),
+                    ),
                     None => w.varint(slot("minecraft:empty")),
                 }
             }
@@ -502,8 +508,15 @@ impl ServerAdvancements {
                     sync.id("minecraft:recipe_display", "minecraft:furnace")
                         .unwrap_or(0),
                 );
-                w.varint(slot("minecraft:tag"));
-                holder_set(&mut w, &r["ingredient"], &item);
+                ingredient_display(
+                    &mut w,
+                    &r["ingredient"],
+                    &item,
+                    slot("minecraft:tag"),
+                    slot("minecraft:composite"),
+                    slot("minecraft:item"),
+                    slot("minecraft:empty"),
+                );
                 w.varint(slot("minecraft:any_fuel"));
                 result(&mut w);
                 station(&mut w, crafting_station(kind));
@@ -608,6 +621,7 @@ impl ServerAdvancements {
             slot("minecraft:item_stack")?,
         );
         let (composite, item_slot) = (slot("minecraft:composite")?, slot("minecraft:item")?);
+        let empty = slot("minecraft:empty")?;
         let table = item("minecraft:crafting_table")?;
         let category = crafting_category(r["category"].as_str().unwrap_or("")).name();
         let placed: Vec<&Value> = std::iter::once(input)
@@ -620,8 +634,7 @@ impl ServerAdvancements {
             w.varint(shapeless);
             w.varint(n as i32 + 1);
             for v in std::iter::once(input).chain(std::iter::repeat_n(material, n)) {
-                w.varint(tag);
-                holder_set(&mut w, v, &item);
+                ingredient_display(&mut w, v, &item, tag, composite, item_slot, empty);
             }
             // computeResultSize: the materials added to the count, or not.
             let count = if add { n as i32 + base } else { base };
@@ -741,6 +754,55 @@ fn holder_set(w: &mut Writer, v: &Value, item: &dyn Fn(&str) -> Option<i32>) {
             }
         }
         _ => w.varint(1),
+    }
+}
+
+/// `Ingredient.display` for one ingredient value, as vanilla 1.21.7 writes
+/// it: a tag's bare id, or a composite of the items' displays. Vanilla's
+/// `TagSlotDisplay` holds a `TagKey`, not a `HolderSet` (the pinned quirks
+/// read a bare id — writing a holder set after the tag type misaligned the
+/// entry read, and the cooking time then decoded as a display type), and a
+/// direct list displays as a composite even for one item. The placement
+/// info in `entry_tail` still takes the holder set. `tag`, `composite`,
+/// `item_slot` and `empty` are the `minecraft:slot_display` ids of those
+/// types. An item the registries do not know leaves its composite empty;
+/// a value no display covers shows an empty slot. (No remainder: vanilla
+/// wraps an item with a crafting remainder in `WithRemainder`, which this
+/// writer cannot know without the items' data.)
+fn ingredient_display(
+    w: &mut Writer,
+    v: &Value,
+    item: &dyn Fn(&str) -> Option<i32>,
+    tag: i32,
+    composite: i32,
+    item_slot: i32,
+    empty: i32,
+) {
+    match v {
+        Value::String(s) if s.starts_with('#') => {
+            w.varint(tag);
+            w.string(&s[1..]);
+        }
+        Value::String(s) => {
+            let ids: Vec<i32> = item(s).into_iter().collect();
+            composite_display(w, &ids, composite, item_slot);
+        }
+        Value::Array(a) => {
+            let ids: Vec<i32> = a.iter().filter_map(|s| item(s.as_str()?)).collect();
+            composite_display(w, &ids, composite, item_slot);
+        }
+        _ => w.varint(empty),
+    }
+}
+
+/// A composite of item displays, one per id (`Ingredient.display`'s
+/// direct list, even of one).
+fn composite_display(w: &mut Writer, ids: &[i32], composite: i32, item_slot: i32) {
+    w.varint(composite);
+    w.varint(ids.len() as i32);
+    for &id in ids {
+        w.varint(item_slot);
+        w.varint(id);
     }
 }
 
@@ -864,6 +926,17 @@ mod tests {
             }
             other => panic!("not an item list: {other:?}"),
         }
+        let RecipeDisplay::Shaped { ingredients, .. } = e.display else {
+            panic!("a shaped recipe shows a shaped display");
+        };
+        assert_eq!(
+            ingredients,
+            vec![SlotDisplay::Composite(vec![
+                SlotDisplay::Item(raw),
+                SlotDisplay::Item(redstone)
+            ])],
+            "the compound's items in the display too"
+        );
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -956,6 +1029,7 @@ mod tests {
             std::fs::write(root.join(marker), br#"["recipe_pilot"]"#).unwrap();
         }
         let (sync, e) = entry(&root, "recipe_pilot:press");
+        let item = |n: &str| sync.id("minecraft:item", n).unwrap();
         assert_eq!(
             e.id,
             sync.advancements
@@ -964,8 +1038,19 @@ mod tests {
                 .unwrap()
         );
         match e.display {
-            RecipeDisplay::Shapeless { result, .. } => {
+            RecipeDisplay::Shapeless {
+                ingredients,
+                result,
+                ..
+            } => {
                 assert_eq!(result, SlotDisplay::ItemStack(Stack::new(1, 2)));
+                assert_eq!(
+                    ingredients,
+                    vec![SlotDisplay::Composite(vec![SlotDisplay::Item(item(
+                        "minecraft:raw_copper"
+                    ))])],
+                    "one item still displays as a composite of one"
+                );
             }
             other => panic!("not a shapeless content recipe: {other:?}"),
         }
@@ -975,11 +1060,9 @@ mod tests {
 
     /// A recipe result reaches the client as its item and count: the
     /// result display is written count-first, as the client's Template
-    /// codec reads it. No ingredients, so no tag display is written: the
-    /// tag form (the pinned quirks read a bare id, the writer writes a
-    /// holder set) misaligns the entry read, and that pre-existing
-    /// mismatch is out of scope here. The count (2) differs from the
-    /// item id (1), so a swapped write reads back as another item.
+    /// codec reads it. No ingredients, so no ingredient display is
+    /// written. The count (2) differs from the item id (1), so a swapped
+    /// write reads back as another item.
     #[test]
     fn a_recipe_result_reaches_the_client_as_its_item_and_count() {
         let root = resources(
@@ -1232,7 +1315,7 @@ mod tests {
         };
         assert_eq!(
             ingredient,
-            SlotDisplay::Tag(HolderSet::Items(vec![item("minecraft:raw_copper")]))
+            SlotDisplay::Composite(vec![SlotDisplay::Item(item("minecraft:raw_copper"))])
         );
         assert_eq!(fuel, SlotDisplay::AnyFuel);
         assert_eq!(
@@ -1290,7 +1373,7 @@ mod tests {
         };
         assert_eq!(
             ingredient,
-            SlotDisplay::Tag(HolderSet::Items(vec![item("minecraft:redstone")])),
+            SlotDisplay::Composite(vec![SlotDisplay::Item(item("minecraft:redstone"))]),
             "the display shows the swapped input too"
         );
         let _ = std::fs::remove_dir_all(&root);
@@ -1330,7 +1413,7 @@ mod tests {
         };
         assert_eq!(
             ingredient,
-            SlotDisplay::Tag(HolderSet::Items(vec![item("minecraft:redstone_ore")]))
+            SlotDisplay::Composite(vec![SlotDisplay::Item(item("minecraft:redstone_ore"))])
         );
         assert_eq!(station, SlotDisplay::Item(item("minecraft:blast_furnace")));
         assert_eq!(duration, 200);

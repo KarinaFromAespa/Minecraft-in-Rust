@@ -1989,3 +1989,36 @@ belongs to CI): the whole `horizon-client` lib suite passes, 1242
 pass / 0 fail / 470 ignored (need prepared resources), with the
 three target tests green and their module suites clean
 (`lan_particles` 5/5, `lan_screen` 6/6, `launch_api` 6/6).
+Recipe-book entries misaligned on tag displays (2026-11-22). The
+five `lan::advancements` crate-tests failures (`smelting_reaches_the_
+furnace_book`, `blasting_reaches_the_blast_furnace_book`,
+`a_recipe_filters_swapped_input_shows_swapped_in_the_book`,
+`a_neoforge_ingredient_in_the_key_reaches_the_client_with_items`,
+`an_owned_content_recipe_reaches_the_client_book` -- identical in
+crate-tests runs 4, 5 and 6) shared one cause: the pinned quirks read
+a `TagSlotDisplay` as a bare tag id while `book_entries` wrote a full
+HolderSet after the tag type, so the entry read misaligned and the
+cooking time (200) decoded as a display type ("unknown slot display
+200"). Jar-verified against 1.21.7's own server jar, the READER was
+right and the writer wrong: vanilla 1.21.7's `TagSlotDisplay` holds a
+`TagKey` (its `STREAM_CODEC` is `TagKey.streamCodec`), and
+`Ingredient.display` -- which the cooking and crafting displays both
+use -- maps a tag to that display and a direct item list to a
+composite of `displayForSingleItem` each, even for one item. Fix
+(`lan/advancements.rs`): a new `ingredient_display` writer that emits
+the tag's bare id for `#tag` values and a composite of item displays
+for single items and flat lists, used by the shaped/shapeless cells,
+the furnace ingredient, and the transmute input/material (which had
+the same latent bug; still no transmute tests). The placement info in
+`entry_tail` still takes the holder set -- vanilla's `PlacementInfo`
+is a list of HolderSets, so that side was already right. The three
+failing tests that expected `SlotDisplay::Tag(HolderSet::Items(...))`
+pinned the 26.3 form, which 1.21.7's wire has no equivalent of; their
+expectations are now the composite form, and the NeoForge and
+owned-content tests gained display assertions (the compound's two
+items; one item as a composite of one). Known gap, unchanged by this
+fix: vanilla wraps an item with a crafting remainder in
+`WithRemainder`, which this writer cannot know without the items'
+data. The `a_horizon_server_of_the_real_recipes` test (needs prepared
+resources, skipped in CI) reads every entry back through the same
+codec, so it now exercises the fixed writer on the real recipe set.
