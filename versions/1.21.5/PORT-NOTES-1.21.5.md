@@ -14368,12 +14368,70 @@ is the oracle; decompiled code is a reading aid.
     s ground, same delta.
   - Verification: read / only; no code / changed.
 
+- **Item 359 — ShareToLanScreen**
+  - ShareToLanScreen: CODE
+    (part) + structural gap
+    recorded. The 45-line
+    diff is the alpha-0
+    colours
+    (INVALID_PORT_COLOR
+    16733525, port text
+    14737632, titles
+    16777215 - same pixels)
+    plus one real delta:
+    1.21.6 narrates the
+    publish message
+    (saySystemQueued),
+    1.21.5 only adds it to
+    the chat. The port's
+    publish flow narrated
+    it - the say() call is
+    removed, so the message
+    is chat-only now. But
+    the screen itself is a
+    bigger gap: the port
+    has NO ShareToLanScreen
+    and its pause menu has
+    no Open to LAN entry
+    (menu.shareToLan
+    appears nowhere);
+    instead it opens the
+    26.x WorldOptionsScreen
+    (lan_screen.rs, 1872
+    lines, also hosting
+    in-world game rules and
+    RestrictionsScreen,
+    neither of which exists
+    in 1.21.5 or 1.21.6). A
+    faithful 1.21.5
+    ShareToLanScreen -
+    pause Open to LAN,
+    game-mode cycle in SURV
+    IVAL/SPECTATOR/CREATIVE
+    /ADVENTURE order,
+    allow-commands toggle,
+    port box with
+    1024-65535 validation,
+    Start publishing with
+    the chat message -
+    needs that module
+    replaced, structural
+    work in the same class
+    as item 404's deferral,
+    not this item's 45
+    lines. Recorded here as
+    deferred, not done.
+  - Verification: One say() call removed
+    plus its doc; no code /
+    shape changed, no test
+    run / needed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **358 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 90/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **359 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 91/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

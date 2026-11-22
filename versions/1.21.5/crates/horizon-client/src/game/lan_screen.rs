@@ -1192,10 +1192,10 @@ impl Game<'_> {
         self.close_world_options();
     }
 
-    /// `WorldOptionsScreen.sendPublishMessage`: a client system message the
-    /// narrator says.
+    /// The publish message, as a client system message only: 1.21.5's
+    /// ShareToLanScreen adds it to the chat and does not narrate it - the
+    /// narrator's saySystemQueued line is 1.21.6-only.
     fn send_publish_message(&mut self, message: Text) {
-        self.say(&message);
         self.system_message(message);
     }
 
