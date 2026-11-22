@@ -44,7 +44,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.entity.EntityTypeTest;
-import net.minecraft.world.level.gamerules.GameRules;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructurePiece;
@@ -104,19 +104,16 @@ public final class VanillaFinalizeSpawnOracle {
         DimensionType dimensionType;
         ResourceKey<Level> dimensionKey;
         List<Entity> entities = new ArrayList<>();
-        net.minecraft.world.attribute.EnvironmentAttributeSystem attributes;
         BiomeManager biomeManager;
         WorldBorder border = new WorldBorder();
         GameRules rules;
         Structures structures;
         RandomSource levelRandom;
         long time;
-        int next = 1;
         @Override public net.minecraft.server.MinecraftServer getServer() { return fake; }
         @Override public RegistryAccess registryAccess() { return registries; }
         @Override public Difficulty getDifficulty() { return difficulty; }
         @Override public long getGameTime() { return time; }
-        @Override public int getNextEntityId() { return next++; }
         @Override public net.minecraft.world.flag.FeatureFlagSet enabledFeatures() { return net.minecraft.world.flag.FeatureFlags.REGISTRY.allFlags(); }
         @Override public BlockState getBlockState(BlockPos pos) {
             if (pos.getY() == floorY) return floor;
@@ -128,7 +125,6 @@ public final class VanillaFinalizeSpawnOracle {
         @Override public ResourceKey<Level> dimension() { return dimensionKey; }
         @Override public Holder<Biome> getBiome(BlockPos pos) { return biome; }
         @Override public BiomeManager getBiomeManager() { return biomeManager; }
-        @Override public net.minecraft.world.attribute.EnvironmentAttributeSystem environmentAttributes() { return attributes; }
         @Override public WorldBorder getWorldBorder() { return border; }
         @Override public GameRules getGameRules() { return rules; }
         @Override public RandomSource getRandom() { return levelRandom; }
@@ -137,7 +133,6 @@ public final class VanillaFinalizeSpawnOracle {
         @Override public net.minecraft.server.ServerScoreboard getScoreboard() { return scoreboard; }
         @Override public net.minecraft.world.level.StructureManager structureManager() { return structures; }
         @Override public BlockGetter getChunkForCollisions(int chunkX, int chunkZ) { return this; }
-        @Override public boolean isSpawningMonsters() { return rules.get(GameRules.SPAWN_MOBS) && rules.get(GameRules.SPAWN_MONSTERS); }
         @Override public void playSeededSound(net.minecraft.world.entity.Entity except, double x, double y, double z, Holder<SoundEvent> sound, SoundSource source, float volume, float pitch, long seed) {}
         @Override public void playSeededSound(net.minecraft.world.entity.Entity except, net.minecraft.world.entity.Entity sourceEntity, Holder<SoundEvent> sound, SoundSource source, float volume, float pitch, long seed) {}
         @Override public void gameEvent(Holder<net.minecraft.world.level.gameevent.GameEvent> gameEvent, Vec3 position, net.minecraft.world.level.gameevent.GameEvent.Context context) {}
@@ -169,10 +164,12 @@ public final class VanillaFinalizeSpawnOracle {
         Lvl level;
         Structure structure;
         StructureStart start;
-        @Override public List<StructureStart> startsForStructure(int sectionX, int sectionZ, Predicate<Structure> matcher) {
+        // 1.21.7's StructureManager takes (ChunkPos, Predicate) and
+        // (SectionPos, Structure), not section x/z ints.
+        @Override public List<StructureStart> startsForStructure(ChunkPos pos, Predicate<Structure> matcher) {
             return start != null && matcher.test(structure) ? List.of(start) : List.of();
         }
-        @Override public List<StructureStart> startsForStructure(int sectionX, int sectionZ, Structure s) {
+        @Override public List<StructureStart> startsForStructure(SectionPos pos, Structure s) {
             return start != null && s == structure ? List.of(start) : List.of();
         }
         @Override public RegistryAccess registryAccess() { return level.registries; }
@@ -247,75 +244,72 @@ public final class VanillaFinalizeSpawnOracle {
 
         static final List<Map.Entry<String, MemoryModuleType<?>>> MEMORIES = List.of(
             Map.entry("long_jump_cooling_down", MemoryModuleType.LONG_JUMP_COOLDOWN_TICKS), Map.entry("ram_cooldown_ticks", MemoryModuleType.RAM_COOLDOWN_TICKS),
-            Map.entry("attack_target_cooldown", MemoryModuleType.ATTACK_TARGET_COOLDOWN), Map.entry("hunted_recently", MemoryModuleType.HUNTED_RECENTLY),
+            // No ATTACK_TARGET_COOLDOWN in 1.21.7: that memory is set only by
+            // the nautilus species, which do not exist in 1.21.7.
+            Map.entry("hunted_recently", MemoryModuleType.HUNTED_RECENTLY),
             Map.entry("dig_cooldown", MemoryModuleType.DIG_COOLDOWN), Map.entry("is_emerging", MemoryModuleType.IS_EMERGING),
             Map.entry("home", MemoryModuleType.HOME));
     }
 
-    /** The species state finalizeSpawn sets. */
+    /** The species state finalizeSpawn sets.
+     * 1.21.7 packages the animals flat (animal.Pig, animal.horse.Horse, ...)
+     * with no pig/cow/chicken/cat/wolf sound variants (no
+     * DATA_SOUND_VARIANT_ID on any of them), no wolf variants at all and no
+     * nautilus; slimes cover the cube-mob case (MagmaCube extends Slime). */
     static void variant(Entity e, List<String> v) {
-        if (e instanceof net.minecraft.world.entity.animal.pig.Pig p) {
+        if (e instanceof net.minecraft.world.entity.animal.Pig p) {
             v.add(id(p.getVariant()));
-            v.add(id((Holder<?>) data(p, p.getClass(), "DATA_SOUND_VARIANT_ID")));
-        } else if (e instanceof net.minecraft.world.entity.animal.cow.Cow c) {
+        } else if (e instanceof net.minecraft.world.entity.animal.Cow c) {
             v.add(id(c.getVariant()));
-            v.add(id((Holder<?>) data(c, net.minecraft.world.entity.animal.cow.Cow.class, "DATA_SOUND_VARIANT_ID")));
-        } else if (e instanceof net.minecraft.world.entity.animal.cow.MushroomCow m) {
+        } else if (e instanceof net.minecraft.world.entity.animal.MushroomCow m) {
             v.add(m.getVariant().getSerializedName());
-        } else if (e instanceof net.minecraft.world.entity.animal.chicken.Chicken c) {
+        } else if (e instanceof net.minecraft.world.entity.animal.Chicken c) {
             v.add(id(c.getVariant()));
-            v.add(id((Holder<?>) data(c, c.getClass(), "DATA_SOUND_VARIANT_ID")));
             v.add("jockey=" + c.isChickenJockey());
-        } else if (e instanceof net.minecraft.world.entity.animal.feline.Cat c) {
+        } else if (e instanceof net.minecraft.world.entity.animal.Cat c) {
             v.add(id(c.getVariant()));
-            v.add(id((Holder<?>) data(c, c.getClass(), "DATA_SOUND_VARIANT_ID")));
-        } else if (e instanceof net.minecraft.world.entity.animal.wolf.Wolf w) {
-            v.add(id((Holder<?>) call(w, net.minecraft.world.entity.animal.wolf.Wolf.class, "getVariant")));
-            v.add(id((Holder<?>) data(w, w.getClass(), "DATA_SOUND_VARIANT_ID")));
         } else if (e instanceof net.minecraft.world.entity.animal.frog.Frog f) {
             v.add(id(f.getVariant()));
-        } else if (e instanceof net.minecraft.world.entity.animal.nautilus.ZombieNautilus n) {
-            v.add(id(n.getVariant()));
         } else if (e instanceof net.minecraft.world.entity.animal.sheep.Sheep s) {
             v.add(s.getColor().getSerializedName());
-        } else if (e instanceof net.minecraft.world.entity.animal.equine.Horse h) {
+        } else if (e instanceof net.minecraft.world.entity.animal.horse.Horse h) {
             v.add(h.getVariant().getSerializedName() + "/" + h.getMarkings().name().toLowerCase(Locale.ROOT));
-        } else if (e instanceof net.minecraft.world.entity.animal.equine.Llama l) {
+        } else if (e instanceof net.minecraft.world.entity.animal.horse.Llama l) {
             v.add(l.getVariant().getSerializedName() + "/" + l.getStrength());
-        } else if (e instanceof net.minecraft.world.entity.animal.equine.SkeletonHorse h) {
+        } else if (e instanceof net.minecraft.world.entity.animal.horse.SkeletonHorse h) {
             v.add("trap=" + h.isTrap());
-        } else if (e instanceof net.minecraft.world.entity.animal.fox.Fox f) {
+        } else if (e instanceof net.minecraft.world.entity.animal.Fox f) {
             v.add(f.getVariant().getSerializedName());
-        } else if (e instanceof net.minecraft.world.entity.animal.rabbit.Rabbit r) {
+        } else if (e instanceof net.minecraft.world.entity.animal.Rabbit r) {
             v.add(r.getVariant().getSerializedName());
-        } else if (e instanceof net.minecraft.world.entity.animal.parrot.Parrot p) {
+        } else if (e instanceof net.minecraft.world.entity.animal.Parrot p) {
             v.add(p.getVariant().getSerializedName());
         } else if (e instanceof net.minecraft.world.entity.animal.axolotl.Axolotl a) {
             v.add(a.getVariant().getSerializedName());
-        } else if (e instanceof net.minecraft.world.entity.animal.fish.TropicalFish f) {
-            v.add(String.valueOf(call(f, net.minecraft.world.entity.animal.fish.TropicalFish.class, "getPackedVariant")));
-        } else if (e instanceof net.minecraft.world.entity.animal.fish.Salmon s) {
+        } else if (e instanceof net.minecraft.world.entity.animal.TropicalFish f) {
+            v.add(String.valueOf(call(f, net.minecraft.world.entity.animal.TropicalFish.class, "getPackedVariant")));
+        } else if (e instanceof net.minecraft.world.entity.animal.Salmon s) {
             v.add(s.getVariant().getSerializedName());
-        } else if (e instanceof net.minecraft.world.entity.animal.panda.Panda p) {
+        } else if (e instanceof net.minecraft.world.entity.animal.Panda p) {
             v.add(p.getMainGene().getSerializedName() + "/" + p.getHiddenGene().getSerializedName());
         } else if (e instanceof net.minecraft.world.entity.animal.goat.Goat g) {
             v.add("scream=" + g.isScreamingGoat() + " horns=" + g.hasLeftHorn() + "," + g.hasRightHorn());
-        } else if (e instanceof net.minecraft.world.entity.monster.cubemob.AbstractCubeMob s) {
+        } else if (e instanceof net.minecraft.world.entity.monster.Slime s) {
             v.add("size=" + s.getSize());
-        } else if (e instanceof net.minecraft.world.entity.npc.villager.Villager vi) {
+        } else if (e instanceof net.minecraft.world.entity.npc.Villager vi) {
             v.add(id(vi.getVillagerData().type()) + "/" + id(vi.getVillagerData().profession()) + "/" + vi.getVillagerData().level());
-        } else if (e instanceof net.minecraft.world.entity.monster.zombie.ZombieVillager z) {
+        } else if (e instanceof net.minecraft.world.entity.monster.ZombieVillager z) {
             // The profession comes from the constructor's unseeded random.
             v.add(id(z.getVillagerData().type()) + "/" + z.getVillagerData().level());
         } else if (e instanceof net.minecraft.world.entity.monster.Phantom p) {
             v.add("size=" + p.getPhantomSize());
-        } else if (e instanceof net.minecraft.world.entity.animal.turtle.Turtle t) {
-            BlockPos h = (BlockPos) get(t, net.minecraft.world.entity.animal.turtle.Turtle.class, "homePos");
+        } else if (e instanceof net.minecraft.world.entity.animal.Turtle t) {
+            BlockPos h = (BlockPos) get(t, net.minecraft.world.entity.animal.Turtle.class, "homePos");
             v.add("home=" + (h == null ? "-" : h.getX() + "," + h.getY() + "," + h.getZ()));
-        } else if (e instanceof net.minecraft.world.entity.animal.dolphin.Dolphin d) {
+        } else if (e instanceof net.minecraft.world.entity.animal.Dolphin d) {
             v.add("air=" + d.getAirSupply());
         }
-        if (e instanceof net.minecraft.world.entity.monster.zombie.Zombie z) v.add("doors=" + z.canBreakDoors());
+        if (e instanceof net.minecraft.world.entity.monster.Zombie z) v.add("doors=" + z.canBreakDoors());
         if (e instanceof net.minecraft.world.entity.monster.PatrollingMonster p) v.add("leader=" + p.isPatrolLeader() + " patrolling=" + call(p, net.minecraft.world.entity.monster.PatrollingMonster.class, "isPatrolling"));
         if (e instanceof net.minecraft.world.entity.raid.Raider r) v.add("raid=" + r.canJoinRaid());
         if (e instanceof net.minecraft.world.entity.monster.Strider s) v.add("saddled=" + s.isSaddled());
@@ -409,22 +403,23 @@ public final class VanillaFinalizeSpawnOracle {
         var resources = new MultiPackResourceManager(PackType.SERVER_DATA, repo.openAllSelected());
         var layers = RegistryLayer.createRegistryAccess();
         var staticTags = TagLoader.loadTagsForExistingRegistries(resources, layers.getLayer(RegistryLayer.STATIC));
-        var context = TagLoader.buildUpdatedLookups(layers.getAccessForLoading(RegistryLayer.WORLD), staticTags);
-        RegistryAccess.Frozen world = RegistryDataLoader.load(resources, context, RegistryDataLoader.WORLD_REGISTRIES, Runnable::run).join();
-        var worldLayers = layers.replaceFrom(RegistryLayer.WORLD, world);
+        // 1.21.7 layers are STATIC/WORLDGEN/DIMENSIONS (no WORLD) and
+        // RegistryDataLoader.load is the synchronous three-argument form.
+        // No DataComponentInitializers in 1.21.7: item default components
+        // are fixed at registration during Bootstrap (see ParityData).
+        var context = TagLoader.buildUpdatedLookups(layers.getAccessForLoading(RegistryLayer.WORLDGEN), staticTags);
+        RegistryAccess.Frozen world = RegistryDataLoader.load(resources, context, RegistryDataLoader.WORLDGEN_REGISTRIES);
+        var worldLayers = layers.replaceFrom(RegistryLayer.WORLDGEN, world);
         var loaded = net.minecraft.server.ReloadableServerRegistries.reload(worldLayers, staticTags, resources, Runnable::run).join();
-        HolderLookup.Provider lookup = loaded.lookupWithUpdatedTags();
-        var components = BuiltInRegistries.DATA_COMPONENT_INITIALIZERS.build(lookup);
         staticTags.forEach(Registry.PendingTags::apply);
-        components.forEach(net.minecraft.core.component.DataComponentInitializers.PendingComponents::apply);
         RegistryAccess access = loaded.layers().compositeAccess();
         var biomes = access.lookupOrThrow(Registries.BIOME);
         var dimensions = access.lookupOrThrow(Registries.DIMENSION_TYPE);
         var blockLookup = access.lookupOrThrow(Registries.BLOCK);
         var structureLookup = access.lookupOrThrow(Registries.STRUCTURE);
 
+        // 1.21.7 has no debug-subscriber system on MinecraftServer.
         var server = (net.minecraft.server.MinecraftServer) alloc(net.minecraft.server.dedicated.DedicatedServer.class);
-        put(server, net.minecraft.server.MinecraftServer.class, "debugSubscribers", alloc(net.minecraft.util.debug.ServerDebugSubscribers.class));
         Lvl level = (Lvl) alloc(Lvl.class);
         level.fake = server;
         put(level, ServerLevel.class, "server", server);
@@ -435,9 +430,9 @@ public final class VanillaFinalizeSpawnOracle {
         level.scoreboard = new net.minecraft.server.ServerScoreboard(server);
         level.border = new WorldBorder();
         level.rules = new GameRules(net.minecraft.world.flag.FeatureFlags.REGISTRY.allFlags());
+        // 1.21.7's BiomeManager has only getBiome(BlockPos) (no x/y/z form).
         level.biomeManager = new BiomeManager((x, y, z) -> level.biome, 0L) {
             @Override public Holder<Biome> getBiome(BlockPos pos) { return level.biome; }
-            @Override public Holder<Biome> getBiome(int x, int y, int z) { return level.biome; }
         };
         Structures structures = (Structures) alloc(Structures.class);
         structures.level = level;
@@ -446,7 +441,11 @@ public final class VanillaFinalizeSpawnOracle {
 
         List<String> lines = Files.readAllLines(Path.of(args[0]));
         try (var w = new PrintWriter(Files.newBufferedWriter(Path.of(args[1]), StandardCharsets.UTF_8))) {
-            w.println("halloween " + net.minecraft.util.SpecialDates.isHalloween());
+            // 1.21.7 has no SpecialDates: the Halloween check is inline in
+            // Zombie/AbstractSkeleton.finalizeSpawn (LocalDate month 10,
+            // day 31, bytecode-verified).
+            java.time.LocalDate today = java.time.LocalDate.now();
+            w.println("halloween " + (today.getMonthValue() == 10 && today.getDayOfMonth() == 31));
             for (String raw : lines) {
                 if (raw.isBlank()) continue;
                 Map<String, String> c = new LinkedHashMap<>();
@@ -460,12 +459,12 @@ public final class VanillaFinalizeSpawnOracle {
                     level.biome = biomes.getOrThrow(ResourceKey.create(Registries.BIOME, ResourceLocation.parse(c.getOrDefault("biome", "minecraft:plains"))));
                     level.difficulty = Difficulty.byName(c.getOrDefault("difficulty", "normal"));
                     level.time = Long.parseLong(c.getOrDefault("time", "0"));
-                    level.rules.set(GameRules.SPAWN_MONSTERS, !c.getOrDefault("monsters", "1").equals("0"), null);
+                    // 1.21.7 has no SPAWN_MONSTERS rule and no GameRules.set:
+                    // monster spawning is RULE_DOMOBSPAWNING, set through its
+                    // BooleanValue. No environment attributes in 1.21.7 - the
+                    // moon phase reaches finalizeSpawn via DifficultyInstance.
+                    level.rules.getRule(GameRules.RULE_DOMOBSPAWNING).set(!c.getOrDefault("monsters", "1").equals("0"), null);
                     int phase = Integer.parseInt(c.getOrDefault("phase", "0"));
-                    level.attributes = net.minecraft.world.attribute.EnvironmentAttributeSystem.builder().addStaticLayers(level)
-                        .addConstantLayer(net.minecraft.world.attribute.EnvironmentAttributeMap.builder()
-                            .set(net.minecraft.world.attribute.EnvironmentAttributes.MOON_PHASE, MoonPhase.values()[phase]).build())
-                        .build();
                     String[] p = c.get("pos").split(",");
                     double x = Double.parseDouble(p[0]), y = Double.parseDouble(p[1]), z = Double.parseDouble(p[2]);
                     BlockPos block = BlockPos.containing(x, y, z);
@@ -488,7 +487,7 @@ public final class VanillaFinalizeSpawnOracle {
                     // Chickens already standing by (zombie jockeys look for one).
                     int chickens = Integer.parseInt(c.getOrDefault("chickens", "0"));
                     for (int i = 0; i < chickens; i++) {
-                        Entity chicken = EntityTypes.CHICKEN.create(level, EntitySpawnReason.LOAD);
+                        Entity chicken = EntityType.CHICKEN.create(level, EntitySpawnReason.LOAD);
                         chicken.setPos(x + i, y, z);
                         level.entities.add(chicken);
                     }

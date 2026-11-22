@@ -62,7 +62,8 @@ public final class VanillaPackResourcesOracle {
             Path.of(root.get(2).getAsString()), PackType.CLIENT_RESOURCES, PackSource.DEFAULT, new DirectoryValidator(path -> true)));
         repository.reload();
         for (int i = 3; i < root.size(); i++) {
-            repository.getPack(root.get(i).getAsString()).open().forEach(packs::add);
+            // 1.21.7's Pack.open returns a single PackResources, not a list.
+            packs.add(repository.getPack(root.get(i).getAsString()).open());
         }
         var manager = new MultiPackResourceManager(PackType.CLIENT_RESOURCES, packs);
         ClientLanguage language = ClientLanguage.loadFrom(manager, List.of("en_us"), false);
