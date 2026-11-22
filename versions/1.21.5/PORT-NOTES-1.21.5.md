@@ -14504,12 +14504,31 @@ is the oracle; decompiled code is a reading aid.
     comment in place.
   - Verification: read / only; no code / changed.
 
+- **Item 363 — /warden_spawn_tracker**
+  - /warden_spawn_tracker:
+    verified, no code. The
+    12-line diff is pure
+    predicate spelling - Co
+    mmands.hasPermission(2)
+    in 1.21.6, the
+    equivalent lambda in
+    1.21.5 - with the
+    command at level 2 in
+    both versions. The
+    port's tree already
+    requires GAMEMASTERS
+    (2) on the root. Item 2
+    89/330/338/340/344/355/
+    358's ground, same
+    delta.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **362 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 94/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **363 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 95/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
