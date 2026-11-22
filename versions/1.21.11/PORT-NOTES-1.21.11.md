@@ -12965,3 +12965,15 @@ defaulting to true (handled with a test), `TransmuteResult`'s codec
 (id, count 1..99 default 1, components patch, bare-item alternative)
 and `apply` semantics, and `MapCloningRecipe`'s matches/assemble
 compared line by line.
+
+## Item 753 — client/renderer (new-classes) — NO-CHANGE
+
+11 classes present in 1.21.11, absent in 26.1. `PanoramaRenderer`
+verified against the decompile: spin += realtimeDeltaTicks *
+panoramaSpeed * 0.1, cube at pitch 10, yaw -spin — the Rust matches
+(yaw falls 2.0 deg/sec * speed, pitch 10.0, accumulated rotation).
+`LightTexture` was already established in rank 3 (items 559, 658);
+`CachedPerspectiveProjectionMatrixBuffer` and
+`SpecialBlockModelRenderer` are cited and handled. The other 6 have
+no Rust usage: Blaze3D/render-submit plumbing the native renderer
+never mirrors.
