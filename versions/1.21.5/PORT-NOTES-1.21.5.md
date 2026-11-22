@@ -14208,12 +14208,40 @@ is the oracle; decompiled code is a reading aid.
     has no Rust surface.
   - Verification: read / only; no code / changed.
 
+- **Item 352 — RealmsWorldUpload**
+  - RealmsWorldUpload:
+    verified, no code. The
+    62-line diff is the
+    Realms model change
+    item 269 already
+    ported: 1.21.5 passes
+    RealmsWorldOptions plus
+    a separate slotId int,
+    1.21.6 wraps both in a
+    RealmsSlot and adds a
+    settings argument to
+    updateSlot. The port is
+    already on the 1.21.5
+    form -
+    update_slot(realm_id,
+    slot_id, options) posts
+    the options' JSON to wo
+    rlds/{id}/slot/{slotId}
+    , and upload_world
+    takes slot_id
+    separately. The name()
+    vs getName() difference
+    is a Java
+    record-accessor rename
+    with no Rust surface.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **351 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 83/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **352 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 84/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
