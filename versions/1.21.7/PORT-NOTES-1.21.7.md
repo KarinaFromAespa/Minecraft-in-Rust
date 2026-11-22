@@ -1908,3 +1908,45 @@ Verification, run locally on this VM (`taskset -c 0 cargo test
 325s): full lib suite **471 passed / 0 failed / 3 ignored** (the CI
 baseline was 468 passed / 3 failed / 3 ignored). The datafix subset
 is 35/35 and the `files::upgrade_tests` subset 7/7.
+## Pack compatibility: 26.x fixtures, 1.21.7 formats (2026-11-22)
+
+Three `horizon-client-render` crate-test failures (identical sets
+across crate-tests runs 4, 5 and 6) were test bugs, not product bugs:
+the fixtures carried 26.3-era pack formats (resource 97-98, data 121)
+while vanilla 1.21.7's own `version.json` (in the 1.21.7 server jar)
+pins resource 64 and data 81 -- and the tree's `version.rs`
+constants were already right. The failing tests
+(`create_world_installs_its_packs`, `compatibility_ranges`,
+`overlays_and_filters`) now use 1.21.7 forms: `pack_format` /
+`supported_formats` only, against 64 (resource) and 81 (data).
+
+Fixing the tests exposed two real product divergences in the same
+code, both jar-verified against 1.21.7's `Pack.readPackMetadata` /
+`PackCompatibility.forVersion` (which takes a plain int version --
+1.21.7 has no minor pack versions -- and no Unknown state: an
+unparseable pack.mcmeta means `readMetaAndCreate` returns null and no
+pack is created):
+- a lone `pack_format` above the current version now reads as a
+  single-value range, so the pack is TooNew instead of Unknown (the
+  26.x code refused it for missing min/max_format, fields 1.21.7
+  does not have);
+- `supported_formats` no longer has an upper bound: the range stands
+  when it holds `pack_format`, and otherwise vanilla's fallback
+  applies (warn and default to the single-value `pack_format` range).
+
+Regression tests: the three rewritten tests plus the new
+`pack_format_validation` assertions (a lone pack_format 97 reads as
+its own range; a [34,70] range stands; a pack_format outside its
+range defaults to itself) and the TooNew assertions in
+`compatibility_ranges`. Known gap, not fixed here: the
+min_format/max_format validation machinery and the
+min_format/max_format overlay-entry form are 26.x carry-overs --
+1.21.7 vanilla has neither (its `PackMetadataSection` codec is
+description + required pack_format + optional supported_formats; its
+overlay entries carry `formats` only). They are harmless for real
+1.21.7 packs, which never declare those fields, but a 26.x pack
+dropped into 1.21.7 is judged by the 26.x rules instead of vanilla's
+pack_format-only reading. Stripping the machinery is a re-base
+candidate, not part of this fix. (The `a_resource_pack_overrides_a_texture`
+fixture still says pack_format 97; it never asserts compatibility,
+so it was left alone.)
