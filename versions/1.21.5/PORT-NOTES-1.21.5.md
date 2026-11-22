@@ -15523,12 +15523,34 @@ is the oracle; decompiled code is a reading aid.
     not permission gates.
   - Verification: read / only; no code / changed.
 
+- **Item 401 — CommonColors**
+  - CommonColors: verified,
+    no code. 1.21.6 adds
+    two constants 1.21.5
+    lacks - DARK_GRAY
+    (0xFF404040) and
+    COSMOS_PINK
+    (0xFFFFCCDC) - and
+    neither value appears
+    anywhere in the port.
+    The port's own
+    DARK_GRAY is 0x555555,
+    the chat-formatting
+    dark grey that exists
+    in both versions, not
+    the CommonColors
+    constant. No
+    1.21.6-only colour has
+    leaked into the port's
+    palette.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **400 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 132/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **401 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
