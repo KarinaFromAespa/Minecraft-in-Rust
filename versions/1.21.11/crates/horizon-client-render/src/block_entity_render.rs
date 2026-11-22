@@ -363,7 +363,9 @@ enum Kind {
     EndGateway {
         state: u32,
     },
-    /// Sign text (`SignRenderer` / `HangingSignRenderer`); the boards are block models.
+    /// Sign text only (`SignRenderer` / `HangingSignRenderer`); the boards are
+    /// entity models in 1.21.11 (the sign block models are empty, particle
+    /// texture only) and are not drawn yet — a known gap (item 760).
     Sign {
         hanging: bool,
         wall: bool,

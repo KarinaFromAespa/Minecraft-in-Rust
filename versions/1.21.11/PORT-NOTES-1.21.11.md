@@ -13040,3 +13040,21 @@ system. `MissingBlockModel` verified: `builtin/missing`, a single
 0-16 cube with the `missingno` texture — the Rust resolves the same
 id as the fallback for states no definition covers. The other 4 are
 model-loading/baking plumbing with no Rust usage.
+
+## Item 760 — client/renderer/blockentity (new-classes) — NO-CHANGE apart from a comment; KNOWN GAP
+
+4 classes: `HangingSignRenderer$AttachmentType` (WALL / CEILING /
+CEILING_MIDDLE, from `CeilingHangingSignBlock` + `attached`),
+`HangingSignRenderer$ModelKey`, `SignRenderer` and its `Models`
+(standing + wall). The text path already matches the decompile.
+
+KNOWN GAP (recorded, not fixed — a rendering feature, out of
+rank-4 scope): in 1.21.11 the sign block models are EMPTY (particle
+texture only); the boards are entity models drawn by these two
+renderers (standing: board 24x12x2 + stick; wall: board;
+hanging: board 14x10x2 + plank/chains per attachment type).
+The Rust renders only the sign text, so sign boards are currently
+invisible in the port. The fix is to add the sign layers to
+`entity-models.json` / the MODELS list and a board-drawing arm on
+`Kind::Sign`. The `Kind::Sign` comment claiming "the boards are
+block models" is corrected here.
