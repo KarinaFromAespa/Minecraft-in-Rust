@@ -20,10 +20,22 @@ public final class VanillaRegistryCollisionScanOracle {
         PrintWriter out;int calls,fail;
         void query(String text){out.println(text);if(calls++==fail)throw new Stop();}
     }
-    static PalettedContainerFactory factory;
+    // 1.21.7 has no PalettedContainerFactory and no built-in biome registry
+    // (biomes are datapack registries): ProtoChunk takes a registry, so the
+    // oracle builds a one-biome stand-in. The oracle only reads block states
+    // and collisions, never biome palette ids, so any biome will do.
+    static Registry<Biome> BIOMES=biomes();
+    static Registry<Biome> biomes(){
+        var effects=new BiomeSpecialEffects.Builder().fogColor(0xc0d8ff).waterColor(0x3f76e4).waterFogColor(0x050533).skyColor(0x78a7ff).build();
+        var plains=new Biome.BiomeBuilder().hasPrecipitation(true).temperature(0.8F).downfall(0.4F).specialEffects(effects)
+            .mobSpawnSettings(MobSpawnSettings.EMPTY).generationSettings(BiomeGenerationSettings.EMPTY).build();
+        var registry=new MappedRegistry<Biome>(net.minecraft.core.registries.Registries.BIOME,com.mojang.serialization.Lifecycle.stable());
+        registry.register(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.BIOME,net.minecraft.resources.ResourceLocation.withDefaultNamespace("plains")),plains,RegistrationInfo.BUILT_IN);
+        return registry.freeze();
+    }
     static class Chunk extends ProtoChunk {
         Trace trace;BlockEntity entity;boolean liquidTrace;
-        Chunk(int x,int z,Trace trace,BlockEntity entity){super(new ChunkPos(x,z),UpgradeData.EMPTY,LevelHeightAccessor.create(-16,48),factory,null);this.trace=trace;this.entity=entity;}
+        Chunk(int x,int z,Trace trace,BlockEntity entity){super(new ChunkPos(x,z),UpgradeData.EMPTY,LevelHeightAccessor.create(-16,48),BIOMES,null);this.trace=trace;this.entity=entity;}
         @Override public BlockState getBlockState(BlockPos p){trace.query("block "+p.getX()+" "+p.getY()+" "+p.getZ());return super.getBlockState(p);}
         @Override public BlockEntity getBlockEntity(BlockPos p){trace.query("entity chunk "+p.getX()+" "+p.getY()+" "+p.getZ());return entity;}
         @Override public LevelChunkSection getSection(int index){if(liquidTrace)trace.query("liquid-section "+(index-1));return super.getSection(index);}
@@ -62,14 +74,30 @@ public final class VanillaRegistryCollisionScanOracle {
         void configure(StepLevel level,AABB bounds,float step,boolean grounded,boolean staying){setLevel(level);setBoundingBox(bounds);this.step=step;this.grounded=grounded;this.staying=staying;}
         Vec3 backoff(Vec3 delta,net.minecraft.world.entity.MoverType mover){return maybeBackOffFromEdge(delta,mover);}
     }
+    /**
+     * 26.x's CollisionContext.emptyWithFluidCollisions, which 1.21.7 lacks:
+     * 1.21.7's LiquidBlock returns its shape only when isAbove (which the
+     * empty context answers with the default, true) AND canStandOnFluid
+     * hold, so an empty context with canStandOnFluid forced true is exactly
+     * the fluid-colliding form. 1.21.7's withPosition(null, y) is null-safe
+     * (verified against its bytecode) and is mode 2's position context.
+     */
+    static CollisionContext fluidContext(){
+        var empty=CollisionContext.empty();
+        return new CollisionContext(){
+            @Override public boolean isDescending(){return empty.isDescending();}
+            @Override public boolean isAbove(VoxelShape shape,BlockPos pos,boolean def){return empty.isAbove(shape,pos,def);}
+            @Override public boolean isHoldingItem(net.minecraft.world.item.Item item){return empty.isHoldingItem(item);}
+            @Override public boolean canStandOnFluid(net.minecraft.world.level.material.FluidState above,net.minecraft.world.level.material.FluidState state){return true;}
+            @Override public VoxelShape getCollisionShape(BlockState state,CollisionGetter getter,BlockPos pos){return empty.getCollisionShape(state,getter,pos);}
+        };
+    }
     static long key(int x,int z){return (long)x<<32|Integer.toUnsignedLong(z);}
     static double number(JsonElement v){return Double.longBitsToDouble(Long.parseUnsignedLong(v.getAsString(),16));}
     public static void main(String[] args)throws Exception {
         if(args[0].equals("export")){VanillaSuffocationOracle.main(args);return;}
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();Path dir=Path.of(args[1]);
         VanillaHeightmapOracle.bindTags(JsonParser.parseString(Files.readString(dir.resolve("tags.json"))).getAsJsonObject());
-        Holder<Biome> biome=Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},Biomes.PLAINS);var ids=new IdMapper<Holder<Biome>>();ids.add(biome);
-        factory=new PalettedContainerFactory(Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY),Blocks.AIR.defaultBlockState(),null,Strategy.createForBiomes(ids),biome,null);
         var allocator=Class.forName("sun.misc.Unsafe");var access=allocator.getDeclaredField("theUnsafe");access.setAccessible(true);var unsafe=access.get(null);var allocate=allocator.getMethod("allocateInstance",Class.class);
         var animation=ShulkerBoxBlockEntity.class.getDeclaredField("animationStatus");animation.setAccessible(true);
         var progress=ShulkerBoxBlockEntity.class.getDeclaredField("progress");progress.setAccessible(true);var previous=ShulkerBoxBlockEntity.class.getDeclaredField("progressOld");previous.setAccessible(true);
@@ -92,7 +120,7 @@ public final class VanillaRegistryCollisionScanOracle {
                     if(method.getName().equals("getBlockEntity")){var p=(BlockPos)values[0];trace.query("entity global "+p.getX()+" "+p.getY()+" "+p.getZ());return entities[modes.get(0).getAsInt()];}
                     throw new AssertionError(method);
                 });
-                int mode=f.get("context").getAsInt();var context=mode==0?CollisionContext.empty():mode==1?CollisionContext.emptyWithFluidCollisions():mode==2?CollisionContext.positionContext(number(f.get("y"))):CollisionContext.placementContext(null);
+                int mode=f.get("context").getAsInt();var context=mode==0?CollisionContext.empty():mode==1?fluidContext():mode==2?CollisionContext.withPosition(null,number(f.get("y"))):CollisionContext.placementContext(null);
                 var v=f.getAsJsonArray("box");var bounds=new AABB(number(v.get(0)),number(v.get(1)),number(v.get(2)),number(v.get(3)),number(v.get(4)),number(v.get(5)));
                 if(f.has("movement")){
                     var m=f.getAsJsonObject("movement");var level=(StepLevel)allocate.invoke(unsafe,StepLevel.class);level.trace=trace;level.world=world;level.context=context;
