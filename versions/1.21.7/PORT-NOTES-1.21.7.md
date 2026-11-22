@@ -1635,3 +1635,21 @@ region -- both match vanilla). Leakage audit: 1.21.7 baseline 38 ->
 36, ratchet passes (exit 0). The same two 26.x names are recorded
 leaks for every version 1.20.5-1.21.11 -- carry-over sequenced
 separately (each version needs its own jar check for the tag names).
+
+Upgrade-and-Play follow-up: two test repairs (2026-11-22). The
+first crate-tests run covering horizon-client-lib (run 45035966158)
+found one real regression from the fix: the title test
+`a_world_that_needs_file_fixing_cannot_be_optimized` used a
+DataVersion 3000 fixture, which needs no file fixing under the
+corrected rule (1493 already applied, 26.x fixes past CURRENT) --
+fixture moved to 1343 (1.12), the only version that genuinely needs
+fixing here. Second, the save test
+`world_gen_settings_of_a_world_needing_file_fixes_are_read_in_memory`
+panicked on a clean runner: the 1343 fixture triggers the pre-1.13
+upgrade path, which needs `datafix-tables.json` from the prepared
+`.local`, and `tables()` panics by design when it is absent. The
+test now skips the table-dependent read when
+`horizon_world::datafix::tables_available()` is false (same pattern
+as the horizon-world mirror test); the `needs_file_fixes` gate
+assertion still runs everywhere. The full read still needs a run
+where `.local` exists (the laptop).

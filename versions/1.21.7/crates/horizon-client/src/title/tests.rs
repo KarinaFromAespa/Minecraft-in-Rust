@@ -2262,9 +2262,16 @@ fn a_world_that_needs_file_fixing_cannot_be_optimized() {
     // SelectWorldScreen only enables Edit for a world that needs no file
     // fixing (`LevelSummary.canEdit`), so the data goes stale while the
     // edit screen is open.
+    //
+    // The fixture must be a version that genuinely needs file fixing
+    // under the corrected `requires_file_fixing` rule: 1343 (1.12) is
+    // below 1493 (`LegacyStructureFileFix`), the only fix at or below
+    // CURRENT 4438. The old fixture (3000) needs no fix under the new
+    // rule — 1493 is already applied, and the 26.x fixes are past
+    // CURRENT — so the gate never fired and the test failed.
     let mut root = crate::save::read_dat(&path).unwrap();
     if let Some(Tag::Compound(data)) = root.get_mut("Data") {
-        data.insert("DataVersion".into(), Tag::Int(3000));
+        data.insert("DataVersion".into(), Tag::Int(1343));
     }
     crate::save::write_dat(&path, root).unwrap();
     f.click("Optimize World");
