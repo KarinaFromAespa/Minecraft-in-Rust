@@ -15025,12 +15025,57 @@ is the oracle; decompiled code is a reading aid.
     ground, same removal.
   - Verification: read / only; no code / changed.
 
+- **Item 382 — PaintingVariant**
+  - PaintingVariant:
+    verified, no code, with
+    one recorded edge. The
+    20-line diff is the
+    CODEC: 1.21.5 uses
+    RegistryFileCodec (an
+    id OR an inline
+    definition), 1.21.6
+    RegistryFixedCodec (an
+    id only). The port's
+    registry loading
+    already matches 1.21.5
+    - it reads the data/min
+    ecraft/painting_variant
+    / files as definitions
+    (asset_id, width,
+    height, title, author)
+    - and the network
+    STREAM_CODEC is the
+    holder codec in both
+    versions. The one place
+    the fixed form shows:
+    of_stack reads the
+    painting/variant
+    component as a text id
+    only, so a hand-crafted
+    inline variant
+    component (only
+    reachable via /give or
+    a datapack with an
+    inline object value)
+    falls back to a random
+    placeable variant
+    instead of placing the
+    inline one. Supporting
+    it would need the
+    Painting entity to
+    carry an inline
+    definition, not just an
+    id - out of proportion
+    for this edge, recorded
+    here.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **381 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 113/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **382 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 114/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
