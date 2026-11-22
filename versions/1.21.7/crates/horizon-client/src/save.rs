@@ -8326,6 +8326,16 @@ mod tests {
         )
         .unwrap();
         assert!(needs_file_fixes(&dir));
+        // The 1343 fixture triggers the pre-1.13 upgrade path, which
+        // loads `datafix-tables.json` from the prepared `.local` — absent
+        // on a clean CI runner, where `tables()` panics by design. Skip
+        // the table-dependent read there (the horizon-world mirror test
+        // does the same); the gate assertion above still runs.
+        if !horizon_world::datafix::tables_available() {
+            eprintln!("skipping: no prepared datafix tables");
+            let _ = fs::remove_dir_all(&dir);
+            return;
+        }
         let read = world_gen_settings(&dir).expect("settings");
         assert!(read.get("dimensions").is_some());
         assert!(!world_gen_unstable(&dir));
