@@ -1,34 +1,34 @@
 {
   "schema": "delta-verdict/1",
   "release": "1.21.5",
-  "commit": "7bc14c86e998464897534927199509efc546a219",
+  "commit": "1be6893f08f1544a8dda28c9ec35d5fa63a0181f",
   "tree": ".horizon-ports/1.21.5",
-  "pin": "versions/1.21.5",
+  "pin": "pins/1.21.5",
   "mode": "recorded",
   "verified": false,
   "state": "failed",
-  "checked_at": "2026-11-19T13:48:26Z",
+  "checked_at": "2026-11-22T03:20:50Z",
   "scalars": {
     "tier": "D",
     "suite_pass": null,
     "suite_total": null,
     "suite_exempt": 0,
-    "items_closed": null,
-    "items_total": null,
+    "items_closed": 268,
+    "items_total": 268,
     "items_accepted": 0
   },
-  "index_line": "| 1.21.5 | D | \u2014 | \u2014 | 0 | failed 2026-11-19 |",
+  "index_line": "| 1.21.5 | D | \u2014 | 268/268 | 0 | failed 2026-11-22 |",
   "checks": {
     "D1": {
       "status": "fail",
       "notes": [
-        "tag audit: dead production tag(s): minecraft:beneath_bamboo_podzol_replaceable, minecraft:blocks_dolphin_jump, minecraft:blocks_fluid_flow, minecraft:blocks_lava_fire_spread, minecraft:blocks_motion_in_heightmap (+35 more)"
+        "tag audit: dead production tag(s): minecraft:beneath_bamboo_podzol_replaceable, minecraft:blocks_dolphin_jump, minecraft:blocks_fluid_flow, minecraft:blocks_lava_fire_spread, minecraft:blocks_motion_in_heightmap (+32 more)"
       ],
       "evidence": [
         ".horizon-ports/1.21.5/research-lock.json",
         ".horizon-ports/1.21.5/crates/horizon-core/src/version.rs",
         ".horizon-ports/1.21.5/diff-1.21.6-1.21.5/regen.json",
-        "versions/1.21.5/regen-determinism.json",
+        "pins/1.21.5/regen-determinism.json",
         ".horizon-ports/1.21.5/.local/horizon-client/1.21.5",
         "tools/tag_audit.py"
       ]
@@ -37,39 +37,47 @@
       "status": "pass",
       "notes": [
         "cargo check --workspace --all-targets: 0 errors, 0 warnings",
-        "protocol tests: 429, none failing"
+        "protocol tests: 428, none failing"
       ],
       "evidence": [
-        "versions/1.21.5/ci-out/cargo-check.log",
-        "versions/1.21.5/ci-out/cargo-test-protocol.log"
+        "pins/1.21.5/ci-out/cargo-check.log",
+        "pins/1.21.5/ci-out/cargo-test-protocol.log"
       ]
     },
     "D3": {
-      "status": "fail",
+      "status": "pass",
       "notes": [
-        "rank-1: 9 of 9 item(s) neither closed nor accepted"
+        "rank-1: 9 closed, 0 accepted, 9 total",
+        "rank-2: 259 closed, 0 accepted, 259 total",
+        "totals read from summary.ranks",
+        "rank-3+: Inherits the 1.21.6 delta's answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them."
       ],
       "evidence": [
         ".horizon-ports/1.21.5/diff-1.21.6-1.21.5/report.json",
-        "versions/1.21.5/work-items.json"
-      ]
+        "pins/1.21.5/work-items.json"
+      ],
+      "metrics": {
+        "items_closed": 268,
+        "items_total": 268,
+        "items_accepted": 0
+      }
     },
     "D4": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 7ff1eace921c, HEAD is 7bc14c86e998 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 9d770c5dbe1d, HEAD is 1be6893f08f1 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
-        "versions/1.21.5/profile.json"
+        "pins/1.21.5/profile.json"
       ]
     },
     "D5": {
       "status": "blocked",
       "notes": [
-        "no harness-subset.txt: the era's regression subset is undefined"
+        "profile.json is stamped for commit 9d770c5dbe1d, HEAD is 1be6893f08f1 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
-        "versions/1.21.5/harness-subset.txt"
+        "pins/1.21.5/profile.json"
       ]
     },
     "D6": {
@@ -78,7 +86,7 @@
         "no playtest.md: the play gate has not been recorded"
       ],
       "evidence": [
-        "versions/1.21.5/playtest.md"
+        "pins/1.21.5/playtest.md"
       ]
     }
   }
