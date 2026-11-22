@@ -13374,3 +13374,10 @@ exactly these fields with the codec bounds.
 the registry plumbing for the loot pool entry types. The Rust
 implements all eight entry types by string dispatch in
 `loot.rs::expand`.
+
+## Item 806 — world/level/storage/loot/functions (new-classes) — NO-CHANGE
+
+1 class: `LootItemFunctionType` — a record wrapping a `MapCodec`,
+the registry plumbing for the loot item functions (same pattern
+as item 805). The Rust implements the functions by string
+dispatch in loot.rs.
