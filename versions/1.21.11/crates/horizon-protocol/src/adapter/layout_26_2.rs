@@ -484,7 +484,8 @@ mod tests {
 
     #[test]
     fn a_tag_slot_display_is_a_bare_tag_id_for_26_2() {
-        use crate::packets::recipes::{HolderSet, SlotDisplay};
+        use crate::item::Stack;
+        use crate::packets::recipes::{HolderSet, SlotDisplay, TrimPattern};
         let round = |d: &SlotDisplay| {
             let mut w = Writer::new();
             {
@@ -502,5 +503,25 @@ mod tests {
             round(&items),
             SlotDisplay::Composite(vec![SlotDisplay::Item(1012)])
         );
+        // Every other display round-trips too: its type id is 1.21.11's
+        // numbering in the codec and 26.2's on the wire.
+        for d in [
+            SlotDisplay::Empty,
+            SlotDisplay::AnyFuel,
+            SlotDisplay::Item(1012),
+            SlotDisplay::ItemStack(Stack::new(1012, 1)),
+            SlotDisplay::SmithingTrim {
+                base: Box::new(SlotDisplay::Item(4)),
+                material: Box::new(SlotDisplay::Item(6)),
+                pattern: TrimPattern::Id(2),
+            },
+            SlotDisplay::WithRemainder {
+                input: Box::new(SlotDisplay::Item(2)),
+                remainder: Box::new(SlotDisplay::Item(3)),
+            },
+            SlotDisplay::Composite(vec![SlotDisplay::Item(1012), SlotDisplay::Empty]),
+        ] {
+            assert_eq!(round(&d), d);
+        }
     }
 }

@@ -604,6 +604,29 @@ above), 8 unmeasured. The behaviour port (815 ranked items) is the
 remaining work.
 Status in [VERSIONS.md](../../VERSIONS.md): **in progress**.
 
+## D2 fix — SlotDisplay type ids renumbered on write (final proof run 44972445234)
+
+The final proof run failed D2 on one protocol test,
+`adapter::layout_26_2::tests::a_tag_slot_display_is_a_bare_tag_id_for_26_2`:
+a tag slot display round-tripped as `Item(16)` instead of
+`Tag(Tag("minecraft:planks"))`. Root cause was item 350 (commit
+7e15d4d2), which renumbered the `SlotDisplay` codec from 26.x numbering
+to 1.21.11's (Tag 6 → 4, Item 4 → 2, …) and updated the read path —
+which translates type ids through `ids::slot_display` — but left the
+write path emitting the raw 1.21.11 ids. Written down to 26.2, the tag
+id 4 is 26.2's Item, and the tag's bare string was then read as an
+item varint (16 is the length of "minecraft:planks"). Before item 350
+the codec used 26.x numbering, which coincides with 26.2's, so the raw
+writes were accidentally correct. Fix
+(`crates/horizon-protocol/src/packets/recipes.rs`): `SlotDisplay::write`
+now routes every type id through `ids::slot_display`, which is identity
+with no renumbering active and the 26.2 wire id when writing down. The
+layout_26_2 test now round-trips every display variant, not just the
+tag. Verified: `cargo test -p horizon-protocol --lib` 438 pass / 2 fail
+— the 2 are the known sandbox-network pair, same as the tree's baseline;
+all 8 layout_26_2 tests pass. (Branch `fix/1.21.11-d2-tag-slot`; merges
+into `behaviour/1.21.11` before that branch lands on main.)
+
 ## CI profile — port-verify v5, run 43114684827 (2026-11-11)
 
 The first full 17-harness profile on GitHub runners, against the
