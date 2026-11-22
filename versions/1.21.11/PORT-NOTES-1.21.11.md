@@ -13083,3 +13083,13 @@ and lie-down lerps verified against the decompile.
 file). The respawn sequence was verified tick by tick against the
 decompiled enum bodies (growl ticks, the %40 pillar cycle, the
 power-5 spike rebuild and power-6 crystal explosions).
+
+## Item 764 — client/gui/components/debug (new-classes) — NO-CHANGE
+
+2 classes: `DebugEntryLookingAtBlock`, `DebugEntryLookingAtFluid`
+(1.21.11's split entries; 26.1 unified them). Both are
+implemented (`debug_lines.rs` over `debug_overlay::state_lines`
+/ `tag_lines`) and verified against the decompile: the block pick
+excludes fluids, the fluid pick includes them, and both print the
+underlined "Targeted Block/Fluid" heading, the registry key,
+green/red boolean properties and `#tag` lines.
