@@ -16137,12 +16137,41 @@ is the oracle; decompiled code is a reading aid.
     no port surface.
   - Verification: read / only; no code / changed.
 
+- **Item 421 — TrialSpawnerData**
+  - TrialSpawnerData:
+    verified, no code. The
+    1.21.5-only server-side
+    data holder (player
+    detection, spawn
+    timing, ominous
+    transformation, the
+    display entity and
+    spin) is what the
+    port's singleplayer sim
+    implements in
+    mobs::trial_spawner:
+    Trial Omen 18000 ticks
+    per Bad Omen level,
+    player scans every 20
+    ticks, and the update
+    tag carrying
+    next_mob_spawns_at only
+    while ACTIVE plus
+    spawn_data - all three
+    match 1.21.5's
+    constants and
+    getUpdateTag exactly.
+    The 1.21.6 refactor of
+    the class has no client
+    surface.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **420 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 19/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **421 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 20/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
