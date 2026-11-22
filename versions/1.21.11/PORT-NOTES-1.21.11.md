@@ -12888,3 +12888,7 @@ Visibility only.
 ## Item 746 — horizon-port-pack/src/upgrade/settings.rs (OreVeinifier$VeinType) — NO-CHANGE
 
 Visibility only.
+
+## Item 747 — horizon-world/src/level/ticks.rs (RedstoneTorchBlock$Toggle) — NO-CHANGE
+
+Visibility only.
