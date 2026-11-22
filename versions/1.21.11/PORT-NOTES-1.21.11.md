@@ -13269,3 +13269,9 @@ out of Mojang's obfuscator. No runtime behaviour.
 record `ItemParser` returns. The Rust ports `ItemParser` in full
 (`horizon-command/src/item.rs`), including the 1.21.11-only
 `validateComponents`.
+
+## Item 790 — commands/arguments/selector (new-classes) — NO-CHANGE
+
+1 class: `SelectorPattern` — a pattern-string + resolved-selector
+record for selectors stored in data. The Rust ports
+`EntitySelectorParser` in full and parses selectors on demand.
