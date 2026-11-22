@@ -243,7 +243,7 @@ impl PackText {
         })
     }
 
-    /// The frame's blocks, as `GuiRenderer` sets them for the GUI.
+    /// The frame's blocks, as the GUI pipeline sets them.
     pub(super) fn prepare(
         &self,
         uploads: &mut crate::gfx::upload::Uploads,
@@ -270,7 +270,7 @@ impl PackText {
 }
 
 /// The std140 blocks: `Globals` (`GlobalSettingsUniform.update`: the camera at the origin,
-/// `GlintAlpha`, `GameTime`, `ScreenSize`), `Projection` (`GuiRenderer`'s orthographic GUI
+/// `GlintAlpha`, `GameTime`, `ScreenSize`), `Projection` (the GUI's orthographic
 /// projection, 1000 to 11000 deep, in GL's depth range), `DynamicTransforms` (the GUI's model view
 /// moving 11000 back, colour modulator white) and an empty `Fog`.
 /// `scale`: target pixels per GUI pixel (`batch.scale`, times `HudRenderer::zoom`).

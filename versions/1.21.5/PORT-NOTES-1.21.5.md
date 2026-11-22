@@ -13623,12 +13623,55 @@ is the oracle; decompiled code is a reading aid.
     surface.
   - Verification: read / only; no code / changed.
 
+- **Item 333 — GuiRenderer package**
+  - GuiRenderer package:
+    comment fix. The whole 
+    net/minecraft/client/gu
+    i/render package -
+    GuiRenderer plus its
+    $1, $AtlasPosition,
+    $Draw and $MeshToDraw
+    nested classes - is
+    1.21.6-only; 1.21.5
+    renders the GUI through
+    GuiGraphics and
+    RenderType, and the
+    port is wgpu-native
+    with its own HUD batch,
+    so the package has no
+    surface. Two doc
+    comments in this item's
+    own module,
+    hud/pack_text.rs, cited
+    GuiRenderer as the
+    thing setting the GUI's
+    uniform blocks and
+    orthographic
+    projection; they now
+    say the GUI pipeline
+    and the GUI's
+    projection. The one
+    remaining citation, in
+    item_render/gui.rs,
+    stays: it is a
+    deliberate
+    1.21.5-vs-1.21.6
+    contrast (1.21.5 draws
+    an item wherever its
+    geometry goes, 1.21.6's
+    GuiRenderer clips it to
+    its slot - item 121's
+    ground).
+  - Verification: cargo check -j 1 -p
+    horizon-client-render
+    --lib passed (18s).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **332 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 64/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **333 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 65/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
