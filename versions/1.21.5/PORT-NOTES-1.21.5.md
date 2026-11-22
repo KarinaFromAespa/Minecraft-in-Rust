@@ -15405,12 +15405,37 @@ is the oracle; decompiled code is a reading aid.
     match the 1.21.5 list.
   - Verification: read / only; no code / changed.
 
+- **Item 397 — SectionMesh**
+  - SectionMesh: verified,
+    no code. The Java class
+    is 1.21.6-only, part of
+    that version's
+    chunk-render pipeline
+    refactor; 1.21.5 has no
+    such class. The port
+    does have a type named
+    SectionMesh, but it is
+    the port's own mesh
+    data - solid and
+    translucent vertex
+    buckets, a visibility
+    bitmask, a packed
+    layout - not a port of
+    the Java class, and
+    nothing in it models
+    the 1.21.6 pipeline.
+    The section meshing is
+    the port's own wgpu
+    path (item 283's
+    ground).
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **396 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 128/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **397 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 129/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
