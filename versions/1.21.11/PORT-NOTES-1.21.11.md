@@ -13381,3 +13381,23 @@ implements all eight entry types by string dispatch in
 the registry plumbing for the loot item functions (same pattern
 as item 805). The Rust implements the functions by string
 dispatch in loot.rs.
+
+## Item 807 — world/level/storage/loot/predicates (new-classes) — NO-CHANGE
+
+1 class: `LootItemConditionType` — a record wrapping a `MapCodec`,
+the registry plumbing for the loot item conditions (same pattern
+as items 805/806). The Rust implements the conditions by string
+dispatch in loot.rs.
+
+## Item 808 — world/level/storage/loot/providers/number (new-classes) — NO-CHANGE
+
+1 class: `LootNumberProviderType` — a record wrapping a
+`MapCodec`, the registry plumbing for the loot number providers
+(same pattern as items 805-807). The Rust implements the
+providers by string dispatch.
+
+## Item 809 — world/level/storage/loot (new-classes) — NO-CHANGE
+
+1 class: `LootDataType$Validator` — a single-method interface for
+validating loaded loot data. Pure datapack validation (like item
+773's `CriterionValidator`), no gameplay behaviour.
