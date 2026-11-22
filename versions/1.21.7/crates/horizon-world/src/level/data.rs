@@ -9,7 +9,9 @@ use crate::{
     compression::invalid,
     fluid::{FluidBlockBindings, FluidKind, FluidMask, FluidState},
     registry::{BlockRegistry, BlockStateId, BlockTableFile},
-    worldgen::tags::TagDefinitions,
+    worldgen::tags::{
+        LEGACY_SUPPORT_FLUID_TAGS, TagDefinitions, synthesize_legacy_support_block_tags,
+    },
 };
 use horizon_core::geometry::{Aabb, Direction, ShapeOp, Vec3, VoxelShape};
 use serde_json::Value;
@@ -749,9 +751,15 @@ fn build_with_gameplay<G: GameplayStateSource>(
             )
             .map_err(|e| invalid(e.to_string()))?;
     }
-    let built = definitions
+    let mut built = definitions
         .build(|name, _| table.block_by_name(name).map(|_| name.to_owned()))
         .map_err(|e| invalid(e.to_string()))?;
+    // 1.21.7 has no 1.21.11-era `supports_*` tags: without them the
+    // runtime survival checks in survive.rs read empty sets and
+    // hand-planted saplings, crops, cacti and sugar cane fail survival.
+    // Synthesize them from their 1.21.7 equivalents (same mappings as
+    // worldgen's GeneratorData::load, jar-verified).
+    synthesize_legacy_support_block_tags(&mut built.tags);
     let mut all_tags = HashMap::new();
     for (name, members) in &built.tags {
         let mut set = BlockSet::with_capacity(table.block_count());
@@ -810,9 +818,29 @@ fn build_with_gameplay<G: GameplayStateSource>(
             )
             .map_err(|e| invalid(e.to_string()))?;
     }
-    let fluid_built = fluid_definitions
+    let mut fluid_built = fluid_definitions
         .build(|name, _| FluidKind::from_name(name).map(|kind| kind.index() as u32))
         .map_err(|e| invalid(e.to_string()))?;
+    // 1.21.7 has no `supports_*` fluid tags either: fill the three the
+    // runtime reads — sugar cane from the whole `#water` tag (still +
+    // flowing, `FluidState.is(FluidTags.WATER)`), lily pad and frogspawn
+    // from still water only (`getType() == Fluids.WATER`). Tags the
+    // bundle already has keep their own members.
+    let water_kinds = fluid_built.tags.get("minecraft:water").cloned();
+    for (name, whole_water) in LEGACY_SUPPORT_FLUID_TAGS {
+        if fluid_built.tags.contains_key(name) {
+            continue;
+        }
+        let members = if whole_water {
+            match &water_kinds {
+                Some(members) if !members.is_empty() => members.clone(),
+                _ => continue,
+            }
+        } else {
+            vec![FluidKind::Water.index() as u32]
+        };
+        fluid_built.tags.insert(name.to_owned(), members);
+    }
     let fluid_mask = |name: &str| -> FluidMask {
         fluid_built
             .tags

@@ -3042,6 +3042,103 @@ fn torch_survives_on_a_box_opening_down_but_not_on_an_open_lid() {
 }
 
 #[test]
+fn hand_planted_plants_survive_on_their_supports() {
+    // The 1.21.11 `supports_*` tags don't exist in 1.21.7 data. The trees
+    // fix synthesized them for worldgen only (`GeneratorData::load`), so
+    // hand-planted saplings, crops, cacti and sugar cane still failed
+    // survival at runtime: every `supports_*` read in survive.rs resolved
+    // to an empty set. The runtime loader now synthesizes the same tags
+    // (jar-verified 1.21.7 equivalents); this pins the runtime path.
+    let mut w = world!();
+    let survives = |w: &mut World<'_>, state: BlockStateId, pos: BlockPos| {
+        w.b()
+            .sim(&mut w.level, &mut w.ticks)
+            .can_survive(state, pos)
+    };
+    // One plant per column, 3 apart: cactus checks its horizontal
+    // neighbours, and sugar cane checks the blocks beside its ground.
+    let cases: &[(&str, &[(&str, &str)], &str, &[(&str, &str)], bool)] = &[
+        ("oak_sapling", &[], "dirt", &[], true),
+        ("birch_sapling", &[], "farmland", &[], true),
+        ("oak_sapling", &[], "stone", &[], false),
+        ("wheat", &[], "farmland", &[], true),
+        ("wheat", &[], "dirt", &[], false),
+        ("cactus", &[], "sand", &[], true),
+        ("cactus", &[], "dirt", &[], false),
+        ("bamboo", &[], "dirt", &[], true),
+        ("azalea", &[], "dirt", &[], true),
+        ("nether_wart", &[], "soul_sand", &[], true),
+        ("wither_rose", &[], "netherrack", &[], true),
+        ("chorus_flower", &[], "end_stone", &[], true),
+        ("chorus_plant", &[], "end_stone", &[], true),
+        ("big_dripleaf", &[], "dirt", &[], true),
+        ("small_dripleaf", &[], "clay", &[], true),
+        ("lily_pad", &[], "water", &[], true),
+        ("frogspawn", &[], "water", &[], true),
+        // Flowing water is not still water (`getType() == Fluids.WATER`).
+        ("lily_pad", &[], "water", &[("level", "1")], false),
+        ("frogspawn", &[], "water", &[("level", "1")], false),
+        // Lily pads sit on ice blocks — ice and frosted ice only (packed
+        // ice is a plain Block and blue ice a HalfTransparentBlock).
+        ("lily_pad", &[], "frosted_ice", &[], true),
+        ("lily_pad", &[], "ice", &[], true),
+        ("lily_pad", &[], "packed_ice", &[], false),
+        ("lily_pad", &[], "blue_ice", &[], false),
+    ];
+    for (i, (plant, plant_props, ground, ground_props, expected)) in cases.iter().enumerate() {
+        let x = (i as i32) * 3;
+        let ground_pos = BlockPos::new(x, 1, 0);
+        let plant_pos = BlockPos::new(x, 2, 0);
+        w.put(ground_pos, w.id(ground, ground_props));
+        let state = w.id(plant, plant_props);
+        w.put(plant_pos, state);
+        assert_eq!(
+            survives(&mut w, state, plant_pos),
+            *expected,
+            "{plant} on {ground} {ground_props:?}"
+        );
+    }
+    // Cocoa hangs off a jungle log (the whole jungle_logs tag).
+    let cocoa_pos = BlockPos::new(0, 2, 6);
+    let log_pos = BlockPos::new(0, 2, 5);
+    w.put(log_pos, w.id("jungle_log", &[("axis", "y")]));
+    let cocoa = w.id("cocoa", &[("facing", "north")]);
+    w.put(cocoa_pos, cocoa);
+    assert!(
+        survives(&mut w, cocoa, cocoa_pos),
+        "cocoa survives on a jungle log"
+    );
+    w.put(log_pos, w.id("oak_log", &[("axis", "y")]));
+    assert!(
+        !survives(&mut w, cocoa, cocoa_pos),
+        "cocoa does not survive on an oak log"
+    );
+    // Sugar cane needs dirt/sand below and water (or frosted ice) beside
+    // its ground.
+    let cane_pos = BlockPos::new(0, 2, 12);
+    let cane_ground = BlockPos::new(0, 1, 12);
+    let cane_water = BlockPos::new(1, 1, 12);
+    w.put(cane_ground, w.id("dirt", &[]));
+    w.put(cane_water, w.id("water", &[]));
+    let cane = w.id("sugar_cane", &[]);
+    w.put(cane_pos, cane);
+    assert!(
+        survives(&mut w, cane, cane_pos),
+        "sugar cane survives on dirt beside water"
+    );
+    w.put(cane_water, w.id("air", &[]));
+    assert!(
+        !survives(&mut w, cane, cane_pos),
+        "sugar cane does not survive on dirt with nothing beside it"
+    );
+    w.put(cane_water, w.id("frosted_ice", &[]));
+    assert!(
+        survives(&mut w, cane, cane_pos),
+        "sugar cane survives on dirt beside frosted ice"
+    );
+}
+
+#[test]
 fn creative_breaking_piston_head_does_not_drop_piston() {
     for (piston_name, head_type) in [("piston", "normal"), ("sticky_piston", "sticky")] {
         let mut w = world!();

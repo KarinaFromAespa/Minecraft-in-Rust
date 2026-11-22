@@ -1217,3 +1217,64 @@ before correcting (not done here). Regression tests: `sun_burn_tests`
 not at night, not under a roof; helmet wears instead of burning; zombie
 and phantom burn; drowned, zombie horse and husk do not) and
 `legacy_day_timeline_feeds_sky_darken` (environment.rs), all passing.
+
+Hand-planted plants fail survival: the runtime half of the trees bug
+(2026-11-22). The trees fix synthesized the missing `supports_*` tags
+only in worldgen, but the runtime survival checks in
+`level/survive.rs` read the same tags from `b.tags` and still got
+empty sets, so hand-planted saplings, crops, cacti and sugar cane
+failed survival in-game while worldgen trees decorated fine. Fix:
+`synthesize_legacy_support_tags` moved to `worldgen/tags.rs`
+(shared), split into block synthesis (19 tags) and fluid synthesis
+(3 tags via `LEGACY_SUPPORT_FLUID_TAGS`), and `level/data.rs`
+`build_with_gameplay` now applies both before `Tags::resolve` /
+`fluid_mask` — the single synthesis point, since `load` and
+`load_with_gameplay` both funnel through it. Tags the bundle already
+has keep their own members. New mappings, all verified against the
+1.21.7 jar's bytecode: `supports_bamboo` =
+`#bamboo_plantable_on` (`BambooStalkBlock`/`BambooSaplingBlock`),
+`supports_cocoa` = `#jungle_logs`, `supports_crops` = farmland,
+`supports_chorus_plant` / `supports_chorus_flower` = end stone,
+`supports_big_dripleaf` = `#big_dripleaf_placeable`,
+`supports_small_dripleaf` = `#small_dripleaf_placeable`,
+`supports_lily_pad` = ice + frosted ice (block) and still water
+only (fluid), `supports_frogspawn` = still water only (fluid).
+`supports_frogspawn` is deliberately NOT synthesized as a block tag:
+`FrogspawnBlock.mayPlaceOn` is fluid-only in the 1.21.7 jar, so the
+block tag is correctly empty. Lily-pad subtlety: packed ice and blue
+ice are NOT `IceBlock` subclasses in 1.21.7 (packed ice is a plain
+`Block`, blue ice a `HalfTransparentBlock`), so only ice and
+frosted ice count as ground — the test pins both negatives. A second
+defect surfaced while testing: 1.21.7 still names the class
+`WaterlilyBlock` while the port's class table carries the later
+`LilyPadBlock`, so the `LilyPad` arm in `survive.rs` never ran at
+all; `level/classes.rs` now accepts the legacy name (the `classes!`
+macro takes `|` aliases). Regression tests:
+`legacy_support_tags_synthesize_from_equivalents` moved to
+`worldgen/tags.rs` and extended (all runtime tags, flowing-water and
+packed/blue-ice negatives, frogspawn-block absence), and
+`hand_planted_plants_survive_on_their_supports` (level/tests.rs) —
+a 23-case grid plus cocoa and sugar-cane cases through the runtime
+path; it fails with the synthesis disabled (negative control). The
+fix also repairs three pre-existing level failures
+(`grass_bone_meal_places_grass_and_flowers`,
+`tall_flowers_and_seagrass`, `two_by_two_saplings_grow`). Suites:
+worldgen 147 pass / 0 fail; level 113 pass / 10 fail, all 10
+pre-existing with identical symptoms on the unmodified tree
+(baseline 109 pass / 13 fail). Leakage audit: 1.21.7 leaks 62 -> 39;
+all 23 `supports_*` findings now `accepted` via
+`tools/leakage-exceptions.json` (one entry per name, with the
+jar-verified reason), and the baseline shrank 59 -> 39 names. Known
+adjacent gaps, not fixed here: `support_override_cactus_flower` is
+a separate tag family (cactus flower has an
+`is_face_sturdy_center` fallback, so it is a lesser gap); 28 class
+names in the 1.21.7 export don't map to the port's class table —
+the ones with live `survive.rs` arms are `FarmBlock` (farmland
+decay never runs), `FungusBlock` and `RootsBlock` (nether fungi /
+roots fall back to `supports_vegetation` instead of their
+`support_tag`), and `RedStoneWireBlock` (capital S; the redstone
+wire arm never runs); `cannot_support_*` /
+`enables_bubble_column_*` tags are still absent (bubble columns
+never form, parity-sweep G1). Same synthesis is needed in
+1.21.5/1.21.6/1.21.8/1.21.9/1.21.10 — carry-over sequenced
+separately.
