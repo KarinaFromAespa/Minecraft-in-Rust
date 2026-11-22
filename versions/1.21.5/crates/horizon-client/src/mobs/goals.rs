@@ -1421,7 +1421,7 @@ impl Goal for MeleeAttack {
             return !m.ai.nav.is_done();
         }
         // `MeleeAttackGoal.canContinueToUse`'s follow branch re-checks
-        // `isWithinHome(target.blockPosition())` and refuses a spectator or
+        // `isWithinRestriction(target.blockPosition())` and refuses a spectator or
         // creative player.
         let target_block = [
             t.position.x.floor() as i32,
@@ -1896,7 +1896,7 @@ impl Goal for HurtByTarget {
             && !(t.is_player && t.creative)
             // HurtByTargetGoal.canUse ends with canAttack(lastHurtByMob).
             && !m.spares_target(cx.w, by)
-            // TargetGoal.canAttack: Mob.isWithinHome(target.blockPosition()).
+            // TargetGoal.canAttack: Mob.isWithinRestriction(target.blockPosition()).
             && m.within_home_at(t.position)
     }
     fn can_continue(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
@@ -3388,7 +3388,7 @@ mod melee_continue_tests {
     }
 
     /// `MeleeAttackGoal.canContinueToUse`'s follow branch refuses a target
-    /// outside the mob's home (`isWithinHome(target.blockPosition())`).
+    /// outside the mob's home (`isWithinRestriction(target.blockPosition())`).
     #[test]
     fn a_chase_stops_outside_the_mobs_home() {
         let mut outcomes = None;

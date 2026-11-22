@@ -276,7 +276,7 @@ impl Goal for WanderToPosition {
         }
     }
 }
-/// `Mob.isWithinHome`.
+/// `Mob.isWithinRestriction`.
 pub fn within_home(m: &Mob) -> bool {
     let Some((home, radius)) = m.ai.home else {
         return true;

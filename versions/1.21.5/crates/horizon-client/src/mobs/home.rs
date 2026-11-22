@@ -1,9 +1,9 @@
-//! `Mob.isWithinHome`: the home a mob is restricted to (`home_pos`,
+//! `Mob.isWithinRestriction`: the home a mob is restricted to (`home_pos`,
 //! `home_radius`).
 use crate::mobs::Mob;
 use horizon_core::geometry::Vec3;
 
-/// `Mob.isWithinHome(BlockPos)`.
+/// `Mob.isWithinRestriction(BlockPos)`.
 pub fn within_home(c: [i32; 3], r: i32, p: [i32; 3]) -> bool {
     let d = |i: usize| i64::from(c[i] - p[i]);
     let r = i64::from(r);
@@ -11,7 +11,7 @@ pub fn within_home(c: [i32; 3], r: i32, p: [i32; 3]) -> bool {
 }
 
 impl Mob {
-    /// `Mob.isWithinHome(BlockPos.containing(at))`; true with no home.
+    /// `Mob.isWithinRestriction(BlockPos.containing(at))`; true with no home.
     pub(super) fn within_home_at(&self, at: Vec3) -> bool {
         let block = [
             at.x.floor() as i32,

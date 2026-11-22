@@ -1,6 +1,6 @@
 //! A zombie hurt by a cow takes revenge (`HurtByTargetGoal`) only when the
 //! cow stands inside the zombie's home: `TargetGoal.canAttack` ends with
-//! `Mob.isWithinHome(target.blockPosition())`. The zombies run their real
+//! `Mob.isWithinRestriction(target.blockPosition())`. The zombies run their real
 //! goals on the game's ticks; tools/ and vanilla 26.3 measured the same
 //! scene (no home and radius 12 retaliate, radius 3 does not).
 use super::super::*;

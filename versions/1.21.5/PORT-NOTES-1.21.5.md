@@ -13239,12 +13239,41 @@ is the oracle; decompiled code is a reading aid.
     the tooltips.
   - Verification: read / only; no code / changed.
 
+- **Item 322 — TargetGoal home check**
+  - TargetGoal: comment fix
+    only. The 11-line diff
+    is a single rename -
+    TargetGoal.canAttack
+    calls Mob.isWithinHome
+    in 1.21.6 and
+    Mob.isWithinRestriction
+    in 1.21.5, same body
+    (squared distance under
+    the radius squared,
+    true with no home). The
+    port already applies
+    that check, as
+    within_home_at, in the
+    HurtByTargetGoal canUse
+    and the melee follow
+    branch, so no behaviour
+    changed; the eight doc
+    citations of the 1.21.6
+    name now cite
+    isWithinRestriction.
+    The Rust function name
+    within_home is internal
+    and stays.
+  - Verification: cargo check -j 1 -p
+    horizon-client --lib
+    passed (66s).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **321 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 53/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **322 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 54/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
