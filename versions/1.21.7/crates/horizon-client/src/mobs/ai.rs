@@ -5224,16 +5224,18 @@ mod sun_burn_tests {
         let _ = ran;
     }
 
-    /// The jar's burn list, not the 26.x one: a zombie (Zombie.aiStep,
-    /// gated on isSunSensitive) and a phantom (Phantom.aiStep) burn.
+    /// The jar's burn list, not the 26.x one: a zombie and a drowned
+    /// (Zombie.aiStep, gated on isSunSensitive — the drowned declares
+    /// neither method and inherits both from Zombie) and a phantom
+    /// (Phantom.aiStep) burn.
     #[test]
-    fn zombie_and_phantom_burn_in_daylight() {
+    fn zombie_drowned_and_phantom_burn_in_daylight() {
         let ran = with_built_test_world(
             &[],
             |_, _| {},
             |w, types| {
                 let day = noon(w);
-                for id in ["minecraft:zombie", "minecraft:phantom"] {
+                for id in ["minecraft:zombie", "minecraft:drowned", "minecraft:phantom"] {
                     let mut m = mob_of(types, id);
                     burn_for(&mut m, &day, 400);
                     assert!(m.is_on_fire(), "{id} did not catch fire in daylight");
@@ -5244,21 +5246,18 @@ mod sun_burn_tests {
         let _ = ran;
     }
 
-    /// The jar's non-burners: the drowned and the zombie horse never call
-    /// isSunBurnTick, and the husk's isSunSensitive returns false. None of
-    /// them may catch fire in open daylight.
+    /// The jar's non-burners: the zombie horse never calls
+    /// isSunBurnTick (no aiStep/isSunSensitive anywhere in its
+    /// chain), and the husk's isSunSensitive returns false. Neither
+    /// may catch fire in open daylight.
     #[test]
-    fn drowned_zombie_horse_and_husk_do_not_burn_in_daylight() {
+    fn zombie_horse_and_husk_do_not_burn_in_daylight() {
         let ran = with_built_test_world(
             &[],
             |_, _| {},
             |w, types| {
                 let day = noon(w);
-                for id in [
-                    "minecraft:drowned",
-                    "minecraft:zombie_horse",
-                    "minecraft:husk",
-                ] {
+                for id in ["minecraft:zombie_horse", "minecraft:husk"] {
                     let mut m = mob_of(types, id);
                     burn_for(&mut m, &day, 400);
                     assert_eq!(m.fire_ticks, 0, "{id} burned in daylight");

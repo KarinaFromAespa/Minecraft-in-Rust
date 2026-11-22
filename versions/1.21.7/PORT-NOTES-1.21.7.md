@@ -1575,3 +1575,36 @@ these presets, 4771) plus the schema walker's nested visits
 Worth a run where memory allows before relying on it. Suites:
 `horizon-world` `datafix::files::upgrade_tests` 6 pass / 1 fail
 (the pre-existing one above).
+
+Drowned DOES burn in daylight: 651b43d3 was partly wrong (2026-11-22).
+The parity sweep's Batch 3 (item B3-G08) contradicted the burn-list
+fix: it said the drowned is missing from `burns_in_day`. A jar
+re-check (twice, against the named 1.21.7 server jar) proves the
+sweep right and the fix wrong about the drowned. `Drowned extends
+Zombie` and declares NEITHER `aiStep` NOR `isSunSensitive` — it
+inherits both from Zombie, and `Zombie.aiStep` burns when
+`isSunSensitive() && isSunBurnTick()` (Zombie.isSunSensitive returns
+true; headgear absorbs, else ignite 8 s). `Mob.isSunBurnTick`
+excludes being in water/rain/powder snow, so a drowned IN water does
+not burn, but a drowned ON LAND in daylight does — that is vanilla
+behaviour. The mechanism is proven by the husk, which also extends
+Zombie but OVERRIDES `isSunSensitive()` to return false; that is how
+vanilla exempts a Zombie subclass, and the drowned has no such
+override. The zombie villager is exactly like the drowned (declares
+neither method, burns purely by inheritance) and IS in the fix's
+list — same inheritance, opposite treatment. The fix agent had
+grepped each class for a direct `isSunBurnTick` call site and missed
+inheritance. The other two 651b43d3 removals are correct and stand:
+the zombie horse has no aiStep/isSunSensitive anywhere in its chain,
+and the zombie nautilus does not exist in the 1.21.7 jar at all; the
+husk stays out (isSunSensitive false). Vanilla has no `burns_in_day`
+list or tag; the behaviour is emergent. The port's synthesized table
+is now the fix's 7 plus the drowned: skeleton, stray, bogged, wither
+skeleton, zombie, zombie villager, phantom, drowned
+(mobs/species.rs). Tests: the drowned moved out of the non-burners
+test into the burners test (`zombie_drowned_and_phantom_burn_in_
+daylight`; the zombie-horse and husk halves stay in
+`zombie_horse_and_husk_do_not_burn_in_daylight`). The E6 re-base
+triage addendum (84200bac) carried the 651b43d3 list as a shared fix
+to propagate — corrected on the e6-rebase-triage branch so the
+drowned error is not propagated to siblings.

@@ -1542,15 +1542,18 @@ impl Def {
             // Who `Mob.isSunBurnTick` burns in 1.21.7, verified against the
             // vanilla jar: AbstractSkeleton's aiStep (skeleton, stray,
             // bogged, wither skeleton), Zombie's aiStep gated on
-            // isSunSensitive (zombie, zombie villager; the husk returns
-            // false), and Phantom's aiStep. The drowned and the zombie
-            // horse never call it, and there is no `burn_in_daylight`
-            // entity tag in 1.21.7's data; the zombie nautilus does not
-            // exist in this version.
+            // isSunSensitive (zombie, zombie villager, drowned — the
+            // drowned declares neither aiStep nor isSunSensitive and
+            // inherits both from Zombie; the husk overrides
+            // isSunSensitive to false), and Phantom's aiStep. The
+            // zombie horse never calls it, and there is no
+            // `burn_in_daylight` entity tag in 1.21.7's data; the
+            // zombie nautilus does not exist in this version.
             burns_in_day: matches!(
                 s,
                 S::Zombie
                     | S::ZombieVillager
+                    | S::Drowned
                     | S::Skeleton
                     | S::Stray
                     | S::Bogged
