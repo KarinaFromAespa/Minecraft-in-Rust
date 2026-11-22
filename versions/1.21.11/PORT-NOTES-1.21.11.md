@@ -12804,3 +12804,7 @@ literal (7 aliases added); the 5 `Speleothem` arms gained
 `Class::Bed`. All 8 `Interface` names exist in 1.21.11. The 4
 26.3-only blocks (PotentSulfur, SulfurSpike, StrawBed,
 ShelfMushroom) correctly never match.
+
+## Item 727 — worldgen/structure/formations.rs (StructurePlacement$ExclusionZone, LiquidSettings) — NO-CHANGE
+
+Visibility plus a dropped `final` on the CODEC field; same value.
