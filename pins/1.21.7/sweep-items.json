@@ -42,6 +42,16 @@
         "gap": 22
       },
       "status": "complete"
+    },
+    "2": {
+      "name": "Redstone + pistons",
+      "date": "2026-11-22",
+      "checks": {
+        "gap": 16,
+        "pass": 34,
+        "total": 50
+      },
+      "status": "complete"
     }
   },
   "items": [
@@ -468,6 +478,110 @@
       "severity": "minor",
       "status": "accepted-gap",
       "title": "NBT separator ignored + per-player resolution (item 512) \u2014 accepted notes"
+    },
+    {
+      "evidence": "Vanilla class is RedStoneWireBlock (capital S); the 1.21.7 export says so, but level/classes.rs:227 only knows 'RedstoneWireBlock', so the wire resolves to Class::Block and neighborChanged/onPlace/updateShape/vanilla_signal/interact/placement/survival arms never run. Wire power stays 0, wire emits no signal. Explains both pilot wire-test failures (first assert: power '0' vs '15'; interaction: '0' vs '13'). The wire logic itself matches vanilla method-for-method (power math, getConnectionState dot/line fixups, getConnectingSide, getSignal direction rules) \u2014 the fix is a one-line table alias.",
+      "id": "G7",
+      "method": "javap + source + data",
+      "severity": "major",
+      "status": "gap",
+      "title": "Redstone wire completely non-functional: class-name mismatch means no wire arm ever runs"
+    },
+    {
+      "evidence": "gameplay-facts.json uses vanilla names NORMAL (21237), DESTROY (6554), BLOCK (91), PUSH_ONLY (64); the loader matches PUSH/POPPED/IMMOVEABLE/IGNORE_ENTITY, so all 27946 states load as PushPull. 335 DESTROY blocks (torches, wire, flowers) are pushed instead of popped; 13 BLOCK blocks (anvils, grindstone, lodestone, piston_head) are pushed instead of blocking; 16 glazed terracottas become pullable by sticky pistons. Explains the torch half of the pilot piston test (torch pushed, no DropResources event).",
+      "id": "G8",
+      "method": "data + source + javap",
+      "severity": "major",
+      "status": "gap",
+      "title": "Push-reaction loader mapping matches no 1.21.7 value: every state loads as PushPull"
+    },
+    {
+      "evidence": "Vanilla 1.21.7 PistonBaseBlock.isPushable refuses OBSIDIAN, CRYING_OBSIDIAN, RESPAWN_ANCHOR and REINFORCED_DEEPSLATE explicitly before the reaction switch (all four are NORMAL reaction; obsidian hardness 50.0, so the hardness -1 check does not save it). The port has no such check. Explains the obsidian half of the pilot piston test (piston extends and pushes obsidian instead of staying retracted).",
+      "id": "G9",
+      "method": "javap + source",
+      "severity": "major",
+      "status": "gap",
+      "title": "is_pushable lacks vanilla's hardcoded obsidian-family refusal"
+    },
+    {
+      "evidence": "Vanilla bounds-checks y > maxY (320) and refuses only UP-pushes from y == maxY; the port uses max_y - 1 (319), so it refuses y == 320 outright and refuses UP-pushes from y == 319. A piston at y == 319 pushing up fails in the port where vanilla extends. Floor side matches vanilla exactly.",
+      "id": "G10",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "is_pushable Y-bound off by one at the ceiling"
+    },
+    {
+      "evidence": "Vanilla ComparatorBlock.getInputSignal uses the item frame's analog output when a frame is behind the conductor, and the further block's analog output only when there is no frame. The port takes max(frame, block), so it reads higher than vanilla when both exist and the frame is weaker.",
+      "id": "G11",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Comparator conductor branch takes max(frame, container); vanilla takes the frame first"
+    },
+    {
+      "evidence": "Vanilla moveBlocks destroys via Level.destroyBlock (flags 3, neighbour updates fire during the destroy loop) and then runs its explicit updateNeighborsAt loop after the move. The port sets destroyed cells to air with flags 18 (no neighbour updates) and only runs the explicit loop. Final states agree; observable only through BUD/quasi-connectivity timing edge cases.",
+      "id": "G12",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Piston-destroyed blocks notify neighbours once; vanilla notifies twice"
+    },
+    {
+      "evidence": "tools/test_piston_shape_parity.py asserts len(facts['states']) == 35723, so it fails outright on 1.21.7 before comparing anything. The oracle (VanillaPistonShapeOracle) itself is likely fine; the driver constant is the defect.",
+      "id": "G13",
+      "method": "driver read + data",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Piston-shape driver hardcodes the 26.3 state count (35723); 1.21.7 has 27946"
+    },
+    {
+      "evidence": "tools/test_projectile_piston_cobweb_parity.py documents in its own docstring that vanilla's second push is 0.01 higher than Horizon's, by the cobweb or not, and deliberately does not compare height. Cause unknown; recorded as a known divergence, not an accepted gap (no cause or owner established).",
+      "id": "G14",
+      "method": "driver read",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Documented 0.01 piston-push height divergence (vanilla's second push higher)"
+    },
+    {
+      "evidence": "26.x APIs missing/changed: GameRules wrong package + wrong constants + no get(); MinecraftServer 11-arg vs 8-arg ctor; ServerLevel 10-arg vs 12-arg ctor; ServerChunkCache 10-arg vs 13-arg ctor; overrides that don't exist in 1.21.7 (operatorUserPermissions, getFunctionCompilationPermissions, spam thresholds, useNativeTransport, isSingleplayerOwner(NameAndId), getRandomSequence on MinecraftServer, findBlocksIn, getOverworldClockTime, getMoonBrightness, canSpreadFireAround, getNextEntityId, getBrightness, getRawBrightness, hasEntities, environmentAttributes); missing classes (ClockInstance, blockscan, Continuation, ExplosionParticleInfo, EnvironmentAttributeSystem); no RegistryLayer.WORLD; no RegistryDataLoader.WORLD_REGISTRIES; no Level.border field; no shouldChangedStateKeepBlockEntity; 13-arg explode vs 12-arg abstract. Blocks test_redstone_parity and many other drivers.",
+      "id": "B2-O1",
+      "method": "javap",
+      "severity": "major",
+      "status": "gap",
+      "title": "VanillaBlockUpdateOracle does not compile for 1.21.7 (~25 breaks)"
+    },
+    {
+      "evidence": "Imports 7 missing classes (Gizmos, GizmoCollector, LevelBasedPermissionSet, PermissionSet, NameAndId, EmptyNotificationService, NotificationManager); MinecraftServer 11-arg vs 8-arg ctor; overrides operatorUserPermissions/getFunctionCompilationPermissions/isSingleplayerOwner(NameAndId) don't exist; PlayerList 4-arg ctor wrong; LevelSettings 5-arg ctor with DifficultySettings (absent in 1.21.7); WorldLoader.InitConfig 3rd arg is an int, not a permission set; PrimaryLevelData 3-arg vs 4-arg ctor; no nested LevelDataAndDimensions.WorldDataAndGenSettings; GameRules wrong package/constants, no set(); getAnalogOutputSignal is 2-arg; Level.tickBlockEntities is protected; spam-threshold/useNativeTransport overrides don't exist. Blocks test_redstone_catalog_parity.",
+      "id": "B2-O2",
+      "method": "javap",
+      "severity": "major",
+      "status": "gap",
+      "title": "VanillaRedstoneCatalogOracle does not compile for 1.21.7 (~15 breaks)"
+    },
+    {
+      "evidence": "10-arg ServerLevel super-call vs 1.21.7's 12-arg ctor. Blocks test_redstone_persistence_parity.",
+      "id": "B2-O3",
+      "method": "javap",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaRedstonePersistenceOracle does not compile for 1.21.7 (1 break)"
+    },
+    {
+      "evidence": "Imports net.minecraft.world.entity.monster.zombie.Zombie; 1.21.7 has net.minecraft.world.entity.monster.Zombie. All reflective names it uses were verified present. Blocks test_piston_push_parity.",
+      "id": "B2-O4",
+      "method": "javap",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaPistonPushOracle does not compile for 1.21.7 (1 break)"
+    },
+    {
+      "evidence": "10-arg ServerLevel super-call vs 1.21.7's 12-arg ctor. Blocks test_piston_movement_parity.",
+      "id": "B2-O5",
+      "method": "javap",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaPistonMovementOracle does not compile for 1.21.7 (1 break)"
     }
   ]
 }
