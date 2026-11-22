@@ -13093,3 +13093,11 @@ implemented (`debug_lines.rs` over `debug_overlay::state_lines`
 excludes fluids, the fluid pick includes them, and both print the
 underlined "Targeted Block/Fluid" heading, the registry key,
 green/red boolean properties and `#tag` lines.
+
+## Item 765 — client/renderer/chunk (new-classes) — NO-CHANGE
+
+2 classes: `SectionBuffers` (a section's GPU vertex/index buffers)
+and `SectionRenderDispatcher$SectionTaskResult` (SUCCESSFUL /
+CANCELLED) — GPU and task plumbing with no Rust usage and no
+observable behaviour; the Rust's own section streaming manages its
+buffers.
