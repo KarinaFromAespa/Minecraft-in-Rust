@@ -13361,3 +13361,9 @@ Rust's datafix system handles old chunk tags its own way.
 The Rust implements it as `CardinalLight`, parsed from the
 dimension type and wired into the mesher lighting (Nether
 brightens the up/down faces to 0.9).
+
+## Item 804 — world/level/levelgen/feature/configurations (new-classes) — NO-CHANGE
+
+1 class: `RandomPatchConfiguration` — the (tries, xzSpread,
+ySpread, feature) record. The Rust's `RandomPatchFeature` holds
+exactly these fields with the codec bounds.
