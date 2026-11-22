@@ -12909,3 +12909,45 @@ Rank 3 COMPLETE (247/247).
 system). Only `BlockElement` is named in the Rust, in 2 doc comments
 about its default UVs — the classic cube-face mapping the mesher
 implements. The other 15 have no Rust usage.
+
+## Item 751 — world/entity/npc/villager (new-classes: VillagerTrades$*) — CHANGED
+
+The 13 `VillagerTrades` listing classes, present in 1.21.11 and removed
+in 26.1 (which moved trades to data). This was the gap merchant.rs
+documented: 1.21.11 has no `trade_set`/`villager_trade` data, so
+`Trades` loads empty and villagers got no offers. Ported in full:
+
+- New `crates/horizon-client/src/villager_trades.rs`: the `Listing`
+  enum with every listing's `getOffer` (dyed armor with 1-3 random
+  dyes, emerald-for-items incl. the water-bottle cost, the
+  per-biome boat trade, enchanted books priced 2 + nextInt(5+10*level)
+  + 3*level, doubled for `double_trade_price`, capped at 64, enchanted
+  gear at level 5..=19 from `on_traded_equipment`, suspicious stew
+  with tick durations, tipped arrows with a random brewable potion,
+  treasure maps to the nearest structure in the tag within 100 chunks,
+  type-specific trades), plus `offers_from_listings` (draw without
+  replacement on the merchant's own random; a null offer does not
+  count), `offers_for` (2 per level) and `wandering_trader_offers`
+  (2 + 2 + 5).
+- The tables are transcribed from the decompiled 1.21.11 class:
+  `TRADES`, 13 professions x 5 levels, 297 listings, and
+  `WANDERING_TRADER_TRADES`, 94 listings in 3 groups. The tipped-arrow
+  pool (36 potions) and the map decoration ids were verified against
+  the jar (`PotionBrewing` mixes: luck is the only effect potion with
+  no recipe). `EXPERIMENTAL_TRADES` is not ported: it sits behind the
+  `trade_rebalance` feature flag, off by default.
+- Wired at all three call sites, data-driven first with the hardcoded
+  tables as the fallback: `ensure_offers` (first use, on the mob's
+  random, cloned back afterwards), `Session::notify_trade` (level-up,
+  on the session random), `open_merchant` (horizon-ctl, a fresh
+  random from the level seed).
+- Known gaps: treasure maps skip `MapItem.renderBiomePreviewMap`
+  (the data-driven path has no biome preview either); the enchanted
+  book takes the enchantment's minimum level as 1, which every 1.21.11
+  enchantment has (the engine's `Enchantment` carries no minimum).
+
+Tests: `cargo test -p horizon-client-lib --lib villager_trades`, 10
+passed (farmer 2 offers, wandering trader 9, unknown profession/level
+empty, dyed armor, plain-book fallback, book price doubling and cap,
+type-specific gating, treasure map without a map maker, failure
+listing, stew ticks).
