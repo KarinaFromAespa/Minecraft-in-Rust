@@ -15235,12 +15235,32 @@ is the oracle; decompiled code is a reading aid.
     behaviour is unchanged.
   - Verification: read / only; no code / changed.
 
+- **Item 389 — AnimationDefinition**
+  - AnimationDefinition:
+    verified, no code. The
+    diff is the 1.21.6-only
+    bake(ModelPart) method
+    - the KeyframeAnimation
+    baking refactor, which
+    1.21.5 does not have.
+    The port already has
+    the 1.21.5 shape: its
+    keyframes::Animation is
+    pure definition data,
+    animated per call by
+    name through
+    Model.animate / Keyfram
+    eAnimations.animate,
+    with no bake step
+    anywhere.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **388 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 120/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **389 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 121/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
