@@ -877,6 +877,112 @@ mod tests {
     }
 
     #[test]
+    fn bundled_layer_carries_the_26x_menu_keys_1_21_7_lacks() {
+        // Vanilla 1.21.7's en_us.json has no 26.x menu keys, so the World
+        // Options screen, the friends buttons, the title-screen tooltips and
+        // the upgrade flow all showed raw keys until the bundled layer
+        // carried them with vanilla 26.3's wording (verified against the
+        // 26.3 client jar). The bundled layer loads first, so a resource
+        // pack or a newer vanilla lang file can still override them.
+        let lang = Language::load(&[], "en_us");
+        for (key, want) in [
+            (
+                "accessibility.onboarding.accessibility.button.narration",
+                "Accessibility Settings",
+            ),
+            (
+                "chat_restriction.chat_and_commands_disabled_by_options",
+                "Chat is restricted in client settings.",
+            ),
+            (
+                "chat_restriction.chat_disabled_by_options",
+                "Player chat is restricted in client settings.",
+            ),
+            (
+                "chat_restriction.chat_disabled_by_options.action",
+                "Go to the Chat Settings screen",
+            ),
+            ("editGamerule.inGame.button", "Edit Game Rules..."),
+            (
+                "editGamerule.inGame.discardChanges.message",
+                "Are you sure you want to discard your pending game rule changes?",
+            ),
+            (
+                "editGamerule.inGame.discardChanges.title",
+                "Game Rule Changes",
+            ),
+            ("gui.friends.open", "Friends"),
+            ("gui.friends.open.narration", "Friends List"),
+            ("gui.friends.open.tooltip", "Friends"),
+            ("gui.selectWorld.search", "Search..."),
+            ("menu.multiplayerOptions.applyChanges", "Apply Changes"),
+            ("menu.multiplayerOptions.lan", "LAN"),
+            (
+                "menu.multiplayerOptions.publish.started.lan",
+                "This world is now open to LAN. The port number is %s",
+            ),
+            (
+                "menu.multiplayerOptions.publish.stopped",
+                "This world is no longer open to multiplayer",
+            ),
+            ("options.accessibility.tooltip", "Accessibility Settings"),
+            ("options.language.narration", "Change Language"),
+            ("options.language.tooltip", "Change Language"),
+            ("options.worldOptions.button", "World Options..."),
+            ("options.worldOptions.game_mode", "Default Game Mode"),
+            ("options.worldOptions.general.title", "General"),
+            (
+                "options.worldOptions.guest.command_access",
+                "Command Access",
+            ),
+            (
+                "options.worldOptions.guest.force_game_mode",
+                "Force Game Mode",
+            ),
+            ("options.worldOptions.multiplayer.title", "Multiplayer"),
+            (
+                "options.worldOptions.personal_game_mode",
+                "Personal Game Mode",
+            ),
+            ("options.worldOptions.title", "World Options"),
+            ("restrictions_screen.button", "Restrictions..."),
+            ("restrictions_screen.title", "Restrictions"),
+            (
+                "selectWorld.backupQuestion.file_fixing_required",
+                "Create a backup before upgrading this world?",
+            ),
+            (
+                "selectWorld.backupWarning.file_fixing_required",
+                "This world needs to be upgraded before you can play it. We strongly suggest creating a backup before continuing in case you experience world corruption.",
+            ),
+            (
+                "selectWorld.requiresFileFixingTooltip.edit",
+                "This world needs to be upgraded to the latest version before you can edit it due to underlying changes to the world format.",
+            ),
+            (
+                "selectWorld.requiresFileFixingTooltip.play",
+                "This world needs to be upgraded to the latest version before you can play it due to underlying changes to the world format.",
+            ),
+            (
+                "selectWorld.requiresFileFixingTooltip.recreate",
+                "This world needs to be upgraded to the latest version before you can recreate it due to underlying changes to the world format.",
+            ),
+            ("selectWorld.upgrade_and_play", "Upgrade and Play"),
+            (
+                "selectWorld.waitingForBackup.message",
+                "Depending on the size of your world, this may take a while. Please do not close the game or shut off your device.",
+            ),
+            ("selectWorld.waitingForBackup.title", "Creating Backup"),
+        ] {
+            assert_eq!(
+                lang.get(key),
+                Some(want),
+                "{key} must resolve from the bundled layer"
+            );
+        }
+    }
+
+    #[test]
     fn layers_selected_language_over_english() {
         let base = Mem(HashMap::from([
             ("assets/minecraft/lang/en_us.json".into(), br#"{"a":"Apple","b":"Banana"}"#.to_vec()),
