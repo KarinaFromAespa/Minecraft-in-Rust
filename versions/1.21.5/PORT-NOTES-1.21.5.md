@@ -14825,12 +14825,38 @@ is the oracle; decompiled code is a reading aid.
     passed, 57/57 (new test
     included).
 
+- **Item 375 — ResourceArgument**
+  - ResourceArgument:
+    verified, no code. The
+    11-line diff is the
+    listSuggestions
+    mechanism only: 1.21.5
+    suggests the registry's
+    element ids directly
+    (suggestResource with
+    listElementIds), 1.21.6
+    routes the same list
+    through SharedSuggestio
+    nProvider.listSuggestio
+    ns with ELEMENTS. Both
+    produce the same
+    suggestion list - every
+    element id of the
+    registry - and the
+    port's
+    ArgType::Resource arm
+    already suggests
+    exactly that (reg.ids).
+    No behavioural
+    difference.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **374 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 106/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **375 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 107/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
