@@ -13300,3 +13300,9 @@ string. The Rust cites it and draws the equivalent centred text.
 single-method callback interface for dispatching entity
 interactions. The Rust implements the interaction handling in its
 own LAN/server code.
+
+## Item 795 — server/packs (new-classes) — NO-CHANGE
+
+1 class: `BuiltInMetadata` — a holder for a built-in pack's
+metadata sections. The Rust handles `pack.mcmeta` metadata its
+own way. No Rust usage.
