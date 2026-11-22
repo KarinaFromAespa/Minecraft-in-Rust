@@ -13101,3 +13101,13 @@ and `SectionRenderDispatcher$SectionTaskResult` (SUCCESSFUL /
 CANCELLED) — GPU and task plumbing with no Rust usage and no
 observable behaviour; the Rust's own section streaming manages its
 buffers.
+
+## Item 766 — client/renderer/item (new-classes) — NO-CHANGE
+
+2 classes: `BlockModelWrapper`, `BlockModelWrapper$Unbaked`. The
+Rust already ports the wrapper's baking (`item_bake.rs`):
+top geometry with identity rotation, `gui_light` -> block light,
+particle sprite, 9 display transforms, tints at render time.
+The render-type detection (items atlas vs blocks atlas) is
+verified; the Rust does not enforce the single-atlas rule, an
+error-handling difference only.
