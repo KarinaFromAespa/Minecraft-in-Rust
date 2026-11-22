@@ -9,7 +9,7 @@ Any other option is refused with exit code 2, so ask `--launch-api` before passi
 
 | Option | What it does |
 | --- | --- |
-| `--resources DIR` | The prepared resources (horizon-prepare's output). Default: `resources` beside the executable, else `.local/horizon-client/26.3`. |
+| `--resources DIR` | The prepared resources (horizon-prepare's output). Default: `resources` beside the executable, else `.local/horizon-client/1.21.7`. |
 | `--game-dir DIR` | The game folder: `saves/`, `options.txt`, `resourcepacks/`, `horizon-mods/`, `screenshots/`. Created when missing. Default: the working directory. `--gameDir` is the same. |
 | `--home DIR` | Logs (`logs/latest.log`) and crash reports (`crash-reports/`). Default: `HORIZON_HOME`, else `horizon` in the platform data folder. |
 | `--player-dir DIR` | One player's own files, for several games playing in one game folder at the same time: `options.txt` and the settings beside it, `logs/`, `crash-reports/`, `horizon-player.txt`, `servers.dat`, `hotbar.nbt`, `screenshots/`. Saves, packs, mods and their config, the chat's command history and Play with Friends' relay settings stay in the game folder. A relative path is taken from the folder the game starts in. Created when missing. Default: the game folder, and `--home` for logs. Crash telemetry still follows `--home`'s consent, and `horizon-ctl logs` and the launcher read `--home`'s logs. |
@@ -31,7 +31,7 @@ Prints one JSON object on stdout and exits 0. `horizon` is the build's version; 
   "content": {
     "datapack": {
       "format": [
-        121,
+        81,
         0
       ]
     },
@@ -53,8 +53,8 @@ Prints one JSON object on stdout and exits 0. `horizon` is the build's version; 
     },
     "resourcepack": {
       "format": [
-        97,
-        1
+        64,
+        0
       ]
     },
     "shader": {
@@ -73,7 +73,7 @@ Prints one JSON object on stdout and exits 0. `horizon` is the build's version; 
   ],
   "horizon": "<version>",
   "launch_api": "0.1.0",
-  "minecraft": "26.3",
+  "minecraft": "1.21.7",
   "options": [
     {
       "name": "--resources",

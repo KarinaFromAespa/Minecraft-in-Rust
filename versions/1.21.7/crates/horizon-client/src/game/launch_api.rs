@@ -28,7 +28,7 @@ pub const OPTIONS: &[LaunchOption] = &[
     option(
         "--resources",
         Some("DIR"),
-        "The prepared resources (horizon-prepare's output). Default: `resources` beside the executable, else `.local/horizon-client/26.3`.",
+        "The prepared resources (horizon-prepare's output). Default: `resources` beside the executable, else `.local/horizon-client/1.21.7`.",
     ),
     option(
         "--game-dir",
