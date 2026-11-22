@@ -62,6 +62,16 @@
         "total": 90
       },
       "status": "complete"
+    },
+    "4": {
+      "name": "Block entities + containers",
+      "date": "2026-11-22",
+      "checks": {
+        "gap": 43,
+        "pass": 48,
+        "total": 91
+      },
+      "status": "complete"
     }
   },
   "items": [
@@ -800,6 +810,342 @@
       "severity": "minor",
       "status": "gap",
       "title": "ORACLE: 4 oracles override 26.x methods absent in 1.21.7"
+    },
+    {
+      "evidence": "Item.fuel comes only from the minecraft:cooking_fuel component (horizon-items/src/items.rs:1009-1011); 0/1416 items in 1.21.7 items.json carry it and no JSON in the tree defines it. Vanilla 1.21.7 has NO fuel component (DataComponents javap: 0 fuel refs); burn times are the hardcoded FuelValues.vanillaBurnTimes table (lava bucket 20000, coal block 16000, coal/charcoal 1600, #logs 300). Providers::burn_time is 0 for every item, so Furnace::tick never lights, menu.rs is_fuel is false (fuel slot refuses all fuel except buckets via is_bucket), and furnace quick-move fuel routing never fires. Furnace tick logic itself otherwise matches AbstractFurnaceBlockEntity.serverTick exactly.",
+      "id": "B4-G01",
+      "method": "javap + source + data",
+      "severity": "major",
+      "status": "gap",
+      "title": "Furnaces (furnace/blast furnace/smoker) can NEVER light: no fuel data in 1.21.7"
+    },
+    {
+      "evidence": "brewing_fuel() (horizon-client-render/src/brewing.rs:423) reads only the minecraft:brewing_fuel component, absent in 1.21.7. Vanilla uses the #brewing_fuel item tag (blaze powder; tag EXISTS in the 1.21.7 jar data) + FUEL_USES=20 (BrewingStandBlockEntity.serverTick bytecode). Brew logic itself matches vanilla exactly (400 ticks, fuel-- on start, ingredient-identity reset, doBrew gating, bottle bits). Also breaks brewing quick-move fuel routing (blaze powder cannot be shift-clicked into the fuel slot).",
+      "id": "B4-G02",
+      "method": "javap + source + data",
+      "severity": "major",
+      "status": "gap",
+      "title": "Brewing stands can NEVER brew: fuel check reads an absent component"
+    },
+    {
+      "evidence": "Rust burn() grows the output slot by recipe.result.count; vanilla AbstractFurnaceBlockEntity.burn() grows by exactly 1 when the slot is non-empty (javap ItemStack.grow(1)), full result copy only when empty. canBurn likewise: vanilla allows out.count < item max regardless of result count; Rust requires out.count + result.count <= max. Unreachable in vanilla data (all cooking recipes yield 1).",
+      "id": "B4-G03",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Furnace burn() grows output by the full result count; vanilla grows by 1 (datapack-only)"
+    },
+    {
+      "evidence": "furnace.rs completes when cooking_timer >= cooking_total; vanilla serverTick completes only on == (bytecode 284-292, if_icmpne skip). With cookingTotalTime=0 (loaded save) vanilla never completes; Rust completes in 1 tick. A Rust test (loaded_totals_survive_until_actual_completion) pins the >= behaviour, contradicting vanilla bytecode. In test_furnace_loaded_total's scope ('zero' totals).",
+      "id": "B4-G04",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Furnace completion uses >= where vanilla uses == (loaded cookingTotalTime=0 completes in 1 tick)"
+    },
+    {
+      "evidence": "furnace.rs pushes the fuel remainder to drops whenever one exists; vanilla only places the remainder when the fuel stack empties (serverTick bytecode 225-246), otherwise it is lost. Unreachable in vanilla data (only lava bucket has a remainder, max stack 1).",
+      "id": "B4-G05",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Furnace fuel remainder DROPPED when the fuel stack remains (datapack-only)"
+    },
+    {
+      "evidence": "Vanilla serverTick resets cookingTimer to 0 when the lit furnace's input has no recipe (bytecode 341); Rust leaves it unchanged (no else on recipe lookup). Reachable only via datapack reload mid-cook / NBT edit (setItem resets on change).",
+      "id": "B4-G06",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Lit furnace + input with NO recipe keeps its cooking timer; vanilla resets it to 0"
+    },
+    {
+      "evidence": "Vanilla SpawnEggItem.getType falls back to defaultType when ENTITY_DATA is empty (bytecode: getOrDefault(ENTITY_DATA, EMPTY) -> empty -> defaultType); the port's dispense_default_method drops the egg as an item (dispenser.rs). Reachable only via /data removing the component from a spawn egg.",
+      "id": "B4-G07",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Dispensed spawn egg with removed minecraft:entity_data drops as an item; vanilla spawns the default mob (commands-only corner)"
+    },
+    {
+      "evidence": "hoppers_catch_items (entityInside path) uses the narrow INSIDE bowl (0.125..0.875, 11/16..1) while vanilla HopperBlockEntity.entityInside uses the full SUCK_AABB (0..1, 11/16..2). The tick path covers the full AABB, so pickup can only be 1-2 ticks late for fast items at the edges, never missed.",
+      "id": "B4-G08",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Hopper entity-catch uses the narrow bowl, not the full SUCK_AABB (pickup up to 1-2 ticks late at the edges)"
+    },
+    {
+      "evidence": "crafter_eject only consults the block-only Containers::view (machines.rs:213), while vanilla CrafterBlockEntity.dispenseItem uses HopperBlockEntity.getContainerAt (block + entity). Dropper/hopper have the entity fallback; crafter lacks it. The result drops as an item instead.",
+      "id": "B4-G09",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Crafter never ejects into container ENTITIES (chest/hopper minecart, chest boat)"
+    },
+    {
+      "evidence": "crafter_recipe_crafted fires only for self.player; vanilla triggers for every ServerPlayer in the 17-box. LAN guests in range miss the trigger.",
+      "id": "B4-G10",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Crafter recipe_crafted trigger fires only for the host player (LAN-only)"
+    },
+    {
+      "evidence": "Vanilla 1.21.7 GameRules has NO spawner_blocks_work rule (javap: no RULE_SPAWNER_*); BaseSpawner.serverTick checks NO gamerule at all, and TrialSpawner.canSpawnInLevel checks only overridePeacefulAndMobSpawnRule || (difficulty != PEACEFUL && doMobSpawning) (javap). The port's gamerule table includes spawner_blocks_work defaulting true (gamerules.rs:114) and both Spawner::server_tick and TrialSpawner::can_spawn_in_level gate on it. Default play unaffected (defaults true), but the gate and the rule itself are 26.x carry-over; setting it false stops spawners in a way vanilla 1.21.7 cannot express.",
+      "id": "B4-G11",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Spawner + trial spawner ticking gated on non-vanilla 'spawner_blocks_work' gamerule"
+    },
+    {
+      "evidence": "Vanilla EnchantmentMenu.clickMenuButton returns false when the lapis slot is EMPTY even in creative (itemstack.isEmpty() is outside the !hasInfiniteMaterials guard); the port's click_enchant skips the lapis-presence check entirely in creative. Survival behaviour matches (lapis count >= slot+1, level >= slot+1 and >= cost, deducts slot+1 levels).",
+      "id": "B4-G12",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Creative enchanting without lapis allowed; vanilla requires a lapis stack present"
+    },
+    {
+      "evidence": "BlockEntity::for_block returns None for beds (not in container_size). Vanilla beds have BedBlockEntity (colour + custom name). Consequences: renamed beds lose their custom name on placement; /data get block on a bed returns nothing; chunk saves carry no bed BEs \u2014 explains the world-compare gap (bed blocks 50=50, bed BEs 0 vs 50). Colour itself is safe (per-block in 1.21.7).",
+      "id": "B4-G13",
+      "method": "source + data",
+      "severity": "minor",
+      "status": "gap",
+      "title": "No Bed block entity: renamed beds lose their name, chunk saves carry no bed BEs"
+    },
+    {
+      "evidence": "open_ender_chest swaps the HOST's ender_items into the shared block BE; close copies back and leaves an empty Chest(27). A guest opening the same chest sees the host's items (while the host has it open) or an empty chest \u2014 never their own EnderItems. Host single-player behaviour is correct (player-specific inventory, block holds none).",
+      "id": "B4-G14",
+      "method": "source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Ender chest shows the wrong inventory to LAN guests (LAN-only)"
+    },
+    {
+      "evidence": "Containers::view requires a BlockEntity in world.block_entities; pots have no variant (their item + sherds live in a spill saved tag), so view returns None. Vanilla HopperBlockEntity.getContainerAt returns the pot (1-slot container). Hopper insert/extract and dropper insert into pots silently fail; a comparator reading a pot (same view) also reads 0. Manual insert via use_decorated_pot works. In test_pot_hopper's scope.",
+      "id": "B4-G15",
+      "method": "javap + source",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Hoppers/droppers cannot see decorated pots (no container view)"
+    },
+    {
+      "evidence": "menu.rs carto_changed gates paper zoom on the minecraft:extendable_maps item tag, which does NOT exist in the 1.21.7 jar data (no data/minecraft/tags/item/extendable_maps.json). Vanilla 1.21.7 CartographyTableMenu.setupResultSlot checks paper with NO tag at all \u2014 extra.is(PAPER) && !locked && scale < 4 (javap; no ItemTags reference in the class). Same systemic 26.x-tag cause as B4-G01/B4-G02. Glass-pane lock and map copy (count 2) match vanilla.",
+      "id": "B4-G16",
+      "method": "javap + source + data",
+      "severity": "major",
+      "status": "gap",
+      "title": "Cartography paper zoom-out never works: gated on #extendable_maps, a tag absent in 1.21.7"
+    },
+    {
+      "evidence": "First error: line 14, package net.minecraft.util.debug does not exist. Blocks test_block_entity_tickers_parity (BE tick order vs Level.blockEntityTickers). No repair attempted (notice).",
+      "id": "B4-O01",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaBlockEntityTickerOracle does not compile for 1.21.7 (8 errors)"
+    },
+    {
+      "evidence": "First error: line 19, cannot find symbol. Blocks test_block_entity_storage_parity (proto-chunk BE storage + NBT coordinate coercion). No repair attempted (notice).",
+      "id": "B4-O02",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaBlockEntityStorageOracle does not compile for 1.21.7 (4 errors)"
+    },
+    {
+      "evidence": "First error: line 58, cannot find symbol. Blocks test_furnace_parity. No repair attempted (notice).",
+      "id": "B4-O03",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaFurnaceOracle does not compile for 1.21.7 (1 error)"
+    },
+    {
+      "evidence": "First error: line 23, cannot find symbol. Blocks test_brewing_parity (brewing slot rules, matching, assemble). No repair attempted (notice).",
+      "id": "B4-O04",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "major",
+      "status": "gap",
+      "title": "VanillaBrewingOracle does not compile for 1.21.7 (14 errors)"
+    },
+    {
+      "evidence": "First error: line 13, cannot find symbol. Blocks test_brewing_fuel_parity. No repair attempted (notice).",
+      "id": "B4-O05",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaBrewingFuelOracle does not compile for 1.21.7 (8 errors)"
+    },
+    {
+      "evidence": "First error: line 27, package net.minecraft.world.level.gamerules does not exist. Blocks test_dispenser_parity. No repair attempted (notice).",
+      "id": "B4-O06",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "major",
+      "status": "gap",
+      "title": "VanillaDispenserOracle does not compile for 1.21.7 (54 errors)"
+    },
+    {
+      "evidence": "First error: line 62, cannot find symbol. Blocks test_enchanting_parity. No repair attempted (notice).",
+      "id": "B4-O07",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaEnchantingOracle does not compile for 1.21.7 (4 errors)"
+    },
+    {
+      "evidence": "First error: line 138, cannot find symbol. Blocks test_menu_click_parity and cascades to VanillaRecipeBookOracle (B4-O09) and VanillaPlaceRecipeOracle (B4-O10). No repair attempted (notice).",
+      "id": "B4-O08",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "major",
+      "status": "gap",
+      "title": "VanillaMenuOracle does not compile for 1.21.7 (9 errors); shared dependency"
+    },
+    {
+      "evidence": "Cascade on B4-O08; repairs with it. Blocks test_recipe_book_parity (ServerRecipeBook). No repair attempted (notice).",
+      "id": "B4-O09",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaRecipeBookOracle blocked: depends on broken VanillaMenuOracle"
+    },
+    {
+      "evidence": "Cascade on B4-O08; repairs with it. Blocks test_place_recipe_parity (ServerPlaceRecipe). No repair attempted (notice).",
+      "id": "B4-O10",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaPlaceRecipeOracle blocked: depends on broken VanillaMenuOracle"
+    },
+    {
+      "evidence": "First error: line 25, cannot find symbol. Blocks test_simple_container_parity. No repair attempted (notice).",
+      "id": "B4-O11",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaSimpleContainerOracle does not compile for 1.21.7 (1 error)"
+    },
+    {
+      "evidence": "First error: line 20, cannot find symbol. Blocks test_item_stack_storage_parity. No repair attempted (notice).",
+      "id": "B4-O12",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaItemStackStorageOracle does not compile for 1.21.7 (1 error)"
+    },
+    {
+      "evidence": "First error: line 13, cannot find symbol. Blocks test_paletted_container_parity (chunk-storage infrastructure, shared with worldgen batches). No repair attempted (notice).",
+      "id": "B4-O13",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaPalettedContainerOracle does not compile for 1.21.7 (4 errors)"
+    },
+    {
+      "evidence": "First error: line 34, package net.minecraft.gizmos does not exist. Blocks test_sculk_parity (sensors, calibrated sensors, shriekers, catalysts, wardens). No repair attempted (notice).",
+      "id": "B4-O14",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "major",
+      "status": "gap",
+      "title": "VanillaSculkOracle does not compile for 1.21.7 (60 errors)"
+    },
+    {
+      "evidence": "First error: line 9, package net.minecraft.client.model.object.book does not exist. Client-jar oracle (built against the 26.3 client). Blocks test_block_entity_anim_parity. No repair attempted (notice).",
+      "id": "B4-O15",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "major",
+      "status": "gap",
+      "title": "VanillaBlockEntityAnimOracle does not compile for 1.21.7 (45 errors)"
+    },
+    {
+      "evidence": "First error: line 4, package com.mojang.blaze3d.vertex does not exist. Client-jar oracle (built against the 26.3 client). Blocks test_block_entity_render_parity. No repair attempted (notice).",
+      "id": "B4-O16",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "major",
+      "status": "gap",
+      "title": "VanillaBlockEntityRenderOracle does not compile for 1.21.7 (99 errors)"
+    },
+    {
+      "evidence": "First error: line 9, package net.minecraft.client does not exist. Client-jar oracle. Blocks test_container_screen_parity. No repair attempted (notice).",
+      "id": "B4-O17",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "major",
+      "status": "gap",
+      "title": "VanillaContainerScreenOracle does not compile for 1.21.7 (54 errors)"
+    },
+    {
+      "evidence": "First error: line 4, package com.mojang.renderpearl.api.pipeline does not exist. Client-jar oracle (built against the 26.3 client). Blocks test_recipe_book_render_parity. No repair attempted (notice).",
+      "id": "B4-O18",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "major",
+      "status": "gap",
+      "title": "VanillaRecipeBookScreenOracle does not compile for 1.21.7 (112 errors)"
+    },
+    {
+      "evidence": "Cascade on VanillaBlockUpdateOracle, already recorded as Batch 2 O1 (~25 breaks); repairs with it \u2014 do not double-count the repair. Blocks test_enchant_durability_parity. No repair attempted (notice).",
+      "id": "B4-O19",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaEnchantDurabilityOracle blocked: depends on broken VanillaBlockUpdateOracle (Batch 2 O1)"
+    },
+    {
+      "evidence": "First error: line 18, cannot find symbol. Blocks test_stored_enchantment_patch_parity. No repair attempted (notice).",
+      "id": "B4-O20",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaStoredEnchantmentPatchOracle does not compile for 1.21.7 (1 error)"
+    },
+    {
+      "evidence": "First error: line 20, cannot find symbol. Blocks test_vehicle_container_parity. No repair attempted (notice).",
+      "id": "B4-O21",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaVehicleContainerOracle does not compile for 1.21.7 (5 errors)"
+    },
+    {
+      "evidence": "First error: line 10, cannot find symbol. Blocks test_shulker_space_parity. No repair attempted (notice).",
+      "id": "B4-O22",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "VanillaShulkerSpaceOracle does not compile for 1.21.7 (2 errors)"
+    },
+    {
+      "evidence": "First error: line 45, package net.minecraft.world.level.gamerules does not exist. Blocks test_spawner_parity, test_trial_spawner_parity and test_vault_parity (all three modes of the one oracle). No repair attempted (notice).",
+      "id": "B4-O23",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "major",
+      "status": "gap",
+      "title": "VanillaNaturalSpawnOracle does not compile for 1.21.7 (43 errors); blocks spawner, trial spawner and vault drivers"
+    },
+    {
+      "evidence": "First error: line 55, method assemble in interface Recipe<T> cannot be applied to given types. Blocks test_recipe_parity (crafting, cooking, stonecutting, smithing vs RecipeManager). No repair attempted (notice).",
+      "id": "B4-O24",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "major",
+      "status": "gap",
+      "title": "VanillaRecipeOracle does not compile for 1.21.7 (10 errors)"
+    },
+    {
+      "evidence": "First error: line 30, package net.minecraft.gizmos does not exist. Blocks test_trading_parity. No repair attempted (notice).",
+      "id": "B4-O25",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "major",
+      "status": "gap",
+      "title": "VanillaTradingOracle does not compile for 1.21.7 (94 errors)"
+    },
+    {
+      "evidence": "First error: line 10, package net.minecraft.client.gui.screens.recipebook does not exist. Client-jar oracle. Blocks test_ghost_recipe_parity. No repair attempted (notice).",
+      "id": "B4-O26",
+      "method": "Batch 0 oracle measurement (docs/sweep/batch-0-oracles.json)",
+      "severity": "major",
+      "status": "gap",
+      "title": "VanillaGhostRecipeOracle does not compile for 1.21.7 (16 errors)"
     }
   ]
 }
