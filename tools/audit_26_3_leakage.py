@@ -73,9 +73,19 @@ Data sources, in priority order per version:
     python3 tools/audit_26_3_leakage.py 1.21.7 --jar jars/1.21.7-server-named.jar --json
     python3 tools/audit_26_3_leakage.py --all --jar-dir jars/
     python3 tools/audit_26_3_leakage.py --all --json --exceptions tools/leakage-exceptions.json
+    python3 tools/audit_26_3_leakage.py --all --jar-dir jars/ --baseline tools/leakage-baselines.json
 
 Exit: 0 no leaks (review notes may exist) · 1 leak(s) found · 3 one or more
 versions unmeasured (and no leaks) · 2 usage error.
+
+Every version currently fails (all 19 trees carry 26.3 leakage), so a
+blocking check cannot demand zero leaks on day one. Instead CI runs with
+--baseline tools/leakage-baselines.json: the run fails only on leaks that
+are NEW against the recorded baseline (and reports leaks fixed since the
+baseline as progress). The baseline is a ratchet, not a pardon — it
+records today's debt so no new leak lands silently, and it shrinks as
+fixes land. Regenerate it with --write-baseline after a fix lands (and
+review the diff: a baseline that grows is a regression, not an update).
 Stdlib only, except an optional import of the sibling tag_audit.py for its
 Rust tokenizer (test-context classification) and prepared-data inventory
 loader; without it, test detection falls back to file-level heuristics and
@@ -910,6 +920,22 @@ def load_exceptions(path):
     return data if isinstance(data, dict) else {}
 
 
+def load_baseline(path):
+    """{version: set(leak names)} from a baseline file (keys starting
+    with '_' are metadata, not versions)."""
+    if not path:
+        return {}
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise SystemExit(f"audit_26_3_leakage: bad baseline file: {exc}")
+    if not isinstance(data, dict):
+        raise SystemExit("audit_26_3_leakage: bad baseline file: not an object")
+    return {version: set(names) for version, names in data.items()
+            if not version.startswith("_")
+            and isinstance(names, list)}
+
+
 def _finding(family, kind, name, severity, locations, note=""):
     return {"family": family, "kind": kind, "name": name,
             "severity": severity, "locations": locations, "note": note}
@@ -1259,6 +1285,13 @@ def main(argv=None) -> int:
     parser.add_argument("--jar-dir", help="directory of <v>-server.jar files")
     parser.add_argument("--exceptions",
                         help="exceptions JSON file (see tools/leakage-exceptions.json)")
+    parser.add_argument("--baseline",
+                        help="baseline JSON file: fail only on leaks that "
+                             "are new against it (see tools/leakage-baselines.json)")
+    parser.add_argument("--write-baseline",
+                        help="write the current leak sets as a new baseline "
+                             "file and exit 0 (review the diff before "
+                             "committing it)")
     parser.add_argument("--json", action="store_true",
                         help="print the full result as JSON")
     args = parser.parse_args(argv)
@@ -1266,6 +1299,7 @@ def main(argv=None) -> int:
         parser.error("give exactly one of <version> or --all")
     root = Path(args.root)
     exceptions = load_exceptions(args.exceptions)
+    baseline = load_baseline(args.baseline)
     versions = []
     if args.all:
         versions_dir = root / VERSIONS_DIRNAME
@@ -1285,25 +1319,68 @@ def main(argv=None) -> int:
         results.append(audit_version(
             tree, version, prepared_arg=args.prepared, jar_arg=args.jar,
             jar_dir=args.jar_dir, exceptions=exceptions))
+    if args.write_baseline:
+        out = {"_note": "Recorded leak sets (finding names) per version. "
+                        "CI fails only on leaks NEW against this file. "
+                        "Regenerate after a fix lands and review the diff: "
+                        "a baseline that grows is a regression."}
+        for result in results:
+            leaks = sorted({f["name"] for f in result["findings"]
+                            if f["severity"] == "leak"})
+            out[result["version"]] = leaks
+        Path(args.write_baseline).write_text(
+            json.dumps(out, indent=2) + "\n", encoding="utf-8")
+        print(f"wrote baseline for {len(results)} versions to "
+              f"{args.write_baseline}")
+        return 0
+    if baseline:
+        for result in results:
+            current = {f["name"] for f in result["findings"]
+                       if f["severity"] == "leak"}
+            recorded = baseline.get(result["version"], set())
+            result["baseline"] = {
+                "new_leaks": sorted(current - recorded),
+                "fixed_leaks": sorted(recorded - current),
+            }
     if args.json:
         print(json.dumps({"results": results}, indent=2))
     else:
         for result in results:
             _print_human(result)
+            if "baseline" in result:
+                new = result["baseline"]["new_leaks"]
+                fixed = result["baseline"]["fixed_leaks"]
+                if new:
+                    print(f"   NEW vs baseline ({len(new)}): "
+                          + ", ".join(new[:10])
+                          + (" ..." if len(new) > 10 else ""))
+                if fixed:
+                    print(f"   fixed vs baseline ({len(fixed)}): "
+                          + ", ".join(fixed[:10])
+                          + (" ..." if len(fixed) > 10 else ""))
         if args.all:
             print("\n== summary ==")
             header = f"{'version':<9} {'status':<8} {'leak':>4} {'review':>6} " \
                      f"{'notes':>5} {'data':<9}"
+            if baseline:
+                header += f" {'new':>4} {'fixed':>5}"
             print(header)
             for result in results:
                 counts = result["counts"]
                 notes = sum(counts.get(k, 0) for k in
                             ("note", "accepted", "dead_definition", "test_only"))
-                print(f"{result['version']:<9} {result['status']:<8} "
-                      f"{counts.get('leak', 0):>4} {counts.get('review', 0):>6} "
-                      f"{notes:>5} {result['data_source']['kind']:<9}")
+                line = (f"{result['version']:<9} {result['status']:<8} "
+                        f"{counts.get('leak', 0):>4} {counts.get('review', 0):>6} "
+                        f"{notes:>5} {result['data_source']['kind']:<9}")
+                if "baseline" in result:
+                    line += (f" {len(result['baseline']['new_leaks']):>4} "
+                             f"{len(result['baseline']['fixed_leaks']):>5}")
+                print(line)
     statuses = {r["status"] for r in results}
-    if "fail" in statuses:
+    if baseline:
+        if any(r.get("baseline", {}).get("new_leaks") for r in results):
+            return 1
+    elif "fail" in statuses:
         return 1
     if "blocked" in statuses:
         return 3
