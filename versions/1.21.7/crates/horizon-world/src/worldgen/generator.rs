@@ -293,6 +293,116 @@ fn build_tags(
     }
     Ok(built.tags)
 }
+/// Synthesize the 1.21.11 `supports_*` tags 1.21.7 lacks, from their 1.21.7
+/// equivalents, verified against the 1.21.7 jar's bytecode. Only fills tags
+/// the bundle lacks, so a data pack (or a version that has the tags) keeps
+/// its own. An empty source leaves the tag absent rather than empty.
+fn synthesize_legacy_support_tags(
+    block_tags: &mut BTreeMap<String, Vec<String>>,
+    fluid_tags: &mut BTreeMap<String, Vec<String>>,
+) {
+    let members = |tags: &BTreeMap<String, Vec<String>>, name: &str| -> BTreeSet<String> {
+        tags.get(name).into_iter().flatten().cloned().collect()
+    };
+    let fill = |tags: &mut BTreeMap<String, Vec<String>>, name: &str, values: BTreeSet<String>| {
+        if !values.is_empty() {
+            tags.entry(name.to_owned())
+                .or_insert_with(|| values.into_iter().collect());
+        }
+    };
+    let dirt = members(block_tags, "minecraft:dirt");
+    let sand = members(block_tags, "minecraft:sand");
+    let nylium = members(block_tags, "minecraft:nylium");
+    let dry = members(block_tags, "minecraft:dry_vegetation_may_place_on");
+    let water = members(fluid_tags, "minecraft:water");
+    // VegetationBlock.mayPlaceOn: dirt or farmland.
+    let vegetation: BTreeSet<String> = dirt
+        .iter()
+        .cloned()
+        .chain(["minecraft:farmland".to_owned()])
+        .collect();
+    fill(
+        block_tags,
+        "minecraft:supports_vegetation",
+        vegetation.clone(),
+    );
+    // AzaleaBlock: clay or VegetationBlock.
+    fill(
+        block_tags,
+        "minecraft:supports_azalea",
+        vegetation
+            .iter()
+            .cloned()
+            .chain(["minecraft:clay".to_owned()])
+            .collect(),
+    );
+    // MangrovePropaguleBlock: clay or SaplingBlock; hanging: mangrove leaves.
+    fill(
+        block_tags,
+        "minecraft:supports_mangrove_propagule",
+        vegetation
+            .iter()
+            .cloned()
+            .chain(["minecraft:clay".to_owned()])
+            .collect(),
+    );
+    fill(
+        block_tags,
+        "minecraft:supports_hanging_mangrove_propagule",
+        BTreeSet::from(["minecraft:mangrove_leaves".to_owned()]),
+    );
+    // DryVegetationBlock: the dry_vegetation_may_place_on tag.
+    fill(block_tags, "minecraft:supports_dry_vegetation", dry);
+    // NetherSproutsBlock: nylium, soul soil, or VegetationBlock.
+    fill(
+        block_tags,
+        "minecraft:supports_nether_sprouts",
+        nylium
+            .iter()
+            .cloned()
+            .chain(["minecraft:soul_soil".to_owned()])
+            .chain(vegetation.iter().cloned())
+            .collect(),
+    );
+    // NetherWartBlock: soul sand.
+    fill(
+        block_tags,
+        "minecraft:supports_nether_wart",
+        BTreeSet::from(["minecraft:soul_sand".to_owned()]),
+    );
+    // WitherRoseBlock: FlowerBlock plus netherrack, soul sand, soul soil.
+    fill(
+        block_tags,
+        "minecraft:supports_wither_rose",
+        vegetation
+            .iter()
+            .cloned()
+            .chain([
+                "minecraft:netherrack".to_owned(),
+                "minecraft:soul_sand".to_owned(),
+                "minecraft:soul_soil".to_owned(),
+            ])
+            .collect(),
+    );
+    // CactusBlock: sand (cactus-on-cactus is the rule's own check).
+    fill(block_tags, "minecraft:supports_cactus", sand.clone());
+    // SugarCaneBlock: dirt or sand below; water or frosted ice beside.
+    fill(
+        block_tags,
+        "minecraft:supports_sugar_cane",
+        dirt.iter().cloned().chain(sand.iter().cloned()).collect(),
+    );
+    fill(
+        block_tags,
+        "minecraft:supports_sugar_cane_adjacently",
+        BTreeSet::from(["minecraft:frosted_ice".to_owned()]),
+    );
+    fill(
+        fluid_tags,
+        "minecraft:supports_sugar_cane_adjacently",
+        water,
+    );
+}
 /// Convert a data-generator `biome_parameters` report into the quantized
 /// preset table format, using vanilla's float `quantizeCoord`.
 pub(crate) fn quantize_parameter_report(json: &str) -> Result<String, GeneratorError> {
@@ -379,14 +489,14 @@ impl GeneratorData {
         if flags.len() != registry.len() {
             return Err(resource("block_flags.json does not match the registry"));
         }
-        let block_tags = build_tags(
+        let mut block_tags = build_tags(
             &read_bundle(dir, ov, "block_tags")?,
             ov,
             "block_tags",
             &mut warnings,
             |id| registry.default_state(id).is_some(),
         )?;
-        let fluid_tags = match read_optional_bundle(dir, ov, "fluid_tags")? {
+        let mut fluid_tags = match read_optional_bundle(dir, ov, "fluid_tags")? {
             Some(raw) => build_tags(&raw, ov, "fluid_tags", &mut warnings, |id| {
                 matches!(
                     id,
@@ -399,6 +509,12 @@ impl GeneratorData {
             })?,
             None => BTreeMap::new(),
         };
+        // 1.21.7 has no `supports_*` tags (1.21.11 added the family when it
+        // replaced the hardcoded `mayPlaceOn` checks with tags): without
+        // them the survival rules' `TagBelow` lookups resolve to empty sets
+        // and `would_survive` fails for saplings, so whole tree features
+        // vanish. Synthesize them from their 1.21.7 equivalents.
+        synthesize_legacy_support_tags(&mut block_tags, &mut fluid_tags);
         // The three biggest reads (the block tables, the structure templates
         // and the block behaviours) need only the tags: they run on threads of
         // their own while this one reads the rest. A new world's first chunks
@@ -5736,5 +5852,172 @@ mod tests {
                 "chunk {pos:?} post-decorate deep-band air {total}, vanilla-derived {expected}"
             );
         }
-     }
+    }
+
+    /// The 1.21.11 `supports_*` tags don't exist in 1.21.7 data, so the
+    /// survival rules' `TagBelow` lookups resolved to empty sets and
+    /// `would_survive` failed for every sapling: whole tree features
+    /// (trees_taiga, trees_plains, trees_birch) vanished, leaving the
+    /// spawn's birch forest bare. The loader synthesizes the tags from
+    /// their 1.21.7 equivalents; this pins the synthesis itself.
+    #[test]
+    fn legacy_support_tags_synthesize_from_equivalents() {
+        let mut block_tags = BTreeMap::from([
+            (
+                "minecraft:dirt".to_owned(),
+                vec![
+                    "minecraft:dirt".to_owned(),
+                    "minecraft:grass_block".to_owned(),
+                ],
+            ),
+            (
+                "minecraft:sand".to_owned(),
+                vec!["minecraft:sand".to_owned(), "minecraft:red_sand".to_owned()],
+            ),
+            (
+                "minecraft:nylium".to_owned(),
+                vec!["minecraft:crimson_nylium".to_owned()],
+            ),
+            (
+                "minecraft:dry_vegetation_may_place_on".to_owned(),
+                vec!["minecraft:sand".to_owned()],
+            ),
+            // A tag the bundle already has keeps its own members.
+            (
+                "minecraft:supports_cactus".to_owned(),
+                vec!["minecraft:sand".to_owned()],
+            ),
+        ]);
+        let mut fluid_tags = BTreeMap::from([(
+            "minecraft:water".to_owned(),
+            vec![
+                "minecraft:water".to_owned(),
+                "minecraft:flowing_water".to_owned(),
+            ],
+        )]);
+        synthesize_legacy_support_tags(&mut block_tags, &mut fluid_tags);
+        let has = |tag: &str, member: &str| {
+            block_tags
+                .get(tag)
+                .is_some_and(|members| members.iter().any(|m| m == member))
+        };
+        assert!(has("minecraft:supports_vegetation", "minecraft:dirt"));
+        assert!(has(
+            "minecraft:supports_vegetation",
+            "minecraft:grass_block"
+        ));
+        assert!(has("minecraft:supports_vegetation", "minecraft:farmland"));
+        assert!(!has("minecraft:supports_vegetation", "minecraft:sand"));
+        assert!(has("minecraft:supports_azalea", "minecraft:clay"));
+        assert!(has("minecraft:supports_azalea", "minecraft:farmland"));
+        assert!(has(
+            "minecraft:supports_mangrove_propagule",
+            "minecraft:clay"
+        ));
+        assert!(has(
+            "minecraft:supports_hanging_mangrove_propagule",
+            "minecraft:mangrove_leaves"
+        ));
+        assert!(has("minecraft:supports_dry_vegetation", "minecraft:sand"));
+        assert!(has(
+            "minecraft:supports_nether_sprouts",
+            "minecraft:crimson_nylium"
+        ));
+        assert!(has(
+            "minecraft:supports_nether_sprouts",
+            "minecraft:soul_soil"
+        ));
+        assert!(has("minecraft:supports_nether_sprouts", "minecraft:dirt"));
+        assert!(has("minecraft:supports_nether_wart", "minecraft:soul_sand"));
+        assert!(has(
+            "minecraft:supports_wither_rose",
+            "minecraft:netherrack"
+        ));
+        assert!(has("minecraft:supports_wither_rose", "minecraft:soul_sand"));
+        assert!(has("minecraft:supports_wither_rose", "minecraft:dirt"));
+        assert_eq!(
+            block_tags["minecraft:supports_cactus"],
+            vec!["minecraft:sand".to_owned()],
+            "an existing tag keeps its own members"
+        );
+        assert!(has("minecraft:supports_sugar_cane", "minecraft:dirt"));
+        assert!(has("minecraft:supports_sugar_cane", "minecraft:red_sand"));
+        assert!(has(
+            "minecraft:supports_sugar_cane_adjacently",
+            "minecraft:frosted_ice"
+        ));
+        assert_eq!(
+            fluid_tags["minecraft:supports_sugar_cane_adjacently"],
+            // Members come out of a BTreeSet, so alphabetically sorted.
+            vec![
+                "minecraft:flowing_water".to_owned(),
+                "minecraft:water".to_owned()
+            ],
+        );
+    }
+
+    /// End-to-end proof for the missing-trees fix: chunk (-2,-2) at the
+    /// owner's seed is birch forest with 6 birch trees (40 birch logs, 271
+    /// birch leaves) in vanilla. Before the fix, decoration placed zero
+    /// birch there — `trees_birch` was filtered out by `would_survive`.
+    #[test]
+    fn birch_trees_decorate_at_test1_seed() {
+        const SEED: i64 = 8257987075890829262;
+        let version = horizon_core::version::VERSION_ID;
+        let root = std::env::var_os("HORIZON_TEST_RESOURCES")
+            .or_else(|| std::env::var_os("HORIZON_RESOURCES"))
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../.local/horizon-client")
+                    .join(version)
+            });
+        if !root.join("worldgen/world_presets.json").exists() {
+            eprintln!("skipping: no worldgen bundle at {}", root.display());
+            return;
+        }
+        let registry: &'static BlockRegistry = Box::leak(Box::new(
+            crate::level::data::load_registry(&root).expect("registry"),
+        ));
+        let data = GeneratorData::load(&root.join("worldgen"), registry).expect("worldgen data");
+        let generator = OverworldGenerator::new(data.clone(), SEED).expect("overworld pipeline");
+        let mut worker = generator.worker();
+        let center = ChunkPos::new(-2, -2);
+        let mut region: [ProtoChunk; 9] = std::array::from_fn(|i| {
+            let dx = (i % 3) as i32 - 1;
+            let dz = (i / 3) as i32 - 1;
+            worker
+                .generate_proto(ChunkPos::new(center.x + dx, center.z + dz))
+                .unwrap_or_else(|e| panic!("chunk {dx},{dz}: {e}"))
+        });
+        let stats = worker.decorate(&mut region).expect("decorate");
+        assert!(
+            !stats.skipped.contains("minecraft:trees_birch"),
+            "trees_birch was skipped: {stats:?}"
+        );
+        let chunk = &region[4];
+        let min_y = chunk.terrain.min_y();
+        let height = chunk.terrain.height();
+        let (mut logs, mut leaves) = (0usize, 0usize);
+        for y in min_y..min_y + height {
+            for z in 0..16 {
+                for x in 0..16 {
+                    match chunk.block_name(x, y, z) {
+                        "minecraft:birch_log" => logs += 1,
+                        "minecraft:birch_leaves" => leaves += 1,
+                        _ => {}
+                    }
+                }
+            }
+        }
+        eprintln!("chunk {center:?}: {logs} birch logs, {leaves} birch leaves (vanilla 40 / 271)");
+        assert!(
+            logs >= 20,
+            "chunk {center:?} has {logs} birch logs after decoration, vanilla has 40"
+        );
+        assert!(
+            leaves >= 100,
+            "chunk {center:?} has {leaves} birch leaves after decoration, vanilla has 271"
+        );
+    }
 }
