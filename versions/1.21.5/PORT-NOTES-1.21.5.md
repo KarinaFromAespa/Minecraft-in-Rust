@@ -14443,12 +14443,34 @@ is the oracle; decompiled code is a reading aid.
     in the wgpu port.
   - Verification: read / only; no code / changed.
 
+- **Item 361 — GuiRenderer package (duplicate of 333)**
+  - GuiRenderer package
+    (duplicate of item
+    333): verified, no
+    code. This item's diff
+    file is byte-identical
+    to item 333's - the
+    single line noting the
+    whole net/minecraft/cli
+    ent/gui/render package
+    is 1.21.6-only. Item
+    333 already closed the
+    ground: the package
+    (GuiRenderer plus its
+    nested classes) has no
+    port surface, and the
+    two stale pack_text.rs
+    citations were reworded
+    there. Nothing further
+    to do.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **360 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 92/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **361 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 93/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
