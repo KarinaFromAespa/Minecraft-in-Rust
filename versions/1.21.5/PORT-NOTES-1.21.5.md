@@ -13565,12 +13565,41 @@ is the oracle; decompiled code is a reading aid.
     delta.
   - Verification: read / only; no code / changed.
 
+- **Item 331 — Adult sensor**
+  - AdultSensor: verified,
+    no code. The 29-line
+    diff is pure generics:
+    1.21.6 types the sensor
+    Sensor<LivingEntity>,
+    1.21.5
+    Sensor<AgeableMob>, and
+    setNearestVisibleAdult
+    is protected there,
+    private here - the
+    logic is identical, the
+    closest visible entity
+    of the same type that
+    is not a baby, stored
+    as
+    NEAREST_VISIBLE_ADULT.
+    The port's
+    Sensor::AdultSameType
+    does exactly that (same
+    species, not a baby,
+    nearest first) into
+    nearest_visible_adult;
+    the generic type has no
+    Rust surface, the
+    sensor being an enum
+    variant.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **330 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 62/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **331 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 63/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
