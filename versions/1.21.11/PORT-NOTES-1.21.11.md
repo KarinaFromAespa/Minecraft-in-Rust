@@ -13367,3 +13367,10 @@ brightens the up/down faces to 0.9).
 1 class: `RandomPatchConfiguration` — the (tries, xzSpread,
 ySpread, feature) record. The Rust's `RandomPatchFeature` holds
 exactly these fields with the codec bounds.
+
+## Item 805 — world/level/storage/loot/entries (new-classes) — NO-CHANGE
+
+1 class: `LootPoolEntryType` — a record wrapping a `MapCodec`,
+the registry plumbing for the loot pool entry types. The Rust
+implements all eight entry types by string dispatch in
+`loot.rs::expand`.
