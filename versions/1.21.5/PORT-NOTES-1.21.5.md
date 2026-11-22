@@ -16224,12 +16224,43 @@ is the oracle; decompiled code is a reading aid.
     ground, tests included.
   - Verification: read / only; no code / changed.
 
+- **Item 424 — New sound events (4)**
+  - New sound events (4):
+    verified, three wired,
+    one under the known
+    gap. block.sand.wind is
+    played by the desert
+    ambient sounds
+    (animate_tick), and
+    entity.leash_knot.break
+    and .place are played
+    when a fence knot
+    breaks and when a lead
+    is tied (leads). entity
+    .puffer_fish.ambient
+    has no call site - the
+    port has no mob
+    ambient-sound system at
+    all, the
+    version-neutral gap
+    item 263 already
+    recorded (the
+    pufferfish's sting,
+    blow_up and blow_out
+    sounds are all wired).
+    The four events
+    themselves arrive with
+    the prepared 1.21.5
+    registries, so they
+    resolve when played.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **423 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 22/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **424 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 complete). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
