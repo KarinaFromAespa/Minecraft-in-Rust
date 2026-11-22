@@ -5164,7 +5164,9 @@ mod tests {
                 "minecraft:gravel",
             ),
             (string("minecraft:air"), "minecraft:air"),
-            (legacy, "minecraft:sand"),
+            // Vanilla 1.21.7 `NbtUtils.readBlockState` reads the `Name` key, so
+            // the legacy compound decodes to gravel and saves back as gravel.
+            (legacy, "minecraft:gravel"),
             (Tag::Compound(Default::default()), "minecraft:sand"),
         ] {
             let mut input = falling_decode_input();
