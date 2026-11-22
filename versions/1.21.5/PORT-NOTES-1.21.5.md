@@ -15724,12 +15724,46 @@ is the oracle; decompiled code is a reading aid.
     warning.
   - Verification: read / only; no code / changed.
 
+- **Item 407 — Font / StringRenderOutput / LayeredDraw**
+  - Font /
+    StringRenderOutput /
+    LayeredDraw: verified,
+    no code. 1.21.6 rewrote
+    font rendering around
+    PreparedText and
+    GlyphVisitor; 1.21.5
+    draws through
+    StringRenderOutput with
+    drawInternal's
+    adjustColor. The port
+    already implements the
+    1.21.5 rule - colours
+    with alpha under 4 draw
+    opaque, documented
+    against 1.21.6 dropping
+    the rule - plus bidi
+    shaping and the
+    StringDecomposer
+    formatting pass. The
+    remaining differences
+    are render plumbing
+    with no wgpu surface:
+    the effect depths (0.01
+    vs 0.001), SHADOW_DEPTH
+    (0.03 vs 0.003), the
+    PreparedText bounds
+    tracking, and
+    LayeredDraw, a trivial
+    helper that renders HUD
+    layers 200 z apart.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **406 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 5/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **407 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 6/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
