@@ -15955,12 +15955,36 @@ is the oracle; decompiled code is a reading aid.
     (item 292), sayNow.
   - Verification: read / only; no code / changed.
 
+- **Item 415 — MobEffectTextureManager**
+  - MobEffectTextureManager
+    : verified, no code.
+    The 1.21.5-only class
+    is a thin atlas holder:
+    an effect's sprite is
+    its registry location
+    in the mob-effects
+    atlas, missing for an
+    unregistered holder.
+    The port's
+    potions::sprite does
+    exactly that lookup -
+    mob_effect/<path> for
+    vanilla,
+    <ns>:mob_effect/<path>
+    for a mod's effect -
+    with tests; the
+    atlas-holder plumbing
+    itself has no surface
+    in the port's sprite
+    cache.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **414 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 13/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **415 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 14/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
