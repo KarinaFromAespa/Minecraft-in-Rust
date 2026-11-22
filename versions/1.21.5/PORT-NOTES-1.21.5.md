@@ -15700,12 +15700,36 @@ is the oracle; decompiled code is a reading aid.
     unchanged.)
   - Verification: read / only; no code / changed.
 
+- **Item 406 — ServerLinksScreen**
+  - ServerLinksScreen:
+    verified, no code. The
+    screen is 1.21.5-only -
+    1.21.6 folded server
+    links into the dialog
+    system - and the port
+    already implements it
+    in full: the
+    menu.server_links.title
+    screen with the
+    scrollable list of
+    310-wide link buttons,
+    the 200-wide Back
+    button in the footer,
+    each link opening
+    through a
+    ConfirmLinkScreen, and
+    the untrusted-URI
+    validation that drops
+    invalid links with a
+    warning.
+  - Verification: read / only; no code / changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **405 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 4/23). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **406 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 complete, rank 4 at 5/23). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
