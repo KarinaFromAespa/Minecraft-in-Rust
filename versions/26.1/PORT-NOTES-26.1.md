@@ -484,6 +484,23 @@ doc corrections (falling-block drag is a hardcoded 0.98 in 26.1 —
 the CriteriaTriggers package move, Holder field types, screen
 access; the 26.2 #137 ghast port is carried (ghasts.rs identical).
 
+Batch 16 (Nov 23, 234/498): 253 ported — the spawn-egg eligibility
+gate is 26.2-only: `EntityType.canSpawn` (feature flags + peaceful)
+does not exist in 26.1, and 26.2 gates both `SpawnEggItem.useOn` and
+`.use` on it. Removed the gate from `use_spawn_egg` (and the
+`spawn_egg_allowed` helper) and both remote.rs client-prediction
+sites; the "Disabled in Peaceful" tooltip line exists in 26.1 too
+and stays. 181 ported — `component_bool` is the DFU default in 26.1
+(`Number.byteValue() != 0`, verified against the 26.1 DFU 9.0.19 jar),
+not 26.2's `doubleValue()` override; regression test
+`a_component_bool_reads_only_the_low_8_bits`. 145 ported
+comment-only (26.1 `submitParticleGroup` vs 26.2
+`submitQuadParticleGroup`). 257/252/255/146/209 no-change: a
+field-type + checkcast, the peaceful gate already in the shared
+`spawning_monsters` predicate, an async-batching refactor of the
+legacy-structure fix, knockback/equipment refactors with identical
+behaviour, no named methods changed.
+
 Test health: crate-tests run 45163597005 (rank-1 state): protocol,
 items, client-core, client-render PASS; world FAIL (1 pre-existing
 datafix failure, `failed_upgrade_keeps_old_data_version` — the other

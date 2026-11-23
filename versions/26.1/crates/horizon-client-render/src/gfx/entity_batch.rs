@@ -7,7 +7,9 @@ use super::Vertex;
 /// breaking cracks (12), the boat water mask (13, `RenderPipelines.WATER_MASK`),
 /// energy swirls (34, `RenderPipelines.ENERGY_SWIRL`), entity shadows (14,
 /// `RenderPipelines.ENTITY_SHADOW`), translucent-layer particles (15, drawn
-/// after translucent terrain: `SubmitNodeCollection.submitQuadParticleGroup`)
+/// after translucent terrain: `SubmitNodeCollection.submitParticleGroup`;
+/// 26.2 renamed it `submitQuadParticleGroup` and takes a render state
+/// instead of a group renderer)
 /// and translucent item quads (32, drawn without depth writes).
 ///
 /// With improved transparency on, quads tagged `OIT_ENTITY` are a tenth

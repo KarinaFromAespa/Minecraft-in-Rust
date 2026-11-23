@@ -8623,22 +8623,23 @@ impl Game<'_> {
                 // and the click ends.
                 self.with_hand(hand, Game::swing_arm);
                 return true;
-            } else if let Some(stack) = held
+            } else if held
                 .as_ref()
                 .filter(|s| s.item.ends_with("_spawn_egg"))
                 .filter(|_| {
                     self.may_build()
                         || self.with_hand(hand, |g| g.can_place_on_in_adventure(hit.pos))
                 })
+                .is_some()
             {
-                // SpawnEggItem.useOn on a client level: FAIL for a mob that
-                // cannot spawn (the click ends, no swing), else SUCCESS (swing).
-                // Either way no UseItem follows, so the server does not spawn
-                // a second mob from the fluid ray (ItemStack.useOn passes in
+                // SpawnEggItem.useOn on a client level: SUCCESS (swing) —
+                // 26.1 returns SUCCESS for a non-server level with no
+                // eligibility check (26.2 added the canSpawn gate, which
+                // FAILs the click for a mob that cannot spawn). Either way
+                // no UseItem follows, so the server does not spawn a second
+                // mob from the fluid ray (ItemStack.useOn passes in
                 // adventure mode off can_place_on, which the filter above keeps).
-                if self.spawn_egg_allowed(&stack.item) {
-                    self.with_hand(hand, Game::swing_arm);
-                }
+                self.with_hand(hand, Game::swing_arm);
                 return true;
             } else if let Some(stack) = held.as_ref()
                 && &*stack.item == "minecraft:potion"
@@ -9235,8 +9236,9 @@ impl Game<'_> {
         }
         // SpawnEggItem.use on the client succeeds after a SOURCE_ONLY block
         // hit; the server alone tests LiquidBlock and the placement permission.
+        // 26.1 has no canSpawn gate here (26.2 added it).
         if held.item.ends_with("_spawn_egg") {
-            let succeeded = self.spawn_egg_allowed(&held.item) && self.bucket_hit().is_some();
+            let succeeded = self.bucket_hit().is_some();
             if succeeded {
                 self.with_hand(hand, Game::swing_arm);
             }
