@@ -1072,8 +1072,10 @@ mod tests {
     fn pause_screen_additions_takes_the_server_links_row() {
         // getCustomAdditions: one additions button in row 3, never next to the
         // links button, so the grid keeps one extra row either way.
-        let with = pause_buttons(427.0, 240.0, true, true, true, false);
-        let links = pause_buttons(427.0, 240.0, true, true, false, false);
+        // Single player (remote=false): id 9 is Share to LAN, which a
+        // multiplayer pause menu has no row for.
+        let with = pause_buttons(427.0, 240.0, false, true, true, false);
+        let links = pause_buttons(427.0, 240.0, false, true, false, false);
         assert!(with.iter().all(|b| b.4 != 11));
         let button = with.iter().find(|b| b.4 == 14).unwrap();
         assert_eq!(
