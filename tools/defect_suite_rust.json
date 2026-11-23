@@ -1,0 +1,59 @@
+{
+ "_note": "Regression tests per defect class, by crate and test function name. The suite reports whether each test EXISTS in the version tree (presence), reads results from a crate-tests run with --crate-logs, or runs them with --run-rust. `crate` is where the test's source lives; `suite`, when present, is the cargo package it RUNS under \u2014 horizon-client-lib's lib root is ../horizon-client/src/client_lib.rs, so tests written in crates/horizon-client/src/ run as horizon-client-lib. When a fix lands in a version, its regression test goes here under the class it covers (see docs/DEFECT-SUITE.md). A class with an empty list has no test yet \u2014 the suite reports it not-covered. Test names are version-neutral where possible; the 1.21.7-named loot test predates the convention.",
+ "absent-tags": [],
+ "advancement-keys": [
+  {
+   "crate": "horizon-client",
+   "suite": "horizon-client-lib",
+   "test": "recipe_conditions_match_only_their_recipe"
+  },
+  {
+   "crate": "horizon-client",
+   "suite": "horizon-client-lib",
+   "test": "loot_table_conditions_match_only_their_table"
+  },
+  {
+   "crate": "horizon-client",
+   "suite": "horizon-client-lib",
+   "test": "single_block_trigger_conditions_match_only_their_block"
+  }
+ ],
+ "bed-models": [],
+ "brewing-fuel": [],
+ "fuel-table": [
+  {
+   "crate": "horizon-items",
+   "test": "fuel_comes_from_the_vanilla_fuel_values_table"
+  },
+  {
+   "crate": "horizon-client",
+   "suite": "horizon-client-lib",
+   "test": "vanilla_coal_burns_from_the_fuel_values_table"
+  },
+  {
+   "crate": "horizon-client",
+   "suite": "horizon-client-lib",
+   "test": "furnace_fuel_slot_takes_table_fuel"
+  }
+ ],
+ "loot-fields": [
+  {
+   "crate": "horizon-world",
+   "test": "conditions_read_the_1_21_7_condition_key_as_well_as_type"
+  },
+  {
+   "crate": "horizon-world",
+   "test": "entry_functions_apply_before_pool_and_table_functions"
+  }
+ ],
+ "menu-sprites": [
+  {
+   "crate": "horizon-prepare",
+   "note": "horizon-prepare is not in the crate-tests suites, so --crate-logs never covers it; run it with --run-rust or in horizon-prepare's own CI",
+   "test": "menu_sprites_fall_back_to_the_26_3_jar"
+  }
+ ],
+ "mob-models": [],
+ "recipe-packets": [],
+ "undead-burn": []
+}
