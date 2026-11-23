@@ -1,14 +1,15 @@
 use super::*;
-/// `AgeableMob.isBaby` is `canBeABaby() && getAge() < 0`, and `Age` alone
-/// says nothing: the six ageable classes that override `canBeABaby` to
-/// false — `Frog`, `Parrot`, `ZombieNautilus`, `CamelHusk`, `Slime` and
-/// `MagmaCube` — stay adults, and so do the `PiglinBrute` (no `isBaby` of
-/// its own), the `Creeper` (outside the ageable tree) and the `Tadpole`,
-/// whose own age runs up from -24000 without it ever being a baby.
+/// `AgeableMob.isBaby` is `getAge() < 0` (26.1 has no `canBeABaby`), and
+/// `Age` alone says nothing: the four ageable classes that override
+/// `isBaby` to false — `Frog`, `Parrot`, `ZombieNautilus` and `CamelHusk` —
+/// stay adults, as do the `Slime` and `MagmaCube` (outside the ageable tree
+/// in 26.1), the `PiglinBrute` (no `isBaby` of its own), the `Creeper`
+/// (outside the ageable tree) and the `Tadpole`, whose own age runs up from
+/// -24000 without it ever being a baby.
 ///
 /// Every one of them keeps its type's box, the plain 1.0 ± 0.2 voice and
 /// `getAgeScale`'s 1.0, where a cow with the same age takes
-/// `Cow.BABY_DIMENSIONS` (0.45 by 0.7, eyes at 0.69) and the 1.5 ± 0.2
+/// `AbstractCow.BABY_DIMENSIONS` (0.45 by 0.7, eyes at 0.665) and the 1.5 ± 0.2
 /// that `LivingEntity.getVoicePitch` gives a baby.
 #[test]
 fn a_negative_age_is_a_baby_only_where_can_be_a_baby_allows_it() {
@@ -66,7 +67,7 @@ fn a_negative_age_is_a_baby_only_where_can_be_a_baby_allows_it() {
     assert!(cow.is_baby());
     assert_eq!(
         cow.dims(),
-        (f64::from(0.45_f32), f64::from(0.7_f32), f64::from(0.69_f32))
+        (f64::from(0.45_f32), f64::from(0.7_f32), f64::from(0.665_f32))
     );
     let pitches: Vec<f32> = (0..64).map(|_| cow.voice_pitch()).collect();
     assert!(
@@ -1174,4 +1175,51 @@ fn a_steered_mount_moves_through_the_air_at_a_tenth_of_its_speed() {
     assert_eq!(m.flying_speed(), 0.02, "unsaddled");
     m.extra.saddled = true;
     assert_eq!(m.flying_speed(), 0.3_f32 * 0.1);
+}
+
+/// 26.1's baby boxes: the 20 classes with `BABY_DIMENSIONS` take their
+/// exact boxes, every other baby takes the type's box scaled by
+/// `getAgeScale` (`LivingEntity.getDefaultDimensions`). 26.2 gave 16 more
+/// classes explicit baby boxes and changed several values, so the 26.2
+/// table is not this table: the zombie family is 0.99 tall here, the
+/// axolotl (0.5, 0.25, 0.2), the squid 0.63 tall, the cow's eyes at
+/// 0.665, and the armadillo, dolphin, happy ghast and panda carry no eye
+/// override (their eyes scale with the box).
+#[test]
+fn baby_boxes_are_the_26_1_boxes_not_the_26_2_ones() {
+    use crate::mobs::species::{Baby, def};
+    use crate::mobs::Species;
+    let baby = |s: Species| def(s).baby;
+    // Exact BABY_DIMENSIONS boxes, 26.1 values.
+    assert!(matches!(baby(Species::Zombie), Baby::Abs(0.49, 0.99, 0.775)));
+    assert!(matches!(baby(Species::Drowned), Baby::Abs(0.49, 0.99, 0.775)));
+    assert!(matches!(baby(Species::Husk), Baby::Abs(0.49, 0.99, 0.825)));
+    assert!(matches!(baby(Species::Villager), Baby::Abs(0.49, 0.99, 0.63)));
+    assert!(matches!(
+        baby(Species::ZombieVillager),
+        Baby::Abs(0.49, 0.99, 0.67)
+    ));
+    assert!(matches!(baby(Species::Piglin), Baby::Abs(0.49, 0.99, 0.78)));
+    assert!(matches!(baby(Species::Axolotl), Baby::Abs(0.5, 0.25, 0.2)));
+    assert!(matches!(baby(Species::Squid), Baby::Abs(0.5, 0.63, 0.37)));
+    assert!(matches!(baby(Species::Chicken), Baby::Abs(0.3, 0.4, 0.28)));
+    assert!(matches!(baby(Species::Rabbit), Baby::Abs(0.24, 0.4, 0.39)));
+    assert!(matches!(baby(Species::Cow), Baby::Scale(0.5, Some(0.665))));
+    assert!(matches!(baby(Species::Fox), Baby::Scale(0.6, Some(0.2975))));
+    assert!(matches!(baby(Species::Horse), Baby::Scale(0.7, None)));
+    // Age-scale babies: no BABY_DIMENSIONS in 26.1, so the type's box
+    // times `getAgeScale` — 0.5 default, 0.55 goat, 0.6 armadillo and
+    // camel, 0.65 dolphin, 0.2375 happy ghast.
+    assert!(matches!(baby(Species::Pig), Baby::Scale(0.5, None)));
+    assert!(matches!(baby(Species::Sheep), Baby::Scale(0.5, None)));
+    assert!(matches!(baby(Species::Wolf), Baby::Scale(0.5, None)));
+    assert!(matches!(baby(Species::Cat), Baby::Scale(0.5, None)));
+    assert!(matches!(baby(Species::Panda), Baby::Scale(0.5, None)));
+    assert!(matches!(baby(Species::Hoglin), Baby::Scale(0.5, None)));
+    assert!(matches!(baby(Species::Strider), Baby::Scale(0.5, None)));
+    assert!(matches!(baby(Species::Goat), Baby::Scale(0.55, None)));
+    assert!(matches!(baby(Species::Armadillo), Baby::Scale(0.6, None)));
+    assert!(matches!(baby(Species::Camel), Baby::Scale(0.6, None)));
+    assert!(matches!(baby(Species::Dolphin), Baby::Scale(0.65, None)));
+    assert!(matches!(baby(Species::HappyGhast), Baby::Scale(0.2375, None)));
 }

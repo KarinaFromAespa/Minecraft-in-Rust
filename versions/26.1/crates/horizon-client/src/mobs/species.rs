@@ -96,7 +96,14 @@ pub enum Species {
     SulfurCube,
     Mannequin,
 }
-/// Baby bounding boxes (each class's BABY_DIMENSIONS).
+/// Baby bounding boxes: a class's BABY_DIMENSIONS where 26.1 has one
+/// (20 classes), else the type's box scaled by `getAgeScale`
+/// (`LivingEntity.getDefaultDimensions` scales the type's box by the age
+/// scale: 0.5 for most babies, 0.55 goat, 0.6 armadillo and camel, 0.65
+/// dolphin, 0.2375 happy ghast). 26.2 gave 16 more classes explicit
+/// BABY_DIMENSIONS and changed several boxes (zombie family 0.98 -> 0.99
+/// tall, axolotl, squid, chicken eye, cow eye) — those are the 26.2 form,
+/// not this one.
 #[derive(Clone, Copy, Debug)]
 pub enum Baby {
     /// Not an ageable mob.
@@ -140,7 +147,7 @@ pub const ALL: &[Def] = &[
         A::Quadruped,
         ["entity.pig.ambient", "entity.pig.hurt", "entity.pig.death"],
         Some("entity.pig.step"),
-        Baby::Abs(0.45, 0.45, 0.40625)
+        Baby::Scale(0.5, None)
     ),
     def!(
         Cow,
@@ -150,7 +157,7 @@ pub const ALL: &[Def] = &[
         A::Quadruped,
         ["entity.cow.ambient", "entity.cow.hurt", "entity.cow.death"],
         Some("entity.cow.step"),
-        Baby::Abs(0.45, 0.7, 0.69)
+        Baby::Scale(0.5, Some(0.665))
     ),
     def!(
         Mooshroom,
@@ -160,7 +167,7 @@ pub const ALL: &[Def] = &[
         A::Quadruped,
         ["entity.cow.ambient", "entity.cow.hurt", "entity.cow.death"],
         Some("entity.cow.step"),
-        Baby::Abs(0.45, 0.7, 0.69)
+        Baby::Scale(0.5, Some(0.665))
     ),
     def!(
         Sheep,
@@ -174,7 +181,7 @@ pub const ALL: &[Def] = &[
             "entity.sheep.death"
         ],
         Some("entity.sheep.step"),
-        Baby::Abs(0.45, 0.65, 0.65625)
+        Baby::Scale(0.5, None)
     ),
     def!(
         Chicken,
@@ -188,7 +195,7 @@ pub const ALL: &[Def] = &[
             "entity.chicken.death"
         ],
         Some("entity.chicken.step"),
-        Baby::Abs(0.3, 0.4, 0.28125)
+        Baby::Abs(0.3, 0.4, 0.28)
     ),
     def!(
         Rabbit,
@@ -324,7 +331,7 @@ pub const ALL: &[Def] = &[
             "entity.goat.death"
         ],
         Some("entity.goat.step"),
-        Baby::Abs(0.45, 0.65, 0.59375)
+        Baby::Scale(0.55, None)
     ),
     def!(
         Panda,
@@ -338,7 +345,7 @@ pub const ALL: &[Def] = &[
             "entity.panda.death"
         ],
         Some("entity.panda.step"),
-        Baby::Scale(0.5, Some(0.28125))
+        Baby::Scale(0.5, None)
     ),
     def!(
         PolarBear,
@@ -352,7 +359,7 @@ pub const ALL: &[Def] = &[
             "entity.polar_bear.death"
         ],
         Some("entity.polar_bear.step"),
-        Baby::Abs(0.7, 0.7, 0.34375)
+        Baby::Scale(0.5, None)
     ),
     def!(
         Fox,
@@ -362,7 +369,7 @@ pub const ALL: &[Def] = &[
         A::Fox,
         ["entity.fox.ambient", "entity.fox.hurt", "entity.fox.death"],
         None,
-        Baby::Scale(0.6, Some(0.34375))
+        Baby::Scale(0.6, Some(0.2975))
     ),
     def!(
         Wolf,
@@ -376,7 +383,7 @@ pub const ALL: &[Def] = &[
             "entity.wolf.death"
         ],
         Some("entity.wolf.step"),
-        Baby::Abs(0.3, 0.425, 0.34375)
+        Baby::Scale(0.5, None)
     ),
     def!(
         Cat,
@@ -386,7 +393,7 @@ pub const ALL: &[Def] = &[
         A::Feline,
         ["entity.cat.ambient", "entity.cat.hurt", "entity.cat.death"],
         None,
-        Baby::Abs(0.3, 0.35, 0.34375)
+        Baby::Scale(0.5, None)
     ),
     def!(
         Ocelot,
@@ -400,7 +407,7 @@ pub const ALL: &[Def] = &[
             "entity.ocelot.death"
         ],
         None,
-        Baby::Abs(0.3, 0.35, 0.34375)
+        Baby::Scale(0.5, None)
     ),
     def!(
         Parrot,
@@ -452,7 +459,7 @@ pub const ALL: &[Def] = &[
             "entity.armadillo.death"
         ],
         Some("entity.armadillo.step"),
-        Baby::Scale(0.6, Some(0.21875))
+        Baby::Scale(0.6, None)
     ),
     def!(
         Frog,
@@ -480,7 +487,7 @@ pub const ALL: &[Def] = &[
             "entity.axolotl.death"
         ],
         None,
-        Baby::Abs(0.375, 0.21, 0.09375)
+        Baby::Abs(0.5, 0.25, 0.2)
     ),
     def!(
         Squid,
@@ -494,7 +501,7 @@ pub const ALL: &[Def] = &[
             "entity.squid.death"
         ],
         None,
-        Baby::Abs(0.5, 0.5, 0.37)
+        Baby::Abs(0.5, 0.63, 0.37)
     ),
     def!(
         GlowSquid,
@@ -508,7 +515,7 @@ pub const ALL: &[Def] = &[
             "entity.glow_squid.death"
         ],
         None,
-        Baby::Abs(0.5, 0.5, 0.37)
+        Baby::Abs(0.5, 0.63, 0.37)
     ),
     def!(
         Tadpole,
@@ -580,7 +587,7 @@ pub const ALL: &[Def] = &[
             "entity.dolphin.death"
         ],
         None,
-        Baby::Scale(0.65, Some(0.093_75))
+        Baby::Scale(0.65, None)
     ),
     def!(
         Bat,
@@ -604,7 +611,7 @@ pub const ALL: &[Def] = &[
             "entity.villager.death"
         ],
         None,
-        Baby::Abs(0.49, 0.98, 0.63)
+        Baby::Abs(0.49, 0.99, 0.63)
     ),
     def!(
         WanderingTrader,
@@ -666,7 +673,7 @@ pub const ALL: &[Def] = &[
             "entity.zombie.death"
         ],
         Some("entity.zombie.step"),
-        Baby::Abs(0.49, 0.98, 0.775)
+        Baby::Abs(0.49, 0.99, 0.775)
     ),
     def!(
         Husk,
@@ -680,7 +687,7 @@ pub const ALL: &[Def] = &[
             "entity.husk.death"
         ],
         Some("entity.husk.step"),
-        Baby::Abs(0.49, 0.98, 0.825)
+        Baby::Abs(0.49, 0.99, 0.825)
     ),
     def!(
         Drowned,
@@ -694,7 +701,7 @@ pub const ALL: &[Def] = &[
             "entity.drowned.death"
         ],
         Some("entity.drowned.step"),
-        Baby::Abs(0.49, 0.98, 0.775)
+        Baby::Abs(0.49, 0.99, 0.775)
     ),
     def!(
         ZombieVillager,
@@ -708,7 +715,7 @@ pub const ALL: &[Def] = &[
             "entity.zombie_villager.death"
         ],
         Some("entity.zombie_villager.step"),
-        Baby::Abs(0.49, 0.98, 0.67)
+        Baby::Abs(0.49, 0.99, 0.67)
     ),
     def!(
         Skeleton,
@@ -976,7 +983,7 @@ pub const ALL: &[Def] = &[
             "entity.camel.death"
         ],
         Some("entity.camel.step"),
-        Baby::Abs(0.95, 1.4, 1.38)
+        Baby::Scale(0.6, None)
     ),
     def!(
         HappyGhast,
@@ -990,7 +997,7 @@ pub const ALL: &[Def] = &[
             "entity.happy_ghast.death"
         ],
         None,
-        Baby::Scale(0.2375, Some(0.46875))
+        Baby::Scale(0.2375, None)
     ),
     def!(
         Sniffer,
@@ -1140,7 +1147,7 @@ pub const ALL: &[Def] = &[
             "entity.piglin.death"
         ],
         Some("entity.piglin.step"),
-        Baby::Abs(0.49, 0.98, 0.78)
+        Baby::Abs(0.49, 0.99, 0.78)
     ),
     def!(
         PiglinBrute,
@@ -1168,7 +1175,7 @@ pub const ALL: &[Def] = &[
             "entity.zombified_piglin.death"
         ],
         None,
-        Baby::Abs(0.49, 0.98, 0.78)
+        Baby::Abs(0.49, 0.99, 0.78)
     ),
     def!(
         Hoglin,
@@ -1182,7 +1189,7 @@ pub const ALL: &[Def] = &[
             "entity.hoglin.death"
         ],
         Some("entity.hoglin.step"),
-        Baby::Abs(0.75, 0.85, 0.625)
+        Baby::Scale(0.5, None)
     ),
     def!(
         Zoglin,
@@ -1196,7 +1203,7 @@ pub const ALL: &[Def] = &[
             "entity.zoglin.death"
         ],
         Some("entity.zoglin.step"),
-        Baby::Abs(0.75, 0.85, 0.625)
+        Baby::Scale(0.5, None)
     ),
     def!(
         Ghast,
@@ -1238,7 +1245,7 @@ pub const ALL: &[Def] = &[
             "entity.strider.death"
         ],
         Some("entity.strider.step"),
-        Baby::Abs(0.45, 0.85, 0.4375)
+        Baby::Scale(0.5, None)
     ),
     def!(
         Warden,
@@ -1327,13 +1334,14 @@ pub fn def(s: Species) -> &'static Def {
 /// `AgeableMob.canBeABaby`: the species `Mob::is_baby` can ever answer `true`
 /// for, which is what lets `getAge() < 0` mean "a baby" rather than "an age".
 ///
-/// `canBeABaby` is `true` across the ageable tree but for the six classes
-/// that override it to `false` — `Frog`, `Parrot`, `ZombieNautilus`,
-/// `CamelHusk`, `Slime` and `MagmaCube`, the last two being `AbstractCubeMob`s
-/// and so `AgeableMob`s themselves — and the zombies, the piglins and the
-/// zoglin answer a synced `DATA_BABY_ID` rather than an age. Everything else
-/// inherits `LivingEntity.isBaby`, which is `false`: a `Giant`, a `Creeper`,
-/// a `PiglinBrute` or a `Tadpole` stays an adult however negative its `Age`.
+/// 26.1 has no `canBeABaby` (a 26.2 addition): `AgeableMob.isBaby` is
+/// `getAge() < 0`, and four ageable classes override it to `false` —
+/// `Frog`, `Parrot`, `ZombieNautilus` and `CamelHusk` — while `Slime` and
+/// `MagmaCube` are not in the ageable tree at all in 26.1 (`Slime` extends
+/// `Mob`). The zombies, the piglins and the zoglin answer a synced
+/// `DATA_BABY_ID` rather than an age. Everything else inherits
+/// `LivingEntity.isBaby`, which is `false`: a `Giant`, a `Creeper`, a
+/// `PiglinBrute` or a `Tadpole` stays an adult however negative its `Age`.
 pub fn can_be_a_baby(s: Species) -> bool {
     use Species as S;
     matches!(

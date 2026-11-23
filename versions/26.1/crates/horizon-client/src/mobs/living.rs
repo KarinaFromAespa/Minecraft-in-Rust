@@ -654,7 +654,8 @@ impl Mob {
     pub fn height(&self) -> f32 {
         self.dims().1 as f32
     }
-    /// `AgeableMob.isBaby`: `canBeABaby() && getAge() < 0`. The age alone is
+    /// `AgeableMob.isBaby`: `getAge() < 0` (26.1 has no `canBeABaby` — the
+    /// four never-baby ageables override `isBaby` itself). The age alone is
     /// not enough — a frog, a parrot, a zombie nautilus, a camel husk, a slime,
     /// a magma cube, a piglin brute, a tadpole, or anything that is not an
     /// `AgeableMob` at all is an adult whatever `Age` says, so its box, voice,

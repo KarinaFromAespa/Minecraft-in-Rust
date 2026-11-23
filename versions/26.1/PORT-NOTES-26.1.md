@@ -400,6 +400,28 @@ copper chest mapping contents identical (8 pairs; construction differs
 only), 283 TurtleMoveControl tick/updateSpeed instruction-identical
 after normalizing the generic-vs-field receiver access.
 
+Batch 11 (2026-11-23): 7 closures (196/498) — 287/290/300/307
+no-change (EntityTypes->EntityType renames; FenceGateBlock.isPathfindable
+codegen-only). 287 surfaced a real 26.1 difference for item 165:
+SweetBerryBushBlock.isValidBonemealTarget requires age<3 AND air above
+AND inside build height in 26.1 (age only in 26.2). 291 ported:
+MobCategory has no getDebugAbbreviation in 26.1, so spawn-count
+abbreviations are the first letter of getName() (M/C/A/A/U/W/W/M).
+308 ported comment-only: no canBeABaby in 26.1 (isBaby is
+getAge() < 0 with four overrides; Slime/MagmaCube are not AgeableMobs).
+309 ported: ArmadilloBallUp.checkExtraStartConditions is onGround only
+(the 26.3 !isInLiquid check dropped), plus the jar-wide baby-dims
+mechanism — 26.1 has BABY_DIMENSIONS in only 20 classes vs 36 in 26.2,
+every other baby taking the type box scaled by getAgeScale (0.5
+default; goat 0.55, armadillo/camel 0.6, dolphin 0.65, happy ghast
+0.2375). 29 Baby-table entries corrected (zombie family 0.99 tall,
+axolotl 0.5x0.25, squid 0.63 tall, chicken eye 0.28, cow eye 0.665,
+fox eye 0.2975, no eye overrides on armadillo/dolphin/happy ghast/
+panda); camel sitting baby dims are SITTING_DIMENSIONS x 0.6
+(1.02, 0.567, 0.507). Regression test
+baby_boxes_are_the_26_1_boxes_not_the_26_2_ones; cow test eye
+0.69 -> 0.665.
+
 Test health: crate-tests run 45163597005 (rank-1 state): protocol,
 items, client-core, client-render PASS; world FAIL (1 pre-existing
 datafix failure, `failed_upgrade_keeps_old_data_version` — the other
