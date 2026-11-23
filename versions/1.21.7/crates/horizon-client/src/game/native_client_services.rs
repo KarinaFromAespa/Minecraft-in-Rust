@@ -156,7 +156,7 @@ pub struct NativeClientEntity {
     /// A player in spectator mode, whom vanilla draws only to spectators.
     pub spectator: bool,
     /// The texture its body draws with (`EntityRenderer.getTextureLocation`):
-    /// `entity/cow/cow_temperate_baby`, or a player's skin. Pixels through
+    /// `entity/cow/temperate_cow`, or a player's skin. Pixels through
     /// `native_client_texture`.
     pub texture: Option<String>,
 }
@@ -799,10 +799,7 @@ mod client_tests {
         assert_eq!(zombie.texture.as_deref(), Some("entity/zombie/zombie"));
         let calf = listed(CALF).unwrap();
         assert!(calf.baby);
-        assert_eq!(
-            calf.texture.as_deref(),
-            Some("entity/cow/cow_temperate_baby")
-        );
+        assert_eq!(calf.texture.as_deref(), Some("entity/cow/temperate_cow"));
 
         // A dropped item is listed once its stack arrives.
         game.handle_packet(add(DIAMONDS, "minecraft:item", [0.5, 65.0, 4.5]))

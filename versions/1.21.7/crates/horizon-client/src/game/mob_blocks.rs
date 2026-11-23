@@ -158,7 +158,7 @@ impl Game<'_> {
         );
         let still = Poses::new(pole);
         let white = 0xFFFF_FFFF;
-        if let Some(r) = uv("entity/banner/banner_base") {
+        if let Some(r) = uv("entity/banner_base") {
             render::draw(pole, m, &still, r, white, light, 0, out);
             render::draw(flag, m, &flag_poses, r, white, light, 0, out);
         }

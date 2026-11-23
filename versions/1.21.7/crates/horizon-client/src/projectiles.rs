@@ -1575,7 +1575,7 @@ impl Projectile {
             }
             ProjectileKind::Potion(stack, _) => potion_sprite(&stack.item),
             ProjectileKind::ExperienceBottle => "item/experience_bottle",
-            ProjectileKind::LlamaSpit => "entity/llama/llama_spit",
+            ProjectileKind::LlamaSpit => "entity/llama/spit",
             // Drawn as `WindChargeModel` and `ShulkerBulletModel` by the game,
             // a dragon fireball as `DragonFireballRenderer`'s billboard.
             ProjectileKind::DragonFireball

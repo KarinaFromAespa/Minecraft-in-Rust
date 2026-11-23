@@ -1246,7 +1246,7 @@ impl Game<'_> {
             .gui
             .atlas
             .sprites
-            .get("entity/trident/trident")
+            .get("entity/trident")
             .map(|r| [r.u0, r.v0, r.u1, r.v1])
         else {
             return;
@@ -1258,7 +1258,7 @@ impl Game<'_> {
             .emissive
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .overlay("entity/trident/trident")
+            .overlay("entity/trident")
             .and_then(|e| self.gui.atlas.sprites.get(e))
             .map(|r| [r.u0, r.v0, r.u1, r.v1]);
         // AbstractArrow.shouldRenderAtSqrDistance: ten times the default.

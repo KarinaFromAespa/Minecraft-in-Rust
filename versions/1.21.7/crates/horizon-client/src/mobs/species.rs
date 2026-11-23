@@ -136,7 +136,7 @@ pub const ALL: &[Def] = &[
         Pig,
         "pig",
         "pig#main",
-        "entity/pig/pig_temperate",
+        "entity/pig/temperate_pig",
         A::Quadruped,
         ["entity.pig.ambient", "entity.pig.hurt", "entity.pig.death"],
         Some("entity.pig.step"),
@@ -146,7 +146,7 @@ pub const ALL: &[Def] = &[
         Cow,
         "cow",
         "cow#main",
-        "entity/cow/cow_temperate",
+        "entity/cow/temperate_cow",
         A::Quadruped,
         ["entity.cow.ambient", "entity.cow.hurt", "entity.cow.death"],
         Some("entity.cow.step"),
@@ -156,7 +156,7 @@ pub const ALL: &[Def] = &[
         Mooshroom,
         "mooshroom",
         "mooshroom#main",
-        "entity/cow/mooshroom_red",
+        "entity/cow/red_mooshroom",
         A::Quadruped,
         ["entity.cow.ambient", "entity.cow.hurt", "entity.cow.death"],
         Some("entity.cow.step"),
@@ -180,7 +180,7 @@ pub const ALL: &[Def] = &[
         Chicken,
         "chicken",
         "chicken#main",
-        "entity/chicken/chicken_temperate",
+        "entity/chicken/temperate_chicken",
         A::Chicken,
         [
             "entity.chicken.ambient",
@@ -194,7 +194,7 @@ pub const ALL: &[Def] = &[
         Rabbit,
         "rabbit",
         "rabbit#main",
-        "entity/rabbit/rabbit_brown",
+        "entity/rabbit/brown",
         A::Rabbit,
         [
             "entity.rabbit.ambient",
@@ -288,7 +288,7 @@ pub const ALL: &[Def] = &[
         Llama,
         "llama",
         "llama#main",
-        "entity/llama/llama_creamy",
+        "entity/llama/creamy",
         A::Llama,
         [
             "entity.llama.ambient",
@@ -302,7 +302,7 @@ pub const ALL: &[Def] = &[
         TraderLlama,
         "trader_llama",
         "trader_llama#main",
-        "entity/llama/llama_creamy",
+        "entity/llama/creamy",
         A::Llama,
         [
             "entity.llama.ambient",
@@ -382,7 +382,7 @@ pub const ALL: &[Def] = &[
         Cat,
         "cat",
         "cat#main",
-        "entity/cat/cat_tabby",
+        "entity/cat/tabby",
         A::Feline,
         ["entity.cat.ambient", "entity.cat.hurt", "entity.cat.death"],
         None,
@@ -430,7 +430,7 @@ pub const ALL: &[Def] = &[
         Turtle,
         "turtle",
         "turtle#main",
-        "entity/turtle/turtle",
+        "entity/turtle/big_sea_turtle",
         A::Turtle,
         [
             "entity.turtle.ambient_land",
@@ -444,7 +444,7 @@ pub const ALL: &[Def] = &[
         Armadillo,
         "armadillo",
         "armadillo#main",
-        "entity/armadillo/armadillo",
+        "entity/armadillo",
         A::Armadillo,
         [
             "entity.armadillo.ambient",
@@ -458,7 +458,7 @@ pub const ALL: &[Def] = &[
         Frog,
         "frog",
         "frog#main",
-        "entity/frog/frog_temperate",
+        "entity/frog/temperate_frog",
         A::Frog,
         [
             "entity.frog.ambient",
@@ -572,7 +572,7 @@ pub const ALL: &[Def] = &[
         Dolphin,
         "dolphin",
         "dolphin#main",
-        "entity/dolphin/dolphin",
+        "entity/dolphin",
         A::Dolphin,
         [
             "entity.dolphin.ambient_water",
@@ -586,7 +586,7 @@ pub const ALL: &[Def] = &[
         Bat,
         "bat",
         "bat#main",
-        "entity/bat/bat",
+        "entity/bat",
         A::Bat,
         ["entity.bat.ambient", "entity.bat.hurt", "entity.bat.death"],
         None,
@@ -610,7 +610,7 @@ pub const ALL: &[Def] = &[
         WanderingTrader,
         "wandering_trader",
         "wandering_trader#main",
-        "entity/wandering_trader/wandering_trader",
+        "entity/wandering_trader",
         A::Villager,
         [
             "entity.wandering_trader.ambient",
@@ -634,7 +634,7 @@ pub const ALL: &[Def] = &[
         SnowGolem,
         "snow_golem",
         "snow_golem#main",
-        "entity/snow_golem/snow_golem",
+        "entity/snow_golem",
         A::SnowGolem,
         [
             "entity.snow_golem.ambient",
@@ -836,7 +836,7 @@ pub const ALL: &[Def] = &[
         Endermite,
         "endermite",
         "endermite#main",
-        "entity/endermite/endermite",
+        "entity/endermite",
         A::Silverfish,
         [
             "entity.endermite.ambient",
@@ -850,7 +850,7 @@ pub const ALL: &[Def] = &[
         Silverfish,
         "silverfish",
         "silverfish#main",
-        "entity/silverfish/silverfish",
+        "entity/silverfish",
         A::Silverfish,
         [
             "entity.silverfish.ambient",
@@ -884,7 +884,7 @@ pub const ALL: &[Def] = &[
         Witch,
         "witch",
         "witch#main",
-        "entity/witch/witch",
+        "entity/witch",
         A::Witch,
         [
             "entity.witch.ambient",
@@ -898,7 +898,7 @@ pub const ALL: &[Def] = &[
         Phantom,
         "phantom",
         "phantom#main",
-        "entity/phantom/phantom",
+        "entity/phantom",
         A::Phantom,
         [
             "entity.phantom.ambient",
@@ -1076,7 +1076,7 @@ pub const ALL: &[Def] = &[
         Guardian,
         "guardian",
         "guardian#main",
-        "entity/guardian/guardian",
+        "entity/guardian",
         A::Guardian,
         [
             "entity.guardian.ambient",
@@ -1090,7 +1090,7 @@ pub const ALL: &[Def] = &[
         ElderGuardian,
         "elder_guardian",
         "elder_guardian#main",
-        "entity/guardian/guardian_elder",
+        "entity/guardian_elder",
         A::Guardian,
         [
             "entity.elder_guardian.ambient",
@@ -1216,7 +1216,7 @@ pub const ALL: &[Def] = &[
         Blaze,
         "blaze",
         "blaze#main",
-        "entity/blaze/blaze",
+        "entity/blaze",
         A::Blaze,
         [
             "entity.blaze.ambient",
