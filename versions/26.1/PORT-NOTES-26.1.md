@@ -774,3 +774,11 @@ names no BlockStateBase methods; weather ticks int-vs-long is
 identical after the 131071/511 masks. Also corrected the batch-42
 evidence for 133: ByteBufCodecs.collection exists in both versions,
 26.2 only adds a 4th overload.
+
+Batch 44 (Nov 23, 430/498): all no-change. 294: wolfArmor rename.
+142: villager-brain spills/renames. 104: boat positionRider spill,
+getAirDrag 26.2-only. 106: OP_ONLY sets identical (verified from the
+static initializers); isOp DOES differ (owner + no allowCommands falls
+through to allowAll in 26.1) but is unported; the spawn-egg canSpawn
+gate was already removed as item 253. 115/127: debug/chat chrome, Gui
+accessor moves, F11 branch moved.
