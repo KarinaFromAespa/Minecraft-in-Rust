@@ -1328,4 +1328,28 @@ MenuTabBar, menu chrome. 515 structure blocks: processBlock
 bodies identical; the 26.1 template-state BlockRot fix is
 already in the tree from rank 2. 517 item GUI: render
 submission plumbing only.
+
+Batch 72 (Nov 24, 79/214 — B1 #4, 518 held for its own
+batch): 520, 529 PORTED; 527 PORTED (docs); 519, 522, 524,
+525, 526, 528 NO-CHANGE. 520 spawn: 26.1's findSpawn returns
+the fixup height at once in a dimension without skylight
+(26.2 dropped the gate and searches the respawn radius in
+every dimension) — spawn_finder now takes the suggestion-only
+path when game_mode == 2 or the dimension has no skylight.
+529 ruined portal: 26.1's placeNetherrackOrMagma is
+unconditional (bytecode-identical to 26.2's); the tree had
+the 26.3 form (check inside) — carried the 26.2 split
+(unconditional place + checked spread-site wrapper, drip
+columns unconditional). 527 screen effects: 26.1 keeps the
+spinning effect on GameRenderer (26.3 moved it to
+LocalPlayer) — docs fixed to the 26.2 form. 519 SystemToast,
+524 SectionRenderDispatcher, 526 ItemFeatureRenderer: render
+plumbing refactors only (glint constants identical). 522
+dismount/respawn anchor, 525 mineshaft, 528 brushable block:
+package/rename moves only. Batch-71 follow-up (item 512):
+carrying test_runs.rs alone left Info::new's 6-arg
+dimension form in game_tests.rs — carried the 26.2 tree's
+game_tests.rs whole (single-level runner, no per-Info dim)
+and dropped the dim argument at the test_instances.rs call
+site; the local check caught it before CI did.
 `cargo check -p horizon-client-lib` clean.

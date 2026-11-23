@@ -1,6 +1,111 @@
 {
  "closed": [
   {
+   "id": 506,
+   "title": "crates/horizon-server/src/management_methods.rs: 1 vanilla classes changed (43 methods, 20 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "MinecraftServerSettingsServiceImpl: 26.2 holds a NotificationManager and derives the server via a private server() helper (with requireNonNull); 26.1 holds the DedicatedServer directly. All 40 methods are otherwise structurally identical. management_methods.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 507,
+   "title": "crates/horizon-client/src/realms/client.rs: 12 vanilla classes changed (42 methods, 14 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "Realms port (26.2 items 418+421). Verified against 26.1's own jar: the invite-code service is absent (no InviteCode classes, no frontendV2Url in RealmsClient$Environment), the tier configuration is absent (no RealmTierConfigurationDto), the 4 extra regions are 26.3-only (26.2 PORT-NOTES 418), AddRealmPopupScreen + trial handling exist in both jars, the realmsclient class sets are identical (203 each). Carried the 26.2 tree's realms/client.rs, realms.rs and title.rs (PDP removal). One place 26.1 differs from 26.2: Request has only addSnapshotHeader (Is-Prerelease) in 26.1; 26.2's addVersionHeaders added X-NetworkProtocolVersion \u2014 the 26.1 headers() sends only Is-Prerelease, and the test asserts the protocol header absent. Also fixed the cookie test's version literal to 26.1 (the 26.2 tree's '26.3' literal is its known pre-existing failure). RealmsText/ErrorWithJsonPayload differ only by I18n.exists vs Language.has (same check). NOTE: the triage's cl.identical list for this item is unreliable \u2014 RealmsClient/Request differ structurally (the header call); verified directly instead."
+  },
+  {
+   "id": 509,
+   "title": "crates/horizon-client-render/src/post_chain.rs: 15 vanilla classes changed (105 methods, 6 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "Post-chain std140 port (26.2 item 420). Verified against 26.1's own jar: Std140SizeCalculator structurally identical; Std140Builder.putVec3 pads to 16 in both (align 16, 3 floats, position+4); GlobalSettingsUniform.update() structurally identical with put order ivec3/vec3/vec2/float/float/int/int \u2014 the 56-byte 26.2 layout. Carried the 26.2 tree's post_chain.rs, gfx/core_lines.rs, gfx/core_sky.rs (all 48->56 + GLSL order), and the Globals GLSL line in core_shader.rs only (its OIT work preserved; gfx.rs untouched \u2014 its OIT/underwater/forcefield work preserved)."
+  },
+  {
+   "id": 510,
+   "title": "crates/horizon-world/src/level/sculk.rs: 5 vanilla classes changed (28 methods, 11 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "The sculk_growth_inhibitors tag exists in neither jar (26.3-only) \u2014 replaced the tag check with the hardcoded sensor+shrieker list (the 26.2 tree's form). Rest verified no-change: SculkSensorBlock getSignal (26.1) vs ownSignal (26.2) have the same body (return POWER); SculkCatalystBlock.getTicker differs only by BlockEntityType->BlockEntityTypes; ChargeCursor codec fieldOf/orElse vs optionalFieldOf is the same optional-with-default shape."
+  },
+  {
+   "id": 511,
+   "title": "crates/horizon-client-render/src/social.rs: 9 vanilla classes changed (45 methods, 9 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "The friends system is 26.2-only: PresenceSharing, PresenceHandler, RemoteFriendListUpdateHandler exist in the 26.2 jar (6 entries) and are absent from the 26.1 jar (0); 26.1's PlayerSocialManager has no friend methods (hide/show/block/online-mode/discovered-names only), and 26.1's Options has no sharePresence. Removed the whole friends machinery: deleted horizon-client-render/src/social.rs (860 lines) + the lib mod + the client_lib re-export; removed the presence calls from game.rs (presence_status + tick), saving.rs (offline presence), remote.rs (try_update_presence), title.rs (social::init); removed the SharePresence + InGameNotification options (both absent from 26.1's Options, lang and OnlineOptionsScreen, which shows only allowServerListing + realmsNotifications) from the Opt enum, options_ui.rs, options_file.rs defaults, and the Online page's friends section. game/social.rs (Social Interactions screen + hidden chat) and game/friends.rs (LAN invite sharing, feature-gated) are untouched \u2014 both are 26.1 behaviour. ban_notice.rs still parses the account status's friendsPreferences (account-API data, version-neutral); nothing reads the fields after this removal."
+  },
+  {
+   "id": 512,
+   "title": "crates/horizon-client/src/game/commands/test_runs.rs: 3 vanilla classes changed (40 methods, 8 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "No dimension on any test-instance class in either jar (GameTestInstance has only rotation(); TestEnvironmentDefinition identical); the dimension-on-test is 26.3-only. Carried the 26.2 tree's test_runs.rs (tests run in the level in place; heightmap read directly). StructureUtils/TestCommand differ only by branch forms + BlockEntityType->BlockEntityTypes. (26.2 added GameTestEntityBuilder/GameTestMobBuilder/SetDifficulty helpers \u2014 not modelled by the Rust.)"
+  },
+  {
+   "id": 514,
+   "title": "crates/horizon-client/src/game/stats_screen.rs: 8 vanilla classes changed (36 methods, 7 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "StatsScreen differs only by TabNavigationBar -> MenuTabBar (26.2's new tab-bar class); TabManager.setCurrentTab's 2-arg form delegates to the 3-arg form with the same logic. Menu chrome; stats_screen.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 515,
+   "title": "crates/horizon-client/src/game/structure_blocks.rs: 3 vanilla classes changed (24 methods, 7 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "BlockRotProcessor.processBlock bodies identical (same random/integrity/HolderSet logic); the differences are API shape (26.1 extends StructureProcessor with getType/CODEC/5-arg processBlock; 26.2 is standalone with codec/MAP_CODEC/6-arg processBlock). The 26.1 tree's processor.rs already carries the 26.1 form from rank 2 (items 124/154): the template-state BlockRot fix + evaluatesEntirePieceState note + BlockRot test. StructureBlock diffs are compiler form; StructureBlockEntity ctor differs only by BlockEntityType->BlockEntityTypes. structure_blocks.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 516,
+   "title": "crates/horizon-client/src/game/advancements_screen.rs: 4 vanilla classes changed (51 methods, 3 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "Surgical port (26.2 item 431): keyPressed is identical in 26.1/26.2 (advancements key -> setScreen(null) + grabMouse, close to game) \u2014 added close_advancements_to_game and routed KeyL to it; Escape/Done keep the onClose restore form. The positions handling was deliberately NOT carried: DisplayInfo.fromNetwork reads x/y identically in both jars (the packet carries positions), and vanilla 26.1/26.2 position widgets from DisplayInfo x/y \u2014 the 26.1 tree's server-positions form is correct, and the 26.2 tree's client-side-only layout is its own known gap (26.2 PORT-NOTES). The F4 spectator-effect + MultiplayerOptions-escape hunks in play_keys.rs belong to other items, left alone."
+  },
+  {
+   "id": 517,
+   "title": "crates/horizon-client/src/item_render/gui.rs: 6 vanilla classes changed (44 methods, 3 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "GuiItemAtlas/PictureInPictureRenderer differ only by render-submission plumbing (26.1 takes SubmitNodeCollector + BufferSource in; 26.2 creates a SubmitNodeStorage internally). gui.rs is 0-diff vs 26.2 apart from the oit:false test literal from the earlier OIT work."
+  },
+  {
+   "id": 519,
+   "verdict": "no-change",
+   "evidence": "Batch 72 NO-CHANGE (SystemToast): 26.2 refactored the toast internals (title Component -> titleLines list, TEXT_X_START const, mutable width). Toast-render plumbing; chunk_io.rs is 0-diff vs the 26.2 tree and models no toast internals."
+  },
+  {
+   "id": 520,
+   "verdict": "ported",
+   "evidence": "Batch 72 PORTED (PlayerSpawnFinder): 26.1's findSpawn returns the fixup height at once in a dimension WITHOUT skylight (dimensionType.hasSkyLight gate before the Adventure check); 26.2 dropped the gate and searches the respawn radius in every dimension. spawn_finder now takes the suggestion-only path when game_mode == 2 OR !world.shape.sky_light. getOverworldRespawnPos -> getLevelRespawnPos rename and getBottomCenter -> Vec3.atBottomCenterOf are form-only (the Rust already names it level_respawn_pos)."
+  },
+  {
+   "id": 522,
+   "verdict": "no-change",
+   "evidence": "Batch 72 NO-CHANGE (DismountHelper + RespawnAnchorBlock): only EntityType -> EntityTypes and BlockPos.getCenter -> Vec3.atCenterOf (same value). respawn_anchor.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 524,
+   "verdict": "no-change",
+   "evidence": "Batch 72 NO-CHANGE (SectionRenderDispatcher): 26.2 refactored the section-compile queue (CompileTaskDynamicQueue -> SectionTaskDynamicQueue, added StagingBuffer + onSectionMeshUpdate callback). Render-engine internals; debug_lines.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 525,
+   "verdict": "no-change",
+   "evidence": "Batch 72 NO-CHANGE (MineshaftPieces$MineShaftCorridor): only EntityType -> EntityTypes (CHEST_MINECART, CAVE_SPIDER). createChest/postProcess logic identical; mineshaft.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 526,
+   "verdict": "no-change",
+   "evidence": "Batch 72 NO-CHANGE (ItemFeatureRenderer): 26.2 refactored it into the RenderTypeFeatureRenderer/FeatureRendererType framework (Submit inner class + TYPE) where 26.1 uses renderSolid + SubmitNodeStorage$ItemSubmit; setupGlintTexturing identical (8.0d, 110000, 30000). Render-submission plumbing; the item_render.rs diff vs the 26.2 tree is only the earlier 26.1 OIT work and the NbtOps.getBooleanValue test fix."
+  },
+  {
+   "id": 527,
+   "verdict": "ported",
+   "evidence": "Batch 72 PORTED (docs only, screen effects): 26.1 keeps the spinning effect on GameRenderer (spinningEffect x3 in GameRenderer, 0 in LocalPlayer) \u2014 26.3 moved it to LocalPlayer. screen_effects.rs docs said LocalPlayer; now the 26.2 tree's GameRenderer form. Lightmap/ScreenEffectRenderer diffs are GPU plumbing (TextureFormat -> GpuFormat, render -> submit rename, dropped bufferSource param)."
+  },
+  {
+   "id": 528,
+   "verdict": "no-change",
+   "evidence": "Batch 72 NO-CHANGE (BrushableBlockEntity): only package moves (CriteriaTriggers criterion -> triggers, BlockEntityType -> BlockEntityTypes, EntityType -> EntityTypes). dropContent/unpackLootTable logic identical; brush.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 529,
+   "verdict": "ported",
+   "evidence": "Batch 72 PORTED (RuinedPortalPiece): 26.1's placeNetherrackOrMagma is UNCONDITIONAL (0.07 magma roll, setBlock flag 3) \u2014 bytecode-identical to 26.2's; the replaceability check lives only at the spread site. The 26.1 tree had the 26.3 form (check inside, drip columns skipping air/obsidian/lava and skipping the magma roll). Carried the 26.2 tree's split: place_netherrack_or_magma (unconditional, used by drip_column) + netherrack_or_magma (checked wrapper, spread site only)."
+  },
+  {
    "id": 538,
    "verdict": "ported",
    "evidence": "Batch 63 PORTED (team color): 26.2 added /team modify color reset (clearColor + the reset literal + the color.clear.success lang key, which 26.1's en_us.json lacks) and replaced ColorArgument/ChatFormatting with TeamColorArgument/TeamColor (PlayerTeam.getColor became Optional). 26.1 has no reset subcommand: 'reset' is a color-argument VALUE (ColorArgument accepts RESET \u2014 it is not a format). Removed the reset literal + team.modify.color.reset executes from tree_scoreboard.rs; the scoreboard_cmd.rs color arm is set-only and stores 'reset' as no color (a fresh team's color is RESET, so the unchanged check still matches vanilla); ArgType::TeamColor now accepts 'reset' in parse (suggestions stay the 16 colors, as vanilla's getNames(true, false) lists); network.rs maps 26.1's 'minecraft:color' id (26.1's registry has no team_color); the command-parse fixture emits 'minecraft:color'. The existing teams() test (color reset clears to None) passes unchanged via the value path."
@@ -339,66 +444,6 @@
    "title": "crates/horizon-client/src/mobs/spear_use.rs: 1 vanilla classes changed (0 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "SpearUseGoal's four distance constants went package-private (26.1) -> private (26.2); same fields, no method changes. spear_use.rs diff is the earlier single-push knockback work."
-  },
-  {
-   "id": 506,
-   "title": "crates/horizon-server/src/management_methods.rs: 1 vanilla classes changed (43 methods, 20 named in Horizon)",
-   "verdict": "no-change",
-   "evidence": "MinecraftServerSettingsServiceImpl: 26.2 holds a NotificationManager and derives the server via a private server() helper (with requireNonNull); 26.1 holds the DedicatedServer directly. All 40 methods are otherwise structurally identical. management_methods.rs 0-diff vs 26.2."
-  },
-  {
-   "id": 507,
-   "title": "crates/horizon-client/src/realms/client.rs: 12 vanilla classes changed (42 methods, 14 named in Horizon)",
-   "verdict": "ported",
-   "evidence": "Realms port (26.2 items 418+421). Verified against 26.1's own jar: the invite-code service is absent (no InviteCode classes, no frontendV2Url in RealmsClient$Environment), the tier configuration is absent (no RealmTierConfigurationDto), the 4 extra regions are 26.3-only (26.2 PORT-NOTES 418), AddRealmPopupScreen + trial handling exist in both jars, the realmsclient class sets are identical (203 each). Carried the 26.2 tree's realms/client.rs, realms.rs and title.rs (PDP removal). One place 26.1 differs from 26.2: Request has only addSnapshotHeader (Is-Prerelease) in 26.1; 26.2's addVersionHeaders added X-NetworkProtocolVersion \u2014 the 26.1 headers() sends only Is-Prerelease, and the test asserts the protocol header absent. Also fixed the cookie test's version literal to 26.1 (the 26.2 tree's '26.3' literal is its known pre-existing failure). RealmsText/ErrorWithJsonPayload differ only by I18n.exists vs Language.has (same check). NOTE: the triage's cl.identical list for this item is unreliable \u2014 RealmsClient/Request differ structurally (the header call); verified directly instead."
-  },
-  {
-   "id": 509,
-   "title": "crates/horizon-client-render/src/post_chain.rs: 15 vanilla classes changed (105 methods, 6 named in Horizon)",
-   "verdict": "ported",
-   "evidence": "Post-chain std140 port (26.2 item 420). Verified against 26.1's own jar: Std140SizeCalculator structurally identical; Std140Builder.putVec3 pads to 16 in both (align 16, 3 floats, position+4); GlobalSettingsUniform.update() structurally identical with put order ivec3/vec3/vec2/float/float/int/int \u2014 the 56-byte 26.2 layout. Carried the 26.2 tree's post_chain.rs, gfx/core_lines.rs, gfx/core_sky.rs (all 48->56 + GLSL order), and the Globals GLSL line in core_shader.rs only (its OIT work preserved; gfx.rs untouched \u2014 its OIT/underwater/forcefield work preserved)."
-  },
-  {
-   "id": 510,
-   "title": "crates/horizon-world/src/level/sculk.rs: 5 vanilla classes changed (28 methods, 11 named in Horizon)",
-   "verdict": "ported",
-   "evidence": "The sculk_growth_inhibitors tag exists in neither jar (26.3-only) \u2014 replaced the tag check with the hardcoded sensor+shrieker list (the 26.2 tree's form). Rest verified no-change: SculkSensorBlock getSignal (26.1) vs ownSignal (26.2) have the same body (return POWER); SculkCatalystBlock.getTicker differs only by BlockEntityType->BlockEntityTypes; ChargeCursor codec fieldOf/orElse vs optionalFieldOf is the same optional-with-default shape."
-  },
-  {
-   "id": 511,
-   "title": "crates/horizon-client-render/src/social.rs: 9 vanilla classes changed (45 methods, 9 named in Horizon)",
-   "verdict": "ported",
-   "evidence": "The friends system is 26.2-only: PresenceSharing, PresenceHandler, RemoteFriendListUpdateHandler exist in the 26.2 jar (6 entries) and are absent from the 26.1 jar (0); 26.1's PlayerSocialManager has no friend methods (hide/show/block/online-mode/discovered-names only), and 26.1's Options has no sharePresence. Removed the whole friends machinery: deleted horizon-client-render/src/social.rs (860 lines) + the lib mod + the client_lib re-export; removed the presence calls from game.rs (presence_status + tick), saving.rs (offline presence), remote.rs (try_update_presence), title.rs (social::init); removed the SharePresence + InGameNotification options (both absent from 26.1's Options, lang and OnlineOptionsScreen, which shows only allowServerListing + realmsNotifications) from the Opt enum, options_ui.rs, options_file.rs defaults, and the Online page's friends section. game/social.rs (Social Interactions screen + hidden chat) and game/friends.rs (LAN invite sharing, feature-gated) are untouched \u2014 both are 26.1 behaviour. ban_notice.rs still parses the account status's friendsPreferences (account-API data, version-neutral); nothing reads the fields after this removal."
-  },
-  {
-   "id": 512,
-   "title": "crates/horizon-client/src/game/commands/test_runs.rs: 3 vanilla classes changed (40 methods, 8 named in Horizon)",
-   "verdict": "ported",
-   "evidence": "No dimension on any test-instance class in either jar (GameTestInstance has only rotation(); TestEnvironmentDefinition identical); the dimension-on-test is 26.3-only. Carried the 26.2 tree's test_runs.rs (tests run in the level in place; heightmap read directly). StructureUtils/TestCommand differ only by branch forms + BlockEntityType->BlockEntityTypes. (26.2 added GameTestEntityBuilder/GameTestMobBuilder/SetDifficulty helpers \u2014 not modelled by the Rust.)"
-  },
-  {
-   "id": 514,
-   "title": "crates/horizon-client/src/game/stats_screen.rs: 8 vanilla classes changed (36 methods, 7 named in Horizon)",
-   "verdict": "no-change",
-   "evidence": "StatsScreen differs only by TabNavigationBar -> MenuTabBar (26.2's new tab-bar class); TabManager.setCurrentTab's 2-arg form delegates to the 3-arg form with the same logic. Menu chrome; stats_screen.rs 0-diff vs 26.2."
-  },
-  {
-   "id": 515,
-   "title": "crates/horizon-client/src/game/structure_blocks.rs: 3 vanilla classes changed (24 methods, 7 named in Horizon)",
-   "verdict": "no-change",
-   "evidence": "BlockRotProcessor.processBlock bodies identical (same random/integrity/HolderSet logic); the differences are API shape (26.1 extends StructureProcessor with getType/CODEC/5-arg processBlock; 26.2 is standalone with codec/MAP_CODEC/6-arg processBlock). The 26.1 tree's processor.rs already carries the 26.1 form from rank 2 (items 124/154): the template-state BlockRot fix + evaluatesEntirePieceState note + BlockRot test. StructureBlock diffs are compiler form; StructureBlockEntity ctor differs only by BlockEntityType->BlockEntityTypes. structure_blocks.rs 0-diff vs 26.2."
-  },
-  {
-   "id": 516,
-   "title": "crates/horizon-client/src/game/advancements_screen.rs: 4 vanilla classes changed (51 methods, 3 named in Horizon)",
-   "verdict": "ported",
-   "evidence": "Surgical port (26.2 item 431): keyPressed is identical in 26.1/26.2 (advancements key -> setScreen(null) + grabMouse, close to game) \u2014 added close_advancements_to_game and routed KeyL to it; Escape/Done keep the onClose restore form. The positions handling was deliberately NOT carried: DisplayInfo.fromNetwork reads x/y identically in both jars (the packet carries positions), and vanilla 26.1/26.2 position widgets from DisplayInfo x/y \u2014 the 26.1 tree's server-positions form is correct, and the 26.2 tree's client-side-only layout is its own known gap (26.2 PORT-NOTES). The F4 spectator-effect + MultiplayerOptions-escape hunks in play_keys.rs belong to other items, left alone."
-  },
-  {
-   "id": 517,
-   "title": "crates/horizon-client/src/item_render/gui.rs: 6 vanilla classes changed (44 methods, 3 named in Horizon)",
-   "verdict": "no-change",
-   "evidence": "GuiItemAtlas/PictureInPictureRenderer differ only by render-submission plumbing (26.1 takes SubmitNodeCollector + BufferSource in; 26.2 creates a SubmitNodeStorage internally). gui.rs is 0-diff vs 26.2 apart from the oit:false test literal from the earlier OIT work."
   }
  ],
  "triage": "Rank-3 re-triage: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 3 = A1 60, A2 67, B1 56, B2 31 = 214 items) + diff-26.2-26.1-rank3.json (274 classes, 204 method-changed). Order: A1 reviews, then B1 ports, then A2/B2."

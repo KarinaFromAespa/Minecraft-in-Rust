@@ -701,7 +701,7 @@ impl Game<'_> {
             &[Text::literal(key.clone())],
         ));
         let id = self.game_tests.next_id();
-        let info = Info::new(id, key, def, Some(pos), self.dim, rotation);
+        let info = Info::new(id, key, def, Some(pos), rotation);
         self.track_and_start_runner(vec![info], false, None, false);
     }
 }
