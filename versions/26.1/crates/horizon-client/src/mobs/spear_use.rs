@@ -269,9 +269,11 @@ fn stab_attack(
         }
     }
     if deals_knockback {
-        cause_extra_knockback(m, target, 0.4_f32, source, events);
         // `LivingEntity.getKnockback`: the Knockback enchantment, halved.
-        let power = gear::knockback(m) as f32 / 2.0;
+        // 26.1 pushes once with the summed strength (26.2 split it into
+        // two pushes, 0.4 then the enchantment, which halves the target's
+        // velocity and damps the attacker twice).
+        let power = 0.4_f32 + gear::knockback(m) as f32 / 2.0;
         cause_extra_knockback(m, target, power, source, events);
     }
     if dismounts && w.target_info(target).is_some_and(|t| t.passenger) {

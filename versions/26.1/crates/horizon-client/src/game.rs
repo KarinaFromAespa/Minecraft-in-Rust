@@ -7722,7 +7722,7 @@ impl Game<'_> {
         self.ambience.clear(&mut self.audio);
         // updateLevelInEngines(null): every sound stops; the music manager
         // lets go of its track.
-        self.music.stop_playing(None, &mut self.audio);
+        self.music.stop_playing(&mut self.audio);
         self.audio.stop_all();
         if self.remote.is_some() {
             self.world_icon = None;

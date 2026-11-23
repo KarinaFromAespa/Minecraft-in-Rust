@@ -513,3 +513,23 @@ EntityPositionSync.path, Swing for Punch); run 45168217761 dispatched
 to verify. The 34 remaining `check --tests` errors are all in
 tests/lan_bot.rs (integration test, not compiled by CI's --lib run;
 identical in the 26.1.2 tree) — shared 26.1-line debt, out of scope.
+
+Batch 17 (Nov 23, 242/498): 238 ported — the spear stab knockback is
+a single `causeExtraKnockback` call in 26.1 (0.4 + getKnockback); 26.2
+split it into two calls, halving the target's velocity and damping the
+attacker twice. 207 ported — `MusicManager.tick` re-rolls the frequency
+delay a second time every tick in 26.1 (26.2 clamps to maxDelay) and has
+no LevelLoadingScreen gate; `stopPlaying` adds 100 to the current delay
+(26.2 re-rolls + 100). 239/234/33/232/229/198 no-change: no named
+methods changed; equipment shearing moved Entity→Mob in 26.2 with the
+same behaviour; raid/siege/golem methods are renames; findLevelCandidates
+gained a createDirectory in 26.2 the Rust never had; projectile drag is
+a hardcoded 0.99F in 26.1 vs a 0.99F `getAirDrag` override in 26.2.
+FLAG FOR ITEM 94: `Entity.move`'s bounce restitution is 26.2-only
+(`restituteMovementAfterCollisions` + `getEntityBounciness` /
+`getBlockBounciness` / `getEffectiveGravity` / `getAirDrag` do not exist
+in 26.1); 26.1 zeroes the blocked horizontal components inline and calls
+`Block.updateEntityMovementAfterFallOn` (SlimeBlock bounces via
+`bounceUp`: `-y * 0.8` for non-living). The Rust's
+`entities.rs::vertical_collision_velocity` ports the 26.2 formula and
+needs re-porting when item 94 runs.

@@ -50,7 +50,10 @@ pub fn main() {
                     engine: &mut engine,
                     backend: &mut backend,
                 };
-                manager.tick(situation.as_ref(), volume, a[1] == "1", &mut sounds);
+                // 26.1's tick has no LevelLoadingScreen gate; the op's
+                // loading flag (a[1]) is read and ignored.
+                let _loading = a[1] == "1";
+                manager.tick(situation.as_ref(), volume, &mut sounds);
                 engine.tick(a[2] == "1", &TickContext::default(), &mut backend);
             }
             "finish" => {
@@ -58,18 +61,14 @@ pub fn main() {
                     horizon_client::sound_engine::Backend::stop(&mut backend, c);
                 }
             }
-            "stop" => manager.stop_playing(
-                situation.as_ref(),
-                &mut Bound {
-                    engine: &mut engine,
-                    backend: &mut backend,
-                },
-            ),
+            "stop" => manager.stop_playing(&mut Bound {
+                engine: &mut engine,
+                backend: &mut backend,
+            }),
             "stopmusic" => {
                 let m = music(a[1]).expect("music");
                 manager.stop_playing_music(
                     &m,
-                    situation.as_ref(),
                     &mut Bound {
                         engine: &mut engine,
                         backend: &mut backend,

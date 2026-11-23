@@ -528,18 +528,9 @@ impl MusicManager {
         }
     }
     /// `MusicManager.tick` with `Minecraft.getMusicVolume` and
-    /// `getSituationalMusic`; `loading` is a `LevelLoadingScreen`.
-    pub fn tick(
-        &mut self,
-        music: Option<&Music>,
-        volume: f32,
-        loading: bool,
-        sounds: &mut impl Sounds,
-    ) {
-        if self.current.is_some()
-            && self.current_gain != volume
-            && !self.fade(volume, music, sounds)
-        {
+    /// `getSituationalMusic`.
+    pub fn tick(&mut self, music: Option<&Music>, volume: f32, sounds: &mut impl Sounds) {
+        if self.current.is_some() && self.current_gain != volume && !self.fade(volume, sounds) {
             return;
         }
         let Some(music) = music else {
@@ -567,8 +558,14 @@ impl MusicManager {
                 self.next_song_delay = self.next_song_delay.min(delay);
             }
         }
-        self.next_song_delay = self.next_song_delay.min(music.max_delay);
-        if self.current.is_none() && !loading {
+        // 26.1 clamps the delay to a second fresh frequency roll (26.2
+        // replaced it with a maxDelay clamp), and counts down even while
+        // a level is loading (26.2 added the LevelLoadingScreen gate).
+        let delay = self
+            .frequency
+            .next_song_delay(Some(music), &mut self.random);
+        self.next_song_delay = self.next_song_delay.min(delay);
+        if self.current.is_none() {
             self.next_song_delay -= 1;
             if self.next_song_delay <= 0 {
                 self.start_playing(music, sounds);
@@ -668,27 +665,21 @@ impl MusicManager {
         }
     }
     /// `MusicManager.stopPlaying(Music)`.
-    pub fn stop_playing_music(
-        &mut self,
-        music: &Music,
-        situational: Option<&Music>,
-        sounds: &mut impl Sounds,
-    ) {
+    pub fn stop_playing_music(&mut self, music: &Music, sounds: &mut impl Sounds) {
         if self.is_playing_music(music, sounds.engine()) {
-            self.stop_playing(situational, sounds);
+            self.stop_playing(sounds);
         }
     }
-    /// `MusicManager.stopPlaying()`.
-    pub fn stop_playing(&mut self, situational: Option<&Music>, sounds: &mut impl Sounds) {
+    /// `MusicManager.stopPlaying()`: 26.1 adds 100 to the current delay
+    /// (26.2 re-rolls a fresh frequency delay and adds 100 to that).
+    /// Nothing changes when no track is playing.
+    pub fn stop_playing(&mut self, sounds: &mut impl Sounds) {
         if let Some(current) = self.current {
             sounds.stop_instance(current);
             self.set_current(None, sounds);
             self.toast_requests.push(false);
+            self.next_song_delay += 100;
         }
-        self.next_song_delay = self
-            .frequency
-            .next_song_delay(situational, &mut self.random)
-            + 100;
     }
     /// `MusicManager.isPlayingMusic`.
     pub fn is_playing_music(&self, music: &Music, sounds: &SoundEngine) -> bool {
@@ -702,7 +693,7 @@ impl MusicManager {
             .next_song_delay(situational, &mut self.random);
     }
     /// `MusicManager.fadePlaying`: false once the track faded out and stopped.
-    fn fade(&mut self, volume: f32, situational: Option<&Music>, sounds: &mut impl Sounds) -> bool {
+    fn fade(&mut self, volume: f32, sounds: &mut impl Sounds) -> bool {
         if self.current.is_none() {
             return false;
         }
@@ -722,7 +713,7 @@ impl MusicManager {
         }
         self.current_gain = self.current_gain.clamp(0.0, 1.0);
         if self.current_gain <= 1.0E-4 {
-            self.stop_playing(situational, sounds);
+            self.stop_playing(sounds);
             false
         } else {
             sounds.update_category_volume(MUSIC, self.current_gain);
@@ -875,14 +866,21 @@ mod tests {
         let menu = Music::menu();
         let tick =
             |m: &mut MusicManager, music: &Music, engine: &mut SoundEngine, backend: &mut Null| {
-                m.tick(Some(music), 1.0, false, &mut Bound { engine, backend });
+                m.tick(Some(music), 1.0, &mut Bound { engine, backend });
             };
-        // nextSongDelay starts at 100, capped to MENU's max delay 600: starts on tick 100.
-        for _ in 0..99 {
+        // nextSongDelay starts at 100 and only ever falls (26.1's second
+        // frequency roll each tick can pull it below 100 early, so the
+        // start tick is not fixed): it starts within 100 ticks at most.
+        let mut started = None;
+        for t in 1..=100 {
             tick(&mut m, &menu, &mut engine, &mut backend);
+            if m.current(&engine).is_some() {
+                started = Some(t);
+                break;
+            }
         }
-        assert!(m.current(&engine).is_none());
-        tick(&mut m, &menu, &mut engine, &mut backend);
+        let started = started.expect("menu music starts within its delay");
+        assert!((1..=100).contains(&started), "{started}");
         assert_eq!(m.current(&engine), Some("minecraft:music.menu"));
         // Game music does not replace the current track.
         let game = Music::new("minecraft:music.game", 12000, 24000, false);
@@ -908,14 +906,15 @@ mod tests {
         m.tick(
             Some(&game),
             1.0,
-            true,
             &mut Bound {
                 engine: &mut engine,
                 backend: &mut backend,
             },
         );
         assert!(m.current_instance().is_none());
-        assert!((12000..=24000).contains(&m.next_song_delay()));
+        // A fresh game-music delay (26.1 has no loading gate, so the one
+        // tick already counted down from it).
+        assert!((11999..=24000).contains(&m.next_song_delay()));
     }
 
     #[test]
@@ -935,7 +934,6 @@ mod tests {
             m.tick(
                 Some(&game),
                 0.0,
-                false,
                 &mut Bound {
                     engine: &mut engine,
                     backend: &mut backend,
@@ -1117,7 +1115,6 @@ mod tests {
             m.tick(
                 Some(&Music::menu()),
                 1.0,
-                false,
                 &mut Bound {
                     engine: &mut engine,
                     backend: &mut backend,
