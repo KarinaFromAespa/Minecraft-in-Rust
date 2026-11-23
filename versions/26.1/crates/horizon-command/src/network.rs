@@ -212,6 +212,9 @@ pub fn argument_type(id: i32, props: &[u8]) -> ArgType {
         "minecraft:item_stack" => ArgType::Item,
         "minecraft:item_predicate" => ArgType::ItemPredicate,
         "minecraft:team_color" => ArgType::TeamColor,
+        // 26.1's id for the same argument (`ColorArgument`); 26.2 renamed
+        // the argument and its id.
+        "minecraft:color" => ArgType::TeamColor,
         "minecraft:hex_color" => ArgType::HexColor,
         "minecraft:component" => ArgType::Component,
         "minecraft:style" => ArgType::Style,

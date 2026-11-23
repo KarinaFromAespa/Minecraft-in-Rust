@@ -1,5 +1,10 @@
-//! `minecraft:speleothem_cluster` and `minecraft:large_dripstone`
-//! (SpeleothemClusterFeature, LargeDripstoneFeature and SpeleothemUtils).
+//! `minecraft:large_dripstone` (LargeDripstoneFeature and DripstoneUtils),
+//! plus the 26.2-only `minecraft:speleothem_cluster` (SpeleothemClusterFeature
+//! and SpeleothemUtils), which 26.1 vanilla does not have at all — no
+//! SpeleothemBlock, no speleothem feature classes, no such configured
+//! feature in 26.1's data pack. The cluster code is unreachable in 26.1
+//! (nothing decodes it) and is kept per the programme convention, as
+//! SulfurCube is; the large-dripstone path below is the 26.1 form.
 use super::{
     DecodeError, Object,
     block_feature::FeatureBlockBindings,
@@ -532,7 +537,6 @@ struct LargeDripstone {
 struct Wind {
     origin_y: i32,
     speed: Option<[f64; 3]>,
-    max_offset: i32,
 }
 impl Wind {
     fn offset(&self, p: [i32; 3]) -> [i32; 3] {
@@ -540,15 +544,10 @@ impl Wind {
             return p;
         };
         let dy = f64::from(self.origin_y.wrapping_sub(p[1]));
-        let clamp = |v: f64| {
-            let v = v.floor() as i32;
-            if v < -self.max_offset {
-                -self.max_offset
-            } else {
-                v.min(self.max_offset)
-            }
-        };
-        tb::offset(p, clamp(speed[0] * dy), 0, clamp(speed[2] * dy))
+        // 26.1 applies the raw floored offset, unclamped (26.2 added a
+        // `maxOffset` of 16 minus the column radius and clamped both axes).
+        let floor = |v: f64| v.floor() as i32;
+        tb::offset(p, floor(speed[0] * dy), 0, floor(speed[2] * dy))
     }
 }
 fn speleothem_height(distance: f64, radius: f64, scale: f64, bluntness: f64) -> f64 {
@@ -597,18 +596,29 @@ impl LargeDripstoneFeature {
             depth,
             remaining,
         };
+        // 26.1's codec has no `replaceable_blocks` field (26.2 added it):
+        // `DripstoneUtils.isDripstoneBase` hardcodes the
+        // `#dripstone_replaceable_blocks` tag, so a config without the field
+        // decodes against that tag.
+        let replaceable = match optional(&object, "replaceable_blocks") {
+            Some(raw) => decoder.block_set(raw)?,
+            None => {
+                let tag = serde_json::value::RawValue::from_string(
+                    "\"#minecraft:dripstone_replaceable_blocks\"".to_owned(),
+                )?;
+                decoder.block_set(&tag)?
+            }
+        };
         Ok(Self {
-            speleothem: Speleothem::new(
-                bindings,
-                dripstone,
-                pointed,
-                decoder.block_set(required(&object, "replaceable_blocks")?)?,
-            )?,
+            speleothem: Speleothem::new(bindings, dripstone, pointed, replaceable)?,
             search_range: optional(&object, "floor_to_ceiling_search_range")
                 .map(|raw| int_range(raw, "floor_to_ceiling_search_range", 1, 512))
                 .transpose()?
                 .unwrap_or(30),
-            column_radius: decoder.int_provider(required(&object, "column_radius")?, 1, 16)?,
+            // 26.1's codec is `IntProviders.codec(1, 60)` (26.2 narrowed it
+            // to 16 alongside the wind clamp); 26.1's own config samples
+            // uniform(3..19).
+            column_radius: decoder.int_provider(required(&object, "column_radius")?, 1, 60)?,
             height_scale: float_provider(required(&object, "height_scale")?, 0.0, 20.0)?,
             max_radius_ratio: float_range(
                 required(&object, "max_column_radius_to_cave_height_ratio")?,
@@ -700,13 +710,11 @@ impl LargeDripstoneFeature {
                     0.0,
                     f64::from(trig::sin(f64::from(direction)) * speed),
                 ]),
-                max_offset: 16 - radius,
             }
         } else {
             Wind {
                 origin_y: 0,
                 speed: None,
-                max_offset: 0,
             }
         };
         let top = self.move_back(world, &mut stalactite, wind)?;

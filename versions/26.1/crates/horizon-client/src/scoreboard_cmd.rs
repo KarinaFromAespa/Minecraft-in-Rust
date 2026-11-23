@@ -981,22 +981,26 @@ fn team_modify(id: &str, ctx: &Context, env: &mut dyn Env) -> CmdResult<i32> {
             let s = shown(env);
             env.feedback(tr("commands.team.option.name.success", &[s]));
         }
-        "team.modify.color" | "team.modify.color.reset" => {
-            let reset = id.ends_with("reset");
-            let value = (!reset).then(|| string(ctx, "value"));
+        "team.modify.color" => {
+            // 26.1's `ColorArgument` accepts RESET as a value (it is not a
+            // format), and a team's color is never empty: RESET is stored as
+            // no color, the same as a fresh team.
+            let value = string(ctx, "value");
+            let value = if value == "reset" {
+                None
+            } else {
+                Some(value)
+            };
             let team = env.sb_mut().team_mut(&name).expect("checked");
             if team.color == value {
                 return Err(err("commands.team.option.color.unchanged", &[]));
             }
             team.color.clone_from(&value);
             let s = shown(env);
-            match value {
-                Some(c) => env.feedback(tr(
-                    "commands.team.option.color.success",
-                    &[s, Text::literal(c)],
-                )),
-                None => env.feedback(tr("commands.team.option.color.clear.success", &[s])),
-            }
+            env.feedback(tr(
+                "commands.team.option.color.success",
+                &[s, Text::literal(value.as_deref().unwrap_or("reset"))],
+            ));
         }
         "team.modify.friendlyfire" | "team.modify.seefriendlyinvisibles" => {
             let allowed = boolean(ctx, "allowed");

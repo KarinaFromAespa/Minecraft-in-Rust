@@ -1100,3 +1100,55 @@ VM OOMs on the client build (owner's CI rule). Harness
 verification for both is deferred to the publish-time proof run.
 Docs-only batch; the code tree is identical to the one crate-tests
 run 45254318944 (batch 61) is testing, so no separate dispatch.
+
+## Behaviour port — rank 3 in progress (2026-11-24, branch behaviour/26.1)
+
+Rank 3: 10/214 closed (rank 1: 7/7, rank 2: 498/498; total
+515/795). Re-triage: `retriage-rank345.json` (A1 60, A2 67, B1 56,
+B2 31) + `diff-26.2-26.1-rank3.json` (274 classes, 204
+method-changed). Order: A1 reviews, then B1 ports, then A2/B2.
+Progress in `rank3-progress.json`.
+
+Batch 63 (Nov 24, 10/214 — A1 #1): 538 PORTED, 542 PORTED, 571 /
+586 / 608 / 610 / 612 / 614 / 615 / 616 NO-CHANGE.
+- 538 (team color): 26.2 added `/team modify color reset`
+  (`clearColor` + the reset literal + the `color.clear.success`
+  lang key, absent from 26.1's en_us.json) and replaced
+  `ColorArgument`/`ChatFormatting` with `TeamColorArgument`/
+  `TeamColor` (`PlayerTeam.getColor` became `Optional`). 26.1 has
+  no reset subcommand: `reset` is a color-argument value
+  (`ColorArgument` accepts RESET — it is not a format). Removed
+  the reset literal + executes; the color arm is set-only and
+  stores `reset` as no color; the argument accepts `reset`
+  (suggestions stay the 16 colors, as vanilla's
+  `getNames(true, false)` lists); network.rs maps 26.1's
+  `minecraft:color` id (26.1's registry has no `team_color`);
+  the command-parse fixture emits `minecraft:color`. The
+  existing `teams()` test passes unchanged via the value path.
+- 542 (large dripstone): removed three 26.2-only behaviours —
+  the WindOffsetter `maxOffset` clamp (±(16 − radius); 26.1
+  applies the raw floored offset), the REQUIRED
+  `replaceable_blocks` decoder field (26.1's codec has no such
+  field and its config lacks it; now optional, defaulting to the
+  `#dripstone_replaceable_blocks` tag that 26.1's
+  `DripstoneUtils.isDripstoneBase` hardcodes), and the (1,16)
+  `column_radius` bound (26.1's codec is (1,60); 26.1's own
+  config samples uniform(3..19), which the old bound rejected).
+  `DripstoneUtils` → `SpeleothemUtils` is a rename (identical
+  height formula); speleothems are a 26.2 addition absent from
+  26.1 entirely — the cluster code stays unreachable per the
+  SulfurCube precedent, and the module doc now says so.
+- 571 MatchTool: pure `ItemPredicate` package move. 586
+  ClientChunkCache$Storage: empty-section tracking refactor,
+  same observable behaviour; bots don't model it. 608
+  SpriteContents: GPU upload plumbing only. 610 edit screens:
+  only the screen-setter moved (`Minecraft` → `Minecraft.gui`).
+  612 CrashReport: same report text, restructured order; the
+  new helpers are private/internal. 614 AbstractFurnaceMenu:
+  `fillCraftSlotsStackedContents` logically identical; the
+  RecipeType constructor param is Java plumbing (the Rust
+  models it via the furnace kind). 615 SectionDraw: pure
+  `IndexType` type move. 616 LeashFeatureRenderer: render-method
+  refactor, not leash gameplay.
+Workspace `cargo check` and horizon-world/command/client
+`--lib --tests` clean.

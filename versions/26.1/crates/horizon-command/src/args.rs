@@ -110,7 +110,9 @@ pub enum ArgType {
     ScoreboardSlot,
     /// OperationArgument.
     Operation,
-    /// TeamColorArgument.
+    /// `ColorArgument` (26.1; 26.2 renamed it `TeamColorArgument` and its
+    /// network id to `minecraft:team_color`). 26.1's form accepts the 16
+    /// colors plus RESET, which is not a format.
     TeamColor,
     /// RangeArgument.Ints (`1`, `1..`, `..5`, `1..5`).
     IntRange,
@@ -1545,7 +1547,11 @@ impl ArgType {
             }
             ArgType::TeamColor => {
                 let name = reader.read_unquoted_string();
-                if horizon_client_core::scoreboard::team_color_rgb(name).is_none() {
+                // 26.1's `ColorArgument` rejects a name only when it is not a
+                // ChatFormatting or is a format: RESET passes (it is neither).
+                if name != "reset"
+                    && horizon_client_core::scoreboard::team_color_rgb(name).is_none()
+                {
                     return Err(CommandError::tr_at(
                         "argument.color.invalid",
                         &[&name],
