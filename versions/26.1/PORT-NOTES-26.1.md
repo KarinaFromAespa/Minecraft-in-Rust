@@ -556,3 +556,13 @@ locally. 84/88/447/451/455/459/460 no-change: four 26.2-only methods
 (hashCode, setAllowCommands, forEachInPalette, WeatherState.forEach), a
 path-escape check in resolveAgainst the Rust never ports, a
 BlockEntityType rename, and a codec-idiom-only difference.
+
+Batch 19 (Nov 23, 258/498): all no-change. 464's 2268-line
+`Enchantments.bootstrap` diff is package moves only. 463: the standalone
+`MovementAffectedByPredicate` is 26.2-only; 26.1 uses
+`EntityPredicate.movementAffectedBy` (motion.rs comments corrected).
+477: eight particle types (geyser x4, noxious gas x2, sulfur bubbles,
+sulfur cube goo) are 26.2-only additions, kept unreachable per the item-45
+convention and noted in particle_type.rs. 461 renames, 466 identical,
+469 a List.copyOf wrap, 473 a 26.2-only method, 474 a thread-name
+refactor.

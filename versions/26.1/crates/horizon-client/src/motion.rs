@@ -151,8 +151,10 @@ impl MotionResources {
 /// between ticks.
 #[derive(Clone, Debug, Default)]
 pub struct LocationEffects {
-    /// `MovementAffectedByPredicate`: the block under the player
-    /// (`getBlockPosBelowThatAffectsMyMovement`) is in `#minecraft:soul_speed_blocks`.
+    /// `EntityPredicate.movementAffectedBy` (26.1's builder form; 26.2 made
+    /// it the standalone `MovementAffectedByPredicate` sub-predicate): the
+    /// block under the player (`getBlockPosBelowThatAffectsMyMovement`) is
+    /// in `#minecraft:soul_speed_blocks`.
     pub on_soul_speed_block: bool,
     /// `LivingEntity.lastPos`: the block the player was in last tick.
     pub block: Option<BlockPos>,
@@ -1419,7 +1421,7 @@ impl MotionWorld<'_, '_, '_> {
         self.player.location_effects.on_soul_speed_block = self.on_soul_speed_block()?;
         Ok(())
     }
-    /// `MovementAffectedByPredicate` for `#minecraft:soul_speed_blocks`.
+    /// `EntityPredicate.movementAffectedBy` for `#minecraft:soul_speed_blocks`.
     fn on_soul_speed_block(&mut self) -> Result<bool> {
         let on = self.support(movement_support::MOVEMENT_SUPPORT_OFFSET)?;
         Ok(self
