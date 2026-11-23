@@ -57,6 +57,13 @@
    "evidence": "No-change. 26.2 #60 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
   },
   {
+   "id": 70,
+   "verdict": "ported",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "Ported. PalettedPermutations/PaletteMapping byte-identical 26.2->26.1 (zip CRC); 26.2 #61 ported. Palette ids are texture paths (textures/, not textures/palettes/) \u2014 carried over the 26.2 item_model_fixture.rs form."
+  },
+  {
    "id": 72,
    "verdict": "no-change",
    "bucket": "A",
@@ -134,11 +141,32 @@
    "evidence": "No-change. 26.2 #145 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/composter.rs'] are identical between the 26.2 and 26.1 trees."
   },
   {
+   "id": 192,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "Ported. IMEPreeditOverlay (+TextInputManager, PreeditEvent) byte-identical 26.2->26.1 (zip CRC); 26.2 #150 ported. Preedit area is the union of preedit + input field grown by HOT_AREA_MARGIN (2px) \u2014 carried over the 26.2 preedit.rs form."
+  },
+  {
+   "id": 196,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "Ported. FlowingFluid/LavaFluid/BarrierBlock byte-identical 26.2->26.1 (zip CRC); 26.2 #137 ported. canHoldAnyFluid is the 26.2 list form and the lava-fire walk stops at a motion-blocking state: 26.1's own server-game.jar data lacks #washed_away_by_fluids, #blocks_lava_fire_spread and #blocks_motion* tags (same as 26.2), so the 26.3 tag forms silently degrade. Carried over the 26.2 fluids.rs form (uses blocksMotion() from rank 1)."
+  },
+  {
    "id": 204,
    "verdict": "no-change",
    "bucket": "B",
    "cl_sub": "B2c",
    "evidence": "No-change. 26.2 #159 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/native_reload_listeners.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 246,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "Ported. IceBlock/SpongeBlock/FrostedIceBlock byte-identical 26.2->26.1 (zip CRC); 26.2 #190 ported. Melt fires no game event (BLOCK_DESTROY is a 26.3 addition) \u2014 removed the game_event_state call in hooks.rs."
   },
   {
    "id": 247,
@@ -223,6 +251,13 @@
    "bucket": "B",
    "cl_sub": "B2c",
    "evidence": "No-change. 26.2 #281 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/cauldron.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 351,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "Ported. Fireworks byte-identical 26.2->26.1 (zip CRC); 26.2 #289 ported. Firework tooltip uses the flight key + space (26.3 flight_duration %s key does not exist in 26.1's lang); container tooltip passes (name, count) \u2014 ItemContainerContents.addToTooltip verified bytecode-identical 26.2->26.1 by jardiff. Carried over the 26.2 item_tooltip.rs form."
   },
   {
    "id": 357,
@@ -575,5 +610,5 @@
    "evidence": "No-change. 26.2 #417 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
   }
  ],
- "triage": "Rank 2: 498 items. First-pass buckets (triage.json): B 265, A 231, D 2. Class-level 26.2->26.1 split (classlevel.json, zip CRC): B1c 233, B2c 32, A1 138, A2 93, D 2. Batch 1+2 (2026-11-23): 82 no-change closures \u2014 A2/B2c items whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the 26.2 and 26.1 trees (or widely named with 0 methods named in Horizon)."
+ "triage": "Rank 2: 498 items. First-pass buckets (triage.json): B 265, A 231, D 2. Class-level 26.2->26.1 split (classlevel.json, zip CRC): B1c 233, B2c 32, A1 138, A2 93, D 2. Batch 1+2 (2026-11-23): 82 no-change closures \u2014 A2/B2c items whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the 26.2 and 26.1 trees (or widely named with 0 methods named in Horizon). Batch 3a (2026-11-23): 5 ported carry-overs (items 70, 192, 196, 246, 351) \u2014 A2/B2c items whose 26.2 counterparts were ported; the 26.2 tree file forms carried over whole (hooks.rs: melt hunk only, to preserve the rank-1 blocksMotion change). Deferred from batch 3: item 35 (blending f32->f64, cascades into generator.rs) and item 150 (synth.rs double-precision noise engine, 6 consumer files) \u2014 multi-file type conversions, separate batches."
 }
