@@ -408,3 +408,24 @@ Harness profile (9 of 17 measured locally): 1 pass, 4 oracle, 4 fail.
   `Data` — that rewire is rank-2 save_roundtrip work, as in 1.21.11.
 - Item 10 facts (verified): `version.rs` reads protocol 773, data
   version 4556, data pack 88.0, resource pack 69.0.
+
+## Behaviour port — rank 2
+
+Triage (2026-11-24, `port-1.21.10-triage/`): a batched javap jardiff
+of all 2,472 rank-2/3 classes, 1.21.11 client jar vs 1.21.10 client
+jar — 1,801 common, 452 in 1.21.10 only, 219 in 1.21.11 only, 1,758
+method-changed, 0 javap failures — crossed with the per-module tree
+diff (1.21.11 tree vs 1.21.10 tree). Verdicts: 129 carry-over (no
+named method changed; apply the 1.21.11 port's hunks), 34 no-change
+(module identical in both trees and no named method changed), 291
+review (a named method — or a lambda inside one — changed, or a
+widely-named item with no single module). Per-item verdicts and
+evidence in `rank2-progress.json`.
+
+Batch 1 (34 no-change): 201, 207, 260, 264, 270, 279, 300, 318, 330,
+346, 352, 361, 364, 365, 367, 369, 389, 390, 391, 392, 396, 397, 398,
+399, 427, 431, 434, 435, 438, 439, 440, 441, 443, 444. Each module is
+byte-identical between the trees and none of its named methods
+changed 1.21.11→1.21.10 per the jardiff (lambdas counted against
+their enclosing method — item 182's `MappedRegistry.freeze` went to
+review on exactly that: `lambda$freeze$5/7` changed).

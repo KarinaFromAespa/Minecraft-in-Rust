@@ -1,0 +1,528 @@
+{
+ "release": "1.21.10",
+ "rank": 2,
+ "batch": 1,
+ "note": "No-change closures: module identical in both trees and no named method changed per jardiff. Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json.",
+ "items": {
+  "201": {
+   "module": "crates/horizon-client/src/game/frame_geometry.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/client/resources/model/ModelBakery$MissingModels",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/client/resources/model/ModelBakery$MissingModels$1",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/client/resources/model/ModelBakery$ModelBakerImpl",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/client/resources/model/ModelBakery",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/client/renderer/ItemInHandRenderer$1",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/client/resources/model/ModelBakery$PartCacheImpl",
+     "named": [],
+     "jardiff": "removed-1.21.11"
+    }
+   ]
+  },
+  "207": {
+   "module": "crates/horizon-client/src/creative.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/item/CreativeModeTab",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/client/searchtree/IdSearchTree",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/world/item/CreativeModeTab$Builder",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/world/item/CreativeModeTabs",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/client/multiplayer/SessionSearchTrees",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/client/searchtree/FullTextSearchTree",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "260": {
+   "module": "crates/horizon-client-render/src/clouds.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/client/renderer/CloudRenderer",
+     "named": [
+      "prepare"
+     ],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "264": {
+   "module": "crates/horizon-assets/examples/item_model_fixture.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/client/renderer/texture/atlas/sources/PalettedPermutations",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "270": {
+   "module": "crates/horizon-client/src/mobs/copper_golem.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/entity/animal/coppergolem/CopperGolemState",
+     "named": [],
+     "jardiff": "added-1.21.10"
+    },
+    {
+     "class": "net/minecraft/world/entity/animal/coppergolem/CopperGolemOxidationLevels",
+     "named": [],
+     "jardiff": "added-1.21.10"
+    },
+    {
+     "class": "net/minecraft/world/entity/animal/coppergolem/CopperGolem$1",
+     "named": [],
+     "jardiff": "added-1.21.10"
+    }
+   ]
+  },
+  "279": {
+   "module": "crates/horizon-client-render/src/gfx/lightning/tests/mod.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "com/mojang/blaze3d/vertex/VertexConsumer",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "300": {
+   "module": "crates/horizon-client/examples/probe/entity_sound_packet_fixture.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/network/codec/StreamCodec$17",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/network/codec/StreamCodec$16",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/network/codec/StreamCodec$18",
+     "named": [],
+     "jardiff": "removed-1.21.11"
+    },
+    {
+     "class": "net/minecraft/network/codec/StreamCodec$19",
+     "named": [],
+     "jardiff": "removed-1.21.11"
+    }
+   ]
+  },
+  "318": {
+   "module": "crates/horizon-world/src/json_folder.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/server/packs/PathPackResources",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "330": {
+   "module": "crates/horizon-cosmetics/src/item.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/item/Item$Properties",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "346": {
+   "module": "crates/horizon-world/src/attribute_map.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/entity/ai/attributes/AttributeMap",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "352": {
+   "module": "crates/horizon-client/src/game/lan/level_event_targets.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/level/LevelAccessor",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "361": {
+   "module": "crates/horizon-client/src/game/shoulders.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/entity/ai/goal/LandOnOwnersShoulderGoal",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "364": {
+   "module": "crates/horizon-client-render/src/chunk/block_entity.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/level/block/entity/BlockEntity",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/world/level/block/entity/ShelfBlockEntity",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/world/level/block/entity/trialspawner/TrialSpawnerConfig",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "365": {
+   "module": "crates/horizon-client-render/src/sculk.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/tags/GameEventTags",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/world/level/gameevent/vibrations/VibrationSystem",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/world/level/gameevent/vibrations/VibrationSystem$User",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "367": {
+   "module": "crates/horizon-client/src/game/persist/display.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/entity/Display",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/world/entity/Display$ColorInterpolator",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "369": {
+   "module": "crates/horizon-world/src/attributes/entity.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/entity/ai/attributes/DefaultAttributes",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "389": {
+   "module": "crates/horizon-client-core/src/nbt_path.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/commands/arguments/NbtPathArgument$CompoundChildNode",
+     "named": [],
+     "jardiff": "method-changed"
+    },
+    {
+     "class": "net/minecraft/commands/arguments/NbtPathArgument$MatchObjectNode",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "390": {
+   "module": "crates/horizon-client-render/src/breaking.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "com/mojang/blaze3d/vertex/SheetedDecalTextureGenerator",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "391": {
+   "module": "crates/horizon-client-render/src/brewing.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/item/crafting/RecipePropertySet",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "392": {
+   "module": "crates/horizon-client-render/src/poi_sections.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/entity/ai/village/poi/PoiSection",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "396": {
+   "module": "crates/horizon-client/src/mobs/bat.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/entity/ambient/Bat",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "397": {
+   "module": "crates/horizon-client/src/mobs/raider.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/entity/raid/Raider$HoldGroundAttackGoal",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "398": {
+   "module": "crates/horizon-client/src/patrol.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/util/KeyframeTrackSampler",
+     "named": [],
+     "jardiff": "removed-1.21.11"
+    },
+    {
+     "class": "net/minecraft/util/KeyframeTrackSampler$Segment",
+     "named": [],
+     "jardiff": "removed-1.21.11"
+    }
+   ]
+  },
+  "399": {
+   "module": "crates/horizon-server-files/src/user_lists.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/server/players/StoredUserList",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "427": {
+   "module": "crates/horizon-client-core/src/identifier.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/resources/Identifier",
+     "named": [],
+     "jardiff": "removed-1.21.11"
+    }
+   ]
+  },
+  "431": {
+   "module": "crates/horizon-client/src/game/menu_clicks.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/inventory/ItemCombinerMenu",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "434": {
+   "module": "crates/horizon-client/src/hotbar.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/client/player/inventory/Hotbar",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "435": {
+   "module": "crates/horizon-client/src/lan/commands.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/server/permissions/PermissionLevel",
+     "named": [],
+     "jardiff": "removed-1.21.11"
+    }
+   ]
+  },
+  "438": {
+   "module": "crates/horizon-client/src/mod_content_biomes.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/level/biome/FeatureSorter$StepFeatureData",
+     "named": [],
+     "jardiff": "unchanged"
+    }
+   ]
+  },
+  "439": {
+   "module": "crates/horizon-core/src/density/beardifier.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/level/levelgen/Beardifier",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "440": {
+   "module": "crates/horizon-core/src/random.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/level/levelgen/Xoroshiro128PlusPlus",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "441": {
+   "module": "crates/horizon-port-pack/src/upgrade/noise.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/level/levelgen/synth/NormalNoise$NoiseParameters",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "443": {
+   "module": "crates/horizon-protocol/src/secure_chat.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/network/chat/SignedMessageLink",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  },
+  "444": {
+   "module": "crates/horizon-world/src/level/query.rs",
+   "verdict": "no-change",
+   "evidence": "module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no named method changed 1.21.11->1.21.10 per jardiff (diff-1.21.11-1.21.10-client.json)",
+   "classes": [
+    {
+     "class": "net/minecraft/world/level/block/state/BlockBehaviour$BlockStateBase",
+     "named": [],
+     "jardiff": "method-changed"
+    }
+   ]
+  }
+ }
+}
