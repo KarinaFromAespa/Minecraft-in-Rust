@@ -752,3 +752,12 @@ setGuaranteedDrop (2.0), anything else setItemSlotAndDropWhenKilled
 item persistent). 23/25/130/139 no-change: options chrome, unported
 getSignal, identical end methods, neighborColumn is 26.2-only (the
 batch-36 air_position box is already the 26.1 form).
+
+Batch 42 (Nov 23, 418/498): all no-change. 153: finalizeSpawn renames.
+155: selectTab's clearDraggingState is unported menu chrome. 133:
+ByteBufCodecs.collection is 26.1-only but the Rust never calls it (same
+wire format as list/map). 136: doClick's only diff is the safeClone
+extraction (same body). 138: MouseHandler Gui accessor moves. 140:
+shulker renames; 26.2's refreshDimensions in onPeekAmountChange is
+subsumed by the Rust's on-demand peek dims, and makeBoundingBox is
+identical (26.1 never refreshes dimensions in the class).
