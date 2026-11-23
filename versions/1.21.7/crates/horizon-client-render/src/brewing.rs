@@ -484,6 +484,78 @@ mod tests {
         assert_eq!(stand.items[4].as_ref().unwrap().count, 1);
     }
 
+    /// 1.21.7 has no brewing-fuel component: a stand refuels from vanilla
+    /// blaze powder through the `brewing_fuel` tag — 20 uses, 400 ticks a
+    /// brew — while stone in the fuel slot fuels nothing.
+    #[test]
+    fn vanilla_blaze_powder_fuels_a_brew_from_the_tag() {
+        let root =
+            std::env::temp_dir().join(format!("horizon-brewing-tag-fuel-{}", std::process::id(),));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("data/minecraft/loot_table")).unwrap();
+        std::fs::create_dir_all(root.join("data/minecraft/tags/item")).unwrap();
+        std::fs::write(
+            root.join("items.json"),
+            r#"{"minecraft:blaze_powder": {}, "minecraft:stone": {}, "minecraft:potion": {}, "minecraft:nether_wart": {}}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("data/minecraft/tags/item/brewing_fuel.json"),
+            r#"{"values": ["minecraft:blaze_powder"]}"#,
+        )
+        .unwrap();
+        let items = Items::catalog(&root, &PackOverlay::NONE).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        let brewing = Brewing {
+            reagents: ["minecraft:nether_wart".to_owned()].into_iter().collect(),
+            inputs: HashSet::new(),
+            recipes: vec![BrewingRecipe {
+                id: "awkward".into(),
+                input: PotionIngredient {
+                    items: ["minecraft:potion".to_owned()].into_iter().collect(),
+                    potions: Some(["minecraft:water".to_owned()].into_iter().collect()),
+                },
+                reagent: PotionIngredient {
+                    items: ["minecraft:nether_wart".to_owned()].into_iter().collect(),
+                    potions: None,
+                },
+                output: ItemStack::new("minecraft:potion", 1).with_potion("minecraft:awkward"),
+            }],
+        };
+        let providers = Providers::empty();
+        let mut stand = BrewingStand::new();
+        stand.items[0] = Some(ItemStack::new("minecraft:potion", 1).with_potion("minecraft:water"));
+        stand.items[3] = Some(ItemStack::new("minecraft:nether_wart", 1));
+        stand.items[4] = Some(ItemStack::new("minecraft:blaze_powder", 2));
+        stand.tick(&brewing, &items, &providers);
+        // One powder spent for 20 uses, one use spent starting the brew.
+        assert_eq!(
+            (stand.brew_time, stand.fuel, stand.total_fuel),
+            (400, 19, 20)
+        );
+        assert_eq!(stand.items[4].as_ref().unwrap().count, 1);
+        let mut brewed_at = 0;
+        for t in 1..=400 {
+            if stand.tick(&brewing, &items, &providers).brewed {
+                brewed_at = t;
+            }
+        }
+        assert_eq!(brewed_at, 400);
+        assert_eq!(
+            stand.items[0].as_ref().unwrap().potion(),
+            Some("minecraft:awkward")
+        );
+        // Stone in the fuel slot: no fuel, no brew.
+        let mut stone_stand = BrewingStand::new();
+        stone_stand.items[0] =
+            Some(ItemStack::new("minecraft:potion", 1).with_potion("minecraft:water"));
+        stone_stand.items[3] = Some(ItemStack::new("minecraft:nether_wart", 1));
+        stone_stand.items[4] = Some(ItemStack::new("minecraft:stone", 1));
+        stone_stand.tick(&brewing, &items, &providers);
+        assert_eq!((stone_stand.brew_time, stone_stand.fuel), (0, 0));
+        assert_eq!(stone_stand.items[4].as_ref().unwrap().count, 1);
+    }
+
     #[test]
     fn potion_colours_and_names() {
         // Swiftness: speed colour 3402751 = 0x33EBFF.

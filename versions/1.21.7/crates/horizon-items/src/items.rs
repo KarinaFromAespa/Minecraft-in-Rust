@@ -175,6 +175,9 @@ pub struct ItemInfo {
     /// vanilla `FuelValues` table instead (see `FUEL_VALUES`).
     pub fuel: Option<(Value, Value)>,
     /// `brewing_fuel`: uses and speed-multiplier provider references.
+    /// 1.21.7 has no such component, so the catalog fills this from the
+    /// vanilla `brewing_fuel` item tag instead (see
+    /// `apply_brewing_fuel_values`).
     pub brewing_fuel: Option<(Value, Value)>,
     /// `compostable.layers`: the layers provider (`ComposterBlock.addLayer`).
     pub compostable: Option<Value>,
@@ -369,6 +372,38 @@ fn apply_fuel_values(
             {
                 info.fuel = None;
             }
+        }
+    }
+}
+/// The item tag vanilla 1.21.7 gates brewing fuel on:
+/// `BrewingStandMenu$FuelSlot.mayPlaceItem` and
+/// `BrewingStandBlockEntity.canPlaceItem` (slot 4) both test
+/// `stack.is(ItemTags.BREWING_FUEL)`, and `serverTick` refuels from a
+/// tagged stack in the fuel slot. The tag's data holds only
+/// `minecraft:blaze_powder` (jar-verified).
+pub const BREWING_FUEL_TAG: &str = "minecraft:brewing_fuel";
+/// `BrewingStandBlockEntity.FUEL_USES` (1.21.7): one blaze powder fuels
+/// 20 brews (jar-verified).
+pub const BREWING_FUEL_USES: i32 = 20;
+/// Fill `brewing_fuel` from the [`BREWING_FUEL_TAG`] for the items that
+/// carry no `brewing_fuel` component of their own (a content mod's item
+/// keeps its own). 1.21.7 has no brewing-fuel component —
+/// `DataComponents` has no `brewing_fuel` — so without this the fuel
+/// slot, the shift-click routing, the hopper check and the stand's tick
+/// all read `None` and brewing can never start. The uses are vanilla's
+/// `FUEL_USES` and the speed multiplier is 1: vanilla 1.21.7 brews in a
+/// fixed 400 ticks, with no speed term.
+fn apply_brewing_fuel_values(
+    items: &mut HashMap<Arc<str>, ItemInfo>,
+    tags: &HashMap<String, HashSet<String>>,
+) {
+    let uses = serde_json::json!(BREWING_FUEL_USES);
+    let speed = serde_json::json!(1.0);
+    for id in tags.get(BREWING_FUEL_TAG).into_iter().flatten() {
+        if let Some(info) = items.get_mut(id.as_str())
+            && info.brewing_fuel.is_none()
+        {
+            info.brewing_fuel = Some((uses.clone(), speed.clone()));
         }
     }
 }
@@ -1165,6 +1200,7 @@ impl Items {
         set_villager_food(&items);
         let item_tags = load_tags(root, "item", overlay)?;
         apply_fuel_values(&mut items, &item_tags);
+        apply_brewing_fuel_values(&mut items, &item_tags);
         Ok(Self {
             items,
             mob_visibility,
@@ -4050,6 +4086,41 @@ mod tests {
         let (burn, speed) = fuel("mod:coal").expect("the mod coal keeps its fuel");
         assert_eq!(burn.as_i64(), Some(5));
         assert_eq!(speed.as_f64(), Some(3.0));
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// 1.21.7 has no brewing-fuel component: the catalog's brewing fuel
+    /// comes from vanilla's `brewing_fuel` item tag — blaze powder only,
+    /// 20 uses, speed 1.
+    #[test]
+    fn brewing_fuel_comes_from_the_vanilla_tag() {
+        let root =
+            std::env::temp_dir().join(format!("horizon-brewing-fuel-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("data/minecraft/loot_table")).unwrap();
+        fs::create_dir_all(root.join("data/minecraft/tags/item")).unwrap();
+        // Blaze powder is in the tag; stone is not; the mod powder keeps
+        // its own component.
+        let items = r#"{
+            "minecraft:blaze_powder": {},
+            "minecraft:stone": {},
+            "mod:powder": {"minecraft:brewing_fuel": {"uses": 3, "speed_multiplier": 2.0}}
+        }"#;
+        fs::write(root.join("items.json"), items).unwrap();
+        fs::write(
+            root.join("data/minecraft/tags/item/brewing_fuel.json"),
+            r#"{"values": ["minecraft:blaze_powder"]}"#,
+        )
+        .unwrap();
+        let catalog = Items::catalog(&root, &PackOverlay::NONE).unwrap();
+        let fuel = |id: &str| catalog.items[id].brewing_fuel.clone();
+        let (uses, speed) = fuel("minecraft:blaze_powder").expect("blaze powder is brewing fuel");
+        assert_eq!(uses.as_i64(), Some(20));
+        assert_eq!(speed.as_f64(), Some(1.0));
+        assert_eq!(fuel("minecraft:stone"), None);
+        let (uses, speed) = fuel("mod:powder").expect("the mod powder keeps its fuel");
+        assert_eq!(uses.as_i64(), Some(3));
+        assert_eq!(speed.as_f64(), Some(2.0));
         fs::remove_dir_all(&root).unwrap();
     }
 }
