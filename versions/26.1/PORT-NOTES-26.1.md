@@ -695,3 +695,11 @@ existing check is the 26.1 form. 241/211/219/15 no-change: render
 accessor renames, applyColor extraction, tesselateFlat branch inversion,
 EntityPredicate restructured in 26.2 (record -> combined sub-predicates,
 same semantics).
+
+Batch 34 (Nov 23, 373/498): all no-change. 191: computeFogColor's
+26.2 clamped brighten factor is NOT in the Rust — fog.rs already
+carries the 26.1 1/max form. 235: BlockModelResolver.update's 26.2
+block-light assignment is not ported (only model seed 42 is).
+26/27/189/228: identical methods, renames, or false positives
+(apply/read/atCenterOfWithY/getHeightForCamera/getInterpolatedBoundingBox
+exist in neither jar).
