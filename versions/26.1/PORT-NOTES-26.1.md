@@ -868,3 +868,13 @@ create stays). 91/98/99/120 no-change (renames, spills, package
 moves; the Blocks lambdas are registration data; SlimeBlock's
 26.1-only bounce methods were already ported as item 94). Also fixed
 a batch-46 `unused_mut` warning in bonemeal.rs.
+
+Batch 53 (Nov 23, 484/498), all no-change: spline evaluation is
+identical across the apply/sample API rename and the JSON spline
+format is the same points form; the BlockPos iterator "changes" are
+anonymous-class renumbering (correctly paired, both iterators are
+byte-identical; 26.2's extra $5 is the neighborColumn iterator, a
+26.2-only method); VibrationSelector swapped a Pair for a record
+with the same fields; the rest are BlockEntityType renames, the
+markPosForPostprocessing spelling, codec refactors, spills and menu
+chrome.
