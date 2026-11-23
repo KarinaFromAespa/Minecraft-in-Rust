@@ -9385,7 +9385,7 @@ mod calculated_blending_save_tests {
                     Tag::Double(bits) => *bits,
                     other => panic!("{other:?}"),
                 })
-                .collect::<Vec<u32>>(),
+                .collect::<Vec<u64>>(),
             other => panic!("heights {other:?}"),
         };
         assert_eq!(heights, want());
