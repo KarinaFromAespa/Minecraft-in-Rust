@@ -566,3 +566,10 @@ sulfur cube goo) are 26.2-only additions, kept unreachable per the item-45
 convention and noted in particle_type.rs. 461 renames, 466 identical,
 469 a List.copyOf wrap, 473 a 26.2-only method, 474 a thread-name
 refactor.
+
+CI fix (Nov 23, run 45194438097): batch 17's music port missed one tick
+call site (music.rs test, the post-stop_all tick at what was line 1131 -
+the batch's search-replace only matched the loop-indented copy), so
+horizon-client-lib's lib-test target failed to compile (E0061, 4 args
+for the 3-arg tick). The 8-space-indented copy now drops the loading arg
+too; all tick call sites re-verified.

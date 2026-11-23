@@ -1130,7 +1130,6 @@ mod tests {
         m.tick(
             Some(&Music::menu()),
             1.0,
-            false,
             &mut Bound {
                 engine: &mut engine,
                 backend: &mut backend,
