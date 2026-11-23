@@ -197,6 +197,13 @@
    "evidence": "No-change. 26.2 #174 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/nether_portal.rs'] are identical between the 26.2 and 26.1 trees."
   },
   {
+   "id": 282,
+   "verdict": "ported",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "Ported (26.2 #228, commit bc42387a). All 22 removed density-function generator classes 26.3-only (GradientFunction, ConstantFunction etc. absent from the 26.1 jar); 26.1's DensityFunctions.bootstrap registers only y_clamped_gradient (18 types, no gradient/lerp/distance_to_point). Removed the minecraft:gradient decoder arm from worldgen/density.rs and ADDED the y_clamped_gradient arm (Y axis, clamped, from_y/to_y)."
+  },
+  {
    "id": 286,
    "verdict": "no-change",
    "bucket": "A",
@@ -209,6 +216,20 @@
    "bucket": "A",
    "cl_sub": "A2",
    "evidence": "Ported (26.2 #238, commit e0b46227). All 18 density-compiler classes 26.3-only: DensityFunctionCompiler, DistanceMetric etc. absent from the 26.1 jar; 26.1's DensityFunctions.bootstrap registers no lerp or distance_to_point (18 types, incl. y_clamped_gradient, weird_scaled_sampler, blend_density). Removed the lerp + distance_to_point decoder arms from worldgen/density.rs; unknown types fall through to the unknown-type error as vanilla 26.1 rejects them."
+  },
+  {
+   "id": 293,
+   "verdict": "ported",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "Ported (26.2 #240, commit bc42387a). StrawBedBlock + AbstractBedBlock absent from the 26.1 jar; 26.1's dimension_type data has no straw_bed_rule. Beds are BedBlock directly: bed_geometry.rs rewritten to flat pos_to_bed (0.6875 above the head block base), sleeping_position returns Vec3 (no Option), startSleeping void with no sleep-height check; removed SleepOn/sleep_height/bed_part, destroy-on-leave (BedRule + DimensionFacts.straw_bed_rule), the straw_bed_rule environment attribute, and the straw-bed stat/sprite/POI."
+  },
+  {
+   "id": 296,
+   "verdict": "ported",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "Ported (26.2 #242, commit bc42387a). FeaturePlacer, CuboidPlacement, OffsetPlacement absent from the 26.1 jar; RandomOffsetPlacement present. Placement modifiers to the 26.1 form: random_offset replaces offset/cuboid/random_chance/randomly_selected; oracles decode via ConfiguredFeature.DIRECT_CODEC and place via PlacedFeature.place; Vec3i.offsetCodec strict bound (<16); height_range/volume_match block predicates removed (26.3-only)."
   },
   {
    "id": 311,
@@ -624,5 +645,5 @@
    "evidence": "No-change. 26.2 #417 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
   }
  ],
- "triage": "Rank 2: 498 items. First-pass buckets (triage.json): B 265, A 231, D 2. Class-level 26.2->26.1 split (classlevel.json, zip CRC): B1c 233, B2c 32, A1 138, A2 93, D 2. Batch 1+2 (2026-11-23): 82 no-change closures \u2014 A2/B2c items whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the 26.2 and 26.1 trees (or widely named with 0 methods named in Horizon). Batch 3a (2026-11-23): 5 ported carry-overs (items 70, 192, 196, 246, 351) \u2014 A2/B2c items whose 26.2 counterparts were ported; the 26.2 tree file forms carried over whole (hooks.rs: melt hunk only, to preserve the rank-1 blocksMotion change). Deferred from batch 3: item 35 (blending f32->f64, cascades into generator.rs) and item 150 (synth.rs double-precision noise engine, 6 consumer files) \u2014 multi-file type conversions, separate batches."
+ "triage": "Rank 2: 498 items. First-pass buckets (triage.json): B 265, A 231, D 2. Class-level 26.2->26.1 split (classlevel.json, zip CRC): B1c 233, B2c 32, A1 138, A2 93, D 2. Batch 1+2 (2026-11-23): 82 no-change closures \u2014 A2/B2c items whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the 26.2 and 26.1 trees (or widely named with 0 methods named in Horizon). Batch 3a (2026-11-23): 5 ported carry-overs (items 70, 192, 196, 246, 351) \u2014 A2/B2c items whose 26.2 counterparts were ported; the 26.2 tree file forms carried over whole (hooks.rs: melt hunk only, to preserve the rank-1 blocksMotion change). Deferred from batch 3: item 35 (blending f32->f64, cascades into generator.rs) and item 150 (synth.rs double-precision noise engine, 6 consumer files) \u2014 multi-file type conversions, separate batches. Batch 3c (2026-11-23): bc42387a carried over (53 files) \u2014 items 282, 293, 296 closed. The batch also carried the SwingState rework (26.2 #241: plain swinging/swingingArm/swingTime fields + getCurrentSwingDuration, verified identical in the 26.1 jar, no SwingState class) for 26.1 item 281, which stays OPEN: 281 covers 16 world/entity classes and needs class-level review of the rest. bc42387a hunks in game.rs/lan_actions.rs/remote.rs/dimension_type.rs/density.rs were applied by hand (context drift); the spear STAB site in remote.rs keeps the 26.1 completion-pass form (26.1 has no spear, no STAB packet)."
 }

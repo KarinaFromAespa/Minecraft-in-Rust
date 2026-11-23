@@ -29,11 +29,11 @@ def corpus():
         [{'type':'count','count':2},{'type':'in_square'}],
         [{'type':'in_square'},{'type':'count','count':2}],
         [{'type':'count','count':{'type':'uniform','min_inclusive':0,'max_inclusive':3}},
-         {'type':'offset','x':{'type':'uniform','min_inclusive':-2,'max_inclusive':2},'y':1,'z':-1}],
+         {'type':'random_offset','xz_spread':{'type':'uniform','min_inclusive':-2,'max_inclusive':2},'y_spread':1}],
         [{'type':'count','count':2},{'type':'height_range','height':{'type':'uniform','min_inclusive':{'above_bottom':0},'max_inclusive':{'below_top':0}}}],
-        [{'type':'random_chance','chance':0.5},{'type':'count','count':2}],
-        [{'type':'count','count':2},{'type':'random_chance','chance':0.5}],
-        [{'type':'cuboid','xz_size':1,'y_size':1},{'type':'random_chance','chance':0.5}],
+        [{'type':'rarity_filter','chance':2},{'type':'count','count':2}],
+        [{'type':'count','count':2},{'type':'rarity_filter','chance':2}],
+        [{'type':'random_offset','xz_spread':1,'y_spread':1},{'type':'rarity_filter','chance':2}],
         [{'type':'fixed_placement','positions':[[0,64,0],[0,64,0],[1,64,1]]}],
         [{'type':'noise_threshold_count','noise_level':0,'below_noise':1,'above_noise':2},{'type':'in_square'}]]
     for legacy in [False,True]:
@@ -87,7 +87,7 @@ def main():
             "java":subprocess.check_output(["java","--version"],text=True).splitlines()[0],"rustc":subprocess.check_output(["rustc","--version"],text=True).strip(),
             "fixtures":len(fixtures),"basic_features":3,"block_states":5,"composed_fixtures":sum("placement" in f for f in fixtures),"requested_placements":sum(f["repeats"] for f in fixtures),
             "sources_sha256":tested_sources,"fixtures_sha256":tested_fixtures,"rust_output_sha256":lab.digest(build/"rust.txt","sha256"),"references":references,
-            "scope":"Actual Feature.DIRECT_CODEC and native void-start-platform, End-island and End-platform feature algorithms. A mutable WorldGenLevel proxy logs ordered block reads, writes, update flags, rejected writes, thrown failures and accumulated stored states after repeated placements. Native LevelWriter.setBlockAndUpdate executes through its actual default method. Required default block-state IDs are independently exported and checked across both authenticated JARs. Direct calls and native FeaturePlacer modifier chains share the mutable world and random stream, including reused placer buffers after failures. Both random modes, multiple seeds, nearby/far chunks and extreme wrapped coordinates are compared, with nextLong values after every placement and at fixture end. The End-platform feature invokes its ordinary generation path without block destruction/drops. Actual chunk mutation, neighbor updates, lighting, entity/block drops, full feature registry behavior and complete generated worlds remain outside this comparison."}
+            "scope":"Actual ConfiguredFeature.DIRECT_CODEC and native void-start-platform, End-island and End-platform feature algorithms. A mutable WorldGenLevel proxy logs ordered block reads, writes, update flags, rejected writes, thrown failures and accumulated stored states after repeated placements. Native LevelWriter.setBlockAndUpdate executes through its actual default method. Required default block-state IDs are independently exported and checked across both authenticated JARs. Direct calls and native PlacedFeature.place modifier chains share the mutable world and random stream. Both random modes, multiple seeds, nearby/far chunks and extreme wrapped coordinates are compared, with nextLong values after every placement and at fixture end. The End-platform feature invokes its ordinary generation path without block destruction/drops. Actual chunk mutation, neighbor updates, lighting, entity/block drops, full feature registry behavior and complete generated worlds remain outside this comparison."}
 
     lab.write_json(report_path,report);print(f"Scoped basic-feature parity passed: {report_path}")
 

@@ -87,6 +87,15 @@ impl Probe<'_> {
         let item = self.stack(Hand::Main).effective().0;
         self.table("attack_speed").get(item).map_or(4.0, dl)
     }
+    /// `getCurrentSwingDuration` for the probe's scripted world: spears
+    /// are not scripted, so every item swings with DEFAULT's animation.
+    fn swing_duration(&self) -> i32 {
+        swing_duration(
+            SwingAnimation::DEFAULT,
+            self.case["haste"].as_i64().map(|a| a as i32),
+            self.case["fatigue"].as_i64().map(|a| a as i32),
+        )
+    }
     fn scripted(&mut self, kind: &str, hand: Hand) -> UseResult {
         let name = self.step["uses"][kind].as_str().unwrap().to_string();
         self.events
@@ -154,13 +163,7 @@ impl HandWorld for Probe<'_> {
     fn piercing_weapon(&mut self) -> bool {
         false
     }
-    fn attack_animation(&mut self) -> SwingAnimation {
-        SwingAnimation::DEFAULT
-    }
-    fn interact_animation(&mut self, _: Hand) -> SwingAnimation {
-        SwingAnimation::DEFAULT
-    }
-    fn piercing_attack(&mut self, _: SwingAnimation) {
+    fn piercing_attack(&mut self) {
         unreachable!()
     }
     fn attack_entity(&mut self) -> bool {
@@ -229,17 +232,13 @@ impl HandWorld for Probe<'_> {
             stage.unwrap_or(-1)
         ));
     }
-    fn swing(&mut self, hand: Hand, animation: SwingAnimation) {
-        let duration = swing_duration(
-            animation,
-            self.case["haste"].as_i64().map(|a| a as i32),
-            self.case["fatigue"].as_i64().map(|a| a as i32),
-        );
-        let started = self.swing.start_if_able(hand, animation, duration);
+    fn swing(&mut self, hand: Hand) {
+        let duration = self.swing_duration();
+        let started = self.swing.start_if_able(hand, duration);
         self.events.push(format!(
             "swing {} {} {started}",
             hand_name(hand),
-            animation.duration
+            SwingAnimation::DEFAULT.duration
         ));
     }
     fn reset_attack_strength(&mut self) {
@@ -329,7 +328,7 @@ fn run(case: &Value, out: &mut impl Write) -> Result<()> {
             step["ad"].as_bool().unwrap(),
             step["ud"].as_bool().unwrap(),
         );
-        probe.swing.tick();
+        probe.swing.tick(probe.swing_duration());
         if let Some(r) = step["rot"].as_array() {
             rot = [fl(&r[0]), fl(&r[1])];
         }
@@ -363,17 +362,23 @@ fn run(case: &Value, out: &mut impl Write) -> Result<()> {
             writeln!(out, "{e}")?;
         }
         let sw = &probe.swing;
-        let current = sw.current.map_or("- 0".to_string(), |c| {
-            format!("{} {}", hand_name(c.hand), c.duration_ticks)
-        });
+        let current = if sw.swinging() {
+            format!(
+                "{} {}",
+                hand_name(sw.attack_hand()),
+                probe.swing_duration()
+            )
+        } else {
+            "- 0".to_string()
+        };
         let h = &probe.heights;
         let d = &clicks.destroying;
         writeln!(
             out,
             "tick {s} {current} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {}",
-            sw.ticks,
-            fb(sw.animation),
-            fb(sw.old_animation),
+            sw.swing_time,
+            fb(sw.attack_anim),
+            fb(sw.o_attack_anim),
             fb(sw.animation(0.5)),
             strength.ticker,
             strength.swap_ticker,
@@ -415,9 +420,7 @@ impl HandWorld for ResetWorld<'_, '_> {
         held_count(hand: Hand) -> i32;
         cannot_attack() -> bool;
         piercing_weapon() -> bool;
-        attack_animation() -> SwingAnimation;
-        interact_animation(hand: Hand) -> SwingAnimation;
-        piercing_attack(a: SwingAnimation) -> ();
+        piercing_attack() -> ();
         attack_entity() -> bool;
         block_action_restricted(pos: [i32; 3]) -> bool;
         within_border(pos: [i32; 3]) -> bool;
@@ -427,7 +430,7 @@ impl HandWorld for ResetWorld<'_, '_> {
         main_hand_key() -> String;
         same_destroying_item(key: &str) -> bool;
         destroy_stage(pos: [i32; 3], stage: Option<i32>) -> ();
-        swing(hand: Hand, a: SwingAnimation) -> ();
+        swing(hand: Hand) -> ();
         entity_within_border() -> bool;
         use_on_entity(hand: Hand) -> Option<UseResult>;
         use_on_block(hand: Hand) -> UseResult;

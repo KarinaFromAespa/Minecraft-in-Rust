@@ -260,6 +260,17 @@ impl Loader {
                 "minecraft:blend_density" => {
                     GraphNode::BlendDensity(self.input(&object, "input", depth)?)
                 }
+                // 26.1's y-clamped gradient: Mth.clampedMap(y, fromY, toY,
+                // fromValue, toValue) — the same clamped lerp the Y-axis
+                // ClampToEdge gradient sampler computes.
+                "minecraft:y_clamped_gradient" => GraphNode::Gradient {
+                    axis: Axis::Y,
+                    tiling: TilingMode::ClampToEdge,
+                    from: integer(required(&object, "from_y")?)?,
+                    to: integer(required(&object, "to_y")?)?,
+                    low: noise_value(required(&object, "from_value")?)?,
+                    high: noise_value(required(&object, "to_value")?)?,
+                },
                 "minecraft:pow" => GraphNode::Power {
                     base: self.input(&object, "base", depth)?,
                     exponent: self.input(&object, "exponent", depth)?,
@@ -276,31 +287,13 @@ impl Loader {
                         multiple: self.optional_input(&object, "multiple", 1.0, depth)?,
                     }
                 }
-                "minecraft:gradient" => {
-                    let from = integer(required(&object, "from_coordinate")?)?;
-                    let to = integer(required(&object, "to_coordinate")?)?;
-                    if from == to {
-                        return Err(DecodeError::Field("gradient coordinates"));
-                    }
-                    GraphNode::Gradient {
-                        axis: axis(required(&object, "axis")?)?,
-                        tiling: match optional(&object, "tiling")
-                            .map(string)
-                            .transpose()?
-                            .as_deref()
-                            .unwrap_or("clamp_to_edge")
-                        {
-                            "clamp_to_edge" => TilingMode::ClampToEdge,
-                            "repeat" => TilingMode::Repeat,
-                            "mirrored_repeat" => TilingMode::MirroredRepeat,
-                            _ => return Err(DecodeError::Field("tiling")),
-                        },
-                        from,
-                        to,
-                        low: noise_value(required(&object, "from_value")?)?,
-                        high: noise_value(required(&object, "to_value")?)?,
-                    }
-                }
+                // No minecraft:gradient arm: the general gradient with an
+                // axis and a tiling mode (clamp_to_edge/repeat/
+                // mirrored_repeat) is 26.3's GradientFunction. 26.1 has
+                // only y_clamped_gradient (Y axis, clamped); 26.3 dropped
+                // y_clamped_gradient for the general form. The graph's
+                // Gradient node and TilingMode stay in horizon-core for the
+                // density-parity harness's own gradient cases.
                 "minecraft:noise" => GraphNode::Noise {
                     noise: self.noise(&object)?,
                     xz_scale: double(required(&object, "xz_scale")?)?,

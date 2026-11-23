@@ -73,8 +73,8 @@ def corpus(facts, placement):
         {'type':'weighted_random_selector','features':[{'data':moss,'weight':1},{'data':empty,'weight':3},{'data':stone,'weight':2}]},
         {'type':'random_selector','features':[{'feature':moss,'chance':0.4},{'feature':empty,'chance':0.7}],'default':stone}]
     chains=[[],[{'type':'count','count':2}],[{'type':'count','count':2},{'type':'in_square'}],
-        [{'type':'random_chance','chance':0.5},{'type':'count','count':2}],
-        [{'type':'offset','x':1,'y':1,'z':-1}],
+        [{'type':'rarity_filter','chance':2},{'type':'count','count':2}],
+        [{'type':'random_offset','xz_spread':1,'y_spread':1}],
         [{'type':'block_predicate_filter','predicate':{'type':'would_survive','state':'pale_moss_carpet'}}]]
     for graph in graphs:
         for mode,definition in [('feature',graph),*[('placed',placed(graph,chain)) for chain in chains]]:

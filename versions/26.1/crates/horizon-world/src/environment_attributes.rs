@@ -65,7 +65,7 @@ const fn a(id: &'static str, kind: Kind, default: Default, range: Range) -> Attr
 }
 
 /// `EnvironmentAttributes`, in registration order.
-pub static ATTRIBUTES: [Attribute; 51] = {
+pub static ATTRIBUTES: [Attribute; 50] = {
     use Default as D;
     use Kind::*;
     [
@@ -181,7 +181,6 @@ pub static ATTRIBUTES: [Attribute; 51] = {
             Range::Any,
         ),
         a("gameplay/bed_rule", Other, D::Unported, Range::Any),
-        a("gameplay/straw_bed_rule", Other, D::Unported, Range::Any),
         a(
             "gameplay/respawn_anchor_works",
             Boolean,
