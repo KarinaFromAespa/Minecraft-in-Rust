@@ -49,7 +49,6 @@ pub mod content_identity;
 pub mod control;
 pub mod crafting;
 pub mod creative;
-pub mod cushion;
 pub mod data_cmd;
 pub mod debug_chart;
 pub mod debug_entries;

@@ -14,7 +14,7 @@ use super::{
     boats::Boat, fireworks::Rocket, minecarts::Minecart, tnt::PrimedTnt, trident::ThrownTrident,
 };
 use horizon_client::entities::{
-    ArmorStand, Cushion, ExperienceOrb, ItemEntity, ItemFrame, Painting,
+    ArmorStand, ExperienceOrb, ItemEntity, ItemFrame, Painting,
 };
 use horizon_client::entity_rules::EntityRules;
 use horizon_client::join_seq::JoinSeq;
@@ -465,16 +465,6 @@ impl RenderEntityBounds for ItemFrame {
             std::array::from_fn(|axis| center[axis] - half[axis]),
             std::array::from_fn(|axis| center[axis] + half[axis]),
         ))
-    }
-}
-
-impl RenderEntityBounds for Cushion {
-    fn render_id(&self) -> u32 {
-        self.id
-    }
-
-    fn render_bounds(&self, _alpha: f64) -> Aabb {
-        aabb_from_extents(self.bounds())
     }
 }
 
@@ -1019,10 +1009,7 @@ impl Game<'_> {
     }
     /// The ids of the entities that are not on the walk of `entity_lists!`.
     pub(super) fn entity_ids_off_walk(&self) -> impl Iterator<Item = u32> + '_ {
-        self.cushions
-            .iter()
-            .map(|e| e.id)
-            .chain(self.item_frames.iter().map(|e| e.id))
+        self.item_frames.iter().map(|e| e.id)
             .chain(self.paintings.iter().map(|e| e.id))
             .chain(self.others.iter().map(|e| e.id))
             .chain(self.breath_clouds.iter().map(|e| e.id))
@@ -2078,7 +2065,6 @@ mod load_claim_tests {
             "minecraft:end_crystal",
             "minecraft:item_frame",
             "minecraft:glow_item_frame",
-            "minecraft:cushion",
             "minecraft:painting",
         ];
         for def in horizon_client::mobs::species::ALL {

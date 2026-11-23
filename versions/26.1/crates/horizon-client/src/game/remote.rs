@@ -8380,18 +8380,8 @@ impl Game<'_> {
                     )
                 })
                 .unwrap_or((false, false));
-            // Cushion.interact on a client: PASS when sneaked at or when
-            // something already sits on it, CONSUME (no swing) otherwise.
-            let is_cushion = self.cushions.iter().any(|c| c.id as i32 == hit.id);
-            let cushion_passes = is_cushion
-                && (sneaking
-                    || self.riding.is_some_and(|r| r as i32 == hit.id)
-                    || self
-                        .mobs
-                        .iter()
-                        .any(|m| m.extra.mount.is_some_and(|r| r as i32 == hit.id)));
             let passes =
-                is_painting || frame_passes || boat_passes || cart_passes || cushion_passes;
+                is_painting || frame_passes || boat_passes || cart_passes;
             // Otherwise the main hand's turn takes it; there is no off hand turn.
             if response.is_none() && hand == Hand::Off && !passes {
                 return false;
@@ -8423,9 +8413,8 @@ impl Game<'_> {
             }
             // Minecart.interact boards the cart and answers CONSUME on the client,
             // which ends the click without an arm swing. AbstractBoat.interact
-            // answers SUCCESS there, which swings. Cushion.interact answers
-            // CONSUME there too.
-            if remote_object_swings(response, is_rideable_cart || is_cushion) {
+            // answers SUCCESS there, which swings.
+            if remote_object_swings(response, is_rideable_cart) {
                 self.with_hand(hand, Game::swing_arm);
             }
             return true;
@@ -8744,8 +8733,7 @@ impl Game<'_> {
     /// `playSound(player, ...)`: the server sends them to the others only):
     /// honeycomb waxing copper, and an axe, hoe or shovel transforming a
     /// block (stripping, scraping, removing wax, tilling, making a path).
-    /// A cushion succeeds where it may be placed and spawns on the server, a
-    /// firework rocket wherever it may be used, and the server launches it.
+    /// A firework rocket wherever it may be used, and the server launches it.
     /// Whether the item's use succeeded, which ends the click.
     fn predict_item_on_block(&mut self, stack: &ItemStack, hit: &super::Hit, hand: Hand) -> bool {
         // FireworkRocketItem.useOn: SUCCESS on the client too, so neither
@@ -8798,15 +8786,6 @@ impl Game<'_> {
             self.transform_particle(&particle, hit.pos);
             self.audio.play(&sound, Some(at), 1.0, 1.0);
             true
-        } else if self
-            .res
-            .items()
-            .get(&stack.item)
-            .is_some_and(|i| i.cushion_color.is_some())
-        {
-            // CushionItem.useOn on a client level: SUCCESS once
-            // `canBePlacedAt` holds, before the server's own checks.
-            self.cushion_spawn(hit).is_some()
         } else if &*stack.item == "minecraft:painting" {
             // HangingEntityItem.useOn on a client level: SUCCESS once
             // `Painting.create` finds a surviving variant, before the

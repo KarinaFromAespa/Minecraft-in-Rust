@@ -120,6 +120,13 @@
    "evidence": "No-change. 26.2 #82 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
   },
   {
+   "id": 135,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "Ported (26.2 #115). DimensionOriginStructurePlacement absent from the 26.1 jar. Removed Placement::DimensionOrigin, the registry origin field, dimension_origin/set_dimension_origin/needs_dimension_origin and the decode arm; a dimension_origin set decodes to Unsupported and never starts (new test)."
+  },
+  {
    "id": 160,
    "verdict": "no-change",
    "bucket": "A",
@@ -160,6 +167,13 @@
    "bucket": "B",
    "cl_sub": "B2c",
    "evidence": "No-change. 26.2 #159 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/native_reload_listeners.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 221,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "Ported (26.2 #147, commit c03452c8). BlockAttachedEntity byte-identical 26.2->26.1; Entity.kill(ServerLevel) is the single-arg unattributed form in both jars (26.3 added kill(level, entity)). Painting/frame ENTITY_DIE unattributed on player and blast breaks; explosion_kill_credit() removed, replaced by explosion_direct_source() for the BLOCK_CHANGE attribution via dropItem."
   },
   {
    "id": 246,
@@ -230,6 +244,13 @@
    "bucket": "A",
    "cl_sub": "A2",
    "evidence": "Ported (26.2 #242, commit bc42387a). FeaturePlacer, CuboidPlacement, OffsetPlacement absent from the 26.1 jar; RandomOffsetPlacement present. Placement modifiers to the 26.1 form: random_offset replaces offset/cuboid/random_chance/randomly_selected; oracles decode via ConfiguredFeature.DIRECT_CODEC and place via PlacedFeature.place; Vec3i.offsetCodec strict bound (<16); height_range/volume_match block predicates removed (26.3-only)."
+  },
+  {
+   "id": 302,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "Ported (26.2 #247). EyeblossomBlock bytecode-identical 26.2->26.1 (jardiff); BlockScanUtils absent from the 26.1 jar, BlockPos$4 present. Eyeblossom neighbour scan rewritten to betweenClosed order (x innermost, then y, then z) with a regression test."
   },
   {
    "id": 311,
@@ -512,6 +533,13 @@
    "evidence": "No-change. 26.2 #368 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
   },
   {
+   "id": 449,
+   "verdict": "ported",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "Ported (26.2 #374, commit c03452c8). Cushion, CushionItem, CushionRenderer absent from the 26.1 jar (0 cushion entries). Removed the Cushion entity/item/renderer, dye_index, Target::Cushion, the minecraft:cushion load/save paths, LAN cushion states, cushion seats/rides, cushion blast/thunder handling and the cushion_placement probe + oracle; generic logic moved, not deleted (dismount_in_portal/dismount_removed_vehicle to passengers.rs; state_suffocating/state_view_blocking to render_tick.rs in the 26.1 2-arg isViewBlocking form, verified in the jar)."
+  },
+  {
    "id": 450,
    "verdict": "no-change",
    "bucket": "A",
@@ -645,5 +673,5 @@
    "evidence": "No-change. 26.2 #417 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
   }
  ],
- "triage": "Rank 2: 498 items. First-pass buckets (triage.json): B 265, A 231, D 2. Class-level 26.2->26.1 split (classlevel.json, zip CRC): B1c 233, B2c 32, A1 138, A2 93, D 2. Batch 1+2 (2026-11-23): 82 no-change closures \u2014 A2/B2c items whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the 26.2 and 26.1 trees (or widely named with 0 methods named in Horizon). Batch 3a (2026-11-23): 5 ported carry-overs (items 70, 192, 196, 246, 351) \u2014 A2/B2c items whose 26.2 counterparts were ported; the 26.2 tree file forms carried over whole (hooks.rs: melt hunk only, to preserve the rank-1 blocksMotion change). Deferred from batch 3: item 35 (blending f32->f64, cascades into generator.rs) and item 150 (synth.rs double-precision noise engine, 6 consumer files) \u2014 multi-file type conversions, separate batches. Batch 3c (2026-11-23): bc42387a carried over (53 files) \u2014 items 282, 293, 296 closed. The batch also carried the SwingState rework (26.2 #241: plain swinging/swingingArm/swingTime fields + getCurrentSwingDuration, verified identical in the 26.1 jar, no SwingState class) for 26.1 item 281, which stays OPEN: 281 covers 16 world/entity classes and needs class-level review of the rest. bc42387a hunks in game.rs/lan_actions.rs/remote.rs/dimension_type.rs/density.rs were applied by hand (context drift); the spear STAB site in remote.rs keeps the 26.1 completion-pass form (26.1 has no spear, no STAB packet)."
+ "triage": "Rank 2: 498 items. First-pass buckets (triage.json): B 265, A 231, D 2. Class-level 26.2->26.1 split (classlevel.json, zip CRC): B1c 233, B2c 32, A1 138, A2 93, D 2. Batch 1+2 (2026-11-23): 82 no-change closures \u2014 A2/B2c items whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the 26.2 and 26.1 trees (or widely named with 0 methods named in Horizon). Batch 3a (2026-11-23): 5 ported carry-overs (items 70, 192, 196, 246, 351) \u2014 A2/B2c items whose 26.2 counterparts were ported; the 26.2 tree file forms carried over whole (hooks.rs: melt hunk only, to preserve the rank-1 blocksMotion change). Deferred from batch 3: item 35 (blending f32->f64, cascades into generator.rs) and item 150 (synth.rs double-precision noise engine, 6 consumer files) \u2014 multi-file type conversions, separate batches. Batch 3c (2026-11-23): bc42387a carried over (53 files) \u2014 items 282, 293, 296 closed. The batch also carried the SwingState rework (26.2 #241: plain swinging/swingingArm/swingTime fields + getCurrentSwingDuration, verified identical in the 26.1 jar, no SwingState class) for 26.1 item 281, which stays OPEN: 281 covers 16 world/entity classes and needs class-level review of the rest. bc42387a hunks in game.rs/lan_actions.rs/remote.rs/dimension_type.rs/density.rs were applied by hand (context drift); the spear STAB site in remote.rs keeps the 26.1 completion-pass form (26.1 has no spear, no STAB packet). Batch 3d (2026-11-23): items 135, 221, 302, 449 closed (c03452c8 carried over for 221+449; 302 timeline.rs and 135 start.rs carried over whole-file). Two compile fallouts fixed by hand: explosion.rs armor-stand site to break_armor_stand_by_anything, render_tick.rs near-plane computation removed (26.1 isViewBlocking is 2-arg)."
 }

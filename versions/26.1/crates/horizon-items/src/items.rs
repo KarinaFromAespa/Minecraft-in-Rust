@@ -212,8 +212,6 @@ pub struct ItemInfo {
     pub crafting_remainder: Option<String>,
     /// `dye`: the dye colour name (dyes, and anything else with the component).
     pub dye: Option<String>,
-    /// `cushion/color`: the DyeColor name of a cushion item.
-    pub cushion_color: Option<String>,
     /// Has a default `bundle_contents` (the bundles, `BundleItem`).
     pub bundle: bool,
     /// The ids of the item's default components (its prototype's keys).
@@ -1074,7 +1072,6 @@ impl Items {
                         .map(str::to_owned),
                     jukebox_song: c["minecraft:jukebox_playable"].as_str().map(str::to_owned),
                     dye: c["minecraft:dye"].as_str().map(str::to_owned),
-                    cushion_color: c["minecraft:cushion/color"].as_str().map(str::to_owned),
                     bundle: c.get("minecraft:bundle_contents").is_some(),
                     components: c
                         .as_object()

@@ -3,7 +3,7 @@
 //! `handleSetEquipment`): the server simulates them, the client places them
 //! where it says and interpolates their moves like a mob's.
 use super::Game;
-use horizon_client::entities::{ArmorStand, Cushion, ItemFrame, Painting};
+use horizon_client::entities::{ArmorStand, ItemFrame, Painting};
 use horizon_client::mobs::leash::Holder;
 use horizon_client::particles::{ParticleOptions, ParticleType};
 use horizon_core::geometry::Vec3;
@@ -114,17 +114,6 @@ impl Game<'_> {
                 check_interval: 0,
                 custom_name: None,
                 random: horizon_client::random_source::entity(),
-            });
-        } else if kind == "minecraft:cushion" {
-            // BlockAttachedEntity.pos: `BlockPos.containing` of the spawn.
-            self.cushions.push(Cushion {
-                id,
-                position: at,
-                pos: block,
-                yaw: super::cushions::snap_yaw(yaw),
-                color: 0,
-                check_interval: 0,
-                custom_name: None,
             });
         } else if kind == "minecraft:lightning_bolt" {
             self.spawn_remote_bolt(id, position);
@@ -248,11 +237,6 @@ impl Game<'_> {
                         a.marker = flags & 16 != 0;
                     }
                     _ => {}
-                }
-            } else if let Some(c) = self.cushions.iter_mut().find(|c| c.id == id) {
-                // Cushion.DATA_COLOR (DyeColor, a byte-backed id).
-                if let (8, Value::Id(color)) = (index, value) {
-                    c.color = (*color).clamp(0, 15) as u8;
                 }
             } else if let Some(b) = self.boats.iter_mut().find(|b| b.id == id) {
                 // VehicleEntity's hurt, direction and damage; the paddles and
@@ -432,12 +416,6 @@ impl Game<'_> {
             out.push(json!({"id": a.id, "kind": "minecraft:armor_stand", "position": at(a.position), "yaw": a.yaw,
                 "small": a.small, "arms": a.show_arms, "no_base_plate": a.no_base_plate, "equipment": items}));
         }
-        for c in &self.cushions {
-            out.push(
-                json!({"id": c.id, "kind": "minecraft:cushion", "position": at(c.position),
-                "yaw": c.yaw, "color": c.color_name()}),
-            );
-        }
         for (&id, i) in &self.interactions {
             out.push(json!({"id": id, "kind": "minecraft:interaction",
                 "position": at(i.position), "width": i.width, "height": i.height,
@@ -470,7 +448,6 @@ impl Game<'_> {
         self.carts.clear();
         self.boats.clear();
         self.armor_stands.clear();
-        self.cushions.clear();
         self.item_frames.clear();
         self.paintings.clear();
         self.orbs.clear();
@@ -484,18 +461,6 @@ impl Game<'_> {
         self.carts.retain(|c| c.id != id);
         self.boats.retain(|b| b.id != id);
         self.armor_stands.retain(|a| a.id != id);
-        // `Entity.setRemoved`: the cushion's rider gets off where it sat
-        // (`LivingEntity.dismountVehicle`), not inside the block below.
-        if self.riding == Some(id)
-            && let Some(y) = self
-                .cushions
-                .iter()
-                .find(|c| c.id == id)
-                .map(|c| c.position.y)
-        {
-            self.dismount_removed_vehicle(y);
-        }
-        self.cushions.retain(|c| c.id != id);
         self.item_frames.retain(|f| f.id != id);
         self.paintings.retain(|p| p.id != id);
         self.bolts.retain(|b| b.id != id);

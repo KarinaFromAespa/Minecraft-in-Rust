@@ -130,7 +130,7 @@ fn items_ignore_explosion(mob_griefing: bool, interaction: BlockInteraction) -> 
     !mob_griefing && interaction == BlockInteraction::Keep
 }
 
-/// Whether a blast leaves item frames, paintings, cushions and armour stands
+/// Whether a blast leaves item frames, paintings and armour stands
 /// alone. Without `mobGriefing`, a blast that keeps blocks is ignored
 /// (`ServerExplosion.shouldAffectBlocklikeEntities` through their
 /// `ignoreExplosion`; no wind charge goes through `server_explode`), and one a
@@ -808,31 +808,32 @@ impl Game<'_> {
         // hurt or pushed by the explosion that destroyed their container.
         self.spawn_destroyed_contents(destroyed_contents);
         self.native_leaves_flush();
-        // Frames, paintings, cushions and armour stands last: vanilla lists
+        // Frames, paintings and armour stands last: vanilla lists
         // the entities in reach before hurting any, so the items they drop
         // here are neither destroyed nor pushed by the same blast.
-        // BlockAttachedEntity.kill / ArmorStand.kill credit DamageSource.getEntity.
+        // `BlockAttachedEntity.kill` / `ArmorStand.kill` use `Entity.kill`
+        // in 26.1, so the death is the entity's own event (26.3 credits
+        // `DamageSource.getEntity`); a frame's `BLOCK_CHANGE` still goes
+        // to the damage source's entity, via `dropItem(level, causedBy)`.
         // VehicleEntity.destroy above uses Entity.kill and keeps the vehicle as source.
         self.explosion_breaks_frames(center, diameter, interaction);
         self.explosion_breaks_decorations(center, diameter, interaction);
         pushed
     }
-    /// `ServerExplosion.getIndirectSourceEntity`: the causing living entity,
-    /// including a TNT igniter or the player who broke an end crystal.
-    pub(super) fn explosion_kill_credit(&self) -> Option<super::commands::Target> {
-        use super::commands::Target;
-        // A primed TNT's owner (a player) names the blast before any mob does.
-        if self.combat.blast_owner.is_some() {
-            return Some(
-                self.combat
-                    .blast_guest
-                    .map_or(Target::Player, Target::Guest),
-            );
-        }
-        if let Some((id, _)) = self.blast_attacker() {
-            return Some(Target::Mob(id));
-        }
-        self.crystal_blast_player()
+    /// `ServerExplosion`'s damage source entity: the exploding entity itself
+    /// (`DamageSources.explosion` takes the direct source), as a `Who` when
+    /// it is a mob. `BlockAttachedEntity.hurtServer` passes it to
+    /// `dropItem(level, causedBy)`, so an explosion-broken frame's
+    /// `BLOCK_CHANGE` is attributed to the exploding mob; a primed TNT or
+    /// an end crystal has no `Who` and stays unattributed.
+    pub(super) fn explosion_direct_source(&self) -> Option<horizon_client::mobs::Who> {
+        blast_cause(
+            None,
+            self.combat.explosion_source,
+            |id| self.mob_display_name(id),
+            &self.combat.exploded,
+        )
+        .map(|(id, _)| horizon_client::mobs::Who::Mob(id))
     }
     /// `blast_spares_decorations` for the blast going off now: its causing
     /// mob (`blast_attacker`) is the source's entity.
@@ -851,10 +852,10 @@ impl Game<'_> {
             .fluids(bounds, bounds.max_position().y)
             .in_water
     }
-    /// `ServerExplosion.hurtEntities` for paintings, cushions and armour
-    /// stands (item frames: `explosion_breaks_frames`). A painting or cushion
+    /// `ServerExplosion.hurtEntities` for paintings and armour
+    /// stands (item frames: `explosion_breaks_frames`). A painting
     /// in reach is killed and dropped (`BlockAttachedEntity.hurtServer`,
-    /// `Painting.dropItem`, `Cushion.dropItem`). An armour stand that is
+    /// `Painting.dropItem`). An armour stand that is
     /// neither invisible nor a marker breaks (`ArmorStand.hurtServer` with
     /// `IS_EXPLOSION`: `brokenByAnything`, then `kill`): its equipment drops,
     /// the stand itself does not.
@@ -885,13 +886,13 @@ impl Game<'_> {
             if !super::armor_stands::spared_by_blast(a)
                 && blast_reaches(center, diameter, [p.x, p.y, p.z])
             {
-                self.break_armor_stand_with_source(i, self.explosion_kill_credit());
+                self.break_armor_stand_by_anything(i);
             } else {
                 i += 1;
             }
         }
     }
-    /// Paintings and cushions in reach (`BlockAttachedEntity.hurtServer`).
+    /// Paintings in reach (`BlockAttachedEntity.hurtServer`).
     fn explosion_breaks_hanging(&mut self, center: [f64; 3], diameter: f64) {
         let mut i = 0;
         while i < self.paintings.len() {
@@ -900,18 +901,7 @@ impl Game<'_> {
             let (lo, hi) = self.paintings[i].bounds();
             let at = [0, 1, 2].map(|k| (lo[k] + hi[k]) / 2.0);
             // A painting a mod keeps stays at `i`.
-            if !(blast_reaches(center, diameter, at)
-                && self.break_painting_by(i, false, self.explosion_kill_credit()))
-            {
-                i += 1;
-            }
-        }
-        let mut i = 0;
-        while i < self.cushions.len() {
-            let p = self.cushions[i].position;
-            if blast_reaches(center, diameter, [p.x, p.y, p.z]) {
-                self.break_cushion_by(i, false, self.explosion_kill_credit());
-            } else {
+            if !(blast_reaches(center, diameter, at) && self.break_painting_by(i, false)) {
                 i += 1;
             }
         }

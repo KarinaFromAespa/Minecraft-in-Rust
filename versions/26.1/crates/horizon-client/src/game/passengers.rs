@@ -76,7 +76,6 @@ impl Game<'_> {
         }
         let boats: std::collections::HashSet<u32> = self.boats.iter().map(|b| b.id).collect();
         let carts: std::collections::HashSet<u32> = self.carts.iter().map(|c| c.id).collect();
-        let cushions: std::collections::HashSet<u32> = self.cushions.iter().map(|c| c.id).collect();
         let tnts: std::collections::HashSet<u32> = self
             .tnts
             .iter()
@@ -112,7 +111,6 @@ impl Game<'_> {
                 && (boats.contains(&v)
                     || carts.contains(&v)
                     || tnts.contains(&v)
-                    || cushions.contains(&v)
                     || self.seat(v).is_some()
                     || index
                         .get(&v)
@@ -146,7 +144,6 @@ impl Game<'_> {
         self.seat_boat_mobs(&riders);
         self.seat_cart_mobs(&riders);
         self.seat_tnt_mobs(&riders);
-        self.seat_cushion_mobs(&riders);
         self.seat_static_mobs(&riders);
         let index: HashMap<u32, usize> = self
             .mobs
@@ -161,7 +158,7 @@ impl Game<'_> {
                     continue;
                 };
                 let Some(&j) = index.get(&v) else {
-                    // Boats, minecarts, primed TNT and cushions seated their
+                    // Boats, minecarts and primed TNT seated their
                     // riders above, each in its own seat and from the
                     // vehicle's drawn position; re-seating them here from the
                     // shared seat 0 yanked boat riders between two places.
@@ -352,6 +349,65 @@ impl Game<'_> {
         }
     }
 
+    /// `LivingEntity.dismountVehicle` from a removed vehicle whose position
+    /// was at `vehicle_y`: up to the higher of the rider's and the vehicle's
+    /// heights, then the free spot nearest there (`findFreePosition` within
+    /// the rider's own box).
+    pub(super) fn dismount_removed_vehicle(&mut self, vehicle_y: f64) {
+        self.riding = None;
+        let border = self.border_bounds();
+        let b = self.res.behaviours();
+        let Some(p) = self.player.as_ref() else {
+            return;
+        };
+        let (w, h) = (
+            f64::from(p.dimensions.width),
+            f64::from(p.dimensions.height),
+        );
+        let mut at = Vec3::new(p.position.x, p.position.y.max(vehicle_y), p.position.z);
+        // `getBbWidth() <= 4 && getBbHeight() <= 4`.
+        if w <= 4.0 && h <= 4.0 {
+            let center = at.add_vector(Vec3::new(0.0, h / 2.0, 0.0));
+            let size = Vec3::new(w, h, w);
+            let free = horizon_world::level::portal_travel::find_free_position(
+                Aabb::of_size(center, size),
+                center,
+                size,
+                &border,
+                |q| {
+                    b.collision_shape(self.world.block(q.x, q.y, q.z))
+                        .map(|s| s.moved(Vec3::new(f64::from(q.x), f64::from(q.y), f64::from(q.z))))
+                },
+            );
+            if let Some(free) = free {
+                at = free.add_vector(Vec3::new(0.0, -h / 2.0, 0.0));
+            }
+        }
+        if let Some(p) = self.player.as_mut() {
+            self.previous_position = p.position;
+            p.position = at;
+            p.velocity = Vec3::ZERO;
+            p.fall_distance = 0.0;
+        }
+    }
+
+    /// `LivingEntity.dismountVehicle` from a live vehicle at `vehicle` whose
+    /// block (`blockPosition`) is in `#minecraft:portals`: the rider leaves by
+    /// the same free-position branch as from a removed vehicle, not beside it.
+    /// True when it did.
+    pub(super) fn dismount_in_portal(&mut self, vehicle: Vec3) -> bool {
+        let pos = [
+            vehicle.x.floor() as i32,
+            vehicle.y.floor() as i32,
+            vehicle.z.floor() as i32,
+        ];
+        if !self.block_in_tag("minecraft:portals", &self.block_name(pos)) {
+            return false;
+        }
+        self.dismount_removed_vehicle(vehicle.y);
+        true
+    }
+
     /// Armor stands riding the local player, on the top of its box. Vanilla
     /// ticks the player (`tickNonPassenger`) before its passengers
     /// (`tickPassenger` -> `positionRider`), so a rider's `xo` and `x` are the
@@ -383,7 +439,6 @@ impl Game<'_> {
     fn seats_own_riders(&self, vehicle: u32) -> bool {
         self.boats.iter().any(|b| b.id == vehicle)
             || self.carts.iter().any(|c| c.id == vehicle)
-            || self.cushions.iter().any(|c| c.id == vehicle)
             || self.tnts.iter().any(|t| t.id == vehicle && t.id != 0)
     }
 

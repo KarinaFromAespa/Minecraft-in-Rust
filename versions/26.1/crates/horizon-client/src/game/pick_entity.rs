@@ -66,7 +66,7 @@ impl Game<'_> {
     }
 
     /// `Entity.getPickResult` of the entity `id`: a mob's spawn egg, the item
-    /// of a boat, minecart, armor stand, cushion, painting, item frame (the
+    /// of a boat, minecart, armor stand, painting, item frame (the
     /// framed item when it holds one) or end crystal.
     pub(super) fn entity_pick_result(&self, id: i32) -> Option<ItemStack> {
         let id = u32::try_from(id).ok()?;
@@ -80,8 +80,6 @@ impl Game<'_> {
             c.kind.item().to_owned()
         } else if self.armor_stands.iter().any(|a| a.id == id) {
             "minecraft:armor_stand".to_owned()
-        } else if let Some(c) = self.cushions.iter().find(|c| c.id == id) {
-            c.item()
         } else if let Some(f) = self.item_frames.iter().find(|f| f.id == id) {
             // ItemFrame.getPickResult: what it frames, else the frame itself.
             return Some(

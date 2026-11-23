@@ -93,11 +93,6 @@ impl Game<'_> {
             let p = a.position;
             hits.push((a.id as i32, d, [p.x, p.y, p.z]));
         }
-        if let Some((i, d, _)) = self.cushion_hit() {
-            let c = &self.cushions[i];
-            let p = c.position;
-            hits.push((c.id as i32, d, [p.x, p.y, p.z]));
-        }
         if let Some((i, d)) = self.boat_hit() {
             let p = self.boats[i].position;
             hits.push((self.boats[i].id as i32, d, [p.x, p.y, p.z]));
@@ -220,11 +215,7 @@ impl Game<'_> {
                 self.riding = Some(vehicle_id);
                 // ClientPacketListener.handleSetEntityPassengersPacket: boarding says how to get off,
                 // on the overlay and to the narrator.
-                let key = if self.cushions.iter().any(|c| c.id == vehicle_id) {
-                    "mount.sit"
-                } else {
-                    "mount.onboard"
-                };
+                let key = "mount.onboard";
                 let message = Text::translate(
                     key,
                     &[keybinds::display_name(self.settings.keys.get("key.sneak"))],
@@ -311,8 +302,7 @@ impl Game<'_> {
         }
         // Generic entities are valid vehicles too (plugins use displays as seats).
         // Keep riding set so sendChanges sends rotation, never a walking position.
-        if !self.cushions.iter().any(|c| c.id == id)
-            && !self.boats.iter().any(|b| b.id == id)
+        if !self.boats.iter().any(|b| b.id == id)
             && !self.carts.iter().any(|c| c.id == id)
         {
             let index = std::collections::HashMap::new();
@@ -349,10 +339,7 @@ impl Game<'_> {
                 return Ok(true);
             }
         }
-        let seat = if let Some(c) = self.cushions.iter().find(|c| c.id == id) {
-            // The seat does not move; the rider sits on the cushion.
-            Some(c.seat())
-        } else if let Some(i) = self.boats.iter().position(|b| b.id == id) {
+        let seat = if let Some(i) = self.boats.iter().position(|b| b.id == id) {
             // AbstractBoat.tick on the controlling client: steer and move.
             // It steers with the input `LocalPlayer.rideTick` latched on the
             // previous tick, so the paddle packet describes the motion the
@@ -406,7 +393,7 @@ impl Game<'_> {
         if let Some(p) = self.player.as_mut() {
             // The tick a rider takes its seat is a teleport (`Entity.moveTo`,
             // which sets the old position too): the camera must not sweep from
-            // where the player stood to the cushion, boat or cart. The ticks
+            // where the player stood to the boat or cart. The ticks
             // after it move with the vehicle and interpolate as usual.
             let first = self.posed_rider != self.riding;
             self.posed_rider = self.riding;

@@ -1263,20 +1263,6 @@ where
             if let Some(state) = pipeline.structures.as_mut() {
                 state.fixed_biome = generator["biome_source"]["type"] == "minecraft:fixed";
             }
-            // ChunkGenerator.createState reads getOrigin: a noise generator
-            // answers the chunk of its NoiseSpawnFinder position, others
-            // chunk 0 0. Only a dimension-origin structure set reads it.
-            if pipeline
-                .structures
-                .as_ref()
-                .is_some_and(|state| state.needs_dimension_origin())
-                && let Ok([x, z]) = pipeline.spawn_column()
-            {
-                let origin = ChunkPos::new(x >> 4, z >> 4);
-                if let Some(state) = pipeline.structures.as_mut() {
-                    state.set_dimension_origin(origin);
-                }
-            }
         }
         Ok(pipeline)
     }

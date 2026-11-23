@@ -23,8 +23,10 @@ use horizon_client::{
 };
 use horizon_protocol::{
     entity_data::{Value, serializer},
-    packets::play::{self, Clientbound as C},
+    packets::play,
 };
+#[cfg(test)]
+use horizon_protocol::packets::play::Clientbound as C;
 use horizon_world::block_collision::BlockCollisionRegistry;
 use level_event_targets::level_event_except;
 use std::{
@@ -1515,7 +1517,6 @@ impl Game<'_> {
         self.lan_events.clear();
         self.lan_songs.clear();
         self.lan_critical_hits.clear();
-        self.lan_cushion_breaks.clear();
         self.streaming.extra.clear();
         if announce {
             self.system_message(Text::translate(
@@ -3220,32 +3221,6 @@ impl Game<'_> {
     fn lan_flush_effects(&mut self, host: &mut LanHost) {
         let critical_hits = std::mem::take(&mut self.lan_critical_hits);
         let kinetic_hits = std::mem::take(&mut self.lan_kinetic_hits);
-        for (state, at) in std::mem::take(&mut self.lan_cushion_breaks) {
-            if let Some(id) = host
-                .hub
-                .registry_id("minecraft:particle_type", "minecraft:block")
-            {
-                host.hub.broadcast_near(
-                    at,
-                    32.0,
-                    &C::LevelParticles(play::LevelParticles {
-                        particle: horizon_protocol::entity_data::Particle {
-                            id,
-                            data: Some(horizon_protocol::entity_data::ParticleData::State(
-                                state.0 as i32,
-                            )),
-                        },
-                        override_limiter: false,
-                        always_show: false,
-                        pos: at,
-                        dist: [0.25, 0.0625, 0.25],
-                        max_speed: 0.05,
-                        count: 10,
-                    }),
-                    None,
-                );
-            }
-        }
         for (kind, pos, data, acting) in std::mem::take(&mut self.lan_events) {
             if kind == 2001 {
                 host.broken

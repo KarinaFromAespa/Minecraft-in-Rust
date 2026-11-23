@@ -402,7 +402,6 @@ impl Game<'_> {
                 || self.use_lodestone_compass(hit, &stack)
                 || self.use_map_on_banner(hit, &stack)
                 || self.place_armor_stand(hit, &stack)
-                || self.place_cushion(hit, &stack)
                 || self.place_end_crystal(hit, &stack))
         {
             return Ok(true);

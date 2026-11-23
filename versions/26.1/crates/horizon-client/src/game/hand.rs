@@ -501,7 +501,6 @@ impl Game<'_> {
         before(self.painting_hit().map(|h| h.1))
             || before(self.frame_hit().map(|h| h.1))
             || before(self.armor_stand_hit().map(|h| h.1))
-            || before(self.cushion_hit().map(|h| h.1))
             || before(self.boat_hit().map(|h| h.1))
             || before(self.cart_hit().map(|h| h.1))
             || before(self.interaction_hit().map(|h| h.1))
@@ -690,7 +689,6 @@ impl Game<'_> {
         let others = [
             self.mob_hit().map(|h| h.1),
             self.armor_stand_hit().map(|h| h.1),
-            self.cushion_hit().map(|h| h.1),
             self.painting_hit().map(|h| h.1),
             self.frame_hit().map(|h| h.1),
             self.dragon_hit().map(|h| h.1),

@@ -327,7 +327,8 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
         // `Enchantable`.
         31 => int_record("value", r)?,
         // `DyeColor.CODEC`: dye, wolf/collar, tropical_fish/base_color and
-        // pattern_color, cat/collar, sheep/color, shulker/color, cushion/color.
+        // pattern_color, cat/collar, sheep/color, shulker/color. (26.3 adds
+        // cushion/color; it never occurs in 26.1 data.)
         43 | 84 | 89 | 90 | 107 | 108 | 109 => dye(r.varint().ok()?)?,
         8 => registry_entry("minecraft:damage_type", names, r)?,
         81 => registry_entry("minecraft:villager_type", names, r)?,

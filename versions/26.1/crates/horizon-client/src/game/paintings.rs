@@ -339,18 +339,9 @@ impl Game<'_> {
     /// `Painting.hurtServer` -> kill and `dropItem`. False when a mod kept it
     /// (`native_hanging_break`): it stays at `index`.
     pub(super) fn break_painting(&mut self, index: usize, by_player: bool) -> bool {
-        self.break_painting_by(
-            index,
-            by_player,
-            by_player.then_some(super::commands::Target::Player),
-        )
+        self.break_painting_by(index, by_player)
     }
-    pub(super) fn break_painting_by(
-        &mut self,
-        index: usize,
-        by_player: bool,
-        source: Option<super::commands::Target>,
-    ) -> bool {
+    pub(super) fn break_painting_by(&mut self, index: usize, by_player: bool) -> bool {
         let pos = self.paintings[index].pos;
         if self.hanging_break_cancelled("minecraft:painting", pos, by_player) {
             return false;
@@ -363,8 +354,10 @@ impl Game<'_> {
             (lo[2] + hi[2]) / 2.0,
         ];
         self.world.modified.insert((p.pos[0] >> 4, p.pos[2] >> 4));
-        // BlockAttachedEntity.kill, before dropItem.
-        self.entity_killed_event_by(at, source);
+        // `BlockAttachedEntity.kill`, before `dropItem`: 26.1's `kill(level)`
+        // is unattributed (26.3's `kill(level, entity)` attributes the
+        // death to the killer).
+        self.entity_killed_event(at, false);
         if !self.ui.rules.bool("entity_drops") {
             return true;
         }
@@ -401,13 +394,16 @@ impl Game<'_> {
                 i += 1;
                 continue;
             }
-            self.paintings[i].check_interval += 1;
-            if self.paintings[i].check_interval >= 100 {
+            // `BlockAttachedEntity.tick` (26.1): `checkInterval++ == 100` —
+            // the check runs on the 101st tick, not the 100th.
+            if self.paintings[i].check_interval == 100 {
                 self.paintings[i].check_interval = 0;
                 let p = self.paintings[i].clone();
                 if !self.painting_survives(&p) && self.break_painting(i, false) {
                     continue;
                 }
+            } else {
+                self.paintings[i].check_interval += 1;
             }
             i += 1;
         }
