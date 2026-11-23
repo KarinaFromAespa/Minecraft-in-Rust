@@ -801,3 +801,16 @@ returns PASS on the client for a growCrop success in 26.1 (SUCCESS in
 growth tests updated (5 bone-meal tests pass locally). 128/132/144/109
 no-change: infiniburn tag form already carried, identical/spill/move
 methods, the Instantenous typo, piglin-AI renames.
+
+Batch 47 (Nov 23, 447/498): 103 PORTED comment-only — the dragon's
+sitting-damage accumulation and DYING transition already match 26.1
+exactly (pre-hit health saved, `before - health`, takeoff past a
+quarter of max health); hurtServer's knockback is a verbatim extraction
+in 26.2 (`dealDefaultKnockback`) and `die`'s `handleKillingBlow` is just
+`dead = true`, so two 26.2-only method names were corrected in
+dragon.rs comments. 125/100/105/114 no-change (rename-only, byte-
+identical convertTo, menu/options chrome). 97 DEFERRED: 26.1's
+findNearestMapStructure locates structures even when generateStructures
+is off; the Rust returns None (the 26.2 form) via the pipeline's
+`structures: Option` gate, and splitting state from placement is a
+medium worldgen refactor — noted in the triage narrative.

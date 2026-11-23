@@ -751,7 +751,9 @@ impl Dragon {
             if self.phase.sitting() {
                 self.health = 0.0;
             } else {
-                // handleKillingBlow: dying flight first.
+                // EnderDragon.hurt: dead and not sitting means dying flight
+                // first (health back to 1.0, DYING phase); 26.1's die sets
+                // dead inline, there is no handleKillingBlow helper yet.
                 self.health = 1.0;
                 self.set_phase(Phase::Dying {
                     target: None,
@@ -759,10 +761,11 @@ impl Dragon {
                 });
             }
         }
-        // `LivingEntity.hurtServer` calls `dealDefaultKnockback` (strength
-        // `0.4F`) on a full hit, before `EnderDragon.hurt` adds sitting damage
-        // and maybe takes off. `from` is the attacker's feet for a player's
-        // melee hit. Explosions are `#no_knockback`; their push is
+        // `LivingEntity.hurtServer` computes the default knockback inline in
+        // 26.1 (strength `0.4F`, direction from the projectile's pair or the
+        // source position; 26.2 extracted it as `dealDefaultKnockback`), on a
+        // full hit, before `EnderDragon.hurt` adds sitting damage and maybe
+        // takes off. `from` is the attacker's feet for a player's melee hit. Explosions are `#no_knockback`; their push is
         // `explosion_knockback`.
         if full && let Some(from) = from {
             self.knockback(
