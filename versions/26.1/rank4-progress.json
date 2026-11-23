@@ -199,6 +199,56 @@
    "id": 759,
    "verdict": "no-change",
    "evidence": "2 AI behavior classes, both in the 26.2 jar; shared mob AI"
+  },
+  {
+   "id": 760,
+   "verdict": "no-change",
+   "evidence": "2 AI goal classes, both in the 26.2 jar; shared mob AI"
+  },
+  {
+   "id": 761,
+   "verdict": "no-change",
+   "evidence": "2 trim classes, both in the 26.2 jar; trims ported in batch 78"
+  },
+  {
+   "id": 762,
+   "verdict": "no-change",
+   "evidence": "2 trading classes, neither in the 26.2 jar (26.2 reworked villager trades); the 26.1 trade system is modelled in merchant.rs/trading.rs with data-driven trade tables"
+  },
+  {
+   "id": 763,
+   "verdict": "no-change",
+   "evidence": "2 placement classes, both in the 26.2 jar; shared worldgen placement"
+  },
+  {
+   "id": 764,
+   "verdict": "no-change",
+   "evidence": "1 debug component class, in the 26.2 jar; shared debug UI"
+  },
+  {
+   "id": 765,
+   "verdict": "no-change",
+   "evidence": "1 font class, in the 26.2 jar; shared font machinery"
+  },
+  {
+   "id": 766,
+   "verdict": "no-change",
+   "evidence": "GuiSignRenderer, not in the 26.2 jar (26.2 moved sign rendering); sign rendering exists in signs.rs"
+  },
+  {
+   "id": 767,
+   "verdict": "no-change",
+   "evidence": "GuiRenderer$MeshToDraw, not in the 26.2 jar (the render-submission rework, item 521); the Rust has its own GUI renderer"
+  },
+  {
+   "id": 768,
+   "verdict": "no-change",
+   "evidence": "AbstractContainerScreen$SnapbackData, not in the 26.2 jar; slot snapback is menu chrome"
+  },
+  {
+   "id": 769,
+   "verdict": "no-change",
+   "evidence": "DifficultyButtons, in the 26.2 jar; modelled in lan_screen.rs (lockButton + updateDifficultyButtonsState)"
   }
  ],
  "triage": "Rank 4/5: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 4 = 74 D items, 333 classes from the 26.3->26.1 report; rank 5 = 2 D items). Class lists in ~/workspace/mcir-work/26.1/versions/diff-26.3-26.1/report.json. Method: per package, check each class against the 26.2 jars (same path / moved) and the Rust tree (ported list + grep); verdict no-change unless the Rust is missing 26.1 behaviour."

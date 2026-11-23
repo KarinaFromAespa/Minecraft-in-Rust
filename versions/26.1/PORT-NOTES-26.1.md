@@ -1867,3 +1867,11 @@ render state (LevelExtractor move, item 714); 756 client
 (GameLoadCookie 26.1-only, launch plumbing); 757 TimerQuery
 (GPU profiling); 758 server/packs + 759 behavior (shared).
 Docs-only batch; no separate CI dispatch.
+Batch 92 (Nov 24, rank 4 50/74 — all no-change): 760 goal
+(shared); 761 trim (batch 78); 762 trading (26.2 reworked
+trades; 26.1 system in merchant.rs/trading.rs); 763 placement
+(shared); 764 debug + 765 font (shared); 766 GuiSignRenderer
+(signs.rs); 767 GuiRenderer$MeshToDraw (render-submission
+rework, item 521); 768 SnapbackData (menu chrome); 769
+DifficultyButtons (lan_screen.rs). Docs-only batch; no
+separate CI dispatch.
