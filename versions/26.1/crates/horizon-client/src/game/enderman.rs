@@ -11,8 +11,8 @@ use horizon_world::{
 };
 
 impl Game<'_> {
-    /// `Enderman.hurtServer` teleports inside the hurt (`teleport()`,
-    /// `repeatedlyTryToTeleport()`), and so does `Shulker.hurtServer`
+    /// `Enderman.hurtServer` teleports inside the hurt (`teleport()`, the
+    /// 64-try loop), and so does `Shulker.hurtServer`
     /// (`teleportSomewhere()`, `hitByShulkerBullet()`). `Mob::damage` has no
     /// world, so it leaves them pending (an enderman's tries in `counter2`, a
     /// shulker's flags); a hurt the game layer deals runs them here, right
