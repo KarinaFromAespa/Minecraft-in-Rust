@@ -396,6 +396,11 @@
    "evidence": "InventoryChangeTrigger Slots pure package move; matches() identical."
   },
   {
+   "id": 579,
+   "verdict": "no-change",
+   "evidence": "CreakingHeartBlock is the BlockEntityType->BlockEntityTypes rename; creaking.rs 0-diff"
+  },
+  {
    "id": 580,
    "verdict": "no-change",
    "evidence": "Screenshot GPU plumbing (TextureFormat->GpuFormat) + 26.2-only grab(Minecraft,boolean) panoramix path; Rust only manages the screenshots folder."
@@ -406,9 +411,24 @@
    "evidence": "WitherSkullBlock EntityType->EntityTypes + CriteriaTriggers move only; block_pattern.rs 0-diff."
   },
   {
+   "id": 582,
+   "verdict": "no-change",
+   "evidence": "PumpkinBlock 0-diff; pumpkin.rs 0-diff"
+  },
+  {
    "id": 583,
    "verdict": "ported",
    "evidence": "Spectator menu: 26.1 PlayerMenuItem.isEnabled is constant true (26.2 added the !=SPECTATOR check); removed the spectator filter from players and teams."
+  },
+  {
+   "id": 584,
+   "verdict": "ported",
+   "evidence": "Bed click had the 26.3 pair check; 26.1 redirects foot->head and requires only the head is this bed; dragon-egg teleport was missing its world-border check (26.1 calls isWithinBounds); RedStoneWireBlock spelling fixed"
+  },
+  {
+   "id": 585,
+   "verdict": "no-change",
+   "evidence": "NetherFossilPieces + NetherFossilStructure both 0-diff despite the differing tag; nether_fossil.rs 0-diff"
   },
   {
    "id": 586,
@@ -431,6 +451,11 @@
    "evidence": "ShearsItem tool rules are data-driven (minecraft:tool rules from prepared data); 26.1 data carries the leaves/wool/vine+glow_lichen rules, 26.2 the SHEARS_* tags. No code port."
   },
   {
+   "id": 590,
+   "verdict": "ported",
+   "evidence": "Trader hurt gate read the 26.3 hurt window; 26.1 TradeWithPlayerGoal.canUse reads hurtMarked (Entity field, set by markHurt except #no_impact=drown, cleared each tick); added Mob.hurt_marked + carried the trader gate and test"
+  },
+  {
    "id": 591,
    "verdict": "no-change",
    "evidence": "ExperimentsScreen I18n.exists->Language.has + setScreen move; experiments.rs 0-diff."
@@ -444,6 +469,11 @@
    "id": 593,
    "verdict": "no-change",
    "evidence": "Containers EntityType->EntityTypes only; the furnace.rs diff is the earlier 26.1 fuel work."
+  },
+  {
+   "id": 594,
+   "verdict": "no-change",
+   "evidence": "MinecartCommandBlock$MinecartCommandBase 0-diff; command_minecarts.rs 0-diff"
   },
   {
    "id": 595,
@@ -461,14 +491,39 @@
    "evidence": "RamTarget knockback API rework (3-arg -> 6-arg with mobAttack source + attack-damage float); strength/x/z computation identical, physics identical \u2014 same reasoning as 572."
   },
   {
+   "id": 598,
+   "verdict": "no-change",
+   "evidence": "PandaRenderer 0-diff; panda.rs 0-diff"
+  },
+  {
+   "id": 599,
+   "verdict": "no-change",
+   "evidence": "Phantom$PhantomSweepAttackGoal 0-diff despite the differing tag; phantom.rs 0-diff"
+  },
+  {
    "id": 600,
    "verdict": "ported",
    "evidence": "Screen narration: 26.1/26.2 have no NarrationTrigger (updateNarratorStatus(boolean) in both jars); carried the 26.2 tree screen_narrator.rs + horizon-narrator screen.rs, game/narrator.rs surgical (ShareToLan kept)."
   },
   {
+   "id": 601,
+   "verdict": "no-change",
+   "evidence": "NowPlayingToast 0-diff; toasts.rs 0-diff"
+  },
+  {
    "id": 602,
    "verdict": "ported",
    "evidence": "ARGUMENT_TYPES: minecraft:team_color -> minecraft:color (26.1 registers ColorArgument) + removed the five 26.3-only entries (context_float/int_provider, slot_source, feature, swing_animation)."
+  },
+  {
+   "id": 603,
+   "verdict": "no-change",
+   "evidence": "SolidBucketItem 0-diff; buckets.rs 0-diff"
+  },
+  {
+   "id": 604,
+   "verdict": "no-change",
+   "evidence": "SideChainPartBlock 0-diff; shelf.rs 0-diff"
   },
   {
    "id": 605,

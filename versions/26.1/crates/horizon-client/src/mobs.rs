@@ -1537,8 +1537,19 @@ pub struct Mob {
     pub gear_knockback_resistance: Option<f64>,
     pub health: f32,
     pub hurt_time: i32,
-    /// `LivingEntity.damageCooldownTime`: the hurt cooldown, 20 after a hit;
-    /// transient, never saved.
+    /// `Entity.hurtMarked`: set by `LivingEntity.hurtServer` on a fresh hit
+    /// (`markHurt`, skipped only for `#no_impact` — drowning in 26.1) and
+    /// cleared by `ServerEntity.sendChanges` every tick, so it is true only
+    /// until the end of the tick the hurt landed in. 26.1's
+    /// `LookAndFollowTradingPlayerSink` and `TradeWithPlayerGoal` gate on
+    /// `!hurtMarked`, not on the 10-tick hurt window 26.3's
+    /// `wasHurtRecently` reads; a hurt villager or trader may follow its
+    /// customer again from the next tick.
+    pub hurt_marked: bool,
+    /// `LivingEntity.invulnerableTime`: the hurt cooldown, 20 after a hit;
+    /// transient, never saved. (26.3 renamed it `damageCooldownTime` and
+    /// repurposed `invulnerableTime` as a saved temporary-invulnerability
+    /// timer; 26.1 has no such timer.)
     pub invulnerable: i32,
     /// `Entity.invulnerableTime`, saved as `invulnerable_time`: while above 0
     /// the mob is invulnerable as with `Invulnerable` (`isTemporarilyInvulnerable`).
@@ -3409,6 +3420,7 @@ impl Mob {
             sync_position: false,
             gear_knockback_resistance: None,
             hurt_time: 0,
+            hurt_marked: false,
             invulnerable: 0,
             invulnerable_time: 0,
             death_time: 0,
@@ -3905,6 +3917,13 @@ impl Mob {
                 taken = self.hurt_health(through, &source);
             }
             self.hurt_time = 10;
+            // `LivingEntity.hurtServer` calls `markHurt` on a fresh hit
+            // (`tookFullDamage`) unless the source is `#no_impact` — in 26.1
+            // that tag holds only `minecraft:drown`. Mobs never block, so
+            // the `(!blocked || damage > 0)` arm is always true here.
+            if source.kind != DamageKind::Drown {
+                self.hurt_marked = true;
+            }
             amount
         };
         // LivingEntity.actuallyHurt: a hit that reaches the health is

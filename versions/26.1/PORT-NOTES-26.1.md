@@ -1769,3 +1769,39 @@ parameter-point changes; settings.rs doc fixed 26.2→26.1.
 does not model; the pad_menu diff is batch-73 LAN work. 565
 no-change — OceanRuinPiece is branch offsets + the DROWNED
 EntityType rename.
+
+Batch 87 (Nov 24, 214/214 — B2 #3, 2 ported, 9 no-change).
+RANK 3 COMPLETE 214/214 (A1 60 + B1 56 + A2 67 + B2 31).
+584 PORTED — the bed click had the 26.3 AbstractBedBlock
+pair check: 26.1's BedBlock.useWithoutItem redirects a foot
+click to the head and requires only that the head is this bed
+(a head click needs no check at all), exactly the 26.2 tree's
+form, now carried. The dragon-egg teleport was also missing
+its world-border check (26.1's DragonEggBlock.teleport calls
+WorldBorder.isWithinBounds; the 26.1 tree has the
+within_world_border helper — added). RedStoneWireBlock
+spelling fixed (second occurrence; the first was batch 84).
+590 PORTED — the trader's hurt gate read the 26.3 hurt
+window (`hurt_time <= 0`): 26.1's TradeWithPlayerGoal.canUse
+reads `AbstractVillager.hurtMarked`, a boolean Entity field
+set by markHurt in hurtServer (skipped only for #no_impact,
+which in 26.1 holds only drown) and cleared every tick.
+Added `Mob.hurt_marked` (field + default + set-on-hurt +
+clear-after-AI-step, the 26.2 tree's form) and carried the
+trader.rs gate + test. The invulnerable doc is fixed to
+invulnerableTime (Entity.invulnerableTime in 26.1; 26.3
+renamed it damageCooldownTime). 579 no-change —
+CreakingHeartBlock is the BlockEntityType rename. 582
+PumpkinBlock, 585 NetherFossilPieces + Structure (despite
+the "differing" tag), 594 MinecartCommandBase, 598
+PandaRenderer, 599 PhantomSweepAttackGoal (despite the
+"differing" tag), 601 NowPlayingToast, 603 SolidBucketItem,
+604 SideChainPartBlock all 0-diff. 590's WanderToPositionGoal
+is field-access modifiers + a public ctor only. FLAG: the
+26.1 tree's `invulnerable_time` field (the 26.3 saved
+temporary-invulnerability timer, with its own test file
+invulnerable_time_tests.rs + tools/test_invulnerable_time_
+parity.py) is out of scope for 590 and needs its own item —
+26.1 has no such timer (Entity.invulnerableTime is the hurt
+cooldown). FLAG (from batch 85): /swing still carries the
+26.3 animation+duration arguments (tree_world.rs).
