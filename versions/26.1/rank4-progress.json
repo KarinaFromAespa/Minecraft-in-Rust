@@ -149,6 +149,56 @@
    "id": 749,
    "verdict": "no-change",
    "evidence": "3 block-entity classes, 2 in the 26.2 jar (FuelValues + Builder, batch 55); BedBlockEntity is 26.1-only (26.2 removed the class) and neither tree models it \u2014 it holds only banner patterns for patterned beds; bed colour is a block-state property in the Rust"
+  },
+  {
+   "id": 750,
+   "verdict": "no-change",
+   "evidence": "3 synth classes, all in the 26.2 jar; the f64 noise engine was carried whole in batch 57 (byte-identical jars)"
+  },
+  {
+   "id": 751,
+   "verdict": "no-change",
+   "evidence": "2 advancement classes; AdvancementTree$Listener in the 26.2 jar, CriterionTrigger$Listener 26.1-only (26.2 refactored triggers); the trigger system is modelled in advancements.rs"
+  },
+  {
+   "id": 752,
+   "verdict": "no-change",
+   "evidence": "2 screen classes, neither in the 26.2 jar; ShareToLanScreen verified in depth in batch 73; PauseScreen$FeedbackSubScreen is menu chrome (not version-faithful per owner principle)"
+  },
+  {
+   "id": 753,
+   "verdict": "no-change",
+   "evidence": "2 Gui inners, neither in the 26.2 jar (26.2 renamed Gui to Hud); ContextualInfo verified in batch 83, HeartType sprites modelled in hud_layout.rs"
+  },
+  {
+   "id": 754,
+   "verdict": "no-change",
+   "evidence": "2 rendertype classes; OutputTarget in the 26.2 jar, RenderSetup$TextureAndSampler 26.1-only (render-setup refactor); GPU plumbing"
+  },
+  {
+   "id": 755,
+   "verdict": "no-change",
+   "evidence": "2 particle render-state inners, neither in the 26.2 jar (the LevelExtractor move, item 714); the Rust has its own particle rendering"
+  },
+  {
+   "id": 756,
+   "verdict": "no-change",
+   "evidence": "2 client classes; ClientClockManager$ClockInstance in the 26.2 jar, Minecraft$GameLoadCookie 26.1-only (26.2 changed the game-load flow); launch plumbing"
+  },
+  {
+   "id": 757,
+   "verdict": "no-change",
+   "evidence": "2 TimerQuery inners, neither in the 26.2 jar; GPU profiling plumbing the wgpu renderer does not model"
+  },
+  {
+   "id": 758,
+   "verdict": "no-change",
+   "evidence": "2 server/packs classes, both in the 26.2 jar; shared pack machinery"
+  },
+  {
+   "id": 759,
+   "verdict": "no-change",
+   "evidence": "2 AI behavior classes, both in the 26.2 jar; shared mob AI"
   }
  ],
  "triage": "Rank 4/5: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 4 = 74 D items, 333 classes from the 26.3->26.1 report; rank 5 = 2 D items). Class lists in ~/workspace/mcir-work/26.1/versions/diff-26.3-26.1/report.json. Method: per package, check each class against the 26.2 jars (same path / moved) and the Rust tree (ported list + grep); verdict no-change unless the Rust is missing 26.1 behaviour."

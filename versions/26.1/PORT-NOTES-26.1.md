@@ -1857,3 +1857,13 @@ core_shader.rs/post_glsl.rs); 747 alchemy (brewing, batch 55);
 BedBlockEntity is 26.1-only and neither tree models it — it
 holds only banner patterns; bed colour is a block-state
 property). Docs-only batch; no separate CI dispatch.
+Batch 91 (Nov 24, rank 4 40/74 — all no-change): 750 synth
+(batch 57); 751 advancements (CriterionTrigger$Listener
+26.1-only, triggers modelled in advancements.rs); 752 screens
+(ShareToLanScreen batch 73; FeedbackSubScreen is menu chrome);
+753 Gui inners (ContextualInfo batch 83, HeartType in
+hud_layout.rs); 754 rendertype (GPU plumbing); 755 particle
+render state (LevelExtractor move, item 714); 756 client
+(GameLoadCookie 26.1-only, launch plumbing); 757 TimerQuery
+(GPU profiling); 758 server/packs + 759 behavior (shared).
+Docs-only batch; no separate CI dispatch.
