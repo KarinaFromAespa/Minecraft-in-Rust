@@ -407,7 +407,14 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     && self.is_empty_block(growth)
             }
             Kind::Cocoa => b.table.int(state, p.age) < 2,
-            Kind::SweetBerry => b.table.int(state, p.age) < 3,
+            // 26.1's `SweetBerryBushBlock.isValidBonemealTarget`: age < 3 AND
+            // air above AND inside build height (26.2 dropped the air and
+            // height checks, leaving age only).
+            Kind::SweetBerry => {
+                b.table.int(state, p.age) < 3
+                    && b.is_air(self.state(up))
+                    && self.is_inside_build_height(up.y)
+            }
             Kind::TallGrass => {
                 let Some(grown) = self.tall_grass_grown(state) else {
                     return false;

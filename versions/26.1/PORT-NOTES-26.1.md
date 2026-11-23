@@ -686,3 +686,12 @@ bounding box applies at placement time only. Removed the pre-pass and
 the helper from processor.rs. 360/34/31/28/342/343 no-change: renames,
 package moves, the instantenous typo, Consumer->PostSpawnProcessor,
 constants moved classes.
+
+Batch 33 (Nov 23, 367/498): 165 PORTED — SweetBerry bonemeal needs
+age<3 AND air above AND inside build height in 26.1 (26.2 is age-only);
+bonemeal.rs now applies all three. Enderpearl endermite: 26.1's
+isSpawningMonsters already includes the peaceful gate, so the Rust's
+existing check is the 26.1 form. 241/211/219/15 no-change: render
+accessor renames, applyColor extraction, tesselateFlat branch inversion,
+EntityPredicate restructured in 26.2 (record -> combined sub-predicates,
+same semantics).
