@@ -14371,5 +14371,385 @@ mod tests {
             "the grid is empty at the end"
         );
         assert_eq!(client.craft_result, None, "no result at the end");
+
+        // The video's post-craft moves: the 2-stack shuttled between hotbar
+        // slots 1 and 2, then split by a drag and gathered by a double click.
+        // A move must never change the total: the video shows 1 table
+        // becoming 2 in hotbar slot 1, then 2 in each of slots 1 and 2.
+        let tables = |client: &Client| {
+            client
+                .inventory
+                .iter()
+                .flatten()
+                .filter(|s| s.item.as_ref() == "minecraft:crafting_table")
+                .map(|s| s.count)
+                .sum::<u32>()
+                + client
+                    .carried
+                    .as_ref()
+                    .filter(|s| s.item.as_ref() == "minecraft:crafting_table")
+                    .map_or(0, |s| s.count)
+        };
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "pick up the 2-stack from hotbar slot 2",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(36, 0, Input::Pickup)],
+            "place the 2-stack in hotbar slot 1",
+        );
+        assert_eq!(tables(&client), 2, "moving must not duplicate the stack");
+        assert_eq!(
+            client.inventory[0].as_ref().map(|s| s.count),
+            Some(2),
+            "the 2-stack is in hotbar slot 1"
+        );
+        assert_eq!(client.inventory[1], None, "hotbar slot 2 is empty now");
+        run_op(
+            &mut client,
+            &mut server,
+            &[(36, 0, Input::Pickup)],
+            "pick the 2-stack back up",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "place the 2-stack in hotbar slot 2",
+        );
+        assert_eq!(tables(&client), 2, "moving back must not duplicate it");
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "pick the 2-stack up again",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(36, 0, Input::Pickup)],
+            "place the 2-stack in hotbar slot 1 again",
+        );
+        assert_eq!(tables(&client), 2, "the third move must not duplicate it");
+        run_op(
+            &mut client,
+            &mut server,
+            &[(36, 0, Input::Pickup)],
+            "pick the 2-stack up once more",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "place the 2-stack in hotbar slot 2 once more",
+        );
+        assert_eq!(tables(&client), 2, "the fourth move must not duplicate it");
+
+        // A left-drag of the 2-stack over both hotbar slots splits it 1+1.
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "pick up the 2-stack for a left-drag",
+        );
+        let left_drag: [(i16, i32, Input); 4] = [
+            (-999, 0, Input::QuickCraft),
+            (36, 1, Input::QuickCraft),
+            (37, 1, Input::QuickCraft),
+            (-999, 2, Input::QuickCraft),
+        ];
+        run_op(
+            &mut client,
+            &mut server,
+            &left_drag,
+            "left-drag the 2-stack over hotbar slots 1 and 2",
+        );
+        assert_eq!(tables(&client), 2, "a drag must not duplicate the stack");
+        assert_eq!(
+            client.inventory[0].as_ref().map(|s| s.count),
+            Some(1),
+            "left-drag leaves 1 table in hotbar slot 1"
+        );
+        assert_eq!(
+            client.inventory[1].as_ref().map(|s| s.count),
+            Some(1),
+            "left-drag leaves 1 table in hotbar slot 2"
+        );
+        assert_eq!(client.carried, None, "nothing carried after the drag");
+
+        // A 1-stack moved between hotbar slots: the video's first
+        // duplication (1 table becoming 2 in hotbar slot 1).
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "pick up the 1-stack from hotbar slot 2",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(38, 0, Input::Pickup)],
+            "place the 1-stack in hotbar slot 3",
+        );
+        assert_eq!(tables(&client), 2, "moving a 1-stack must not duplicate it");
+        assert_eq!(
+            client.inventory[2].as_ref().map(|s| s.count),
+            Some(1),
+            "the 1-stack is in hotbar slot 3"
+        );
+        assert_eq!(client.inventory[1], None, "hotbar slot 2 is empty now");
+        run_op(
+            &mut client,
+            &mut server,
+            &[(38, 0, Input::Pickup)],
+            "pick the 1-stack back up",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "place the 1-stack in hotbar slot 2",
+        );
+        assert_eq!(tables(&client), 2, "moving the 1-stack back is exact too");
+
+        // Merge the two 1-stacks, then a right-drag splits them again.
+        run_op(
+            &mut client,
+            &mut server,
+            &[(36, 0, Input::Pickup)],
+            "pick up the 1-stack from hotbar slot 1",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "merge it onto hotbar slot 2",
+        );
+        assert_eq!(
+            client.inventory[1].as_ref().map(|s| s.count),
+            Some(2),
+            "merged back to a 2-stack"
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "pick up the 2-stack for a right-drag",
+        );
+        let right_drag: [(i16, i32, Input); 4] = [
+            (-999, 4, Input::QuickCraft),
+            (36, 5, Input::QuickCraft),
+            (37, 5, Input::QuickCraft),
+            (-999, 6, Input::QuickCraft),
+        ];
+        run_op(
+            &mut client,
+            &mut server,
+            &right_drag,
+            "right-drag the 2-stack over hotbar slots 1 and 2",
+        );
+        assert_eq!(tables(&client), 2, "a right-drag must not duplicate it");
+        assert_eq!(
+            client.inventory[0].as_ref().map(|s| s.count),
+            Some(1),
+            "right-drag leaves 1 table in hotbar slot 1"
+        );
+        assert_eq!(
+            client.inventory[1].as_ref().map(|s| s.count),
+            Some(1),
+            "right-drag leaves 1 table in hotbar slot 2"
+        );
+
+        // A double click's PICKUP_ALL on the empty hotbar slot 1 gathers
+        // the other table into the hand without copying it.
+        run_op(
+            &mut client,
+            &mut server,
+            &[(36, 0, Input::Pickup)],
+            "pick up the 1-stack from hotbar slot 1",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(36, 0, Input::PickupAll)],
+            "double-click the empty hotbar slot 1",
+        );
+        assert_eq!(tables(&client), 2, "PICKUP_ALL must not duplicate it");
+        assert_eq!(
+            client.carried.as_ref().map(|s| s.count),
+            Some(2),
+            "PICKUP_ALL gathered both tables into the hand"
+        );
+        assert_eq!(client.inventory[1], None, "hotbar slot 2 is empty now");
+
+        // The same moves with the server's answers DELAYED by one op: the
+        // live game clicks faster than the round trip, so op N+1 is
+        // predicted from op N's prediction before op N's corrections land.
+        // The corrections still arrive in order; the two sides must agree
+        // once they are all applied, and the total must stay 2.
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "put the gathered 2-stack back in hotbar slot 2",
+        );
+        let run_delayed = |client: &mut Client,
+                           server: &mut Server,
+                           pending: &mut Vec<Answer>,
+                           ops: &[(i16, i32, Input)],
+                           label: &str| {
+            let (packets, predicted) = client.predict_and_send(&env, ops);
+            assert!(predicted, "{label}: the prediction failed");
+            for p in &packets {
+                pending.extend(server.click(&env, p));
+            }
+        };
+        let flush =
+            |client: &mut Client, server: &Server, pending: &mut Vec<Answer>, label: &str| {
+                for a in pending.drain(..) {
+                    client.apply(a);
+                }
+                for slot in 0..46 {
+                    assert_eq!(
+                        client.view(slot),
+                        server.menu_slot(slot),
+                        "{label}: menu slot {slot} diverged"
+                    );
+                }
+                assert_eq!(client.carried, server.carried, "{label}: carried diverged");
+                assert_eq!(
+                    client.state_id, server.menu_state,
+                    "{label}: state id diverged"
+                );
+            };
+        let mut pending: Vec<Answer> = Vec::new();
+        run_delayed(
+            &mut client,
+            &mut server,
+            &mut pending,
+            &[(37, 0, Input::Pickup)],
+            "delayed: pick up the 2-stack",
+        );
+        run_delayed(
+            &mut client,
+            &mut server,
+            &mut pending,
+            &[(36, 0, Input::Pickup)],
+            "delayed: place it in hotbar slot 1 before the answers land",
+        );
+        flush(&mut client, &server, &mut pending, "delayed move 1");
+        assert_eq!(tables(&client), 2, "a delayed move must not duplicate it");
+        assert_eq!(
+            client.inventory[0].as_ref().map(|s| s.count),
+            Some(2),
+            "the delayed move landed in hotbar slot 1"
+        );
+        run_delayed(
+            &mut client,
+            &mut server,
+            &mut pending,
+            &[(36, 0, Input::Pickup)],
+            "delayed: pick the 2-stack back up",
+        );
+        run_delayed(
+            &mut client,
+            &mut server,
+            &mut pending,
+            &[(37, 0, Input::Pickup)],
+            "delayed: place it in hotbar slot 2 before the answers land",
+        );
+        flush(&mut client, &server, &mut pending, "delayed move 2");
+        assert_eq!(tables(&client), 2, "the delayed move back is exact too");
+        run_delayed(
+            &mut client,
+            &mut server,
+            &mut pending,
+            &[(37, 0, Input::Pickup)],
+            "delayed: pick up the 2-stack for a delayed drag",
+        );
+        run_delayed(
+            &mut client,
+            &mut server,
+            &mut pending,
+            &left_drag,
+            "delayed: left-drag it over both hotbar slots",
+        );
+        flush(&mut client, &server, &mut pending, "delayed drag");
+        assert_eq!(tables(&client), 2, "a delayed drag must not duplicate it");
+        assert_eq!(
+            client.inventory[0].as_ref().map(|s| s.count),
+            Some(1),
+            "delayed left-drag leaves 1 table in hotbar slot 1"
+        );
+        assert_eq!(
+            client.inventory[1].as_ref().map(|s| s.count),
+            Some(1),
+            "delayed left-drag leaves 1 table in hotbar slot 2"
+        );
+
+        // Shift-clicks (QuickMove), the one input the video cannot rule out:
+        // the player may have shift-clicked the result or the hotbar.
+        run_op(
+            &mut client,
+            &mut server,
+            &[(36, 0, Input::QuickMove)],
+            "shift-click hotbar slot 1 into the main inventory",
+        );
+        assert_eq!(tables(&client), 2, "a quick move must not duplicate it");
+        assert_eq!(
+            client.inventory[10].as_ref().map(|s| s.count),
+            Some(1),
+            "the table quick-moved to the first empty main slot"
+        );
+        assert_eq!(client.inventory[0], None, "hotbar slot 1 is empty now");
+        run_op(
+            &mut client,
+            &mut server,
+            &[(10, 0, Input::QuickMove)],
+            "shift-click it back into the hotbar",
+        );
+        assert_eq!(tables(&client), 2, "the quick move back is exact too");
+        assert_eq!(
+            client.inventory[1].as_ref().map(|s| s.count),
+            Some(2),
+            "it merged onto the table in hotbar slot 2"
+        );
+        assert_eq!(client.inventory[10], None, "the main slot is empty now");
+
+        // A shift-click take of a third table from the last 4 planks.
+        run_op(
+            &mut client,
+            &mut server,
+            &[(9, 0, Input::Pickup)],
+            "pick up the last 4 planks",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &drag,
+            "drag the last 4 planks into the grid",
+        );
+        assert_eq!(client.carried, None, "all 4 planks went into the grid");
+        run_op(
+            &mut client,
+            &mut server,
+            &[(0, 0, Input::QuickMove)],
+            "shift-click the third table out of the result",
+        );
+        assert_eq!(tables(&client), 3, "the third table is made, not copied");
+        assert_eq!(
+            client.inventory[1].as_ref().map(|s| s.count),
+            Some(3),
+            "the third table merged onto the 2-stack"
+        );
+        assert_eq!(client.inventory[9], None, "no planks left");
+        assert!(
+            client.craft_grid.iter().all(Option::is_none),
+            "the grid is empty after the shift-click take"
+        );
     }
 }
