@@ -751,7 +751,9 @@ impl Dragon {
             if self.phase.sitting() {
                 self.health = 0.0;
             } else {
-                // handleKillingBlow: dying flight first.
+                // EnderDragon.hurt: dead and not sitting means dying flight
+                // first (health back to 1.0, DYING phase); 26.1's die sets
+                // dead inline, there is no handleKillingBlow helper yet.
                 self.health = 1.0;
                 self.set_phase(Phase::Dying {
                     target: None,
@@ -759,10 +761,11 @@ impl Dragon {
                 });
             }
         }
-        // `LivingEntity.hurtServer` calls `dealDefaultKnockback` (strength
-        // `0.4F`) on a full hit, before `EnderDragon.hurt` adds sitting damage
-        // and maybe takes off. `from` is the attacker's feet for a player's
-        // melee hit. Explosions are `#no_knockback`; their push is
+        // `LivingEntity.hurtServer` computes the default knockback inline in
+        // 26.1 (strength `0.4F`, direction from the projectile's pair or the
+        // source position; 26.2 extracted it as `dealDefaultKnockback`), on a
+        // full hit, before `EnderDragon.hurt` adds sitting damage and maybe
+        // takes off. `from` is the attacker's feet for a player's melee hit. Explosions are `#no_knockback`; their push is
         // `explosion_knockback`.
         if full && let Some(from) = from {
             self.knockback(
@@ -1125,13 +1128,6 @@ impl Game<'_> {
     /// The player acting now: the guest whose turn it is, else the host.
     pub(super) fn acting_player(&self) -> FightWho {
         self.lan_acting.map_or(FightWho::Host, FightWho::Guest)
-    }
-    /// The causing player shared by the crystal/deflected-fireball blast.
-    pub(super) fn crystal_blast_player(&self) -> Option<super::commands::Target> {
-        self.fight.blast_by.map(|who| match who {
-            FightWho::Host => super::commands::Target::Player,
-            FightWho::Guest(conn) => super::commands::Target::Guest(conn),
-        })
     }
     /// Names the acting player behind the blast about to go off (a large
     /// fireball they shot), or no one, for the dragon's kill credit.
@@ -3860,11 +3856,8 @@ impl Game<'_> {
             equipment: Vec::new(),
             attributes: Vec::new(),
             precise: false,
-            vertical_collision: false,
-            horizontal_collision: false,
             needs_sync: false,
-            sync_position: false,
-            stepped: true,
+            fall_flying: false,
             idle: false,
             bare: false,
             leash: None,

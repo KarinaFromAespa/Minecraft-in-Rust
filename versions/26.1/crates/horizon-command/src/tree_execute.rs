@@ -220,30 +220,24 @@ fn conditionals(d: &mut Dispatcher, m: usize, ex: usize) {
         conditional(d, path, ex);
     }
 
-    // items / slots (entity|block) <slots> [<predicate>]
-    for kind in ["items", "slots"] {
-        let k = d.literal(m, kind);
-        for provider in ["entity", "block"] {
-            let p = d.literal(k, provider);
-            let a = if provider == "entity" {
-                d.argument(
-                    p,
-                    "source",
-                    ArgType::Entity {
-                        single: false,
-                        players: false,
-                    },
-                )
-            } else {
-                d.argument(p, "sourcePos", ArgType::BlockPos)
-            };
-            let slots = d.argument(a, "slots", ArgType::SlotSource);
-            if kind == "items" {
-                let item = d.argument(slots, "item_predicate", ArgType::ItemPredicate);
-                conditional(d, item, ex);
-            } else {
-                conditional(d, slots, ex);
-            }
-        }
+    // items (entity|block) <slots> <predicate> — 26.1 has no `if slots`.
+    let k = d.literal(m, "items");
+    for provider in ["entity", "block"] {
+        let p = d.literal(k, provider);
+        let a = if provider == "entity" {
+            d.argument(
+                p,
+                "source",
+                ArgType::Entity {
+                    single: false,
+                    players: false,
+                },
+            )
+        } else {
+            d.argument(p, "sourcePos", ArgType::BlockPos)
+        };
+        let slots = d.argument(a, "slots", ArgType::Slots);
+        let item = d.argument(slots, "item_predicate", ArgType::ItemPredicate);
+        conditional(d, item, ex);
     }
 }

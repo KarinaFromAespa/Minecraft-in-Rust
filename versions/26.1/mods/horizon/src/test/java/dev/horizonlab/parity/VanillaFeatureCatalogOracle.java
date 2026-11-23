@@ -21,32 +21,34 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.*;
+import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.Feature;
+import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
+import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
 /** Invokes native block-writing features through an observable mutable world. */
 public final class VanillaFeatureCatalogOracle {
     private static final class Stop extends RuntimeException {}
-    private static Optional<Feature> decodeRoot(RegistryOps<JsonElement> ops,JsonObject f) {
+    private static Optional<ConfiguredFeature<?,?>> decodeRoot(RegistryOps<JsonElement> ops,JsonObject f) {
         var json=JsonParser.parseString(f.get("definition").getAsString());
-        if(!f.get("placed_root").getAsBoolean())return Feature.CODEC.parse(ops,json).result().map(Holder::value);
-        return PlacedFeature.CODEC.parse(ops,json).result().map(holder->new Feature(){
-            public com.mojang.serialization.MapCodec<? extends Feature> codec(){return com.mojang.serialization.MapCodec.unit(this);}
-            public boolean place(WorldGenLevel world,ChunkGenerator generator,RandomSource random,BlockPos p){return holder.value().place(world,generator,random,p);}
-        });
+        if(!f.get("placed_root").getAsBoolean())return ConfiguredFeature.CODEC.parse(ops,json).result().map(Holder::value);
+        return PlacedFeature.CODEC.parse(ops,json).result().map(holder->new ConfiguredFeature<>(new Feature<NoneFeatureConfiguration>(NoneFeatureConfiguration.CODEC){
+            public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> context){return holder.value().place(context.level(),context.chunkGenerator(),context.random(),context.origin());}
+        },NoneFeatureConfiguration.INSTANCE));
     }
     @SuppressWarnings("unchecked")
     private static RegistryOps<JsonElement> loadCatalog(Path dir) throws Exception {
         var bundle=JsonParser.parseString(Files.readString(dir.resolve("catalog.json"))).getAsJsonObject();
-        var features=new MappedRegistry<Feature>(Registries.FEATURE,Lifecycle.stable());
+        var features=new MappedRegistry<ConfiguredFeature<?,?>>(Registries.CONFIGURED_FEATURE,Lifecycle.stable());
         var placed=new MappedRegistry<PlacedFeature>(Registries.PLACED_FEATURE,Lifecycle.stable());
         var ops=RegistryOps.create(JsonOps.INSTANCE,new RegistryOps.RegistryInfoLookup(){public <T> Optional<HolderGetter<T>> lookup(ResourceKey<? extends Registry<? extends T>> key){
             if(key.equals(Registries.FLUID))return (Optional<HolderGetter<T>>)(Optional<?>)Optional.of(net.minecraft.core.registries.BuiltInRegistries.FLUID);
             if(key.equals(Registries.BLOCK))return (Optional<HolderGetter<T>>)(Optional<?>)Optional.of(net.minecraft.core.registries.BuiltInRegistries.BLOCK);
-            if(key.equals(Registries.FEATURE))return (Optional<HolderGetter<T>>)(Optional<?>)Optional.of(features);
+            if(key.equals(Registries.CONFIGURED_FEATURE))return (Optional<HolderGetter<T>>)(Optional<?>)Optional.of(features);
             if(key.equals(Registries.PLACED_FEATURE))return (Optional<HolderGetter<T>>)(Optional<?>)Optional.of(placed);
             return Optional.empty();
         }});
-        for(var entry:bundle.getAsJsonObject("features").entrySet())if(!entry.getKey().equals("horizon:composite"))features.register(ResourceKey.create(Registries.FEATURE,Identifier.parse(entry.getKey())),Feature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
+        for(var entry:bundle.getAsJsonObject("features").entrySet())if(!entry.getKey().equals("horizon:composite"))features.register(ResourceKey.create(Registries.CONFIGURED_FEATURE,Identifier.parse(entry.getKey())),ConfiguredFeature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
         for(var entry:bundle.getAsJsonObject("placed").entrySet())placed.register(ResourceKey.create(Registries.PLACED_FEATURE,Identifier.parse(entry.getKey())),PlacedFeature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
         placed.freeze();
         var loader=new TagLoader<Holder<PlacedFeature>>((id,required)->placed.get(id).map(value->(Holder<PlacedFeature>)value),"tags/worldgen/placed_feature");
@@ -59,7 +61,7 @@ public final class VanillaFeatureCatalogOracle {
         var tags=new HashMap<TagKey<PlacedFeature>,List<Holder<PlacedFeature>>>();
         loader.build(definitions).forEach((name,values)->tags.put(TagKey.create(Registries.PLACED_FEATURE,name),List.copyOf(values)));
         placed.prepareTagReload(new TagLoader.LoadResult<>(Registries.PLACED_FEATURE,tags)).apply();
-        features.register(ResourceKey.create(Registries.FEATURE,Identifier.parse("horizon:composite")),Feature.DIRECT_CODEC.parse(ops,JsonParser.parseString(bundle.getAsJsonObject("features").get("horizon:composite").getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
+        features.register(ResourceKey.create(Registries.CONFIGURED_FEATURE,Identifier.parse("horizon:composite")),ConfiguredFeature.DIRECT_CODEC.parse(ops,JsonParser.parseString(bundle.getAsJsonObject("features").get("horizon:composite").getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
         features.freeze();return ops;
     }
     public static void main(String[] args) throws Exception {
@@ -107,10 +109,10 @@ public final class VanillaFeatureCatalogOracle {
                         }
                     });
                     var p=f.getAsJsonArray("origin");var origin=new BlockPos(p.get(0).getAsInt(),p.get(1).getAsInt(),p.get(2).getAsInt());
-                    var placed=new PlacedFeature(Holder.direct(decoded.get()),modifiers);var placer=new FeaturePlacer(world,generator);
+                    var placed=new PlacedFeature(Holder.direct(decoded.get()),modifiers);
                     for(int repeat=0;repeat<f.get("repeats").getAsInt();repeat++) {
                         calls[0]=0;
-                        try {out.println("place "+(f.has("placement")?placer.place(placed,random,origin):decoded.get().place(world,generator,random,origin)));}catch(Stop|IllegalArgumentException error){out.println("place error");}
+                        try {out.println("place "+(f.has("placement")?placed.place(world,generator,random,origin):decoded.get().place(world,generator,random,origin)));}catch(Stop|IllegalArgumentException error){out.println("place error");}
                         out.println("next "+random.nextLong());
                         for(var entry:states.entrySet()){var q=entry.getKey();out.println("stored "+q.getX()+" "+q.getY()+" "+q.getZ()+" "+Block.getId(entry.getValue()));}
                         out.println("end");

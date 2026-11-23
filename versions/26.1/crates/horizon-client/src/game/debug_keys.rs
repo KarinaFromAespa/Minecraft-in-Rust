@@ -1063,11 +1063,6 @@ impl Game<'_> {
             let centre = std::array::from_fn(|i| (min[i] + max[i]) / 2.0);
             g.entity_box(min, max, centre, 0.0, false, step_view(f.step()));
         }
-        for c in &self.cushions {
-            let (min, max) = c.bounds();
-            let p = c.position;
-            g.entity_box(min, max, [p.x, p.y, p.z], 0.2125, false, (0.0, c.yaw));
-        }
         // Interaction: EntityDimensions.scalable(width, height), so its eyes
         // are at 0.85 of the height. Its rotation is not kept here.
         for i in self.interactions.values() {

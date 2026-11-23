@@ -21,7 +21,7 @@ impl WorldField {
             Self::BlendOffset | Self::Beardifier => Interval::INFINITE,
         }
     }
-    fn fallback(self) -> f32 {
+    fn fallback(self) -> f64 {
         match self {
             Self::BlendAlpha => 1.0,
             Self::BlendOffset | Self::Beardifier => 0.0,
@@ -29,11 +29,12 @@ impl WorldField {
     }
 }
 
-/// Old-world blending provider. The full vanilla Blender data model and
-/// distance-weighting algorithm are a separate, still pending implementation.
+/// Old-world blending provider, implemented by the world's `Blender`.
+/// The blender computes in double (26.1's `Blender.blendDensity`), as does
+/// the density pipeline, so the samplers below pass values through unrounded.
 pub trait DensityBlender: std::fmt::Debug + Send + Sync {
     fn is_empty(&self) -> bool;
-    fn blend_density(&self, position: [i32; 3], input: f32) -> f32;
+    fn blend_density(&self, position: [i32; 3], input: f64) -> f64;
 }
 
 #[derive(Debug)]
@@ -42,7 +43,7 @@ impl DensityBlender for EmptyBlender {
     fn is_empty(&self) -> bool {
         true
     }
-    fn blend_density(&self, _: [i32; 3], input: f32) -> f32 {
+    fn blend_density(&self, _: [i32; 3], input: f64) -> f64 {
         input
     }
 }
@@ -97,13 +98,13 @@ impl DensitySampler for ContextBoundSampler {
         &self,
         context: &mut SamplerContext,
         position: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         self.resolve(context).sample_value(context, position)
     }
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         self.resolve(context).sample_volume(context, buffer, volume)
@@ -119,7 +120,7 @@ impl DensitySampler for BlendDensitySampler {
         &self,
         context: &mut SamplerContext,
         position: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         let input = self.input.sample_value(context, position)?;
         let Some(blender) = &context.fields.blender else {
             return Ok(input);
@@ -133,7 +134,7 @@ impl DensitySampler for BlendDensitySampler {
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         self.input.sample_volume(context, buffer, volume)?;

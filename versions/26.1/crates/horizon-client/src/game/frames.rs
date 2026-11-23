@@ -371,9 +371,11 @@ impl Game<'_> {
         if !with_frame {
             self.item_frames[i].item = None;
         } else {
-            // BlockAttachedEntity.kill, before dropItem. A frame holding an
-            // item only gives the item up (ItemFrame.hurtServer).
-            self.entity_killed_event(at, true);
+            // `BlockAttachedEntity.kill`, before `dropItem`: 26.1's
+            // `kill(level)` is unattributed (26.3's `kill(level, entity)`
+            // attributes the death to the killer). A frame holding an item
+            // only gives the item up (`ItemFrame.hurtServer`).
+            self.entity_killed_event(at, false);
         }
         self.drop_frame_items(&mut f, with_frame, true);
         if !with_frame {
@@ -488,12 +490,16 @@ impl Game<'_> {
                 continue;
             }
             let mut f = self.item_frames.remove(i);
-            self.entity_killed_event_by(center(&f), self.explosion_kill_credit());
+            // `BlockAttachedEntity.kill(level)`: the death is the frame's
+            // own event in 26.1, not the blast's causing entity (26.3).
+            self.entity_killed_event(center(&f), false);
             self.audio
                 .play(&sound(&f, "break"), Some(center(&f)), 1.0, 1.0);
             self.drop_frame_items(&mut f, true, false);
-            // ItemFrame.dropItem(level, causedBy): BLOCK_CHANGE after the drops.
-            let ctx = self.who_context(None, None);
+            // `ItemFrame.dropItem(level, causedBy)`: `BLOCK_CHANGE` after
+            // the drops, attributed to the blast's direct source entity
+            // (the exploding mob; a TNT or crystal has no `Who`).
+            let ctx = self.who_context(self.explosion_direct_source(), None);
             self.post_game_event("minecraft:block_change", center(&f), ctx);
             self.world.modified.insert((f.pos[0] >> 4, f.pos[2] >> 4));
             if f.item.is_some() {
@@ -512,8 +518,9 @@ impl Game<'_> {
                 i += 1;
                 continue;
             }
-            self.item_frames[i].check_interval += 1;
-            if self.item_frames[i].check_interval >= 100 {
+            // `BlockAttachedEntity.tick` (26.1): `checkInterval++ == 100` —
+            // the check runs on the 101st tick, not the 100th.
+            if self.item_frames[i].check_interval == 100 {
                 self.item_frames[i].check_interval = 0;
                 let mut f = self.item_frames[i].clone();
                 if !self.frame_survives(&f) && !self.hanging_break_cancelled(f.kind(), f.pos, false)
@@ -531,6 +538,8 @@ impl Game<'_> {
                     }
                     continue;
                 }
+            } else {
+                self.item_frames[i].check_interval += 1;
             }
             i += 1;
         }

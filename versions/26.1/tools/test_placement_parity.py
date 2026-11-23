@@ -18,16 +18,15 @@ def definitions():
     encode=lambda value:json.dumps(value,separators=(',',':'))
     for value in [None,False,0,[],{}, {'type':'missing'}, {'type':'in_square'}, {'type':':in_square'}]:yield encode(value)
     for count in [-1,0,1,3,17,4096,4097,4294967297, {'type':'uniform','min_inclusive':0,'max_inclusive':5}, {'type':'clamped','source':10,'min_inclusive':0,'max_inclusive':3}, {'type':'weighted_list','distribution':[{'data':0,'weight':1},{'data':4,'weight':3}]}]:yield encode({'type':'count','count':count})
-    for field in ['x','y','z']:
+    for field in ['xz_spread','y_spread']:
         for value in [-17,-16,-1,0,1,16,17,4294967297, {'type':'uniform','min_inclusive':-16,'max_inclusive':16}, {'type':'trapezoid','min':-7,'max':7,'plateau':0}]:
-            definition={'type':'offset','x':0,'y':0,'z':0};definition[field]=value;yield encode(definition)
+            definition={'type':'random_offset','xz_spread':0,'y_spread':0};definition[field]=value;yield encode(definition)
     for chance in [None,False,'1',-1,-0.,0,1e-100,0.1,0.5,1,2,3,7,16777217,2147483647,4294967297]:
-        for kind in ['rarity_filter','random_chance']:yield encode({'type':kind,'chance':chance})
+        yield encode({'type':'rarity_filter','chance':chance})
     for height in [{'absolute':0},{'above_bottom':7},{'relative_to_sea_level':-3}, {'type':'uniform','min_inclusive':{'above_bottom':0},'max_inclusive':{'below_top':0}}, {'type':'trapezoid','min_inclusive':{'absolute':-7},'max_inclusive':{'absolute':7}}, {'type':'weighted_list','distribution':[{'data':{'absolute':1},'weight':2},{'data':{'below_top':1},'weight':3}]}]:yield encode({'type':'height_range','height':height})
     fixed=[[0,7,0],[15,20,15],[-1,-64,-1],[-16,99,16],[2147483647,-2147483648,2147483647],[0,7,0]]
     for positions in [[],fixed,[[1,2]],[[1,2,3,4]],[[0,False,0]],[[4294967297,0,-4294967297]]]:yield encode({'type':'fixed_placement','positions':positions})
-    for placements in [[],[{'type':'in_square'}],[{'type':'in_square'},{'type':'count','count':3},{'type':'fixed_placement','positions':fixed}],[{'type':'randomly_selected','placements':[{'type':'in_square'},{'type':'count','count':0}]}]]:yield encode({'type':'randomly_selected','placements':placements})
-    for kind,field in [('count','count'),('height_range','height'),('offset','y'),('rarity_filter','chance'),('random_chance','chance'),('fixed_placement','positions'),('randomly_selected','placements')]:
+    for kind,field in [('count','count'),('height_range','height'),('random_offset','xz_spread'),('rarity_filter','chance'),('fixed_placement','positions')]:
         for value in [None,{},[]]:yield encode({'type':kind,field:value})
 
 
@@ -47,10 +46,6 @@ def definitions():
     for level in [-1e300,-1,-0.,0,0.1,0.7,1,1e300]:
         for below,above in [(-1,3),(0,0),(1,7),(17,2),(-2147483648,2147483647)]:
             yield encode({'type':'noise_threshold_count','noise_level':level,'below_noise':below,'above_noise':above})
-
-    for xz,y in [(1,1),(2,3),(3,4),(16,16),(0,2),(2,17),({'type':'uniform','min_inclusive':1,'max_inclusive':5},{'type':'uniform','min_inclusive':1,'max_inclusive':3})]:
-        for edges,interior in [(True,True),(True,False),(False,True),(False,False),(None,None),(0,True),(True,'false')]:
-            yield encode({'type':'cuboid','xz_size':xz,'y_size':y,'include_edges':edges,'include_interior':interior})
 
     for count in [-1,0,1,3,7,257, {'type':'uniform','min_inclusive':0,'max_inclusive':5}, {'type':'weighted_list','distribution':[{'data':0,'weight':1},{'data':4,'weight':3}]}]:
         yield encode({'type':'count_on_every_layer','count':count})

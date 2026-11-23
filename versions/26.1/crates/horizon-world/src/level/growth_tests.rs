@@ -220,7 +220,6 @@ fn single_saplings_grow() {
     grow("jungle_sapling", "dirt", &[(0, 0)], "jungle_log");
     grow("acacia_sapling", "dirt", &[(0, 0)], "acacia_log");
     grow("cherry_sapling", "grass_block", &[(0, 0)], "cherry_log");
-    grow("poplar_sapling", "grass_block", &[(0, 0)], "poplar_log");
 }
 #[test]
 fn two_by_two_saplings_grow() {
@@ -231,13 +230,18 @@ fn two_by_two_saplings_grow() {
     grow("jungle_sapling", "grass_block", &square, "jungle_log");
 }
 #[test]
-fn lone_dark_oak_sapling_cannot_grow() {
+fn lone_dark_oak_sapling_takes_bone_meal_but_grows_no_tree() {
+    // 26.1's SaplingBlock.isValidBonemealTarget is only the height check —
+    // canGrow (the 2x2 requirement for a mega-only grower) is 26.3-only —
+    // so the meal is consumed, but growTree finds no 2x2 square and no
+    // single tree, so nothing grows.
     let Some(f) = fixture() else { return };
     let mut w = World::new(f, 1);
     w.floor("grass_block", 4);
     let sapling = w.id("dark_oak_sapling", &[]);
     w.put(BlockPos::new(0, 64, 0), sapling);
-    assert!(!w.bone_meal(BlockPos::new(0, 64, 0)));
+    assert!(w.bone_meal(BlockPos::new(0, 64, 0)));
+    assert_eq!(w.count("dark_oak_log"), 0);
 }
 #[test]
 fn bone_meal_on_a_client_succeeds_only_where_its_level_can_tell() {
@@ -256,11 +260,13 @@ fn bone_meal_on_a_client_succeeds_only_where_its_level_can_tell() {
     };
     // SaplingBlock.isValidBonemealTarget needs a ServerLevel: the client passes.
     assert!(!client(BlockPos::new(0, 64, 0)));
-    // CropBlock: below its max age.
-    assert!(client(BlockPos::new(1, 64, 0)));
+    // 26.1 returns PASS on the client when growCrop succeeds (26.2 returns
+    // SUCCESS), so a crop below its max age does not succeed client-side.
+    assert!(!client(BlockPos::new(1, 64, 0)));
     assert!(!client(BlockPos::new(2, 64, 0)));
-    // GrassBlock with air above; under water, growWaterPlant above its top face.
-    assert!(client(BlockPos::new(-1, 63, 0)));
+    // GrassBlock with air above passes too; only the growWaterPlant path
+    // (under water, above its top face) returns SUCCESS on the client.
+    assert!(!client(BlockPos::new(-1, 63, 0)));
     assert!(client(BlockPos::new(3, 63, 0)));
     assert!(!client(BlockPos::new(-1, 62, 0)));
     assert_eq!(w.level.blocks, before, "nothing grows on a client");
@@ -395,8 +401,9 @@ fn bone_meal_answers_a_mod_blocks_three_questions() {
     assert!(b.grow_crop(&mut level, &mut w.ticks, pos));
     assert!(level.rolls.is_empty() && level.performed.is_empty());
     assert_ne!(level.inner.block_state(pos), crop, "the crop grew");
-    // A client predicts the use with the same answer, where the block itself
-    // takes no bone meal on a client.
+    // On a client, 26.1 returns PASS when growCrop succeeds whatever the
+    // block's own answer, so neither answer succeeds client-side (26.2
+    // returned SUCCESS for a valid target).
     w.put(pos, stone);
     let mut level = ModLevel {
         inner: &mut w.level,
@@ -405,7 +412,7 @@ fn bone_meal_answers_a_mod_blocks_three_questions() {
         rolls: Vec::new(),
         performed: Vec::new(),
     };
-    assert!(b.bone_meal_succeeds_on_client(&mut level, pos, Direction::Up));
+    assert!(!b.bone_meal_succeeds_on_client(&mut level, pos, Direction::Up));
     level.valid = Some(false);
     assert!(!b.bone_meal_succeeds_on_client(&mut level, pos, Direction::Up));
 }

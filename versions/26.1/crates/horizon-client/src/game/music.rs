@@ -35,18 +35,9 @@ impl Game<'_> {
             &[][..]
         };
         self.music.set_off(off);
-        // LevelLoadingScreen: no new track before the player is in the world.
-        // A reconfiguration's ServerReconfigScreen is a plain Screen, not a
-        // LevelLoadingScreen: its menu music starts as on any other screen.
-        let loading = self.title.is_none()
-            && self.player.is_none()
-            && self.win.is_none()
-            && !self
-                .remote
-                .as_ref()
-                .is_some_and(|r| r.reconfiguring.is_some());
-        self.music
-            .tick(music.as_ref(), volume, loading, &mut self.audio);
+        // 26.1 has no LevelLoadingScreen gate on the music countdown (26.2
+        // added it): a track can start while a level is still loading.
+        self.music.tick(music.as_ref(), volume, &mut self.audio);
         // Options.musicToast's listener: ToastManager.setMusicToastDisplayState.
         let state = self.settings.file.int("musicToast").clamp(0, 2) as u8;
         if state != self.music_toast_state {

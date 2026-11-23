@@ -231,7 +231,7 @@ fn run_nested<W: PlacementContext>(
         return Ok(Some(info));
     };
     let local = std::array::from_fn(|i| at[i] - origin[i] + position[i]);
-    process_list(list, world, resources, local, at, local, info, settings)
+    process_list(list, world, resources, local, at, local, state, info, settings)
 }
 
 /// Moog's `pillar_state_randomizer`: the first entry whose share of

@@ -174,6 +174,17 @@ impl Game<'_> {
             self.capture(true);
         }
     }
+
+    /// `AdvancementsScreen.keyPressed` in 26.1: the advancements key
+    /// always closes to the game and grabs the mouse, even when the
+    /// screen was opened from the pause menu. 26.3 restores the last
+    /// screen instead; `close_advancements` (the `onClose` form, used
+    /// by Escape and Done) keeps that restore in both versions.
+    pub(super) fn close_advancements_to_game(&mut self) {
+        self.send(horizon_protocol::packets::play::Serverbound::SeenAdvancements(closed_screen()));
+        self.screen = Screen::Playing;
+        self.capture(true);
+    }
     fn adv_cache(&mut self) {
         if self
             .adv_ui

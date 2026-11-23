@@ -175,17 +175,19 @@ pub fn allowed_in_peaceful(s: Species) -> bool {
             | S::ZombifiedPiglin
     )
 }
-/// The block tag an entity type is `immuneTo`.
-fn immune_tag(s: Species) -> Option<&'static str> {
+/// Whether an entity type is `immuneTo` a block in 26.1:
+/// `EntityType.Builder.immuneTo(Block...)` takes a literal block set
+/// (fox: sweet berry bush; polar bear, snow golem, stray: powder snow;
+/// wither, wither skeleton: wither rose). 26.2 replaced the sets with
+/// `#*_immune_to` tags, which do not exist in 26.1's data — resolving
+/// them would answer false for every block.
+fn immune_to(s: Species, block: &str) -> bool {
     use Species as S;
     match s {
-        S::Fox => Some("minecraft:fox_immune_to"),
-        S::PolarBear => Some("minecraft:polar_bear_immune_to"),
-        S::SnowGolem => Some("minecraft:snow_golem_immune_to"),
-        S::Stray => Some("minecraft:stray_immune_to"),
-        S::Wither => Some("minecraft:wither_immune_to"),
-        S::WitherSkeleton => Some("minecraft:wither_skeleton_immune_to"),
-        _ => None,
+        S::Fox => block == "minecraft:sweet_berry_bush",
+        S::PolarBear | S::SnowGolem | S::Stray => block == "minecraft:powder_snow",
+        S::Wither | S::WitherSkeleton => block == "minecraft:wither_rose",
+        _ => false,
     }
 }
 /// `BlockState.isValidSpawn(level, pos, type)` for the block at a position.
@@ -224,7 +226,7 @@ pub fn is_valid_empty_spawn<L: SpawnLevel>(s: Species, l: &L, x: i32, y: i32, z:
     if !burning && !other {
         return false;
     }
-    let immune = immune_tag(s).is_some_and(|t| l.block_tag(t, block));
+    let immune = immune_to(s, block);
     let dangerous = !immune && (burning && !fire_immune(s) || other);
     !dangerous
         && !f.full_collision
@@ -279,7 +281,10 @@ fn bright<L: SpawnLevel>(l: &L, x: i32, y: i32, z: i32) -> bool {
 fn mob_rules<L: SpawnLevel>(s: Species, l: &L, reason: Reason, x: i32, y: i32, z: i32) -> bool {
     reason.is_spawner() || is_valid_spawn(s, l, x, y - 1, z)
 }
-/// `Monster.checkMonsterSpawnRules`.
+/// `Monster.checkMonsterSpawnRules`: not peaceful, dark enough (unless
+/// the reason ignores light), and `Mob.checkMobSpawnRules`. 26.2 moved
+/// the peaceful gate up into `SpawnPlacements.checkSpawnRules` and
+/// dropped it here; 26.1 keeps it in the per-type predicates.
 fn monster_rules<L: SpawnLevel>(
     s: Species,
     l: &L,
@@ -289,7 +294,8 @@ fn monster_rules<L: SpawnLevel>(
     y: i32,
     z: i32,
 ) -> bool {
-    (reason.ignores_light() || is_dark_enough(l, random, x, y, z))
+    !l.peaceful()
+        && (reason.ignores_light() || is_dark_enough(l, random, x, y, z))
         && mob_rules(s, l, reason, x, y, z)
 }
 /// `Animal.checkAnimalSpawnRules` with the given spawnable-on tag.
@@ -306,7 +312,15 @@ fn surface_water<L: SpawnLevel>(l: &L, x: i32, y: i32, z: i32) -> bool {
         && name(l, x, y + 1, z) == "minecraft:water"
 }
 
-/// `SpawnPlacements.checkSpawnRules`.
+/// `SpawnPlacements.checkSpawnRules`: the type's registered predicate, or
+/// true for a type without one. 26.1 has no peaceful gate here — 26.2
+/// added one (`!isAllowedInPeaceful && peaceful -> false`); in 26.1 the
+/// peaceful check lives inside the per-type predicates that have it
+/// (`Monster.checkMonsterSpawnRules`,
+/// `Monster.checkAnyLightMonsterSpawnRules`, the drowned/guardian/ghast/
+/// magma-cube/slime/zombified-piglin rules), and a type whose predicate
+/// lacks it (phantom and shulker use plain `Mob.checkMobSpawnRules`)
+/// answers on its other rules alone.
 pub fn check_spawn_rules<L: SpawnLevel>(
     s: Species,
     l: &L,
@@ -317,9 +331,6 @@ pub fn check_spawn_rules<L: SpawnLevel>(
     z: i32,
 ) -> bool {
     use Species as S;
-    if !allowed_in_peaceful(s) && l.peaceful() {
-        return false;
-    }
     let below = |l: &L| name(l, x, y - 1, z).to_owned();
     match s {
         S::Axolotl => tag(l, "minecraft:axolotls_spawnable_on", x, y - 1, z),
@@ -373,7 +384,9 @@ pub fn check_spawn_rules<L: SpawnLevel>(
             }
             tag(l, "minecraft:bats_spawnable_on", x, y - 1, z) && mob_rules(s, l, reason, x, y, z)
         }
-        S::Blaze | S::Breeze | S::Zoglin => mob_rules(s, l, reason, x, y, z),
+        // `Monster.checkAnyLightMonsterSpawnRules`: not peaceful, then
+        // `Mob.checkMobSpawnRules`.
+        S::Blaze | S::Breeze | S::Zoglin => !l.peaceful() && mob_rules(s, l, reason, x, y, z),
         S::Camel => tag(l, "minecraft:camels_spawnable_on", x, y - 1, z) && bright(l, x, y, z),
         S::CamelHusk | S::Husk | S::Parched => {
             monster_rules(s, l, reason, random, x, y, z)
@@ -391,8 +404,10 @@ pub fn check_spawn_rules<L: SpawnLevel>(
         | S::Cat
         | S::Panda
         | S::TraderLlama => animal_rules(l, reason, "minecraft:animals_spawnable_on", x, y, z),
+        // `Endermite/Silverfish.check*SpawnRules`: `checkAnyLightMonsterSpawnRules`
+        // (not peaceful, then `Mob.checkMobSpawnRules`), then the player check.
         S::Endermite | S::Silverfish => {
-            if !mob_rules(s, l, reason, x, y, z) {
+            if l.peaceful() || !mob_rules(s, l, reason, x, y, z) {
                 return false;
             }
             reason.is_spawner()
@@ -436,7 +451,11 @@ pub fn check_spawn_rules<L: SpawnLevel>(
         S::Ocelot => random.next_int_bound(3).unwrap_or(0) != 0,
         S::Parrot => tag(l, "minecraft:parrots_spawnable_on", x, y - 1, z) && bright(l, x, y, z),
         S::Hoglin | S::Piglin => below(l) != "minecraft:nether_wart_block",
-        S::Pillager => l.block_light(x, y, z) <= 8 && mob_rules(s, l, reason, x, y, z),
+        // `PatrollingMonster.checkPatrollingMonsterSpawnRules`: block light
+        // at most 8 and `checkAnyLightMonsterSpawnRules` (not peaceful).
+        S::Pillager => {
+            !l.peaceful() && l.block_light(x, y, z) <= 8 && mob_rules(s, l, reason, x, y, z)
+        }
         S::PolarBear => {
             if l.biome_tag("minecraft:polar_bears_spawn_on_alternate_blocks", x, y, z) {
                 bright(l, x, y, z)
@@ -748,5 +767,102 @@ mod light_draw_tests {
                 }
             },
         );
+    }
+}
+
+#[cfg(test)]
+mod peaceful_tests {
+    use super::*;
+    use crate::mobs::{MobWorld, world::with_built_test_world};
+    use horizon_core::random::LegacyRandom;
+
+    /// 26.1 has no peaceful gate in `SpawnPlacements.checkSpawnRules`
+    /// (26.2 added one): the peaceful check lives in the per-type
+    /// predicates. In peaceful, a zombie (`Monster.checkMonsterSpawnRules`),
+    /// a blaze (`checkAnyLightMonsterSpawnRules`), a pillager
+    /// (`checkPatrollingMonsterSpawnRules`) and an endermite all fail,
+    /// while a phantom (plain `Mob.checkMobSpawnRules`) answers on its
+    /// spawn block alone.
+    #[test]
+    fn peaceful_blocks_monster_rules_but_not_plain_mob_rules() {
+        let ran = with_built_test_world(
+            &[],
+            |world, registry| {
+                world.chunks.insert(
+                    (0, 0),
+                    std::sync::Arc::new(crate::chunk::Chunk::empty(0, 0)),
+                );
+                let grass = registry.default_state("minecraft:grass_block").unwrap();
+                world.set(0, 69, 0, grass).unwrap();
+            },
+            |w, _| {
+                let peaceful = MobWorld {
+                    difficulty: crate::mobs::spawning::LocalDifficulty::new(0, 18000, 0, 0.0),
+                    ..w.clone()
+                };
+                assert!(peaceful.peaceful());
+                for (name, s) in [
+                    ("zombie", Species::Zombie),
+                    ("blaze", Species::Blaze),
+                    ("pillager", Species::Pillager),
+                    ("endermite", Species::Endermite),
+                ] {
+                    let mut random = LegacyRandom::new(1);
+                    assert!(
+                        !check_spawn_rules(s, &peaceful, Reason::Natural, &mut random, 0, 70, 0),
+                        "{name} spawns in peaceful"
+                    );
+                }
+                // The control: the same phantom passes on its spawn block,
+                // peaceful or not — its predicate has no difficulty check.
+                let mut random = LegacyRandom::new(1);
+                assert!(
+                    check_spawn_rules(
+                        Species::Phantom,
+                        &peaceful,
+                        Reason::Natural,
+                        &mut random,
+                        0,
+                        70,
+                        0
+                    ),
+                    "phantom follows mob rules in peaceful"
+                );
+                // And a blaze passes when it is not peaceful, so the
+                // peaceful failures above are the difficulty, not the setup.
+                let mut random = LegacyRandom::new(1);
+                assert!(
+                    check_spawn_rules(Species::Blaze, w, Reason::Natural, &mut random, 0, 70, 0),
+                    "blaze passes out of peaceful"
+                );
+            },
+        );
+        // Without the vanilla data under .local/horizon-client the world
+        // cannot be built: the test has nothing to check.
+        let _ = ran;
+    }
+}
+
+#[cfg(test)]
+mod immune_to_tests {
+    use super::*;
+
+    /// 26.1's `EntityType` bootstrap passes literal block sets to
+    /// `immuneTo` (fox: sweet berry bush; polar bear, snow golem, stray:
+    /// powder snow; wither, wither skeleton: wither rose). The 26.2
+    /// `#*_immune_to` tags do not exist in 26.1's data.
+    #[test]
+    fn immune_to_uses_the_26_1_literal_sets_not_the_26_2_tags() {
+        assert!(immune_to(Species::Fox, "minecraft:sweet_berry_bush"));
+        assert!(immune_to(Species::PolarBear, "minecraft:powder_snow"));
+        assert!(immune_to(Species::SnowGolem, "minecraft:powder_snow"));
+        assert!(immune_to(Species::Stray, "minecraft:powder_snow"));
+        assert!(immune_to(Species::Wither, "minecraft:wither_rose"));
+        assert!(immune_to(Species::WitherSkeleton, "minecraft:wither_rose"));
+        assert!(!immune_to(Species::Fox, "minecraft:powder_snow"));
+        assert!(!immune_to(Species::Stray, "minecraft:wither_rose"));
+        assert!(!immune_to(Species::Zombie, "minecraft:sweet_berry_bush"));
+        assert!(!immune_to(Species::Zombie, "minecraft:powder_snow"));
+        assert!(!immune_to(Species::Zombie, "minecraft:wither_rose"));
     }
 }

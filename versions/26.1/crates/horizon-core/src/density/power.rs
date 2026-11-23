@@ -11,15 +11,15 @@ impl DensitySampler for PowerSampler {
         &self,
         context: &mut SamplerContext,
         position: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         let base = self.base.sample_value(context, position)?;
         let exponent = self.exponent.sample_value(context, position)?;
-        Ok(super::arithmetic::java_power(base as f64, exponent as f64) as f32)
+        Ok(super::arithmetic::java_power(base, exponent))
     }
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_exact_buffer(buffer, volume)?;
@@ -27,7 +27,7 @@ impl DensitySampler for PowerSampler {
         context.with_buffer(volume.size(), |context, scratch| {
             self.exponent.sample_volume(context, scratch, volume)?;
             for (base, exponent) in buffer.iter_mut().zip(scratch) {
-                *base = super::arithmetic::java_power(*base as f64, *exponent as f64) as f32;
+                *base = super::arithmetic::java_power(*base, *exponent);
             }
             Ok(())
         })
@@ -38,7 +38,7 @@ impl DensitySampler for PowerSampler {
 /// Other exponents return directly from vanilla's signed fallback sampler.
 pub fn compile_constant_exponent(
     base: Arc<dyn DensitySampler>,
-    exponent: f32,
+    exponent: f64,
 ) -> Arc<dyn DensitySampler> {
     let positive: Arc<dyn DensitySampler> = match exponent.abs() {
         0.5 => Arc::new(UnarySampler {
@@ -57,7 +57,7 @@ pub fn compile_constant_exponent(
         _ => {
             return Arc::new(UnarySampler {
                 input: base,
-                operation: UnaryOp::PowerExponent(exponent as f64),
+                operation: UnaryOp::PowerExponent(exponent),
             });
         }
     };

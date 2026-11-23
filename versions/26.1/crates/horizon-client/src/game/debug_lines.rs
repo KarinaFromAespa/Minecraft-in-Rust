@@ -245,7 +245,7 @@ impl Game<'_> {
         }
     }
 
-    /// `LevelExtractor.sectionStatistics`: the sections drawn of the view
+    /// The debug screen's chunk line: the sections drawn of the view
     /// area's (smart culling is always on), the render distance, and
     /// `SectionRenderDispatcher.getStats` (the meshes queued; Horizon has
     /// no buffer pool, so no buffer is ever free).
@@ -264,7 +264,7 @@ impl Game<'_> {
         ));
     }
 
-    /// `LevelExtractor.entityStatistics`: the mobs drawn last frame of the
+    /// The debug screen's entity line: the mobs drawn last frame of the
     /// level's entities, and the server's simulation distance.
     fn debug_entity_render_line(&self, d: &mut Displayer) {
         if self.player.is_none() {

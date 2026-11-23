@@ -2471,6 +2471,10 @@ impl Game<'_> {
             if key != Some(KeyCode::Enter) {
                 self.world_options_text(text);
             }
+        } else if self.screen == Screen::ShareToLan {
+            if key != Some(KeyCode::Enter) {
+                self.share_to_lan_text(text);
+            }
         } else if self.screen == Screen::CommandBlock {
             // Enter is its Done, as on the keyboard.
             match text {

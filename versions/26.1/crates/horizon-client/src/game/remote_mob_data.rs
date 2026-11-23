@@ -85,8 +85,9 @@ fn apply(m: &mut Mob, values: &[(u8, i32, Value)], builtin: &Builtin, local_enti
                 m.extra.left_handed = flags & 2 != 0;
                 m.ai.aggressive = flags & 4 != 0;
             }
-            // AgeableMob.isBaby: `canBeABaby` too, so a parrot or a slime
-            // sent as one is still drawn grown.
+            // AgeableMob.isBaby: the never-baby species too (26.1's
+            // `Parrot.isBaby` is false), so a parrot or a slime sent as
+            // one is still drawn grown.
             (i, Value::Bool(b)) if Some(i) == baby => {
                 m.extra.age = if *b && can_be_a_baby(species) { -1 } else { 0 };
             }
@@ -1040,7 +1041,7 @@ mod tests {
 
     /// #6133: a server's baby happy ghast (a hatched dried ghast) and baby
     /// nautilus come with AgeableMob.DATA_BABY_ID (16) like any other animal;
-    /// a parrot never is one (`Parrot.canBeABaby`).
+    /// a parrot never is one (`Parrot.isBaby` is false in 26.1).
     #[test]
     fn a_happy_ghast_and_a_nautilus_take_their_babyhood() {
         use horizon_client::mobs::MobTypes;

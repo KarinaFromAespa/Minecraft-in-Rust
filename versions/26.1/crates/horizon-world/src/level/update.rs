@@ -382,10 +382,11 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         if update_flags & flags::UPDATE_SKIP_ON_PLACE == 0 {
             self.on_place(state, pos, old, moved);
         }
-        let landed = self.state(pos);
-        if self.block_of(landed) == new_block {
-            self.level.ensure_block_entity(pos, landed);
-        }
+        // 26.1 creates the block entity for the new state unconditionally
+        // after onPlace; 26.2 added a re-check that the block at the
+        // position is still the new block
+        // (`LevelChunkSection.getBlockState(pos).is(newBlock)`).
+        self.level.ensure_block_entity(pos, state);
         Some(old)
     }
     /// `BlockState.shouldChangedStateKeepBlockEntity(oldState)`: copper chests

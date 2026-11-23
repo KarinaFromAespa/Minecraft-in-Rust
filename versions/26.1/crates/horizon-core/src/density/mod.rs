@@ -44,8 +44,8 @@ pub use selection::{
     DensityValue, IntervalSelectSampler, InvalidIntervals, LerpSampler, RangeChoiceSampler,
 };
 pub use terrain_noise::{
-    BlendedFbmSet, BlendedNoise, DistanceMetric, DistanceToPointSampler, ShiftNoiseKind,
-    compile_shift_noise, create_blended_fbm,
+    BlendedNoise, BlendedNoiseSampler, DistanceMetric, DistanceToPointSampler, ShiftNoiseKind,
+    WeirdScaledNoiseSampler, compile_shift_noise, create_blended_fbm,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -90,12 +90,12 @@ impl std::error::Error for SampleError {}
 /// scratch buffers cannot. World fields are immutable for an evaluation context.
 #[derive(Debug, Default)]
 pub struct SamplerContext {
-    scratch: Vec<Vec<f32>>,
+    scratch: Vec<Vec<f64>>,
     caches: Option<Vec<cache::CacheCell>>,
     fields: WorldFields,
     sparse: bool,
     /// Planes of y-fixed slices already sampled (`with_planes`).
-    planes: Option<std::collections::HashMap<slice::PlaneKey, Vec<f32>>>,
+    planes: Option<std::collections::HashMap<slice::PlaneKey, Vec<f64>>>,
     /// Lattice samples kept by interpolated samplers' aligned volumes.
     capture: Option<Vec<LatticeSamples>>,
     /// Known lattice samples interpolated samplers may read instead of
@@ -108,13 +108,13 @@ pub struct LatticeSamples {
     /// The interpolated sampler's identity.
     sampler: (u64, usize),
     volume: DensityVolume,
-    values: Arc<[f32]>,
+    values: Arc<[f64]>,
 }
 impl SamplerContext {
     fn with_buffer<T>(
         &mut self,
         size: usize,
-        sample: impl FnOnce(&mut Self, &mut [f32]) -> Result<T, SampleError>,
+        sample: impl FnOnce(&mut Self, &mut [f64]) -> Result<T, SampleError>,
     ) -> Result<T, SampleError> {
         let mut buffer = self.scratch.pop().unwrap_or_default();
         buffer.resize(size, 0.0);
@@ -161,14 +161,14 @@ pub trait DensitySampler: std::fmt::Debug + Send + Sync {
         &self,
         context: &mut SamplerContext,
         position: [i32; 3],
-    ) -> Result<f32, SampleError>;
+    ) -> Result<f64, SampleError>;
 
     /// The slice length is the logical buffer size. Some samplers fill its tail;
     /// others leave it untouched. A short buffer is rejected before any writes.
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_buffer(buffer, volume)?;
@@ -183,7 +183,7 @@ pub trait DensitySampler: std::fmt::Debug + Send + Sync {
     fn sample_needed(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
         _needed: &[u64],
     ) -> Result<(), SampleError> {
@@ -214,14 +214,14 @@ pub fn is_pointwise(root: &Arc<dyn DensitySampler>) -> bool {
     }
     true
 }
-fn check_buffer(buffer: &[f32], volume: DensityVolume) -> Result<(), SampleError> {
+fn check_buffer(buffer: &[f64], volume: DensityVolume) -> Result<(), SampleError> {
     if buffer.len() < volume.size() {
         Err(DensityError::BufferTooShort.into())
     } else {
         Ok(())
     }
 }
-fn check_exact_buffer(buffer: &[f32], volume: DensityVolume) -> Result<(), SampleError> {
+fn check_exact_buffer(buffer: &[f64], volume: DensityVolume) -> Result<(), SampleError> {
     check_buffer(buffer, volume)?;
     if buffer.len() != volume.size() {
         Err(SampleError::ExactBufferSizeRequired)
@@ -249,18 +249,18 @@ fn visit(
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct ConstantSampler(pub f32);
+pub struct ConstantSampler(pub f64);
 impl DensitySampler for ConstantSampler {
     fn pointwise_inputs(&self) -> Option<Vec<&Arc<dyn DensitySampler>>> {
         Some(Vec::new())
     }
-    fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f32, SampleError> {
+    fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f64, SampleError> {
         Ok(self.0)
     }
     fn sample_volume(
         &self,
         _: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_buffer(buffer, volume)?;
@@ -283,8 +283,8 @@ pub struct GradientSampler {
     from: i32,
     to: i32,
     period: i32,
-    value: f32,
-    factor: f32,
+    value: f64,
+    factor: f64,
 }
 impl GradientSampler {
     pub fn new(
@@ -292,8 +292,8 @@ impl GradientSampler {
         tiling: TilingMode,
         from: i32,
         to: i32,
-        from_value: f32,
-        to_value: f32,
+        from_value: f64,
+        to_value: f64,
     ) -> Self {
         let period = to.wrapping_sub(from);
         Self {
@@ -303,10 +303,10 @@ impl GradientSampler {
             to,
             period,
             value: from_value,
-            factor: (to_value - from_value) / period as f32,
+            factor: (to_value - from_value) / period as f64,
         }
     }
-    pub fn compute(&self, coordinate: i32) -> Result<f32, SampleError> {
+    pub fn compute(&self, coordinate: i32) -> Result<f64, SampleError> {
         let distance = match self.tiling {
             TilingMode::ClampToEdge => coordinate
                 .clamp(self.from.min(self.to), self.from.max(self.to))
@@ -330,20 +330,20 @@ impl GradientSampler {
                 }
             }
         };
-        Ok(self.value + distance as f32 * self.factor)
+        Ok(self.value + distance as f64 * self.factor)
     }
 }
 impl DensitySampler for GradientSampler {
     fn pointwise_inputs(&self) -> Option<Vec<&Arc<dyn DensitySampler>>> {
         Some(Vec::new())
     }
-    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f32, SampleError> {
+    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f64, SampleError> {
         self.compute(position[self.axis as usize])
     }
     fn sample_volume(
         &self,
         _: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_buffer(buffer, volume)?;
@@ -396,7 +396,7 @@ impl DensitySampler for NoiseSampler {
         &self,
         _: &mut SamplerContext,
         [x, y, z]: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         Ok(self.noise.get3(
             x as f64 * self.xz_scale,
             y as f64 * self.y_scale,
@@ -406,7 +406,7 @@ impl DensitySampler for NoiseSampler {
     fn sample_volume(
         &self,
         _: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_buffer(buffer, volume)?;
@@ -418,7 +418,7 @@ impl DensitySampler for NoiseSampler {
     fn sample_needed(
         &self,
         _: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
         needed: &[u64],
     ) -> Result<(), SampleError> {
@@ -457,21 +457,21 @@ impl DensitySampler for ShiftedNoiseSampler {
         &self,
         context: &mut SamplerContext,
         position: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         let x = position[0] as f64 * self.source.xz_scale
-            + self.shift_x.sample_value(context, position)? as f64;
+            + self.shift_x.sample_value(context, position)?;
         let mut y = position[1] as f64 * self.source.y_scale;
         if let Some(shift) = &self.shift_y {
-            y += shift.sample_value(context, position)? as f64;
+            y += shift.sample_value(context, position)?;
         }
         let z = position[2] as f64 * self.source.xz_scale
-            + self.shift_z.sample_value(context, position)? as f64;
+            + self.shift_z.sample_value(context, position)?;
         Ok(self.source.noise.get3(x, y, z))
     }
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_buffer(buffer, volume)?;
@@ -495,18 +495,18 @@ impl DensitySampler for ShiftedNoiseSampler {
 impl ShiftedNoiseSampler {
     fn sample_shifted_volume(
         &self,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
-        shift_y: Option<&[f32]>,
-        shift_z: &[f32],
+        shift_y: Option<&[f64]>,
+        shift_z: &[f64],
     ) -> Result<(), SampleError> {
         visit(volume, |index, [x, y, z]| {
-            let x = x as f64 * self.source.xz_scale + buffer[index] as f64;
+            let x = x as f64 * self.source.xz_scale + buffer[index];
             let mut y = y as f64 * self.source.y_scale;
             if let Some(shift) = shift_y {
-                y += shift[index] as f64;
+                y += shift[index];
             }
-            let z = z as f64 * self.source.xz_scale + shift_z[index] as f64;
+            let z = z as f64 * self.source.xz_scale + shift_z[index];
             buffer[index] = self.source.noise.get3(x, y, z);
             Ok(())
         })

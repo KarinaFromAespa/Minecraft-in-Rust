@@ -277,8 +277,6 @@ impl Game<'_> {
             self.dismount(i);
         } else if let Some(i) = self.carts.iter().position(|c| c.id == id) {
             self.dismount_cart(i);
-        } else if let Some(c) = self.cushions.iter().find(|c| c.id == id).cloned() {
-            self.get_up_from_cushion(&c);
         } else if self.seat(id).is_some() {
             self.get_off_seat();
         } else {
@@ -414,19 +412,6 @@ impl TeleportConsumeWorld for Teleporter<'_, '_> {
             1.0,
             1.0,
         );
-        Ok(())
-    }
-    fn block_position(&mut self) -> Result<BlockPos, Infallible> {
-        Ok(BlockPos::containing(self.at()))
-    }
-    fn directional_particles(
-        &mut self,
-        _: Dim,
-        origin: BlockPos,
-        offset: i32,
-    ) -> Result<(), Infallible> {
-        self.0
-            .level_event_at(2017, [origin.x, origin.y, origin.z], offset);
         Ok(())
     }
     fn reset_fall_distance(&mut self) -> Result<(), Infallible> {

@@ -4,7 +4,7 @@
 //! goes as its persistent Codec's NBT, `ByteBufCodecs.fromCodecWithRegistries`).
 //! Item data has no length prefix, so a component read short or long makes
 //! everything after it unreadable.
-use super::{Component, Nested, Template};
+use super::{Component, Nested, Template, component};
 use crate::{
     Error, Result,
     buf::{Codec, Reader},
@@ -174,6 +174,16 @@ pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
             optional(r, nbt)?;
             optional(r, nbt)
         }),
+        // A copied sign's text (synthetic kinds): four lines, an optional
+        // filtered four, a dye colour, a glowing flag.
+        component::SIGN_TEXT_FRONT | component::SIGN_TEXT_BACK => {
+            (0..4).try_for_each(|_| nbt(r))?;
+            if r.bool()? {
+                (0..4).try_for_each(|_| nbt(r))?;
+            }
+            varint(r)?;
+            boolean(r)
+        }
         other => Err(Error::new(format!("unsupported item component {other}"))),
     }
 }
@@ -281,11 +291,9 @@ fn consume_effect(r: &mut Reader) -> Result<()> {
         1 => holder_set(r),
         // clear_all_effects.
         2 => Ok(()),
-        // teleport_randomly: diameter, directionalParticles.
-        3 => {
-            f32(r)?;
-            boolean(r)
-        }
+        // teleport_randomly: diameter only in 26.1 (26.3 added the
+        // directionalParticles bool to the stream codec).
+        3 => f32(r),
         // play_sound.
         4 => sound(r),
         other => Err(Error::new(format!("unknown consume effect type {other}"))),

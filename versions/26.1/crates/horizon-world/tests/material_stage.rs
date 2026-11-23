@@ -56,13 +56,13 @@ impl TerrainBlockStates for Properties {
 #[derive(Debug)]
 struct Zero;
 impl Noise for Zero {
-    fn range(&self) -> Result<[f32; 2], NanRange> {
+    fn range(&self) -> Result<[f64; 2], NanRange> {
         Ok([0.; 2])
     }
-    fn get2(&self, _: f64, _: f64) -> f32 {
+    fn get2(&self, _: f64, _: f64) -> f64 {
         0.
     }
-    fn get3(&self, _: f64, _: f64, _: f64) -> f32 {
+    fn get3(&self, _: f64, _: f64, _: f64) -> f64 {
         0.
     }
 }
@@ -89,7 +89,7 @@ impl MaterialSurfaceQueries for Surface {
 #[derive(Debug)]
 struct Count(Arc<AtomicUsize>);
 impl DensitySampler for Count {
-    fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f32, SampleError> {
+    fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f64, SampleError> {
         self.0.fetch_add(1, Ordering::SeqCst);
         Ok(42.)
     }
@@ -97,7 +97,7 @@ impl DensitySampler for Count {
 #[derive(Debug)]
 struct Fails;
 impl DensitySampler for Fails {
-    fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f32, SampleError> {
+    fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f64, SampleError> {
         Err(SampleError::RecursiveCache)
     }
 }

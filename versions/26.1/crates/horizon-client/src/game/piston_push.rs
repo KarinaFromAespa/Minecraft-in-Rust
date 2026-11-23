@@ -415,6 +415,13 @@ impl Game<'_> {
             if search.is_some_and(|area| !area.intersects(body.bounds)) {
                 return;
             }
+            // `moveCollidedEntities` in 26.1 skips a ServerPlayer entirely
+            // when the moved block is slime — no bounce and no push (the
+            // bytecode jumps back to the next entity). 26.3 only skips the
+            // bounce (`canSimulateMovement`) and still pushes.
+            if slime && matches!(target, Target::Player | Target::Guest(_)) {
+                return;
+            }
             let amount = piston_push::collided_amount(
                 &boxes,
                 pos,
@@ -496,7 +503,7 @@ impl Game<'_> {
     }
 
     /// `Block.pushEntitiesUp(old, new, level, pos)` for the block now at `pos`
-    /// (`FarmlandBlock.turnToBaseBlock`, `PathBlock.turnToBaseBlock`): every body
+    /// (`FarmlandBlock.turnToBaseBlock`, `DirtPathBlock.turnToBaseBlock`): every body
     /// touching the collision that the new state adds over `old` is lifted
     /// onto it with `teleportRelative`, no collision scan.
     pub(super) fn push_entities_up(
@@ -762,12 +769,11 @@ impl Game<'_> {
         self.piston_block_triggers(before, after);
     }
 
-    /// `Entity.restituteMovementAfterCollisions` after a block's push, for a
+    /// `Block.updateEntityMovementAfterFallOn` after a block's push, for a
     /// server entity (`canSimulateMovement`; a player's own client moves it):
     /// an axis the collision cut off stops (no entity bounces off walls), and
     /// a cut-off vertical push stops the fall or rise, except a fall onto
-    /// slime fast enough to bounce. The bounce is of the entity's own
-    /// velocity, scaled by the part of the push that was made. The ground
+    /// slime or a bed, which bounces by the block's factor. The ground
     /// flag is set by `set_pushed_on_ground`.
     fn restitute_piston(&mut self, target: Target, limited: Vec3, resolved: Vec3) {
         let Target::Entity(handle) = target else {
@@ -790,7 +796,9 @@ impl Game<'_> {
                 (pos.y - 0.2).floor() as i32,
                 pos.z.floor() as i32,
             );
-            let slime = &*self.res.facts().get(on).name == "minecraft:slime_block";
+            let on_name = &*self.res.facts().get(on).name;
+            let slime = on_name == "minecraft:slime_block";
+            let bed = on_name.ends_with("_bed");
             let velocity = entity.velocity_mut();
             if collided_x {
                 velocity.x = 0.0;
@@ -799,9 +807,8 @@ impl Game<'_> {
                 velocity.z = 0.0;
             }
             if vertical {
-                velocity.y = crate::entities::vertical_collision_velocity(
-                    velocity.y, resolved.y, 0.04, below, slime,
-                );
+                velocity.y =
+                    crate::entities::vertical_collision_velocity(velocity.y, below, slime, bed);
             }
         });
     }

@@ -4,6 +4,12 @@
 //! its next change of state and push the entities an eruption throws up. The
 //! client's draw the gas clouds and the eruption's plume, play its sound and
 //! push the local player, who moves on its own client and not on the server.
+//!
+//! Potent sulfur is 26.2-only content, unreachable in 26.1: 26.1's jars
+//! have no `PotentSulfurBlock`, `PotentSulfurState` or geyser classes, and
+//! no 26.1 data references them (the `SulfurCube` precedent — kept, as
+//! the geyser/noxious particles in `particle_type.rs` are, because no
+//! 26.1 data reaches this code).
 use super::{
     Game,
     potions::{mob_can_be_affected, mob_effect_id},

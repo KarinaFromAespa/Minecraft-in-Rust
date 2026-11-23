@@ -63,8 +63,9 @@ pub struct ServerProperties {
     pub max_tick_time: i64,
     pub max_chained_neighbor_updates: i32,
     pub rate_limit: i32,
-    pub command_spam_threshold_seconds: i32,
-    pub chat_spam_threshold_seconds: i32,
+    // 26.1 has no `command-spam-threshold-seconds` /
+    // `chat-spam-threshold-seconds` properties (26.2 added both); the single
+    // chatSpamThrottler(20, 200) is hardcoded.
     pub view_distance: i32,
     pub simulation_distance: i32,
     pub max_players: i32,
@@ -304,8 +305,6 @@ impl ServerProperties {
         let max_tick_time = r.long("max-tick-time", 60_000);
         let max_chained_neighbor_updates = r.int("max-chained-neighbor-updates", 1_000_000);
         let rate_limit = r.int("rate-limit", 0);
-        let command_spam_threshold_seconds = r.int("command-spam-threshold-seconds", 10);
-        let chat_spam_threshold_seconds = r.int("chat-spam-threshold-seconds", 10);
         let view_distance = r.int("view-distance", 10);
         let simulation_distance = r.int("simulation-distance", 10);
         let max_players = r.int("max-players", 20);
@@ -428,8 +427,6 @@ impl ServerProperties {
             max_tick_time,
             max_chained_neighbor_updates,
             rate_limit,
-            command_spam_threshold_seconds,
-            chat_spam_threshold_seconds,
             view_distance,
             simulation_distance,
             max_players,

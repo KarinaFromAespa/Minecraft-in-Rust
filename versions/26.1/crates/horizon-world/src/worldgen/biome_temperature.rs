@@ -1,13 +1,9 @@
 //! Biome temperature sampling and a worker-local vanilla temperature cache.
 use super::{DecodeError, Object, number_text, optional, required};
-use horizon_core::{
-    noise::{Noise, NoiseStack, SimplexNoise},
-    position::BlockPos,
-    random::LegacyRandom,
-};
+use horizon_core::{noise::synth::PerlinSimplexNoise, position::BlockPos, random::LegacyRandom};
 use std::{
     collections::{HashMap, VecDeque, hash_map::Entry},
-    sync::{Arc, OnceLock},
+    sync::OnceLock,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,32 +24,27 @@ pub struct BiomeTemperatureSettings {
     pub has_precipitation: bool,
     pub downfall: f32,
 }
+/// Vanilla 26.1 `Biome`'s three noises, all `PerlinSimplexNoise` sampled
+/// in double: `TEMPERATURE_NOISE` (seed 1234, octaves [0]),
+/// `FROZEN_TEMPERATURE_NOISE` (seed 3456, octaves [-2, -1, 0]),
+/// `BIOME_INFO_NOISE` (seed 2345, octaves [0]). The float sampler engine
+/// cannot serve them: `NoiseBasedCountPlacement` takes
+/// `ceil((noise + offset) * ratio)`, so an `f32`-rounded noise flips
+/// counts at extreme ratios.
 struct TemperatureNoises {
-    height: SimplexNoise,
-    frozen: NoiseStack,
-    info: SimplexNoise,
+    height: PerlinSimplexNoise,
+    frozen: PerlinSimplexNoise,
+    info: PerlinSimplexNoise,
 }
 fn noises() -> &'static TemperatureNoises {
     static NOISES: OnceLock<TemperatureNoises> = OnceLock::new();
-    NOISES.get_or_init(|| {
-        let mut random = LegacyRandom::new(3456);
-        let mut frozen = NoiseStack::builder();
-        for (frequency, amplitude) in [
-            (1.0, 1.0f32 / 7.0),
-            (0.5, 2.0f32 / 7.0),
-            (0.25, 4.0f32 / 7.0),
-        ] {
-            frozen.add(
-                Arc::new(SimplexNoise::with_skipped_offsets(&mut random, true)),
-                frequency,
-                amplitude,
-            );
-        }
-        TemperatureNoises {
-            height: SimplexNoise::with_skipped_offsets(&mut LegacyRandom::new(1234), true),
-            frozen: frozen.build().expect("fixed finite noise layers"),
-            info: SimplexNoise::with_skipped_offsets(&mut LegacyRandom::new(2345), true),
-        }
+    NOISES.get_or_init(|| TemperatureNoises {
+        height: PerlinSimplexNoise::new(&mut LegacyRandom::new(1234), &[0])
+            .expect("fixed octave set"),
+        frozen: PerlinSimplexNoise::new(&mut LegacyRandom::new(3456), &[-2, -1, 0])
+            .expect("fixed octave set"),
+        info: PerlinSimplexNoise::new(&mut LegacyRandom::new(2345), &[0])
+            .expect("fixed octave set"),
     })
 }
 impl TemperatureModifier {
@@ -62,9 +53,9 @@ impl TemperatureModifier {
             let sources = noises();
             let x = f64::from(position.x);
             let z = f64::from(position.z);
-            let frozen = f64::from(sources.frozen.get2(x * 0.05, z * 0.05) * 7.0);
-            let info = f64::from(sources.info.get2(x * 0.2, z * 0.2));
-            if frozen + info < 0.3 && f64::from(sources.info.get2(x * 0.09, z * 0.09)) < 0.8 {
+            let frozen = sources.frozen.get_value(x * 0.05, z * 0.05, false) * 7.0;
+            let info = sources.info.get_value(x * 0.2, z * 0.2, false);
+            if frozen + info < 0.3 && sources.info.get_value(x * 0.09, z * 0.09, false) < 0.8 {
                 return 0.2;
             }
         }
@@ -101,10 +92,13 @@ impl BiomeTemperatureSettings {
         let base = self.modifier.modify(position, self.base_temperature);
         let start = sea_level.wrapping_add(17);
         if position.y > start {
-            let variation = noises().height.get2(
+            // Vanilla casts the doubled value to float here:
+            // `(float)(TEMPERATURE_NOISE.getValue(x / 8.0F, z / 8.0F, false) * 8.0)`.
+            let variation = (noises().height.get_value(
                 f64::from(position.x as f32 / 8.0),
                 f64::from(position.z as f32 / 8.0),
-            ) * 8.0;
+                false,
+            ) * 8.0) as f32;
             base - ((variation + position.y as f32 - start as f32) * 0.05 / 40.0)
         } else {
             base
@@ -205,9 +199,10 @@ impl BiomeTemperature {
     }
 }
 
-/// Fixed biome-information noise shared by temperature and placement rules.
-pub fn biome_info_noise(x: f64, z: f64) -> f32 {
-    noises().info.get2(x, z)
+/// Fixed biome-information noise shared by temperature and placement rules:
+/// vanilla 26.1 `Biome.BIOME_INFO_NOISE`, a double.
+pub fn biome_info_noise(x: f64, z: f64) -> f64 {
+    noises().info.get_value(x, z, false)
 }
 
 #[cfg(test)]

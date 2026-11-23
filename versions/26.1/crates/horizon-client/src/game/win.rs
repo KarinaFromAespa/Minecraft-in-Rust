@@ -114,8 +114,7 @@ impl Game<'_> {
             return Ok(());
         };
         let credits = horizon_client::music::Music::credits();
-        self.music
-            .stop_playing_music(&credits, None, &mut self.audio);
+        self.music.stop_playing_music(&credits, &mut self.audio);
         match win.finish {
             Finish::Options => self.screen = Screen::Options,
             Finish::Closed if self.title.is_some() => self.screen = Screen::Playing,

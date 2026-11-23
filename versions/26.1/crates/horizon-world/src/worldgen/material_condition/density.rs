@@ -16,12 +16,12 @@ pub struct MaterialDensitySources<S: MaterialSurfaceQueries> {
     expected: DensityVolume,
     densities: Vec<BoundDensity>,
     /// Eagerly sampled volumes, shared by bindings of the same density root.
-    buffers: Vec<Vec<f32>>,
+    buffers: Vec<Vec<f64>>,
     retained_samples: usize,
     plane: DensityVolume,
     sampler: Arc<dyn DensitySampler>,
     context: SamplerContext,
-    buffer: Option<Vec<f32>>,
+    buffer: Option<Vec<f64>>,
 }
 struct BoundDensity {
     sampler: Arc<dyn DensitySampler>,
@@ -126,7 +126,7 @@ impl<S: MaterialSurfaceQueries> MaterialSurfaceQueries for MaterialDensitySource
         self.densities.push(BoundDensity { sampler, buffer });
         Ok(index)
     }
-    fn density(&mut self, index: usize, position: BlockPos) -> Result<f32, MaterialRuleError> {
+    fn density(&mut self, index: usize, position: BlockPos) -> Result<f64, MaterialRuleError> {
         let source = self
             .densities
             .get(index)
@@ -139,7 +139,7 @@ impl<S: MaterialSurfaceQueries> MaterialSurfaceQueries for MaterialDensitySource
         }
         Ok(source.sampler.sample_value(&mut self.context, position)?)
     }
-    fn preliminary_surface(&mut self, position: BlockPos) -> Result<f32, MaterialRuleError> {
+    fn preliminary_surface(&mut self, position: BlockPos) -> Result<f64, MaterialRuleError> {
         let position = [position.x, 0, position.z];
         if let Some(index) = self.plane.index_of_block(position) {
             if self.buffer.is_none() {
@@ -229,13 +229,13 @@ mod tests {
     #[derive(Debug, Default)]
     struct Counted(AtomicUsize);
     impl DensitySampler for Counted {
-        fn sample_value(&self, _: &mut SamplerContext, p: [i32; 3]) -> Result<f32, SampleError> {
-            Ok((p[0] * 10_000 + p[1] * 100 + p[2]) as f32)
+        fn sample_value(&self, _: &mut SamplerContext, p: [i32; 3]) -> Result<f64, SampleError> {
+            Ok((p[0] * 10_000 + p[1] * 100 + p[2]) as f64)
         }
         fn sample_volume(
             &self,
             context: &mut SamplerContext,
-            buffer: &mut [f32],
+            buffer: &mut [f64],
             volume: DensityVolume,
         ) -> Result<(), SampleError> {
             self.0.fetch_add(1, Ordering::Relaxed);
@@ -276,7 +276,7 @@ mod tests {
         assert_eq!([a, lazy, b, c], [0, 1, 2, 3]);
         for p in [[32, -64, -16], [47, -41, -1], [40, -50, -9], [48, 0, 0]] {
             let position = BlockPos::new(p[0], p[1], p[2]);
-            let expected = (p[0] * 10_000 + p[1] * 100 + p[2]) as f32;
+            let expected = (p[0] * 10_000 + p[1] * 100 + p[2]) as f64;
             for index in [a, lazy, b, c] {
                 assert_eq!(sources.density(index, position).unwrap(), expected);
             }

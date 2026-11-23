@@ -138,10 +138,12 @@ impl Game<'_> {
         let id = self.riding?;
         self.mobs.iter().position(|m| m.id == id)
     }
-    /// `Entity.interact` / `Mob.canShearEquipment` / `Mob.attemptToShearEquipment`
-    /// / `Mob.shearItem`: the saddle of a `#can_equip_saddle` mob comes off
-    /// before its mobInteract can ride it, with the saddle's shearing sound.
-    /// An occupied mount is not sheared: its mobInteract runs instead.
+    /// `Entity.interact` / `Mob.canShearEquipment` /
+    /// `Entity.attemptToShearEquipment` (26.1's private helper; 26.2 moved it
+    /// to `Mob.attemptToShearEquipment` + `Mob.shearItem`): the saddle of a
+    /// `#can_equip_saddle` mob comes off before its mobInteract can ride it,
+    /// with the saddle's shearing sound. An occupied mount is not sheared:
+    /// its mobInteract runs instead.
     pub(super) fn shear_saddle(&mut self, index: usize, item: &str) -> Option<bool> {
         let m = &self.mobs[index];
         // EntityTypeTags.CAN_EQUIP_SADDLE.

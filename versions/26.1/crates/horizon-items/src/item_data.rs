@@ -287,16 +287,21 @@ pub fn destroyed_container(stack: &mut ItemStack) -> Vec<ItemStack> {
     held.into_iter().map(|(_, stack)| stack).collect()
 }
 
-/// `NbtOps.getBooleanValue`, used by boolean component codecs: every numeric tag
-/// is true unless its double value is zero. In particular, fractions stay true.
+/// `NbtOps.getBooleanValue`, used by boolean component codecs. 26.1's
+/// `NbtOps` does not override it, so the DFU default applies:
+/// `Number.byteValue() != 0` — only the low 8 bits count, so 256 and
+/// 0.5 are false. 26.2 overrode it with the double form
+/// (`doubleValue() != 0.0`), where fractions stay true.
 pub fn component_bool(value: &Tag) -> Option<bool> {
+    // Java's byteValue(): integers narrow to the low 8 bits; floats narrow
+    // to int first (truncate toward zero, NaN to 0, saturating), then to byte.
     Some(match value {
         Tag::Byte(v) => *v != 0,
-        Tag::Short(v) => *v != 0,
-        Tag::Int(v) => *v != 0,
-        Tag::Long(v) => *v != 0,
-        Tag::Float(bits) => f32::from_bits(*bits) != 0.0,
-        Tag::Double(bits) => f64::from_bits(*bits) != 0.0,
+        Tag::Short(v) => (*v as i8) != 0,
+        Tag::Int(v) => (*v as i8) != 0,
+        Tag::Long(v) => (*v as i8) != 0,
+        Tag::Float(bits) => (f32::from_bits(*bits) as i32 as i8) != 0,
+        Tag::Double(bits) => (f64::from_bits(*bits) as i32 as i8) != 0,
         _ => return None,
     })
 }
@@ -1363,6 +1368,27 @@ pub fn command_components(text: &str) -> Result<Tag, String> {
 mod tests {
     use super::*;
     use crate::banner_layer::BannerLayer;
+
+    /// 26.1's `NbtOps.getBooleanValue` is the DFU default,
+    /// `Number.byteValue() != 0`: only the low 8 bits count, so an int
+    /// of 256 and a float of 0.5 are false, while 257 and 1.5 are true
+    /// (26.2's double form keeps 256 and 0.5 true).
+    #[test]
+    fn a_component_bool_reads_only_the_low_8_bits() {
+        assert_eq!(component_bool(&Tag::Byte(1)), Some(true));
+        assert_eq!(component_bool(&Tag::Byte(0)), Some(false));
+        assert_eq!(component_bool(&Tag::Int(256)), Some(false));
+        assert_eq!(component_bool(&Tag::Int(257)), Some(true));
+        assert_eq!(component_bool(&Tag::Short(-1)), Some(true));
+        assert_eq!(component_bool(&Tag::Long(512)), Some(false));
+        assert_eq!(component_bool(&Tag::Float(0.5_f32.to_bits())), Some(false));
+        assert_eq!(component_bool(&Tag::Float(1.5_f32.to_bits())), Some(true));
+        assert_eq!(
+            component_bool(&Tag::Double(300.0_f64.to_bits())),
+            Some(true)
+        );
+        assert_eq!(component_bool(&Tag::String("true".into())), None);
+    }
 
     /// `set_banner_pattern` (and `set_components`) hand a banner's layers over
     /// as a component; the renderer and the tooltip read `banner_patterns`, so

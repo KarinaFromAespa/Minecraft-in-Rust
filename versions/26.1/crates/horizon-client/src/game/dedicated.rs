@@ -1049,8 +1049,10 @@ impl Game<'_> {
             None,
         )?)?;
         // WorldLoader: the world's packs must load before the server starts. The data store is read
-        // now rather than at the first tick (reading parses functions; it runs none), and a broken
-        // predicate graph stops the start before anything listens (a partial check: predicate_graph.rs).
+        // now rather than at the first tick (reading parses functions; it runs none), and unbound
+        // predicate references stop the start before anything listens (a partial check:
+        // predicate_graph.rs). A cycle is only a warning in 26.1 — 26.3's fatal-problem throw
+        // does not exist here — so it is logged and the start carries on.
         self.ensure_datapacks();
         if let Err(error) = predicate_graph::check(&self.fns.store.predicates) {
             let level = match error {
@@ -1060,11 +1062,13 @@ impl Game<'_> {
             for line in error.lines() {
                 log(level, &line);
             }
-            log(
-                "WARN",
-                "Failed to load datapacks, can't proceed with server load. You can either fix your datapacks or reset to vanilla with --safeMode",
-            );
-            return Err(Box::new(DatapacksRefused));
+            if matches!(error, predicate_graph::GraphError::Unbound(_)) {
+                log(
+                    "WARN",
+                    "Failed to load datapacks, can't proceed with server load. You can either fix your datapacks or reset to vanilla with --safeMode",
+                );
+                return Err(Box::new(DatapacksRefused));
+            }
         }
         if new_world {
             self.level.hardcore = props.hardcore;
@@ -1269,8 +1273,8 @@ impl Game<'_> {
             host.hub.set_anticheat(anticheat);
             host.hub.set_chat_filter(chat_filter);
             host.hub.spawn_protection = props.spawn_protection;
-            host.hub.chat_spam_threshold = props.chat_spam_threshold_seconds.wrapping_mul(20);
-            host.hub.command_spam_threshold = props.command_spam_threshold_seconds.wrapping_mul(20);
+            // 26.1 has no chat/command spam-threshold properties: the single
+            // chatSpamThrottler(20, 200) is hardcoded (26.2 added both).
             // Off: an operator's commands reach no other player, only the log.
             host.hub.admin_feedback_to_ops = props
                 .raw

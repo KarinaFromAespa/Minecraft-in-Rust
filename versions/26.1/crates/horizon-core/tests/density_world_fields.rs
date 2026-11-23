@@ -17,9 +17,9 @@ impl DensityBlender for SpatialBlender {
         self.calls.lock().unwrap().push(None);
         false
     }
-    fn blend_density(&self, [x, y, z]: [i32; 3], input: f32) -> f32 {
+    fn blend_density(&self, [x, y, z]: [i32; 3], input: f64) -> f64 {
         self.calls.lock().unwrap().push(Some([x, y, z]));
-        input + (x * 100 + y * 10 + z) as f32
+        input + (x * 100 + y * 10 + z) as f64
     }
 }
 
@@ -96,13 +96,13 @@ fn blending_visits_z_x_y_and_preserves_the_input_tail() {
 #[derive(Debug)]
 struct FailedInput;
 impl DensitySampler for FailedInput {
-    fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f32, SampleError> {
+    fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f64, SampleError> {
         Err(SampleError::ZeroGradientPeriod)
     }
     fn sample_volume(
         &self,
         _: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         _: DensityVolume,
     ) -> Result<(), SampleError> {
         buffer[0] = 0.25;
@@ -190,7 +190,7 @@ fn named_reference_identity_differs_from_direct_value_equality() {
     let mut context = SamplerContext::default();
     assert_eq!(
         raw.sample_value(&mut context, [0; 3]).unwrap().to_bits(),
-        0x8000_0000
+        0x8000_0000_0000_0000
     );
     assert_eq!(
         optimized

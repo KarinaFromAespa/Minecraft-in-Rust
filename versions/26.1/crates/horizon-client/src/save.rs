@@ -463,8 +463,8 @@ pub fn poi_type(state: &horizon_world::chunk::BlockState) -> Option<(&'static st
         "nether_portal" => ("minecraft:nether_portal", 0),
         "lodestone" => ("minecraft:lodestone", 0),
         "test_instance_block" => ("minecraft:test_instance", 0),
-        // PoiTypes.BEDS is the sixteen colours: no straw bed.
-        bed if bed.ends_with("_bed") && bed != "straw_bed" => {
+        // PoiTypes.BEDS is the sixteen colours (26.1 has no straw bed).
+        bed if bed.ends_with("_bed") => {
             if state.properties.get("part").map(String::as_str) != Some("head") {
                 return None;
             }
@@ -685,11 +685,10 @@ pub fn encode_block_entity(
         }
         BlockEntity::Brewing(b) => {
             entries.push(("Items", encode_items(&b.items)));
-            entries.push(("BrewTime", Tag::Int(b.brew_time)));
-            entries.push(("total_brew_time", Tag::Int(b.total_brew_time)));
-            entries.push(("Fuel", Tag::Int(b.fuel)));
-            entries.push(("total_fuel", Tag::Int(b.total_fuel)));
-            entries.push(("speed_multiplier", Tag::Float(b.speed.to_bits())));
+            // 26.1 saves BrewTime as a short and Fuel as a byte, with no
+            // total_brew_time, total_fuel or speed_multiplier (26.3's format).
+            entries.push(("BrewTime", Tag::Short(b.brew_time as i16)));
+            entries.push(("Fuel", Tag::Byte(b.fuel as i8)));
         }
         BlockEntity::Sign(sign) => entries.extend(sign.encode()),
         BlockEntity::Jukebox(j) => {
@@ -1065,13 +1064,12 @@ pub fn decode_block_entity(tag: &Tag) -> Option<((i32, i32, i32), crate::contain
                 items[4].clone(),
             ];
             b.brew_time = int("BrewTime").unwrap_or(0);
-            b.total_brew_time = int("total_brew_time").unwrap_or(400);
             if b.brew_time > 0 {
                 b.ingredient = b.items[3].as_ref().map(|s| s.item.clone());
             }
             b.fuel = int("Fuel").unwrap_or(0);
-            b.total_fuel = int("total_fuel").unwrap_or(20);
-            b.speed = float(tag.get("speed_multiplier")).map_or(1.0, |v| v as f32);
+            // A 26.3 save's total_brew_time, total_fuel and
+            // speed_multiplier are ignored: 26.1 stands have no such state.
         }
         BlockEntity::Brushable(b) => {
             b.loot_table = tag.get("LootTable").cloned();
@@ -1427,9 +1425,10 @@ fn put_calculated_blending(root: &mut NamedTag, data: &BlendingData) {
         ("max_section", Tag::Int(max_section)),
     ];
     if let Some(heights) = heights {
+        // 26.1 writes doubles (`Codec.DOUBLE.listOf()`; 26.3 wrote floats).
         fields.push((
             "heights",
-            Tag::List(heights.iter().map(|h| Tag::Float(h.to_bits())).collect()),
+            Tag::List(heights.iter().map(|h| Tag::Double(h.to_bits())).collect()),
         ));
     }
     map.insert("blending_data".into(), Tag::compound(fields));
@@ -2786,7 +2785,7 @@ impl SaveDir {
     }
     /// The chunks of a region file that an older version generated, as
     /// `IOWorker.createOldDataForRegion` finds them (bit `x + z * 32`): saved
-    /// before DataVersion 4997, or with `blending_data`.
+    /// before DataVersion 4295, or with `blending_data`.
     pub fn old_chunk_bits(&self, rx: i32, rz: i32) -> [u64; 16] {
         let mut bits = [0u64; 16];
         let Ok(region) = RegionFile::open(self.region_path("region", rx, rz)) else {
@@ -5483,11 +5482,11 @@ impl<G: ChunkGenerator> ChunkGenerator for Persistent<G> {
     }
 }
 
-/// `IOWorker.createOldDataForRegion`'s test of one record: saved before DataVersion 4997, or
-/// with `blending_data`.
+/// `IOWorker.createOldDataForRegion`'s test of one record: saved before DataVersion 4295
+/// (`BlendingDataFix`'s schema in 26.1), or with `blending_data`.
 fn record_is_old(root: &NamedTag) -> bool {
     let before_blending = match root.tag.get("DataVersion") {
-        Some(Tag::Int(version)) => *version < 4997,
+        Some(Tag::Int(version)) => *version < 4295,
         _ => true,
     };
     before_blending || root.tag.get("blending_data").is_some()
@@ -5629,7 +5628,6 @@ mod tests {
         chunk.set(1, 70, 2, state("minecraft:red_bed", &[("part", "foot")]));
         chunk.set(5, 71, 5, state("minecraft:bell", &[]));
         chunk.set(6, 71, 5, state("minecraft:stone", &[]));
-        chunk.set(9, 70, 9, state("minecraft:straw_bed", &[("part", "head")]));
         assert!(encode_poi(&Chunk::empty(0, 0), &tables).is_none());
         let saved = encode_poi(&chunk, &tables).expect("records");
         let Some(Tag::Compound(sections)) = saved.tag.get("Sections") else {
@@ -8542,8 +8540,10 @@ mod tests {
         else {
             panic!("no palette");
         };
+        // 26.1 palettes still use `Name` (the rename to `id` is a later fix,
+        // key 5006); only the 1.20.3 grass rename applies here.
         assert_eq!(
-            text(palette[0].get("id")).as_deref(),
+            text(palette[0].get("Name")).as_deref(),
             Some("minecraft:short_grass")
         );
         // Decoded, it keeps its blocks: read raw, the 26.x decoder finds no `id` in a
@@ -8600,7 +8600,7 @@ mod tests {
         );
         // A 1.20.1 Nether chunk: upgraded it has no `blending_data` (only Overworld
         // chunks blend) and the current DataVersion, so only the saved record says
-        // it is older than blending (4997), as `IOWorker.isOldChunk` reads it.
+        // it is older than blending (4295), as `IOWorker.isOldChunk` reads it.
         write_old_record(
             &nether,
             "region",
@@ -9260,8 +9260,8 @@ mod calculated_blending_save_tests {
     use super::*;
     use horizon_world::worldgen::blending::BlendingData;
 
-    fn heights() -> [f32; 16] {
-        let mut h = [f32::MAX; 16];
+    fn heights() -> [f64; 16] {
+        let mut h = [f64::MAX; 16];
         h[12..].copy_from_slice(&[70.0, 70.0, 69.0, 68.0]);
         h
     }
@@ -9279,14 +9279,14 @@ mod calculated_blending_save_tests {
         chunk.saved = Some(Arc::new(extras));
         chunk
     }
-    fn saved_heights(save: &SaveDir, x: i32, z: i32) -> Option<Option<Vec<u32>>> {
+    fn saved_heights(save: &SaveDir, x: i32, z: i32) -> Option<Option<Vec<u64>>> {
         let root = save.read_record_raw("region", x, z)?;
         let data = root.tag.get("blending_data")?.clone();
         Some(match data.get("heights") {
             Some(Tag::List(list)) => Some(
                 list.iter()
                     .map(|v| match v {
-                        Tag::Float(bits) => *bits,
+                        Tag::Double(bits) => *bits,
                         other => panic!("{other:?}"),
                     })
                     .collect(),
@@ -9308,8 +9308,8 @@ mod calculated_blending_save_tests {
         let _ = save.tables.set(Arc::new(SaveTables::new(assets)));
         (dir, save)
     }
-    fn want() -> Vec<u32> {
-        heights().map(f32::to_bits).to_vec()
+    fn want() -> Vec<u64> {
+        heights().map(f64::to_bits).to_vec()
     }
 
     /// The owner of a cache entry, as `SavedOldWorld` owns its cache.
@@ -9382,10 +9382,10 @@ mod calculated_blending_save_tests {
             Some(Tag::List(list)) => list
                 .iter()
                 .map(|v| match v {
-                    Tag::Float(bits) => *bits,
+                    Tag::Double(bits) => *bits,
                     other => panic!("{other:?}"),
                 })
-                .collect::<Vec<u32>>(),
+                .collect::<Vec<u64>>(),
             other => panic!("heights {other:?}"),
         };
         assert_eq!(heights, want());

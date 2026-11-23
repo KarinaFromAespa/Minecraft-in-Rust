@@ -93,7 +93,6 @@ pub const MAX_RENDER_DISTANCE: i32 = 128;
 const INACTIVITY: &[&str] = &["minimized", "afk"];
 const CLOUDS: &[&str] = &["false", "fast", "true"];
 const MAIN_HAND: &[&str] = &["left", "right"];
-const PRESENCE: &[&str] = &["none", "limited", "all"];
 const MUSIC_TOAST: &[&str] = &["never", "pause", "pause_and_toast"];
 const MUSIC_FREQUENCY: &[&str] = &["DEFAULT", "FREQUENT", "CONSTANT"];
 
@@ -238,8 +237,6 @@ static TABLE: LazyLock<Vec<Def>> = LazyLock::new(|| {
         pb("syncChunkWrites", false),
         b("showAutosaveIndicator", true),
         b("allowServerListing", true),
-        b("inGameNotification", false),
-        n("sharePresence", PRESENCE, 2),
         b("onlyShowSecureChat", false),
         b("saveChatDrafts", false),
         u("panoramaScrollSpeed", 1.0),

@@ -99,6 +99,7 @@ mod ground_state_fixture;
 mod height_provider_fixture;
 mod heightmap_fixture;
 mod interaction_shape_fixture;
+mod interpolation_fixture;
 mod inventory_pickup_fixture;
 mod inventory_tick_fixture;
 mod inventory_use_fixture;
@@ -167,7 +168,6 @@ mod spawn_origin;
 mod state_provider_fixture;
 mod status_effect_fixture;
 mod status_tick_fixture;
-mod stepped_interpolation_fixture;
 mod stored_consume_fixture;
 mod stored_effect_attributes_fixture;
 mod stored_effect_notifications_fixture;
@@ -275,6 +275,7 @@ probes! {
     height_provider_fixture,
     heightmap_fixture,
     interaction_shape_fixture,
+    interpolation_fixture,
     inventory_pickup_fixture,
     inventory_tick_fixture,
     inventory_use_fixture,
@@ -342,7 +343,6 @@ probes! {
     state_provider_fixture,
     status_effect_fixture,
     status_tick_fixture,
-    stepped_interpolation_fixture,
     stored_consume_fixture,
     stored_effect_attributes_fixture,
     stored_effect_notifications_fixture,

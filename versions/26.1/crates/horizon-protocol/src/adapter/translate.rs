@@ -918,7 +918,7 @@ pub(super) fn move_entity(payload: &[u8], pos: bool, rot: bool) -> Result<Vec<u8
     let mut r = Reader::new(payload);
     let id = r.varint()?;
     let delta = if pos {
-        Some(play::VecDelta::Linear([r.i16()?, r.i16()?, r.i16()?]))
+        Some(play::VecDelta([r.i16()?, r.i16()?, r.i16()?]))
     } else {
         None
     };
@@ -953,10 +953,12 @@ pub(super) fn position_sync(payload: &[u8]) -> Result<Vec<u8>> {
     play::EntityPositionSync::write(
         &play::EntityPositionSync {
             id,
-            position,
-            delta,
-            yaw,
-            pitch,
+            values: play::PositionMoveRotation {
+                position,
+                delta_movement: delta,
+                yaw,
+                pitch,
+            },
             on_ground,
         },
         &mut w,
@@ -2597,7 +2599,7 @@ mod tests {
             p,
             play::Clientbound::MoveEntityPos(play::MoveEntityPos(play::MoveEntity {
                 id: 7,
-                delta: Some(play::VecDelta::Linear([4096, 0, -2048])),
+                delta: Some(play::VecDelta([4096, 0, -2048])),
                 rotation: None,
                 on_ground: true,
             }))

@@ -94,18 +94,6 @@ impl Game<'_> {
         self.award_stat("used", &item, 1);
     }
 
-    /// `ServerPlayerGameMode.tick` while a player digs: level event 2020 every
-    /// fourth tick since the START (the hit sound), else 2019 (the crack only),
-    /// for everyone around, the digger included (`levelEvent(null, ...)`).
-    pub(super) fn destroy_progress_event(&mut self, pos: [i32; 3], face: [i32; 3], ticks: u32) {
-        let id = if ticks.is_multiple_of(4) { 2020 } else { 2019 };
-        let direction = horizon_core::geometry::Direction::ALL
-            .iter()
-            .position(|d| d.normal() == face)
-            .unwrap_or(1);
-        self.level_event_at(id, pos, direction as i32);
-    }
-
     /// `LevelRenderer.destroyBlockProgress`: a player's crack on a block (0..=9), or none
     /// (any other progress). Cracks not updated for 400 ticks are dropped.
     pub(crate) fn destroy_block_progress(&mut self, breaker: i32, pos: [i32; 3], progress: i32) {

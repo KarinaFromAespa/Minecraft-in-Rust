@@ -1526,8 +1526,10 @@ pub struct Mob {
     /// `Entity.needsSync`: knocked back, pushed or jumped since its server
     /// last sent it, so the next update goes out at once.
     pub needs_sync: bool,
-    /// `Entity.syncPosition`: it bounced this tick (`restituteMovementAfterCollisions`),
-    /// so its tracker keeps this position as a step of the next move it sends.
+    /// Set when it bounces this tick (`restituteMovementAfterCollisions`).
+    /// 26.1 has no `Entity.syncPosition` (26.2 added it), so nothing reads
+    /// this yet: the bounced entity goes out on its next due tick. The
+    /// living-bounce re-port owns removing the flag.
     pub sync_position: bool,
     /// `getAttributeValue(KNOCKBACK_RESISTANCE)` with the modifiers of the
     /// items it wears or holds, which the game works out each tick for a mob
@@ -1535,8 +1537,19 @@ pub struct Mob {
     pub gear_knockback_resistance: Option<f64>,
     pub health: f32,
     pub hurt_time: i32,
-    /// `LivingEntity.damageCooldownTime`: the hurt cooldown, 20 after a hit;
-    /// transient, never saved.
+    /// `Entity.hurtMarked`: set by `LivingEntity.hurtServer` on a fresh hit
+    /// (`markHurt`, skipped only for `#no_impact` — drowning in 26.1) and
+    /// cleared by `ServerEntity.sendChanges` every tick, so it is true only
+    /// until the end of the tick the hurt landed in. 26.1's
+    /// `LookAndFollowTradingPlayerSink` and `TradeWithPlayerGoal` gate on
+    /// `!hurtMarked`, not on the 10-tick hurt window 26.3's
+    /// `wasHurtRecently` reads; a hurt villager or trader may follow its
+    /// customer again from the next tick.
+    pub hurt_marked: bool,
+    /// `LivingEntity.invulnerableTime`: the hurt cooldown, 20 after a hit;
+    /// transient, never saved. (26.3 renamed it `damageCooldownTime` and
+    /// repurposed `invulnerableTime` as a saved temporary-invulnerability
+    /// timer; 26.1 has no such timer.)
     pub invulnerable: i32,
     /// `Entity.invulnerableTime`, saved as `invulnerable_time`: while above 0
     /// the mob is invulnerable as with `Invulnerable` (`isTemporarilyInvulnerable`).
@@ -3179,9 +3192,10 @@ impl PlayerView {
     }
     /// `LivingEntity.getVisibilityPercent`: 1, ×0.8 while discrete
     /// (`isShiftKeyDown`), ×0.7×armor cover (at least 0.1) while invisible,
-    /// then each worn stack's `minecraft:mob_visibility` when its equippable
-    /// slot matches and `targeting` is in `targetingEntityTypes`. Clamped to
-    /// 0..=10 (`Mth.clamp`). `targeting` is null when nobody is looking.
+    /// then ×0.5 when the head slot holds the targeting mob's own head
+    /// (skeleton, zombie, piglin or creeper — 26.1's hardcoded rule; piglin
+    /// brutes are not fooled). Clamped to 0..=10 (`Mth.clamp`). `targeting`
+    /// is null when nobody is looking.
     pub fn visibility_percent(
         &self,
         targeting: Option<&str>,
@@ -3406,6 +3420,7 @@ impl Mob {
             sync_position: false,
             gear_knockback_resistance: None,
             hurt_time: 0,
+            hurt_marked: false,
             invulnerable: 0,
             invulnerable_time: 0,
             death_time: 0,
@@ -3902,6 +3917,13 @@ impl Mob {
                 taken = self.hurt_health(through, &source);
             }
             self.hurt_time = 10;
+            // `LivingEntity.hurtServer` calls `markHurt` on a fresh hit
+            // (`tookFullDamage`) unless the source is `#no_impact` — in 26.1
+            // that tag holds only `minecraft:drown`. Mobs never block, so
+            // the `(!blocked || damage > 0)` arm is always true here.
+            if source.kind != DamageKind::Drown {
+                self.hurt_marked = true;
+            }
             amount
         };
         // LivingEntity.actuallyHurt: a hit that reaches the health is
@@ -6545,60 +6567,14 @@ mod silent_voice_tests {
 #[cfg(test)]
 mod visibility_percent_tests {
     use super::*;
-    use serde_json::json;
 
-    /// The four heads `Items` registers, with the component JSON vanilla writes.
-    fn heads() -> crate::items::Items {
-        let mut items = crate::items::Items::for_tests(HashMap::new());
-        items.insert_mob_visibility_component(
-            "minecraft:skeleton_skull",
-            &json!({
-                "minecraft:equippable": {"slot": "head", "swappable": false},
-                "minecraft:mob_visibility": {
-                    "targeting_entity_types": "minecraft:skeleton",
-                    "visibility": 0.5
-                }
-            }),
-        );
-        items.insert_mob_visibility_component(
-            "minecraft:zombie_head",
-            &json!({
-                "minecraft:equippable": {"slot": "head"},
-                "minecraft:mob_visibility": {
-                    "targeting_entity_types": "minecraft:zombie",
-                    "visibility": 0.5
-                }
-            }),
-        );
-        items.insert_mob_visibility_component(
-            "minecraft:creeper_head",
-            &json!({
-                "minecraft:equippable": {"slot": "head"},
-                "minecraft:mob_visibility": {
-                    "targeting_entity_types": "minecraft:creeper",
-                    "visibility": 0.5
-                }
-            }),
-        );
-        items.insert_mob_visibility_component(
-            "minecraft:piglin_head",
-            &json!({
-                "minecraft:equippable": {"slot": "head"},
-                "minecraft:mob_visibility": {
-                    "targeting_entity_types": ["minecraft:piglin", "minecraft:piglin_brute"],
-                    "visibility": 0.5
-                }
-            }),
-        );
-        items
-    }
-
-    /// `LivingEntity.getVisibilityPercent` halves the range for the mob named
-    /// on the worn head, and leaves every other mob at full range. A skull
-    /// held in the hand does not count: its equippable slot is the head.
+    /// `LivingEntity.getVisibilityPercent` halves the range for the mob whose
+    /// head is worn, and leaves every other mob at full range. A skull held
+    /// in the hand does not count: the rule reads the head slot only. Piglin
+    /// brutes are not fooled by a piglin head (26.1 checks `PIGLIN` only).
     #[test]
     fn worn_mob_heads_halve_that_mobs_detection_range() {
-        let items = heads();
+        let items = crate::items::Items::for_tests(HashMap::new());
         let see = |head: &str, mob: &str| {
             let mut player = world::test_player(Vec3::ZERO);
             player.head = Some(Arc::from(head));
@@ -6608,7 +6584,7 @@ mod visibility_percent_tests {
         assert_eq!(see("minecraft:zombie_head", "minecraft:zombie"), 0.5);
         assert_eq!(see("minecraft:creeper_head", "minecraft:creeper"), 0.5);
         assert_eq!(see("minecraft:piglin_head", "minecraft:piglin"), 0.5);
-        assert_eq!(see("minecraft:piglin_head", "minecraft:piglin_brute"), 0.5);
+        assert_eq!(see("minecraft:piglin_head", "minecraft:piglin_brute"), 1.0);
         assert_eq!(see("minecraft:skeleton_skull", "minecraft:zombie"), 1.0);
         assert_eq!(
             see("minecraft:piglin_head", "minecraft:zombified_piglin"),

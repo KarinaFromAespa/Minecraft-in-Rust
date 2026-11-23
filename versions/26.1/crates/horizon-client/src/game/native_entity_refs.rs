@@ -264,7 +264,6 @@ mod client_tests {
             show_death_screen: true,
             limited_crafting: false,
             spawn: spawn("minecraft:overworld"),
-            online_mode: false,
             enforces_secure_chat: false,
         }))
         .unwrap();
@@ -454,7 +453,6 @@ mod client_tests {
             show_death_screen: true,
             limited_crafting: false,
             spawn: spawn("minecraft:overworld"),
-            online_mode: false,
             enforces_secure_chat: false,
         }))
         .unwrap();

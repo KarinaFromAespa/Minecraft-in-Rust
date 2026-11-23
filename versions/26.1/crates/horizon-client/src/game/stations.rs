@@ -1556,8 +1556,8 @@ impl Game<'_> {
             let Some(BlockEntity::Brewing(b)) = self.container_kind() else {
                 return true;
             };
-            let (fuel, total_fuel, brew, total_brew) =
-                (b.fuel, b.total_fuel, b.brew_time, b.total_brew_time);
+            let (fuel, brew) = (b.fuel, b.brew_time);
+            // 26.1's totals are constants: 20 fuel uses, a 400-tick brew.
             let atlas = &self.gui.atlas;
             Self::part(
                 batch,
@@ -1567,11 +1567,7 @@ impl Game<'_> {
                 (176.0, 166.0),
                 (ox, oy),
             );
-            let fuel_len = if total_fuel > 0 {
-                ((18 * fuel + total_fuel - 1) / total_fuel).clamp(0, 18)
-            } else {
-                0
-            };
+            let fuel_len = ((18 * fuel + 20 - 1) / 20).clamp(0, 18);
             if fuel_len > 0 {
                 Self::part(
                     batch,
@@ -1582,8 +1578,8 @@ impl Game<'_> {
                     (ox + 60.0, oy + 44.0),
                 );
             }
-            if brew > 0 && total_brew > 0 {
-                let len = (28.0 * (1.0 - brew as f32 / total_brew as f32)) as i32;
+            if brew > 0 {
+                let len = (28.0 * (1.0 - brew as f32 / 400.0)) as i32;
                 if len > 0 {
                     Self::part(
                         batch,
@@ -2302,13 +2298,15 @@ impl Game<'_> {
             for run in charged.chunk_by(|a, b| a.same_item_same_components(b)) {
                 let projectile = &run[0];
                 let name = self.stack_hover_name(projectile);
+                // `getDisplayName`: `[name]` in the rarity colour, italic
+                // when custom-named. 26.1 uses it for both the single and
+                // the multiple line; 26.3 dropped it from the multiple one.
+                let mut shown = horizon_client::text::Text::literal(format!("[{name}]"))
+                    .with_color(rgb_of(self.rarity_color(projectile)));
+                if projectile.custom_name().is_some() {
+                    shown = shown.italic();
+                }
                 let line = if run.len() == 1 {
-                    // `getDisplayName`: `[name]` in the rarity colour.
-                    let mut shown = horizon_client::text::Text::literal(format!("[{name}]"))
-                        .with_color(rgb_of(self.rarity_color(projectile)));
-                    if projectile.custom_name().is_some() {
-                        shown = shown.italic();
-                    }
                     horizon_client::text::format_translation(
                         &self.translate(
                             "item.minecraft.crossbow.projectile.single",
@@ -2324,7 +2322,7 @@ impl Game<'_> {
                         ),
                         &[
                             horizon_client::text::Text::literal(run.len().to_string()),
-                            horizon_client::text::Text::literal(name),
+                            shown,
                         ],
                     )
                 };
@@ -2999,11 +2997,7 @@ impl Game<'_> {
         let fuel_item = was_unfueled
             .then(|| b.items[4].as_ref().map(|s| s.item.clone()))
             .flatten();
-        let out = b.tick(
-            &world_stations!(self).brewing,
-            world_items!(self),
-            self.res.providers(),
-        );
+        let out = b.tick(&world_stations!(self).brewing, world_items!(self));
         self.finish_brewing_tick(pos, was_idle, was_unfueled, fuel_item, out)
     }
 }

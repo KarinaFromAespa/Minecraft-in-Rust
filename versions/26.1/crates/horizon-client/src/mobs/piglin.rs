@@ -25,15 +25,18 @@ const CONVERSION: i32 = 300;
 /// `DANCING` memories last.
 const CELEBRATION: i32 = 300;
 
-/// `Piglin.holdInOffHand`: equip the item being admired, dropped when the
-/// piglin is killed; anything but the barter item keeps the piglin from
-/// despawning.
+/// `Piglin.holdInOffHand`: equip the item being admired. The barter item
+/// is set with `setGuaranteedDrop` (drop chance 2.0); anything else goes
+/// through `setItemSlotAndDropWhenKilled` (drop chance 1.0). 26.1 sets no
+/// persistence here (26.2 made a non-barter offhand item persistent).
 pub fn hold_in_offhand(m: &mut Mob, item: std::sync::Arc<str>) {
-    if &*item != "minecraft:gold_ingot" {
-        m.persistent = true;
-    }
+    let chance = if &*item == "minecraft:gold_ingot" {
+        2.0
+    } else {
+        1.0
+    };
     m.extra.off_hand = Some(item);
-    super::finalize::set_drop_chance(m, super::finalize::OFFHAND, 2.0);
+    super::finalize::set_drop_chance(m, super::finalize::OFFHAND, chance);
 }
 
 /// `Activity`: what a piglin's or hoglin's brain is busy with. `Admire`,
@@ -2363,12 +2366,17 @@ mod crossbow_tests {
             mob_drops: true,
             world_seed: 0,
         };
+        // 26.1's holdInOffHand sets no persistence for either item (26.2
+        // made a non-barter offhand item persistent); the barter item gets
+        // drop chance 2.0 (guaranteed), anything else 1.0.
         let mut apple = piglin();
         hold_in_offhand(&mut apple, "minecraft:golden_apple".into());
-        assert!(apple.persistent);
+        assert!(!apple.persistent);
+        assert_eq!(crate::mobs::drops::drop_chance(&apple, "offhand"), 1.0);
         let mut m = piglin();
         hold_in_offhand(&mut m, "minecraft:gold_ingot".into());
         assert!(!m.persistent);
+        assert_eq!(crate::mobs::drops::drop_chance(&m, "offhand"), 2.0);
         let (drops, _) = die(
             &mut m,
             &death,

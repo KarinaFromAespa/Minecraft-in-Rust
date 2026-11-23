@@ -993,7 +993,8 @@ pub struct Frame<'a> {
     pub water_fog: [f32; 3],
     /// `FogRenderer.setupFog` result; replaces the underwater/environment fields when set.
     pub fog: Option<crate::fog::FogData>,
-    /// Camera eye below the horizon height and not under water (`shouldRenderDarkDisc`).
+    /// Camera eye below the horizon height (`shouldRenderDarkDisc`; 26.1 has
+    /// no underwater exclusion — 26.2 added one).
     pub dark_disc: bool,
     /// The hit block outline as line segments (from, to) in world space.
     pub outline: Vec<[f64; 6]>,
@@ -6591,7 +6592,7 @@ impl Renderer {
         self.block_entities.values().flatten()
     }
     /// `block_entities` of the sections far enough into their fade-in to draw them
-    /// (`LevelExtractor.extractVisibleBlockEntities`: `getVisibility(now, fade) >= 0.3`).
+    /// (`LevelRenderer.extractVisibleBlockEntities`: `getVisibility(now, fade) >= 0.3`).
     pub fn visible_block_entities(
         &self,
         fade_seconds: f32,

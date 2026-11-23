@@ -133,7 +133,8 @@ impl Game<'_> {
             );
         }
     }
-    /// `LevelExtractor` / `LevelRenderer`: the world border wall this frame.
+    /// `LevelRenderer` (26.2 extracted this into `LevelExtractor`): the
+    /// world border wall this frame.
     pub(super) fn border_draw(
         &mut self,
         camera: [f64; 3],

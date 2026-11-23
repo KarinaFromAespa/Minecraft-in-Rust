@@ -186,11 +186,11 @@ impl<R: RandomSource> CompiledRule<R> {
                     return Ok(None);
                 }
                 let mut random = random.at(position);
-                if random.next_float() > density {
+                if f64::from(random.next_float()) > density {
                     return Ok(None);
                 }
                 let richness = context.surface.density(densities[1], context.position)?;
-                if random.next_float() < richness
+                if f64::from(random.next_float()) < richness
                     && context.surface.density(densities[2], context.position)? < 0.0
                 {
                     Ok(Some(if random.next_float() < *raw_ore_chance {

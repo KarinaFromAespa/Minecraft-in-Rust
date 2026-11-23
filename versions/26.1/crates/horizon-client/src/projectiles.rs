@@ -1415,7 +1415,8 @@ impl Projectile {
             }
             _ => {
                 // ThrowableProjectile: gravity, then inertia. Its drag is a
-                // float in vanilla (0.8F in water, `getAirDrag` 0.99F), so
+                // float in vanilla (0.8F in water, 0.99F hardcoded in 26.1;
+                // 26.2's `getAirDrag` override returns the same), so it
                 // widens to the double that scales the motion.
                 self.velocity.y -= self.get_gravity();
                 let inertia = f64::from(if water { 0.8_f32 } else { 0.99_f32 });
@@ -1512,7 +1513,9 @@ impl Projectile {
                 return (false, Hit::None);
             }
             self.position = to;
-            // LlamaSpit.getAirDrag is 0.99F, widened before it scales motion.
+            // LlamaSpit drag is a hardcoded 0.99F in 26.1 (26.2's
+            // `LlamaSpit.getAirDrag` override returns the same), widened
+            // before it scales motion.
             let drag = f64::from(0.99_f32);
             self.velocity = Vec3::new(
                 self.velocity.x * drag,

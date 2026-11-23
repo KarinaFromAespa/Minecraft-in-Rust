@@ -12,6 +12,12 @@ pub enum SpecialKind {
         color: String,
         wall: bool,
     },
+    // 26.1 only: 26.2 dropped bed and the two signs from
+    // `SpecialModelRenderers.bootstrap`.
+    Bed {
+        texture: String,
+        part: String,
+    },
     Book {
         open_angle: f32,
         page1: f32,
@@ -31,6 +37,11 @@ pub enum SpecialKind {
     EndCube {
         effect: String,
     },
+    HangingSign {
+        wood_type: String,
+        attachment: String,
+        texture: Option<String>,
+    },
     Head {
         kind: String,
         texture: Option<String>,
@@ -42,6 +53,11 @@ pub enum SpecialKind {
         openness: f32,
     },
     Shield,
+    StandingSign {
+        wood_type: String,
+        attachment: String,
+        texture: Option<String>,
+    },
     Trident,
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -49,6 +65,11 @@ pub struct SpecialModel {
     pub kind: SpecialKind,
 }
 
+/// The twelve `WoodType`s registered in 26.1.
+const WOOD_TYPES: [&str; 12] = [
+    "oak", "spruce", "birch", "acacia", "cherry", "jungle", "dark_oak", "pale_oak", "crimson",
+    "warped", "mangrove", "bamboo",
+];
 const DYES: [&str; 16] = [
     "white",
     "orange",
@@ -96,6 +117,10 @@ impl SpecialModel {
                     Some(a) => one_of(a, &["wall", "ground"])? == "wall",
                 },
             },
+            "minecraft:bed" => SpecialKind::Bed {
+                texture: ident(required(m, "texture")?)?,
+                part: one_of(required(m, "part")?, &["head", "foot"])?,
+            },
             "minecraft:book" => SpecialKind::Book {
                 open_angle: float(required(m, "open_angle")?)?,
                 page1: float(required(m, "page1")?)?,
@@ -121,6 +146,14 @@ impl SpecialModel {
             "minecraft:end_cube" => SpecialKind::EndCube {
                 effect: one_of(required(m, "effect")?, &["portal", "gateway"])?,
             },
+            "minecraft:hanging_sign" => SpecialKind::HangingSign {
+                wood_type: one_of(required(m, "wood_type")?, &WOOD_TYPES)?,
+                attachment: match get(m, "attachment") {
+                    None => "ceiling_middle".to_owned(),
+                    Some(a) => one_of(a, &["wall", "ceiling", "ceiling_middle"])?,
+                },
+                texture: get(m, "texture").map(ident).transpose()?,
+            },
             "minecraft:head" => SpecialKind::Head {
                 kind: one_of(
                     required(m, "kind")?,
@@ -143,6 +176,15 @@ impl SpecialModel {
                 openness: float_or("openness", 0.0)?,
             },
             "minecraft:shield" => SpecialKind::Shield,
+            "minecraft:standing_sign" => SpecialKind::StandingSign {
+                wood_type: one_of(required(m, "wood_type")?, &WOOD_TYPES)?,
+                // Vanilla's field name really is misspelled "attachement".
+                attachment: match get(m, "attachement") {
+                    None => "ground".to_owned(),
+                    Some(a) => one_of(a, &["wall", "ground"])?,
+                },
+                texture: get(m, "texture").map(ident).transpose()?,
+            },
             "minecraft:trident" => SpecialKind::Trident,
             _ => return Err(err("unknown special model type")),
         };
@@ -162,6 +204,11 @@ impl SpecialModel {
                     put("attachment", json!("wall"));
                 }
                 "banner"
+            }
+            SpecialKind::Bed { texture, part } => {
+                put("texture", json!(texture));
+                put("part", json!(part));
+                "bed"
             }
             SpecialKind::Book {
                 open_angle,
@@ -198,6 +245,20 @@ impl SpecialModel {
                 put("effect", json!(effect));
                 "end_cube"
             }
+            SpecialKind::HangingSign {
+                wood_type,
+                attachment,
+                texture,
+            } => {
+                put("wood_type", json!(wood_type));
+                if attachment != "ceiling_middle" {
+                    put("attachment", json!(attachment));
+                }
+                if let Some(t) = texture {
+                    put("texture", json!(t));
+                }
+                "hanging_sign"
+            }
             SpecialKind::Head {
                 kind,
                 texture,
@@ -221,6 +282,20 @@ impl SpecialModel {
                 "shulker_box"
             }
             SpecialKind::Shield => "shield",
+            SpecialKind::StandingSign {
+                wood_type,
+                attachment,
+                texture,
+            } => {
+                put("wood_type", json!(wood_type));
+                if attachment != "ground" {
+                    put("attachement", json!(attachment));
+                }
+                if let Some(t) = texture {
+                    put("texture", json!(t));
+                }
+                "standing_sign"
+            }
             SpecialKind::Trident => "trident",
         };
         m.insert("type".to_owned(), json!(format!("minecraft:{ty}")));
@@ -255,5 +330,77 @@ impl SpecialModel {
             }
             _ => Value::Null,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bed_and_sign_special_models_decode_with_their_26_1_fields() {
+        // 26.2 dropped bed and both signs from SpecialModelRenderers; 26.1
+        // still registers all three.
+        let bed = SpecialModel::decode(&json!({
+            "type": "minecraft:bed",
+            "texture": "minecraft:entity/bed/red",
+            "part": "head",
+        }))
+        .unwrap();
+        assert_eq!(
+            bed.kind,
+            SpecialKind::Bed {
+                texture: "minecraft:entity/bed/red".to_owned(),
+                part: "head".to_owned(),
+            }
+        );
+        assert_eq!(bed.to_json()["part"], json!("head"));
+        // Standing signs default to a ground attachment, spelled
+        // "attachement" in vanilla's codec.
+        let sign = SpecialModel::decode(&json!({
+            "type": "minecraft:standing_sign",
+            "wood_type": "cherry",
+        }))
+        .unwrap();
+        assert_eq!(
+            sign.kind,
+            SpecialKind::StandingSign {
+                wood_type: "cherry".to_owned(),
+                attachment: "ground".to_owned(),
+                texture: None,
+            }
+        );
+        assert_eq!(sign.to_json().get("attachement"), None);
+        let wall = SpecialModel::decode(&json!({
+            "type": "minecraft:standing_sign",
+            "wood_type": "oak",
+            "attachement": "wall",
+            "texture": "minecraft:entity/signs/oak",
+        }))
+        .unwrap();
+        assert_eq!(wall.to_json()["attachement"], json!("wall"));
+        // Hanging signs default to ceiling_middle, spelled "attachment".
+        let hanging = SpecialModel::decode(&json!({
+            "type": "minecraft:hanging_sign",
+            "wood_type": "bamboo",
+        }))
+        .unwrap();
+        assert_eq!(
+            hanging.kind,
+            SpecialKind::HangingSign {
+                wood_type: "bamboo".to_owned(),
+                attachment: "ceiling_middle".to_owned(),
+                texture: None,
+            }
+        );
+        assert_eq!(hanging.to_json().get("attachment"), None);
+        assert!(
+            SpecialModel::decode(&json!({
+                "type": "minecraft:bed",
+                "texture": "minecraft:entity/bed/red",
+                "part": "side",
+            }))
+            .is_err()
+        );
     }
 }

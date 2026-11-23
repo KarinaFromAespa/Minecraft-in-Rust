@@ -140,7 +140,6 @@ impl Game<'_> {
         }
         Ok(self.interact_frame(target)
             || self.interact_armor_stand(target)
-            || self.interact_cushion(target)
             || self.interact_boat(target)
             || self.interact_cart(target)
             || self.interact_mob(target)?

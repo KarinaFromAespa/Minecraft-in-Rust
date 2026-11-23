@@ -118,19 +118,6 @@ impl Behaviours {
         self.live_features()?.configured(name)?;
         Some(self.sim(level, ticks).place_configured_feature(name, pos))
     }
-    /// `/place feature` with an inline feature value (`json`): decoded by the
-    /// feature codec, then placed as `place_feature` places a named one.
-    /// `None` when the value does not decode or features are unavailable.
-    pub fn place_inline_feature<L: LevelAccess + ?Sized>(
-        &self,
-        level: &mut L,
-        ticks: &mut Ticks,
-        json: &str,
-        pos: BlockPos,
-    ) -> Option<bool> {
-        let feature = self.live_features()?.configured_inline(json)?;
-        Some(self.sim(level, ticks).place_inline_feature(&feature, pos))
-    }
     /// `StructureBlockEntity.placeStructure`'s `StructureTemplate.placeInWorld`
     /// on the live level: `pos` is both the position and the pivot, the
     /// template rots at `integrity` below 1 (`BlockRotProcessor`) drawing from
@@ -209,10 +196,10 @@ impl Behaviours {
         false
     }
     /// `BoneMealItem.useOn` on a client's level, where nothing grows: whether
-    /// it succeeds there (the server's packet does the growing). A sapling,
-    /// an azalea or a mushroom is only a valid target on a `ServerLevel`
-    /// (`isValidBonemealTarget`), so the client passes on them; `growWaterPlant`
-    /// takes any full water block beside a sturdy clicked face.
+    /// it returns SUCCESS there (the server's packet does the growing). In
+    /// 26.1 a `growCrop` success returns PASS on the client (26.2 returns
+    /// SUCCESS), so only the `growWaterPlant` path succeeds client-side: a
+    /// full water block beside a sturdy clicked face.
     pub fn bone_meal_succeeds_on_client<L: LevelAccess + ?Sized>(
         &self,
         level: &mut L,
@@ -220,23 +207,8 @@ impl Behaviours {
         face: Direction,
     ) -> bool {
         let mut ticks = Ticks::default();
-        let mut sim = self.sim(level, &mut ticks);
+        let sim = self.sim(level, &mut ticks);
         let state = sim.state(pos);
-        // A mod block answers `isValidBonemealTarget` on both sides, so the
-        // client predicts the use with the mod's own answer.
-        let answer = sim.level.is_valid_bonemeal_target(pos, state);
-        if answer == Some(true) {
-            return true;
-        }
-        // Refused (`Some(false)`): growCrop fails, and only growWaterPlant
-        // below can still take the meal.
-        if answer.is_none()
-            && let Some(kind) = self.bonemeal_kind(state)
-            && !matches!(kind, Kind::Sapling | Kind::Azalea | Kind::Mushroom)
-            && sim.bonemeal_valid(kind, pos, state)
-        {
-            return true;
-        }
         let water = sim.state(rel(pos, face));
         self.is_face_sturdy(state, face)
             && self.is_block(water, self.named.water)
@@ -332,7 +304,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 let Some(g) = b.data(state).feature.as_deref().and_then(grower) else {
                     return false;
                 };
-                if b.live_features().is_none() || !self.tree_can_grow(g, pos, state) {
+                // 26.1's isValidBonemealTarget is only the height check:
+                // canGrow (the 2x2 requirement for a mega-only grower) is
+                // 26.3-only, so a lone dark oak sapling takes the meal.
+                if b.live_features().is_none() {
                     return false;
                 }
                 let height = self.tree_minimum_height(g);
@@ -403,7 +378,14 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     && self.is_empty_block(growth)
             }
             Kind::Cocoa => b.table.int(state, p.age) < 2,
-            Kind::SweetBerry => b.table.int(state, p.age) < 3,
+            // 26.1's `SweetBerryBushBlock.isValidBonemealTarget`: age < 3 AND
+            // air above AND inside build height (26.2 dropped the air and
+            // height checks, leaving age only).
+            Kind::SweetBerry => {
+                b.table.int(state, p.age) < 3
+                    && b.is_air(self.state(up))
+                    && self.is_inside_build_height(up.y)
+            }
             Kind::TallGrass => {
                 let Some(grown) = self.tall_grass_grown(state) else {
                     return false;
@@ -1224,14 +1206,17 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     fn grass_bonemeal_effect(&mut self, test: BlockPos) {
         let b = self.b;
         let test_state = self.state(test);
+        // 26.1 rolls the tall-grass and flower chances with nextInt, not
+        // nextFloat (26.3's form): the draws differ, so the sequence after
+        // them diverges too.
         if b.table.name(test_state) == "minecraft:short_grass"
-            && self.random().next_float() < 0.1
+            && self.next_int(10) == 0
             && self.bonemeal_valid(Kind::TallGrass, test, test_state)
         {
             self.perform_bonemeal(Kind::TallGrass, test, test_state);
         }
         if b.is_air(test_state) && self.is_inside_build_height(test.y) {
-            if self.random().next_float() < 0.125 {
+            if self.next_int(8) == 0 {
                 let Some(features) = b.live_features() else {
                     return;
                 };

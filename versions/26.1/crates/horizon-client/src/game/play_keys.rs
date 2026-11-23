@@ -117,6 +117,7 @@ impl Game<'_> {
                 Screen::DialogWarning => self.screen = Screen::ServerLinks,
                 Screen::Advancements => self.close_advancements(),
                 Screen::WorldOptions => self.world_options_escape(),
+                Screen::ShareToLan => self.share_to_lan_escape(),
                 Screen::CommandBlock => self.close_command_block(),
                 Screen::BlockEditor => self.close_block_editor(),
                 Screen::Chat => self.close_chat(chat::ChatExit::Intentional),
@@ -184,7 +185,9 @@ impl Game<'_> {
                 self.open_social(false);
                 self.release_use_for_keybind_screen();
             }
-            KeyCode::KeyL if self.screen == Screen::Advancements => self.close_advancements(),
+            KeyCode::KeyL if self.screen == Screen::Advancements => {
+                self.close_advancements_to_game()
+            }
             // key.emote (Horizon's): the emote wheel, a tap again closes it.
             KeyCode::KeyB if self.screen == Screen::Playing && super::cosmetics::enabled() => {
                 self.open_emote_wheel();

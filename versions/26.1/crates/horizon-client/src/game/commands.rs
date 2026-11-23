@@ -1,7 +1,6 @@
 //! Command execution (the `execute` side of each vanilla command class):
 //! entity selectors resolved against the game, vanilla feedback and errors.
 mod admin;
-pub(super) mod compute;
 mod data;
 pub(super) use data::place_summoned;
 mod effects;
@@ -68,8 +67,6 @@ pub(super) enum Target {
     Dragon(u32),
     /// A primed TNT, by its entity id (`minecraft:tnt`).
     Tnt(u32),
-    /// A cushion, by its entity id (`minecraft:cushion`).
-    Cushion(u32),
     /// A falling block, by its entity id (`minecraft:falling_block`).
     Falling(u32),
     /// A firework rocket, by its entity id (`minecraft:firework_rocket`).
@@ -222,7 +219,6 @@ fn non_player_entity_id(t: Target) -> Option<i32> {
     | Target::Crystal(id)
     | Target::Dragon(id)
     | Target::Tnt(id)
-    | Target::Cushion(id)
     | Target::Falling(id)
     | Target::Rocket(id)
     | Target::Trident(id)
@@ -625,11 +621,6 @@ impl Game<'_> {
                 .as_ref()
                 .filter(|d| d.id == id)
                 .map(|d| [d.position.x, d.position.y, d.position.z]),
-            Target::Cushion(id) => self
-                .cushions
-                .iter()
-                .find(|c| c.id == id)
-                .map(|c| [c.position.x, c.position.y, c.position.z]),
             Target::Tnt(id) => self
                 .tnts
                 .iter()
@@ -708,7 +699,6 @@ impl Game<'_> {
             Target::Crystal(_) => "minecraft:end_crystal".into(),
             Target::Dragon(_) => "minecraft:ender_dragon".into(),
             Target::Tnt(_) => "minecraft:tnt".into(),
-            Target::Cushion(_) => "minecraft:cushion".into(),
             Target::Falling(_) => "minecraft:falling_block".into(),
             Target::Rocket(_) => "minecraft:firework_rocket".into(),
             Target::Trident(_) => "minecraft:trident".into(),
@@ -802,6 +792,23 @@ impl Game<'_> {
                 let ty = self.target_type(other);
                 Text::translate(&format!("entity.{}", ty.replace(':', ".")), &[])
             }
+        }
+    }
+    /// `Entity.getName`: the plain name, without the team's formatting that
+    /// `target_name` (`getDisplayName`) adds.
+    pub(super) fn target_plain_name(&self, t: Target) -> Text {
+        match t {
+            Target::Player => Text::literal(self.acting_player_name()),
+            Target::Guest(conn) => match self.command_guest(conn) {
+                Some(g) => Text::literal(g.name.clone()),
+                None => Text::empty(),
+            },
+            Target::Mob(id) => self
+                .mobs
+                .iter()
+                .find(|m| m.id == id)
+                .map_or_else(|| Text::translate("entity.", &[]), |m| m.command_name()),
+            other => self.target_name(other),
         }
     }
     /// EntitySelector.findEntities.
@@ -1046,7 +1053,6 @@ impl Game<'_> {
         });
         candidates.extend(self.item_frames.iter().map(|f| Target::Frame(f.id)));
         candidates.extend(self.paintings.iter().map(|p| Target::Painting(p.id)));
-        candidates.extend(self.cushions.iter().map(|c| Target::Cushion(c.id)));
         candidates.extend(self.others.iter().map(|o| Target::Other(o.id)));
         candidates.extend(self.fangs.list.iter().map(|f| Target::Fangs(f.id)));
         // The End crystals and the dragon (EndCrystal and EnderDragon
@@ -1098,7 +1104,6 @@ impl Game<'_> {
             Target::Crystal(id),
             Target::Dragon(id),
             Target::Tnt(id),
-            Target::Cushion(id),
             Target::Falling(id),
             Target::Rocket(id),
             Target::Trident(id),
@@ -1129,7 +1134,6 @@ impl Game<'_> {
             Target::Crystal(id) => self.crystals.iter().any(|c| c.id == id),
             Target::Dragon(id) => self.dragon.as_ref().is_some_and(|d| d.id == id),
             Target::Tnt(id) => self.tnts.iter().any(|t| t.id == id),
-            Target::Cushion(id) => self.cushions.iter().any(|c| c.id == id),
             Target::Falling(id) => self.falling.iter().any(|f| f.id == id),
             Target::Rocket(id) => self.rockets.iter().any(|r| r.id == id),
             Target::Trident(id) => self.tridents.iter().any(|t| t.id == id),
@@ -1271,12 +1275,10 @@ impl Game<'_> {
             "transfer" => self.cmd_transfer(ctx),
             "fetchprofile" => self.cmd_fetchprofile(ctx),
             "publish" => self.cmd_publish(ctx),
-            "unpublish" => self.cmd_unpublish(),
             "debug" => self.cmd_debug(ctx),
             "jfr" => self.cmd_jfr(ctx),
             "version" => self.cmd_version(),
             id if id.starts_with("test.") => self.cmd_test(id, ctx),
-            "compute" => self.cmd_compute(ctx),
             "place" => self.cmd_place(ctx),
             "place.feature" | "place.jigsaw" | "place.structure" => {
                 self.cmd_place_generated(id, ctx)
@@ -1885,16 +1887,6 @@ impl Game<'_> {
                     t.previous = v;
                     if let Some(r) = rotation {
                         Entity::set_rotation(t, r);
-                    }
-                }
-            }
-            Target::Cushion(id) => {
-                // BlockAttachedEntity.setPos: the block it rests on follows the position.
-                if let Some(c) = self.cushions.iter_mut().find(|c| c.id == id) {
-                    c.position = v;
-                    c.pos = [v.x.floor() as i32, v.y.floor() as i32, v.z.floor() as i32];
-                    if let Some(r) = rotation {
-                        c.yaw = r[0];
                     }
                 }
             }
@@ -2530,7 +2522,6 @@ impl Game<'_> {
             Target::Crystal(id) => self.kill_crystal(id),
             Target::Dragon(id) => self.kill_dragon(id),
             Target::Tnt(id) => self.tnts.retain(|t| t.id != id),
-            Target::Cushion(id) => self.kill_cushion(id),
             Target::Falling(id) => self.falling.retain(|f| f.id != id),
             Target::Rocket(id) => self.rockets.retain(|r| r.id != id),
             Target::Trident(id) => self.tridents.retain(|t| t.id != id),
@@ -2863,14 +2854,13 @@ impl Game<'_> {
             self.level_set(pos, state)
                 .map_err(|e| CommandError::new(Text::literal(e.to_string())))?;
         }
-        // LevelChunk.setBlockState creates it when the block, not the state, is still
-        // there after onPlace: a powered hopper turns itself `enabled=false`.
-        let landed = self.world.block(pos[0], pos[1], pos[2]);
-        let needs_entity = !self.world.block_entities.stateful_entity(landed.0) && old != new;
+        // 26.1: `LevelChunk.setBlockState` creates the block entity for the
+        // new state unconditionally after onPlace (26.2 added a re-check
+        // that the block at the position is still the new block).
+        let needs_entity = !self.world.block_entities.stateful_entity(state.0) && old != new;
         if needs_entity
-            && self.res.facts().get(landed).name == new
-            && !self.sculk_place_entity(landed)
-            && let Some(entity) = self.new_block_entity_for_state(landed)
+            && !self.sculk_place_entity(state)
+            && let Some(entity) = self.new_block_entity_for_state(state)
         {
             self.world.block_entities.insert(key, entity);
         }
@@ -3503,6 +3493,10 @@ impl Game<'_> {
                 )));
             }
             // AdvancementCommands.performCriterion: each selected player's own turn.
+            // 26.1 has no CommandResponseTracker: one/many branches on the
+            // number of target players (26.3's tracker counts the changed
+            // ones), and the many count is the changed players on success
+            // but all targets on failure.
             let results = self.advancement_turns(&targets, |g| {
                 i32::from(if grant {
                     g.grant_advancement(i, Some(criterion))
@@ -3510,15 +3504,17 @@ impl Game<'_> {
                     g.revoke_advancement(i, Some(criterion))
                 })
             });
-            let (who, many) = self.advancement_subject(&results);
+            let changed = results.iter().filter(|r| r.1 != 0).count();
+            let (who_fail, who_ok, many) = self.advancement_subject(&targets, changed);
             let to = if many { "many" } else { "one" };
-            let args = [Text::literal(criterion.clone()), name, who];
             if results.iter().map(|r| r.1).sum::<i32>() == 0 {
+                let args = [Text::literal(criterion.clone()), name, who_fail];
                 return Err(CommandError::new(Text::translate(
                     &format!("commands.advancement.{key}.criterion.to.{to}.failure"),
                     &args,
                 )));
             }
+            let args = [Text::literal(criterion.clone()), name, who_ok];
             self.feedback(Text::translate(
                 &format!("commands.advancement.{key}.criterion.to.{to}.success"),
                 &args,
@@ -3569,20 +3565,31 @@ impl Game<'_> {
             count
         });
         let total: i32 = results.iter().map(|r| r.1).sum();
-        let (who, many) = self.advancement_subject(&results);
+        let changed = results.iter().filter(|r| r.1 != 0).count();
+        let (who_fail, who_ok, many) = self.advancement_subject(&targets, changed);
         let to = if many { "many" } else { "one" };
-        let (what, first) = if list.len() == 1 {
-            ("one", super::advancements::adv_name(&tree.list[list[0]]))
+        // 26.1's many.*.success prints the number actually changed
+        // (advancementCount); the failure prints the number targeted
+        // (advancements.size()). 26.3's tracker passes the targeted count
+        // in both cases.
+        let (what, first_fail, first_ok) = if list.len() == 1 {
+            let n = super::advancements::adv_name(&tree.list[list[0]]);
+            ("one", n.clone(), n)
         } else {
-            ("many", Text::literal(list.len().to_string()))
+            (
+                "many",
+                Text::literal(list.len().to_string()),
+                Text::literal(total.to_string()),
+            )
         };
-        let args = [first, who];
         if total == 0 {
+            let args = [first_fail, who_fail];
             return Err(CommandError::new(Text::translate(
                 &format!("commands.advancement.{key}.{what}.to.{to}.failure"),
                 &args,
             )));
         }
+        let args = [first_ok, who_ok];
         self.feedback(Text::translate(
             &format!("commands.advancement.{key}.{what}.to.{to}.success"),
             &args,
@@ -3601,19 +3608,20 @@ impl Game<'_> {
             .map(|&t| (t, self.for_player(t, &f).unwrap_or(0)))
             .collect()
     }
-    /// The player argument of the advancement feedback: with the tracker's
-    /// NON_ZERO elements on success and every element on failure, the one
-    /// player's name, else the count (CommandResponseTracker.dispatch).
-    fn advancement_subject(&self, results: &[(Target, i32)]) -> (Text, bool) {
-        let changed: Vec<Target> = results.iter().filter(|r| r.1 != 0).map(|r| r.0).collect();
-        let picked: Vec<Target> = if changed.is_empty() {
-            results.iter().map(|r| r.0).collect()
+    /// `AdvancementCommands`' player subject in 26.1: one/many by the number
+    /// of target players; the subject is the single target's display name,
+    /// or the changed-player count on success and the target count on
+    /// failure. Returns (failure subject, success subject, many).
+    fn advancement_subject(&self, targets: &[Target], changed: usize) -> (Text, Text, bool) {
+        if targets.len() == 1 {
+            let name = self.target_name(targets[0]);
+            (name.clone(), name, false)
         } else {
-            changed
-        };
-        match picked.as_slice() {
-            [t] => (self.target_name(*t), false),
-            _ => (Text::literal(picked.len().to_string()), true),
+            (
+                Text::literal(targets.len().to_string()),
+                Text::literal(changed.to_string()),
+                true,
+            )
         }
     }
     fn cmd_experience(&mut self, ctx: &Context) -> R<i32> {
@@ -4085,31 +4093,32 @@ impl Game<'_> {
         let max = Self::int(ctx, "maxCount").unwrap_or(-1);
         let counting = max == 0;
         // ClearInventoryCommands.clearInventory: each player on their own.
+        // 26.1 has no CommandResponseTracker: single/multiple branches on
+        // the number of target players (26.3's tracker counts the non-zero
+        // ones), and the single failure names the player with getName()
+        // (26.3's ERROR_DISPATCH uses getDisplayName()); success messages
+        // use the display name in both versions.
         let mut removed = 0i32;
-        let mut found = Vec::new();
         for &t in &targets {
-            let n = self
+            removed += self
                 .for_player(t, |g| g.clear_matching(&predicate, max))
                 .unwrap_or(0);
-            removed += n;
-            if n != 0 {
-                found.push(t);
-            }
         }
         if removed == 0 {
             return Err(if targets.len() == 1 {
                 CommandError::new(Text::translate(
                     "clear.failed.single",
-                    &[self.target_name(targets[0])],
+                    &[self.target_plain_name(targets[0])],
                 ))
             } else {
                 err("clear.failed.multiple", &[&targets.len()])
             });
         }
         let kind = if counting { "test" } else { "success" };
-        let (key, who) = match found[..] {
-            [only] => ("single", self.target_name(only)),
-            _ => ("multiple", Text::literal(found.len().to_string())),
+        let (key, who) = if targets.len() == 1 {
+            ("single", self.target_name(targets[0]))
+        } else {
+            ("multiple", Text::literal(targets.len().to_string()))
         };
         self.feedback(Text::translate(
             &format!("commands.clear.{kind}.{key}"),
@@ -4821,7 +4830,6 @@ mod look_at_tests {
             Target::Crystal(7),
             Target::Dragon(7),
             Target::Tnt(7),
-            Target::Cushion(7),
             Target::Falling(7),
             Target::Rocket(7),
             Target::Trident(7),

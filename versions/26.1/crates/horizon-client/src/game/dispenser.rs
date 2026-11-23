@@ -1016,8 +1016,12 @@ impl Game<'_> {
     ) -> Result<Dispensed> {
         let (kind, _) = horizon_client::block_entity_item::spawn_egg_on_spawner(&stack, false);
         let front = offset(pos, facing);
+        // 26.1's `SpawnEggItemBehavior.execute` pops the spawn result and
+        // consumes the egg and fires ENTITY_PLACE even when the spawn
+        // returns null (26.2 returns the stack unshrunk on a null spawn).
         let Some(id) = self.spawn_mob_at(&kind, front, facing != Direction::Up) else {
-            return Ok((Some(stack), CLICK));
+            self.post_block_game_event("minecraft:entity_place", [pos.0, pos.1, pos.2], None, None);
+            return Ok((shrink(stack), CLICK));
         };
         // EntityType.create: `finalizeSpawn` first, the egg's components after.
         if let Some(m) = self.mobs.iter_mut().find(|m| m.id == id) {
@@ -1905,9 +1909,9 @@ impl Game<'_> {
             }
             let Target::Mob(i) = t else { continue };
             let m = &self.mobs[i];
-            if !m.alive() {
-                continue;
-            }
+            // 26.1's `tryShearEntity` has no caller-level alive check (26.2
+            // added one): each species' `readyForShearing` checks it, so
+            // the arms below carry `m.alive()` themselves.
             let at = m.position;
             let entity_id = m.id;
             let kind = m.kind.id.clone();
@@ -1928,7 +1932,7 @@ impl Game<'_> {
                     self.audio
                         .play("minecraft:entity.sulfur_cube.eject", sound_at, 1.0, 1.0);
                 }
-                Species::Sheep if !m.extra.sheared && !m.is_baby() => {
+                Species::Sheep if m.alive() && !m.extra.sheared && !m.is_baby() => {
                     let color =
                         horizon_client::mobs::render::DYE_NAMES[m.extra.color as usize & 15];
                     self.audio
@@ -1963,7 +1967,7 @@ impl Game<'_> {
                     }
                     self.mobs[i].extra.sheared = true;
                 }
-                Species::Bogged if !m.extra.sheared => {
+                Species::Bogged if m.alive() && !m.extra.sheared => {
                     let height = f64::from(m.height());
                     self.audio
                         .play("minecraft:entity.bogged.shear", sound_at, 1.0, 1.0);
@@ -1977,7 +1981,7 @@ impl Game<'_> {
                     }
                     self.mobs[i].extra.sheared = true;
                 }
-                Species::SnowGolem if !m.extra.sheared => {
+                Species::SnowGolem if m.alive() && !m.extra.sheared => {
                     let eye = m.eye_height();
                     self.audio
                         .play("minecraft:entity.snow_golem.shear", sound_at, 1.0, 1.0);
@@ -2005,7 +2009,7 @@ impl Game<'_> {
                         self.spawn_at_location(at, 1.5, antenna);
                     }
                 }
-                Species::Mooshroom if !m.is_baby() => {
+                Species::Mooshroom if m.alive() && !m.is_baby() => {
                     let variant = if m.extra.variant == 1 { "brown" } else { "red" };
                     let height = f64::from(m.height());
                     self.audio

@@ -273,15 +273,21 @@ fn item_name(builtin: &Builtin, id: i32) -> Arc<str> {
 /// The item's patched components as vanilla's `components` compound.
 fn components_tag(s: &Stack, builtin: &Builtin, synced: &Dynamic) -> Option<Tag> {
     let name = |id: i32| {
-        builtin
-            .get("minecraft:data_component_type")
-            .and_then(|types| types.name(id))
-            .or_else(|| {
-                synced
-                    .custom_components
-                    .then(|| horizon_protocol::item::custom::name(id))
-                    .flatten()
-            })
+        // The copied-sign text kinds are synthetic (negative): they name
+        // themselves, since no registry holds them.
+        match id {
+            component::SIGN_TEXT_FRONT => Some("minecraft:sign_text_front"),
+            component::SIGN_TEXT_BACK => Some("minecraft:sign_text_back"),
+            _ => builtin
+                .get("minecraft:data_component_type")
+                .and_then(|types| types.name(id))
+                .or_else(|| {
+                    synced
+                        .custom_components
+                        .then(|| horizon_protocol::item::custom::name(id))
+                        .flatten()
+                }),
+        }
     };
     let mut entries: Vec<(&str, Tag)> = Vec::new();
     for (kind, c) in &s.added {
@@ -303,19 +309,6 @@ fn components_tag(s: &Stack, builtin: &Builtin, synced: &Dynamic) -> Option<Tag>
                     continue;
                 };
                 data
-            }
-            // `SignText`: a copied sign's text, which this client's own placement
-            // puts on the sign it predicts (#8102).
-            Component::Raw(bytes)
-                if matches!(
-                    *kind,
-                    component::SIGN_TEXT_FRONT | component::SIGN_TEXT_BACK
-                ) =>
-            {
-                let Some(text) = sign_text_tag(bytes) else {
-                    continue;
-                };
-                text
             }
             // `DeathProtection`: the effects a stack runs when it saves its
             // holder. The activation animation's hand lookup reads them, and
@@ -696,20 +689,6 @@ fn adventure_predicate_tag(bytes: &[u8], builtin: &Builtin) -> Option<Tag> {
     }
 }
 
-/// `SignText.STREAM_CODEC` as `SignText.CODEC` saves it: the four messages,
-/// the filtered four when the server sent them, the dye colour and the glow.
-fn sign_text_tag(bytes: &[u8]) -> Option<Tag> {
-    let mut r = Reader::new(bytes);
-    let lines = |r: &mut Reader| (0..4).map(|_| r.nbt().ok()).collect::<Option<Vec<_>>>();
-    let mut text = vec![("messages", Tag::List(lines(&mut r)?))];
-    if r.bool().ok()? {
-        text.push(("filtered_messages", Tag::List(lines(&mut r)?)));
-    }
-    text.push(("color", Tag::String(dye_name(r.varint().ok()?).into())));
-    text.push(("has_glowing_text", Tag::Byte(i8::from(r.bool().ok()?))));
-    Some(Tag::compound(text))
-}
-
 /// How deep a `ConsumeEffect`'s hidden effects may nest: deeper than vanilla's
 /// own effects ever go, shallow enough not to exhaust the stack on hostile bytes.
 const MAX_EFFECT_NESTING: u32 = 32;
@@ -764,15 +743,13 @@ fn consume_effect_tag(r: &mut Reader, builtin: &Builtin, depth: u32) -> Option<T
             ));
         }
         2 => fields.push(("type", Tag::String("minecraft:clear_all_effects".into()))),
-        // teleport_randomly: diameter, directional particles.
+        // teleport_randomly: diameter only in 26.1 (26.3 added the
+        // directional_particles flag to the stream codec).
         3 => {
             fields.push(("type", Tag::String("minecraft:teleport_randomly".into())));
             let diameter = r.f32().ok()?;
             if diameter.to_bits() != 16.0f32.to_bits() {
                 fields.push(("diameter", Tag::Float(diameter.to_bits())));
-            }
-            if !r.bool().ok()? {
-                fields.push(("directional_particles", Tag::Byte(0)));
             }
         }
         // play_sound.
@@ -1569,7 +1546,7 @@ mod tests {
         assert_eq!(d.other("minecraft:tooltip_display"), None);
     }
 
-    /// A painting's `painting/variant` (a `painting_variant` holder, id 109)
+    /// A painting's `painting/variant` (a `painting_variant` holder, id 102)
     /// crosses the wire both ways: a server's creative slot gets the variant
     /// its client picked, and a client's tooltip names the server's.
     #[test]
@@ -1577,7 +1554,7 @@ mod tests {
         use horizon_protocol::buf::{Codec, Reader, Writer};
         use horizon_protocol::item::Slot;
         let mut components = vec![String::new(); 110];
-        components[109] = "minecraft:painting/variant".into();
+        components[102] = "minecraft:painting/variant".into();
         let items = ["minecraft:air", "minecraft:painting"];
         let builtin = Builtin {
             registries: [
@@ -1602,8 +1579,8 @@ mod tests {
             ..Default::default()
         };
         // ItemStack.OPTIONAL_STREAM_CODEC: count 1, the painting, one added
-        // component (109: the reference to kebab, its id plus one), none removed.
-        let vanilla = [1u8, 1, 1, 0, 109, 2];
+        // component (102: the reference to kebab, its id plus one), none removed.
+        let vanilla = [1u8, 1, 1, 0, 102, 2];
         let stack = Slot::read(&mut Reader::new(&vanilla)).unwrap().unwrap();
         let back = from_network(&stack, &builtin, &dynamic);
         let variant = |s: &ItemStack| {
@@ -1624,7 +1601,7 @@ mod tests {
         );
         let mut w = Writer::new();
         Slot::write(&wire, &mut w);
-        assert_eq!(w.data, [1, 1, 1, 0, 109, 1]);
+        assert_eq!(w.data, [1, 1, 1, 0, 102, 1]);
         let wire = Slot::read(&mut Reader::new(&w.data)).unwrap().unwrap();
         assert_eq!(
             variant(&from_network(&wire, &builtin, &dynamic)),
@@ -1632,17 +1609,14 @@ mod tests {
         );
     }
 
-    /// A sign picked with its data (`SignBlockEntity.collectImplicitComponents`)
-    /// keeps its text across the wire both ways: `sign_text_front` and
-    /// `sign_text_back` (ids 118 and 119, `SignText.STREAM_CODEC`) reach the
-    /// client's stack, whose own placement puts the text on the sign (#8102).
+    /// 26.1 has no `sign_text_front`/`sign_text_back` components: a sign's
+    /// text never travels on its item, so a sign carrying text in its data
+    /// loses it across the wire — the client's stack has no text to place.
     #[test]
-    fn a_signs_text_crosses_the_wire() {
+    fn a_signs_text_does_not_cross_the_wire() {
         use horizon_protocol::buf::{Reader, Writer};
         use horizon_protocol::item::Slot;
-        let mut components = vec![String::new(); 120];
-        components[118] = "minecraft:sign_text_front".into();
-        components[119] = "minecraft:sign_text_back".into();
+        let components = vec![String::new(); 111];
         let items = ["minecraft:air", "minecraft:oak_sign"];
         let builtin = Builtin {
             registries: [
@@ -1667,12 +1641,9 @@ mod tests {
             ])
         };
         let front = text(["Line one", "Line two", "", "Line four"], "black", 0);
-        let back = text(["", "back", "", ""], "red", 1);
         let mut sign = ItemStack::new("minecraft:oak_sign", 1);
         sign.data_mut()
-            .set_other("minecraft:sign_text_front", Some(front.clone()));
-        sign.data_mut()
-            .set_other("minecraft:sign_text_back", Some(back.clone()));
+            .set_other("minecraft:sign_text_front", Some(front));
         let wire = crate::lan::guest::stack_to_network(
             |name| items.iter().position(|i| *i == name).unwrap_or(0) as i32,
             |_, _| None,
@@ -1682,9 +1653,10 @@ mod tests {
         Slot::write(&wire, &mut w);
         let wire = Slot::read(&mut Reader::new(&w.data)).unwrap().unwrap();
         let client = from_network(&wire, &builtin, &dynamic);
-        let data = client.data().expect("the sign's components");
-        assert_eq!(data.other("minecraft:sign_text_front"), Some(&front));
-        assert_eq!(data.other("minecraft:sign_text_back"), Some(&back));
+        assert!(client.data().is_none_or(|data| {
+            data.other("minecraft:sign_text_front").is_none()
+                && data.other("minecraft:sign_text_back").is_none()
+        }));
     }
 
     /// `minecraft:custom_data` and `minecraft:custom_model_data` are part of

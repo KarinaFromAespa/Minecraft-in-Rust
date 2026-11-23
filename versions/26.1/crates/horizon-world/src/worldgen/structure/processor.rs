@@ -882,9 +882,9 @@ impl Processor {
             _ => return Err(DecodeError::Field("structure processor type")),
         })
     }
-    fn evaluates_entire_piece(&self) -> bool {
-        matches!(self, Self::Capped { .. })
-    }
+    // 26.1 has no `StructureProcessor.evaluatesEntirePieceState` (26.2 added
+    // it as a default interface method); `processBlockInfos` runs every
+    // processor over every block.
 }
 impl ProcessorList {
     /// A processor list holder: a registry name, `{"processors": [...]}` or a list.
@@ -1041,13 +1041,22 @@ fn process_list<W: PlacementContext>(
     position: [i32; 3],
     reference: [i32; 3],
     relative: [i32; 3],
+    original_state: BlockStateId,
     info: BlockInfo,
     settings: &mut PlaceSettings<'_>,
 ) -> ProcessResult {
     let mut current = info;
     for processor in &list.0 {
         match process_block(
-            processor, world, resources, position, reference, relative, current, settings,
+            processor,
+            world,
+            resources,
+            position,
+            reference,
+            relative,
+            original_state,
+            current,
+            settings,
         )? {
             Some(next) => current = next,
             None => return Ok(None),
@@ -1057,6 +1066,10 @@ fn process_list<W: PlacementContext>(
 }
 /// StructureProcessor.processBlock: `position` is the piece's, `reference`
 /// the structure's pivot and `relative` the block's in the template.
+/// 26.1's processBlock takes the template info as well as the current one
+/// (26.2's takes only the current info plus its pos): `original_state` is
+/// the template info's state, which BlockRotProcessor tests for rottability
+/// even after an earlier processor changed the block.
 #[allow(clippy::too_many_arguments)]
 fn process_block<W: PlacementContext>(
     processor: &Processor,
@@ -1065,6 +1078,7 @@ fn process_block<W: PlacementContext>(
     position: [i32; 3],
     reference: [i32; 3],
     relative: [i32; 3],
+    original_state: BlockStateId,
     info: BlockInfo,
     settings: &mut PlaceSettings<'_>,
 ) -> ProcessResult {
@@ -1077,9 +1091,12 @@ fn process_block<W: PlacementContext>(
             rottable,
             integrity,
         } => {
+            // 26.1 tests the TEMPLATE info's state (BlockRotProcessor reads
+            // its first StructureBlockInfo arg), not the current one: an
+            // earlier processor's swap does not make a block rottable.
             let candidate = rottable
                 .as_ref()
-                .is_none_or(|set| set.contains(&info.state));
+                .is_none_or(|set| set.contains(&original_state));
             let keep = settings.with_random(info.pos, |r| !candidate || r.float() <= *integrity);
             keep.then_some(info)
         }
@@ -1144,11 +1161,11 @@ fn process_block<W: PlacementContext>(
                 info.pos[2],
             )));
             for rule in rules {
-                if !rule.input.test(info.state, info.pos, &mut random) {
+                if !rule.input.test(info.state, &mut random) {
                     continue;
                 }
                 let located = world.block_state(info.pos)?;
-                if !rule.location.test(located, info.pos, &mut random) {
+                if !rule.location.test(located, &mut random) {
                     continue;
                 }
                 let position_ok = rule
@@ -1200,7 +1217,15 @@ fn process_block<W: PlacementContext>(
             match apply.pick(&mut random) {
                 Some(list) => {
                     return process_list(
-                        list, world, resources, position, reference, relative, info, settings,
+                        list,
+                        world,
+                        resources,
+                        position,
+                        reference,
+                        relative,
+                        original_state,
+                        info,
+                        settings,
                     );
                 }
                 None => Some(info),
@@ -1210,7 +1235,15 @@ fn process_block<W: PlacementContext>(
             let mut current = info;
             for list in lists {
                 match process_list(
-                    list, world, resources, position, reference, relative, current, settings,
+                    list,
+                    world,
+                    resources,
+                    position,
+                    reference,
+                    relative,
+                    original_state,
+                    current,
+                    settings,
                 )? {
                     Some(next) => current = next,
                     None => return Ok(None),
@@ -1243,7 +1276,15 @@ fn process_block<W: PlacementContext>(
                 .test(info.state, location, registry, &mut random);
             let list = if passed { &c.then } else { &c.otherwise };
             return process_list(
-                list, world, resources, position, reference, relative, info, settings,
+                list,
+                world,
+                resources,
+                position,
+                reference,
+                relative,
+                original_state,
+                info,
+                settings,
             );
         }
         Processor::Pillar(p) => return p.process(world, resources, position, info, settings),
@@ -1404,10 +1445,10 @@ fn process_infos<W: PlacementContext>(
     settings: &mut PlaceSettings<'_>,
 ) -> Result<Vec<BlockInfo>, PlacementQueryError> {
     settings.counted = 0;
-    let whole = settings
-        .processors
-        .iter()
-        .any(|p| p.evaluates_entire_piece());
+    // 26.1 has no `evaluatesEntirePieceState` pre-pass: every block goes
+    // through the processors, and the bounding box is applied at placement
+    // time only (26.2 skips out-of-box blocks before processing unless a
+    // processor evaluates the entire piece).
     let mut original = Vec::new();
     let mut processed = Vec::new();
     for info in template.palettes()[palette].blocks() {
@@ -1418,9 +1459,6 @@ fn process_infos<W: PlacementContext>(
             settings.pivot,
         );
         let pos = std::array::from_fn(|i| relative[i] + position[i]);
-        if !whole && settings.bounding_box.is_some_and(|b| !b.is_inside(pos)) {
-            continue;
-        }
         let mut current = Some(BlockInfo {
             pos,
             state: info.state,
@@ -1430,7 +1468,15 @@ fn process_infos<W: PlacementContext>(
         for processor in processors {
             let Some(value) = current.take() else { break };
             current = process_block(
-                processor, world, resources, position, reference, info.pos, value, settings,
+                processor,
+                world,
+                resources,
+                position,
+                reference,
+                info.pos,
+                info.state,
+                value,
+                settings,
             )?;
         }
         if let Some(value) = current {
@@ -1477,6 +1523,7 @@ fn process_infos<W: PlacementContext>(
                 position,
                 reference,
                 original[index].pos,
+                original[index].state,
                 before.clone(),
                 settings,
             )?;
@@ -2189,5 +2236,122 @@ mod tests {
             with_properties_of(&registry, "a:missing", BlockStateId(0)),
             None
         );
+    }
+
+    /// A registry with just the blocks the BlockRot test needs.
+    fn rot_registry() -> &'static crate::registry::BlockRegistry {
+        use std::collections::BTreeMap;
+        let mut rows = Vec::new();
+        let mut defaults = BTreeMap::new();
+        for name in ["minecraft:air", "minecraft:stone", "minecraft:cobblestone"] {
+            defaults.insert(name, rows.len());
+            rows.push(json!([
+                name,
+                name.ends_with("air"),
+                false,
+                "",
+                {"id": name, "properties": {}}
+            ]));
+        }
+        let facts = json!({"states": rows, "defaults": defaults});
+        let registry =
+            crate::registry::BlockRegistry::from_facts_json(facts.to_string().as_bytes())
+                .unwrap();
+        Box::leak(Box::new(registry))
+    }
+
+    /// The world a piece is placed in: one block everywhere.
+    struct RotWorld {
+        block: BlockStateId,
+    }
+    impl PlacementContext for RotWorld {
+        fn world_seed(&mut self) -> Result<i64, PlacementQueryError> {
+            Ok(0)
+        }
+        fn block_state(&mut self, _: [i32; 3]) -> Result<BlockStateId, PlacementQueryError> {
+            Ok(self.block)
+        }
+        fn generation(&self) -> crate::worldgen::anchor::WorldGenerationContext {
+            crate::worldgen::anchor::WorldGenerationContext::new(-64, 384, 63)
+        }
+        fn min_y(&mut self) -> Result<i32, PlacementQueryError> {
+            Ok(-64)
+        }
+        fn height(
+            &mut self,
+            _: HeightmapType,
+            _: i32,
+            _: i32,
+        ) -> Result<i32, PlacementQueryError> {
+            Err(PlacementQueryError::Unavailable)
+        }
+    }
+
+    /// A roll that always returns the same float.
+    struct FixedRoll(f32);
+    impl ProcessorRandom for FixedRoll {
+        fn float(&mut self) -> f32 {
+            self.0
+        }
+        fn int(&mut self, _bound: i32) -> i32 {
+            0
+        }
+        fn long(&mut self) -> i64 {
+            0
+        }
+    }
+
+    #[test]
+    fn block_rot_tests_the_template_state() {
+        use crate::worldgen::structure::StateTransforms;
+        use std::collections::BTreeMap;
+        let registry = rot_registry();
+        let resources = StructureResources::new(
+            registry,
+            StateTransforms::default(),
+            std::path::Path::new("/nonexistent"),
+            BTreeMap::new(),
+            &BTreeMap::new(),
+        );
+        let stone = registry.default_state("minecraft:stone").unwrap();
+        let cobble = registry.default_state("minecraft:cobblestone").unwrap();
+        let air = registry.default_state("minecraft:air").unwrap();
+        let rottable: Arc<BTreeSet<BlockStateId>> = Arc::new([cobble].into_iter().collect());
+        let run = |integrity: f32, original: BlockStateId, current: BlockStateId| {
+            let processor = Processor::BlockRot {
+                rottable: Some(rottable.clone()),
+                integrity,
+            };
+            let mut world = RotWorld { block: air };
+            let mut roll = FixedRoll(0.5);
+            let mut settings = PlaceSettings::new(Rotation::None);
+            settings.random = Some(&mut roll);
+            let info = BlockInfo {
+                pos: [0, 64, 0],
+                state: current,
+                nbt: None,
+            };
+            process_block(
+                &processor,
+                &mut world,
+                &resources,
+                [0; 3],
+                [0; 3],
+                [0; 3],
+                original,
+                info,
+                &mut settings,
+            )
+            .unwrap()
+        };
+        // The current block is rottable but the template block is not:
+        // 26.1 keeps it (no roll is drawn).
+        assert!(run(0.0, stone, cobble).is_some());
+        // The template block is rottable but the current one is not:
+        // 26.1 rolls and drops it at integrity 0.
+        assert!(run(0.0, cobble, stone).is_none());
+        // Both rottable: dropped at integrity 0, kept at integrity 1.
+        assert!(run(0.0, cobble, cobble).is_none());
+        assert!(run(1.0, cobble, cobble).is_some());
     }
 }

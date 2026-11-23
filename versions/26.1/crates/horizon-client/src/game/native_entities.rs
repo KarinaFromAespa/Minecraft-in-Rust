@@ -186,7 +186,6 @@ pub(super) fn target_id(t: Target) -> Option<u32> {
         | Target::Crystal(id)
         | Target::Dragon(id)
         | Target::Tnt(id)
-        | Target::Cushion(id)
         | Target::Falling(id)
         | Target::Rocket(id)
         | Target::Trident(id)
@@ -254,14 +253,13 @@ impl Game<'_> {
         let root = root.map(|id| super::lan_entities::assign_entity_id(&mut self.next_entity, id));
         self.native_mobs_joined(from, false);
         // Otherwise the root is the first entity spawned, also for kinds no
-        // command target stands for (experience orbs, end crystals, cushions). An id handed out to an
+        // command target stands for (experience orbs, end crystals). An id handed out to an
         // entity a mod then kept out is not given back, so the root must be
         // there.
         root.or_else(|| {
             root_id(target, first, |id| {
                 self.orbs.iter().any(|o| o.id == id)
                     || self.crystals.iter().any(|c| c.id == id)
-                    || self.cushions.iter().any(|c| c.id == id)
             })
         })
     }
@@ -474,7 +472,6 @@ impl Game<'_> {
 #[derive(Clone, Copy)]
 enum Apart {
     Crystal(usize),
-    Cushion(usize),
     Painting(usize),
     Frame(usize),
     Other(usize),
@@ -580,9 +577,6 @@ impl Game<'_> {
         for (i, c) in self.crystals.iter().enumerate() {
             offer(Slot::Apart(Apart::Crystal(i)), c.id);
         }
-        for (i, c) in self.cushions.iter().enumerate() {
-            offer(Slot::Apart(Apart::Cushion(i)), c.id);
-        }
         for (i, p) in self.paintings.iter().enumerate() {
             offer(Slot::Apart(Apart::Painting(i)), p.id);
         }
@@ -614,9 +608,6 @@ impl Game<'_> {
             Slot::Apart(Apart::Crystal(i)) => {
                 ("minecraft:end_crystal".into(), self.crystals[i].position)
             }
-            Slot::Apart(Apart::Cushion(i)) => {
-                ("minecraft:cushion".into(), self.cushions[i].position)
-            }
             Slot::Apart(Apart::Painting(i)) => {
                 ("minecraft:painting".into(), block(self.paintings[i].pos))
             }
@@ -644,7 +635,6 @@ impl Game<'_> {
         match slot {
             Slot::Walk(h) => self.discard_entity(h),
             Slot::Apart(Apart::Crystal(i)) => drop(self.crystals.remove(i)),
-            Slot::Apart(Apart::Cushion(i)) => drop(self.cushions.remove(i)),
             Slot::Apart(Apart::Painting(i)) => drop(self.paintings.remove(i)),
             Slot::Apart(Apart::Frame(i)) => drop(self.item_frames.remove(i)),
             Slot::Apart(Apart::Other(i)) => drop(self.others.remove(i)),
@@ -705,7 +695,6 @@ impl Game<'_> {
             seen(e.id());
         });
         self.crystals.iter().for_each(|c| seen(c.id));
-        self.cushions.iter().for_each(|c| seen(c.id));
         self.paintings.iter().for_each(|p| seen(p.id));
         self.item_frames.iter().for_each(|f| seen(f.id));
         self.others.iter().for_each(|o| seen(o.id));

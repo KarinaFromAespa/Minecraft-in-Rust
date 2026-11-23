@@ -80,7 +80,7 @@ fn parser_id(ty: &ArgType) -> String {
         ArgType::Criteria => "minecraft:objective_criteria".into(),
         ArgType::ScoreboardSlot => "minecraft:scoreboard_slot".into(),
         ArgType::Operation => "minecraft:operation".into(),
-        ArgType::TeamColor => "minecraft:team_color".into(),
+        ArgType::TeamColor => "minecraft:color".into(),
         ArgType::IntRange => "minecraft:int_range".into(),
         ArgType::FloatRange => "minecraft:float_range".into(),
         ArgType::NbtPath => "minecraft:nbt_path".into(),
@@ -92,7 +92,6 @@ fn parser_id(ty: &ArgType) -> String {
         ArgType::Function => "minecraft:function".into(),
         ArgType::Slots => "minecraft:slots".into(),
         ArgType::Slot => "minecraft:item_slot".into(),
-        ArgType::SlotSource => "minecraft:slot_source".into(),
         ArgType::ResourceOrId(r) => match *r {
             "minecraft:loot_table" => "minecraft:loot_table".into(),
             "minecraft:item_modifier" => "minecraft:loot_modifier".into(),

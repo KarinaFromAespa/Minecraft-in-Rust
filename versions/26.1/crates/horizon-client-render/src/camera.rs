@@ -793,7 +793,9 @@ impl Camera {
         }) = entity.living
         {
             self.set_rotation(bed.map_or(0.0, |yaw| yaw - 180.0), 0.0);
-            self.move_by(0.0, 0.15, 0.0);
+            // `Camera.alignWithEntity` lifts the sleeping camera 0.3 in 26.1
+            // (26.2 lowered it to 0.15).
+            self.move_by(0.0, 0.3, 0.0);
         }
     }
     /// `Camera.getMaxZoom`: eight rays from the corners of a 0.2 cube about

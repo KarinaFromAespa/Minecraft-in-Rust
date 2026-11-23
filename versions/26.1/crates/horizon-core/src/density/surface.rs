@@ -31,12 +31,12 @@ impl FindTopSurfaceSampler {
         context: &mut SamplerContext,
         x: i32,
         z: i32,
-        upper: f32,
+        upper: f64,
     ) -> Result<i32, SampleError> {
-        let quotient = upper / self.cell_height as f32;
-        // Java 26.3 Mth.floor(float) widens to double, calls Math.floor,
-        // then uses a saturating double-to-int conversion (NaN becomes zero).
-        let floor = (quotient as f64).floor() as i32;
+        let quotient = upper / self.cell_height as f64;
+        // Java Mth.floor(double) calls Math.floor, then uses a saturating
+        // double-to-int conversion (NaN becomes zero).
+        let floor = quotient.floor() as i32;
         let mut y = floor.wrapping_mul(self.cell_height);
         if y <= self.lower_bound {
             return Ok(self.lower_bound);
@@ -59,14 +59,14 @@ impl DensitySampler for FindTopSurfaceSampler {
         &self,
         context: &mut SamplerContext,
         [x, y, z]: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         let upper = self.upper_bound.sample_value(context, [x, y, z])?;
-        Ok(self.find_surface_from(context, x, z, upper)? as f32)
+        Ok(self.find_surface_from(context, x, z, upper)? as f64)
     }
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        output: &mut [f32],
+        output: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_buffer(output, volume)?;
@@ -75,7 +75,7 @@ impl DensitySampler for FindTopSurfaceSampler {
         }
         self.upper_bound.sample_volume(context, output, volume)?;
         visit(volume, |index, [x, _, z]| {
-            output[index] = self.find_surface_from(context, x, z, output[index])? as f32;
+            output[index] = self.find_surface_from(context, x, z, output[index])? as f64;
             Ok(())
         })
     }

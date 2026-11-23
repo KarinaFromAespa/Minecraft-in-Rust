@@ -1,7 +1,7 @@
 //! Commands that act on the player and the hosted game rather than the world:
 //! `/spectate` (SpectateCommand), `/waypoint` (WaypointCommand), `/dialog`
 //! (DialogCommand), `/posteffect` (PostEffectCommand), `/kick`,
-//! `/fetchprofile`, `/publish`, `/unpublish`, `/debug`, `/jfr` and
+//! `/fetchprofile`, `/publish`, `/debug`, `/jfr` and
 //! `/version`, with vanilla's feedback and failures.
 use super::{Arg, Context, Game, R, Target, err};
 use horizon_client::actions::Action;
@@ -936,7 +936,7 @@ impl Game<'_> {
         self.feedback_unbroadcast(Text::translate(message_id, &[argument, clickable]));
     }
 
-    // ---- /publish, /unpublish -------------------------------------------
+    // ---- /publish -----------------------------------------------------
 
     /// `PublishCommand.publish` with `IntegratedServer.publishServer`.
     pub(super) fn cmd_publish(&mut self, ctx: &Context) -> R<i32> {
@@ -961,44 +961,42 @@ impl Game<'_> {
             self.lan.as_ref().map(|l| l.settings.port)
         };
         if let Some(port) = published {
-            return Err(err("commands.publish.alreadyPublished.lan", &[&port]));
+            return Err(err("commands.publish.alreadyPublished", &[&port]));
         }
         let settings = super::super::lan::LanSettings {
             port: port as u16,
             guest_commands: allow,
             force_game_mode: false,
         };
+        // `PublishCommand`: the gamemode argument is the type set for other
+        // players (`IntegratedServer.publishServer`'s nullable GameType);
+        // absent, the world's default applies.
+        let game_type = match ctx.get("gamemode") {
+            Some(Arg::GameMode(m)) => Some(match m {
+                horizon_client::command::args::GameMode::Survival => 0,
+                horizon_client::command::args::GameMode::Creative => 1,
+                horizon_client::command::args::GameMode::Adventure => 2,
+                horizon_client::command::args::GameMode::Spectator => 3,
+            }),
+            _ => None,
+        };
         // A dedicated server is open from the start (`published` above).
         let started = self.serving() && self.publish(settings).is_ok();
         if !started {
             return Err(err("commands.publish.failed", &[]));
         }
-        let port_text = port.to_string();
-        let link = Text::literal(port_text.clone()).with_style(&Style {
-            color: Some(text::GREEN),
-            hover: Some(Box::new(Text::translate("chat.copy.click", &[]))),
-            ..Style::default()
-        });
+        // The published game type lands on the host publish() just created
+        // (set_published_game_type needs the host in place).
+        if let Some(mode) = game_type {
+            self.set_published_game_type(mode);
+        }
+        // `PublishCommand.getSuccessMessage`: `commands.publish.started`
+        // with the copy-on-click port (26.1 has no `.lan` key).
         self.feedback(Text::translate(
-            "commands.publish.started.lan",
-            &[Text::translate("chat.square_brackets", &[link])],
+            "commands.publish.started",
+            &[Text::copyable(port.to_string())],
         ));
         Ok(port)
-    }
-    pub(super) fn cmd_unpublish(&mut self) -> R<i32> {
-        if self.serving() {
-            if !self.unpublish() {
-                return Err(err("commands.unpublish.notPublished", &[]));
-            }
-            self.feedback(Text::translate("commands.unpublish.success", &[]));
-            return Ok(1);
-        }
-        if self.lan.is_none() {
-            return Err(err("commands.unpublish.notPublished", &[]));
-        }
-        self.lan_close(false);
-        self.feedback(Text::translate("commands.unpublish.success", &[]));
-        Ok(1)
     }
 
     // ---- /debug, /jfr, /version -----------------------------------------

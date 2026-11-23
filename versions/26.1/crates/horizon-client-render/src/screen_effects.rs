@@ -79,7 +79,9 @@ pub struct ScreenEffects {
     /// Nausea's `MobEffectInstance.BlendState` factor and the previous tick's.
     pub nausea: f32,
     pub o_nausea: f32,
-    /// `LocalPlayer.spinningEffectTime` and `spinningEffectSpeed` (degrees).
+    /// `GameRenderer`'s spinning-effect state (degrees): the time and speed
+    /// `GameRenderer.tick` updates from the portal and Nausea intensities
+    /// (26.3 moved them to `LocalPlayer`).
     pub spinning_time: f32,
     pub spinning_speed: f32,
 }
@@ -122,7 +124,7 @@ impl ScreenEffects {
         };
         self.portal = (self.portal + step).clamp(0.0, 1.0);
     }
-    /// `LocalPlayer.tickSpinningEffect` and Nausea's blend. `nausea` is `None`
+    /// `GameRenderer`'s spinning-effect tick and Nausea's blend. `nausea` is `None`
     /// without the effect, else whether it is past its blend-out point
     /// (`!endsWithin(60)`, `MobEffects.NAUSEA`).
     pub fn tick_spinning(&mut self, nausea: Option<bool>) {

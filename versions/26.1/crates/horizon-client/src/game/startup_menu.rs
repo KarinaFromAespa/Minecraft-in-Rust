@@ -244,7 +244,7 @@ impl StartupMenu {
             self.modifiers.control_key()
         };
         clipboard::edit_shortcut(
-            clipboard::shortcut_letter(&event.logical_key, event.physical_key),
+            clipboard::shortcut_letter(event.physical_key),
             edit,
             self.modifiers.shift_key(),
             self.modifiers.alt_key(),
@@ -484,7 +484,6 @@ impl Loading {
             self.fullscreen.apply(
                 &window,
                 self.settings.fullscreen,
-                self.settings.file.bool("exclusiveFullscreen"),
                 preferred,
                 false,
             );
@@ -670,7 +669,9 @@ impl Loading {
                 }
                 // Mods' settings pages open only in a running game.
                 // The HUD editor needs a world: its button is inactive here.
-                Event::NativeSettings(_) | Event::NativeButton(..) | Event::HudEditor => {}
+                // World Options needs a world too: the Main page shows its
+                // button only in world.
+                Event::NativeSettings(_) | Event::NativeButton(..) | Event::HudEditor | Event::WorldOptions => {}
                 // The startup menu runs before the game opens a control socket,
                 // and before its sound engine (no clicks, no volume previews,
                 // and no music tracks to list or play).
@@ -697,7 +698,7 @@ impl Loading {
 
     /// `Game::narrator_hotkey` on the startup menu's screens.
     fn menu_narrator_hotkey(&mut self, event: &KeyEvent) {
-        let letter = clipboard::shortcut_letter(&event.logical_key, event.physical_key);
+        let letter = clipboard::shortcut_letter(event.physical_key);
         if letter != Some('b') {
             return;
         }
@@ -730,9 +731,7 @@ impl Loading {
         let was_disabled = super::narrator::cycle_status(&mut self.settings);
         super::narrator::update_status(self.settings.narrator(), &mut self.menu.narrator_toast);
         self.save_menu_settings();
-        self.menu
-            .narration
-            .status_changed(was_disabled, horizon_narrator::screen::Trigger::Keyboard);
+        self.menu.narration.status_changed(was_disabled);
     }
 
     fn menu_options_click(&mut self, drag: bool, right: bool) {
@@ -1376,7 +1375,7 @@ mod tests {
             boot: horizon_client::hud::HudAtlas::boot(),
             gui: None,
             settings: Settings::default(),
-            fullscreen: horizon_client::window::FullscreenState::new(false),
+            fullscreen: horizon_client::window::FullscreenState::new(false, false),
             video_modes: Default::default(),
             options: None,
             vanilla_root: PathBuf::new(),

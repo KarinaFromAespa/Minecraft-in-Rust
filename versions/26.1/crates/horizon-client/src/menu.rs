@@ -301,8 +301,10 @@ pub const BEACON_EFFECTS: [&[&str]; 4] = [
     &["minecraft:regeneration"],
 ];
 
-/// `BeaconBlockEntity.getRequiredLevelsFor`: 0 for no power, `i32::MAX`
-/// for one no level gives.
+/// The beacon tier of an effect over 26.1's `BEACON_EFFECTS` list: 0 for
+/// no power, `i32::MAX` for one no level gives. (26.2 named this lookup
+/// `BeaconBlockEntity.getRequiredLevelsFor` and built `validateEffects`
+/// on it; neither method exists in 26.1.)
 pub fn beacon_required_levels(effect: Option<&str>) -> i32 {
     let Some(effect) = effect else {
         return 0;
@@ -1197,9 +1199,11 @@ impl Menu {
     /// `AnvilMenu.setItemName` (`ServerboundRenameItemPacket`): false when
     /// the name is refused or unchanged.
     /// `BeaconMenu.updateEffects` (`ServerboundSetBeaconPacket`): with a
-    /// payment, powers `BeaconBlockEntity.validateEffects` allows for the
-    /// pyramid's levels (data 0) become data 1 and 2 and the payment is used.
-    /// Each power is its `mob_effect` id and name. False when refused.
+    /// payment, the powers become data 1 and 2 and the payment is used.
+    /// 26.1 validates nothing — 26.2 added
+    /// `BeaconBlockEntity.validateEffects` (absent in 26.1) and refuses
+    /// invalid pairs. Each power is its `mob_effect` id and name. True
+    /// when a payment was present and the powers were set.
     pub fn beacon_update(
         &mut self,
         env: &Env,
@@ -1207,19 +1211,6 @@ impl Menu {
         secondary: Option<(i32, &str)>,
     ) -> bool {
         if self.kind != Kind::Beacon || self.containers[MAIN][0].is_none() {
-            return false;
-        }
-        let levels = self.data[0];
-        let (p, s) = (
-            beacon_required_levels(primary.map(|e| e.1)),
-            beacon_required_levels(secondary.map(|e| e.1)),
-        );
-        let valid = !(secondary.is_some() && levels < 4)
-            && p <= levels
-            && s <= levels
-            && p < 4
-            && !(s != 0 && s < 4 && primary.map(|e| e.0) != secondary.map(|e| e.0));
-        if !valid {
             return false;
         }
         self.data[1] = primary.map_or(0, |e| e.0 + 1);
@@ -1430,7 +1421,7 @@ impl Menu {
     }
 
     fn is_fuel(env: &Env, stack: &ItemStack) -> bool {
-        env.items.get(&stack.item).is_some_and(|i| i.fuel.is_some())
+        horizon_items::items::burn_time(env.items, &stack.item) > 0
     }
 
     // ---- Slot ----
@@ -1465,7 +1456,7 @@ impl Menu {
                         .is_some_and(|m| m.contains(&*stack.item))
             }
             Role::Ingredient => env.brewing.is_reagent(stack),
-            Role::BrewFuel => crate::brewing::brewing_fuel(env.items, stack).is_some(),
+            Role::BrewFuel => crate::brewing::brewing_fuel(env.items, stack),
             Role::LoomBanner => Self::is_banner(stack),
             Role::LoomDye => env.banners.loom_dye(env.items, stack).is_some(),
             Role::LoomPattern => env.banners.is_pattern_item(env.items, stack),
@@ -2323,7 +2314,7 @@ impl Menu {
                     if !self.move_to(env, &mut stack, 5, 41, true) {
                         return None;
                     }
-                } else if crate::brewing::brewing_fuel(env.items, &clicked).is_some() {
+                } else if crate::brewing::brewing_fuel(env.items, &clicked) {
                     let moved = self.move_to(env, &mut stack, 4, 5, false);
                     if moved
                         || (env.brewing.is_reagent(&stack)
@@ -3509,10 +3500,18 @@ pub(crate) mod tests {
         test(&env, &mut menu);
     }
 
-    /// `BrewingStandMenu.FuelSlot` and `quickMoveStack` use the same component.
+    /// `BrewingStandMenu.FuelSlot` and `quickMoveStack` use the same rule:
+    /// the `minecraft:brewing_fuel` tag (blaze powder).
     #[test]
-    fn brewing_fuel_slot_and_quick_move_use_stack_components() {
-        let items = Items::for_tests(Default::default());
+    fn brewing_fuel_slot_and_quick_move_use_the_fuel_tag() {
+        let items = Items::for_tests(
+            [(
+                "minecraft:brewing_fuel".to_owned(),
+                ["minecraft:blaze_powder".to_owned()].into_iter().collect(),
+            )]
+            .into_iter()
+            .collect(),
+        );
         let root = std::path::Path::new("");
         let recipes = Recipes::empty();
         let brewing = Brewing::load(root, &items, &PackOverlay::NONE);
@@ -3533,11 +3532,7 @@ pub(crate) mod tests {
             limited_crafting: false,
             known_recipes: None,
         };
-        let mut fuel = ItemStack::new("minecraft:stone", 2);
-        fuel.data_mut().set_loot_component(
-            "minecraft:brewing_fuel",
-            &serde_json::json!({"uses": 7, "speed_multiplier": 2.5}),
-        );
+        let fuel = ItemStack::new("minecraft:blaze_powder", 2);
         let mut menu = Menu::new(Kind::Brewing);
         assert!(menu.may_place(&env, 4, &fuel));
         menu.set_slot(&env, 5, Some(fuel));
@@ -3546,6 +3541,48 @@ pub(crate) mod tests {
         assert!(!menu.may_place(&env, 4, &ordinary));
         menu.set_slot(&env, 5, Some(ordinary));
         assert!(!menu.quick_move_landing(&env, 5).contains(&4));
+    }
+
+    /// 26.1's `BeaconMenu.updateEffects` validates nothing: a one-level
+    /// pyramid takes regeneration as its primary and a secondary power
+    /// too — 26.2's `validateEffects` refuses both — and the payment is
+    /// used. Without a payment nothing is applied.
+    #[test]
+    fn a_beacon_takes_any_powers_with_a_payment() {
+        let items = Items::for_tests(Default::default());
+        let recipes = Recipes::empty();
+        let brewing = Brewing::load(std::path::Path::new(""), &items, &PackOverlay::NONE);
+        let banners = Banners::default();
+        let station_recipes = crate::stations::StationRecipes::default();
+        let enchantments = crate::enchant::Enchantments::default();
+        let names = crate::creative::Names::default();
+        let env = Env {
+            items: &items,
+            recipes: &recipes,
+            brewing: &brewing,
+            banners: &banners,
+            station_recipes: &station_recipes,
+            enchantments: &enchantments,
+            names: &names,
+            trade: None,
+            maps: None,
+            limited_crafting: false,
+            known_recipes: None,
+        };
+        let mut menu = Menu::new(Kind::Beacon);
+        menu.data[0] = 1;
+        menu.set_slot(&env, 0, stack("diamond", 1));
+        assert!(menu.beacon_update(
+            &env,
+            Some((0, "minecraft:regeneration")),
+            Some((1, "minecraft:speed")),
+        ));
+        assert_eq!((menu.data[1], menu.data[2]), (1, 2));
+        assert_eq!(menu.slot(0), None, "the payment is used");
+        let mut unpaid = Menu::new(Kind::Beacon);
+        unpaid.data[0] = 1;
+        assert!(!unpaid.beacon_update(&env, Some((0, "minecraft:speed")), None));
+        assert_eq!((unpaid.data[1], unpaid.data[2]), (0, 0));
     }
 
     /// MerchantResultSlot's removal tally and quick-craft check reset before onTake.

@@ -1346,8 +1346,6 @@ pub struct ParticleEngine {
     /// and cobweb models, resolved for the ground), one per model layer.
     pub item_sprites: HashMap<ParticleType, Vec<String>>,
 }
-/// `ParticleGroup.MAX_PARTICLES` (per render group; one group here).
-const MAX_PARTICLES: usize = 16384;
 /// `ParticleLimit.SPORE_BLOSSOM`, the only limited particle.
 const SPORE_BLOSSOM_LIMIT: usize = 1000;
 const PARTICLE_LIGHT_CACHE_SIZE: usize = 64;
@@ -3922,17 +3920,10 @@ impl ParticleEngine {
                 self.tick_particle(&mut p, level);
                 p.after_constructor_tick();
             }
-            // ParticleGroup.add: the last quarter fills with decreasing probability.
-            let size = self.particles.len();
-            if size >= MAX_PARTICLES {
-                continue;
-            }
-            if size >= 12288 {
-                let free = (MAX_PARTICLES - size) as f32 / 4096.0;
-                if self.random.next_float() >= free * free {
-                    continue;
-                }
-            }
+            // `ParticleGroup.add` in 26.1 is a plain queue add: the group
+            // cap (16384, with the last quarter filling by decreasing
+            // probability) is 26.2-only — 26.1 declares MAX_PARTICLES but
+            // never enforces it.
             self.particles.push(p);
         }
     }
@@ -4945,9 +4936,10 @@ impl ParticleEngine {
             } else {
                 None
             };
-            // `SubmitNodeCollection.submitQuadParticleGroup`: the translucent
-            // layer draws after translucent terrain, so a crumb of stained
-            // glass cannot hide the glass behind it (`getLayer`).
+            // `SubmitNodeCollection.submitParticleGroup` (26.1; 26.2 renamed
+            // it `submitQuadParticleGroup`): the translucent layer draws
+            // after translucent terrain, so a crumb of stained glass cannot
+            // hide the glass behind it (`getLayer`).
             let (rect, layer) = match &p.sprite {
                 Sprite::Index(i) => (
                     self.rects.get(*i as usize).copied().flatten(),

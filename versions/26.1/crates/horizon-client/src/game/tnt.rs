@@ -234,19 +234,20 @@ impl PrimedTnt {
             self.velocity.z = 0.0;
         }
         if moved.y != wanted.y {
-            // Entity.restituteMovementAfterCollisions: slime bounces it.
+            // `Block.updateEntityMovementAfterFallOn`: slime or a bed
+            // bounces it.
             let below = world.block(
                 self.position.x.floor() as i32,
                 (self.position.y - f64::from(1.0e-5_f32)).floor() as i32,
                 self.position.z.floor() as i32,
             );
+            let below_name = &*facts.get(below).name;
             // Restitution reads the velocity, at rest after a stuck move.
             self.velocity.y = horizon_client::entities::vertical_collision_velocity(
                 self.velocity.y,
-                moved.y,
-                0.04,
                 wanted.y < 0.0,
-                &*facts.get(below).name == "minecraft:slime_block",
+                below_name == "minecraft:slime_block",
+                below_name.ends_with("_bed"),
             );
         }
         // Entity.move's last step: soul sand and honey slow the TNT's
@@ -264,7 +265,8 @@ impl PrimedTnt {
             from,
             recorded.then_some(wanted),
         );
-        // Entity.scale(getAirDrag()): 0.98F, widened before it scales motion.
+        // PrimedTnt.tick scales motion by the double literal 0.98 in 26.1
+        // (26.2 calls getAirDrag(), 0.98F widened).
         self.velocity = horizon_client::entity_rules::scale_air_drag(self.velocity);
         if self.on_ground {
             self.velocity = Vec3::new(

@@ -119,9 +119,10 @@ pub mod component {
     pub const JUKEBOX_PLAYABLE: i32 = 64;
     pub const DAMAGE_RESISTANT: i32 = 27;
     pub const CONTAINER: i32 = 75;
-    /// Not a pinned component: 26.1 has no `sulfur_cube_content` (a 26.3
-    /// addition). The negative value is an internal marker only, so the
-    /// 26.2-facing arms that name it can never match a canonical id here.
+    /// Not a pinned component: 26.1 has no `sulfur_cube_content` (26.2
+    /// content, absent in 26.1). The negative value is an internal marker
+    /// only, so the 26.2-facing arms that name it can never match a
+    /// canonical id here.
     pub const SULFUR_CUBE_CONTENT: i32 = -1000;
     pub const PAINTING_VARIANT: i32 = 102;
     /// `SignText.STREAM_CODEC`: a sign item's text, front and back. Also not
@@ -1236,15 +1237,31 @@ fn value_down(kind: i32, quirks: ids::Quirks, pinned: &[u8]) -> Result<Vec<u8>> 
 
 /// A stack's components, without those an older client being written for lacks.
 fn write_patch(s: &Stack, w: &mut Writer) {
-    let has = |kind: i32| ids::component(kind) >= 0;
+    // The copied-sign text kinds are synthetic (negative) and cross the wire
+    // as themselves: they name no registry entry, so no remap applies.
+    let synthetic = |kind: i32| {
+        matches!(
+            kind,
+            component::SIGN_TEXT_FRONT | component::SIGN_TEXT_BACK
+        )
+    };
+    let has = |kind: i32| synthetic(kind) || ids::component(kind) >= 0;
     w.varint(s.added.iter().filter(|(k, _)| has(*k)).count() as i32);
     w.varint(s.removed.iter().filter(|k| has(**k)).count() as i32);
     for (kind, c) in s.added.iter().filter(|(k, _)| has(*k)) {
-        w.varint(ids::component(*kind));
+        w.varint(if synthetic(*kind) {
+            *kind
+        } else {
+            ids::component(*kind)
+        });
         write_value(*kind, c, w);
     }
     for kind in s.removed.iter().filter(|k| has(**k)) {
-        w.varint(ids::component(*kind));
+        w.varint(if synthetic(*kind) {
+            *kind
+        } else {
+            ids::component(*kind)
+        });
     }
 }
 

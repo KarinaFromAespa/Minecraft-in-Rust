@@ -22,31 +22,33 @@ use horizon_world::{
     movement_properties::BoundMovementProperties,
 };
 
-/// Gravity applied each tick when the item is not in a fluid (`ItemEntity.tick`).
-const ITEM_GRAVITY: f64 = 0.04;
-/// Non-living slime `bounceRestitution` factor (`0.8f`) from
-/// `Entity.restituteMovementAfterCollisions`.
-const ITEM_SLIME_BOUNCE: f32 = 0.8;
+/// Non-living slime `bounceUp` factor: the double literal `0.8d`
+/// (`SlimeBlock.bounceUp` gives a living entity `1.0d`).
+const ITEM_SLIME_BOUNCE: f64 = 0.8;
+/// Non-living bed `bounceUp` factor: `0.66f` widened, times the non-living
+/// `0.8d` (`BedBlock.bounceUp` gives a living entity `0.66f` alone).
+const ITEM_BED_BOUNCE: f64 = 0.660_000_026_226_043_7 * 0.8;
 
-/// `Entity.restituteMovementAfterCollisions` for the vertical axis of a
-/// non-living entity: `current_y` is its velocity before the move, `moved_y`
-/// how far the move got. Landing on slime (`below`) bounces by the block's
-/// restitution `1.0f * 0.8f`, with the gravity and air drag the part of the tick
-/// after the hit would have added back; any other collision zeroes Y.
-pub fn vertical_collision_velocity(
-    current_y: f64,
-    moved_y: f64,
-    gravity: f64,
-    below: bool,
-    slime: bool,
-) -> f64 {
-    if !(below && slime && -current_y > gravity) {
+/// `Block.updateEntityMovementAfterFallOn` for the vertical axis of a
+/// non-living entity: `current_y` is its velocity before the move. Landing
+/// on slime (`below` + `slime`) bounces by `-current_y * 0.8d`
+/// (`SlimeBlock.bounceUp`); landing on a bed bounces by
+/// `-current_y * 0.66f * 0.8d` (`BedBlock.bounceUp`); any other collision
+/// zeroes Y (the default multiplies Y by 0). 26.1 bounces any falling
+/// speed with no compensation; 26.2 replaced this with
+/// `restituteMovementAfterCollisions` (a portion-of-tick gravity and drag
+/// compensation and a gravity threshold).
+pub fn vertical_collision_velocity(current_y: f64, below: bool, slime: bool, bed: bool) -> f64 {
+    if !below || current_y >= 0.0 {
         return 0.0;
     }
-    let restitution = f64::from(1.0_f32 * ITEM_SLIME_BOUNCE);
-    let portion = moved_y / current_y;
-    let drag = 1.0 + portion * (f64::from(0.98_f32) - 1.0);
-    (portion * gravity - current_y) * drag * restitution
+    if slime {
+        -current_y * ITEM_SLIME_BOUNCE
+    } else if bed {
+        -current_y * ITEM_BED_BOUNCE
+    } else {
+        0.0
+    }
 }
 
 /// `Entity.move`: the position only changes when the collided step is longer
@@ -79,6 +81,13 @@ fn slime_at(world: &World, facts: &BlockFacts, position: BlockPos) -> bool {
         .find(|(pos, _)| *pos == [position.x, position.y, position.z])
         .map(|(_, piston)| &*facts.get(piston.moved_state).name);
     slime_support_name(block, moving_moved)
+}
+
+fn bed_at(world: &World, facts: &BlockFacts, position: BlockPos) -> bool {
+    facts
+        .get(world.block(position.x, position.y, position.z))
+        .name
+        .ends_with("_bed")
 }
 
 mod fluids;
@@ -757,13 +766,8 @@ impl ItemEntity {
                 let contact = self.vertical_contact(world, collision, blocks, moved);
                 let slime =
                     self.on_ground && contact.is_some_and(|pos| slime_at(world, facts, pos));
-                self.velocity.y = vertical_collision_velocity(
-                    wanted.y,
-                    moved.y,
-                    ITEM_GRAVITY,
-                    self.on_ground,
-                    slime,
-                );
+                let bed = self.on_ground && contact.is_some_and(|pos| bed_at(world, facts, pos));
+                self.velocity.y = vertical_collision_velocity(wanted.y, self.on_ground, slime, bed);
                 contact
             } else {
                 None
@@ -874,8 +878,10 @@ impl ItemEntity {
             if !no_physics {
                 self.slime_step_on(world, facts);
             }
-            // `float friction = getAirDrag()` (0.98F); on the ground, times
-            // the block's friction as a float, then widened for the scale.
+            // `ItemEntity.tick`: the horizontal drag is the `0.98f` literal
+            // (times the block's friction on the ground, as a float), the
+            // vertical drag the double literal `0.98d` — 26.2 reads both
+            // from `getAirDrag()`.
             let mut friction = 0.98_f32;
             if self.on_ground {
                 let below = world.block(
@@ -886,7 +892,7 @@ impl ItemEntity {
                 friction *= facts.get(below).friction;
             }
             let friction = f64::from(friction);
-            let air = f64::from(0.98_f32);
+            let air = 0.98;
             self.velocity = Vec3::new(
                 self.velocity.x * friction,
                 self.velocity.y * air,
@@ -1607,9 +1613,10 @@ impl ExperienceOrb {
             self.position.z + moved.z,
         );
         self.on_ground = wanted.y < 0.0 && moved.y != wanted.y;
-        // Entity.move's restituteMovementAfterCollisions, an orb's bounciness
-        // 0: each collided axis's velocity is zeroed — x and z by Mth.equal's
-        // 1.0E-5, y exactly.
+        // `Entity.move` then `Block.updateEntityMovementAfterFallOn`: the
+        // default zeroes the collided axis — x and z by Mth.equal's
+        // 1.0E-5, y exactly. (26.2 calls this step
+        // `restituteMovementAfterCollisions` with a bounciness of 0.)
         if (wanted.x - moved.x).abs() >= 1.0e-5 {
             self.velocity.x = 0.0;
         }
@@ -1622,8 +1629,9 @@ impl ExperienceOrb {
         // ExperienceOrb.tick applies block effects after moving, before drag.
         let discarded =
             server && self.apply_lava_contact_damage(world, fluids, wanted, next_float, on_sound);
-        // `float friction = getAirDrag()` (0.98F), the ground's block
-        // friction multiplied in as a float, widened once for the scale.
+        // `ExperienceOrb.tick`: the drag is the `0.98f` literal (26.2 reads
+        // `getAirDrag()`), the ground's block friction multiplied in as a
+        // float, widened once for the scale.
         let mut friction = 0.98_f32;
         if self.on_ground {
             let below = world.block(
@@ -1921,69 +1929,6 @@ impl Painting {
             std::array::from_fn(|i| c[i] - size[i] / 2.0),
             std::array::from_fn(|i| c[i] + size[i] / 2.0),
         )
-    }
-}
-/// The `DyeColor` ordinal of a colour name (`DyeColor.byName`), white when
-/// the name is unknown.
-pub fn dye_index(name: &str) -> u8 {
-    crate::mobs::render::DYE_NAMES
-        .iter()
-        .position(|n| *n == name)
-        .unwrap_or(0) as u8
-}
-/// A cushion (`Cushion`, a `BlockAttachedEntity`): a 1 x 0.25 block pillow
-/// that seats a player. It sits on the top face of a block, at the clicked
-/// height, and is coloured by its `DyeColor`.
-#[derive(Clone, Debug)]
-pub struct Cushion {
-    pub id: u32,
-    /// `Entity.position`: the bottom centre of the cushion.
-    pub position: Vec3,
-    /// `BlockAttachedEntity.pos` (the saved `block_pos`).
-    pub pos: [i32; 3],
-    pub yaw: f32,
-    /// `DyeColor` ordinal: white 0, orange 1, ..., black 15.
-    pub color: u8,
-    /// BlockAttachedEntity.ticksSinceLastCheck.
-    pub check_interval: u32,
-    /// `Entity.getCustomName` (`CustomName`), copied onto the dropped cushion.
-    pub custom_name: Option<horizon_world::nbt::Tag>,
-}
-impl Cushion {
-    /// `Entity.makeBoundingBox`: x and z half a block out, y to y + 0.25.
-    pub fn bounds(&self) -> ([f64; 3], [f64; 3]) {
-        let p = self.position;
-        (
-            [p.x - 0.5, p.y, p.z - 0.5],
-            [p.x + 0.5, p.y + 0.25, p.z + 0.5],
-        )
-    }
-    /// The `DyeColor` name of the cushion.
-    pub fn color_name(&self) -> &'static str {
-        crate::mobs::render::DYE_NAMES[usize::from(self.color.min(15))]
-    }
-    /// `Cushion.getCushionItemStackWithData`: the matching coloured item.
-    pub fn item(&self) -> String {
-        format!("minecraft:{}_cushion", self.color_name())
-    }
-    /// `Cushion.getCushionItemStackWithData`: the coloured item with
-    /// `DataComponents.CUSTOM_NAME` from `getCustomName`, as the item frame
-    /// beside it does.
-    pub fn item_stack_with_data(&self) -> ItemStack {
-        let mut stack = ItemStack::new(&self.item(), 1);
-        if let Some(name) = &self.custom_name {
-            stack.data_mut().custom_name = Some(name.clone());
-        }
-        stack
-    }
-    /// `Cushion.interact`'s seat: the vehicle's PASSENGER attachment
-    /// `(0, 0.25, 0)` less the player's `(0, 0.6, 0)`.
-    pub fn seat(&self) -> Vec3 {
-        Vec3::new(self.position.x, self.position.y - 0.35, self.position.z)
-    }
-    /// `Entity.getDismountLocationForPassenger`: on top of the cushion.
-    pub fn dismount(&self) -> Vec3 {
-        Vec3::new(self.position.x, self.position.y + 0.25, self.position.z)
     }
 }
 /// An item frame or glow item frame (`ItemFrame`).
@@ -2308,7 +2253,7 @@ impl ArmorStand {
     }
     /// A server's stand on its client, each tick:
     /// `setOldPosAndRot` (`ClientLevel.tickNonPassenger`), then the step of
-    /// its `SteppedInterpolationHandler` (`step`: the position and yaw it is
+    /// its `InterpolationHandler` (`step`: the position and yaw it is
     /// put at, when one is due). The yaw
     /// turns the short way and stays continuous, so a frame between ticks
     /// never spins it.
@@ -2593,8 +2538,8 @@ impl ArmorStand {
     /// border and `entities` (the boxes `getEntityCollisions` gives the stand)
     /// cut the move short, a move cut to almost nothing is not made, and an
     /// axis that hits something loses its speed
-    /// (`restituteMovementAfterCollisions`: a stand does not bounce, so the
-    /// speed becomes `-speed * 0`).
+    /// (`Block.updateEntityMovementAfterFallOn` zeroes it; a stand does not
+    /// bounce).
     ///
     /// The stand has already travelled this tick (stands tick before mobs
     /// here). `travels_after` says vanilla ticks it after the shulker (it
@@ -3741,30 +3686,30 @@ mod slime_bounce_tests {
 
     #[test]
     fn landing_on_slime_bounces_a_dropped_item_like_vanilla() {
-        // Measured on a vanilla 26.3 server: an item falling at -0.6097 that
-        // is stopped 0.4865 down leaves with 0.4950 / 0.98 after the bounce.
-        let y = vertical_collision_velocity(-0.6097, -0.4865, ITEM_GRAVITY, true, true);
-        assert!((y - 0.4950 / 0.98).abs() < 1e-3, "{y}");
-        // A tiny landing: -0.0792 stopped after 0.06 gives 0.0862 (vanilla).
-        let y = vertical_collision_velocity(-0.0792, -0.06, ITEM_GRAVITY, true, true);
-        assert!((y - 0.0862).abs() < 1e-3, "{y}");
-        assert_eq!(
-            vertical_collision_velocity(-0.04, -0.01, ITEM_GRAVITY, true, true),
-            0.0,
-            "gravity alone is not a bounce"
-        );
+        // `SlimeBlock.bounceUp` in 26.1: `-vy * 0.8d` for a non-living
+        // entity, any falling speed, no gravity threshold and no
+        // portion-of-tick compensation (26.2's restitute form).
+        let y = vertical_collision_velocity(-0.6097, true, true, false);
+        assert!((y - 0.48776).abs() < 1e-9, "{y}");
+        let y = vertical_collision_velocity(-0.0792, true, true, false);
+        assert!((y - 0.06336).abs() < 1e-9, "{y}");
+        // Even gravity alone bounces: 26.1 gates on `vy < 0` only.
+        let y = vertical_collision_velocity(-0.04, true, true, false);
+        assert!((y - 0.032).abs() < 1e-9, "{y}");
+    }
+
+    #[test]
+    fn landing_on_a_bed_bounces_a_dropped_item_like_vanilla() {
+        // `BedBlock.bounceUp` in 26.1: `-vy * 0.66f * 0.8d` for a
+        // non-living entity.
+        let y = vertical_collision_velocity(-1.0, true, false, true);
+        assert!((y - 0.528_000_020_980_835).abs() < 1e-12, "{y}");
     }
 
     #[test]
     fn landing_on_stone_or_hitting_a_ceiling_zeros_y() {
-        assert_eq!(
-            vertical_collision_velocity(-1.0, -0.5, ITEM_GRAVITY, true, false),
-            0.0
-        );
-        assert_eq!(
-            vertical_collision_velocity(1.0, 0.5, ITEM_GRAVITY, false, true),
-            0.0
-        );
+        assert_eq!(vertical_collision_velocity(-1.0, true, false, false), 0.0);
+        assert_eq!(vertical_collision_velocity(1.0, false, true, false), 0.0);
     }
 
     #[test]
@@ -3847,16 +3792,18 @@ mod slime_bounce_tests {
 
     #[test]
     fn a_slime_landing_stays_upward_after_item_friction() {
-        // ItemEntity then multiplies Y by 0.98F and applies -0.5 only if still
-        // negative on the ground. A slime bounce must remain positive.
-        let bounced =
-            vertical_collision_velocity(-1.0, -0.5, ITEM_GRAVITY, true, true) * f64::from(0.98_f32);
+        // ItemEntity then multiplies Y by the `0.98d` literal and applies
+        // -0.5 only if still negative on the ground. A slime bounce must
+        // remain positive.
+        let bounced = vertical_collision_velocity(-1.0, true, true, false) * 0.98;
         assert!(bounced > 0.0);
     }
 
     #[test]
-    fn item_air_drag_widens_get_air_drag() {
-        // ItemEntity.tick: getAirDrag 0.98F, not the f64 0.98 (#6814).
+    fn item_air_drag_uses_the_26_1_literals() {
+        // ItemEntity.tick in 26.1: X and Z drag by the `0.98f` literal
+        // widened, Y by the double literal `0.98d` (26.2 reads all three
+        // from `getAirDrag()`).
         let mut item = super::honey_slide_tests::falling_item(0.5, 64.0, 0.5, 0.1, 0.2, -0.1);
         let world = World::new(horizon_world::registry::BlockStateId(0), 0);
         let facts = BlockFacts {
@@ -3876,7 +3823,7 @@ mod slime_bounce_tests {
             },
         );
         assert_eq!(item.velocity.x.to_bits(), 0x3fb9_1687_3333_3334);
-        assert_eq!(item.velocity.y.to_bits(), 0x3fc9_1687_3333_3334);
+        assert_eq!(item.velocity.y.to_bits(), 0x3fc9_1687_2b02_0c4a);
         assert_eq!(item.velocity.z.to_bits(), 0xbfb9_1687_3333_3334);
     }
 

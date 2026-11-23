@@ -1,0 +1,1145 @@
+{
+ "closed": [
+  {
+   "id": 506,
+   "title": "crates/horizon-server/src/management_methods.rs: 1 vanilla classes changed (43 methods, 20 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "MinecraftServerSettingsServiceImpl: 26.2 holds a NotificationManager and derives the server via a private server() helper (with requireNonNull); 26.1 holds the DedicatedServer directly. All 40 methods are otherwise structurally identical. management_methods.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 507,
+   "title": "crates/horizon-client/src/realms/client.rs: 12 vanilla classes changed (42 methods, 14 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "Realms port (26.2 items 418+421). Verified against 26.1's own jar: the invite-code service is absent (no InviteCode classes, no frontendV2Url in RealmsClient$Environment), the tier configuration is absent (no RealmTierConfigurationDto), the 4 extra regions are 26.3-only (26.2 PORT-NOTES 418), AddRealmPopupScreen + trial handling exist in both jars, the realmsclient class sets are identical (203 each). Carried the 26.2 tree's realms/client.rs, realms.rs and title.rs (PDP removal). One place 26.1 differs from 26.2: Request has only addSnapshotHeader (Is-Prerelease) in 26.1; 26.2's addVersionHeaders added X-NetworkProtocolVersion \u2014 the 26.1 headers() sends only Is-Prerelease, and the test asserts the protocol header absent. Also fixed the cookie test's version literal to 26.1 (the 26.2 tree's '26.3' literal is its known pre-existing failure). RealmsText/ErrorWithJsonPayload differ only by I18n.exists vs Language.has (same check). NOTE: the triage's cl.identical list for this item is unreliable \u2014 RealmsClient/Request differ structurally (the header call); verified directly instead."
+  },
+  {
+   "id": 508,
+   "verdict": "ported",
+   "evidence": "/item + if-slots carried the 26.3 slot-source forms; ItemCommands 0-diff (SlotArgument, one slot); ExecuteCommand has only if items; SlotSourceArgument in neither jar; carried the 26.2 items.rs + trees, removed ArgType::SlotSource and the slot-source machinery, carried args::slot_id"
+  },
+  {
+   "id": 509,
+   "title": "crates/horizon-client-render/src/post_chain.rs: 15 vanilla classes changed (105 methods, 6 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "Post-chain std140 port (26.2 item 420). Verified against 26.1's own jar: Std140SizeCalculator structurally identical; Std140Builder.putVec3 pads to 16 in both (align 16, 3 floats, position+4); GlobalSettingsUniform.update() structurally identical with put order ivec3/vec3/vec2/float/float/int/int \u2014 the 56-byte 26.2 layout. Carried the 26.2 tree's post_chain.rs, gfx/core_lines.rs, gfx/core_sky.rs (all 48->56 + GLSL order), and the Globals GLSL line in core_shader.rs only (its OIT work preserved; gfx.rs untouched \u2014 its OIT/underwater/forcefield work preserved)."
+  },
+  {
+   "id": 510,
+   "title": "crates/horizon-world/src/level/sculk.rs: 5 vanilla classes changed (28 methods, 11 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "The sculk_growth_inhibitors tag exists in neither jar (26.3-only) \u2014 replaced the tag check with the hardcoded sensor+shrieker list (the 26.2 tree's form). Rest verified no-change: SculkSensorBlock getSignal (26.1) vs ownSignal (26.2) have the same body (return POWER); SculkCatalystBlock.getTicker differs only by BlockEntityType->BlockEntityTypes; ChargeCursor codec fieldOf/orElse vs optionalFieldOf is the same optional-with-default shape."
+  },
+  {
+   "id": 511,
+   "title": "crates/horizon-client-render/src/social.rs: 9 vanilla classes changed (45 methods, 9 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "The friends system is 26.2-only: PresenceSharing, PresenceHandler, RemoteFriendListUpdateHandler exist in the 26.2 jar (6 entries) and are absent from the 26.1 jar (0); 26.1's PlayerSocialManager has no friend methods (hide/show/block/online-mode/discovered-names only), and 26.1's Options has no sharePresence. Removed the whole friends machinery: deleted horizon-client-render/src/social.rs (860 lines) + the lib mod + the client_lib re-export; removed the presence calls from game.rs (presence_status + tick), saving.rs (offline presence), remote.rs (try_update_presence), title.rs (social::init); removed the SharePresence + InGameNotification options (both absent from 26.1's Options, lang and OnlineOptionsScreen, which shows only allowServerListing + realmsNotifications) from the Opt enum, options_ui.rs, options_file.rs defaults, and the Online page's friends section. game/social.rs (Social Interactions screen + hidden chat) and game/friends.rs (LAN invite sharing, feature-gated) are untouched \u2014 both are 26.1 behaviour. ban_notice.rs still parses the account status's friendsPreferences (account-API data, version-neutral); nothing reads the fields after this removal."
+  },
+  {
+   "id": 512,
+   "title": "crates/horizon-client/src/game/commands/test_runs.rs: 3 vanilla classes changed (40 methods, 8 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "No dimension on any test-instance class in either jar (GameTestInstance has only rotation(); TestEnvironmentDefinition identical); the dimension-on-test is 26.3-only. Carried the 26.2 tree's test_runs.rs (tests run in the level in place; heightmap read directly). StructureUtils/TestCommand differ only by branch forms + BlockEntityType->BlockEntityTypes. (26.2 added GameTestEntityBuilder/GameTestMobBuilder/SetDifficulty helpers \u2014 not modelled by the Rust.)"
+  },
+  {
+   "id": 513,
+   "verdict": "no-change",
+   "evidence": "Fortress pieces 0-diff apart from EntityType->EntityTypes renames (Structure + MonsterThrone); fortress.rs 0-diff"
+  },
+  {
+   "id": 514,
+   "title": "crates/horizon-client/src/game/stats_screen.rs: 8 vanilla classes changed (36 methods, 7 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "StatsScreen differs only by TabNavigationBar -> MenuTabBar (26.2's new tab-bar class); TabManager.setCurrentTab's 2-arg form delegates to the 3-arg form with the same logic. Menu chrome; stats_screen.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 515,
+   "title": "crates/horizon-client/src/game/structure_blocks.rs: 3 vanilla classes changed (24 methods, 7 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "BlockRotProcessor.processBlock bodies identical (same random/integrity/HolderSet logic); the differences are API shape (26.1 extends StructureProcessor with getType/CODEC/5-arg processBlock; 26.2 is standalone with codec/MAP_CODEC/6-arg processBlock). The 26.1 tree's processor.rs already carries the 26.1 form from rank 2 (items 124/154): the template-state BlockRot fix + evaluatesEntirePieceState note + BlockRot test. StructureBlock diffs are compiler form; StructureBlockEntity ctor differs only by BlockEntityType->BlockEntityTypes. structure_blocks.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 516,
+   "title": "crates/horizon-client/src/game/advancements_screen.rs: 4 vanilla classes changed (51 methods, 3 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "Surgical port (26.2 item 431): keyPressed is identical in 26.1/26.2 (advancements key -> setScreen(null) + grabMouse, close to game) \u2014 added close_advancements_to_game and routed KeyL to it; Escape/Done keep the onClose restore form. The positions handling was deliberately NOT carried: DisplayInfo.fromNetwork reads x/y identically in both jars (the packet carries positions), and vanilla 26.1/26.2 position widgets from DisplayInfo x/y \u2014 the 26.1 tree's server-positions form is correct, and the 26.2 tree's client-side-only layout is its own known gap (26.2 PORT-NOTES). The F4 spectator-effect + MultiplayerOptions-escape hunks in play_keys.rs belong to other items, left alone."
+  },
+  {
+   "id": 517,
+   "title": "crates/horizon-client/src/item_render/gui.rs: 6 vanilla classes changed (44 methods, 3 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "GuiItemAtlas/PictureInPictureRenderer differ only by render-submission plumbing (26.1 takes SubmitNodeCollector + BufferSource in; 26.2 creates a SubmitNodeStorage internally). gui.rs is 0-diff vs 26.2 apart from the oit:false test literal from the earlier OIT work."
+  },
+  {
+   "id": 518,
+   "verdict": "ported",
+   "evidence": "Batch 73 PORTED (lan_screen, 26.1's two screens): 26.1 has ShareToLanScreen + a difficulty/gamerules/restrictions WorldOptionsScreen \u2014 NOT 26.2's MultiplayerOptionsScreen (LAN switch + Apply) and NOT the tree's 26.3 merged single screen. Reshaped the 26.2 tree's lan_screen.rs: WorldOptions lost its mode/cheats row (restrictions is row 2); ShareToLan has the game-mode cycle (survival/spectator/creative/adventure), allow-commands, a port box (blank -> available port, 1024..65535 per tryParsePort) and Start LAN World, which closes the screen then publishServer(gameType, allowCommands, port) via set_published_game_type (hub default only, no level-mode change, no guest retargeting) + lan_apply_settings + lan_open. Pause menu: Options + Open to LAN single-player, full-width Options remote (hasSingleplayerServer gate); World Options moved to the Options screen's Main page (in world only, Act/Event::WorldOptions). Success message fixed to commands.publish.started (26.1's lang has no menu.multiplayerOptions.publish.started.lan); the unpublish 'stopped' messages dropped (26.1 has no such key \u2014 unpublish is silent). Screen::ShareToLan wired through game.rs, control/ime/narrator/pad_menu/play_keys, agent/control screen names, debug_options interrupts, startup_menu (ignored: no world at title)."
+  },
+  {
+   "id": 519,
+   "verdict": "no-change",
+   "evidence": "Batch 72 NO-CHANGE (SystemToast): 26.2 refactored the toast internals (title Component -> titleLines list, TEXT_X_START const, mutable width). Toast-render plumbing; chunk_io.rs is 0-diff vs the 26.2 tree and models no toast internals."
+  },
+  {
+   "id": 520,
+   "verdict": "ported",
+   "evidence": "Batch 72 PORTED (PlayerSpawnFinder): 26.1's findSpawn returns the fixup height at once in a dimension WITHOUT skylight (dimensionType.hasSkyLight gate before the Adventure check); 26.2 dropped the gate and searches the respawn radius in every dimension. spawn_finder now takes the suggestion-only path when game_mode == 2 OR !world.shape.sky_light. getOverworldRespawnPos -> getLevelRespawnPos rename and getBottomCenter -> Vec3.atBottomCenterOf are form-only (the Rust already names it level_respawn_pos)."
+  },
+  {
+   "id": 521,
+   "verdict": "no-change",
+   "evidence": "GuiRenderer 832-line diff is the render-submission rework (StagedVertexBuffer); pack_text.rs 0-diff"
+  },
+  {
+   "id": 522,
+   "verdict": "no-change",
+   "evidence": "Batch 72 NO-CHANGE (DismountHelper + RespawnAnchorBlock): only EntityType -> EntityTypes and BlockPos.getCenter -> Vec3.atCenterOf (same value). respawn_anchor.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 523,
+   "verdict": "no-change",
+   "evidence": "All 7 codec/loot classes structurally identical 26.1/26.2; the codec.rs diff is earlier 26.1 work."
+  },
+  {
+   "id": 524,
+   "verdict": "no-change",
+   "evidence": "Batch 72 NO-CHANGE (SectionRenderDispatcher): 26.2 refactored the section-compile queue (CompileTaskDynamicQueue -> SectionTaskDynamicQueue, added StagingBuffer + onSectionMeshUpdate callback). Render-engine internals; debug_lines.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 525,
+   "verdict": "no-change",
+   "evidence": "Batch 72 NO-CHANGE (MineshaftPieces$MineShaftCorridor): only EntityType -> EntityTypes (CHEST_MINECART, CAVE_SPIDER). createChest/postProcess logic identical; mineshaft.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 526,
+   "verdict": "no-change",
+   "evidence": "Batch 72 NO-CHANGE (ItemFeatureRenderer): 26.2 refactored it into the RenderTypeFeatureRenderer/FeatureRendererType framework (Submit inner class + TYPE) where 26.1 uses renderSolid + SubmitNodeStorage$ItemSubmit; setupGlintTexturing identical (8.0d, 110000, 30000). Render-submission plumbing; the item_render.rs diff vs the 26.2 tree is only the earlier 26.1 OIT work and the NbtOps.getBooleanValue test fix."
+  },
+  {
+   "id": 527,
+   "verdict": "ported",
+   "evidence": "Batch 72 PORTED (docs only, screen effects): 26.1 keeps the spinning effect on GameRenderer (spinningEffect x3 in GameRenderer, 0 in LocalPlayer) \u2014 26.3 moved it to LocalPlayer. screen_effects.rs docs said LocalPlayer; now the 26.2 tree's GameRenderer form. Lightmap/ScreenEffectRenderer diffs are GPU plumbing (TextureFormat -> GpuFormat, render -> submit rename, dropped bufferSource param)."
+  },
+  {
+   "id": 528,
+   "verdict": "no-change",
+   "evidence": "Batch 72 NO-CHANGE (BrushableBlockEntity): only package moves (CriteriaTriggers criterion -> triggers, BlockEntityType -> BlockEntityTypes, EntityType -> EntityTypes). dropContent/unpackLootTable logic identical; brush.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 529,
+   "verdict": "ported",
+   "evidence": "Batch 72 PORTED (RuinedPortalPiece): 26.1's placeNetherrackOrMagma is UNCONDITIONAL (0.07 magma roll, setBlock flag 3) \u2014 bytecode-identical to 26.2's; the replaceability check lives only at the spread site. The 26.1 tree had the 26.3 form (check inside, drip columns skipping air/obsidian/lava and skipping the magma roll). Carried the 26.2 tree's split: place_netherrack_or_magma (unconditional, used by drip_column) + netherrack_or_magma (checked wrapper, spread site only)."
+  },
+  {
+   "id": 530,
+   "verdict": "no-change",
+   "evidence": "CommandEncoder GPU-backend rework (backend removed, render-pass checks); render internals, submit.rs 0-diff."
+  },
+  {
+   "id": 531,
+   "title": "crates/horizon-client/src/game/level_particles.rs: 1 vanilla classes changed (5 methods, 4 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "26.1's levelEvent switch (82 keys) lacks 2015-2020 entirely (26.2 same +1052 sulfur spike, 26.2-only); 26.1's Shulker/EnderMan call no levelEvent. Ported the 26.2 tree's level_particles.rs + teleport_consume.rs whole: 3003 wax-on sound and 2002/2007 splash sound added (both jars play them, tree lacked them); 2016/2017/2018 handlers + 2017 emission (consume trait, fox block, item_sync codec bool, protocol hash shapes) + directional_particles field removed (TeleportRandomlyConsumeEffect byte-identical 26.1/26.2, diameter only); breaking_block_effects -> breaking_block_sound (26.1's continueDestroyBlock plays the hit sound directly, no addBreakingBlockEffect) with the every-4th-tick schedule in remote.rs; 2019/2020 game.rs arm + destroy_progress_event removed; 2015 kept as the sim's internal dragon-egg channel. 2016 shulker emission kept (26.2 precedent: emitted, unhandled)."
+  },
+  {
+   "id": 532,
+   "title": "crates/horizon-server/src/management.rs: 7 vanilla classes changed (25 methods, 2 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "JsonRPCUtils: 26.2 added a createRequest overload, behaviour-identical for the existing form. ManagementServer: Netty group type + heartbeat field are 26.2-only, but the heartbeat FEATURE exists in 26.1 (NotificationService.statusHeartbeat abstract in both jars; serversettings/status_heartbeat_interval registered in both IncomingRpcMethods) \u2014 the Rust's supervisor-owned heartbeat thread stands. IncomingRpcMethod Attributes/Builder: 26.2 added allowPreServerInit; the Rust schema models no lifecycle flag (batch 67). Test-only port: the rpc_discover assertion was stale at 89 (batch 67 removed the four 26.3-only notifications from the 85-entry table but not the assertion; horizon-server is not in the CI crate list, so it never failed) \u2014 now 85."
+  },
+  {
+   "id": 533,
+   "title": "crates/horizon-client/src/game/commands/effects.rs: 2 vanilla classes changed (13 methods, 3 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "EffectCommands jar diff is only the isInstantenous->isInstantaneous typo fix + a checkcast reorder, but both jars' giveEffect branch single/multiple on Collection.size()==1 (the TARGET count) with no tracker \u2014 the tree's 26.3 CommandResponseTracker form was wrong for 26.1. Carried the 26.2 tree's effects.rs whole (give/clear/enchant all branch on target count, count successes)."
+  },
+  {
+   "id": 534,
+   "verdict": "no-change",
+   "evidence": "RenderSection 300-line diff is the section-compile refactor (RebuildTask->CompileTask); native_material.rs 0-diff"
+  },
+  {
+   "id": 535,
+   "title": "crates/horizon-client/src/multiplayer.rs: 8 vanilla classes changed (20 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "JoinMultiplayerScreen: the Minecraft.setScreen -> Gui.setScreen move (7 sites) + one reorder; LoadingDotsWidget: getY()+getHeight() -> getBottom(); DirectJoin/ManageServer: 10 diff lines each, form only. Menu chrome; multiplayer.rs 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 536,
+   "verdict": "ported",
+   "evidence": "/place feature took inline SNBT values; PlaceCommand takes a Holder$Reference (registry key only); success.inline in neither en_us; removed the inline branch, tree arg now ResKey, whole inline-feature machinery removed"
+  },
+  {
+   "id": 537,
+   "title": "crates/horizon-client/src/game/dedicated/management.rs: 4 vanilla classes changed (19 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "MinecraftBanListServiceImpl + MinecraftGameRuleServiceImpl: 26.2 derives the server from a NotificationManager via a private server() helper; 26.1 holds it directly \u2014 same pattern as item 506, bodies otherwise identical. OperatorService$Op: a private constructor form only. dedicated/management.rs 0-diff."
+  },
+  {
+   "id": 538,
+   "verdict": "ported",
+   "evidence": "Batch 63 PORTED (team color): 26.2 added /team modify color reset (clearColor + the reset literal + the color.clear.success lang key, which 26.1's en_us.json lacks) and replaced ColorArgument/ChatFormatting with TeamColorArgument/TeamColor (PlayerTeam.getColor became Optional). 26.1 has no reset subcommand: 'reset' is a color-argument VALUE (ColorArgument accepts RESET \u2014 it is not a format). Removed the reset literal + team.modify.color.reset executes from tree_scoreboard.rs; the scoreboard_cmd.rs color arm is set-only and stores 'reset' as no color (a fresh team's color is RESET, so the unchanged check still matches vanilla); ArgType::TeamColor now accepts 'reset' in parse (suggestions stay the 16 colors, as vanilla's getNames(true, false) lists); network.rs maps 26.1's 'minecraft:color' id (26.1's registry has no team_color); the command-parse fixture emits 'minecraft:color'. The existing teams() test (color reset clears to None) passes unchanged via the value path."
+  },
+  {
+   "id": 539,
+   "title": "crates/horizon-client/src/game/beehives.rs: 1 vanilla classes changed (8 methods, 3 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "BeehiveBlock: only package moves (CriteriaTriggers criterion->triggers, BlockEntityType->BlockEntityTypes). beehives.rs 0-diff."
+  },
+  {
+   "id": 540,
+   "title": "crates/horizon-client/src/game/transient_blocks.rs: 4 vanilla classes changed (28 methods, 1 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "SectionOcclusionGraph was rewritten in 26.2 (878 diff lines: AtomicReference graph events -> LongOpenHashSet emptySections/loadedChunks + prevCam) \u2014 render internals the Rust does not model. The Rust port is docs/attrs only: neither jar has an add-transient-block packet or a ClientPacketListener handler for it, so the 26.1 tree's transient_blocks feeder is dead like the 26.2 tree's \u2014 carried the 26.2 tree's dead-feeder comments + #[allow(dead_code)] (const, queue, add_transient_block). Drain/render path stays wired in both trees."
+  },
+  {
+   "id": 541,
+   "verdict": "no-change",
+   "evidence": "FillLayerFeature + SpikeFeature 0-diff; RandomizableContainerBlockEntity is the getCenter->atCenterOf rename"
+  },
+  {
+   "id": 542,
+   "verdict": "ported",
+   "evidence": "Batch 63 PORTED (large dripstone): three 26.2-only behaviours removed. (1) WindOffsetter maxOffset: 26.2 clamps the wind offset to \u00b1(16 - radius); 26.1 applies the raw floored offset \u2014 removed max_offset + the clamp from Wind. (2) 26.1's codec has no replaceable_blocks field (26.2 added it) and 26.1's config lacks it, while the Rust REQUIRED it \u2014 now optional, defaulting to the #dripstone_replaceable_blocks tag that 26.1's DripstoneUtils.isDripstoneBase hardcodes (same tag, same contents in both jars). (3) column_radius codec bound: 26.1 is IntProviders.codec(1, 60), 26.2 narrowed it to (1, 16) \u2014 the Rust's (1,16) bound rejected 26.1's own uniform(3..19) config; now (1,60). Also verified: DripstoneUtils -> SpeleothemUtils is a rename (getDripstoneHeight == getSpeleothemHeight, same formula); place's logic is otherwise identical (the diff is lambda shape + local numbering). Speleothems (block, cluster feature, utils, tag) are a 26.2 addition absent from 26.1 entirely; the cluster code stays unreachable-per-convention (no such configured feature in either jar's data pack) and the module doc now says so."
+  },
+  {
+   "id": 543,
+   "title": "crates/horizon-client/src/game/commands/extra.rs: 5 vanilla classes changed (23 methods, 1 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "PublishCommand: 26.2 added the MultiplayerScope + .lan keys; 26.1's form is publishServer(GameType, boolean, int) with commands.publish.started / alreadyPublished (getSuccessMessage: translatable started + copyOnClickText port). Fixed cmd_publish's keys + success message (Text::copyable, no square brackets), added the gamemode argument (both jars register bool/gamemode/port; the tree's command tree lacked the node) -> set_published_game_type after publish. /unpublish REMOVED: no UnpublishCommand class in either 26.1 jar, no Commands registration, no lang keys; 26.1's IntegratedServer has no unpublishServer either \u2014 removed the command (fn, dispatch, tree, INTEGRATED_ONLY, vanilla filter, tests) and re-documented the engine unpublish() as the lan_close shutdown path. WaypointCommand: 26.1 uses ColorArgument/ChatFormatting vs 26.2's TeamColorArgument/TeamColor \u2014 the Rust's ArgType::TeamColor already documents this as 26.1's ColorArgument and parses the same 16 names; no change."
+  },
+  {
+   "id": 544,
+   "title": "crates/horizon-client-render/src/streaming.rs: 2 vanilla classes changed (12 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "CompiledSectionMesh: VertexFormat$IndexType -> IndexType type move only. CompileTask: the section-compile queue refactor (same family as item 524's SectionRenderDispatcher) \u2014 render-engine internals. streaming.rs 0-diff."
+  },
+  {
+   "id": 545,
+   "title": "crates/horizon-client/src/game/commands/profiles.rs: 3 vanilla classes changed (8 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "DeOpCommands: lambda capture Collection -> NameAndId, logic unchanged. BanListEntry: 26.2 added hasExpired() + hashCode(); the Rust models no ban-expiry call (expiry lives in StoredUserList.removeExpired in both jars). profiles.rs 0-diff."
+  },
+  {
+   "id": 546,
+   "title": "crates/horizon-client/src/mobs/happy_ghast.rs: 2 vanilla classes changed (7 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "GhastMoveControl: only the ghast->mob field rename. HappyGhastLookControl: 26.1's local wrapDegrees90 (mod 90, clamp to +-45) moved to Mth.wrapDegrees90 in 26.2 \u2014 same math. happy_ghast.rs 0-diff."
+  },
+  {
+   "id": 547,
+   "verdict": "no-change",
+   "evidence": "IglooPieces + ShipwreckPieces 0-diff; IglooPiece is a branch-offset/local-store reshuffle"
+  },
+  {
+   "id": 548,
+   "verdict": "no-change",
+   "evidence": "DataCommands 15 lines: branch inversion + local renumbering, same logic; command_storage.rs 0-diff"
+  },
+  {
+   "id": 549,
+   "title": "crates/horizon-client/src/game/golems.rs: 1 vanilla classes changed (5 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "CarvedPumpkinBlock: EntityType->EntityTypes, CriteriaTriggers criterion->triggers, Blocks.COPPER_BLOCK read via the WeatheringCopperCollection in 26.2. trySpawnGolem bodies structurally identical (getWeatherStateFromPattern + CopperGolem.spawn); the Rust's tag-based base check + weather-from-name matches both. golems.rs 0-diff."
+  },
+  {
+   "id": 550,
+   "verdict": "no-change",
+   "evidence": "AbstractTextAreaWidget + MultiLineEditBox + MultilineTextField all 0-diff; multiline_edit.rs 0-diff"
+  },
+  {
+   "id": 551,
+   "verdict": "no-change",
+   "evidence": "NbtContents + TitleCommand both 0-diff; text_commands.rs 0-diff"
+  },
+  {
+   "id": 552,
+   "title": "crates/horizon-client/src/game/social.rs: 1 vanilla classes changed (4 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "PlayerEntry: branch inversion (compiler form), Gui.getChat -> Hud.getChat, Minecraft.setScreen -> Gui.setScreen. Menu chrome + accessor moves. social.rs 0-diff."
+  },
+  {
+   "id": 553,
+   "title": "crates/horizon-client-render/src/mesher/lighting.rs: 1 vanilla classes changed (3 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "LightCoordsUtil.smoothBlend: compiler reorder only (same sky/block masks 0xFF0000/0xFF, same zero-sample/borrow-centre-sky logic). 26.2 added a getLightCoords overload with emissive handling (15728880 full-bright) \u2014 not modelled by the Rust in either tree (the Rust's Info.emissive is pack/mod-driven, and neither jar's ModelBlockRenderer mentions emissive). lighting.rs 0-diff."
+  },
+  {
+   "id": 554,
+   "verdict": "no-change",
+   "evidence": "DataComponentMatchers pure package move criterion->predicates; bodies identical."
+  },
+  {
+   "id": 555,
+   "verdict": "no-change",
+   "evidence": "OreFeature 0-diff; ore_feature.rs 0-diff"
+  },
+  {
+   "id": 556,
+   "verdict": "no-change",
+   "evidence": "MonsterRoomFeature + BeehiveDecorator are EntityType/BlockEntityType renames only (same spawner table); feature_world.rs diff is the 26.2 brushable-loot helper, out of scope"
+  },
+  {
+   "id": 557,
+   "verdict": "no-change",
+   "evidence": "ClientChunkCache 91-line diff is the LevelExtractor move + empty-sections rework; remote_chunks.rs fixed in batch 84"
+  },
+  {
+   "id": 558,
+   "verdict": "ported",
+   "evidence": "TestData/GameTestInstance have no dimension in either jar; removed the dimension field from test_instances.rs (carried the 26.2 file)"
+  },
+  {
+   "id": 559,
+   "verdict": "ported",
+   "evidence": "Lone-dark-oak test asserted bonemeal fails, contradicting the implementation and 26.1 SaplingBlock (height check only, no canGrow); carried the 26.2 test; removed the poplar line (26.3-only, absent from both jars)"
+  },
+  {
+   "id": 560,
+   "title": "crates/horizon-client/src/game_rules_screen.rs: 3 vanilla classes changed (8 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "InWorldGameRulesScreen: the Minecraft.setScreen -> Gui.setScreen move (3 sites) + Minecraft.screen -> Gui.screen(). Menu chrome. game_rules_screen.rs 0-diff."
+  },
+  {
+   "id": 561,
+   "verdict": "no-change",
+   "evidence": "OverworldBiomeBuilder 62-line diff is only the Spline Coordinate ctor API shape + offsets, no parameter changes; settings.rs doc fixed 26.2->26.1"
+  },
+  {
+   "id": 562,
+   "verdict": "no-change",
+   "evidence": "BlendFunction refactored to BlendEquation + BlendFactor/BlendOp in 26.2; GPU plumbing."
+  },
+  {
+   "id": 563,
+   "verdict": "no-change",
+   "evidence": "leafComponent() is a 26.2 addition the Rust does not model; pad_menu diff is batch-73 LAN work"
+  },
+  {
+   "id": 564,
+   "verdict": "no-change",
+   "evidence": "CuredZombieVillagerTrigger pure package moves (criterion->triggers, EntityPredicate->predicates/entity)."
+  },
+  {
+   "id": 565,
+   "verdict": "no-change",
+   "evidence": "OceanRuinPiece is branch offsets + the DROWNED EntityType rename; ocean_ruin.rs 0-diff"
+  },
+  {
+   "id": 566,
+   "verdict": "ported",
+   "evidence": "CommandResponseTracker (26.3-only, in neither jar): scoreboard set/enable + team join/leave + advancement + clear now branch single/multiple on the target count, not nonzero tracks; clear single failure uses getName(). ScoreboardCommand + ClearInventoryCommands 0-diff between the jars."
+  },
+  {
+   "id": 567,
+   "title": "crates/horizon-client-render/src/gfx/panorama.rs: 2 vanilla classes changed (6 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "CubeMap: getGameRenderState->gameRenderState, getMainRenderTarget->GameRenderer.mainRenderTarget, VertexFormat$Mode->PrimitiveTopology. CubeMapTexture: TextureFormat->GpuFormat + CommandEncoder/transientMemory upload. GPU plumbing; render-engine internals. panorama.rs 0-diff."
+  },
+  {
+   "id": 568,
+   "title": "crates/horizon-client-render/src/screen_draw.rs: 1 vanilla classes changed (6 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "ScissorStack: 26.2 made push/pop void and falls back to a screenSize rect on an empty stack (26.1 pushes the rect unclipped); the intersect math is unchanged. Not observable through the Rust: paint() clips vertices CPU-side and an off-screen rect renders nothing either way. screen_draw.rs 0-diff."
+  },
+  {
+   "id": 569,
+   "title": "crates/horizon-client/src/game/gamemode_switcher.rs: 3 vanilla classes changed (6 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "GameModeSwitcherScreen: the Minecraft.setScreen -> Gui.setScreen move (2 sites). Menu chrome. gamemode_switcher.rs 0-diff."
+  },
+  {
+   "id": 570,
+   "title": "crates/horizon-client/src/game/wandering_trader.rs: 1 vanilla classes changed (6 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "WanderingTraderSpawner: EntityType->EntityTypes only (5 sites). wandering_trader.rs 0-diff."
+  },
+  {
+   "id": 571,
+   "verdict": "no-change",
+   "evidence": "Batch 63 NO-CHANGE (MatchTool): the only difference is ItemPredicate's package move (advancements.predicates -> advancements.criterion) in 26.1's favor \u2014 the test() logic is identical. The Rust loot code does not reference Java packages."
+  },
+  {
+   "id": 572,
+   "title": "crates/horizon-client/src/mobs/nautilus.rs: 2 vanilla classes changed (5 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "NautilusAi: EntityType->EntityTypes only. ChargeAttack: 26.2's dealKnockBack threads a mobAttack DamageSource + ATTACK_DAMAGE through the 6-arg causeExtraKnockback (26.2's knockback API rework); both causeExtraKnockback bodies are knockback-only (sin/cos yaw, knockback, own motion x0.6) with no hurt() call \u2014 the Rust's Knockback event with Damage::mob source + 0.6 self-slow matches both forms. nautilus.rs 0-diff."
+  },
+  {
+   "id": 573,
+   "verdict": "no-change",
+   "evidence": "TestBlock getSignal->ownSignal extraction (same as 634); test_block.rs 0-diff."
+  },
+  {
+   "id": 574,
+   "verdict": "ported",
+   "evidence": "Debug chart drew lowercase fps/tps; vanilla 26.1 draws 30 FPS/60 FPS/%.1f TPS; now matches the 26.2 tree"
+  },
+  {
+   "id": 575,
+   "verdict": "no-change",
+   "evidence": "AbstractStringWidget handleStyleClick extraction + DialogScreen setScreen move; dialogs.rs 0-diff."
+  },
+  {
+   "id": 576,
+   "verdict": "ported",
+   "evidence": "hand.rs carried: 26.1 LivingEntity has plain swing fields, LocalPlayer.swing sends the packet unconditionally (the 26.1 tree missed it); spectator-crosshair portal branch removed (26.1 has no portal branch, showAsInteractableInSpectatorMode in neither jar)"
+  },
+  {
+   "id": 577,
+   "verdict": "no-change",
+   "evidence": "QuickPlay setScreen move only; launch_options.rs 0-diff."
+  },
+  {
+   "id": 578,
+   "verdict": "no-change",
+   "evidence": "InventoryChangeTrigger Slots pure package move; matches() identical."
+  },
+  {
+   "id": 579,
+   "verdict": "no-change",
+   "evidence": "CreakingHeartBlock is the BlockEntityType->BlockEntityTypes rename; creaking.rs 0-diff"
+  },
+  {
+   "id": 580,
+   "verdict": "no-change",
+   "evidence": "Screenshot GPU plumbing (TextureFormat->GpuFormat) + 26.2-only grab(Minecraft,boolean) panoramix path; Rust only manages the screenshots folder."
+  },
+  {
+   "id": 581,
+   "verdict": "no-change",
+   "evidence": "WitherSkullBlock EntityType->EntityTypes + CriteriaTriggers move only; block_pattern.rs 0-diff."
+  },
+  {
+   "id": 582,
+   "verdict": "no-change",
+   "evidence": "PumpkinBlock 0-diff; pumpkin.rs 0-diff"
+  },
+  {
+   "id": 583,
+   "verdict": "ported",
+   "evidence": "Spectator menu: 26.1 PlayerMenuItem.isEnabled is constant true (26.2 added the !=SPECTATOR check); removed the spectator filter from players and teams."
+  },
+  {
+   "id": 584,
+   "verdict": "ported",
+   "evidence": "Bed click had the 26.3 pair check; 26.1 redirects foot->head and requires only the head is this bed; dragon-egg teleport was missing its world-border check (26.1 calls isWithinBounds); RedStoneWireBlock spelling fixed"
+  },
+  {
+   "id": 585,
+   "verdict": "no-change",
+   "evidence": "NetherFossilPieces + NetherFossilStructure both 0-diff despite the differing tag; nether_fossil.rs 0-diff"
+  },
+  {
+   "id": 586,
+   "verdict": "no-change",
+   "evidence": "Batch 63 NO-CHANGE (ClientChunkCache$Storage): 26.2 refactored empty-section tracking from 26.1's single loadedEmptySections set to double-buffered added/removed sets \u2014 internal bookkeeping, same observable behaviour. horizon-bots holds chunks but does not model empty-section tracking."
+  },
+  {
+   "id": 587,
+   "verdict": "ported",
+   "evidence": "Trims: carried the 26.2 tree trims.rs (atlas palette swap via trim_palette.png, in both jars) + surgical armor_stands.rs (TrimOverride/trim_overrides removed, no trim glint). The 11 triage trim-render classes exist in neither jar (26.3-only)."
+  },
+  {
+   "id": 588,
+   "verdict": "no-change",
+   "evidence": "CatSpawner EntityType->EntityTypes only; cat_spawner.rs 0-diff."
+  },
+  {
+   "id": 589,
+   "verdict": "no-change",
+   "evidence": "ShearsItem tool rules are data-driven (minecraft:tool rules from prepared data); 26.1 data carries the leaves/wool/vine+glow_lichen rules, 26.2 the SHEARS_* tags. No code port."
+  },
+  {
+   "id": 590,
+   "verdict": "ported",
+   "evidence": "Trader hurt gate read the 26.3 hurt window; 26.1 TradeWithPlayerGoal.canUse reads hurtMarked (Entity field, set by markHurt except #no_impact=drown, cleared each tick); added Mob.hurt_marked + carried the trader gate and test"
+  },
+  {
+   "id": 591,
+   "verdict": "no-change",
+   "evidence": "ExperimentsScreen I18n.exists->Language.has + setScreen move; experiments.rs 0-diff."
+  },
+  {
+   "id": 592,
+   "verdict": "no-change",
+   "evidence": "OceanMonumentPiece EntityType->EntityTypes only; monument.rs 0-diff."
+  },
+  {
+   "id": 593,
+   "verdict": "no-change",
+   "evidence": "Containers EntityType->EntityTypes only; the furnace.rs diff is the earlier 26.1 fuel work."
+  },
+  {
+   "id": 594,
+   "verdict": "no-change",
+   "evidence": "MinecartCommandBlock$MinecartCommandBase 0-diff; command_minecarts.rs 0-diff"
+  },
+  {
+   "id": 595,
+   "verdict": "no-change",
+   "evidence": "TickThrottler: 26.2 made isUnderThreshold true when threshold<=0; 26.1 always constructs (20,200), so the guard is unreachable. Rust already has the 26.1 form."
+  },
+  {
+   "id": 596,
+   "verdict": "no-change",
+   "evidence": "PhantomSpawner EntityType->EntityTypes only; stats.rs 0-diff."
+  },
+  {
+   "id": 597,
+   "verdict": "no-change",
+   "evidence": "RamTarget knockback API rework (3-arg -> 6-arg with mobAttack source + attack-damage float); strength/x/z computation identical, physics identical \u2014 same reasoning as 572."
+  },
+  {
+   "id": 598,
+   "verdict": "no-change",
+   "evidence": "PandaRenderer 0-diff; panda.rs 0-diff"
+  },
+  {
+   "id": 599,
+   "verdict": "no-change",
+   "evidence": "Phantom$PhantomSweepAttackGoal 0-diff despite the differing tag; phantom.rs 0-diff"
+  },
+  {
+   "id": 600,
+   "verdict": "ported",
+   "evidence": "Screen narration: 26.1/26.2 have no NarrationTrigger (updateNarratorStatus(boolean) in both jars); carried the 26.2 tree screen_narrator.rs + horizon-narrator screen.rs, game/narrator.rs surgical (ShareToLan kept)."
+  },
+  {
+   "id": 601,
+   "verdict": "no-change",
+   "evidence": "NowPlayingToast 0-diff; toasts.rs 0-diff"
+  },
+  {
+   "id": 602,
+   "verdict": "ported",
+   "evidence": "ARGUMENT_TYPES: minecraft:team_color -> minecraft:color (26.1 registers ColorArgument) + removed the five 26.3-only entries (context_float/int_provider, slot_source, feature, swing_animation)."
+  },
+  {
+   "id": 603,
+   "verdict": "no-change",
+   "evidence": "SolidBucketItem 0-diff; buckets.rs 0-diff"
+  },
+  {
+   "id": 604,
+   "verdict": "no-change",
+   "evidence": "SideChainPartBlock 0-diff; shelf.rs 0-diff"
+  },
+  {
+   "id": 605,
+   "verdict": "no-change",
+   "evidence": "IcebergFeature structurally identical; iceberg.rs 0-diff."
+  },
+  {
+   "id": 606,
+   "verdict": "no-change",
+   "evidence": "TrunkPlacer structurally identical; trunk.rs 0-diff."
+  },
+  {
+   "id": 607,
+   "verdict": "no-change",
+   "evidence": "ResourceOrIdArgument 0-diff; ContextFloat/Int/Feature inner args exist in neither jar (26.3-only); item 602 removed their registry entries"
+  },
+  {
+   "id": 608,
+   "verdict": "no-change",
+   "evidence": "Batch 63 NO-CHANGE (SpriteContents animated textures): createAnimationState/drawToAtlas differ only in GPU upload plumbing (per-frame texture creation in 26.1; RenderPass.draw arity change in 26.2) \u2014 the frame timing/selection logic is untouched, and the Rust animate.rs is 0-diff vs the 26.2 tree with its own wgpu upload path."
+  },
+  {
+   "id": 609,
+   "verdict": "no-change",
+   "evidence": "RangedMatcher pure criterion->predicates package move (14 diff lines, all package names); state_ranges.rs 0-diff"
+  },
+  {
+   "id": 610,
+   "verdict": "no-change",
+   "evidence": "Batch 63 NO-CHANGE (jigsaw/structure/test edit screens): onCancel/onDone differ only by the screen-setter moving from Minecraft.setScreen (26.1) to Minecraft.gui.setScreen (26.2) \u2014 same behaviour (close the screen). Menu chrome per the owner's principle; the 26.1 tree already removed the 26.2-only is_pause_screen/block_editor_pauses code (rank-2 item 51)."
+  },
+  {
+   "id": 611,
+   "verdict": "no-change",
+   "evidence": "MultifaceSpreadeableBlock + WaterloggedVegetationPatchFeature both 0-diff"
+  },
+  {
+   "id": 612,
+   "verdict": "no-change",
+   "evidence": "Batch 63 NO-CHANGE (CrashReport/ServerWatchdog/BlockableEventLoop): CrashReport.getDetails is the same sections in a restructured order (same '-- Head --'/'Thread:' text); 26.2's private copyProperties/replaceMessage helpers are internal; ServerWatchdog lost only a comparator field; BlockableEventLoop gained only hasDelayedCrash. The Rust crash.rs is 0-diff vs the 26.2 tree and pins none of this."
+  },
+  {
+   "id": 613,
+   "verdict": "no-change",
+   "evidence": "ContentsSlotSource 0-diff; contents.rs docs re-anchored from 26.3-only classes to ContainerComponentManipulator"
+  },
+  {
+   "id": 614,
+   "verdict": "no-change",
+   "evidence": "Batch 63 NO-CHANGE (AbstractFurnaceMenu): fillCraftSlotsStackedContents is logically identical (26.2 only stores the container in a local first). The constructor difference is Java plumbing: 26.1 passes a RecipeType param that 26.2 removed \u2014 the Rust already models the recipe type via the furnace kind (f.kind.recipe_type()). lan_crafting.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 615,
+   "verdict": "no-change",
+   "evidence": "Batch 63 NO-CHANGE (SectionMesh$SectionDraw): pure type move \u2014 blaze3d.IndexType (26.2) vs blaze3d.vertex.VertexFormat$IndexType (26.1) \u2014 same logic, same values."
+  },
+  {
+   "id": 616,
+   "verdict": "no-change",
+   "evidence": "Batch 63 NO-CHANGE (LeashFeatureRenderer): 26.2 refactored the render methods (buildGroup/prepare -> renderLeash/renderSolid) and removed the Submit inner class \u2014 render-feature plumbing, not leash gameplay. boat_leads.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 617,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (RandomCommand): the only difference is MinMaxBounds' package move (advancements.predicates -> advancements.criterion) in randomSample and the two drawRandomValueTree lambdas \u2014 same logic. (The misc.rs tree diff is the /tick failure-form work of an earlier batch, not this item.)"
+  },
+  {
+   "id": 618,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (EntitySelectorOptions): the registered option-name sets are identical (26 names each, no diff). The +22/-21/~29 method churn is 26.2's internal refactor: per-option state moved into SetOnceOptionState objects (hasAdvancements flag -> advancementsOption().canParse()/markParsed(), same availability semantics), tag options moved from TagKey to HolderSet$Named, and always-true lambdas replaced by the ALWAYS_AVAILABLE constant. selector.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 619,
+   "verdict": "ported",
+   "evidence": "26.1 Slime.dealDamage == 26.2 AbstractCubeMob.dealDamage, no team check in either; removed both teams_allow_damage checks from cube.rs"
+  },
+  {
+   "id": 620,
+   "verdict": "no-change",
+   "evidence": "Illusioner + IllusionerRenderer both 0-diff"
+  },
+  {
+   "id": 621,
+   "verdict": "no-change",
+   "evidence": "ExperimentalRedstoneWireEvaluator 0-diff"
+  },
+  {
+   "id": 622,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (TabNavigationBar): 26.2 refactored the Builder (added x/y/height/tabButtons fields, 5-arg constructor, addTabs varargs replacing addTab) and added MenuTabBar, which 26.1 lacks. Tab-bar GUI plumbing; menu chrome per the owner's principle. The Rust's tab widgets (ui.rs/widgets.rs/startup_menu.rs) are Horizon's own, not the vanilla bar."
+  },
+  {
+   "id": 623,
+   "verdict": "no-change",
+   "evidence": "SoulParticle 0-diff (EmissiveRisingParticle is the 26.3 name, in neither jar); noxious/sulfur particles already documented unreachable; comment fixed"
+  },
+  {
+   "id": 624,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (RepeatedNarrator$Params): 26.2 record-ified the params class (751 -> 1939 bytes, record methods added). Client-only Realms narrator state; the Rust has zero references to RepeatedNarrator."
+  },
+  {
+   "id": 625,
+   "verdict": "ported",
+   "evidence": "ComputeCommand/LootContextSources/ContextFloatProvider/ContextIntProvider in neither jar; 0 compute refs in 26.1 Commands/DataCommands; removed /compute + /data modify compute source; tree_data.rs now matches the 26.2 tree"
+  },
+  {
+   "id": 626,
+   "verdict": "no-change",
+   "evidence": "SnifferRenderer 0-diff"
+  },
+  {
+   "id": 627,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (ShadowFeatureRenderer): the 26.2 render-feature refactor (buildGroup/prepare -> renderTranslucent, Submit inner class moved to SubmitNodeStorage) \u2014 same shadowVertex call shape and vertex math. shadows.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 628,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (FlatLayerInfo): 26.2 stores the block as a Holder<Block> where 26.1 stores a plain Block; getBlockState() (default state) and heightLimited() (height > limit ? new(limit, same block) : this) are logically identical. Registry-holder plumbing, invisible to the Rust. flat.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 629,
+   "verdict": "no-change",
+   "evidence": "ScreenNarrationCollector + 4 inners all 0-diff; narrator lib.rs 0-diff"
+  },
+  {
+   "id": 630,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (WoodlandMansionPieces): the large diffs are 26.2 refactors only \u2014 Tuple<Integer,Integer> grid positions replaced by a GridPos record (same x/y values), Guava Lists.newArrayList/fastutil ObjectArrayList replaced by ArrayList, and EntityType renamed EntityTypes in handleDataMarker. A structural bytecode diff (mnemonics + referenced names, no offsets) shows no logic change: same constants, same comparisons, same random calls. mansion.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 631,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (JigsawBlock.useWithoutItem): 26.2 only reorders the body (casts the block entity to a local before the canUseGameMasterBlocks check); same logic \u2014 open the jigsaw editor + SUCCESS, else PASS. jigsaw_block.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 632,
+   "verdict": "no-change",
+   "evidence": "FilePackResources + SharedZipFileAccess + FileResourcesSupplier all 0-diff; zip.rs 0-diff"
+  },
+  {
+   "id": 633,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (dialog screens): WaitingForResponseScreen.onClose differs only by Minecraft.setScreen -> Minecraft.gui.setScreen (same as item 610); 26.2 added Checkbox.overflowsRowLimit and GridLayout.removeChildren, which 26.1 lacks. Menu chrome. dialog_screen.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 634,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (RedstoneTorchBlock): 26.2 extracted getSignal's body into an ownSignal helper; the logic is identical (lit && side != UP ? 15 : 0). ticks.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 635,
+   "title": "widely named: core/cauldron: 1 vanilla classes changed (5 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "CauldronInteractions: 26.1 registers 16 banner + 16 shulker items individually, 26.2 loops over Items.BANNER/DYED_SHULKER_BOX ColorCollections; same registered set. Interaction lambda call-signatures identical (emptyBucket sounds, lowerFillLevel, transmuteCopy, game events). Rust tick.rs diff is a mushroom comment only."
+  },
+  {
+   "id": 636,
+   "title": "widely named: world/entity/projectile/hurtingprojectile/windcharge: 2 vanilla classes changed (5 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "WindCharge/BreezeWindCharge constructors identical except EntityType -> EntityTypes rename; noDeflectTicks = 5 in both."
+  },
+  {
+   "id": 637,
+   "title": "crates/horizon-client/src/game/code_of_conduct.rs: 2 vanilla classes changed (4 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "handleCodeOfConduct differs only by minecraft.screen field vs minecraft.gui.screen() accessor; same CodeOfConductScreen flow. code_of_conduct.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 638,
+   "verdict": "no-change",
+   "evidence": "ReloadableResourceManager 0-diff; packs.rs 0-diff"
+  },
+  {
+   "id": 639,
+   "title": "crates/horizon-client/src/gizmos.rs: 4 vanilla classes changed (4 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "emitGizmos: 26.2 adds a LevelExtractor.isEntityVisible check + extracts GizmoFeatureRenderer (absent in 26.1); debug-render plumbing, same hitbox drawing. gizmos.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 640,
+   "title": "crates/horizon-client/src/spectator_menu.rs: 4 vanilla classes changed (4 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "TeamSelectionItem.extractIcon: 26.1 reads ChatFormatting.getColor(), 26.2 the TeamColor form (same 16 colors, same RGB extraction); spectator-menu icon tint, menu chrome. spectator_menu.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 641,
+   "title": "crates/horizon-client/src/title/create_world.rs: 2 vanilla classes changed (4 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "WorldTab: 26.2 extracted createTypeButtonNarration from the inline CycleButton builder; same map-type button + narration. PresetEditor lambda differs only by plumbing. Menu chrome; create_world.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 642,
+   "verdict": "no-change",
+   "evidence": "BaseCoralPlantTypeBlock + StairBlock both 0-diff; shapes.rs 0-diff"
+  },
+  {
+   "id": 643,
+   "title": "crates/horizon-world/src/worldgen/structure.rs: 2 vanilla classes changed (4 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Mirror.mirror(int,int) identical arithmetic (26.2 uses a single return); SlabBlock.isPathfindable identical (LAND false, WATER fluid-is-water, AIR false; 26.2 single-return form). structure.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 644,
+   "title": "crates/horizon-world/src/worldgen/structure/temple.rs: 3 vanilla classes changed (4 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "DesertPyramidPiece: 26.2 reads terracotta via Blocks.DYED_TERRACOTTA ColorCollection (35 refs) where 26.1 uses ORANGE_TERRACOTTA (34) + BLUE_TERRACOTTA (1); same blocks, same counts. placeSuspiciousSand differs only by BlockEntityType -> BlockEntityTypes. temple.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 645,
+   "verdict": "no-change",
+   "evidence": "ProjectileDeflection 0-diff"
+  },
+  {
+   "id": 646,
+   "verdict": "no-change",
+   "evidence": "ResourceArgument 0-diff; registries.rs diff is earlier 26.1 inline_feature work (own parity harness), out of scope"
+  },
+  {
+   "id": 647,
+   "verdict": "no-change",
+   "evidence": "LightningBoltRenderer 0-diff; lightning.rs 0-diff"
+  },
+  {
+   "id": 648,
+   "title": "crates/horizon-client-render/src/pack_screen.rs: 1 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "PackEntry extractContent/handlePackSelection restructured (26.2 checks parent.getSelected() where 26.1 checks the touchscreen option); pack-screen GUI, menu chrome. pack_screen.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 649,
+   "title": "crates/horizon-client/src/debug_entries.rs: 3 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "SerializedOptions: only the canonical constructor's access modifier changed (package-private 26.1 -> private 26.2); same record fields and CODEC. debug_entries.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 650,
+   "title": "crates/horizon-client/src/game/commands/raid.rs: 1 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "RaidCommand.spawnLeader differs only by EntityType -> EntityTypes rename. (The 26.2 counterpart #544 was ported 26.3->26.2; the 26.2->26.1 step has no behaviour change.) raid.rs diff is the earlier trailing-space feedback work."
+  },
+  {
+   "id": 651,
+   "verdict": "no-change",
+   "evidence": "DropExperienceBlock 0-diff; item_entities.rs 1-line diff is earlier 26.1 powder-snow velocity arg, out of scope"
+  },
+  {
+   "id": 652,
+   "title": "crates/horizon-client/src/game/lan_entities.rs: 1 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "ChunkMap$TrackedEntity.equals compares entity.getId() in both; 26.2 uses the single-return form. lan_entities.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 653,
+   "verdict": "no-change",
+   "evidence": "LeashKnotRenderer + FenceBlock both 0-diff; leads.rs 0-diff"
+  },
+  {
+   "id": 654,
+   "title": "crates/horizon-client/src/mobs/caravan.rs: 2 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "LlamaFollowCaravanGoal lambda: EntityType -> EntityTypes rename only. TraderLlama defend goal canUse/start: structural diff shows only branch/local-slot compiler forms; same getLastHurtByMob/timestamp logic. caravan.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 655,
+   "verdict": "no-change",
+   "evidence": "ArgProvider exists in neither jar (26.3-only name); 26.1 form is DataCommands$DataProvider, tree_data.rs fixed to it in batch 79"
+  },
+  {
+   "id": 656,
+   "verdict": "no-change",
+   "evidence": "FlowerBlock 0-diff; flowers.rs 0-diff"
+  },
+  {
+   "id": 657,
+   "verdict": "no-change",
+   "evidence": "WeatheringCopperChestBlock 0-diff; tests.rs 0-diff"
+  },
+  {
+   "id": 658,
+   "verdict": "no-change",
+   "evidence": "TreeDecorator$Context 0-diff; decorator.rs 0-diff"
+  },
+  {
+   "id": 659,
+   "title": "widely named: client/gui/layouts: 3 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "26.2 added removeChildren() to FrameLayout/HeaderAndFooterLayout/LinearLayout; absent in 26.1. GUI plumbing, no Rust model of layout children removal."
+  },
+  {
+   "id": 660,
+   "title": "widely named: client/gui/screens/social: 1 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "SocialInteractionsScreen.onClose differs only by Minecraft.setScreen -> Gui.setScreen; same behaviour (restore last screen). Menu chrome."
+  },
+  {
+   "id": 661,
+   "verdict": "no-change",
+   "evidence": "BanNoticeScreens 0-diff; ban_notice.rs 0-diff"
+  },
+  {
+   "id": 662,
+   "verdict": "no-change",
+   "evidence": "CommandBlockEditScreen 2 lines: 26.2 added getCommandBlock/getPreviousY accessors, bodies identical; menu chrome"
+  },
+  {
+   "id": 663,
+   "verdict": "no-change",
+   "evidence": "GpuFormat is 26.2-only (blaze3d/GpuFormat, not the triage renderpearl path); 26.1 uses TextureFormat.RGBA8; entity_outline.rs doc fixed"
+  },
+  {
+   "id": 664,
+   "title": "crates/horizon-client-render/src/inventory_effects.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "EffectsInInventory.extractEffects differs only by Gui.getMobEffectSprite -> Hud.getMobEffectSprite (method moved class). inventory_effects.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 665,
+   "verdict": "no-change",
+   "evidence": "LocatorBar widget is 26.2-only, but the waypoint system exists in full in 26.1 (ClientWaypointManager, WaypointStyle, TrackedWaypoint packet)"
+  },
+  {
+   "id": 666,
+   "verdict": "no-change",
+   "evidence": "ShelfRenderer 0-diff; shelf.rs 0-diff"
+  },
+  {
+   "id": 667,
+   "verdict": "no-change",
+   "evidence": "TutorialToast + Icons both 0-diff; tutorial.rs 0-diff"
+  },
+  {
+   "id": 668,
+   "title": "crates/horizon-client/src/game/window_handler.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "EditWorldScreen backup lambdas differ only by getToastManager() -> gui.toastManager() accessor and SystemToast.multiline static -> constructor; same WORLD_BACKUP toast. Menu chrome; window_handler.rs diff is the batch-58 work."
+  },
+  {
+   "id": 669,
+   "title": "crates/horizon-client/src/mobs/control.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "PandaMoveControl: 26.2 genericized it (PandaMoveControl<T extends Panda> extends MoveControl<T>, uses inherited mob field) where 26.1 keeps a concrete class with its own panda field; tick() logic identical (canPerformAction gate, then super.tick()). control.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 670,
+   "title": "crates/horizon-client/src/mobs/hostile.rs: 2 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "SilverfishWakeUpFriendsGoal.tick: structural diff shows only a local-store reshuffle around the InfestedBlock cast; same bounds checks, same MOB_GRIEFING gate, same destroyBlock/hostStateByInfested calls. hostile.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 671,
+   "title": "crates/horizon-client/src/mod_content.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Overlay: 26.1 declares abstract isPausing(), 26.2 abstract isPauseScreen() \u2014 a pure rename, no default body in either; the pause predicate's contract is unchanged. mod_content.rs 0-diff vs 26.2; the Rust's is_pause_screen is its own screen-model name."
+  },
+  {
+   "id": 672,
+   "verdict": "no-change",
+   "evidence": "InvertableSetOptionState is 26.2-only as a class, but 26.1 implements the same name= inversion inline via shouldInvertValue; selector.rs doc fixed"
+  },
+  {
+   "id": 673,
+   "title": "crates/horizon-mods/src/content/fluid.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "FluidModel$Unbaked.bake: structural diff shows only invokeinterface -> invokevirtual for MaterialBaker.get (26.2 made MaterialBaker a class); same still/flowing/overlay material bakes. fluid.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 674,
+   "verdict": "no-change",
+   "evidence": "NarrationElementOutput 0-diff; NarrationTrigger in neither jar (26.3-only, handled in batch 77)"
+  },
+  {
+   "id": 675,
+   "title": "crates/horizon-server/src/management_schema.rs: 2 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "26.1's OutgoingRpcMethods has none of the four 26.3-only world-upgrade notifications (verified: no upgrade_* strings in either 26.1 or 26.2 jar); the 26.1 tree still listed them in the 26.3 form. Removed all four + fixed the doc to 26.1 (the 26.2 tree's form). Incoming method names identical 26.1/26.2. 26.2 added allowPreServerInit to the discovery + heartbeat registrations (2 occurrences; 0 in 26.1) \u2014 the Rust schema table does not model that lifecycle flag in either tree, so nothing to port for it."
+  },
+  {
+   "id": 676,
+   "title": "crates/horizon-server/src/rcon.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "RconClient: only the constructor's access modifier changed (package-private 26.1 -> public 26.2); run() identical. rcon.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 677,
+   "verdict": "no-change",
+   "evidence": "ChorusPlantBlock 0-diff; place.rs 0-diff"
+  },
+  {
+   "id": 678,
+   "verdict": "no-change",
+   "evidence": "Climate$RTree$SubTree 4 lines: both ctors protected->public only; index.rs 0-diff"
+  },
+  {
+   "id": 679,
+   "verdict": "no-change",
+   "evidence": "PaleMossDecorator 0-diff; feature_catalog.rs diff is earlier 26.1 work (lift_config/coral), out of scope"
+  },
+  {
+   "id": 680,
+   "verdict": "no-change",
+   "evidence": "BoxBlockMatcher in neither jar (26.3-only); sculk.rs comment fixed to the 26.2 tree form; 104-line diff is the batch-69 port"
+  },
+  {
+   "id": 681,
+   "verdict": "no-change",
+   "evidence": "SnowyBlock 0-diff; snow_freeze.rs 0-diff"
+  },
+  {
+   "id": 682,
+   "verdict": "no-change",
+   "evidence": "RotatedPillarBlock 0-diff despite the differing tag; tree_blocks.rs 0-diff"
+  },
+  {
+   "id": 683,
+   "title": "widely named: client/resources/server: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "DownloadedPackSource$3 differs only by getToastManager() -> gui.toastManager() accessor; same pack-download toast. Menu chrome."
+  },
+  {
+   "id": 684,
+   "title": "crates/horizon-client-core/src/block_entity_nbt.rs: 2 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "ItemStackWithSlot codec: 26.1 fieldOf('slot').orElse(0), 26.2 ExtraCodecs.optionalAlwaysPresentFieldOf(..., 'slot', 0) \u2014 same shape (slot optional, default 0). VaultConfig fields identical; the +3/-3 is TAG_NAME/DEFAULT/CODEC going package-private -> public."
+  },
+  {
+   "id": 685,
+   "title": "crates/horizon-client-core/src/text.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "26.1's MutableComponent has withColor(TextColor) as well as withColor(int); 26.2 dropped the TextColor overload. The Rust's with_color(u32) is the int form, present in both. text.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 686,
+   "verdict": "no-change",
+   "evidence": "DensityFunction$Axes in neither jar; fusion.rs Axes is the OptiFine CTM one, unrelated"
+  },
+  {
+   "id": 687,
+   "title": "crates/horizon-client-render/src/gfx/occlusion.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "GraphStorage: 26.2 replaced chunksWaitingForNeighbors (Long2ObjectMap<List<RenderSection>>) with sectionsWaitingForChunkLoads (Long2ObjectMap<LongList>) \u2014 internal render-graph bookkeeping, not modelled by the Rust. occlusion.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 688,
+   "verdict": "no-change",
+   "evidence": "OitStage in neither jar; oit.rs is 26.1-only engine OIT work, not vanilla behaviour"
+  },
+  {
+   "id": 689,
+   "title": "crates/horizon-client-render/src/hud_kit/tabs.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "26.1's Tab interface declares abstract getLayout(); 26.2 dropped it (doLayout only). GUI tab plumbing. tabs.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 690,
+   "verdict": "no-change",
+   "evidence": "AbstractBannerBlock 0-diff; banners.rs 0-diff"
+  },
+  {
+   "id": 691,
+   "verdict": "no-change",
+   "evidence": "SteppedInterpolationTracker in neither jar (26.3-only); batch 61 already deleted the stepped tracker"
+  },
+  {
+   "id": 692,
+   "title": "crates/horizon-client/src/game/moving_pistons.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "PistonHeadRenderer.submit: 26.2's submitMovingBlock gained a 4th int arg (passed 0); same head + base submissions. Render-submission plumbing; moving_pistons.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 693,
+   "verdict": "no-change",
+   "evidence": "SimpleInstance pure criterion->triggers package move (4 lines, incl. ContextAwarePredicate->predicates)"
+  },
+  {
+   "id": 694,
+   "verdict": "no-change",
+   "evidence": "PotentSulfurState is 26.2-only; 26.1 has no PotentSulfur classes; unreachability notes added to both potent_sulfur.rs files (SulfurCube precedent)"
+  },
+  {
+   "id": 695,
+   "title": "crates/horizon-client/src/game/trial_visuals.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "TrialSpawnerState$ParticleEmission lambdas differ only by BlockPos.getCenter() (26.1) vs Vec3.atCenterOf(pos) (26.2) \u2014 same center value. trial_visuals.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 696,
+   "verdict": "ported",
+   "evidence": "item_activation.rs docs cited the 26.3 ItemActivation class (in neither jar); 26.1 has GameRenderer.displayItemActivation + ScreenEffectRenderer fields, the 26.2 form; docs carried"
+  },
+  {
+   "id": 697,
+   "title": "crates/horizon-client/src/lan/waypoints.rs: 2 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Waypoint: 26.1 keeps MAX_RANGE = 60000000, which 26.2 dropped; the Rust does not model it. Icon.cloneAndAssignStyle: 26.1 maps Integer (ChatFormatting.getColor) with color==0 -> -13619152, 26.2 maps TeamColor with BLACK -> -13619152; same rule, same values (BLACK rgb is 0 both ways). waypoints.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 698,
+   "verdict": "no-change",
+   "evidence": "Hud$ContextualInfo is the 26.2 name; 26.1 Gui has the same ContextualInfo/nextContextualInfoState/willPrioritize* with identical bodies; docs fixed to Gui"
+  },
+  {
+   "id": 699,
+   "verdict": "no-change",
+   "evidence": "Allay$VibrationUser 0-diff despite the differing tag; allay.rs 0-diff"
+  },
+  {
+   "id": 700,
+   "title": "crates/horizon-client/src/title/buffet.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "WorldCreationUiState.findResultFolder: 26.2 added a saves-folder existence check + createDirectory ('Could not create save folder'); 26.1 only computes the name. The Rust title code has no find_result_folder/create_dir counterpart. buffet.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 701,
+   "title": "crates/horizon-client/src/title/confirm_experiments.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "DetailsScreen.onClose differs only by Minecraft.setScreen -> Gui.setScreen. Menu chrome; confirm_experiments.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 702,
+   "verdict": "no-change",
+   "evidence": "UnpublishCommand IS in the 26.2 jar, NOT in 26.1; batch 74 already removed /unpublish from the 26.1 tree"
+  },
+  {
+   "id": 703,
+   "title": "crates/horizon-core/src/geometry/shape/face.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "SubShape constructor went protected (26.1) -> package-private (26.2); same 7-arg constructor, no logic. face.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 704,
+   "verdict": "no-change",
+   "evidence": "WoodType 0-diff; content.rs 0-diff"
+  },
+  {
+   "id": 705,
+   "title": "crates/horizon-optifine/src/fusion/layout.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "26.2 added removeChildren() to the Layout interface (same as item 659's three layout classes); absent in 26.1. GUI plumbing; layout.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 706,
+   "verdict": "no-change",
+   "evidence": "CachedUserNameToIdResolver 0-diff; profiles.rs 0-diff"
+  },
+  {
+   "id": 707,
+   "verdict": "no-change",
+   "evidence": "BiomeTags 0-diff; biomes.rs 0-diff"
+  },
+  {
+   "id": 708,
+   "title": "crates/horizon-world/src/datafix/world_upgrader.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "WorldUpgrader: 26.2 added setNameFormat to the upgrade thread factory; thread-naming only, same daemon threads. world_upgrader.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 709,
+   "verdict": "no-change",
+   "evidence": "GrowingPlantBlock 0-diff; fixed RedstoneWireBlock comment to RedStoneWireBlock (both jars use capital S)"
+  },
+  {
+   "id": 710,
+   "verdict": "no-change",
+   "evidence": "SpawnTargetPoint in neither jar (26.3-only); spawn_finder.rs diff is the batch-72 port"
+  },
+  {
+   "id": 711,
+   "verdict": "no-change",
+   "evidence": "SteppedInterpolationHandler$Step in neither jar (26.3-only); launcher backend does not model it"
+  },
+  {
+   "id": 712,
+   "title": "widely named: client/gui/components/toasts: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "SystemToastId: 26.2 added FRIEND_SYSTEM_NOTIFICATION; constructors identical (5000ms). No Rust reference to the new id. Menu chrome."
+  },
+  {
+   "id": 713,
+   "title": "widely named: client/gui/screens/dialog: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "WarningScreen lambda differs only by Minecraft.setScreen -> Gui.setScreen. Menu chrome."
+  },
+  {
+   "id": 714,
+   "verdict": "ported",
+   "evidence": "LevelExtractor is 26.2-only; 26.1 keeps extraction on LevelRenderer (all methods verified); all 22 citations re-anchored; transient queue marked 26.3-only"
+  },
+  {
+   "id": 715,
+   "verdict": "no-change",
+   "evidence": "TestCommand$Info in neither jar; TestCommand differs only by the BlockEntityType->BlockEntityTypes rename"
+  },
+  {
+   "id": 716,
+   "verdict": "no-change",
+   "evidence": "ServerPlaceRecipe 0-diff"
+  },
+  {
+   "id": 717,
+   "title": "crates/horizon-client-core/src/gamerules.rs: 1 vanilla classes changed (0 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "GameRuleMap$Builder.map went package-private (26.1) -> private (26.2); same field, same set/build. gamerules.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 718,
+   "title": "crates/horizon-client/src/mobs/spear_use.rs: 1 vanilla classes changed (0 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "SpearUseGoal's four distance constants went package-private (26.1) -> private (26.2); same fields, no method changes. spear_use.rs diff is the earlier single-push knockback work."
+  },
+  {
+   "id": 719,
+   "verdict": "no-change",
+   "evidence": "RealmsUploadTooLargeException differs only by a field access modifier; upload.rs 0-diff"
+  }
+ ],
+ "triage": "Rank-3 re-triage: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 3 = A1 60, A2 67, B1 56, B2 31 = 214 items) + diff-26.2-26.1-rank3.json (274 classes, 204 method-changed). Order: A1 reviews, then B1 ports, then A2/B2."
+}

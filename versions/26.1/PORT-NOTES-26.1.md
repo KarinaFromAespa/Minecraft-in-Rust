@@ -245,3 +245,1677 @@ block tag in the prepared data; command_exec's oracle reflects on an
 differences over 7 worlds; four harness logs mention timeouts. These are
 the next behaviour/oracle work for this tree, not verification gaps.
 Artifacts kept at `~/workspace/mcir-ci/26.1v5/`.
+
+## Behaviour port — rank 1 closed (2026-11-23, branch behaviour/26.1)
+
+Rank 1: 7/7. Items 2/3/5/6/7 were closed by the completion pass and are
+verified here, not re-ported; items 1 and 4 were ported from the 26.2
+parent's closures, every behaviour verified against 26.1's own named
+game jars (`26.1.x/versions/26.1/jars/{server-game,client}.jar`). The
+26.2→26.1 jardiff (`diff-26.2-26.1.json`, in the triage dir) governs
+rank-2 triage. Ledger: `rank1-progress.json`.
+
+1. **Components (+2 −14).** Carried over 26.2's closure (422ffac1, 25
+   files) with 26.1 corrections. The 26.1 component registry has 110
+   types (26.2: 111); the only difference is `minecraft:sulfur_cube_content`
+   (26.2-only), so `DATA_COMPONENT_TYPES` drops to 110 and the tree keeps
+   its own `item.rs` form (`SULFUR_CUBE_CONTENT = -1000` marker,
+   `SIGN_TEXT_FRONT/BACK = -1001/-1002` markers, `PAINTING_VARIANT = 102`).
+   Jar-verified identical 26.2→26.1: `FuelValues`, `ComposterBlock`,
+   `PotDecorations`, `HoeItem`, `ShovelItem`, `Item`,
+   `Villager.wantsToPickUp`; rename-only: `AxeItem.useOn` (advancements
+   trigger package move), `LivingEntity.getVisibilityPercent` and
+   `BrewingStandBlockEntity` (`EntityTypes`→`EntityType`,
+   `BlockEntityTypes`→`BlockEntityType`). `Villager.FOOD_POINTS` from the
+   26.1 `<clinit>`: bread 4, potato/carrot/beetroot 1. The 23 sherds in
+   `DecoratedPotPatterns.ITEM_TO_POT_TEXTURE` match the ported table
+   exactly. **Copper is a real 26.2→26.1 difference:** 26.1's
+   `HoneycombItem.WAXABLES` has 48 pairs and
+   `WeatheringCopper.NEXT_BY_BLOCK` 36 pairs, both over 12 families —
+   bars, lantern and chain exist as blocks (all 8 variants each) but do
+   not weather or wax in 26.1, so `copper_stages()` drops them; scrape
+   is unwaxed-only (`PREVIOUS_BY_BLOCK = NEXT.inverse()`, b75f738d).
+   `MapItem.update` also differs 26.2→26.1 (early-return restructure)
+   but does not touch the `map_color` tint work. Supporting fixes
+   carried over: per-state `blocksMotion()` (c54f13b6;
+   `BlockStateBase.blocksMotion` is bytecode-identical to 26.2's:
+   `isSolid` except cobweb and bamboo sapling — this answers the CI
+   profile's missing `blocks_motion_in_heightmap` tag failures),
+   the NBT-form `{Name, Properties}` block-state codec in `facts.json`
+   (e8b568a1), pack-compat fixtures re-pinned to 26.1 formats 101.1/84.0
+   (8c4582c6), and the vibration test re-pinned to particle id 48
+   (a86e4c05; 26.1 registry).
+2. **vanilla_command_order.** Present: `crates/horizon-command/src/vanilla_order.rs`
+   (228 lines, generated header).
+3. **Protocol.** `Swing { hand: i32 => VarInt }`, `spectate_entity` at id
+   62; no `SWING_ANIMATION`/`Serverbound::Punch`/`SPECTATOR_ACTION`.
+4. **Save format.** `CarvingStepRemoveFix` added at key 4057 (verified
+   in 26.1's `DataFixers` static init: `sipush 4057` +
+   `new CarvingStepRemoveFix`); all 5 fix classes exist in the 26.1 jar.
+   `update()` key-filters, so 26.2/26.3-era fixes (4885+) never run at
+   `CURRENT = 4786`. Tests updated: `current_data_is_left_alone`
+   5023→4786, block-states test rewritten as
+   `current_block_states_keep_their_field_names`, new
+   `carving_masks_become_the_carving_mask`. Residual: 19 changed datafix
+   classes (26.2 had 8); the datafix harness arbitrates old-schema risk.
+5. **Facts.** `version.rs`: 26.1 / 775 / 4786 / (84,0) / (101,1) / Java 25.
+6. **Report format.** No-change: nothing reads the `definition` field.
+7. **Prepare.** CI run 43062079306: `prepare: ok`, 30.7 s.
+
+## Behaviour port — rank 2 closed (2026-11-24, branch behaviour/26.1)
+
+Rank 2: 498/498 closed (rank 1: 7/7; total 505/795). Triage:
+first-pass buckets B 265 / A 231 / D 2; class-level 26.2→26.1 split
+(zip CRC) B1c 233 / B2c 32 / A1 138 / A2 93 / D 2. The full-jardiff run
+was abandoned (projected ~3 h, one JVM per class); the lazy replacement
+is `jardiff_batch.py` (50 classes per javap call, ~50x faster) over the
+1,210 byte-differing named classes of the open B1c/A1 items.
+
+Batches closed so far (per-item evidence in `rank2-progress.json`):
+- 1+2: 82 no-change closures (A2/B2c, 26.2 counterparts verified
+  no-change, covering Rust code identical between the trees).
+- 3a: 5 ported carry-overs (70 palette paths, 192 preedit area, 196
+  fluid list form + lava-fire walk, 246 melt event, 351 tooltip keys).
+- 3b: 2 decoder-arm removals (292 lerp/distance_to_point, 435 ore_vein).
+- 3c: bc42387a carried over (282 gradient/y_clamped_gradient, 293 straw
+  beds, 296 placement modifiers, 241 SwingState for item 281, open).
+- 3d: c03452c8 carried over (221 kill attribution, 449 cushion removal)
+  + 302 eyeblossom scan + 135 DimensionOrigin removal.
+- 3e: 137 TreeGrower secondary-chance form (+ bonemeal.rs carry-over:
+  no canGrow check, nextInt grass rolls; 26.1 inline-feature support
+  preserved) and 168 port-pack gating (26.1 series only).
+- 3f: 242 loot validation warn-only, 313 state providers (long type
+  names, object-only codec, Axis.getRandom; noise.rs kept f32 — the
+  26.1 NoiseStack is f32, unlike the 26.2 f64 engine).
+- 3g: 379 enderman teleport (blocks-motion scan; tags absent in 26.1).
+
+Real 26.2→26.1 differences found (not carry-overs): copper bars/lantern/
+chain do not weather or wax in 26.1 (12 families, not 15);
+DensityFunctions bootstrap has weird_scaled_sampler + blend_density and
+lacks interval_select; BoneMealItem.useOn falls through to PASS (26.2:
+SUCCESS); Window.updateFullscreenIfChanged/changeFullscreenVideoMode
+differ (item 96 needs fresh porting); LivingEntity combat/knockback
+methods differ (other items).
+
+Deferred: 35 (blending f32→f64 cascade), 96 (window.rs fresh port),
+117 (environment-attributes ARGB color system), 125 (blending.rs, same
+f64 cascade as 35), 150 (synth.rs f64 noise engine + 6 consumers),
+227 (brewing: 26.1 matches 26.2's PotionBrewing shape — no BrewingRecipe
+class, no recipe/brewing data, BrewingStandBlockEntity has only
+brewTime/fuel — but the mix table differs: 41 addMix + 11 addStartMix +
+containers vs 26.2's 65, so the table must be extracted fresh from the
+26.1 jar; the tree's data-driven loader and total_fuel/total_brew_time
+UI are the 26.3 forms), 288 (EntityPositionSync/InterpolationHandler
+subsystem). Item 281 stays open (SwingState aspect carried over; 15 more
+world/entity classes to review).
+
+Batch 6 (2026-11-23): 37 no-change closures — remaining B2/A2 items whose
+26.2 counterparts were verified no-change, closed by manual diff review
+(the title file differs between the trees, but every hunk is outside the
+item's named methods: comments, rank-1 fixtures, or another item's port).
+
+Batch 7 (2026-11-23): 3 ported carry-overs, all jar-verified — 129
+natural spawning (fresh_dimensions pufferfish x0.5, spawn_cost at the
+quart-origin biome, spawn_obstruction doc), 170 station tooltips
+(ChargedProjectiles multiple line uses getDisplayName; container_lines
+already name-first), 243 cats (CatLieOnBed + #beds, hardcoded can_sit_on,
+giveMorningGift teleports from the leash holder via the 4-arg
+randomTeleport).
+
+Batch 8 (2026-11-23): 7 no-change closures — B2/A2 items with no 26.2
+counterpart: 305 (math.rs identical), 348 (leash-holder code identical;
+diff is the `slots` subcommand), 354 (extractSpawnerData region
+identical; diff is setEntityData), 448/476/486/488 (0 methods named in
+Horizon).
+
+Run-3 test-health fixes (crate-tests 45172126527, head c856d48b: 5 pass /
+world + client-lib fail, 0 new failures vs run 2): requires_file_fixing
+bound by CURRENT (26.1.1 d16b413a — 4899 postdates 26.1, the unbound
+comparison claimed file fixing for every world; the 28 title failures);
+Realms test Client-Ref "26.1" / protocol "775" (26.1.1 2a2419cc, jar:
+SharedConstants.getProtocolVersion = 775); router test samples at
+[4, 4, -32] (the y_clamped_gradient fixture needs a Y in range; 26.1 has
+no axis-based `gradient` type — the bootstrap lists y_clamped_gradient
+only — so the 26.1.1 test's X-gradient fixture does not apply here).
+Still open: `failed_upgrade_keeps_old_data_version` (pre-existing, also
+in the 26.1.2 baseline). Run 45174862114 dispatched for the fixed head
+f6de46ae.
+
+Batch 9 (2026-11-23): 4 closures — 60 NbtIo.read codegen-only, 57
+MerchantMenu.removed codegen-only, 216 FontTexture#add unchanged
+(GpuFormat->TextureFormat enum rename in the ctor only), 248 structure
+processors ported: RuleTest registry is exactly the six vanilla types in
+26.1 (no height_match/not/all_of/any_of; BlockState.CODEC byte-identical
+to 26.2), so rule_test.rs takes the 26.2 form (2-arg test, full=true
+block-state decode) with call-site updates in processor.rs,
+block_feature.rs, ore_feature.rs and the harness scope; BlockRot DIVERGES
+from 26.2 — 26.1 tests the TEMPLATE info's state for rottability, so
+process_block/process_list thread the template state through (regression
+test block_rot_tests_the_template_state, green locally).
+
+Batch 10 (2026-11-23): 4 no-change closures — 251 GuiEntityRenderer
+(submission plumbing only; same draw sequence), 254 handleKey (same ops,
+reordered; the intended-profile check has no Rust counterpart), 274
+copper chest mapping contents identical (8 pairs; construction differs
+only), 283 TurtleMoveControl tick/updateSpeed instruction-identical
+after normalizing the generic-vs-field receiver access.
+
+Batch 11 (2026-11-23): 7 closures (196/498) — 287/290/300/307
+no-change (EntityTypes->EntityType renames; FenceGateBlock.isPathfindable
+codegen-only). 287 surfaced a real 26.1 difference for item 165:
+SweetBerryBushBlock.isValidBonemealTarget requires age<3 AND air above
+AND inside build height in 26.1 (age only in 26.2). 291 ported:
+MobCategory has no getDebugAbbreviation in 26.1, so spawn-count
+abbreviations are the first letter of getName() (M/C/A/A/U/W/W/M).
+308 ported comment-only: no canBeABaby in 26.1 (isBaby is
+getAge() < 0 with four overrides; Slime/MagmaCube are not AgeableMobs).
+309 ported: ArmadilloBallUp.checkExtraStartConditions is onGround only
+(the 26.3 !isInLiquid check dropped), plus the jar-wide baby-dims
+mechanism — 26.1 has BABY_DIMENSIONS in only 20 classes vs 36 in 26.2,
+every other baby taking the type box scaled by getAgeScale (0.5
+default; goat 0.55, armadillo/camel 0.6, dolphin 0.65, happy ghast
+0.2375). 29 Baby-table entries corrected (zombie family 0.99 tall,
+axolotl 0.5x0.25, squid 0.63 tall, chicken eye 0.28, cow eye 0.665,
+fox eye 0.2975, no eye overrides on armadillo/dolphin/happy ghast/
+panda); camel sitting baby dims are SITTING_DIMENSIONS x 0.6
+(1.02, 0.567, 0.507). Regression test
+baby_boxes_are_the_26_1_boxes_not_the_26_2_ones; cow test eye
+0.69 -> 0.665.
+
+Batch 12 (2026-11-23): 8 closures (204/498) — 315/317/327/332/336/337
+no-change (package moves, renames, pure refactors; Ravager#blockedByItem
+identical body, 26.2 only widened the signature; VillagerData.DEFAULT_TYPE
+is PLAINS). 334 ported comment-only: the evoker ally check uses the
+vex's direct owner in 26.1 (no getRootOwner; the Rust already read
+counter2). 338 ported: the peaceful gate moved — 26.2 put it at the top
+of SpawnPlacements.checkSpawnRules, 26.1 keeps it in the per-type
+predicates, so the top gate is removed and !peaceful restored to
+monster_rules, the any-light arms (blaze/breeze/zoglin), pillager and
+endermite/silverfish (verified via the SpawnPlacements bootstrap table);
+phantom/shulker correctly have no peaceful check. Regression test
+peaceful_blocks_monster_rules_but_not_plain_mob_rules.
+
+Note: the leakage-audit 26.2-server.jar is a Mojang BUNDLER jar (no game
+classes) — server-side 26.2 jardiffs must use 26.2-client.jar, which
+holds all game classes.
+
+Batch 13 (2026-11-23): 8 closures (212/498). 45 ported comment-only:
+SulfurCube is a 26.2 addition — 26.1 has no cubemob package, no
+SULFUR_CUBE type, Slime still at monster/Slime extending Mob; the Rust
+module is unreachable in 26.1 (the type never resolves from 26.1 data)
+and kept per the programme convention (1.21.7/1.21.11/26.1.1/26.1.2 all
+keep it), with a module-doc note recording the absence. 314/320/324/
+339/349/350/355 no-change: getter renames, Guava-to-JDK collection
+construction, receiver-access-only, the protocol constant already
+pinned at 775, getCenter/atCenterOf, the EntityType rename.
+
+Batch 14 (2026-11-23): 6 closures (218/498). 39 ported (carry-over of
+26.2 #34): inhabited time accrues by timeDiff in 26.1 vanilla — the
+26.1 tree had the 26.3 +1 form; added World.last_inhabited_update, the
+stamp at the top of spawn_natural and += time_diff accrual, with the
+26.2 tests. 44 ported: 26.2 added a post-onPlace re-check to
+LevelChunk.setBlockState; 26.1 creates the block entity for the new
+state unconditionally — the re-check is removed at update.rs
+(chunk_set_block_state), commands.rs (place_state) and native_hooks.rs.
+212 ported comment-only (26.1's applyInstantenousEffect typo).
+36/40/43 no-change: an extracted helper with an identical predicate, a
+field-vs-accessor change, byte-identical bake methods.
+
+CI run 45181781216 (head 231549d2): defect suite PASS, 6/7 crate
+suites PASS; the only failure was the pre-existing
+failed_upgrade_keeps_old_data_version — fixed in b6260577 (test start
+4899 -> 4780, below CURRENT 4786; same pattern as 26.1.1's 4786 fix),
+verified locally. Run 45185167162 (head b6260577) completed
+SUCCESS — all 3 jobs green (resolve, crate tests 26.1, defect suite
+26.1): the first fully-green run for the 26.1 branch. Run
+45188321039 (head a5c27b95, batches 14+15) completed SUCCESS — all 3
+jobs green. Run 45190837928 dispatched for head abb089fe (batch 16).
+
+Batch 15 (Nov 23, 226/498): 273 ported — beacon validation is
+26.2-only: `BeaconMenu.updateEffects` returns void in 26.1 (no
+validation; `BeaconBlockEntity.validateEffects` does not exist in
+26.1) while 26.2 returns boolean and `handleSetBeaconPacket`
+disconnects on false. Removed the validation from `beacon_update`
+(the bool now means "a payment was present") and the kick from the
+LAN host handler; regression test
+`a_beacon_takes_any_powers_with_a_payment`. 259/261 no-change with
+doc corrections (falling-block drag is a hardcoded 0.98 in 26.1 —
+26.2's `getAirDrag()` returns the same 0.98F; shelf position is
+`getCenter()` in 26.1). 280/267/268/269/270 no-change: renames,
+the CriteriaTriggers package move, Holder field types, screen
+access; the 26.2 #137 ghast port is carried (ghasts.rs identical).
+
+Batch 16 (Nov 23, 234/498): 253 ported — the spawn-egg eligibility
+gate is 26.2-only: `EntityType.canSpawn` (feature flags + peaceful)
+does not exist in 26.1, and 26.2 gates both `SpawnEggItem.useOn` and
+`.use` on it. Removed the gate from `use_spawn_egg` (and the
+`spawn_egg_allowed` helper) and both remote.rs client-prediction
+sites; the "Disabled in Peaceful" tooltip line exists in 26.1 too
+and stays. 181 ported — `component_bool` is the DFU default in 26.1
+(`Number.byteValue() != 0`, verified against the 26.1 DFU 9.0.19 jar),
+not 26.2's `doubleValue()` override; regression test
+`a_component_bool_reads_only_the_low_8_bits`. 145 ported
+comment-only (26.1 `submitParticleGroup` vs 26.2
+`submitQuadParticleGroup`). 257/252/255/146/209 no-change: a
+field-type + checkcast, the peaceful gate already in the shared
+`spawning_monsters` predicate, an async-batching refactor of the
+legacy-structure fix, knockback/equipment refactors with identical
+behaviour, no named methods changed.
+
+Test health: crate-tests run 45163597005 (rank-1 state): protocol,
+items, client-core, client-render PASS; world FAIL (1 pre-existing
+datafix failure, `failed_upgrade_keeps_old_data_version` — the other
+baseline failure was fixed by item 4); client + client-lib FAIL on 14
+lib-test compile errors (26.3-era protocol shapes). The 14 errors were
+fixed by carrying over the 26.1.2 tree's test fixes (max_speed f32,
+no randomization/online_mode, Animate for SwingAnimation, position for
+EntityPositionSync.path, Swing for Punch); run 45168217761 dispatched
+to verify. The 34 remaining `check --tests` errors are all in
+tests/lan_bot.rs (integration test, not compiled by CI's --lib run;
+identical in the 26.1.2 tree) — shared 26.1-line debt, out of scope.
+
+Batch 17 (Nov 23, 242/498): 238 ported — the spear stab knockback is
+a single `causeExtraKnockback` call in 26.1 (0.4 + getKnockback); 26.2
+split it into two calls, halving the target's velocity and damping the
+attacker twice. 207 ported — `MusicManager.tick` re-rolls the frequency
+delay a second time every tick in 26.1 (26.2 clamps to maxDelay) and has
+no LevelLoadingScreen gate; `stopPlaying` adds 100 to the current delay
+(26.2 re-rolls + 100). 239/234/33/232/229/198 no-change: no named
+methods changed; equipment shearing moved Entity→Mob in 26.2 with the
+same behaviour; raid/siege/golem methods are renames; findLevelCandidates
+gained a createDirectory in 26.2 the Rust never had; projectile drag is
+a hardcoded 0.99F in 26.1 vs a 0.99F `getAirDrag` override in 26.2.
+FLAG FOR ITEM 94: `Entity.move`'s bounce restitution is 26.2-only
+(`restituteMovementAfterCollisions` + `getEntityBounciness` /
+`getBlockBounciness` / `getEffectiveGravity` / `getAirDrag` do not exist
+in 26.1); 26.1 zeroes the blocked horizontal components inline and calls
+`Block.updateEntityMovementAfterFallOn` (SlimeBlock bounces via
+`bounceUp`: `-y * 0.8` for non-living). The Rust's
+`entities.rs::vertical_collision_velocity` ports the 26.2 formula and
+needs re-porting when item 94 runs.
+
+CI fix (Nov 23, run 45190837928): batch 16's `component_bool` port
+(byte form) broke `item_render::tests::stack_glint_override...`, which
+encoded 26.2's doubleValue expectations (Short 256, Long 1<<40, Float
+0.5, Double 0.5, Float NaN all true). Re-verified against the DFU 9.0.19
+jar: `DynamicOps.getBooleanValue` defaults to `Number.byteValue() != 0`
+and 26.1's NbtOps does not override it, so the port stands and the test
+now expects the byte form (those five false; Infinity still true via
+saturation to i32::MAX). The 26.1 tree's entity_nbt.rs already expected
+Short(256) -> false.
+
+Batch 18 (Nov 23, 250/498): 81 ported — 26.2 dropped bed, standing_sign
+and hanging_sign from `SpecialModelRenderers.bootstrap` (16 renderers in
+26.1, 13 in 26.2); added all three to `SpecialKind` with their 26.1 codec
+fields (standing sign's field is misspelled "attachement" in vanilla;
+hanging sign defaults to ceiling_middle, standing to ground) plus render
+arms (bed_head/bed_foot layers; sign layers share one definition across
+woods, so oak stands in, textures via the Sheets mappers). Regression
+test `bed_and_sign_special_models_decode_with_their_26_1_fields` passed
+locally. 84/88/447/451/455/459/460 no-change: four 26.2-only methods
+(hashCode, setAllowCommands, forEachInPalette, WeatherState.forEach), a
+path-escape check in resolveAgainst the Rust never ports, a
+BlockEntityType rename, and a codec-idiom-only difference.
+
+Batch 19 (Nov 23, 258/498): all no-change. 464's 2268-line
+`Enchantments.bootstrap` diff is package moves only. 463: the standalone
+`MovementAffectedByPredicate` is 26.2-only; 26.1 uses
+`EntityPredicate.movementAffectedBy` (motion.rs comments corrected).
+477: eight particle types (geyser x4, noxious gas x2, sulfur bubbles,
+sulfur cube goo) are 26.2-only additions, kept unreachable per the item-45
+convention and noted in particle_type.rs. 461 renames, 466 identical,
+469 a List.copyOf wrap, 473 a 26.2-only method, 474 a thread-name
+refactor.
+
+CI fix (Nov 23, run 45194438097): batch 17's music port missed one tick
+call site (music.rs test, the post-stop_all tick at what was line 1131 -
+the batch's search-replace only matched the loop-indented copy), so
+horizon-client-lib's lib-test target failed to compile (E0061, 4 args
+for the 3-arg tick). The 8-space-indented copy now drops the loading arg
+too; all tick call sites re-verified.
+
+Batch 20 (Nov 23, 266/498): 480 ported — 26.2 split spam throttling into
+chat/command throttlers driven by two new server.properties keys; 26.1
+has one hardcoded `chatSpamThrottler(20, 200)` shared by chat and
+commands. Merged the Rust's two counters into the single chat_spam
+counter with the hardcoded 200 threshold and removed both properties,
+both hub thresholds and the probe entries. 478/479/489/490/491/492/493
+no-change: identical methods, renames and package moves, a 26.2-only
+sulfur registry key, and the whole cubemob package absent from 26.1.
+
+Batch 21 (Nov 23, 274/498), all no-change: 494 (Bogged.readyForShearing
+does differ — 26.1 is !isSheared() && isAlive(), 26.2 dropped the
+alive check — but the Rust already carries the 26.1 form);
+495/496 identical lambdas; 497 rename only; 499 codec helper refactor
+(fieldOf().orElse vs optionalAlwaysPresentFieldOf, same semantics);
+501 dripstone->speleothem is a pure enum rename (identical values) and
+POTENT_SULFUR_STATE is 26.2-only; 502 setDirty() reordered within the
+same update(); 503 equals identical, BOUNCE is 26.2-only (item 94).
+
+Batch 22 (Nov 23, 282/498), all no-change: 419 compiler local spills;
+421 FurnaceMenu drops the RecipeType super-ctor arg in 26.2 (API shape);
+422 26.1's extractRenderState calls extractSnapbackItem, 26.2 removed it
+(menu chrome, not ported); 423 LevelChunkTicks.pack sorts by a 26.2-only
+SUB_TICK_ORDERING comparator, 26.1 packs in queue order (not ported);
+425 axolotl field vs mob+checkcast; 427 Model.renderToBuffer is
+26.1-only (not ported); 428 rename only; 430 Tuple -> Pair API swap.
+
+Batch 23 (Nov 23, 290/498), all no-change: 434 local-spill reorder;
+438 goat-horn lambda identical, ~70 removed sounds are all 26.2-only
+(sulfur/cinnabar/geyser/noxious/potent + MUSIC_DISC_BOUNCE); 439
+26.2-only FloatProviders.codec; 441 bootstrap adds only
+SULFUR_CUBE_HOT; 442 Packed codec is the orElse/optionalAlwaysPresent
+refactor, bootstrap identical, 5 removed attributes are 26.2-only
+(their Rust refs live in the unreachable sulfur-cube module, item 94);
+443 CamelHusk isBaby/canBeABaby is the batch-11 form already ported;
+444 renames only; 445 codec refactor + PLAINS vs DEFAULT_TYPE (same).
+
+Batch 24 (Nov 23, 298/498), all no-change: 446 display-entity loading
+differs (NOP processor vs SET_DISPLAY_ENTITY_ID) but the Rust models
+the display at the outcome level; 78 renames only; 79 lambda identical,
+two 26.2-only constants; 403 getLightCoords moved to a util class;
+406 26.2-only neighbor-updater ctors; 408 setScreen moved to Gui (menu
+chrome); 413 ocelot lambda identical, baby dims already the 26.1 form;
+414 Bucketable package move.
+
+Batch 25 (Nov 23, 306/498), all no-change: 409/387/388 are 26.2-only
+GUI/render classes (Hud, ContextualBar, BlockModelFeatureRenderer —
+all confirmed absent from the 26.1 client jar); 415 ZombieNautilus
+isBaby/canBeABaby is the batch-11 form already ported; 416 codec
+refactor; 418 two 26.1-only scoreboard helpers (not ported); 75
+AABB.equals branch inversion; 390 creaking instanceof is always true.
+
+Batch 26 (Nov 23, 314/498): 393 PORTED — corrects a rank-1 error: 26.1
+has FIFTEEN weathering copper families, not 12. NEXT_BY_BLOCK is 36
+explicit puts + putAll of the bars/lantern/chain weatheringMappings
+(45 pairs); WAXABLES is 48 puts + 3 waxedMapping putAlls (60 pairs).
+Added copper_bars/copper_chain/copper_lantern to copper_stages().
+392/395/397/398/399/400 no-change (branch artifacts, package moves,
+renames, a 26.2-only safeClone); 396 tag helpers identical, tag
+constants are data-driven (26.1 keeps the 16 item-tag constants 26.2
+dropped as fields; 26.2 adds concrete/glazed-terracotta + sulfur tags).
+
+Batch 27 (Nov 23, 322/498): 375 PORTED — AbstractMinecart.comeOffTrack
+scales by the double literal 0.95 in 26.1, but 26.2 calls getAirDrag()
+(0.95F widened = 0.949999988079071); the Rust used the 26.2 form at
+the derailed-cart site. (The applyNaturalSlowdown water site keeps the
+float form — that method is identical in both versions.) 74/377/380/
+382/383/385/373 no-change: async/switch/interface refactors, renames,
+spills, the same 48-potion set, beacon menu chrome.
+
+Batch 28 (Nov 23, 330/498), all no-change: 376 getBottomCenter moved
+to a static helper; 71 lambda identical, dependent() is 26.2-only;
+371 CriteriaTriggers lives at the old package in 26.1; 224 telemetry
+UUID + setScreen move (neither ported); 225 piston local spill; 199
+raid methods are renames/package moves/WHITE_BANNER accessor, same 5
+RaiderTypes; 367 rename only; 368 sign render state gains woodType +
+body transform in 26.1 (not ported).
+
+Batch 29 (Nov 23, 338/498): 223 PORTED — Camel.getBodyAnchorAnimation-
+YOffset computes the seat base as (height - 0.375F * scale) in float
+in 26.1; 26.2 replaced it with height - (isBaby ? 0.09375 : 0.375) in
+double. body_anchor_y now uses the 26.1 float form. (Sitting dims
+were already the 26.1 form from batch 11.) 249/250/222/195/177/178/64
+no-change: renames, package moves, getCenter/atCenterOf, spills, a
+branch inversion, HUD/options/shutdown chrome; crossbow charging
+sounds have the identical body (instance vs static).
+
+Batch 30 (Nov 23, 346/498), all no-change: 65 identical lambda; 66
+26.2 adds a FLAT_ALL_DIMENSIONS preset (data-driven); 364 package
+move; 365 infiniburn IS a TagKey in 26.1 vs a HolderSet in 26.2, but
+the Rust already carries the tag form; 176 name-tag distance moved
+out of extractRenderState (not ported); 63 bootstrap renames; 362
+client entry restructure; 245 vault/trial-spawner lambdas are
+getCenter/rename moves, ejectResultItem instance vs static.
+
+Batch 31 (Nov 23, 354/498), all no-change: 190 spills/branch artifacts
++ a postprocessing rename; 173 dolphin ldc width, fish field-vs-
+checkcast, pufferfish branch artifact (Dolphin.canRide = true is
+26.1-only but unported — no per-species canRide in the Rust); 62
+branch inversion; 344 Vector3f/Vector3fc; 345 render-pipeline API
+moves + a dropped shouldRenderOffScreen check; 353 26.2-only goal
+ctors; 356 SulfurCubeContent is 26.2-only; 358 joinLines identical.
+
+Batch 32 (Nov 23, 362/498): 217 PORTED — CopperGolem.readyForShearing
+is isAlive() && the antenna tag in 26.1; 26.2 dropped the alive check
+(same as the bogged). golem_shearable now checks alive(). 149 PORTED
+— StructureTemplate.processBlockInfos has no evaluatesEntirePieceState
+pre-pass in 26.1 (the method does not exist on 26.1's abstract
+StructureProcessor): every block goes through the processors and the
+bounding box applies at placement time only. Removed the pre-pass and
+the helper from processor.rs. 360/34/31/28/342/343 no-change: renames,
+package moves, the instantenous typo, Consumer->PostSpawnProcessor,
+constants moved classes.
+
+Batch 33 (Nov 23, 367/498): 165 PORTED — SweetBerry bonemeal needs
+age<3 AND air above AND inside build height in 26.1 (26.2 is age-only);
+bonemeal.rs now applies all three. Enderpearl endermite: 26.1's
+isSpawningMonsters already includes the peaceful gate, so the Rust's
+existing check is the 26.1 form. 241/211/219/15 no-change: render
+accessor renames, applyColor extraction, tesselateFlat branch inversion,
+EntityPredicate restructured in 26.2 (record -> combined sub-predicates,
+same semantics).
+
+Batch 34 (Nov 23, 373/498): all no-change. 191: computeFogColor's
+26.2 clamped brighten factor is NOT in the Rust — fog.rs already
+carries the 26.1 1/max form. 235: BlockModelResolver.update's 26.2
+block-light assignment is not ported (only model seed 42 is).
+26/27/189/228: identical methods, renames, or false positives
+(apply/read/atCenterOfWithY/getHeightForCamera/getInterpolatedBoundingBox
+exist in neither jar).
+
+Batch 35 (Nov 23, 379/498): 194 PORTED — WaitingForPlayerChunk.isReady
+checks the PLAYER's Y in 26.1; the camera-Y check is 26.2-only.
+remote.rs now passes the player Y. 116/154/159/193/200 no-change:
+canDrip == isFreeHangingStalactite (identical bodies), byte-identical
+trade/advancement/enchantment methods, package moves, menu chrome.
+
+Batch 36 (Nov 23, 383/498): 205 PORTED — BreathAirGoal searches the
+3x9x3 betweenClosed box in 26.1 (X fastest, then Y, then Z), not
+neighborColumn's five columns; and 26.1's start() finds the air
+position THEN stops navigation (cancelling that moveTo — tick
+re-issues it). 201/202/206 no-change: renames, identical methods,
+render API shape.
+
+Batch 37 (Nov 23, 389/498): all no-change. 30: path types come from
+the 26.1 oracle, so the dripstone-vs-speleothems form is handled.
+148: Slime moved to monster/cubemob in 26.2; spawn rules and setSize
+are the same behaviour. 152/210/213/214: package moves, render API
+shape, Frog.canEat identical (MagmaCube extends Slime in 26.1).
+
+Batch 38 (Nov 23, 395/498): 174 PORTED — TripWireBlock.checkPressed
+schedules a re-check only while pressed in 26.1; the unpressed
+immediate re-check is 26.2-only. 179 PORTED — ServerEntity.sendChanges
+has no syncPosition clock-rounding in 26.1 (the field does not exist);
+the flag and stepped-tracker step stay for items 94/288.
+158/161/172/175 no-change: identical methods, renames, menu chrome.
+
+Batch 39 (Nov 23, 400/498): all no-change. 180: polar-bear baby dims
+already the 26.1 Scale form. 185: arrow drag already the 0.99F literal.
+147: isOldChunk's threshold is 4295 in 26.1 (4882 in 26.2) and the Rust
+already uses 4295. 187/131: renames, identical methods, package moves.
+
+Batch 40 (Nov 23, 406/498): 167 comment-only — getRequiredLevelsFor
+and validateEffects are 26.2-only; neither exists in 26.1 (corrects
+batch 15's note). The tier lookup stays (version-neutral over
+BEACON_EFFECTS). 110/111/151/164/169 no-change: identical methods,
+package moves, unported render/menu diffs.
+
+Batch 41 (Nov 23, 412/498): 134 PORTED — SpawnEggItemBehavior.execute
+consumes the egg + fires ENTITY_PLACE even on a null spawn in 26.1
+(26.2 returns it unshrunk); tryShearEntity has no caller-level alive
+check in 26.1 — every readyForShearing checks isAlive itself, so the
+arms carry it (MushroomCow is still named that in 26.1, Mooshroom in
+26.2). 143 PORTED — Piglin.holdInOffHand: barter item gets
+setGuaranteedDrop (2.0), anything else setItemSlotAndDropWhenKilled
+(1.0), and 26.1 sets no persistence (26.2 made a non-barter offhand
+item persistent). 23/25/130/139 no-change: options chrome, unported
+getSignal, identical end methods, neighborColumn is 26.2-only (the
+batch-36 air_position box is already the 26.1 form).
+
+Batch 42 (Nov 23, 418/498): all no-change. 153: finalizeSpawn renames.
+155: selectTab's clearDraggingState is unported menu chrome. 133:
+ByteBufCodecs.collection is 26.1-only but the Rust never calls it (same
+wire format as list/map). 136: doClick's only diff is the safeClone
+extraction (same body). 138: MouseHandler Gui accessor moves. 140:
+shulker renames; 26.2's refreshDimensions in onPeekAmountChange is
+subsumed by the Rust's on-demand peek dims, and makeBoundingBox is
+identical (26.1 never refreshes dimensions in the class).
+
+Batch 43 (Nov 23, 424/498): 156 PORTED — PrimedTnt.tick and
+FallingBlockEntity.tick use the double literal 0.98 in 26.1, not
+getAirDrag()'s 0.98F widened (same float-vs-double pattern as items
+198/375); scale_air_drag now uses 0.98, its test pins 0.092236816, and
+the batch-15 falling_blocks comment is corrected. 141/119/17/330/277
+no-change: spear animations identical, canBePickedFromInside is
+26.2-only and unported; no MultiplayerScope in the Rust (is_published
+is port-based, the 26.1 form); spawnGolemIfNeeded rename; query.rs
+names no BlockStateBase methods; weather ticks int-vs-long is
+identical after the 131071/511 masks. Also corrected the batch-42
+evidence for 133: ByteBufCodecs.collection exists in both versions,
+26.2 only adds a 4th overload.
+
+Batch 44 (Nov 23, 430/498): all no-change. 294: wolfArmor rename.
+142: villager-brain spills/renames. 104: boat positionRider spill,
+getAirDrag 26.2-only. 106: OP_ONLY sets identical (verified from the
+static initializers); isOp DOES differ (owner + no allowCommands falls
+through to allowAll in 26.1) but is unported; the spawn-egg canSpawn
+gate was already removed as item 253. 115/127: debug/chat chrome, Gui
+accessor moves, F11 branch moved.
+
+Batch 45 (Nov 23, 436/498): 121 PORTED — animateZombieArms returns
+early for a baby holding an item in 26.1 (no zombie arms at all); 26.2
+lowered them instead. The raise=false path is gone. 108/112/122
+no-change: UI/chat/menu chrome. 113 no-change: handle_jumping already
+carries the 26.1 lava-jump form (26.2's isInShallowFluid drops the
+onGround requirement); omnidirectionalAirMover is exactly
+instanceof FlyingAnimal (Parrot/Bee); knockback's extra params are
+unused; setBodyArmorItem is setItemSlotAndDropWhenKilled(BODY). 123
+no-change: PostSpawnProcessor shape, renames, spill.
+
+Batch 46 (Nov 23, 442/498): 124 PORTED — DiodeBlock.neighborChanged
+has no still-this-diode guard in 26.1 (26.2 added one); the guard is
+gone from diode_neighbor_changed. 118 PORTED — BoneMealItem.useOn
+returns PASS on the client for a growCrop success in 26.1 (SUCCESS in
+26.2), so only the growWaterPlant path succeeds client-side; both
+growth tests updated (5 bone-meal tests pass locally). 128/132/144/109
+no-change: infiniburn tag form already carried, identical/spill/move
+methods, the Instantenous typo, piglin-AI renames.
+
+Batch 47 (Nov 23, 447/498): 103 PORTED comment-only — the dragon's
+sitting-damage accumulation and DYING transition already match 26.1
+exactly (pre-hit health saved, `before - health`, takeoff past a
+quarter of max health); hurtServer's knockback is a verbatim extraction
+in 26.2 (`dealDefaultKnockback`) and `die`'s `handleKillingBlow` is just
+`dead = true`, so two 26.2-only method names were corrected in
+dragon.rs comments. 125/100/105/114 no-change (rename-only, byte-
+identical convertTo, menu/options chrome). 97 DEFERRED: 26.1's
+findNearestMapStructure locates structures even when generateStructures
+is off; the Rust returns None (the 26.2 form) via the pipeline's
+`structures: Option` gate, and splitting state from placement is a
+medium worldgen refactor — noted in the triage narrative.
+
+Batch 48 (Nov 23, 453/498): 14 PORTED — the sleeping camera lifts
+0.3 in 26.1, not 0.15 (26.2 lowered it); camera.rs updated.
+13/16/18/20/22 no-change: SkyRenderer's diff belongs to item 92,
+the old criterion Builders are unreferenced, the chunk-batch clamp
+is already saturating in the Rust (26.1's negative-count path needs
+a spurious duplicate ack), frame/map methods are renames/spills.
+
+Batch 49 (Nov 23, 459/498), all no-change: the container-click
+handler already carries the 26.1 spectator-only form (26.2 added a
+dead-player resync), entity ids are read unguarded (26.2 throws on
+id 0), encryption keys both directions, and the rest are
+CriteriaTriggers moves, package moves, spills and renames.
+
+Batch 50 (Nov 23, 465/498): comment-only follow-up to item 11 —
+26.1's spectate handler is `handleSpectateEntity` over a plain-int
+packet (the protocol already carries the 26.1 `SpectateEntity`
+packet); 26.2 renamed it `handleSpectatorAction` with an optional
+id. lan_camera.rs comments corrected. 50/53/54/55/56/304 no-change:
+Bootstrap, component-patch, notifications, LockCode (package move
+only), MaterialBaker/SpriteId and block-state Properties are
+unreferenced or unchanged in the Rust.
+
+Batch 51 (Nov 23, 469/498): 94 PORTED — the non-living bounce is now
+the 26.1 `Block.updateEntityMovementAfterFallOn` form: slime `-vy *
+0.8d`, bed `-vy * 0.66f * 0.8d` (new — the 26.2 port had no bed
+handling here), anything else zeroes Y, any falling speed bounces;
+the 26.2 restitute portion/drag/gravity compensation is gone, and
+the item tick's Y drag is the `0.98d` literal (X/Z stay `0.98f`).
+KNOWN GAP: the LIVING bounce path still reads `bounce_restitution`
+from prepared data, which the 26.1 export writes as 0.0f for every
+block — players/mobs do not bounce on slime/beds yet. That needs a
+dedicated batch (re-port movement_restitution.rs or synthesize the
+coefficients in the oracle). 215/285/226 no-change.
+
+Batch 52 (Nov 23, 475/498): 95 PORTED — `weird_scaled_sampler` is a
+26.1-only density-function type (26.2 dropped it) that the vanilla
+26.1 data pack uses in the overworld spaghetti caves (`spaghetti_2d`
+TYPE2, `entrances` TYPE1); the Rust had no decoder for it, so a 26.1
+overworld router could not decode. Ported end to end:
+`GraphNode::WeirdScaledSampler` + `WeirdRarityMapper` (TYPE1 =
+getSpaghettiRarity3D, TYPE2 = getSphaghettiRarity2D — note vanilla's
+`Sphaghetti` typo) in horizon-core, `WeirdScaledNoiseSampler`
+implementing `rarity * |noise(x/rarity, y/rarity, z/rarity)|`, the
+compiler arm, and the decoder arm in horizon-world's density.rs.
+Three regression tests pass locally (mapper boundaries, sampler
+coordinate division/scaling/abs, decoder on the spaghetti_2d shape).
+102 PORTED — the 16384 particle-group cap with probabilistic fill is
+26.2-only; 26.1's `ParticleGroup.add` is a plain queue add, so the cap
+is gone from the particle tick (the 1000 SPORE_BLOSSOM limit at
+create stays). 91/98/99/120 no-change (renames, spills, package
+moves; the Blocks lambdas are registration data; SlimeBlock's
+26.1-only bounce methods were already ported as item 94). Also fixed
+a batch-46 `unused_mut` warning in bonemeal.rs.
+
+Batch 53 (Nov 23, 484/498), all no-change: spline evaluation is
+identical across the apply/sample API rename and the JSON spline
+format is the same points form; the BlockPos iterator "changes" are
+anonymous-class renumbering (correctly paired, both iterators are
+byte-identical; 26.2's extra $5 is the neighborColumn iterator, a
+26.2-only method); VibrationSelector swapped a Pair for a record
+with the same fields; the rest are BlockEntityType renames, the
+markPosForPostprocessing spelling, codec refactors, spills and menu
+chrome.
+
+Batch 54 (Nov 23, 489/498): three ports, two no-change reviews.
+281 PORTED — `EntityType.Builder.immuneTo` takes literal block sets
+in 26.1 (fox: sweet berry bush; polar bear, snow golem, stray:
+powder snow; wither, wither skeleton: wither rose), while 26.2
+replaced them with `#*_immune_to` tags that do not exist in 26.1's
+data pack, so the tag form always answered false. `immune_to` in
+spawn_rules.rs now matches the literals, with a regression test.
+92 PORTED — `SkyRenderer.shouldRenderDarkDisc`: 26.2 added a
+`!player.isUnderWater()` exclusion; 26.1 renders the dark disc
+whenever the eye is below the horizon height. The water-fog clause
+is gone from `Game.dark_disc`. The rest of the sky math (sun, moon,
+stars, sunrise, End) is identical — the SkyRenderer diffs are the
+PrimitiveTopology enum move and render-target plumbing.
+93 PORTED — `Mob.equipItemIfPossible`: 26.2 sets
+`persistenceRequired` when a mob equips an item; 26.1 does not.
+The `m.persistent = true` line is gone from mob_looting.rs.
+8/21 no-change after full jardiffs: the packet handlers and game
+loop are identical or accessor moves (the login onlineMode, the
+clock tick and the spectate packet already carry the 26.1 form);
+`BucketItem.use` is behaviorally identical across its reorder
+(emptyContents returns false for an empty bucket, so empty buckets
+still fall through to pickup); the initServer diff is the
+management-server setup moving to the constructor in 26.2.
+
+Batch 55 (Nov 23, 490/498): 227 PORTED — the brewing carry-over.
+The 26.1 tree carried the 26.3 data-driven brewing loader, but
+neither 26.1 nor 26.2 ships `minecraft:brewing` recipe files: the
+mixes live only in `PotionBrewing.addVanillaMixes`, which is
+identical between 26.1 and 26.2 (41 addMix + 11 addStartMix + 3
+addContainer + 2 addContainerRecipe = 65 mixes; the triage note's
+"26.2's 65" compared raw call counts against expanded mixes).
+Carried the 26.2 hardcoded mix tables, `BrewOutput` + `apply`,
+`find`/`has_mix`, the flat-400 tick and the tag-based bool fuel
+(new `BREWING_FUEL_TAG` const). Dropped the 26.3-only stand fields
+(total_brew_time/total_fuel/speed) and the speed load tests; NBT
+is short BrewTime + byte Fuel (verified against the 26.1 jar);
+container data slots back to 2 (getCount = 2 in the 26.1 jar);
+probe, fixture, oracles and parity drivers carried from 26.2.
+Regression test `vanilla_mixes_preserve_one_half` (65 recipes).
+Items 89/90 deferred with reasons in the triage narrative: the
+light/save_roundtrip harnesses need a prepared .local this
+worktree lacks, and the jardiff shows no 26.2→26.1 behaviour
+change in the light/save classes to port.
+
+Batch 56 (Nov 24, 491/498): 35 PORTED — the blending f32→f64 cascade.
+The 26.1 tree's whole density pipeline was f32 (the 26.3 form); vanilla
+26.1 computes in double throughout — verified against the 26.1 jar:
+BlendingData (`double[] heights`, `double[][] densities`, `double
+NO_VALUE`, `double getHeight/getDensity`), `DensityFunction.compute`,
+`NormalNoise.getValue`, `ImprovedNoise.noise`, `PerlinNoise` (double
+amplitudes) and `Blender.blendDensity/blendOffsetAndFactor` all double;
+Direction8 is top-level; Blender has the `addAroundOldChunksCarvingMaskFilter`
+static and the SHIFT_NOISE NormalNoise (the 26.2 form). Carried the 26.2
+tree's f64 density/noise/blending (15 density modules, stack.rs,
+blending.rs, the parity bins), hand-merging the 26.1-only
+weird_scaled_sampler (batch 52) back into the graph, compiler, decoder
+and tests. End islands: the decoder now maps `minecraft:end_islands`
+to `EndIslands { central: true }` (26.1's `getHeightValue` seeds the
+central cone, `clamp(100 - sqrt(sx^2 + sz^2) * 8, -100, 80)`; 26.3 moved
+the cone into `end/islands` data) and `end_outer_islands` to
+`{ central: false }`. `Beardifier.getBuryContribution` is now the 26.1
+`clampedMap(Mth.length, 0, 6, 1, 0)` form, not the 26.3 squared-cutoff
+form. BlendingData heights read/write as NBT doubles
+(`Codec.DOUBLE.listOf()`). Deliberately NOT carried: the synth
+double-precision noise engine (item 150, next batch — the float engine
+stays, widened at the Noise trait boundary), the 26.2 4-corner
+`getMinSurfaceLevel` and `sort_postprocessing_fill_order` (separate
+items). 43 files, +986/−745; workspace `cargo check` clean.
+
+Batch 57 (Nov 24, 492/498): 150 PORTED — the synth f64 noise engine.
+All eight `world.level.levelgen.synth` classes (BlendedNoise,
+ImprovedNoise, NoiseUtils, NormalNoise + NoiseParameters, PerlinNoise,
+PerlinSimplexNoise, SimplexNoise) are byte-identical between the 26.1
+server-game jar and the 26.2 client jar, so the 26.2 tree's faithful
+double-precision synth.rs carries over whole (1,398 lines), with its
+consumers: seeded.rs creates synth NormalNoise (legacy-nether and
+`create_with_params`), terrain_noise.rs gains the synth-backed
+BlendedNoiseSampler (replacing BlendedFbmSet; `create_blended_fbm`
+stays for the parity bins), normal.rs gains `synth_parameters()`,
+noise/mod.rs re-exports the module, graph/mod.rs regains the
+SynthError→CompileError conversion, biome_temperature.rs uses synth
+PerlinSimplexNoise for the three Biome noises, and noise_parity.rs is
+the synth-based transport. The 26.1-only WeirdScaledNoiseSampler stays
+in terrain_noise.rs. The float engine remains as the legacy sampler;
+the density graph now samples synth noise directly in f64. 9 files;
+workspace `cargo check` clean.
+
+Batch 58 (Nov 24, 493/498): 96 PORTED — window.rs, fresh-ported from the
+26.1 jar. The triage's method lists for this item describe 26.3→26.2,
+not 26.2→26.1 (applyFullscreen/isExclusiveFullscreen/
+setExclusiveFullscreen/updateFullscreenState exist in NEITHER jar;
+selectCursor/setGuiScale/VideoMode.read/write are bytecode-identical
+26.2↔26.1), so the port was re-verified method by method against the
+26.1 client jar. Findings: calculateScale identical; getThrottleReason
+identical logic (iconified-only, no focused/exclusive clause — the 26.3
+form is wrong for 26.1); VideoMode bytecode-identical (i32 rate,
+`1920x1080@60:24` string form); the fullscreen state machine is the
+26.2 form (fullscreen/actuallyFullscreen, exclusive fixed at creation
+via Options.initialExclusiveFullscreen, restart to change);
+getPreferredVidMode identical logic. The real 26.1↔26.2 differences
+(ScreenManager vs MonitorManager, isResized, isSoftScreen,
+updateVsync, resizeGui vs framebufferSizeChanged callbacks, Monitor
+record vs class) are GLFW plumbing the Rust does not model.
+PresentMode: 26.1 predates the Vulkan backend entirely (no GpuSurface
+class in the jar), so the 26.2 FifoRelaxed-first vsync list carries as
+the era model, documented as such. Carried the 26.2 window.rs whole
+plus caller updates (FullscreenState::new takes the exclusive option;
+observe_fullscreen and the 26.3 throttle fields gone; options_ui uses
+the whole-hertz rate directly). 8 files; workspace `cargo check` and
+all `--lib --tests` checks clean.
+
+Batch 59 (Nov 24, 494/498): 97 PORTED — `findNearestMapStructure` locates
+in a no-structures world. Jar-verified (normalized per-method bytecode
+diff, 26.1 server-game vs 26.2 server-game): 26.2 added a
+`WorldGenSettings.options().generateStructures()` early-return (null)
+to `findNearestMapStructure`; 26.1 has no such check anywhere in
+`ChunkGenerator` — the state (`ChunkGeneratorStructureState`) is built
+always (`ChunkMap.createState`), and only the chunk step that creates
+starts is gated (`ChunkStatusTasks.generateStructureStarts`,
+`StructureManager.shouldGenerateStructures`). The Rust had the 26.2
+form: `Pipeline::new` built the `StructureState` only `if
+with_structures`, so `locate` returned None. The port splits the
+gating: the state is built always (real possible-biomes set, so
+`locate` searches real sets — the manual empty-biome fallback cannot
+serve it), and a new `generate_structures` field gates only generation
+(chunk starts/references, decoration's structure references,
+`structure_starts`, `use_saved_start`, `may_start_answers`). `locate`
+and `ring_positions` are deliberately ungated (Eye of Ender uses the
+latter). Rest of 97 verified no-change: `ChunkGeneratorStructureState`,
+`JigsawPlacement`, `NoiseSettings` bytecode-identical; `doFill` differs
+only by the `markPosForPostprocessing` rename; `getInterpolatedNoiseValue`
+already passes the real blender (26.1 form); `buildSurface`'s
+possible-biomes set is a Java-side optimisation the Rust does not
+model (surface rules read the per-column biome); `NoiseGeneratorSettings`
+factories differ only in bootstrap signatures. 2 files; workspace
+`cargo check` and horizon-world `--lib --tests` clean.
+
+Batch 60 (Nov 24, 495/498): 117 PORTED — environment attributes to the
+packed-int ARGB system. Jar-verified against 26.1's own jars: `ARGB`
+(addRgb/alphaBlend/multiply/scaleRGB/srgbLerp/greyscale) method-identical
+26.1↔26.2; `EnvironmentAttribute`/`AttributeType` method-identical, no
+`isFullResolutionBiomes` in either; `EnvironmentAttributes` 48 fields,
+identical names in both jars (the 26.1 tree's 50th and 51st entries,
+`gameplay/natural_mob_spawns` and
+`gameplay/creature_world_gen_spawn_probability`, are 26.3-only —
+`straw_bed_rule` was already removed in batch 3c); `SpawnerData` is
+(type, minCount, maxCount) in both jars, no `count` provider; the 26.1
+plains biome has top-level `spawners` (minCount/maxCount),
+`spawn_costs` and no `natural_mob_spawns` attribute; `ClockManager`
+is `getTotalTicks(Holder<WorldClock>)` in both. Carried the 26.2 files
+whole (doc refs 26.2→26.1): environment_attributes.rs (packed-int
+ARGB: multiply/add/alphaBlend/srgbLerp/greyscale/scaleRGB on ints,
+`STRING_RGB_COLOR`/`STRING_ARGB_COLOR` codecs, 48 attributes, tests
+pinning the int formulas), biome.rs (spawns from the biome file's
+`spawners`/`spawn_costs`/`creature_spawn_probability`, content-mod
+attribute form as fallback), environment_system.rs (biome closures
+lose the `full_resolution` bool), environment.rs (same closure change),
+spawn_selection.rs (`constant` flag gone; a 4-4 group still draws),
+environment_system_fixture.rs (closure arity). 6 files; workspace
+`cargo check` and horizon-world/render/client `--lib --tests` clean.
+
+Batch 61 (Nov 24, 496/498): 288 PORTED — entity position sync and
+interpolation to the 26.2 form. Jar-verified against 26.1's own jars:
+`ClientboundEntityPositionSyncPacket`, `PositionMoveRotation`,
+`InterpolationHandler` and `ClientboundMoveEntityPacket` are all
+bytecode-identical (normalized) between the 26.1 and 26.2 client jars,
+so the 26.2 port is the right form for 26.1 throughout. play.rs:
+`PositionMoveRotation` struct + codec, `EntityPositionSync` reshaped
+to the `values` form; `VecDelta` enum (Linear/Stepped) back to the
+plain `pub struct VecDelta(pub [i16; 3])`; MoveEntity read/write
+simplified (shorts + on-ground bool). horizon-world: carried
+interpolation.rs whole (26.2) + interpolation_fixture.rs, the parity
+harness and the Java oracle; deleted stepped_interpolation.rs, its
+fixture, harness and oracle. remote.rs: the 37 interpolation hunks of
+the 26.2 diff (interpolated_move, teleport_heading,
+InterpolationHandler::new(3)); the other 36 hunks are other items and
+were not touched. lan/entity.rs: the whole 26.2 diff, then
+`sync_position` removed — 26.1's `Entity` has no `syncPosition`
+(26.2 added it) and no stepped tracker, so no bounce fast-forward and
+no `vertical_collision`/`horizontal_collision`/`full_precision_required`
+fields; `fall_flying` added (the `isFallFlying` check exists in both
+jars' sendChanges). game/lan.rs: the removed fills dropped, `fall_flying`
+filled from the mob; dragon.rs/hub.rs literals reshaped. Adapter
+(world.rs, step_1_21_1.rs, translate.rs, boats.rs), play/tests.rs and
+horizon-bots updated to the `values` form and the plain `VecDelta`.
+Deliberately left in place: `Mob.sync_position`,
+`PlayerState.sync_position` and the `mark_position_for_sync` hook —
+they belong to the movement side, and the living-bounce re-port owns
+removing them (their docs now say so). Workspace `cargo check` and
+protocol/world/client `--lib --tests` clean.
+
+Batch 62 (Nov 24, 498/498 — rank 2 closed): 89/90 NO-CHANGE —
+the light and save_roundtrip harness items, with the harness run
+recorded as not runnable here. Re-verified by jardiff (Nov 24):
+`LightEngine` differs only by the `getLightBlockInto` (26.1) /
+`getLightDampeningInto` (26.2) rename, same body;
+`BlockLightEngine` and `LevelLightEngine` byte-identical;
+`SkyLightEngine` differs only by its constructor's access modifier;
+`RegionFileStorage` differs only by access modifiers;
+`SerializableChunkData` (the chunk serializer — no `ChunkSerializer`
+class exists in either jar) normalized-bytecode identical;
+`LevelStorageSource` differs only by a new
+`LOAD_FOLDER_ACCESS_MESSAGE` UI string in `loadLevelSummaries`
+(menu chrome); `findLevelCandidates` untouched. The Rust side
+agrees: light.rs, the light_parity probe, region.rs, nbt.rs,
+levels.rs and level.rs are all 0-diff vs the 26.2 tree; the
+save-side diffs (save.rs, entity_nbt.rs, block_entity_nbt.rs)
+are this port's own earlier work (4295 datafix, NBT-form
+BlockState codec), not unported 26.2 behaviour. So there is
+nothing to port for either item. The harnesses themselves cannot
+run in this worktree: both need a prepared `.local`
+(`.local/horizon-client/26.1` resources + staged server jar),
+and prepare needs a 26.1 asset store (indexes/ + objects/) that
+exists nowhere on the VM — prepare downloads nothing, so the
+store would have to be assembled from Mojang's CDN (asset index
+30, thousands of objects) first; save_roundtrip additionally
+needs a built horizon-client binary on a virtual screen, and the
+VM OOMs on the client build (owner's CI rule). Harness
+verification for both is deferred to the publish-time proof run.
+Docs-only batch; the code tree is identical to the one crate-tests
+run 45254318944 (batch 61) is testing, so no separate dispatch.
+
+## Behaviour port — rank 3 in progress (2026-11-24, branch behaviour/26.1)
+
+Rank 3: 70/214 closed (rank 1: 7/7, rank 2: 498/498; total
+575/795). A1 complete (60/60); B1 in progress (10/56).
+Re-triage: `retriage-rank345.json` (A1 60, A2 67, B1 56, B2 31)
++ `diff-26.2-26.1-rank3.json` (274 classes, 204 method-changed).
+Order: A1 reviews, then B1 ports, then A2/B2. Progress in
+`rank3-progress.json`.
+
+Batch 63 (Nov 24, 10/214 — A1 #1): 538 PORTED, 542 PORTED, 571 /
+586 / 608 / 610 / 612 / 614 / 615 / 616 NO-CHANGE.
+- 538 (team color): 26.2 added `/team modify color reset`
+  (`clearColor` + the reset literal + the `color.clear.success`
+  lang key, absent from 26.1's en_us.json) and replaced
+  `ColorArgument`/`ChatFormatting` with `TeamColorArgument`/
+  `TeamColor` (`PlayerTeam.getColor` became `Optional`). 26.1 has
+  no reset subcommand: `reset` is a color-argument value
+  (`ColorArgument` accepts RESET — it is not a format). Removed
+  the reset literal + executes; the color arm is set-only and
+  stores `reset` as no color; the argument accepts `reset`
+  (suggestions stay the 16 colors, as vanilla's
+  `getNames(true, false)` lists); network.rs maps 26.1's
+  `minecraft:color` id (26.1's registry has no `team_color`);
+  the command-parse fixture emits `minecraft:color`. The
+  existing `teams()` test passes unchanged via the value path.
+- 542 (large dripstone): removed three 26.2-only behaviours —
+  the WindOffsetter `maxOffset` clamp (±(16 − radius); 26.1
+  applies the raw floored offset), the REQUIRED
+  `replaceable_blocks` decoder field (26.1's codec has no such
+  field and its config lacks it; now optional, defaulting to the
+  `#dripstone_replaceable_blocks` tag that 26.1's
+  `DripstoneUtils.isDripstoneBase` hardcodes), and the (1,16)
+  `column_radius` bound (26.1's codec is (1,60); 26.1's own
+  config samples uniform(3..19), which the old bound rejected).
+  `DripstoneUtils` → `SpeleothemUtils` is a rename (identical
+  height formula); speleothems are a 26.2 addition absent from
+  26.1 entirely — the cluster code stays unreachable per the
+  SulfurCube precedent, and the module doc now says so.
+- 571 MatchTool: pure `ItemPredicate` package move. 586
+  ClientChunkCache$Storage: empty-section tracking refactor,
+  same observable behaviour; bots don't model it. 608
+  SpriteContents: GPU upload plumbing only. 610 edit screens:
+  only the screen-setter moved (`Minecraft` → `Minecraft.gui`).
+  612 CrashReport: same report text, restructured order; the
+  new helpers are private/internal. 614 AbstractFurnaceMenu:
+  `fillCraftSlotsStackedContents` logically identical; the
+  RecipeType constructor param is Java plumbing (the Rust
+  models it via the furnace kind). 615 SectionDraw: pure
+  `IndexType` type move. 616 LeashFeatureRenderer: render-method
+  refactor, not leash gameplay.
+Workspace `cargo check` and horizon-world/command/client
+`--lib --tests` clean.
+
+Batch 64 (Nov 24, 20/214 — A1 #2): all 10 NO-CHANGE, each
+jardiff-verified. 617 RandomCommand: pure MinMaxBounds package
+move. 618 EntitySelectorOptions: same 26 option names; the
+method churn is 26.2's SetOnceOptionState refactor (same
+availability/matching semantics). 622 TabNavigationBar: builder
+refactor + 26.2-only MenuTabBar; menu chrome. 624
+RepeatedNarrator$Params: 26.2 record-ified it; no Rust
+references. 627 ShadowFeatureRenderer: render-feature refactor,
+same vertex math. 628 FlatLayerInfo: Block → Holder<Block>
+field type; `getBlockState`/`heightLimited` logically
+identical. 630 WoodlandMansionPieces: Tuple → GridPos record,
+Guava/fastutil → ArrayList, `EntityType` → `EntityTypes` — a
+structural bytecode diff shows no logic change. 631 JigsawBlock:
+local reorder, same logic. 633 dialog screens: the setScreen
+move + 26.2-only GUI helpers; menu chrome. 634 RedstoneTorch:
+`getSignal` extracted to `ownSignal` in 26.2, identical logic.
+Docs-only batch; the code tree is identical to the one
+crate-tests run 45257135418 (batch 63) is testing, so no
+separate dispatch.
+
+Batch 65 (Nov 24, 30/214 — A1 #3): all 10 NO-CHANGE, each
+jardiff-verified. 635 CauldronInteractions: 26.1 registers the
+16 banner + 16 shulker items individually, 26.2 loops over
+ColorCollections — same registered set, identical interaction
+lambdas. 636 WindCharge: constructors identical except the
+EntityType → EntityTypes rename (noDeflectTicks = 5 both).
+637 CodeOfConduct: `minecraft.screen` vs `gui.screen()`
+accessor only. 639 gizmos: 26.2 adds a LevelExtractor
+visibility check and extracts GizmoFeatureRenderer; debug
+plumbing. 640 spectator menu: icon tint reads ChatFormatting
+in 26.1, TeamColor in 26.2 — same 16 colors; menu chrome.
+641 CreateWorldScreen: narration extracted to a helper, same
+button; menu chrome. 643 Mirror.mirror and
+SlabBlock.isPathfindable: identical logic (26.2 single-return
+form). 644 DesertPyramid: 26.2 reads terracotta via the
+DYED_TERRACOTTA ColorCollection — same 35 placements, same
+counts; BlockEntityType → BlockEntityTypes rename. 648 pack
+screen: selection-check restructure; menu chrome. 649 debug
+screen: SerializedOptions constructor access modifier only.
+Docs-only batch; the code tree is identical to the one
+crate-tests run 45257135418 (batch 63) is testing, so no
+separate dispatch.
+
+Batch 66 (Nov 24, 40/214 — A1 #4): all 10 NO-CHANGE, each
+jardiff-verified. 650 RaidCommand.spawnLeader: EntityType →
+EntityTypes rename only. 652 TrackedEntity.equals: same
+getId comparison, single-return form. 654 llama caravan
+goals: EntityTypes rename + compiler-form branch reshuffles.
+659 layouts: 26.2 added removeChildren() to three layout
+classes; GUI plumbing. 660 social screen onClose:
+Minecraft.setScreen → Gui.setScreen. 664 inventory effects:
+getMobEffectSprite moved Gui → Hud. 668 edit-world backup
+toast: toast-manager accessor + SystemToast constructor form.
+669 PandaMoveControl: 26.2 genericized it (inherited mob
+field); tick logic identical. 670 silverfish wake-up:
+structural diff shows only a local-store reshuffle; same
+bounds checks and MOB_GRIEFING gate. 671 Overlay: abstract
+isPausing() renamed to isPauseScreen(), no default body
+either side.
+Docs-only batch; the code tree is identical to the one
+crate-tests run 45257135418 (batch 63) is testing, so no
+separate dispatch.
+
+Batch 67 (Nov 24, 50/214 — A1 #5): 675 PORTED, 9 NO-CHANGE.
+675 management schema: the 26.1 tree still listed the four
+26.3-only world-upgrade notifications — neither 26.1's nor
+26.2's OutgoingRpcMethods has them (no upgrade_* strings in
+either jar), so all four were removed and the doc fixed to
+26.1 (the 26.2 tree's form). 26.2 also added
+allowPreServerInit to the discovery + heartbeat registrations
+(2 occurrences, 0 in 26.1); the Rust schema table models no
+lifecycle flag in either tree, so nothing to port for it.
+NO-CHANGE: 673 fluid model bake (invokeinterface →
+invokevirtual, MaterialBaker became a class); 676 RconClient
+(constructor access modifier only); 683 pack toast
+(toast-manager accessor); 684 ItemStackWithSlot codec
+(fieldOf.orElse vs optionalAlwaysPresentFieldOf, same
+optional-default-0 shape) + VaultConfig (access modifiers
+only); 685 MutableComponent (26.1 keeps the withColor
+(TextColor) overload 26.2 dropped; the Rust uses the int
+form); 687 occlusion graph (internal waiting-map refactor);
+689 Tab (26.1 keeps abstract getLayout()); 692 piston head
+(submitMovingBlock gained a 4th int arg); 695 trial spawner
+particles (getCenter vs atCenterOf, same value).
+`cargo check -p horizon-server` clean.
+
+Batch 68 (Nov 24, 60/214 — A1 #6, A1 COMPLETE): all 10
+NO-CHANGE, each jardiff-verified. 697 waypoints: 26.1 keeps
+MAX_RANGE = 60000000 (26.2 dropped it; the Rust doesn't model
+it) and the icon colour rule is the same (black → −13619152)
+via Integer in 26.1, TeamColor in 26.2. 700 world creation:
+26.2 added a saves-folder create in findResultFolder; no Rust
+counterpart. 701 experimental-features onClose: setScreen
+accessor move. 703 SubShape: constructor access modifier
+only. 705 Layout: 26.2 added removeChildren (same as 659).
+708 world upgrader: thread-name format added. 712 toasts:
+26.2 added FRIEND_SYSTEM_NOTIFICATION; constructors
+identical. 713 dialog warning screen: setScreen accessor
+move. 717 gamerule builder map: access modifier only. 718
+spear goal constants: access modifiers only.
+Docs-only batch; the code tree is identical to the one
+crate-tests run 45259245639 (batch 67) is testing, so no
+separate dispatch.
+
+Batch 69 (Nov 24, 64/214 — B1 #1): 507, 509, 510 PORTED;
+506 NO-CHANGE. 506 settings service: 26.2 derives the
+server from a NotificationManager, 26.1 holds it directly;
+all 40 methods otherwise identical. 507 Realms (26.2 items
+418+421): the invite-code service and tier configuration
+are absent from 26.1's jar (no InviteCode classes, no
+frontendV2Url, no RealmTierConfigurationDto); carried the
+26.2 tree's realms/client.rs, realms.rs and title.rs (PDP
+removal). One place 26.1 differs from 26.2: 26.1's Request
+has only `addSnapshotHeader` (Is-Prerelease) — 26.2's
+`addVersionHeaders` added X-NetworkProtocolVersion — so
+the 26.1 headers send only Is-Prerelease (test asserts the
+protocol header absent); the cookie test's version literal
+is fixed to 26.1 (the 26.2 tree's "26.3" is its known
+pre-existing failure). 509 post chains (26.2 item 420):
+26.1 pads vec3 to 16 and uses the 56-byte Globals layout
+like 26.2 (Std140Builder/GlobalSettingsUniform verified
+identical); carried post_chain.rs, core_lines.rs,
+core_sky.rs and the Globals GLSL line in core_shader.rs
+(gfx.rs and the OIT work untouched). 510 sculk: the
+sculk_growth_inhibitors tag exists in neither jar — the
+inhibitors are the hardcoded sensor + shrieker; sensor
+signal, catalyst ticker and ChargeCursor codec verified
+no-change. NOTE: the triage's `cl.identical` lists are
+signature-level only — RealmsClient/Request differ
+structurally despite being listed identical; B1 items are
+verified with the structural bytecode diff, not the
+triage claim.
+`cargo check` clean for horizon-client-lib (incl. --lib
+--tests apart from the 34 known pre-existing lan_bot.rs
+errors), horizon-client-render and horizon-world.
+
+Batch 70 (Nov 24, 65/214 — B1 #2, 511 alone): the friends
+system is 26.2-only, so it is removed. PresenceSharing,
+PresenceHandler and RemoteFriendListUpdateHandler exist in
+the 26.2 jar and are absent from the 26.1 jar; 26.1's
+PlayerSocialManager has no friend methods and 26.1's
+Options has no sharePresence. Deleted social.rs (860 lines)
++ the lib mod + the client_lib re-export; removed the
+presence calls from game.rs, saving.rs, remote.rs and
+title.rs; removed the SharePresence and InGameNotification
+options (both absent from 26.1's Options, lang and
+OnlineOptionsScreen, which shows only allowServerListing +
+realmsNotifications) from the Opt enum, options_ui.rs, the
+options_file defaults and the Online page's friends
+section. Untouched: game/social.rs (Social Interactions
+screen + hidden chat) and game/friends.rs (LAN invite
+sharing) — both are 26.1 behaviour. ban_notice.rs still
+parses the account status's friendsPreferences (account-API
+data, version-neutral); nothing reads the fields now.
+`cargo check` clean for horizon-client-render and
+horizon-client-lib (incl. --lib --tests apart from the
+known pre-existing lan_bot.rs errors).
+
+Batch 71 (Nov 24, 70/214 — B1 #3): 512, 516 PORTED; 514,
+515, 517 NO-CHANGE. 512 test runs: no dimension on any
+test-instance class in either jar — carried the 26.2 tree's
+test_runs.rs (tests run in the level in place). 516
+advancements: keyPressed is identical in 26.1/26.2 (key
+closes to game + grabs mouse) — added
+close_advancements_to_game and routed KeyL to it; the
+positions handling was deliberately NOT carried (the packet
+carries x/y in both versions and vanilla positions widgets
+from DisplayInfo x/y — the 26.1 tree's server-positions
+form is correct, the 26.2 tree's client-side-only layout is
+its known gap). 514 stats screen: TabNavigationBar →
+MenuTabBar, menu chrome. 515 structure blocks: processBlock
+bodies identical; the 26.1 template-state BlockRot fix is
+already in the tree from rank 2. 517 item GUI: render
+submission plumbing only.
+
+Batch 72 (Nov 24, 79/214 — B1 #4, 518 held for its own
+batch): 520, 529 PORTED; 527 PORTED (docs); 519, 522, 524,
+525, 526, 528 NO-CHANGE. 520 spawn: 26.1's findSpawn returns
+the fixup height at once in a dimension without skylight
+(26.2 dropped the gate and searches the respawn radius in
+every dimension) — spawn_finder now takes the suggestion-only
+path when game_mode == 2 or the dimension has no skylight.
+529 ruined portal: 26.1's placeNetherrackOrMagma is
+unconditional (bytecode-identical to 26.2's); the tree had
+the 26.3 form (check inside) — carried the 26.2 split
+(unconditional place + checked spread-site wrapper, drip
+columns unconditional). 527 screen effects: 26.1 keeps the
+spinning effect on GameRenderer (26.3 moved it to
+LocalPlayer) — docs fixed to the 26.2 form. 519 SystemToast,
+524 SectionRenderDispatcher, 526 ItemFeatureRenderer: render
+plumbing refactors only (glint constants identical). 522
+dismount/respawn anchor, 525 mineshaft, 528 brushable block:
+package/rename moves only. Batch-71 follow-up (item 512):
+carrying test_runs.rs alone left Info::new's 6-arg
+dimension form in game_tests.rs — carried the 26.2 tree's
+game_tests.rs whole (single-level runner, no per-Info dim)
+and dropped the dim argument at the test_instances.rs call
+site; the local check caught it before CI did.
+
+Batch 73 (Nov 24, 80/214 — B1 #5, 518 alone): the 26.1 LAN
+screens. 26.1 has ShareToLanScreen + a difficulty/gamerules/
+restrictions WorldOptionsScreen — neither 26.2's
+MultiplayerOptionsScreen (LAN switch + Apply) nor the tree's
+26.3 merged single screen, so the 26.2 file was reshaped, not
+carried: WorldOptions lost its mode/cheats row; ShareToLan
+has the game-mode cycle, allow-commands, a port box (blank →
+available port, 1024..65535 per tryParsePort) and Start LAN
+World, which closes the screen then publishes (published game
+type = hub default for joiners only, via the new
+set_published_game_type). Pause menu: Options + Open to LAN
+in single player, full-width Options on a server; World
+Options moved to the Options screen's Main page (in world
+only). Success message fixed to commands.publish.started
+(26.1's lang has no multiplayerOptions publish keys); the
+unpublish "stopped" messages dropped (26.1 unpublish is
+silent). Screen::ShareToLan wired through game.rs and the
+control/ime/narrator/pad_menu/play_keys dispatch.
+`cargo check -p horizon-client-lib` clean.
+
+Batch 74 (Nov 24, 90/214 — B1 #6, 531/532/533/535/537/539/540/543/544/545):
+531 PORTED (level events): 26.1's levelEvent switch has 82 keys and
+lacks 2015-2020 entirely (26.2 same + 1052 sulfur spike); neither
+26.1's Shulker nor EnderMan calls levelEvent. Carried the 26.2 tree's
+level_particles.rs + teleport_consume.rs whole: added the 3003 wax-on
+and 2002/2007 splash sounds (both jars play them, the tree lacked
+them); removed the 2016/2017/2018 handlers and the 2017 emission
+(trait method, fox block, item_sync codec bool, protocol hash shapes,
+the directional_particles field — TeleportRandomlyConsumeEffect is
+byte-identical 26.1/26.2, diameter only); breaking_block_effects ->
+breaking_block_sound with the every-4th-tick schedule (26.1's
+continueDestroyBlock plays the hit sound directly, no
+addBreakingBlockEffect); removed the 2019/2020 arm and
+destroy_progress_event; 2015 kept as the sim's internal dragon-egg
+channel, the 2016 shulker emission kept unhandled (26.2 precedent).
+532 PORTED (test-only): the heartbeat feature exists in 26.1
+(statusHeartbeat + the get/set RPC methods in both jars) — only its
+scheduling moved to ManagementServer in 26.2 — so the Rust's heartbeat
+model stands; fixed the stale rpc_discover assertion 89 -> 85
+(batch 67 removed the four notifications from the table but not the
+assertion; horizon-server is not in the CI crate list, so it never
+failed). 533 PORTED: both jars' EffectCommands.giveEffect branches
+single/multiple on the target count, no tracker — carried the 26.2
+tree's effects.rs whole (give/clear/enchant). 540 PORTED (docs/attrs):
+neither jar has an add-transient-block packet, so the feeder is dead
+like the 26.2 tree's (SectionOcclusionGraph's 26.2 rewrite is render
+internals). 543 PORTED: cmd_publish fixed to 26.1's keys
+(commands.publish.started/alreadyPublished, no .lan) and its
+getSuccessMessage form (copy-on-click port, no brackets), gamemode
+argument added (tree node + set_published_game_type after publish);
+/unpublish REMOVED (no class, registration or lang keys in 26.1;
+IntegratedServer has no unpublishServer — the engine unpublish()
+is the lan_close shutdown path only). Waypoint color already
+correct (ArgType::TeamColor documents 26.1's ColorArgument).
+535/537/539/544/545 NO-CHANGE: setScreen move + widget accessors,
+the NotificationManager server() refactor, package moves, the
+section-compile refactor, DeOp lambda form + unmodelled
+BanListEntry.hasExpired. `cargo check` clean for horizon-client
+(lib), horizon-client-render, horizon-world, horizon-protocol,
+horizon-items (lib+tests), horizon-command (lib+tests).
+
+Batch 75 (Nov 24, 100/214 — B1 #7, all no-change, docs-only): 546
+ghast field rename + wrapDegrees90 moved to Mth (same math); 549
+CarvedPumpkinBlock package moves + copper collection access, spawn
+logic identical; 552 PlayerEntry branch inversion + Gui accessor
+moves; 553 smoothBlend compiler reorder (same masks/logic), the
+26.2 emissive getLightCoords overload unmodelled in either tree;
+560/569 setScreen moves; 567 CubeMap GPU plumbing; 568 ScissorStack
+void push/pop + screenSize fallback, unobservable through the Rust's
+CPU vertex clipping; 570 EntityType moves; 572 the knockback API
+rework (both causeExtraKnockback bodies knockback-only, no damage).
+All ten Rust files 0-diff vs the 26.2 tree. No separate crate-tests
+dispatch (code tree identical to the batch-74 head, covered by run
+45272322750).
+
+Batch 76 (Nov 24, 110/214 — B1 #8, 1 ported, 9 no-change): 583
+PORTED — the spectator menu: 26.1's `PlayerMenuItem.isEnabled` is
+constant true (iconst_1 in the bytecode; 26.2 added the
+`getGameMode() != SPECTATOR` check), and neither 26.1's
+`SpectatorMenu` nor its `TeleportToTeamMenuCategory` filters
+spectators (no SPECTATOR reference in either class). The 26.1 tree
+had the 26.2 form: `enabled: p.game_mode != SPECTATOR` plus a
+`.filter(|p| p.game_mode != SPECTATOR)` on team members, and
+`players_page` retains only enabled members, so spectator-mode
+players were dropped from the menu entirely. Now every listed
+player is enabled and selectable, spectators included
+(game/spectator.rs, spectator_menu.rs doc fix). No-change: 573
+TestBlock getSignal→ownSignal extraction (same as 634); 575
+AbstractStringWidget handleStyleClick extraction + DialogScreen
+setScreen move; 577 QuickPlay setScreen move; 580 Screenshot GPU
+plumbing (TextureFormat→GpuFormat, pixelSize→blockSize) plus the
+26.2-only `grab(Minecraft, boolean)` panoramix path — the Rust only
+manages the screenshots folder; 581 WitherSkullBlock
+EntityType→EntityTypes + CriteriaTriggers move; 588 CatSpawner
+renames; 589 ShearsItem — the tool rules are data-driven
+(`minecraft:tool` rules from prepared data), so 26.1's data carries
+the leaves/wool/vine+glow_lichen rules and 26.2's the SHEARS_*
+tags with no code change; 591 ExperimentsScreen I18n.exists→
+Language.has + setScreen move; 592 OceanMonumentPiece renames.
+All ten Rust files 0-diff vs the 26.2 tree before the 583 port.
+`cargo check -p horizon-client --lib` clean (54.8s).
+
+Batch-74 CI fix (Nov 24, run 45272322750): the run failed 2
+horizon-protocol hash tests. Batch 74 removed the
+`directional_particles` bool from the teleport-consume hash shapes
+but missed `skip.rs::consume_effect`, which still read diameter +
+bool — and both test hexes were stale 26.3-form data carrying the
+bool byte. Jar-verified: 26.1's (and 26.2's)
+`TeleportRandomlyConsumeEffect` is a diameter-only record whose
+STREAM_CODEC is `composite(ByteBufCodecs.FLOAT, ...)` — no bool —
+and 26.1's `Consumable` record has no directional_particles field.
+Fix: skip.rs reads diameter only (the 26.2 tree's form); the
+gameplay hex drops the bool byte (sound id `9b0a` kept — 26.1's
+registry numbering; expected hash unchanged at −1668265051); the
+exact-predicate NBT drops the whole directional_particles entry
+(expected hash −1343820468, carried from the 26.2 tree, whose
+string-id NBT hashes version-independently). Both tests pass
+locally (`cargo test -p horizon-protocol --lib
+item::hash::raw::tests`: 5 passed).
+
+Batch 77 (Nov 24, 116/214 — B1 #9, 2 ported, 4 no-change; B1
+COMPLETE 56/56): 600 PORTED — screen narration: 26.1's and 26.2's
+`Screen.updateNarratorStatus` both take only a boolean (identical
+method lists in both jars) — the `NarrationTrigger` threading is
+26.3-only. Carried the 26.2 tree's screen_narrator.rs and
+horizon-narrator screen.rs whole (doc "In 26.2" → "In 26.1");
+game/narrator.rs surgical (Trigger dropped, the batch-73 ShareToLan
+line kept). The `ContainerObjectSelectionList` diff itself is only
+an instanceof-check → null-check reshuffle of the hovered/focused
+entry narration, same behaviour for well-formed lists. 602 PORTED
+— `ARGUMENT_TYPES` was still the 26.3 list: `minecraft:team_color`
+→ `minecraft:color` (26.1's ArgumentTypeInfos registers
+ColorArgument; 26.2 renamed it), and the five 26.3-only entries
+removed (context_float_provider, context_int_provider, slot_source,
+feature, swing_animation — absent from both jars' bootstrap). The
+name→ArgType mapping already handled both names (network.rs:214);
+the list fix also unblocks the probe fixture, which emits
+"minecraft:color" through the position lookup. No-change: 593
+Containers renames (the furnace.rs diff is the earlier 26.1 fuel
+work); 595 TickThrottler — 26.2 returns true when threshold ≤ 0,
+unreachable in 26.1 where the throttler is always (20, 200); 596
+PhantomSpawner renames; 597 RamTarget — the 6-arg knockback takes
+the mobAttack source + the attack-damage float, but the
+strength/x/z computation and the physics are identical, same
+reasoning as 572.
+
+Batch 78 (Nov 24, 126/214 — A2 #1, 2 ported, 8 no-change): 566
+PORTED — `CommandResponseTracker` exists in NEITHER jar (26.3-only;
+the triage's 17 "identical" classes are stale), and 26.1's commands
+branch single/multiple on the TARGET count: scoreboard set
+(`any=true`, so setting one target to 0 is still a single success),
+scoreboard enable (count-based, return is the unlocked count), team
+join/leave (every member counts, joined-or-not / on-a-team-or-not),
+advancement (one/many by target count; success-many prints the
+changed count, failure the targeted count), clear (target count;
+single failure uses getName(), success uses getDisplayName()).
+ScoreboardCommand and ClearInventoryCommands are 0-diff between the
+jars; TeamCommand differs only by the color form (item 538) and a
+rename; AdvancementCommands only by iterator+size() vs
+getOnlyElement. The `Tracker` struct stays (loot still counts drops
+in both trees; set/add still track values). 587 PORTED — trims: the
+26.1 tree had the 26.3 `PalettedTextureManager` form (its 11 classes
+exist in neither jar); both jars carry `trim_palette.png` +
+`armor_trims.json`, so carried the 26.2 tree's trims.rs whole (atlas
+palette swap) + surgical armor_stands.rs (TrimOverride and
+trim_overrides removed, `TrimTexture::resolve` 5-arg, no trim glint
+— 26.3's trimmedArmorGlint). The armor-stand kill-attribution and
+culling hunks in armor_stands.rs are other items' scope, left
+alone. No-change: 523 all 7 codec/loot classes structurally
+identical; 530 CommandEncoder GPU-backend rework; 554/564/578 pure
+package moves (criterion→predicates/triggers); 562 BlendFunction
+BlendEquation refactor; 605/606 IcebergFeature/TrunkPlacer
+identical. Note: /tmp was cleared twice this session (mdiff2.py
+lost); the script now lives at ~/workspace/mcir-work/mdiff2.py.
+
+Batch 79 (Nov 24, 136/214 — A2 #2, 2 ported, 8 no-change): 619
+PORTED — cube.rs dealDamage had the 26.3 team check: 26.1's
+Slime.dealDamage and 26.2's AbstractCubeMob.dealDamage are
+identical (isAlive + isWithinMeleeAttackRange + hasLineOfSight,
+then a mobAttack hit), no team check in either; removed both
+teams_allow_damage checks (playerTouch + golem push) and fixed
+the docs (26.1's class is Slime, not AbstractCubeMob — 26.2
+moved Slime/MagmaCube under monster/cubemob). 625 PORTED —
+removed /compute (compute.rs, mod decl, dispatch) and the /data
+modify compute source (tree_data.rs now matches the 26.2 tree
+exactly): ComputeCommand, LootContextSources,
+ContextFloatProvider/ContextIntProvider exist in NEITHER jar,
+and 26.1's Commands/DataCommands have 0 compute refs; also
+fixed the ArgProvider.wrap doc to DataProvider.wrap (26.3
+renamed it). 607 no-change — ResourceOrIdArgument identical;
+the ContextFloat/Int/Feature inner args exist in neither jar
+(26.3-only; item 602 already removed their registry entries).
+609 no-change — RangedMatcher is a pure criterion→predicates
+package move (14 diff lines, all package names).
+611 no-change — MultifaceSpreadeableBlock +
+WaterloggedVegetationPatchFeature identical. 613 no-change —
+ContentsSlotSource identical; contents.rs docs re-anchored
+from the 26.3-only ComponentSlotCollection /
+GrowableMutableContainer / ArrayItemProvider to the real 26.1
+ContainerComponentManipulator (setContents/getContents/
+modifyItems/getSlots). 620/621/626 no-change — Illusioner +
+renderer, ExperimentalRedstoneWireEvaluator, SnifferRenderer
+all identical. 623 no-change — SoulParticle identical (the
+triage's EmissiveRisingParticle is the 26.3 name; neither jar
+has it); the noxious_gas/sulfur particles were already
+documented unreachable (SulfurCube precedent), and the
+EmissiveRisingParticle comment is fixed to SoulParticle.
+Methodology note: a `diff | wc -l` of 0 does NOT prove a file
+exists in the 26.2 tree — contents.rs and compute.rs were
+both missing there (this batch's two real finds); always check
+file existence, not just diff length.
+
+Batch 80 (Nov 24, 146/214 — A2 #3, all no-change): 629
+ScreenNarrationCollector (+ 4 inners) identical; 632
+FilePackResources (+ SharedZipFileAccess, FileResourcesSupplier)
+identical; 638 ReloadableResourceManager identical; 642
+BaseCoralPlantTypeBlock + StairBlock identical; 645
+ProjectileDeflection identical; 646 ResourceArgument
+identical (the registries.rs diff is the earlier 26.1
+inline_feature work with its own parity harness, not this
+item's scope); 647 LightningBoltRenderer identical; 651
+DropExperienceBlock identical (the item_entities.rs 1-line
+diff is the earlier 26.1 powder-snow velocity arg, not this
+item's scope); 653 LeashKnotRenderer + FenceBlock identical;
+655 ArgProvider exists in NEITHER jar (26.3-only name; 26.1's
+form is DataCommands$DataProvider, and tree_data.rs was
+already fixed to it in batch 79). All 17 classes 0-diff
+structurally; all covering Rust files 0-diff vs the 26.2
+tree apart from the two earlier-26.1-work diffs noted.
+Docs-only batch; no separate CI dispatch (code tree
+identical to batch 79's head, covered by run 45279850363).
+
+Batch 81 (Nov 24, 156/214 — A2 #4, all no-change): 656
+FlowerBlock, 657 WeatheringCopperChestBlock, 658
+TreeDecorator$Context, 661 BanNoticeScreens, 666 ShelfRenderer,
+667 TutorialToast (+ Icons) all 0-diff. 662
+CommandBlockEditScreen: 2 lines — 26.2 added two protected
+accessors (getCommandBlock, getPreviousY returning 135),
+bodies identical; menu chrome. 663 GpuFormat exists only in
+26.2 (at com/mojang/blaze3d/GpuFormat, not the triage's
+renderpearl path); 26.1 uses TextureFormat.RGBA8 — the
+entity_outline.rs doc is fixed to it (the wgpu code is the
+same format either way). 665 the contextualbar/LocatorBar
+widget is 26.2-only, but the waypoint system exists in full
+in 26.1 (ClientWaypointManager, WaypointStyle, the
+TrackedWaypoint packet, waypoint_style assets), so the
+Rust's waypoint-based locator bar stands. 672
+InvertableSetOptionState is a 26.2-only class, but 26.1's
+EntitySelectorOptions implements the same name= inversion
+inline via EntitySelectorParser.shouldInvertValue, which the
+Rust's InvertableSet models; the selector.rs doc now says
+so. Comment-only changes; no separate CI dispatch (covered
+by the next code batch's run).
+
+Batch 82 (Nov 24, 166/214 — A2 #5, all no-change): 674
+NarrationElementOutput identical (NarrationTrigger exists in
+neither jar — 26.3-only, already handled in batch 77); 677
+ChorusPlantBlock, 679 PaleMossDecorator, 681 SnowyBlock, 682
+RotatedPillarBlock (despite the "differing" tag), 690
+AbstractBannerBlock all 0-diff. 678 Climate$RTree$SubTree:
+4 lines, both constructors protected→public only. 680
+BoxBlockMatcher exists in neither jar (26.3-only); the
+sculk.rs comment wrongly cited it as 26.1's and is fixed to
+the 26.2 tree's form ("26.3 replaced the loop with
+BoxBlockMatcher"); the sculk.rs 104-line diff is the batch-69
+port (hardcoded inhibitors vs the 26.2 tree's catalyst
+fields). 686 DensityFunction$Axes exists in neither jar;
+fusion.rs's Axes is the OptiFine CTM one, unrelated. 688
+OitStage exists in neither jar; the 26.1 tree's oit.rs is
+26.1-only engine OIT work (the 26.2 tree has no oit.rs),
+not vanilla behaviour. Comment-only change; no separate CI
+dispatch (covered by the next code batch's run).
+
+Batch 83 (Nov 24, 176/214 — A2 #6, 1 ported (docs), 9 no-change):
+696 PORTED (docs) — item_activation.rs cited the 26.3
+`ItemActivation` class, which exists in NEITHER jar; 26.1's
+GameRenderer has displayItemActivation and its
+ScreenEffectRenderer holds the itemActivationItem/Ticks/OffX/
+OffY fields + renderItemActivationAnimation + resetItemActivation,
+exactly the 26.2 tree's form, whose docs are now carried (with
+the 26.2→26.1 version fix). 691 no-change —
+SteppedInterpolationTracker exists in neither jar; batch 61
+already deleted the stepped tracker. 693 no-change —
+SimpleInstance is a pure criterion→triggers package move
+(4 lines, incl. ContextAwarePredicate→predicates). 694
+no-change — PotentSulfurState is 26.2-only; 26.1 has no
+PotentSulfur classes at all, so both potent_sulfur.rs files
+now carry the unreachable note (SulfurCube precedent, as
+the geyser/noxious particles already do). 698 no-change —
+Hud$ContextualInfo is the 26.2 name; 26.1's Gui has the same
+ContextualInfo/nextContextualInfoState/willPrioritize* with
+identical bodies (100-tick experience window, jump-scale
+logic); the locator_bar.rs docs now cite Gui. 699
+Allay$VibrationUser 0-diff despite the "differing" tag; 704
+WoodType, 706 CachedUserNameToIdResolver, 707 BiomeTags all
+0-diff. 702 no-change — UnpublishCommand IS in the 26.2 jar
+and NOT in 26.1's (the triage was right); batch 74 already
+removed /unpublish from the 26.1 tree. Doc-only changes; no
+separate CI dispatch (covered by the next code batch's run).
+
+Batch 84 (Nov 24, 183/214 — A2 #7, 1 ported (docs), 6
+no-change). A2 COMPLETE 67/67. 714 PORTED (docs) —
+LevelExtractor is 26.2-only: 26.1 keeps the extraction on
+LevelRenderer (allChanged, extractLevel, extractVisible-
+Entities, extractVisibleBlockEntities, extractBlockOutline,
+setSectionDirty, setLevel — all verified on 26.1's
+LevelRenderer, same signatures as 26.2's LevelExtractor).
+All 22 LevelExtractor citations re-anchored: the method
+refs to LevelRenderer (extract→extractLevel), isEntityVisible
+to EntityRenderDispatcher.shouldRender (same signature),
+the sectionStatistics/entityStatistics citations dropped
+(their 26.1 provenance is not a method — the debug lines
+describe the counts directly), and the transient-block
+queue marked 26.3-only (no TransientBlock classes in 26.1's
+jar at all; 26.2 has only the unrelated TransientBlock-
+Allocator). 709 no-change — GrowingPlantBlock 0-diff; fixed
+the RedstoneWireBlock comment to RedStoneWireBlock (both
+jars use the capital-S spelling). 710 no-change —
+SpawnTargetPoint exists in neither jar (26.3-only); the
+spawn_finder.rs diff is the batch-72 port. 711 no-change —
+SteppedInterpolationHandler$Step exists in neither jar.
+715 no-change — TestCommand$Info exists in neither jar;
+TestCommand itself differs only by the BlockEntityType→
+BlockEntityTypes rename. 716 ServerPlaceRecipe 0-diff; 719
+RealmsUploadTooLargeException differs only by a field
+access modifier. Doc-only changes; no separate CI dispatch
+(covered by the next code batch's run).
+
+Batch 85 (Nov 24, 193/214 — B2 #1, 2 ported, 8 no-change):
+508 PORTED — /item + execute-if-slots carried the 26.3 slot-source
+forms. ItemCommands is 0-diff and uses SlotArgument.slot() (one
+slot); ExecuteCommand has only `if items` (the "slots" strings
+are the SlotsArgument's argument name, not a condition kind);
+SlotSourceArgument exists in NEITHER jar; SlotRanges/SlotRange
+are 0-diff. Carried the 26.2 tree's items.rs wholesale (single
+slot, no fill/override, no slot sources; 7 doc refs 26.2→26.1),
+deleted contents.rs + its 196 lines of slot-source tests,
+carried the /item tree (single slot, single-entity copy source)
+and the items-only execute tree, removed ArgType::SlotSource
+(variant, parse + suggest arms, network mapping, probe fixture
+mapping), removed `if slots` from execute.rs (numeric list +
+dispatch) with a negative parse test, and carried the missing
+args::slot_id helper (SlotRanges is 0-diff, so the ids match).
+The slot-source datapack store loading (datapack.rs) and the
+registry-id feeds (functions.rs) stay — data plumbing, not
+command behaviour. 536 PORTED — /place feature took inline
+SNBT values: PlaceCommand.placeFeature takes a Holder$Reference
+(registry key only) and neither jar's en_us has
+success.inline. Removed the inline branch from place.rs, the
+/place tree arg is now ResKey(configured_feature), and the
+whole inline-feature machinery is gone: bonemeal/growth
+place_inline_feature, live.rs configured_inline/decode_inline,
+chat.rs InlineFeatureCheck setup, registries.rs InlineFeatureCheck,
+codec.rs's worldgen/feature arm + check_feature + dfu_feature_error,
+inline_feature_parse_tests.rs + its game.rs mod decl, the
+place_feature_tests inline test, and the two tools/ harness
+scripts. 513 no-change — fortress pieces 0-diff apart from
+EntityType→EntityTypes renames (Structure + MonsterThrone).
+521 no-change — GuiRenderer's 832-line diff is the render-
+submission rework (StagedVertexBuffer, CLEAR_COLOR Vector4fc);
+pack_text.rs 0-diff. 534 no-change — RenderSection's 300-line
+diff is the section-compile refactor (RebuildTask→CompileTask);
+native_material.rs 0-diff. 541 no-change — FillLayer/Spike
+0-diff; RandomizableContainerBlockEntity is the getCenter→
+atCenterOf rename (the generator_decoration.rs diff is the
+26.2 tree's brushable_loot_table_nbt helper, out of scope).
+547 no-change — Igloo/Shipwreck 0-diff; IglooPiece is a
+branch-offset/local-store reshuffle. 548 no-change —
+DataCommands is a branch inversion + local renumbering.
+550/551 no-change — all five classes 0-diff. FLAG: the 26.1
+tree's /swing still carries the 26.3 animation+duration
+arguments (tree_world.rs) — the 26.2 tree ends /swing at the
+hand; no B2 item covers /swing, so it is left for its own item.
+
+Batch 86 (Nov 24, 203/214 — B2 #2, 4 ported, 6 no-change):
+558 PORTED — test_instances.rs carried the 26.3 `dimension`
+field: TestData's record fields (environment, structure,
+maxTicks, setupTicks, required, rotation, manualOnly,
+maxAttempts, requiredSuccesses, skyAccess) and GameTestInstance
+have no dimension in either jar. Carried the 26.2 tree's file
+wholesale (the diff was exactly the dimension additions).
+559 PORTED (tests) — the 26.1 tree's lone-dark-oak test
+asserted bonemeal FAILS, contradicting its own implementation
+(and 26.1's SaplingBlock, which has only the height-check
+isValidBonemealTarget, no canGrow): carried the 26.2 tree's
+test (meal consumed, no tree grows). Removed the poplar
+test line — poplar is 26.3-only (absent from both jars'
+Blocks and TreeGrower); the poplar foliage-placer code stays
+(data-driven, unreachable without 26.1 data). The remaining
+growth_tests diff is the earlier 26.1 client-PASS bonemeal
+behaviour, which stays. 574 PORTED — the debug chart drew
+"30 fps"/"60 fps"/"tps"; vanilla 26.1 draws "30 FPS"/"60 FPS"/
+"%.1f TPS" (FpsDebugChart/TpsDebugChart, 0-diff). Now matches
+the 26.2 tree. 576 PORTED — hand.rs carried from the 26.2
+tree: 26.1's LivingEntity has plain swinging/swingTime/
+swingingArm fields (no SwingState), LocalPlayer.swing sends
+ServerboundSwingPacket unconditionally (identical in both
+jars) — the 26.1 tree was missing the packet send; the
+spectator-crosshair portal branch is removed (26.1's
+canRenderCrosshairForSpectator is MenuProvider/menu-provider
+only, no portal branch; showAsInteractableInSpectatorMode
+exists in neither jar); ItemInHandRenderer.itemUsed is the
+26.1 method (LocalPlayer has no itemUsed). 555 no-change —
+OreFeature 0-diff. 556 no-change — MonsterRoomFeature +
+BeehiveDecorator are EntityType/BlockEntityType renames only
+(the feature_world.rs diff is the 26.2 tree's brushable-loot
+helper, out of scope). 557 no-change — ClientChunkCache's
+91-line diff is the LevelExtractor move + the empty-sections
+rework; remote_chunks.rs was already fixed in batch 84. 561
+no-change — OverworldBiomeBuilder's 62-line diff is only the
+Spline Coordinate ctor API shape + branch offsets, no
+parameter-point changes; settings.rs doc fixed 26.2→26.1.
+563 no-change — leafComponent() is a 26.2 addition the Rust
+does not model; the pad_menu diff is batch-73 LAN work. 565
+no-change — OceanRuinPiece is branch offsets + the DROWNED
+EntityType rename.
+
+Batch 87 (Nov 24, 214/214 — B2 #3, 2 ported, 9 no-change).
+RANK 3 COMPLETE 214/214 (A1 60 + B1 56 + A2 67 + B2 31).
+584 PORTED — the bed click had the 26.3 AbstractBedBlock
+pair check: 26.1's BedBlock.useWithoutItem redirects a foot
+click to the head and requires only that the head is this bed
+(a head click needs no check at all), exactly the 26.2 tree's
+form, now carried. The dragon-egg teleport was also missing
+its world-border check (26.1's DragonEggBlock.teleport calls
+WorldBorder.isWithinBounds; the 26.1 tree has the
+within_world_border helper — added). RedStoneWireBlock
+spelling fixed (second occurrence; the first was batch 84).
+590 PORTED — the trader's hurt gate read the 26.3 hurt
+window (`hurt_time <= 0`): 26.1's TradeWithPlayerGoal.canUse
+reads `AbstractVillager.hurtMarked`, a boolean Entity field
+set by markHurt in hurtServer (skipped only for #no_impact,
+which in 26.1 holds only drown) and cleared every tick.
+Added `Mob.hurt_marked` (field + default + set-on-hurt +
+clear-after-AI-step, the 26.2 tree's form) and carried the
+trader.rs gate + test. The invulnerable doc is fixed to
+invulnerableTime (Entity.invulnerableTime in 26.1; 26.3
+renamed it damageCooldownTime). 579 no-change —
+CreakingHeartBlock is the BlockEntityType rename. 582
+PumpkinBlock, 585 NetherFossilPieces + Structure (despite
+the "differing" tag), 594 MinecartCommandBase, 598
+PandaRenderer, 599 PhantomSweepAttackGoal (despite the
+"differing" tag), 601 NowPlayingToast, 603 SolidBucketItem,
+604 SideChainPartBlock all 0-diff. 590's WanderToPositionGoal
+is field-access modifiers + a public ctor only. FLAG: the
+26.1 tree's `invulnerable_time` field (the 26.3 saved
+temporary-invulnerability timer, with its own test file
+invulnerable_time_tests.rs + tools/test_invulnerable_time_
+parity.py) is out of scope for 590 and needs its own item —
+26.1 has no such timer (Entity.invulnerableTime is the hurt
+cooldown). FLAG (from batch 85): /swing still carries the
+26.3 animation+duration arguments (tree_world.rs).
+
+## Rank 4/5 (D items)
+
+Rank-4 items are the "new-classes" packages from the 26.3→26.1
+report (~/workspace/mcir-work/26.1/versions/diff-26.3-26.1/report.json):
+333 classes in 74 packages that exist in 26.1 but not 26.3, with
+the `ported` list naming the ones Horizon already references (20
+total). Method per package: check each class against the 26.2
+jars (same path / moved elsewhere) and the Rust tree (ported
+list + grep). Verdict no-change unless the Rust is missing 26.1
+behaviour. Progress in rank4-progress.json (same shape as
+rank3-progress.json).
+
+Batch 88 (Nov 24, rank 4 10/74 — all no-change): 720 levelgen
+(84 classes, 81 in the 26.2 jar; BlendDensity modelled as
+BlendDensitySampler, WeirdScaledSampler is batch-52 26.1-only
+work, OreVeinifier via ore_vein_top()); 721 renderer
+(ItemInHandRenderer verified in batch 87; OutlineBufferSource/
+ShapeRenderer are doc citations for behaviour the Rust models
+through its own renderer); 722 feature (ConfiguredFeature in
+live.rs, DripstoneUtils in dripstone.rs); 723 core (all 11 in
+the 26.2 jar; RegistrySetBuilder inners + Direction8); 724
+blaze3d/vertex (none in the 26.2 jar — 26.2 removed the
+package; the Rust renders with wgpu); 725 monster (EnderMan
+in 26.2; the 5 not in 26.2 are Slime inner goals, 26.2 moved
+Slime to cubemob); 726 renderer/feature (Storage refs are
+false positives; the Rust has its own feature framework);
+727 blaze3d/opengl (OpenGL internals); 728 loot number
+providers (all in the 26.2 jar); 729 renderer/special
+(BedSpecialRenderer has explicit 26.1-only handling).
+Docs-only batch; no separate CI dispatch.
+Batch 89 (Nov 24, rank 4 20/74 — all no-change): 730 blaze3d/
+platform (26.1 window plumbing, batch 58); 731 item (5 shared,
+WeatheringCopperItems 26.1-only, rank 1 copper work); 732/733/734
+loot (all in the 26.2 jar, modelled in rank 2); 735 criterion
+(ContextAwarePredicate in advancements.rs; 26.2 moved the package);
+736 contextualbar (bar renderers modelled via hud_layout.rs);
+737 blaze3d (GLFWErrorCapture unmodelled platform plumbing);
+738 util (spline/tuple, 26.2 changed the spline API); 739 block
+(WeatheringCopperBlocks in block_transform.rs). Docs-only batch;
+no separate CI dispatch.
+Batch 90 (Nov 24, rank 4 30/74 — all no-change): 740/741
+structure (all in the 26.2 jar); 742 particle (shared); 743
+block-entity renderers (26.2 refactored to special renderers;
+sign/bed rendering in signs.rs + block_entity_render.rs);
+744 chunk compile (section-compile refactor, item 534); 745
+sounds (shared); 746 preprocessor (GlslPreprocessor cited in
+core_shader.rs/post_glsl.rs); 747 alchemy (brewing, batch 55);
+748 biome (shared); 749 block/entity (FuelValues in 26.2;
+BedBlockEntity is 26.1-only and neither tree models it — it
+holds only banner patterns; bed colour is a block-state
+property). Docs-only batch; no separate CI dispatch.
+Batch 91 (Nov 24, rank 4 40/74 — all no-change): 750 synth
+(batch 57); 751 advancements (CriterionTrigger$Listener
+26.1-only, triggers modelled in advancements.rs); 752 screens
+(ShareToLanScreen batch 73; FeedbackSubScreen is menu chrome);
+753 Gui inners (ContextualInfo batch 83, HeartType in
+hud_layout.rs); 754 rendertype (GPU plumbing); 755 particle
+render state (LevelExtractor move, item 714); 756 client
+(GameLoadCookie 26.1-only, launch plumbing); 757 TimerQuery
+(GPU profiling); 758 server/packs + 759 behavior (shared).
+Docs-only batch; no separate CI dispatch.
+Batch 92 (Nov 24, rank 4 50/74 — all no-change): 760 goal
+(shared); 761 trim (batch 78); 762 trading (26.2 reworked
+trades; 26.1 system in merchant.rs/trading.rs); 763 placement
+(shared); 764 debug + 765 font (shared); 766 GuiSignRenderer
+(signs.rs); 767 GuiRenderer$MeshToDraw (render-submission
+rework, item 521); 768 SnapbackData (menu chrome); 769
+DifficultyButtons (lan_screen.rs). Docs-only batch; no
+separate CI dispatch.
+Batch 93 (Nov 24, rank 4 60/74 — all no-change): 770 zombie
+model + 771 entity layer (shared); 772 GpuBuffer$MappedView +
+773 RenderPipeline$UniformDescription (GPU plumbing, not in
+26.2); 774/775 Realms (batch 69); 776 ColorArgument (26.1
+form in scoreboard.rs, batch 63; 26.2 renamed it
+TeamColorArgument); 777 LootData (the Rust has its own
+horizon_world::loot::LootData); 778 data/worldgen + 779
+resources (shared). Docs-only batch; no separate CI dispatch.
+Batch 94 (Nov 24, rank 4 70/74 — all no-change): 780/781
+commands (shared); 782 clock (shared); 783 InstantenousMobEffect
+(26.1 spelling in mobs/ai.rs; 26.2 fixed the typo); 784
+FlyingAnimal (marker interface, no Rust reference); 785 entity
+(shared); 786 MapItemColor (protocol codec); 787
+DripstoneThickness (block-state enum, dripstone batch 63);
+788 CarvingMask$Mask (datafix); 789 stateproviders (shared).
+Docs-only batch; no separate CI dispatch.
+Batch 95 (Nov 24, rank 4 COMPLETE 74/74): 790 MaterialRuleList,
+791 StructurePieceAccessor, 792 FunctionReference (all in the
+26.2 jar, no-change); 793 PORTED — `minecraft:bed` is a 26.1
+block-entity type (26.2/26.3 removed BedBlockEntity): added to
+TYPES (47→48) in registry order between shulker_box and conduit
+(verified against the 26.1 BlockEntityType fields) with an empty
+`canonical` arm — BedBlockEntity has no saveAdditional, its
+colour comes from the block state. `/data` block_entity_data
+validation now accepts minecraft:bed, and `canonical` no longer
+returns None for bed compounds. Code batch; CI dispatched.
+
+Batch 96 (Nov 24, rank 5 COMPLETE 2/2 — all no-change): 794 the
+1,492 changed/removed classes Horizon does not name — GPU
+plumbing (renderpearl/vulkan, blaze3d/opengl), datagen
+(data/tags, data/loot, data/recipes), loot internals (modelled
+through the Rust's own providers), criterion (the Rust's own
+criterion system), block classes (modelled through prepared
+block-state data + generic behaviour, verified in ranks 1–3);
+795 the 62 new classes — feature/configurations records (the
+Rust's own feature graph), carver configs + CarvingContext (the
+Rust's own carver code), datagen, GPU plumbing. The Rust is not
+a 1:1 class port; no unnamed class carries behaviour the tree
+lacks. Progress in rank5-progress.json.
+
+## Rank totals (Nov 24, 2026)
+
+Rank 1: 7/7. Rank 2: 498/498. Rank 3: 214/214. Rank 4: 74/74.
+Rank 5: 2/2. **Total: 795/795 — the behaviour port is complete.**

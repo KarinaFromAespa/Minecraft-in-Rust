@@ -590,10 +590,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             self.set_block_and_update(pos, next);
             self.tripwire_update_source(pos, next);
         }
+        // 26.1 schedules a re-check tick only while pressed; the
+        // pressed-to-unpressed immediate re-check is 26.2-only.
         if pressed {
             self.schedule_tick(pos, block, 10);
-        } else if was {
-            self.schedule_tick(pos, block, 1);
         }
     }
     fn tripwire_hook_notify(&mut self, block: BlockId, pos: BlockPos, direction: Direction) {

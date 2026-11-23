@@ -874,7 +874,7 @@ fn an_attacks_swing_goes_with_it_past_the_move_behind() {
     hub.guests[0].load_timeout = 0;
     let inbox = &mut hub.guests[0].inbox;
     inbox.push_back((S::Attack(play::Attack { id: 7 }), 0));
-    inbox.push_back((S::Punch(horizon_protocol::packets::Empty), 0));
+    inbox.push_back((S::Swing(play::Swing { hand: 0 }), 0));
     inbox.push_back((
         S::MovePlayerRot(play::MovePlayerRot {
             yaw: 90.0,
@@ -912,7 +912,7 @@ fn an_attacks_swing_goes_with_it_past_the_move_behind() {
         })
         .collect();
     assert!(
-        matches!(handled[..], [S::Attack(_), S::Punch(_)]),
+        matches!(handled[..], [S::Attack(_), S::Swing(_)]),
         "the game was handed {handled:?}"
     );
     assert!(

@@ -1363,8 +1363,10 @@ impl Game<'_> {
         );
         c.velocity = horizon_world::entity_move::scale_by_block_speed(c.velocity, factor);
         if !c.on_ground {
-            // scale(getAirDrag()): 0.95F, widened.
-            let drag = f64::from(0.95_f32);
+            // `comeOffTrack`: scale(0.95D) — 26.1 hardcodes the double
+            // literal; 26.2 calls getAirDrag() (0.95F, widened), which is
+            // 0.949999988079071, not 0.95.
+            let drag = 0.95;
             c.velocity = Vec3::new(
                 c.velocity.x * drag,
                 c.velocity.y * drag,
@@ -2808,7 +2810,7 @@ impl Game<'_> {
                     c.previous.z + (c.position.z - c.previous.z) * alpha,
                 )
             };
-            // LevelExtractor.isEntityVisible: the cart the player rides always draws.
+            // EntityRenderDispatcher.shouldRender: the cart the player rides always draws.
             let mut shown = None;
             if self.riding != Some(c.id) {
                 let d = glam::DVec3::new(c.position.x, c.position.y, c.position.z) - camera;

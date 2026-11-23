@@ -290,9 +290,12 @@ impl Game<'_> {
         }
     }
     /// A new PlayerSpawnFinder around `suggestion`: the respawn radius, cut
-    /// by the world border; the suggestion itself in adventure mode.
+    /// by the world border; the suggestion itself in adventure mode, and in
+    /// a dimension without skylight (26.1's `findSpawn` returns the fixup
+    /// height at once there; 26.2 dropped the skylight gate and searches
+    /// the radius in every dimension).
     fn spawn_finder(&self, suggestion: [i32; 3]) -> PlayerSpawnFinder {
-        if self.level.game_mode == 2 {
+        if self.level.game_mode == 2 || !self.world.shape.sky_light {
             let mut finder = PlayerSpawnFinder::new(suggestion, 0, |_| 0);
             finder.next_candidate();
             return finder;

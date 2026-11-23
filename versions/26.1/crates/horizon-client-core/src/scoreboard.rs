@@ -287,7 +287,6 @@ pub const CUSTOM_STATS: &[&str] = &[
     "interact_with_crafting_table",
     "open_chest",
     "sleep_in_bed",
-    "sleep_in_straw_bed",
     "open_shulker_box",
     "open_barrel",
     "interact_with_blast_furnace",
@@ -317,7 +316,9 @@ pub const STAT_TYPES: &[&str] = &[
     "custom",
 ];
 
-/// The 16 team colours (`TeamColor`).
+/// The 16 team colours (26.1's `ColorArgument` values; 26.2 renamed the
+/// argument `TeamColorArgument`). RESET is also accepted as a value but is
+/// stored as no colour, so it is not listed here.
 pub fn team_colors() -> impl Iterator<Item = &'static str> {
     text::COLORS.iter().map(|c| c.1)
 }

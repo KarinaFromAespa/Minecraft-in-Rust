@@ -1090,7 +1090,7 @@ mod tests {
         let p = level_particles(&rx_near);
         assert_eq!(p.count, 15);
         assert_eq!(p.dist, [0.2, 0.2, 0.2]);
-        assert_eq!(p.max_speed, [0.0; 3]);
+        assert_eq!(p.max_speed, 0.0);
         assert_eq!(p.pos, at);
         assert_eq!(p.particle.id, 0);
     }
@@ -1102,8 +1102,8 @@ mod tests {
     /// themselves (`EntityPositionSource`).
     #[test]
     fn vibration_particles_carry_their_listener_and_arrival_ticks() {
-        // `Particle::read` reads a vibration's data from its pinned id, 58.
-        let mut names = vec!["minecraft:empty".to_string(); 58];
+        // `Particle::read` reads a vibration's data from its pinned id, 48.
+        let mut names = vec!["minecraft:empty".to_string(); 48];
         names.push("minecraft:vibration".to_string());
         let (hub, rx_near, rx_far) = test_hub("VibrationTest", names);
 
@@ -1116,10 +1116,10 @@ mod tests {
         let p = level_particles(&rx_near);
         assert_eq!(p.count, 1, "one signal");
         assert_eq!(p.dist, [0.0; 3]);
-        assert_eq!(p.max_speed, [0.0; 3]);
-        assert_eq!(p.randomization, 0, "DEFAULT");
+        assert_eq!(p.max_speed, 0.0);
+        // 26.1's packet has one speed and no randomization mode (above).
         assert_eq!(p.pos, at);
-        assert_eq!(p.particle.id, 58);
+        assert_eq!(p.particle.id, 48);
         assert_eq!(
             p.particle.data,
             Some(ParticleData::Vibration { source, ticks: 14 })

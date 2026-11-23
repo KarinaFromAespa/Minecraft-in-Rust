@@ -7508,17 +7508,11 @@ impl Game<'_> {
         )
         .then_some(hit)
     }
-    /// Shared peaceful-mode eligibility for spawn eggs.
-    pub(super) fn spawn_egg_allowed(&self, item: &str) -> bool {
-        let kind = item.trim_end_matches("_spawn_egg");
-        self.ui.difficulty != 0
-            || self
-                .res
-                .mob_types()
-                .get(kind)
-                .is_none_or(|t| horizon_client::mobs::spawn_rules::allowed_in_peaceful(t.species))
-    }
     /// `SpawnEggItem.useOn` for a block, or `use` for a fluid source.
+    /// 26.1 has no eligibility gate: 26.2 added `EntityType.canSpawn`
+    /// (feature flags + peaceful) and refuses eggs it fails, but in 26.1
+    /// a monster egg works in peaceful too (the mob spawns, then despawns
+    /// by the usual peaceful rules).
     fn use_spawn_egg(&mut self, stack: &ItemStack) -> Result<bool> {
         let fluid = matches!(self.guest_use, Some(super::GuestUse::Item(_)));
         let Some(hit) = (if fluid {
@@ -7529,10 +7523,6 @@ impl Game<'_> {
             return Ok(false);
         };
         let kind = stack.item.trim_end_matches("_spawn_egg").to_owned();
-        if !self.spawn_egg_allowed(&stack.item) {
-            self.use_failed = true;
-            return Ok(true);
-        }
         if fluid
             && !self.may_build()
             && !self.can_place_on_in_adventure([

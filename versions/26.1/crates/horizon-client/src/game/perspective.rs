@@ -485,7 +485,7 @@ impl Game<'_> {
         let charge_duration = self.inventory[self.selected]
             .as_ref()
             .map_or(25, |s| Self::charge_ticks(s).max(1)) as i32;
-        let attack = (self.swing.old_animation, self.swing.animation);
+        let attack = (self.swing.o_attack_anim, self.swing.attack_anim);
         let swinging = self.swing.swinging();
         // currentSwing.hand().asArm(mainArm).
         let swing_right_arm = swinging.then(|| {
@@ -540,7 +540,7 @@ impl Game<'_> {
                 m.body_yaw +=
                     wrap(horizon_client::mobs::riders::solve_body_rot(yaw, body) - m.body_yaw);
             }
-            // A minecart's, a cushion's: the body turns as on foot.
+            // A minecart's: the body turns as on foot.
             None => {
                 let mut target = m.body_yaw;
                 if dx * dx + dz * dz > 0.002_500_000_2 {
@@ -584,6 +584,26 @@ impl Game<'_> {
         }
         m.anim.attack_anim_o = attack.0;
         m.anim.attack_anim = attack.1;
+        // A STAB swing of the swinging arm stabs: 26.1 keeps no per-swing
+        // description, so the kind is read live from the item in that
+        // hand (a kinetic weapon's attack animation, else DEFAULT's whack).
+        // Computed here, before `main`/`off` move into the mob below.
+        let stab = self.swing.swinging()
+            && {
+                let item = match self.swing.attack_hand() {
+                    horizon_client::first_person::Hand::Main => {
+                        main.as_ref().map(|s| &*s.item)
+                    }
+                    horizon_client::first_person::Hand::Off => off.as_deref(),
+                };
+                item.and_then(horizon_client::spear::Kinetic::of)
+                    .map_or(
+                        horizon_client::first_person::SwingAnimation::DEFAULT,
+                        |k| k.attack_animation(),
+                    )
+                    .kind
+                    == 2
+            };
         m.extra.set_main_hand_stack(main);
         m.extra.off_hand = off;
         m.extra.head = self.armor[0].as_ref().map(|s| s.item.clone());
@@ -635,7 +655,7 @@ impl Game<'_> {
             m.extra.avatar.cloak_o[1] -= 0.125;
         }
         m.extra.swing_right_arm = swing_right_arm;
-        m.extra.swing_stab = self.swing.current.is_some_and(|c| c.animation.kind == 2);
+        m.extra.swing_stab = stab;
         m.hurt_time = hurt;
     }
     /// `Entity.turn` for the player, by the mouse, a pad, the arrow keys or an
@@ -674,7 +694,7 @@ impl Game<'_> {
         }
     }
     /// What the player rides that sets their body's yaw: a boat's yaw, or a
-    /// living vehicle's body yaw. Minecarts and cushions leave it to the
+    /// living vehicle's body yaw. Minecarts leave it to the
     /// player's own turn.
     fn ridden_body(&self) -> Option<RiddenBody> {
         let id = self.riding?;
@@ -694,7 +714,7 @@ impl Game<'_> {
             m.head_pitch = pitch;
         }
     }
-    /// `LevelExtractor`'s skip of the camera entity: the player's own body
+    /// `LevelRenderer`'s skip of the camera entity: the player's own body
     /// is drawn unless the camera is in first person, or while it sleeps.
     pub(super) fn own_body_in_view(&self) -> bool {
         !self.camera_type.first_person() || self.sleeping.is_some() || self.studio_freecam.active

@@ -20,7 +20,8 @@ pub struct Member {
     pub name: String,
     /// Skin texture path, as the tab list draws it.
     pub skin: String,
-    /// `PlayerInfo.getGameMode() != GameType.SPECTATOR`.
+    /// `PlayerMenuItem.isEnabled`: constant true in 26.1 (26.2 made it
+    /// `PlayerInfo.getGameMode() != GameType.SPECTATOR`).
     pub enabled: bool,
 }
 

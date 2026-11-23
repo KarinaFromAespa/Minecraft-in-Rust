@@ -369,8 +369,8 @@ impl Chart {
     ) {
         match self {
             Chart::Fps { framerate_limit } => {
-                shaded(out, font, "30 fps", left + 1, bottom - CHART_HEIGHT + 1);
-                shaded(out, font, "60 fps", left + 1, bottom - 30 + 1);
+                shaded(out, font, "30 FPS", left + 1, bottom - CHART_HEIGHT + 1);
+                shaded(out, font, "60 FPS", left + 1, bottom - 30 + 1);
                 horizontal_line(out, left, left + width - 1, bottom - 30, WHITE);
                 if framerate_limit > 0 && framerate_limit <= 250 {
                     let y = bottom - self.height(1.0e9 / f64::from(framerate_limit)) - 1;
@@ -382,7 +382,7 @@ impl Chart {
                 shaded(
                     out,
                     font,
-                    &format!("{tps:.1} tps"),
+                    &format!("{tps:.1} TPS"),
                     left + 1,
                     bottom - CHART_HEIGHT + 1,
                 );

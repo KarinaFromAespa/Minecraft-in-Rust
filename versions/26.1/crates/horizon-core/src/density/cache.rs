@@ -4,9 +4,9 @@ use crate::position::BlockPos;
 #[derive(Debug)]
 pub(super) struct CacheCell {
     volume: Option<DensityVolume>,
-    buffer: Vec<f32>,
+    buffer: Vec<f64>,
     value_key: i64,
-    value: f32,
+    value: f64,
     active: bool,
 }
 impl Default for CacheCell {
@@ -15,7 +15,7 @@ impl Default for CacheCell {
             volume: None,
             buffer: Vec::new(),
             value_key: 0,
-            value: f32::NAN,
+            value: f64::NAN,
             active: false,
         }
     }
@@ -89,7 +89,7 @@ impl DensitySampler for CachingDensitySampler {
         &self,
         context: &mut SamplerContext,
         position: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         if !context.prepare_cache(self.id)? {
             return self.input.sample_value(context, position);
         }
@@ -116,7 +116,7 @@ impl DensitySampler for CachingDensitySampler {
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_buffer(buffer, volume)?;

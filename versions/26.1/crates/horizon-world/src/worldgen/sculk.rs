@@ -550,7 +550,7 @@ impl SculkPatchFeature {
             return Ok(false);
         }
         let mut matched = 0;
-        // BoxBlockMatcher iterates BlockPos.betweenClosed (x, then y, then z).
+        // (x, then y, then z); 26.3 replaced the loop with BoxBlockMatcher.
         for dz in -4..=4 {
             for dy in 0..=2 {
                 for dx in -4..=4 {

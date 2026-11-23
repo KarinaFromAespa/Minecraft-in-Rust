@@ -363,25 +363,22 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     Success
                 }
                 Class::AbstractBed => {
+                    // 26.1's BedBlock.useWithoutItem redirects a foot click
+                    // to the head and requires only that the head is this
+                    // bed; a head click needs no foot check at all. (26.3's
+                    // AbstractBedBlock added the pair check.)
                     let part = table.text(state, p.part).to_owned();
-                    let facing = b.facing(state);
-                    let other_dir = if part == "foot" {
-                        facing
-                    } else {
-                        facing.opposite()
-                    };
-                    let other = self.state(super::update::rel(pos, other_dir));
-                    if b.is_block(other, block) && table.text(other, p.part) != part {
-                        let head = if part == "head" {
-                            pos
-                        } else {
-                            super::update::rel(pos, facing)
-                        };
+                    if part == "foot" {
+                        let head = super::update::rel(pos, b.facing(state));
                         let head_state = self.state(head);
+                        if !b.is_block(head_state, block) {
+                            return Consume;
+                        }
                         self.player_effect(head, head_state, PlayerEffect::Sleep);
                         Success
                     } else {
-                        Consume
+                        self.player_effect(pos, state, PlayerEffect::Sleep);
+                        Success
                     }
                 }
                 Class::RespawnAnchor => {
@@ -489,7 +486,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         Pass
     }
 
-    /// `RedstoneWireBlock.useWithoutItem`: toggle between dot and cross.
+    /// `RedStoneWireBlock.useWithoutItem`: toggle between dot and cross.
     fn wire_use(
         &mut self,
         pos: BlockPos,
@@ -558,6 +555,16 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
 
     /// `ComposterBlock.addLayer` once its `compostable` provider gave
     /// `layers`: the new state (the old one when no layer is added).
+    /// `ComposterBlock.addItem`: at level 0 a compostable item always adds
+    /// a layer (no roll is drawn); above level 0 it adds one when the level
+    /// random rolls under the item's chance.
+    fn composter_add_item(&mut self, pos: BlockPos, chance: f32) -> BlockStateId {
+        let state = self.state(pos);
+        let level = self.b.table.int(state, self.b.props.level);
+        let add = (level == 0 && chance > 0.0) || self.random().next_double() < f64::from(chance);
+        self.composter_add_layer(pos, i32::from(add))
+    }
+
     fn composter_add_layer(&mut self, pos: BlockPos, layers: i32) -> BlockStateId {
         let b = self.b;
         let state = self.state(pos);
@@ -588,6 +595,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             let test = pos.offset(dx, dy, dz);
             if b.is_air(self.state(test))
                 && !b.is_air(self.below_state(test))
+                && self.level.within_world_border(test)
                 && self.is_inside_build_height(test.y)
             {
                 // BlockUtil.packDifferenceInPosition(pos, test, 16, 8, 16)
@@ -602,25 +610,27 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
 }
 
 impl Behaviours {
-    /// `ComposterBlock.addLayer` at `pos` with the layers its item's
-    /// `compostable` provider gave, followed by level event 1500 (fill
-    /// particles and sound; data 1 when a layer was added) as every caller
-    /// does: `useItemOn` and the hopper input container. The new state.
+    /// `ComposterBlock.addItem` at `pos` for an item with this chance,
+    /// followed by level event 1500 (fill particles and sound; data 1 when
+    /// a layer was added) as every caller does: `useItemOn` and the hopper
+    /// input container. At level 0 a compostable item always adds a layer
+    /// (no roll); above level 0 it adds one when the level random rolls
+    /// under the chance. The new state.
     pub fn composter_insert<L: LevelAccess + ?Sized>(
         &self,
         level: &mut L,
         ticks: &mut Ticks,
         pos: BlockPos,
-        layers: i32,
+        chance: f32,
     ) -> BlockStateId {
         let mut sim = self.sim(level, ticks);
         let state = sim.state(pos);
-        let next = sim.composter_add_layer(pos, layers);
+        let next = sim.composter_add_item(pos, chance);
         sim.level_event(1500, pos, i32::from(next != state));
         next
     }
 
-    /// `ComposterBlock.addLayer` without level event 1500, for a villager
+    /// `ComposterBlock.addItem` without level event 1500, for a villager
     /// that composts several items and sends the event once at the end
     /// (`WorkAtComposter.compostItems`). The new state.
     pub fn composter_layer<L: LevelAccess + ?Sized>(
@@ -628,9 +638,9 @@ impl Behaviours {
         level: &mut L,
         ticks: &mut Ticks,
         pos: BlockPos,
-        layers: i32,
+        chance: f32,
     ) -> BlockStateId {
-        self.sim(level, ticks).composter_add_layer(pos, layers)
+        self.sim(level, ticks).composter_add_item(pos, chance)
     }
 
     /// `ComposterBlock.extractProduce` by a villager (`WorkAtComposter`).

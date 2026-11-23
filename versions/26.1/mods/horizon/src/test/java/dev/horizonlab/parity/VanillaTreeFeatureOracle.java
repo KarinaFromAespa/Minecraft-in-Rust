@@ -16,6 +16,7 @@ import net.minecraft.world.level.block.entity.*;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.*;
 import net.minecraft.world.level.levelgen.*;
+import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProvider;
 
@@ -129,7 +130,7 @@ public final class VanillaTreeFeatureOracle {
   }
   public Optional<HolderSet.Named<T>> get(net.minecraft.tags.TagKey<T> tag){return Optional.empty();}
  }
- static final Lazy<Feature> lazyFeatures=new Lazy<>();
+ static final Lazy<ConfiguredFeature<?,?>> lazyFeatures=new Lazy<>();
  static final Lazy<net.minecraft.world.level.levelgen.placement.PlacedFeature> lazyPlaced=new Lazy<>();
  @SuppressWarnings("unchecked")
  public static void main(String[] args)throws Exception {
@@ -139,7 +140,7 @@ public final class VanillaTreeFeatureOracle {
   var providers=new MappedRegistry<BlockStateProvider>(Registries.BLOCK_STATE_PROVIDER,com.mojang.serialization.Lifecycle.stable());
   var ops=RegistryOps.create(JsonOps.INSTANCE,new RegistryOps.RegistryInfoLookup(){public <T> Optional<HolderGetter<T>> lookup(ResourceKey<? extends Registry<? extends T>> key){
    if(key.equals(Registries.BLOCK_STATE_PROVIDER))return (Optional<HolderGetter<T>>)(Optional<?>)Optional.of(providers);
-   if(key.equals(Registries.FEATURE))return (Optional<HolderGetter<T>>)(Optional<?>)Optional.of(lazyFeatures);
+   if(key.equals(Registries.CONFIGURED_FEATURE))return (Optional<HolderGetter<T>>)(Optional<?>)Optional.of(lazyFeatures);
    if(key.equals(Registries.PLACED_FEATURE))return (Optional<HolderGetter<T>>)(Optional<?>)Optional.of(lazyPlaced);
    if(key.equals(Registries.FLUID))return (Optional<HolderGetter<T>>)(Optional<?>)Optional.of(BuiltInRegistries.FLUID);
    return key.equals(Registries.BLOCK)?(Optional<HolderGetter<T>>)(Optional<?>)Optional.of(BuiltInRegistries.BLOCK):Optional.empty();
@@ -149,7 +150,7 @@ public final class VanillaTreeFeatureOracle {
    providers.register(ResourceKey.create(Registries.BLOCK_STATE_PROVIDER,Identifier.parse(entry.getKey())),BlockStateProvider.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
   providers.freeze();
   var features=bundle.getAsJsonObject("features");var placedJson=bundle.getAsJsonObject("placed");
-  lazyFeatures.json=features;lazyPlaced.json=placedJson;lazyFeatures.codec=Feature.DIRECT_CODEC;lazyPlaced.codec=net.minecraft.world.level.levelgen.placement.PlacedFeature.DIRECT_CODEC;lazyFeatures.ops=ops;lazyPlaced.ops=ops;
+  lazyFeatures.json=features;lazyPlaced.json=placedJson;lazyFeatures.codec=ConfiguredFeature.DIRECT_CODEC;lazyPlaced.codec=net.minecraft.world.level.levelgen.placement.PlacedFeature.DIRECT_CODEC;lazyFeatures.ops=ops;lazyPlaced.ops=ops;
   var contextMethod=VanillaPlacementOracle.class.getDeclaredMethod("context",JsonObject.class);contextMethod.setAccessible(true);
   var bounds=new JsonObject();bounds.add("context",JsonParser.parseString("[-64,384,63]"));
   var generator=((net.minecraft.world.level.levelgen.placement.PlacementContext)contextMethod.invoke(null,bounds)).generator();
@@ -158,8 +159,8 @@ public final class VanillaTreeFeatureOracle {
     var f=JsonParser.parseString(line).getAsJsonObject();long seed=f.get("seed").getAsLong();
     RandomSource random=f.get("legacy").getAsBoolean()?new LegacyRandomSource(seed):new XoroshiroRandomSource(seed);
     out.println("fixture "+f.get("feature").getAsString());
-    Optional<Feature> decoded;
-    try{decoded=Feature.DIRECT_CODEC.parse(ops,JsonParser.parseString(features.get(f.get("feature").getAsString()).getAsString())).result();}catch(Throwable error){decoded=Optional.empty();}
+    Optional<ConfiguredFeature<?,?>> decoded;
+    try{decoded=ConfiguredFeature.DIRECT_CODEC.parse(ops,JsonParser.parseString(features.get(f.get("feature").getAsString()).getAsString())).result();}catch(Throwable error){decoded=Optional.empty();}
     if(decoded.isEmpty()){out.println("decode error");continue;}
     var handler=new World(f,out);var world=(WorldGenLevel)Proxy.newProxyInstance(WorldGenLevel.class.getClassLoader(),new Class<?>[]{WorldGenLevel.class},handler);
     try{out.println("place "+decoded.get().place(world,generator,random,pos(f.getAsJsonArray("origin"))));}catch(Throwable error){out.println("place error");System.err.println(f.get("feature").getAsString()+": "+error);}

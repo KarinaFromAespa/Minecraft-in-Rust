@@ -91,7 +91,8 @@ enum ClientState {
 /// What `WaitingForPlayerChunk.isReady` asks of the player.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PlayerCheck {
-    /// `ClientLevel.isOutsideBuildHeight(camera y)`.
+    /// `ClientLevel.isOutsideBuildHeight(player y)` (26.1 checks the player's
+    /// block position; 26.2 added a second check on the camera's Y).
     pub outside_build_height: bool,
     pub spectator: bool,
     pub alive: bool,

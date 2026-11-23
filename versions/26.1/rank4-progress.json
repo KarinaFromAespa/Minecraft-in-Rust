@@ -1,0 +1,375 @@
+{
+ "closed": [
+  {
+   "id": 720,
+   "verdict": "no-change",
+   "evidence": "84 levelgen classes, 81 in the 26.2 jar (shared density/worldgen machinery, modelled in ranks 1-2); the 3 not in 26.2 are BlendDensity (modelled as BlendDensitySampler/GraphNode::BlendDensity), WeirdScaledSampler + RarityValueMapper (batch 52 26.1-only work), OreVeinifier modelled via ore_vein_top()"
+  },
+  {
+   "id": 721,
+   "verdict": "no-change",
+   "evidence": "29 renderer classes; ItemInHandRenderer in 26.2 (verified batch 87); OutlineBufferSource/ShapeRenderer are doc citations for the glowing-outlines/line behaviour the Rust models through its own renderer; 26.2 refactored them into the feature framework"
+  },
+  {
+   "id": 722,
+   "verdict": "no-change",
+   "evidence": "20 feature classes, 17 in the 26.2 jar; ConfiguredFeature modelled in live.rs (place/getFeatures); DripstoneUtils modelled in dripstone.rs (batch 63)"
+  },
+  {
+   "id": 723,
+   "verdict": "no-change",
+   "evidence": "11 core classes, all in the 26.2 jar: RegistrySetBuilder inners (data-loading internals) + Direction8 (modelled, batch 56)"
+  },
+  {
+   "id": 724,
+   "verdict": "no-change",
+   "evidence": "10 blaze3d vertex classes, none in the 26.2 jar (26.2 removed the package in the GPU rework); the Rust renders with wgpu and does not model vanilla VertexFormat (mesher cites DefaultVertexFormat.BLOCK in docs only)"
+  },
+  {
+   "id": 725,
+   "verdict": "no-change",
+   "evidence": "10 monster classes; EnderMan + 4 goals in the 26.2 jar; the 5 not in 26.2 are Slime inner goals (26.2 moved Slime to cubemob, batch 79); slime behaviour verified in batch 79"
+  },
+  {
+   "id": 726,
+   "verdict": "no-change",
+   "evidence": "9 feature-renderer classes, 1 in the 26.2 jar; the Storage refs are false positives (generic name, no real refs); the Rust models render features through its own framework"
+  },
+  {
+   "id": 727,
+   "verdict": "no-change",
+   "evidence": "9 blaze3d opengl classes, 7 in the 26.2 jar; OpenGL internals (GlBuffer, GlTimerQuery, VertexArrayCache) the wgpu renderer does not model"
+  },
+  {
+   "id": 728,
+   "verdict": "no-change",
+   "evidence": "7 loot number-provider classes, all in the 26.2 jar; NumberProviders cited in carry.rs docs; loot providers modelled in rank 2"
+  },
+  {
+   "id": 729,
+   "verdict": "no-change",
+   "evidence": "6 special-renderer classes, none in the 26.2 jar (refactored); BedSpecialRenderer has explicit 26.1-only handling in item_render/special.rs"
+  },
+  {
+   "id": 730,
+   "verdict": "no-change",
+   "evidence": "6 blaze3d platform classes, 1 in the 26.2 jar; BackendOptions/DestFactor/MonitorCreator/ScreenManager/SourceFactor are 26.1 window plumbing 26.2 reworked (batch 58: 26.1 has ScreenManager, 26.2 MonitorManager)"
+  },
+  {
+   "id": 731,
+   "verdict": "no-change",
+   "evidence": "6 item classes, 5 in the 26.2 jar (Axe/Bed/Hoe/Shovel/SignItem, modelled in rank 2); WeatheringCopperItems is 26.1-only \u2014 copper restricted to the 12 families in rank 1"
+  },
+  {
+   "id": 732,
+   "verdict": "no-change",
+   "evidence": "6 loot classes, all in the 26.2 jar; IntRange named in the tree; loot machinery modelled in rank 2"
+  },
+  {
+   "id": 733,
+   "verdict": "no-change",
+   "evidence": "5 loot-entry classes, all in the 26.2 jar; shared loot machinery modelled in rank 2"
+  },
+  {
+   "id": 734,
+   "verdict": "no-change",
+   "evidence": "5 loot-predicate classes, all in the 26.2 jar; shared loot machinery modelled in rank 2"
+  },
+  {
+   "id": 735,
+   "verdict": "no-change",
+   "evidence": "4 criterion classes, none in the 26.2 jar (26.2 moved criterion to predicates); ContextAwarePredicate modelled in advancements.rs; SlimePredicate/EntityPredicate wrapper are criterion-package internals"
+  },
+  {
+   "id": 736,
+   "verdict": "no-change",
+   "evidence": "4 contextual-bar renderers, none in the 26.2 jar (26.2 moved them in the Hud rework); experience-bar rendering exists in hud_layout.rs; the waypoint system exists in full in 26.1 (batch 81)"
+  },
+  {
+   "id": 737,
+   "verdict": "no-change",
+   "evidence": "4 blaze3d classes, 3 in the 26.2 jar; GLFWErrorCapture$Error has no Rust reference \u2014 GLFW error-capture plumbing the Rust does not model"
+  },
+  {
+   "id": 738,
+   "verdict": "no-change",
+   "evidence": "4 util classes, 2 in the 26.2 jar; CubicSpline$CoordinateVisitor + Tuple are 26.1-only (26.2 changed the spline API, batch 86); the Rust has its own tuple types"
+  },
+  {
+   "id": 739,
+   "verdict": "no-change",
+   "evidence": "4 block classes, 3 in the 26.2 jar; DirtPathBlock/RedStoneWireBlock shared; WeatheringCopperBlocks modelled in block_transform.rs (rank 1 copper work)"
+  },
+  {
+   "id": 740,
+   "verdict": "no-change",
+   "evidence": "4 structure-piece classes, all in the 26.2 jar; shared structure machinery modelled in rank 2"
+  },
+  {
+   "id": 741,
+   "verdict": "no-change",
+   "evidence": "4 structure-placement classes, all in the 26.2 jar; shared structure machinery modelled in rank 2"
+  },
+  {
+   "id": 742,
+   "verdict": "no-change",
+   "evidence": "3 particle classes, all in the 26.2 jar; shared particle machinery"
+  },
+  {
+   "id": 743,
+   "verdict": "no-change",
+   "evidence": "3 block-entity renderer classes, none in the 26.2 jar (26.2 refactored to special renderers); sign/bed rendering exists in signs.rs + block_entity_render.rs + item_render/special.rs"
+  },
+  {
+   "id": 744,
+   "verdict": "no-change",
+   "evidence": "3 chunk-compile classes, none in the 26.2 jar (the section-compile refactor, item 534); the Rust has its own chunk mesher/streaming"
+  },
+  {
+   "id": 745,
+   "verdict": "no-change",
+   "evidence": "3 sound-resource classes, all in the 26.2 jar; shared sound machinery"
+  },
+  {
+   "id": 746,
+   "verdict": "no-change",
+   "evidence": "3 preprocessor classes, all in the 26.2 jar; GlslPreprocessor cited in core_shader.rs + post_glsl.rs docs (include inlining)"
+  },
+  {
+   "id": 747,
+   "verdict": "no-change",
+   "evidence": "3 alchemy classes, all in the 26.2 jar; brewing ported in batch 55"
+  },
+  {
+   "id": 748,
+   "verdict": "no-change",
+   "evidence": "3 biome classes, all in the 26.2 jar; shared biome machinery"
+  },
+  {
+   "id": 749,
+   "verdict": "no-change",
+   "evidence": "3 block-entity classes, 2 in the 26.2 jar (FuelValues + Builder, batch 55); BedBlockEntity is 26.1-only (26.2 removed the class) and neither tree models it \u2014 it holds only banner patterns for patterned beds; bed colour is a block-state property in the Rust"
+  },
+  {
+   "id": 750,
+   "verdict": "no-change",
+   "evidence": "3 synth classes, all in the 26.2 jar; the f64 noise engine was carried whole in batch 57 (byte-identical jars)"
+  },
+  {
+   "id": 751,
+   "verdict": "no-change",
+   "evidence": "2 advancement classes; AdvancementTree$Listener in the 26.2 jar, CriterionTrigger$Listener 26.1-only (26.2 refactored triggers); the trigger system is modelled in advancements.rs"
+  },
+  {
+   "id": 752,
+   "verdict": "no-change",
+   "evidence": "2 screen classes, neither in the 26.2 jar; ShareToLanScreen verified in depth in batch 73; PauseScreen$FeedbackSubScreen is menu chrome (not version-faithful per owner principle)"
+  },
+  {
+   "id": 753,
+   "verdict": "no-change",
+   "evidence": "2 Gui inners, neither in the 26.2 jar (26.2 renamed Gui to Hud); ContextualInfo verified in batch 83, HeartType sprites modelled in hud_layout.rs"
+  },
+  {
+   "id": 754,
+   "verdict": "no-change",
+   "evidence": "2 rendertype classes; OutputTarget in the 26.2 jar, RenderSetup$TextureAndSampler 26.1-only (render-setup refactor); GPU plumbing"
+  },
+  {
+   "id": 755,
+   "verdict": "no-change",
+   "evidence": "2 particle render-state inners, neither in the 26.2 jar (the LevelExtractor move, item 714); the Rust has its own particle rendering"
+  },
+  {
+   "id": 756,
+   "verdict": "no-change",
+   "evidence": "2 client classes; ClientClockManager$ClockInstance in the 26.2 jar, Minecraft$GameLoadCookie 26.1-only (26.2 changed the game-load flow); launch plumbing"
+  },
+  {
+   "id": 757,
+   "verdict": "no-change",
+   "evidence": "2 TimerQuery inners, neither in the 26.2 jar; GPU profiling plumbing the wgpu renderer does not model"
+  },
+  {
+   "id": 758,
+   "verdict": "no-change",
+   "evidence": "2 server/packs classes, both in the 26.2 jar; shared pack machinery"
+  },
+  {
+   "id": 759,
+   "verdict": "no-change",
+   "evidence": "2 AI behavior classes, both in the 26.2 jar; shared mob AI"
+  },
+  {
+   "id": 760,
+   "verdict": "no-change",
+   "evidence": "2 AI goal classes, both in the 26.2 jar; shared mob AI"
+  },
+  {
+   "id": 761,
+   "verdict": "no-change",
+   "evidence": "2 trim classes, both in the 26.2 jar; trims ported in batch 78"
+  },
+  {
+   "id": 762,
+   "verdict": "no-change",
+   "evidence": "2 trading classes, neither in the 26.2 jar (26.2 reworked villager trades); the 26.1 trade system is modelled in merchant.rs/trading.rs with data-driven trade tables"
+  },
+  {
+   "id": 763,
+   "verdict": "no-change",
+   "evidence": "2 placement classes, both in the 26.2 jar; shared worldgen placement"
+  },
+  {
+   "id": 764,
+   "verdict": "no-change",
+   "evidence": "1 debug component class, in the 26.2 jar; shared debug UI"
+  },
+  {
+   "id": 765,
+   "verdict": "no-change",
+   "evidence": "1 font class, in the 26.2 jar; shared font machinery"
+  },
+  {
+   "id": 766,
+   "verdict": "no-change",
+   "evidence": "GuiSignRenderer, not in the 26.2 jar (26.2 moved sign rendering); sign rendering exists in signs.rs"
+  },
+  {
+   "id": 767,
+   "verdict": "no-change",
+   "evidence": "GuiRenderer$MeshToDraw, not in the 26.2 jar (the render-submission rework, item 521); the Rust has its own GUI renderer"
+  },
+  {
+   "id": 768,
+   "verdict": "no-change",
+   "evidence": "AbstractContainerScreen$SnapbackData, not in the 26.2 jar; slot snapback is menu chrome"
+  },
+  {
+   "id": 769,
+   "verdict": "no-change",
+   "evidence": "DifficultyButtons, in the 26.2 jar; modelled in lan_screen.rs (lockButton + updateDifficultyButtonsState)"
+  },
+  {
+   "id": 770,
+   "verdict": "no-change",
+   "evidence": "1 zombie model class, in the 26.2 jar; shared entity model"
+  },
+  {
+   "id": 771,
+   "verdict": "no-change",
+   "evidence": "1 entity-layer class, in the 26.2 jar; shared render layer"
+  },
+  {
+   "id": 772,
+   "verdict": "no-change",
+   "evidence": "GpuBuffer$MappedView, not in the 26.2 jar; GPU buffer plumbing the wgpu renderer does not model"
+  },
+  {
+   "id": 773,
+   "verdict": "no-change",
+   "evidence": "RenderPipeline$UniformDescription, not in the 26.2 jar; GPU pipeline plumbing"
+  },
+  {
+   "id": 774,
+   "verdict": "no-change",
+   "evidence": "1 Realms screen class, in the 26.2 jar; Realms ported in batch 69"
+  },
+  {
+   "id": 775,
+   "verdict": "no-change",
+   "evidence": "1 Realms client class, in the 26.2 jar; Realms ported in batch 69"
+  },
+  {
+   "id": 776,
+   "verdict": "no-change",
+   "evidence": "ColorArgument, not in the 26.2 jar (26.2 renamed it TeamColorArgument); the 26.1 form is modelled in scoreboard.rs/scoreboard_cmd.rs (batch 63)"
+  },
+  {
+   "id": 777,
+   "verdict": "no-change",
+   "evidence": "LootData, not in the 26.2 jar (26.2 moved the datagen class); the Rust has its own horizon_world::loot::LootData loader"
+  },
+  {
+   "id": 778,
+   "verdict": "no-change",
+   "evidence": "1 data/worldgen class, in the 26.2 jar; shared datagen"
+  },
+  {
+   "id": 779,
+   "verdict": "no-change",
+   "evidence": "1 resources class, in the 26.2 jar; shared resources machinery"
+  },
+  {
+   "id": 780,
+   "verdict": "no-change",
+   "evidence": "1 data-command class, in the 26.2 jar; shared command machinery"
+  },
+  {
+   "id": 781,
+   "verdict": "no-change",
+   "evidence": "1 server-command class, in the 26.2 jar; shared command machinery"
+  },
+  {
+   "id": 782,
+   "verdict": "no-change",
+   "evidence": "1 clock class, in the 26.2 jar; shared world clock"
+  },
+  {
+   "id": 783,
+   "verdict": "no-change",
+   "evidence": "InstantenousMobEffect, not in the 26.2 jar (26.2 fixed the typo to Instantaneous, item 533); the 26.1 spelling is cited in mobs/ai.rs for instant-effect ticks"
+  },
+  {
+   "id": 784,
+   "verdict": "no-change",
+   "evidence": "FlyingAnimal, not in the 26.2 jar; a marker interface with no Rust reference \u2014 flight is modelled through mob physics/species"
+  },
+  {
+   "id": 785,
+   "verdict": "no-change",
+   "evidence": "1 entity class, in the 26.2 jar; shared entity machinery"
+  },
+  {
+   "id": 786,
+   "verdict": "no-change",
+   "evidence": "MapItemColor, in the 26.2 jar; cited in the protocol item codec (INT write)"
+  },
+  {
+   "id": 787,
+   "verdict": "no-change",
+   "evidence": "DripstoneThickness, not in the 26.2 jar; a block-state enum the Rust reads from prepared data (dripstone ported in batch 63)"
+  },
+  {
+   "id": 788,
+   "verdict": "no-change",
+   "evidence": "CarvingMask$Mask, in the 26.2 jar; carving masks handled in the CarvingStepRemoveFix datafix"
+  },
+  {
+   "id": 789,
+   "verdict": "no-change",
+   "evidence": "1 state-provider class, in the 26.2 jar; shared worldgen"
+  },
+  {
+   "id": 790,
+   "verdict": "no-change",
+   "evidence": "MaterialRuleList, in the 26.2 jar; shared worldgen material rules"
+  },
+  {
+   "id": 791,
+   "verdict": "no-change",
+   "evidence": "StructurePieceAccessor, in the 26.2 jar; shared structure machinery"
+  },
+  {
+   "id": 792,
+   "verdict": "no-change",
+   "evidence": "FunctionReference, in the 26.2 jar; shared loot function"
+  },
+  {
+   "id": 793,
+   "verdict": "ported",
+   "evidence": "minecraft:bed is a 26.1 block-entity type (26.2/26.3 removed BedBlockEntity); added to TYPES (47->48) in registry order (between shulker_box and conduit, verified against the 26.1 BlockEntityType fields) + an empty canonical arm \u2014 BedBlockEntity has no saveAdditional, its colour comes from the block state. /data block_entity_data validation now accepts minecraft:bed; canonical no longer returns None for bed compounds"
+  }
+ ],
+ "triage": "Rank 4/5: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 4 = 74 D items, 333 classes from the 26.3->26.1 report; rank 5 = 2 D items). Class lists in ~/workspace/mcir-work/26.1/versions/diff-26.3-26.1/report.json. Method: per package, check each class against the 26.2 jars (same path / moved) and the Rust tree (ported list + grep); verdict no-change unless the Rust is missing 26.1 behaviour."
+}

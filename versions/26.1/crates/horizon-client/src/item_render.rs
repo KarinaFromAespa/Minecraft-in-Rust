@@ -1531,18 +1531,23 @@ mod tests {
                     ),
                 ]),
             );
+            // 26.1's NbtOps.getBooleanValue is the DFU default
+            // (Number.byteValue() != 0): only the low 8 bits count, so 256,
+            // 1<<40, 0.5 and NaN are all false (26.2's doubleValue form
+            // reads them true). Infinity saturates to i32::MAX, whose low
+            // byte is -1, so it stays true.
             for (tag, flag) in [
                 (Tag::Byte(1), true),
                 (Tag::Byte(0), false),
                 (Tag::Byte(-1), true),
-                (Tag::Short(256), true),
+                (Tag::Short(256), false),
                 (Tag::Int(1), true),
-                (Tag::Long(1 << 40), true),
-                (Tag::Float(0.5_f32.to_bits()), true),
+                (Tag::Long(1 << 40), false),
+                (Tag::Float(0.5_f32.to_bits()), false),
                 (Tag::Float((-0.0_f32).to_bits()), false),
-                (Tag::Double(0.5_f64.to_bits()), true),
+                (Tag::Double(0.5_f64.to_bits()), false),
                 (Tag::Double((-0.0_f64).to_bits()), false),
-                (Tag::Float(f32::NAN.to_bits()), true),
+                (Tag::Float(f32::NAN.to_bits()), false),
                 (Tag::Double(f64::INFINITY.to_bits()), true),
             ] {
                 let mut stack = crate::items::ItemStack::new("minecraft:diamond", 1);

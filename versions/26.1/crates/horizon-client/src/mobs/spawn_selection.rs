@@ -408,21 +408,22 @@ impl Heightmap {
 }
 
 /// `Heightmap.Types`' predicates: WORLD_SURFACE (not air), OCEAN_FLOOR
-/// (`#blocks_motion_in_heightmap`), MOTION_BLOCKING (that or a fluid) and
-/// MOTION_BLOCKING_NO_LEAVES (`#blocks_motion_in_heightmap_no_leaves` or a fluid).
+/// (`blocksMotion()`), MOTION_BLOCKING (that or a fluid) and
+/// MOTION_BLOCKING_NO_LEAVES (`blocksMotion()` on a non-leaves block, or a
+/// fluid). 26.1 has no `blocks_motion*` tags (26.3 added them); the
+/// per-state rule is solid (`isSolid`) except cobweb and bamboo saplings.
 pub fn heightmap_blocks<L: SpawnLevel>(l: &L, kind: Heightmap, x: i32, y: i32, z: i32) -> bool {
     let state = l.state(x, y, z);
     let f = l.facts().get(state);
     let fluid = f.fluid != crate::blocks::Fluid::None;
+    let motion = f.legacy_solid
+        && &*f.name != "minecraft:cobweb"
+        && &*f.name != "minecraft:bamboo_sapling";
     match kind {
         Heightmap::WorldSurface => !l.facts().is_air(state),
-        Heightmap::OceanFloor => l.block_tag("minecraft:blocks_motion_in_heightmap", &f.name),
-        Heightmap::MotionBlocking => {
-            fluid || l.block_tag("minecraft:blocks_motion_in_heightmap", &f.name)
-        }
-        Heightmap::MotionBlockingNoLeaves => {
-            fluid || l.block_tag("minecraft:blocks_motion_in_heightmap_no_leaves", &f.name)
-        }
+        Heightmap::OceanFloor => motion,
+        Heightmap::MotionBlocking => fluid || motion,
+        Heightmap::MotionBlockingNoLeaves => fluid || (motion && !f.has_class("LeavesBlock")),
     }
 }
 /// `LevelReader.getLightLevelDependentMagicValue`.
@@ -556,6 +557,17 @@ pub fn contains_any_liquid<L: SpawnLevel>(l: &L, b: Aabb) -> bool {
         })
     })
 }
+/// The dimensions of a freshly created mob: a pufferfish is born at puff
+/// state 0, so its registry dimensions scale by 0.5 (`Pufferfish.getScale(0)`);
+/// every other type spawns at its registry size.
+pub fn fresh_dimensions(species: Species, width: f32, height: f32) -> (f32, f32) {
+    if species == Species::Pufferfish {
+        (width * 0.5, height * 0.5)
+    } else {
+        (width, height)
+    }
+}
+
 /// `EntityDimensions.makeBoundingBox`: the half width is a float.
 pub fn spawn_box(x: f64, y: f64, z: f64, width: f32, height: f32) -> Aabb {
     let half = f64::from(width / 2.0);
@@ -584,7 +596,11 @@ pub fn spawn_aabb(s: Species, x: f64, y: f64, z: f64, width: f32, height: f32) -
 }
 /// `checkSpawnObstruction` of a freshly created mob with the given box, with
 /// the mobs already `spawned` in the way; None in a generation region, which
-/// has no entities (`WorldGenRegion.getEntities`).
+/// has no entities (`WorldGenRegion.getEntities`). The entity part is
+/// `Level.isUnobstructed`, which counts every non-spectator entity with
+/// `blocksBuilding` — all living mobs, players and boats — not the
+/// `canBeCollidedWith` few (`noCollision`'s rule, which is a different
+/// method).
 pub fn spawn_obstruction<L: NaturalLevel>(
     s: Species,
     l: &L,
@@ -688,19 +704,18 @@ pub struct StructureAt {
 /// `NetherFortressStructure.FORTRESS_ENEMIES`.
 pub fn fortress_enemies() -> &'static [SpawnEntry] {
     static ENEMIES: std::sync::LazyLock<Vec<SpawnEntry>> = std::sync::LazyLock::new(|| {
-        let e = |entity: &str, weight, min, max, constant| SpawnEntry {
+        let e = |entity: &str, weight, min, max| SpawnEntry {
             entity: entity.to_owned(),
             weight,
             min,
             max,
-            constant,
         };
         vec![
-            e("minecraft:blaze", 10, 2, 3, false),
-            e("minecraft:zombified_piglin", 5, 4, 4, true),
-            e("minecraft:wither_skeleton", 8, 5, 5, true),
-            e("minecraft:skeleton", 2, 5, 5, true),
-            e("minecraft:magma_cube", 3, 4, 4, true),
+            e("minecraft:blaze", 10, 2, 3),
+            e("minecraft:zombified_piglin", 5, 4, 4),
+            e("minecraft:wither_skeleton", 8, 5, 5),
+            e("minecraft:skeleton", 2, 5, 5),
+            e("minecraft:magma_cube", 3, 4, 4),
         ]
     });
     &ENEMIES
@@ -778,19 +793,16 @@ pub fn weighted_pick(list: &[SpawnEntry], random: &mut impl RandomSource) -> Opt
     None
 }
 
-/// `SpawnerData.count().sample(random)`: a constant draws nothing.
+/// `SpawnerData`: `minCount + random.nextInt(1 + maxCount - minCount)` — a
+/// draw even when the two are equal, so a 4-4 group still consumes one.
 pub fn sample_count(entry: &SpawnEntry, random: &mut impl RandomSource) -> u32 {
-    if entry.constant {
-        entry.min
-    } else {
-        let span = entry.max.saturating_sub(entry.min) as i32 + 1;
-        entry.min + random.next_int_bound(span).unwrap_or(0) as u32
-    }
+    let span = entry.max.saturating_sub(entry.min) as i32 + 1;
+    entry.min + random.next_int_bound(span).unwrap_or(0) as u32
 }
-/// `SpawnerData.equals`: the type and the count provider (the weight is not
-/// part of it; a constant and a one-value uniform differ).
+/// `SpawnerData.equals`: the type and the count range (the weight is not
+/// part of it).
 fn same_spawner(a: &SpawnEntry, b: &SpawnEntry) -> bool {
-    a.entity == b.entity && a.constant == b.constant && a.min == b.min && a.max == b.max
+    a.entity == b.entity && a.min == b.min && a.max == b.max
 }
 
 /// An entity counted by `NaturalSpawner.createState`.

@@ -388,8 +388,12 @@ pub fn heightmap_lines(
     [ch, sh]
 }
 
-/// `MobCategory.getDebugAbbreviation`, in `MobCategory.values()` order.
-const CATEGORY_ABBREVIATIONS: [&str; 8] = ["MO", "C", "AM", "AX", "UWC", "WC", "WA", "MI"];
+/// 26.1 has no `MobCategory.getDebugAbbreviation` (a 26.2 addition):
+/// `DebugEntrySpawnCounts` shows the first letter of each category's name,
+/// uppercased, in `MobCategory.values()` order — so monster and misc both
+/// read M, ambient and axolotls both A, water creature and water ambient
+/// both W.
+const CATEGORY_ABBREVIATIONS: [&str; 8] = ["M", "C", "A", "A", "U", "W", "W", "M"];
 
 /// `DebugEntrySpawnCounts`: the spawnable chunks of the last spawn state,
 /// then each category's count.
@@ -637,7 +641,7 @@ mod tests {
         );
         assert_eq!(
             spawn_counts_line(289, &[3, 10, 1, 0, 0, 2, 4, 0]),
-            "SC: 289, MO: 3, C: 10, AM: 1, AX: 0, UWC: 0, WC: 2, WA: 4, MI: 0"
+            "SC: 289, M: 3, C: 10, A: 1, A: 0, U: 0, W: 2, W: 4, M: 0"
         );
         assert_eq!(local_difficulty_line(1.5), "Local Difficulty: 1.50 // 0.00");
         assert_eq!(

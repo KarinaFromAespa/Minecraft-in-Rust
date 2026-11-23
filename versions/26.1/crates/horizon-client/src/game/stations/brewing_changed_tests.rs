@@ -27,10 +27,7 @@ fn starting_a_brew_marks_the_chunk() {
                 None,
             ],
             brew_time: 0,
-            total_brew_time: 400,
             fuel: 10,
-            total_fuel: 20,
-            speed: 1.0,
             ingredient: None,
             // The bottle bits the block state already shows: this tick
             // changes only the fuel and the timer.

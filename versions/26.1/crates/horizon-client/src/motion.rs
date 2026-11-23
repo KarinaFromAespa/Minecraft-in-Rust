@@ -151,8 +151,10 @@ impl MotionResources {
 /// between ticks.
 #[derive(Clone, Debug, Default)]
 pub struct LocationEffects {
-    /// `MovementAffectedByPredicate`: the block under the player
-    /// (`getBlockPosBelowThatAffectsMyMovement`) is in `#minecraft:soul_speed_blocks`.
+    /// `EntityPredicate.movementAffectedBy` (26.1's builder form; 26.2 made
+    /// it the standalone `MovementAffectedByPredicate` sub-predicate): the
+    /// block under the player (`getBlockPosBelowThatAffectsMyMovement`) is
+    /// in `#minecraft:soul_speed_blocks`.
     pub on_soul_speed_block: bool,
     /// `LivingEntity.lastPos`: the block the player was in last tick.
     pub block: Option<BlockPos>,
@@ -1419,7 +1421,7 @@ impl MotionWorld<'_, '_, '_> {
         self.player.location_effects.on_soul_speed_block = self.on_soul_speed_block()?;
         Ok(())
     }
-    /// `MovementAffectedByPredicate` for `#minecraft:soul_speed_blocks`.
+    /// `EntityPredicate.movementAffectedBy` for `#minecraft:soul_speed_blocks`.
     fn on_soul_speed_block(&mut self) -> Result<bool> {
         let on = self.support(movement_support::MOVEMENT_SUPPORT_OFFSET)?;
         Ok(self
@@ -4997,7 +4999,7 @@ mod tests {
         assert_eq!(w.player.pose, crate::pose::Pose::Standing);
         assert_eq!(w.player.dimensions.eye_height, 1.62);
     }
-    /// #4509: a cushion seat clips the feet into the floor, so `can_fit_pose`
+    /// #4509: a seat clips the feet into the floor, so `can_fit_pose`
     /// rejects standing and would leave a swim pose; sit up anyway.
     #[test]
     fn a_swimming_passenger_sits_up_even_when_standing_does_not_fit() {
@@ -5012,7 +5014,7 @@ mod tests {
         let binding = crate::collisions::load(&root, assets.registry).unwrap();
         let resources = MotionResources::load(&root, &assets).unwrap();
         let mut scene = World::test_scene(&assets, &render, 2).unwrap();
-        // Feet inside the floor block, as on a cushion seat (y - 0.35): away
+        // Feet inside the floor block, as on a seat (y - 0.35): away
         // from the pyramid the scene's floor tops out at y = 4.
         let mut player = PlayerMotion::new(&resources, Vec3::new(20.5, 3.65, 20.5)).unwrap();
         player.swimming = true;

@@ -5,7 +5,7 @@ use horizon_assets::{
     item_bake::{BakedItemModel, SpriteLookup, SpriteMask, bake_item_model},
     item_model::*,
     math::Mat4,
-    model::{CuboidModel, Direction},
+    model::CuboidModel,
     palette::{PalettedPermutations, apply_palette},
     resolve::{MISSING_MODEL, ModelLibrary},
 };
@@ -76,8 +76,10 @@ impl Sprites {
                 // PalettedPermutations: the base texture through PaletteMapping.
                 let p = self.permutations.iter().find_map(|s| s.find(sprite))?;
                 let (w, h, mut pixels) = Self::argb(&self.png(p.base, "textures"))?;
-                let (_, _, key) = Self::argb(&self.png(p.palette_key, "textures/palettes"))?;
-                let (_, _, target) = Self::argb(&self.png(p.palette, "textures/palettes"))?;
+                // 26.1's `PalettedPermutations` palette ids are texture paths
+                // (`trims/color_palettes/trim_palette`), not palette ids.
+                let (_, _, key) = Self::argb(&self.png(p.palette_key, "textures"))?;
+                let (_, _, target) = Self::argb(&self.png(p.palette, "textures"))?;
                 apply_palette(&mut pixels, &key, &target)?;
                 (w, h, pixels)
             }
@@ -358,7 +360,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 "facing":q.facing.name(),
                                 "tint":q.tint_index,
                                 "sprite":q.material.sprite,
-                                "shade":q.shade,
+                                "shade": q.shade,
                                 "light":q.light_emission,
                             })
                         })

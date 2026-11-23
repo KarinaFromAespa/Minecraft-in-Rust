@@ -163,10 +163,8 @@ impl Opt {
             Opt::HideMatchedNames
                 | Opt::OnlySecureChat
                 // Saved, but no Horizon system reads them yet: no Realms, no
-                // friends list, no directional audio.
+                // directional audio.
                 | Opt::RealmsNotifications
-                | Opt::InGameNotification
-                | Opt::SharePresence
                 | Opt::DirectionalAudio
                 // Saved, but nothing in rendering reads it yet.
                 | Opt::ChunkBuilder
@@ -201,8 +199,6 @@ impl Opt {
             Opt::ModelPart(i) => MODEL_PART_KEYS[i],
             Opt::AllowServerListing => "allowServerListing",
             Opt::RealmsNotifications => "realmsNotifications",
-            Opt::InGameNotification => "inGameNotification",
-            Opt::SharePresence => "sharePresence",
             Opt::DirectionalAudio => "directionalAudio",
             Opt::MusicToast => "musicToast",
             _ => return None,
@@ -335,8 +331,6 @@ impl Opt {
             Opt::MainHand => "options.mainHand",
             Opt::AllowServerListing => "options.allowServerListing",
             Opt::RealmsNotifications => "options.realmsNotifications.button",
-            Opt::InGameNotification => "options.inGameNotification",
-            Opt::SharePresence => "options.sharePresence",
             Opt::DirectionalAudio => "options.directionalAudio",
             Opt::MusicToast => "options.musicToast",
         }
@@ -600,12 +594,7 @@ impl Opt {
                     c,
                     Text::tr(
                         "options.fullscreen.entry",
-                        &[
-                            &mode.width,
-                            &mode.height,
-                            &mode.refresh_rate_label(),
-                            &mode.bits(),
-                        ],
+                        &[&mode.width, &mode.height, &mode.refresh_rate, &mode.bits()],
                     ),
                 ),
                 _ => generic(c, tr("options.fullscreen.current")),
@@ -716,18 +705,12 @@ impl Opt {
             | Opt::ModelPart(_)
             | Opt::AllowServerListing
             | Opt::RealmsNotifications
-            | Opt::InGameNotification
             | Opt::DirectionalAudio => on_off(s.file.bool(self.file_key().unwrap())),
             Opt::MainHand => tr(if s.main_hand_left {
                 "options.mainHand.left"
             } else {
                 "options.mainHand.right"
             }),
-            Opt::SharePresence => tr([
-                "options.sharePresence.none",
-                "options.sharePresence.limited",
-                "options.sharePresence.all",
-            ][s.file.int("sharePresence").clamp(0, 2) as usize]),
             Opt::MusicToast => tr([
                 "options.musicToast.never",
                 "options.musicToast.pauseMenu",
@@ -1015,7 +998,6 @@ impl Opt {
             | Opt::ModelPart(_)
             | Opt::AllowServerListing
             | Opt::RealmsNotifications
-            | Opt::InGameNotification
             | Opt::DirectionalAudio
             | Opt::RotateWithMinecarts
             | Opt::NarratorHotkey => {
@@ -1137,11 +1119,6 @@ impl Opt {
                     .set("musicFrequency", crate::options_file::V::Int(i32::from(n)));
             }
             Opt::MainHand => s.main_hand_left = !s.main_hand_left,
-            Opt::SharePresence => {
-                let n = next(s.file.int("sharePresence").clamp(0, 2) as u8, 3);
-                s.file
-                    .set("sharePresence", crate::options_file::V::Int(i32::from(n)));
-            }
             Opt::MusicToast => {
                 let n = next(s.file.int("musicToast").clamp(0, 2) as u8, 3);
                 s.file
@@ -1402,6 +1379,9 @@ enum Act {
     AccessibilityHelp,
     /// Credits & Attribution's Credits button (WinScreen without the poem).
     Credits,
+    /// The Main page's World Options button (in world only):
+    /// WorldOptionsScreen.
+    WorldOptions,
     CopyAgentDetails,
     /// AI Agent: start or stop the repro recording.
     ToggleRecording,
@@ -1548,6 +1528,8 @@ pub enum Event {
     NativeButton(usize, usize),
     /// Roll the credits (`CreditsAndAttributionScreen.openCreditsScreen`).
     Credits,
+    /// Open WorldOptionsScreen from the Main page.
+    WorldOptions,
     /// PvP & HUD's Edit HUD: open the HUD editor over the game.
     HudEditor,
     /// Copy how an agent connects (the AI Agent page).
@@ -2836,10 +2818,9 @@ impl OptionsUi {
                 pairs(&opts)
             }
             Page::Online => {
-                // OnlineOptionsScreen without the Xbox and friends-list parts.
-                let mut rows = vec![Row::Header("options.online.friends.header")];
-                rows.extend(pairs(&[Opt::InGameNotification, Opt::SharePresence]));
-                rows.push(Row::Header("options.online.servers.header"));
+                // 26.1's OnlineOptionsScreen: only the server listing and the
+                // Realms notifications (26.2 added the friends section).
+                let mut rows = vec![Row::Header("options.online.servers.header")];
                 rows.push(Row::Big(Opt::AllowServerListing));
                 rows.push(Row::Header("options.online.realms.header"));
                 rows.push(Row::Big(Opt::RealmsNotifications));
@@ -3082,9 +3063,22 @@ impl OptionsUi {
                     .concat();
                     &plain
                 };
-                let rows = entries.len().div_ceil(2) as f32;
+                let rows = (entries.len() + usize::from(self.in_world)).div_ceil(2) as f32;
                 let gy = (61.0 + 30.0f32).min(h - 33.0 - rows * 24.0);
+                // Vanilla's World Options button, first in the grid and
+                // only in world (OptionsScreen adds it after the top row
+                // when inWorld).
+                if self.in_world {
+                    out.push(button(
+                        cx - 158.0 + 4.0,
+                        gy,
+                        150.0,
+                        tr("options.worldOptions.button"),
+                        Act::WorldOptions,
+                    ));
+                }
                 for (i, (key, page)) in entries.iter().enumerate() {
+                    let i = i + usize::from(self.in_world);
                     let x = cx - 158.0 + 4.0 + (i % 2) as f32 * 158.0;
                     let y = gy + (i / 2) as f32 * 24.0;
                     let b = button(x, y, 150.0, tr(key), page.map_or(Act::None, Act::Push));
@@ -4261,6 +4255,7 @@ impl OptionsUi {
                         Act::HudEditor => events.push(Event::HudEditor),
                         Act::AccessibilityHelp => events.push(Event::AccessibilityHelp),
                         Act::Credits => events.push(Event::Credits),
+                        Act::WorldOptions => events.push(Event::WorldOptions),
                         Act::CopyAgentDetails => events.push(Event::CopyAgentDetails),
                         Act::ToggleRecording => events.push(Event::ToggleRecording),
                         Act::ExportRepro => events.push(Event::ExportRepro),
@@ -5149,6 +5144,7 @@ impl OptionsUi {
                         Act::HudEditor => events.push(Event::HudEditor),
                         Act::AccessibilityHelp => events.push(Event::AccessibilityHelp),
                         Act::Credits => events.push(Event::Credits),
+                        Act::WorldOptions => events.push(Event::WorldOptions),
                         Act::CopyAgentDetails => events.push(Event::CopyAgentDetails),
                         Act::ToggleRecording => events.push(Event::ToggleRecording),
                         Act::ExportRepro => events.push(Event::ExportRepro),
@@ -5456,8 +5452,6 @@ mod tests {
             Opt::HideMatchedNames,
             Opt::OnlySecureChat,
             Opt::RealmsNotifications,
-            Opt::InGameNotification,
-            Opt::SharePresence,
             Opt::DirectionalAudio,
             Opt::ChunkBuilder,
         ] {
@@ -5946,7 +5940,7 @@ mod tests {
         assert_eq!(saved.keys_of("zoom"), vec![("zoom", "key.keyboard.r")]);
     }
 
-    fn mode(width: i32, rate: f32) -> crate::window::VideoMode {
+    fn mode(width: i32, rate: i32) -> crate::window::VideoMode {
         crate::window::VideoMode {
             width,
             height: width * 9 / 16,
@@ -5998,7 +5992,7 @@ mod tests {
         // No monitor mode: the slider changes nothing.
         Opt::ExclusiveMode.set_slider(&mut s, 1.0);
         assert_eq!(s.file.fullscreen_resolution, None);
-        s.video_modes = vec![mode(1280, 60.0), mode(1920, 144.0), mode(2560, 59.94)];
+        s.video_modes = vec![mode(1280, 60), mode(1920, 144), mode(2560, 59)];
         assert_eq!(s.video_mode_index(), -1);
         // IntRange(-1, 2): the slider's thirds are -1, 0, 1, 2.
         Opt::ExclusiveMode.set_slider(&mut s, 2.0 / 3.0);
@@ -6317,7 +6311,7 @@ mod tests {
         lang::set(lang::Language::load(&[&root], "en_us"));
         let mut s = Settings::default();
         assert_eq!(Opt::ExclusiveMode.label(&s).plain(), "Setting unavailable");
-        s.video_modes = vec![mode(1280, 60.0), mode(1920, 144.0), mode(2560, 59.94)];
+        s.video_modes = vec![mode(1280, 60), mode(1920, 144), mode(2560, 59)];
         assert_eq!(
             Opt::ExclusiveMode.label(&s).plain(),
             "Exclusive Fullscreen Mode: Current"
@@ -6330,7 +6324,7 @@ mod tests {
         Opt::ExclusiveMode.set_slider(&mut s, 1.0);
         assert_eq!(
             Opt::ExclusiveMode.label(&s).plain(),
-            "Exclusive Fullscreen Mode: 2560x1440@59.94 (24bit)"
+            "Exclusive Fullscreen Mode: 2560x1440@59 (24bit)"
         );
         s.horizon.api = GraphicsApi::Vulkan;
         assert_eq!(

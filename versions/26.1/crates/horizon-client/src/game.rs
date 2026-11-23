@@ -117,7 +117,6 @@ mod creative_hotbar;
 mod creative_screen;
 mod creatures;
 mod crossbow;
-pub(crate) mod cushions;
 mod custom_sky;
 mod debug_keys;
 mod debug_lines;
@@ -514,7 +513,7 @@ use horizon_client::{
     creative::{Creative, Names},
     entities::{Experience, ExperienceOrb, ItemEntity},
     environment::Environment,
-    first_person::{Hand, SwingAnimation},
+    first_person::Hand,
     furnace::FurnaceCooking,
     gfx::{Frame, Renderer},
     graphics::EntityCullingMode,
@@ -649,6 +648,8 @@ enum Screen {
     Advancements,
     /// WorldOptionsScreen (game/lan_screen.rs).
     WorldOptions,
+    /// ShareToLanScreen, the 26.1 "Open to LAN" screen (game/lan_screen.rs).
+    ShareToLan,
     /// Play with Friends, from the pause menu's Friends button
     /// (`friends_screen`, game/friends.rs).
     Friends,
@@ -695,6 +696,7 @@ impl Screen {
             Screen::Stats => "stats",
             Screen::Advancements => "advancements",
             Screen::WorldOptions => "world_options",
+            Screen::ShareToLan => "share_to_lan",
             Screen::Friends => "friends",
             Screen::Social => "social",
             Screen::CommandBlock => "command_block",
@@ -2649,8 +2651,6 @@ struct Game<'a> {
     armor_stands: horizon_client::join_seq::JoinList<horizon_client::entities::ArmorStand>,
     /// Worn armor as of the last `collectEquipmentChanges` look (frost walker).
     location_armor: [Option<ItemStack>; 4],
-    /// `Cushion` decoration entities (game/cushions.rs).
-    cushions: Vec<horizon_client::entities::Cushion>,
     /// Entities of types Horizon does not simulate.
     others: Vec<commands::OtherEntity>,
     armor_stand_assets: armor_stands::ArmorStandAssets,
@@ -2680,8 +2680,6 @@ struct Game<'a> {
     boat_models: boats::BoatModels,
     /// EndCrystalModel's baked layer.
     crystal_model: Option<horizon_client::mobs::Part>,
-    /// CushionModel's baked layer.
-    cushion_model: Option<horizon_client::mobs::Part>,
     /// Models drawn only once such an entity shows up (lead knots, wind charges...).
     entity_models: EntityModels,
     carts: horizon_client::join_seq::JoinList<minecarts::Minecart>,
@@ -2909,6 +2907,7 @@ struct Game<'a> {
     /// The Social Interactions screen and the players whose chat is hidden (game/social.rs).
     social: social::Social,
     world_options: Option<lan_screen::WorldOptions>,
+    share_to_lan: Option<lan_screen::ShareToLan>,
     /// Chat Settings opened from RestrictionsScreen: Done returns to World Options.
     options_to_world_options: bool,
     command_block_screen: Option<command_blocks::CommandBlockScreen>,
@@ -3011,7 +3010,6 @@ struct Game<'a> {
     /// Jukebox level events 1010 (song name) and 1011 (`None`) for the guests;
     /// the song's network id is only known once the hub is in hand.
     lan_songs: Vec<([i32; 3], Option<String>)>,
-    lan_cushion_breaks: Vec<(horizon_world::registry::BlockStateId, [f64; 3])>,
     /// Block events (position, b0, b1, state) and entity events (id, event,
     /// position) for the guests.
     lan_block_events: Vec<([i32; 3], i32, i32, u32)>,
@@ -3718,7 +3716,7 @@ impl Game<'_> {
         };
         // LivingEntity.drop: every drop swings the main hand, a menu's
         // THROW and a creative tab's drop included.
-        self.swing_hand(Hand::Main, SwingAnimation::DEFAULT);
+        self.swing_hand(Hand::Main);
         // Player.drop: the drop statistics.
         self.award_stat("dropped", &thrown.item, thrown.count as i32);
         self.award_custom_stat("drop", 1);
@@ -4295,16 +4293,6 @@ impl Game<'_> {
                 LevelEvent::LevelEvent { id: 1011, pos, .. } => {
                     self.jukebox_stop_event([pos.x, pos.y, pos.z])
                 }
-                // LevelEventHandler 2019 and 2020: the crack on a face of the
-                // block being mined, with its hit sound for 2020.
-                LevelEvent::LevelEvent {
-                    id: id @ (2019 | 2020),
-                    pos,
-                    data,
-                } => {
-                    let face = horizon_core::geometry::Direction::ALL[data.clamp(0, 5) as usize];
-                    self.breaking_block_effects([pos.x, pos.y, pos.z], face.normal(), id == 2020);
-                }
                 LevelEvent::LevelEvent {
                     id: 3008,
                     pos,
@@ -4324,26 +4312,14 @@ impl Game<'_> {
                     self.audio
                         .play("minecraft:item.bone_meal.use", Some(at), 1.0, 1.0);
                 }
+                // 2015 is not a 26.1 packet: the egg's teleport particles are
+                // the sim's internal channel for the client-side particle
+                // loop (26.1's LevelEventHandler has no 2015 case).
                 LevelEvent::LevelEvent {
                     id: 2015,
                     pos,
                     data,
                 } => self.dragon_egg_particles([pos.x, pos.y, pos.z], data),
-                LevelEvent::LevelEvent {
-                    id: 2016,
-                    pos,
-                    data,
-                } => self.shulker_teleport_particles([pos.x, pos.y, pos.z], data),
-                LevelEvent::LevelEvent {
-                    id: 2017,
-                    pos,
-                    data,
-                } => self.consume_teleport_particles([pos.x, pos.y, pos.z], data),
-                LevelEvent::LevelEvent {
-                    id: 2018,
-                    pos,
-                    data,
-                } => self.enderman_teleport_particles([pos.x, pos.y, pos.z], data),
                 LevelEvent::LevelEvent { id: 2003, pos, .. } => {
                     self.eye_break_particles([pos.x, pos.y, pos.z]);
                 }
@@ -5287,11 +5263,11 @@ impl Game<'_> {
         let state = self.world.block(hit.pos[0], hit.pos[1], hit.pos[2]);
         if self.res.facts().get(state).hardness < 0.0 {
             // The server still counts its destroy ticks on an unbreakable block.
+            // 26.1 sends no level event while a player digs (26.3's 2019/2020):
+            // the digger's own client plays the hit sound every fourth tick.
             let m = self.mining.as_mut().ok_or("mining")?;
             m.per_tick = 0.0;
             m.ticks += 1;
-            let (pos, ticks) = (m.pos, m.ticks);
-            self.destroy_progress_event(pos, hit.face, ticks);
             return Ok(());
         }
         let progress = self.destroy_progress(hit.pos);
@@ -5300,11 +5276,6 @@ impl Game<'_> {
         m.per_tick = progress;
         m.progress += progress;
         m.ticks += 1;
-        // An instant break at START sends no destroy events.
-        if m.progress < 1.0 || m.ticks > 1 {
-            let (pos, ticks) = (m.pos, m.ticks);
-            self.destroy_progress_event(pos, hit.face, ticks);
-        }
         let m = self.mining.as_mut().ok_or("mining")?;
         // ServerPlayerGameMode breaks a player's block at once only when it is instant (START's
         // insta-mine); otherwise it waits for the client's STOP_DESTROY_BLOCK
@@ -5518,29 +5489,6 @@ impl Game<'_> {
             self.started.elapsed().as_millis() as i64
         }
     }
-    /// `PresenceHandler.getPresenceStatus`: what an all-sharing player is doing, for
-    /// the friends service's `updatePresence`.
-    fn presence_status(&self) -> horizon_client::social::PresenceStatus {
-        use horizon_client::social::PresenceStatus;
-        if self.integrated.is_some() {
-            // `getSingleplayerServer().getMultiplayerScope()`: LAN while the world is
-            // opened to LAN (a pause-menu Open to LAN or an invite code).
-            if self.lan.is_some() {
-                PresenceStatus::PlayingHostedServer
-            } else {
-                PresenceStatus::PlayingOffline
-            }
-        } else if self.remote.is_some() {
-            // `getCurrentServer().isRealm()`: the connection came from Realms.
-            if self.realm_session {
-                PresenceStatus::PlayingRealms
-            } else {
-                PresenceStatus::PlayingServer
-            }
-        } else {
-            PresenceStatus::Online
-        }
-    }
     fn tick(&mut self) -> Result<()> {
         if self.agent.hold_server {
             return Ok(());
@@ -5686,7 +5634,6 @@ impl Game<'_> {
             self.tick_summoned_eyes();
             self.ordered_before(ordered_tick::Batch::ArmorStands)?;
             horizon_client::spans::time("tick_armor_stands", || self.tick_armor_stands())?;
-            horizon_client::spans::time("tick_cushions", || self.tick_cushions());
             // ServerLevel.tick: the arrivals of this server tick are in the level
             // (`addDuringTeleport`), and each vehicle handles its portal as its
             // own tick opens.
@@ -6269,6 +6216,7 @@ impl Game<'_> {
             Screen::Advancements => self.draw_advancements(&mut batch),
             Screen::Mod => {}
             Screen::WorldOptions => self.draw_world_options(&mut batch),
+            Screen::ShareToLan => self.draw_share_to_lan(&mut batch),
             Screen::Friends => self.draw_friends_screen(&mut batch),
             Screen::Social => self.draw_social_screen(&mut batch),
             Screen::ServerLinks => self.draw_server_links(&mut batch),
@@ -6632,7 +6580,7 @@ impl Game<'_> {
         self.entity_motion.borrow_mut().clear();
         self.entity_motion_posed.borrow_mut().clear();
         self.maps.slots.next_frame();
-        // LevelExtractor.extract: the transient blocks queued since the last frame.
+        // LevelRenderer.extractLevel: the transient blocks queued since the last frame.
         self.drain_transient_block_queue();
         self.prepare_entity_culling();
         self.prepare_occlusion_culling(camera);
@@ -7272,7 +7220,6 @@ impl Game<'_> {
         self.mark_entity(out.len(), "minecraft:armor_stand");
         self.armor_stand_geometry(camera, alpha, &mut out);
         self.mark_motion(out.len(), 0);
-        self.cushion_geometry(camera, &mut out);
         self.mark_entity(out.len(), "minecraft:oak_boat");
         self.boat_geometry(camera, alpha, &mut out);
         self.mark_motion(out.len(), 0);
@@ -7730,7 +7677,7 @@ impl Game<'_> {
         self.ambience.clear(&mut self.audio);
         // updateLevelInEngines(null): every sound stops; the music manager
         // lets go of its track.
-        self.music.stop_playing(None, &mut self.audio);
+        self.music.stop_playing(&mut self.audio);
         self.audio.stop_all();
         if self.remote.is_some() {
             self.world_icon = None;
@@ -7792,7 +7739,6 @@ impl Game<'_> {
         self.boats.clear();
         self.carts.clear();
         self.armor_stands.clear();
-        self.cushions.clear();
         self.item_frames.clear();
         self.paintings.clear();
         self.others.clear();
@@ -7929,11 +7875,17 @@ impl Game<'_> {
                 })
             }
         }
-        let id = self
-            .res
-            .items()
-            .get(&stack.item)
-            .and_then(|i| i.block_transformer.clone())?;
+        // 26.1 has no `block_transformer` component: the tool class is the
+        // item — every axe, hoe and shovel transforms blocks.
+        let id = if stack.item.ends_with("_axe") {
+            "minecraft:axe"
+        } else if stack.item.ends_with("_hoe") {
+            "minecraft:hoe"
+        } else if stack.item.ends_with("_shovel") {
+            "minecraft:shovel"
+        } else {
+            return None;
+        };
         // playerHasBlockingItemUseIntent: a shield in the off hand is raised
         // instead, unless sneaking.
         let shield = self
@@ -8606,7 +8558,7 @@ impl Game<'_> {
         ));
         self.apply_ui_settings();
     }
-    /// `LevelExtractor.allChanged`: displayed sections and mesh work are
+    /// `LevelRenderer.allChanged`: displayed sections and mesh work are
     /// discarded, then every loaded section is rebuilt.
     fn all_sections_changed(&mut self) {
         self.clear_lod();
@@ -8701,8 +8653,7 @@ impl Game<'_> {
         // RespawnConfig(the head, the player's yaw), not forced). It replaces
         // an anchor or a spawnpoint; respawning checks the bed is still there
         // and finds where to stand up (findRespawnAndUseSpawnBlock).
-        // Straw beds never set it (`straw_bed_rule`).
-        if problem.is_none() && self.bed_sets_spawn(state) {
+        if problem.is_none() && self.bed_sets_spawn() {
             let config = respawn_anchor::RespawnConfig::wrapped(self.dim, head, yaw, false);
             // ServerPlayer.setRespawnPosition: the chat message only when the
             // point moved (`isSamePosition`).
@@ -8816,13 +8767,9 @@ impl Game<'_> {
                 return;
             }
         }
-        // LivingEntity.startSleeping: the shape the bed gives the player to
-        // lie on (`getSleepHeight`). A straw bed's head answers with its
-        // foot's shape, and with no foot of its own there is none, so the
-        // player stays up as `startSleeping` returning false leaves them.
-        let Some(at) = self.sleeping_position(head) else {
-            return;
-        };
+        // LivingEntity.startSleeping (26.1): void, no sleep-height check.
+        // The sleeper always lies at the flat bed height (setPosToBed).
+        let at = self.sleeping_position(head);
         // LivingEntity.startSleeping: stopRiding once the bed is valid.
         self.stop_riding();
         self.stop_mining();
@@ -8898,11 +8845,11 @@ impl Game<'_> {
                 self.wake_up();
                 return;
             }
-            // setPosToBed: the bed's top (`getSleepHeight`) and 0.125 above
-            // it. A sleeper whose bed no longer gives a shape to lie on stays
-            // where it is: vanilla only ever places a sleeper when it starts.
+            // setPosToBed: the flat 26.1 height, 0.6875 above the head
+            // block's base. Vanilla only ever places a sleeper when it
+            // starts; re-applying each tick keeps the sleeper pinned here.
             let at = self.sleeping_position(head);
-            if let (Some(p), Some(at)) = (self.player.as_mut(), at) {
+            if let Some(p) = self.player.as_mut() {
                 p.position = at;
                 p.velocity = Vec3::ZERO;
                 p.pitch = 0.0;
@@ -9523,7 +9470,7 @@ impl Game<'_> {
         let debug_lines = horizon_client::gizmos::camera_relative(&lines, at, view);
         let debug_lines_on_top = horizon_client::gizmos::camera_relative(&on_top, at, view);
         let debug_crosshair = horizon_client::gizmos::camera_relative(&crosshair.on_top, at, view);
-        // LevelExtractor.extractBlockOutline: model translucency controls draw order;
+        // LevelRenderer.extractBlockOutline: model translucency controls draw order;
         // no outline when an entity is targeted (Minecraft.hitResult an EntityHitResult).
         let mut outline_after_terrain = false;
         // GameRenderer.shouldRenderBlockOutline: not with the HUD hidden (F1), and only for a
@@ -10464,7 +10411,6 @@ impl Game<'_> {
                     if let Some(r) = &mut self.renderer {
                         r.resize(size.width, size.height);
                     }
-                    self.observe_fullscreen();
                 }
                 WindowEvent::Focused(focused) => {
                     self.focused = focused;
@@ -10718,6 +10664,9 @@ impl Game<'_> {
                     }
                     if self.screen == Screen::WorldOptions && d != 0.0 {
                         self.world_options_scroll(d);
+                    }
+                    if self.screen == Screen::ShareToLan && d != 0.0 {
+                        self.share_to_lan_scroll(d);
                     }
                     if self.screen == Screen::ServerLinks && d != 0.0 {
                         self.server_links_scroll(d);
@@ -11041,6 +10990,9 @@ impl Game<'_> {
                         Screen::WorldOptions if pressed && button == MouseButton::Left => {
                             self.world_options_click()
                         }
+                        Screen::ShareToLan if pressed && button == MouseButton::Left => {
+                            self.share_to_lan_click()
+                        }
                         Screen::ServerLinks if pressed && button == MouseButton::Left => {
                             self.server_links_click()?
                         }
@@ -11237,6 +11189,12 @@ impl Game<'_> {
                 {
                     self.world_options_key(&event)
                 }
+                WindowEvent::KeyboardInput { event, .. }
+                    if self.screen == Screen::ShareToLan
+                        && !matches!(event.physical_key, PhysicalKey::Code(KeyCode::Escape)) =>
+                {
+                    self.share_to_lan_key(&event)
+                }
                 WindowEvent::KeyboardInput { event, .. } if self.screen == Screen::Win => {
                     self.win_key(&event)?
                 }
@@ -11400,7 +11358,6 @@ impl Game<'_> {
                 }
                 WindowEvent::RedrawRequested => {
                     horizon_client::spans::time("recover_device", || self.recover_device())?;
-                    self.observe_fullscreen();
                     self.sync_ime();
                     let now = Instant::now();
                     let frame_cpu = self
@@ -11463,10 +11420,6 @@ impl Game<'_> {
                     let steps = self.clock.advance(elapsed);
                     for _ in 0..steps {
                         let started = Instant::now();
-                        // Minecraft.runTick: the friends presence handler ticks before
-                        // the world's own ticks.
-                        horizon_client::social::set_presence_status(self.presence_status());
-                        horizon_client::social::tick();
                         // Minecraft.tick: ClientTickEvent.Pre before any of it.
                         self.native_client_tick_pre();
                         if self.title.is_none() && !self.pause {
@@ -11883,7 +11836,7 @@ impl<'a> Game<'a> {
             ime_area: None,
             focus_lost: None,
             modifiers: winit::keyboard::ModifiersState::empty(),
-            fullscreen: horizon_client::window::FullscreenState::new(false),
+            fullscreen: horizon_client::window::FullscreenState::new(false, false),
             video_modes: Default::default(),
             mouse: MouseLook::default(),
             agent_pointer: false,
@@ -12078,7 +12031,6 @@ impl<'a> Game<'a> {
             glow_map_frame_model: prepared.glow_map_frame_model,
             armor_stands: Default::default(),
             location_armor: Default::default(),
-            cushions: Vec::new(),
             others: Vec::new(),
             armor_stand_assets: prepared.armor_stand_assets,
             waypoint_styles: prepared.waypoint_styles,
@@ -12095,7 +12047,6 @@ impl<'a> Game<'a> {
             leash_boats: Vec::new(),
             boat_models: prepared.boat_models,
             crystal_model: prepared.crystal_model,
-            cushion_model: prepared.cushion_model,
             entity_models: prepared.entity_models,
             carts: Default::default(),
             watched_vehicles: Vec::new(),
@@ -12226,6 +12177,7 @@ impl<'a> Game<'a> {
             level_shapes: Default::default(),
             serving: None,
             world_options: None,
+            share_to_lan: None,
             options_to_world_options: false,
             command_block_screen: None,
             block_editor: None,
@@ -12276,7 +12228,6 @@ impl<'a> Game<'a> {
             guest_inventory_resend: false,
             lan_events: Vec::new(),
             lan_songs: Vec::new(),
-            lan_cushion_breaks: Vec::new(),
             lan_block_events: Vec::new(),
             lan_entity_events: Vec::new(),
             lan_critical_hits: Vec::new(),
@@ -12436,12 +12387,11 @@ fn load_world_rest(
         if !draws {
             return Ok(Default::default());
         }
-        let mut renderer = BlockEntityRenderer::load_with_visibility_models_and_defaults(
+        let mut renderer = BlockEntityRenderer::load_with_visibility_models(
             root,
             registry,
             visibility,
             entity_models.as_ref().map(|document| document.value()),
-            item_defaults,
         )?;
         renderer.add_mod_signs(facts, registry);
         Ok(renderer)
@@ -13049,8 +12999,6 @@ mod fence_leash_force_tests;
 mod golem_defense_tests;
 #[cfg(test)]
 mod hoglin_repeat_attack_tests;
-#[cfg(test)]
-mod inline_feature_parse_tests;
 #[cfg(test)]
 mod inline_loot_reference_tests;
 #[cfg(test)]

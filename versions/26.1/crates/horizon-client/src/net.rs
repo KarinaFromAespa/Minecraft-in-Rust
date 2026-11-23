@@ -2334,11 +2334,9 @@ mod tests {
         use horizon_protocol::entity_data::{Value, serializer};
 
         let session = Session::replay("StudioTester");
-        session.record_clientbound(&play::Clientbound::SwingAnimation(play::SwingAnimation {
+        session.record_clientbound(&play::Clientbound::Animate(play::Animate {
             id: 1,
-            hand: 0,
-            kind: 0,
-            duration: 6,
+            action: 0,
         }));
         let recorder = TestRecorder::default();
         // What `initialize` writes comes first.
@@ -2356,12 +2354,7 @@ mod tests {
             let id = reader.varint().unwrap();
             rec.record_packet(id, reader.rest());
         });
-        let swing_pkt = play::Clientbound::SwingAnimation(play::SwingAnimation {
-            id: 42,
-            hand: 0,
-            kind: 1,
-            duration: 6,
-        });
+        let swing_pkt = play::Clientbound::Animate(play::Animate { id: 42, action: 0 });
         session.record_clientbound(&swing_pkt);
         let data_pkt = play::Clientbound::SetEntityData(play::SetEntityData {
             id: 42,

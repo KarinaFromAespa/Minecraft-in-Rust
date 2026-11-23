@@ -499,7 +499,7 @@ impl Entities {
             }
             play::Clientbound::EntityPositionSync(p) => {
                 if let Some(e) = self.0.get_mut(&p.id) {
-                    e.pos = p.position;
+                    e.pos = p.values.position;
                 }
             }
             play::Clientbound::SetEntityData(p) => {
@@ -1653,7 +1653,7 @@ mod tests {
             &mut e,
             &Clientbound::MoveEntityPos(MoveEntityPos(MoveEntity {
                 id: 7,
-                delta: Some(VecDelta::Linear([4096, 0, -8192])),
+                delta: Some(VecDelta([4096, 0, -8192])),
                 rotation: None,
                 on_ground: true,
             })),

@@ -245,14 +245,13 @@ impl Game<'_> {
                 g.mob_hits_player(s.amount, s.from, "minecraft:spear")
             };
             g.combat.player_attacker = None;
-            // causeExtraKnockback: a push of 0.4, then the weapon's Knockback,
-            // whether or not the hurt went through.
+            // causeExtraKnockback: one push of 0.4 plus the weapon's
+            // Knockback, whether or not the hurt went through (26.2 split
+            // it into two pushes, which halves the victim's velocity and
+            // damps the attacker twice).
             let (strength, xd, zd) = s.knockback;
             if s.deals_knockback {
-                g.knock_back_player(0.4, xd, zd, SPEAR_SOURCE);
-                if strength > 0.0 {
-                    g.knock_back_player(f64::from(strength), xd, zd, SPEAR_SOURCE);
-                }
+                g.knock_back_player(0.4 + f64::from(strength), xd, zd, SPEAR_SOURCE);
             }
             if hurt
                 && s.ignite > 0.0

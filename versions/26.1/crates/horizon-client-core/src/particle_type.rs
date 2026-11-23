@@ -1,5 +1,12 @@
 //! Particle types (`ParticleTypes`): the vanilla particle types with a client
 //! implementation, by registry name, and their per-type flags.
+//!
+//! Eight variants are 26.2-only and unreachable in 26.1 (`geyser`,
+//! `geyser_base`, `geyser_poof`, `geyser_plume`, `noxious_gas`,
+//! `noxious_gas_cloud`, `sulfur_bubbles`, `sulfur_cube_goo`): 26.1's
+//! `ParticleTypes` has no such fields. They are kept, as the unreachable
+//! `SulfurCube` module is, because no 26.1 data references them and every
+//! `ParticleType::ALL` consumer skips types with no prepared data.
 
 macro_rules! particle_types {
     ($($variant:ident = $name:literal),* $(,)?) => {
@@ -203,7 +210,7 @@ impl ParticleType {
             | Self::Witch | Self::Infested | Self::TrialOmen | Self::RaidOmen
             // NoxiousGasParticle.
             | Self::NoxiousGas
-            // EmissiveRisingParticle.
+            // SoulParticle (26.3 renamed it EmissiveRisingParticle).
             | Self::Soul | Self::SculkSoul
             // SculkChargeParticle, SculkChargePopParticle, ShriekParticle,
             // VibrationSignalParticle, FireflyParticle, OverlayParticle.

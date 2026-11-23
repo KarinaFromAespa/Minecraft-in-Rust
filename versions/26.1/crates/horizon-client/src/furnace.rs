@@ -212,9 +212,10 @@ mod tests {
         assert!(!furnace(stack("minecraft:iron_ore"), None, 0, 5).idle());
     }
 
-    /// A data root holding one recipe, `test:ore` into `test:ingot`, and an item table
-    /// with two fuels: `test:coal` (no remainder) and `test:cell` (a content mod's item
-    /// that leaves `test:husk`). The folder is gone when this returns.
+    /// A data root holding one recipe, `test:ore` into `test:ingot`, and two
+    /// real fuels: `minecraft:coal` (burn 1600, no remainder) and
+    /// `minecraft:lava_bucket` (burn 20000, leaves a bucket). The folder is
+    /// gone when this returns.
     fn data(name: &str) -> (Items, Recipes, Providers) {
         let root =
             std::env::temp_dir().join(format!("horizon-furnace-{name}-{}", std::process::id(),));
@@ -226,18 +227,9 @@ mod tests {
         )
         .unwrap();
         fs::create_dir_all(root.join("data/minecraft/loot_table")).unwrap();
-        let fuel_component =
-            r#"{"minecraft:cooking_fuel": {"burn_time": 200, "speed_multiplier": 1.0}}"#;
         fs::write(
             root.join("items.json"),
-            format!(
-                r#"{{"test:ore": {{}}, "test:ingot": {{}}, "test:coal": {fuel_component}, "test:cell": {fuel_component}, "test:husk": {{}}}}"#
-            ),
-        )
-        .unwrap();
-        fs::write(
-            root.join(horizon_items::items::MOD_CRAFT_REMAINDERS),
-            r#"{"test:cell": "test:husk"}"#,
+            r#"{"test:ore": {}, "test:ingot": {}, "minecraft:coal": {}, "minecraft:lava_bucket": {}, "minecraft:bucket": {}}"#,
         )
         .unwrap();
         let items = Items::catalog(&root, &PackOverlay::NONE).unwrap();
@@ -327,7 +319,7 @@ mod tests {
                 kind: FurnaceKind::Furnace,
                 items: [
                     Some(ItemStack::new("test:ore", 3)),
-                    Some(ItemStack::new("test:coal", 1)),
+                    Some(ItemStack::new("minecraft:coal", 1)),
                     output,
                 ],
                 lit_remaining: 0,
@@ -390,7 +382,7 @@ mod tests {
         let idle = [
             furnace(None, None, None),
             furnace(stack("test:ore"), None, None),
-            furnace(None, stack("test:coal"), None),
+            furnace(None, stack("minecraft:coal"), None),
             furnace(None, None, stack("test:ingot")),
             furnace(stack("test:ingot"), None, stack("test:ingot")),
         ];
@@ -403,7 +395,7 @@ mod tests {
             assert!(drops.is_empty(), "{before:?}");
             assert_eq!(format!("{after:?}"), format!("{before:?}"));
         }
-        let mut busy = furnace(stack("test:ore"), stack("test:coal"), None);
+        let mut busy = furnace(stack("test:ore"), stack("minecraft:coal"), None);
         assert!(!busy.idle());
         let before = format!("{busy:?}");
         assert_eq!(
@@ -445,27 +437,27 @@ mod tests {
     /// leaves it in the fuel slot.
     #[test]
     fn the_last_fuel_leaves_its_remainder_in_the_slot() {
-        let (furnace, drops) = burn("test:cell", 1);
-        assert_eq!(fuel_slot(&furnace), Some(("test:husk", 1)));
+        let (furnace, drops) = burn("minecraft:lava_bucket", 1);
+        assert_eq!(fuel_slot(&furnace), Some(("minecraft:bucket", 1)));
         assert!(drops.is_empty());
     }
 
     /// With more of the fuel left, the remainder is dropped at the furnace.
     #[test]
     fn a_fuel_still_in_the_stack_drops_its_remainder() {
-        let (furnace, drops) = burn("test:cell", 3);
-        assert_eq!(fuel_slot(&furnace), Some(("test:cell", 2)));
-        assert_eq!(drops, vec![ItemStack::new("test:husk", 1)]);
+        let (furnace, drops) = burn("minecraft:lava_bucket", 3);
+        assert_eq!(fuel_slot(&furnace), Some(("minecraft:lava_bucket", 2)));
+        assert_eq!(drops, vec![ItemStack::new("minecraft:bucket", 1)]);
     }
 
     /// A fuel without a remainder leaves nothing.
     #[test]
     fn a_fuel_without_a_remainder_leaves_nothing() {
-        let (furnace, drops) = burn("test:coal", 1);
+        let (furnace, drops) = burn("minecraft:coal", 1);
         assert_eq!(fuel_slot(&furnace), None);
         assert!(drops.is_empty());
-        let (furnace, drops) = burn("test:coal", 2);
-        assert_eq!(fuel_slot(&furnace), Some(("test:coal", 1)));
+        let (furnace, drops) = burn("minecraft:coal", 2);
+        assert_eq!(fuel_slot(&furnace), Some(("minecraft:coal", 1)));
         assert!(drops.is_empty());
     }
 }

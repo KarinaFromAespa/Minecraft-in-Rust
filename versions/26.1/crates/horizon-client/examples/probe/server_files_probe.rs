@@ -296,14 +296,6 @@ fn print_properties(p: &ServerProperties, before: &str, out: &mut String) -> std
             p.max_chained_neighbor_updates.to_string(),
         ),
         ("rate-limit", p.rate_limit.to_string()),
-        (
-            "command-spam-threshold-seconds",
-            p.command_spam_threshold_seconds.to_string(),
-        ),
-        (
-            "chat-spam-threshold-seconds",
-            p.chat_spam_threshold_seconds.to_string(),
-        ),
         ("view-distance", p.view_distance.to_string()),
         ("simulation-distance", p.simulation_distance.to_string()),
         ("max-players", p.max_players.to_string()),

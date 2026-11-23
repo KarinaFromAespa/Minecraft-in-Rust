@@ -23,8 +23,10 @@ use horizon_client::{
 };
 use horizon_protocol::{
     entity_data::{Value, serializer},
-    packets::play::{self, Clientbound as C},
+    packets::play,
 };
+#[cfg(test)]
+use horizon_protocol::packets::play::Clientbound as C;
 use horizon_world::block_collision::BlockCollisionRegistry;
 use level_event_targets::level_event_except;
 use std::{
@@ -1373,7 +1375,7 @@ impl Game<'_> {
             return Err("no world of this game to open".into());
         };
         self.system_message(Text::translate(
-            "menu.multiplayerOptions.publish.started.lan",
+            "commands.publish.started",
             &[Text::literal(port.to_string())],
         ));
         Ok(())
@@ -1481,7 +1483,7 @@ impl Game<'_> {
         Ok(())
     }
 
-    /// IntegratedServer.unpublishServer: the guests are sent away.
+    /// Stop the LAN listener: the guests are sent away.
     pub(super) fn lan_close(&mut self, announce: bool) {
         if self.integrated.is_some() || self.serving() {
             let closed = match &self.integrated {
@@ -1491,12 +1493,9 @@ impl Game<'_> {
             if closed {
                 self.friends_lan_closed();
             }
-            if closed && announce && self.integrated.is_some() {
-                self.system_message(Text::translate(
-                    "menu.multiplayerOptions.publish.stopped",
-                    &[],
-                ));
-            }
+            // 26.1's unpublish sends no chat message (there is no
+            // "publish stopped" key in its lang).
+            let _ = announce;
             return;
         }
         self.friends_lan_closed();
@@ -1515,14 +1514,9 @@ impl Game<'_> {
         self.lan_events.clear();
         self.lan_songs.clear();
         self.lan_critical_hits.clear();
-        self.lan_cushion_breaks.clear();
         self.streaming.extra.clear();
-        if announce {
-            self.system_message(Text::translate(
-                "menu.multiplayerOptions.publish.stopped",
-                &[],
-            ));
-        }
+        // 26.1's unpublish sends no chat message.
+        let _ = announce;
     }
 
     /// `PlayerList.removeAll`: every guest leaves in turn, the vehicle it
@@ -1848,6 +1842,19 @@ impl Game<'_> {
         }
     }
 
+    /// `IntegratedServer.publishServer`'s game type: the mode joining
+    /// players get (`publishedGameType`), without touching the world's
+    /// own game mode or the guests already online.
+    pub(super) fn set_published_game_type(&mut self, mode: i32) {
+        if let Some(server) = &self.integrated {
+            server.call(move |g| g.set_published_game_type(mode));
+            return;
+        }
+        if let Some(host) = self.lan.as_mut() {
+            host.hub.config.default_game_mode = mode;
+        }
+    }
+
     /// Apply the default mode to connected players when forcing it is enabled.
     pub(super) fn set_force_game_mode(&mut self, force: bool) {
         if let Some(host) = self.lan.as_mut() {
@@ -1992,8 +1999,7 @@ impl Game<'_> {
             e.on_ground = place.on_ground;
             e.velocity = place.velocity;
             e.needs_sync = m.needs_sync;
-            e.sync_position = m.sync_position;
-            e.stepped = true;
+            e.fall_flying = m.extra.fall_flying;
             (e.idle, e.bare) = (idle, bare);
             e.leash = leash;
             if bare {
@@ -2037,11 +2043,8 @@ impl Game<'_> {
             let stack = hub.stack(&Some(d.stack.clone()));
             // `ServerEntity.getRequiresPrecisePosition` is false for an item:
             // `needs_sync` asks for its data again, not for an exact position.
-            // The collision case is `full_precision_required` in the tracker.
             e.precise = false;
             e.needs_sync = d.needs_sync;
-            e.vertical_collision = d.vertical_collision;
-            e.horizontal_collision = d.horizontal_collision;
             // Entity.DATA_SHARED_FLAGS_ID: glowing 0x40 (the Glowing tag).
             if self.entity_glowing(d.id) {
                 e.meta.push((0, serializer::BYTE, Value::Byte(0x40)));
@@ -2111,7 +2114,7 @@ impl Game<'_> {
                             );
                         }
                         let conn = g.conn;
-                        self.detect_rate_spam(&mut host, conn, false);
+                        self.detect_rate_spam(&mut host, conn);
                     }
                 }
                 HostEvent::Joined(conn) => {
@@ -2722,10 +2725,8 @@ impl Game<'_> {
                 }
             }
             // ServerEntity.sendChanges clears needsSync once it has looked.
-            // SteppedInterpolationTracker.updateTracking clears syncPosition.
             for m in &mut self.mobs {
                 m.needs_sync = false;
-                m.sync_position = false;
             }
             for p in &mut self.creatures.projectiles {
                 p.needs_sync = false;
@@ -3220,32 +3221,6 @@ impl Game<'_> {
     fn lan_flush_effects(&mut self, host: &mut LanHost) {
         let critical_hits = std::mem::take(&mut self.lan_critical_hits);
         let kinetic_hits = std::mem::take(&mut self.lan_kinetic_hits);
-        for (state, at) in std::mem::take(&mut self.lan_cushion_breaks) {
-            if let Some(id) = host
-                .hub
-                .registry_id("minecraft:particle_type", "minecraft:block")
-            {
-                host.hub.broadcast_near(
-                    at,
-                    32.0,
-                    &C::LevelParticles(play::LevelParticles {
-                        particle: horizon_protocol::entity_data::Particle {
-                            id,
-                            data: Some(horizon_protocol::entity_data::ParticleData::State(
-                                state.0 as i32,
-                            )),
-                        },
-                        override_limiter: false,
-                        always_show: false,
-                        pos: at,
-                        dist: [0.25, 0.0625, 0.25],
-                        max_speed: 0.05,
-                        count: 10,
-                    }),
-                    None,
-                );
-            }
-        }
         for (kind, pos, data, acting) in std::mem::take(&mut self.lan_events) {
             if kind == 2001 {
                 host.broken

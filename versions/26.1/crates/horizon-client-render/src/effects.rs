@@ -153,8 +153,9 @@ fn periodic(id: &str, tick: i32, amp: i32) -> Option<EffectAction> {
         _ => None,
     }
 }
-/// `HealOrHarmMobEffect.applyInstantaneousEffect` (potions apply these directly;
-/// the amount rounds to the nearest whole point).
+/// `HealOrHarmMobEffect.applyInstantenousEffect` — 26.1 spells the method
+/// so (26.2 fixed the typo to `applyInstantaneousEffect`); potions apply
+/// these directly, and the amount rounds to the nearest whole point.
 pub fn instant(id: &str, amp: i32, scale: f64) -> Option<EffectAction> {
     match id {
         "instant_health" => Some(EffectAction::Heal(

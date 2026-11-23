@@ -3,9 +3,11 @@
 use super::*;
 use horizon_core::{
     density::{
-        BlendedNoise, CubicSpline, DistanceMetric, RoundMode, ShiftNoiseKind, SplinePoint,
-        TilingMode, WorldField,
-        graph::{DensityGraph, FunctionId, GraphBinary, GraphNode, GraphUnary, NoiseId},
+        BlendedNoise, CubicSpline, RoundMode, ShiftNoiseKind, SplinePoint, TilingMode, WorldField,
+        graph::{
+            DensityGraph, FunctionId, GraphBinary, GraphNode, GraphUnary, NoiseId,
+            WeirdRarityMapper,
+        },
     },
     geometry::Axis,
 };
@@ -32,12 +34,14 @@ pub(super) fn identifier(name: &str) -> Result<String, DecodeError> {
 fn string(raw: &RawValue) -> Result<String, DecodeError> {
     Ok(serde_json::from_str(raw.get())?)
 }
-fn float(raw: &RawValue) -> Result<f32, DecodeError> {
+/// Vanilla 26.1 decodes density constants, spline locations and derivatives
+/// as doubles; parse the JSON number directly as f64 (never via f32).
+fn float(raw: &RawValue) -> Result<f64, DecodeError> {
     number_text(raw)?
         .parse()
         .map_err(|_| DecodeError::Field("float"))
 }
-fn noise_value(raw: &RawValue) -> Result<f32, DecodeError> {
+fn noise_value(raw: &RawValue) -> Result<f64, DecodeError> {
     let value = float(raw)?;
     if (-1e6..=1e6).contains(&value) {
         Ok(value)
@@ -183,7 +187,7 @@ impl Loader {
         &mut self,
         object: &Object,
         name: &'static str,
-        fallback: f32,
+        fallback: f64,
         depth: usize,
     ) -> Result<FunctionId, DecodeError> {
         match optional(object, name) {
@@ -256,11 +260,28 @@ impl Loader {
                 "minecraft:blend_alpha" => GraphNode::WorldField(WorldField::BlendAlpha),
                 "minecraft:blend_offset" => GraphNode::WorldField(WorldField::BlendOffset),
                 "minecraft:beardifier" => GraphNode::WorldField(WorldField::Beardifier),
-                "minecraft:end_outer_islands" => GraphNode::EndIslands,
+                // Vanilla 26.1's `minecraft:end_islands` includes the central
+                // island cone (its `getHeightValue` seeds with
+                // `clamp(100 - sqrt(sx^2 + sz^2) * 8, -100, 80)`); 26.3 renamed
+                // the function to `end_outer_islands` and moved the cone
+                // into the data graph (`minecraft:end/islands`).
+                "minecraft:end_islands" => GraphNode::EndIslands { central: true },
+                "minecraft:end_outer_islands" => GraphNode::EndIslands { central: false },
                 "minecraft:cache" => GraphNode::Cache(self.input(&object, "input", depth)?),
                 "minecraft:blend_density" => {
                     GraphNode::BlendDensity(self.input(&object, "input", depth)?)
                 }
+                // 26.1's y-clamped gradient: Mth.clampedMap(y, fromY, toY,
+                // fromValue, toValue) — the same clamped lerp the Y-axis
+                // ClampToEdge gradient sampler computes.
+                "minecraft:y_clamped_gradient" => GraphNode::Gradient {
+                    axis: Axis::Y,
+                    tiling: TilingMode::ClampToEdge,
+                    from: integer(required(&object, "from_y")?)?,
+                    to: integer(required(&object, "to_y")?)?,
+                    low: noise_value(required(&object, "from_value")?)?,
+                    high: noise_value(required(&object, "to_value")?)?,
+                },
                 "minecraft:pow" => GraphNode::Power {
                     base: self.input(&object, "base", depth)?,
                     exponent: self.input(&object, "exponent", depth)?,
@@ -277,31 +298,13 @@ impl Loader {
                         multiple: self.optional_input(&object, "multiple", 1.0, depth)?,
                     }
                 }
-                "minecraft:gradient" => {
-                    let from = integer(required(&object, "from_coordinate")?)?;
-                    let to = integer(required(&object, "to_coordinate")?)?;
-                    if from == to {
-                        return Err(DecodeError::Field("gradient coordinates"));
-                    }
-                    GraphNode::Gradient {
-                        axis: axis(required(&object, "axis")?)?,
-                        tiling: match optional(&object, "tiling")
-                            .map(string)
-                            .transpose()?
-                            .as_deref()
-                            .unwrap_or("clamp_to_edge")
-                        {
-                            "clamp_to_edge" => TilingMode::ClampToEdge,
-                            "repeat" => TilingMode::Repeat,
-                            "mirrored_repeat" => TilingMode::MirroredRepeat,
-                            _ => return Err(DecodeError::Field("tiling")),
-                        },
-                        from,
-                        to,
-                        low: noise_value(required(&object, "from_value")?)?,
-                        high: noise_value(required(&object, "to_value")?)?,
-                    }
-                }
+                // No minecraft:gradient arm: the general gradient with an
+                // axis and a tiling mode (clamp_to_edge/repeat/
+                // mirrored_repeat) is 26.3's GradientFunction. 26.1 has
+                // only y_clamped_gradient (Y axis, clamped); 26.3 dropped
+                // y_clamped_gradient for the general form. The graph's
+                // Gradient node and TilingMode stay in horizon-core for the
+                // density-parity harness's own gradient cases.
                 "minecraft:noise" => GraphNode::Noise {
                     noise: self.noise(&object)?,
                     xz_scale: double(required(&object, "xz_scale")?)?,
@@ -320,6 +323,18 @@ impl Loader {
                         },
                     }
                 }
+                // 26.1-only: 26.2 dropped weird_scaled_sampler. The overworld
+                // spaghetti caves (`spaghetti_2d`, `entrances`) use it, so a
+                // 26.1 router cannot decode without this arm.
+                "minecraft:weird_scaled_sampler" => GraphNode::WeirdScaledSampler {
+                    input: self.input(&object, "input", depth)?,
+                    noise: self.noise(&object)?,
+                    mapper: match string(required(&object, "rarity_value_mapper")?)?.as_str() {
+                        "type_1" => WeirdRarityMapper::Type1,
+                        "type_2" => WeirdRarityMapper::Type2,
+                        _ => return Err(DecodeError::Field("rarity_value_mapper")),
+                    },
+                },
                 "minecraft:old_blended_noise" => GraphNode::BlendedNoise(BlendedNoise {
                     xz_scale: double_range(
                         required(&object, "xz_scale")?,
@@ -402,15 +417,14 @@ impl Loader {
                     inside: self.input(&object, "when_in_range", depth)?,
                     outside: self.input(&object, "when_out_of_range", depth)?,
                 },
-                "minecraft:lerp" => GraphNode::Lerp {
-                    alpha: self.input(&object, "alpha", depth)?,
-                    first: self.input(&object, "first", depth)?,
-                    second: self.input(&object, "second", depth)?,
-                },
+                // No minecraft:lerp arm: LerpFunction is 26.3-only (26.1's
+                // DensityFunctions.bootstrap does not register it), so a
+                // lerp in 26.1 data falls through to the unknown-type error
+                // below, as vanilla 26.1 rejects it.
                 "minecraft:interval_select" => {
                     let thresholds: Vec<Box<RawValue>> =
                         serde_json::from_str(required(&object, "thresholds")?.get())?;
-                    let thresholds: Vec<f32> = thresholds
+                    let thresholds: Vec<f64> = thresholds
                         .iter()
                         .map(|raw| noise_value(raw))
                         .collect::<Result<_, _>>()?;
@@ -436,22 +450,10 @@ impl Loader {
                         branches,
                     }
                 }
-                "minecraft:distance_to_point" => {
-                    let raw: Vec<Box<RawValue>> =
-                        serde_json::from_str(required(&object, "point")?.get())?;
-                    if raw.len() != 3 {
-                        return Err(DecodeError::Field("point"));
-                    }
-                    let point = [integer(&raw[0])?, integer(&raw[1])?, integer(&raw[2])?];
-                    let metric = match string(required(&object, "metric")?)?.as_str() {
-                        "euclidean" => DistanceMetric::Euclidean,
-                        "euclidean_squared" => DistanceMetric::EuclideanSquared,
-                        "manhattan" => DistanceMetric::Manhattan,
-                        "chebyshev" => DistanceMetric::Chebyshev,
-                        _ => return Err(DecodeError::Field("metric")),
-                    };
-                    GraphNode::DistanceToPoint { point, metric }
-                }
+                // No minecraft:distance_to_point arm: DistanceToPointFunction
+                // and DistanceMetric are 26.3-only (26.1's
+                // DensityFunctions.bootstrap does not register it), so it
+                // falls through to the unknown-type error below.
                 "minecraft:spline" => {
                     GraphNode::Spline(self.spline(required(&object, "spline")?, depth + 1)?)
                 }
@@ -519,7 +521,7 @@ mod tests {
                 .sample_value(&mut context, [0; 3])
                 .unwrap()
                 .to_bits(),
-            0x8000_0000
+            0x8000_0000_0000_0000
         );
         assert_eq!(
             compiler
@@ -528,7 +530,7 @@ mod tests {
                 .sample_value(&mut context, [0; 3])
                 .unwrap()
                 .to_bits(),
-            0x3f80_0001
+            0x3ff0_0000_1000_0000
         );
     }
     #[test]
@@ -556,6 +558,28 @@ mod tests {
         densities.remove("minecraft:z");
         assert!(DensityRegistry::from_json(&BTreeMap::new(), &densities).is_err());
     }
+    #[test]
+    fn weird_scaled_sampler_decodes_the_26_1_spaghetti_form() {
+        let noises = BTreeMap::from([(
+            "minecraft:spaghetti_2d".to_string(),
+            r#"{"base_octave":-7}"#.to_string(),
+        )]);
+        // The shape of overworld/caves/spaghetti_2d.json in 26.1's data pack.
+        let densities = BTreeMap::from([(
+            "minecraft:a".to_string(),
+            r#"{"type":"minecraft:weird_scaled_sampler","input":{"type":"minecraft:noise","noise":"minecraft:spaghetti_2d","xz_scale":2.0,"y_scale":1.0},"noise":"minecraft:spaghetti_2d","rarity_value_mapper":"type_2"}"#
+                .to_string(),
+        )]);
+        let registry = DensityRegistry::from_json(&noises, &densities).unwrap();
+        assert!(registry.value("minecraft:a").is_some());
+        let bad = BTreeMap::from([(
+            "minecraft:a".to_string(),
+            r#"{"type":"minecraft:weird_scaled_sampler","input":0,"noise":"minecraft:spaghetti_2d","rarity_value_mapper":"type_3"}"#
+                .to_string(),
+        )]);
+        assert!(DensityRegistry::from_json(&noises, &bad).is_err());
+    }
+
     #[test]
     fn codec_validation_rejects_invalid_gradients_intervals_and_splines() {
         for json in [

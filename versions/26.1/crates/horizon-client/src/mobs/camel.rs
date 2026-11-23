@@ -46,12 +46,14 @@ pub fn sitting(m: &Mob) -> bool {
     m.extra.camel_sitting
 }
 /// `Camel.getDefaultDimensions` for `Pose.SITTING`: the adult camel's box
-/// 1.43 lower with its eyes at 0.845, or a baby's 0.425 tall box with its
-/// eyes at 0.41. Standing, an adult has the type's box and a baby
-/// `BABY_STANDING_DIMENSIONS` (the species' baby size).
+/// 1.43 lower with its eyes at 0.845, or a baby's
+/// `SITTING_DIMENSIONS.scale(getAgeScale)` — the sitting box times
+/// `BABY_SCALE` 0.6 (1.02 by 0.567, eyes at 0.507). Standing, an adult
+/// has the type's box and a baby the type's box times 0.6 (26.1 has no
+/// `BABY_STANDING_DIMENSIONS`; 26.2 added it).
 pub fn sitting_dims(baby: bool) -> (f32, f32, f32) {
     if baby {
-        (0.95, 0.425, 0.41)
+        (1.02, 0.567, 0.507)
     } else {
         (1.7, 2.375 - 1.43, 0.845)
     }
@@ -122,8 +124,9 @@ pub fn on_elastic_leash_pull(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEven
 /// seat of the front (`front`) or back rider is on a camel of `height` at
 /// `scale`, following it down and up through the sit and stand animations.
 fn body_anchor_y(m: &Mob, front: bool, height: f32, scale: f32) -> f64 {
-    let age_sit_y_offset = if m.is_baby() { 0.09375 } else { 0.375 };
-    let mut base_sit_offset = f64::from(height) - age_sit_y_offset;
+    // 26.1: height - 0.375F * scale, in float, then widened (26.2 replaced
+    // it with height - (isBaby ? 0.09375 : 0.375) in double).
+    let mut base_sit_offset = f64::from(height - 0.375 * scale);
     let sitting_height_difference = scale * 1.43;
     let vertical_drop = sitting_height_difference - scale * 0.2;
     let bottom_point = sitting_height_difference - vertical_drop;

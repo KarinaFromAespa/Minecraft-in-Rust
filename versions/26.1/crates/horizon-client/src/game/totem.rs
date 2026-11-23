@@ -150,7 +150,7 @@ impl Game<'_> {
             .play_unshared("minecraft:item.totem.use", Some(body.bounds.feet), 1.0, 1.0);
         if target == TrackingTarget::LocalPlayer {
             self.pad_rumble(horizon_client::gamepad::Rumble::Totem);
-            // findTotem, then LocalPlayer.displayItemActivation. The offsets
+            // findTotem, then GameRenderer.displayItemActivation. The offsets
             // come from the player's own random in vanilla, not the level's:
             // the client-only particle random stands in for it. The server
             // half hands over the stack it used up; only an event from a
@@ -180,7 +180,7 @@ impl Game<'_> {
     /// `ScreenEffectRenderer.renderItemActivationAnimation`, for the hand
     /// pass: the item in view space with the hand's projection but none of
     /// the camera's turn or bob (a fresh `PoseStack`), so those are undone
-    /// here. `FIXED` display, no owner, seed 0 (`LevelExtractor`), full
+    /// here. `FIXED` display, no owner, seed 0 (`LevelRenderer`), full
     /// brightness and `Lighting.Entry.ITEMS_3D`. Only F1 hides it.
     pub(super) fn item_activation_geometry(
         &self,

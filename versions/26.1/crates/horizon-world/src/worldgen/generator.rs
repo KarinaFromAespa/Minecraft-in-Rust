@@ -943,7 +943,19 @@ struct Pipeline<R: RandomSource> {
     biome_work: ChunkWork,
     carver_cache: Mutex<HashMap<(i32, i32), BiomeId>>,
     pub(super) decoration: Option<Arc<super::generator_decoration::Decoration>>,
+    /// `ChunkGeneratorStructureState`: built always, from the biome source's
+    /// possible biomes (`ChunkMap` calls `createState` unconditionally), so
+    /// `findNearestMapStructure` locates structures even in a world whose
+    /// `generate_structures` is off. 26.2 added a `generateStructures`
+    /// early-return to `findNearestMapStructure`; 26.1 has none — only the
+    /// chunk step that creates starts is gated (`ChunkStatusTasks.
+    /// generateStructureStarts`), which is what `generate_structures` below
+    /// models.
     pub(super) structures: Option<super::generator_structures::StructureState>,
+    /// `WorldOptions.generateStructures`: whether chunks actually get
+    /// structure starts, references and pieces. False leaves the state above
+    /// in place for locating and manual placement.
+    generate_structures: bool,
     /// Definitions for explicit placement when automatic structure starts are off.
     manual_structures: std::sync::OnceLock<Option<super::generator_structures::StructureState>>,
     /// The noise settings' `spawn_target` points.
@@ -1239,6 +1251,7 @@ where
             carver_cache: Mutex::new(HashMap::new()),
             decoration: None,
             structures: None,
+            generate_structures: with_structures,
             manual_structures: std::sync::OnceLock::new(),
             spawn_target,
             old_world: std::sync::OnceLock::new(),
@@ -1250,33 +1263,22 @@ where
         pipeline.decoration = pipeline
             .data
             .decoration_for(&source_json, &pipeline.source)?;
-        if with_structures {
-            let possible = pipeline
-                .source
-                .possible_biomes()
-                .into_iter()
-                .filter_map(|name| pipeline.data.biome_id(name))
-                .collect();
-            let rings = pipeline.data.rings_for(seed, generator);
-            pipeline.structures =
-                super::generator_structures::StructureState::new(&pipeline.data, &possible, rings)?;
-            if let Some(state) = pipeline.structures.as_mut() {
-                state.fixed_biome = generator["biome_source"]["type"] == "minecraft:fixed";
-            }
-            // ChunkGenerator.createState reads getOrigin: a noise generator
-            // answers the chunk of its NoiseSpawnFinder position, others
-            // chunk 0 0. Only a dimension-origin structure set reads it.
-            if pipeline
-                .structures
-                .as_ref()
-                .is_some_and(|state| state.needs_dimension_origin())
-                && let Ok([x, z]) = pipeline.spawn_column()
-            {
-                let origin = ChunkPos::new(x >> 4, z >> 4);
-                if let Some(state) = pipeline.structures.as_mut() {
-                    state.set_dimension_origin(origin);
-                }
-            }
+        // The structure state is built always, with or without generation:
+        // 26.1's `findNearestMapStructure` locates structures in a
+        // no-structures world (only 26.2 gates it on `generateStructures`),
+        // and manual placement reads the same state. Only the chunk step
+        // that creates starts is gated, by `generate_structures`.
+        let possible = pipeline
+            .source
+            .possible_biomes()
+            .into_iter()
+            .filter_map(|name| pipeline.data.biome_id(name))
+            .collect();
+        let rings = pipeline.data.rings_for(seed, generator);
+        pipeline.structures =
+            super::generator_structures::StructureState::new(&pipeline.data, &possible, rings)?;
+        if let Some(state) = pipeline.structures.as_mut() {
+            state.fixed_biome = generator["biome_source"]["type"] == "minecraft:fixed";
         }
         Ok(pipeline)
     }
@@ -1301,8 +1303,9 @@ where
         };
         Ok(*self.spawn_position.get_or_init(|| position))
     }
-    /// Manual placement reads the registry without enabling the automatic
-    /// structure state, its placement sets, starts or locate searches.
+    /// Manual placement reads the state without generating starts; when the
+    /// data pack has no structure resources at all, a state with no
+    /// possible sets stands in so placement lookups still answer.
     fn placement_structures(&self) -> Option<&super::generator_structures::StructureState> {
         self.structures.as_ref().or_else(|| {
             self.manual_structures
@@ -1624,7 +1627,13 @@ where
         )
         .map_err(stage("noise"))?;
         chunk.set_generation_stage(PreLightChunkStage::Biomes);
-        let (mut references, mut own_starts) = match &self.structures {
+        // `ChunkStatusTasks.generateStructureStarts`: no starts or references
+        // in a world whose `generate_structures` is off, even though the
+        // state itself exists (locating still uses it).
+        let (mut references, mut own_starts) = if !self.generate_structures {
+            (Vec::new(), Starts::default())
+        } else {
+            match &self.structures {
             Some(structures) => {
                 let mut queries = StructureQueries {
                     pipeline: self,
@@ -1637,6 +1646,7 @@ where
                 )
             }
             None => (Vec::new(), Starts::default()),
+            }
         };
         // A native mod may build the chunk's terrain itself.
         let mut generate = NativeGenerate::Vanilla;
@@ -2650,7 +2660,9 @@ where
                     worker,
                     region,
                     &mut random,
-                    self.structures.as_ref(),
+                    // No structure references when generation is off
+                    // (`StructureManager.shouldGenerateStructures`).
+                    self.structures.as_ref().filter(|_| self.generate_structures),
                 )
             }
             None => Err(resource("decoration resources were not loaded")),
@@ -2714,6 +2726,9 @@ where
         worker: &mut WorkerState,
         pos: ChunkPos,
     ) -> Vec<Arc<super::structure::start::StructureStart>> {
+        if !self.generate_structures {
+            return Vec::new();
+        }
         match &self.structures {
             Some(structures) => structures
                 .starts_at(
@@ -2759,6 +2774,9 @@ where
         structure: &str,
         pieces: &[serde_json::Value],
     ) -> Result<(), String> {
+        if !self.generate_structures {
+            return Err("structures are disabled for this world".to_owned());
+        }
         let structures = (self.structures.as_ref()).ok_or("structures were not loaded")?;
         let mut queries = StructureQueries {
             pipeline: self,
@@ -2779,6 +2797,9 @@ where
     }
     #[cfg(test)]
     fn may_start_answers(&self, worker: &mut WorkerState, chunk: ChunkPos) -> Vec<(String, bool)> {
+        if !self.generate_structures {
+            return Vec::new();
+        }
         match &self.structures {
             Some(structures) => structures.may_start_answers(
                 &mut StructureQueries {
@@ -2807,6 +2828,9 @@ where
     fn spawn_position(&self) -> Result<[i32; 2], GeneratorError> {
         self.spawn_column()
     }
+    /// `ChunkGenerator.findNearestMapStructure`: deliberately NOT gated on
+    /// `generate_structures` — 26.1 locates structures in a no-structures
+    /// world (the state is built always); only 26.2 returns null there.
     fn locate(
         &self,
         worker: &mut WorkerState,
@@ -3118,8 +3142,8 @@ where
         );
         // Interpolate the supplied lattice, never the physical bounding volume.
         let value = |wx: i32, iy: usize, wz: i32| {
-            let rx = (wx - ox) as f32 / step_xz as f32;
-            let rz = (wz - oz) as f32 / step_xz as f32;
+            let rx = (wx - ox) as f64 / step_xz as f64;
+            let rz = (wz - oz) as f64 / step_xz as f64;
             let ix = rx.floor() as usize;
             let iz = rz.floor() as usize;
             let at = |dx: usize, dz: usize| {
@@ -3131,11 +3155,11 @@ where
                     ])
                     .unwrap()]
             };
-            let mix = |a: f32, b: f32, t: f32| a + (b - a) * t;
+            let mix = |a: f64, b: f64, t: f64| a + (b - a) * t;
             mix(
-                mix(at(0, 0), at(1, 0), rx - ix as f32),
-                mix(at(0, 1), at(1, 1), rx - ix as f32),
-                rz - iz as f32,
+                mix(at(0, 0), at(1, 0), rx - ix as f64),
+                mix(at(0, 1), at(1, 1), rx - ix as f64),
+                rz - iz as f64,
             )
         };
         let mut profile = vec![0.; ny as usize];
@@ -3167,10 +3191,10 @@ where
                 }
                 for y in (band_min..band_max).rev() {
                     let iy = ((y - band_min) / step_y) as usize;
-                    let alpha = ((y - band_min) % step_y) as f32 / step_y as f32;
+                    let alpha = ((y - band_min) % step_y) as f64 / step_y as f64;
                     let density = profile[iy] + (profile[iy + 1] - profile[iy]) * alpha;
                     let state = aquifer
-                        .compute_substance([wx, y, wz], f64::from(density))
+                        .compute_substance([wx, y, wz], density)
                         .unwrap_or(self.settings.default_block);
                     let properties = self.data.states.get(state);
                     if !properties.is_air() {
@@ -3607,8 +3631,10 @@ impl OverworldGenerator {
         })
     }
     /// A dimension of a world preset, with or without structures (the
-    /// world's `generate_structures`: without, no starts, terrain adaptation,
-    /// structure pieces or structure locating).
+    /// world's `generate_structures`: without, no starts, terrain adaptation
+    /// or structure pieces — but locating still works, as in 26.1's
+    /// `findNearestMapStructure`, which has no `generateStructures` check;
+    /// only 26.2 added one).
     pub fn for_world(
         data: Arc<GeneratorData>,
         seed: i64,

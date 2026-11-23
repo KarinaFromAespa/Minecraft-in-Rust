@@ -57,11 +57,60 @@ pub enum GraphBinary {
     Maximum,
 }
 
+/// The rarity mapper of 26.1's `weird_scaled_sampler` density function
+/// (`DensityFunctions$WeirdScaledSampler$RarityValueMapper`). TYPE1 applies
+/// `QuantizedSpaghettiRarity.getSpaghettiRarity3D`, TYPE2 applies
+/// `getSphaghettiRarity2D` (note the vanilla `Sphaghetti` typo). 26.2 dropped
+/// the whole type, so the graph has no 26.2 counterpart for it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WeirdRarityMapper {
+    Type1,
+    Type2,
+}
+impl WeirdRarityMapper {
+    pub fn rarity(self, value: f64) -> f64 {
+        match self {
+            // v < -0.5 ? 0.75 : v < 0.0 ? 1.0 : v < 0.5 ? 1.5 : 2.0
+            Self::Type1 => {
+                if value < -0.5 {
+                    0.75
+                } else if value < 0.0 {
+                    1.0
+                } else if value < 0.5 {
+                    1.5
+                } else {
+                    2.0
+                }
+            }
+            // v < -0.75 ? 0.5 : v < -0.5 ? 0.75 : v < 0.5 ? 1.0 : v < 0.75 ? 2.0 : 3.0
+            Self::Type2 => {
+                if value < -0.75 {
+                    0.5
+                } else if value < -0.5 {
+                    0.75
+                } else if value < 0.5 {
+                    1.0
+                } else if value < 0.75 {
+                    2.0
+                } else {
+                    3.0
+                }
+            }
+        }
+    }
+    pub fn max_rarity(self) -> f64 {
+        match self {
+            Self::Type1 => 2.0,
+            Self::Type2 => 3.0,
+        }
+    }
+}
+
 /// References belong to the graph that creates them. New nodes may refer only
 /// to existing immutable nodes, keeping the definition graph acyclic.
 #[derive(Clone, Debug)]
 pub enum GraphNode {
-    Constant(f32),
+    Constant(f64),
     Spline(CubicSpline<FunctionId>),
     Noise {
         noise: NoiseId,
@@ -71,12 +120,25 @@ pub enum GraphNode {
         shift_y: FunctionId,
         shift_z: FunctionId,
     },
+    /// 26.1's `weird_scaled_sampler`: `rarity * |noise(x/rarity, y/rarity,
+    /// z/rarity)|`, where the rarity is the mapper applied to the input value.
+    /// Vanilla 26.1 uses it in the overworld spaghetti caves (`spaghetti_2d`
+    /// with TYPE2, `entrances` with TYPE1); 26.2 removed the type.
+    WeirdScaledSampler {
+        input: FunctionId,
+        noise: NoiseId,
+        mapper: WeirdRarityMapper,
+    },
     OffsetNoise {
         noise: NoiseId,
         kind: ShiftNoiseKind,
     },
     BlendedNoise(BlendedNoise),
-    EndIslands,
+    /// End islands. `central` selects vanilla 26.1's `minecraft:end_islands`
+    /// (outer islands plus the central island cone); without it the node is
+    /// 26.3's `minecraft:end_outer_islands`, whose center island lives in the
+    /// data graph (`minecraft:end/islands`) instead.
+    EndIslands { central: bool },
     WorldField(WorldField),
     BlendDensity(FunctionId),
     /// A direct holder compares by value; a registry holder by identity.
@@ -89,8 +151,8 @@ pub enum GraphNode {
         tiling: TilingMode,
         from: i32,
         to: i32,
-        low: f32,
-        high: f32,
+        low: f64,
+        high: f64,
     },
     Unary {
         kind: GraphUnary,
@@ -112,13 +174,13 @@ pub enum GraphNode {
     },
     Clamp {
         input: FunctionId,
-        min: f32,
-        max: f32,
+        min: f64,
+        max: f64,
     },
     Choice {
         input: FunctionId,
-        min: f32,
-        max: f32,
+        min: f64,
+        max: f64,
         inside: FunctionId,
         outside: FunctionId,
     },
@@ -146,7 +208,7 @@ pub enum GraphNode {
     },
     IntervalSelect {
         input: FunctionId,
-        thresholds: Arc<[f32]>,
+        thresholds: Arc<[f64]>,
         branches: Vec<FunctionId>,
     },
     DistanceToPoint {
@@ -163,7 +225,7 @@ impl GraphNode {
             | Self::DistanceToPoint { .. }
             | Self::OffsetNoise { .. }
             | Self::BlendedNoise(_)
-            | Self::EndIslands
+            | Self::EndIslands { .. }
             | Self::WorldField(_) => vec![],
             Self::Noise {
                 shift_x,
@@ -177,6 +239,7 @@ impl GraphNode {
             | Self::Slice { input, .. }
             | Self::Cache(input)
             | Self::BlendDensity(input)
+            | Self::WeirdScaledSampler { input, .. }
             | Self::Interpolated { input, .. } => vec![input],
             Self::Binary { left, right, .. } => vec![left, right],
             Self::Round {
@@ -201,7 +264,6 @@ impl GraphNode {
         }
     }
     fn key(&self) -> Vec<u64> {
-        let f = |v: f32| u64::from(if v.is_nan() { 0x7fc0_0000 } else { v.to_bits() });
         let i = |v: i32| u64::from(v as u32);
         let d = |v: f64| {
             if v.is_nan() {
@@ -210,13 +272,14 @@ impl GraphNode {
                 v.to_bits()
             }
         };
+        let f = d;
         let id = |v: FunctionId| v.0 as u64;
         match *self {
             Self::Reference { input, holder } => match holder {
                 Some(holder) => vec![22, 1, holder.0 as u64],
                 None => vec![22, 0, id(input)],
             },
-            Self::EndIslands => vec![17],
+            Self::EndIslands { central } => vec![17, central as u64],
             Self::WorldField(field) => vec![20, field as u64],
             Self::BlendDensity(input) => vec![21, id(input)],
             Self::Power { base, exponent } => vec![19, id(base), id(exponent)],
@@ -242,6 +305,11 @@ impl GraphNode {
                 id(shift_z),
             ],
             Self::OffsetNoise { noise, kind } => vec![15, noise.0 as u64, kind as u64],
+            Self::WeirdScaledSampler {
+                input,
+                noise,
+                mapper,
+            } => vec![23, id(input), noise.0 as u64, mapper as u64],
             Self::BlendedNoise(v) => vec![
                 16,
                 d(v.xz_scale),
@@ -252,8 +320,13 @@ impl GraphNode {
             ],
             Self::Spline(ref spline) => {
                 fn append(spline: &CubicSpline<FunctionId>, key: &mut Vec<u64>) {
-                    let bits =
-                        |v: f32| u64::from(if v.is_nan() { 0x7fc0_0000 } else { v.to_bits() });
+                    let bits = |v: f64| {
+                        if v.is_nan() {
+                            0x7ff8_0000_0000_0000
+                        } else {
+                            v.to_bits()
+                        }
+                    };
                     match spline {
                         CubicSpline::Constant(value) => key.extend([0, bits(*value)]),
                         CubicSpline::Multipoint(node) => {
@@ -321,7 +394,7 @@ impl GraphNode {
             } => {
                 let mut key = vec![11, id(input), thresholds.len() as u64];
                 key.push(if thresholds.iter().any(|v| v.is_nan()) {
-                    Arc::as_ptr(thresholds) as *const f32 as usize as u64
+                    Arc::as_ptr(thresholds) as *const f64 as usize as u64
                 } else {
                     0
                 });
@@ -373,6 +446,12 @@ impl From<crate::noise::NoiseBuildError> for CompileError {
         Self::Noise(e)
     }
 }
+
+impl From<crate::noise::synth::SynthError> for CompileError {
+    fn from(e: crate::noise::synth::SynthError) -> Self {
+        Self::Noise(crate::noise::NoiseBuildError::from(e))
+    }
+}
 impl std::fmt::Display for CompileError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "density graph compilation failed: {self:?}")
@@ -419,7 +498,10 @@ impl DensityGraph {
         {
             return Err(CompileError::UnknownHolder);
         }
-        if let GraphNode::Noise { noise, .. } | GraphNode::OffsetNoise { noise, .. } = node {
+        if let GraphNode::Noise { noise, .. }
+        | GraphNode::OffsetNoise { noise, .. }
+        | GraphNode::WeirdScaledSampler { noise, .. } = node
+        {
             self.noise_entry(noise)?;
         }
         if let GraphNode::IntervalSelect {
@@ -441,7 +523,7 @@ impl DensityGraph {
             GraphNode::IntervalSelect { thresholds, .. } => {
                 thresholds
                     .iter()
-                    .filter(|v| v.to_bits() == 0x8000_0000)
+                    .filter(|v| v.to_bits() == 0x8000_0000_0000_0000)
                     .count()
                     % 2
                     != 0
@@ -589,7 +671,7 @@ impl DensityGraph {
             Definition::Node(node) => node.clone(),
         };
         let mask = match node {
-            GraphNode::EndIslands => return Ok(5),
+            GraphNode::EndIslands { .. } => return Ok(5),
             GraphNode::WorldField(field) => return Ok(field.domain_axes()),
             GraphNode::OffsetNoise { kind, .. } => {
                 return Ok(if kind == ShiftNoiseKind::Shift { 7 } else { 5 });
@@ -626,7 +708,7 @@ impl DensityGraph {
             Definition::Node(node) => node,
         };
         Ok(match *node {
-            GraphNode::EndIslands => Interval::new(-0.84375, 0.5625)?,
+            GraphNode::EndIslands { .. } => Interval::new(-0.84375, 0.5625)?,
             GraphNode::WorldField(field) => field.range(),
             GraphNode::Noise { noise, .. } => {
                 let [min, max] = self.noise_entry(noise)?.definition.range();
@@ -636,11 +718,18 @@ impl DensityGraph {
                 let [min, max] = self.noise_entry(noise)?.definition.range();
                 Interval::new(min, max)?.multiply_range(Interval::exact(4.0)?)
             }
+            GraphNode::WeirdScaledSampler { noise, mapper, .. } => {
+                // `rarity * |noise|` is never negative and peaks at the
+                // mapper's max rarity times the noise's largest magnitude.
+                let [min, max] = self.noise_entry(noise)?.definition.range();
+                let peak = min.abs().max(max.abs()) * mapper.max_rarity();
+                Interval::new(0.0, peak)?
+            }
             GraphNode::BlendedNoise(definition) => definition.range()?,
             GraphNode::Spline(ref spline) => spline.try_range(&mut |id| self.range(id))?,
             GraphNode::Constant(v) => Interval::exact(v)?,
             GraphNode::Gradient { low, high, .. } => Interval::encapsulating_values(low, high),
-            GraphNode::DistanceToPoint { .. } => Interval::new(0.0, f32::INFINITY)?,
+            GraphNode::DistanceToPoint { .. } => Interval::new(0.0, f64::INFINITY)?,
             GraphNode::IntervalSelect { ref branches, .. } => {
                 let ranges = branches
                     .iter()
@@ -702,8 +791,8 @@ impl DensityGraph {
             | GraphNode::Reference { input, .. }
             | GraphNode::Interpolated { input, .. } => self.range(input)?,
             GraphNode::Surface { upper, lower, .. } => Interval::new(
-                lower as f32,
-                super::arithmetic::java_max(lower as f32, self.range(upper)?.max()),
+                lower as f64,
+                super::arithmetic::java_max(lower as f64, self.range(upper)?.max()),
             )?,
         })
     }

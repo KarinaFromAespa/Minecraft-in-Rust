@@ -281,7 +281,33 @@ packet!(
 );
 packet!(DisguisedChat { message: Tag => Nbt, chat_type: ChatTypeBound => ChatTypeBound });
 packet!(EntityEvent { id: i32 => Int, event: i8 => Byte });
-packet!(EntityPositionSync { id: i32 => VarInt, position: [f64; 3] => Vec3d, delta: [f64; 3] => Vec3d, yaw: f32 => Float, pitch: f32 => Float, on_ground: bool => Bool });
+/// `PositionMoveRotation`: a position, the delta movement, yaw and pitch —
+/// what 26.1's `ClientboundEntityPositionSyncPacket` carries (26.3 replaced
+/// it with `PositionPath` + yaw/pitch).
+#[derive(Clone, Debug, PartialEq)]
+pub struct PositionMoveRotation {
+    pub position: [f64; 3],
+    pub delta_movement: [f64; 3],
+    pub yaw: f32,
+    pub pitch: f32,
+}
+impl Codec<PositionMoveRotation> for PositionMoveRotation {
+    fn read(r: &mut Reader) -> Result<Self> {
+        Ok(Self {
+            position: Vec3d::read(r)?,
+            delta_movement: Vec3d::read(r)?,
+            yaw: r.f32()?,
+            pitch: r.f32()?,
+        })
+    }
+    fn write(v: &Self, w: &mut Writer) {
+        Vec3d::write(&v.position, w);
+        Vec3d::write(&v.delta_movement, w);
+        w.f32(v.yaw);
+        w.f32(v.pitch);
+    }
+}
+packet!(EntityPositionSync { id: i32 => VarInt, values: PositionMoveRotation => PositionMoveRotation, on_ground: bool => Bool });
 packet!(ForgetLevelChunk { pos: [i32; 2] => ChunkPos });
 packet!(
     /// ClientboundChunksBiomesPacket.ChunkBiomeData: a column and its
@@ -408,12 +434,10 @@ packet!(MapItemData {
     decorations: Option<Vec<MapDecoration>> => Opt<List<MapDecoration>>,
     patch: Option<MapPatch> => MapPatchOpt,
 });
-/// VecDelta: per-axis deltas in 1/4096 blocks, linear or in timed steps.
-#[derive(Clone, Debug, PartialEq)]
-pub enum VecDelta {
-    Linear([i16; 3]),
-    Stepped(Vec<([i16; 3], i32)>),
-}
+/// VecDelta: per-axis deltas in 1/4096 blocks. 26.1's move packets carry
+/// one delta of three shorts; the stepped form is 26.3-only.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct VecDelta(pub [i16; 3]);
 impl VecDelta {
     /// VecDeltaCodec.decode against a base position: zero deltas keep the
     /// base coordinate exactly, others add to its 1/4096 quantization.
@@ -428,45 +452,9 @@ impl VecDelta {
         }
         out
     }
-    /// The final position after all steps.
+    /// The position after the delta.
     pub fn end(&self, base: [f64; 3]) -> [f64; 3] {
-        match self {
-            Self::Linear(d) => Self::apply(base, *d),
-            Self::Stepped(steps) => steps.iter().fold(base, |p, (d, _)| Self::apply(p, *d)),
-        }
-    }
-    fn read(r: &mut Reader, steps: usize) -> Result<Self> {
-        if steps == 0 {
-            return Ok(Self::Linear([r.i16()?, r.i16()?, r.i16()?]));
-        }
-        if steps > r.remaining() / 7 {
-            return Err(Error::new("VecDelta with too many steps"));
-        }
-        Ok(Self::Stepped(
-            (0..steps)
-                .map(|_| {
-                    let ticks = r.varint()?;
-                    Ok(([r.i16()?, r.i16()?, r.i16()?], ticks))
-                })
-                .collect::<Result<_>>()?,
-        ))
-    }
-    fn steps(&self) -> usize {
-        match self {
-            Self::Linear(_) => 0,
-            Self::Stepped(s) => s.len(),
-        }
-    }
-    fn write(&self, w: &mut Writer) {
-        match self {
-            Self::Linear(d) => d.iter().for_each(|v| w.i16(*v)),
-            Self::Stepped(steps) => {
-                for (d, ticks) in steps {
-                    w.varint(*ticks);
-                    d.iter().for_each(|v| w.i16(*v));
-                }
-            }
-        }
+        Self::apply(base, self.0)
     }
 }
 /// ClientboundMoveEntityPacket.Pos / PosRot / Rot.
@@ -491,42 +479,30 @@ macro_rules! move_entity {
         }
         impl $name {
             fn read_inner(r: &mut Reader) -> Result<MoveEntity> {
-                // 26.1's form: the delta's three Shorts, the angles for the
-                // variants that turn, and on-ground last. One linear step is
-                // all the wire carries; timed steps are a local matter.
                 let id = r.varint()?;
+                // 26.1's forms: Pos is three shorts then on-ground; PosRot
+                // adds the two rotation bytes before it; Rot is the rotation
+                // bytes then on-ground. (26.3 packs on-ground and a step
+                // count into a properties varint ahead of the delta.)
                 let delta = if $pos {
-                    Some(VecDelta::Linear([r.i16()?, r.i16()?, r.i16()?]))
+                    Some(VecDelta([r.i16()?, r.i16()?, r.i16()?]))
                 } else {
                     None
                 };
                 let rotation = if $rot { Some((r.i8()?, r.i8()?)) } else { None };
+                let on_ground = r.bool()?;
                 Ok(MoveEntity {
                     id,
                     delta,
                     rotation,
-                    on_ground: r.bool()?,
+                    on_ground,
                 })
             }
             fn write_inner(v: &MoveEntity, w: &mut Writer) {
                 w.varint(v.id);
                 if $pos {
-                    // A stepped delta goes as its sum (the next position
-                    // sync corrects a sum past a Short).
-                    let sum = match &v.delta {
-                        Some(VecDelta::Linear(d)) => *d,
-                        Some(VecDelta::Stepped(steps)) => {
-                            let mut out = [0i32; 3];
-                            for (d, _) in steps {
-                                for i in 0..3 {
-                                    out[i] += i32::from(d[i]);
-                                }
-                            }
-                            out.map(|n| n.clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16)
-                        }
-                        None => [0; 3],
-                    };
-                    sum.iter().for_each(|n| w.i16(*n));
+                    let delta = v.delta.unwrap_or(VecDelta([0; 3]));
+                    delta.0.iter().for_each(|d| w.i16(*d));
                 }
                 if let Some((y, x)) = v.rotation.filter(|_| $rot) {
                     w.i8(y);

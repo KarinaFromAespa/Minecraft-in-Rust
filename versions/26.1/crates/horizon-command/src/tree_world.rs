@@ -59,7 +59,10 @@ pub fn register(d: &mut Dispatcher, root: usize) {
     let f = d.argument(
         feature,
         "feature",
-        ArgType::ResourceOrId("minecraft:worldgen/feature"),
+        // 26.1 takes a configured-feature registry key
+        // (ResourceKeyArgument); inline feature values are 26.3-only
+        // (ResourceOrIdArgument).
+        ArgType::ResKey("minecraft:worldgen/configured_feature"),
     );
     d.executes(f, "place.feature");
     let pos = d.argument(f, "pos", ArgType::BlockPos);

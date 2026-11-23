@@ -402,10 +402,12 @@ fn clientbound_round_trips() {
         }),
         Clientbound::EntityPositionSync(EntityPositionSync {
             id: 1,
-            position: [1.5, 2.0, 3.0],
-            delta: [0.5, 0.0, 0.0],
-            yaw: 1.0,
-            pitch: 2.0,
+            values: PositionMoveRotation {
+                position: [1.5, 2.0, 3.0],
+                delta_movement: [0.5, 0.0, 0.0],
+                yaw: 1.0,
+                pitch: 2.0,
+            },
             on_ground: true,
         }),
         Clientbound::ChunksBiomes(ChunksBiomes {
@@ -462,14 +464,13 @@ fn clientbound_round_trips() {
         }),
         Clientbound::MoveEntityPos(MoveEntityPos(MoveEntity {
             id: 3,
-            delta: Some(VecDelta::Linear([4096, 0, -4096])),
+            delta: Some(VecDelta([4096, 0, -4096])),
             rotation: None,
             on_ground: true,
         })),
         Clientbound::MoveEntityPosRot(MoveEntityPosRot(MoveEntity {
             id: 3,
-            // 26.1's wire carries one delta: the steps' sum is what crosses.
-            delta: Some(VecDelta::Linear([1, 2, 4])),
+            delta: Some(VecDelta([1, 2, 4])),
             rotation: Some((10, -10)),
             on_ground: false,
         })),
@@ -943,17 +944,13 @@ fn change_game_mode_uses_the_game_type_varint() {
 fn move_entity_deltas_decode_like_vec_delta_codec() {
     let base = [10.0, 64.0, -3.5];
     assert_eq!(
-        VecDelta::Linear([4096, 0, -2048]).end(base),
+        VecDelta([4096, 0, -2048]).end(base),
         [11.0, 64.0, -4.0]
     );
     // Zero deltas keep unquantized base coordinates exactly.
     assert_eq!(
-        VecDelta::Linear([0, 0, 0]).end([0.123_456_789, 1.0, 2.0]),
+        VecDelta([0, 0, 0]).end([0.123_456_789, 1.0, 2.0]),
         [0.123_456_789, 1.0, 2.0]
-    );
-    assert_eq!(
-        VecDelta::Stepped(vec![([4096, 0, 0], 1), ([4096, 0, 0], 2)]).end(base),
-        [12.0, 64.0, -3.5]
     );
 }
 

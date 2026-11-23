@@ -654,7 +654,8 @@ impl Mob {
     pub fn height(&self) -> f32 {
         self.dims().1 as f32
     }
-    /// `AgeableMob.isBaby`: `canBeABaby() && getAge() < 0`. The age alone is
+    /// `AgeableMob.isBaby`: `getAge() < 0` (26.1 has no `canBeABaby` — the
+    /// four never-baby ageables override `isBaby` itself). The age alone is
     /// not enough — a frog, a parrot, a zombie nautilus, a camel husk, a slime,
     /// a magma cube, a piglin brute, a tadpole, or anything that is not an
     /// `AgeableMob` at all is an adult whatever `Age` says, so its box, voice,
@@ -2175,8 +2176,9 @@ impl RestitutionWorld for MobRestitution<'_, '_> {
     fn bounce_event(&mut self) -> Result<(), ()> {
         Ok(())
     }
-    /// `Entity.syncPosition`: the tracker keeps where the mob bounced as a
-    /// step of its next move (`SteppedInterpolationTracker.updateTracking`).
+    /// The bounce flag: 26.1 has no `Entity.syncPosition` (26.2 added it),
+    /// so the tracker reads nothing here — the bounced mob goes out on its
+    /// next due tick. The living-bounce re-port owns removing the flag.
     fn mark_position_for_sync(&mut self) {
         self.mob.sync_position = true;
     }
