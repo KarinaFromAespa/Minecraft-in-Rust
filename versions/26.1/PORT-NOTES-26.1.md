@@ -609,3 +609,11 @@ refactor, bootstrap identical, 5 removed attributes are 26.2-only
 (their Rust refs live in the unreachable sulfur-cube module, item 94);
 443 CamelHusk isBaby/canBeABaby is the batch-11 form already ported;
 444 renames only; 445 codec refactor + PLAINS vs DEFAULT_TYPE (same).
+
+Batch 24 (Nov 23, 298/498), all no-change: 446 display-entity loading
+differs (NOP processor vs SET_DISPLAY_ENTITY_ID) but the Rust models
+the display at the outcome level; 78 renames only; 79 lambda identical,
+two 26.2-only constants; 403 getLightCoords moved to a util class;
+406 26.2-only neighbor-updater ctors; 408 setScreen moved to Gui (menu
+chrome); 413 ocelot lambda identical, baby dims already the 26.1 form;
+414 Bucketable package move.
