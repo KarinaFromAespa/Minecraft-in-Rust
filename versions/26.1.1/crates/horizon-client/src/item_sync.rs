@@ -1630,7 +1630,7 @@ mod tests {
         );
         let mut w = Writer::new();
         Slot::write(&wire, &mut w);
-        assert_eq!(w.data, [1, 1, 1, 0, 109, 1]);
+        assert_eq!(w.data, [1, 1, 1, 0, 102, 1]);
         let wire = Slot::read(&mut Reader::new(&w.data)).unwrap().unwrap();
         assert_eq!(
             variant(&from_network(&wire, &builtin, &dynamic)),
