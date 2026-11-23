@@ -6503,10 +6503,12 @@ impl Game<'_> {
             (player.position.z.floor() as i32) >> 4,
         );
         let section_ready = self.streaming.is_lit(cx, cz);
-        let camera_y = (player.position.y + f64::from(self.eye)).floor() as i32;
+        // 26.1's `WaitingForPlayerChunk.isReady` checks the PLAYER's block
+        // position Y (26.2 added a second check on the camera's Y).
+        let player_y = player.position.y.floor() as i32;
         let shape = self.world.shape;
         let check = horizon_client::level_loading::PlayerCheck {
-            outside_build_height: camera_y < shape.min_y || camera_y >= shape.min_y + shape.height,
+            outside_build_height: player_y < shape.min_y || player_y >= shape.min_y + shape.height,
             spectator: player.spectator,
             alive: player.health.health() > 0.0,
         };

@@ -703,3 +703,9 @@ block-light assignment is not ported (only model seed 42 is).
 26/27/189/228: identical methods, renames, or false positives
 (apply/read/atCenterOfWithY/getHeightForCamera/getInterpolatedBoundingBox
 exist in neither jar).
+
+Batch 35 (Nov 23, 379/498): 194 PORTED — WaitingForPlayerChunk.isReady
+checks the PLAYER's Y in 26.1; the camera-Y check is 26.2-only.
+remote.rs now passes the player Y. 116/154/159/193/200 no-change:
+canDrip == isFreeHangingStalactite (identical bodies), byte-identical
+trade/advancement/enchantment methods, package moves, menu chrome.
