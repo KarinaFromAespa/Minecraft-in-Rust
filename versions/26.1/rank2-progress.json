@@ -15,6 +15,13 @@
    "evidence": "No-change. 26.2 #51 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
   },
   {
+   "id": 42,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #35 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/audio.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
    "id": 58,
    "verdict": "no-change",
    "bucket": "B",
@@ -120,6 +127,20 @@
    "evidence": "No-change. 26.2 #82 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
   },
   {
+   "id": 107,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #95 (rank 2) verified no-change in 26.2; no named class method-changed 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 126,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #111 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-world/src/worldgen/structure/stronghold.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
    "id": 135,
    "verdict": "ported",
    "bucket": "B",
@@ -141,6 +162,13 @@
    "evidence": "No-change. 26.2 #131 (rank 2) verified no-change in 26.2; all 4 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client-render/src/mesher/fluid.rs is identical between the 26.2 and 26.1 trees."
   },
   {
+   "id": 163,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #132 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/inventory_input.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
    "id": 166,
    "verdict": "no-change",
    "bucket": "A",
@@ -153,6 +181,20 @@
    "bucket": "B",
    "cl_sub": "B2c",
    "evidence": "Ported (26.2 #134). The port-pack noise upgrade is the forward converter (not ported); the port is the gating in datapacks.rs: upgrades() returns Some(false) for the 26.1 series only (copy as-is) and None otherwise (no downgrade path for 26.2/26.3 packs). Also carried the install() fresh-work-dir fix (create_dir_all before writing the report). Tests adapted: 26.1/26.1.1 copied as-is, pack_format 101; 26.2/26.3 not brought over."
+  },
+  {
+   "id": 171,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #136 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-world/src/worldgen/tree.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 184,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #142 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client-render/src/clouds.rs'] are identical between the 26.2 and 26.1 trees."
   },
   {
    "id": 186,
@@ -174,6 +216,13 @@
    "bucket": "B",
    "cl_sub": "B2c",
    "evidence": "Ported. FlowingFluid/LavaFluid/BarrierBlock byte-identical 26.2->26.1 (zip CRC); 26.2 #137 ported. canHoldAnyFluid is the 26.2 list form and the lava-fire walk stops at a motion-blocking state: 26.1's own server-game.jar data lacks #washed_away_by_fluids, #blocks_lava_fire_spread and #blocks_motion* tags (same as 26.2), so the 26.3 tag forms silently degrade. Carried over the 26.2 fluids.rs form (uses blocksMotion() from rank 1)."
+  },
+  {
+   "id": 203,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #172 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client-render/src/gfx/translucency.rs'] are identical between the 26.2 and 26.1 trees."
   },
   {
    "id": 204,
@@ -218,11 +267,25 @@
    "evidence": "No-change. 26.2 #202 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/recipe_book.rs'] are identical between the 26.2 and 26.1 trees."
   },
   {
+   "id": 263,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #213 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/lan/data.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
    "id": 264,
    "verdict": "no-change",
    "bucket": "B",
    "cl_sub": "B2c",
    "evidence": "No-change. 26.2 #207 (rank 2) verified no-change in 26.2; all 5 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-protocol/src/secure_chat.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 278,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #223 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/boats/placement.rs'] are identical between the 26.2 and 26.1 trees."
   },
   {
    "id": 279,
@@ -239,11 +302,25 @@
    "evidence": "Ported (26.2 #228, commit bc42387a). All 22 removed density-function generator classes 26.3-only (GradientFunction, ConstantFunction etc. absent from the 26.1 jar); 26.1's DensityFunctions.bootstrap registers only y_clamped_gradient (18 types, no gradient/lerp/distance_to_point). Removed the minecraft:gradient decoder arm from worldgen/density.rs and ADDED the y_clamped_gradient arm (Y axis, clamped, from_y/to_y)."
   },
   {
+   "id": 284,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #230 (rank 2) verified no-change in 26.2; no named class method-changed 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
    "id": 286,
    "verdict": "no-change",
    "bucket": "A",
    "cl_sub": "A2",
    "evidence": "No-change. 26.2 #232 (rank 2) verified no-change in 26.2; all 21 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 289,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #475 (rank 3) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/mobs/guardian.rs'] are identical between the 26.2 and 26.1 trees."
   },
   {
    "id": 292,
@@ -267,11 +344,32 @@
    "evidence": "Ported (26.2 #242, commit bc42387a). FeaturePlacer, CuboidPlacement, OffsetPlacement absent from the 26.1 jar; RandomOffsetPlacement present. Placement modifiers to the 26.1 form: random_offset replaces offset/cuboid/random_chance/randomly_selected; oracles decode via ConfiguredFeature.DIRECT_CODEC and place via PlacedFeature.place; Vec3i.offsetCodec strict bound (<16); height_range/volume_match block predicates removed (26.3-only)."
   },
   {
+   "id": 298,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #263 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client-render/src/sculk.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
    "id": 302,
    "verdict": "ported",
    "bucket": "B",
    "cl_sub": "B2c",
    "evidence": "Ported (26.2 #247). EyeblossomBlock bytecode-identical 26.2->26.1 (jardiff); BlockScanUtils absent from the 26.1 jar, BlockPos$4 present. Eyeblossom neighbour scan rewritten to betweenClosed order (x innermost, then y, then z) with a regression test."
+  },
+  {
+   "id": 303,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #254 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-world/src/worldgen/feature_region.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 310,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #386 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the title file crates/horizon-client/src/mobs/nav.rs is identical between the 26.2 and 26.1 trees."
   },
   {
    "id": 311,
@@ -295,11 +393,39 @@
    "evidence": "Ported (26.2 #250). 26.1 BlockStateProvider is the abstract class with byNameCodec-dispatch CODEC and simple(state)/simple(block) factories; the type registry uses the LONG forms (dual_noise_provider, noise_provider, noise_threshold_provider, randomized_int_state_provider, rotated_block_provider, rule_based_state_provider, simple_state_provider, weighted_state_provider) \u2014 identical to 26.2. Decoder accepts long forms; provider states read the object-only BlockState.CODEC form (true); RotatedBlockProvider draws Axis.getRandom (verified in the 26.1 jar). noise.rs: type-name + state-form hunks only \u2014 the 26.1 NoiseStack is f32 (26.2 converted to f64), so the f64 sampling hunks were NOT carried over."
   },
   {
+   "id": 316,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #266 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/native_npcs.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 319,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #295 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-world/src/environment_timeline.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
    "id": 321,
    "verdict": "no-change",
    "bucket": "A",
    "cl_sub": "A2",
    "evidence": "No-change. 26.2 #255 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 323,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #258 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client-render/src/chunk.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 326,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #285 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/menu_clicks.rs'] are identical between the 26.2 and 26.1 trees."
   },
   {
    "id": 328,
@@ -314,6 +440,13 @@
    "bucket": "B",
    "cl_sub": "B2c",
    "evidence": "No-change. 26.2 #262 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-protocol/src/buf.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 333,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #282 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/dispense_fixture.rs'] are identical between the 26.2 and 26.1 trees."
   },
   {
    "id": 341,
@@ -335,6 +468,13 @@
    "bucket": "B",
    "cl_sub": "B2c",
    "evidence": "Ported. Fireworks byte-identical 26.2->26.1 (zip CRC); 26.2 #289 ported. Firework tooltip uses the flight key + space (26.3 flight_duration %s key does not exist in 26.1's lang); container tooltip passes (name, count) \u2014 ItemContainerContents.addToTooltip verified bytecode-identical 26.2->26.1 by jardiff. Carried over the 26.2 item_tooltip.rs form."
+  },
+  {
+   "id": 352,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "No-change. 26.2 #290 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/mobs/ambient.rs'] are identical between the 26.2 and 26.1 trees."
   },
   {
    "id": 357,
@@ -589,6 +729,13 @@
    "evidence": "No-change. 26.2 #376 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client/src/game/campfire.rs is identical between the 26.2 and 26.1 trees."
   },
   {
+   "id": 453,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #377 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the title file crates/horizon-client/src/game/entity.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
    "id": 454,
    "verdict": "no-change",
    "bucket": "A",
@@ -659,11 +806,25 @@
    "evidence": "No-change. 26.2 #399 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
   },
   {
+   "id": 481,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #403 (rank 2) verified no-change in 26.2; no named class method-changed 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
    "id": 482,
    "verdict": "no-change",
    "bucket": "A",
    "cl_sub": "A2",
    "evidence": "No-change. 26.2 #404 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 483,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #405 (rank 2) verified no-change in 26.2; no named class method-changed 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
   },
   {
    "id": 484,
@@ -694,6 +855,13 @@
    "evidence": "No-change. 26.2 #413 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
   },
   {
+   "id": 500,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #414 (rank 2) verified no-change in 26.2; no named class method-changed 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
    "id": 504,
    "verdict": "no-change",
    "bucket": "A",
@@ -708,5 +876,5 @@
    "evidence": "No-change. 26.2 #417 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
   }
  ],
- "triage": "Rank 2: 498 items. First-pass buckets (triage.json): B 265, A 231, D 2. Class-level 26.2->26.1 split (classlevel.json, zip CRC): B1c 233, B2c 32, A1 138, A2 93, D 2. Batch 1+2 (2026-11-23): 82 no-change closures \u2014 A2/B2c items whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the 26.2 and 26.1 trees (or widely named with 0 methods named in Horizon). Batch 3a (2026-11-23): 5 ported carry-overs (items 70, 192, 196, 246, 351) \u2014 A2/B2c items whose 26.2 counterparts were ported; the 26.2 tree file forms carried over whole (hooks.rs: melt hunk only, to preserve the rank-1 blocksMotion change). Deferred from batch 3: item 35 (blending f32->f64, cascades into generator.rs) and item 150 (synth.rs double-precision noise engine, 6 consumer files) \u2014 multi-file type conversions, separate batches. Batch 3c (2026-11-23): bc42387a carried over (53 files) \u2014 items 282, 293, 296 closed. The batch also carried the SwingState rework (26.2 #241: plain swinging/swingingArm/swingTime fields + getCurrentSwingDuration, verified identical in the 26.1 jar, no SwingState class) for 26.1 item 281, which stays OPEN: 281 covers 16 world/entity classes and needs class-level review of the rest. bc42387a hunks in game.rs/lan_actions.rs/remote.rs/dimension_type.rs/density.rs were applied by hand (context drift); the spear STAB site in remote.rs keeps the 26.1 completion-pass form (26.1 has no spear, no STAB packet). Batch 3d (2026-11-23): items 135, 221, 302, 449 closed (c03452c8 carried over for 221+449; 302 timeline.rs and 135 start.rs carried over whole-file). Two compile fallouts fixed by hand: explosion.rs armor-stand site to break_armor_stand_by_anything, render_tick.rs near-plane computation removed (26.1 isViewBlocking is 2-arg). Deferred from batch 3: item 96 (window.rs \u2014 VideoMode identical but Window.updateFullscreenIfChanged/changeFullscreenVideoMode differ 26.2->26.1; needs fresh porting from the 26.1 jar), item 35 (blending f32->f64 cascade into generator.rs), item 150 (synth.rs double-precision noise engine + 6 consumer files). Deferred: item 288 (EntityPositionSync + stepped-interpolation rework, 26.2 #233) \u2014 the 26.1 tree's EntityPositionSync flat form (id, position, delta, yaw, pitch, on_ground) is already wire-equivalent to 26.2's (id, PositionMoveRotation, onGround), but VecDelta is still the 26.3 Linear/Stepped enum (26.2: plain [i16;3]), the MoveEntity wire forms need the shorts+bool check, and the InterpolationHandler subsystem (26.2-only interpolation.rs + fixture + oracle + parity test) is a whole-subsystem port. Needs a dedicated batch."
+ "triage": "Rank 2: 498 items. First-pass buckets (triage.json): B 265, A 231, D 2. Class-level 26.2->26.1 split (classlevel.json, zip CRC): B1c 233, B2c 32, A1 138, A2 93, D 2. Batch 1+2 (2026-11-23): 82 no-change closures \u2014 A2/B2c items whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the 26.2 and 26.1 trees (or widely named with 0 methods named in Horizon). Batch 3a (2026-11-23): 5 ported carry-overs (items 70, 192, 196, 246, 351) \u2014 A2/B2c items whose 26.2 counterparts were ported; the 26.2 tree file forms carried over whole (hooks.rs: melt hunk only, to preserve the rank-1 blocksMotion change). Deferred from batch 3: item 35 (blending f32->f64, cascades into generator.rs) and item 150 (synth.rs double-precision noise engine, 6 consumer files) \u2014 multi-file type conversions, separate batches. Batch 3c (2026-11-23): bc42387a carried over (53 files) \u2014 items 282, 293, 296 closed. The batch also carried the SwingState rework (26.2 #241: plain swinging/swingingArm/swingTime fields + getCurrentSwingDuration, verified identical in the 26.1 jar, no SwingState class) for 26.1 item 281, which stays OPEN: 281 covers 16 world/entity classes and needs class-level review of the rest. bc42387a hunks in game.rs/lan_actions.rs/remote.rs/dimension_type.rs/density.rs were applied by hand (context drift); the spear STAB site in remote.rs keeps the 26.1 completion-pass form (26.1 has no spear, no STAB packet). Batch 3d (2026-11-23): items 135, 221, 302, 449 closed (c03452c8 carried over for 221+449; 302 timeline.rs and 135 start.rs carried over whole-file). Two compile fallouts fixed by hand: explosion.rs armor-stand site to break_armor_stand_by_anything, render_tick.rs near-plane computation removed (26.1 isViewBlocking is 2-arg). Deferred from batch 3: item 96 (window.rs \u2014 VideoMode identical but Window.updateFullscreenIfChanged/changeFullscreenVideoMode differ 26.2->26.1; needs fresh porting from the 26.1 jar), item 35 (blending f32->f64 cascade into generator.rs), item 150 (synth.rs double-precision noise engine + 6 consumer files). Deferred: item 288 (EntityPositionSync + stepped-interpolation rework, 26.2 #233) \u2014 the 26.1 tree's EntityPositionSync flat form (id, position, delta, yaw, pitch, on_ground) is already wire-equivalent to 26.2's (id, PositionMoveRotation, onGround), but VecDelta is still the 26.3 Linear/Stepped enum (26.2: plain [i16;3]), the MoveEntity wire forms need the shorts+bool check, and the InterpolationHandler subsystem (26.2-only interpolation.rs + fixture + oracle + parity test) is a whole-subsystem port. Needs a dedicated batch. Batch 4 (2026-11-23): 24 no-change closures \u2014 method-level B2/A2 items (batched jardiff over 1,210 named classes: 883 method-changed) whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the trees."
 }
