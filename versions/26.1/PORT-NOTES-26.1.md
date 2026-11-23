@@ -617,3 +617,10 @@ two 26.2-only constants; 403 getLightCoords moved to a util class;
 406 26.2-only neighbor-updater ctors; 408 setScreen moved to Gui (menu
 chrome); 413 ocelot lambda identical, baby dims already the 26.1 form;
 414 Bucketable package move.
+
+Batch 25 (Nov 23, 306/498), all no-change: 409/387/388 are 26.2-only
+GUI/render classes (Hud, ContextualBar, BlockModelFeatureRenderer —
+all confirmed absent from the 26.1 client jar); 415 ZombieNautilus
+isBaby/canBeABaby is the batch-11 form already ported; 416 codec
+refactor; 418 two 26.1-only scoreboard helpers (not ported); 75
+AABB.equals branch inversion; 390 creaking instanceof is always true.
