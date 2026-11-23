@@ -19,7 +19,21 @@
   }
  ],
  "bed-models": [],
- "brewing-fuel": [],
+ "brewing-fuel": [
+  {
+   "crate": "horizon-items",
+   "test": "brewing_fuel_comes_from_the_vanilla_tag"
+  },
+  {
+   "crate": "horizon-client-render",
+   "test": "vanilla_blaze_powder_fuels_a_brew_from_the_tag"
+  },
+  {
+   "crate": "horizon-client",
+   "suite": "horizon-client-lib",
+   "test": "brewing_fuel_slot_takes_tag_fuel"
+  }
+ ],
  "fuel-table": [
   {
    "crate": "horizon-items",
@@ -44,6 +58,18 @@
   {
    "crate": "horizon-world",
    "test": "entry_functions_apply_before_pool_and_table_functions"
+  },
+  {
+   "crate": "horizon-world",
+   "test": "a_sheep_drops_its_colour_wool_and_mutton"
+  },
+  {
+   "crate": "horizon-world",
+   "test": "a_size_1_slime_drops_balls_and_a_frog_kill_drops_one"
+  },
+  {
+   "crate": "horizon-world",
+   "test": "the_prepared_sheep_table_drops_wool"
   }
  ],
  "menu-sprites": [
@@ -54,7 +80,32 @@
   }
  ],
  "mob-models": [],
- "recipe-packets": [],
+ "recipe-packets": [
+  {
+   "crate": "horizon-protocol",
+   "test": "book_entries_round_trip"
+  },
+  {
+   "crate": "horizon-protocol",
+   "test": "a_1_21_7_tag_display_decodes"
+  },
+  {
+   "crate": "horizon-protocol",
+   "test": "a_1_21_7_furnace_display_decodes"
+  },
+  {
+   "crate": "horizon-protocol",
+   "test": "slot_display_ids_past_the_1_21_7_registry_fail"
+  },
+  {
+   "crate": "horizon-protocol",
+   "test": "a_26_2_tag_display_renumbers_up"
+  },
+  {
+   "crate": "horizon-protocol",
+   "test": "a_1_21_8_tag_display_passes_through"
+  }
+ ],
  "undead-burn": [
   {
    "crate": "horizon-client",
