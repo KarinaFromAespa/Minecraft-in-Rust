@@ -2366,12 +2366,17 @@ mod crossbow_tests {
             mob_drops: true,
             world_seed: 0,
         };
+        // 26.1's holdInOffHand sets no persistence for either item (26.2
+        // made a non-barter offhand item persistent); the barter item gets
+        // drop chance 2.0 (guaranteed), anything else 1.0.
         let mut apple = piglin();
         hold_in_offhand(&mut apple, "minecraft:golden_apple".into());
-        assert!(apple.persistent);
+        assert!(!apple.persistent);
+        assert_eq!(crate::mobs::drops::drop_chance(&apple, "offhand"), 1.0);
         let mut m = piglin();
         hold_in_offhand(&mut m, "minecraft:gold_ingot".into());
         assert!(!m.persistent);
+        assert_eq!(crate::mobs::drops::drop_chance(&m, "offhand"), 2.0);
         let (drops, _) = die(
             &mut m,
             &death,
