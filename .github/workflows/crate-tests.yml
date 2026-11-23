@@ -52,6 +52,21 @@ name: crate-tests
 #   gh workflow run crate-tests.yml -f version=all
 # Logs land in the crate-tests-<version> artifacts.
 #
+# The defect-suite job (same dispatch, same matrix) runs the
+# cross-version defect regression suite (tools/defect_suite.py,
+# docs/DEFECT-SUITE.md) against the version's own jars: it checks the
+# defect classes found in 1.21.7 playtesting — fuel tables, loot field
+# names, advancement keys, bed models, menu sprites, tags — against
+# this version, and reports the defect list. It runs in parallel with
+# the crate tests, needs no Rust toolchain (the suite is stdlib-only
+# Python), and is REPORT-ONLY: the job always succeeds when the suite
+# itself runs — a failing check is a defect to fix, not a red gate.
+# The JSON report lands in the defect-suite-<version> artifact. The
+# suite's rust checks run inside the crate-tests job above (they are
+# ordinary unit tests); rerun the suite locally with --crate-logs
+# pointed at the downloaded crate-tests-<version> artifact to join
+# the two results.
+#
 # Cache note: each version's rust-cache entry is large (the game
 # workspace), and GitHub evicts cache LRU past the 10 GB repo limit, so
 # a full-matrix run may rebuild some versions cold. Single-version
@@ -221,4 +236,127 @@ jobs:
             else
               echo "no test summary — the run failed before any crate ran"
             fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # The cross-version defect regression suite: the defect classes
+  # found in 1.21.7 playtesting, checked against this version's own
+  # jars. Report-only (see the header comment): the step fails only
+  # when the suite itself cannot run, never on a failing check.
+  defect-suite:
+    needs: resolve
+    name: defect suite ${{ matrix.version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.resolve.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The suite's oracles are the version's own vanilla jars: the
+      # server jar (loot tables, advancements, tags, component
+      # strings) and the client jar (item models, menu sprites), plus
+      # the 26.3 client jar (the menu-sprite fallback source).
+      # Downloaded from Mojang's piston-meta manifest and verified
+      # against the manifest sha1 — the leakage-audit job's pattern.
+      # The jars are never committed and never uploaded.
+      - name: Download the vanilla jars (sha1-verified)
+        run: |
+          V="${{ matrix.version }}"
+          mkdir -p jars
+          python3 - "$V" <<'EOF'
+          import hashlib, json, subprocess, sys
+          version = sys.argv[1]
+          MANIFEST = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
+          def fetch_json(url):
+              out = subprocess.run(
+                  ["curl", "-sS", "--retry", "3", "--retry-delay", "2",
+                   "-m", "120", url],
+                  capture_output=True, text=True, check=True)
+              return json.loads(out.stdout)
+          def download(version, kind, dest):
+              detail = fetch_json(by_id[version]["url"])
+              dl = detail.get("downloads", {}).get(kind)
+              if not dl:
+                  raise SystemExit(
+                      f"{version}: no {kind} download in its version detail")
+              subprocess.run(
+                  ["curl", "-sS", "--retry", "3", "--retry-delay", "2",
+                   "-m", "600", "-o", dest, dl["url"]], check=True)
+              h = hashlib.sha1()
+              with open(dest, "rb") as f:
+                  for chunk in iter(lambda: f.read(1 << 20), b""):
+                      h.update(chunk)
+              if h.hexdigest() != dl["sha1"]:
+                  raise SystemExit(
+                      f"{version}: SHA1 MISMATCH {h.hexdigest()} != {dl['sha1']}")
+              print(f"{version} {kind}: ok ({dl['size']} bytes, sha1 verified)")
+          manifest = fetch_json(MANIFEST)
+          by_id = {v["id"]: v for v in manifest["versions"]}
+          if version not in by_id:
+              raise SystemExit(f"{version}: NOT in the Mojang version manifest")
+          if "26.3" not in by_id:
+              raise SystemExit("26.3: NOT in the Mojang version manifest")
+          download(version, "server", f"jars/{version}-server.jar")
+          download(version, "client", f"jars/{version}-client.jar")
+          download("26.3", "client", "jars/26.3-client.jar")
+          EOF
+
+      - name: Run the defect suite (report-only)
+        id: suite
+        run: |
+          V="${{ matrix.version }}"
+          python3 tools/defect_suite.py "$V" --jar-dir jars \
+            --fallback-jar jars/26.3-client.jar --report-only --json \
+            > "defect-suite-$V.json"
+          python3 - "$V" <<'EOF'
+          import json, sys
+          version = sys.argv[1]
+          try:
+              result = json.load(open(f"defect-suite-{version}.json"))["results"][0]
+          except (OSError, ValueError, KeyError, IndexError):
+              print(f"::error::defect-suite: {version} produced no JSON result")
+              sys.exit(1)
+          summary = result["summary"]
+          print(f"{version}: " + ", ".join(
+              f"{n} {s}" for s, n in sorted(summary.items())))
+          for check in result["checks"]:
+              if check["status"] in ("fail", "unmeasured", "not-covered"):
+                  print(f"  {check['status'].upper():<11} {check['id']}: "
+                        f"{check['detail'][:300]}")
+          EOF
+
+      - name: Upload the defect-suite report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: defect-suite-${{ matrix.version }}
+          path: defect-suite-${{ matrix.version }}.json
+          if-no-files-found: error
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## defect-suite — ${{ matrix.version }}"
+            echo
+            echo "artifact: \`defect-suite-${{ matrix.version }}\`"
+            echo
+            python3 - "${{ matrix.version }}" <<'EOF'
+          import json, sys
+          version = sys.argv[1]
+          try:
+              result = json.load(open(f"defect-suite-{version}.json"))["results"][0]
+          except (OSError, ValueError, KeyError, IndexError):
+              print("no defect-suite report — the run failed before the suite ran")
+              sys.exit(0)
+          print("| check | status |")
+          print("|---|---|")
+          for check in result["checks"]:
+              print(f"| {check['id']} | {check['status']} |")
+          print()
+          for check in result["checks"]:
+              if check["status"] == "fail":
+                  print(f"- **{check['id']}**: {check['detail'][:500]}")
+          EOF
           } >> "$GITHUB_STEP_SUMMARY"
