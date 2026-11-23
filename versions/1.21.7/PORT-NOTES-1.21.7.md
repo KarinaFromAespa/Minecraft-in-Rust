@@ -2127,3 +2127,60 @@ owed — the lib test compile OOM-kills on this VM) plus the new
 (horizon-world `datafix::files::upgrade_tests`: bare world defaults
 to noise, a superflat level.dat yields flat, the 26.x file wins per
 dimension).
+
+Undead sun-burn is delayed after sunrise: no defect found in the burn
+path (2026-11-23). The owner reported, playing verification build #4,
+that zombies "don't die when the sun is up but they die after
+sometime", with a screenshot of three zombies walking unburned in the
+open at 09:01 NPT. The whole chain was re-verified link by link
+against the 1.21.7 server jar and the live save, and every link is
+correct. `burn_undead` / `sun_burn_tick` (mobs/ai.rs) match
+`Mob.isSunBurnTick` exactly (jar bytecode: the `isBrightOutside`
+gate, `getLightLevelDependentMagicValue` > 0.5,
+`random.nextFloat() * 30 < (f - 0.4) * 2`, not wet, `canSeeSky` at
+the eye — and the light-value formula itself,
+`f / (4 - 3f)` over the max local raw brightness, lerped from the
+dimension's ambient light); the port's `monsters_burn` day-time gate
+([12542, 23460)) and binary `sky_darken` (0 by day, 11 by night)
+agree with vanilla's `skyDarken < 4` for the whole day window. The
+burn check runs every tick for every mob in the entity-ticking area
+(`tick_creature_entities`, game/creatures.rs — no budget, no
+staggering, no early return before `ai_step`'s burn call), fire
+damage is 1.0 per second over the 8-second burn (`base_tick`,
+mobs/ai.rs), and `ignite_for_ticks(160)` sets the full duration
+(`burning_time` defaults to 1.0; zombies are not fire-immune). The
+day-2 wrap is sound (`rem_euclid(24000)` in the `monsters_burn` gate
+and the timeline sampler). The live evidence agrees: the integrated
+server ticks at 4.8 ms of its 50 ms budget (full 20 TPS, from the
+screenshot's own F3 line), the saved chunks carry correct sky light
+(the encoder writes the stored sections, so the save proves
+tick-time light), and burning demonstrably works in the live game —
+the Nov 22 investigation's save held 14 surface undead mid-burn
+(Fire 56-157, health 14-16). Two adjacent facts, both jar-verified:
+vanilla 1.21.7 zombies have NO RestrictSunGoal or FleeSunGoal (only
+skeletons do — `Zombie.registerGoals` adds neither), so a zombie in
+the open has no shade-seeking escape and dies ~25 s after first
+exposure; and the ignition roll is probabilistic (4%-a-tick at full
+brightness, mean ~25 ticks), so a straggler in a group taking 5+ s
+to ignite is expected. No code change to the burn path was made:
+nothing in it is wrong. What remains open is the live-only state at
+the moment of the screenshot — whether those three zombies had just
+emerged from shade (they are in no saved entities file: the "New World
+(1)" entities file on disk holds no undead at all — 197 entities, all
+passive, falling blocks, items and villagers — so the morning session's
+zombies were never written to disk) or the fire overlay failed to draw (fire rendering was
+verified working Nov 22, but build #4 carries known
+entity-rendering defects — see the invisible-mobs fix). The next
+playtest should watch one zombie continuously from dawn: if it
+ignites within seconds, the delay was emergence; if it stands
+minutes in the open unburned, the live `monsters_burn` / brightness
+inputs need a debug log line. Regression tests:
+`zombie_at_dawn_ignites_promptly` (mobs/ai.rs `sun_burn_tests`,
+CI-run: a zombie at day_time 0 in direct daylight ignites within
+200 ticks — the deterministic test seed ignites on roll 32 — and
+takes 160 ticks of fire) and
+`zombie_in_open_daylight_ignites_promptly_and_burns`
+(game/creatures.rs, ignored: needs prepared resources — the full
+server-role Game path, `mob_world_base` through
+`tick_creature_entities`, igniting within 200 ticks of morning
+daylight and taking fire damage over the next 100).

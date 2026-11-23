@@ -5122,6 +5122,16 @@ mod sun_burn_tests {
         day
     }
 
+    /// Sunrise in the test world: the first tick of the day, monsters
+    /// burning, daylight on.
+    fn dawn<'a>(w: &'a MobWorld<'a>) -> MobWorld<'a> {
+        let mut day = w.clone();
+        day.monsters_burn = true;
+        day.daylight = true;
+        day.day_time = 0;
+        day
+    }
+
     /// `burn_undead` for `ticks`, stopping on the first flame.
     fn burn_for(m: &mut Mob, w: &MobWorld, ticks: u32) -> Vec<MobEvent> {
         let mut events = Vec::new();
@@ -5148,6 +5158,30 @@ mod sun_burn_tests {
                 let mut m = skeleton(types);
                 burn_for(&mut m, &day, 400);
                 assert!(m.is_on_fire(), "skeleton did not catch fire in daylight");
+                assert_eq!(m.fire_ticks, 160, "sunburn sets 8 seconds of fire");
+            },
+        );
+        let _ = ran;
+    }
+
+    /// The Nov 23 2026 build #4 playtest: zombies in the open did not
+    /// catch fire at sunrise and died only "after sometime". Vanilla's
+    /// mean ignition is ~25 ticks at full brightness (4%-a-tick), so a
+    /// zombie at dawn in direct daylight ignites within 200 ticks — ten
+    /// seconds of game time, far inside the 400-tick bound the noon test
+    /// allows. The mob's random is deterministic here (id 1 at (0.5, 64,
+    /// 0.5)), igniting on roll 32; the bound leaves room for constructor
+    /// draws to shift it without hiding a real delay.
+    #[test]
+    fn zombie_at_dawn_ignites_promptly() {
+        let ran = with_built_test_world(
+            &[],
+            |_, _| {},
+            |w, types| {
+                let day = dawn(w);
+                let mut m = mob_of(types, "minecraft:zombie");
+                burn_for(&mut m, &day, 200);
+                assert!(m.is_on_fire(), "zombie did not catch fire at dawn");
                 assert_eq!(m.fire_ticks, 160, "sunburn sets 8 seconds of fire");
             },
         );
