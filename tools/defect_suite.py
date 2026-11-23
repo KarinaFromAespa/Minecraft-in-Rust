@@ -614,7 +614,10 @@ def check_brewing_fuel(ctx: Ctx):
     # component does not exist in a tag-gated version's data.
     tag_populated = False
     evidence = []
-    for marker in ("BREWING_FUEL", "apply_brewing_fuel"):
+    # The code names are BREWING_FUEL_TAG and apply_brewing_fuel_values;
+    # find_identifier matches whole identifiers, so the bare prefixes
+    # ("BREWING_FUEL", "apply_brewing_fuel") never match them.
+    for marker in ("BREWING_FUEL_TAG", "apply_brewing_fuel_values"):
         if find_identifier(ctx, rel, marker):
             tag_populated = True
             evidence.append(f"{rel}: {marker}")
