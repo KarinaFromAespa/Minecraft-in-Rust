@@ -175,17 +175,19 @@ pub fn allowed_in_peaceful(s: Species) -> bool {
             | S::ZombifiedPiglin
     )
 }
-/// The block tag an entity type is `immuneTo`.
-fn immune_tag(s: Species) -> Option<&'static str> {
+/// Whether an entity type is `immuneTo` a block in 26.1:
+/// `EntityType.Builder.immuneTo(Block...)` takes a literal block set
+/// (fox: sweet berry bush; polar bear, snow golem, stray: powder snow;
+/// wither, wither skeleton: wither rose). 26.2 replaced the sets with
+/// `#*_immune_to` tags, which do not exist in 26.1's data — resolving
+/// them would answer false for every block.
+fn immune_to(s: Species, block: &str) -> bool {
     use Species as S;
     match s {
-        S::Fox => Some("minecraft:fox_immune_to"),
-        S::PolarBear => Some("minecraft:polar_bear_immune_to"),
-        S::SnowGolem => Some("minecraft:snow_golem_immune_to"),
-        S::Stray => Some("minecraft:stray_immune_to"),
-        S::Wither => Some("minecraft:wither_immune_to"),
-        S::WitherSkeleton => Some("minecraft:wither_skeleton_immune_to"),
-        _ => None,
+        S::Fox => block == "minecraft:sweet_berry_bush",
+        S::PolarBear | S::SnowGolem | S::Stray => block == "minecraft:powder_snow",
+        S::Wither | S::WitherSkeleton => block == "minecraft:wither_rose",
+        _ => false,
     }
 }
 /// `BlockState.isValidSpawn(level, pos, type)` for the block at a position.
@@ -224,7 +226,7 @@ pub fn is_valid_empty_spawn<L: SpawnLevel>(s: Species, l: &L, x: i32, y: i32, z:
     if !burning && !other {
         return false;
     }
-    let immune = immune_tag(s).is_some_and(|t| l.block_tag(t, block));
+    let immune = immune_to(s, block);
     let dangerous = !immune && (burning && !fire_immune(s) || other);
     !dangerous
         && !f.full_collision
@@ -838,5 +840,29 @@ mod peaceful_tests {
         // Without the vanilla data under .local/horizon-client the world
         // cannot be built: the test has nothing to check.
         let _ = ran;
+    }
+}
+
+#[cfg(test)]
+mod immune_to_tests {
+    use super::*;
+
+    /// 26.1's `EntityType` bootstrap passes literal block sets to
+    /// `immuneTo` (fox: sweet berry bush; polar bear, snow golem, stray:
+    /// powder snow; wither, wither skeleton: wither rose). The 26.2
+    /// `#*_immune_to` tags do not exist in 26.1's data.
+    #[test]
+    fn immune_to_uses_the_26_1_literal_sets_not_the_26_2_tags() {
+        assert!(immune_to(Species::Fox, "minecraft:sweet_berry_bush"));
+        assert!(immune_to(Species::PolarBear, "minecraft:powder_snow"));
+        assert!(immune_to(Species::SnowGolem, "minecraft:powder_snow"));
+        assert!(immune_to(Species::Stray, "minecraft:powder_snow"));
+        assert!(immune_to(Species::Wither, "minecraft:wither_rose"));
+        assert!(immune_to(Species::WitherSkeleton, "minecraft:wither_rose"));
+        assert!(!immune_to(Species::Fox, "minecraft:powder_snow"));
+        assert!(!immune_to(Species::Stray, "minecraft:wither_rose"));
+        assert!(!immune_to(Species::Zombie, "minecraft:sweet_berry_bush"));
+        assert!(!immune_to(Species::Zombie, "minecraft:powder_snow"));
+        assert!(!immune_to(Species::Zombie, "minecraft:wither_rose"));
     }
 }

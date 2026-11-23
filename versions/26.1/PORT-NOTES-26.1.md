@@ -878,3 +878,27 @@ byte-identical; 26.2's extra $5 is the neighborColumn iterator, a
 with the same fields; the rest are BlockEntityType renames, the
 markPosForPostprocessing spelling, codec refactors, spills and menu
 chrome.
+
+Batch 54 (Nov 23, 489/498): three ports, two no-change reviews.
+281 PORTED — `EntityType.Builder.immuneTo` takes literal block sets
+in 26.1 (fox: sweet berry bush; polar bear, snow golem, stray:
+powder snow; wither, wither skeleton: wither rose), while 26.2
+replaced them with `#*_immune_to` tags that do not exist in 26.1's
+data pack, so the tag form always answered false. `immune_to` in
+spawn_rules.rs now matches the literals, with a regression test.
+92 PORTED — `SkyRenderer.shouldRenderDarkDisc`: 26.2 added a
+`!player.isUnderWater()` exclusion; 26.1 renders the dark disc
+whenever the eye is below the horizon height. The water-fog clause
+is gone from `Game.dark_disc`. The rest of the sky math (sun, moon,
+stars, sunrise, End) is identical — the SkyRenderer diffs are the
+PrimitiveTopology enum move and render-target plumbing.
+93 PORTED — `Mob.equipItemIfPossible`: 26.2 sets
+`persistenceRequired` when a mob equips an item; 26.1 does not.
+The `m.persistent = true` line is gone from mob_looting.rs.
+8/21 no-change after full jardiffs: the packet handlers and game
+loop are identical or accessor moves (the login onlineMode, the
+clock tick and the spectate packet already carry the 26.1 form);
+`BucketItem.use` is behaviorally identical across its reorder
+(emptyContents returns false for an empty bucket, so empty buckets
+still fall through to pickup); the initServer diff is the
+management-server setup moving to the constructor in 26.2.

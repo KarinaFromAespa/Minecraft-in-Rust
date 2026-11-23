@@ -257,8 +257,9 @@ impl Game<'_> {
             None => self.world.shape.min_y,
         }
     }
-    /// `SkyRenderer.shouldRenderDarkDisc`: eye below the horizon and not under
-    /// water. `ClientLevelData.getHorizonHeight`: the bottom of a flat world,
+    /// `SkyRenderer.shouldRenderDarkDisc`: eye below the horizon height.
+    /// 26.1 has no underwater exclusion — 26.2 added `!player.isUnderWater()`.
+    /// `ClientLevelData.getHorizonHeight`: the bottom of a flat world,
     /// otherwise y 63.
     pub(super) fn dark_disc(&self, camera: glam::DVec3) -> bool {
         let horizon = if self.level_flat() {
@@ -266,14 +267,7 @@ impl Game<'_> {
         } else {
             f64::from(self.pack.polytone_colors.env.horizon_height)
         };
-        self.dim == Dim::Overworld
-            && camera.y < horizon
-            && fog_type(
-                &self.world,
-                self.res.facts(),
-                [camera.x, camera.y, camera.z],
-                &self.near_plane(),
-            ) != FogType::Water
+        self.dim == Dim::Overworld && camera.y < horizon
     }
     /// `ScreenEffectRenderer` + `Hud` camera overlays for this frame.
     /// `scale` is the player's `LivingEntity.getScale`.

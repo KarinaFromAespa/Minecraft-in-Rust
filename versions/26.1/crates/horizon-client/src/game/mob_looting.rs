@@ -119,9 +119,9 @@ impl Game<'_> {
         let mut equipped = stack.clone();
         equipped.count = taken;
         set_item_stack(m, slot.index(), equipped);
-        // `setItemSlotAndDropWhenKilled`, then `persistenceRequired`.
+        // `setItemSlotAndDropWhenKilled` only: 26.2 also sets
+        // `persistenceRequired` here, 26.1 does not.
         set_drop_chance(m, slot.index(), 2.0);
-        m.persistent = true;
         let at = [m.position.x, m.position.y, m.position.z];
         let id = m.id;
         if drop_old && let Some(old) = old {
