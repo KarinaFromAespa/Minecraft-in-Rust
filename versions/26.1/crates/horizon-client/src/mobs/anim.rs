@@ -631,29 +631,26 @@ pub(super) fn humanoid(p: &mut Poses, s: &State, h: &Hum) {
             r[5] += (swing * PI).msin() * -0.4;
         }
     }
-    // AnimationUtils.animateZombieArms leaves the arms of a spear alone.
+    // AnimationUtils.animateZombieArms leaves the arms of a spear alone,
+    // and in 26.1 a baby holding an item gets no zombie arms at all (it
+    // returns early; 26.2 lowered them instead with raise=false).
     let using_spear = h.right == ArmPose::Spear || h.left == ArmPose::Spear;
-    if let Some(aggressive) = h.zombie.filter(|_| !using_spear) {
+    if let Some(aggressive) = h.zombie.filter(|_| !using_spear && (!s.baby || !h.holding)) {
         // AnimationUtils.animateZombieArms
-        let raise = !s.baby || !h.holding;
-        let drop = if raise {
-            -PI / if aggressive { 1.5 } else { 2.25 }
-        } else {
-            0.0
-        };
-        let ym = if raise { 1.0 } else { -1.0 } * (swing * PI).msin();
+        let drop = -PI / if aggressive { 1.5 } else { 2.25 };
+        let ym = (swing * PI).msin();
         let xm = ((1.0 - (1.0 - swing) * (1.0 - swing)) * PI).msin();
         let x = drop + ym * 1.2 - xm * 0.4;
         let y = 0.1 - ym * 0.6;
         // An arm raising a trident keeps its pose.
         if h.right != ArmPose::ThrowTrident {
             p.xrot("right_arm", x);
-            p.yrot("right_arm", if raise { -y } else { y });
+            p.yrot("right_arm", -y);
             p.zrot("right_arm", 0.0);
         }
         if h.left != ArmPose::ThrowTrident {
             p.xrot("left_arm", x);
-            p.yrot("left_arm", if raise { y } else { -y });
+            p.yrot("left_arm", y);
             p.zrot("left_arm", 0.0);
         }
     }

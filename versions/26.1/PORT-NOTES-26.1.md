@@ -782,3 +782,13 @@ static initializers); isOp DOES differ (owner + no allowCommands falls
 through to allowAll in 26.1) but is unported; the spawn-egg canSpawn
 gate was already removed as item 253. 115/127: debug/chat chrome, Gui
 accessor moves, F11 branch moved.
+
+Batch 45 (Nov 23, 436/498): 121 PORTED — animateZombieArms returns
+early for a baby holding an item in 26.1 (no zombie arms at all); 26.2
+lowered them instead. The raise=false path is gone. 108/112/122
+no-change: UI/chat/menu chrome. 113 no-change: handle_jumping already
+carries the 26.1 lava-jump form (26.2's isInShallowFluid drops the
+onGround requirement); omnidirectionalAirMover is exactly
+instanceof FlyingAnimal (Parrot/Bee); knockback's extra params are
+unused; setBodyArmorItem is setItemSlotAndDropWhenKilled(BODY). 123
+no-change: PostSpawnProcessor shape, renames, spill.
