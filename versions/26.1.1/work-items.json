@@ -1,0 +1,93 @@
+{
+  "generated_from": "3ddd211c5a1546f7998582fa435ef84626bec408f9a0a928b5d231e8cfd2794b",
+  "items": [
+    {
+      "files": [
+        "crates/horizon-command/src/vanilla_order.rs"
+      ],
+      "id": 1,
+      "kind": "regen-failed",
+      "rank": 1,
+      "status": "open",
+      "title": "Generator vanilla_command_order: failed on 26.1.1"
+    },
+    {
+      "files": [
+        "crates/horizon-client/src/save.rs",
+        "crates/horizon-world/src/datafix/mod.rs"
+      ],
+      "id": 2,
+      "kind": "save-format",
+      "rank": 1,
+      "status": "open",
+      "title": "Save format: DataFixers 4786 -> 4788: 0 schemas, 0 fixes added, 0 datafix classes changed"
+    },
+    {
+      "files": [
+        "crates/horizon-core/src/version.rs"
+      ],
+      "id": 3,
+      "kind": "facts",
+      "rank": 1,
+      "status": "open",
+      "title": "Version facts: world_version 4786 -> 4788"
+    },
+    {
+      "files": [
+        "crates/horizon-core/src/version.rs",
+        "crates/horizon-protocol/src/lib.rs"
+      ],
+      "id": 4,
+      "kind": "rerun",
+      "rank": 2,
+      "status": "open",
+      "title": "widely named: net/minecraft: SharedConstants fields changed (WORLD_VERSION, SNAPSHOT_NETWORK_PROTOCOL_VERSION)"
+    },
+    {
+      "files": [
+        "crates/horizon-client/src/game/social.rs"
+      ],
+      "id": 5,
+      "kind": "unproved",
+      "rank": 3,
+      "status": "open",
+      "title": "crates/horizon-client/src/game/social.rs: PlayerEntry.<init> changed (chatDisabledOrBlocked condition flipped)"
+    },
+    {
+      "files": [],
+      "id": 6,
+      "kind": "unported",
+      "rank": 5,
+      "status": "open",
+      "title": "DetectedVersion.createBuiltIn changed (DataVersion constant only); Horizon does not port DetectedVersion"
+    }
+  ],
+  "note": "Patch delta vs 26.1 (same protocol 775): DataVersion 4786 -> 4788 with no format change, and 3 changed classes (2 methods, 2 fields). Derived 2026-11-23 from the pipeline report (report.json, sha256 above), diff.json and the jars \u2014 no work-items file existed for this version. Items 1-4 and 6 are version plumbing already absorbed by the mechanical port and carry-forward; item 5 is the one real behaviour change, a one-instruction fix in vanilla's PlayerEntry constructor.",
+  "rank1": {
+    "accepted": [],
+    "closed": 0,
+    "total": 3
+  },
+  "rank2": {
+    "accepted": [],
+    "closed": 0,
+    "total": 1
+  },
+  "rank3": {
+    "accepted": [],
+    "closed": 0,
+    "total": 1
+  },
+  "rank3plus": "Inherits the 26.1 parent's answers for everything this release did not change; the single rank-3 item is the PlayerEntry constructor fix, and the rank-5 item is version plumbing Horizon does not port.",
+  "rank4": {
+    "accepted": [],
+    "closed": 0,
+    "total": 0
+  },
+  "rank5": {
+    "accepted": [],
+    "closed": 0,
+    "total": 1
+  },
+  "release": "26.1.1"
+}
