@@ -1456,7 +1456,7 @@ impl Menu {
                         .is_some_and(|m| m.contains(&*stack.item))
             }
             Role::Ingredient => env.brewing.is_reagent(stack),
-            Role::BrewFuel => crate::brewing::brewing_fuel(env.items, stack).is_some(),
+            Role::BrewFuel => crate::brewing::brewing_fuel(env.items, stack),
             Role::LoomBanner => Self::is_banner(stack),
             Role::LoomDye => env.banners.loom_dye(env.items, stack).is_some(),
             Role::LoomPattern => env.banners.is_pattern_item(env.items, stack),
@@ -2314,7 +2314,7 @@ impl Menu {
                     if !self.move_to(env, &mut stack, 5, 41, true) {
                         return None;
                     }
-                } else if crate::brewing::brewing_fuel(env.items, &clicked).is_some() {
+                } else if crate::brewing::brewing_fuel(env.items, &clicked) {
                     let moved = self.move_to(env, &mut stack, 4, 5, false);
                     if moved
                         || (env.brewing.is_reagent(&stack)

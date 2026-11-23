@@ -997,9 +997,7 @@ impl Hub {
                 f.cooking_timer,
                 f.cooking_total,
             ],
-            Some(BlockEntity::Brewing(b)) => {
-                vec![b.brew_time, b.fuel, b.total_brew_time, b.total_fuel]
-            }
+            Some(BlockEntity::Brewing(b)) => vec![b.brew_time, b.fuel],
             // CrafterBlockEntity.containerData: the disabled slots, then triggered.
             Some(BlockEntity::Crafter(c)) => c
                 .disabled

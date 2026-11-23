@@ -477,10 +477,7 @@ impl Jukebox {
 pub struct BrewingStand {
     pub items: [Option<ItemStack>; 5],
     pub brew_time: i32,
-    pub total_brew_time: i32,
     pub fuel: i32,
-    pub total_fuel: i32,
-    pub speed: f32,
     pub ingredient: Option<Arc<str>>,
     pub last_bottles: Option<[bool; 3]>,
 }

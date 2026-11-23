@@ -402,7 +402,7 @@ impl Containers<'_> {
         if view.kind == Kind::Brewing {
             // BrewingStandBlockEntity.canPlaceItem
             return match slot {
-                4 => horizon_client::brewing::brewing_fuel(self.items, stack).is_some(),
+                4 => horizon_client::brewing::brewing_fuel(self.items, stack),
                 3 => self.brewing.is_some_and(|b| b.is_reagent(stack)),
                 _ => {
                     let input = self.brewing.is_some_and(|b| b.is_bottle(stack))

@@ -733,6 +733,12 @@ pub fn compost_chance(item: &str) -> Option<f32> {
     })
 }
 
+/// The item tag that gates brewing fuel in 26.1
+/// (`BrewingStandMenu$FuelSlot.mayPlaceItem` tests
+/// `stack.is(ItemTags.BREWING_FUEL)`): blaze powder only. 26.1 has no
+/// `brewing_fuel` component, so the tag is the whole behaviour.
+pub const BREWING_FUEL_TAG: &str = "minecraft:brewing_fuel";
+
 /// `FuelValues.vanillaBurnTimes` (26.1): the hardcoded burn-time table,
 /// base unit 200. 26.1 has no `cooking_fuel` component and no fuel speed
 /// effect; smoker/blast-furnace speed comes from the recipes' own times.

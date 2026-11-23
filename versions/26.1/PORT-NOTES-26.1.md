@@ -902,3 +902,23 @@ clock tick and the spectate packet already carry the 26.1 form);
 (emptyContents returns false for an empty bucket, so empty buckets
 still fall through to pickup); the initServer diff is the
 management-server setup moving to the constructor in 26.2.
+
+Batch 55 (Nov 23, 490/498): 227 PORTED — the brewing carry-over.
+The 26.1 tree carried the 26.3 data-driven brewing loader, but
+neither 26.1 nor 26.2 ships `minecraft:brewing` recipe files: the
+mixes live only in `PotionBrewing.addVanillaMixes`, which is
+identical between 26.1 and 26.2 (41 addMix + 11 addStartMix + 3
+addContainer + 2 addContainerRecipe = 65 mixes; the triage note's
+"26.2's 65" compared raw call counts against expanded mixes).
+Carried the 26.2 hardcoded mix tables, `BrewOutput` + `apply`,
+`find`/`has_mix`, the flat-400 tick and the tag-based bool fuel
+(new `BREWING_FUEL_TAG` const). Dropped the 26.3-only stand fields
+(total_brew_time/total_fuel/speed) and the speed load tests; NBT
+is short BrewTime + byte Fuel (verified against the 26.1 jar);
+container data slots back to 2 (getCount = 2 in the 26.1 jar);
+probe, fixture, oracles and parity drivers carried from 26.2.
+Regression test `vanilla_mixes_preserve_one_half` (65 recipes).
+Items 89/90 deferred with reasons in the triage narrative: the
+light/save_roundtrip harnesses need a prepared .local this
+worktree lacks, and the jardiff shows no 26.2→26.1 behaviour
+change in the light/save classes to port.
