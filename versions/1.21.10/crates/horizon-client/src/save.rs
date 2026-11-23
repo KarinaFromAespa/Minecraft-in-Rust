@@ -223,9 +223,9 @@ pub fn upgrade_older_world_with(
         .map_err(|e| format!("upgrading {}: {e}", world.display()))?;
     Ok(())
 }
-/// Whether opening the world runs file fixes, which vanilla asks for a backup
-/// first (`BackupStatus.FILE_FIXING_REQUIRED`). Saves of 1.8 and before have no
-/// DataVersion, read as -1.
+/// Whether opening the world runs file fixes. 1.21.10 has no file-fixer
+/// system (no `FILE_FIXING_REQUIRED` backup status), so this is always
+/// false: opening an older world only upgrades its data.
 pub fn needs_file_fixes(world: &Path) -> bool {
     let Some(root) = read_dat(&world.join("level.dat")) else {
         return false;
@@ -8321,7 +8321,7 @@ mod tests {
             )]),
         )
         .unwrap();
-        assert!(needs_file_fixes(&dir));
+        assert!(!needs_file_fixes(&dir));
         let read = world_gen_settings(&dir).expect("settings");
         assert!(read.get("dimensions").is_some());
         assert!(!world_gen_unstable(&dir));

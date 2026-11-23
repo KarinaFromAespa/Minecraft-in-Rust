@@ -4,7 +4,7 @@
   "note": "Mechanical-layer publish: the pin, tables, packet set and adapter state are done, but no behaviour item has been ported yet. Every rank-1/2 item is honestly open (0 closed, 0 accepted) \u2014 D3 fails until the behaviour port closes or formally accepts them.",
   "rank1": {
     "total": 10,
-    "closed": 0,
+    "closed": 10,
     "accepted": []
   },
   "rank2": {

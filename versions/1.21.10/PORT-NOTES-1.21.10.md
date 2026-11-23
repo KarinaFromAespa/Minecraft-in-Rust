@@ -353,5 +353,58 @@ command-parse oracle ported to the pre-permissions API; adapter
 ladder re-based to the 773 pin; exporter mains ported to the 1.21.10 API and jsr305 on the javac classpath (prepare
 verified ok end-to-end);
 workspace compiles; protocol tests 438 pass / 2 fail
-(sandbox-network pair only). Behaviour port unstarted (0/719).
+(sandbox-network pair only). Behaviour port: rank 1 closed (10/719).
 Harness profile (9 of 17 measured locally): 1 pass, 4 oracle, 4 fail.
+
+## Behaviour port — rank 1 (10 items, CLOSED 2026-11-24)
+
+- Item 1 components (verified, no code change): the wire layer is
+  1.21.10's — the component id table in
+  `crates/horizon-protocol/src/item.rs` lists 56 named consts with the
+  8 removed types absent (`ATTACK_RANGE`, `DAMAGE_TYPE`,
+  `ZOMBIE_NAUTILUS_VARIANT` dropped vs 1.21.11's 59; the other five
+  never had consts), and `skip_dropped` reads-and-drops all 8 with
+  their 1.21.11 stream codecs. No code references the removed id
+  constants (only doc comments, plus the unrelated entity-data
+  serializer `ZOMBIE_NAUTILUS_VARIANT`). Behaviour fallout — code
+  that reads the removed components by name (`items.rs` use_effects,
+  `hand.rs` swing/attack-range, `spear_use.rs` kinetic_weapon) —
+  belongs to the rank-2 items for those modules.
+- Item 2 protocol (verified): the mount→horse rename is complete
+  (`HORSE_SCREEN_OPEN` = 40); zero `MountScreenOpen` remnants in the
+  tree.
+- Items 3–8 regenerate (verified): `regen-determinism.json` shows all
+  six generators reproduce the committed tables byte-identical, with
+  no overrides.
+- Item 9 save-format (PORTED from the 1.21.11 port's 2b1a914, with one
+  1.21.10 adjustment): 1.21.10 has no `FileFixerUpper`
+  (`net/minecraft/util/filefix` is absent from the named server jar)
+  and no `FILE_FIXING_REQUIRED` backup status (`BackupStatus` is only
+  NONE/DOWNGRADE/UPGRADE_TO_SNAPSHOT, javap-verified from the named
+  client jar). Deleted fix_1493/4772/4773/4899,
+  `level_dat_to_saved_data` and their helpers; `requires_file_fixing`
+  is always false; the whole-world upgrade follows the pre-26.x
+  layout (confirmed against the real 1.21.10 world in
+  vanilla-world-mc: flat `scoreboard.dat`/`chunks.dat` under `data/`,
+  DIM-1/DIM1, `playerdata/`, `advancements/`, `stats/`);
+  `saved_data_type` keeps only the types 1.21.10's `DataFixTypes`
+  defines — 1.21.11's set minus stopwatches (`SAVED_DATA_STOPWATCHES`
+  and `DEBUG_PROFILE` are not in 1.21.10's enum, javap-verified).
+  `DataFixers`: 1.21.10's fix versions are a strict subset of
+  1.21.11's (247 vs 256; the 8 extras are all above 4556, plus one
+  schema version, 2556), so the CURRENT-gated fix table is correct
+  as-is. The 45 changed datafix classes are mechanical noise only
+  (sampled `EntityCatSplitFix`, `ChunkHeightAndBiomeFix`,
+  `EntityRenameFix`: `isEmpty`→`length`, `Util` moved packages,
+  `MutableObject.get`→`getValue` — no behaviour change), so the
+  Rust fix implementations are untouched. Files:
+  `datafix/{files,mod,progress,world_upgrader,tests}.rs`, `save.rs`
+  (`needs_file_fixes` doc + test assertion), `datafix_world.rs`
+  (doc header). `requires_file_fixing` is kept as an always-false
+  stub — its full removal is rank-2 item 205's, matching the 1.21.11
+  port's item 21. NOT in item 9: the `save.rs` settings store still
+  writes `world_gen_settings.dat` / `world_clocks.dat` /
+  `game_rules.dat` as saved-data files (26.x) instead of level.dat's
+  `Data` — that rewire is rank-2 save_roundtrip work, as in 1.21.11.
+- Item 10 facts (verified): `version.rs` reads protocol 773, data
+  version 4556, data pack 88.0, resource pack 69.0.
