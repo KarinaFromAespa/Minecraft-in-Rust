@@ -180,10 +180,12 @@ fn transform(provider: Provider, sound: &str, particle: &str, transform_type: &s
 /// The copper families `WeatheringCopper` and `HoneycombItem` build their
 /// maps from, each with its four oxidation stages in order. The block of
 /// copper names its stages `exposed_copper` etc., not `exposed_copper_block`.
-/// 26.1's `WAXABLES` (48 pairs) and `WeatheringCopper.NEXT_BY_BLOCK` (36
-/// pairs) cover these 12 families only: bars, lantern and chain exist as
-/// blocks (all 8 variants each) but do not weather or wax in 26.1 — they
-/// joined the weathering maps in 26.2.
+/// 26.1's `WAXABLES` (60 pairs) and `WeatheringCopper.NEXT_BY_BLOCK` (45
+/// pairs) cover these 15 families: 12 are listed explicitly in the
+/// lambdas, and bars, lantern and chain join via
+/// `WeatheringCopperBlocks.weatheringMapping()` / `waxedMapping()` putAll
+/// calls in both maps (verified against the 26.1 jar — an earlier note
+/// claiming 12 families missed those putAlls).
 fn copper_stages() -> Vec<[String; 4]> {
     let mut out = vec![[
         "minecraft:copper_block".to_owned(),
@@ -203,6 +205,9 @@ fn copper_stages() -> Vec<[String; 4]> {
         "copper_chest",
         "copper_golem_statue",
         "lightning_rod",
+        "copper_bars",
+        "copper_chain",
+        "copper_lantern",
     ] {
         out.push([
             format!("minecraft:{base}"),

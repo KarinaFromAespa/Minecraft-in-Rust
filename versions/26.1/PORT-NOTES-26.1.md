@@ -624,3 +624,13 @@ all confirmed absent from the 26.1 client jar); 415 ZombieNautilus
 isBaby/canBeABaby is the batch-11 form already ported; 416 codec
 refactor; 418 two 26.1-only scoreboard helpers (not ported); 75
 AABB.equals branch inversion; 390 creaking instanceof is always true.
+
+Batch 26 (Nov 23, 314/498): 393 PORTED — corrects a rank-1 error: 26.1
+has FIFTEEN weathering copper families, not 12. NEXT_BY_BLOCK is 36
+explicit puts + putAll of the bars/lantern/chain weatheringMappings
+(45 pairs); WAXABLES is 48 puts + 3 waxedMapping putAlls (60 pairs).
+Added copper_bars/copper_chain/copper_lantern to copper_stages().
+392/395/397/398/399/400 no-change (branch artifacts, package moves,
+renames, a 26.2-only safeClone); 396 tag helpers identical, tag
+constants are data-driven (26.1 keeps the 16 item-tag constants 26.2
+dropped as fields; 26.2 adds concrete/glazed-terracotta + sulfur tags).
