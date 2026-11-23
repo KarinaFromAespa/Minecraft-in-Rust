@@ -729,3 +729,8 @@ immediate re-check is 26.2-only. 179 PORTED — ServerEntity.sendChanges
 has no syncPosition clock-rounding in 26.1 (the field does not exist);
 the flag and stepped-tracker step stay for items 94/288.
 158/161/172/175 no-change: identical methods, renames, menu chrome.
+
+Batch 39 (Nov 23, 400/498): all no-change. 180: polar-bear baby dims
+already the 26.1 Scale form. 185: arrow drag already the 0.99F literal.
+147: isOldChunk's threshold is 4295 in 26.1 (4882 in 26.2) and the Rust
+already uses 4295. 187/131: renames, identical methods, package moves.
