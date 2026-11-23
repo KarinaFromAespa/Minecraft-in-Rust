@@ -634,3 +634,11 @@ Added copper_bars/copper_chain/copper_lantern to copper_stages().
 renames, a 26.2-only safeClone); 396 tag helpers identical, tag
 constants are data-driven (26.1 keeps the 16 item-tag constants 26.2
 dropped as fields; 26.2 adds concrete/glazed-terracotta + sulfur tags).
+
+Batch 27 (Nov 23, 322/498): 375 PORTED — AbstractMinecart.comeOffTrack
+scales by the double literal 0.95 in 26.1, but 26.2 calls getAirDrag()
+(0.95F widened = 0.949999988079071); the Rust used the 26.2 form at
+the derailed-cart site. (The applyNaturalSlowdown water site keeps the
+float form — that method is identical in both versions.) 74/377/380/
+382/383/385/373 no-change: async/switch/interface refactors, renames,
+spills, the same 48-potion set, beacon menu chrome.
