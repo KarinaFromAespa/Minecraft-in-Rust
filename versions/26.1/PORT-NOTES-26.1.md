@@ -659,3 +659,11 @@ were already the 26.1 form from batch 11.) 249/250/222/195/177/178/64
 no-change: renames, package moves, getCenter/atCenterOf, spills, a
 branch inversion, HUD/options/shutdown chrome; crossbow charging
 sounds have the identical body (instance vs static).
+
+Batch 30 (Nov 23, 346/498), all no-change: 65 identical lambda; 66
+26.2 adds a FLAT_ALL_DIMENSIONS preset (data-driven); 364 package
+move; 365 infiniburn IS a TagKey in 26.1 vs a HolderSet in 26.2, but
+the Rust already carries the tag form; 176 name-tag distance moved
+out of extractRenderState (not ported); 63 bootstrap renames; 362
+client entry restructure; 245 vault/trial-spawner lambdas are
+getCenter/rename moves, ejectResultItem instance vs static.
