@@ -3457,21 +3457,33 @@ mod breath_air_tests {
     use super::BreathAir;
 
     #[test]
-    fn searches_neighbor_columns_in_vanilla_order() {
+    fn searches_the_between_closed_box_in_vanilla_order() {
         let origin = [10, 20, 30];
         let air = [[10, 27, 29], [11, 21, 30], [10, 22, 31], [9, 23, 30]];
         assert_eq!(
             BreathAir::air_position(origin, |p| air.contains(&p)),
             Some([10, 27, 29])
         );
+        // The centre column no longer wins: [10, 27, 29] (z-1 layer) comes
+        // before [10, 28, 30] in the X-fastest, then Y, then Z box order.
         assert_eq!(
             BreathAir::air_position(origin, |p| p == [10, 28, 30] || air.contains(&p)),
-            Some([10, 28, 30])
+            Some([10, 27, 29])
+        );
+        // X fastest: the box's first position beats the top of the centre.
+        assert_eq!(
+            BreathAir::air_position(origin, |p| p == [10, 28, 30] || p == [9, 20, 29]),
+            Some([9, 20, 29])
+        );
+        // Y before Z: a low y in the z-1 layer beats a low y in the z+1 layer.
+        assert_eq!(
+            BreathAir::air_position(origin, |p| p == [11, 20, 31] || p == [9, 21, 29]),
+            Some([9, 21, 29])
         );
         for p in air {
             assert_eq!(BreathAir::air_position(origin, |q| q == p), Some(p));
         }
-        // One block above the 9-block columns: not searched.
+        // One block above the 9-block box: not searched.
         assert_eq!(BreathAir::air_position(origin, |p| p == [10, 29, 30]), None);
     }
 }
