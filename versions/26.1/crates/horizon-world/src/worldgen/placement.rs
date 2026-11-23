@@ -257,10 +257,10 @@ impl PlacementModifier {
                 factor,
                 offset,
             } => {
-                let noise = f64::from(biome_info_noise(
+                let noise = biome_info_noise(
                     f64::from(x) / factor,
                     f64::from(z) / factor,
-                ));
+                );
                 Some(((noise + offset) * f64::from(*ratio)).ceil() as i32)
             }
             Self::NoiseThresholdCount {
@@ -268,7 +268,7 @@ impl PlacementModifier {
                 below,
                 above,
             } => {
-                let noise = f64::from(biome_info_noise(f64::from(x) / 200., f64::from(z) / 200.));
+                let noise = biome_info_noise(f64::from(x) / 200., f64::from(z) / 200.);
                 Some(if noise < *level { *below } else { *above })
             }
             _ => None,

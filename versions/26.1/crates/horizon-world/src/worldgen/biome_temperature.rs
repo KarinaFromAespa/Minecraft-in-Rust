@@ -39,9 +39,9 @@ fn noises() -> &'static TemperatureNoises {
         let mut random = LegacyRandom::new(3456);
         let mut frozen = NoiseStack::builder();
         for (frequency, amplitude) in [
-            (1.0, 1.0f32 / 7.0),
-            (0.5, 2.0f32 / 7.0),
-            (0.25, 4.0f32 / 7.0),
+            (1.0, 1.0 / 7.0),
+            (0.5, 2.0 / 7.0),
+            (0.25, 4.0 / 7.0),
         ] {
             frozen.add(
                 Arc::new(SimplexNoise::with_skipped_offsets(&mut random, true)),
@@ -62,7 +62,8 @@ impl TemperatureModifier {
             let sources = noises();
             let x = f64::from(position.x);
             let z = f64::from(position.z);
-            let frozen = f64::from(sources.frozen.get2(x * 0.05, z * 0.05) * 7.0);
+            let frozen = sources.frozen.get2(x * 0.05, z * 0.05) * 7.0;
+            // `SimplexNoise::get2` is the inherent f32 engine call; widen it.
             let info = f64::from(sources.info.get2(x * 0.2, z * 0.2));
             if frozen + info < 0.3 && f64::from(sources.info.get2(x * 0.09, z * 0.09)) < 0.8 {
                 return 0.2;
@@ -101,10 +102,12 @@ impl BiomeTemperatureSettings {
         let base = self.modifier.modify(position, self.base_temperature);
         let start = sea_level.wrapping_add(17);
         if position.y > start {
-            let variation = noises().height.get2(
+            // Vanilla casts the doubled value to float here:
+            // `(float)(TEMPERATURE_NOISE.getValue(x / 8.0F, z / 8.0F, false) * 8.0)`.
+            let variation = (noises().height.get2(
                 f64::from(position.x as f32 / 8.0),
                 f64::from(position.z as f32 / 8.0),
-            ) * 8.0;
+            ) * 8.0) as f32;
             base - ((variation + position.y as f32 - start as f32) * 0.05 / 40.0)
         } else {
             base
@@ -205,9 +208,10 @@ impl BiomeTemperature {
     }
 }
 
-/// Fixed biome-information noise shared by temperature and placement rules.
-pub fn biome_info_noise(x: f64, z: f64) -> f32 {
-    noises().info.get2(x, z)
+/// Fixed biome-information noise shared by temperature and placement rules:
+/// vanilla 26.1 `Biome.BIOME_INFO_NOISE`, a double.
+pub fn biome_info_noise(x: f64, z: f64) -> f64 {
+    f64::from(noises().info.get2(x, z))
 }
 
 #[cfg(test)]

@@ -128,7 +128,7 @@ fn power_literal_selection_retains_signed_zeros_and_negative_fallback_behavior()
         compiler.compile_raw(invalid_raw).unwrap_err(),
         CompileError::UnpreparedCache
     );
-    for (root, expected) in roots.into_iter().zip([0.0_f32, -0.0, 0.0625, 0.0625]) {
+    for (root, expected) in roots.into_iter().zip([0.0_f64, -0.0, 0.0625, 0.0625]) {
         let value = compiler
             .compile_raw(root)
             .unwrap()
@@ -208,7 +208,7 @@ fn rounding_specializes_only_literal_one_and_preserves_input_on_multiple_failure
 #[test]
 fn end_islands_use_the_world_seed_independently_of_the_noise_algorithm() {
     let mut graph = DensityGraph::new();
-    let root = graph.insert(GraphNode::EndIslands).unwrap();
+    let root = graph.insert(GraphNode::EndIslands { central: false }).unwrap();
     assert_eq!(graph.domain_axes(root), Ok(5));
     assert_eq!(
         graph.range(root).unwrap(),
@@ -316,7 +316,7 @@ fn noise_specialization_requires_literal_positive_zero_shifts() {
         .sample_volume(&mut SamplerContext::default(), &mut buffer, volume)
         .unwrap();
     assert_eq!(buffer[0].to_bits(), 0);
-    assert_eq!(buffer[1].to_bits(), (-0.0_f32).to_bits());
+    assert_eq!(buffer[1].to_bits(), (-0.0_f64).to_bits());
 }
 
 #[test]
@@ -325,7 +325,7 @@ fn spline_range_early_return_does_not_skip_coordinate_validation_during_compilat
     let unavailable = graph
         .bind(Arc::new(FailingSampler), Interval::NAI, 2)
         .unwrap();
-    let invalid = graph.insert(GraphNode::Constant(f32::NAN)).unwrap();
+    let invalid = graph.insert(GraphNode::Constant(f64::NAN)).unwrap();
     let nested = CubicSpline::multipoint(
         invalid,
         vec![SplinePoint {
@@ -410,12 +410,12 @@ fn interval_threshold_equality_and_hashing_preserve_distinct_cache_inputs() {
     let mut graph = DensityGraph::new();
     let one = graph.insert(GraphNode::Constant(1.0)).unwrap();
     let zero = graph.insert(GraphNode::Constant(0.0)).unwrap();
-    let shared_nan: Arc<[f32]> = Arc::from([f32::NAN]);
+    let shared_nan: Arc<[f64]> = Arc::from([f64::NAN]);
     let mut ids = Vec::new();
     for thresholds in [
         shared_nan.clone(),
         shared_nan,
-        Arc::from([f32::NAN]),
+        Arc::from([f64::NAN]),
         Arc::from([0.0]),
         Arc::from([-0.0]),
     ] {
@@ -465,11 +465,11 @@ fn structural_identity_preserves_java_float_keys_and_shared_cache_ids() {
     let positive = graph.insert(GraphNode::Constant(0.0)).unwrap();
     let negative = graph.insert(GraphNode::Constant(-0.0)).unwrap();
     assert_ne!(positive, negative);
-    let nan = graph.insert(GraphNode::Constant(f32::NAN)).unwrap();
+    let nan = graph.insert(GraphNode::Constant(f64::NAN)).unwrap();
     assert_eq!(
         nan,
         graph
-            .insert(GraphNode::Constant(f32::from_bits(0xffa00001)))
+            .insert(GraphNode::Constant(f64::from_bits(0xfff4_0000_0000_0001)))
             .unwrap()
     );
     let first = graph.insert(GraphNode::Cache(positive)).unwrap();
@@ -497,7 +497,7 @@ fn failed_parent_preparation_retains_successful_child_and_consumes_new_id_on_ret
     let mut graph = DensityGraph::new();
     let good = graph.insert(GraphNode::Constant(1.0)).unwrap();
     let child = graph.insert(GraphNode::Cache(good)).unwrap();
-    let bad = graph.insert(GraphNode::Constant(f32::NAN)).unwrap();
+    let bad = graph.insert(GraphNode::Constant(f64::NAN)).unwrap();
     let sum = graph
         .insert(GraphNode::Binary {
             kind: GraphBinary::Add,
@@ -528,7 +528,7 @@ fn failed_parent_preparation_retains_successful_child_and_consumes_new_id_on_ret
 #[derive(Debug)]
 struct FailingSampler;
 impl DensitySampler for FailingSampler {
-    fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f32, SampleError> {
+    fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f64, SampleError> {
         Err(SampleError::ZeroGradientPeriod)
     }
 }
@@ -590,18 +590,18 @@ fn min_range_elimination_is_strict_and_does_not_skip_child_compilation() {
 #[derive(Debug, Default)]
 struct VerticalTrace(Mutex<Vec<DensityVolume>>);
 impl DensitySampler for VerticalTrace {
-    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f32, SampleError> {
-        Ok(position[1] as f32)
+    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f64, SampleError> {
+        Ok(position[1] as f64)
     }
     fn sample_volume(
         &self,
         _: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         self.0.lock().unwrap().push(volume);
         visit(volume, |index, position| {
-            buffer[index] = position[1] as f32;
+            buffer[index] = position[1] as f64;
             Ok(())
         })
     }
@@ -668,7 +668,7 @@ fn positive_y_bounds_read_a_y_range_choice_with_a_nonpositive_fallback() {
     let half = choice(&mut graph, y, -59.5, -8.0, minus_one);
     assert_eq!(graph.positive_y_bounds(half), Ok(Some([-59, -9])));
     // The clamped gradient stays in range below its first coordinate.
-    let open = choice(&mut graph, y, f32::NEG_INFINITY, 10.0, minus_one);
+    let open = choice(&mut graph, y, f64::NEG_INFINITY, 10.0, minus_one);
     assert_eq!(graph.positive_y_bounds(open), Ok(Some([i32::MIN, 9])));
     let never = choice(&mut graph, y, 5000.0, 6000.0, minus_one);
     assert_eq!(

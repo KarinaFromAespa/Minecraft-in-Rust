@@ -41,13 +41,13 @@ impl Sampler {
             Self::Stack(n) => Arc::new(n.clone()),
         }
     }
-    fn range(&self) -> Result<[f32; 2], horizon_core::noise::NanRange> {
+    fn range(&self) -> Result<[f64; 2], horizon_core::noise::NanRange> {
         self.as_noise().range()
     }
-    fn get2(&self, x: f64, z: f64) -> f32 {
+    fn get2(&self, x: f64, z: f64) -> f64 {
         self.as_noise().get2(x, z)
     }
-    fn get3(&self, x: f64, y: f64, z: f64) -> f32 {
+    fn get3(&self, x: f64, y: f64, z: f64) -> f64 {
         self.as_noise().get3(x, y, z)
     }
 }
@@ -102,7 +102,7 @@ fn create<R: RandomSource>(
     let offsets = sampler.table().offsets();
     let range = sampler.range();
     let (lower, upper) = match range {
-        Ok(range) => (bits(range[0]).to_string(), bits(range[1]).to_string()),
+        Ok(range) => (bits(range[0] as f32).to_string(), bits(range[1] as f32).to_string()),
         Err(_) => ("error".to_owned(), "error".to_owned()),
     };
     writeln!(
@@ -139,8 +139,8 @@ fn normal_probe<R: RandomSource>(
         "normal {} {} {} {}",
         definition.octaves().len(),
         dbits(definition.normalization_factor()),
-        bits(range[0]),
-        bits(range[1])
+        bits(range[0] as f32),
+        bits(range[1] as f32)
     )?;
     for octave in definition.octaves() {
         writeln!(
@@ -165,35 +165,35 @@ fn normal_probe<R: RandomSource>(
                 out,
                 "normal-create {} {} {}",
                 noise.layers().len(),
-                bits(range[0]),
-                bits(range[1])
+                bits(range[0] as f32),
+                bits(range[1] as f32)
             )?;
             for layer in noise.layers() {
                 writeln!(
                     out,
                     "normal-layer {} {} {} {}",
                     dbits(layer.frequency),
-                    bits(layer.amplitude),
-                    bits(layer.noise.get2(0.25, 0.75)),
-                    bits(layer.noise.get3(-17.25, 64.125, 32.5))
+                    bits(layer.amplitude as f32),
+                    bits(layer.noise.get2(0.25, 0.75) as f32),
+                    bits(layer.noise.get3(-17.25, 64.125, 32.5) as f32)
                 )?;
             }
             for &[x, y, z] in points {
                 writeln!(
                     out,
                     "normal-query {} {}",
-                    bits(noise.get2(x, z)),
-                    bits(noise.get3(x, y, z))
+                    bits(noise.get2(x, z) as f32),
+                    bits(noise.get3(x, y, z) as f32)
                 )?;
             }
             let volume = DensityVolume::new([2, 5, 2], [-17, -64, 32], [4, 1, 4])?;
-            let mut values: Vec<f32> = (0..volume.size())
-                .map(|i| (i as f32 - 10.0) * 0.125)
+            let mut values: Vec<f64> = (0..volume.size())
+                .map(|i| (i as f64 - 10.0) * 0.125)
                 .collect();
             for (pass, amplitude) in [0.5, -0.25].into_iter().enumerate() {
                 noise.add_to_volume(&mut values, volume, 0.125, 0.25, amplitude)?;
                 for (i, value) in values.iter().enumerate() {
-                    writeln!(out, "normal-volume {pass} {i} {}", bits(*value))?;
+                    writeln!(out, "normal-volume {pass} {i} {}", bits(*value as f32))?;
                 }
             }
         }
@@ -292,8 +292,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 write!(
                     out,
                     "query {} {}",
-                    bits(sampler.get2(x, z)),
-                    bits(sampler.get3(x, y, z))
+                    bits(sampler.get2(x, z) as f32),
+                    bits(sampler.get3(x, y, z) as f32)
                 )?;
                 let value = match sampler {
                     Sampler::Perlin(n) => Some(n.noise_with_derivative(x, y, z, &mut derivative)),
@@ -319,15 +319,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let steps = [read(&mut args)?, read(&mut args)?, read(&mut args)?];
                 let xz_scale = double(&mut args)?;
                 let y_scale = double(&mut args)?;
-                let amplitude = float(&mut args)?;
+                let amplitude = double(&mut args)?;
                 let seed: i64 = read(&mut args)?;
                 let repeats: usize = read(&mut args)?;
                 match DensityVolume::new(sizes, minimum, steps) {
                     Err(_) => writeln!(out, "volume error")?,
                     Ok(volume) => {
                         let mut random = LegacyRandom::new(seed);
-                        let mut values: Vec<f32> = (0..volume.size() + 4)
-                            .map(|_| f32::from_bits(random.next_int() as u32))
+                        let mut values: Vec<f64> = (0..volume.size() + 4)
+                            .map(|_| f64::from(f32::from_bits(random.next_int() as u32)))
                             .collect();
                         let sampler = &samplers[id];
                         for _ in 0..repeats {
@@ -359,13 +359,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         volume.block(Axis::X, x).unwrap(),
                                         volume.block(Axis::Y, y).unwrap(),
                                         volume.block(Axis::Z, z).unwrap(),
-                                        bits(values[index])
+                                        bits(values[index] as f32)
                                     )?;
                                 }
                             }
                         }
                         for value in &values[volume.size()..] {
-                            writeln!(out, "tail {}", bits(*value))?;
+                            writeln!(out, "tail {}", bits(*value as f32))?;
                         }
                     }
                 }
@@ -377,7 +377,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let flatten: i32 = read(&mut args)?;
                     let id: usize = read(&mut args)?;
                     let frequency = double(&mut args)?;
-                    let amplitude = float(&mut args)?;
+                    let amplitude = double(&mut args)?;
                     if flatten != 0 {
                         let Sampler::Stack(stack) = &samplers[id] else {
                             return Err("flatten expects a stack".into());
@@ -395,16 +395,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             out,
                             "stack {} {} {}",
                             stack.layers().len(),
-                            bits(range[0]),
-                            bits(range[1])
+                            bits(range[0] as f32),
+                            bits(range[1] as f32)
                         )?;
                         for (index, layer) in stack.layers().iter().enumerate() {
                             writeln!(
                                 out,
                                 "layer {} {} {}",
                                 dbits(layer.frequency),
-                                bits(layer.amplitude),
-                                bits(stack.get_layer(index).unwrap().get3(0.0, 0.0, 0.0))
+                                bits(layer.amplitude as f32),
+                                bits(stack.get_layer(index).unwrap().get3(0.0, 0.0, 0.0) as f32)
                             )?;
                         }
                         samplers.push(Sampler::Stack(stack));

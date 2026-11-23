@@ -922,3 +922,28 @@ Items 89/90 deferred with reasons in the triage narrative: the
 light/save_roundtrip harnesses need a prepared .local this
 worktree lacks, and the jardiff shows no 26.2→26.1 behaviour
 change in the light/save classes to port.
+
+Batch 56 (Nov 24, 491/498): 35 PORTED — the blending f32→f64 cascade.
+The 26.1 tree's whole density pipeline was f32 (the 26.3 form); vanilla
+26.1 computes in double throughout — verified against the 26.1 jar:
+BlendingData (`double[] heights`, `double[][] densities`, `double
+NO_VALUE`, `double getHeight/getDensity`), `DensityFunction.compute`,
+`NormalNoise.getValue`, `ImprovedNoise.noise`, `PerlinNoise` (double
+amplitudes) and `Blender.blendDensity/blendOffsetAndFactor` all double;
+Direction8 is top-level; Blender has the `addAroundOldChunksCarvingMaskFilter`
+static and the SHIFT_NOISE NormalNoise (the 26.2 form). Carried the 26.2
+tree's f64 density/noise/blending (15 density modules, stack.rs,
+blending.rs, the parity bins), hand-merging the 26.1-only
+weird_scaled_sampler (batch 52) back into the graph, compiler, decoder
+and tests. End islands: the decoder now maps `minecraft:end_islands`
+to `EndIslands { central: true }` (26.1's `getHeightValue` seeds the
+central cone, `clamp(100 - sqrt(sx^2 + sz^2) * 8, -100, 80)`; 26.3 moved
+the cone into `end/islands` data) and `end_outer_islands` to
+`{ central: false }`. `Beardifier.getBuryContribution` is now the 26.1
+`clampedMap(Mth.length, 0, 6, 1, 0)` form, not the 26.3 squared-cutoff
+form. BlendingData heights read/write as NBT doubles
+(`Codec.DOUBLE.listOf()`). Deliberately NOT carried: the synth
+double-precision noise engine (item 150, next batch — the float engine
+stays, widened at the Noise trait boundary), the 26.2 4-corner
+`getMinSurfaceLevel` and `sort_postprocessing_fill_order` (separate
+items). 43 files, +986/−745; workspace `cargo check` clean.

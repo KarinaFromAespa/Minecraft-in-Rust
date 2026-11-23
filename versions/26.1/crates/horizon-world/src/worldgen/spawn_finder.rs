@@ -26,7 +26,7 @@ impl SpawnTargetPoint {
     ) -> Result<i64, SampleError> {
         let mut fitness = 0i64;
         for (function, parameter) in &self.parameters {
-            let distance = parameter.distance(quantize(function.sample_value(context, position)?));
+            let distance = parameter.distance(quantize(function.sample_value(context, position)? as f32));
             fitness = fitness.wrapping_add(distance.wrapping_mul(distance));
         }
         Ok(fitness)
@@ -109,8 +109,8 @@ mod tests {
     #[derive(Debug)]
     struct Gradient;
     impl DensitySampler for Gradient {
-        fn sample_value(&self, _: &mut SamplerContext, p: [i32; 3]) -> Result<f32, SampleError> {
-            Ok(p[0] as f32 / 1000.0)
+        fn sample_value(&self, _: &mut SamplerContext, p: [i32; 3]) -> Result<f64, SampleError> {
+            Ok(p[0] as f64 / 1000.0)
         }
     }
 

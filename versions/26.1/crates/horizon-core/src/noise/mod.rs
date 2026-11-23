@@ -64,7 +64,9 @@ impl GradientTable {
 
 // Perlin's 16-direction table includes four repeated directions. Simplex uses
 // the first twelve directions, selecting them with remainder instead of masking.
-const GRADIENTS: [[i32; 3]; 16] = [
+// Vanilla's `SimplexNoise.GRADIENT` in both the float engine and the
+// double-precision synth module.
+pub(crate) const GRADIENTS: [[i32; 3]; 16] = [
     [1, 1, 0],
     [-1, 1, 0],
     [1, -1, 0],
@@ -249,13 +251,13 @@ mod tests {
         );
         let mut random = LegacyRandom::new(0);
         let modern = definition.create(&mut random).unwrap();
-        assert_eq!(modern.get3(0.0, 0.0, 0.0).to_bits(), 1_042_650_710);
+        assert_eq!(modern.get3(0.0, 0.0, 0.0).to_bits(), 4_594_994_103_902_706_742);
         assert_eq!(random.next_long(), -6_688_467_811_848_818_630);
         let mut random = LegacyRandom::new(0);
         let legacy = definition
             .create_for_legacy_nether_biome(&mut random)
             .unwrap();
-        assert_eq!(legacy.get3(0.0, 0.0, 0.0).to_bits(), 3_199_632_936);
+        assert_eq!(legacy.get3(0.0, 0.0, 0.0).to_bits(), 13_823_465_650_152_579_489);
         assert_eq!(random.next_long(), 4_966_550_093_728_345_520);
         let mut empty = NormalNoise::builder();
         empty.set_base_octave(2).set_octave_count(0).unwrap();
@@ -289,10 +291,10 @@ mod tests {
         assert!(Arc::ptr_eq(zero.get_layer(0).unwrap(), &sampler));
         assert!(zero.get_layer(1).is_none());
         let mut flattened = NoiseStack::builder();
-        flattened.add_stack(&zero, 1.0, f32::INFINITY);
+        flattened.add_stack(&zero, 1.0, f64::INFINITY);
         assert_eq!(flattened.build().unwrap_err(), NanRange);
         let nested = NoiseStack::builder()
-            .add(Arc::new(zero), 1.0, f32::INFINITY)
+            .add(Arc::new(zero), 1.0, f64::INFINITY)
             .build()
             .unwrap();
         assert_eq!(nested.range().unwrap(), [0.0; 2]);

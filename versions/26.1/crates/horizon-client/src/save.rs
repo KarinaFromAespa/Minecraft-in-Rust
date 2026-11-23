@@ -1425,9 +1425,10 @@ fn put_calculated_blending(root: &mut NamedTag, data: &BlendingData) {
         ("max_section", Tag::Int(max_section)),
     ];
     if let Some(heights) = heights {
+        // 26.1 writes doubles (`Codec.DOUBLE.listOf()`; 26.3 wrote floats).
         fields.push((
             "heights",
-            Tag::List(heights.iter().map(|h| Tag::Float(h.to_bits())).collect()),
+            Tag::List(heights.iter().map(|h| Tag::Double(h.to_bits())).collect()),
         ));
     }
     map.insert("blending_data".into(), Tag::compound(fields));

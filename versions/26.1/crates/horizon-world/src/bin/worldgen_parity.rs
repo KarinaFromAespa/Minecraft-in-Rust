@@ -49,8 +49,8 @@ fn probe(
         writeln!(
             out,
             "query {} {}",
-            bits(sampler.get2(x, z)),
-            bits(sampler.get3(x, y, z))
+            bits(sampler.get2(x, z) as f32),
+            bits(sampler.get3(x, y, z) as f32)
         )?;
     }
     writeln!(out, "parent {}", random.next_long())?;
@@ -98,8 +98,8 @@ fn sample_root(
     writeln!(
         out,
         "entry {name} {} {} {}",
-        bits(range.min()),
-        bits(range.max()),
+        bits(range.min() as f32),
+        bits(range.max() as f32),
         compiler.graph().domain_axes(id)?
     )?;
     let sampler = match if optimized {
@@ -123,7 +123,7 @@ fn sample_root(
         writeln!(
             out,
             "density {}",
-            bits(sampler.sample_value(context, position)?)
+            bits(sampler.sample_value(context, position)? as f32)
         )?;
     }
     let mut volumes = vec![
@@ -144,7 +144,7 @@ fn sample_root(
                 if result.is_ok() { "ok" } else { "error" }
             )?;
             for value in &buffer {
-                writeln!(out, "cell {}", bits(*value))?;
+                writeln!(out, "cell {}", bits(*value as f32))?;
             }
         }
     }
@@ -429,14 +429,14 @@ fn noise_aquifer_probe(line: &str, out: &mut impl Write) -> Result<(), Box<dyn s
             &self,
             context: &mut SamplerContext,
             position: [i32; 3],
-        ) -> Result<f32, SampleError> {
+        ) -> Result<f64, SampleError> {
             self.enter(format!(
                 "sample {} value {} {} {}",
                 self.field, position[0], position[1], position[2]
             ))?;
             let result = self.sampler.sample_value(context, position);
             self.events.lock().unwrap().push(match result {
-                Ok(value) => format!("value {}", bits(value)),
+                Ok(value) => format!("value {}", bits(value as f32)),
                 Err(_) => "value error".into(),
             });
             result
@@ -444,7 +444,7 @@ fn noise_aquifer_probe(line: &str, out: &mut impl Write) -> Result<(), Box<dyn s
         fn sample_volume(
             &self,
             context: &mut SamplerContext,
-            buffer: &mut [f32],
+            buffer: &mut [f64],
             volume: DensityVolume,
         ) -> Result<(), SampleError> {
             let size = volume.sizes();
@@ -472,7 +472,7 @@ fn noise_aquifer_probe(line: &str, out: &mut impl Write) -> Result<(), Box<dyn s
             events.extend(
                 buffer
                     .iter()
-                    .map(|value| format!("sample cell {}", bits(*value))),
+                    .map(|value| format!("sample cell {}", bits(*value as f32))),
             );
             result
         }
@@ -610,9 +610,9 @@ fn noise_aquifer_probe(line: &str, out: &mut impl Write) -> Result<(), Box<dyn s
             .and_then(|v| v.get(i))
             .and_then(|v| v.as_str())
         {
-            Arc::new(ConstantSampler(f32::from_bits(u32::from_str_radix(
-                value, 16,
-            )?))) as Arc<dyn DensitySampler>
+            Arc::new(ConstantSampler(f64::from(f32::from_bits(
+                u32::from_str_radix(value, 16)?,
+            )))) as Arc<dyn DensitySampler>
         } else {
             samplers.get(field).clone()
         };
@@ -893,8 +893,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "decode {} {} {} {}",
             noise.octaves().len(),
             noise.normalization_factor().to_bits(),
-            bits(min),
-            bits(max)
+            bits(min as f32),
+            bits(max as f32)
         )?;
         for octave in noise.octaves() {
             writeln!(

@@ -8,8 +8,8 @@ use std::{
 #[derive(Debug)]
 struct FloatBitsInput;
 impl DensitySampler for FloatBitsInput {
-    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f32, SampleError> {
-        Ok(f32::from_bits(position[0] as u32))
+    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f64, SampleError> {
+        Ok(f64::from(f32::from_bits(position[0] as u32)))
     }
 }
 
@@ -44,6 +44,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         {
             let bits = (start + offset as u64) as u32;
             let value = sampler.sample_value(&mut context, [bits as i32, 0, 0])?;
+            // The transport stays 4-byte float bits; the log itself is f64.
+            let value = value as f32;
             let result = if value.is_nan() {
                 0x7fc0_0000
             } else {

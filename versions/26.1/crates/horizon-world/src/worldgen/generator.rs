@@ -3104,8 +3104,8 @@ where
         );
         // Interpolate the supplied lattice, never the physical bounding volume.
         let value = |wx: i32, iy: usize, wz: i32| {
-            let rx = (wx - ox) as f32 / step_xz as f32;
-            let rz = (wz - oz) as f32 / step_xz as f32;
+            let rx = (wx - ox) as f64 / step_xz as f64;
+            let rz = (wz - oz) as f64 / step_xz as f64;
             let ix = rx.floor() as usize;
             let iz = rz.floor() as usize;
             let at = |dx: usize, dz: usize| {
@@ -3117,11 +3117,11 @@ where
                     ])
                     .unwrap()]
             };
-            let mix = |a: f32, b: f32, t: f32| a + (b - a) * t;
+            let mix = |a: f64, b: f64, t: f64| a + (b - a) * t;
             mix(
-                mix(at(0, 0), at(1, 0), rx - ix as f32),
-                mix(at(0, 1), at(1, 1), rx - ix as f32),
-                rz - iz as f32,
+                mix(at(0, 0), at(1, 0), rx - ix as f64),
+                mix(at(0, 1), at(1, 1), rx - ix as f64),
+                rz - iz as f64,
             )
         };
         let mut profile = vec![0.; ny as usize];
@@ -3153,10 +3153,10 @@ where
                 }
                 for y in (band_min..band_max).rev() {
                     let iy = ((y - band_min) / step_y) as usize;
-                    let alpha = ((y - band_min) % step_y) as f32 / step_y as f32;
+                    let alpha = ((y - band_min) % step_y) as f64 / step_y as f64;
                     let density = profile[iy] + (profile[iy + 1] - profile[iy]) * alpha;
                     let state = aquifer
-                        .compute_substance([wx, y, wz], f64::from(density))
+                        .compute_substance([wx, y, wz], density)
                         .unwrap_or(self.settings.default_block);
                     let properties = self.data.states.get(state);
                     if !properties.is_air() {

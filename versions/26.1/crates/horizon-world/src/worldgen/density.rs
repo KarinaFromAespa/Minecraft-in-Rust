@@ -34,12 +34,14 @@ pub(super) fn identifier(name: &str) -> Result<String, DecodeError> {
 fn string(raw: &RawValue) -> Result<String, DecodeError> {
     Ok(serde_json::from_str(raw.get())?)
 }
-fn float(raw: &RawValue) -> Result<f32, DecodeError> {
+/// Vanilla 26.1 decodes density constants, spline locations and derivatives
+/// as doubles; parse the JSON number directly as f64 (never via f32).
+fn float(raw: &RawValue) -> Result<f64, DecodeError> {
     number_text(raw)?
         .parse()
         .map_err(|_| DecodeError::Field("float"))
 }
-fn noise_value(raw: &RawValue) -> Result<f32, DecodeError> {
+fn noise_value(raw: &RawValue) -> Result<f64, DecodeError> {
     let value = float(raw)?;
     if (-1e6..=1e6).contains(&value) {
         Ok(value)
@@ -185,7 +187,7 @@ impl Loader {
         &mut self,
         object: &Object,
         name: &'static str,
-        fallback: f32,
+        fallback: f64,
         depth: usize,
     ) -> Result<FunctionId, DecodeError> {
         match optional(object, name) {
@@ -258,7 +260,13 @@ impl Loader {
                 "minecraft:blend_alpha" => GraphNode::WorldField(WorldField::BlendAlpha),
                 "minecraft:blend_offset" => GraphNode::WorldField(WorldField::BlendOffset),
                 "minecraft:beardifier" => GraphNode::WorldField(WorldField::Beardifier),
-                "minecraft:end_outer_islands" => GraphNode::EndIslands,
+                // Vanilla 26.1's `minecraft:end_islands` includes the central
+                // island cone (its `getHeightValue` seeds with
+                // `clamp(100 - sqrt(sx^2 + sz^2) * 8, -100, 80)`); 26.3 renamed
+                // the function to `end_outer_islands` and moved the cone
+                // into the data graph (`minecraft:end/islands`).
+                "minecraft:end_islands" => GraphNode::EndIslands { central: true },
+                "minecraft:end_outer_islands" => GraphNode::EndIslands { central: false },
                 "minecraft:cache" => GraphNode::Cache(self.input(&object, "input", depth)?),
                 "minecraft:blend_density" => {
                     GraphNode::BlendDensity(self.input(&object, "input", depth)?)
@@ -416,7 +424,7 @@ impl Loader {
                 "minecraft:interval_select" => {
                     let thresholds: Vec<Box<RawValue>> =
                         serde_json::from_str(required(&object, "thresholds")?.get())?;
-                    let thresholds: Vec<f32> = thresholds
+                    let thresholds: Vec<f64> = thresholds
                         .iter()
                         .map(|raw| noise_value(raw))
                         .collect::<Result<_, _>>()?;

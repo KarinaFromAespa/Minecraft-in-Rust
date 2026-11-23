@@ -143,7 +143,7 @@ impl DensityCompiler {
         }
         Ok(result)
     }
-    fn constant(&self, id: FunctionId) -> Option<f32> {
+    fn constant(&self, id: FunctionId) -> Option<f64> {
         match self.graph.entries[id.0].definition {
             Definition::Node(GraphNode::Constant(value)) => Some(value),
             _ => None,
@@ -163,11 +163,11 @@ impl DensityCompiler {
             GraphNode::BlendDensity(input) => Arc::new(BlendDensitySampler {
                 input: self.compile_raw(input)?,
             }),
-            GraphNode::EndIslands => self
+            GraphNode::EndIslands { central } => self
                 .context
                 .as_ref()
                 .ok_or(CompileError::MissingSeededContext)?
-                .end_islands(),
+                .end_islands(central),
             GraphNode::Noise {
                 noise,
                 xz_scale,
