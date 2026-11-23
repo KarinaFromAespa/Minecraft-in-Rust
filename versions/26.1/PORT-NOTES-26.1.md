@@ -821,3 +821,9 @@ Batch 48 (Nov 23, 453/498): 14 PORTED — the sleeping camera lifts
 the old criterion Builders are unreferenced, the chunk-batch clamp
 is already saturating in the Rust (26.1's negative-count path needs
 a spurious duplicate ack), frame/map methods are renames/spills.
+
+Batch 49 (Nov 23, 459/498), all no-change: the container-click
+handler already carries the 26.1 spectator-only form (26.2 added a
+dead-player resync), entity ids are read unguarded (26.2 throws on
+id 0), encryption keys both directions, and the rest are
+CriteriaTriggers moves, package moves, spills and renames.
