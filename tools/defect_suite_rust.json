@@ -55,5 +55,11 @@
  ],
  "mob-models": [],
  "recipe-packets": [],
- "undead-burn": []
+ "undead-burn": [
+  {
+   "crate": "horizon-client",
+   "suite": "horizon-client-lib",
+   "test": "zombie_at_dawn_ignites_promptly"
+  }
+ ]
 }
