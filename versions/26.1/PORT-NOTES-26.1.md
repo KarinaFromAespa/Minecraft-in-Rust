@@ -1805,3 +1805,34 @@ parity.py) is out of scope for 590 and needs its own item —
 26.1 has no such timer (Entity.invulnerableTime is the hurt
 cooldown). FLAG (from batch 85): /swing still carries the
 26.3 animation+duration arguments (tree_world.rs).
+
+## Rank 4/5 (D items)
+
+Rank-4 items are the "new-classes" packages from the 26.3→26.1
+report (~/workspace/mcir-work/26.1/versions/diff-26.3-26.1/report.json):
+333 classes in 74 packages that exist in 26.1 but not 26.3, with
+the `ported` list naming the ones Horizon already references (20
+total). Method per package: check each class against the 26.2
+jars (same path / moved elsewhere) and the Rust tree (ported
+list + grep). Verdict no-change unless the Rust is missing 26.1
+behaviour. Progress in rank4-progress.json (same shape as
+rank3-progress.json).
+
+Batch 88 (Nov 24, rank 4 10/74 — all no-change): 720 levelgen
+(84 classes, 81 in the 26.2 jar; BlendDensity modelled as
+BlendDensitySampler, WeirdScaledSampler is batch-52 26.1-only
+work, OreVeinifier via ore_vein_top()); 721 renderer
+(ItemInHandRenderer verified in batch 87; OutlineBufferSource/
+ShapeRenderer are doc citations for behaviour the Rust models
+through its own renderer); 722 feature (ConfiguredFeature in
+live.rs, DripstoneUtils in dripstone.rs); 723 core (all 11 in
+the 26.2 jar; RegistrySetBuilder inners + Direction8); 724
+blaze3d/vertex (none in the 26.2 jar — 26.2 removed the
+package; the Rust renders with wgpu); 725 monster (EnderMan
+in 26.2; the 5 not in 26.2 are Slime inner goals, 26.2 moved
+Slime to cubemob); 726 renderer/feature (Storage refs are
+false positives; the Rust has its own feature framework);
+727 blaze3d/opengl (OpenGL internals); 728 loot number
+providers (all in the 26.2 jar); 729 renderer/special
+(BedSpecialRenderer has explicit 26.1-only handling).
+Docs-only batch; no separate CI dispatch.

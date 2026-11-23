@@ -1,0 +1,55 @@
+{
+ "closed": [
+  {
+   "id": 720,
+   "verdict": "no-change",
+   "evidence": "84 levelgen classes, 81 in the 26.2 jar (shared density/worldgen machinery, modelled in ranks 1-2); the 3 not in 26.2 are BlendDensity (modelled as BlendDensitySampler/GraphNode::BlendDensity), WeirdScaledSampler + RarityValueMapper (batch 52 26.1-only work), OreVeinifier modelled via ore_vein_top()"
+  },
+  {
+   "id": 721,
+   "verdict": "no-change",
+   "evidence": "29 renderer classes; ItemInHandRenderer in 26.2 (verified batch 87); OutlineBufferSource/ShapeRenderer are doc citations for the glowing-outlines/line behaviour the Rust models through its own renderer; 26.2 refactored them into the feature framework"
+  },
+  {
+   "id": 722,
+   "verdict": "no-change",
+   "evidence": "20 feature classes, 17 in the 26.2 jar; ConfiguredFeature modelled in live.rs (place/getFeatures); DripstoneUtils modelled in dripstone.rs (batch 63)"
+  },
+  {
+   "id": 723,
+   "verdict": "no-change",
+   "evidence": "11 core classes, all in the 26.2 jar: RegistrySetBuilder inners (data-loading internals) + Direction8 (modelled, batch 56)"
+  },
+  {
+   "id": 724,
+   "verdict": "no-change",
+   "evidence": "10 blaze3d vertex classes, none in the 26.2 jar (26.2 removed the package in the GPU rework); the Rust renders with wgpu and does not model vanilla VertexFormat (mesher cites DefaultVertexFormat.BLOCK in docs only)"
+  },
+  {
+   "id": 725,
+   "verdict": "no-change",
+   "evidence": "10 monster classes; EnderMan + 4 goals in the 26.2 jar; the 5 not in 26.2 are Slime inner goals (26.2 moved Slime to cubemob, batch 79); slime behaviour verified in batch 79"
+  },
+  {
+   "id": 726,
+   "verdict": "no-change",
+   "evidence": "9 feature-renderer classes, 1 in the 26.2 jar; the Storage refs are false positives (generic name, no real refs); the Rust models render features through its own framework"
+  },
+  {
+   "id": 727,
+   "verdict": "no-change",
+   "evidence": "9 blaze3d opengl classes, 7 in the 26.2 jar; OpenGL internals (GlBuffer, GlTimerQuery, VertexArrayCache) the wgpu renderer does not model"
+  },
+  {
+   "id": 728,
+   "verdict": "no-change",
+   "evidence": "7 loot number-provider classes, all in the 26.2 jar; NumberProviders cited in carry.rs docs; loot providers modelled in rank 2"
+  },
+  {
+   "id": 729,
+   "verdict": "no-change",
+   "evidence": "6 special-renderer classes, none in the 26.2 jar (refactored); BedSpecialRenderer has explicit 26.1-only handling in item_render/special.rs"
+  }
+ ],
+ "triage": "Rank 4/5: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 4 = 74 D items, 333 classes from the 26.3->26.1 report; rank 5 = 2 D items). Class lists in ~/workspace/mcir-work/26.1/versions/diff-26.3-26.1/report.json. Method: per package, check each class against the 26.2 jars (same path / moved) and the Rust tree (ported list + grep); verdict no-change unless the Rust is missing 26.1 behaviour."
+}
