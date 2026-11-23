@@ -2187,3 +2187,91 @@ brewing stand's fuel slot reads a `minecraft:brewing_fuel`
 component the same way, and 1.21.7 has no such component either
 (vanilla gates it on the `brewing_fuel` item tag, jar-verified) —
 likely the same defect class, not investigated here.
+
+## Vanishing crafted item: a duplication the click path does not explain (2026-11-23)
+
+Owner report (build #4, 08:40 NPT Nov 23): a freshly crafted crafting
+table vanished from the inventory and could not be placed; a second
+crafted table did the same; after a while it self-healed (both tables
+appeared in the hotbar and placed fine). The video shows the defect is
+a duplication, not a vanish. Frame by frame (5 fps, 15-23 s): 12 birch
+planks at the start; one craft (drag 4 planks into the 2x2 grid, take
+the table, place it in hotbar slot 2) leaves 8 planks and 1 table, all
+correct. Moving the table to hotbar slot 1 then shows 2 tables there
+with the planks still at 8 and the grid empty — no second craft
+happened. Shuttling the stack back and forth ends with 2 tables in
+each of hotbar slots 1 and 2: 4 tables from a single craft. The player
+then places 3 of them in the world and the counts decrement
+consistently, so the duplication is server-side state, not a display
+glitch (a second, normal craft later takes the planks 8 to 4).
+
+The prime lead from the recipe-book-sync agent — the client's
+prediction menu is built fresh per `menu_session` while the server's
+menu persists, so a multi-click quick-craft drag predicts nothing and
+the server's correction transiently empties a just-filled slot — does
+NOT reproduce. A drag is one `menu_ops` call (`inventory_release`
+sends start, adds and end together), so the prediction menu does
+persist across a single drag, and a harness driving the video's exact
+sequence through the real client prediction (`predict_clicks`) and the
+real server menu (`Menu::click`), with a faithful model of
+`send_clicks` claims, `answer_click` corrections and client packet
+application, keeps client and server in sync on all 46 slots, the
+carried stack and the state id after every op. The harness covers the
+two-craft sequence (two right-drag quick-crafts, takes, merge), four
+2-stack moves and two 1-stack moves between hotbar slots, left- and
+right-drag splits (1+1), a double-click PICKUP_ALL gather, shift-click
+quick moves in both directions and a shift-click take, and the same
+moves with the server's answers delayed by one op (the live game
+clicks faster than the round trip) — every one exact, the table total
+pinned at every step.
+
+The whole stack was also verified statically and holds up: the menu
+engine's Pickup, QuickCraft (including the 1-item-over-2-slots gate
+and the single-slot redirect to Pickup), PickupAll, Swap, Throw and
+QuickMove branches; `menu_session`'s copy-back and the
+menu/game slot maps (identical on both sides, and identical in the
+server's `Guest::menu_slot`); `remote_menu_ops` /
+`predict_clicks` / `send_clicks` (including the unpredicted-None
+path, which the server's claim check still corrects);
+`lan_inventory_click` / `guest_menu_op` / `load_player` /
+`store_player` (a clean load/click/store sandwich over the persistent
+guest menu); `answer_click` (stale state takes a full resend, else
+per-slot resends for claimed mismatches and unclaimed changes, plus
+`SetCursorItem` for the carried stack, then `menu_sent` is set to the
+server state); the packet handlers (`set_menu_slot` replaces, never
+merges); `poll_remote_events` (in-order, lossless, chunk packets only
+delay what follows); the `Clicks` press/release state machine (no
+double-send: an empty-hand press clicks at once and its release is
+skipped); and the `as_guest` swap (a symmetric exchange). The
+ContainerClick codec matches vanilla's field order and input
+ordinals, and the real data agrees with the harness's assumptions
+(crafting table max stack 64, the recipe yields 1). Vanilla 1.21.7's
+`handleContainerClick` was checked via javap: its `broadcastChanges`
+compares actual slots against remote slots set from the client's
+claims, so a stale remote slot is always re-sent; the Rust
+`answer_click` only checks claimed slots plus the `changed` list and
+then trusts `menu_sent`, so a slot that diverged without being
+claimed or changed would never be re-synced — a real structural
+weakness, but no divergence source was found to trigger it, so it is
+a hardening candidate, not the proven cause.
+
+Root cause: NOT FOUND. No modeled path — synchronous or delayed,
+plain or shift-click, drag or double-click — reproduces the
+duplication, so the trigger is outside the click/sync flow as modeled
+(the actual `ContainerClick` stream the laptop sent is the missing
+evidence). What would settle it: a live reproduction on the laptop
+with packet logging (`HORIZON_NET_DEBUG=1` logs every packet the game
+thread sends) around the move that first shows 2 tables, or the
+laptop's game log from the playtest, to compare the clicks the client
+actually sent against the corrections the server actually returned.
+
+Regression test:
+`quick_craft_drag_and_take_keep_client_and_server_in_sync`
+(horizon-client, `game/remote.rs`): the harness above, data-free so
+it runs in CI crate-tests. It ran LOCALLY and passed (the lib test
+compile fits this VM when it is the only heavy build running;
+`cargo test -p horizon-client --lib` with the full test path —
+`--exact` needs the full `game::remote::tests::...` path, a bare
+name matches 0 tests). It pins the click/sync behaviour the
+investigation exonerated, so a future change that breaks it fails
+here with the op and slot that diverged.
