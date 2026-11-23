@@ -302,9 +302,9 @@ rank-2 triage. Ledger: `rank1-progress.json`.
 6. **Report format.** No-change: nothing reads the `definition` field.
 7. **Prepare.** CI run 43062079306: `prepare: ok`, 30.7 s.
 
-## Behaviour port — rank 2 in progress (2026-11-23, branch behaviour/26.1)
+## Behaviour port — rank 2 closed (2026-11-24, branch behaviour/26.1)
 
-Rank 2: 101/498 closed (rank 1: 7/7; total 108/795). Triage:
+Rank 2: 498/498 closed (rank 1: 7/7; total 505/795). Triage:
 first-pass buckets B 265 / A 231 / D 2; class-level 26.2→26.1 split
 (zip CRC) B1c 233 / B2c 32 / A1 138 / A2 93 / D 2. The full-jardiff run
 was abandoned (projected ~3 h, one JVM per class); the lazy replacement
@@ -1069,3 +1069,34 @@ Deliberately left in place: `Mob.sync_position`,
 they belong to the movement side, and the living-bounce re-port owns
 removing them (their docs now say so). Workspace `cargo check` and
 protocol/world/client `--lib --tests` clean.
+
+Batch 62 (Nov 24, 498/498 — rank 2 closed): 89/90 NO-CHANGE —
+the light and save_roundtrip harness items, with the harness run
+recorded as not runnable here. Re-verified by jardiff (Nov 24):
+`LightEngine` differs only by the `getLightBlockInto` (26.1) /
+`getLightDampeningInto` (26.2) rename, same body;
+`BlockLightEngine` and `LevelLightEngine` byte-identical;
+`SkyLightEngine` differs only by its constructor's access modifier;
+`RegionFileStorage` differs only by access modifiers;
+`SerializableChunkData` (the chunk serializer — no `ChunkSerializer`
+class exists in either jar) normalized-bytecode identical;
+`LevelStorageSource` differs only by a new
+`LOAD_FOLDER_ACCESS_MESSAGE` UI string in `loadLevelSummaries`
+(menu chrome); `findLevelCandidates` untouched. The Rust side
+agrees: light.rs, the light_parity probe, region.rs, nbt.rs,
+levels.rs and level.rs are all 0-diff vs the 26.2 tree; the
+save-side diffs (save.rs, entity_nbt.rs, block_entity_nbt.rs)
+are this port's own earlier work (4295 datafix, NBT-form
+BlockState codec), not unported 26.2 behaviour. So there is
+nothing to port for either item. The harnesses themselves cannot
+run in this worktree: both need a prepared `.local`
+(`.local/horizon-client/26.1` resources + staged server jar),
+and prepare needs a 26.1 asset store (indexes/ + objects/) that
+exists nowhere on the VM — prepare downloads nothing, so the
+store would have to be assembled from Mojang's CDN (asset index
+30, thousands of objects) first; save_roundtrip additionally
+needs a built horizon-client binary on a virtual screen, and the
+VM OOMs on the client build (owner's CI rule). Harness
+verification for both is deferred to the publish-time proof run.
+Docs-only batch; the code tree is identical to the one crate-tests
+run 45254318944 (batch 61) is testing, so no separate dispatch.
