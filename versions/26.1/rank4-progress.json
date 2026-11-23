@@ -249,6 +249,56 @@
    "id": 769,
    "verdict": "no-change",
    "evidence": "DifficultyButtons, in the 26.2 jar; modelled in lan_screen.rs (lockButton + updateDifficultyButtonsState)"
+  },
+  {
+   "id": 770,
+   "verdict": "no-change",
+   "evidence": "1 zombie model class, in the 26.2 jar; shared entity model"
+  },
+  {
+   "id": 771,
+   "verdict": "no-change",
+   "evidence": "1 entity-layer class, in the 26.2 jar; shared render layer"
+  },
+  {
+   "id": 772,
+   "verdict": "no-change",
+   "evidence": "GpuBuffer$MappedView, not in the 26.2 jar; GPU buffer plumbing the wgpu renderer does not model"
+  },
+  {
+   "id": 773,
+   "verdict": "no-change",
+   "evidence": "RenderPipeline$UniformDescription, not in the 26.2 jar; GPU pipeline plumbing"
+  },
+  {
+   "id": 774,
+   "verdict": "no-change",
+   "evidence": "1 Realms screen class, in the 26.2 jar; Realms ported in batch 69"
+  },
+  {
+   "id": 775,
+   "verdict": "no-change",
+   "evidence": "1 Realms client class, in the 26.2 jar; Realms ported in batch 69"
+  },
+  {
+   "id": 776,
+   "verdict": "no-change",
+   "evidence": "ColorArgument, not in the 26.2 jar (26.2 renamed it TeamColorArgument); the 26.1 form is modelled in scoreboard.rs/scoreboard_cmd.rs (batch 63)"
+  },
+  {
+   "id": 777,
+   "verdict": "no-change",
+   "evidence": "LootData, not in the 26.2 jar (26.2 moved the datagen class); the Rust has its own horizon_world::loot::LootData loader"
+  },
+  {
+   "id": 778,
+   "verdict": "no-change",
+   "evidence": "1 data/worldgen class, in the 26.2 jar; shared datagen"
+  },
+  {
+   "id": 779,
+   "verdict": "no-change",
+   "evidence": "1 resources class, in the 26.2 jar; shared resources machinery"
   }
  ],
  "triage": "Rank 4/5: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 4 = 74 D items, 333 classes from the 26.3->26.1 report; rank 5 = 2 D items). Class lists in ~/workspace/mcir-work/26.1/versions/diff-26.3-26.1/report.json. Method: per package, check each class against the 26.2 jars (same path / moved) and the Rust tree (ported list + grep); verdict no-change unless the Rust is missing 26.1 behaviour."

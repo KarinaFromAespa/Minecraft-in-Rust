@@ -1875,3 +1875,11 @@ trades; 26.1 system in merchant.rs/trading.rs); 763 placement
 rework, item 521); 768 SnapbackData (menu chrome); 769
 DifficultyButtons (lan_screen.rs). Docs-only batch; no
 separate CI dispatch.
+Batch 93 (Nov 24, rank 4 60/74 — all no-change): 770 zombie
+model + 771 entity layer (shared); 772 GpuBuffer$MappedView +
+773 RenderPipeline$UniformDescription (GPU plumbing, not in
+26.2); 774/775 Realms (batch 69); 776 ColorArgument (26.1
+form in scoreboard.rs, batch 63; 26.2 renamed it
+TeamColorArgument); 777 LootData (the Rust has its own
+horizon_world::loot::LootData); 778 data/worldgen + 779
+resources (shared). Docs-only batch; no separate CI dispatch.
