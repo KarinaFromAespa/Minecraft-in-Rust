@@ -13848,4 +13848,908 @@ mod tests {
         assert_eq!(crafting.event, 12);
         assert!(crafting.param == 1.0);
     }
+
+    /// The vanishing crafted table (build #4, 1.21.7): a quick-craft drag
+    /// and a result take, twice, driven through the real prediction
+    /// (`predict_clicks` on a fresh menu per op, as `menu_session` builds
+    /// it) and the real menu engine on the server's persistent menu (as
+    /// `lan_inventory_click` runs it), with the server's answer
+    /// (`lan/containers.rs::answer_click`) and the client's packet
+    /// application (the `ContainerSetSlot` / `ContainerSetContent` /
+    /// `SetCursorItem` handlers) modelled faithfully. After every op the
+    /// client's slots must equal the server's: a crafted table the client
+    /// shows but the server never made, or the server made but the client
+    /// lost, fails here with the slot that diverged. Data-free: the
+    /// crafting-table recipe is built by hand, so this runs in CI
+    /// crate-tests with no prepared resources.
+    #[test]
+    fn quick_craft_drag_and_take_keep_client_and_server_in_sync() {
+        use horizon_client::{
+            banner::Banners,
+            brewing::Brewing,
+            crafting::{Ingredient, Recipe, Recipes, Template},
+            items::{ItemStack, Items},
+            menu::{Env, Input, Kind, Menu},
+            stations::StationRecipes,
+        };
+        use horizon_world::loot::PackOverlay;
+        use std::collections::HashMap;
+
+        // The 2x2 planks -> crafting table recipe, as vanilla 1.21.7 defines
+        // it (`data/minecraft/recipe/crafting_table.json`: four `#planks`
+        // in a 2x2 square, one table out). The ingredient names the concrete
+        // plank rather than the tag; birch planks are in `#minecraft:planks`,
+        // so the match is the same for this test's inputs.
+        let items = Items::for_tests(HashMap::new());
+        let mut recipes = Recipes::empty();
+        let plank = Ingredient::of(vec!["minecraft:birch_planks".to_owned()]);
+        recipes.crafting.push((
+            "crafting_table".to_owned(),
+            Recipe::Shaped {
+                width: 2,
+                height: 2,
+                cells: vec![Some(plank); 4],
+                result: Template {
+                    item: Some("minecraft:crafting_table".into()),
+                    count: 1,
+                    damage: 0,
+                    extra: None,
+                    components: None,
+                },
+            },
+        ));
+        let brewing = Brewing::load(std::path::Path::new(""), &items, &PackOverlay::NONE);
+        let banners = Banners::default();
+        let station_recipes = StationRecipes::default();
+        let enchantments = horizon_client::enchant::Enchantments::default();
+        let names = horizon_client::creative::Names::default();
+        let env = Env {
+            items: &items,
+            recipes: &recipes,
+            brewing: &brewing,
+            banners: &banners,
+            station_recipes: &station_recipes,
+            enchantments: &enchantments,
+            names: &names,
+            trade: None,
+            maps: None,
+            limited_crafting: false,
+            known_recipes: None,
+        };
+
+        // A slot's hash, as `ContainerClick` carries it: `hashed_matches`
+        // compares only the item and the count, so the item name stands in
+        // for the registry id here.
+        fn hash(stack: &Option<ItemStack>) -> Option<(String, u32)> {
+            stack.as_ref().map(|s| (s.item.to_string(), s.count))
+        }
+        fn hashed_matches(claimed: &Option<(String, u32)>, mine: &Option<ItemStack>) -> bool {
+            match (claimed, mine) {
+                (None, None) => true,
+                (Some((item, count)), Some(s)) => *item == *s.item && *count == s.count,
+                _ => false,
+            }
+        }
+
+        // A `ContainerClick` as the client sends it.
+        struct Click {
+            state: i32,
+            slot: i16,
+            button: i32,
+            input: Input,
+            changed: Vec<(i16, Option<(String, u32)>)>,
+            carried: Option<(String, u32)>,
+        }
+        // What the server sends back: a slot, the whole menu, or the cursor.
+        enum Answer {
+            SetSlot {
+                state: i32,
+                slot: i16,
+                item: Option<ItemStack>,
+            },
+            SetContent {
+                state: i32,
+                items: Vec<Option<ItemStack>>,
+                carried: Option<ItemStack>,
+            },
+            SetCursor {
+                item: Option<ItemStack>,
+            },
+        }
+
+        // The inventory menu's 46 slots, as both sides read them
+        // (`Guest::menu_slot`): 0 result, 1..=4 grid, 5..=8 armour, 9..=35
+        // main, 36..=44 hotbar, 45 off hand.
+        fn menu_view(
+            inventory: &[Option<ItemStack>; 36],
+            armor: &[Option<ItemStack>; 4],
+            offhand: &Option<ItemStack>,
+            craft_grid: &[Option<ItemStack>; 4],
+            craft_result: &Option<ItemStack>,
+            slot: usize,
+        ) -> Option<ItemStack> {
+            match slot {
+                0 => craft_result.clone(),
+                1..=4 => craft_grid[slot - 1].clone(),
+                5..=8 => armor[slot - 5].clone(),
+                9..=35 => inventory[slot].clone(),
+                36..=44 => inventory[slot - 36].clone(),
+                45 => offhand.clone(),
+                _ => None,
+            }
+        }
+
+        // The client's game state, as `menu_session` reads and writes it
+        // (`Game::inventory`, `armor`, `offhand`, `carried`, `craft_grid`,
+        // `Remote::craft_result`, `Remote::state_id`).
+        struct Client {
+            inventory: [Option<ItemStack>; 36],
+            armor: [Option<ItemStack>; 4],
+            offhand: Option<ItemStack>,
+            carried: Option<ItemStack>,
+            craft_grid: [Option<ItemStack>; 4],
+            craft_result: Option<ItemStack>,
+            state_id: i32,
+        }
+        impl Client {
+            fn view(&self, slot: usize) -> Option<ItemStack> {
+                menu_view(
+                    &self.inventory,
+                    &self.armor,
+                    &self.offhand,
+                    &self.craft_grid,
+                    &self.craft_result,
+                    slot,
+                )
+            }
+            // `Game::set_menu_slot` for the inventory menu: slot 0 is the
+            // remembered result, the rest map to the game slots.
+            fn set_slot(&mut self, slot: usize, stack: Option<ItemStack>) {
+                match slot {
+                    0 => self.craft_result = stack,
+                    1..=4 => self.craft_grid[slot - 1] = stack,
+                    5..=8 => self.armor[slot - 5] = stack,
+                    9..=35 => self.inventory[slot] = stack,
+                    36..=44 => self.inventory[slot - 36] = stack,
+                    45 => self.offhand = stack,
+                    _ => {}
+                }
+            }
+            // `remote_menu_ops` + `send_clicks`: predict the op on a fresh
+            // menu (`menu_session`), keep the prediction when it succeeds,
+            // and send each click with the slots it changed. Returns the
+            // packets and whether the prediction succeeded.
+            fn predict_and_send(
+                &mut self,
+                env: &Env,
+                ops: &[(i16, i32, Input)],
+            ) -> (Vec<Click>, bool) {
+                let mut menu = Menu::new(Kind::Inventory);
+                menu.creative = false;
+                menu.selected = 0;
+                menu.levels = 0;
+                // The result slot is never copied in (`Map::to_game(0)` is
+                // None): `recompute` derives it from the grid as the cells
+                // are set.
+                menu.set_slot(env, 0, None);
+                for i in 1..46 {
+                    menu.set_slot(env, i, self.view(i));
+                }
+                menu.carried = self.carried.clone();
+                menu.settle(env);
+                let predicted = super::predict_clicks(&mut menu, env, ops);
+                let ok = predicted.is_some();
+                let sent: Vec<super::Predicted> = match predicted {
+                    Some((predicted, _)) => {
+                        // `menu_session` copies back on `Some(true)`.
+                        for i in 1..46 {
+                            self.set_slot(i, menu.slot(i).cloned());
+                        }
+                        self.carried = menu.carried.clone();
+                        predicted
+                    }
+                    // Unpredicted: nothing kept, empty changed lists, the
+                    // carried stack as it is.
+                    None => ops
+                        .iter()
+                        .map(|&(slot, button, input)| {
+                            (slot, button, input, Vec::new(), self.carried.clone())
+                        })
+                        .collect(),
+                };
+                // `send_clicks`: a result the engine claims is kept.
+                for (.., changed, _) in &sent {
+                    if let Some((_, result)) = changed.iter().find(|(slot, _)| *slot == 0) {
+                        self.craft_result = result.clone();
+                    }
+                }
+                // Every click of the op carries the same state id.
+                let state = self.state_id;
+                let packets = sent
+                    .into_iter()
+                    .map(|(slot, button, input, changed, carried)| Click {
+                        state,
+                        slot,
+                        button,
+                        input,
+                        changed: changed.iter().map(|(i, s)| (*i, hash(s))).collect(),
+                        carried: hash(&carried),
+                    })
+                    .collect();
+                (packets, ok)
+            }
+            // The `ContainerSetSlot` / `ContainerSetContent` / `SetCursorItem`
+            // handlers: each menu packet also carries the new state id.
+            fn apply(&mut self, answer: Answer) {
+                match answer {
+                    Answer::SetSlot { state, slot, item } => {
+                        self.state_id = state;
+                        self.set_slot(slot as usize, item);
+                    }
+                    Answer::SetContent {
+                        state,
+                        items,
+                        carried,
+                    } => {
+                        self.state_id = state;
+                        for (slot, item) in items.into_iter().enumerate() {
+                            self.set_slot(slot, item);
+                        }
+                        self.carried = carried;
+                    }
+                    Answer::SetCursor { item } => {
+                        self.carried = item;
+                    }
+                }
+            }
+        }
+
+        // The server's side: the guest's persistent inventory menu (as
+        // `GuestCrafting.inventory` keeps it between clicks), their slots,
+        // the menu state, and what the client was last told (`menu_sent`).
+        struct Server {
+            menu: Menu,
+            inventory: [Option<ItemStack>; 36],
+            armor: [Option<ItemStack>; 4],
+            offhand: Option<ItemStack>,
+            carried: Option<ItemStack>,
+            craft_grid: [Option<ItemStack>; 4],
+            craft_result: Option<ItemStack>,
+            menu_state: i32,
+            menu_sent: Vec<Option<ItemStack>>,
+        }
+        impl Server {
+            fn menu_slot(&self, slot: usize) -> Option<ItemStack> {
+                menu_view(
+                    &self.inventory,
+                    &self.armor,
+                    &self.offhand,
+                    &self.craft_grid,
+                    &self.craft_result,
+                    slot,
+                )
+            }
+            // `lan_inventory_click` + `guest_menu_op`: the guest's slots into
+            // the persistent menu, the grid from the guest, the click (whose
+            // error is ignored), the changed slots, everything stored back,
+            // then `answer_click`.
+            fn click(&mut self, env: &Env, p: &Click) -> Vec<Answer> {
+                // `load_player`: the PLAYER container, head to feet, off hand.
+                for i in 0..36 {
+                    self.menu.set_player_item(i, self.inventory[i].clone());
+                }
+                for (k, slot) in [39, 38, 37, 36].into_iter().enumerate() {
+                    self.menu.set_player_item(slot, self.armor[k].clone());
+                }
+                self.menu.set_player_item(40, self.offhand.clone());
+                self.menu.selected = 0;
+                self.menu.creative = false;
+                self.menu.levels = 0;
+                self.menu.carried = self.carried.clone();
+                for (k, s) in self.craft_grid.iter().enumerate() {
+                    self.menu.set_slot(env, 1 + k, s.clone());
+                }
+                let before: Vec<_> = (0..self.menu.slot_count())
+                    .map(|s| self.menu.slot(s).cloned())
+                    .collect();
+                let _ = self.menu.click(env, i32::from(p.slot), p.button, p.input);
+                let changed: Vec<usize> = (0..self.menu.slot_count())
+                    .filter(|&s| self.menu.slot(s) != before[s].as_ref())
+                    .collect();
+                // `store_player`, then the grid and the result back.
+                for i in 0..36 {
+                    self.inventory[i] = self.menu.player_item(i).cloned();
+                }
+                for (k, slot) in [39, 38, 37, 36].into_iter().enumerate() {
+                    self.armor[k] = self.menu.player_item(slot).cloned();
+                }
+                self.offhand = self.menu.player_item(40).cloned();
+                self.carried = self.menu.carried.take();
+                for k in 0..4 {
+                    self.craft_grid[k] = self.menu.slot(1 + k).cloned();
+                }
+                self.craft_result = self.menu.slot(0).cloned();
+                self.answer(p, &changed)
+            }
+            // `lan/containers.rs::answer_click` for the inventory menu: a
+            // stale click gets the whole menu; otherwise every slot the
+            // client got wrong, or did not claim and the server changed,
+            // comes back one by one, each bumping the state; then the
+            // carried stack, then `menu_sent` is the server's state.
+            fn answer(&mut self, p: &Click, changed: &[usize]) -> Vec<Answer> {
+                let mut out = Vec::new();
+                if p.state != self.menu_state {
+                    let items: Vec<_> = (0..46).map(|s| self.menu_slot(s)).collect();
+                    self.menu_state = (self.menu_state + 1) & 0x7FFF;
+                    out.push(Answer::SetContent {
+                        state: self.menu_state,
+                        items: items.clone(),
+                        carried: self.carried.clone(),
+                    });
+                    self.menu_sent = items;
+                    return out;
+                }
+                let claimed: HashMap<usize, &Option<(String, u32)>> =
+                    p.changed.iter().map(|(s, h)| (*s as usize, h)).collect();
+                for slot in 0..46 {
+                    let mine = self.menu_slot(slot);
+                    let agreed = match claimed.get(&slot) {
+                        Some(c) => hashed_matches(c, &mine),
+                        None => !changed.contains(&slot),
+                    };
+                    if !agreed {
+                        self.menu_state = (self.menu_state + 1) & 0x7FFF;
+                        out.push(Answer::SetSlot {
+                            state: self.menu_state,
+                            slot: slot as i16,
+                            item: mine,
+                        });
+                    }
+                }
+                if !hashed_matches(&p.carried, &self.carried) {
+                    out.push(Answer::SetCursor {
+                        item: self.carried.clone(),
+                    });
+                }
+                self.menu_sent = (0..46).map(|s| self.menu_slot(s)).collect();
+                out
+            }
+        }
+
+        fn planks() -> ItemStack {
+            ItemStack::new("minecraft:birch_planks", 12)
+        }
+        let start_inventory = || std::array::from_fn(|i| (i == 9).then(planks));
+        let mut client = Client {
+            inventory: start_inventory(),
+            armor: Default::default(),
+            offhand: None,
+            carried: None,
+            craft_grid: Default::default(),
+            craft_result: None,
+            state_id: 0,
+        };
+        let mut server = Server {
+            menu: Menu::new(Kind::Inventory),
+            inventory: start_inventory(),
+            armor: Default::default(),
+            offhand: None,
+            carried: None,
+            craft_grid: Default::default(),
+            craft_result: None,
+            menu_state: 0,
+            menu_sent: Vec::new(),
+        };
+        // The join sync told the client every slot.
+        server.menu_sent = (0..46).map(|s| server.menu_slot(s)).collect();
+
+        // One `menu_ops` call: predict, send, answer, apply, then the two
+        // sides must agree on every slot, the carried stack and the state.
+        let run_op =
+            |client: &mut Client, server: &mut Server, ops: &[(i16, i32, Input)], label: &str| {
+                let (packets, predicted) = client.predict_and_send(&env, ops);
+                assert!(predicted, "{label}: the prediction failed");
+                let mut answers = Vec::new();
+                for p in &packets {
+                    answers.extend(server.click(&env, p));
+                }
+                for a in answers {
+                    client.apply(a);
+                }
+                for slot in 0..46 {
+                    assert_eq!(
+                        client.view(slot),
+                        server.menu_slot(slot),
+                        "{label}: menu slot {slot} diverged"
+                    );
+                }
+                assert_eq!(client.carried, server.carried, "{label}: carried diverged");
+                assert_eq!(
+                    client.state_id, server.menu_state,
+                    "{label}: state id diverged"
+                );
+            };
+
+        // The video's sequence: 12 planks, two crafting tables. A right-drag
+        // is one per cell: header 0/1/2 with type 1 (`button | (1 << 2)`).
+        let drag: [(i16, i32, Input); 6] = [
+            (-999, 4, Input::QuickCraft),
+            (1, 5, Input::QuickCraft),
+            (2, 5, Input::QuickCraft),
+            (3, 5, Input::QuickCraft),
+            (4, 5, Input::QuickCraft),
+            (-999, 6, Input::QuickCraft),
+        ];
+        // First table.
+        run_op(
+            &mut client,
+            &mut server,
+            &[(9, 0, Input::Pickup)],
+            "pick up the 12 planks",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &drag,
+            "drag 1 plank into each cell",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(9, 0, Input::Pickup)],
+            "put the 8 planks back",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(0, 0, Input::Pickup)],
+            "take the first table",
+        );
+        assert_eq!(
+            client.carried.as_ref().map(|s| (s.item.as_ref(), s.count)),
+            Some(("minecraft:crafting_table", 1)),
+            "the first table is carried"
+        );
+        assert_eq!(
+            client.inventory[9].as_ref().map(|s| s.count),
+            Some(8),
+            "8 planks left after the first table"
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "place the table in hotbar slot 2",
+        );
+        // Second table, from the same 8 planks.
+        run_op(
+            &mut client,
+            &mut server,
+            &[(9, 0, Input::Pickup)],
+            "pick up the 8 planks",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &drag,
+            "drag 1 plank into each cell again",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(9, 0, Input::Pickup)],
+            "put the 4 planks back",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(0, 0, Input::Pickup)],
+            "take the second table",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "merge the second table onto the first",
+        );
+        // Vanilla's outcome: 4 planks left, 2 tables stacked in the hotbar.
+        assert_eq!(
+            client.inventory[9].as_ref().map(|s| s.count),
+            Some(4),
+            "4 planks left after the second table"
+        );
+        assert_eq!(
+            client.inventory[1]
+                .as_ref()
+                .map(|s| (s.item.as_ref(), s.count)),
+            Some(("minecraft:crafting_table", 2)),
+            "both tables stacked in hotbar slot 2"
+        );
+        assert_eq!(client.carried, None, "nothing carried at the end");
+        assert!(
+            client.craft_grid.iter().all(Option::is_none),
+            "the grid is empty at the end"
+        );
+        assert_eq!(client.craft_result, None, "no result at the end");
+
+        // The video's post-craft moves: the 2-stack shuttled between hotbar
+        // slots 1 and 2, then split by a drag and gathered by a double click.
+        // A move must never change the total: the video shows 1 table
+        // becoming 2 in hotbar slot 1, then 2 in each of slots 1 and 2.
+        let tables = |client: &Client| {
+            client
+                .inventory
+                .iter()
+                .flatten()
+                .filter(|s| s.item.as_ref() == "minecraft:crafting_table")
+                .map(|s| s.count)
+                .sum::<u32>()
+                + client
+                    .carried
+                    .as_ref()
+                    .filter(|s| s.item.as_ref() == "minecraft:crafting_table")
+                    .map_or(0, |s| s.count)
+        };
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "pick up the 2-stack from hotbar slot 2",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(36, 0, Input::Pickup)],
+            "place the 2-stack in hotbar slot 1",
+        );
+        assert_eq!(tables(&client), 2, "moving must not duplicate the stack");
+        assert_eq!(
+            client.inventory[0].as_ref().map(|s| s.count),
+            Some(2),
+            "the 2-stack is in hotbar slot 1"
+        );
+        assert_eq!(client.inventory[1], None, "hotbar slot 2 is empty now");
+        run_op(
+            &mut client,
+            &mut server,
+            &[(36, 0, Input::Pickup)],
+            "pick the 2-stack back up",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "place the 2-stack in hotbar slot 2",
+        );
+        assert_eq!(tables(&client), 2, "moving back must not duplicate it");
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "pick the 2-stack up again",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(36, 0, Input::Pickup)],
+            "place the 2-stack in hotbar slot 1 again",
+        );
+        assert_eq!(tables(&client), 2, "the third move must not duplicate it");
+        run_op(
+            &mut client,
+            &mut server,
+            &[(36, 0, Input::Pickup)],
+            "pick the 2-stack up once more",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "place the 2-stack in hotbar slot 2 once more",
+        );
+        assert_eq!(tables(&client), 2, "the fourth move must not duplicate it");
+
+        // A left-drag of the 2-stack over both hotbar slots splits it 1+1.
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "pick up the 2-stack for a left-drag",
+        );
+        let left_drag: [(i16, i32, Input); 4] = [
+            (-999, 0, Input::QuickCraft),
+            (36, 1, Input::QuickCraft),
+            (37, 1, Input::QuickCraft),
+            (-999, 2, Input::QuickCraft),
+        ];
+        run_op(
+            &mut client,
+            &mut server,
+            &left_drag,
+            "left-drag the 2-stack over hotbar slots 1 and 2",
+        );
+        assert_eq!(tables(&client), 2, "a drag must not duplicate the stack");
+        assert_eq!(
+            client.inventory[0].as_ref().map(|s| s.count),
+            Some(1),
+            "left-drag leaves 1 table in hotbar slot 1"
+        );
+        assert_eq!(
+            client.inventory[1].as_ref().map(|s| s.count),
+            Some(1),
+            "left-drag leaves 1 table in hotbar slot 2"
+        );
+        assert_eq!(client.carried, None, "nothing carried after the drag");
+
+        // A 1-stack moved between hotbar slots: the video's first
+        // duplication (1 table becoming 2 in hotbar slot 1).
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "pick up the 1-stack from hotbar slot 2",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(38, 0, Input::Pickup)],
+            "place the 1-stack in hotbar slot 3",
+        );
+        assert_eq!(tables(&client), 2, "moving a 1-stack must not duplicate it");
+        assert_eq!(
+            client.inventory[2].as_ref().map(|s| s.count),
+            Some(1),
+            "the 1-stack is in hotbar slot 3"
+        );
+        assert_eq!(client.inventory[1], None, "hotbar slot 2 is empty now");
+        run_op(
+            &mut client,
+            &mut server,
+            &[(38, 0, Input::Pickup)],
+            "pick the 1-stack back up",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "place the 1-stack in hotbar slot 2",
+        );
+        assert_eq!(tables(&client), 2, "moving the 1-stack back is exact too");
+
+        // Merge the two 1-stacks, then a right-drag splits them again.
+        run_op(
+            &mut client,
+            &mut server,
+            &[(36, 0, Input::Pickup)],
+            "pick up the 1-stack from hotbar slot 1",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "merge it onto hotbar slot 2",
+        );
+        assert_eq!(
+            client.inventory[1].as_ref().map(|s| s.count),
+            Some(2),
+            "merged back to a 2-stack"
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "pick up the 2-stack for a right-drag",
+        );
+        let right_drag: [(i16, i32, Input); 4] = [
+            (-999, 4, Input::QuickCraft),
+            (36, 5, Input::QuickCraft),
+            (37, 5, Input::QuickCraft),
+            (-999, 6, Input::QuickCraft),
+        ];
+        run_op(
+            &mut client,
+            &mut server,
+            &right_drag,
+            "right-drag the 2-stack over hotbar slots 1 and 2",
+        );
+        assert_eq!(tables(&client), 2, "a right-drag must not duplicate it");
+        assert_eq!(
+            client.inventory[0].as_ref().map(|s| s.count),
+            Some(1),
+            "right-drag leaves 1 table in hotbar slot 1"
+        );
+        assert_eq!(
+            client.inventory[1].as_ref().map(|s| s.count),
+            Some(1),
+            "right-drag leaves 1 table in hotbar slot 2"
+        );
+
+        // A double click's PICKUP_ALL on the empty hotbar slot 1 gathers
+        // the other table into the hand without copying it.
+        run_op(
+            &mut client,
+            &mut server,
+            &[(36, 0, Input::Pickup)],
+            "pick up the 1-stack from hotbar slot 1",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &[(36, 0, Input::PickupAll)],
+            "double-click the empty hotbar slot 1",
+        );
+        assert_eq!(tables(&client), 2, "PICKUP_ALL must not duplicate it");
+        assert_eq!(
+            client.carried.as_ref().map(|s| s.count),
+            Some(2),
+            "PICKUP_ALL gathered both tables into the hand"
+        );
+        assert_eq!(client.inventory[1], None, "hotbar slot 2 is empty now");
+
+        // The same moves with the server's answers DELAYED by one op: the
+        // live game clicks faster than the round trip, so op N+1 is
+        // predicted from op N's prediction before op N's corrections land.
+        // The corrections still arrive in order; the two sides must agree
+        // once they are all applied, and the total must stay 2.
+        run_op(
+            &mut client,
+            &mut server,
+            &[(37, 0, Input::Pickup)],
+            "put the gathered 2-stack back in hotbar slot 2",
+        );
+        let run_delayed = |client: &mut Client,
+                           server: &mut Server,
+                           pending: &mut Vec<Answer>,
+                           ops: &[(i16, i32, Input)],
+                           label: &str| {
+            let (packets, predicted) = client.predict_and_send(&env, ops);
+            assert!(predicted, "{label}: the prediction failed");
+            for p in &packets {
+                pending.extend(server.click(&env, p));
+            }
+        };
+        let flush =
+            |client: &mut Client, server: &Server, pending: &mut Vec<Answer>, label: &str| {
+                for a in pending.drain(..) {
+                    client.apply(a);
+                }
+                for slot in 0..46 {
+                    assert_eq!(
+                        client.view(slot),
+                        server.menu_slot(slot),
+                        "{label}: menu slot {slot} diverged"
+                    );
+                }
+                assert_eq!(client.carried, server.carried, "{label}: carried diverged");
+                assert_eq!(
+                    client.state_id, server.menu_state,
+                    "{label}: state id diverged"
+                );
+            };
+        let mut pending: Vec<Answer> = Vec::new();
+        run_delayed(
+            &mut client,
+            &mut server,
+            &mut pending,
+            &[(37, 0, Input::Pickup)],
+            "delayed: pick up the 2-stack",
+        );
+        run_delayed(
+            &mut client,
+            &mut server,
+            &mut pending,
+            &[(36, 0, Input::Pickup)],
+            "delayed: place it in hotbar slot 1 before the answers land",
+        );
+        flush(&mut client, &server, &mut pending, "delayed move 1");
+        assert_eq!(tables(&client), 2, "a delayed move must not duplicate it");
+        assert_eq!(
+            client.inventory[0].as_ref().map(|s| s.count),
+            Some(2),
+            "the delayed move landed in hotbar slot 1"
+        );
+        run_delayed(
+            &mut client,
+            &mut server,
+            &mut pending,
+            &[(36, 0, Input::Pickup)],
+            "delayed: pick the 2-stack back up",
+        );
+        run_delayed(
+            &mut client,
+            &mut server,
+            &mut pending,
+            &[(37, 0, Input::Pickup)],
+            "delayed: place it in hotbar slot 2 before the answers land",
+        );
+        flush(&mut client, &server, &mut pending, "delayed move 2");
+        assert_eq!(tables(&client), 2, "the delayed move back is exact too");
+        run_delayed(
+            &mut client,
+            &mut server,
+            &mut pending,
+            &[(37, 0, Input::Pickup)],
+            "delayed: pick up the 2-stack for a delayed drag",
+        );
+        run_delayed(
+            &mut client,
+            &mut server,
+            &mut pending,
+            &left_drag,
+            "delayed: left-drag it over both hotbar slots",
+        );
+        flush(&mut client, &server, &mut pending, "delayed drag");
+        assert_eq!(tables(&client), 2, "a delayed drag must not duplicate it");
+        assert_eq!(
+            client.inventory[0].as_ref().map(|s| s.count),
+            Some(1),
+            "delayed left-drag leaves 1 table in hotbar slot 1"
+        );
+        assert_eq!(
+            client.inventory[1].as_ref().map(|s| s.count),
+            Some(1),
+            "delayed left-drag leaves 1 table in hotbar slot 2"
+        );
+
+        // Shift-clicks (QuickMove), the one input the video cannot rule out:
+        // the player may have shift-clicked the result or the hotbar.
+        run_op(
+            &mut client,
+            &mut server,
+            &[(36, 0, Input::QuickMove)],
+            "shift-click hotbar slot 1 into the main inventory",
+        );
+        assert_eq!(tables(&client), 2, "a quick move must not duplicate it");
+        assert_eq!(
+            client.inventory[10].as_ref().map(|s| s.count),
+            Some(1),
+            "the table quick-moved to the first empty main slot"
+        );
+        assert_eq!(client.inventory[0], None, "hotbar slot 1 is empty now");
+        run_op(
+            &mut client,
+            &mut server,
+            &[(10, 0, Input::QuickMove)],
+            "shift-click it back into the hotbar",
+        );
+        assert_eq!(tables(&client), 2, "the quick move back is exact too");
+        assert_eq!(
+            client.inventory[1].as_ref().map(|s| s.count),
+            Some(2),
+            "it merged onto the table in hotbar slot 2"
+        );
+        assert_eq!(client.inventory[10], None, "the main slot is empty now");
+
+        // A shift-click take of a third table from the last 4 planks.
+        run_op(
+            &mut client,
+            &mut server,
+            &[(9, 0, Input::Pickup)],
+            "pick up the last 4 planks",
+        );
+        run_op(
+            &mut client,
+            &mut server,
+            &drag,
+            "drag the last 4 planks into the grid",
+        );
+        assert_eq!(client.carried, None, "all 4 planks went into the grid");
+        run_op(
+            &mut client,
+            &mut server,
+            &[(0, 0, Input::QuickMove)],
+            "shift-click the third table out of the result",
+        );
+        assert_eq!(tables(&client), 3, "the third table is made, not copied");
+        assert_eq!(
+            client.inventory[1].as_ref().map(|s| s.count),
+            Some(3),
+            "the third table merged onto the 2-stack"
+        );
+        assert_eq!(client.inventory[9], None, "no planks left");
+        assert!(
+            client.craft_grid.iter().all(Option::is_none),
+            "the grid is empty after the shift-click take"
+        );
+    }
 }
