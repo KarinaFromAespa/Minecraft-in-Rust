@@ -761,15 +761,12 @@ mod tests {
       "minecraft:slot_display": {"entries": {
         "minecraft:empty": {"protocol_id": 0},
         "minecraft:any_fuel": {"protocol_id": 1},
-        "minecraft:with_any_potion": {"protocol_id": 2},
-        "minecraft:only_with_component": {"protocol_id": 3},
-        "minecraft:item": {"protocol_id": 4},
-        "minecraft:item_stack": {"protocol_id": 5},
-        "minecraft:tag": {"protocol_id": 6},
-        "minecraft:dyed": {"protocol_id": 7},
-        "minecraft:smithing_trim": {"protocol_id": 8},
-        "minecraft:with_remainder": {"protocol_id": 9},
-        "minecraft:composite": {"protocol_id": 10}
+        "minecraft:item": {"protocol_id": 2},
+        "minecraft:item_stack": {"protocol_id": 3},
+        "minecraft:tag": {"protocol_id": 4},
+        "minecraft:smithing_trim": {"protocol_id": 5},
+        "minecraft:with_remainder": {"protocol_id": 6},
+        "minecraft:composite": {"protocol_id": 7}
       }},
       "minecraft:recipe_display": {"entries": {
         "minecraft:crafting_shapeless": {"protocol_id": 0},

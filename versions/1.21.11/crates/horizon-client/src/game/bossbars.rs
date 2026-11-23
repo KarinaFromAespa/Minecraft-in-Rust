@@ -88,17 +88,15 @@ fn num(n: impl std::fmt::Display) -> Text {
 }
 
 impl Game<'_> {
-    fn bossbar_path(&self) -> std::path::PathBuf {
-        self.world_root
-            .join("data/minecraft/custom_boss_events.dat")
-    }
+    /// `PrimaryLevelData.parse`/`setTagData`: the bars are level.dat's
+    /// `Data.CustomBossEvents`, the same id → bar compound `pack` writes.
     pub(super) fn load_bossbars(&mut self) {
         if self.bosses.loaded || self.remote.is_some() {
             return;
         }
         self.bosses.loaded = true;
-        if let Some(root) = save::read_dat(&self.bossbar_path())
-            && let Some(data) = root.get("data")
+        if let Some(root) = save::read_dat(&self.world_root.join("level.dat"))
+            && let Some(data) = root.get("Data").and_then(|d| d.get("CustomBossEvents"))
         {
             self.bosses.bars = BossBars::unpack(data);
         }
@@ -109,16 +107,25 @@ impl Game<'_> {
         if !self.bosses.loaded || self.remote.is_some() {
             return;
         }
-        if self.bosses.bars.bars.is_empty() && !self.bossbar_path().exists() {
+        let path = self.world_root.join("level.dat");
+        let root = save::read_dat(&path);
+        if self.bosses.bars.bars.is_empty()
+            && root
+                .as_ref()
+                .and_then(|r| r.get("Data"))
+                .and_then(|d| d.get("CustomBossEvents"))
+                .is_none()
+        {
             return;
         }
-        if let Err(e) = save::write_dat(
-            &self.bossbar_path(),
-            Tag::compound([
-                ("data", self.bosses.bars.pack()),
-                ("DataVersion", Tag::Int(horizon_world::DATA_VERSION)),
-            ]),
-        ) {
+        let mut data = match root.and_then(|r| r.get("Data").cloned()) {
+            Some(t @ Tag::Compound(_)) => t,
+            _ => Tag::Compound(Default::default()),
+        };
+        if let Tag::Compound(map) = &mut data {
+            map.insert("CustomBossEvents".into(), self.bosses.bars.pack());
+        }
+        if let Err(e) = save::write_dat(&path, Tag::compound([("Data", data)])) {
             log::warn!("boss bars were not written: {e}");
         }
     }
@@ -167,9 +174,14 @@ impl Game<'_> {
                 let name = self.component_json(ctx, "name")?;
                 self.bosses.add_bar(&bar, name);
                 if let Some(b) = self.bosses.bars.get_mut(&bar) {
-                    // CustomBossEvents.create: Mth.createInsecureUUID(level.random).
+                    // CustomBossEvents.create: 1.21.11's ServerBossEvent
+                    // draws its UUID from Mth.RANDOM, not the level random
+                    // (26.1 drew it from level.random) — a fresh random,
+                    // as for entities.
                     b.uuid = horizon_client::lan::playerdata::ints_uuid(
-                        horizon_client::save::insecure_uuid(&mut self.world.random),
+                        horizon_client::save::insecure_uuid(
+                            &mut horizon_client::random_source::entity(),
+                        ),
                     );
                 }
                 let shown = self

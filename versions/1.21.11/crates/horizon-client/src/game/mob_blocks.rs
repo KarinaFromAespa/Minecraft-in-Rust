@@ -48,22 +48,39 @@ fn banner_matrix(head: glam::Mat4) -> glam::Mat4 {
         * glam::Mat4::from_scale(glam::Vec3::new(2.0 / 3.0, -2.0 / 3.0, -2.0 / 3.0))
 }
 
-/// `BlockDecorationLayer.submit` and `CopperGolemModel.applyBlockOnAntennaTransform`, then the
-/// block model's own display transformation, which `BlockModelRenderState.submitModel` post-multiplies.
-fn antenna_block_matrix(head: glam::Mat4, flowerbed_shift: bool) -> glam::Mat4 {
-    // UNIT_CUBE_BOTTOM_CENTER_TO_ANTENNA_CENTER: translation(-0.5, 0, -0.5)
-    // then rotateAround(Z 180, 0.5, 0.5, 0.5), which JOML post-multiplies.
-    let unit = glam::Mat4::from_translation(glam::Vec3::new(-0.5, 0.0, -0.5))
-        * glam::Mat4::from_translation(glam::Vec3::splat(0.5))
-        * glam::Mat4::from_rotation_z(180.0f32.to_radians())
-        * glam::Mat4::from_translation(glam::Vec3::splat(-0.5));
-    let t = head * glam::Mat4::from_translation(glam::Vec3::new(0.0, -1.75, 0.0)) * unit;
-    if flowerbed_shift {
-        // `BuiltInBlockModels.createFlowerBedModel`'s Transformation(0.25, 0, 0.25).
-        t * glam::Mat4::from_translation(glam::Vec3::new(0.25, 0.0, 0.25))
-    } else {
-        t
+/// `BlockDecorationLayer.submit` and `CopperGolemModel.applyBlockOnAntennaTransform`:
+/// the model drops the antenna 2.25, then the layer turns the block upside down
+/// (Z 180) and centres it half a block down from there — except a statue, which
+/// turns around (Y 180) and sits on the antenna, and a skull, banner or chest,
+/// which turns around as well as upside down. A flower bed is centred a quarter
+/// block off instead of half. An ordinary block lands exactly where 26.1's
+/// `UNIT_CUBE_BOTTOM_CENTER_TO_ANTENNA_CENTER` put it: the -0.5 moved from the
+/// layer into the model's translate.
+fn antenna_block_matrix(head: glam::Mat4, block: &str) -> glam::Mat4 {
+    let statue = block.ends_with("copper_golem_statue");
+    let y_flip = statue
+        || super::armor_stands::skull_kind(block).is_some()
+        || block.ends_with("_banner")
+        || matches!(
+            block,
+            "minecraft:chest" | "minecraft:trapped_chest" | "minecraft:ender_chest"
+        );
+    let flowerbed = matches!(block, "minecraft:wildflowers" | "minecraft:pink_petals");
+    let mut t = head * glam::Mat4::from_translation(glam::Vec3::new(0.0, -2.25, 0.0));
+    if !statue {
+        t *= glam::Mat4::from_rotation_z(180.0f32.to_radians());
     }
+    if y_flip {
+        t *= glam::Mat4::from_rotation_y(180.0f32.to_radians());
+    }
+    let shift = if flowerbed {
+        glam::Vec3::new(-0.25, -1.5, -0.25)
+    } else if statue {
+        glam::Vec3::new(-0.5, 0.0, -0.5)
+    } else {
+        glam::Vec3::new(-0.5, -1.5, -0.5)
+    };
+    t * glam::Mat4::from_translation(shift)
 }
 
 /// `ElderGuardianParticle.lifetime`.
@@ -158,7 +175,7 @@ impl Game<'_> {
         );
         let still = Poses::new(pole);
         let white = 0xFFFF_FFFF;
-        if let Some(r) = uv("entity/banner/banner_base") {
+        if let Some(r) = uv("entity/banner_base") {
             render::draw(pole, m, &still, r, white, light, 0, out);
             render::draw(flag, m, &flag_poses, r, white, light, 0, out);
         }
@@ -176,10 +193,10 @@ impl Game<'_> {
             render::draw(flag, m, &flag_poses, r, color, light, 0, out);
         }
     }
-    /// `BlockModelRenderState.submit` of a block state's baked model, as every block layer of
+    /// `SubmitNodeCollector.submitBlock` of a block state's baked model, as every block layer of
     /// a mob draws it (`CarriedBlockLayer`, `MushroomCowMushroomLayer`, `SnowGolemHeadLayer`,
     /// `IronGolemFlowerLayer`, `BlockDecorationLayer`): lit, through
-    /// `Sheets.cutoutBlockItemSheet` or `translucentBlockItemSheet`, whose `ITEM_CUTOUT` and
+    /// `Sheets.cutoutBlockSheet` or `translucentBlockItemSheet`, whose `ITEM_CUTOUT` and
     /// `ITEM_TRANSLUCENT` pipelines cull back faces. Without the cull both coplanar sides of
     /// a cross model (a flower, a mushroom) are drawn and flicker as the mob moves. `CULL_BACK`
     /// would drop them too, but it turns off the normal lighting this model needs.
@@ -272,12 +289,7 @@ impl Game<'_> {
         else {
             return;
         };
-        // Only wildflowers and pink petals carry the flowerbed display shift.
-        let flowerbeds = matches!(
-            &*stack.item,
-            "minecraft:wildflowers" | "minecraft:pink_petals"
-        );
-        let t = antenna_block_matrix(head, flowerbeds);
+        let t = antenna_block_matrix(head, &stack.item);
         self.block_layer_vertices(state, 42, t, light, out);
     }
     /// `IronGolemFlowerLayer`: the poppy in the right arm while the golem
@@ -804,29 +816,69 @@ mod tests {
                 );
             }
         }
-        // `antenna_block_matrix` with an identity head, from the 26.3 expressions:
-        // `UNIT_CUBE_BOTTOM_CENTER_TO_ANTENNA_CENTER` (`translate(-0.5, 0, -0.5)`
-        // then `rotateAround(Z 180, 0.5, 0.5, 0.5)`) sends (x, y, z) to
-        // (0.5 - x, 1 - y, z - 0.5), the antenna drops it 1.75, and
-        // `createFlowerBedModel`'s quarter block lands on (-0.25, 0, 0.25) because
-        // the Z-180 turn flips it.
+        // `antenna_block_matrix` with an identity head: an ordinary block is
+        // turned upside down (Z 180) and centred half a block down from the
+        // antenna at -2.25, so (x, y, z) lands on (0.5 - x, -y - 0.75, z - 0.5);
+        // a flower bed is centred a quarter block off instead; a statue turns
+        // around (Y 180) and sits on the antenna, so (x, y, z) lands on
+        // (0.5 - x, y - 2.25, 0.5 - z); a skull, banner or chest turns around
+        // as well as upside down (Z 180 then Y 180 is X 180), so (x, y, z)
+        // lands on (x - 0.5, -y - 0.75, 0.5 - z).
         let antenna = [
-            (Vec3::ZERO, Vec3::new(0.5, -0.75, -0.5)),
-            (Vec3::X, Vec3::new(-0.5, -0.75, -0.5)),
-            (Vec3::Y, Vec3::new(0.5, -1.75, -0.5)),
-            (Vec3::Z, Vec3::new(0.5, -0.75, 0.5)),
-            (Vec3::ONE, Vec3::new(-0.5, -1.75, 0.5)),
-            (Vec3::splat(0.5), Vec3::new(0.0, -1.25, 0.0)),
+            (
+                "minecraft:stone",
+                [
+                    (Vec3::ZERO, Vec3::new(0.5, -0.75, -0.5)),
+                    (Vec3::X, Vec3::new(-0.5, -0.75, -0.5)),
+                    (Vec3::Y, Vec3::new(0.5, -1.75, -0.5)),
+                    (Vec3::Z, Vec3::new(0.5, -0.75, 0.5)),
+                    (Vec3::ONE, Vec3::new(-0.5, -1.75, 0.5)),
+                    (Vec3::splat(0.5), Vec3::new(0.0, -1.25, 0.0)),
+                ],
+            ),
+            (
+                "minecraft:wildflowers",
+                [
+                    (Vec3::ZERO, Vec3::new(0.25, -0.75, -0.25)),
+                    (Vec3::X, Vec3::new(-0.75, -0.75, -0.25)),
+                    (Vec3::Y, Vec3::new(0.25, -1.75, -0.25)),
+                    (Vec3::Z, Vec3::new(0.25, -0.75, 0.75)),
+                    (Vec3::ONE, Vec3::new(-0.75, -1.75, 0.75)),
+                    (Vec3::splat(0.5), Vec3::new(-0.25, -1.25, 0.25)),
+                ],
+            ),
+            (
+                "minecraft:copper_golem_statue",
+                [
+                    (Vec3::ZERO, Vec3::new(0.5, -2.25, 0.5)),
+                    (Vec3::X, Vec3::new(-0.5, -2.25, 0.5)),
+                    (Vec3::Y, Vec3::new(0.5, -1.25, 0.5)),
+                    (Vec3::Z, Vec3::new(0.5, -2.25, -0.5)),
+                    (Vec3::ONE, Vec3::new(-0.5, -1.25, -0.5)),
+                    (Vec3::splat(0.5), Vec3::new(0.0, -1.75, 0.0)),
+                ],
+            ),
+            (
+                "minecraft:skeleton_skull",
+                [
+                    (Vec3::ZERO, Vec3::new(-0.5, -0.75, 0.5)),
+                    (Vec3::X, Vec3::new(0.5, -0.75, 0.5)),
+                    (Vec3::Y, Vec3::new(-0.5, -1.75, 0.5)),
+                    (Vec3::Z, Vec3::new(-0.5, -0.75, -0.5)),
+                    (Vec3::ONE, Vec3::new(0.5, -1.75, -0.5)),
+                    (Vec3::splat(0.5), Vec3::new(0.0, -1.25, 0.0)),
+                ],
+            ),
         ];
-        for (shifted, shift) in [(false, Vec3::ZERO), (true, Vec3::new(-0.25, 0.0, 0.25))] {
+        for (block, samples) in antenna {
             for base in bases {
-                let m = antenna_block_matrix(base, shifted);
-                for (point, expected) in antenna {
+                let m = antenna_block_matrix(base, block);
+                for (point, expected) in samples {
                     let actual = m.transform_point3(point);
-                    let expected = base.transform_point3(expected + shift);
+                    let expected = base.transform_point3(expected);
                     assert!(
                         actual.abs_diff_eq(expected, 1e-6),
-                        "{actual:?} != {expected:?}"
+                        "{block}: {actual:?} != {expected:?}"
                     );
                 }
             }

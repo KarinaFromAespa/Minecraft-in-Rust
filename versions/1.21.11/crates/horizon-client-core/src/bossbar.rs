@@ -1,5 +1,5 @@
 //! Custom boss bars (`CustomBossEvents`): the `/bossbar` store, its saved
-//! form (`data/minecraft/custom_boss_events.dat`) and how a bar is shown.
+//! form (level.dat's `Data.CustomBossEvents`) and how a bar is shown.
 use crate::{
     scoreboard::{Comp, bracketed, comp_text, json_to_tag, literal, tag_to_json},
     text::{self, Style, Text},

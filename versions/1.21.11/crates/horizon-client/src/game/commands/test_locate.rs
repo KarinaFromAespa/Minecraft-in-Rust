@@ -1,6 +1,5 @@
 //! `TestCommand`'s `locate`, `pos` and `create`.
 use super::{Arg, Context, Game, R, err};
-use crate::game::test_instances::TestDef;
 use horizon_client::{
     containers::BlockEntity,
     test_instance_block::{Status, TestInstanceBlock},
@@ -281,9 +280,7 @@ impl Game<'_> {
         }
         let at = self.test_position_around();
         self.create_empty_test(&key, at, size);
-        let padding = self.test_holder_padding(at);
-        let low =
-            TestInstanceBlock::structure_pos_of([at.0 + padding, at.1 + padding, at.2 + padding]);
+        let low = TestInstanceBlock::structure_pos_of([at.0, at.1, at.2]);
         let bedrock = self.pack.assets.registry.default_state("minecraft:bedrock");
         if bedrock.is_some() {
             for x in low[0]..low[0] + size[0] {
@@ -305,9 +302,7 @@ impl Game<'_> {
 impl Game<'_> {
     /// `StructureUtils.createNewEmptyTest`.
     fn create_empty_test(&mut self, key: &str, at: Pos, size: [i32; 3]) {
-        let padding = self.test_def(key).map_or(0, |d: TestDef| d.padding);
-        let corner =
-            TestInstanceBlock::structure_pos_of([at.0 + padding, at.1 + padding, at.2 + padding]);
+        let corner = TestInstanceBlock::structure_pos_of([at.0, at.1, at.2]);
         // getStructureBoundingBox(getStructurePos(testPos), size, NONE)
         let area = horizon_world::worldgen::structure::BoundingBox::new(
             corner,

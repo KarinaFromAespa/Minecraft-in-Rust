@@ -3,12 +3,12 @@ use super::{Arg, Context, Game, R, Target, err};
 use horizon_client::{hud_overlays::Titles, lan::data::component_nbt, text::Text};
 use horizon_protocol::packets::play::{self, Clientbound as C};
 
-/// `EntitySelector.COMPILABLE_CODEC` (`CompilableString.CommandParserHelper.apply`):
-/// the `selector` of a selector component and the `entity` of an nbt
-/// component are parsed when the component is decoded, and text left after
-/// the selector is `command.trailing_data`. Either failure makes the whole
-/// component invalid, with vanilla's message. (A score `name` is an `Either`
-/// that falls back to a plain name, so it never fails.)
+/// `SelectorPattern.CODEC`: the `selector` of a selector component and
+/// the `entity` of an nbt component are parsed when the component is
+/// decoded, and text left after the selector is `command.trailing_data`.
+/// Either failure makes the whole component invalid, with vanilla's
+/// message. (A score `name` is an `Either` that falls back to a plain
+/// name, so it never fails.)
 fn invalid_selector(
     v: &serde_json::Value,
     reg: &horizon_client::command::Registries,
@@ -56,6 +56,17 @@ fn compile_selector(source: &str, reg: &horizon_client::command::Registries) -> 
     }
 }
 
+/// `NbtContents.asString` in 1.21.11: a string tag's raw value, anything
+/// else compact SNBT (26.1 renders rich-styled text here, with a `plain`
+/// flag to opt out of it — neither exists in 1.21.11, so `plain` is
+/// ignored).
+fn nbt_as_string(tag: &horizon_world::nbt::Tag) -> String {
+    match tag {
+        horizon_world::nbt::Tag::String(s) => s.to_string_lossy(),
+        _ => horizon_client::snbt::to_snbt(tag),
+    }
+}
+
 impl Game<'_> {
     /// ComponentArgument with selectors resolved for the source
     /// (ComponentUtils.updateForEntity: names joined by ", ").
@@ -69,7 +80,7 @@ impl Game<'_> {
             return Err(err("argument.component.invalid", &[&message]));
         }
         // NbtContents.resolve: the path's values in the entity, block or
-        // storage data, rich-styled (or plain, or interpreted), ", "-joined.
+        // storage data, plain strings (or interpreted), ", "-joined.
         // ScoreContents.resolve: the holder's score in the objective.
         let nbt_values = std::cell::RefCell::new(Vec::new());
         {
@@ -221,7 +232,6 @@ impl Game<'_> {
         let Ok(compiled) = horizon_client::nbt_path::NbtPath::parse(path) else {
             return Text::empty();
         };
-        let plain = o.get("plain").and_then(|v| v.as_bool()) == Some(true);
         let interpret = o.get("interpret").and_then(|v| v.as_bool()) == Some(true);
         let mut out = Text::empty();
         let mut first = true;
@@ -235,10 +245,8 @@ impl Game<'_> {
                     horizon_client::scoreboard::comp_text(&horizon_client::scoreboard::tag_to_json(
                         &tag,
                     ))
-                } else if plain {
-                    Text::literal(horizon_client::snbt::pretty(&tag).plain())
                 } else {
-                    horizon_client::snbt::pretty(&tag)
+                    Text::literal(nbt_as_string(&tag))
                 };
                 out.push(piece);
             }
@@ -360,8 +368,9 @@ impl Game<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::invalid_selector;
+    use super::{invalid_selector, nbt_as_string};
     use horizon_client::command::Registries;
+    use horizon_world::nbt::{JavaString, Tag};
 
     fn check(json: &str) -> Option<String> {
         invalid_selector(&serde_json::from_str(json).unwrap(), &Registries::default())
@@ -388,6 +397,21 @@ mod tests {
             bad.contains("command.trailing_data") || bad.contains("Trailing"),
             "{bad}"
         );
+    }
+
+    #[test]
+    fn an_nbt_value_prints_raw_for_strings_and_compact_snbt_otherwise() {
+        // `NbtContents.asString` in 1.21.11: a string tag prints unquoted,
+        // anything else as compact SNBT (26.1 renders rich-styled text).
+        let string = Tag::String(JavaString("hello".encode_utf16().collect()));
+        assert_eq!(nbt_as_string(&string), "hello");
+        assert_eq!(nbt_as_string(&Tag::Int(7)), "7");
+        let compound = Tag::Compound(
+            [(JavaString("a".encode_utf16().collect()), Tag::Byte(1))]
+                .into_iter()
+                .collect(),
+        );
+        assert_eq!(nbt_as_string(&compound), "{a:1b}");
     }
 
     #[test]

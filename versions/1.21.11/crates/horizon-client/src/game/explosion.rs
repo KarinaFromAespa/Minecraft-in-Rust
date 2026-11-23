@@ -845,7 +845,8 @@ impl Game<'_> {
             self.combat.explosion_in_water,
         )
     }
-    /// `Entity.isInWater` for an entity box: `updateFluidInteraction` over the box.
+    /// `Entity.isInWater` for an entity box: `updateInWaterStateAndDoFluidPushing`
+    /// over the box.
     pub(super) fn bounds_in_water(&self, bounds: horizon_core::geometry::Aabb) -> bool {
         self.mob_world_base(&[])
             .fluids(bounds, bounds.max_position().y)

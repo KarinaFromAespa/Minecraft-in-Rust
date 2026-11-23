@@ -75,12 +75,12 @@ impl Kinetic {
         // and blocks per second.
         let (attack, multiplier, delay, dismount, knockback, damage) = match item {
             "minecraft:wooden_spear" => (0.65, 0.7, 0.75, (5.0, 14.0), (10.0, 5.1), (15.0, 4.6)),
-            "minecraft:stone_spear" => (0.75, 0.82, 0.7, (4.5, 13.0), (9.0, 5.1), (13.75, 4.6)),
-            "minecraft:copper_spear" => (0.85, 0.82, 0.65, (4.0, 12.0), (8.25, 5.1), (12.5, 4.6)),
-            "minecraft:iron_spear" => (0.95, 0.95, 0.6, (2.5, 11.0), (6.75, 5.1), (11.25, 4.6)),
-            "minecraft:golden_spear" => (0.95, 0.7, 0.7, (3.5, 13.0), (8.5, 5.1), (13.75, 4.6)),
-            "minecraft:diamond_spear" => (1.05, 1.075, 0.5, (3.0, 10.0), (6.5, 5.1), (10.0, 4.6)),
-            "minecraft:netherite_spear" => (1.15, 1.2, 0.4, (2.5, 9.0), (5.5, 5.1), (8.75, 4.6)),
+            "minecraft:stone_spear" => (0.75, 0.82, 0.7, (4.5, 10.0), (9.0, 5.1), (13.75, 4.6)),
+            "minecraft:copper_spear" => (0.85, 0.82, 0.65, (4.0, 9.0), (8.25, 5.1), (12.5, 4.6)),
+            "minecraft:iron_spear" => (0.95, 0.95, 0.6, (2.5, 8.0), (6.75, 5.1), (11.25, 4.6)),
+            "minecraft:golden_spear" => (0.95, 0.7, 0.7, (3.5, 10.0), (8.5, 5.1), (13.75, 4.6)),
+            "minecraft:diamond_spear" => (1.05, 1.075, 0.5, (3.0, 7.5), (6.5, 5.1), (10.0, 4.6)),
+            "minecraft:netherite_spear" => (1.15, 1.2, 0.4, (2.5, 7.0), (5.5, 5.1), (8.75, 4.6)),
             _ => return None,
         };
         let wood = item == "minecraft:wooden_spear";
@@ -241,7 +241,11 @@ impl UseParams {
         let start_lowering = finish_lowering - 40;
         let finish_raising_back = k.damage.max_duration_ticks + finish_raising;
         let raise = progress(time, 0.0, finish_raising as f32);
-        let sway = progress(time, start_swaying as f32, finish_swaying as f32);
+        // 1.21.11 ends the sway at the knockback window's start
+        // (`fromKineticWeapon` passes the knockback start, slot 6);
+        // 26.1 ends it at `finish_swaying` instead, so the sway
+        // ramps over 20 ticks there and over the whole gap here.
+        let sway = progress(time, start_swaying as f32, start_lowering as f32);
         let lower = out_cubic(in_out_elastic(progress(
             time - 20.0,
             start_lowering as f32,
@@ -496,5 +500,35 @@ mod tests {
         assert!((third_person_attack_arm(0.05) - 90f32.to_radians()).abs() < 1e-5);
         assert!(third_person_attack_arm(0.2) < 0.0);
         assert!(third_person_attack_arm(1.0).abs() < 1e-5);
+    }
+
+    /// `SpearAnimations.UseParams.fromKineticWeapon` in 1.21.11
+    /// ends the sway at the knockback window's start, not the
+    /// dismount finish: for the iron spear the sway ramps over
+    /// ticks 42..107, not 42..62 as in 26.1.
+    #[test]
+    fn the_sway_runs_to_the_knockback_window() {
+        let k = Kinetic::of("minecraft:iron_spear").unwrap();
+        let sway = |time: f32| UseParams::of(&k, time).sway;
+        assert_eq!(sway(42.0), 0.0);
+        assert!((sway(62.0) - 20.0 / 65.0).abs() < 1e-6);
+        assert!((sway(74.5) - 0.5).abs() < 1e-6);
+        assert_eq!(sway(107.0), 1.0);
+    }
+
+    /// `Item.Properties.spear` in 1.21.11: the dismount condition's
+    /// attacker-speed threshold is lower than 26.1's for every material
+    /// but wood (stone 10, copper 9, iron 8, gold 10, diamond 7.5,
+    /// netherite 7 blocks/s; 26.1 had 13/12/11/13/10/9).
+    #[test]
+    fn dismount_speed_thresholds_follow_1_21_11() {
+        let speed = |item: &str| Kinetic::of(item).unwrap().dismount.min_speed;
+        assert_eq!(speed("minecraft:wooden_spear"), 14.0);
+        assert_eq!(speed("minecraft:stone_spear"), 10.0);
+        assert_eq!(speed("minecraft:copper_spear"), 9.0);
+        assert_eq!(speed("minecraft:iron_spear"), 8.0);
+        assert_eq!(speed("minecraft:golden_spear"), 10.0);
+        assert_eq!(speed("minecraft:diamond_spear"), 7.5);
+        assert_eq!(speed("minecraft:netherite_spear"), 7.0);
     }
 }

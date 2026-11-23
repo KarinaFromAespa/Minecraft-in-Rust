@@ -280,8 +280,6 @@
 //!
 //! API 283 adds A server player completed a merchant trade (`native_player_trade`).
 //!
-//! API 282 adds A server player toggled an entity's age lock (`native_player_toggle_entity_age_lock`).
-//!
 //! API 281 adds Player about to travel through an End gateway, cancellable (`native_player_teleport_end_gateway`).
 //!
 //! API 280 adds A server player swapped with an equipment slot (`native_player_swap_with_equipment_slot`).
@@ -786,7 +784,7 @@
 //! API 61 adds mods' own sound events in `native_play_sound`: another
 //! namespace's event is sent by name, as vanilla sends an unregistered sound.
 //!
-//! API 60 adds the small bar under an item (`native_item_bar`): `GuiGraphicsExtractor.itemDecorations`
+//! API 60 adds the small bar under an item (`native_item_bar`): `GuiGraphics.renderItemDecorations`
 //! hands it vanilla's choice (the damage bar, or a bundle's fullness already applied), to replace or hide.
 //!
 //! API 59 adds entities for server mods (`native_summon`, `native_move_entity`,
@@ -5822,24 +5820,6 @@ impl Game<'_> {
     ) {
         mod_api::dispatch_player_unleash_entity(self, mod_api::mods(), player, name, entity_id);
     }
-    /// A server player toggled an ageable mob's age lock with a golden
-    /// dandelion, after the lock and item use changed. 282.
-    pub(super) fn native_player_toggle_entity_age_lock(
-        &mut self,
-        player: u128,
-        name: &str,
-        entity_id: u32,
-        locked: bool,
-    ) {
-        mod_api::dispatch_player_toggle_entity_age_lock(
-            self,
-            mod_api::mods(),
-            player,
-            name,
-            entity_id,
-            locked,
-        );
-    }
     /// A server player swapped their main and off hands, after both inventory
     /// slots changed. Guest lookup helpers may find nothing during packet
     /// handling. Server-side. 280.
@@ -8129,7 +8109,7 @@ impl Game<'_> {
         mod_api::dispatch_tooltip_render_pre(self, mod_api::mods(), stack, batch, x, y, cancel);
     }
 
-    /// The small bar `GuiGraphicsExtractor.itemDecorations` draws under an
+    /// The small bar `GuiGraphics.renderItemDecorations` draws under an
     /// item, wherever the game shows one: `bar` arrives holding vanilla's value
     /// (the damage bar, or a bundle's fullness already applied) and may be
     /// replaced (width `0..=13`, colour `rgb`) or set to `None` to hide it.
@@ -11245,7 +11225,7 @@ impl Game<'_> {
         at: [f32; 2],
         size: f32,
     ) -> bool {
-        // GuiGraphicsExtractor.item and itemDecorations draw nothing for an
+        // GuiGraphics.renderItem and itemDecorations draw nothing for an
         // empty stack.
         if &*stack.item == "minecraft:air" || stack.count == 0 {
             return false;

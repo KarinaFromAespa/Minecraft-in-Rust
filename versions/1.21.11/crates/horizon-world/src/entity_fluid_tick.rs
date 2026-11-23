@@ -23,8 +23,11 @@ pub trait EntityFluidTickWorld:
         }
     }
 }
-/// The push predicate is queried twice: before resetting immersion state and
-/// after water-entry effects. Water/lava membership is captured before effects.
+/// `Entity.updateInWaterStateAndDoFluidPushing`: immersion heights, then
+/// touching water resets the fall and splashes on entry, then the currents
+/// push. The push predicate is queried twice: before resetting immersion
+/// state and after water-entry effects. Water/lava membership is captured
+/// before effects.
 pub fn update<W: EntityFluidTickWorld>(
     interaction: &mut EntityFluidInteraction,
     world: &mut W,

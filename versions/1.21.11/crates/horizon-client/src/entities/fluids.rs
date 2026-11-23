@@ -134,8 +134,8 @@ impl ItemEntity {
     }
 }
 impl ExperienceOrb {
-    /// `Entity.updateFluidInteraction`: refreshes fluid immersion over the
-    /// orb's box and pushes its velocity by any water or lava current.
+    /// `Entity.updateInWaterStateAndDoFluidPushing`: refreshes fluid immersion
+    /// over the orb's box and pushes its velocity by any water or lava current.
     /// Answers `isEyeInFluid(FluidTags.WATER)` for the eye the scan reads,
     /// `0.425` above the orb's feet.
     pub fn update_fluids(&mut self, world: &World, fluids: &FluidResources) -> bool {
@@ -209,9 +209,6 @@ impl FluidInteractionWorld for EntityFluidWorld<'_> {
             minimum_section_y: layout.min_y() >> 4,
             has_fluid: crate::chunk::every_section(layout),
         })
-    }
-    fn bounding_box_min_y(&self) -> f64 {
-        self.position.y
     }
     fn block_x(&self) -> i32 {
         self.position.x.floor() as i32

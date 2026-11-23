@@ -12,7 +12,7 @@ dead entity (Scoreboard.entityRemoved). Each case records every result, dumps
 of each collection in vanilla's iteration order (objectivesByName and
 playerScores as fastutil open hash maps, teamsByName, each team's HashSet of
 players), and the ScoreboardSaveData.Packed codec output that
-data/minecraft/scoreboard.dat holds, before and after loading it back.
+data/scoreboard.dat holds, before and after loading it back.
 `examples/probe/scoreboard_fixture` runs the same cases on
 `horizon_client::scoreboard`, reloads vanilla's NBT, and vanilla reloads
 Horizon's NBT; all must agree. The one order vanilla leaves to identity hash

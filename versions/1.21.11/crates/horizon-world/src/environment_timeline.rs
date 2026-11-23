@@ -1,5 +1,5 @@
 //! Timelines (`net.minecraft.world.timeline`): tracks of keyframes that change environment
-//! attributes over a clock's ticks (`Timeline`, `AttributeTrack`, `AttributeTrackSampler`), and
+//! attributes over the level's day time (`Timeline`, `AttributeTrack`, `AttributeTrackSampler`), and
 //! the keyframe machinery under them (`KeyframeTrack`, `KeyframeTrackSampler`, `EasingType`,
 //! `Ease`).
 use crate::environment_attributes::{Attribute, Entry, Value, attribute};
@@ -281,45 +281,16 @@ impl Easing {
     }
 }
 
-/// `EasingType.CubicBezier.solveT`: 4 Newton-Raphson steps, then the bisection.
+/// `EasingType.CubicBezier.apply`: 4 Newton-Raphson steps on the x curve, no step
+/// clamp and no bisection — the gradient is checked before the error is drawn.
 fn solve_t(curve: Curve, x: f32) -> f32 {
     let mut t = x;
     for _ in 0..4 {
-        let error = curve.sample(t) - x;
-        if error.abs() < 1.0e-5 {
-            return t;
-        }
         let gradient = curve.gradient(t);
         if gradient < 1.0e-5 {
             break;
         }
-        // `Mth.clamp(float)`.
-        let step = error / gradient;
-        t -= if step < -0.25 {
-            -0.25
-        } else if step.is_nan() {
-            step
-        } else {
-            step.min(0.25)
-        };
-    }
-    solve_t_bisect(curve, x, t)
-}
-
-/// `EasingType.CubicBezier.solveTBisect`: halves 0-1 from `t` until the curve is within 1e-5.
-fn solve_t_bisect(curve: Curve, x: f32, mut t: f32) -> f32 {
-    let (mut t0, mut t1) = (0.0f32, 1.0f32);
-    while t0 < t1 {
-        let error = curve.sample(t) - x;
-        if error.abs() < 1.0e-5 {
-            return t;
-        }
-        if error < 0.0 {
-            t0 = t;
-        } else {
-            t1 = t;
-        }
-        t = (t1 + t0) / 2.0;
+        t -= (curve.sample(t) - x) / gradient;
     }
     t
 }
@@ -460,7 +431,7 @@ struct Segment {
 }
 
 /// `AttributeTrackSampler` over a `KeyframeTrackSampler`: the track's modifier, with the
-/// argument sampled at a clock's total ticks.
+/// argument sampled at the level's day time.
 pub struct TrackSampler {
     pub attribute: &'static Attribute,
     period: Option<i32>,
@@ -501,24 +472,18 @@ impl TrackSampler {
     }
 }
 
-/// `Timeline`: tracks on one clock, optionally looping every `period_ticks`.
+/// `Timeline`: tracks sampled at the level's day time, optionally looping every
+/// `period_ticks`. (1.21.11's `DIRECT_CODEC` has no `clock` or `time_markers` field —
+/// `day.json` still carries them, but the codec ignores them.)
 pub struct Timeline {
-    /// The `WorldClock` it reads.
-    pub clock: String,
     pub period: Option<i32>,
     pub tracks: Vec<Track>,
 }
 
 impl Timeline {
-    /// `Timeline.DIRECT_CODEC` with `Timeline.validateInternal`: time markers inside the
-    /// period, and every track's keyframes within it. Tracks of attributes that aren't
-    /// registered fail.
+    /// `Timeline.DIRECT_CODEC` with `Timeline.validateInternal`: every track's keyframes
+    /// within the period. Tracks of attributes that aren't registered fail.
     pub fn parse(json: &Json) -> Result<Self, String> {
-        let clock = json
-            .get("clock")
-            .and_then(Json::as_str)
-            .ok_or("no clock")?
-            .to_owned();
         let period = match json.get("period_ticks") {
             None => None,
             Some(p) => Some(
@@ -539,39 +504,16 @@ impl Timeline {
             tracks.push(Track::parse(attribute, track).map_err(|e| format!("{id}: {e}"))?);
         }
         if let Some(period) = period {
-            for (id, marker) in json
-                .get("time_markers")
-                .and_then(Json::as_object)
-                .into_iter()
-                .flatten()
-            {
-                let ticks = marker
-                    .as_i64()
-                    .or_else(|| marker.get("ticks").and_then(Json::as_i64))
-                    .unwrap_or(-1);
-                if ticks < 0 || ticks >= i64::from(period) {
-                    return Err(format!("Time Marker {id} must be in range [0; {period})"));
-                }
-            }
             for track in &tracks {
                 track.validate_period(period)?;
             }
         }
-        Ok(Self {
-            clock,
-            period,
-            tracks,
-        })
+        Ok(Self { period, tracks })
     }
 
-    /// `Timeline.getCurrentTicks`: the clock's total ticks, within the period when there is one.
+    /// `Timeline.getCurrentTicks`: the level's day time, within the period when there is one.
     pub fn current_ticks(&self, total: i64) -> i64 {
         self.period.map_or(total, |p| total % i64::from(p))
-    }
-
-    /// `Timeline.getPeriodCount`: whole periods the clock has run.
-    pub fn period_count(&self, total: i64) -> i32 {
-        self.period.map_or(0, |p| (total / i64::from(p)) as i32)
     }
 }
 
@@ -595,5 +537,114 @@ mod tests {
         let out_circ = Easing::parse(&serde_json::json!("out_circ")).unwrap();
         assert_eq!(in_circ.apply(1.2).to_bits(), expected_in);
         assert_eq!(out_circ.apply(-0.2).to_bits(), expected_out);
+    }
+
+    #[test]
+    fn cubic_bezier_matches_the_1_21_11_oracle() {
+        // Bits from the 1.21.11 client.jar's `EasingType.CubicBezier.apply`
+        // (scratch-vf/m74/BezierOracle.java), the harness driver's five BEZIERS.
+        let xs: [f32; 13] = [
+            0.0, -0.0, 1.0, 0.5, 0.25, 0.75, 1e-6, 0.999999, -0.2, 1.2, 0.36363637, 0.72727275,
+            0.9090909,
+        ];
+        let cases: [([f32; 4], [u32; 13]); 5] = [
+            (
+                [0.362, 0.241, 0.638, 0.759],
+                [
+                    0x00000000, 0x80000000, 0x3f800000, 0x3f000000, 0x3e5ccfa2, 0x3f48cc18,
+                    0x3532b5c5, 0x3f7ffff6, 0xbdc9a876, 0x3f8c9a88, 0x3eae0d52, 0x3f42b0ef,
+                    0x3f6ebe37,
+                ],
+            ),
+            (
+                [0.25, 0.1, 0.25, 1.0],
+                [
+                    0x00000000, 0x80000000, 0x3f800000, 0x3f4d6a4f, 0x3ed1284e, 0x3f75e0a4,
+                    0x34d6c03e, 0x3f800000, 0x3d707b83, 0x3f7b1eec, 0x3f209817, 0x3f73bcfa,
+                    0x3f7ece05,
+                ],
+            ),
+            (
+                [0.0, 0.0, 1.0, 1.0],
+                [
+                    0x00000000, 0x80000000, 0x3f800000, 0x3f000000, 0x3e7fffff, 0x3f3ffffe,
+                    0x2c531b29, 0x3f7fffff, 0x3e0b4396, 0x3f5d2f19, 0x3eba2e8c, 0x3f3a2e8c,
+                    0x3f68ba2d,
+                ],
+            ),
+            (
+                [0.9, -0.5, 0.1, 1.5],
+                [
+                    0x80000000, 0x00000000, 0x3f800001, 0x3f000000, 0xbda5a550, 0x3f8a5a55,
+                    0xb5152172, 0x3f800006, 0x3e073c78, 0x3f5e30e7, 0xbd228aff, 0x3f8a227e,
+                    0x3f85b4cf,
+                ],
+            ),
+            (
+                [1.0, 0.0, 0.0, 1.0],
+                [
+                    0x00000000, 0x80000000, 0x3f800000, 0x3f000000, 0x3cf37e7f, 0x3f78640d,
+                    0x2abba671, 0x3f800000, 0x3c33f348, 0x3f7d3033, 0x3d9c3db7, 0x3f768954,
+                    0x3f7f36ac,
+                ],
+            ),
+        ];
+        for (controls, expected) in cases {
+            let easing = Easing::parse(&serde_json::json!({ "cubic_bezier": controls })).unwrap();
+            for (x, want) in xs.iter().zip(expected) {
+                assert_eq!(
+                    easing.apply(*x).to_bits(),
+                    want,
+                    "bezier {controls:?} x={x}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn timeline_parse_takes_the_1_21_11_codec_shape() {
+        // moon.json has period_ticks + tracks and no clock; early_game.json has
+        // tracks only; day.json still carries a vestigial clock and time_markers
+        // the 1.21.11 codec ignores.
+        let moon = serde_json::json!({
+            "period_ticks": 192000,
+            "tracks": {
+                "minecraft:gameplay/surface_slime_spawn_chance": {
+                    "ease": "constant",
+                    "keyframes": [
+                        { "ticks": 0, "value": 0.5 },
+                        { "ticks": 24000, "value": 0.375 },
+                    ],
+                },
+            },
+        });
+        let t = Timeline::parse(&moon).unwrap();
+        assert_eq!(t.period, Some(192000));
+        assert_eq!(t.tracks.len(), 1);
+        let early = serde_json::json!({
+            "tracks": {
+                "minecraft:gameplay/can_pillager_patrol_spawn": {
+                    "modifier": "and",
+                    "keyframes": [
+                        { "ticks": 0, "value": false },
+                        { "ticks": 120000, "value": true },
+                    ],
+                },
+            },
+        });
+        let t = Timeline::parse(&early).unwrap();
+        assert_eq!(t.period, None);
+        assert_eq!(t.tracks.len(), 1);
+        // A vestigial clock and an out-of-period marker are ignored, as the
+        // 1.21.11 codec ignores unknown fields.
+        let day = serde_json::json!({
+            "clock": "minecraft:overworld",
+            "period_ticks": 24000,
+            "time_markers": { "minecraft:noon": { "ticks": 999999, "show_in_commands": true } },
+            "tracks": {},
+        });
+        let t = Timeline::parse(&day).unwrap();
+        assert_eq!(t.period, Some(24000));
+        assert!(t.tracks.is_empty());
     }
 }

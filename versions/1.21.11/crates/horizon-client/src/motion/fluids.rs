@@ -1,4 +1,5 @@
-//! The player's fluid immersion over the resident scene: `Entity.updateFluidInteraction`
+//! The player's fluid immersion over the resident scene:
+//! `Entity.updateInWaterStateAndDoFluidPushing` + `updateFluidOnEyes`
 //! (water, waterlogged blocks, bubble columns and lava, with their currents), the
 //! water-entry splash and the fall resets that hinge on touching water.
 use super::*;
@@ -94,7 +95,9 @@ pub struct PlayerFluids {
     /// The boat the player sits in (`Entity.getVehicle`), set by the game.
     pub boat: Option<RiddenBoat>,
 }
-/// What `AbstractBoat.modifyPassengerFluidInteractionBox` reads of a boat.
+/// What the boat rules read of a boat: the water short-circuit in
+/// `updateInWaterStateAndDoWaterCurrentPushing` and the eye shelter in
+/// `updateFluidOnEyes`.
 #[derive(Clone, Copy, Debug)]
 pub struct RiddenBoat {
     /// `AbstractBoat.isUnderWater`.
@@ -302,8 +305,11 @@ impl MotionWorld<'_, '_, '_> {
     pub(super) fn fluid_at(&self, p: BlockPos) -> FluidState {
         self.resources.fluids.fluid(self.block(p))
     }
-    /// `Entity.baseTick`'s fluid phase: `wasEyeInWater`, `updateFluidInteraction`,
-    /// swimming and remaining fire, lava's fall halving, then the first-tick clear.
+    /// `Entity.baseTick`'s fluid phase: `updateInWaterStateAndDoFluidPushing`
+    /// and `updateFluidOnEyes`, swimming and remaining fire, lava's fall
+    /// halving, then the first-tick clear. The eye sample is taken first —
+    /// the shared update recomputes the eyes with the heights, so the sample
+    /// still reads the previous tick, as `updateFluidOnEyes` does.
     pub fn fluid_base_tick(&mut self) -> Result<()> {
         self.player.fluids.was_eye_in_water = self.player.is_eye_in_fluid(WATER);
         self.update_fluids()?;
@@ -333,8 +339,9 @@ impl MotionWorld<'_, '_, '_> {
         self.player.fluids.first_tick = false;
         Ok(())
     }
-    /// `Entity.updateFluidInteraction`: immersion heights, then touching water
-    /// resets the fall and splashes on entry, then the currents push.
+    /// `Entity.updateInWaterStateAndDoFluidPushing`: immersion heights, then
+    /// touching water resets the fall and splashes on entry, then the
+    /// currents push.
     pub fn update_fluids(&mut self) -> Result<bool> {
         let mut interaction = std::mem::take(&mut self.player.fluids.interaction);
         let result = entity_fluid_tick::update(&mut interaction, self, WATER, LAVA, 1_000_000);
@@ -384,8 +391,12 @@ impl FluidInteractionWorld for MotionWorld<'_, '_, '_> {
     type Error = Box<dyn std::error::Error>;
     type Chunk = ();
     fn interaction_box(&mut self) -> Result<Option<Aabb>> {
-        // Entity.getFluidInteractionBox: the box less 0.001, then the vehicle's
-        // say (`AbstractBoat.modifyPassengerFluidInteractionBox`).
+        // The box less 0.001, then the vehicle's say. 1.21.11 has no
+        // `getFluidInteractionBox` — the water path short-circuits for a boat
+        // passenger instead — but the clip gives the same answer: water below
+        // the boat's top never reaches the clipped box, and water above it
+        // leaves the boat underwater and the box unclipped; and it shelters
+        // the eyes exactly where `updateFluidOnEyes` skips them.
         let b = self.player.bounds().deflate(Vec3::new(0.001, 0.001, 0.001));
         let Some(boat) = self.player.fluids.boat.filter(|boat| !boat.under_water) else {
             return Ok(Some(b));
@@ -412,9 +423,6 @@ impl FluidInteractionWorld for MotionWorld<'_, '_, '_> {
             minimum_section_y: layout.min_y() >> 4,
             has_fluid: crate::chunk::every_section(layout),
         })
-    }
-    fn bounding_box_min_y(&self) -> f64 {
-        self.player.bounds().min_position().y
     }
     fn block_x(&self) -> i32 {
         self.player.position.x.floor() as i32

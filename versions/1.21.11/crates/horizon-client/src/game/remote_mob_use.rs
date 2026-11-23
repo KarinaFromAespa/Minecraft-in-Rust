@@ -59,13 +59,8 @@ impl Game<'_> {
                 return true;
             }
             if m.kind.food.iter().any(|f| f.as_str() == item) {
-                return baby && !m.extra.age_locked;
+                return baby;
             }
-        }
-        // AgeableMob.mobInteract: a golden dandelion on a baby that can be age
-        // locked is SUCCESS on a client too (the server sets the lock).
-        if self.age_lock_takes(m, item) {
-            return true;
         }
         // Animal.mobInteract: its food is CONSUME on a client. A nautilus
         // overrides mobInteract, and an untamed one only takes its taming
@@ -153,10 +148,9 @@ impl Game<'_> {
                     && !horizon_client::mobs::sulfur_cube::primed(m)
                     && !horizon_client::mobs::sulfur_cube::swallowable(m, item)
             }
-            // Tadpole.mobInteract: frog food (not while age locked), else the bucket.
+            // Tadpole.mobInteract: frog food, else the bucket.
             Species::Tadpole => {
-                item == "minecraft:water_bucket"
-                    || !m.extra.age_locked && m.kind.food.iter().any(|f| f.as_str() == item)
+                item == "minecraft:water_bucket" || m.kind.food.iter().any(|f| f.as_str() == item)
             }
             // Armadillo.brushOffScute fails on a baby, so its brush falls
             // through to FAIL (scared) or Mob.mobInteract's PASS.
@@ -251,10 +245,10 @@ fn copper_golem_takes(item: &str, holding: bool, shearable: bool) -> bool {
 /// mouthful is the one that ages the baby up, which is the same moment the
 /// level draws one happy villager particle.
 ///
-/// `handleEating` gates both on `isBaby() && !isAgeLocked()` — a locked baby
-/// does not grow, and the particle goes with the growth.
+/// `handleEating` gates both on `isBaby()` — a baby grows, and the particle
+/// goes with the growth.
 pub(super) fn ages_on_food(m: &Mob, item: &str) -> bool {
-    if !m.is_baby() || m.extra.age_locked || item.is_empty() {
+    if !m.is_baby() || item.is_empty() {
         return false;
     }
     match m.species() {
@@ -314,7 +308,7 @@ fn mob_swings(m: &Mob, item: &str) -> bool {
         && !matches!(m.species(), Species::Nautilus | Species::ZombieNautilus)
         && food
     {
-        return m.is_baby() && !m.extra.age_locked;
+        return m.is_baby();
     }
     // A tame wolf, cat or parrot sits or stands up: SUCCESS
     // (TamableAnimal's subclasses), so it swings.
@@ -463,17 +457,14 @@ mod tests {
     }
 
     /// `AbstractHorse.handleEating` draws the particle only while the baby can
-    /// still grow: `isBaby() && !isAgeLocked()` (#8590).
+    /// still grow: `isBaby()` (#8590).
     #[test]
-    fn a_locked_baby_draws_no_happy_villager() {
+    fn a_baby_draws_a_happy_villager_while_it_can_grow() {
         let Some(mut horse) = mob("minecraft:horse") else {
             return;
         };
         horse.extra.age = -24000;
         assert!(ages_on_food(&horse, "minecraft:wheat"));
-        horse.extra.age_locked = true;
-        assert!(!ages_on_food(&horse, "minecraft:wheat"), "locked");
-        horse.extra.age_locked = false;
         horse.extra.age = 0;
         assert!(!ages_on_food(&horse, "minecraft:wheat"), "adult");
         horse.extra.age = -24000;
@@ -482,16 +473,12 @@ mod tests {
         if let Some(mut llama) = mob("minecraft:llama") {
             llama.extra.age = -24000;
             assert!(ages_on_food(&llama, "minecraft:hay_block"));
-            llama.extra.age_locked = true;
-            assert!(!ages_on_food(&llama, "minecraft:hay_block"), "locked llama");
         }
         if let Some(mut camel) = mob("minecraft:camel")
             && camel.kind.food.iter().any(|f| f == "minecraft:cactus")
         {
             camel.extra.age = -24000;
             assert!(ages_on_food(&camel, "minecraft:cactus"));
-            camel.extra.age_locked = true;
-            assert!(!ages_on_food(&camel, "minecraft:cactus"), "locked camel");
         }
     }
 }

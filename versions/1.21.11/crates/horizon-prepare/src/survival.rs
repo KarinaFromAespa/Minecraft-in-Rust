@@ -26,7 +26,9 @@ const CLASS_RULES: &[(&str, &str)] = &[
     ("PitcherCropBlock", "PitcherCrop"),
     ("BigDripleafBlock", "BigDripleaf"),
     ("BigDripleafStemBlock", "BigDripleafStem"),
-    ("FarmlandBlock", "Farmland"),
+    // 1.21.11's class is `FarmBlock` (26.1 renamed it `FarmlandBlock`);
+    // without the 1.21.11 name farmland binds no survival rule.
+    ("FarmBlock", "Farmland"),
     ("CocoaBlock", "Cocoa"),
     ("SugarCaneBlock", "SugarCane"),
     ("SporeBlossomBlock", "SporeBlossom"),
@@ -69,19 +71,24 @@ const CLASS_RULES: &[(&str, &str)] = &[
 ];
 
 const VEGETATION_RULES: &[(&str, &str)] = &[
-    ("LilyPadBlock", "LilyPad"),
-    ("VegetationBlock", "TagBelow:minecraft:supports_vegetation"),
+    ("WaterlilyBlock", "LilyPad"),
+    ("VegetationBlock", "Vegetation"),
     ("AzaleaBlock", "TagBelow:minecraft:supports_azalea"),
     (
         "DryVegetationBlock",
-        "TagBelow:minecraft:supports_dry_vegetation",
+        // 1.21.11's tag is `dry_vegetation_may_place_on`; 26.1 renamed it
+        // `supports_dry_vegetation` (and changed its contents).
+        "TagBelow:minecraft:dry_vegetation_may_place_on",
     ),
     (
         "NetherSproutsBlock",
         "TagBelow:minecraft:supports_nether_sprouts",
     ),
     ("NetherWartBlock", "TagBelow:minecraft:supports_nether_wart"),
-    ("WitherRoseBlock", "TagBelow:minecraft:supports_wither_rose"),
+    // 1.21.11's wither rose stands on dirt, farmland, netherrack, soul
+    // sand or soul soil (26.1 reads the `supports_wither_rose` tag
+    // instead, gone in 1.21.11); no single tag says it.
+    ("WitherRoseBlock", "WitherRose"),
     ("CactusFlowerBlock", "CactusFlower"),
     ("SeagrassBlock", "Seagrass"),
 ];
@@ -136,17 +143,111 @@ pub fn bind_definitions(
             };
             // Later versions carry the support set in a TagKey field the exporter
             // reads. 1.21.11's stem classes have no such field: their mayPlaceOn
-            // hardcodes the block check (farmland only), which the rule grammar
-            // cannot express yet, so those blocks get no bound rule here rather
-            // than a wrong one (the behaviour port owns the rule form).
+            // hardcodes the block check (farmland only), which the BlockBelow
+            // rule form carries. The fungus/root classes hardcode theirs too
+            // (item 757); they get no bound rule here rather than a wrong one.
             if let Some(tag) = support_tags
                 .get(name)
                 .and_then(|t| t.get(field))
                 .and_then(Value::as_str)
             {
                 definitions.insert(name, Value::Str(format!("TagBelow:{tag}")));
+            } else if method == "StemBlock" || method == "AttachedStemBlock" {
+                definitions.insert(name, Value::str("BlockBelow:minecraft:farmland"));
             }
         }
     }
     Ok(definitions)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 1.21.11's placement class for the lily pad is `WaterlilyBlock`
+    /// (26.1 renamed it `LilyPadBlock`); without the 1.21.11 name the
+    /// pad binds no survival rule.
+    #[test]
+    fn lily_pad_binds_its_rule_from_the_1_21_11_placement_class() {
+        let classes = Value::Object(vec![(
+            "minecraft:lily_pad".to_owned(),
+            Value::str("VegetationBlock"),
+        )]);
+        let placement = Value::Object(vec![(
+            "minecraft:lily_pad".to_owned(),
+            Value::str("WaterlilyBlock"),
+        )]);
+        let definitions = bind_definitions(&classes, &placement, &Value::Object(vec![])).unwrap();
+        assert_eq!(
+            definitions
+                .get("minecraft:lily_pad")
+                .and_then(Value::as_str),
+            Some("LilyPad")
+        );
+    }
+
+    /// 1.21.11's farmland class is `FarmBlock` (26.1 renamed it
+    /// `FarmlandBlock`); without the 1.21.11 name farmland binds no
+    /// survival rule.
+    #[test]
+    fn farmland_binds_its_rule_from_the_1_21_11_class() {
+        let classes = Value::Object(vec![(
+            "minecraft:farmland".to_owned(),
+            Value::str("FarmBlock"),
+        )]);
+        let definitions =
+            bind_definitions(&classes, &Value::Object(vec![]), &Value::Object(vec![])).unwrap();
+        assert_eq!(
+            definitions
+                .get("minecraft:farmland")
+                .and_then(Value::as_str),
+            Some("Farmland")
+        );
+    }
+
+    /// 1.21.11's wither rose stands on dirt, farmland, netherrack, soul
+    /// sand or soul soil; 26.1 reads the `supports_wither_rose` tag
+    /// instead, which does not exist in 1.21.11, so the old name bound an
+    /// empty tag and wither roses could never survive.
+    #[test]
+    fn wither_rose_binds_its_own_rule_not_an_empty_tag() {
+        let classes = Value::Object(vec![(
+            "minecraft:wither_rose".to_owned(),
+            Value::str("VegetationBlock"),
+        )]);
+        let placement = Value::Object(vec![(
+            "minecraft:wither_rose".to_owned(),
+            Value::str("WitherRoseBlock"),
+        )]);
+        let definitions = bind_definitions(&classes, &placement, &Value::Object(vec![])).unwrap();
+        assert_eq!(
+            definitions
+                .get("minecraft:wither_rose")
+                .and_then(Value::as_str),
+            Some("WitherRose")
+        );
+    }
+
+    /// 1.21.11's dry-vegetation support tag is
+    /// `dry_vegetation_may_place_on`; 26.1 renamed it
+    /// `supports_dry_vegetation`, which does not exist in 1.21.11, so the
+    /// old name bound an empty tag and dry grass could never survive.
+    #[test]
+    fn dry_vegetation_binds_the_1_21_11_support_tag() {
+        let classes = Value::Object(vec![(
+            "minecraft:short_dry_grass".to_owned(),
+            Value::str("VegetationBlock"),
+        )]);
+        let placement = Value::Object(vec![(
+            "minecraft:short_dry_grass".to_owned(),
+            Value::str("DryVegetationBlock"),
+        )]);
+        let definitions = bind_definitions(&classes, &placement, &Value::Object(vec![])).unwrap();
+        assert_eq!(
+            definitions
+                .get("minecraft:short_dry_grass")
+                .and_then(Value::as_str),
+            Some("TagBelow:minecraft:dry_vegetation_may_place_on")
+        );
+    }
 }

@@ -731,12 +731,12 @@ impl Mob {
         )
     }
     /// `IronGolem.isPlayerCreated`: a golem a player built, which
-    /// `IronGolem.canAttack` never lets attack a player.
+    /// `IronGolem.canAttackType` never lets attack a player.
     pub fn built_by_player(&self) -> bool {
         self.species() == Species::IronGolem && self.extra.player_created
     }
-    /// `canAttack` for the player: a golem a player built never attacks
-    /// players (`IronGolem.canAttack`), and a pet never attacks its owner
+    /// `canAttackType` for the player: a golem a player built never attacks
+    /// players (`IronGolem.canAttackType`), and a pet never attacks its owner
     /// (`TamableAnimal.canAttack`: `isOwnedBy`). In Peaceful nothing attacks a
     /// player (`LivingEntity.canAttack`, `TargetingConditions.test`: combat
     /// conditions fail when the difficulty is PEACEFUL).
@@ -749,8 +749,8 @@ impl Mob {
                     .as_ref()
                     .is_some_and(|p| super::tame::owned_by(self.extra.owner, p.uuid)))
     }
-    /// `canAttack` of any target: the player rules above, and
-    /// `IronGolem.canAttack`'s refusal of creepers. The callers check that
+    /// `canAttackType` of any target: the player rules above, and
+    /// `IronGolem.canAttackType`'s refusal of creepers. The callers check that
     /// the target is alive and can be seen as an enemy.
     pub fn spares_target(&self, w: &MobWorld, who: Who) -> bool {
         // Dolphin.canAttack: a baby dolphin attacks nobody, so whatever hurt it
@@ -761,7 +761,7 @@ impl Mob {
         match who {
             Who::Player => self.spares_players(w),
             Who::Mob(id) => {
-                // `Mob.canAttack` refuses a Ghast for every mob.
+                // `Mob.canAttackType` refuses a Ghast for every mob.
                 w.seen(id).is_some_and(|s| s.species == Species::Ghast)
                     || (self.species() == Species::IronGolem
                         && w.seen(id).is_some_and(|s| s.species == Species::Creeper))
@@ -855,8 +855,8 @@ impl Goal for Float {
 /// `ClimbOnTopOfPowderSnowGoal`: a powder-snow walker standing in powder snow
 /// jumps while the block above is powder snow or has no collision.
 #[derive(Clone, Debug)]
-pub struct ClimbOnTopOfPowderSnow;
-impl Goal for ClimbOnTopOfPowderSnow {
+pub struct ClimbDangerPowderSnow;
+impl Goal for ClimbDangerPowderSnow {
     goal_clone!();
     fn flags(&self) -> u8 {
         JUMP
@@ -3035,9 +3035,10 @@ mod built_by_player_tests {
         Mob::new(1, kind, Vec3::ZERO, 0.0)
     }
 
-    /// `IronGolem.canAttack`: only a golem a player built spares players, so
-    /// the save restore drops that target (`Mob.asValidTarget`) while another
-    /// mob's `PlayerCreated` byte means nothing.
+    /// `IronGolem.canAttackType`: only a golem a player built spares players,
+    /// so the save restore drops that target (the target goal re-checks via
+    /// `TargetingConditions`) while another mob's `PlayerCreated` byte means
+    /// nothing.
     #[test]
     fn only_a_golem_spares_the_player_that_built_it() {
         let mut built = mob(Species::IronGolem);

@@ -173,9 +173,9 @@ impl Sink {
 }
 use horizon_world::nbt::{Compound, Tag};
 
-/// `finalizeSpawn`'s memories (`m.extra.memories`) as `Brain.Packed` writes
-/// them: a `Unit` empty compound, a boolean, an integer, or a global position
-/// for `home`, with the remaining TTL when it is finite.
+/// `finalizeSpawn`'s memories (`m.extra.memories`) as the brain's `memories`
+/// codec writes them: a `Unit` empty compound, a boolean, an integer, or a
+/// global position for `home`, with the remaining TTL when it is finite.
 pub fn put_brain(map: &mut Compound, m: &Mob, dimension: &str) {
     if m.extra.memories.is_empty() {
         return;
@@ -213,9 +213,10 @@ pub fn put_brain(map: &mut Compound, m: &Mob, dimension: &str) {
     );
 }
 
-/// `Frog`'s brain memory `IS_PREGNANT`, which `Brain.Packed` writes beside the
-/// other memories and `mob_from_nbt` reads back into the frog's memories. The
-/// memory is a `Unit`: its value is an empty compound, with no TTL.
+/// `Frog`'s brain memory `IS_PREGNANT`, which the brain's `memories` codec
+/// writes beside the other memories and `mob_from_nbt` reads back into the
+/// frog's memories. The memory is a `Unit`: its value is an empty compound,
+/// with no TTL.
 pub fn write_frog(m: &Mob, map: &mut Compound) {
     let brain = map
         .entry("Brain".into())

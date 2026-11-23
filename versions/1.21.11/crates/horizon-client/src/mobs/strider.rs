@@ -20,8 +20,8 @@ const SUFFOCATING: f64 = -0.34_f32 as f64;
 pub fn register(m: &mut Mob) {
     m.set_malus(PathType::Water, -1.0);
     m.set_malus(PathType::Lava, 0.0);
-    m.set_malus(PathType::FireInNeighbor, 0.0);
-    m.set_malus(PathType::Fire, 0.0);
+    m.set_malus(PathType::DangerFire, 0.0);
+    m.set_malus(PathType::DamageFire, 0.0);
     let tempt = m.kind.tempt.clone();
     let g = &mut m.ai.goals;
     g.add(1, Panic::new(1.65));
@@ -46,7 +46,8 @@ pub fn movement_speed(m: &Mob, base: f64) -> f64 {
     }
 }
 /// `Strider.tick` before `super.tick()`: the tempted and retreating sounds,
-/// then cold unless in or on a warm block or riding a warm strider.
+/// then cold unless in or on a warm block — or riding a cold strider, whose
+/// cold spreads to the rider.
 pub fn pre_tick(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
     if m.ai.goals.is_running("Tempt") && m.random.next_int_bound(140).unwrap_or(1) == 0 {
         m.voice("entity.strider.happy", events);
@@ -68,12 +69,12 @@ pub fn pre_tick(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
         m.position.z.floor() as i32,
     ];
     let in_warm = warm(inside) || warm(m.block_on_legacy(w)) || m.fluids.lava > 0.0;
-    let on_warm_strider = m
+    let on_suffocating_strider = m
         .extra
         .mount
         .and_then(|id| w.seen(id))
-        .is_some_and(|v| v.species == Species::Strider && !v.cold_strider);
-    m.extra.flag = !in_warm && !on_warm_strider;
+        .is_some_and(|v| v.species == Species::Strider && v.cold_strider);
+    m.extra.flag = !in_warm || on_suffocating_strider;
 }
 /// `Strider.floatStrider`, after the living tick: standing on the surface of
 /// lava, or bobbing up through it.
@@ -86,8 +87,8 @@ pub fn float(m: &mut Mob, w: &MobWorld) {
         m.position.y.floor() as i32,
         m.position.z.floor() as i32,
     );
-    // `CollisionContext.isAbove(getLiquidCollisionShape(), blockPosition())`:
-    // the column is half a block tall.
+    // `CollisionContext.isAbove(LiquidBlock.SHAPE_STABLE, blockPosition())`:
+    // the stable shape is half a block tall.
     let above = m.position.y > f64::from(y) + 0.5 - f64::from(1.0e-5_f32);
     if above && w.fluid(x, y + 1, z) != Fluid::Lava {
         m.on_ground = true;
@@ -166,5 +167,57 @@ impl Goal for GoToLava {
             self.0.reached = true;
             self.0.try_ticks -= 1;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use horizon_core::geometry::Vec3;
+    use std::sync::Arc;
+
+    /// Real striders from the vanilla data; `None` without it.
+    fn real<const N: usize>(at: [[f64; 3]; N]) -> Option<[Mob; N]> {
+        let mut out = None;
+        crate::mobs::world::with_test_world(&[], |_, types| {
+            let kind = Arc::new(types.types["minecraft:strider"].clone());
+            let mut id = 0;
+            out = Some(at.map(|[x, y, z]| {
+                id += 1;
+                Mob::new(id, kind.clone(), Vec3::new(x, y, z), 0.0)
+            }));
+        });
+        out
+    }
+
+    #[test]
+    fn a_ridden_cold_strider_chills_its_rider() {
+        // `Strider.tick` in 1.21.11: suffocating = !inWarm || the ridden
+        // strider is suffocating (26.1: !inWarm && !riding a warm strider).
+        let Some([mut ridden, mut rider]) = real([[0.5, 64.0, 0.5], [0.5, 65.0, 0.5]]) else {
+            return;
+        };
+        let mut events = Vec::new();
+        // In lava (warm) on a cold strider: cold in 1.21.11.
+        ridden.extra.flag = true;
+        rider.extra.mount = Some(ridden.id);
+        rider.fluids.lava = 1.0;
+        crate::mobs::world::with_test_world(&[ridden.seen(None)], |w, _| {
+            pre_tick(&mut rider, w, &mut events);
+        });
+        assert!(rider.extra.flag, "a cold mount chills a warm rider");
+        // Out of the lava on a warm strider: cold in 1.21.11 (26.1: warm).
+        ridden.extra.flag = false;
+        rider.fluids.lava = 0.0;
+        crate::mobs::world::with_test_world(&[ridden.seen(None)], |w, _| {
+            pre_tick(&mut rider, w, &mut events);
+        });
+        assert!(rider.extra.flag, "a warm mount does not warm a cold rider");
+        // In lava on a warm strider: warm.
+        rider.fluids.lava = 1.0;
+        crate::mobs::world::with_test_world(&[ridden.seen(None)], |w, _| {
+            pre_tick(&mut rider, w, &mut events);
+        });
+        assert!(!rider.extra.flag, "warm and warm-mounted stays warm");
     }
 }

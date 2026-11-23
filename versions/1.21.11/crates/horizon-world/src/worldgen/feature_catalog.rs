@@ -239,7 +239,12 @@ impl FeatureCatalog {
                     self.expand_placed(required(&object, "vegetation_feature")?, depth + 1, work)?;
                 object.insert("vegetation_feature".into(), raw(expanded)?);
             }
-            "minecraft:coral_tree" | "minecraft:coral_claw" | "minecraft:root_system" => {
+            "minecraft:coral_tree"
+            | "minecraft:coral_claw"
+            | "minecraft:root_system"
+            | "minecraft:flower"
+            | "minecraft:no_bonemeal_flower"
+            | "minecraft:random_patch" => {
                 let expanded =
                     self.expand_placed(required(&object, "feature")?, depth + 1, work)?;
                 object.insert("feature".into(), raw(expanded)?);

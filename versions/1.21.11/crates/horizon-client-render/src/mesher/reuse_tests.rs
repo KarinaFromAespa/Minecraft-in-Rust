@@ -475,7 +475,7 @@ fn benchmark_padded_reuse() {
 /// Run explicitly with prepared assets. Under a `shaders/` pack, a still water top (a source
 /// in a stone basin, flat) starts from its south-west corner, so its triangles meet along
 /// north-east to south-west as Iris 1.11.7's do in our probes (`fluid::splits_north_east`);
-/// without one it keeps vanilla's north-west start (`FluidRenderer.tesselate`).
+/// without one it keeps vanilla's north-west start (`LiquidBlockRenderer.tesselate`).
 #[test]
 #[ignore = "requires prepared 26.3 resources (HORIZON_MESH_TEST_RESOURCES or .local/horizon-client/26.3)"]
 fn a_shader_pack_s_still_water_top_starts_at_its_south_west_corner() {

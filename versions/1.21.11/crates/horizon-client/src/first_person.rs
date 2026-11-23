@@ -769,6 +769,12 @@ pub trait HandWorld {
     /// `Player.attack` on the targeted entity when the item's attack range
     /// allows it; false when out of range.
     fn attack_entity(&mut self) -> bool;
+    /// `ServerPlayer.attack` for a spectator: the click spectates the
+    /// entity hit instead of attacking it; true when a camera moved.
+    /// Worlds without a camera keep the default (no spectating).
+    fn spectate_hit_entity(&mut self) -> bool {
+        false
+    }
     /// `Player.blockActionRestricted` for the game mode.
     fn block_action_restricted(&mut self, pos: [i32; 3]) -> bool;
     /// `WorldBorder.isWithinBounds`.
@@ -930,6 +936,8 @@ impl Clicks {
             return false;
         }
         if w.spectator() {
+            // A spectator's click spectates the entity hit (no swing).
+            w.spectate_hit_entity();
             return true;
         }
         if !w.item_enabled(Hand::Main) || w.cannot_attack() {

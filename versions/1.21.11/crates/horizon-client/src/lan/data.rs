@@ -23,13 +23,9 @@ pub const SYNCHRONIZED: &[&str] = &[
     "minecraft:wolf_variant",
     "minecraft:wolf_sound_variant",
     "minecraft:pig_variant",
-    "minecraft:pig_sound_variant",
     "minecraft:frog_variant",
     "minecraft:cat_variant",
-    "minecraft:cat_sound_variant",
-    "minecraft:cow_sound_variant",
     "minecraft:cow_variant",
-    "minecraft:chicken_sound_variant",
     "minecraft:chicken_variant",
     "minecraft:zombie_nautilus_variant",
     "minecraft:painting_variant",
@@ -182,8 +178,8 @@ fn pack_entries(
     }
 }
 
-/// ResourceManagerRegistryLoadTask.load: the entries register sorted by the
-/// file `Identifier` FileToIdConverter.listMatchingResources keys them by
+/// RegistryDataLoader.loadContentsFromManager: the entries register in the
+/// order `FileToIdConverter.listMatchingResources` keys them by
 /// (`<dir>/<path>.json`), path first, then namespace (Identifier.compareTo).
 /// The `.json` counts: `x-y` comes before `x`, as `-` sorts before `.`.
 fn file_order<T>(entries: &mut [((String, String), T, bool)]) {

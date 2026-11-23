@@ -270,11 +270,11 @@ pub fn from_nbt(m: &mut Mob, tag: &horizon_world::nbt::Tag) {
             number(tag.get("DespawnDelay")).map_or(DEFAULT_DESPAWN_DELAY, |v| v as i32);
     }
 }
-/// The coat texture (`LlamaRenderer`).
+/// The coat texture (`LlamaRenderer`): 1.21.11 has no `llama_` prefix and
+/// no baby textures — babies wear the adult coat.
 pub fn texture(m: &Mob) -> String {
-    let baby = if m.is_baby() { "_baby" } else { "" };
     let coat = VARIANTS[(m.extra.variant as usize).min(3)];
-    format!("entity/llama/llama_{coat}{baby}")
+    format!("entity/llama/{coat}")
 }
 /// The carpet colour on the llama, if it wears one.
 pub(super) fn carpet(m: &Mob) -> Option<&str> {
@@ -284,7 +284,12 @@ pub(super) fn carpet(m: &Mob) -> Option<&str> {
         .and_then(|i| i.strip_prefix("minecraft:"))
         .and_then(|i| i.strip_suffix("_carpet"))
 }
-/// `LlamaDecorLayer`: the carpet of an adult, else the trader's blanket.
+/// `LlamaDecorLayer`: the carpet, else the trader's blanket.
+/// 1.21.11 renders the carpet on babies too and always uses the
+/// `trader_llama` blanket (26.x skips equipment on babies and has a
+/// `trader_llama_baby` asset). The baby decor MODEL stays
+/// `llama_baby#decor`: 1.21.11 bakes the LLAMA_BABY_DECOR layer
+/// with a plain LlamaModel instead of the 26.x BabyLlamaModel.
 pub fn decor(m: &Mob) -> Option<(String, String)> {
     let baby = m.is_baby();
     let model = if baby {
@@ -292,18 +297,14 @@ pub fn decor(m: &Mob) -> Option<(String, String)> {
     } else {
         "llama#decor"
     };
-    if let Some(color) = carpet(m)
-        && !baby
-    {
+    if let Some(color) = carpet(m) {
         return Some((model.into(), format!("entity/equipment/llama_body/{color}")));
     }
     is_trader(m).then(|| {
-        let name = if baby {
-            "trader_llama_baby"
-        } else {
-            "trader_llama"
-        };
-        (model.into(), format!("entity/equipment/llama_body/{name}"))
+        (
+            model.into(),
+            "entity/equipment/llama_body/trader_llama".into(),
+        )
     })
 }
 #[cfg(test)]

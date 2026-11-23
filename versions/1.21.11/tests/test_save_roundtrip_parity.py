@@ -46,9 +46,12 @@ class SaveRoundtripPathsTests(unittest.TestCase):
                 (horizon, 30, 18.0, 1, 2),
             ):
                 files = {
-                    'level.dat': compound(),
-                    'data/minecraft/game_rules.dat': compound(
-                        tag(10, 'data', compound(integer('minecraft:max_entity_cramming', rule))),
+                    'level.dat': compound(
+                        tag(10, 'Data', compound(
+                            tag(10, 'game_rules', compound(
+                                integer('minecraft:max_entity_cramming', rule),
+                            )),
+                        )),
                     ),
                     'players/data/player.dat': compound(
                         tag(5, 'Health', struct.pack('>f', health)),

@@ -216,7 +216,7 @@ impl Game<'_> {
             self.world.block_entities.get(&key),
             Some(BlockEntity::Banner(_))
         );
-        // DecoratedPotBlock.getCloneItemStack: createDecoratedPotInstance, the
+        // DecoratedPotBlock.getCloneItemStack: createDecoratedPotItem, the
         // sherds only; the pot's item comes with include_data.
         let pot = &*facts.name == "minecraft:decorated_pot";
         // CopperGolemStatueBlockEntity.getItem: collectComponents (the golem's

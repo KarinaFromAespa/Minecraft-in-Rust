@@ -38,11 +38,13 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         self.day_ticks().map(|t| (12600..23401).contains(&t))
     }
     /// `EnvironmentAttributes.TURTLE_EGG_HATCH_CHANCE`: 1.0 around dawn
-    /// (21062..21905), otherwise the 0.002 default.
+    /// (21062..21905), otherwise the day timeline's 0.002 — and 0 where
+    /// the dimension has no day timeline (the 1.21.11 default is 0).
     fn turtle_hatch_chance(&self) -> f32 {
         match self.day_ticks() {
             Some(t) if (21062..21905).contains(&t) => 1.0,
-            _ => 0.002,
+            Some(_) => 0.002,
+            None => 0.0,
         }
     }
     fn named_state(&self, name: &str) -> Option<BlockStateId> {

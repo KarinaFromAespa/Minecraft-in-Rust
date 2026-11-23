@@ -146,10 +146,10 @@ fn set_ram_cooldown(m: &mut Mob, ticks: i32) {
     }
 }
 const RAM_COOLDOWN: &str = "ram_cooldown_ticks";
-/// `Goat.getRammingXHeadRot`.
+/// `Goat.getRammingXHeadRot`: 30 degrees at full lower, babies and adults
+/// alike (26.1 gives babies 52.5).
 pub fn ramming_x_head_rot(m: &Mob) -> f32 {
-    let max = if m.is_baby() { 52.5_f32 } else { 30.0 };
-    m.extra.goat.lower_head_tick as f32 / 20.0 * max * (std::f32::consts::PI / 180.0)
+    m.extra.goat.lower_head_tick as f32 / 20.0 * 30.0 * (std::f32::consts::PI / 180.0)
 }
 /// A server's `level.broadcastEntityEvent(goat, 58 or 59)`, sent when it
 /// changes what the goat does.
@@ -483,10 +483,9 @@ fn rammed_horn_block(m: &Mob, w: &MobWorld) -> bool {
     snaps(at) || snaps([at[0], at[1] + 1, at[2]])
 }
 /// `Goat.dropHorn`: one of the horns it still has comes off and drops.
+/// No baby gate: babies have no horns to lose (26.1 checks `isBaby`
+/// because its babies keep theirs).
 fn drop_horn(m: &mut Mob, events: &mut Vec<MobEvent>) -> bool {
-    if m.is_baby() {
-        return false;
-    }
     let [left_lost, right_lost] = m.extra.lost_horns;
     if left_lost && right_lost {
         return false;

@@ -1284,9 +1284,9 @@ impl Game<'_> {
                 started.elapsed().as_secs_f64()
             ),
         );
-        // DedicatedServer.initServer ends with saveEverything(false, true, true).
-        self.save_game()?;
-        self.log_saved_levels();
+        // 1.21.11's initServer does not save at startup: the saveEverything
+        // 26.1 ends with is 26.x-only, so the first write is the first
+        // autosave or the stop.
         if let Some(host) = self.lan.as_mut() {
             host.hub.entity_range_percent = props.entity_broadcast_range_percentage;
         }

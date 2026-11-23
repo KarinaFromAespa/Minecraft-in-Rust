@@ -195,7 +195,7 @@ pub fn main() -> Result<()> {
                 .flatten()
                 .map(|s| (int(&s[0]) as u32 & 0xFF_FFFF, int(&s[1]) as i32))
                 .collect();
-            let texture = "entity/beacon/beacon_beam";
+            let texture = "entity/beacon_beam";
             let rect = sprites.get(texture).copied().ok_or("no beam sprite")?;
             let mut verts = Vec::new();
             horizon_client::block_entity_render::beacon_beam(
@@ -400,7 +400,7 @@ pub fn main() -> Result<()> {
                                   "light": q[0].light, "custom": true});
                 }
                 if q[0].layer == 6 {
-                    let texture = "entity/end_portal/end_gateway_beam";
+                    let texture = "entity/end_gateway_beam";
                     let u0 = sprites.get(texture).map_or(0.0, |r| r.u0);
                     let v: Vec<Value> = q
                         .iter()

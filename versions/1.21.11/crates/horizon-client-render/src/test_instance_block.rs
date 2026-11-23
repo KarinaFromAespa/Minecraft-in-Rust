@@ -176,23 +176,23 @@ impl TestInstanceBlock {
     }
 
     /// `getRenderableBox`: the offset from the block and the size to draw,
-    /// given the test's `padding` and rotation.
-    pub fn renderable_box(&self, padding: i32, rotation: Rotation) -> ([i32; 3], [i32; 3]) {
-        let offset = STRUCTURE_OFFSET.map(|o| o + padding);
-        (offset, Self::transformed_size(self.data.size, rotation))
+    /// given the test's rotation. (1.21.11 has no test-instance padding;
+    /// 26.x offsets the box by it.)
+    pub fn renderable_box(&self, rotation: Rotation) -> ([i32; 3], [i32; 3]) {
+        (STRUCTURE_OFFSET, Self::transformed_size(self.data.size, rotation))
     }
 
     /// `getStructureBoundingBox`.
-    pub fn structure_box(&self, block: [i32; 3], padding: i32, rotation: Rotation) -> BoundingBox {
-        let corner = Self::structure_pos_of([0, 1, 2].map(|i| block[i] + padding));
+    pub fn structure_box(&self, block: [i32; 3], rotation: Rotation) -> BoundingBox {
+        let corner = Self::structure_pos_of(block);
         let size = Self::transformed_size(self.data.size, rotation);
         BoundingBox::from_corners(corner, [0, 1, 2].map(|i| corner[i] + size[i] - 1))
     }
 
     /// `getStartCorner`: the corner the template is placed from.
-    pub fn start_corner(&self, block: [i32; 3], padding: i32, rotation: Rotation) -> [i32; 3] {
+    pub fn start_corner(&self, block: [i32; 3], rotation: Rotation) -> [i32; 3] {
         let [x, _, z] = self.data.size;
-        let c = Self::structure_pos_of([0, 1, 2].map(|i| block[i] + padding));
+        let c = Self::structure_pos_of(block);
         match rotation {
             Rotation::None => c,
             Rotation::Clockwise90 => [c[0] + z - 1, c[1], c[2]],
@@ -248,17 +248,17 @@ mod tests {
     }
 
     #[test]
-    fn boxes_follow_padding_and_rotation() {
+    fn boxes_follow_rotation() {
         let block = sample();
         // A quarter turn swaps the horizontal sizes.
-        let (offset, size) = block.renderable_box(2, Rotation::Clockwise90);
-        assert_eq!((offset, size), ([2, 3, 3], [5, 4, 3]));
-        let bounds = block.structure_box([10, 64, 10], 2, Rotation::None);
-        assert_eq!(bounds.min, [12, 67, 13]);
-        assert_eq!(bounds.max, [14, 70, 17]);
+        let (offset, size) = block.renderable_box(Rotation::Clockwise90);
+        assert_eq!((offset, size), ([0, 1, 1], [5, 4, 3]));
+        let bounds = block.structure_box([10, 64, 10], Rotation::None);
+        assert_eq!(bounds.min, [10, 65, 11]);
+        assert_eq!(bounds.max, [12, 68, 15]);
         assert_eq!(
-            block.start_corner([10, 64, 10], 2, Rotation::Counterclockwise90),
-            [12, 67, 15]
+            block.start_corner([10, 64, 10], Rotation::Counterclockwise90),
+            [10, 65, 13]
         );
         assert_eq!(Status::by_index(7), Status::Cleared);
     }

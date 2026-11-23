@@ -196,9 +196,12 @@ pub struct BlockData {
     pub link: Option<BlockId>,
     /// Second block link: attached stem (stems) or stem (attached stems).
     pub link2: Option<BlockId>,
-    /// Support blocks (stems, plants); a content mod's connecting block's
+    /// Support blocks (plants); a content mod's connecting block's
     /// `connects_to` (a `PipeBlock` alone in its chain).
     pub support_tag: Option<Arc<BlockSet>>,
+    /// Second support tag: the fruit blocks a stem grows on, in versions
+    /// whose stems carry `fruitSupportBlocks` (1.21.11 hardcodes
+    /// farmland-or-dirt instead, so nothing reads this there).
     pub support_tag2: Option<Arc<BlockSet>>,
     pub feature: Option<Arc<str>>,
     pub grow_probability: f64,
@@ -401,7 +404,6 @@ macro_rules! tags {
 tags! {
     leaves = "leaves",
     logs = "logs",
-    prevents_nearby_leaf_decay = "prevents_nearby_leaf_decay",
     walls = "walls",
     fences = "fences",
     wooden_fences = "wooden_fences",
@@ -429,36 +431,31 @@ tags! {
     cannot_support_snow_layer = "cannot_support_snow_layer",
     support_override_snow_layer = "support_override_snow_layer",
     maintains_farmland = "maintains_farmland",
-    supports_vegetation = "supports_vegetation",
-    supports_crops = "supports_crops",
     supports_cactus = "supports_cactus",
     supports_sugar_cane = "supports_sugar_cane",
     supports_sugar_cane_adjacently = "supports_sugar_cane_adjacently",
-    supports_bamboo = "supports_bamboo",
+    bamboo_plantable_on = "bamboo_plantable_on",
     supports_cocoa = "supports_cocoa",
     supports_azalea = "supports_azalea",
-    supports_dry_vegetation = "supports_dry_vegetation",
+    dry_vegetation_may_place_on = "dry_vegetation_may_place_on",
     supports_nether_sprouts = "supports_nether_sprouts",
     supports_nether_wart = "supports_nether_wart",
     supports_wither_rose = "supports_wither_rose",
     supports_lily_pad = "supports_lily_pad",
     supports_frogspawn = "supports_frogspawn",
-    supports_big_dripleaf = "supports_big_dripleaf",
-    supports_small_dripleaf = "supports_small_dripleaf",
+    big_dripleaf_placeable = "big_dripleaf_placeable",
+    small_dripleaf_placeable = "small_dripleaf_placeable",
     supports_mangrove_propagule = "supports_mangrove_propagule",
     supports_hanging_mangrove_propagule = "supports_hanging_mangrove_propagule",
     supports_chorus_plant = "supports_chorus_plant",
-    supports_chorus_flower = "supports_chorus_flower",
     support_override_cactus_flower = "support_override_cactus_flower",
     cannot_support_seagrass = "cannot_support_seagrass",
-    cannot_support_kelp = "cannot_support_kelp",
     overrides_mushroom_light_requirement = "overrides_mushroom_light_requirement",
     enables_bubble_column_push_up = "enables_bubble_column_push_up",
     enables_bubble_column_drag_down = "enables_bubble_column_drag_down",
     shulker_boxes = "shulker_boxes",
     pale_oak_logs = "pale_oak_logs",
     convertible_to_mud = "convertible_to_mud",
-    grows_crops = "grows_crops",
     candles = "candles",
     candle_cakes = "candle_cakes",
     campfires = "campfires",
@@ -1158,7 +1155,10 @@ pub(super) fn potted_by_content(
 }
 
 /// `NoteBlockInstrument` serialized names in declaration order.
-pub const INSTRUMENTS: [&str; 27] = [
+/// 1.21.11 has 23; the 26.x copper trumpets (trumpet, trumpet_exposed,
+/// trumpet_oxidized, trumpet_weathered) do not exist here — a note block
+/// on copper plays the harp, the unmapped default.
+pub const INSTRUMENTS: [&str; 23] = [
     "harp",
     "basedrum",
     "snare",
@@ -1175,10 +1175,6 @@ pub const INSTRUMENTS: [&str; 27] = [
     "bit",
     "banjo",
     "pling",
-    "trumpet",
-    "trumpet_exposed",
-    "trumpet_oxidized",
-    "trumpet_weathered",
     "zombie",
     "skeleton",
     "creeper",
@@ -1189,7 +1185,7 @@ pub const INSTRUMENTS: [&str; 27] = [
 ];
 /// `NoteBlockInstrument.worksAboveNoteBlock` (mob heads and custom heads).
 pub fn instrument_works_above(index: u8) -> bool {
-    index >= 20
+    index >= 16
 }
 fn instrument_index(name: &str) -> u8 {
     INSTRUMENTS

@@ -30,9 +30,13 @@ class BlockSurvivalCorpusTests(unittest.TestCase):
         placement = {'a': 'VegetationBlock', 'b': 'StemBlock', 'c': 'UnknownVegetationBlock', 'd': 'VegetationBlock', 'e': 'UnknownPlantBlock'}
         tags = {'b': {'stemSupportBlocks': 'minecraft:supports_melon_stem', 'fruitSupportBlocks': 'minecraft:wrong_for_survival'}}
         rules = survival.bind_definitions(classes, placement, tags)
-        self.assertEqual(rules, {'a': 'TagBelow:minecraft:supports_vegetation', 'b': 'TagBelow:minecraft:supports_melon_stem', 'd': 'DoublePlant'})
-        with self.assertRaises(KeyError):
-            survival.bind_definitions(classes, placement, {})
+        self.assertEqual(rules, {'a': 'Vegetation', 'b': 'TagBelow:minecraft:supports_melon_stem', 'd': 'DoublePlant'})
+        # Without a tag field (1.21.11's stems have none), a stem stands on
+        # farmland; the fungus/root classes still get no rule.
+        self.assertEqual(
+            survival.bind_definitions(classes, placement, {}),
+            {'a': 'Vegetation', 'b': 'BlockBelow:minecraft:farmland', 'd': 'DoublePlant'},
+        )
 
     def test_branching_neighbor_sequences_and_candidate_properties(self):
         names=['air','stone','end_stone','chorus_plant','chorus_flower','scaffolding','bell','pitcher_crop']

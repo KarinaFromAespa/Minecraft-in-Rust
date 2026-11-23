@@ -369,6 +369,8 @@ fn equippable(r: &mut Reader) -> Result<()> {
 }
 /// BlocksAttacks: blockDelaySeconds, disableCooldownScale, damageReductions (angle, type,
 /// base, factor), itemDamage (threshold, base, factor), bypassedBy, blockSound, disableSound.
+/// 1.21.11's bypassedBy is a TagKey (a bare identifier on the wire); 26.x made it a HolderSet.
+/// The damage-reduction `type` stays a HolderSet in both versions.
 fn blocks_attacks(r: &mut Reader) -> Result<()> {
     f32(r)?;
     f32(r)?;
@@ -379,7 +381,7 @@ fn blocks_attacks(r: &mut Reader) -> Result<()> {
         f32(r)
     })?;
     (0..3).try_for_each(|_| f32(r))?;
-    optional(r, holder_set)?;
+    optional(r, ident)?;
     optional(r, sound)?;
     optional(r, sound)
 }

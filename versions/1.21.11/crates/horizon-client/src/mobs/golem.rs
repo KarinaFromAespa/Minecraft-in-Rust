@@ -149,10 +149,13 @@ fn back_to_village_position(m: &mut Mob, cx: &mut Cx) -> Option<[f64; 3]> {
 /// a village section (7 in 10 the villager first), and anywhere if neither
 /// is found. The picks draw from the level's random.
 fn village_stroll_position(m: &mut Mob, cx: &mut Cx) -> Option<[f64; 3]> {
+    // 1.21.11 draws the 0.7 roll first and the 0.3 roll second (26.1
+    // draws them the other way round); the same seed picks differently.
+    let villager_first = cx.lr.next_float();
     if cx.lr.next_float() < 0.3 {
         return m.land_random_pos(cx.w, 10, 7);
     }
-    let target = if cx.lr.next_float() < 0.7 {
+    let target = if villager_first < 0.7 {
         towards_villager_who_wants_golem(m, cx).or_else(|| towards_poi(m, cx))
     } else {
         towards_poi(m, cx).or_else(|| towards_villager_who_wants_golem(m, cx))
@@ -573,10 +576,10 @@ pub fn snow_ai_step(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
                 .get(tag)
                 .is_some_and(|t| t.contains(&*below.name))
         };
-        let supported = if in_tag("minecraft:cannot_support_snow_layer") {
+        let supported = if in_tag("minecraft:snow_layer_cannot_survive_on") {
             false
         } else {
-            in_tag("minecraft:support_override_snow_layer") || below.full_collision
+            in_tag("minecraft:snow_layer_can_survive_on") || below.full_collision
         };
         if w.facts.is_air(w.world.block(xx, y, zz)) && supported && !placed.contains(&[xx, y, zz]) {
             placed.push([xx, y, zz]);

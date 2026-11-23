@@ -407,8 +407,8 @@ impl Game<'_> {
         let new_world = create.is_some();
         // `IntegratedServer`'s constructor: `setSingleplayerProfile(minecraft.getGameProfile())`
         // — the signed-in account's own UUID. Only an offline start names its player by the
-        // offline profile. The owner is the world's player, so a world without
-        // `singleplayer_uuid` (a Realms download, `renameAndDropPlayer`) finds the owner's
+        // offline profile. The owner is the world's player, so a world without a `Player`
+        // in level.dat (a Realms download, `renameAndDropPlayer`) finds the owner's
         // `players/data/<uuid>.dat` instead of starting a new player.
         let owner = auth
             .as_ref()
@@ -936,19 +936,11 @@ impl Game<'_> {
     }
 }
 
-/// What the world options screen shows of an integrated server.
+/// What the Share to LAN screen shows of an integrated server.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct ServerOptions {
     pub default_mode: i32,
-    /// The owner's own game mode.
-    pub personal_mode: i32,
     pub cheats: bool,
-    pub difficulty: u8,
-    pub hardcore: bool,
-    pub difficulty_locked: bool,
-    pub port: Option<u16>,
-    pub guest_commands: bool,
-    pub force: bool,
 }
 
 /// The server thread's side.
@@ -1162,41 +1154,11 @@ impl Game<'_> {
             }
         }
     }
-    /// The world options screen's state, read on the server.
+    /// The Share to LAN screen's state, read on the server.
     pub(super) fn server_options(&self) -> ServerOptions {
-        let owner = self.serving.as_ref().map(|s| s.owner);
-        let host = self.lan.as_ref();
-        let personal_mode = host
-            .and_then(|h| h.hub.guests.iter().find(|g| Some(g.uuid) == owner))
-            .map_or(self.level.mode(), |g| g.game_mode);
-        let published = self.published_port();
         ServerOptions {
             default_mode: self.level.mode(),
-            personal_mode,
             cheats: self.allow_commands(),
-            difficulty: self.ui.difficulty,
-            hardcore: self.level.hardcore,
-            difficulty_locked: self.level.difficulty_locked,
-            port: published,
-            guest_commands: published.is_some() && host.is_some_and(|h| h.settings.guest_commands),
-            force: published.is_none() || host.is_some_and(|h| h.settings.force_game_mode),
-        }
-    }
-    /// `IntegratedServer.setPersonalGameType`: the owner's game mode.
-    pub(super) fn set_owner_mode(&mut self, mode: i32) {
-        let Some(owner) = self.serving.as_ref().map(|s| s.owner) else {
-            return;
-        };
-        if let Some(host) = self.lan.as_mut()
-            && let Some(conn) = host
-                .hub
-                .guests
-                .iter()
-                .find(|g| g.uuid == owner)
-                .map(|g| g.conn)
-        {
-            host.hub
-                .set_game_mode(conn, mode, &self.world, Some(self.collision));
         }
     }
     /// `IntegratedServer.setWorldAllowCommands`: the owner is an operator

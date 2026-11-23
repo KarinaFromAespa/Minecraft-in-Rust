@@ -67,7 +67,7 @@ impl Game<'_> {
         }
     }
 
-    /// `BlockStateModelSet.getParticleMaterial`: the sprite of the model's
+    /// `BlockStateModel.particleIcon`: the sprite of the model's
     /// `particle` texture, else its first face (entity-rendered blocks may
     /// have a particle texture without faces, and faces without one).
     pub(super) fn block_particle_sprite(

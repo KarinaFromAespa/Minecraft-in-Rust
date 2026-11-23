@@ -83,6 +83,32 @@ fn a_negative_age_is_a_baby_only_where_can_be_a_baby_allows_it() {
     );
 }
 
+/// 1.21.11 drops `Villager.getDefaultDimensions` (its BABY_DIMENSIONS of
+/// 0.49 by 0.99, eyes at 0.63): a baby villager takes the type's box at
+/// `LivingEntity.getAgeScale`'s 0.5 — 0.3 by 0.975, eyes at 0.81.
+#[test]
+fn a_baby_villager_takes_half_its_type_box() {
+    use crate::mobs::Species;
+    let mut kind = (*crate::mobs::sensor_scan_tests::kind()).clone();
+    kind.id = "minecraft:villager".into();
+    kind.species = Species::Villager;
+    // `EntityType.VILLAGER`: 0.6 by 1.95, eyes at 1.62.
+    kind.width = 0.6;
+    kind.height = 1.95;
+    kind.eye_height = 1.62;
+    let mut villager = Mob::new(1, std::sync::Arc::new(kind), Vec3::ZERO, 0.0);
+    villager.extra.age = -24_000;
+    assert!(villager.is_baby());
+    assert_eq!(
+        villager.dims(),
+        (
+            f64::from(0.3_f32),
+            f64::from(0.975_f32),
+            f64::from(0.81_f32)
+        )
+    );
+}
+
 /// `Entity.getLightProbePosition(partialTick)` for a living entity is
 /// `getEyePosition`: `getEyeHeight()` over `Mth.lerp(partialTick, xo, x)`.
 /// Horizon probed this tick's own position, so a mob walking into the next

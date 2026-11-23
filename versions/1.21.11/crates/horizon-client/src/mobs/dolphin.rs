@@ -267,23 +267,22 @@ impl Goal for Jump {
     }
 }
 
-/// `FollowPlayerRiddenEntityGoal(mob, AbstractBoat / AbstractNautilus)`: a
-/// dolphin swims to the back of a boat or nautilus a player steers within 5
-/// blocks of it, then ahead of it in the direction it moves, and goes back
-/// when it is more than 12 blocks off.
+/// `FollowBoatGoal(mob)`: a dolphin swims to the back of a boat a player
+/// steers within 5 blocks of it, then ahead of it in the direction it
+/// moves, and goes back when it is more than 12 blocks off. 26.1
+/// generalized this into `FollowPlayerRiddenEntityGoal` (boats and
+/// nautiluses); 1.21.11 follows boats only.
 ///
 /// Only the player the mob sees (the nearest) is considered.
 #[derive(Clone, Debug)]
-pub struct FollowPlayerRidden {
-    nautilus: bool,
+pub struct FollowBoat {
     following: bool,
     recalc: i32,
     leading: bool,
 }
-impl FollowPlayerRidden {
-    pub fn new(nautilus: bool) -> Self {
+impl FollowBoat {
+    pub fn new() -> Self {
         Self {
-            nautilus,
             following: false,
             recalc: 0,
             leading: false,
@@ -293,9 +292,7 @@ impl FollowPlayerRidden {
     /// own position (its yaw gives the directions).
     fn rider<'a>(&self, cx: &'a Cx) -> Option<&'a super::PlayerView> {
         cx.w.player.as_ref().filter(|p| {
-            p.vehicle
-                .as_ref()
-                .is_some_and(|v| v.nautilus == self.nautilus)
+            p.vehicle.as_ref().is_some_and(|v| !v.nautilus)
         })
     }
     fn moved(p: &super::PlayerView) -> bool {
@@ -304,15 +301,15 @@ impl FollowPlayerRidden {
         })
     }
 }
-impl Goal for FollowPlayerRidden {
+impl Goal for FollowBoat {
     goal_clone!();
     fn name(&self) -> &'static str {
-        "FollowPlayerRiddenEntityGoal"
+        "FollowBoatGoal"
     }
     fn flags(&self) -> u8 {
         0
     }
-    /// `FollowPlayerRiddenEntityGoal.canUse`.
+    /// `FollowBoatGoal.canUse`.
     fn can_use(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
         let Some(p) = self.rider(cx) else {
             return false;
@@ -328,24 +325,24 @@ impl Goal for FollowPlayerRidden {
             .is_some_and(|v| v.bounds.intersects(area))
             && Self::moved(p)
     }
-    /// `FollowPlayerRiddenEntityGoal.canContinueToUse`.
+    /// `FollowBoatGoal.canContinueToUse`.
     fn can_continue(&mut self, _: &mut Mob, cx: &mut Cx) -> bool {
         self.following
             && self
                 .rider(cx)
                 .is_some_and(|p| p.passenger && Self::moved(p))
     }
-    /// `FollowPlayerRiddenEntityGoal.start`.
+    /// `FollowBoatGoal.start`.
     fn start(&mut self, _: &mut Mob, cx: &mut Cx) {
         self.following = self.rider(cx).is_some();
         self.recalc = 0;
         self.leading = false;
     }
-    /// `FollowPlayerRiddenEntityGoal.stop`.
+    /// `FollowBoatGoal.stop`.
     fn stop(&mut self, _: &mut Mob, _: &mut Cx) {
         self.following = false;
     }
-    /// `FollowPlayerRiddenEntityGoal.tick`.
+    /// `FollowBoatGoal.tick`.
     fn tick(&mut self, m: &mut Mob, cx: &mut Cx) {
         let Some(p) = self.rider(cx) else { return };
         let (position, yaw) = (p.position, p.yaw);

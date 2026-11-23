@@ -100,8 +100,7 @@ def read_dat(path):
 
 def world_info(world):
     level = read_dat(os.path.join(world, 'level.dat'))['Data']
-    settings = os.path.join(world, 'data', 'minecraft', 'world_gen_settings.dat')
-    seed = read_dat(settings)['data'].get('seed') if os.path.exists(settings) else None
+    seed = (level.get('WorldGenSettings') or {}).get('seed')
     return seed, (level.get('spawn') or {}).get('pos')
 
 

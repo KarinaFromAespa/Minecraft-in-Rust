@@ -1,5 +1,8 @@
 //! `net.minecraft.util.worldupdate.UpgradeProgress`: what a world upgrade has
-//! done so far, read by `FileFixerProgressScreen` while another thread works.
+//! done so far. In 1.21.11 there is no file-fixing flow — the file-fixer half
+//! below (the `FileFixStats`, the `file_fixing` flag) is never shown, and the
+//! handle is the shared progress store of the `WorldUpgrader` (Optimize World)
+//! run, whose counters live here too.
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicU32, Ordering};
@@ -72,7 +75,9 @@ pub struct UpgradeProgress {
     /// `UpgradeProgress.type`: 0 for none.
     ty: AtomicU8,
     /// The upgrade runs the file fixers (`requiresFileFixing`), which is what
-    /// opens `FileFixerProgressScreen` (`WorldOpenFlows.upgradeAndOpenWorld`).
+    /// opens `FileFixerProgressScreen` — a 26.x flow, gone in 1.21.11
+    /// (`WorldOpenFlows.upgradeAndOpenWorld` does not exist here), so the flag
+    /// is never set.
     file_fixing: AtomicBool,
     // What `WorldUpgrader` (Optimize World) adds.
     finished: AtomicBool,

@@ -43,17 +43,29 @@ impl SeededContext {
         id: NoiseId,
     ) -> Result<Arc<dyn Noise>, CompileError> {
         let entry = graph.noise_entry(id)?;
-        // Nether biome compatibility samplers are recreated on every lookup;
-        // vanilla bypasses its normal named-noise instance map for these keys.
-        let legacy_offset = match entry.name.as_str() {
-            "minecraft:nether/temperature" => Some(0),
-            "minecraft:nether/vegetation" => Some(1),
-            _ => None,
-        };
-        if let Some(offset) = legacy_offset {
-            return Ok(Arc::new(entry.definition.create_for_legacy_nether_biome(
-                &mut LegacyRandom::new(self.seed.wrapping_add(offset)),
-            )?));
+        // 1.21.11's `RandomState` legacy wiring, gated on the noise
+        // settings' `legacy_random_source` (the nether's settings):
+        // temperature and vegetation use the legacy nether-biome
+        // sampler with HARDCODED parameters — `NoiseParameters(-7,
+        // 1.0, [1.0])`, whose three-arg constructor prepends the
+        // amplitude, giving firstOctave -7 and amplitudes [1.0, 1.0]
+        // — seeded from the world seed plus 0 and 1, recreated on
+        // every lookup; vanilla bypasses its normal named-noise
+        // instance map for these keys. 26.x moved the legacy
+        // samplers to dedicated `nether/temperature` and
+        // `nether/vegetation` entries carrying their own parameters.
+        if matches!(self.factory, Factory::Legacy(_)) {
+            let legacy_offset = match entry.name.as_str() {
+                "minecraft:temperature" => Some(0),
+                "minecraft:vegetation" => Some(1),
+                _ => None,
+            };
+            if let Some(offset) = legacy_offset {
+                let definition = NormalNoise::create_parity(-7, &[1.0, 1.0])?;
+                return Ok(Arc::new(definition.create_for_legacy_nether_biome(
+                    &mut LegacyRandom::new(self.seed.wrapping_add(offset)),
+                )?));
+            }
         }
         let mut instances = self
             .instances

@@ -50,7 +50,10 @@ pub fn register(d: &mut Dispatcher, root: usize) {
     let id = d.argument(t, "posteffect", ArgType::Id("post_effects"));
     d.executes(id, "posteffect.remove");
 
-    // FetchProfileCommand
+    // FetchProfileCommand: 1.21.11 has only the `name` and `id` branches
+    // (26.1 added `entity <entity>`, with `printForEntity` /
+    // `printForAvatar` and the `commands.fetchprofile.no_profile`
+    // error).
     let fp = d.literal(root, "fetchprofile");
     d.requires(fp, GAMEMASTERS);
     let name = d.literal(fp, "name");
@@ -59,9 +62,6 @@ pub fn register(d: &mut Dispatcher, root: usize) {
     let id = d.literal(fp, "id");
     let u = d.argument(id, "id", ArgType::Uuid);
     d.executes(u, "fetchprofile");
-    let entity = d.literal(fp, "entity");
-    let e = d.argument(entity, "entity", ENTITY);
-    d.executes(e, "fetchprofile");
 
     // SpectateCommand
     let spectate = d.literal(root, "spectate");

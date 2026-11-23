@@ -695,8 +695,7 @@ fn remesh(
     Ok(meshes)
 }
 
-/// The world seed: `data/minecraft/world_gen_settings.dat`, or level.dat's
-/// `Data.WorldGenSettings` in older saves.
+/// The world seed: level.dat's `Data.WorldGenSettings`.
 fn world_seed(save: &Path) -> Option<i64> {
     let read = |path: PathBuf| {
         horizon_world::datafix::files::read_dat(&path)
@@ -708,17 +707,10 @@ fn world_seed(save: &Path) -> Option<i64> {
         _ => None,
     };
     seed(
-        read(save.join("data/minecraft/world_gen_settings.dat"))
-            .as_ref()
-            .and_then(|t| t.get("data")),
+        read(save.join("level.dat"))?
+            .get("Data")?
+            .get("WorldGenSettings"),
     )
-    .or_else(|| {
-        seed(
-            read(save.join("level.dat"))?
-                .get("Data")?
-                .get("WorldGenSettings"),
-        )
-    })
 }
 
 /// A saved full chunk's blocks, biomes and light, as the client's own save

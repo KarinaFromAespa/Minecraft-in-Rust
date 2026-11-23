@@ -2,7 +2,7 @@
 //! (`ClientboundOpenScreenPacket` with the station's `MenuType`), the
 //! station screen draws it, and its clicks and buttons are predicted on the
 //! menu engine (`Game::menu_session`) and sent, as
-//! `MultiPlayerGameMode.handleContainerInput` and `handleInventoryButtonClick`
+//! `MultiPlayerGameMode.handleInventoryMouseClick` and `handleInventoryButtonClick`
 //! do. The menu's client-side `slotsChanged` follows the server's slots, and
 //! its data slots come in `ClientboundContainerSetDataPacket`.
 use super::{

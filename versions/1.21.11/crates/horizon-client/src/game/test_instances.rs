@@ -6,7 +6,7 @@ use super::{
     game_tests::Info,
     lan::LanHost,
     structure_blocks::{create_seed, template_size},
-    test_entities::{aabb_of, inflate},
+    test_entities::aabb_of,
 };
 use horizon_client::{
     block_entity_render::vertex_light,
@@ -44,7 +44,6 @@ const RUN: i32 = 6;
 pub(super) struct TestDef {
     pub(super) structure: String,
     pub(super) rotation: Rotation,
-    pub(super) padding: i32,
     pub(super) required: bool,
     pub(super) sky_access: bool,
     /// `BlockBasedTestInstance` (else a `FunctionGameTestInstance`).
@@ -70,7 +69,6 @@ impl TestDef {
         Self {
             structure: "minecraft:empty".into(),
             rotation: Rotation::None,
-            padding: 0,
             required: true,
             sky_access: false,
             block_based,
@@ -128,11 +126,6 @@ fn parse_test_def(json: &serde_json::Value) -> Option<TestDef> {
         rotation: string("rotation")
             .and_then(Rotation::from_name)
             .unwrap_or(Rotation::None),
-        padding: json
-            .get("padding")
-            .and_then(|v| v.as_i64())
-            .unwrap_or(0)
-            .clamp(0, 128) as i32,
         required: json
             .get("required")
             .and_then(|v| v.as_bool())
@@ -262,11 +255,6 @@ impl Game<'_> {
     pub(super) fn test_holder(&self, pos: Pos) -> Option<TestDef> {
         let key = self.test_instance_at(pos)?.data.test.clone()?;
         self.test_def(&key)
-    }
-
-    /// The padding of the block's test, 0 without one.
-    pub(super) fn test_holder_padding(&self, pos: Pos) -> i32 {
-        self.test_holder(pos).map_or(0, |t| t.padding)
     }
 
     /// `ClientPacketListener.handleGameTestHighlightPos`:
@@ -466,11 +454,10 @@ impl Game<'_> {
 
     /// `getStructureBoundingBox`.
     pub(super) fn test_structure_box(&self, pos: Pos) -> Option<BoundingBox> {
-        let padding = self.test_holder(pos).map_or(0, |t| t.padding);
         let rotation = self.test_rotation(pos);
         Some(
             self.test_instance_at(pos)?
-                .structure_box([pos.0, pos.1, pos.2], padding, rotation),
+                .structure_box([pos.0, pos.1, pos.2], rotation),
         )
     }
 
@@ -555,24 +542,19 @@ impl Game<'_> {
             return false;
         };
         let rotation = self.test_rotation(pos);
-        let padding = def.padding;
         let Some(block) = self.test_instance_at(pos).cloned() else {
             return false;
         };
         let origin = [pos.0, pos.1, pos.2];
         // `forceLoadChunks`, then `StructureUtils.clearSpaceForStructure(
-        // getTestBoundingBox())`.
+        // getStructureBoundingBox())`.
         if let Some(inner) = self.test_structure_box(pos) {
             self.force_load_test_chunks(&inner);
-            let area = BoundingBox::new(
-                inner.min.map(|v| v - padding),
-                inner.max.map(|v| v + padding),
-            );
-            self.clear_test_space(&area);
-            // removeEntities: `getTestBounds()`, the structure's box inflated.
-            self.discard_entities_in(inflate(aabb_of(&inner), f64::from(padding)));
+            self.clear_test_space(&inner);
+            // removeEntities: `getStructureBounds()`, the structure's box.
+            self.discard_entities_in(aabb_of(&inner));
         }
-        let corner = block.start_corner(origin, padding, rotation);
+        let corner = block.start_corner(origin, rotation);
         let settings = TemplateSettings {
             mirror: Mirror::None,
             rotation,
@@ -642,10 +624,7 @@ impl Game<'_> {
             return None;
         };
         let block = self.test_instance_at(pos)?.clone();
-        let padding = self.test_holder(pos).map_or(0, |t| t.padding);
-        let corner = TestInstanceBlock::structure_pos_of(
-            [0, 1, 2].map(|i| [pos.0, pos.1, pos.2][i] + padding),
-        );
+        let corner = TestInstanceBlock::structure_pos_of([pos.0, pos.1, pos.2]);
         self.save_structure_area(
             &id,
             corner,
@@ -658,8 +637,13 @@ impl Game<'_> {
         Some(id)
     }
 
-    /// `exportTest`: saves, then writes to the test template folder, which
-    /// only a development build has.
+    /// `exportTest`: 1.21.11's `TestInstanceBlockEntity.export` always
+    /// converts the saved structure to SNBT under
+    /// `StructureUtils.testStructuresDir` — there is no disabled branch
+    /// (the 26.1 `testTemplates()` gate is gone). The engine has no
+    /// structure-template packer (`NbtUtils.structureToSnbt` packs the
+    /// template before printing it), so it saves and reports the export
+    /// as disabled instead of writing the `.snbt`.
     fn export_test(&mut self, pos: Pos) {
         if self.save_test(pos).is_some() {
             self.system_message(

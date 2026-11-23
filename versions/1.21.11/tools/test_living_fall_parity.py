@@ -22,7 +22,7 @@ def corpus():
         try:return struct.pack('>f',float(v)).hex()
         except OverflowError:return struct.pack('>f',math.copysign(float('inf'),v)).hex()
     def vector(v):return None if v is None else list(map(bits,v))
-    def row(mode=1,distance=10,multiplier=1,safe=3,damage=1,immune=(False,False),impact=None,grace=0,y=0,mutate=False,fail=-1,server=True,hurt_result=True,ops=()):return dict(mode=mode,distance=bits(distance),multiplier=single(multiplier),safe=bits(safe),**{'damage-factor':bits(damage)},immune=list(immune),impact=vector(impact),grace=grace,y=bits(y),mutate=mutate,fail=fail,server=server,hurt_result=hurt_result,ops=list(ops))
+    def row(mode=1,distance=10,multiplier=1,safe=3,damage=1,immune=(False,False),impact=None,grace=0,y=0,mutate=False,fail=-1,server=True,hurt_result=True,ops=(),ignore=None):return dict(mode=mode,distance=bits(distance),multiplier=single(multiplier),safe=bits(safe),**{'damage-factor':bits(damage)},immune=list(immune),impact=vector(impact),grace=grace,y=bits(y),mutate=mutate,fail=fail,server=server,hurt_result=hurt_result,ops=list(ops),ignore=impact is not None if ignore is None else ignore)
     values=[-float('inf'),-1,-0.0,0,2.999999,3,3.999999,4,7,8,10,1e40,float('inf'),float('nan')]
     for mode in [0,1]:
         for distance in values:
@@ -31,8 +31,12 @@ def corpus():
                     for immune in [(False,False),(True,True),(False,True),(True,False)]:yield row(mode,distance,multiplier,safe,immune=immune)
     for distance in [-0.0,0,4,10,float('nan')]:
         for impact in [None,[0,-1,0],[0,-0.0,0],[0,0,0],[0,2,0],[0,10,0],[0,float('nan'),0]]:
-            for grace in [-1,0,1,40]:
-                for fail in range(-1,13):yield row(distance=distance,impact=impact,grace=grace,fail=fail,mutate=True)
+            # 1.21.11's waiver is a flag apart from the position: a set
+            # position with the flag cleared waives nothing. (Flag set
+            # with no position would NPE in vanilla — never generated.)
+            for ignore in [True,False] if impact is not None else [False]:
+                for grace in [-1,0,1,40]:
+                    for fail in range(-1,13):yield row(distance=distance,impact=impact,grace=grace,fail=fail,mutate=True,ignore=ignore)
     rng=random.Random(0x4c4956494e474641)
     for _ in range(4000):yield row(mode=rng.randrange(2),distance=rng.choice(values),multiplier=rng.choice(values),safe=rng.choice(values),damage=rng.choice(values),immune=(bool(rng.randrange(2)),bool(rng.randrange(2))),impact=rng.choice([None,[0,0,0],[1,5,2],[0,float('inf'),0]]),grace=rng.choice([-1,0,1,40]),y=rng.choice(values),mutate=bool(rng.randrange(2)),fail=rng.choice([-1,-1,0,1,2,4,7,10]),server=bool(rng.randrange(2)),hurt_result=bool(rng.randrange(2)))
     for _ in range(2000):
@@ -68,7 +72,7 @@ def main():
         references.append({'side':side,'jar_sha256':lab.digest(jar,'sha256'),'output_sha256':lab.digest(reference,'sha256'),'matched_output_lines':matched})
         print(f'{side}: {matched:,} living-fall output lines match Rust',flush=True)
     base.ensure_sources_unchanged(sources,tested_sources);base.ensure_sources_unchanged(fixture_paths,tested_fixtures)
-    report={'schema':1,'minecraft':lock['minecraft']['version'],'manifest_sha1':lock['minecraft']['manifest_sha1'],'platform':platform.platform(),'java':subprocess.check_output(['java','--version'],text=True).splitlines()[0],'rustc':subprocess.check_output(['rustc','--version'],text=True).strip(),'fixtures':len(fixtures),'sources_sha256':tested_sources,'fixtures_sha256':tested_fixtures,'rust_output_sha256':lab.digest(build/'rust.txt','sha256'),'references':references,'scope':'Actual LivingEntity.calculateFallDamage, causeFallDamage and impulse-context setter/reset/grace methods. Controlled immunity/attribute getters, passenger callback, sounds and server hurt callback expose native query order and failure state. Includes changing immunity, passenger mutations, impulse-height limiting, zero/negative/large grace values, float multiplier widening, floor/saturation, signed zero/nonfinite values and setter sequences. Hurt return values do not change the causeFallDamage result. A null level snapshot exercises the native non-server hurt no-op; actual client entity lifecycle, passenger storage/recursion, health/damage processing, attribute provisioning and tick/save/network integration remain pending.'}
+    report={'schema':1,'minecraft':lock['minecraft']['version'],'manifest_sha1':lock['minecraft']['manifest_sha1'],'platform':platform.platform(),'java':subprocess.check_output(['java','--version'],text=True).splitlines()[0],'rustc':subprocess.check_output(['rustc','--version'],text=True).strip(),'fixtures':len(fixtures),'sources_sha256':tested_sources,'fixtures_sha256':tested_fixtures,'rust_output_sha256':lab.digest(build/'rust.txt','sha256'),'references':references,'scope':'Actual Player.calculateFallDamage, causeFallDamage and impulse-context setter/reset/grace methods. Controlled immunity/attribute getters, passenger callback, sounds and server hurt callback expose native query order and failure state. Includes changing immunity, passenger mutations, impulse-height limiting, zero/negative/large grace values, float multiplier widening, floor/saturation, signed zero/nonfinite values and setter sequences. Hurt return values do not change the causeFallDamage result. A null level snapshot exercises the native non-server hurt no-op; actual client entity lifecycle, passenger storage/recursion, health/damage processing, attribute provisioning and tick/save/network integration remain pending.'}
     lab.write_json(report_path,report);print(f'Scoped living fall parity passed: {report_path}')
 
 

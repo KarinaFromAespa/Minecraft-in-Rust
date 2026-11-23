@@ -244,10 +244,11 @@ impl TemplatePiece {
         ];
         match self.handler {
             TemplateHandler::Igloo => entries.push(("Rot", rotation())),
+            // 1.21.11 writes no `height_adjusted` (a 26.1 addition); the
+            // settled height travels in TPY via `dy` instead.
             TemplateHandler::Shipwreck { beached } => entries.extend([
                 ("isBeached", flag(beached)),
                 ("Rot", rotation()),
-                ("height_adjusted", flag(adjusted.is_some())),
             ]),
             TemplateHandler::OceanRuin {
                 warm,
@@ -353,40 +354,42 @@ impl LegacyPiece for TemplatePiece {
                 }
             }
             TemplateHandler::Shipwreck { beached } => {
-                let adjusted = *self.state.lock().unwrap();
-                let y = match adjusted {
-                    Some(y) => y,
-                    None if shipwreck_too_big(&self.template) => self.position[1],
-                    None => {
-                        let kind = if beached {
-                            HeightmapType::WorldSurfaceWg
-                        } else {
-                            HeightmapType::OceanFloorWg
-                        };
-                        let size = self.template.size;
-                        let mut min = c.world.max_y()? + 1;
-                        let mut mean = 0;
-                        let base = size[0] * size[2];
-                        if base == 0 {
-                            mean = c.world.height(kind, self.position[0], self.position[2])?;
-                        } else {
-                            for x in self.position[0]..self.position[0] + size[0] {
-                                for z in self.position[2]..self.position[2] + size[2] {
-                                    let h = c.world.height(kind, x, z)?;
-                                    mean += h;
-                                    min = min.min(h);
-                                }
+                // 1.21.11 has no `height_adjusted`: the adjustment runs on
+                // every postProcess, re-rolling the beached offset each
+                // time (26.1 added the flag so it runs once). The settled
+                // Y is still recorded in `state` so `saved()` writes the
+                // height the wreck last settled on.
+                let y = if shipwreck_too_big(&self.template) {
+                    self.position[1]
+                } else {
+                    let kind = if beached {
+                        HeightmapType::WorldSurfaceWg
+                    } else {
+                        HeightmapType::OceanFloorWg
+                    };
+                    let size = self.template.size;
+                    let mut min = c.world.max_y()? + 1;
+                    let mut mean = 0;
+                    let base = size[0] * size[2];
+                    if base == 0 {
+                        mean = c.world.height(kind, self.position[0], self.position[2])?;
+                    } else {
+                        for x in self.position[0]..self.position[0] + size[0] {
+                            for z in self.position[2]..self.position[2] + size[2] {
+                                let h = c.world.height(kind, x, z)?;
+                                mean += h;
+                                min = min.min(h);
                             }
-                            mean /= base;
                         }
-                        let y = if beached {
-                            min - size[1] / 2 - c.random.int(3)
-                        } else {
-                            mean
-                        };
-                        *self.state.lock().unwrap() = Some(y);
-                        y
+                        mean /= base;
                     }
+                    let y = if beached {
+                        min - size[1] / 2 - c.random.int(3)
+                    } else {
+                        mean
+                    };
+                    *self.state.lock().unwrap() = Some(y);
+                    y
                 };
                 let position = [self.position[0], y, self.position[2]];
                 if let Some(markers) = self.place_at(c, position, &[])? {

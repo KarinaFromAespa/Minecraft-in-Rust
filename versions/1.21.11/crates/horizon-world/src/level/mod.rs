@@ -844,7 +844,7 @@ pub trait LevelAccess {
     fn world_seed(&self) -> i64 {
         0
     }
-    /// `Level.getDayTime` (the overworld clock driving the day timeline's
+    /// `Level.getDayTime` (the day time driving the day timeline's
     /// environment attributes, e.g. eyeblossoms opening at night).
     fn day_time(&self) -> i64 {
         6000
@@ -1296,7 +1296,7 @@ impl Behaviours {
             || data.is(classes::Class::Button)
             || data.is(classes::Class::TripWire)
     }
-    /// `LilyPadBlock.entityInside` for a boat whose box is inside `pos`.
+    /// `WaterlilyBlock.entityInside` for a boat whose box is inside `pos`.
     pub fn boat_inside<L: LevelAccess + ?Sized>(
         &self,
         level: &mut L,

@@ -6,7 +6,9 @@
 //!
 //! usage: command_parse_fixture RESOURCES REGISTRIES.json CORPUS PERMISSION OUTPUT
 use horizon_client::{
-    command::{ArgType, Dispatcher, NodeKind, Registries, args::RegistryIds, vanilla},
+    command::{
+        ArgType, Dispatcher, ItemDefaults, NodeKind, Registries, args::RegistryIds, vanilla,
+    },
     lang,
 };
 use serde_json::{Value, json};
@@ -197,6 +199,15 @@ pub fn main() -> horizon_client::Result<()> {
     }
     reg.templates = strings(&r["templates"]);
     reg.persistent_components = strings(&r["persistent_components"]);
+    for (id, d) in r["item_defaults"].as_object().into_iter().flatten() {
+        reg.item_defaults.insert(
+            id.clone(),
+            ItemDefaults {
+                max_stack_size: d["max_stack_size"].as_i64().unwrap_or(1) as i32,
+                max_damage: d["max_damage"].as_i64().map(|v| v as i32),
+            },
+        );
+    }
     reg.learnable_recipes = strings(&r["learnable_recipes"]);
     for (clock, markers) in r["clock_time_markers"].as_object().into_iter().flatten() {
         reg.clock_time_markers

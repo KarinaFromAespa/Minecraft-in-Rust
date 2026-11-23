@@ -420,7 +420,7 @@ impl Game<'_> {
         if !self.can_have_weather() || self.weather_levels(1.0).1 <= 0.9 {
             return;
         }
-        // BlockAndLightGetter.canSeeSky: full sky light.
+        // BlockAndTintGetter.canSeeSky: full sky light.
         let (x, y, z) = (
             at[0].floor() as i32,
             at[1].floor() as i32,
@@ -497,8 +497,9 @@ impl Game<'_> {
             return;
         };
         let riptide = stack.enchantment_level("minecraft:riptide");
-        // `releaseUsing` checks the wet/passenger conditions, then nextDamageWillBreak again.
-        if riptide > 0 && (!self.in_water_or_rain() || self.riding.is_some()) {
+        // `releaseUsing` checks the wet condition, then nextDamageWillBreak again.
+        // (26.1 also blocks Riptide while riding; 1.21.11 has no passenger check.)
+        if riptide > 0 && !self.in_water_or_rain() {
             return;
         }
         if stack.damage >= self.trident_max_damage(&stack).saturating_sub(1) {
@@ -1246,7 +1247,7 @@ impl Game<'_> {
             .gui
             .atlas
             .sprites
-            .get("entity/trident/trident")
+            .get("entity/trident")
             .map(|r| [r.u0, r.v0, r.u1, r.v1])
         else {
             return;
@@ -1258,7 +1259,7 @@ impl Game<'_> {
             .emissive
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .overlay("entity/trident/trident")
+            .overlay("entity/trident")
             .and_then(|e| self.gui.atlas.sprites.get(e))
             .map(|r| [r.u0, r.v0, r.u1, r.v1]);
         // AbstractArrow.shouldRenderAtSqrDistance: ten times the default.

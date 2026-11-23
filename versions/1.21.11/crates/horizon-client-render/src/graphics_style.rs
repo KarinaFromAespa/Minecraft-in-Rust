@@ -221,7 +221,7 @@ pub fn button_with_room(
     );
 }
 /// A widget label of `[left, y, width]` inside the widget's `(top, height)`: centred when it fits,
-/// else slid (vanilla `AbstractWidget.extractScrollingStringOverContents`) and clipped to the box.
+/// else slid (vanilla `AbstractWidget.renderScrollingStringOverContents`) and clipped to the box.
 fn scrolling_label(
     batch: &mut HudBatch,
     atlas: &HudAtlas,

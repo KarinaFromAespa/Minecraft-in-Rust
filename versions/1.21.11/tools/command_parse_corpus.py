@@ -100,6 +100,12 @@ ITEM_STACKS = [
     'minecraft:stone[custom_data={a:1}]', 'minecraft:stone[unbreakable={}]', 'minecraft:stone[max_stack_size=1]', 'minecraft:stone[rarity=epic]',
     'minecraft:stone[!damage,!max_damage]', 'minecraft:stone[damage=5,!max_damage]', 'minecraft:player_head[profile="Notch"]', 'minecraft:stone[ damage = 5 ]',
     'minecraft:stone[repair_cost=0]', 'minecraft:stone[item_name="x"]', 'minecraft:stone[tooltip_display={hide_tooltip:true}]',
+    # ItemStack.validateComponents: damageable only when it cannot stack, and a container's stacks within their maximum.
+    'minecraft:stone[max_damage=100,max_stack_size=1]', 'minecraft:stone[max_damage=100,!max_stack_size]',
+    'minecraft:diamond_sword[!max_damage,max_stack_size=64]',
+    'minecraft:shulker_box[container=[{id:"minecraft:stone",count:64}]]',
+    'minecraft:shulker_box[container=[{id:"minecraft:ender_pearl",count:16}]]',
+    'minecraft:shulker_box[container=[{id:"minecraft:stone",count:65,components:{"minecraft:max_stack_size":99}}]]',
 ]
 BAD_ITEM_STACKS = [
     'minecraft:nope', 'nope', 'minecraft:stone[', 'minecraft:stone[damage]', 'minecraft:stone[damage=x]', 'minecraft:stone[nope=1]',
@@ -107,6 +113,10 @@ BAD_ITEM_STACKS = [
     'minecraft:stone[=5]', 'minecraft:stone[!]', 'minecraft:stone[!damage=5]', 'minecraft:stone]', 'Minecraft:stone', 'minecraft:stone[damage=-5]',
     'minecraft:stone[damage=5,!damage]', 'minecraft:stone[max_stack_size=0]', 'minecraft:stone[max_stack_size=100]', 'minecraft:stone[rarity=nope]',
     'minecraft:stone[custom_name={"text":}]', 'minecraft:stone[enchantments=1]', '#minecraft:logs', '*', 'minecraft:stone[unknown:thing=1]',
+    # ItemStack.validateComponents: damageable and stackable, or a container stack over its maximum.
+    'minecraft:stone[max_damage=100]', 'minecraft:diamond_sword[max_stack_size=64]',
+    'minecraft:shulker_box[container=[{id:"minecraft:stone",count:65}]]',
+    'minecraft:shulker_box[container=[{id:"minecraft:ender_pearl",count:17}]]',
 ]
 ITEM_PREDICATES = [
     'minecraft:stone', 'stone', '*', '#minecraft:planks', '#planks', 'minecraft:stone[damage=5]', 'minecraft:stone[!damage]', 'stone[count=1]',

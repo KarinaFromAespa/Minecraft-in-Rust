@@ -310,7 +310,8 @@ pub const UNDERLINE: &str = "§n";
 pub const GREEN: &str = "§a";
 pub const RED: &str = "§c";
 
-/// `DebugEntryLookingAtState.extractInfo`: the underlined heading with the
+/// `DebugEntryLookingAtBlock.display` (26.1's unified
+/// `DebugEntryLookingAtState.extractInfo`): the underlined heading with the
 /// position, the state's registered name, then one line per property
 /// (`true` green, `false` red).
 pub fn state_lines<'a>(
@@ -334,7 +335,8 @@ pub fn state_lines<'a>(
     out
 }
 
-/// `DebugEntryLookingAt.addTagEntries`: `#` and each tag holding `id`.
+/// `DebugEntryLookingAtBlock.display`'s tag lines (26.1's
+/// `DebugEntryLookingAt.addTagEntries`): `#` and each tag holding `id`.
 /// Vanilla walks a hash set; these are sorted, so the order holds still.
 pub fn tag_lines<'a>(
     tags: impl IntoIterator<Item = (&'a String, &'a std::collections::HashSet<String>)>,
@@ -403,7 +405,9 @@ pub fn spawn_counts_line(chunks: i32, counts: &[i32; 8]) -> String {
 }
 
 /// `DebugEntryLocalDifficulty` with `DifficultyInstance.getSpecialMultiplier`.
-pub fn local_difficulty_line(effective: f32) -> String {
+/// 1.21.11 appends the day (`ServerLevel.getDayCount`); 26.1 dropped it from
+/// this line into its own `DebugEntryDayCount` entry.
+pub fn local_difficulty_line(effective: f32, day: i64) -> String {
     let special = if effective < 2.0 {
         0.0
     } else if effective > 4.0 {
@@ -412,9 +416,10 @@ pub fn local_difficulty_line(effective: f32) -> String {
         (effective - 2.0) / 2.0
     };
     format!(
-        "Local Difficulty: {} // {}",
+        "Local Difficulty: {} // {} (Day {})",
         java_text::format_fixed(effective as f64, 2),
         java_text::format_fixed(special as f64, 2),
+        day,
     )
 }
 
@@ -427,23 +432,17 @@ pub fn gpu_line(utilization: f64) -> String {
     }
 }
 
-/// `DebugEntrySoundMood`: `Library.getChannelDebugString` and the mood.
+/// `DebugEntrySoundMood`: `Library.getDebugString` and the mood, joined by
+/// two spaces (`"  (Mood %d%%)"`).
 pub fn sound_mood_line(used: [usize; 2], max: [usize; 2], mood: f32) -> String {
     format!(
-        "Sounds: {}/{} + {}/{} (Mood {}%)",
+        "Sounds: {}/{} + {}/{}  (Mood {}%)",
         used[0],
         max[0],
         used[1],
         max[1],
         (mood * 100.0).round() as i32
     )
-}
-
-/// `DebugEntrySoundCache`: the decoded buffers and their size, in MiB
-/// rounded up.
-pub fn sound_cache_line(buffers: usize, bytes: usize) -> String {
-    let mib = (bytes as f64 / 1024.0 / 1024.0).ceil() as i64;
-    format!("Sound cache: {buffers} buffers, {mib} MiB")
 }
 
 /// `DebugEntryLight` without the server's values
@@ -525,21 +524,22 @@ impl MemoryMeter {
     }
 }
 
-/// `DebugEntryMemory`'s three lines.
+/// `DebugEntryMemory`'s three lines. 1.21.11 labels the units MB (26.1's
+/// MiB); both divide by 1024 twice (`bytesToMegabytes` is a misnomer).
 pub fn memory_lines(m: ProcessMemory, rate: i64) -> [String; 3] {
-    let mib = |bytes: u64| bytes / 1024 / 1024;
+    let mb = |bytes: u64| bytes / 1024 / 1024;
     [
         format!(
-            "Mem: {:2}% {:03}/{:03}MiB",
+            "Mem: {:2}% {:03}/{:03}MB",
             m.used * 100 / m.max,
-            mib(m.used),
-            mib(m.max)
+            mb(m.used),
+            mb(m.max)
         ),
-        format!("Allocation rate: {:03}MiB/s", rate / 1024 / 1024),
+        format!("Allocation rate: {:03}MB/s", rate / 1024 / 1024),
         format!(
-            "Allocated: {:2}% {:03}MiB",
+            "Allocated: {:2}% {:03}MB",
             m.allocated * 100 / m.max,
-            mib(m.allocated)
+            mb(m.allocated)
         ),
     ]
 }
@@ -639,12 +639,18 @@ mod tests {
             spawn_counts_line(289, &[3, 10, 1, 0, 0, 2, 4, 0]),
             "SC: 289, MO: 3, C: 10, AM: 1, AX: 0, UWC: 0, WC: 2, WA: 4, MI: 0"
         );
-        assert_eq!(local_difficulty_line(1.5), "Local Difficulty: 1.50 // 0.00");
         assert_eq!(
-            local_difficulty_line(2.25),
-            "Local Difficulty: 2.25 // 0.13"
+            local_difficulty_line(1.5, 0),
+            "Local Difficulty: 1.50 // 0.00 (Day 0)"
         );
-        assert_eq!(local_difficulty_line(3.0), "Local Difficulty: 3.00 // 0.50");
+        assert_eq!(
+            local_difficulty_line(2.25, 7),
+            "Local Difficulty: 2.25 // 0.13 (Day 7)"
+        );
+        assert_eq!(
+            local_difficulty_line(3.0, 42),
+            "Local Difficulty: 3.00 // 0.50 (Day 42)"
+        );
         assert_eq!(light_line(12, 14), "Client Light: 14 (12 sky, 14 block)");
     }
 
@@ -654,24 +660,20 @@ mod tests {
         assert_eq!(gpu_line(130.0), "GPU: §c100%");
         assert_eq!(
             sound_mood_line([3, 1], [247, 8], 0.256),
-            "Sounds: 3/247 + 1/8 (Mood 26%)"
+            "Sounds: 3/247 + 1/8  (Mood 26%)"
         );
-        assert_eq!(
-            sound_cache_line(12, 3 * 1024 * 1024 + 1),
-            "Sound cache: 12 buffers, 4 MiB"
-        );
-        let mib = 1024 * 1024;
+        let mb = 1024 * 1024;
         let memory = ProcessMemory {
-            used: 512 * mib,
-            allocated: 900 * mib,
-            max: 16384 * mib,
+            used: 512 * mb,
+            allocated: 900 * mb,
+            max: 16384 * mb,
         };
         assert_eq!(
-            memory_lines(memory, 40 * mib as i64),
+            memory_lines(memory, 40 * mb as i64),
             [
-                "Mem:  3% 512/16384MiB".to_owned(),
-                "Allocation rate: 040MiB/s".to_owned(),
-                "Allocated:  5% 900MiB".to_owned(),
+                "Mem:  3% 512/16384MB".to_owned(),
+                "Allocation rate: 040MB/s".to_owned(),
+                "Allocated:  5% 900MB".to_owned(),
             ]
         );
         let status = "Name:\thorizon\nVmRSS:\t  2048 kB\nRssAnon:\t  1024 kB\n";
@@ -708,7 +710,7 @@ mod tests {
         let mut d = Displayer::default();
         d.priority("112 fps T: 120 (fifo) @165Hz");
         d.priority("Minecraft 26.3 (26.3/vanilla)");
-        d.group("memory", lines(&["Mem: 25% 1046/4096MiB"]));
+        d.group("memory", lines(&["Mem: 25% 1046/4096MB"]));
         d.group("position", lines(&["XYZ: 1 / 2 / 3", "Block: 1 2 3"]));
         d.group("position", lines(&["Section-relative: 01 02 03"]));
         d.line("fancy-clouds B: 2");
@@ -730,7 +732,7 @@ mod tests {
                 "fancy-clouds B: 2",
                 "Filtering: RGSS",
                 "",
-                "Mem: 25% 1046/4096MiB",
+                "Mem: 25% 1046/4096MB",
                 "",
                 "XYZ: 1 / 2 / 3",
                 "Block: 1 2 3",

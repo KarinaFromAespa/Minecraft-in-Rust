@@ -27,7 +27,12 @@ def parse(sources):
                  if (folder / name).exists()), folder / "EntityTypes.java")
     text = path.read_text()
     out = []
-    for m in re.finditer(r"public static final EntityType<[\w.]+> (\w+) = register\((.*?)\n   \);", text, re.S):
+    # The register call ends at the first `);` after `register(`: builder
+    # chains hold no semicolons, so this catches both the single-line form
+    # (`... = register("dolphin", Builder...eyeHeight(0.3F));`) and the
+    # multi-line form. Matching up to `\n   );` instead spans a single-line
+    # entry into the next entry's block and drops the next entry.
+    for m in re.finditer(r"public static final EntityType<[\w.]+> (\w+) = register\((.*?)\);", text, re.S):
         name, body = m.group(1).lower(), m.group(2)
         range_ = re.findall(r"\.clientTrackingRange\((\d+)\)", body)
         interval = re.findall(r"\.updateInterval\((\w+(?:\.\w+)?)\)", body)

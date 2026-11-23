@@ -300,9 +300,10 @@ impl Game<'_> {
         }
         self.post_attack_bursts(&held, &kind);
     }
-    /// `EnchantmentHelper.doPostPiercingAttackEffects`: the
+    /// `EnchantmentHelper.doLungeEffects`: the
     /// `minecraft:post_piercing_attack` effects of the weapon in hand after a
-    /// jab (Lunge's dash).
+    /// jab (Lunge's dash). The Java helper was renamed from
+    /// `doPostPiercingAttackEffects`; the effect component's id is unchanged.
     pub(super) fn post_piercing_attack(&mut self) {
         let Some(held) = self.held().cloned() else {
             return;
@@ -321,7 +322,10 @@ impl Game<'_> {
             }
         }
         // Lunge's requirements: not riding, gliding or in water, and a
-        // player outside creative with at least 7 food.
+        // player with at least 7 food, or one that may fly
+        // (`Player.lungeForwardMaybe`'s `hasEnoughFoodToDoExhaustiveManoeuvres`;
+        // 1.21.11 moved the food term out of the enchantment's data into that
+        // gate). Spectators may fly but never jab, so here may-fly is creative.
         let Some(p) = self.player.as_ref() else {
             return;
         };

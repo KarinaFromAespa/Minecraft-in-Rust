@@ -1,4 +1,4 @@
-//! A level's saved chunk tickets through `chunk_tickets.dat`, for VanillaPortalTicketsOracle:
+//! A level's saved chunk tickets through `chunks.dat`, for VanillaPortalTicketsOracle:
 //! each case's file is loaded, its `PORTAL` tickets ticked, refreshed and reloaded over a
 //! restart, and every step prints what the file then holds and which of the case's chunks a
 //! `PORTAL` ticket holds now.
@@ -63,7 +63,7 @@ pub fn main() {
         let _ = std::fs::remove_dir_all(&root);
         let case: Value = serde_json::from_str(line).unwrap();
         let (data, _) = parse_snbt(case["saved"].as_str().unwrap()).unwrap();
-        let file = root.join("data/minecraft/chunk_tickets.dat");
+        let file = root.join("data/chunks.dat");
         write_dat(&file, Tag::compound([("data", data)])).unwrap();
         // How the game opens a level (`world_loading::make_streaming`, `open_level`).
         let save = SaveDir::new(root.clone(), LevelShape::OVERWORLD);

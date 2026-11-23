@@ -158,7 +158,6 @@ pub trait FluidEntityWorld: FluidBlockWorld + FluidMembership {
     fn interaction_box(&mut self) -> Result<Option<Aabb>, Self::Error>;
     fn loaded_chunk(&mut self, x: i32, z: i32) -> Result<Option<Self::Chunk>, Self::Error>;
     fn chunk_sections(&mut self, chunk: Self::Chunk) -> Result<FluidSections<'_>, Self::Error>;
-    fn bounding_box_min_y(&self) -> f64;
     fn block_x(&self) -> i32;
     fn eye_y(&mut self) -> Result<f64, Self::Error>;
     fn block_z(&self) -> i32;
@@ -181,9 +180,6 @@ impl<W: FluidEntityWorld> FluidInteractionWorld for RegistryFluidWorld<'_, '_, W
     }
     fn chunk_sections(&mut self, c: Self::Chunk) -> Result<FluidSections<'_>, Self::Error> {
         self.world.chunk_sections(c).map_err(FluidQueryError::World)
-    }
-    fn bounding_box_min_y(&self) -> f64 {
-        self.world.bounding_box_min_y()
     }
     fn block_x(&self) -> i32 {
         self.world.block_x()

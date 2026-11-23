@@ -21,22 +21,24 @@ import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.util.datafix.DataFixers;
-import net.minecraft.util.filefix.FileFix;
-import net.minecraft.util.filefix.FileFixerUpper;
-import net.minecraft.util.worldupdate.UpgradeProgress;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.storage.RegionFile;
 import net.minecraft.world.level.chunk.storage.RegionStorageInfo;
-import net.minecraft.world.level.storage.LevelStorageSource;
 
 /**
- * Opens a world saved by an older game version the way 26.3 does and writes out
- * what 26.3 reads: the file fixes (FileFixerUpper) on the folder, level.dat fixed
- * to the current DataVersion, then every chunk, entity chunk and POI chunk
+ * Opens a world saved by an older game version the way 1.21.11 does and writes out
+ * what 1.21.11 reads: level.dat fixed to the current DataVersion and stamped
+ * (DataVersion, LastPlayed, Version), then every chunk, entity chunk and POI chunk
  * (SimpleRegionStorage.upgradeChunkTag with ChunkMap's context), player file
  * (PlayerDataStorage.load), saved data file (SavedDataStorage.readTagFromDisk),
  * advancements and statistics through the real DataFixers.
+ *
+ * 1.21.11 has no FileFixerUpper: there are no file fixes on open (the 26.x
+ * layout migrations and the eager 1493 structure migration do not exist here;
+ * pre-1.16 structure files are read lazily by LegacyStructureDataHandler), and
+ * the world keeps the old layout: region/ at the root, DIM-1/DIM1 for the other
+ * dimensions, playerdata/, advancements/ and stats/ at the root.
  *
  *   VanillaDataFixOracle IN_WORLD OUT_WORLD
  *
@@ -63,42 +65,68 @@ public final class VanillaDataFixOracle {
         }
         int current = SharedConstants.getCurrentVersion().dataVersion().version();
         var fixer = DataFixers.getDataFixer();
-        // FileFixerUpper.fix through a real level storage access, as the game opens a
-        // world: the file fixes on a copy-on-write view swapped in, then level.dat
-        // fixed to the current version and stamped (DataVersion, LastPlayed, Version).
-        LevelStorageSource source = LevelStorageSource.createDefault(out.getParent());
-        try (LevelStorageSource.LevelStorageAccess access = source.createAccess(out.getFileName().toString())) {
-            Dynamic<?> levelData = access.getUnfixedDataTag(false);
-            Dynamic<?> fixed = DataFixers.getFileFixer().fix(access, levelData, new UpgradeProgress());
-            access.saveLevelData(fixed);
+        // 1.21.11 fixes level.dat in memory on open and stamps it on the next
+        // save (DataVersion, LastPlayed, Version): the oracle writes what
+        // that save would write. A world already at the current version is
+        // left untouched, as the game leaves it.
+        Path levelFile = out.resolve("level.dat");
+        CompoundTag levelRoot = NbtIo.readCompressed(levelFile, NbtAccounter.unlimitedHeap());
+        CompoundTag levelData = levelRoot.getCompoundOrEmpty("Data");
+        int levelVersion = NbtUtils.getDataVersion(levelData, -1);
+        if (levelVersion < current) {
+            levelData = DataFixTypes.LEVEL.updateToCurrentVersion(fixer, levelData, levelVersion);
+            levelData.putInt("DataVersion", current);
+            levelData.putLong("LastPlayed", System.currentTimeMillis());
+            CompoundTag version = new CompoundTag();
+            var currentVersion = SharedConstants.getCurrentVersion();
+            version.putString("Name", currentVersion.name());
+            version.putInt("Id", current);
+            version.putBoolean("Snapshot", !currentVersion.stable());
+            version.putString("Series", currentVersion.dataVersion().series());
+            levelData.put("Version", version);
+            levelRoot.put("Data", levelData);
+            NbtIo.writeCompressed(levelRoot, levelFile);
         }
         Files.deleteIfExists(out.resolve("level.dat_old"));
         Map<String, String> generators = generators(out);
+        // The old dimension layout: the overworld at the root, the nether and
+        // the end in DIM-1/DIM1.
+        String[][] dims = {{"", "minecraft:overworld"}, {"DIM-1", "minecraft:the_nether"}, {"DIM1", "minecraft:the_end"}};
+        for (String[] d : dims) {
+            Path dim = d[0].isEmpty() ? out : out.resolve(d[0]);
+            ResourceKey<Level> key = ResourceKey.create(Registries.DIMENSION, Identifier.parse(d[1]));
+            String generator = generators.get(d[1]);
+            CompoundTag context = ChunkMap.getChunkDataFixContextTag(
+                key, Optional.ofNullable(generator).map(g -> ResourceKey.create(Registries.CHUNK_GENERATOR, Identifier.parse(g))));
+            upgradeRegions(dim.resolve("region"), key, "chunk", DataFixTypes.CHUNK, -1, context, current);
+            upgradeRegions(dim.resolve("entities"), key, "entities", DataFixTypes.ENTITY_CHUNK, -1, null, current);
+            upgradeRegions(dim.resolve("poi"), key, "poi", DataFixTypes.POI_CHUNK, 1945, null, current);
+            upgradeSavedData(dim.resolve("data"), current);
+        }
         Path dimensions = out.resolve("dimensions");
         if (Files.isDirectory(dimensions)) {
-            List<Path> dims;
+            List<Path> customDims;
             try (Stream<Path> s = Files.walk(dimensions, 2)) {
-                dims = s.filter(p -> dimensions.relativize(p).getNameCount() == 2).sorted().toList();
+                customDims = s.filter(p -> dimensions.relativize(p).getNameCount() == 2).sorted().toList();
             }
-            for (Path dim : dims) {
+            for (Path dim : customDims) {
                 String id = dim.getParent().getFileName() + ":" + dim.getFileName();
                 ResourceKey<Level> key = ResourceKey.create(Registries.DIMENSION, Identifier.parse(id));
                 String generator = generators.get(id);
                 CompoundTag context = ChunkMap.getChunkDataFixContextTag(
-                    key, Optional.ofNullable(generator).map(Identifier::parse));
+                    key, Optional.ofNullable(generator).map(g -> ResourceKey.create(Registries.CHUNK_GENERATOR, Identifier.parse(g))));
                 upgradeRegions(dim.resolve("region"), key, "chunk", DataFixTypes.CHUNK, -1, context, current);
                 upgradeRegions(dim.resolve("entities"), key, "entities", DataFixTypes.ENTITY_CHUNK, -1, null, current);
                 upgradeRegions(dim.resolve("poi"), key, "poi", DataFixTypes.POI_CHUNK, 1945, null, current);
                 upgradeSavedData(dim.resolve("data"), current);
             }
         }
-        upgradeSavedData(out.resolve("data"), current);
-        for (Path file : list(out.resolve("players/data"), ".dat")) {
+        for (Path file : list(out.resolve("playerdata"), ".dat")) {
             CompoundTag tag = NbtIo.readCompressed(file, NbtAccounter.unlimitedHeap());
             tag = DataFixTypes.PLAYER.updateToCurrentVersion(fixer, tag, NbtUtils.getDataVersion(tag));
             NbtIo.writeCompressed(NbtUtils.addDataVersion(tag, current), file);
         }
-        for (Path file : list(out.resolve("players/advancements"), ".json")) {
+        for (Path file : list(out.resolve("advancements"), ".json")) {
             // PlayerAdvancements: DataFixTypes.ADVANCEMENTS.wrapCodec, default version 1343.
             JsonElement json = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8));
             var dynamic = new Dynamic<>(JsonOps.INSTANCE, json);
@@ -107,7 +135,7 @@ public final class VanillaDataFixOracle {
             fixed = fixed.set("DataVersion", fixed.createInt(current));
             Files.writeString(file, GSON.toJson(fixed.getValue()), StandardCharsets.UTF_8);
         }
-        for (Path file : list(out.resolve("players/stats"), ".json")) {
+        for (Path file : list(out.resolve("stats"), ".json")) {
             // ServerStatsCounter.parse: the version field stays in the data.
             JsonElement json = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8));
             var dynamic = new Dynamic<>(JsonOps.INSTANCE, json);
@@ -120,21 +148,13 @@ public final class VanillaDataFixOracle {
 
     /**
      * The data fixes up to a target DataVersion on a world in the layout of before
-     * 1.16, without the file fixes: lets the fixes of a range of versions be checked
-     * on their own, whatever the later fixes do to the same data.
+     * 1.16: lets the fixes of a range of versions be checked on their own, whatever
+     * the later fixes do to the same data. 1.21.11 has no file fixes, so there is
+     * no file-fix step here (pre-1.16 structure files stay in place; vanilla
+     * reads them lazily through LegacyStructureDataHandler).
      */
     private static void band(Path out, int target) throws Exception {
         var fixer = DataFixers.getDataFixer();
-        // The file fixes of the range (1493, LegacyStructureFileFix), as FileFixerUpper runs them
-        // (in place; the copy-on-write view and the level.dat rewrite are not what is checked).
-        var fileFixes = FileFixerUpper.class.getDeclaredField("fileFixes");
-        fileFixes.setAccessible(true);
-        for (Object o : (List<?>) fileFixes.get(DataFixers.getFileFixer())) {
-            FileFix fileFix = (FileFix) o;
-            if (fileFix.getVersion() <= target) {
-                fileFix.runFixOperations(out, new UpgradeProgress());
-            }
-        }
         Path levelFile = out.resolve("level.dat");
         if (Files.exists(levelFile)) {
             CompoundTag root = NbtIo.readCompressed(levelFile, NbtAccounter.unlimitedHeap());
@@ -186,15 +206,15 @@ public final class VanillaDataFixOracle {
         }
     }
 
-    /** Chunk generator type per dimension, from the saved world generation settings. */
+    /** Chunk generator type per dimension, from the saved world generation settings in level.dat. */
     private static Map<String, String> generators(Path world) throws Exception {
         Map<String, String> out = new HashMap<>();
-        Path file = world.resolve("data/minecraft/world_gen_settings.dat");
+        Path file = world.resolve("level.dat");
         if (!Files.exists(file)) {
             return out;
         }
         CompoundTag tag = NbtIo.readCompressed(file, NbtAccounter.unlimitedHeap());
-        CompoundTag dims = tag.getCompoundOrEmpty("data").getCompoundOrEmpty("dimensions");
+        CompoundTag dims = tag.getCompoundOrEmpty("Data").getCompoundOrEmpty("WorldGenSettings").getCompoundOrEmpty("dimensions");
         for (String dim : dims.keySet()) {
             dims.getCompoundOrEmpty(dim).getCompoundOrEmpty("generator").getString("type").ifPresent(t -> out.put(dim, t));
         }
@@ -277,7 +297,11 @@ public final class VanillaDataFixOracle {
         }
     }
 
-    /** The SavedDataType registered for a file below data/ (namespace/path.dat). */
+    /** The SavedDataType registered for a file below data/ (namespace/path.dat).
+     * Only the types 1.21.11's DataFixTypes defines: the other saved-data files
+     * (custom boss events, game rules, dragon fight, wandering trader, weather,
+     * scheduled events, world gen settings, world clocks) are read through their
+     * codecs with no data fix in 1.21.11, so they are left untouched. */
     static DataFixTypes savedDataType(String rel) {
         String name = rel.endsWith(".dat") ? rel.substring(0, rel.length() - 4) : rel;
         if (name.endsWith("/command_storage")) {
@@ -287,21 +311,13 @@ public final class VanillaDataFixOracle {
             return DataFixTypes.SAVED_DATA_MAP_DATA;
         }
         return switch (name) {
-            case "minecraft/custom_boss_events" -> DataFixTypes.SAVED_DATA_CUSTOM_BOSS_EVENTS;
             case "minecraft/scoreboard" -> DataFixTypes.SAVED_DATA_SCOREBOARD;
             case "minecraft/chunk_tickets" -> DataFixTypes.SAVED_DATA_FORCED_CHUNKS;
             case "minecraft/world_border" -> DataFixTypes.SAVED_DATA_WORLD_BORDER;
-            case "minecraft/game_rules" -> DataFixTypes.SAVED_DATA_GAME_RULES;
-            case "minecraft/ender_dragon_fight" -> DataFixTypes.SAVED_DATA_ENDER_DRAGON_FIGHT;
-            case "minecraft/wandering_trader" -> DataFixTypes.SAVED_DATA_WANDERING_TRADER;
             case "minecraft/maps/last_id" -> DataFixTypes.SAVED_DATA_MAP_INDEX;
-            case "minecraft/weather" -> DataFixTypes.SAVED_DATA_WEATHER;
-            case "minecraft/scheduled_events" -> DataFixTypes.SAVED_DATA_SCHEDULED_EVENTS;
-            case "minecraft/world_gen_settings" -> DataFixTypes.SAVED_DATA_WORLD_GEN_SETTINGS;
             case "minecraft/random_sequences" -> DataFixTypes.SAVED_DATA_RANDOM_SEQUENCES;
             case "minecraft/stopwatches" -> DataFixTypes.SAVED_DATA_STOPWATCHES;
             case "minecraft/raids" -> DataFixTypes.SAVED_DATA_RAIDS;
-            case "minecraft/world_clocks" -> DataFixTypes.SAVED_DATA_WORLD_CLOCKS;
             default -> null;
         };
     }

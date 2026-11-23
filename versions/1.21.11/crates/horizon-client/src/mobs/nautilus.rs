@@ -90,6 +90,12 @@ pub fn is_food(m: &Mob, item: &str, taming: &[String]) -> bool {
         m.kind.food.iter().any(|t| t == item)
     }
 }
+/// `AbstractNautilus.mobInteract`'s feed heal from the fed item's FOOD
+/// nutrition: twice the nutrition, 1.0 without a FOOD component (a fish
+/// bucket has none).
+pub fn feed_heal(nutrition: Option<u32>) -> f32 {
+    nutrition.map_or(1.0, |n| n as f32 * 2.0)
+}
 /// The ambient, hurt and death sounds by age and whether it is under water.
 pub fn sounds(m: &Mob) -> [&'static str; 3] {
     let under = m.fluids.eye_in_water;
@@ -340,7 +346,7 @@ pub fn ai_step(
         m.ai.target = find_target(m, w, level_random);
     }
 }
-/// `MemorySlot.tick`: expire before decrementing a finite saved lifetime.
+/// `Brain.forgetOutdatedMemories`: expire before decrementing a finite saved lifetime.
 /// The existing NoAI gate controls this class step; this does not replace
 /// the legacy integer attack counter or its selection policy.
 fn tick_attack_memory(m: &mut Mob) {
@@ -739,6 +745,16 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn feeding_heals_twice_the_nutrition_or_one_for_a_bucket() {
+        // Cod (2) heals 4, cooked salmon (6) heals 12, pufferfish (1)
+        // heals 2 — and a fish bucket, with no FOOD component, heals 1.
+        assert_eq!(feed_heal(Some(2)), 4.0);
+        assert_eq!(feed_heal(Some(6)), 12.0);
+        assert_eq!(feed_heal(Some(1)), 2.0);
+        assert_eq!(feed_heal(None), 1.0);
     }
 
     /// `ChargeAttack.dealKnockBack` is `causeExtraKnockback`: `LivingEntity.knockback`

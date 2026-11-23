@@ -90,8 +90,8 @@ pub struct Conditions<'a, 'b> {
     /// The biome's attributes at the position: the noise biome, or the block's biome for
     /// attributes with full-resolution biomes.
     pub biome: &'b dyn Fn(bool) -> Option<&'a AttributeMap>,
-    /// `ClockManager.getInstance(clock).totalTicks()` for a `WorldClock` id.
-    pub clock: &'b dyn Fn(&str) -> i64,
+    /// `Level.getDayTime()`: the day time the timeline tracks sample at.
+    pub day_time: i64,
     /// A second biome group that applies after the weather (resource packs' biome
     /// `post_process` layers): its mix and the map at the position, as for the biome layer.
     pub post_blend: Option<&'b BiomeBlend<'a>>,
@@ -105,7 +105,6 @@ enum Layer {
     BiomePost,
     Track {
         sampler: TrackSampler,
-        clock: String,
     },
     Weather {
         rain: Option<Entry>,
@@ -156,17 +155,11 @@ impl Builder {
     }
 
     /// `EnvironmentAttributeSystem.Builder.addTimelineLayer`: a time-based layer per track
-    /// (`Timeline.createTrackSampler`), reading the timeline's clock.
+    /// (`Timeline.createTrackSampler`), sampled at the level's day time.
     pub fn timeline_layer(&mut self, timeline: &Timeline) -> &mut Self {
         for track in &timeline.tracks {
             let sampler = track.sampler(timeline.period);
-            self.push(
-                track.attribute,
-                Layer::Track {
-                    sampler,
-                    clock: timeline.clock.clone(),
-                },
-            );
+            self.push(track.attribute, Layer::Track { sampler });
         }
         self
     }
@@ -279,9 +272,7 @@ impl Sampler {
         for layer in &self.layers {
             result = match layer {
                 Layer::Constant(entry) => entry.apply(&result),
-                Layer::Track { sampler, clock } => {
-                    sampler.apply(&result, (conditions.clock)(clock))
-                }
+                Layer::Track { sampler } => sampler.apply(&result, conditions.day_time),
                 Layer::Biome if !positional => result,
                 // `addBiomeLayerForAttribute`'s positional layer.
                 Layer::Biome => match conditions.blend {

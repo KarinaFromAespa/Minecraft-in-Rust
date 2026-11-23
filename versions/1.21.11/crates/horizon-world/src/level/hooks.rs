@@ -190,6 +190,16 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                         self.schedule_tick(pos, block, 8);
                     }
                 }
+                Class::Magma => {
+                    // MagmaBlock.onPlace schedules the bubble-column check
+                    // (BUBBLE_COLUMN_CHECK_DELAY, 20 ticks).
+                    self.schedule_tick(pos, block, 20);
+                }
+                Class::SoulSand => {
+                    // SoulSandBlock.onPlace schedules the bubble-column check
+                    // (BUBBLE_COLUMN_CHECK_DELAY, 20 ticks).
+                    self.schedule_tick(pos, block, 20);
+                }
                 Class::Liquid => self.liquid_block_changed(pos, state),
                 Class::PistonBase => {
                     if !same && self.moving_piston(pos).is_none() {
@@ -456,7 +466,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 self.level_event(2001, bottom, bottom_state.0 as i32);
             }
         }
-        if creative && data.is(Class::AbstractBed) && b.table.text(state, p.part) == "foot" {
+        if creative && (data.is(Class::AbstractBed) || data.is(Class::Bed)) && b.table.text(state, p.part) == "foot" {
             let head_pos = rel(pos, b.facing(state));
             let head = self.state(head_pos);
             if b.is_block(head, b.block(state)) && b.table.text(head, p.part) == "head" {
@@ -570,7 +580,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
     }
 
-    /// `LilyPadBlock.entityInside` for a boat: the lily pad at `pos` is
+    /// `WaterlilyBlock.entityInside` for a boat: the lily pad at `pos` is
     /// destroyed with its drops (`Level.destroyBlock(pos, true, entity)`).
     pub(crate) fn boat_inside(&mut self, pos: BlockPos) {
         let b = self.b;

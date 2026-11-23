@@ -144,8 +144,6 @@ particle_types! {
     RedPoplarLeaves = "red_poplar_leaves",
     OrangePoplarLeaves = "orange_poplar_leaves",
     YellowPoplarLeaves = "yellow_poplar_leaves",
-    PauseMobGrowth = "pause_mob_growth",
-    ResetMobGrowth = "reset_mob_growth",
     BlockMarker = "block_marker",
 }
 impl ParticleType {
@@ -209,6 +207,9 @@ impl ParticleType {
             // VibrationSignalParticle, FireflyParticle, OverlayParticle.
             | Self::SculkCharge | Self::SculkChargePop | Self::Shriek
             | Self::Vibration | Self::Firefly | Self::Flash
+            // GlowParticle and all its providers (Glow, WaxOn, WaxOff,
+            // ElectricSpark, Scrape): TRANSLUCENT in 1.21.11, OPAQUE in 26.x.
+            | Self::Glow | Self::WaxOn | Self::WaxOff | Self::ElectricSpark | Self::Scrape
             // SimpleAnimatedParticle and its subclasses: EndRodParticle,
             // SparkParticle (firework), SquidInkParticle, TotemParticle.
             | Self::EndRod | Self::Firework | Self::SquidInk | Self::GlowSquidInk

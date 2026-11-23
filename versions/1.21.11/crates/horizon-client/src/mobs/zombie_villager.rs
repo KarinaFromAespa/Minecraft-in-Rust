@@ -153,13 +153,9 @@ pub fn constructor_profession(m: &Mob) -> u8 {
     );
     fresh.next_int_bound(15).unwrap_or(0) as u8
 }
-/// The saved fields: the finalized flag, the cure and the gossip.
+/// The saved fields: the cure and the gossip. (1.21.11 has no
+/// `VillagerDataFinalized`: the finalize gate is the spawn reason.)
 pub fn write_nbt(m: &Mob, map: &mut Compound) {
-    let finalized = villager::ext(m).is_some_and(|e| e.data_finalized);
-    map.insert(
-        "VillagerDataFinalized".into(),
-        Tag::Byte(i8::from(finalized)),
-    );
     put_cure(map, cure(m).copied());
     if let Some(e) = villager::ext(m)
         && !e.gossips.is_empty()
@@ -167,18 +163,15 @@ pub fn write_nbt(m: &Mob, map: &mut Compound) {
         map.insert("Gossips".into(), e.gossips.to_nbt());
     }
 }
-/// `ZombieVillager.readAdditionalSaveData`: a save with neither
-/// `VillagerDataFinalized` nor `VillagerData` keeps the constructor's random
-/// profession and stays unfinalized.
+/// `ZombieVillager.readAdditionalSaveData`: a save without
+/// `VillagerData` keeps the constructor's random profession.
+/// (1.21.11 has no `VillagerDataFinalized` flag to read.)
 pub fn read_nbt(m: &mut Mob, tag: &Tag) {
-    let saved = tag.get("VillagerData").is_some();
-    let finalized = saved || crate::entity_nbt::flag(tag, "VillagerDataFinalized");
-    if !saved {
+    if tag.get("VillagerData").is_none() {
         m.extra.variant2 = constructor_profession(m);
     }
     let cure = parse_cure(tag);
     let e = villager::ext_mut(m);
-    e.data_finalized = finalized;
     e.cure = cure;
     e.gossips = tag
         .get("Gossips")
@@ -211,6 +204,22 @@ mod tests {
         let mut map = Compound::new();
         put_cure(&mut map, Some(cure));
         assert_eq!(parse_cure(&Tag::Compound(map)), Some(cure));
+    }
+    /// 1.21.11 drops `VillagerDataFinalized`: a zombie villager no
+    /// longer writes it (the finalize gate is the spawn reason),
+    /// and a save that still carries it is read as if it were not
+    /// there — without `VillagerData` the constructor's random
+    /// profession stands.
+    #[test]
+    fn a_zombie_villager_save_has_no_finalized_flag() {
+        let m = zombie_villager();
+        let mut map = Compound::new();
+        write_nbt(&m, &mut map);
+        assert!(Tag::Compound(map).get("VillagerDataFinalized").is_none());
+        let mut m = zombie_villager();
+        let tag = Tag::compound([("VillagerDataFinalized", Tag::Byte(1))]);
+        read_nbt(&mut m, &tag);
+        assert_eq!(m.extra.variant2, constructor_profession(&m));
     }
     /// `ZombieVillager.tick` counts the cure down before `Zombie.tick`,
     /// whatever the AI: a `NoAI` zombie villager finishes curing too (#3429).

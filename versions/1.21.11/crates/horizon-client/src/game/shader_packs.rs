@@ -443,8 +443,10 @@ impl Game<'_> {
         let info = biome.map(|b| world_biomes!(self).get(b));
         let dimension = self.remote.as_ref().map(|r| &r.dimension);
         PackInputs {
-            // `Level.getDefaultClockTime`: 0 in a dimension type with no default clock (the
-            // Nether's has none), as Iris 1.11.7 reads `worldTime` there (probe pack).
+            // The default clock (the client's internal clock model, kept
+            // 26.1-shaped: 0 in a dimension type with no default clock, the
+            // Nether's has none), as Iris 1.11.7 reads `worldTime` there
+            // (probe pack).
             day_time: if dimension.is_some_and(|d| d.default_clock.is_none()) {
                 0
             } else {

@@ -381,7 +381,7 @@ impl Layout {
         let body_w = elements.iter().map(|e| e.w).fold(0.0, f32::max);
         let content = elements.iter().map(|e| e.h).sum::<f32>()
             + 10.0 * elements.len().saturating_sub(1) as f32;
-        // ScrollableLayout: 10 each side for the scrollbar (ReserveStrategy.BOTH),
+        // ScrollableLayout: 10 each side for the scrollbar (`SCROLLBAR_RESERVE`),
         // no higher than what the header and footer leave.
         let area_w = body_w + 20.0;
         let area_h = content.min(h - BAR - footer_h).max(0.0);

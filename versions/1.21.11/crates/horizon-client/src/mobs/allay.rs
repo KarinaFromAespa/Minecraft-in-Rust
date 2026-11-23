@@ -99,7 +99,7 @@ pub struct State {
     pub inventory: Option<ItemStack>,
     pub vibration: sculk::Data,
     pub noteblock: Option<GlobalPos>,
-    /// The `LIKED_PLAYER` memory's time to live (`MemorySlot.timeToLive`);
+    /// The `LIKED_PLAYER` memory's time to live (`ExpirableValue.getTimeToLive`);
     /// None for a memory that never expires. The memory itself is
     /// `Extra::tame` and `Extra::owner`.
     pub liked_player_ttl: Option<i64>,
@@ -431,7 +431,7 @@ pub fn ai_step(m: &mut Mob) {
     update_duplication_cooldown(m);
     animate(m);
 }
-/// `MemorySlot.tick` for `LIKED_PLAYER` in the Allay's brain tick
+/// `ExpirableValue.tick` for `LIKED_PLAYER` in the Allay's brain tick
 /// (`customServerAiStep`, which `NoAI` skips): a memory with a time to live
 /// counts down, and is cleared on the tick after it reaches 0.
 fn tick_liked_player(m: &mut Mob) {

@@ -656,8 +656,9 @@ impl TrialSpawnerExt for TrialSpawner {
         events: &mut Vec<TrialEvent>,
     ) -> bool {
         self.next_or_create(random, events).id().is_some()
-            // WeightedList.isEmpty: a total weight of 0.
-            || self.active_config().spawn_potentials.iter().any(|(_, w)| *w > 0)
+            // WeightedList.isEmpty in 1.21.11: no entries at all (26.1
+            // counted a total weight of 0 as empty).
+            || !self.active_config().spawn_potentials.is_empty()
     }
     fn can_spawn_in_level<L: TrialSpawnerLevel>(l: &L) -> bool {
         l.spawner_blocks_work() && !l.peaceful() && l.mob_spawning()
@@ -764,14 +765,9 @@ impl TrialSpawnerExt for TrialSpawner {
                 events.push(TrialEvent::Discard(uuid));
             }
         }
-        // WeightedList.isEmpty: a total weight of 0.
-        if self
-            .ominous
-            .config
-            .spawn_potentials
-            .iter()
-            .any(|(_, w)| *w > 0)
-        {
+        // WeightedList.isEmpty in 1.21.11: no entries at all (26.1 counted
+        // a total weight of 0 as empty).
+        if !self.ominous.config.spawn_potentials.is_empty() {
             self.next_spawn_data = None;
         }
         self.total_mobs_spawned = 0;

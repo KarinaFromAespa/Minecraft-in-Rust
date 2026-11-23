@@ -582,7 +582,7 @@ impl Title {
         o: &WorldOptions,
     ) {
         let (w, h) = (batch.width.ceil(), batch.height.ceil());
-        // extractMenuBackground: the tab header strip, the menu background under it.
+        // renderMenuBackground: the tab header strip, the menu background under it.
         ui::tiled(
             batch,
             atlas,

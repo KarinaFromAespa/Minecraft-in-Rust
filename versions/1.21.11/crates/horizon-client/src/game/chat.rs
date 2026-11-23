@@ -6,14 +6,14 @@ mod suggestion_completion_tests;
 use super::{Game, Screen};
 use horizon_client::{
     chat::{
-        Chat, ChatAbilities, ChatAction, ChatScreen, ChatSource, ChatVisibility, Commands,
+        Chat, ChatAction, ChatScreen, ChatSource, ChatVisibility, Commands,
         SYSTEM_INDICATOR, normalize_chat_message,
     },
     command::{ArgType, Dispatcher, MOD_COMMAND, Registries},
     gamerules::GameRules,
     hud::HudBatch,
     screen_draw::Measure,
-    text::{ClickEvent, Style, Text},
+    text::{self, ClickEvent, Style, Text},
 };
 use horizon_world::registry::{BlockRegistry, BlockStateId};
 use std::{
@@ -179,30 +179,6 @@ impl Default for WorldClock {
         }
     }
 }
-/// A clock time marker from the timelines (ClockTimeMarker).
-#[derive(Clone, Copy, Debug)]
-pub struct TimeMarker {
-    pub ticks: i64,
-    pub period: Option<i64>,
-    pub show: bool,
-}
-impl TimeMarker {
-    pub fn occurs_at(&self, total: i64) -> bool {
-        match self.period {
-            Some(p) => self.ticks == total.rem_euclid(p),
-            None => self.ticks == total,
-        }
-    }
-    pub fn resolve(&self, total: i64) -> i64 {
-        match self.period {
-            Some(p) => {
-                let d = self.ticks - total.rem_euclid(p);
-                total + if d > 0 { d } else { p + d }
-            }
-            None => self.ticks,
-        }
-    }
-}
 /// `ChatComponent.Draft`: the text the chat box kept, and whether it was a command.
 pub struct ChatDraft {
     pub text: String,
@@ -241,8 +217,7 @@ pub struct UiState {
     /// Command state for registered clocks other than Overworld. Overworld's
     /// canonical ticks stay in World.day_time and its state stays in clock.
     pub command_clocks: BTreeMap<String, (i64, WorldClock)>,
-    /// Time markers and timelines of the overworld clock.
-    pub markers: BTreeMap<String, TimeMarker>,
+    /// Timelines of the overworld clock.
     pub timelines: BTreeMap<String, Option<i64>>,
     /// 0 peaceful .. 3 hard.
     pub difficulty: u8,
@@ -467,9 +442,8 @@ struct ResourceIds {
     structures: Vec<String>,
     biomes: Vec<String>,
     clocks: Vec<String>,
-    /// The overworld clock's timelines, their periods and time markers.
+    /// The overworld clock's timelines and their periods.
     timelines: Vec<(String, Option<i64>)>,
-    markers: Vec<(String, TimeMarker)>,
 }
 static RESOURCE_IDS: Mutex<Vec<(PathBuf, Arc<ResourceIds>)>> = Mutex::new(Vec::new());
 
@@ -490,11 +464,11 @@ fn json_ids_in(dir: &Path) -> Vec<String> {
     out
 }
 
-/// The overworld clock's timelines (with their periods) and their time
-/// markers, read from `data/minecraft/timeline`.
-fn overworld_timelines(root: &Path) -> (Vec<(String, Option<i64>)>, Vec<(String, TimeMarker)>) {
+/// The overworld clock's timelines (with their periods), read from
+/// `data/minecraft/timeline`.
+fn overworld_timelines(root: &Path) -> Vec<(String, Option<i64>)> {
     let dir = root.join("data/minecraft/timeline");
-    let (mut timelines, mut markers) = (Vec::new(), Vec::new());
+    let mut timelines = Vec::new();
     for name in json_ids_in(&dir) {
         let path = dir.join(format!("{}.json", name.trim_start_matches("minecraft:")));
         let Ok(v) =
@@ -505,27 +479,9 @@ fn overworld_timelines(root: &Path) -> (Vec<(String, Option<i64>)>, Vec<(String,
         if v["clock"].as_str() != Some("minecraft:overworld") {
             continue;
         }
-        let period = v["period_ticks"].as_i64();
-        timelines.push((name.clone(), period));
-        for (marker, def) in v["time_markers"].as_object().into_iter().flatten() {
-            let (ticks, show) = match def {
-                serde_json::Value::Number(n) => (n.as_i64().unwrap_or(0), false),
-                other => (
-                    other["ticks"].as_i64().unwrap_or(0),
-                    other["show_in_commands"].as_bool().unwrap_or(false),
-                ),
-            };
-            markers.push((
-                marker.clone(),
-                TimeMarker {
-                    ticks,
-                    period,
-                    show,
-                },
-            ));
-        }
+        timelines.push((name.clone(), v["period_ticks"].as_i64()));
     }
-    (timelines, markers)
+    timelines
 }
 
 fn resource_ids(root: &Path) -> Arc<ResourceIds> {
@@ -547,7 +503,7 @@ fn resource_ids(root: &Path) -> Arc<ResourceIds> {
     })
     .unwrap_or_default();
     entity_types.sort();
-    let (timelines, markers) = overworld_timelines(root);
+    let timelines = overworld_timelines(root);
     let ids = Arc::new(ResourceIds {
         // `/recipe <id>` must suggest a content mod's recipes too.
         recipes: json_ids_of_every_namespace(root, "recipe"),
@@ -558,7 +514,6 @@ fn resource_ids(root: &Path) -> Arc<ResourceIds> {
         biomes: json_ids_in(&data.join("worldgen/biome")),
         clocks: json_ids_in(&data.join("world_clock")),
         timelines,
-        markers,
     });
     cache.push((root.to_owned(), ids.clone()));
     ids
@@ -946,9 +901,8 @@ impl Game<'_> {
             "minecraft:the_end".into(),
         ];
         reg.players = vec![PLAYER_NAME.into()];
-        // Timelines of the overworld clock and their time markers.
+        // Timelines of the overworld clock.
         self.ui.timelines = ids.timelines.iter().cloned().collect();
-        self.ui.markers = ids.markers.iter().cloned().collect();
         // Vanilla's built-in registries (mob effects, components, dialogs...).
         for dir in [&self.options.resources, &self.ui.vanilla_root] {
             if let Some(export) = command_export(dir, self.options.dedicated.is_none()) {
@@ -958,13 +912,6 @@ impl Game<'_> {
         }
         let reg = &mut self.ui.registries;
         reg.timelines = self.ui.timelines.keys().cloned().collect();
-        reg.time_markers = self
-            .ui
-            .markers
-            .iter()
-            .filter(|(_, m)| m.show)
-            .map(|(k, _)| k.clone())
-            .collect();
         self.sync_enchantment_registries();
         // After the export, which keys the registry with vanilla's tags.
         self.ui.registries.sync_damage_type_ids();
@@ -990,12 +937,24 @@ impl Game<'_> {
         }
         self.ui.registries.custom_completions = self.remote_custom_completions();
     }
-    /// `ChatComponent.createScreen`: T or / opens the chat with the draft kept
+    /// `Minecraft.openChatScreen`: T or / opens the chat with the draft kept
     /// last time, when this method can restore it (a command draft only for
-    /// /), else with its prefix.
+    /// /), else with its prefix — unless the Chat option hides the chat
+    /// (`ChatStatus.DISABLED_BY_OPTIONS`), in which case the red
+    /// `chat.disabled.options` overlay shows instead and the screen stays
+    /// closed. (The launcher and profile statuses need inputs this client
+    /// does not have, so they never arise here.)
     pub(super) fn open_chat_method(&mut self, prefix: &str) {
         // handleKeybinds: the number keys select before key.chat and key.command.
         self.select_queued_hotbar();
+        if ChatVisibility::from_option(self.settings.chat_visibility) == ChatVisibility::Hidden
+        {
+            let message =
+                Text::translate("chat.disabled.options", &[]).with_color(text::RED);
+            self.send_overlay_message(message.clone());
+            self.say_system_now(&message);
+            return;
+        }
         let command = prefix == "/";
         let draft = self
             .ui
@@ -1033,7 +992,6 @@ impl Game<'_> {
             self.ui.chat.recent.len(),
             b.width as i32,
             b.height as i32,
-            self.chat_abilities(),
         );
         screen.auto_suggestions = self.settings.auto_suggestions;
         self.ui.chat_screen = Some(screen);
@@ -1201,11 +1159,14 @@ impl Game<'_> {
         );
         button
     }
-    /// `Minecraft.computeChatAbilities` from the Chat option.
-    pub(super) fn chat_abilities(&self) -> ChatAbilities {
-        ChatAbilities::new(ChatVisibility::from_option(self.settings.chat_visibility))
+    /// The Chat option's visibility. 1.21.11 has no visibility filter at
+    /// add time: every accepted message joins the chat, and the visibility
+    /// only gates the draw (Hidden draws nothing, `isChatHidden`).
+    pub(super) fn chat_visibility(&self) -> ChatVisibility {
+        ChatVisibility::from_option(self.settings.chat_visibility)
     }
-    /// A chat message from the game (ChatComponent.addServerSystemMessage).
+    /// A chat message from the game (`ChatComponent.addMessage`, tagged
+    /// system or system-single-player by `isSingleplayer`).
     pub(super) fn system_message(&mut self, text: Text) {
         if let Some(capture) = self.chat_capture.as_mut() {
             capture.push(text);
@@ -1217,14 +1178,14 @@ impl Game<'_> {
             self.chat_line(text, ChatSource::Server);
             return;
         }
-        // The Chat option's Hidden level takes the server's messages too.
+        // The Chat option's Hidden level only stops the draw; the message
+        // itself is added and logged like any other.
         self.local_chat_line(text, Some(SYSTEM_INDICATOR), ChatSource::Server);
     }
     /// A player's chat line on the window's own chat: a guest's message on
-    /// the server's own chat (`HostEvent::Chat`). `ChatListener`
-    /// checks `canReceivePlayerMessages` for these, so Commands Only and
-    /// Hidden drop them; command feedback (`/list`, `/tp`) is a system
-    /// message and takes the system-message permission instead.
+    /// the server's own chat (`HostEvent::Chat`). 1.21.11 adds it whatever
+    /// the Chat option says — there is no `canReceivePlayerMessages` gate
+    /// left; command feedback (`/list`, `/tp`) is a system message.
     pub(super) fn player_message(&mut self, text: Text) {
         if let Some(capture) = self.chat_capture.as_mut() {
             capture.push(text);
@@ -1239,9 +1200,6 @@ impl Game<'_> {
     /// A line on the window's own chat when the Chat option lets `source`
     /// through.
     fn local_chat_line(&mut self, text: Text, indicator: Option<u32>, source: ChatSource) {
-        if !self.ui.chat.shows(source) {
-            return;
-        }
         let focused = self.screen == Screen::Chat;
         self.ui.chat.add(
             &self.gui.atlas,
@@ -1321,8 +1279,10 @@ impl Game<'_> {
                 self.close_chat(ChatExit::Intentional);
             }
             ChatAction::Submit(message) => {
-                // InBedChatScreen sends without closing (`closeOnSubmit` is
-                // false): the box empties and the screen stays.
+                // InBedChatScreen sends without closing: 1.21.11's
+                // `InBedChatScreen.keyPressed` handles Enter itself
+                // (`handleChatInput`, clear the box, reset the scroll)
+                // and never reaches ChatScreen's always-close submit.
                 if self.ui.in_bed_chat && self.sleeping.is_some() {
                     screen.suggest_command(&m, &c, "");
                     self.ui.chat.reset_scroll();
@@ -1395,11 +1355,11 @@ impl Game<'_> {
     /// ChatScreen.handleChatInput: the message comes in normalized
     /// (`normalizeChatMessage`: trimmed, whitespace runs collapsed, cut to the
     /// 256 UTF-16 units the packet holds), into history, then as a command or
-    /// a chat line. The Chat option's restrictions stop the message here too,
-    /// so a control-socket `chat` cannot send what the player's setting hides.
+    /// a chat line. 1.21.11 sends whatever is typed once the screen is open —
+    /// the Chat option gates opening the screen, not sending.
     pub(super) fn handle_chat_input(&mut self, message: &str) {
         let message = normalize_chat_message(message);
-        if message.is_empty() || !self.chat_abilities().allows(&message) {
+        if message.is_empty() {
             return;
         }
         self.ui.chat.add_recent(&message);
@@ -1732,16 +1692,11 @@ impl Game<'_> {
         let Some(mut screen) = self.ui.chat_screen.take() else {
             return;
         };
-        // ChatScreen.updateNarrationState: the restricted prompt is
-        // `displayMode.showRestrictedPrompt`, the abilities' restrictions.
+        // ChatScreen.updateNarrationState: its title, how to send, and the
+        // message typed so far one level in.
         let in_bed = self.ui.in_bed_chat && self.sleeping.is_some();
         horizon_client::widgets::begin_screen(|| {
-            super::screen_info::chat(
-                in_bed,
-                screen.value(),
-                screen.abilities.any_restriction(),
-                &super::screen_info::tr,
-            )
+            super::screen_info::chat(in_bed, screen.value(), &super::screen_info::tr)
         });
         let m = Measure(&self.gui.atlas.font);
         let c = Commands {
@@ -1888,8 +1843,11 @@ impl Game<'_> {
             GameRules::load_with_features(&self.world_root, &self.level.enabled_features);
         self.ui.clock = WorldClock::default();
         self.ui.command_clocks.clear();
-        // PrimaryLevelData: the difficulty comes back from level.dat's difficulty_settings.
+        // PrimaryLevelData: the difficulty comes back from level.dat's flat `Difficulty`.
         self.ui.difficulty = self.level.difficulty_id();
+        // Horizon's own command-clock file: 1.21.11 has no `world_clocks.dat`, and vanilla
+        // ignores a saved-data file it never asks for, so the rate/partial/pause state
+        // keeps living here.
         if let Ok(bytes) = std::fs::read(self.world_root.join("data/minecraft/world_clocks.dat"))
             && let Ok(raw) = horizon_world::compression::Compression::Gzip.decode(&bytes, 1 << 20)
             && let Ok((root, _)) =
@@ -1916,9 +1874,9 @@ impl Game<'_> {
         self.snapshot_test_defs();
         self.sync_rules();
     }
-    /// Save the clock beside level.dat (Level.write saves the game rules: a
-    /// second writer of game_rules.dat could leave it with the rules loaded
-    /// when the world opened).
+    /// Save the clock beside level.dat (Level.write saves the game rules into
+    /// level.dat: a second writer could leave them with the rules loaded when
+    /// the world opened).
     pub(super) fn save_world_state(&mut self) {
         if self.world_root.as_os_str().is_empty() {
             return;
@@ -2139,39 +2097,26 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
-    /// Only the overworld clock's timelines count; a marker is a bare tick
-    /// count (hidden from commands) or an object that may show itself.
+    /// Only the overworld clock's timelines count.
     #[test]
-    fn overworld_timelines_and_markers() {
+    fn overworld_timelines_skip_other_clocks() {
         let root = std::env::temp_dir().join(format!("horizon-timelines-{}", std::process::id()));
         let dir = root.join("data/minecraft/timeline");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(
             dir.join("day.json"),
-            r#"{"clock":"minecraft:overworld","period_ticks":24000,
-                "time_markers":{"minecraft:noon":6000,
-                "minecraft:night":{"ticks":13000,"show_in_commands":true}}}"#,
+            r#"{"clock":"minecraft:overworld","period_ticks":24000}"#,
         )
         .unwrap();
         std::fs::write(
             dir.join("other.json"),
-            r#"{"clock":"minecraft:the_end","time_markers":{"minecraft:x":1}}"#,
+            r#"{"clock":"minecraft:the_end","period_ticks":1}"#,
         )
         .unwrap();
         std::fs::write(dir.join("broken.json"), "{").unwrap();
-        let (timelines, markers) = overworld_timelines(&root);
-        assert_eq!(timelines, [("minecraft:day".to_owned(), Some(24000))]);
-        let mut markers: Vec<_> = markers
-            .iter()
-            .map(|(name, m)| (name.as_str(), m.ticks, m.period, m.show))
-            .collect();
-        markers.sort();
         assert_eq!(
-            markers,
-            [
-                ("minecraft:night", 13000, Some(24000), true),
-                ("minecraft:noon", 6000, Some(24000), false),
-            ]
+            overworld_timelines(&root),
+            [("minecraft:day".to_owned(), Some(24000))]
         );
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -2460,7 +2405,6 @@ mod tests {
             0,
             width as i32,
             height as i32,
-            ChatAbilities::new(ChatVisibility::Full),
         );
         screen.draw(&m, (0, 0), 0, 0);
         Game::leave_bed_draws(&m, (0, 0), width, height);

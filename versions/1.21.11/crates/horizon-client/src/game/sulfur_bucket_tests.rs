@@ -174,15 +174,14 @@ fn field(tag: &Option<Tag>, key: &str) -> Option<Tag> {
 }
 
 /// Added controls (after the baseline): `saveToBucketTag` writes the live
-/// cube's age, age lock and body, and nothing for a cube with no body; a
+/// cube's age and body, and nothing for a cube with no body; a
 /// cod's bucket keeps its own data.
 #[test]
 #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-fn the_sulfur_bucket_carries_the_live_cube_s_age_lock_and_body() {
+fn the_sulfur_bucket_carries_the_live_cube_s_age_and_body() {
     let mut game = game();
     let id = mob(&mut game, "minecraft:sulfur_cube", |m| {
         m.extra.age = 1200;
-        m.extra.age_locked = true;
         m.extra.body = Some("minecraft:oak_planks".into());
         m.health = 3.0;
     });
@@ -190,31 +189,25 @@ fn the_sulfur_bucket_carries_the_live_cube_s_age_lock_and_body() {
     let bucket = filled(&game, "minecraft:sulfur_cube_bucket");
     let data = component(&bucket, "minecraft:bucket_entity_data");
     assert_eq!(field(&data, "age"), Some(Tag::Int(1200)));
-    assert_eq!(field(&data, "age_locked"), Some(Tag::Byte(1)));
     assert_eq!(field(&data, "Health"), Some(Tag::Float(3.0f32.to_bits())));
     assert_eq!(field(&data, "NoAI"), Some(Tag::Byte(1)));
     assert_eq!(
         field(&component(&bucket, "minecraft:sulfur_cube_content"), "id"),
         Some(Tag::String("minecraft:oak_planks".into()))
     );
-    // No body, no content; an unlocked adult.
+    // No body, no content; an adult.
     let id = mob(&mut game, "minecraft:sulfur_cube", |_| {});
     assert!(click(&mut game, id, 0, "minecraft:bucket", 1).0);
     let bucket = filled(&game, "minecraft:sulfur_cube_bucket");
     let data = component(&bucket, "minecraft:bucket_entity_data");
-    assert_eq!(
-        (field(&data, "age"), field(&data, "age_locked")),
-        (Some(Tag::Int(0)), Some(Tag::Byte(0)))
-    );
+    assert_eq!(field(&data, "age"), Some(Tag::Int(0)));
+    assert_eq!(field(&data, "age_locked"), None);
     assert_eq!(component(&bucket, "minecraft:sulfur_cube_content"), None);
     // A cod's bucket has no sulfur fields.
     let id = mob(&mut game, "minecraft:cod", |_| {});
     assert!(click(&mut game, id, 0, "minecraft:water_bucket", 1).0);
     let bucket = filled(&game, "minecraft:cod_bucket");
     let data = component(&bucket, "minecraft:bucket_entity_data");
-    assert_eq!(
-        (field(&data, "age"), field(&data, "age_locked")),
-        (None, None)
-    );
+    assert_eq!(field(&data, "age"), None);
     assert_eq!(component(&bucket, "minecraft:sulfur_cube_content"), None);
 }

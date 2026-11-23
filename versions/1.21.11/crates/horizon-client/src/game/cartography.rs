@@ -76,7 +76,7 @@ impl Game<'_> {
             debug_assert_eq!(new, id, "map ids follow peek_map_id");
         }
     }
-    /// `CartographyTableScreen.extractBackground` after the background.
+    /// `CartographyTableScreen.renderBg` after the background.
     pub(super) fn draw_cartography(&mut self, batch: &mut HudBatch, ox: f32, oy: f32) {
         let Some((map, extra)) = self
             .station
@@ -144,7 +144,7 @@ impl Game<'_> {
     }
 }
 impl Game<'_> {
-    /// `GuiGraphicsExtractor.map`: map `id`'s decorations over its image at
+    /// `GuiGraphics.submitMapRenderState`: map `id`'s decorations over its image at
     /// `(x, y)` drawn `scale` GUI pixels per map pixel. Only those with
     /// `renderOnFrame` (`MapDecorationType.showOnItemFrame`) are drawn: the
     /// screen's `map` skips the player arrows and the two markers.
@@ -341,7 +341,7 @@ mod tests {
 
     #[test]
     fn the_preview_skips_what_an_item_frame_skips() {
-        // GuiGraphicsExtractor.map: `if (decoration.renderOnFrame)`.
+        // GuiGraphics.submitMapRenderState: `if (decoration.renderOnFrame)`.
         assert!(!shown_on_frame("map/decorations/player"));
         assert!(!shown_on_frame("map/decorations/red_marker"));
         assert!(shown_on_frame("map/decorations/frame"));

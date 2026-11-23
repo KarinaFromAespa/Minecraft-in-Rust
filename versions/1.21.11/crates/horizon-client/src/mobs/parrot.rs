@@ -187,8 +187,8 @@ pub fn register(m: &mut Mob) {
     m.ai.nav.kind = NavKind::Flying;
     m.ai.nav.can_open_doors = false;
     m.ai.nav.can_float = true;
-    m.set_malus(PathType::FireInNeighbor, -1.0);
-    m.set_malus(PathType::Fire, -1.0);
+    m.set_malus(PathType::DangerFire, -1.0);
+    m.set_malus(PathType::DamageFire, -1.0);
     m.set_malus(PathType::Cocoa, -1.0);
     super::tame::register_parrot(m);
 }
@@ -308,7 +308,7 @@ mod tests {
         assert_eq!(m.ai.nav.kind, NavKind::Flying);
         assert!(!m.ai.nav.can_open_doors);
         assert!(m.ai.nav.can_float);
-        for t in [PathType::FireInNeighbor, PathType::Fire, PathType::Cocoa] {
+        for t in [PathType::DangerFire, PathType::DamageFire, PathType::Cocoa] {
             assert_eq!(m.malus(t), -1.0);
         }
         assert!(m.ai.goals.has("ParrotWander"));

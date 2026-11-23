@@ -35,7 +35,8 @@ impl SnowAndFreezeFeature {
                 .default_state(name)
                 .ok_or_else(|| DecodeError::Registry(format!("unknown freezing block {name}")))
         };
-        // These are the pinned registry's blocks with SnowyBlock.SNOWY.
+        // These are the pinned registry's blocks with SnowyDirtBlock.SNOWY
+        // (SnowyBlock in 26.x).
         let mut snowy = BTreeMap::new();
         for name in [
             "minecraft:grass_block",

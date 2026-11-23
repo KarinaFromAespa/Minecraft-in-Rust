@@ -5,9 +5,6 @@
 //! can compare every value with vanilla's renderer.
 use crate::worldborder::{WorldBorder, jclamp, jmax, jmin, status_color};
 
-/// `WorldBorderRenderer.RENDERING_OFFSET`.
-const OFFSET: f64 = 0.01;
-
 /// `WorldBorderRenderState`.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct BorderRenderState {
@@ -183,21 +180,19 @@ impl BorderRenderer {
         v1: f32,
         v0: f32,
     ) {
-        let border_min_x = state.min_x + OFFSET;
-        let border_max_x = state.max_x - OFFSET;
-        let border_min_z = state.min_z + OFFSET;
-        let border_max_z = state.max_z - OFFSET;
-        let min_z = jmax(f64::from(floor(camera_z - render_distance)), border_min_z);
-        let max_z = jmin(f64::from(ceil(camera_z + render_distance)), border_max_z);
+        // 1.21.11's rebuild uses the raw state bounds (no inset: there is no
+        // RENDERING_OFFSET in either version's renderer).
+        let min_z = jmax(f64::from(floor(camera_z - render_distance)), state.min_z);
+        let max_z = jmin(f64::from(ceil(camera_z + render_distance)), state.max_z);
         let u0z = (floor(min_z) & 1) as f32 * 0.5;
         let u1z = (max_z - min_z) as f32 / 2.0;
-        let min_x = jmax(f64::from(floor(camera_x - render_distance)), border_min_x);
-        let max_x = jmin(f64::from(ceil(camera_x + render_distance)), border_max_x);
+        let min_x = jmax(f64::from(floor(camera_x - render_distance)), state.min_x);
+        let max_x = jmin(f64::from(ceil(camera_x + render_distance)), state.max_x);
         let u0x = (floor(min_x) & 1) as f32 * 0.5;
         let u1x = (max_x - min_x) as f32 / 2.0;
         let (dx, dz) = ((max_x - min_x) as f32, (max_z - min_z) as f32);
-        let south = (border_max_z - min_z) as f32;
-        let east = (border_max_x - min_x) as f32;
+        let south = (state.max_z - min_z) as f32;
+        let east = (state.max_x - min_x) as f32;
         self.vertices = [
             [0.0, -h, south, u0x, v1],
             [dx, -h, south, u1x + u0x, v1],

@@ -481,13 +481,8 @@ impl Loading {
                 .fullscreen_resolution
                 .as_deref()
                 .and_then(horizon_client::window::VideoMode::read);
-            self.fullscreen.apply(
-                &window,
-                self.settings.fullscreen,
-                self.settings.file.bool("exclusiveFullscreen"),
-                preferred,
-                false,
-            );
+            self.fullscreen
+                .apply(&window, self.settings.fullscreen, preferred, false);
         }
         self.update_menu_cursor();
     }
@@ -681,6 +676,9 @@ impl Loading {
                 | Event::ListMusicTracks
                 | Event::PlayMusicTrack(..)
                 | Event::Volume(..) => {}
+                // The difficulty control never shows on the startup menu's
+                // options: there is no world and no singleplayer server.
+                Event::Difficulty(..) | Event::LockDifficulty => {}
                 Event::OpenStudioFolder => {
                     let dir = std::path::PathBuf::from("recordings");
                     let _ = std::fs::create_dir_all(&dir);

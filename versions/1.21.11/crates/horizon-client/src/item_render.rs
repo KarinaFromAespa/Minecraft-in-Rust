@@ -53,12 +53,16 @@ pub struct ItemQuad {
     pub normal: Vec3,
     pub color: u32,
     pub foil: Foil,
-    /// `MaterialInfo.lightEmission` (block light floor).
+    /// `BlockElement.lightEmission` (26.1's `BakedQuad$MaterialInfo.lightEmission`):
+    /// the block light floor.
     pub light_emission: u8,
     /// The render type culls back faces (`entitySolid`): world drawing discards them.
     pub cull_back: bool,
-    /// The quad's sprite has translucent pixels (`MaterialInfo.itemRenderType`
-    /// is a translucent sheet): drawn with the translucent entities.
+    /// The quad's sprite has translucent pixels: drawn with the translucent
+    /// entities. (1.21.11 puts every item model on `translucentItemSheet` and
+    /// block items on cutout or `translucentBlockItemSheet` by chunk layer;
+    /// the per-sprite scan is the Rust's layer decision, and opaque pixels
+    /// blend identically on either sheet.)
     pub translucent: bool,
     /// The quad's render type has an `OitPipelineSet` (`entityTranslucent`: a
     /// player head's skin): improved transparency draws it in its stages.
@@ -105,17 +109,17 @@ impl Glint {
         ]
     }
 }
-/// The glint inputs of one frame, read once: `GameRenderer.extract` snapshots
-/// `glintSpeed` and `glintStrength` into `OptionsRenderState`
-/// (`extractOptions`), and `TextureTransform.setupGlintTexturing` reads
-/// `Util.getMillis()` once per glint render-type batch, not per item.
+/// The glint inputs of one frame, read once from `Options` (`glintSpeed`,
+/// `glintStrength` — 26.1 snapshots them into `OptionsRenderState` via
+/// `GameRenderer.extractOptions`), and `TextureTransform.setupGlintTexturing`
+/// reads `Util.getMillis()` once per glint render-type batch, not per item.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct GlintFrame {
     /// `Util.getMillis()` this frame.
     pub millis: f32,
-    /// `OptionsRenderState.glintSpeed`.
+    /// `Options.glintSpeed()`.
     pub speed: f32,
-    /// `OptionsRenderState.glintStrength`.
+    /// `Options.glintStrength()`.
     pub alpha: f32,
     /// The atlas has `misc/enchanted_glint_item`.
     pub sprite: bool,
@@ -194,7 +198,7 @@ pub struct LayerRender {
     pub foil: FoilType,
     /// `applyTransform`: the display transform, then the local transform.
     pub matrix: Mat4,
-    /// `particleMaterial` (atlas sprite name).
+    /// `particleIcon` (atlas sprite name).
     pub particle: String,
     pub uses_block_light: bool,
     /// Untransformed extents (quad corners or the special model's parts).
@@ -547,7 +551,10 @@ struct FileSprites {
     permutations: Vec<PalettedPermutations>,
     cache: Mutex<HashMap<String, Option<SpriteMask>>>,
     /// Sprites with a pixel that is neither fully transparent nor opaque
-    /// (`Transparency.hasTranslucent`), filled in as sprites load.
+    /// (26.x's `Transparency.hasTranslucent` scan; 1.21.11's item models
+    /// always use the translucent sheet, so this per-sprite scan is the
+    /// Rust's layer decision — opaque pixels blend identically on either
+    /// sheet), filled in as sprites load.
     translucent: Mutex<HashMap<String, bool>>,
 }
 impl SpriteLookup for FileSprites {
@@ -989,7 +996,8 @@ impl ItemRenderer {
         self.grass.get(index).copied().unwrap_or(-65281)
     }
     /// Submit a special model renderer directly (worn skulls of
-    /// `CustomHeadLayer`, which draw the skull model, not the item).
+    /// `CustomHeadLayer`, which draw the skull model, not the item): the
+    /// caller supplies the head pose, so no item transform applies.
     #[allow(clippy::too_many_arguments)]
     pub fn submit_special(
         &self,
@@ -1001,7 +1009,7 @@ impl ItemRenderer {
         host: &dyn SpecialHost,
         sink: &mut dyn ItemSink,
     ) {
-        special::submit(self, model, argument, has_foil, pose, sprites, host, sink);
+        special::submit_worn(self, model, argument, has_foil, pose, sprites, host, sink);
     }
     /// `Item.getId` (0 when the registry report is missing).
     pub fn item_id(&self, item: &str) -> i32 {
@@ -1378,7 +1386,7 @@ mod tests {
     /// One frame's glint is read once and shared: every item drawn from the
     /// same `GlintFrame` scrolls by the same phase, and without the atlas
     /// sprite no item gets a glint (`TextureTransform.setupGlintTexturing`
-    /// once per batch, `GameRenderer.extractOptions` once per frame).
+    /// once per batch, the options read once per frame).
     #[test]
     fn a_frame_glint_is_shared_by_every_item() {
         let frame = GlintFrame {

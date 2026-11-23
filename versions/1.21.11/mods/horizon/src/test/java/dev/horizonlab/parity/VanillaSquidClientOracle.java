@@ -24,7 +24,6 @@ public final class VanillaSquidClientOracle {
         Level world; boolean water;
         Shell() { super(EntityTypes.SQUID, null); }
         @Override public Level level() { return world; }
-        @Override public boolean isAgeLocked() { return true; }
         @Override public boolean isInWater() { return water; }
         @Override protected boolean isImmobile() { return true; }
         @Override protected void applyInput() {}

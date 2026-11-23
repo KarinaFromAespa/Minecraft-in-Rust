@@ -43,10 +43,23 @@ pub const FLUID_OVERLAY: u32 = 41;
 pub const OIT_ENTITY: u32 = 1 << 24;
 /// `RenderPipelines.DRAGON_RAYS`: untextured colour, additive with depth writes.
 pub const DRAGON_RAYS_OVERLAY: u32 = 37;
-/// `RenderPipelines.ENTITY_CUTOUT_DISSOLVE` (the dying dragon): a pixel is dropped where the
-/// vertex alpha is below the mask's, whose atlas UV rides in `Vertex::glint_uv`; the rest is
-/// drawn opaque. No overlay.
+/// `RenderPipelines.ENTITY_DECAL` (the dying dragon's skin, 1.21.11's order(1)
+/// pass): a pixel is dropped where the mask's alpha is below the vertex alpha
+/// (`ARGB.white(deathTime / 200)`), the mask's atlas UV riding in
+/// `Vertex::glint_uv`; the rest is drawn opaque, lit, with fog. The mask test
+/// stands in for the decal pipeline's EQUAL depth test — the skin may only
+/// draw where the explosion pass (46) already drew. No overlay.
 pub const DISSOLVE_OVERLAY: u32 = 38;
+/// `RenderPipelines.DRAGON_EXPLOSION_ALPHA` (the dying dragon's explosion
+/// texture, 1.21.11's order(0) pass): unlit, no fog, a pixel is dropped where
+/// the texture's alpha is below the vertex alpha
+/// (`ARGB.white(deathTime / 200)`), with no 0.1 cutout after it. Drawn first;
+/// the decal pass (38/47) draws over it.
+pub const DRAGON_EXPLOSION_OVERLAY: u32 = 46;
+/// `DISSOLVE_OVERLAY` with the hurt-red overlay texel: 1.21.11's decal pass
+/// takes the hurt overlay, so the dragon flashes red for the first 10 ticks of
+/// its death (the killing blow leaves `hurt_time` set).
+pub const DISSOLVE_HURT_OVERLAY: u32 = 47;
 /// Tags quads as drawn by a render type vanilla gives an `OitPipelineSet`
 /// (`OIT_ENTITY`): improved transparency draws them in its stages.
 pub fn mark_oit(quads: &mut [Vertex]) {

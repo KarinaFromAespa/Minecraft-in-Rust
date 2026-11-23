@@ -665,6 +665,9 @@ impl Game<'_> {
             _ if super::minecarts::CartKind::from_id(&item).is_some() => {
                 self.dispense_minecart(pos, facing, stack)
             }
+            // Spawn eggs are registered behaviours (`SpawnEggItem.eggs()`,
+            // one anonymous behaviour for all of them).
+            _ if item.ends_with("_spawn_egg") => self.dispense_spawn_egg(pos, facing, stack)?,
             _ => self.dispense_default_method(pos, facing, stack)?,
         };
         if event == FAIL {
@@ -674,7 +677,7 @@ impl Game<'_> {
         self.dispenser_event(2000, pos, data_value(facing));
         Ok(left)
     }
-    /// `DispenserBlock.getDefaultDispenseMethod`: equipment, spawn eggs, or a drop.
+    /// `DispenserBlock.getDefaultDispenseMethod`: equipment or a drop.
     fn dispense_default_method(
         &mut self,
         pos: Pos,
@@ -705,14 +708,6 @@ impl Game<'_> {
                 return Ok((shrink(stack), CLICK));
             }
             return Ok((self.default_execute(pos, facing, stack), CLICK));
-        }
-        // DispenserBlock.getDefaultDispenseMethod: an egg without ENTITY_DATA drops as an item.
-        if stack.item.ends_with("_spawn_egg")
-            && stack
-                .data()
-                .is_none_or(|data| data.other("!minecraft:entity_data").is_none())
-        {
-            return self.dispense_spawn_egg(pos, facing, stack);
         }
         Ok((self.default_execute(pos, facing, stack), CLICK))
     }
@@ -1007,13 +1002,24 @@ impl Game<'_> {
         }
         self.mob_ambient(id)
     }
-    /// `SpawnEggItemBehavior.execute`: spawn the type selected by the stack's entity data.
+    /// The spawn-egg behaviour registered for every `SpawnEggItem.eggs()`
+    /// (one anonymous `DefaultDispenseItemBehavior` in 1.21.11; 26.1's
+    /// named `SpawnEggItemBehavior`): spawn the type selected by the
+    /// stack's entity data. An egg without it stays in the dispenser
+    /// (`SpawnEggItem.getType` returns null; 26.1 dropped it as an item
+    /// through the default method instead).
     fn dispense_spawn_egg(
         &mut self,
         pos: Pos,
         facing: Direction,
         stack: ItemStack,
     ) -> Result<Dispensed> {
+        if stack
+            .data()
+            .is_some_and(|data| data.other("!minecraft:entity_data").is_some())
+        {
+            return Ok((Some(stack), CLICK));
+        }
         let (kind, _) = horizon_client::block_entity_item::spawn_egg_on_spawner(&stack, false);
         let front = offset(pos, facing);
         let Some(id) = self.spawn_mob_at(&kind, front, facing != Direction::Up) else {
@@ -1021,7 +1027,7 @@ impl Game<'_> {
         };
         // EntityType.create: `finalizeSpawn` first, the egg's components after.
         if let Some(m) = self.mobs.iter_mut().find(|m| m.id == id) {
-            // SpawnEggItemBehavior's `EntityType.spawn` never calls
+            // The spawn-egg behaviour's `EntityType.spawn` never calls
             // `setPersistenceRequired`, as a spawn egg used by hand doesn't;
             // only the elder guardian's and copper golem's constructors do.
             m.persistent = matches!(m.species(), Species::ElderGuardian | Species::CopperGolem);
@@ -1032,7 +1038,7 @@ impl Game<'_> {
         // it describes from a dispenser too, not only from a player's hand.
         self.apply_spawn_egg_entity_data(id, &stack);
         self.mob_ambient(id)?;
-        // SpawnEggItemBehavior: the entity was placed by the dispenser.
+        // The spawn-egg behaviour: the entity was placed by the dispenser.
         self.post_block_game_event("minecraft:entity_place", [pos.0, pos.1, pos.2], None, None);
         Ok((shrink(stack), CLICK))
     }

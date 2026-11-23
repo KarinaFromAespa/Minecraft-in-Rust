@@ -211,7 +211,7 @@ pub fn bake_model_transformed(
 ) -> Result<Vec<ModelQuad>> {
     bake_elements(model, transform, false)
 }
-/// Block-model baking as `UnbakedCuboidGeometry.bake` does it: an element with
+/// Block-model baking as `SimpleUnbakedGeometry.bake` does it: an element with
 /// zero extent along an axis draws no faces across that extent (a flat X
 /// element keeps only its X faces, and so on).
 pub fn bake_block_model(

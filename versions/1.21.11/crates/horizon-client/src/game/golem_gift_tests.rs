@@ -3,8 +3,16 @@
 //! guaranteed drop (`setGuaranteedDrop`: drop chance 2.0 for that slot). The
 //! gift goes through the game's own `MobEvent::Gift` handler. Other slots
 //! keep their chances, and an antenna that already holds an item keeps it.
+//!
+//! And the statue's own use (`WeatheringCopperGolemStatueBlock.useItemOn`):
+//! a bare hand cycles the pose, honeycomb passes through, and an axe frees
+//! an unaffected statue — waxed or not — but not a weathered one.
 use super::super::*;
-use horizon_client::{chunk::Chunk, mobs::MobEvent};
+use horizon_client::{
+    chunk::Chunk,
+    items::ItemStack,
+    mobs::{MobEvent, Species},
+};
 use horizon_core::position::ChunkPos;
 use std::sync::Arc;
 
@@ -219,4 +227,79 @@ fn every_other_slot_keeps_its_effective_chance() {
         game.mobs[i].extra.drop_chances.is_some(),
         "the gift made the array"
     );
+}
+
+/// The `copper_golem_pose` property of the statue at `p`, or "".
+fn pose(game: &Game<'_>, p: [i32; 3]) -> String {
+    let id = game.world.block(p[0], p[1], p[2]);
+    game.pack
+        .assets
+        .registry
+        .state(id)
+        .and_then(|s| s.properties.get("copper_golem_pose").cloned())
+        .unwrap_or_default()
+}
+
+fn block_name(game: &Game<'_>, p: [i32; 3]) -> String {
+    let id = game.world.block(p[0], p[1], p[2]);
+    game.pack
+        .assets
+        .registry
+        .state(id)
+        .map_or(String::new(), |s| s.name.clone())
+}
+
+/// `CopperGolemStatueBlock.updatePose`: a bare hand cycles the pose
+/// (standing -> sitting -> running -> star -> standing); honeycomb passes
+/// through to wax instead.
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn a_statue_cycles_its_pose_on_a_bare_hand_and_ignores_honeycomb() {
+    let mut game = game();
+    let p = [13, 200, 13];
+    assert!(game.run_command(
+        "setblock 13 200 13 minecraft:copper_golem_statue[facing=south,copper_golem_pose=standing] strict"
+    ));
+    assert_eq!(pose(&game, p), "standing");
+    for next in ["sitting", "running", "star", "standing"] {
+        assert!(game.use_golem_statue(p, None), "a bare hand cycles");
+        assert_eq!(pose(&game, p), next);
+    }
+    let honeycomb = ItemStack::new("minecraft:honeycomb", 1);
+    assert!(!game.use_golem_statue(p, Some(&honeycomb)));
+    assert_eq!(pose(&game, p), "standing");
+}
+
+/// `WeatheringCopperGolemStatueBlock.useItemOn`: an axe frees an unaffected
+/// statue — waxed or not — and leaves a weathered one standing (the axe's
+/// own transform scrapes it instead).
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn an_axe_frees_a_waxed_statue_but_not_a_weathered_one() {
+    let mut game = game();
+    let axe = ItemStack::new("minecraft:diamond_axe", 1);
+    let golems = |game: &Game<'_>| {
+        game.mobs
+            .iter()
+            .filter(|m| m.species() == Species::CopperGolem && !m.removed)
+            .count()
+    };
+    let waxed = [14, 200, 13];
+    assert!(game.run_command(
+        "setblock 14 200 13 minecraft:waxed_copper_golem_statue[facing=south,copper_golem_pose=star] strict"
+    ));
+    let before = golems(&game);
+    assert!(game.use_golem_statue(waxed, Some(&axe)));
+    assert_eq!(golems(&game), before + 1, "the golem walks out");
+    assert_eq!(block_name(&game, waxed), "minecraft:air");
+    let weathered = [13, 200, 14];
+    assert!(game.run_command(
+        "setblock 13 200 14 minecraft:weathered_copper_golem_statue[facing=south,copper_golem_pose=standing] strict"
+    ));
+    assert!(!game.use_golem_statue(weathered, Some(&axe)));
+    assert_eq!(
+        block_name(&game, weathered),
+        "minecraft:weathered_copper_golem_statue"
+    );
+    assert_eq!(golems(&game), before + 1);
 }

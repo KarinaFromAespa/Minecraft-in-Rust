@@ -29,6 +29,7 @@ import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -342,6 +343,22 @@ public final class VanillaCommandParseOracle {
                 items.add(BuiltInRegistries.ITEM.getKey(item).toString());
         }
         o.add("items", items);
+        // What ItemParser.validateComponents checks a parsed stack against:
+        // each item's default max stack size, and its max damage when it is
+        // damageable (a damageable item cannot stack; a container's stacks
+        // cannot exceed their maximum). The Rust parser reads this as
+        // Registries.item_defaults; the export regenerates with the oracle
+        // sources, so a version's values always match its jar.
+        JsonObject itemDefaults = new JsonObject();
+        for (var item : BuiltInRegistries.ITEM) {
+            if (!FeatureFlags.VANILLA_SET.isSubsetOf(item.requiredFeatures())) continue;
+            var components = item.components();
+            JsonObject d = new JsonObject();
+            d.addProperty("max_stack_size", components.getOrDefault(DataComponents.MAX_STACK_SIZE, 1));
+            if (components.has(DataComponents.MAX_DAMAGE)) d.addProperty("max_damage", components.get(DataComponents.MAX_DAMAGE));
+            itemDefaults.add(BuiltInRegistries.ITEM.getKey(item).toString(), d);
+        }
+        o.add("item_defaults", itemDefaults);
         JsonObject blocks = new JsonObject();
         for (Block block : BuiltInRegistries.BLOCK) {
             if (!FeatureFlags.VANILLA_SET.isSubsetOf(block.requiredFeatures())) continue;

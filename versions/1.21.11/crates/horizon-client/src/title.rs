@@ -93,7 +93,7 @@ fn recover_issues(dir: &Path) -> [Option<crate::save::DatIssue>; 2] {
 /// The SafetyScreen's column (WarningScreen: title, 12 px around the message
 /// box of its lines and 4 px padding, the checkbox, then the buttons, 8 px
 /// apart): the title's top.
-/// `LogoRenderer.extractRenderState`: the logo's top 44 of 64 rows, then the
+/// `LogoRenderer.renderLogo`: the logo's top 44 of 64 rows, then the
 /// edition banner's top 14 of 16 rows overlapping its bottom by 7.
 fn draw_logo(atlas: &HudAtlas, batch: &mut HudBatch, w: f32) {
     batch.sprite_region(
@@ -122,7 +122,9 @@ fn dimension_color(level: &str) -> u32 {
     }
 }
 
-/// English text of the status keys `UpgradeStatusTranslator` returns.
+/// English text of the status keys `WorldUpgrader`'s status components carry
+/// (`STATUS_UPGRADING_CHUNKS`, `STATUS_FINISHED_POI`, ...; the 26.1
+/// `UpgradeStatusTranslator` is gone, the keys are the same).
 fn status_fallback(key: &str) -> &'static str {
     match key {
         "optimizeWorld.stage.failed" => "Failed! :(",
@@ -207,8 +209,6 @@ pub struct WorldEntry {
     /// `LevelSummary.isCompatible` false: the saved game version's name, for a world
     /// from another series.
     pub incompatible: Option<String>,
-    /// `LevelSummary.requiresFileFixing`: opening the world upgrades its files first.
-    pub file_fixing: bool,
     /// `BackupStatus.DOWNGRADE`: a newer version saved the world.
     pub downgrade: bool,
     /// `LevelSummary.isExperimental`: an experimental feature flag is enabled.
@@ -227,14 +227,9 @@ impl WorldEntry {
     fn can_play(&self) -> bool {
         self.corrupted || !self.disabled()
     }
-    /// `LevelSummary.canEdit` and `canRecreate`.
+    /// `LevelSummary.canEdit` and `canRecreate`: `!isDisabled()`.
     fn can_edit(&self) -> bool {
-        !self.corrupted && !self.disabled() && !self.file_fixing
-    }
-    /// `BackupStatus.shouldBackup`: the world needs its files fixed or comes from
-    /// a newer version.
-    fn should_backup(&self) -> bool {
-        self.file_fixing || self.downgrade
+        !self.corrupted && !self.disabled()
     }
     /// `CorruptedLevelSummary`: named after its folder, nothing else known.
     fn corrupted(folder: String, modified: std::time::SystemTime) -> Self {
@@ -249,7 +244,6 @@ impl WorldEntry {
             locked: false,
             corrupted: true,
             incompatible: None,
-            file_fixing: false,
             downgrade: false,
             experimental: false,
         }
@@ -288,8 +282,8 @@ pub enum Mode {
     Backup {
         world: WorldEntry,
     },
-    /// BackupConfirmScreen over a world whose file fixes are due, or, with `downgrade`
-    /// (the saved version's name), over a world saved by a newer version.
+    /// BackupConfirmScreen over a world saved by a newer version (with
+    /// `downgrade`, the saved version's name).
     BackupBeforeUpgrade {
         world: WorldEntry,
         downgrade: Option<String>,
@@ -461,7 +455,7 @@ pub struct Title {
     splash_you: bool,
     /// The saves listed for Home, re-read every couple of seconds.
     recent: std::cell::RefCell<Option<(std::time::Instant, Vec<WorldEntry>)>>,
-    /// WorldCreationGameRulesScreen, over Create New World while it is open.
+    /// EditGameRulesScreen, over Create New World while it is open.
     rules: RefCell<Option<RulesScreen>>,
     /// The onboarding screen has run out: the owner saves `onboardAccessibility` as false.
     pub onboarding_finished: bool,
@@ -496,9 +490,9 @@ impl Button {
         self.action = Some(action);
         self
     }
-    /// `AbstractButton.extractDefaultLabel`: the label centred with a 2 px
+    /// `AbstractButton.renderDefaultLabel`: the label centred with a 2 px
     /// margin, and slid inside the button when it does not fit
-    /// (`AbstractWidget.extractScrollingStringOverContents`), instead of being
+    /// (`AbstractWidget.renderScrollingStringOverContents`), instead of being
     /// drawn past it over the buttons beside it (so_so's 590 px World Type
     /// label on Create World, hi_in's Join Server in the Multiplayer footer).
     /// A button with a `trailing` icon is `SpriteIconButton.TextAndIcon`, whose
@@ -508,7 +502,7 @@ impl Button {
     }
 
     /// [`Button::draw_label`] at `now_ms`. `SpriteIconButton.TextAndIcon`
-    /// (`extractContents`) hands the label to `acceptScrolling` with `left`
+    /// (`renderContents`) hands the label to `acceptScrolling` with `left`
     /// at the button's x plus 2, `right` at its x plus width minus the
     /// sprite's width minus 4, and `centerX` at its x plus half its width: the
     /// label slides inside that box when wider, and one that fits is moved
@@ -592,7 +586,6 @@ pub fn list_worlds(saves: &Path) -> Vec<WorldEntry> {
                 locked: crate::save::SessionLock::is_locked(&path),
                 corrupted: false,
                 incompatible: crate::save::incompatible_version(&path),
-                file_fixing: crate::save::needs_file_fixes(&path),
                 downgrade: crate::save::downgraded_from(&path).is_some(),
                 experimental: experimental_features(data),
             })
@@ -690,14 +683,14 @@ fn world_info(world: &WorldEntry) -> crate::text::Text {
     } else {
         (mode, commands)
     };
-    // A world that asks for a backup shows its version in italics, red when downgrading.
+    // A world from a newer version (`BackupStatus.DOWNGRADE`) shows its
+    // version in red; the other backup-asking status, `UPGRADE_TO_SNAPSHOT`,
+    // only fires on snapshot builds, and `FILE_FIXING_REQUIRED` is gone.
     let version = crate::text::Text::literal(world.version.clone());
-    let version = if !world.should_backup() {
-        version
-    } else if world.downgrade {
+    let version = if world.downgrade {
         version.with_color(crate::text::RED)
     } else {
-        version.italic()
+        version
     };
     mode.append(crate::text::Text::literal(format!(
         "{commands}, {} ",
@@ -1319,11 +1312,13 @@ impl Title {
             let world = world.clone();
             let folder = world.folder.clone();
             if std::mem::take(&mut self.restore_after_backup) {
-                // `makeBackupAndShowToast(..).thenAcceptAsync(..)` in attemptRestore: the restore
-                // runs, backup failed or not.
+                // `attemptRestore` backs up first (`makeBackupAndShowToast`,
+                // synchronous in 1.21.11) and the restore runs once that is
+                // done, backup failed or not (its result is popped).
                 self.attempt_restore(world.clone());
             } else if let Some(erase_cache) = self.optimize_after_backup.take() {
-                // `conditionallyMakeBackupAndShowToast(..).thenAcceptAsync(..)`: the toast shows
+                // The optimize flow's backup (`conditionallyMakeBackupAndShowToast`
+                // in 26.1, inlined into the caller in 1.21.11): the toast shows
                 // and OptimizeWorldScreen opens, backup failed or not.
                 self.begin_optimize(world.clone(), erase_cache);
             } else {
@@ -1473,14 +1468,6 @@ impl Title {
             };
             return Action::None;
         }
-        if crate::save::needs_file_fixes(&self.saves.join(&world.folder)) {
-            self.mode = Mode::BackupBeforeUpgrade {
-                world,
-                downgrade: None,
-                stem: None,
-            };
-            return Action::None;
-        }
         // BackupStatus.DOWNGRADE: a world from a newer version asks for a backup too.
         if let Some(version) = crate::save::downgraded_from(&self.saves.join(&world.folder)) {
             let version = if version.is_empty() {
@@ -1502,8 +1489,6 @@ impl Title {
     /// the one just answered), then `openWorldCheckDiskSpace`, then the load.
     fn after_prompt(&mut self, world: WorldEntry, stem_asked: bool) -> Action {
         let dir = self.saves.join(&world.folder);
-        // The generator settings of a world that still needs its file fixes are read as the
-        // fixes will leave them (`world_gen_settings`), so its question comes with this open.
         if !stem_asked {
             let issue = if crate::save::is_old_customized_world(&dir) {
                 Some(StemIssue::Customized)
@@ -1548,17 +1533,15 @@ impl Title {
         *self.recent.borrow_mut() = None;
         self.mode = Mode::Recovered { world, success };
     }
-    /// `OptimizeWorldScreen.create`: a world that still needs its file fixes or whose level data
-    /// does not read can't be optimized (vanilla logs and `setScreen(null)`, the main menu here).
-    /// Horizon stamps level.dat when the run finishes, not before: opening a world with an
-    /// older DataVersion is what converts it whole.
+    /// `OptimizeWorldScreen.create`: a world whose level data does not read
+    /// can't be optimized (vanilla logs and `setScreen(null)`, the main menu
+    /// here). Horizon stamps level.dat when the run finishes, not before:
+    /// opening a world with an older DataVersion is what converts it whole.
     fn begin_optimize(&mut self, world: WorldEntry, erase_cache: bool) {
         let dir = self.saves.join(&world.folder);
-        // `getUnfixedDataTagWithFallback`: level.dat_old stands in for a level.dat that does not read.
+        // `getDataTagFallback`: level.dat_old stands in for a level.dat that does not read.
         crate::save::fall_back_to_level_dat_old(&dir);
-        if crate::save::needs_file_fixes(&dir)
-            || crate::save::level_data_needs_recovery(&dir).is_some()
-        {
+        if crate::save::level_data_needs_recovery(&dir).is_some() {
             eprintln!("Failed to load datapacks, can't optimize world");
             self.mode = Mode::Main;
             return;
@@ -1598,7 +1581,7 @@ impl Title {
         }
         self.return_to_list(Some(&folder));
     }
-    /// `OptimizeWorldScreen.extractRenderState`.
+    /// `OptimizeWorldScreen.render`.
     fn draw_optimize(&self, atlas: &HudAtlas, batch: &mut HudBatch, w: f32, h: f32, name: &str) {
         let Some(upgrader) = &self.optimize else {
             return;
@@ -1975,8 +1958,6 @@ impl Title {
                 let editable = world.is_some_and(WorldEntry::can_edit);
                 let play = if corrupted {
                     lang::get_or("recover_world.button", "Attempt to Recover")
-                } else if world.is_some_and(|w| w.file_fixing) {
-                    lang::get_or("selectWorld.upgrade_and_play", "Upgrade and Play")
                 } else {
                     lang::get_or("selectWorld.select", "Play Selected World")
                 };
@@ -2304,7 +2285,9 @@ impl Title {
                     .does(crate::widgets::Action::Cancel),
                 ]
             }
-            // No `does`: Escape is inert here on purpose, so B is too. A on the button stops it.
+            // Escape closes the screen in 1.21.11 (`OptimizeWorldScreen`
+            // no longer overrides `shouldCloseOnEsc`), so B does too; A on
+            // the button stops it the same way.
             Mode::Optimize { .. } => vec![b(
                 (w / 2.0).floor() - 100.0,
                 (h / 4.0).floor() + 150.0,
@@ -2419,28 +2402,50 @@ impl Title {
             Mode::Edit { .. } => {
                 ScreenInfo::new("edit_world", get("selectWorld.edit.title", "Edit World"))
             }
-            // EditWorldScreen.makeBackupAndShowToast: a GenericWaitingScreen.
-            Mode::Backup { .. } => ScreenInfo::new(
-                "backup",
-                join(&[
-                    &get("selectWorld.waitingForBackup.title", "Creating Backup"),
-                    &get(
-                        "selectWorld.waitingForBackup.message",
-                        "Depending on the size of your world, this may take a while. Please do not close the game or shut off your device.",
-                    ),
-                ]),
-            ),
+            // `EditWorldScreen.makeBackupAndShowToast` is synchronous in 1.21.11
+            // (no waiting screen); the wait here is the async worker's, kept
+            // so a big backup never blocks drawing. A restore shows what
+            // `RecoverWorldDataScreen.attemptRestore` shows instead:
+            // GenericMessageScreen("recover_world.restoring").
+            Mode::Backup { .. } => {
+                if self.restore_after_backup {
+                    ScreenInfo::new(
+                        "backup",
+                        get("recover_world.restoring", "Attempting to restore world..."),
+                    )
+                } else {
+                    ScreenInfo::new(
+                        "backup",
+                        join(&[
+                            &get("selectWorld.waitingForBackup.title", "Creating Backup"),
+                            &get(
+                                "selectWorld.waitingForBackup.message",
+                                "Depending on the size of your world, this may take a while. Please do not close the game or shut off your device.",
+                            ),
+                        ]),
+                    )
+                }
+            }
             // BackupConfirmScreen narrates its title, the question.
-            Mode::BackupBeforeUpgrade { downgrade, .. } => {
-                let question = match downgrade {
-                    Some(_) => get(
+            Mode::BackupBeforeUpgrade {
+                downgrade, stem, ..
+            } => {
+                let question = match (downgrade, stem) {
+                    (Some(_), _) => get(
                         "selectWorld.backupQuestion.downgrade",
                         "Downgrading a world is not supported",
                     ),
-                    None => get(
-                        "selectWorld.backupQuestion.file_fixing_required",
-                        "Create a backup before upgrading this world?",
+                    (None, Some(StemIssue::Customized)) => get(
+                        "selectWorld.backupQuestion.customized",
+                        "Customized worlds are no longer supported",
                     ),
+                    (None, Some(StemIssue::Experimental)) => get(
+                        "selectWorld.backupQuestion.experimental",
+                        "Worlds using Experimental Settings are not supported",
+                    ),
+                    // 1.21.11 dropped `BackupStatus.FILE_FIXING_REQUIRED`: the
+                    // prompt is only ever built with a downgrade or a stem issue.
+                    (None, None) => unreachable!("backup prompt without a reason"),
                 };
                 ScreenInfo::new("backup_confirm", question)
             }
@@ -2733,7 +2738,7 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                     "Not affiliated with Mojang or Microsoft",
                 );
                 // TitleScreen.init's `PlainTextButton`: the text's width wide, 10
-                // high at `height - 10`; `extractContents` underlines it while
+                // high at `height - 10`; `renderContents` underlines it while
                 // hovered or focused, and its press opens the credits.
                 let tw = HudBatch::text_width(atlas, notice).ceil();
                 let rect = [w - tw - 2.0, h - 10.0, tw, 10.0];
@@ -2863,7 +2868,7 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                     );
                     self.icon(atlas, batch, world, slot, x, y);
                     slot = (slot + 1) % crate::hud::WORLD_ICON_SLOTS;
-                    // WorldListEntry.extractContent: a hovered row dims its
+                    // WorldListEntry.renderContent: a hovered row dims its
                     // icon under the join arrow, lit under the pointer.
                     if let Some((_, (rx, ry))) = hovered.filter(|(r, _)| *r == row) {
                         batch.fill(atlas, x, y, 32.0, 32.0, 0xA0909090);
@@ -2875,8 +2880,6 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                             &["error"]
                         } else if world.downgrade {
                             &["marked_join", "error"]
-                        } else if world.should_backup() {
-                            &["marked_join"]
                         } else {
                             &["join"]
                         };
@@ -3091,21 +3094,13 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                         ),
                         rgba(223, 80, 80, 255),
                     ),
-                    (None, None) => (
-                        lang::get_or(
-                            "selectWorld.backupQuestion.file_fixing_required",
-                            "Create a backup before upgrading this world?",
-                        ),
-                        lang::get_or(
-                            "selectWorld.backupWarning.file_fixing_required",
-                            "This world needs to be upgraded before you can play it. We strongly suggest creating a backup before continuing in case you experience world corruption.",
-                        ),
-                        u32::MAX,
-                    ),
+                    // 1.21.11 dropped `BackupStatus.FILE_FIXING_REQUIRED`: the
+                    // prompt is only ever built with a downgrade or a stem issue.
+                    (None, None) => unreachable!("backup prompt without a reason"),
                 };
                 let lines = wrapped(atlas, &warning, w - 50.0);
                 self.message_lines.set(lines.len());
-                // BackupConfirmScreen.extractRenderState: the title at 50, the text from 70.
+                // BackupConfirmScreen.render: the title at 50, the text from 70.
                 centered(atlas, batch, &question, 50.0, color);
                 for (i, line) in lines.iter().enumerate() {
                     centered(atlas, batch, line, 70.0 + i as f32 * 9.0, u32::MAX);
@@ -3184,20 +3179,27 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
             Mode::Backup { .. } => {
                 self.backup_shown.set(true);
                 crate::ui::menu_background(batch, atlas, 0.0, 0.0, w, h, false);
-                centered(
-                    atlas,
-                    batch,
-                    &lang::get_or("selectWorld.waitingForBackup.title", "Creating Backup"),
-                    80.0,
-                    u32::MAX,
-                );
+                // `RecoverWorldDataScreen.attemptRestore` shows
+                // GenericMessageScreen("recover_world.restoring") while the
+                // backup and restore run; other backups keep the wait.
+                let (title, message) = if self.restore_after_backup {
+                    (
+                        lang::get_or("recover_world.restoring", "Attempting to restore world..."),
+                        String::new(),
+                    )
+                } else {
+                    (
+                        lang::get_or("selectWorld.waitingForBackup.title", "Creating Backup"),
+                        lang::get_or(
+                            "selectWorld.waitingForBackup.message",
+                            "Depending on the size of your world, this may take a while. Please do not close the game or shut off your device.",
+                        ),
+                    )
+                };
+                centered(atlas, batch, &title, 80.0, u32::MAX);
                 let dots = ["O o o", "o O o", "o o O", "o O o"]
                     [(self.started.elapsed().as_millis() / 300 % 4) as usize];
                 centered(atlas, batch, dots, 120.0, rgba(128, 128, 128, 255));
-                let message = lang::get_or(
-                    "selectWorld.waitingForBackup.message",
-                    "Depending on the size of your world, this may take a while. Please do not close the game or shut off your device.",
-                );
                 for (i, line) in wrapped(atlas, &message, 360.0).iter().enumerate() {
                     centered(
                         atlas,
@@ -3456,8 +3458,8 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
         {
             self.create_tooltip(atlas, batch, cursor, name, *creative, options);
         }
-        if let Mode::Select { worlds, selected } = &self.mode {
-            self.select_tooltip(atlas, batch, cursor, (w, h), worlds, *selected);
+        if let Mode::Select { worlds, .. } = &self.mode {
+            self.select_tooltip(atlas, batch, cursor, (w, h), worlds);
         }
         if let Mode::Multiplayer(screen) = &self.mode {
             screen.draw_tooltip(atlas, batch, cursor);
@@ -3487,9 +3489,7 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
             batch.text(atlas, &message, x + 18.0, 19.0, u32::MAX, false);
         }
     }
-    /// The tooltip of a world's icon (drawn with the row, as vanilla does) or, for a
-    /// world that needs its files upgraded first, of the Play, Edit and Re-Create
-    /// buttons (`SelectWorldScreen.updateButtonStatus`).
+    /// The tooltip of a world's icon (drawn with the row, as vanilla does).
     fn select_tooltip(
         &self,
         atlas: &HudAtlas,
@@ -3497,7 +3497,6 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
         cursor: (f32, f32),
         size: (f32, f32),
         worlds: &[WorldEntry],
-        selected: Option<usize>,
     ) {
         let red = |key: &str| Text::translate(key, &[]).with_color(crate::text::RED);
         if let Some((row, (rx, ry))) = self.world_row_at(worlds, cursor, size)
@@ -3522,27 +3521,7 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                 Vec::new()
             };
             crate::ui::tooltip(batch, atlas, &lines, cursor);
-            return;
         }
-        if !selected
-            .and_then(|i| worlds.get(i))
-            .is_some_and(|w| w.file_fixing)
-        {
-            return;
-        }
-        let (x, y) = cursor;
-        let hovered = self
-            .buttons(size.0, size.1)
-            .into_iter()
-            .find(|b| x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + 20.0);
-        let key = match hovered.map(|b| b.id) {
-            Some(10) => "selectWorld.requiresFileFixingTooltip.play",
-            Some(13) => "selectWorld.requiresFileFixingTooltip.edit",
-            Some(15) => "selectWorld.requiresFileFixingTooltip.recreate",
-            _ => return,
-        };
-        let lines = atlas.font.split(&Text::translate(key, &[]), 170.0);
-        crate::ui::tooltip(batch, atlas, &lines, cursor);
     }
     /// `TabManager.setCurrentTab`: the screen shows `tab`, whose own fields
     /// take no focus, and whether the open tab changed (the click sound).
@@ -3785,7 +3764,6 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                 self.mode = Mode::Multiplayer(crate::multiplayer::Screen::friend(true));
                 Action::None
             }
-            (Mode::Onboarding(_), Some(onboarding::SOUNDS)) => Action::Sounds,
             (Mode::Onboarding(_), Some(onboarding::ACCESSIBILITY)) => Action::Accessibility,
             (Mode::Onboarding(_), Some(onboarding::LANGUAGE)) => Action::Language,
             (Mode::Onboarding(_), Some(onboarding::CONTINUE)) => {
@@ -4027,7 +4005,7 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                 let rules = options
                     .rules
                     .copy_with_features(&options.enabled_features(&self.resources));
-                *self.rules.get_mut() = Some(RulesScreen::for_creation(&rules));
+                *self.rules.get_mut() = Some(RulesScreen::new(&rules));
                 Action::None
             }
             // CreateBuffetWorldScreen for the single-biome preset.
@@ -4859,17 +4837,12 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
         }
         sound
     }
-    /// WorldCreationGameRulesScreen's exit callback: Done keeps the edited
+    /// EditGameRulesScreen's exit callback: Done keeps the edited
     /// rules (`setGameRules`), Cancel drops them.
     fn close_rules(&mut self, exit: Exit) {
         *self.rules.get_mut() = None;
-        if let (Exit::Apply(changes), Mode::Create { options, .. }) = (exit, &mut self.mode) {
-            options.rules = options
-                .rules
-                .copy_with_features(&options.enabled_features(&self.resources));
-            for (name, value) in changes {
-                options.rules.set(name, value);
-            }
+        if let (Exit::Apply(rules), Mode::Create { options, .. }) = (exit, &mut self.mode) {
+            options.rules = rules;
         }
     }
     /// `Gui.buildInitialScreens`' chain: the next queued ban notice, else the title.
@@ -4956,8 +4929,16 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
             return;
         }
         match &self.mode {
-            // OptimizeWorldScreen: `shouldCloseOnEsc` is false; the Backup wait takes no input.
-            Mode::Backup { .. } | Mode::Optimize { .. } => {}
+            // The Backup wait takes no input.
+            Mode::Backup { .. } => {}
+            // `OptimizeWorldScreen` no longer overrides `shouldCloseOnEsc`,
+            // so Escape closes it: the upgrader is cancelled, as on Cancel.
+            Mode::Optimize { .. } => {
+                if let Some(upgrader) = self.optimize.as_mut() {
+                    upgrader.cancel();
+                }
+                self.end_optimize(false);
+            }
             // BackupConfirmScreen.keyPressed: Escape runs `onCancel`, the Edit World screen again.
             Mode::OptimizeConfirm { world, name, .. } => {
                 self.mode = Mode::Edit {

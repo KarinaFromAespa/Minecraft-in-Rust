@@ -183,7 +183,7 @@ pub fn fill_common_defaults(tag: &mut Tag) {
     }
 }
 
-/// The mobs that save `Age` and `AgeLocked`.
+/// The mobs that save `Age`.
 fn saves_age(s: crate::mobs::Species) -> bool {
     use crate::mobs::{Species, finalize::ageable, species::can_be_a_baby};
     s == Species::Tadpole || (ageable(s) && can_be_a_baby(s))
@@ -808,10 +808,6 @@ pub fn mob_to_nbt(
     ] {
         map.entry(key.into()).or_insert(value);
     }
-    map.insert(
-        "current_impulse_context_reset_grace_time".into(),
-        Tag::Int(m.impulse_grace_time),
-    );
     // What the mob's class saves: a content mod's living type saves as its
     // template does (the `id` written above stays its own).
     let id = m.kind.class_id();
@@ -820,7 +816,6 @@ pub fn mob_to_nbt(
     let species = m.species();
     if saves_age(species) {
         map.insert("Age".into(), Tag::Int(m.extra.age));
-        map.insert("AgeLocked".into(), Tag::Byte(i8::from(m.extra.age_locked)));
         if species != crate::mobs::Species::Tadpole {
             map.insert("ForcedAge".into(), Tag::Int(m.extra.forced_age));
         }
@@ -829,7 +824,7 @@ pub fn mob_to_nbt(
         // false — the frog, the parrot, the zombie nautilus, the camel husk,
         // the slime and the magma cube: drop the ignored values a raw input
         // compound carried rather than writing them back out.
-        for key in ["Age", "ForcedAge", "AgeLocked"] {
+        for key in ["Age", "ForcedAge"] {
             map.remove(&key.into());
         }
     }
@@ -1141,8 +1136,6 @@ pub fn mob_to_nbt(
         }
         "minecraft:villager" => {
             map.insert("VillagerData".into(), villager_data(m));
-            // A loaded villager with VillagerData is finalized.
-            map.insert("VillagerDataFinalized".into(), Tag::Byte(1));
             let t = m.extra.trade.as_deref().cloned().unwrap_or_default();
             map.insert("Xp".into(), Tag::Int(t.xp));
             map.insert("LastRestock".into(), Tag::Long(t.last_restock));
@@ -1227,7 +1220,7 @@ pub fn mob_to_nbt(
             );
             let mut memories: Vec<(&str, Tag)> = Vec::new();
             if m.extra.tame {
-                // `MemorySlot.visit`: the time to live only when it can expire.
+                // `ExpirableValue.codec`: the time to live only when it can expire.
                 let mut liked = vec![(
                     "value",
                     Tag::IntArray(m.extra.owner.unwrap_or([0, 0, 0, 1]).to_vec()),
@@ -2055,8 +2048,6 @@ pub fn mob_from_nbt_with_random(
         m.extra.set_main_hand(None);
     }
     m.death_time = number(tag.get("DeathTime")).unwrap_or(0) as i32;
-    m.impulse_grace_time =
-        number(tag.get("current_impulse_context_reset_grace_time")).unwrap_or(0) as i32;
     // Mob.readAdditionalSaveData overrides what the constructor set (copper
     // golems and elder guardians start persistent).
     m.persistent = flag(tag, "PersistenceRequired");
@@ -2139,7 +2130,6 @@ pub fn mob_from_nbt_with_random(
     if saves_age(m.species()) {
         m.extra.age = tag.get("Age").and_then(int_value).unwrap_or(0);
         m.extra.forced_age = tag.get("ForcedAge").and_then(int_value).unwrap_or(0);
-        m.extra.age_locked = flag(tag, "AgeLocked");
     }
     if is_animal(&m.kind.id) {
         m.extra.in_love = tag.get("InLove").and_then(int_value).unwrap_or(0);
@@ -2465,7 +2455,8 @@ pub fn mob_from_nbt_with_random(
             .and_then(|v| crate::save::uuid_from_tag(Some(v)));
         // `Brain.readAdditionalSaveData`: a memory saved with a time to live
         // (`Codec.LONG`, read from any integer tag). `Long.MAX_VALUE` is
-        // `MemorySlot.NEVER_EXPIRE`: that memory never expires.
+        // the never-expire sentinel (`ExpirableValue.of` uses it): that
+        // memory never expires.
         if let Some(st) = m.extra.allay.as_mut() {
             st.liked_player_ttl = liked
                 .and_then(|l| match l.get("ttl")? {
@@ -3864,7 +3855,6 @@ pub fn armor_stand_to_nbt(a: &ArmorStand, uuid: [i32; 4], raw: Option<&Tag>) -> 
             ("DeathTime", Tag::Short(0)),
             ("AbsorptionAmount", Tag::Float(0)),
             ("FallFlying", Tag::Byte(0)),
-            ("current_impulse_context_reset_grace_time", Tag::Int(0)),
             // AttributeMap.pack: the movement_speed instance the stand's first
             // tick makes (removeFrost), at the registry default.
             (
@@ -4590,20 +4580,14 @@ mod tests {
             let mut mob = Mob::new(1, kind, Vec3::ZERO, 0.0);
             mob.extra.age = -123;
             mob.extra.forced_age = 19;
-            mob.extra.age_locked = true;
             let raw = Tag::compound([
                 ("Age", Tag::Int(37)),
                 ("ForcedAge", Tag::Int(99)),
-                ("AgeLocked", Tag::Byte(0)),
                 ("audit:unrelated", Tag::Int(7)),
             ]);
             for base in [None, Some(&raw)] {
                 let saved = mob_to_nbt(&mob, [0; 4], base, None, |_| None);
-                for (key, expected) in [
-                    ("Age", Tag::Int(-123)),
-                    ("ForcedAge", Tag::Int(19)),
-                    ("AgeLocked", Tag::Byte(1)),
-                ] {
+                for (key, expected) in [("Age", Tag::Int(-123)), ("ForcedAge", Tag::Int(19))] {
                     if species == Species::ZombieNautilus {
                         assert!(saved.get(key).is_none(), "{id}: {key}");
                     } else {
@@ -5732,7 +5716,6 @@ mod tests {
                 ("Pos", doubles(&[4.5, 200.0, 4.5])),
                 ("NoAI", Tag::Byte(1)),
                 ("NoGravity", Tag::Byte(1)),
-                ("AgeLocked", Tag::Byte(1)),
                 ("Unrelated", string("keep")),
             ]);
             if let Some(value) = input.as_ref() {
@@ -5746,7 +5729,7 @@ mod tests {
                 (expected, expected, expected),
                 "{input:?}"
             );
-            assert!(mob.no_ai && mob.no_gravity && mob.extra.age_locked);
+            assert!(mob.no_ai && mob.no_gravity);
             for source in [None, Some(&raw)] {
                 let saved = mob_to_nbt(&mob, [0, 0, 0, 55], source, None, |_| None);
                 for key in ["Age", "ForcedAge", "InLove"] {
@@ -5757,7 +5740,6 @@ mod tests {
                     );
                 }
                 assert_eq!(saved.get("NoAI"), Some(&Tag::Byte(1)));
-                assert_eq!(saved.get("AgeLocked"), Some(&Tag::Byte(1)));
                 assert_eq!(
                     saved.get("Unrelated"),
                     source.and_then(|tag| tag.get("Unrelated"))
@@ -6215,11 +6197,6 @@ pub fn bucket_data(m: &Mob) -> Tag {
         crate::mobs::Species::Axolotl | crate::mobs::Species::Tadpole
     ) {
         put(&mut data, "Age", Tag::Int(m.extra.age));
-        put(
-            &mut data,
-            "AgeLocked",
-            Tag::Byte(i8::from(m.extra.age_locked)),
-        );
     }
     for (key, on) in [
         ("NoAI", m.no_ai),
@@ -6239,11 +6216,6 @@ pub fn bucket_data(m: &Mob) -> Tag {
     // SulfurCube.saveToBucketTag: after the default data, its age.
     if m.species() == crate::mobs::Species::SulfurCube {
         put(&mut data, "age", Tag::Int(m.extra.age));
-        put(
-            &mut data,
-            "age_locked",
-            Tag::Byte(i8::from(m.extra.age_locked)),
-        );
     }
     data
 }
@@ -6310,9 +6282,6 @@ pub fn apply_item_components(m: &mut Mob, stack: &crate::items::ItemStack) {
     if let Some(data) = components.other("minecraft:bucket_entity_data") {
         if let Some(v) = number(data.get("Age")) {
             m.extra.age = v as i32;
-        }
-        if let Some(v) = number(data.get("AgeLocked")) {
-            m.extra.age_locked = v != 0;
         }
         // Keep old Horizon buckets readable; the modern component below takes precedence.
         if let Some(v) = number(data.get("Variant")) {
@@ -6381,23 +6350,14 @@ pub fn apply_item_components(m: &mut Mob, stack: &crate::items::ItemStack) {
             m.extra.variant3 = id as u8;
         }
     }
-    // Chicken, Cow and Pig.applyImplicitComponents: their variant and sound
-    // variant components, both registry names (`minecraft:warm`,
-    // `minecraft:picky`).
+    // Chicken, Cow and Pig.applyImplicitComponents: their variant component
+    // (a registry name like `minecraft:warm`). 1.21.11 has no sound-variant
+    // components for them, so the sound side stays None.
     let species = m.species();
     let (variant, sound) = match species {
-        crate::mobs::Species::Chicken => (
-            Some("minecraft:chicken/variant"),
-            Some("minecraft:chicken/sound_variant"),
-        ),
-        crate::mobs::Species::Cow => (
-            Some("minecraft:cow/variant"),
-            Some("minecraft:cow/sound_variant"),
-        ),
-        crate::mobs::Species::Pig => (
-            Some("minecraft:pig/variant"),
-            Some("minecraft:pig/sound_variant"),
-        ),
+        crate::mobs::Species::Chicken => (Some("minecraft:chicken/variant"), None),
+        crate::mobs::Species::Cow => (Some("minecraft:cow/variant"), None),
+        crate::mobs::Species::Pig => (Some("minecraft:pig/variant"), None),
         // ZombieNautilus.applyImplicitComponents: the variant only.
         crate::mobs::Species::ZombieNautilus => (Some("minecraft:zombie_nautilus/variant"), None),
         // Fox and Frog.applyImplicitComponent: `setVariant` from the component
@@ -6599,7 +6559,6 @@ mod axolotl_nbt_tests {
         crate::mobs::animal_brain::set_hunting_cooldown(&mut m, 123);
         m.extra.variant = 4;
         m.extra.age = -24000;
-        m.extra.age_locked = true;
         m.no_ai = true;
         m.silent = true;
         m.no_gravity = true;
@@ -6656,14 +6615,7 @@ mod axolotl_nbt_tests {
             crate::mobs::animal_brain::hunting_cooldown(&restored),
             Some(123)
         );
-        assert_eq!(
-            (
-                restored.extra.variant,
-                restored.extra.age,
-                restored.extra.age_locked
-            ),
-            (4, -24000, true)
-        );
+        assert_eq!((restored.extra.variant, restored.extra.age), (4, -24000));
         assert!(
             restored.no_ai
                 && restored.silent
@@ -7085,7 +7037,7 @@ mod sheep_nbt_tests {
     }
 
     #[test]
-    fn farm_animals_keep_their_variant_and_sound_variant() {
+    fn farm_animals_keep_their_variant_and_wolves_their_sound_variant() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../.local/horizon-client")
             .join(horizon_core::VANILLA_VERSION);
@@ -7109,20 +7061,29 @@ mod sheep_nbt_tests {
             text(tag.get("variant")).as_deref(),
             Some("minecraft:temperate")
         );
-        assert_eq!(
-            text(tag.get("sound_variant")).as_deref(),
-            Some("minecraft:classic")
-        );
-        // Spawned in a warm biome with the mini sounds.
+        // 1.21.11 pigs have no sound variant: none is saved, even if one was set.
+        assert_eq!(text(tag.get("sound_variant")).as_deref(), None);
         (m.extra.variant, m.extra.sound_variant) = (1, Some(2));
         let tag = mob_to_nbt(&m, [1, 2, 3, 4], None, None, |_| None);
         assert_eq!(text(tag.get("variant")).as_deref(), Some("minecraft:warm"));
+        assert_eq!(text(tag.get("sound_variant")).as_deref(), None);
+        let back = mob_from_nbt(&tag, &types, 2, None).unwrap();
+        assert_eq!((back.extra.variant, back.extra.sound_variant), (1, None));
+        // A wolf keeps its sound variant through the save.
+        let mut wolf = Mob::new(
+            2,
+            types["minecraft:wolf"].clone(),
+            Vec3::new(0.0, 4.0, 0.0),
+            0.0,
+        );
+        wolf.extra.sound_variant = Some(3);
+        let tag = mob_to_nbt(&wolf, [1, 2, 3, 4], None, None, |_| None);
         assert_eq!(
             text(tag.get("sound_variant")).as_deref(),
-            Some("minecraft:mini")
+            Some("minecraft:cute")
         );
         let back = mob_from_nbt(&tag, &types, 2, None).unwrap();
-        assert_eq!((back.extra.variant, back.extra.sound_variant), (1, Some(2)));
+        assert_eq!(back.extra.sound_variant, Some(3));
         let mut hen = Mob::new(
             3,
             types["minecraft:chicken"].clone(),
@@ -7134,22 +7095,14 @@ mod sheep_nbt_tests {
         assert_eq!(text(tag.get("variant")).as_deref(), Some("minecraft:cold"));
         let back = mob_from_nbt(&tag, &types, 4, None).unwrap();
         assert_eq!((back.extra.variant, back.extra.egg_time), (2, 7795));
-        // The sound variants are indices into the registries finalizeSpawn draws from.
+        // The wolf sound variants are indices into the registry finalizeSpawn draws from.
         use crate::mobs::{Species, finalize};
         let registries = finalize::SpawnRegistries::load(&root);
-        for (species, registry) in [
-            (Species::Pig, &registries.pig_sound),
-            (Species::Cow, &registries.cow_sound),
-            (Species::Chicken, &registries.chicken_sound),
-            (Species::Cat, &registries.cat_sound),
-            (Species::Wolf, &registries.wolf_sound),
-        ] {
-            assert_eq!(
-                finalize::sound_variants(species),
-                registry.names,
-                "{species:?}"
-            );
-        }
+        assert_eq!(
+            finalize::sound_variants(Species::Wolf),
+            registries.wolf_sound.names,
+            "wolf"
+        );
     }
 
     #[test]
@@ -7212,8 +7165,11 @@ mod sheep_nbt_tests {
         assert_eq!(m.extra.age, -21359);
         let tag = mob_to_nbt(&m, [1, 2, 3, 4], None, None, |_| None);
         assert_eq!(number(tag.get("Age")), Some(-21359));
-        assert_eq!(number(tag.get("AgeLocked")), Some(0));
-        assert_eq!(number(tag.get("VillagerDataFinalized")), Some(1));
+        // 1.21.11 drops `AgeLocked`: `AgeableMob` no longer writes it.
+        assert!(tag.get("AgeLocked").is_none());
+        // 1.21.11 drops `VillagerDataFinalized`: `Villager` no longer
+        // writes it, and the finalize gate moved to the spawn reason.
+        assert!(tag.get("VillagerDataFinalized").is_none());
     }
 
     /// `Dolphin.addAdditionalSaveData`: a fed dolphin stays fed and a wet one

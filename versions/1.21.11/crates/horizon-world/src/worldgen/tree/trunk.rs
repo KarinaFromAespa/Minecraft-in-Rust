@@ -188,6 +188,8 @@ impl TrunkPlacer {
         }
         Ok(())
     }
+    /// `TrunkPlacer.setDirtAt` (26.1's `placeBelowTrunkBlock`): the dirt
+    /// under the trunk.
     fn place_below_trunk<W: FeatureWorld + PlacementContext, R: RandomSource>(
         run: &mut Run<'_, W, R>,
         tree: &TreeFeature,

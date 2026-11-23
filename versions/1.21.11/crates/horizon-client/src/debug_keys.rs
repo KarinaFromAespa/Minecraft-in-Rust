@@ -1,4 +1,4 @@
-//! The debug keys (26.3 `KeyboardHandler`): `key.debug.modifier` (F3) held
+//! The debug keys (1.21.11 `KeyboardHandler`): `key.debug.modifier` (F3) held
 //! with another key runs a debug action (`handleDebugKeys`), released alone
 //! it toggles the debug overlay (`key.debug.overlay`, F3 too by default);
 //! with Escape it pauses without the menu; held with `key.debug.crash` (C)
@@ -26,7 +26,6 @@ pub enum DebugAction {
     ProfilingChart,
     FpsCharts,
     NetworkCharts,
-    LightmapTexture,
     ImprovedTransparency,
     /// F3+R: start a repro recording, or stop it and write its bundle.
     RecordSession,
@@ -35,7 +34,7 @@ pub enum DebugAction {
 }
 
 /// The mappings `handleDebugKeys` tests, in its order.
-pub const ACTIONS: [(&str, DebugAction); 20] = [
+pub const ACTIONS: [(&str, DebugAction); 19] = [
     ("key.debug.reloadChunk", DebugAction::ReloadChunks),
     ("key.debug.showHitboxes", DebugAction::ShowHitboxes),
     ("key.debug.clearChat", DebugAction::ClearChat),
@@ -66,7 +65,6 @@ pub const ACTIONS: [(&str, DebugAction); 20] = [
     ("key.debug.profilingChart", DebugAction::ProfilingChart),
     ("key.debug.fpsCharts", DebugAction::FpsCharts),
     ("key.debug.networkCharts", DebugAction::NetworkCharts),
-    ("key.debug.lightmapTexture", DebugAction::LightmapTexture),
     (
         "key.debug.improvedTransparency",
         DebugAction::ImprovedTransparency,

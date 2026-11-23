@@ -121,7 +121,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             }};
         }
         Some(match class {
-            Class::AbstractBed => {
+            Class::AbstractBed | Class::Bed => {
                 if dir == self.bed_neighbour_direction(state) {
                     if b.is_block(nstate, block)
                         && table.text(nstate, p.part) != table.text(state, p.part)
@@ -267,7 +267,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     || dir == Direction::Down
                     || (dir == Direction::Up
                         && !b.is_block(nstate, block)
-                        && self.bubble_column_can_occupy(nstate))
+                        && self.bubble_column_can_exist_in(nstate))
                 {
                     self.schedule_tick(pos, block, 5);
                 }
@@ -342,9 +342,11 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     self.schedule_tick(pos, block, 1);
                     sup!()
                 } else {
+                    // 1.21.11 hardcodes end stone below (26.1 reads the
+                    // `supports_chorus_plant` tag, which held only end stone).
                     let connect = b.is_block(nstate, block)
                         || b.is_block(nstate, n.chorus_flower)
-                        || (dir == Direction::Down && b.in_set(nstate, &t.supports_chorus_plant));
+                        || (dir == Direction::Down && b.is_block(nstate, n.end_stone));
                     table.set_bool(state, self.direction_prop(dir), connect)
                 }
             }
@@ -614,8 +616,23 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     let delay = self.fluid_tick_delay(fluid.kind());
                     self.schedule_fluid_tick(pos, fluid.kind(), delay);
                 }
-                if dir == Direction::Down && self.should_bubble_column_occupy(state) {
-                    self.try_schedule_bubble_column(pos, nstate, block);
+                sup!()
+            }
+            Class::Magma => {
+                // MagmaBlock.updateShape: water appearing above schedules the
+                // bubble-column check (BUBBLE_COLUMN_CHECK_DELAY, 20 ticks).
+                if dir == Direction::Up && b.is_block(nstate, n.water) {
+                    self.schedule_tick(pos, block, 20);
+                }
+                sup!()
+            }
+            Class::SoulSand => {
+                // SoulSandBlock.updateShape: water appearing above schedules
+                // the bubble-column check (BUBBLE_COLUMN_CHECK_DELAY, 20
+                // ticks). 26.1 dropped this (and the tick and onPlace) when
+                // the check moved to LiquidBlock; 1.21.11 keeps it.
+                if dir == Direction::Up && b.is_block(nstate, n.water) {
+                    self.schedule_tick(pos, block, 20);
                 }
                 sup!()
             }
@@ -725,7 +742,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     sup!()
                 }
             }
-            Class::Speleothem => {
+            Class::Speleothem | Class::PointedDripstone => {
                 self.waterlogged_tick(state, pos);
                 if !matches!(dir, Direction::Up | Direction::Down) {
                     return Some(state);
@@ -1075,10 +1092,13 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             b.is_block(state, b.named.tripwire)
         }
     }
-    /// `LeavesBlock.getDistanceAt`.
+    /// `LeavesBlock.getOptionalDistanceAt`.
     pub(crate) fn leaf_distance_at(&self, state: BlockStateId) -> i32 {
         let b = self.b;
-        if b.in_set(state, &b.tags.prevents_nearby_leaf_decay) {
+        // 1.21.11 anchors on the logs tag; the
+        // `prevents_nearby_leaf_decay` tag is 26.1-only (and in 26.1
+        // it holds exactly the logs).
+        if b.in_set(state, &b.tags.logs) {
             0
         } else if b.table.has(state, b.props.distance) {
             b.table.int(state, b.props.distance)
@@ -1123,37 +1143,14 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             self.schedule_tick(pos, block, delay);
         }
     }
-    /// `BubbleColumnBlock.canOccupy`.
-    pub(crate) fn bubble_column_can_occupy(&self, state: BlockStateId) -> bool {
+    /// `BubbleColumnBlock.canExistIn` in 1.21.11: a bubble column, or
+    /// source water (26.1 reads the `bubble_column_can_occupy` fluid
+    /// tag instead, gone in 1.21.11; it held only water).
+    pub(crate) fn bubble_column_can_exist_in(&self, state: BlockStateId) -> bool {
         let b = self.b;
         let fluid = b.fluid(state);
         b.is_block(state, b.named.bubble_column)
-            || (b.fluid_in(fluid.kind(), b.fluid_tags.bubble_column_can_occupy)
-                && b.instance_of(state, Class::Liquid)
-                && fluid.is_source()
-                && fluid.amount() >= 8)
-    }
-    pub(crate) fn should_bubble_column_occupy(&self, state: BlockStateId) -> bool {
-        let fluid = self.b.fluid(state);
-        self.b
-            .fluid_in(fluid.kind(), self.b.fluid_tags.bubble_column_can_occupy)
-            && fluid.is_source()
-            && fluid.is_full()
-    }
-    pub(crate) fn try_schedule_bubble_column(
-        &mut self,
-        pos: BlockPos,
-        below_state: BlockStateId,
-        block: BlockId,
-    ) {
-        let t = &self.b.tags;
-        if self
-            .b
-            .in_set(below_state, &t.enables_bubble_column_drag_down)
-            || self.b.in_set(below_state, &t.enables_bubble_column_push_up)
-        {
-            self.schedule_tick(pos, block, 20);
-        }
+            || (b.is_block(state, b.named.water) && fluid.is_source() && fluid.amount() >= 8)
     }
     /// `NoteBlock.setInstrument`.
     pub(crate) fn note_block_instrument(&self, pos: BlockPos, state: BlockStateId) -> BlockStateId {

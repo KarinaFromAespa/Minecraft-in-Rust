@@ -40,7 +40,7 @@ CLASS_RULES={
     'ChorusFlowerBlock':'ChorusFlower',
     'PitcherCropBlock':'PitcherCrop',
 
-    'BigDripleafBlock':'BigDripleaf','BigDripleafStemBlock':'BigDripleafStem','FarmlandBlock':'Farmland','CocoaBlock':'Cocoa',
+    'BigDripleafBlock':'BigDripleaf','BigDripleafStemBlock':'BigDripleafStem','FarmBlock':'Farmland','CocoaBlock':'Cocoa',
     'SugarCaneBlock':'SugarCane','SporeBlossomBlock':'SporeBlossom','FrogspawnBlock':'Frogspawn','SmallDripleafBlock':'SmallDripleaf','TallSeagrassBlock':'TallSeagrass',
     'DoorBlock':'Door',
     'BaseRailBlock':'RigidBelow','LeafLitterBlock':'FullBelow','WallSignBlock':'SolidBehind','GrindstoneBlock':'Always','RedstoneWallTorchBlock':'FullBehind','BubbleColumnBlock':'BubbleColumn','RedstoneWireBlock':'RedstoneWire','SoulFireBlock':'TagBelow:minecraft:soul_fire_base_blocks',
@@ -52,13 +52,13 @@ CLASS_RULES={
 }
 
 VEGETATION_RULES={
-    'LilyPadBlock':'LilyPad',
-    'VegetationBlock':'TagBelow:minecraft:supports_vegetation',
+    'WaterlilyBlock':'LilyPad',
+    'VegetationBlock':'Vegetation',
     'AzaleaBlock':'TagBelow:minecraft:supports_azalea',
-    'DryVegetationBlock':'TagBelow:minecraft:supports_dry_vegetation',
+    'DryVegetationBlock':'TagBelow:minecraft:dry_vegetation_may_place_on',
     'NetherSproutsBlock':'TagBelow:minecraft:supports_nether_sprouts',
     'NetherWartBlock':'TagBelow:minecraft:supports_nether_wart',
-    'WitherRoseBlock':'TagBelow:minecraft:supports_wither_rose',
+    'WitherRoseBlock':'WitherRose',
     'CactusFlowerBlock':'CactusFlower','SeagrassBlock':'Seagrass',
 }
 
@@ -72,7 +72,14 @@ def bind_definitions(classes,placement,support_tags):
         if method in VEGETATION_RULES:definitions[name]=VEGETATION_RULES[method]
         elif method in ['AttachedStemBlock','StemBlock','NetherFungusBlock','NetherRootsBlock']:
             field='stemSupportBlocks' if method=='StemBlock' else 'supportBlocks'
-            definitions[name]='TagBelow:'+support_tags[name][field]
+            # 1.21.11's stem classes have no tag field: their mayPlaceOn
+            # hardcodes farmland. The fungus/root classes hardcode theirs
+            # too (item 757); they get no rule rather than a wrong one.
+            tag=support_tags.get(name,{}).get(field)
+            if tag is not None:
+                definitions[name]='TagBelow:'+tag
+            elif method in ['AttachedStemBlock','StemBlock']:
+                definitions[name]='BlockBelow:minecraft:farmland'
     return definitions
 
 

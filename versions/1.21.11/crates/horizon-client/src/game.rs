@@ -79,6 +79,8 @@ mod boat_rider_fixture;
 mod boats;
 mod books;
 mod bossbars;
+#[cfg(test)]
+mod bossbars_tests;
 mod breezes;
 mod brush;
 mod buckets;
@@ -647,8 +649,8 @@ enum Screen {
     Stats,
     /// The Advancements screen.
     Advancements,
-    /// WorldOptionsScreen (game/lan_screen.rs).
-    WorldOptions,
+    /// ShareToLanScreen (game/lan_screen.rs).
+    ShareToLan,
     /// Play with Friends, from the pause menu's Friends button
     /// (`friends_screen`, game/friends.rs).
     Friends,
@@ -694,7 +696,7 @@ impl Screen {
             Screen::Dead => "dead",
             Screen::Stats => "stats",
             Screen::Advancements => "advancements",
-            Screen::WorldOptions => "world_options",
+            Screen::ShareToLan => "share_to_lan",
             Screen::Friends => "friends",
             Screen::Social => "social",
             Screen::CommandBlock => "command_block",
@@ -936,7 +938,7 @@ fn point_box(feet: [f64; 3], width: f64, height: f64) -> Aabb {
     )
 }
 impl GameLevel<'_> {
-    /// `LilyPadBlock.entityInside`: the boxes of the boats that can break a pad.
+    /// `WaterlilyBlock.entityInside`: the boxes of the boats that can break a pad.
     fn boat_trigger_boxes(&self) -> impl Iterator<Item = Aabb> + '_ {
         self.entities.boats.iter().map(boats::Boat::bounds)
     }
@@ -2292,8 +2294,6 @@ struct Game<'a> {
     focus_after_run: Option<bool>,
     /// Whether the window currently accepts input method events.
     ime_allowed: bool,
-    /// The candidate window's area last given to the window, in pixels.
-    ime_area: Option<[i32; 4]>,
     /// When the window lost focus, while it is still without
     /// (`Minecraft.lastActiveTime`: pausing waits 500 ms).
     focus_lost: Option<Instant>,
@@ -2910,9 +2910,7 @@ struct Game<'a> {
     friends: Option<friends::Sharing>,
     /// The Social Interactions screen and the players whose chat is hidden (game/social.rs).
     social: social::Social,
-    world_options: Option<lan_screen::WorldOptions>,
-    /// Chat Settings opened from RestrictionsScreen: Done returns to World Options.
-    options_to_world_options: bool,
+    share_to_lan: Option<lan_screen::ShareToLan>,
     command_block_screen: Option<command_blocks::CommandBlockScreen>,
     block_editor: Option<block_editor::BlockEditScreen>,
     /// `StructureTemplateManager.structureRepository`: the templates in memory
@@ -4157,7 +4155,7 @@ impl Game<'_> {
                     .collect(),
                 // Filled from the `PORTAL` tickets by `update`.
                 portal: Vec::new(),
-                // EnderDragonFight.tick: while a player watches the fight, the
+                // EndDragonFight.tick: while a player watches the fight, the
                 // arena holds a `DRAGON` ticket of radius 9 at (0, 0), so its
                 // island ticks out to 7 chunks whatever the watcher's
                 // simulation distance. The fight lives where the type has one.
@@ -4400,7 +4398,7 @@ impl Game<'_> {
                     pos,
                     data,
                 } => self.destroy_particles([pos.x, pos.y, pos.z], BlockStateId(data as u32)),
-                // EnderDragonFight.spawnNewGateway: an always-visible burst
+                // EndDragonFight.spawnNewGateway: an always-visible burst
                 // and a sound at the gateway for every nearby player.
                 LevelEvent::LevelEvent { id: 3000, pos, .. } => {
                     let at = [
@@ -6270,7 +6268,7 @@ impl Game<'_> {
             Screen::Stats => self.draw_stats(&mut batch),
             Screen::Advancements => self.draw_advancements(&mut batch),
             Screen::Mod => {}
-            Screen::WorldOptions => self.draw_world_options(&mut batch),
+            Screen::ShareToLan => self.draw_share_to_lan(&mut batch),
             Screen::Friends => self.draw_friends_screen(&mut batch),
             Screen::Social => self.draw_social_screen(&mut batch),
             Screen::ServerLinks => self.draw_server_links(&mut batch),
@@ -7298,6 +7296,17 @@ impl Game<'_> {
         // Particles (ParticleEngine.extract): camera-facing quads.
         self.mark_stage(out.len(), "PARTICLES");
         let world = &self.world;
+        // `Particle.getLightColor`: 1.21.11 returns 0 when the particle's
+        // chunk is not loaded; 26.x returns sky 15 (15728640).
+        // `World::light` keeps the 26.x fallback for its other callers,
+        // so the particle path guards it here.
+        let particle_light = |b: [i32; 3]| {
+            if world.loaded(b[0], b[2]) {
+                world.light(b[0], b[1], b[2])
+            } else {
+                0
+            }
+        };
         let particle_mode = self.settings.horizon.particle_culling;
         if particle_mode == horizon_client::graphics::ParticleCullingMode::Off {
             self.particles.render(
@@ -7305,7 +7314,7 @@ impl Game<'_> {
                 self.yaw,
                 self.pitch,
                 alpha as f32,
-                &|b| world.light(b[0], b[1], b[2]),
+                &particle_light,
                 &mut out,
             );
         } else {
@@ -7329,7 +7338,7 @@ impl Game<'_> {
                     true,
                     frustum.as_ref(),
                     &mut |min, max| particle_culling.hidden(min, max),
-                    &|b| world.light(b[0], b[1], b[2]),
+                    &particle_light,
                     &mut out,
                 );
             }
@@ -7426,7 +7435,8 @@ impl Game<'_> {
             // shares its root vehicle and is never the hit, nor is the
             // camera entity the pick starts from. EntitySelector.CAN_BE_PICKED
             // is isPickable — `!isRemoved`, not alive: a health-0 fake player
-            // still answers a click.
+            // still answers a click. 1.21.11 also ANDs NO_SPECTATORS, but no
+            // mob here can be a spectator, so the filter is the same.
             if m.removed || Some(m.id) == self.riding || Some(m.id) == self.remote_camera_id() {
                 continue;
             }
@@ -7885,7 +7895,7 @@ impl Game<'_> {
         None
     }
     /// The cauldron at `pos`, and whether water is above it
-    /// (`CauldronInteractions.isUnderWater`).
+    /// (`CauldronInteraction.isUnderWater`).
     pub(super) fn cauldron_at(
         &self,
         pos: [i32; 3],
@@ -8951,11 +8961,15 @@ impl Game<'_> {
     /// Copy the live player and world state into the `Level` that gets saved.
     pub(super) fn sync_level(&mut self) {
         self.level.player_impulse_grace = self.player.as_ref().map(|p| p.impulse.reset_grace_time);
+        self.level.player_impulse = self
+            .player
+            .as_ref()
+            .map(|p| crate::save::ImpulseSave::from_impulse(&p.impulse));
         self.level.player_fall_particles = self
             .player
             .as_ref()
             .map(|p| p.spawn_extra_particles_on_fall);
-        // Level.write saves the game rules (game_rules.dat) with the rest.
+        // Level.write saves the game rules (level.dat's `game_rules`) with the rest.
         self.level.game_rules = self.ui.rules.by_name();
         // PrimaryLevelData.setDifficulty: /difficulty and the options button change it.
         self.level.difficulty =
@@ -8963,7 +8977,6 @@ impl Game<'_> {
         self.level.time = self.world.game_time;
         self.level.weather = self.world.weather;
         self.level.day_time = self.world.day_time;
-        self.level.end_clock = Some(self.world.end_clock);
         // A server has no player of its own; `enter_guest` puts one in
         // `self.player` only while a command reads it.
         if self.player.is_none() && self.options.dedicated.is_some() {
@@ -9097,6 +9110,12 @@ impl Game<'_> {
         if dedicated {
             dedicated::events::record_server("saved", serde_json::json!({}));
         }
+        // `IntegratedServer.saveEverything` warns on low disk space after
+        // every save (`warnOnLowDiskSpace`); a dedicated server has no such
+        // warning in 1.21.11, so it stays quiet here.
+        if !dedicated && horizon_client::save::low_disk_space(&self.world_root) {
+            horizon_client::chunk_io::report_low_disk_space();
+        }
         Ok(())
     }
     /// `ChunkMap.saveChunksEagerly`: snapshot only while the tick and writer
@@ -9177,8 +9196,9 @@ impl Game<'_> {
         // Minecraft.doWorldLoad: the LevelLoadingScreen while single player's
         // server starts, with the server's chunk map and progress.
         if let Some(starting) = &self.integrated_starting {
-            // WorldOpenFlows.upgradeAndOpenWorld: the server's file fixers run on
-            // FileFixerProgressScreen, before the LevelLoadingScreen has progress.
+            // 1.21.11 has no file-fixing flow (`WorldOpenFlows.upgradeAndOpenWorld` is
+            // gone with it): the upgrade flag is never set, and the fixer screen below
+            // never shows. The upgrade handle still reports the datafix progress.
             let upgrade = starting.handle.upgrade();
             if upgrade.is_file_fixing() {
                 horizon_client::widgets::begin_screen(|| {
@@ -9456,6 +9476,9 @@ impl Game<'_> {
             post_blend: Some(&post_blend),
             post_biome: Some(post_of(biome)),
         });
+        // `LightTexture.updateLightTexture`: the lightmap's
+        // `AmbientLightFactor` is the dimension type's ambient light.
+        sky.ambient_light = self.dimension_type().ambient_light;
         self.end_flash_sky(&mut sky, alpha);
         if self.flash > 0 && !self.settings.file.bool("hideLightningFlashes") {
             // ClientLevel's flash layer while skyFlashTime > 0: the sky colour
@@ -9511,7 +9534,7 @@ impl Game<'_> {
         };
         pr.lap("pr_primitives");
         let at = camera.to_array();
-        // GameRenderer.render3dHud: the debug crosshair, first person with the HUD shown.
+        // `DebugScreenOverlay.render3dCrosshair`: the debug crosshair, first person with the HUD shown.
         let mut crosshair = horizon_client::gizmos::Gizmos::default();
         if debug_crosshair_drawn(
             self.debug_crosshair(),
@@ -9670,7 +9693,6 @@ impl Game<'_> {
         pr.lap("pr_projection");
         // GUI hooks project against this frame's camera, including its bob/spin and FOV.
         let mut hud = horizon_client::spans::time("hud", || self.hud(size));
-        self.flush_ime(&mut hud);
         self.native_gui_render_post(&mut hud, self.ui.hide_gui, self.focused);
         self.resolve_inline_profiles(&hud.inline_profiles);
         pr.lap("pr_hud");
@@ -9962,7 +9984,7 @@ impl Game<'_> {
                 .sprites
                 .get("block/destroy_stage_0")
                 .map_or([0.0; 4], |r| [r.u0, r.v0, r.u1 - r.u0, r.v1 - r.v0]),
-            end_portal_sprites: ["environment/end_sky", "entity/end_portal/end_portal"].map(|n| {
+            end_portal_sprites: ["environment/end_sky", "entity/end_portal"].map(|n| {
                 self.gui
                     .atlas
                     .sprites
@@ -9972,7 +9994,7 @@ impl Game<'_> {
             ticks: self.texture_clock(),
             darkness: self.darkness_lighting(alpha as f32),
             night_vision: self.night_vision_intensity(alpha as f32),
-            block_flicker: self.fog.block_light_flicker,
+            block_flicker: self.fog.block_light_red_flicker,
             boss_darken: self
                 .boss_overlay
                 .darken_amount(self.clock.fraction() as f32),
@@ -10088,18 +10110,6 @@ impl Game<'_> {
             && let Some(title) = &mut self.title
         {
             title.drop_file(path.clone());
-        }
-        // GLFW never hands a field the keys an input method consumes: while a
-        // composition is open, and the Enter or Escape that ends it (winit on
-        // Windows still sends that one right after `Ime::Commit`).
-        if let WindowEvent::KeyboardInput {
-            event: key_event, ..
-        } = &event
-            && key_event.state == ElementState::Pressed
-            && self.text_field_focused()
-            && horizon_client::preedit::should_suppress_key()
-        {
-            return;
         }
         // A character that comes with no key (Windows' Alt codes, `Alt` + digits on the numeric
         // keypad: a `WM_CHAR` after the Alt is released) reaches winit as a key event with no
@@ -10455,13 +10465,8 @@ impl Game<'_> {
                     self.begin_closing_save(true)?;
                 }
                 // Input method composition: the committed text types like a key's text.
+                // (1.21.11 has no preedit overlay; the OS shows the composition.)
                 WindowEvent::Ime(winit::event::Ime::Commit(text)) => self.ime_commit(&text),
-                WindowEvent::Ime(winit::event::Ime::Preedit(text, cursor)) => {
-                    self.ime_preedit(&text, cursor)
-                }
-                WindowEvent::Ime(winit::event::Ime::Disabled) => {
-                    horizon_client::preedit::set_preedit(None)
-                }
                 WindowEvent::Resized(size) => {
                     if let Some(r) = &mut self.renderer {
                         r.resize(size.width, size.height);
@@ -10555,9 +10560,6 @@ impl Game<'_> {
                         }
                         if self.screen == Screen::HudEditor {
                             self.hud_editor_drag();
-                        }
-                        if self.screen == Screen::WorldOptions {
-                            self.world_options_drag();
                         }
                         if self.screen == Screen::Creative {
                             let (_, oy) = Self::creative_origin(&b);
@@ -10717,9 +10719,6 @@ impl Game<'_> {
                     }
                     if self.screen == Screen::Stats && d != 0.0 {
                         self.stats_scroll(d);
-                    }
-                    if self.screen == Screen::WorldOptions && d != 0.0 {
-                        self.world_options_scroll(d);
                     }
                     if self.screen == Screen::ServerLinks && d != 0.0 {
                         self.server_links_scroll(d);
@@ -11040,8 +11039,8 @@ impl Game<'_> {
                         {
                             self.pause_click()?
                         }
-                        Screen::WorldOptions if pressed && button == MouseButton::Left => {
-                            self.world_options_click()
+                        Screen::ShareToLan if pressed && button == MouseButton::Left => {
+                            self.share_to_lan_click()
                         }
                         Screen::ServerLinks if pressed && button == MouseButton::Left => {
                             self.server_links_click()?
@@ -11066,9 +11065,6 @@ impl Game<'_> {
                         }
                         Screen::DialogWarning if pressed && button == MouseButton::Left => {
                             self.dialog_warning_click()?
-                        }
-                        Screen::WorldOptions if button == MouseButton::Left => {
-                            self.world_options_release()
                         }
                         Screen::Friends if pressed && button == MouseButton::Left => {
                             self.friends_screen_click()
@@ -11234,10 +11230,10 @@ impl Game<'_> {
                     }
                 }
                 WindowEvent::KeyboardInput { event, .. }
-                    if self.screen == Screen::WorldOptions
+                    if self.screen == Screen::ShareToLan
                         && !matches!(event.physical_key, PhysicalKey::Code(KeyCode::Escape)) =>
                 {
-                    self.world_options_key(&event)
+                    self.share_to_lan_key(&event)
                 }
                 WindowEvent::KeyboardInput { event, .. } if self.screen == Screen::Win => {
                     self.win_key(&event)?
@@ -11882,7 +11878,6 @@ impl<'a> Game<'a> {
             unclaimed_window: false,
             focus_after_run: None,
             ime_allowed: false,
-            ime_area: None,
             focus_lost: None,
             modifiers: winit::keyboard::ModifiersState::empty(),
             fullscreen: horizon_client::window::FullscreenState::new(false),
@@ -12227,8 +12222,7 @@ impl<'a> Game<'a> {
             integrated: None,
             level_shapes: Default::default(),
             serving: None,
-            world_options: None,
-            options_to_world_options: false,
+            share_to_lan: None,
             command_block_screen: None,
             block_editor: None,
             structure_templates: HashMap::new(),

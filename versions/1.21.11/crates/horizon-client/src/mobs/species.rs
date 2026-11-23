@@ -136,7 +136,7 @@ pub const ALL: &[Def] = &[
         Pig,
         "pig",
         "pig#main",
-        "entity/pig/pig_temperate",
+        "entity/pig/temperate_pig",
         A::Quadruped,
         ["entity.pig.ambient", "entity.pig.hurt", "entity.pig.death"],
         Some("entity.pig.step"),
@@ -146,7 +146,7 @@ pub const ALL: &[Def] = &[
         Cow,
         "cow",
         "cow#main",
-        "entity/cow/cow_temperate",
+        "entity/cow/temperate_cow",
         A::Quadruped,
         ["entity.cow.ambient", "entity.cow.hurt", "entity.cow.death"],
         Some("entity.cow.step"),
@@ -156,7 +156,7 @@ pub const ALL: &[Def] = &[
         Mooshroom,
         "mooshroom",
         "mooshroom#main",
-        "entity/cow/mooshroom_red",
+        "entity/cow/red_mooshroom",
         A::Quadruped,
         ["entity.cow.ambient", "entity.cow.hurt", "entity.cow.death"],
         Some("entity.cow.step"),
@@ -180,7 +180,7 @@ pub const ALL: &[Def] = &[
         Chicken,
         "chicken",
         "chicken#main",
-        "entity/chicken/chicken_temperate",
+        "entity/chicken/temperate_chicken",
         A::Chicken,
         [
             "entity.chicken.ambient",
@@ -194,7 +194,7 @@ pub const ALL: &[Def] = &[
         Rabbit,
         "rabbit",
         "rabbit#main",
-        "entity/rabbit/rabbit_brown",
+        "entity/rabbit/brown",
         A::Rabbit,
         [
             "entity.rabbit.ambient",
@@ -202,7 +202,10 @@ pub const ALL: &[Def] = &[
             "entity.rabbit.death"
         ],
         None,
-        Baby::Abs(0.24, 0.4, 0.39)
+        // 1.21.11 has no `Rabbit.BABY_DIMENSIONS`: babies scale the adult
+        // box by the 0.5 age scale (26.1 overrode it with 0.24 x 0.4,
+        // eye 0.39).
+        Baby::Scale(0.5, None)
     ),
     def!(
         ZombieHorse,
@@ -216,7 +219,7 @@ pub const ALL: &[Def] = &[
             "entity.zombie_horse.death"
         ],
         Some("entity.horse.step"),
-        Baby::Scale(0.7, None)
+        Baby::Scale(0.5, None)
     ),
     def!(
         SkeletonHorse,
@@ -230,7 +233,7 @@ pub const ALL: &[Def] = &[
             "entity.skeleton_horse.death"
         ],
         Some("entity.horse.step"),
-        Baby::Scale(0.7, None)
+        Baby::Scale(0.5, None)
     ),
     def!(
         Giant,
@@ -254,7 +257,7 @@ pub const ALL: &[Def] = &[
             "entity.horse.death"
         ],
         Some("entity.horse.step"),
-        Baby::Scale(0.7, None)
+        Baby::Scale(0.5, None)
     ),
     def!(
         Donkey,
@@ -288,7 +291,7 @@ pub const ALL: &[Def] = &[
         Llama,
         "llama",
         "llama#main",
-        "entity/llama/llama_creamy",
+        "entity/llama/creamy",
         A::Llama,
         [
             "entity.llama.ambient",
@@ -302,7 +305,7 @@ pub const ALL: &[Def] = &[
         TraderLlama,
         "trader_llama",
         "trader_llama#main",
-        "entity/llama/llama_creamy",
+        "entity/llama/creamy",
         A::Llama,
         [
             "entity.llama.ambient",
@@ -362,7 +365,7 @@ pub const ALL: &[Def] = &[
         A::Fox,
         ["entity.fox.ambient", "entity.fox.hurt", "entity.fox.death"],
         None,
-        Baby::Scale(0.6, Some(0.34375))
+        Baby::Scale(0.5, Some(0.2975))
     ),
     def!(
         Wolf,
@@ -382,7 +385,7 @@ pub const ALL: &[Def] = &[
         Cat,
         "cat",
         "cat#main",
-        "entity/cat/cat_tabby",
+        "entity/cat/tabby",
         A::Feline,
         ["entity.cat.ambient", "entity.cat.hurt", "entity.cat.death"],
         None,
@@ -458,7 +461,7 @@ pub const ALL: &[Def] = &[
         Frog,
         "frog",
         "frog#main",
-        "entity/frog/frog_temperate",
+        "entity/frog/temperate_frog",
         A::Frog,
         [
             "entity.frog.ambient",
@@ -480,7 +483,9 @@ pub const ALL: &[Def] = &[
             "entity.axolotl.death"
         ],
         None,
-        Baby::Abs(0.375, 0.21, 0.09375)
+        // 1.21.11 dropped Axolotl.getDefaultDimensions and BABY_DIMENSIONS:
+        // a baby axolotl is the type dims scaled by getAgeScale (0.5).
+        Baby::Scale(0.5, None)
     ),
     def!(
         Squid,
@@ -494,7 +499,9 @@ pub const ALL: &[Def] = &[
             "entity.squid.death"
         ],
         None,
-        Baby::Abs(0.5, 0.5, 0.37)
+        // 1.21.11 dropped Squid.getDefaultDimensions and BABY_DIMENSIONS:
+        // a baby squid is the type dims scaled by getAgeScale (0.5).
+        Baby::Scale(0.5, None)
     ),
     def!(
         GlowSquid,
@@ -508,7 +515,9 @@ pub const ALL: &[Def] = &[
             "entity.glow_squid.death"
         ],
         None,
-        Baby::Abs(0.5, 0.5, 0.37)
+        // As the squid: 1.21.11 dropped the baby override, so the type dims
+        // scaled by getAgeScale (0.5).
+        Baby::Scale(0.5, None)
     ),
     def!(
         Tadpole,
@@ -592,6 +601,8 @@ pub const ALL: &[Def] = &[
         None,
         Baby::None
     ),
+    // 1.21.11 drops `Villager.getDefaultDimensions` (its BABY_DIMENSIONS):
+    // a baby takes the type's box at `LivingEntity.getAgeScale`'s 0.5.
     def!(
         Villager,
         "villager",
@@ -604,7 +615,7 @@ pub const ALL: &[Def] = &[
             "entity.villager.death"
         ],
         None,
-        Baby::Abs(0.49, 0.98, 0.63)
+        Baby::Scale(0.5, None)
     ),
     def!(
         WanderingTrader,
@@ -666,7 +677,9 @@ pub const ALL: &[Def] = &[
             "entity.zombie.death"
         ],
         Some("entity.zombie.step"),
-        Baby::Abs(0.49, 0.98, 0.775)
+        // 1.21.11: Zombie.BABY_DIMENSIONS is ZOMBIE 0.6 x 1.95 scaled
+        // 0.5, eye 0.93. 26.1's own 0.49 x 0.99 / eye 0.775 is gone.
+        Baby::Abs(0.3, 0.975, 0.93)
     ),
     def!(
         Husk,
@@ -680,7 +693,10 @@ pub const ALL: &[Def] = &[
             "entity.husk.death"
         ],
         Some("entity.husk.step"),
-        Baby::Abs(0.49, 0.98, 0.825)
+        // 1.21.11 has no Husk BABY_DIMENSIONS: a baby husk inherits
+        // Zombie's (ZOMBIE 0.6 x 1.95 scaled 0.5, eye 0.93). 26.1's
+        // own 0.49 x 0.99 / eye 0.825 override is gone.
+        Baby::Abs(0.3, 0.975, 0.93)
     ),
     def!(
         Drowned,
@@ -694,7 +710,10 @@ pub const ALL: &[Def] = &[
             "entity.drowned.death"
         ],
         Some("entity.drowned.step"),
-        Baby::Abs(0.49, 0.98, 0.775)
+        // 1.21.11 has no Drowned BABY_DIMENSIONS: a baby drowned inherits
+        // Zombie's (ZOMBIE 0.6 x 1.95 scaled 0.5, eye 0.93). 26.1's
+        // own 0.49 x 0.99 / eye 0.775 override is gone.
+        Baby::Abs(0.3, 0.975, 0.93)
     ),
     def!(
         ZombieVillager,
@@ -708,7 +727,10 @@ pub const ALL: &[Def] = &[
             "entity.zombie_villager.death"
         ],
         Some("entity.zombie_villager.step"),
-        Baby::Abs(0.49, 0.98, 0.67)
+        // 1.21.11 has no ZombieVillager BABY_DIMENSIONS: a baby zombie
+        // villager inherits Zombie's (ZOMBIE 0.6 x 1.95 scaled 0.5,
+        // eye 0.93). 26.1's own 0.49 x 0.99 / eye 0.67 override is gone.
+        Baby::Abs(0.3, 0.975, 0.93)
     ),
     def!(
         Skeleton,
@@ -884,7 +906,7 @@ pub const ALL: &[Def] = &[
         Witch,
         "witch",
         "witch#main",
-        "entity/witch/witch",
+        "entity/witch",
         A::Witch,
         [
             "entity.witch.ambient",
@@ -898,7 +920,7 @@ pub const ALL: &[Def] = &[
         Phantom,
         "phantom",
         "phantom#main",
-        "entity/phantom/phantom",
+        "entity/phantom",
         A::Phantom,
         [
             "entity.phantom.ambient",
@@ -1076,7 +1098,7 @@ pub const ALL: &[Def] = &[
         Guardian,
         "guardian",
         "guardian#main",
-        "entity/guardian/guardian",
+        "entity/guardian",
         A::Guardian,
         [
             "entity.guardian.ambient",
@@ -1090,7 +1112,7 @@ pub const ALL: &[Def] = &[
         ElderGuardian,
         "elder_guardian",
         "elder_guardian#main",
-        "entity/guardian/guardian_elder",
+        "entity/guardian_elder",
         A::Guardian,
         [
             "entity.elder_guardian.ambient",
@@ -1140,7 +1162,9 @@ pub const ALL: &[Def] = &[
             "entity.piglin.death"
         ],
         Some("entity.piglin.step"),
-        Baby::Abs(0.49, 0.98, 0.78)
+        // 1.21.11: PIGLIN 0.6 x 1.95 scaled 0.5, eye 0.97.
+        // 26.1's own 0.49 x 0.99 / eye 0.78 BABY_DIMENSIONS is gone.
+        Baby::Scale(0.5, Some(0.97))
     ),
     def!(
         PiglinBrute,
@@ -1168,7 +1192,9 @@ pub const ALL: &[Def] = &[
             "entity.zombified_piglin.death"
         ],
         None,
-        Baby::Abs(0.49, 0.98, 0.78)
+        // 1.21.11: ZOMBIFIED_PIGLIN 0.6 x 1.95 scaled 0.5, eye 0.97.
+        // 26.1's own 0.49 x 0.99 / eye 0.78 BABY_DIMENSIONS is gone.
+        Baby::Abs(0.3, 0.975, 0.97)
     ),
     def!(
         Hoglin,
@@ -1412,7 +1438,7 @@ impl Def {
             Species::Sheep => &["sheep_baby"],
             Species::Chicken => &["chicken_baby", "cold_chicken"],
             Species::Rabbit => &["rabbit_baby"],
-            Species::Horse => &["horse_baby", "horse_armor"],
+            Species::Horse => &["horse_baby", "horse_armor", "horse_baby_armor"],
             Species::Donkey => &["donkey_baby"],
             Species::Mule => &["mule_baby"],
             Species::Llama => &["llama_baby"],
@@ -1421,7 +1447,7 @@ impl Def {
             Species::Panda => &["panda_baby"],
             Species::PolarBear => &["polar_bear_baby"],
             Species::Fox => &["fox_baby"],
-            Species::Wolf => &["wolf_baby", "wolf_armor"],
+            Species::Wolf => &["wolf_baby", "wolf_armor", "wolf_baby_armor"],
             Species::Sniffer => &["sniffer_baby"],
             Species::HappyGhast => &[
                 "happy_ghast_baby",
@@ -1437,7 +1463,6 @@ impl Def {
             Species::Armadillo => &["armadillo_baby"],
             Species::Axolotl => &["axolotl_baby"],
             Species::Squid => &["squid_baby"],
-            Species::GlowSquid => &["glow_squid_baby"],
             Species::Salmon => &["salmon_small", "salmon_large"],
             Species::TropicalFish => &["tropical_fish_large"],
             Species::Pufferfish => &["pufferfish_small", "pufferfish_medium"],
@@ -1461,8 +1486,16 @@ impl Def {
             Species::Nautilus => &["nautilus_baby", "nautilus_armor"],
             Species::ZombieNautilus => &["zombie_nautilus_coral", "nautilus_armor", "nautilus"],
             Species::SulfurCube => &["sulfur_cube_small"],
-            Species::ZombieHorse => &["zombie_horse_baby", "undead_horse_armor"],
-            Species::SkeletonHorse => &["skeleton_horse_baby", "undead_horse_armor"],
+            Species::ZombieHorse => &[
+                "zombie_horse_baby",
+                "undead_horse_armor",
+                "undead_horse_baby_armor",
+            ],
+            Species::SkeletonHorse => &[
+                "skeleton_horse_baby",
+                "undead_horse_armor",
+                "undead_horse_baby_armor",
+            ],
             _ => &[],
         };
         v.extend_from_slice(extra);

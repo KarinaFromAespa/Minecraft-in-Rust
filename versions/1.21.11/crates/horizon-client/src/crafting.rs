@@ -264,8 +264,11 @@ impl Placement {
         self.slots.is_empty()
     }
 }
-/// A recipe result: `ItemStackTemplate` (`id`, `count`, `components`), or a bare item id
-/// (`ItemStackTemplate.CODEC` falls back to `Item.CODEC`), with the id optional for the
+/// A recipe result: an `ItemStack` (`id`, `count`, `components`) as
+/// `ItemStack.STRICT_CODEC` reads it (1.21.11; 26.1 named the shape
+/// `ItemStackTemplate`), or a bare item id, which this loader reads
+/// leniently (vanilla 1.21.11 requires the object form — no vanilla
+/// recipe uses the bare form), with the id optional for the
 /// transmuting recipes that keep the input's item.
 #[derive(Clone, Debug)]
 pub struct Template {
@@ -276,7 +279,7 @@ pub struct Template {
     /// Result patch before decoding defaults, including explicit removals/zeroes.
     pub components: Option<Tag>,
 }
-/// `ItemStackTemplate.CODEC` count: absent means 1, present must be an
+/// `ItemStack.STRICT_CODEC` count: absent means 1, present must be an
 /// integer in `1..=99` (`ExtraCodecs.intRange(1, 99)`), else the recipe is
 /// not loaded.
 pub(crate) fn template_count(v: &Value) -> Option<u32> {
@@ -300,7 +303,10 @@ impl Template {
             components,
         })
     }
-    /// `ItemStackTemplate.create`.
+    /// Build the result stack from the decoded shape. In 1.21.11 the
+    /// result IS the stack (`ItemStack.STRICT_CODEC` decodes it
+    /// directly); 26.1 built it from an `ItemStackTemplate` via
+    /// `create`.
     pub fn create(&self) -> ItemStack {
         ItemStack {
             item: self
@@ -320,8 +326,9 @@ impl Template {
             .components
             .clone()
             .unwrap_or_else(|| assembly_components(&self.create()));
-        // ItemStackTemplate.apply: the second patch wins for each component;
-        // a removal replaces a value rather than coexisting with it.
+        // `DataComponentPatch` application: the second patch wins for each
+        // component; a removal replaces a value rather than coexisting
+        // with it.
         let entries = |tag: Tag| match tag {
             Tag::Compound(map) => map
                 .into_iter()
@@ -414,15 +421,24 @@ impl Recipe {
 #[derive(Clone, Debug)]
 pub enum Special {
     /// A patterned banner and a blank one of the same colour copy the patterns.
-    BannerDuplicate { banner: Ingredient, result: String },
+    /// `result` is None when the copy keeps the source banner's own item
+    /// (1.21.11's single recipe; 26.x ships one recipe per colour).
+    BannerDuplicate {
+        banner: Ingredient,
+        result: Option<String>,
+    },
     /// A banner decorates an undecorated shield.
     ShieldDecoration {
         banner: Ingredient,
         target: Ingredient,
         result: String,
     },
-    /// `TransmuteRecipe`: one input, 1..8 materials; shulker box and bundle
-    /// dyeing, map cloning.
+    /// `TransmuteRecipe`: one input, one material; shulker box and bundle
+    /// dyeing. (`min`/`max`/`add_count` stay for the shape of the recipe;
+    /// 1.21.11's codec has no material bounds, so the loader pins 1, 1,
+    /// false — 26.x's `material_count` and `add_material_count_to_result`
+    /// do not exist here. Map cloning is `MapCloning` below, not a
+    /// transmute as in 26.x.)
     Transmute {
         input: Ingredient,
         material: Ingredient,
@@ -431,21 +447,23 @@ pub enum Special {
         add_count: bool,
         result: Template,
     },
-    /// `DyeRecipe`: dyed armour.
+    /// `ArmorDyeRecipe`: dyed armour (26.x's data-driven `DyeRecipe`).
     Dye {
         target: Ingredient,
         dye: Ingredient,
         result: Template,
     },
-    /// `ImbueRecipe`: tipped arrows.
+    /// `TippedArrowRecipe` (26.x's data-driven `ImbueRecipe`).
     Imbue {
         source: Ingredient,
         material: Ingredient,
         result: Template,
     },
-    /// `BookCloningRecipe`.
+    /// `BookCloningRecipe`: the source is any stack carrying written-book
+    /// content (1.21.11 tests the component, not an item), the material is
+    /// `#book_cloning_target`, and `min`/`max` are the generations
+    /// `tryCraftCopy` allows (0 and 1).
     BookCloning {
-        source: Ingredient,
         material: Ingredient,
         min: i32,
         max: i32,
@@ -487,6 +505,9 @@ pub enum Special {
         front: Ingredient,
         result: Template,
     },
+    /// `MapCloningRecipe`: one filled map and blank maps copy it (26.x does
+    /// this as a transmute recipe).
+    MapCloning,
     /// `RepairItemRecipe`: two damaged items of one kind.
     RepairItem,
 }
@@ -538,69 +559,10 @@ impl Special {
                     shown(Display::Shapeless(ingredients), first_of(&all, made), all)
                 })
                 .collect(),
-            Self::Dye {
-                target,
-                dye,
-                result,
-            } => {
-                // DyedSlotDemo: the targets cycle fastest, 16 stacks at most.
-                let (targets, dyes) = (&target.order, &dye.order);
-                let all: Vec<ItemStack> = (0..targets.len() * dyes.len())
-                    .map(|i| {
-                        let mut made = result.create();
-                        made.item = Arc::from(targets[i % targets.len()].as_str());
-                        let name = dyes[i / targets.len()].trim_start_matches("minecraft:");
-                        let color = crate::block_entity_render::DYES
-                            .iter()
-                            .find(|(c, _)| name.strip_suffix("_dye") == Some(c))
-                            .map_or(crate::block_entity_render::DYES[0].1, |d| d.1);
-                        made.data_mut().dyed_color = Some(color as i32);
-                        made
-                    })
-                    .take(16)
-                    .collect();
-                let first = result.create();
-                vec![shown(
-                    Display::Shapeless(vec![target.clone(), dye.clone()]),
-                    first_of(&all, first),
-                    all,
-                )]
-            }
-            Self::Imbue {
-                source,
-                material,
-                result,
-            } => {
-                let cells = (0..9)
-                    .map(|i| Some(if i == 4 { source } else { material }.clone()))
-                    .collect();
-                // Any potion's tipped arrow.
-                let potions = |item: ItemStack| -> Vec<ItemStack> {
-                    crate::brewing::POTIONS
-                        .iter()
-                        .map(|p| item.clone().with_potion(&format!("minecraft:{}", p.id)))
-                        .collect()
-                };
-                let all = potions(result.create());
-                // The source ingredient is shown as a lingering potion of each kind.
-                let lingering = source
-                    .order
-                    .iter()
-                    .flat_map(|item| potions(ItemStack::new(item, 1)))
-                    .collect();
-                vec![BookDisplay {
-                    stacks: vec![(4, lingering)],
-                    ..shown(
-                        Display::Shaped {
-                            width: 3,
-                            height: 3,
-                            cells,
-                        },
-                        first_of(&all, result.create()),
-                        all,
-                    )
-                }]
-            }
+            // `ArmorDyeRecipe` and `TippedArrowRecipe` are `CustomRecipe`s
+            // with no display in 1.21.11 (`Recipe.display` defaults to
+            // empty; the 26.x DyedSlotDemo / WithAnyPotion displays do
+            // not exist here), and neither do the other specials.
             _ => Vec::new(),
         }
     }
@@ -762,10 +724,11 @@ impl Special {
                 let mut found: Option<&ItemStack> = None;
                 let mut materials = 0;
                 for s in &stacks {
-                    if base.test(s) {
-                        if found.is_some() {
-                            return false;
-                        }
+                    // 1.21.11 tests the input only while none is found
+                    // yet, so a stack that matches both the input and the
+                    // material serves as the material once the input is
+                    // taken (26.x fails it).
+                    if found.is_none() && base.test(s) {
                         found = Some(s);
                     } else {
                         if !material.test(s) {
@@ -828,21 +791,16 @@ impl Special {
                 })
             }
             Self::BookCloning {
-                source,
-                material,
-                min,
-                max,
-                ..
+                material, min, max, ..
             } => {
                 if stacks.len() < 2 {
                     return false;
                 }
                 let (mut has_material, mut has_source) = (false, false);
                 for s in &stacks {
-                    if source.test(s) {
-                        let Some(book) = s.data().and_then(|d| d.written.as_ref()) else {
-                            return false;
-                        };
+                    // 1.21.11 tests the written-book component, not an
+                    // item: any stack carrying it is the source.
+                    if let Some(book) = s.data().and_then(|d| d.written.as_ref()) {
                         let generation = i32::from(book.generation);
                         if generation < *min || generation > *max || has_source {
                             return false;
@@ -973,6 +931,26 @@ impl Special {
                     && input.get(2, 1).is_some_and(|s| right.test(s))
                     && input.get(1, 2).is_some_and(|s| front.test(s))
             }
+            Self::MapCloning => {
+                if stacks.len() < 2 {
+                    return false;
+                }
+                let (mut has_filled, mut has_blank) = (false, false);
+                for s in &stacks {
+                    if s.data().is_some_and(|d| d.map_id.is_some()) {
+                        if has_filled {
+                            return false;
+                        }
+                        has_filled = true;
+                    } else {
+                        if s.item.as_ref() != "minecraft:map" {
+                            return false;
+                        }
+                        has_blank = true;
+                    }
+                }
+                has_filled && has_blank
+            }
             Self::RepairItem => Self::repair_pair(ctx, &stacks).is_some(),
         }
     }
@@ -1001,9 +979,14 @@ impl Special {
                 let source = stacks
                     .iter()
                     .find(|s| (1..=banner::MAX_LAYERS).contains(&banner::layers(s).len()))?;
-                // TransmuteRecipe.createWithOriginalComponents: the source's components.
+                // The copy carries the source's components (its patterns);
+                // the item is the recipe's result, or the source banner's
+                // own when the recipe names none.
                 ItemStack {
-                    item: Arc::from(result.as_str()),
+                    item: result
+                        .as_deref()
+                        .map(Arc::from)
+                        .unwrap_or_else(|| source.item.clone()),
                     count: 1,
                     ..(**source).clone()
                 }
@@ -1092,15 +1075,12 @@ impl Special {
                 out
             }
             Self::BookCloning {
-                source,
-                material,
-                result,
-                ..
+                material, result, ..
             } => {
                 let mut copies = 0u32;
                 let mut book: Option<&ItemStack> = None;
                 for s in &stacks {
-                    if source.test(s) && s.data().is_some_and(|d| d.written.is_some()) {
+                    if s.data().is_some_and(|d| d.written.is_some()) {
                         if book.is_some() {
                             return None;
                         }
@@ -1113,6 +1093,15 @@ impl Special {
                     }
                 }
                 let book = book?;
+                // `tryCraftCopy`: a generation-2 book copies no further
+                // (matches() already bounds it; this is the assemble-side
+                // gate).
+                if book
+                    .data()
+                    .is_some_and(|d| d.written.as_ref().is_some_and(|w| w.generation >= 2))
+                {
+                    return None;
+                }
                 // count - 1 can be -1 when no material was seen; matches() ensures one.
                 let mut out = result.over(book, copies.saturating_sub(1));
                 if let Some(w) = out.data_mut().written.as_mut() {
@@ -1221,6 +1210,31 @@ impl Special {
                 }
                 out
             }
+            Self::MapCloning => {
+                let mut blanks = 0u32;
+                let mut filled: Option<&ItemStack> = None;
+                for s in &stacks {
+                    if s.data().is_some_and(|d| d.map_id.is_some()) {
+                        if filled.is_some() {
+                            return None;
+                        }
+                        filled = Some(s);
+                    } else {
+                        if s.item.as_ref() != "minecraft:map" {
+                            return None;
+                        }
+                        blanks += 1;
+                    }
+                }
+                let filled = filled?;
+                if blanks < 1 {
+                    return None;
+                }
+                // The original is consumed; the copies come back with it.
+                let mut out = (*filled).clone();
+                out.count = blanks + 1;
+                out
+            }
             Self::RepairItem => {
                 let (first, second) = Self::repair_pair(ctx, &stacks)?;
                 let max = |s: &ItemStack| ctx.facts(s).map_or(0, |f| f.max_damage) as i64;
@@ -1251,7 +1265,8 @@ impl Special {
         };
         let mut made = made;
         made.tidy();
-        // ItemStackTemplate.validate: oversized stacks become empty.
+        // `ItemStack.validateStrict` (via `STRICT_CODEC`): oversized stacks
+        // become empty.
         (made.count > 0 && made.count <= ctx.max_stack(&made.item)).then_some(made)
     }
 }
@@ -1302,7 +1317,7 @@ pub struct CustomRecipe {
     pub id: String,
     pub json: Arc<Value>,
 }
-/// An item stack as a recipe's `result` names it (`ItemStackTemplate`); none
+/// An item stack as a recipe's `result` names it (`ItemStack.STRICT_CODEC`); none
 /// with no `id` or a count outside 1 to 99.
 pub fn recipe_result(v: &Value) -> Option<ItemStack> {
     let template = Template::parse(v)?;
@@ -1321,8 +1336,9 @@ pub fn recipe_id(name: &str) -> String {
 /// The sort key of vanilla's recipe registration order, which first-match
 /// lookups (`RecipeManager.getRecipeFor`'s `findFirst`), the stonecutter's
 /// list and the recipe book's display numbers all follow:
-/// `ResourceManagerRegistryLoadTask` sorts the resource files by `Identifier`
-/// (path, then namespace) and `RecipeMap` keeps that order. The file's path
+/// `RegistryDataLoader.loadContentsFromManager` walks the resource files in
+/// `listMatchingResources`' `Identifier`-sorted order (path, then namespace)
+/// and `RecipeMap` keeps that order. The file's path
 /// ends in `.json`, so `prefix-early` sorts before `prefix`. `name` is a
 /// table name (`oak_planks`) or a whole id.
 pub fn registration_key(name: &str) -> (String, String) {
@@ -1571,6 +1587,39 @@ impl Recipes {
             let ing = |k: &str| Ingredient::parse(&v[k], items);
             let result = || Template::parse(&v["result"]);
             let special = |recipe: Option<Special>| recipe.map(Recipe::Special);
+            // 1.21.11's specials are hardcoded: their JSONs carry only
+            // `category` (and `group`), and `CustomRecipe.Serializer`
+            // ignores any other fields, so the loader supplies the
+            // pinned ingredients and results. A tag that does not
+            // resolve drops the file, as an unknown ingredient does
+            // elsewhere.
+            let tag = |t: &str| Ingredient::parse(&Value::String(format!("#{t}")), items);
+            let one = |item: &str| Ingredient::of(vec![item.to_owned()]);
+            // 1.21.11 has no `#minecraft:dyes` tag: the dye test is
+            // `instanceof DyeItem`, the sixteen dye items.
+            let dyes = || {
+                Ingredient::of(
+                    crate::block_entity_render::DYES
+                        .iter()
+                        .map(|(name, _)| format!("minecraft:{name}_dye"))
+                        .collect(),
+                )
+            };
+            // A result that keeps the input stack's item (`copyWithCount`).
+            let keep = || Template {
+                item: None,
+                count: 1,
+                damage: 0,
+                extra: None,
+                components: None,
+            };
+            let named = |item: &str, count: u32| Template {
+                item: Some(Arc::from(item)),
+                count,
+                damage: 0,
+                extra: None,
+                components: None,
+            };
             let parsed: Option<Recipe> = match v["type"].as_str().unwrap_or("") {
                 "minecraft:crafting_shaped" => {
                     let pattern: Vec<Vec<char>> = v["pattern"]
@@ -1622,121 +1671,126 @@ impl Recipes {
                     }
                 }
                 "minecraft:crafting_special_bannerduplicate" => special(
-                    ing("banner")
-                        .zip(horizon_world::loot::recipe_result_id(&v["result"]))
-                        .map(|(banner, id)| Special::BannerDuplicate {
-                            banner,
-                            result: id.to_owned(),
-                        }),
+                    tag("minecraft:banners").map(|banner| Special::BannerDuplicate {
+                        banner,
+                        result: None,
+                    }),
                 ),
                 "minecraft:crafting_special_shielddecoration" => special(
-                    ing("banner")
-                        .zip(ing("target"))
-                        .zip(horizon_world::loot::recipe_result_id(&v["result"]))
-                        .map(|((banner, target), id)| Special::ShieldDecoration {
-                            banner,
-                            target,
-                            result: id.to_owned(),
-                        }),
+                    tag("minecraft:banners").map(|banner| Special::ShieldDecoration {
+                        banner,
+                        target: one("minecraft:shield"),
+                        result: "minecraft:shield".to_owned(),
+                    }),
                 ),
                 "minecraft:crafting_transmute" => special((|| {
-                    let (min, max) = transmute_material_bounds(v.get("material_count"));
+                    // 1.21.11's codec reads input, material and result
+                    // only; the 26.x material bounds do not exist here,
+                    // so exactly one material.
                     Some(Special::Transmute {
                         input: ing("input")?,
                         material: ing("material")?,
-                        min,
-                        max,
-                        add_count: v["add_material_count_to_result"].as_bool().unwrap_or(false),
+                        min: 1,
+                        max: 1,
+                        add_count: false,
                         result: result()?,
                     })
                 })()),
-                "minecraft:crafting_dye" => special((|| {
+                "minecraft:crafting_special_armordye" => special((|| {
                     Some(Special::Dye {
-                        target: ing("target")?,
-                        dye: ing("dye")?,
-                        result: result()?,
+                        target: tag("minecraft:dyeable")?,
+                        dye: dyes(),
+                        result: keep(),
                     })
                 })()),
-                "minecraft:crafting_imbue" => special((|| {
-                    Some(Special::Imbue {
-                        source: ing("source")?,
-                        material: ing("material")?,
-                        result: result()?,
-                    })
-                })()),
+                "minecraft:crafting_special_tippedarrow" => special(Some(Special::Imbue {
+                    source: one("minecraft:lingering_potion"),
+                    material: one("minecraft:arrow"),
+                    result: named("minecraft:tipped_arrow", 8),
+                })),
                 "minecraft:crafting_special_bookcloning" => special((|| {
-                    let (min, max) = bounds(v.get("allowed_generations"), (0, 1), (0, 2));
                     Some(Special::BookCloning {
-                        source: ing("source")?,
-                        material: ing("material")?,
-                        min: min as i32,
-                        max: max as i32,
-                        result: result()?,
+                        material: tag("minecraft:book_cloning_target")?,
+                        min: 0,
+                        max: 1,
+                        result: keep(),
                     })
                 })()),
-                "minecraft:crafting_special_firework_rocket" => special((|| {
-                    Some(Special::FireworkRocket {
-                        shell: ing("shell")?,
-                        fuel: ing("fuel")?,
-                        star: ing("star")?,
-                        result: result()?,
-                    })
-                })()),
+                "minecraft:crafting_special_firework_rocket" => {
+                    special(Some(Special::FireworkRocket {
+                        shell: one("minecraft:paper"),
+                        fuel: one("minecraft:gunpowder"),
+                        star: one("minecraft:firework_star"),
+                        result: named("minecraft:firework_rocket", 3),
+                    }))
+                }
                 "minecraft:crafting_special_firework_star" => special((|| {
-                    let mut shapes = Vec::new();
-                    for (shape, value) in v["shapes"].as_object()? {
-                        shapes.push((
-                            FireworkShape::from_name(shape),
-                            Ingredient::parse(value, items)?,
-                        ));
-                    }
                     Some(Special::FireworkStar {
-                        dye: ing("dye")?,
-                        fuel: ing("fuel")?,
-                        trail: ing("trail")?,
-                        twinkle: ing("twinkle")?,
-                        shapes,
-                        result: result()?,
+                        dye: dyes(),
+                        fuel: one("minecraft:gunpowder"),
+                        trail: one("minecraft:diamond"),
+                        twinkle: one("minecraft:glowstone_dust"),
+                        shapes: vec![
+                            (FireworkShape::LargeBall, one("minecraft:fire_charge")),
+                            (FireworkShape::Burst, one("minecraft:feather")),
+                            (FireworkShape::Star, one("minecraft:gold_nugget")),
+                            (FireworkShape::Creeper, tag("minecraft:skulls")?),
+                        ],
+                        result: named("minecraft:firework_star", 1),
                     })
                 })()),
-                "minecraft:crafting_special_firework_star_fade" => special((|| {
-                    Some(Special::FireworkStarFade {
-                        dye: ing("dye")?,
-                        target: ing("target")?,
-                        result: result()?,
-                    })
-                })()),
-                "minecraft:crafting_special_mapextending" => special((|| {
-                    Some(Special::MapExtending {
-                        map: ing("map")?,
-                        material: ing("material")?,
-                        result: result()?,
-                    })
-                })()),
+                "minecraft:crafting_special_firework_star_fade" => {
+                    special(Some(Special::FireworkStarFade {
+                        dye: dyes(),
+                        target: one("minecraft:firework_star"),
+                        result: keep(),
+                    }))
+                }
+                "minecraft:crafting_special_mapextending" => special(Some(Special::MapExtending {
+                    map: one("minecraft:filled_map"),
+                    material: one("minecraft:paper"),
+                    result: keep(),
+                })),
                 "minecraft:crafting_decorated_pot" => special((|| {
+                    let sides = tag("minecraft:decorated_pot_ingredients")?;
                     Some(Special::DecoratedPot {
-                        back: ing("back")?,
-                        left: ing("left")?,
-                        right: ing("right")?,
-                        front: ing("front")?,
-                        result: result()?,
+                        back: sides.clone(),
+                        left: sides.clone(),
+                        right: sides.clone(),
+                        front: sides,
+                        result: named("minecraft:decorated_pot", 1),
                     })
                 })()),
+                "minecraft:crafting_special_mapcloning" => special(Some(Special::MapCloning)),
                 "minecraft:crafting_special_repairitem" => special(Some(Special::RepairItem)),
                 kind @ ("minecraft:smelting"
                 | "minecraft:blasting"
                 | "minecraft:smoking"
                 | "minecraft:campfire_cooking") => {
                     if let (Some(ingredient), Some(result)) = (ing("ingredient"), result()) {
+                        // `AbstractCookingRecipe.Serializer`'s per-type
+                        // `cookingtime` default (1.21.11): smelting 200,
+                        // blasting, smoking and campfire 100.
+                        let default_time = if kind == "minecraft:smelting" {
+                            200
+                        } else {
+                            100
+                        };
+                        // The cooking `result` codec is
+                        // `ItemStack.STRICT_SINGLE_ITEM_CODEC`: no count
+                        // field, always one item (a `count` in the JSON is
+                        // ignored, as an unknown field).
+                        let mut made = result.create();
+                        made.count = 1;
                         cooking.push(Cooking {
                             id: name.clone(),
                             category: text("category"),
                             group: text("group"),
                             kind: kind.to_owned(),
                             ingredient,
-                            result: result.create(),
+                            result: made,
                             experience: v["experience"].as_f64().unwrap_or(0.0) as f32,
-                            time: v["cookingtime"].as_u64().unwrap_or(200) as u32,
+                            time: v["cookingtime"].as_u64().unwrap_or(default_time) as u32,
                         });
                     }
                     None
@@ -1894,18 +1948,9 @@ impl Recipes {
                 list.extend(std::iter::repeat_n(Some(material.clone()), *max));
                 Placement::of(list, None)
             }
-            Recipe::Special(Special::Dye { target, dye, .. }) => {
-                Placement::of(vec![Some(target.clone()), Some(dye.clone())], None)
-            }
-            Recipe::Special(Special::Imbue {
-                source, material, ..
-            }) => Placement::of(
-                (0..9)
-                    .map(|i| Some(if i == 4 { source } else { material }.clone()))
-                    .collect(),
-                None,
-            ),
-            // CustomRecipe.placementInfo: NOT_PLACEABLE.
+            // CustomRecipe.placementInfo: NOT_PLACEABLE — armour dyeing
+            // and tipped arrows are CustomRecipes in 1.21.11 (their 26.x
+            // data-driven forms were placeable), as are the other specials.
             Recipe::Special(_) => Placement::default(),
         })
     }
@@ -2005,7 +2050,8 @@ mod tests {
     use crate::banner::BannerLayer;
     use std::fs;
 
-    /// ItemStackTemplate.apply applies the result patch after the input patch.
+    /// The result patch applies after the input patch
+    /// (`TransmuteRecipe.createWithOriginalComponents`).
     #[test]
     fn transmute_result_patch_preserves_inheritance_and_explicit_removals() {
         let input_tag = json_tag(&serde_json::json!({
@@ -2378,9 +2424,64 @@ mod tests {
         assert!(result(r#"{"count":2}"#).is_none());
         assert!(result(r#"{"id":"minecraft:iron_ingot","count":0}"#).is_none());
     }
+    /// `AbstractCookingRecipe.Serializer`'s per-type `cookingtime`
+    /// default: smelting 200, blasting, smoking and campfire 100; and
+    /// the cooking result is always one item
+    /// (`ItemStack.STRICT_SINGLE_ITEM_CODEC` has no count field).
+    #[test]
+    fn cooking_recipes_default_their_time_by_kind_and_cook_one() {
+        let root =
+            std::env::temp_dir().join(format!("horizon-cooking-defaults-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("data/minecraft/recipe")).unwrap();
+        for (name, json) in [
+            (
+                "smelt",
+                r#"{"type":"minecraft:smelting","ingredient":"minecraft:beef","result":{"id":"minecraft:cooked_beef"}}"#,
+            ),
+            (
+                "blast",
+                r#"{"type":"minecraft:blasting","ingredient":"minecraft:beef","result":{"id":"minecraft:cooked_beef"}}"#,
+            ),
+            (
+                "smoke",
+                r#"{"type":"minecraft:smoking","ingredient":"minecraft:beef","result":{"id":"minecraft:cooked_beef"}}"#,
+            ),
+            (
+                "camp",
+                r#"{"type":"minecraft:campfire_cooking","ingredient":"minecraft:beef","result":{"id":"minecraft:cooked_beef"}}"#,
+            ),
+            (
+                "blast_fast",
+                r#"{"type":"minecraft:blasting","ingredient":"minecraft:beef","result":{"id":"minecraft:cooked_beef"},"cookingtime":60}"#,
+            ),
+            (
+                "smelt_three",
+                r#"{"type":"minecraft:smelting","ingredient":"minecraft:beef","result":{"id":"minecraft:cooked_beef","count":3}}"#,
+            ),
+        ] {
+            fs::write(
+                root.join(format!("data/minecraft/recipe/{name}.json")),
+                json,
+            )
+            .unwrap();
+        }
+        let items = Items::for_tests(HashMap::new());
+        let recipes = Recipes::load(&root, &items, &PackOverlay::NONE).unwrap();
+        let _ = fs::remove_dir_all(&root);
+        let by_id = |id: &str| recipes.cooking.iter().find(|c| c.id == id).unwrap();
+        assert_eq!(by_id("smelt").time, 200);
+        assert_eq!(by_id("blast").time, 100);
+        assert_eq!(by_id("smoke").time, 100);
+        assert_eq!(by_id("camp").time, 100);
+        assert_eq!(by_id("blast_fast").time, 60);
+        assert_eq!(by_id("smelt_three").result.count, 1);
+    }
     #[test]
     fn a_recipe_result_can_be_a_bare_item_id() {
-        // `ItemStackTemplate.CODEC` falls back to `Item.CODEC`: `"result": "mod:item"` is one item.
+        // A bare item id reads leniently as one item (vanilla 1.21.11's
+        // `STRICT_CODEC` requires the object form; no vanilla recipe uses
+        // the bare form, so this only ever fires for datapacks).
         let result = |json: &str| recipe_result(&serde_json::from_str(json).unwrap());
         let stack = result(r#""ruby:ruby""#).unwrap();
         assert_eq!((&*stack.item, stack.count), ("ruby:ruby", 1));
@@ -2406,9 +2507,10 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 
-    /// ResourceManagerRegistryLoadTask registers by resource-file Identifier,
-    /// and RecipeMap keeps that order when taking the first matching recipe,
-    /// for the crafting grid and the furnaces alike.
+    /// `RecipeManager.prepare` sorts the recipes by resource-file Identifier
+    /// (a `TreeMap`, path then namespace), and `RecipeMap` keeps that order
+    /// when taking the first matching recipe, for the crafting grid and the
+    /// furnaces alike.
     #[test]
     fn recipe_selection_follows_resource_file_order() {
         let root =
@@ -2642,7 +2744,7 @@ mod tests {
     fn banner_duplicate_copies_the_patterns_of_the_same_colour() {
         let recipe = Special::BannerDuplicate {
             banner: ingredient(&["minecraft:white_banner"]),
-            result: "minecraft:white_banner".into(),
+            result: Some("minecraft:white_banner".into()),
         };
         let source = patterned("minecraft:white_banner");
         let blank = ItemStack::new("minecraft:white_banner", 1);
@@ -2654,6 +2756,17 @@ mod tests {
         // Another colour is not in the recipe's ingredient.
         let other = ItemStack::new("minecraft:red_banner", 1);
         assert!(run(&recipe, &[source, other]).is_none());
+        // 1.21.11's single recipe names no result: the copy keeps the
+        // source banner's own item, whatever its colour.
+        let any_banner = Special::BannerDuplicate {
+            banner: ingredient(&["minecraft:white_banner", "minecraft:red_banner"]),
+            result: None,
+        };
+        let red_source = patterned("minecraft:red_banner");
+        let red_blank = ItemStack::new("minecraft:red_banner", 1);
+        let out = run(&any_banner, &[red_source, red_blank]).expect("copy");
+        assert_eq!(&*out.item, "minecraft:red_banner");
+        assert_eq!(out.data().unwrap().banner_patterns.len(), 1);
     }
     #[test]
     fn shield_decoration_needs_a_bare_shield() {
@@ -2670,6 +2783,293 @@ mod tests {
         assert_eq!(data.banner_patterns.len(), 1);
         // A shield that already has patterns cannot be decorated again.
         assert!(run(&recipe, &[banner, out]).is_none());
+    }
+    /// 1.21.11's special recipes are category-only files: armour dyeing,
+    /// tipped arrows and map cloning are their own hardcoded types, and the
+    /// rest carry no ingredients in the file. All thirteen load; the 26.x
+    /// data-driven types do not.
+    #[test]
+    fn the_1_21_11_specials_load_from_category_only_files() {
+        let root = std::env::temp_dir().join(format!("horizon-specials-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("data/minecraft/recipe")).unwrap();
+        let mut tags: HashMap<String, HashSet<String>> = HashMap::new();
+        let mut put = |k: &str, v: &[&str]| {
+            tags.insert(k.to_owned(), v.iter().map(|s| s.to_string()).collect());
+        };
+        put(
+            "minecraft:dyeable",
+            &["minecraft:leather_boots", "minecraft:wolf_armor"],
+        );
+        put(
+            "minecraft:book_cloning_target",
+            &["minecraft:writable_book"],
+        );
+        put("minecraft:decorated_pot_ingredients", &["minecraft:brick"]);
+        put(
+            "minecraft:banners",
+            &["minecraft:white_banner", "minecraft:red_banner"],
+        );
+        put(
+            "minecraft:skulls",
+            &["minecraft:dragon_head", "minecraft:skeleton_skull"],
+        );
+        put(
+            "minecraft:bundles",
+            &["minecraft:bundle", "minecraft:black_bundle"],
+        );
+        let items = Items::for_tests(tags);
+        let special = |kind: &str| serde_json::json!({"type": kind, "category": "misc"});
+        let sources: Vec<(String, serde_json::Value)> = [
+            ("armor_dye", "minecraft:crafting_special_armordye"),
+            (
+                "banner_duplicate",
+                "minecraft:crafting_special_bannerduplicate",
+            ),
+            ("book_cloning", "minecraft:crafting_special_bookcloning"),
+            ("decorated_pot", "minecraft:crafting_decorated_pot"),
+            (
+                "firework_rocket",
+                "minecraft:crafting_special_firework_rocket",
+            ),
+            ("firework_star", "minecraft:crafting_special_firework_star"),
+            (
+                "firework_star_fade",
+                "minecraft:crafting_special_firework_star_fade",
+            ),
+            ("map_cloning", "minecraft:crafting_special_mapcloning"),
+            ("map_extending", "minecraft:crafting_special_mapextending"),
+            ("repair_item", "minecraft:crafting_special_repairitem"),
+            (
+                "shield_decoration",
+                "minecraft:crafting_special_shielddecoration",
+            ),
+            ("tipped_arrow", "minecraft:crafting_special_tippedarrow"),
+        ]
+        .into_iter()
+        .map(|(id, kind)| (id.to_owned(), special(kind)))
+        .chain([(
+            "black_bundle".to_owned(),
+            serde_json::json!({
+                "type": "minecraft:crafting_transmute",
+                "category": "equipment", "group": "bundle_dye",
+                "input": "#minecraft:bundles",
+                "material": "minecraft:black_dye",
+                "result": {"id": "minecraft:black_bundle"}
+            }),
+        )])
+        .chain([
+            // The 26.x data-driven types do not exist in 1.21.11.
+            (
+                "leather_boots_dyed".to_owned(),
+                serde_json::json!({
+                    "type": "minecraft:crafting_dye",
+                    "target": "minecraft:leather_boots",
+                    "dye": "#minecraft:dyes",
+                    "result": {"id": "minecraft:leather_boots"}
+                }),
+            ),
+            (
+                "tipped_arrow_26".to_owned(),
+                serde_json::json!({
+                    "type": "minecraft:crafting_imbue",
+                    "source": "minecraft:lingering_potion",
+                    "material": "minecraft:arrow",
+                    "result": {"count": 8, "id": "minecraft:tipped_arrow"}
+                }),
+            ),
+        ])
+        .collect();
+        let recipes = Recipes::from_sources(&root, &items, &PackOverlay::NONE, sources).unwrap();
+        let ids: Vec<&str> = recipes.crafting.iter().map(|(n, _)| n.as_str()).collect();
+        assert_eq!(ids.len(), 13, "loaded: {ids:?}");
+        for id in [
+            "armor_dye",
+            "banner_duplicate",
+            "book_cloning",
+            "decorated_pot",
+            "firework_rocket",
+            "firework_star",
+            "firework_star_fade",
+            "map_cloning",
+            "map_extending",
+            "repair_item",
+            "shield_decoration",
+            "tipped_arrow",
+            "black_bundle",
+        ] {
+            assert!(ids.contains(&id), "{id} did not load");
+        }
+        let special_of = |id: &str| -> &Special {
+            recipes
+                .crafting
+                .iter()
+                .find(|(n, _)| n == id)
+                .and_then(|(_, r)| match r {
+                    Recipe::Special(s) => Some(s),
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("{id} is no special"))
+        };
+        // Armour dyeing takes the #dyeable tag and any of the sixteen dyes.
+        let Special::Dye { target, dye, .. } = special_of("armor_dye") else {
+            panic!("armor_dye is no Dye")
+        };
+        assert!(target.test(&ItemStack::new("minecraft:leather_boots", 1)));
+        assert!(dye.test(&ItemStack::new("minecraft:red_dye", 1)));
+        assert_eq!(dye.order.len(), 16);
+        // Book cloning takes writable books, generations 0..1.
+        let Special::BookCloning {
+            material, min, max, ..
+        } = special_of("book_cloning")
+        else {
+            panic!("book_cloning is no BookCloning")
+        };
+        assert_eq!((*min, *max), (0, 1));
+        assert!(material.test(&ItemStack::new("minecraft:writable_book", 1)));
+        // The firework star's creeper shape is #skulls — dragon head included.
+        let Special::FireworkStar { shapes, .. } = special_of("firework_star") else {
+            panic!("firework_star is no FireworkStar")
+        };
+        let (_, creeper) = shapes
+            .iter()
+            .find(|(s, _)| *s == FireworkShape::Creeper)
+            .expect("creeper shape");
+        assert!(creeper.test(&ItemStack::new("minecraft:dragon_head", 1)));
+        assert!(creeper.test(&ItemStack::new("minecraft:skeleton_skull", 1)));
+        // The transmute bounds are pinned to exactly one material.
+        let Special::Transmute {
+            min,
+            max,
+            add_count,
+            ..
+        } = special_of("black_bundle")
+        else {
+            panic!("black_bundle is no Transmute")
+        };
+        assert_eq!((*min, *max, *add_count), (1, 1, false));
+        let _ = fs::remove_dir_all(&root);
+    }
+    /// A stack that matches both a transmute's input and its material
+    /// serves as the material once the input is taken (1.21.11 tests the
+    /// input only while none is found yet).
+    #[test]
+    fn transmute_takes_an_overlapping_stack_as_the_material() {
+        let recipe = Special::Transmute {
+            input: ingredient(&["minecraft:bundle", "minecraft:black_bundle"]),
+            material: ingredient(&["minecraft:black_bundle"]),
+            min: 1,
+            max: 1,
+            add_count: false,
+            result: Template {
+                item: Some("minecraft:red_bundle".into()),
+                count: 1,
+                damage: 0,
+                extra: None,
+                components: None,
+            },
+        };
+        let bundle = ItemStack::new("minecraft:bundle", 1);
+        let black = ItemStack::new("minecraft:black_bundle", 1);
+        let out = run(&recipe, &[bundle, black.clone()]).expect("overlap crafts");
+        assert_eq!(&*out.item, "minecraft:red_bundle");
+        let out = run(&recipe, &[black.clone(), black]).expect("both match crafts");
+        assert_eq!(&*out.item, "minecraft:red_bundle");
+        let stone = ItemStack::new("minecraft:stone", 1);
+        assert!(run(&recipe, &[ItemStack::new("minecraft:bundle", 1), stone]).is_none());
+    }
+    /// Map cloning: one filled map and blank maps copy it, the original
+    /// consumed — two filled maps, or a non-map, do not match.
+    #[test]
+    fn map_cloning_copies_the_filled_map() {
+        let mut filled = ItemStack::new("minecraft:filled_map", 1);
+        filled.data_mut().map_id = Some(7);
+        let blank = ItemStack::new("minecraft:map", 1);
+        let out = run(
+            &Special::MapCloning,
+            &[filled.clone(), blank.clone(), blank.clone()],
+        )
+        .expect("clone");
+        assert_eq!((&*out.item, out.count), ("minecraft:filled_map", 3));
+        assert_eq!(out.data().unwrap().map_id, Some(7));
+        assert!(run(&Special::MapCloning, &[filled.clone(), filled]).is_none());
+        let stone = ItemStack::new("minecraft:stone", 1);
+        assert!(
+            run(
+                &Special::MapCloning,
+                &[ItemStack::new("minecraft:filled_map", 1), stone]
+            )
+            .is_none()
+        );
+    }
+    /// Book cloning tests the written-book component, not the item: any
+    /// stack carrying it clones, and a generation-2 book copies no further
+    /// (`tryCraftCopy`).
+    #[test]
+    fn book_cloning_takes_any_stack_with_written_content() {
+        let recipe = Special::BookCloning {
+            material: ingredient(&["minecraft:writable_book"]),
+            min: 0,
+            max: 1,
+            result: Template {
+                item: None,
+                count: 1,
+                damage: 0,
+                extra: None,
+                components: None,
+            },
+        };
+        let book = |item: &str, generation: u8| {
+            let mut s = ItemStack::new(item, 1);
+            s.data_mut().written = Some(crate::item_data::WrittenBook {
+                generation,
+                ..Default::default()
+            });
+            s
+        };
+        let blank = ItemStack::new("minecraft:writable_book", 1);
+        let out = run(&recipe, &[book("minecraft:stick", 0), blank.clone()]).expect("clone");
+        assert_eq!(&*out.item, "minecraft:stick");
+        assert_eq!(out.data().unwrap().written.as_ref().unwrap().generation, 1);
+        assert!(run(&recipe, &[book("minecraft:written_book", 2), blank]).is_none());
+    }
+    /// Armour dyeing and tipped arrows are `CustomRecipe`s in 1.21.11: no
+    /// recipe-book display, and not placeable.
+    #[test]
+    fn dye_and_imbue_have_no_display_or_placement() {
+        let dye = Special::Dye {
+            target: ingredient(&["minecraft:leather_boots"]),
+            dye: ingredient(&["minecraft:red_dye"]),
+            result: Template {
+                item: None,
+                count: 1,
+                damage: 0,
+                extra: None,
+                components: None,
+            },
+        };
+        assert!(dye.book_displays().is_empty());
+        let imbue = Special::Imbue {
+            source: ingredient(&["minecraft:lingering_potion"]),
+            material: ingredient(&["minecraft:arrow"]),
+            result: Template {
+                item: Some("minecraft:tipped_arrow".into()),
+                count: 8,
+                damage: 0,
+                extra: None,
+                components: None,
+            },
+        };
+        assert!(imbue.book_displays().is_empty());
+        let mut recipes = Recipes::empty();
+        recipes
+            .crafting
+            .push(("armor_dye".into(), Recipe::Special(dye)));
+        recipes
+            .crafting
+            .push(("tipped_arrow".into(), Recipe::Special(imbue)));
+        assert!(recipes.placement("armor_dye").unwrap().impossible());
+        assert!(recipes.placement("tipped_arrow").unwrap().impossible());
     }
     #[test]
     fn shapeless_matching_assigns_each_stack_one_ingredient() {

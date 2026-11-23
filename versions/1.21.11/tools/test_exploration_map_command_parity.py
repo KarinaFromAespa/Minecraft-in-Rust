@@ -46,11 +46,10 @@ def generate(java,build):
         for text in ['tick freeze','gamerule spawn_mobs false','gamerule advance_time false','gamerule respawn_radius 0','forceload add 0 0 15 15','fill 0 199 0 15 199 15 stone','fill 0 200 0 15 203 15 air','setworldspawn 4 200 4','save-all flush']:c.reply(text)
     finally:server.stop()
     level=read_dat(directory/'world/level.dat');(build/'initial-level.json').write_text(json.dumps(level,indent=2)+'\n')
-    generation=read_dat(directory/'world/data/minecraft/world_gen_settings.dat')
-    (build/'initial-world-gen-settings.json').write_text(json.dumps(generation,indent=2)+'\n')
-    settings=generation['body']['data']
+    settings=level['body']['Data']['WorldGenSettings']
+    (build/'initial-world-gen-settings.json').write_text(json.dumps(settings,indent=2)+'\n')
     assert settings['seed']==('l',42),settings
-    assert settings['generate_structures']==('b',1),settings
+    assert settings['generate_features']==('b',1),settings
     assert settings['dimensions']['minecraft:overworld']['generator']['type']=='minecraft:noise',settings
 
 

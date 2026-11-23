@@ -775,82 +775,15 @@ impl Game<'_> {
         };
         // ItemInput.createItemStack: a count above the stack's max (its
         // max_stack_size component, else the item's) is refused.
+        // 1.21.11's createItemStack does NOT validateStrict afterwards
+        // (26.1 rejects a damageable stack with max_stack_size > 1 as
+        // arguments.item.malformed), so a damageable + stackable
+        // composition is accepted here.
         let max_stack = self.stack_max_size(&stack);
         if count > max_stack {
             return Err(err("arguments.item.overstacked", &[&id, &max_stack]));
         }
-        // ItemInput.createItemStack validates effective components after count.
-        // Materialization currently discards removals, so inspect the validated
-        // command patch itself without changing the stack or its saved patch.
-        let components = self.item_validation_components(&id, components.as_deref())?;
-        if components.get(&"minecraft:max_damage".to_owned()).is_some()
-            && horizon_world::datafix::dynamic::as_int(
-                components.get(&"minecraft:max_stack_size".to_owned()),
-                1,
-            ) > 1
-        {
-            return Err(err(
-                "arguments.item.malformed",
-                &[&"Item cannot be both damageable and stackable"],
-            ));
-        }
         Ok(Some(stack))
-    }
-    /// ItemInput.createItemStack: read-only view of the two prototype components used by this command
-    /// validation, with all typed patch operations (including removals).
-    fn item_validation_components(
-        &self,
-        id: &str,
-        components: Option<&str>,
-    ) -> R<horizon_world::component_patch::ComponentMap<String, Tag>> {
-        use horizon_client::command::{Reader, args::read_identifier, snbt::parse_tag_argument};
-        use horizon_world::component_patch::{ComponentMap, Patch, Prototype};
-        let mut prototype = Vec::new();
-        if let Some(item) = self.items().get(id) {
-            for (key, value) in [
-                ("minecraft:max_damage", item.max_damage),
-                ("minecraft:max_stack_size", item.max_stack),
-            ] {
-                if item.components.iter().any(|component| component == key) {
-                    prototype.push((key.to_owned(), Tag::Int(value as i32)));
-                }
-            }
-        }
-        let mut patch = Vec::new();
-        if let Some(components) = components {
-            // ItemInput has already validated IDs, values and duplicates. Reuse
-            // its token/value parsers; do not derive removals from saved output.
-            let mut reader = Reader::new(components);
-            reader.expect('[')?;
-            reader.skip_whitespace();
-            while reader.can_read() && reader.peek() != ']' {
-                let removed = reader.peek() == '!';
-                if removed {
-                    reader.skip();
-                }
-                let key = read_identifier(&mut reader)?;
-                reader.skip_whitespace();
-                let value = if removed {
-                    None
-                } else {
-                    reader.expect('=')?;
-                    reader.skip_whitespace();
-                    Some(parse_tag_argument(&mut reader)?)
-                };
-                patch.push((key, value));
-                reader.skip_whitespace();
-                if reader.peek() == ']' {
-                    break;
-                }
-                reader.expect(',')?;
-                reader.skip_whitespace();
-            }
-            reader.expect(']')?;
-        }
-        Ok(ComponentMap::from_patch(
-            Prototype::new(prototype),
-            &Patch::new(patch),
-        ))
     }
     /// One item modifier (a typed object, a list or a datapack reference)
     /// applied to a stack; `None` when the stack ends up empty.
@@ -1981,27 +1914,19 @@ mod mob_equipment_command_tests {
     }
     #[test]
     #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-    fn effective_item_composition_rejects_before_destination_mutation() {
+    fn damageable_and_stackable_compositions_are_accepted_but_overstacking_rejects_before_mutation()
+    {
         use super::Slot;
         with_game(|game| {
             assert!(game.run_command("setblock 4 200 4 chest"));
             let slot = Slot::Block([4, 200, 4], 0);
+            // ItemInput.createItemStack does not validateStrict in 1.21.11
+            // (26.1 rejects these as arguments.item.malformed), so a
+            // damageable item with max_stack_size > 1 is accepted.
             for item in [
                 "iron_helmet[max_stack_size=2]",
                 "iron_helmet[max_stack_size=99]",
                 "stone[max_damage=10,max_stack_size=2]",
-            ] {
-                assert!(game.run_command("item replace block 4 200 4 container.0 with emerald[custom_data={sentinel:86}] 4"));
-                let before = game.slot_get(&slot).unwrap();
-                assert!(
-                    !game.run_command(&format!(
-                        "item replace block 4 200 4 container.0 with {item}"
-                    )),
-                    "invalid effective composition must reject {item}"
-                );
-                assert_eq!(game.slot_get(&slot), Some(before));
-            }
-            for item in [
                 "iron_helmet",
                 "stone[max_stack_size=2]",
                 "stone[max_stack_size=99]",
@@ -2011,56 +1936,22 @@ mod mob_equipment_command_tests {
                     game.run_command(&format!(
                         "item replace block 4 200 4 container.0 with {item}"
                     )),
-                    "valid effective composition must accept {item}"
+                    "1.21.11 accepts {item}"
                 );
             }
-        });
-    }
-
-    #[test]
-    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-    fn effective_item_validation_view_uses_loaded_prototypes_and_typed_removals() {
-        use horizon_world::nbt::Tag;
-        with_game(|game| {
-            let damage = "minecraft:max_damage".to_owned();
-            let size = "minecraft:max_stack_size".to_owned();
-            let helmet = game.items().get("minecraft:iron_helmet").unwrap();
-            assert!(helmet.components.contains(&damage));
-            let plain = game
-                .item_validation_components("minecraft:iron_helmet", None)
-                .unwrap();
-            assert_eq!(
-                plain.get(&damage),
-                Some(&Tag::Int(helmet.max_damage as i32))
+            // But a count above the stack's max is still refused
+            // (arguments.item.overstacked), before the slot is touched.
+            assert!(game.run_command(
+                "item replace block 4 200 4 container.0 with emerald[custom_data={sentinel:86}] 4"
+            ));
+            let before = game.slot_get(&slot).unwrap();
+            assert!(
+                !game.run_command(
+                    "item replace block 4 200 4 container.0 with iron_helmet[max_stack_size=2] 3"
+                ),
+                "a count above the max stack size must reject"
             );
-            assert_eq!(plain.get(&size), Some(&Tag::Int(helmet.max_stack as i32)));
-            let removed = game
-                .item_validation_components(
-                    "minecraft:iron_helmet",
-                    Some("[!max_damage,max_stack_size=2,custom_data={keep:86}]"),
-                )
-                .unwrap();
-            assert!(removed.get(&damage).is_none());
-            assert_eq!(removed.get(&size), Some(&Tag::Int(2)));
-            assert!(removed.get(&"minecraft:custom_data".to_owned()).is_some());
-            let fallback = game
-                .item_validation_components("minecraft:iron_helmet", Some("[!max_stack_size]"))
-                .unwrap();
-            assert!(fallback.get(&damage).is_some());
-            assert_eq!(
-                horizon_world::datafix::dynamic::as_int(fallback.get(&size), 1),
-                1
-            );
-            let stone = game
-                .item_validation_components("minecraft:stone", None)
-                .unwrap();
-            assert!(stone.get(&damage).is_none());
-            assert_eq!(
-                stone.get(&size),
-                Some(&Tag::Int(
-                    game.items().get("minecraft:stone").unwrap().max_stack as i32
-                ))
-            );
+            assert_eq!(game.slot_get(&slot), Some(before));
         });
     }
 }

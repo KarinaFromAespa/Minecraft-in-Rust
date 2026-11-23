@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Save-format differential test: vanilla 26.3 world -> Horizon -> vanilla.
+"""Save-format differential test: vanilla 1.21.11 world -> Horizon -> vanilla.
 
 1. A headless vanilla server (flat world, offline) is filled with one of every block
    entity type and many entity types (tools/save_roundtrip_scene.py), a bot player
@@ -88,7 +88,7 @@ IGNORED = {
     r'^entity\.(Passengers\[\]\.)*(Age|Motion\[\]|Rotation\[\]|Pos\[\]|OnGround|HurtTime|Health|TimeInOverworld|fall_distance|'
     r'wasOnGround|Fire|Air|DeathTime|Fuse|life|inGround|ticks_in_ground|Time|EggLayTime)$': 'entity simulation advances',
     r'^level\.dat\.Data\.(Time|LastPlayed)$': 'clock and wall time of the save',
-    r'^level\.dat\.Data\.(ServerBrands.*|singleplayer_uuid)$': 'a client world names its brand and its player',
+    r'^level\.dat\.Data\.(ServerBrands.*|Player(\..*)?)$': 'a client world names its brand and saves its player in level.dat',
     r'^entity\.listener\.selector\.(event|tick)$': 'the warden listener holds the last vibration it heard; timing',
     r'^players/data/.*\.dat\.warden_spawn_tracker\.': 'counts ticks since the last warning; timing',
     r'^players/data/.*\.dat\.recipeBook\.(recipes|toBeDisplayed)': 'which recipes unlock depends on the pickup history of the bot',
@@ -607,7 +607,7 @@ def compare_worlds(vanilla, horizon):
                 va, hb = normalize_scoreboard(va), normalize_scoreboard(hb)
             compare_dat(rel, va, hb, report)
     for rule, (old, new) in HORIZON_RULES.items():
-        changed = (f'data/minecraft/game_rules.dat.data.minecraft:{rule}', old, new)
+        changed = (f'level.dat.Data.game_rules.minecraft:{rule}', old, new)
         if changed in report:
             report.remove(changed)
         else:

@@ -1,7 +1,8 @@
 //! `AccessibilityOnboardingScreen`: the screen shown once before the title
 //! on a first launch (`Gui.addInitialScreens` while `onboardAccessibility`
-//! is set), with the Narrator toggle, the Sound, Accessibility and Language
-//! pages and Continue. It fades in over two seconds and out over one.
+//! is set), with the Narrator toggle, the Accessibility and Language pages
+//! and Continue (1.21.11 has no Sounds button; 26.1 added one to a 2x2
+//! grid). It fades in over two seconds and out over one.
 use super::{Button, Mode, Title, translate};
 use crate::{
     hud::{HudAtlas, HudBatch, rgba},
@@ -18,9 +19,9 @@ const FOOTER: f32 = 33.0;
 const FADE_IN_SECONDS: f32 = 2.0;
 const FADE_OUT_SECONDS: f32 = 1.0;
 
-/// The ids of the screen's buttons.
+/// The ids of the screen's buttons (81 was 26.1's Sounds button, which
+/// 1.21.11's screen does not have).
 pub(super) const NARRATOR: u8 = 80;
-pub(super) const SOUNDS: u8 = 81;
 pub(super) const ACCESSIBILITY: u8 = 82;
 pub(super) const LANGUAGE: u8 = 83;
 pub(super) const CONTINUE: u8 = 84;
@@ -50,7 +51,7 @@ impl Onboarding {
         ((fade.clamp(0.0, 1.0) - 0.5) / 0.5).clamp(0.0, 1.0)
     }
 
-    /// `extractRenderState`'s fades at `now`: the alpha every widget gets.
+    /// `render`'s fades at `now`: the alpha every widget gets.
     fn fade(&self, now: Instant) -> f32 {
         if self.fade_in_start.get().is_none() && self.fading_in.get() {
             self.fade_in_start.set(Some(now));
@@ -101,32 +102,32 @@ impl Default for Onboarding {
 pub(super) struct Layout {
     /// The title box: x, y, width, height.
     pub text: [f32; 4],
-    /// The four grid buttons, row by row.
-    pub grid: [(f32, f32); 4],
+    /// The three column buttons, top to bottom (narrator, accessibility,
+    /// language).
+    pub buttons: [(f32, f32); 3],
     pub continue_at: (f32, f32),
 }
 
 /// `HeaderAndFooterLayout.arrangeElements` for the contents (the title in
-/// an 8 px cell over the grid of four 150-wide buttons in 4 px cells, both
-/// centred) with the title wrapped to `lines`.
+/// an 8 px cell over three 150-wide buttons in 4 px cells, all centred in
+/// a single column) with the title wrapped to `lines`.
 pub(super) fn layout(w: f32, h: f32, lines: usize) -> Layout {
     let text_h = 9.0 * lines as f32 + 8.0;
-    // The 8 px cell around the box, then the grid's 4 px cell around the
-    // two rows of 4 px cells.
+    // The 8 px cell around the box, then three rows of 4 px cells, each
+    // 20 px of button plus 8 px of padding.
     let content_w = TEXT_WIDTH + 16.0;
-    let content_h = text_h + 16.0 + 64.0;
+    let content_h = text_h + 16.0 + 84.0;
     let y = (HEADER + 30.0).min(h - FOOTER - content_h);
     let x = ((w.max(content_w) - content_w) / 2.0).trunc();
-    // The grid: 316 wide in the 382 left by the cell's padding.
-    let grid_x = x + 4.0 + ((content_w - 8.0 - 316.0) / 2.0).trunc() + 4.0;
-    let grid_y = y + text_h + 16.0 + 4.0 + 4.0;
+    // Each 150-wide button sits in a 158-wide cell centred in the content.
+    let button_x = x + ((content_w - 158.0) / 2.0).trunc() + 4.0;
+    let button_y = y + text_h + 16.0 + 4.0;
     Layout {
         text: [x + 8.0, y + 8.0, TEXT_WIDTH, text_h],
-        grid: [
-            (grid_x, grid_y),
-            (grid_x + 158.0, grid_y),
-            (grid_x, grid_y + 28.0),
-            (grid_x + 158.0, grid_y + 28.0),
+        buttons: [
+            (button_x, button_y),
+            (button_x, button_y + 28.0),
+            (button_x, button_y + 56.0),
         ],
         continue_at: (
             ((w - 150.0) / 2.0).trunc(),
@@ -207,16 +208,9 @@ impl Title {
             ],
         );
         vec![
-            button(layout.grid[0], narrator, false, NARRATOR, None),
+            button(layout.buttons[0], narrator, false, NARRATOR, None),
             button(
-                layout.grid[1],
-                lang::get_or("options.sounds", "Music & Sounds..."),
-                true,
-                SOUNDS,
-                Some(("icon/music_notes", 16.0)),
-            ),
-            button(
-                layout.grid[2],
+                layout.buttons[1],
                 lang::get_or(
                     "accessibility.onboarding.accessibility.button",
                     "Accessibility Settings...",
@@ -226,7 +220,7 @@ impl Title {
                 Some(("icon/accessibility", 15.0)),
             ),
             button(
-                layout.grid[3],
+                layout.buttons[2],
                 lang::get_or("options.language", "Language..."),
                 true,
                 LANGUAGE,
@@ -314,16 +308,16 @@ mod tests {
     #[test]
     fn the_widgets_sit_where_the_layouts_put_them() {
         // 854 x 480 GUI pixels, the title wrapped to 4 lines: the contents
-        // frame starts at min(90 + 30, 480 - 33 - 124).
+        // frame starts at min(90 + 30, 480 - 33 - 144).
         let l = layout(854.0, 480.0, 4);
         assert_eq!(l.text, [240.0, 128.0, 374.0, 44.0]);
-        assert_eq!(l.grid[0], (273.0, 188.0));
-        assert_eq!(l.grid[1], (431.0, 188.0));
-        assert_eq!(l.grid[2], (273.0, 216.0));
+        assert_eq!(l.buttons[0], (352.0, 184.0));
+        assert_eq!(l.buttons[1], (352.0, 212.0));
+        assert_eq!(l.buttons[2], (352.0, 240.0));
         assert_eq!(l.continue_at, (352.0, 453.0));
         // A short window moves the contents up to clear the footer.
         let l = layout(854.0, 240.0, 4);
-        assert_eq!(l.text[1], 240.0 - 33.0 - 124.0 + 8.0);
+        assert_eq!(l.text[1], 240.0 - 33.0 - 144.0 + 8.0);
     }
 
     #[test]

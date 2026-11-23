@@ -8,7 +8,7 @@ lakes and features; a layer that doesn't parse is left out and logged, and setti
 to the preset's classic ones) and `generate-structures`.
 
 Each case starts vanilla's server and Horizon's (`horizon-client --dedicated --nogui`) in a new folder, waits
-for `Done` and stops them. Compared exactly: the world's `data/minecraft/world_gen_settings.dat`, tag types
+for `Done` and stops them. Compared exactly: level.dat's `Data.WorldGenSettings`, tag types
 included, and the warnings and errors logged while the world's settings are read (the `Worker-Main` lines;
 the worker's number is left out). In a world without structures (`generate-structures=false`), also what
 `locate structure` answers on the console for a village and a mineshaft (ChunkGenerator.findNearestMapStructure
@@ -121,8 +121,9 @@ def run_case(label, command, build, case):
     if replies:
         out.append(structure_chunks(directory / 'world'))
     out += [f'{m.group(1)}: {m.group(2)}' for l in server.lines if (m := WORKER.search(l))]
-    settings = anvil_dump.plain(anvil_dump.read_dat(directory / 'world/data/minecraft/world_gen_settings.dat'),
-                                True, typed=True)
+    settings = anvil_dump.plain(
+        anvil_dump.read_dat(directory / 'world/level.dat')['Data']['WorldGenSettings'],
+        True, typed=True)
     out += json.dumps(settings, indent=1, sort_keys=True).splitlines()
     return out
 
@@ -160,7 +161,7 @@ def main():
         cases=list(CASES), lines=len(vanilla), output_sha256=lab.digest(build / 'horizon.txt', 'sha256'),
         scope='a new dedicated-server world: level-type (flat, normal, amplified, large_biomes, '
               'single_biome_surface, unknown), a flat world\'s generator-settings, generate-structures, as '
-              'world_gen_settings.dat and the lines logged; without structures, locate structure\'s replies and '
+              'level.dat\'s Data.WorldGenSettings and the lines logged; without structures, locate structure\'s replies and '
               'the saved chunks\' structure starts and references.'))
     print(f'server world gen: {len(CASES)} cases, {len(vanilla)} lines identical')
 

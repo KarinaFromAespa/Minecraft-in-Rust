@@ -1476,7 +1476,7 @@ impl Game<'_> {
             .get("darkness")
             .map(|_| self.darkness_blend(self.clock.fraction() as f32))
     }
-    /// `LightmapRenderStateExtractor`: (brightness taken off the gamma
+    /// `LightTexture.updateLightTexture`: (brightness taken off the gamma
     /// option, the pulsing light scale).
     pub(super) fn darkness_lighting(&self, partial: f32) -> (f32, f32) {
         let scale = self.settings.file.double("darknessEffectScale") as f32;
@@ -1487,7 +1487,7 @@ impl Game<'_> {
         (modifier, pulse.max(0.0) * scale)
     }
 
-    /// `LightmapRenderStateExtractor`: the night vision effect's intensity
+    /// `LightTexture.updateLightTexture`: the night vision effect's intensity
     /// (`GameRenderer.nightVisionScale`), or conduit power's water vision.
     pub(super) fn night_vision_intensity(&self, partial: f32) -> f32 {
         use horizon_client::fog::FogType;

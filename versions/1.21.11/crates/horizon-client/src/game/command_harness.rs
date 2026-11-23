@@ -927,9 +927,9 @@ impl Game<'_> {
                     let state = self.harness_owner(|g| {
                         use horizon_world::nbt::Tag;
                         g.save_maps();
-                        let directory = g.world_root.join("data/minecraft/maps");
+                        let directory = g.world_root.join("data");
                         let maps: Vec<_> = op["ids"].as_array().ok_or("map IDs")?.iter().map(|id| {
-                            let path = directory.join(format!("{}.dat", id.as_i64().unwrap()));
+                            let path = directory.join(format!("map_{}.dat", id.as_i64().unwrap()));
                             horizon_client::save::read_dat(&path).map(|root| {
                                 let data = root.get("data").unwrap_or(&root);
                                 let number = |key| match data.get(key) {
@@ -944,7 +944,7 @@ impl Game<'_> {
                                     "byte_array_length": colors})
                             })
                         }).collect();
-                        let last = horizon_client::save::read_dat(&directory.join("last_id.dat"))
+                        let last = horizon_client::save::read_dat(&directory.join("idcounts.dat"))
                             .and_then(|tag| match tag.get("data").and_then(|d| d.get("map")) {
                                 Some(Tag::Int(v)) => Some(*v), _ => None,
                             });

@@ -118,7 +118,7 @@ impl<T> CompiledChoices<T> {
             Choice::Weighted { .. } => None,
         }
     }
-    /// The variant `particleMaterial` comes from: the first entry of a weighted
+    /// The variant `particleIcon` comes from: the first entry of a weighted
     /// list (`WeightedVariants`) and, for a multipart root, of its first
     /// selector whether or not that selector applies (`MultiPartModel`).
     pub fn particle_variant(&self, selected: &SelectedModels) -> Option<&T> {

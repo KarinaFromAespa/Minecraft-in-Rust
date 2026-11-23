@@ -13,7 +13,7 @@ pub fn preview_event(source: usize) -> Option<&'static str> {
         "weather" => "minecraft:entity.lightning_bolt.thunder",
         "block" => "minecraft:block.grass.place",
         "hostile" => "minecraft:entity.zombie.ambient",
-        // SoundEvents.COW_SOUNDS.get(CowSoundVariants.SoundSet.CLASSIC).ambientSound()
+        // SoundEvents.COW_AMBIENT
         "neutral" => "minecraft:entity.cow.ambient",
         "player" => "minecraft:entity.generic.eat",
         "ambient" => "minecraft:ambient.cave",

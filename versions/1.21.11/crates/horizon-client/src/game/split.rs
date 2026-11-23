@@ -927,7 +927,6 @@ impl Game<'_> {
         self.ui.options.release();
         self.dragging = false;
         self.stats_release();
-        self.world_options_release();
         self.advancements_mouse(false, [0, 0]);
         if let Some(title) = &mut self.title {
             title.release();

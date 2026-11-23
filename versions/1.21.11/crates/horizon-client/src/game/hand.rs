@@ -23,8 +23,11 @@ pub(super) fn interact_location(point: Vec3, feet: Vec3) -> [f64; 3] {
 const OFFHAND: usize = usize::MAX;
 
 /// `AttackRange.effectiveMinRange`, `effectiveMaxRange` (for a player) and
-/// `hitboxMargin` of an `attack_range` component.
-fn attack_reach(range: &serde_json::Value, creative: bool) -> (f32, f32, f32) {
+/// `hitboxMargin` of an `attack_range` component. A spectator's minimum is
+/// 0: 1.21.11's `effectiveMinRange` returns 0 for a spectator, where 26.1
+/// gave it the creative or survival minimum instead. The maximum has no
+/// spectator branch in either version.
+fn attack_reach(range: &serde_json::Value, creative: bool, spectator: bool) -> (f32, f32, f32) {
     let value = |key: &str, default: f32| range[key].as_f64().map_or(default, |v| v as f32);
     let (min, max) = if creative {
         (
@@ -34,6 +37,7 @@ fn attack_reach(range: &serde_json::Value, creative: bool) -> (f32, f32, f32) {
     } else {
         (value("min_reach", 0.0), value("max_reach", 3.0))
     };
+    let min = if spectator { 0.0 } else { min };
     (min, max, value("hitbox_margin", 0.3))
 }
 
@@ -60,8 +64,13 @@ fn reach_pick(
 }
 
 /// `AttackRange.isInRange`: float bounds, then inclusive double comparison.
-fn attack_range_contains(range: &serde_json::Value, distance: f64, creative: bool) -> bool {
-    let (min, max, margin) = attack_reach(range, creative);
+fn attack_range_contains(
+    range: &serde_json::Value,
+    distance: f64,
+    creative: bool,
+    spectator: bool,
+) -> bool {
+    let (min, max, margin) = attack_reach(range, creative, spectator);
     distance >= f64::from(min - margin) && distance <= f64::from(max + margin)
 }
 
@@ -133,7 +142,13 @@ impl Game<'_> {
         let Some(eye) = self.eye_position() else {
             return false;
         };
-        let range = self.held().and_then(|stack| {
+        // `LivingEntity.entityAttackRange` reads `getActiveItem`: the item
+        // in use while one is being used, else the main-hand item.
+        let active = self
+            .using
+            .and_then(|(slot, _)| self.stack_in(slot))
+            .or_else(|| self.held());
+        let range = active.and_then(|stack| {
             self.pack
                 .item_renderer
                 .models
@@ -142,7 +157,7 @@ impl Game<'_> {
                 .cloned()
         });
         let reach = match &range {
-            Some(r) => attack_reach(r, self.creative),
+            Some(r) => attack_reach(r, self.creative, self.spectator()),
             None => {
                 let range = self.interaction_range("minecraft:entity_interaction_range", 3.0, 5.0);
                 (0.0, range as f32, 0.0)
@@ -268,7 +283,7 @@ impl Game<'_> {
                 .get("minecraft:attack_range")
                 .cloned()
         });
-        range.is_none_or(|r| attack_range_contains(&r, distance, self.creative))
+        range.is_none_or(|r| attack_range_contains(&r, distance, self.creative, self.spectator()))
     }
     /// `LocalPlayer.raycastHitResult`'s item (`getActiveItem`: the one in
     /// use, else the main hand's) `attack_range` component.
@@ -296,7 +311,7 @@ impl Game<'_> {
     ) -> Option<Option<(usize, f64, [f64; 3])>> {
         let eye = v3(self.eye_position()?);
         let look = v3(super::view_vector(self.yaw, self.pitch));
-        let reach = attack_reach(range, self.creative);
+        let reach = attack_reach(range, self.creative, self.spectator());
         let camera = self.remote_camera_id();
         let boxes: Vec<(usize, Aabb)> = (self.mobs.iter().enumerate())
             .filter(|(_, m)| !m.removed && Some(m.id) != self.riding && Some(m.id) != camera)
@@ -437,7 +452,7 @@ impl Game<'_> {
         self.native_break_speed(pos, state, speed, &mut speed);
         speed / hardness / if harvest { 30.0 } else { 100.0 }
     }
-    /// `EntityFluidInteraction`: compare the eyes with the camera fluid surface.
+    /// `Entity.updateFluidOnEyes`: compare the eyes with the camera fluid surface.
     fn mining_eyes_in_water(&self) -> bool {
         use horizon_client::blocks::Fluid;
         let Some(eye) = self.eye_position() else {
@@ -619,7 +634,7 @@ impl Game<'_> {
         let spear = range.as_ref().and_then(|r| {
             let eye = self.eye_position()?;
             let look = super::view_vector(self.yaw, self.pitch);
-            let reach = attack_reach(r, self.creative);
+            let reach = attack_reach(r, self.creative, self.spectator());
             let boxes = self.hittable_mob_boxes();
             let clip = |from: Vec3, to: Vec3| {
                 let length = from.distance_squared(to).sqrt();
@@ -644,7 +659,7 @@ impl Game<'_> {
         }
         // Hud.extractCrosshair: with an attack range, the hit must be in it.
         if let Some(range) = &range
-            && !attack_range_contains(range, living, self.creative)
+            && !attack_range_contains(range, living, self.creative, self.spectator())
         {
             return None;
         }
@@ -906,6 +921,31 @@ impl HandWorld for GameHands<'_, '_> {
     fn attack_entity(&mut self) -> bool {
         self.game.attack()
     }
+    fn spectate_hit_entity(&mut self) -> bool {
+        use super::commands::Target;
+        // ServerPlayer.attack: a spectator's click spectates the entity
+        // hit instead of attacking it. The painting wins when nearer than
+        // the mob, as `Game::attack` orders them; frames, stands, boats,
+        // carts and the dragon have no separable hit yet, so they stay
+        // unspectated for now.
+        if let Some((i, d)) = self.game.painting_hit()
+            && self.game.mob_hit().is_none_or(|m| d < m.1)
+            && self.game.before_block(d)
+        {
+            self.game
+                .set_camera(Some(Target::Painting(self.game.paintings[i].id)));
+            return true;
+        }
+        let Some((index, distance, _)) = self.game.mob_hit() else {
+            return false;
+        };
+        if !self.game.before_block(distance) || !self.game.held_range_allows(distance) {
+            return false;
+        }
+        self.game
+            .set_camera(Some(Target::Mob(self.game.mobs[index].id)));
+        true
+    }
     fn block_action_restricted(&mut self, pos: [i32; 3]) -> bool {
         self.game.block_action_restricted(pos)
     }
@@ -992,10 +1032,10 @@ mod tests {
         });
         let (eye, look) = (Vec3::ZERO, Vec3::new(0.0, 0.0, 1.0));
         let boxes = mob_ahead(4.0);
-        let reach = attack_reach(&spear, false);
+        let reach = attack_reach(&spear, false, false);
         let pick = reach_pick(&boxes, eye, look, Vec3::ZERO, reach, |_, _| None);
         assert_eq!(pick, Some(4.0));
-        assert!(attack_range_contains(&spear, 4.0, false));
+        assert!(attack_range_contains(&spear, 4.0, false, false));
         // Past the maximum plus the margin: no pick.
         let far = mob_ahead(4.7);
         assert_eq!(
@@ -1020,7 +1060,7 @@ mod tests {
         assert!(!in_attack_range(8.01, creative, 3.0));
         // A spear's own range, with its margin, from the server's side too.
         let spear = serde_json::json!({"min_reach": 2.0, "max_reach": 4.5, "hitbox_margin": 0.125});
-        let reach = attack_reach(&spear, false);
+        let reach = attack_reach(&spear, false, false);
         assert!(in_attack_range(7.625, reach, 3.0));
         assert!(!in_attack_range(7.7, reach, 3.0));
     }
@@ -1080,17 +1120,26 @@ mod tests {
         });
         for (creative, min, max) in [(false, 1.875, 4.625), (true, 1.875, 6.625)] {
             for distance in [min, max] {
-                assert!(attack_range_contains(&range, distance, creative));
+                assert!(attack_range_contains(&range, distance, creative, false));
             }
             for distance in [min - 0.0001, max + 0.0001] {
-                assert!(!attack_range_contains(&range, distance, creative));
+                assert!(!attack_range_contains(&range, distance, creative, false));
             }
         }
         let defaults = serde_json::json!({});
         for (creative, reach) in [(false, 3.0f32), (true, 5.0f32)] {
             let max = f64::from(reach + 0.3f32);
-            assert!(attack_range_contains(&defaults, max, creative));
-            assert!(!attack_range_contains(&defaults, max + 1e-8, creative));
+            assert!(attack_range_contains(&defaults, max, creative, false));
+            assert!(!attack_range_contains(
+                &defaults,
+                max + 1e-8,
+                creative,
+                false
+            ));
         }
+        // A spectator's minimum is 0 (1.21.11's effectiveMinRange), so a
+        // spear's minimum reach does not keep it from spectating a near mob.
+        assert!(attack_range_contains(&range, 1.0, false, true));
+        assert!(!attack_range_contains(&range, 1.0, false, false));
     }
 }

@@ -1,6 +1,6 @@
-//! Game rules (26.3 `GameRules`): the registered rules with their category,
-//! type, default and bounds, a value map, and persistence in the world's
-//! `data/minecraft/game_rules.dat` saved-data file.
+//! Game rules (1.21.11 `GameRules`): the registered rules with their category,
+//! type, default and bounds, a value map, and persistence in level.dat's
+//! `Data.game_rules`.
 use horizon_world::{
     DATA_VERSION,
     compression::Compression,
@@ -125,7 +125,7 @@ pub const RULES: &[Rule] = &[
     b("universal_anger", "mobs", false),
     b("water_source_conversion", "updates", true),
 ];
-/// GameRules.MAX_MINECART_SPEED (26.3), available with minecart improvements.
+/// GameRules.MAX_MINECART_SPEED, available with minecart improvements.
 pub const MAX_MINECART_SPEED: Rule = i("max_minecart_speed", "misc", 8, 1, 1000);
 pub const MINECART_IMPROVEMENTS: &str = "minecraft:minecart_improvements";
 
@@ -220,8 +220,9 @@ impl GameRules {
             })
             .collect()
     }
-    /// GameRuleMap codec: `{data: {"minecraft:<rule>": value...}, DataVersion}`.
-    pub fn to_nbt(&self) -> NamedTag {
+    /// The rules as level.dat's `Data.game_rules` holds them:
+    /// `minecraft:<rule>` → typed value, every available rule.
+    fn rules_compound(&self) -> Tag {
         let data: Vec<(horizon_world::nbt::JavaString, Tag)> = self
             .available_rules()
             .map(|r| {
@@ -236,10 +237,31 @@ impl GameRules {
                 )
             })
             .collect();
+        Tag::compound(data)
+    }
+    /// The rules compound applied to this map: a rule's value when the compound
+    /// holds it in the rule's type, its default otherwise.
+    fn apply_compound(&mut self, data: &Tag) {
+        for r in self.available_rules() {
+            let key = format!("minecraft:{}", r.name);
+            let value = data.get(&key).or_else(|| data.get(r.name));
+            match (r.default, value) {
+                (Value::Bool(_), Some(Tag::Byte(v))) => {
+                    self.set(r.name, Value::Bool(*v != 0));
+                }
+                (Value::Int(_), Some(Tag::Int(v))) => {
+                    self.set(r.name, Value::Int(*v));
+                }
+                _ => {}
+            }
+        }
+    }
+    /// GameRuleMap codec: `{data: {"minecraft:<rule>": value...}, DataVersion}`.
+    pub fn to_nbt(&self) -> NamedTag {
         NamedTag {
             name: "".into(),
             tag: Tag::compound([
-                ("data", Tag::compound(data)),
+                ("data", self.rules_compound()),
                 ("DataVersion", Tag::Int(DATA_VERSION)),
             ]),
         }
@@ -252,45 +274,62 @@ impl GameRules {
         let Some(data) = root.get("data") else {
             return rules;
         };
-        for r in rules.available_rules() {
-            let key = format!("minecraft:{}", r.name);
-            let value = data.get(&key).or_else(|| data.get(r.name));
-            match (r.default, value) {
-                (Value::Bool(_), Some(Tag::Byte(v))) => {
-                    rules.set(r.name, Value::Bool(*v != 0));
-                }
-                (Value::Int(_), Some(Tag::Int(v))) => {
-                    rules.set(r.name, Value::Int(*v));
-                }
-                _ => {}
-            }
-        }
+        rules.apply_compound(data);
         rules
     }
     pub fn load(world: &Path) -> Self {
         Self::load_with_features(world, &[])
     }
+    /// `PrimaryLevelData.parse`: the rules are level.dat's `Data.game_rules`.
     pub fn load_with_features(world: &Path, features: &[String]) -> Self {
-        let Ok(bytes) = fs::read(world.join("data/minecraft/game_rules.dat")) else {
-            return Self::with_features(features);
+        let mut rules = Self::with_features(features);
+        let Ok(bytes) = fs::read(world.join("level.dat")) else {
+            return rules;
         };
         let Ok(raw) = Compression::Gzip.decode(&bytes, 16 << 20) else {
-            return Self::with_features(features);
+            return rules;
         };
-        match nbt::read_named(&raw, Limits::default()) {
-            Ok((root, _)) => Self::from_nbt_with_features(&root.tag, features),
-            Err(_) => Self::with_features(features),
+        let Ok((root, _)) = nbt::read_named(&raw, Limits::default()) else {
+            return rules;
+        };
+        if let Some(data) = root.tag.get("Data").and_then(|d| d.get("game_rules")) {
+            rules.apply_compound(data);
         }
+        rules
     }
+    /// `PrimaryLevelData.setTagData`: patch level.dat's `Data.game_rules`,
+    /// keeping the rest of the level data as it is.
     pub fn save(&self, world: &Path) -> crate::Result<()> {
-        let dir = world.join("data/minecraft");
-        fs::create_dir_all(&dir)?;
-        let bytes =
-            nbt::write_named(&self.to_nbt(), Limits::default()).map_err(|e| e.to_string())?;
-        fs::write(
-            dir.join("game_rules.dat"),
-            Compression::Gzip.encode(&bytes)?,
-        )?;
+        fs::create_dir_all(world)?;
+        let path = world.join("level.dat");
+        let mut root = fs::read(&path)
+            .ok()
+            .and_then(|bytes| Compression::Gzip.decode(&bytes, 16 << 20).ok())
+            .and_then(|raw| {
+                nbt::read_named(&raw, Limits::default())
+                    .ok()
+                    .map(|(r, _)| r.tag)
+            })
+            .unwrap_or_else(|| Tag::Compound(Default::default()));
+        let mut data = match root.get("Data").cloned() {
+            Some(t @ Tag::Compound(_)) => t,
+            _ => Tag::Compound(Default::default()),
+        };
+        if let Tag::Compound(map) = &mut data {
+            map.insert("game_rules".into(), self.rules_compound());
+        }
+        if let Tag::Compound(map) = &mut root {
+            map.insert("Data".into(), data);
+        }
+        let bytes = nbt::write_named(
+            &NamedTag {
+                name: "".into(),
+                tag: root,
+            },
+            Limits::default(),
+        )
+        .map_err(|e| e.to_string())?;
+        fs::write(path, Compression::Gzip.encode(&bytes)?)?;
         Ok(())
     }
 }

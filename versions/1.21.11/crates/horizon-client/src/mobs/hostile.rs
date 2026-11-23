@@ -3,7 +3,7 @@
 use super::{
     Damage, DamageKind, Mob, MobEvent, MobWorld, Species, Who,
     goals::{
-        Avoid, AvoidEntity, ClimbOnTopOfPowderSnow, Cx, Float, Goal, HurtByTarget, LeapAtTarget,
+        Avoid, AvoidEntity, ClimbDangerPowderSnow, Cx, Float, Goal, HurtByTarget, LeapAtTarget,
         LookAtPlayer, MOVE, MeleeAttack, NearestTarget, RandomLookAround, Stroll, goal_clone,
     },
 };
@@ -57,7 +57,7 @@ pub fn register(m: &mut Mob) {
         S::Silverfish => {
             let g = &mut m.ai.goals;
             g.add(1, Float);
-            g.add(1, ClimbOnTopOfPowderSnow);
+            g.add(1, ClimbDangerPowderSnow);
             g.add(3, SilverfishWakeUpFriends);
             g.add(4, MeleeAttack::new(1.0, false));
             g.add(5, SilverfishMergeWithStone::default());
@@ -69,7 +69,7 @@ pub fn register(m: &mut Mob) {
         S::Endermite => {
             let g = &mut m.ai.goals;
             g.add(1, Float);
-            g.add(1, ClimbOnTopOfPowderSnow);
+            g.add(1, ClimbDangerPowderSnow);
             g.add(2, MeleeAttack::new(1.0, false));
             g.add(3, Stroll::avoiding_water(1.0));
             g.add(7, LookAtPlayer::new(8.0));
@@ -279,6 +279,9 @@ impl Goal for SpiderAttack {
     }
 }
 /// SwellGoal: fuse within 3 blocks, defuse beyond 7 or out of sight.
+/// 1.21.11 has no dead-target check here (26.1 added `isDeadOrDying`
+/// to both `canUse` and `tick`): a creeper keeps swelling toward a
+/// dead target that is still present, close, and visible.
 #[derive(Clone, Debug, Default)]
 pub struct Swell {
     target: Option<Who>,
@@ -291,7 +294,7 @@ impl Goal for Swell {
     fn can_use(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
         let close = m
             .target_info(cx.w)
-            .is_some_and(|t| t.alive && m.distance_sqr(t.position) < 9.0);
+            .is_some_and(|t| m.distance_sqr(t.position) < 9.0);
         m.extra.counter > 0 || close
     }
     fn start(&mut self, m: &mut Mob, _: &mut Cx) {
@@ -309,7 +312,7 @@ impl Goal for Swell {
             .target
             .and_then(|t| cx.w.target_info(t).map(|i| (t, i)))
         {
-            Some((who, t)) if t.alive => {
+            Some((who, t)) => {
                 if m.distance_sqr(t.position) > 49.0 || !m.sees(cx.w, who) {
                     -1
                 } else {

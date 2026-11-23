@@ -22,8 +22,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-//! The camera (`Camera.tick`, `tickFov`, `calculateFov`, `alignWithEntity`,
-//! `getMaxZoom`, `setRotation`, `move`), view and hurt bobbing
+//! The camera (`Camera.tick`, `Camera.setup`, `getMaxZoom`, `setRotation`,
+//! `move`), the field of view (`GameRenderer.tickFov`, `GameRenderer.getFov`,
+//! which merges 26.1's `Camera.calculateFov` / `calculateHudFov` /
+//! `modifyFovBasedOnDeathOrFluid`), view and hurt bobbing
 //! (`GameRenderer.bobView`, `bobHurt`), the walk and bob history they read
 //! (`ClientAvatarState`), and `AbstractClientPlayer.getFieldOfViewModifier`.
 //!
@@ -470,10 +472,12 @@ pub mod joml {
 }
 use joml::{Mat4, Quat};
 
-/// `Camera.getViewRotationMatrix` to the last bit: `Matrix4f.rotation` of the conjugate of
-/// `setRotation`'s quaternion, and its JOML `invert()`. `view_matrix` turns the same quaternion
-/// into a matrix by glam's formula, which differs in the last bits (1.0 for 0.99999994, 6e-8 for
-/// 0).
+/// The view rotation matrix to the last bit: `Matrix4f.rotation` of the
+/// conjugate of `setRotation`'s quaternion, and its JOML `invert()`.
+/// (26.1's `Camera.getViewRotationMatrix`; 1.21.11 builds the same matrix
+/// inline in `GameRenderer.renderLevel` and `projectPointToScreen`.)
+/// `view_matrix` turns the same quaternion into a matrix by glam's formula,
+/// which differs in the last bits (1.0 for 0.99999994, 6e-8 for 0).
 pub fn view_rotation_matrix(yaw: f32, pitch: f32) -> (glam::Mat4, glam::Mat4) {
     let q = Quat::rotation_yxz(PI - yaw * DEG_TO_RAD, -pitch * DEG_TO_RAD, 0.0);
     let mut m = Mat4::IDENTITY;
@@ -562,7 +566,7 @@ pub fn field_of_view_modifier(p: &FovPlayer, first_person: bool, effect_scale: f
     lerp(effect_scale, 1.0, modifier)
 }
 
-/// The camera entity as `Camera.alignWithEntity` and the field-of-view
+/// The camera entity as `Camera.setup` and the field-of-view
 /// death and hurt effects see it.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CameraEntity {
@@ -684,9 +688,10 @@ impl Default for Camera {
     }
 }
 impl Camera {
-    /// `Camera.tick`: the eye height eases halfway toward the entity's
-    /// (with a level and an entity), then `tickFov` with the camera entity's
-    /// field-of-view modifier target (1 when it is not a player).
+    /// `Camera.tick` (the eye height eases halfway toward the entity's,
+    /// with a level and an entity) plus `GameRenderer.tickFov` (the
+    /// field-of-view modifier eases the same way toward the camera
+    /// entity's target — 1 when it is not a player).
     pub fn tick(&mut self, entity_eye_height: Option<f32>, target_fov_modifier: f32) {
         if let Some(eye) = entity_eye_height {
             self.eye_height_old = self.eye_height;
@@ -705,8 +710,9 @@ impl Camera {
         self.up = self.rotation.transform([0.0, 1.0, 0.0]);
         self.left = self.rotation.transform([-1.0, 0.0, 0.0]);
     }
-    /// `Camera.getNearPlane(fov)` for a `width` x `height` window, at the
-    /// projection's `zNear` of 0.05.
+    /// `Camera.getNearPlane` for a `width` x `height` window, at the
+    /// projection's `zNear` of 0.05. 1.21.11 reads the FOV option and the
+    /// window size itself; the caller passes them here.
     pub fn near_plane(&self, fov: f32, width: f32, height: f32) -> NearPlane {
         let z_near = f64::from(0.05f32);
         let aspect = f64::from(width) / f64::from(height);
@@ -727,8 +733,8 @@ impl Camera {
             self.position[2] + f64::from(offset[2]),
         ];
     }
-    /// `Camera.alignWithEntity` (not riding a minecart with the new
-    /// movement): the entity's view rotation and interpolated eye, then a
+    /// `Camera.setup` (not riding a minecart with the new movement):
+    /// the entity's view rotation and interpolated eye, then a
     /// detached camera backed off along the view (`getMaxZoom`) or a sleeping
     /// one turned to the bed. `clip` is `Level.clip` with
     /// `ClipContext.Block.VISUAL` and no fluids; it returns the hit location
@@ -824,8 +830,9 @@ impl Camera {
         }
         distance
     }
-    /// `Camera.calculateFov`: the option scaled by the eased modifier, then
-    /// the death and fluid effects.
+    /// `GameRenderer.getFov(camera, partial, true)`: the option scaled by
+    /// the eased modifier, then the death and fluid effects. (26.1's
+    /// `Camera.calculateFov`.)
     pub fn calculate_fov(
         &self,
         partial: f32,
@@ -841,7 +848,8 @@ impl Camera {
         let fov = fov_option as f32 * lerp(partial, self.old_fov_modifier, self.fov_modifier);
         modify_fov_based_on_death_or_fluid(partial, fov, effect_scale, dead, fluid)
     }
-    /// `Camera.calculateHudFov`.
+    /// `GameRenderer.getFov(camera, partial, false)`: the 70-degree base,
+    /// changed only by death and fluids. (26.1's `Camera.calculateHudFov`.)
     pub fn calculate_hud_fov(
         &self,
         partial: f32,
@@ -852,16 +860,20 @@ impl Camera {
         modify_fov_based_on_death_or_fluid(partial, 70.0, effect_scale, dead, fluid)
     }
 }
-/// `Camera.update`: the far plane covers four times the render distance and
-/// the whole cloud range (`depthFar`).
+/// `GameRenderer.getDepthFar`: the far plane covers four times the render
+/// distance and the whole cloud range. (26.1 computed it in
+/// `Camera.update`.)
 pub fn depth_far(render_distance_chunks: i32, cloud_range_chunks: i32) -> f32 {
     (render_distance_chunks as f32 * 16.0 * 4.0).max((cloud_range_chunks * 16) as f32)
 }
 
-/// `Projection.getMatrix` for a perspective set up by `setupPerspective`:
 /// JOML's `Matrix4f.setPerspective(fov * DEG_TO_RAD, width / height, near,
-/// far, zZeroToOne)`, column-major. Vanilla's `Projection` passes its planes
-/// reversed (`near` is `zFar`) for reversed depth.
+/// far, zZeroToOne)`, column-major. (26.1's `Projection.getMatrix` passed
+/// its planes straight — `setPerspective(fov, aspect, zNear, zFar,
+/// isZZeroToOne)` — and 1.21.11's projection buffers do the same with the
+/// 4-arg `perspective`; the `Projection` class itself is gone in 1.21.11.
+/// The reversed planes the callers below pass are the Rust's own reversed-Z
+/// pipeline, not vanilla's matrix.)
 pub fn perspective(
     fov_degrees: f32,
     width: f32,
@@ -889,10 +901,13 @@ pub fn perspective(
     m[11] = -1.0;
     m
 }
-/// `Frustum.getNearPlaneBounds`: the box around the four corners of the
-/// culling frustum's NDC `z = -1` plane, relative to the camera (the caller
-/// moves it to the eye). The culling projection is `Camera.update`'s
-/// `setPerspective(fov, aspect, 0.05, depthFar, zZeroToOne)`.
+/// The box around the four corners of a zero-to-one perspective's NDC
+/// `z = -1` plane, relative to the camera (the caller moves it to the eye):
+/// that plane sits `far * near / (2 * far - near)` ahead, about half a near
+/// distance. The stairs/slabs view-blocking test uses it. (1.21.11's culling
+/// projection is `GameRenderer.getProjectionMatrix` — the 4-arg perspective,
+/// not zero-to-one — and neither version has a `Frustum.getNearPlaneBounds`;
+/// this box is the Rust's own construction, kept as it was.)
 pub fn near_plane_bounds(
     fov_degrees: f32,
     width: f32,
@@ -917,15 +932,20 @@ pub fn near_plane_bounds(
     }
     (min, max)
 }
-/// `GameRenderer.render3dHud`: the first-person hand and held items are
-/// drawn with their own projection at `hudFov` (70 degrees, changed only by
-/// death and fluids), never the FOV option or the sprint, speed and bow
-/// modifier.
+/// The first-person hand and held items are drawn with their own projection
+/// at `hudFov` (70 degrees, changed only by death and fluids), never the
+/// FOV option or the sprint, speed and bow modifier. Vanilla's HUD
+/// projection is 0.05 to 100 in both versions (26.1's `hudProjection`,
+/// 1.21.11's `CachedPerspectiveProjectionMatrixBuffer`); the Rust passes
+/// `depth_far` as the far plane instead, and reverses the planes for its
+/// reversed-Z pipeline.
 pub fn hand_projection(hud_fov: f32, width: f32, height: f32, far: f32) -> [f32; 16] {
     perspective(hud_fov, width, height, far, 0.05, true)
 }
-/// `Camera.modifyFovBasedOnDeathOrFluid`. `dead` is the camera entity's
-/// `deathTime` while it is a living entity that is dead or dying.
+/// The death and fluid half of `GameRenderer.getFov` (26.1's
+/// `Camera.modifyFovBasedOnDeathOrFluid`, inlined there in 1.21.11). `dead`
+/// is the camera entity's `deathTime` while it is a living entity that is
+/// dead or dying.
 pub fn modify_fov_based_on_death_or_fluid(
     partial: f32,
     mut fov: f32,
@@ -1028,7 +1048,10 @@ impl AvatarBob {
     }
 }
 
-/// The parts of `CameraRenderState.entityRenderState` the bobbing reads.
+/// The bobbing inputs: what 1.21.11's `bobView`/`bobHurt` read off the
+/// camera entity directly (26.1 read the same values from
+/// `CameraRenderState.entityRenderState`, which 1.21.11's slimmed-down
+/// `CameraRenderState` no longer carries).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct BobState {
     /// A living camera entity: `hurtTime - partial`, `hurtDuration`,

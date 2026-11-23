@@ -1329,7 +1329,7 @@ impl Game<'_> {
         self.pause_focus = None;
         self.death_focus = None;
         self.ui.options.clear_click_focus();
-        if let Some(options) = self.world_options.as_mut() {
+        if let Some(options) = self.share_to_lan.as_mut() {
             options.clear_click_focus();
         }
     }
@@ -2358,7 +2358,7 @@ impl Game<'_> {
     fn pad_has_typing_screen(&self) -> bool {
         self.pad_typing()
             || self.title.is_some()
-            || matches!(self.screen, Screen::Options | Screen::WorldOptions)
+            || matches!(self.screen, Screen::Options | Screen::ShareToLan)
     }
 
     /// Enter on these goes on to a new line: a dialog's, a sign's or a book's page.
@@ -2467,9 +2467,9 @@ impl Game<'_> {
             if key != Some(KeyCode::Enter) {
                 self.station_text(text, backspace);
             }
-        } else if self.screen == Screen::WorldOptions {
+        } else if self.screen == Screen::ShareToLan {
             if key != Some(KeyCode::Enter) {
-                self.world_options_text(text);
+                self.share_to_lan_text(text);
             }
         } else if self.screen == Screen::CommandBlock {
             // Enter is its Done, as on the keyboard.

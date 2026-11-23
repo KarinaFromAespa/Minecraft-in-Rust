@@ -1,4 +1,4 @@
-//! Layout of vanilla's `Hud` as draw calls (`GuiGraphicsExtractor` blits,
+//! Layout of vanilla's `Hud` as draw calls (`GuiGraphics` blits,
 //! fills and text): the hotbar with its selection, off-hand slot, items and
 //! attack indicator, the crosshair, armour, hearts, food, air bubbles, mount
 //! hearts and the experience bar, plus the draw-call types and colour
@@ -58,7 +58,7 @@ impl Blend {
     }
 }
 
-/// One `GuiGraphicsExtractor` call.
+/// One `GuiGraphics` call.
 #[derive(Clone, Debug, PartialEq)]
 pub enum GuiDraw {
     /// `blitSprite(pipeline, sprite, x, y, w, h, color)`; `region` =

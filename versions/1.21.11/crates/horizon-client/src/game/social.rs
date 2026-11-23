@@ -5,6 +5,7 @@
 //! Horizon does not offer: nobody is blocked, as in vanilla's offline mode.
 use super::{Game, Screen};
 use horizon_client::{
+    chat::ChatVisibility,
     social_screen::{self, Action, Entry, Page, SocialView},
     tab_list::TabPlayer,
     text::Text,
@@ -140,12 +141,17 @@ impl Game<'_> {
         let args = [Text::literal(server), Text::literal(count.to_string())];
         let max = social_screen::max_scroll(self.gui_size().1, entries.len());
         self.social.scroll = self.social.scroll.clamp(0.0, max);
+        // `PlayerEntry`: no row buttons unless the chat is allowed
+        // (`getChatStatus().isChatAllowed(isLocalServer())` — Hidden by
+        // options means not allowed, as in `remote_chat`).
+        let chat_allowed = self.chat_visibility() != ChatVisibility::Hidden;
         SocialView {
             page,
             search: self.social.search.value.clone(),
             entries,
             server_label: Text::translate(key, &args),
             scroll: self.social.scroll,
+            chat_allowed,
         }
     }
     /// The server's name: a local world's name, a server's entry in the list.

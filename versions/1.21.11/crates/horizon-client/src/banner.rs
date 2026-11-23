@@ -109,7 +109,14 @@ impl Banners {
         if let Some(raw) = defaults {
             for (item, c) in raw {
                 let id: Arc<str> = Arc::from(item.as_str());
-                if let Some(dye) = c["minecraft:dye"].as_str() {
+                // 1.21.11 has no `minecraft:dye` component: a dye item's
+                // colour is its own name (`minecraft:red_dye` is red).
+                let dye = c["minecraft:dye"].as_str().or_else(|| {
+                    item.strip_prefix("minecraft:")?
+                        .strip_suffix("_dye")
+                        .filter(|d| crate::mobs::render::DYE_NAMES.contains(d))
+                });
+                if let Some(dye) = dye {
                     banners.dyes.insert(id.clone(), Arc::from(dye));
                 }
                 match &c["minecraft:provides_banner_patterns"] {
@@ -130,14 +137,14 @@ impl Banners {
     pub fn pattern(&self, id: &str) -> Option<&Pattern> {
         self.patterns.iter().find(|p| &*p.id == id)
     }
-    /// `Sheets.getBannerSprite` texture name of a pattern.
+    /// `Sheets.getBannerMaterial` texture name of a pattern.
     pub fn banner_texture(&self, id: &str) -> String {
         match self.pattern(id) {
             Some(p) => format!("entity/banner/{}", p.asset),
             None => format!("entity/banner/{}", id.trim_start_matches("minecraft:")),
         }
     }
-    /// `Sheets.getShieldSprite` texture name of a pattern.
+    /// `Sheets.getShieldMaterial` texture name of a pattern.
     pub fn shield_texture(&self, id: &str) -> String {
         match self.pattern(id) {
             Some(p) => format!("entity/shield/{}", p.asset),
@@ -158,22 +165,17 @@ impl Banners {
         format!("{base}.{}", layer.color)
     }
     /// `LoomMenu.isDyeItem`: the dye colour of a loom dye.
-    pub fn loom_dye(&self, items: &Items, stack: &ItemStack) -> Option<Arc<str>> {
-        let tagged = items
-            .item_tags
-            .get("minecraft:loom_dyes")
-            .is_some_and(|t| t.contains(&*stack.item));
-        tagged
-            .then(|| self.dyes.get(&stack.item).cloned())
-            .flatten()
+    pub fn loom_dye(&self, _items: &Items, stack: &ItemStack) -> Option<Arc<str>> {
+        // `LoomMenu$4`: the dye slot accepts any DyeItem — 1.21.11 has no
+        // `#loom_dyes` tag, and `dyes` holds exactly the dye items.
+        self.dyes.get(&stack.item).cloned()
     }
     /// `LoomMenu.isPatternItem`.
-    pub fn is_pattern_item(&self, items: &Items, stack: &ItemStack) -> bool {
-        items
-            .item_tags
-            .get("minecraft:loom_patterns")
-            .is_some_and(|t| t.contains(&*stack.item))
-            && self.provided.contains_key(&stack.item)
+    pub fn is_pattern_item(&self, _items: &Items, stack: &ItemStack) -> bool {
+        // `LoomMenu$5`: the pattern slot accepts any stack with
+        // PROVIDES_BANNER_PATTERNS — 1.21.11 has no `#loom_patterns` tag,
+        // and `provided` holds exactly the items with that component.
+        self.provided.contains_key(&stack.item)
     }
     /// `LoomMenu.getSelectablePatterns`.
     pub fn selectable(&self, pattern_item: Option<&ItemStack>) -> Vec<Arc<str>> {

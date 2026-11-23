@@ -120,7 +120,7 @@ impl WorldRequest {
         // handle (the title screen shows it); a world opened another way must not become a
         // new one with a random seed under the same name.
         // The dedicated server's `Main` takes level.dat_old without asking
-        // (`getUnfixedDataTagWithFallback`): there is no world list to recover from.
+        // (`getDataTagFallback`): there is no world list to recover from.
         if options.dedicated.is_some()
             && horizon_client::save::fall_back_to_level_dat_old(&save_root)
         {
@@ -156,12 +156,19 @@ impl WorldRequest {
         horizon_client::save::upgrade_older_world_with(&save_root, upgrade)?;
         horizon_client::save::migrate_legacy(&save_root)?;
         let session_lock = horizon_client::save::SessionLock::acquire(&save_root)?;
-        // RandomSequences: the world's data/minecraft/random_sequences.dat.
-        let rand_sequences =
-            horizon_client::save::read_dat(&save_root.join("data/minecraft/random_sequences.dat"))
-                .and_then(|t| t.get("data").cloned())
-                .map(|d| horizon_client::random_sequences::RandomSequences::from_nbt(&d))
-                .unwrap_or_default();
+        // RandomSequences: the overworld's own set (1.21.11: one per level),
+        // in its dimension folder; older Horizon saves kept the one set at
+        // the world's data/minecraft/random_sequences.dat, which still reads.
+        let overworld_sequences =
+            horizon_client::save::dimension_dir(&save_root, "minecraft:overworld")
+                .join("data/minecraft/random_sequences.dat");
+        let rand_sequences = if overworld_sequences.exists() {
+            super::trading::load_random_sequences(&overworld_sequences)
+        } else {
+            super::trading::load_random_sequences(
+                &save_root.join("data/minecraft/random_sequences.dat"),
+            )
+        };
         let existing = Level::read(&save_root);
         let created = existing.is_none();
         let level = existing.unwrap_or_else(|| Level {
@@ -183,7 +190,7 @@ impl WorldRequest {
         let mut level = level;
         // `IntegratedServer.setSingleplayerProfile`: a world older Horizon builds made
         // under the offline profile moves its owner to the account at open — the player
-        // file, its `UUID` and level.dat's `singleplayer_uuid`. Its entities follow as
+        // file, its `UUID` and level.dat's `Player`. Its entities follow as
         // their chunks load (`owner_migration`, `entity_nbt::migrate_player_uuid`).
         let owner_migration = owner.and_then(|(player, account)| {
             let old = horizon_protocol::crypto::offline_uuid(&player);
@@ -295,7 +302,8 @@ impl WorldRequest {
         .fast_lava;
         world.game_time = level.time;
         world.day_time = options.time.unwrap_or(level.day_time);
-        world.end_clock = level.end_clock.unwrap_or(level.time);
+        // 1.21.11 has no per-dimension clock: the End shares the world's day time.
+        world.end_clock = world.day_time;
         world.weather = level.weather;
         if let Some(w) = options.weather.as_deref() {
             // /weather: clear, rain or thunder for a long duration.
@@ -311,8 +319,10 @@ impl WorldRequest {
             };
         }
 
-        // Persist new metadata on the worker too, before publishing the world.
-        if !save_root.join("level.dat").exists() {
+        // Persist new metadata on the worker too, before publishing the world. A created
+        // world already has a bare level.dat (the generator settings went in above), so
+        // the new-world check is the `created` flag, not the file's absence.
+        if created || !save_root.join("level.dat").exists() {
             level.write(&save_root)?;
         }
         Ok(PreparedWorld {
@@ -336,8 +346,9 @@ pub(super) struct WorldLoader {
 
 impl WorldLoader {
     /// Prepare the world on its own thread. `upgrade` is what its upgrade has done
-    /// (`UpgradeProgress`), which the window's `FileFixerProgressScreen` shows while the
-    /// file fixers run, and where its Cancel stops them.
+    /// (`UpgradeProgress`); in 1.21.11 there is no file-fixing flow, so the
+    /// file-fixer screen never shows and the handle only reports the datafix
+    /// progress.
     pub fn start(
         request: WorldRequest,
         res: Arc<Resources>,

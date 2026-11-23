@@ -369,7 +369,9 @@ impl crate::entity_rules::EntityRules for ArmorStand {
 #[derive(Clone, Copy)]
 pub struct ItemStep {
     old_velocity: Vec3,
-    did_move: bool,
+    /// Whether the tick took the move arm (the gate passed). Idle ticks run
+    /// no block effects in 1.21.11, so the game's bubble-column push reads it.
+    pub did_move: bool,
     /// The contact block for a clipped vertical move; idle ticks have none.
     pub vertical_contact: Option<BlockPos>,
     /// `Entity.move` with physics: where it started, what it moved, and
@@ -406,14 +408,18 @@ impl ItemEntity {
             border,
             blocks,
         );
-        crate::motion::bubble_column_push(
-            world,
-            registry,
-            facts,
-            collision,
-            self.bounds(),
-            &mut self.velocity,
-        );
+        // `BubbleColumnBlock.entityInside` runs inside `applyEffectsFromBlocks`,
+        // which 1.21.11 calls only on move ticks (no idle arm).
+        if step.did_move {
+            crate::motion::bubble_column_push(
+                world,
+                registry,
+                facts,
+                collision,
+                self.bounds(),
+                &mut self.velocity,
+            );
+        }
         let alive = self.tick_settle(world, facts, no_physics, step);
         let (water, _) = self.update_fluids(world, fluids);
         self.water_entry(water > 0.0, false, &mut |_| {});
@@ -559,8 +565,8 @@ impl ItemEntity {
             false,
         )
     }
-    /// `Entity.updateFluidInteraction`: water resets the fall, and entering
-    /// it after the first tick runs `doWaterSplashEffect`.
+    /// `Entity.updateInWaterStateAndDoFluidPushing`: water resets the fall,
+    /// and entering it after the first tick runs `doWaterSplashEffect`.
     pub fn water_entry<F: FnMut(ItemSplash)>(
         &mut self,
         in_water: bool,
@@ -687,9 +693,11 @@ impl ItemEntity {
         }
         let horizontal = self.velocity.x * self.velocity.x + self.velocity.z * self.velocity.z;
         // ItemEntity.tick: skip move 3 of 4 ticks while grounded with no
-        // horizontal speed. The idle branch still runs bubble-column push
-        // (`applyEffectsFromBlocksForLastMovements`), so lift builds up and
-        // the item moves on the next wake-up (#4558).
+        // horizontal speed. In 1.21.11 the idle branch does nothing: there is
+        // no else arm (`applyEffectsFromBlocksForLastMovements` is 26.x-only),
+        // so block effects — slime stepOn, bubble-column lift — run only on
+        // move ticks, and a grounded item in a column lifts on the next
+        // wake-up (#4558).
         if !self.on_ground
             || horizontal > 1.0e-5
             || self.ticks.wrapping_add(self.id).is_multiple_of(4)
@@ -775,10 +783,8 @@ impl ItemEntity {
                 fall_move: (!no_physics).then_some((from, moved, applied)),
             };
         }
-        // applyEffectsFromBlocksForLastMovements: still lift/drag while idle.
-        if !no_physics {
-            self.slime_step_on(world, facts);
-        }
+        // 1.21.11 has no idle arm: nothing runs here (26.1's
+        // `applyEffectsFromBlocksForLastMovements` is gone).
         ItemStep {
             old_velocity,
             did_move: false,
@@ -2027,7 +2033,18 @@ impl ItemFrame {
     pub fn bounds(&self) -> ([f64; 3], [f64; 3]) {
         let s = self.step().map(f64::from);
         let c: [f64; 3] = std::array::from_fn(|i| f64::from(self.pos[i]) + 0.5 - s[i] * 0.46875);
-        let size: [f64; 3] = std::array::from_fn(|i| if s[i] != 0.0 { 0.0625 } else { 0.75 });
+        // `ItemFrame.createBoundingBox`: a framed map widens the face to a
+        // full block (`hasFramedMap`: the item carries `minecraft:map_id`).
+        let face = if self
+            .item
+            .as_ref()
+            .is_some_and(|s| s.data().is_some_and(|d| d.map_id.is_some()))
+        {
+            1.0
+        } else {
+            0.75
+        };
+        let size: [f64; 3] = std::array::from_fn(|i| if s[i] != 0.0 { 0.0625 } else { face });
         (
             std::array::from_fn(|i| c[i] - size[i] / 2.0),
             std::array::from_fn(|i| c[i] + size[i] / 2.0),
@@ -2044,6 +2061,53 @@ impl ItemFrame {
         item_stack
     }
 }
+
+#[cfg(test)]
+mod item_frame_bounds_tests {
+    use super::*;
+
+    fn frame(item: Option<ItemStack>) -> ItemFrame {
+        ItemFrame {
+            id: 1,
+            pos: [10, 64, 10],
+            facing: 3,
+            glow: false,
+            item,
+            rotation: 0,
+            drop_chance: 1.0,
+            fixed: false,
+            invisible: false,
+            check_interval: 0,
+            custom_name: None,
+            random: LegacyRandom::new(0),
+        }
+    }
+
+    /// `ItemFrame.createBoundingBox`: 0.75 on the face, 0.0625 thick, centred
+    /// 0.46875 out from the block centre; a framed map widens the face to a
+    /// full block.
+    #[test]
+    fn a_framed_map_widens_the_face_to_a_full_block() {
+        let (lo, hi) = frame(None).bounds();
+        assert_eq!(
+            (hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]),
+            (0.75, 0.75, 0.0625)
+        );
+        assert_eq!((lo[0] + hi[0]) / 2.0, 10.5);
+        assert_eq!((lo[2] + hi[2]) / 2.0, 10.5 - 0.46875);
+        let mut map = ItemStack::new("minecraft:filled_map", 1);
+        map.data_mut().map_id = Some(7);
+        let (lo, hi) = frame(Some(map)).bounds();
+        assert_eq!(
+            (hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]),
+            (1.0, 1.0, 0.0625)
+        );
+        let stone = ItemStack::new("minecraft:stone", 1);
+        let (lo, hi) = frame(Some(stone)).bounds();
+        assert_eq!((hi[0] - lo[0], hi[1] - lo[1]), (0.75, 0.75));
+    }
+}
+
 /// An armor stand (`ArmorStand`).
 #[derive(Clone, Debug)]
 pub struct ArmorStand {
@@ -3529,8 +3593,9 @@ mod honey_slide_tests {
         assert_eq!(item.position.y, at.y);
     }
 
-    /// #4558: idle ticks still run `BubbleColumnBlock.entityInside`, so lift
-    /// builds and the next wake-up rises off the soul sand.
+    /// #4558: a grounded item in a soul-sand column rises. Only move ticks run
+    /// `BubbleColumnBlock.entityInside` (1.21.11 has no idle arm), so the
+    /// first wake-up lifts it and the next move clears the ground.
     #[test]
     fn a_grounded_item_in_a_soul_sand_column_rises() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

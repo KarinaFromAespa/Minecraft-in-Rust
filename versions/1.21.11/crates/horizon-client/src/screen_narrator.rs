@@ -178,7 +178,7 @@ impl Ctx<'_> {
 }
 
 /// `Screen.updateNarrationState`: the title (or the screen's own elements),
-/// then the narrated widget.
+/// how to navigate, then the narrated widget.
 fn update_narration_state(
     out: &mut Output<'_>,
     ctx: &Ctx<'_>,
@@ -195,6 +195,12 @@ fn update_narration_state(
     for (kind, depth, lines) in info.extra.iter().filter(|e| !replaces_title(e)) {
         add_at(out, *depth, *kind, lines.clone());
     }
+    // 1.21.11 narrates the navigation hint here, after the title and before
+    // the widget, whenever the screen narrates navigation — not only when no
+    // widget was found (`Screen.updateNarrationState`).
+    if info.navigation {
+        out.add(ElementType::Usage, ctx.tr("narrator.screen.usage", &[]));
+    }
     if info.widgets {
         update_narrated_widget(out, ctx, last, row_last);
     }
@@ -209,7 +215,8 @@ fn add_at(out: &mut Output<'_>, depth: u32, kind: ElementType, lines: Vec<String
 }
 
 /// `Screen.updateNarratedWidget`: the active narratables in tab order, the
-/// one `findNarratableWidget` picks with its position, or how to navigate.
+/// one `findNarratableWidget` picks with its position. The navigation hint
+/// is narrated by `update_narration_state` instead, before this runs.
 fn update_narrated_widget(
     out: &mut Output<'_>,
     ctx: &Ctx<'_>,
@@ -227,33 +234,27 @@ fn update_narrated_widget(
         .iter()
         .map(|n| (n.identity(), ctx.priority(n)))
         .collect();
-    match find_narratable(&entries, *last) {
-        Some((i, priority)) => {
-            if priority.is_terminal() {
-                *last = Some(entries[i].0);
-            }
-            if active.len() > 1 {
+    if let Some((i, priority)) = find_narratable(&entries, *last) {
+        if priority.is_terminal() {
+            *last = Some(entries[i].0);
+        }
+        if active.len() > 1 {
+            out.add(
+                ElementType::Position,
+                ctx.tr(
+                    "narrator.position.screen",
+                    &[&num(i + 1), &num(active.len())],
+                ),
+            );
+            if priority == Priority::Focused {
+                let usage = ctx.info.usage.clone();
                 out.add(
-                    ElementType::Position,
-                    ctx.tr(
-                        "narrator.position.screen",
-                        &[&num(i + 1), &num(active.len())],
-                    ),
+                    ElementType::Usage,
+                    usage.unwrap_or_else(|| ctx.tr("narration.component_list.usage", &[])),
                 );
-                if priority == Priority::Focused {
-                    let usage = ctx.info.usage.clone();
-                    out.add(
-                        ElementType::Usage,
-                        usage.unwrap_or_else(|| ctx.tr("narration.component_list.usage", &[])),
-                    );
-                }
             }
-            narrate(&mut out.nest(), active[i], ctx, row_last);
         }
-        None if ctx.info.navigation => {
-            out.add(ElementType::Usage, ctx.tr("narrator.screen.usage", &[]));
-        }
-        None => {}
+        narrate(&mut out.nest(), active[i], ctx, row_last);
     }
 }
 
@@ -887,12 +888,14 @@ mod tests {
             ]
         );
         // The focused one was narrated last: the hovered one goes first.
+        // The screen's usage is spoken again: the focused widget's usage
+        // replaced it, and 1.21.11 narrates the screen's hint every time.
         h.cursor = (150.0, 205.0);
         h.at(300).mouse_moved();
         assert_eq!(
             h.draw(1051, &screen, &items),
             ["gui.narrate.button(Done). narrator.position.screen(2, 2). \
-                 narration.button.usage.hovered"]
+                 narrator.screen.usage. narration.button.usage.hovered"]
         );
         // A click on nothing keeps the focus; a new screen drops it.
         h.at(1100).mouse_pressed((0.0, 0.0), true);
@@ -969,6 +972,7 @@ mod tests {
             h.draw(4751, &screen, &items),
             [
                 "gui.narrate.button(Graphics: Fancy). narrator.position.screen(2, 3). \
+                 narrator.screen.usage. \
                  narration.cycle_button.usage.hovered(Fabulous!)"
             ]
         );
@@ -981,14 +985,17 @@ mod tests {
                  narrator.position.screen(3, 3). narration.component_list.usage. \
                  narration.checkbox.usage.focused.uncheck"]
         );
-        // A click focuses a slider that the keys can then change.
+        // A click focuses a slider that the keys can then change. The
+        // list usage is spoken again: the screen's hint was written to
+        // the usage slot in between, and each content change marks the
+        // slot unnarrated (`NarrationEntry.update`).
         h.cursor = (10.0, 10.0);
         h.press(6000);
         assert_eq!(
             h.draw(6201, &screen, &items),
             [
                 "gui.narrate.slider(FOV: 70). narrator.position.screen(1, 3). \
-                 narration.slider.usage.focused"
+                 narration.component_list.usage. narration.slider.usage.focused"
             ]
         );
     }
@@ -1079,12 +1086,13 @@ mod tests {
             [0.0, 0.0, 427.0, 24.0],
         )
         .focused(true);
-        // Focused at init (a keyboard user's initial focus).
+        // Focused at init (a keyboard user's initial focus). 1.21.11
+        // narrates the screen's navigation hint with the widget.
         assert_eq!(
             h.draw(0, &screen, &[tabs]),
             [
                 "Create New World. gui.narrate.tab(Game). narrator.position.tab(1, 3). . \
-                 narration.tab_navigation.usage"
+                 narrator.screen.usage. narration.tab_navigation.usage"
             ]
         );
     }
@@ -1363,10 +1371,11 @@ mod tests {
             ]
         };
         // Visible, it is narrated at once, though nothing in it is hovered.
+        // 1.21.11 narrates the screen's navigation hint with the widget.
         h.cursor = (80.0, 80.0);
         assert_eq!(
             h.draw(0, &screen, &items(true, false)),
-            ["Crafting. narrator.position.screen(2, 2)"]
+            ["Crafting. narrator.position.screen(2, 2). narrator.screen.usage"]
         );
         // A hovered recipe: its result and usage, no tooltip, no position.
         h.at(3000).mouse_moved();
@@ -1400,11 +1409,14 @@ mod tests {
                 "gui.narrate.button(). narrator.position.screen(1, 2). narration.button.usage.hovered"
             ]
         );
-        // Hidden: never narrated, though still counted.
+        // Hidden: never narrated, though still counted. Nothing new is
+        // said: the screen's hint was already spoken at the open, and
+        // 1.21.11 narrates it every generation rather than only when no
+        // widget was found.
         h.cursor = (80.0, 80.0);
         h.at(7000).mouse_moved();
         let hidden = &items(false, false)[..2];
-        assert_eq!(h.draw(7751, &screen, hidden), ["narrator.screen.usage"]);
+        assert!(h.draw(7751, &screen, hidden).is_empty());
         assert_eq!(
             h.draw(8000, &ScreenInfo::new("container/2", "Crafting"), hidden),
             ["Crafting. narrator.screen.usage"]

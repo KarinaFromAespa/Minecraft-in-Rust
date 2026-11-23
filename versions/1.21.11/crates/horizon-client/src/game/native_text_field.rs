@@ -419,7 +419,7 @@ mod tests {
     #[test]
     fn overlay_ownership_leaves_the_real_chat_and_callbacks_untouched() {
         use horizon_client::{
-            chat::{ChatAbilities, ChatScreen, ChatVisibility, Commands},
+            chat::{ChatScreen, Commands},
             font::Font,
             hud::Rect,
         };
@@ -477,7 +477,6 @@ mod tests {
                 0,
                 640,
                 360,
-                ChatAbilities::new(ChatVisibility::Full),
             ),
             calls: 0,
         };

@@ -1046,7 +1046,6 @@ pub fn main() -> horizon_client::Result<()> {
                         m.rider = Some(horizon_client::mobs::equine::Rider::default());
                     }
                     "noai" => m.no_ai = true,
-                    "agelocked" => m.extra.age_locked = true,
                     // Warden.finalizeSpawn's own part.
                     "digcooldown" | "emerge" => horizon_client::mobs::warden::finalize(
                         &mut m,
@@ -1345,13 +1344,7 @@ pub fn main() -> horizon_client::Result<()> {
                 }
                 // Horse.mobInteract's held-item branch (makeMad).
                 if let Some(item) = item {
-                    horizon_client::mobs::equine::held_item(
-                        &mut mobs[i],
-                        item,
-                        false,
-                        item == "minecraft:golden_dandelion",
-                        &mut events,
-                    );
+                    horizon_client::mobs::equine::held_item(&mut mobs[i], item, false, &mut events);
                     continue;
                 }
                 if let Some(Some((name, volume, pitch))) =

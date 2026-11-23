@@ -65,6 +65,22 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     let below_state = self.below_state(pos);
                     self.bubble_column_update(pos, state, below_state);
                 }
+                Class::Magma => {
+                    // MagmaBlock.tick: BubbleColumnBlock.updateColumn above,
+                    // so magma placed under water starts (or stops) the
+                    // bubble column there.
+                    let above_pos = above(pos);
+                    let above_state = self.state(above_pos);
+                    self.bubble_column_update_for(above_pos, above_state, state);
+                }
+                Class::SoulSand => {
+                    // SoulSandBlock.tick: BubbleColumnBlock.updateColumn
+                    // above, so soul sand placed under water starts (or
+                    // stops) the bubble column there.
+                    let above_pos = above(pos);
+                    let above_state = self.state(above_pos);
+                    self.bubble_column_update_for(above_pos, above_state, state);
+                }
                 Class::Button => self.button_tick(pos, state),
                 Class::Diode => self.diode_tick(pos, state),
                 Class::Composter => {
@@ -227,13 +243,6 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     self.set_block_and_update(pos, b.table.set_bool(state, p.powered, false));
                     self.lightning_rod_update_neighbors(pos, state);
                 }
-                Class::Liquid => {
-                    if self.should_bubble_column_occupy(state) {
-                        let below_state = self.below_state(pos);
-                        let column = b.named.bubble_column;
-                        self.bubble_column_update_for(column, pos, state, below_state);
-                    }
-                }
                 Class::Observer => self.observer_tick(pos, state),
                 Class::Eyeblossom => self.eyeblossom_tick(state, pos, false),
                 Class::CreakingHeart => self.heart_tick(state, pos),
@@ -245,7 +254,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 Class::SculkSensor => self.sculk_sensor_tick(pos, state),
                 Class::SculkShrieker => self.sculk_shrieker_tick(pos, state),
                 Class::SculkCatalyst => self.sculk_catalyst_tick(pos, state),
-                Class::Speleothem => {
+                Class::Speleothem | Class::PointedDripstone => {
                     let tip = b.table.dir(state, p.vertical_direction);
                     if tip == Some(Direction::Up) && !self.can_survive(state, pos) {
                         self.destroy_block(pos, true, 512);
@@ -431,7 +440,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                         self.pitcher_grow(state, pos, 1);
                     }
                 }
-                Class::Speleothem => self.speleothem_random_tick(state, pos),
+                Class::Speleothem | Class::PointedDripstone => self.speleothem_random_tick(state, pos),
                 Class::RedStoneOre => {
                     if b.table.bool(state, p.lit) {
                         self.set_block_and_update(pos, b.table.set_bool(state, p.lit, false));
@@ -536,35 +545,36 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         state: BlockStateId,
         below_state: BlockStateId,
     ) {
-        let column = self.b.block(state);
-        self.bubble_column_update_for(column, pos, state, below_state);
+        self.bubble_column_update_for(pos, state, below_state);
     }
-    /// `BubbleColumnBlock.updateColumn(column, level, pos, occupyState, belowState)`.
+    /// `BubbleColumnBlock.updateColumn(level, pos, occupyState, belowState)`.
     pub(crate) fn bubble_column_update_for(
         &mut self,
-        column: super::states::BlockId,
         pos: BlockPos,
         occupy: BlockStateId,
         below_state: BlockStateId,
     ) {
         let b = self.b;
-        if !self.bubble_column_can_occupy(occupy) {
+        let column = b.named.bubble_column;
+        if !self.bubble_column_can_exist_in(occupy) {
             return;
         }
+        // `BubbleColumnBlock.getColumnState` in 1.21.11: soul sand
+        // pushes up and magma drags down, hardcoded (26.1 reads the
+        // `enables_bubble_column_*` tags instead, gone in 1.21.11);
+        // a below block that supports neither leaves water.
         let column_state = if b.is_block(below_state, column) {
             below_state
-        } else if b.in_set(below_state, &b.tags.enables_bubble_column_push_up) {
+        } else if b.is_block(below_state, b.named.soul_sand) {
             b.table.set_bool(b.default_of(column), b.props.drag, false)
-        } else if b.in_set(below_state, &b.tags.enables_bubble_column_drag_down) {
+        } else if b.is_block(below_state, b.named.magma_block) {
             b.table.set_bool(b.default_of(column), b.props.drag, true)
-        } else if b.is_block(occupy, column) {
-            b.default_of(b.named.water)
         } else {
-            occupy
+            b.default_of(b.named.water)
         };
         self.set_block(pos, column_state, 2);
         let mut up = above(pos);
-        while self.bubble_column_can_occupy(self.state(up)) {
+        while self.bubble_column_can_exist_in(self.state(up)) {
             if !self.set_block(up, column_state, 2) {
                 return;
             }
@@ -816,7 +826,8 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
 
     // ---- crops and plants ----
 
-    /// `CropBlock.getGrowthSpeed`.
+    /// `CropBlock.getGrowthSpeed` in 1.21.11: farmland under the crop counts
+    /// (the `grows_crops` tag is gone; it held only farmland).
     pub(crate) fn crop_growth_speed(&self, block: super::states::BlockId, pos: BlockPos) -> f32 {
         let b = self.b;
         let mut speed = 1.0f32;
@@ -825,7 +836,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             for zz in -1..=1 {
                 let mut block_speed = 0.0f32;
                 let state = self.state(under.offset(xx, 0, zz));
-                if b.in_set(state, &b.tags.grows_crops) {
+                if b.is_block(state, b.named.farmland) {
                     block_speed = 1.0;
                     if b.table.int(state, b.props.moisture) > 0 {
                         block_speed = 3.0;
@@ -908,11 +919,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let relative = rel(pos, direction);
         let data = b.data(state);
         let below_state = self.below_state(relative);
+        // `StemBlock.randomTick`: the fruit lands on farmland or the dirt tag
+        // in 1.21.11 (the `fruitSupportBlocks` tag field is gone).
         if b.is_air(self.state(relative))
-            && data
-                .support_tag2
-                .as_ref()
-                .is_some_and(|tag| b.in_set(below_state, tag))
+            && (b.in_set(below_state, &b.tags.dirt) || b.is_block(below_state, b.named.farmland))
             && let (Some(fruit), Some(stem)) = (data.link, data.link2)
         {
             self.set_block_and_update(relative, b.default_of(fruit));
@@ -940,9 +950,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             (pos, state)
         };
         let new_age = b.table.int(lower, p.age) + increase;
+        // `PitcherCropBlock.canGrow` in 1.21.11: no build-height check (26.x
+        // added one); the same check `bonemeal_valid` runs for the pitcher.
         let can_grow = b.table.int(lower, p.age) < 4
             && self.raw_brightness(lower_pos, 0) >= 8
-            && self.is_inside_build_height(lower_pos.y + 1)
             && (new_age < 3 || {
                 let upper = self.state(above(lower_pos));
                 b.is_air(upper) || b.is_block(upper, b.named.pitcher_crop)
@@ -1090,7 +1101,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let z = self.rand_int(3) - 1;
         pos.offset(x, y, z)
     }
-    /// `LightEngine.getLightDampeningInto(state, above, UP, above.dampening) < 15`.
+    /// `LightEngine.getLightBlockInto(state, above, UP, above.getLightBlock()) < 15`.
     fn top_face_lets_light(&self, state: BlockStateId, above_state: BlockStateId) -> bool {
         let b = self.b;
         let occluding = |s: BlockStateId| {
@@ -1437,14 +1448,16 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let mut grow_up = false;
         let mut pillar_on_support = false;
         let below_state = self.below_state(pos);
-        if b.in_set(below_state, &b.tags.supports_chorus_flower) {
+        // `ChorusFlowerBlock.randomTick` in 1.21.11: end stone, hardcoded
+        // (26.1 moved it into the `supports_chorus_flower` tag).
+        if b.is_block(below_state, b.named.end_stone) {
             grow_up = true;
         } else if b.is_block(below_state, plant) {
             let mut height = 1;
             for _ in 0..4 {
                 let test = self.state(pos.offset(0, -(height + 1), 0));
                 if !b.is_block(test, plant) {
-                    if b.in_set(test, &b.tags.supports_chorus_flower) {
+                    if b.is_block(test, b.named.end_stone) {
                         pillar_on_support = true;
                     }
                     break;

@@ -82,8 +82,10 @@ pub struct HudAtlas {
     /// Resolved player-profile names and UUIDs for inline head components.
     pub object_skins: HashMap<String, String>,
     pub object_skins_revision: u64,
-    /// Sprites with a 0 < alpha < 255 texel (`SpriteContents.transparency().hasTranslucent`),
-    /// which puts their particles on vanilla's translucent layer.
+    /// Sprites with a 0 < alpha < 255 texel, which puts their particles on
+    /// the translucent layer (26.x's `SpriteContents.transparency()` /
+    /// `Layer.bySprite` mechanism — 1.21.11 picks the terrain/breaking
+    /// particle layer by atlas instead; items 354/192 own that switch).
     pub translucent: HashSet<String>,
     /// Sprites whose `.png.mcmeta` sets `blur` or `clamp`; the others
     /// sample as vanilla's defaults (nearest, repeat).
@@ -129,7 +131,7 @@ pub const GLYPH_ROWS: u32 = 512;
 pub const MAX_ATLAS_SIZE: u32 = 16384;
 /// 128x128 atlas slots for map textures. A lobby paints its signs as walls of
 /// framed maps, so the pool holds a wall; too few slots re-upload every map
-/// every frame. 26.3's `MapTextureManager` keeps a texture per map instead.
+/// every frame. Vanilla's `MapTextureManager` keeps a texture per map instead.
 pub const MAP_SLOTS: usize = 256;
 /// The atlas sprite of map slot `slot` (`horizon/map{slot}`), named once:
 /// every map shown asks for its slot's each frame.
@@ -1765,7 +1767,7 @@ impl HudBatch {
             _ => self.blends.push((range, blend)),
         }
     }
-    /// `GuiGraphicsExtractor.textHighlight`: with `invert_text` the area's
+    /// `GuiGraphics.textHighlight`: with `invert_text` the area's
     /// colours are inverted first (white text on a dark field turns blue on
     /// white), then blue is added.
     pub fn text_highlight(

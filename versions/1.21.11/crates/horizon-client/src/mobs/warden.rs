@@ -344,18 +344,19 @@ pub fn register(m: &mut Mob) {
     m.extra.warden = Some(Box::default());
     m.ai.nav.can_float = true;
     m.set_malus(PathType::UnpassableRail, 0.0);
-    m.set_malus(PathType::Damaging, 8.0);
+    m.set_malus(PathType::DamageOther, 8.0);
     m.set_malus(PathType::PowderSnow, 8.0);
     m.set_malus(PathType::Lava, 8.0);
-    m.set_malus(PathType::Fire, 0.0);
-    m.set_malus(PathType::FireInNeighbor, 0.0);
-    // Brain.Provider.makeBrain: the sensors start on a random phase.
+    m.set_malus(PathType::DamageFire, 0.0);
+    m.set_malus(PathType::DangerFire, 0.0);
+    // `WardenAi.makeBrain`: the sensors start on a random phase.
     delay_sensors(m);
 }
-/// `Sensor.randomlyDelayStart` for the warden's two sensors, from its random.
+/// The warden's two sensors start on a random phase (`Sensor`'s
+/// constructor draws it from the static `Sensor.RANDOM` in 1.21.11).
 pub fn delay_sensors(m: &mut Mob) {
     if let Some(mut st) = m.extra.warden.take() {
-        st.brain.delay_sensors(&mut m.random);
+        st.brain.delay_sensors();
         m.extra.warden = Some(st);
     }
 }
@@ -550,7 +551,7 @@ pub(super) fn do_hurt_target(
     super::ai::do_hurt_target(m, target, &mut cx);
 }
 
-/// The brain's attack target (`Warden.getTarget` before `asValidTarget`).
+/// The brain's attack target (the raw `Warden.getTarget` field).
 pub fn brain_target(m: &Mob) -> Option<Who> {
     warden_brain::mem_ref(m).and_then(|mem| mem.attack_target.value())
 }

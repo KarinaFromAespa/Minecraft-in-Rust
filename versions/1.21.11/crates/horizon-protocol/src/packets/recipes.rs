@@ -56,21 +56,17 @@ pub enum TrimPattern {
     },
 }
 
-/// `SlotDisplay`: what a recipe book slot shows.
+/// `SlotDisplay`: what a recipe book slot shows, in 1.21.11's numbering
+/// (empty, any_fuel, item, item_stack, tag, smithing_trim, with_remainder,
+/// composite). The 26.x displays — with_any_potion, only_with_component,
+/// dyed — do not exist in this version.
 #[derive(Clone, Debug, PartialEq)]
 pub enum SlotDisplay {
     Empty,
     AnyFuel,
-    WithAnyPotion(Box<SlotDisplay>),
-    /// The source, kept to the stacks with this data component type.
-    OnlyWithComponent(Box<SlotDisplay>, i32),
     Item(i32),
     ItemStack(Stack),
     Tag(HolderSet),
-    Dyed {
-        dye: Box<SlotDisplay>,
-        target: Box<SlotDisplay>,
-    },
     SmithingTrim {
         base: Box<SlotDisplay>,
         material: Box<SlotDisplay>,
@@ -98,22 +94,13 @@ impl SlotDisplay {
         Ok(match crate::adapter::ids::slot_display(r.varint()?) {
             0 => Self::Empty,
             1 => Self::AnyFuel,
-            2 => Self::WithAnyPotion(inner(r)?),
-            3 => {
-                let source = inner(r)?;
-                Self::OnlyWithComponent(source, crate::adapter::ids::component(r.varint()?))
-            }
-            4 => Self::Item(crate::adapter::ids::item(r.varint()?)),
-            5 => Self::ItemStack(Template::read(r)?),
-            6 if crate::adapter::ids::quirks().tag_slot_display_is_id => {
+            2 => Self::Item(crate::adapter::ids::item(r.varint()?)),
+            3 => Self::ItemStack(Template::read(r)?),
+            4 if crate::adapter::ids::quirks().tag_slot_display_is_id => {
                 Self::Tag(HolderSet::Tag(r.string(32767)?))
             }
-            6 => Self::Tag(HolderSet::read(r)?),
-            7 => Self::Dyed {
-                dye: inner(r)?,
-                target: inner(r)?,
-            },
-            8 => {
+            4 => Self::Tag(HolderSet::read(r)?),
+            5 => {
                 let base = inner(r)?;
                 let material = inner(r)?;
                 if crate::adapter::ids::quirks().components_before_1_21_5 {
@@ -149,11 +136,11 @@ impl SlotDisplay {
                     }
                 }
             }
-            9 => Self::WithRemainder {
+            6 => Self::WithRemainder {
                 input: inner(r)?,
                 remainder: inner(r)?,
             },
-            10 => {
+            7 => {
                 let n = r.count(r.remaining())?;
                 let mut out = Vec::with_capacity(n.min(256));
                 for _ in 0..n {
@@ -189,31 +176,27 @@ impl SlotDisplay {
         Ok(())
     }
     pub fn write(&self, w: &mut Writer) {
+        // The type ids below are the codec's 1.21.11 numbering, so they are
+        // renumbered for the wire like any other registry id: writing them
+        // raw sends 1.21.11's ids to an older version, whose numbering
+        // differs (a tag written down to 26.2 as 4 arrives as its item id
+        // instead of 26.2's tag id 6).
         match self {
-            Self::Empty => w.varint(0),
-            Self::AnyFuel => w.varint(1),
-            Self::WithAnyPotion(d) => {
-                w.varint(2);
-                d.write(w);
-            }
-            Self::OnlyWithComponent(d, component) => {
-                w.varint(3);
-                d.write(w);
-                w.varint(*component);
-            }
+            Self::Empty => w.varint(crate::adapter::ids::slot_display(0)),
+            Self::AnyFuel => w.varint(crate::adapter::ids::slot_display(1)),
             Self::Item(id) => {
-                w.varint(4);
+                w.varint(crate::adapter::ids::slot_display(2));
                 w.varint(crate::adapter::ids::item(*id));
             }
             Self::ItemStack(stack) => {
-                w.varint(5);
+                w.varint(crate::adapter::ids::slot_display(3));
                 Template::write(stack, w);
             }
             Self::Tag(set) if crate::adapter::ids::quirks_written().tag_slot_display_is_id => {
                 match set {
                     // TagSlotDisplay of 26.2: the tag's bare id.
                     HolderSet::Tag(name) => {
-                        w.varint(6);
+                        w.varint(crate::adapter::ids::slot_display(4));
                         w.string(name);
                     }
                     // A list of items has no such form: a composite of item displays shows the same.
@@ -224,20 +207,15 @@ impl SlotDisplay {
                 }
             }
             Self::Tag(set) => {
-                w.varint(6);
+                w.varint(crate::adapter::ids::slot_display(4));
                 set.write(w);
-            }
-            Self::Dyed { dye, target } => {
-                w.varint(7);
-                dye.write(w);
-                target.write(w);
             }
             Self::SmithingTrim {
                 base,
                 material,
                 pattern,
             } => {
-                w.varint(8);
+                w.varint(crate::adapter::ids::slot_display(5));
                 base.write(w);
                 material.write(w);
                 match pattern {
@@ -255,12 +233,12 @@ impl SlotDisplay {
                 }
             }
             Self::WithRemainder { input, remainder } => {
-                w.varint(9);
+                w.varint(crate::adapter::ids::slot_display(6));
                 input.write(w);
                 remainder.write(w);
             }
             Self::Composite(list) => {
-                w.varint(10);
+                w.varint(crate::adapter::ids::slot_display(7));
                 w.varint(list.len() as i32);
                 list.iter().for_each(|d| d.write(w));
             }
@@ -682,16 +660,10 @@ mod tests {
                             input: Box::new(SlotDisplay::AnyFuel),
                             remainder: Box::new(SlotDisplay::Item(2)),
                         },
-                        addition: SlotDisplay::OnlyWithComponent(
-                            Box::new(SlotDisplay::WithAnyPotion(Box::new(SlotDisplay::Item(3)))),
-                            9,
-                        ),
+                        addition: SlotDisplay::Tag(HolderSet::Items(vec![3])),
                         result: SlotDisplay::SmithingTrim {
                             base: Box::new(SlotDisplay::Item(4)),
-                            material: Box::new(SlotDisplay::Dyed {
-                                dye: Box::new(SlotDisplay::Item(5)),
-                                target: Box::new(SlotDisplay::Item(6)),
-                            }),
+                            material: Box::new(SlotDisplay::Item(6)),
                             pattern: TrimPattern::Id(2),
                         },
                         station: SlotDisplay::Item(7),

@@ -3,7 +3,7 @@
 //! buttons, payment slots, the result slot's `onTake`, villager experience and
 //! level-ups with new offers from the next trade set.
 use super::{
-    Game,
+    Dim, Game,
     stations::{INPUT, Kind, RESULT, Station},
 };
 use horizon_client::mobs::{
@@ -15,7 +15,9 @@ use horizon_client::{
     hud::HudBatch,
     items::ItemStack,
     merchant::{self, MerchantOffer, TradeContext},
+    villager_trades,
 };
+use horizon_core::random::LegacyRandom;
 
 /// The merchant screen is 100 px wider than the 176-px menus it shares an origin with.
 const SHIFT: f32 = -50.0;
@@ -125,23 +127,53 @@ impl merchant::MapMaker for GameMaps<'_> {
     }
 }
 
+/// A dimension's `RandomSequences` from its `random_sequences.dat`
+/// (1.21.11: `ServerLevel.getRandomSequences`, one set per level —
+/// 26.1 moved them to the server). Missing or unreadable reads as empty.
+pub(super) fn load_random_sequences(
+    path: &std::path::Path,
+) -> horizon_client::random_sequences::RandomSequences {
+    horizon_client::save::read_dat(path)
+        .and_then(|t| t.get("data").cloned())
+        .map(|d| horizon_client::random_sequences::RandomSequences::from_nbt(&d))
+        .unwrap_or_default()
+}
+
 impl Game<'_> {
-    pub(super) fn random_sequences_path(&self) -> std::path::PathBuf {
-        self.world_root.join("data/minecraft/random_sequences.dat")
+    /// `RandomSequences` for `dim`: its dimension folder's
+    /// `data/minecraft/random_sequences.dat`, as `raids_path` places raids.
+    pub(super) fn random_sequences_path(&self, dim: Dim) -> std::path::PathBuf {
+        horizon_client::save::dimension_dir(&self.world_root, dim.id())
+            .join("data/minecraft/random_sequences.dat")
     }
-    /// `RandomSequences` as `random_sequences.dat` (not on a server's guest).
+    /// `RandomSequences` as `random_sequences.dat` (not on a server's
+    /// guest): the level in place and every parked level, each to its own
+    /// dimension folder.
     pub(super) fn save_random_sequences(&mut self) {
-        if self.remote.is_some() || self.rand_sequences.ids().is_empty() {
+        if self.remote.is_some() {
+            return;
+        }
+        self.write_random_sequences(self.dim, &self.rand_sequences);
+        for (dim, sequences) in self.levels.parked_rand_sequences() {
+            self.write_random_sequences(dim, sequences);
+        }
+    }
+    fn write_random_sequences(
+        &self,
+        dim: Dim,
+        sequences: &horizon_client::random_sequences::RandomSequences,
+    ) {
+        if sequences.ids().is_empty() {
             return;
         }
         let tag = horizon_world::nbt::Tag::compound([
-            ("data", self.rand_sequences.to_nbt()),
+            ("data", sequences.to_nbt()),
             (
                 "DataVersion",
                 horizon_world::nbt::Tag::Int(horizon_world::DATA_VERSION),
             ),
         ]);
-        if let Err(e) = horizon_client::save::write_dat(&self.random_sequences_path(), tag) {
+        if let Err(e) = horizon_client::save::write_dat(&self.random_sequences_path(dim), tag) {
             log::warn!("the villager random sequences were not written: {e}");
         }
     }
@@ -182,6 +214,65 @@ impl Game<'_> {
         self.register_exploration_maps(made);
         offers
     }
+    /// `Villager.updateTrades` for 1.21.11: 2 offers from the hardcoded
+    /// `VillagerTrades` table for this level, drawn on the merchant's own
+    /// random. The fallback when no data-driven trade set exists.
+    fn offers_from_listings(
+        &mut self,
+        profession: &str,
+        level: i32,
+        variant: &str,
+        origin: [f64; 3],
+        random: &mut LegacyRandom,
+    ) -> Vec<MerchantOffer> {
+        let next_map = self.peek_map_id();
+        let tag = |t: &str| self.structure_tag(t);
+        let maps = GameMaps {
+            terrain: self.end.locator(),
+            structure_tag: &tag,
+            made: Default::default(),
+            next_id: std::cell::Cell::new(next_map),
+        };
+        let ctx = TradeContext {
+            items: self.items(),
+            enchantments: &self.stations().enchantments,
+            variant,
+            origin,
+            maps: Some(&maps),
+        };
+        let offers = villager_trades::offers_for(profession, level, &ctx, random);
+        let made = maps.made.into_inner();
+        self.register_exploration_maps(made);
+        offers
+    }
+    /// `WanderingTrader.updateTrades` for 1.21.11: the hardcoded
+    /// `WANDERING_TRADER_TRADES` draws, on the merchant's own random.
+    fn wandering_trader_offers(
+        &mut self,
+        variant: &str,
+        origin: [f64; 3],
+        random: &mut LegacyRandom,
+    ) -> Vec<MerchantOffer> {
+        let next_map = self.peek_map_id();
+        let tag = |t: &str| self.structure_tag(t);
+        let maps = GameMaps {
+            terrain: self.end.locator(),
+            structure_tag: &tag,
+            made: Default::default(),
+            next_id: std::cell::Cell::new(next_map),
+        };
+        let ctx = TradeContext {
+            items: self.items(),
+            enchantments: &self.stations().enchantments,
+            variant,
+            origin,
+            maps: Some(&maps),
+        };
+        let offers = villager_trades::wandering_trader_offers(&ctx, random);
+        let made = maps.made.into_inner();
+        self.register_exploration_maps(made);
+        offers
+    }
     /// `AbstractVillager.getOffers`: generated on first use.
     pub(super) fn ensure_offers(&mut self, index: usize) {
         let species = self.mobs[index].species();
@@ -197,26 +288,42 @@ impl Game<'_> {
                 VILLAGER_TYPES[m.extra.variant as usize % VILLAGER_TYPES.len()]
             );
             let origin = [m.position.x, m.position.y, m.position.z];
+            let (variant2, variant3) = (m.extra.variant2, m.extra.variant3);
+            // 1.21.11 draws offers on the merchant's own random
+            // (`AbstractVillager.addOffersFromItemListings`); the clone
+            // goes back afterwards so the sequence advances as vanilla's.
+            let mut random = m.random.clone();
             let offers = if species == Species::WanderingTrader {
-                let mut v = Vec::new();
-                for set in ["buying", "uncommon", "common"] {
-                    v.extend(self.offers_from_set(
-                        &format!("minecraft:wandering_trader/{set}"),
-                        &variant,
-                        origin,
-                    ));
+                let sets = ["buying", "uncommon", "common"];
+                if sets.iter().any(|s| {
+                    self.stations()
+                        .trades
+                        .sets
+                        .contains_key(&format!("minecraft:wandering_trader/{s}"))
+                }) {
+                    let mut v = Vec::new();
+                    for set in sets {
+                        v.extend(self.offers_from_set(
+                            &format!("minecraft:wandering_trader/{set}"),
+                            &variant,
+                            origin,
+                        ));
+                    }
+                    v
+                } else {
+                    self.wandering_trader_offers(&variant, origin, &mut random)
                 }
-                v
             } else {
-                let profession = PROFESSIONS[m.extra.variant2 as usize % PROFESSIONS.len()];
-                let level = i32::from(m.extra.variant3.max(1));
+                let profession = PROFESSIONS[variant2 as usize % PROFESSIONS.len()];
+                let level = i32::from(variant3.max(1));
                 let set = merchant::Trades::set_for(profession, level);
                 if self.stations().trades.sets.contains_key(&set) {
                     self.offers_from_set(&set, &variant, origin)
                 } else {
-                    Vec::new()
+                    self.offers_from_listings(profession, level, &variant, origin, &mut random)
                 }
             };
+            self.mobs[index].random = random;
             let trade = self.mobs[index].extra.trade.get_or_insert_default();
             trade.offers = offers;
             trade.unset = false;
@@ -345,9 +452,22 @@ impl Game<'_> {
             .as_ref()
             .map_or([0.0; 3], |p| [p.position.x, p.position.y, p.position.z]);
         let mut offers = Vec::new();
+        // No mob, so no merchant random: a fresh one from the level seed
+        // (deterministic per world, as a debug command should be).
+        let mut random = LegacyRandom::new(self.level.seed);
         for l in 1..=level {
             let set = merchant::Trades::set_for(&profession, l);
-            offers.extend(self.offers_from_set(&set, &variant, origin));
+            if self.stations().trades.sets.contains_key(&set) {
+                offers.extend(self.offers_from_set(&set, &variant, origin));
+            } else {
+                offers.extend(self.offers_from_listings(
+                    &profession,
+                    l,
+                    &variant,
+                    origin,
+                    &mut random,
+                ));
+            }
         }
         let mut session = merchant::Session::new(offers, true);
         session.profession = profession;

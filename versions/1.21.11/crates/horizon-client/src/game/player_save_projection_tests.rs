@@ -9,7 +9,27 @@ use horizon_protocol::packets::configuration::ClientInformation;
 use horizon_world::nbt::Tag;
 use std::sync::{Arc, atomic::AtomicI32, mpsc};
 
-fn check(tag: &Tag, grace: i32, particles: bool, phase: &str, failures: &mut Vec<String>) {
+// The test module lives in the horizon-client crate, which re-exports
+// horizon-client-lib, so it cannot see save.rs's `pub(crate)` doubles;
+// this mirrors it exactly (including the -0.0 normalisation).
+fn doubles(values: &[f64]) -> Tag {
+    Tag::List(
+        values
+            .iter()
+            .map(|&v| Tag::Double(if v == 0.0 { 0 } else { v.to_bits() }))
+            .collect(),
+    )
+}
+
+fn check(
+    tag: &Tag,
+    grace: i32,
+    particles: bool,
+    ignore: bool,
+    impact: Option<[f64; 3]>,
+    phase: &str,
+    failures: &mut Vec<String>,
+) {
     let expected = [
         (
             "Brain",
@@ -20,6 +40,10 @@ fn check(tag: &Tag, grace: i32, particles: bool, phase: &str, failures: &mut Vec
             "spawn_extra_particles_on_fall",
             Tag::Byte(i8::from(particles)),
         ),
+        (
+            "ignore_fall_damage_from_current_explosion",
+            Tag::Byte(i8::from(ignore)),
+        ),
     ];
     for (key, value) in expected {
         if tag.get(key) != Some(&value) {
@@ -28,6 +52,15 @@ fn check(tag: &Tag, grace: i32, particles: bool, phase: &str, failures: &mut Vec
                 tag.get(key)
             ));
         }
+    }
+    // Player.addAdditionalSaveData stores the impact position nullable:
+    // absent when there is none, never a stale retained one.
+    let want = impact.map(|at| doubles(&at));
+    if tag.get("current_explosion_impact_pos") != want.as_ref() {
+        failures.push(format!(
+            "{phase}: current_explosion_impact_pos: {:?}, expected {want:?}",
+            tag.get("current_explosion_impact_pos")
+        ));
     }
 }
 
@@ -38,6 +71,13 @@ fn raw(marker: &str, grace: i32, particles: bool) -> Tag {
         (
             "spawn_extra_particles_on_fall",
             Tag::Byte(i8::from(particles)),
+        ),
+        // A stale impulse the live body must beat: waived, struck from
+        // [1, 2, 3]. Without a body these are retained as-is.
+        ("ignore_fall_damage_from_current_explosion", Tag::Byte(1)),
+        (
+            "current_explosion_impact_pos",
+            doubles(&[1.0, 2.0, 3.0]),
         ),
     ])
 }
@@ -97,7 +137,7 @@ fn actual_player_save_tracks_mutable_body_and_keeps_guest_context() {
     );
     assert_eq!(initial.get("Health"), Some(&Tag::Float(20.0_f32.to_bits())));
     assert_eq!(initial.get("playerGameType"), Some(&Tag::Int(1)));
-    check(&initial, 0, false, "new owner", &mut failures);
+    check(&initial, 0, false, false, None, "new owner", &mut failures);
     game.level.player_extra = Some(raw("owner", 99, false));
     {
         let body = game.player.as_mut().unwrap();
@@ -107,11 +147,21 @@ fn actual_player_save_tracks_mutable_body_and_keeps_guest_context() {
         assert!(body.spawn_extra_particles_on_fall);
     }
     let live = game.player_nbt().unwrap();
-    check(&live, 37, true, "live nondefault beats raw", &mut failures);
+    check(
+        &live,
+        37,
+        true,
+        false,
+        None,
+        "live nondefault beats raw",
+        &mut failures,
+    );
     check(
         &game.level.player_tag(),
         37,
         true,
+        false,
+        None,
         "actual saved writer",
         &mut failures,
     );
@@ -126,6 +176,8 @@ fn actual_player_save_tracks_mutable_body_and_keeps_guest_context() {
         &game.player_nbt().unwrap(),
         0,
         false,
+        false,
+        None,
         "live reset",
         &mut failures,
     );
@@ -136,6 +188,8 @@ fn actual_player_save_tracks_mutable_body_and_keeps_guest_context() {
         &game.level.player_tag(),
         99,
         false,
+        true,
+        Some([1.0, 2.0, 3.0]),
         "no body raw retention",
         &mut failures,
     );
@@ -146,6 +200,8 @@ fn actual_player_save_tracks_mutable_body_and_keeps_guest_context() {
         &game.player_nbt().unwrap(),
         0,
         false,
+        false,
+        None,
         "new body replaces snapshot",
         &mut failures,
     );
@@ -155,6 +211,8 @@ fn actual_player_save_tracks_mutable_body_and_keeps_guest_context() {
         &game.player_nbt().unwrap(),
         37,
         true,
+        false,
+        None,
         "owner before guest",
         &mut failures,
     );
@@ -228,7 +286,15 @@ fn actual_player_save_tracks_mutable_body_and_keeps_guest_context() {
         guest_tag.get("h157_marker"),
         Some(&Tag::String("guest".into()))
     );
-    check(&guest_tag, 7, false, "active guest body", &mut failures);
+    check(
+        &guest_tag,
+        7,
+        false,
+        false,
+        None,
+        "active guest body",
+        &mut failures,
+    );
     assert_eq!(game.player.as_ref().unwrap().impulse.reset_grace_time, 37);
     assert!(game.player.as_ref().unwrap().spawn_extra_particles_on_fall);
     // Read the real writer before another sync can hide a context leak.
@@ -241,6 +307,8 @@ fn actual_player_save_tracks_mutable_body_and_keeps_guest_context() {
         &restored,
         37,
         true,
+        false,
+        None,
         "owner snapshot restored",
         &mut failures,
     );
@@ -252,6 +320,8 @@ fn actual_player_save_tracks_mutable_body_and_keeps_guest_context() {
         &saved_guest.player_tag(),
         7,
         false,
+        false,
+        None,
         "guest store reads its live body",
         &mut failures,
     );

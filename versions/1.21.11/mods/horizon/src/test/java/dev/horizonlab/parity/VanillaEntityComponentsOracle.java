@@ -8,7 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.function.Predicate;
-import net.minecraft.advancements.predicates.entity.EntityPredicate;
+import net.minecraft.advancements.criterion.EntityPredicate;
 import net.minecraft.core.*;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -45,16 +45,12 @@ public final class VanillaEntityComponentsOracle {
     }
 
     static final class Lvl extends ServerLevel {
-        Lvl() { super(null, null, null, null, null, null, false, 0L, List.of(), false); }
+        Lvl() { super(null, null, null, null, null, null, false, 0L, List.of(), false, new net.minecraft.world.RandomSequences()); }
         net.minecraft.server.MinecraftServer fake;
         RegistryAccess registries;
         GameRules rules;
         @Override public net.minecraft.server.MinecraftServer getServer() { return fake; }
-        int next = 1;
-        @Override public RegistryAccess registryAccess() { return registries; }
-        @Override public net.minecraft.world.Difficulty getDifficulty() { return net.minecraft.world.Difficulty.NORMAL; }
         @Override public long getGameTime() { return 0L; }
-        @Override public int getNextEntityId() { return next++; }
         @Override public net.minecraft.world.flag.FeatureFlagSet enabledFeatures() { return net.minecraft.world.flag.FeatureFlags.REGISTRY.allFlags(); }
         @Override public GameRules getGameRules() { return rules; }
         @Override public boolean addFreshEntity(Entity entity) { return true; }

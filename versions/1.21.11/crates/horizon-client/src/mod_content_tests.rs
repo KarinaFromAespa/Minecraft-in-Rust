@@ -2470,10 +2470,11 @@ fn exploration_maps_skip_the_structures_maps_pointed_at() {
 }
 
 /// `NoiseBasedChunkGenerator.addDebugScreenInfo`: F3's `Density` line lists
-/// the noise settings' `debug_functions` with three decimals.
+/// the router values in the 1.21.11 order — N, the final density, last —
+/// when the settings carry no `debug_functions` (1.21.11 has none).
 #[test]
 #[ignore = "full content root: CI and pr_ready run it"]
-fn debug_density_line_lists_the_noise_settings_functions() {
+fn debug_density_line_lists_the_router_values_in_12111_order() {
     let Some(base) = prepared() else {
         return;
     };
@@ -2495,7 +2496,7 @@ fn debug_density_line_lists_the_noise_settings_functions() {
         .collect();
     assert_eq!(
         labels,
-        ["N:", "T:", "V:", "C:", "E:", "D:", "W:", "PV:", "PS:"],
+        ["T:", "V:", "C:", "E:", "D:", "W:", "PV:", "PS:", "N:"],
         "{line}"
     );
     assert!(
