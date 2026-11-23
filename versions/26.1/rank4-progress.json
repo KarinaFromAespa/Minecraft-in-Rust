@@ -49,6 +49,56 @@
    "id": 729,
    "verdict": "no-change",
    "evidence": "6 special-renderer classes, none in the 26.2 jar (refactored); BedSpecialRenderer has explicit 26.1-only handling in item_render/special.rs"
+  },
+  {
+   "id": 730,
+   "verdict": "no-change",
+   "evidence": "6 blaze3d platform classes, 1 in the 26.2 jar; BackendOptions/DestFactor/MonitorCreator/ScreenManager/SourceFactor are 26.1 window plumbing 26.2 reworked (batch 58: 26.1 has ScreenManager, 26.2 MonitorManager)"
+  },
+  {
+   "id": 731,
+   "verdict": "no-change",
+   "evidence": "6 item classes, 5 in the 26.2 jar (Axe/Bed/Hoe/Shovel/SignItem, modelled in rank 2); WeatheringCopperItems is 26.1-only \u2014 copper restricted to the 12 families in rank 1"
+  },
+  {
+   "id": 732,
+   "verdict": "no-change",
+   "evidence": "6 loot classes, all in the 26.2 jar; IntRange named in the tree; loot machinery modelled in rank 2"
+  },
+  {
+   "id": 733,
+   "verdict": "no-change",
+   "evidence": "5 loot-entry classes, all in the 26.2 jar; shared loot machinery modelled in rank 2"
+  },
+  {
+   "id": 734,
+   "verdict": "no-change",
+   "evidence": "5 loot-predicate classes, all in the 26.2 jar; shared loot machinery modelled in rank 2"
+  },
+  {
+   "id": 735,
+   "verdict": "no-change",
+   "evidence": "4 criterion classes, none in the 26.2 jar (26.2 moved criterion to predicates); ContextAwarePredicate modelled in advancements.rs; SlimePredicate/EntityPredicate wrapper are criterion-package internals"
+  },
+  {
+   "id": 736,
+   "verdict": "no-change",
+   "evidence": "4 contextual-bar renderers, none in the 26.2 jar (26.2 moved them in the Hud rework); experience-bar rendering exists in hud_layout.rs; the waypoint system exists in full in 26.1 (batch 81)"
+  },
+  {
+   "id": 737,
+   "verdict": "no-change",
+   "evidence": "4 blaze3d classes, 3 in the 26.2 jar; GLFWErrorCapture$Error has no Rust reference \u2014 GLFW error-capture plumbing the Rust does not model"
+  },
+  {
+   "id": 738,
+   "verdict": "no-change",
+   "evidence": "4 util classes, 2 in the 26.2 jar; CubicSpline$CoordinateVisitor + Tuple are 26.1-only (26.2 changed the spline API, batch 86); the Rust has its own tuple types"
+  },
+  {
+   "id": 739,
+   "verdict": "no-change",
+   "evidence": "4 block classes, 3 in the 26.2 jar; DirtPathBlock/RedStoneWireBlock shared; WeatheringCopperBlocks modelled in block_transform.rs (rank 1 copper work)"
   }
  ],
  "triage": "Rank 4/5: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 4 = 74 D items, 333 classes from the 26.3->26.1 report; rank 5 = 2 D items). Class lists in ~/workspace/mcir-work/26.1/versions/diff-26.3-26.1/report.json. Method: per package, check each class against the 26.2 jars (same path / moved) and the Rust tree (ported list + grep); verdict no-change unless the Rust is missing 26.1 behaviour."

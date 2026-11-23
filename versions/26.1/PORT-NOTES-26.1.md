@@ -1836,3 +1836,13 @@ false positives; the Rust has its own feature framework);
 providers (all in the 26.2 jar); 729 renderer/special
 (BedSpecialRenderer has explicit 26.1-only handling).
 Docs-only batch; no separate CI dispatch.
+Batch 89 (Nov 24, rank 4 20/74 — all no-change): 730 blaze3d/
+platform (26.1 window plumbing, batch 58); 731 item (5 shared,
+WeatheringCopperItems 26.1-only, rank 1 copper work); 732/733/734
+loot (all in the 26.2 jar, modelled in rank 2); 735 criterion
+(ContextAwarePredicate in advancements.rs; 26.2 moved the package);
+736 contextualbar (bar renderers modelled via hud_layout.rs);
+737 blaze3d (GLFWErrorCapture unmodelled platform plumbing);
+738 util (spline/tuple, 26.2 changed the spline API); 739 block
+(WeatheringCopperBlocks in block_transform.rs). Docs-only batch;
+no separate CI dispatch.
