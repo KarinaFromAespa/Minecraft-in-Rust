@@ -882,9 +882,9 @@ impl Processor {
             _ => return Err(DecodeError::Field("structure processor type")),
         })
     }
-    fn evaluates_entire_piece(&self) -> bool {
-        matches!(self, Self::Capped { .. })
-    }
+    // 26.1 has no `StructureProcessor.evaluatesEntirePieceState` (26.2 added
+    // it as a default interface method); `processBlockInfos` runs every
+    // processor over every block.
 }
 impl ProcessorList {
     /// A processor list holder: a registry name, `{"processors": [...]}` or a list.
@@ -1445,10 +1445,10 @@ fn process_infos<W: PlacementContext>(
     settings: &mut PlaceSettings<'_>,
 ) -> Result<Vec<BlockInfo>, PlacementQueryError> {
     settings.counted = 0;
-    let whole = settings
-        .processors
-        .iter()
-        .any(|p| p.evaluates_entire_piece());
+    // 26.1 has no `evaluatesEntirePieceState` pre-pass: every block goes
+    // through the processors, and the bounding box is applied at placement
+    // time only (26.2 skips out-of-box blocks before processing unless a
+    // processor evaluates the entire piece).
     let mut original = Vec::new();
     let mut processed = Vec::new();
     for info in template.palettes()[palette].blocks() {
@@ -1459,9 +1459,6 @@ fn process_infos<W: PlacementContext>(
             settings.pivot,
         );
         let pos = std::array::from_fn(|i| relative[i] + position[i]);
-        if !whole && settings.bounding_box.is_some_and(|b| !b.is_inside(pos)) {
-            continue;
-        }
         let mut current = Some(BlockInfo {
             pos,
             state: info.state,

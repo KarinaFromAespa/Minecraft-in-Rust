@@ -675,3 +675,14 @@ checkcast, pufferfish branch artifact (Dolphin.canRide = true is
 branch inversion; 344 Vector3f/Vector3fc; 345 render-pipeline API
 moves + a dropped shouldRenderOffScreen check; 353 26.2-only goal
 ctors; 356 SulfurCubeContent is 26.2-only; 358 joinLines identical.
+
+Batch 32 (Nov 23, 362/498): 217 PORTED — CopperGolem.readyForShearing
+is isAlive() && the antenna tag in 26.1; 26.2 dropped the alive check
+(same as the bogged). golem_shearable now checks alive(). 149 PORTED
+— StructureTemplate.processBlockInfos has no evaluatesEntirePieceState
+pre-pass in 26.1 (the method does not exist on 26.1's abstract
+StructureProcessor): every block goes through the processors and the
+bounding box applies at placement time only. Removed the pre-pass and
+the helper from processor.rs. 360/34/31/28/342/343 no-change: renames,
+package moves, the instantenous typo, Consumer->PostSpawnProcessor,
+constants moved classes.

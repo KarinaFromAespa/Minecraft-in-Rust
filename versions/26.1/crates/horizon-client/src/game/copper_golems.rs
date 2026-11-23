@@ -455,14 +455,16 @@ impl Game<'_> {
         }
         false
     }
-    /// `readyForShearing`: the antenna holds a flower shears take.
+    /// `readyForShearing`: alive, and the antenna holds a flower shears take
+    /// (26.1 checks `isAlive()`; 26.2 dropped it, as with the bogged).
     pub(super) fn golem_shearable(&self, index: usize) -> bool {
-        self.mobs[index].saddle_item().is_some_and(|a| {
-            self.res
-                .items()
-                .item_tags
-                .get("minecraft:shearable_from_copper_golem")
-                .is_some_and(|t| t.contains(&*a.item))
-        })
+        self.mobs[index].alive()
+            && self.mobs[index].saddle_item().is_some_and(|a| {
+                self.res
+                    .items()
+                    .item_tags
+                    .get("minecraft:shearable_from_copper_golem")
+                    .is_some_and(|t| t.contains(&*a.item))
+            })
     }
 }
