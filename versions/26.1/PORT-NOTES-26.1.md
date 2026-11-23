@@ -716,3 +716,9 @@ neighborColumn's five columns; and 26.1's start() finds the air
 position THEN stops navigation (cancelling that moveTo — tick
 re-issues it). 201/202/206 no-change: renames, identical methods,
 render API shape.
+
+Batch 37 (Nov 23, 389/498): all no-change. 30: path types come from
+the 26.1 oracle, so the dripstone-vs-speleothems form is handled.
+148: Slime moved to monster/cubemob in 26.2; spawn rules and setSize
+are the same behaviour. 152/210/213/214: package moves, render API
+shape, Frog.canEat identical (MagmaCube extends Slime in 26.1).
