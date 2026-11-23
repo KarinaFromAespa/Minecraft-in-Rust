@@ -207,7 +207,10 @@ impl Game<'_> {
                         illager: is_illager(m.species()),
                         team: team_of(m.id),
                     };
-                    let root = (m.species() == Species::Vex)
+                    // The vex's direct owner (`Vex.getOwner`, in counter2):
+                    // 26.1 has no `getRootOwner`, and a vex only ever has
+                    // the evoker that summoned it.
+                    let vex_owner = (m.species() == Species::Vex)
                         .then_some(m.extra.counter2 as u32)
                         .filter(|r| illagers.contains(r))
                         .map(|r| {
@@ -223,7 +226,7 @@ impl Game<'_> {
                         illager: true,
                         team: team_of(f.owner),
                     };
-                    fangs_allied(owner, other, root)
+                    fangs_allied(owner, other, vex_owner)
                 })
                 .map(|m| m.id)
                 .collect()
@@ -352,14 +355,18 @@ fn illager_considers(me: Party, other: Party) -> bool {
         || other.illager && me.team.is_none() && other.team.is_none()
 }
 /// `owner.isAlliedTo(other)` for an evoker owner: `Evoker.considersEntityAsAlly`
-/// either way round. `vex_root` is the root owner of a vex target (whether it
-/// is the owner itself, and its party); the owner treats such a vex as an ally
-/// when its root owner is.
-fn fangs_allied(owner: Party, other: Party, vex_root: Option<(bool, Party)>) -> bool {
+/// either way round. `vex_owner` is the direct owner of a vex target
+/// (`Vex.getOwner`, 26.1 has no `getRootOwner`): whether it is the owner
+/// itself, and its party; the owner treats such a vex as an ally when its
+/// owner is (the 26.1 virtual call on an evoker owner is the owner itself
+/// or the illager rule, as here).
+fn fangs_allied(owner: Party, other: Party, vex_owner: Option<(bool, Party)>) -> bool {
     illager_considers(owner, other)
         || other.illager && illager_considers(other, owner)
         || !other.illager && horizon_client::scoreboard::teams_allied(other.team, owner.team)
-        || vex_root.is_some_and(|(is_owner, root)| is_owner || illager_considers(owner, root))
+        || vex_owner.is_some_and(|(is_owner, owner_party)| {
+            is_owner || illager_considers(owner, owner_party)
+        })
 }
 fn p_zrot(p: &mut Poses, part: &str, v: f32) {
     p.zrot(part, v);

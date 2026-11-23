@@ -422,6 +422,23 @@ panda); camel sitting baby dims are SITTING_DIMENSIONS x 0.6
 baby_boxes_are_the_26_1_boxes_not_the_26_2_ones; cow test eye
 0.69 -> 0.665.
 
+Batch 12 (2026-11-23): 8 closures (204/498) — 315/317/327/332/336/337
+no-change (package moves, renames, pure refactors; Ravager#blockedByItem
+identical body, 26.2 only widened the signature; VillagerData.DEFAULT_TYPE
+is PLAINS). 334 ported comment-only: the evoker ally check uses the
+vex's direct owner in 26.1 (no getRootOwner; the Rust already read
+counter2). 338 ported: the peaceful gate moved — 26.2 put it at the top
+of SpawnPlacements.checkSpawnRules, 26.1 keeps it in the per-type
+predicates, so the top gate is removed and !peaceful restored to
+monster_rules, the any-light arms (blaze/breeze/zoglin), pillager and
+endermite/silverfish (verified via the SpawnPlacements bootstrap table);
+phantom/shulker correctly have no peaceful check. Regression test
+peaceful_blocks_monster_rules_but_not_plain_mob_rules.
+
+Note: the leakage-audit 26.2-server.jar is a Mojang BUNDLER jar (no game
+classes) — server-side 26.2 jardiffs must use 26.2-client.jar, which
+holds all game classes.
+
 Test health: crate-tests run 45163597005 (rank-1 state): protocol,
 items, client-core, client-render PASS; world FAIL (1 pre-existing
 datafix failure, `failed_upgrade_keeps_old_data_version` — the other
