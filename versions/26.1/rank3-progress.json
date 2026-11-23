@@ -81,6 +81,11 @@
    "evidence": "Batch 72 NO-CHANGE (DismountHelper + RespawnAnchorBlock): only EntityType -> EntityTypes and BlockPos.getCenter -> Vec3.atCenterOf (same value). respawn_anchor.rs is 0-diff vs the 26.2 tree."
   },
   {
+   "id": 523,
+   "verdict": "no-change",
+   "evidence": "All 7 codec/loot classes structurally identical 26.1/26.2; the codec.rs diff is earlier 26.1 work."
+  },
+  {
    "id": 524,
    "verdict": "no-change",
    "evidence": "Batch 72 NO-CHANGE (SectionRenderDispatcher): 26.2 refactored the section-compile queue (CompileTaskDynamicQueue -> SectionTaskDynamicQueue, added StagingBuffer + onSectionMeshUpdate callback). Render-engine internals; debug_lines.rs is 0-diff vs the 26.2 tree."
@@ -109,6 +114,11 @@
    "id": 529,
    "verdict": "ported",
    "evidence": "Batch 72 PORTED (RuinedPortalPiece): 26.1's placeNetherrackOrMagma is UNCONDITIONAL (0.07 magma roll, setBlock flag 3) \u2014 bytecode-identical to 26.2's; the replaceability check lives only at the spread site. The 26.1 tree had the 26.3 form (check inside, drip columns skipping air/obsidian/lava and skipping the magma roll). Carried the 26.2 tree's split: place_netherrack_or_magma (unconditional, used by drip_column) + netherrack_or_magma (checked wrapper, spread site only)."
+  },
+  {
+   "id": 530,
+   "verdict": "no-change",
+   "evidence": "CommandEncoder GPU-backend rework (backend removed, render-pass checks); render internals, submit.rs 0-diff."
   },
   {
    "id": 531,
@@ -205,10 +215,30 @@
    "evidence": "LightCoordsUtil.smoothBlend: compiler reorder only (same sky/block masks 0xFF0000/0xFF, same zero-sample/borrow-centre-sky logic). 26.2 added a getLightCoords overload with emissive handling (15728880 full-bright) \u2014 not modelled by the Rust in either tree (the Rust's Info.emissive is pack/mod-driven, and neither jar's ModelBlockRenderer mentions emissive). lighting.rs 0-diff."
   },
   {
+   "id": 554,
+   "verdict": "no-change",
+   "evidence": "DataComponentMatchers pure package move criterion->predicates; bodies identical."
+  },
+  {
    "id": 560,
    "title": "crates/horizon-client/src/game_rules_screen.rs: 3 vanilla classes changed (8 methods, 1 named in Horizon)",
    "verdict": "no-change",
    "evidence": "InWorldGameRulesScreen: the Minecraft.setScreen -> Gui.setScreen move (3 sites) + Minecraft.screen -> Gui.screen(). Menu chrome. game_rules_screen.rs 0-diff."
+  },
+  {
+   "id": 562,
+   "verdict": "no-change",
+   "evidence": "BlendFunction refactored to BlendEquation + BlendFactor/BlendOp in 26.2; GPU plumbing."
+  },
+  {
+   "id": 564,
+   "verdict": "no-change",
+   "evidence": "CuredZombieVillagerTrigger pure package moves (criterion->triggers, EntityPredicate->predicates/entity)."
+  },
+  {
+   "id": 566,
+   "verdict": "ported",
+   "evidence": "CommandResponseTracker (26.3-only, in neither jar): scoreboard set/enable + team join/leave + advancement + clear now branch single/multiple on the target count, not nonzero tracks; clear single failure uses getName(). ScoreboardCommand + ClearInventoryCommands 0-diff between the jars."
   },
   {
    "id": 567,
@@ -261,6 +291,11 @@
    "evidence": "QuickPlay setScreen move only; launch_options.rs 0-diff."
   },
   {
+   "id": 578,
+   "verdict": "no-change",
+   "evidence": "InventoryChangeTrigger Slots pure package move; matches() identical."
+  },
+  {
    "id": 580,
    "verdict": "no-change",
    "evidence": "Screenshot GPU plumbing (TextureFormat->GpuFormat) + 26.2-only grab(Minecraft,boolean) panoramix path; Rust only manages the screenshots folder."
@@ -279,6 +314,11 @@
    "id": 586,
    "verdict": "no-change",
    "evidence": "Batch 63 NO-CHANGE (ClientChunkCache$Storage): 26.2 refactored empty-section tracking from 26.1's single loadedEmptySections set to double-buffered added/removed sets \u2014 internal bookkeeping, same observable behaviour. horizon-bots holds chunks but does not model empty-section tracking."
+  },
+  {
+   "id": 587,
+   "verdict": "ported",
+   "evidence": "Trims: carried the 26.2 tree trims.rs (atlas palette swap via trim_palette.png, in both jars) + surgical armor_stands.rs (TrimOverride/trim_overrides removed, no trim glint). The 11 triage trim-render classes exist in neither jar (26.3-only)."
   },
   {
    "id": 588,
@@ -329,6 +369,16 @@
    "id": 602,
    "verdict": "ported",
    "evidence": "ARGUMENT_TYPES: minecraft:team_color -> minecraft:color (26.1 registers ColorArgument) + removed the five 26.3-only entries (context_float/int_provider, slot_source, feature, swing_animation)."
+  },
+  {
+   "id": 605,
+   "verdict": "no-change",
+   "evidence": "IcebergFeature structurally identical; iceberg.rs 0-diff."
+  },
+  {
+   "id": 606,
+   "verdict": "no-change",
+   "evidence": "TrunkPlacer structurally identical; trunk.rs 0-diff."
   },
   {
    "id": 608,

@@ -12,7 +12,7 @@ use horizon_client::{
     items::ItemStack,
     mesher::Vertex,
     mobs::{Mob, Part, anim::Poses},
-    trims::{TrimOverride, TrimRegistry, TrimTexture},
+    trims::{TrimRegistry, TrimTexture},
 };
 use horizon_core::{
     geometry::{Aabb, Vec3},
@@ -89,8 +89,6 @@ pub(super) struct ArmorStandAssets {
     pub player: HashMap<&'static str, Part>,
     /// asset id -> layer kind (humanoid / humanoid_leggings) -> each layer's (texture, undyed colour), in order.
     pub equipment: HashMap<String, HashMap<String, Vec<(String, Option<u32>)>>>,
-    /// asset id -> `trim_overrides`.
-    pub trim_overrides: HashMap<String, Vec<TrimOverride>>,
     pub trims: TrimRegistry,
     /// The resources the trim textures are made from.
     pub root: PathBuf,
@@ -122,7 +120,6 @@ impl ArmorStandAssets {
             }
         }
         let mut equipment = HashMap::new();
-        let mut trim_overrides = HashMap::new();
         // EquipmentAssetManager reads every namespace: vanilla's and the content mods'.
         let namespaces = std::iter::once("minecraft".to_owned())
             .chain(horizon_client::mod_content::namespaces(root));
@@ -168,7 +165,6 @@ impl ArmorStandAssets {
                         kinds.insert(kind.to_owned(), layers);
                     }
                 }
-                trim_overrides.insert(id.clone(), TrimOverride::list(&v));
                 equipment.insert(id, kinds);
             }
         }
@@ -178,7 +174,6 @@ impl ArmorStandAssets {
             layers,
             player,
             equipment,
-            trim_overrides,
             trims: TrimRegistry::load(root),
             root: root.to_owned(),
         }
@@ -186,20 +181,15 @@ impl ArmorStandAssets {
     /// Trim data of reloaded resources (the models stay).
     pub fn reload_trims(&mut self, root: &std::path::Path) {
         let fresh = Self::load(root, None);
-        self.trim_overrides = fresh.trim_overrides;
         self.trims = fresh.trims;
         self.root = fresh.root;
     }
-    /// `TrimTextureKey`: the trim texture of `stack` on its humanoid
+    /// `TrimSpriteKey`: the trim texture of `stack` on its humanoid
     /// layer (`humanoid` or `humanoid_leggings`), if it has a trim.
     fn trim_texture(&self, asset: &str, kind: &str, stack: &ItemStack) -> Option<TrimTexture> {
         let (material, pattern) =
             horizon_client::item_data::trim::named(stack.extra.as_ref()?.trim.as_ref()?)?;
-        let overrides = self
-            .trim_overrides
-            .get(asset)
-            .map_or(&[][..], Vec::as_slice);
-        TrimTexture::resolve(&self.trims, overrides, material, pattern, kind)
+        TrimTexture::resolve(&self.trims, asset, material, pattern, kind)
     }
 }
 impl Game<'_> {
@@ -301,7 +291,8 @@ impl Game<'_> {
                 continue;
             };
             // EquipmentLayerRenderer.renderLayers: NO_OVERLAY, the armour
-            // glint on the first layer and on the trim when `stack.hasFoil()`.
+            // glint on the first layer when `stack.hasFoil()` — 26.1 gives
+            // the trim no glint (26.3's trimmedArmorGlint).
             let item_glint = self
                 .res
                 .items()
@@ -335,14 +326,15 @@ impl Game<'_> {
                 .and_then(|s| assets.trim_texture(&asset, kind, s))
                 .and_then(|t| self.gui.atlas.sprites.get(&t.sprite()))
             {
-                out.push((part, [r.u0, r.v0, r.u1, r.v1], 0xFFFF_FFFF, overlay, false));
+                out.push((part, [r.u0, r.v0, r.u1, r.v1], 0xFFFF_FFFF, 0, false));
             }
         }
         out
     }
-    /// `PalettedTextureManager.getOrPrepare` for the trims drawn this frame
-    /// (the player's armour and the armour stands'): each generated texture
-    /// goes into an atlas trim slot, a free one, else the least recently
+    /// The trims drawn this frame (the player's armour and the armour
+    /// stands'): 26.1's armor_trims atlas builds the palette-swapped sprites
+    /// at load; here each generated texture goes into an atlas trim slot,
+    /// a free one, else the least recently drawn.
     /// drawn. Reuse the completed preparation while the requests and atlas stay the same.
     pub(super) fn prepare_trims(&mut self) {
         let assets = &self.armor_stand_assets;

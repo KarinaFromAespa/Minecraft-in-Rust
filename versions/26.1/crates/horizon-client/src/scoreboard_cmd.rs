@@ -529,9 +529,12 @@ fn players(id: &str, ctx: &Context, env: &mut dyn Env) -> CmdResult<i32> {
             let shown = objective_text(env, &objective);
             let key = format!("commands.scoreboard.players.{verb}.success");
             if verb == "set" {
+                // 26.1 branches single/multiple on the target count, not on
+                // nonzero values: setting one target to 0 is still a single
+                // success (26.3's tracker counts only nonzero tracks).
                 tracker.send(
                     env,
-                    false,
+                    true,
                     None,
                     |h, _| {
                         tr(
@@ -619,32 +622,33 @@ fn players(id: &str, ctx: &Context, env: &mut dyn Env) -> CmdResult<i32> {
             if criteria.as_deref() != Some(sb::CRITERIA_TRIGGER) {
                 return Err(err("commands.scoreboard.players.enable.invalid", &[]));
             }
-            let mut tracker = Tracker::default();
+            let mut count = 0;
             for t in &targets {
                 let s = env.sb_mut().score_mut(&t.name, &objective);
                 if s.locked {
                     s.locked = false;
-                    tracker.mark(t);
+                    count += 1;
                 }
             }
+            if count == 0 {
+                return Err(err("commands.scoreboard.players.enable.failed", &[]));
+            }
+            // 26.1 branches single/multiple on the target count and reports
+            // it in the multiple message; only the return is the unlocked
+            // count (26.3's tracker branches and counts on the unlocked).
             let shown = objective_text(env, &objective);
-            tracker.send(
-                env,
-                false,
-                Some(err("commands.scoreboard.players.enable.failed", &[])),
-                |h, _| {
-                    tr(
-                        "commands.scoreboard.players.enable.success.single",
-                        &[shown.clone(), h.text.clone()],
-                    )
-                },
-                |n, _| {
-                    tr(
-                        "commands.scoreboard.players.enable.success.multiple",
-                        &[shown.clone(), num(n)],
-                    )
-                },
-            )
+            if targets.len() == 1 {
+                env.feedback(tr(
+                    "commands.scoreboard.players.enable.success.single",
+                    &[shown, targets[0].text.clone()],
+                ));
+            } else {
+                env.feedback(tr(
+                    "commands.scoreboard.players.enable.success.multiple",
+                    &[shown, num(targets.len())],
+                ));
+            }
+            Ok(count)
         }
         "scoreboard.players.display.name" => {
             let targets = holders(ctx, "targets", env, true)?;
@@ -912,50 +916,44 @@ fn team(id: &str, ctx: &Context, env: &mut dyn Env) -> CmdResult<i32> {
                     None => return Err(err("permissions.requires.entity", &[])),
                 }
             };
-            let mut tracker = Tracker::default();
             for m in &members {
-                let joined = env.sb_mut().add_to_team(&m.name, &name);
-                // The message reads the display name after the change.
-                tracker.track(&env.named(&m.name), i32::from(joined));
+                env.sb_mut().add_to_team(&m.name, &name);
             }
+            // 26.1 counts every member, joined or already on the team
+            // (26.3's tracker counts only actual joins).
             let shown = formatted(env, &name);
-            tracker.send(
-                env,
-                false,
-                None,
-                |h, _| {
-                    tr(
-                        "commands.team.join.success.single",
-                        &[h.text.clone(), shown.clone()],
-                    )
-                },
-                |n, _| {
-                    tr(
-                        "commands.team.join.success.multiple",
-                        &[num(n), shown.clone()],
-                    )
-                },
-            )
+            if members.len() == 1 {
+                let h = env.named(&members[0].name);
+                env.feedback(tr("commands.team.join.success.single", &[h.text, shown]));
+            } else {
+                env.feedback(tr(
+                    "commands.team.join.success.multiple",
+                    &[num(members.len()), shown],
+                ));
+            }
+            Ok(members.len() as i32)
         }
         "team.leave" => {
             let members = holders(ctx, "members", env, true)?;
-            let mut tracker = Tracker::default();
             for m in &members {
-                let left = env.sb_mut().remove_from_team(&m.name);
-                tracker.track(&env.named(&m.name), i32::from(left));
+                env.sb_mut().remove_from_team(&m.name);
             }
-            tracker.send(
-                env,
-                false,
-                None,
-                |h, _| {
-                    tr(
-                        "commands.team.leave.success.single",
-                        std::slice::from_ref(&h.text),
-                    )
-                },
-                |n, _| tr("commands.team.leave.success.multiple", &[num(n)]),
-            )
+            // 26.1 counts every member, on a team or not (26.3's tracker
+            // counts only actual leaves): leaving with no team still
+            // succeeds and still counts.
+            if members.len() == 1 {
+                let h = env.named(&members[0].name);
+                env.feedback(tr(
+                    "commands.team.leave.success.single",
+                    std::slice::from_ref(&h.text),
+                ));
+            } else {
+                env.feedback(tr(
+                    "commands.team.leave.success.multiple",
+                    &[num(members.len())],
+                ));
+            }
+            Ok(members.len() as i32)
         }
         _ => team_modify(id, ctx, env),
     }

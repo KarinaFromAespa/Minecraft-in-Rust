@@ -1498,3 +1498,32 @@ PhantomSpawner renames; 597 RamTarget — the 6-arg knockback takes
 the mobAttack source + the attack-damage float, but the
 strength/x/z computation and the physics are identical, same
 reasoning as 572.
+
+Batch 78 (Nov 24, 126/214 — A2 #1, 2 ported, 8 no-change): 566
+PORTED — `CommandResponseTracker` exists in NEITHER jar (26.3-only;
+the triage's 17 "identical" classes are stale), and 26.1's commands
+branch single/multiple on the TARGET count: scoreboard set
+(`any=true`, so setting one target to 0 is still a single success),
+scoreboard enable (count-based, return is the unlocked count), team
+join/leave (every member counts, joined-or-not / on-a-team-or-not),
+advancement (one/many by target count; success-many prints the
+changed count, failure the targeted count), clear (target count;
+single failure uses getName(), success uses getDisplayName()).
+ScoreboardCommand and ClearInventoryCommands are 0-diff between the
+jars; TeamCommand differs only by the color form (item 538) and a
+rename; AdvancementCommands only by iterator+size() vs
+getOnlyElement. The `Tracker` struct stays (loot still counts drops
+in both trees; set/add still track values). 587 PORTED — trims: the
+26.1 tree had the 26.3 `PalettedTextureManager` form (its 11 classes
+exist in neither jar); both jars carry `trim_palette.png` +
+`armor_trims.json`, so carried the 26.2 tree's trims.rs whole (atlas
+palette swap) + surgical armor_stands.rs (TrimOverride and
+trim_overrides removed, `TrimTexture::resolve` 5-arg, no trim glint
+— 26.3's trimmedArmorGlint). The armor-stand kill-attribution and
+culling hunks in armor_stands.rs are other items' scope, left
+alone. No-change: 523 all 7 codec/loot classes structurally
+identical; 530 CommandEncoder GPU-backend rework; 554/564/578 pure
+package moves (criterion→predicates/triggers); 562 BlendFunction
+BlendEquation refactor; 605/606 IcebergFeature/TrunkPlacer
+identical. Note: /tmp was cleared twice this session (mdiff2.py
+lost); the script now lives at ~/workspace/mcir-work/mdiff2.py.
