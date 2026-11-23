@@ -245,3 +245,59 @@ block tag in the prepared data; command_exec's oracle reflects on an
 differences over 7 worlds; four harness logs mention timeouts. These are
 the next behaviour/oracle work for this tree, not verification gaps.
 Artifacts kept at `~/workspace/mcir-ci/26.1v5/`.
+
+## Behaviour port — rank 1 closed (2026-11-23, branch behaviour/26.1)
+
+Rank 1: 7/7. Items 2/3/5/6/7 were closed by the completion pass and are
+verified here, not re-ported; items 1 and 4 were ported from the 26.2
+parent's closures, every behaviour verified against 26.1's own named
+game jars (`26.1.x/versions/26.1/jars/{server-game,client}.jar`). The
+26.2→26.1 jardiff (`diff-26.2-26.1.json`, in the triage dir) governs
+rank-2 triage. Ledger: `rank1-progress.json`.
+
+1. **Components (+2 −14).** Carried over 26.2's closure (422ffac1, 25
+   files) with 26.1 corrections. The 26.1 component registry has 110
+   types (26.2: 111); the only difference is `minecraft:sulfur_cube_content`
+   (26.2-only), so `DATA_COMPONENT_TYPES` drops to 110 and the tree keeps
+   its own `item.rs` form (`SULFUR_CUBE_CONTENT = -1000` marker,
+   `SIGN_TEXT_FRONT/BACK = -1001/-1002` markers, `PAINTING_VARIANT = 102`).
+   Jar-verified identical 26.2→26.1: `FuelValues`, `ComposterBlock`,
+   `PotDecorations`, `HoeItem`, `ShovelItem`, `Item`,
+   `Villager.wantsToPickUp`; rename-only: `AxeItem.useOn` (advancements
+   trigger package move), `LivingEntity.getVisibilityPercent` and
+   `BrewingStandBlockEntity` (`EntityTypes`→`EntityType`,
+   `BlockEntityTypes`→`BlockEntityType`). `Villager.FOOD_POINTS` from the
+   26.1 `<clinit>`: bread 4, potato/carrot/beetroot 1. The 23 sherds in
+   `DecoratedPotPatterns.ITEM_TO_POT_TEXTURE` match the ported table
+   exactly. **Copper is a real 26.2→26.1 difference:** 26.1's
+   `HoneycombItem.WAXABLES` has 48 pairs and
+   `WeatheringCopper.NEXT_BY_BLOCK` 36 pairs, both over 12 families —
+   bars, lantern and chain exist as blocks (all 8 variants each) but do
+   not weather or wax in 26.1, so `copper_stages()` drops them; scrape
+   is unwaxed-only (`PREVIOUS_BY_BLOCK = NEXT.inverse()`, b75f738d).
+   `MapItem.update` also differs 26.2→26.1 (early-return restructure)
+   but does not touch the `map_color` tint work. Supporting fixes
+   carried over: per-state `blocksMotion()` (c54f13b6;
+   `BlockStateBase.blocksMotion` is bytecode-identical to 26.2's:
+   `isSolid` except cobweb and bamboo sapling — this answers the CI
+   profile's missing `blocks_motion_in_heightmap` tag failures),
+   the NBT-form `{Name, Properties}` block-state codec in `facts.json`
+   (e8b568a1), pack-compat fixtures re-pinned to 26.1 formats 101.1/84.0
+   (8c4582c6), and the vibration test re-pinned to particle id 48
+   (a86e4c05; 26.1 registry).
+2. **vanilla_command_order.** Present: `crates/horizon-command/src/vanilla_order.rs`
+   (228 lines, generated header).
+3. **Protocol.** `Swing { hand: i32 => VarInt }`, `spectate_entity` at id
+   62; no `SWING_ANIMATION`/`Serverbound::Punch`/`SPECTATOR_ACTION`.
+4. **Save format.** `CarvingStepRemoveFix` added at key 4057 (verified
+   in 26.1's `DataFixers` static init: `sipush 4057` +
+   `new CarvingStepRemoveFix`); all 5 fix classes exist in the 26.1 jar.
+   `update()` key-filters, so 26.2/26.3-era fixes (4885+) never run at
+   `CURRENT = 4786`. Tests updated: `current_data_is_left_alone`
+   5023→4786, block-states test rewritten as
+   `current_block_states_keep_their_field_names`, new
+   `carving_masks_become_the_carving_mask`. Residual: 19 changed datafix
+   classes (26.2 had 8); the datafix harness arbitrates old-schema risk.
+5. **Facts.** `version.rs`: 26.1 / 775 / 4786 / (84,0) / (101,1) / Java 25.
+6. **Report format.** No-change: nothing reads the `definition` field.
+7. **Prepare.** CI run 43062079306: `prepare: ok`, 30.7 s.

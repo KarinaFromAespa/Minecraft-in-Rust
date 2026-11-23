@@ -1,1 +1,31 @@
-{"generated_from":"6ac77623fdd522754c3e23c997b21555be3a5bc67d44e7383e1a253483666245","note":"Derived 2026-11-23 from the pipeline report versions/diff-26.3-26.1/report.json (sha256 above), the 26.3->26.1 delta: 795 items, ranks 7/498/214/74/2. No 26.2->26.1 pipeline report exists (only 26.1->26.1.1 and 26.1.1->26.1.2 in 26.1.x), so the ledger counts the full 26.3->26.1 delta the tree was built from; the 26.2 parent chain governs the porting strategy instead: 26.2 closed 653 items from the overlapping 26.3->26.2 delta, and each 26.1 item is checked against the 26.2 answer first, carried over where the 26.2 form matches the 26.1 jar, and ported fresh where 26.2->26.1 differs. Every closure is verified against 26.1's own named game jars (26.1.x/versions/26.1/jars/{server-game,client}.jar), never assumed from 26.3 or 26.2. Rank-1 items 2/3/5/7 were closed by the completion pass (vanilla_command_order regen, protocol rewire, version facts, prepare) and are verified, not re-ported. Behaviour port 2026-11-23: 0/795 closed at ledger creation.","rank1":{"accepted":[],"closed":0,"total":7},"rank2":{"accepted":[],"closed":0,"total":498},"rank3":{"accepted":[],"closed":0,"total":214},"rank3plus":"Everything this release did not change inherits the 26.2 parent's answers; rank-3+ items are unmeasured until the behaviour port reaches them, and each is verified against the 26.1 jar before closure.","rank4":{"accepted":[],"closed":0,"total":74},"rank5":{"accepted":[],"closed":0,"total":2},"release":"26.1"}
+{
+  "generated_from": "6ac77623fdd522754c3e23c997b21555be3a5bc67d44e7383e1a253483666245",
+  "note": "Derived 2026-11-23 from the pipeline report versions/diff-26.3-26.1/report.json (sha256 above), the 26.3->26.1 delta: 795 items, ranks 7/498/214/74/2. No 26.2->26.1 pipeline report exists (only 26.1->26.1.1 and 26.1.1->26.1.2 in 26.1.x), so the ledger counts the full 26.3->26.1 delta the tree was built from; the 26.2 parent chain governs the porting strategy instead: 26.2 closed 653 items from the overlapping 26.3->26.2 delta, and each 26.1 item is checked against the 26.2 answer first, carried over where the 26.2 form matches the 26.1 jar, and ported fresh where 26.2->26.1 differs. Every closure is verified against 26.1's own named game jars (26.1.x/versions/26.1/jars/{server-game,client}.jar), never assumed from 26.3 or 26.2. Rank-1 items 2/3/5/7 were closed by the completion pass (vanilla_command_order regen, protocol rewire, version facts, prepare) and are verified, not re-ported. Behaviour port 2026-11-23: 0/795 closed at ledger creation.",
+  "rank1": {
+    "accepted": [],
+    "closed": 7,
+    "total": 7
+  },
+  "rank2": {
+    "accepted": [],
+    "closed": 0,
+    "total": 498
+  },
+  "rank3": {
+    "accepted": [],
+    "closed": 0,
+    "total": 214
+  },
+  "rank3plus": "Everything this release did not change inherits the 26.2 parent's answers; rank-3+ items are unmeasured until the behaviour port reaches them, and each is verified against the 26.1 jar before closure.",
+  "rank4": {
+    "accepted": [],
+    "closed": 0,
+    "total": 74
+  },
+  "rank5": {
+    "accepted": [],
+    "closed": 0,
+    "total": 2
+  },
+  "release": "26.1"
+}
