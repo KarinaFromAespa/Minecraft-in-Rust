@@ -1259,7 +1259,6 @@ impl Game<'_> {
             "transfer" => self.cmd_transfer(ctx),
             "fetchprofile" => self.cmd_fetchprofile(ctx),
             "publish" => self.cmd_publish(ctx),
-            "unpublish" => self.cmd_unpublish(),
             "debug" => self.cmd_debug(ctx),
             "jfr" => self.cmd_jfr(ctx),
             "version" => self.cmd_version(),

@@ -1074,8 +1074,10 @@ impl Game<'_> {
         self.apply_publish();
         Ok(port)
     }
-    /// `IntegratedServer.unpublishServer`: stop listening and send every
-    /// player but the owner away. False when it was not published.
+    /// Stop listening and send every player but the owner away. False when
+    /// it was not published. (26.1's IntegratedServer has no
+    /// `unpublishServer` — vanilla closes the listener at shutdown; this is
+    /// the shutdown path `lan_close` uses, not a command.)
     pub(super) fn unpublish(&mut self) -> bool {
         let Some(s) = self.serving.as_mut() else {
             return false;

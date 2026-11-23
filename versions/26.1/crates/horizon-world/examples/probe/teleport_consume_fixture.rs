@@ -152,22 +152,6 @@ impl<R: RandomSource> TeleportConsumeWorld for World<'_, R> {
             f64_bits(p.z)
         ))
     }
-    fn block_position(&mut self) -> Result<BlockPos, Self::Error> {
-        self.event("block".into())?;
-        Ok(BlockPos::new(
-            self.pos.x.floor() as i32,
-            self.pos.y.floor() as i32,
-            self.pos.z.floor() as i32,
-        ))
-    }
-    fn directional_particles(
-        &mut self,
-        l: i32,
-        p: BlockPos,
-        offset: i32,
-    ) -> Result<(), Self::Error> {
-        self.event(format!("level-event {l} {} {} {} {offset}", p.x, p.y, p.z))
-    }
     fn reset_fall_distance(&mut self) -> Result<(), Self::Error> {
         self.event("fall".into())?;
         self.fall = 0.0;
@@ -184,7 +168,6 @@ fn run<R: RandomSource>(f: Value, out: &mut dyn Write, make: fn(i64) -> R) {
     let random = std::array::from_fn(|i| make(f["seeds"][i].as_i64().unwrap()));
     let effect = TeleportConsume {
         diameter: f32::from_bits(f["diameter"].as_u64().unwrap() as u32),
-        directional_particles: f["directional"].as_bool().unwrap(),
     };
     let l = n(&f, "level");
     let mut w = World {

@@ -111,14 +111,74 @@
    "evidence": "Batch 72 PORTED (RuinedPortalPiece): 26.1's placeNetherrackOrMagma is UNCONDITIONAL (0.07 magma roll, setBlock flag 3) \u2014 bytecode-identical to 26.2's; the replaceability check lives only at the spread site. The 26.1 tree had the 26.3 form (check inside, drip columns skipping air/obsidian/lava and skipping the magma roll). Carried the 26.2 tree's split: place_netherrack_or_magma (unconditional, used by drip_column) + netherrack_or_magma (checked wrapper, spread site only)."
   },
   {
+   "id": 531,
+   "title": "crates/horizon-client/src/game/level_particles.rs: 1 vanilla classes changed (5 methods, 4 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "26.1's levelEvent switch (82 keys) lacks 2015-2020 entirely (26.2 same +1052 sulfur spike, 26.2-only); 26.1's Shulker/EnderMan call no levelEvent. Ported the 26.2 tree's level_particles.rs + teleport_consume.rs whole: 3003 wax-on sound and 2002/2007 splash sound added (both jars play them, tree lacked them); 2016/2017/2018 handlers + 2017 emission (consume trait, fox block, item_sync codec bool, protocol hash shapes) + directional_particles field removed (TeleportRandomlyConsumeEffect byte-identical 26.1/26.2, diameter only); breaking_block_effects -> breaking_block_sound (26.1's continueDestroyBlock plays the hit sound directly, no addBreakingBlockEffect) with the every-4th-tick schedule in remote.rs; 2019/2020 game.rs arm + destroy_progress_event removed; 2015 kept as the sim's internal dragon-egg channel. 2016 shulker emission kept (26.2 precedent: emitted, unhandled)."
+  },
+  {
+   "id": 532,
+   "title": "crates/horizon-server/src/management.rs: 7 vanilla classes changed (25 methods, 2 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "JsonRPCUtils: 26.2 added a createRequest overload, behaviour-identical for the existing form. ManagementServer: Netty group type + heartbeat field are 26.2-only, but the heartbeat FEATURE exists in 26.1 (NotificationService.statusHeartbeat abstract in both jars; serversettings/status_heartbeat_interval registered in both IncomingRpcMethods) \u2014 the Rust's supervisor-owned heartbeat thread stands. IncomingRpcMethod Attributes/Builder: 26.2 added allowPreServerInit; the Rust schema models no lifecycle flag (batch 67). Test-only port: the rpc_discover assertion was stale at 89 (batch 67 removed the four 26.3-only notifications from the 85-entry table but not the assertion; horizon-server is not in the CI crate list, so it never failed) \u2014 now 85."
+  },
+  {
+   "id": 533,
+   "title": "crates/horizon-client/src/game/commands/effects.rs: 2 vanilla classes changed (13 methods, 3 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "EffectCommands jar diff is only the isInstantenous->isInstantaneous typo fix + a checkcast reorder, but both jars' giveEffect branch single/multiple on Collection.size()==1 (the TARGET count) with no tracker \u2014 the tree's 26.3 CommandResponseTracker form was wrong for 26.1. Carried the 26.2 tree's effects.rs whole (give/clear/enchant all branch on target count, count successes)."
+  },
+  {
+   "id": 535,
+   "title": "crates/horizon-client/src/multiplayer.rs: 8 vanilla classes changed (20 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "JoinMultiplayerScreen: the Minecraft.setScreen -> Gui.setScreen move (7 sites) + one reorder; LoadingDotsWidget: getY()+getHeight() -> getBottom(); DirectJoin/ManageServer: 10 diff lines each, form only. Menu chrome; multiplayer.rs 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 537,
+   "title": "crates/horizon-client/src/game/dedicated/management.rs: 4 vanilla classes changed (19 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "MinecraftBanListServiceImpl + MinecraftGameRuleServiceImpl: 26.2 derives the server from a NotificationManager via a private server() helper; 26.1 holds it directly \u2014 same pattern as item 506, bodies otherwise identical. OperatorService$Op: a private constructor form only. dedicated/management.rs 0-diff."
+  },
+  {
    "id": 538,
    "verdict": "ported",
    "evidence": "Batch 63 PORTED (team color): 26.2 added /team modify color reset (clearColor + the reset literal + the color.clear.success lang key, which 26.1's en_us.json lacks) and replaced ColorArgument/ChatFormatting with TeamColorArgument/TeamColor (PlayerTeam.getColor became Optional). 26.1 has no reset subcommand: 'reset' is a color-argument VALUE (ColorArgument accepts RESET \u2014 it is not a format). Removed the reset literal + team.modify.color.reset executes from tree_scoreboard.rs; the scoreboard_cmd.rs color arm is set-only and stores 'reset' as no color (a fresh team's color is RESET, so the unchanged check still matches vanilla); ArgType::TeamColor now accepts 'reset' in parse (suggestions stay the 16 colors, as vanilla's getNames(true, false) lists); network.rs maps 26.1's 'minecraft:color' id (26.1's registry has no team_color); the command-parse fixture emits 'minecraft:color'. The existing teams() test (color reset clears to None) passes unchanged via the value path."
   },
   {
+   "id": 539,
+   "title": "crates/horizon-client/src/game/beehives.rs: 1 vanilla classes changed (8 methods, 3 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "BeehiveBlock: only package moves (CriteriaTriggers criterion->triggers, BlockEntityType->BlockEntityTypes). beehives.rs 0-diff."
+  },
+  {
+   "id": 540,
+   "title": "crates/horizon-client/src/game/transient_blocks.rs: 4 vanilla classes changed (28 methods, 1 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "SectionOcclusionGraph was rewritten in 26.2 (878 diff lines: AtomicReference graph events -> LongOpenHashSet emptySections/loadedChunks + prevCam) \u2014 render internals the Rust does not model. The Rust port is docs/attrs only: neither jar has an add-transient-block packet or a ClientPacketListener handler for it, so the 26.1 tree's transient_blocks feeder is dead like the 26.2 tree's \u2014 carried the 26.2 tree's dead-feeder comments + #[allow(dead_code)] (const, queue, add_transient_block). Drain/render path stays wired in both trees."
+  },
+  {
    "id": 542,
    "verdict": "ported",
    "evidence": "Batch 63 PORTED (large dripstone): three 26.2-only behaviours removed. (1) WindOffsetter maxOffset: 26.2 clamps the wind offset to \u00b1(16 - radius); 26.1 applies the raw floored offset \u2014 removed max_offset + the clamp from Wind. (2) 26.1's codec has no replaceable_blocks field (26.2 added it) and 26.1's config lacks it, while the Rust REQUIRED it \u2014 now optional, defaulting to the #dripstone_replaceable_blocks tag that 26.1's DripstoneUtils.isDripstoneBase hardcodes (same tag, same contents in both jars). (3) column_radius codec bound: 26.1 is IntProviders.codec(1, 60), 26.2 narrowed it to (1, 16) \u2014 the Rust's (1,16) bound rejected 26.1's own uniform(3..19) config; now (1,60). Also verified: DripstoneUtils -> SpeleothemUtils is a rename (getDripstoneHeight == getSpeleothemHeight, same formula); place's logic is otherwise identical (the diff is lambda shape + local numbering). Speleothems (block, cluster feature, utils, tag) are a 26.2 addition absent from 26.1 entirely; the cluster code stays unreachable-per-convention (no such configured feature in either jar's data pack) and the module doc now says so."
+  },
+  {
+   "id": 543,
+   "title": "crates/horizon-client/src/game/commands/extra.rs: 5 vanilla classes changed (23 methods, 1 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "PublishCommand: 26.2 added the MultiplayerScope + .lan keys; 26.1's form is publishServer(GameType, boolean, int) with commands.publish.started / alreadyPublished (getSuccessMessage: translatable started + copyOnClickText port). Fixed cmd_publish's keys + success message (Text::copyable, no square brackets), added the gamemode argument (both jars register bool/gamemode/port; the tree's command tree lacked the node) -> set_published_game_type after publish. /unpublish REMOVED: no UnpublishCommand class in either 26.1 jar, no Commands registration, no lang keys; 26.1's IntegratedServer has no unpublishServer either \u2014 removed the command (fn, dispatch, tree, INTEGRATED_ONLY, vanilla filter, tests) and re-documented the engine unpublish() as the lan_close shutdown path. WaypointCommand: 26.1 uses ColorArgument/ChatFormatting vs 26.2's TeamColorArgument/TeamColor \u2014 the Rust's ArgType::TeamColor already documents this as 26.1's ColorArgument and parses the same 16 names; no change."
+  },
+  {
+   "id": 544,
+   "title": "crates/horizon-client-render/src/streaming.rs: 2 vanilla classes changed (12 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "CompiledSectionMesh: VertexFormat$IndexType -> IndexType type move only. CompileTask: the section-compile queue refactor (same family as item 524's SectionRenderDispatcher) \u2014 render-engine internals. streaming.rs 0-diff."
+  },
+  {
+   "id": 545,
+   "title": "crates/horizon-client/src/game/commands/profiles.rs: 3 vanilla classes changed (8 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "DeOpCommands: lambda capture Collection -> NameAndId, logic unchanged. BanListEntry: 26.2 added hasExpired() + hashCode(); the Rust models no ban-expiry call (expiry lives in StoredUserList.removeExpired in both jars). profiles.rs 0-diff."
   },
   {
    "id": 571,

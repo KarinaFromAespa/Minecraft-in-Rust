@@ -4293,16 +4293,6 @@ impl Game<'_> {
                 LevelEvent::LevelEvent { id: 1011, pos, .. } => {
                     self.jukebox_stop_event([pos.x, pos.y, pos.z])
                 }
-                // LevelEventHandler 2019 and 2020: the crack on a face of the
-                // block being mined, with its hit sound for 2020.
-                LevelEvent::LevelEvent {
-                    id: id @ (2019 | 2020),
-                    pos,
-                    data,
-                } => {
-                    let face = horizon_core::geometry::Direction::ALL[data.clamp(0, 5) as usize];
-                    self.breaking_block_effects([pos.x, pos.y, pos.z], face.normal(), id == 2020);
-                }
                 LevelEvent::LevelEvent {
                     id: 3008,
                     pos,
@@ -4322,26 +4312,14 @@ impl Game<'_> {
                     self.audio
                         .play("minecraft:item.bone_meal.use", Some(at), 1.0, 1.0);
                 }
+                // 2015 is not a 26.1 packet: the egg's teleport particles are
+                // the sim's internal channel for the client-side particle
+                // loop (26.1's LevelEventHandler has no 2015 case).
                 LevelEvent::LevelEvent {
                     id: 2015,
                     pos,
                     data,
                 } => self.dragon_egg_particles([pos.x, pos.y, pos.z], data),
-                LevelEvent::LevelEvent {
-                    id: 2016,
-                    pos,
-                    data,
-                } => self.shulker_teleport_particles([pos.x, pos.y, pos.z], data),
-                LevelEvent::LevelEvent {
-                    id: 2017,
-                    pos,
-                    data,
-                } => self.consume_teleport_particles([pos.x, pos.y, pos.z], data),
-                LevelEvent::LevelEvent {
-                    id: 2018,
-                    pos,
-                    data,
-                } => self.enderman_teleport_particles([pos.x, pos.y, pos.z], data),
                 LevelEvent::LevelEvent { id: 2003, pos, .. } => {
                     self.eye_break_particles([pos.x, pos.y, pos.z]);
                 }
@@ -5285,11 +5263,11 @@ impl Game<'_> {
         let state = self.world.block(hit.pos[0], hit.pos[1], hit.pos[2]);
         if self.res.facts().get(state).hardness < 0.0 {
             // The server still counts its destroy ticks on an unbreakable block.
+            // 26.1 sends no level event while a player digs (26.3's 2019/2020):
+            // the digger's own client plays the hit sound every fourth tick.
             let m = self.mining.as_mut().ok_or("mining")?;
             m.per_tick = 0.0;
             m.ticks += 1;
-            let (pos, ticks) = (m.pos, m.ticks);
-            self.destroy_progress_event(pos, hit.face, ticks);
             return Ok(());
         }
         let progress = self.destroy_progress(hit.pos);
@@ -5298,11 +5276,6 @@ impl Game<'_> {
         m.per_tick = progress;
         m.progress += progress;
         m.ticks += 1;
-        // An instant break at START sends no destroy events.
-        if m.progress < 1.0 || m.ticks > 1 {
-            let (pos, ticks) = (m.pos, m.ticks);
-            self.destroy_progress_event(pos, hit.face, ticks);
-        }
         let m = self.mining.as_mut().ok_or("mining")?;
         // ServerPlayerGameMode breaks a player's block at once only when it is instant (START's
         // insta-mine); otherwise it waits for the client's STOP_DESTROY_BLOCK

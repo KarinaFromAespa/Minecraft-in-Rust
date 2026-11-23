@@ -909,15 +909,16 @@ fn only_a_dedicated_server_has_the_dedicated_commands() {
                 assert!(integrated.find(name).is_none(), "{name}");
                 assert!(server.find(name).is_some(), "{name}");
             }
-            // includeIntegrated: /publish and /unpublish are the integrated
-            // server's alone.
-            for name in ["publish", "unpublish"] {
+            // includeIntegrated: /publish is the integrated server's alone
+            // (26.1 has no /unpublish: no UnpublishCommand class, no
+            // registration, no lang keys).
+            for name in ["publish"] {
                 assert!(integrated.find(name).is_some(), "{name}");
                 assert!(server.find(name).is_none(), "{name}");
             }
             assert_eq!(
                 server.nodes[0].children.len(),
-                integrated.nodes[0].children.len() + dedicated.len() - 2
+                integrated.nodes[0].children.len() + dedicated.len() - 1
             );
         }
     }

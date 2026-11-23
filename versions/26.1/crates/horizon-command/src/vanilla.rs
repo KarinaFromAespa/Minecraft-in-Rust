@@ -53,8 +53,8 @@ fn build_for_features(dev: bool, dedicated: bool, minecart_improvements: bool) -
 }
 /// Commands(CommandSelection.DEDICATED) where it differs from INTEGRATED:
 /// `seed` and `version` check permissions (SeedCommand.register and
-/// VersionCommand.register get `selection != INTEGRATED`), `publish` and
-/// `unpublish` are not registered (`includeIntegrated`), and the dedicated
+/// VersionCommand.register get `selection != INTEGRATED`), `publish` is not
+/// registered (`includeIntegrated`), and the dedicated
 /// commands are (`includeDedicated`: `/op`, `/ban`, `/whitelist`...).
 fn dedicated_selection(d: &mut Dispatcher) {
     for name in ["seed", "version"] {
@@ -66,7 +66,7 @@ fn dedicated_selection(d: &mut Dispatcher) {
         .children
         .iter()
         .copied()
-        .filter(|&c| !matches!(d.nodes[c].name(), "publish" | "unpublish"))
+        .filter(|&c| !matches!(d.nodes[c].name(), "publish"))
         .collect();
     d.nodes[0].children = kept;
     super::tree_extra::register_dedicated(d, 0);

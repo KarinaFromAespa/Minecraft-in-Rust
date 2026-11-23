@@ -504,7 +504,6 @@ mod tests {
             [ConsumeEffect::TeleportRandomly(
                 horizon_world::teleport_consume::TeleportConsume {
                     diameter: 16.0,
-                    directional_particles: true,
                 }
             )]
         );

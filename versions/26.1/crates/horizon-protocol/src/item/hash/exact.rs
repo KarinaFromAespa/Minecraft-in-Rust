@@ -64,9 +64,9 @@ fn shape(name: &str) -> Option<Shape> {
         "tooltip_display" => Shape::of(&["hide_tooltip"]),
         "food" => Shape::of(&["can_always_eat"]),
         "consumable" => {
-            Shape::of(&["has_consume_particles", "directional_particles"]).with(&EFFECT)
+            Shape::of(&["has_consume_particles"]).with(&EFFECT)
         }
-        "death_protection" => Shape::of(&["directional_particles"]).with(&EFFECT),
+        "death_protection" => Shape::of(&[]).with(&EFFECT),
         "tool" => Shape::of(&["can_destroy_blocks_in_creative", "correct_for_drops"]),
         "equippable" => Shape::of(&[
             "dispensable",

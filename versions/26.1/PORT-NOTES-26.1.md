@@ -1372,3 +1372,44 @@ unpublish "stopped" messages dropped (26.1 unpublish is
 silent). Screen::ShareToLan wired through game.rs and the
 control/ime/narrator/pad_menu/play_keys dispatch.
 `cargo check -p horizon-client-lib` clean.
+
+Batch 74 (Nov 24, 90/214 — B1 #6, 531/532/533/535/537/539/540/543/544/545):
+531 PORTED (level events): 26.1's levelEvent switch has 82 keys and
+lacks 2015-2020 entirely (26.2 same + 1052 sulfur spike); neither
+26.1's Shulker nor EnderMan calls levelEvent. Carried the 26.2 tree's
+level_particles.rs + teleport_consume.rs whole: added the 3003 wax-on
+and 2002/2007 splash sounds (both jars play them, the tree lacked
+them); removed the 2016/2017/2018 handlers and the 2017 emission
+(trait method, fox block, item_sync codec bool, protocol hash shapes,
+the directional_particles field — TeleportRandomlyConsumeEffect is
+byte-identical 26.1/26.2, diameter only); breaking_block_effects ->
+breaking_block_sound with the every-4th-tick schedule (26.1's
+continueDestroyBlock plays the hit sound directly, no
+addBreakingBlockEffect); removed the 2019/2020 arm and
+destroy_progress_event; 2015 kept as the sim's internal dragon-egg
+channel, the 2016 shulker emission kept unhandled (26.2 precedent).
+532 PORTED (test-only): the heartbeat feature exists in 26.1
+(statusHeartbeat + the get/set RPC methods in both jars) — only its
+scheduling moved to ManagementServer in 26.2 — so the Rust's heartbeat
+model stands; fixed the stale rpc_discover assertion 89 -> 85
+(batch 67 removed the four notifications from the table but not the
+assertion; horizon-server is not in the CI crate list, so it never
+failed). 533 PORTED: both jars' EffectCommands.giveEffect branches
+single/multiple on the target count, no tracker — carried the 26.2
+tree's effects.rs whole (give/clear/enchant). 540 PORTED (docs/attrs):
+neither jar has an add-transient-block packet, so the feeder is dead
+like the 26.2 tree's (SectionOcclusionGraph's 26.2 rewrite is render
+internals). 543 PORTED: cmd_publish fixed to 26.1's keys
+(commands.publish.started/alreadyPublished, no .lan) and its
+getSuccessMessage form (copy-on-click port, no brackets), gamemode
+argument added (tree node + set_published_game_type after publish);
+/unpublish REMOVED (no class, registration or lang keys in 26.1;
+IntegratedServer has no unpublishServer — the engine unpublish()
+is the lan_close shutdown path only). Waypoint color already
+correct (ArgType::TeamColor documents 26.1's ColorArgument).
+535/537/539/544/545 NO-CHANGE: setScreen move + widget accessors,
+the NotificationManager server() refactor, package moves, the
+section-compile refactor, DeOp lambda form + unmodelled
+BanListEntry.hasExpired. `cargo check` clean for horizon-client
+(lib), horizon-client-render, horizon-world, horizon-protocol,
+horizon-items (lib+tests), horizon-command (lib+tests).

@@ -713,7 +713,7 @@ mod tests {
     fn rpc_discover_lists_what_vanilla_registers() {
         let d = schema::discover();
         let methods = d["methods"].as_array().unwrap();
-        assert_eq!(methods.len(), 89);
+        assert_eq!(methods.len(), 85); // 26.1: no world/upgrade_* notifications
         assert_eq!(methods[0]["name"], "minecraft:allowlist");
         assert_eq!(
             methods[1]["params"],

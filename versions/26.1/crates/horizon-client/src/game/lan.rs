@@ -1483,7 +1483,7 @@ impl Game<'_> {
         Ok(())
     }
 
-    /// IntegratedServer.unpublishServer: the guests are sent away.
+    /// Stop the LAN listener: the guests are sent away.
     pub(super) fn lan_close(&mut self, announce: bool) {
         if self.integrated.is_some() || self.serving() {
             let closed = match &self.integrated {

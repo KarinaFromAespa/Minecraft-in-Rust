@@ -126,10 +126,6 @@ fn parse_consume_effect(effect: &serde_json::Value) -> Option<ConsumeEffect> {
                     .get("diameter")
                     .and_then(serde_json::Value::as_f64)
                     .map_or(16.0, |d| d as f32),
-                directional_particles: effect
-                    .get("directional_particles")
-                    .and_then(serde_json::Value::as_bool)
-                    .unwrap_or(true),
             },
         )),
         "minecraft:play_sound" => effect

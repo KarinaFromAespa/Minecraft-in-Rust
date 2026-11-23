@@ -39,7 +39,7 @@ const DEDICATED_ONLY: &[&str] = &[
     "whitelist",
 ];
 /// Registered only on integrated servers.
-const INTEGRATED_ONLY: &[&str] = &["publish", "unpublish"];
+const INTEGRATED_ONLY: &[&str] = &["publish"];
 /// Commands that check permissions only on dedicated servers
 /// (`checkPermissions` in SeedCommand and VersionCommand).
 const OPEN_WHEN_INTEGRATED: &[&str] = &["seed", "version"];
