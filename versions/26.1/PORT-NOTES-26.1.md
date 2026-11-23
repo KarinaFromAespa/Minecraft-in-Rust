@@ -814,3 +814,10 @@ findNearestMapStructure locates structures even when generateStructures
 is off; the Rust returns None (the 26.2 form) via the pipeline's
 `structures: Option` gate, and splitting state from placement is a
 medium worldgen refactor — noted in the triage narrative.
+
+Batch 48 (Nov 23, 453/498): 14 PORTED — the sleeping camera lifts
+0.3 in 26.1, not 0.15 (26.2 lowered it); camera.rs updated.
+13/16/18/20/22 no-change: SkyRenderer's diff belongs to item 92,
+the old criterion Builders are unreferenced, the chunk-batch clamp
+is already saturating in the Rust (26.1's negative-count path needs
+a spurious duplicate ack), frame/map methods are renames/spills.
