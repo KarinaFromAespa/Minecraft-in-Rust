@@ -415,6 +415,13 @@ impl Game<'_> {
             if search.is_some_and(|area| !area.intersects(body.bounds)) {
                 return;
             }
+            // `moveCollidedEntities` in 26.1 skips a ServerPlayer entirely
+            // when the moved block is slime — no bounce and no push (the
+            // bytecode jumps back to the next entity). 26.3 only skips the
+            // bounce (`canSimulateMovement`) and still pushes.
+            if slime && matches!(target, Target::Player | Target::Guest(_)) {
+                return;
+            }
             let amount = piston_push::collided_amount(
                 &boxes,
                 pos,
@@ -496,7 +503,7 @@ impl Game<'_> {
     }
 
     /// `Block.pushEntitiesUp(old, new, level, pos)` for the block now at `pos`
-    /// (`FarmlandBlock.turnToBaseBlock`, `PathBlock.turnToBaseBlock`): every body
+    /// (`FarmlandBlock.turnToBaseBlock`, `DirtPathBlock.turnToBaseBlock`): every body
     /// touching the collision that the new state adds over `old` is lifted
     /// onto it with `teleportRelative`, no collision scan.
     pub(super) fn push_entities_up(

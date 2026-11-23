@@ -210,7 +210,7 @@ impl Game<'_> {
     /// the game takes the key (it doesn't consume it): the next status,
     /// announced with its toast, saved, then the screen hears of it.
     pub(super) fn narrator_hotkey(&mut self, event: &KeyEvent) {
-        let letter = clipboard::shortcut_letter(&event.logical_key, event.physical_key);
+        let letter = clipboard::shortcut_letter(event.physical_key);
         if letter != Some('b') {
             return;
         }

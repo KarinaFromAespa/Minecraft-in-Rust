@@ -1,6 +1,20 @@
 {
  "closed": [
   {
+   "id": 24,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "Ported (26.2 #28). 26.1 structure_overrides codec is RegistryCodecs.homogeneousList (verified in the 26.1 FlatLevelGeneratorSettings codec lambda) \u2014 a list only; a bare string is dropped (lenientOptionalFieldOf). Carried over the 26.2 flatgen.rs form + tests."
+  },
+  {
+   "id": 29,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "Ported (26.2 #15). Named methods (TextureAtlas.dumpContents, NativeImage.read, ReloadableTexture.setSampler) bytecode-identical 26.2->26.1 (jardiff). Faded name-tag text colour 0x80FFFFFF literal (26.3 computes max((backgroundAlpha+0.75)/2,0.5) = 0x7F): FADED 0x7F->0x80 in game/names.rs. (The cull_box hunk in the same file diff belongs to another item; not carried.)"
+  },
+  {
    "id": 37,
    "verdict": "no-change",
    "bucket": "B",
@@ -127,6 +141,13 @@
    "evidence": "No-change. 26.2 #82 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
   },
   {
+   "id": 101,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "Ported (26.2 #93). SignBlockEntity has no allow_op_features in the 26.1 jar (the gate is 26.3-only, added by datafix 5002 > 4786). Sign click commands/dialogs run unconditionally; the sign_click_actions_disabled message + helper removed; wax-on sound comes from the level event, not the item."
+  },
+  {
    "id": 107,
    "verdict": "no-change",
    "bucket": "A",
@@ -232,11 +253,32 @@
    "evidence": "No-change. 26.2 #159 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/native_reload_listeners.rs'] are identical between the 26.2 and 26.1 trees."
   },
   {
+   "id": 220,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "Ported (26.2 #169). ShovelItem bytecode-identical 26.2->26.1; CampfireBlock differs only in getTicker; #douses_campfires absent from the 26.1 server data, #shovels present. The douse is ShovelItem.useOn (shovel item, face != DOWN), not CampfireBlock.useItemOn behind the tag."
+  },
+  {
    "id": 221,
    "verdict": "ported",
    "bucket": "B",
    "cl_sub": "B2c",
    "evidence": "Ported (26.2 #147, commit c03452c8). BlockAttachedEntity byte-identical 26.2->26.1; Entity.kill(ServerLevel) is the single-arg unattributed form in both jars (26.3 added kill(level, entity)). Painting/frame ENTITY_DIE unattributed on player and blast breaks; explosion_kill_credit() removed, replaced by explosion_direct_source() for the BLOCK_CHANGE attribution via dropItem."
+  },
+  {
+   "id": 230,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "Ported (26.2 #175). PistonMovingBlockEntity differs 26.2->26.1 only in the constructor; moveCollidedEntities/finalTick/matchesStickyCritera identical. A player/LAN guest is skipped entirely when the moved block is slime (26.3 only skips the bounce). DirtPathBlock exists in 26.1 (PathBlock does not) \u2014 comment fixed."
+  },
+  {
+   "id": 233,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "Ported (26.2 #176). BlockStateParser parse methods identical 26.2->26.1; 26.1 uses the NBT-form BlockState codec (rank 1). BlockStateParser reads properties up to the first ] (doubled ]] tolerated); NbtUtils.writeBlockState writes Name/Properties, not id/properties."
   },
   {
    "id": 242,
@@ -279,6 +321,13 @@
    "bucket": "B",
    "cl_sub": "B2c",
    "evidence": "No-change. 26.2 #207 (rank 2) verified no-change in 26.2; all 5 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-protocol/src/secure_chat.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 265,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "Ported (26.2 #113). 26.1 has no SDL classes and has GLFW InputConstants \u2014 shortcuts compare GLFW codes by position (26.3 switched to SDL shortcutKey). shortcut_letter takes PhysicalKey only; the 3 callers (narrator.rs, startup_menu.rs x2, game/clipboard.rs) updated."
   },
   {
    "id": 278,
@@ -400,6 +449,13 @@
    "evidence": "No-change. 26.2 #266 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/native_npcs.rs'] are identical between the 26.2 and 26.1 trees."
   },
   {
+   "id": 318,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "Ported (26.2 #293). overrideEntityData absent from both 26.1 and 26.2 TrialSpawnerBlockEntity (26.3-only). Removed the override_entity_data variant (data dropped); game/spawner.rs caller updated to override_entity."
+  },
+  {
    "id": 319,
    "verdict": "no-change",
    "bucket": "B",
@@ -440,6 +496,13 @@
    "bucket": "B",
    "cl_sub": "B2c",
    "evidence": "No-change. 26.2 #262 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-protocol/src/buf.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 331,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2",
+   "evidence": "Ported (26.2 #279). 26.1 onReputationEventFrom does NOT refresh the open menu prices (26.3 added that). Removed the open-menu refresh from the trading fixture."
   },
   {
    "id": 333,
@@ -876,5 +939,5 @@
    "evidence": "No-change. 26.2 #417 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
   }
  ],
- "triage": "Rank 2: 498 items. First-pass buckets (triage.json): B 265, A 231, D 2. Class-level 26.2->26.1 split (classlevel.json, zip CRC): B1c 233, B2c 32, A1 138, A2 93, D 2. Batch 1+2 (2026-11-23): 82 no-change closures \u2014 A2/B2c items whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the 26.2 and 26.1 trees (or widely named with 0 methods named in Horizon). Batch 3a (2026-11-23): 5 ported carry-overs (items 70, 192, 196, 246, 351) \u2014 A2/B2c items whose 26.2 counterparts were ported; the 26.2 tree file forms carried over whole (hooks.rs: melt hunk only, to preserve the rank-1 blocksMotion change). Deferred from batch 3: item 35 (blending f32->f64, cascades into generator.rs) and item 150 (synth.rs double-precision noise engine, 6 consumer files) \u2014 multi-file type conversions, separate batches. Batch 3c (2026-11-23): bc42387a carried over (53 files) \u2014 items 282, 293, 296 closed. The batch also carried the SwingState rework (26.2 #241: plain swinging/swingingArm/swingTime fields + getCurrentSwingDuration, verified identical in the 26.1 jar, no SwingState class) for 26.1 item 281, which stays OPEN: 281 covers 16 world/entity classes and needs class-level review of the rest. bc42387a hunks in game.rs/lan_actions.rs/remote.rs/dimension_type.rs/density.rs were applied by hand (context drift); the spear STAB site in remote.rs keeps the 26.1 completion-pass form (26.1 has no spear, no STAB packet). Batch 3d (2026-11-23): items 135, 221, 302, 449 closed (c03452c8 carried over for 221+449; 302 timeline.rs and 135 start.rs carried over whole-file). Two compile fallouts fixed by hand: explosion.rs armor-stand site to break_armor_stand_by_anything, render_tick.rs near-plane computation removed (26.1 isViewBlocking is 2-arg). Deferred from batch 3: item 96 (window.rs \u2014 VideoMode identical but Window.updateFullscreenIfChanged/changeFullscreenVideoMode differ 26.2->26.1; needs fresh porting from the 26.1 jar), item 35 (blending f32->f64 cascade into generator.rs), item 150 (synth.rs double-precision noise engine + 6 consumer files). Deferred: item 288 (EntityPositionSync + stepped-interpolation rework, 26.2 #233) \u2014 the 26.1 tree's EntityPositionSync flat form (id, position, delta, yaw, pitch, on_ground) is already wire-equivalent to 26.2's (id, PositionMoveRotation, onGround), but VecDelta is still the 26.3 Linear/Stepped enum (26.2: plain [i16;3]), the MoveEntity wire forms need the shorts+bool check, and the InterpolationHandler subsystem (26.2-only interpolation.rs + fixture + oracle + parity test) is a whole-subsystem port. Needs a dedicated batch. Batch 4 (2026-11-23): 24 no-change closures \u2014 method-level B2/A2 items (batched jardiff over 1,210 named classes: 883 method-changed) whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the trees."
+ "triage": "Rank 2: 498 items. First-pass buckets (triage.json): B 265, A 231, D 2. Class-level 26.2->26.1 split (classlevel.json, zip CRC): B1c 233, B2c 32, A1 138, A2 93, D 2. Batch 1+2 (2026-11-23): 82 no-change closures \u2014 A2/B2c items whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the 26.2 and 26.1 trees (or widely named with 0 methods named in Horizon). Batch 3a (2026-11-23): 5 ported carry-overs (items 70, 192, 196, 246, 351) \u2014 A2/B2c items whose 26.2 counterparts were ported; the 26.2 tree file forms carried over whole (hooks.rs: melt hunk only, to preserve the rank-1 blocksMotion change). Deferred from batch 3: item 35 (blending f32->f64, cascades into generator.rs) and item 150 (synth.rs double-precision noise engine, 6 consumer files) \u2014 multi-file type conversions, separate batches. Batch 3c (2026-11-23): bc42387a carried over (53 files) \u2014 items 282, 293, 296 closed. The batch also carried the SwingState rework (26.2 #241: plain swinging/swingingArm/swingTime fields + getCurrentSwingDuration, verified identical in the 26.1 jar, no SwingState class) for 26.1 item 281, which stays OPEN: 281 covers 16 world/entity classes and needs class-level review of the rest. bc42387a hunks in game.rs/lan_actions.rs/remote.rs/dimension_type.rs/density.rs were applied by hand (context drift); the spear STAB site in remote.rs keeps the 26.1 completion-pass form (26.1 has no spear, no STAB packet). Batch 3d (2026-11-23): items 135, 221, 302, 449 closed (c03452c8 carried over for 221+449; 302 timeline.rs and 135 start.rs carried over whole-file). Two compile fallouts fixed by hand: explosion.rs armor-stand site to break_armor_stand_by_anything, render_tick.rs near-plane computation removed (26.1 isViewBlocking is 2-arg). Deferred from batch 3: item 96 (window.rs \u2014 VideoMode identical but Window.updateFullscreenIfChanged/changeFullscreenVideoMode differ 26.2->26.1; needs fresh porting from the 26.1 jar), item 35 (blending f32->f64 cascade into generator.rs), item 150 (synth.rs double-precision noise engine + 6 consumer files). Deferred: item 288 (EntityPositionSync + stepped-interpolation rework, 26.2 #233) \u2014 the 26.1 tree's EntityPositionSync flat form (id, position, delta, yaw, pitch, on_ground) is already wire-equivalent to 26.2's (id, PositionMoveRotation, onGround), but VecDelta is still the 26.3 Linear/Stepped enum (26.2: plain [i16;3]), the MoveEntity wire forms need the shorts+bool check, and the InterpolationHandler subsystem (26.2-only interpolation.rs + fixture + oracle + parity test) is a whole-subsystem port. Needs a dedicated batch. Batch 4 (2026-11-23): 24 no-change closures \u2014 method-level B2/A2 items (batched jardiff over 1,210 named classes: 883 method-changed) whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the trees. Batch 5 (2026-11-23): 9 ported carry-overs (24, 29, 101, 220, 230, 233, 265, 318, 331). Deferred from batch 5: item 117 (environment-attributes packed-int ARGB color system + 3 attribute removals + 4 oracle reworks \u2014 a multi-file port), item 125 (blending.rs, same f64 cascade as item 35)."
 }

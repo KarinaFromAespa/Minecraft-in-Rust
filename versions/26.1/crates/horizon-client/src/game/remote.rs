@@ -8597,8 +8597,8 @@ impl Game<'_> {
                 if result.should_swing() {
                     self.with_hand(hand, Game::swing_arm);
                 }
-            } else if self.predict_campfire_douse(hit.pos, held.as_ref(), seq) {
-                // CampfireBlock.useItemOn succeeded: this hand swings and the
+            } else if self.predict_campfire_douse(hit.pos, held.as_ref(), hit.face, seq) {
+                // ShovelItem.useOn succeeded: this hand swings and the
                 // click ends, so a shield in the other hand is not raised.
                 self.with_hand(hand, Game::swing_arm);
                 return true;
