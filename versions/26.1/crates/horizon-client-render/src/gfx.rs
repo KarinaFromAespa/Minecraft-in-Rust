@@ -6592,7 +6592,7 @@ impl Renderer {
         self.block_entities.values().flatten()
     }
     /// `block_entities` of the sections far enough into their fade-in to draw them
-    /// (`LevelExtractor.extractVisibleBlockEntities`: `getVisibility(now, fade) >= 0.3`).
+    /// (`LevelRenderer.extractVisibleBlockEntities`: `getVisibility(now, fade) >= 0.3`).
     pub fn visible_block_entities(
         &self,
         fade_seconds: f32,

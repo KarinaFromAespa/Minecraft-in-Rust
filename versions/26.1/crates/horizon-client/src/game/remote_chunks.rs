@@ -445,7 +445,7 @@ impl Game<'_> {
     /// `ClientPacketListener.handleChunksBiomes`: each loaded column takes
     /// its new biomes (`ClientChunkCache.replaceBiomes`), then every section
     /// of it and of its neighbours is drawn again, as their colours blend
-    /// across columns (`LevelExtractor.setSectionDirty`).
+    /// across columns (`LevelRenderer.setSectionDirty`).
     pub(super) fn remote_chunks_biomes(&mut self, p: &play::ChunksBiomes) {
         let Some(format) = self.remote.as_ref().map(|r| r.chunk_format.clone()) else {
             return;

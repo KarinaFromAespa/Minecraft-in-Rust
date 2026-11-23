@@ -180,7 +180,7 @@ impl Game<'_> {
     /// `ScreenEffectRenderer.renderItemActivationAnimation`, for the hand
     /// pass: the item in view space with the hand's projection but none of
     /// the camera's turn or bob (a fresh `PoseStack`), so those are undone
-    /// here. `FIXED` display, no owner, seed 0 (`LevelExtractor`), full
+    /// here. `FIXED` display, no owner, seed 0 (`LevelRenderer`), full
     /// brightness and `Lighting.Entry.ITEMS_3D`. Only F1 hides it.
     pub(super) fn item_activation_geometry(
         &self,

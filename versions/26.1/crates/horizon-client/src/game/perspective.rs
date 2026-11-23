@@ -714,7 +714,7 @@ impl Game<'_> {
             m.head_pitch = pitch;
         }
     }
-    /// `LevelExtractor`'s skip of the camera entity: the player's own body
+    /// `LevelRenderer`'s skip of the camera entity: the player's own body
     /// is drawn unless the camera is in first person, or while it sleeps.
     pub(super) fn own_body_in_view(&self) -> bool {
         !self.camera_type.first_person() || self.sleeping.is_some() || self.studio_freecam.active

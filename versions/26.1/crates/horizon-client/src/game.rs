@@ -6580,7 +6580,7 @@ impl Game<'_> {
         self.entity_motion.borrow_mut().clear();
         self.entity_motion_posed.borrow_mut().clear();
         self.maps.slots.next_frame();
-        // LevelExtractor.extract: the transient blocks queued since the last frame.
+        // LevelRenderer.extractLevel: the transient blocks queued since the last frame.
         self.drain_transient_block_queue();
         self.prepare_entity_culling();
         self.prepare_occlusion_culling(camera);
@@ -8558,7 +8558,7 @@ impl Game<'_> {
         ));
         self.apply_ui_settings();
     }
-    /// `LevelExtractor.allChanged`: displayed sections and mesh work are
+    /// `LevelRenderer.allChanged`: displayed sections and mesh work are
     /// discarded, then every loaded section is rebuilt.
     fn all_sections_changed(&mut self) {
         self.clear_lod();
@@ -9470,7 +9470,7 @@ impl Game<'_> {
         let debug_lines = horizon_client::gizmos::camera_relative(&lines, at, view);
         let debug_lines_on_top = horizon_client::gizmos::camera_relative(&on_top, at, view);
         let debug_crosshair = horizon_client::gizmos::camera_relative(&crosshair.on_top, at, view);
-        // LevelExtractor.extractBlockOutline: model translucency controls draw order;
+        // LevelRenderer.extractBlockOutline: model translucency controls draw order;
         // no outline when an entity is targeted (Minecraft.hitResult an EntityHitResult).
         let mut outline_after_terrain = false;
         // GameRenderer.shouldRenderBlockOutline: not with the HUD hidden (F1), and only for a

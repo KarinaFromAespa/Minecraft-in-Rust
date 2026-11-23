@@ -2810,7 +2810,7 @@ impl Game<'_> {
                     c.previous.z + (c.position.z - c.previous.z) * alpha,
                 )
             };
-            // LevelExtractor.isEntityVisible: the cart the player rides always draws.
+            // EntityRenderDispatcher.shouldRender: the cart the player rides always draws.
             let mut shown = None;
             if self.riding != Some(c.id) {
                 let d = glam::DVec3::new(c.position.x, c.position.y, c.position.z) - camera;

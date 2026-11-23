@@ -927,6 +927,21 @@
    "evidence": "WorldUpgrader: 26.2 added setNameFormat to the upgrade thread factory; thread-naming only, same daemon threads. world_upgrader.rs 0-diff vs 26.2."
   },
   {
+   "id": 709,
+   "verdict": "no-change",
+   "evidence": "GrowingPlantBlock 0-diff; fixed RedstoneWireBlock comment to RedStoneWireBlock (both jars use capital S)"
+  },
+  {
+   "id": 710,
+   "verdict": "no-change",
+   "evidence": "SpawnTargetPoint in neither jar (26.3-only); spawn_finder.rs diff is the batch-72 port"
+  },
+  {
+   "id": 711,
+   "verdict": "no-change",
+   "evidence": "SteppedInterpolationHandler$Step in neither jar (26.3-only); launcher backend does not model it"
+  },
+  {
    "id": 712,
    "title": "widely named: client/gui/components/toasts: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
    "verdict": "no-change",
@@ -939,6 +954,21 @@
    "evidence": "WarningScreen lambda differs only by Minecraft.setScreen -> Gui.setScreen. Menu chrome."
   },
   {
+   "id": 714,
+   "verdict": "ported",
+   "evidence": "LevelExtractor is 26.2-only; 26.1 keeps extraction on LevelRenderer (all methods verified); all 22 citations re-anchored; transient queue marked 26.3-only"
+  },
+  {
+   "id": 715,
+   "verdict": "no-change",
+   "evidence": "TestCommand$Info in neither jar; TestCommand differs only by the BlockEntityType->BlockEntityTypes rename"
+  },
+  {
+   "id": 716,
+   "verdict": "no-change",
+   "evidence": "ServerPlaceRecipe 0-diff"
+  },
+  {
    "id": 717,
    "title": "crates/horizon-client-core/src/gamerules.rs: 1 vanilla classes changed (0 methods, 0 named in Horizon)",
    "verdict": "no-change",
@@ -949,6 +979,11 @@
    "title": "crates/horizon-client/src/mobs/spear_use.rs: 1 vanilla classes changed (0 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "SpearUseGoal's four distance constants went package-private (26.1) -> private (26.2); same fields, no method changes. spear_use.rs diff is the earlier single-push knockback work."
+  },
+  {
+   "id": 719,
+   "verdict": "no-change",
+   "evidence": "RealmsUploadTooLargeException differs only by a field access modifier; upload.rs 0-diff"
   }
  ],
  "triage": "Rank-3 re-triage: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 3 = A1 60, A2 67, B1 56, B2 31 = 214 items) + diff-26.2-26.1-rank3.json (274 classes, 204 method-changed). Order: A1 reviews, then B1 ports, then A2/B2."

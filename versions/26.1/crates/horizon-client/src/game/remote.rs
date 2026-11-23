@@ -3804,7 +3804,7 @@ impl Game<'_> {
                     r.ticked_before_player = before;
                 }
                 if dimension_changed {
-                    // LevelExtractor.setLevel: a new level drops the highlights.
+                    // LevelRenderer.setLevel: a new level drops the highlights.
                     self.test_highlights.clear();
                     self.music.stop_playing(&mut self.audio);
                 }

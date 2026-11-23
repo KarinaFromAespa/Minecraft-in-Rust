@@ -1652,3 +1652,31 @@ WoodType, 706 CachedUserNameToIdResolver, 707 BiomeTags all
 and NOT in 26.1's (the triage was right); batch 74 already
 removed /unpublish from the 26.1 tree. Doc-only changes; no
 separate CI dispatch (covered by the next code batch's run).
+
+Batch 84 (Nov 24, 183/214 — A2 #7, 1 ported (docs), 6
+no-change). A2 COMPLETE 67/67. 714 PORTED (docs) —
+LevelExtractor is 26.2-only: 26.1 keeps the extraction on
+LevelRenderer (allChanged, extractLevel, extractVisible-
+Entities, extractVisibleBlockEntities, extractBlockOutline,
+setSectionDirty, setLevel — all verified on 26.1's
+LevelRenderer, same signatures as 26.2's LevelExtractor).
+All 22 LevelExtractor citations re-anchored: the method
+refs to LevelRenderer (extract→extractLevel), isEntityVisible
+to EntityRenderDispatcher.shouldRender (same signature),
+the sectionStatistics/entityStatistics citations dropped
+(their 26.1 provenance is not a method — the debug lines
+describe the counts directly), and the transient-block
+queue marked 26.3-only (no TransientBlock classes in 26.1's
+jar at all; 26.2 has only the unrelated TransientBlock-
+Allocator). 709 no-change — GrowingPlantBlock 0-diff; fixed
+the RedstoneWireBlock comment to RedStoneWireBlock (both
+jars use the capital-S spelling). 710 no-change —
+SpawnTargetPoint exists in neither jar (26.3-only); the
+spawn_finder.rs diff is the batch-72 port. 711 no-change —
+SteppedInterpolationHandler$Step exists in neither jar.
+715 no-change — TestCommand$Info exists in neither jar;
+TestCommand itself differs only by the BlockEntityType→
+BlockEntityTypes rename. 716 ServerPlaceRecipe 0-diff; 719
+RealmsUploadTooLargeException differs only by a field
+access modifier. Doc-only changes; no separate CI dispatch
+(covered by the next code batch's run).
