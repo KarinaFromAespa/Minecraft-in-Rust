@@ -519,7 +519,8 @@ impl ClientWaypoints {
     }
 }
 
-/// `Hud.ContextualInfo`: which bar sits above the hotbar.
+/// `Gui.ContextualInfo` (26.2 renamed `Gui` to `Hud`): which bar sits
+/// above the hotbar.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ContextualBar {
     Empty,
@@ -528,9 +529,10 @@ pub enum ContextualBar {
     JumpableVehicle,
 }
 impl ContextualBar {
-    /// `Hud.nextContextualInfoState`: `recent_experience` is
-    /// `willPrioritizeExperienceInfo` (experience changed in the last 100
-    /// ticks), `jumping` is `willPrioritizeJumpInfo`.
+    /// `Gui.nextContextualInfoState` (26.2 renamed `Gui` to `Hud`):
+    /// `recent_experience` is `willPrioritizeExperienceInfo` (experience
+    /// changed in the last 100 ticks), `jumping` is
+    /// `willPrioritizeJumpInfo`.
     pub fn next(
         waypoints: bool,
         jumpable_vehicle: bool,

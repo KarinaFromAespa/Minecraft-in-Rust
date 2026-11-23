@@ -829,10 +829,25 @@
    "evidence": "AbstractBannerBlock 0-diff; banners.rs 0-diff"
   },
   {
+   "id": 691,
+   "verdict": "no-change",
+   "evidence": "SteppedInterpolationTracker in neither jar (26.3-only); batch 61 already deleted the stepped tracker"
+  },
+  {
    "id": 692,
    "title": "crates/horizon-client/src/game/moving_pistons.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "PistonHeadRenderer.submit: 26.2's submitMovingBlock gained a 4th int arg (passed 0); same head + base submissions. Render-submission plumbing; moving_pistons.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 693,
+   "verdict": "no-change",
+   "evidence": "SimpleInstance pure criterion->triggers package move (4 lines, incl. ContextAwarePredicate->predicates)"
+  },
+  {
+   "id": 694,
+   "verdict": "no-change",
+   "evidence": "PotentSulfurState is 26.2-only; 26.1 has no PotentSulfur classes; unreachability notes added to both potent_sulfur.rs files (SulfurCube precedent)"
   },
   {
    "id": 695,
@@ -841,10 +856,25 @@
    "evidence": "TrialSpawnerState$ParticleEmission lambdas differ only by BlockPos.getCenter() (26.1) vs Vec3.atCenterOf(pos) (26.2) \u2014 same center value. trial_visuals.rs 0-diff vs 26.2."
   },
   {
+   "id": 696,
+   "verdict": "ported",
+   "evidence": "item_activation.rs docs cited the 26.3 ItemActivation class (in neither jar); 26.1 has GameRenderer.displayItemActivation + ScreenEffectRenderer fields, the 26.2 form; docs carried"
+  },
+  {
    "id": 697,
    "title": "crates/horizon-client/src/lan/waypoints.rs: 2 vanilla classes changed (1 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "Waypoint: 26.1 keeps MAX_RANGE = 60000000, which 26.2 dropped; the Rust does not model it. Icon.cloneAndAssignStyle: 26.1 maps Integer (ChatFormatting.getColor) with color==0 -> -13619152, 26.2 maps TeamColor with BLACK -> -13619152; same rule, same values (BLACK rgb is 0 both ways). waypoints.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 698,
+   "verdict": "no-change",
+   "evidence": "Hud$ContextualInfo is the 26.2 name; 26.1 Gui has the same ContextualInfo/nextContextualInfoState/willPrioritize* with identical bodies; docs fixed to Gui"
+  },
+  {
+   "id": 699,
+   "verdict": "no-change",
+   "evidence": "Allay$VibrationUser 0-diff despite the differing tag; allay.rs 0-diff"
   },
   {
    "id": 700,
@@ -859,16 +889,36 @@
    "evidence": "DetailsScreen.onClose differs only by Minecraft.setScreen -> Gui.setScreen. Menu chrome; confirm_experiments.rs 0-diff vs 26.2."
   },
   {
+   "id": 702,
+   "verdict": "no-change",
+   "evidence": "UnpublishCommand IS in the 26.2 jar, NOT in 26.1; batch 74 already removed /unpublish from the 26.1 tree"
+  },
+  {
    "id": 703,
    "title": "crates/horizon-core/src/geometry/shape/face.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "SubShape constructor went protected (26.1) -> package-private (26.2); same 7-arg constructor, no logic. face.rs 0-diff vs 26.2."
   },
   {
+   "id": 704,
+   "verdict": "no-change",
+   "evidence": "WoodType 0-diff; content.rs 0-diff"
+  },
+  {
    "id": 705,
    "title": "crates/horizon-optifine/src/fusion/layout.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "26.2 added removeChildren() to the Layout interface (same as item 659's three layout classes); absent in 26.1. GUI plumbing; layout.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 706,
+   "verdict": "no-change",
+   "evidence": "CachedUserNameToIdResolver 0-diff; profiles.rs 0-diff"
+  },
+  {
+   "id": 707,
+   "verdict": "no-change",
+   "evidence": "BiomeTags 0-diff; biomes.rs 0-diff"
   },
   {
    "id": 708,

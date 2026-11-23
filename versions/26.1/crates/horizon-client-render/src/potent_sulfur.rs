@@ -2,6 +2,12 @@
 //! potent sulfur block comes out, how far a geyser throws, and whether the gas
 //! reaches a point. The client's particles and the server's nausea and
 //! launches read the level the same way, through a [`ParticleLevel`].
+//!
+//! Potent sulfur is 26.2-only content, unreachable in 26.1: 26.1's jars
+//! have no `PotentSulfurBlock`, `PotentSulfurState` or geyser classes, and
+//! no 26.1 data references them (the `SulfurCube` precedent — kept, as
+//! the geyser/noxious particles in `particle_type.rs` are, because no
+//! 26.1 data reaches this code).
 use crate::{blocks::Fluid, collisions::SceneCollisions, particles::ParticleLevel};
 use horizon_core::{
     geometry::{Vec3, traverse_blocks},

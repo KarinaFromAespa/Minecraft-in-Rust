@@ -1625,3 +1625,30 @@ OitStage exists in neither jar; the 26.1 tree's oit.rs is
 26.1-only engine OIT work (the 26.2 tree has no oit.rs),
 not vanilla behaviour. Comment-only change; no separate CI
 dispatch (covered by the next code batch's run).
+
+Batch 83 (Nov 24, 176/214 — A2 #6, 1 ported (docs), 9 no-change):
+696 PORTED (docs) — item_activation.rs cited the 26.3
+`ItemActivation` class, which exists in NEITHER jar; 26.1's
+GameRenderer has displayItemActivation and its
+ScreenEffectRenderer holds the itemActivationItem/Ticks/OffX/
+OffY fields + renderItemActivationAnimation + resetItemActivation,
+exactly the 26.2 tree's form, whose docs are now carried (with
+the 26.2→26.1 version fix). 691 no-change —
+SteppedInterpolationTracker exists in neither jar; batch 61
+already deleted the stepped tracker. 693 no-change —
+SimpleInstance is a pure criterion→triggers package move
+(4 lines, incl. ContextAwarePredicate→predicates). 694
+no-change — PotentSulfurState is 26.2-only; 26.1 has no
+PotentSulfur classes at all, so both potent_sulfur.rs files
+now carry the unreachable note (SulfurCube precedent, as
+the geyser/noxious particles already do). 698 no-change —
+Hud$ContextualInfo is the 26.2 name; 26.1's Gui has the same
+ContextualInfo/nextContextualInfoState/willPrioritize* with
+identical bodies (100-tick experience window, jump-scale
+logic); the locator_bar.rs docs now cite Gui. 699
+Allay$VibrationUser 0-diff despite the "differing" tag; 704
+WoodType, 706 CachedUserNameToIdResolver, 707 BiomeTags all
+0-diff. 702 no-change — UnpublishCommand IS in the 26.2 jar
+and NOT in 26.1's (the triage was right); batch 74 already
+removed /unpublish from the 26.1 tree. Doc-only changes; no
+separate CI dispatch (covered by the next code batch's run).
