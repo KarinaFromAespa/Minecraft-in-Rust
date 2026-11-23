@@ -439,6 +439,16 @@ Note: the leakage-audit 26.2-server.jar is a Mojang BUNDLER jar (no game
 classes) — server-side 26.2 jardiffs must use 26.2-client.jar, which
 holds all game classes.
 
+Batch 13 (2026-11-23): 8 closures (212/498). 45 ported comment-only:
+SulfurCube is a 26.2 addition — 26.1 has no cubemob package, no
+SULFUR_CUBE type, Slime still at monster/Slime extending Mob; the Rust
+module is unreachable in 26.1 (the type never resolves from 26.1 data)
+and kept per the programme convention (1.21.7/1.21.11/26.1.1/26.1.2 all
+keep it), with a module-doc note recording the absence. 314/320/324/
+339/349/350/355 no-change: getter renames, Guava-to-JDK collection
+construction, receiver-access-only, the protocol constant already
+pinned at 775, getCenter/atCenterOf, the EntityType rename.
+
 Test health: crate-tests run 45163597005 (rank-1 state): protocol,
 items, client-core, client-render PASS; world FAIL (1 pre-existing
 datafix failure, `failed_upgrade_keeps_old_data_version` — the other

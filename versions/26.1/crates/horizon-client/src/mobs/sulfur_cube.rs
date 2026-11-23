@@ -4,6 +4,13 @@
 //! and gives it the block's archetype (`SulfurCubeArchetype`: buoyancy,
 //! knockback, sounds, contact damage, a TNT fuse), shearing the block out,
 //! buckets, and the outer/inner models and their render scale.
+//!
+//! Absent in 26.1 vanilla — a 26.2 addition: 26.1 has no `cubemob`
+//! package, no `EntityType.SULFUR_CUBE`, and `Slime` still lives at
+//! `monster/Slime` extending `Mob` directly. The type never resolves
+//! from 26.1 data, so this module is unreachable here; it is kept, as
+//! in the 1.21.7/1.21.11/26.1.1/26.1.2 trees, rather than deleted.
+//! (`Vec2.rotate` is likewise a 26.2 addition, used only by this module.)
 use super::{
     Damage, DamageKind, Mob, MobEvent, MobWorld,
     control::MoveKind,
