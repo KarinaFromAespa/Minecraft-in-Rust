@@ -204,6 +204,13 @@
    "evidence": "No-change. 26.2 #232 (rank 2) verified no-change in 26.2; all 21 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
   },
   {
+   "id": 292,
+   "verdict": "ported",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "Ported (26.2 #238, commit e0b46227). All 18 density-compiler classes 26.3-only: DensityFunctionCompiler, DistanceMetric etc. absent from the 26.1 jar; 26.1's DensityFunctions.bootstrap registers no lerp or distance_to_point (18 types, incl. y_clamped_gradient, weird_scaled_sampler, blend_density). Removed the lerp + distance_to_point decoder arms from worldgen/density.rs; unknown types fall through to the unknown-type error as vanilla 26.1 rejects them."
+  },
+  {
    "id": 311,
    "verdict": "no-change",
    "bucket": "A",
@@ -461,6 +468,13 @@
    "bucket": "A",
    "cl_sub": "A2",
    "evidence": "No-change. 26.2 #358 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-core/src/paletted.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 435,
+   "verdict": "ported",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "Ported (26.2 #361, commit e0b46227). 26.1's SurfaceRules registry registers only bandlands, block, condition, sequence (verified in the 26.1 jar bootstrap); OreVeinRule absent. Removed the minecraft:ore_vein decoder arm + Definition::Ore variant + roots plumbing from material_condition/library.rs; MaterialRule::OreVein stays (the generator builds it directly)."
   },
   {
    "id": 437,
