@@ -10456,7 +10456,6 @@ impl Game<'_> {
                     if let Some(r) = &mut self.renderer {
                         r.resize(size.width, size.height);
                     }
-                    self.observe_fullscreen();
                 }
                 WindowEvent::Focused(focused) => {
                     self.focused = focused;
@@ -11392,7 +11391,6 @@ impl Game<'_> {
                 }
                 WindowEvent::RedrawRequested => {
                     horizon_client::spans::time("recover_device", || self.recover_device())?;
-                    self.observe_fullscreen();
                     self.sync_ime();
                     let now = Instant::now();
                     let frame_cpu = self
@@ -11875,7 +11873,7 @@ impl<'a> Game<'a> {
             ime_area: None,
             focus_lost: None,
             modifiers: winit::keyboard::ModifiersState::empty(),
-            fullscreen: horizon_client::window::FullscreenState::new(false),
+            fullscreen: horizon_client::window::FullscreenState::new(false, false),
             video_modes: Default::default(),
             mouse: MouseLook::default(),
             agent_pointer: false,

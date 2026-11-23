@@ -484,7 +484,6 @@ impl Loading {
             self.fullscreen.apply(
                 &window,
                 self.settings.fullscreen,
-                self.settings.file.bool("exclusiveFullscreen"),
                 preferred,
                 false,
             );
@@ -1376,7 +1375,7 @@ mod tests {
             boot: horizon_client::hud::HudAtlas::boot(),
             gui: None,
             settings: Settings::default(),
-            fullscreen: horizon_client::window::FullscreenState::new(false),
+            fullscreen: horizon_client::window::FullscreenState::new(false, false),
             video_modes: Default::default(),
             options: None,
             vanilla_root: PathBuf::new(),

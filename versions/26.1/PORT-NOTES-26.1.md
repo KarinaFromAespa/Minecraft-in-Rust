@@ -965,3 +965,27 @@ the synth-based transport. The 26.1-only WeirdScaledNoiseSampler stays
 in terrain_noise.rs. The float engine remains as the legacy sampler;
 the density graph now samples synth noise directly in f64. 9 files;
 workspace `cargo check` clean.
+
+Batch 58 (Nov 24, 493/498): 96 PORTED — window.rs, fresh-ported from the
+26.1 jar. The triage's method lists for this item describe 26.3→26.2,
+not 26.2→26.1 (applyFullscreen/isExclusiveFullscreen/
+setExclusiveFullscreen/updateFullscreenState exist in NEITHER jar;
+selectCursor/setGuiScale/VideoMode.read/write are bytecode-identical
+26.2↔26.1), so the port was re-verified method by method against the
+26.1 client jar. Findings: calculateScale identical; getThrottleReason
+identical logic (iconified-only, no focused/exclusive clause — the 26.3
+form is wrong for 26.1); VideoMode bytecode-identical (i32 rate,
+`1920x1080@60:24` string form); the fullscreen state machine is the
+26.2 form (fullscreen/actuallyFullscreen, exclusive fixed at creation
+via Options.initialExclusiveFullscreen, restart to change);
+getPreferredVidMode identical logic. The real 26.1↔26.2 differences
+(ScreenManager vs MonitorManager, isResized, isSoftScreen,
+updateVsync, resizeGui vs framebufferSizeChanged callbacks, Monitor
+record vs class) are GLFW plumbing the Rust does not model.
+PresentMode: 26.1 predates the Vulkan backend entirely (no GpuSurface
+class in the jar), so the 26.2 FifoRelaxed-first vsync list carries as
+the era model, documented as such. Carried the 26.2 window.rs whole
+plus caller updates (FullscreenState::new takes the exclusive option;
+observe_fullscreen and the 26.3 throttle fields gone; options_ui uses
+the whole-hertz rate directly). 8 files; workspace `cargo check` and
+all `--lib --tests` checks clean.
