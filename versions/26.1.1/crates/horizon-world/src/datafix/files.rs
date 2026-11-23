@@ -85,14 +85,18 @@ pub fn data_version(tag: &Tag, default: i32) -> i32 {
     }
 }
 
-/// `FileFixerUpper.requiresFileFixing`.
+/// `FileFixerUpper.requiresFileFixing`: a file fix applies between the world's
+/// version and this version. (The table keeps later fixes, as the chunk-fix
+/// table does; only fixes at or below `CURRENT` count here — comparing against
+/// the table's last entry claimed file fixing for every 26.1 world, since
+/// 4899 postdates this version.)
 pub fn requires_file_fixing(level_version: i32) -> bool {
     let from = if level_version < FILE_FIXER_INTRODUCTION {
         0
     } else {
         level_version
     };
-    from < *FILE_FIXES.last().unwrap()
+    FILE_FIXES.iter().any(|&v| v > from && v <= CURRENT)
 }
 
 // ------------------------------------------------------------------ file operations

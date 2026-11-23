@@ -216,7 +216,12 @@ regression tests run at all:
   the 26.1 field `position` in `lan/entity.rs`, and one more stray
   `online_mode` literal in `studio/replay.rs`.
 - Five tests failed on stale 26.3-era fixtures: three world-upgrade tests
-  used a 4899 world (from the future here; now 4786, the 26.1 version);
+  used a 4899 world (from the future here; now 4786, the 26.1 version).
+  That exposed a real defect: `requires_file_fixing` compared against
+  the table's last entry (4899), so it claimed file fixing for every
+  26.1 world even though no file fix applies between 4786 and 4788. It
+  now checks for a fix in `(from, CURRENT]`, matching the `applicable`
+  filter beside it;
   `block_states_take_their_new_field_names` pinned the `Name`->`id`
   palette rename, a fix keyed 5006 that postdates this version — it now
   asserts the 26.1.1 truth, that a 26.1 chunk keeps `Name`/`Properties`;
