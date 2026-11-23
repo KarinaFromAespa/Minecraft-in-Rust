@@ -1103,8 +1103,8 @@ run 45254318944 (batch 61) is testing, so no separate dispatch.
 
 ## Behaviour port — rank 3 in progress (2026-11-24, branch behaviour/26.1)
 
-Rank 3: 40/214 closed (rank 1: 7/7, rank 2: 498/498; total
-545/795). Re-triage: `retriage-rank345.json` (A1 60, A2 67, B1 56,
+Rank 3: 50/214 closed (rank 1: 7/7, rank 2: 498/498; total
+555/795). Re-triage: `retriage-rank345.json` (A1 60, A2 67, B1 56,
 B2 31) + `diff-26.2-26.1-rank3.json` (274 classes, 204
 method-changed). Order: A1 reviews, then B1 ports, then A2/B2.
 Progress in `rank3-progress.json`.
@@ -1215,3 +1215,26 @@ either side.
 Docs-only batch; the code tree is identical to the one
 crate-tests run 45257135418 (batch 63) is testing, so no
 separate dispatch.
+
+Batch 67 (Nov 24, 50/214 — A1 #5): 675 PORTED, 9 NO-CHANGE.
+675 management schema: the 26.1 tree still listed the four
+26.3-only world-upgrade notifications — neither 26.1's nor
+26.2's OutgoingRpcMethods has them (no upgrade_* strings in
+either jar), so all four were removed and the doc fixed to
+26.1 (the 26.2 tree's form). 26.2 also added
+allowPreServerInit to the discovery + heartbeat registrations
+(2 occurrences, 0 in 26.1); the Rust schema table models no
+lifecycle flag in either tree, so nothing to port for it.
+NO-CHANGE: 673 fluid model bake (invokeinterface →
+invokevirtual, MaterialBaker became a class); 676 RconClient
+(constructor access modifier only); 683 pack toast
+(toast-manager accessor); 684 ItemStackWithSlot codec
+(fieldOf.orElse vs optionalAlwaysPresentFieldOf, same
+optional-default-0 shape) + VaultConfig (access modifiers
+only); 685 MutableComponent (26.1 keeps the withColor
+(TextColor) overload 26.2 dropped; the Rust uses the int
+form); 687 occlusion graph (internal waiting-map refactor);
+689 Tab (26.1 keeps abstract getLayout()); 692 piston head
+(submitMovingBlock gained a 4th int arg); 695 trial spawner
+particles (getCenter vs atCenterOf, same value).
+`cargo check -p horizon-server` clean.

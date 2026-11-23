@@ -1,5 +1,5 @@
 //! What vanilla's management protocol offers, as `rpc.discover` describes it (OpenRPC 1.3.2): every method
-//! vanilla 26.3 registers (`IncomingRpcMethods`, `OutgoingRpcMethods`) with its parameter and result, and the
+//! vanilla 26.1 registers (`IncomingRpcMethods`, `OutgoingRpcMethods`) with its parameter and result, and the
 //! schemas they name (`api/Schema`). `tools/test_management_protocol_parity.py` compares the document with
 //! the one vanilla's data generator writes (`reports/json-rpc-api-schema.json`).
 
@@ -91,10 +91,9 @@ pub const METHODS: &[Method] = &[
     ("notification/server/saving", "Server save started", None, None),
     ("notification/server/saved", "Server save completed", None, None),
     ("notification/server/activity", "Server activity occurred. Rate limited to 1 notification per 30 seconds", None, None),
-    ("notification/world/upgrade_started", "World upgrade started", None, None),
-    ("notification/world/upgrade_progress", "World upgrade progress. Rate limited to 1 notification per second", Some(("progress", "number")), None),
-    ("notification/world/upgrade_finished", "World upgrade finished", None, None),
-    ("notification/world/upgrade_failed", "World upgrade failed", Some(("reason", "string")), None),
+    // 26.3 added four world-upgrade notifications (world/upgrade_started,
+    // upgrade_progress, upgrade_finished, upgrade_failed); 26.1's
+    // OutgoingRpcMethods has none of them.
     ("notification/players/joined", "Player joined", Some(("player", "#player")), None),
     ("notification/players/left", "Player left", Some(("player", "#player")), None),
     ("notification/operators/added", "Player was oped", Some(("player", "#operator")), None),

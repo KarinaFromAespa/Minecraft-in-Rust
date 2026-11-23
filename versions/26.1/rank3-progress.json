@@ -219,6 +219,66 @@
    "title": "crates/horizon-client/src/mod_content.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "Overlay: 26.1 declares abstract isPausing(), 26.2 abstract isPauseScreen() \u2014 a pure rename, no default body in either; the pause predicate's contract is unchanged. mod_content.rs 0-diff vs 26.2; the Rust's is_pause_screen is its own screen-model name."
+  },
+  {
+   "id": 673,
+   "title": "crates/horizon-mods/src/content/fluid.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "FluidModel$Unbaked.bake: structural diff shows only invokeinterface -> invokevirtual for MaterialBaker.get (26.2 made MaterialBaker a class); same still/flowing/overlay material bakes. fluid.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 675,
+   "title": "crates/horizon-server/src/management_schema.rs: 2 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "26.1's OutgoingRpcMethods has none of the four 26.3-only world-upgrade notifications (verified: no upgrade_* strings in either 26.1 or 26.2 jar); the 26.1 tree still listed them in the 26.3 form. Removed all four + fixed the doc to 26.1 (the 26.2 tree's form). Incoming method names identical 26.1/26.2. 26.2 added allowPreServerInit to the discovery + heartbeat registrations (2 occurrences; 0 in 26.1) \u2014 the Rust schema table does not model that lifecycle flag in either tree, so nothing to port for it."
+  },
+  {
+   "id": 676,
+   "title": "crates/horizon-server/src/rcon.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "RconClient: only the constructor's access modifier changed (package-private 26.1 -> public 26.2); run() identical. rcon.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 683,
+   "title": "widely named: client/resources/server: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "DownloadedPackSource$3 differs only by getToastManager() -> gui.toastManager() accessor; same pack-download toast. Menu chrome."
+  },
+  {
+   "id": 684,
+   "title": "crates/horizon-client-core/src/block_entity_nbt.rs: 2 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "ItemStackWithSlot codec: 26.1 fieldOf('slot').orElse(0), 26.2 ExtraCodecs.optionalAlwaysPresentFieldOf(..., 'slot', 0) \u2014 same shape (slot optional, default 0). VaultConfig fields identical; the +3/-3 is TAG_NAME/DEFAULT/CODEC going package-private -> public."
+  },
+  {
+   "id": 685,
+   "title": "crates/horizon-client-core/src/text.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "26.1's MutableComponent has withColor(TextColor) as well as withColor(int); 26.2 dropped the TextColor overload. The Rust's with_color(u32) is the int form, present in both. text.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 687,
+   "title": "crates/horizon-client-render/src/gfx/occlusion.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "GraphStorage: 26.2 replaced chunksWaitingForNeighbors (Long2ObjectMap<List<RenderSection>>) with sectionsWaitingForChunkLoads (Long2ObjectMap<LongList>) \u2014 internal render-graph bookkeeping, not modelled by the Rust. occlusion.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 689,
+   "title": "crates/horizon-client-render/src/hud_kit/tabs.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "26.1's Tab interface declares abstract getLayout(); 26.2 dropped it (doLayout only). GUI tab plumbing. tabs.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 692,
+   "title": "crates/horizon-client/src/game/moving_pistons.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "PistonHeadRenderer.submit: 26.2's submitMovingBlock gained a 4th int arg (passed 0); same head + base submissions. Render-submission plumbing; moving_pistons.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 695,
+   "title": "crates/horizon-client/src/game/trial_visuals.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "TrialSpawnerState$ParticleEmission lambdas differ only by BlockPos.getCenter() (26.1) vs Vec3.atCenterOf(pos) (26.2) \u2014 same center value. trial_visuals.rs 0-diff vs 26.2."
   }
  ],
  "triage": "Rank-3 re-triage: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 3 = A1 60, A2 67, B1 56, B2 31 = 214 items) + diff-26.2-26.1-rank3.json (274 classes, 204 method-changed). Order: A1 reviews, then B1 ports, then A2/B2."
