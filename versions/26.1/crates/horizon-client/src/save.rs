@@ -9260,8 +9260,8 @@ mod calculated_blending_save_tests {
     use super::*;
     use horizon_world::worldgen::blending::BlendingData;
 
-    fn heights() -> [f32; 16] {
-        let mut h = [f32::MAX; 16];
+    fn heights() -> [f64; 16] {
+        let mut h = [f64::MAX; 16];
         h[12..].copy_from_slice(&[70.0, 70.0, 69.0, 68.0]);
         h
     }
@@ -9279,14 +9279,14 @@ mod calculated_blending_save_tests {
         chunk.saved = Some(Arc::new(extras));
         chunk
     }
-    fn saved_heights(save: &SaveDir, x: i32, z: i32) -> Option<Option<Vec<u32>>> {
+    fn saved_heights(save: &SaveDir, x: i32, z: i32) -> Option<Option<Vec<u64>>> {
         let root = save.read_record_raw("region", x, z)?;
         let data = root.tag.get("blending_data")?.clone();
         Some(match data.get("heights") {
             Some(Tag::List(list)) => Some(
                 list.iter()
                     .map(|v| match v {
-                        Tag::Float(bits) => *bits,
+                        Tag::Double(bits) => *bits,
                         other => panic!("{other:?}"),
                     })
                     .collect(),
@@ -9308,8 +9308,8 @@ mod calculated_blending_save_tests {
         let _ = save.tables.set(Arc::new(SaveTables::new(assets)));
         (dir, save)
     }
-    fn want() -> Vec<u32> {
-        heights().map(f32::to_bits).to_vec()
+    fn want() -> Vec<u64> {
+        heights().map(f64::to_bits).to_vec()
     }
 
     /// The owner of a cache entry, as `SavedOldWorld` owns its cache.
@@ -9382,7 +9382,7 @@ mod calculated_blending_save_tests {
             Some(Tag::List(list)) => list
                 .iter()
                 .map(|v| match v {
-                    Tag::Float(bits) => *bits,
+                    Tag::Double(bits) => *bits,
                     other => panic!("{other:?}"),
                 })
                 .collect::<Vec<u32>>(),

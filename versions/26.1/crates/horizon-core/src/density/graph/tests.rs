@@ -23,14 +23,14 @@ struct ShiftedNoise {
     negate: bool,
 }
 impl crate::noise::Noise for ShiftedNoise {
-    fn range(&self) -> Result<[f32; 2], crate::noise::NanRange> {
+    fn range(&self) -> Result<[f64; 2], crate::noise::NanRange> {
         Ok([-1.0, 1.0])
     }
-    fn get2(&self, x: f64, _z: f64) -> f32 {
-        let value = (x + 1.0) as f32;
+    fn get2(&self, x: f64, _z: f64) -> f64 {
+        let value = x + 1.0;
         if self.negate { -value } else { value }
     }
-    fn get3(&self, x: f64, _y: f64, _z: f64) -> f32 {
+    fn get3(&self, x: f64, _y: f64, _z: f64) -> f64 {
         self.get2(x, 0.0)
     }
 }

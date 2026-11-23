@@ -254,7 +254,7 @@ impl MaterialSurfaceQueries for ScriptedDensities {
         self.bindings += 1;
         Ok(self.bindings - 1)
     }
-    fn density(&mut self, index: usize, position: BlockPos) -> Result<f32, MaterialRuleError> {
+    fn density(&mut self, index: usize, position: BlockPos) -> Result<f64, MaterialRuleError> {
         Ok(match (index, position.y) {
             (0, 20) | (3, 30) => 1.0,
             _ => 0.0,
