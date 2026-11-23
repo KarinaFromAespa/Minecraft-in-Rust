@@ -722,3 +722,10 @@ the 26.1 oracle, so the dripstone-vs-speleothems form is handled.
 148: Slime moved to monster/cubemob in 26.2; spawn rules and setSize
 are the same behaviour. 152/210/213/214: package moves, render API
 shape, Frog.canEat identical (MagmaCube extends Slime in 26.1).
+
+Batch 38 (Nov 23, 395/498): 174 PORTED — TripWireBlock.checkPressed
+schedules a re-check only while pressed in 26.1; the unpressed
+immediate re-check is 26.2-only. 179 PORTED — ServerEntity.sendChanges
+has no syncPosition clock-rounding in 26.1 (the field does not exist);
+the flag and stepped-tracker step stay for items 94/288.
+158/161/172/175 no-change: identical methods, renames, menu chrome.

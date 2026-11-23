@@ -477,14 +477,11 @@ impl ServerEntity {
                 self.add_step(e.position);
             }
         }
-        // ServerEntity.sendChanges: a bounce moves the update clock onto its next
-        // send tick (UpdateInterval.nextInterval; 0 for NEVER), so it goes out now.
-        if e.sync_position {
-            self.tick = self
-                .tick
-                .checked_div(self.interval)
-                .map_or(0, |n| (n + 1) * self.interval);
-        }
+        // 26.1 has no `Entity.syncPosition`: 26.2 added the field and made a
+        // bounce move the update clock onto its next send tick
+        // (UpdateInterval.nextInterval) so it goes out now. The
+        // `sync_position` flag and the stepped-tracker step above belong to
+        // the 26.2-only bounce/interpolation system (items 94/288).
         // SynchedEntityData.isDirty: once for every client.
         let dirty = e.meta != self.meta;
         let due = self.interval != 0 && self.tick.is_multiple_of(self.interval);
