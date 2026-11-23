@@ -1427,3 +1427,30 @@ rework (both causeExtraKnockback bodies knockback-only, no damage).
 All ten Rust files 0-diff vs the 26.2 tree. No separate crate-tests
 dispatch (code tree identical to the batch-74 head, covered by run
 45272322750).
+
+Batch 76 (Nov 24, 110/214 — B1 #8, 1 ported, 9 no-change): 583
+PORTED — the spectator menu: 26.1's `PlayerMenuItem.isEnabled` is
+constant true (iconst_1 in the bytecode; 26.2 added the
+`getGameMode() != SPECTATOR` check), and neither 26.1's
+`SpectatorMenu` nor its `TeleportToTeamMenuCategory` filters
+spectators (no SPECTATOR reference in either class). The 26.1 tree
+had the 26.2 form: `enabled: p.game_mode != SPECTATOR` plus a
+`.filter(|p| p.game_mode != SPECTATOR)` on team members, and
+`players_page` retains only enabled members, so spectator-mode
+players were dropped from the menu entirely. Now every listed
+player is enabled and selectable, spectators included
+(game/spectator.rs, spectator_menu.rs doc fix). No-change: 573
+TestBlock getSignal→ownSignal extraction (same as 634); 575
+AbstractStringWidget handleStyleClick extraction + DialogScreen
+setScreen move; 577 QuickPlay setScreen move; 580 Screenshot GPU
+plumbing (TextureFormat→GpuFormat, pixelSize→blockSize) plus the
+26.2-only `grab(Minecraft, boolean)` panoramix path — the Rust only
+manages the screenshots folder; 581 WitherSkullBlock
+EntityType→EntityTypes + CriteriaTriggers move; 588 CatSpawner
+renames; 589 ShearsItem — the tool rules are data-driven
+(`minecraft:tool` rules from prepared data), so 26.1's data carries
+the leaves/wool/vine+glow_lichen rules and 26.2's the SHEARS_*
+tags with no code change; 591 ExperimentsScreen I18n.exists→
+Language.has + setScreen move; 592 OceanMonumentPiece renames.
+All ten Rust files 0-diff vs the 26.2 tree before the 583 port.
+`cargo check -p horizon-client --lib` clean (54.8s).

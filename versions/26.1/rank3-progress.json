@@ -246,9 +246,59 @@
    "evidence": "NautilusAi: EntityType->EntityTypes only. ChargeAttack: 26.2's dealKnockBack threads a mobAttack DamageSource + ATTACK_DAMAGE through the 6-arg causeExtraKnockback (26.2's knockback API rework); both causeExtraKnockback bodies are knockback-only (sin/cos yaw, knockback, own motion x0.6) with no hurt() call \u2014 the Rust's Knockback event with Damage::mob source + 0.6 self-slow matches both forms. nautilus.rs 0-diff."
   },
   {
+   "id": 573,
+   "verdict": "no-change",
+   "evidence": "TestBlock getSignal->ownSignal extraction (same as 634); test_block.rs 0-diff."
+  },
+  {
+   "id": 575,
+   "verdict": "no-change",
+   "evidence": "AbstractStringWidget handleStyleClick extraction + DialogScreen setScreen move; dialogs.rs 0-diff."
+  },
+  {
+   "id": 577,
+   "verdict": "no-change",
+   "evidence": "QuickPlay setScreen move only; launch_options.rs 0-diff."
+  },
+  {
+   "id": 580,
+   "verdict": "no-change",
+   "evidence": "Screenshot GPU plumbing (TextureFormat->GpuFormat) + 26.2-only grab(Minecraft,boolean) panoramix path; Rust only manages the screenshots folder."
+  },
+  {
+   "id": 581,
+   "verdict": "no-change",
+   "evidence": "WitherSkullBlock EntityType->EntityTypes + CriteriaTriggers move only; block_pattern.rs 0-diff."
+  },
+  {
+   "id": 583,
+   "verdict": "ported",
+   "evidence": "Spectator menu: 26.1 PlayerMenuItem.isEnabled is constant true (26.2 added the !=SPECTATOR check); removed the spectator filter from players and teams."
+  },
+  {
    "id": 586,
    "verdict": "no-change",
    "evidence": "Batch 63 NO-CHANGE (ClientChunkCache$Storage): 26.2 refactored empty-section tracking from 26.1's single loadedEmptySections set to double-buffered added/removed sets \u2014 internal bookkeeping, same observable behaviour. horizon-bots holds chunks but does not model empty-section tracking."
+  },
+  {
+   "id": 588,
+   "verdict": "no-change",
+   "evidence": "CatSpawner EntityType->EntityTypes only; cat_spawner.rs 0-diff."
+  },
+  {
+   "id": 589,
+   "verdict": "no-change",
+   "evidence": "ShearsItem tool rules are data-driven (minecraft:tool rules from prepared data); 26.1 data carries the leaves/wool/vine+glow_lichen rules, 26.2 the SHEARS_* tags. No code port."
+  },
+  {
+   "id": 591,
+   "verdict": "no-change",
+   "evidence": "ExperimentsScreen I18n.exists->Language.has + setScreen move; experiments.rs 0-diff."
+  },
+  {
+   "id": 592,
+   "verdict": "no-change",
+   "evidence": "OceanMonumentPiece EntityType->EntityTypes only; monument.rs 0-diff."
   },
   {
    "id": 608,

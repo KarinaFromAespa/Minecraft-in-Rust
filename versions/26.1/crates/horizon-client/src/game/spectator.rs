@@ -6,7 +6,7 @@ use horizon_client::{
     hud_layout, keybinds,
     scoreboard::{comp_text, team_color_rgb},
     spectator_menu::{Member, Outcome, SpectatorMenu, Team},
-    tab_list::{SPECTATOR, TabPlayer},
+    tab_list::TabPlayer,
     text::Text,
 };
 use horizon_protocol::packets::play::{self, Serverbound as S};
@@ -29,7 +29,10 @@ impl Game<'_> {
             uuid: p.uuid,
             name: p.name.clone(),
             skin: p.skin.clone(),
-            enabled: p.game_mode != SPECTATOR,
+            // `PlayerMenuItem.isEnabled` is constant true in 26.1 (26.2
+            // added the `getGameMode() != SPECTATOR` check): every listed
+            // player is selectable, spectators included.
+            enabled: true,
         };
         let players: Vec<Member> = tab.iter().map(member).collect();
         let teams = self
@@ -42,7 +45,6 @@ impl Game<'_> {
                     .players
                     .iter()
                     .filter_map(|name| tab.iter().find(|p| &p.name == name))
-                    .filter(|p| p.game_mode != SPECTATOR)
                     .map(member)
                     .collect();
                 if members.is_empty() {
