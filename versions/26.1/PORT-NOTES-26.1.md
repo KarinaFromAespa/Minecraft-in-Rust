@@ -1103,8 +1103,8 @@ run 45254318944 (batch 61) is testing, so no separate dispatch.
 
 ## Behaviour port — rank 3 in progress (2026-11-24, branch behaviour/26.1)
 
-Rank 3: 20/214 closed (rank 1: 7/7, rank 2: 498/498; total
-525/795). Re-triage: `retriage-rank345.json` (A1 60, A2 67, B1 56,
+Rank 3: 30/214 closed (rank 1: 7/7, rank 2: 498/498; total
+535/795). Re-triage: `retriage-rank345.json` (A1 60, A2 67, B1 56,
 B2 31) + `diff-26.2-26.1-rank3.json` (274 classes, 204
 method-changed). Order: A1 reviews, then B1 ports, then A2/B2.
 Progress in `rank3-progress.json`.
@@ -1169,6 +1169,29 @@ structural bytecode diff shows no logic change. 631 JigsawBlock:
 local reorder, same logic. 633 dialog screens: the setScreen
 move + 26.2-only GUI helpers; menu chrome. 634 RedstoneTorch:
 `getSignal` extracted to `ownSignal` in 26.2, identical logic.
+Docs-only batch; the code tree is identical to the one
+crate-tests run 45257135418 (batch 63) is testing, so no
+separate dispatch.
+
+Batch 65 (Nov 24, 30/214 — A1 #3): all 10 NO-CHANGE, each
+jardiff-verified. 635 CauldronInteractions: 26.1 registers the
+16 banner + 16 shulker items individually, 26.2 loops over
+ColorCollections — same registered set, identical interaction
+lambdas. 636 WindCharge: constructors identical except the
+EntityType → EntityTypes rename (noDeflectTicks = 5 both).
+637 CodeOfConduct: `minecraft.screen` vs `gui.screen()`
+accessor only. 639 gizmos: 26.2 adds a LevelExtractor
+visibility check and extracts GizmoFeatureRenderer; debug
+plumbing. 640 spectator menu: icon tint reads ChatFormatting
+in 26.1, TeamColor in 26.2 — same 16 colors; menu chrome.
+641 CreateWorldScreen: narration extracted to a helper, same
+button; menu chrome. 643 Mirror.mirror and
+SlabBlock.isPathfindable: identical logic (26.2 single-return
+form). 644 DesertPyramid: 26.2 reads terracotta via the
+DYED_TERRACOTTA ColorCollection — same 35 placements, same
+counts; BlockEntityType → BlockEntityTypes rename. 648 pack
+screen: selection-check restructure; menu chrome. 649 debug
+screen: SerializedOptions constructor access modifier only.
 Docs-only batch; the code tree is identical to the one
 crate-tests run 45257135418 (batch 63) is testing, so no
 separate dispatch.

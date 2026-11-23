@@ -99,6 +99,66 @@
    "id": 634,
    "verdict": "no-change",
    "evidence": "Batch 64 NO-CHANGE (RedstoneTorchBlock): 26.2 extracted getSignal's body into an ownSignal helper; the logic is identical (lit && side != UP ? 15 : 0). ticks.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 635,
+   "title": "widely named: core/cauldron: 1 vanilla classes changed (5 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "CauldronInteractions: 26.1 registers 16 banner + 16 shulker items individually, 26.2 loops over Items.BANNER/DYED_SHULKER_BOX ColorCollections; same registered set. Interaction lambda call-signatures identical (emptyBucket sounds, lowerFillLevel, transmuteCopy, game events). Rust tick.rs diff is a mushroom comment only."
+  },
+  {
+   "id": 636,
+   "title": "widely named: world/entity/projectile/hurtingprojectile/windcharge: 2 vanilla classes changed (5 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "WindCharge/BreezeWindCharge constructors identical except EntityType -> EntityTypes rename; noDeflectTicks = 5 in both."
+  },
+  {
+   "id": 637,
+   "title": "crates/horizon-client/src/game/code_of_conduct.rs: 2 vanilla classes changed (4 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "handleCodeOfConduct differs only by minecraft.screen field vs minecraft.gui.screen() accessor; same CodeOfConductScreen flow. code_of_conduct.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 639,
+   "title": "crates/horizon-client/src/gizmos.rs: 4 vanilla classes changed (4 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "emitGizmos: 26.2 adds a LevelExtractor.isEntityVisible check + extracts GizmoFeatureRenderer (absent in 26.1); debug-render plumbing, same hitbox drawing. gizmos.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 640,
+   "title": "crates/horizon-client/src/spectator_menu.rs: 4 vanilla classes changed (4 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "TeamSelectionItem.extractIcon: 26.1 reads ChatFormatting.getColor(), 26.2 the TeamColor form (same 16 colors, same RGB extraction); spectator-menu icon tint, menu chrome. spectator_menu.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 641,
+   "title": "crates/horizon-client/src/title/create_world.rs: 2 vanilla classes changed (4 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "WorldTab: 26.2 extracted createTypeButtonNarration from the inline CycleButton builder; same map-type button + narration. PresetEditor lambda differs only by plumbing. Menu chrome; create_world.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 643,
+   "title": "crates/horizon-world/src/worldgen/structure.rs: 2 vanilla classes changed (4 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Mirror.mirror(int,int) identical arithmetic (26.2 uses a single return); SlabBlock.isPathfindable identical (LAND false, WATER fluid-is-water, AIR false; 26.2 single-return form). structure.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 644,
+   "title": "crates/horizon-world/src/worldgen/structure/temple.rs: 3 vanilla classes changed (4 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "DesertPyramidPiece: 26.2 reads terracotta via Blocks.DYED_TERRACOTTA ColorCollection (35 refs) where 26.1 uses ORANGE_TERRACOTTA (34) + BLUE_TERRACOTTA (1); same blocks, same counts. placeSuspiciousSand differs only by BlockEntityType -> BlockEntityTypes. temple.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 648,
+   "title": "crates/horizon-client-render/src/pack_screen.rs: 1 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "PackEntry extractContent/handlePackSelection restructured (26.2 checks parent.getSelected() where 26.1 checks the touchscreen option); pack-screen GUI, menu chrome. pack_screen.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 649,
+   "title": "crates/horizon-client/src/debug_entries.rs: 3 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "SerializedOptions: only the canonical constructor's access modifier changed (package-private 26.1 -> private 26.2); same record fields and CODEC. debug_entries.rs 0-diff vs 26.2."
   }
  ],
  "triage": "Rank-3 re-triage: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 3 = A1 60, A2 67, B1 56, B2 31 = 214 items) + diff-26.2-26.1-rank3.json (274 classes, 204 method-changed). Order: A1 reviews, then B1 ports, then A2/B2."
