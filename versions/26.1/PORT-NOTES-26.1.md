@@ -338,9 +338,47 @@ differ (item 96 needs fresh porting); LivingEntity combat/knockback
 methods differ (other items).
 
 Deferred: 35 (blending f32→f64 cascade), 96 (window.rs fresh port),
-150 (synth.rs f64 noise engine + 6 consumers), 288 (EntityPositionSync/
-InterpolationHandler subsystem). Item 281 stays open (SwingState aspect
-carried over; 15 more world/entity classes to review).
+117 (environment-attributes ARGB color system), 125 (blending.rs, same
+f64 cascade as 35), 150 (synth.rs f64 noise engine + 6 consumers),
+227 (brewing: 26.1 matches 26.2's PotionBrewing shape — no BrewingRecipe
+class, no recipe/brewing data, BrewingStandBlockEntity has only
+brewTime/fuel — but the mix table differs: 41 addMix + 11 addStartMix +
+containers vs 26.2's 65, so the table must be extracted fresh from the
+26.1 jar; the tree's data-driven loader and total_fuel/total_brew_time
+UI are the 26.3 forms), 288 (EntityPositionSync/InterpolationHandler
+subsystem). Item 281 stays open (SwingState aspect carried over; 15 more
+world/entity classes to review).
+
+Batch 6 (2026-11-23): 37 no-change closures — remaining B2/A2 items whose
+26.2 counterparts were verified no-change, closed by manual diff review
+(the title file differs between the trees, but every hunk is outside the
+item's named methods: comments, rank-1 fixtures, or another item's port).
+
+Batch 7 (2026-11-23): 3 ported carry-overs, all jar-verified — 129
+natural spawning (fresh_dimensions pufferfish x0.5, spawn_cost at the
+quart-origin biome, spawn_obstruction doc), 170 station tooltips
+(ChargedProjectiles multiple line uses getDisplayName; container_lines
+already name-first), 243 cats (CatLieOnBed + #beds, hardcoded can_sit_on,
+giveMorningGift teleports from the leash holder via the 4-arg
+randomTeleport).
+
+Batch 8 (2026-11-23): 7 no-change closures — B2/A2 items with no 26.2
+counterpart: 305 (math.rs identical), 348 (leash-holder code identical;
+diff is the `slots` subcommand), 354 (extractSpawnerData region
+identical; diff is setEntityData), 448/476/486/488 (0 methods named in
+Horizon).
+
+Run-3 test-health fixes (crate-tests 45172126527, head c856d48b: 5 pass /
+world + client-lib fail, 0 new failures vs run 2): requires_file_fixing
+bound by CURRENT (26.1.1 d16b413a — 4899 postdates 26.1, the unbound
+comparison claimed file fixing for every world; the 28 title failures);
+Realms test Client-Ref "26.1" / protocol "775" (26.1.1 2a2419cc, jar:
+SharedConstants.getProtocolVersion = 775); router test samples at
+[4, 4, -32] (the y_clamped_gradient fixture needs a Y in range; 26.1 has
+no axis-based `gradient` type — the bootstrap lists y_clamped_gradient
+only — so the 26.1.1 test's X-gradient fixture does not apply here).
+Still open: `failed_upgrade_keeps_old_data_version` (pre-existing, also
+in the 26.1.2 baseline).
 
 Test health: crate-tests run 45163597005 (rank-1 state): protocol,
 items, client-core, client-render PASS; world FAIL (1 pre-existing

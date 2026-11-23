@@ -557,6 +557,17 @@ pub fn contains_any_liquid<L: SpawnLevel>(l: &L, b: Aabb) -> bool {
         })
     })
 }
+/// The dimensions of a freshly created mob: a pufferfish is born at puff
+/// state 0, so its registry dimensions scale by 0.5 (`Pufferfish.getScale(0)`);
+/// every other type spawns at its registry size.
+pub fn fresh_dimensions(species: Species, width: f32, height: f32) -> (f32, f32) {
+    if species == Species::Pufferfish {
+        (width * 0.5, height * 0.5)
+    } else {
+        (width, height)
+    }
+}
+
 /// `EntityDimensions.makeBoundingBox`: the half width is a float.
 pub fn spawn_box(x: f64, y: f64, z: f64, width: f32, height: f32) -> Aabb {
     let half = f64::from(width / 2.0);
@@ -585,7 +596,11 @@ pub fn spawn_aabb(s: Species, x: f64, y: f64, z: f64, width: f32, height: f32) -
 }
 /// `checkSpawnObstruction` of a freshly created mob with the given box, with
 /// the mobs already `spawned` in the way; None in a generation region, which
-/// has no entities (`WorldGenRegion.getEntities`).
+/// has no entities (`WorldGenRegion.getEntities`). The entity part is
+/// `Level.isUnobstructed`, which counts every non-spectator entity with
+/// `blocksBuilding` — all living mobs, players and boats — not the
+/// `canBeCollidedWith` few (`noCollision`'s rule, which is a different
+/// method).
 pub fn spawn_obstruction<L: NaturalLevel>(
     s: Species,
     l: &L,

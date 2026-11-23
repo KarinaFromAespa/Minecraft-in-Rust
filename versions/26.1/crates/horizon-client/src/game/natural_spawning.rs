@@ -15,6 +15,7 @@ use horizon_client::{
         spawn_selection::{
             self, Category, Counted, Heightmap, NaturalLevel, PlayerSquares, SpawnCost,
             SpawnPlayer, SpawnRequest, SpawnState, Spawned, StructureAt, StructureSpawns,
+            fresh_dimensions,
         },
     },
 };
@@ -489,12 +490,8 @@ impl NaturalLevel for GameLevel<'_, '_> {
     }
     fn mob_type(&self, entity: &str) -> Option<(Species, f32, f32, Category)> {
         let t = self.game.res.mob_types().get(entity)?;
-        Some((
-            t.species,
-            t.width as f32,
-            t.height as f32,
-            Category::from_name(&t.category),
-        ))
+        let (width, height) = fresh_dimensions(t.species, t.width as f32, t.height as f32);
+        Some((t.species, width, height, Category::from_name(&t.category)))
     }
     // The `natural_mob_spawns` attribute reads the zoomed biome
     // (fullResolutionBiomes), the spawn probability the noise cell.
