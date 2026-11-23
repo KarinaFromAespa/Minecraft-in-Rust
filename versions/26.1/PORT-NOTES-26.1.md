@@ -599,3 +599,13 @@ Batch 22 (Nov 23, 282/498), all no-change: 419 compiler local spills;
 SUB_TICK_ORDERING comparator, 26.1 packs in queue order (not ported);
 425 axolotl field vs mob+checkcast; 427 Model.renderToBuffer is
 26.1-only (not ported); 428 rename only; 430 Tuple -> Pair API swap.
+
+Batch 23 (Nov 23, 290/498), all no-change: 434 local-spill reorder;
+438 goat-horn lambda identical, ~70 removed sounds are all 26.2-only
+(sulfur/cinnabar/geyser/noxious/potent + MUSIC_DISC_BOUNCE); 439
+26.2-only FloatProviders.codec; 441 bootstrap adds only
+SULFUR_CUBE_HOT; 442 Packed codec is the orElse/optionalAlwaysPresent
+refactor, bootstrap identical, 5 removed attributes are 26.2-only
+(their Rust refs live in the unreachable sulfur-cube module, item 94);
+443 CamelHusk isBaby/canBeABaby is the batch-11 form already ported;
+444 renames only; 445 codec refactor + PLAINS vs DEFAULT_TYPE (same).
