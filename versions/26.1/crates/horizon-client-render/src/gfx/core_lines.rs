@@ -29,7 +29,7 @@ pub(crate) const GLUE: Glue = Glue {
 
 /// Each uniform block's offset in the one buffer (`core_shader::BLOCKS` order).
 const BLOCK_OFFSETS: [u64; 4] = [0, 256, 512, 768];
-const BLOCK_SIZES: [u64; 4] = [48, 64, 160, 48];
+const BLOCK_SIZES: [u64; 4] = [56, 64, 160, 48];
 
 pub(super) struct CoreLines {
     lines: wgpu::RenderPipeline,
@@ -180,7 +180,7 @@ impl CoreLines {
 /// (`fog`: environmental start and end, render distance start and end, sky end, clouds end).
 /// `ProjMat · ModelViewMat` is `vs_line`'s `view_proj` with its layering scale.
 pub(super) fn uniforms(
-    globals: [u8; 48],
+    globals: [u8; 56],
     view: &super::View,
     pose: Mat4,
     jitter: Mat4,
@@ -199,7 +199,7 @@ pub(super) fn uniforms(
     data[192..196].copy_from_slice(&fog_color);
     data[196..202].copy_from_slice(&fog);
     let mut bytes: Vec<u8> = bytemuck::cast_slice(&data).to_vec();
-    bytes[..48].copy_from_slice(&globals);
+    bytes[..56].copy_from_slice(&globals);
     bytes
 }
 
@@ -211,7 +211,7 @@ mod tests {
     const INCLUDES: [(&str, &str); 3] = [
         (
             "minecraft:shaders/include/globals.glsl",
-            "layout(std140) uniform Globals {\n    ivec3 CameraBlockPos;\n    float GlintAlpha;\n    vec3 CameraOffset;\n    float GameTime;\n    vec2 ScreenSize;\n    int MenuBlurRadius;\n    int UseRgss;\n};\n",
+            "layout(std140) uniform Globals {\n    ivec3 CameraBlockPos;\n    vec3 CameraOffset;\n    vec2 ScreenSize;\n    float GlintAlpha;\n    float GameTime;\n    int MenuBlurRadius;\n    int UseRgss;\n};\n",
         ),
         (
             "minecraft:shaders/include/dynamictransforms.glsl",
@@ -262,7 +262,7 @@ mod tests {
             Mat4::from_rotation_z(0.02) * Mat4::from_translation(Vec3::new(0.01, -0.03, 0.0));
         let jitter = Mat4::from_translation(Vec3::new(0.0004, -0.0002, 0.0));
         let layering = 1.0 - 1.0 / 4096.0;
-        let bytes = uniforms([0; 48], &view, pose, jitter, layering, [0.0; 4], [0.0; 6]);
+        let bytes = uniforms([0; 56], &view, pose, jitter, layering, [0.0; 4], [0.0; 6]);
         let data: Vec<f32> = bytes
             .as_chunks()
             .0

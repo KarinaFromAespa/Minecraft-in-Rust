@@ -1103,10 +1103,10 @@ run 45254318944 (batch 61) is testing, so no separate dispatch.
 
 ## Behaviour port — rank 3 in progress (2026-11-24, branch behaviour/26.1)
 
-Rank 3: 60/214 closed (rank 1: 7/7, rank 2: 498/498; total
-565/795). A1 complete (60/60). Re-triage:
-`retriage-rank345.json` (A1 60, A2 67, B1 56, B2 31) +
-`diff-26.2-26.1-rank3.json` (274 classes, 204 method-changed).
+Rank 3: 64/214 closed (rank 1: 7/7, rank 2: 498/498; total
+569/795). A1 complete (60/60); B1 in progress (4/56).
+Re-triage: `retriage-rank345.json` (A1 60, A2 67, B1 56, B2 31)
++ `diff-26.2-26.1-rank3.json` (274 classes, 204 method-changed).
 Order: A1 reviews, then B1 ports, then A2/B2. Progress in
 `rank3-progress.json`.
 
@@ -1257,3 +1257,35 @@ spear goal constants: access modifiers only.
 Docs-only batch; the code tree is identical to the one
 crate-tests run 45259245639 (batch 67) is testing, so no
 separate dispatch.
+
+Batch 69 (Nov 24, 64/214 — B1 #1): 507, 509, 510 PORTED;
+506 NO-CHANGE. 506 settings service: 26.2 derives the
+server from a NotificationManager, 26.1 holds it directly;
+all 40 methods otherwise identical. 507 Realms (26.2 items
+418+421): the invite-code service and tier configuration
+are absent from 26.1's jar (no InviteCode classes, no
+frontendV2Url, no RealmTierConfigurationDto); carried the
+26.2 tree's realms/client.rs, realms.rs and title.rs (PDP
+removal). One place 26.1 differs from 26.2: 26.1's Request
+has only `addSnapshotHeader` (Is-Prerelease) — 26.2's
+`addVersionHeaders` added X-NetworkProtocolVersion — so
+the 26.1 headers send only Is-Prerelease (test asserts the
+protocol header absent); the cookie test's version literal
+is fixed to 26.1 (the 26.2 tree's "26.3" is its known
+pre-existing failure). 509 post chains (26.2 item 420):
+26.1 pads vec3 to 16 and uses the 56-byte Globals layout
+like 26.2 (Std140Builder/GlobalSettingsUniform verified
+identical); carried post_chain.rs, core_lines.rs,
+core_sky.rs and the Globals GLSL line in core_shader.rs
+(gfx.rs and the OIT work untouched). 510 sculk: the
+sculk_growth_inhibitors tag exists in neither jar — the
+inhibitors are the hardcoded sensor + shrieker; sensor
+signal, catalyst ticker and ChargeCursor codec verified
+no-change. NOTE: the triage's `cl.identical` lists are
+signature-level only — RealmsClient/Request differ
+structurally despite being listed identical; B1 items are
+verified with the structural bytecode diff, not the
+triage claim.
+`cargo check` clean for horizon-client-lib (incl. --lib
+--tests apart from the 34 known pre-existing lan_bot.rs
+errors), horizon-client-render and horizon-world.

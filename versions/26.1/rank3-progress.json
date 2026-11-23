@@ -339,6 +339,30 @@
    "title": "crates/horizon-client/src/mobs/spear_use.rs: 1 vanilla classes changed (0 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "SpearUseGoal's four distance constants went package-private (26.1) -> private (26.2); same fields, no method changes. spear_use.rs diff is the earlier single-push knockback work."
+  },
+  {
+   "id": 506,
+   "title": "crates/horizon-server/src/management_methods.rs: 1 vanilla classes changed (43 methods, 20 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "MinecraftServerSettingsServiceImpl: 26.2 holds a NotificationManager and derives the server via a private server() helper (with requireNonNull); 26.1 holds the DedicatedServer directly. All 40 methods are otherwise structurally identical. management_methods.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 507,
+   "title": "crates/horizon-client/src/realms/client.rs: 12 vanilla classes changed (42 methods, 14 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "Realms port (26.2 items 418+421). Verified against 26.1's own jar: the invite-code service is absent (no InviteCode classes, no frontendV2Url in RealmsClient$Environment), the tier configuration is absent (no RealmTierConfigurationDto), the 4 extra regions are 26.3-only (26.2 PORT-NOTES 418), AddRealmPopupScreen + trial handling exist in both jars, the realmsclient class sets are identical (203 each). Carried the 26.2 tree's realms/client.rs, realms.rs and title.rs (PDP removal). One place 26.1 differs from 26.2: Request has only addSnapshotHeader (Is-Prerelease) in 26.1; 26.2's addVersionHeaders added X-NetworkProtocolVersion \u2014 the 26.1 headers() sends only Is-Prerelease, and the test asserts the protocol header absent. Also fixed the cookie test's version literal to 26.1 (the 26.2 tree's '26.3' literal is its known pre-existing failure). RealmsText/ErrorWithJsonPayload differ only by I18n.exists vs Language.has (same check). NOTE: the triage's cl.identical list for this item is unreliable \u2014 RealmsClient/Request differ structurally (the header call); verified directly instead."
+  },
+  {
+   "id": 509,
+   "title": "crates/horizon-client-render/src/post_chain.rs: 15 vanilla classes changed (105 methods, 6 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "Post-chain std140 port (26.2 item 420). Verified against 26.1's own jar: Std140SizeCalculator structurally identical; Std140Builder.putVec3 pads to 16 in both (align 16, 3 floats, position+4); GlobalSettingsUniform.update() structurally identical with put order ivec3/vec3/vec2/float/float/int/int \u2014 the 56-byte 26.2 layout. Carried the 26.2 tree's post_chain.rs, gfx/core_lines.rs, gfx/core_sky.rs (all 48->56 + GLSL order), and the Globals GLSL line in core_shader.rs only (its OIT work preserved; gfx.rs untouched \u2014 its OIT/underwater/forcefield work preserved)."
+  },
+  {
+   "id": 510,
+   "title": "crates/horizon-world/src/level/sculk.rs: 5 vanilla classes changed (28 methods, 11 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "The sculk_growth_inhibitors tag exists in neither jar (26.3-only) \u2014 replaced the tag check with the hardcoded sensor+shrieker list (the 26.2 tree's form). Rest verified no-change: SculkSensorBlock getSignal (26.1) vs ownSignal (26.2) have the same body (return POWER); SculkCatalystBlock.getTicker differs only by BlockEntityType->BlockEntityTypes; ChargeCursor codec fieldOf/orElse vs optionalFieldOf is the same optional-with-default shape."
   }
  ],
  "triage": "Rank-3 re-triage: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 3 = A1 60, A2 67, B1 56, B2 31 = 214 items) + diff-26.2-26.1-rank3.json (274 classes, 204 method-changed). Order: A1 reviews, then B1 ports, then A2/B2."

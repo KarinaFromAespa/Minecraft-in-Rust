@@ -19,7 +19,7 @@ pub(crate) const GLUE: Glue = Glue {
 
 /// Each uniform block's offset in the one buffer (`core_shader::BLOCKS` order).
 const BLOCK_OFFSETS: [u64; 4] = [0, 256, 512, 768];
-const BLOCK_SIZES: [u64; 4] = [48, 64, 160, 48];
+const BLOCK_SIZES: [u64; 4] = [56, 64, 160, 48];
 
 /// `SkyRenderer.buildSkyDisc(16)`: a fan around the point 16 above the camera, out to 512 every
 /// 45 degrees, as a triangle list.
@@ -254,7 +254,7 @@ impl CoreSky {
 /// and `Fog` (`fog_color`, `fog`: environmental start and end, render distance start and end,
 /// sky end, clouds end).
 pub(super) fn uniforms(
-    globals: [u8; 48],
+    globals: [u8; 56],
     projection: Mat4,
     model_view: Mat4,
     color: [f32; 4],
@@ -270,7 +270,7 @@ pub(super) fn uniforms(
     data[192..196].copy_from_slice(&fog_color);
     data[196..202].copy_from_slice(&fog);
     let mut bytes: Vec<u8> = bytemuck::cast_slice(&data).to_vec();
-    bytes[..48].copy_from_slice(&globals);
+    bytes[..56].copy_from_slice(&globals);
     bytes
 }
 
@@ -343,7 +343,7 @@ mod tests {
         let sky = CoreSky::new(&device, format, Some(&program), None).expect("the sky pipeline");
         let projection = crate::gfx::world_projection(90.0, 1.0, 2048.0);
         let data = uniforms(
-            [0; 48],
+            [0; 56],
             projection,
             Mat4::IDENTITY,
             [0.25, 0.5, 1.0, 1.0],

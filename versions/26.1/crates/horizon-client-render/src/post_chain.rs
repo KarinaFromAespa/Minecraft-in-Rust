@@ -54,12 +54,14 @@ pub enum Uniform {
 }
 
 impl Uniform {
-    /// std140 (alignment, size) in bytes: `Std140SizeCalculator`.
+    /// std140 (alignment, size) in bytes: `Std140SizeCalculator`. 26.1's
+    /// builder pads a vec3/ivec3 to a full 16-byte slot (`putVec3` advances 4
+    /// past the three floats); 26.3 packs it as 12.
     fn layout(&self) -> (usize, usize) {
         match self {
             Uniform::Int(_) | Uniform::Float(_) => (4, 4),
             Uniform::Vec2(_) => (8, 8),
-            Uniform::Vec3(_) | Uniform::IVec3(_) => (16, 12),
+            Uniform::Vec3(_) | Uniform::IVec3(_) => (16, 16),
             Uniform::Vec4(_) => (16, 16),
             Uniform::Matrix(_) => (16, 64),
         }
@@ -92,11 +94,15 @@ impl Uniform {
 pub fn pack_block(values: &[Uniform]) -> Result<[u8; BLOCK_BYTES], String> {
     let mut bytes = Vec::new();
     for value in values {
-        let (align, _) = value.layout();
+        let (align, size) = value.layout();
         while bytes.len() % align != 0 {
             bytes.push(0);
         }
+        let start = bytes.len();
         value.write(&mut bytes);
+        while bytes.len() < start + size {
+            bytes.push(0);
+        }
     }
     if bytes.len() > BLOCK_BYTES {
         return Err(format!("a uniform block of {} bytes", bytes.len()));
@@ -502,22 +508,29 @@ pub struct Globals {
 }
 
 impl Globals {
-    /// The std140 block: `ivec3, float, vec3, float, vec2, int, int`.
-    pub(crate) fn bytes(&self, size: [u32; 2], menu_blur_radius: i32) -> [u8; 48] {
-        let mut out = Vec::with_capacity(48);
+    /// The std140 block: `ivec3, vec3, vec2, float, float, int, int` — 26.1's
+    /// `GlobalSettingsUniform` order (`globals.glsl`), with 26.1's builder
+    /// padding each vec3 to a 16-byte slot. 26.3 reordered the fields (`ivec3,
+    /// float, vec3, float, vec2`) and packed vec3 as 12 bytes, so its block is
+    /// 48 bytes; 26.1's is 56. The layout is observable: translated pack shaders
+    /// declare the block themselves and naga lays it out from the declaration.
+    pub(crate) fn bytes(&self, size: [u32; 2], menu_blur_radius: i32) -> [u8; 56] {
+        let mut out = Vec::with_capacity(56);
         for v in self.camera_block_pos {
             out.extend_from_slice(&v.to_le_bytes());
         }
-        out.extend_from_slice(&self.glint_alpha.to_le_bytes());
+        out.extend_from_slice(&[0u8; 4]);
         for v in self.camera_offset {
             out.extend_from_slice(&v.to_le_bytes());
         }
-        out.extend_from_slice(&self.game_time.to_le_bytes());
+        out.extend_from_slice(&[0u8; 4]);
         out.extend_from_slice(&(size[0] as f32).to_le_bytes());
         out.extend_from_slice(&(size[1] as f32).to_le_bytes());
+        out.extend_from_slice(&self.glint_alpha.to_le_bytes());
+        out.extend_from_slice(&self.game_time.to_le_bytes());
         out.extend_from_slice(&menu_blur_radius.to_le_bytes());
         out.extend_from_slice(&i32::from(self.use_rgss).to_le_bytes());
-        out.try_into().expect("48 bytes")
+        out.try_into().expect("56 bytes")
     }
 }
 
@@ -1945,7 +1958,50 @@ mod tests {
             .map(|c| f32::from_le_bytes(c.try_into().unwrap()))
             .collect();
         assert_eq!(words[..5], [1.0, 2.0, 3.0, 4.0, 5.0]);
+        // A vec3 followed by a float: 26.1's builder pads the vec3 to 16 bytes,
+        // so the float lands at word 4, not word 3 (26.3 packs it as 12).
+        let block = pack_block(&[
+            Uniform::Vec3([1.0, 2.0, 3.0]),
+            Uniform::Float(9.0),
+        ])
+        .unwrap();
+        let words: Vec<f32> = block
+            .chunks(4)
+            .map(|c| f32::from_le_bytes(c.try_into().unwrap()))
+            .collect();
+        assert_eq!(words[..5], [1.0, 2.0, 3.0, 0.0, 9.0]);
         assert!(pack_block(&[Uniform::Matrix([0.0; 16]); 3]).is_err());
+    }
+
+    #[test]
+    fn globals_are_packed_as_26_2s_std140() {
+        // 26.1's globals.glsl: ivec3, vec3, vec2, float, float, int, int,
+        // each vec3 padded to 16 bytes — 56 bytes in all.
+        let globals = Globals {
+            camera_block_pos: [1, 2, 3],
+            glint_alpha: 0.5,
+            camera_offset: [0.25, 0.5, 0.75],
+            game_time: 0.125,
+            use_rgss: true,
+        };
+        let bytes = globals.bytes([800, 600], 7);
+        let words: Vec<u32> = bytes
+            .chunks(4)
+            .map(|c| u32::from_le_bytes(c.try_into().unwrap()))
+            .collect();
+        assert_eq!(words.len(), 14);
+        assert_eq!(words[0..3], [1, 2, 3]);
+        assert_eq!(words[3], 0);
+        assert_eq!(
+            words[4..7],
+            [0.25f32.to_bits(), 0.5f32.to_bits(), 0.75f32.to_bits()]
+        );
+        assert_eq!(words[7], 0);
+        assert_eq!(words[8..10], [800.0f32.to_bits(), 600.0f32.to_bits()]);
+        assert_eq!(words[10], 0.5f32.to_bits());
+        assert_eq!(words[11], 0.125f32.to_bits());
+        assert_eq!(words[12], 7);
+        assert_eq!(words[13], 1);
     }
 
     fn device() -> Option<(wgpu::Device, wgpu::Queue)> {
