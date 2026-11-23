@@ -127,6 +127,13 @@
    "evidence": "Ported (26.2 #115). DimensionOriginStructurePlacement absent from the 26.1 jar. Removed Placement::DimensionOrigin, the registry origin field, dimension_origin/set_dimension_origin/needs_dimension_origin and the decode arm; a dimension_origin set decodes to Unsupported and never starts (new test)."
   },
   {
+   "id": 137,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "Ported (26.2 #117). TreeGrower and MushroomBlock bytecode-identical 26.2->26.1 (jardiff). 26.1 TreeGrower is the secondary-chance form (secondaryChance float + mega/secondaryMega/tree/secondaryTree/flowers/secondaryFlowers optionals; 10 growers, no poplar). Carried over the 26.2 growth.rs form whole (struct + GROWERS table + getConfiguredFeature/MegaFeature draw order + growTree mega path)."
+  },
+  {
    "id": 160,
    "verdict": "no-change",
    "bucket": "A",
@@ -139,6 +146,13 @@
    "bucket": "A",
    "cl_sub": "A2",
    "evidence": "No-change. 26.2 #133 (rank 2) verified no-change in 26.2; all 66 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 168,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "Ported (26.2 #134). The port-pack noise upgrade is the forward converter (not ported); the port is the gating in datapacks.rs: upgrades() returns Some(false) for the 26.1 series only (copy as-is) and None otherwise (no downgrade path for 26.2/26.3 packs). Also carried the install() fresh-work-dir fix (create_dir_all before writing the report). Tests adapted: 26.1/26.1.1 copied as-is, pack_format 101; 26.2/26.3 not brought over."
   },
   {
    "id": 186,
