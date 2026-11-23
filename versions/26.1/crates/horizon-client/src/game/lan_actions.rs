@@ -60,10 +60,10 @@ pub(super) struct GuestPlay {
     /// `ServerGamePacketListenerImpl.dropSpamThrottler` (`TickThrottler(20, 1480)`): 20 for each
     /// item a creative player drops from the creative screen, one less each tick.
     creative_drops: u32,
-    /// `ServerGamePacketListenerImpl.chatSpamThrottler`: 20 for each chat message, one less each tick.
+    /// `ServerGamePacketListenerImpl.chatSpamThrottler` (`TickThrottler(20, 200)`): 20 for
+    /// each chat message or command (26.1 shares one throttler; 26.2 split commands into
+    /// their own `commandSpamThrottler`), one less each tick.
     pub(super) chat_spam: u32,
-    /// `commandSpamThrottler`: 20 for each command, one less each tick.
-    pub(super) command_spam: u32,
     /// `ServerCommandSuggestionsProvider`: the latest suggestion request not answered yet (a
     /// newer one replaces it, which then never gets an answer), and whether this tick's one
     /// answer is still free.
@@ -4269,11 +4269,10 @@ impl Game<'_> {
             let Some(gi) = host.hub.guests.iter().position(|g| g.conn == conn) else {
                 continue;
             };
-            // ServerGamePacketListenerImpl.tick: the chat and command throttlers
-            // decay one a tick, dead or alive.
+            // ServerGamePacketListenerImpl.tick: the chat throttler decays
+            // one a tick, dead or alive.
             let play = host.play.entry(conn).or_default();
             play.chat_spam = play.chat_spam.saturating_sub(1);
-            play.command_spam = play.command_spam.saturating_sub(1);
             // commandSuggestionsProvider.tick: one answer a tick, to the latest request.
             play.suggestion_budget = true;
             self.guest_try_suggestions(host, conn);

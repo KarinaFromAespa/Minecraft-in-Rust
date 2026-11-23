@@ -573,3 +573,12 @@ the batch's search-replace only matched the loop-indented copy), so
 horizon-client-lib's lib-test target failed to compile (E0061, 4 args
 for the 3-arg tick). The 8-space-indented copy now drops the loading arg
 too; all tick call sites re-verified.
+
+Batch 20 (Nov 23, 266/498): 480 ported — 26.2 split spam throttling into
+chat/command throttlers driven by two new server.properties keys; 26.1
+has one hardcoded `chatSpamThrottler(20, 200)` shared by chat and
+commands. Merged the Rust's two counters into the single chat_spam
+counter with the hardcoded 200 threshold and removed both properties,
+both hub thresholds and the probe entries. 478/479/489/490/491/492/493
+no-change: identical methods, renames and package moves, a 26.2-only
+sulfur registry key, and the whole cubemob package absent from 26.1.

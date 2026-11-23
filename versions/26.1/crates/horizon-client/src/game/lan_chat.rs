@@ -41,25 +41,19 @@ impl Game<'_> {
 
     /// ServerGamePacketListenerImpl.detectRateSpam: a chat message or command adds 20 to the
     /// guest's throttler; over the threshold, a guest who is not an operator is kicked.
-    pub(super) fn detect_rate_spam(&mut self, host: &mut LanHost, conn: u32, command: bool) {
+    /// 26.1 has a single `chatSpamThrottler(20, 200)` shared by chat and commands (26.2
+    /// split it into chat/command throttlers driven by the
+    /// `chat-spam-threshold-seconds` / `command-spam-threshold-seconds` properties).
+    pub(super) fn detect_rate_spam(&mut self, host: &mut LanHost, conn: u32) {
         let Some(i) = host.hub.guests.iter().position(|g| g.conn == conn) else {
             return;
         };
-        let threshold = if command {
-            host.hub.command_spam_threshold
-        } else {
-            host.hub.chat_spam_threshold
-        };
         let uuid = host.hub.guests[i].uuid;
         let play = host.play.entry(conn).or_default();
-        let count = if command {
-            &mut play.command_spam
-        } else {
-            &mut play.chat_spam
-        };
+        let count = &mut play.chat_spam;
         *count = count.saturating_add(20);
-        // TickThrottler.isUnderThreshold: a threshold of 0 or less never kicks.
-        let under = threshold <= 0 || i64::from(*count) < i64::from(threshold);
+        // TickThrottler.isUnderThreshold: count < 200.
+        let under = i64::from(*count) < 200;
         if !under && !host.hub.ops.contains_key(&uuid) {
             host.hub.kick(
                 conn,
@@ -91,13 +85,13 @@ impl Game<'_> {
                 content: component_nbt(&failure.component()),
                 overlay: false,
             }));
-            self.detect_rate_spam(host, conn, true);
+            self.detect_rate_spam(host, conn);
             return;
         }
         if self.chat_filter_command(host, i, command) {
             self.guest_command(host, conn, command, None);
         }
-        self.detect_rate_spam(host, conn, true);
+        self.detect_rate_spam(host, conn);
     }
 
     /// handleSignedChatCommand: the acknowledgements, then each message
@@ -138,7 +132,7 @@ impl Game<'_> {
         }
         // The lambda counts the command even when its arguments failed to decode.
         if ran {
-            self.detect_rate_spam(host, conn, true);
+            self.detect_rate_spam(host, conn);
         }
     }
 

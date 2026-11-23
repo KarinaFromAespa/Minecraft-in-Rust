@@ -1273,8 +1273,8 @@ impl Game<'_> {
             host.hub.set_anticheat(anticheat);
             host.hub.set_chat_filter(chat_filter);
             host.hub.spawn_protection = props.spawn_protection;
-            host.hub.chat_spam_threshold = props.chat_spam_threshold_seconds.wrapping_mul(20);
-            host.hub.command_spam_threshold = props.command_spam_threshold_seconds.wrapping_mul(20);
+            // 26.1 has no chat/command spam-threshold properties: the single
+            // chatSpamThrottler(20, 200) is hardcoded (26.2 added both).
             // Off: an operator's commands reach no other player, only the log.
             host.hub.admin_feedback_to_ops = props
                 .raw

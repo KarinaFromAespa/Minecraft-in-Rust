@@ -2112,7 +2112,7 @@ impl Game<'_> {
                             );
                         }
                         let conn = g.conn;
-                        self.detect_rate_spam(&mut host, conn, false);
+                        self.detect_rate_spam(&mut host, conn);
                     }
                 }
                 HostEvent::Joined(conn) => {
