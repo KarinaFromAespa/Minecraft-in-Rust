@@ -171,6 +171,8 @@ pub struct ItemInfo {
     pub attack_damage: f32,
     pub attack_speed: f32,
     /// `cooking_fuel`: burn-time and speed-multiplier provider references.
+    /// 1.21.7 has no such component, so the catalog fills this from the
+    /// vanilla `FuelValues` table instead (see `FUEL_VALUES`).
     pub fuel: Option<(Value, Value)>,
     /// `brewing_fuel`: uses and speed-multiplier provider references.
     pub brewing_fuel: Option<(Value, Value)>,
@@ -243,6 +245,133 @@ pub const CRAFT_REMAINDERS: [(&str, &str); 5] = [
 /// In a root built by `mod_content::build`: the content mods' items' crafting
 /// remainders, by item. Other roots have none.
 pub const MOD_CRAFT_REMAINDERS: &str = "horizon-mod-craft-remainders.json";
+/// `FuelValues.vanillaBurnTimes` (1.21.7, `BURN_TIME_STANDARD` 200): the
+/// furnace fuels and their burn durations in ticks, in vanilla's own order.
+/// 1.21.7 has no fuel data component — `DataComponents` has neither `fuel`
+/// nor `cooking_fuel` — so fuel is this code table, not a component: plain
+/// entries name one item, `#`-prefixed entries name an item tag. Vanilla's
+/// builder applies them in order (a later entry overwrites an earlier one)
+/// and removes `#non_flammable_wood` last (crimson and warped wood, which
+/// `#logs`, `#planks` and friends would otherwise add as fuel).
+pub const FUEL_VALUES: [(&str, i32); 62] = [
+    ("minecraft:lava_bucket", 20000),
+    ("minecraft:coal_block", 16000),
+    ("minecraft:blaze_rod", 2400),
+    ("minecraft:coal", 1600),
+    ("minecraft:charcoal", 1600),
+    ("#minecraft:logs", 300),
+    ("#minecraft:bamboo_blocks", 300),
+    ("#minecraft:planks", 300),
+    ("minecraft:bamboo_mosaic", 300),
+    ("#minecraft:wooden_stairs", 300),
+    ("minecraft:bamboo_mosaic_stairs", 300),
+    ("#minecraft:wooden_slabs", 150),
+    ("minecraft:bamboo_mosaic_slab", 150),
+    ("#minecraft:wooden_trapdoors", 300),
+    ("#minecraft:wooden_pressure_plates", 300),
+    ("#minecraft:wooden_fences", 300),
+    ("#minecraft:fence_gates", 300),
+    ("minecraft:note_block", 300),
+    ("minecraft:bookshelf", 300),
+    ("minecraft:chiseled_bookshelf", 300),
+    ("minecraft:lectern", 300),
+    ("minecraft:jukebox", 300),
+    ("minecraft:chest", 300),
+    ("minecraft:trapped_chest", 300),
+    ("minecraft:crafting_table", 300),
+    ("minecraft:daylight_detector", 300),
+    ("#minecraft:banners", 300),
+    ("minecraft:bow", 300),
+    ("minecraft:fishing_rod", 300),
+    ("minecraft:ladder", 300),
+    ("#minecraft:signs", 200),
+    ("#minecraft:hanging_signs", 800),
+    ("minecraft:wooden_shovel", 200),
+    ("minecraft:wooden_sword", 200),
+    ("minecraft:wooden_hoe", 200),
+    ("minecraft:wooden_axe", 200),
+    ("minecraft:wooden_pickaxe", 200),
+    ("#minecraft:wooden_doors", 200),
+    ("#minecraft:boats", 1200),
+    ("#minecraft:wool", 100),
+    ("#minecraft:wooden_buttons", 100),
+    ("minecraft:stick", 100),
+    ("#minecraft:saplings", 100),
+    ("minecraft:bowl", 100),
+    ("#minecraft:wool_carpets", 67),
+    ("minecraft:dried_kelp_block", 4001),
+    ("minecraft:crossbow", 300),
+    ("minecraft:bamboo", 50),
+    ("minecraft:dead_bush", 100),
+    ("minecraft:short_dry_grass", 100),
+    ("minecraft:tall_dry_grass", 100),
+    ("minecraft:scaffolding", 50),
+    ("minecraft:loom", 300),
+    ("minecraft:barrel", 300),
+    ("minecraft:cartography_table", 300),
+    ("minecraft:fletching_table", 300),
+    ("minecraft:smithing_table", 300),
+    ("minecraft:composter", 300),
+    ("minecraft:azalea", 100),
+    ("minecraft:flowering_azalea", 100),
+    ("minecraft:mangrove_roots", 300),
+    ("minecraft:leaf_litter", 100),
+];
+/// The tag vanilla's fuel builder removes last: crimson and warped wood
+/// are not fuel, however the wood tags list them.
+pub const FUEL_NON_FLAMMABLE_TAG: &str = "minecraft:non_flammable_wood";
+/// Fill `fuel` from [`FUEL_VALUES`] for the items that carry no
+/// `cooking_fuel` component of their own (a content mod's item keeps its
+/// own). The burn time is a `minecraft:conditional` provider on
+/// `block/fast_cooking`: a smoker or blast furnace burns a fuel in half the
+/// time (`SmokerBlockEntity.getBurnDuration` halves the furnace's), while
+/// the speed multiplier stays 1 — the fast kinds' quicker cooking comes
+/// from their recipes (smoking/blasting run 100 ticks, smelting 200), not
+/// from the fuel.
+fn apply_fuel_values(
+    items: &mut HashMap<Arc<str>, ItemInfo>,
+    tags: &HashMap<String, HashSet<String>>,
+) {
+    let mut from_table: HashSet<Arc<str>> = HashSet::new();
+    for (spec, ticks) in FUEL_VALUES {
+        let burn = serde_json::json!({
+            "type": "minecraft:conditional",
+            "condition": "minecraft:block/fast_cooking",
+            "on_true": ticks / 2,
+            "on_false": ticks,
+        });
+        let speed = serde_json::json!(1.0);
+        match spec.strip_prefix('#') {
+            Some(tag) => {
+                for id in tags.get(tag).into_iter().flatten() {
+                    if let Some(info) = items.get_mut(id.as_str())
+                        && info.fuel.is_none()
+                    {
+                        info.fuel = Some((burn.clone(), speed.clone()));
+                        from_table.insert(info.id.clone());
+                    }
+                }
+            }
+            None => {
+                if let Some(info) = items.get_mut(spec)
+                    && info.fuel.is_none()
+                {
+                    info.fuel = Some((burn, speed));
+                    from_table.insert(info.id.clone());
+                }
+            }
+        }
+    }
+    if let Some(banned) = tags.get(FUEL_NON_FLAMMABLE_TAG) {
+        for id in banned {
+            if from_table.contains(id.as_str())
+                && let Some(info) = items.get_mut(id.as_str())
+            {
+                info.fuel = None;
+            }
+        }
+    }
+}
 /// A reduction of `blocks_attacks.damage_reductions`.
 #[derive(Clone, Debug)]
 pub struct BlockReduction {
@@ -1034,13 +1163,15 @@ impl Items {
         let loot = horizon_world::loot::shared_tables(root, overlay)?;
         let registry_order = registry_order(root, &order);
         set_villager_food(&items);
+        let item_tags = load_tags(root, "item", overlay)?;
+        apply_fuel_values(&mut items, &item_tags);
         Ok(Self {
             items,
             mob_visibility,
             order,
             registry_order,
             block_tags: load_tags(root, "block", overlay)?,
-            item_tags: load_tags(root, "item", overlay)?,
+            item_tags,
             item_tag_order: load_tag_lists(root, "item", overlay)?,
             loot,
             songs: load_songs(root),
@@ -3857,6 +3988,68 @@ mod tests {
             Some("minecraft:bucket")
         );
         assert_eq!(remainder(&modded, "minecraft:bowl"), None);
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// 1.21.7 has no fuel component: the catalog's fuel comes from vanilla's
+    /// `FuelValues` table — items, tags, and the non-flammable removal.
+    #[test]
+    fn fuel_comes_from_the_vanilla_fuel_values_table() {
+        let root = std::env::temp_dir().join(format!("horizon-fuel-values-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("data/minecraft/loot_table")).unwrap();
+        fs::create_dir_all(root.join("data/minecraft/tags/item")).unwrap();
+        // Coal and stick are table items; the planks come through the tag;
+        // crimson planks are in the tag too but non-flammable wood removes
+        // them; stone is in neither; the mod coal keeps its own component.
+        let items = r#"{
+            "minecraft:coal": {},
+            "minecraft:stick": {},
+            "minecraft:oak_planks": {},
+            "minecraft:crimson_planks": {},
+            "minecraft:stone": {},
+            "minecraft:dried_kelp_block": {},
+            "mod:coal": {"minecraft:cooking_fuel": {"burn_time": 5, "speed_multiplier": 3.0}}
+        }"#;
+        fs::write(root.join("items.json"), items).unwrap();
+        fs::write(
+            root.join("data/minecraft/tags/item/planks.json"),
+            r#"{"values": ["minecraft:oak_planks", "minecraft:crimson_planks"]}"#,
+        )
+        .unwrap();
+        fs::write(
+            root.join("data/minecraft/tags/item/non_flammable_wood.json"),
+            r#"{"values": ["minecraft:crimson_planks"]}"#,
+        )
+        .unwrap();
+        let catalog = Items::catalog(&root, &PackOverlay::NONE).unwrap();
+        let fuel = |id: &str| catalog.items[id].fuel.clone();
+        let burn = |id: &str| {
+            let (burn, speed) = fuel(id).unwrap_or_else(|| panic!("{id} is a fuel"));
+            assert_eq!(
+                burn["condition"].as_str(),
+                Some("minecraft:block/fast_cooking")
+            );
+            assert_eq!(speed.as_f64(), Some(1.0));
+            (
+                burn["on_false"].as_i64().unwrap(),
+                burn["on_true"].as_i64().unwrap(),
+            )
+        };
+        // A table item: the full duration, halved for a fast furnace.
+        assert_eq!(burn("minecraft:coal"), (1600, 800));
+        // A tag member, and the odd durations' halving (67 -> 33).
+        assert_eq!(burn("minecraft:oak_planks"), (300, 150));
+        assert_eq!(burn("minecraft:dried_kelp_block"), (4001, 2000));
+        assert_eq!(burn("minecraft:stick"), (100, 50));
+        // Not fuel: neither a table item nor a tag member; and crimson
+        // planks, removed as non-flammable wood despite the planks tag.
+        assert_eq!(fuel("minecraft:stone"), None);
+        assert_eq!(fuel("minecraft:crimson_planks"), None);
+        // A content item's own component wins over the table.
+        let (burn, speed) = fuel("mod:coal").expect("the mod coal keeps its fuel");
+        assert_eq!(burn.as_i64(), Some(5));
+        assert_eq!(speed.as_f64(), Some(3.0));
         fs::remove_dir_all(&root).unwrap();
     }
 }

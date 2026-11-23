@@ -2127,3 +2127,63 @@ owed — the lib test compile OOM-kills on this VM) plus the new
 (horizon-world `datafix::files::upgrade_tests`: bare world defaults
 to noise, a superflat level.dat yields flat, the 26.x file wins per
 dimension).
+
+## Furnace fuel: 1.21.7 has no fuel component (2026-11-23)
+
+Owner report (build #4, 08:46 NPT Nov 23): coal goes into the furnace
+input slot but not the fuel slot; the game log has no furnace/fuel
+lines at all — the rejection is silent. The fuel slot's validation
+(`menu.rs` `Role::Fuel` → `is_fuel`, and `machines.rs` `can_place`
+for the hopper-facing check) reads `ItemInfo.fuel`, which the catalog
+populated only from a `minecraft:cooking_fuel` component in
+`items.json`. That component is 26.x-only: vanilla 1.21.7's
+`DataComponents` has neither `fuel` nor `cooking_fuel` (jar-verified
+against 1.21.7-server-named.jar), and `horizon-prepare` copies the
+datagen component report verbatim, so no 1.21.7 item carried one —
+`fuel` was `None` for every item, the fuel slot rejected everything
+but buckets, shift-click never routed fuel there, and
+`providers.burn_time` returned 0, so a furnace could never have lit
+even with fuel in the slot.
+
+In 1.21.7 fuel is `FuelValues.vanillaBurnTimes`, a code table of
+items and item tags (default `BURN_TIME_STANDARD` 200), with
+`#non_flammable_wood` removed last. The catalog now fills `fuel`
+from that table (`horizon-items/src/items.rs`, `FUEL_VALUES`, 62
+entries transcribed from the jar's bytecode in vanilla's order):
+coal/charcoal 1600, lava bucket 20000, coal block 16000, blaze rod
+2400, logs/planks and most wooden things 300, slabs 150, signs 200,
+hanging signs 800, boats 1200, wool/sticks/saplings 100, wool
+carpets 67, dried kelp block 4001, bamboo/scaffolding 50. A
+`cooking_fuel` component still wins where one exists (content mods).
+The burn time is stored as a `minecraft:conditional` provider on
+`block/fast_cooking` — full duration in a furnace, halved in a
+smoker or blast furnace (`SmokerBlockEntity.getBurnDuration` halves
+the furnace's, jar-verified) — and the speed multiplier is 1: the
+fast kinds' quicker cooking comes from their recipes (smoking and
+blasting run 100 ticks, smelting 200; `cooked_beef_from_smoking`
+jar-verified at 100), not from the fuel. Smoker and blast furnace
+share the furnace menu and `can_place` paths, so the same fix covers
+all three; no furnace.rs, menu.rs or providers.rs behaviour changed,
+only the catalog data feeding them.
+
+Regression tests: `fuel_comes_from_the_vanilla_fuel_values_table`
+(horizon-items: coal 1600/800, oak planks through the tag 300/150,
+dried kelp 4001/2000, crimson planks removed as non-flammable wood,
+stone not a fuel, a mod item's own component winning),
+`vanilla_coal_burns_from_the_fuel_values_table` (horizon-client
+furnace.rs: provider burn times 1600/800 and speed 1.0, a furnace
+lighting on coal and smelting in 200 ticks, a smoker burning the same
+coal in 800 and cooking in 100), and
+`furnace_fuel_slot_takes_table_fuel` (horizon-client menu.rs:
+`may_place` on the fuel slot accepts coal and rejects stone, and
+shift-click routes coal to slot 1). The horizon-items test ran
+locally; the horizon-client tests need CI (the lib test compile
+OOM-kills on this VM). Note the furnace parity harness
+(`tools/test_furnace_parity.py`) still keys its burn-table cases off
+`minecraft:cooking_fuel` in items.json — zero cases in 1.21.7 — and
+reads the hardcoded 26.3 resource path, so it does not cover this
+version's fuel table; that is a harness gap, not fixed here. The
+brewing stand's fuel slot reads a `minecraft:brewing_fuel`
+component the same way, and 1.21.7 has no such component either
+(vanilla gates it on the `brewing_fuel` item tag, jar-verified) —
+likely the same defect class, not investigated here.
