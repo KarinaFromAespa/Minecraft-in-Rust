@@ -450,6 +450,12 @@ impl BlockEntity {
         if name == "minecraft:bell" {
             return Some(Self::Bell);
         }
+        // BedBlock.newBlockEntity: a bed's entity carries no data (the
+        // colour is the block's). The id form is what a saved bed decodes
+        // through (`save::decode_block_entity` passes the entity id).
+        if name == "minecraft:bed" || name.ends_with("_bed") {
+            return Some(Self::Bed);
+        }
         if name == "minecraft:conduit" {
             return Some(Self::Conduit(None));
         }
@@ -560,6 +566,7 @@ impl BlockEntity {
             Self::EndGateway(_) => name == "minecraft:end_gateway",
             Self::DaylightDetector => name == "minecraft:daylight_detector",
             Self::Bell => name == "minecraft:bell",
+            Self::Bed => name.ends_with("_bed"),
             Self::Conduit(_) => name == "minecraft:conduit",
             Self::EndPortal => name == "minecraft:end_portal",
             Self::EnchantingTable => name == "minecraft:enchanting_table",
@@ -602,6 +609,7 @@ impl BlockEntity {
             Self::EndGateway(_) => "minecraft:end_gateway",
             Self::DaylightDetector => "minecraft:daylight_detector",
             Self::Bell => "minecraft:bell",
+            Self::Bed => "minecraft:bed",
             Self::Conduit(_) => "minecraft:conduit",
             Self::EndPortal => "minecraft:end_portal",
             Self::EnchantingTable => "minecraft:enchanting_table",
@@ -640,6 +648,7 @@ impl BlockEntity {
             | Self::TestInstanceBlock(_)
             | Self::DaylightDetector
             | Self::Bell
+            | Self::Bed
             | Self::Conduit(_)
             | Self::EndPortal
             | Self::EnchantingTable
@@ -674,6 +683,7 @@ impl BlockEntity {
             | Self::TestInstanceBlock(_)
             | Self::DaylightDetector
             | Self::Bell
+            | Self::Bed
             | Self::Conduit(_)
             | Self::EndPortal
             | Self::EnchantingTable
@@ -713,6 +723,7 @@ impl BlockEntity {
             | Self::TestInstanceBlock(_)
             | Self::DaylightDetector
             | Self::Bell
+            | Self::Bed
             | Self::Conduit(_)
             | Self::EndPortal
             | Self::EnchantingTable

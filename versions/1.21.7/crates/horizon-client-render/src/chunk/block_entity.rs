@@ -87,6 +87,10 @@ pub enum BlockEntity {
     DaylightDetector,
     /// `BellBlockEntity`: saved identity only; ringing state is kept separately.
     Bell,
+    /// `BedBlockEntity`: saved identity only; the colour is the block's
+    /// (`BedBlockEntity.getColor` reads it from the block state), so a
+    /// saved bed carries no fields of its own.
+    Bed,
     /// `ConduitBlockEntity`: the UUID of its `destroyTarget` (`Target`). Its
     /// shape and animation are kept separately (`block_entity_anim`).
     Conduit(Option<[i32; 4]>),

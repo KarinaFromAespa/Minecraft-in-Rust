@@ -353,7 +353,8 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
         let horizontal = ctx.horizontal_direction();
         Some(match class {
-            Class::AbstractBed => {
+            // 1.21.7 has no AbstractBedBlock: its beds are BedBlock alone.
+            Class::AbstractBed | Class::Bed => {
                 let relative = rel(pos, horizontal);
                 if self.can_be_replaced(self.state(relative), ctx) {
                     Some(table.set_dir(default, p.facing, horizontal))
@@ -1478,7 +1479,8 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let p = b.props;
         let data = b.data(state);
         let block = b.block(state);
-        if data.is(Class::AbstractBed) {
+        // 1.21.7 has no AbstractBedBlock: its beds are BedBlock alone.
+        if data.is(Class::AbstractBed) || data.is(Class::Bed) {
             let other = rel(pos, b.facing(state));
             self.set_block_and_update(other, b.table.set_text(state, p.part, "head"));
         } else if data.is(Class::Crafter) {

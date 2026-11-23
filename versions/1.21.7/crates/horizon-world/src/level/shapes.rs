@@ -121,7 +121,8 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             }};
         }
         Some(match class {
-            Class::AbstractBed => {
+            // 1.21.7 has no AbstractBedBlock: its beds are BedBlock alone.
+            Class::AbstractBed | Class::Bed => {
                 if dir == self.bed_neighbour_direction(state) {
                     if b.is_block(nstate, block)
                         && table.text(nstate, p.part) != table.text(state, p.part)

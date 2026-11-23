@@ -916,6 +916,8 @@ fn server_only_block_use(
     branch == horizon_world::level::UseBranch::WithoutItem
         && [
             "AbstractBedBlock",
+            // 1.21.7 has no AbstractBedBlock: its beds are BedBlock alone.
+            "BedBlock",
             "LightBlock",
             "RespawnAnchorBlock",
             "SignBlock",
@@ -6451,6 +6453,7 @@ impl Game<'_> {
                     | BlockEntity::Skull(_)
                     | BlockEntity::DaylightDetector
                     | BlockEntity::Bell
+                    | BlockEntity::Bed
                     | BlockEntity::Conduit(_)
                     | BlockEntity::EndPortal
                     | BlockEntity::EnchantingTable
