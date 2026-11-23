@@ -811,6 +811,12 @@ pub const FUEL_VALUES: [(&str, i32); 64] = [
 /// table: crimson/warped wood is not fuel.
 pub const FUEL_NON_FLAMMABLE_TAG: &str = "minecraft:non_flammable_wood";
 
+/// The item tag that gates brewing fuel in 26.2
+/// (`BrewingStandMenu$FuelSlot.mayPlaceItem` tests
+/// `stack.is(ItemTags.BREWING_FUEL)`): blaze powder only. 26.2 has no
+/// `brewing_fuel` component, so the tag is the whole behaviour.
+pub const BREWING_FUEL_TAG: &str = "minecraft:brewing_fuel";
+
 /// `FuelValues.burnDuration`: the table value for one item, 0 when it is
 /// not fuel. This is the raw duration; a smoker or blast furnace halves
 /// it (`Providers::burn_time`), and cooking speed comes from the
@@ -4140,6 +4146,24 @@ mod fuel_and_compost_tests {
         assert_eq!(burn_time(&items, "minecraft:oak_planks"), 300);
         assert_eq!(burn_time(&items, "minecraft:oak_sign"), 200);
         assert_eq!(burn_time(&items, "minecraft:stone"), 0);
+    }
+
+    /// Brewing fuel comes from the `minecraft:brewing_fuel` tag (26.2
+    /// server jar: the tag is the only gate, blaze powder its only
+    /// member) — not from a component 26.2 does not have.
+    #[test]
+    fn brewing_fuel_comes_from_the_vanilla_tag() {
+        let tags: HashMap<String, HashSet<String>> = [(
+            "minecraft:brewing_fuel",
+            &["minecraft:blaze_powder"][..],
+        )]
+        .into_iter()
+        .map(|(k, v)| (k.to_owned(), v.iter().map(|s| s.to_string()).collect()))
+        .collect();
+        let items = Items::for_tests(tags);
+        assert!(items.item_in_tag(BREWING_FUEL_TAG, "minecraft:blaze_powder"));
+        assert!(!items.item_in_tag(BREWING_FUEL_TAG, "minecraft:blaze_rod"));
+        assert!(!items.item_in_tag(BREWING_FUEL_TAG, "minecraft:stone"));
     }
 
     /// `ComposterBlock.COMPOSTABLES` spot checks, one per chance tier.

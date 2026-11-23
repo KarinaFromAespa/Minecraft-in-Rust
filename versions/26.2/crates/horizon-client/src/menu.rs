@@ -3574,7 +3574,7 @@ pub(crate) mod tests {
     /// `BrewingStandMenu.FuelSlot` and `quickMoveStack` use the same rule:
     /// the `minecraft:brewing_fuel` tag (blaze powder).
     #[test]
-    fn brewing_fuel_slot_and_quick_move_use_the_fuel_tag() {
+    fn brewing_fuel_slot_takes_tag_fuel() {
         let items = Items::for_tests(
             [(
                 "minecraft:brewing_fuel".to_owned(),

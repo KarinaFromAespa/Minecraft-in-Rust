@@ -4227,3 +4227,47 @@ Changes, branch `fix/26.2-defect-suite`:
 
 What remains: nothing for this check. The furnace fuel path is now
 fully table-driven; any future FuelValues change is a table edit.
+
+## Defect suite: brewing-fuel (2026-11-23)
+
+The cross-version defect suite (`tools/defect_suite.py`, check
+`brewing-fuel`) failed 26.2: the tree allegedly read only a
+`brewing_fuel` component the version does not have. Jar evidence
+(26.2 server jar): `brewing_fuel` appears only as a tag reference
+(`ItemTags` and `BrewingStandMenu`); there is no component.
+`data/minecraft/tags/item/brewing_fuel.json` names blaze powder only,
+`BrewingStandMenu$FuelSlot.mayPlaceItem` tests
+`stack.is(ItemTags.BREWING_FUEL)`, and
+`BrewingStandBlockEntity.FUEL_USES` is 20.
+
+This failure was a detection gap, not a behaviour defect: the tree
+already gated brewing fuel on the tag —
+`brewing_fuel()` in `crates/horizon-client-render/src/brewing.rs`
+tests `items.item_in_tag("minecraft:brewing_fuel", ...)`, the
+stand refuels to 20 uses and brews in a flat 400 ticks, and the
+menu fuel slot, quick-move and hopper checks all use the same
+function. The suite looks for a `BREWING_FUEL_TAG` identifier in
+`crates/horizon-items/src/items.rs` and 26.2 had the tag id as a
+string literal in the render crate instead.
+
+Changes, branch `fix/26.2-defect-suite`:
+- `crates/horizon-items/src/items.rs`: `pub const BREWING_FUEL_TAG:
+  &str = "minecraft:brewing_fuel"` — the single source of truth
+  for the tag id. (No `apply_brewing_fuel_values`: 26.2 has no
+  brewing-fuel field to fill; the tag lookup is the whole
+  behaviour, unlike 1.21.7's component-shaped `ItemInfo`.)
+- `crates/horizon-client-render/src/brewing.rs`:
+  `brewing_fuel()` now uses `BREWING_FUEL_TAG`.
+- Regression tests, named as the 1.21.7 ones so the suite scores
+  them: `brewing_fuel_comes_from_the_vanilla_tag` is new (items;
+  blaze powder in the tag, blaze rod and stone not). The other
+  two already existed under 26.2 names and were renamed, bodies
+  unchanged: `blaze_powder_fuel_brews_in_400_ticks_for_20_uses`
+  → `vanilla_blaze_powder_fuels_a_brew_from_the_tag` (brewing
+  stand: one tick loads 400 brew time and 19 remaining uses of
+  20, the brew completes, stone never starts the stand) and
+  `brewing_fuel_slot_and_quick_move_use_the_fuel_tag` →
+  `brewing_fuel_slot_takes_tag_fuel` (menu: blaze powder accepted
+  in the fuel slot and quick-moved there, stone refused).
+
+What remains: nothing for this check.
