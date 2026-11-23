@@ -66,7 +66,7 @@ impl Game<'_> {
         }
         let opened_lan = self.lan_port().is_none();
         if opened_lan {
-            // ShareToLanScreen's defaults, as the world options screen offers them.
+            // ShareToLanScreen's defaults: a free port, no commands.
             self.lan_open(LanSettings {
                 port: horizon_client::lan::available_port(),
                 guest_commands: false,

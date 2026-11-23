@@ -1,10 +1,17 @@
-//! WorldOptionsScreen: the in-world options with the multiplayer section
-//! that opens the world to the local network (the 26.3 replacement of the
-//! old "Open to LAN" screen): default and personal game mode, cheats,
-//! difficulty, LAN on/off with its port, command access for guests and
-//! forcing the game mode. Its difficulty lock asks first (PopupScreen), and
+//! WorldOptionsScreen and ShareToLanScreen: the two 26.1 screens behind
+//! the options screen and the pause menu. World Options (from the Options
+//! screen, in world only) holds the difficulty with its lock, game rules
+//! and restrictions, and every button acts immediately; 26.1 has no game
+//! mode or cheats row on it (26.2 added them). Open to LAN (from the pause
+//! menu, single player only) is the classic ShareToLanScreen: the game
+//! mode and allow-commands for other players, a port box, and Start LAN
+//! World, which publishes at once. The 26.2 client replaced it with a
+//! LAN switch and Apply Changes; the 26.3 client merged the two screens
+//! into one. The difficulty lock asks first (PopupScreen), and
 //! Restrictions opens RestrictionsScreen.
-//! Parity reference: https://mcsrc.dev/2/26.3/net/minecraft/client/gui/screens/WorldOptionsScreen
+//! Parity references:
+//! https://mcsrc.dev/2/26.1/net/minecraft/client/gui/screens/options/WorldOptionsScreen
+//! https://mcsrc.dev/2/26.1/net/minecraft/client/gui/screens/ShareToLanScreen
 use super::{Game, Screen, integrated::ServerOptions, lan::LanSettings};
 use horizon_client::{
     font::Font,
@@ -17,31 +24,28 @@ use horizon_client::{
 use horizon_protocol::packets::play::{self, Serverbound as S};
 use winit::{event::KeyEvent, keyboard::PhysicalKey};
 
+/// The state of the World Options screen.
 pub(super) struct WorldOptions {
+    /// An external server: difficulty, game rules and restrictions go
+    /// over the wire.
     remote: bool,
+    /// The player is a server operator (op level >= 2), from the server
+    /// thread or a permission packet; gates the difficulty and game rules
+    /// buttons on an external server.
     gamemaster: bool,
-    default_mode: i32,
-    personal_mode: i32,
-    cheats: bool,
+    /// The cheats setting at open: the game rules button follows the
+    /// commands the player has (in single player, the world's Allow
+    /// Commands), not a switch — 26.1 has no cheats row on this screen.
+    commands_at_open: bool,
+    /// The world's difficulty, 0..=3.
     difficulty: u8,
-    lan: bool,
-    port: EditBox,
-    /// The free port suggested while the box is empty.
-    hint: u16,
-    guest_commands: bool,
-    force: bool,
     hardcore: bool,
     /// The level's own lock (LevelData.isDifficultyLocked).
     difficulty_locked: bool,
-    /// wantedDifficultyLocked: the lock icon, from the lock or hardcore.
-    locked: bool,
-    initial: Snapshot,
-    /// ScrollableLayout's scroll amount.
-    scroll: f32,
     view: View,
     /// InWorldGameRulesScreen, while it is open.
     rules: Option<RulesScreen>,
-    focused_button: Option<Button>,
+    focused_button: Option<WoButton>,
     popup_focus: Option<usize>,
 }
 /// The screen on show: the options, the lock's question over them, or the
@@ -54,32 +58,64 @@ enum View {
     Restrictions,
     GameRules,
 }
+/// The world fields a click applies: the before/after pair for
+/// `apply_world_options`.
 #[derive(Clone, Copy, PartialEq)]
-struct Snapshot {
-    default_mode: i32,
-    personal_mode: i32,
-    cheats: bool,
+struct WorldSnapshot {
     difficulty: u8,
     locked: bool,
-    lan: bool,
-    port: u16,
-    guest_commands: bool,
-    force: bool,
 }
 
+/// The state of the Open to LAN screen.
+pub(super) struct ShareToLan {
+    /// The game mode for other players (`selectWorld.gameMode`), from
+    /// the server's default game type at open.
+    game_mode: i32,
+    /// Whether other players may use commands
+    /// (`selectWorld.allowCommands`), from the world's Allow Commands
+    /// at open.
+    commands: bool,
+    /// The port edit box; empty means the hinted port.
+    port: EditBox,
+    /// The free port suggested while the box is empty.
+    hint: u16,
+    hardcore: bool,
+    focused_button: Option<LanButton>,
+}
+
+/// The game mode cycle order (`GameType` values): survival, spectator,
+/// creative, adventure — vanilla's `createGameModeButton` order, not the
+/// numeric order.
+const MODE_CYCLE: [i32; 4] = [0, 3, 1, 2];
+
+/// The mode `step` places along the cycle (-1 back, +1 forward).
+fn cycle_mode(mode: i32, step: i32) -> i32 {
+    let at = MODE_CYCLE.iter().position(|m| *m == mode).unwrap_or(0);
+    MODE_CYCLE[((at as i32 + step).rem_euclid(4)) as usize]
+}
+
+fn next_mode(mode: i32) -> i32 {
+    cycle_mode(mode, 1)
+}
+
+/// `GameType.getName`, by id (survival, creative, adventure, spectator).
 const MODES: [&str; 4] = ["survival", "creative", "adventure", "spectator"];
 const DIFFICULTIES: [&str; 4] = ["peaceful", "easy", "normal", "hard"];
 
 /// HeaderAndFooterLayout's header and footer heights.
 const HEADER: f32 = 33.0;
 const FOOTER: f32 = 33.0;
-/// The scrolled content: both grids, each padded by 8 and 8 apart.
-const CONTENT: f32 = 218.0;
-/// The category headings' tops (FocusableTextWidget, padding 4).
-const GENERAL_TOP: f32 = 8.0;
-const MULTIPLAYER_TOP: f32 = 145.0;
-/// The port box's top beside the LAN button.
-const PORT_TOP: f32 = 166.0;
+/// The grid's columns are 150 wide, 8 apart, rows 4 apart.
+const COL_W: f32 = 150.0;
+const COL_GAP: f32 = 8.0;
+const ROW_STEP: f32 = 24.0;
+/// ShareToLan's rows (`LinearLayout`, 8 between children, 4 inside the
+/// port pair): the game mode and commands row, the other-players header,
+/// the port label and box.
+const MO_ROW_Y: f32 = HEADER + 28.0;
+const MO_HEADER_Y: f32 = HEADER + 56.0;
+const MO_PORT_LABEL_Y: f32 = HEADER + 69.0;
+const MO_PORT_Y: f32 = HEADER + 82.0;
 /// PopupScreen: 250 wide less its 18 pixel border each side, two buttons
 /// `min((214 - 6) / 2, 150)` wide and 6 apart, rows 12 apart.
 const POPUP_CONTENT: f32 = 214.0;
@@ -88,19 +124,20 @@ const POPUP_BUTTON: f32 = 104.0;
 const RESTRICTION_WIDTH: f32 = 250.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum Button {
-    DefaultMode,
-    PersonalMode,
-    Cheats,
+enum WoButton {
     Difficulty,
     /// DifficultyButtons.lockButton (LockIconButton).
     Lock,
     GameRules,
     Restrictions,
-    Lan,
-    CommandAccess,
-    Force,
-    Apply,
+    Done,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum LanButton {
+    GameMode,
+    Commands,
+    Start,
     Cancel,
 }
 
@@ -116,130 +153,59 @@ impl WorldOptions {
     pub(super) fn clear_click_focus(&mut self) {
         self.focused_button = None;
     }
-    /// Vanilla 26.3 WorldOptionsScreen.generalOptions: guests see difficulty,
-    /// game rules and restrictions; game modes, commands and LAN are host-only.
-    fn visible_buttons(&self, w: f32) -> Vec<(Button, f32, f32, f32)> {
-        if !self.remote {
-            return Self::buttons(w, self.top());
-        }
-        let x = Self::left(w);
-        let top = self.top();
-        vec![
-            (Button::Difficulty, x, top + 29.0, 130.0),
-            (Button::Lock, x + 130.0, top + 29.0, 20.0),
-            (Button::GameRules, x + 158.0, top + 29.0, 150.0),
-            (Button::Restrictions, x, top + 53.0, 150.0),
-        ]
-    }
-    fn content_height(&self) -> f32 {
-        if self.remote { 81.0 } else { CONTENT }
-    }
-    fn scroll_limit(&self, h: f32) -> f32 {
-        (self.content_height() - (h - HEADER - FOOTER)).max(0.0)
-    }
-    fn server_difficulty(&mut self, difficulty: u8, locked: bool) {
-        // A server update is the new baseline, not a local edit. In particular,
-        // the reply to Apply may arrive after the screen has already reopened.
-        self.difficulty = difficulty;
-        self.difficulty_locked = locked;
-        self.locked = locked || self.hardcore;
-        self.initial.difficulty = self.difficulty;
-        self.initial.locked = self.locked;
-    }
-    fn parsed_port(&self) -> Option<u16> {
-        if self.port.value.is_empty() {
-            return Some(self.hint);
-        }
-        self.port.value.parse::<u16>().ok().filter(|p| *p >= 1024)
-    }
-    fn snapshot(&self) -> Snapshot {
-        Snapshot {
-            default_mode: self.default_mode,
-            personal_mode: self.personal_mode,
-            cheats: self.cheats,
+    /// The snapshot of the world fields, for `apply_world_options`.
+    fn snapshot(&self) -> WorldSnapshot {
+        WorldSnapshot {
             difficulty: self.difficulty,
-            locked: self.locked,
-            lan: self.lan,
-            port: if self.lan {
-                self.parsed_port().unwrap_or(0)
-            } else {
-                0
-            },
-            guest_commands: self.guest_commands && self.lan && self.cheats,
-            force: self.force,
+            locked: self.difficulty_locked,
         }
     }
-    fn changed(&self) -> bool {
-        let valid = !self.lan || self.parsed_port().is_some();
-        valid && self.snapshot() != self.initial
-    }
-    /// The scrolled content's top: under the header, less the scroll.
-    fn top(&self) -> f32 {
-        HEADER - self.scroll.trunc()
-    }
-    /// The grids' left edge: the content (308 wide, padded by 8) centred
-    /// in a ScrollableLayout reserving 10 pixels for the scrollbar each side.
+    /// The grid's left edge: two 150-wide columns with an 8-pixel gap,
+    /// centred.
     fn left(w: f32) -> f32 {
         (w / 2.0).floor() - 154.0
     }
-    /// The scrolled widgets: each grid's rows 4 apart, columns 8 apart.
-    fn buttons(w: f32, top: f32) -> Vec<(Button, f32, f32, f32)> {
+    /// The grid, in vanilla order: game rules and difficulty on the first
+    /// row, restrictions on the second (26.1 has no game mode or cheats
+    /// row; the remote grid is the same two rows).
+    fn visible_buttons(&self, w: f32) -> Vec<(WoButton, f32, f32, f32)> {
         let x = Self::left(w);
-        let right = x + 158.0;
-        vec![
-            (Button::DefaultMode, x, top + 29.0, 308.0),
-            (Button::PersonalMode, x, top + 53.0, 308.0),
-            (Button::Cheats, x, top + 77.0, 150.0),
-            // DifficultyButtons: the cycle button gives the lock its 20 pixels.
-            (Button::Difficulty, right, top + 77.0, 130.0),
-            (Button::Lock, right + 130.0, top + 77.0, 20.0),
-            (Button::GameRules, x, top + 101.0, 150.0),
-            (Button::Restrictions, right, top + 101.0, 150.0),
-            (Button::Lan, x, top + 166.0, 150.0),
-            (Button::CommandAccess, x, top + 190.0, 150.0),
-            (Button::Force, right, top + 190.0, 150.0),
-        ]
+        let right = x + COL_W + COL_GAP;
+        let mut buttons = vec![
+            (WoButton::GameRules, x, HEADER, COL_W),
+            (WoButton::Difficulty, right, HEADER, COL_W - 20.0),
+            (WoButton::Lock, right + COL_W - 20.0, HEADER, 20.0),
+        ];
+        buttons.push((WoButton::Restrictions, x, HEADER + ROW_STEP, COL_W));
+        buttons
     }
-    /// The footer's two buttons, centred in its 33 pixels (FrameLayout
-    /// truncates the 6.5 pixel offset).
-    fn footer(w: f32, h: f32) -> [(Button, f32, f32, f32); 2] {
-        let x = Self::left(w);
-        [
-            (Button::Apply, x, h - FOOTER + 6.0, 150.0),
-            (Button::Cancel, x + 158.0, h - FOOTER + 6.0, 150.0),
-        ]
+    /// The Done button: 200 wide, centred in the footer.
+    fn footer(w: f32, h: f32) -> (f32, f32) {
+        (((w - 200.0) / 2.0).trunc(), h - FOOTER + 6.0)
     }
-    /// The widgets under the pointer's row: scrolled ones only inside the
-    /// scroll area.
-    fn hit(&self, (x, y): (f32, f32), (w, h): (f32, f32)) -> Option<Button> {
-        let inside = y >= HEADER && y < h - FOOTER;
+    fn server_difficulty(&mut self, difficulty: u8, locked: bool) {
+        // A server update is the new baseline, not a local edit. In particular,
+        // the reply to a difficulty click may arrive after the screen has
+        // already reopened.
+        self.difficulty = difficulty;
+        self.difficulty_locked = locked;
+    }
+    fn hit(&self, (x, y): (f32, f32), (w, h): (f32, f32)) -> Option<WoButton> {
         self.visible_buttons(w)
             .into_iter()
-            .filter(|_| inside)
-            .chain(Self::footer(w, h))
+            .chain(std::iter::once({
+                let (fx, fy) = Self::footer(w, h);
+                (WoButton::Done, fx, fy, 200.0)
+            }))
             .find(|(b, bx, by, bw)| self.active(*b) && ui::hovered((x, y), *bx, *by, *bw, 20.0))
             .map(|b| b.0)
     }
-    fn label(&self, b: Button) -> Text {
-        let mode = |m: i32| {
-            Text::translate(
-                &format!("selectWorld.gameMode.{}", MODES[m as usize & 3]),
-                &[],
-            )
-        };
+    fn label(&self, b: WoButton) -> Text {
         match b {
-            Button::DefaultMode => {
-                labelled("options.worldOptions.game_mode", mode(self.default_mode))
-            }
-            Button::PersonalMode => labelled(
-                "options.worldOptions.personal_game_mode",
-                mode(self.personal_mode),
-            ),
-            Button::Cheats => labelled("selectWorld.allowCommands", on_off(self.cheats)),
-            Button::Lock => Text::translate("narrator.button.difficulty_lock", &[]),
-            Button::GameRules => Text::translate("editGamerule.inGame.button", &[]),
-            Button::Restrictions => Text::translate("restrictions_screen.button", &[]),
-            Button::Difficulty => labelled(
+            WoButton::Lock => Text::translate("narrator.button.difficulty_lock", &[]),
+            WoButton::GameRules => Text::translate("editGamerule.inGame.button", &[]),
+            WoButton::Restrictions => Text::translate("restrictions_screen.button", &[]),
+            WoButton::Difficulty => labelled(
                 "options.difficulty",
                 Text::translate(
                     &format!(
@@ -249,31 +215,14 @@ impl WorldOptions {
                     &[],
                 ),
             ),
-            Button::Lan => labelled("menu.multiplayerOptions.lan", on_off(self.lan)),
-            Button::CommandAccess => labelled(
-                "options.worldOptions.guest.command_access",
-                on_off(self.guest_commands && self.lan && self.cheats),
-            ),
-            Button::Force => labelled(
-                "options.worldOptions.guest.force_game_mode",
-                on_off(self.force || !self.lan || self.hardcore),
-            ),
-            Button::Apply => Text::translate("menu.multiplayerOptions.applyChanges", &[]),
-            Button::Cancel => Text::translate("gui.cancel", &[]),
+            WoButton::Done => Text::translate("gui.done", &[]),
         }
     }
     /// What button `b` narrates: the switches are `CycleButton`s ("<name>:
     /// <value> button" and the value a click moves to), the lock a
     /// `LockIconButton` (its message, then whether it is locked).
-    fn narration(&self, b: Button, rect: [f32; 4], tr: super::screen_info::Tr<'_>) -> Narratable {
+    fn narration(&self, b: WoButton, rect: [f32; 4], tr: super::screen_info::Tr<'_>) -> Narratable {
         let active = self.active(b);
-        let mode = |m: i32| {
-            tr(
-                &format!("selectWorld.gameMode.{}", MODES[m as usize & 3]),
-                &[],
-            )
-        };
-        let on_off = |on: bool| tr(if on { "options.on" } else { "options.off" }, &[]);
         let labelled =
             |key: &str, value: String| tr("options.generic_value", &[&tr(key, &[]), &value]);
         let difficulty = |d: u8| {
@@ -284,61 +233,17 @@ impl WorldOptions {
             )
         };
         let cycle = |message: String, next: String| Narratable::cycle(message, next, rect, active);
-        let shown_access = self.guest_commands && self.lan && self.cheats;
-        let shown_force = self.force || !self.lan || self.hardcore;
         match b {
-            Button::DefaultMode => {
-                let key = "options.worldOptions.game_mode";
-                cycle(
-                    labelled(key, mode(self.default_mode)),
-                    labelled(key, mode(self.default_mode + 1)),
-                )
-            }
-            Button::PersonalMode => {
-                let key = "options.worldOptions.personal_game_mode";
-                cycle(
-                    labelled(key, mode(self.personal_mode)),
-                    labelled(key, mode(self.personal_mode + 1)),
-                )
-            }
-            Button::Cheats => {
-                let key = "selectWorld.allowCommands";
-                cycle(
-                    labelled(key, on_off(self.cheats)),
-                    labelled(key, on_off(!self.cheats)),
-                )
-            }
-            Button::Difficulty => cycle(
+            WoButton::Difficulty => cycle(
                 difficulty(self.difficulty),
                 difficulty(self.difficulty.wrapping_add(1)),
             ),
-            Button::Lan => {
-                let key = "menu.multiplayerOptions.lan";
-                cycle(
-                    labelled(key, on_off(self.lan)),
-                    labelled(key, on_off(!self.lan)),
-                )
-            }
-            Button::CommandAccess => {
-                let key = "options.worldOptions.guest.command_access";
-                cycle(
-                    labelled(key, on_off(shown_access)),
-                    labelled(key, on_off(!shown_access)),
-                )
-            }
-            Button::Force => {
-                let key = "options.worldOptions.guest.force_game_mode";
-                cycle(
-                    labelled(key, on_off(shown_force)),
-                    labelled(key, on_off(!shown_force)),
-                )
-            }
-            Button::Lock => {
+            WoButton::Lock => {
                 let message = tr(
                     "gui.narrate.button",
                     &[&tr("narrator.button.difficulty_lock", &[])],
                 );
-                let state = if self.locked {
+                let state = if self.difficulty_locked || self.hardcore {
                     "narrator.button.difficulty_lock.locked"
                 } else {
                     "narrator.button.difficulty_lock.unlocked"
@@ -353,33 +258,129 @@ impl WorldOptions {
         }
     }
     /// WorldOptionsScreen.updateButton and the update*Button methods.
-    fn active(&self, b: Button) -> bool {
+    fn active(&self, b: WoButton) -> bool {
         if self.remote {
             return match b {
-                Button::Difficulty | Button::Lock => {
+                WoButton::Difficulty | WoButton::Lock => {
                     self.gamemaster && !self.hardcore && !self.difficulty_locked
                 }
-                Button::GameRules => self.gamemaster,
-                Button::Restrictions | Button::Cancel => true,
-                Button::Apply => self.gamemaster && self.changed(),
-                _ => false,
+                WoButton::GameRules => self.gamemaster,
+                WoButton::Restrictions | WoButton::Done => true,
             };
         }
         match b {
-            Button::DefaultMode | Button::PersonalMode => self.cheats && !self.hardcore,
-            // An owner's commands come with Allow Commands.
-            Button::Cheats => !self.hardcore || self.initial.cheats,
             // DifficultyButtons.updateDifficultyButtonsState: the level's
             // lock or hardcore, not the wanted lock.
-            Button::Difficulty | Button::Lock => !self.hardcore && !self.difficulty_locked,
-            // updateButton from the player's permission: the Allow Commands
-            // switch leaves it (updatePermissionDependentButtons(.., false)).
-            Button::GameRules => !self.hardcore && self.initial.cheats,
-            Button::Restrictions => true,
-            Button::CommandAccess => self.lan && self.cheats,
-            Button::Force => self.lan && !(self.guest_commands && self.cheats) && !self.hardcore,
-            Button::Apply => self.changed(),
-            Button::Lan | Button::Cancel => true,
+            WoButton::Difficulty | WoButton::Lock => !self.hardcore && !self.difficulty_locked,
+            // updateButton from the player's permission: in single player
+            // the world's Allow Commands (there is no cheats row here).
+            WoButton::GameRules => !self.hardcore && self.commands_at_open,
+            WoButton::Restrictions | WoButton::Done => true,
+        }
+    }
+}
+
+impl ShareToLan {
+    /// The port to publish on: the box, or the hint while it is empty.
+    /// Vanilla's range is 1024..65535 (`tryParsePort`); a `u16` parse
+    /// caps the top, the filter the bottom. (The availability check is
+    /// the bind's: a taken port fails the publish with
+    /// `commands.publish.failed`.)
+    fn parsed_port(&self) -> Option<u16> {
+        if self.port.value.is_empty() {
+            return Some(self.hint);
+        }
+        self.port.value.parse::<u16>().ok().filter(|p| *p >= 1024)
+    }
+    /// The game mode and commands row: two 150-wide columns with an
+    /// 8-pixel gap.
+    fn buttons(&self, w: f32) -> Vec<(LanButton, f32, f32, f32)> {
+        let x = WorldOptions::left(w);
+        vec![
+            (LanButton::GameMode, x, MO_ROW_Y, COL_W),
+            (
+                LanButton::Commands,
+                x + COL_W + COL_GAP,
+                MO_ROW_Y,
+                COL_W,
+            ),
+        ]
+    }
+    /// The footer's two buttons, centred in its 33 pixels.
+    fn footer(w: f32, h: f32) -> [(LanButton, f32, f32, f32); 2] {
+        let x = WorldOptions::left(w);
+        [
+            (LanButton::Start, x, h - FOOTER + 6.0, COL_W),
+            (
+                LanButton::Cancel,
+                x + COL_W + COL_GAP,
+                h - FOOTER + 6.0,
+                COL_W,
+            ),
+        ]
+    }
+    fn hit(&self, (x, y): (f32, f32), (w, h): (f32, f32)) -> Option<LanButton> {
+        self.buttons(w)
+            .into_iter()
+            .chain(Self::footer(w, h))
+            .find(|(b, bx, by, bw)| self.active(*b) && ui::hovered((x, y), *bx, *by, *bw, 20.0))
+            .map(|b| b.0)
+    }
+    fn label(&self, b: LanButton) -> Text {
+        let mode = |m: i32| {
+            Text::translate(
+                &format!("selectWorld.gameMode.{}", MODES[m as usize & 3]),
+                &[],
+            )
+        };
+        match b {
+            LanButton::GameMode => labelled("selectWorld.gameMode", mode(self.game_mode)),
+            LanButton::Commands => {
+                labelled("selectWorld.allowCommands", on_off(self.commands))
+            }
+            LanButton::Start => Text::translate("lanServer.start", &[]),
+            LanButton::Cancel => Text::translate("gui.cancel", &[]),
+        }
+    }
+    /// What button `b` narrates: the switches are `CycleButton`s ("<name>:
+    /// <value> button" and the value a click moves to).
+    fn narration(&self, b: LanButton, rect: [f32; 4], tr: super::screen_info::Tr<'_>) -> Narratable {
+        let active = self.active(b);
+        let mode = |m: i32| {
+            tr(
+                &format!("selectWorld.gameMode.{}", MODES[m as usize & 3]),
+                &[],
+            )
+        };
+        let on_off = |on: bool| tr(if on { "options.on" } else { "options.off" }, &[]);
+        let labelled =
+            |key: &str, value: String| tr("options.generic_value", &[&tr(key, &[]), &value]);
+        let cycle = |message: String, next: String| Narratable::cycle(message, next, rect, active);
+        match b {
+            LanButton::GameMode => {
+                let key = "selectWorld.gameMode";
+                cycle(
+                    labelled(key, mode(self.game_mode)),
+                    labelled(key, mode(next_mode(self.game_mode))),
+                )
+            }
+            LanButton::Commands => {
+                let key = "selectWorld.allowCommands";
+                cycle(
+                    labelled(key, on_off(self.commands)),
+                    labelled(key, on_off(!self.commands)),
+                )
+            }
+            _ => Narratable::button(self.label(b).plain(), rect, active),
+        }
+    }
+    /// ShareToLanScreen: hardcore locks the game mode and commands row,
+    /// Start follows the port.
+    fn active(&self, b: LanButton) -> bool {
+        match b {
+            LanButton::GameMode | LanButton::Commands => !self.hardcore,
+            LanButton::Start => self.parsed_port().is_some(),
+            LanButton::Cancel => true,
         }
     }
 }
@@ -582,6 +583,36 @@ impl Game<'_> {
         o.rules = Some(RulesScreen::new(&rules));
     }
     pub(super) fn open_world_options(&mut self) {
+        // The world is the server thread's when there is one.
+        let state = match &self.integrated {
+            Some(server) => match server.call(|g| g.server_options()) {
+                Some(state) => state,
+                None => return,
+            },
+            None => self.local_server_options(),
+        };
+        self.world_options = Some(WorldOptions {
+            remote: self.external_server(),
+            gamemaster: self.ui.registries.permission >= 2,
+            commands_at_open: state.cheats,
+            difficulty: state.difficulty,
+            hardcore: state.hardcore,
+            difficulty_locked: state.difficulty_locked,
+            view: View::Options,
+            rules: None,
+            focused_button: None,
+            popup_focus: None,
+        });
+        self.screen = Screen::WorldOptions;
+    }
+
+    /// World Options opens from the Options screen, and returns to it.
+    pub(super) fn close_world_options(&mut self) {
+        self.world_options = None;
+        self.screen = Screen::Options;
+    }
+
+    pub(super) fn open_share_to_lan(&mut self) {
         let hint = horizon_client::lan::available_port();
         let mut port = EditBox::new(0.0, 0.0, 150.0, 20.0);
         port.message = super::screen_info::tr("lanServer.port", &[]);
@@ -594,48 +625,23 @@ impl Game<'_> {
             },
             None => self.local_server_options(),
         };
-        if let Some(p) = state.port {
-            port.set_value(&p.to_string());
-        }
-        let mut options = WorldOptions {
-            remote: self.external_server(),
-            gamemaster: self.ui.registries.permission >= 2,
-            default_mode: state.default_mode,
-            personal_mode: state.personal_mode,
-            cheats: state.cheats,
-            difficulty: state.difficulty,
-            lan: state.port.is_some(),
+        // ShareToLanScreen.init: the game mode is the server's default
+        // game type, commands the world's Allow Commands; the port box
+        // starts empty (a blank port publishes on an available port).
+        self.share_to_lan = Some(ShareToLan {
+            game_mode: state.default_mode,
+            commands: state.cheats,
             port,
             hint,
-            guest_commands: state.guest_commands,
-            force: state.force,
             hardcore: state.hardcore,
-            difficulty_locked: state.difficulty_locked,
-            locked: state.difficulty_locked || state.hardcore,
-            scroll: 0.0,
-            view: View::Options,
-            rules: None,
             focused_button: None,
-            popup_focus: None,
-            initial: Snapshot {
-                default_mode: 0,
-                personal_mode: 0,
-                cheats: false,
-                difficulty: 0,
-                locked: false,
-                lan: false,
-                port: 0,
-                guest_commands: false,
-                force: false,
-            },
-        };
-        options.initial = options.snapshot();
-        self.world_options = Some(options);
-        self.screen = Screen::WorldOptions;
+        });
+        self.screen = Screen::ShareToLan;
     }
 
-    pub(super) fn close_world_options(&mut self) {
-        self.world_options = None;
+    /// Open to LAN opens from the pause menu, and returns to it.
+    pub(super) fn close_share_to_lan(&mut self) {
+        self.share_to_lan = None;
         self.screen = Screen::Paused;
     }
 
@@ -654,6 +660,11 @@ impl Game<'_> {
             Some(o) if o.view != View::Options => o.view = View::Options,
             _ => self.close_world_options(),
         }
+    }
+
+    /// Escape on Open to LAN closes it, discarding the changes.
+    pub(super) fn share_to_lan_escape(&mut self) {
+        self.close_share_to_lan();
     }
 
     /// InWorldGameRulesScreen's exit, back to the options. Done sends the
@@ -720,6 +731,14 @@ impl Game<'_> {
             }
         }
         self.world_options = Some(o);
+    }
+
+    pub(super) fn draw_share_to_lan(&mut self, batch: &mut HudBatch) {
+        let Some(mut m) = self.share_to_lan.take() else {
+            return;
+        };
+        self.draw_multiplayer_view(&mut m, batch, self.cursor);
+        self.share_to_lan = Some(m);
     }
 
     fn draw_lock_question(&self, o: &WorldOptions, batch: &mut HudBatch) {
@@ -841,11 +860,7 @@ impl Game<'_> {
         });
         let atlas = &self.gui.atlas;
         let (w, h) = (batch.width, batch.height);
-        o.scroll = o.scroll.clamp(0.0, o.scroll_limit(h));
-        // extractMenuBackground: the in-world background, the list
-        // background under the content, then the separators over it.
         ui::menu_background(batch, atlas, 0.0, 0.0, w, h, true);
-        ui::list_background(batch, atlas, HEADER, h - FOOTER, true);
         let title = Text::translate("options.worldOptions.title", &[]);
         let tw = atlas.font.width_text(&title);
         batch.text_styled(
@@ -856,53 +871,23 @@ impl Game<'_> {
             u32::MAX,
             true,
         );
-        let top = o.top();
-        let first = batch.vertices.len();
-        let x = WorldOptions::left(w);
-        for (key, y) in [
-            ("options.worldOptions.general.title", GENERAL_TOP),
-            ("options.worldOptions.multiplayer.title", MULTIPLAYER_TOP),
-        ] {
-            if o.remote && key == "options.worldOptions.multiplayer.title" {
-                continue;
-            }
-            // A FocusableTextWidget padded by 4, centred over both columns.
-            let t = Text::translate(key, &[]).underlined().bold();
-            let tw = atlas.font.width_text(&t);
-            let tx = x + ((308.0 - (tw + 8.0)) / 2.0).trunc() + 4.0;
-            batch.text_styled(atlas, &t, tx, top + y + 4.0, u32::MAX, true);
-        }
         let inside = cursor.1 >= HEADER && cursor.1 < h - FOOTER;
         let tr = &super::screen_info::tr;
-        // The categories' FocusableTextWidgets, each before its grid.
-        let header = |key: &str| {
-            let t = Text::translate(key, &[]).underlined().bold();
-            let tw = atlas.font.width_text(&t);
-            let y = if key == "options.worldOptions.general.title" {
-                GENERAL_TOP
-            } else {
-                MULTIPLAYER_TOP
-            };
-            let tx = x + ((308.0 - (tw + 8.0)) / 2.0).trunc();
-            let rect = [tx, top + y, tw + 8.0, 17.0];
-            widgets::narratable(|| Narratable::text(t.plain(), rect));
-        };
-        header("options.worldOptions.general.title");
-        let mut port_at = None;
         for (b, bx, by, bw) in o.visible_buttons(w) {
             let active = o.active(b);
             let is_focused = o.focused_button == Some(b);
             let hover = active && ((inside && ui::hovered(cursor, bx, by, bw, 20.0)) || is_focused);
-            if b == Button::Lan {
-                header("options.worldOptions.multiplayer.title");
-            }
-            if b == Button::Lock {
+            if b == WoButton::Lock {
                 widgets::narratable(|| o.narration(b, [bx, by, 20.0, 20.0], tr).hovered(hover));
                 // An icon, but a button: the D-pad and Tab stop on it as on the others.
                 if active {
                     widgets::target([bx, by, 20.0, 20.0]);
                 }
-                let lock = if o.locked { "locked" } else { "unlocked" };
+                let lock = if o.difficulty_locked || o.hardcore {
+                    "locked"
+                } else {
+                    "unlocked"
+                };
                 let state = match (active, hover) {
                     (false, _) => "_disabled",
                     (true, true) => "_highlighted",
@@ -924,70 +909,111 @@ impl Game<'_> {
                 hover,
                 |rect| o.narration(b, rect, tr),
             );
-            if b == Button::Lan {
-                // The port box is added after it.
-                port_at = Some(widgets::narratables_mark());
-            }
         }
-        // The port box beside the LAN button: editable only with LAN on,
-        // its hint the port to use (setPortError colours the text).
-        if !o.remote {
-            o.port.x = x + 158.0;
-            o.port.y = top + PORT_TOP;
-            o.port.focused = o.lan && o.port.focused;
-            o.port.text_color = if !o.lan {
-                rgba(0x70, 0x70, 0x70, 255)
-            } else if o.parsed_port().is_some() {
-                rgba(0xE0, 0xE0, 0xE0, 255)
-            } else {
-                rgba(0xDF, 0x50, 0x50, 255)
-            };
-            let mark = widgets::narratables_mark();
-            o.port.draw(batch, atlas, None);
-            // updatePortControlsState: the box is active with LAN only.
-            let lan = o.lan;
-            widgets::last_narratable(|n| {
-                if let horizon_client::widgets::What::EditBox { active, .. } = &mut n.what {
-                    *active = lan;
-                }
-            });
-            if let Some(at) = port_at {
-                widgets::move_narratables(mark, at);
-            }
-            if o.port.value.is_empty() && !o.port.focused {
-                let hint = if o.lan {
-                    Text::literal(o.hint.to_string())
-                } else {
-                    Text::translate("lanServer.port", &[])
-                };
-                // EditBox.DEFAULT_HINT_STYLE: dark gray.
-                batch.text_styled(
-                    atlas,
-                    &hint,
-                    o.port.text_x(),
-                    o.port.text_y(),
-                    rgba(0x55, 0x55, 0x55, 255),
-                    true,
-                );
-            }
-        }
-        batch.clip_since(first, 0.0, HEADER, w, h - FOOTER);
-        ui::scrollbar(
+        ui::separators(batch, atlas, HEADER, h - FOOTER, true);
+        let (fx, fy) = WorldOptions::footer(w, h);
+        let is_focused = o.focused_button == Some(WoButton::Done);
+        let hover = ui::hovered(cursor, fx, fy, 200.0, 20.0) || is_focused;
+        ui::action_button(
             batch,
             atlas,
-            (w / 2.0).floor() + 166.0,
-            HEADER,
-            h - FOOTER,
-            o.content_height(),
-            o.scroll.trunc(),
+            horizon_client::widgets::Action::Done,
+            fx,
+            fy,
+            200.0,
+            20.0,
+            &o.label(WoButton::Done),
+            true,
+            hover,
         );
+    }
+
+    fn draw_multiplayer_view(
+        &self,
+        m: &mut ShareToLan,
+        batch: &mut HudBatch,
+        cursor: (f32, f32),
+    ) {
+        horizon_client::widgets::begin_screen(|| {
+            horizon_client::widgets::ScreenInfo::new(
+                "share_to_lan",
+                super::screen_info::tr("lanServer.title", &[]),
+            )
+        });
+        let atlas = &self.gui.atlas;
+        let (w, h) = (batch.width, batch.height);
+        ui::menu_background(batch, atlas, 0.0, 0.0, w, h, true);
+        let title = Text::translate("lanServer.title", &[]);
+        let tw = atlas.font.width_text(&title);
+        batch.text_styled(
+            atlas,
+            &title,
+            ((w - tw) / 2.0).floor(),
+            12.0,
+            u32::MAX,
+            true,
+        );
+        let inside = cursor.1 >= HEADER && cursor.1 < h - FOOTER;
+        let tr = &super::screen_info::tr;
+        let x = WorldOptions::left(w);
+        let centre = x + 79.0;
+        for (b, bx, by, bw) in m.buttons(w) {
+            let active = m.active(b);
+            let is_focused = m.focused_button == Some(b);
+            let hover = active && ((inside && ui::hovered(cursor, bx, by, bw, 20.0)) || is_focused);
+            ui::button_as(
+                batch,
+                atlas,
+                bx,
+                by,
+                bw,
+                20.0,
+                &m.label(b),
+                active,
+                hover,
+                |rect| m.narration(b, rect, tr),
+            );
+            if b == LanButton::GameMode {
+                // The other-players header, plain text over the port row.
+                let header = Text::translate("lanServer.otherPlayers", &[]);
+                let hw = atlas.font.width_text(&header);
+                let hx = ((w - hw) / 2.0).floor();
+                batch.text_styled(atlas, &header, hx, MO_HEADER_Y, u32::MAX, true);
+                widgets::narratable(|| {
+                    Narratable::text(header.plain(), [hx, MO_HEADER_Y, hw, 9.0])
+                });
+                // The port label and box, under the header.
+                let label = Text::translate("lanServer.port", &[]);
+                batch.text_styled(atlas, &label, centre, MO_PORT_LABEL_Y, u32::MAX, true);
+                m.port.x = centre;
+                m.port.y = MO_PORT_Y;
+                m.port.text_color = if m.parsed_port().is_some() {
+                    rgba(0xE0, 0xE0, 0xE0, 255)
+                } else {
+                    rgba(0xDF, 0x50, 0x50, 255)
+                };
+                m.port.draw(batch, atlas, None);
+                if m.port.value.is_empty() && !m.port.focused {
+                    let hint = Text::literal(m.hint.to_string());
+                    // EditBox.DEFAULT_HINT_STYLE: dark gray.
+                    batch.text_styled(
+                        atlas,
+                        &hint,
+                        m.port.text_x(),
+                        m.port.text_y(),
+                        rgba(0x55, 0x55, 0x55, 255),
+                        true,
+                    );
+                }
+            }
+        }
         ui::separators(batch, atlas, HEADER, h - FOOTER, true);
-        for (b, bx, by, bw) in WorldOptions::footer(w, h) {
-            let active = o.active(b);
-            let is_focused = o.focused_button == Some(b);
+        for (b, bx, by, bw) in ShareToLan::footer(w, h) {
+            let active = m.active(b);
+            let is_focused = m.focused_button == Some(b);
             let hover = active && (ui::hovered(cursor, bx, by, bw, 20.0) || is_focused);
             let action = match b {
-                Button::Apply => horizon_client::widgets::Action::Apply,
+                LanButton::Start => horizon_client::widgets::Action::Apply,
                 _ => horizon_client::widgets::Action::Cancel,
             };
             ui::action_button(
@@ -998,75 +1024,72 @@ impl Game<'_> {
                 by,
                 bw,
                 20.0,
-                &o.label(b),
+                &m.label(b),
                 active,
                 hover,
             );
         }
     }
 
-    /// The mouse wheel over the screen (ScrollableLayout, 10 pixels a step).
+    /// The mouse wheel over the screen: a hovered switch cycles, and the
+    /// cycle applies at once like a click.
     pub(super) fn world_options_scroll(&mut self, delta: f32) {
         let (w, h) = self.gui_size();
         let stick_scroll = self.pad_stick_scroll();
-        match self.world_options.as_mut() {
-            Some(o) if o.view == View::Options => {
-                let hit_btn = o.hit(self.cursor, (w, h)).or(o.focused_button);
-                if let Some(btn) = hit_btn.filter(|_| !stick_scroll) {
-                    let step = if delta > 0.0 { -1 } else { 1 };
-                    match btn {
-                        Button::DefaultMode => {
-                            o.default_mode = (o.default_mode + step).rem_euclid(4);
-                            self.audio.play_button_click();
-                            return;
-                        }
-                        Button::PersonalMode => {
-                            o.personal_mode = (o.personal_mode + step).rem_euclid(4);
-                            self.audio.play_button_click();
-                            return;
-                        }
-                        Button::Difficulty => {
-                            o.difficulty = ((o.difficulty as i32 + step).rem_euclid(4)) as u8;
-                            self.audio.play_button_click();
-                            return;
-                        }
-                        Button::Cheats => {
-                            o.cheats = !o.cheats;
-                            if !o.cheats {
-                                o.default_mode = o.initial.default_mode;
-                                o.personal_mode = o.default_mode;
-                            }
-                            self.audio.play_button_click();
-                            return;
-                        }
-                        Button::Lan => {
-                            o.lan = !o.lan;
-                            o.port.focused = false;
-                            self.audio.play_button_click();
-                            return;
-                        }
-                        Button::CommandAccess => {
-                            o.guest_commands = !o.guest_commands;
-                            self.audio.play_button_click();
-                            return;
-                        }
-                        Button::Force => {
-                            o.force = !o.force;
-                            self.audio.play_button_click();
-                            return;
-                        }
-                        _ => {}
+        let Some(mut o) = self.world_options.take() else {
+            return;
+        };
+        if o.view == View::Options {
+            let hit_btn = o.hit(self.cursor, (w, h)).or(o.focused_button);
+            if let Some(btn) = hit_btn.filter(|_| !stick_scroll) {
+                let step = if delta > 0.0 { -1 } else { 1 };
+                let cycled = match btn {
+                    WoButton::Difficulty => {
+                        let before = o.snapshot();
+                        o.difficulty = ((o.difficulty as i32 + step).rem_euclid(4)) as u8;
+                        let wanted = o.snapshot();
+                        self.apply_world_options(&before, &wanted);
+                        true
                     }
-                }
-                o.scroll = (o.scroll - delta * 10.0).clamp(0.0, o.scroll_limit(h));
-            }
-            Some(o) => {
-                if let Some(rules) = o.rules.as_mut() {
-                    rules.wheel(delta, h);
+                    _ => false,
+                };
+                if cycled {
+                    self.audio.play_button_click();
                 }
             }
-            None => {}
+        } else if let Some(rules) = o.rules.as_mut() {
+            rules.wheel(delta, h);
         }
+        self.world_options = Some(o);
+    }
+
+    /// The mouse wheel over Open to LAN: a hovered switch cycles (Start
+    /// LAN World publishes it).
+    pub(super) fn share_to_lan_scroll(&mut self, delta: f32) {
+        let (w, h) = self.gui_size();
+        let stick_scroll = self.pad_stick_scroll();
+        let Some(mut m) = self.share_to_lan.take() else {
+            return;
+        };
+        let hit_btn = m.hit(self.cursor, (w, h)).or(m.focused_button);
+        if let Some(btn) = hit_btn.filter(|_| !stick_scroll) {
+            let step = if delta > 0.0 { -1 } else { 1 };
+            let cycled = match btn {
+                LanButton::GameMode => {
+                    m.game_mode = cycle_mode(m.game_mode, step);
+                    true
+                }
+                LanButton::Commands => {
+                    m.commands = !m.commands;
+                    true
+                }
+                _ => false,
+            };
+            if cycled {
+                self.audio.play_button_click();
+            }
+        }
+        self.share_to_lan = Some(m);
     }
 
     /// The pointer moved while a list's scrollbar is held: the game rules'
@@ -1088,6 +1111,42 @@ impl Game<'_> {
         {
             rules.release();
         }
+    }
+
+    /// A button press (click or keyboard): the world fields apply at once,
+    /// the rest opens its screen. Returns true when the press closes the
+    /// screen (Done).
+    fn press_world_options_button(&mut self, o: &mut WorldOptions, b: WoButton) -> bool {
+        match b {
+            WoButton::Difficulty => {
+                let before = o.snapshot();
+                o.difficulty = (o.difficulty + 1) % 4;
+                let wanted = o.snapshot();
+                self.apply_world_options(&before, &wanted);
+            }
+            WoButton::Lock => o.view = View::LockQuestion,
+            WoButton::Restrictions => o.view = View::Restrictions,
+            WoButton::GameRules => {
+                if self.remote.is_some() {
+                    o.rules = None;
+                    self.send(S::ClientCommand(play::ClientCommand { action: 2 }));
+                } else {
+                    o.rules = Some(RulesScreen::new(&self.ui.rules));
+                }
+                o.view = View::GameRules;
+            }
+            WoButton::Done => return true,
+        }
+        false
+    }
+
+    /// The lock question's Yes: lock the difficulty now, back to the options.
+    fn lock_world_options_difficulty(&mut self, o: &mut WorldOptions) {
+        let before = o.snapshot();
+        o.difficulty_locked = true;
+        let wanted = o.snapshot();
+        self.apply_world_options(&before, &wanted);
+        o.view = View::Options;
     }
 
     pub(super) fn world_options_click(&mut self) {
@@ -1121,8 +1180,8 @@ impl Game<'_> {
                     self.audio.play_button_click();
                 }
                 match hit {
-                    // Yes: apply, then back to the pause menu; No: back to the options.
-                    Some(0) => return self.apply_and_close_world_options(o),
+                    // Yes: lock it now, then back to the options; No: back to the options.
+                    Some(0) => self.lock_world_options_difficulty(&mut o),
                     Some(_) => o.view = View::Options,
                     None => {}
                 }
@@ -1152,74 +1211,63 @@ impl Game<'_> {
                 return;
             }
         }
-        let inside = self.cursor.1 >= HEADER && self.cursor.1 < h - FOOTER;
-        o.port.focused = !o.remote
-            && o.lan
-            && inside
-            && ui::hovered(
-                self.cursor,
-                WorldOptions::left(w) + 158.0,
-                o.top() + PORT_TOP,
-                150.0,
-                20.0,
-            );
         let hit = o.hit(self.cursor, (w, h));
         if let Some(b) = hit {
             o.focused_button = Some(b);
             self.audio.play_button_click();
         }
+        let close = hit.map(|b| self.press_world_options_button(&mut o, b));
+        self.world_options = Some(o);
+        if close == Some(true) {
+            self.close_world_options();
+        }
+    }
+
+    pub(super) fn share_to_lan_click(&mut self) {
+        let Some(mut m) = self.share_to_lan.take() else {
+            return;
+        };
+        let (w, h) = self.gui_size();
+        // The port box takes focus on a click over it.
+        m.port.focused = ui::hovered(
+            self.cursor,
+            WorldOptions::left(w) + 79.0,
+            MO_PORT_Y,
+            150.0,
+            20.0,
+        );
+        let hit = m.hit(self.cursor, (w, h));
+        if let Some(b) = hit {
+            m.focused_button = Some(b);
+            self.audio.play_button_click();
+        }
         match hit {
-            Some(Button::DefaultMode) => o.default_mode = (o.default_mode + 1) % 4,
-            Some(Button::PersonalMode) => o.personal_mode = (o.personal_mode + 1) % 4,
-            Some(Button::Cheats) => {
-                o.cheats = !o.cheats;
-                // updatePermissionDependentButtons: without commands both
-                // game modes return to the world's default.
-                if !o.cheats {
-                    o.default_mode = o.initial.default_mode;
-                    o.personal_mode = o.default_mode;
-                }
-            }
-            Some(Button::Difficulty) => o.difficulty = (o.difficulty + 1) % 4,
-            Some(Button::Lock) => o.locked = !o.locked,
-            Some(Button::Restrictions) => o.view = View::Restrictions,
-            Some(Button::GameRules) => {
-                if self.remote.is_some() {
-                    o.rules = None;
-                    self.send(S::ClientCommand(play::ClientCommand { action: 2 }));
-                } else {
-                    o.rules = Some(RulesScreen::new(&self.ui.rules));
-                }
-                o.view = View::GameRules;
-            }
-            Some(Button::Lan) => {
-                o.lan = !o.lan;
-                o.port.focused = false;
-            }
-            Some(Button::CommandAccess) => o.guest_commands = !o.guest_commands,
-            Some(Button::Force) => o.force = !o.force,
-            Some(Button::Cancel) => {
-                self.world_options = Some(o);
-                self.close_world_options();
+            Some(LanButton::GameMode) => m.game_mode = next_mode(m.game_mode),
+            Some(LanButton::Commands) => m.commands = !m.commands,
+            Some(LanButton::Start) => return self.start_and_close_share_to_lan(m),
+            Some(LanButton::Cancel) => {
+                self.share_to_lan = Some(m);
+                self.close_share_to_lan();
                 return;
             }
-            // A new lock asks first.
-            Some(Button::Apply) if o.locked != o.initial.locked => o.view = View::LockQuestion,
-            Some(Button::Apply) => return self.apply_and_close_world_options(o),
             None => {}
         }
-        self.world_options = Some(o);
+        self.share_to_lan = Some(m);
     }
 
-    fn apply_and_close_world_options(&mut self, o: WorldOptions) {
-        let wanted = o.snapshot();
-        let before = o.initial;
-        self.world_options = Some(o);
-        self.apply_world_options(&before, &wanted);
-        self.close_world_options();
+    /// Start LAN World: close the screen, then publish (ShareToLanScreen's
+    /// start button sets the screen to null before it publishes).
+    fn start_and_close_share_to_lan(&mut self, m: ShareToLan) {
+        let Some(port) = m.parsed_port() else {
+            self.share_to_lan = Some(m);
+            return;
+        };
+        let (game_mode, commands) = (m.game_mode, m.commands);
+        self.close_share_to_lan();
+        self.publish_to_lan(game_mode, commands, port);
     }
 
-    /// `WorldOptionsScreen.sendPublishMessage`: a client system message the
+    /// `ShareToLanScreen.sendPublishMessage`: a client system message the
     /// narrator says.
     fn send_publish_message(&mut self, message: Text) {
         self.say_system_queued(&message);
@@ -1292,11 +1340,11 @@ impl Game<'_> {
                     let yes = o.popup_focus == Some(0);
                     let mut o = self.world_options.take().unwrap();
                     if yes {
-                        return self.apply_and_close_world_options(o);
+                        self.lock_world_options_difficulty(&mut o);
                     } else {
                         o.view = View::Options;
-                        self.world_options = Some(o);
                     }
+                    self.world_options = Some(o);
                 }
                 _ => {}
             }
@@ -1349,37 +1397,13 @@ impl Game<'_> {
         if o.view != View::Options {
             return;
         }
-        if o.port.focused {
-            if key == winit::keyboard::KeyCode::Tab {
-                o.port.focused = false;
-                if shift {
-                    o.focused_button = Some(Button::Lan);
-                } else {
-                    o.focused_button = Some(Button::CommandAccess);
-                }
-                return;
-            }
-            if let Some(shortcut) = shortcut {
-                o.port.shortcut(shortcut, &mut self.clipboard);
-                return;
-            }
-            // Only a key with text types (a `None` is a backspace to
-            // `world_options_text`, the control socket's `\b`).
-            if !o.port.key(key, ctrl, false)
-                && types_text
-                && let Some(text) = event.text.as_deref()
-            {
-                self.world_options_text(Some(text));
-            }
-            return;
-        }
         let visible = o.visible_buttons(w);
-        let footer = WorldOptions::footer(w, h);
-        let active_buttons: Vec<Button> = visible
+        let (fx, fy) = WorldOptions::footer(w, h);
+        let active_buttons: Vec<WoButton> = visible
             .iter()
             .filter(|b| o.active(b.0))
             .map(|b| b.0)
-            .chain(footer.iter().filter(|b| o.active(b.0)).map(|b| b.0))
+            .chain(std::iter::once(WoButton::Done))
             .collect();
         if active_buttons.is_empty() {
             return;
@@ -1389,18 +1413,6 @@ impl Game<'_> {
                 let reverse = shift;
                 let next = match o.focused_button {
                     Some(cur) => {
-                        if !o.remote && o.lan {
-                            if !reverse && cur == Button::Lan {
-                                o.port.focused = true;
-                                o.focused_button = None;
-                                return;
-                            }
-                            if reverse && cur == Button::CommandAccess {
-                                o.port.focused = true;
-                                o.focused_button = None;
-                                return;
-                            }
-                        }
                         if let Some(pos) = active_buttons.iter().position(|&b| b == cur) {
                             if reverse {
                                 if pos == 0 {
@@ -1433,15 +1445,15 @@ impl Game<'_> {
             | winit::keyboard::KeyCode::ArrowDown
             | winit::keyboard::KeyCode::ArrowLeft
             | winit::keyboard::KeyCode::ArrowRight => {
-                let rects: Vec<(Button, f32, f32, f32)> = visible
+                let rects: Vec<(WoButton, f32, f32, f32)> = visible
                     .into_iter()
                     .filter(|b| o.active(b.0))
-                    .chain(footer.into_iter().filter(|b| o.active(b.0)))
+                    .chain(std::iter::once((WoButton::Done, fx, fy, 200.0)))
                     .collect();
                 let cur_b = o.focused_button.unwrap_or(active_buttons[0]);
                 if let Some(cur) = rects.iter().find(|r| r.0 == cur_b) {
                     let (cx, cy) = (cur.1 + cur.3 / 2.0, cur.2 + 10.0);
-                    let mut best: Option<(Button, f32)> = None;
+                    let mut best: Option<(WoButton, f32)> = None;
                     for r in &rects {
                         if r.0 == cur_b {
                             continue;
@@ -1482,91 +1494,231 @@ impl Game<'_> {
                 if let Some(btn) = o.focused_button {
                     self.audio.play_button_click();
                     let mut o = self.world_options.take().unwrap();
-                    match btn {
-                        Button::DefaultMode => o.default_mode = (o.default_mode + 1) % 4,
-                        Button::PersonalMode => o.personal_mode = (o.personal_mode + 1) % 4,
-                        Button::Cheats => {
-                            o.cheats = !o.cheats;
-                            if !o.cheats {
-                                o.default_mode = o.initial.default_mode;
-                                o.personal_mode = o.default_mode;
-                            }
-                        }
-                        Button::Difficulty => o.difficulty = (o.difficulty + 1) % 4,
-                        Button::Lock => o.locked = !o.locked,
-                        Button::Restrictions => o.view = View::Restrictions,
-                        Button::GameRules => {
-                            if self.remote.is_some() {
-                                o.rules = None;
-                                self.send(S::ClientCommand(play::ClientCommand { action: 2 }));
-                            } else {
-                                o.rules = Some(RulesScreen::new(&self.ui.rules));
-                            }
-                            o.view = View::GameRules;
-                        }
-                        Button::Lan => {
-                            o.lan = !o.lan;
-                            o.port.focused = false;
-                        }
-                        Button::CommandAccess => o.guest_commands = !o.guest_commands,
-                        Button::Force => o.force = !o.force,
-                        Button::Cancel => {
-                            self.world_options = Some(o);
-                            self.close_world_options();
-                            return;
-                        }
-                        Button::Apply if o.locked != o.initial.locked => {
-                            o.view = View::LockQuestion
-                        }
-                        Button::Apply => return self.apply_and_close_world_options(o),
-                    }
+                    let close = self.press_world_options_button(&mut o, btn);
                     self.world_options = Some(o);
+                    if close {
+                        self.close_world_options();
+                    }
                 }
             }
             _ => {}
         }
     }
-    /// Whether a World Options text box has focus (the port or a game rule box).
-    pub(super) fn world_options_typing(&self) -> bool {
-        self.world_options.as_ref().is_some_and(|o| {
-            o.rules.as_ref().is_some_and(|r| r.typing())
-                || (o.port.focused && o.view == View::Options)
-        })
+
+    pub(super) fn share_to_lan_key(&mut self, event: &KeyEvent) {
+        if event.state != winit::event::ElementState::Pressed {
+            return;
+        }
+        let PhysicalKey::Code(key) = event.physical_key else {
+            return;
+        };
+        let ctrl = self.has_control_down_with_quirk();
+        let shortcut = self.edit_shortcut(event);
+        let types_text = self.types_text();
+        let shift = self.has_shift_down();
+        let (w, h) = self.gui_size();
+        let Some(m) = self.share_to_lan.as_mut() else {
+            return;
+        };
+        if m.port.focused {
+            if key == winit::keyboard::KeyCode::Tab {
+                m.port.focused = false;
+                if shift {
+                    m.focused_button = Some(LanButton::Commands);
+                } else {
+                    m.focused_button = Some(LanButton::Start);
+                }
+                return;
+            }
+            if let Some(shortcut) = shortcut {
+                m.port.shortcut(shortcut, &mut self.clipboard);
+                return;
+            }
+            // Only a key with text types (a `None` is a backspace to
+            // `share_to_lan_text`, the control socket's `\b`).
+            if !m.port.key(key, ctrl, false)
+                && types_text
+                && let Some(text) = event.text.as_deref()
+            {
+                self.share_to_lan_text(Some(text));
+            }
+            return;
+        }
+        let visible = m.buttons(w);
+        let footer = ShareToLan::footer(w, h);
+        let active_buttons: Vec<LanButton> = visible
+            .iter()
+            .filter(|b| m.active(b.0))
+            .map(|b| b.0)
+            .chain(footer.iter().filter(|b| m.active(b.0)).map(|b| b.0))
+            .collect();
+        if active_buttons.is_empty() {
+            return;
+        }
+        match key {
+            winit::keyboard::KeyCode::Tab => {
+                let reverse = shift;
+                let next = match m.focused_button {
+                    Some(cur) => {
+                        // Tab order: the mode and commands row, the port
+                        // box, the footer.
+                        if !reverse && cur == LanButton::Commands {
+                            m.port.focused = true;
+                            m.focused_button = None;
+                            return;
+                        }
+                        if reverse && cur == LanButton::Start {
+                            m.port.focused = true;
+                            m.focused_button = None;
+                            return;
+                        }
+                        if let Some(pos) = active_buttons.iter().position(|&b| b == cur) {
+                            if reverse {
+                                if pos == 0 {
+                                    active_buttons.last().copied()
+                                } else {
+                                    Some(active_buttons[pos - 1])
+                                }
+                            } else if pos + 1 >= active_buttons.len() {
+                                active_buttons.first().copied()
+                            } else {
+                                Some(active_buttons[pos + 1])
+                            }
+                        } else if reverse {
+                            active_buttons.last().copied()
+                        } else {
+                            active_buttons.first().copied()
+                        }
+                    }
+                    None => {
+                        if reverse {
+                            active_buttons.last().copied()
+                        } else {
+                            active_buttons.first().copied()
+                        }
+                    }
+                };
+                m.focused_button = next;
+            }
+            winit::keyboard::KeyCode::ArrowUp
+            | winit::keyboard::KeyCode::ArrowDown
+            | winit::keyboard::KeyCode::ArrowLeft
+            | winit::keyboard::KeyCode::ArrowRight => {
+                let rects: Vec<(LanButton, f32, f32, f32)> = visible
+                    .into_iter()
+                    .filter(|b| m.active(b.0))
+                    .chain(footer.into_iter().filter(|b| m.active(b.0)))
+                    .collect();
+                let cur_b = m.focused_button.unwrap_or(active_buttons[0]);
+                if let Some(cur) = rects.iter().find(|r| r.0 == cur_b) {
+                    let (cx, cy) = (cur.1 + cur.3 / 2.0, cur.2 + 10.0);
+                    let mut best: Option<(LanButton, f32)> = None;
+                    for r in &rects {
+                        if r.0 == cur_b {
+                            continue;
+                        }
+                        let (rx, ry) = (r.1 + r.3 / 2.0, r.2 + 10.0);
+                        let (dx, dy) = (rx - cx, ry - cy);
+                        let valid = match key {
+                            winit::keyboard::KeyCode::ArrowUp => dy < -4.0,
+                            winit::keyboard::KeyCode::ArrowDown => dy > 4.0,
+                            winit::keyboard::KeyCode::ArrowLeft => dx < -4.0,
+                            winit::keyboard::KeyCode::ArrowRight => dx > 4.0,
+                            _ => false,
+                        };
+                        if !valid {
+                            continue;
+                        }
+                        let dist = match key {
+                            winit::keyboard::KeyCode::ArrowUp
+                            | winit::keyboard::KeyCode::ArrowDown => dy.abs() + dx.abs() * 2.0,
+                            winit::keyboard::KeyCode::ArrowLeft
+                            | winit::keyboard::KeyCode::ArrowRight => dx.abs() + dy.abs() * 2.0,
+                            _ => f32::MAX,
+                        };
+                        if best.as_ref().is_none_or(|(_, d)| dist < *d) {
+                            best = Some((r.0, dist));
+                        }
+                    }
+                    if let Some((next_b, _)) = best {
+                        m.focused_button = Some(next_b);
+                    }
+                } else {
+                    m.focused_button = Some(active_buttons[0]);
+                }
+            }
+            winit::keyboard::KeyCode::Enter
+            | winit::keyboard::KeyCode::NumpadEnter
+            | winit::keyboard::KeyCode::Space => {
+                if let Some(btn) = m.focused_button {
+                    self.audio.play_button_click();
+                    let mut m = self.share_to_lan.take().unwrap();
+                    match btn {
+                        LanButton::GameMode => m.game_mode = next_mode(m.game_mode),
+                        LanButton::Commands => m.commands = !m.commands,
+                        LanButton::Start => return self.start_and_close_share_to_lan(m),
+                        LanButton::Cancel => {
+                            self.share_to_lan = Some(m);
+                            self.close_share_to_lan();
+                            return;
+                        }
+                    }
+                    self.share_to_lan = Some(m);
+                }
+            }
+            _ => {}
+        }
     }
-    /// Digits typed into the port field (the keyboard, or a controller's
+    /// Whether a World Options text box has focus (a game rule box).
+    pub(super) fn world_options_typing(&self) -> bool {
+        self.world_options
+            .as_ref()
+            .is_some_and(|o| o.rules.as_ref().is_some_and(|r| r.typing()))
+    }
+    /// Text typed into a game rule box (the keyboard, or a controller's
     /// on-screen keyboard), and its backspace.
     pub(super) fn world_options_text(&mut self, text: Option<&str>) {
-        if let Some(rules) = self
+        let Some(rules) = self
             .world_options
             .as_mut()
             .and_then(|o| o.rules.as_mut())
             .filter(|r| r.typing())
-        {
-            match text {
-                Some(text) => {
-                    let typed: String = text.chars().filter(|c| !c.is_control()).collect();
-                    if !typed.is_empty() {
-                        rules.edit(|b| b.insert_text(&typed));
-                    }
-                }
-                None => rules.edit(|b| {
-                    b.key(winit::keyboard::KeyCode::Backspace, false, false);
-                }),
-            }
+        else {
             return;
+        };
+        match text {
+            Some(text) => {
+                let typed: String = text.chars().filter(|c| !c.is_control()).collect();
+                if !typed.is_empty() {
+                    rules.edit(|b| b.insert_text(&typed));
+                }
+            }
+            None => rules.edit(|b| {
+                b.key(winit::keyboard::KeyCode::Backspace, false, false);
+            }),
         }
-        let Some(o) = self.world_options.as_mut().filter(|o| o.port.focused) else {
+    }
+    /// Whether the Open to LAN port box has focus.
+    pub(super) fn share_to_lan_typing(&self) -> bool {
+        self.share_to_lan
+            .as_ref()
+            .is_some_and(|m| m.port.focused)
+    }
+    /// Digits typed into the port field (the keyboard, or a controller's
+    /// on-screen keyboard), and its backspace.
+    pub(super) fn share_to_lan_text(&mut self, text: Option<&str>) {
+        let Some(m) = self.share_to_lan.as_mut().filter(|m| m.port.focused) else {
             return;
         };
         match text {
             Some(text) => {
                 let digits: String = text.chars().filter(char::is_ascii_digit).collect();
                 if !digits.is_empty() {
-                    o.port.insert_text(&digits);
+                    m.port.insert_text(&digits);
                 }
             }
             None => {
-                o.port
+                m.port
                     .key(winit::keyboard::KeyCode::Backspace, false, false);
             }
         }
@@ -1590,7 +1742,7 @@ impl Game<'_> {
         }
     }
 
-    fn apply_world_options(&mut self, before: &Snapshot, wanted: &Snapshot) {
+    fn apply_world_options(&mut self, before: &WorldSnapshot, wanted: &WorldSnapshot) {
         if self.external_server() {
             if self.ui.registries.permission >= 2 {
                 if wanted.difficulty != before.difficulty {
@@ -1605,21 +1757,9 @@ impl Game<'_> {
             return;
         }
         if let Some(server) = &self.integrated {
-            // The server applies them; the window tells what came of
-            // Open to LAN (ShareToLanScreen's messages).
+            // The server applies them.
             let (b, w) = (*before, *wanted);
             server.call(move |g| g.apply_world_options(&b, &w));
-            if w.lan != b.lan || (w.lan && w.port != b.port) {
-                let message = match (w.lan, self.lan_port()) {
-                    (true, Some(port)) => Text::translate(
-                        "menu.multiplayerOptions.publish.started.lan",
-                        &[Text::literal(port.to_string())],
-                    ),
-                    (true, None) => Text::translate("commands.publish.failed", &[]),
-                    (false, _) => Text::translate("menu.multiplayerOptions.publish.stopped", &[]),
-                };
-                self.send_publish_message(message);
-            }
             return;
         }
         if wanted.difficulty != before.difficulty {
@@ -1630,36 +1770,27 @@ impl Game<'_> {
         if wanted.locked && !before.locked {
             self.level.difficulty_locked = true;
         }
-        if wanted.default_mode != before.default_mode {
-            self.set_default_game_mode(wanted.default_mode);
-        }
-        if wanted.personal_mode != before.personal_mode {
-            if self.serving() {
-                self.set_owner_mode(wanted.personal_mode);
-            } else {
-                self.set_mode_id(wanted.personal_mode);
-            }
-        }
-        if wanted.cheats != before.cheats {
-            self.set_allow_commands(wanted.cheats);
-            self.owner_allow_commands(wanted.cheats);
-        }
-        let settings_changed =
-            wanted.guest_commands != before.guest_commands || wanted.force != before.force;
-        if wanted.lan != before.lan || (wanted.lan && wanted.port != before.port) {
-            self.lan_close(before.lan);
-            if wanted.lan {
-                let opened = self.lan_open(LanSettings {
-                    port: wanted.port,
-                    guest_commands: wanted.guest_commands,
-                    force_game_mode: wanted.force,
-                });
-                if opened.is_err() {
-                    self.send_publish_message(Text::translate("commands.publish.failed", &[]));
-                }
-            }
-        } else if settings_changed {
-            self.lan_apply_settings(wanted.guest_commands, wanted.force);
+    }
+
+    /// `IntegratedServer.publishServer(gameType, allowCommands, port)`:
+    /// the game type for joining players, commands for all players, then
+    /// the listener. 26.1 has no force toggle; the setting is kept as it
+    /// is. The started message comes from `lan_open`; a failed bind says
+    /// `commands.publish.failed`.
+    fn publish_to_lan(&mut self, game_mode: i32, commands: bool, port: u16) {
+        let force = self
+            .lan
+            .as_ref()
+            .map_or(true, |h| h.settings.force_game_mode);
+        self.set_published_game_type(game_mode);
+        self.lan_apply_settings(commands, force);
+        let opened = self.lan_open(LanSettings {
+            port,
+            guest_commands: commands,
+            force_game_mode: force,
+        });
+        if opened.is_err() {
+            self.send_publish_message(Text::translate("commands.publish.failed", &[]));
         }
     }
 }
@@ -1683,7 +1814,7 @@ mod tests {
         let what = |b| o.narration(b, [0.0; 4], &keys).what;
         let generic = |name: &str, value: &str| format!("options.generic_value({name}, {value})");
         assert_eq!(
-            what(Button::Difficulty),
+            what(WoButton::Difficulty),
             What::Cycle {
                 message: generic("options.difficulty", "options.difficulty.normal"),
                 next: generic("options.difficulty", "options.difficulty.hard"),
@@ -1691,143 +1822,140 @@ mod tests {
             }
         );
         assert_eq!(
-            what(Button::DefaultMode),
-            What::Cycle {
-                message: generic(
-                    "options.worldOptions.game_mode",
-                    "selectWorld.gameMode.creative"
-                ),
-                next: generic(
-                    "options.worldOptions.game_mode",
-                    "selectWorld.gameMode.adventure"
-                ),
-                active: true,
-            }
-        );
-        assert_eq!(
-            what(Button::Lock),
+            what(WoButton::Lock),
             What::Named {
                 title: "gui.narrate.button(narrator.button.difficulty_lock). narrator.button.difficulty_lock.unlocked"
                     .into(),
                 active: true,
             }
         );
-        let mut locked = options(true, true);
-        locked.locked = true;
+        let mut locked = options(true, false);
+        locked.difficulty_locked = true;
         assert_eq!(
-            locked.narration(Button::Lock, [0.0; 4], &keys).what,
+            locked.narration(WoButton::Lock, [0.0; 4], &keys).what,
             What::Named {
                 title: "gui.narrate.button(narrator.button.difficulty_lock). narrator.button.difficulty_lock.locked"
                     .into(),
                 active: false,
             }
         );
-        assert!(matches!(what(Button::Apply), What::Button { .. }));
+        assert!(matches!(what(WoButton::Done), What::Button { .. }));
+    }
+
+    #[test]
+    fn the_game_mode_cycle_follows_vanillas_order() {
+        // createGameModeButton: survival, spectator, creative, adventure.
+        assert_eq!(next_mode(0), 3);
+        assert_eq!(next_mode(3), 1);
+        assert_eq!(next_mode(1), 2);
+        assert_eq!(next_mode(2), 0);
+        assert_eq!(cycle_mode(0, -1), 2);
+        assert_eq!(cycle_mode(3, -1), 0);
     }
 
     fn options(cheats: bool, hardcore: bool) -> WorldOptions {
-        let mut o = WorldOptions {
+        WorldOptions {
             remote: false,
             gamemaster: cheats,
-            default_mode: 1,
-            personal_mode: 1,
-            cheats,
+            commands_at_open: cheats,
             difficulty: 2,
-            lan: false,
-            port: EditBox::new(0.0, 0.0, 150.0, 20.0),
-            hint: 25565,
-            guest_commands: false,
-            force: true,
             hardcore,
             difficulty_locked: false,
-            locked: hardcore,
-            scroll: 0.0,
             view: View::Options,
             rules: None,
             focused_button: None,
             popup_focus: None,
-            initial: Snapshot {
-                default_mode: 0,
-                personal_mode: 0,
-                cheats: false,
-                difficulty: 0,
-                locked: false,
-                lan: false,
-                port: 0,
-                guest_commands: false,
-                force: false,
-            },
-        };
-        o.initial = o.snapshot();
-        o
+        }
+    }
+
+    fn share_to_lan(hardcore: bool) -> ShareToLan {
+        ShareToLan {
+            game_mode: 0,
+            commands: false,
+            port: EditBox::new(0.0, 0.0, 150.0, 20.0),
+            hint: 25565,
+            hardcore,
+            focused_button: None,
+        }
     }
 
     #[test]
-    fn layout_follows_the_header_footer_and_grids() {
-        let at = |b: Button| {
+    fn layout_follows_the_header_footer_and_grid() {
+        let at = |b: WoButton| {
             let o = options(true, false);
-            WorldOptions::buttons(427.0, o.top())
+            let (fx, fy) = WorldOptions::footer(427.0, 240.0);
+            o.visible_buttons(427.0)
                 .into_iter()
-                .chain(WorldOptions::footer(427.0, 240.0))
+                .chain(std::iter::once((WoButton::Done, fx, fy, 200.0)))
                 .find(|e| e.0 == b)
                 .map(|(_, x, y, w)| (x, y, w))
                 .unwrap()
         };
-        // Header 33, content padding 8, heading 17, rows 4 apart.
-        assert_eq!(at(Button::DefaultMode), (59.0, 62.0, 308.0));
-        assert_eq!(at(Button::Cheats), (59.0, 110.0, 150.0));
-        assert_eq!(at(Button::Difficulty), (217.0, 110.0, 130.0));
-        assert_eq!(at(Button::Lock), (347.0, 110.0, 20.0));
-        assert_eq!(at(Button::Restrictions), (217.0, 134.0, 150.0));
-        // The Multiplayer grid 24 below: padding, spacing, padding.
-        assert_eq!(at(Button::Lan), (59.0, 199.0, 150.0));
-        assert_eq!(at(Button::Force), (217.0, 223.0, 150.0));
-        assert_eq!(at(Button::Apply), (59.0, 213.0, 150.0));
-        // 218 pixels of content over 174 between the separators.
-        assert_eq!(options(true, false).scroll_limit(240.0), 44.0);
-        assert_eq!(options(true, false).scroll_limit(400.0), 0.0);
+        // Header 33, two 150-wide columns 8 apart, rows 4 apart.
+        assert_eq!(at(WoButton::GameRules), (59.0, 33.0, 150.0));
+        assert_eq!(at(WoButton::Difficulty), (217.0, 33.0, 130.0));
+        assert_eq!(at(WoButton::Lock), (347.0, 33.0, 20.0));
+        // 26.1 has no game mode or cheats row; restrictions is the second row.
+        assert_eq!(at(WoButton::Restrictions), (59.0, 57.0, 150.0));
+        // Done: 200 wide, centred in the footer.
+        assert_eq!(at(WoButton::Done), (113.0, 213.0, 200.0));
     }
 
     #[test]
-    fn buttons_follow_commands_hardcore_and_lan() {
+    fn open_to_lan_layout_follows_vanilla() {
+        let m = share_to_lan(false);
+        let at = |b: LanButton| {
+            m.buttons(427.0)
+                .into_iter()
+                .chain(ShareToLan::footer(427.0, 240.0))
+                .find(|e| e.0 == b)
+                .map(|(_, x, y, w)| (x, y, w))
+                .unwrap()
+        };
+        // The mode and commands row, two 150-wide columns 8 apart.
+        assert_eq!(at(LanButton::GameMode), (59.0, 61.0, 150.0));
+        assert_eq!(at(LanButton::Commands), (217.0, 61.0, 150.0));
+        assert_eq!(at(LanButton::Start), (59.0, 213.0, 150.0));
+        assert_eq!(at(LanButton::Cancel), (217.0, 213.0, 150.0));
+        // LinearLayout, 8 between children, 4 inside the port pair.
+        assert_eq!(MO_ROW_Y, 61.0);
+        assert_eq!(MO_HEADER_Y, 89.0);
+        assert_eq!(MO_PORT_LABEL_Y, 102.0);
+        assert_eq!(MO_PORT_Y, 115.0);
+    }
+
+    #[test]
+    fn buttons_follow_commands_and_hardcore() {
         let o = options(true, false);
-        assert!(o.active(Button::DefaultMode) && o.active(Button::Difficulty));
-        assert!(!o.active(Button::CommandAccess) && !o.active(Button::Force));
-        assert!(!o.active(Button::Apply));
-        assert!(o.active(Button::GameRules));
-        let mut o = options(false, false);
-        assert!(!o.active(Button::DefaultMode) && !o.active(Button::PersonalMode));
-        // Game Rules follows the commands the player has, not the switch.
-        assert!(!o.active(Button::GameRules));
-        o.cheats = true;
-        assert!(!o.active(Button::GameRules));
+        assert!(o.active(WoButton::Difficulty));
+        assert!(o.active(WoButton::GameRules));
+        let o = options(false, false);
+        // Game Rules follows the commands the player has at open.
+        assert!(!o.active(WoButton::GameRules));
         let o = options(true, true);
-        assert!(!o.active(Button::GameRules));
+        assert!(!o.active(WoButton::GameRules));
         let o = options(false, true);
-        assert!(!o.active(Button::Cheats) && !o.active(Button::Difficulty));
-        assert!(!o.active(Button::Force));
-        // Scrolled widgets only take clicks between the separators.
-        let mut o = options(true, false);
-        o.scroll = 44.0;
+        assert!(!o.active(WoButton::Difficulty));
+        // Above the grid, nothing takes a click; the restrictions row does.
+        let o = options(true, false);
         assert_eq!(o.hit((100.0, 30.0), (427.0, 240.0)), None);
-        assert_eq!(o.hit((100.0, 70.0), (427.0, 240.0)), Some(Button::Cheats));
+        assert_eq!(
+            o.hit((100.0, 70.0), (427.0, 240.0)),
+            Some(WoButton::Restrictions)
+        );
     }
 
     #[test]
-    fn the_lock_follows_the_level_and_counts_as_a_change() {
-        let mut o = options(true, false);
-        assert!(o.active(Button::Lock) && o.active(Button::Restrictions));
-        assert!(!o.locked && !o.changed());
-        // The wanted lock alone enables Apply (hasSettingsChanges).
-        o.locked = true;
-        assert!(o.changed() && o.active(Button::Difficulty));
+    fn the_lock_follows_the_level() {
+        let o = options(true, false);
+        assert!(o.active(WoButton::Lock) && o.active(WoButton::Restrictions));
         // A locked level: neither the difficulty nor the lock.
         let mut o = options(true, false);
         o.difficulty_locked = true;
-        assert!(!o.active(Button::Lock) && !o.active(Button::Difficulty));
+        assert!(!o.active(WoButton::Lock) && !o.active(WoButton::Difficulty));
         // Hardcore shows the lock closed, and inactive.
         let o = options(true, true);
-        assert!(o.locked && !o.active(Button::Lock));
+        assert!(!o.active(WoButton::Lock));
     }
 
     #[test]
@@ -1839,64 +1967,110 @@ mod tests {
         assert_eq!(
             rows.iter().map(|b| b.0).collect::<Vec<_>>(),
             vec![
-                Button::Difficulty,
-                Button::Lock,
-                Button::GameRules,
-                Button::Restrictions,
+                WoButton::GameRules,
+                WoButton::Difficulty,
+                WoButton::Lock,
+                WoButton::Restrictions,
             ]
         );
-        assert_eq!(rows[0], (Button::Difficulty, 59.0, 62.0, 130.0));
-        assert_eq!(rows[2], (Button::GameRules, 217.0, 62.0, 150.0));
-        assert_eq!(rows[3], (Button::Restrictions, 59.0, 86.0, 150.0));
-        assert_eq!(o.scroll_limit(240.0), 0.0);
+        assert_eq!(rows[0], (WoButton::GameRules, 59.0, 33.0, 150.0));
+        assert_eq!(rows[1], (WoButton::Difficulty, 217.0, 33.0, 130.0));
+        assert_eq!(rows[2], (WoButton::Lock, 347.0, 33.0, 20.0));
+        assert_eq!(rows[3], (WoButton::Restrictions, 59.0, 57.0, 150.0));
         // A non-operator cannot activate the difficulty or rule controls.
-        assert_eq!(o.hit((100.0, 70.0), (427.0, 240.0)), None);
-        assert_eq!(o.hit((240.0, 70.0), (427.0, 240.0)), None);
+        assert_eq!(o.hit((100.0, 40.0), (427.0, 240.0)), None);
+        assert_eq!(o.hit((240.0, 40.0), (427.0, 240.0)), None);
         assert_eq!(
-            o.hit((100.0, 90.0), (427.0, 240.0)),
-            Some(Button::Restrictions)
+            o.hit((100.0, 70.0), (427.0, 240.0)),
+            Some(WoButton::Restrictions)
         );
         o.gamemaster = true;
         assert_eq!(
-            o.hit((100.0, 70.0), (427.0, 240.0)),
-            Some(Button::Difficulty)
+            o.hit((100.0, 40.0), (427.0, 240.0)),
+            Some(WoButton::GameRules)
         );
         assert_eq!(
-            o.hit((240.0, 70.0), (427.0, 240.0)),
-            Some(Button::GameRules)
+            o.hit((240.0, 40.0), (427.0, 240.0)),
+            Some(WoButton::Difficulty)
         );
         o.difficulty_locked = true;
-        assert_eq!(o.hit((100.0, 70.0), (427.0, 240.0)), None);
+        assert_eq!(o.hit((240.0, 40.0), (427.0, 240.0)), None);
         // Remote hardcore does not hide an operator's Game Rules screen.
         o.hardcore = true;
-        assert!(o.active(Button::GameRules));
-        assert!(!o.active(Button::Lock));
-        for b in [
-            Button::DefaultMode,
-            Button::PersonalMode,
-            Button::Cheats,
-            Button::Lan,
-            Button::CommandAccess,
-            Button::Force,
-        ] {
-            assert!(!o.active(b));
-        }
+        assert!(o.active(WoButton::GameRules));
+        assert!(!o.active(WoButton::Lock));
     }
 
     #[test]
-    fn a_delayed_server_reply_does_not_mark_reopened_options_as_edited() {
+    fn server_difficulty_updates_the_level_state() {
         let mut o = options(false, false);
         o.remote = true;
         o.gamemaster = true;
-        // Reopened while the previous Apply's reply was still in flight.
+        // Reopened while the previous click's reply was still in flight.
         o.server_difficulty(3, false);
         assert_eq!(o.difficulty, 3);
-        assert!(!o.active(Button::Apply));
-        o.difficulty = 0;
-        assert!(o.active(Button::Apply));
+        assert!(o.active(WoButton::Difficulty));
         o.server_difficulty(3, true);
-        assert!(!o.active(Button::Apply));
-        assert!(o.locked);
-        assert!(!o.active(Button::Difficulty));
+        assert!(o.difficulty_locked);
+        assert!(!o.active(WoButton::Difficulty));
+        assert!(!o.active(WoButton::Lock));
+    }
+
+    #[test]
+    fn the_port_must_be_in_vanillas_range() {
+        let mut m = share_to_lan(false);
+        // Empty means the hint.
+        assert_eq!(m.parsed_port(), Some(25565));
+        m.port.set_value("1023");
+        assert_eq!(m.parsed_port(), None);
+        m.port.set_value("1024");
+        assert_eq!(m.parsed_port(), Some(1024));
+        m.port.set_value("65535");
+        assert_eq!(m.parsed_port(), Some(65535));
+        m.port.set_value("65536");
+        assert_eq!(m.parsed_port(), None);
+        m.port.set_value("abc");
+        assert_eq!(m.parsed_port(), None);
+    }
+
+    #[test]
+    fn start_follows_the_port() {
+        let mut m = share_to_lan(false);
+        // An empty box means the hint, so Start is live at open.
+        assert!(m.active(LanButton::Start) && m.active(LanButton::Cancel));
+        // An invalid port disables Start until it parses again.
+        m.port.set_value("80");
+        assert!(!m.active(LanButton::Start));
+        m.port.set_value("25566");
+        assert!(m.active(LanButton::Start));
+        // Hardcore locks the game mode and commands row, not Start.
+        let m = share_to_lan(true);
+        assert!(!m.active(LanButton::GameMode) && !m.active(LanButton::Commands));
+        assert!(m.active(LanButton::Start));
+    }
+
+    #[test]
+    fn the_share_to_lan_switches_narrate_as_cycle_buttons() {
+        use horizon_client::widgets::What;
+        let m = share_to_lan(false);
+        let what = |b| m.narration(b, [0.0; 4], &keys).what;
+        let generic = |name: &str, value: &str| format!("options.generic_value({name}, {value})");
+        assert_eq!(
+            what(LanButton::GameMode),
+            What::Cycle {
+                message: generic("selectWorld.gameMode", "selectWorld.gameMode.survival"),
+                next: generic("selectWorld.gameMode", "selectWorld.gameMode.spectator"),
+                active: true,
+            }
+        );
+        assert_eq!(
+            what(LanButton::Commands),
+            What::Cycle {
+                message: generic("selectWorld.allowCommands", "options.off"),
+                next: generic("selectWorld.allowCommands", "options.on"),
+                active: true,
+            }
+        );
+        assert!(matches!(what(LanButton::Start), What::Button { .. }));
     }
 }

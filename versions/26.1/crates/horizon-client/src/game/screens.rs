@@ -73,6 +73,7 @@ impl Screen {
             | Self::Stats
             | Self::Advancements
             | Self::WorldOptions
+            | Self::ShareToLan
             | Self::Friends
             | Self::ServerLinks
             | Self::ConfirmLink
@@ -92,6 +93,7 @@ impl Screen {
             | Self::Stats
             | Self::Advancements
             | Self::WorldOptions
+            | Self::ShareToLan
             | Self::Friends
             | Self::Social
             | Self::ServerLinks
@@ -134,7 +136,7 @@ fn pause_grid(w: f32, h: f32, extra_rows: u8) -> (f32, f32) {
 /// `additions`: the `pause_screen_additions` button instead of the links one
 /// (vanilla shows one or the other, never both); its label is the dialog's
 /// external title, so the caller draws it (id 14).
-/// https://mcsrc.dev/2/26.3/net/minecraft/client/gui/screens/PauseScreen
+/// https://mcsrc.dev/2/26.1/net/minecraft/client/gui/screens/PauseScreen
 fn pause_buttons(
     w: f32,
     h: f32,
@@ -163,16 +165,27 @@ fn pause_buttons(
         let y = y0 + 122.0 + if row3 { 24.0 } else { 0.0 };
         v.push((x0 + 4.0, y, 204.0, SPLIT_SETTINGS, 30, true));
     }
+    // 26.1 `PauseScreen.createPauseMenu`: with a single-player server the
+    // row is Options + Open to LAN; without one (multiplayer) it is a
+    // single full-width Options button. 26.3 shows Options + World
+    // Options whenever a level is open (World Options moved to the
+    // Options screen's Main page in 26.1).
+    if remote {
+        v.push((x0 + 4.0, y0 + 122.0 + down, 204.0, "menu.options", 1, true));
+    } else {
+        v.extend([
+            (x0 + 4.0, y0 + 122.0 + down, 98.0, "menu.options", 1, true),
+            (
+                x0 + 110.0,
+                y0 + 122.0 + down,
+                98.0,
+                "menu.shareToLan",
+                9,
+                true,
+            ),
+        ]);
+    }
     v.extend([
-        (x0 + 4.0, y0 + 122.0 + down, 98.0, "menu.options", 1, true),
-        (
-            x0 + 110.0,
-            y0 + 122.0 + down,
-            98.0,
-            "options.worldOptions.button",
-            9,
-            true,
-        ),
         (
             x0 + 4.0,
             y0 + 146.0 + down,
@@ -443,7 +456,7 @@ impl Game<'_> {
             1 => self.open_options(false),
             3 => self.open_stats(),
             4 => self.open_advancements(true),
-            9 => self.open_world_options(),
+            9 => self.open_share_to_lan(),
             10 => self.screen = Screen::Friends,
             // DialogConnectionAccess.openDialog(Dialogs.SERVER_LINKS).
             11 => {
@@ -982,6 +995,7 @@ mod tests {
             Screen::Stats,
             Screen::Advancements,
             Screen::WorldOptions,
+            Screen::ShareToLan,
             Screen::Friends,
             Screen::ServerLinks,
             Screen::ConfirmLink,
@@ -996,13 +1010,25 @@ mod tests {
     }
 
     #[test]
-    fn pause_menu_uses_disconnect_for_servers_and_keeps_world_options() {
+    fn pause_menu_uses_disconnect_for_servers_and_share_to_lan_for_single_player() {
         for (remote, label) in [(false, "menu.returnToMenu"), (true, "menu.disconnect")] {
             let buttons = pause_buttons(427.0, 240.0, remote, false, false, false);
             let quit = buttons.iter().find(|b| b.4 == 2).unwrap();
             assert_eq!(quit.3, label);
             assert!(quit.5);
-            assert!(buttons.iter().any(|b| b.4 == 9 && b.5));
+            // Open to LAN only with a single-player server; remote gets a
+            // single full-width Options button instead.
+            let share = buttons.iter().find(|b| b.4 == 9);
+            let options = buttons.iter().find(|b| b.4 == 1).unwrap();
+            if remote {
+                assert!(share.is_none());
+                assert_eq!(options.2, 204.0);
+            } else {
+                let share = share.unwrap();
+                assert_eq!(share.3, "menu.shareToLan");
+                assert!(share.5);
+                assert_eq!(options.2, 98.0);
+            }
         }
     }
 

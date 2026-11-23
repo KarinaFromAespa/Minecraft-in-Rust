@@ -1352,4 +1352,23 @@ dimension form in game_tests.rs — carried the 26.2 tree's
 game_tests.rs whole (single-level runner, no per-Info dim)
 and dropped the dim argument at the test_instances.rs call
 site; the local check caught it before CI did.
+
+Batch 73 (Nov 24, 80/214 — B1 #5, 518 alone): the 26.1 LAN
+screens. 26.1 has ShareToLanScreen + a difficulty/gamerules/
+restrictions WorldOptionsScreen — neither 26.2's
+MultiplayerOptionsScreen (LAN switch + Apply) nor the tree's
+26.3 merged single screen, so the 26.2 file was reshaped, not
+carried: WorldOptions lost its mode/cheats row; ShareToLan
+has the game-mode cycle, allow-commands, a port box (blank →
+available port, 1024..65535 per tryParsePort) and Start LAN
+World, which closes the screen then publishes (published game
+type = hub default for joiners only, via the new
+set_published_game_type). Pause menu: Options + Open to LAN
+in single player, full-width Options on a server; World
+Options moved to the Options screen's Main page (in world
+only). Success message fixed to commands.publish.started
+(26.1's lang has no multiplayerOptions publish keys); the
+unpublish "stopped" messages dropped (26.1 unpublish is
+silent). Screen::ShareToLan wired through game.rs and the
+control/ime/narrator/pad_menu/play_keys dispatch.
 `cargo check -p horizon-client-lib` clean.

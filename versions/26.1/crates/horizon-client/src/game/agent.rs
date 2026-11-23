@@ -479,6 +479,7 @@ impl Game<'_> {
             Screen::Stats => "stats",
             Screen::Advancements => "advancements",
             Screen::WorldOptions => "world-options",
+            Screen::ShareToLan => "share-to-lan",
             Screen::Friends => "friends",
             Screen::Social => "social",
             Screen::ServerLinks => "server-links",

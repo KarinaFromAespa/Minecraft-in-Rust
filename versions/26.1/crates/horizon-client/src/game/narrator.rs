@@ -264,6 +264,7 @@ impl Game<'_> {
             Screen::Chat if self.title.is_none() => true,
             Screen::Options => self.ui.options.typing(),
             Screen::WorldOptions => self.world_options_typing(),
+            Screen::ShareToLan => self.share_to_lan_typing(),
             Screen::CommandBlock | Screen::Social => true,
             Screen::Inventory => self.station_typing() || self.mod_browser_typing(),
             _ => self

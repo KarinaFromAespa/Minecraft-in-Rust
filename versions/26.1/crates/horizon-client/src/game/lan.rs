@@ -1375,7 +1375,7 @@ impl Game<'_> {
             return Err("no world of this game to open".into());
         };
         self.system_message(Text::translate(
-            "menu.multiplayerOptions.publish.started.lan",
+            "commands.publish.started",
             &[Text::literal(port.to_string())],
         ));
         Ok(())
@@ -1493,12 +1493,9 @@ impl Game<'_> {
             if closed {
                 self.friends_lan_closed();
             }
-            if closed && announce && self.integrated.is_some() {
-                self.system_message(Text::translate(
-                    "menu.multiplayerOptions.publish.stopped",
-                    &[],
-                ));
-            }
+            // 26.1's unpublish sends no chat message (there is no
+            // "publish stopped" key in its lang).
+            let _ = announce;
             return;
         }
         self.friends_lan_closed();
@@ -1518,12 +1515,8 @@ impl Game<'_> {
         self.lan_songs.clear();
         self.lan_critical_hits.clear();
         self.streaming.extra.clear();
-        if announce {
-            self.system_message(Text::translate(
-                "menu.multiplayerOptions.publish.stopped",
-                &[],
-            ));
-        }
+        // 26.1's unpublish sends no chat message.
+        let _ = announce;
     }
 
     /// `PlayerList.removeAll`: every guest leaves in turn, the vehicle it
@@ -1846,6 +1839,19 @@ impl Game<'_> {
             // `setWorldGameType` and `DefaultGameModeCommands.setMode`: a
             // world that forces its mode puts the guests online in it.
             enforce_guest_game_mode(host, &self.world, self.collision);
+        }
+    }
+
+    /// `IntegratedServer.publishServer`'s game type: the mode joining
+    /// players get (`publishedGameType`), without touching the world's
+    /// own game mode or the guests already online.
+    pub(super) fn set_published_game_type(&mut self, mode: i32) {
+        if let Some(server) = &self.integrated {
+            server.call(move |g| g.set_published_game_type(mode));
+            return;
+        }
+        if let Some(host) = self.lan.as_mut() {
+            host.hub.config.default_game_mode = mode;
         }
     }
 

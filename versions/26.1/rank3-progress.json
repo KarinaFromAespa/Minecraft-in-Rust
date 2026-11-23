@@ -61,6 +61,11 @@
    "evidence": "GuiItemAtlas/PictureInPictureRenderer differ only by render-submission plumbing (26.1 takes SubmitNodeCollector + BufferSource in; 26.2 creates a SubmitNodeStorage internally). gui.rs is 0-diff vs 26.2 apart from the oit:false test literal from the earlier OIT work."
   },
   {
+   "id": 518,
+   "verdict": "ported",
+   "evidence": "Batch 73 PORTED (lan_screen, 26.1's two screens): 26.1 has ShareToLanScreen + a difficulty/gamerules/restrictions WorldOptionsScreen \u2014 NOT 26.2's MultiplayerOptionsScreen (LAN switch + Apply) and NOT the tree's 26.3 merged single screen. Reshaped the 26.2 tree's lan_screen.rs: WorldOptions lost its mode/cheats row (restrictions is row 2); ShareToLan has the game-mode cycle (survival/spectator/creative/adventure), allow-commands, a port box (blank -> available port, 1024..65535 per tryParsePort) and Start LAN World, which closes the screen then publishServer(gameType, allowCommands, port) via set_published_game_type (hub default only, no level-mode change, no guest retargeting) + lan_apply_settings + lan_open. Pause menu: Options + Open to LAN single-player, full-width Options remote (hasSingleplayerServer gate); World Options moved to the Options screen's Main page (in world only, Act/Event::WorldOptions). Success message fixed to commands.publish.started (26.1's lang has no menu.multiplayerOptions.publish.started.lan); the unpublish 'stopped' messages dropped (26.1 has no such key \u2014 unpublish is silent). Screen::ShareToLan wired through game.rs, control/ime/narrator/pad_menu/play_keys, agent/control screen names, debug_options interrupts, startup_menu (ignored: no world at title)."
+  },
+  {
    "id": 519,
    "verdict": "no-change",
    "evidence": "Batch 72 NO-CHANGE (SystemToast): 26.2 refactored the toast internals (title Component -> titleLines list, TEXT_X_START const, mutable width). Toast-render plumbing; chunk_io.rs is 0-diff vs the 26.2 tree and models no toast internals."

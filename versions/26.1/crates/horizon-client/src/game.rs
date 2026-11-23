@@ -648,6 +648,8 @@ enum Screen {
     Advancements,
     /// WorldOptionsScreen (game/lan_screen.rs).
     WorldOptions,
+    /// ShareToLanScreen, the 26.1 "Open to LAN" screen (game/lan_screen.rs).
+    ShareToLan,
     /// Play with Friends, from the pause menu's Friends button
     /// (`friends_screen`, game/friends.rs).
     Friends,
@@ -694,6 +696,7 @@ impl Screen {
             Screen::Stats => "stats",
             Screen::Advancements => "advancements",
             Screen::WorldOptions => "world_options",
+            Screen::ShareToLan => "share_to_lan",
             Screen::Friends => "friends",
             Screen::Social => "social",
             Screen::CommandBlock => "command_block",
@@ -2904,6 +2907,7 @@ struct Game<'a> {
     /// The Social Interactions screen and the players whose chat is hidden (game/social.rs).
     social: social::Social,
     world_options: Option<lan_screen::WorldOptions>,
+    share_to_lan: Option<lan_screen::ShareToLan>,
     /// Chat Settings opened from RestrictionsScreen: Done returns to World Options.
     options_to_world_options: bool,
     command_block_screen: Option<command_blocks::CommandBlockScreen>,
@@ -6239,6 +6243,7 @@ impl Game<'_> {
             Screen::Advancements => self.draw_advancements(&mut batch),
             Screen::Mod => {}
             Screen::WorldOptions => self.draw_world_options(&mut batch),
+            Screen::ShareToLan => self.draw_share_to_lan(&mut batch),
             Screen::Friends => self.draw_friends_screen(&mut batch),
             Screen::Social => self.draw_social_screen(&mut batch),
             Screen::ServerLinks => self.draw_server_links(&mut batch),
@@ -10687,6 +10692,9 @@ impl Game<'_> {
                     if self.screen == Screen::WorldOptions && d != 0.0 {
                         self.world_options_scroll(d);
                     }
+                    if self.screen == Screen::ShareToLan && d != 0.0 {
+                        self.share_to_lan_scroll(d);
+                    }
                     if self.screen == Screen::ServerLinks && d != 0.0 {
                         self.server_links_scroll(d);
                     }
@@ -11009,6 +11017,9 @@ impl Game<'_> {
                         Screen::WorldOptions if pressed && button == MouseButton::Left => {
                             self.world_options_click()
                         }
+                        Screen::ShareToLan if pressed && button == MouseButton::Left => {
+                            self.share_to_lan_click()
+                        }
                         Screen::ServerLinks if pressed && button == MouseButton::Left => {
                             self.server_links_click()?
                         }
@@ -11204,6 +11215,12 @@ impl Game<'_> {
                         && !matches!(event.physical_key, PhysicalKey::Code(KeyCode::Escape)) =>
                 {
                     self.world_options_key(&event)
+                }
+                WindowEvent::KeyboardInput { event, .. }
+                    if self.screen == Screen::ShareToLan
+                        && !matches!(event.physical_key, PhysicalKey::Code(KeyCode::Escape)) =>
+                {
+                    self.share_to_lan_key(&event)
                 }
                 WindowEvent::KeyboardInput { event, .. } if self.screen == Screen::Win => {
                     self.win_key(&event)?
@@ -12187,6 +12204,7 @@ impl<'a> Game<'a> {
             level_shapes: Default::default(),
             serving: None,
             world_options: None,
+            share_to_lan: None,
             options_to_world_options: false,
             command_block_screen: None,
             block_editor: None,

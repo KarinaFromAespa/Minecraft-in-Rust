@@ -1379,6 +1379,9 @@ enum Act {
     AccessibilityHelp,
     /// Credits & Attribution's Credits button (WinScreen without the poem).
     Credits,
+    /// The Main page's World Options button (in world only):
+    /// WorldOptionsScreen.
+    WorldOptions,
     CopyAgentDetails,
     /// AI Agent: start or stop the repro recording.
     ToggleRecording,
@@ -1525,6 +1528,8 @@ pub enum Event {
     NativeButton(usize, usize),
     /// Roll the credits (`CreditsAndAttributionScreen.openCreditsScreen`).
     Credits,
+    /// Open WorldOptionsScreen from the Main page.
+    WorldOptions,
     /// PvP & HUD's Edit HUD: open the HUD editor over the game.
     HudEditor,
     /// Copy how an agent connects (the AI Agent page).
@@ -3058,9 +3063,22 @@ impl OptionsUi {
                     .concat();
                     &plain
                 };
-                let rows = entries.len().div_ceil(2) as f32;
+                let rows = (entries.len() + usize::from(self.in_world)).div_ceil(2) as f32;
                 let gy = (61.0 + 30.0f32).min(h - 33.0 - rows * 24.0);
+                // Vanilla's World Options button, first in the grid and
+                // only in world (OptionsScreen adds it after the top row
+                // when inWorld).
+                if self.in_world {
+                    out.push(button(
+                        cx - 158.0 + 4.0,
+                        gy,
+                        150.0,
+                        tr("options.worldOptions.button"),
+                        Act::WorldOptions,
+                    ));
+                }
                 for (i, (key, page)) in entries.iter().enumerate() {
+                    let i = i + usize::from(self.in_world);
                     let x = cx - 158.0 + 4.0 + (i % 2) as f32 * 158.0;
                     let y = gy + (i / 2) as f32 * 24.0;
                     let b = button(x, y, 150.0, tr(key), page.map_or(Act::None, Act::Push));
@@ -4237,6 +4255,7 @@ impl OptionsUi {
                         Act::HudEditor => events.push(Event::HudEditor),
                         Act::AccessibilityHelp => events.push(Event::AccessibilityHelp),
                         Act::Credits => events.push(Event::Credits),
+                        Act::WorldOptions => events.push(Event::WorldOptions),
                         Act::CopyAgentDetails => events.push(Event::CopyAgentDetails),
                         Act::ToggleRecording => events.push(Event::ToggleRecording),
                         Act::ExportRepro => events.push(Event::ExportRepro),
@@ -5125,6 +5144,7 @@ impl OptionsUi {
                         Act::HudEditor => events.push(Event::HudEditor),
                         Act::AccessibilityHelp => events.push(Event::AccessibilityHelp),
                         Act::Credits => events.push(Event::Credits),
+                        Act::WorldOptions => events.push(Event::WorldOptions),
                         Act::CopyAgentDetails => events.push(Event::CopyAgentDetails),
                         Act::ToggleRecording => events.push(Event::ToggleRecording),
                         Act::ExportRepro => events.push(Event::ExportRepro),
