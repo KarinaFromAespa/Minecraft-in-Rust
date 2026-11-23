@@ -1,8 +1,9 @@
 //! `SpecialModelRenderer`s: items drawn with entity models (chests, shulker
 //! boxes, banners, heads, shields, tridents, decorated pots, conduits, bells,
-//! books and copper golem statues). Each submits its model at the layer pose
-//! as vanilla's `submit` does (no block-entity placement transform) and
-//! reports `getExtents` over the same posed parts.
+//! books, copper golem statues, and — 26.1 only — beds and signs). Each
+//! submits its model at the layer pose as vanilla's `submit` does (no
+//! block-entity placement transform) and reports `getExtents` over the same
+//! posed parts.
 use super::{Foil, ItemQuad, ItemRenderer, ItemSink, SpecialHost, argb};
 use crate::{block_entity_render::ModelPart, hud::Rect, mobs::EntityModelDocument};
 use glam::{Mat4, Quat, Vec3};
@@ -11,7 +12,23 @@ use serde_json::Value;
 use std::{collections::HashMap, f32::consts::PI, path::Path};
 
 /// Entity model layers the special renderers bake (`ModelLayers`).
-const LAYERS: [(&str, &str); 22] = [
+/// The sign layers are per wood type but share one definition
+/// (`StandingSignRenderer.createSignLayer` / `createHangingSignLayer`),
+/// so oak stands in for every wood; only the texture varies.
+const LAYERS: [(&str, &str); 29] = [
+    ("bed_head", "minecraft:bed_head#main"),
+    ("bed_foot", "minecraft:bed_foot#main"),
+    ("sign_standing", "minecraft:sign/standing/oak#main"),
+    ("sign_wall", "minecraft:sign/wall/oak#main"),
+    (
+        "hanging_sign_ceiling_middle",
+        "minecraft:hanging_sign/oak/ceiling_middle#main",
+    ),
+    (
+        "hanging_sign_ceiling",
+        "minecraft:hanging_sign/oak/ceiling#main",
+    ),
+    ("hanging_sign_wall", "minecraft:hanging_sign/oak/wall#main"),
     ("chest", "minecraft:chest#main"),
     ("double_chest_left", "minecraft:double_chest_left#main"),
     ("double_chest_right", "minecraft:double_chest_right#main"),
@@ -337,6 +354,14 @@ pub(super) fn extents(renderer: &ItemRenderer, model: &SpecialModel) -> Vec<Vec3
             "book",
             &book_pose(open_angle * (PI / 180.0), *page1, *page2),
         ),
+        SpecialKind::Bed { part, .. } => add(
+            if part == "head" {
+                "bed_head"
+            } else {
+                "bed_foot"
+            },
+            &none,
+        ),
         SpecialKind::Conduit => add("conduit_shell", &none),
         SpecialKind::Chest {
             openness,
@@ -361,6 +386,22 @@ pub(super) fn extents(renderer: &ItemRenderer, model: &SpecialModel) -> Vec<Vec3
         SpecialKind::PlayerHead => add("player", &none),
         SpecialKind::ShulkerBox { openness, .. } => add("shulker_box", &shulker_pose(*openness)),
         SpecialKind::Shield => add("shield", &none),
+        SpecialKind::StandingSign { attachment, .. } => add(
+            if attachment == "wall" {
+                "sign_wall"
+            } else {
+                "sign_standing"
+            },
+            &none,
+        ),
+        SpecialKind::HangingSign { attachment, .. } => add(
+            match attachment.as_str() {
+                "wall" => "hanging_sign_wall",
+                "ceiling" => "hanging_sign_ceiling",
+                _ => "hanging_sign_ceiling_middle",
+            },
+            &none,
+        ),
         SpecialKind::Trident => add("trident", &none),
     }
     out
@@ -664,6 +705,60 @@ pub(super) fn submit(
         // `EndCubeSpecialRenderer` draws the end portal/gateway effect; no
         // bundled item uses it.
         SpecialKind::EndCube { .. } => {}
+        // 26.1 only: `BedSpecialRenderer` draws the head or foot model with
+        // the bed texture (`Sheets.BED_MAPPER`).
+        SpecialKind::Bed { texture, part: p } => part(
+            if p == "head" { "bed_head" } else { "bed_foot" },
+            &none,
+            &mapped("bed", texture),
+            white,
+            Foil::None,
+        ),
+        // 26.1 only: the sign renderers draw the wood's sign model with its
+        // texture, or the codec's explicit one (`Sheets.SIGN_MAPPER` /
+        // `HANGING_SIGN_MAPPER`).
+        SpecialKind::StandingSign {
+            wood_type,
+            attachment,
+            texture,
+        } => {
+            let sprite = texture
+                .as_deref()
+                .map(|t| mapped("signs", t))
+                .unwrap_or_else(|| format!("entity/signs/{wood_type}"));
+            part(
+                if attachment == "wall" {
+                    "sign_wall"
+                } else {
+                    "sign_standing"
+                },
+                &none,
+                &sprite,
+                white,
+                Foil::None,
+            );
+        }
+        SpecialKind::HangingSign {
+            wood_type,
+            attachment,
+            texture,
+        } => {
+            let sprite = texture
+                .as_deref()
+                .map(|t| mapped("signs/hanging", t))
+                .unwrap_or_else(|| format!("entity/signs/hanging/{wood_type}"));
+            part(
+                match attachment.as_str() {
+                    "wall" => "hanging_sign_wall",
+                    "ceiling" => "hanging_sign_ceiling",
+                    _ => "hanging_sign_ceiling_middle",
+                },
+                &none,
+                &sprite,
+                white,
+                Foil::None,
+            );
+        }
     }
 }
 

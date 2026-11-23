@@ -543,3 +543,16 @@ and 26.1's NbtOps does not override it, so the port stands and the test
 now expects the byte form (those five false; Infinity still true via
 saturation to i32::MAX). The 26.1 tree's entity_nbt.rs already expected
 Short(256) -> false.
+
+Batch 18 (Nov 23, 250/498): 81 ported — 26.2 dropped bed, standing_sign
+and hanging_sign from `SpecialModelRenderers.bootstrap` (16 renderers in
+26.1, 13 in 26.2); added all three to `SpecialKind` with their 26.1 codec
+fields (standing sign's field is misspelled "attachement" in vanilla;
+hanging sign defaults to ceiling_middle, standing to ground) plus render
+arms (bed_head/bed_foot layers; sign layers share one definition across
+woods, so oak stands in, textures via the Sheets mappers). Regression
+test `bed_and_sign_special_models_decode_with_their_26_1_fields` passed
+locally. 84/88/447/451/455/459/460 no-change: four 26.2-only methods
+(hashCode, setAllowCommands, forEachInPalette, WeatherState.forEach), a
+path-escape check in resolveAgainst the Rust never ports, a
+BlockEntityType rename, and a codec-idiom-only difference.
