@@ -468,7 +468,8 @@ failed_upgrade_keeps_old_data_version — fixed in b6260577 (test start
 verified locally. Run 45185167162 (head b6260577) completed
 SUCCESS — all 3 jobs green (resolve, crate tests 26.1, defect suite
 26.1): the first fully-green run for the 26.1 branch. Run
-45188321039 dispatched for head a5c27b95 (batches 14+15).
+45188321039 (head a5c27b95, batches 14+15) completed SUCCESS — all 3
+jobs green. Run 45190837928 dispatched for head abb089fe (batch 16).
 
 Batch 15 (Nov 23, 226/498): 273 ported — beacon validation is
 26.2-only: `BeaconMenu.updateEffects` returns void in 26.1 (no
