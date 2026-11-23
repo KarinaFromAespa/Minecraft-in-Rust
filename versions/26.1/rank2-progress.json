@@ -1,0 +1,579 @@
+{
+ "closed": [
+  {
+   "id": 37,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "No-change. 26.2 #30 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/structures.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 41,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #51 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 58,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "No-change. 26.2 #49 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/pad_craft.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 59,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "No-change. 26.2 #53 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client-render/src/sound_events.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 61,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #54 (rank 2) verified no-change in 26.2; all 6 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 67,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #57 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 68,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #58 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 69,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #60 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 72,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #64 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 73,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #65 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-world/src/json_folder.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 77,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #70 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 80,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #76 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 83,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #78 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/lan/discovery.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 85,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #79 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 86,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #80 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 87,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #82 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 160,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #131 (rank 2) verified no-change in 26.2; all 4 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client-render/src/mesher/fluid.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 166,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #133 (rank 2) verified no-change in 26.2; all 66 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 186,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "No-change. 26.2 #145 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/composter.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 204,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "No-change. 26.2 #159 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/native_reload_listeners.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 247,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #191 (rank 2) verified no-change in 26.2; all 8 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 262,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "No-change. 26.2 #202 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/recipe_book.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 264,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "No-change. 26.2 #207 (rank 2) verified no-change in 26.2; all 5 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-protocol/src/secure_chat.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 279,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "No-change. 26.2 #174 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/nether_portal.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 286,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #232 (rank 2) verified no-change in 26.2; all 21 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 311,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #248 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 312,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #249 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 321,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #255 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 328,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "No-change. 26.2 #261 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/screen_layout.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 329,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "No-change. 26.2 #262 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-protocol/src/buf.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 341,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #276 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 347,
+   "verdict": "no-change",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "No-change. 26.2 #281 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/cauldron.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 357,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #296 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 359,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #297 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 361,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #299 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 363,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #300 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 366,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #303 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 369,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #306 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client/examples/probe/entity_sound_packet_fixture.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 372,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #311 (rank 2) verified no-change in 26.2; all 7 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 374,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #313 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-protocol/src/item/hash.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 378,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #315 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client/src/end_crystal.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 381,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #318 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 384,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #320 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 386,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #321 (rank 2) verified no-change in 26.2; all 5 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 389,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #324 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client-render/src/skins.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 391,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #329 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-shaders/src/pack.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 394,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #330 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 401,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #333 (rank 2) verified no-change in 26.2; all 4 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 402,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #334 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client-render/src/widgets.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 404,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #335 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client/src/game/sheep_dye.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 405,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #338 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client/src/lan/hub/chat.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 407,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #341 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 410,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #342 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 411,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #343 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 412,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #344 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 417,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #347 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 420,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #349 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client-render/src/gfx/lightning/tests/mod.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 424,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #351 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client/src/gossip.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 426,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #353 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client/src/mobs/landing.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 429,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #355 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client/src/recipe_book.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 433,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #358 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-core/src/paletted.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 437,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #366 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 440,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #368 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 450,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #375 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client/src/dialog.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 452,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #376 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client/src/game/campfire.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 454,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #379 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client/src/game/lan_mobs.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 456,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #380 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client/src/game/mob_gear.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 457,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #381 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client/src/game/native_panel_recipes.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 458,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #383 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client/src/game/storage.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 462,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #388 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-client/src/mod_content_biomes.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 465,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #390 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the title file crates/horizon-world/examples/damage_catalog_probe.rs is identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 470,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #395 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 471,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #397 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 472,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #398 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 475,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #399 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 482,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #404 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 484,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #406 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 485,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #407 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 487,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #408 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 498,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #413 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 504,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #416 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 505,
+   "verdict": "no-change",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "No-change. 26.2 #417 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  }
+ ],
+ "triage": "Rank 2: 498 items. First-pass buckets (triage.json): B 265, A 231, D 2. Class-level 26.2->26.1 split (classlevel.json, zip CRC): B1c 233, B2c 32, A1 138, A2 93, D 2. Batch 1+2 (2026-11-23): 82 no-change closures \u2014 A2/B2c items whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the 26.2 and 26.1 trees (or widely named with 0 methods named in Horizon)."
+}
