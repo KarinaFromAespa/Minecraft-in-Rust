@@ -781,7 +781,8 @@ impl Game<'_> {
         owner_yaw: Option<f32>,
         seed: i32,
     ) -> bool {
-        // ShelfBlockEntity.position(): Vec3.atCenterOf(getBlockPos()).
+        // ShelfBlockEntity.position(): getBlockPos().getCenter() (26.2 spells
+        // the same centre Vec3.atCenterOf(getBlockPos())).
         let owner = owner_yaw
             .map(|yaw| super::item_draw::owner_at(draw.block.map(|c| f64::from(c) + 0.5), yaw, ""));
         let item = self.resolve_item(stack, display, owner.as_ref(), seed);

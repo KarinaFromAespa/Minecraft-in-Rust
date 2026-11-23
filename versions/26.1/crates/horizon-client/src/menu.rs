@@ -1197,9 +1197,11 @@ impl Menu {
     /// `AnvilMenu.setItemName` (`ServerboundRenameItemPacket`): false when
     /// the name is refused or unchanged.
     /// `BeaconMenu.updateEffects` (`ServerboundSetBeaconPacket`): with a
-    /// payment, powers `BeaconBlockEntity.validateEffects` allows for the
-    /// pyramid's levels (data 0) become data 1 and 2 and the payment is used.
-    /// Each power is its `mob_effect` id and name. False when refused.
+    /// payment, the powers become data 1 and 2 and the payment is used.
+    /// 26.1 validates nothing — 26.2 added
+    /// `BeaconBlockEntity.validateEffects` (absent in 26.1) and refuses
+    /// invalid pairs. Each power is its `mob_effect` id and name. True
+    /// when a payment was present and the powers were set.
     pub fn beacon_update(
         &mut self,
         env: &Env,
@@ -1207,19 +1209,6 @@ impl Menu {
         secondary: Option<(i32, &str)>,
     ) -> bool {
         if self.kind != Kind::Beacon || self.containers[MAIN][0].is_none() {
-            return false;
-        }
-        let levels = self.data[0];
-        let (p, s) = (
-            beacon_required_levels(primary.map(|e| e.1)),
-            beacon_required_levels(secondary.map(|e| e.1)),
-        );
-        let valid = !(secondary.is_some() && levels < 4)
-            && p <= levels
-            && s <= levels
-            && p < 4
-            && !(s != 0 && s < 4 && primary.map(|e| e.0) != secondary.map(|e| e.0));
-        if !valid {
             return false;
         }
         self.data[1] = primary.map_or(0, |e| e.0 + 1);
@@ -3550,6 +3539,48 @@ pub(crate) mod tests {
         assert!(!menu.may_place(&env, 4, &ordinary));
         menu.set_slot(&env, 5, Some(ordinary));
         assert!(!menu.quick_move_landing(&env, 5).contains(&4));
+    }
+
+    /// 26.1's `BeaconMenu.updateEffects` validates nothing: a one-level
+    /// pyramid takes regeneration as its primary and a secondary power
+    /// too — 26.2's `validateEffects` refuses both — and the payment is
+    /// used. Without a payment nothing is applied.
+    #[test]
+    fn a_beacon_takes_any_powers_with_a_payment() {
+        let items = Items::for_tests(Default::default());
+        let recipes = Recipes::empty();
+        let brewing = Brewing::load(std::path::Path::new(""), &items, &PackOverlay::NONE);
+        let banners = Banners::default();
+        let station_recipes = crate::stations::StationRecipes::default();
+        let enchantments = crate::enchant::Enchantments::default();
+        let names = crate::creative::Names::default();
+        let env = Env {
+            items: &items,
+            recipes: &recipes,
+            brewing: &brewing,
+            banners: &banners,
+            station_recipes: &station_recipes,
+            enchantments: &enchantments,
+            names: &names,
+            trade: None,
+            maps: None,
+            limited_crafting: false,
+            known_recipes: None,
+        };
+        let mut menu = Menu::new(Kind::Beacon);
+        menu.data[0] = 1;
+        menu.set_slot(&env, 0, stack("diamond", 1));
+        assert!(menu.beacon_update(
+            &env,
+            Some((0, "minecraft:regeneration")),
+            Some((1, "minecraft:speed")),
+        ));
+        assert_eq!((menu.data[1], menu.data[2]), (1, 2));
+        assert_eq!(menu.slot(0), None, "the payment is used");
+        let mut unpaid = Menu::new(Kind::Beacon);
+        unpaid.data[0] = 1;
+        assert!(!unpaid.beacon_update(&env, Some((0, "minecraft:speed")), None));
+        assert_eq!((unpaid.data[1], unpaid.data[2]), (0, 0));
     }
 
     /// MerchantResultSlot's removal tally and quick-craft check reset before onTake.

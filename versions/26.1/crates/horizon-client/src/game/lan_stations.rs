@@ -756,23 +756,10 @@ impl Game<'_> {
             let power = |k: usize| powers[k].as_ref().map(|(id, n)| (*id, n.as_str()));
             updated = Some(menu.beacon_update(env, power(0), power(1)));
         });
-        // handleSetBeaconPacket: effects the beacon can't give, or no payment, disconnect.
-        if updated == Some(false) {
-            let name = host
-                .hub
-                .guests
-                .iter()
-                .find(|g| g.conn == conn)
-                .map(|g| g.name.clone());
-            eprintln!(
-                "Player {} tried to set invalid beacon effects",
-                name.unwrap_or_default()
-            );
-            host.hub.kick(
-                conn,
-                horizon_protocol::text::translatable("multiplayer.disconnect.generic", &[]),
-            );
-        }
+        // 26.1's handleSetBeaconPacket validates nothing and disconnects
+        // nobody (26.2 added the validation and the kick for invalid
+        // effects); without a payment the menu applies nothing, so the
+        // block entity keeps its effects.
         if updated != Some(true) {
             return;
         }

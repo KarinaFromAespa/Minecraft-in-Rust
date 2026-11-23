@@ -467,6 +467,20 @@ failed_upgrade_keeps_old_data_version — fixed in b6260577 (test start
 4899 -> 4780, below CURRENT 4786; same pattern as 26.1.1's 4786 fix),
 verified locally. Run 45185167162 dispatched for head b6260577.
 
+Batch 15 (Nov 23, 226/498): 273 ported — beacon validation is
+26.2-only: `BeaconMenu.updateEffects` returns void in 26.1 (no
+validation; `BeaconBlockEntity.validateEffects` does not exist in
+26.1) while 26.2 returns boolean and `handleSetBeaconPacket`
+disconnects on false. Removed the validation from `beacon_update`
+(the bool now means "a payment was present") and the kick from the
+LAN host handler; regression test
+`a_beacon_takes_any_powers_with_a_payment`. 259/261 no-change with
+doc corrections (falling-block drag is a hardcoded 0.98 in 26.1 —
+26.2's `getAirDrag()` returns the same 0.98F; shelf position is
+`getCenter()` in 26.1). 280/267/268/269/270 no-change: renames,
+the CriteriaTriggers package move, Holder field types, screen
+access; the 26.2 #137 ghast port is carried (ghasts.rs identical).
+
 Test health: crate-tests run 45163597005 (rank-1 state): protocol,
 items, client-core, client-render PASS; world FAIL (1 pre-existing
 datafix failure, `failed_upgrade_keeps_old_data_version` — the other

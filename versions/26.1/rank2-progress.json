@@ -29,6 +29,11 @@
    "evidence": "No-change. 26.2 #27 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the tree diff in packs.rs is only the rank-1 pack-format fixture numbers (88->84); PackResources#getRootResource handling is untouched."
   },
   {
+   "id": 36,
+   "verdict": "no-change",
+   "evidence": "No-change. WorldGenRegion#setBlock is identical; ensureCanWrite differs only by 26.2 extracting isWithinWriteZone + caching writeRadius/centerChunkX/Z fields \u2014 the 26.2 constructor sets them from generatingStep.blockStateWriteRadius() and getCenter(), so the predicate is identical to 26.1's inline form. The Rust can_write has the same two gates (write zone + upgrading height check)."
+  },
+  {
    "id": 37,
    "verdict": "no-change",
    "bucket": "B",
@@ -43,6 +48,16 @@
    "evidence": "No-change. 26.2 #31 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the tree diff in sound_engine.rs is doc comments only (Underwater/UnderLiquid naming); RidingEntitySoundInstance#tick and AbstractSoundInstance#getOrResolve are untouched."
   },
   {
+   "id": 39,
+   "verdict": "ported",
+   "evidence": "Ported (carry-over of 26.2 #34). 26.1's tickChunks() has the identical lastInhabitedUpdate mechanism as 26.2 (timeDiff = gameTime - lastInhabitedUpdate, stamped before the debug gate), but the 26.1 tree had the 26.3 +1 form. Added World.last_inhabited_update, the time_diff stamp at the top of spawn_natural, and += time_diff accrual; carried the 26.2 tests (game_time 1 -> +1, /time set jump to 11 -> +11). The getFilteredSpawningCategories difference is a dead-parameter removal: 26.1's always-true friendly gate (the only call site passes true) dropped in 26.2; the Rust already has the 2-arg form (spawn_enemies, gameTime % 400 == 0)."
+  },
+  {
+   "id": 40,
+   "verdict": "no-change",
+   "evidence": "No-change. I18n#get identical except the Language instance access (static field in 26.1, getInstance() in 26.2); ClientLanguage#loadFrom byte-identical. Same getOrDefault + Locale.ROOT format with IllegalFormatException fallback."
+  },
+  {
    "id": 41,
    "verdict": "no-change",
    "bucket": "A",
@@ -55,6 +70,21 @@
    "bucket": "B",
    "cl_sub": "B2",
    "evidence": "No-change. 26.2 #35 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/audio.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 43,
+   "verdict": "no-change",
+   "evidence": "No-change. UnbakedCuboidGeometry#bake and both FaceBakery#bakeQuad overloads byte-identical between 26.1 and 26.2 (the retriage removed/added hit is a class-file artifact)."
+  },
+  {
+   "id": 44,
+   "verdict": "ported",
+   "evidence": "Ported. 26.2 added a post-onPlace re-check to LevelChunk.setBlockState (section.getBlockState(pos).is(newBlock) guards block-entity creation); 26.1 creates the entity for the new state unconditionally after onPlace. Removed the re-check at all three Rust sites carrying the 26.2 form: update.rs chunk_set_block_state (ensure_block_entity now takes the new state), commands.rs place_state and native_hooks.rs set-block hook (entity now created for the requested state, no landed-name check). replaceWithPacketData is byte-identical."
+  },
+  {
+   "id": 45,
+   "verdict": "ported",
+   "evidence": "Ported (comment-only; the entity is absent in 26.1). SulfurCube and its whole family (SulfurCubeArchetype, renderer, inner layer, bubble particle, dispense behaviour, SulfurCubeContent, PotentSulfurBlock) do not exist in 26.1 vanilla: no cubemob package in the 26.1 server-game jar, no SULFUR_CUBE in EntityType, Slime still at monster/Slime extending Mob directly. The Rust module is unreachable in 26.1 (the type never resolves from 26.1 data; no SpawnPlacements registration) and is kept per the programme convention (1.21.7/1.21.11/26.1.1/26.1.2 all keep it). Added a module-doc note recording the absence. Vec2#rotate is a 26.2 addition used only by this dead module."
   },
   {
    "id": 47,
@@ -361,6 +391,11 @@
    "evidence": "No-change. 26.2 #159 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/native_reload_listeners.rs'] are identical between the 26.2 and 26.1 trees."
   },
   {
+   "id": 212,
+   "verdict": "ported",
+   "evidence": "Ported (comment-only; bodies byte-identical). 26.1 names the method applyInstantenousEffect (Mojang's typo); 26.2 fixed the spelling to applyInstantaneousEffect. Same heal (0.5 + potency x 4<<amp) / harm (0.5 + potency x 6<<amp) amounts and magic vs indirectMagic sources. Updated the 5 doc references in effects.rs and potions.rs to the 26.1 name."
+  },
+  {
    "id": 216,
    "verdict": "no-change",
    "evidence": "FontTexture#add unchanged 26.2->26.1; the only class change is a Mojang-side enum rename in the constructor (GpuFormat.RGBA8_UNORM/R8_UNORM -> TextureFormat.RGBA8/RED8), same texture creation. font.rs identical between the trees and has no texture-format references."
@@ -479,11 +514,21 @@
    "evidence": "No-change. 26.2 #205 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the tree diff in villager.rs removes the 26.2-only merchant level-up timer fields; TradeWithVillager#tick/throwHalfStack are untouched."
   },
   {
+   "id": 259,
+   "verdict": "no-change",
+   "evidence": "No-change. FallingBlockEntity#fall identical; #tick's only difference is 26.1's hardcoded 0.98 drag vs 26.2's getAirDrag(), which returns 0.98F by default with no FallingBlockEntity override. falling_blocks.rs + entity_rules::scale_air_drag already port it; the falling_blocks.rs:211 comment was corrected to the 26.1 form."
+  },
+  {
    "id": 260,
    "verdict": "no-change",
    "bucket": "B",
    "cl_sub": "B2",
    "evidence": "No-change. 26.2 #216 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the tree diff in fireworks.rs is the shared culling-helper call-site adaptation (26.1 culls at the interpolated position; the helper difference belongs to the entity-culling item) plus a velocity arg on the powder-snow particle call; FireworkRocketEntity#handleEntityEvent and the FireworkEntityRenderer#submit geometry are untouched."
+  },
+  {
+   "id": 261,
+   "verdict": "no-change",
+   "evidence": "No-change. ShelfBlockEntity#position differs only by getCenter/atCenterOf (same computation); ModelPart#translateAndRotate identical. native_block_entity_draw.rs ports the shelf centre; its comment was corrected to the 26.1 getCenter form."
   },
   {
    "id": 262,
@@ -521,11 +566,36 @@
    "evidence": "No-change. 26.2 #210 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the tree diff in biome.rs is spawner count-provider parsing and the natural_mob_spawns attribute form; Biome#getHeightAdjustedTemperature is untouched."
   },
   {
+   "id": 267,
+   "verdict": "no-change",
+   "evidence": "No-change. DriedGhastBlock#placeLiquid identical; #spawnGhastling differs only by the EntityType rename + getBottomCenter/atBottomCenterOf (same computation). ghasts.rs identical between trees, so the 26.2 #137 port is carried."
+  },
+  {
+   "id": 268,
+   "verdict": "no-change",
+   "evidence": "No-change. AbstractVillager#addOffersFromTradeSet identical; #notifyTrade differs only by the CriteriaTriggers package move (advancements/criterion in 26.1, advancements/triggers in 26.2). merchant.rs ports notify_trade + offers_from_set."
+  },
+  {
+   "id": 269,
+   "verdict": "no-change",
+   "evidence": "No-change. Witch#aiStep + #performRangedAttack differ only by the Potions field types (Holder$Reference in 26.1, Holder in 26.2); same potion sets (water breathing, fire resistance, healing, swiftness; harming, slowness, poison, weakness, regeneration). witch.rs ports both."
+  },
+  {
+   "id": 270,
+   "verdict": "no-change",
+   "evidence": "No-change. OverlayRecipeComponent#extractRenderState identical; RecipeBookPage#extractTooltip differs only by screen access (Minecraft.screen field in 26.1, gui.screen() in 26.2). Menu chrome."
+  },
+  {
    "id": 271,
    "verdict": "no-change",
    "bucket": "B",
    "cl_sub": "B2",
    "evidence": "No-change. 26.2 #227 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the tree diff in stations.rs is a test-only brewing count (65->279) and a result accessor; PatchedDataComponentMap#set is untouched."
+  },
+  {
+   "id": 273,
+   "verdict": "ported",
+   "evidence": "Ported. BeaconMenu#updateEffects returns void in 26.1 but boolean in 26.2, which added BeaconBlockEntity.validateEffects (absent in 26.1) and a disconnect-on-false in handleSetBeaconPacket. Removed the validation from menu.rs beacon_update (bool now means 'a payment was present') and the kick from the LAN host handler (lan_stations.rs); the local confirm_beacon path already applied without validation. Regression test a_beacon_takes_any_powers_with_a_payment."
   },
   {
    "id": 274,
@@ -545,6 +615,11 @@
    "bucket": "B",
    "cl_sub": "B2c",
    "evidence": "No-change. 26.2 #174 (rank 2) verified no-change in 26.2; all 2 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/nether_portal.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 280,
+   "verdict": "no-change",
+   "evidence": "No-change. IronGolem#canAttack + #checkSpawnObstruction differ only by the EntityType->EntityTypes rename; bodies identical (player-created golem won't attack players, never attacks creepers; obstruction: stand-on below + 2 empty blocks above + empty at feet with EMPTY fluid + isUnobstructed). golem.rs ports the creeper refusal + player_created with tests; spawn_selection.rs:604 ports the obstruction check."
   },
   {
    "id": 282,
@@ -573,11 +648,26 @@
    "evidence": "No-change. 26.2 #232 (rank 2) verified no-change in 26.2; all 21 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
   },
   {
+   "id": 287,
+   "verdict": "no-change",
+   "evidence": "No-change. SweetBerryBushBlock.entityInside differs only by the EntityTypes->EntityType rename (FOX/BEE). NOTE: isValidBonemealTarget is a REAL 26.1 difference found while closing this item \u2014 26.1 requires age<3 AND air above AND inside build height, 26.2 checks age only \u2014 but it belongs to item 165 (BonemealableBlock#isValidBonemealTarget), not this one; bonemeal.rs:410 still carries the 26.2 age-only form."
+  },
+  {
    "id": 289,
    "verdict": "no-change",
    "bucket": "B",
    "cl_sub": "B2",
    "evidence": "No-change. 26.2 #475 (rank 3) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/mobs/guardian.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 290,
+   "verdict": "no-change",
+   "evidence": "No-change. Vex.getOwner: 26.2 returns LivingEntity via OwnableEntity, 26.1 returns Mob via EntityReference.get(..., Mob.class); vex.rs already implements the 26.1 Mob-only form (\"a UUID naming the player is no owner\"); vex.rs identical between trees."
+  },
+  {
+   "id": 291,
+   "verdict": "ported",
+   "evidence": "Ported. 26.1 has no MobCategory.getDebugAbbreviation (a 26.2 addition); DebugEntrySpawnCounts uses getName().charAt(0) uppercased. CATEGORY_ABBREVIATIONS in debug_overlay.rs changed from [\"MO\",\"C\",\"AM\",\"AX\",\"UWC\",\"WC\",\"WA\",\"MI\"] to [\"M\",\"C\",\"A\",\"A\",\"U\",\"W\",\"W\",\"M\"] (monster/misc both M, ambient/axolotls both A, water creature/water ambient both W) with updated doc + test expectation. Concat recipes identical in both versions. DebugEntryPosition.display is codegen-only (identical format strings + method-call sets)."
   },
   {
    "id": 292,
@@ -629,6 +719,11 @@
    "evidence": "No-change. 26.2 #245 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the tree diff in debugworld.rs is a doc comment only; the DebugLevelSource#buildTerrain code is unchanged."
   },
   {
+   "id": 300,
+   "verdict": "no-change",
+   "evidence": "No-change. AbstractWindCharge.canHitEntity differs only by the EntityTypes->EntityType rename; FenceGateBlock.isPathfindable is codegen-only (shared return vs per-case returns; LAND->OPEN, WATER->false, AIR->OPEN, default->false)."
+  },
+  {
    "id": 301,
    "verdict": "no-change",
    "bucket": "B",
@@ -664,6 +759,21 @@
    "evidence": "No-change. 26.2 #253 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the tree diff in chiseled_bookshelf.rs is a doc comment only; the ChiseledBookShelfBlockEntity#updateState code is unchanged."
   },
   {
+   "id": 307,
+   "verdict": "no-change",
+   "evidence": "No-change. OminousItemSpawner.create differs only by the EntityTypes->EntityType rename."
+  },
+  {
+   "id": 308,
+   "verdict": "ported",
+   "evidence": "Ported (comment-only; behaviour already correct). 26.1 has no canBeABaby \u2014 AgeableMob.isBaby is getAge() < 0 (overridable); Parrot/Frog/ZombieNautilus/CamelHusk override isBaby()->false in 26.1 (canBeABaby()->false in 26.2); Slime/MagmaCube are NOT AgeableMobs in 26.1 (Slime extends Mob directly; in 26.2 Slime moved to a new package as an AbstractCubeMob). The Rust can_be_a_baby allowlist is correct for 26.1 (same six excluded). Doc comments updated in species.rs, living.rs:657, living_tests.rs:2-3, remote_mob_data.rs:88 and :1043 to the 26.1 mechanism."
+  },
+  {
+   "id": 309,
+   "verdict": "ported",
+   "evidence": "Ported. ArmadilloAi.initIdleActivity differs only by the EntityTypes->EntityType rename; Armadillo.getBreedOffspring likewise. REAL PORT (1): ArmadilloBallUp.checkExtraStartConditions is onGround() ONLY in 26.1 \u2014 the 26.1 tree carried the 26.3 !isInLiquid check; dropped it (and the now-unused liquid() helper) to the 26.2 form. REAL PORT (2), jar-wide baby-dims mechanism: 26.1 has BABY_DIMENSIONS in only 20 classes vs 36 in 26.2; every other baby takes the type box scaled by getAgeScale (LivingEntity.getDefaultDimensions). 29 Baby-table entries corrected from the 26.2 form: 16 species without 26.1 BABY_DIMENSIONS now Scale by their age scale (Pig/Sheep/Wolf/Cat/Ocelot/PolarBear/Hoglin/Zoglin/Strider 0.5, Goat 0.55, Armadillo 0.6, Dolphin 0.65, Camel 0.6, HappyGhast 0.2375, Panda 0.5 with no eye override); zombie family + villager + piglin heights 0.98->0.99; axolotl (0.5,0.25,0.2); squid 0.63 tall; chicken eye 0.28; cow/mooshroom eye 0.665 (AbstractCow); fox eye 0.2975. Camel sitting baby dims (1.02,0.567,0.507) = SITTING_DIMENSIONS x 0.6 (26.1 has no BABY_STANDING_DIMENSIONS). Verified unchanged: rabbit, horse family 0.7, donkey/mule/llama/bee/sniffer/nautilus 0.5, turtle 0.3. Regression test baby_boxes_are_the_26_1_boxes_not_the_26_2_ones in living_tests.rs; cow test eye 0.69->0.665."
+  },
+  {
    "id": 310,
    "verdict": "no-change",
    "bucket": "B",
@@ -692,11 +802,26 @@
    "evidence": "Ported (26.2 #250). 26.1 BlockStateProvider is the abstract class with byNameCodec-dispatch CODEC and simple(state)/simple(block) factories; the type registry uses the LONG forms (dual_noise_provider, noise_provider, noise_threshold_provider, randomized_int_state_provider, rotated_block_provider, rule_based_state_provider, simple_state_provider, weighted_state_provider) \u2014 identical to 26.2. Decoder accepts long forms; provider states read the object-only BlockState.CODEC form (true); RotatedBlockProvider draws Axis.getRandom (verified in the 26.1 jar). noise.rs: type-name + state-form hunks only \u2014 the 26.1 NoiseStack is f32 (26.2 converted to f64), so the f64 sampling hunks were NOT carried over."
   },
   {
+   "id": 314,
+   "verdict": "no-change",
+   "evidence": "No-change. TextDisplayRenderer#submitInner identical except the getGameRenderState() -> gameRenderState() getter rename (same flags, opacity, background colour, rotate pi, scale -0.025, translate, textBackground/textBackgroundSeeThrough)."
+  },
+  {
+   "id": 315,
+   "verdict": "no-change",
+   "evidence": "No-change. CrafterBlock#dispenseItem identical except the CriteriaTriggers/RecipeCraftedTrigger package move (advancements/criterion in 26.1, advancements/triggers in 26.2); the dispense logic (container in front first, spawn at 0.7 with speed 6, level events 1049/2010, 17-block trigger radius) is identical. crafter.rs already ports it; it differs from the 26.2 tree only in the unrelated exploration-map find_with arity."
+  },
+  {
    "id": 316,
    "verdict": "no-change",
    "bucket": "B",
    "cl_sub": "B2",
    "evidence": "No-change. 26.2 #266 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/native_npcs.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 317,
+   "verdict": "no-change",
+   "evidence": "No-change. ShulkerBoxBlockEntity#moveCollidedEntities differs only by Vec3.atBottomCenterOf (26.2 static) vs BlockPos.getBottomCenter() (26.1 method) \u2014 the same computation; the progress-delta AABB, IGNORE skip and SHULKER_BOX move (size + 0.01 per axis) are identical. piston_push.rs already ports it."
   },
   {
    "id": 318,
@@ -711,6 +836,11 @@
    "bucket": "B",
    "cl_sub": "B2",
    "evidence": "No-change. 26.2 #295 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-world/src/environment_timeline.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 320,
+   "verdict": "no-change",
+   "evidence": "No-change. EndCityPieces#recursiveChildren identical except Lists.newArrayList() (26.1, Guava) vs new ArrayList<>() (26.2) \u2014 same depth-8 cap, one nextInt gen depth, collision piece with a differing gen depth, addAll. end_city.rs already ports it (MAX_GEN_DEPTH 8). The static-init Tuple/Pair + Lists/List.of change is construction-only with identical bridge values."
   },
   {
    "id": 321,
@@ -734,6 +864,11 @@
    "evidence": "No-change. 26.2 #258 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client-render/src/chunk.rs'] are identical between the 26.2 and 26.1 trees."
   },
   {
+   "id": 324,
+   "verdict": "no-change",
+   "evidence": "No-change. Creaking$CreakingMoveControl#tick differs only by receiver access (outer this$0 in 26.1 vs (Creaking)mob cast in 26.2); the same canMove() gate on super.tick(). creaking.rs models it via can_move + stop_in_place on freeze."
+  },
+  {
    "id": 325,
    "verdict": "no-change",
    "bucket": "A",
@@ -746,6 +881,11 @@
    "bucket": "B",
    "cl_sub": "B2",
    "evidence": "No-change. 26.2 #285 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/menu_clicks.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 327,
+   "verdict": "no-change",
+   "evidence": "No-change. Ravager#blockedByItem body identical (roarTick gate, 50% stun 40 ticks + RAVAGER_STUNNED + entity event 39 + push, else strongKnockback, hurtMarked=true); 26.2 only widened the signature (DamageSource, float \u2014 unused in the body). ravager.rs identical between trees; the shield.rs caller already carries the 26.1 fully-blocked form from an earlier batch."
   },
   {
    "id": 328,
@@ -769,6 +909,11 @@
    "evidence": "Ported (26.2 #279). 26.1 onReputationEventFrom does NOT refresh the open menu prices (26.3 added that). Removed the open-menu refresh from the trading fixture."
   },
   {
+   "id": 332,
+   "verdict": "no-change",
+   "evidence": "No-change. BeehiveBlockEntity$Occupant#create differs only by the EntityTypes->EntityType rename (BEE + empty tag + 600 min-occupation ticks). beehive.rs identical between trees."
+  },
+  {
    "id": 333,
    "verdict": "no-change",
    "bucket": "B",
@@ -776,11 +921,36 @@
    "evidence": "No-change. 26.2 #282 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/dispense_fixture.rs'] are identical between the 26.2 and 26.1 trees."
   },
   {
+   "id": 334,
+   "verdict": "ported",
+   "evidence": "Ported (comment-only; behaviour already correct). 26.1 Evoker#considersEntityAsAlly uses the DIRECT owner (Vex.getOwner, Mob) with a virtual recursive call; 26.2 uses getRootOwner (LivingEntity) + the super rule. The Rust already reads the direct owner (counter2, the summoner) and applies (owner == this) || illager rule \u2014 the 26.1 form for all vanilla-reachable chains (a vex only ever has its summoner; depth-2 chains cannot occur). Renamed vex_root -> vex_owner in fangs_allied + caller and documented the 26.1 mechanism."
+  },
+  {
    "id": 335,
    "verdict": "no-change",
    "bucket": "B",
    "cl_sub": "B2",
    "evidence": "No-change. 26.2 #269 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the tree diff in screen_backgrounds.rs adds the LocalPlayer.postEffects list (26.1 has it); LevelLoadingScreen#extractBackground is untouched."
+  },
+  {
+   "id": 336,
+   "verdict": "no-change",
+   "evidence": "No-change. ConfirmScreen#init: 26.2 extracted the message widget into addMessage(); the helper builds the identical MultiLineTextWidget (message, font, maxWidth width-50, maxRows 15, centered) \u2014 a pure refactor. Menu chrome in any case."
+  },
+  {
+   "id": 337,
+   "verdict": "no-change",
+   "evidence": "No-change. VillagerType#byBiome differs only by the default constant: 26.2 VillagerData.DEFAULT_TYPE IS VillagerType.PLAINS (static init). finalize.rs already defaults to plains (index 0, tested)."
+  },
+  {
+   "id": 338,
+   "verdict": "ported",
+   "evidence": "Ported. 26.2 added a top-level peaceful gate to SpawnPlacements.checkSpawnRules (!isAllowedInPeaceful && peaceful -> false); 26.1 has none \u2014 the check lives in the per-type predicates. Removed the top gate from check_spawn_rules; restored !peaceful to monster_rules (Monster.checkMonsterSpawnRules), Blaze/Breeze/Zoglin (checkAnyLightMonsterSpawnRules), Pillager (checkPatrollingMonsterSpawnRules -> checkAnyLight), Endermite/Silverfish (their predicates -> checkAnyLight). Verified against the 26.1 SpawnPlacements bootstrap table (indy refs) and the predicate bodies. Phantom/Shulker (plain Mob.checkMobSpawnRules) correctly have no peaceful check; Drowned/Guardian/Ghast/MagmaCube/Slime/ZombifiedPiglin already had theirs. Regression test peaceful_blocks_monster_rules_but_not_plain_mob_rules."
+  },
+  {
+   "id": 339,
+   "verdict": "no-change",
+   "evidence": "No-change. SharedConstants#getProtocolVersion returns 775 in 26.1 (sipush 775); version.rs already pins PROTOCOL_VERSION = 775 (rank 1)."
   },
   {
    "id": 340,
@@ -818,6 +988,16 @@
    "evidence": "No-change. No 26.2 counterpart item exists; Leashable#getLeashHolder is bytecode-identical 26.2->26.1 (jardiff), and the leash-holder code in execute.rs (the `leasher` selector) is identical between the trees \u2014 the only diff is 26.1's `slots` /execute subcommand, which does not touch leash holders."
   },
   {
+   "id": 349,
+   "verdict": "no-change",
+   "evidence": "No-change. LoomScreen#extractBackground byte-identical except the getLighting() -> lighting() getter rename (same background blit, slot sprites, 41.0f scroller, pattern grid, banner preview). Menu chrome in any case."
+  },
+  {
+   "id": 350,
+   "verdict": "no-change",
+   "evidence": "No-change. ParticleUtils#spawnSmashAttackParticles identical except BlockPos.getCenter() (26.1 method) vs Vec3.atCenterOf (26.2 static) \u2014 the same computation. mace.rs smash_dust already ports it (DUST_PILLAR block particle, centre + (0, 0.5, 0), count/3 loop, gaussian/2 offsets, gaussian x 0.2 velocities)."
+  },
+  {
    "id": 351,
    "verdict": "ported",
    "bucket": "B",
@@ -837,6 +1017,11 @@
    "bucket": "B",
    "cl_sub": "B2",
    "evidence": "No-change. No 26.2 counterpart item exists; TrialSpawnerRenderer#extractSpawnerData is bytecode-identical 26.2->26.1 (jardiff), and its coverage (display_pose in spawner.rs) is identical between the trees \u2014 the only diff is setEntityData, which 26.1 has and 26.2 lacks."
+  },
+  {
+   "id": 355,
+   "verdict": "no-change",
+   "evidence": "No-change. PatrolSpawner#spawnPatrolMember differs only by the EntityType->EntityTypes rename (PILLAGER). patrol.rs spawn_member already ports it (isValidEmptySpawnBlock -> checkSpawnRules(Pillager, PATROL) -> spawn callback with the leader flag); the Pillager arm carries the 26.1 peaceful check from batch 12."
   },
   {
    "id": 357,
@@ -1306,152 +1491,7 @@
    "bucket": "A",
    "cl_sub": "A2",
    "evidence": "No-change. 26.2 #417 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
-  },
-  {
-   "id": 287,
-   "verdict": "no-change",
-   "evidence": "No-change. SweetBerryBushBlock.entityInside differs only by the EntityTypes->EntityType rename (FOX/BEE). NOTE: isValidBonemealTarget is a REAL 26.1 difference found while closing this item \u2014 26.1 requires age<3 AND air above AND inside build height, 26.2 checks age only \u2014 but it belongs to item 165 (BonemealableBlock#isValidBonemealTarget), not this one; bonemeal.rs:410 still carries the 26.2 age-only form."
-  },
-  {
-   "id": 290,
-   "verdict": "no-change",
-   "evidence": "No-change. Vex.getOwner: 26.2 returns LivingEntity via OwnableEntity, 26.1 returns Mob via EntityReference.get(..., Mob.class); vex.rs already implements the 26.1 Mob-only form (\"a UUID naming the player is no owner\"); vex.rs identical between trees."
-  },
-  {
-   "id": 291,
-   "verdict": "ported",
-   "evidence": "Ported. 26.1 has no MobCategory.getDebugAbbreviation (a 26.2 addition); DebugEntrySpawnCounts uses getName().charAt(0) uppercased. CATEGORY_ABBREVIATIONS in debug_overlay.rs changed from [\"MO\",\"C\",\"AM\",\"AX\",\"UWC\",\"WC\",\"WA\",\"MI\"] to [\"M\",\"C\",\"A\",\"A\",\"U\",\"W\",\"W\",\"M\"] (monster/misc both M, ambient/axolotls both A, water creature/water ambient both W) with updated doc + test expectation. Concat recipes identical in both versions. DebugEntryPosition.display is codegen-only (identical format strings + method-call sets)."
-  },
-  {
-   "id": 300,
-   "verdict": "no-change",
-   "evidence": "No-change. AbstractWindCharge.canHitEntity differs only by the EntityTypes->EntityType rename; FenceGateBlock.isPathfindable is codegen-only (shared return vs per-case returns; LAND->OPEN, WATER->false, AIR->OPEN, default->false)."
-  },
-  {
-   "id": 307,
-   "verdict": "no-change",
-   "evidence": "No-change. OminousItemSpawner.create differs only by the EntityTypes->EntityType rename."
-  },
-  {
-   "id": 308,
-   "verdict": "ported",
-   "evidence": "Ported (comment-only; behaviour already correct). 26.1 has no canBeABaby \u2014 AgeableMob.isBaby is getAge() < 0 (overridable); Parrot/Frog/ZombieNautilus/CamelHusk override isBaby()->false in 26.1 (canBeABaby()->false in 26.2); Slime/MagmaCube are NOT AgeableMobs in 26.1 (Slime extends Mob directly; in 26.2 Slime moved to a new package as an AbstractCubeMob). The Rust can_be_a_baby allowlist is correct for 26.1 (same six excluded). Doc comments updated in species.rs, living.rs:657, living_tests.rs:2-3, remote_mob_data.rs:88 and :1043 to the 26.1 mechanism."
-  },
-  {
-   "id": 309,
-   "verdict": "ported",
-   "evidence": "Ported. ArmadilloAi.initIdleActivity differs only by the EntityTypes->EntityType rename; Armadillo.getBreedOffspring likewise. REAL PORT (1): ArmadilloBallUp.checkExtraStartConditions is onGround() ONLY in 26.1 \u2014 the 26.1 tree carried the 26.3 !isInLiquid check; dropped it (and the now-unused liquid() helper) to the 26.2 form. REAL PORT (2), jar-wide baby-dims mechanism: 26.1 has BABY_DIMENSIONS in only 20 classes vs 36 in 26.2; every other baby takes the type box scaled by getAgeScale (LivingEntity.getDefaultDimensions). 29 Baby-table entries corrected from the 26.2 form: 16 species without 26.1 BABY_DIMENSIONS now Scale by their age scale (Pig/Sheep/Wolf/Cat/Ocelot/PolarBear/Hoglin/Zoglin/Strider 0.5, Goat 0.55, Armadillo 0.6, Dolphin 0.65, Camel 0.6, HappyGhast 0.2375, Panda 0.5 with no eye override); zombie family + villager + piglin heights 0.98->0.99; axolotl (0.5,0.25,0.2); squid 0.63 tall; chicken eye 0.28; cow/mooshroom eye 0.665 (AbstractCow); fox eye 0.2975. Camel sitting baby dims (1.02,0.567,0.507) = SITTING_DIMENSIONS x 0.6 (26.1 has no BABY_STANDING_DIMENSIONS). Verified unchanged: rabbit, horse family 0.7, donkey/mule/llama/bee/sniffer/nautilus 0.5, turtle 0.3. Regression test baby_boxes_are_the_26_1_boxes_not_the_26_2_ones in living_tests.rs; cow test eye 0.69->0.665."
-  },
-  {
-   "id": 315,
-   "verdict": "no-change",
-   "evidence": "No-change. CrafterBlock#dispenseItem identical except the CriteriaTriggers/RecipeCraftedTrigger package move (advancements/criterion in 26.1, advancements/triggers in 26.2); the dispense logic (container in front first, spawn at 0.7 with speed 6, level events 1049/2010, 17-block trigger radius) is identical. crafter.rs already ports it; it differs from the 26.2 tree only in the unrelated exploration-map find_with arity."
-  },
-  {
-   "id": 317,
-   "verdict": "no-change",
-   "evidence": "No-change. ShulkerBoxBlockEntity#moveCollidedEntities differs only by Vec3.atBottomCenterOf (26.2 static) vs BlockPos.getBottomCenter() (26.1 method) \u2014 the same computation; the progress-delta AABB, IGNORE skip and SHULKER_BOX move (size + 0.01 per axis) are identical. piston_push.rs already ports it."
-  },
-  {
-   "id": 327,
-   "verdict": "no-change",
-   "evidence": "No-change. Ravager#blockedByItem body identical (roarTick gate, 50% stun 40 ticks + RAVAGER_STUNNED + entity event 39 + push, else strongKnockback, hurtMarked=true); 26.2 only widened the signature (DamageSource, float \u2014 unused in the body). ravager.rs identical between trees; the shield.rs caller already carries the 26.1 fully-blocked form from an earlier batch."
-  },
-  {
-   "id": 332,
-   "verdict": "no-change",
-   "evidence": "No-change. BeehiveBlockEntity$Occupant#create differs only by the EntityTypes->EntityType rename (BEE + empty tag + 600 min-occupation ticks). beehive.rs identical between trees."
-  },
-  {
-   "id": 334,
-   "verdict": "ported",
-   "evidence": "Ported (comment-only; behaviour already correct). 26.1 Evoker#considersEntityAsAlly uses the DIRECT owner (Vex.getOwner, Mob) with a virtual recursive call; 26.2 uses getRootOwner (LivingEntity) + the super rule. The Rust already reads the direct owner (counter2, the summoner) and applies (owner == this) || illager rule \u2014 the 26.1 form for all vanilla-reachable chains (a vex only ever has its summoner; depth-2 chains cannot occur). Renamed vex_root -> vex_owner in fangs_allied + caller and documented the 26.1 mechanism."
-  },
-  {
-   "id": 336,
-   "verdict": "no-change",
-   "evidence": "No-change. ConfirmScreen#init: 26.2 extracted the message widget into addMessage(); the helper builds the identical MultiLineTextWidget (message, font, maxWidth width-50, maxRows 15, centered) \u2014 a pure refactor. Menu chrome in any case."
-  },
-  {
-   "id": 337,
-   "verdict": "no-change",
-   "evidence": "No-change. VillagerType#byBiome differs only by the default constant: 26.2 VillagerData.DEFAULT_TYPE IS VillagerType.PLAINS (static init). finalize.rs already defaults to plains (index 0, tested)."
-  },
-  {
-   "id": 338,
-   "verdict": "ported",
-   "evidence": "Ported. 26.2 added a top-level peaceful gate to SpawnPlacements.checkSpawnRules (!isAllowedInPeaceful && peaceful -> false); 26.1 has none \u2014 the check lives in the per-type predicates. Removed the top gate from check_spawn_rules; restored !peaceful to monster_rules (Monster.checkMonsterSpawnRules), Blaze/Breeze/Zoglin (checkAnyLightMonsterSpawnRules), Pillager (checkPatrollingMonsterSpawnRules -> checkAnyLight), Endermite/Silverfish (their predicates -> checkAnyLight). Verified against the 26.1 SpawnPlacements bootstrap table (indy refs) and the predicate bodies. Phantom/Shulker (plain Mob.checkMobSpawnRules) correctly have no peaceful check; Drowned/Guardian/Ghast/MagmaCube/Slime/ZombifiedPiglin already had theirs. Regression test peaceful_blocks_monster_rules_but_not_plain_mob_rules."
-  },
-  {
-   "id": 45,
-   "verdict": "ported",
-   "evidence": "Ported (comment-only; the entity is absent in 26.1). SulfurCube and its whole family (SulfurCubeArchetype, renderer, inner layer, bubble particle, dispense behaviour, SulfurCubeContent, PotentSulfurBlock) do not exist in 26.1 vanilla: no cubemob package in the 26.1 server-game jar, no SULFUR_CUBE in EntityType, Slime still at monster/Slime extending Mob directly. The Rust module is unreachable in 26.1 (the type never resolves from 26.1 data; no SpawnPlacements registration) and is kept per the programme convention (1.21.7/1.21.11/26.1.1/26.1.2 all keep it). Added a module-doc note recording the absence. Vec2#rotate is a 26.2 addition used only by this dead module."
-  },
-  {
-   "id": 314,
-   "verdict": "no-change",
-   "evidence": "No-change. TextDisplayRenderer#submitInner identical except the getGameRenderState() -> gameRenderState() getter rename (same flags, opacity, background colour, rotate pi, scale -0.025, translate, textBackground/textBackgroundSeeThrough)."
-  },
-  {
-   "id": 320,
-   "verdict": "no-change",
-   "evidence": "No-change. EndCityPieces#recursiveChildren identical except Lists.newArrayList() (26.1, Guava) vs new ArrayList<>() (26.2) \u2014 same depth-8 cap, one nextInt gen depth, collision piece with a differing gen depth, addAll. end_city.rs already ports it (MAX_GEN_DEPTH 8). The static-init Tuple/Pair + Lists/List.of change is construction-only with identical bridge values."
-  },
-  {
-   "id": 324,
-   "verdict": "no-change",
-   "evidence": "No-change. Creaking$CreakingMoveControl#tick differs only by receiver access (outer this$0 in 26.1 vs (Creaking)mob cast in 26.2); the same canMove() gate on super.tick(). creaking.rs models it via can_move + stop_in_place on freeze."
-  },
-  {
-   "id": 339,
-   "verdict": "no-change",
-   "evidence": "No-change. SharedConstants#getProtocolVersion returns 775 in 26.1 (sipush 775); version.rs already pins PROTOCOL_VERSION = 775 (rank 1)."
-  },
-  {
-   "id": 349,
-   "verdict": "no-change",
-   "evidence": "No-change. LoomScreen#extractBackground byte-identical except the getLighting() -> lighting() getter rename (same background blit, slot sprites, 41.0f scroller, pattern grid, banner preview). Menu chrome in any case."
-  },
-  {
-   "id": 350,
-   "verdict": "no-change",
-   "evidence": "No-change. ParticleUtils#spawnSmashAttackParticles identical except BlockPos.getCenter() (26.1 method) vs Vec3.atCenterOf (26.2 static) \u2014 the same computation. mace.rs smash_dust already ports it (DUST_PILLAR block particle, centre + (0, 0.5, 0), count/3 loop, gaussian/2 offsets, gaussian x 0.2 velocities)."
-  },
-  {
-   "id": 355,
-   "verdict": "no-change",
-   "evidence": "No-change. PatrolSpawner#spawnPatrolMember differs only by the EntityType->EntityTypes rename (PILLAGER). patrol.rs spawn_member already ports it (isValidEmptySpawnBlock -> checkSpawnRules(Pillager, PATROL) -> spawn callback with the leader flag); the Pillager arm carries the 26.1 peaceful check from batch 12."
-  },
-  {
-   "id": 36,
-   "verdict": "no-change",
-   "evidence": "No-change. WorldGenRegion#setBlock is identical; ensureCanWrite differs only by 26.2 extracting isWithinWriteZone + caching writeRadius/centerChunkX/Z fields \u2014 the 26.2 constructor sets them from generatingStep.blockStateWriteRadius() and getCenter(), so the predicate is identical to 26.1's inline form. The Rust can_write has the same two gates (write zone + upgrading height check)."
-  },
-  {
-   "id": 39,
-   "verdict": "ported",
-   "evidence": "Ported (carry-over of 26.2 #34). 26.1's tickChunks() has the identical lastInhabitedUpdate mechanism as 26.2 (timeDiff = gameTime - lastInhabitedUpdate, stamped before the debug gate), but the 26.1 tree had the 26.3 +1 form. Added World.last_inhabited_update, the time_diff stamp at the top of spawn_natural, and += time_diff accrual; carried the 26.2 tests (game_time 1 -> +1, /time set jump to 11 -> +11). The getFilteredSpawningCategories difference is a dead-parameter removal: 26.1's always-true friendly gate (the only call site passes true) dropped in 26.2; the Rust already has the 2-arg form (spawn_enemies, gameTime % 400 == 0)."
-  },
-  {
-   "id": 40,
-   "verdict": "no-change",
-   "evidence": "No-change. I18n#get identical except the Language instance access (static field in 26.1, getInstance() in 26.2); ClientLanguage#loadFrom byte-identical. Same getOrDefault + Locale.ROOT format with IllegalFormatException fallback."
-  },
-  {
-   "id": 43,
-   "verdict": "no-change",
-   "evidence": "No-change. UnbakedCuboidGeometry#bake and both FaceBakery#bakeQuad overloads byte-identical between 26.1 and 26.2 (the retriage removed/added hit is a class-file artifact)."
-  },
-  {
-   "id": 44,
-   "verdict": "ported",
-   "evidence": "Ported. 26.2 added a post-onPlace re-check to LevelChunk.setBlockState (section.getBlockState(pos).is(newBlock) guards block-entity creation); 26.1 creates the entity for the new state unconditionally after onPlace. Removed the re-check at all three Rust sites carrying the 26.2 form: update.rs chunk_set_block_state (ensure_block_entity now takes the new state), commands.rs place_state and native_hooks.rs set-block hook (entity now created for the requested state, no landed-name check). replaceWithPacketData is byte-identical."
-  },
-  {
-   "id": 212,
-   "verdict": "ported",
-   "evidence": "Ported (comment-only; bodies byte-identical). 26.1 names the method applyInstantenousEffect (Mojang's typo); 26.2 fixed the spelling to applyInstantaneousEffect. Same heal (0.5 + potency x 4<<amp) / harm (0.5 + potency x 6<<amp) amounts and magic vs indirectMagic sources. Updated the 5 doc references in effects.rs and potions.rs to the 26.1 name."
   }
  ],
- "triage": "Rank 2: 498 items. First-pass buckets (triage.json): B 265, A 231, D 2. Class-level 26.2->26.1 split (classlevel.json, zip CRC): B1c 233, B2c 32, A1 138, A2 93, D 2. Batch 1+2 (2026-11-23): 82 no-change closures \u2014 A2/B2c items whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the 26.2 and 26.1 trees (or widely named with 0 methods named in Horizon). Batch 3a (2026-11-23): 5 ported carry-overs (items 70, 192, 196, 246, 351) \u2014 A2/B2c items whose 26.2 counterparts were ported; the 26.2 tree file forms carried over whole (hooks.rs: melt hunk only, to preserve the rank-1 blocksMotion change). Deferred from batch 3: item 35 (blending f32->f64, cascades into generator.rs) and item 150 (synth.rs double-precision noise engine, 6 consumer files) \u2014 multi-file type conversions, separate batches. Batch 3c (2026-11-23): bc42387a carried over (53 files) \u2014 items 282, 293, 296 closed. The batch also carried the SwingState rework (26.2 #241: plain swinging/swingingArm/swingTime fields + getCurrentSwingDuration, verified identical in the 26.1 jar, no SwingState class) for 26.1 item 281, which stays OPEN: 281 covers 16 world/entity classes and needs class-level review of the rest. bc42387a hunks in game.rs/lan_actions.rs/remote.rs/dimension_type.rs/density.rs were applied by hand (context drift); the spear STAB site in remote.rs keeps the 26.1 completion-pass form (26.1 has no spear, no STAB packet). Batch 3d (2026-11-23): items 135, 221, 302, 449 closed (c03452c8 carried over for 221+449; 302 timeline.rs and 135 start.rs carried over whole-file). Two compile fallouts fixed by hand: explosion.rs armor-stand site to break_armor_stand_by_anything, render_tick.rs near-plane computation removed (26.1 isViewBlocking is 2-arg). Deferred from batch 3: item 96 (window.rs \u2014 VideoMode identical but Window.updateFullscreenIfChanged/changeFullscreenVideoMode differ 26.2->26.1; needs fresh porting from the 26.1 jar), item 35 (blending f32->f64 cascade into generator.rs), item 150 (synth.rs double-precision noise engine + 6 consumer files). Deferred: item 288 (EntityPositionSync + stepped-interpolation rework, 26.2 #233) \u2014 the 26.1 tree's EntityPositionSync flat form (id, position, delta, yaw, pitch, on_ground) is already wire-equivalent to 26.2's (id, PositionMoveRotation, onGround), but VecDelta is still the 26.3 Linear/Stepped enum (26.2: plain [i16;3]), the MoveEntity wire forms need the shorts+bool check, and the InterpolationHandler subsystem (26.2-only interpolation.rs + fixture + oracle + parity test) is a whole-subsystem port. Needs a dedicated batch. Batch 4 (2026-11-23): 24 no-change closures \u2014 method-level B2/A2 items (batched jardiff over 1,210 named classes: 883 method-changed) whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the trees. Batch 5 (2026-11-23): 9 ported carry-overs (24, 29, 101, 220, 230, 233, 265, 318, 331). Deferred from batch 5: item 117 (environment-attributes packed-int ARGB color system + 3 attribute removals + 4 oracle reworks \u2014 a multi-file port), item 125 (blending.rs, same f64 cascade as item 35).\nBatch 6 (2026-11-23): 37 no-change closures \u2014 the remaining B2/A2 items whose 26.2 counterparts were verified no-change, closed by manual diff review: the title file differs between the trees, but every hunk is outside the item's named methods (comments, rank-1 fixtures, or another item's port). Item 260's fireworks.rs diff is the shared culling-helper call-site adaptation (26.1 culls at the interpolated position).\nBatch 7 (2026-11-23): 3 ported carry-overs (129, 170, 243) \u2014 all jar-verified against the 26.1 jars. Deferred: item 227 (brewing) \u2014 26.1 jar-verified to match 26.2's shape (PotionBrewing with Builder/Mix, no BrewingRecipe class, no data/minecraft/recipe/brewing/ folder, BrewingStandBlockEntity has only brewTime/fuel, no totalBrewTime/totalFuel/speedMultiplier), but the mix table differs from 26.2's 65: 26.1's addVanillaMixes has 41 addMix + 11 addStartMix + 3 addContainer + 2 addContainerRecipe. The 26.2 #177 port carries over in structure but the table must be extracted fresh from the 26.1 jar; the 26.1 tree's data-driven brewing loader (721-line brewing.rs) and total_fuel/total_brew_time UI are the 26.3 forms and are wrong for 26.1. Dedicated batch needed.\nBatch 8 (2026-11-23): 7 no-change closures \u2014 the B2/A2 items with no 26.2 counterpart item: 305 (math.rs identical), 348 (leash-holder code identical; diff is the `slots` subcommand), 354 (extractSpawnerData region identical; diff is setEntityData), 448/476/486/488 (0 methods named in Horizon).\nBatch 11 (2026-11-23): 7 closures (196/498). 287/290/300/307 no-change (renames/codegen only). 287 surfaced a REAL 26.1 difference for item 165: SweetBerryBushBlock.isValidBonemealTarget requires age<3 AND air above AND inside build height in 26.1 (age only in 26.2); bonemeal.rs:410 still has the 26.2 form. 291 ported (spawn-count abbreviations are first letters in 26.1, no getDebugAbbreviation). 308 ported comment-only (no canBeABaby in 26.1). 309 ported: armadillo ball-up drops the 26.3 !isInLiquid check, plus the jar-wide baby-dims mechanism \u2014 26.1 has BABY_DIMENSIONS in 20 classes vs 36 in 26.2, the rest scale by getAgeScale (goat 0.55, armadillo/camel 0.6, dolphin 0.65, happy ghast 0.2375); 29 Baby-table entries corrected, camel sitting baby dims fixed, cow test eye 0.69->0.665.\nBatch 12 (2026-11-23): 8 closures (204/498). 315/317/327/332/336/337 no-change (package/rename/refactor-only; 327's Ravager body identical, 26.2 only widened the signature; 337's DEFAULT_TYPE is PLAINS). 334 ported comment-only (Evoker ally check uses the direct vex owner in 26.1, no getRootOwner; the Rust already read counter2). 338 ported: the peaceful gate moved \u2014 26.2 put it at the top of checkSpawnRules, 26.1 keeps it in the per-type predicates (monster_rules, checkAnyLight arms, pillager, endermite/silverfish restored; phantom/shulker correctly un gated). NOTE: the leakage-audit 26.2-server.jar is a Mojang BUNDLER jar (version.json + META-INF only, no game classes) \u2014 server-side 26.2 jardiffs must use 26.2-client.jar, which holds all game classes.\nBatch 13 (2026-11-23): 8 closures (212/498). 45 ported comment-only: SulfurCube is a 26.2 addition \u2014 26.1 has no cubemob package, no SULFUR_CUBE type, Slime still at monster/Slime; the Rust module is unreachable in 26.1 and kept per the programme convention (1.21.7/1.21.11/26.1.1/26.1.2 all keep it). 314/320/324/339/349/350/355 no-change (getter renames, Guava->JDK collection construction, receiver-access-only, protocol constant already pinned, getCenter/atCenterOf, EntityType rename).\nBatch 14 (2026-11-23): 6 closures (218/498). 39 ported: inhabited time accrues by timeDiff in 26.1 vanilla (same lastInhabitedUpdate mechanism as 26.2) \u2014 the 26.1 tree had the 26.3 +1 form; carried 26.2 #34 (World.last_inhabited_update + stamp + accrual + tests). 44 ported: 26.2 added a post-onPlace re-check to LevelChunk.setBlockState; 26.1 creates the block entity for the new state unconditionally \u2014 removed the re-check at update.rs, commands.rs place_state and native_hooks.rs. 212 ported comment-only (26.1's applyInstantenousEffect typo). 36/40/43 no-change (extracted helper with identical predicate, field-vs-accessor, byte-identical bake methods)."
+ "triage": "Rank 2: 498 items. First-pass buckets (triage.json): B 265, A 231, D 2. Class-level 26.2->26.1 split (classlevel.json, zip CRC): B1c 233, B2c 32, A1 138, A2 93, D 2. Batch 1+2 (2026-11-23): 82 no-change closures \u2014 A2/B2c items whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the 26.2 and 26.1 trees (or widely named with 0 methods named in Horizon). Batch 3a (2026-11-23): 5 ported carry-overs (items 70, 192, 196, 246, 351) \u2014 A2/B2c items whose 26.2 counterparts were ported; the 26.2 tree file forms carried over whole (hooks.rs: melt hunk only, to preserve the rank-1 blocksMotion change). Deferred from batch 3: item 35 (blending f32->f64, cascades into generator.rs) and item 150 (synth.rs double-precision noise engine, 6 consumer files) \u2014 multi-file type conversions, separate batches. Batch 3c (2026-11-23): bc42387a carried over (53 files) \u2014 items 282, 293, 296 closed. The batch also carried the SwingState rework (26.2 #241: plain swinging/swingingArm/swingTime fields + getCurrentSwingDuration, verified identical in the 26.1 jar, no SwingState class) for 26.1 item 281, which stays OPEN: 281 covers 16 world/entity classes and needs class-level review of the rest. bc42387a hunks in game.rs/lan_actions.rs/remote.rs/dimension_type.rs/density.rs were applied by hand (context drift); the spear STAB site in remote.rs keeps the 26.1 completion-pass form (26.1 has no spear, no STAB packet). Batch 3d (2026-11-23): items 135, 221, 302, 449 closed (c03452c8 carried over for 221+449; 302 timeline.rs and 135 start.rs carried over whole-file). Two compile fallouts fixed by hand: explosion.rs armor-stand site to break_armor_stand_by_anything, render_tick.rs near-plane computation removed (26.1 isViewBlocking is 2-arg). Deferred from batch 3: item 96 (window.rs \u2014 VideoMode identical but Window.updateFullscreenIfChanged/changeFullscreenVideoMode differ 26.2->26.1; needs fresh porting from the 26.1 jar), item 35 (blending f32->f64 cascade into generator.rs), item 150 (synth.rs double-precision noise engine + 6 consumer files). Deferred: item 288 (EntityPositionSync + stepped-interpolation rework, 26.2 #233) \u2014 the 26.1 tree's EntityPositionSync flat form (id, position, delta, yaw, pitch, on_ground) is already wire-equivalent to 26.2's (id, PositionMoveRotation, onGround), but VecDelta is still the 26.3 Linear/Stepped enum (26.2: plain [i16;3]), the MoveEntity wire forms need the shorts+bool check, and the InterpolationHandler subsystem (26.2-only interpolation.rs + fixture + oracle + parity test) is a whole-subsystem port. Needs a dedicated batch. Batch 4 (2026-11-23): 24 no-change closures \u2014 method-level B2/A2 items (batched jardiff over 1,210 named classes: 883 method-changed) whose 26.2 counterparts were verified no-change and whose covering Rust code is identical between the trees. Batch 5 (2026-11-23): 9 ported carry-overs (24, 29, 101, 220, 230, 233, 265, 318, 331). Deferred from batch 5: item 117 (environment-attributes packed-int ARGB color system + 3 attribute removals + 4 oracle reworks \u2014 a multi-file port), item 125 (blending.rs, same f64 cascade as item 35).\nBatch 6 (2026-11-23): 37 no-change closures \u2014 the remaining B2/A2 items whose 26.2 counterparts were verified no-change, closed by manual diff review: the title file differs between the trees, but every hunk is outside the item's named methods (comments, rank-1 fixtures, or another item's port). Item 260's fireworks.rs diff is the shared culling-helper call-site adaptation (26.1 culls at the interpolated position).\nBatch 7 (2026-11-23): 3 ported carry-overs (129, 170, 243) \u2014 all jar-verified against the 26.1 jars. Deferred: item 227 (brewing) \u2014 26.1 jar-verified to match 26.2's shape (PotionBrewing with Builder/Mix, no BrewingRecipe class, no data/minecraft/recipe/brewing/ folder, BrewingStandBlockEntity has only brewTime/fuel, no totalBrewTime/totalFuel/speedMultiplier), but the mix table differs from 26.2's 65: 26.1's addVanillaMixes has 41 addMix + 11 addStartMix + 3 addContainer + 2 addContainerRecipe. The 26.2 #177 port carries over in structure but the table must be extracted fresh from the 26.1 jar; the 26.1 tree's data-driven brewing loader (721-line brewing.rs) and total_fuel/total_brew_time UI are the 26.3 forms and are wrong for 26.1. Dedicated batch needed.\nBatch 8 (2026-11-23): 7 no-change closures \u2014 the B2/A2 items with no 26.2 counterpart item: 305 (math.rs identical), 348 (leash-holder code identical; diff is the `slots` subcommand), 354 (extractSpawnerData region identical; diff is setEntityData), 448/476/486/488 (0 methods named in Horizon).\nBatch 11 (2026-11-23): 7 closures (196/498). 287/290/300/307 no-change (renames/codegen only). 287 surfaced a REAL 26.1 difference for item 165: SweetBerryBushBlock.isValidBonemealTarget requires age<3 AND air above AND inside build height in 26.1 (age only in 26.2); bonemeal.rs:410 still has the 26.2 form. 291 ported (spawn-count abbreviations are first letters in 26.1, no getDebugAbbreviation). 308 ported comment-only (no canBeABaby in 26.1). 309 ported: armadillo ball-up drops the 26.3 !isInLiquid check, plus the jar-wide baby-dims mechanism \u2014 26.1 has BABY_DIMENSIONS in 20 classes vs 36 in 26.2, the rest scale by getAgeScale (goat 0.55, armadillo/camel 0.6, dolphin 0.65, happy ghast 0.2375); 29 Baby-table entries corrected, camel sitting baby dims fixed, cow test eye 0.69->0.665.\nBatch 12 (2026-11-23): 8 closures (204/498). 315/317/327/332/336/337 no-change (package/rename/refactor-only; 327's Ravager body identical, 26.2 only widened the signature; 337's DEFAULT_TYPE is PLAINS). 334 ported comment-only (Evoker ally check uses the direct vex owner in 26.1, no getRootOwner; the Rust already read counter2). 338 ported: the peaceful gate moved \u2014 26.2 put it at the top of checkSpawnRules, 26.1 keeps it in the per-type predicates (monster_rules, checkAnyLight arms, pillager, endermite/silverfish restored; phantom/shulker correctly un gated). NOTE: the leakage-audit 26.2-server.jar is a Mojang BUNDLER jar (version.json + META-INF only, no game classes) \u2014 server-side 26.2 jardiffs must use 26.2-client.jar, which holds all game classes.\nBatch 13 (2026-11-23): 8 closures (212/498). 45 ported comment-only: SulfurCube is a 26.2 addition \u2014 26.1 has no cubemob package, no SULFUR_CUBE type, Slime still at monster/Slime; the Rust module is unreachable in 26.1 and kept per the programme convention (1.21.7/1.21.11/26.1.1/26.1.2 all keep it). 314/320/324/339/349/350/355 no-change (getter renames, Guava->JDK collection construction, receiver-access-only, protocol constant already pinned, getCenter/atCenterOf, EntityType rename).\nBatch 14 (2026-11-23): 6 closures (218/498). 39 ported: inhabited time accrues by timeDiff in 26.1 vanilla (same lastInhabitedUpdate mechanism as 26.2) \u2014 the 26.1 tree had the 26.3 +1 form; carried 26.2 #34 (World.last_inhabited_update + stamp + accrual + tests). 44 ported: 26.2 added a post-onPlace re-check to LevelChunk.setBlockState; 26.1 creates the block entity for the new state unconditionally \u2014 removed the re-check at update.rs, commands.rs place_state and native_hooks.rs. 212 ported comment-only (26.1's applyInstantenousEffect typo). 36/40/43 no-change (extracted helper with identical predicate, field-vs-accessor, byte-identical bake methods). Batch 15 (Nov 23): 273 ported (beacon validation + disconnect are 26.2-only; validateEffects absent in 26.1). 259/261 no-change with doc corrections (hardcoded 0.98 drag, getCenter). 280/267/268/269/270 no-change (renames, package moves, Holder field types, screen access)."
 }
