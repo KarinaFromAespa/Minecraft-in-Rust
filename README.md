@@ -43,16 +43,17 @@ what you did, a screenshot or clip, the world seed, and the game log
 | Era templates at full parity | 0 / 11 | 0% |
 | Delta releases verified | 0 / 92 | 0% |
 | Trees published on main | 19 / 103 | 18.4% |
-| Behaviour items closed | 1,668 / 5,154 | 32.4% |
-| Harnesses passing (15 profiled versions) | 37 / 255 | 14.5% |
+| Behaviour items closed | 2,496 / 5,969 | 41.8% |
+| Harnesses passing (16 profiled versions) | 39 / 272 | 14.3% |
 
 Phase 0 is done: the mappings front-end, CI, the delta gate and the
 roadmap are finished, and the 1.21.11 template — the Components era
 opener — completed its 815-item behaviour port and merged. The
-programme is in the version-work phase: eight releases are complete
-(26.3, 26.2, 1.21.7, 1.21.9, 1.21.8, 1.21.6, 1.21.5, 1.21.11), the E6
-chain's mechanical publishes reached their floor at 1.20.5, and 1.21.7
-is the current focus, in active playtest. The verified counts above
+programme is in the version-work phase: ten releases are complete
+(26.3, 26.2, 1.21.7, 1.21.9, 1.21.8, 1.21.6, 1.21.5, 1.21.11, 26.1.2,
+26.1.1), the E6 chain's mechanical publishes reached their floor at
+1.20.5, and 1.21.7 is in active playtest while porting continues down
+the 26.x line (26.1 in progress). The verified counts above
 stay at 0 until the delta gate's D1/D4/D5 verdicts turn: D1 on
 inherited dead tags, D4/D5 on a judge-side stamp quirk that needs a
 gate design decision, not another sweep.
@@ -91,17 +92,18 @@ their workarounds, sequencing and gates — is in **[docs/ROADMAP.md](docs/ROADM
 
 ## Status
 
-Eight releases are complete on main: 26.3 (the base), 26.2, 1.21.7, 1.21.9,
-1.21.8, 1.21.6, 1.21.5 and 1.21.11. The 1.21.11 behaviour port — 815 items,
-rank-1 10/10, rank-2 492/492 — merged with a green CI proof. The E6 chain's
-mechanical publishes are complete down to 1.20.5. The current focus is
-1.21.7: it is playable and in open playtest (see Try it above), with its
+Ten releases are complete on main: 26.3 (the base), 26.2, 1.21.7, 1.21.9,
+1.21.8, 1.21.6, 1.21.5, 1.21.11, 26.1.2 and 26.1.1. The 1.21.11 behaviour
+port — 815 items, rank-1 10/10, rank-2 492/492 — merged with a green CI
+proof. The E6 chain's mechanical publishes are complete down to 1.20.5.
+1.21.7 is playable and in open playtest (see Try it above), with its
 fix wave — recipe book, entity loot, brewing fuel, mob textures, beds —
 merged and its remaining defect, a crafting-table duplication, under
-investigation with packet logging. The E6 re-base triage (propagating the
-1.21.11 fixes down to 1.21.5–1.21.10) is done; propagation, the water
-carry-over and the next port (1.21.4) all wait until 1.21.7 is completely
-fixed. Each version directory carries a machine-readable `status.json`
+investigation with packet logging. Porting has resumed down the 26.x
+line in parallel with the playtest (26.1.2 and 26.1.1 merged 2026-11-23,
+26.1 in progress; 1.21.10 and 1.21.4 next in the queue), while the E6
+re-base propagation and the water carry-over stay paused. Each version
+directory carries a machine-readable `status.json`
 (harness counts, behaviour items, last CI run); the scalars in
 `VERSIONS.md` come from it today and migrate to generated
 `delta-verdict.json` rows as releases are gated. Verification runs for

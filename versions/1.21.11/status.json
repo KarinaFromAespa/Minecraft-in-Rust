@@ -1,7 +1,7 @@
 {
   "behaviour": {
-    "closed": 0,
-    "note": "Protocol/table infrastructure complete (completion + rewire + adapter re-base); behaviour port unstarted. Behaviour code is still the 26.3 base's.",
+    "closed": 815,
+    "note": "Behaviour port complete 2026-11-22, merged 2026-11-23 (9de51367): 815/815 items closed (rank-1 10/10, rank-2 492/492). Proof run 44972445234: D3 pass 502/502, D1 fail (21 dead tags); a D2 tag-slot regression found in the proof run was fixed on branch fix/1.21.11-d2-tag-slot before the merge.",
     "total": 815
   },
   "harness": {
@@ -19,8 +19,7 @@
     ],
     "total": 17
   },
-  "last_ci_commit": "d1658a0",
-  "last_ci_run": 43149789732,
+  "last_ci_run": 44972445234,
   "notes": "SlotDisplay codec still uses 26.3 numbering; five generated tables are hand-corrected to it and must be regenerated to old->pin when the behaviour port rewires the codec.",
   "profile_recorded": "2026-11-12",
   "protocol": 774,
