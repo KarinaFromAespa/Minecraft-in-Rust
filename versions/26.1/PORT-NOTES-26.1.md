@@ -1726,3 +1726,46 @@ DataCommands is a branch inversion + local renumbering.
 tree's /swing still carries the 26.3 animation+duration
 arguments (tree_world.rs) — the 26.2 tree ends /swing at the
 hand; no B2 item covers /swing, so it is left for its own item.
+
+Batch 86 (Nov 24, 203/214 — B2 #2, 4 ported, 6 no-change):
+558 PORTED — test_instances.rs carried the 26.3 `dimension`
+field: TestData's record fields (environment, structure,
+maxTicks, setupTicks, required, rotation, manualOnly,
+maxAttempts, requiredSuccesses, skyAccess) and GameTestInstance
+have no dimension in either jar. Carried the 26.2 tree's file
+wholesale (the diff was exactly the dimension additions).
+559 PORTED (tests) — the 26.1 tree's lone-dark-oak test
+asserted bonemeal FAILS, contradicting its own implementation
+(and 26.1's SaplingBlock, which has only the height-check
+isValidBonemealTarget, no canGrow): carried the 26.2 tree's
+test (meal consumed, no tree grows). Removed the poplar
+test line — poplar is 26.3-only (absent from both jars'
+Blocks and TreeGrower); the poplar foliage-placer code stays
+(data-driven, unreachable without 26.1 data). The remaining
+growth_tests diff is the earlier 26.1 client-PASS bonemeal
+behaviour, which stays. 574 PORTED — the debug chart drew
+"30 fps"/"60 fps"/"tps"; vanilla 26.1 draws "30 FPS"/"60 FPS"/
+"%.1f TPS" (FpsDebugChart/TpsDebugChart, 0-diff). Now matches
+the 26.2 tree. 576 PORTED — hand.rs carried from the 26.2
+tree: 26.1's LivingEntity has plain swinging/swingTime/
+swingingArm fields (no SwingState), LocalPlayer.swing sends
+ServerboundSwingPacket unconditionally (identical in both
+jars) — the 26.1 tree was missing the packet send; the
+spectator-crosshair portal branch is removed (26.1's
+canRenderCrosshairForSpectator is MenuProvider/menu-provider
+only, no portal branch; showAsInteractableInSpectatorMode
+exists in neither jar); ItemInHandRenderer.itemUsed is the
+26.1 method (LocalPlayer has no itemUsed). 555 no-change —
+OreFeature 0-diff. 556 no-change — MonsterRoomFeature +
+BeehiveDecorator are EntityType/BlockEntityType renames only
+(the feature_world.rs diff is the 26.2 tree's brushable-loot
+helper, out of scope). 557 no-change — ClientChunkCache's
+91-line diff is the LevelExtractor move + the empty-sections
+rework; remote_chunks.rs was already fixed in batch 84. 561
+no-change — OverworldBiomeBuilder's 62-line diff is only the
+Spline Coordinate ctor API shape + branch offsets, no
+parameter-point changes; settings.rs doc fixed 26.2→26.1.
+563 no-change — leafComponent() is a 26.2 addition the Rust
+does not model; the pad_menu diff is batch-73 LAN work. 565
+no-change — OceanRuinPiece is branch offsets + the DROWNED
+EntityType rename.

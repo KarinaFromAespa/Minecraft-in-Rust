@@ -270,10 +270,40 @@
    "evidence": "DataComponentMatchers pure package move criterion->predicates; bodies identical."
   },
   {
+   "id": 555,
+   "verdict": "no-change",
+   "evidence": "OreFeature 0-diff; ore_feature.rs 0-diff"
+  },
+  {
+   "id": 556,
+   "verdict": "no-change",
+   "evidence": "MonsterRoomFeature + BeehiveDecorator are EntityType/BlockEntityType renames only (same spawner table); feature_world.rs diff is the 26.2 brushable-loot helper, out of scope"
+  },
+  {
+   "id": 557,
+   "verdict": "no-change",
+   "evidence": "ClientChunkCache 91-line diff is the LevelExtractor move + empty-sections rework; remote_chunks.rs fixed in batch 84"
+  },
+  {
+   "id": 558,
+   "verdict": "ported",
+   "evidence": "TestData/GameTestInstance have no dimension in either jar; removed the dimension field from test_instances.rs (carried the 26.2 file)"
+  },
+  {
+   "id": 559,
+   "verdict": "ported",
+   "evidence": "Lone-dark-oak test asserted bonemeal fails, contradicting the implementation and 26.1 SaplingBlock (height check only, no canGrow); carried the 26.2 test; removed the poplar line (26.3-only, absent from both jars)"
+  },
+  {
    "id": 560,
    "title": "crates/horizon-client/src/game_rules_screen.rs: 3 vanilla classes changed (8 methods, 1 named in Horizon)",
    "verdict": "no-change",
    "evidence": "InWorldGameRulesScreen: the Minecraft.setScreen -> Gui.setScreen move (3 sites) + Minecraft.screen -> Gui.screen(). Menu chrome. game_rules_screen.rs 0-diff."
+  },
+  {
+   "id": 561,
+   "verdict": "no-change",
+   "evidence": "OverworldBiomeBuilder 62-line diff is only the Spline Coordinate ctor API shape + offsets, no parameter changes; settings.rs doc fixed 26.2->26.1"
   },
   {
    "id": 562,
@@ -281,9 +311,19 @@
    "evidence": "BlendFunction refactored to BlendEquation + BlendFactor/BlendOp in 26.2; GPU plumbing."
   },
   {
+   "id": 563,
+   "verdict": "no-change",
+   "evidence": "leafComponent() is a 26.2 addition the Rust does not model; pad_menu diff is batch-73 LAN work"
+  },
+  {
    "id": 564,
    "verdict": "no-change",
    "evidence": "CuredZombieVillagerTrigger pure package moves (criterion->triggers, EntityPredicate->predicates/entity)."
+  },
+  {
+   "id": 565,
+   "verdict": "no-change",
+   "evidence": "OceanRuinPiece is branch offsets + the DROWNED EntityType rename; ocean_ruin.rs 0-diff"
   },
   {
    "id": 566,
@@ -331,9 +371,19 @@
    "evidence": "TestBlock getSignal->ownSignal extraction (same as 634); test_block.rs 0-diff."
   },
   {
+   "id": 574,
+   "verdict": "ported",
+   "evidence": "Debug chart drew lowercase fps/tps; vanilla 26.1 draws 30 FPS/60 FPS/%.1f TPS; now matches the 26.2 tree"
+  },
+  {
    "id": 575,
    "verdict": "no-change",
    "evidence": "AbstractStringWidget handleStyleClick extraction + DialogScreen setScreen move; dialogs.rs 0-diff."
+  },
+  {
+   "id": 576,
+   "verdict": "ported",
+   "evidence": "hand.rs carried: 26.1 LivingEntity has plain swing fields, LocalPlayer.swing sends the packet unconditionally (the 26.1 tree missed it); spectator-crosshair portal branch removed (26.1 has no portal branch, showAsInteractableInSpectatorMode in neither jar)"
   },
   {
    "id": 577,

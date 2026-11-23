@@ -1,7 +1,8 @@
 //! The local player's hand: clicks and held attack through
 //! `horizon_client::first_person` (`Minecraft.startAttack` /
 //! `continueAttack`, `MultiPlayerGameMode` block breaking), the arm swing
-//! (`LivingEntity.SwingState`) and the first-person equip heights
+//! (26.1's plain `swinging`/`swingTime`/`swingingArm` fields) and the
+//! first-person equip heights
 //! (`FirstPersonHandsAndItems`) with the item swap ticker they read.
 use super::{Game, Mining, Screen, minecarts::CartKind};
 use horizon_client::{
@@ -11,6 +12,7 @@ use horizon_client::{
     items::ItemStack,
 };
 use horizon_core::geometry::{Aabb, Vec3};
+use horizon_protocol::packets::play::{Serverbound as S, Swing};
 
 /// The point a `ServerboundInteractPacket` carries: `EntityHitResult.getLocation()
 /// - entity.position()`, measured from the entity's feet, as
@@ -194,7 +196,9 @@ impl Game<'_> {
     /// `LivingEntity.swing` with `getCurrentSwingDuration`: the duration
     /// comes from the item in the swinging arm (a kinetic weapon's attack
     /// animation, else DEFAULT), shortened by dig speed or lengthened by
-    /// mining fatigue.
+    /// mining fatigue. `LocalPlayer.swing` sends the swing to the server
+    /// whether or not a swing starts (its `super.swing` gate only starts
+    /// the animation), so the packet goes out unconditionally.
     pub(super) fn swing_hand(&mut self, hand: Hand) {
         let duration = self.current_swing_duration();
         if self.swing.start_if_able(hand, duration) {
@@ -211,6 +215,9 @@ impl Game<'_> {
                 r.session.record_clientbound(&pkt);
             }
         }
+        self.send(S::Swing(Swing {
+            hand: hand as i32,
+        }));
     }
     /// `LivingEntity.getCurrentSwingDuration`: the swing animation of the
     /// item in the swinging arm — a kinetic weapon's attack animation for
@@ -245,7 +252,7 @@ impl Game<'_> {
     pub(super) fn swing_arm(&mut self) {
         self.swing_hand(self.hand);
     }
-    /// `swing_arm` for a use whose result is `SwingSource.PREDICTED`: the
+    /// `swing_arm` for a use whose result is `SwingSource.CLIENT`: the
     /// player's client swings by itself, so a server keeps it to the others.
     pub(super) fn swing_arm_predicted(&mut self) {
         let before = self.swings_started;
@@ -523,7 +530,7 @@ impl Game<'_> {
     }
     /// `MultiPlayerGameMode.startUseItem`'s bookkeeping around the game's
     /// use: nothing starts while a block is being broken or the hands are
-    /// busy, and `LocalPlayer.itemUsed` drops the hand after a use that
+    /// busy, and `ItemInHandRenderer.itemUsed` drops the hand after a use that
     /// swung and spent (or, with infinite materials, kept) the item, or that
     /// started using it.
     pub(super) fn use_with_hand(&mut self) -> Result<()> {
@@ -677,9 +684,11 @@ impl Game<'_> {
         // Only alive mobs are hit, so a picked living entity is alive.
         Some(true)
     }
-    /// `Hud.canRenderCrosshairForSpectator` for the nearest hit in reach: an
+    /// `Gui.canRenderCrosshairForSpectator` for the nearest hit in reach: an
     /// entity that is a `MenuProvider` (a chest or hopper minecart, a chest
-    /// boat), or a block whose `showAsInteractableInSpectatorMode` holds.
+    /// boat), or a block with a menu provider. 26.1 has no portal branch —
+    /// 26.3's `showAsInteractableInSpectatorMode` added `|| block instanceof
+    /// Portal`, so a spectator looking at a portal gets no crosshair here.
     pub(super) fn spectator_crosshair(&self) -> bool {
         let cart = self.cart_hit().map(|(i, d)| {
             let kind = &self.carts[i].kind;
@@ -706,13 +715,12 @@ impl Game<'_> {
         self.pick()
             .is_some_and(|hit| self.block_interactable_for_spectator(&hit))
     }
-    /// `BlockBehaviour.showAsInteractableInSpectatorMode`: a block with a menu, or a portal.
+    /// `Gui.canRenderCrosshairForSpectator`'s block branch in 26.1:
+    /// `level.getBlockState(pos).getMenuProvider(level, pos) != null` — a
+    /// block with a menu only, no portal branch (26.3's
+    /// `showAsInteractableInSpectatorMode` added portals).
     fn block_interactable_for_spectator(&self, hit: &super::Hit) -> bool {
-        let block = self.world.block(hit.pos[0], hit.pos[1], hit.pos[2]);
-        matches!(
-            &*self.res.facts().get(block).name,
-            "minecraft:nether_portal" | "minecraft:end_portal" | "minecraft:end_gateway"
-        ) || self.block_opens_menu(hit)
+        self.block_opens_menu(hit)
     }
     /// A lectern with no book (`LecternBlock.useWithoutItem` consumes the click and does nothing).
     pub(super) fn block_is_empty_lectern(&self, hit: &super::Hit) -> bool {
