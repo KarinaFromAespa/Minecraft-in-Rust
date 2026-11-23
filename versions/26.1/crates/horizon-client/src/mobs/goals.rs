@@ -2645,17 +2645,20 @@ impl Goal for EatBlock {
 #[derive(Clone, Debug, Default)]
 pub struct BreathAir;
 impl BreathAir {
-    /// `BreathAirGoal.findAirPosition`: `BlockPos.neighborColumn` walks the
-    /// center, north, east, south and west columns, each bottom to top.
+    /// `BreathAirGoal.findAirPosition`: 26.1 searches
+    /// `BlockPos.betweenClosed(x-1, y, z-1, x+1, y+8, z+1)` — X fastest,
+    /// then Y, then Z (26.2 switched to `neighborColumn`'s five columns).
     fn air_position(
         [x, y, z]: [i32; 3],
         mut gives_air: impl FnMut([i32; 3]) -> bool,
     ) -> Option<[i32; 3]> {
-        for (dx, dz) in [(0, 0), (0, -1), (1, 0), (0, 1), (-1, 0)] {
+        for zz in z - 1..=z + 1 {
             for yy in y..=y + 8 {
-                let pos = [x + dx, yy, z + dz];
-                if gives_air(pos) {
-                    return Some(pos);
+                for xx in x - 1..=x + 1 {
+                    let pos = [xx, yy, zz];
+                    if gives_air(pos) {
+                        return Some(pos);
+                    }
                 }
             }
         }
@@ -2693,8 +2696,11 @@ impl Goal for BreathAir {
         false
     }
     fn start(&mut self, m: &mut Mob, cx: &mut Cx) {
-        m.nav_stop();
+        // 26.1's `BreathAirGoal.start` finds the air position and THEN stops
+        // the navigation, cancelling that moveTo (26.2 swapped the order);
+        // the next tick re-issues it.
         Self::find_air(m, cx);
+        m.nav_stop();
     }
     fn tick(&mut self, m: &mut Mob, cx: &mut Cx) {
         Self::find_air(m, cx);

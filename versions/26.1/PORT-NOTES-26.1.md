@@ -709,3 +709,10 @@ checks the PLAYER's Y in 26.1; the camera-Y check is 26.2-only.
 remote.rs now passes the player Y. 116/154/159/193/200 no-change:
 canDrip == isFreeHangingStalactite (identical bodies), byte-identical
 trade/advancement/enchantment methods, package moves, menu chrome.
+
+Batch 36 (Nov 23, 383/498): 205 PORTED — BreathAirGoal searches the
+3x9x3 betweenClosed box in 26.1 (X fastest, then Y, then Z), not
+neighborColumn's five columns; and 26.1's start() finds the air
+position THEN stops navigation (cancelling that moveTo — tick
+re-issues it). 201/202/206 no-change: renames, identical methods,
+render API shape.
