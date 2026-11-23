@@ -1526,8 +1526,10 @@ pub struct Mob {
     /// `Entity.needsSync`: knocked back, pushed or jumped since its server
     /// last sent it, so the next update goes out at once.
     pub needs_sync: bool,
-    /// `Entity.syncPosition`: it bounced this tick (`restituteMovementAfterCollisions`),
-    /// so its tracker keeps this position as a step of the next move it sends.
+    /// Set when it bounces this tick (`restituteMovementAfterCollisions`).
+    /// 26.1 has no `Entity.syncPosition` (26.2 added it), so nothing reads
+    /// this yet: the bounced entity goes out on its next due tick. The
+    /// living-bounce re-port owns removing the flag.
     pub sync_position: bool,
     /// `getAttributeValue(KNOCKBACK_RESISTANCE)` with the modifiers of the
     /// items it wears or holds, which the game works out each tick for a mob

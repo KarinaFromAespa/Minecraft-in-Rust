@@ -1039,3 +1039,33 @@ lose the `full_resolution` bool), environment.rs (same closure change),
 spawn_selection.rs (`constant` flag gone; a 4-4 group still draws),
 environment_system_fixture.rs (closure arity). 6 files; workspace
 `cargo check` and horizon-world/render/client `--lib --tests` clean.
+
+Batch 61 (Nov 24, 496/498): 288 PORTED — entity position sync and
+interpolation to the 26.2 form. Jar-verified against 26.1's own jars:
+`ClientboundEntityPositionSyncPacket`, `PositionMoveRotation`,
+`InterpolationHandler` and `ClientboundMoveEntityPacket` are all
+bytecode-identical (normalized) between the 26.1 and 26.2 client jars,
+so the 26.2 port is the right form for 26.1 throughout. play.rs:
+`PositionMoveRotation` struct + codec, `EntityPositionSync` reshaped
+to the `values` form; `VecDelta` enum (Linear/Stepped) back to the
+plain `pub struct VecDelta(pub [i16; 3])`; MoveEntity read/write
+simplified (shorts + on-ground bool). horizon-world: carried
+interpolation.rs whole (26.2) + interpolation_fixture.rs, the parity
+harness and the Java oracle; deleted stepped_interpolation.rs, its
+fixture, harness and oracle. remote.rs: the 37 interpolation hunks of
+the 26.2 diff (interpolated_move, teleport_heading,
+InterpolationHandler::new(3)); the other 36 hunks are other items and
+were not touched. lan/entity.rs: the whole 26.2 diff, then
+`sync_position` removed — 26.1's `Entity` has no `syncPosition`
+(26.2 added it) and no stepped tracker, so no bounce fast-forward and
+no `vertical_collision`/`horizontal_collision`/`full_precision_required`
+fields; `fall_flying` added (the `isFallFlying` check exists in both
+jars' sendChanges). game/lan.rs: the removed fills dropped, `fall_flying`
+filled from the mob; dragon.rs/hub.rs literals reshaped. Adapter
+(world.rs, step_1_21_1.rs, translate.rs, boats.rs), play/tests.rs and
+horizon-bots updated to the `values` form and the plain `VecDelta`.
+Deliberately left in place: `Mob.sync_position`,
+`PlayerState.sync_position` and the `mark_position_for_sync` hook —
+they belong to the movement side, and the living-bounce re-port owns
+removing them (their docs now say so). Workspace `cargo check` and
+protocol/world/client `--lib --tests` clean.

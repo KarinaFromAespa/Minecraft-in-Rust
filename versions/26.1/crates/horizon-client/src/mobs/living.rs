@@ -2176,8 +2176,9 @@ impl RestitutionWorld for MobRestitution<'_, '_> {
     fn bounce_event(&mut self) -> Result<(), ()> {
         Ok(())
     }
-    /// `Entity.syncPosition`: the tracker keeps where the mob bounced as a
-    /// step of its next move (`SteppedInterpolationTracker.updateTracking`).
+    /// The bounce flag: 26.1 has no `Entity.syncPosition` (26.2 added it),
+    /// so the tracker reads nothing here — the bounced mob goes out on its
+    /// next due tick. The living-bounce re-port owns removing the flag.
     fn mark_position_for_sync(&mut self) {
         self.mob.sync_position = true;
     }

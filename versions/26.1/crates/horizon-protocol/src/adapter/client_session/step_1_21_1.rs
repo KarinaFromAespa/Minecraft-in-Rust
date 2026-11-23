@@ -386,10 +386,10 @@ pub(super) fn entity_position_sync(
     let sync = play::EntityPositionSync::read(&mut Reader::new(payload))?;
     let mut w = Writer::new();
     w.varint(sync.id);
-    sync.position.iter().for_each(|v| w.f64(*v));
-    sync.delta.iter().for_each(|v| w.f64(*v));
-    w.f32(sync.yaw);
-    w.f32(sync.pitch);
+    sync.values.position.iter().for_each(|v| w.f64(*v));
+    sync.values.delta_movement.iter().for_each(|v| w.f64(*v));
+    w.f32(sync.values.yaw);
+    w.f32(sync.values.pitch);
     w.i32(0);
     w.bool(sync.on_ground);
     Ok(Some(w.data))
@@ -624,10 +624,12 @@ mod tests {
     fn a_position_sync_is_the_teleport_it_stands_in_for() {
         let body = play::Clientbound::EntityPositionSync(play::EntityPositionSync {
             id: 4,
-            position: [1.5, 70.0, -3.0],
-            delta: [0.0; 3],
-            yaw: 45.0,
-            pitch: 10.0,
+            values: play::PositionMoveRotation {
+                position: [1.5, 70.0, -3.0],
+                delta_movement: [0.0; 3],
+                yaw: 45.0,
+                pitch: 10.0,
+            },
             on_ground: true,
         })
         .encode();
