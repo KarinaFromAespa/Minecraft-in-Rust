@@ -820,7 +820,13 @@ mod tests {
     use std::path::PathBuf;
 
     /// The registries `book_entries` looks up, in the game's order
-    /// (`RecipeBookCategories` and the two display registries).
+    /// (`RecipeBookCategories` and the two display registries). The slot
+    /// display order is 1.21.7's own eight types (item=2, tag=4,
+    /// composite=7): the 26.3 order this fixture used to carry
+    /// (with_any_potion=2, item=4, tag=6, composite=10) let the writer and
+    /// the reader agree here while the live game — whose `registries.json`
+    /// numbers them 1.21.7's way — failed every `recipe_book_add` packet
+    /// with "unknown slot display 109" and showed an empty book.
     const REGISTRIES: &str = r#"{
       "minecraft:item": {"entries": {
         "minecraft:raw_copper": {"protocol_id": 0},
@@ -834,15 +840,12 @@ mod tests {
       "minecraft:slot_display": {"entries": {
         "minecraft:empty": {"protocol_id": 0},
         "minecraft:any_fuel": {"protocol_id": 1},
-        "minecraft:with_any_potion": {"protocol_id": 2},
-        "minecraft:only_with_component": {"protocol_id": 3},
-        "minecraft:item": {"protocol_id": 4},
-        "minecraft:item_stack": {"protocol_id": 5},
-        "minecraft:tag": {"protocol_id": 6},
-        "minecraft:dyed": {"protocol_id": 7},
-        "minecraft:smithing_trim": {"protocol_id": 8},
-        "minecraft:with_remainder": {"protocol_id": 9},
-        "minecraft:composite": {"protocol_id": 10}
+        "minecraft:item": {"protocol_id": 2},
+        "minecraft:item_stack": {"protocol_id": 3},
+        "minecraft:tag": {"protocol_id": 4},
+        "minecraft:smithing_trim": {"protocol_id": 5},
+        "minecraft:with_remainder": {"protocol_id": 6},
+        "minecraft:composite": {"protocol_id": 7}
       }},
       "minecraft:recipe_display": {"entries": {
         "minecraft:crafting_shapeless": {"protocol_id": 0},

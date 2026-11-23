@@ -198,6 +198,20 @@ pub const RECIPE_SERIALIZER_UP: &[(u16, u16, u16)] = &[
 pub const RECIPE_SERIALIZER_DOWN: &[(u16, u16, u16)] = &[
     (0, 0, 2), (3, 6, 1), (5, 7, 4), (10, 11, 2), (12, 4, 1), (13, 13, 8), (21, 5, 1),
 ];
+/// `minecraft:slot_display`: 11 in 26.2, 8 pinned. The codec was rewired to
+/// the pin's 8-type layout, so this is the generator's 11->8 old->pin
+/// mapping at last (it used to be identity, against the codec's old 26.3
+/// numbering). The 26.x types with_any_potion (2), only_with_component (3)
+/// and dyed (7) have no pinned form and are left out of the runs: read as
+/// -1, the reader turns them away.
+#[rustfmt::skip]
+pub const SLOT_DISPLAY_UP: &[(u16, u16, u16)] = &[
+    (0, 0, 2), (4, 2, 3), (8, 5, 3),
+];
+#[rustfmt::skip]
+pub const SLOT_DISPLAY_DOWN: &[(u16, u16, u16)] = &[
+    (0, 0, 2), (2, 4, 3), (5, 8, 3),
+];
 /// `minecraft:enchantment_effect_component_type`: 31 in 26.2, 30 pinned.
 #[rustfmt::skip]
 pub const ENCHANTMENT_EFFECT_COMPONENT_TYPE_UP: &[(u16, u16, u16)] = &[
@@ -280,9 +294,7 @@ pub const IDS: super::ids::Ids = super::ids::Ids {
     fluid: super::ids::Remap::Same,
     game_event: super::ids::Remap::Runs { up: GAME_EVENT_UP, down: GAME_EVENT_DOWN },
     recipe_serializer: super::ids::Remap::Runs { up: RECIPE_SERIALIZER_UP, down: RECIPE_SERIALIZER_DOWN },
-    // This version already numbers slot displays as the codec does (26.3 order),
-    // so the generator's 11->8 old->pin mapping is wrong here; identity instead.
-    slot_display: super::ids::Remap::Same,
+    slot_display: super::ids::Remap::Runs { up: SLOT_DISPLAY_UP, down: SLOT_DISPLAY_DOWN },
     recipe_display: super::ids::Remap::Same,
     recipe_book_category: super::ids::Remap::Same,
     villager_type: super::ids::Remap::Same,

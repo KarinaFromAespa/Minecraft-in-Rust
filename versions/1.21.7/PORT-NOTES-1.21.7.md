@@ -2127,3 +2127,92 @@ owed — the lib test compile OOM-kills on this VM) plus the new
 (horizon-world `datafix::files::upgrade_tests`: bare world defaults
 to noise, a superflat level.dat yields flat, the 26.x file wins per
 dimension).
+
+## Recipe book empty in-game: the SlotDisplay codec used the 26.3 numbering (2026-11-23)
+
+Build #4 (head 44b3b4ed) playtest: the recipe book stayed empty in every
+menu (crafting, furnace -- the furnace's "Showing Smeltable" filter
+itself is correct vanilla behaviour; the defect was only that no
+recipes ever arrived), and the live log showed exactly five skipped
+packets, all `recipe_book_add`: four "unknown slot display 109", one
+"unknown slot display 38". The TagSlotDisplay writer fix of 2026-11-22
+(78b5fa69, bare tag id) was already in the build, so the failure was
+deeper: the `SlotDisplay` codec in
+`horizon-protocol/src/packets/recipes.rs` still used the 26.3 type-id
+numbering (11 types: empty 0, any_fuel 1, with_any_potion 2,
+only_with_component 3, item 4, item_stack 5, tag 6, dyed 7,
+smithing_trim 8, with_remainder 9, composite 10), while vanilla 1.21.7
+numbers `minecraft:slot_display` with eight types in a different order
+(jar-verified with `javap -c` on the 1.21.7 named server jar's
+`SlotDisplays.<clinit>`, and the same order in the 1.21.10 jar): empty
+0, any_fuel 1, item 2, item_stack 3, tag 4, smithing_trim 5,
+with_remainder 6, composite 7. The writer (`lan/advancements.rs`
+`book_entries`) emits the synced ids from the real 1.21.7
+`registries.json`, so a tag display went out as type 4 with the bare
+id "minecraft:planks"; the reader took 4 as an item display, read the
+id string's length as an item id, and the next read landed on `m`
+(ASCII 109) as a display type -- the whole packet was discarded as
+undecodable. In same-version play no adapter is active, so the
+identity remap hid the mismatch; the adapter tables for 1.21.8/1.21.10/
+1.21.11 even documented it ("Hand-corrected ... Regenerate to old->pin
+when the behaviour port rewires the codec to the 1.21.8 layout") and
+the rewire never happened. The `RecipeDisplay` order (shapeless 0,
+shaped 1, furnace 2, stonecutter 3, smithing 4) and the
+`RecipeBookCategory` order (13 categories, crafting_building_blocks 0
+through campfire 12) were both jar-verified correct already -- only
+the slot display numbering was wrong.
+
+Fix: the codec is rewired to the 1.21.7 eight-type layout
+(`SlotDisplay::read`/`write`, type ids renumbered through the adapter
+on write so a 26.x client still gets its numbering), and the three
+26.x-only variants (`WithAnyPotion`, `OnlyWithComponent`, `Dyed`) are
+removed from the enum -- nothing constructed them outside the
+round-trip test, and the `recipe_book.rs` stacks resolver's arms for
+them are gone. The adapter tables follow the rewire: 1.21.8/1.21.10/
+1.21.11 (and 1.21.3-1.21.6 through inheritance) go from hand-corrected
+runs to `Same`; 26.2/26.1.2 go from `Same` to the generator's 11->8
+runs (`(0,0,2), (4,2,3), (8,5,3)` up), with the three 26.x-only types
+left unmapped so a 26.x server's are read as -1 and turned away;
+1.21.1 is unchanged (no slot_display registry there). The
+`lan/advancements.rs` test fixture carried the 26.3 order, which is
+why CI passed while the live game failed -- it now carries 1.21.7's,
+so the writer/reader round-trip tests exercise the true live path.
+Regression tests: `a_1_21_7_tag_display_decodes` (a shaped
+crafting-table entry in exact live wire form -- the "109" failure),
+`a_1_21_7_furnace_display_decodes` (a smelting display, the furnace
+book), `slot_display_ids_past_the_1_21_7_registry_fail` (8/9/10/109),
+`a_26_2_tag_display_renumbers_up` and
+`a_1_21_8_tag_display_passes_through` (the adapter directions), plus
+the rewritten `book_entries_round_trip` (26.x-only variants out).
+
+Two sibling symptoms from the same playtest were diagnosed, not
+fixed here. (1) A crafted crafting table briefly vanished from the
+inventory and could not be placed, then self-healed with both tables
+present. The full container path was traced -- client prediction
+(`remote_menu_ops`/`predict_clicks`), the server-side craft
+(`lan_inventory_click` -> `guest_menu_op` -> the shared menu engine),
+the correction (`answer_click` with hashed claims) and the tick
+broadcast -- and the slot mappings agree on both sides; no defect was
+found statically. It is NOT the same root cause (container packets
+carry no slot displays). Prime suspect for a live reproduction is the
+drag path: the client's prediction menu is built fresh per
+`menu_session`, so a multi-click quick-craft drag predicts nothing
+while the server's persistent menu distributes it, and under rapid
+clicking the correction can transiently empty a slot the player just
+filled. Needs server-side state at the time of the vanish, which the
+client log does not show. (2) No advancements fired after crafting
+tools and a table. Jar-verified: vanilla 1.21.7 has NO advancement
+for crafting a table or wooden tools -- `minecraft:story/crafting_table`
+does not exist; the only `crafting_table` advancement is the silent
+recipe-unlock `recipes/decorations/crafting_table`, and `story/root`
+grants silently (`show_toast: false`) on holding a table. Only four
+advancements in all of 1.21.7 use `minecraft:recipe_crafted` (crafter,
+decorated pot, two armor trims). The recipe_crafted trigger path
+(`menu.crafted` -> `trigger_recipe_crafted`, the `recipe_id` key fix
+from 59ba5f8d), the `recipe_unlocked` trigger (singular `recipe` key),
+the guest inventory_changed tick and the `flush_progress` packet path
+were all traced and are intact; the visible gap was the missing
+recipe-unlock toast, which is downstream of the recipe_book_add
+failure fixed here. Known gap, unchanged: `RecipeDisplay::read` does
+not renumber through the adapter at all, so a 26.x server sending a
+display type the pin lacks fails the packet rather than degrading.

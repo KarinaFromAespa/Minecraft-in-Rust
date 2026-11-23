@@ -1,6 +1,13 @@
 //! The recipe book's packets and the recipe displays they carry
-//! (`RecipeDisplay`, `SlotDisplay`, `RecipeDisplayEntry`): the 26.3
+//! (`RecipeDisplay`, `SlotDisplay`, `RecipeDisplayEntry`): the pinned 1.21.7
 //! `minecraft:recipe_display` and `minecraft:slot_display` types in id order.
+//! 1.21.7 numbers `minecraft:slot_display` with eight types (empty, any_fuel,
+//! item, item_stack, tag, smithing_trim, with_remainder, composite); the
+//! 26.x additions (with_any_potion, only_with_component, dyed) do not exist
+//! here, and the 26.x numbering (item=4, tag=6, composite=10) must never be
+//! used: a reader on it misreads a 1.21.7 tag display's id string as item
+//! ids and fails the whole `recipe_book_add` packet ("unknown slot display
+//! 109", the `m` of `minecraft:planks`).
 use crate::{
     Result,
     buf::{Codec, Reader, Writer},
@@ -56,21 +63,18 @@ pub enum TrimPattern {
     },
 }
 
-/// `SlotDisplay`: what a recipe book slot shows.
+/// `SlotDisplay`: what a recipe book slot shows, in the pinned 1.21.7
+/// `minecraft:slot_display` order: 0 empty, 1 any_fuel, 2 item, 3 item_stack,
+/// 4 tag, 5 smithing_trim, 6 with_remainder, 7 composite. The 26.x types
+/// (with_any_potion, only_with_component, dyed) have no 1.21.7 form: a 26.x
+/// server's are renumbered to -1 by the adapter and turned away on read.
 #[derive(Clone, Debug, PartialEq)]
 pub enum SlotDisplay {
     Empty,
     AnyFuel,
-    WithAnyPotion(Box<SlotDisplay>),
-    /// The source, kept to the stacks with this data component type.
-    OnlyWithComponent(Box<SlotDisplay>, i32),
     Item(i32),
     ItemStack(Stack),
     Tag(HolderSet),
-    Dyed {
-        dye: Box<SlotDisplay>,
-        target: Box<SlotDisplay>,
-    },
     SmithingTrim {
         base: Box<SlotDisplay>,
         material: Box<SlotDisplay>,
@@ -98,22 +102,13 @@ impl SlotDisplay {
         Ok(match crate::adapter::ids::slot_display(r.varint()?) {
             0 => Self::Empty,
             1 => Self::AnyFuel,
-            2 => Self::WithAnyPotion(inner(r)?),
-            3 => {
-                let source = inner(r)?;
-                Self::OnlyWithComponent(source, crate::adapter::ids::component(r.varint()?))
-            }
-            4 => Self::Item(crate::adapter::ids::item(r.varint()?)),
-            5 => Self::ItemStack(Template::read(r)?),
-            6 if crate::adapter::ids::quirks().tag_slot_display_is_id => {
+            2 => Self::Item(crate::adapter::ids::item(r.varint()?)),
+            3 => Self::ItemStack(Template::read(r)?),
+            4 if crate::adapter::ids::quirks().tag_slot_display_is_id => {
                 Self::Tag(HolderSet::Tag(r.string(32767)?))
             }
-            6 => Self::Tag(HolderSet::read(r)?),
-            7 => Self::Dyed {
-                dye: inner(r)?,
-                target: inner(r)?,
-            },
-            8 => {
+            4 => Self::Tag(HolderSet::read(r)?),
+            5 => {
                 let base = inner(r)?;
                 let material = inner(r)?;
                 if crate::adapter::ids::quirks().components_before_1_21_5 {
@@ -149,11 +144,11 @@ impl SlotDisplay {
                     }
                 }
             }
-            9 => Self::WithRemainder {
+            6 => Self::WithRemainder {
                 input: inner(r)?,
                 remainder: inner(r)?,
             },
-            10 => {
+            7 => {
                 let n = r.count(r.remaining())?;
                 let mut out = Vec::with_capacity(n.min(256));
                 for _ in 0..n {
@@ -189,31 +184,26 @@ impl SlotDisplay {
         Ok(())
     }
     pub fn write(&self, w: &mut Writer) {
+        // The type id in the pinned 1.21.7 numbering, renumbered for an
+        // older client when one is active (a 26.x client numbers
+        // composite 10, where the pin numbers it 7).
+        let ty = crate::adapter::ids::slot_display;
         match self {
-            Self::Empty => w.varint(0),
-            Self::AnyFuel => w.varint(1),
-            Self::WithAnyPotion(d) => {
-                w.varint(2);
-                d.write(w);
-            }
-            Self::OnlyWithComponent(d, component) => {
-                w.varint(3);
-                d.write(w);
-                w.varint(*component);
-            }
+            Self::Empty => w.varint(ty(0)),
+            Self::AnyFuel => w.varint(ty(1)),
             Self::Item(id) => {
-                w.varint(4);
+                w.varint(ty(2));
                 w.varint(crate::adapter::ids::item(*id));
             }
             Self::ItemStack(stack) => {
-                w.varint(5);
+                w.varint(ty(3));
                 Template::write(stack, w);
             }
             Self::Tag(set) if crate::adapter::ids::quirks_written().tag_slot_display_is_id => {
                 match set {
-                    // TagSlotDisplay of 26.2: the tag's bare id.
+                    // TagSlotDisplay of 1.21.7 (and 26.2): the tag's bare id.
                     HolderSet::Tag(name) => {
-                        w.varint(6);
+                        w.varint(ty(4));
                         w.string(name);
                     }
                     // A list of items has no such form: a composite of item displays shows the same.
@@ -224,20 +214,15 @@ impl SlotDisplay {
                 }
             }
             Self::Tag(set) => {
-                w.varint(6);
+                w.varint(ty(4));
                 set.write(w);
-            }
-            Self::Dyed { dye, target } => {
-                w.varint(7);
-                dye.write(w);
-                target.write(w);
             }
             Self::SmithingTrim {
                 base,
                 material,
                 pattern,
             } => {
-                w.varint(8);
+                w.varint(ty(5));
                 base.write(w);
                 material.write(w);
                 match pattern {
@@ -255,12 +240,12 @@ impl SlotDisplay {
                 }
             }
             Self::WithRemainder { input, remainder } => {
-                w.varint(9);
+                w.varint(ty(6));
                 input.write(w);
                 remainder.write(w);
             }
             Self::Composite(list) => {
-                w.varint(10);
+                w.varint(ty(7));
                 w.varint(list.len() as i32);
                 list.iter().for_each(|d| d.write(w));
             }
@@ -682,16 +667,12 @@ mod tests {
                             input: Box::new(SlotDisplay::AnyFuel),
                             remainder: Box::new(SlotDisplay::Item(2)),
                         },
-                        addition: SlotDisplay::OnlyWithComponent(
-                            Box::new(SlotDisplay::WithAnyPotion(Box::new(SlotDisplay::Item(3)))),
-                            9,
-                        ),
+                        addition: SlotDisplay::Tag(HolderSet::Tag(
+                            "minecraft:trim_templates".into(),
+                        )),
                         result: SlotDisplay::SmithingTrim {
                             base: Box::new(SlotDisplay::Item(4)),
-                            material: Box::new(SlotDisplay::Dyed {
-                                dye: Box::new(SlotDisplay::Item(5)),
-                                target: Box::new(SlotDisplay::Item(6)),
-                            }),
+                            material: Box::new(SlotDisplay::Item(5)),
                             pattern: TrimPattern::Id(2),
                         },
                         station: SlotDisplay::Item(7),
@@ -709,5 +690,159 @@ mod tests {
         let mut r = Reader::new(&w.data);
         assert_eq!(RecipeBookAdd::read(&mut r).unwrap(), add);
         assert_eq!(r.remaining(), 0);
+    }
+
+    /// The live 1.21.7 failure (build #4): a shaped crafting-table entry as
+    /// the integrated server writes it — tag displays are type 4 with the
+    /// bare tag id — must decode. On the 26.3 numbering the 4 read as an item
+    /// display, the tag's length as its item, and the next read landed on
+    /// `m` (109) as a display type, failing the whole `recipe_book_add`
+    /// packet ("unknown slot display 109") and leaving the book empty.
+    #[test]
+    fn a_1_21_7_tag_display_decodes() {
+        let mut w = Writer::new();
+        w.varint(1); // one entry
+        w.varint(7); // display id
+        w.varint(1); // shaped
+        w.varint(2);
+        w.varint(2);
+        w.varint(4); // four ingredients
+        for _ in 0..4 {
+            w.varint(4); // tag, 1.21.7 numbering
+            w.string("minecraft:planks");
+        }
+        w.varint(2); // item result
+        w.varint(300);
+        w.varint(0); // empty station
+        w.varint(0); // group
+        w.varint(0); // category
+        w.bool(false); // no requirements
+        w.i8(0); // flags
+        w.bool(true); // replace
+        let mut r = Reader::new(&w.data);
+        let add = RecipeBookAdd::read(&mut r).unwrap();
+        assert_eq!(r.remaining(), 0);
+        assert!(add.replace);
+        assert_eq!(add.entries.len(), 1);
+        let RecipeDisplay::Shaped {
+            width,
+            height,
+            ingredients,
+            result,
+            ..
+        } = &add.entries[0].display
+        else {
+            panic!("expected a shaped display");
+        };
+        assert_eq!((*width, *height), (2, 2));
+        assert_eq!(
+            ingredients,
+            &vec![SlotDisplay::Tag(HolderSet::Tag("minecraft:planks".into())); 4]
+        );
+        assert_eq!(*result, SlotDisplay::Item(300));
+    }
+
+    /// The furnace book failed the same way: a smelting display (raw beef to
+    /// steak) with 1.21.7 slot ids must decode too.
+    #[test]
+    fn a_1_21_7_furnace_display_decodes() {
+        let mut w = Writer::new();
+        w.varint(1);
+        w.varint(9);
+        w.varint(2); // furnace
+        w.varint(2); // item ingredient
+        w.varint(400);
+        w.varint(1); // any_fuel
+        w.varint(2); // item result
+        w.varint(401);
+        w.varint(0); // empty station
+        w.varint(200); // duration
+        w.f32(0.35); // experience
+        w.varint(0);
+        w.varint(1);
+        w.bool(false);
+        w.i8(0);
+        w.bool(false);
+        let mut r = Reader::new(&w.data);
+        let add = RecipeBookAdd::read(&mut r).unwrap();
+        assert_eq!(r.remaining(), 0);
+        assert_eq!(
+            add.entries[0].display,
+            RecipeDisplay::Furnace {
+                ingredient: SlotDisplay::Item(400),
+                fuel: SlotDisplay::AnyFuel,
+                result: SlotDisplay::Item(401),
+                station: SlotDisplay::Empty,
+                duration: 200,
+                experience: 0.35,
+            }
+        );
+    }
+
+    /// 1.21.7's registry has eight slot display types: ids past 7 are not
+    /// displays (the 26.3 numbering's composite, 10, among them).
+    #[test]
+    fn slot_display_ids_past_the_1_21_7_registry_fail() {
+        for id in [8, 9, 10, 109] {
+            let mut w = Writer::new();
+            w.varint(id);
+            let err = SlotDisplay::read(&mut Reader::new(&w.data)).unwrap_err();
+            assert!(
+                err.to_string()
+                    .contains(&format!("unknown slot display {id}")),
+                "{err}"
+            );
+        }
+    }
+
+    /// A 26.2 server numbers tag 6 and composite 10: the adapter renumbers
+    /// them to the pin's 4 and 7 on read, and a 26.x-only type
+    /// (with_any_potion, 2 there) has no pin form and is turned away.
+    #[test]
+    fn a_26_2_tag_display_renumbers_up() {
+        use crate::adapter::{ServerVersion, ids};
+        let version = ServerVersion::V26_2.ids().unwrap();
+        let read = |bytes: &[u8]| {
+            let _up = ids::renumbering(version, ids::Way::Up);
+            SlotDisplay::read(&mut Reader::new(bytes))
+        };
+        // Tag in 26.2's numbering, its bare id (BEFORE_26_3 quirks).
+        let mut w = Writer::new();
+        w.varint(6);
+        w.string("minecraft:planks");
+        assert_eq!(
+            read(&w.data).unwrap(),
+            SlotDisplay::Tag(HolderSet::Tag("minecraft:planks".into()))
+        );
+        // Composite in 26.2's numbering, holding one item (4 there).
+        let mut w = Writer::new();
+        w.varint(10);
+        w.varint(1);
+        w.varint(4);
+        w.varint(1);
+        assert_eq!(
+            read(&w.data).unwrap(),
+            SlotDisplay::Composite(vec![SlotDisplay::Item(1)])
+        );
+        // WithAnyPotion (2 in 26.2) has no 1.21.7 form.
+        let mut w = Writer::new();
+        w.varint(2);
+        assert!(read(&w.data).is_err());
+    }
+
+    /// A 1.21.8 server numbers slot displays as the pin does: its ids pass
+    /// through unchanged.
+    #[test]
+    fn a_1_21_8_tag_display_passes_through() {
+        use crate::adapter::{ServerVersion, ids};
+        let version = ServerVersion::V1_21_8.ids().unwrap();
+        let mut w = Writer::new();
+        w.varint(4);
+        w.string("minecraft:planks");
+        let _up = ids::renumbering(version, ids::Way::Up);
+        assert_eq!(
+            SlotDisplay::read(&mut Reader::new(&w.data)).unwrap(),
+            SlotDisplay::Tag(HolderSet::Tag("minecraft:planks".into()))
+        );
     }
 }

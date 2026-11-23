@@ -749,10 +749,6 @@ impl PacketNames<'_> {
             SlotDisplay::Tag(set) => {
                 out.extend(self.holder_set(set).iter().map(|n| ItemStack::new(n, 1)))
             }
-            SlotDisplay::WithAnyPotion(source) | SlotDisplay::OnlyWithComponent(source, _) => {
-                self.stacks(source, out)
-            }
-            SlotDisplay::Dyed { target, .. } => self.stacks(target, out),
             SlotDisplay::SmithingTrim { base, .. } => self.stacks(base, out),
             SlotDisplay::WithRemainder { input, .. } => self.stacks(input, out),
             SlotDisplay::Composite(list) => list.iter().for_each(|d| self.stacks(d, out)),
