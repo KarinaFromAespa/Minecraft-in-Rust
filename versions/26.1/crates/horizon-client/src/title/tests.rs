@@ -2281,11 +2281,15 @@ fn a_finished_optimization_stamps_the_level_data() {
     let path = f.title.saves.join("World/level.dat");
     let mut root = crate::save::read_dat(&path).unwrap();
     if let Some(Tag::Compound(data)) = root.get_mut("Data") {
-        // 4950, as in every other tree: above the last file fix (4899), so
-        // the world optimizes instead of demanding file fixing (4700 sits
-        // below 4772/4773 and never reaches the Optimize button). The flow
-        // stamps CURRENT whatever the starting version is.
-        data.insert("DataVersion".into(), Tag::Int(4950));
+        // 4780: inside the window where this test can run at all — above
+        // 4773, the last file fix at or below CURRENT, so the world
+        // optimizes instead of demanding file fixing (4700 sits below
+        // 4772/4773 and never reaches the Optimize button), and below
+        // CURRENT 4786, so the optimize flow stamps CURRENT (a start
+        // above CURRENT, like the other trees' 4950, early-returns out of
+        // fix_world_files and leaves the old version in place — 26.3 is
+        // the only tree where 4950 is below CURRENT).
+        data.insert("DataVersion".into(), Tag::Int(4780));
     }
     crate::save::write_dat(&path, root).unwrap();
     f.select();
