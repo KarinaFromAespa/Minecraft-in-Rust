@@ -203,9 +203,6 @@ fn added_issuer_actor_missing_guest_and_restoration_controls() {
         .guests
         .retain(|g| g.conn != 2);
     game.test_source_output(context, marker, true);
-    game.game_tests
-        .outbox
-        .push(Out::Coordinates(context, vec![Dim::Overworld]));
     game.flush_game_test_output();
     for g in &game.lan.as_ref().unwrap().hub.guests {
         g.sender.flush();
@@ -238,7 +235,6 @@ fn added_issuer_actor_missing_guest_and_restoration_controls() {
         "minecraft:always_pass".into(),
         game.test_def("minecraft:always_pass").unwrap(),
         Some((8, 200, 11)),
-        Dim::Overworld,
         Rotation::None,
     );
     game.track_and_start_runner(vec![info], false, None, false);
