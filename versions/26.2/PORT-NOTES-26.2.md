@@ -4385,3 +4385,108 @@ is empty (0 lines), so each fails identically at the branch base.
 Note: `leakage-audit/jars/26.2-server.jar` is a Mojang BUNDLER jar (no
 game classes); the 26.2 client jar in the same directory is the game jar
 and was used for the javap checks above.
+
+## Second crate-tests run (2026-11-23, run 45165324974, head cd0d806f)
+
+The defect-suite job passed; the crate-tests job failed with 11
+`horizon-client-lib` failures (2435 passed, 11 failed). The other six
+suites pass (horizon-client 1274/0, horizon-client-render 2048/0,
+horizon-world 466/0, horizon-items 117/0, horizon-protocol 444/0,
+horizon-client-core 82/0). The E0308 is gone and the three tests fixed
+in cd0d806f pass. Logs:
+`~/workspace/mcir-work/crate-tests-45165324974/`.
+
+**All 11 are pre-existing, none is a branch regression.** Evidence,
+per failure (the branch's production diff is fully enumerated:
+`burn_time` restructured table-driven in `items.rs` /
+`providers.rs` halving when `fast`, the brewing-fuel tag as a named
+const with the same value, the advancement condition keys, and
+comment/test-only changes in `furnace.rs`, `menu.rs`, `screens.rs`,
+`terrain_cmds.rs`, `trident.rs`):
+
+- `git diff 890465ae..cd0d806f --name-only` contains none of the 11
+  test files (`entity_nbt.rs`, `item_render/glint_tests.rs`,
+  `item_sync.rs`, `lan/hub_tests.rs`, `mobs.rs`,
+  `mobs/zombie_villager.rs`, `projectiles.rs`, `realms/client.rs`,
+  `save.rs`, `server_packs/download.rs`, `title/tests.rs`).
+- Grep of those files for every changed production symbol
+  (`burn_time`, `FUEL_VALUES`, `BREWING_FUEL`, `brewing_fuel`,
+  `recipe_condition`, `loot_table_condition`, `block_condition`,
+  `by_recipe`, `Providers::`, `Furnace`, `may_place`, `quick_move`)
+  finds nothing in the failing tests' code paths. The two hits are
+  elsewhere: `hub_tests.rs:626` loads advancements only in the
+  *passing* `an_advancement_tab_a_guest_opens_is_kept_and_answered`
+  test, and `save.rs`'s `BlockEntity::Furnace` mentions are in the
+  unrelated block-entity encode/decode tests.
+- Six of the 11 fail identically on a different branch: the 26.1.2
+  port's crate-tests run 45150986405 (36 lib failures) contains
+  `a_painting_keeps_its_variant_across_the_wire`,
+  `mod_thrown_types_are_found_by_id_and_item_once_registered`,
+  `requests_send_the_session_cookie_only_and_errors_never_hold_the_token`,
+  `older_records_of_a_current_world_upgrade_as_they_are_read`,
+  `a_pack_lands_under_its_hash_and_is_reused_from_the_cache` and
+  `a_finished_optimization_stamps_the_level_data` — same test names,
+  same suites. No main-baseline run was dispatched: the git evidence
+  is conclusive by the same standard the 26.1.2 merge used (failures
+  in files the branch never touched).
+
+Per-failure root causes (all in code the branch never touched; fixes
+belong to the 26.2 test-health follow-up, for which the 26.1.1 wave is
+the template — not to this branch):
+
+- `entity_nbt::frame_missing_facing_loads_down_and_valid_directions_round_trip`
+  (`entity_nbt.rs:8048`): `item_frame_from_nbt(&tag, 17).unwrap()`
+  panics on `None` when `Facing` is missing. Vanilla defaults a
+  missing facing to DOWN (`LEGACY_ID_CODEC, orElse(DOWN)`); the loader
+  returns `None` instead.
+- `item_render::glint_tests::invalid_and_generated_sprites_match_vanilla`
+  (`glint_tests.rs:333`): the paletted-permutation sprite
+  `test:trim_red` lands at `[19/128, 37/64, 27/128, 53/64]` in the
+  atlas but the code puts it at the `item/invalid_size` slot
+  `[103/128, 1/64, 119/128, 17/64]` — atlas packing order.
+- `item_sync::a_painting_keeps_its_variant_across_the_wire`
+  (`item_sync.rs:1585`): the variant comes back `None` instead of
+  `Some("minecraft:kebab")`. Test and code both use component id 109
+  for `painting/variant` — 26.3's numbering. The 26.1.1 test-health
+  wave proved (jar-verified) the id is 102 in 26.1.1; 26.2's exact id
+  is to be confirmed by the follow-up.
+- `lan::hub::a_guest_standing_on_nothing_is_sent_the_blocks_below_it`
+  (`hub_tests.rs:526`): the hub sends no blocks (`[]` instead of the
+  four blocks under the guest's box). The support-block trigger in
+  `lan/hub.rs` never fires for this guest state.
+- `mobs::visibility_percent_tests::worn_mob_heads_halve_that_mobs_detection_range`
+  (`mobs.rs:6582`): a skeleton skull halves *zombie* detection (0.5
+  instead of 1.0) — the code halves for any worn mob head instead of
+  only the mob's own head.
+- `mobs::zombie_villager::iron_bars_and_beds_speed_a_cure`
+  (`zombie_villager.rs:245`): `with_built_test_world` never runs its
+  closure (`ran` is false) — the fixture world with iron bars / a bed
+  / stone fails to build in the 26.2 test registry.
+- `projectiles::mod_thrown_types_are_found_by_id_and_item_once_registered`
+  (`projectiles.rs:2316`): `settings("ruby:late")` is `(4, 10, true)`
+  instead of `(5, 3, true)` — the late-registered type's tracking
+  settings fall back to the wrong defaults.
+- `realms::client::requests_send_the_session_cookie_only_and_errors_never_hold_the_token`
+  (`realms/client.rs:1714`): the code sends `version=26.2` (correct);
+  the test expects the stale literal `version=26.3`.
+- `save::older_records_of_a_current_world_upgrade_as_they_are_read`
+  (`save.rs:8523`): a DataVersion-3465 record's palette still holds
+  the old block name instead of `minecraft:short_grass` — the
+  datafix rename does not run on read in this path.
+- `server_packs::download::a_pack_lands_under_its_hash_and_is_reused_from_the_cache`
+  (`download.rs:441`): the code sends `X-Minecraft-Pack-Format: 88.0`;
+  the test expects `97.1` — the pack-format constant is a stale
+  version's value.
+- `title::a_finished_optimization_stamps_the_level_data`
+  (`title/tests.rs:2294`): the test sets a world's DataVersion to 4950
+  (newer than 26.2's 4903, verified against the vanilla 26.2 world's
+  `level.dat`: `Data.Version.Id 4903, Name 26.2`) and expects the
+  optimizer to restamp it to `DATA_VERSION` (4903, correct in this
+  tree); it does not. Same failure in the 26.1.2 run.
+
+No fix was made on this branch: there is nothing to fix here — the
+branch's own code passes its suites, and the 11 failures are the 26.2
+test-health debt the 26.1.1 wave already fixed in the 26.1.1 tree
+only. Merge recommendation: ready to merge on the 26.1.2 precedent
+(port's suites pass + every failure proven pre-existing in untouched
+files), with these 11 recorded as known failures.
