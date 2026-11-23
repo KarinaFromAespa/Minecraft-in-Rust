@@ -238,3 +238,37 @@ regression tests run at all:
 The 34 `lan_bot` integration-test errors are untouched: crate-tests does
 not run integration tests, and adapting that bot to 775 is a job of its
 own, not part of this patch delta.
+
+CI run 45148426713 (head d16b413a) then ran the two suites for the first
+time and exposed 13 more failures, all pre-existing stale-version or
+lost-engine behaviour in this tree, all fixed on this branch:
+
+- `BlendingDataFix` was keyed 4997; vanilla 26.1.1's DataFixers registers
+  it at schema 4295 (javap-verified), and `IOWorker.isOldChunk` compares
+  against 4295, not 4997. The fix key moved to 4295 (`fixes_c.rs`) and
+  `record_is_old` compares against 4295 (`save.rs`) — every chunk this
+  version saved read as "old" before. The 4997 keying is a later
+  version's.
+- The vibration test pinned particle id 58; vanilla 26.1.1's registry
+  gives vibration protocol id 48 (58 is `note` here). The test now uses
+  48, which is also the id `Particle::read` decodes vibration data from.
+- `painting/variant`'s component id is 102 in 26.1.1 (109 is
+  `shulker/color` here): the painting test's wire bytes and builtin
+  registry now use 102.
+- Copied-sign text never crossed the wire: `write_patch` dropped the
+  synthetic (negative) sign-text kinds, `skip::component` had no arm
+  for them, and `components_tag` could not name them. All three layers
+  now handle them, so a sign's text round-trips.
+- `tracking::settings` had lost the thrown-type fallback (a content
+  mod's type takes snowball's settings); restored.
+- Stale version strings/numbers in tests: the Realms cookie expected
+  `version=26.3` (now 26.1.1), the server-pack download expected
+  `X-Minecraft-Pack-Format: 97.1` (now 84.0), the title optimization
+  test used a 4950 world (now 4786), the pack overlay fixture used
+  format 97 (now 84).
+- `launch-reference.md` was regenerated (`HORIZON_WRITE_DOCS=1`), as
+  its own test prescribes.
+- The palette `Name` fallback moved: `BlockState::from_nbt` stays the
+  modern-only reader (a falling-block test pins that boundary), and the
+  old form is accepted only by the new `BlockState::from_palette_nbt`,
+  used at the three saved-palette decode sites in `chunk.rs`.

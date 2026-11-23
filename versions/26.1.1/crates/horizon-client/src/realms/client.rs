@@ -1934,7 +1934,7 @@ mod tests {
         assert_eq!(
             header(&request, "Cookie"),
             Some(
-                "sid=token:eyJsecret.token.value:0123456789abcdef0123456789abcdef;user=Steve;version=26.3"
+                "sid=token:eyJsecret.token.value:0123456789abcdef0123456789abcdef;user=Steve;version=26.1.1"
             )
         );
         assert_eq!(header(&request, "Authorization"), None, "{request}");

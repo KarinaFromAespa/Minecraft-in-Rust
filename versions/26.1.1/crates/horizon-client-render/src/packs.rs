@@ -2188,8 +2188,8 @@ mod tests {
         fs::create_dir_all(dir.join("old/assets/minecraft/textures/block")).unwrap();
         fs::write(
             dir.join("pack.mcmeta"),
-            br#"{"pack":{"description":"p","pack_format":97},
-            "overlays":{"entries":[{"formats":97,"directory":"new"},{"formats":1,"directory":"old"}]},
+            br#"{"pack":{"description":"p","pack_format":84},
+            "overlays":{"entries":[{"formats":84,"directory":"new"},{"formats":1,"directory":"old"}]},
             "filter":{"block":[{"path":"textures/block/dirt\\.png"}]}}"#,
         )
         .unwrap();
