@@ -4,7 +4,10 @@ use super::*;
 use horizon_core::{
     density::{
         BlendedNoise, CubicSpline, RoundMode, ShiftNoiseKind, SplinePoint, TilingMode, WorldField,
-        graph::{DensityGraph, FunctionId, GraphBinary, GraphNode, GraphUnary, NoiseId},
+        graph::{
+            DensityGraph, FunctionId, GraphBinary, GraphNode, GraphUnary, NoiseId,
+            WeirdRarityMapper,
+        },
     },
     geometry::Axis,
 };
@@ -312,6 +315,18 @@ impl Loader {
                         },
                     }
                 }
+                // 26.1-only: 26.2 dropped weird_scaled_sampler. The overworld
+                // spaghetti caves (`spaghetti_2d`, `entrances`) use it, so a
+                // 26.1 router cannot decode without this arm.
+                "minecraft:weird_scaled_sampler" => GraphNode::WeirdScaledSampler {
+                    input: self.input(&object, "input", depth)?,
+                    noise: self.noise(&object)?,
+                    mapper: match string(required(&object, "rarity_value_mapper")?)?.as_str() {
+                        "type_1" => WeirdRarityMapper::Type1,
+                        "type_2" => WeirdRarityMapper::Type2,
+                        _ => return Err(DecodeError::Field("rarity_value_mapper")),
+                    },
+                },
                 "minecraft:old_blended_noise" => GraphNode::BlendedNoise(BlendedNoise {
                     xz_scale: double_range(
                         required(&object, "xz_scale")?,
@@ -535,6 +550,28 @@ mod tests {
         densities.remove("minecraft:z");
         assert!(DensityRegistry::from_json(&BTreeMap::new(), &densities).is_err());
     }
+    #[test]
+    fn weird_scaled_sampler_decodes_the_26_1_spaghetti_form() {
+        let noises = BTreeMap::from([(
+            "minecraft:spaghetti_2d".to_string(),
+            r#"{"base_octave":-7}"#.to_string(),
+        )]);
+        // The shape of overworld/caves/spaghetti_2d.json in 26.1's data pack.
+        let densities = BTreeMap::from([(
+            "minecraft:a".to_string(),
+            r#"{"type":"minecraft:weird_scaled_sampler","input":{"type":"minecraft:noise","noise":"minecraft:spaghetti_2d","xz_scale":2.0,"y_scale":1.0},"noise":"minecraft:spaghetti_2d","rarity_value_mapper":"type_2"}"#
+                .to_string(),
+        )]);
+        let registry = DensityRegistry::from_json(&noises, &densities).unwrap();
+        assert!(registry.value("minecraft:a").is_some());
+        let bad = BTreeMap::from([(
+            "minecraft:a".to_string(),
+            r#"{"type":"minecraft:weird_scaled_sampler","input":0,"noise":"minecraft:spaghetti_2d","rarity_value_mapper":"type_3"}"#
+                .to_string(),
+        )]);
+        assert!(DensityRegistry::from_json(&noises, &bad).is_err());
+    }
+
     #[test]
     fn codec_validation_rejects_invalid_gradients_intervals_and_splines() {
         for json in [

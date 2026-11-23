@@ -217,6 +217,22 @@ impl DensityCompiler {
                     .noise(&self.graph, noise)?,
                 kind,
             ),
+            GraphNode::WeirdScaledSampler {
+                input,
+                noise,
+                mapper,
+            } => {
+                let noise = self
+                    .context
+                    .as_ref()
+                    .ok_or(CompileError::MissingSeededContext)?
+                    .noise(&self.graph, noise)?;
+                Arc::new(WeirdScaledNoiseSampler {
+                    input: self.compile_raw(input)?,
+                    noise,
+                    mapper,
+                })
+            }
             GraphNode::BlendedNoise(definition) => self
                 .context
                 .as_ref()

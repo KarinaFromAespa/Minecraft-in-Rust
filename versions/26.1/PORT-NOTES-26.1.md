@@ -848,3 +848,23 @@ from prepared data, which the 26.1 export writes as 0.0f for every
 block — players/mobs do not bounce on slime/beds yet. That needs a
 dedicated batch (re-port movement_restitution.rs or synthesize the
 coefficients in the oracle). 215/285/226 no-change.
+
+Batch 52 (Nov 23, 475/498): 95 PORTED — `weird_scaled_sampler` is a
+26.1-only density-function type (26.2 dropped it) that the vanilla
+26.1 data pack uses in the overworld spaghetti caves (`spaghetti_2d`
+TYPE2, `entrances` TYPE1); the Rust had no decoder for it, so a 26.1
+overworld router could not decode. Ported end to end:
+`GraphNode::WeirdScaledSampler` + `WeirdRarityMapper` (TYPE1 =
+getSpaghettiRarity3D, TYPE2 = getSphaghettiRarity2D — note vanilla's
+`Sphaghetti` typo) in horizon-core, `WeirdScaledNoiseSampler`
+implementing `rarity * |noise(x/rarity, y/rarity, z/rarity)|`, the
+compiler arm, and the decoder arm in horizon-world's density.rs.
+Three regression tests pass locally (mapper boundaries, sampler
+coordinate division/scaling/abs, decoder on the spaghetti_2d shape).
+102 PORTED — the 16384 particle-group cap with probabilistic fill is
+26.2-only; 26.1's `ParticleGroup.add` is a plain queue add, so the cap
+is gone from the particle tick (the 1000 SPORE_BLOSSOM limit at
+create stays). 91/98/99/120 no-change (renames, spills, package
+moves; the Blocks lambdas are registration data; SlimeBlock's
+26.1-only bounce methods were already ported as item 94). Also fixed
+a batch-46 `unused_mut` warning in bonemeal.rs.

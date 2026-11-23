@@ -221,7 +221,7 @@ impl Behaviours {
         face: Direction,
     ) -> bool {
         let mut ticks = Ticks::default();
-        let mut sim = self.sim(level, &mut ticks);
+        let sim = self.sim(level, &mut ticks);
         let state = sim.state(pos);
         let water = sim.state(rel(pos, face));
         self.is_face_sturdy(state, face)

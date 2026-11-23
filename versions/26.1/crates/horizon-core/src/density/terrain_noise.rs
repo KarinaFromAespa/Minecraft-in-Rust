@@ -1,4 +1,4 @@
-use super::*;
+use super::{graph::WeirdRarityMapper, *};
 use crate::{
     noise::{NoiseBuildError, NoiseStack, SmearedPerlinNoise},
     random::RandomSource,
@@ -9,6 +9,39 @@ pub enum ShiftNoiseKind {
     Shift,
     ShiftA,
     ShiftB,
+}
+
+/// 26.1's `WeirdScaledSampler.transform`: the input value maps to a rarity
+/// through the mapper, the noise is sampled at coordinates divided by that
+/// rarity, and the absolute value is scaled back up by the rarity:
+/// `rarity * |noise(x/rarity, y/rarity, z/rarity)|`. The volume path is the
+/// default pointwise loop: the rarity varies per point, so no bulk path
+/// applies. 26.2 dropped the type; the overworld spaghetti caves need it.
+#[derive(Debug)]
+pub struct WeirdScaledNoiseSampler {
+    pub input: Arc<dyn DensitySampler>,
+    pub noise: Arc<dyn Noise>,
+    pub mapper: WeirdRarityMapper,
+}
+impl DensitySampler for WeirdScaledNoiseSampler {
+    fn pointwise_inputs(&self) -> Option<Vec<&Arc<dyn DensitySampler>>> {
+        Some(vec![&self.input])
+    }
+    fn sample_value(
+        &self,
+        context: &mut SamplerContext,
+        [x, y, z]: [i32; 3],
+    ) -> Result<f32, SampleError> {
+        let rarity = self
+            .mapper
+            .rarity(f64::from(self.input.sample_value(context, [x, y, z])?));
+        Ok((rarity
+            * f64::from(
+                self.noise
+                    .get3(x as f64 / rarity, y as f64 / rarity, z as f64 / rarity)
+                    .abs(),
+            )) as f32)
+    }
 }
 
 /// Compile the three offset-noise variants without changing their bulk paths.

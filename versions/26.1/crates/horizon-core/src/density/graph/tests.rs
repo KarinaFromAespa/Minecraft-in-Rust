@@ -2,6 +2,85 @@ use super::*;
 use std::sync::Mutex;
 
 #[test]
+fn weird_scaled_sampler_rarity_mappers_match_vanilla_thresholds() {
+    // TYPE1 is getSpaghettiRarity3D: boundaries at -0.5, 0.0, 0.5.
+    assert_eq!(WeirdRarityMapper::Type1.rarity(-1.0), 0.75);
+    assert_eq!(WeirdRarityMapper::Type1.rarity(-0.5), 1.0);
+    assert_eq!(WeirdRarityMapper::Type1.rarity(0.0), 1.5);
+    assert_eq!(WeirdRarityMapper::Type1.rarity(0.5), 2.0);
+    assert_eq!(WeirdRarityMapper::Type1.max_rarity(), 2.0);
+    // TYPE2 is getSphaghettiRarity2D: boundaries at -0.75, -0.5, 0.5, 0.75.
+    assert_eq!(WeirdRarityMapper::Type2.rarity(-1.0), 0.5);
+    assert_eq!(WeirdRarityMapper::Type2.rarity(-0.75), 0.75);
+    assert_eq!(WeirdRarityMapper::Type2.rarity(-0.5), 1.0);
+    assert_eq!(WeirdRarityMapper::Type2.rarity(0.5), 2.0);
+    assert_eq!(WeirdRarityMapper::Type2.rarity(0.75), 3.0);
+    assert_eq!(WeirdRarityMapper::Type2.max_rarity(), 3.0);
+}
+
+#[derive(Debug)]
+struct ShiftedNoise {
+    negate: bool,
+}
+impl crate::noise::Noise for ShiftedNoise {
+    fn range(&self) -> Result<[f32; 2], crate::noise::NanRange> {
+        Ok([-1.0, 1.0])
+    }
+    fn get2(&self, x: f64, _z: f64) -> f32 {
+        let value = (x + 1.0) as f32;
+        if self.negate { -value } else { value }
+    }
+    fn get3(&self, x: f64, _y: f64, _z: f64) -> f32 {
+        self.get2(x, 0.0)
+    }
+}
+
+#[test]
+fn weird_scaled_sampler_divides_coordinates_by_rarity_and_scales_back() {
+    // Input -1.0 maps to rarity 0.75 (TYPE1) at [6, 0, 0]: the noise reads
+    // x = 6 / 0.75 = 8, returns 9, and the result is 0.75 * 9 = 6.75.
+    let sampler = WeirdScaledNoiseSampler {
+        input: Arc::new(ConstantSampler(-1.0)),
+        noise: Arc::new(ShiftedNoise { negate: false }),
+        mapper: WeirdRarityMapper::Type1,
+    };
+    assert_eq!(
+        sampler.sample_value(&mut SamplerContext::default(), [6, 0, 0]),
+        Ok(6.75)
+    );
+    // Input 1.0 maps to rarity 2.0: noise reads x = 3, returns 4, result 8.
+    let sampler = WeirdScaledNoiseSampler {
+        input: Arc::new(ConstantSampler(1.0)),
+        noise: Arc::new(ShiftedNoise { negate: false }),
+        mapper: WeirdRarityMapper::Type1,
+    };
+    assert_eq!(
+        sampler.sample_value(&mut SamplerContext::default(), [6, 0, 0]),
+        Ok(8.0)
+    );
+    // TYPE2 maps -1.0 to rarity 0.5: noise reads x = 12, returns 13, result 6.5.
+    let sampler = WeirdScaledNoiseSampler {
+        input: Arc::new(ConstantSampler(-1.0)),
+        noise: Arc::new(ShiftedNoise { negate: false }),
+        mapper: WeirdRarityMapper::Type2,
+    };
+    assert_eq!(
+        sampler.sample_value(&mut SamplerContext::default(), [6, 0, 0]),
+        Ok(6.5)
+    );
+    // A negative noise value is flipped by the absolute value: same 6.75.
+    let sampler = WeirdScaledNoiseSampler {
+        input: Arc::new(ConstantSampler(-1.0)),
+        noise: Arc::new(ShiftedNoise { negate: true }),
+        mapper: WeirdRarityMapper::Type1,
+    };
+    assert_eq!(
+        sampler.sample_value(&mut SamplerContext::default(), [6, 0, 0]),
+        Ok(6.75)
+    );
+}
+
+#[test]
 fn power_literal_selection_retains_signed_zeros_and_negative_fallback_behavior() {
     let signaling_base = UnarySampler {
         input: Arc::new(ConstantSampler(0.0)),

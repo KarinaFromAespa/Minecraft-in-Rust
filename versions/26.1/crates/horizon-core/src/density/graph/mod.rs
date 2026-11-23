@@ -57,6 +57,55 @@ pub enum GraphBinary {
     Maximum,
 }
 
+/// The rarity mapper of 26.1's `weird_scaled_sampler` density function
+/// (`DensityFunctions$WeirdScaledSampler$RarityValueMapper`). TYPE1 applies
+/// `QuantizedSpaghettiRarity.getSpaghettiRarity3D`, TYPE2 applies
+/// `getSphaghettiRarity2D` (note the vanilla `Sphaghetti` typo). 26.2 dropped
+/// the whole type, so the graph has no 26.2 counterpart for it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WeirdRarityMapper {
+    Type1,
+    Type2,
+}
+impl WeirdRarityMapper {
+    pub fn rarity(self, value: f64) -> f64 {
+        match self {
+            // v < -0.5 ? 0.75 : v < 0.0 ? 1.0 : v < 0.5 ? 1.5 : 2.0
+            Self::Type1 => {
+                if value < -0.5 {
+                    0.75
+                } else if value < 0.0 {
+                    1.0
+                } else if value < 0.5 {
+                    1.5
+                } else {
+                    2.0
+                }
+            }
+            // v < -0.75 ? 0.5 : v < -0.5 ? 0.75 : v < 0.5 ? 1.0 : v < 0.75 ? 2.0 : 3.0
+            Self::Type2 => {
+                if value < -0.75 {
+                    0.5
+                } else if value < -0.5 {
+                    0.75
+                } else if value < 0.5 {
+                    1.0
+                } else if value < 0.75 {
+                    2.0
+                } else {
+                    3.0
+                }
+            }
+        }
+    }
+    pub fn max_rarity(self) -> f64 {
+        match self {
+            Self::Type1 => 2.0,
+            Self::Type2 => 3.0,
+        }
+    }
+}
+
 /// References belong to the graph that creates them. New nodes may refer only
 /// to existing immutable nodes, keeping the definition graph acyclic.
 #[derive(Clone, Debug)]
@@ -70,6 +119,15 @@ pub enum GraphNode {
         shift_x: FunctionId,
         shift_y: FunctionId,
         shift_z: FunctionId,
+    },
+    /// 26.1's `weird_scaled_sampler`: `rarity * |noise(x/rarity, y/rarity,
+    /// z/rarity)|`, where the rarity is the mapper applied to the input value.
+    /// Vanilla 26.1 uses it in the overworld spaghetti caves (`spaghetti_2d`
+    /// with TYPE2, `entrances` with TYPE1); 26.2 removed the type.
+    WeirdScaledSampler {
+        input: FunctionId,
+        noise: NoiseId,
+        mapper: WeirdRarityMapper,
     },
     OffsetNoise {
         noise: NoiseId,
@@ -177,6 +235,7 @@ impl GraphNode {
             | Self::Slice { input, .. }
             | Self::Cache(input)
             | Self::BlendDensity(input)
+            | Self::WeirdScaledSampler { input, .. }
             | Self::Interpolated { input, .. } => vec![input],
             Self::Binary { left, right, .. } => vec![left, right],
             Self::Round {
@@ -242,6 +301,11 @@ impl GraphNode {
                 id(shift_z),
             ],
             Self::OffsetNoise { noise, kind } => vec![15, noise.0 as u64, kind as u64],
+            Self::WeirdScaledSampler {
+                input,
+                noise,
+                mapper,
+            } => vec![23, id(input), noise.0 as u64, mapper as u64],
             Self::BlendedNoise(v) => vec![
                 16,
                 d(v.xz_scale),
@@ -419,7 +483,10 @@ impl DensityGraph {
         {
             return Err(CompileError::UnknownHolder);
         }
-        if let GraphNode::Noise { noise, .. } | GraphNode::OffsetNoise { noise, .. } = node {
+        if let GraphNode::Noise { noise, .. }
+        | GraphNode::OffsetNoise { noise, .. }
+        | GraphNode::WeirdScaledSampler { noise, .. } = node
+        {
             self.noise_entry(noise)?;
         }
         if let GraphNode::IntervalSelect {
@@ -635,6 +702,13 @@ impl DensityGraph {
             GraphNode::OffsetNoise { noise, .. } => {
                 let [min, max] = self.noise_entry(noise)?.definition.range();
                 Interval::new(min, max)?.multiply_range(Interval::exact(4.0)?)
+            }
+            GraphNode::WeirdScaledSampler { noise, mapper, .. } => {
+                // `rarity * |noise|` is never negative and peaks at the
+                // mapper's max rarity times the noise's largest magnitude.
+                let [min, max] = self.noise_entry(noise)?.definition.range();
+                let peak = min.abs().max(max.abs()) as f64 * mapper.max_rarity();
+                Interval::new(0.0, peak as f32)?
             }
             GraphNode::BlendedNoise(definition) => definition.range()?,
             GraphNode::Spline(ref spline) => spline.try_range(&mut |id| self.range(id))?,

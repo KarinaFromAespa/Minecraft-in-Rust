@@ -45,7 +45,7 @@ pub use selection::{
 };
 pub use terrain_noise::{
     BlendedFbmSet, BlendedNoise, DistanceMetric, DistanceToPointSampler, ShiftNoiseKind,
-    compile_shift_noise, create_blended_fbm,
+    WeirdScaledNoiseSampler, compile_shift_noise, create_blended_fbm,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
