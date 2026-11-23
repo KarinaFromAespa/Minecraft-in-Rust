@@ -769,12 +769,11 @@ impl Game<'_> {
         self.piston_block_triggers(before, after);
     }
 
-    /// `Entity.restituteMovementAfterCollisions` after a block's push, for a
+    /// `Block.updateEntityMovementAfterFallOn` after a block's push, for a
     /// server entity (`canSimulateMovement`; a player's own client moves it):
     /// an axis the collision cut off stops (no entity bounces off walls), and
     /// a cut-off vertical push stops the fall or rise, except a fall onto
-    /// slime fast enough to bounce. The bounce is of the entity's own
-    /// velocity, scaled by the part of the push that was made. The ground
+    /// slime or a bed, which bounces by the block's factor. The ground
     /// flag is set by `set_pushed_on_ground`.
     fn restitute_piston(&mut self, target: Target, limited: Vec3, resolved: Vec3) {
         let Target::Entity(handle) = target else {
@@ -797,7 +796,9 @@ impl Game<'_> {
                 (pos.y - 0.2).floor() as i32,
                 pos.z.floor() as i32,
             );
-            let slime = &*self.res.facts().get(on).name == "minecraft:slime_block";
+            let on_name = &*self.res.facts().get(on).name;
+            let slime = on_name == "minecraft:slime_block";
+            let bed = on_name.ends_with("_bed");
             let velocity = entity.velocity_mut();
             if collided_x {
                 velocity.x = 0.0;
@@ -806,9 +807,8 @@ impl Game<'_> {
                 velocity.z = 0.0;
             }
             if vertical {
-                velocity.y = crate::entities::vertical_collision_velocity(
-                    velocity.y, resolved.y, 0.04, below, slime,
-                );
+                velocity.y =
+                    crate::entities::vertical_collision_velocity(velocity.y, below, slime, bed);
             }
         });
     }

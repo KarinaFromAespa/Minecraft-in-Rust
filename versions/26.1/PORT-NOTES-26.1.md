@@ -836,3 +836,15 @@ id. lan_camera.rs comments corrected. 50/53/54/55/56/304 no-change:
 Bootstrap, component-patch, notifications, LockCode (package move
 only), MaterialBaker/SpriteId and block-state Properties are
 unreferenced or unchanged in the Rust.
+
+Batch 51 (Nov 23, 469/498): 94 PORTED — the non-living bounce is now
+the 26.1 `Block.updateEntityMovementAfterFallOn` form: slime `-vy *
+0.8d`, bed `-vy * 0.66f * 0.8d` (new — the 26.2 port had no bed
+handling here), anything else zeroes Y, any falling speed bounces;
+the 26.2 restitute portion/drag/gravity compensation is gone, and
+the item tick's Y drag is the `0.98d` literal (X/Z stay `0.98f`).
+KNOWN GAP: the LIVING bounce path still reads `bounce_restitution`
+from prepared data, which the 26.1 export writes as 0.0f for every
+block — players/mobs do not bounce on slime/beds yet. That needs a
+dedicated batch (re-port movement_restitution.rs or synthesize the
+coefficients in the oracle). 215/285/226 no-change.
