@@ -1015,3 +1015,27 @@ possible-biomes set is a Java-side optimisation the Rust does not
 model (surface rules read the per-column biome); `NoiseGeneratorSettings`
 factories differ only in bootstrap signatures. 2 files; workspace
 `cargo check` and horizon-world `--lib --tests` clean.
+
+Batch 60 (Nov 24, 495/498): 117 PORTED — environment attributes to the
+packed-int ARGB system. Jar-verified against 26.1's own jars: `ARGB`
+(addRgb/alphaBlend/multiply/scaleRGB/srgbLerp/greyscale) method-identical
+26.1↔26.2; `EnvironmentAttribute`/`AttributeType` method-identical, no
+`isFullResolutionBiomes` in either; `EnvironmentAttributes` 48 fields,
+identical names in both jars (the 26.1 tree's 50th and 51st entries,
+`gameplay/natural_mob_spawns` and
+`gameplay/creature_world_gen_spawn_probability`, are 26.3-only —
+`straw_bed_rule` was already removed in batch 3c); `SpawnerData` is
+(type, minCount, maxCount) in both jars, no `count` provider; the 26.1
+plains biome has top-level `spawners` (minCount/maxCount),
+`spawn_costs` and no `natural_mob_spawns` attribute; `ClockManager`
+is `getTotalTicks(Holder<WorldClock>)` in both. Carried the 26.2 files
+whole (doc refs 26.2→26.1): environment_attributes.rs (packed-int
+ARGB: multiply/add/alphaBlend/srgbLerp/greyscale/scaleRGB on ints,
+`STRING_RGB_COLOR`/`STRING_ARGB_COLOR` codecs, 48 attributes, tests
+pinning the int formulas), biome.rs (spawns from the biome file's
+`spawners`/`spawn_costs`/`creature_spawn_probability`, content-mod
+attribute form as fallback), environment_system.rs (biome closures
+lose the `full_resolution` bool), environment.rs (same closure change),
+spawn_selection.rs (`constant` flag gone; a 4-4 group still draws),
+environment_system_fixture.rs (closure arity). 6 files; workspace
+`cargo check` and horizon-world/render/client `--lib --tests` clean.
