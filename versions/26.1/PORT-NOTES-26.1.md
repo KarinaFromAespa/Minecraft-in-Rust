@@ -1606,3 +1606,22 @@ inline via EntitySelectorParser.shouldInvertValue, which the
 Rust's InvertableSet models; the selector.rs doc now says
 so. Comment-only changes; no separate CI dispatch (covered
 by the next code batch's run).
+
+Batch 82 (Nov 24, 166/214 — A2 #5, all no-change): 674
+NarrationElementOutput identical (NarrationTrigger exists in
+neither jar — 26.3-only, already handled in batch 77); 677
+ChorusPlantBlock, 679 PaleMossDecorator, 681 SnowyBlock, 682
+RotatedPillarBlock (despite the "differing" tag), 690
+AbstractBannerBlock all 0-diff. 678 Climate$RTree$SubTree:
+4 lines, both constructors protected→public only. 680
+BoxBlockMatcher exists in neither jar (26.3-only); the
+sculk.rs comment wrongly cited it as 26.1's and is fixed to
+the 26.2 tree's form ("26.3 replaced the loop with
+BoxBlockMatcher"); the sculk.rs 104-line diff is the batch-69
+port (hardcoded inhibitors vs the 26.2 tree's catalyst
+fields). 686 DensityFunction$Axes exists in neither jar;
+fusion.rs's Axes is the OptiFine CTM one, unrelated. 688
+OitStage exists in neither jar; the 26.1 tree's oit.rs is
+26.1-only engine OIT work (the 26.2 tree has no oit.rs),
+not vanilla behaviour. Comment-only change; no separate CI
+dispatch (covered by the next code batch's run).

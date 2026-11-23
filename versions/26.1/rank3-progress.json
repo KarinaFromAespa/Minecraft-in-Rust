@@ -737,6 +737,11 @@
    "evidence": "FluidModel$Unbaked.bake: structural diff shows only invokeinterface -> invokevirtual for MaterialBaker.get (26.2 made MaterialBaker a class); same still/flowing/overlay material bakes. fluid.rs 0-diff vs 26.2."
   },
   {
+   "id": 674,
+   "verdict": "no-change",
+   "evidence": "NarrationElementOutput 0-diff; NarrationTrigger in neither jar (26.3-only, handled in batch 77)"
+  },
+  {
    "id": 675,
    "title": "crates/horizon-server/src/management_schema.rs: 2 vanilla classes changed (2 methods, 0 named in Horizon)",
    "verdict": "ported",
@@ -747,6 +752,36 @@
    "title": "crates/horizon-server/src/rcon.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "RconClient: only the constructor's access modifier changed (package-private 26.1 -> public 26.2); run() identical. rcon.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 677,
+   "verdict": "no-change",
+   "evidence": "ChorusPlantBlock 0-diff; place.rs 0-diff"
+  },
+  {
+   "id": 678,
+   "verdict": "no-change",
+   "evidence": "Climate$RTree$SubTree 4 lines: both ctors protected->public only; index.rs 0-diff"
+  },
+  {
+   "id": 679,
+   "verdict": "no-change",
+   "evidence": "PaleMossDecorator 0-diff; feature_catalog.rs diff is earlier 26.1 work (lift_config/coral), out of scope"
+  },
+  {
+   "id": 680,
+   "verdict": "no-change",
+   "evidence": "BoxBlockMatcher in neither jar (26.3-only); sculk.rs comment fixed to the 26.2 tree form; 104-line diff is the batch-69 port"
+  },
+  {
+   "id": 681,
+   "verdict": "no-change",
+   "evidence": "SnowyBlock 0-diff; snow_freeze.rs 0-diff"
+  },
+  {
+   "id": 682,
+   "verdict": "no-change",
+   "evidence": "RotatedPillarBlock 0-diff despite the differing tag; tree_blocks.rs 0-diff"
   },
   {
    "id": 683,
@@ -767,16 +802,31 @@
    "evidence": "26.1's MutableComponent has withColor(TextColor) as well as withColor(int); 26.2 dropped the TextColor overload. The Rust's with_color(u32) is the int form, present in both. text.rs 0-diff vs 26.2."
   },
   {
+   "id": 686,
+   "verdict": "no-change",
+   "evidence": "DensityFunction$Axes in neither jar; fusion.rs Axes is the OptiFine CTM one, unrelated"
+  },
+  {
    "id": 687,
    "title": "crates/horizon-client-render/src/gfx/occlusion.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "GraphStorage: 26.2 replaced chunksWaitingForNeighbors (Long2ObjectMap<List<RenderSection>>) with sectionsWaitingForChunkLoads (Long2ObjectMap<LongList>) \u2014 internal render-graph bookkeeping, not modelled by the Rust. occlusion.rs 0-diff vs 26.2."
   },
   {
+   "id": 688,
+   "verdict": "no-change",
+   "evidence": "OitStage in neither jar; oit.rs is 26.1-only engine OIT work, not vanilla behaviour"
+  },
+  {
    "id": 689,
    "title": "crates/horizon-client-render/src/hud_kit/tabs.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "26.1's Tab interface declares abstract getLayout(); 26.2 dropped it (doLayout only). GUI tab plumbing. tabs.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 690,
+   "verdict": "no-change",
+   "evidence": "AbstractBannerBlock 0-diff; banners.rs 0-diff"
   },
   {
    "id": 692,
