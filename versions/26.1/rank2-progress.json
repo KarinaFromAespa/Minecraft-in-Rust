@@ -190,6 +190,13 @@
    "evidence": "Ported (26.2 #147, commit c03452c8). BlockAttachedEntity byte-identical 26.2->26.1; Entity.kill(ServerLevel) is the single-arg unattributed form in both jars (26.3 added kill(level, entity)). Painting/frame ENTITY_DIE unattributed on player and blast breaks; explosion_kill_credit() removed, replaced by explosion_direct_source() for the BLOCK_CHANGE attribution via dropItem."
   },
   {
+   "id": 242,
+   "verdict": "ported",
+   "bucket": "B",
+   "cl_sub": "B2c",
+   "evidence": "Ported (26.2 #185). ReloadableServerRegistries and ValidationContext bytecode-identical 26.2->26.1 (jardiff); single ValidationContext$RecursiveReferenceProblem in the 26.1 jar; no hasFatalProblems anywhere. Loot validation is warn-only: only GraphError::Unbound refuses the dedicated-server start; a cycle is logged and the start carries on."
+  },
+  {
    "id": 246,
    "verdict": "ported",
    "bucket": "B",
@@ -279,6 +286,13 @@
    "bucket": "A",
    "cl_sub": "A2",
    "evidence": "No-change. 26.2 #249 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
+  },
+  {
+   "id": 313,
+   "verdict": "ported",
+   "bucket": "A",
+   "cl_sub": "A2",
+   "evidence": "Ported (26.2 #250). 26.1 BlockStateProvider is the abstract class with byNameCodec-dispatch CODEC and simple(state)/simple(block) factories; the type registry uses the LONG forms (dual_noise_provider, noise_provider, noise_threshold_provider, randomized_int_state_provider, rotated_block_provider, rule_based_state_provider, simple_state_provider, weighted_state_provider) \u2014 identical to 26.2. Decoder accepts long forms; provider states read the object-only BlockState.CODEC form (true); RotatedBlockProvider draws Axis.getRandom (verified in the 26.1 jar). noise.rs: type-name + state-form hunks only \u2014 the 26.1 NoiseStack is f32 (26.2 converted to f64), so the f64 sampling hunks were NOT carried over."
   },
   {
    "id": 321,

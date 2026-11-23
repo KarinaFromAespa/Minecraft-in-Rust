@@ -180,7 +180,9 @@ impl<'r> StateProviderBindings<'r> {
 }
 impl PredicateBlockResolver for StateProviderBindings<'_> {
     fn predicate_state(&self, json: &str) -> Result<BlockStateId, DecodeError> {
-        self.state(json, false)
+        // `would_survive`'s `state` field is BlockState.CODEC: in 26.1 the
+        // object-only NBT form (Name/Properties), not the compact form.
+        self.state(json, true)
     }
     fn predicate_property(
         &self,
@@ -350,7 +352,9 @@ impl BlockStateProvider {
             required(&object, "type")?.get(),
         )?)?;
         Ok(Self(match kind.as_str() {
-            "minecraft:rule_based" => {
+            // 26.3 shortened the provider type names; 26.1 data uses the
+            // long forms. Both decode the same fields.
+            "minecraft:rule_based" | "minecraft:rule_based_state_provider" => {
                 let fallback = optional(&object, "fallback")
                     .map(|raw| {
                         Self::decode_holder(raw.get(), bindings, depth + 1, remaining, catalog)
@@ -386,21 +390,29 @@ impl BlockStateProvider {
                 }
                 Node::RuleBased { fallback, rules }
             }
-            "minecraft:noise" | "minecraft:noise_threshold" | "minecraft:dual_noise" => {
+            "minecraft:noise"
+            | "minecraft:noise_threshold"
+            | "minecraft:dual_noise"
+            | "minecraft:noise_provider"
+            | "minecraft:noise_threshold_provider"
+            | "minecraft:dual_noise_provider" => {
                 Node::Noise(Box::new(NoiseProvider::decode(&object, bindings, &kind)?))
             }
-            "minecraft:simple" => {
-                Node::Simple(bindings.state(required(&object, "state")?.get(), false)?)
+            "minecraft:simple" | "minecraft:simple_state_provider" => {
+                // SimpleStateProvider's `state` is BlockState.CODEC: the
+                // 26.1 object-only form.
+                Node::Simple(bindings.state(required(&object, "state")?.get(), true)?)
             }
-            "minecraft:weighted" => {
+            "minecraft:weighted" | "minecraft:weighted_state_provider" => {
                 Node::Weighted(WeightedList::decode(required(&object, "entries")?, |v| {
-                    bindings.state(v.get(), false)
+                    // WeightedStateProvider entries are BlockState.CODEC.
+                    bindings.state(v.get(), true)
                 })?)
             }
             "minecraft:random_block" => {
                 Node::RandomBlock(bindings.block_set(required(&object, "blocks")?)?)
             }
-            "minecraft:rotated" => {
+            "minecraft:rotated" | "minecraft:rotated_block_provider" => {
                 let direction = optional(&object, "direction")
                     .map(|v| {
                         let name: String = serde_json::from_str(v.get())?;
@@ -432,7 +444,7 @@ impl BlockStateProvider {
                 )?),
                 bindings.properties()?,
             ),
-            "minecraft:randomized_int" => Node::RandomizedInt {
+            "minecraft:randomized_int" | "minecraft:randomized_int_state_provider" => Node::RandomizedInt {
                 source: Box::new(Self::decode_holder(
                     required(&object, "source")?.get(),
                     bindings,
@@ -484,10 +496,15 @@ impl BlockStateProvider {
                 direction,
                 rotations,
             } => {
-                // Native orientation selection precedes the nested state draw.
+                // Vanilla 26.1 RotatedBlockProvider draws Axis.getRandom
+                // (nextInt(3) over X, Y, Z) and sets only the axis; 26.3
+                // switched to Direction.getRandom (nextInt(6)) plus facing.
+                // Map the axis to a representative table direction (X->west,
+                // Y->down, Z->north); exact for axis-only blocks, the only
+                // 26.1 use (pile_hay's hay_block).
                 let direction = match direction {
                     Some(value) => *value,
-                    None => random.next_int_bound(6)? as usize,
+                    None => [4, 0, 2][random.next_int_bound(3)? as usize],
                 };
                 let state = source.get_state(world, random, position)?;
                 Some(

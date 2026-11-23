@@ -42,15 +42,17 @@ impl NoiseProvider {
             .create(&mut WorldgenRandom::new(LegacyRandom::new(seed)))?;
         let scale = positive(required(object, "scale")?)?;
         let choice = match kind {
-            "minecraft:noise" => Choice::States(states(required(object, "states")?, bindings)?),
-            "minecraft:noise_threshold" => Choice::Threshold {
+            "minecraft:noise" | "minecraft:noise_provider" => {
+                Choice::States(states(required(object, "states")?, bindings)?)
+            }
+            "minecraft:noise_threshold" | "minecraft:noise_threshold_provider" => Choice::Threshold {
                 threshold: range(required(object, "threshold")?, -1., 1.)?,
                 chance: range(required(object, "high_chance")?, 0., 1.)?,
-                default: bindings.state(required(object, "default_state")?.get(), false)?,
+                default: bindings.state(required(object, "default_state")?.get(), true)?,
                 low: states(required(object, "low_states")?, bindings)?,
                 high: states(required(object, "high_states")?, bindings)?,
             },
-            "minecraft:dual_noise" => Choice::Dual {
+            "minecraft:dual_noise" | "minecraft:dual_noise_provider" => Choice::Dual {
                 states: states(required(object, "states")?, bindings)?,
                 variety: variety(required(object, "variety")?)?,
                 slow: decode_noise(required(object, "slow_noise")?.get())?
@@ -147,7 +149,8 @@ fn states(
     }
     values
         .iter()
-        .map(|v| bindings.state(v.get(), false))
+        // Noise/dual-noise/threshold provider state lists are BlockState.CODEC.
+        .map(|v| bindings.state(v.get(), true))
         .collect()
 }
 fn float(raw: &RawValue) -> Result<f32, DecodeError> {
