@@ -1103,11 +1103,12 @@ run 45254318944 (batch 61) is testing, so no separate dispatch.
 
 ## Behaviour port — rank 3 in progress (2026-11-24, branch behaviour/26.1)
 
-Rank 3: 50/214 closed (rank 1: 7/7, rank 2: 498/498; total
-555/795). Re-triage: `retriage-rank345.json` (A1 60, A2 67, B1 56,
-B2 31) + `diff-26.2-26.1-rank3.json` (274 classes, 204
-method-changed). Order: A1 reviews, then B1 ports, then A2/B2.
-Progress in `rank3-progress.json`.
+Rank 3: 60/214 closed (rank 1: 7/7, rank 2: 498/498; total
+565/795). A1 complete (60/60). Re-triage:
+`retriage-rank345.json` (A1 60, A2 67, B1 56, B2 31) +
+`diff-26.2-26.1-rank3.json` (274 classes, 204 method-changed).
+Order: A1 reviews, then B1 ports, then A2/B2. Progress in
+`rank3-progress.json`.
 
 Batch 63 (Nov 24, 10/214 — A1 #1): 538 PORTED, 542 PORTED, 571 /
 586 / 608 / 610 / 612 / 614 / 615 / 616 NO-CHANGE.
@@ -1238,3 +1239,21 @@ form); 687 occlusion graph (internal waiting-map refactor);
 (submitMovingBlock gained a 4th int arg); 695 trial spawner
 particles (getCenter vs atCenterOf, same value).
 `cargo check -p horizon-server` clean.
+
+Batch 68 (Nov 24, 60/214 — A1 #6, A1 COMPLETE): all 10
+NO-CHANGE, each jardiff-verified. 697 waypoints: 26.1 keeps
+MAX_RANGE = 60000000 (26.2 dropped it; the Rust doesn't model
+it) and the icon colour rule is the same (black → −13619152)
+via Integer in 26.1, TeamColor in 26.2. 700 world creation:
+26.2 added a saves-folder create in findResultFolder; no Rust
+counterpart. 701 experimental-features onClose: setScreen
+accessor move. 703 SubShape: constructor access modifier
+only. 705 Layout: 26.2 added removeChildren (same as 659).
+708 world upgrader: thread-name format added. 712 toasts:
+26.2 added FRIEND_SYSTEM_NOTIFICATION; constructors
+identical. 713 dialog warning screen: setScreen accessor
+move. 717 gamerule builder map: access modifier only. 718
+spear goal constants: access modifiers only.
+Docs-only batch; the code tree is identical to the one
+crate-tests run 45259245639 (batch 67) is testing, so no
+separate dispatch.

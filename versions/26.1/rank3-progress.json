@@ -279,6 +279,66 @@
    "title": "crates/horizon-client/src/game/trial_visuals.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "TrialSpawnerState$ParticleEmission lambdas differ only by BlockPos.getCenter() (26.1) vs Vec3.atCenterOf(pos) (26.2) \u2014 same center value. trial_visuals.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 697,
+   "title": "crates/horizon-client/src/lan/waypoints.rs: 2 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Waypoint: 26.1 keeps MAX_RANGE = 60000000, which 26.2 dropped; the Rust does not model it. Icon.cloneAndAssignStyle: 26.1 maps Integer (ChatFormatting.getColor) with color==0 -> -13619152, 26.2 maps TeamColor with BLACK -> -13619152; same rule, same values (BLACK rgb is 0 both ways). waypoints.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 700,
+   "title": "crates/horizon-client/src/title/buffet.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "WorldCreationUiState.findResultFolder: 26.2 added a saves-folder existence check + createDirectory ('Could not create save folder'); 26.1 only computes the name. The Rust title code has no find_result_folder/create_dir counterpart. buffet.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 701,
+   "title": "crates/horizon-client/src/title/confirm_experiments.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "DetailsScreen.onClose differs only by Minecraft.setScreen -> Gui.setScreen. Menu chrome; confirm_experiments.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 703,
+   "title": "crates/horizon-core/src/geometry/shape/face.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "SubShape constructor went protected (26.1) -> package-private (26.2); same 7-arg constructor, no logic. face.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 705,
+   "title": "crates/horizon-optifine/src/fusion/layout.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "26.2 added removeChildren() to the Layout interface (same as item 659's three layout classes); absent in 26.1. GUI plumbing; layout.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 708,
+   "title": "crates/horizon-world/src/datafix/world_upgrader.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "WorldUpgrader: 26.2 added setNameFormat to the upgrade thread factory; thread-naming only, same daemon threads. world_upgrader.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 712,
+   "title": "widely named: client/gui/components/toasts: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "SystemToastId: 26.2 added FRIEND_SYSTEM_NOTIFICATION; constructors identical (5000ms). No Rust reference to the new id. Menu chrome."
+  },
+  {
+   "id": 713,
+   "title": "widely named: client/gui/screens/dialog: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "WarningScreen lambda differs only by Minecraft.setScreen -> Gui.setScreen. Menu chrome."
+  },
+  {
+   "id": 717,
+   "title": "crates/horizon-client-core/src/gamerules.rs: 1 vanilla classes changed (0 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "GameRuleMap$Builder.map went package-private (26.1) -> private (26.2); same field, same set/build. gamerules.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 718,
+   "title": "crates/horizon-client/src/mobs/spear_use.rs: 1 vanilla classes changed (0 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "SpearUseGoal's four distance constants went package-private (26.1) -> private (26.2); same fields, no method changes. spear_use.rs diff is the earlier single-push knockback work."
   }
  ],
  "triage": "Rank-3 re-triage: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 3 = A1 60, A2 67, B1 56, B2 31 = 214 items) + diff-26.2-26.1-rank3.json (274 classes, 204 method-changed). Order: A1 reviews, then B1 ports, then A2/B2."
