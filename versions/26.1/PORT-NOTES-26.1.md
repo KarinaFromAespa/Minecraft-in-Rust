@@ -740,3 +740,15 @@ and validateEffects are 26.2-only; neither exists in 26.1 (corrects
 batch 15's note). The tier lookup stays (version-neutral over
 BEACON_EFFECTS). 110/111/151/164/169 no-change: identical methods,
 package moves, unported render/menu diffs.
+
+Batch 41 (Nov 23, 412/498): 134 PORTED — SpawnEggItemBehavior.execute
+consumes the egg + fires ENTITY_PLACE even on a null spawn in 26.1
+(26.2 returns it unshrunk); tryShearEntity has no caller-level alive
+check in 26.1 — every readyForShearing checks isAlive itself, so the
+arms carry it (MushroomCow is still named that in 26.1, Mooshroom in
+26.2). 143 PORTED — Piglin.holdInOffHand: barter item gets
+setGuaranteedDrop (2.0), anything else setItemSlotAndDropWhenKilled
+(1.0), and 26.1 sets no persistence (26.2 made a non-barter offhand
+item persistent). 23/25/130/139 no-change: options chrome, unported
+getSignal, identical end methods, neighborColumn is 26.2-only (the
+batch-36 air_position box is already the 26.1 form).
