@@ -468,4 +468,100 @@ mod tests {
         assert_eq!(fuel_slot(&furnace), Some(("test:coal", 1)));
         assert!(drops.is_empty());
     }
+
+    /// 1.21.7 has no fuel component: a furnace burns vanilla coal from the
+    /// `FuelValues` table — 1600 ticks in a furnace, 800 in a smoker, which
+    /// cooks its smoking recipe in 100 ticks.
+    #[test]
+    fn vanilla_coal_burns_from_the_fuel_values_table() {
+        let root = std::env::temp_dir().join(format!(
+            "horizon-furnace-vanilla-coal-{}",
+            std::process::id(),
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("data/minecraft/recipe")).unwrap();
+        fs::write(
+            root.join("data/minecraft/recipe/iron_ingot.json"),
+            br#"{"type":"minecraft:smelting","ingredient":"minecraft:iron_ore","result":{"id":"minecraft:iron_ingot"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            root.join("data/minecraft/recipe/cooked_beef.json"),
+            br#"{"type":"minecraft:smoking","ingredient":"minecraft:beef","result":{"id":"minecraft:cooked_beef"},"cookingtime":100}"#,
+        )
+        .unwrap();
+        fs::create_dir_all(root.join("data/minecraft/loot_table")).unwrap();
+        fs::write(
+            root.join("items.json"),
+            r#"{"minecraft:iron_ore": {}, "minecraft:iron_ingot": {}, "minecraft:coal": {}, "minecraft:beef": {}, "minecraft:cooked_beef": {}}"#,
+        )
+        .unwrap();
+        let items = Items::catalog(&root, &PackOverlay::NONE).unwrap();
+        let recipes = Recipes::load(&root, &items, &PackOverlay::NONE).unwrap();
+        let providers = Providers::load(&root);
+        let _ = fs::remove_dir_all(&root);
+        // The table's burn times, through the provider the slots and the tick use.
+        let coal = ItemStack::new("minecraft:coal", 1);
+        assert_eq!(providers.burn_time(&items, &coal, false), 1600);
+        assert_eq!(providers.burn_time(&items, &coal, true), 800);
+        assert_eq!(providers.speed(&items, &coal, false), 1.0);
+        assert_eq!(providers.speed(&items, &coal, true), 1.0);
+        // A furnace lights on the coal and smelts in 200 ticks.
+        let mut furnace = Furnace {
+            kind: FurnaceKind::Furnace,
+            items: [
+                Some(ItemStack::new("minecraft:iron_ore", 1)),
+                Some(ItemStack::new("minecraft:coal", 1)),
+                None,
+            ],
+            lit_remaining: 0,
+            lit_total: 0,
+            cooking_timer: 0,
+            cooking_total: 200,
+            speed: 1.0,
+            recipes_used: HashMap::new(),
+        };
+        let mut drops = Vec::new();
+        assert_eq!(
+            furnace.tick(&recipes, &items, &providers, &mut drops),
+            Some(true)
+        );
+        assert_eq!((furnace.lit_remaining, furnace.lit_total), (1600, 1600));
+        assert_eq!(furnace.cooking_total, 200);
+        for _ in 1..200 {
+            furnace.tick(&recipes, &items, &providers, &mut drops);
+        }
+        assert_eq!(
+            furnace.items[2].as_ref().map(|s| (&*s.item, s.count)),
+            Some(("minecraft:iron_ingot", 1))
+        );
+        // A smoker burns the same coal in half the time and cooks in 100.
+        let mut smoker = Furnace {
+            kind: FurnaceKind::Smoker,
+            items: [
+                Some(ItemStack::new("minecraft:beef", 1)),
+                Some(ItemStack::new("minecraft:coal", 1)),
+                None,
+            ],
+            lit_remaining: 0,
+            lit_total: 0,
+            cooking_timer: 0,
+            cooking_total: 100,
+            speed: 1.0,
+            recipes_used: HashMap::new(),
+        };
+        assert_eq!(
+            smoker.tick(&recipes, &items, &providers, &mut drops),
+            Some(true)
+        );
+        assert_eq!((smoker.lit_remaining, smoker.lit_total), (800, 800));
+        assert_eq!(smoker.cooking_total, 100);
+        for _ in 1..100 {
+            smoker.tick(&recipes, &items, &providers, &mut drops);
+        }
+        assert_eq!(
+            smoker.items[2].as_ref().map(|s| (&*s.item, s.count)),
+            Some(("minecraft:cooked_beef", 1))
+        );
+    }
 }

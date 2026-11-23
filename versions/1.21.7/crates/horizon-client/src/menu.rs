@@ -3783,6 +3783,50 @@ pub(crate) mod tests {
         });
     }
 
+    /// The fuel slot takes vanilla coal: 1.21.7 has no fuel component, so
+    /// the catalog's fuel comes from the `FuelValues` table, not from a
+    /// `cooking_fuel` component on the item.
+    #[test]
+    fn furnace_fuel_slot_takes_table_fuel() {
+        let root = std::env::temp_dir().join(format!("horizon-menu-fuel-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("data/minecraft/loot_table")).unwrap();
+        std::fs::write(
+            root.join("items.json"),
+            r#"{"minecraft:coal": {}, "minecraft:stone": {}}"#,
+        )
+        .unwrap();
+        let items = Items::catalog(&root, &PackOverlay::NONE).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        let recipes = Recipes::empty();
+        let brewing = Brewing::load(std::path::Path::new(""), &items, &PackOverlay::NONE);
+        let banners = Banners::default();
+        let station_recipes = crate::stations::StationRecipes::default();
+        let enchantments = crate::enchant::Enchantments::default();
+        let names = crate::creative::Names::default();
+        let env = Env {
+            items: &items,
+            recipes: &recipes,
+            brewing: &brewing,
+            banners: &banners,
+            station_recipes: &station_recipes,
+            enchantments: &enchantments,
+            names: &names,
+            trade: None,
+            maps: None,
+            limited_crafting: false,
+            known_recipes: None,
+        };
+        let mut menu = Menu::new(Kind::Furnace("smelting"));
+        menu.creative = false;
+        let coal = ItemStack::new("minecraft:coal", 1);
+        let stone = ItemStack::new("minecraft:stone", 1);
+        assert!(menu.may_place(&env, 1, &coal), "coal is a fuel");
+        assert!(!menu.may_place(&env, 1, &stone), "stone is not");
+        menu.set_slot(&env, 30, stack("coal", 1));
+        assert_eq!(menu.quick_move_landing(&env, 30), vec![1]);
+    }
+
     /// `HorseInventoryMenu`: a shift-click wears horse armour, then saddles,
     /// then fills the chest; the body slot takes only what the mount may wear.
     #[test]
