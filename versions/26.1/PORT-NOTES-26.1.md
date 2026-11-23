@@ -1454,3 +1454,21 @@ tags with no code change; 591 ExperimentsScreen I18n.exists→
 Language.has + setScreen move; 592 OceanMonumentPiece renames.
 All ten Rust files 0-diff vs the 26.2 tree before the 583 port.
 `cargo check -p horizon-client --lib` clean (54.8s).
+
+Batch-74 CI fix (Nov 24, run 45272322750): the run failed 2
+horizon-protocol hash tests. Batch 74 removed the
+`directional_particles` bool from the teleport-consume hash shapes
+but missed `skip.rs::consume_effect`, which still read diameter +
+bool — and both test hexes were stale 26.3-form data carrying the
+bool byte. Jar-verified: 26.1's (and 26.2's)
+`TeleportRandomlyConsumeEffect` is a diameter-only record whose
+STREAM_CODEC is `composite(ByteBufCodecs.FLOAT, ...)` — no bool —
+and 26.1's `Consumable` record has no directional_particles field.
+Fix: skip.rs reads diameter only (the 26.2 tree's form); the
+gameplay hex drops the bool byte (sound id `9b0a` kept — 26.1's
+registry numbering; expected hash unchanged at −1668265051); the
+exact-predicate NBT drops the whole directional_particles entry
+(expected hash −1343820468, carried from the 26.2 tree, whose
+string-id NBT hashes version-independently). Both tests pass
+locally (`cargo test -p horizon-protocol --lib
+item::hash::raw::tests`: 5 passed).
