@@ -505,6 +505,7 @@ mod tests {
                 piece,
                 piece,
                 [0; 3],
+                info.state,
                 info,
                 &mut settings,
             )

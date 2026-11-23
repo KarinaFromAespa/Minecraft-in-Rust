@@ -85,6 +85,11 @@
    "evidence": "No-change. 26.2 #50 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the tree diff in remote_vehicles.rs adds boat bubble-column events and zeroes deltaRotation (26.1 form); HappyGhast#removePassenger is untouched."
   },
   {
+   "id": 57,
+   "verdict": "no-change",
+   "evidence": "MerchantMenu.removed 26.2->26.1 is codegen-only (26.2 stores the ServerPlayer cast in a local before hasDisconnected; 26.1 calls inline). Same flow: super.removed, setTradingPlayer(null), return if client-side, drop slots 0+1 if dead/disconnected. The lan_trading.rs diff is the 26.1 lan_merchant_reputation addition, not the removed path."
+  },
+  {
    "id": 58,
    "verdict": "no-change",
    "bucket": "B",
@@ -97,6 +102,11 @@
    "bucket": "B",
    "cl_sub": "B2c",
    "evidence": "No-change. 26.2 #53 (rank 2) verified no-change in 26.2; all 1 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client-render/src/sound_events.rs'] are identical between the 26.2 and 26.1 trees."
+  },
+  {
+   "id": 60,
+   "verdict": "no-change",
+   "evidence": "NbtIo.read(DataInput, NbtAccounter) 26.2->26.1 is codegen-only (26.2 stores the cast result in a local before returning; 26.1 returns directly). Same check, same 'Root tag must be a named compound tag' throw. nbt.rs identical between the trees."
   },
   {
    "id": 61,
@@ -351,6 +361,11 @@
    "evidence": "No-change. 26.2 #159 (rank 2) verified no-change in 26.2; all 3 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the covering module(s) ['crates/horizon-client/src/game/native_reload_listeners.rs'] are identical between the 26.2 and 26.1 trees."
   },
   {
+   "id": 216,
+   "verdict": "no-change",
+   "evidence": "FontTexture#add unchanged 26.2->26.1; the only class change is a Mojang-side enum rename in the constructor (GpuFormat.RGBA8_UNORM/R8_UNORM -> TextureFormat.RGBA8/RED8), same texture creation. font.rs identical between the trees and has no texture-format references."
+  },
+  {
    "id": 220,
    "verdict": "ported",
    "bucket": "B",
@@ -435,6 +450,21 @@
    "evidence": "No-change. 26.2 #191 (rank 2) verified no-change in 26.2; all 8 named classes byte-identical 26.2->26.1 (zip CRC), so the 26.1 form is the 26.2 form; the item is widely named with 0 methods named in Horizon, so no Rust code depends on these classes."
   },
   {
+   "id": 248,
+   "verdict": "ported",
+   "evidence": "StructureProcessor is an abstract class in 26.1 (interface in 26.2) with a 2-info processBlock(level, pos, piecePos, templateInfo, currentInfo, settings); the default returns the current info. Ported: RuleTest registry is exactly the six vanilla types in both versions (no height_match/not/all_of/any_of in 26.1; BlockState.CODEC byte-identical to 26.2, object form only) so rule_test.rs takes the 26.2 form (2-arg test, full=true block-state decode); call sites in processor.rs/block_feature.rs/ore_feature.rs updated; harness scope updated to six types. BlockRot DIVERGES from the 26.2 parent: 26.1 tests the TEMPLATE info's state for rottability (26.2 tests the current state), so process_block/process_list thread the template state through (regression test block_rot_tests_the_template_state). Rule position args already match (relative=template pos, reference=piece pos; LinearPosTest uses distManhattan(current, piece)); Gravity's template-pos Y is relative[1] already. The processor.rs NBT-readback/block_pos hunks belong to the template-placement item, not this one."
+  },
+  {
+   "id": 251,
+   "verdict": "no-change",
+   "evidence": "GuiEntityRenderer.renderToTexture 26.2->26.1 differs only in submission plumbing: 26.2 takes a SubmitNodeCollector param (and no BufferSource ctor arg), 26.1 takes the collector from FeatureRenderDispatcher.getSubmitNodeStorage() and calls renderAllFeatures() at the end; getLighting()->lighting() rename; Vector3f/Quaternionf -> read-only interfaces. Same draw sequence: ENTITY_IN_UI lighting, translate, rotate, override-camera conjugate + rotateY(pi), EntityRenderDispatcher.submit(renderState, camera, 0,0,0, pose, collector). Rust emit_preview batches pre-computed quads and models none of this plumbing."
+  },
+  {
+   "id": 254,
+   "verdict": "no-change",
+   "evidence": "ServerLoginPacketListenerImpl.handleKey is behaviourally identical 26.2->26.1: same ops, only the order differs (26.2 computes the server hash before creating the ciphers; 26.1 after; the AUTHENTICATING state set is unobservably reordered). The verifyLoginAndFinishConnectionSetup difference (26.2's intended-profile-id check) has no Rust counterpart in either tree, and conn.rs is identical between the trees."
+  },
+  {
    "id": 256,
    "verdict": "no-change",
    "bucket": "B",
@@ -498,6 +528,11 @@
    "evidence": "No-change. 26.2 #227 (rank 2) verified no-change in 26.2; the named methods are bytecode-identical 26.2->26.1 (jardiff), so the 26.1 form is the 26.2 form; the tree diff in stations.rs is a test-only brewing count (65->279) and a result accessor; PatchedDataComponentMap#set is untouched."
   },
   {
+   "id": 274,
+   "verdict": "no-change",
+   "evidence": "CopperChestBlock.getFromCopperBlock: mapping contents identical in both versions (8 pairs: 4 oxidation states x waxed/unwaxed) - 26.1 builds it with Map.of, 26.2 with WeatheringCopperCollection.zipApply; same lookup -> getChestType -> FACING+TYPE -> getLeastOxidizedChestOfConnectedBlocks flow. getLeastOxidized is instruction-identical; the removed getHingeSound has no Rust counterpart. place.rs identical between the trees."
+  },
+  {
    "id": 278,
    "verdict": "no-change",
    "bucket": "B",
@@ -517,6 +552,11 @@
    "bucket": "A",
    "cl_sub": "A2",
    "evidence": "Ported (26.2 #228, commit bc42387a). All 22 removed density-function generator classes 26.3-only (GradientFunction, ConstantFunction etc. absent from the 26.1 jar); 26.1's DensityFunctions.bootstrap registers only y_clamped_gradient (18 types, no gradient/lerp/distance_to_point). Removed the minecraft:gradient decoder arm from worldgen/density.rs and ADDED the y_clamped_gradient arm (Y axis, clamped, from_y/to_y)."
+  },
+  {
+   "id": 283,
+   "verdict": "no-change",
+   "evidence": "TurtleMoveControl.tick/updateSpeed are instruction-identical 26.2->26.1 after normalizing the receiver access: 26.2's generic TurtleMoveControl<T> casts the mob field, 26.1 holds a turtle field; 26.2's getHomePos() is a trivial getter for the field 26.1 reads directly; the Turtle.setSpeed vs Mob.setSpeed call-ref differs but neither Turtle overrides setSpeed, so both dispatch to Mob.setSpeed. turtle.rs identical between the trees."
   },
   {
    "id": 284,

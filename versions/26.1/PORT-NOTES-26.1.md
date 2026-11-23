@@ -378,7 +378,27 @@ SharedConstants.getProtocolVersion = 775); router test samples at
 no axis-based `gradient` type — the bootstrap lists y_clamped_gradient
 only — so the 26.1.1 test's X-gradient fixture does not apply here).
 Still open: `failed_upgrade_keeps_old_data_version` (pre-existing, also
-in the 26.1.2 baseline).
+in the 26.1.2 baseline). Run 45174862114 dispatched for the fixed head
+f6de46ae.
+
+Batch 9 (2026-11-23): 4 closures — 60 NbtIo.read codegen-only, 57
+MerchantMenu.removed codegen-only, 216 FontTexture#add unchanged
+(GpuFormat->TextureFormat enum rename in the ctor only), 248 structure
+processors ported: RuleTest registry is exactly the six vanilla types in
+26.1 (no height_match/not/all_of/any_of; BlockState.CODEC byte-identical
+to 26.2), so rule_test.rs takes the 26.2 form (2-arg test, full=true
+block-state decode) with call-site updates in processor.rs,
+block_feature.rs, ore_feature.rs and the harness scope; BlockRot DIVERGES
+from 26.2 — 26.1 tests the TEMPLATE info's state for rottability, so
+process_block/process_list thread the template state through (regression
+test block_rot_tests_the_template_state, green locally).
+
+Batch 10 (2026-11-23): 4 no-change closures — 251 GuiEntityRenderer
+(submission plumbing only; same draw sequence), 254 handleKey (same ops,
+reordered; the intended-profile check has no Rust counterpart), 274
+copper chest mapping contents identical (8 pairs; construction differs
+only), 283 TurtleMoveControl tick/updateSpeed instruction-identical
+after normalizing the generic-vs-field receiver access.
 
 Test health: crate-tests run 45163597005 (rank-1 state): protocol,
 items, client-core, client-render PASS; world FAIL (1 pre-existing

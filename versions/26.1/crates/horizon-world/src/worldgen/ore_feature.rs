@@ -72,7 +72,7 @@ impl ScatteredOreFeature {
             });
             let current = world.block(position).map_err(FeatureError::World)?;
             for (rule, state) in &self.targets {
-                if !rule.test(current, position, random) {
+                if !rule.test(current, random) {
                     continue;
                 }
                 let skip_air = self.discard <= 0.0
@@ -142,12 +142,8 @@ impl OreFeature {
         if !(0.0..=1.0).contains(&discard) || discard.is_sign_negative() {
             return Err(DecodeError::Field("ore air exposure"));
         }
-        let mut heights = Vec::new();
-        let pure = targets
-            .iter()
-            .try_for_each(|(rule, _)| rule.pure_heights(&mut heights));
-        let heights =
-            (pure.is_some() && targets.len() <= 32 && heights.len() <= 64).then_some(heights);
+        let pure = targets.iter().try_for_each(|(rule, _)| rule.pure_heights());
+        let heights = (pure.is_some() && targets.len() <= 32).then_some(Vec::new());
         Ok(Self {
             targets,
             size,
@@ -336,7 +332,7 @@ impl OreFeature {
                                 .iter()
                                 .enumerate()
                                 .fold(0u32, |m, (i, (rule, _))| {
-                                    m | u32::from(rule.test(state, p, random)) << i
+                                    m | u32::from(rule.test(state, random)) << i
                                 })
                         })
                     }
@@ -347,7 +343,7 @@ impl OreFeature {
                         if matched >> i & 1 == 0 {
                             continue;
                         }
-                    } else if !rule.test(state, p, random) {
+                    } else if !rule.test(state, random) {
                         continue;
                     }
                     if !skip_air_check(random, self.discard) {
