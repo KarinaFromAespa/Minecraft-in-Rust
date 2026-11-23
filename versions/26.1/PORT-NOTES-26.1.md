@@ -582,3 +582,12 @@ counter with the hardcoded 200 threshold and removed both properties,
 both hub thresholds and the probe entries. 478/479/489/490/491/492/493
 no-change: identical methods, renames and package moves, a 26.2-only
 sulfur registry key, and the whole cubemob package absent from 26.1.
+
+Batch 21 (Nov 23, 274/498), all no-change: 494 (Bogged.readyForShearing
+does differ — 26.1 is !isSheared() && isAlive(), 26.2 dropped the
+alive check — but the Rust already carries the 26.1 form);
+495/496 identical lambdas; 497 rename only; 499 codec helper refactor
+(fieldOf().orElse vs optionalAlwaysPresentFieldOf, same semantics);
+501 dripstone->speleothem is a pure enum rename (identical values) and
+POTENT_SULFUR_STATE is 26.2-only; 502 setDirty() reordered within the
+same update(); 503 equals identical, BOUNCE is 26.2-only (item 94).
