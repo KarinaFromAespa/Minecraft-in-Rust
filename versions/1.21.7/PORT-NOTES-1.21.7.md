@@ -2378,3 +2378,41 @@ diagnostic roll returned mutton-only). Adjacent, not fixed here:
 horizon-client's advancement entity predicates
 (`advancements.rs`) match the same 26.3 namespaced keys -- the same
 defect class may be behind advancement predicates that never hold.
+
+## Brewing fuel: the same defect class as the furnace (2026-11-23)
+
+Flagged by the furnace-fuel fix above and confirmed here: the brewing
+stand's fuel slot read `ItemInfo.brewing_fuel`, which the catalog
+populated only from a `minecraft:brewing_fuel` component — and vanilla
+1.21.7 has no such component (`DataComponents`, 97 fields, has neither
+`brewing_fuel` nor `cooking_fuel`, jar-verified against
+1.21.7-server-named.jar). So `brewing_fuel` was `None` for every item:
+the fuel slot rejected blaze powder, shift-click never routed it there,
+the hopper check refused it, and the stand's tick never refuelled, so
+brewing could never start — the same silent failure as the furnace.
+
+In 1.21.7 brewing fuel is the `brewing_fuel` item tag, whose data holds
+only `minecraft:blaze_powder` (jar-verified): `BrewingStandMenu$FuelSlot
+.mayPlaceItem` and `BrewingStandBlockEntity.canPlaceItem` (slot 4) both
+test `stack.is(ItemTags.BREWING_FUEL)`, and `serverTick` sets `fuel =
+20` (`FUEL_USES = 20`, jar-verified) from a tagged stack in the fuel
+slot, shrinking it by one, with a fixed 400-tick brew. The catalog now
+fills `brewing_fuel` from that tag (`horizon-items/src/items.rs`,
+`apply_brewing_fuel_values`): uses 20, speed 1.0 — no speed term exists
+in vanilla 1.21.7 brewing. A `brewing_fuel` component still wins where
+one exists (content mods). No consumer changed: the menu's
+`Role::BrewFuel` validation, the quick-move routing, the hopper-facing
+`canPlaceItem` and the stand's tick all read `brewing_fuel()` and now
+see the tag-filled values.
+
+Regression tests: `brewing_fuel_comes_from_the_vanilla_tag`
+(horizon-items: blaze powder 20 uses / speed 1.0, stone not a fuel, a
+mod item's own component winning), `vanilla_blaze_powder_fuels_a_brew_
+from_the_tag` (horizon-client-render brewing.rs: one powder spent for
+20 uses, the brew starting at 400 ticks and finishing awkward, stone
+fuelling nothing), and `brewing_fuel_slot_takes_tag_fuel`
+(horizon-client menu.rs: `may_place` on the fuel slot accepts blaze
+powder and rejects stone, and shift-click routes powder to slot 4).
+The horizon-items test ran locally; the horizon-client and
+horizon-client-render tests need CI (the lib test compile OOM-kills on
+this VM).

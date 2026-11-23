@@ -3827,6 +3827,60 @@ pub(crate) mod tests {
         assert_eq!(menu.quick_move_landing(&env, 30), vec![1]);
     }
 
+    /// The brewing fuel slot takes vanilla blaze powder: 1.21.7 has no
+    /// brewing-fuel component, so the catalog's brewing fuel comes from
+    /// the `brewing_fuel` item tag, not from a component on the item.
+    #[test]
+    fn brewing_fuel_slot_takes_tag_fuel() {
+        let root =
+            std::env::temp_dir().join(format!("horizon-menu-brew-fuel-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("data/minecraft/loot_table")).unwrap();
+        std::fs::create_dir_all(root.join("data/minecraft/tags/item")).unwrap();
+        std::fs::write(
+            root.join("items.json"),
+            r#"{"minecraft:blaze_powder": {}, "minecraft:stone": {}}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("data/minecraft/tags/item/brewing_fuel.json"),
+            r#"{"values": ["minecraft:blaze_powder"]}"#,
+        )
+        .unwrap();
+        let items = Items::catalog(&root, &PackOverlay::NONE).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        let recipes = Recipes::empty();
+        let brewing = Brewing::load(std::path::Path::new(""), &items, &PackOverlay::NONE);
+        let banners = Banners::default();
+        let station_recipes = crate::stations::StationRecipes::default();
+        let enchantments = crate::enchant::Enchantments::default();
+        let names = crate::creative::Names::default();
+        let env = Env {
+            items: &items,
+            recipes: &recipes,
+            brewing: &brewing,
+            banners: &banners,
+            station_recipes: &station_recipes,
+            enchantments: &enchantments,
+            names: &names,
+            trade: None,
+            maps: None,
+            limited_crafting: false,
+            known_recipes: None,
+        };
+        let mut menu = Menu::new(Kind::Brewing);
+        menu.creative = false;
+        let powder = ItemStack::new("minecraft:blaze_powder", 1);
+        let stone = ItemStack::new("minecraft:stone", 1);
+        assert!(
+            menu.may_place(&env, 4, &powder),
+            "blaze powder is brewing fuel"
+        );
+        assert!(!menu.may_place(&env, 4, &stone), "stone is not");
+        menu.set_slot(&env, 5, Some(ItemStack::new("minecraft:blaze_powder", 1)));
+        assert_eq!(menu.quick_move_landing(&env, 5), vec![4]);
+    }
+
     /// `HorseInventoryMenu`: a shift-click wears horse armour, then saddles,
     /// then fills the chest; the body slot takes only what the mount may wear.
     #[test]
