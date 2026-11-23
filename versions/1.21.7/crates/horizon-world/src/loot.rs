@@ -3071,8 +3071,32 @@ impl LootData {
             return true;
         };
         let data = self;
+        // The per-type checks, shared by 26.3's keyed form
+        // (`minecraft:type_specific/sheep`) and 1.21.7's inner-type form
+        // (`type_specific: {"type": "minecraft:sheep", ...}`).
+        let sheep = |v: &Value| {
+            e.sheep
+                .as_ref()
+                .is_some_and(|(_, sheared)| v["sheared"].as_bool().is_none_or(|w| w == *sheared))
+        };
+        let cube = |v: &Value| e.cube_size.is_some_and(|size| int_bounds(&v["size"], size));
+        // RaiderPredicate: no raid is running here.
+        let raider = |v: &Value| {
+            e.captain.is_some_and(|captain| {
+                !v["has_raid"].as_bool().unwrap_or(false)
+                    && captain == v["is_captain"].as_bool().unwrap_or(false)
+            })
+        };
         parts.iter().all(|(key, v)| match key.as_str() {
-            "minecraft:entity_type" => match v.as_str() {
+            // 1.21.7 names an entity predicate's parts bare (`type`, `flags`,
+            // `equipment`, `components`, `type_specific`, `vehicle`); 26.3
+            // moved them into the entity-sub-predicate registry
+            // (`minecraft:flags`, `minecraft:type_specific/sheep`, ...).
+            // Both forms match here: before this, every bare key fell to the
+            // `_ => false` arm, so no `entity_properties` condition in any
+            // 1.21.7 entity table could hold -- sheep dropped no wool, slimes
+            // no balls, and nothing smelted on fire.
+            "minecraft:entity_type" | "type" => match v.as_str() {
                 Some(s) => match s.strip_prefix('#') {
                     Some(tag) => data.in_tag("entity_type", tag, &e.kind),
                     None => s == e.kind,
@@ -3081,51 +3105,58 @@ impl LootData {
                     .as_array()
                     .is_some_and(|a| a.iter().any(|x| x.as_str() == Some(&e.kind))),
             },
-            "minecraft:flags" => v.as_object().into_iter().flatten().all(|(flag, want)| {
-                let want = want.as_bool().unwrap_or(false);
-                match flag.as_str() {
-                    "is_on_fire" => e.on_fire == want,
-                    // EntityFlagsPredicate: only living entities have an age.
-                    "is_baby" => !e.living || e.baby == want,
-                    "is_fall_flying" => !e.living || !want,
-                    _ => !want,
-                }
-            }),
-            "minecraft:equipment" => {
+            "minecraft:flags" | "flags" => {
+                v.as_object().into_iter().flatten().all(|(flag, want)| {
+                    let want = want.as_bool().unwrap_or(false);
+                    match flag.as_str() {
+                        "is_on_fire" => e.on_fire == want,
+                        // EntityFlagsPredicate: only living entities have an age.
+                        "is_baby" => !e.living || e.baby == want,
+                        "is_fall_flying" => !e.living || !want,
+                        _ => !want,
+                    }
+                })
+            }
+            "minecraft:equipment" | "equipment" => {
                 e.living
                     && v.as_object().into_iter().flatten().all(|(slot, item)| {
                         e.item(slot)
                             .is_some_and(|stack| self.item_matches(item, stack))
                     })
             }
-            "minecraft:components" => v.as_object().into_iter().flatten().all(|(c, want)| match c
-                .as_str()
-            {
-                "minecraft:sheep/color" => e
-                    .sheep
-                    .as_ref()
-                    .is_some_and(|(color, _)| want.as_str() == Some(color)),
-                "minecraft:frog/variant" => {
-                    e.frog_variant.is_some() && want.as_str() == e.frog_variant.as_deref()
-                }
-                "minecraft:chicken/variant" => {
-                    e.chicken_variant.is_some() && want.as_str() == e.chicken_variant.as_deref()
-                }
-                _ => false,
-            }),
-            "minecraft:type_specific/sheep" => e
-                .sheep
-                .as_ref()
-                .is_some_and(|(_, sheared)| v["sheared"].as_bool().is_none_or(|w| w == *sheared)),
-            "minecraft:type_specific/cube_mob" => {
-                e.cube_size.is_some_and(|size| int_bounds(&v["size"], size))
+            "minecraft:components" | "components" => {
+                v.as_object()
+                    .into_iter()
+                    .flatten()
+                    .all(|(c, want)| match c.as_str() {
+                        "minecraft:sheep/color" => e
+                            .sheep
+                            .as_ref()
+                            .is_some_and(|(color, _)| want.as_str() == Some(color)),
+                        "minecraft:frog/variant" => {
+                            e.frog_variant.is_some() && want.as_str() == e.frog_variant.as_deref()
+                        }
+                        "minecraft:chicken/variant" => {
+                            e.chicken_variant.is_some()
+                                && want.as_str() == e.chicken_variant.as_deref()
+                        }
+                        _ => false,
+                    })
             }
-            // RaiderPredicate: no raid is running here.
-            "minecraft:type_specific/raider" => e.captain.is_some_and(|captain| {
-                !v["has_raid"].as_bool().unwrap_or(false)
-                    && captain == v["is_captain"].as_bool().unwrap_or(false)
-            }),
-            "minecraft:vehicle" => self.entity_matches(v, e.vehicle.as_deref()),
+            "minecraft:type_specific/sheep" => sheep(v),
+            "minecraft:type_specific/cube_mob" => cube(v),
+            "minecraft:type_specific/raider" => raider(v),
+            // 1.21.7's `type_specific` carries its type inside; only sheep,
+            // slime and raider appear in 1.21.7's loot data (a slime's
+            // `size` is the cube size, as in the 26.3 `cube_mob` arm). An
+            // unmodelled type fails, as an unknown key does.
+            "type_specific" => match v["type"].as_str().unwrap_or("") {
+                "minecraft:sheep" => sheep(v),
+                "minecraft:slime" => cube(v),
+                "minecraft:raider" => raider(v),
+                _ => false,
+            },
+            "minecraft:vehicle" | "vehicle" => self.entity_matches(v, e.vehicle.as_deref()),
             _ => false,
         })
     }
@@ -3259,5 +3290,218 @@ mod custom_data_predicate_tests {
         assert_eq!(doubled(Some("{h:1}")), ["orange", "light_gray"]);
         assert_eq!(doubled(Some("{entries:[]}")), ["lime", "light_gray"]);
         assert_eq!(doubled(None), ["light_gray"]);
+    }
+}
+
+#[cfg(test)]
+mod entity_predicate_1_21_7_tests {
+    use super::*;
+
+    /// The 1.21.7 `entities/sheep` table, transcribed from the vanilla jar
+    /// (trimmed to the white and black wool children): a mutton pool whose
+    /// `furnace_smelt` is gated on `any_of` entity-properties, and a wool
+    /// pool of `alternatives` over per-colour nested tables, each gated on
+    /// `components` + `type_specific` in 1.21.7's bare-key form.
+    const SHEEP: &str = r##"{"type":"minecraft:entity","pools":[{"bonus_rolls":0.0,"entries":[{"type":"minecraft:item","functions":[{"add":false,"count":{"type":"minecraft:uniform","max":2.0,"min":1.0},"function":"minecraft:set_count"},{"conditions":[{"condition":"minecraft:any_of","terms":[{"condition":"minecraft:entity_properties","entity":"this","predicate":{"flags":{"is_on_fire":true}}},{"condition":"minecraft:entity_properties","entity":"direct_attacker","predicate":{"equipment":{"mainhand":{"predicates":{"minecraft:enchantments":[{"enchantments":"#minecraft:smelts_loot"}]}}}}}]}],"function":"minecraft:furnace_smelt"},{"count":{"type":"minecraft:uniform","max":1.0,"min":0.0},"enchantment":"minecraft:looting","function":"minecraft:enchanted_count_increase"}],"name":"minecraft:mutton"}],"rolls":1.0},{"bonus_rolls":0.0,"entries":[{"type":"minecraft:alternatives","children":[{"type":"minecraft:loot_table","conditions":[{"condition":"minecraft:entity_properties","entity":"this","predicate":{"components":{"minecraft:sheep/color":"white"},"type_specific":{"type":"minecraft:sheep","sheared":false}}}],"value":"minecraft:entities/sheep/white"},{"type":"minecraft:loot_table","conditions":[{"condition":"minecraft:entity_properties","entity":"this","predicate":{"components":{"minecraft:sheep/color":"black"},"type_specific":{"type":"minecraft:sheep","sheared":false}}}],"value":"minecraft:entities/sheep/black"}]}],"rolls":1.0}],"random_sequence":"minecraft:entities/sheep"}"##;
+    const SHEEP_WHITE: &str = r#"{"type":"minecraft:entity","pools":[{"bonus_rolls":0.0,"entries":[{"type":"minecraft:item","name":"minecraft:white_wool"}],"rolls":1.0}]}"#;
+    const SHEEP_BLACK: &str = r#"{"type":"minecraft:entity","pools":[{"bonus_rolls":0.0,"entries":[{"type":"minecraft:item","name":"minecraft:black_wool"}],"rolls":1.0}]}"#;
+
+    /// The 1.21.7 `entities/slime` table, transcribed from the vanilla jar:
+    /// the pool is gated on `type_specific` slime size 1, and the two
+    /// entries split on whether a frog dealt the killing blow (a nested
+    /// `type` key inside `damage_source_properties`).
+    const SLIME: &str = r#"{"type":"minecraft:entity","pools":[
+        {"bonus_rolls":0.0,"conditions":[{"condition":"minecraft:entity_properties","entity":"this","predicate":{"type_specific":{"type":"minecraft:slime","size":1}}}],
+         "entries":[
+            {"type":"minecraft:item","conditions":[{"condition":"minecraft:inverted","term":{"condition":"minecraft:damage_source_properties","predicate":{"source_entity":{"type":"minecraft:frog"}}}}],
+             "functions":[{"add":false,"count":{"type":"minecraft:uniform","max":2.0,"min":0.0},"function":"minecraft:set_count"}],
+             "name":"minecraft:slime_ball"},
+            {"type":"minecraft:item","conditions":[{"condition":"minecraft:damage_source_properties","predicate":{"source_entity":{"type":"minecraft:frog"}}}],
+             "functions":[{"add":false,"count":1.0,"function":"minecraft:set_count"}],
+             "name":"minecraft:slime_ball"}],
+         "rolls":1.0}]}"#;
+
+    fn table_root(name: &str) -> std::path::PathBuf {
+        let root =
+            std::env::temp_dir().join(format!("loot-entity-1-21-7-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let dir = root.join("data/minecraft/loot_table/entities");
+        std::fs::create_dir_all(dir.join("sheep")).unwrap();
+        std::fs::write(dir.join("sheep.json"), SHEEP).unwrap();
+        std::fs::write(dir.join("sheep/white.json"), SHEEP_WHITE).unwrap();
+        std::fs::write(dir.join("sheep/black.json"), SHEEP_BLACK).unwrap();
+        std::fs::write(dir.join("slime.json"), SLIME).unwrap();
+        // `furnace_smelt` smelts only through a smelting recipe, so the
+        // burning-sheep case needs vanilla's mutton one.
+        let recipes = root.join("data/minecraft/recipe");
+        std::fs::create_dir_all(&recipes).unwrap();
+        std::fs::write(
+            recipes.join("cooked_mutton.json"),
+            r#"{"type":"minecraft:smelting","ingredient":"minecraft:mutton","result":{"id":"minecraft:cooked_mutton"}}"#,
+        )
+        .unwrap();
+        std::fs::write(root.join("items.json"), "{}").unwrap();
+        root
+    }
+
+    fn player_kill(this: LootEntity) -> EntityLootParams {
+        let player = LootEntity::new("minecraft:player");
+        EntityLootParams {
+            this,
+            damage: Some(LootDamage {
+                kind: "minecraft:player_attack".to_owned(),
+                source: Some(player.clone()),
+                direct: Some(player.clone()),
+            }),
+            player: Some(player),
+            luck: 0.0,
+        }
+    }
+
+    fn sheep(color: &str, sheared: bool, on_fire: bool) -> EntityLootParams {
+        let mut e = LootEntity::new("minecraft:sheep");
+        e.sheep = Some((color.to_owned(), sheared));
+        e.on_fire = on_fire;
+        player_kill(e)
+    }
+
+    fn count_of(drops: &[LootStack], item: &str) -> i32 {
+        drops
+            .iter()
+            .filter(|s| s.item == item)
+            .map(|s| s.count)
+            .sum()
+    }
+
+    /// A sheep drops its wool as well as its mutton: the wool pool's
+    /// `entity_properties` holds for an unsheared sheep of that colour, and
+    /// only for it; a burning sheep's mutton smelts. Before the bare-key
+    /// fix, every roll here came back mutton-only (and raw when on fire).
+    #[test]
+    fn a_sheep_drops_its_colour_wool_and_mutton() {
+        let root = table_root("sheep");
+        let loot = LootData::load(&root, &PackOverlay::NONE).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        let roll = |params: &EntityLootParams| {
+            loot.roll_entity(
+                "minecraft:entities/sheep",
+                &mut LegacyRandom::new(7),
+                params,
+            )
+        };
+        let white = roll(&sheep("white", false, false));
+        assert!((1..=2).contains(&count_of(&white, "minecraft:mutton")));
+        assert_eq!(count_of(&white, "minecraft:white_wool"), 1);
+        assert_eq!(count_of(&white, "minecraft:black_wool"), 0);
+        let black = roll(&sheep("black", false, false));
+        assert_eq!(count_of(&black, "minecraft:black_wool"), 1);
+        assert_eq!(count_of(&black, "minecraft:white_wool"), 0);
+        let sheared = roll(&sheep("white", true, false));
+        assert!((1..=2).contains(&count_of(&sheared, "minecraft:mutton")));
+        assert_eq!(count_of(&sheared, "minecraft:white_wool"), 0);
+        let burning = roll(&sheep("white", false, true));
+        assert!((1..=2).contains(&count_of(&burning, "minecraft:cooked_mutton")));
+        assert_eq!(count_of(&burning, "minecraft:mutton"), 0);
+        assert_eq!(count_of(&burning, "minecraft:white_wool"), 1);
+    }
+
+    /// A size-1 slime drops balls, a bigger one drops none (the pool is
+    /// gated on `type_specific` slime size 1), and a frog's kill drops
+    /// exactly one ball (the nested `type` key in the damage source).
+    #[test]
+    fn a_size_1_slime_drops_balls_and_a_frog_kill_drops_one() {
+        let root = table_root("slime");
+        let loot = LootData::load(&root, &PackOverlay::NONE).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        let mut small = LootEntity::new("minecraft:slime");
+        small.cube_size = Some(1);
+        // The non-frog entry rolls uniform 0-2, so some seeds give nothing;
+        // across seeds the pool must yield balls sometimes, and only balls.
+        let mut any = false;
+        for seed in 0..16 {
+            let drops = loot.roll_entity(
+                "minecraft:entities/slime",
+                &mut LegacyRandom::new(seed),
+                &player_kill(small.clone()),
+            );
+            assert!(drops.iter().all(|s| s.item == "minecraft:slime_ball"));
+            any |= count_of(&drops, "minecraft:slime_ball") > 0;
+        }
+        assert!(
+            any,
+            "a size-1 slime killed by a player never dropped a ball"
+        );
+        let mut big = LootEntity::new("minecraft:slime");
+        big.cube_size = Some(2);
+        assert!(
+            loot.roll_entity(
+                "minecraft:entities/slime",
+                &mut LegacyRandom::new(7),
+                &player_kill(big),
+            )
+            .is_empty()
+        );
+        let frog = LootEntity::new("minecraft:frog");
+        let eaten = EntityLootParams {
+            this: small,
+            damage: Some(LootDamage {
+                kind: "minecraft:mob_attack".to_owned(),
+                source: Some(frog.clone()),
+                direct: Some(frog),
+            }),
+            player: None,
+            luck: 0.0,
+        };
+        let drops = loot.roll_entity(
+            "minecraft:entities/slime",
+            &mut LegacyRandom::new(7),
+            &eaten,
+        );
+        assert_eq!(count_of(&drops, "minecraft:slime_ball"), 1);
+    }
+
+    /// The real prepared `entities/sheep` table, all sixteen colours:
+    /// skipped where no prepared data exists (CI), run where it does.
+    #[test]
+    fn the_prepared_sheep_table_drops_wool() {
+        let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../.local/horizon-client")
+            .join("1.21.7");
+        if !src.join("data").exists() {
+            return;
+        }
+        // The prepared root may lack items.json (LootData::load's one hard
+        // requirement), so stage a temp root: the prepared data/ symlinked
+        // in, plus an empty items.json (facts default to max_stack 64).
+        let root = std::env::temp_dir().join(format!(
+            "loot-entity-1-21-7-prepared-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(src.join("data"), root.join("data")).unwrap();
+        std::fs::write(root.join("items.json"), "{}").unwrap();
+        let loot = LootData::load(&root, &PackOverlay::NONE).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(loot.tables.contains_key("minecraft:entities/sheep"));
+        for (color, wool) in [
+            ("white", "minecraft:white_wool"),
+            ("orange", "minecraft:orange_wool"),
+            ("light_blue", "minecraft:light_blue_wool"),
+            ("black", "minecraft:black_wool"),
+        ] {
+            let drops = loot.roll_entity(
+                "minecraft:entities/sheep",
+                &mut LegacyRandom::new(7),
+                &sheep(color, false, false),
+            );
+            assert_eq!(
+                count_of(&drops, wool),
+                1,
+                "a {color} sheep dropped no {wool}"
+            );
+            assert!((1..=2).contains(&count_of(&drops, "minecraft:mutton")));
+        }
     }
 }

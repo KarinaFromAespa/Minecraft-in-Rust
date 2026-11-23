@@ -2127,3 +2127,44 @@ owed — the lib test compile OOM-kills on this VM) plus the new
 (horizon-world `datafix::files::upgrade_tests`: bare world defaults
 to noise, a superflat level.dat yields flat, the 26.x file wins per
 dimension).
+
+Sheep drop no wool (2026-11-23). The owner killed 4-6 sheep and got no
+wool -- and reported no mutton either. The wool half is a real defect
+in `LootData::entity_matches` (horizon-world/loot.rs), the same defect
+class as the block drops: it matched only 26.3's entity-sub-predicate
+registry keys (`minecraft:flags`, `minecraft:components`,
+`minecraft:type_specific/sheep`), while 1.21.7 data names an entity
+predicate's parts bare (`flags`, `components`, `type_specific`, `type`,
+`equipment`, `vehicle`) -- and `type_specific` carries its type inside
+(`{"type": "minecraft:sheep", "sheared": false}`) instead of in the key.
+Every bare key fell to the `_ => false` arm, so NO `entity_properties`
+condition in any 1.21.7 entity table could hold (59 of them across the
+102 entity tables, counted in the prepared data): the sheep wool pool
+never matched, slimes never dropped balls (pool gated on slime size 1),
+and nothing smelted on fire (the `furnace_smelt` gate reads `flags`).
+The fix accepts both forms, dispatching 1.21.7's `type_specific` on its
+inner type (sheep/slime/raider -- the only three in 1.21.7's loot data;
+slime maps to the cube-size check). The mutton half did NOT reproduce:
+rolling the real prepared `entities/sheep` table through
+`roll_entity` yields mutton 1-2 before and after the fix, cow and
+chicken drops work in-game (the owner's own screenshots show raw beef
+and feathers), and the cow beef pool is structurally identical to the
+sheep mutton pool -- so the mutton most likely did drop and went
+unnoticed while he was hunting wool. The death path itself
+(`drop_death_loot` -> `drops::die` -> `roll_entity` -> spawn) was
+traced end to end and the `mob_drops` rule defaults true; if mutton is
+still missing on the next playtest, the laptop log's "loot tables
+unavailable" warning (a `LootData::load` failure makes `drop_death_loot`
+return before any drop or XP orb) is the next thing to check. Shearing
+is unaffected: the game rolls the per-colour `shearing/sheep/<color>`
+table directly, bypassing the predicated parent table. Regression
+tests (horizon-world `loot::entity_predicate_1_21_7_tests`): a sheep
+drops its colour wool and mutton (sheared: mutton only; burning:
+cooked mutton, no raw), a size-1 slime drops balls, a size-2 slime
+drops none, a frog's kill drops exactly one ball, plus the real
+prepared sheep table over four colours (skipped without prepared
+data). Before the fix the sheep test's wool assertions all fail (the
+diagnostic roll returned mutton-only). Adjacent, not fixed here:
+horizon-client's advancement entity predicates
+(`advancements.rs`) match the same 26.3 namespaced keys -- the same
+defect class may be behind advancement predicates that never hold.
