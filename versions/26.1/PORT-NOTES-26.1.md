@@ -1564,3 +1564,23 @@ Methodology note: a `diff | wc -l` of 0 does NOT prove a file
 exists in the 26.2 tree — contents.rs and compute.rs were
 both missing there (this batch's two real finds); always check
 file existence, not just diff length.
+
+Batch 80 (Nov 24, 146/214 — A2 #3, all no-change): 629
+ScreenNarrationCollector (+ 4 inners) identical; 632
+FilePackResources (+ SharedZipFileAccess, FileResourcesSupplier)
+identical; 638 ReloadableResourceManager identical; 642
+BaseCoralPlantTypeBlock + StairBlock identical; 645
+ProjectileDeflection identical; 646 ResourceArgument
+identical (the registries.rs diff is the earlier 26.1
+inline_feature work with its own parity harness, not this
+item's scope); 647 LightningBoltRenderer identical; 651
+DropExperienceBlock identical (the item_entities.rs 1-line
+diff is the earlier 26.1 powder-snow velocity arg, not this
+item's scope); 653 LeashKnotRenderer + FenceBlock identical;
+655 ArgProvider exists in NEITHER jar (26.3-only name; 26.1's
+form is DataCommands$DataProvider, and tree_data.rs was
+already fixed to it in batch 79). All 17 classes 0-diff
+structurally; all covering Rust files 0-diff vs the 26.2
+tree apart from the two earlier-26.1-work diffs noted.
+Docs-only batch; no separate CI dispatch (code tree
+identical to batch 79's head, covered by run 45279850363).

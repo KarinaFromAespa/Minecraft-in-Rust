@@ -491,6 +491,11 @@
    "evidence": "Batch 64 NO-CHANGE (FlatLayerInfo): 26.2 stores the block as a Holder<Block> where 26.1 stores a plain Block; getBlockState() (default state) and heightLimited() (height > limit ? new(limit, same block) : this) are logically identical. Registry-holder plumbing, invisible to the Rust. flat.rs is 0-diff vs the 26.2 tree."
   },
   {
+   "id": 629,
+   "verdict": "no-change",
+   "evidence": "ScreenNarrationCollector + 4 inners all 0-diff; narrator lib.rs 0-diff"
+  },
+  {
    "id": 630,
    "verdict": "no-change",
    "evidence": "Batch 64 NO-CHANGE (WoodlandMansionPieces): the large diffs are 26.2 refactors only \u2014 Tuple<Integer,Integer> grid positions replaced by a GridPos record (same x/y values), Guava Lists.newArrayList/fastutil ObjectArrayList replaced by ArrayList, and EntityType renamed EntityTypes in handleDataMarker. A structural bytecode diff (mnemonics + referenced names, no offsets) shows no logic change: same constants, same comparisons, same random calls. mansion.rs is 0-diff vs the 26.2 tree."
@@ -499,6 +504,11 @@
    "id": 631,
    "verdict": "no-change",
    "evidence": "Batch 64 NO-CHANGE (JigsawBlock.useWithoutItem): 26.2 only reorders the body (casts the block entity to a local before the canUseGameMasterBlocks check); same logic \u2014 open the jigsaw editor + SUCCESS, else PASS. jigsaw_block.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 632,
+   "verdict": "no-change",
+   "evidence": "FilePackResources + SharedZipFileAccess + FileResourcesSupplier all 0-diff; zip.rs 0-diff"
   },
   {
    "id": 633,
@@ -529,6 +539,11 @@
    "evidence": "handleCodeOfConduct differs only by minecraft.screen field vs minecraft.gui.screen() accessor; same CodeOfConductScreen flow. code_of_conduct.rs 0-diff vs 26.2."
   },
   {
+   "id": 638,
+   "verdict": "no-change",
+   "evidence": "ReloadableResourceManager 0-diff; packs.rs 0-diff"
+  },
+  {
    "id": 639,
    "title": "crates/horizon-client/src/gizmos.rs: 4 vanilla classes changed (4 methods, 0 named in Horizon)",
    "verdict": "no-change",
@@ -547,6 +562,11 @@
    "evidence": "WorldTab: 26.2 extracted createTypeButtonNarration from the inline CycleButton builder; same map-type button + narration. PresetEditor lambda differs only by plumbing. Menu chrome; create_world.rs 0-diff vs 26.2."
   },
   {
+   "id": 642,
+   "verdict": "no-change",
+   "evidence": "BaseCoralPlantTypeBlock + StairBlock both 0-diff; shapes.rs 0-diff"
+  },
+  {
    "id": 643,
    "title": "crates/horizon-world/src/worldgen/structure.rs: 2 vanilla classes changed (4 methods, 0 named in Horizon)",
    "verdict": "no-change",
@@ -557,6 +577,21 @@
    "title": "crates/horizon-world/src/worldgen/structure/temple.rs: 3 vanilla classes changed (4 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "DesertPyramidPiece: 26.2 reads terracotta via Blocks.DYED_TERRACOTTA ColorCollection (35 refs) where 26.1 uses ORANGE_TERRACOTTA (34) + BLUE_TERRACOTTA (1); same blocks, same counts. placeSuspiciousSand differs only by BlockEntityType -> BlockEntityTypes. temple.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 645,
+   "verdict": "no-change",
+   "evidence": "ProjectileDeflection 0-diff"
+  },
+  {
+   "id": 646,
+   "verdict": "no-change",
+   "evidence": "ResourceArgument 0-diff; registries.rs diff is earlier 26.1 inline_feature work (own parity harness), out of scope"
+  },
+  {
+   "id": 647,
+   "verdict": "no-change",
+   "evidence": "LightningBoltRenderer 0-diff; lightning.rs 0-diff"
   },
   {
    "id": 648,
@@ -577,16 +612,31 @@
    "evidence": "RaidCommand.spawnLeader differs only by EntityType -> EntityTypes rename. (The 26.2 counterpart #544 was ported 26.3->26.2; the 26.2->26.1 step has no behaviour change.) raid.rs diff is the earlier trailing-space feedback work."
   },
   {
+   "id": 651,
+   "verdict": "no-change",
+   "evidence": "DropExperienceBlock 0-diff; item_entities.rs 1-line diff is earlier 26.1 powder-snow velocity arg, out of scope"
+  },
+  {
    "id": 652,
    "title": "crates/horizon-client/src/game/lan_entities.rs: 1 vanilla classes changed (3 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "ChunkMap$TrackedEntity.equals compares entity.getId() in both; 26.2 uses the single-return form. lan_entities.rs 0-diff vs 26.2."
   },
   {
+   "id": 653,
+   "verdict": "no-change",
+   "evidence": "LeashKnotRenderer + FenceBlock both 0-diff; leads.rs 0-diff"
+  },
+  {
    "id": 654,
    "title": "crates/horizon-client/src/mobs/caravan.rs: 2 vanilla classes changed (3 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "LlamaFollowCaravanGoal lambda: EntityType -> EntityTypes rename only. TraderLlama defend goal canUse/start: structural diff shows only branch/local-slot compiler forms; same getLastHurtByMob/timestamp logic. caravan.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 655,
+   "verdict": "no-change",
+   "evidence": "ArgProvider exists in neither jar (26.3-only name); 26.1 form is DataCommands$DataProvider, tree_data.rs fixed to it in batch 79"
   },
   {
    "id": 659,
