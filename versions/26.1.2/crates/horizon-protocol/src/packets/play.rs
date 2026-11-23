@@ -1030,10 +1030,9 @@ impl Codec<SetObjective> for SetObjective {
 }
 /// ClientboundLevelParticlesPacket: a particle, whether it ignores the
 /// client's particle setting (`overrideLimiter`) and its distance limit
-/// (`alwaysShow`), where, the spread and the speed on each axis, how many
-/// (0: one, moving by speed times spread) and the randomization type
-/// (0 default: gaussian spread and speed; 1 ALTERNATIVE: nextDouble times
-/// spread, the packet's max speed as velocity).
+/// (`alwaysShow`), where, the spread and the one speed, how many (0: one,
+/// moving by speed times spread). 26.1's packet has one speed and no
+/// randomization mode (26.3 added per-axis speeds and the mode).
 #[derive(Clone, Debug, PartialEq)]
 pub struct LevelParticles {
     pub particle: Particle,
