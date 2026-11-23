@@ -4176,3 +4176,317 @@ blocker; hotbar: 886/905; options: the key-binding mismatch;
 sound_event: missing sounds.json) — no regressions from the 653 change.
 Recorded in pins/26.2/profile.json (the published profile),
 delta-verdict.json, ci-out logs, status.json, and VERSIONS.md.
+
+## Defect suite: fuel-table (2026-11-23)
+
+The cross-version defect suite (`tools/defect_suite.py`, check
+`fuel-table`) failed 26.2: the 26.2 jar has no `cooking_fuel`
+component and the suite found no `FUEL_VALUES` table in the tree.
+Jar evidence (26.2 server jar, `FuelValues` class): no class mentions
+`cooking_fuel`; `FuelValues.vanillaBurnTimes(lookup, flags, standard)`
+is a 64-entry table, base unit 200, ending with
+`remove(ItemTags.NON_FLAMMABLE_WOOD)`. 26.2's table is 1.21.7's 62
+entries plus `#minecraft:wooden_shelves` (300, after
+`#minecraft:wooden_pressure_plates`) and `minecraft:wooden_spear`
+(200, after `minecraft:wooden_sword`).
+
+The failure was mostly a detection gap, not a behaviour defect: the
+tree already implemented the full table — `burn_time()` in
+`crates/horizon-items/src/items.rs` had all 64 entries (match plus
+tag checks, non-flammable exclusion first) and the furnace tick, the
+menu fuel slot, the hopper check and the recipe book were all wired
+to it. What the tree genuinely got wrong was the smoker/blast
+halving: `Providers::burn_time` ignored its `fast` flag ("26.2 burn
+time is the same in every furnace"), while vanilla 26.2's
+`SmokerBlockEntity.getBurnDuration` and
+`BlastFurnaceBlockEntity.getBurnDuration` both return
+`super.getBurnDuration(...) / 2` (javap, 26.2 server jar) — so a
+smoker burned coal for 1600 ticks instead of 800.
+
+Changes, branch `fix/26.2-defect-suite`:
+- `crates/horizon-items/src/items.rs`: `burn_time()` is now driven
+  by a `FUEL_VALUES: [(&str, i32); 64]` const in vanilla's order
+  (`#`-prefixed entries are tags, later entry wins, exactly
+  vanilla's builder semantics) plus `FUEL_NON_FLAMMABLE_TAG`. Same
+  lookup results as before; the table is now auditable against the
+  jar instead of spread across a match and an if-chain.
+- `crates/horizon-client-render/src/providers.rs`:
+  `Providers::burn_time` halves the table value when `fast` is set
+  (smoker/blast furnace). This also halves the AnyFuel grouping
+  times in the recipe book for those stations, matching vanilla's
+  per-kind `getBurnDuration`.
+- Regression tests, named as the 1.21.7 ones:
+  `fuel_comes_from_the_vanilla_fuel_values_table` (items; pins the
+  64 entries including the spear and the shelves tag, and the
+  crimson-shelf non-flammable exclusion),
+  `vanilla_coal_burns_from_the_fuel_values_table` (furnace tick:
+  coal 1600 in a furnace, 800 in a smoker, smoker cooks in 100
+  ticks, stone never lights),
+  `furnace_fuel_slot_takes_table_fuel` (menu: coal/planks/shelf
+  accepted, stone refused, quick-move lands on the fuel slot).
+
+What remains: nothing for this check. The furnace fuel path is now
+fully table-driven; any future FuelValues change is a table edit.
+
+## Defect suite: brewing-fuel (2026-11-23)
+
+The cross-version defect suite (`tools/defect_suite.py`, check
+`brewing-fuel`) failed 26.2: the tree allegedly read only a
+`brewing_fuel` component the version does not have. Jar evidence
+(26.2 server jar): `brewing_fuel` appears only as a tag reference
+(`ItemTags` and `BrewingStandMenu`); there is no component.
+`data/minecraft/tags/item/brewing_fuel.json` names blaze powder only,
+`BrewingStandMenu$FuelSlot.mayPlaceItem` tests
+`stack.is(ItemTags.BREWING_FUEL)`, and
+`BrewingStandBlockEntity.FUEL_USES` is 20.
+
+This failure was a detection gap, not a behaviour defect: the tree
+already gated brewing fuel on the tag —
+`brewing_fuel()` in `crates/horizon-client-render/src/brewing.rs`
+tests `items.item_in_tag("minecraft:brewing_fuel", ...)`, the
+stand refuels to 20 uses and brews in a flat 400 ticks, and the
+menu fuel slot, quick-move and hopper checks all use the same
+function. The suite looks for a `BREWING_FUEL_TAG` identifier in
+`crates/horizon-items/src/items.rs` and 26.2 had the tag id as a
+string literal in the render crate instead.
+
+Changes, branch `fix/26.2-defect-suite`:
+- `crates/horizon-items/src/items.rs`: `pub const BREWING_FUEL_TAG:
+  &str = "minecraft:brewing_fuel"` — the single source of truth
+  for the tag id. (No `apply_brewing_fuel_values`: 26.2 has no
+  brewing-fuel field to fill; the tag lookup is the whole
+  behaviour, unlike 1.21.7's component-shaped `ItemInfo`.)
+- `crates/horizon-client-render/src/brewing.rs`:
+  `brewing_fuel()` now uses `BREWING_FUEL_TAG`.
+- Regression tests, named as the 1.21.7 ones so the suite scores
+  them: `brewing_fuel_comes_from_the_vanilla_tag` is new (items;
+  blaze powder in the tag, blaze rod and stone not). The other
+  two already existed under 26.2 names and were renamed, bodies
+  unchanged: `blaze_powder_fuel_brews_in_400_ticks_for_20_uses`
+  → `vanilla_blaze_powder_fuels_a_brew_from_the_tag` (brewing
+  stand: one tick loads 400 brew time and 19 remaining uses of
+  20, the brew completes, stone never starts the stand) and
+  `brewing_fuel_slot_and_quick_move_use_the_fuel_tag` →
+  `brewing_fuel_slot_takes_tag_fuel` (menu: blaze powder accepted
+  in the fuel slot and quick-moved there, stone refused).
+
+What remains: nothing for this check.
+
+## Defect suite: advancement-keys (2026-11-23)
+
+The cross-version defect suite (`tools/defect_suite.py`, check
+`advancement-keys`) failed 26.2 — and this one was a real defect,
+not a detection gap. All seven advancement triggers read the 26.x
+plural key forms while 26.2's advancement JSONs use singular keys.
+Jar evidence (26.2 server jar, trigger codec field names):
+`RecipeCraftedTrigger` → `recipe_id`, `RecipeUnlockedTrigger` →
+`recipe`, `LootTableTrigger` → `loot_table`, `EnterBlockTrigger`,
+`SlideDownBlockTrigger`, `BeeNestDestroyedTrigger` → `block`. The
+crafter trigger reuses `RecipeCraftedTrigger`'s instance (no
+separate `CrafterRecipeCraftedTrigger` class), so it reads
+`recipe_id` too. Census of 26.2's advancement data: 1,688
+advancements; `recipe_id` 27 + 1 criteria, `recipe` 1,561,
+`loot_table` 10, `block` 11 + 1 + 1.
+
+Root cause: reading an absent plural key returns null, and
+`id_matches` treats a null condition as unconstrained — so the
+triggers matched everything (wrong advancements firing, e.g. any
+loot container granting every loot criterion) and no
+recipe-unlocked advancement ever granted (the recipe index looked
+up the absent `recipes` key). The same shape as the 1.21.7 fix
+(59ba5f8d / caef65c4).
+
+Changes, branch `fix/26.2-defect-suite`:
+- `crates/horizon-client/src/advancements.rs`: new
+  `recipe_condition` (reads `recipe_id`), `loot_table_condition`
+  (reads `loot_table`) and `block_condition` (reads `block`)
+  helpers; `index_recipes` now reads `["recipe"]`. The
+  `BlockPredicate` evaluator still reads `["blocks"]` — that is
+  correct for the predicate object form and was not touched.
+  (The player predicate's `recipes` map and the rewards'
+  `recipes` list are also correctly plural in vanilla data and
+  were left alone.)
+- `crates/horizon-client/src/game/advancements.rs`: the six
+  trigger closures now use the helpers — `recipe_unlocked`
+  predicate reads `["recipe"]`, `recipe_crafted` uses
+  `recipe_condition`, `player_generates_container_loot` uses
+  `loot_table_condition`, `enter_block` and
+  `bee_nest_destroyed` use `block_condition`,
+  `slide_down_block` reads the block name and state then uses
+  `block_condition` (it previously evaluated the condition
+  through the `BlockPredicate` evaluator, which reads the plural
+  key — so sliding down any block matched).
+- `crates/horizon-client/src/game/machines/crafter.rs`: the
+  private `recipe_matches` helper (reading `["recipes"]`) is
+  gone; the crafter trigger uses `adv::recipe_condition`.
+- Regression tests, named as the 1.21.7 ones:
+  `recipe_conditions_match_only_their_recipe`,
+  `loot_table_conditions_match_only_their_table`,
+  `single_block_trigger_conditions_match_only_their_block` (all
+  in `advancements.rs`; the block test uses the real
+  `minecraft:end/enter_end_gateway` criterion shape, and the
+  recipe test keeps the #7186 whole-id pin). Existing fixtures
+  that wrote the plural keys were updated to the singular forms.
+
+What remains: nothing for this check. The seven triggers now read
+exactly the keys 26.2's data writes.
+
+## CI fix wave (2026-11-23, crate-tests run 45147242822, head 8d0b700a)
+
+The defect-suite job passed; the crate-tests job failed with one branch
+regression and three pre-existing failures in untouched files. All three
+were proven pre-existing: `git diff 890465ae..HEAD` on
+`game/screens.rs`, `game/commands/terrain_cmds.rs` and `game/trident.rs`
+is empty (0 lines), so each fails identically at the branch base.
+
+- **Branch regression, fixed** — `horizon-client-lib` lib-test failed to
+  compile (2x E0308, `furnace.rs:251,292`):
+  `vanilla_coal_burns_from_the_fuel_values_table` compared
+  `furnace.items[2].as_ref().unwrap().item` (an `Arc<str>`) directly to
+  `"test:ingot"` (`&str`). Both assertions now compare
+  `.item.as_ref()`. Test code only; the fuel-table/burn-time production
+  code is unchanged.
+- **Pre-existing, fixed with the 1.21.7 pattern** — `loot_mine` test
+  (`terrain_cmds.rs:1036`) panicked "prepared resources required": it
+  reads `HORIZON_TEST_RESOURCES`, which the crate-tests workflow never
+  sets. The identical 1.21.7 test carries
+  `#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES and
+  scratch homes/cwd"]`; this test now carries the same ignore (the
+  pattern a dozen sibling tests in this tree already use). It still runs
+  where resources are prepared.
+- **Pre-existing, test list was stale** — `screens.rs` test
+  `only_the_screens_that_override_is_pause_screen_keep_the_world_running`
+  listed `Screen::BlockEditor` among the pausing screens, but
+  `Screen::is_pause_screen` returns false for it by design: 26.2's
+  `StructureBlockEditScreen` and `TestBlockEditScreen` return false
+  (javap on the 26.2 client jar: both `isPauseScreen()` return
+  `iconst_0`; 26.3 removed both overrides), and `Game::pauses_game`
+  answers per editor kind via `Game::block_editor_pauses`
+  (`pointer_capture.rs:47-55`). The 1.21.7 tree has no such divergence
+  (its impl returns true for `BlockEditor` and its test agrees).
+  `BlockEditor` moved to the test's false group and the doc comment now
+  states the 26.2 behaviour.
+- **Pre-existing, test expectation was stale** — `trident.rs` test
+  `a_trident_round_trips_its_in_block_state` expected `inBlockState` to
+  be `Tag::String("minecraft:stone")`, but `to_nbt` writes the
+  `BlockState.CODEC` form `{Name, Properties}`. Vanilla 26.2's
+  `AbstractArrow.addAdditionalSaveData` stores `"inBlockState"` via
+  `BlockState.CODEC` (javap on the 26.2 client jar:
+  `storeNullable("inBlockState", BlockState.CODEC, lastState)`), and the
+  tree's `BlockState::to_nbt` (`chunk.rs:192`) writes exactly that form
+  ("26.2's BlockState.CODEC is the NBT form (`Name`/`Properties`); the
+  `id`/`properties` form is 26.3's codec rename"). The 1.21.7 tree's
+  identical test passes only because its `to_nbt` still writes the id
+  form — a known gap there (a port-written 1.21.7 save is not one
+  vanilla 1.21.7 reads). The 26.2 test now expects the compound form;
+  the read-back (`state_from_nbt`) already accepted both forms, so the
+  round-trip assertion is unchanged.
+
+Note: `leakage-audit/jars/26.2-server.jar` is a Mojang BUNDLER jar (no
+game classes); the 26.2 client jar in the same directory is the game jar
+and was used for the javap checks above.
+
+## Second crate-tests run (2026-11-23, run 45165324974, head cd0d806f)
+
+The defect-suite job passed; the crate-tests job failed with 11
+`horizon-client-lib` failures (2435 passed, 11 failed). The other six
+suites pass (horizon-client 1274/0, horizon-client-render 2048/0,
+horizon-world 466/0, horizon-items 117/0, horizon-protocol 444/0,
+horizon-client-core 82/0). The E0308 is gone and the three tests fixed
+in cd0d806f pass. Logs:
+`~/workspace/mcir-work/crate-tests-45165324974/`.
+
+**All 11 are pre-existing, none is a branch regression.** Evidence,
+per failure (the branch's production diff is fully enumerated:
+`burn_time` restructured table-driven in `items.rs` /
+`providers.rs` halving when `fast`, the brewing-fuel tag as a named
+const with the same value, the advancement condition keys, and
+comment/test-only changes in `furnace.rs`, `menu.rs`, `screens.rs`,
+`terrain_cmds.rs`, `trident.rs`):
+
+- `git diff 890465ae..cd0d806f --name-only` contains none of the 11
+  test files (`entity_nbt.rs`, `item_render/glint_tests.rs`,
+  `item_sync.rs`, `lan/hub_tests.rs`, `mobs.rs`,
+  `mobs/zombie_villager.rs`, `projectiles.rs`, `realms/client.rs`,
+  `save.rs`, `server_packs/download.rs`, `title/tests.rs`).
+- Grep of those files for every changed production symbol
+  (`burn_time`, `FUEL_VALUES`, `BREWING_FUEL`, `brewing_fuel`,
+  `recipe_condition`, `loot_table_condition`, `block_condition`,
+  `by_recipe`, `Providers::`, `Furnace`, `may_place`, `quick_move`)
+  finds nothing in the failing tests' code paths. The two hits are
+  elsewhere: `hub_tests.rs:626` loads advancements only in the
+  *passing* `an_advancement_tab_a_guest_opens_is_kept_and_answered`
+  test, and `save.rs`'s `BlockEntity::Furnace` mentions are in the
+  unrelated block-entity encode/decode tests.
+- Six of the 11 fail identically on a different branch: the 26.1.2
+  port's crate-tests run 45150986405 (36 lib failures) contains
+  `a_painting_keeps_its_variant_across_the_wire`,
+  `mod_thrown_types_are_found_by_id_and_item_once_registered`,
+  `requests_send_the_session_cookie_only_and_errors_never_hold_the_token`,
+  `older_records_of_a_current_world_upgrade_as_they_are_read`,
+  `a_pack_lands_under_its_hash_and_is_reused_from_the_cache` and
+  `a_finished_optimization_stamps_the_level_data` — same test names,
+  same suites. No main-baseline run was dispatched: the git evidence
+  is conclusive by the same standard the 26.1.2 merge used (failures
+  in files the branch never touched).
+
+Per-failure root causes (all in code the branch never touched; fixes
+belong to the 26.2 test-health follow-up, for which the 26.1.1 wave is
+the template — not to this branch):
+
+- `entity_nbt::frame_missing_facing_loads_down_and_valid_directions_round_trip`
+  (`entity_nbt.rs:8048`): `item_frame_from_nbt(&tag, 17).unwrap()`
+  panics on `None` when `Facing` is missing. Vanilla defaults a
+  missing facing to DOWN (`LEGACY_ID_CODEC, orElse(DOWN)`); the loader
+  returns `None` instead.
+- `item_render::glint_tests::invalid_and_generated_sprites_match_vanilla`
+  (`glint_tests.rs:333`): the paletted-permutation sprite
+  `test:trim_red` lands at `[19/128, 37/64, 27/128, 53/64]` in the
+  atlas but the code puts it at the `item/invalid_size` slot
+  `[103/128, 1/64, 119/128, 17/64]` — atlas packing order.
+- `item_sync::a_painting_keeps_its_variant_across_the_wire`
+  (`item_sync.rs:1585`): the variant comes back `None` instead of
+  `Some("minecraft:kebab")`. Test and code both use component id 109
+  for `painting/variant` — 26.3's numbering. The 26.1.1 test-health
+  wave proved (jar-verified) the id is 102 in 26.1.1; 26.2's exact id
+  is to be confirmed by the follow-up.
+- `lan::hub::a_guest_standing_on_nothing_is_sent_the_blocks_below_it`
+  (`hub_tests.rs:526`): the hub sends no blocks (`[]` instead of the
+  four blocks under the guest's box). The support-block trigger in
+  `lan/hub.rs` never fires for this guest state.
+- `mobs::visibility_percent_tests::worn_mob_heads_halve_that_mobs_detection_range`
+  (`mobs.rs:6582`): a skeleton skull halves *zombie* detection (0.5
+  instead of 1.0) — the code halves for any worn mob head instead of
+  only the mob's own head.
+- `mobs::zombie_villager::iron_bars_and_beds_speed_a_cure`
+  (`zombie_villager.rs:245`): `with_built_test_world` never runs its
+  closure (`ran` is false) — the fixture world with iron bars / a bed
+  / stone fails to build in the 26.2 test registry.
+- `projectiles::mod_thrown_types_are_found_by_id_and_item_once_registered`
+  (`projectiles.rs:2316`): `settings("ruby:late")` is `(4, 10, true)`
+  instead of `(5, 3, true)` — the late-registered type's tracking
+  settings fall back to the wrong defaults.
+- `realms::client::requests_send_the_session_cookie_only_and_errors_never_hold_the_token`
+  (`realms/client.rs:1714`): the code sends `version=26.2` (correct);
+  the test expects the stale literal `version=26.3`.
+- `save::older_records_of_a_current_world_upgrade_as_they_are_read`
+  (`save.rs:8523`): a DataVersion-3465 record's palette still holds
+  the old block name instead of `minecraft:short_grass` — the
+  datafix rename does not run on read in this path.
+- `server_packs::download::a_pack_lands_under_its_hash_and_is_reused_from_the_cache`
+  (`download.rs:441`): the code sends `X-Minecraft-Pack-Format: 88.0`;
+  the test expects `97.1` — the pack-format constant is a stale
+  version's value.
+- `title::a_finished_optimization_stamps_the_level_data`
+  (`title/tests.rs:2294`): the test sets a world's DataVersion to 4950
+  (newer than 26.2's 4903, verified against the vanilla 26.2 world's
+  `level.dat`: `Data.Version.Id 4903, Name 26.2`) and expects the
+  optimizer to restamp it to `DATA_VERSION` (4903, correct in this
+  tree); it does not. Same failure in the 26.1.2 run.
+
+No fix was made on this branch: there is nothing to fix here — the
+branch's own code passes its suites, and the 11 failures are the 26.2
+test-health debt the 26.1.1 wave already fixed in the 26.1.1 tree
+only. Merge recommendation: ready to merge on the 26.1.2 precedent
+(port's suites pass + every failure proven pre-existing in untouched
+files), with these 11 recorded as known failures.

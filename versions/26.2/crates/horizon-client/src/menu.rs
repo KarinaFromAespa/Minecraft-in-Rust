@@ -3517,10 +3517,64 @@ pub(crate) mod tests {
         test(&env, &mut menu);
     }
 
+    /// `AbstractFurnaceMenu`'s fuel slot (`Slot.mayPlaceItem`) and
+    /// quick-move accept exactly the `FuelValues` table: coal, planks,
+    /// a wooden shelf — but not stone.
+    #[test]
+    fn furnace_fuel_slot_takes_table_fuel() {
+        let items = Items::for_tests(
+            [
+                (
+                    "minecraft:planks".to_owned(),
+                    ["minecraft:oak_planks".to_owned()].into_iter().collect(),
+                ),
+                (
+                    "minecraft:wooden_shelves".to_owned(),
+                    ["minecraft:oak_shelf".to_owned()].into_iter().collect(),
+                ),
+            ]
+            .into_iter()
+            .collect(),
+        );
+        let root = std::path::Path::new("");
+        let recipes = Recipes::empty();
+        let brewing = Brewing::load(root, &items, &PackOverlay::NONE);
+        let banners = Banners::default();
+        let station_recipes = crate::stations::StationRecipes::default();
+        let enchantments = crate::enchant::Enchantments::default();
+        let names = crate::creative::Names::default();
+        let env = Env {
+            items: &items,
+            recipes: &recipes,
+            brewing: &brewing,
+            banners: &banners,
+            station_recipes: &station_recipes,
+            enchantments: &enchantments,
+            names: &names,
+            trade: None,
+            maps: None,
+            limited_crafting: false,
+            known_recipes: None,
+        };
+        let mut menu = Menu::new(Kind::Furnace("smelting"));
+        let coal = ItemStack::new("minecraft:coal", 1);
+        assert!(menu.may_place(&env, 1, &coal));
+        menu.set_slot(&env, 30, stack("coal", 1));
+        assert_eq!(menu.quick_move_landing(&env, 30), vec![1]);
+        let planks = ItemStack::new("minecraft:oak_planks", 1);
+        assert!(menu.may_place(&env, 1, &planks));
+        let shelf = ItemStack::new("minecraft:oak_shelf", 1);
+        assert!(menu.may_place(&env, 1, &shelf));
+        let stone = ItemStack::new("minecraft:stone", 1);
+        assert!(!menu.may_place(&env, 1, &stone));
+        menu.set_slot(&env, 30, stack("stone", 1));
+        assert!(!menu.quick_move_landing(&env, 30).contains(&1));
+    }
+
     /// `BrewingStandMenu.FuelSlot` and `quickMoveStack` use the same rule:
     /// the `minecraft:brewing_fuel` tag (blaze powder).
     #[test]
-    fn brewing_fuel_slot_and_quick_move_use_the_fuel_tag() {
+    fn brewing_fuel_slot_takes_tag_fuel() {
         let items = Items::for_tests(
             [(
                 "minecraft:brewing_fuel".to_owned(),

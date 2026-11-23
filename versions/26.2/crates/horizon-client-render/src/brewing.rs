@@ -4,7 +4,7 @@
 //! 26.3-only class), potion colours and tooltips, and
 //! `BrewingStandBlockEntity.serverTick`.
 pub use crate::chunk::block_entity::BrewingStand;
-use crate::items::{ItemStack, Items};
+use crate::items::{BREWING_FUEL_TAG, ItemStack, Items};
 use horizon_world::loot::PackOverlay;
 use std::{collections::HashSet, path::Path};
 
@@ -721,7 +721,7 @@ impl BrewingStand {
 /// speed 1.0 (the brew time is a flat 400 ticks). 26.2 has no
 /// `brewing_fuel` component.
 pub fn brewing_fuel(items: &Items, stack: &ItemStack) -> bool {
-    items.item_in_tag("minecraft:brewing_fuel", &stack.item)
+    items.item_in_tag(BREWING_FUEL_TAG, &stack.item)
 }
 
 #[cfg(test)]
@@ -732,7 +732,7 @@ mod tests {
     /// `minecraft:brewing_fuel` tag — loads 20 uses and brews in a flat 400
     /// ticks; anything else is not fuel.
     #[test]
-    fn blaze_powder_fuel_brews_in_400_ticks_for_20_uses() {
+    fn vanilla_blaze_powder_fuels_a_brew_from_the_tag() {
         let items = Items::for_tests(
             [(
                 "minecraft:brewing_fuel".to_owned(),
