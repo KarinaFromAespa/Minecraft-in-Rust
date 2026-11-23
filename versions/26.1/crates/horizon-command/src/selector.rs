@@ -40,7 +40,9 @@ const SELECTOR_KINDS: [(&str, &str); 6] = [
     ("@n", "argument.entity.selector.nearestEntity"),
 ];
 
-/// InvertableSetOptionState.
+/// The `name=` option's invertable-set state (26.2 factored this into
+/// `InvertableSetOptionState`; 26.1 keeps it inline in
+/// `EntitySelectorOptions` via `EntitySelectorParser.shouldInvertValue`).
 #[derive(Clone, Debug, Default)]
 struct InvertableSet {
     /// 0 none, 1 single, 2 multiple.

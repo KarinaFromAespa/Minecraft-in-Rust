@@ -639,6 +639,21 @@
    "evidence": "ArgProvider exists in neither jar (26.3-only name); 26.1 form is DataCommands$DataProvider, tree_data.rs fixed to it in batch 79"
   },
   {
+   "id": 656,
+   "verdict": "no-change",
+   "evidence": "FlowerBlock 0-diff; flowers.rs 0-diff"
+  },
+  {
+   "id": 657,
+   "verdict": "no-change",
+   "evidence": "WeatheringCopperChestBlock 0-diff; tests.rs 0-diff"
+  },
+  {
+   "id": 658,
+   "verdict": "no-change",
+   "evidence": "TreeDecorator$Context 0-diff; decorator.rs 0-diff"
+  },
+  {
    "id": 659,
    "title": "widely named: client/gui/layouts: 3 vanilla classes changed (3 methods, 0 named in Horizon)",
    "verdict": "no-change",
@@ -651,10 +666,40 @@
    "evidence": "SocialInteractionsScreen.onClose differs only by Minecraft.setScreen -> Gui.setScreen; same behaviour (restore last screen). Menu chrome."
   },
   {
+   "id": 661,
+   "verdict": "no-change",
+   "evidence": "BanNoticeScreens 0-diff; ban_notice.rs 0-diff"
+  },
+  {
+   "id": 662,
+   "verdict": "no-change",
+   "evidence": "CommandBlockEditScreen 2 lines: 26.2 added getCommandBlock/getPreviousY accessors, bodies identical; menu chrome"
+  },
+  {
+   "id": 663,
+   "verdict": "no-change",
+   "evidence": "GpuFormat is 26.2-only (blaze3d/GpuFormat, not the triage renderpearl path); 26.1 uses TextureFormat.RGBA8; entity_outline.rs doc fixed"
+  },
+  {
    "id": 664,
    "title": "crates/horizon-client-render/src/inventory_effects.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "EffectsInInventory.extractEffects differs only by Gui.getMobEffectSprite -> Hud.getMobEffectSprite (method moved class). inventory_effects.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 665,
+   "verdict": "no-change",
+   "evidence": "LocatorBar widget is 26.2-only, but the waypoint system exists in full in 26.1 (ClientWaypointManager, WaypointStyle, TrackedWaypoint packet)"
+  },
+  {
+   "id": 666,
+   "verdict": "no-change",
+   "evidence": "ShelfRenderer 0-diff; shelf.rs 0-diff"
+  },
+  {
+   "id": 667,
+   "verdict": "no-change",
+   "evidence": "TutorialToast + Icons both 0-diff; tutorial.rs 0-diff"
   },
   {
    "id": 668,
@@ -679,6 +724,11 @@
    "title": "crates/horizon-client/src/mod_content.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "Overlay: 26.1 declares abstract isPausing(), 26.2 abstract isPauseScreen() \u2014 a pure rename, no default body in either; the pause predicate's contract is unchanged. mod_content.rs 0-diff vs 26.2; the Rust's is_pause_screen is its own screen-model name."
+  },
+  {
+   "id": 672,
+   "verdict": "no-change",
+   "evidence": "InvertableSetOptionState is 26.2-only as a class, but 26.1 implements the same name= inversion inline via shouldInvertValue; selector.rs doc fixed"
   },
   {
    "id": 673,

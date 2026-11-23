@@ -1584,3 +1584,25 @@ structurally; all covering Rust files 0-diff vs the 26.2
 tree apart from the two earlier-26.1-work diffs noted.
 Docs-only batch; no separate CI dispatch (code tree
 identical to batch 79's head, covered by run 45279850363).
+
+Batch 81 (Nov 24, 156/214 — A2 #4, all no-change): 656
+FlowerBlock, 657 WeatheringCopperChestBlock, 658
+TreeDecorator$Context, 661 BanNoticeScreens, 666 ShelfRenderer,
+667 TutorialToast (+ Icons) all 0-diff. 662
+CommandBlockEditScreen: 2 lines — 26.2 added two protected
+accessors (getCommandBlock, getPreviousY returning 135),
+bodies identical; menu chrome. 663 GpuFormat exists only in
+26.2 (at com/mojang/blaze3d/GpuFormat, not the triage's
+renderpearl path); 26.1 uses TextureFormat.RGBA8 — the
+entity_outline.rs doc is fixed to it (the wgpu code is the
+same format either way). 665 the contextualbar/LocatorBar
+widget is 26.2-only, but the waypoint system exists in full
+in 26.1 (ClientWaypointManager, WaypointStyle, the
+TrackedWaypoint packet, waypoint_style assets), so the
+Rust's waypoint-based locator bar stands. 672
+InvertableSetOptionState is a 26.2-only class, but 26.1's
+EntitySelectorOptions implements the same name= inversion
+inline via EntitySelectorParser.shouldInvertValue, which the
+Rust's InvertableSet models; the selector.rs doc now says
+so. Comment-only changes; no separate CI dispatch (covered
+by the next code batch's run).

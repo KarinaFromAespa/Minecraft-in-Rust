@@ -5,7 +5,8 @@
 //! the frame after the hand.
 use super::Vertex;
 
-/// `entityOutlineTarget`'s `GpuFormat.RGBA8_UNORM`.
+/// `entityOutlineTarget`'s `TextureFormat.RGBA8` (26.2 renamed the
+/// format enum to `GpuFormat`, with the constant as `RGBA8_UNORM`).
 const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 
 struct Targets {
