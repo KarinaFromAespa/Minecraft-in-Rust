@@ -369,6 +369,36 @@
    "title": "crates/horizon-client-render/src/social.rs: 9 vanilla classes changed (45 methods, 9 named in Horizon)",
    "verdict": "ported",
    "evidence": "The friends system is 26.2-only: PresenceSharing, PresenceHandler, RemoteFriendListUpdateHandler exist in the 26.2 jar (6 entries) and are absent from the 26.1 jar (0); 26.1's PlayerSocialManager has no friend methods (hide/show/block/online-mode/discovered-names only), and 26.1's Options has no sharePresence. Removed the whole friends machinery: deleted horizon-client-render/src/social.rs (860 lines) + the lib mod + the client_lib re-export; removed the presence calls from game.rs (presence_status + tick), saving.rs (offline presence), remote.rs (try_update_presence), title.rs (social::init); removed the SharePresence + InGameNotification options (both absent from 26.1's Options, lang and OnlineOptionsScreen, which shows only allowServerListing + realmsNotifications) from the Opt enum, options_ui.rs, options_file.rs defaults, and the Online page's friends section. game/social.rs (Social Interactions screen + hidden chat) and game/friends.rs (LAN invite sharing, feature-gated) are untouched \u2014 both are 26.1 behaviour. ban_notice.rs still parses the account status's friendsPreferences (account-API data, version-neutral); nothing reads the fields after this removal."
+  },
+  {
+   "id": 512,
+   "title": "crates/horizon-client/src/game/commands/test_runs.rs: 3 vanilla classes changed (40 methods, 8 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "No dimension on any test-instance class in either jar (GameTestInstance has only rotation(); TestEnvironmentDefinition identical); the dimension-on-test is 26.3-only. Carried the 26.2 tree's test_runs.rs (tests run in the level in place; heightmap read directly). StructureUtils/TestCommand differ only by branch forms + BlockEntityType->BlockEntityTypes. (26.2 added GameTestEntityBuilder/GameTestMobBuilder/SetDifficulty helpers \u2014 not modelled by the Rust.)"
+  },
+  {
+   "id": 514,
+   "title": "crates/horizon-client/src/game/stats_screen.rs: 8 vanilla classes changed (36 methods, 7 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "StatsScreen differs only by TabNavigationBar -> MenuTabBar (26.2's new tab-bar class); TabManager.setCurrentTab's 2-arg form delegates to the 3-arg form with the same logic. Menu chrome; stats_screen.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 515,
+   "title": "crates/horizon-client/src/game/structure_blocks.rs: 3 vanilla classes changed (24 methods, 7 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "BlockRotProcessor.processBlock bodies identical (same random/integrity/HolderSet logic); the differences are API shape (26.1 extends StructureProcessor with getType/CODEC/5-arg processBlock; 26.2 is standalone with codec/MAP_CODEC/6-arg processBlock). The 26.1 tree's processor.rs already carries the 26.1 form from rank 2 (items 124/154): the template-state BlockRot fix + evaluatesEntirePieceState note + BlockRot test. StructureBlock diffs are compiler form; StructureBlockEntity ctor differs only by BlockEntityType->BlockEntityTypes. structure_blocks.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 516,
+   "title": "crates/horizon-client/src/game/advancements_screen.rs: 4 vanilla classes changed (51 methods, 3 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "Surgical port (26.2 item 431): keyPressed is identical in 26.1/26.2 (advancements key -> setScreen(null) + grabMouse, close to game) \u2014 added close_advancements_to_game and routed KeyL to it; Escape/Done keep the onClose restore form. The positions handling was deliberately NOT carried: DisplayInfo.fromNetwork reads x/y identically in both jars (the packet carries positions), and vanilla 26.1/26.2 position widgets from DisplayInfo x/y \u2014 the 26.1 tree's server-positions form is correct, and the 26.2 tree's client-side-only layout is its own known gap (26.2 PORT-NOTES). The F4 spectator-effect + MultiplayerOptions-escape hunks in play_keys.rs belong to other items, left alone."
+  },
+  {
+   "id": 517,
+   "title": "crates/horizon-client/src/item_render/gui.rs: 6 vanilla classes changed (44 methods, 3 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "GuiItemAtlas/PictureInPictureRenderer differ only by render-submission plumbing (26.1 takes SubmitNodeCollector + BufferSource in; 26.2 creates a SubmitNodeStorage internally). gui.rs is 0-diff vs 26.2 apart from the oit:false test literal from the earlier OIT work."
   }
  ],
  "triage": "Rank-3 re-triage: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 3 = A1 60, A2 67, B1 56, B2 31 = 214 items) + diff-26.2-26.1-rank3.json (274 classes, 204 method-changed). Order: A1 reviews, then B1 ports, then A2/B2."

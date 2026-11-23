@@ -1103,8 +1103,8 @@ run 45254318944 (batch 61) is testing, so no separate dispatch.
 
 ## Behaviour port — rank 3 in progress (2026-11-24, branch behaviour/26.1)
 
-Rank 3: 65/214 closed (rank 1: 7/7, rank 2: 498/498; total
-570/795). A1 complete (60/60); B1 in progress (5/56).
+Rank 3: 70/214 closed (rank 1: 7/7, rank 2: 498/498; total
+575/795). A1 complete (60/60); B1 in progress (10/56).
 Re-triage: `retriage-rank345.json` (A1 60, A2 67, B1 56, B2 31)
 + `diff-26.2-26.1-rank3.json` (274 classes, 204 method-changed).
 Order: A1 reviews, then B1 ports, then A2/B2. Progress in
@@ -1311,3 +1311,21 @@ data, version-neutral); nothing reads the fields now.
 `cargo check` clean for horizon-client-render and
 horizon-client-lib (incl. --lib --tests apart from the
 known pre-existing lan_bot.rs errors).
+
+Batch 71 (Nov 24, 70/214 — B1 #3): 512, 516 PORTED; 514,
+515, 517 NO-CHANGE. 512 test runs: no dimension on any
+test-instance class in either jar — carried the 26.2 tree's
+test_runs.rs (tests run in the level in place). 516
+advancements: keyPressed is identical in 26.1/26.2 (key
+closes to game + grabs mouse) — added
+close_advancements_to_game and routed KeyL to it; the
+positions handling was deliberately NOT carried (the packet
+carries x/y in both versions and vanilla positions widgets
+from DisplayInfo x/y — the 26.1 tree's server-positions
+form is correct, the 26.2 tree's client-side-only layout is
+its known gap). 514 stats screen: TabNavigationBar →
+MenuTabBar, menu chrome. 515 structure blocks: processBlock
+bodies identical; the 26.1 template-state BlockRot fix is
+already in the tree from rank 2. 517 item GUI: render
+submission plumbing only.
+`cargo check -p horizon-client-lib` clean.
