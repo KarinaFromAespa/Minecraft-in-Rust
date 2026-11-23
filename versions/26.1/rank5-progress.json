@@ -1,0 +1,15 @@
+{
+ "closed": [
+  {
+   "id": 794,
+   "verdict": "no-change",
+   "evidence": "1492 changed/removed classes Horizon does not name (26.3->26.1 report section 5). By package: GPU plumbing (renderpearl/vulkan 39, blaze3d/opengl 36 \u2014 the wgpu renderer replaces it), datagen (data/tags 34, data/loot, data/recipes), loot internals (functions 41, entries 24, number providers 77 \u2014 the Rust models loot through its own providers, verified in rank 2), criterion (54 \u2014 the Rust models advancements through its own criterion system), block classes (114 \u2014 the Rust models blocks through prepared block-state data + generic behaviour, verified class-by-class in ranks 1-3 for the named ones). The Rust is not a 1:1 class port; no unnamed class carries behaviour the tree lacks."
+  },
+  {
+   "id": 795,
+   "verdict": "no-change",
+   "evidence": "62 new classes Horizon does not name: feature/configurations 42 (config records \u2014 the Rust reads feature configs through its own feature graph), carver 8 (config records + CarvingContext + ConfiguredWorldCarver \u2014 the Rust has its own carver code), data/tags 4 + data/loot + data/recipes (datagen), blaze3d/textures 2 + blaze3d/shaders 1 (GPU plumbing), client/color/item 1, renderer/state/gui/pip 1. All data records, internals, or replaced subsystems."
+  }
+ ],
+ "triage": "Rank 5: the 26.3->26.1 report's 'Not ported' section (~/workspace/mcir-work/26.1/versions/diff-26.3-26.1/report.json + report.md). Verdict no-change: these classes are vanilla internals, config records, GPU plumbing or datagen that the Rust models through its own data-driven machinery, not 1:1 class ports; behaviour was verified in ranks 1-4 for the named classes."
+}

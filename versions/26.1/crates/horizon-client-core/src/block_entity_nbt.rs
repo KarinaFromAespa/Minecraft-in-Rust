@@ -315,7 +315,7 @@ pub fn id(tag: &Tag) -> Option<String> {
 }
 
 /// Every `BlockEntityType` id this module knows.
-pub const TYPES: [&str; 47] = [
+pub const TYPES: [&str; 48] = [
     "minecraft:furnace",
     "minecraft:chest",
     "minecraft:trapped_chest",
@@ -341,6 +341,7 @@ pub const TYPES: [&str; 47] = [
     "minecraft:end_gateway",
     "minecraft:command_block",
     "minecraft:shulker_box",
+    "minecraft:bed",
     "minecraft:conduit",
     "minecraft:barrel",
     "minecraft:smoker",
@@ -738,6 +739,10 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
             }
         }
         "minecraft:potent_sulfur" => f.int("countdown", -1),
+        // 26.1 only (26.2/26.3 removed BedBlockEntity): the bed block
+        // entity saves nothing — it holds only its colour, taken from
+        // the block state at construction, with no saveAdditional.
+        "minecraft:bed" => {}
         _ => return None,
     }
     let mut out = f.out;

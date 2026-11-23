@@ -1891,3 +1891,31 @@ FlyingAnimal (marker interface, no Rust reference); 785 entity
 DripstoneThickness (block-state enum, dripstone batch 63);
 788 CarvingMask$Mask (datafix); 789 stateproviders (shared).
 Docs-only batch; no separate CI dispatch.
+Batch 95 (Nov 24, rank 4 COMPLETE 74/74): 790 MaterialRuleList,
+791 StructurePieceAccessor, 792 FunctionReference (all in the
+26.2 jar, no-change); 793 PORTED — `minecraft:bed` is a 26.1
+block-entity type (26.2/26.3 removed BedBlockEntity): added to
+TYPES (47→48) in registry order between shulker_box and conduit
+(verified against the 26.1 BlockEntityType fields) with an empty
+`canonical` arm — BedBlockEntity has no saveAdditional, its
+colour comes from the block state. `/data` block_entity_data
+validation now accepts minecraft:bed, and `canonical` no longer
+returns None for bed compounds. Code batch; CI dispatched.
+
+Batch 96 (Nov 24, rank 5 COMPLETE 2/2 — all no-change): 794 the
+1,492 changed/removed classes Horizon does not name — GPU
+plumbing (renderpearl/vulkan, blaze3d/opengl), datagen
+(data/tags, data/loot, data/recipes), loot internals (modelled
+through the Rust's own providers), criterion (the Rust's own
+criterion system), block classes (modelled through prepared
+block-state data + generic behaviour, verified in ranks 1–3);
+795 the 62 new classes — feature/configurations records (the
+Rust's own feature graph), carver configs + CarvingContext (the
+Rust's own carver code), datagen, GPU plumbing. The Rust is not
+a 1:1 class port; no unnamed class carries behaviour the tree
+lacks. Progress in rank5-progress.json.
+
+## Rank totals (Nov 24, 2026)
+
+Rank 1: 7/7. Rank 2: 498/498. Rank 3: 214/214. Rank 4: 74/74.
+Rank 5: 2/2. **Total: 795/795 — the behaviour port is complete.**

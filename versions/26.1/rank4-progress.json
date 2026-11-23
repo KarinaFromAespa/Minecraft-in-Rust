@@ -349,6 +349,26 @@
    "id": 789,
    "verdict": "no-change",
    "evidence": "1 state-provider class, in the 26.2 jar; shared worldgen"
+  },
+  {
+   "id": 790,
+   "verdict": "no-change",
+   "evidence": "MaterialRuleList, in the 26.2 jar; shared worldgen material rules"
+  },
+  {
+   "id": 791,
+   "verdict": "no-change",
+   "evidence": "StructurePieceAccessor, in the 26.2 jar; shared structure machinery"
+  },
+  {
+   "id": 792,
+   "verdict": "no-change",
+   "evidence": "FunctionReference, in the 26.2 jar; shared loot function"
+  },
+  {
+   "id": 793,
+   "verdict": "ported",
+   "evidence": "minecraft:bed is a 26.1 block-entity type (26.2/26.3 removed BedBlockEntity); added to TYPES (47->48) in registry order (between shulker_box and conduit, verified against the 26.1 BlockEntityType fields) + an empty canonical arm \u2014 BedBlockEntity has no saveAdditional, its colour comes from the block state. /data block_entity_data validation now accepts minecraft:bed; canonical no longer returns None for bed compounds"
   }
  ],
  "triage": "Rank 4/5: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 4 = 74 D items, 333 classes from the 26.3->26.1 report; rank 5 = 2 D items). Class lists in ~/workspace/mcir-work/26.1/versions/diff-26.3-26.1/report.json. Method: per package, check each class against the 26.2 jars (same path / moved) and the Rust tree (ported list + grep); verdict no-change unless the Rust is missing 26.1 behaviour."
