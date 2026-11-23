@@ -4176,3 +4176,54 @@ blocker; hotbar: 886/905; options: the key-binding mismatch;
 sound_event: missing sounds.json) — no regressions from the 653 change.
 Recorded in pins/26.2/profile.json (the published profile),
 delta-verdict.json, ci-out logs, status.json, and VERSIONS.md.
+
+## Defect suite: fuel-table (2026-11-23)
+
+The cross-version defect suite (`tools/defect_suite.py`, check
+`fuel-table`) failed 26.2: the 26.2 jar has no `cooking_fuel`
+component and the suite found no `FUEL_VALUES` table in the tree.
+Jar evidence (26.2 server jar, `FuelValues` class): no class mentions
+`cooking_fuel`; `FuelValues.vanillaBurnTimes(lookup, flags, standard)`
+is a 64-entry table, base unit 200, ending with
+`remove(ItemTags.NON_FLAMMABLE_WOOD)`. 26.2's table is 1.21.7's 62
+entries plus `#minecraft:wooden_shelves` (300, after
+`#minecraft:wooden_pressure_plates`) and `minecraft:wooden_spear`
+(200, after `minecraft:wooden_sword`).
+
+The failure was mostly a detection gap, not a behaviour defect: the
+tree already implemented the full table — `burn_time()` in
+`crates/horizon-items/src/items.rs` had all 64 entries (match plus
+tag checks, non-flammable exclusion first) and the furnace tick, the
+menu fuel slot, the hopper check and the recipe book were all wired
+to it. What the tree genuinely got wrong was the smoker/blast
+halving: `Providers::burn_time` ignored its `fast` flag ("26.2 burn
+time is the same in every furnace"), while vanilla 26.2's
+`SmokerBlockEntity.getBurnDuration` and
+`BlastFurnaceBlockEntity.getBurnDuration` both return
+`super.getBurnDuration(...) / 2` (javap, 26.2 server jar) — so a
+smoker burned coal for 1600 ticks instead of 800.
+
+Changes, branch `fix/26.2-defect-suite`:
+- `crates/horizon-items/src/items.rs`: `burn_time()` is now driven
+  by a `FUEL_VALUES: [(&str, i32); 64]` const in vanilla's order
+  (`#`-prefixed entries are tags, later entry wins, exactly
+  vanilla's builder semantics) plus `FUEL_NON_FLAMMABLE_TAG`. Same
+  lookup results as before; the table is now auditable against the
+  jar instead of spread across a match and an if-chain.
+- `crates/horizon-client-render/src/providers.rs`:
+  `Providers::burn_time` halves the table value when `fast` is set
+  (smoker/blast furnace). This also halves the AnyFuel grouping
+  times in the recipe book for those stations, matching vanilla's
+  per-kind `getBurnDuration`.
+- Regression tests, named as the 1.21.7 ones:
+  `fuel_comes_from_the_vanilla_fuel_values_table` (items; pins the
+  64 entries including the spear and the shelves tag, and the
+  crimson-shelf non-flammable exclusion),
+  `vanilla_coal_burns_from_the_fuel_values_table` (furnace tick:
+  coal 1600 in a furnace, 800 in a smoker, smoker cooks in 100
+  ticks, stone never lights),
+  `furnace_fuel_slot_takes_table_fuel` (menu: coal/planks/shelf
+  accepted, stone refused, quick-move lands on the fuel slot).
+
+What remains: nothing for this check. The furnace fuel path is now
+fully table-driven; any future FuelValues change is a table edit.

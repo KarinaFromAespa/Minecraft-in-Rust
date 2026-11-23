@@ -729,95 +729,107 @@ pub fn compost_chance(item: &str) -> Option<f32> {
     })
 }
 
-/// `FuelValues.vanillaBurnTimes` (26.2): the hardcoded burn-time table,
-/// base unit 200. 26.2 has no `cooking_fuel` component and no fuel speed
-/// effect; smoker/blast-furnace speed comes from the recipes' own times.
-/// Items in `minecraft:non_flammable_wood` (crimson/warped wood) burn
-/// for nothing, whatever tag else they sit in. 0 when the item is not fuel.
+/// `FuelValues.vanillaBurnTimes` (26.2): the 64-entry hardcoded burn-time
+/// table, base unit 200, in vanilla's own order (26.2 server jar,
+/// `FuelValues.vanillaBurnTimes`). 26.2 has no `cooking_fuel` component,
+/// so this table is the only source of burn times. Two entries are new
+/// in 26.2 over 1.21.7: `#minecraft:wooden_shelves` (300) and
+/// `minecraft:wooden_spear` (200). A `#` prefix names a tag; a later
+/// entry wins over an earlier one, exactly as vanilla's builder puts
+/// them (no item sits in two entries with different times, so the order
+/// is only ever a tie-break). The table ends with
+/// `remove(ItemTags.NON_FLAMMABLE_WOOD)`: crimson/warped wood burns for
+/// nothing, whatever tag else it sits in.
+pub const FUEL_VALUES: [(&str, i32); 64] = [
+    ("minecraft:lava_bucket", 20000),
+    ("minecraft:coal_block", 16000),
+    ("minecraft:blaze_rod", 2400),
+    ("minecraft:coal", 1600),
+    ("minecraft:charcoal", 1600),
+    ("#minecraft:logs", 300),
+    ("#minecraft:bamboo_blocks", 300),
+    ("#minecraft:planks", 300),
+    ("minecraft:bamboo_mosaic", 300),
+    ("#minecraft:wooden_stairs", 300),
+    ("minecraft:bamboo_mosaic_stairs", 300),
+    ("#minecraft:wooden_slabs", 150),
+    ("minecraft:bamboo_mosaic_slab", 150),
+    ("#minecraft:wooden_trapdoors", 300),
+    ("#minecraft:wooden_pressure_plates", 300),
+    ("#minecraft:wooden_shelves", 300),
+    ("#minecraft:wooden_fences", 300),
+    ("#minecraft:fence_gates", 300),
+    ("minecraft:note_block", 300),
+    ("minecraft:bookshelf", 300),
+    ("minecraft:chiseled_bookshelf", 300),
+    ("minecraft:lectern", 300),
+    ("minecraft:jukebox", 300),
+    ("minecraft:chest", 300),
+    ("minecraft:trapped_chest", 300),
+    ("minecraft:crafting_table", 300),
+    ("minecraft:daylight_detector", 300),
+    ("#minecraft:banners", 300),
+    ("minecraft:bow", 300),
+    ("minecraft:fishing_rod", 300),
+    ("minecraft:ladder", 300),
+    ("#minecraft:signs", 200),
+    ("#minecraft:hanging_signs", 800),
+    ("minecraft:wooden_shovel", 200),
+    ("minecraft:wooden_sword", 200),
+    ("minecraft:wooden_spear", 200),
+    ("minecraft:wooden_hoe", 200),
+    ("minecraft:wooden_axe", 200),
+    ("minecraft:wooden_pickaxe", 200),
+    ("#minecraft:wooden_doors", 200),
+    ("#minecraft:boats", 1200),
+    ("#minecraft:wool", 100),
+    ("#minecraft:wooden_buttons", 100),
+    ("minecraft:stick", 100),
+    ("#minecraft:saplings", 100),
+    ("minecraft:bowl", 100),
+    ("#minecraft:wool_carpets", 67),
+    ("minecraft:dried_kelp_block", 4001),
+    ("minecraft:crossbow", 300),
+    ("minecraft:bamboo", 50),
+    ("minecraft:dead_bush", 100),
+    ("minecraft:short_dry_grass", 100),
+    ("minecraft:tall_dry_grass", 100),
+    ("minecraft:scaffolding", 50),
+    ("minecraft:loom", 300),
+    ("minecraft:barrel", 300),
+    ("minecraft:cartography_table", 300),
+    ("minecraft:fletching_table", 300),
+    ("minecraft:smithing_table", 300),
+    ("minecraft:composter", 300),
+    ("minecraft:azalea", 100),
+    ("minecraft:flowering_azalea", 100),
+    ("minecraft:mangrove_roots", 300),
+    ("minecraft:leaf_litter", 100),
+];
+
+/// The tag `FuelValues.vanillaBurnTimes` removes after building the
+/// table: crimson/warped wood is not fuel.
+pub const FUEL_NON_FLAMMABLE_TAG: &str = "minecraft:non_flammable_wood";
+
+/// `FuelValues.burnDuration`: the table value for one item, 0 when it is
+/// not fuel. This is the raw duration; a smoker or blast furnace halves
+/// it (`Providers::burn_time`), and cooking speed comes from the
+/// recipes' own times, not from the fuel.
 pub fn burn_time(items: &Items, item: &str) -> i32 {
-    if items.item_in_tag("minecraft:non_flammable_wood", item) {
+    if items.item_in_tag(FUEL_NON_FLAMMABLE_TAG, item) {
         return 0;
     }
-    match item {
-        "minecraft:lava_bucket" => return 20000,
-        "minecraft:coal_block" => return 16000,
-        "minecraft:blaze_rod" => return 2400,
-        "minecraft:coal" | "minecraft:charcoal" => return 1600,
-        "minecraft:dried_kelp_block" => return 4001,
-        "minecraft:bamboo" | "minecraft:scaffolding" => return 50,
-        "minecraft:stick"
-        | "minecraft:bowl"
-        | "minecraft:dead_bush"
-        | "minecraft:short_dry_grass"
-        | "minecraft:tall_dry_grass"
-        | "minecraft:azalea"
-        | "minecraft:flowering_azalea"
-        | "minecraft:leaf_litter" => return 100,
-        "minecraft:wooden_shovel"
-        | "minecraft:wooden_sword"
-        | "minecraft:wooden_spear"
-        | "minecraft:wooden_hoe"
-        | "minecraft:wooden_axe"
-        | "minecraft:wooden_pickaxe" => return 200,
-        "minecraft:bamboo_mosaic"
-        | "minecraft:bamboo_mosaic_stairs"
-        | "minecraft:note_block"
-        | "minecraft:bookshelf"
-        | "minecraft:chiseled_bookshelf"
-        | "minecraft:lectern"
-        | "minecraft:jukebox"
-        | "minecraft:chest"
-        | "minecraft:trapped_chest"
-        | "minecraft:crafting_table"
-        | "minecraft:daylight_detector"
-        | "minecraft:bow"
-        | "minecraft:fishing_rod"
-        | "minecraft:ladder"
-        | "minecraft:crossbow"
-        | "minecraft:loom"
-        | "minecraft:barrel"
-        | "minecraft:cartography_table"
-        | "minecraft:fletching_table"
-        | "minecraft:smithing_table"
-        | "minecraft:composter"
-        | "minecraft:mangrove_roots" => return 300,
-        "minecraft:bamboo_mosaic_slab" => return 150,
-        _ => {}
+    let mut time = 0;
+    for (key, ticks) in FUEL_VALUES {
+        let hit = match key.strip_prefix('#') {
+            Some(tag) => items.item_in_tag(tag, item),
+            None => key == item,
+        };
+        if hit {
+            time = ticks;
+        }
     }
-    // No item sits in two of these tags with different times, so the
-    // order below does not matter; it follows the table's own order.
-    if items.item_in_tag("minecraft:boats", item) {
-        1200
-    } else if items.item_in_tag("minecraft:hanging_signs", item) {
-        800
-    } else if items.item_in_tag("minecraft:logs", item)
-        || items.item_in_tag("minecraft:bamboo_blocks", item)
-        || items.item_in_tag("minecraft:planks", item)
-        || items.item_in_tag("minecraft:wooden_stairs", item)
-        || items.item_in_tag("minecraft:wooden_trapdoors", item)
-        || items.item_in_tag("minecraft:wooden_pressure_plates", item)
-        || items.item_in_tag("minecraft:wooden_shelves", item)
-        || items.item_in_tag("minecraft:wooden_fences", item)
-        || items.item_in_tag("minecraft:fence_gates", item)
-        || items.item_in_tag("minecraft:banners", item)
-    {
-        300
-    } else if items.item_in_tag("minecraft:signs", item)
-        || items.item_in_tag("minecraft:wooden_doors", item)
-    {
-        200
-    } else if items.item_in_tag("minecraft:wooden_slabs", item) {
-        150
-    } else if items.item_in_tag("minecraft:wool", item)
-        || items.item_in_tag("minecraft:wooden_buttons", item)
-        || items.item_in_tag("minecraft:saplings", item)
-    {
-        100
-    } else if items.item_in_tag("minecraft:wool_carpets", item) {
-        67
-    } else {
-        0
-    }
+    time
 }
 
 impl Items {
@@ -4091,6 +4103,42 @@ mod fuel_and_compost_tests {
         // Crimson and warped wood never burn, whatever tag they sit in.
         assert_eq!(burn_time(&items, "minecraft:crimson_stem"), 0);
         assert_eq!(burn_time(&items, "minecraft:warped_planks"), 0);
+        assert_eq!(burn_time(&items, "minecraft:stone"), 0);
+    }
+
+    /// The burn time comes from `FUEL_VALUES`, vanilla 26.2's
+    /// `FuelValues.vanillaBurnTimes` table (26.2 server jar) — including
+    /// the two entries 26.2 adds over 1.21.7: the wooden spear (200) and
+    /// the `#minecraft:wooden_shelves` tag (300). A crimson shelf sits
+    /// in both the shelves tag and `non_flammable_wood` and still burns
+    /// for nothing: the table removes that tag last.
+    #[test]
+    fn fuel_comes_from_the_vanilla_fuel_values_table() {
+        assert_eq!(FUEL_VALUES.len(), 64);
+        let tags: HashMap<String, HashSet<String>> = [
+            (
+                "minecraft:wooden_shelves",
+                &["minecraft:oak_shelf", "minecraft:crimson_shelf"][..],
+            ),
+            (
+                "minecraft:non_flammable_wood",
+                &["minecraft:crimson_shelf"][..],
+            ),
+            ("minecraft:planks", &["minecraft:oak_planks"][..]),
+            ("minecraft:signs", &["minecraft:oak_sign"][..]),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_owned(), v.iter().map(|s| s.to_string()).collect()))
+        .collect();
+        let items = Items::for_tests(tags);
+        assert_eq!(burn_time(&items, "minecraft:lava_bucket"), 20000);
+        assert_eq!(burn_time(&items, "minecraft:coal"), 1600);
+        assert_eq!(burn_time(&items, "minecraft:dried_kelp_block"), 4001);
+        assert_eq!(burn_time(&items, "minecraft:wooden_spear"), 200);
+        assert_eq!(burn_time(&items, "minecraft:oak_shelf"), 300);
+        assert_eq!(burn_time(&items, "minecraft:crimson_shelf"), 0);
+        assert_eq!(burn_time(&items, "minecraft:oak_planks"), 300);
+        assert_eq!(burn_time(&items, "minecraft:oak_sign"), 200);
         assert_eq!(burn_time(&items, "minecraft:stone"), 0);
     }
 
