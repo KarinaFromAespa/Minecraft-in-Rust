@@ -1472,3 +1472,29 @@ exact-predicate NBT drops the whole directional_particles entry
 string-id NBT hashes version-independently). Both tests pass
 locally (`cargo test -p horizon-protocol --lib
 item::hash::raw::tests`: 5 passed).
+
+Batch 77 (Nov 24, 116/214 — B1 #9, 2 ported, 4 no-change; B1
+COMPLETE 56/56): 600 PORTED — screen narration: 26.1's and 26.2's
+`Screen.updateNarratorStatus` both take only a boolean (identical
+method lists in both jars) — the `NarrationTrigger` threading is
+26.3-only. Carried the 26.2 tree's screen_narrator.rs and
+horizon-narrator screen.rs whole (doc "In 26.2" → "In 26.1");
+game/narrator.rs surgical (Trigger dropped, the batch-73 ShareToLan
+line kept). The `ContainerObjectSelectionList` diff itself is only
+an instanceof-check → null-check reshuffle of the hovered/focused
+entry narration, same behaviour for well-formed lists. 602 PORTED
+— `ARGUMENT_TYPES` was still the 26.3 list: `minecraft:team_color`
+→ `minecraft:color` (26.1's ArgumentTypeInfos registers
+ColorArgument; 26.2 renamed it), and the five 26.3-only entries
+removed (context_float_provider, context_int_provider, slot_source,
+feature, swing_animation — absent from both jars' bootstrap). The
+name→ArgType mapping already handled both names (network.rs:214);
+the list fix also unblocks the probe fixture, which emits
+"minecraft:color" through the position lookup. No-change: 593
+Containers renames (the furnace.rs diff is the earlier 26.1 fuel
+work); 595 TickThrottler — 26.2 returns true when threshold ≤ 0,
+unreachable in 26.1 where the throttler is always (20, 200); 596
+PhantomSpawner renames; 597 RamTarget — the 6-arg knockback takes
+the mobAttack source + the attack-damage float, but the
+strength/x/z computation and the physics are identical, same
+reasoning as 572.

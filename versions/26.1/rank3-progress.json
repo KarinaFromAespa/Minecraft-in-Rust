@@ -301,6 +301,36 @@
    "evidence": "OceanMonumentPiece EntityType->EntityTypes only; monument.rs 0-diff."
   },
   {
+   "id": 593,
+   "verdict": "no-change",
+   "evidence": "Containers EntityType->EntityTypes only; the furnace.rs diff is the earlier 26.1 fuel work."
+  },
+  {
+   "id": 595,
+   "verdict": "no-change",
+   "evidence": "TickThrottler: 26.2 made isUnderThreshold true when threshold<=0; 26.1 always constructs (20,200), so the guard is unreachable. Rust already has the 26.1 form."
+  },
+  {
+   "id": 596,
+   "verdict": "no-change",
+   "evidence": "PhantomSpawner EntityType->EntityTypes only; stats.rs 0-diff."
+  },
+  {
+   "id": 597,
+   "verdict": "no-change",
+   "evidence": "RamTarget knockback API rework (3-arg -> 6-arg with mobAttack source + attack-damage float); strength/x/z computation identical, physics identical \u2014 same reasoning as 572."
+  },
+  {
+   "id": 600,
+   "verdict": "ported",
+   "evidence": "Screen narration: 26.1/26.2 have no NarrationTrigger (updateNarratorStatus(boolean) in both jars); carried the 26.2 tree screen_narrator.rs + horizon-narrator screen.rs, game/narrator.rs surgical (ShareToLan kept)."
+  },
+  {
+   "id": 602,
+   "verdict": "ported",
+   "evidence": "ARGUMENT_TYPES: minecraft:team_color -> minecraft:color (26.1 registers ColorArgument) + removed the five 26.3-only entries (context_float/int_provider, slot_source, feature, swing_animation)."
+  },
+  {
    "id": 608,
    "verdict": "no-change",
    "evidence": "Batch 63 NO-CHANGE (SpriteContents animated textures): createAnimationState/drawToAtlas differ only in GPU upload plumbing (per-frame texture creation in 26.1; RenderPass.draw arity change in 26.2) \u2014 the frame timing/selection logic is untouched, and the Rust animate.rs is 0-diff vs the 26.2 tree with its own wgpu upload path."

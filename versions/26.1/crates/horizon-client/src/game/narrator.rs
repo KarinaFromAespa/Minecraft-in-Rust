@@ -11,7 +11,7 @@ use horizon_client::{
     text::Text,
     toasts::SystemToast,
 };
-use horizon_narrator::{Status, screen::Trigger};
+use horizon_narrator::Status;
 use winit::event::{ElementState, KeyEvent, MouseButton, WindowEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
@@ -229,15 +229,15 @@ impl Game<'_> {
         // OptionInstance.set runs the option's onValueUpdate.
         self.narrator_status_changed();
         self.settings.save(&Self::options_path());
-        self.on_narrator_status_changed(was_disabled, Trigger::Keyboard);
+        self.on_narrator_status_changed(was_disabled);
     }
-    /// Where vanilla calls `screen.updateNarratorStatus(wasDisabled, trigger)`
+    /// Where vanilla calls `screen.updateNarratorStatus(wasDisabled)`
     /// on the open screen, if any: a screen's narration is scheduled 2 s
     /// after the narrator came on (`NARRATE_DELAY_NARRATOR_ENABLED`) and its
     /// narrator button shows the new value. Horizon's narrator buttons read
     /// the option each frame.
-    pub(super) fn on_narrator_status_changed(&mut self, was_disabled: bool, trigger: Trigger) {
-        self.narration.status_changed(was_disabled, trigger);
+    pub(super) fn on_narrator_status_changed(&mut self, was_disabled: bool) {
+        self.narration.status_changed(was_disabled);
     }
     /// The open screen's narration, once a turn after the frame's widgets
     /// were read: `handleDelayedNarration` and a new screen's narration.

@@ -731,9 +731,7 @@ impl Loading {
         let was_disabled = super::narrator::cycle_status(&mut self.settings);
         super::narrator::update_status(self.settings.narrator(), &mut self.menu.narrator_toast);
         self.save_menu_settings();
-        self.menu
-            .narration
-            .status_changed(was_disabled, horizon_narrator::screen::Trigger::Keyboard);
+        self.menu.narration.status_changed(was_disabled);
     }
 
     fn menu_options_click(&mut self, drag: bool, right: bool) {
