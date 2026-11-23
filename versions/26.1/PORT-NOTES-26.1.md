@@ -533,3 +533,13 @@ in 26.1); 26.1 zeroes the blocked horizontal components inline and calls
 `bounceUp`: `-y * 0.8` for non-living). The Rust's
 `entities.rs::vertical_collision_velocity` ports the 26.2 formula and
 needs re-porting when item 94 runs.
+
+CI fix (Nov 23, run 45190837928): batch 16's `component_bool` port
+(byte form) broke `item_render::tests::stack_glint_override...`, which
+encoded 26.2's doubleValue expectations (Short 256, Long 1<<40, Float
+0.5, Double 0.5, Float NaN all true). Re-verified against the DFU 9.0.19
+jar: `DynamicOps.getBooleanValue` defaults to `Number.byteValue() != 0`
+and 26.1's NbtOps does not override it, so the port stands and the test
+now expects the byte form (those five false; Infinity still true via
+saturation to i32::MAX). The 26.1 tree's entity_nbt.rs already expected
+Short(256) -> false.
