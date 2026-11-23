@@ -13000,8 +13000,6 @@ mod golem_defense_tests;
 #[cfg(test)]
 mod hoglin_repeat_attack_tests;
 #[cfg(test)]
-mod inline_feature_parse_tests;
-#[cfg(test)]
 mod inline_loot_reference_tests;
 #[cfg(test)]
 mod interaction_data_tests;

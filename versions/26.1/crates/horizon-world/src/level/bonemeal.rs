@@ -106,20 +106,6 @@ fn next_int_between<R: RandomSource>(random: &mut R, min: i32, max: i32) -> i32 
 }
 
 impl Behaviours {
-    /// `/place feature` with an inline feature value (`json`): decoded by the
-    /// feature codec, then placed as `place_feature` places a named one.
-    /// `None` when the value does not decode or features are unavailable.
-    pub fn place_inline_feature<L: LevelAccess + ?Sized>(
-        &self,
-        level: &mut L,
-        ticks: &mut Ticks,
-        json: &str,
-        pos: BlockPos,
-    ) -> Option<bool> {
-        let feature = self.live_features()?.configured_inline(json)?;
-        Some(self.sim(level, ticks).place_inline_feature(&feature, pos))
-    }
-
     /// `/place feature`: `ConfiguredFeature.place` at `pos` with the level
     /// random. `None` when the feature is unknown or cannot run.
     pub fn place_feature<L: LevelAccess + ?Sized>(

@@ -292,27 +292,6 @@ impl LiveFeatures {
         };
         self.place_definition(&feature, name, world, random, origin)
     }
-    /// An inline feature value (`ResourceOrHolderArgument`), decoded by the
-    /// same codec as a named feature; it is not cached. `None` when it does
-    /// not decode.
-    pub fn configured_inline(&self, json: &str) -> Option<FeatureDefinition> {
-        match self.decode_inline(json) {
-            Ok(feature) => Some(feature),
-            Err(e) => {
-                eprintln!("Horizon: inline feature cannot be placed: {e}");
-                None
-            }
-        }
-    }
-    /// The `ConfiguredFeature` codec on an inline value, over the same
-    /// catalog and block bindings as [`Self::configured_inline`]: nothing is
-    /// placed, logged or cached.
-    pub fn decode_inline(
-        &self,
-        json: &str,
-    ) -> Result<FeatureDefinition, crate::worldgen::DecodeError> {
-        self.catalog.feature_with_blocks(json, &self.bindings)
-    }
     /// `Feature.place` for a decoded feature; `label` names it in errors.
     /// Execution errors report failure.
     pub fn place_definition<W: FeatureWorld + PlacementContext>(

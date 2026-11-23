@@ -137,8 +137,6 @@ pub enum ArgType {
     Slots,
     /// SlotArgument: one slot (`container.5`, `weapon.mainhand`).
     Slot,
-    /// SlotSourceArgument: a slot range name, or a slot source id or inline value.
-    SlotSource,
     /// ResourceOrIdArgument over a registry: an id or an inline SNBT value.
     ResourceOrId(&'static str),
     /// ResourceSelectorArgument: a `*`/`?` pattern over a registry's ids.
@@ -246,6 +244,41 @@ pub fn slot_names() -> Vec<String> {
         .filter(|(_, n)| *n == 1)
         .map(|(s, _)| s)
         .collect()
+}
+/// The slot id a single-slot name addresses (26.1 SlotRanges: the int
+/// `SlotArgument.getSlot` returns, and the one `/item`'s errors report).
+/// Wildcard groups have no single id.
+pub fn slot_id(name: &str) -> Option<i32> {
+    match name {
+        "contents" => return Some(0),
+        "weapon" | "weapon.mainhand" => return Some(98),
+        "weapon.offhand" => return Some(99),
+        "armor.head" => return Some(100),
+        "armor.chest" => return Some(101),
+        "armor.legs" => return Some(102),
+        "armor.feet" => return Some(103),
+        "armor.body" => return Some(105),
+        "saddle" => return Some(106),
+        "horse.chest" | "player.cursor" => return Some(499),
+        _ => {}
+    }
+    for (prefix, base, n) in [
+        ("container.", 0, 54),
+        ("hotbar.", 0, 9),
+        ("inventory.", 9, 27),
+        ("enderchest.", 200, 27),
+        ("mob.inventory.", 300, 8),
+        ("horse.", 500, 15),
+        ("player.crafting.", 500, 4),
+    ] {
+        if let Some(rest) = name.strip_prefix(prefix)
+            && let Ok(i) = rest.parse::<i32>()
+            && (0..n).contains(&i)
+        {
+            return Some(base + i);
+        }
+    }
+    None
 }
 pub fn integer(min: i32) -> ArgType {
     ArgType::Integer { min, max: i32::MAX }
@@ -1650,20 +1683,6 @@ impl ArgType {
                 }
                 Arg::Str(word.to_owned())
             }
-            ArgType::SlotSource => {
-                // SlotSourceArgument: a slot range name, else a slot source id or inline value.
-                while reader.can_read() && reader.peek() != ' ' {
-                    reader.skip();
-                }
-                let word = &reader.string[start..reader.cursor];
-                if slot_ranges().iter().any(|(n, _)| n == word) {
-                    Arg::Str(word.to_owned())
-                } else {
-                    reader.cursor = start;
-                    super::codec::resource_or_id(reader, reg, "minecraft:slot_source")?;
-                    Arg::Str(reader.string[start..reader.cursor].to_owned())
-                }
-            }
             ArgType::ResourceOrId(registry) => {
                 super::codec::resource_or_id(reader, reg, registry)?;
                 Arg::Resource(reader.string[start..reader.cursor].to_owned())
@@ -1852,13 +1871,6 @@ impl ArgType {
                     slot_names()
                 };
                 builder.suggest_matching(names.iter().map(String::as_str));
-            }
-            ArgType::SlotSource => {
-                let mut sub = builder.offset(builder.start);
-                let names: Vec<String> = slot_ranges().into_iter().map(|(n, _)| n).collect();
-                sub.suggest_matching(names.iter().map(String::as_str));
-                builder.add(sub);
-                suggest_resources(builder, reg.ids("minecraft:slot_source"), "");
             }
             ArgType::ResourceOrId(registry) => suggest_resources(builder, reg.ids(registry), ""),
             ArgType::TeamColor => {

@@ -575,7 +575,7 @@ fn execute_tree_covers_vanilla_forms() {
         "execute if predicate a:b",
         "execute if function a:b run say hi",
         "execute if items entity @s hotbar.* minecraft:stone",
-        "execute if slots block 0 0 0 container.*",
+        "execute if items block 0 0 0 container.* minecraft:stone",
         "execute positioned over world_surface run say hi",
         "execute summon minecraft:pig run say hi",
         "execute on vehicle run say hi",
@@ -587,6 +587,8 @@ fn execute_tree_covers_vanilla_forms() {
     assert!(run("execute positioned over nothing run say hi").is_err());
     assert!(run("execute on nobody run say hi").is_err());
     assert!(run("execute store result score @s").is_err());
+    // 26.1 has no `if slots` condition.
+    assert!(run("execute if slots block 0 0 0 container.*").is_err());
 }
 
 #[test]

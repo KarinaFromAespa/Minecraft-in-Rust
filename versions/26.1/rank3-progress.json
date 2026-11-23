@@ -13,6 +13,11 @@
    "evidence": "Realms port (26.2 items 418+421). Verified against 26.1's own jar: the invite-code service is absent (no InviteCode classes, no frontendV2Url in RealmsClient$Environment), the tier configuration is absent (no RealmTierConfigurationDto), the 4 extra regions are 26.3-only (26.2 PORT-NOTES 418), AddRealmPopupScreen + trial handling exist in both jars, the realmsclient class sets are identical (203 each). Carried the 26.2 tree's realms/client.rs, realms.rs and title.rs (PDP removal). One place 26.1 differs from 26.2: Request has only addSnapshotHeader (Is-Prerelease) in 26.1; 26.2's addVersionHeaders added X-NetworkProtocolVersion \u2014 the 26.1 headers() sends only Is-Prerelease, and the test asserts the protocol header absent. Also fixed the cookie test's version literal to 26.1 (the 26.2 tree's '26.3' literal is its known pre-existing failure). RealmsText/ErrorWithJsonPayload differ only by I18n.exists vs Language.has (same check). NOTE: the triage's cl.identical list for this item is unreliable \u2014 RealmsClient/Request differ structurally (the header call); verified directly instead."
   },
   {
+   "id": 508,
+   "verdict": "ported",
+   "evidence": "/item + if-slots carried the 26.3 slot-source forms; ItemCommands 0-diff (SlotArgument, one slot); ExecuteCommand has only if items; SlotSourceArgument in neither jar; carried the 26.2 items.rs + trees, removed ArgType::SlotSource and the slot-source machinery, carried args::slot_id"
+  },
+  {
    "id": 509,
    "title": "crates/horizon-client-render/src/post_chain.rs: 15 vanilla classes changed (105 methods, 6 named in Horizon)",
    "verdict": "ported",
@@ -35,6 +40,11 @@
    "title": "crates/horizon-client/src/game/commands/test_runs.rs: 3 vanilla classes changed (40 methods, 8 named in Horizon)",
    "verdict": "ported",
    "evidence": "No dimension on any test-instance class in either jar (GameTestInstance has only rotation(); TestEnvironmentDefinition identical); the dimension-on-test is 26.3-only. Carried the 26.2 tree's test_runs.rs (tests run in the level in place; heightmap read directly). StructureUtils/TestCommand differ only by branch forms + BlockEntityType->BlockEntityTypes. (26.2 added GameTestEntityBuilder/GameTestMobBuilder/SetDifficulty helpers \u2014 not modelled by the Rust.)"
+  },
+  {
+   "id": 513,
+   "verdict": "no-change",
+   "evidence": "Fortress pieces 0-diff apart from EntityType->EntityTypes renames (Structure + MonsterThrone); fortress.rs 0-diff"
   },
   {
    "id": 514,
@@ -74,6 +84,11 @@
    "id": 520,
    "verdict": "ported",
    "evidence": "Batch 72 PORTED (PlayerSpawnFinder): 26.1's findSpawn returns the fixup height at once in a dimension WITHOUT skylight (dimensionType.hasSkyLight gate before the Adventure check); 26.2 dropped the gate and searches the respawn radius in every dimension. spawn_finder now takes the suggestion-only path when game_mode == 2 OR !world.shape.sky_light. getOverworldRespawnPos -> getLevelRespawnPos rename and getBottomCenter -> Vec3.atBottomCenterOf are form-only (the Rust already names it level_respawn_pos)."
+  },
+  {
+   "id": 521,
+   "verdict": "no-change",
+   "evidence": "GuiRenderer 832-line diff is the render-submission rework (StagedVertexBuffer); pack_text.rs 0-diff"
   },
   {
    "id": 522,
@@ -139,10 +154,20 @@
    "evidence": "EffectCommands jar diff is only the isInstantenous->isInstantaneous typo fix + a checkcast reorder, but both jars' giveEffect branch single/multiple on Collection.size()==1 (the TARGET count) with no tracker \u2014 the tree's 26.3 CommandResponseTracker form was wrong for 26.1. Carried the 26.2 tree's effects.rs whole (give/clear/enchant all branch on target count, count successes)."
   },
   {
+   "id": 534,
+   "verdict": "no-change",
+   "evidence": "RenderSection 300-line diff is the section-compile refactor (RebuildTask->CompileTask); native_material.rs 0-diff"
+  },
+  {
    "id": 535,
    "title": "crates/horizon-client/src/multiplayer.rs: 8 vanilla classes changed (20 methods, 2 named in Horizon)",
    "verdict": "no-change",
    "evidence": "JoinMultiplayerScreen: the Minecraft.setScreen -> Gui.setScreen move (7 sites) + one reorder; LoadingDotsWidget: getY()+getHeight() -> getBottom(); DirectJoin/ManageServer: 10 diff lines each, form only. Menu chrome; multiplayer.rs 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 536,
+   "verdict": "ported",
+   "evidence": "/place feature took inline SNBT values; PlaceCommand takes a Holder$Reference (registry key only); success.inline in neither en_us; removed the inline branch, tree arg now ResKey, whole inline-feature machinery removed"
   },
   {
    "id": 537,
@@ -166,6 +191,11 @@
    "title": "crates/horizon-client/src/game/transient_blocks.rs: 4 vanilla classes changed (28 methods, 1 named in Horizon)",
    "verdict": "ported",
    "evidence": "SectionOcclusionGraph was rewritten in 26.2 (878 diff lines: AtomicReference graph events -> LongOpenHashSet emptySections/loadedChunks + prevCam) \u2014 render internals the Rust does not model. The Rust port is docs/attrs only: neither jar has an add-transient-block packet or a ClientPacketListener handler for it, so the 26.1 tree's transient_blocks feeder is dead like the 26.2 tree's \u2014 carried the 26.2 tree's dead-feeder comments + #[allow(dead_code)] (const, queue, add_transient_block). Drain/render path stays wired in both trees."
+  },
+  {
+   "id": 541,
+   "verdict": "no-change",
+   "evidence": "FillLayerFeature + SpikeFeature 0-diff; RandomizableContainerBlockEntity is the getCenter->atCenterOf rename"
   },
   {
    "id": 542,
@@ -197,10 +227,30 @@
    "evidence": "GhastMoveControl: only the ghast->mob field rename. HappyGhastLookControl: 26.1's local wrapDegrees90 (mod 90, clamp to +-45) moved to Mth.wrapDegrees90 in 26.2 \u2014 same math. happy_ghast.rs 0-diff."
   },
   {
+   "id": 547,
+   "verdict": "no-change",
+   "evidence": "IglooPieces + ShipwreckPieces 0-diff; IglooPiece is a branch-offset/local-store reshuffle"
+  },
+  {
+   "id": 548,
+   "verdict": "no-change",
+   "evidence": "DataCommands 15 lines: branch inversion + local renumbering, same logic; command_storage.rs 0-diff"
+  },
+  {
    "id": 549,
    "title": "crates/horizon-client/src/game/golems.rs: 1 vanilla classes changed (5 methods, 2 named in Horizon)",
    "verdict": "no-change",
    "evidence": "CarvedPumpkinBlock: EntityType->EntityTypes, CriteriaTriggers criterion->triggers, Blocks.COPPER_BLOCK read via the WeatheringCopperCollection in 26.2. trySpawnGolem bodies structurally identical (getWeatherStateFromPattern + CopperGolem.spawn); the Rust's tag-based base check + weather-from-name matches both. golems.rs 0-diff."
+  },
+  {
+   "id": 550,
+   "verdict": "no-change",
+   "evidence": "AbstractTextAreaWidget + MultiLineEditBox + MultilineTextField all 0-diff; multiline_edit.rs 0-diff"
+  },
+  {
+   "id": 551,
+   "verdict": "no-change",
+   "evidence": "NbtContents + TitleCommand both 0-diff; text_commands.rs 0-diff"
   },
   {
    "id": 552,

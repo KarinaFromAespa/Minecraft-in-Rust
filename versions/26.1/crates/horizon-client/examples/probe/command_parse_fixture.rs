@@ -92,7 +92,6 @@ fn parser_id(ty: &ArgType) -> String {
         ArgType::Function => "minecraft:function".into(),
         ArgType::Slots => "minecraft:slots".into(),
         ArgType::Slot => "minecraft:item_slot".into(),
-        ArgType::SlotSource => "minecraft:slot_source".into(),
         ArgType::ResourceOrId(r) => match *r {
             "minecraft:loot_table" => "minecraft:loot_table".into(),
             "minecraft:item_modifier" => "minecraft:loot_modifier".into(),

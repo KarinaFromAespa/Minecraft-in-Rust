@@ -1680,3 +1680,49 @@ BlockEntityTypes rename. 716 ServerPlaceRecipe 0-diff; 719
 RealmsUploadTooLargeException differs only by a field
 access modifier. Doc-only changes; no separate CI dispatch
 (covered by the next code batch's run).
+
+Batch 85 (Nov 24, 193/214 — B2 #1, 2 ported, 8 no-change):
+508 PORTED — /item + execute-if-slots carried the 26.3 slot-source
+forms. ItemCommands is 0-diff and uses SlotArgument.slot() (one
+slot); ExecuteCommand has only `if items` (the "slots" strings
+are the SlotsArgument's argument name, not a condition kind);
+SlotSourceArgument exists in NEITHER jar; SlotRanges/SlotRange
+are 0-diff. Carried the 26.2 tree's items.rs wholesale (single
+slot, no fill/override, no slot sources; 7 doc refs 26.2→26.1),
+deleted contents.rs + its 196 lines of slot-source tests,
+carried the /item tree (single slot, single-entity copy source)
+and the items-only execute tree, removed ArgType::SlotSource
+(variant, parse + suggest arms, network mapping, probe fixture
+mapping), removed `if slots` from execute.rs (numeric list +
+dispatch) with a negative parse test, and carried the missing
+args::slot_id helper (SlotRanges is 0-diff, so the ids match).
+The slot-source datapack store loading (datapack.rs) and the
+registry-id feeds (functions.rs) stay — data plumbing, not
+command behaviour. 536 PORTED — /place feature took inline
+SNBT values: PlaceCommand.placeFeature takes a Holder$Reference
+(registry key only) and neither jar's en_us has
+success.inline. Removed the inline branch from place.rs, the
+/place tree arg is now ResKey(configured_feature), and the
+whole inline-feature machinery is gone: bonemeal/growth
+place_inline_feature, live.rs configured_inline/decode_inline,
+chat.rs InlineFeatureCheck setup, registries.rs InlineFeatureCheck,
+codec.rs's worldgen/feature arm + check_feature + dfu_feature_error,
+inline_feature_parse_tests.rs + its game.rs mod decl, the
+place_feature_tests inline test, and the two tools/ harness
+scripts. 513 no-change — fortress pieces 0-diff apart from
+EntityType→EntityTypes renames (Structure + MonsterThrone).
+521 no-change — GuiRenderer's 832-line diff is the render-
+submission rework (StagedVertexBuffer, CLEAR_COLOR Vector4fc);
+pack_text.rs 0-diff. 534 no-change — RenderSection's 300-line
+diff is the section-compile refactor (RebuildTask→CompileTask);
+native_material.rs 0-diff. 541 no-change — FillLayer/Spike
+0-diff; RandomizableContainerBlockEntity is the getCenter→
+atCenterOf rename (the generator_decoration.rs diff is the
+26.2 tree's brushable_loot_table_nbt helper, out of scope).
+547 no-change — Igloo/Shipwreck 0-diff; IglooPiece is a
+branch-offset/local-store reshuffle. 548 no-change —
+DataCommands is a branch inversion + local renumbering.
+550/551 no-change — all five classes 0-diff. FLAG: the 26.1
+tree's /swing still carries the 26.3 animation+duration
+arguments (tree_world.rs) — the 26.2 tree ends /swing at the
+hand; no B2 item covers /swing, so it is left for its own item.
