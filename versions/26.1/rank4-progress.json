@@ -99,6 +99,56 @@
    "id": 739,
    "verdict": "no-change",
    "evidence": "4 block classes, 3 in the 26.2 jar; DirtPathBlock/RedStoneWireBlock shared; WeatheringCopperBlocks modelled in block_transform.rs (rank 1 copper work)"
+  },
+  {
+   "id": 740,
+   "verdict": "no-change",
+   "evidence": "4 structure-piece classes, all in the 26.2 jar; shared structure machinery modelled in rank 2"
+  },
+  {
+   "id": 741,
+   "verdict": "no-change",
+   "evidence": "4 structure-placement classes, all in the 26.2 jar; shared structure machinery modelled in rank 2"
+  },
+  {
+   "id": 742,
+   "verdict": "no-change",
+   "evidence": "3 particle classes, all in the 26.2 jar; shared particle machinery"
+  },
+  {
+   "id": 743,
+   "verdict": "no-change",
+   "evidence": "3 block-entity renderer classes, none in the 26.2 jar (26.2 refactored to special renderers); sign/bed rendering exists in signs.rs + block_entity_render.rs + item_render/special.rs"
+  },
+  {
+   "id": 744,
+   "verdict": "no-change",
+   "evidence": "3 chunk-compile classes, none in the 26.2 jar (the section-compile refactor, item 534); the Rust has its own chunk mesher/streaming"
+  },
+  {
+   "id": 745,
+   "verdict": "no-change",
+   "evidence": "3 sound-resource classes, all in the 26.2 jar; shared sound machinery"
+  },
+  {
+   "id": 746,
+   "verdict": "no-change",
+   "evidence": "3 preprocessor classes, all in the 26.2 jar; GlslPreprocessor cited in core_shader.rs + post_glsl.rs docs (include inlining)"
+  },
+  {
+   "id": 747,
+   "verdict": "no-change",
+   "evidence": "3 alchemy classes, all in the 26.2 jar; brewing ported in batch 55"
+  },
+  {
+   "id": 748,
+   "verdict": "no-change",
+   "evidence": "3 biome classes, all in the 26.2 jar; shared biome machinery"
+  },
+  {
+   "id": 749,
+   "verdict": "no-change",
+   "evidence": "3 block-entity classes, 2 in the 26.2 jar (FuelValues + Builder, batch 55); BedBlockEntity is 26.1-only (26.2 removed the class) and neither tree models it \u2014 it holds only banner patterns for patterned beds; bed colour is a block-state property in the Rust"
   }
  ],
  "triage": "Rank 4/5: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 4 = 74 D items, 333 classes from the 26.3->26.1 report; rank 5 = 2 D items). Class lists in ~/workspace/mcir-work/26.1/versions/diff-26.3-26.1/report.json. Method: per package, check each class against the 26.2 jars (same path / moved) and the Rust tree (ported list + grep); verdict no-change unless the Rust is missing 26.1 behaviour."

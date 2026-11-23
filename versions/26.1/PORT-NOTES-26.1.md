@@ -1846,3 +1846,14 @@ loot (all in the 26.2 jar, modelled in rank 2); 735 criterion
 738 util (spline/tuple, 26.2 changed the spline API); 739 block
 (WeatheringCopperBlocks in block_transform.rs). Docs-only batch;
 no separate CI dispatch.
+Batch 90 (Nov 24, rank 4 30/74 — all no-change): 740/741
+structure (all in the 26.2 jar); 742 particle (shared); 743
+block-entity renderers (26.2 refactored to special renderers;
+sign/bed rendering in signs.rs + block_entity_render.rs);
+744 chunk compile (section-compile refactor, item 534); 745
+sounds (shared); 746 preprocessor (GlslPreprocessor cited in
+core_shader.rs/post_glsl.rs); 747 alchemy (brewing, batch 55);
+748 biome (shared); 749 block/entity (FuelValues in 26.2;
+BedBlockEntity is 26.1-only and neither tree models it — it
+holds only banner patterns; bed colour is a block-state
+property). Docs-only batch; no separate CI dispatch.
