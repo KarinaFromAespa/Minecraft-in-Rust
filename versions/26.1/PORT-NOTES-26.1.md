@@ -827,3 +827,12 @@ handler already carries the 26.1 spectator-only form (26.2 added a
 dead-player resync), entity ids are read unguarded (26.2 throws on
 id 0), encryption keys both directions, and the rest are
 CriteriaTriggers moves, package moves, spills and renames.
+
+Batch 50 (Nov 23, 465/498): comment-only follow-up to item 11 —
+26.1's spectate handler is `handleSpectateEntity` over a plain-int
+packet (the protocol already carries the 26.1 `SpectateEntity`
+packet); 26.2 renamed it `handleSpectatorAction` with an optional
+id. lan_camera.rs comments corrected. 50/53/54/55/56/304 no-change:
+Bootstrap, component-patch, notifications, LockCode (package move
+only), MaterialBaker/SpriteId and block-state Properties are
+unreferenced or unchanged in the Rust.

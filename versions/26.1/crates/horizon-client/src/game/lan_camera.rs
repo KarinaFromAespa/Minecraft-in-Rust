@@ -1,5 +1,6 @@
 //! A spectating guest's camera (`ServerPlayer.camera`): chosen by a click
-//! (`handleSpectatorAction`) or `/spectate`, followed every tick, dropped
+//! (`handleSpectateEntity`; 26.2 renamed it `handleSpectatorAction`) or
+//! `/spectate`, followed every tick, dropped
 //! when the entity dies, the player sneaks, is teleported or leaves
 //! spectator mode.
 use super::{Game, commands::Target, lan::LanHost};
@@ -120,7 +121,8 @@ impl Game<'_> {
         }
     }
 
-    /// `ServerGamePacketListenerImpl.handleSpectatorAction`.
+    /// `ServerGamePacketListenerImpl.handleSpectateEntity` (26.2 renamed it
+    /// `handleSpectatorAction` and made the entity id optional).
     pub(super) fn guest_spectator_action(
         &mut self,
         host: &mut LanHost,
