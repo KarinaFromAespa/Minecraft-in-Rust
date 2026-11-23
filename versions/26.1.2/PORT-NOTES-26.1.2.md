@@ -266,5 +266,13 @@ Still red after this port, pre-existing and untouched: horizon-world's
 2 datafix failures and horizon-client-render's 3 pack-compatibility
 failures (run 45147699480's logs) — crates this port does not touch —
 and the 34 `lan_bot` integration-test errors from the same paragraph
-(crate-tests runs `--lib` only, so they do not gate it).
+(crate-tests runs `--lib` only, so they do not gate it). The second
+crate-tests run (45150986405, head 81311fcc) has horizon-client green
+(1274 passed, 0 failed) and both regression tests passing in
+horizon-client-lib — but that suite, compiling for the first time on
+this line, shows 36 further failures (28 title-screen world-management
+tests, 3 save-upgrade, 2 item-sync, and 1 each in projectiles, realms
+and server-packs), all in areas this port does not touch and all
+previously hidden behind the compile errors. They are the line's next
+test-health work, not this port's.
 
