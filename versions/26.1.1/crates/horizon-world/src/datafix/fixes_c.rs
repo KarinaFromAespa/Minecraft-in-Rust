@@ -141,7 +141,9 @@ pub(super) fn register(out: &mut Vec<(Key, FixFn)>) {
             set(be, "sherds", unpack_pot_decorations(sherds));
         });
     }));
-    out.push((key(4997, 0), |cx| cx.each_out(Ty::Chunk, blending_data)));
+    // `BlendingDataFix` is registered at schema 4295 in 26.1.1's DataFixers
+    // (4997 is a later version's keying).
+    out.push((key(4295, 0), |cx| cx.each_out(Ty::Chunk, blending_data)));
     out.push((key(5002, 0), |cx| {
         cx.block_entity("minecraft:sign", |be| {
             set(be, "allow_op_features", boolean(true))
@@ -821,7 +823,7 @@ fn level_dat_to_saved_data_preparation(cx: &mut Cx) {
     });
 }
 
-// ------------------------------------------------------------------ 4885, 4996, 4997
+// ------------------------------------------------------------------ 4295, 4885, 4996
 
 /// `RemoveBlockEntityTagFix` for beds: item block entity data, falling block
 /// entity data and chunk block entities of beds go.

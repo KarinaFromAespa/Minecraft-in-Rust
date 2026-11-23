@@ -118,6 +118,18 @@ fn row_rect(w: f32, y: f32) -> [f32; 4] {
         ITEM_HEIGHT - 4.0,
     ]
 }
+/// `PlayerEntry.<init>`'s `chatDisabledOrBlocked`, passed to the report button's
+/// `ReportPlayerScreen` (where it disables the Report Chat button): chat reporting
+/// is off when the player cannot receive player messages or the entry is blocked.
+/// 26.1.1 fixed 26.1's inverted form (`canReceive || isBlocked`, which disabled
+/// reporting exactly when messages could arrive): the 26.1.1 jar flips one branch
+/// (`ifeq` for `ifne`) to `!canReceive || isBlocked`. The report screen is not
+/// offered here — the row's report button is the disabled one vanilla shows when
+/// reporting is off — so nothing calls this yet; it pins the 26.1.1 formula for
+/// when the report flow lands.
+pub fn chat_disabled_or_blocked(can_receive_player_messages: bool, blocked: bool) -> bool {
+    !can_receive_player_messages || blocked
+}
 /// `PlayerEntry.extractContent`: the hide or show button, and the report button after it.
 fn row_buttons(w: f32, y: f32) -> ([f32; 2], [f32; 2]) {
     let [x, y, width, height] = row_rect(w, y);
@@ -437,6 +449,17 @@ mod tests {
             removed: false,
             local: false,
         }
+    }
+
+    /// 26.1.1's `chatDisabledOrBlocked`: reporting is disabled when chat is off or
+    /// the player is blocked — and only then. 26.1 had the condition inverted
+    /// (reporting disabled when messages could arrive).
+    #[test]
+    fn chat_disabled_or_blocked_follows_26_1_1() {
+        assert!(chat_disabled_or_blocked(false, false));
+        assert!(chat_disabled_or_blocked(false, true));
+        assert!(chat_disabled_or_blocked(true, true));
+        assert!(!chat_disabled_or_blocked(true, false));
     }
 
     /// A click on a row's button hides a shown player and shows a hidden one, a click on

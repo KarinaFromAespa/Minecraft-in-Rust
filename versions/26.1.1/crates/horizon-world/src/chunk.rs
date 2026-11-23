@@ -206,17 +206,31 @@ impl BlockState {
         Tag::Compound(map)
     }
     pub fn from_nbt(tag: &Tag) -> io::Result<Self> {
+        Self::from_nbt_keys(tag, "id", "properties")
+    }
+    /// A palette entry from a saved chunk: the modern `{id, properties}` form,
+    /// or the `Name`/`Properties` form 26.1.1 saves still write (the rename to
+    /// `id` is a later fix, key 5006). The modern reader stays strict — the
+    /// legacy form is accepted only here, where saved palettes are read.
+    pub fn from_palette_nbt(tag: &Tag) -> io::Result<Self> {
+        if tag.get("id").is_none() && tag.get("Name").is_some() {
+            Self::from_nbt_keys(tag, "Name", "Properties")
+        } else {
+            Self::from_nbt(tag)
+        }
+    }
+    fn from_nbt_keys(tag: &Tag, id_key: &str, props_key: &str) -> io::Result<Self> {
         if let Tag::String(name) = tag {
             return Ok(Self {
                 name: name.to_string().map_err(|e| invalid(e.to_string()))?,
                 properties: BlockProperties::new(),
             });
         }
-        let Some(Tag::String(name)) = tag.get("id") else {
+        let Some(Tag::String(name)) = tag.get(id_key) else {
             return Err(invalid("block state is missing id"));
         };
         let mut properties = Vec::new();
-        if let Some(tag) = tag.get("properties") {
+        if let Some(tag) = tag.get(props_key) {
             let Tag::Compound(map) = tag else {
                 return Err(invalid("block properties are not a compound"));
             };
@@ -338,7 +352,7 @@ impl ChunkData {
             return Ok(None);
         };
         let palette = PalettedContainer::from_nbt(container, 4096, 4)?;
-        Ok(Some(BlockState::from_nbt(
+        Ok(Some(BlockState::from_palette_nbt(
             palette.get(block.section_index())?,
         )?))
     }
@@ -356,7 +370,7 @@ impl ChunkData {
             .get_mut("block_states")
             .ok_or_else(|| invalid("section has no block-state data"))?;
         let mut palette = PalettedContainer::from_nbt(container, 4096, 4)?;
-        let old = BlockState::from_nbt(palette.get(block.section_index())?)?;
+        let old = BlockState::from_palette_nbt(palette.get(block.section_index())?)?;
         palette.set(block.section_index(), state.to_nbt())?;
         *container = palette.to_nbt();
         Ok(old)
@@ -439,7 +453,7 @@ impl<'r> BlockSection<'r> {
         let resolved = container
             .palette
             .iter()
-            .map(|tag| registry.resolve(&BlockState::from_nbt(tag)?))
+            .map(|tag| registry.resolve(&BlockState::from_palette_nbt(tag)?))
             .collect::<io::Result<Vec<_>>>()?;
         let first_index = container.storage.as_ref().map_or(0, |s| s.get(0).unwrap()) as usize;
         let mut section = Self::uniform(resolved[first_index], registry)?;
@@ -760,6 +774,33 @@ mod tests {
             other => panic!("data is {other:?}"),
         };
         (entries, words)
+    }
+
+    /// 26.1.1 saves still write palettes as `Name`/`Properties` (the rename to
+    /// `id`/`properties` is a later fix, key 5006): a palette entry in the old
+    /// form decodes to the same state as the new one, so a real 26.1.1 world
+    /// loads — while the modern reader still refuses the old form.
+    #[test]
+    fn a_palette_entry_reads_its_old_name_and_properties() {
+        let old = Tag::compound([
+            ("Name", Tag::String(key("minecraft:chain"))),
+            (
+                "Properties",
+                Tag::compound([("axis", Tag::String(key("y")))]),
+            ),
+        ]);
+        let new = Tag::compound([
+            ("id", Tag::String(key("minecraft:chain"))),
+            (
+                "properties",
+                Tag::compound([("axis", Tag::String(key("y")))]),
+            ),
+        ]);
+        assert_eq!(
+            BlockState::from_palette_nbt(&old).unwrap(),
+            BlockState::from_palette_nbt(&new).unwrap()
+        );
+        assert!(BlockState::from_nbt(&old).is_err());
     }
 
     /// `PalettedContainer.pack` re-encodes the cells into a fresh palette, so a

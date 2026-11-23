@@ -86,3 +86,15 @@ impl From<std::io::Error> for Error {
     }
 }
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[cfg(test)]
+mod tests {
+    /// `SharedConstants` in 26.1.1: protocol 775, unchanged from 26.1
+    /// (`getProtocolVersion` returns the constant 775; only WORLD_VERSION
+    /// and the snapshot protocol moved).
+    #[test]
+    fn version_facts_match_26_1_1() {
+        assert_eq!(super::PROTOCOL_VERSION, 775);
+        assert_eq!(super::GAME_VERSION, "26.1.1");
+    }
+}

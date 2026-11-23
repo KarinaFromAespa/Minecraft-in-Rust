@@ -1,1 +1,18 @@
-{"behaviour":{"closed":0,"note":"Delta vs 26.1: version plumbing applied; the one real item (PlayerEntry.<init>) is flagged unported.","total":6},"harness":null,"last_ci_run":null,"notes":"No CI harness profile yet. Completion + adapter carries from 26.1 landed; protocol-test parity with 26.1.","protocol":775,"protocol_tests":{"fail":2,"note":"2 failures are the pre-existing sandbox-network pair in untouched code.","pass":437},"role":"patch delta of 26.1","version":"26.1.1"}
+{
+  "behaviour": {
+    "closed": 6,
+    "total": 6,
+    "note": "Behaviour port complete 2026-11-23: 6/6 items closed (5 version-plumbing verifications + the PlayerEntry constructor fix)."
+  },
+  "harness": null,
+  "last_ci_run": null,
+  "notes": "No CI harness profile yet. Completion + adapter carries from 26.1 landed; protocol-test parity with 26.1.",
+  "protocol": 775,
+  "protocol_tests": {
+    "fail": 2,
+    "note": "2 failures are the pre-existing sandbox-network pair in untouched code.",
+    "pass": 437
+  },
+  "role": "patch delta of 26.1",
+  "version": "26.1.1"
+}

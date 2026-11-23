@@ -4,7 +4,7 @@
 //! goes as its persistent Codec's NBT, `ByteBufCodecs.fromCodecWithRegistries`).
 //! Item data has no length prefix, so a component read short or long makes
 //! everything after it unreadable.
-use super::{Component, Nested, Template};
+use super::{Component, Nested, Template, component};
 use crate::{
     Error, Result,
     buf::{Codec, Reader},
@@ -174,6 +174,16 @@ pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
             optional(r, nbt)?;
             optional(r, nbt)
         }),
+        // A copied sign's text (synthetic kinds): four lines, an optional
+        // filtered four, a dye colour, a glowing flag.
+        component::SIGN_TEXT_FRONT | component::SIGN_TEXT_BACK => {
+            (0..4).try_for_each(|_| nbt(r))?;
+            if r.bool()? {
+                (0..4).try_for_each(|_| nbt(r))?;
+            }
+            varint(r)?;
+            boolean(r)
+        }
         other => Err(Error::new(format!("unsupported item component {other}"))),
     }
 }

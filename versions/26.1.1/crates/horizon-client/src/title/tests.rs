@@ -2281,7 +2281,7 @@ fn a_finished_optimization_stamps_the_level_data() {
     let path = f.title.saves.join("World/level.dat");
     let mut root = crate::save::read_dat(&path).unwrap();
     if let Some(Tag::Compound(data)) = root.get_mut("Data") {
-        data.insert("DataVersion".into(), Tag::Int(4950));
+        data.insert("DataVersion".into(), Tag::Int(4786));
     }
     crate::save::write_dat(&path, root).unwrap();
     f.select();
