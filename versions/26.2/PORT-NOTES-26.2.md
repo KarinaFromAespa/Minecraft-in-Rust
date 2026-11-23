@@ -4330,3 +4330,58 @@ Changes, branch `fix/26.2-defect-suite`:
 
 What remains: nothing for this check. The seven triggers now read
 exactly the keys 26.2's data writes.
+
+## CI fix wave (2026-11-23, crate-tests run 45147242822, head 8d0b700a)
+
+The defect-suite job passed; the crate-tests job failed with one branch
+regression and three pre-existing failures in untouched files. All three
+were proven pre-existing: `git diff 890465ae..HEAD` on
+`game/screens.rs`, `game/commands/terrain_cmds.rs` and `game/trident.rs`
+is empty (0 lines), so each fails identically at the branch base.
+
+- **Branch regression, fixed** — `horizon-client-lib` lib-test failed to
+  compile (2x E0308, `furnace.rs:251,292`):
+  `vanilla_coal_burns_from_the_fuel_values_table` compared
+  `furnace.items[2].as_ref().unwrap().item` (an `Arc<str>`) directly to
+  `"test:ingot"` (`&str`). Both assertions now compare
+  `.item.as_ref()`. Test code only; the fuel-table/burn-time production
+  code is unchanged.
+- **Pre-existing, fixed with the 1.21.7 pattern** — `loot_mine` test
+  (`terrain_cmds.rs:1036`) panicked "prepared resources required": it
+  reads `HORIZON_TEST_RESOURCES`, which the crate-tests workflow never
+  sets. The identical 1.21.7 test carries
+  `#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES and
+  scratch homes/cwd"]`; this test now carries the same ignore (the
+  pattern a dozen sibling tests in this tree already use). It still runs
+  where resources are prepared.
+- **Pre-existing, test list was stale** — `screens.rs` test
+  `only_the_screens_that_override_is_pause_screen_keep_the_world_running`
+  listed `Screen::BlockEditor` among the pausing screens, but
+  `Screen::is_pause_screen` returns false for it by design: 26.2's
+  `StructureBlockEditScreen` and `TestBlockEditScreen` return false
+  (javap on the 26.2 client jar: both `isPauseScreen()` return
+  `iconst_0`; 26.3 removed both overrides), and `Game::pauses_game`
+  answers per editor kind via `Game::block_editor_pauses`
+  (`pointer_capture.rs:47-55`). The 1.21.7 tree has no such divergence
+  (its impl returns true for `BlockEditor` and its test agrees).
+  `BlockEditor` moved to the test's false group and the doc comment now
+  states the 26.2 behaviour.
+- **Pre-existing, test expectation was stale** — `trident.rs` test
+  `a_trident_round_trips_its_in_block_state` expected `inBlockState` to
+  be `Tag::String("minecraft:stone")`, but `to_nbt` writes the
+  `BlockState.CODEC` form `{Name, Properties}`. Vanilla 26.2's
+  `AbstractArrow.addAdditionalSaveData` stores `"inBlockState"` via
+  `BlockState.CODEC` (javap on the 26.2 client jar:
+  `storeNullable("inBlockState", BlockState.CODEC, lastState)`), and the
+  tree's `BlockState::to_nbt` (`chunk.rs:192`) writes exactly that form
+  ("26.2's BlockState.CODEC is the NBT form (`Name`/`Properties`); the
+  `id`/`properties` form is 26.3's codec rename"). The 1.21.7 tree's
+  identical test passes only because its `to_nbt` still writes the id
+  form — a known gap there (a port-written 1.21.7 save is not one
+  vanilla 1.21.7 reads). The 26.2 test now expects the compound form;
+  the read-back (`state_from_nbt`) already accepted both forms, so the
+  round-trip assertion is unchanged.
+
+Note: `leakage-audit/jars/26.2-server.jar` is a Mojang BUNDLER jar (no
+game classes); the 26.2 client jar in the same directory is the game jar
+and was used for the javap checks above.

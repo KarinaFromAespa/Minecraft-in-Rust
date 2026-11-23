@@ -248,7 +248,7 @@ mod tests {
         for _ in 0..199 {
             furnace.tick(&recipes, &items, &providers);
         }
-        assert_eq!(furnace.items[2].as_ref().unwrap().item, "test:ingot");
+        assert_eq!(furnace.items[2].as_ref().unwrap().item.as_ref(), "test:ingot");
         assert_eq!(furnace.lit_remaining, 1401);
 
         // The smoker: the same coal burns half as long, and the smoking
@@ -289,7 +289,7 @@ mod tests {
         for _ in 0..99 {
             smoker.tick(&recipes, &items, &providers);
         }
-        assert_eq!(smoker.items[2].as_ref().unwrap().item, "test:ingot");
+        assert_eq!(smoker.items[2].as_ref().unwrap().item.as_ref(), "test:ingot");
         assert_eq!(smoker.lit_remaining, 701);
 
         // Stone is not fuel: the furnace never lights.
