@@ -125,3 +125,80 @@ is test-code work in its own right, not part of this carry.
 
 What remains for this version is the flagged `PlayerEntry` method, plus
 whatever remains for the line (see `versions/26.1/PORT-NOTES-26.1.md`).
+
+## Behaviour port (2026-11-23): all 6 items closed
+
+No `work-items.json` existed for this version; the list was derived from
+the pipeline report (`report.json`, sha256 `3ddd211c…`, in
+`versions/26.1.1/work-items.json`) and every item verified against
+26.1.1's own jars (named `server-game.jar` / `client.jar` from the
+prepare; the leakage-audit server jars are obfuscated and cannot be used
+for `javap` — they answer "class not found" for named classes).
+
+1. **`vanilla_command_order` regen failure (rank 1).** Closed with no
+   code change. The carry-forward had already regenerated the table
+   (PORT-NOTES above); verified here by direct comparison:
+   `crates/horizon-command/src/vanilla_order.rs` is byte-identical to
+   26.1's, and the 26.1 -> 26.1.1 diff records 0 changed command nodes,
+   so the same command tree yields the same order.
+2. **DataFixers 4786 -> 4788 (rank 1).** Closed with no code change: the
+   bump is a version stamp, as the report records (0 schemas, 0 fixes,
+   0 datafix classes changed). The tree keys everything off
+   `DATA_VERSION` (`datafix::CURRENT = crate::DATA_VERSION`,
+   `horizon-world` re-exports `horizon-core`'s 4788), and no fix in the
+   tree is keyed 4787 or 4788. Regression test
+   `patch_delta_26_1_1_adds_no_fixes` (datafix/tests.rs): a 26.1 chunk
+   upgrades with only its DataVersion stamp changed.
+3. **Version facts 4786 -> 4788 (rank 1).** Closed with no code change:
+   the `version_consts` regen already set `DATA_VERSION = 4788` and
+   `VERSION_ID = "26.1.1"`. Grep over the tree finds no hardcoded 4786
+   in production code (only a seed-hash constant and two launcher test
+   fixtures holding old options text) and no stale `"26.1"` version
+   string (only the 26.1 adapter's name and a polytone range test).
+   Covered by the same datafix test, which asserts `CURRENT == 4788`
+   and `VERSION_ID == "26.1.1"`.
+4. **`SharedConstants` fields (rank 2).** Closed with no code change.
+   javap on the named jars: `WORLD_VERSION` 4786 -> 4788 and
+   `SNAPSHOT_NETWORK_PROTOCOL_VERSION` 303 -> 304. `getProtocolVersion`
+   returns the constant 775 in both versions (it never reads the
+   snapshot field), so the tree's `PROTOCOL_VERSION = 775` is already
+   right; the snapshot constant is mirrored nowhere in the tree, in
+   26.1 or 26.1.1. Regression test `version_facts_match_26_1_1`
+   (horizon-protocol lib.rs). The 8 harnesses the report names were not
+   re-run: they exercise blocks, particles, LAN auth and the like, none
+   of which reads a version constant, and no prepared resources exist
+   for this patch delta.
+5. **`PlayerEntry.<init>` (rank 3).** Ported. The whole class differs by
+   exactly one bytecode instruction: at constructor offset 106, 26.1
+   has `ifne` and 26.1.1 has `ifeq`. The branch computes the boolean
+   passed through the report button's onPress into
+   `ReportPlayerScreen`'s `chatDisabledOrBlocked` field, which disables
+   that screen's Report Chat button. 26.1 computed
+   `canReceivePlayerMessages || isBlocked(uuid)` — reporting disabled
+   exactly when messages could arrive; 26.1.1 computes
+   `!canReceivePlayerMessages || isBlocked(uuid)`, matching the field
+   name. This is a vanilla bug fix, not a feature. The tree does not
+   offer the report flow at all (the row's report button is the
+   disabled one vanilla shows when reporting is off, and the Blocked
+   tab lists no one — same in 26.1 and 26.3), so the fix has no
+   observable effect here; the formula is ported as
+   `social_screen::chat_disabled_or_blocked` with the test
+   `chat_disabled_or_blocked_follows_26_1_1` pinning the full truth
+   table, so the report flow — when it lands — uses the 26.1.1 form.
+6. **`DetectedVersion.createBuiltIn` (rank 5).** Closed with no code
+   change. javap on the named jars: the only difference is the
+   DataVersion literal, `sipush 4786` -> `sipush 4788`. Horizon does
+   not port `DetectedVersion` (zero references in the tree); the
+   constant is absorbed by the `version_consts` regen.
+
+26.3-leakage audit (`tools/audit_26_3_leakage.py 26.1.1`, against the
+26.1.1 server jar): 23 leaks, identical to the 26.1.1 baseline — 0 new,
+none in any file this port touched. The baseline leaks are line-level
+issues shared with 26.1, out of scope for this patch delta.
+
+Known, out of scope for this port: the `horizon-client` and
+`horizon-client-lib` lib test targets still do not compile (the
+pre-existing breakage recorded above, in test code this port does not
+touch), so the crate-tests CI run for this branch will show those two
+suites failing while the other five pass. The `chat_disabled_or_blocked`
+test above can only run once that breakage is fixed.

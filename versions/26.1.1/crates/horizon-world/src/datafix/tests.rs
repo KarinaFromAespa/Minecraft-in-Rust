@@ -13,6 +13,18 @@ fn current_data_is_left_alone() {
     assert_eq!(tag, before);
 }
 
+/// 26.1.1 bumped DataVersion 4786 -> 4788 with no fixes added (vanilla
+/// DataFixers: 0 schemas, 0 fixes, 0 datafix classes changed): a 26.1
+/// chunk upgrades with only its DataVersion stamp changed.
+#[test]
+fn patch_delta_26_1_1_adds_no_fixes() {
+    assert_eq!(CURRENT, 4788);
+    assert_eq!(horizon_core::version::VERSION_ID, "26.1.1");
+    let mut tag = snbt("{DataVersion: 4786, Status: \"minecraft:full\"}");
+    update_chunk(&mut tag, "minecraft:overworld", Some("minecraft:noise"));
+    assert_eq!(tag, snbt("{DataVersion: 4788, Status: \"minecraft:full\"}"));
+}
+
 #[test]
 fn item_stacks_of_1_20_take_components() {
     let mut player = snbt(

@@ -8,7 +8,7 @@
       "id": 1,
       "kind": "regen-failed",
       "rank": 1,
-      "status": "open",
+      "status": "closed",
       "title": "Generator vanilla_command_order: failed on 26.1.1"
     },
     {
@@ -19,7 +19,7 @@
       "id": 2,
       "kind": "save-format",
       "rank": 1,
-      "status": "open",
+      "status": "closed",
       "title": "Save format: DataFixers 4786 -> 4788: 0 schemas, 0 fixes added, 0 datafix classes changed"
     },
     {
@@ -29,7 +29,7 @@
       "id": 3,
       "kind": "facts",
       "rank": 1,
-      "status": "open",
+      "status": "closed",
       "title": "Version facts: world_version 4786 -> 4788"
     },
     {
@@ -40,7 +40,7 @@
       "id": 4,
       "kind": "rerun",
       "rank": 2,
-      "status": "open",
+      "status": "closed",
       "title": "widely named: net/minecraft: SharedConstants fields changed (WORLD_VERSION, SNAPSHOT_NETWORK_PROTOCOL_VERSION)"
     },
     {
@@ -50,7 +50,7 @@
       "id": 5,
       "kind": "unproved",
       "rank": 3,
-      "status": "open",
+      "status": "closed",
       "title": "crates/horizon-client/src/game/social.rs: PlayerEntry.<init> changed (chatDisabledOrBlocked condition flipped)"
     },
     {
@@ -58,24 +58,24 @@
       "id": 6,
       "kind": "unported",
       "rank": 5,
-      "status": "open",
+      "status": "closed",
       "title": "DetectedVersion.createBuiltIn changed (DataVersion constant only); Horizon does not port DetectedVersion"
     }
   ],
-  "note": "Patch delta vs 26.1 (same protocol 775): DataVersion 4786 -> 4788 with no format change, and 3 changed classes (2 methods, 2 fields). Derived 2026-11-23 from the pipeline report (report.json, sha256 above), diff.json and the jars \u2014 no work-items file existed for this version. Items 1-4 and 6 are version plumbing already absorbed by the mechanical port and carry-forward; item 5 is the one real behaviour change, a one-instruction fix in vanilla's PlayerEntry constructor.",
+  "note": "Patch delta vs 26.1 (same protocol 775): DataVersion 4786 -> 4788 with no format change, and 3 changed classes (2 methods, 2 fields). Derived 2026-11-23 from the pipeline report (report.json, sha256 above), diff.json and the jars \u2014 no work-items file existed for this version. Items 1-4 and 6 are version plumbing already absorbed by the mechanical port and carry-forward; item 5 is the one real behaviour change, a one-instruction fix in vanilla's PlayerEntry constructor. All 6 items closed 2026-11-23 (behaviour port); see PORT-NOTES-26.1.1.md. Item 5's regression test cannot run until the pre-existing horizon-client lib-test breakage is fixed.",
   "rank1": {
     "accepted": [],
-    "closed": 0,
+    "closed": 3,
     "total": 3
   },
   "rank2": {
     "accepted": [],
-    "closed": 0,
+    "closed": 1,
     "total": 1
   },
   "rank3": {
     "accepted": [],
-    "closed": 0,
+    "closed": 1,
     "total": 1
   },
   "rank3plus": "Inherits the 26.1 parent's answers for everything this release did not change; the single rank-3 item is the PlayerEntry constructor fix, and the rank-5 item is version plumbing Horizon does not port.",
@@ -86,7 +86,7 @@
   },
   "rank5": {
     "accepted": [],
-    "closed": 0,
+    "closed": 1,
     "total": 1
   },
   "release": "26.1.1"
