@@ -299,6 +299,56 @@
    "id": 779,
    "verdict": "no-change",
    "evidence": "1 resources class, in the 26.2 jar; shared resources machinery"
+  },
+  {
+   "id": 780,
+   "verdict": "no-change",
+   "evidence": "1 data-command class, in the 26.2 jar; shared command machinery"
+  },
+  {
+   "id": 781,
+   "verdict": "no-change",
+   "evidence": "1 server-command class, in the 26.2 jar; shared command machinery"
+  },
+  {
+   "id": 782,
+   "verdict": "no-change",
+   "evidence": "1 clock class, in the 26.2 jar; shared world clock"
+  },
+  {
+   "id": 783,
+   "verdict": "no-change",
+   "evidence": "InstantenousMobEffect, not in the 26.2 jar (26.2 fixed the typo to Instantaneous, item 533); the 26.1 spelling is cited in mobs/ai.rs for instant-effect ticks"
+  },
+  {
+   "id": 784,
+   "verdict": "no-change",
+   "evidence": "FlyingAnimal, not in the 26.2 jar; a marker interface with no Rust reference \u2014 flight is modelled through mob physics/species"
+  },
+  {
+   "id": 785,
+   "verdict": "no-change",
+   "evidence": "1 entity class, in the 26.2 jar; shared entity machinery"
+  },
+  {
+   "id": 786,
+   "verdict": "no-change",
+   "evidence": "MapItemColor, in the 26.2 jar; cited in the protocol item codec (INT write)"
+  },
+  {
+   "id": 787,
+   "verdict": "no-change",
+   "evidence": "DripstoneThickness, not in the 26.2 jar; a block-state enum the Rust reads from prepared data (dripstone ported in batch 63)"
+  },
+  {
+   "id": 788,
+   "verdict": "no-change",
+   "evidence": "CarvingMask$Mask, in the 26.2 jar; carving masks handled in the CarvingStepRemoveFix datafix"
+  },
+  {
+   "id": 789,
+   "verdict": "no-change",
+   "evidence": "1 state-provider class, in the 26.2 jar; shared worldgen"
   }
  ],
  "triage": "Rank 4/5: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 4 = 74 D items, 333 classes from the 26.3->26.1 report; rank 5 = 2 D items). Class lists in ~/workspace/mcir-work/26.1/versions/diff-26.3-26.1/report.json. Method: per package, check each class against the 26.2 jars (same path / moved) and the Rust tree (ported list + grep); verdict no-change unless the Rust is missing 26.1 behaviour."

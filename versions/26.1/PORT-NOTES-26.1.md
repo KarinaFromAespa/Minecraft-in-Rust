@@ -1883,3 +1883,11 @@ form in scoreboard.rs, batch 63; 26.2 renamed it
 TeamColorArgument); 777 LootData (the Rust has its own
 horizon_world::loot::LootData); 778 data/worldgen + 779
 resources (shared). Docs-only batch; no separate CI dispatch.
+Batch 94 (Nov 24, rank 4 70/74 — all no-change): 780/781
+commands (shared); 782 clock (shared); 783 InstantenousMobEffect
+(26.1 spelling in mobs/ai.rs; 26.2 fixed the typo); 784
+FlyingAnimal (marker interface, no Rust reference); 785 entity
+(shared); 786 MapItemColor (protocol codec); 787
+DripstoneThickness (block-state enum, dripstone batch 63);
+788 CarvingMask$Mask (datafix); 789 stateproviders (shared).
+Docs-only batch; no separate CI dispatch.
