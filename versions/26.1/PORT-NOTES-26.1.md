@@ -591,3 +591,11 @@ alive check — but the Rust already carries the 26.1 form);
 501 dripstone->speleothem is a pure enum rename (identical values) and
 POTENT_SULFUR_STATE is 26.2-only; 502 setDirty() reordered within the
 same update(); 503 equals identical, BOUNCE is 26.2-only (item 94).
+
+Batch 22 (Nov 23, 282/498), all no-change: 419 compiler local spills;
+421 FurnaceMenu drops the RecipeType super-ctor arg in 26.2 (API shape);
+422 26.1's extractRenderState calls extractSnapbackItem, 26.2 removed it
+(menu chrome, not ported); 423 LevelChunkTicks.pack sorts by a 26.2-only
+SUB_TICK_ORDERING comparator, 26.1 packs in queue order (not ported);
+425 axolotl field vs mob+checkcast; 427 Model.renderToBuffer is
+26.1-only (not ported); 428 rename only; 430 Tuple -> Pair API swap.
