@@ -10221,6 +10221,76 @@ mod h169_glide_travel_tests {
             assert_eq!(game.uuid_for(id), [169, 0, 0, 4]);
         });
     }
+
+    // The Nov 23 2026 build #4 playtest: zombies in the open did not
+    // catch fire at sunrise and died only "after sometime". The
+    // `sun_burn_tests` in mobs/ai.rs pin `burn_undead` against a fixture
+    // MobWorld; this pins the whole game path — the server-role Game's
+    // `mob_world_base` (daylight from the real prepared environment's
+    // day timeline, monsters_burn from the day-time range), the real
+    // chunk light and the real per-tick `tick_creature_entities` — so a
+    // wiring regression that leaves the unit tests green still fails
+    // here. The zombie ignites within 200 ticks of morning daylight and
+    // takes fire damage over the next 100 ticks.
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn zombie_in_open_daylight_ignites_promptly_and_burns() {
+        with_game(|game| {
+            game.world.game_time = 0;
+            game.world.day_time = 1000;
+            assert!(
+                game.sky_darken() < 4,
+                "morning is not daylight: sky_darken {} at day_time 1000",
+                game.sky_darken()
+            );
+            assert!(game.run_command(
+                "summon zombie 16.5 200 16.5 {UUID:[I;2026,11,23,1],PersistenceRequired:1b,Rotation:[0f,0f],Motion:[0d,0d,0d]}"
+            ));
+            let id = game
+                .persist
+                .uuids
+                .iter()
+                .find_map(|(id, u)| (*u == [2026, 11, 23, 1]).then_some(*id))
+                .unwrap();
+            assert!(
+                game.mobs
+                    .iter()
+                    .any(|m| m.id == id && m.kind.flags.burns_in_day),
+                "the summoned zombie is not flagged as burning in daylight"
+            );
+            game.update_chunk_tickets();
+            assert!(game.entity_ticking_area()(16, 16));
+            let on_fire = |game: &Game| {
+                game.mobs
+                    .iter()
+                    .find(|m| m.id == id)
+                    .is_some_and(|m| m.fire_ticks > 0)
+            };
+            for _ in 1..=200 {
+                game.world.game_time += 1;
+                game.world.day_time += 1;
+                game.tick_creature_entities().unwrap();
+                if on_fire(game) {
+                    break;
+                }
+            }
+            assert!(
+                on_fire(game),
+                "zombie did not catch fire in 200 ticks of open morning daylight"
+            );
+            for _ in 0..100 {
+                game.world.game_time += 1;
+                game.world.day_time += 1;
+                game.tick_creature_entities().unwrap();
+            }
+            let m = game.mobs.iter().find(|m| m.id == id).unwrap();
+            assert!(
+                m.health < 20.0,
+                "burning zombie took no fire damage in 100 ticks (health {})",
+                m.health
+            );
+        });
+    }
 }
 
 #[cfg(test)]
