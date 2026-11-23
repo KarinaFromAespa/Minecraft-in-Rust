@@ -465,7 +465,10 @@ CI run 45181781216 (head 231549d2): defect suite PASS, 6/7 crate
 suites PASS; the only failure was the pre-existing
 failed_upgrade_keeps_old_data_version — fixed in b6260577 (test start
 4899 -> 4780, below CURRENT 4786; same pattern as 26.1.1's 4786 fix),
-verified locally. Run 45185167162 dispatched for head b6260577.
+verified locally. Run 45185167162 (head b6260577) completed
+SUCCESS — all 3 jobs green (resolve, crate tests 26.1, defect suite
+26.1): the first fully-green run for the 26.1 branch. Run
+45188321039 dispatched for head a5c27b95 (batches 14+15).
 
 Batch 15 (Nov 23, 226/498): 273 ported — beacon validation is
 26.2-only: `BeaconMenu.updateEffects` returns void in 26.1 (no
