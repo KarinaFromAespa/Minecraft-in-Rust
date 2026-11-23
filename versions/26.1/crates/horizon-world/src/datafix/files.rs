@@ -1195,7 +1195,13 @@ mod upgrade_tests {
     fn failed_upgrade_keeps_old_data_version() {
         let base = std::env::temp_dir().join(format!("horizon-upgrade-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
-        let old = 4899;
+        // Below CURRENT (4786) so the upgrade stamps it, and above the
+        // last file fix at or below it (4773) so no file fixing is
+        // demanded: 4899 is newer than this version, so the upgrade
+        // leaves the world alone and the stamp assertion cannot hold
+        // (the 26.1.1 tree fixed the same test with 4786, its own
+        // previous version's data version).
+        let old = 4780;
         let level = Tag::compound([("Data", Tag::compound([("DataVersion", Tag::Int(old))]))]);
         write_dat(&base.join("level.dat"), &level).unwrap();
         let region = base.join("dimensions/minecraft/overworld/region");
