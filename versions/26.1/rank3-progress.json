@@ -159,6 +159,66 @@
    "title": "crates/horizon-client/src/debug_entries.rs: 3 vanilla classes changed (3 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "SerializedOptions: only the canonical constructor's access modifier changed (package-private 26.1 -> private 26.2); same record fields and CODEC. debug_entries.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 650,
+   "title": "crates/horizon-client/src/game/commands/raid.rs: 1 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "RaidCommand.spawnLeader differs only by EntityType -> EntityTypes rename. (The 26.2 counterpart #544 was ported 26.3->26.2; the 26.2->26.1 step has no behaviour change.) raid.rs diff is the earlier trailing-space feedback work."
+  },
+  {
+   "id": 652,
+   "title": "crates/horizon-client/src/game/lan_entities.rs: 1 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "ChunkMap$TrackedEntity.equals compares entity.getId() in both; 26.2 uses the single-return form. lan_entities.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 654,
+   "title": "crates/horizon-client/src/mobs/caravan.rs: 2 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "LlamaFollowCaravanGoal lambda: EntityType -> EntityTypes rename only. TraderLlama defend goal canUse/start: structural diff shows only branch/local-slot compiler forms; same getLastHurtByMob/timestamp logic. caravan.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 659,
+   "title": "widely named: client/gui/layouts: 3 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "26.2 added removeChildren() to FrameLayout/HeaderAndFooterLayout/LinearLayout; absent in 26.1. GUI plumbing, no Rust model of layout children removal."
+  },
+  {
+   "id": 660,
+   "title": "widely named: client/gui/screens/social: 1 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "SocialInteractionsScreen.onClose differs only by Minecraft.setScreen -> Gui.setScreen; same behaviour (restore last screen). Menu chrome."
+  },
+  {
+   "id": 664,
+   "title": "crates/horizon-client-render/src/inventory_effects.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "EffectsInInventory.extractEffects differs only by Gui.getMobEffectSprite -> Hud.getMobEffectSprite (method moved class). inventory_effects.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 668,
+   "title": "crates/horizon-client/src/game/window_handler.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "EditWorldScreen backup lambdas differ only by getToastManager() -> gui.toastManager() accessor and SystemToast.multiline static -> constructor; same WORLD_BACKUP toast. Menu chrome; window_handler.rs diff is the batch-58 work."
+  },
+  {
+   "id": 669,
+   "title": "crates/horizon-client/src/mobs/control.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "PandaMoveControl: 26.2 genericized it (PandaMoveControl<T extends Panda> extends MoveControl<T>, uses inherited mob field) where 26.1 keeps a concrete class with its own panda field; tick() logic identical (canPerformAction gate, then super.tick()). control.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 670,
+   "title": "crates/horizon-client/src/mobs/hostile.rs: 2 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "SilverfishWakeUpFriendsGoal.tick: structural diff shows only a local-store reshuffle around the InfestedBlock cast; same bounds checks, same MOB_GRIEFING gate, same destroyBlock/hostStateByInfested calls. hostile.rs 0-diff vs 26.2."
+  },
+  {
+   "id": 671,
+   "title": "crates/horizon-client/src/mod_content.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Overlay: 26.1 declares abstract isPausing(), 26.2 abstract isPauseScreen() \u2014 a pure rename, no default body in either; the pause predicate's contract is unchanged. mod_content.rs 0-diff vs 26.2; the Rust's is_pause_screen is its own screen-model name."
   }
  ],
  "triage": "Rank-3 re-triage: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 3 = A1 60, A2 67, B1 56, B2 31 = 214 items) + diff-26.2-26.1-rank3.json (274 classes, 204 method-changed). Order: A1 reviews, then B1 ports, then A2/B2."

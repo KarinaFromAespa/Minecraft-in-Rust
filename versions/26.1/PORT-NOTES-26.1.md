@@ -1103,8 +1103,8 @@ run 45254318944 (batch 61) is testing, so no separate dispatch.
 
 ## Behaviour port — rank 3 in progress (2026-11-24, branch behaviour/26.1)
 
-Rank 3: 30/214 closed (rank 1: 7/7, rank 2: 498/498; total
-535/795). Re-triage: `retriage-rank345.json` (A1 60, A2 67, B1 56,
+Rank 3: 40/214 closed (rank 1: 7/7, rank 2: 498/498; total
+545/795). Re-triage: `retriage-rank345.json` (A1 60, A2 67, B1 56,
 B2 31) + `diff-26.2-26.1-rank3.json` (274 classes, 204
 method-changed). Order: A1 reviews, then B1 ports, then A2/B2.
 Progress in `rank3-progress.json`.
@@ -1192,6 +1192,26 @@ DYED_TERRACOTTA ColorCollection — same 35 placements, same
 counts; BlockEntityType → BlockEntityTypes rename. 648 pack
 screen: selection-check restructure; menu chrome. 649 debug
 screen: SerializedOptions constructor access modifier only.
+Docs-only batch; the code tree is identical to the one
+crate-tests run 45257135418 (batch 63) is testing, so no
+separate dispatch.
+
+Batch 66 (Nov 24, 40/214 — A1 #4): all 10 NO-CHANGE, each
+jardiff-verified. 650 RaidCommand.spawnLeader: EntityType →
+EntityTypes rename only. 652 TrackedEntity.equals: same
+getId comparison, single-return form. 654 llama caravan
+goals: EntityTypes rename + compiler-form branch reshuffles.
+659 layouts: 26.2 added removeChildren() to three layout
+classes; GUI plumbing. 660 social screen onClose:
+Minecraft.setScreen → Gui.setScreen. 664 inventory effects:
+getMobEffectSprite moved Gui → Hud. 668 edit-world backup
+toast: toast-manager accessor + SystemToast constructor form.
+669 PandaMoveControl: 26.2 genericized it (inherited mob
+field); tick logic identical. 670 silverfish wake-up:
+structural diff shows only a local-store reshuffle; same
+bounds checks and MOB_GRIEFING gate. 671 Overlay: abstract
+isPausing() renamed to isPauseScreen(), no default body
+either side.
 Docs-only batch; the code tree is identical to the one
 crate-tests run 45257135418 (batch 63) is testing, so no
 separate dispatch.
