@@ -301,3 +301,55 @@ rank-2 triage. Ledger: `rank1-progress.json`.
 5. **Facts.** `version.rs`: 26.1 / 775 / 4786 / (84,0) / (101,1) / Java 25.
 6. **Report format.** No-change: nothing reads the `definition` field.
 7. **Prepare.** CI run 43062079306: `prepare: ok`, 30.7 s.
+
+## Behaviour port — rank 2 in progress (2026-11-23, branch behaviour/26.1)
+
+Rank 2: 101/498 closed (rank 1: 7/7; total 108/795). Triage:
+first-pass buckets B 265 / A 231 / D 2; class-level 26.2→26.1 split
+(zip CRC) B1c 233 / B2c 32 / A1 138 / A2 93 / D 2. The full-jardiff run
+was abandoned (projected ~3 h, one JVM per class); the lazy replacement
+is `jardiff_batch.py` (50 classes per javap call, ~50x faster) over the
+1,210 byte-differing named classes of the open B1c/A1 items.
+
+Batches closed so far (per-item evidence in `rank2-progress.json`):
+- 1+2: 82 no-change closures (A2/B2c, 26.2 counterparts verified
+  no-change, covering Rust code identical between the trees).
+- 3a: 5 ported carry-overs (70 palette paths, 192 preedit area, 196
+  fluid list form + lava-fire walk, 246 melt event, 351 tooltip keys).
+- 3b: 2 decoder-arm removals (292 lerp/distance_to_point, 435 ore_vein).
+- 3c: bc42387a carried over (282 gradient/y_clamped_gradient, 293 straw
+  beds, 296 placement modifiers, 241 SwingState for item 281, open).
+- 3d: c03452c8 carried over (221 kill attribution, 449 cushion removal)
+  + 302 eyeblossom scan + 135 DimensionOrigin removal.
+- 3e: 137 TreeGrower secondary-chance form (+ bonemeal.rs carry-over:
+  no canGrow check, nextInt grass rolls; 26.1 inline-feature support
+  preserved) and 168 port-pack gating (26.1 series only).
+- 3f: 242 loot validation warn-only, 313 state providers (long type
+  names, object-only codec, Axis.getRandom; noise.rs kept f32 — the
+  26.1 NoiseStack is f32, unlike the 26.2 f64 engine).
+- 3g: 379 enderman teleport (blocks-motion scan; tags absent in 26.1).
+
+Real 26.2→26.1 differences found (not carry-overs): copper bars/lantern/
+chain do not weather or wax in 26.1 (12 families, not 15);
+DensityFunctions bootstrap has weird_scaled_sampler + blend_density and
+lacks interval_select; BoneMealItem.useOn falls through to PASS (26.2:
+SUCCESS); Window.updateFullscreenIfChanged/changeFullscreenVideoMode
+differ (item 96 needs fresh porting); LivingEntity combat/knockback
+methods differ (other items).
+
+Deferred: 35 (blending f32→f64 cascade), 96 (window.rs fresh port),
+150 (synth.rs f64 noise engine + 6 consumers), 288 (EntityPositionSync/
+InterpolationHandler subsystem). Item 281 stays open (SwingState aspect
+carried over; 15 more world/entity classes to review).
+
+Test health: crate-tests run 45163597005 (rank-1 state): protocol,
+items, client-core, client-render PASS; world FAIL (1 pre-existing
+datafix failure, `failed_upgrade_keeps_old_data_version` — the other
+baseline failure was fixed by item 4); client + client-lib FAIL on 14
+lib-test compile errors (26.3-era protocol shapes). The 14 errors were
+fixed by carrying over the 26.1.2 tree's test fixes (max_speed f32,
+no randomization/online_mode, Animate for SwingAnimation, position for
+EntityPositionSync.path, Swing for Punch); run 45168217761 dispatched
+to verify. The 34 remaining `check --tests` errors are all in
+tests/lan_bot.rs (integration test, not compiled by CI's --lib run;
+identical in the 26.1.2 tree) — shared 26.1-line debt, out of scope.
