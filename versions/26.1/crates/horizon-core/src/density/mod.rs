@@ -44,7 +44,7 @@ pub use selection::{
     DensityValue, IntervalSelectSampler, InvalidIntervals, LerpSampler, RangeChoiceSampler,
 };
 pub use terrain_noise::{
-    BlendedFbmSet, BlendedNoise, DistanceMetric, DistanceToPointSampler, ShiftNoiseKind,
+    BlendedNoise, BlendedNoiseSampler, DistanceMetric, DistanceToPointSampler, ShiftNoiseKind,
     WeirdScaledNoiseSampler, compile_shift_noise, create_blended_fbm,
 };
 

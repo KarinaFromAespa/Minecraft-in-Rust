@@ -947,3 +947,21 @@ double-precision noise engine (item 150, next batch — the float engine
 stays, widened at the Noise trait boundary), the 26.2 4-corner
 `getMinSurfaceLevel` and `sort_postprocessing_fill_order` (separate
 items). 43 files, +986/−745; workspace `cargo check` clean.
+
+Batch 57 (Nov 24, 492/498): 150 PORTED — the synth f64 noise engine.
+All eight `world.level.levelgen.synth` classes (BlendedNoise,
+ImprovedNoise, NoiseUtils, NormalNoise + NoiseParameters, PerlinNoise,
+PerlinSimplexNoise, SimplexNoise) are byte-identical between the 26.1
+server-game jar and the 26.2 client jar, so the 26.2 tree's faithful
+double-precision synth.rs carries over whole (1,398 lines), with its
+consumers: seeded.rs creates synth NormalNoise (legacy-nether and
+`create_with_params`), terrain_noise.rs gains the synth-backed
+BlendedNoiseSampler (replacing BlendedFbmSet; `create_blended_fbm`
+stays for the parity bins), normal.rs gains `synth_parameters()`,
+noise/mod.rs re-exports the module, graph/mod.rs regains the
+SynthError→CompileError conversion, biome_temperature.rs uses synth
+PerlinSimplexNoise for the three Biome noises, and noise_parity.rs is
+the synth-based transport. The 26.1-only WeirdScaledNoiseSampler stays
+in terrain_noise.rs. The float engine remains as the legacy sampler;
+the density graph now samples synth noise directly in f64. 9 files;
+workspace `cargo check` clean.

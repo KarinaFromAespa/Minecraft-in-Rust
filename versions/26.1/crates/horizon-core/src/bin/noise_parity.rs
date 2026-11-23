@@ -1,56 +1,13 @@
-//! Test transport for comparing noise with the downloaded vanilla artifacts.
+//! Test transport for comparing 26.1 noise with the downloaded vanilla artifacts.
 use horizon_core::{
-    geometry::Axis,
-    noise::{
-        DensityVolume, GradientTable, Noise, NoiseBuildError, NoiseStack, NormalNoise,
-        Normalization, PerlinNoise, SimplexNoise, SmearedPerlinNoise, wrap,
+    noise::synth::{
+        BlendedNoise, ImprovedNoise, NoiseParameters, NoiseUtils, NormalNoise, PerlinNoise,
+        PerlinSimplexNoise, SimplexNoise, wrap,
     },
     random::{LegacyRandom, RandomSource, XoroshiroRandom},
 };
 use std::io::{self, BufRead, BufWriter, Write};
-use std::sync::Arc;
 
-enum Sampler {
-    Perlin(PerlinNoise),
-    Simplex(SimplexNoise),
-    Smeared(SmearedPerlinNoise),
-    Stack(NoiseStack),
-}
-impl Sampler {
-    fn table(&self) -> &GradientTable {
-        match self {
-            Self::Perlin(n) => n.table(),
-            Self::Simplex(n) => n.table(),
-            Self::Smeared(n) => n.table(),
-            Self::Stack(_) => panic!("stack has no gradient table"),
-        }
-    }
-    fn as_noise(&self) -> &dyn Noise {
-        match self {
-            Self::Perlin(n) => n,
-            Self::Simplex(n) => n,
-            Self::Smeared(n) => n,
-            Self::Stack(n) => n,
-        }
-    }
-    fn shared_noise(&self) -> Arc<dyn Noise> {
-        match self {
-            Self::Perlin(n) => Arc::new(n.clone()),
-            Self::Simplex(n) => Arc::new(n.clone()),
-            Self::Smeared(n) => Arc::new(n.clone()),
-            Self::Stack(n) => Arc::new(n.clone()),
-        }
-    }
-    fn range(&self) -> Result<[f64; 2], horizon_core::noise::NanRange> {
-        self.as_noise().range()
-    }
-    fn get2(&self, x: f64, z: f64) -> f64 {
-        self.as_noise().get2(x, z)
-    }
-    fn get3(&self, x: f64, y: f64, z: f64) -> f64 {
-        self.as_noise().get3(x, y, z)
-    }
-}
 fn read<T: std::str::FromStr>(
     args: &mut std::str::SplitWhitespace<'_>,
 ) -> Result<T, Box<dyn std::error::Error>> {
@@ -65,15 +22,6 @@ fn double(args: &mut std::str::SplitWhitespace<'_>) -> Result<f64, Box<dyn std::
         16,
     )?))
 }
-fn float(args: &mut std::str::SplitWhitespace<'_>) -> Result<f32, Box<dyn std::error::Error>> {
-    Ok(f32::from_bits(u32::from_str_radix(
-        args.next().ok_or("missing float")?,
-        16,
-    )?))
-}
-fn bits(v: f32) -> u32 {
-    if v.is_nan() { 0x7fc0_0000 } else { v.to_bits() }
-}
 fn dbits(v: f64) -> u64 {
     if v.is_nan() {
         0x7ff8_0000_0000_0000
@@ -81,337 +29,467 @@ fn dbits(v: f64) -> u64 {
         v.to_bits()
     }
 }
-fn create<R: RandomSource>(
-    kind: &str,
-    mut rng: R,
-    skip: bool,
-    scale: f64,
-    out: &mut impl Write,
-) -> io::Result<Sampler> {
-    let sampler = match kind {
-        "perlin" => Sampler::Perlin(PerlinNoise::new(&mut rng)),
-        "simplex" => Sampler::Simplex(SimplexNoise::with_skipped_offsets(&mut rng, skip)),
-        "smeared" => Sampler::Smeared(SmearedPerlinNoise::new(&mut rng, scale)),
-        _ => {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "unknown sampler",
-            ));
-        }
-    };
-    let offsets = sampler.table().offsets();
-    let range = sampler.range();
-    let (lower, upper) = match range {
-        Ok(range) => (bits(range[0] as f32).to_string(), bits(range[1] as f32).to_string()),
-        Err(_) => ("error".to_owned(), "error".to_owned()),
-    };
-    writeln!(
-        out,
-        "create {} {} {} {} {} {}",
-        dbits(offsets[0]),
-        dbits(offsets[1]),
-        dbits(offsets[2]),
-        lower,
-        upper,
-        rng.next_long()
-    )?;
-    write!(out, "permutations")?;
-    for v in sampler.table().permutations() {
-        write!(out, " {v}")?;
-    }
-    writeln!(out)?;
-    Ok(sampler)
-}
-fn normal_probe<R: RandomSource>(
-    out: &mut impl Write,
-    definition: Result<NormalNoise, NoiseBuildError>,
-    mut random: R,
-    points: &[[f64; 3]],
-    legacy: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let Ok(definition) = definition else {
-        writeln!(out, "normal error {}", random.next_long())?;
-        return Ok(());
-    };
-    let range = definition.range();
-    writeln!(
-        out,
-        "normal {} {} {} {}",
-        definition.octaves().len(),
-        dbits(definition.normalization_factor()),
-        bits(range[0] as f32),
-        bits(range[1] as f32)
-    )?;
-    for octave in definition.octaves() {
-        writeln!(
-            out,
-            "octave {} {} {} {}",
-            octave.octave_index,
-            dbits(octave.frequency),
-            dbits(octave.amplitude),
-            octave.seed()
-        )?;
-    }
-    let created = if legacy {
-        definition.create_for_legacy_nether_biome(&mut random)
-    } else {
-        definition.create(&mut random)
-    };
-    match created {
-        Err(_) => writeln!(out, "normal-create error")?,
-        Ok(noise) => {
-            let range = noise.range()?;
-            writeln!(
-                out,
-                "normal-create {} {} {}",
-                noise.layers().len(),
-                bits(range[0] as f32),
-                bits(range[1] as f32)
-            )?;
-            for layer in noise.layers() {
-                writeln!(
-                    out,
-                    "normal-layer {} {} {} {}",
-                    dbits(layer.frequency),
-                    bits(layer.amplitude as f32),
-                    bits(layer.noise.get2(0.25, 0.75) as f32),
-                    bits(layer.noise.get3(-17.25, 64.125, 32.5) as f32)
-                )?;
-            }
-            for &[x, y, z] in points {
-                writeln!(
-                    out,
-                    "normal-query {} {}",
-                    bits(noise.get2(x, z) as f32),
-                    bits(noise.get3(x, y, z) as f32)
-                )?;
-            }
-            let volume = DensityVolume::new([2, 5, 2], [-17, -64, 32], [4, 1, 4])?;
-            let mut values: Vec<f64> = (0..volume.size())
-                .map(|i| (i as f64 - 10.0) * 0.125)
-                .collect();
-            for (pass, amplitude) in [0.5, -0.25].into_iter().enumerate() {
-                noise.add_to_volume(&mut values, volume, 0.125, 0.25, amplitude)?;
-                for (i, value) in values.iter().enumerate() {
-                    writeln!(out, "normal-volume {pass} {i} {}", bits(*value as f32))?;
-                }
-            }
-        }
-    }
-    writeln!(out, "normal-parent {}", random.next_long())?;
-    Ok(())
-}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let stdin = io::stdin();
     let mut out = BufWriter::new(io::stdout().lock());
-    let mut samplers = Vec::new();
+    let mut improved: Vec<ImprovedNoise> = Vec::new();
+    let mut perlin: Vec<PerlinNoise> = Vec::new();
+    let mut simplex: Vec<SimplexNoise> = Vec::new();
+    let mut psimplex: Vec<PerlinSimplexNoise> = Vec::new();
+    let mut normal: Vec<NormalNoise> = Vec::new();
+    let mut blended: Vec<BlendedNoise> = Vec::new();
     for line in stdin.lock().lines() {
         let line = line?;
         let mut args = line.split_whitespace();
         match args.next().ok_or("missing operation")? {
+            "wrap" => writeln!(out, "wrap {}", dbits(wrap(double(&mut args)?)))?,
+            "bias" => {
+                let noise = double(&mut args)?;
+                let factor = double(&mut args)?;
+                writeln!(
+                    out,
+                    "bias {}",
+                    dbits(NoiseUtils::bias_towards_extreme(noise, factor))
+                )?;
+            }
+            "create-improved" => {
+                let kind = args.next().ok_or("missing RNG kind")?;
+                let seed: i64 = read(&mut args)?;
+                let noise = match kind {
+                    "legacy" => {
+                        let mut random = LegacyRandom::new(seed);
+                        let noise = ImprovedNoise::new(&mut random);
+                        writeln!(
+                            out,
+                            "improved {} {} {} {}",
+                            dbits(noise.xo),
+                            dbits(noise.yo),
+                            dbits(noise.zo),
+                            random.next_long()
+                        )?;
+                        noise
+                    }
+                    "xoroshiro" => {
+                        let mut random = XoroshiroRandom::new(seed);
+                        let noise = ImprovedNoise::new(&mut random);
+                        writeln!(
+                            out,
+                            "improved {} {} {} {}",
+                            dbits(noise.xo),
+                            dbits(noise.yo),
+                            dbits(noise.zo),
+                            random.next_long()
+                        )?;
+                        noise
+                    }
+                    _ => return Err("unknown stream".into()),
+                };
+                write!(out, "permutations")?;
+                for v in noise.permutations() {
+                    write!(out, " {v}")?;
+                }
+                writeln!(out)?;
+                writeln!(out, "config {}", noise.parity_config_string())?;
+                improved.push(noise);
+            }
+            operation @ ("query-improved" | "local-improved") => {
+                let id: usize = read(&mut args)?;
+                let mut point = [double(&mut args)?, double(&mut args)?, double(&mut args)?];
+                let noise = &improved[id];
+                if operation == "local-improved" {
+                    point[0] -= noise.xo;
+                    point[1] -= noise.yo;
+                    point[2] -= noise.zo;
+                }
+                let y_scale = double(&mut args)?;
+                let y_fudge = double(&mut args)?;
+                let mut derivative = [double(&mut args)?, double(&mut args)?, double(&mut args)?];
+                let [x, y, z] = point;
+                let value = noise.noise(x, y, z);
+                let smeared = noise.noise_smeared(x, y, z, y_scale, y_fudge);
+                let with_derivative = noise.noise_with_derivative(x, y, z, &mut derivative);
+                writeln!(
+                    out,
+                    "improved-query {} {} {} {} {} {}",
+                    dbits(value),
+                    dbits(smeared),
+                    dbits(with_derivative),
+                    dbits(derivative[0]),
+                    dbits(derivative[1]),
+                    dbits(derivative[2])
+                )?;
+            }
+            "create-perlin" => {
+                let kind = args.next().ok_or("missing RNG kind")?;
+                let seed: i64 = read(&mut args)?;
+                let init: i32 = read(&mut args)?;
+                let first_octave: i32 = read(&mut args)?;
+                let count: usize = read(&mut args)?;
+                let amplitudes = (0..count)
+                    .map(|_| double(&mut args))
+                    .collect::<Result<Vec<_>, _>>()?;
+                macro_rules! build {
+                    ($random:expr) => {{
+                        let mut random = $random;
+                        let built = if init == 0 {
+                            PerlinNoise::create(&mut random, first_octave, &amplitudes)
+                        } else {
+                            PerlinNoise::create_legacy_for_legacy_nether_biome(
+                                &mut random,
+                                first_octave,
+                                &amplitudes,
+                            )
+                        };
+                        match built {
+                            Err(_) => {
+                                writeln!(out, "perlin error {}", random.next_long())?;
+                            }
+                            Ok(noise) => {
+                                writeln!(
+                                    out,
+                                    "perlin {} {}",
+                                    first_octave,
+                                    dbits(noise.max_value())
+                                )?;
+                                writeln!(out, "perlin-config {}", noise.parity_config_string())?;
+                                writeln!(out, "perlin-parent {}", random.next_long())?;
+                                perlin.push(noise);
+                            }
+                        }
+                    }};
+                }
+                match kind {
+                    "legacy" => build!(LegacyRandom::new(seed)),
+                    "xoroshiro" => build!(XoroshiroRandom::new(seed)),
+                    _ => return Err("unknown stream".into()),
+                }
+            }
+            "create-perlin-octaves" => {
+                let kind = args.next().ok_or("missing RNG kind")?;
+                let seed: i64 = read(&mut args)?;
+                let init: i32 = read(&mut args)?;
+                let count: usize = read(&mut args)?;
+                let octaves = (0..count)
+                    .map(|_| read::<i32>(&mut args))
+                    .collect::<Result<Vec<_>, _>>()?;
+                macro_rules! build {
+                    ($random:expr) => {{
+                        let mut random = $random;
+                        let built = if init == 0 {
+                            PerlinNoise::create_from_octaves(&mut random, &octaves)
+                        } else {
+                            PerlinNoise::create_legacy_for_blended_noise(&mut random, &octaves)
+                        };
+                        match built {
+                            Err(_) => {
+                                writeln!(out, "perlin error {}", random.next_long())?;
+                            }
+                            Ok(noise) => {
+                                writeln!(
+                                    out,
+                                    "perlin {} {}",
+                                    noise.first_octave(),
+                                    dbits(noise.max_value())
+                                )?;
+                                writeln!(out, "perlin-config {}", noise.parity_config_string())?;
+                                writeln!(out, "perlin-parent {}", random.next_long())?;
+                                perlin.push(noise);
+                            }
+                        }
+                    }};
+                }
+                match kind {
+                    "legacy" => build!(LegacyRandom::new(seed)),
+                    "xoroshiro" => build!(XoroshiroRandom::new(seed)),
+                    _ => return Err("unknown stream".into()),
+                }
+            }
+            "query-perlin" => {
+                let id: usize = read(&mut args)?;
+                let x = double(&mut args)?;
+                let y = double(&mut args)?;
+                let z = double(&mut args)?;
+                let y_scale = double(&mut args)?;
+                let y_fudge = double(&mut args)?;
+                let noise = &perlin[id];
+                writeln!(
+                    out,
+                    "perlin-query {} {}",
+                    dbits(noise.get_value(x, y, z)),
+                    dbits(noise.get_value_smeared(x, y, z, y_scale, y_fudge))
+                )?;
+            }
+            "perlin-maxbroken" => {
+                let id: usize = read(&mut args)?;
+                let y_scale = double(&mut args)?;
+                writeln!(
+                    out,
+                    "perlin-maxbroken {}",
+                    dbits(perlin[id].max_broken_value(y_scale))
+                )?;
+            }
+            "create-simplex" => {
+                let kind = args.next().ok_or("missing RNG kind")?;
+                let seed: i64 = read(&mut args)?;
+                let noise = match kind {
+                    "legacy" => {
+                        let mut random = LegacyRandom::new(seed);
+                        let noise = SimplexNoise::new(&mut random);
+                        writeln!(
+                            out,
+                            "simplex {} {} {} {}",
+                            dbits(noise.xo),
+                            dbits(noise.yo),
+                            dbits(noise.zo),
+                            random.next_long()
+                        )?;
+                        noise
+                    }
+                    "xoroshiro" => {
+                        let mut random = XoroshiroRandom::new(seed);
+                        let noise = SimplexNoise::new(&mut random);
+                        writeln!(
+                            out,
+                            "simplex {} {} {} {}",
+                            dbits(noise.xo),
+                            dbits(noise.yo),
+                            dbits(noise.zo),
+                            random.next_long()
+                        )?;
+                        noise
+                    }
+                    _ => return Err("unknown stream".into()),
+                };
+                write!(out, "permutations")?;
+                for v in noise.permutations() {
+                    write!(out, " {v}")?;
+                }
+                writeln!(out)?;
+                writeln!(out, "config {}", noise.parity_config_string())?;
+                simplex.push(noise);
+            }
+            "query-simplex" => {
+                let id: usize = read(&mut args)?;
+                let x = double(&mut args)?;
+                let y = double(&mut args)?;
+                let z = double(&mut args)?;
+                let noise = &simplex[id];
+                writeln!(
+                    out,
+                    "simplex-query {} {}",
+                    dbits(noise.get_value(x, y)),
+                    dbits(noise.get_value_3d(x, y, z))
+                )?;
+            }
+            "create-perlin-simplex" => {
+                let kind = args.next().ok_or("missing RNG kind")?;
+                let seed: i64 = read(&mut args)?;
+                let count: usize = read(&mut args)?;
+                let octaves = (0..count)
+                    .map(|_| read::<i32>(&mut args))
+                    .collect::<Result<Vec<_>, _>>()?;
+                macro_rules! build {
+                    ($random:expr) => {{
+                        let mut random = $random;
+                        match PerlinSimplexNoise::new(&mut random, &octaves) {
+                            Err(_) => {
+                                writeln!(out, "perlin-simplex error {}", random.next_long())?;
+                            }
+                            Ok(noise) => {
+                                writeln!(
+                                    out,
+                                    "perlin-simplex {} {}",
+                                    dbits(noise.highest_freq_input_factor()),
+                                    dbits(noise.highest_freq_value_factor())
+                                )?;
+                                for (i, level) in noise.levels().iter().enumerate() {
+                                    match level {
+                                        None => writeln!(out, "psimplex-level {i} absent")?,
+                                        Some(level) => writeln!(
+                                            out,
+                                            "psimplex-level {i} {} {} {}",
+                                            dbits(level.xo),
+                                            dbits(level.yo),
+                                            dbits(level.zo)
+                                        )?,
+                                    }
+                                }
+                                writeln!(out, "perlin-simplex-parent {}", random.next_long())?;
+                                psimplex.push(noise);
+                            }
+                        }
+                    }};
+                }
+                match kind {
+                    "legacy" => build!(LegacyRandom::new(seed)),
+                    "xoroshiro" => build!(XoroshiroRandom::new(seed)),
+                    _ => return Err("unknown stream".into()),
+                }
+            }
+            "query-perlin-simplex" => {
+                let id: usize = read(&mut args)?;
+                let x = double(&mut args)?;
+                let y = double(&mut args)?;
+                let use_start: i32 = read(&mut args)?;
+                writeln!(
+                    out,
+                    "psimplex-query {}",
+                    dbits(psimplex[id].get_value(x, y, use_start != 0))
+                )?;
+            }
             "normal" => {
                 let kind = args.next().ok_or("missing RNG kind")?;
                 let seed: i64 = read(&mut args)?;
-                let parity: i32 = read(&mut args)?;
-                let base: i32 = read(&mut args)?;
-                let count: i32 = read(&mut args)?;
-                let normalization: i32 = read(&mut args)?;
-                let amplitude = double(&mut args)?;
-                let modifiers: usize = read(&mut args)?;
-                let modifiers = (0..modifiers)
+                let legacy: i32 = read(&mut args)?;
+                let first_octave: i32 = read(&mut args)?;
+                let count: usize = read(&mut args)?;
+                let amplitudes = (0..count)
                     .map(|_| double(&mut args))
                     .collect::<Result<Vec<_>, _>>()?;
                 let point_count: usize = read(&mut args)?;
                 let points = (0..point_count)
                     .map(|_| Ok([double(&mut args)?, double(&mut args)?, double(&mut args)?]))
                     .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
-                let definition = if parity & 1 != 0 {
-                    NormalNoise::create_parity(base, &modifiers)
-                } else {
-                    (|| {
-                        let mut builder = NormalNoise::builder();
-                        builder
-                            .set_base_octave(base)
-                            .set_base_amplitude(amplitude)
-                            .set_normalization(match normalization {
-                                0 => Normalization::Disabled,
-                                1 => Normalization::Enabled,
-                                _ => Normalization::Legacy,
-                            });
-                        builder.set_octave_count(count)?;
-                        for (index, value) in modifiers.iter().enumerate() {
-                            builder.set_amplitude_modifier(index as i32, *value)?;
-                        }
-                        builder.build()
-                    })()
-                };
-                match kind {
-                    "legacy" => normal_probe(
-                        &mut out,
-                        definition,
-                        LegacyRandom::new(seed),
-                        &points,
-                        parity & 2 != 0,
-                    )?,
-                    "xoroshiro" => normal_probe(
-                        &mut out,
-                        definition,
-                        XoroshiroRandom::new(seed),
-                        &points,
-                        parity & 2 != 0,
-                    )?,
-                    _ => return Err("unknown stream".into()),
-                }
-            }
-            "create" => {
-                let kind = args.next().ok_or("missing sampler")?;
-                let stream = args.next().ok_or("missing stream")?;
-                let seed: i64 = read(&mut args)?;
-                let skip: i32 = read(&mut args)?;
-                let scale = double(&mut args)?;
-                let sampler = match stream {
-                    "legacy" => create(kind, LegacyRandom::new(seed), skip != 0, scale, &mut out)?,
-                    "xoroshiro" => {
-                        create(kind, XoroshiroRandom::new(seed), skip != 0, scale, &mut out)?
-                    }
-                    _ => return Err("unknown stream".into()),
-                };
-                samplers.push(sampler);
-            }
-            operation @ ("query" | "local") => {
-                let id: usize = read(&mut args)?;
-                let mut point = [double(&mut args)?, double(&mut args)?, double(&mut args)?];
-                let mut derivative = [float(&mut args)?, float(&mut args)?, float(&mut args)?];
-                let sampler = &samplers[id];
-                if operation == "local" {
-                    for (value, offset) in point.iter_mut().zip(sampler.table().offsets()) {
-                        *value -= offset;
-                    }
-                }
-                let [x, y, z] = point;
-                write!(
-                    out,
-                    "query {} {}",
-                    bits(sampler.get2(x, z) as f32),
-                    bits(sampler.get3(x, y, z) as f32)
-                )?;
-                let value = match sampler {
-                    Sampler::Perlin(n) => Some(n.noise_with_derivative(x, y, z, &mut derivative)),
-                    Sampler::Smeared(n) => Some(n.noise_with_derivative(x, y, z, &mut derivative)),
-                    Sampler::Simplex(_) | Sampler::Stack(_) => None,
-                };
-                if let Some(value) = value {
-                    write!(
-                        out,
-                        " {} {} {} {}",
-                        bits(value),
-                        bits(derivative[0]),
-                        bits(derivative[1]),
-                        bits(derivative[2])
-                    )?;
-                }
-                writeln!(out)?;
-            }
-            "volume" => {
-                let id: usize = read(&mut args)?;
-                let sizes = [read(&mut args)?, read(&mut args)?, read(&mut args)?];
-                let minimum = [read(&mut args)?, read(&mut args)?, read(&mut args)?];
-                let steps = [read(&mut args)?, read(&mut args)?, read(&mut args)?];
-                let xz_scale = double(&mut args)?;
-                let y_scale = double(&mut args)?;
-                let amplitude = double(&mut args)?;
-                let seed: i64 = read(&mut args)?;
-                let repeats: usize = read(&mut args)?;
-                match DensityVolume::new(sizes, minimum, steps) {
-                    Err(_) => writeln!(out, "volume error")?,
-                    Ok(volume) => {
-                        let mut random = LegacyRandom::new(seed);
-                        let mut values: Vec<f64> = (0..volume.size() + 4)
-                            .map(|_| f64::from(f32::from_bits(random.next_int() as u32)))
-                            .collect();
-                        let sampler = &samplers[id];
-                        for _ in 0..repeats {
-                            sampler.as_noise().add_to_volume(
-                                &mut values,
-                                volume,
-                                xz_scale,
-                                y_scale,
-                                amplitude,
-                            )?;
-                        }
-                        let maximum = volume.maximum();
-                        writeln!(
-                            out,
-                            "volume {} {} {} {}",
-                            volume.size(),
-                            maximum[0],
-                            maximum[1],
-                            maximum[2]
-                        )?;
-                        let [sx, sy, sz] = volume.sizes();
-                        for z in 0..sz {
-                            for x in 0..sx {
-                                for y in 0..sy {
-                                    let index = volume.index([x, y, z]).unwrap();
+                macro_rules! build {
+                    ($random:expr) => {{
+                        let mut random = $random;
+                        let built = if legacy != 0 {
+                            NormalNoise::create_legacy_nether_biome(
+                                &mut random,
+                                NoiseParameters {
+                                    first_octave,
+                                    amplitudes: amplitudes.clone(),
+                                },
+                            )
+                        } else {
+                            NormalNoise::create(&mut random, first_octave, &amplitudes)
+                        };
+                        match built {
+                            Err(_) => {
+                                writeln!(out, "normal error {}", random.next_long())?;
+                            }
+                            Ok(noise) => {
+                                writeln!(
+                                    out,
+                                    "normal {} {}",
+                                    dbits(noise.value_factor()),
+                                    dbits(noise.max_value())
+                                )?;
+                                writeln!(out, "normal-config {}", noise.parity_config_string())?;
+                                for &[x, y, z] in &points {
                                     writeln!(
                                         out,
-                                        "cell {index} {} {} {} {}",
-                                        volume.block(Axis::X, x).unwrap(),
-                                        volume.block(Axis::Y, y).unwrap(),
-                                        volume.block(Axis::Z, z).unwrap(),
-                                        bits(values[index] as f32)
+                                        "normal-query {}",
+                                        dbits(noise.get_value(x, y, z))
                                     )?;
                                 }
+                                writeln!(out, "normal-parent {}", random.next_long())?;
+                                normal.push(noise);
                             }
                         }
-                        for value in &values[volume.size()..] {
-                            writeln!(out, "tail {}", bits(*value as f32))?;
-                        }
-                    }
+                    }};
+                }
+                match kind {
+                    "legacy" => build!(LegacyRandom::new(seed)),
+                    "xoroshiro" => build!(XoroshiroRandom::new(seed)),
+                    _ => return Err("unknown stream".into()),
                 }
             }
-            "stack" => {
-                let count: usize = read(&mut args)?;
-                let mut builder = NoiseStack::builder();
-                for _ in 0..count {
-                    let flatten: i32 = read(&mut args)?;
-                    let id: usize = read(&mut args)?;
-                    let frequency = double(&mut args)?;
-                    let amplitude = double(&mut args)?;
-                    if flatten != 0 {
-                        let Sampler::Stack(stack) = &samplers[id] else {
-                            return Err("flatten expects a stack".into());
-                        };
-                        builder.add_stack(stack, frequency, amplitude);
-                    } else {
-                        builder.add(samplers[id].shared_noise(), frequency, amplitude);
+            operation @ ("blended" | "blended-unseeded") => {
+                let seeded = operation == "blended";
+                let (kind, seed) = if seeded {
+                    (
+                        args.next().ok_or("missing RNG kind")?.to_owned(),
+                        read::<i64>(&mut args)?,
+                    )
+                } else {
+                    (String::new(), 0)
+                };
+                let scales = [
+                    double(&mut args)?,
+                    double(&mut args)?,
+                    double(&mut args)?,
+                    double(&mut args)?,
+                    double(&mut args)?,
+                ];
+                let point_count: usize = read(&mut args)?;
+                let points = (0..point_count)
+                    .map(|_| {
+                        Ok([
+                            read::<i32>(&mut args)?,
+                            read::<i32>(&mut args)?,
+                            read::<i32>(&mut args)?,
+                        ])
+                    })
+                    .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
+                let [xz_scale, y_scale, xz_factor, y_factor, smear] = scales;
+                if seeded {
+                    macro_rules! build {
+                        ($random:expr) => {{
+                            let mut random = $random;
+                            match BlendedNoise::new(
+                                &mut random,
+                                xz_scale,
+                                y_scale,
+                                xz_factor,
+                                y_factor,
+                                smear,
+                            ) {
+                                Err(_) => {
+                                    writeln!(out, "blended error {}", random.next_long())?;
+                                }
+                                Ok(noise) => {
+                                    writeln!(
+                                        out,
+                                        "blended {} {}",
+                                        dbits(noise.max_value()),
+                                        dbits(noise.min_value())
+                                    )?;
+                                    writeln!(
+                                        out,
+                                        "blended-config {}",
+                                        noise.parity_config_string()
+                                    )?;
+                                    for &[x, y, z] in &points {
+                                        writeln!(
+                                            out,
+                                            "blended-query {}",
+                                            dbits(noise.compute(x, y, z))
+                                        )?;
+                                    }
+                                    writeln!(out, "blended-parent {}", random.next_long())?;
+                                    blended.push(noise);
+                                }
+                            }
+                        }};
                     }
-                }
-                match builder.build() {
-                    Err(_) => writeln!(out, "stack error")?,
-                    Ok(stack) => {
-                        let range = stack.range()?;
-                        writeln!(
-                            out,
-                            "stack {} {} {}",
-                            stack.layers().len(),
-                            bits(range[0] as f32),
-                            bits(range[1] as f32)
-                        )?;
-                        for (index, layer) in stack.layers().iter().enumerate() {
+                    match kind.as_str() {
+                        "legacy" => build!(LegacyRandom::new(seed)),
+                        "xoroshiro" => build!(XoroshiroRandom::new(seed)),
+                        _ => return Err("unknown stream".into()),
+                    }
+                } else {
+                    match BlendedNoise::create_unseeded(
+                        xz_scale, y_scale, xz_factor, y_factor, smear,
+                    ) {
+                        Err(_) => writeln!(out, "blended error")?,
+                        Ok(noise) => {
                             writeln!(
                                 out,
-                                "layer {} {} {}",
-                                dbits(layer.frequency),
-                                bits(layer.amplitude as f32),
-                                bits(stack.get_layer(index).unwrap().get3(0.0, 0.0, 0.0) as f32)
+                                "blended {} {}",
+                                dbits(noise.max_value()),
+                                dbits(noise.min_value())
                             )?;
+                            writeln!(out, "blended-config {}", noise.parity_config_string())?;
+                            for &[x, y, z] in &points {
+                                writeln!(out, "blended-query {}", dbits(noise.compute(x, y, z)))?;
+                            }
+                            blended.push(noise);
                         }
-                        samplers.push(Sampler::Stack(stack));
                     }
                 }
             }
-            "wrap" => writeln!(out, "wrap {}", dbits(wrap(double(&mut args)?)))?,
             _ => return Err("unknown operation".into()),
         }
         if args.next().is_some() {

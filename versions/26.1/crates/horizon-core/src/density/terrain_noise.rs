@@ -1,6 +1,6 @@
 use super::{graph::WeirdRarityMapper, *};
 use crate::{
-    noise::{NoiseBuildError, NoiseStack, SmearedPerlinNoise},
+    noise::{synth, NoiseBuildError, NoiseStack, SmearedPerlinNoise},
     random::RandomSource,
 };
 
@@ -109,56 +109,46 @@ pub struct BlendedNoise {
     pub y_factor: f64,
     pub smear_scale_multiplier: f64,
 }
-#[derive(Clone, Debug)]
-pub struct BlendedFbmSet {
-    pub min_limit: NoiseStack,
-    pub max_limit: NoiseStack,
-    pub main: NoiseStack,
+
+/// A compiled old blended noise as a density sampler, backed by the
+/// faithful f64 synth `BlendedNoise` — vanilla 26.1's `BlendedNoise` class,
+/// which IS the `minecraft:old_blended_noise` density function
+/// (`DensityFunction.SimpleFunction`, double throughout). The previous
+/// float `SmearedPerlinNoise` stacks rounded every octave value to f32,
+/// flipping near-zero densities the same way the float NormalNoise did.
+/// Bulk sampling uses the trait's scalar traversal; vanilla computes this
+/// function per block too.
+#[derive(Debug)]
+pub struct BlendedNoiseSampler {
+    noise: synth::BlendedNoise,
+}
+impl DensitySampler for BlendedNoiseSampler {
+    fn sample_value(
+        &self,
+        _: &mut SamplerContext,
+        [x, y, z]: [i32; 3],
+    ) -> Result<f64, SampleError> {
+        Ok(self.noise.compute(x, y, z))
+    }
 }
 impl BlendedNoise {
-    pub fn create_fbm_set(
+    /// Compile against the faithful f64 synth noise. The random stream
+    /// matches vanilla's `BlendedNoise` constructor (min limit, max limit,
+    /// then main, each built from the caller's stream in octave order).
+    pub fn compile(
         &self,
         random: &mut impl RandomSource,
-    ) -> Result<BlendedFbmSet, NoiseBuildError> {
-        let smear = (684.412 * self.y_scale) * self.smear_scale_multiplier;
-        let main_smear = smear / self.y_factor;
-        Ok(BlendedFbmSet {
-            min_limit: create_blended_fbm(random, -15, smear, 0.9999847412109375)?,
-            max_limit: create_blended_fbm(random, -15, smear, 0.9999847412109375)?,
-            main: create_blended_fbm(random, -7, main_smear, 12.75)?,
-        })
-    }
-    pub fn compile(&self, random: &mut impl RandomSource) -> Result<LerpSampler, NoiseBuildError> {
-        let layers = self.create_fbm_set(random)?;
-        let xz_scale = 684.412 * self.xz_scale;
-        let y_scale = 684.412 * self.y_scale;
-        let min_limit = Arc::new(NoiseSampler {
-            noise: Arc::new(layers.min_limit),
-            xz_scale,
-            y_scale,
-        });
-        let max_limit = Arc::new(NoiseSampler {
-            noise: Arc::new(layers.max_limit),
-            xz_scale,
-            y_scale,
-        });
-        let main = Arc::new(NoiseSampler {
-            noise: Arc::new(layers.main),
-            xz_scale: xz_scale / self.xz_factor,
-            y_scale: y_scale / self.y_factor,
-        });
-        let shifted = Arc::new(UnarySampler {
-            input: main,
-            operation: UnaryOp::Add(0.5),
-        });
-        let alpha = Arc::new(UnarySampler {
-            input: shifted,
-            operation: UnaryOp::Clamp { min: 0.0, max: 1.0 },
-        });
-        Ok(LerpSampler {
-            alpha,
-            first: DensityValue::Sampler(min_limit),
-            second: DensityValue::Sampler(max_limit),
+    ) -> Result<BlendedNoiseSampler, NoiseBuildError> {
+        Ok(BlendedNoiseSampler {
+            noise: synth::BlendedNoise::new(
+                random,
+                self.xz_scale,
+                self.y_scale,
+                self.xz_factor,
+                self.y_factor,
+                self.smear_scale_multiplier,
+            )
+            .map_err(NoiseBuildError::from)?,
         })
     }
     pub fn range(&self) -> Result<Interval, IntervalError> {

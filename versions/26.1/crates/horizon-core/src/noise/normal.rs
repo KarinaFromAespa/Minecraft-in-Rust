@@ -83,6 +83,25 @@ impl NormalNoise {
         self.range
     }
 
+    /// The raw (firstOctave, amplitudes) this definition decodes from, for
+    /// building the faithful f64 synth noise. Exact for noises built via
+    /// `create_parity` (JSON-decoded: the modifiers ARE the raw amplitudes;
+    /// the stored base amplitude is a float-engine normalization factor,
+    /// not part of them). For builder-built noises without modifiers, the
+    /// amplitudes are the base amplitude on every octave.
+    pub fn synth_parameters(&self) -> super::synth::NoiseParameters {
+        let count = self.parameters.octave_count.max(0) as usize;
+        let amplitudes = if self.parameters.modifiers.is_empty() {
+            vec![self.parameters.base_amplitude; count]
+        } else {
+            self.parameters.modifiers.clone()
+        };
+        super::synth::NoiseParameters {
+            first_octave: self.parameters.base_octave,
+            amplitudes,
+        }
+    }
+
     pub fn create(&self, random: &mut impl RandomSource) -> Result<NoiseStack, NoiseBuildError> {
         // Even an empty stack consumes both positional forks.
         let first = random.fork_positional();

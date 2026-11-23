@@ -446,6 +446,12 @@ impl From<crate::noise::NoiseBuildError> for CompileError {
         Self::Noise(e)
     }
 }
+
+impl From<crate::noise::synth::SynthError> for CompileError {
+    fn from(e: crate::noise::synth::SynthError) -> Self {
+        Self::Noise(crate::noise::NoiseBuildError::from(e))
+    }
+}
 impl std::fmt::Display for CompileError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "density graph compilation failed: {self:?}")
