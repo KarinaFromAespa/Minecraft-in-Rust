@@ -362,7 +362,8 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     self.dragon_egg_teleport(pos, state);
                     Success
                 }
-                Class::AbstractBed => {
+                // 1.21.7 has no AbstractBedBlock: its beds are BedBlock alone.
+                Class::AbstractBed | Class::Bed => {
                     let part = table.text(state, p.part).to_owned();
                     let facing = b.facing(state);
                     let other_dir = if part == "foot" {

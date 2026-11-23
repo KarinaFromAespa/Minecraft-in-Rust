@@ -142,7 +142,8 @@ impl MobWorld<'_> {
         use crate::bed_geometry::{SleepOn, pos_to_bed, shape_top, slept_on};
         let state = self.world.block(head[0], head[1], head[2]);
         let facts = self.facts.get(state);
-        if !facts.has_class("AbstractBedBlock") {
+        // 1.21.7 has no AbstractBedBlock: its beds are BedBlock alone.
+        if !facts.has_class("AbstractBedBlock") && !facts.has_class("BedBlock") {
             return None;
         }
         let part = self.prop(head[0], head[1], head[2], "part")?;

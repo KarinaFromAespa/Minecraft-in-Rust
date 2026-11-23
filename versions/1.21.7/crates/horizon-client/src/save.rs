@@ -808,8 +808,10 @@ pub fn encode_block_entity(
             }
         }
         // Encoded above; an enchanting table's CustomName is the block name.
+        // A bed saves nothing of its own: the colour is the block's.
         BlockEntity::DaylightDetector
         | BlockEntity::Bell
+        | BlockEntity::Bed
         | BlockEntity::EndPortal
         | BlockEntity::EnchantingTable
         | BlockEntity::CopperGolemStatue(_)
@@ -1140,6 +1142,7 @@ pub fn decode_block_entity(tag: &Tag) -> Option<((i32, i32, i32), crate::contain
         | BlockEntity::Skull(_)
         | BlockEntity::DaylightDetector
         | BlockEntity::Bell
+        | BlockEntity::Bed
         | BlockEntity::EndPortal
         | BlockEntity::EnchantingTable
         | BlockEntity::Mod(_) => {}
@@ -7170,6 +7173,41 @@ mod tests {
                 assert!(matches!(back, BlockEntity::EndGateway(g) if g == gateway));
             }
         }
+    }
+
+    #[test]
+    fn bed_block_entity_round_trips() {
+        use crate::containers::BlockEntity;
+        // Both the block names and the saved entity id map to a bed.
+        for name in ["minecraft:white_bed", "minecraft:red_bed", "minecraft:bed"] {
+            assert!(
+                matches!(BlockEntity::for_block(name), Some(BlockEntity::Bed)),
+                "{name}"
+            );
+        }
+        assert!(BlockEntity::Bed.fits("minecraft:yellow_bed"));
+        assert!(!BlockEntity::Bed.fits("minecraft:chest"));
+        let tag = encode_block_entity((47, 97, 9), &BlockEntity::Bed, "minecraft:white_bed");
+        assert_eq!(text(tag.get("id")).as_deref(), Some("minecraft:bed"));
+        // A vanilla bed saves no fields of its own: the colour is the block's.
+        assert_eq!(
+            tag.get("components"),
+            Some(&Tag::Compound(Compound::new()))
+        );
+        let (pos, back) = decode_block_entity(&tag).expect("bed");
+        assert_eq!(pos, (47, 97, 9));
+        assert!(matches!(back, BlockEntity::Bed));
+        // A vanilla save's bed compound (id + coords only) decodes too.
+        let vanilla = Tag::compound([
+            ("id", string("minecraft:bed")),
+            ("x", Tag::Int(47)),
+            ("y", Tag::Int(97)),
+            ("z", Tag::Int(9)),
+            ("keepPacked", Tag::Byte(0)),
+            ("components", Tag::Compound(Compound::new())),
+        ]);
+        let (_, back) = decode_block_entity(&vanilla).expect("vanilla bed");
+        assert!(matches!(back, BlockEntity::Bed));
     }
 
     #[test]

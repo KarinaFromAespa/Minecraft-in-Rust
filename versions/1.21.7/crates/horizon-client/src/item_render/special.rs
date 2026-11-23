@@ -1,5 +1,5 @@
 //! `SpecialModelRenderer`s: items drawn with entity models (chests, shulker
-//! boxes, banners, heads, shields, tridents, decorated pots, conduits, bells,
+//! boxes, banners, beds, heads, shields, tridents, decorated pots, conduits, bells,
 //! books and copper golem statues). Each submits its model at the layer pose
 //! as vanilla's `submit` does (no block-entity placement transform) and
 //! reports `getExtents` over the same posed parts.
@@ -11,11 +11,13 @@ use serde_json::Value;
 use std::{collections::HashMap, f32::consts::PI, path::Path};
 
 /// Entity model layers the special renderers bake (`ModelLayers`).
-const LAYERS: [(&str, &str); 22] = [
+const LAYERS: [(&str, &str); 24] = [
     ("chest", "minecraft:chest#main"),
     ("double_chest_left", "minecraft:double_chest_left#main"),
     ("double_chest_right", "minecraft:double_chest_right#main"),
     ("shulker_box", "minecraft:shulker_box#main"),
+    ("bed_head", "minecraft:bed_head#main"),
+    ("bed_foot", "minecraft:bed_foot#main"),
     ("standing_banner", "minecraft:standing_banner#main"),
     ("standing_banner_flag", "minecraft:standing_banner#flag"),
     ("wall_banner", "minecraft:wall_banner#main"),
@@ -98,6 +100,17 @@ impl ItemSink for OitEntity<'_> {
 /// A pose override for a named part (`setupAnim`).
 type Adjust<'a> = &'a dyn Fn(&str, &mut [f32; 9]);
 fn none(_: &str, _: &mut [f32; 9]) {}
+
+/// `BedRenderer.preparePose` for the item (`renderInHand`/`getExtents`):
+/// both pieces face south (Z 180); the head sits at the origin and the
+/// foot one block back (`back` -1).
+fn bed_pose(back: f32) -> Mat4 {
+    Mat4::from_translation(Vec3::new(0.0, 0.5625, back))
+        * Mat4::from_rotation_x((90.0f32).to_radians())
+        * Mat4::from_translation(Vec3::splat(0.5))
+        * Mat4::from_rotation_z(PI)
+        * Mat4::from_translation(Vec3::splat(-0.5))
+}
 
 /// `ModelPart.translateAndRotate`.
 fn part_matrix(parent: Mat4, p: &[f32; 9]) -> Mat4 {
@@ -324,6 +337,14 @@ pub(super) fn extents(renderer: &ItemRenderer, model: &SpecialModel) -> Vec<Vec3
     };
     match &model.kind {
         SpecialKind::Bell => add("bell", &none),
+        SpecialKind::Bed { .. } => {
+            // `BedRenderer.getExtents`: both pieces, facing south.
+            for (key, back) in [("bed_head", 0.0), ("bed_foot", -1.0)] {
+                if let Some(part) = renderer.part(key) {
+                    extents_of(part, "root", bed_pose(back), &none, &mut out);
+                }
+            }
+        }
         SpecialKind::Banner { .. } => {
             // `BannerRenderer.getExtents`: the standing models only.
             add("standing_banner", &none);
@@ -491,6 +512,18 @@ pub(super) fn submit(
     };
     match &model.kind {
         SpecialKind::Bell => part("bell", &none, "entity/bell/bell_body", white, Foil::None),
+        SpecialKind::Bed { texture } => {
+            // `BedRenderer.renderInHand`: the head piece at the origin and
+            // the foot piece one block back, both facing south.
+            let Some(r) = sprites.get(&mapped("bed", texture)).copied() else {
+                return;
+            };
+            for (key, back) in [("bed_head", 0.0), ("bed_foot", -1.0)] {
+                if let Some(p) = renderer.part(key) {
+                    draw(p, "root", pose * bed_pose(back), &none, r, white, Foil::None, sink);
+                }
+            }
+        }
         SpecialKind::Book {
             open_angle,
             page1,

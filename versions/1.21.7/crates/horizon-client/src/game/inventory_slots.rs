@@ -426,6 +426,7 @@ impl Game<'_> {
                 | BlockEntity::Skull(_)
                 | BlockEntity::DaylightDetector
                 | BlockEntity::Bell
+                | BlockEntity::Bed
                 | BlockEntity::Conduit(_)
                 | BlockEntity::EndPortal
                 | BlockEntity::EnchantingTable
@@ -494,6 +495,7 @@ impl Game<'_> {
                 | BlockEntity::Skull(_)
                 | BlockEntity::DaylightDetector
                 | BlockEntity::Bell
+                | BlockEntity::Bed
                 | BlockEntity::Conduit(_)
                 | BlockEntity::EndPortal
                 | BlockEntity::EnchantingTable

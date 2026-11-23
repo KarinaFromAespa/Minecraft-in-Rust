@@ -456,7 +456,11 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 self.level_event(2001, bottom, bottom_state.0 as i32);
             }
         }
-        if creative && data.is(Class::AbstractBed) && b.table.text(state, p.part) == "foot" {
+        // 1.21.7 has no AbstractBedBlock: its beds are BedBlock alone.
+        if creative
+            && (data.is(Class::AbstractBed) || data.is(Class::Bed))
+            && b.table.text(state, p.part) == "foot"
+        {
             let head_pos = rel(pos, b.facing(state));
             let head = self.state(head_pos);
             if b.is_block(head, b.block(state)) && b.table.text(head, p.part) == "head" {

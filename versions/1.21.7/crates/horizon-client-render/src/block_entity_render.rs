@@ -344,6 +344,14 @@ enum Kind {
         segment: u8,
     },
     Bell,
+    /// `BedRenderer`: one half of a bed. 1.21.7 beds are block-entity
+    /// rendered (their block model holds no geometry); 26.3 beds are
+    /// block models, so this kind never classifies there.
+    Bed {
+        texture: String,
+        facing: &'static str,
+        foot: bool,
+    },
     DecoratedPot {
         y_rot: f32,
     },
@@ -585,6 +593,13 @@ fn classify(name: &str, prop: &dyn Fn(&str) -> Option<String>) -> Kind {
                     color: crate::pack_palette::diffuse(dye),
                     wall: true,
                     angle: y_rot(facing()),
+                };
+            }
+            "bed" => {
+                return Kind::Bed {
+                    texture: format!("entity/bed/{}", DYES[dye].0),
+                    facing: facing(),
+                    foot: prop("part").as_deref() != Some("head"),
                 };
             }
             _ => {}
@@ -1007,8 +1022,9 @@ pub struct BlockEntityRenderer {
     sign_cache_enabled: AtomicBool,
 }
 /// Individually enabled caches for block entities with static or separable
-/// geometry. Sign boards and beds are block models in the terrain mesh; only
-/// sign text has a renderer-side cache.
+/// geometry. Sign boards are block models in the terrain mesh (beds are too
+/// in 26.3, but 1.21.7 beds are block-entity rendered); only sign text has
+/// a renderer-side cache.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CacheOptions {
     pub shulker_boxes: bool,
@@ -1406,7 +1422,7 @@ fn next_static_snapshot_revision() -> u64 {
     static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
     NEXT.fetch_add(1, Ordering::Relaxed)
 }
-const MODELS: [(&str, &str); 27] = [
+const MODELS: [(&str, &str); 29] = [
     ("chest", "minecraft:chest#main"),
     ("double_chest_left", "minecraft:double_chest_left#main"),
     ("double_chest_right", "minecraft:double_chest_right#main"),
@@ -1443,6 +1459,8 @@ const MODELS: [(&str, &str); 27] = [
         "minecraft:copper_golem_sitting#main",
     ),
     ("copper_golem_star", "minecraft:copper_golem_star#main"),
+    ("bed_head", "minecraft:bed_head#main"),
+    ("bed_foot", "minecraft:bed_foot#main"),
 ];
 /// `BlockEntityRenderer.getViewDistance` default.
 const VIEW_DISTANCE: f64 = 64.0;
@@ -2605,6 +2623,7 @@ impl BlockEntityRenderer {
         if !matches!(
             self.kind(state),
             Kind::Banner { .. }
+                | Kind::Bed { .. }
                 | Kind::Chest { .. }
                 | Kind::Skull { .. }
                 | Kind::Shulker { .. }
@@ -2759,6 +2778,45 @@ impl BlockEntityRenderer {
         let none = |_: &str, _: &mut [f32; 9]| {};
         match kind {
             Kind::None => {}
+            Kind::Bed {
+                texture,
+                facing,
+                foot,
+            } => {
+                let key = if *foot { "bed_foot" } else { "bed_head" };
+                let (Some(model), Some(paint)) = (
+                    shapes.models.get(key),
+                    paint(
+                        shapes.texture(key, texture, scene.sprites),
+                        0xFFFFFF,
+                        // BedRenderer's BrightnessCombiner: both halves
+                        // share the brighter of the two blocks' light.
+                        {
+                            let other =
+                                step(if *foot { *facing } else { opposite(facing) });
+                            let light = scene.world.light(
+                                pos[0] + other[0],
+                                pos[1] + other[1],
+                                pos[2] + other[2],
+                            );
+                            (packed >> 4).max(light >> 4) << 4
+                                | (packed & 15).max(light & 15)
+                        },
+                    ),
+                ) else {
+                    return;
+                };
+                // BedRenderer.preparePose with render's `false`: the piece
+                // sits 9/16 up in its own block, the model lies flat
+                // (X +90) and turns with the bed (Z 180 + facing).
+                let m = base
+                    * Mat4::from_translation(Vec3::new(0.0, 0.5625, 0.0))
+                    * Mat4::from_rotation_x((90.0f32).to_radians())
+                    * Mat4::from_translation(Vec3::splat(0.5))
+                    * Mat4::from_rotation_z((180.0 + y_rot(facing)).to_radians())
+                    * Mat4::from_translation(Vec3::splat(-0.5));
+                draw_part(model, "root", m, &none, paint, out);
+            }
             Kind::Sign {
                 hanging,
                 wall,
@@ -3657,6 +3715,39 @@ mod tests {
     use super::*;
     use crate::assets::Assets;
     use horizon_world::nbt::Tag;
+    #[test]
+    fn beds_classify_with_colour_texture_and_part() {
+        let foot = |key: &str| match key {
+            "facing" => Some("south".to_owned()),
+            "part" => Some("foot".to_owned()),
+            _ => None,
+        };
+        assert!(matches!(
+            classify("minecraft:white_bed", &foot),
+            Kind::Bed {
+                texture,
+                facing: "south",
+                foot: true
+            } if texture == "entity/bed/white"
+        ));
+        let head = |key: &str| match key {
+            "facing" => Some("west".to_owned()),
+            "part" => Some("head".to_owned()),
+            _ => None,
+        };
+        assert!(matches!(
+            classify("minecraft:yellow_bed", &head),
+            Kind::Bed {
+                texture,
+                facing: "west",
+                foot: false
+            } if texture == "entity/bed/yellow"
+        ));
+        assert!(matches!(
+            classify("minecraft:oak_planks", &foot),
+            Kind::None
+        ));
+    }
     #[test]
     #[ignore = "requires prepared models/textures in HORIZON_TEST_RESOURCES"]
     fn entity_block_particles_and_breaking_use_exported_models() -> Result<()> {

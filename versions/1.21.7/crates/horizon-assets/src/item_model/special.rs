@@ -12,6 +12,12 @@ pub enum SpecialKind {
         color: String,
         wall: bool,
     },
+    /// `BedSpecialRenderer`: the bed's dye colour identifier
+    /// (`minecraft:white`), which `Sheets.getBedMaterial` maps to the
+    /// `entity/bed/<colour>` texture.
+    Bed {
+        texture: String,
+    },
     Book {
         open_angle: f32,
         page1: f32,
@@ -89,6 +95,9 @@ impl SpecialModel {
         let float_or = |key: &str, default: f32| get(m, key).map_or(Ok(default), float);
         let kind = match ident(required(m, "type")?)?.as_str() {
             "minecraft:bell" => SpecialKind::Bell,
+            "minecraft:bed" => SpecialKind::Bed {
+                texture: ident(required(m, "texture")?)?,
+            },
             "minecraft:banner" => SpecialKind::Banner {
                 color: one_of(required(m, "color")?, &DYES)?,
                 wall: match get(m, "attachment") {
@@ -156,6 +165,10 @@ impl SpecialModel {
         };
         let ty = match &self.kind {
             SpecialKind::Bell => "bell",
+            SpecialKind::Bed { texture } => {
+                put("texture", json!(texture));
+                "bed"
+            }
             SpecialKind::Banner { color, wall } => {
                 put("color", json!(color));
                 if *wall {
@@ -255,5 +268,30 @@ impl SpecialModel {
             }
             _ => Value::Null,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bed_special_model_decodes_and_round_trips() {
+        // The 1.21.7 bed item definition (`assets/minecraft/items/white_bed.json`).
+        let model = SpecialModel::decode(&json!({
+            "type": "minecraft:bed",
+            "texture": "minecraft:white",
+        }))
+        .expect("bed special model");
+        assert_eq!(
+            model.kind,
+            SpecialKind::Bed {
+                texture: "minecraft:white".to_owned(),
+            }
+        );
+        assert_eq!(
+            model.to_json(),
+            json!({"type": "minecraft:bed", "texture": "minecraft:white"})
+        );
     }
 }

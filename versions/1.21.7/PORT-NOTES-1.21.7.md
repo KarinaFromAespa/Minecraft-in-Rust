@@ -2535,3 +2535,99 @@ in the crate-tests workflow. The first check run died on disk
 quota (104G used); a 32G stale `stream3-e6-quick` 1.21.5 `target/`
 was removed (git-ignored, 0 tracked files, stream idle) bringing
 usage to 89G, and the check resumed incrementally.
+
+## Beds: invisible, foot-only, unsaved (2026-11-23)
+
+Owner playtest on build #4 (head 44b3b4ed): villagers sleep in
+mid-air, no bed renders under them; a placed bed is invisible too;
+the bed item has no inventory icon (tooltip works); breaking a bed by
+hand drops nothing while an axe-break drops the item. The world file
+confirms beds exist (18 bed blocks in r.0.0.mca, 0 bed block
+entities) and the log shows all 16 bed item definitions failing with
+"unknown special model type". One systemic cause, four defects: the
+port's bed code is written against the 26.x form, and 1.21.7 does not
+have it. Vanilla 1.21.7 (server + client jars, javap-verified) has
+`BedBlock` (`extends HorizontalDirectionalBlock implements
+EntityBlock`) and `BedBlockEntity` (colour read from the block state;
+a saved bed is just `id` + coords + empty `components`) — there is no
+`AbstractBedBlock` in 1.21.7 (nor in 1.21.11). 26.3 renders beds as
+block models (`block/white_bed_head` + `block/white_bed_foot`); 1.21.7
+renders them through `BedRenderer` from the `bed_head`/`bed_foot`
+entity-model layers, and its `block/bed.json` holds no geometry (a
+particle texture only). Sweep major B11-G01, closed here.
+
+1. **Behaviour arms dead.** Every bed arm keyed on
+   `Class::AbstractBed`, which never matches a 1.21.7 bed: placement
+   (`place.rs`, which also checks the facing neighbour is replaceable),
+   `set_placed_by` (places the head), interact (sleep),
+   `updateShape` (copies `occupied`, else air when the partner is
+   gone), and creative foot-break (`hooks.rs`). Same gate as strings
+   in `server_only_block_use` (`game.rs`) and `sleeping_position`
+   (`mobs/world.rs`, which placed sleeping villagers wrong). All seven
+   now also match `BedBlock` (`Class::Bed`, previously unused).
+   Placement places head+foot again, sleep is reachable, and the
+   floating-villager sleep position resolves through the bed's shape.
+2. **No bed block entity.** `BlockEntity` had no Bed variant and
+   `for_block` returned `None` for bed blocks and for the
+   `minecraft:bed` entity id, so placement, structure templates
+   (village templates carry `{'id': 'minecraft:bed'}` for every bed
+   block) and vanilla saves all produced no entity — the world
+   comparison's 0-vs-50 gap. New unit variant `BlockEntity::Bed`
+   (identity only, like `Bell`), with `for_block`, `id`, `fits`,
+   `contents`/`slots` arms and save encode/decode arms (encode writes
+   exactly vanilla's form: id + coords + `keepPacked` 0 + empty
+   components). Existing saves load their beds back through the same
+   path: chunk load creates the entity from the block via `for_block`.
+3. **No bed block-entity renderer.** The mesher already lists bed
+   blocks as block entities (state-driven, `block_entity: true` in the
+   facts), but `classify` returned `Kind::None` and the terrain mesh
+   draws nothing for 1.21.7 beds — hence a present, targetable,
+   selection-boxed, invisible block. New `Kind::Bed` (texture from the
+   dye prefix, facing, head/foot), `bed_head`/`bed_foot` in `MODELS`,
+   and a `render_one` arm mirroring `BedRenderer.preparePose` exactly:
+   translate (0, 0.5625, 0), rotate X +90, translate (0.5, 0.5, 0.5),
+   rotate Z by 180 + facing, translate (-0.5, -0.5, -0.5), head model
+   for the head half and foot model for the foot. The render path
+   passes `false` for the pose's foot flag (javap: `render` passes
+   `iconst_0` unconditionally; the -1.0 shift is only for
+   `renderInHand`), so each half renders in its own block. Light is
+   the brighter of the two halves' nibbles (`BrightnessCombiner`).
+   Beds also join the breaking-overlay allowlist. The stale comment
+   claiming beds are block models is corrected (true for 26.3 only).
+4. **No bed special item model.** `SpecialKind` had no Bed, so
+   `decode` rejected `minecraft:bed` and all 16 bed item definitions
+   failed to load — no inventory icon, no dropped-item model. New
+   `SpecialKind::Bed { texture }` (the texture field is the dye colour
+   identifier, `minecraft:white`, mapped to `entity/bed/white` as
+   `Sheets.getBedMaterial` does), `bed_head`/`bed_foot` in the item
+   `LAYERS`, and `submit`/`extents` arms mirroring
+   `BedRenderer.renderInHand`/`getExtents` (head at the origin, foot
+   one block back, both facing south).
+
+**Hand-break no-drop is vanilla-correct, not a defect.** The 1.21.7
+bed loot table pays only under `block_state_property part=head`, and
+`BedBlock.playerWillDestroy` special-cases only creative
+(`preventsBlockDrops`); in vanilla, breaking a bed's foot drops
+nothing and breaking its head drops the bed. The port's loot path
+(`items.rs` evaluator via `block_loot_at`) already handles both
+conditions correctly. The owner broke the foot by hand and the head
+with the axe — compounded by foot-only placement, which left no head
+to break. The placement fix closes the complaint; no loot change.
+
+Regression tests: `doors_beds_and_plants_place_both_halves`
+(horizon-world level tests, already asserted head+foot — it skipped
+on CI runners without prepared resources, which is why the defect
+shipped; runs locally with `HORIZON_RESOURCES` pointed at a prepared
+1.21.7 tree), `bed_block_entity_round_trips` (save encode/decode,
+including a vanilla-shaped compound), `bed_special_model_decodes_and_round_trips`
+(horizon-assets), `beds_classify_with_colour_texture_and_part`
+(block-entity renderer). Verified locally: `cargo check` on the
+touched crates; the horizon-client lib test compile OOM-kills on this
+VM, so test execution goes to CI per the owner's rule.
+
+Depends on a prepare that emits the bed layers: the renderer degrades
+gracefully (no model, no draw) when `entity-models.json` lacks
+`minecraft:bed_head#main` / `minecraft:bed_foot#main`, so the next
+build needs a fresh prepare to show beds. The save-wide
+`BlockState::to_nbt` gap (states saved without properties) is
+separate and untouched.
