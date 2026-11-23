@@ -181,9 +181,69 @@
    "evidence": "DeOpCommands: lambda capture Collection -> NameAndId, logic unchanged. BanListEntry: 26.2 added hasExpired() + hashCode(); the Rust models no ban-expiry call (expiry lives in StoredUserList.removeExpired in both jars). profiles.rs 0-diff."
   },
   {
+   "id": 546,
+   "title": "crates/horizon-client/src/mobs/happy_ghast.rs: 2 vanilla classes changed (7 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "GhastMoveControl: only the ghast->mob field rename. HappyGhastLookControl: 26.1's local wrapDegrees90 (mod 90, clamp to +-45) moved to Mth.wrapDegrees90 in 26.2 \u2014 same math. happy_ghast.rs 0-diff."
+  },
+  {
+   "id": 549,
+   "title": "crates/horizon-client/src/game/golems.rs: 1 vanilla classes changed (5 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "CarvedPumpkinBlock: EntityType->EntityTypes, CriteriaTriggers criterion->triggers, Blocks.COPPER_BLOCK read via the WeatheringCopperCollection in 26.2. trySpawnGolem bodies structurally identical (getWeatherStateFromPattern + CopperGolem.spawn); the Rust's tag-based base check + weather-from-name matches both. golems.rs 0-diff."
+  },
+  {
+   "id": 552,
+   "title": "crates/horizon-client/src/game/social.rs: 1 vanilla classes changed (4 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "PlayerEntry: branch inversion (compiler form), Gui.getChat -> Hud.getChat, Minecraft.setScreen -> Gui.setScreen. Menu chrome + accessor moves. social.rs 0-diff."
+  },
+  {
+   "id": 553,
+   "title": "crates/horizon-client-render/src/mesher/lighting.rs: 1 vanilla classes changed (3 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "LightCoordsUtil.smoothBlend: compiler reorder only (same sky/block masks 0xFF0000/0xFF, same zero-sample/borrow-centre-sky logic). 26.2 added a getLightCoords overload with emissive handling (15728880 full-bright) \u2014 not modelled by the Rust in either tree (the Rust's Info.emissive is pack/mod-driven, and neither jar's ModelBlockRenderer mentions emissive). lighting.rs 0-diff."
+  },
+  {
+   "id": 560,
+   "title": "crates/horizon-client/src/game_rules_screen.rs: 3 vanilla classes changed (8 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "InWorldGameRulesScreen: the Minecraft.setScreen -> Gui.setScreen move (3 sites) + Minecraft.screen -> Gui.screen(). Menu chrome. game_rules_screen.rs 0-diff."
+  },
+  {
+   "id": 567,
+   "title": "crates/horizon-client-render/src/gfx/panorama.rs: 2 vanilla classes changed (6 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "CubeMap: getGameRenderState->gameRenderState, getMainRenderTarget->GameRenderer.mainRenderTarget, VertexFormat$Mode->PrimitiveTopology. CubeMapTexture: TextureFormat->GpuFormat + CommandEncoder/transientMemory upload. GPU plumbing; render-engine internals. panorama.rs 0-diff."
+  },
+  {
+   "id": 568,
+   "title": "crates/horizon-client-render/src/screen_draw.rs: 1 vanilla classes changed (6 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "ScissorStack: 26.2 made push/pop void and falls back to a screenSize rect on an empty stack (26.1 pushes the rect unclipped); the intersect math is unchanged. Not observable through the Rust: paint() clips vertices CPU-side and an off-screen rect renders nothing either way. screen_draw.rs 0-diff."
+  },
+  {
+   "id": 569,
+   "title": "crates/horizon-client/src/game/gamemode_switcher.rs: 3 vanilla classes changed (6 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "GameModeSwitcherScreen: the Minecraft.setScreen -> Gui.setScreen move (2 sites). Menu chrome. gamemode_switcher.rs 0-diff."
+  },
+  {
+   "id": 570,
+   "title": "crates/horizon-client/src/game/wandering_trader.rs: 1 vanilla classes changed (6 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "WanderingTraderSpawner: EntityType->EntityTypes only (5 sites). wandering_trader.rs 0-diff."
+  },
+  {
    "id": 571,
    "verdict": "no-change",
    "evidence": "Batch 63 NO-CHANGE (MatchTool): the only difference is ItemPredicate's package move (advancements.predicates -> advancements.criterion) in 26.1's favor \u2014 the test() logic is identical. The Rust loot code does not reference Java packages."
+  },
+  {
+   "id": 572,
+   "title": "crates/horizon-client/src/mobs/nautilus.rs: 2 vanilla classes changed (5 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "NautilusAi: EntityType->EntityTypes only. ChargeAttack: 26.2's dealKnockBack threads a mobAttack DamageSource + ATTACK_DAMAGE through the 6-arg causeExtraKnockback (26.2's knockback API rework); both causeExtraKnockback bodies are knockback-only (sin/cos yaw, knockback, own motion x0.6) with no hurt() call \u2014 the Rust's Knockback event with Damage::mob source + 0.6 self-slow matches both forms. nautilus.rs 0-diff."
   },
   {
    "id": 586,

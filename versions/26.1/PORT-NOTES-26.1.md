@@ -1413,3 +1413,17 @@ section-compile refactor, DeOp lambda form + unmodelled
 BanListEntry.hasExpired. `cargo check` clean for horizon-client
 (lib), horizon-client-render, horizon-world, horizon-protocol,
 horizon-items (lib+tests), horizon-command (lib+tests).
+
+Batch 75 (Nov 24, 100/214 — B1 #7, all no-change, docs-only): 546
+ghast field rename + wrapDegrees90 moved to Mth (same math); 549
+CarvedPumpkinBlock package moves + copper collection access, spawn
+logic identical; 552 PlayerEntry branch inversion + Gui accessor
+moves; 553 smoothBlend compiler reorder (same masks/logic), the
+26.2 emissive getLightCoords overload unmodelled in either tree;
+560/569 setScreen moves; 567 CubeMap GPU plumbing; 568 ScissorStack
+void push/pop + screenSize fallback, unobservable through the Rust's
+CPU vertex clipping; 570 EntityType moves; 572 the knockback API
+rework (both causeExtraKnockback bodies knockback-only, no damage).
+All ten Rust files 0-diff vs the 26.2 tree. No separate crate-tests
+dispatch (code tree identical to the batch-74 head, covered by run
+45272322750).
