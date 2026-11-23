@@ -1588,15 +1588,16 @@ mod tests {
     }
     #[test]
     fn compatibility_ranges() {
+        // 26.1.1's resource pack format is 84.0.
         let v = |s: &str| serde_json::from_str::<serde_json::Value>(s).unwrap();
         assert!(compatible(&v(
-            r#"{"pack":{"min_format":97,"max_format":98}}"#
+            r#"{"pack":{"min_format":83,"max_format":84}}"#
         )));
         assert!(compatible(&v(
-            r#"{"pack":{"min_format":[97,0],"max_format":[97,1]}}"#
+            r#"{"pack":{"min_format":[84,0],"max_format":[84,1]}}"#
         )));
         assert!(!compatible(&v(
-            r#"{"pack":{"min_format":[97,2],"max_format":99}}"#
+            r#"{"pack":{"min_format":[84,1],"max_format":99}}"#
         )));
         assert!(!compatible(&v(r#"{"pack":{"pack_format":34}}"#)));
         assert_eq!(
@@ -2152,20 +2153,21 @@ mod tests {
     #[test]
     fn overlays_and_filters() {
         let v = |s: &str| serde_json::from_str::<serde_json::Value>(s).unwrap();
+        // 26.1.1's resource pack format is 84.0.
         let meta = v(r#"{"overlays":{"entries":[
-            {"formats":[90,96],"directory":"old"},
-            {"formats":{"min_inclusive":97,"max_inclusive":97},"directory":"new"},
-            {"min_format":97,"max_format":[97,5],"directory":"also"},
+            {"formats":[80,83],"directory":"old"},
+            {"formats":{"min_inclusive":84,"max_inclusive":84},"directory":"new"},
+            {"min_format":84,"max_format":[84,5],"directory":"also"},
             {"formats":50,"directory":"no"}]}}"#);
         assert_eq!(overlays_of(&meta, &Default::default()), ["new", "also"]);
         // Only one plain folder of the pack, as vanilla's DIR_VALIDATOR has it.
         let meta = v(r#"{"overlays":{"entries":[
-            {"formats":97,"directory":".."},
-            {"formats":97,"directory":"../outside"},
-            {"formats":97,"directory":"/etc"},
-            {"formats":97,"directory":"a/b"},
-            {"formats":97,"directory":"C:"},
-            {"formats":97,"directory":"ok_1.21-x"}]}}"#);
+            {"formats":84,"directory":".."},
+            {"formats":84,"directory":"../outside"},
+            {"formats":84,"directory":"/etc"},
+            {"formats":84,"directory":"a/b"},
+            {"formats":84,"directory":"C:"},
+            {"formats":84,"directory":"ok_1.21-x"}]}}"#);
         assert_eq!(overlays_of(&meta, &Default::default()), ["ok_1.21-x"]);
         let base = std::env::temp_dir().join(format!("horizon-packs-ov-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);

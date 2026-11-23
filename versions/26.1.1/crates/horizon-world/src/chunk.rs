@@ -212,11 +212,13 @@ impl BlockState {
                 properties: BlockProperties::new(),
             });
         }
-        let Some(Tag::String(name)) = tag.get("id") else {
+        // 26.1.1 saves still write `Name`/`Properties` (the rename to
+        // `id`/`properties` is a later fix, key 5006): accept the old form.
+        let Some(Tag::String(name)) = tag.get("id").or_else(|| tag.get("Name")) else {
             return Err(invalid("block state is missing id"));
         };
         let mut properties = Vec::new();
-        if let Some(tag) = tag.get("properties") {
+        if let Some(tag) = tag.get("properties").or_else(|| tag.get("Properties")) {
             let Tag::Compound(map) = tag else {
                 return Err(invalid("block properties are not a compound"));
             };
@@ -760,6 +762,31 @@ mod tests {
             other => panic!("data is {other:?}"),
         };
         (entries, words)
+    }
+
+    /// 26.1.1 saves still write palettes as `Name`/`Properties` (the rename to
+    /// `id`/`properties` is a later fix, key 5006): the old form decodes to
+    /// the same state as the new one, so a real 26.1.1 world loads.
+    #[test]
+    fn a_block_state_reads_its_old_name_and_properties() {
+        let old = Tag::compound([
+            ("Name", Tag::String(key("minecraft:chain"))),
+            (
+                "Properties",
+                Tag::compound([("axis", Tag::String(key("y")))]),
+            ),
+        ]);
+        let new = Tag::compound([
+            ("id", Tag::String(key("minecraft:chain"))),
+            (
+                "properties",
+                Tag::compound([("axis", Tag::String(key("y")))]),
+            ),
+        ]);
+        assert_eq!(
+            BlockState::from_nbt(&old).unwrap(),
+            BlockState::from_nbt(&new).unwrap()
+        );
     }
 
     /// `PalettedContainer.pack` re-encodes the cells into a fresh palette, so a

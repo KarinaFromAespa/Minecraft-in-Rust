@@ -196,9 +196,40 @@ for `javap` — they answer "class not found" for named classes).
 none in any file this port touched. The baseline leaks are line-level
 issues shared with 26.1, out of scope for this patch delta.
 
-Known, out of scope for this port: the `horizon-client` and
-`horizon-client-lib` lib test targets still do not compile (the
-pre-existing breakage recorded above, in test code this port does not
-touch), so the crate-tests CI run for this branch will show those two
-suites failing while the other five pass. The `chat_disabled_or_blocked`
-test above can only run once that breakage is fixed.
+CI run 45141444453 (head bf68e269) confirmed the port's two runnable
+tests pass (protocol version facts, datafix no-fixes) and exposed
+pre-existing stale-version breakage the mechanical pass had left behind.
+All of it was fixed on this branch, since it is the only way the port's
+regression tests run at all:
+
+- The `horizon-client` lib test target did not compile (6 errors): three
+  `Login` literals still set `online_mode` (26.1's packet has no such
+  field), and two `LevelParticles` assertions compared the scalar
+  `max_speed` against a vec3 plus one read the removed `randomization`
+  field (26.1's packet has one speed and no randomization mode).
+  Fixed in `game/lan_particles.rs`, `game/native_client_services.rs`,
+  `game/native_entity_refs.rs` (test code only).
+- The `horizon-client-lib` lib test target did not compile (8 errors):
+  `SwingAnimation`/`Punch` (26.3 packets) replaced by 26.1's
+  `Animate`/`Swing` in `net.rs` and `lan/hub_tests.rs` (the hub's own
+  code already routes `S::Swing`), `EntityPositionSync.path` replaced by
+  the 26.1 field `position` in `lan/entity.rs`, and one more stray
+  `online_mode` literal in `studio/replay.rs`.
+- Five tests failed on stale 26.3-era fixtures: three world-upgrade tests
+  used a 4899 world (from the future here; now 4786, the 26.1 version);
+  `block_states_take_their_new_field_names` pinned the `Name`->`id`
+  palette rename, a fix keyed 5006 that postdates this version — it now
+  asserts the 26.1.1 truth, that a 26.1 chunk keeps `Name`/`Properties`;
+  and three pack tests declared 26.3's formats (resource 97/98, data
+  121) — now 26.1.1's (resource 84.0, data 101.1).
+- Found while fixing the palette test: `BlockState::from_nbt` read only
+  the new `id`/`properties` form, so a real 26.1.1 save (which still
+  writes `Name`/`Properties`) failed chunk loading with "block state is
+  missing id". It now falls back to the old form, same class as the
+  1.21.7 save-decoder fix; `to_nbt` still writes the new form only, so
+  a port-written save is not one vanilla 26.1.1 reads (known gap,
+  shared with 1.21.7).
+
+The 34 `lan_bot` integration-test errors are untouched: crate-tests does
+not run integration tests, and adapting that bot to 775 is a job of its
+own, not part of this patch delta.

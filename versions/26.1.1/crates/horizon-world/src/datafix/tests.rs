@@ -74,20 +74,24 @@ fn level_data_of_1_20_moves_to_the_new_fields() {
     );
 }
 
+/// In 26.1.1 block-state palettes still use `Name`/`Properties`: the rename
+/// to `id`/`properties` is a later fix (key 5006, past this version's 4788),
+/// so a 26.1 chunk upgrades with its palette untouched.
 #[test]
-fn block_states_take_their_new_field_names() {
+fn block_states_keep_their_old_field_names() {
     let mut chunk = snbt(
-        "{DataVersion: 4903, Status: \"minecraft:full\", sections: [{Y: 0b, block_states: \
+        "{DataVersion: 4786, Status: \"minecraft:full\", sections: [{Y: 0b, block_states: \
          {palette: [{Name: \"minecraft:chain\", Properties: {axis: \"y\"}}]}}]}",
     );
     update_chunk(&mut chunk, "minecraft:the_nether", Some("minecraft:noise"));
     let section = &dynamic::stream(chunk.get("sections"))[0];
     let state = &dynamic::stream(section.get("block_states").and_then(|b| b.get("palette")))[0];
     assert_eq!(
-        dynamic::as_str(state.get("id")).as_deref(),
+        dynamic::as_str(state.get("Name")).as_deref(),
         Some("minecraft:chain")
     );
-    assert!(state.get("properties").is_some());
+    assert!(state.get("Properties").is_some());
+    assert!(state.get("id").is_none());
     assert_eq!(chunk.get("DataVersion"), Some(&Tag::Int(CURRENT)));
 }
 

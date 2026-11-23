@@ -1146,9 +1146,9 @@ mod upgrade_tests {
     fn upgrade_reports_one_operation_per_file() {
         let base = std::env::temp_dir().join(format!("horizon-progress-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
-        let level = Tag::compound([("Data", Tag::compound([("DataVersion", Tag::Int(4899))]))]);
+        let level = Tag::compound([("Data", Tag::compound([("DataVersion", Tag::Int(4786))]))]);
         write_dat(&base.join("level.dat"), &level).unwrap();
-        let player = Tag::compound([("DataVersion", Tag::Int(4899))]);
+        let player = Tag::compound([("DataVersion", Tag::Int(4786))]);
         write_dat(&base.join("players/data/a.dat"), &player).unwrap();
         write_dat(&base.join("players/data/b.dat"), &player).unwrap();
 
@@ -1168,11 +1168,11 @@ mod upgrade_tests {
     fn cancel_stops_the_data_upgrade_and_keeps_the_version() {
         let base = std::env::temp_dir().join(format!("horizon-cancel-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
-        let level = Tag::compound([("Data", Tag::compound([("DataVersion", Tag::Int(4899))]))]);
+        let level = Tag::compound([("Data", Tag::compound([("DataVersion", Tag::Int(4786))]))]);
         write_dat(&base.join("level.dat"), &level).unwrap();
         write_dat(
             &base.join("players/data/a.dat"),
-            &Tag::compound([("DataVersion", Tag::Int(4899))]),
+            &Tag::compound([("DataVersion", Tag::Int(4786))]),
         )
         .unwrap();
 
@@ -1181,7 +1181,7 @@ mod upgrade_tests {
         let error = upgrade_world_with(&base, &progress).unwrap_err();
         assert_eq!(error.kind(), io::ErrorKind::Interrupted);
         assert_eq!(progress.total_file_fix_stats().finished_operations(), 0);
-        assert_eq!(level_version(&base), 4899);
+        assert_eq!(level_version(&base), 4786);
         let _ = fs::remove_dir_all(&base);
     }
 
@@ -1191,7 +1191,7 @@ mod upgrade_tests {
     fn failed_upgrade_keeps_old_data_version() {
         let base = std::env::temp_dir().join(format!("horizon-upgrade-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
-        let old = 4899;
+        let old = 4786;
         let level = Tag::compound([("Data", Tag::compound([("DataVersion", Tag::Int(old))]))]);
         write_dat(&base.join("level.dat"), &level).unwrap();
         let region = base.join("dimensions/minecraft/overworld/region");
