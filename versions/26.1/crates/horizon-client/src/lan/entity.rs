@@ -1723,7 +1723,7 @@ mod tests {
         let out = stop(true);
         assert!(
             matches!(&out[..], [play::Clientbound::EntityPositionSync(p)]
-                if p.path.end() == [0.3, 64.0, 0.3]),
+                if p.position == [0.3, 64.0, 0.3]),
             "{out:?}"
         );
         let out = stop(false);
