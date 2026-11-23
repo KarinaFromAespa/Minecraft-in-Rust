@@ -667,3 +667,11 @@ the Rust already carries the tag form; 176 name-tag distance moved
 out of extractRenderState (not ported); 63 bootstrap renames; 362
 client entry restructure; 245 vault/trial-spawner lambdas are
 getCenter/rename moves, ejectResultItem instance vs static.
+
+Batch 31 (Nov 23, 354/498), all no-change: 190 spills/branch artifacts
++ a postprocessing rename; 173 dolphin ldc width, fish field-vs-
+checkcast, pufferfish branch artifact (Dolphin.canRide = true is
+26.1-only but unported — no per-species canRide in the Rust); 62
+branch inversion; 344 Vector3f/Vector3fc; 345 render-pipeline API
+moves + a dropped shouldRenderOffScreen check; 353 26.2-only goal
+ctors; 356 SulfurCubeContent is 26.2-only; 358 joinLines identical.
