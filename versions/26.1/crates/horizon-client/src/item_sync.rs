@@ -273,15 +273,21 @@ fn item_name(builtin: &Builtin, id: i32) -> Arc<str> {
 /// The item's patched components as vanilla's `components` compound.
 fn components_tag(s: &Stack, builtin: &Builtin, synced: &Dynamic) -> Option<Tag> {
     let name = |id: i32| {
-        builtin
-            .get("minecraft:data_component_type")
-            .and_then(|types| types.name(id))
-            .or_else(|| {
-                synced
-                    .custom_components
-                    .then(|| horizon_protocol::item::custom::name(id))
-                    .flatten()
-            })
+        // The copied-sign text kinds are synthetic (negative): they name
+        // themselves, since no registry holds them.
+        match id {
+            component::SIGN_TEXT_FRONT => Some("minecraft:sign_text_front"),
+            component::SIGN_TEXT_BACK => Some("minecraft:sign_text_back"),
+            _ => builtin
+                .get("minecraft:data_component_type")
+                .and_then(|types| types.name(id))
+                .or_else(|| {
+                    synced
+                        .custom_components
+                        .then(|| horizon_protocol::item::custom::name(id))
+                        .flatten()
+                }),
+        }
     };
     let mut entries: Vec<(&str, Tag)> = Vec::new();
     for (kind, c) in &s.added {
@@ -1542,7 +1548,7 @@ mod tests {
         assert_eq!(d.other("minecraft:tooltip_display"), None);
     }
 
-    /// A painting's `painting/variant` (a `painting_variant` holder, id 109)
+    /// A painting's `painting/variant` (a `painting_variant` holder, id 102)
     /// crosses the wire both ways: a server's creative slot gets the variant
     /// its client picked, and a client's tooltip names the server's.
     #[test]
@@ -1550,7 +1556,7 @@ mod tests {
         use horizon_protocol::buf::{Codec, Reader, Writer};
         use horizon_protocol::item::Slot;
         let mut components = vec![String::new(); 110];
-        components[109] = "minecraft:painting/variant".into();
+        components[102] = "minecraft:painting/variant".into();
         let items = ["minecraft:air", "minecraft:painting"];
         let builtin = Builtin {
             registries: [
@@ -1575,8 +1581,8 @@ mod tests {
             ..Default::default()
         };
         // ItemStack.OPTIONAL_STREAM_CODEC: count 1, the painting, one added
-        // component (109: the reference to kebab, its id plus one), none removed.
-        let vanilla = [1u8, 1, 1, 0, 109, 2];
+        // component (102: the reference to kebab, its id plus one), none removed.
+        let vanilla = [1u8, 1, 1, 0, 102, 2];
         let stack = Slot::read(&mut Reader::new(&vanilla)).unwrap().unwrap();
         let back = from_network(&stack, &builtin, &dynamic);
         let variant = |s: &ItemStack| {
@@ -1597,7 +1603,7 @@ mod tests {
         );
         let mut w = Writer::new();
         Slot::write(&wire, &mut w);
-        assert_eq!(w.data, [1, 1, 1, 0, 109, 1]);
+        assert_eq!(w.data, [1, 1, 1, 0, 102, 1]);
         let wire = Slot::read(&mut Reader::new(&w.data)).unwrap().unwrap();
         assert_eq!(
             variant(&from_network(&wire, &builtin, &dynamic)),

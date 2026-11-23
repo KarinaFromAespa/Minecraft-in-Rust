@@ -119,7 +119,7 @@ mod tests {
             &BTreeMap::new(),
             &BTreeMap::from([(
                 "minecraft:shared".into(),
-                r#"{"type":"cache","input":{"type":"gradient","axis":"x","from_coordinate":0,"to_coordinate":16,"from_value":-1,"to_value":1}}"#.into(),
+                r#"{"type":"cache","input":{"type":"y_clamped_gradient","from_y":0,"to_y":16,"from_value":-1,"to_value":1}}"#.into(),
             )]),
         )
         .unwrap();
