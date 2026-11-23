@@ -13476,3 +13476,36 @@ type, 726 snowy dirt, 760 signs, 721 datafixers, 769 float
 providers). Spot-checked: BannerBlock.byColor unused,
 TrimMaterials.getFromIngredient implemented, WolfSoundVariant's
 flat 1.21.11 form implemented. No missed port.
+
+## Fix — sign boards rendered (item 760 gap closed)
+
+Sign boards were invisible: the Rust drew only the sign text, while in
+1.21.11 the sign block models are empty (particle texture only) and the
+boards are entity models drawn by `SignRenderer` /
+`HangingSignRenderer`. The fix adds a board-drawing arm on `Kind::Sign`
+(`block_entity_render.rs`), following `AbstractSignRenderer.submitSign`
+from the decompile: the board draws under `translateSign` /
+`translateBase` with the model scale (2/3 standing and wall, 1 hanging),
+before the text, and needs only the block state — it shows even before
+the text data has loaded. The breaking overlay draws the board alone;
+vanilla's text never takes the crack texture, so `render_breaking` now
+covers signs and the text arm returns early under crumbling.
+
+The five sign layers (`sign/standing`, `sign/wall`,
+`hanging_sign/{wall,ceiling,ceiling_middle}`) are added to the MODELS
+list, using the oak layer for every wood: the exported layer geometry
+is identical across woods (verified against the exported layers), only
+the material differs (`Sheets.getSignMaterial` /
+`getHangingSignMaterial`: `entity/signs/<wood>`,
+`entity/signs/hanging/<wood>`). `Kind::Sign` carries the wood (from the
+block name) and `attached` (ceiling-middle hanging signs, per
+`AttachmentType.byBlockState`). The sign-text cache now keys on the
+atlas revision too, so a pack reload re-lays cached boards instead of
+leaving stale UVs.
+
+Verified by `cargo check` and the render crate's test suite, including
+new tests for the wood/material derivation, the board transform and
+model selection per sign form, the breaking overlay, and the atlas
+reload. Visual in-game verification is still owed: the owner's laptop
+was offline when this was written, so no one has seen a board on
+screen yet.

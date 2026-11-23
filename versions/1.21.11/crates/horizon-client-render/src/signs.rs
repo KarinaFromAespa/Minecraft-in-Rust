@@ -296,6 +296,68 @@ pub fn sign_kind(name: &str) -> Option<bool> {
         None
     }
 }
+/// Vanilla's `WoodType` values in 1.21.11, as block names spell them.
+pub const WOOD_TYPES: [&str; 12] = [
+    "oak", "spruce", "birch", "acacia", "cherry", "jungle", "dark_oak", "pale_oak", "crimson",
+    "warped", "mangrove", "bamboo",
+];
+/// The wood of a vanilla sign block's name (`SignBlock.type`): the part
+/// before the sign suffix, `oak` for the bare `sign` / `hanging_sign`.
+/// An unknown remainder (no vanilla block has one) also reads as oak, so a
+/// board never asks for a texture that does not exist.
+pub fn wood_type(name: &str) -> &'static str {
+    let name = name.strip_prefix("minecraft:").unwrap_or(name);
+    let wood = name
+        .strip_suffix("_wall_hanging_sign")
+        .or_else(|| name.strip_suffix("_hanging_sign"))
+        .or_else(|| name.strip_suffix("_wall_sign"))
+        .or_else(|| name.strip_suffix("_sign"))
+        .unwrap_or(name);
+    match wood {
+        "spruce" => "spruce",
+        "birch" => "birch",
+        "acacia" => "acacia",
+        "cherry" => "cherry",
+        "jungle" => "jungle",
+        "dark_oak" => "dark_oak",
+        "pale_oak" => "pale_oak",
+        "crimson" => "crimson",
+        "warped" => "warped",
+        "mangrove" => "mangrove",
+        "bamboo" => "bamboo",
+        _ => "oak",
+    }
+}
+/// `Sheets.getSignMaterial` / `getHangingSignMaterial`: the board's sprite
+/// on the signs atlas, `entity/signs/<wood>` or `entity/signs/hanging/<wood>`.
+pub fn board_texture(hanging: bool, wood: &str) -> &'static str {
+    match wood {
+        "spruce" if hanging => "entity/signs/hanging/spruce",
+        "spruce" => "entity/signs/spruce",
+        "birch" if hanging => "entity/signs/hanging/birch",
+        "birch" => "entity/signs/birch",
+        "acacia" if hanging => "entity/signs/hanging/acacia",
+        "acacia" => "entity/signs/acacia",
+        "cherry" if hanging => "entity/signs/hanging/cherry",
+        "cherry" => "entity/signs/cherry",
+        "jungle" if hanging => "entity/signs/hanging/jungle",
+        "jungle" => "entity/signs/jungle",
+        "dark_oak" if hanging => "entity/signs/hanging/dark_oak",
+        "dark_oak" => "entity/signs/dark_oak",
+        "pale_oak" if hanging => "entity/signs/hanging/pale_oak",
+        "pale_oak" => "entity/signs/pale_oak",
+        "crimson" if hanging => "entity/signs/hanging/crimson",
+        "crimson" => "entity/signs/crimson",
+        "warped" if hanging => "entity/signs/hanging/warped",
+        "warped" => "entity/signs/warped",
+        "mangrove" if hanging => "entity/signs/hanging/mangrove",
+        "mangrove" => "entity/signs/mangrove",
+        "bamboo" if hanging => "entity/signs/hanging/bamboo",
+        "bamboo" => "entity/signs/bamboo",
+        _ if hanging => "entity/signs/hanging/oak",
+        _ => "entity/signs/oak",
+    }
+}
 /// The sprite of a wood type's editor background, `folder` being `signs` or
 /// `hanging_signs`: `textures/gui/<folder>/<wood>.png` (`SignEditScreen`), in
 /// a mod's namespace when the wood names one.
@@ -519,6 +581,33 @@ mod tests {
     fn a_mods_sign_like_name_does_not_make_it_a_sign() {
         assert_eq!(sign_kind("ruby:road_sign"), None);
         assert!(crate::containers::BlockEntity::for_block("ruby:road_sign").is_none());
+    }
+    #[test]
+    fn wood_type_and_board_texture_follow_the_block_name() {
+        // Every vanilla wood, in each of the four sign forms, reads back.
+        for wood in WOOD_TYPES {
+            for name in [
+                format!("minecraft:{wood}_sign"),
+                format!("minecraft:{wood}_wall_sign"),
+                format!("minecraft:{wood}_hanging_sign"),
+                format!("minecraft:{wood}_wall_hanging_sign"),
+            ] {
+                assert_eq!(wood_type(&name), wood, "{name}");
+            }
+            assert_eq!(board_texture(false, wood), format!("entity/signs/{wood}"));
+            assert_eq!(
+                board_texture(true, wood),
+                format!("entity/signs/hanging/{wood}"),
+                "{wood} hanging"
+            );
+        }
+        // The bare blocks are oak, and an unknown wood falls back to oak
+        // rather than asking for a texture that does not exist.
+        assert_eq!(wood_type("minecraft:sign"), "oak");
+        assert_eq!(wood_type("minecraft:hanging_sign"), "oak");
+        assert_eq!(wood_type("minecraft:elm_sign"), "oak");
+        assert_eq!(board_texture(false, "elm"), "entity/signs/oak");
+        assert_eq!(board_texture(true, "elm"), "entity/signs/hanging/oak");
     }
     #[test]
     fn names_and_colors() {

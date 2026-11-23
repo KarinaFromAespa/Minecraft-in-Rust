@@ -1,7 +1,8 @@
 //! Block-entity renderers (`BlockEntityRenderers`): chests (single, double,
 //! trapped, ender, copper), shulker boxes, banners, skulls and heads, bells,
 //! decorated pots, conduits, enchanting-table and lectern books and copper
-//! golem statues, End portals and End gateways. Models are vanilla's baked `LayerDefinitions` layers
+//! golem statues, signs (boards and text), End portals and End gateways.
+//! Models are vanilla's baked `LayerDefinitions` layers
 //! (`entity-models.json`); transforms, animation and textures follow each
 //! vanilla renderer. Faces carry their tint and world normal: the entity
 //! shader (and a shader pack) applies `minecraft_mix_light` from the normal, as
@@ -363,13 +364,16 @@ enum Kind {
     EndGateway {
         state: u32,
     },
-    /// Sign text only (`SignRenderer` / `HangingSignRenderer`); the boards are
-    /// entity models in 1.21.11 (the sign block models are empty, particle
-    /// texture only) and are not drawn yet — a known gap (item 760).
+    /// Signs (`SignRenderer` / `HangingSignRenderer`): the board is an entity
+    /// model (the sign block models are empty, particle texture only), drawn
+    /// with the wood's sign material; `attached` selects the ceiling-middle
+    /// hanging model.
     Sign {
         hanging: bool,
         wall: bool,
         angle: f32,
+        wood: &'static str,
+        attached: bool,
     },
 }
 fn intern(facing: &str) -> &'static str {
@@ -384,7 +388,7 @@ fn intern(facing: &str) -> &'static str {
 }
 /// A sign's way of standing: a wall sign faces away from its wall, another
 /// turns by its rotation segment.
-fn sign(hanging: bool, wall: bool, prop: &dyn Fn(&str) -> Option<String>) -> Kind {
+fn sign(name: &str, hanging: bool, wall: bool, prop: &dyn Fn(&str) -> Option<String>) -> Kind {
     let angle = if wall {
         y_rot(intern(&prop("facing").unwrap_or_default()))
     } else {
@@ -397,6 +401,10 @@ fn sign(hanging: bool, wall: bool, prop: &dyn Fn(&str) -> Option<String>) -> Kin
         hanging,
         wall,
         angle,
+        wood: signs::wood_type(name),
+        // HangingSignRenderer.AttachmentType.byBlockState: a ceiling hanging
+        // sign with `attached` hangs from the middle of its block.
+        attached: hanging && !wall && prop("attached").as_deref() == Some("true"),
     }
 }
 fn classify(name: &str, prop: &dyn Fn(&str) -> Option<String>) -> Kind {
@@ -428,7 +436,7 @@ fn classify(name: &str, prop: &dyn Fn(&str) -> Option<String>) -> Kind {
         }
     };
     if let Some(hanging) = signs::sign_kind(name) {
-        return sign(hanging, name.contains("_wall_"), prop);
+        return sign(name, hanging, name.contains("_wall_"), prop);
     }
     let unwaxed = name.strip_prefix("waxed_").unwrap_or(name);
     match unwaxed {
@@ -1142,6 +1150,9 @@ struct SignTextEntry {
     /// Within the glowing text outline's distance (only kept for glowing text).
     near: bool,
     glyphs: u64,
+    /// The atlas the cached board UVs were laid out against: a pack reload
+    /// re-lays the sign out, as the static cache does for its geometry.
+    atlas_revision: u64,
     /// Game time it was last drawn.
     used: i64,
     vertices: Vec<Vertex>,
@@ -1408,7 +1419,21 @@ fn next_static_snapshot_revision() -> u64 {
     static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
     NEXT.fetch_add(1, Ordering::Relaxed)
 }
-const MODELS: [(&str, &str); 27] = [
+const MODELS: [(&str, &str); 32] = [
+    // Sign boards: the layer geometry is identical for every wood (verified
+    // against the exported layers), so all woods draw the oak layer with
+    // their own sign material.
+    ("sign_standing", "minecraft:sign/standing/oak#main"),
+    ("sign_wall", "minecraft:sign/wall/oak#main"),
+    ("hanging_sign_wall", "minecraft:hanging_sign/oak/wall#main"),
+    (
+        "hanging_sign_ceiling",
+        "minecraft:hanging_sign/oak/ceiling#main",
+    ),
+    (
+        "hanging_sign_ceiling_middle",
+        "minecraft:hanging_sign/oak/ceiling_middle#main",
+    ),
     ("chest", "minecraft:chest#main"),
     ("double_chest_left", "minecraft:double_chest_left#main"),
     ("double_chest_right", "minecraft:double_chest_right#main"),
@@ -1588,7 +1613,7 @@ impl BlockEntityRenderer {
             let state = BlockStateId(id as u32);
             if let (Some(form), Some(s)) = (facts.get(state).sign_form(), registry.state(state)) {
                 let prop = |k: &str| s.properties.get(k).cloned();
-                *kind = sign(form.hanging, form.wall, &prop);
+                *kind = sign(&s.name, form.hanging, form.wall, &prop);
             }
         }
     }
@@ -2498,8 +2523,13 @@ impl BlockEntityRenderer {
             std::collections::hash_map::Entry::Occupied(mut occupied) => {
                 let entry = occupied.get_mut();
                 let changed = entry.data != *data;
-                if (entry.state, entry.packed, entry.near, entry.glyphs)
-                    != (state, packed, near, glyphs)
+                if (
+                    entry.state,
+                    entry.packed,
+                    entry.near,
+                    entry.glyphs,
+                    entry.atlas_revision,
+                ) != (state, packed, near, glyphs, scene.atlas_revision)
                     || changed
                     || entry.animated
                 {
@@ -2523,6 +2553,7 @@ impl BlockEntityRenderer {
                     entry.packed = packed;
                     entry.near = near;
                     entry.glyphs = glyphs;
+                    entry.atlas_revision = scene.atlas_revision;
                 }
                 occupied.into_mut()
             }
@@ -2546,6 +2577,7 @@ impl BlockEntityRenderer {
                     packed,
                     near,
                     glyphs,
+                    atlas_revision: scene.atlas_revision,
                     used: now,
                     vertices,
                 })
@@ -2604,8 +2636,9 @@ impl BlockEntityRenderer {
     /// SkullBlockRenderer.submitSkull, ShulkerBoxRenderer.submit,
     /// BellRenderer.submit, LecternRenderer.submit (the book),
     /// CopperGolemStatueBlockRenderer.submit, ConduitRenderer.submit (the shell
-    /// or cage) and EnchantTableRenderer.submit (the book): the model drawn
-    /// again under the destroy stage.
+    /// or cage), EnchantTableRenderer.submit (the book) and
+    /// AbstractSignRenderer.submitSign (the board, never the text): the model
+    /// drawn again under the destroy stage.
     pub fn render_breaking(
         &self,
         scene: &Scene,
@@ -2625,6 +2658,7 @@ impl BlockEntityRenderer {
                 | Kind::CopperGolem { .. }
                 | Kind::Conduit
                 | Kind::EnchantingTable
+                | Kind::Sign { .. }
         ) {
             return;
         }
@@ -2775,7 +2809,59 @@ impl BlockEntityRenderer {
                 hanging,
                 wall,
                 angle,
+                wood,
+                attached,
             } => {
+                // AbstractSignRenderer.submitSign: the board draws under
+                // translateSign with the model scale (2/3 for standing and
+                // wall signs, 1 for hanging ones), and needs only the block
+                // state — it shows even before the text data has loaded.
+                let (key, scale) = if *hanging {
+                    (
+                        if *wall {
+                            "hanging_sign_wall"
+                        } else if *attached {
+                            "hanging_sign_ceiling_middle"
+                        } else {
+                            "hanging_sign_ceiling"
+                        },
+                        1.0,
+                    )
+                } else if *wall {
+                    ("sign_wall", 2.0 / 3.0)
+                } else {
+                    ("sign_standing", 2.0 / 3.0)
+                };
+                let mut m = base;
+                if *hanging {
+                    // HangingSignRenderer.translateBase.
+                    m *= Mat4::from_translation(Vec3::new(0.5, 0.9375, 0.5))
+                        * Mat4::from_rotation_y((-angle).to_radians())
+                        * Mat4::from_translation(Vec3::new(0.0, -0.3125, 0.0));
+                } else {
+                    // SignRenderer.translateSign.
+                    m *= Mat4::from_translation(Vec3::splat(0.5))
+                        * Mat4::from_rotation_y((-angle).to_radians());
+                    if *wall {
+                        m *= Mat4::from_translation(Vec3::new(0.0, -0.3125, -0.4375));
+                    }
+                }
+                m *= Mat4::from_scale(Vec3::new(scale, -scale, -scale));
+                if let (Some(model), Some(paint)) = (
+                    shapes.models.get(key),
+                    paint(
+                        shapes.texture(key, signs::board_texture(*hanging, wood), scene.sprites),
+                        0xFFFFFF,
+                        packed,
+                    ),
+                ) {
+                    draw_part(model, "root", m, &none, paint, out);
+                }
+                // The breaking overlay draws the board alone: vanilla's text
+                // never takes the crack texture.
+                if crumbling {
+                    return;
+                }
                 let Some(data) = (scene.sign)(pos) else {
                     return;
                 };
@@ -4504,11 +4590,15 @@ mod tests {
                     hanging: false,
                     wall: false,
                     angle: 180.0,
+                    wood: "oak",
+                    attached: false,
                 },
                 Kind::Sign {
                     hanging: true,
                     wall: true,
                     angle: 90.0,
+                    wood: "spruce",
+                    attached: false,
                 },
             ],
             pot_patterns: HashMap::new(),
@@ -4648,6 +4738,307 @@ mod tests {
         scene.game_time = 2 * SIGN_TEXT_KEEP;
         check(&scene, pos, 0);
         assert_eq!(renderer.sign_texts.lock().unwrap().signs.len(), 1);
+    }
+
+    /// One quad per sign model, each at a distinct x offset, so the test can
+    /// tell which model a sign draws — and the quad's corners pin the
+    /// transform and the wood's texture.
+    fn sign_board_models() -> HashMap<&'static str, ModelPart> {
+        let quad = |dx: f32| ModelPart {
+            pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+            polygons: vec![[
+                [dx, 0.0, 0.0, 0.0, 0.0],
+                [dx + 16.0, 0.0, 0.0, 1.0, 0.0],
+                [dx + 16.0, 16.0, 0.0, 1.0, 1.0],
+                [dx, 16.0, 0.0, 0.0, 1.0],
+            ]],
+            children: Vec::new(),
+        };
+        HashMap::from([
+            ("sign_standing", quad(0.0)),
+            ("sign_wall", quad(16.0)),
+            ("hanging_sign_wall", quad(32.0)),
+            ("hanging_sign_ceiling", quad(48.0)),
+            ("hanging_sign_ceiling_middle", quad(64.0)),
+        ])
+    }
+
+    #[test]
+    fn sign_boards_draw_from_the_block_state_alone() {
+        let shapes = Arc::new(BlockEntityShapes::new(sign_board_models(), HashMap::new()));
+        let renderer = BlockEntityRenderer {
+            vanilla: shapes.clone(),
+            shapes: RwLock::new(shapes),
+            kinds: vec![
+                Kind::Sign {
+                    hanging: false,
+                    wall: false,
+                    angle: 0.0,
+                    wood: "oak",
+                    attached: false,
+                },
+                Kind::Sign {
+                    hanging: false,
+                    wall: true,
+                    angle: 0.0,
+                    wood: "spruce",
+                    attached: false,
+                },
+                Kind::Sign {
+                    hanging: true,
+                    wall: false,
+                    angle: 0.0,
+                    wood: "birch",
+                    attached: true,
+                },
+                Kind::Sign {
+                    hanging: true,
+                    wall: false,
+                    angle: 0.0,
+                    wood: "cherry",
+                    attached: false,
+                },
+                Kind::Sign {
+                    hanging: true,
+                    wall: true,
+                    angle: 0.0,
+                    wood: "dark_oak",
+                    attached: false,
+                },
+            ],
+            ..Default::default()
+        };
+        let world = World::new(BlockStateId(0), 1);
+        // A distinct rect per wood, so the UVs prove which texture is used.
+        let rect = |u0: f32, v0: f32| Rect {
+            u0,
+            v0,
+            u1: u0 + 0.25,
+            v1: v0 + 0.25,
+            w: 16,
+            h: 16,
+        };
+        let sprites = HashMap::from([
+            ("entity/signs/oak".to_owned(), rect(0.0, 0.0)),
+            ("entity/signs/spruce".to_owned(), rect(0.25, 0.0)),
+            ("entity/signs/hanging/birch".to_owned(), rect(0.0, 0.25)),
+            ("entity/signs/hanging/cherry".to_owned(), rect(0.25, 0.25)),
+            ("entity/signs/hanging/dark_oak".to_owned(), rect(0.5, 0.0)),
+        ]);
+        let scene = Scene {
+            camera: DVec3::ZERO,
+            orientation: Quat::IDENTITY,
+            anim: &|_| BlockAnim::default(),
+            texts: None,
+            partial: 0.0,
+            game_time: 0,
+            max_y: 320,
+            world: &world,
+            sprites: &sprites,
+            emissive: &Default::default(),
+            translucent_sprites: &HashSet::new(),
+            atlas_revision: 1,
+            nether: false,
+            lid: &|_| 0.0,
+            // No text data anywhere: the board needs only the block state.
+            sign: &|_| None,
+            banner: &|_| Vec::new(),
+            skull: &|_| None,
+            glyph: &|_| Glyph::default(),
+            glyphs: 0,
+            font: None,
+            dynamic_visible: None,
+        };
+        // (state, first vertex position, first vertex uv, third vertex uv):
+        // the model offsets select the model, the positions pin
+        // translateSign/translateBase and the model scale (2/3 standing and
+        // wall, 1 hanging), the UVs pin the wood's sign material.
+        let cases = [
+            (0u32, [0.5, 0.5, 0.5], [0.0, 0.0], [0.25, 0.25]),
+            (1, [7.0 / 6.0, 0.1875, 0.0625], [0.25, 0.0], [0.5, 0.25]),
+            (2, [4.5, 0.625, 0.5], [0.0, 0.25], [0.25, 0.5]),
+            (3, [3.5, 0.625, 0.5], [0.25, 0.25], [0.5, 0.5]),
+            (4, [2.5, 0.625, 0.5], [0.5, 0.0], [0.75, 0.25]),
+        ];
+        for (state, pos, uv0, uv2) in cases {
+            let mut out = Vec::new();
+            renderer.render_one(
+                &scene,
+                [0, 64, 0],
+                renderer.kind(state),
+                Mat4::IDENTITY,
+                0xff,
+                diffuse_lights(false),
+                false,
+                false,
+                &mut out,
+            );
+            assert_eq!(out.len(), 4, "state {state}: one board quad");
+            let near = |a: [f32; 3], b: [f32; 3]| {
+                (Vec3::from_array(a) - Vec3::from_array(b)).length() < 1e-5
+            };
+            assert!(near(out[0].pos, pos), "state {state}: {:?}", out[0].pos);
+            assert_eq!(out[0].uv, uv0, "state {state}: first uv");
+            assert_eq!(out[2].uv, uv2, "state {state}: third uv");
+        }
+    }
+
+    #[test]
+    fn the_breaking_overlay_draws_the_board_but_not_the_text() {
+        let shapes = Arc::new(BlockEntityShapes::new(sign_board_models(), HashMap::new()));
+        let renderer = BlockEntityRenderer {
+            vanilla: shapes.clone(),
+            shapes: RwLock::new(shapes),
+            kinds: vec![Kind::Sign {
+                hanging: false,
+                wall: false,
+                angle: 0.0,
+                wood: "oak",
+                attached: false,
+            }],
+            ..Default::default()
+        };
+        let world = World::new(BlockStateId(0), 1);
+        let sprites = HashMap::from([(
+            "entity/signs/oak".to_owned(),
+            Rect {
+                u0: 0.0,
+                v0: 0.0,
+                u1: 1.0,
+                v1: 1.0,
+                w: 16,
+                h: 16,
+            },
+        )]);
+        let data = SignData {
+            front: SignText {
+                lines: ["hi".into(), String::new(), String::new(), String::new()],
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let glyph = |_: char| Glyph {
+            rect: Some(Rect {
+                u0: 0.0,
+                v0: 0.0,
+                u1: 0.0625,
+                v1: 0.0625,
+                w: 8,
+                h: 8,
+            }),
+            right: 8.0,
+            bottom: 8.0,
+            advance: 6.0,
+            ..Glyph::default()
+        };
+        let scene = Scene {
+            camera: DVec3::ZERO,
+            orientation: Quat::IDENTITY,
+            anim: &|_| BlockAnim::default(),
+            texts: None,
+            partial: 0.0,
+            game_time: 0,
+            max_y: 320,
+            world: &world,
+            sprites: &sprites,
+            emissive: &Default::default(),
+            translucent_sprites: &HashSet::new(),
+            atlas_revision: 1,
+            nether: false,
+            lid: &|_| 0.0,
+            sign: &|_| Some(&data),
+            banner: &|_| Vec::new(),
+            skull: &|_| None,
+            glyph: &glyph,
+            glyphs: 0,
+            font: None,
+            dynamic_visible: None,
+        };
+        let draw = |crumbling: bool| {
+            let mut out = Vec::new();
+            renderer.render_one(
+                &scene,
+                [0, 64, 0],
+                renderer.kind(0),
+                Mat4::IDENTITY,
+                0xff,
+                diffuse_lights(false),
+                crumbling,
+                false,
+                &mut out,
+            );
+            out
+        };
+        // Board plus text normally; the board alone under the destroy stage.
+        assert!(draw(false).len() > 4);
+        assert_eq!(draw(true).len(), 4);
+    }
+
+    #[test]
+    fn cached_sign_boards_follow_an_atlas_reload() {
+        let shapes = Arc::new(BlockEntityShapes::new(sign_board_models(), HashMap::new()));
+        let renderer = BlockEntityRenderer {
+            vanilla: shapes.clone(),
+            shapes: RwLock::new(shapes),
+            kinds: vec![Kind::Sign {
+                hanging: false,
+                wall: false,
+                angle: 0.0,
+                wood: "oak",
+                attached: false,
+            }],
+            ..Default::default()
+        };
+        let world = World::new(BlockStateId(0), 1);
+        let rect = |u0: f32, v0: f32| Rect {
+            u0,
+            v0,
+            u1: u0 + 0.25,
+            v1: v0 + 0.25,
+            w: 16,
+            h: 16,
+        };
+        let first_sprites = HashMap::from([("entity/signs/oak".to_owned(), rect(0.0, 0.0))]);
+        // The pack reloads: the same sprite at new atlas coordinates.
+        let second_sprites = HashMap::from([("entity/signs/oak".to_owned(), rect(0.5, 0.5))]);
+        let data = SignData::default();
+        let scene = Scene {
+            camera: DVec3::new(0.5, 64.5, 0.5),
+            orientation: Quat::IDENTITY,
+            anim: &|_| BlockAnim::default(),
+            texts: None,
+            partial: 0.0,
+            game_time: 0,
+            max_y: 320,
+            world: &world,
+            sprites: &first_sprites,
+            emissive: &Default::default(),
+            translucent_sprites: &HashSet::new(),
+            atlas_revision: 1,
+            nether: false,
+            lid: &|_| 0.0,
+            sign: &|_| Some(&data),
+            banner: &|_| Vec::new(),
+            skull: &|_| None,
+            glyph: &|_| Glyph::default(),
+            glyphs: 0,
+            font: None,
+            dynamic_visible: None,
+        };
+        let pos = [0, 64, 0];
+        let mut first = Vec::new();
+        renderer.render(&scene, [(pos, 0)].iter(), &mut first);
+        assert_eq!(first.len(), 4, "the empty sign draws its board alone");
+        assert_eq!(first[2].uv, [0.25, 0.25]);
+        let reloaded = Scene {
+            sprites: &second_sprites,
+            atlas_revision: 2,
+            ..scene
+        };
+        let mut second = Vec::new();
+        renderer.render(&reloaded, [(pos, 0)].iter(), &mut second);
+        assert_eq!(second.len(), 4);
+        assert_eq!(second[2].uv, [0.75, 0.75]);
     }
     #[test]
     fn first_line_wraps_on_bytes_without_splitting_a_char() {

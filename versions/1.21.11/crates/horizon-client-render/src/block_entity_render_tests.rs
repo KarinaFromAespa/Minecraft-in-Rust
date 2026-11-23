@@ -644,6 +644,8 @@ fn sign_text_cache_can_be_disabled_and_reenabled_without_changing_output() {
             hanging: false,
             wall: false,
             angle: 0.0,
+            wood: "oak",
+            attached: false,
         }],
         ..Default::default()
     };
