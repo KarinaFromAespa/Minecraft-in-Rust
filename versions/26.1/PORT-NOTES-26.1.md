@@ -642,3 +642,11 @@ the derailed-cart site. (The applyNaturalSlowdown water site keeps the
 float form — that method is identical in both versions.) 74/377/380/
 382/383/385/373 no-change: async/switch/interface refactors, renames,
 spills, the same 48-potion set, beacon menu chrome.
+
+Batch 28 (Nov 23, 330/498), all no-change: 376 getBottomCenter moved
+to a static helper; 71 lambda identical, dependent() is 26.2-only;
+371 CriteriaTriggers lives at the old package in 26.1; 224 telemetry
+UUID + setScreen move (neither ported); 225 piston local spill; 199
+raid methods are renames/package moves/WHITE_BANNER accessor, same 5
+RaiderTypes; 367 rename only; 368 sign render state gains woodType +
+body transform in 26.1 (not ported).
