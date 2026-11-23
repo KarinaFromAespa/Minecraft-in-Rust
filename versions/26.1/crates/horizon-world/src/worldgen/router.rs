@@ -156,10 +156,13 @@ mod tests {
         assert_eq!(compiler.cache_count(), 1);
         let mut context = SamplerContext::cached();
         for field in RouterField::ALL {
+            // y=4 on the 0..16 gradient: -1 + (4/16)*2 = -0.5. (26.1 has no
+            // axis-based `gradient` type — only `y_clamped_gradient` — so the
+            // fixture samples the Y axis, unlike the 26.1.1 test's X gradient.)
             assert_eq!(
                 samplers
                     .get(field)
-                    .sample_value(&mut context, [4, 99, -32])
+                    .sample_value(&mut context, [4, 4, -32])
                     .unwrap(),
                 -0.5
             );
