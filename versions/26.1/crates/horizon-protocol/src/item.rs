@@ -119,9 +119,10 @@ pub mod component {
     pub const JUKEBOX_PLAYABLE: i32 = 64;
     pub const DAMAGE_RESISTANT: i32 = 27;
     pub const CONTAINER: i32 = 75;
-    /// Not a pinned component: 26.1 has no `sulfur_cube_content` (a 26.3
-    /// addition). The negative value is an internal marker only, so the
-    /// 26.2-facing arms that name it can never match a canonical id here.
+    /// Not a pinned component: 26.1 has no `sulfur_cube_content` (26.2
+    /// content, absent in 26.1). The negative value is an internal marker
+    /// only, so the 26.2-facing arms that name it can never match a
+    /// canonical id here.
     pub const SULFUR_CUBE_CONTENT: i32 = -1000;
     pub const PAINTING_VARIANT: i32 = 102;
     /// `SignText.STREAM_CODEC`: a sign item's text, front and back. Also not

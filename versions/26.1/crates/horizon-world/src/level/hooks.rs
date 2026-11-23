@@ -536,7 +536,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             return;
         }
         let below = self.below_state(pos);
-        if b.in_set(below, &b.tags.blocks_motion) || b.liquid(below) {
+        if b.blocks_motion(below) || b.liquid(below) {
             let water = b.default_of(b.named.water);
             self.set_block_and_update(pos, water);
         }

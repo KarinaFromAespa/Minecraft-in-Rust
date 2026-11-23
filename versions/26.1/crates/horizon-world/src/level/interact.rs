@@ -558,6 +558,16 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
 
     /// `ComposterBlock.addLayer` once its `compostable` provider gave
     /// `layers`: the new state (the old one when no layer is added).
+    /// `ComposterBlock.addItem`: at level 0 a compostable item always adds
+    /// a layer (no roll is drawn); above level 0 it adds one when the level
+    /// random rolls under the item's chance.
+    fn composter_add_item(&mut self, pos: BlockPos, chance: f32) -> BlockStateId {
+        let state = self.state(pos);
+        let level = self.b.table.int(state, self.b.props.level);
+        let add = (level == 0 && chance > 0.0) || self.random().next_double() < f64::from(chance);
+        self.composter_add_layer(pos, i32::from(add))
+    }
+
     fn composter_add_layer(&mut self, pos: BlockPos, layers: i32) -> BlockStateId {
         let b = self.b;
         let state = self.state(pos);
@@ -602,25 +612,27 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
 }
 
 impl Behaviours {
-    /// `ComposterBlock.addLayer` at `pos` with the layers its item's
-    /// `compostable` provider gave, followed by level event 1500 (fill
-    /// particles and sound; data 1 when a layer was added) as every caller
-    /// does: `useItemOn` and the hopper input container. The new state.
+    /// `ComposterBlock.addItem` at `pos` for an item with this chance,
+    /// followed by level event 1500 (fill particles and sound; data 1 when
+    /// a layer was added) as every caller does: `useItemOn` and the hopper
+    /// input container. At level 0 a compostable item always adds a layer
+    /// (no roll); above level 0 it adds one when the level random rolls
+    /// under the chance. The new state.
     pub fn composter_insert<L: LevelAccess + ?Sized>(
         &self,
         level: &mut L,
         ticks: &mut Ticks,
         pos: BlockPos,
-        layers: i32,
+        chance: f32,
     ) -> BlockStateId {
         let mut sim = self.sim(level, ticks);
         let state = sim.state(pos);
-        let next = sim.composter_add_layer(pos, layers);
+        let next = sim.composter_add_item(pos, chance);
         sim.level_event(1500, pos, i32::from(next != state));
         next
     }
 
-    /// `ComposterBlock.addLayer` without level event 1500, for a villager
+    /// `ComposterBlock.addItem` without level event 1500, for a villager
     /// that composts several items and sends the event once at the end
     /// (`WorkAtComposter.compostItems`). The new state.
     pub fn composter_layer<L: LevelAccess + ?Sized>(
@@ -628,9 +640,9 @@ impl Behaviours {
         level: &mut L,
         ticks: &mut Ticks,
         pos: BlockPos,
-        layers: i32,
+        chance: f32,
     ) -> BlockStateId {
-        self.sim(level, ticks).composter_add_layer(pos, layers)
+        self.sim(level, ticks).composter_add_item(pos, chance)
     }
 
     /// `ComposterBlock.extractProduce` by a villager (`WorkAtComposter`).

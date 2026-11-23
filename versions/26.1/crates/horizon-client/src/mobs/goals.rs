@@ -816,7 +816,7 @@ impl Mob {
         if !p.alive || p.spectator {
             return false;
         }
-        // LivingEntity.getVisibilityPercent, including worn mob_visibility.
+        // LivingEntity.getVisibilityPercent, including the worn-head half.
         let visibility = if scale {
             p.visibility_percent(Some(self.kind.id.as_str()), w.items)
         } else {

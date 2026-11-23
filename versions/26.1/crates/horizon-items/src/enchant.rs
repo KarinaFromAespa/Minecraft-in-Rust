@@ -71,8 +71,6 @@ pub struct ItemProps {
     pub rarity: String,
     /// `minecraft:provides_trim_material`.
     pub trim_material: Option<String>,
-    /// `minecraft:brewing_fuel` present.
-    pub brewing_fuel: bool,
 }
 #[derive(Clone, Default)]
 pub struct Enchantments {
@@ -335,7 +333,6 @@ impl Enchantments {
                         trim_material: c["minecraft:provides_trim_material"]
                             .as_str()
                             .map(str::to_owned),
-                        brewing_fuel: c.get("minecraft:brewing_fuel").is_some(),
                     },
                 );
             }

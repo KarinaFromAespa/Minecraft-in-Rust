@@ -1,7 +1,7 @@
 use super::*;
 use horizon_core::geometry::{Axis, VoxelShape};
 use horizon_world::{collision::CachedCollisionRegistry, nbt::Tag, registry::BlockRegistry};
-use std::{collections::BTreeSet, sync::Arc};
+use std::sync::Arc;
 fn text(value: &str) -> Tag {
     Tag::String(value.into())
 }
@@ -143,7 +143,7 @@ fn run_in(
         CachedCollisionRegistry::from_nbt(&table, &registry).unwrap(),
     ))
     .unwrap();
-    let fluids = FluidResources::from_registry(&registry, &facts, &BTreeSet::new()).unwrap();
+    let fluids = FluidResources::from_registry(&registry, &facts, &[]).unwrap();
     let mut world = World::new(BlockStateId(0), 0);
     for x in -1..=1 {
         for z in -1..=1 {
