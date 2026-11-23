@@ -669,10 +669,11 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     }
     /// `DiodeBlock.neighborChanged`.
     pub(crate) fn diode_neighbor_changed(&mut self, pos: BlockPos, state: BlockStateId) {
+        // 26.1's `DiodeBlock.neighborChanged` has no guard on the block
+        // still being this diode (26.2 returns early when
+        // `getBlockState(pos).is(this)` fails): it runs canSurvive and the
+        // tick check on the passed state either way.
         let block = self.b.block(state);
-        if !self.b.is_block(self.state(pos), block) {
-            return;
-        }
         if self.can_survive(state, pos) {
             self.diode_check_tick_on_neighbor(pos, state);
         } else {

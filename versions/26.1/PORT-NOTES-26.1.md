@@ -792,3 +792,12 @@ onGround requirement); omnidirectionalAirMover is exactly
 instanceof FlyingAnimal (Parrot/Bee); knockback's extra params are
 unused; setBodyArmorItem is setItemSlotAndDropWhenKilled(BODY). 123
 no-change: PostSpawnProcessor shape, renames, spill.
+
+Batch 46 (Nov 23, 442/498): 124 PORTED — DiodeBlock.neighborChanged
+has no still-this-diode guard in 26.1 (26.2 added one); the guard is
+gone from diode_neighbor_changed. 118 PORTED — BoneMealItem.useOn
+returns PASS on the client for a growCrop success in 26.1 (SUCCESS in
+26.2), so only the growWaterPlant path succeeds client-side; both
+growth tests updated (5 bone-meal tests pass locally). 128/132/144/109
+no-change: infiniburn tag form already carried, identical/spill/move
+methods, the Instantenous typo, piglin-AI renames.

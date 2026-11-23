@@ -256,11 +256,13 @@ fn bone_meal_on_a_client_succeeds_only_where_its_level_can_tell() {
     };
     // SaplingBlock.isValidBonemealTarget needs a ServerLevel: the client passes.
     assert!(!client(BlockPos::new(0, 64, 0)));
-    // CropBlock: below its max age.
-    assert!(client(BlockPos::new(1, 64, 0)));
+    // 26.1 returns PASS on the client when growCrop succeeds (26.2 returns
+    // SUCCESS), so a crop below its max age does not succeed client-side.
+    assert!(!client(BlockPos::new(1, 64, 0)));
     assert!(!client(BlockPos::new(2, 64, 0)));
-    // GrassBlock with air above; under water, growWaterPlant above its top face.
-    assert!(client(BlockPos::new(-1, 63, 0)));
+    // GrassBlock with air above passes too; only the growWaterPlant path
+    // (under water, above its top face) returns SUCCESS on the client.
+    assert!(!client(BlockPos::new(-1, 63, 0)));
     assert!(client(BlockPos::new(3, 63, 0)));
     assert!(!client(BlockPos::new(-1, 62, 0)));
     assert_eq!(w.level.blocks, before, "nothing grows on a client");
@@ -395,8 +397,9 @@ fn bone_meal_answers_a_mod_blocks_three_questions() {
     assert!(b.grow_crop(&mut level, &mut w.ticks, pos));
     assert!(level.rolls.is_empty() && level.performed.is_empty());
     assert_ne!(level.inner.block_state(pos), crop, "the crop grew");
-    // A client predicts the use with the same answer, where the block itself
-    // takes no bone meal on a client.
+    // On a client, 26.1 returns PASS when growCrop succeeds whatever the
+    // block's own answer, so neither answer succeeds client-side (26.2
+    // returned SUCCESS for a valid target).
     w.put(pos, stone);
     let mut level = ModLevel {
         inner: &mut w.level,
@@ -405,7 +408,7 @@ fn bone_meal_answers_a_mod_blocks_three_questions() {
         rolls: Vec::new(),
         performed: Vec::new(),
     };
-    assert!(b.bone_meal_succeeds_on_client(&mut level, pos, Direction::Up));
+    assert!(!b.bone_meal_succeeds_on_client(&mut level, pos, Direction::Up));
     level.valid = Some(false);
     assert!(!b.bone_meal_succeeds_on_client(&mut level, pos, Direction::Up));
 }

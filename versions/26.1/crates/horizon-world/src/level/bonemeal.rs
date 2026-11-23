@@ -210,10 +210,10 @@ impl Behaviours {
         false
     }
     /// `BoneMealItem.useOn` on a client's level, where nothing grows: whether
-    /// it succeeds there (the server's packet does the growing). A sapling,
-    /// an azalea or a mushroom is only a valid target on a `ServerLevel`
-    /// (`isValidBonemealTarget`), so the client passes on them; `growWaterPlant`
-    /// takes any full water block beside a sturdy clicked face.
+    /// it returns SUCCESS there (the server's packet does the growing). In
+    /// 26.1 a `growCrop` success returns PASS on the client (26.2 returns
+    /// SUCCESS), so only the `growWaterPlant` path succeeds client-side: a
+    /// full water block beside a sturdy clicked face.
     pub fn bone_meal_succeeds_on_client<L: LevelAccess + ?Sized>(
         &self,
         level: &mut L,
@@ -223,21 +223,6 @@ impl Behaviours {
         let mut ticks = Ticks::default();
         let mut sim = self.sim(level, &mut ticks);
         let state = sim.state(pos);
-        // A mod block answers `isValidBonemealTarget` on both sides, so the
-        // client predicts the use with the mod's own answer.
-        let answer = sim.level.is_valid_bonemeal_target(pos, state);
-        if answer == Some(true) {
-            return true;
-        }
-        // Refused (`Some(false)`): growCrop fails, and only growWaterPlant
-        // below can still take the meal.
-        if answer.is_none()
-            && let Some(kind) = self.bonemeal_kind(state)
-            && !matches!(kind, Kind::Sapling | Kind::Azalea | Kind::Mushroom)
-            && sim.bonemeal_valid(kind, pos, state)
-        {
-            return true;
-        }
         let water = sim.state(rel(pos, face));
         self.is_face_sturdy(state, face)
             && self.is_block(water, self.named.water)

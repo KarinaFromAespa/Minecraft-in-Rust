@@ -8613,9 +8613,11 @@ impl Game<'_> {
                 .is_some_and(|s| &*s.item == "minecraft:bone_meal")
                 && self.remote_bone_meal_succeeds(&hit)
             {
-                // BoneMealItem.useOn succeeded on this client's level (SUCCESS;
-                // the server grows the plant): this hand swings and the click
-                // ends, so the other hand (a torch) is never tried.
+                // BoneMealItem.useOn succeeded on this client's level (SUCCESS
+                // on the growWaterPlant path; a growCrop success returns PASS
+                // in 26.1, so the server grows the plant): this hand swings
+                // and the click ends, so the other hand (a torch) is never
+                // tried.
                 self.with_hand(hand, Game::swing_arm);
                 return true;
             } else if stand_fits {
