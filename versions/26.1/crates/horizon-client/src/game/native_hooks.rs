@@ -10678,13 +10678,14 @@ impl Game<'_> {
         let changed =
             self.with_level(|b, level, ticks| b.set_block(level, ticks, at, state, flags));
         let new = self.res.facts().get(state).name.clone();
-        let landed = self.world.block(pos[0], pos[1], pos[2]);
-        let needs_entity = !self.world.block_entities.stateful_entity(landed.0)
+        // 26.1: `LevelChunk.setBlockState` creates the block entity for the
+        // new state unconditionally after onPlace (26.2 added a re-check
+        // that the block at the position is still the new block).
+        let needs_entity = !self.world.block_entities.stateful_entity(state.0)
             && self.res.facts().get(previous).name != new;
         if changed
             && needs_entity
-            && self.res.facts().get(landed).name == new
-            && let Some(entity) = self.new_block_entity_for_state(landed)
+            && let Some(entity) = self.new_block_entity_for_state(state)
         {
             self.world
                 .block_entities

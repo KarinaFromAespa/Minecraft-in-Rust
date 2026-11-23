@@ -1629,7 +1629,7 @@ impl Game<'_> {
         });
     }
     /// What a cloud puts on one entity: instant effects at half strength
-    /// (`applyInstantaneousEffect` with 0.5), the others at the cloud's duration
+    /// (`applyInstantenousEffect` with 0.5), the others at the cloud's duration
     /// scale (`PotionContents.forEachEffect`).
     fn cloud_affect(
         &mut self,
@@ -1689,7 +1689,7 @@ impl Game<'_> {
                                     as f32
                             };
                             if (*id == "instant_damage") != inverted {
-                                // HealOrHarmMobEffect.applyInstantaneousEffect: indirectMagic(cloud, owner).
+                                // HealOrHarmMobEffect.applyInstantenousEffect: indirectMagic(cloud, owner).
                                 let source = Damage::indirect_magic(owner, at);
                                 if m.damage_by(amount(6), source, "minecraft:area_effect_cloud")
                                     && owner == Some(Who::Player)
@@ -1830,7 +1830,7 @@ impl Game<'_> {
         }
         self.mark_motion(out.len(), 0);
     }
-    /// `HealOrHarmMobEffect.applyInstantaneousEffect` with a source (a
+    /// `HealOrHarmMobEffect.applyInstantenousEffect` with a source (a
     /// potion or a cloud): indirectMagic, not plain magic, credited to the
     /// mob that threw it when there is one.
     fn apply_indirect_effect_action(&mut self, a: EffectAction, owner: &PotionOwner) {
@@ -2072,7 +2072,7 @@ impl Game<'_> {
                         m.extra.counter2 = 64;
                     }
                 } else if harm {
-                    // HealOrHarmMobEffect.applyInstantaneousEffect: indirectMagic(potion, owner).
+                    // HealOrHarmMobEffect.applyInstantenousEffect: indirectMagic(potion, owner).
                     let harm = (intensity * f64::from(6 << amp) + 0.5) as i32 as f32;
                     let source = Damage::indirect_magic(owner.who(), [at.x, at.y, at.z]);
                     if m.damage_by(harm, source, "minecraft:splash_potion") && owner.player {

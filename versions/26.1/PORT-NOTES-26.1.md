@@ -449,6 +449,24 @@ keep it), with a module-doc note recording the absence. 314/320/324/
 construction, receiver-access-only, the protocol constant already
 pinned at 775, getCenter/atCenterOf, the EntityType rename.
 
+Batch 14 (2026-11-23): 6 closures (218/498). 39 ported (carry-over of
+26.2 #34): inhabited time accrues by timeDiff in 26.1 vanilla — the
+26.1 tree had the 26.3 +1 form; added World.last_inhabited_update, the
+stamp at the top of spawn_natural and += time_diff accrual, with the
+26.2 tests. 44 ported: 26.2 added a post-onPlace re-check to
+LevelChunk.setBlockState; 26.1 creates the block entity for the new
+state unconditionally — the re-check is removed at update.rs
+(chunk_set_block_state), commands.rs (place_state) and native_hooks.rs.
+212 ported comment-only (26.1's applyInstantenousEffect typo).
+36/40/43 no-change: an extracted helper with an identical predicate, a
+field-vs-accessor change, byte-identical bake methods.
+
+CI run 45181781216 (head 231549d2): defect suite PASS, 6/7 crate
+suites PASS; the only failure was the pre-existing
+failed_upgrade_keeps_old_data_version — fixed in b6260577 (test start
+4899 -> 4780, below CURRENT 4786; same pattern as 26.1.1's 4786 fix),
+verified locally. Run 45185167162 dispatched for head b6260577.
+
 Test health: crate-tests run 45163597005 (rank-1 state): protocol,
 items, client-core, client-render PASS; world FAIL (1 pre-existing
 datafix failure, `failed_upgrade_keeps_old_data_version` — the other

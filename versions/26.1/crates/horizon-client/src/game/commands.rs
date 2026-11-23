@@ -2840,14 +2840,13 @@ impl Game<'_> {
             self.level_set(pos, state)
                 .map_err(|e| CommandError::new(Text::literal(e.to_string())))?;
         }
-        // LevelChunk.setBlockState creates it when the block, not the state, is still
-        // there after onPlace: a powered hopper turns itself `enabled=false`.
-        let landed = self.world.block(pos[0], pos[1], pos[2]);
-        let needs_entity = !self.world.block_entities.stateful_entity(landed.0) && old != new;
+        // 26.1: `LevelChunk.setBlockState` creates the block entity for the
+        // new state unconditionally after onPlace (26.2 added a re-check
+        // that the block at the position is still the new block).
+        let needs_entity = !self.world.block_entities.stateful_entity(state.0) && old != new;
         if needs_entity
-            && self.res.facts().get(landed).name == new
-            && !self.sculk_place_entity(landed)
-            && let Some(entity) = self.new_block_entity_for_state(landed)
+            && !self.sculk_place_entity(state)
+            && let Some(entity) = self.new_block_entity_for_state(state)
         {
             self.world.block_entities.insert(key, entity);
         }
