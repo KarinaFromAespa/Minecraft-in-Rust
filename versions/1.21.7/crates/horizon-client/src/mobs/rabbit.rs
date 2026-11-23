@@ -516,7 +516,7 @@ mod tests {
     fn summoned_age_selects_the_baby_model_and_texture() {
         let mut template = rabbit();
         let kind = Arc::make_mut(&mut template.kind);
-        kind.texture = "entity/rabbit/rabbit_brown".into();
+        kind.texture = "entity/rabbit/brown".into();
         kind.layers
             .insert("rabbit_baby#main".into(), kind.model.clone());
         let types = HashMap::from([(kind.id.clone(), template.kind.clone())]);
@@ -531,12 +531,9 @@ mod tests {
             assert_eq!(
                 crate::mobs::render::body(&m),
                 if baby {
-                    (
-                        "rabbit_baby#main".into(),
-                        "entity/rabbit/rabbit_brown_baby".into(),
-                    )
+                    ("rabbit_baby#main".into(), "entity/rabbit/brown".into())
                 } else {
-                    ("rabbit#main".into(), "entity/rabbit/rabbit_brown".into())
+                    ("rabbit#main".into(), "entity/rabbit/brown".into())
                 }
             );
         }

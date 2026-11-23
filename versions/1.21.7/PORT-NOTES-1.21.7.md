@@ -2416,3 +2416,122 @@ powder and rejects stone, and shift-click routes powder to slot 4).
 The horizon-items test ran locally; the horizon-client and
 horizon-client-render tests need CI (the lib test compile OOM-kills on
 this VM).
+
+## Invisible mobs: 26.x texture names the 1.21.7 jar does not have (2026-11-23)
+
+Owner report on build #4 (head 44b3b4ed, 08:43 NPT): "some mobs are
+invisible. like chicken." The mobs spawn — the no-mobs defect was
+fixed in dd966dea and the owner confirmed mobs spawn — but chickens
+(and others) render nothing at all, with no entity/model error in
+the log. Root cause: the 1.21.7 tree's mob renderer asks the GUI
+atlas for **26.3 texture names** that do not exist in the 1.21.7
+client jar, and a body whose texture misses the atlas is skipped
+silently. `mobs/render.rs` `render_visible` `draw_body` resolves
+the body texture with `atlas(texture)?` and only emits vertices
+`if body_visible && let Some(uv) = uv` — a miss means no vertices
+and no log line. Same defect class as the 26.3 tag/attribute leaks:
+the port carried the base's form for data the version does not
+have.
+
+Jar evidence (1.21.7 client jar, sha1
+`a2db1ea98c37b2d00c83f6867fb8bb581a593e07`, 577 entity textures
+listed and cross-checked against every texture string the renderer
+emits):
+
+- 1.21.7 has **no `_baby` entity textures at all** except
+  `entity/ghast/happy_ghast_baby`; 26.3 has 133. The old `b()`
+  helper appended `_baby` to every baby body texture, so nearly all
+  ageable babies were invisible.
+- Climate mobs are named `{climate}_{animal}` in 1.21.7
+  (`temperate_chicken`, `cold_pig`, `warm_cow`, `temperate_frog`);
+  26.3 flips them (`chicken_temperate`, ...).
+- Many textures are flat at `textures/entity/<name>.png` in 1.21.7
+  (`bat`, `blaze`, `dolphin`, `endermite`, `silverfish`,
+  `snow_golem`, `wandering_trader`, `witch`, `guardian`,
+  `guardian_elder`, `phantom`, `phantom_eyes`, `spider_eyes`,
+  `armadillo`); 26.3 nests them under `entity/<name>/`.
+- Turtle is `entity/turtle/big_sea_turtle`; mooshrooms are
+  `red_mooshroom`/`brown_mooshroom`; rabbit variants are bare
+  (`brown`, `toast`); llama coats bare (`creamy`); cat variants
+  bare (`tabby`); panda genes are `{gene}_panda`; fox snow is
+  `snow_fox`.
+- The baby MODELS all exist in 1.21.7 (verified against the 1.21.6
+  named client jar's `ModelLayers`: `CHICKEN_BABY`,
+  `COLD_CHICKEN_BABY`, `COLD_COW_BABY`, `WARM_COW_BABY`,
+  `HORSE_BABY_ARMOR`, `LLAMA_BABY_DECOR`, `SHEEP_BABY_WOOL_UNDERCOAT`,
+  `PIG_BABY_SADDLE`, `DROWNED_BABY_OUTER_LAYER`...) — only the
+  texture names were wrong, so the fix keeps baby model selection
+  and changes textures only.
+
+Affected set. Adults invisible: pig, cow, mooshroom, chicken,
+rabbit, llama, trader llama, cat, turtle, armadillo, frog, dolphin,
+bat, wandering trader, snow golem, endermite, silverfish, witch,
+phantom, guardian, elder guardian, blaze, snow fox, panda (non-normal
+genes), sniffer (baby only). Babies invisible: nearly all ageable
+babies (goat, polar bear, ocelot, turtle, armadillo, sheep, zombie,
+husk, drowned, zombie villager, villager, piglin, zombified piglin,
+hoglin, zoglin, strider, bee, squid, glow squid, dolphin, axolotl,
+rabbit, llama, equines, wolf, cat, panda). Layers missing (body
+visible, layer absent): wolf/cat collars, sheep wool (baby), drowned
+outer (baby), spider eyes, phantom eyes, villager baby type, baby
+humanoid armour. Same defect class outside mobs, fixed on the same
+branch: experience orb, minecart, spectral/tipped arrows, trident
+(+ riptide), armour stand wood, fishing hook, lead knot, llama spit,
+guardian beam, end portal, end gateway beam, banner base, shield
+bases, beacon beam, enchanting table book. 26.x-only mobs (copper
+golem, nautilus, zombie nautilus, parched, camel husk, sulfur cube)
+have no texture and no class in the 1.21.7 jar; they cannot spawn
+here and are left alone.
+
+The fix (branch `fix/1.21.7-invisible-mobs`): `mobs/species.rs`
+(22 def textures), `mobs/render.rs` `body()` (removed the `b()`
+baby-suffix helper; climate/variant names per the jar) and
+`layers()` (single collar/wool/outer texture for both ages; spider
+eyes `entity/spider_eyes`, phantom eyes `entity/phantom_eyes`;
+villager type always `type/`; babies read adult
+`humanoid`/`humanoid_leggings` armour textures — 1.21.7 has no
+`humanoid_baby/` folder), `mobs/llama.rs`, `mobs/equine.rs`,
+`mobs/tame.rs`, `mobs/panda.rs`, `mobs/rabbit.rs` and
+`mobs/cem.rs` tests, `game/native_client_services.rs` (doc + calf
+test), and the non-mob files (`game.rs`, `game/creatures.rs`,
+`game/trident.rs`, `game/armor_stands.rs`, `game/fishing.rs`,
+`game/leads.rs`, `game/minecarts.rs`, `game/perspective.rs`,
+`game/beacon.rs`, `game/world_primitives.rs`, `game/win.rs`,
+`game/mob_blocks.rs`, `projectiles.rs`,
+`item_render/special.rs`, `horizon-client-render`'s
+`block_entity_render.rs` + tests + `client_resources.rs` test
+fixture, and the `block_entity_render_fixture` probe). 1.21.11 had
+already fixed most of this (its `mobs/render.rs` diff is the
+reference); 1.21.7 goes beyond it for the flat-vs-nested names
+(turtle, armadillo, dolphin, bat, blaze, endermite, silverfish,
+snow golem, wandering trader) and for llama spit, which is still
+wrong in 1.21.11. Deliberately NOT ported from 1.21.11: the
+behaviour changes in the same diff (baby saddles/armour,
+undercoat-on-babies, sniffer snifflet age, `WOLF_BABY_ARMOR`) —
+those are separate behaviour items, not invisibility; the model
+layers for them exist in 1.21.7, so they are known follow-ups, not
+defects here.
+
+Regression test: `mobs/render.rs`
+`body_textures_use_the_1_21_7_names` pins the 22 def textures and
+`body()`'s dynamic names (climate variants, variant mobs, babies
+wearing adult textures) against the jar. The villager type test and
+the sheep wool test were updated to the 1.21.7 expectations, and
+the baby-zombie armour test renamed to
+`a_baby_zombies_armour_uses_the_adult_textures`.
+
+Verification: every texture name the fix emits was checked against
+the 1.21.7 client jar's texture list (all 22 def textures, all
+dynamic names, the fox sleep variants, the equipment textures —
+all present). `cargo check` on this VM (`taskset -c 0`, `-j 1`):
+`horizon-client-render` green (20m 27s), `horizon-client --lib`
+green (53m 20s), `horizon-client --lib --tests` green (19m 02s,
+no OOM) — the new regression test and the updated lib tests
+compile. Test EXECUTION goes to CI per the standing rule (the lib
+test binary's full compile OOM-kills on this VM): the
+`body_textures_use_the_1_21_7_names` test and the updated
+villager/sheep/armour/rabbit/cem/native-client-services tests run
+in the crate-tests workflow. The first check run died on disk
+quota (104G used); a 32G stale `stream3-e6-quick` 1.21.5 `target/`
+was removed (git-ignored, 0 tracked files, stream idle) bringing
+usage to 89G, and the check resumed incrementally.

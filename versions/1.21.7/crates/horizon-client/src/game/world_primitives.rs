@@ -47,7 +47,7 @@ impl Game<'_> {
         }
         let atlas = &self.gui.atlas;
         let white = horizon_client::gfx::lightning::white_uv(&atlas.font.white());
-        let beam_sprite = atlas.sprites.get("entity/beacon/beacon_beam").copied();
+        let beam_sprite = atlas.sprites.get("entity/beacon_beam").copied();
         // BeaconRenderer's animation time: game time mod 40 plus the partial tick.
         let time = self.world.game_time.rem_euclid(40) as f32 + alpha as f32;
         let relative = |p: [f64; 3]| (glam::DVec3::from_array(p) - camera).as_vec3();

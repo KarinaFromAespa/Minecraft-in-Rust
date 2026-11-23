@@ -250,13 +250,8 @@ pub fn layers_shown(m: &Mob) -> bool {
 pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
     use Species as S;
     let baby = m.is_baby();
-    let b = |s: &str| -> Cow<'static, str> {
-        if baby {
-            interned(format_args!("{s}_baby"))
-        } else {
-            interned(format_args!("{s}"))
-        }
-    };
+    // 1.21.7 has no baby body textures (26.x adds one per ageable
+    // species): babies wear the adult texture, on the baby model.
     if avatar(m) {
         // AvatarRenderer: PlayerModel's slim layer for a slim skin.
         return (
@@ -315,13 +310,11 @@ pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
             let (model, texture) = super::sulfur_cube::body(m);
             (model.into(), texture.into())
         }
+        // SnifferRenderer: the baby wears the adult texture in 1.21.7
+        // (26.x gives it its own `snifflet` texture).
         S::Sniffer => (
             baby_or(m, "sniffer#main", "sniffer_baby#main"),
-            if baby {
-                "entity/sniffer/snifflet".into()
-            } else {
-                "entity/sniffer/sniffer".into()
-            },
+            "entity/sniffer/sniffer".into(),
         ),
         S::Shulker => ("shulker#main".into(), super::shulker::texture(m).into()),
         S::Vex => ("vex#main".into(), super::vex::texture(m).into()),
@@ -338,9 +331,11 @@ pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
             baby_or(m, "cat#main", "cat_baby#main"),
             super::tame::cat_texture(m).into(),
         ),
+        // FrogRenderer: 1.21.7 names the climate textures
+        // `{climate}_frog` (26.x flips them to `frog_{climate}`).
         S::Frog => (
             "frog#main".into(),
-            interned(format_args!("entity/frog/frog_{}", climate(m))),
+            interned(format_args!("entity/frog/{}_frog", climate(m))),
         ),
         // RabbitRenderer.getTextureLocation: the Toast name tag, else the
         // variant (the killer bunny's id is 99).
@@ -360,7 +355,9 @@ pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
             };
             (
                 baby_or(m, "rabbit#main", "rabbit_baby#main"),
-                b(&interned(format_args!("entity/rabbit/rabbit_{name}"))),
+                // RabbitRenderer: 1.21.7 names the variant textures
+                // bare (`brown`, `toast`...); 26.x prefixes `rabbit_`.
+                interned(format_args!("entity/rabbit/{name}")),
             )
         }
         // ParrotRenderer.getVariantTexture.
@@ -378,7 +375,7 @@ pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
                 ["lucy", "wild", "gold", "cyan", "blue"][usize::from(m.extra.variant).min(4)];
             (
                 baby_or(m, "axolotl#main", "axolotl_baby#main"),
-                b(&interned(format_args!("entity/axolotl/axolotl_{name}"))),
+                interned(format_args!("entity/axolotl/axolotl_{name}")),
             )
         }
         // SalmonRenderer.submit: the model of the salmon's size.
@@ -390,40 +387,45 @@ pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
             };
             (model.into(), "entity/fish/salmon".into())
         }
-        // The baby models and textures of AgeableMobRenderer's other
-        // subclasses.
+        // The baby models of AgeableMobRenderer's other subclasses; the
+        // texture is the adult's in 1.21.7.
         S::Goat => (
             baby_or(m, "goat#main", "goat_baby#main"),
-            b(&m.kind.texture),
+            m.kind.texture.as_str().into(),
         ),
         S::PolarBear => (
             baby_or(m, "polar_bear#main", "polar_bear_baby#main"),
-            b(&m.kind.texture),
+            m.kind.texture.as_str().into(),
         ),
         S::Ocelot => (
             baby_or(m, "ocelot#main", "ocelot_baby#main"),
-            b(&m.kind.texture),
+            m.kind.texture.as_str().into(),
         ),
         S::Turtle => (
             baby_or(m, "turtle#main", "turtle_baby#main"),
-            b(&m.kind.texture),
+            m.kind.texture.as_str().into(),
         ),
         S::Armadillo => (
             baby_or(m, "armadillo#main", "armadillo_baby#main"),
-            b(&m.kind.texture),
+            m.kind.texture.as_str().into(),
         ),
-        // FoxRenderer.getTextureLocation: snow variant, sleeping, baby.
+        // FoxRenderer.getTextureLocation: snow variant, sleeping. 1.21.7
+        // names the snow fox `snow_fox` (26.x: `fox_snow`) and has no
+        // baby fox textures.
         S::Fox => (
             baby_or(m, "fox#main", "fox_baby#main"),
             interned(format_args!(
-                "entity/fox/fox{}{}{}",
-                if m.extra.variant == 0 { "" } else { "_snow" },
+                "entity/fox/{}{}",
+                if m.extra.variant == 0 {
+                    "fox"
+                } else {
+                    "snow_fox"
+                },
                 if super::fox::flag(m, super::fox::SLEEPING) {
                     "_sleep"
                 } else {
                     ""
                 },
-                if baby { "_baby" } else { "" },
             )),
         ),
         S::Pig => {
@@ -434,9 +436,11 @@ pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
             } else {
                 "pig#main".into()
             };
+            // 1.21.7 names the climate textures `{climate}_pig`
+            // (26.x flips them to `pig_{climate}`).
             (
                 model,
-                b(&interned(format_args!("entity/pig/pig_{}", climate(m)))),
+                interned(format_args!("entity/pig/{}_pig", climate(m))),
             )
         }
         S::Cow => {
@@ -450,16 +454,19 @@ pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
             };
             (
                 model.into(),
-                b(&interned(format_args!("entity/cow/cow_{}", climate(m)))),
+                interned(format_args!("entity/cow/{}_cow", climate(m))),
             )
         }
         S::Mooshroom => (
             baby_or(m, "mooshroom#main", "mooshroom_baby#main"),
-            b(if m.extra.variant == 1 {
-                "entity/cow/mooshroom_brown"
+            // 1.21.7: `red_mooshroom` / `brown_mooshroom`
+            // (26.x flips them to `mooshroom_red` / `mooshroom_brown`).
+            if m.extra.variant == 1 {
+                "entity/cow/brown_mooshroom"
             } else {
-                "entity/cow/mooshroom_red"
-            }),
+                "entity/cow/red_mooshroom"
+            }
+            .into(),
         ),
         S::Chicken => {
             let model = if baby {
@@ -471,59 +478,57 @@ pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
             };
             (
                 model.into(),
-                b(&interned(format_args!(
-                    "entity/chicken/chicken_{}",
-                    climate(m)
-                ))),
+                interned(format_args!("entity/chicken/{}_chicken", climate(m))),
             )
         }
         S::Sheep => (
             baby_or(m, "sheep#main", "sheep_baby#main"),
-            b("entity/sheep/sheep"),
+            "entity/sheep/sheep".into(),
         ),
         S::Zombie => (
             baby_or(m, "zombie#main", "zombie_baby#main"),
-            b("entity/zombie/zombie"),
+            "entity/zombie/zombie".into(),
         ),
         S::Husk => (
             baby_or(m, "husk#main", "husk_baby#main"),
-            b("entity/zombie/husk"),
+            "entity/zombie/husk".into(),
         ),
         S::Drowned => (
             baby_or(m, "drowned#main", "drowned_baby#main"),
-            b("entity/zombie/drowned"),
+            "entity/zombie/drowned".into(),
         ),
         S::ZombieVillager => (
             baby_or(m, "zombie_villager#main", "zombie_villager_baby#main"),
-            b("entity/zombie_villager/zombie_villager"),
+            "entity/zombie_villager/zombie_villager".into(),
         ),
         S::Villager => (
             baby_or(m, "villager#main", "villager_baby#main"),
-            b("entity/villager/villager"),
+            "entity/villager/villager".into(),
         ),
         S::Piglin => (
             baby_or(m, "piglin#main", "piglin_baby#main"),
-            b("entity/piglin/piglin"),
+            "entity/piglin/piglin".into(),
         ),
         S::ZombifiedPiglin => (
             baby_or(m, "zombified_piglin#main", "zombified_piglin_baby#main"),
-            b("entity/piglin/zombified_piglin"),
+            "entity/piglin/zombified_piglin".into(),
         ),
         S::Hoglin => (
             baby_or(m, "hoglin#main", "hoglin_baby#main"),
-            b("entity/hoglin/hoglin"),
+            "entity/hoglin/hoglin".into(),
         ),
         S::Zoglin => (
             baby_or(m, "zoglin#main", "zoglin_baby#main"),
-            b("entity/hoglin/zoglin"),
+            "entity/hoglin/zoglin".into(),
         ),
         S::Strider => (
             baby_or(m, "strider#main", "strider_baby#main"),
-            b(if m.extra.flag {
+            if m.extra.flag {
                 "entity/strider/strider_cold"
             } else {
                 "entity/strider/strider"
-            }),
+            }
+            .into(),
         ),
         // BeeRenderer.getTextureLocation: angry, carrying nectar, or both.
         S::Bee => {
@@ -536,24 +541,19 @@ pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
                 (false, false) => "entity/bee/bee",
             };
             let layer = baby_or(m, "bee#main", "bee_baby#main");
-            let texture = if layer.starts_with("bee_baby") {
-                b(texture)
-            } else {
-                texture.into()
-            };
-            (layer, texture)
+            (layer, texture.into())
         }
         S::Squid => (
             baby_or(m, "squid#main", "squid_baby#main"),
-            b("entity/squid/squid"),
+            "entity/squid/squid".into(),
         ),
         S::GlowSquid => (
             baby_or(m, "glow_squid#main", "glow_squid_baby#main"),
-            b("entity/squid/glow_squid"),
+            "entity/squid/glow_squid".into(),
         ),
         S::Dolphin => (
             baby_or(m, "dolphin#main", "dolphin_baby#main"),
-            b("entity/dolphin/dolphin"),
+            "entity/dolphin".into(),
         ),
         S::Pufferfish => {
             let model = match m.extra.size {
@@ -621,12 +621,14 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
         })
     }
     match m.species() {
-        // WolfArmorLayer, then WolfCollarLayer.
+        // WolfArmorLayer, then WolfCollarLayer. The collar is one
+        // texture for both ages in 1.21.7 (26.x adds
+        // `wolf_collar_baby`); the baby model stays.
         S::Wolf if m.extra.tame => {
-            let (model, texture) = if m.is_baby() {
-                ("wolf_baby#main", "entity/wolf/wolf_collar_baby")
+            let model = if m.is_baby() {
+                "wolf_baby#main"
             } else {
-                ("wolf#main", "entity/wolf/wolf_collar")
+                "wolf#main"
             };
             // The armor, then the cracks of its damage (`Crackiness.WOLF_ARMOR`).
             if !m.is_baby() && m.extra.body.as_deref() == Some("minecraft:wolf_armor") {
@@ -655,7 +657,7 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
             push(
                 &mut v,
                 model,
-                texture,
+                "entity/wolf/wolf_collar",
                 abgr(dye(m.extra.color as usize)),
                 false,
             );
@@ -775,17 +777,18 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
             white,
             false,
         ),
-        // CatCollarLayer.
+        // CatCollarLayer: one collar texture for both ages in 1.21.7
+        // (26.x adds `cat_collar_baby`); the baby model stays.
         S::Cat if m.extra.tame => {
-            let (model, texture) = if m.is_baby() {
-                ("cat_baby#collar", "entity/cat/cat_collar_baby")
+            let model = if m.is_baby() {
+                "cat_baby#collar"
             } else {
-                ("cat#collar", "entity/cat/cat_collar")
+                "cat#collar"
             };
             push(
                 &mut v,
                 model,
-                texture,
+                "entity/cat/cat_collar",
                 abgr(dye(m.extra.color as usize)),
                 false,
             );
@@ -843,14 +846,15 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
                     false,
                 );
             }
-            // SheepWoolLayer: none once sheared.
+            // SheepWoolLayer: none once sheared. One wool texture for
+            // both ages in 1.21.7 (26.x adds `sheep_wool_baby`).
             if !m.extra.sheared {
-                let (model, texture) = if m.is_baby() {
-                    ("sheep_baby#wool", "entity/sheep/sheep_wool_baby")
+                let model = if m.is_baby() {
+                    "sheep_baby#wool"
                 } else {
-                    ("sheep#wool", "entity/sheep/sheep_wool")
+                    "sheep#wool"
                 };
-                push(&mut v, model, texture, color, false);
+                push(&mut v, model, "entity/sheep/sheep_wool", color, false);
             }
         }
         S::Creaking if super::creaking::eyes_glowing(m) => push(
@@ -870,7 +874,9 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
         S::Spider | S::CaveSpider => push(
             &mut v,
             m.kind.model_name(),
-            "entity/spider/spider_eyes",
+            // `textures/entity/spider_eyes.png`; 26.x moved it under
+            // `entity/spider/`.
+            "entity/spider_eyes",
             white,
             true,
         ),
@@ -884,28 +890,24 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
         S::Phantom => push(
             &mut v,
             "phantom#main",
-            "entity/phantom/phantom_eyes",
+            "entity/phantom_eyes",
             white,
             true,
         ),
+        // DrownedOuterLayer: one outer texture for both ages in 1.21.7
+        // (26.x adds `drowned_outer_layer_baby`); the baby model stays.
         S::Drowned => {
-            if m.is_baby() {
-                push(
-                    &mut v,
-                    "drowned_baby#outer",
-                    "entity/zombie/drowned_outer_layer_baby",
-                    white,
-                    false,
-                );
-            } else {
-                push(
-                    &mut v,
-                    "drowned#outer",
-                    "entity/zombie/drowned_outer_layer",
-                    white,
-                    false,
-                );
-            }
+            push(
+                &mut v,
+                if m.is_baby() {
+                    "drowned_baby#outer"
+                } else {
+                    "drowned#outer"
+                },
+                "entity/zombie/drowned_outer_layer",
+                white,
+                false,
+            );
         }
         S::Stray => push(
             &mut v,
@@ -953,12 +955,12 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
             } else {
                 "entity/zombie_villager"
             };
-            // VillagerProfessionLayer: a baby's type texture is in `baby/`.
-            let group = if m.is_baby() { "baby" } else { "type" };
+            // VillagerProfessionLayer: the type texture is always in `type/`
+            // (1.21.7 has no `baby/` folder; 26.x added one for babies).
             push(
                 &mut v,
                 model.clone(),
-                interned(format_args!("{folder}/{group}/{t}")),
+                interned(format_args!("{folder}/type/{t}")),
                 white,
                 false,
             );
@@ -990,13 +992,12 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
     humanoid_armor(m, &mut v);
     v
 }
-/// `HumanoidArmorLayer.renderArmorPiece`: a baby wears the `humanoid_baby`
-/// layer type for every slot (leggings included), an adult the leggings layer
-/// for its legs and the `humanoid` one otherwise.
-fn humanoid_layer_folder(baby: bool, layer: &str) -> &'static str {
-    if baby {
-        "humanoid_baby"
-    } else if layer == "leggings" {
+/// `HumanoidArmorLayer.renderArmorPiece`: the leggings layer for the legs,
+/// the `humanoid` one otherwise. 1.21.7 has no `humanoid_baby` layer type
+/// (26.1 added it); a baby's armour reads the adult textures, only its
+/// model is the baby one.
+fn humanoid_layer_folder(layer: &str) -> &'static str {
+    if layer == "leggings" {
         "humanoid_leggings"
     } else {
         "humanoid"
@@ -1035,7 +1036,7 @@ fn humanoid_armor(m: &Mob, v: &mut Vec<Layer>) {
             "turtle" => "turtle_scute",
             other => other,
         };
-        let folder = humanoid_layer_folder(m.is_baby(), layer);
+        let folder = humanoid_layer_folder(layer);
         let model = interned(format_args!("{base}#{layer}"));
         // EquipmentLayerRenderer.getColorForLayer: the leather layer takes
         // the stack's dye colour, the colour it has when undyed otherwise.
@@ -2690,10 +2691,10 @@ pub fn held_item_stack(extra: &super::Extra, off_hand: bool) -> Option<crate::it
 mod tests {
     use super::*;
 
-    /// A baby zombie's armour reads the `humanoid_baby` textures for every
-    /// slot, not the adult `humanoid`/`humanoid_leggings` ones (#7302).
+    /// A baby zombie's armour reads the adult `humanoid`/`humanoid_leggings`
+    /// textures, like an adult's: 1.21.7 has no `humanoid_baby` layer type.
     #[test]
-    fn a_baby_zombies_armour_uses_the_humanoid_baby_textures() {
+    fn a_baby_zombies_armour_uses_the_adult_textures() {
         let mut kind = (*crate::mobs::sensor_scan_tests::kind()).clone();
         kind.species = Species::Zombie;
         let model = kind.model.clone();
@@ -2714,10 +2715,10 @@ mod tests {
         assert_eq!(
             textures,
             [
-                "entity/equipment/humanoid_baby/iron",
-                "entity/equipment/humanoid_baby/iron",
-                "entity/equipment/humanoid_baby/leather",
-                "entity/equipment/humanoid_baby/leather_overlay",
+                "entity/equipment/humanoid/iron",
+                "entity/equipment/humanoid_leggings/iron",
+                "entity/equipment/humanoid/leather",
+                "entity/equipment/humanoid/leather_overlay",
             ]
         );
         mob.extra.age = 0;
@@ -2726,6 +2727,266 @@ mod tests {
         assert_eq!(
             &*adult[1].texture,
             "entity/equipment/humanoid_leggings/iron"
+        );
+    }
+
+    /// The 1.21.7 body textures, against the 1.21.7 client jar. The 26.x
+    /// forms (`chicken_temperate`, `cow_temperate_baby`, `rabbit_brown`,
+    /// `entity/turtle/turtle`...) do not exist there, and a body whose
+    /// texture misses the atlas is skipped silently — the mob is invisible
+    /// with no log line (owner report, build #4: "some mobs are invisible.
+    /// like chicken."). Pins both the species table's def textures and
+    /// `body()`'s dynamic names, adults and babies alike.
+    #[test]
+    fn body_textures_use_the_1_21_7_names() {
+        use super::super::species;
+        for (s, want) in [
+            (Species::Bat, "entity/bat"),
+            (Species::Blaze, "entity/blaze"),
+            (Species::Dolphin, "entity/dolphin"),
+            (Species::Endermite, "entity/endermite"),
+            (Species::Silverfish, "entity/silverfish"),
+            (Species::SnowGolem, "entity/snow_golem"),
+            (Species::WanderingTrader, "entity/wandering_trader"),
+            (Species::Witch, "entity/witch"),
+            (Species::Phantom, "entity/phantom"),
+            (Species::Guardian, "entity/guardian"),
+            (Species::ElderGuardian, "entity/guardian_elder"),
+            (Species::Armadillo, "entity/armadillo"),
+            (Species::Turtle, "entity/turtle/big_sea_turtle"),
+            (Species::Pig, "entity/pig/temperate_pig"),
+            (Species::Cow, "entity/cow/temperate_cow"),
+            (Species::Mooshroom, "entity/cow/red_mooshroom"),
+            (Species::Chicken, "entity/chicken/temperate_chicken"),
+            (Species::Rabbit, "entity/rabbit/brown"),
+            (Species::Llama, "entity/llama/creamy"),
+            (Species::TraderLlama, "entity/llama/creamy"),
+            (Species::Cat, "entity/cat/tabby"),
+            (Species::Frog, "entity/frog/temperate_frog"),
+        ] {
+            let def = species::ALL.iter().find(|d| d.species == s).unwrap();
+            assert_eq!(def.texture, want, "{s:?}");
+        }
+        let texture_of = |s: Species,
+                          texture: &str,
+                          variant: u8,
+                          variant2: u8,
+                          baby: bool,
+                          name: Option<&str>|
+         -> String {
+            let mut kind = (*crate::mobs::sensor_scan_tests::kind()).clone();
+            kind.species = s;
+            kind.texture = texture.into();
+            let mut m = Mob::new(
+                1,
+                std::sync::Arc::new(kind),
+                horizon_core::geometry::Vec3::ZERO,
+                0.0,
+            );
+            m.extra.variant = variant;
+            m.extra.variant2 = variant2;
+            m.extra.age = if baby { -24000 } else { 0 };
+            m.custom_name = name.map(str::to_owned);
+            body(&m).1.into_owned()
+        };
+        // Climate mobs: 1.21.7 names them `{climate}_{animal}`.
+        assert_eq!(
+            texture_of(Species::Chicken, "", 0, 0, false, None),
+            "entity/chicken/temperate_chicken"
+        );
+        assert_eq!(
+            texture_of(Species::Chicken, "", 1, 0, false, None),
+            "entity/chicken/warm_chicken"
+        );
+        assert_eq!(
+            texture_of(Species::Chicken, "", 2, 0, false, None),
+            "entity/chicken/cold_chicken"
+        );
+        assert_eq!(
+            texture_of(Species::Chicken, "", 0, 0, true, None),
+            "entity/chicken/temperate_chicken"
+        );
+        assert_eq!(
+            texture_of(Species::Pig, "", 2, 0, false, None),
+            "entity/pig/cold_pig"
+        );
+        assert_eq!(
+            texture_of(Species::Pig, "", 0, 0, true, None),
+            "entity/pig/temperate_pig"
+        );
+        assert_eq!(
+            texture_of(Species::Cow, "", 1, 0, false, None),
+            "entity/cow/warm_cow"
+        );
+        assert_eq!(
+            texture_of(Species::Cow, "", 0, 0, true, None),
+            "entity/cow/temperate_cow"
+        );
+        assert_eq!(
+            texture_of(Species::Frog, "", 2, 0, false, None),
+            "entity/frog/cold_frog"
+        );
+        assert_eq!(
+            texture_of(Species::Mooshroom, "", 0, 0, false, None),
+            "entity/cow/red_mooshroom"
+        );
+        assert_eq!(
+            texture_of(Species::Mooshroom, "", 1, 0, false, None),
+            "entity/cow/brown_mooshroom"
+        );
+        // Variant mobs: bare names, no `_baby` suffix — babies wear the
+        // adult texture.
+        assert_eq!(
+            texture_of(Species::Rabbit, "", 0, 0, false, None),
+            "entity/rabbit/brown"
+        );
+        assert_eq!(
+            texture_of(Species::Rabbit, "", 4, 0, false, None),
+            "entity/rabbit/gold"
+        );
+        assert_eq!(
+            texture_of(Species::Rabbit, "", 0, 0, false, Some("Toast")),
+            "entity/rabbit/toast"
+        );
+        assert_eq!(
+            texture_of(Species::Rabbit, "", 0, 0, true, None),
+            "entity/rabbit/brown"
+        );
+        assert_eq!(
+            texture_of(Species::Cat, "", 0, 0, false, None),
+            "entity/cat/tabby"
+        );
+        assert_eq!(
+            texture_of(Species::Cat, "", 9, 0, false, None),
+            "entity/cat/jellie"
+        );
+        assert_eq!(
+            texture_of(Species::Cat, "", 0, 0, true, None),
+            "entity/cat/tabby"
+        );
+        assert_eq!(
+            texture_of(Species::Llama, "", 0, 0, false, None),
+            "entity/llama/creamy"
+        );
+        assert_eq!(
+            texture_of(Species::Llama, "", 2, 0, false, None),
+            "entity/llama/brown"
+        );
+        assert_eq!(
+            texture_of(Species::Llama, "", 0, 0, true, None),
+            "entity/llama/creamy"
+        );
+        assert_eq!(
+            texture_of(Species::Panda, "", 1, 1, false, None),
+            "entity/panda/lazy_panda"
+        );
+        assert_eq!(
+            texture_of(Species::Panda, "", 4, 4, false, None),
+            "entity/panda/brown_panda"
+        );
+        assert_eq!(
+            texture_of(Species::Panda, "", 0, 0, true, None),
+            "entity/panda/panda"
+        );
+        assert_eq!(
+            texture_of(Species::Fox, "", 0, 0, false, None),
+            "entity/fox/fox"
+        );
+        assert_eq!(
+            texture_of(Species::Fox, "", 1, 0, false, None),
+            "entity/fox/snow_fox"
+        );
+        assert_eq!(
+            texture_of(Species::Fox, "", 1, 0, true, None),
+            "entity/fox/snow_fox"
+        );
+        assert_eq!(
+            texture_of(Species::Wolf, "", 0, 0, false, None),
+            "entity/wolf/wolf"
+        );
+        assert_eq!(
+            texture_of(Species::Wolf, "", 1, 0, false, None),
+            "entity/wolf/wolf_spotted"
+        );
+        assert_eq!(
+            texture_of(Species::Wolf, "", 0, 0, true, None),
+            "entity/wolf/wolf"
+        );
+        assert_eq!(
+            texture_of(Species::Horse, "", 0, 0, false, None),
+            "entity/horse/horse_white"
+        );
+        assert_eq!(
+            texture_of(Species::Horse, "", 3, 0, false, None),
+            "entity/horse/horse_brown"
+        );
+        assert_eq!(
+            texture_of(Species::Horse, "", 0, 0, true, None),
+            "entity/horse/horse_white"
+        );
+        assert_eq!(
+            texture_of(Species::Axolotl, "", 0, 0, false, None),
+            "entity/axolotl/axolotl_lucy"
+        );
+        assert_eq!(
+            texture_of(Species::Axolotl, "", 4, 0, false, None),
+            "entity/axolotl/axolotl_blue"
+        );
+        assert_eq!(
+            texture_of(Species::Axolotl, "", 0, 0, true, None),
+            "entity/axolotl/axolotl_lucy"
+        );
+        assert_eq!(
+            texture_of(Species::Sniffer, "", 0, 0, true, None),
+            "entity/sniffer/sniffer"
+        );
+        assert_eq!(
+            texture_of(Species::Strider, "", 0, 0, true, None),
+            "entity/strider/strider"
+        );
+        assert_eq!(
+            texture_of(Species::Dolphin, "", 0, 0, false, None),
+            "entity/dolphin"
+        );
+        // Mobs whose body is the kind's texture: no `_baby` suffix is
+        // appended, babies and adults alike.
+        assert_eq!(
+            texture_of(Species::Goat, "entity/goat/goat", 0, 0, true, None),
+            "entity/goat/goat"
+        );
+        assert_eq!(
+            texture_of(
+                Species::Turtle,
+                "entity/turtle/big_sea_turtle",
+                0,
+                0,
+                true,
+                None
+            ),
+            "entity/turtle/big_sea_turtle"
+        );
+        assert_eq!(
+            texture_of(Species::Armadillo, "entity/armadillo", 0, 0, true, None),
+            "entity/armadillo"
+        );
+        assert_eq!(
+            texture_of(Species::Sheep, "entity/sheep/sheep", 0, 0, true, None),
+            "entity/sheep/sheep"
+        );
+        assert_eq!(
+            texture_of(Species::Zombie, "entity/zombie/zombie", 0, 0, true, None),
+            "entity/zombie/zombie"
+        );
+        assert_eq!(
+            texture_of(
+                Species::Villager,
+                "entity/villager/villager",
+                0,
+                0,
+                true,
+                None
+            ),
+            "entity/villager/villager"
         );
     }
 
@@ -2939,10 +3200,10 @@ mod tests {
                         (m.extra.variant, m.extra.variant2, m.extra.variant3) =
                             (t as u8, p as u8, 5);
                         let layers = layers(&m, m.age as f32);
-                        let group = if baby { "/baby/" } else { "/type/" };
+                        // 1.21.7: babies use the `type/` texture too.
                         assert!(
-                            layers.iter().any(|l| l.texture.contains(group)),
-                            "{kind:?} baby={baby}: no {group} layer"
+                            layers.iter().any(|l| l.texture.contains("/type/")),
+                            "{kind:?} baby={baby}: no /type/ layer"
                         );
                         for layer in layers {
                             let png = root
@@ -3459,7 +3720,7 @@ mod scroll_tests {
         assert!(wool(&sheep(0, true, false)).is_empty());
         assert_eq!(
             wool(&sheep(1, false, true)),
-            [layer("sheep_baby#wool", "entity/sheep/sheep_wool_baby")]
+            [layer("sheep_baby#wool", "entity/sheep/sheep_wool")]
         );
         assert!(wool(&sheep(1, true, true)).is_empty());
         assert_eq!(

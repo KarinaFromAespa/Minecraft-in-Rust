@@ -2785,7 +2785,7 @@ impl Game<'_> {
             .gui
             .atlas
             .sprites
-            .get("entity/minecart/minecart")
+            .get("entity/minecart")
             .map(|r| [r.u0, r.v0, r.u1, r.v1])
         else {
             return;

@@ -7112,7 +7112,7 @@ impl Game<'_> {
             .gui
             .atlas
             .sprites
-            .get("entity/experience/experience_orb")
+            .get("entity/experience_orb")
             .copied()
         {
             let (yaw, pitch) = (self.yaw.to_radians(), self.pitch.to_radians());
@@ -9962,7 +9962,7 @@ impl Game<'_> {
                 .sprites
                 .get("block/destroy_stage_0")
                 .map_or([0.0; 4], |r| [r.u0, r.v0, r.u1 - r.u0, r.v1 - r.v0]),
-            end_portal_sprites: ["environment/end_sky", "entity/end_portal/end_portal"].map(|n| {
+            end_portal_sprites: ["environment/end_sky", "entity/end_portal"].map(|n| {
                 self.gui
                     .atlas
                     .sprites

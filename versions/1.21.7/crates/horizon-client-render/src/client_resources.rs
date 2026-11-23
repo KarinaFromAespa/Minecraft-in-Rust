@@ -33,7 +33,7 @@ impl ClientResources {
         Self { root }
     }
 
-    /// The bytes of the resource at `path` in the tree (`assets/minecraft/textures/entity/cow/cow_temperate.png`).
+    /// The bytes of the resource at `path` in the tree (`assets/minecraft/textures/entity/cow/temperate_cow.png`).
     /// None when there is no such file, or for a path that isn't plain names under `assets/`.
     pub fn read(&self, path: &str) -> Option<Vec<u8>> {
         let plain = |p: &str| !p.is_empty() && p != "." && p != ".." && !p.contains('\\');
@@ -43,7 +43,7 @@ impl ClientResources {
         prepared_files::read(&self.root.join(path)).ok()
     }
 
-    /// A texture's pixels by name (`block/stone`, `entity/cow/cow_temperate`, a mod's `mymod:item/gear`): the PNG
+    /// A texture's pixels by name (`block/stone`, `entity/cow/temperate_cow`, a mod's `mymod:item/gear`): the PNG
     /// under `assets/<namespace>/textures/`, decoded. None when there is no such PNG or it doesn't decode.
     pub fn texture(&self, name: &str) -> Option<TexturePixels> {
         let path = crate::atlas_sources::texture_path(&self.root, name, "textures");
@@ -63,7 +63,7 @@ mod tests {
     use crate::packs::{build_overlay, discover};
     use std::{fs, path::Path};
 
-    const COW: &str = "assets/minecraft/textures/entity/cow/cow_temperate.png";
+    const COW: &str = "assets/minecraft/textures/entity/cow/temperate_cow.png";
     const RED: [u8; 4] = [255, 0, 0, 255];
     const BLUE: [u8; 4] = [0, 0, 255, 255];
 
@@ -105,7 +105,7 @@ mod tests {
         assert_eq!(plain.read(COW), Some(one_pixel_png(RED)));
         assert_eq!(packed.read(COW), Some(one_pixel_png(BLUE)));
         assert_eq!(
-            packed.texture("entity/cow/cow_temperate"),
+            packed.texture("entity/cow/temperate_cow"),
             Some(TexturePixels {
                 width: 1,
                 height: 1,
@@ -133,8 +133,8 @@ mod tests {
             "horizon-resources.json",
             "assets/../horizon-resources.json",
             "assets/../../secret.txt",
-            "assets//minecraft/textures/entity/cow/cow_temperate.png",
-            "/assets/minecraft/textures/entity/cow/cow_temperate.png",
+            "assets//minecraft/textures/entity/cow/temperate_cow.png",
+            "/assets/minecraft/textures/entity/cow/temperate_cow.png",
         ] {
             assert_eq!(resources.read(refused), None, "{refused}");
         }

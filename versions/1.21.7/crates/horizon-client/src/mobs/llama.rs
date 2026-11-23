@@ -270,11 +270,11 @@ pub fn from_nbt(m: &mut Mob, tag: &horizon_world::nbt::Tag) {
             number(tag.get("DespawnDelay")).map_or(DEFAULT_DESPAWN_DELAY, |v| v as i32);
     }
 }
-/// The coat texture (`LlamaRenderer`).
+/// The coat texture (`LlamaRenderer`): 1.21.7 has no `llama_` prefix and
+/// no baby textures — babies wear the adult coat.
 pub fn texture(m: &Mob) -> String {
-    let baby = if m.is_baby() { "_baby" } else { "" };
     let coat = VARIANTS[(m.extra.variant as usize).min(3)];
-    format!("entity/llama/llama_{coat}{baby}")
+    format!("entity/llama/{coat}")
 }
 /// The carpet colour on the llama, if it wears one.
 pub(super) fn carpet(m: &Mob) -> Option<&str> {
@@ -297,13 +297,14 @@ pub fn decor(m: &Mob) -> Option<(String, String)> {
     {
         return Some((model.into(), format!("entity/equipment/llama_body/{color}")));
     }
+    // The trader's blanket is one texture for both ages in 1.21.7 (26.x
+    // adds a `trader_llama_baby` asset). The baby decor MODEL stays
+    // `llama_baby#decor`: 1.21.7 bakes the LLAMA_BABY_DECOR layer.
     is_trader(m).then(|| {
-        let name = if baby {
-            "trader_llama_baby"
-        } else {
-            "trader_llama"
-        };
-        (model.into(), format!("entity/equipment/llama_body/{name}"))
+        (
+            model.into(),
+            "entity/equipment/llama_body/trader_llama".into(),
+        )
     })
 }
 #[cfg(test)]

@@ -8113,7 +8113,7 @@ impl Game<'_> {
             // GuardianRenderer: the laser to the locked target.
             if let Some((time, scale)) = beam
                 && let Some(target) = self.beam_target(mob.ai.target, alpha)
-                && let Some(uv) = lookup("entity/guardian/guardian_beam")
+                && let Some(uv) = lookup("entity/guardian_beam")
             {
                 let a = alpha;
                 let eye = glam::DVec3::new(
@@ -8184,9 +8184,9 @@ impl Game<'_> {
                 };
                 // SpectralArrowRenderer, and TippableArrowRenderer's `getColor() > 0`.
                 let texture = if a.is_spectral_arrow() {
-                    "entity/projectiles/arrow_spectral"
+                    "entity/projectiles/spectral_arrow"
                 } else if a.arrow.as_ref().is_some_and(|s| s.effect_color > 0) {
-                    "entity/projectiles/arrow_tipped"
+                    "entity/projectiles/tipped_arrow"
                 } else {
                     "entity/projectiles/arrow"
                 };
@@ -8239,7 +8239,7 @@ impl Game<'_> {
                 let Some(model) = self.trident_model.as_ref() else {
                     continue;
                 };
-                let Some(r) = atlas.sprites.get("entity/trident/trident").copied() else {
+                let Some(r) = atlas.sprites.get("entity/trident").copied() else {
                     continue;
                 };
                 let m = glam::Mat4::from_translation(c)

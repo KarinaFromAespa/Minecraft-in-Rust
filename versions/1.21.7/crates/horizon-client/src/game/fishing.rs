@@ -1290,7 +1290,7 @@ impl Game<'_> {
             .gui
             .atlas
             .sprites
-            .get("entity/fishing/fishing_hook")
+            .get("entity/fishing_hook")
             .copied()
         else {
             return;

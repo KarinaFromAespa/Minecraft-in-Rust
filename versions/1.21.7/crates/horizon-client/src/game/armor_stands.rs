@@ -1464,7 +1464,7 @@ impl Game<'_> {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             emissive.overlay(texture).and_then(uv_of)
         };
-        let Some(wood) = uv_of("entity/armorstand/armorstand") else {
+        let Some(wood) = uv_of("entity/armorstand/wood") else {
             return;
         };
         let Some(model) = (if a.small { &assets.small } else { &assets.main }) else {
@@ -1505,7 +1505,7 @@ impl Game<'_> {
                 0,
                 out,
             );
-            if let Some(glow) = glow_of("entity/armorstand/armorstand") {
+            if let Some(glow) = glow_of("entity/armorstand/wood") {
                 let full = horizon_client::mobs::render::FULL_BRIGHT;
                 put(
                     &mut skin,

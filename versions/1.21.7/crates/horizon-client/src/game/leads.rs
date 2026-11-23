@@ -865,7 +865,7 @@ impl Game<'_> {
         let Some(model) = self.entity_models.leash_knot.as_ref() else {
             return;
         };
-        let Some(r) = atlas.sprites.get("entity/lead_knot/lead_knot").copied() else {
+        let Some(r) = atlas.sprites.get("entity/lead_knot").copied() else {
             return;
         };
         for p in knots {

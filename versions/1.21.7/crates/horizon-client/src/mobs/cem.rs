@@ -1153,7 +1153,7 @@ mod tests {
         );
         let sprites = [
             "entity/spider/custom",
-            "entity/spider/spider_eyes",
+            "entity/spider_eyes",
             "entity/spider/spider",
         ];
         // The custom box's six faces, four corners each, for the body and again for the eyes;

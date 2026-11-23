@@ -1288,7 +1288,7 @@ impl Game<'_> {
         }
         let (Some(model), Some(rect)) = (
             self.res.spin_attack().as_ref(),
-            self.gui.atlas.sprites.get("entity/trident/trident_riptide"),
+            self.gui.atlas.sprites.get("entity/trident_riptide"),
         ) else {
             return;
         };
