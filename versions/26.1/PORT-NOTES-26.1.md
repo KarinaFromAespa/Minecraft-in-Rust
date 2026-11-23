@@ -650,3 +650,12 @@ UUID + setScreen move (neither ported); 225 piston local spill; 199
 raid methods are renames/package moves/WHITE_BANNER accessor, same 5
 RaiderTypes; 367 rename only; 368 sign render state gains woodType +
 body transform in 26.1 (not ported).
+
+Batch 29 (Nov 23, 338/498): 223 PORTED — Camel.getBodyAnchorAnimation-
+YOffset computes the seat base as (height - 0.375F * scale) in float
+in 26.1; 26.2 replaced it with height - (isBaby ? 0.09375 : 0.375) in
+double. body_anchor_y now uses the 26.1 float form. (Sitting dims
+were already the 26.1 form from batch 11.) 249/250/222/195/177/178/64
+no-change: renames, package moves, getCenter/atCenterOf, spills, a
+branch inversion, HUD/options/shutdown chrome; crossbow charging
+sounds have the identical body (instance vs static).

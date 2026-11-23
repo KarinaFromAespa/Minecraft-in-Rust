@@ -124,8 +124,9 @@ pub fn on_elastic_leash_pull(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEven
 /// seat of the front (`front`) or back rider is on a camel of `height` at
 /// `scale`, following it down and up through the sit and stand animations.
 fn body_anchor_y(m: &Mob, front: bool, height: f32, scale: f32) -> f64 {
-    let age_sit_y_offset = if m.is_baby() { 0.09375 } else { 0.375 };
-    let mut base_sit_offset = f64::from(height) - age_sit_y_offset;
+    // 26.1: height - 0.375F * scale, in float, then widened (26.2 replaced
+    // it with height - (isBaby ? 0.09375 : 0.375) in double).
+    let mut base_sit_offset = f64::from(height - 0.375 * scale);
     let sitting_height_difference = scale * 1.43;
     let vertical_drop = sitting_height_difference - scale * 0.2;
     let bottom_point = sitting_height_difference - vertical_drop;
