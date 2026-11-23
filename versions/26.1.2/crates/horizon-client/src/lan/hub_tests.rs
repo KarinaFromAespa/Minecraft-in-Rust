@@ -874,7 +874,7 @@ fn an_attacks_swing_goes_with_it_past_the_move_behind() {
     hub.guests[0].load_timeout = 0;
     let inbox = &mut hub.guests[0].inbox;
     inbox.push_back((S::Attack(play::Attack { id: 7 }), 0));
-    inbox.push_back((S::Punch(horizon_protocol::packets::Empty), 0));
+    inbox.push_back((S::Swing(play::Swing { hand: 0 }), 0));
     inbox.push_back((
         S::MovePlayerRot(play::MovePlayerRot {
             yaw: 90.0,
@@ -912,7 +912,7 @@ fn an_attacks_swing_goes_with_it_past_the_move_behind() {
         })
         .collect();
     assert!(
-        matches!(handled[..], [S::Attack(_), S::Punch(_)]),
+        matches!(handled[..], [S::Attack(_), S::Swing(_)]),
         "the game was handed {handled:?}"
     );
     assert!(
@@ -931,7 +931,7 @@ fn an_attacks_swing_goes_with_it_past_the_move_behind() {
 fn a_spectators_attack_reaches_nothing_and_resets_no_timer() {
     let (mut hub, _rx) = hub_with_a_guest();
     hub.guests[0].load_timeout = 0;
-    hub.guests[0].change_game_mode(guest::SPECTATOR);
+    hub.guests[0].change_game_mode(crate::lan::guest::SPECTATOR);
     hub.guests[0].last_action_tick = 41;
     hub.ticks = 100;
     hub.guests[0]
@@ -969,7 +969,7 @@ fn a_spectators_attack_reaches_nothing_and_resets_no_timer() {
     );
     // The same packet from a survival guest still reaches the game and counts
     // as an action: the guard is the mode, not the packet.
-    hub.guests[0].change_game_mode(guest::SURVIVAL);
+    hub.guests[0].change_game_mode(crate::lan::guest::SURVIVAL);
     hub.guests[0]
         .inbox
         .push_back((S::Attack(play::Attack { id: 7 }), 0));
