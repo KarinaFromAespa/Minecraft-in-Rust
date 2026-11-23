@@ -246,9 +246,25 @@ no randomization mode, as the production code in the same file already
 says; three `Login` literals in `native_client_services.rs` /
 `native_entity_refs.rs` set the removed `online_mode` field. The
 `LevelParticles` doc comment in `horizon-protocol` described the same
-26.3 fields and is corrected. The 8 `horizon-client-lib` lib-test
-errors and the 34 `lan_bot` errors recorded in the same paragraph are
-untouched — they are in a suite this port's tests also compile under,
-but the tests run in the `horizon-client` suite, so they stay
-pre-existing work for their own fix.
+26.3 fields and is corrected. The first crate-tests run (45147699480)
+then showed the `horizon-client-lib` lib test target — the suite the
+two regression tests actually compile under (`lib.rs` only re-exports
+it) — also did not compile, with 10 errors: two in the new hub test
+itself (`guest::SPECTATOR`/`SURVIVAL` do not resolve through
+`super::*`; now the full `crate::lan::guest::` paths) and the 8 this
+file recorded (the `S::Punch` pair in the older attack test is now the
+26.1 `S::Swing`, the `SwingAnimation` pair in `net.rs` is now
+`C::Animate`, `EntityPositionSync.path` is the 26.1 `position`, one
+more `online_mode` in `studio/replay.rs`). The same run exposed two
+more pre-existing failures once the suites ran: the vibration-particle
+test pinned vibration at id 58 (26.3's; vanilla 26.1.2's
+`ParticleTypes` order puts it 49th, id 48 — the codec was right, the
+test was stale, and the 10 unread bytes were the vibration data), and
+`docs/api/launch-reference.md` still carried 26.3's values
+(`minecraft`, the pack formats) — both fixed, test and doc only.
+Still red after this port, pre-existing and untouched: horizon-world's
+2 datafix failures and horizon-client-render's 3 pack-compatibility
+failures (run 45147699480's logs) — crates this port does not touch —
+and the 34 `lan_bot` integration-test errors from the same paragraph
+(crate-tests runs `--lib` only, so they do not gate it).
 
