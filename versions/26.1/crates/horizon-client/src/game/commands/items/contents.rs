@@ -56,8 +56,9 @@ impl Component {
             Self::Charged => data.charged.iter().cloned().map(Some).collect(),
         }
     }
-    /// ComponentSlotCollection writes a single normalized component back to
-    /// its live parent; all unrelated parent components remain modeled.
+    /// ContainerComponentManipulator.setContents writes a single normalized
+    /// component back to its live parent; all unrelated parent components
+    /// remain modeled.
     pub(super) fn store(self, stack: &mut ItemStack, mut slots: Vec<Option<ItemStack>>) {
         for slot in &mut slots {
             if slot
@@ -170,8 +171,9 @@ impl Game<'_> {
             .room_for(self.res.items(), item)
             >= item.count
     }
-    /// ComponentSlotCollection.modifySlots: visit occupied slots only, then
-    /// commit the component through the same live parent slot.
+    /// ContainerComponentManipulator.getSlots/modifyItems: visit occupied
+    /// slots only, then commit the component through the same live parent
+    /// slot.
     pub(super) fn modify_contents(
         &mut self,
         parent: &Slot,
@@ -206,7 +208,7 @@ impl Game<'_> {
             0
         }
     }
-    /// GrowableMutableContainer.replaceSlotItems: consume one provider shared
+    /// ContainerComponentManipulator.setContents: consume one provider shared
     /// by the owner's source terms, including new component slots.
     pub(super) fn replace_contents(
         &mut self,
@@ -286,7 +288,7 @@ fn next_item(items: &[Option<ItemStack>], position: &mut usize, mode: &str) -> O
     next
 }
 fn find_nonempty(items: &[Option<ItemStack>], position: &mut usize, mode: &str) -> bool {
-    // ArrayItemProvider.findNext changes position only when it finds a match.
+    // findNext changes position only when it finds a match.
     // A failed component append must leave air available to later source terms.
     for offset in 0..items.len() {
         let next = *position + offset;

@@ -381,9 +381,19 @@
    "evidence": "TrunkPlacer structurally identical; trunk.rs 0-diff."
   },
   {
+   "id": 607,
+   "verdict": "no-change",
+   "evidence": "ResourceOrIdArgument 0-diff; ContextFloat/Int/Feature inner args exist in neither jar (26.3-only); item 602 removed their registry entries"
+  },
+  {
    "id": 608,
    "verdict": "no-change",
    "evidence": "Batch 63 NO-CHANGE (SpriteContents animated textures): createAnimationState/drawToAtlas differ only in GPU upload plumbing (per-frame texture creation in 26.1; RenderPass.draw arity change in 26.2) \u2014 the frame timing/selection logic is untouched, and the Rust animate.rs is 0-diff vs the 26.2 tree with its own wgpu upload path."
+  },
+  {
+   "id": 609,
+   "verdict": "no-change",
+   "evidence": "RangedMatcher pure criterion->predicates package move (14 diff lines, all package names); state_ranges.rs 0-diff"
   },
   {
    "id": 610,
@@ -391,9 +401,19 @@
    "evidence": "Batch 63 NO-CHANGE (jigsaw/structure/test edit screens): onCancel/onDone differ only by the screen-setter moving from Minecraft.setScreen (26.1) to Minecraft.gui.setScreen (26.2) \u2014 same behaviour (close the screen). Menu chrome per the owner's principle; the 26.1 tree already removed the 26.2-only is_pause_screen/block_editor_pauses code (rank-2 item 51)."
   },
   {
+   "id": 611,
+   "verdict": "no-change",
+   "evidence": "MultifaceSpreadeableBlock + WaterloggedVegetationPatchFeature both 0-diff"
+  },
+  {
    "id": 612,
    "verdict": "no-change",
    "evidence": "Batch 63 NO-CHANGE (CrashReport/ServerWatchdog/BlockableEventLoop): CrashReport.getDetails is the same sections in a restructured order (same '-- Head --'/'Thread:' text); 26.2's private copyProperties/replaceMessage helpers are internal; ServerWatchdog lost only a comparator field; BlockableEventLoop gained only hasDelayedCrash. The Rust crash.rs is 0-diff vs the 26.2 tree and pins none of this."
+  },
+  {
+   "id": 613,
+   "verdict": "no-change",
+   "evidence": "ContentsSlotSource 0-diff; contents.rs docs re-anchored from 26.3-only classes to ContainerComponentManipulator"
   },
   {
    "id": 614,
@@ -421,14 +441,44 @@
    "evidence": "Batch 64 NO-CHANGE (EntitySelectorOptions): the registered option-name sets are identical (26 names each, no diff). The +22/-21/~29 method churn is 26.2's internal refactor: per-option state moved into SetOnceOptionState objects (hasAdvancements flag -> advancementsOption().canParse()/markParsed(), same availability semantics), tag options moved from TagKey to HolderSet$Named, and always-true lambdas replaced by the ALWAYS_AVAILABLE constant. selector.rs is 0-diff vs the 26.2 tree."
   },
   {
+   "id": 619,
+   "verdict": "ported",
+   "evidence": "26.1 Slime.dealDamage == 26.2 AbstractCubeMob.dealDamage, no team check in either; removed both teams_allow_damage checks from cube.rs"
+  },
+  {
+   "id": 620,
+   "verdict": "no-change",
+   "evidence": "Illusioner + IllusionerRenderer both 0-diff"
+  },
+  {
+   "id": 621,
+   "verdict": "no-change",
+   "evidence": "ExperimentalRedstoneWireEvaluator 0-diff"
+  },
+  {
    "id": 622,
    "verdict": "no-change",
    "evidence": "Batch 64 NO-CHANGE (TabNavigationBar): 26.2 refactored the Builder (added x/y/height/tabButtons fields, 5-arg constructor, addTabs varargs replacing addTab) and added MenuTabBar, which 26.1 lacks. Tab-bar GUI plumbing; menu chrome per the owner's principle. The Rust's tab widgets (ui.rs/widgets.rs/startup_menu.rs) are Horizon's own, not the vanilla bar."
   },
   {
+   "id": 623,
+   "verdict": "no-change",
+   "evidence": "SoulParticle 0-diff (EmissiveRisingParticle is the 26.3 name, in neither jar); noxious/sulfur particles already documented unreachable; comment fixed"
+  },
+  {
    "id": 624,
    "verdict": "no-change",
    "evidence": "Batch 64 NO-CHANGE (RepeatedNarrator$Params): 26.2 record-ified the params class (751 -> 1939 bytes, record methods added). Client-only Realms narrator state; the Rust has zero references to RepeatedNarrator."
+  },
+  {
+   "id": 625,
+   "verdict": "ported",
+   "evidence": "ComputeCommand/LootContextSources/ContextFloatProvider/ContextIntProvider in neither jar; 0 compute refs in 26.1 Commands/DataCommands; removed /compute + /data modify compute source; tree_data.rs now matches the 26.2 tree"
+  },
+  {
+   "id": 626,
+   "verdict": "no-change",
+   "evidence": "SnifferRenderer 0-diff"
   },
   {
    "id": 627,

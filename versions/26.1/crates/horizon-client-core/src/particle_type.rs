@@ -210,7 +210,7 @@ impl ParticleType {
             | Self::Witch | Self::Infested | Self::TrialOmen | Self::RaidOmen
             // NoxiousGasParticle.
             | Self::NoxiousGas
-            // EmissiveRisingParticle.
+            // SoulParticle (26.3 renamed it EmissiveRisingParticle).
             | Self::Soul | Self::SculkSoul
             // SculkChargeParticle, SculkChargePopParticle, ShriekParticle,
             // VibrationSignalParticle, FireflyParticle, OverlayParticle.

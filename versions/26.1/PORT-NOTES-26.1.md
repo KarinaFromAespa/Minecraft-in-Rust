@@ -1527,3 +1527,40 @@ package moves (criterion→predicates/triggers); 562 BlendFunction
 BlendEquation refactor; 605/606 IcebergFeature/TrunkPlacer
 identical. Note: /tmp was cleared twice this session (mdiff2.py
 lost); the script now lives at ~/workspace/mcir-work/mdiff2.py.
+
+Batch 79 (Nov 24, 136/214 — A2 #2, 2 ported, 8 no-change): 619
+PORTED — cube.rs dealDamage had the 26.3 team check: 26.1's
+Slime.dealDamage and 26.2's AbstractCubeMob.dealDamage are
+identical (isAlive + isWithinMeleeAttackRange + hasLineOfSight,
+then a mobAttack hit), no team check in either; removed both
+teams_allow_damage checks (playerTouch + golem push) and fixed
+the docs (26.1's class is Slime, not AbstractCubeMob — 26.2
+moved Slime/MagmaCube under monster/cubemob). 625 PORTED —
+removed /compute (compute.rs, mod decl, dispatch) and the /data
+modify compute source (tree_data.rs now matches the 26.2 tree
+exactly): ComputeCommand, LootContextSources,
+ContextFloatProvider/ContextIntProvider exist in NEITHER jar,
+and 26.1's Commands/DataCommands have 0 compute refs; also
+fixed the ArgProvider.wrap doc to DataProvider.wrap (26.3
+renamed it). 607 no-change — ResourceOrIdArgument identical;
+the ContextFloat/Int/Feature inner args exist in neither jar
+(26.3-only; item 602 already removed their registry entries).
+609 no-change — RangedMatcher is a pure criterion→predicates
+package move (14 diff lines, all package names).
+611 no-change — MultifaceSpreadeableBlock +
+WaterloggedVegetationPatchFeature identical. 613 no-change —
+ContentsSlotSource identical; contents.rs docs re-anchored
+from the 26.3-only ComponentSlotCollection /
+GrowableMutableContainer / ArrayItemProvider to the real 26.1
+ContainerComponentManipulator (setContents/getContents/
+modifyItems/getSlots). 620/621/626 no-change — Illusioner +
+renderer, ExperimentalRedstoneWireEvaluator, SnifferRenderer
+all identical. 623 no-change — SoulParticle identical (the
+triage's EmissiveRisingParticle is the 26.3 name; neither jar
+has it); the noxious_gas/sulfur particles were already
+documented unreachable (SulfurCube precedent), and the
+EmissiveRisingParticle comment is fixed to SoulParticle.
+Methodology note: a `diff | wc -l` of 0 does NOT prove a file
+exists in the 26.2 tree — contents.rs and compute.rs were
+both missing there (this batch's two real finds); always check
+file existence, not just diff length.
