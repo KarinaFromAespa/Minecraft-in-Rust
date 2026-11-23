@@ -1103,8 +1103,8 @@ run 45254318944 (batch 61) is testing, so no separate dispatch.
 
 ## Behaviour port — rank 3 in progress (2026-11-24, branch behaviour/26.1)
 
-Rank 3: 10/214 closed (rank 1: 7/7, rank 2: 498/498; total
-515/795). Re-triage: `retriage-rank345.json` (A1 60, A2 67, B1 56,
+Rank 3: 20/214 closed (rank 1: 7/7, rank 2: 498/498; total
+525/795). Re-triage: `retriage-rank345.json` (A1 60, A2 67, B1 56,
 B2 31) + `diff-26.2-26.1-rank3.json` (274 classes, 204
 method-changed). Order: A1 reviews, then B1 ports, then A2/B2.
 Progress in `rank3-progress.json`.
@@ -1152,3 +1152,23 @@ Batch 63 (Nov 24, 10/214 — A1 #1): 538 PORTED, 542 PORTED, 571 /
   refactor, not leash gameplay.
 Workspace `cargo check` and horizon-world/command/client
 `--lib --tests` clean.
+
+Batch 64 (Nov 24, 20/214 — A1 #2): all 10 NO-CHANGE, each
+jardiff-verified. 617 RandomCommand: pure MinMaxBounds package
+move. 618 EntitySelectorOptions: same 26 option names; the
+method churn is 26.2's SetOnceOptionState refactor (same
+availability/matching semantics). 622 TabNavigationBar: builder
+refactor + 26.2-only MenuTabBar; menu chrome. 624
+RepeatedNarrator$Params: 26.2 record-ified it; no Rust
+references. 627 ShadowFeatureRenderer: render-feature refactor,
+same vertex math. 628 FlatLayerInfo: Block → Holder<Block>
+field type; `getBlockState`/`heightLimited` logically
+identical. 630 WoodlandMansionPieces: Tuple → GridPos record,
+Guava/fastutil → ArrayList, `EntityType` → `EntityTypes` — a
+structural bytecode diff shows no logic change. 631 JigsawBlock:
+local reorder, same logic. 633 dialog screens: the setScreen
+move + 26.2-only GUI helpers; menu chrome. 634 RedstoneTorch:
+`getSignal` extracted to `ownSignal` in 26.2, identical logic.
+Docs-only batch; the code tree is identical to the one
+crate-tests run 45257135418 (batch 63) is testing, so no
+separate dispatch.

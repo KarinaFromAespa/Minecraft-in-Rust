@@ -49,6 +49,56 @@
    "id": 616,
    "verdict": "no-change",
    "evidence": "Batch 63 NO-CHANGE (LeashFeatureRenderer): 26.2 refactored the render methods (buildGroup/prepare -> renderLeash/renderSolid) and removed the Submit inner class \u2014 render-feature plumbing, not leash gameplay. boat_leads.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 617,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (RandomCommand): the only difference is MinMaxBounds' package move (advancements.predicates -> advancements.criterion) in randomSample and the two drawRandomValueTree lambdas \u2014 same logic. (The misc.rs tree diff is the /tick failure-form work of an earlier batch, not this item.)"
+  },
+  {
+   "id": 618,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (EntitySelectorOptions): the registered option-name sets are identical (26 names each, no diff). The +22/-21/~29 method churn is 26.2's internal refactor: per-option state moved into SetOnceOptionState objects (hasAdvancements flag -> advancementsOption().canParse()/markParsed(), same availability semantics), tag options moved from TagKey to HolderSet$Named, and always-true lambdas replaced by the ALWAYS_AVAILABLE constant. selector.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 622,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (TabNavigationBar): 26.2 refactored the Builder (added x/y/height/tabButtons fields, 5-arg constructor, addTabs varargs replacing addTab) and added MenuTabBar, which 26.1 lacks. Tab-bar GUI plumbing; menu chrome per the owner's principle. The Rust's tab widgets (ui.rs/widgets.rs/startup_menu.rs) are Horizon's own, not the vanilla bar."
+  },
+  {
+   "id": 624,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (RepeatedNarrator$Params): 26.2 record-ified the params class (751 -> 1939 bytes, record methods added). Client-only Realms narrator state; the Rust has zero references to RepeatedNarrator."
+  },
+  {
+   "id": 627,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (ShadowFeatureRenderer): the 26.2 render-feature refactor (buildGroup/prepare -> renderTranslucent, Submit inner class moved to SubmitNodeStorage) \u2014 same shadowVertex call shape and vertex math. shadows.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 628,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (FlatLayerInfo): 26.2 stores the block as a Holder<Block> where 26.1 stores a plain Block; getBlockState() (default state) and heightLimited() (height > limit ? new(limit, same block) : this) are logically identical. Registry-holder plumbing, invisible to the Rust. flat.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 630,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (WoodlandMansionPieces): the large diffs are 26.2 refactors only \u2014 Tuple<Integer,Integer> grid positions replaced by a GridPos record (same x/y values), Guava Lists.newArrayList/fastutil ObjectArrayList replaced by ArrayList, and EntityType renamed EntityTypes in handleDataMarker. A structural bytecode diff (mnemonics + referenced names, no offsets) shows no logic change: same constants, same comparisons, same random calls. mansion.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 631,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (JigsawBlock.useWithoutItem): 26.2 only reorders the body (casts the block entity to a local before the canUseGameMasterBlocks check); same logic \u2014 open the jigsaw editor + SUCCESS, else PASS. jigsaw_block.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 633,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (dialog screens): WaitingForResponseScreen.onClose differs only by Minecraft.setScreen -> Minecraft.gui.setScreen (same as item 610); 26.2 added Checkbox.overflowsRowLimit and GridLayout.removeChildren, which 26.1 lacks. Menu chrome. dialog_screen.rs is 0-diff vs the 26.2 tree."
+  },
+  {
+   "id": 634,
+   "verdict": "no-change",
+   "evidence": "Batch 64 NO-CHANGE (RedstoneTorchBlock): 26.2 extracted getSignal's body into an ownSignal helper; the logic is identical (lit && side != UP ? 15 : 0). ticks.rs is 0-diff vs the 26.2 tree."
   }
  ],
  "triage": "Rank-3 re-triage: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 3 = A1 60, A2 67, B1 56, B2 31 = 214 items) + diff-26.2-26.1-rank3.json (274 classes, 204 method-changed). Order: A1 reviews, then B1 ports, then A2/B2."
