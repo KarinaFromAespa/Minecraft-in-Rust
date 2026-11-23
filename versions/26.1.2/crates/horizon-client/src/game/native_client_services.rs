@@ -763,7 +763,6 @@ mod client_tests {
                 portal_cooldown: 0,
                 sea_level: 63,
             },
-            online_mode: false,
             enforces_secure_chat: false,
         }))
         .unwrap();

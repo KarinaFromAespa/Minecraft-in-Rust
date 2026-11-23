@@ -1090,7 +1090,7 @@ mod tests {
         let p = level_particles(&rx_near);
         assert_eq!(p.count, 15);
         assert_eq!(p.dist, [0.2, 0.2, 0.2]);
-        assert_eq!(p.max_speed, [0.0; 3]);
+        assert_eq!(p.max_speed, 0.0);
         assert_eq!(p.pos, at);
         assert_eq!(p.particle.id, 0);
     }
@@ -1116,8 +1116,8 @@ mod tests {
         let p = level_particles(&rx_near);
         assert_eq!(p.count, 1, "one signal");
         assert_eq!(p.dist, [0.0; 3]);
-        assert_eq!(p.max_speed, [0.0; 3]);
-        assert_eq!(p.randomization, 0, "DEFAULT");
+        assert_eq!(p.max_speed, 0.0);
+        // 26.1's packet has one speed and no randomization mode (above).
         assert_eq!(p.pos, at);
         assert_eq!(p.particle.id, 58);
         assert_eq!(
