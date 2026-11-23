@@ -4271,3 +4271,62 @@ Changes, branch `fix/26.2-defect-suite`:
   in the fuel slot and quick-moved there, stone refused).
 
 What remains: nothing for this check.
+
+## Defect suite: advancement-keys (2026-11-23)
+
+The cross-version defect suite (`tools/defect_suite.py`, check
+`advancement-keys`) failed 26.2 — and this one was a real defect,
+not a detection gap. All seven advancement triggers read the 26.x
+plural key forms while 26.2's advancement JSONs use singular keys.
+Jar evidence (26.2 server jar, trigger codec field names):
+`RecipeCraftedTrigger` → `recipe_id`, `RecipeUnlockedTrigger` →
+`recipe`, `LootTableTrigger` → `loot_table`, `EnterBlockTrigger`,
+`SlideDownBlockTrigger`, `BeeNestDestroyedTrigger` → `block`. The
+crafter trigger reuses `RecipeCraftedTrigger`'s instance (no
+separate `CrafterRecipeCraftedTrigger` class), so it reads
+`recipe_id` too. Census of 26.2's advancement data: 1,688
+advancements; `recipe_id` 27 + 1 criteria, `recipe` 1,561,
+`loot_table` 10, `block` 11 + 1 + 1.
+
+Root cause: reading an absent plural key returns null, and
+`id_matches` treats a null condition as unconstrained — so the
+triggers matched everything (wrong advancements firing, e.g. any
+loot container granting every loot criterion) and no
+recipe-unlocked advancement ever granted (the recipe index looked
+up the absent `recipes` key). The same shape as the 1.21.7 fix
+(59ba5f8d / caef65c4).
+
+Changes, branch `fix/26.2-defect-suite`:
+- `crates/horizon-client/src/advancements.rs`: new
+  `recipe_condition` (reads `recipe_id`), `loot_table_condition`
+  (reads `loot_table`) and `block_condition` (reads `block`)
+  helpers; `index_recipes` now reads `["recipe"]`. The
+  `BlockPredicate` evaluator still reads `["blocks"]` — that is
+  correct for the predicate object form and was not touched.
+  (The player predicate's `recipes` map and the rewards'
+  `recipes` list are also correctly plural in vanilla data and
+  were left alone.)
+- `crates/horizon-client/src/game/advancements.rs`: the six
+  trigger closures now use the helpers — `recipe_unlocked`
+  predicate reads `["recipe"]`, `recipe_crafted` uses
+  `recipe_condition`, `player_generates_container_loot` uses
+  `loot_table_condition`, `enter_block` and
+  `bee_nest_destroyed` use `block_condition`,
+  `slide_down_block` reads the block name and state then uses
+  `block_condition` (it previously evaluated the condition
+  through the `BlockPredicate` evaluator, which reads the plural
+  key — so sliding down any block matched).
+- `crates/horizon-client/src/game/machines/crafter.rs`: the
+  private `recipe_matches` helper (reading `["recipes"]`) is
+  gone; the crafter trigger uses `adv::recipe_condition`.
+- Regression tests, named as the 1.21.7 ones:
+  `recipe_conditions_match_only_their_recipe`,
+  `loot_table_conditions_match_only_their_table`,
+  `single_block_trigger_conditions_match_only_their_block` (all
+  in `advancements.rs`; the block test uses the real
+  `minecraft:end/enter_end_gateway` criterion shape, and the
+  recipe test keeps the #7186 whole-id pin). Existing fixtures
+  that wrote the plural keys were updated to the singular forms.
+
+What remains: nothing for this check. The seven triggers now read
+exactly the keys 26.2's data writes.

@@ -10,7 +10,6 @@ use horizon_client::{
     menu::{Maps as _, Menu},
 };
 use horizon_protocol::packets::play::{self, Serverbound as S};
-use serde_json::Value;
 
 /// `CrafterBlock`'s crafting animation length.
 const CRAFTING_TICKS: i32 = 6;
@@ -23,15 +22,6 @@ fn center(pos: Pos) -> [f64; 3] {
         f64::from(pos.2) + 0.5,
     ]
 }
-/// Whether an advancement condition's `recipes` entry names the recipe.
-fn recipe_matches(condition: &Value, id: &str) -> bool {
-    match condition {
-        Value::String(s) => s == id,
-        Value::Array(list) => list.iter().any(|v| v.as_str() == Some(id)),
-        _ => true,
-    }
-}
-
 impl Game<'_> {
     /// `Level.setBlock` of one boolean property of the block at `pos`.
     pub(crate) fn set_bool_prop(&mut self, pos: Pos, key: &str, value: bool, flags: i32) {
@@ -208,7 +198,11 @@ impl Game<'_> {
                     tool: None,
                     block_pos: None,
                 };
-                adv::conditions(&c["player"], &ctx, w) && recipe_matches(&c["recipes"], &id)
+                // The crafter trigger reuses `RecipeCraftedTrigger`'s
+                // instance, so its recipe condition is the same singular
+                // `recipe_id` key (26.2 data); the 26.x plural `recipes`
+                // matched every crafter craft.
+                adv::conditions(&c["player"], &ctx, w) && adv::recipe_condition(c, &id, w)
             });
         }
         self.dispenser_event(1049, pos, 0);
@@ -405,17 +399,5 @@ mod tests {
         // A full stack accepts nothing.
         c.items[2] = stack("minecraft:stick", 64);
         assert!(!c.can_place(2, &stick, 64));
-    }
-    #[test]
-    fn recipes_condition_accepts_a_name_or_a_list() {
-        assert!(recipe_matches(
-            &serde_json::json!("minecraft:crafter"),
-            "minecraft:crafter"
-        ));
-        assert!(!recipe_matches(
-            &serde_json::json!(["minecraft:stick"]),
-            "minecraft:crafter"
-        ));
-        assert!(recipe_matches(&Value::Null, "minecraft:crafter"));
     }
 }
