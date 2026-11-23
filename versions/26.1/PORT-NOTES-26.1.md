@@ -734,3 +734,9 @@ Batch 39 (Nov 23, 400/498): all no-change. 180: polar-bear baby dims
 already the 26.1 Scale form. 185: arrow drag already the 0.99F literal.
 147: isOldChunk's threshold is 4295 in 26.1 (4882 in 26.2) and the Rust
 already uses 4295. 187/131: renames, identical methods, package moves.
+
+Batch 40 (Nov 23, 406/498): 167 comment-only — getRequiredLevelsFor
+and validateEffects are 26.2-only; neither exists in 26.1 (corrects
+batch 15's note). The tier lookup stays (version-neutral over
+BEACON_EFFECTS). 110/111/151/164/169 no-change: identical methods,
+package moves, unported render/menu diffs.

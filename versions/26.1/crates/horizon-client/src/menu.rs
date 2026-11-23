@@ -301,8 +301,10 @@ pub const BEACON_EFFECTS: [&[&str]; 4] = [
     &["minecraft:regeneration"],
 ];
 
-/// `BeaconBlockEntity.getRequiredLevelsFor`: 0 for no power, `i32::MAX`
-/// for one no level gives.
+/// The beacon tier of an effect over 26.1's `BEACON_EFFECTS` list: 0 for
+/// no power, `i32::MAX` for one no level gives. (26.2 named this lookup
+/// `BeaconBlockEntity.getRequiredLevelsFor` and built `validateEffects`
+/// on it; neither method exists in 26.1.)
 pub fn beacon_required_levels(effect: Option<&str>) -> i32 {
     let Some(effect) = effect else {
         return 0;
