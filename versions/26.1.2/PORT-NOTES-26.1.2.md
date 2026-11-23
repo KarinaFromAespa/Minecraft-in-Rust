@@ -151,6 +151,104 @@ latent from the completion pass, which verified the library targets
 only; fixing them is test-code work in its own right, not part of this
 carry.
 
-What remains for this version is the flagged `handleAttack` method body
-and checkbox/report-screen changes, plus whatever remains for the line
-(see `versions/26.1/PORT-NOTES-26.1.md`).
+What remains for this version is whatever remains for the line (see
+`versions/26.1/PORT-NOTES-26.1.md`); the flagged `handleAttack` method
+body and checkbox/report-screen changes are closed by the behaviour port
+below.
+
+## Behaviour port, 2026-11-23
+
+The 7-item ledger (`work-items.json`, derived from the pipeline report
+`report-26.1.2.log`, sha256 `9880cf1f…`) is closed 7/7. Every behaviour
+was checked against 26.1.2's own named jars in the version store
+(`versions/26.1.2/jars/{server-game,client}.jar`) with `javap`; the jar
+named in the brief (`leakage-audit/jars/26.1.2-server.jar`) is the Mojang
+bundler jar and holds no game classes. The 26.3-leakage audit
+(`tools/audit_26_3_leakage.py 26.1.2 --jar …/server-game.jar --baseline
+tools/leakage-baselines.json`) exits 0 — no new leaks; the 23 leaks it
+reports are baseline-known pre-existing ones, none in touched code.
+
+- **#1 (rank 1) `vanilla_command_order` generator.** Closed by the
+  carry-forward regen (byte-identical, above); the table is in the tree
+  (`crates/horizon-command/src/vanilla_order.rs`). No behaviour change.
+- **#2 (rank 1) DataFixers 4788 -> 4790.** A version stamp only: the
+  report records 0 schemas added, 0 fixes added, 0 datafix classes
+  changed, and the NBT spot check agrees — `bastion/blocks/air.nbt`
+  decompressed from both jars differs in exactly one byte, the
+  DataVersion int `0x12B4` -> `0x12B6`. The Rust side needs nothing:
+  `datafix::CURRENT` is `DATA_VERSION` (4790) and the latest registered
+  fix is 4773, so no fix runs in (4788, 4790]. No code change.
+- **#3 (rank 1) Version facts.** `crates/horizon-core/src/version.rs`
+  verified against the jar: 26.1.2, protocol 775, DATA_VERSION 4790,
+  resource pack 84.0, data pack 101.1, Java 25, stable. No code change.
+- **#4 (rank 2) `ServerGamePacketListenerImpl.handleAttack`.** The
+  delta's one real behaviour item. `javap -c` on both server-game jars
+  shows the ONLY change is the head guard: 26.1.1
+  `if (!hasClientLoaded()) return;` becomes 26.1.2
+  `if (!hasClientLoaded() || player.isSpectator()) return;` (+4 bytecode
+  lines); the rest of the method is byte-identical (entity lookup,
+  `resetLastActionTime`, the world-border check, `isWithinAttackRange`
+  at 3.0, the `PIERCING_WEAPON` return, the invalid-entity disconnect,
+  `isItemEnabled`, `cannotAttackWithItem`, `player.attack`). The
+  report's `hand.rs` attribution is the range helper's home; the
+  server-side handler is `guest_attack` in
+  `crates/horizon-client/src/game/lan_actions.rs`, and it already
+  returned early for spectators — but the hub (`lan/hub.rs`) updated the
+  guest's `last_action_tick` for the Attack packet and queued the event
+  before that guard ran, so a spectator spamming attacks kept their idle
+  timer fresh and reached the anticheat, where vanilla returns before
+  `resetLastActionTime`. The port moves the guard to vanilla's position:
+  the `acted` match now counts an Attack as an action only for a
+  non-spectator, and a new gate arm drops a spectator's Attack before
+  the anticheat, the event and the move queue; `guest_attack`'s guard
+  stays as the second line. Regression test
+  `lan/hub_tests.rs::a_spectators_attack_reaches_nothing_and_resets_no_timer`:
+  a spectator's Attack produces no `HostEvent::Packet` and leaves
+  `last_action_tick` at 41 while the hub is at tick 100, and the same
+  packet from a survival guest still reaches the game and resets the
+  timer to 100.
+- **#5 (rank 2) `SharedConstants`.** `WORLD_VERSION` 4788 -> 4790 is
+  `DATA_VERSION` in `version.rs`; `SNAPSHOT_NETWORK_PROTOCOL_VERSION`
+  304 -> 307 is snapshot-only and unused anywhere in the Rust tree. No
+  code change.
+- **#6 (rank 3) Checkbox row limit.** `javap -c` on both client jars:
+  `Checkbox` gains `private static final int ROWS = 2` and
+  `overflowsRowLimit(Font)` — `splitLines(message, width,
+  Style.EMPTY).size() > 2` — and `Builder.build()` calls `setTooltip`
+  only when it overflows (was unconditional). The constructor's
+  `setMaxRows(2)` and `getDefaultWidth` (box 17 + spacing 4 + text
+  width) are unchanged, and the Rust dialog checkbox layout already
+  matches that width. The port adds `CHECKBOX_ROWS` and
+  `checkbox_overflows_row_limit(font, label, width)` to
+  `crates/horizon-client/src/dialog_screen.rs`, splitting at the
+  widget's full width as vanilla does. No live caller yet: only
+  `AbstractReportScreen` sets a tooltip on a Checkbox builder in
+  vanilla, and the report screen is not ported; dialog checkboxes take
+  the full label width, so the helper returns false for them. Regression
+  test `dialog_screen::tests::a_checkbox_label_over_two_rows_gets_the_tooltip`:
+  one and two rows stay within the limit, three rows (newlines) overflow,
+  and three 8-wide sprite objects overflow at width 8 but not at 24.
+- **#7 (rank 5) `DetectedVersion.createBuiltIn` +
+  `AbstractReportScreen.createFooter`.** `createBuiltIn`'s only change
+  is `sipush 4788` -> `sipush 4790` — version plumbing, absorbed by the
+  `version_consts` regen. `createFooter` adds
+  `.tooltip(Tooltip.create(ATTESTATION_CHECKBOX))` to the attestation
+  checkbox builder chain; the report screen is not ported anywhere in
+  the Rust tree, so this is documented, not coded.
+
+Enabling work, not a behaviour item: the `horizon-client` lib test
+target did not compile (the 6 errors this file already recorded under
+"Adapter re-base carried"), which would have kept the two regression
+tests above from ever running in CI. Fixed in test code only:
+`lan_particles.rs` asserted the 26.3 particle model (`max_speed` as
+`[f32; 3]`, a `randomization` field) — 26.1's packet has one speed and
+no randomization mode, as the production code in the same file already
+says; three `Login` literals in `native_client_services.rs` /
+`native_entity_refs.rs` set the removed `online_mode` field. The
+`LevelParticles` doc comment in `horizon-protocol` described the same
+26.3 fields and is corrected. The 8 `horizon-client-lib` lib-test
+errors and the 34 `lan_bot` errors recorded in the same paragraph are
+untouched — they are in a suite this port's tests also compile under,
+but the tests run in the `horizon-client` suite, so they stay
+pre-existing work for their own fix.
+

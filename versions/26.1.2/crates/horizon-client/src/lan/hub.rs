@@ -4060,6 +4060,9 @@ impl Hub {
                 S::MovePlayerPos(p) => self.moved_far(i, [p.x, p.y, p.z]),
                 S::MovePlayerPosRot(p) => self.moved_far(i, [p.x, p.y, p.z]),
                 S::PlayerInput(_) => self.guests[i].client_loaded(),
+                // handleAttack (26.1.2): a spectator's attack returns before
+                // resetLastActionTime, so it never counts as an action.
+                S::Attack(_) => !self.guests[i].spectator(),
                 _ => true,
             };
             if acted {
@@ -4077,6 +4080,11 @@ impl Hub {
                 | S::SpectateEntity(_)
                 | S::PlayerCommand(_)
                     if !self.guests[i].client_loaded() => {}
+                // handleAttack (26.1.2): `!hasClientLoaded() || player.isSpectator()`
+                // returns before anything else — a spectator's attack never reaches
+                // the game, its anticheat, or the move queue (`guest_attack` keeps
+                // its own guard as the second line).
+                S::Attack(_) if self.guests[i].spectator() => {}
                 // handleAcceptTeleportPacket.
                 S::AcceptTeleportation(p) => {
                     let recording = self.recording();

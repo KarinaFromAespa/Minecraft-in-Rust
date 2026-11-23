@@ -1,20 +1,20 @@
 {
   "release": "26.1.2",
   "generated_from": "9880cf1facfbb8b2d5263a87b87a93767b3d3ef39c3f463ab6a08fdd9bf97a29",
-  "note": "Patch delta of 26.1.1, derived 2026-11-23 from the pipeline report (report-26.1.2.log, sha256 above) and the 26.1.1->26.1.2 class diff (6 changed classes, 0 packets/registries/blocks/items changed). 7 items: rank 1 #1 vanilla_command_order generator (closed by the carry-forward regen), #2 DataFixers 4788->4790 (0 schemas/fixes added), #3 version facts 4788->4790; rank 2 #4 ServerGamePacketListenerImpl.handleAttack, #5 SharedConstants fields; rank 3 #6 Checkbox row-limit tooltip; rank 5 #7 DetectedVersion.createBuiltIn + AbstractReportScreen.createFooter (not ported). Every item is honestly open (0 closed, 0 accepted) \u2014 D3 fails until the behaviour port closes or formally accepts them.",
+  "note": "Patch delta of 26.1.1, derived 2026-11-23 from the pipeline report (report-26.1.2.log, sha256 above) and the 26.1.1->26.1.2 class diff (6 changed classes, 0 packets/registries/blocks/items changed). 7 items: rank 1 #1 vanilla_command_order generator (closed by the carry-forward regen), #2 DataFixers 4788->4790 (0 schemas/fixes added), #3 version facts 4788->4790; rank 2 #4 ServerGamePacketListenerImpl.handleAttack, #5 SharedConstants fields; rank 3 #6 Checkbox row-limit tooltip; rank 5 #7 DetectedVersion.createBuiltIn + AbstractReportScreen.createFooter (not ported). Behaviour port 2026-11-23: 7/7 closed, 0 accepted. #4 (handleAttack) and #6 (Checkbox) changed code with regression tests; #1/#2/#3/#5 verified as stamp or plumbing; #7 verified (createBuiltIn is a version stamp, createFooter is the unported report screen).",
   "rank1": {
     "accepted": [],
-    "closed": 0,
+    "closed": 3,
     "total": 3
   },
   "rank2": {
     "accepted": [],
-    "closed": 0,
+    "closed": 2,
     "total": 2
   },
   "rank3": {
     "accepted": [],
-    "closed": 0,
+    "closed": 1,
     "total": 1
   },
   "rank4": {
@@ -24,7 +24,7 @@
   },
   "rank5": {
     "accepted": [],
-    "closed": 0,
+    "closed": 1,
     "total": 1
   },
   "rank3plus": "The one rank-3 item (Checkbox) is ported with this ledger; rank 4 has no items. Everything this release did not change inherits the 26.1.1 parent's answers."

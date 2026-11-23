@@ -36,6 +36,18 @@ pub fn line_style_at(
 const BAR: f32 = 33.0;
 /// `Checkbox.getBoxSize`.
 pub const BOX: f32 = 17.0;
+/// `Checkbox.ROWS`: a checkbox's label shows at most two rows (the
+/// constructor's `textWidget.setMaxRows(2)`); a label wrapped past that gets
+/// the builder's tooltip (`Checkbox$Builder.build`, 26.1.2).
+pub const CHECKBOX_ROWS: usize = 2;
+
+/// `Checkbox.overflowsRowLimit`: the label, split at the checkbox's width,
+/// takes more than [`CHECKBOX_ROWS`] rows — the condition for the builder's
+/// tooltip. Vanilla splits at the widget's full width (box + spacing + text),
+/// not the text's own width.
+pub fn checkbox_overflows_row_limit(font: &Font, label: &Text, width: f32) -> bool {
+    font.split_lines(label, width).len() > CHECKBOX_ROWS
+}
 /// `DialogScreen.WARNING_BUTTON_SPRITES`: normal, disabled, highlighted.
 pub const WARNING_SPRITES: [&str; 3] = [
     "gui/sprites/dialog/warning_button",
@@ -501,6 +513,55 @@ mod tests {
         assert!(style(34.0, 20.0).is_none());
         assert!(style(21.0, 19.9).is_none());
         assert!(style(21.0, 29.0).is_none());
+    }
+
+    #[test]
+    fn a_checkbox_label_over_two_rows_gets_the_tooltip() {
+        use crate::{component, hud::Rect};
+        let font = Font::load(
+            std::path::Path::new("/nonexistent-horizon-dialog-test-resources"),
+            &std::collections::HashMap::new(),
+            &[],
+            (1, 1),
+            (0, 0),
+            Rect {
+                u0: 0.0,
+                v0: 0.0,
+                u1: 1.0,
+                v1: 1.0,
+                w: 1,
+                h: 1,
+            },
+        );
+        // One row, and two rows, are within the limit.
+        assert!(!checkbox_overflows_row_limit(
+            &font,
+            &Text::literal("one line"),
+            1000.0
+        ));
+        assert!(!checkbox_overflows_row_limit(
+            &font,
+            &Text::literal("one\ntwo"),
+            1000.0
+        ));
+        // Three rows overflow — the tooltip's condition.
+        assert!(checkbox_overflows_row_limit(
+            &font,
+            &Text::literal("one\ntwo\nthree"),
+            1000.0
+        ));
+        // Wrapping counts too: three sprite objects (8 wide each) at a width
+        // of one object each take three rows; at their full width, one.
+        let three = component::to_text(
+            &serde_json::json!([
+                {"object": "atlas", "sprite": "minecraft:item/potion"},
+                {"object": "atlas", "sprite": "minecraft:item/potion"},
+                {"object": "atlas", "sprite": "minecraft:item/potion"},
+            ]),
+            &mut |_| Text::empty(),
+        );
+        assert!(!checkbox_overflows_row_limit(&font, &three, 24.0));
+        assert!(checkbox_overflows_row_limit(&font, &three, 8.0));
     }
 
     #[test]

@@ -924,6 +924,70 @@ fn an_attacks_swing_goes_with_it_past_the_move_behind() {
     );
 }
 
+/// handleAttack (26.1.2): `!hasClientLoaded() || player.isSpectator()` returns
+/// before anything else — a spectator's attack never reaches the game and never
+/// resets the idle timer, so a spectator spamming attacks stays idle.
+#[test]
+fn a_spectators_attack_reaches_nothing_and_resets_no_timer() {
+    let (mut hub, _rx) = hub_with_a_guest();
+    hub.guests[0].load_timeout = 0;
+    hub.guests[0].change_game_mode(guest::SPECTATOR);
+    hub.guests[0].last_action_tick = 41;
+    hub.ticks = 100;
+    hub.guests[0]
+        .inbox
+        .push_back((S::Attack(play::Attack { id: 7 }), 0));
+    let mut world = World::new(horizon_world::registry::BlockStateId(0), 0);
+    let mut next_entity = 2;
+    let border = crate::worldborder::WorldBorder::default();
+    let mut ctx = TickCtx {
+        sea_level: 63,
+        world: &mut world,
+        entities: &[],
+        next_entity: &mut next_entity,
+        spawn: [0.5, 64.0, 0.5],
+        spawn_angle: [0.0; 2],
+        difficulty: 2,
+        difficulty_locked: false,
+        clock_rate: 1.0,
+        tick_rate: 20.0,
+        tick_frozen: false,
+        tick_steps: Default::default(),
+        collision: None,
+        border: &border,
+        streaming: None,
+    };
+    let events = hub.drain_packets(&mut ctx);
+    let attacks = events
+        .iter()
+        .filter(|e| matches!(e, HostEvent::Packet(_, p) if matches!(**p, S::Attack(_))))
+        .count();
+    assert_eq!(attacks, 0, "the game was handed the spectator's attack");
+    assert_eq!(
+        hub.guests[0].last_action_tick, 41,
+        "the spectator's attack reset the idle timer"
+    );
+    // The same packet from a survival guest still reaches the game and counts
+    // as an action: the guard is the mode, not the packet.
+    hub.guests[0].change_game_mode(guest::SURVIVAL);
+    hub.guests[0]
+        .inbox
+        .push_back((S::Attack(play::Attack { id: 7 }), 0));
+    let events = hub.drain_packets(&mut ctx);
+    let attacks = events
+        .iter()
+        .filter(|e| matches!(e, HostEvent::Packet(_, p) if matches!(**p, S::Attack(_))))
+        .count();
+    assert_eq!(
+        attacks, 1,
+        "the survival guest's attack never reached the game"
+    );
+    assert_eq!(
+        hub.guests[0].last_action_tick, 100,
+        "the survival guest's attack did not reset the idle timer"
+    );
+}
+
 /// Drains guest 0's inbox holding a player action (`action`) and the move
 /// its client sent after it in the same client tick: the packets handed to
 /// the game, and the guest's position and known movement before.
