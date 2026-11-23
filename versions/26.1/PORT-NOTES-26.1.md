@@ -761,3 +761,16 @@ extraction (same body). 138: MouseHandler Gui accessor moves. 140:
 shulker renames; 26.2's refreshDimensions in onPeekAmountChange is
 subsumed by the Rust's on-demand peek dims, and makeBoundingBox is
 identical (26.1 never refreshes dimensions in the class).
+
+Batch 43 (Nov 23, 424/498): 156 PORTED — PrimedTnt.tick and
+FallingBlockEntity.tick use the double literal 0.98 in 26.1, not
+getAirDrag()'s 0.98F widened (same float-vs-double pattern as items
+198/375); scale_air_drag now uses 0.98, its test pins 0.092236816, and
+the batch-15 falling_blocks comment is corrected. 141/119/17/330/277
+no-change: spear animations identical, canBePickedFromInside is
+26.2-only and unported; no MultiplayerScope in the Rust (is_published
+is port-based, the 26.1 form); spawnGolemIfNeeded rename; query.rs
+names no BlockStateBase methods; weather ticks int-vs-long is
+identical after the 131071/511 masks. Also corrected the batch-42
+evidence for 133: ByteBufCodecs.collection exists in both versions,
+26.2 only adds a 4th overload.

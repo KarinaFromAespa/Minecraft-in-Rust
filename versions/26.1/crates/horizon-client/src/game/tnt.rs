@@ -264,7 +264,8 @@ impl PrimedTnt {
             from,
             recorded.then_some(wanted),
         );
-        // Entity.scale(getAirDrag()): 0.98F, widened before it scales motion.
+        // PrimedTnt.tick scales motion by the double literal 0.98 in 26.1
+        // (26.2 calls getAirDrag(), 0.98F widened).
         self.velocity = horizon_client::entity_rules::scale_air_drag(self.velocity);
         if self.on_ground {
             self.velocity = Vec3::new(

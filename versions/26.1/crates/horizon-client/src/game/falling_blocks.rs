@@ -208,8 +208,8 @@ impl Game<'_> {
                 f.position.z.floor() as i32,
             ]));
         }
-        // 26.1 scales motion by a hardcoded 0.98F (26.2 reads it from the
-        // new Entity.getAirDrag(), which returns the same 0.98F).
+        // 26.1 scales motion by the double literal 0.98 (26.2 reads it from
+        // the new Entity.getAirDrag(), 0.98F widened to 0.9800000190734863).
         f.velocity = horizon_client::entity_rules::scale_air_drag(f.velocity);
         Ok(if teleported.is_some() {
             FallStep::Gone

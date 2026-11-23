@@ -7,9 +7,11 @@
 //! ENDS-WHEN: kinds share one stored `Entity` state and this folds into it.
 use horizon_core::geometry::Vec3;
 
-/// `Entity.scale(getAirDrag())`: 0.98F, widened before it scales double motion.
+/// The air drag `PrimedTnt.tick` and `FallingBlockEntity.tick` scale motion
+/// by: the double literal 0.98 in 26.1 (26.2 calls `getAirDrag()`, 0.98F
+/// widened to 0.9800000190734863).
 pub fn scale_air_drag(velocity: Vec3) -> Vec3 {
-    let drag = f64::from(0.98_f32);
+    let drag = 0.98;
     Vec3::new(velocity.x * drag, velocity.y * drag, velocity.z * drag)
 }
 
@@ -44,13 +46,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn four_ticks_of_air_drag_match_vanilla_0_98f() {
-        // Issue #6814: 0.1 × 0.98F⁴ is 0.09223682318…, not 0.1 × 0.98⁴ as f64.
+    fn four_ticks_of_air_drag_match_vanilla_0_98() {
+        // 26.1's ticks use the double literal 0.98: 0.1 × 0.98⁴ is
+        // 0.092236816, not 0.1 × 0.98F⁴ (0.09223682318…, the 26.2 form).
         let mut v = Vec3::new(0.1, 0.0, 0.0);
         for _ in 0..4 {
             v = scale_air_drag(v);
         }
-        assert_eq!(v.x.to_bits(), 0x3fb7_9cd5_1b0c_538e);
+        assert_eq!(v.x.to_bits(), 0x3fb7_9cd4_fc35_0910);
         assert_eq!(v.y.to_bits(), 0);
         assert_eq!(v.z.to_bits(), 0);
     }
