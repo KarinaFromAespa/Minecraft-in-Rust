@@ -397,10 +397,6 @@ impl Settings {
         // Horizon's own key bindings live in horizon-extras.txt, not in options.txt.
         let emote = settings.extras.emote_key.clone();
         settings.keys.set("key.emote", &emote);
-        // `Options.load`: `sharePresence` decides what the friends service posts.
-        crate::social::set_share_presence(crate::social::SharePresence::of(
-            settings.file.int("sharePresence").clamp(0, 2) as u8,
-        ));
         settings.describe_for_crashes();
         // Options.load: the backend asked for at startup, what a restart is measured from.
         Self {
@@ -869,8 +865,6 @@ pub enum Opt {
     MainHand,
     AllowServerListing,
     RealmsNotifications,
-    InGameNotification,
-    SharePresence,
     DirectionalAudio,
     MusicToast,
     /// `Options.exclusiveFullscreen`.

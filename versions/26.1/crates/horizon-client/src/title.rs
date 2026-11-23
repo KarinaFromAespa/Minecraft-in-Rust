@@ -4905,12 +4905,6 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
             return;
         };
         self.allows_multiplayer = status.allows_multiplayer();
-        // `Minecraft`'s constructor: the account's `friendsPreferences` decide whether
-        // the friends service starts (`Minecraft.friendsEnabled`).
-        crate::social::init(
-            status.properties.friends_enabled,
-            status.properties.accept_friend_invites,
-        );
         if !QUEUED.swap(true, Ordering::Relaxed) {
             self.ban_queue
                 .extend(initial_notices(status, &session.name));

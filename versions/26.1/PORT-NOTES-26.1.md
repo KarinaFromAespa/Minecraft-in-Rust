@@ -1103,8 +1103,8 @@ run 45254318944 (batch 61) is testing, so no separate dispatch.
 
 ## Behaviour port — rank 3 in progress (2026-11-24, branch behaviour/26.1)
 
-Rank 3: 64/214 closed (rank 1: 7/7, rank 2: 498/498; total
-569/795). A1 complete (60/60); B1 in progress (4/56).
+Rank 3: 65/214 closed (rank 1: 7/7, rank 2: 498/498; total
+570/795). A1 complete (60/60); B1 in progress (5/56).
 Re-triage: `retriage-rank345.json` (A1 60, A2 67, B1 56, B2 31)
 + `diff-26.2-26.1-rank3.json` (274 classes, 204 method-changed).
 Order: A1 reviews, then B1 ports, then A2/B2. Progress in
@@ -1289,3 +1289,25 @@ triage claim.
 `cargo check` clean for horizon-client-lib (incl. --lib
 --tests apart from the 34 known pre-existing lan_bot.rs
 errors), horizon-client-render and horizon-world.
+
+Batch 70 (Nov 24, 65/214 — B1 #2, 511 alone): the friends
+system is 26.2-only, so it is removed. PresenceSharing,
+PresenceHandler and RemoteFriendListUpdateHandler exist in
+the 26.2 jar and are absent from the 26.1 jar; 26.1's
+PlayerSocialManager has no friend methods and 26.1's
+Options has no sharePresence. Deleted social.rs (860 lines)
++ the lib mod + the client_lib re-export; removed the
+presence calls from game.rs, saving.rs, remote.rs and
+title.rs; removed the SharePresence and InGameNotification
+options (both absent from 26.1's Options, lang and
+OnlineOptionsScreen, which shows only allowServerListing +
+realmsNotifications) from the Opt enum, options_ui.rs, the
+options_file defaults and the Online page's friends
+section. Untouched: game/social.rs (Social Interactions
+screen + hidden chat) and game/friends.rs (LAN invite
+sharing) — both are 26.1 behaviour. ban_notice.rs still
+parses the account status's friendsPreferences (account-API
+data, version-neutral); nothing reads the fields now.
+`cargo check` clean for horizon-client-render and
+horizon-client-lib (incl. --lib --tests apart from the
+known pre-existing lan_bot.rs errors).

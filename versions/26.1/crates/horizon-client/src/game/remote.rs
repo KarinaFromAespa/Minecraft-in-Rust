@@ -969,9 +969,6 @@ impl Game<'_> {
         name: &str,
     ) -> Result<()> {
         self.join_server("local", name, Some(pipe), None, false, false)?;
-        // `Minecraft.startIntegratedServer`: the local world is in, so presence reads
-        // the world's status at once.
-        horizon_client::social::try_update_presence();
         Ok(())
     }
     fn join_server(

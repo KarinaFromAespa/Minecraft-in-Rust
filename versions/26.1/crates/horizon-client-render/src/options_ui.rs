@@ -163,10 +163,8 @@ impl Opt {
             Opt::HideMatchedNames
                 | Opt::OnlySecureChat
                 // Saved, but no Horizon system reads them yet: no Realms, no
-                // friends list, no directional audio.
+                // directional audio.
                 | Opt::RealmsNotifications
-                | Opt::InGameNotification
-                | Opt::SharePresence
                 | Opt::DirectionalAudio
                 // Saved, but nothing in rendering reads it yet.
                 | Opt::ChunkBuilder
@@ -201,8 +199,6 @@ impl Opt {
             Opt::ModelPart(i) => MODEL_PART_KEYS[i],
             Opt::AllowServerListing => "allowServerListing",
             Opt::RealmsNotifications => "realmsNotifications",
-            Opt::InGameNotification => "inGameNotification",
-            Opt::SharePresence => "sharePresence",
             Opt::DirectionalAudio => "directionalAudio",
             Opt::MusicToast => "musicToast",
             _ => return None,
@@ -335,8 +331,6 @@ impl Opt {
             Opt::MainHand => "options.mainHand",
             Opt::AllowServerListing => "options.allowServerListing",
             Opt::RealmsNotifications => "options.realmsNotifications.button",
-            Opt::InGameNotification => "options.inGameNotification",
-            Opt::SharePresence => "options.sharePresence",
             Opt::DirectionalAudio => "options.directionalAudio",
             Opt::MusicToast => "options.musicToast",
         }
@@ -711,18 +705,12 @@ impl Opt {
             | Opt::ModelPart(_)
             | Opt::AllowServerListing
             | Opt::RealmsNotifications
-            | Opt::InGameNotification
             | Opt::DirectionalAudio => on_off(s.file.bool(self.file_key().unwrap())),
             Opt::MainHand => tr(if s.main_hand_left {
                 "options.mainHand.left"
             } else {
                 "options.mainHand.right"
             }),
-            Opt::SharePresence => tr([
-                "options.sharePresence.none",
-                "options.sharePresence.limited",
-                "options.sharePresence.all",
-            ][s.file.int("sharePresence").clamp(0, 2) as usize]),
             Opt::MusicToast => tr([
                 "options.musicToast.never",
                 "options.musicToast.pauseMenu",
@@ -1010,7 +998,6 @@ impl Opt {
             | Opt::ModelPart(_)
             | Opt::AllowServerListing
             | Opt::RealmsNotifications
-            | Opt::InGameNotification
             | Opt::DirectionalAudio
             | Opt::RotateWithMinecarts
             | Opt::NarratorHotkey => {
@@ -1132,11 +1119,6 @@ impl Opt {
                     .set("musicFrequency", crate::options_file::V::Int(i32::from(n)));
             }
             Opt::MainHand => s.main_hand_left = !s.main_hand_left,
-            Opt::SharePresence => {
-                let n = next(s.file.int("sharePresence").clamp(0, 2) as u8, 3);
-                s.file
-                    .set("sharePresence", crate::options_file::V::Int(i32::from(n)));
-            }
             Opt::MusicToast => {
                 let n = next(s.file.int("musicToast").clamp(0, 2) as u8, 3);
                 s.file
@@ -2831,10 +2813,9 @@ impl OptionsUi {
                 pairs(&opts)
             }
             Page::Online => {
-                // OnlineOptionsScreen without the Xbox and friends-list parts.
-                let mut rows = vec![Row::Header("options.online.friends.header")];
-                rows.extend(pairs(&[Opt::InGameNotification, Opt::SharePresence]));
-                rows.push(Row::Header("options.online.servers.header"));
+                // 26.1's OnlineOptionsScreen: only the server listing and the
+                // Realms notifications (26.2 added the friends section).
+                let mut rows = vec![Row::Header("options.online.servers.header")];
                 rows.push(Row::Big(Opt::AllowServerListing));
                 rows.push(Row::Header("options.online.realms.header"));
                 rows.push(Row::Big(Opt::RealmsNotifications));
@@ -5451,8 +5432,6 @@ mod tests {
             Opt::HideMatchedNames,
             Opt::OnlySecureChat,
             Opt::RealmsNotifications,
-            Opt::InGameNotification,
-            Opt::SharePresence,
             Opt::DirectionalAudio,
             Opt::ChunkBuilder,
         ] {

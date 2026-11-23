@@ -363,6 +363,12 @@
    "title": "crates/horizon-world/src/level/sculk.rs: 5 vanilla classes changed (28 methods, 11 named in Horizon)",
    "verdict": "ported",
    "evidence": "The sculk_growth_inhibitors tag exists in neither jar (26.3-only) \u2014 replaced the tag check with the hardcoded sensor+shrieker list (the 26.2 tree's form). Rest verified no-change: SculkSensorBlock getSignal (26.1) vs ownSignal (26.2) have the same body (return POWER); SculkCatalystBlock.getTicker differs only by BlockEntityType->BlockEntityTypes; ChargeCursor codec fieldOf/orElse vs optionalFieldOf is the same optional-with-default shape."
+  },
+  {
+   "id": 511,
+   "title": "crates/horizon-client-render/src/social.rs: 9 vanilla classes changed (45 methods, 9 named in Horizon)",
+   "verdict": "ported",
+   "evidence": "The friends system is 26.2-only: PresenceSharing, PresenceHandler, RemoteFriendListUpdateHandler exist in the 26.2 jar (6 entries) and are absent from the 26.1 jar (0); 26.1's PlayerSocialManager has no friend methods (hide/show/block/online-mode/discovered-names only), and 26.1's Options has no sharePresence. Removed the whole friends machinery: deleted horizon-client-render/src/social.rs (860 lines) + the lib mod + the client_lib re-export; removed the presence calls from game.rs (presence_status + tick), saving.rs (offline presence), remote.rs (try_update_presence), title.rs (social::init); removed the SharePresence + InGameNotification options (both absent from 26.1's Options, lang and OnlineOptionsScreen, which shows only allowServerListing + realmsNotifications) from the Opt enum, options_ui.rs, options_file.rs defaults, and the Online page's friends section. game/social.rs (Social Interactions screen + hidden chat) and game/friends.rs (LAN invite sharing, feature-gated) are untouched \u2014 both are 26.1 behaviour. ban_notice.rs still parses the account status's friendsPreferences (account-API data, version-neutral); nothing reads the fields after this removal."
   }
  ],
  "triage": "Rank-3 re-triage: ~/workspace/mcir-work/port-26.1-triage/retriage-rank345.json (rank 3 = A1 60, A2 67, B1 56, B2 31 = 214 items) + diff-26.2-26.1-rank3.json (274 classes, 204 method-changed). Order: A1 reviews, then B1 ports, then A2/B2."
