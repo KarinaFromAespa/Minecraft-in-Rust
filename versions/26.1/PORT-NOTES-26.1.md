@@ -989,3 +989,29 @@ plus caller updates (FullscreenState::new takes the exclusive option;
 observe_fullscreen and the 26.3 throttle fields gone; options_ui uses
 the whole-hertz rate directly). 8 files; workspace `cargo check` and
 all `--lib --tests` checks clean.
+
+Batch 59 (Nov 24, 494/498): 97 PORTED — `findNearestMapStructure` locates
+in a no-structures world. Jar-verified (normalized per-method bytecode
+diff, 26.1 server-game vs 26.2 server-game): 26.2 added a
+`WorldGenSettings.options().generateStructures()` early-return (null)
+to `findNearestMapStructure`; 26.1 has no such check anywhere in
+`ChunkGenerator` — the state (`ChunkGeneratorStructureState`) is built
+always (`ChunkMap.createState`), and only the chunk step that creates
+starts is gated (`ChunkStatusTasks.generateStructureStarts`,
+`StructureManager.shouldGenerateStructures`). The Rust had the 26.2
+form: `Pipeline::new` built the `StructureState` only `if
+with_structures`, so `locate` returned None. The port splits the
+gating: the state is built always (real possible-biomes set, so
+`locate` searches real sets — the manual empty-biome fallback cannot
+serve it), and a new `generate_structures` field gates only generation
+(chunk starts/references, decoration's structure references,
+`structure_starts`, `use_saved_start`, `may_start_answers`). `locate`
+and `ring_positions` are deliberately ungated (Eye of Ender uses the
+latter). Rest of 97 verified no-change: `ChunkGeneratorStructureState`,
+`JigsawPlacement`, `NoiseSettings` bytecode-identical; `doFill` differs
+only by the `markPosForPostprocessing` rename; `getInterpolatedNoiseValue`
+already passes the real blender (26.1 form); `buildSurface`'s
+possible-biomes set is a Java-side optimisation the Rust does not
+model (surface rules read the per-column biome); `NoiseGeneratorSettings`
+factories differ only in bootstrap signatures. 2 files; workspace
+`cargo check` and horizon-world `--lib --tests` clean.
