@@ -1,8 +1,8 @@
 {
  "release": "1.21.10",
  "rank": 2,
- "batch": 4,
- "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed.",
+ "batch": 5,
+ "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review).",
  "items": {
   "201": {
    "module": "crates/horizon-client/src/game/frame_geometry.rs",
@@ -1488,6 +1488,201 @@
    "module": "crates/horizon-client/src/merchant.rs: 1 vanilla classes changed (1 methods, 1 named in Horizon)",
    "verdict": "no-change",
    "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "121": {
+   "module": "widely named: client/resources/model",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "233": {
+   "module": "widely named: client/renderer/item",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "244": {
+   "module": "widely named: client/gui/font",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "316": {
+   "module": "widely named: server/packs",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "323": {
+   "module": "widely named: world/level/biome",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "333": {
+   "module": "widely named: network/chat/numbers",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "334": {
+   "module": "widely named: util/context",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "336": {
+   "module": "widely named: client/gui/font/providers",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "337": {
+   "module": "widely named: network",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "338": {
+   "module": "widely named: server/notifications",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "350": {
+   "module": "widely named: world/scores",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "355": {
+   "module": "widely named: com/mojang/math",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "371": {
+   "module": "widely named: client/gui/screens/recipebook",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "375": {
+   "module": "widely named: commands/synchronization",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "378": {
+   "module": "widely named: server/level/progress",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "400": {
+   "module": "widely named: client/color/item",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "401": {
+   "module": "widely named: client/gui/font/glyphs",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "404": {
+   "module": "widely named: client/renderer/item/properties/conditional",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "405": {
+   "module": "widely named: client/renderer/item/properties/numeric",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "406": {
+   "module": "widely named: client/renderer/item/properties/select",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "407": {
+   "module": "widely named: client/resources",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "408": {
+   "module": "widely named: client/server",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "409": {
+   "module": "widely named: com/mojang/blaze3d/vertex",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "410": {
+   "module": "widely named: data/registries",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "411": {
+   "module": "widely named: gizmos",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "412": {
+   "module": "widely named: world/attribute/modifier",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "413": {
+   "module": "widely named: world/attribute",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "414": {
+   "module": "widely named: world/damagesource",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "420": {
+   "module": "widely named: world/level/dimension",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "422": {
+   "module": "widely named: world/level/levelgen/feature/configurations",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "423": {
+   "module": "widely named: world/level/redstone",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "446": {
+   "module": "widely named: client/main",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "451": {
+   "module": "widely named: server/permissions",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "452": {
+   "module": "widely named: util/debug",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "453": {
+   "module": "widely named: util/random",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "459": {
+   "module": "widely named: world/level/block/entity/vault",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "461": {
+   "module": "widely named: world/level/gamerules",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "462": {
+   "module": "widely named: world/level/levelgen/presets",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "463": {
+   "module": "widely named: world/level/levelgen/synth",
+   "verdict": "no-change",
+   "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
   }
  }
 }
