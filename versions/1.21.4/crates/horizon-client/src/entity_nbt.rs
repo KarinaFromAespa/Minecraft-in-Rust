@@ -3156,13 +3156,15 @@ pub fn orbs_from_nbt(tag: &Tag) -> Vec<ExperienceOrb> {
         position,
         previous: position,
         velocity: motion(tag),
-        // `getShortOr("Value", 0)`, unclamped.
+        // `getShort("Value")`, unclamped.
         value: tag.get("Value").and_then(int_value).unwrap_or(0) as i16 as i32,
         age: number(tag.get("Age")).unwrap_or(0).max(0) as u32,
         on_ground: flag(tag, "OnGround"),
         count,
         ticks: 0,
-        health: number(tag.get("Health")).unwrap_or(5) as i32,
+        // 1.21.4's `getShort("Health")` has no default — 0 when absent
+        // (1.21.5's `getShortOr` defaults to 5).
+        health: number(tag.get("Health")).unwrap_or(0) as i32,
         // ExperienceOrb's followingPlayer is transient: never saved, so a
         // loaded orb starts without one.
         following: None,

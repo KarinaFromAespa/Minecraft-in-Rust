@@ -325,18 +325,13 @@ impl Game<'_> {
     /// `ExperienceOrb.award`: orbs of the largest sizes; each draws the id
     /// `tryMergeToExisting` compares from the level random, then moves with
     /// its own random.
-    pub(super) fn spawn_orbs(&mut self, at: [f64; 3], value: u32) {
-        self.spawn_orbs_toward(at, [0.0; 3], value);
-    }
-    /// `ExperienceOrb.awardWithDirection`: `award` whose fresh orbs start
-    /// `roughly` that way (`new ExperienceOrb(level, pos, roughly, value)`).
-    pub(super) fn spawn_orbs_toward(&mut self, at: [f64; 3], roughly: [f64; 3], mut value: u32) {
+    pub(super) fn spawn_orbs(&mut self, at: [f64; 3], mut value: u32) {
         while value > 0 {
             let v = ExperienceOrb::split(value);
             value -= v;
             let merge_id = self.world.random.next_int_bound(40).unwrap_or(0);
             if !self.merge_new_orb(at, v, merge_id) {
-                self.add_orb_toward(at, roughly, v);
+                self.add_orb(at, v);
             }
         }
     }
@@ -446,48 +441,22 @@ impl Game<'_> {
             self.orbs.remove(j);
         }
     }
-    /// `Entity.unstuckIfPossible`, which `ExperienceOrb`'s constructor runs on an
-    /// orb whose box is in a block: the free spot nearest its box's centre. An
-    /// orb in open air keeps its position.
-    pub(super) fn unstuck_orb(&self, at: [f64; 3]) -> [f64; 3] {
-        let b = self.res.behaviours();
-        let border = self.border_bounds();
-        ExperienceOrb::unstuck(Vec3::new(at[0], at[1], at[2]), &border, |p| {
-            b.collision_shape(self.world.block(p.x, p.y, p.z))
-                .map(|s| s.moved(Vec3::new(f64::from(p.x), f64::from(p.y), f64::from(p.z))))
-        })
-        .map_or(at, |p| [p.x, p.y, p.z])
-    }
-    /// `new ExperienceOrb(level, pos, Vec3.ZERO, value)`: yaw and motion from
-    /// the orb's own random.
+    /// `new ExperienceOrb(level, x, y, z, value)`: the orb spawns exactly at
+    /// `at` — 1.21.4 has no `awardWithDirection`, no directional offset and
+    /// no `unstuckIfPossible` at spawn (a stuck orb is pushed out by its
+    /// tick's `moveTowardsClosestSpace` instead). Yaw and motion come from
+    /// the orb's own random: the yaw is a `nextDouble` (1.21.6's
+    /// `nextFloat`), the motion's x/z factors the widened `0.2F`/`0.1F`
+    /// literals.
     pub(super) fn add_orb(&mut self, at: [f64; 3], value: u32) {
-        self.add_orb_toward(at, [0.0; 3], value);
-    }
-    /// `new ExperienceOrb(level, pos, roughly, value)`: a random motion that
-    /// points against `roughly` is turned round, and the orb starts half its
-    /// size (0.25) along `roughly`, unstuck if it collides there.
-    pub(super) fn add_orb_toward(&mut self, at: [f64; 3], roughly: [f64; 3], value: u32) {
-        let len_sqr = roughly.iter().map(|v| v * v).sum::<f64>();
-        // Vec3.normalize: a vector shorter than 1e-5 has no direction.
-        let len = len_sqr.sqrt();
-        let unit = if len < 1.0e-5 {
-            [0.0; 3]
-        } else {
-            roughly.map(|v| v / len)
-        };
-        let at = self.unstuck_orb([0, 1, 2].map(|a| at[a] + unit[a] * 0.25));
         let mut r = random_source::entity();
-        let _yaw = r.next_float();
+        let _yaw = r.next_double();
         let p = Vec3::new(at[0], at[1], at[2]);
-        let mut velocity = Vec3::new(
-            (r.next_double() * 0.2 - 0.1) * 2.0,
+        let velocity = Vec3::new(
+            (r.next_double() * f64::from(0.2f32) - f64::from(0.1f32)) * 2.0,
             r.next_double() * 0.2 * 2.0,
-            (r.next_double() * 0.2 - 0.1) * 2.0,
+            (r.next_double() * f64::from(0.2f32) - f64::from(0.1f32)) * 2.0,
         );
-        let dot = roughly[0] * velocity.x + roughly[1] * velocity.y + roughly[2] * velocity.z;
-        if len_sqr > 0.0 && dot < 0.0 {
-            velocity = Vec3::new(-velocity.x, -velocity.y, -velocity.z);
-        }
         self.next_entity += 1;
         self.orbs.push(ExperienceOrb {
             rotation: [0.0, 0.0],

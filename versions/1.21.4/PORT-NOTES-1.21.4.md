@@ -835,3 +835,58 @@ shape for the review batches.
   always false, so behaviour already matches); the
   `onProjectileHit` pot crack 260 -> 4 in creatures.rs:5090
   (item 17). Rank 2: 59/348.
+
+  Batch 5 (items 14 + 212). Item 14 (entities.rs): the
+  lava-cauldron contact test is the 1.21.4
+  `isEntityInsideContent` form — feet below the lava surface
+  (0.9375) and top above a quarter block, no horizontal test
+  beyond the cell overlap, the rim and feet do not count (the
+  1.21.6 filled-shape test, its `VoxelShape`/portal-travel
+  imports and the `OnceLock` shape are gone; the 1.21.5
+  lava-cauldron test is carried, adapted to 1.21.4);
+  `LavaCauldronBlock.entityInside` is lavaHurt only — the hurt
+  itself ignites for 15 s, there is no `lavaIgnite` in 1.21.4.
+  The orb-spawn system drops everything 1.21.6 added:
+  `ExperienceOrb::unstuck` and its tests are gone (no
+  `unstuckIfPossible` in 1.21.4), `spawn_orbs`/`add_orb` are
+  the plain 1.21.5 forms (`spawn_orbs_toward`/`add_orb_toward`/
+  `unstuck_orb` removed; yaw is a `nextDouble`, the motion's
+  x/z factors the widened `0.2F`/`0.1F` literals), the stuck
+  orb's `moveTowardsClosestSpace` nudge is unconditional (the
+  1.21.6 next-move-collision guard removed), `/summon
+  experience_orb` spawns exactly at `pos`, and the thrown
+  experience bottle awards plain (its `splash` loses the
+  `motion` parameter; both callers updated). Orb NBT: Health
+  reads `getShort` with no default — 0 when absent, not 5
+  (jar-verified; 5 is the 1.21.5 `getShortOr` form). Also:
+  `AttributeMap.save` (not `pack`), and the happy-ghast
+  comments are gone from four sites. No-change, jar-verified:
+  the remote packet-velocity application at spawn
+  (`SetEntityMotion` overwrites with the same value before the
+  entity's first tick, so applying the packet velocity is
+  unobservable), `collidedWithShapeMovingFrom`/`collide`/
+  `isColliding` (API-only), the in-memory `fall_distance` f64
+  (its save form was ported in batch 3), and the 1.21.5-only
+  methods absent from 1.21.4 (`snapTo`, `propagateFallToPass-
+  engers`, `lavaIgnite`, `followNearbyPlayer`,
+  `scanForMerges`, `applyComponentsFromItemStack`, and the
+  rest — none is modelled in the 1.21.4 tree). Item 212
+  (game/item_entities.rs): its module carries the orb-spawn
+  port above; its own two methods are no-change —
+  `FurnaceResultSlot.checkTakeAchievements` (the `onCraftedBy`
+  overload gains the Level arg; unmodelled in Rust) and
+  `SculkBlock.attemptUseCharge` (full bytecode identical
+  except the `playSound` Entity-vs-Player overload).
+  Routed with jar evidence: `ServerEntity.sendChanges`
+  (lan/tracking — no rank-2 item covers it); the `baseTick`
+  frozen handling (items 187/15); `causeFallDamage`/
+  `checkFallDamage` (landing.rs, items 126/296);
+  `applyEffectsFromBlocks` (items 15/126/36/66);
+  `checkInsideBlocks` (items 15/36); `extinguishFire`/
+  `igniteForTicks` (items 55/15/36/160); `isInLiquid` (item
+  126); the `teleportTo` pitch clamp [-90, 90] (item 42);
+  `NameTagItem`'s `canBeNameTagged` check (item 17);
+  `HoneyBlock` entityInside/fallOn (item 52);
+  `placePortalTicket` (likely unmodelled in the client).
+  `cargo check -p horizon-client` green (EXIT 0, 0 errors).
+  Rank 2: 61/348.

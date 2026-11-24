@@ -1405,7 +1405,6 @@ impl Game<'_> {
                     t.owner.clone(),
                     t.guest,
                     self.entity_silent(t.id),
-                    t.velocity,
                 ));
                 return false;
             }
@@ -1433,7 +1432,7 @@ impl Game<'_> {
                 );
             }
         }
-        for (stack, at, mob, block, age, owner, guest, silent, motion) in landed {
+        for (stack, at, mob, block, age, owner, guest, silent) in landed {
             // Projectile.onHit (super.onHit of AbstractThrownPotion): a block
             // is heard at its centre, an entity at the hit.
             let heard = if mob.is_some() {
@@ -1456,7 +1455,7 @@ impl Game<'_> {
                 self.native_potion_splash_v2(&item, [at.x, at.y, at.z], &mut cancel);
             }
             if !cancel {
-                self.splash(&stack, at, mob, block, age, &owner, silent, motion);
+                self.splash(&stack, at, mob, block, age, &owner, silent);
                 if item != "minecraft:experience_bottle" {
                     self.native_potion_splash(&item, [at.x, at.y, at.z]);
                 }
@@ -1914,7 +1913,7 @@ impl Game<'_> {
     /// `AbstractThrownPotion.onHit` with `ThrownSplashPotion.onHitAsPotion`, or
     /// `ThrownLingeringPotion.onHitAsPotion` for a lingering potion, read from
     /// the stack's `potion_contents`; `mob` is where it hit a mob, `hit` the
-    /// block and face it hit, `age` its age, `silent` its Silent flag, `motion` its motion as it hit.
+    /// block and face it hit, `age` its age, `silent` its Silent flag.
     pub(super) fn splash(
         &mut self,
         stack: &ItemStack,
@@ -1924,25 +1923,19 @@ impl Game<'_> {
         age: u32,
         owner: &PotionOwner,
         silent: bool,
-        motion: Vec3,
     ) {
         let block = [at.x, at.y, at.z].map(|v| v.floor() as i32);
         if &*stack.item == "minecraft:experience_bottle" {
             // ThrownExperienceBottle.onHit: the water-coloured splash (level
-            // event 2002, its sound 1053) and 3 to 11 experience.
+            // event 2002, its sound 1053) and 3 to 11 experience, awarded
+            // plain (1.21.6's `awardWithDirection` flies them off the face).
             self.level_event_at(2002, block, 0xFF38_5DC6u32 as i32);
             if !silent {
                 self.level_event_at(1053, block, 0);
             }
             let r = &mut self.world.random;
             let value = 3 + r.next_int_bound(5).unwrap_or(0) + r.next_int_bound(5).unwrap_or(0);
-            // awardWithDirection: away from the face it hit, or back along
-            // its own motion when it hit an entity (#11388).
-            let roughly = match hit {
-                Some((_, face)) => face.normal().map(f64::from),
-                None => [-motion.x, -motion.y, -motion.z],
-            };
-            self.spawn_orbs_toward([at.x, at.y, at.z], roughly, value as u32);
+            self.spawn_orbs([at.x, at.y, at.z], value as u32);
             self.native_exp_bottle([at.x, at.y, at.z], value as u32);
             return;
         }

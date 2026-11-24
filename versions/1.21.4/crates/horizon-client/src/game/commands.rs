@@ -2613,9 +2613,10 @@ impl Game<'_> {
                     return Err(err("commands.summon.failed", &[]));
                 }
                 "experience_orb" => {
-                    // `new ExperienceOrb(level, pos, Vec3.ZERO, 0)`, unstuck
-                    // like any other orb spawn.
-                    let at = self.unstuck_orb(pos);
+                    // A summoned orb spawns exactly at `pos`: `/summon` uses
+                    // the `(EntityType, Level)` constructor, which draws no
+                    // random yaw or motion and unsticks nothing.
+                    let at = pos;
                     self.next_entity += 1;
                     self.orbs.push(horizon_client::entities::ExperienceOrb {
                         rotation: [0.0, 0.0],

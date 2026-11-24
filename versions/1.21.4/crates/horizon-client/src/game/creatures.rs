@@ -6099,7 +6099,6 @@ impl Game<'_> {
                         p.age,
                         &owner,
                         self.entity_silent(p.id),
-                        p.velocity,
                     );
                     if stack.item.as_ref() != "minecraft:experience_bottle" {
                         self.native_potion_splash(&item, [at.x, at.y, at.z]);
