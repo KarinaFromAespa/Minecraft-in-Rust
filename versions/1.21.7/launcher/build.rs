@@ -3,9 +3,10 @@
 //!
 //! And assembles the version seed (`seed.rs`, read by `src/seed.rs`): the files of this tree the
 //! launcher provides as its own local version on first run — the research lock, the exporters'
-//! Java sources, the preparer's sources, and a precompiled exporters bundle when
-//! `seed-exporters/` holds one. The seed is this tree's own files only: no game jars, no Java
-//! at build time, so the launcher build stays pure Rust.
+//! Java sources, the preparer's sources, jsr305 (the exporter compile's classpath needs
+//! javax.annotation.Nullable), and a precompiled exporters bundle when `seed-exporters/` holds
+//! one. The seed is this tree's own files only: no game jars, no Java at build time, so the
+//! launcher build stays pure Rust.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -89,6 +90,12 @@ fn seed(manifest_dir: &Path) {
             .join("/");
         add(&rel, &path);
     }
+    // jsr305: the exporter compile's classpath needs javax.annotation.Nullable
+    // (horizon-prepare's with_jsr305 looks for it under tools/), and the seed's
+    // version folder has no tools/ otherwise — without it javac crashes
+    // completing symbols from the game jars. A public annotation library, not
+    // Mojang-derived data.
+    add("tools/jsr305-3.0.2.jar", &tree.join("tools/jsr305-3.0.2.jar"));
     // A precompiled exporters bundle, when one was laid out beside the launcher: with it a
     // player needs only a Java runtime to prepare, without it a JDK. The bundle is built, not
     // committed (compiled classes stay out of Git), so its absence is normal. The rerun line

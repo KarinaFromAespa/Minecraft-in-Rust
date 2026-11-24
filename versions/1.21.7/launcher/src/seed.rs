@@ -1,8 +1,9 @@
 //! The launcher's own version: this tree's Minecraft version, provided on first run from files
 //! embedded at build time (build.rs assembles them from the tree — the research lock, the
-//! exporters' Java sources, the preparer's sources, and a precompiled exporters bundle when one
-//! was laid out). No upstream release is involved: the local version plays this tree's game,
-//! and an imported build takes its game files from it (`build_import`).
+//! exporters' Java sources, the preparer's sources, jsr305 for the exporter compile, and a
+//! precompiled exporters bundle when one was laid out). No upstream release is involved: the
+//! local version plays this tree's game, and an imported build takes its game files from it
+//! (`build_import`).
 //!
 //! The seed is written into `versions/<tag>/` (`.installed` beside it, so it lists as installed)
 //! when the folder is missing or its `.seed` marker no longer matches the embedded hash — a
@@ -23,6 +24,7 @@ const OWNED: &[&str] = &[
     "mods/horizon/src/test/java/dev/horizonlab/parity",
     "crates/horizon-prepare",
     "exporters",
+    "tools",
 ];
 
 /// Whether `tag` is this launcher's own version.
@@ -147,6 +149,16 @@ mod tests {
                 .as_deref(),
             Some(horizon_platform::prepare::SOURCES_SHA256)
         );
+    }
+
+    /// The materialized seed carries jsr305 where the preparer looks for it:
+    /// the exporter compile's classpath needs javax.annotation.Nullable.
+    #[test]
+    fn the_materialized_seed_carries_jsr305_for_the_exporter_compile() {
+        let versions = dir("jsr305");
+        assert!(ensure_local_version_in(&versions).unwrap());
+        let local = versions.join(LOCAL_TAG);
+        assert!(local.join("tools/jsr305-3.0.2.jar").is_file());
     }
 
     /// The materialized lock pins the local version, and the exporter sources are all there.

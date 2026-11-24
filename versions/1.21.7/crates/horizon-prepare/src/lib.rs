@@ -19,6 +19,7 @@ pub mod java;
 pub mod launch_api;
 mod pool;
 pub mod pyjson;
+mod remap;
 mod sounds;
 mod survival;
 mod worker;
@@ -656,6 +657,7 @@ fn prepare_impl(
                     options.minecraft_dir.as_deref(),
                     &options.inputs,
                     options.server_jar.as_deref(),
+                    &jdk.home(),
                     log,
                 )?;
             }

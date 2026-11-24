@@ -1854,6 +1854,7 @@ dependencies = [
  "regex",
  "sha1",
  "sha2",
+ "ureq",
  "zip",
 ]
 

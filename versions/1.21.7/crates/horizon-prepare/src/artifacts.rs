@@ -1075,12 +1075,17 @@ fn unpack_server(
 /// Imports the player's own pinned game files into `.local/minecraft/<version>` and writes the
 /// class inventories and prepared.json (tools/lab.py `prepare`). The decompiler lab.py also
 /// fetches is a development tool, not something preparing needs; `tools/lab.py prepare` gets it.
+/// An obfuscated release is remapped with Mojang's official mapping tables after the jars are
+/// imported (`crate::remap`), so the inventories and every exporter downstream read named
+/// classes; `java_home` is the runtime's home, the first place the remapper's compiler lookup
+/// tries.
 pub fn import(
     root: &Path,
     lock: &Lock,
     minecraft: Option<&Path>,
     inputs: &Inputs,
     server_jar: Option<&Path>,
+    java_home: &Path,
     log: Log,
 ) -> Result<(), String> {
     let files = game_files(minecraft, &lock.version).with(inputs, &lock.version);
@@ -1092,15 +1097,6 @@ pub fn import(
         "sha1",
         &files.hint(&lock.version),
     )?;
-    let downloads = manifest.get("downloads");
-    if downloads.and_then(|d| d.get("client_mappings")).is_some()
-        || downloads.and_then(|d| d.get("server_mappings")).is_some()
-    {
-        return Err(
-            "This workflow targets unobfuscated releases. Older releases need a remapping stage."
-                .into(),
-        );
-    }
     let id = manifest
         .get("id")
         .and_then(Value::as_str)
@@ -1143,6 +1139,19 @@ pub fn import(
                 (client.clone(), client_libraries.clone(), true)
             }
         };
+    // An obfuscated release's jars are renamed with Mojang's official mapping tables
+    // before the inventories below are written, so they and every exporter downstream
+    // read named classes. Unobfuscated releases publish no tables: a no-op for them.
+    crate::remap::remap_if_needed(
+        root,
+        lock,
+        &manifest,
+        &client,
+        &server,
+        server_from_client,
+        java_home,
+        log,
+    )?;
     write_import_metadata(
         root,
         lock,
@@ -1379,6 +1388,16 @@ pub fn verify(lock: &Lock) -> Result<Artifacts, String> {
     // table it was produced from; a jar is also accepted when its digest is
     // the recorded one and the recorded table is the manifest's own mapping
     // download (the same authentication the pipeline's parity tools use).
+    // When the manifest publishes a mapping table for a side, only the
+    // remapped digest is accepted for it: the original jar is obfuscated,
+    // and accepting it would let an import interrupted before the remap
+    // stage verify as complete, then fail compiling the exporters.
+    let has_mappings = |side: &str| {
+        manifest
+            .get("downloads")
+            .and_then(|downloads| downloads.get(format!("{side}_mappings").as_str()))
+            .is_some()
+    };
     let remapped = read_json(&lock.directory.join("remapped.json")).ok();
     let remapped_digest = |side: &str, key: &str| -> Option<String> {
         let record = remapped.as_ref()?.get(side)?;
@@ -1403,10 +1422,15 @@ pub fn verify(lock: &Lock) -> Result<Artifacts, String> {
         .exists()
         .then(|| digest(&client, "sha1"))
         .transpose()?;
+    let original = pinned == Some(lock.pin("client_sha1")?)
+        && client_digest.as_deref() == pinned;
     let good = client_digest.is_some()
-        && ((pinned == Some(lock.pin("client_sha1")?) && client_digest.as_deref() == pinned)
+        && ((original && !has_mappings("client"))
             || remapped_digest("client", "sha1") == client_digest);
     if !good {
+        if original && has_mappings("client") {
+            return Err("client jar is not remapped; prepare again with --prepare".into());
+        }
         return Err("client artifact checksum changed; prepare again with --prepare".into());
     }
     jars.insert("client", client.clone());
@@ -1442,9 +1466,12 @@ pub fn verify(lock: &Lock) -> Result<Artifacts, String> {
     }
     let game = lock.directory.join("jars/server-game.jar");
     let game_digest = game.exists().then(|| digest(&game, "sha256")).transpose()?;
-    if game_digest.as_deref() != Some(versions[0].0.as_str())
-        && remapped_digest("server", "sha256") != game_digest
-    {
+    let original = game_digest.as_deref() == Some(versions[0].0.as_str());
+    let remapped = remapped_digest("server", "sha256") == game_digest;
+    if !(original && !has_mappings("server")) && !remapped {
+        if original && has_mappings("server") {
+            return Err("server jar is not remapped; prepare again with --prepare".into());
+        }
         return Err("Inner server artifact checksum changed".into());
     }
     jars.insert("server", game);
@@ -1668,6 +1695,43 @@ mod tests {
         assert!(reuse_imported(&fixture.target, &|_| {}).unwrap());
         assert!(read_json(&lock.directory.join("prepared.json")).is_ok());
         assert!(read_json(&lock.directory.join("reports/client-inventory.json")).is_ok());
+    }
+
+    #[test]
+    fn obfuscated_jars_verify_only_once_remapped() {
+        let fixture = Imports::new();
+        assert!(reuse_imported(&fixture.target, &|_| {}).unwrap());
+        let lock = Lock::read(&fixture.target).unwrap();
+        // The manifest gains mapping tables, as an obfuscated release's does.
+        let manifest_path = lock.directory.join("manifest.json");
+        let old_sha1 = digest(&manifest_path, "sha1").unwrap();
+        let manifest = fs::read_to_string(&manifest_path).unwrap().replace(
+            "}},\"libraries\"",
+            "},\"client_mappings\":{\"sha1\":\"client-table\"},\"server_mappings\":{\"sha1\":\"server-table\"}},\"libraries\"",
+        );
+        fs::write(&manifest_path, &manifest).unwrap();
+        let lock_path = fixture.target.join("research-lock.json");
+        let lock_text = fs::read_to_string(&lock_path).unwrap().replace(
+            &old_sha1,
+            &digest(&manifest_path, "sha1").unwrap(),
+        );
+        fs::write(&lock_path, lock_text).unwrap();
+        let lock = Lock::read(&fixture.target).unwrap();
+        // The jars still match the pins, but they are obfuscated: an import
+        // interrupted before the remap stage must not verify as complete.
+        let error = verify(&lock)
+            .err()
+            .expect("un-remapped obfuscated jars verified");
+        assert!(error.contains("not remapped"), "{error}");
+        // The remap stage's record: each jar's digest plus the table it came from.
+        let remapped = format!(
+            "{{\"client\":{{\"sha1\":\"{}\",\"table_sha1\":\"client-table\"}},\"server\":{{\"sha1\":\"{}\",\"sha256\":\"{}\",\"table_sha1\":\"server-table\"}}}}",
+            digest(&lock.directory.join("jars/client.jar"), "sha1").unwrap(),
+            digest(&lock.directory.join("jars/server-game.jar"), "sha1").unwrap(),
+            digest(&lock.directory.join("jars/server-game.jar"), "sha256").unwrap(),
+        );
+        fs::write(lock.directory.join("remapped.json"), remapped).unwrap();
+        verify(&lock).unwrap();
     }
 
     #[test]
@@ -1918,6 +1982,7 @@ mod tests {
                 Some(&prism),
                 &Inputs::default(),
                 Some(&server),
+                Path::new("java"),
                 &|_| {},
             )
         };
@@ -2043,7 +2108,7 @@ mod tests {
             prism.join("libraries/com/mojang/minecraft/9.9/minecraft-9.9-client.jar")
         );
 
-        import(&fixture.target, &lock, None, &inputs, None, &|_| {}).unwrap();
+        import(&fixture.target, &lock, None, &inputs, None, Path::new("java"), &|_| {}).unwrap();
         let found = verify(&lock).unwrap();
         assert!(found.manifest_from_prism);
         assert!(found.server_from_client);
@@ -2135,6 +2200,7 @@ mod tests {
                 Some(dir),
                 &Inputs::default(),
                 Some(&server),
+                Path::new("java"),
                 &|_| {},
             )
         };
@@ -2211,6 +2277,7 @@ mod tests {
                 Some(&empty),
                 inputs,
                 Some(&server),
+                Path::new("java"),
                 &|_| {},
             )
         };
@@ -2246,6 +2313,7 @@ mod tests {
             Some(&empty),
             &Inputs::default(),
             None,
+            Path::new("java"),
             &|_| {},
         )
         .unwrap_err();
