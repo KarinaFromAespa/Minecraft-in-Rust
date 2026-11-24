@@ -27,8 +27,9 @@ use horizon_world::{
 
 type Pos = (i32, i32, i32);
 
-/// `GameTestBlockHighlightRenderer.highlightPos`'s colour, 1610678016: ARGB 0x6000FF00.
-const HIGHLIGHT_FILL: u32 = 0x6000_FF00;
+/// `GameTestBlockHighlightRenderer.highlightPos`'s colour, -2147418368: ARGB 0x8000FF00.
+/// (1.21.11's is 0x6000FF00.)
+const HIGHLIGHT_FILL: u32 = 0x8000_FF00;
 
 /// `ServerboundTestInstanceBlockActionPacket.Action`.
 const INIT: i32 = 0;

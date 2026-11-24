@@ -1014,3 +1014,35 @@ Rust's JSON-RPC endpoint is its own implementation). The remaining
 27 are all-same. Three carry already-ported tree diffs, noted in
 their entries: 512 (anger work), 544 (mipmap metadata), 559
 (offsetRandom + create_experience).
+
+Rank 3 batch 3 (46 items, rank 3 140 -> 186, 650/719): the review
+items with 1-3 real methods, read from review-real-diffs-r3.json.
+Six ports. 505 debug_options.rs: getRowWidth is 310 in 1.21.10, 350
+in 1.21.11 (one constant). 548 query.rs: 1.21.10's
+NetworkDataOutputStream.writeString is DataOutputStream.writeBytes
+(the low byte of each char), not UTF-8 — query strings now send low
+bytes, with a test. 477 test_instances.rs: the gametest highlight
+fill is 0x8000FF00 in 1.21.10, 0x6000FF00 in 1.21.11. 469
+management.rs: 1.21.10's validateAuthentication takes a Bearer
+token only — the WebSocket-subprotocol token and origin check are
+1.21.11's — denying everything with "Invalid or missing API key";
+the management-server-allowed-origins property is removed
+(1.21.10's SecurityConfig has only secretKey); the handshake echoes
+minecraft-v1 when the client offers it. 475
+dedicated/management.rs: 1.21.10's gamerule RPC takes an UntypedRule
+(a string value: Boolean.parseBoolean / Integer.parseInt, no range
+check — IntegerValue.set just sets) and returns a TypedRule whose
+value is likewise a string. 567 vanilla.rs: the time command's
+clock/timeline nodes were 26.x leakage — both vanilla TimeCommands
+are the simple set/add/query form (javap-verified; 1.21.10 has no
+world/timeline package) — so the section is the 1.21.11 tree's form
+verbatim and clock_nodes is deleted; the Resource::Clock/Timeline
+variants and Suggests::TimeMarkers stay as dead pub API. That also
+fixes parses_vanilla_commands (time set day, time query daytime),
+which was failing silently: horizon-command is not in CI's 7
+suites. Three doc fixes on no-change verdicts: 530
+(can_spread_fire_around already implements the 1.21.10 two-rule fire
+gate via fire_radius), 557 (the level-load callback is compiled-only,
+the 1.21.10 isSectionCompiled form), 483 (canSetSpawn reads the
+dimension type's respawnAnchorWorks). The other 37 are renames,
+empty diffs, trig noise, or render plumbing.

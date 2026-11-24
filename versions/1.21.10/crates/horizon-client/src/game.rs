@@ -1556,9 +1556,12 @@ impl LevelAccess for GameLevel<'_> {
     fn difficulty(&self) -> i32 {
         self.difficulty
     }
-    /// `ServerLevel.canSpreadFireAround`: a player (not a spectator) closer
-    /// than the `fire_spread_radius_around_player` rule to the block's corner
-    /// (`ChunkMap.anyPlayerCloseEnoughTo`); -1 spreads everywhere.
+    /// The 1.21.10 fire gate (`LavaFluid#randomTick`, `FireBlock#tick`): `doFireTick` on, and either
+    /// `allowFireTickAwayFromPlayers` or a player (not a spectator) within 128 blocks
+    /// (`anyPlayerCloseEnoughForSpawning`). The two rules arrive folded into
+    /// `fire_spread_radius_around_player` by `gamerules::fire_radius`: 0 is off, -1 spreads
+    /// everywhere, else the radius. (1.21.11's `ServerLevel.canSpreadFireAround` reads the
+    /// radius rule directly.)
     fn can_spread_fire_around(&self, pos: BlockPos) -> bool {
         let radius = self.rules.fire_spread_radius_around_player;
         radius == -1

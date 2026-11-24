@@ -30,11 +30,12 @@ struct Op {
     bypass: Option<bool>,
 }
 
-/// A `GameRuleUpdate` as `TYPED_CODEC` writes it: the rule's id, its type and its value.
+/// A `TypedRule` as 1.21.10's `getTypedRule` writes it: the rule's id, its type and its value — the
+/// value a string (`String.valueOf`). 1.21.11's `GameRuleUpdate` carries a typed JSON value instead.
 fn typed_rule(rule: &gamerules::Rule, value: GameRuleValue) -> Value {
     let (kind, value) = match value {
-        GameRuleValue::Bool(b) => ("boolean", json!(b)),
-        GameRuleValue::Int(i) => ("integer", json!(i)),
+        GameRuleValue::Bool(b) => ("boolean", b.to_string()),
+        GameRuleValue::Int(i) => ("integer", i.to_string()),
     };
     json!({ "key": format!("minecraft:{}", rule.name), "type": kind, "value": value })
 }
@@ -70,8 +71,9 @@ impl Game<'_> {
             }
             // `GameRulesService.update` through `MinecraftGameRuleServiceImpl.updateGameRule`: the rule is set,
             // logged and told on every update, even to the value it has (as vanilla's sends its notification
-            // then too, which the parity script checks). What doesn't fit answers with the texts of vanilla's
-            // codecs, as the parity script saw them.
+            // then too, which the parity script checks). 1.21.10 takes an `UntypedRule`: the value is a
+            // string, parsed with `Boolean.parseBoolean` (only "true" is true) or `Integer.parseInt`,
+            // and `IntegerValue.set` has no range check.
             "gamerules/update" => {
                 let update = &body["value"];
                 let Some(key) = update["key"].as_str() else {
@@ -89,23 +91,19 @@ impl Game<'_> {
                     ) });
                 };
                 let wanted = &update["value"];
-                let value = match (rule.default, wanted) {
-                    (GameRuleValue::Bool(_), Value::Bool(b)) => Ok(GameRuleValue::Bool(*b)),
-                    (GameRuleValue::Bool(_), other) => Err(format!("Not a boolean: {other}")),
-                    (GameRuleValue::Int(_), other) => match other.as_i64() {
-                        Some(n) if (i64::from(rule.min)..=i64::from(rule.max)).contains(&n) => {
-                            Ok(GameRuleValue::Int(n as i32))
-                        }
-                        Some(n) => Err(format!(
-                            "Value {n} outside of range [{}:{}]",
-                            rule.min, rule.max
-                        )),
-                        None => Err(format!("Not a number: {other}")),
-                    },
+                let Some(wanted) = wanted.as_str() else {
+                    return json!({ "invalid": format!("Not a string: {wanted}") });
                 };
-                let value = match value {
-                    Ok(value) => value,
-                    Err(invalid) => return json!({ "invalid": invalid }),
+                let value = match rule.default {
+                    GameRuleValue::Bool(_) => GameRuleValue::Bool(wanted == "true"),
+                    GameRuleValue::Int(_) => match wanted.parse::<i32>() {
+                        Ok(n) => GameRuleValue::Int(n),
+                        Err(_) => {
+                            return json!({ "invalid": format!(
+                                "For input string: \"{wanted}\""
+                            ) });
+                        }
+                    },
                 };
                 let current = self.ui.rules.get(rule.name).unwrap_or(rule.default);
                 rpc(format!(
@@ -855,16 +853,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_game_rule_is_written_as_vanillas_typed_codec_does() {
+    fn a_game_rule_is_written_as_vanillas_typed_rule_does() {
         let pvp = gamerules::rule("pvp").unwrap();
         assert_eq!(
             typed_rule(pvp, GameRuleValue::Bool(false)),
-            json!({ "key": "minecraft:pvp", "type": "boolean", "value": false })
+            json!({ "key": "minecraft:pvp", "type": "boolean", "value": "false" })
         );
         let tick = gamerules::rule("minecraft:random_tick_speed").unwrap();
         assert_eq!(
             typed_rule(tick, GameRuleValue::Int(3)),
-            json!({ "key": "minecraft:random_tick_speed", "type": "integer", "value": 3 })
+            json!({ "key": "minecraft:random_tick_speed", "type": "integer", "value": "3" })
         );
     }
 }

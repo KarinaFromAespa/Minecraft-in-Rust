@@ -148,9 +148,11 @@ impl Query {
     }
 }
 
-/// `NetworkDataOutputStream.writeString`: UTF-8 and a NUL.
+/// `NetworkDataOutputStream.writeString` in 1.21.10: `DataOutputStream.writeBytes`, which writes the
+/// low byte of each UTF-16 code unit, then a NUL. (1.21.11 switched to explicit UTF-8; a 1.21.10 MOTD
+/// with a section sign sends one 0xA7 byte, not two UTF-8 bytes.)
 fn string(out: &mut Vec<u8>, text: &str) {
-    out.extend(text.as_bytes());
+    out.extend(text.encode_utf16().map(|u| u as u8));
     out.push(0);
 }
 
@@ -380,6 +382,13 @@ fn serve(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn query_strings_send_the_low_byte_of_each_char() {
+        let mut out = Vec::new();
+        string(&mut out, "§aHi");
+        assert_eq!(out, vec![0xA7, b'a', b'H', b'i', 0]);
+    }
 
     fn address(port: u16) -> SocketAddr {
         SocketAddr::from(([127, 0, 0, 1], port))

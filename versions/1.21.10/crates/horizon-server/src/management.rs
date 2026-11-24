@@ -197,7 +197,6 @@ struct Settings {
     host: String,
     port: i32,
     secret: String,
-    allowed_origins: Vec<String>,
     /// TLS, unless `management-server-tls-enabled=false`.
     tls: Option<management_tls::Tls>,
     /// `status-heartbeat-interval`: seconds between the status notifications, none when 0 or less.
@@ -274,11 +273,6 @@ fn settings(dir: &Path) -> Result<Option<Settings>, String> {
         host: p.management_server_host,
         port: p.management_server_port,
         secret,
-        allowed_origins: p
-            .management_server_allowed_origins
-            .split(',')
-            .map(str::to_owned)
-            .collect(),
         tls,
         heartbeat,
     }))
@@ -415,46 +409,33 @@ fn connection(shared: &Arc<Shared>, settings: &Settings, stream: &TcpStream) {
     socket.close(1000);
 }
 
-/// `AuthenticationHandler.performSecurityChecks`: the secret as a bearer token, or in the WebSocket
-/// subprotocol from an allowed origin. `Ok(true)` when it came in the subprotocol.
-fn authenticate(settings: &Settings, request: &Request) -> Result<bool, &'static str> {
-    let valid = |key: &str| !key.is_empty() && crate::api::same_token(key, &settings.secret);
-    if let Some(token) = request
-        .header("authorization")
-        .and_then(|h| h.strip_prefix("Bearer "))
-    {
-        return if valid(token.trim()) {
-            Ok(false)
-        } else {
-            Err("Invalid API key")
-        };
-    }
-    let Some(token) = request
-        .header("sec-websocket-protocol")
-        .and_then(|h| h.strip_prefix("minecraft-v1,"))
-    else {
-        return Err("Missing API key");
+/// `AuthenticationHandler.validateAuthentication`, as 1.21.10's `performSecurityChecks` calls it: the
+/// secret as a bearer token only - no WebSocket-subprotocol token, no origin check (both are 1.21.11's).
+/// Every failure denies with the one message, "Invalid or missing API key".
+fn authenticate(settings: &Settings, request: &Request) -> Result<(), &'static str> {
+    let denied = Err("Invalid or missing API key");
+    let Some(header) = request.header("authorization") else {
+        return denied;
     };
-    let origin = request.header("origin").unwrap_or_default();
-    if origin.is_empty() || !settings.allowed_origins.iter().any(|o| o == origin) {
-        return Err("Origin Not Allowed");
+    if header.trim().is_empty() {
+        return denied;
     }
-    if valid(token.trim()) {
-        Ok(true)
+    let Some(token) = header.strip_prefix("Bearer") else {
+        return denied;
+    };
+    if crate::api::same_token(token.trim(), &settings.secret) {
+        Ok(())
     } else {
-        Err("Invalid API key")
+        denied
     }
 }
 
 /// The upgrade's 101, or the answer that refuses it.
 fn handshake(settings: &Settings, request: &Request) -> Result<Response, Response> {
-    let in_protocol = match authenticate(settings, request) {
-        Ok(in_protocol) => in_protocol,
-        Err(reason) => {
-            let body = format!("{{\"error\":\"Unauthorized\",\"message\":\"{reason}\"}}");
-            return Err(Response::text(401, "application/json", body));
-        }
-    };
+    if let Err(reason) = authenticate(settings, request) {
+        let body = format!("{{\"error\":\"Unauthorized\",\"message\":\"{reason}\"}}");
+        return Err(Response::text(401, "application/json", body));
+    }
     if request.path != "/" {
         return Err(Response::error(
             404,
@@ -471,7 +452,12 @@ fn handshake(settings: &Settings, request: &Request) -> Result<Response, Respons
         .with("Upgrade", "websocket")
         .with("Connection", "Upgrade")
         .with("Sec-WebSocket-Accept", crate::websocket::accept_key(key));
-    if in_protocol {
+    // The subprotocol is the websocket handshake's, not the auth's: vanilla's Netty handler echoes
+    // `minecraft-v1` whenever the client offers it.
+    let offered = request.header("sec-websocket-protocol").is_some_and(|h| {
+        h.split(',').any(|p| p.trim() == "minecraft-v1")
+    });
+    if offered {
         response = response.with("Sec-WebSocket-Protocol", "minecraft-v1");
     }
     Ok(response)
@@ -656,7 +642,6 @@ mod tests {
             host: "127.0.0.1".into(),
             port: 0,
             secret: SECRET.into(),
-            allowed_origins: vec!["http://localhost:3000".into()],
             tls: None,
             heartbeat: 0,
         }
@@ -679,28 +664,32 @@ mod tests {
     fn the_secret_comes_as_vanillas_authentication_handler_takes_it() {
         let s = settings();
         let bearer = format!("Bearer {SECRET}");
+        let nospace = format!("Bearer{SECRET}");
         let protocol = format!("minecraft-v1, {SECRET}");
-        let cases: [(&[(&str, &str)], Result<bool, &str>); 6] = [
-            (&[], Err("Missing API key")),
-            (&[("Authorization", "Bearer nope")], Err("Invalid API key")),
-            (&[("authorization", &bearer)], Ok(false)),
+        let cases: [(&[(&str, &str)], Result<(), &str>); 7] = [
+            (&[], Err("Invalid or missing API key")),
+            (
+                &[("Authorization", "Bearer wrong")],
+                Err("Invalid or missing API key"),
+            ),
+            (&[("authorization", &bearer)], Ok(())),
+            // `startsWith("Bearer")` needs no space after it.
+            (&[("authorization", &nospace)], Ok(())),
+            (
+                &[("authorization", "bearer abc")],
+                Err("Invalid or missing API key"),
+            ),
+            // 1.21.10 takes no token from the subprotocol, whatever the origin.
             (
                 &[("Sec-WebSocket-Protocol", &protocol)],
-                Err("Origin Not Allowed"),
-            ),
-            (
-                &[
-                    ("Sec-WebSocket-Protocol", &protocol),
-                    ("Origin", "http://evil"),
-                ],
-                Err("Origin Not Allowed"),
+                Err("Invalid or missing API key"),
             ),
             (
                 &[
                     ("Sec-WebSocket-Protocol", &protocol),
                     ("Origin", "http://localhost:3000"),
                 ],
-                Ok(true),
+                Err("Invalid or missing API key"),
             ),
         ];
         for (headers, expected) in cases {

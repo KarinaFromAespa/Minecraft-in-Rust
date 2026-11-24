@@ -144,7 +144,8 @@ impl LevelLoadTracker {
     pub fn wants_player_section(&self) -> bool {
         matches!(self.state, Some(ClientState::WaitingForPlayerChunk { .. }))
     }
-    /// The callback: the player's section is compiled and visible.
+    /// The callback: the player's section is compiled (`isSectionCompiled` in 1.21.10;
+    /// 1.21.11's `isSectionCompiledAndVisible` also wants it visible).
     pub fn player_section_ready(&mut self) {
         if let Some(ClientState::WaitingForPlayerChunk {
             player_section_ready,

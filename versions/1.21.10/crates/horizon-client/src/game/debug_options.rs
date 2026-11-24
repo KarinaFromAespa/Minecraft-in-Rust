@@ -17,8 +17,8 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 /// `HeaderAndFooterLayout(this, 61, 33)`.
 const HEADER: f32 = 61.0;
 const FOOTER: f32 = 33.0;
-/// `OptionList.getRowWidth` and `ITEM_HEIGHT`.
-const ROW_WIDTH: f32 = 350.0;
+/// `OptionList.getRowWidth` and `ITEM_HEIGHT`: 310 in 1.21.10 (350 is 1.21.11's).
+const ROW_WIDTH: f32 = 310.0;
 const ITEM: f32 = 20.0;
 /// `OptionEntry.BUTTON_WIDTH`, at the CycleButtons' 16 pixels high.
 const BUTTON: f32 = 60.0;

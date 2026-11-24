@@ -1,7 +1,7 @@
 {
  "release": "1.21.10",
  "rank": 3,
- "batch": 2,
+ "batch": 30,
  "note": "",
  "items": {
   "485": {
@@ -703,6 +703,236 @@
    "module": "crates/horizon-world/src/worldgen/structure/temple.rs",
    "verdict": "no-change",
    "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/world/level/levelgen/structure/structures/DesertPyramidStructure#afterPlace. No behaviour diff 1.21.11->1.21.10."
+  },
+  "466": {
+   "module": "crates/horizon-client-render/src/post_chain.rs",
+   "verdict": "no-change",
+   "evidence": "TextureInput ctor/filter plumbing in post_chain: 1.21.11's `PostChain` passes texture inputs differently, but the Rust's post-chain is Horizon's own wgpu pipeline \u2014 same rendered output, no vanilla behaviour to mirror."
+  },
+  "467": {
+   "module": "crates/horizon-client/src/game/paintings.rs",
+   "verdict": "no-change",
+   "evidence": "GameRules rename only: `ENTITY_DROPS` (1.21.11) vs `RULE_DOENTITYDROPS` (1.21.10) in the paintings drop check; the Rust reads the rule through its version-agnostic API."
+  },
+  "469": {
+   "module": "crates/horizon-server/src/management.rs",
+   "verdict": "ported",
+   "evidence": "1.21.10's `AuthenticationHandler.validateAuthentication` (javap-verified) takes the secret as a Bearer token ONLY \u2014 no WebSocket-subprotocol token, no origin check (both 1.21.11's) \u2014 and denies every failure with the one message 'Invalid or missing API key'. `authenticate` is now Bearer-only (`startsWith(\"Bearer\")`, trim, constant-time compare); the `management-server-allowed-origins` property is removed (1.21.10's `SecurityConfig` record has only `secretKey`); the handshake echoes `minecraft-v1` when the client offers it, as vanilla's Netty handler does. The `Method#apply`/`ParameterlessMethod#apply` diffs are codec plumbing (MethodInfo indirection vs direct fields), same behaviour. Test rewritten for the 1.21.10 cases."
+  },
+  "472": {
+   "module": "crates/horizon-client/src/mobs/illusioner.rs",
+   "verdict": "no-change",
+   "evidence": "`Illusioner#aiStep` and `#finalizeSpawn` diffs are EMPTY; `registerGoals` is a package move (`monster/illager/` vs `monster/`), same goals in the same order."
+  },
+  "475": {
+   "module": "crates/horizon-client/src/game/dedicated/management.rs",
+   "verdict": "ported",
+   "evidence": "1.21.10's gamerule RPC takes an `UntypedRule`: the value is a STRING \u2014 `Boolean.parseBoolean` (only \"true\" is true, never an error) and `Integer.parseInt` (`For input string: \"...\"` on failure) \u2014 and `IntegerValue.set` has no range check (javap-verified: it just sets). `TypedRule`'s value is likewise a string (`String.valueOf`), type names \"boolean\"/\"integer\" (RuleType serializes so). The update path now takes string values with no range check; `typed_rule` writes string values; test updated. `get` is unchanged (same rule list, same typed output)."
+  },
+  "477": {
+   "module": "crates/horizon-client/src/game/test_instances.rs",
+   "verdict": "ported",
+   "evidence": "`GameTestBlockHighlightRenderer.highlightPos`'s fill is -2147418368 (ARGB 0x8000FF00) in 1.21.10, 1610678016 (0x6000FF00) in 1.21.11 \u2014 the alpha byte differs. `HIGHLIGHT_FILL` is now 0x8000_FF00. `submitErrorMarker` is render-plumbing (different submit API), no behaviour to mirror."
+  },
+  "478": {
+   "module": "crates/horizon-assets/src/bake.rs",
+   "verdict": "no-change",
+   "evidence": "`FaceBakery#bakeQuad`/`calculateFacing` are restructured in 1.21.11 (inline vertex baking with FaceInfo/bakeVertex; `GeometryUtils.normal` + `findClosestDirection`) but the math is identical \u2014 cross product, closest direction by dot product, UV shrink (already handled per item 200). Same baked quads."
+  },
+  "479": {
+   "module": "crates/horizon-client/src/multiplayer.rs",
+   "verdict": "no-change",
+   "evidence": "The Rust's server-list hover helpers (`over_right_half`/`over_top_left`/`over_bottom_left`) already use the 1.21.10 inline float regions (16.0/32.0); 1.21.11's int-coord helpers are the same regions."
+  },
+  "480": {
+   "module": "crates/horizon-client/src/game/commands/place.rs",
+   "verdict": "no-change",
+   "evidence": "`IdentifierException` vs `ResourceLocationException` \u2014 a rename, same error."
+  },
+  "481": {
+   "module": "crates/horizon-client/src/game/item_use.rs",
+   "verdict": "no-change",
+   "evidence": "`renderArmWithItem`: the `applyItemArmTransform` placement move and the `swingArm` extra float are vanilla render plumbing; the Rust's first-person poses come from its own `first_person` module, not vanilla's call order. `TridentItem#releaseUsing` is a package move (`projectile/arrow/` vs `projectile/`) plus f32-vs-double trig noise."
+  },
+  "483": {
+   "module": "crates/horizon-client/src/game/respawn_anchor.rs",
+   "verdict": "no-change",
+   "evidence": "`canSetSpawn` already reads the dimension type's `respawnAnchorWorks` \u2014 the 1.21.10 form (1.21.11 reads the `RESPAWN_ANCHOR_WORKS` environment attribute). `explode`/`useWithoutItem` diffs are ServerLevel-vs-Level receivers and restructure, same outcome. Doc fixed to say dimension type, not attribute."
+  },
+  "484": {
+   "module": "crates/horizon-client/src/spear.rs",
+   "verdict": "no-change",
+   "evidence": "`ProjectileUtil#getMobArrow` diff is EMPTY \u2014 a false positive."
+  },
+  "489": {
+   "module": "crates/horizon-client/src/game/command_minecarts.rs",
+   "verdict": "no-change",
+   "evidence": "`MinecartCommandBase#createCommandSourceStack` is PermissionSet vs int level 2 (same permission); `#onUpdated` diff is EMPTY."
+  },
+  "493": {
+   "module": "crates/horizon-client-render/src/hud/pack_text.rs",
+   "verdict": "no-change",
+   "evidence": "`GlobalSettingsUniform#update`'s camera-position UBO write is 1.21.11-only; the Rust's wgpu uniform layout is Horizon-owned, no vanilla behaviour to mirror."
+  },
+  "495": {
+   "module": "crates/horizon-client/src/game/wandering_trader.rs",
+   "verdict": "no-change",
+   "evidence": "`WanderingTraderSpawner#spawn` diff is EMPTY; `#tick` is a GameRules rename (`SPAWN_WANDERING_TRADERS` vs `RULE_DO_TRADER_SPAWNING`)."
+  },
+  "496": {
+   "module": "crates/horizon-client/src/mobs/phantom.rs",
+   "verdict": "no-change",
+   "evidence": "f32-vs-double trig noise, sub-rounding."
+  },
+  "497": {
+   "module": "crates/horizon-client/src/toasts.rs",
+   "verdict": "no-change",
+   "evidence": "`getCurrentSongName` vs the music-manager key \u2014 the same value."
+  },
+  "501": {
+   "module": "crates/horizon-client/src/game/cartography.rs",
+   "verdict": "no-change",
+   "evidence": "`RenderTypes.text` vs `RenderType.text` \u2014 a rename."
+  },
+  "502": {
+   "module": "crates/horizon-client/src/game/test_environments.rs",
+   "verdict": "no-change",
+   "evidence": "GAMEMASTER PermissionSet vs permission level 2 \u2014 the same level."
+  },
+  "503": {
+   "module": "crates/horizon-client/src/mobs/trader.rs",
+   "verdict": "no-change",
+   "evidence": "`TradeWithPlayerGoal#canUse` diff is EMPTY \u2014 a false positive."
+  },
+  "504": {
+   "module": "crates/horizon-client/src/realms/upload.rs",
+   "verdict": "no-change",
+   "evidence": "`worldClosed()` vs `isWorldClosed()` \u2014 a rename."
+  },
+  "505": {
+   "module": "crates/horizon-client/src/game/debug_options.rs",
+   "verdict": "ported",
+   "evidence": "`DebugOptionsScreen$OptionList#getRowWidth` returns 310 in 1.21.10, 350 in 1.21.11. `ROW_WIDTH` is now 310.0. (Menu chrome, but a one-constant fix.)"
+  },
+  "506": {
+   "module": "crates/horizon-client/src/game/initial_spawn.rs",
+   "verdict": "no-change",
+   "evidence": "GameRules rename: `RESPAWN_RADIUS` vs `RULE_SPAWN_RADIUS`."
+  },
+  "508": {
+   "module": "crates/horizon-client/src/mobs/enderman.rs",
+   "verdict": "no-change",
+   "evidence": "Both enderman goals are a GameRules rename (`MOB_GRIEFING` vs `RULE_MOBGRIEFING`)."
+  },
+  "509": {
+   "module": "crates/horizon-client/src/game/dispenser.rs",
+   "verdict": "no-change",
+   "evidence": "`SpectralArrowItem#asProjectile` diff is EMPTY \u2014 a false positive."
+  },
+  "510": {
+   "module": "crates/horizon-client-render/src/gfx/panorama.rs",
+   "verdict": "no-change",
+   "evidence": "Render-pass plumbing (`writeTransform`/`bindSampler`) in the panorama renderer; the Rust's panorama is its own implementation."
+  },
+  "514": {
+   "module": "crates/horizon-client/src/game/native_client_services.rs",
+   "verdict": "no-change",
+   "evidence": "`isOverlayVisible` vs `isF3Visible` \u2014 a rename, same flag."
+  },
+  "524": {
+   "module": "crates/horizon-client/src/game/commands/profiles.rs",
+   "verdict": "no-change",
+   "evidence": "LEVEL_ADMINS PermissionSet vs permission level 3 \u2014 the same level."
+  },
+  "526": {
+   "module": "crates/horizon-client/src/game/tutorial.rs",
+   "verdict": "no-change",
+   "evidence": "Instruction reordering in the tutorial, same values in the same order of effect."
+  },
+  "530": {
+   "module": "crates/horizon-world/src/level/fluids.rs",
+   "verdict": "no-change",
+   "evidence": "The Rust's `can_spread_fire_around` already implements the 1.21.10 gate: `doFireTick` + `allowFireTickAwayFromPlayers` + 128-block player proximity (`anyPlayerCloseEnoughForSpawning`), folded into `fire_spread_radius_around_player` by `gamerules::fire_radius` (0 off, -1 away, else 128). The 1.21.11-only part is just the method's name in vanilla; the helper's implementation is the 1.21.10 form. Doc fixed to cite the 1.21.10 gate. (Contrast item 169: lightning gates on doFireTick only in 1.21.10, with no proximity check \u2014 that one was a real port.)"
+  },
+  "535": {
+   "module": "crates/horizon-client/src/game/totem.rs",
+   "verdict": "no-change",
+   "evidence": "f32-vs-double trig noise in the totem activation animation, sub-rounding."
+  },
+  "540": {
+   "module": "crates/horizon-client/src/game/crossbow.rs",
+   "verdict": "no-change",
+   "evidence": "`Stray#getArrow` diff is EMPTY \u2014 a false positive."
+  },
+  "541": {
+   "module": "crates/horizon-client/src/game/golem_defense_tests.rs",
+   "verdict": "no-change",
+   "evidence": "`DefendVillageTargetGoal#canUse` diff is EMPTY \u2014 a false positive."
+  },
+  "546": {
+   "module": "crates/horizon-client/src/title/tests.rs",
+   "verdict": "no-change",
+   "evidence": "`AccessibilityOnboardingScreen#init` is widget-construction plumbing (builder vs ctor for FocusableTextWidget, storing the field in 1.21.10); the screen renders the same text."
+  },
+  "548": {
+   "module": "crates/horizon-server/src/query.rs",
+   "verdict": "ported",
+   "evidence": "1.21.10's `NetworkDataOutputStream.writeString` is `DataOutputStream.writeBytes` \u2014 the low byte of each UTF-16 code unit \u2014 while 1.21.11 writes explicit UTF-8. The query protocol's `string()` now writes low bytes (a MOTD section sign sends one 0xA7 byte, not two UTF-8 bytes). Test added."
+  },
+  "550": {
+   "module": "crates/horizon-client-render/src/ban_notice.rs",
+   "verdict": "no-change",
+   "evidence": "`getBanReasonText` is a `Component.copy()` + `MutableComponent` signature change; the rendered ban text is identical."
+  },
+  "551": {
+   "module": "crates/horizon-client-render/src/multiline_edit.rs",
+   "verdict": "no-change",
+   "evidence": "`hasControlDownWithQuirk` vs `hasControlDown` \u2014 the same rename as item 13 (1.21.10's `hasControlDown` IS the quirk form, javap-verified); the file calls neither. macOS-only either way."
+  },
+  "553": {
+   "module": "crates/horizon-client/src/game/boat_passengers.rs",
+   "verdict": "no-change",
+   "evidence": "`BoatItem#use` diff is EMPTY \u2014 a false positive."
+  },
+  "557": {
+   "module": "crates/horizon-client-render/src/level_loading.rs",
+   "verdict": "no-change",
+   "evidence": "The Rust fires `player_section_ready` when the player's chunk is lit (compiled) \u2014 no visibility check \u2014 which is 1.21.10's `isSectionCompiled` form (1.21.11's `isSectionCompiledAndVisible` also wants it visible). Doc fixed."
+  },
+  "558": {
+   "module": "crates/horizon-client/src/game/clone_block_ticks_tests.rs",
+   "verdict": "no-change",
+   "evidence": "GameRules rename: `MAX_BLOCK_MODIFICATIONS` vs `RULE_COMMAND_MODIFICATION_BLOCK_LIMIT`."
+  },
+  "564": {
+   "module": "crates/horizon-client/src/game/brush.rs",
+   "verdict": "no-change",
+   "evidence": "`criterion` vs `critereon` package rename."
+  },
+  "565": {
+   "module": "crates/horizon-client/src/game/end.rs",
+   "verdict": "no-change",
+   "evidence": "`EnderEyeItem#use` diff is EMPTY \u2014 a false positive."
+  },
+  "567": {
+   "module": "crates/horizon-command/src/vanilla.rs",
+   "verdict": "ported",
+   "evidence": "Two ports in one. (1) The review method `VersionCommand#register` is a no-change (LEVEL_GAMEMASTERS/LEVEL_ALL vs levels 2/0). (2) The tree diff was real 26.x leakage: the 1.21.10 tree's time command used `clock_nodes` (clocks, timemarkers, pause/resume/rate, timeline queries), but both 1.21.10 and 1.21.11 vanilla `TimeCommand`s are the simple set/add/query form with day/noon/night/midnight literals (javap-verified; 1.21.10 has no `world/timeline` package at all). The time section is now the 1.21.11 tree's form verbatim and `clock_nodes` is deleted; the `Resource::Clock`/`Resource::Timeline` variants and `Suggests::TimeMarkers` stay as dead pub API (same treatment as the deferred spear cleanup). This also fixes `parses_vanilla_commands` (`time set day`, `time query daytime`), which was failing silently \u2014 horizon-command is not in CI's 7 suites."
+  },
+  "568": {
+   "module": "crates/horizon-protocol/src/packets/play/commands.rs",
+   "verdict": "no-change",
+   "evidence": "`IdentifierArgument` vs `ResourceLocationArgument` \u2014 a class rename."
+  },
+  "569": {
+   "module": "crates/horizon-world/src/worldgen/ore_feature.rs",
+   "verdict": "no-change",
+   "evidence": "f32-vs-double trig noise in ore placement, sub-rounding."
+  },
+  "570": {
+   "module": "crates/horizon-world/src/worldgen/structure/mineshaft.rs",
+   "verdict": "no-change",
+   "evidence": "`MineShaftCorridor#createChest` diff is EMPTY \u2014 a false positive."
   }
  }
 }
