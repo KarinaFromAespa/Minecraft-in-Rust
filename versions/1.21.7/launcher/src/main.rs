@@ -1875,11 +1875,12 @@ impl Launcher {
         });
     }
 
-    /// Whether `tag` can start now ([`starts_now`]): prepared, no preparation under way, no game
-    /// running or starting.
+    /// Whether `tag` can start now ([`starts_now`]): prepared, with a game program of its own,
+    /// no preparation under way, no game running or starting.
     pub(crate) fn can_start(&self, tag: &str) -> bool {
         let running = self.client.is_some() || self.starting_client.is_some();
-        starts_now(backend::is_prepared(tag), self.preparing, running)
+        backend::has_client(tag)
+            && starts_now(backend::is_prepared(tag), self.preparing, running)
     }
 
     /// Whether the selected instance's version can start now, from a shortcut (a server's Join,

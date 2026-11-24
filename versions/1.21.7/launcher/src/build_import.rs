@@ -62,28 +62,41 @@ fn official(version: &str) -> bool {
     backend::is_game_tag(version) || crate::nightly::date_of(version).is_some()
 }
 
+/// A version an import may take its game files from: an official one, or the launcher's own
+/// local version (`seed`: this tree's game files, provided on first run).
+fn usable_base(version: &str) -> bool {
+    official(version) || crate::seed::is_local_version(version)
+}
+
 /// The installed version an import takes its game files from: `requested` (`--version`), else
-/// `selected` when Horizon published it, else the newest installed release or Nightly.
+/// `selected` when it may be a base, else the newest installed release or Nightly, else the
+/// launcher's own local version.
 fn base_for(
     installed: &[String],
     requested: Option<&str>,
     selected: Option<&str>,
 ) -> Result<String, String> {
-    let usable = |v: &str| official(v) && installed.iter().any(|t| t == v);
+    let usable = |v: &str| usable_base(v) && installed.iter().any(|t| t == v);
     match requested {
         Some(b) if usable(b) => Ok(b.to_owned()),
-        Some(b) => Err(format!("{b} is not an installed release or Nightly.")),
-        None => {
-            selected
-                .filter(|s| usable(s))
-                .map(str::to_owned)
-                .or_else(|| native_mods::newest_installed(installed).cloned())
-                .ok_or_else(|| {
-                    tr("Install a release or Nightly first: an imported build plays with its game \
-                    files.")
+        Some(b) => Err(format!(
+            "{b} is not an installed release, Nightly, or the launcher's own version."
+        )),
+        None => selected
+            .filter(|s| usable(s))
+            .map(str::to_owned)
+            .or_else(|| native_mods::newest_installed(installed).cloned())
+            .or_else(|| {
+                installed
+                    .iter()
+                    .find(|t| crate::seed::is_local_version(t))
+                    .cloned()
+            })
+            .ok_or_else(|| {
+                tr("No version is installed to import onto: an imported build plays with a \
+                    version's game files.")
                 .to_string()
-                })
-        }
+            }),
     }
 }
 
@@ -99,6 +112,9 @@ pub fn import(path: &Path, requested: Option<&str>) -> Result<String, String> {
     if !is_game(&program) {
         return Err(not_a_game(&file));
     }
+    // The launcher's own version is the import's base when nothing else is: make sure it is
+    // there first (the window does this at startup; the CLI may never have run it).
+    crate::seed::ensure_local_version()?;
     let selected = backend::Settings::load().selected;
     let base = base_for(&backend::installed(), requested, selected.as_deref())?;
     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
@@ -590,5 +606,38 @@ mod tests {
         ] {
             assert!(asked(b).is_err(), "{b}");
         }
+    }
+
+    /// The launcher's own local version is a base too: selected, asked for, or the last resort.
+    #[test]
+    fn the_local_version_is_a_base_too() {
+        let local = crate::seed::LOCAL_TAG.to_string();
+        let installed = [
+            "native-c9d474d-0123456789ab".to_string(),
+            "imported-2026-10-31-abcdef0".to_string(),
+            local.clone(),
+        ];
+        assert_eq!(
+            base_for(&installed, None, Some(&local)),
+            Ok(local.clone())
+        );
+        assert_eq!(
+            base_for(&installed, Some(&local), Some("v0.2.95")),
+            Ok(local.clone())
+        );
+        // Nothing selected and no release or Nightly installed: the local version is the base.
+        assert_eq!(base_for(&installed, None, None), Ok(local.clone()));
+        // A release still wins over the local version when nothing is selected.
+        let with_release = [
+            "nightly-2026-11-01-c9d474d".to_string(),
+            "v0.2.95".to_string(),
+            local.clone(),
+        ];
+        assert_eq!(
+            base_for(&with_release, None, None),
+            Ok("nightly-2026-11-01-c9d474d".to_string())
+        );
+        // Without the local version installed either, there is no base.
+        assert!(base_for(&installed[..2], None, None).is_err());
     }
 }

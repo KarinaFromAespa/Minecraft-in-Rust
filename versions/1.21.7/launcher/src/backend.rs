@@ -2516,12 +2516,6 @@ pub fn preparer(
         .join(&version)
         .join(format!("{version}.json"));
     let binary = preparer_binary(&dir);
-    let python = match binary {
-        Some(_) => None,
-        None => Some(python().ok_or(
-            "This version prepares with Python: Python 3.10 or newer is needed. Install it, or pick a newer version.",
-        )?),
-    };
     // The Java the version pins, found as horizon-prepare finds it, so a missing one is
     // reported (or downloaded) before the server jar is downloaded. Versions from before
     // java_major ran Java 25.
@@ -2583,21 +2577,24 @@ pub fn preparer(
             .and_then(|_| fs::rename(&partial, &jar))
             .map_err(|e| e.to_string())?;
     }
+    // A version folder whose preparer sources are the launcher's own runs in-process: the
+    // launcher's linked preparer IS that version's preparer, binary or not. (The local
+    // version ships the sources and no binary of its own.)
+    if prepare::sources_sha256(&dir.join(PREPARER_CRATE)).as_deref()
+        == Some(prepare::SOURCES_SHA256)
+    {
+        let options = prepare::Options {
+            root: dir,
+            import: !reused,
+            minecraft_dir: Some(minecraft.clone()),
+            server_jar: (!reused).then_some(jar),
+            java_home: Some(java_home.clone()),
+            inputs: Default::default(),
+            output: None,
+        };
+        return Ok((Preparer::InProcess(options), minecraft));
+    }
     if let Some(binary) = binary {
-        if prepare::sources_sha256(&dir.join(PREPARER_CRATE)).as_deref()
-            == Some(prepare::SOURCES_SHA256)
-        {
-            let options = prepare::Options {
-                root: dir,
-                import: !reused,
-                minecraft_dir: Some(minecraft.clone()),
-                server_jar: (!reused).then_some(jar),
-                java_home: Some(java_home.clone()),
-                inputs: Default::default(),
-                output: None,
-            };
-            return Ok((Preparer::InProcess(options), minecraft));
-        }
         let mut cmd = Command::new(binary);
         with_java(&mut cmd, &java_home);
         cmd.current_dir(&dir).arg("--root").arg(&dir);
@@ -2607,7 +2604,10 @@ pub fn preparer(
         cmd.arg("--minecraft-dir").arg(&minecraft);
         return Ok((Preparer::Process(cmd), minecraft));
     }
-    let mut cmd = Command::new(python.unwrap());
+    let python = python().ok_or(
+        "This version prepares with Python: Python 3.10 or newer is needed. Install it, or pick a newer version.",
+    )?;
+    let mut cmd = Command::new(python);
     with_java(&mut cmd, &java_home);
     cmd.current_dir(&dir)
         .args(["-u", "tools/prepare_native_client.py"]);
@@ -2941,6 +2941,16 @@ fn strip_launcher_render_env(cmd: &mut Command) {
     for key in LAUNCHER_RENDER_ENV {
         cmd.env_remove(key);
     }
+}
+
+/// Whether `tag` has a game program of its own: the local version does not until a build is
+/// imported onto it, and Play on such a version asks for one instead of starting.
+pub fn has_client(tag: &str) -> bool {
+    has_client_at(&version_dir(tag))
+}
+
+fn has_client_at(dir: &Path) -> bool {
+    dir.join(CLIENT).is_file()
 }
 
 pub fn client_command(tag: &str) -> Command {
@@ -5238,6 +5248,18 @@ pub fn {f}("
             None,
             "a stale ARM64 release selection must not install under an x64 choice"
         );
+    }
+
+    /// A version has a game program when its folder holds the client binary.
+    #[test]
+    fn a_version_has_a_client_when_its_folder_holds_the_program() {
+        let dir = std::env::temp_dir().join(format!("horizon-client-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        assert!(!has_client_at(&dir));
+        fs::write(dir.join(CLIENT), b"game").unwrap();
+        assert!(has_client_at(&dir));
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
