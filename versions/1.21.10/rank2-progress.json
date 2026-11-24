@@ -1168,6 +1168,326 @@
    "module": "widely named: world/item: 5 vanilla classes changed (10 methods, 0 named in Horizon)",
    "verdict": "no-change",
    "evidence": "No carry-over applies: the only remaining blocker file is spear.rs, whose 1.21.11 changes are spear dismount thresholds and sway timing for a mechanic 1.21.10 lacks (iron_spear absent from the 1.21.10 jar; no spear lunge in 1.21.10's Player; lungeForwardMaybe/postPiercingAttack absent from both jars' entity/item/player classes). All other files for this item are merged or verified. Files: 14"
+  },
+  "39": {
+   "module": "crates/horizon-client/src/mobs/villager_brain.rs: 13 vanilla classes changed (140 methods, 11 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 11."
+  },
+  "43": {
+   "module": "crates/horizon-client/src/mobs/rabbit.rs: 8 vanilla classes changed (78 methods, 14 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 14."
+  },
+  "50": {
+   "module": "crates/horizon-client/src/mobs/body_anim.rs: 15 vanilla classes changed (71 methods, 10 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 10."
+  },
+  "51": {
+   "module": "crates/horizon-client/src/mobs/parrot.rs: 4 vanilla classes changed (49 methods, 12 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 12."
+  },
+  "54": {
+   "module": "crates/horizon-client/src/mobs/llama.rs: 7 vanilla classes changed (74 methods, 9 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 9."
+  },
+  "81": {
+   "module": "crates/horizon-client/src/mobs/zombie_villager.rs: 1 vanilla classes changed (30 methods, 7 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 7."
+  },
+  "82": {
+   "module": "crates/horizon-client/src/game/commands/world_cmds.rs: 12 vanilla classes changed (49 methods, 5 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 5."
+  },
+  "88": {
+   "module": "crates/horizon-client/src/mobs/farm.rs: 1 vanilla classes changed (26 methods, 6 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 6."
+  },
+  "89": {
+   "module": "crates/horizon-world/src/loot.rs: 7 vanilla classes changed (63 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2."
+  },
+  "94": {
+   "module": "crates/horizon-client/src/game/chat.rs: 2 vanilla classes changed (27 methods, 5 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 5."
+  },
+  "101": {
+   "module": "crates/horizon-client/src/game/fangs.rs: 5 vanilla classes changed (32 methods, 4 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 4."
+  },
+  "106": {
+   "module": "crates/horizon-client-render/src/packs.rs: 8 vanilla classes changed (47 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2."
+  },
+  "107": {
+   "module": "crates/horizon-client/src/game/wind.rs: 4 vanilla classes changed (17 methods, 5 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 5."
+  },
+  "111": {
+   "module": "crates/horizon-client/src/lan/advancements.rs: 2 vanilla classes changed (14 methods, 5 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 5."
+  },
+  "125": {
+   "module": "crates/horizon-client/examples/probe/hud_fixture/kinds.rs: 1 vanilla classes changed (13 methods, 4 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 4."
+  },
+  "126": {
+   "module": "crates/horizon-client/src/spectator_menu.rs: 5 vanilla classes changed (13 methods, 4 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 4."
+  },
+  "127": {
+   "module": "crates/horizon-protocol/src/item/skip.rs: 3 vanilla classes changed (33 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2."
+  },
+  "129": {
+   "module": "crates/horizon-client/src/game/mob_gear.rs: 1 vanilla classes changed (22 methods, 3 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 3."
+  },
+  "136": {
+   "module": "crates/horizon-client/src/mobs/witch.rs: 3 vanilla classes changed (17 methods, 3 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 3."
+  },
+  "139": {
+   "module": "crates/horizon-client-render/src/effects.rs: 3 vanilla classes changed (25 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2."
+  },
+  "141": {
+   "module": "crates/horizon-client/src/game/perspective.rs: 4 vanilla classes changed (15 methods, 3 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 3."
+  },
+  "146": {
+   "module": "crates/horizon-client/src/game/jukebox.rs: 2 vanilla classes changed (21 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2."
+  },
+  "150": {
+   "module": "crates/horizon-command/src/item.rs: 10 vanilla classes changed (29 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "153": {
+   "module": "crates/horizon-client-render/src/skins.rs: 6 vanilla classes changed (27 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "155": {
+   "module": "crates/horizon-core/src/geometry/shape/join.rs: 1 vanilla classes changed (17 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2."
+  },
+  "156": {
+   "module": "crates/horizon-items/src/random_sequences.rs: 2 vanilla classes changed (27 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "160": {
+   "module": "crates/horizon-client/src/game/llamas.rs: 1 vanilla classes changed (16 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2."
+  },
+  "162": {
+   "module": "crates/horizon-client/src/game/villagers.rs: 1 vanilla classes changed (6 methods, 3 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 3."
+  },
+  "164": {
+   "module": "crates/horizon-client/src/game/native_reload_listeners.rs: 3 vanilla classes changed (14 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2."
+  },
+  "177": {
+   "module": "crates/horizon-client-render/src/sound_events.rs: 3 vanilla classes changed (11 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2."
+  },
+  "178": {
+   "module": "crates/horizon-client/src/mobs/breeze.rs: 2 vanilla classes changed (11 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2."
+  },
+  "179": {
+   "module": "crates/horizon-client-render/src/block_entity_anim.rs: 3 vanilla classes changed (9 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2."
+  },
+  "182": {
+   "module": "crates/horizon-client/src/game/dedicated/predicate_graph.rs: 5 vanilla classes changed (19 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "188": {
+   "module": "crates/horizon-client/src/game/machines.rs: 3 vanilla classes changed (18 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "189": {
+   "module": "crates/horizon-client/src/game/remote_mob_use.rs: 1 vanilla classes changed (8 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2."
+  },
+  "192": {
+   "module": "crates/horizon-client/examples/probe/mob_ai_probe.rs: 3 vanilla classes changed (17 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "195": {
+   "module": "crates/horizon-client/src/mobs/allay.rs: 2 vanilla classes changed (6 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2."
+  },
+  "205": {
+   "module": "crates/horizon-world/src/datafix/files.rs: 1 vanilla classes changed (5 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2."
+  },
+  "209": {
+   "module": "crates/horizon-client/src/game/beehives.rs: 1 vanilla classes changed (4 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2."
+  },
+  "210": {
+   "module": "crates/horizon-client/src/game/bossbars.rs: 2 vanilla classes changed (14 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "213": {
+   "module": "crates/horizon-protocol/src/item.rs: 1 vanilla classes changed (14 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "215": {
+   "module": "crates/horizon-world/src/level/portal_travel.rs: 2 vanilla classes changed (4 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2."
+  },
+  "217": {
+   "module": "crates/horizon-client/src/boss_overlay.rs: 1 vanilla classes changed (3 methods, 2 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2."
+  },
+  "221": {
+   "module": "crates/horizon-client/src/mobs/transport_items.rs: 1 vanilla classes changed (13 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "230": {
+   "module": "crates/horizon-client/src/mobs/warden.rs: 1 vanilla classes changed (12 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "239": {
+   "module": "crates/horizon-client/src/mobs/spawning.rs: 2 vanilla classes changed (10 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "257": {
+   "module": "crates/horizon-world/src/worldgen/structure/legacy.rs: 2 vanilla classes changed (6 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "265": {
+   "module": "crates/horizon-client-render/src/sprites.rs: 1 vanilla classes changed (4 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "267": {
+   "module": "crates/horizon-client/src/game/block_ticks.rs: 1 vanilla classes changed (4 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "269": {
+   "module": "crates/horizon-client/src/game/lan_stations.rs: 1 vanilla classes changed (4 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "280": {
+   "module": "crates/horizon-client/src/chunk_io.rs: 1 vanilla classes changed (2 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "281": {
+   "module": "crates/horizon-client/src/game/block_entity_anims.rs: 1 vanilla classes changed (2 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "282": {
+   "module": "crates/horizon-client/src/game/campfire.rs: 2 vanilla classes changed (2 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "289": {
+   "module": "crates/horizon-client/src/server_packs/download.rs: 2 vanilla classes changed (2 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "291": {
+   "module": "crates/horizon-protocol/src/servers.rs: 1 vanilla classes changed (2 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "293": {
+   "module": "crates/horizon-world/src/worldgen/generator_structures.rs: 1 vanilla classes changed (2 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "294": {
+   "module": "crates/horizon-world/src/worldgen/structure/stronghold.rs: 2 vanilla classes changed (2 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "302": {
+   "module": "crates/horizon-client/examples/probe/text_display_render_fixture.rs: 1 vanilla classes changed (1 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "303": {
+   "module": "crates/horizon-client/src/end_gateway.rs: 1 vanilla classes changed (1 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "304": {
+   "module": "crates/horizon-client/src/game/debug_stick.rs: 1 vanilla classes changed (1 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "305": {
+   "module": "crates/horizon-client/src/game/deflect.rs: 1 vanilla classes changed (1 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "306": {
+   "module": "crates/horizon-client/src/game/ghasts.rs: 1 vanilla classes changed (1 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "308": {
+   "module": "crates/horizon-client/src/lan/chunks.rs: 1 vanilla classes changed (1 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
+  },
+  "309": {
+   "module": "crates/horizon-client/src/merchant.rs: 1 vanilla classes changed (1 methods, 1 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 1."
   }
  }
 }
