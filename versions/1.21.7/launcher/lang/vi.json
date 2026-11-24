@@ -830,7 +830,7 @@
   "Game files from {base}": "Tệp trò chơi từ {base}",
   "Imported · {date}": "Đã nhập khẩu · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} không phải là trò chơi Horizon dành cho máy tính này.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Cài đặt bản phát hành hoặc Hàng đêm trước: bản dựng đã nhập sẽ chơi với các tệp trò chơi của nó.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} không chấp nhận {program}.",
   "Could not import the build: {error}": "Không thể nhập bản dựng: {error}",
   "Sort by: {order}": "Sắp xếp theo: {order}",

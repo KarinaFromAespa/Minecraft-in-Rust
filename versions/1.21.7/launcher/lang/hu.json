@@ -830,7 +830,7 @@
   "Game files from {base}": "Játékfájlok innen: {base}",
   "Imported · {date}": "Importált · {date}",
   "{file} is not a Free Horizon game for this computer.": "A {file} nem Horizon játék ehhez a számítógéphez.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Először telepítsen egy kiadást vagy a Nightly-t: az importált build lejátszik a játékfájljaival.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} nem tartalmazza a {program} értéket.",
   "Could not import the build: {error}": "Nem sikerült importálni a következő buildet: {error}",
   "Sort by: {order}": "Rendezés: {order}",

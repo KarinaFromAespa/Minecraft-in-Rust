@@ -828,7 +828,7 @@
   "Game files from {base}": "Ludaj dosieroj de {base}",
   "Imported · {date}": "Importita · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} ne estas Horizon ludo por ĉi tiu komputilo.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Instalu eldonon aŭ Nokte unue: importita konstruaĵo ludas kun siaj luddosieroj.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} tenas neniun {program}.",
   "Could not import the build: {error}": "Ne eblis importi la konstruaĵon: {error}",
   "Sort by: {order}": "Ordigi laŭ: {order}",

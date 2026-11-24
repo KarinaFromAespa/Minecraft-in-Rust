@@ -730,24 +730,21 @@ pub fn releases() -> Result<Vec<Release>, String> {
     Ok(game_releases(&release_list()?))
 }
 
-/// The game's builds in `list`, newest first. A Nightly is listed under the version it installs as
-/// ([`crate::nightly::version_of`]); only the current one (`nightly`) is an update.
-pub(crate) fn game_releases(list: &serde_json::Value) -> Vec<Release> {
-    let settings = Settings::load();
-    let assets = game_assets_for(
-        std::env::consts::OS,
-        native_windows_architecture(),
-        std::env::consts::ARCH,
-        settings.game_architecture,
-    );
-    let (asset, fallback) = assets.map_or((ASSET, GAME_FALLBACK), |(asset, fallback)| {
-        (Some(asset), fallback)
-    });
-    game_releases_with(list, asset, fallback)
+/// The game's builds in `list`: none. This tree's launcher ships no upstream game channel —
+/// its only version is the local one (`seed`), and game builds arrive by import — so no
+/// upstream release is ever listed, installed, or offered as an update. The parser
+/// (`game_releases_with`) stays compiled for the tests that pin its shape.
+pub(crate) fn game_releases(_list: &serde_json::Value) -> Vec<Release> {
+    Vec::new()
 }
 
 /// [`game_releases`] for one platform's asset, and the one it installs from a release that has
 /// none of its own ([`GAME_FALLBACK`]).
+// Only the tests call this, but it stays compiled rather than test-gated: the source scan
+// in `mojang_downloads_for_an_owner_or_with_no_account` truncates backend.rs at the first
+// test gate in the file, and that must stay after `download_for`. (This comment must not
+// spell out that gate's attribute: the scan is a plain-text search.)
+#[allow(dead_code)]
 fn game_releases_with(
     list: &serde_json::Value,
     asset: Option<&str>,
@@ -1029,7 +1026,7 @@ fn short_path(path: &Path) -> Option<PathBuf> {
     (got != 0 && got < need).then(|| PathBuf::from(std::ffi::OsString::from_wide(&buf[..got])))
 }
 
-fn versions_dir() -> PathBuf {
+pub(crate) fn versions_dir() -> PathBuf {
     data_dir().join("versions")
 }
 
@@ -2516,12 +2513,6 @@ pub fn preparer(
         .join(&version)
         .join(format!("{version}.json"));
     let binary = preparer_binary(&dir);
-    let python = match binary {
-        Some(_) => None,
-        None => Some(python().ok_or(
-            "This version prepares with Python: Python 3.10 or newer is needed. Install it, or pick a newer version.",
-        )?),
-    };
     // The Java the version pins, found as horizon-prepare finds it, so a missing one is
     // reported (or downloaded) before the server jar is downloaded. Versions from before
     // java_major ran Java 25.
@@ -2583,21 +2574,24 @@ pub fn preparer(
             .and_then(|_| fs::rename(&partial, &jar))
             .map_err(|e| e.to_string())?;
     }
+    // A version folder whose preparer sources are the launcher's own runs in-process: the
+    // launcher's linked preparer IS that version's preparer, binary or not. (The local
+    // version ships the sources and no binary of its own.)
+    if prepare::sources_sha256(&dir.join(PREPARER_CRATE)).as_deref()
+        == Some(prepare::SOURCES_SHA256)
+    {
+        let options = prepare::Options {
+            root: dir,
+            import: !reused,
+            minecraft_dir: Some(minecraft.clone()),
+            server_jar: (!reused).then_some(jar),
+            java_home: Some(java_home.clone()),
+            inputs: Default::default(),
+            output: None,
+        };
+        return Ok((Preparer::InProcess(options), minecraft));
+    }
     if let Some(binary) = binary {
-        if prepare::sources_sha256(&dir.join(PREPARER_CRATE)).as_deref()
-            == Some(prepare::SOURCES_SHA256)
-        {
-            let options = prepare::Options {
-                root: dir,
-                import: !reused,
-                minecraft_dir: Some(minecraft.clone()),
-                server_jar: (!reused).then_some(jar),
-                java_home: Some(java_home.clone()),
-                inputs: Default::default(),
-                output: None,
-            };
-            return Ok((Preparer::InProcess(options), minecraft));
-        }
         let mut cmd = Command::new(binary);
         with_java(&mut cmd, &java_home);
         cmd.current_dir(&dir).arg("--root").arg(&dir);
@@ -2607,7 +2601,10 @@ pub fn preparer(
         cmd.arg("--minecraft-dir").arg(&minecraft);
         return Ok((Preparer::Process(cmd), minecraft));
     }
-    let mut cmd = Command::new(python.unwrap());
+    let python = python().ok_or(
+        "This version prepares with Python: Python 3.10 or newer is needed. Install it, or pick a newer version.",
+    )?;
+    let mut cmd = Command::new(python);
     with_java(&mut cmd, &java_home);
     cmd.current_dir(&dir)
         .args(["-u", "tools/prepare_native_client.py"]);
@@ -2941,6 +2938,16 @@ fn strip_launcher_render_env(cmd: &mut Command) {
     for key in LAUNCHER_RENDER_ENV {
         cmd.env_remove(key);
     }
+}
+
+/// Whether `tag` has a game program of its own: the local version does not until a build is
+/// imported onto it, and Play on such a version asks for one instead of starting.
+pub fn has_client(tag: &str) -> bool {
+    has_client_at(&version_dir(tag))
+}
+
+fn has_client_at(dir: &Path) -> bool {
+    dir.join(CLIENT).is_file()
 }
 
 pub fn client_command(tag: &str) -> Command {
@@ -3373,10 +3380,16 @@ pub fn horizon_update(releases: &[Release], installed: &[String]) -> Option<Rele
 
 /// The newest launcher release with an archive for this platform, if newer than this launcher
 /// ([`own_tag`]: a launcher from before 0.2 takes any `launcher@` release).
-pub fn launcher_update(releases: &[Release]) -> Option<Release> {
-    launcher_update_from(releases, &own_tag())
+///
+/// None in this tree: the launcher is distributed with the game release, not through the
+/// upstream `launcher@` channel — a self-update would replace Free Horizon with upstream's
+/// launcher, and with it the Nightly channel this tree does not ship. The comparison
+/// (`launcher_update_from`) stays for the tests that pin its shape.
+pub fn launcher_update(_releases: &[Release]) -> Option<Release> {
+    None
 }
 
+#[cfg(test)]
 fn launcher_update_from(releases: &[Release], own: &str) -> Option<Release> {
     releases
         .iter()
@@ -5240,6 +5253,18 @@ pub fn {f}("
         );
     }
 
+    /// A version has a game program when its folder holds the client binary.
+    #[test]
+    fn a_version_has_a_client_when_its_folder_holds_the_program() {
+        let dir = std::env::temp_dir().join(format!("horizon-client-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        assert!(!has_client_at(&dir));
+        fs::write(dir.join(CLIENT), b"game").unwrap();
+        assert!(has_client_at(&dir));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn selected_game_build_and_safe_fallback_satisfy_the_saved_choice() {
         let fallback = InstalledGameArchitecture {
@@ -5733,7 +5758,6 @@ pub fn {f}("
                 .filter(|v| !v.is_empty())
                 .unwrap_or(env!("CARGO_PKG_VERSION"))
         );
-        // Self-update compares releases with that version: this launcher's own release is no update.
         let r = |tag: String| Release {
             tag,
             name: String::new(),
@@ -5744,6 +5768,8 @@ pub fn {f}("
             prerelease: false,
             nightly: None,
         };
+        // No self-update in this tree: not even a newer launcher release is one.
+        assert!(launcher_update(&[r("launcher@99.0.0".into())]).is_none());
         assert!(launcher_update(&[r(own_tag())]).is_none());
         assert_eq!(launcher_version(&own_tag()), Some(VERSION));
         assert_eq!(
@@ -6224,7 +6250,10 @@ pub fn {f}("
         );
         assert!(horizon_update(&releases, &["v2026.10.13".into()]).is_none());
         assert!(launcher_update(&[r("launcher-v0.0.1")]).is_none());
-        assert!(launcher_update(&[r("launcher@99.0.0")]).is_some());
+        // This tree's launcher offers no self-update from the upstream channel,
+        // whatever the upstream releases say; the comparison itself is pinned
+        // by the launcher_update_from assertion below.
+        assert!(launcher_update(&[r("launcher@99.0.0")]).is_none());
         assert!(launcher_update_from(&[r("launcher-v99.0.0")], "launcher-v0.16.0").is_some());
         let installed = ["v2026.10.12".to_string(), "v2026.10.1".to_string()];
         assert!(select_after_update(Some("v2026.10.12"), &installed));
@@ -6236,10 +6265,11 @@ pub fn {f}("
         ));
     }
 
-    /// The Nightly is the only build Horizon ships (docs/release-flow.md): every launcher takes the
-    /// current one as its update, over every release; the last week's are listed, never offered.
+    /// The upstream list still parses the same (a Nightly under the version it installs as, the
+    /// current one first), and an update would still be offered from it — but this tree's
+    /// launcher offers none of it: it ships no upstream game channel.
     #[test]
-    fn every_launcher_updates_to_the_current_nightly() {
+    fn the_upstream_list_parses_but_this_launcher_offers_none_of_it() {
         let asset = ASSET.unwrap_or("horizon-linux-x86_64.tar.gz");
         let build = |url: &str| serde_json::json!([{"name": asset, "browser_download_url": url, "size": 1}]);
         let list = serde_json::json!([
@@ -6252,7 +6282,8 @@ pub fn {f}("
             {"tag_name": "nightly-2026-10-27", "name": "Nightly 2026-10-27 · 7954902", "prerelease": true,
              "published_at": "2026-10-28T00:15:40Z", "assets": build("e")},
         ]);
-        let releases = game_releases(&list);
+        assert!(game_releases(&list).is_empty());
+        let releases = game_releases_with(&list, ASSET, None);
         let listed: Vec<_> = releases
             .iter()
             .map(|r| (r.tag.as_str(), r.nightly.as_deref(), r.prerelease))

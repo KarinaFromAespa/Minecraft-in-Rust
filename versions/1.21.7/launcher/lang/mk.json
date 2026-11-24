@@ -828,7 +828,7 @@
   "Game files from {base}": "Датотеки за игри од {base}",
   "Imported · {date}": "увезено · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} не е Horizon игра за овој компјутер.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Прво инсталирајте издание или Nightly: увезената верзија игра со датотеките со игри.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} нема {program}.",
   "Could not import the build: {error}": "Не може да се увезе изградбата: {error}",
   "Sort by: {order}": "Подреди по: {order}",

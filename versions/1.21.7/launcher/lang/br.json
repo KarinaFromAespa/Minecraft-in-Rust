@@ -828,7 +828,7 @@
   "Game files from {base}": "Restroù c'hoari adalek {base}",
   "Imported · {date}": "Enporzhiet · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} n'eo ket ur c'hoari Horizon evit an urzhiataer-mañ.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Staliañ un embannadur pe Nightly da gentañ : ur sevel enporzhiet a c'hoari gant e restroù c'hoari.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} ne dalv ket {program}.",
   "Could not import the build: {error}": "N'haller ket enporzhiañ ar sevel : {error}",
   "Sort by: {order}": "Urzhiañ dre : {order}",

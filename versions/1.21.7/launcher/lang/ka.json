@@ -828,7 +828,7 @@
   "Game files from {base}": "თამაშის ფაილები {base}-დან",
   "Imported · {date}": "იმპორტირებული · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} არ არის Horizon თამაში ამ კომპიუტერისთვის.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "ჯერ დააინსტალირეთ გამოშვება ან Nightly: იმპორტირებული build თამაშობს მის სათამაშო ფაილებთან.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} არ არის {program}.",
   "Could not import the build: {error}": "კონსტრუქციის იმპორტი ვერ მოხერხდა: {error}",
   "Sort by: {order}": "დალაგება: {order}",

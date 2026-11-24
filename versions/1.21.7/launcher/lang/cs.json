@@ -830,7 +830,7 @@
   "Game files from {base}": "Herní soubory z {base}",
   "Imported · {date}": "Importováno · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} není hra Horizon pro tento počítač.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Nejprve nainstalujte vydání nebo Nightly: importované sestavení se hraje se svými herními soubory.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} nemá {program}.",
   "Could not import the build: {error}": "Nelze importovat sestavení: {error}",
   "Sort by: {order}": "Řadit podle: {order}",

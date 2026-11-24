@@ -548,6 +548,12 @@ impl Launcher {
                 let _ = horizon_launcher::desktop::repair(backend::exe_path());
             });
         }
+        // The launcher's own version, before anything lists or selects one: a fresh install
+        // opens on it, and an import takes its game files from it. A failure is a line in
+        // the log, not a launcher that won't start; the Versions page shows what is there.
+        if let Err(e) = horizon_launcher::seed::ensure_local_version() {
+            eprintln!("Providing this launcher's own version failed: {e}");
+        }
         let installed = backend::installed();
         if settings
             .selected
@@ -1869,11 +1875,12 @@ impl Launcher {
         });
     }
 
-    /// Whether `tag` can start now ([`starts_now`]): prepared, no preparation under way, no game
-    /// running or starting.
+    /// Whether `tag` can start now ([`starts_now`]): prepared, with a game program of its own,
+    /// no preparation under way, no game running or starting.
     pub(crate) fn can_start(&self, tag: &str) -> bool {
         let running = self.client.is_some() || self.starting_client.is_some();
-        starts_now(backend::is_prepared(tag), self.preparing, running)
+        backend::has_client(tag)
+            && starts_now(backend::is_prepared(tag), self.preparing, running)
     }
 
     /// Whether the selected instance's version can start now, from a shortcut (a server's Join,

@@ -828,7 +828,7 @@
   "Game files from {base}": "Nā waihona pāʻani mai {base}",
   "Imported · {date}": "Lawe ʻia · {date}",
   "{file} is not a Free Horizon game for this computer.": "ʻAʻole ʻo {file} he pāʻani Horizon no kēia kamepiula.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "E hoʻouka i kahi hoʻokuʻu a i ʻole Nightly mua: pāʻani kahi hale i lawe ʻia me kāna mau faila pāʻani.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} ʻaʻole paʻa {program}.",
   "Could not import the build: {error}": "ʻAʻole hiki ke hoʻokomo i ke kūkulu: {error}",
   "Sort by: {order}": "Hoʻonohonoho ʻia e: {order}",

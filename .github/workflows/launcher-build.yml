@@ -27,6 +27,11 @@ name: launcher-build
 # uploads it raw. Each version builds independently (fail-fast: false),
 # so one broken tree never blocks the others.
 #
+# A `test` job also runs the launcher's unit tests on Linux, with a
+# baseline ratchet: versions/<v>/launcher/known-test-failures.txt lists
+# the tree's pre-existing failures, and the job fails only on failures
+# not in that file (a tree with no baseline file is held to zero).
+#
 # Dispatched manually:
 #   gh workflow run launcher-build.yml -f version=1.21.7
 #   gh workflow run launcher-build.yml -f version=all
@@ -52,6 +57,7 @@ jobs:
     timeout-minutes: 10
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
+      test-matrix: ${{ steps.matrix.outputs.test-matrix }}
     steps:
       - uses: actions/checkout@v4
 
@@ -87,6 +93,7 @@ jobs:
                               "binary": "horizon-launcher", "rustflags": ""})
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
               f.write("matrix=" + json.dumps({"include": include}) + "\n")
+              f.write("test-matrix=" + json.dumps(versions) + "\n")
           EOF
 
   build:
@@ -169,3 +176,89 @@ jobs:
             echo "binary: \`versions/${{ matrix.version }}/launcher/target/release/${{ matrix.binary }}\`"
             ls -l "versions/${{ matrix.version }}/launcher/target/release/${{ matrix.binary }}" 2>/dev/null || echo "binary missing"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # Launcher unit tests (Linux only). Before this job existed, no CI ran
+  # the launcher's tests — launcher-build only built, and crate-tests
+  # covers the game crates — so agents ran `cargo test` locally on the VM,
+  # single-threaded and slow (~55 min). GitHub runners have 4 vCPUs.
+  #
+  # Baseline ratchet: a version tree may carry pre-existing test failures
+  # (1.21.7's browser fixtures hardcode 26.3, so 16 browser tests fail on
+  # a correct tree). versions/<v>/launcher/known-test-failures.txt lists
+  # them; the job fails only on failures NOT in that file.
+  test:
+    needs: resolve
+    name: test ${{ matrix.version }} (ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ${{ fromJson(needs.resolve.outputs.test-matrix) }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: versions/${{ matrix.version }}/launcher
+          shared-key: launcher-test-${{ matrix.version }}
+          cache-on-failure: true
+
+      # Same libraries as the build job (libxkbcommon-x11-dev is what the
+      # tests need that a bare runner lacks).
+      - name: Linux libraries GPUI links to
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3; do
+            sudo apt-get update -o Acquire::Retries=3 && \
+            sudo apt-get install -y libxkbcommon-x11-dev libwayland-dev libx11-xcb-dev libfontconfig-dev libvulkan-dev pkg-config && break
+            echo "apt attempt $attempt failed; retrying in 20s"
+            sleep 20
+          done
+
+      - name: Run the launcher unit tests
+        run: |
+          cd "versions/${{ matrix.version }}/launcher"
+          OUT="$GITHUB_WORKSPACE/test-output-${{ matrix.version }}.txt"
+          # The exit code is NOT the verdict: pre-existing baseline
+          # failures also exit non-zero. The ratchet below decides.
+          # --no-fail-fast: the bin suite must run even when the lib suite
+          # fails, so the ratchet sees both suites' failures.
+          set +e
+          cargo test --lib --bins --no-fail-fast --color=never 2>&1 | tee "$OUT"
+          set -e
+          if ! grep -q "^test result:" "$OUT"; then
+            echo "::error::no test result line — the suite did not run (compile error? see the log)"
+            exit 1
+          fi
+          # The failure list is indented; strip the indent so comm compares
+          # bare test paths against the baseline's bare paths.
+          grep -A 200 "^failures:$" "$OUT" | grep -E "^    [a-zA-Z0-9_:]+$" | sed 's/^    //' | sort -u > /tmp/failures.txt || true
+          if [ -f known-test-failures.txt ]; then
+            grep -v "^#" known-test-failures.txt | grep -v "^$" | sort -u > /tmp/baseline.txt
+          else
+            : > /tmp/baseline.txt
+          fi
+          NEW=$(comm -23 /tmp/failures.txt /tmp/baseline.txt)
+          echo "failures: $(wc -l < /tmp/failures.txt) (baseline: $(wc -l < /tmp/baseline.txt))"
+          if [ -n "$NEW" ]; then
+            echo "::error::new test failures (not in known-test-failures.txt):"
+            echo "$NEW"
+            exit 1
+          fi
+          echo "all failures are in the baseline"
+
+      - name: Upload the test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher-test-output-${{ matrix.version }}
+          path: test-output-${{ matrix.version }}.txt
+          if-no-files-found: error

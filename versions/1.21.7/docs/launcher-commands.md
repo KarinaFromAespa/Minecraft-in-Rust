@@ -148,7 +148,7 @@ MCP: `account_list`.
 
 ## `horizon-launcher account sign-in`
 
-Sign in with a Microsoft account in your browser (device code). Play needs one that owns Minecraft: Java Edition.
+Sign in with a Microsoft account in your browser (device code). Needed for online servers; the game plays offline without one.
 
     horizon-launcher account sign-in
 

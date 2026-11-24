@@ -830,7 +830,7 @@
   "Game files from {base}": "Fichiers du jeu de {base}",
   "Imported · {date}": "Importée · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} n'est pas un jeu Horizon pour cet ordinateur.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Installez d'abord une version ou une Nightly : une compilation importée utilise les fichiers du jeu de celle-ci.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} ne contient aucun {program}.",
   "Could not import the build: {error}": "Impossible d'importer la compilation : {error}",
   "Sort by: {order}": "Trier par : {order}",

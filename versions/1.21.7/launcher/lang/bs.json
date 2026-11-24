@@ -828,7 +828,7 @@
   "Game files from {base}": "Fajlovi igre iz {base}",
   "Imported · {date}": "Uvezeno · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} nije Horizon igra za ovaj računar.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Prvo instalirajte izdanje ili Nightly: uvezena verzija igra se sa svojim datotekama igre.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} ne sadrži {program}.",
   "Could not import the build: {error}": "Nije moguće uvesti gradnju: {error}",
   "Sort by: {order}": "Poredaj po: {order}",

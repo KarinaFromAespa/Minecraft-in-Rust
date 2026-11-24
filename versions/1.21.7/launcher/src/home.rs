@@ -233,37 +233,57 @@ impl Launcher {
                         })
                 }));
         }
+        // A version with no game program of its own (the launcher's own local version, before
+        // a build is imported onto it): Play asks for one instead of preparing files no
+        // program would ever run. Java instances bring their own game.
+        let needs_import =
+            !java && !running && self.selected().is_some_and(|t| !backend::has_client(t));
         let mut play = action("play", Action::Main, &t)
             .min_w(px(180.))
-            .child(
-                div()
-                    .relative()
-                    .child(blocks::icon("play", 20., c(t.night.on_accent))),
-            )
+            .child(div().relative().child(blocks::icon(
+                if needs_import { "download" } else { "play" },
+                20.,
+                c(t.night.on_accent),
+            )))
             .child(label(
-                tr(if running { "Running" } else { "Play" }).to_string(),
+                tr(if running {
+                    "Running"
+                } else if needs_import {
+                    "Import a game build…"
+                } else {
+                    "Play"
+                })
+                .to_string(),
             ));
-        match play_press(
-            ready,
-            self.owner,
-            self.accounts.accounts.is_empty(),
-            self.preparing || running,
-        ) {
-            PlayPress::Nothing => play = disabled(play),
-            PlayPress::Play => {
-                play = play.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                    this.picker_open = false;
-                    this.play();
-                    cx.notify();
-                }))
-            }
-            PlayPress::PrepareThenPlay => {
-                play = play.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                    this.picker_open = false;
-                    this.play_when_prepared = this.selected().cloned();
-                    this.prepare(backend::MinecraftFrom::Install);
-                    cx.notify();
-                }))
+        if needs_import {
+            play = play.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                this.picker_open = false;
+                this.import_build(cx);
+                cx.notify();
+            }));
+        } else {
+            match play_press(
+                ready,
+                self.owner,
+                self.accounts.accounts.is_empty(),
+                self.preparing || running,
+            ) {
+                PlayPress::Nothing => play = disabled(play),
+                PlayPress::Play => {
+                    play = play.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                        this.picker_open = false;
+                        this.play();
+                        cx.notify();
+                    }))
+                }
+                PlayPress::PrepareThenPlay => {
+                    play = play.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                        this.picker_open = false;
+                        this.play_when_prepared = this.selected().cloned();
+                        this.prepare(backend::MinecraftFrom::Install);
+                        cx.notify();
+                    }))
+                }
             }
         }
         let folder = self.selected_instance().map(|i| i.home.clone());

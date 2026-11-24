@@ -828,7 +828,7 @@
   "Game files from {base}": "{base} இலிருந்து கேம் கோப்புகள்",
   "Imported · {date}": "இறக்குமதி செய்யப்பட்டது · {date}",
   "{file} is not a Free Horizon game for this computer.": "இந்த கணினிக்கான {file} என்பது Horizon விளையாட்டு அல்ல.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "ஒரு வெளியீட்டை நிறுவவும் அல்லது இரவில் முதலில்: இறக்குமதி செய்யப்பட்ட உருவாக்கம் அதன் கேம் கோப்புகளுடன் விளையாடுகிறது.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} இல் {program} உள்ளது.",
   "Could not import the build: {error}": "கட்டமைப்பை இறக்குமதி செய்ய முடியவில்லை: {error}",
   "Sort by: {order}": "இதன்படி வரிசைப்படுத்தவும்: {order}",

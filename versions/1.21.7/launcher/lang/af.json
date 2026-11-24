@@ -828,7 +828,7 @@
   "Game files from {base}": "Speletjielêers vanaf {base}",
   "Imported · {date}": "Ingevoer · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} is nie 'n Horizon-speletjie vir hierdie rekenaar nie.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Installeer 'n vrystelling of Nightly first: 'n ingevoerde gebou speel met sy speletjielêers.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} hou geen {program}.",
   "Could not import the build: {error}": "Kon nie die gebou invoer nie: {error}",
   "Sort by: {order}": "Sorteer volgens: {order}",

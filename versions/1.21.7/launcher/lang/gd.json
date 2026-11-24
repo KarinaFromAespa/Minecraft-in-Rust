@@ -828,7 +828,7 @@
   "Game files from {base}": "Faidhlichean geama bho {base}",
   "Imported · {date}": "Air a thoirt a-steach · {date}",
   "{file} is not a Free Horizon game for this computer.": "Chan e geama Horizon a th’ ann an {file} airson a’ choimpiutair seo.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Cuir a-steach brath no Nightly an toiseach: bidh togalach a chaidh a thoirt a-steach a’ cluich leis na faidhlichean geama aige.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "Chan eil {file} a’ cumail {program}.",
   "Could not import the build: {error}": "Cha b' urrainn dhuinn an togalach a thoirt a-steach: {error}",
   "Sort by: {order}": "Deasaich a rèir: {order}",

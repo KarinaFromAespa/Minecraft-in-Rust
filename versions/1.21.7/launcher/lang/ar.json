@@ -830,7 +830,7 @@
   "Game files from {base}": "ملفات اللعبة من {base}",
   "Imported · {date}": "مستورد · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} ليست لعبة هورايزون مخصصة لهذا الكمبيوتر.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "قم بتثبيت إصدار رسمي أو إصدار Nightly أولاً: يعمل البناء المستورد باستخدام ملفات لعبته الخاصة.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} لا يحتوي على {program}.",
   "Could not import the build: {error}": "تعذر استيراد البناء: {error}",
   "Sort by: {order}": "ترتيب حسب: {order}",

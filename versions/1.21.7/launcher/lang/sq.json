@@ -828,7 +828,7 @@
   "Game files from {base}": "Skedarët e lojës nga {base}",
   "Imported · {date}": "importuar · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} nuk është një lojë Horizon për këtë kompjuter.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Instaloni fillimisht një version ose Nightly: një ndërtim i importuar luan me skedarët e tij të lojës.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} nuk mban {program}.",
   "Could not import the build: {error}": "Ndërtimi nuk mund të importohej: {error}",
   "Sort by: {order}": "Rendit sipas: {order}",

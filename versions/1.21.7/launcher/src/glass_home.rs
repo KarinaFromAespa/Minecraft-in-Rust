@@ -413,8 +413,13 @@ impl Launcher {
                     })),
             ),
             None => {
+                // A version with no game program of its own (the launcher's own local version,
+                // before a build is imported onto it): Play asks for one instead of preparing
+                // files no program would ever run.
+                let needs_import = update.is_none() && !tag.is_empty() && !backend::has_client(tag);
                 let (label, icon) = match &update {
                     Some(_) => (tr("Update"), "download-04"),
+                    None if needs_import => (tr("Import a game build…"), "upload-04"),
                     None => (tr("Play"), "play"),
                 };
                 let press = play_press(
@@ -429,6 +434,13 @@ impl Launcher {
                         this.install_update();
                         cx.notify();
                     })),
+                    (None, _) if needs_import => {
+                        main.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                            this.picker_open = false;
+                            this.import_build(cx);
+                            cx.notify();
+                        }))
+                    }
                     (None, PlayPress::Play) => {
                         main.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.picker_open = false;

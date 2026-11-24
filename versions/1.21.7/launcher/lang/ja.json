@@ -830,7 +830,7 @@
   "Game files from {base}": "{base} のゲームファイル",
   "Imported · {date}": "インポート · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} はこのコンピューター用の Horizon のゲームではありません。",
-  "Install a release or Nightly first: an imported build plays with its game files.": "先にリリースか Nightly をインストールしてください。インポートしたビルドはそのゲームファイルを使います。",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} に {program} がありません。",
   "Could not import the build: {error}": "ビルドをインポートできませんでした: {error}",
   "Sort by: {order}": "並び替え: {order}",

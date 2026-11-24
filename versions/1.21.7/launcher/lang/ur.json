@@ -830,7 +830,7 @@
   "Game files from {base}": "{base} سے گیم فائلیں",
   "Imported · {date}": "درآمد شدہ · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} اس کمپیوٹر کے لیے Horizon گیم نہیں ہے۔",
-  "Install a release or Nightly first: an imported build plays with its game files.": "ریلیز انسٹال کریں یا نائٹلی فرسٹ: ایک امپورٹڈ بلڈ اپنی گیم فائلوں کے ساتھ چلتی ہے۔",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} کوئی {program} رکھتا ہے۔",
   "Could not import the build: {error}": "تعمیر کو درآمد نہیں کیا جا سکا: {error}",
   "Sort by: {order}": "ترتیب دیں: {order}",
