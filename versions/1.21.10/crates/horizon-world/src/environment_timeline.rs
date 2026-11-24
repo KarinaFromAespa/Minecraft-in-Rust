@@ -281,7 +281,10 @@ impl Easing {
     }
 }
 
-/// `EasingType.CubicBezier.solveT`: 4 Newton-Raphson steps, then the bisection.
+/// A cubic-bezier solver: 4 Newton-Raphson steps, then the bisection.
+/// (The timeline system is dead on 1.21.10 data — 1.21.10 has no
+/// `EasingType` and no timelines — so this runs only for datapack
+/// timelines, which 1.21.10's dimension codec does not know either.)
 fn solve_t(curve: Curve, x: f32) -> f32 {
     let mut t = x;
     for _ in 0..4 {
@@ -306,7 +309,7 @@ fn solve_t(curve: Curve, x: f32) -> f32 {
     solve_t_bisect(curve, x, t)
 }
 
-/// `EasingType.CubicBezier.solveTBisect`: halves 0-1 from `t` until the curve is within 1e-5.
+/// The bisection half of [`solve_t`]: halves 0-1 from `t` until the curve is within 1e-5.
 fn solve_t_bisect(curve: Curve, x: f32, mut t: f32) -> f32 {
     let (mut t0, mut t1) = (0.0f32, 1.0f32);
     while t0 < t1 {

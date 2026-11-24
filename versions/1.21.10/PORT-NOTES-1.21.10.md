@@ -1123,3 +1123,22 @@ already matches (allowSelectors as permission >= 2, the local
 coordinate basis, the strict path-segment charset, the
 predicate JSON shape). 549/572/573/584/606/617/639/640/675
 all close as carry-over. Rank 3 is complete.
+
+Rank 4 (42 items, 675 -> 717/719) and rank 5 (2 items, 717 ->
+719/719): COMPLETE. Rank 4 is the new-classes groups —
+1.21.10-only classes, verified one group at a time rather than
+trusted on triage's "(0 already named)". The verifications
+that matter: 686, the villager schedules match 1.21.10's
+Schedule data exactly (javap); 677/680/708, covered by items
+618/475; 689, covered by item 58; 693/705/707/710, the
+PermissionSource/ResourceLocation renames; 687, a false
+name-match (profiling spans) — the real item-model spans
+render identically per-pixel; 716, zero 1.21.10 vanilla
+biomes carry a `particle` field, so the empty ambient table
+is correct (a datapack-only gap, folded into open item 351);
+678, the easing solver is dead on 1.21.10 data (no EasingType,
+no timelines) and its doc comment wrongly cited 1.21.10's
+EasingType — corrected. Rank 5 acknowledges the unported
+classes (1 new, 1044 changed/removed) as by design: Horizon
+mirrors none of them. The behaviour port is complete at
+719/719.

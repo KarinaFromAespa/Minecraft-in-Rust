@@ -1,0 +1,18 @@
+{
+ "release": "1.21.10",
+ "rank": 5,
+ "batch": 34,
+ "note": "Unported classes: acknowledged, nothing to port by design.",
+ "items": {
+  "718": {
+   "module": "new-unported",
+   "verdict": "no-change",
+   "evidence": "1 new vanilla class in 1 package Horizon does not port. By design: the port covers the classes Horizon mirrors (ranks 1-4); a class in an unported package needs no Rust counterpart."
+  },
+  "719": {
+   "module": "unported",
+   "verdict": "no-change",
+   "evidence": "1044 changed or removed vanilla classes in 301 packages Horizon does not port. By design: these are vanilla internals (render internals, server internals, client plumbing) with no Horizon counterpart; every class Horizon mirrors was covered in ranks 1-4 (verified by the method-naming pass that produced the rank 2-3 items and the wide semantic diff for the command groups)."
+  }
+ }
+}
