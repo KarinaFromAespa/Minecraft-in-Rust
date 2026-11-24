@@ -604,3 +604,25 @@ Lesson for the remaining ranks: a no-change verdict needs BOTH
 the semantic diff AND a tree-diff check that the 1.21.10 tree
 already contains the 1.21.11 behaviour — the carry-over unit
 list missed at least one file.
+
+CI triage (Nov 24, continuation session):
+- Run 45292840975 (rank 1 head ce7a7b4c): failure — baseline; superseded.
+- Run 45298555004 (batch 2 head e24143e9): 22 failures
+  (datafix/saved_templates/datapack/packs/lan) — all fixed in
+  batch 3, all port regressions, none pre-existing.
+- Run 45305592498 (batch 3 head 0864c72c): 2 failures —
+  lang::tests::bundled_files_are_served_and_have_no_stale_or_repeated_keys
+  (client-core) and
+  realms::tests::a_generated_upload_world_carries_only_what_the_realm_needs
+  (client-lib, asserted the 1.21.11 `game_rules` key) — both
+  fixed in batch 4; batch 4's run shows both suites green.
+- Run 45307802187 (batch 4 head 5919dcb0): 6/7 suites green
+  (protocol 440, items 110, world 483, client-core 83, client
+  1286, client-lib 2510 — all 0 failed); only
+  horizon-client-render failed, on one compile error E0063:
+  the sign_text_cache test's Kind::Sign initializer missed the
+  `wood`/`attached` fields batch 4's block_entity_render merge
+  added. Fixed by adding wood: "oak", attached: false, matching
+  the 1.21.11 test file. No pre-existing failures identified so
+  far — every CI failure on this branch has been a port
+  regression, fixed in the following batch.
