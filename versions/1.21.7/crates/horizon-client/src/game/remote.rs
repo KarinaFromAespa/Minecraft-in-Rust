@@ -12716,6 +12716,88 @@ mod tests {
         assert!(game.native_send_chat("/warp spawn").is_err());
     }
 
+    /// Escape and focus loss cannot pause the game while terrain is loading:
+    /// a pause mid-load deadlocks the load — the paused server sends no
+    /// chunks, the frozen tick never finishes the load tracker, and the
+    /// loading screen hides the pause menu, so there is no way back.
+    /// Vanilla's loading screen refuses Escape (`shouldCloseOnEsc` is false)
+    /// and its integrated server never pauses with a screen open.
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn no_pause_while_terrain_is_loading() {
+        use crate::game::{
+            Audio, Game, Options, Progress, Screen, Settings, execution_role::ExecutionRole,
+            load_resources,
+        };
+        use horizon_client::{level_loading::Reason, motion::PlayerMotion};
+        use horizon_core::geometry::Vec3;
+        use horizon_protocol::connection::Pipe;
+        use std::time::{Duration, Instant};
+        use winit::keyboard::KeyCode;
+
+        let root = std::path::PathBuf::from(
+            std::env::var_os("HORIZON_TEST_RESOURCES")
+                .expect("set HORIZON_TEST_RESOURCES to prepared resources"),
+        );
+        let settings = Settings::default();
+        let loaded = load_resources(
+            root.clone(),
+            None,
+            &root,
+            &settings,
+            std::time::Instant::now(),
+            false,
+            true,
+            &Progress::new(),
+            &mut |_, _| unreachable!("no menu handoff"),
+        )
+        .unwrap();
+        let mut options = Options::parse(std::iter::empty()).unwrap().unwrap();
+        options.resources = root.clone();
+        options.execution_role = ExecutionRole::Client;
+        let mut game = Game::new(
+            &loaded.resources,
+            loaded.pack,
+            loaded.gui.unwrap(),
+            options,
+            settings,
+            Audio::silent(&root),
+            None,
+        )
+        .unwrap();
+
+        // The load starts: joined, no player yet, the tracker active.
+        let (client, _server) = Pipe::pair();
+        game.connect_local(client, "LoadPauseTest").unwrap();
+        game.remote.as_mut().unwrap().joined = true;
+        game.remote
+            .as_mut()
+            .unwrap()
+            .level_load
+            .start_client_load(0, Reason::Other);
+        assert!(game.remote_loading());
+        // Escape during the load is swallowed: the screen stays Playing.
+        game.key_pressed(KeyCode::Escape, KeyCode::Escape).unwrap();
+        assert!(game.screen == Screen::Playing);
+        assert!(game.remote_loading());
+        // The dimension-change shape: the player exists, the load is still
+        // active. Focus loss does not pause either.
+        game.player = Some(PlayerMotion::new(game.motion, Vec3::new(0.5, 119.0, 0.5)).unwrap());
+        assert!(game.remote_loading());
+        game.focus_lost = Some(Instant::now() - Duration::from_millis(600));
+        game.pause_if_inactive();
+        assert!(game.screen == Screen::Playing);
+        // Control: once the load finishes, both paths pause again.
+        game.remote.as_mut().unwrap().level_load.finish();
+        assert!(!game.remote_loading());
+        game.key_pressed(KeyCode::Escape, KeyCode::Escape).unwrap();
+        assert!(game.screen == Screen::Paused);
+        game.screen = Screen::Playing;
+        game.focus_lost = Some(Instant::now() - Duration::from_millis(600));
+        game.pause_if_inactive();
+        assert!(game.screen == Screen::Paused);
+    }
+
     /// `Entity.isColliding` and the snap `ClientLevel.syncBlockState` makes: a
     /// block the server puts back where the player stands sends it to the
     /// position the prediction remembered, and a block that comes back clear of
