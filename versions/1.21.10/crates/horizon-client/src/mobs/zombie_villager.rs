@@ -275,7 +275,6 @@ mod tests {
             others_villagers: None,
             others_solid: None,
             daylight: true,
-            monsters_burn: false,
             game_time: 1000,
             day_time: 18000,
             raining: false,

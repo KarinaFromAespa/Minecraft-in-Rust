@@ -13,6 +13,9 @@ use horizon_core::random::RandomSource;
 pub trait PatrolLevel: SpawnLevel {
     /// The `spawn_patrols` game rule.
     fn spawn_patrols(&self) -> bool;
+    /// `Level.getDayTime`: patrols only start on day 5 (`getDayTime() /
+    /// 24000 >= 5`).
+    fn day_time(&self) -> i64;
     /// `Level.isBrightOutside`: no fixed time and a sky darkening below 4.
     fn bright_outside(&self) -> bool;
     /// The level's players, in `level.players()` order: block position and
@@ -22,7 +25,8 @@ pub trait PatrolLevel: SpawnLevel {
     fn sections_to_village(&self, pos: [i32; 3]) -> i32;
     /// The chunk at chunk coordinates is loaded (`hasChunk`).
     fn has_chunk(&self, cx: i32, cz: i32) -> bool;
-    /// The `gameplay/can_pillager_patrol_spawn` environment attribute.
+    /// Whether a patrol may spawn at `pos`: the biome there is not in
+    /// `#minecraft:without_patrol_spawns` (mushroom fields in 1.21.10).
     fn can_pillager_patrol_spawn(&self, pos: [i32; 3]) -> bool;
     /// `getCurrentDifficultyAt(pos).getEffectiveDifficulty()`.
     fn effective_difficulty(&self, pos: [i32; 3]) -> f32;
@@ -74,6 +78,11 @@ impl PatrolSpawner {
             return;
         }
         self.next_tick += 12000 + random.next_int_bound(1200).unwrap_or(0);
+        // PatrolSpawner.tick: no patrols before day 5, and only in daylight
+        // (1.21.11 dropped the day gate for the early-game timeline).
+        if level.day_time() / 24000 < 5 {
+            return;
+        }
         if !level.bright_outside() || random.next_int_bound(5).unwrap_or(1) != 0 {
             return;
         }
@@ -135,184 +144,154 @@ pub fn patrol_target(at: [i32; 3], random: &mut impl RandomSource) -> [i32; 3] {
     [at[0] + dx, at[1], at[2] + dz]
 }
 
-/// The boolean gameplay attributes patrols and raids read
-/// (`gameplay/can_pillager_patrol_spawn`, `gameplay/can_start_raid`): the
-/// dimension's value, the biome's, then the dimension's timelines (the early
-/// game timeline forbids patrols for the first 120,000 ticks of the
-/// overworld clock).
-#[derive(Clone, Debug, Default)]
-pub struct GameplayAttributes {
-    /// attribute -> dimension type -> value.
-    dimensions: std::collections::HashMap<String, std::collections::HashMap<String, bool>>,
-    /// attribute -> biome -> value.
-    biomes: std::collections::HashMap<String, std::collections::HashMap<String, bool>>,
-    /// attribute -> dimension type -> boolean tracks (keyframes, modifier).
-    tracks: std::collections::HashMap<String, std::collections::HashMap<String, Vec<BoolTrack>>>,
-}
-#[derive(Clone, Debug)]
-struct BoolTrack {
-    keyframes: Vec<(i64, bool)>,
-    period: Option<i64>,
-    modifier: String,
-}
-impl BoolTrack {
-    /// `KeyframeTrackSampler.sample` for a value that is not interpolated.
-    fn sample(&self, ticks: i64) -> bool {
-        let t = match self.period {
-            Some(p) if p > 0 => ticks.rem_euclid(p),
-            _ => ticks,
-        };
-        let mut value = self.keyframes[0].1;
-        for (at, v) in &self.keyframes {
-            if t >= *at {
-                value = *v;
-            }
-        }
-        value
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::blocks::BlockFacts;
+    use crate::mobs::data::MobData;
+    use horizon_core::random::LegacyRandom;
+    use horizon_world::{dimension_type::DimensionFacts, registry::BlockStateId};
+    use std::cell::Cell;
+
+    /// A level with one player in daylight far from any village, in a biome
+    /// that forbids patrols; the spawn-rule reads never run (the biome check
+    /// stops the tick first), so they are unreachable.
+    struct Stub {
+        day_time: i64,
+        biome_checked: Cell<bool>,
     }
-    fn apply(&self, base: bool, ticks: i64) -> bool {
-        let arg = self.sample(ticks);
-        match self.modifier.as_str() {
-            "and" => base && arg,
-            "or" => base || arg,
-            "xor" => base ^ arg,
-            "nand" => !(base && arg),
-            "nor" => !(base || arg),
-            "xnor" => base == arg,
-            _ => arg,
+
+    impl SpawnLevel for Stub {
+        fn state(&self, _: i32, _: i32, _: i32) -> BlockStateId {
+            unreachable!()
+        }
+        fn facts(&self) -> &BlockFacts {
+            unreachable!()
+        }
+        fn mob_data(&self) -> &MobData {
+            unreachable!()
+        }
+        fn block_tag(&self, _: &str, _: &str) -> bool {
+            unreachable!()
+        }
+        fn biome_tag(&self, _: &str, _: i32, _: i32, _: i32) -> bool {
+            unreachable!()
+        }
+        fn sky_light(&self, _: i32, _: i32, _: i32) -> i32 {
+            unreachable!()
+        }
+        fn block_light(&self, _: i32, _: i32, _: i32) -> i32 {
+            unreachable!()
+        }
+        fn sky_darken(&self) -> i32 {
+            unreachable!()
+        }
+        fn thundering(&self) -> bool {
+            unreachable!()
+        }
+        fn sea_level(&self) -> i32 {
+            unreachable!()
+        }
+        fn world_surface(&self, _: i32, _: i32) -> i32 {
+            unreachable!()
+        }
+        fn peaceful(&self) -> bool {
+            unreachable!()
+        }
+        fn dimension_type(&self) -> &DimensionFacts {
+            unreachable!()
+        }
+        fn moon_brightness(&self) -> f32 {
+            unreachable!()
+        }
+        fn world_seed(&self) -> i64 {
+            unreachable!()
+        }
+        fn player_near(&self, _: f64, _: f64, _: f64, _: f64) -> bool {
+            unreachable!()
         }
     }
-}
-pub const CAN_PILLAGER_PATROL_SPAWN: &str = "minecraft:gameplay/can_pillager_patrol_spawn";
-pub const CAN_START_RAID: &str = "minecraft:gameplay/can_start_raid";
-impl GameplayAttributes {
-    /// Reads the dimension types, biomes and timelines under `root/data`.
-    pub fn load(root: &std::path::Path) -> Self {
-        use serde_json::Value;
-        let data = root.join("data/minecraft");
-        let read = |p: std::path::PathBuf| -> Option<Value> {
-            serde_json::from_slice(&std::fs::read(p).ok()?).ok()
-        };
-        let list = |dir: &str| -> Vec<(String, Value)> {
-            let mut out = Vec::new();
-            if let Ok(entries) = std::fs::read_dir(data.join(dir)) {
-                for e in entries.flatten() {
-                    let path = e.path();
-                    if let (Some(stem), Some(v)) = (
-                        path.file_stem().and_then(|s| s.to_str()).map(str::to_owned),
-                        read(path.clone()),
-                    ) {
-                        out.push((format!("minecraft:{stem}"), v));
-                    }
-                }
-            }
-            out
-        };
-        let keys = [CAN_PILLAGER_PATROL_SPAWN, CAN_START_RAID];
-        let mut out = Self::default();
-        let timelines: std::collections::HashMap<String, Value> =
-            list("timeline").into_iter().collect();
-        // Tag values with nested tags resolved.
-        fn tag(data: &std::path::Path, name: &str, out: &mut Vec<String>) {
-            let file = data.join(format!(
-                "tags/timeline/{}.json",
-                name.trim_start_matches('#')
-                    .trim_start_matches("minecraft:")
-            ));
-            let Some(v) = std::fs::read(file)
-                .ok()
-                .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
-            else {
-                return;
-            };
-            for item in v["values"].as_array().into_iter().flatten() {
-                let s = item.as_str().or_else(|| item["id"].as_str()).unwrap_or("");
-                if s.starts_with('#') {
-                    tag(data, s, out);
-                } else if !s.is_empty() {
-                    out.push(s.to_owned());
-                }
-            }
+
+    impl PatrolLevel for Stub {
+        fn spawn_patrols(&self) -> bool {
+            true
         }
-        for (dim, v) in list("dimension_type") {
-            for key in keys {
-                if let Some(b) = v["attributes"][key].as_bool() {
-                    out.dimensions
-                        .entry(key.into())
-                        .or_default()
-                        .insert(dim.clone(), b);
-                }
-            }
-            let mut names = Vec::new();
-            match &v["timelines"] {
-                Value::String(s) if s.starts_with('#') => tag(&data, s, &mut names),
-                Value::String(s) => names.push(s.clone()),
-                Value::Array(a) => {
-                    names.extend(a.iter().filter_map(|x| x.as_str()).map(str::to_owned))
-                }
-                _ => {}
-            }
-            for name in names {
-                let Some(t) = timelines.get(&name) else {
-                    continue;
-                };
-                for key in keys {
-                    let track = &t["tracks"][key];
-                    let Some(frames) = track["keyframes"].as_array() else {
-                        continue;
-                    };
-                    let keyframes: Vec<(i64, bool)> = frames
-                        .iter()
-                        .filter_map(|f| Some((f["ticks"].as_i64()?, f["value"].as_bool()?)))
-                        .collect();
-                    if keyframes.is_empty() {
-                        continue;
-                    }
-                    out.tracks
-                        .entry(key.into())
-                        .or_default()
-                        .entry(dim.clone())
-                        .or_default()
-                        .push(BoolTrack {
-                            keyframes,
-                            period: t["period_ticks"].as_i64(),
-                            modifier: track["modifier"].as_str().unwrap_or("override").to_owned(),
-                        });
-                }
-            }
+        fn day_time(&self) -> i64 {
+            self.day_time
         }
-        for (biome, v) in list("worldgen/biome") {
-            for key in keys {
-                if let Some(b) = v["attributes"][key].as_bool() {
-                    out.biomes
-                        .entry(key.into())
-                        .or_default()
-                        .insert(biome.clone(), b);
-                }
-            }
+        fn bright_outside(&self) -> bool {
+            true
         }
-        out
+        fn patrol_players(&self) -> Vec<([i32; 3], bool)> {
+            vec![([0, 64, 0], false)]
+        }
+        fn sections_to_village(&self, _: [i32; 3]) -> i32 {
+            7
+        }
+        fn has_chunk(&self, _: i32, _: i32) -> bool {
+            true
+        }
+        fn can_pillager_patrol_spawn(&self, _: [i32; 3]) -> bool {
+            self.biome_checked.set(true);
+            false
+        }
+        fn effective_difficulty(&self, _: [i32; 3]) -> f32 {
+            unreachable!()
+        }
+        fn motion_blocking_no_leaves(&self, _: i32, _: i32) -> i32 {
+            unreachable!()
+        }
     }
-    /// The attribute in a dimension type and biome at an overworld clock time.
-    pub fn value(&self, key: &str, dimension: &str, biome: &str, clock: i64) -> bool {
-        let mut v = self
-            .dimensions
-            .get(key)
-            .and_then(|m| m.get(dimension))
-            .copied()
-            .unwrap_or(true);
-        if let Some(b) = self.biomes.get(key).and_then(|m| m.get(biome)) {
-            v = *b;
+
+    /// A seed whose 1-in-5 patrol roll passes: the second draw, after the
+    /// countdown reset's 1200-bound draw.
+    fn passing_seed() -> i64 {
+        for seed in 0..100 {
+            let mut r = LegacyRandom::new(seed);
+            let _ = r.next_int_bound(1200);
+            if r.next_int_bound(5) == Ok(0) {
+                return seed;
+            }
         }
-        for t in self
-            .tracks
-            .get(key)
-            .and_then(|m| m.get(dimension))
-            .into_iter()
-            .flatten()
-        {
-            v = t.apply(v, clock);
-        }
-        v
+        panic!("no passing seed in 0..100")
+    }
+
+    #[test]
+    fn patrols_wait_until_day_five() {
+        let seed = passing_seed();
+        let mut spawn = |_: &Stub, _: Member, _: &mut LegacyRandom| -> bool {
+            panic!("no patrol member spawns in this test")
+        };
+        // Day 4, daylight, a player far from any village: the gate stops
+        // the tick before the biome check.
+        let day4 = Stub {
+            day_time: 4 * 24000 + 12000,
+            biome_checked: Cell::new(false),
+        };
+        let mut spawner = PatrolSpawner::default();
+        spawner.tick(&day4, true, &mut LegacyRandom::new(seed), &mut spawn);
+        assert!(
+            !day4.biome_checked.get(),
+            "day 4 never reaches the biome check"
+        );
+        // The last tick of day 4: still gated.
+        let last = Stub {
+            day_time: 5 * 24000 - 1,
+            biome_checked: Cell::new(false),
+        };
+        let mut spawner = PatrolSpawner::default();
+        spawner.tick(&last, true, &mut LegacyRandom::new(seed), &mut spawn);
+        assert!(
+            !last.biome_checked.get(),
+            "day 4's last tick never reaches the biome check"
+        );
+        // Day 5: the gate opens and the tick reaches the biome check.
+        let day5 = Stub {
+            day_time: 5 * 24000,
+            biome_checked: Cell::new(false),
+        };
+        let mut spawner = PatrolSpawner::default();
+        spawner.tick(&day5, true, &mut LegacyRandom::new(seed), &mut spawn);
+        assert!(day5.biome_checked.get(), "day 5 reaches the biome check");
     }
 }

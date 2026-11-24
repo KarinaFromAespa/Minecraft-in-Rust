@@ -9862,7 +9862,7 @@ impl Game<'_> {
                 direction: 0,
                 sequence: 0,
             }));
-            self.hand_strength.reset_attack();
+            self.hand_strength.reset();
             self.swing_hand(Hand::Main, kinetic.attack_animation());
             self.play_at_feet(kinetic.attack_sound);
             return true;

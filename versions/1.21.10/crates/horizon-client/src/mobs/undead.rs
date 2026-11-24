@@ -8,7 +8,6 @@ use super::{
         NearestTarget, RandomLookAround, RestrictSun, Stroll, goal_clone,
     },
     path::Path,
-    spear_use::SpearUse,
     villager_brain::{
         closer_to_center, occupied_pois_in_range, others_tickets, sections_to_village,
         village_sections,
@@ -36,8 +35,8 @@ pub fn register(m: &mut Mob) {
             g.add(4, AttackTurtleEgg::default());
             g.add(8, LookAtPlayer::new(8.0));
             g.add(8, RandomLookAround::default());
-            // Zombie.addBehaviourGoals: a spear in hand is used first.
-            g.add(2, SpearUse::new(1.0, 1.0, 10.0, 2.0));
+            // Zombie.addBehaviourGoals: no spear goal in 1.21.10 (the
+            // SpearUse goal at priority 2 is a 1.21.11 addition).
             g.add(3, MeleeAttack::new(1.0, false).zombie());
             g.add(
                 6,
@@ -1724,5 +1723,23 @@ mod tests {
         register(&mut m);
         assert!(!m.ai.goals.has("SpearUse"), "no SpearUseGoal in 1.21.10");
         assert!(m.ai.goals.has("MeleeAttack"), "it still fights in melee");
+    }
+
+    /// `Zombie.addBehaviourGoals`: 1.21.10 has no spear goal — 1.21.11
+    /// adds `SpearUseGoal` at priority 2, ahead of the melee attack.
+    #[test]
+    fn a_zombie_has_no_spear_goal() {
+        for species in [Species::Zombie, Species::Husk, Species::ZombieVillager] {
+            let mut m = mob(species);
+            register(&mut m);
+            assert!(
+                !m.ai.goals.has("SpearUse"),
+                "no SpearUseGoal for {species:?} in 1.21.10"
+            );
+            assert!(
+                m.ai.goals.has("MeleeAttack"),
+                "{species:?} still fights in melee"
+            );
+        }
     }
 }

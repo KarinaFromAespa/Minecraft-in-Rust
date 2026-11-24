@@ -1087,7 +1087,7 @@ mod tests {
         assert_eq!(red(&second, layer), 20);
     }
     #[test]
-    fn custom_item_textures_mip_as_items() {
+    fn item_and_block_textures_with_the_same_pixels_share_a_layer() {
         let root =
             std::env::temp_dir().join(format!("horizon-sprite-cit-mip-{}", std::process::id()));
         let write = |rel: &str| {
@@ -1096,7 +1096,8 @@ mod tests {
             let mut encoder = png::Encoder::new(File::create(path).unwrap(), 16, 16);
             encoder.set_color(png::ColorType::Rgba);
             encoder.set_depth(png::BitDepth::Eight);
-            // Any pixels: whether a texture mips as an item is part of the shared-layer key.
+            // Any pixels: 1.21.10's `MipmapGenerator` has no item
+            // distinction, so the same pixels mip the same in every atlas.
             let pixels: Vec<u8> = (0..256)
                 .flat_map(|i| [9, 9, 9, if i % 2 == 0 { 255 } else { 0 }])
                 .collect();
@@ -1116,9 +1117,9 @@ mod tests {
             .insert(&root, "horizon_cit:minecraft/optifine/cit/x")
             .unwrap();
         fs::remove_dir_all(&root).unwrap();
-        // The same pixels share a layer only with the same mipmap settings: the CIT texture's
-        // are the item's.
-        assert_ne!(block, item);
+        // The same pixels share a layer whichever atlas they came from:
+        // block, item and CIT all mip the same way in 1.21.10.
+        assert_eq!(block, item);
         assert_eq!(cit, item);
     }
     #[test]
@@ -1219,7 +1220,8 @@ mod tests {
         let one = sprites.insert(&root, "a:block/one").unwrap();
         let copy = sprites.insert(&root, "a:block/copy").unwrap();
         let other = sprites.insert(&root, "a:block/other").unwrap();
-        // The same pixels as an item sprite mip differently: a layer of its own.
+        // The same pixels as an item sprite mip the same way in 1.21.10
+        // (no strategy system), so they share the layer.
         fs::create_dir_all(root.join("assets/a/textures/item")).unwrap();
         fs::copy(
             directory.join("one.png"),
@@ -1228,11 +1230,11 @@ mod tests {
         .unwrap();
         let item = sprites.insert(&root, "a:item/one").unwrap();
         fs::remove_dir_all(&root).unwrap();
-        assert_eq!((one, copy, other, item), (0, 0, 1, 2));
-        assert_eq!((sprites.count(), sprites.layers.len()), (3, 4));
-        assert_eq!((sprites.opaque.len(), sprites.mips.len()), (3, 3));
+        assert_eq!((one, copy, other, item), (0, 0, 1, 0));
+        assert_eq!((sprites.count(), sprites.layers.len()), (2, 4));
+        assert_eq!((sprites.opaque.len(), sprites.mips.len()), (2, 2));
         sprites.finish();
-        assert_eq!(sprites.pixels.len(), 3 * 16 * 16 * 4);
+        assert_eq!(sprites.pixels.len(), 2 * 16 * 16 * 4);
     }
     #[test]
     fn a_32px_only_atlas_does_not_add_an_extra_mipmap() {

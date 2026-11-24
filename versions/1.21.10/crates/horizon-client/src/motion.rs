@@ -119,11 +119,17 @@ impl MotionResources {
                 .cloned()
                 .collect())
         };
+        // 1.21.10 has no `can_glide_through` tag, and vanilla 1.21.10's
+        // `LivingEntity.onClimbable` has no fall-flying exception at all
+        // (verified against the 1.21.10 client jar): a gliding entity in
+        // vines is on climbable, as in vanilla. The registry keeps the
+        // parameter for versions that do have the tag.
+        let no_glide_through: BTreeSet<String> = BTreeSet::new();
         let climbing = ClimbingRegistry::new(
             assets.registry,
             &tag("minecraft:trapdoors")?,
             &tag("minecraft:climbable")?,
-            &tag("minecraft:can_glide_through")?,
+            &no_glide_through,
         )?;
         Ok(Self {
             landing: crate::landing::load(root, &properties)?,

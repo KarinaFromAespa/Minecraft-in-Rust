@@ -167,9 +167,10 @@ impl Game<'_> {
             base,
         )
     }
-    /// `Player.attack`'s extra knockback: `getKnockback` (the weapon's knockback
-    /// enchantment, halved) plus 0.5 for a sprinting full-strength hit, and
-    /// whether the hit is that knockback attack.
+    /// `Player.attack`'s extra knockback: `causeExtraKnockback`'s power
+    /// (`getKnockback`'s knockback enchantment, halved at the call site)
+    /// plus 0.5 for a sprinting full-strength hit, and whether the hit is
+    /// that knockback attack.
     pub(super) fn extra_knockback(&mut self, target_kind: &str, scale: f32) -> (f32, bool) {
         let sprinting = self.player.as_ref().is_some_and(|p| p.sprinting);
         let enchanted = match self.held().cloned() {

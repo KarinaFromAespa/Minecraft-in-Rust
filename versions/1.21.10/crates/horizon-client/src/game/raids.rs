@@ -12,7 +12,7 @@ use horizon_client::{
         spawn_selection::{Heightmap, NaturalLevel},
         spawning,
     },
-    patrol::{GameplayAttributes, Member, PatrolLevel, PatrolSpawner},
+    patrol::{Member, PatrolLevel, PatrolSpawner},
     raid::{self, Action, BarName, RaidLevel, RaidPlayer, RaiderInfo, RaiderType, Raids, Spawn},
     random_source,
 };
@@ -34,7 +34,6 @@ pub(super) struct Raiding {
     omen_loaded: bool,
     /// The last raider hurt each raid's bar has seen (`Raider.hurtServer`).
     bar_hurts: HashMap<i32, u64>,
-    attributes: Option<std::sync::Arc<GameplayAttributes>>,
     /// Beds near each raid's centre, rescanned now and then (`HOME` points
     /// of interest for `RaiderMoveThroughVillageGoal`).
     homes: HashMap<i32, (i64, std::sync::Arc<Vec<[i32; 3]>>)>,
@@ -190,8 +189,11 @@ impl PatrolLevel for PatrolCx<'_, '_, '_> {
     fn spawn_patrols(&self) -> bool {
         self.level.game.ui.rules.bool("spawn_patrols")
     }
+    fn day_time(&self) -> i64 {
+        self.level.game.world.day_time
+    }
     fn bright_outside(&self) -> bool {
-        !self.level.game.dimension_type().has_fixed_time && self.level.game.sky_darken() < 4
+        self.level.game.bright_outside()
     }
     /// `PatrolSpawner.tick` picks from `level.players()`: the local player
     /// and every guest in the level.
@@ -353,33 +355,6 @@ impl Game<'_> {
             }
         }
     }
-    fn gameplay_attributes(&mut self) -> std::sync::Arc<GameplayAttributes> {
-        if self.raiding.attributes.is_none() {
-            self.raiding.attributes = Some(std::sync::Arc::new(GameplayAttributes::load(
-                &self.options.resources,
-            )));
-        }
-        self.raiding.attributes.clone().unwrap_or_default()
-    }
-    /// A boolean gameplay attribute at a position (dimension, biome, then
-    /// the timelines at the overworld clock).
-    fn gameplay_attribute(&mut self, key: &str, at: [i32; 3]) -> bool {
-        let attributes = self.gameplay_attributes();
-        let biome = self
-            .world
-            .chunks
-            .get(&(at[0] >> 4, at[2] >> 4))
-            .map(|c| {
-                self.res
-                    .biomes()
-                    .get(c.biome(at[0], at[1], at[2]))
-                    .name
-                    .clone()
-            })
-            .unwrap_or_default();
-        attributes.value(key, &self.dimension_type().id, &biome, self.world.day_time)
-    }
-
     /// `BadOmenMobEffect` and `RaidOmenMobEffect.applyEffectTick` for the
     /// player's effect tick: Bad Omen inside a village becomes Raid Omen,
     /// whose last tick starts or extends a raid where it began.
@@ -428,12 +403,13 @@ impl Game<'_> {
             .play("minecraft:event.mob_effect.raid_omen", Some(at), 1.0, 1.0);
     }
     /// `Raids.createOrExtendRaid`: not for spectators, with the `raids` rule
-    /// and where raids may start; the raid centres on the occupied village
-    /// points of interest within 64 blocks.
+    /// and where raids may start (`dimensionType.hasRaids()`: the Nether
+    /// forbids them, the End allows them); the raid centres on the occupied
+    /// village points of interest within 64 blocks.
     fn create_or_extend_raid(&mut self, at: [i32; 3], amplifier: Option<i32>) -> Option<i32> {
         if self.spectator()
             || !self.ui.rules.bool("raids")
-            || !self.gameplay_attribute(horizon_client::patrol::CAN_START_RAID, at)
+            || !self.dimension_type().has_raids
         {
             return None;
         }
@@ -1195,8 +1171,8 @@ impl Game<'_> {
 
     /// The raid bar a living player at `at` is in (`Raid.getPlayers`): red,
     /// notched in tens. The name is the translate component the client draws.
-    /// No dimension gate: a raid can start in the End (`can_start_raid`
-    /// defaults true there); only the Nether forbids it, via the attribute.
+    /// No dimension gate: a raid can start in the End (`has_raids` is
+    /// true there); only the Nether forbids it, via `has_raids`.
     pub(super) fn raid_boss_at(&self, at: [f64; 3], alive: bool) -> Option<(i32, Tag, f32)> {
         if !alive {
             return None;
@@ -1267,7 +1243,8 @@ impl Game<'_> {
         if self.dim != Dim::Overworld {
             return;
         }
-        let attributes = self.gameplay_attributes();
+        // PatrolSpawner.tick: no patrols in a `#without_patrol_spawns`
+        // biome (mushroom fields in 1.21.10).
         let biome_ok = |game: &Game, at: [i32; 3]| {
             let biome = game
                 .world
@@ -1281,12 +1258,10 @@ impl Game<'_> {
                         .clone()
                 })
                 .unwrap_or_default();
-            attributes.value(
-                horizon_client::patrol::CAN_PILLAGER_PATROL_SPAWN,
-                game.dim.id(),
-                &biome,
-                game.world.day_time,
-            )
+            !game
+                .res
+                .mob_data()
+                .biome_has("minecraft:without_patrol_spawns", &biome)
         };
         let enemies = self.ui.rules.bool("spawn_mobs") && self.ui.rules.bool("spawn_monsters");
         let mut random = std::mem::replace(

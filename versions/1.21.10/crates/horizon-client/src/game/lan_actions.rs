@@ -2402,8 +2402,8 @@ impl Game<'_> {
                     let guest = &host.hub.guests[gi];
                     self.native_player_swap_with_equipment_slot(guest.uuid, &guest.name, "offhand");
                 }
-                // STAB: `PiercingWeapon.attack` of a left click with a spear.
-                8 if !spectator => self.guest_jab(host, conn),
+                // No case 8: STAB (`PiercingWeapon.attack`) is 1.21.11-only;
+                // 1.21.10's handlePlayerAction switch ends at 7.
                 _ => {}
             },
             // handleSetCarriedItem: a new slot stops a main-hand use.
@@ -3358,37 +3358,6 @@ impl Game<'_> {
         g.yaw = (-d[0].atan2(d[2])).to_degrees() as f32;
         g.pitch = (-d[1].atan2(horizontal)).to_degrees() as f32;
         Some((centre, eye))
-    }
-
-    /// `ServerGamePacketListenerImpl.handlePlayerAction` for STAB: the spear in
-    /// the guest's main hand jabs once its charge allows it (with five ticks
-    /// of tolerance). The guest's client is sent the dash Lunge gave them.
-    fn guest_jab(&mut self, host: &mut LanHost, conn: u32) {
-        let Some(g) = host.hub.guest(conn) else {
-            return;
-        };
-        let at = g.position;
-        let players = self.stab_players_for(host, conn);
-        let sound = self
-            .guest_hit_by(host, conn, |g| {
-                if g.cannot_attack_with_item(g.attack_ticks as i32, 5) {
-                    None
-                } else {
-                    let outer = std::mem::replace(&mut g.stab_players, players);
-                    let sound = g.jab();
-                    g.stab_players = outer;
-                    sound
-                }
-            })
-            .flatten();
-        // The players the jab stabbed, now that the hub is back.
-        self.land_player_stabs(host);
-        // PiercingWeapon.makeSound: `playSound(causer, ...)`, so the guest's
-        // own client plays it.
-        if let Some(name) = sound {
-            let source = horizon_client::settings::sound_source(name) as i32;
-            host.hub.sound(name, at, 1.0, 1.0, source, Some(conn));
-        }
     }
 
     /// `Level.getEntityOrPart(id).getBoundingBox()` for a guest's attack or

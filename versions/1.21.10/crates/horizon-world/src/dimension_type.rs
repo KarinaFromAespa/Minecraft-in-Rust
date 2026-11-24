@@ -112,7 +112,9 @@ pub struct DimensionFacts {
     pub nether_portal_spawns_piglin: bool,
     pub piglins_zombify: bool,
     pub snow_golem_melts: bool,
-    pub can_start_raid: bool,
+    /// `DimensionType.hasRaids`: whether raids can start here (the Nether
+    /// forbids them; the overworld, its caves and the End allow them).
+    pub has_raids: bool,
     pub sky_light_level: f32,
     pub bed_rule: BedRule,
     pub straw_bed_rule: BedRule,
@@ -159,7 +161,7 @@ static VANILLA: LazyLock<[DimensionFacts; 4]> = LazyLock::new(|| {
         nether_portal_spawns_piglin: true,
         piglins_zombify: true,
         snow_golem_melts: false,
-        can_start_raid: true,
+        has_raids: true,
         sky_light_level: 15.0,
         bed_rule: BedRule::CAN_SLEEP_WHEN_DARK,
         straw_bed_rule: BedRule::DESTROY_ON_LEAVE,
@@ -191,7 +193,7 @@ static VANILLA: LazyLock<[DimensionFacts; 4]> = LazyLock::new(|| {
         nether_portal_spawns_piglin: false,
         piglins_zombify: false,
         snow_golem_melts: true,
-        can_start_raid: false,
+        has_raids: false,
         sky_light_level: 4.0,
         bed_rule: BedRule::DESTROY_ON_USE,
         straw_bed_rule: BedRule::DESTROY_ON_USE,
@@ -324,7 +326,9 @@ impl DimensionFacts {
             nether_portal_spawns_piglin: bool_attr("nether_portal_spawns_piglin", false),
             piglins_zombify: bool_attr("piglins_zombify", true),
             snow_golem_melts: bool_attr("snow_golem_melts", false),
-            can_start_raid: bool_attr("can_start_raid", true),
+            // A top-level `has_raids` in 1.21.10's dimension JSON, not an
+            // attribute; a datapack dimension omitting it forbids raids.
+            has_raids: flag("has_raids", false),
             sky_light_level: attribute("sky_light_level").as_f64().unwrap_or(15.0) as f32,
             bed_rule: bed("bed_rule", BedRule::CAN_SLEEP_WHEN_DARK)?,
             straw_bed_rule: bed("straw_bed_rule", BedRule::DESTROY_ON_LEAVE)?,
@@ -485,6 +489,40 @@ mod tests {
         assert!(!BedRuleTest::WhenDark.test(false));
         assert!(BedRuleTest::Always.test(false));
         assert!(!BedRuleTest::Never.test(true));
+    }
+
+    #[test]
+    fn raids_follow_has_raids() {
+        // 1.21.10's dimension JSONs: the overworld and the End allow raids,
+        // the Nether forbids them; a datapack dimension omitting the key
+        // forbids them too.
+        assert!(DimensionFacts::overworld().has_raids);
+        assert!(
+            DimensionFacts::vanilla("minecraft:overworld_caves")
+                .is_some_and(|c| c.has_raids)
+        );
+        assert!(DimensionFacts::of_builtin_level(LevelKey::END).has_raids);
+        assert!(!DimensionFacts::of_builtin_level(LevelKey::NETHER).has_raids);
+        let no_tag = |_: &str| Vec::new();
+        let base = serde_json::json!({
+            "coordinate_scale": 1.0,
+            "min_y": 0,
+            "height": 256,
+            "logical_height": 256,
+            "has_skylight": true,
+            "has_ceiling": false,
+            "infiniburn": "#minecraft:infiniburn_overworld",
+            "ambient_light": 0.0,
+            "monster_spawn_light_level": 15,
+            "monster_spawn_block_light_limit": 0,
+        });
+        let custom =
+            DimensionFacts::from_json("example:sky", &base, &no_tag).expect("custom");
+        assert!(!custom.has_raids, "omitting has_raids forbids raids");
+        let mut with = base.clone();
+        with["has_raids"] = serde_json::Value::Bool(true);
+        let custom = DimensionFacts::from_json("example:sky", &with, &no_tag).expect("custom");
+        assert!(custom.has_raids, "has_raids: true allows raids");
     }
 
     #[test]

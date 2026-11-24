@@ -9,6 +9,11 @@ impl Game<'_> {
         !self.dimension_type().has_fixed_time && self.sky_darken() >= 4
     }
 
+    /// `Level.isBrightOutside`.
+    pub(super) fn bright_outside(&self) -> bool {
+        !self.dimension_type().has_fixed_time && self.sky_darken() < 4
+    }
+
     pub(super) fn can_have_weather(&self) -> bool {
         level_can_have_weather(self.world.shape.sky_light, self.world.shape.has_ceiling)
     }

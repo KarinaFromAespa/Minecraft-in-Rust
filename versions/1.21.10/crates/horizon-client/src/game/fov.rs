@@ -131,7 +131,7 @@ impl Game<'_> {
             FogType::Water => CameraFluid::Water,
             FogType::Lava => CameraFluid::Lava,
             FogType::PowderSnow => CameraFluid::PowderSnow,
-            FogType::Atmospheric => CameraFluid::None,
+            FogType::Atmospheric | FogType::DimensionOrBoss => CameraFluid::None,
         }
     }
     /// `GameRenderer.getFov(camera, partial, true)` with the death and fluid

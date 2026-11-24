@@ -15,7 +15,7 @@ use horizon_client::{
         spawn_selection::{self, Heightmap},
         spawning::LocalDifficulty,
     },
-    patrol::{self, GameplayAttributes, Member, PatrolLevel, PatrolSpawner},
+    patrol::{self, Member, PatrolLevel, PatrolSpawner},
     raid::{self, Action, BarName, RaidLevel, RaidPlayer, RaiderInfo, Raids},
 };
 use horizon_core::LevelKey;
@@ -48,7 +48,6 @@ struct Shared<'a> {
     facts: &'a BlockFacts,
     data: &'a MobData,
     block_tags: &'a HashMap<String, HashSet<String>>,
-    attributes: &'a GameplayAttributes,
     air: BlockStateId,
 }
 
@@ -77,7 +76,6 @@ struct World<'a> {
     darken: i32,
     difficulty: i32,
     dimension: &'static DimensionFacts,
-    dimension_id: String,
     unloaded: HashSet<(i32, i32)>,
     no_ticking: HashSet<(i32, i32)>,
     villages: Vec<[i32; 3]>,
@@ -122,11 +120,6 @@ impl World<'_> {
             .rev()
             .find(|&y| spawn_selection::heightmap_blocks(self, kind, x, y, z))
             .map_or(self.min_y(), |y| y + 1)
-    }
-    fn attribute(&self, key: &str) -> bool {
-        self.s
-            .attributes
-            .value(key, &self.dimension_id, &self.biome, self.clock)
     }
 }
 impl SpawnLevel for World<'_> {
@@ -194,6 +187,9 @@ impl PatrolLevel for World<'_> {
     fn spawn_patrols(&self) -> bool {
         self.patrols
     }
+    fn day_time(&self) -> i64 {
+        self.clock
+    }
     fn bright_outside(&self) -> bool {
         self.dimension.id == "minecraft:overworld" && self.darken < 4
     }
@@ -219,7 +215,10 @@ impl PatrolLevel for World<'_> {
         self.loaded(cx, cz)
     }
     fn can_pillager_patrol_spawn(&self, _: [i32; 3]) -> bool {
-        self.attribute(patrol::CAN_PILLAGER_PATROL_SPAWN)
+        !self
+            .s
+            .data
+            .biome_has("minecraft:without_patrol_spawns", &self.biome)
     }
     fn effective_difficulty(&self, pos: [i32; 3]) -> f32 {
         let loaded = self.loaded(pos[0] >> 4, pos[2] >> 4);
@@ -486,12 +485,10 @@ pub fn main() -> horizon_client::Result<()> {
     let facts = BlockFacts::load(root, registry)?;
     let data = MobData::load(root, &facts);
     let items = Items::tags_only(root, &PackOverlay::NONE)?;
-    let attributes = GameplayAttributes::load(root);
     let shared = Shared {
         facts: &facts,
         data: &data,
         block_tags: &items.block_tags,
-        attributes: &attributes,
         air: facts.air,
     };
     let mut out = String::new();
@@ -588,7 +585,6 @@ pub fn main() -> horizon_client::Result<()> {
             darken: get("darken", "0").parse()?,
             difficulty: difficulty_id(&get("difficulty", "normal")),
             dimension,
-            dimension_id: dimension_id.clone(),
             unloaded: chunks("unloaded"),
             no_ticking: chunks("noticking"),
             villages: triples("vil"),
@@ -730,7 +726,7 @@ pub fn main() -> horizon_client::Result<()> {
                         let pos = p.block();
                         let spectator = p.mode == "spectator";
                         // Raids.createOrExtendRaid.
-                        if spectator || !world.raids || !world.attribute(patrol::CAN_START_RAID) {
+                        if spectator || !world.raids || !world.dimension.has_raids {
                             log.push("noraid".into());
                             continue;
                         }

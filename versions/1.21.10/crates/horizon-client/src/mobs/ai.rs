@@ -2018,8 +2018,10 @@ fn burn_undead(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
     }
 }
 fn sun_burn_tick(m: &mut Mob, w: &MobWorld) -> bool {
-    // Mob.isSunBurnTick: the monsters_burn attribute, not the sky darkness.
-    if !w.monsters_burn {
+    // Mob.isSunBurnTick: bright outside (`Level.isBrightOutside`: daylight
+    // in a dimension without fixed time), then the light, the roll, the wet
+    // check and the open sky.
+    if !w.daylight || w.dimension_type.has_fixed_time {
         return false;
     }
     let (x, y, z) = (
@@ -2028,7 +2030,10 @@ fn sun_burn_tick(m: &mut Mob, w: &MobWorld) -> bool {
         m.position.z.floor() as i32,
     );
     let br = w.brightness(x, y, z);
-    let wet = m.fluids.in_water || in_rain(m, w);
+    // isInWaterOrRain, isInPowderSnow or wasInPowderSnow: the last has no
+    // previous-tick field here, so a mob that just left powder snow burns
+    // one tick early.
+    let wet = m.fluids.in_water || in_rain(m, w) || m.in_powder_snow;
     br > 0.5 && m.random.next_float() * 30.0 < (br - 0.4) * 2.0 && !wet && w.can_see_sky(x, y, z)
 }
 /// Mob.serverAiStep
@@ -2127,14 +2132,15 @@ fn server_ai_step(
 pub(crate) fn next_scute_time(m: &mut Mob) -> i32 {
     m.random.next_int_bound(20 * 60 * 5).unwrap_or(0) + 20 * 60 * 5
 }
-/// `Armadillo.customServerAiStep`: the scute timer keeps counting down and is
-/// only reset once `shouldDropLoot` (not a baby, `mob_drops` on) lets it shed.
-fn armadillo_server_ai_step(m: &mut Mob, mob_drops: bool, events: &mut Vec<MobEvent>) {
-    if !m.alive() {
+/// `Armadillo.customServerAiStep`: a dead or baby armadillo's scute timer
+/// never counts down; a living adult sheds at zero, and the gift loot
+/// table pays regardless of `mob_drops`.
+fn armadillo_server_ai_step(m: &mut Mob, events: &mut Vec<MobEvent>) {
+    if !m.alive() || m.is_baby() {
         return;
     }
     m.extra.egg_time -= 1;
-    if m.extra.egg_time <= 0 && !m.is_baby() && mob_drops {
+    if m.extra.egg_time <= 0 {
         let pitch = (m.random.next_float() - m.random.next_float()) * 0.2 + 1.0;
         events.push(MobEvent::ShedScute {
             mob: m.id,
@@ -2154,7 +2160,7 @@ fn custom_server_ai_step(m: &mut Mob, cx: &mut Cx) {
         // Armadillo.customServerAiStep: the brain and its activity, then the scute.
         Species::Armadillo => {
             super::armadillo::server_ai_step(m, cx);
-            armadillo_server_ai_step(m, cx.w.mob_drops, cx.events);
+            armadillo_server_ai_step(m, cx.events);
         }
         Species::Sheep => {}
         Species::Zombie
@@ -4779,6 +4785,42 @@ mod fox_screech_tests {
                     .iter()
                     .any(|s| s.0 == "entity.fox.screech")
             );
+        });
+    }
+}
+
+#[cfg(test)]
+mod sun_burn_tests {
+    use super::*;
+    use crate::mobs::world::with_test_world;
+
+    /// `Mob.isSunBurnTick`: a dry zombie burns in daylight, powder snow
+    /// keeps it from burning, and night stops the tick before the roll.
+    #[test]
+    fn powder_snow_keeps_a_zombie_from_burning() {
+        with_test_world(&[], |w, types| {
+            let kind = std::sync::Arc::new(types.types["minecraft:zombie"].clone());
+            // A seed whose first float is under 0.04: the burn roll passes
+            // at full brightness (the threshold is (1.0 - 0.4) * 2.0 / 30).
+            let mut seed = 0i64;
+            let seed = loop {
+                let mut r = LegacyRandom::new(seed);
+                if r.next_float() < 0.04 {
+                    break seed;
+                }
+                seed += 1;
+            };
+            let mut m = Mob::new(1, kind, Vec3::new(0.5, 64.0, 0.5), 0.0);
+            m.random = LegacyRandom::new(seed);
+            assert!(sun_burn_tick(&mut m, w), "a dry zombie burns in daylight");
+            m.in_powder_snow = true;
+            m.random = LegacyRandom::new(seed);
+            assert!(!sun_burn_tick(&mut m, w), "powder snow is wet");
+            let mut night = w.clone();
+            night.daylight = false;
+            m.in_powder_snow = false;
+            m.random = LegacyRandom::new(seed);
+            assert!(!sun_burn_tick(&mut m, &night), "no burn at night");
         });
     }
 }

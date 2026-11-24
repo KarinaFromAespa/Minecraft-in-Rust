@@ -114,7 +114,7 @@ use crate::{blocks::BlockFacts, mesher::Vertex, world::World};
 pub use data::MobData;
 use horizon_core::{
     geometry::{Aabb, Vec3},
-    random::{LegacyRandom, RandomSource},
+    random::{LegacyRandom, RandomSource, math_random},
 };
 use horizon_world::block_collision::BlockCollisionRegistry;
 use serde_json::Value;
@@ -3234,9 +3234,6 @@ pub struct MobWorld<'a> {
     /// ([`Seen::may_block_mobs`]), when the caller keeps them; None: any.
     pub others_solid: Option<&'a [u32]>,
     pub daylight: bool,
-    /// The `gameplay/monsters_burn` attribute: the overworld day timeline's
-    /// step track, false in every other dimension.
-    pub monsters_burn: bool,
     pub game_time: i64,
     pub day_time: i64,
     pub raining: bool,
@@ -4150,9 +4147,11 @@ impl Mob {
             return;
         }
         self.needs_sync = true;
+        // LivingEntity.knockback: the near-zero direction fallback draws
+        // from Math.random, not the entity's random.
         while xd * xd + zd * zd < f64::from(1.0e-5_f32) {
-            xd = (self.random.next_double() - self.random.next_double()) * 0.01;
-            zd = (self.random.next_double() - self.random.next_double()) * 0.01;
+            xd = (math_random() - math_random()) * 0.01;
+            zd = (math_random() - math_random()) * 0.01;
         }
         let len = (xd * xd + zd * zd).sqrt();
         let (kx, kz) = (xd / len * power, zd / len * power);

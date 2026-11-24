@@ -911,3 +911,57 @@ Rust already uses int distances at the RandomPos API boundary, the
 1.21.10 form; package moves and criterion renames). Also fixed a
 batch-24 leftover: finalize_load_tests.rs used anger_end_time:5000L,
 ignored since item 11 — now AngerTime:5000.
+
+Batch 26 (8 items, rank 2 444 -> 452, 462/719). 93 raids.rs: the
+1.21.11 GameplayAttributes system is deleted outright; the raid gate
+is DimensionFacts.has_raids (renamed from can_start_raid, which had
+no readers; datapack dimensions default to false, matching vanilla),
+the patrol gate is the hardcoded day-5 check plus the
+#without_patrol_spawns biome tag (single member mushroom_fields).
+PatrolLevel gained day_time(); the day check sits between the
+countdown reset and the bright check, matching 1.21.10's javap
+order. 58 fog.rs: the DimensionOrBoss fog environment
+(javap-verified: 7 environments in 1.21.10, DimensionOrBoss between
+Water and Atmospheric; applies when the dimension is foggy at the
+camera - always true for the Nether - or a boss overlay wants world
+fog). New FogType::DimensionOrBoss, resolved in frame_fog; start
+rd*0.05, end min(rd,192)*0.5, sky/cloud = end; Atmospheric
+hard-coded to the 1.21.10 constants with the boss min-block removed.
+30 melee.rs: the item-swap ticker is 1.21.11-only (no itemSwapTicker
+field, no getItemSwapScale in 1.21.10) - swap_ticker, swap_scale()
+and reset_attack() are gone, the hand height uses the attack-strength
+scale; plus Player#tick wakes a sleeper when bright outside (new
+Game::bright_outside, also used by the patrol level). 19
+creatures.rs: melee reach is always sqrt(2.04)-0.6 (no attack_range
+component in 1.21.10); sun_burn_tick gates on bright-outside and the
+monsters_burn field is deleted; the wet check includes powder snow.
+12 mobs.rs: zombie spear goal + spear equipment roll + zombie-horse
+jockey all removed (javap-verified 1.21.11-only); the
+can_glide_through launch-blocker fixed by mirroring the 1.21.7 tree
+(empty set at load, no glide exception on climbables - 1.21.10 has no
+such tag); disable-blocking reads the weapon unconditionally;
+knockback fallback uses math_random(); armadillo babies' timers never
+count down and the mob_drops gate is gone; dolphins grace sets the
+water drag to 0.96. 16 lan_actions.rs: handlePlayerAction case 8
+(spear STAB) and guest_jab removed (1.21.10's switch ends at 7);
+entering spectator no longer stops item use. No-change: 73
+(core_sky - JOML interface/class types, trig noise, render-pass
+plumbing; the single-rotation sun/moon/stars form is geometrically
+identical to the Rust's separate rotations provided moon_angle =
+sun_angle + 180, an item-351 attribute-value question), 42 (camera -
+Level/BlockGetter types, JOML types, pick plumbing, render scheduling;
+the 1.21.10 renderLevel fog boolean confirms the item-58 analysis;
+the player's attack_range component read is inert on 1.21.10 data).
+
+CI run 45357219692 (batch 25, head d72cd46d): FAILURE - 2 tests in
+horizon-client-render, both batch-25 regressions from the mipmap
+rewrite: custom_item_textures_mip_as_items and
+identical_still_textures_share_a_layer asserted that item textures
+get a layer of their own. The old item flag only gated solidify,
+which the 1.21.10 form has no use for (vanilla 1.21.10's
+MipmapGenerator has no item parameter, javap-verified), so identical
+pixels now mip identically and share a layer - the tests were
+updated to the 1.21.10 form (item shares layer 0 with the block
+texture; counts 2 layers / 4 names / 2 mips / 2*16*16*4 pixels),
+not the code. All other suites green (440 + 3 + 110 + 483 + 83 +
+1285 + 2510 passed). Fixed in this batch (sprites.rs).

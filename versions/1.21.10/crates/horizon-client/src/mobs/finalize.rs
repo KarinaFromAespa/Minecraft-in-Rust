@@ -1340,10 +1340,12 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
                 self.armor(m);
                 let chance = if self.difficulty.hard { 0.05 } else { 0.01 };
                 if self.float() < chance {
-                    let weapon = match self.int(6) {
-                        0 => "minecraft:iron_sword",
-                        1 => "minecraft:iron_spear",
-                        _ => "minecraft:iron_shovel",
+                    // Zombie.populateDefaultEquipmentSlots: nextInt(3),
+                    // 0 an iron sword, else an iron shovel (no spear).
+                    let weapon = if self.int(3) == 0 {
+                        "minecraft:iron_sword"
+                    } else {
+                        "minecraft:iron_shovel"
                     };
                     set_item(m, MAINHAND, weapon);
                 }
@@ -1899,17 +1901,9 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
                 self.horse(m, Some(g))
             }
             S::Donkey | S::Mule | S::SkeletonHorse => self.horse(m, g),
-            S::ZombieHorse => {
-                if reason == Reason::Natural
-                    && let Some(mut zombie) = self.create("minecraft:zombie", Reason::Jockey, m)
-                {
-                    self.finalize(&mut zombie, reason, None);
-                    set_item(&mut zombie, MAINHAND, "minecraft:iron_spear");
-                    self.ride(&mut zombie, m);
-                    self.created.push(zombie);
-                }
-                self.horse(m, g)
-            }
+            // ZombieHorse.finalizeSpawn is 1.21.11-only: in 1.21.10 a
+            // zombie horse spawns alone, with no zombie jockey.
+            S::ZombieHorse => self.horse(m, g),
             S::Camel | S::CamelHusk => {
                 let now = self.level.game_time();
                 m.extra.pose_change_tick = (now - 52 - 1).max(0);

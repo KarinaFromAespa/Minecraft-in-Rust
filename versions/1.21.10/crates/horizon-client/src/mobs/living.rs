@@ -493,9 +493,10 @@ impl Mob {
     /// `LivingEntity.onClimbable` (`Spider.onClimbable`: the climbing flag):
     /// the block it stands in is `#minecraft:climbable` (vines, ladders,
     /// scaffolding...), or an open trapdoor over a ladder facing the same way
-    /// (`trapdoorUsableAsLadder`). A mob gliding (`isFallFlying`) through a
-    /// `#minecraft:can_glide_through` block (vines) is not on it: that test
-    /// comes first.
+    /// (`trapdoorUsableAsLadder`). 1.21.10 has no fall-flying exception:
+    /// vanilla 1.21.10's `onClimbable` never checks `isFallFlying`, so a
+    /// gliding entity in vines is on climbable (the `can_glide_through`
+    /// exception came with a later version's tag).
     pub fn on_climbable(&self, w: &MobWorld) -> bool {
         if self.kind.flags.climber {
             return self.climbing;
@@ -507,9 +508,6 @@ impl Mob {
         );
         let state = w.world.block(x, y, z);
         let facts = w.facts.get(state);
-        if self.extra.fall_flying && w.has_tag("minecraft:can_glide_through", &facts.name) {
-            return false;
-        }
         if w.has_tag("minecraft:climbable", &facts.name) {
             return true;
         }
@@ -1694,6 +1692,11 @@ impl Mob {
             if efficiency > 0.0 {
                 slow += (0.546_000_06 - slow) * efficiency;
                 speed += (self.ai.speed - speed) * efficiency;
+            }
+            // LivingEntity.travelInFluid: Dolphins Grace sets the drag to
+            // 0.96, after the efficiency adjustment.
+            if self.has_effect("minecraft:dolphins_grace") {
+                slow = 0.96;
             }
             self.move_relative(speed, input);
             self.do_move(w, events);

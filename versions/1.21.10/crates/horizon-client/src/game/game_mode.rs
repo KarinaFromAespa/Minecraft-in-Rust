@@ -131,7 +131,8 @@ impl Game<'_> {
         }
         if mode == GameMode::Spectator {
             self.mining = None;
-            self.using = None;
+            // ServerPlayer.setGameMode stops riding, not item use (the
+            // stopUsingItem call on entering spectator is 1.21.11's).
             self.left = false;
             self.dismount_for_spectator();
             if let Some(p) = self.player.as_mut() {

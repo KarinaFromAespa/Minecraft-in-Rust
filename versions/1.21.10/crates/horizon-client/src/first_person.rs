@@ -595,20 +595,20 @@ impl Default for HandHeights {
     }
 }
 impl HandHeights {
-    /// `FirstPersonHandsAndItems.tick`'s heights. `changed` says per hand
+    /// `ItemInHandRenderer.tick`'s heights. `changed` says per hand
     /// whether the visible item differs from the held one once
-    /// `shouldInstantlyReplaceVisibleItem` has run; `swap_scale` is
-    /// `getItemSwapScale(1.0F)`. Returns whether each hand's visible item
-    /// is replaced at the end.
-    pub fn tick(&mut self, hands_busy: bool, swap_scale: f32, changed: [bool; 2]) -> [bool; 2] {
-        self.tick_with(hands_busy, swap_scale, changed, false)
+    /// `shouldInstantlyReplaceVisibleItem` has run; `attack_scale` is
+    /// `getAttackStrengthScale(1.0F)`. Returns whether each hand's visible
+    /// item is replaced at the end.
+    pub fn tick(&mut self, hands_busy: bool, attack_scale: f32, changed: [bool; 2]) -> [bool; 2] {
+        self.tick_with(hands_busy, attack_scale, changed, false)
     }
     /// [`Self::tick`]; `legacy` (Combat feel Legacy) raises the main hand fully whatever the
     /// attack strength, as 1.8.9's `ItemRenderer.updateEquippedItem` did (no dip after a hit).
     pub fn tick_with(
         &mut self,
         hands_busy: bool,
-        swap_scale: f32,
+        attack_scale: f32,
         changed: [bool; 2],
         legacy: bool,
     ) -> [bool; 2] {
@@ -618,7 +618,7 @@ impl HandHeights {
             self.main = (self.main - 0.4).clamp(0.0, 1.0);
             self.off = (self.off - 0.4).clamp(0.0, 1.0);
         } else {
-            let attack = if legacy { 1.0 } else { swap_scale };
+            let attack = if legacy { 1.0 } else { attack_scale };
             let main_target = if changed[0] {
                 0.0
             } else {

@@ -1025,9 +1025,6 @@ impl Game<'_> {
             others_villagers: None,
             others_solid: None,
             daylight: self.dim != Dim::Nether && self.sky_darken() < 4,
-            // day.json: false from tick 12542, true from 23460 (a step track).
-            monsters_burn: self.dimension_type().has_timeline("minecraft:day")
-                && !(12542..23460).contains(&self.world.day_time.rem_euclid(24000)),
             game_time: self.world.game_time,
             day_time: self.world.day_time,
             raining: weather && rain > 0.2,
@@ -3609,7 +3606,8 @@ impl Game<'_> {
                     modifier,
                 } => self.fall_to_passengers(mob, distance, modifier),
                 MobEvent::ShedScute { mob, at, pitch } => {
-                    // The mob already checked `shouldDropLoot` (a baby, `mob_drops`).
+                    // The mob already checked it is a living adult; the
+                    // gift loot table pays regardless of `mob_drops`.
                     let table = "minecraft:gameplay/armadillo_shed";
                     let drops = self.sequence_loot(table, table, None);
                     for d in drops {
@@ -9094,7 +9092,6 @@ mod pearl_tests {
             others_villagers: None,
             others_solid: None,
             daylight: true,
-            monsters_burn: false,
             game_time: 1000,
             day_time: 1000,
             raining: false,

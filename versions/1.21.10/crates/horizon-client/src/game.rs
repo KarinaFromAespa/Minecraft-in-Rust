@@ -8914,6 +8914,9 @@ impl Game<'_> {
                     .player
                     .as_ref()
                     .is_none_or(|p| p.health.dead_or_dying())
+                // Player.tick: a sleeper wakes as soon as the world turns
+                // bright (a dawn, or a time change, while asleep).
+                || self.bright_outside()
             {
                 self.wake_up();
                 return;
