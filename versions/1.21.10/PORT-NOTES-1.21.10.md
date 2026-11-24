@@ -996,3 +996,21 @@ stats_screen, armadillo, legacy_combat, registries' minecraft:timeline
 field), each noted in its ledger entry. One stale comment fixed
 (cube.rs: the spear minimum-range parenthetical; melee_reaches is
 already the ported 1.21.10 form from item 19).
+
+CI runs 45362866602 (batch 26, 7b9ffd68) and 45364393502 (batch 27,
+dd457e07): both SUCCESS, all suites green.
+
+Rank 3 batch 2 (32 items, rank 3 108 -> 140, 604/719): the review
+items with zero real methods (semantic diff run fresh for rank 3:
+175 methods, 94 real, 14 missing-new, 67 same). 513
+gamemode_switcher.rs PORTED: 1.21.10's GameModeSwitcherScreen has no
+mouseReleased, so the mouse-release apply is gone (game.rs arm,
+switcher_release, release_applies + test); the keyboard release path
+is untouched. The other four missing-new items are no-change: 520
+(dialog text clicks run through DialogScreen.runAction in 1.21.10),
+542 (getItemDamageSource is 1.21.11's rename of getDamageSource —
+same mace-smash logic), 527 (getVisibility unreferenced), 547 (the
+Rust's JSON-RPC endpoint is its own implementation). The remaining
+27 are all-same. Three carry already-ported tree diffs, noted in
+their entries: 512 (anger work), 544 (mipmap metadata), 559
+(offsetRandom + create_experience).

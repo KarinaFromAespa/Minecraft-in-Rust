@@ -889,8 +889,9 @@ impl Game<'_> {
                 } if ui::hovered(cursor, x, y, w, h) => {
                     action = Some(Some(index));
                 }
-                // AbstractStringWidget.setComponentClickHandler: the click event
-                // of the styled text under a centred message line.
+                // `DialogScreen.runAction`: the click event of the styled
+                // text under a centred message line (1.21.11 wires it
+                // through `AbstractStringWidget.setComponentClickHandler`).
                 Part::Line(line, x, y) if text_click.is_none() => {
                     text_click = horizon_client::dialog_screen::line_style_at(
                         &self.gui.atlas.font,

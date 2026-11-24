@@ -104,8 +104,8 @@ impl Game<'_> {
             .as_ref()
             .is_some_and(|p| p.fall_distance > FALL_THRESHOLD && !p.fall_flying)
     }
-    /// A held mace about to smash (`MaceItem.getItemDamageSource`: the attack
-    /// is `mace_smash` damage).
+    /// A held mace about to smash (`MaceItem.getDamageSource`: the attack
+    /// is `mace_smash` damage; 1.21.11 renamed it `getItemDamageSource`).
     pub(super) fn smash_attack(&self) -> bool {
         self.holds_mace() && self.can_smash_attack()
     }

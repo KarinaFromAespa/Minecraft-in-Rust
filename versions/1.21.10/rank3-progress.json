@@ -1,7 +1,7 @@
 {
  "release": "1.21.10",
  "rank": 3,
- "batch": 1,
+ "batch": 2,
  "note": "",
  "items": {
   "485": {
@@ -543,6 +543,166 @@
    "module": "crates/horizon-client-render/src/gfx/pack_atlas/stitch.rs",
    "verdict": "no-change",
    "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); its single named vanilla method is unchanged 1.21.11->1.21.10 (named_changed is empty)."
+  },
+  "468": {
+   "module": "crates/horizon-client/src/mobs/polar_bear.rs",
+   "verdict": "no-change",
+   "evidence": "7 named method(s), all same after rename normalisation: net/minecraft/world/entity/animal/PolarBear#getDefaultDimensions, net/minecraft/world/entity/animal/PolarBear#getStandingAnimationScale, net/minecraft/world/entity/animal/PolarBear#playWarningSound, net/minecraft/world/entity/animal/PolarBear#setStanding, net/minecraft/world/entity/animal/PolarBear#tick, net/minecraft/world/entity/animal/PolarBear$PolarBearMeleeAttackGoal#checkAndPerformAttack, net/minecraft/world/entity/animal/PolarBear$PolarBearAttackPlayersGoal#canUse. No behaviour diff 1.21.11->1.21.10."
+  },
+  "482": {
+   "module": "crates/horizon-world/src/datafix/world_upgrader.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/util/worldupdate/WorldUpgrader#work. No behaviour diff 1.21.11->1.21.10."
+  },
+  "486": {
+   "module": "crates/horizon-client/src/game/jigsaw_blocks.rs",
+   "verdict": "no-change",
+   "evidence": "2 named method(s), all same after rename normalisation: net/minecraft/world/level/block/entity/JigsawBlockEntity#generate, net/minecraft/world/level/block/entity/JigsawBlockEntity#loadAdditional. No behaviour diff 1.21.11->1.21.10."
+  },
+  "487": {
+   "module": "crates/horizon-world/src/worldgen/structure/simple.rs",
+   "verdict": "no-change",
+   "evidence": "2 named method(s), all same after rename normalisation: net/minecraft/world/level/levelgen/structure/structures/IglooPieces#addPieces, net/minecraft/world/level/levelgen/structure/structures/ShipwreckPieces#addRandomPiece. No behaviour diff 1.21.11->1.21.10."
+  },
+  "488": {
+   "module": "crates/horizon-client/src/game/commands/test_locate.rs",
+   "verdict": "no-change",
+   "evidence": "2 named method(s), all same after rename normalisation: net/minecraft/gametest/framework/TestCommand#createNewStructure, net/minecraft/gametest/framework/StructureUtils#createNewEmptyTest. No behaviour diff 1.21.11->1.21.10."
+  },
+  "490": {
+   "module": "crates/horizon-client/src/item_render/gui.rs",
+   "verdict": "no-change",
+   "evidence": "2 named method(s), all same after rename normalisation: net/minecraft/client/gui/render/pip/GuiBannerResultRenderer#renderToTexture, net/minecraft/client/gui/render/pip/GuiBookModelRenderer#renderToTexture. No behaviour diff 1.21.11->1.21.10."
+  },
+  "492": {
+   "module": "crates/horizon-world/src/worldgen/structure/ruined_portal.rs",
+   "verdict": "no-change",
+   "evidence": "2 named method(s), all same after rename normalisation: net/minecraft/world/level/levelgen/structure/structures/RuinedPortalPiece#makeSettings, net/minecraft/world/level/levelgen/structure/structures/RuinedPortalStructure#findGenerationPoint. No behaviour diff 1.21.11->1.21.10."
+  },
+  "494": {
+   "module": "crates/horizon-client-render/src/zip.rs",
+   "verdict": "no-change",
+   "evidence": "2 named method(s), all same after rename normalisation: net/minecraft/server/packs/FilePackResources#getResource, net/minecraft/server/packs/FilePackResources#listResources. No behaviour diff 1.21.11->1.21.10."
+  },
+  "498": {
+   "module": "crates/horizon-world/src/worldgen/generator.rs",
+   "verdict": "no-change",
+   "evidence": "2 named method(s), all same after rename normalisation: net/minecraft/world/level/levelgen/structure/pools/JigsawPlacement#addPieces, net/minecraft/world/level/levelgen/structure/pools/JigsawPlacement#generateJigsaw. No behaviour diff 1.21.11->1.21.10."
+  },
+  "512": {
+   "module": "crates/horizon-client/src/game/commands/data.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method, same. The tree diff vs 1.21.11 (40 lines) is the already-ported item-11/item-20 anger work from batches 24-25 (AngerTime countdown, live-wolf-anger test rewrite)."
+  },
+  "513": {
+   "module": "crates/horizon-client/src/game/gamemode_switcher.rs",
+   "verdict": "ported",
+   "evidence": "1 real method: none \u2014 the single named method (GameModeSwitcherScreen#mouseReleased) is missing-new, 1.21.11-only. PORTED: 1.21.10's GameModeSwitcherScreen has NO mouseReleased (javap-verified: only init/render/renderBackground/keyPressed/isPauseScreen), so the mouse-release apply was removed: the game.rs match arm, Game::switcher_release, game_mode_switcher::release_applies and its test. The keyboard-modifier release path (the 1.21.10 mechanism) is untouched."
+  },
+  "515": {
+   "module": "crates/horizon-client/src/mobs/sniffer.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/client/model/SnifferModel#setupAnim. No behaviour diff 1.21.11->1.21.10."
+  },
+  "517": {
+   "module": "crates/horizon-client/src/title/flat.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/client/gui/screens/PresetFlatWorldScreen#fromString. No behaviour diff 1.21.11->1.21.10."
+  },
+  "520": {
+   "module": "crates/horizon-client/src/game/dialogs.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method, missing-new: AbstractStringWidget#setComponentClickHandler is 1.21.11-only (1.21.10's AbstractStringWidget has no click-handler API), but the behaviour exists in 1.21.10 through DialogScreen.runAction(Optional<ClickEvent>) (javap-verified) \u2014 clicking styled dialog text runs its click event in both versions. The Rust resolves the click event from the styled text itself; the comment now cites runAction."
+  },
+  "522": {
+   "module": "crates/horizon-command/src/network.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/commands/synchronization/SuggestionProviders#getProvider. No behaviour diff 1.21.11->1.21.10."
+  },
+  "527": {
+   "module": "crates/horizon-client-render/src/gfx/native_material.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method, missing-new: SectionRenderDispatcher$RenderSection#getVisibility is 1.21.11-only. The Rust module (native_material.rs) never references it \u2014 its visibility is the terrain-instance shader distance blend, unrelated to the chunk-section API."
+  },
+  "528": {
+   "module": "crates/horizon-client/src/game/clone_dimensions_tests.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/commands/arguments/DimensionArgument#getDimension. No behaviour diff 1.21.11->1.21.10."
+  },
+  "529": {
+   "module": "crates/horizon-client/src/mobs/hostile.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/world/entity/monster/Spider$SpiderAttackGoal#canUse. No behaviour diff 1.21.11->1.21.10."
+  },
+  "533": {
+   "module": "crates/horizon-client/src/game/debug_lines.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/client/gui/components/debug/DebugEntryChunkGeneration#display. No behaviour diff 1.21.11->1.21.10."
+  },
+  "536": {
+   "module": "crates/horizon-client/src/locator_bar.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/client/resources/WaypointStyle#sprite. No behaviour diff 1.21.11->1.21.10."
+  },
+  "537": {
+   "module": "crates/horizon-client/src/mobs/creaking.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/client/model/CreakingModel#setupAnim. No behaviour diff 1.21.11->1.21.10."
+  },
+  "538": {
+   "module": "crates/horizon-world/src/worldgen/structure/nether_fossil.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/world/level/levelgen/structure/structures/NetherFossilPieces#addPieces. No behaviour diff 1.21.11->1.21.10."
+  },
+  "542": {
+   "module": "crates/horizon-client/src/game/mace.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method, missing-new: MaceItem#getItemDamageSource is 1.21.11's rename of 1.21.10's MaceItem#getDamageSource (javap-verified: canSmashAttack -> damageSources.mace, else super.getDamageSource) \u2014 exactly what the Rust's attack_source does (Damage::mace when smashing, else Damage::player). Doc comment fixed to the 1.21.10 name."
+  },
+  "544": {
+   "module": "crates/horizon-client/src/item_render/glint_atlas.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method, same. The tree diff vs 1.21.11 (5 lines) is the already-ported item-91 mipmap work from batch 25 (TextureMetadataSection has only blur/clamp in 1.21.10)."
+  },
+  "547": {
+   "module": "crates/horizon-server/src/management_methods.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method, missing-new: MinecraftServerSettingsServiceImpl#getOperatorUserPermissions is 1.21.11-only vanilla service API. The Rust's management server is its own JSON-RPC implementation; the serversettings/operator_user_permission_level endpoint is the Rust's own and is unaffected by the vanilla service split."
+  },
+  "555": {
+   "module": "crates/horizon-prepare/src/sounds.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/server/packs/repository/BuiltInPackSource#populatePackList. No behaviour diff 1.21.11->1.21.10."
+  },
+  "556": {
+   "module": "crates/horizon-client-render/src/gfx/lightning.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/client/renderer/entity/LightningBoltRenderer#submit. No behaviour diff 1.21.11->1.21.10."
+  },
+  "559": {
+   "module": "crates/horizon-client/src/game/spill.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method, same. The tree diff vs 1.21.11 (7 lines) is already-ported work: the batch-27 offsetRandom doc fix and the create_experience random-param removal from an earlier batch."
+  },
+  "562": {
+   "module": "crates/horizon-world/src/worldgen/structure.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/world/level/block/Rotation#getRandom. No behaviour diff 1.21.11->1.21.10."
+  },
+  "563": {
+   "module": "crates/horizon-client/src/debug_chart.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/client/gui/components/debugchart/AbstractDebugChart#getSampleColor. No behaviour diff 1.21.11->1.21.10."
+  },
+  "566": {
+   "module": "crates/horizon-client/src/game/item_draw.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/client/renderer/entity/ItemEntityRenderer#submit. No behaviour diff 1.21.11->1.21.10."
+  },
+  "571": {
+   "module": "crates/horizon-world/src/worldgen/structure/temple.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/world/level/levelgen/structure/structures/DesertPyramidStructure#afterPlace. No behaviour diff 1.21.11->1.21.10."
   }
  }
 }
