@@ -1075,12 +1075,17 @@ fn unpack_server(
 /// Imports the player's own pinned game files into `.local/minecraft/<version>` and writes the
 /// class inventories and prepared.json (tools/lab.py `prepare`). The decompiler lab.py also
 /// fetches is a development tool, not something preparing needs; `tools/lab.py prepare` gets it.
+/// An obfuscated release is remapped with Mojang's official mapping tables after the jars are
+/// imported (`crate::remap`), so the inventories and every exporter downstream read named
+/// classes; `java_home` is the runtime's home, the first place the remapper's compiler lookup
+/// tries.
 pub fn import(
     root: &Path,
     lock: &Lock,
     minecraft: Option<&Path>,
     inputs: &Inputs,
     server_jar: Option<&Path>,
+    java_home: &Path,
     log: Log,
 ) -> Result<(), String> {
     let files = game_files(minecraft, &lock.version).with(inputs, &lock.version);
@@ -1092,15 +1097,6 @@ pub fn import(
         "sha1",
         &files.hint(&lock.version),
     )?;
-    let downloads = manifest.get("downloads");
-    if downloads.and_then(|d| d.get("client_mappings")).is_some()
-        || downloads.and_then(|d| d.get("server_mappings")).is_some()
-    {
-        return Err(
-            "This workflow targets unobfuscated releases. Older releases need a remapping stage."
-                .into(),
-        );
-    }
     let id = manifest
         .get("id")
         .and_then(Value::as_str)
@@ -1143,6 +1139,19 @@ pub fn import(
                 (client.clone(), client_libraries.clone(), true)
             }
         };
+    // An obfuscated release's jars are renamed with Mojang's official mapping tables
+    // before the inventories below are written, so they and every exporter downstream
+    // read named classes. Unobfuscated releases publish no tables: a no-op for them.
+    crate::remap::remap_if_needed(
+        root,
+        lock,
+        &manifest,
+        &client,
+        &server,
+        server_from_client,
+        java_home,
+        log,
+    )?;
     write_import_metadata(
         root,
         lock,
@@ -1918,6 +1927,7 @@ mod tests {
                 Some(&prism),
                 &Inputs::default(),
                 Some(&server),
+                Path::new("java"),
                 &|_| {},
             )
         };
@@ -2043,7 +2053,7 @@ mod tests {
             prism.join("libraries/com/mojang/minecraft/9.9/minecraft-9.9-client.jar")
         );
 
-        import(&fixture.target, &lock, None, &inputs, None, &|_| {}).unwrap();
+        import(&fixture.target, &lock, None, &inputs, None, Path::new("java"), &|_| {}).unwrap();
         let found = verify(&lock).unwrap();
         assert!(found.manifest_from_prism);
         assert!(found.server_from_client);
@@ -2135,6 +2145,7 @@ mod tests {
                 Some(dir),
                 &Inputs::default(),
                 Some(&server),
+                Path::new("java"),
                 &|_| {},
             )
         };
@@ -2211,6 +2222,7 @@ mod tests {
                 Some(&empty),
                 inputs,
                 Some(&server),
+                Path::new("java"),
                 &|_| {},
             )
         };
@@ -2246,6 +2258,7 @@ mod tests {
             Some(&empty),
             &Inputs::default(),
             None,
+            Path::new("java"),
             &|_| {},
         )
         .unwrap_err();
