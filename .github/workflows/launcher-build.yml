@@ -238,7 +238,9 @@ jobs:
             echo "::error::no test result line — the suite did not run (compile error? see the log)"
             exit 1
           fi
-          grep -A 200 "^failures:$" "$OUT" | grep -E "^    [a-zA-Z0-9_:]+$" | sort -u > /tmp/failures.txt || true
+          # The failure list is indented; strip the indent so comm compares
+          # bare test paths against the baseline's bare paths.
+          grep -A 200 "^failures:$" "$OUT" | grep -E "^    [a-zA-Z0-9_:]+$" | sed 's/^    //' | sort -u > /tmp/failures.txt || true
           if [ -f known-test-failures.txt ]; then
             grep -v "^#" known-test-failures.txt | grep -v "^$" | sort -u > /tmp/baseline.txt
           else
