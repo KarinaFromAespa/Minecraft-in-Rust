@@ -1,0 +1,202 @@
+{
+ "batch": 3,
+ "checks": {
+  "gap": 13,
+  "pass": 67,
+  "total": 80
+ },
+ "coordinator_note": "COORDINATOR (2026-11-24): verified from raw artifacts. Report 978 lines, complete tail, no truncation markers. Slice 80/67/13 arithmetic exact (section sums verified: A1 1, A1b 11, A2 1, A3 9, A4 5, B1 3, B2 25, B7 3, B8 1, B5 3, B4 4, B6 3, B3 5, B9 3, Drivers 3); 23 items; no fix key. Oracle cross-check: every named oracle exists in the Batch 0 table and fails on all three classpaths. Group counts resolved from evidence text: O02=5 (BoatRider is a note, member of O03), O04=9 (7 oracles + EntityTranscript/RideTranscript driver names, NOT oracles), O05=16 (14 Vanilla* + KnockbackClient + LocatorBarClient), O07=2 (EntityCollision + HelmetDamage; BlockUpdate/FaceSupport are cascade sources, not members). 1.21.7 coverage complete: all 20 G + 6 O accounted for - 8 carry-overs, 12 cleared in 'Re-checked, not defects' (short-form ids like 'G01 bat'), G07 withdrawn-not-reminted. G22 verified end-to-end: motion.rs:138/139 hard-require suppresses_bounce + causes_suffocation via tag(...)?; both tags absent from the jar and prepared block_tags.json; 26.2's motion.rs carries the correct untagged form with a documenting comment. G09 verified (sun_burn_tick wet = water||rain only, ai.rs:2024-2037); G25/G26 verified in substance at cited sites (max_speed_new has no furnace branch, minecarts.rs:991-994; Breed impl has no panic clause); G27/G28 verified (food_tag byte-identical 26.1 vs 26.2; no Camel/ZombieHorse/SkeletonHorse arms; vanilla tags in jar data). CORRECTION 1: the agent's '26.2 record needs flags' claim is wrong for G05 - 26.2's B3 DID defect G05 (in the 26.2 ledger, as are G06/G09/G11). Genuine 26.2 flags: G27/G28 (food table), G25, G26. CORRECTION 2: G16's clearance is about the trade loader reading the dirs; B4-G25 shows the loaded amounts still fail to parse (floats) - trading yields no offers regardless. TALLY: B3 counts 3 driver-code-defect checks as gaps (G18/G19/G20), per the 26.2 B3 precedent (26.2's B3 also counted driver items G19/G20); behaviour-only restatement is 77 checks (67 pass, 10 gap). WHOLE FOLDS: 'B3-G24' -> 'B4-G24' (same villager level-up defect; B3's discount facet preserved via dedup pointer to B3's slice); 'B3-O08' -> 'B1-O06' (EntityFluid single-oracle group -> B1 singleton). MEMBER FOLDS: see MERGE-NOTES.md (15 folds incl. B6-O06 FinalizeSpawn -> B3-O03, B6-O01 WorldSpawn -> B3-O05, B3-O05 Trading -> B4-O25, B3-O03 Arrow/BoatRider/ClientArrow/BlockingItemDamage -> B7 singletons).",
+ "date": "2026-11-24",
+ "items": [
+  {
+   "evidence": "Vanilla 26.1 EntityType.<clinit> marks 37 types notInPeaceful; hoglin is NOT among them (verified directly in the dump: the HOGLIN builder chain has no notInPeaceful call; GUARDIAN has one). The port's allowed_in_peaceful disallows 38 types including hoglin, in BOTH mobs/spawn_rules.rs:134 and mobs/finalize.rs:897. Live paths: ai.rs:2305 checkDespawn, game/commands.rs:2589, passengers.rs, stations.rs, structure_mobs.rs. Opposite of 26.2, where hoglin IS notInPeaceful. Carried over from 1.21.7.",
+   "id": "B3-G04",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Hoglin wrongly disallowed in peaceful"
+  },
+  {
+   "evidence": "Vanilla 26.1 Camel.isFood = #camel_food (cactus; the tag exists in the jar's data). Port food_tag() (mobs/species.rs:1641) covers CamelHusk but NOT Camel, so MobType.food is empty for camels and feeding/breeding/tempting never fire. Camels cannot breed. Carried over unchanged from 1.21.7; shared with the 26.2 port's identical table.",
+   "id": "B3-G05",
+   "method": "javap + source + data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Camel has no food \u2014 camels cannot breed"
+  },
+  {
+   "evidence": "Vanilla 26.1 Armadillo.getMaxHeadYRot = isScared() ? 0 : 32. Port max_head_y_rot (mobs/species.rs:1727) returns 32.0 unconditionally, so a scared (rolled-up) armadillo still turns its head. Carried over from 1.21.7.",
+   "id": "B3-G06",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Armadillo scared head rotation ignored"
+  },
+  {
+   "evidence": "Vanilla 26.1 Mob.isSunBurnTick excludes mobs that are isInWaterOrRain || isInPowderSnow || wasInPowderSnow. The port's sun_burn_tick (ai.rs:2024-2037) uses wet = in_water || in_rain only, although Mob HAS in_powder_snow state (mobs.rs:1622, updated ai.rs:1404-1405) \u2014 undead standing in powder snow burn at noon in the port where vanilla spares them. Carried over from 1.21.7.",
+   "id": "B3-G09",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Sun-burn ignores powder snow"
+  },
+  {
+   "evidence": "Vanilla 26.1 NaturalSpawner.spawnCategoryForChunk computes top = getHeight(WORLD_SURFACE) + 1 and samples y = randomBetweenInclusive(minY, top), giving [minY, H+1]. The port's spawn_category_for_chunk (spawn_selection.rs:1115-1117) uses top = H and y = min + nextInt(top-min+1), giving [minY, H], so the topmost spawnable y is never chosen. The port's world_surface = H is confirmed by horizon-client-render/src/world.rs:407. Carried over from 1.21.7.",
+   "id": "B3-G11",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "getRandomPosWithin y-range off by one"
+  },
+  {
+   "evidence": "tools/test_entity_components_parity.py:27-29 reads criterion['conditions']['entity']['predicate'] and then predicate['minecraft:components']. 26.1 advancement data uses the list form with predicate: {components: {...}} \u2014 verified in all 3 advancements that use it (complete_catalogue 11 criteria, whole_pack 9, leash_all_frog_variants 3). The driver raises TypeError on the first criterion. 26.2 uses the new form; 26.1 the old. Carried over from 1.21.7; in 26.2 this check PASSED.",
+   "id": "B3-G18",
+   "method": "source + data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "DRIVER: entity_components predicate form (26.1 list form)"
+  },
+  {
+   "evidence": "test_suffocation_parity.py:66 and test_registered_entity_fluid_parity.py:66 both assert the block-state count equals 35723 (the 26.3 count). 26.1 has 29,873 states, so both drivers fail their own completeness check. In 26.2 the suffocation driver was fixed to 32366; in 26.1 it was not.",
+   "id": "B3-G19",
+   "method": "source + data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "DRIVER: state-count hardcode 35723 in two drivers"
+  },
+  {
+   "evidence": "Five Batch 3 drivers build the server command with lab.LOCAL / 'horizon-client/26.3': test_locator_bar_parity.py:269, test_server_dragon_parity.py:111, test_server_entities_parity.py:186, test_server_knockback_parity.py:435, test_projectile_shoot.py:46 \u2014 so they run the horizon server against 26.3 prepared data (or fail outright where none exists) instead of 26.1's.",
+   "id": "B3-G20",
+   "method": "source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "DRIVER: 26.3 resources path in five drivers"
+  },
+  {
+   "evidence": "Vanilla 26.1's default suffocation rule is Properties.<init> indy#6 -> lambda$new$5 = blocksMotion() && isCollisionShapeFullBlock() \u2014 NO tag. The port's default is TaggedFullCollision (horizon-world/src/suffocation.rs:72) gated on #causes_suffocation, a tag absent from 26.1 jar data (0 entries) and from prepared block-tags.json (248 tags; jar set == prepared set modulo 4 mineable/* renames). motion.rs:139 requires it via tag(...)?, which errors on missing tags; TagDefinitions::build synthesizes nothing. The startup path resource_load.rs load_resources -> load_core (151) -> gameplay_tables (291) -> MotionResources::load_with_facts (324) propagates the error with motion? \u2014 the 26.1 client cannot load its core tables with prepared 26.1 data. The first failure in evaluation order is actually #suppresses_bounce (motion.rs:138, also absent; 1.21.7 hardcodes {minecraft:honey_block} for it at motion.rs:144), then #causes_suffocation. Even if load passed, no default block would suffocate. Contrast: 26.2's motion.rs:65 documents the tag as absent in 26.2 data and uses blocks_motion + MotionFullCollision. CI crate tests do not catch this: data-dependent tests skip quietly without .local. NEW in 26.1 \u2014 a template-level 26.3-form leak.",
+   "id": "B3-G22",
+   "method": "javap + source + data",
+   "severity": "major",
+   "status": "gap",
+   "title": "Default suffocation tag-gated on absent #causes_suffocation \u2014 client cannot load core tables"
+  },
+  {
+   "evidence": "Vanilla 26.1 LivingEntity.isInWall = !isSleeping() && super.isInWall(); Entity.isInWall = noPhysics->false, eye box AABB.ofSize(eye, width*0.8, 1e-6, width*0.8), any block !isAir && isSuffocating && collisionShape intersects box; baseTick hurts 1.0 InWall. The port's ai.rs base_tick (1209) matches the geometry, damage, and Vex exclusion but has NO sleeping check \u2014 a sleeper whose eye is inside a suffocating shape takes in-wall damage in the port. Edge case. NEW.",
+   "id": "B3-G23",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Sleeping mobs suffocate"
+  },
+  {
+   "evidence": "Vanilla 26.1 rewardTradeXp does NOT level up on trade: it sets updateMerchantTimer = 40 and increaseProfessionLevelOnUpdate = true (pop += 5). customServerAiStep decrements the timer ONLY while not trading (isTrading gate); at 0 it calls increaseMerchantCareer (level+1 + updateTrades) \u2014 with NO updateSpecialPrices call, so new offers carry specialPriceDiff 0 until the next session. The 26.1 port levels up IMMEDIATELY in Trader::notify_trade (merchant.rs:399-407) and recomputes special prices for ALL offers including the new ones, with the session-start reputation/hero. Observable: newly-unlocked trades show discounted prices mid-session in the port (full price in vanilla), and the level-up appears at once instead of ~2s after trading ends. The 26.2 port has the correct deferred form (level_up_pending, merchant.rs:413 + trading.rs:333) \u2014 the 26.1 port diverged from it. No level_up_pending / update_merchant_timer exists anywhere in the 26.1 port. NEW.",
+   "id": "B3-G24",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Villager level-up is immediate and new offers are discounted"
+  },
+  {
+   "evidence": "Vanilla 26.1 NewMinecartBehavior.getMaxSpeed = MAX_MINECART_SPEED * (inWater ? 0.5 : 1.0) / 20.0 (rule default 8, min 1, max 1000; the port's formula in max_speed_new (991-994) matches). But AbstractMinecart.getMaxSpeed delegates to the behavior, and MinecartFurnace.getMaxSpeed multiplies the result by 0.75 (wet) / 0.5 (dry) under EITHER behavior. Vanilla calls the VIRTUAL (furnace applies) in calculateTrackSpeed (NewMinecartBehavior:1159) and AbstractMinecart.comeOffTrack (AbstractMinecart:698), but the behavior's OWN getMaxSpeed (no furnace) in moveAlongTrack's step cap (1020). The port uses max_speed_new (no furnace factor) at ALL three sites: step cap (1069 \u2014 correct), calculateTrackSpeed cap (1208 \u2014 wrong) and comeOffTrack (1344 \u2014 wrong). In a minecart_improvements world a furnace minecart is capped at 0.4 dry / 0.2 wet instead of 0.2 / 0.15. Experiment-gated: 26.1 DEFAULT_FLAGS = VANILLA_SET only, so the default (old-behavior) path is correct. The 26.2 port has identical code at all three sites. NEW.",
+   "id": "B3-G25",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Furnace minecart too fast under minecart_improvements"
+  },
+  {
+   "evidence": "Vanilla 26.1 checks the partner is NOT PANICKING in both places: getFreePartner skips panicking candidates, and canContinueToUse is partner.isAlive() && partner.isInLove() && loveTime < 60 && !partner.isPanicking(). The port's partner search and can_continue omit the panic clause entirely (the Seen struct carries no panicking field). Panic does not clear in-love in either implementation (the port clears in_love only on age != 0 / countdown, ai.rs:1593), so the gap is observable: hit one of two in-love animals and the other keeps following it in the port; vanilla stops. Shared with the 26.2 port's identical code (26.2's sweep passed B3 with it). NEW.",
+   "id": "B3-G26",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "BreedGoal ignores partner panic"
+  },
+  {
+   "evidence": "Vanilla 26.1 ZombieHorse.isFood = #zombie_horse_food (red mushroom; the tag exists in the jar's data). The port's food_tag() (mobs/species.rs:1641) has no ZombieHorse arm, so zombie horses cannot be fed for healing/temper in the port. Complete isFood declarer set from the jar (31 classes; Animal.isFood abstract) \u2014 ZombieHorse is one of exactly three gaps. Shared with the 26.2 port's identical table. NEW.",
+   "id": "B3-G27",
+   "method": "javap + source + data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Zombie horse has no food"
+  },
+  {
+   "evidence": "Vanilla 26.1 SkeletonHorse extends AbstractHorse and does not override isFood, so it inherits #horse_food. The port's food_tag() (mobs/species.rs:1641) covers Horse | Donkey | Mule but not SkeletonHorse, so skeleton horses cannot be fed in the port. Complete isFood declarer set from the jar (31 classes; Animal.isFood abstract) \u2014 SkeletonHorse is one of exactly three gaps. Shared with the 26.2 port's identical table. NEW.",
+   "id": "B3-G28",
+   "method": "javap + source + data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Skeleton horse has no food"
+  },
+  {
+   "evidence": "VanillaActiveEffectTickOracle, VanillaAttributeUpdatesOracle, VanillaLivingLandingOracle \u2014 all 'Client* Level is not abstract and does not override abstract method fuelValues() in Level' (missing-override, 1 error each, fail on all three classpaths). 26.1's Level declares public abstract FuelValues fuelValues() (verified in the dump); the oracles' 26.3-form level stubs lack it. Batch 0 group G1. Same group as 26.2.",
+   "id": "B3-O01",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 3 oracles miss the fuelValues() override (26.1's abstract Level.fuelValues)"
+  },
+  {
+   "evidence": "VanillaAllayInteractionStateOracle (n=3), VanillaPlayerSyncOracle (n=1), VanillaRemoteAttackOracle (n=8), VanillaSheepDyeOracle (n=4) \u2014 'constructor LocalPlayer in class LocalPlayer cannot be applied to given types'; 26.1's LocalPlayer ctor takes 8 arguments (Minecraft, ClientLevel, ClientPacketListener, StatsCounter, ClientRecipeBook, Input, boolean, ChatAbilities), 26.3's takes 9. Plus VanillaEntitySoundPacketOracle (n=3) \u2014 'constructor MinecraftServer ... cannot be applied to given types'; 26.1's MinecraftServer ctor takes 10 arguments. Batch 0 group G2 (LocalPlayer) + G8 (MinecraftServer). Note VanillaBoatRiderOracle moved to B3-O03 in 26.1 (no-override first, n=4) but carries the LocalPlayer ctor error behind it.",
+   "id": "B3-O02",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 5 oracles with constructor mismatches (LocalPlayer 8-arg, MinecraftServer)"
+  },
+  {
+   "evidence": "VanillaArrowOracle (n=1), VanillaBlockingItemDamageOracle (n=2), VanillaBoatRiderOracle (n=4), VanillaClientArrowOracle (n=1), VanillaDamageImmunityOracle (n=2), VanillaEntityDeathLootOracle (n=4), VanillaFinalizeSpawnOracle (n=7), VanillaLateEntityPairOracle (n=4), VanillaMobAttributesOracle (n=1), VanillaNaturalSpawnOracle (n=16), VanillaPlayerTravelOracle (n=1), VanillaRegisteredPlayerCombatOracle (n=6), VanillaServerPlayerCombatOracle (n=6), VanillaSpawnRulesOracle (n=1) \u2014 'method does not override or implement a method from a supertype' (26.3 methods absent in 26.1). 26.2's group had 6; 26.1 adds 8 and BoatRider (moved from the ctor group); Raid moved out to B3-O06. NaturalSpawn (n=16) also carries DedicatedServer/ServerChunkCache/ChunkMap ctor mismatches behind the first no-override error.",
+   "id": "B3-O03",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 14 oracles with no-override errors (26.3 methods absent in 26.1)"
+  },
+  {
+   "evidence": "EntityTranscript (n=7), RideTranscript (n=4), VanillaBoatAuthorityOracle (n=4), VanillaBreezeHookOracle (n=3), VanillaMobBreathingOracle (n=1), VanillaMobFallResetOracle (n=2), VanillaShulkerBulletOracle (n=4), VanillaShulkerSpaceOracle (n=2), VanillaSquidClientOracle (n=2) \u2014 first error 'cannot find symbol: class EntityTypes, location: package net.minecraft.world.entity'. Jar-listing verified: EntityTypes/BlockEntityTypes have 0 entries in either 26.1 jar; registration still lives on EntityType/BlockEntityType. Batch 0 group G4. (VanillaMobAiOracle and VanillaTradingOracle also reference EntityTypes \u2014 see B3-O05.) NEW group for 26.1 \u2014 26.2 has the holder.",
+   "id": "B3-O04",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 9 oracles reference the EntityTypes holder, absent in 26.1"
+  },
+  {
+   "evidence": "VanillaDragonContactsOracle (n=3; Enderman \u2014 the 26.3 renamed class; 26.1 has EnderMan), VanillaEntityMoveOracle (n=8; Actor.MoveSimulationType + BlockTags.SUPPRESSES_BOUNCE), VanillaLivingAirOracle (n=6), VanillaLivingFluidOracle (n=9), VanillaLivingMotionOracle (n=2; Attributes.FRICTION_MODIFIER / AIR_DRAG_MODIFIER, absent from the 35-attribute registry, plus FluidTags.ENTITY_FLOATABLE for LivingFluid), VanillaLivingHurtOracle (n=4), VanillaPlayerHurtOracle (n=4; Actor/Human.damageCooldownTime), VanillaPlayerInventoryOracle (n=1; VanillaRegistries.createWorldLookup()), VanillaRegisteredEntityFluidOracle (n=2; BlockTags.BLOCKS_FLUID_FLOW), VanillaSuffocationOracle (n=2; BlockTags.CAUSES_SUFFOCATION \u2014 the same 26.3-form tag behind B3-G22), VanillaMobAiOracle (n=12; EntitySpawnRequest + EntityTypes + DataLoadContext.datapackWorldRegistries()), VanillaTradingOracle (n=6; datapackWorldRegistries() + MinecraftServer ctor + EntityTypes package), VanillaVehicleContainerOracle (n=3; EntitySpawnRequest), VanillaWorldSpawnOracle (n=5; NoiseSpawnFinder + densityfunction package + RandomState.create overload), KnockbackClient (n=6; ServerboundPunchPacket), LocatorBarClient (n=13; ClientboundUpdateAdvancementsPacket.removed()/added()/progress() \u2014 26.1's packet is a plain class with private fields and NO public accessors; 26.3 made it a record). BlockTags in 26.1 has 248 fields, none of CAUSES_SUFFOCATION / SUPPRESSES_BOUNCE / BLOCKS_FLUID_FLOW. Overlaps (dedup at merge): VanillaRegisteredEntityFluidOracle -> B1, VanillaLivingFluidOracle -> B1, VanillaTradingOracle -> B4.",
+   "id": "B3-O05",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 16 oracles with missing-symbol 26.x APIs"
+  },
+  {
+   "evidence": "VanillaRaidOracle (n=11; package net.minecraft.advancements.triggers does not exist), VanillaEntityComponentsOracle (n=3; package net.minecraft.advancements.predicates.entity does not exist). 26.1's advancements package has only the criterion subpackage.",
+   "id": "B3-O06",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 2 oracles reference missing advancements packages"
+  },
+  {
+   "evidence": "VanillaEntityCollisionOracle ('depends on broken: VanillaFaceSupportOracle'), VanillaHelmetDamageOracle ('depends on broken: VanillaBlockUpdateOracle') \u2014 no errors of their own in the client log; they fail only through their dependencies.",
+   "id": "B3-O07",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 2 cascade failures (no errors of their own)"
+  },
+  {
+   "evidence": "VanillaEntityFluidOracle (n=1; 'void' type not allowed here at line 74).",
+   "id": "B3-O08",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 1 oracle with a 'void type not allowed' error"
+  }
+ ],
+ "method": "Static analysis only (checks + triage; no fixes, no cargo builds, no driver runs, no oracle repairs, no commits \u2014 the coordinator commits). javap -c on the named 26.1 server-game jar for every vanilla method in scope, source comparison against versions/26.1/crates/, and checks of the prepared 26.1 data (versions/26.1/.local/horizon-client/26.1/). Oracle status quoted from the measured docs/sweep/26.1/batch-0-oracles.json. A class-file scan over all 708 entity classes established the complete declarer sets for checkSpawnRules, getWalkTargetValue, checkSpawnObstruction, removeWhenFarAway, getMaxSpawnClusterSize, getMaxHeadYRot, getMaxHeadXRot, getAmbientSoundInterval, isSunSensitive, getHeadRotSpeed, sunProtectionSlot, isMaxGroupSizeReached, checkDespawn, and isFood. EntityType.<clinit> was parsed for all 157 entity types; Attributes.<clinit> for all 35 attributes; SpawnPlacements registrations for all 82 calls.",
+ "name": "Entities / mobs",
+ "out_of_scope_failures": "Adjacent findings for other batches (not defected here): 35723 hardcoded state counts in 34 other drivers \u2014 block_landing, block_properties, block_state_codec, block_support, block_survival, bulk_section, chunk_stage, climbing, collision, contextual_collision, decoration_region, feature_catalog, feature_region, fill_layer, fluid_occupancy, fluid, free_space, heightmap, movement_registry, paletted_container, piston_shape, registry_collision_scan, registry_fall_ray, registry_fluid, replace_block, retrogen_chunk, rule_test, scattered_ore, state_provider, terrain, world_collision_check, world_edge_backoff, world_movement, world (36 tree-wide; 2 in Batch 3 scope are B3-G19). 26.3 resources paths in 28 other drivers \u2014 bed_explosion, environment_system, environment_timeline, exploration_map_command, forced_end, item_use_order, online_mode, predicate_reference_startup, recipe_book_variants, secure_chat, selector_criterion, self_pose_metadata, server_dimension_players, server_ops_feedback, server_player_targets, server_resource_pack, server_wool_vibration, server_world_gen, tick_order, unused_feature_startup, user_cache, vault (direct form) plus creative_mining, firework_tooltip, furnace, random_tick_sections, return_to_sender, world_reopen (spaced form); 5 in Batch 3 scope are B3-G20, and spawn_loot (borderline, Batch 8's loot area) is noted in the report, not defected. Flag for the batch owning landing/motion: #suppresses_bounce is the first-failing absent tag on the 26.1 client startup path (motion.rs:138), ahead of #causes_suffocation (B3-G22).",
+ "source": "docs/PARITY-SWEEP.md \u00a74 Batch 3 \u2014 checks + triage only, no fixes. Scope: mob AI, spawning, trading, attributes, projectiles, vehicles; 157 entity types (44 monster, 31 creature, 72 misc, 4 water ambient, 3 water creature, 1 axolotl, 1 ambient, 1 underground water creature); 144 drivers curated to 135 core.",
+ "systemic_note": "One systemic thread dominates 26.1's Batch 3: 26.3-form leakage \u2014 the port was written against 26.3 APIs, tags and data forms that 26.1 lacks, and the failures cluster where 26.1's form differs from 26.3's. The sharpest instance is B3-G22 (the #causes_suffocation tag gate, a startup blocker; #suppresses_bounce fails first). The oracle groups are the same thread on the test side: all 52 failing oracles reference 26.3-only APIs (EntityTypes holder, densityfunction package, record-form packets, 9-arg LocalPlayer, abstract Level.fuelValues, 26.3 tag fields) \u2014 mechanical repairs, not port defects. The 1.21.7 batch's three systemic threads resolve unevenly for 26.1: (1) tag/form leakage PERSISTS in a new form \u2014 26.1 is a 26.x version but an EARLY one, so the 26.3 tags/data forms the port carries (G22, G18's predicate form) do not exist in 26.1, while the 1.21.7-era literals (G03 immune blocks) do; (2) goal-cadence conversion is resolved \u2014 26.1 vanilla HAS reducedTickDelay/adjustedTickDelay, so the port's reduced() is correct here (G17); (3) RNG-stream divergences are mostly resolved \u2014 G13 fixed (unconditional draw), G02's form is vanilla's; only G11's y-range bound remains, a single-site off-by-one, plus the finalize draw-order note (values correct, streams diverge). The remaining port gaps are independent single-site omissions (G04, G05/G27/G28, G06, G09, G23, G24, G25, G26), eight of them carried over from 1.21.7 and seven new or newly found in 26.1 \u2014 and three of the new ones (food table, BreedGoal panic, furnace cap) are shared verbatim with the 26.2 port, which passed those sections, so the 26.2 record needs the same flags.",
+ "version": "26.1"
+}
