@@ -36,6 +36,15 @@ fn jukebox_playable(
     }
     match data.and_then(|d| d.other("minecraft:jukebox_playable")) {
         Some(horizon_world::nbt::Tag::String(song)) => Some(Some(song.to_string_lossy())),
+        // `JukeboxPlayable` is a `{song, show_in_tooltip}` record: the song
+        // is a registry key (a string) or an inline definition (a compound,
+        // which has no id in the song registry).
+        Some(horizon_world::nbt::Tag::Compound(c)) => {
+            match c.get(&horizon_world::nbt::JavaString::from("song")) {
+                Some(horizon_world::nbt::Tag::String(song)) => Some(Some(song.to_string_lossy())),
+                _ => Some(None),
+            }
+        }
         Some(_) => Some(None),
         None => Some(Some(items.get(&record.item)?.jukebox_song.clone()?)),
     }

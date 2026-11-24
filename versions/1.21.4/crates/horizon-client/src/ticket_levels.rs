@@ -241,7 +241,9 @@ impl Levels {
     }
 }
 
-/// A `TicketType.PORTAL` ticket, as `chunk_tickets.dat` saves it.
+/// A `TicketType.PORTAL` ticket. In-memory only in 1.21.4: there is no
+/// `TicketStorage`, so portal tickets are never saved (1.21.5 persists
+/// them in `chunk_tickets.dat`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PortalTicket {
     pub chunk: (i32, i32),

@@ -196,10 +196,9 @@ impl Game<'_> {
                         self.prune_entity_memory();
                         self.save_raids();
                         self.save.save_attachments(&self.world.attachments)?;
-                        self.save.save_chunk_tickets(
-                            &self.streaming.forced,
-                            self.tickets.portal_tickets(),
-                        )?;
+                        // 1.21.4 persists forced chunks only (chunks.dat);
+                        // portal tickets are not saved at this pin.
+                        self.save.save_forced_chunks(&self.streaming.forced)?;
                         self.save_game_metadata()?;
                         save.stage = Stage::Writes;
                     }
@@ -290,8 +289,7 @@ impl Game<'_> {
     pub(super) fn save_level(&mut self, wait: bool) -> Result<()> {
         self.save_border();
         self.save.save_attachments(&self.world.attachments)?;
-        self.save
-            .save_chunk_tickets(&self.streaming.forced, self.tickets.portal_tickets())?;
+        self.save.save_forced_chunks(&self.streaming.forced)?;
         self.streaming.save(&mut self.world, wait);
         let now = Instant::now();
         let keys: Vec<_> = self.world.modified.drain().collect();

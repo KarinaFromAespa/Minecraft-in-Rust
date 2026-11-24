@@ -196,7 +196,7 @@ pub fn migrate_owner(world: &Path, level: &mut Level, old: u128, new: u128) -> b
 }
 
 /// A player new to the world faces the world spawn's angle (`PrepareSpawnTask`:
-/// the saved rotation, else `respawnData.yaw/pitch`).
+/// the saved rotation, else the respawn angle, `SpawnAngle`).
 pub fn face_world_spawn(guest: &mut Guest, known: bool, [yaw, pitch]: [f32; 2]) {
     if known {
         return;

@@ -10,9 +10,11 @@ use crate::{
 use horizon_world::nbt::Tag;
 
 /// The `minecraft:tooltip_display` component applied by `ItemStack` while it
-/// builds a hover tooltip.
+/// builds a hover tooltip — and 1.21.4's `minecraft:hide_tooltip`, which no
+/// 1.21.5+ component replaces (1.21.4 has no `tooltip_display`).
 pub struct TooltipDisplay<'a> {
     component: Option<&'a Tag>,
+    hide_tooltip: bool,
     ominous_banner: bool,
 }
 
@@ -22,15 +24,19 @@ impl<'a> TooltipDisplay<'a> {
             component: stack
                 .data()
                 .and_then(|data| data.other("minecraft:tooltip_display")),
+            hide_tooltip: stack
+                .data()
+                .is_some_and(|data| data.other("minecraft:hide_tooltip").is_some()),
             ominous_banner: stack.data().is_some_and(|data| data.ominous_banner),
         }
     }
 
     fn hides_tooltip(&self) -> bool {
-        matches!(
-            self.component.and_then(|display| display.get("hide_tooltip")),
-            Some(Tag::Byte(value)) if *value != 0
-        )
+        self.hide_tooltip
+            || matches!(
+                self.component.and_then(|display| display.get("hide_tooltip")),
+                Some(Tag::Byte(value)) if *value != 0
+            )
     }
 
     /// `ItemStack.getTooltipLines`: `hide_tooltip` suppresses the name unless
@@ -78,9 +84,9 @@ fn format_amount(value: f64) -> String {
     text.trim_end_matches('0').trim_end_matches('.').to_owned()
 }
 
-/// `ItemAttributeModifiers.Display.Default.apply`: a modifier's line, none
-/// for a zero amount. `percent` is the modifier's operation id (0: added
-/// value, 1 and 2: multiplied).
+/// `ItemStack.addModifierTooltip`: a modifier's line, none for a zero
+/// amount. `percent` is the modifier's operation id (0: added value, 1 and
+/// 2: multiplied).
 fn modifier_line(
     translate: &dyn Fn(&str) -> Option<String>,
     attribute: &str,
@@ -631,12 +637,28 @@ pub fn jukebox_line(
         .and_then(|d| d.other("minecraft:jukebox_playable"))
     {
         Some(Tag::String(song)) => song.to_string_lossy(),
-        // An inline song carries its own description.
-        Some(inline) => {
-            return inline
-                .get("description")
-                .map(|d| crate::entity_nbt::name_text(d).plain());
+        // `JukeboxPlayable` is a `{song, show_in_tooltip}` record: 1.21.4's
+        // `addToTooltip` checks `showInTooltip` itself (1.21.5 leaves it to
+        // `TooltipDisplay`). The song is a registry key or an inline
+        // definition, which carries its own description.
+        Some(Tag::Compound(c)) => {
+            if matches!(
+                c.get(&horizon_world::nbt::JavaString::from("show_in_tooltip")),
+                Some(Tag::Byte(0))
+            ) {
+                return None;
+            }
+            match c.get(&horizon_world::nbt::JavaString::from("song")) {
+                Some(Tag::String(song)) => song.to_string_lossy(),
+                Some(inline) => {
+                    return inline
+                        .get("description")
+                        .map(|d| crate::entity_nbt::name_text(d).plain());
+                }
+                None => return None,
+            }
         }
+        Some(_) => return None,
         None => info?.jukebox_song.clone()?,
     };
     let key = format!("jukebox_song.{}", song.replacen(':', ".", 1));

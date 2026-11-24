@@ -1308,3 +1308,89 @@ shape for the review batches.
   --tests check green (EXIT 0, 3m31s, 0 errors). minecarts.rs,
   native_hooks.rs and minecarts/display.rs are rustfmt-clean.
   Rank 2: 68/348.
+
+  Batch 10 (items 22 + 23 + 24). Item 22 (item_tooltip.rs): PORTED.
+  Tooltip hiding is the core 1.21.4-vs-1.21.5 system difference:
+  1.21.5 uses the TooltipDisplay component, 1.21.4 uses HIDE_TOOLTIP
+  / HIDE_ADDITIONAL_TOOLTIP unit components plus per-component
+  showInTooltip flags (verified: 1.21.4's DataComponents has both
+  HIDE components and has NO WEAPON and NO TOOLTIP_DISPLAY
+  component). TooltipDisplay gains a hide_tooltip field, set in
+  for_stack from minecraft:hide_tooltip; hides_tooltip() now returns
+  hide_tooltip OR the tooltip_display check (kept, since a 1.21.5+
+  server can still send it). In 1.21.4 play stacks never carry
+  tooltip_display, so the old gating was a no-op; hide_tooltip now
+  hides all gated lines (lore, bees, honey, fireworks, jukebox,
+  enchantments, dyed, ominous bottle, bundle, instrument, tropical
+  fish, map, spawn egg, block state, written book). Comment carry:
+  ItemStack.addModifierTooltip (the 1.21.5 form; the tree named the
+  1.21.6 ItemAttributeModifiers.Display.Default.apply). NO-CHANGE:
+  the EQUIPPABLE equipOnInteract branch and the WEAPON component
+  (both 1.21.5-only, unmodelled), PotionContents.addPotionTooltip
+  (the Rust's brewing::tooltip builds the same "EffectName II
+  (duration)" output), inventoryTick / onCraftedBy (API-only).
+  Recorded gaps, not fixed: hide_additional_tooltip (needs the
+  appendHoverText/component split the Rust does not model — the
+  details fn mixes both); trim, pot decorations, potions and
+  attributes do not check shows(); lore ordering (Rust puts lore
+  right after the name, 1.21.4 after enchantments/dyed) is a shared
+  deviation in both trees.
+  Item 23 (save.rs): PORTED. (1) The player respawn point is FLAT
+  fields in 1.21.4 — SpawnX/SpawnY/SpawnZ (int), SpawnAngle (float),
+  SpawnForced (bool), SpawnDimension (string) — not the 1.21.5
+  respawn compound (RespawnData does not exist in 1.21.4; verified:
+  no RespawnData class, ServerPlayer saves the flat fields).
+  read_player and player_tag rewritten to the flat form; the stale-
+  keys list drops the flat keys (plus the 1.21.5 compound,
+  defensively). (2) Forced chunks live in data/chunks.dat, not
+  chunk_tickets.dat: 1.21.4 has ForcedChunksSavedData (FILE_ID
+  "chunks", TAG_FORCED "Forced", a long array of ChunkPos.asLong
+  values under data/, no minecraft/ subfolder) and no TicketStorage
+  at all (1.21.5 has TicketStorage and no ForcedChunksSavedData).
+  load_forced_chunks reads the Forced long array; save_chunk_tickets
+  is renamed save_forced_chunks and drops its portal param;
+  load_portal_tickets returns empty (portal tickets are memory-only
+  in 1.21.4); is_forced_ticket / is_portal_ticket removed; the
+  portal_tickets_fixture probe is deleted (its case —
+  chunk_tickets.dat persistence — does not exist at this pin; no
+  other tree reference); saving.rs call sites updated; the
+  PortalTicket doc fixed. The forced-chunks test is rewritten for
+  chunks.dat (the foreign-ticket preservation it asserted is a
+  1.21.5 TicketStorage behaviour with no 1.21.4 counterpart). (3)
+  Legacy numeric dimensions carried: DimensionType.parseLegacy
+  exists in BOTH 1.21.4 and 1.21.5, so read_player now maps -1/0/1,
+  with the 1.21.5 test carried. (4) The test_instance_block POI
+  mapping removed (no test instance blocks in 1.21.4). (5) Conduit
+  comments fixed to putUUID/getUUID (the code already wrote/reads an
+  int array of four — correct either way). NO-CHANGE:
+  world_gen_settings (level.dat only — correct for 1.21.x),
+  FallDistance (Float — correct). ROUTED: needs_file_fixes / the
+  file_fixing backup prompt to item 400 (title.rs, rank 3) — the
+  1.21.4 tree's title.rs has no file_fixing at all, so the fn
+  belongs with that feature; enteredNetherPosition persistence
+  (modelled in-memory as adv.marks.nether, not persisted to
+  player.dat — a cross-module follow-up; the field is a 3-double
+  Vec3 list in 1.21.4's player.dat). The playerdata.rs
+  PrepareSpawnTask comment now names SpawnAngle (not
+  respawnData.yaw/pitch).
+  Item 24 (game/stations.rs): PORTED. The tree diff is empty and the
+  jar diffs are the 1.21.5 TooltipDisplay refactor moving tooltip
+  code from item classes into components — output unchanged (spot-
+  checked: 1.21.4's WrittenBookItem.appendHoverText emits
+  book.byAuthor + generation, identical to 1.21.5's
+  WrittenBookContent.addToTooltip; Item.appendHoverText is a no-op
+  in both jars, so the smithing-template super-call difference is
+  nil; FireworkExplosion is the addShapeNameTooltip helper vs
+  inline, same output). The one real difference: JukeboxPlayable is
+  a {song, show_in_tooltip} record, and 1.21.4's addToTooltip checks
+  showInTooltip itself (1.21.5 leaves it to TooltipDisplay).
+  jukebox_line (item_tooltip.rs) now reads the song from the record
+  and honours show_in_tooltip, and jukebox.rs jukebox_playable is
+  fixed the same way — both had misread the record compound as an
+  inline song (no description key, so the tooltip line never showed
+  and the jukebox lost the song id for an explicitly stored disc;
+  plain discs still worked through the item default).
+  game/jukebox.rs has no item at any rank, so its fix lands here.
+  ItemLore / OminousBottleAmplifier / SuspiciousStewEffects
+  addToTooltip are bytecode-identical. Lib check green (EXIT 0,
+  2m14s); --tests check green (EXIT 0, 3m14s). Rank 2: 71/348.

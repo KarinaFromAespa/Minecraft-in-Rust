@@ -449,7 +449,7 @@ pub fn poi_type(state: &horizon_world::chunk::BlockState) -> Option<(&'static st
         "bee_nest" => ("minecraft:bee_nest", 0),
         "nether_portal" => ("minecraft:nether_portal", 0),
         "lodestone" => ("minecraft:lodestone", 0),
-        "test_instance_block" => ("minecraft:test_instance", 0),
+        // No test_instance POI in 1.21.4 (added in 1.21.6).
         // PoiTypes.BEDS is the sixteen colours: no straw bed.
         bed if bed.ends_with("_bed") && bed != "straw_bed" => {
             if state.properties.get("part").map(String::as_str) != Some("head") {
@@ -788,7 +788,7 @@ pub fn encode_block_entity(
                 entries.push(("item", item_to_nbt(item)));
             }
         }
-        // ConduitBlockEntity.saveAdditional: EntityReference.store.
+        // ConduitBlockEntity.saveAdditional: putUUID, an int array of four.
         BlockEntity::Conduit(target) => {
             if let Some(uuid) = target {
                 entries.push(("Target", Tag::IntArray(uuid.to_vec())));
@@ -1130,8 +1130,7 @@ pub fn decode_block_entity(tag: &Tag) -> Option<((i32, i32, i32), crate::contain
         | BlockEntity::EndPortal
         | BlockEntity::EnchantingTable
         | BlockEntity::Mod(_) => {}
-        // ConduitBlockEntity.loadAdditional: EntityReference.read through
-        // UUIDUtil.CODEC, an int array of four.
+        // ConduitBlockEntity.loadAdditional: getUUID, an int array of four.
         BlockEntity::Conduit(target) => {
             *target = match tag.get("Target") {
                 Some(Tag::IntArray(v)) if v.len() == 4 => Some([v[0], v[1], v[2], v[3]]),
@@ -2526,12 +2525,6 @@ pub struct SaveDir {
     /// (installed where `SavedOldWorld` is made for this same folder).
     blending_lookup: OnceLock<BlendingLookup>,
 }
-fn is_forced_ticket(ticket: &Tag) -> bool {
-    matches!(ticket.get("type"), Some(Tag::String(t)) if *t == JavaString::from("minecraft:forced"))
-}
-fn is_portal_ticket(ticket: &Tag) -> bool {
-    matches!(ticket.get("type"), Some(Tag::String(t)) if *t == JavaString::from("minecraft:portal"))
-}
 #[derive(Default)]
 struct LodDecoded {
     chunks: crate::fast_hash::FxHashMap<(i32, i32), (std::time::Instant, LodSurfaces)>,
@@ -2633,106 +2626,50 @@ impl SaveDir {
     pub fn calculated_blending(&self, x: i32, z: i32) -> Option<Arc<BlendingData>> {
         self.blending_lookup.get().and_then(|lookup| lookup(x, z))
     }
-    /// 26.3's TicketStorage: persistent tickets live in each dimension's
-    /// data/minecraft/chunk_tickets.dat, with ChunkPos.CODEC's [x, z] int array.
+    /// `ForcedChunksSavedData`: the forced chunks live in this dimension's
+    /// `data/chunks.dat`, as a `Forced` long array of `ChunkPos.asLong`
+    /// values — there is no `TicketStorage` / `chunk_tickets.dat` in 1.21.4.
     pub fn load_forced_chunks(&self) -> HashSet<(i32, i32)> {
-        let Some(data) = read_saved_data(&self.root, "chunk_tickets") else {
-            return HashSet::new();
-        };
-        let Some(Tag::List(tickets)) = data.get("tickets") else {
-            return HashSet::new();
-        };
-        tickets
-            .iter()
-            .filter(|t| is_forced_ticket(t))
-            .filter_map(|t| match t.get("chunk_pos")? {
-                Tag::IntArray(pos) if pos.len() == 2 => Some((pos[0], pos[1])),
-                _ => None,
-            })
-            .collect()
-    }
-    /// The saved `PORTAL` tickets, for `TicketStorage.activateAllDeactivatedTickets`
-    /// (`Ticket.CODEC`: a non-negative level, `ticks_left` 0 when missing).
-    pub fn load_portal_tickets(&self) -> Vec<crate::ticket_levels::PortalTicket> {
-        let Some(Tag::List(tickets)) =
-            read_saved_data(&self.root, "chunk_tickets").and_then(|d| d.get("tickets").cloned())
+        let Some(Tag::LongArray(chunks)) =
+            read_dat(&self.root.join("data").join("chunks.dat"))
+                .and_then(|d| d.get("data")?.get("Forced").cloned())
         else {
-            return Vec::new();
+            return HashSet::new();
         };
-        tickets
+        chunks
             .iter()
-            .filter(|t| is_portal_ticket(t))
-            .filter_map(|t| {
-                let chunk = match t.get("chunk_pos")? {
-                    Tag::IntArray(pos) if pos.len() == 2 => (pos[0], pos[1]),
-                    _ => return None,
-                };
-                let level = match t.get("level")? {
-                    &Tag::Int(level) if level >= 0 => level,
-                    _ => return None,
-                };
-                let ticks_left = match t.get("ticks_left") {
-                    None => 0,
-                    Some(&Tag::Long(n)) => n,
-                    Some(&Tag::Int(n)) => n.into(),
-                    Some(&Tag::Short(n)) => n.into(),
-                    Some(&Tag::Byte(n)) => n.into(),
-                    Some(_) => return None,
-                };
-                Some(crate::ticket_levels::PortalTicket {
-                    chunk,
-                    level,
-                    ticks_left,
-                })
-            })
+            .map(|&v| ((v >> 32) as i32, v as i32))
             .collect()
     }
-    /// `TicketStorage.packTickets`: the forced chunks and the `PORTAL` tickets
-    /// the level holds now, in place of the ones saved before.
-    pub fn save_chunk_tickets(
-        &self,
-        forced: &HashSet<(i32, i32)>,
-        portal: &[crate::ticket_levels::PortalTicket],
-    ) -> Result<()> {
-        if forced.is_empty()
-            && portal.is_empty()
-            && !saved_data_path(&self.root, "chunk_tickets").exists()
-        {
+    /// The saved `PORTAL` tickets: none — 1.21.4 has no `TicketStorage`, so
+    /// portal tickets live only in memory and never survive a restart.
+    /// Callers keep the same shape as the 1.21.5 form; they get nothing.
+    pub fn load_portal_tickets(&self) -> Vec<crate::ticket_levels::PortalTicket> {
+        Vec::new()
+    }
+    /// `ForcedChunksSavedData.save`: the forced chunks the level holds now,
+    /// in place of the ones saved before, as a `Forced` long array in
+    /// `data/chunks.dat`. Portal tickets are not persisted in 1.21.4.
+    pub fn save_forced_chunks(&self, forced: &HashSet<(i32, i32)>) -> Result<()> {
+        let path = self.root.join("data").join("chunks.dat");
+        if forced.is_empty() && !path.exists() {
             return Ok(());
         }
-        let mut data = compound_or_empty(read_saved_data(&self.root, "chunk_tickets"));
-        // Preserve persistent tickets Horizon does not simulate.
-        let mut tickets = match data.get("tickets") {
-            Some(Tag::List(tickets)) => tickets
-                .iter()
-                .filter(|t| !is_forced_ticket(t) && !is_portal_ticket(t))
-                .cloned()
-                .collect::<Vec<_>>(),
-            _ => Vec::new(),
-        };
         let mut chunks: Vec<_> = forced.iter().copied().collect();
         chunks.sort_unstable();
-        tickets.extend(chunks.into_iter().map(|(x, z)| {
-            Tag::compound([
-                ("type", Tag::String("minecraft:forced".into())),
-                ("level", Tag::Int(31)), // ChunkMap.FORCED_TICKET_LEVEL: ENTITY_TICKING.
-                ("chunk_pos", Tag::IntArray(vec![x, z])),
-            ])
-        }));
-        tickets.extend(portal.iter().map(|t| {
-            let mut ticket = Tag::compound([
-                ("type", Tag::String("minecraft:portal".into())),
-                ("level", Tag::Int(t.level)),
-                ("chunk_pos", Tag::IntArray(vec![t.chunk.0, t.chunk.1])),
-            ]);
-            // `optionalFieldOf("ticks_left", 0L)` leaves out its default.
-            if t.ticks_left != 0 {
-                put(&mut ticket, "ticks_left", Tag::Long(t.ticks_left));
-            }
-            ticket
-        }));
-        put(&mut data, "tickets", Tag::List(tickets));
-        write_saved_data(&self.root, "chunk_tickets", data)
+        let data = Tag::compound([(
+            "Forced",
+            Tag::LongArray(
+                chunks
+                    .into_iter()
+                    .map(|(x, z)| ((x as i64) << 32) | (z as u32 as i64))
+                    .collect(),
+            ),
+        )]);
+        write_dat(
+            &path,
+            Tag::compound([("data", data), ("DataVersion", Tag::Int(DATA_VERSION))]),
+        )
     }
     /// Whether chunk `x z` is in its region file, from a chunk list kept
     /// `LOD_REGION_TTL`. Far terrain asks for every column of the view: it
@@ -4273,23 +4210,39 @@ impl Level {
             .get("abilities")
             .and_then(|a| float(a.get("flySpeed")))
             .map(|v| v as f32);
-        if let Some(d) = text(p.get("Dimension")) {
-            self.dimension = d;
+        // DimensionType.parseLegacy (PlayerList): a legacy numeric dimension
+        // (-1 the nether, 0 the overworld, 1 the end), else the resource key;
+        // anything else keeps the overworld default.
+        if let Some(d) = p.get("Dimension") {
+            match number(Some(d)) {
+                Some(-1) => self.dimension = "minecraft:the_nether".into(),
+                Some(0) => self.dimension = "minecraft:overworld".into(),
+                Some(1) => self.dimension = "minecraft:the_end".into(),
+                _ => {
+                    if let Some(d) = text(Some(d)) {
+                        self.dimension = d;
+                    }
+                }
+            }
         }
-        if let Some(respawn) = p.get("respawn")
-            && let Some(Tag::IntArray(pos)) = respawn.get("pos")
-            && pos.len() == 3
-        {
+        // ServerPlayer.addAdditionalSaveData: the respawn point is flat
+        // fields (SpawnX/SpawnY/SpawnZ, SpawnAngle, SpawnForced,
+        // SpawnDimension), not the 1.21.5 `respawn` compound (RespawnData).
+        if let (Some(x), Some(y), Some(z)) = (
+            number(p.get("SpawnX")),
+            number(p.get("SpawnY")),
+            number(p.get("SpawnZ")),
+        ) {
             let dimension =
-                text(respawn.get("dimension")).unwrap_or_else(|| "minecraft:overworld".into());
-            let forced = number(respawn.get("forced")).is_some_and(|v| v != 0);
+                text(p.get("SpawnDimension")).unwrap_or_else(|| "minecraft:overworld".into());
+            let forced = number(p.get("SpawnForced")).is_some_and(|v| v != 0);
             // Forced points, including Overworld ones, are validated through
             // their blocks on death, just like beds and respawn anchors.
-            let yaw = match respawn.get("yaw") {
+            let yaw = match p.get("SpawnAngle") {
                 Some(Tag::Float(b)) => f32::from_bits(*b),
                 _ => 0.0,
             };
-            self.respawn_elsewhere = Some((dimension, [pos[0], pos[1], pos[2]], yaw, forced));
+            self.respawn_elsewhere = Some((dimension, [x as i32, y as i32, z as i32], yaw, forced));
         }
         let mut inventory = Vec::new();
         let mut inventory_components = HashMap::new();
@@ -4356,6 +4309,14 @@ impl Level {
                 "active_effects",
                 "post_effects",
                 "Pos",
+                // The flat respawn fields (1.21.4), plus the 1.21.5 `respawn`
+                // compound in case a preserved tag still carries one.
+                "SpawnX",
+                "SpawnY",
+                "SpawnZ",
+                "SpawnAngle",
+                "SpawnForced",
+                "SpawnDimension",
                 "respawn",
                 "recipeBook",
                 "LastDeathLocation",
@@ -4520,17 +4481,15 @@ impl Level {
             ));
         }
         // A respawn point other than the world spawn: an anchor elsewhere, or a bed.
+        // ServerPlayer.addAdditionalSaveData (1.21.4): flat fields, not the
+        // 1.21.5 `respawn` compound (RespawnData).
         if let Some((dimension, block, yaw, forced)) = &self.respawn_elsewhere {
-            let mut respawn = vec![
-                ("dimension", string(dimension)),
-                ("pos", Tag::IntArray(block.to_vec())),
-                ("yaw", Tag::Float(yaw.to_bits())),
-                ("pitch", Tag::Float(0f32.to_bits())),
-            ];
-            if *forced {
-                respawn.push(("forced", Tag::Byte(1)));
-            }
-            entries.push(("respawn", Tag::compound(respawn)));
+            entries.push(("SpawnX", Tag::Int(block[0])));
+            entries.push(("SpawnY", Tag::Int(block[1])));
+            entries.push(("SpawnZ", Tag::Int(block[2])));
+            entries.push(("SpawnAngle", Tag::Float(yaw.to_bits())));
+            entries.push(("SpawnForced", Tag::Byte(i8::from(*forced))));
+            entries.push(("SpawnDimension", string(dimension)));
         } else if let Some(s) = self.spawn {
             let block = [
                 s[0].floor() as i32,
@@ -4540,16 +4499,12 @@ impl Level {
             // A point of the player's own in the Overworld other than a bed
             // (`respawn_elsewhere`): `spawnpoint`'s, forced.
             if Some(block) != self.world_spawn {
-                entries.push((
-                    "respawn",
-                    Tag::compound([
-                        ("dimension", string("minecraft:overworld")),
-                        ("pos", Tag::IntArray(block.to_vec())),
-                        ("yaw", Tag::Float(0f32.to_bits())),
-                        ("pitch", Tag::Float(0f32.to_bits())),
-                        ("forced", Tag::Byte(1)),
-                    ]),
-                ));
+                entries.push(("SpawnX", Tag::Int(block[0])));
+                entries.push(("SpawnY", Tag::Int(block[1])));
+                entries.push(("SpawnZ", Tag::Int(block[2])));
+                entries.push(("SpawnAngle", Tag::Float(0f32.to_bits())));
+                entries.push(("SpawnForced", Tag::Byte(1)));
+                entries.push(("SpawnDimension", string("minecraft:overworld")));
             }
         }
         // ServerPlayer.storeGameTypes: storeNullable, so absent without one.
@@ -7966,10 +7921,42 @@ mod tests {
             loaded.read_player(&level.player_tag());
             assert_eq!(loaded.respawn_elsewhere, Some(point));
             assert_eq!(loaded.spawn, Some([0.0, 80.0, 0.0]));
-            assert_eq!(
-                loaded.player_tag().get("respawn"),
-                level.player_tag().get("respawn")
-            );
+            // The flat respawn fields round-trip unchanged.
+            for key in [
+                "SpawnX",
+                "SpawnY",
+                "SpawnZ",
+                "SpawnAngle",
+                "SpawnForced",
+                "SpawnDimension",
+            ] {
+                assert_eq!(
+                    loaded.player_tag().get(key),
+                    level.player_tag().get(key),
+                    "{key} did not round-trip"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn legacy_numeric_dimension_ids_map_to_the_three_dimensions() {
+        // DimensionType.parseLegacy: -1 the nether, 0 the overworld, 1 the
+        // end; a string still parses as the key, and anything else keeps
+        // the overworld default.
+        for (tag, want) in [
+            (Tag::Int(-1), "minecraft:the_nether"),
+            (Tag::Int(0), "minecraft:overworld"),
+            (Tag::Int(1), "minecraft:the_end"),
+            (Tag::Int(2), "minecraft:overworld"),
+            (
+                Tag::String("minecraft:the_end".into()),
+                "minecraft:the_end",
+            ),
+        ] {
+            let mut loaded = Level::default();
+            loaded.read_player(&Tag::compound([("Dimension", tag)]));
+            assert_eq!(loaded.dimension, want);
         }
     }
 
@@ -8367,7 +8354,7 @@ mod tests {
             let save = SaveDir::new(dimension_dir(&root, dim), LevelShape::OVERWORLD);
             assert!(save.load_forced_chunks().is_empty());
             let forced = HashSet::from([(i as i32, -17), (-23, i as i32), (-1, -1)]);
-            save.save_chunk_tickets(&forced, &[]).unwrap();
+            save.save_forced_chunks(&forced).unwrap();
         }
         for (i, dim) in dimensions.iter().enumerate() {
             let path = dimension_dir(&root, dim);
@@ -8377,38 +8364,25 @@ mod tests {
                 forced,
                 HashSet::from([(i as i32, -17), (-23, i as i32), (-1, -1)])
             );
-            let mut data = read_saved_data(&path, "chunk_tickets").unwrap();
-            let other = Tag::compound([
-                ("type", Tag::String("example:loader".into())),
-                ("level", Tag::Int(30)),
-                ("chunk_pos", Tag::IntArray(vec![7, -8])),
-                ("ticks_left", Tag::Long(42)),
-            ]);
-            if let Some(Tag::List(tickets)) = data.get_mut("tickets") {
-                assert!(
-                    tickets
-                        .iter()
-                        .all(|t| t.get("level") == Some(&Tag::Int(31)))
-                );
-                tickets.push(other.clone());
-            }
-            write_saved_data(&path, "chunk_tickets", data).unwrap();
+            // ForcedChunksSavedData: a `Forced` long array in data/chunks.dat,
+            // each chunk a ChunkPos.asLong.
+            let data = read_dat(&path.join("data").join("chunks.dat")).unwrap();
+            let Some(Tag::LongArray(longs)) =
+                data.get("data").and_then(|d| d.get("Forced"))
+            else {
+                panic!("chunks.dat holds no Forced long array");
+            };
+            assert_eq!(longs.len(), 3);
             forced.remove(&(-1, -1));
-            save.save_chunk_tickets(&forced, &[]).unwrap();
+            save.save_forced_chunks(&forced).unwrap();
             drop(save);
             let reopened = SaveDir::new(path.clone(), LevelShape::OVERWORLD);
             assert_eq!(reopened.load_forced_chunks(), forced);
-            reopened.save_chunk_tickets(&HashSet::new(), &[]).unwrap();
+            reopened.save_forced_chunks(&HashSet::new()).unwrap();
             assert!(
                 SaveDir::new(path.clone(), LevelShape::OVERWORLD)
                     .load_forced_chunks()
                     .is_empty()
-            );
-            assert_eq!(
-                read_saved_data(&path, "chunk_tickets")
-                    .unwrap()
-                    .get("tickets"),
-                Some(&Tag::List(vec![other]))
             );
         }
         fs::remove_dir_all(root).unwrap();
