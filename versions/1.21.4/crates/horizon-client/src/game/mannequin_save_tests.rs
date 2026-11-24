@@ -163,7 +163,7 @@ fn a_mannequin_reads_and_saves_from_its_own_state() {
         m.extra.hidden_model_parts = 1 | 1 << 6;
     }
     let stale = snbt(
-        "{pose:\"sleeping\",main_hand:\"right\",hidden_layers:[\"jacket\"],NoAI:1b,PersistenceRequired:1b,LeftHanded:1b,drop_chances:{},keep:1b}",
+        "{pose:\"sleeping\",main_hand:\"right\",hidden_layers:[\"jacket\"],NoAI:1b,PersistenceRequired:1b,LeftHanded:1b,ArmorItems:[],HandItems:[],ArmorDropChances:[],HandDropChances:[],body_armor_item:{},body_armor_drop_chance:0.0f,drop_chances:{},keep:1b}",
     );
     for raw in [None, Some(stale)] {
         match &raw {
@@ -175,7 +175,15 @@ fn a_mannequin_reads_and_saves_from_its_own_state() {
         assert_eq!(tag.get("main_hand"), Some(&Tag::String("left".into())));
         assert_eq!(tag.get("hidden_layers"), Some(&snbt("[\"cape\",\"hat\"]")));
         assert_eq!(tag.get("profile"), Some(&snbt("{}")));
-        for key in MOB_ONLY.iter().chain(&["drop_chances"]) {
+        for key in MOB_ONLY.iter().chain([
+            "ArmorItems",
+            "HandItems",
+            "ArmorDropChances",
+            "HandDropChances",
+            "body_armor_item",
+            "body_armor_drop_chance",
+            "drop_chances",
+        ]) {
             assert!(tag.get(key).is_none(), "{key}");
         }
         assert_eq!(tag.get("keep").is_some(), raw.is_some(), "other keys stay");

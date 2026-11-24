@@ -350,12 +350,17 @@ mod tests {
             [
                 "AbsorptionAmount",
                 "Air",
+                "ArmorDropChances",
+                "ArmorItems",
                 "Brain",
                 "CanPickUpLoot",
                 "CannotHunt",
                 "DeathTime",
+                "FallDistance",
                 "FallFlying",
                 "Fire",
+                "HandDropChances",
+                "HandItems",
                 "Health",
                 "HurtTime",
                 "Inventory",
@@ -372,13 +377,14 @@ mod tests {
                 "TimeInOverworld",
                 "attributes",
                 "current_impulse_context_reset_grace_time",
-                "equipment",
-                "fall_distance",
                 "id",
             ]
         );
         let tag = Tag::Compound(nbt);
-        let held = tag.get("equipment").and_then(|e| e.get("mainhand"));
+        let held = match tag.get("HandItems") {
+            Some(Tag::List(hands)) => hands.first(),
+            _ => None,
+        };
         assert!(
             matches!(held.and_then(|h| h.get("id")), Some(Tag::String(s)) if s.to_string_lossy() == "minecraft:crossbow")
         );
@@ -426,11 +432,23 @@ mod tests {
     }
     /// What a vanilla world saves of a structure mob that finalizeSpawn decides.
     fn describe(mob: &Tag) -> String {
-        let eq = mob.get("equipment");
-        let gear: Vec<String> = ["mainhand", "head", "chest", "legs", "feet"]
-            .iter()
-            .map(|slot| id(eq.and_then(|e| e.get(slot))))
-            .collect();
+        let list = |key: &str| match mob.get(key) {
+            Some(Tag::List(l)) => l.clone(),
+            _ => Vec::new(),
+        };
+        let hands = list("HandItems");
+        let armor = list("ArmorItems");
+        // mainhand, head, chest, legs, feet: hands[0], armour[3..0].
+        let gear: Vec<String> = [
+            hands.first(),
+            armor.get(3),
+            armor.get(2),
+            armor.get(1),
+            armor.first(),
+        ]
+        .into_iter()
+        .map(id)
+        .collect();
         let ttl = match mob
             .get("Brain")
             .and_then(|b| b.get("memories"))

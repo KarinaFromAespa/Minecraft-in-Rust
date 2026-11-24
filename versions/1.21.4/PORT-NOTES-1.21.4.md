@@ -706,3 +706,76 @@ shape for the review batches.
   entries, the ender dragon IS imitated (None key) and happy
   ghast/camel husk/parched/zombie horse/zombie nautilus are NOT
   in it. Rank 2: 55/348.
+
+- Batch 3 (items 11 + 155): the entity save form ported to
+  1.21.4's lists, jar-verified — the first version in the
+  programme BELOW 1.21.5, so the ArmorItems/HandItems list form
+  has no template and was written from the 1.21.4 jar.
+  `Mob.addAdditionalSaveData` writes exactly 12 keys: the four
+  lists (always, empty slots as empty compounds),
+  body_armor_item + body_armor_drop_chance (only with a body
+  item), DeathLootTable/Seed, CanPickUpLoot, LeftHanded, NoAI,
+  PersistenceRequired — no `drop_chances` compound (no
+  `DropChances` class), no leash/home keys. Equines and camels
+  save `SaddleItem`, pigs and striders a `Saddle` boolean, and
+  there is no SADDLE slot. Armor stands write the same lists.
+  `FallDistance` is a FLOAT in 1.21.4 (`putFloat`; 1.21.5
+  renamed it to a double `fall_distance`) — renamed across
+  entity_nbt.rs, save.rs (player), persist.rs, commands/data.rs,
+  projectile_fields.rs, snbt.rs, and the cushions /
+  structure-mob / saved-tag tests; the movement-predicate
+  `fall_distance` JSON field is untouched (a separate item).
+  Phantom: `AX`/`AY`/`AZ` + `Size`, anchor defaulting to
+  BlockPos.ZERO. PrimedTnt: no owner saved. Bucket variants
+  ride inside `bucket_entity_data` (axolotl `Variant`, salmon
+  `type`, tropical fish `BucketVariantTag` packed) — the
+  separate variant components do not exist in the 1.21.4
+  registry and their reads are gone. `getBooleanOr` does not
+  exist in 1.21.4 (all sites now `getBoolean`). Item 155
+  (`mobs/vex.rs`): the plain-field owner form, jar-verified
+  (Vex saves BoundX/BoundY/BoundZ + LifeTicks only; no
+  `EntityReference` class). No-change, jar-verified: mooshroom
+  `Type`, wandering trader `wander_target`, dolphin, piglin,
+  ominous spawner, warden anger/listener, the NeutralMob
+  AngerTime/AngryAt and AgeableMob Age/ForcedAge forms, and all
+  the getXOr/codec/playSound/isDay/snapTo/putUUID reshapes.
+  Tests: 4 new list-form round-trip tests (zombie gear, drop
+  chances, armor stand, salmon/tropical buckets); the horse,
+  wolf, TNT, axolotl, spawn-egg, phantom, raider, mannequin,
+  armor-stand, advancement and item-command tests converted to
+  the list form. NOT in this item, with jar evidence recorded
+  for their own items: finalize.rs (item 117) — 1.21.4's
+  `saves_variant_name` is Wolf/Cat/Frog only (chicken writes
+  only EggLayTime, cow/pig write no variant key) and
+  `sound_variants` is empty for all species (0 `sound_variant`
+  strings in the jar); beehive.rs (item 79) —
+  IGNORED_BEE_TAGS is the 30-entry 1.21.4 set
+  (ArmorDropChances/HandDropChances, `FallDistance`); phantom
+  goal code (item 401); the tropical-fish bucket tooltip
+  (item 22). The nautilus's `equipment`-compound saddle save
+  (mobs/nautilus.rs) is dead code — no nautilus in 1.21.4, no
+  spawn path — left as the 1.21.10 port left unremoved species.
+  SpawnData's `equipment` field is real in 1.21.4
+  (`EquipmentTable`), so spawner.rs is untouched. Rank 2:
+  57/348.
+
+  Batch-2 compile follow-ups (same commit): the batch-2
+  `cargo check` never reached the horizon-client lib — it died
+  on the GAME_RULES length error in horizon-client-lib first —
+  so the batch-3 check surfaced 19 missing-method errors from
+  the system removals, all fixed to the 1.21.5 form. The deleted
+  `game/ghasts.rs` held the generic entity-collision helpers, so
+  `game/entity_collisions.rs` is restored from 1.21.5 (Shulker/
+  boat only, no ghast arms) with its test; `game/locator_bar.rs`
+  held `own_uuid`, restored into `game/names.rs` with its `uuid`
+  helper; the `close_dialogs` (5), `dialog_scroll` (1),
+  `track_experience_display` (2) calls are gone with the
+  `experience_display` field, and `Remote::player_entity` (whose
+  only caller was the deleted locator bar) is gone too. The
+  /version command's `version_lines` went with cmd_version, so
+  the F3 DumpVersion debug action and its key binding are gone
+  (ACTIONS 20 -> 19). `AXOLOTL_VARIANTS` is test-only now.
+  Full `cargo check -p horizon-client` green (EXIT 0, 0 errors)
+  after these fixes; the check's one warning (the dead
+  `Remote::player_entity`) was fixed by removing the method, and
+  the next batch's check re-verifies the tree warning-free.

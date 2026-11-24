@@ -550,8 +550,8 @@ mod anchor_save_tests {
     use std::collections::HashMap;
     use std::sync::Arc;
 
-    /// A phantom at (0.5, 75, 0.5) with the vanilla size 2, and `anchor_pos`
-    /// when it has one. `storeNullable` writes the key only for an anchor.
+    /// A phantom at (0.5, 75, 0.5) with the vanilla size 2, and `AX`/`AY`/
+    /// `AZ` when it has an anchor. 1.21.4 writes the anchor as three ints.
     fn saved_phantom(anchor: Option<[i32; 3]>) -> Tag {
         let mut fields = vec![
             ("id", Tag::String("minecraft:phantom".into())),
@@ -563,10 +563,12 @@ mod anchor_save_tests {
                     Tag::Double(0.5_f64.to_bits()),
                 ]),
             ),
-            ("size", Tag::Int(2)),
+            ("Size", Tag::Int(2)),
         ];
         if let Some(anchor) = anchor {
-            fields.push(("anchor_pos", Tag::IntArray(anchor.to_vec())));
+            fields.push(("AX", Tag::Int(anchor[0])));
+            fields.push(("AY", Tag::Int(anchor[1])));
+            fields.push(("AZ", Tag::Int(anchor[2])));
         }
         Tag::compound(fields)
     }
@@ -579,14 +581,14 @@ mod anchor_save_tests {
         [("minecraft:phantom".into(), kind)].into()
     }
 
-    /// `Phantom.addAdditionalSaveData` writes `anchor_pos` with `storeNullable`
-    /// and `readAdditionalSaveData` reads it back
-    /// (`input.read("anchor_pos", BlockPos.CODEC).orElse(null)`). Horizon models
-    /// the anchor in `extra.home` (vanilla's `anchorPoint`) and neither side
-    /// carried it: a phantom saved and reloaded kept the anchor `register` gives
-    /// every new phantom — its own position five blocks up — and circled there
-    /// instead of around the anchor its save named, or around itself as vanilla
-    /// does for a save with no anchor at all.
+    /// `Phantom.addAdditionalSaveData` writes the anchor as `AX`/`AY`/`AZ`
+    /// and `readAdditionalSaveData` reads it back (absent when the save has
+    /// none). Horizon models the anchor in `extra.home` (vanilla's
+    /// `anchorPoint`) and neither side carried it: a phantom saved and
+    /// reloaded kept the anchor `register` gives every new phantom — its own
+    /// position five blocks up — and circled there instead of around the
+    /// anchor its save named, or around itself as vanilla does for a save
+    /// with no anchor at all.
     #[test]
     fn a_phantoms_circling_anchor_survives_the_chunk_save() {
         let types = phantom_types();
@@ -615,17 +617,18 @@ mod anchor_save_tests {
         m.extra.home = Some([9, 70, -3]);
         let source = saved_phantom(Some([100, 64, -40]));
         let saved = mob_to_nbt(&m, [0; 4], Some(&source), None, |_| None);
-        assert_eq!(
-            saved.get("anchor_pos"),
-            Some(&Tag::IntArray(vec![9, 70, -3]))
-        );
-        // A phantom with no anchor: `orElse(null)` on the way in, and no
-        // `anchor_pos` on the way out even when the loaded save had one.
+        assert_eq!(saved.get("AX"), Some(&Tag::Int(9)));
+        assert_eq!(saved.get("AY"), Some(&Tag::Int(70)));
+        assert_eq!(saved.get("AZ"), Some(&Tag::Int(-3)));
+        // A phantom with no anchor: no `AX` on the way in, and the origin
+        // (`BlockPos.ZERO`) on the way out even when the loaded save had one.
         let mut loose = mob_from_nbt(&saved_phantom(None), &types, 2, None).unwrap();
-        assert_eq!(loose.extra.home, None, "a save without anchor_pos");
+        assert_eq!(loose.extra.home, None, "a save without AX/AY/AZ");
         loose.extra.home = None;
         let stale = saved_phantom(Some([100, 64, -40]));
         let saved = mob_to_nbt(&loose, [0; 4], Some(&stale), None, |_| None);
-        assert_eq!(saved.get("anchor_pos"), None, "no anchor, no key");
+        assert_eq!(saved.get("AX"), Some(&Tag::Int(0)));
+        assert_eq!(saved.get("AY"), Some(&Tag::Int(0)));
+        assert_eq!(saved.get("AZ"), Some(&Tag::Int(0)));
     }
 }

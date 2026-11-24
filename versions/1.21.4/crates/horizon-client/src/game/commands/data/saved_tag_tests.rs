@@ -112,7 +112,7 @@ fn tag_commands_and_explicit_empty(game: &mut Game<'_>) {
 }
 
 /// `/data get` on a cloud that was never saved shows `Entity.saveWithoutId`'s
-/// common fields, as 26.3 prints them (#13057).
+/// common fields, as 1.21.4 prints them (#13057).
 #[test]
 #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
 fn a_live_area_effect_cloud_reads_with_the_common_entity_fields() {
@@ -122,7 +122,7 @@ fn a_live_area_effect_cloud_reads_with_the_common_entity_fields() {
         let read = game.data_of(&DataRef::Entity(target)).unwrap();
         let zero = Tag::Double(0);
         assert_eq!(read.get("Motion"), Some(&Tag::List(vec![zero.clone(); 3])));
-        assert_eq!(read.get("fall_distance"), Some(&zero));
+        assert_eq!(read.get("FallDistance"), Some(&Tag::Float(0)));
         assert_eq!(read.get("Air"), Some(&Tag::Short(300)));
         assert_eq!(read.get("OnGround"), Some(&Tag::Byte(0)));
         assert_eq!(read.get("Invulnerable"), Some(&Tag::Byte(0)));

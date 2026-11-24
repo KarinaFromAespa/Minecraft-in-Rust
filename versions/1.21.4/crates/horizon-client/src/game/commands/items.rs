@@ -1901,14 +1901,12 @@ mod mob_equipment_command_tests {
                 assert!(mob.extra.body.is_none());
                 assert_eq!(mob.extra.head.as_deref(), Some("minecraft:stone"));
                 let saved = game.data_of(&DataRef::Entity(Target::Mob(id))).unwrap();
-                assert!(saved.get("equipment").unwrap().get("body").is_none());
+                assert!(saved.get("body_armor_item").is_none());
+                let Some(horizon_world::nbt::Tag::List(armor)) = saved.get("ArmorItems") else {
+                    panic!("no ArmorItems in the save");
+                };
                 assert_eq!(
-                    saved
-                        .get("equipment")
-                        .unwrap()
-                        .get("head")
-                        .unwrap()
-                        .get("id"),
+                    armor[3].get("id"),
                     Some(&horizon_world::nbt::Tag::String("minecraft:stone".into()))
                 );
             }
@@ -1940,22 +1938,19 @@ mod mob_equipment_command_tests {
                     "minecraft:saddle"
                 );
                 let saved = game.data_of(&DataRef::Entity(Target::Mob(id))).unwrap();
+                if kind == "pig" {
+                    // 1.21.4 saves a pig's saddle as a boolean, not a stack.
+                    assert_eq!(saved.get("Saddle"), Some(&Tag::Byte(1)));
+                } else {
+                    // A husk has no saddle form in 1.21.4: the model holds it,
+                    // the save drops it.
+                    assert!(saved.get("Saddle").is_none());
+                }
+                let Some(Tag::List(armor)) = saved.get("ArmorItems") else {
+                    panic!("no ArmorItems in the save");
+                };
                 assert_eq!(
-                    saved
-                        .get("equipment")
-                        .unwrap()
-                        .get("saddle")
-                        .unwrap()
-                        .get("id"),
-                    Some(&Tag::String("minecraft:saddle".into()))
-                );
-                assert_eq!(
-                    saved
-                        .get("equipment")
-                        .unwrap()
-                        .get("head")
-                        .unwrap()
-                        .get("id"),
+                    armor[3].get("id"),
                     Some(&Tag::String("minecraft:stone".into()))
                 );
                 assert_eq!(saved.get("h025_raw"), Some(&Tag::Int(7)));
@@ -2163,20 +2158,12 @@ mod mob_equipment_stack_tests {
             );
             audit(&adopted, 7);
             let tag = saved(game, id);
+            let Some(Tag::List(hands)) = tag.get("HandItems") else {
+                panic!("no HandItems in the save");
+            };
+            assert_eq!(hands[1].get("count"), Some(&Tag::Int(3)));
             assert_eq!(
-                tag.get("equipment")
-                    .unwrap()
-                    .get("offhand")
-                    .unwrap()
-                    .get("count"),
-                Some(&Tag::Int(3))
-            );
-            assert_eq!(
-                tag.get("equipment")
-                    .unwrap()
-                    .get("mainhand")
-                    .unwrap()
-                    .get("id"),
+                hands[0].get("id"),
                 Some(&Tag::String("minecraft:stone".into()))
             );
             assert!(game.run_command(&format!(
@@ -2225,13 +2212,10 @@ mod mob_equipment_stack_tests {
             );
             audit(&copied, 8);
             let tag = saved(game, id);
-            let components = tag
-                .get("equipment")
-                .unwrap()
-                .get("head")
-                .unwrap()
-                .get("components")
-                .unwrap();
+            let Some(Tag::List(armor)) = tag.get("ArmorItems") else {
+                panic!("no ArmorItems in the save");
+            };
+            let components = armor[3].get("components").unwrap();
             assert_eq!(components.get("minecraft:damage"), Some(&Tag::Int(3)));
             assert_eq!(
                 components

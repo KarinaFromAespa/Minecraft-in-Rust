@@ -512,7 +512,6 @@ impl Game<'_> {
     pub(super) fn tnt_nbt(&mut self, i: usize) -> horizon_world::nbt::Tag {
         let id = self.tnts[i].id;
         let uuid = self.uuid_for(id);
-        let owner = self.tnt_owner_uuid(self.tnts[i].owner, self.tnts[i].guest);
         let t = &self.tnts[i];
         horizon_client::entity_nbt::tnt_to_nbt(
             t.position,
@@ -524,26 +523,10 @@ impl Game<'_> {
             t.block_state_nbt(self.pack.assets.registry),
             t.rotation,
             uuid,
-            owner,
             self.persist.raw.get(&id),
         )
     }
     /// `EntityReference.of(owner)`: the UUID of the player or mob that lit it.
-    fn tnt_owner_uuid(&mut self, owner: Option<Who>, guest: Option<u32>) -> Option<[i32; 4]> {
-        match owner? {
-            Who::Player => match guest {
-                Some(conn) => self
-                    .lan
-                    .as_ref()?
-                    .hub
-                    .guest(conn)
-                    .map(|g| uuid_ints(g.uuid)),
-                None => self.level.player_uuid,
-            },
-            Who::Mob(id) if self.mobs.iter().any(|m| m.id == id) => Some(self.uuid_for(id)),
-            Who::Mob(id) => self.persist.uuids.get(&id).copied(),
-        }
-    }
     /// `PrimedTnt.getOwner` for TNT loaded with an `owner`: looked up when
     /// asked, so a player who joined or a mob loaded since is found.
     fn loaded_tnt_owner(&self, id: u32) -> Option<(Who, Option<u32>)> {
@@ -848,7 +831,6 @@ mod tests {
                 tnt.block_state_nbt(&registry),
                 [0.0, 0.0],
                 [221, 0, 0, 1],
-                None,
                 Some(&raw),
             );
             assert_eq!(saved.get("block_state"), Some(&expected));
@@ -1420,7 +1402,6 @@ mod tests {
                 state,
                 t.rotation,
                 [90, 0, 0, i as i32 + 1],
-                None,
                 None,
             );
             assert_eq!(saved.get("fuse"), Some(&Tag::Short(expected as i16)));

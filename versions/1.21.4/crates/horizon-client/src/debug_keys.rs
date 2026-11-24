@@ -22,7 +22,6 @@ pub enum DebugAction {
     ReloadResourcePacks,
     Profiling,
     CopyLocation,
-    DumpVersion,
     ProfilingChart,
     FpsCharts,
     NetworkCharts,
@@ -35,7 +34,7 @@ pub enum DebugAction {
 }
 
 /// The mappings `handleDebugKeys` tests, in its order.
-pub const ACTIONS: [(&str, DebugAction); 20] = [
+pub const ACTIONS: [(&str, DebugAction); 19] = [
     ("key.debug.reloadChunk", DebugAction::ReloadChunks),
     ("key.debug.showHitboxes", DebugAction::ShowHitboxes),
     ("key.debug.clearChat", DebugAction::ClearChat),
@@ -62,7 +61,6 @@ pub const ACTIONS: [(&str, DebugAction); 20] = [
     ),
     ("key.debug.profiling", DebugAction::Profiling),
     ("key.debug.copyLocation", DebugAction::CopyLocation),
-    ("key.debug.dumpVersion", DebugAction::DumpVersion),
     ("key.debug.profilingChart", DebugAction::ProfilingChart),
     ("key.debug.fpsCharts", DebugAction::FpsCharts),
     ("key.debug.networkCharts", DebugAction::NetworkCharts),

@@ -4235,7 +4235,7 @@ impl Level {
         self.xp_progress = f("XpP").unwrap_or(0.0) as f32;
         self.xp_total = n("XpTotal").unwrap_or(0) as i32;
         self.selected_slot = n("SelectedItemSlot").unwrap_or(0) as i32;
-        self.fall_distance = f("fall_distance").unwrap_or(0.0);
+        self.fall_distance = f("FallDistance").unwrap_or(0.0);
         self.on_ground = n("OnGround").unwrap_or(0) != 0;
         // LivingEntity.readAdditionalSaveData: `getBooleanOr("FallFlying",
         // false)` sets shared flag 7; any numeric tag counts, as a byte.
@@ -4435,7 +4435,7 @@ impl Level {
             ("Rotation", floats(&self.rotation)),
             ("Motion", doubles(&self.motion)),
             ("OnGround", Tag::Byte(i8::from(self.on_ground))),
-            ("fall_distance", Tag::Double(self.fall_distance.to_bits())),
+            ("FallDistance", Tag::Float((self.fall_distance as f32).to_bits())),
             // LivingEntity.addAdditionalSaveData: `putBoolean("FallFlying",
             // isFallFlying())`, always written.
             ("FallFlying", Tag::Byte(i8::from(self.fall_flying))),

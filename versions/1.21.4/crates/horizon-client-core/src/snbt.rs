@@ -291,7 +291,7 @@ pub fn java_hash_order(
         "Pos",
         "Motion",
         "Rotation",
-        "fall_distance",
+        "FallDistance",
         "Fire",
         "Air",
         "OnGround",

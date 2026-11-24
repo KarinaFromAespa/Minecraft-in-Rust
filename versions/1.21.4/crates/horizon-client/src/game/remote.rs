@@ -1550,7 +1550,6 @@ impl Game<'_> {
         self.server_packs_disconnect();
         self.code_of_conduct = None;
         self.reset_tutorial();
-        self.close_dialogs();
         // Gui.setScreen -> KeyMapping.releaseAll: the title or disconnect
         // screen releases every held key. Its release goes to that screen,
         // so a key kept here would still be down in the next world (#3246).
@@ -2281,8 +2280,6 @@ impl Game<'_> {
                 } => {
                     self.set_registries(registries);
                     self.extras_joined();
-                    // handleLogin: the level loading screen replaces any dialog.
-                    self.close_dialogs();
                     if let Some(r) = self.remote.as_mut() {
                         r.joined = true;
                         // handleLogin: startWaitingForNewLevel with Reason.OTHER.
@@ -2325,7 +2322,6 @@ impl Game<'_> {
                     // clearClientLevel opens ServerReconfigScreen over no level.
                     self.flush_chat_queue();
                     self.send_chat_acknowledgement();
-                    self.close_dialogs();
                     // The server configuring us now (a proxy's next one)
                     // offers its own far terrain, or none, and announces its
                     // own features again (a Horizon server's quiet commands).
@@ -4899,7 +4895,6 @@ impl Game<'_> {
                 let shown = self.remote.as_ref().is_none_or(|r| r.show_death_screen);
                 if p.health <= 0.0 && shown && self.screen != Screen::Dead && self.player.is_some()
                 {
-                    self.close_dialogs();
                     self.screen = Screen::Dead;
                     self.ui.death_time = 0;
                     self.ui.death_confirm = None;
@@ -4920,7 +4915,6 @@ impl Game<'_> {
                 // once when it is hidden.
                 if me && self.screen != Screen::Dead && self.player.is_some() {
                     if self.remote.as_ref().is_none_or(|r| r.show_death_screen) {
-                        self.close_dialogs();
                         self.screen = Screen::Dead;
                         self.ui.death_time = 0;
                         self.ui.death_confirm = None;
@@ -6521,7 +6515,6 @@ impl Game<'_> {
         let chat_ticks = self.visual_ticks();
         self.ui.chat.tick(&self.gui.atlas, chat_ticks);
         self.tick_sign_editor();
-        self.track_experience_display();
         self.tick_enchanting_book();
         // Leaving a slot clears its bundle's selection here and on the server.
         self.tick_bundle_hover();
@@ -11759,13 +11752,6 @@ impl Remote {
     /// The local player's profile UUID.
     pub(super) fn profile(&self) -> u128 {
         self.profile
-    }
-    /// The entity id of a player in the level, by profile UUID.
-    pub(super) fn player_entity(&self, uuid: u128) -> Option<u32> {
-        self.level_players
-            .iter()
-            .find(|(_, u)| **u == uuid)
-            .map(|(id, _)| *id as u32)
     }
     /// The kind and last sent position of a tracked server entity.
     pub(super) fn tracked(&self, id: i32) -> Option<(&str, [f64; 3])> {

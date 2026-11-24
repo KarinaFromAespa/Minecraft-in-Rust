@@ -174,6 +174,7 @@ mod functions;
 mod game_mode;
 mod game_tests;
 mod gamemode_switcher;
+mod entity_collisions;
 mod glowing;
 mod golems;
 mod growth;
@@ -2656,8 +2657,6 @@ struct Game<'a> {
     polytone_post_ticks: f64,
     /// `GameRenderer.spectatedEntityPostEffect` (`checkEntityPostEffect`).
     spectated_post_effect: Option<&'static str>,
-    /// `LocalPlayer.experienceDisplayStartTick`: (last progress, seen a change, tick).
-    experience_display: (f32, bool, u64),
     boats: horizon_client::join_seq::JoinList<boats::Boat>,
     /// The boats a mob's lead can hang on, for this tick's mob ticks.
     leash_boats: Vec<(u32, horizon_client::mobs::leash::HolderState)>,
@@ -5549,7 +5548,6 @@ impl Game<'_> {
         // their turns (`as_guest`), and the window's player is a client of it.
         self.ticks += 1;
         self.repro_tick();
-        self.track_experience_display();
         self.tick_enchanting_book();
         // `/tick freeze` stops the world but not the player.
         let running = match self.level_pass.running {
@@ -10584,8 +10582,6 @@ impl Game<'_> {
                         if self.link_prompt.is_some() {
                         } else if self.code_of_conduct.is_some() {
                             self.code_of_conduct_scroll(d);
-                        } else if self.server_packs.prompt.is_none() {
-                            self.dialog_scroll(d);
                         }
                         return Ok(());
                     }
@@ -11993,7 +11989,6 @@ impl<'a> Game<'a> {
             post_effects: Vec::new(),
             polytone_post_ticks: 0.0,
             spectated_post_effect: None,
-            experience_display: Default::default(),
             boats: Default::default(),
             leash_boats: Vec::new(),
             boat_models: prepared.boat_models,

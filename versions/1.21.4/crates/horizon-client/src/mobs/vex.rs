@@ -143,20 +143,12 @@ impl Goal for RandomMove {
         }
     }
 }
-/// `Vex.getOwner`: the mob the vex is bound to. `counter2` holds its id while
-/// the evoker that summoned it is in the level; a vex loaded from a save knows
-/// only the UUID it was saved with, and vanilla's `EntityReference.getEntity`
-/// asks the level for that entity every time it is called
-/// (`MobWorld::who_by_uuid`), so an owner that loaded later is found too.
-pub fn owner(m: &Mob, lookup: Option<&dyn super::WhoLookup>) -> Option<u32> {
-    if m.extra.counter2 != 0 {
-        return Some(m.extra.counter2 as u32);
-    }
-    match lookup?.who_by_uuid(m.extra.owner?)? {
-        Who::Mob(id) => Some(id),
-        // `Vex.setOwner` takes a `Mob`: a UUID naming the player is no owner.
-        Who::Player => None,
-    }
+/// `Vex.getOwner`: the mob the vex is bound to, `counter2` while the evoker
+/// that summoned it is in the level (0 none). 1.21.4 keeps the owner as a
+/// plain field, never saved: a vex loaded from a save has no owner. (1.21.6
+/// made it an `EntityReference`, resolved through the level by UUID.)
+pub fn owner(m: &Mob) -> Option<u32> {
+    (m.extra.counter2 != 0).then_some(m.extra.counter2 as u32)
 }
 /// `VexCopyOwnerTargetGoal`: the evoker's target.
 #[derive(Clone, Debug)]
@@ -167,7 +159,7 @@ impl Goal for CopyOwnerTarget {
         super::goals::TARGET
     }
     fn can_use(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
-        let seen = owner(m, cx.w.who_lookup).and_then(|owner| {
+        let seen = owner(m).and_then(|owner| {
             cx.w.others
                 .iter()
                 .find(|s| s.id == owner)
@@ -179,7 +171,10 @@ impl Goal for CopyOwnerTarget {
         m.target_info(cx.w).is_some_and(|t| t.alive)
     }
     fn start(&mut self, m: &mut Mob, cx: &mut Cx) {
-        m.ai.target = owner(m, cx.w.who_lookup).and_then(|owner| {
+        // 1.21.4's `start` reads the owner's target without a null check;
+        // `can_use` gates on a non-null owner with a target, so the lookup
+        // here finds one whenever `start` runs.
+        m.ai.target = owner(m).and_then(|owner| {
             cx.w.others
                 .iter()
                 .find(|s| s.id == owner)
@@ -289,15 +284,11 @@ pub fn texture(m: &Mob) -> &'static str {
     }
 }
 
-/// `Vex.addAdditionalSaveData`: the bound origin, the limited life and the
-/// owner reference's UUID (`EntityReference.store`, left out when there is no
-/// owner). The level answers for an owner still in it; a reference the vex was
-/// loaded with stands when the owner is gone.
-pub fn write_nbt(
-    m: &Mob,
-    map: &mut horizon_world::nbt::Compound,
-    uuid_of: &mut impl FnMut(u32) -> Option<[i32; 4]>,
-) {
+/// `Vex.addAdditionalSaveData`: the bound origin and the limited life. The
+/// owner is a plain field in 1.21.4, never saved (1.21.6's
+/// `EntityReference.store` wrote its UUID under `owner`); a stale `owner` key
+/// a loaded compound carried is dropped by the re-save.
+pub fn write_nbt(m: &Mob, map: &mut horizon_world::nbt::Compound) {
     use horizon_world::nbt::Tag;
     if let Some(h) = m.extra.home {
         map.insert("bound_pos".into(), Tag::IntArray(h.to_vec()));
@@ -305,25 +296,12 @@ pub fn write_nbt(
     if m.extra.egg_time > 0 {
         map.insert("life_ticks".into(), Tag::Int(m.extra.egg_time));
     }
-    let resolved = if m.extra.counter2 != 0 {
-        crate::entity_nbt::who_uuid(Who::Mob(m.extra.counter2 as u32), uuid_of)
-    } else {
-        None
-    };
-    match resolved.or(m.extra.owner) {
-        Some(uuid) => {
-            map.insert("owner".into(), Tag::IntArray(uuid.to_vec()));
-        }
-        None => {
-            map.remove(&"owner".into());
-        }
-    }
+    map.remove(&"owner".into());
 }
 
-/// `Vex.readAdditionalSaveData`: the bound origin, the life left (-1 when
-/// absent) and the owner's UUID, kept as the UUID it is - an id would name
-/// whatever mob has it now - and resolved through the level when the vex asks
-/// for its owner (`owner`).
+/// `Vex.readAdditionalSaveData`: the bound origin and the life left (-1 when
+/// absent). The owner is not read: 1.21.4 never saved it, so a loaded vex has
+/// none, whatever the compound carries.
 pub fn read_nbt(m: &mut Mob, tag: &horizon_world::nbt::Tag) {
     use horizon_world::nbt::Tag;
     if let Some(Tag::IntArray(v)) = tag.get("bound_pos")
@@ -332,16 +310,13 @@ pub fn read_nbt(m: &mut Mob, tag: &horizon_world::nbt::Tag) {
         m.extra.home = Some([v[0], v[1], v[2]]);
     }
     m.extra.egg_time = crate::save::number(tag.get("life_ticks")).map_or(-1, |v| v as i32);
-    m.extra.owner = crate::save::uuid_from_tag(tag.get("owner"));
 }
 
 #[cfg(test)]
 mod owner_save_tests {
     use super::*;
     use crate::entity_nbt::{mob_from_nbt, mob_to_nbt};
-    use crate::mobs::WhoLookup;
     use horizon_world::nbt::Tag;
-    use std::collections::HashMap;
     use std::sync::Arc;
 
     /// A vex with the id `EVOKER` in the level: what `Vex.setOwner` records
@@ -356,62 +331,28 @@ mod owner_save_tests {
         Mob::new(1, kind, Vec3::ZERO, 0.0)
     }
 
-    /// `Level.getEntity(uuid)` for the test: `Game` answers this with
-    /// `Game::who_by_uuid`.
-    struct Level(HashMap<[i32; 4], Who>);
-    impl WhoLookup for Level {
-        fn who_by_uuid(&self, uuid: [i32; 4]) -> Option<Who> {
-            self.0.get(&uuid).copied()
-        }
-    }
-
-    /// `Vex.addAdditionalSaveData` stores its owner reference's UUID
-    /// (`EntityReference.store`, nothing at all without an owner) and
-    /// `readAdditionalSaveData` reads it back (`EntityReference.read`), so a
-    /// summoned vex keeps the evoker whose target it copies across a chunk
-    /// save. Horizon models the owner as the owner's mob id and wrote neither,
-    /// so a reloaded vex had no owner to copy a target from.
+    /// `Vex.addAdditionalSaveData` (1.21.4) never writes the owner: it is a
+    /// plain field, not an `EntityReference`, so a summoned vex loses its
+    /// evoker across a chunk save and copies no target after reloading.
     #[test]
-    fn a_vexs_owner_uuid_survives_the_chunk_save() {
-        let evoker_uuid = [3, 1, 4, 1];
+    fn a_vexs_owner_does_not_survive_the_chunk_save() {
         let mut summoned = vex();
-        assert_eq!(owner(&summoned, None), None, "a vex nobody summoned");
+        assert_eq!(owner(&summoned), None, "a vex nobody summoned");
         summoned.extra.counter2 = EVOKER as i32;
-        assert_eq!(owner(&summoned, None), Some(EVOKER), "the evoker's id");
-        let uuid_of = |id: u32| (id == EVOKER).then_some(evoker_uuid);
-        let saved = mob_to_nbt(&summoned, [0; 4], None, None, uuid_of);
-        assert_eq!(
-            saved.get("owner"),
-            Some(&Tag::IntArray(evoker_uuid.to_vec()))
-        );
-        // The loaded vex knows the UUID: no id survives a save, and its owner
-        // is found again only through the level (`EntityReference.getEntity`).
+        assert_eq!(owner(&summoned), Some(EVOKER), "the evoker's id");
+        let saved = mob_to_nbt(&summoned, [0; 4], None, None, |_| None);
+        assert_eq!(saved.get("owner"), None, "no owner key is written");
         let types = [("minecraft:vex".into(), summoned.kind.clone())].into();
         let back = mob_from_nbt(&saved, &types, 2, None).unwrap();
-        assert_eq!(back.extra.owner, Some(evoker_uuid));
         assert_eq!(back.extra.counter2, 0);
-        let level = Level(HashMap::from([(evoker_uuid, Who::Mob(42))]));
-        assert_eq!(owner(&back, Some(&level)), Some(42), "the evoker, found");
-        // An owner the level does not have, and a UUID naming the player, are
-        // no owner: `Vex.setOwner` takes a `Mob`.
-        assert_eq!(owner(&back, Some(&Level(HashMap::new()))), None);
-        let player = Level(HashMap::from([(evoker_uuid, Who::Player)]));
-        assert_eq!(owner(&back, Some(&player)), None);
-        assert_eq!(owner(&back, None), None, "a level with no UUIDs");
-        // A save read again keeps the reference even when nothing in the level
-        // answers for it, as `EntityReference` does.
-        let again = mob_to_nbt(&back, [0; 4], None, None, |_| None);
-        assert_eq!(
-            again.get("owner"),
-            Some(&Tag::IntArray(evoker_uuid.to_vec()))
-        );
+        assert_eq!(back.extra.owner, None);
+        assert_eq!(owner(&back), None, "a reloaded vex has no owner");
     }
 
-    /// `EntityReference.store` writes nothing for a vex with no owner, and a
-    /// save that names none loads with none - neither the `owner` key a loaded
-    /// compound carried nor an id left over may stand.
+    /// A stale `owner` key in a loaded compound is ignored on load and
+    /// dropped on re-save: 1.21.4 neither reads nor writes it.
     #[test]
-    fn a_vex_with_no_owner_saves_no_owner_key() {
+    fn a_stale_owner_key_is_ignored_and_dropped() {
         let mut loose = vex();
         let stale = Tag::compound([
             ("id", Tag::String("minecraft:vex".into())),
@@ -427,7 +368,8 @@ mod owner_save_tests {
         ]);
         let types = [("minecraft:vex".into(), loose.kind.clone())].into();
         let loaded = mob_from_nbt(&stale, &types, 3, None).unwrap();
-        assert_eq!(loaded.extra.owner, Some([9, 9, 9, 9]));
+        assert_eq!(loaded.extra.owner, None);
+        assert_eq!(owner(&loaded), None);
         loose.extra.owner = None;
         loose.extra.counter2 = 0;
         let saved = mob_to_nbt(&loose, [0; 4], Some(&stale), None, |_| None);

@@ -729,13 +729,6 @@ impl Game<'_> {
                 }
                 true
             }
-            DebugAction::DumpVersion => {
-                self.debug_translated("debug.version.header");
-                for line in self.version_lines() {
-                    self.show_debug_chat(line);
-                }
-                true
-            }
             DebugAction::ImprovedTransparency => {
                 self.settings.improved_transparency = !self.settings.improved_transparency;
                 self.settings.save(&Self::options_path());

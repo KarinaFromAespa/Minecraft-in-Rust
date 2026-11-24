@@ -60,7 +60,8 @@ pub mod monster_brain;
 pub mod nautilus;
 pub mod neutral_anger;
 pub use neutral_anger::{
-    adopt_anger_end, anger_left, persistent_anger, resume_anger, settle_anger_end,
+    adopt_anger_end, anger_left, persistent_anger, refresh_anger_for_save, resume_anger,
+    settle_anger_end,
 };
 pub mod nav;
 pub mod nether;

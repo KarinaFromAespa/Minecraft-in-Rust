@@ -2515,17 +2515,11 @@ mod stand_lodestone_inventory_tick_tests {
                 }
             }
             let saved = horizon_client::entity_nbt::armor_stand_to_nbt(a, [42321, 0, 0, n], None);
-            assert!(
-                saved.get("equipment").is_some(),
-                "actual no-raw model writer"
-            );
+            let Some(horizon_world::nbt::Tag::List(hands)) = saved.get("HandItems") else {
+                panic!("actual no-raw model writer");
+            };
             for slot in 0..2 {
-                let key = horizon_client::entities::ArmorStand::SLOTS[slot];
-                let saved_target = saved
-                    .get("equipment")
-                    .unwrap()
-                    .get(key)
-                    .unwrap()
+                let saved_target = hands[slot]
                     .get("components")
                     .unwrap()
                     .get("minecraft:lodestone_tracker")

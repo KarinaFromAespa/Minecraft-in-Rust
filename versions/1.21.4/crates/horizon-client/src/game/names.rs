@@ -18,6 +18,11 @@ use horizon_client::{
     text::Text,
 };
 
+fn uuid(ints: [i32; 4]) -> u128 {
+    ints.iter()
+        .fold(0u128, |acc, &i| acc << 32 | u128::from(i as u32))
+}
+
 /// The world size of one text pixel in a name tag: `Matrix4f.scale(0.025F, -0.025F, 0.025F)`.
 pub(super) const NAME_TAG_UNIT: f32 = 0.025;
 
@@ -200,6 +205,13 @@ impl Game<'_> {
         match self.remote.as_ref() {
             Some(r) if !r.profile_name.is_empty() => r.profile_name.clone(),
             _ => self.acting_player_name().to_owned(),
+        }
+    }
+    /// The local player's UUID, as servers know it.
+    pub(super) fn own_uuid(&self) -> u128 {
+        match &self.remote {
+            Some(r) => r.profile(),
+            None => self.level.player_uuid.map_or(0, uuid),
         }
     }
     /// The names the name tags show this frame (the control socket's status).

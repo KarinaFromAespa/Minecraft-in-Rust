@@ -36,13 +36,13 @@ pub(super) fn write_static_entity_fields(tag: &mut Tag) {
     let int = |key, default| tag.get(key).and_then(int_value).unwrap_or(default);
     let motion = entity_nbt::loaded_motion(tag);
     let double = |value: f64| Tag::Double(if value == 0.0 { 0 } else { value.to_bits() });
-    let fall_distance = float(tag.get("fall_distance")).unwrap_or(0.0);
+    let fall_distance = float(tag.get("FallDistance")).unwrap_or(0.0);
     let values = [
         (
             "Motion",
             Tag::List([motion.x, motion.y, motion.z].map(double).to_vec()),
         ),
-        ("fall_distance", double(fall_distance)),
+        ("FallDistance", Tag::Float((fall_distance as f32).to_bits())),
         ("Fire", Tag::Short(int("Fire", 0) as i16)),
         ("Air", Tag::Short(int("Air", 300) as i16)),
         (
@@ -876,7 +876,7 @@ impl Game<'_> {
                 velocity: entity_nbt::motion(&tag),
                 fuse,
                 on_ground: entity_nbt::flag(&tag, "OnGround"),
-                fall_distance: horizon_client::save::float(tag.get("fall_distance")).unwrap_or(0.0),
+                fall_distance: horizon_client::save::float(tag.get("FallDistance")).unwrap_or(0.0),
                 stuck: Vec3::ZERO,
                 in_water: false,
                 owner: None,
@@ -1553,11 +1553,16 @@ impl Game<'_> {
         for suspect in suspects {
             self.uuid_for(suspect);
         }
-        // `NeutralMob.addPersistentAngerSaveData`: the anger ends at an
-        // absolute game time, so it goes on while the chunk is unloaded, and
-        // the target is the entity the mob is angry at (`settle_anger_end`).
+        // `NeutralMob.addPersistentAngerSaveData`: the time left is written,
+        // from the absolute end time, so it goes on while the chunk is
+        // unloaded (`refresh_anger_for_save`, then `settle_anger_end`), and
+        // the target is the entity the mob is angry at.
         let anger = self.mobs[i].extra.anger;
         if horizon_client::mobs::persistent_anger(self.mobs[i].species()) {
+            horizon_client::mobs::refresh_anger_for_save(
+                &mut self.mobs[i],
+                self.world.game_time,
+            );
             horizon_client::mobs::settle_anger_end(&mut self.mobs[i], self.world.game_time);
         } else {
             self.mobs[i].extra.anger_end = if anger > 0 {
@@ -5815,7 +5820,7 @@ mod summoned_knot_tests {
                     ("Invulnerable", Tag::Byte(0)),
                     ("OnGround", Tag::Byte(0)),
                     ("PortalCooldown", Tag::Int(0)),
-                    ("fall_distance", Tag::Double(0.0f64.to_bits())),
+                    ("FallDistance", Tag::Float(0.0f32.to_bits())),
                 ] {
                     assert_eq!(tag.get(key), Some(&value), "{key}");
                 }

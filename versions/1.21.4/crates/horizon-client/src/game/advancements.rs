@@ -3294,7 +3294,7 @@ mod custom_data_equipment_tests {
             });
             let x = f64::from(i) + 0.5;
             assert!(game.run_command(&format!(
-                "summon minecraft:pig {x} 200 4.5 {{UUID:[I;289,1,0,{i}],NoAI:1b,NoGravity:1b,Silent:1b,PersistenceRequired:1b,Health:10f,equipment:{{mainhand:{{id:\"minecraft:stick\",count:1{components}}}}}}}"
+                "summon minecraft:pig {x} 200 4.5 {{UUID:[I;289,1,0,{i}],NoAI:1b,NoGravity:1b,Silent:1b,PersistenceRequired:1b,Health:10f,HandItems:[{{id:\"minecraft:stick\",count:1{components}}},{{}}]}}"
             )));
             assert!(game.world.loaded(i, 4));
             assert_eq!(
@@ -3333,7 +3333,7 @@ mod custom_data_equipment_tests {
                     Some(&Tag::Long(9_007_199_254_740_993))
                 );
                 // Contradictory retained raw equipment must not replace actual stack state.
-                let (wrong, _) = parse_snbt(r#"{equipment:{mainhand:{id:"minecraft:stick",count:1,components:{"minecraft:custom_data":{h289:2b}}}}}"#).unwrap();
+                let (wrong, _) = parse_snbt(r#"{HandItems:[{id:"minecraft:stick",count:1,components:{"minecraft:custom_data":{h289:2b}}},{}]}"#).unwrap();
                 let raw = game
                     .persist
                     .raw
@@ -3342,11 +3342,11 @@ mod custom_data_equipment_tests {
                 let Tag::Compound(raw) = raw else {
                     panic!("actual raw compound")
                 };
-                raw.insert("equipment".into(), wrong.get("equipment").unwrap().clone());
-                assert!(game.run_command(&format!("execute if data entity {actor} equipment.mainhand.components{{\"minecraft:custom_data\":{{h289:1b}}}}")));
+                raw.insert("HandItems".into(), wrong.get("HandItems").unwrap().clone());
+                assert!(game.run_command(&format!("execute if data entity {actor} HandItems[0].components{{\"minecraft:custom_data\":{{h289:1b}}}}")));
             } else {
                 assert!(stack.custom_data().is_none());
-                assert!(game.run_command(&format!("execute unless data entity {actor} equipment.mainhand.components.\"minecraft:custom_data\"")));
+                assert!(game.run_command(&format!("execute unless data entity {actor} HandItems[0].components.\"minecraft:custom_data\"")));
             }
             let mob = game.mobs.iter().find(|m| m.id == id).unwrap();
             let view = game.mob_entity(mob);

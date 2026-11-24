@@ -776,14 +776,19 @@ mod tests {
         );
         assert!(is_captain(&m));
         let saved = crate::entity_nbt::mob_to_nbt(&m, [0; 4], None, None, |_| None);
-        let chances = saved.get("drop_chances").unwrap();
+        // 1.21.4 writes the chances as two float lists: armour feet-first,
+        // hands mainhand-first.
+        let chance = |key: &str, index: usize| match saved.get(key) {
+            Some(horizon_world::nbt::Tag::List(list)) => list[index].clone(),
+            other => panic!("{key} is not a list: {other:?}"),
+        };
         assert_eq!(
-            chances.get("head"),
-            Some(&horizon_world::nbt::Tag::Float(2.0_f32.to_bits()))
+            chance("ArmorDropChances", 3),
+            horizon_world::nbt::Tag::Float(2.0_f32.to_bits())
         );
         assert_eq!(
-            chances.get("offhand"),
-            Some(&horizon_world::nbt::Tag::Float(0.65_f32.to_bits())),
+            chance("HandDropChances", 1),
+            horizon_world::nbt::Tag::Float(0.65_f32.to_bits()),
             "equipping the banner preserves other slots' explicit chances"
         );
         // Client that only saw SetEquipment: no PatrolLeader, still a captain.

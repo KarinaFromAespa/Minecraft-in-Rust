@@ -599,7 +599,7 @@ impl Game<'_> {
                 tnt.fuse = super::super::persist::tnt_fuse(&tag);
                 tnt.on_ground = entity_nbt::flag(&tag, "OnGround");
                 tnt.fall_distance =
-                    horizon_client::save::float(tag.get("fall_distance")).unwrap_or(0.0);
+                    horizon_client::save::float(tag.get("FallDistance")).unwrap_or(0.0);
                 tnt.no_gravity = entity_nbt::flag(&tag, "NoGravity");
                 tnt.power = entity_nbt::tnt_power(&tag);
                 tnt.block_state = block_state;

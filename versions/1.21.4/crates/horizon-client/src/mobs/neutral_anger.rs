@@ -1,5 +1,7 @@
-//! `NeutralMob`'s persistent anger: the absolute end time vanilla saves
-//! (`anger_end_time`) beside Horizon's per-tick countdown (`Extra::anger`).
+//! `NeutralMob`'s persistent anger: the absolute end time the model keeps
+//! beside Horizon's per-tick countdown (`Extra::anger`). 1.21.4 saves the
+//! time left (`AngerTime`), not the end time, so the two convert at the
+//! save/load boundary (`adopt_anger_end`, `refresh_anger_for_save`).
 
 use super::{Mob, Species};
 
@@ -12,8 +14,8 @@ pub fn anger_left(anger_end: i64, game_time: i64) -> i32 {
     (anger_end - game_time).clamp(0, i64::from(i32::MAX)) as i32
 }
 /// The `NeutralMob`s whose anger is `Extra::anger`: they write and read
-/// `anger_end_time` and `angry_at`. The bee keeps its own anger, and a
-/// piglin's is a brain memory, not `NeutralMob`'s.
+/// `AngerTime` and `AngryAt`. The bee keeps its own anger, and a piglin's
+/// is a brain memory, not `NeutralMob`'s.
 pub fn persistent_anger(s: Species) -> bool {
     matches!(
         s,
@@ -24,10 +26,18 @@ pub fn persistent_anger(s: Species) -> bool {
             | Species::ZombifiedPiglin
     )
 }
-/// `NeutralMob.readPersistentAngerSaveData`: the gameplay countdown restarts
-/// from the end time just read, and the pair is remembered as untouched.
+/// `NeutralMob.readPersistentAngerSaveData`: the end time the save carries
+/// restarts the gameplay countdown — or, in 1.21.4, the time left the save
+/// carries (`AngerTime`) sets the end time from the live clock, and the
+/// pair is remembered as untouched either way.
 pub fn adopt_anger_end(m: &mut Mob, game_time: i64) {
-    m.extra.anger = anger_left(m.extra.anger_end, game_time);
+    if m.extra.anger_end <= 0 && m.extra.anger > 0 {
+        // 1.21.4 saves the time left, not the end time: the end is now
+        // plus what was left. (A countdown of zero or less stays as read.)
+        m.extra.anger_end = game_time + i64::from(m.extra.anger);
+    } else if m.extra.anger_end > 0 {
+        m.extra.anger = anger_left(m.extra.anger_end, game_time);
+    }
     m.extra.anger_stamp = Some((m.extra.anger, m.age));
 }
 /// Before a `NeutralMob`'s tick: a countdown nothing changed since the end
@@ -38,6 +48,27 @@ pub fn adopt_anger_end(m: &mut Mob, game_time: i64) {
 pub fn resume_anger(m: &mut Mob, game_time: i64) {
     if m.extra.anger_stamp == Some((m.extra.anger, m.age)) {
         m.extra.anger = anger_left(m.extra.anger_end, game_time - 1);
+        m.extra.anger_stamp = Some((m.extra.anger, m.age));
+    }
+}
+/// Before a save (`mob_tree_nbt`): a countdown nothing changed since the
+/// end time was last settled runs from that end time, so ticks the mob
+/// missed (its chunk out of the entity-ticking area) still count — 1.21.4
+/// saves the time left, not the end time, so the countdown is what is
+/// written. The untouched test is `settle_anger_end`'s (a NoAI mob and an
+/// enderman age without counting down).
+pub fn refresh_anger_for_save(m: &mut Mob, game_time: i64) {
+    // No end time means the countdown is the save itself (a time left of
+    // zero or less, as read): nothing to refresh from.
+    if m.extra.anger_end <= 0 {
+        return;
+    }
+    let untouched = m.extra.anger_stamp.is_some_and(|(stamped, age)| {
+        stamped == m.extra.anger
+            && (age == m.age || m.no_ai || m.species() == Species::Enderman)
+    });
+    if untouched {
+        m.extra.anger = anger_left(m.extra.anger_end, game_time);
         m.extra.anger_stamp = Some((m.extra.anger, m.age));
     }
 }
@@ -193,6 +224,26 @@ mod tests {
         n.extra.anger = 50;
         assert_eq!(settle_anger_end(&mut n, 100), 150);
         assert_eq!(settle_anger_end(&mut n, 101), 150);
+    }
+    /// 1.21.4's save carries the time left (`AngerTime`), not the end time:
+    /// adopting it sets the end from the live clock, and a save after
+    /// missed ticks writes what is left of it, not the stale countdown.
+    #[test]
+    fn a_saved_time_left_sets_the_end_and_shrinks_while_unticked() {
+        let mut m = neutral(Species::ZombifiedPiglin, "minecraft:zombified_piglin");
+        m.extra.anger = 400;
+        adopt_anger_end(&mut m, 100);
+        assert_eq!(m.extra.anger_end, 500);
+        assert_eq!(m.extra.anger, 400);
+        // Five ticks pass with the mob unticked (no age, no countdown).
+        refresh_anger_for_save(&mut m, 105);
+        assert_eq!(m.extra.anger, 395);
+        assert_eq!(m.extra.anger_end, 500);
+        // A countdown the gameplay set after the load is written as set.
+        m.extra.anger = 50;
+        refresh_anger_for_save(&mut m, 106);
+        assert_eq!(m.extra.anger, 50);
+        assert_eq!(settle_anger_end(&mut m, 106), 156);
     }
     /// Anger the gameplay ends early (`stopBeingAngry`) writes -1.
     #[test]
