@@ -1,7 +1,7 @@
 {
  "release": "1.21.10",
  "rank": 3,
- "batch": 30,
+ "batch": 31,
  "note": "",
  "items": {
   "485": {
@@ -933,6 +933,36 @@
    "module": "crates/horizon-world/src/worldgen/structure/mineshaft.rs",
    "verdict": "no-change",
    "evidence": "`MineShaftCorridor#createChest` diff is EMPTY \u2014 a false positive."
+  },
+  "465": {
+   "module": "crates/horizon-client/src/realms/client.rs",
+   "verdict": "no-change",
+   "evidence": "Realms DTO parsing: record-vs-mutable construction (WorldTemplate, WorldTemplatePaginatedList, Backup), log-message texts ('Could not parse X' vs 'Could not parse X: {}'), Instant vs Date for the same instants, OutboundPlayer vs PlayerInfo, token() vs getToken(), record accessors vs fields. 1.21.10's WorldTemplate HAS a `type` field (javap-verified), so the Rust's `kind` matches. Noted deviation: `JsonUtils.getDateOr` returns now in 1.21.10 when the key is missing, EPOCH in 1.21.11; the Rust defaults to 0 (epoch), as in the template \u2014 the service always sends lastModifiedDate, and a wall-clock default in a deserializer is non-deterministic."
+  },
+  "470": {
+   "module": "crates/horizon-client/src/game/trident.rs",
+   "verdict": "no-change",
+   "evidence": "All six `ThrownTrident` methods (addAdditionalSaveData, findHitEntity, playerTouch, readAdditionalSaveData, tick, tryPickup) have EMPTY diffs \u2014 false positives."
+  },
+  "471": {
+   "module": "crates/horizon-client/src/game/command_blocks.rs",
+   "verdict": "no-change",
+   "evidence": "`BaseCommandBlock#performCommand`: the 1.21.10 `isClientSide` gate and the `isCommandBlockEnabled` read from the server (vs the level) are the same value server-side; `createSource` takes no level arg in 1.21.10. `sendSystemMessage` is an `onUpdated()` signature change. `CommandBlock#execute`/`executeChain`/`setPlacedBy` are Level-vs-ServerLevel receivers plus GameRules renames (`MAX_COMMAND_SEQUENCE_LENGTH` vs `RULE_MAX_COMMAND_CHAIN_LENGTH`, `SEND_COMMAND_FEEDBACK` vs `RULE_SENDCOMMANDFEEDBACK`)."
+  },
+  "473": {
+   "module": "crates/horizon-client/src/game/commands/items.rs",
+   "verdict": "no-change",
+   "evidence": "`ItemCommands#getContainer` is a control-flow reorder with the same outcome. `SlotAccess$1/$2/$3#set` are anonymous-class renumbering: the same four behaviours (no-op-false, setter-consumer, validator+entity-slot, validator+container) exist in both versions under different $ numbers, so the $1-to-$1 diffs compare different implementations."
+  },
+  "474": {
+   "module": "crates/horizon-client/src/block_pattern.rs",
+   "verdict": "no-change",
+   "evidence": "Golem patterns: 1.21.11 wraps the state predicate in `BlockInWorld.hasState`, 1.21.10 passes the raw predicate \u2014 the same matching. `spawnGolemInWorld` is a criterion/critereon rename; `trySpawnGolem` is EMPTY; `BlockPatternBuilder#aisle` is CharSet-vs-Map internals with the same validation."
+  },
+  "476": {
+   "module": "crates/horizon-client/src/realms/download.rs",
+   "verdict": "no-change",
+   "evidence": "`FileDownload#contentLength` swaps the HTTP client (java.net.http HEAD in 1.21.11, Apache HttpClient GET in 1.21.10) for the same result; `download` is a lambda arg-order swap; `untarGzipArchive` is a log-message change; `checkDownloadSize` is a record accessor vs a field. The Rust's download code is its own implementation."
   }
  }
 }

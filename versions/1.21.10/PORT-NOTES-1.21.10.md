@@ -1046,3 +1046,21 @@ gate via fire_radius), 557 (the level-load callback is compiled-only,
 the 1.21.10 isSectionCompiled form), 483 (canSetSpawn reads the
 dimension type's respawnAnchorWorks). The other 37 are renames,
 empty diffs, trig noise, or render plumbing.
+
+CI runs 45368236380 (rank 3 batch 1, f5592b62) and 45369286305
+(rank 3 batch 2, f9209342): both SUCCESS, all suites green.
+
+Rank 3 batch 4 (6 items, rank 3 186 -> 192, 656/719): the last
+review items (4-10 real methods each), all no-change. 465
+(realms/client.rs): Realms DTO parsing is record-vs-mutable
+construction, log texts and Instant-vs-Date; 1.21.10's
+WorldTemplate has a type field too. One noted deviation:
+JsonUtils.getDateOr returns now in 1.21.10 when the key is
+missing (EPOCH in 1.21.11); the Rust defaults to 0, as in the
+template — the service always sends the date. 470: all six
+ThrownTrident diffs are empty. 471: command-block API shapes
+plus GameRules renames. 473: SlotAccess $1/$2/$3 are
+anonymous-class renumbering (the same four behaviours under
+different numbers). 474: golem-pattern predicate wrapping and
+aisle internals. 476: the Realms download's HTTP client swap
+and log texts.
