@@ -912,7 +912,8 @@ pub fn mob_to_nbt(
         "minecraft:fox" => {
             let kind = if m.extra.variant == 1 { "snow" } else { "red" };
             map.insert("Type".into(), string(kind));
-            // The trusted UUIDs (`Fox.TRUSTED_LIST_CODEC`: a list of int arrays).
+            // The trusted UUIDs (a list of int arrays, one per
+            // `NbtUtils.createUUID`).
             map.insert(
                 "Trusted".into(),
                 Tag::List(
@@ -2420,8 +2421,8 @@ pub fn mob_from_nbt_with_random(
     match m.species() {
         crate::mobs::Species::Fox => {
             m.extra.variant = u8::from(text(tag.get("Type")).as_deref() == Some("snow"));
-            // Fox.readAdditionalSaveData: clearTrusted, then addTrustedEntity for
-            // each of "Trusted".
+            // Fox.readAdditionalSaveData: `addTrustedUUID` for each of
+            // "Trusted" (1.21.4 has no `clearTrusted`).
             crate::mobs::fox::clear_trusted(&mut m);
             if let Some(Tag::List(trusted)) = tag.get("Trusted") {
                 for uuid in trusted

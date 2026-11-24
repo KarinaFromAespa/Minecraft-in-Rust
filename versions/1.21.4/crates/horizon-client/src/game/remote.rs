@@ -36,12 +36,12 @@ use horizon_client::{
 use horizon_core::{geometry::Vec3, random::RandomSource};
 use horizon_protocol::{
     entity_data::{ITEM_ENTITY_ITEM, Value},
-    item::{Hashed, Stack},
+    item::Stack,
     packets::{
         Empty,
         play::{self, Clientbound as C, Serverbound as S},
     },
-    registry::{Builtin, DimensionType, Dynamic, SyncedNames, ceil_log2},
+    registry::{Builtin, DimensionType, Dynamic, ceil_log2},
     rsa::RsaPublicKey,
     secure_chat::{self, Signature},
     text::{Language, plain},
@@ -1779,16 +1779,6 @@ impl Game<'_> {
             },
             s,
         )
-    }
-    /// `HashedStack.create` with the connection's registries (the client's
-    /// `decoratedHashOpsGenerator`).
-    fn hashed_stack(&self, s: &Option<ItemStack>) -> Option<Hashed> {
-        let r = self.remote.as_ref()?;
-        let names = SyncedNames {
-            builtin: &r.builtin,
-            dynamic: &r.registries,
-        };
-        self.to_network(s).map(|s| Hashed::create(&s, &names))
     }
     /// A line in the connection's chat, with its styles, click and hover
     /// events (ChatComponent.addMessage). The lines the Chat option hides
@@ -10402,10 +10392,15 @@ impl Game<'_> {
             }
         }
         let state = self.remote.as_ref().map_or(0, |r| r.state_id);
-        let hashed = |g: &Self, s: &Option<ItemStack>| g.hashed_stack(s);
+        // 1.21.4 sends the whole stack for each changed slot and the
+        // carried item (1.21.5 sends `HashedStack` hashes instead).
+        let claimed = |g: &Self, s: &Option<ItemStack>| g.to_network(s);
         for (slot, button, input, changed, carried) in clicks {
-            let changed = changed.iter().map(|(i, s)| (*i, hashed(self, s))).collect();
-            let carried = hashed(self, &carried);
+            let changed = changed
+                .iter()
+                .map(|(i, s)| (*i, claimed(self, s)))
+                .collect();
+            let carried = claimed(self, &carried);
             self.send(S::ContainerClick(play::ContainerClick {
                 container,
                 state,
@@ -10449,7 +10444,7 @@ impl Game<'_> {
             }
             self.swing_arm();
         }
-        let carried = self.hashed_stack(&self.carried);
+        let carried = self.to_network(&self.carried);
         let state = self.remote.as_ref().map_or(0, |r| r.state_id);
         self.send(S::ContainerClick(play::ContainerClick {
             container,

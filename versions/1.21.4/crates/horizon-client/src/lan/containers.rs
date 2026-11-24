@@ -9,7 +9,7 @@ use super::{
 use crate::{containers::BlockEntity, items::ItemStack, world::World};
 use horizon_core::random::RandomSource;
 use horizon_protocol::{
-    item::Hashed,
+    item::Stack,
     packets::{
         configuration::CustomPayload,
         play::{self, Clientbound as C},
@@ -584,7 +584,10 @@ impl Hub {
         }
     }
 
-    fn hashed_matches(&mut self, claimed: &Option<Hashed>, mine: &Option<ItemStack>) -> bool {
+    /// Whether the stack the client claims a slot holds agrees with the
+    /// server's (item and count; 1.21.4 sends the whole stack, 1.21.5 a
+    /// hash of it).
+    fn claimed_matches(&mut self, claimed: &Option<Stack>, mine: &Option<ItemStack>) -> bool {
         match (claimed, mine) {
             (None, None) => true,
             (Some(h), Some(s)) => h.item == self.item_id(&s.item) && h.count == s.count as i32,
@@ -796,13 +799,13 @@ impl Hub {
         changed: &[usize],
     ) -> bool {
         let carried = self.guests[i].carried.clone();
-        if !self.hashed_matches(&p.carried, &carried) {
+        if !self.claimed_matches(&p.carried, &carried) {
             return false;
         }
-        let claimed: HashMap<usize, &Option<Hashed>> =
+        let claimed: HashMap<usize, &Option<Stack>> =
             p.changed.iter().map(|(s, h)| (*s as usize, h)).collect();
         (0..total).all(|slot| match claimed.get(&slot) {
-            Some(c) => self.hashed_matches(c, &view(slot)),
+            Some(c) => self.claimed_matches(c, &view(slot)),
             None => !changed.contains(&slot),
         })
     }
@@ -913,7 +916,7 @@ impl Hub {
             }
             return;
         }
-        let claimed: HashMap<usize, Option<Hashed>> = p
+        let claimed: HashMap<usize, Option<Stack>> = p
             .changed
             .iter()
             .map(|(s, h)| (*s as usize, h.clone()))
@@ -927,7 +930,7 @@ impl Hub {
         for slot in 0..total {
             let mine = self.view_slot(i, world, slot);
             let agreed = match claimed.get(&slot) {
-                Some(c) => self.hashed_matches(c, &mine),
+                Some(c) => self.claimed_matches(c, &mine),
                 None => !changed.contains(&slot),
             };
             if !agreed {
@@ -955,7 +958,7 @@ impl Hub {
             }));
         }
         let carried = self.guests[i].carried.clone();
-        if !self.hashed_matches(&p.carried, &carried) {
+        if !self.claimed_matches(&p.carried, &carried) {
             let net = self.stack(&carried);
             self.guests[i].send(&C::SetCursorItem(play::SetCursorItem { item: net }));
         }

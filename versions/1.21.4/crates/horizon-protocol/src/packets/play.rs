@@ -8,7 +8,7 @@ use crate::{
     },
     chunk::{ChunkData, LightData},
     entity_data::{EntityData, Particle, Value},
-    item::{Component, DelimitedSlot, Hashed, HashedSlot, Slot, Stack},
+    item::{Component, DelimitedSlot, Slot, Stack},
     packet, packet_enum,
     packets::{
         Empty,
@@ -1319,7 +1319,6 @@ pub struct UpdateAdvancements {
     pub added: Vec<Advancement>,
     pub removed: Vec<String>,
     pub progress: Vec<(String, Vec<(String, Option<i64>)>)>,
-    pub show: bool,
 }
 impl Codec<UpdateAdvancements> for UpdateAdvancements {
     fn read(r: &mut Reader) -> Result<Self> {
@@ -1389,13 +1388,13 @@ impl Codec<UpdateAdvancements> for UpdateAdvancements {
             }
             progress.push((id, criteria));
         }
-        let show = r.bool()?;
+        // No trailing `showAdvancements` bool in 1.21.4: the packet ends
+        // with the progress (the field is a 1.21.5 addition).
         Ok(Self {
             reset,
             added,
             removed,
             progress,
-            show,
         })
     }
     fn write(v: &Self, w: &mut Writer) {
@@ -1449,7 +1448,6 @@ impl Codec<UpdateAdvancements> for UpdateAdvancements {
                 }
             }
         }
-        w.bool(v.show);
     }
 }
 packet!(
@@ -1805,20 +1803,22 @@ packet!(
     /// ServerboundClientCommandPacket.Action: 0 respawn, 1 request stats.
     ClientCommand { action: i32 => VarInt }
 );
-/// Changed slots: (slot, hashed stack) pairs.
+/// Changed slots: (slot, full stack) pairs. 1.21.4 sends the whole
+/// `ItemStack` for each changed slot and the carried item (1.21.5 sends
+/// `HashedStack` hashes instead).
 pub struct ChangedSlots;
-impl Codec<Vec<(i16, Option<Hashed>)>> for ChangedSlots {
-    fn read(r: &mut Reader) -> Result<Vec<(i16, Option<Hashed>)>> {
+impl Codec<Vec<(i16, Option<Stack>)>> for ChangedSlots {
+    fn read(r: &mut Reader) -> Result<Vec<(i16, Option<Stack>)>> {
         let n = r.count(128)?;
         (0..n)
-            .map(|_| Ok((r.i16()?, HashedSlot::read(r)?)))
+            .map(|_| Ok((r.i16()?, Slot::read(r)?)))
             .collect()
     }
-    fn write(v: &Vec<(i16, Option<Hashed>)>, w: &mut Writer) {
+    fn write(v: &Vec<(i16, Option<Stack>)>, w: &mut Writer) {
         w.varint(v.len() as i32);
         for (slot, h) in v {
             w.i16(*slot);
-            HashedSlot::write(h, w);
+            Slot::write(h, w);
         }
     }
 }
@@ -1830,8 +1830,8 @@ packet!(
         slot: i16 => Short,
         button: i8 => Byte,
         input: i32 => VarInt,
-        changed: Vec<(i16, Option<Hashed>)> => ChangedSlots,
-        carried: Option<Hashed> => HashedSlot,
+        changed: Vec<(i16, Option<Stack>)> => ChangedSlots,
+        carried: Option<Stack> => Slot,
     }
 );
 /// ServerboundSeenAdvancementsPacket: the tab the player opened (action 0, `OPENED_TAB`), or

@@ -213,7 +213,6 @@ impl ServerAdvancements {
         progress: &Progress,
         visible: &mut Vec<bool>,
         changed: &BTreeSet<usize>,
-        show: bool,
     ) -> Option<Vec<u8>> {
         let n = self.tree.list.len();
         let first = visible.len() != n;
@@ -264,7 +263,8 @@ impl ServerAdvancements {
                     .map(|date| crate::advancements::date_millis(date).unwrap_or(0))
             });
         }
-        w.bool(show);
+        // No trailing `showAdvancements` bool in 1.21.4: the packet ends
+        // with the progress (the field is a 1.21.5 addition).
         Some(w.data)
     }
 

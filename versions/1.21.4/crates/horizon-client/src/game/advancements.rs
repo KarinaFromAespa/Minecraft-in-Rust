@@ -2525,8 +2525,10 @@ impl Game<'_> {
                 .collect();
             self.adv.progress.criteria.insert(id, obtained);
             let a = &tree.list[i];
+            // 1.21.4 has no `showAdvancements` packet flag (a 1.21.5
+            // addition): a completed advancement toasts whenever its
+            // display says so.
             if !p.reset
-                && p.show
                 && self.adv.progress.done(a)
                 && let Some(d) = a.display.as_ref().filter(|d| d.show_toast)
                 && self.toast_allowed("advancement", &a.id)

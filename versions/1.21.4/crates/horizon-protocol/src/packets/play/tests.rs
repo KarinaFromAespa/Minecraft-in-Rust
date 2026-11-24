@@ -629,7 +629,6 @@ fn clientbound_round_trips() {
                 "minecraft:story/root".into(),
                 vec![("crafting_table".into(), Some(1_792_216_800_000))],
             )],
-            show: true,
         }),
     ];
     for p in packets {
@@ -714,7 +713,7 @@ fn serverbound_round_trips() {
             button: 0,
             input: 0,
             changed: vec![(36, None)],
-            carried: Some(Hashed::of(&Stack::new(1, 64))),
+            carried: Some(Stack::new(1, 64)),
         }),
         Serverbound::MovePlayerPosRot(MovePlayerPosRot {
             x: 1.0,

@@ -1459,3 +1459,82 @@ shape for the review batches.
   in horizon-protocol, mechanically ported for 769. Lib check green
   (EXIT 0, 1m26s); --tests check green (EXIT 0, 1m45s). Rank 2:
   74/348.
+
+  Batch 12 (items 28 + 29 + 30). Item 28 (lan_actions.rs):
+  PORTED, and it surfaced two 769 wire-format bugs the mechanical
+  layer had missed. (1) The missing-respawn yaw carry: the 1.21.4
+  tree now sets the guest's yaw to 0.0 when no respawn block is
+  found, as the 1.21.5 tree does (TeleportTransition.
+  missingRespawnBlock is byte-identical in both jars). The jar also
+  sets pitch 0, but neither tree resets pitch — a shared gap.
+  (2) UpdateAdvancements: 1.21.4's packet has exactly four fields
+  (reset, added, removed, progress); the trailing showAdvancements
+  bool is a 1.21.5 addition, and the 769 codec was reading it,
+  desyncing every advancement packet. The show field is gone from
+  the codec, from the manual LAN writer (lan/advancements.rs
+  ::update loses its show param; hub.rs::flush_advancements loses
+  its show param; both callers passed true) and from the toast gate
+  in game/advancements.rs (1.21.4 toasts on completion, subject to
+  show_toast + toast_allowed). (3) ContainerClick: 1.21.4 sends full
+  ItemStacks for the changed slots and the carried item (the map
+  codec is SHORT keys + ItemStack.OPTIONAL_STREAM_CODEC); 1.21.5
+  sends HashedStack hashes. The codec now uses Slot, remote.rs
+  sends to_network stacks directly (hashed_stack deleted, with its
+  Hashed + SyncedNames imports), and lan/containers.rs compares the
+  claimed full stacks (hashed_matches -> claimed_matches, item +
+  count as before). The 769 adapter steps are updated to match:
+  step_1_21_4's up-step passes clicks through with id remapping
+  instead of hashing, and translate/v1_21_4's test literal is a
+  full stack now (its down-step still drops the predictions).
+  Hashed/HashedSlot stay in item.rs: the custom-component wire test
+  still uses Hashed::create as a comparison vehicle. Verified that
+  the tree's own paths encode the internal structs raw
+  (net.rs Session::send does w.send(&packet.encode()), no
+  translation), so the internal layout must be 769 — the fix is
+  required, not optional. NO-CHANGE: the PlayerCommand action
+  numbers (1.21.4 has no PRESS/RELEASE_SHIFT_KEY, so 5/6/3/4/1/2
+  are right and the crouch test via PlayerInput flags is right);
+  the TestInstanceBlockAction / SetTestBlock handlers (correctly
+  absent — handleTestInstanceBlockAction is 1.21.5-only); the
+  handleMovePlayer awaiting-teleport early return; handlePickItem-
+  FromEntity (getEntity, no part resolution); handleSetCreative-
+  ModeSlot, handleUseItemOn, tick, tryPickItem (API-only);
+  handleBundleItemSelectedPacket (threading boilerplate).
+  ROUTED: the structure-block strict flag (a 1.21.5 addition) to
+  item 394 (rank 3) — the packet bit is wire-harmless (a 1.21.4
+  client never sets bit 8 of the flags byte), but the entity field,
+  the edit-screen STRICT toggle and the load_settings param need
+  removing there. KNOWN GAP (programme-level, recorded not fixed):
+  the older-clients adapter chain (client_session.rs) still applies
+  the 770->769 steps at this 769 pin — newer_layout_down runs every
+  step for a 1.21.4 peer, so the show-flag strip and the other
+  770-layout arms would corrupt 769 payloads; the chain needs
+  gating on the pin (or the older-clients feature dropping for
+  ported trees). accept_older_clients is off by default and the
+  feature is admitted unfinished, so this bites nobody today.
+  Item 29 (widely named: nbt): NO-CHANGE. 33 vanilla classes, 145
+  methods, 0 named in Horizon; module_status missing-both — the
+  same shape as item 27. Item 30 (fox.rs): NO-CHANGE, comment-only.
+  isBrightOutside does not exist in 1.21.4, and 1.21.5's form is
+  byte-identical to 1.21.4's isDay (!hasFixedTime && skyDarken < 4),
+  so the StrollThroughVillageGoal and getAmbientSound differences
+  are pure renames. Fox save/load already match 1.21.4 (Type string,
+  Trusted as a list of int-array UUIDs, boolean flags); addTrusted-
+  UUID's slot behaviour verified against the jar (slot 0 if free,
+  else replaces slot 1). Comment carries only: getTrustedEntities
+  -> getTrustedUUIDs, addTrustedEntity -> addTrustedUUID, no
+  clearTrusted in 1.21.4, TRUSTED_LIST_CODEC -> the manual
+  NbtUtils.createUUID list (fox.rs + entity_nbt.rs). CaveVines#use
+  is a playSound overload; registerGoals is an ldc/ldc_w
+  constant-pool difference. Lib check green (EXIT 0, 2m19s);
+  protocol --tests check green (EXIT 0, 3m37s); full --tests check
+  green (EXIT 0, 59m34s — slow: the incremental cache had been
+  deleted to free quota, and the VM was contending with another
+  agent's horizon-prepare). The first --tests run failed E0308 on
+  the translate/v1_21_4 test literal (Hashed carried stack); the
+  retry hit the disk quota (104G used) and was unblocked by deleting
+  the 1.21.4 target/debug/incremental cache (4.3G, regenerable).
+  rustfmt: 5 of 7 leaf files clean; remote.rs had one drift hunk in
+  the edited region (fixed by hand) and one pre-existing drift hunk
+  at 5551 (left alone); tests.rs has one pre-existing drift hunk at
+  926 (left alone). Rank 2: 77/348.

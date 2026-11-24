@@ -1,6 +1,6 @@
 //! Item stacks on the wire (ItemStack.OPTIONAL_STREAM_CODEC): a count, the
-//! item's registry id and a data component patch, plus the hashed form the
-//! client sends back in container clicks (HashedStack).
+//! item's registry id and a data component patch, plus the hashed form
+//! (`HashedStack`, a 1.21.5 addition) the item tests use to compare stacks.
 use crate::{
     Result,
     adapter::ids,

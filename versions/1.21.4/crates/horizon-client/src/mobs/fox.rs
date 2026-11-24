@@ -79,18 +79,19 @@ fn set_flag(m: &mut Mob, f: i32, on: bool) {
 fn clear_states(m: &mut Mob) {
     m.extra.ints[0] = 0;
 }
-/// `Fox.getTrustedEntities`: the UUIDs a fox trusts, `DATA_TRUSTED_ID_0`
+/// `Fox.getTrustedUUIDs`: the UUIDs a fox trusts, `DATA_TRUSTED_ID_0`
 /// first.
 pub fn trusted_entities(m: &Mob) -> impl Iterator<Item = [i32; 4]> + '_ {
     m.extra.trusted.iter().flatten().copied()
 }
-/// `Fox.addTrustedEntity`: the first free slot, and once both are taken a new
+/// `Fox.addTrustedUUID`: the first free slot, and once both are taken a new
 /// one replaces the second.
 pub fn add_trusted_entity(m: &mut Mob, uuid: [i32; 4]) {
     let slot = usize::from(m.extra.trusted[0].is_some());
     m.extra.trusted[slot] = Some(uuid);
 }
-/// `Fox.clearTrusted`: forget everyone.
+/// Forget everyone (1.21.4 has no `clearTrusted`: the trusted slots start
+/// empty on a fresh fox, and `readAdditionalSaveData` never clears them).
 pub fn clear_trusted(m: &mut Mob) {
     m.extra.trusted = [None; 2];
 }
@@ -1189,7 +1190,7 @@ mod trust_tests {
         Mob::new(1, kind, Vec3::ZERO, 0.0)
     }
 
-    /// `Fox.addTrustedEntity`: the first free slot, then the second, and a
+    /// `Fox.addTrustedUUID`: the first free slot, then the second, and a
     /// third player replaces the second (`DATA_TRUSTED_ID_0/1`).
     #[test]
     fn a_fox_trusts_two_players_and_the_third_replaces_the_second() {

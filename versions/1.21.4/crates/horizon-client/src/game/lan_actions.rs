@@ -4115,8 +4115,12 @@ impl Game<'_> {
                 [at.x, at.y, at.z]
             });
             if found.is_none() {
-                // TeleportTransition.missingRespawnBlock.
+                // TeleportTransition.missingRespawnBlock: the world spawn
+                // faces yaw 0 (the transition is identical in 1.21.4 and
+                // 1.21.5; its pitch 0 is a shared gap — the teleport keeps
+                // the guest's pitch).
                 host.hub.missing_respawn_block(conn);
+                host.hub.guests[i].yaw = 0.0;
                 self.world_spawn_trip(conn);
             }
             host.hub.teleport(i, Some(at));

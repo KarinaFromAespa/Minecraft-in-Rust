@@ -5,11 +5,10 @@
 //! the player chat has no leading global index, the team's name tag visibility and collision rule are names rather
 //! than VarInt enums, and the advancements have no trailing show flag.
 //! Serverbound, the chat packets have no trailing checksum (the client sends none: the server reads a 0 as "not
-//! checked"), and a container click's changed slots and carried item are full stacks, not hashes: they are hashed
-//! here with `HashedStack`'s rules (`Hashed::of`), with the client's item ids mapped to the pinned ones first.
+//! checked"), and a container click's changed slots and carried item are full stacks in both layouts: they pass
+//! through here with the client's item ids mapped to the pinned ones first (the pin is 1.21.4, so no hashing).
 //!
-//! TODO(step3): the hashes of a stack with a component that names a registry entry are incomplete (`Hashed::of`
-//! hashes without registry names), and 1.21.5's item components are not written in 1.21.4's layout (see the
+//! TODO(step3): 1.21.5's item components are not written in 1.21.4's layout (see the
 //! TODOs in `translate::v1_21_4`).
 use crate::{
     Result, State,
@@ -20,7 +19,7 @@ use crate::{
     buf::{Codec, Reader, Writer},
     chunk::storage_len,
     ids as packet_ids,
-    item::{Hashed, HashedSlot, Slot, Stack},
+    item::{Slot, Stack},
     packets::play,
 };
 
@@ -227,7 +226,8 @@ fn team_down(payload: &[u8]) -> Result<Vec<u8>> {
     Ok(w.data)
 }
 
-/// A container click with its stacks as 1.21.4 sends them (full slots, item ids of 1.21.4) in 1.21.5's hashed layout.
+/// A container click with its stacks as 1.21.4 sends them (full slots, item ids of 1.21.4) in the pinned layout:
+/// the same full slots, its item and component ids mapped to the pinned ones.
 fn container_click(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
     let mut r = Reader::new(payload);
     let mut w = Writer::new();
@@ -241,10 +241,10 @@ fn container_click(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
     for _ in 0..n {
         w.i16(r.i16()?);
         let stack = slot(ids, &mut r)?;
-        HashedSlot::write(&hashed(stack), &mut w);
+        Slot::write(&stack, &mut w);
     }
     let carried = slot(ids, &mut r)?;
-    HashedSlot::write(&hashed(carried), &mut w);
+    Slot::write(&carried, &mut w);
     w.bytes(r.rest());
     Ok(w.data)
 }
@@ -253,10 +253,6 @@ fn container_click(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
 fn slot(ids: &'static Ids, r: &mut Reader<'_>) -> Result<Option<Stack>> {
     let _up = ids::renumbering(ids, Way::Up);
     Slot::read(r)
-}
-
-fn hashed(stack: Option<Stack>) -> Option<Hashed> {
-    stack.as_ref().map(Hashed::of)
 }
 
 #[cfg(test)]
@@ -708,7 +704,7 @@ mod tests {
     }
 
     #[test]
-    fn a_container_click_of_empty_slots_is_hashed_and_back() {
+    fn a_container_click_of_empty_slots_passes_through_and_back() {
         let id = packet_ids::play::serverbound::CONTAINER_CLICK;
         let ids = ServerVersion::V1_21_4.ids().unwrap();
         let mut w = Writer::new();

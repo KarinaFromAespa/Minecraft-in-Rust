@@ -176,8 +176,10 @@ pub(super) fn experience_orb(session: &Session, payload: &[u8]) -> Result<(i32, 
     ))
 }
 
-/// 1.21.4 sends complete predicted stacks; pinned clicks contain only their hashes. Sending no
-/// predictions asks the authoritative old menu to resynchronize its slots/cursor after the click.
+/// 1.21.4 sends complete predicted stacks; a pinned click's predictions are
+/// dropped here, so the authoritative old menu resynchronizes its
+/// slots/cursor after the click. (The pin is 1.21.4, so the pinned click
+/// already carries full stacks, not 1.21.5's hashes.)
 pub(super) fn container_click(payload: &[u8]) -> Result<Vec<u8>> {
     let play::Serverbound::ContainerClick(p) =
         play::Serverbound::decode(packet_ids::play::serverbound::CONTAINER_CLICK, payload)?
@@ -613,7 +615,7 @@ mod tests {
     }
 
     #[test]
-    fn clicks_preserve_the_operation_while_omitting_hashed_predictions() {
+    fn clicks_preserve_the_operation_while_omitting_predictions() {
         let p = play::Serverbound::ContainerClick(play::ContainerClick {
             container: 2,
             state: 10,
@@ -621,12 +623,7 @@ mod tests {
             button: 0,
             input: 1,
             changed: vec![(3, None)],
-            carried: Some(crate::item::Hashed {
-                item: 1,
-                count: 5,
-                added: vec![],
-                removed: vec![],
-            }),
+            carried: Some(crate::item::Stack::new(1, 5)),
         });
         let encoded = strip_id(p.encode());
         let old = container_click(&encoded).unwrap();

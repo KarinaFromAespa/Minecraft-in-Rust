@@ -3709,7 +3709,7 @@ impl Hub {
                 g.advancements_visible = sync.advancements.visibility(&g.advancements);
                 g.advancements_changed.clear();
             } else {
-                self.flush_advancements(i, true);
+                self.flush_advancements(i);
             }
         }
         // ServerEntity.sendDirtyEntityData: the player's changed attribute
@@ -3918,10 +3918,10 @@ impl Hub {
         if let Some(i) = self.guests.iter().position(|g| g.conn == conn)
             && self.guests[i].sent_health.is_some()
         {
-            self.flush_advancements(i, true);
+            self.flush_advancements(i);
         }
     }
-    fn flush_advancements(&mut self, i: usize, show: bool) {
+    fn flush_advancements(&mut self, i: usize) {
         let sync = self.sync.clone();
         let g = &mut self.guests[i];
         let mut unlocked = std::mem::take(&mut g.recipes_unlocked);
@@ -3936,7 +3936,6 @@ impl Hub {
             &g.advancements,
             &mut g.advancements_visible,
             &changed,
-            show,
         ) {
             g.send(&raw(ids::UPDATE_ADVANCEMENTS, update));
         }
