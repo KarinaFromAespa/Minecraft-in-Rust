@@ -437,7 +437,10 @@ impl Game<'_> {
                         &[&size_limit_text()],
                     ));
                 }
-                let shown = Text::literal(super::percent_f(distance, 1));
+                // 1.21.10 passes the raw double to the message
+                // (`Double.toString`); 1.21.11 pre-formats it to one decimal.
+                let shown =
+                    Text::literal(horizon_client::java_text::double_to_string(distance));
                 if time > 0 {
                     self.border.lerp_to(distance, time);
                     let key = if distance > current {

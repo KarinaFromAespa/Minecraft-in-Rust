@@ -988,7 +988,7 @@ impl Game<'_> {
             _ => String::new(),
         };
         let description = self.component_arg(ctx, "description")?;
-        // FileUtil.isValidPathSegment: lowercase letters, digits, '-', '.' and '_'.
+        // FileUtil.isValidStrictPathSegment: lowercase letters, digits, '-', '.' and '_'.
         let valid = !id.is_empty()
             && id != "."
             && id != ".."

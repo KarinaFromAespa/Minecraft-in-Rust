@@ -331,7 +331,9 @@ fn worldborder(d: &mut Dispatcher, root: usize) {
             "worldborder.set"
         };
         d.executes(distance, id);
-        let time = d.argument(distance, "time", ArgType::Time { min: 0 });
+        // 1.21.10 takes a plain integer of ticks here
+        // (`IntegerArgumentType.integer(0)`); the Time argument is 1.21.11's.
+        let time = d.argument(distance, "time", integer(0));
         d.executes(time, id);
     }
     let center = d.literal(w, "center");
@@ -351,7 +353,7 @@ fn worldborder(d: &mut Dispatcher, root: usize) {
     let v = d.argument(wd, "distance", integer(0));
     d.executes(v, "worldborder.warning.distance");
     let wt = d.literal(warning, "time");
-    let v = d.argument(wt, "time", ArgType::Time { min: 0 });
+    let v = d.argument(wt, "time", integer(0));
     d.executes(v, "worldborder.warning.time");
 }
 

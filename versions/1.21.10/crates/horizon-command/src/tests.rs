@@ -718,11 +718,13 @@ fn world_command_trees() {
             "fillbiome 0 0 0 10 10 10 minecraft:plains replace minecraft:desert",
             "fillbiome",
         ),
-        ("worldborder set 100 5s", "worldborder.set"),
+        // 1.21.10's worldborder times are plain integers of ticks
+        // (1.21.11's are Time arguments, so `5s`/`10s` no longer parse).
+        ("worldborder set 100 100", "worldborder.set"),
         ("worldborder add -10", "worldborder.add"),
         ("worldborder center 5 5", "worldborder.center"),
         ("worldborder damage amount 1", "worldborder.damage.amount"),
-        ("worldborder warning time 10s", "worldborder.warning.time"),
+        ("worldborder warning time 200", "worldborder.warning.time"),
         ("worldborder get", "worldborder.get"),
         (
             "loot give @s loot minecraft:chests/simple_dungeon",

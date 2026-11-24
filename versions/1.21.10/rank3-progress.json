@@ -1012,7 +1012,52 @@
   "592": {
    "module": "widely named: server/commands",
    "verdict": "ported",
-   "evidence": "StopwatchCommand exists in 1.21.11 and not in 1.21.10 (0 stopwatch classes in either 1.21.10 jar; the jardiff lists it as removed) \u2014 the whole system is 1.21.11-only and it EXECUTED in the 1.21.10 tree, so it is removed: the /stopwatch tree (tree_misc.rs), the `stopwatch.*` dispatch (commands.rs) and `cmd_stopwatch` (misc.rs), the /execute if stopwatch condition (tree_execute.rs, execute.rs), the `stopwatches` id list (args.rs), the Stopwatches store (stopwatches.rs deleted, client_lib.rs mod line removed, ScoreState field + load/save + registry fill removed), the `stopwatches` registry list (registries.rs), and the unreferenced `SavedStopwatches` datafix variant (schema.rs). The datafix comment already recorded stopwatches as 1.21.11-only and is kept. (Residual verification of the group's other changed command classes follows from the wide semantic diff; this entry will be extended.)"
+   "evidence": "StopwatchCommand exists in 1.21.11 and not in 1.21.10 (0 stopwatch classes in either 1.21.10 jar; the jardiff lists it as removed) \u2014 the whole system is 1.21.11-only and it EXECUTED in the 1.21.10 tree, so it is removed: the /stopwatch tree (tree_misc.rs), the `stopwatch.*` dispatch (commands.rs) and `cmd_stopwatch` (misc.rs), the /execute if stopwatch condition (tree_execute.rs, execute.rs), the `stopwatches` id list (args.rs), the Stopwatches store (stopwatches.rs deleted, client_lib.rs mod line removed, ScoreState field + load/save + registry fill removed), the `stopwatches` registry list (registries.rs), and the unreferenced `SavedStopwatches` datafix variant (schema.rs). The datafix comment already recorded stopwatches as 1.21.11-only and is kept. Residual verification (wide semantic diff over the 77 changed server-command classes): 59 register diffs are pure permission renames (LEVEL_* vs int levels), 7 add Identifier renames, 2 are ldc/ldc_w noise. Behaviour methods reviewed: ItemCommands (helper renames; the bounds checks the Rust covers with no_such_slot), RandomCommand#resetSequence (re-creates from the world seed in both versions), SetSpawn (item 32's already-ported wrap/clamp removal), SetWorldSpawn (lambda capture shape), Fill/Place/Summon/Loot/BossBar/GameMode/Function (renames), DataPack#createPack (1.21.10's STRICT_PATH_SEGMENT_CHECK `[-._a-z0-9]+` is exactly the Rust's charset). Two ports from the review: (1) /worldborder time args are plain integers in 1.21.10 (`IntegerArgumentType.integer(0)`), not 1.21.11's Time arguments \u2014 the tree uses integer(0) now and the tests use plain ticks; (2) WorldBorder#setSize feedback passes the raw double in 1.21.10 (Double.toString), not 1.21.11's pre-formatted %.1f \u2014 the Rust now uses java_text::double_to_string."
+  },
+  "549": {
+   "module": "widely named: core/component/predicates",
+   "verdict": "carry-over",
+   "evidence": "The 1.21.11 predicate type-hierarchy refactor (AnyValue/TypeBase/ConcreteType) is internal Java API: both versions expose the same `CODEC`/`singleCodec` shape (predicate + value fields), and `EnchantmentsPredicate.matches` bytecode is identical between the jars. The Rust only models enchantment matching (returns None for other ids), so the CustomData/WrittenBook changes cannot affect it. Component-id renumbering in skip.rs is the already-ported mechanical work (see item 491)."
+  },
+  "572": {
+   "module": "widely named: client/gui/screens/advancements",
+   "verdict": "carry-over",
+   "evidence": "The advancements UI diff vs 1.21.11 is two comment lines (version labels); the advancements/ directory is byte-identical. Menu chrome; the vanilla AdvancementsScreen/Widget changes are render plumbing the Rust's own UI does not mirror."
+  },
+  "573": {
+   "module": "widely named: world/entity/projectile/windcharge",
+   "verdict": "carry-over",
+   "evidence": "Package move only: the wind-charge classes live in `projectile/windcharge/` in 1.21.10 and at the `projectile/` root in 1.21.11. The rank-2 semantic diff rates every compared method `same` (AbstractWindCharge canHitEntity/tick/onHitEntity/makeBoundingBox, WindChargeItem.use), and the Rust's projectiles.rs is byte-identical between the trees."
+  },
+  "584": {
+   "module": "widely named: client/resources/metadata/texture",
+   "verdict": "carry-over",
+   "evidence": "Covered by items 91/544: 1.21.10's TextureMetadataSection is a record with only `blur` and `clamp`, and the 1.21.11-only `mipmap_strategy`/`alpha_cutoff_bias` fields are already removed from sprites.rs, glint_atlas.rs and screen_effects.rs (whose test now asserts an unknown field is ignored, as 1.21.10's codec does). atlas_sources.rs is identical."
+  },
+  "606": {
+   "module": "widely named: commands/arguments",
+   "verdict": "carry-over",
+   "evidence": "Verified by a fresh semantic diff over the 43 changed argument classes (732 methods across groups 592/606/675; 618 same, 113 real, 1 missing-old). The argument methods: listSuggestions (x2) and Message#resolveComponent are the allowSelectors gate, which the Rust already passes as `permission >= 2` \u2014 exactly 1.21.10's `allowsSelectors()` (hasPermission(2), javap-verified); NbtPath removeTag is a void-vs-Tag return; createGrammar (x2) and isAllowedPatternCharacter are Identifier renames (the charset is the same `[-._a-z0-9]` + `*?`); LocalCoordinates#getPosition's inline basis math (yaw+90/pitch/pitch+90, forward x up, left = -(f x u)) is exactly what the Rust's Coordinates::position implements."
+  },
+  "617": {
+   "module": "widely named: client/gui/screens/social",
+   "verdict": "carry-over",
+   "evidence": "social.rs and social_screen.rs are byte-identical between the trees. Menu chrome; the vanilla PlayerEntry/PlayerSocialManager/SocialInteractionsScreen changes are render/plumbing the Rust's own UI does not mirror."
+  },
+  "639": {
+   "module": "widely named: client/gui/layouts",
+   "verdict": "carry-over",
+   "evidence": "screen_layout.rs, hud_layout.rs and split_layout.rs are byte-identical between the trees. The Rust's UI layouts are its own implementation; the vanilla FrameLayout/GridLayout/HeaderAndFooterLayout/LinearLayout changes are internal layout plumbing."
+  },
+  "640": {
+   "module": "widely named: client/gui/screens/dialog",
+   "verdict": "carry-over",
+   "evidence": "dialog.rs and dialog_screen.rs are byte-identical between the trees. Item 520 covered the one behavioural method (dialog text clicks run through DialogScreen.runAction in 1.21.10); the remaining DialogScreen/body/input changes are render plumbing."
+  },
+  "675": {
+   "module": "widely named: server/commands/data",
+   "verdict": "carry-over",
+   "evidence": "DataCommands' method sets are identical between the jars (72 each); the register diff is permission renames only, and StorageDataAccessor$1#wrap/#access are Identifier renames. data_cmd.rs is identical; game/commands/data.rs differs only by the already-ported item 11/20 anger-NBT work."
   }
  }
 }

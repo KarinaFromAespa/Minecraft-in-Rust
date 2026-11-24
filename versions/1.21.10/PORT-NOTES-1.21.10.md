@@ -1106,3 +1106,20 @@ its save file, the registry list, and the datafix variant.
 (The stopwatches.rs deletion landed in the layout-test fix
 commit a8cadd9a via a staged `git rm`; this commit carries the
 rest of the removal, so the tip compiles again.)
+
+Rank 3 batch 6, part 2 (9 items + the 592 residual, rank 3
+202 -> 211 COMPLETE, 675/719): the widely-named items. The
+residual was verified with a fresh semantic diff over the
+changed classes in groups 592/606/675 (120 classes, 732
+methods: 618 same, 113 real, 1 missing-old — the private
+ItemCommands#getEntityItem helper, behaviour covered). Two
+ports from it, both in 592: /worldborder time args are plain
+integers in 1.21.10 (not Time arguments), and setSize feedback
+passes the raw double (Double.toString), not %.1f. The rest
+is renames (permissions, Identifier, criterion, GameRules,
+ldc/ldc_w), already-ported work (SetSpawn's wrap/clamp, the
+anger NBT, items 91/544's texture metadata), or code the Rust
+already matches (allowSelectors as permission >= 2, the local
+coordinate basis, the strict path-segment charset, the
+predicate JSON shape). 549/572/573/584/606/617/639/640/675
+all close as carry-over. Rank 3 is complete.
