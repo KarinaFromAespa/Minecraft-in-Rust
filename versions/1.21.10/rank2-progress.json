@@ -1246,8 +1246,8 @@
   },
   "126": {
    "module": "crates/horizon-client/src/spectator_menu.rs: 5 vanilla classes changed (13 methods, 4 named in Horizon)",
-   "verdict": "no-change",
-   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 4."
+   "verdict": "ported",
+   "evidence": "CORRECTED by continuation verification (Nov 24): the 8007a10b checkpoint closed this no-change on the semantic diff (all 4 named methods same: SpectatorGui#getHotbarAlpha, onHotbarActionKeyPressed, onHotbarSelected, onMouseScrolled), but the 1.21.10 tree still carried the 26.3-base form \u2014 the 1.21.11 item-122 hunk (83456f28) was missed by the carry-over (spectator_menu.rs absent from carryover-units). Carried over verbatim: the team icon's colour square now fades with the menu alpha via color_from_float (was argb(255,...)), doc citations reworded to the 1.21.10 names (renderHotbar/renderAction/renderIcon), regression test a_team_icon_s_colour_square_fades_with_the_menu added. Jar-verified against 1.21.10-client-named.jar: SpectatorGui has renderHotbar/renderAction/getHotbarAlpha, SpectatorMenuItem has renderIcon \u2014 the 1.21.11 names hold in 1.21.10. The 1.21.10 file was byte-identical to the 1.21.11 file at 83456f28^, so the hunk applies exactly."
   },
   "127": {
    "module": "crates/horizon-protocol/src/item/skip.rs: 3 vanilla classes changed (33 methods, 2 named in Horizon)",
@@ -1262,7 +1262,7 @@
   "136": {
    "module": "crates/horizon-client/src/mobs/witch.rs: 3 vanilla classes changed (17 methods, 3 named in Horizon)",
    "verdict": "no-change",
-   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 3."
+   "evidence": "Semantic bytecode diff (review-semantic-diff.json): every named method changed 1.21.11->1.21.10 is identical after normalisation (offsets, branch targets, locals) and rename normalisation (ResourceLocation->Identifier, horse->equine, npc/Villager*->npc/villager/*, animal per-species subpackages, Util move, ResourceKey.location->identifier). Mechanical renames/moves only; no behaviour change for 1.21.10. Named methods checked: 2 (not 3 \u2014 the triage title counts 3 but named_changed lists 2: WitchModel#setupAnim, Witch#aiStep; both same). Correction noted by continuation verification, Nov 24."
   },
   "139": {
    "module": "crates/horizon-client-render/src/effects.rs: 3 vanilla classes changed (25 methods, 2 named in Horizon)",

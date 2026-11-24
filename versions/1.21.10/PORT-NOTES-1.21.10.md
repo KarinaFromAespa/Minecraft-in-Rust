@@ -574,3 +574,33 @@ display over, at the mode below.", "The display mode exclusive
 fullscreen uses. Applies when you leave." — all removed from
 en_us.json in batch 3, so the lang test's no-stale-keys check
 failed). Lang test verified locally passing.
+
+Checkpoint verification (Nov 24, continuation session): the
+8007a10b WIP checkpoint moved the ledger 173/719 -> 237/719 by
+closing 64 rank-2 items no-change on the semantic bytecode diff.
+The continuation verified all 64 against review-per-item.json
+(all present; 63 with real=0, missing=0) and against the actual
+code (each module diffed 1.21.10 vs 1.21.11 tree, numbers and
+version mentions normalised). 63 stand as closed.
+
+One correction — item 126 (spectator_menu.rs): the semantic diff
+was right (all 4 named methods same), but the 1.21.10 tree still
+carried the 26.3-base form — the 1.21.11 item-122 hunk (83456f28)
+was missed by the carry-over (spectator_menu.rs absent from
+carryover-units). Carried over verbatim in this commit: the team
+icon's colour square now fades with the menu alpha via
+color_from_float (was argb(255,...)), doc citations reworded to
+the 1.21.10 names, regression test added. Jar-verified: 1.21.10's
+SpectatorGui has renderHotbar/renderAction/getHotbarAlpha and
+SpectatorMenuItem has renderIcon, so the 1.21.11 names hold in
+1.21.10. Item 126 reclassified no-change -> ported; count
+unchanged at 237/719 (rank 2: 227/454).
+
+Minor correction — item 136 (witch.rs): evidence now records 2
+named methods checked, not 3 (the triage title counts 3 but
+named_changed lists 2; both same). Verdict unchanged.
+
+Lesson for the remaining ranks: a no-change verdict needs BOTH
+the semantic diff AND a tree-diff check that the 1.21.10 tree
+already contains the 1.21.11 behaviour — the carry-over unit
+list missed at least one file.
