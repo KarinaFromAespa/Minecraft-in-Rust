@@ -236,12 +236,16 @@ fn template(tag: &Tag) -> Option<Tag> {
         _ => None,
     }
 }
-/// `ItemStackWithSlot` entries of a container of `size` slots, by ascending slot.
+/// `ContainerHelper.loadAllItems`/`saveAllItems` entries of a container of
+/// `size` slots, by ascending slot. A missing `Slot` defaults to 0
+/// (`getByte("Slot")`), as the game's `decode_items` does; an entry
+/// whose stack does not parse is dropped, as 1.21.4's `orElse(EMPTY)` is.
 fn items(tag: Option<&Tag>, size: usize) -> Vec<Tag> {
     let mut slots: Vec<Option<Tag>> = vec![None; size];
     if let Some(Tag::List(list)) = tag {
         for entry in list {
-            let (Some(slot), Some(item)) = (int(entry.get("Slot")), stack(entry)) else {
+            let slot = int(entry.get("Slot")).unwrap_or(0);
+            let Some(item) = stack(entry) else {
                 continue;
             };
             if (0..size as i32).contains(&slot) {
@@ -558,7 +562,7 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
             f.string("mirror", "NONE");
             f.string("mode", "DATA");
             f.flag("ignoreEntities", true);
-            f.flag("strict", false);
+            // No "strict" in 1.21.4 (a 1.21.5 addition).
             f.flag("powered", false);
             f.flag("showair", false);
             f.flag("showboundingbox", true);
@@ -677,7 +681,7 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
             }
         }
         "minecraft:trial_spawner" => {
-            // `TrialSpawnerStateData.Packed` and `FullConfig`: every key is optional
+            // `TrialSpawnerData` and `TrialSpawner.codec()`: every key is optional
             // and defaulted by vanilla; they are kept as loaded. No `spawn_data` is
             // added: an absent one loads as Optional.empty and is not stored, and
             // an empty entity would keep the spawner from ever picking a mob.
@@ -743,13 +747,9 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
     out.insert("y".into(), Tag::Int(y));
     out.insert("z".into(), Tag::Int(z));
     out.insert("keepPacked".into(), Tag::Byte(0));
-    out.insert(
-        "components".into(),
-        match tag.get("components") {
-            Some(c @ Tag::Compound(_)) => c.clone(),
-            _ => Tag::Compound(Compound::new()),
-        },
-    );
+    // No "components" key: 1.21.4's `BlockEntity.saveWithoutMetadata`
+    // merges the encoded components into the tag itself (1.21.5 stores
+    // them under "components"), so a 1.21.4 save never carries the key.
     Some(Tag::Compound(out))
 }
 
@@ -859,11 +859,9 @@ mod tests {
             let out = canonical(&tag).unwrap_or_else(|| panic!("{id}"));
             assert_eq!(out.get("id"), tag.get("id"));
             assert_eq!(out.get("keepPacked"), Some(&Tag::Byte(0)), "{id}");
-            assert_eq!(
-                out.get("components"),
-                Some(&Tag::Compound(Compound::new())),
-                "{id}"
-            );
+            // 1.21.4 never writes a "components" key (components merge
+            // into the tag itself).
+            assert_eq!(out.get("components"), None, "{id}");
         }
         assert!(canonical(&snbt("{id:\"minecraft:nope\",x:1,y:2,z:3}")).is_none());
     }

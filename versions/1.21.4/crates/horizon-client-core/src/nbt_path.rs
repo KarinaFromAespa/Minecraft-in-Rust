@@ -60,8 +60,8 @@ fn elements(tag: &Tag) -> Option<Vec<Tag>> {
         _ => return None,
     })
 }
-/// `DoubleTag.intValue` / `FloatTag.intValue` floor before the i32 conversion;
-/// integral tags use their intValue narrowing. Byte arrays then keep the low byte.
+/// `DoubleTag.getAsInt` / `FloatTag.getAsInt` floor before the i32 conversion;
+/// integral tags use their narrowing conversion. Byte arrays then keep the low byte.
 pub fn int_value(t: &Tag) -> Option<i32> {
     Some(match t {
         Tag::Byte(v) => i32::from(*v),
@@ -73,14 +73,14 @@ pub fn int_value(t: &Tag) -> Option<i32> {
         _ => return None,
     })
 }
-/// `FloatTag.longValue` truncates; `DoubleTag.longValue` floors before narrowing.
+/// `FloatTag.getAsLong` truncates; `DoubleTag.getAsLong` floors before narrowing.
 fn long_value(t: &Tag) -> Option<i64> {
     Some(match t {
         Tag::Byte(v) => i64::from(*v),
         Tag::Short(v) => i64::from(*v),
         Tag::Int(v) => i64::from(*v),
         Tag::Long(v) => *v,
-        // FloatTag.longValue truncates; DoubleTag.longValue floors first.
+        // FloatTag.getAsLong truncates; DoubleTag.getAsLong floors first.
         Tag::Float(v) => f32::from_bits(*v) as i64,
         Tag::Double(v) => f64::from_bits(*v).floor() as i64,
         _ => return None,

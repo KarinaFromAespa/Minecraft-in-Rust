@@ -1538,3 +1538,50 @@ shape for the review batches.
   the edited region (fixed by hand) and one pre-existing drift hunk
   at 5551 (left alone); tests.rs has one pre-existing drift hunk at
   926 (left alone). Rank 2: 77/348.
+
+  Batch 13 (items 31 + 32 + 33). Item 31 (villager_brain.rs):
+  NO-CHANGE. The tree diff is empty and every jar difference is
+  the Holder-vs-direct profession/type API (customServerAiStep,
+  playWorkSound, registerBrainGoals, setVillagerData,
+  wantsToPickUp) with identical behaviour. getTypeName: 1.21.4
+  builds entity.minecraft.villager.<profession-path>, exactly what
+  Mob::command_name emits. getBreedOffspring was undetermined by
+  the differ and was verified by javap: one nextDouble, <0.5 the
+  biome's type, <0.75 the mother's, else the father's — exactly the
+  Rust form. HarvestFarmland#tick and SecondaryPoiSensor#doTick
+  are bytecode-identical. Item 32 (block_entity_nbt.rs): PORTED.
+  (1) The loadAllItems slot default is carried: a missing Slot
+  reads 0 (getByte), so the 1.21.4 tree's drop of such entries was
+  wrong; unparseable stacks drop (orElse(EMPTY)). (2) The
+  TrialSpawner comment is carried (TrialSpawnerData exists in
+  1.21.4; TrialSpawnerStateData.Packed is the 26.3 form).
+  (3) canonical() no longer writes a "components" key at all:
+  1.21.4's saveWithoutMetadata MERGES the encoded components into
+  the tag itself (the lambda calls tag.merge), while 1.21.5 stores
+  them under "components" — so a 1.21.4 save never carries the key
+  and neither tree's form was right (the 1.21.4 tree always wrote
+  an empty compound; the 1.21.5 tree omitted it only when empty).
+  The every_type_has_defaults test now asserts no components key.
+  (4) The structure-block "strict" flag is removed from
+  canonical() (no strict field in 1.21.4's StructureBlockEntity;
+  the entity/UI side stays routed to item 394). NO-CHANGE:
+  CompoundTag#merge (same recursive behaviour; no Rust equivalent
+  in this module), LockCode#addToTag (encode+put vs store, the same
+  "lock" compound — fromTag reads the "lock" key in both versions),
+  tryLoadLootTable (codec vs manual reads, same values), the skull's
+  lowercase "custom_name" (jar-verified: putString "custom_name"),
+  CustomName top-level strings (BaseContainerBlockEntity writes
+  them with putString in 1.21.4). KNOWN GAP: canonical() builds
+  from scratch, so top-level component keys from a 1.21.4 save are
+  dropped rather than merged back. Item 33 (nbt_path.rs):
+  NO-CHANGE, comment-only. 1.21.4 has no NumberTag/intValue
+  /longValue — the numeric tags extend NumericTag with getAsInt/
+  getAsLong — but the semantics are identical (Double getAsInt/
+  getAsLong floor, Float getAsInt floors, Float getAsLong
+  truncates), exactly the Rust int_value/long_value forms; only the
+  doc comments named the 1.21.5 methods. compareNbt (entrySet vs
+  getAllKeys), getDataVersion (contains+getInt vs getIntOr) and
+  readBlockState (AIR default when Name is missing, same
+  properties loop) are API-only with identical behaviour. Lib check
+  green (EXIT 0, 2m06s); --tests check green (EXIT 0, 3m08s).
+  Both edited leaf files rustfmt-clean. Rank 2: 80/348.
