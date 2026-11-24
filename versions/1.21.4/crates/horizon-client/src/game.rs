@@ -4936,7 +4936,8 @@ impl Game<'_> {
     }
     /// `DecoratedPotBlock.playerWillDestroy`: a pot mined with an item in
     /// `breaks_decorated_pots`, unless an enchantment prevents shattering, is
-    /// cracked first (flags 260), so it shatters into its sherds.
+    /// cracked first (flags 4: 1.21.4's `UPDATE_NONE`, which has no
+    /// skip-block-entity-side-effects bit), so it shatters into its sherds.
     fn crack_mined_pot(&mut self, pos: [i32; 3], state: BlockStateId) -> BlockStateId {
         let registry = &self.pack.assets.registry;
         let Some(mut pot) = registry
@@ -4968,7 +4969,7 @@ impl Game<'_> {
             return state;
         };
         let at = BlockPos::new(pos[0], pos[1], pos[2]);
-        self.with_level(|b, level, ticks| b.set_block(level, ticks, at, cracked, 260));
+        self.with_level(|b, level, ticks| b.set_block(level, ticks, at, cracked, 4));
         cracked
     }
     fn break_block_as_player(&mut self, pos: [i32; 3]) -> Result<bool> {
@@ -5035,13 +5036,13 @@ impl Game<'_> {
         // and shape updates, and the destroy event (particles, sound).
         let creative = self.creative;
         // TripWireBlock.playerWillDestroy: shears disarm the string first (flags
-        // 260), so taking it down does not trip the hook.
+        // 4, 1.21.4's `UPDATE_NONE`), so taking it down does not trip the hook.
         if &*facts.name == "minecraft:tripwire"
             && self.held().is_some_and(|s| &*s.item == "minecraft:shears")
             && let Some(disarmed) = self.with_props(state, &[("disarmed", "true")])
         {
             let at = BlockPos::new(pos[0], pos[1], pos[2]);
-            self.with_level(|b, level, ticks| b.set_block(level, ticks, at, disarmed, 260));
+            self.with_level(|b, level, ticks| b.set_block(level, ticks, at, disarmed, 4));
             self.post_block_game_event("minecraft:shear", pos, self.sculk_actor(), None);
         }
         if creative && storage::is_shulker_box(&facts.name) {

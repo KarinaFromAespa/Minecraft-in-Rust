@@ -5022,8 +5022,8 @@ impl Game<'_> {
                         r.show_death_screen = p.param == 0.0;
                     }
                 }
-                // PLAY_ARROW_HIT_SOUND: ClientPacketListener.handleGameEvent
-                // plays ARROW_HIT_PLAYER at player eye height.
+                // ARROW_HIT_PLAYER (id 6): ClientPacketListener.handleGameEvent
+                // plays it at player eye height.
                 6 => {
                     if let Some(at) = self.eye_position() {
                         self.audio
@@ -7721,9 +7721,14 @@ impl Game<'_> {
     }
 
     /// `ClientPacketListener.handleMinecartAlongTrack`: the steps join the ones
-    /// the minecart has queued, if it runs `NewMinecartBehavior`.
+    /// the minecart has queued, if it runs `NewMinecartBehavior` — and never
+    /// when the local player is riding it (`isControlledByLocalInstance`,
+    /// which 1.21.5 dropped).
     fn remote_move_minecart(&mut self, p: play::MoveMinecartAlongTrack) {
         if !self.minecart_improvements() || !self.carts.iter().any(|c| c.id == p.id as u32) {
+            return;
+        }
+        if self.riding == Some(p.id as u32) {
             return;
         }
         let Some(r) = self.remote.as_mut() else {
@@ -13755,7 +13760,7 @@ mod tests {
     fn game_event_constants_and_types_match_vanilla() {
         use horizon_protocol::packets::play::GameEvent;
         // Event types from ClientboundGameEventPacket:
-        // 6 = PLAY_ARROW_HIT_SOUND, 7 = RAIN_LEVEL_CHANGE, 8 = THUNDER_LEVEL_CHANGE,
+        // 6 = ARROW_HIT_PLAYER, 7 = RAIN_LEVEL_CHANGE, 8 = THUNDER_LEVEL_CHANGE,
         // 9 = PUFFER_FISH_STING, 11 = IMMEDIATE_RESPAWN, 12 = LIMITED_CRAFTING.
         let arrow = GameEvent {
             event: 6,

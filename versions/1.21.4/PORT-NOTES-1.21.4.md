@@ -779,3 +779,59 @@ shape for the review batches.
   after these fixes; the check's one warning (the dead
   `Remote::player_entity`) was fixed by removing the method, and
   the next batch's check re-verifies the tree warning-free.
+
+  Batch 4 (items 12 + 13). Item 12 (game.rs): DecoratedPotBlock
+  and TripWireBlock `playerWillDestroy` setBlock flags 260 -> 4
+  (1.21.4's `UPDATE_NONE` is 4 — `Block` has no
+  `UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS`, and the Rust
+  `set_block` skips block-entity side effects at flag 256, so
+  260 changed behaviour); ComposterBlock `handleFill` particle
+  bounds 0.1875/0.625 -> 0.13124999403953552/0.737500011920929
+  (game/composter.rs, which has no report item of its own; the
+  three gaussians are x0.02 in both versions, the diff's reorder
+  was a local-renumbering artifact). No-change, jar-verified:
+  BeehiveBlock `playerWillDestroy` (`preventsBlockDrops` is
+  `instabuild`, same as `isCreative`) and `playerDestroy`
+  (`Containers.updateNeighboursAfterDestroy` is a trivial
+  wrapper), ShulkerBoxBlock `playerWillDestroy`, the
+  Scaffolding/Shulker shape renames, `handleKeybinds`/
+  `startUseItem` (`hasInfiniteMaterials` == `isCreative`),
+  MouseHandler (same scaled-pos math), `storeGameTypes` (same
+  NBT), the RespawnConfig message rule (send iff the point
+  moved, both versions), the Entity-vs-Player overloads
+  (levelEvent, mayInteract, BucketItem, candle extinguish),
+  `loadAndSpawnParentVehicle` (RootVehicle contains-check),
+  `openItemGui`, `getSituationalMusic`, the IDE-only world
+  screen branch. Item 13 (game/remote.rs):
+  `handleMinecartAlongTrack` gains the 1.21.4
+  `isControlledByLocalInstance` early return (the local player
+  riding the cart skips the server's steps; 1.21.5 dropped the
+  guard); the game-event type is `ARROW_HIT_PLAYER` (id 6 in
+  both jars — the 1.21.5 rename is name-only). No-change,
+  jar-verified: the game/sound event overloads, the
+  isLocalInstanceAuthoritative/isControlledByLocalInstance and
+  setSelectedSlot renames, the login chat-index reset, the
+  portal/spinning effect rename (the respawn intensity copy is
+  unmodeled), the chat-signature error path (unmodeled),
+  `hasInfiniteMaterials` == creative, the effect renames, and
+  the pose-priority flip (FALL_FLYING-first vs SLEEPING-first
+  is unobservable — the states are mutually exclusive, and the
+  Rust guest pose already checks gliding before swimming).
+  Routed with jar evidence: the player respawn flat save form,
+  `enteredNetherPosition`, no `raid_omen_position`, forced
+  chunks via `chunks.dat` (`Forced` long array — no
+  `TicketStorage` in 1.21.4) and the ticket lifecycle (item 23);
+  the `canDestroyBlock` tool-component check (item 119 —
+  1.21.4's Tool record has no `canDestroyBlocksInCreative`);
+  KeyboardInput normalization + the sprint 0.8 impulse
+  threshold (item 15 batch — `keyboard_direction` normalizes,
+  the 1.21.5 form; 1.21.4 stores raw impulses, needs forward
+  >= 0.8 to start a sprint on land, > 1e-5 underwater);
+  `Player.aiStep` swing/head placement and the fall-damage
+  formula (item 15); SetPassengers on `startRiding` (riding
+  items); `tickChunk` thunder (horizon-world tick item);
+  `Raids.tick()` (item 21); the scaffolding placement
+  collision (shape item — the Rust `is_placement` flag is
+  always false, so behaviour already matches); the
+  `onProjectileHit` pot crack 260 -> 4 in creatures.rs:5090
+  (item 17). Rank 2: 59/348.

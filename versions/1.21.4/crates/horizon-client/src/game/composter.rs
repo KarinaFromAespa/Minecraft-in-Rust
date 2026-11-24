@@ -204,10 +204,14 @@ impl Game<'_> {
                 r.next_gaussian() * 0.02,
                 r.next_gaussian() * 0.02,
             ];
+            // `ComposterBlock.handleFill`: the 1.21.4 particle bounds (1.21.5
+            // narrowed them to 0.1875 + 0.625 * rand).
             let p = [
-                f64::from(pos.x) + 0.1875 + 0.625 * f64::from(r.next_float()),
+                f64::from(pos.x) + 0.13124999403953552
+                    + 0.737500011920929 * f64::from(r.next_float()),
                 f64::from(pos.y) + height + f64::from(r.next_float()) * (1.0 - height),
-                f64::from(pos.z) + 0.1875 + 0.625 * f64::from(r.next_float()),
+                f64::from(pos.z) + 0.13124999403953552
+                    + 0.737500011920929 * f64::from(r.next_float()),
             ];
             self.particles.add(&options, p, v);
         }
