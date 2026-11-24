@@ -626,3 +626,24 @@ CI triage (Nov 24, continuation session):
   the 1.21.11 test file. No pre-existing failures identified so
   far — every CI failure on this branch has been a port
   regression, fixed in the following batch.
+
+CI run 45315118303 (batch 5 head d481e74d): render suite 2067 passed,
+2 failed — banner_cache (8 vertices, expected 16) and
+copper_statue_cache (0 vertices, expected 4). Root cause: the test
+file kept the 26.3-base sprite names (entity/banner/banner_base,
+entity/copper_golem/copper_golem_*) while the implementation uses
+the 1.21.10 names. Verified against the 1.21.10 client jar:
+textures/entity/banner_base.png exists at top level (no
+banner_base.png under entity/banner/), and the golem textures are
+exposed/weathered/oxidized_copper_golem.png. Fixed the test file
+(8 names); it is now byte-identical to 1.21.11's. The implementation
+was already right.
+
+Rank 2 batch 7 (sample of the real-method tail): the 622 "real"
+methods include normalisation gaps (GameRules API, float-vs-double
+trig, renames) and genuinely different but unmodelled methods.
+Each closure below cites the method diff + the Rust-side check.
+Item 57's module diff (Horse/ZombieHorse pathfinding malus) is a
+second item-126-style carry-over gap, resolved jar-side: 1.21.10's
+Horse/ZombieHorse/AbstractHorse constructors set no malus, so the
+1.21.11 malus hunk is 1.21.11-only and correctly absent.
