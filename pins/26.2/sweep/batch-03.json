@@ -1,0 +1,106 @@
+{
+ "batch": 3,
+ "checks": {
+  "gap": 6,
+  "pass": 72,
+  "total": 78
+ },
+ "coordinator_note": "Reconciled Nov 24, 2026 against the measured Batch 0 table: all 30 failing oracles in B3-O01-O05 verify exactly (class, error count, fail on all three classpaths); all 42 all-pass claims, the 4 client+both claims, and the 4 adjacent oracle claims also verify (0 mismatches across 80 checks). PER-ORACLE OVERLAPS (dedup at merge, inside B3-O04): VanillaRegisteredEntityFluidOracle folds into B1-O01, VanillaLivingFluidOracle into B1-O05, VanillaTradingOracle into B4-O25; the other 27 oracles are first per-batch records. All six defects spot-checked in source (species.rs:1646/1719, ai.rs sun_burn_tick, spawn_selection.rs:1117, driver line 66 + five 26.3 paths). Tally arithmetic verified (75 section + 3 driver = 78; 72 pass, 6 gap). Sweep-wide pattern flagged: the 35723 hardcode appears in 25 further drivers and 26.3-path hardcodes in ~20 further drivers (listed in out_of_scope_failures) - note once at merge, do not re-mint. Shape note: this slice uses \"title\"; the Batch 4 slice uses \"name\" - normalize at merge.",
+ "date": "2026-11-24",
+ "items": [
+  {
+   "evidence": "Vanilla 26.2 Camel.isFood = #camel_food (cactus; the tag exists in the jar's data and prepared block-tags.json). Port food_tag() (mobs/species.rs:1633) covers CamelHusk but NOT Camel; 'camel_food' appears nowhere in the port, so MobType.food is empty for camel and feeding/breeding/tempting never fire. Camels cannot breed. Carried over unchanged from 1.21.7.",
+   "id": "B3-G05",
+   "method": "javap + source + data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Camel has no food \u2014 camels cannot breed"
+  },
+  {
+   "evidence": "Vanilla 26.2 Armadillo.getMaxHeadYRot = isScared() ? 0 : 32. Port species.rs:1712 returns 32.0 unconditionally, although the port HAS armadillo::scared(m) state (mobs/armadillo.rs:160). Carried over unchanged from 1.21.7.",
+   "id": "B3-G06",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Armadillo scared head rotation ignored (vanilla: 0 when scared, 32 otherwise)"
+  },
+  {
+   "evidence": "Vanilla 26.2 Mob.isSunBurnTick excludes isInWaterOrRain || isInPowderSnow || wasInPowderSnow; port sun_burn_tick (mobs/ai.rs:2033) checks only in-water / in-rain although Mob has in_powder_snow state (mobs.rs:1617, updated ai.rs:1413-1414). A skeleton standing in powder snow burns in the port, not in vanilla. Carried over unchanged from 1.21.7.",
+   "id": "B3-G09",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Sun-burn ignores powder snow (vanilla excludes isInPowderSnow || wasInPowderSnow)"
+  },
+  {
+   "evidence": "Vanilla 26.2 NaturalSpawner.getRandomPosWithin: top = getHeight(WORLD_SURFACE)+1, y = randomBetweenInclusive(minY, top) -> [minY, H+1]. Port (spawn_category_for_chunk, mobs/spawn_selection.rs:1117): y = min + nextInt(top-min+1) where top = heightmap(WorldSurface) = H -> [minY, H]. Port never picks the top value and consumes a different nextInt bound, so the RNG stream diverges for every spawn attempt. Carried over unchanged from 1.21.7.",
+   "id": "B3-G11",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "getRandomPosWithin y-range off by one (port never picks H+1; RNG stream diverges)"
+  },
+  {
+   "evidence": "Line 66: len(facts['states']) != 35723 -> AssertionError. 26.2 has 32,366 block states, so the driver always fails. Note the 1.21.7 instance (test_suffocation_parity.py) is FIXED in 26.2: its line 68 checks 32366. The remaining 35723 hardcodes in the tree belong to other batches (see out_of_scope_failures).",
+   "id": "B3-G19",
+   "method": "driver read",
+   "severity": "minor",
+   "status": "gap",
+   "title": "DRIVER: test_registered_entity_fluid_parity.py hardcodes the 26.3 state count 35723"
+  },
+  {
+   "evidence": "test_server_dragon_parity.py:111, test_locator_bar_parity.py:269, test_projectile_shoot.py:46, test_server_entities_parity.py:186 and test_server_knockback_parity.py:435 all build the Rust server command with lab.LOCAL / 'horizon-client/26.3'; 26.2 resources live at horizon-client/26.2. lab.RESOURCES = LOCAL / 'horizon-client' / VERSION is version-parameterised \u2014 the drivers should use it.",
+   "id": "B3-G20",
+   "method": "driver read",
+   "severity": "minor",
+   "status": "gap",
+   "title": "DRIVER: five Batch 3 drivers hardcode the 26.3 resources path"
+  },
+  {
+   "evidence": "VanillaActiveEffectTickOracle, VanillaAttributeUpdatesOracle, VanillaLivingLandingOracle \u2014 all 'Client* Level is not abstract and does not override abstract method fuelValues() in Level' (missing-override, 1 error each, fail on all three classpaths). 26.2's Level declares public abstract FuelValues fuelValues(); the oracles' 26.3-form level stubs lack it. Batch 0 group G1.",
+   "id": "B3-O01",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 3 oracles miss the fuelValues() override (26.2's abstract Level.fuelValues)"
+  },
+  {
+   "evidence": "VanillaAllayInteractionStateOracle (n=2), VanillaBoatRiderOracle (n=2), VanillaSheepDyeOracle (n=1), VanillaRemoteAttackOracle (n=1), VanillaPlayerSyncOracle (n=1) \u2014 all 'constructor LocalPlayer in class LocalPlayer cannot be applied to given types' (constructor-mismatch, fail on all three classpaths). 26.2's LocalPlayer constructor takes different arguments than 26.3's. Batch 0 group G2.",
+   "id": "B3-O02",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 5 oracles construct LocalPlayer with the 26.3 form"
+  },
+  {
+   "evidence": "VanillaDamageImmunityOracle (n=2), VanillaRaidOracle (n=7), VanillaRegisteredPlayerCombatOracle (n=4), VanillaServerPlayerCombatOracle (n=4), VanillaBlockingItemDamageOracle (n=2), VanillaFinalizeSpawnOracle (n=4) \u2014 all 'method does not override or implement a method from a supertype' (no-override, fail on all three classpaths). 26.3 methods absent in 26.2.",
+   "id": "B3-O03",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 6 oracles override 26.3 methods absent in 26.2"
+  },
+  {
+   "evidence": "VanillaEntityDeathLootOracle (n=1), VanillaEntityMoveOracle (n=4), VanillaLateEntityPairOracle (n=1), VanillaRegisteredEntityFluidOracle (n=2), VanillaWorldSpawnOracle (n=5), VanillaMobAiOracle (n=2), VanillaLivingHurtOracle (n=2), VanillaLivingFluidOracle (n=3), VanillaTradingOracle (n=1), VanillaPlayerHurtOracle (n=2), VanillaPlayerInventoryOracle (n=1), EntityTranscript (n=5), LocatorBarClient (n=10), KnockbackClient (n=4), RideTranscript (n=2) \u2014 all 'cannot find symbol' (missing-symbol, fail on all three classpaths).",
+   "id": "B3-O04",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 15 oracles reference missing 26.x API symbols"
+  },
+  {
+   "evidence": "VanillaBoatAuthorityOracle \u2014 'depends on broken: VanillaRemoteAttackOracle' (cascade, fail on all three classpaths). Unblocks when B3-O02's VanillaRemoteAttackOracle is repaired.",
+   "id": "B3-O05",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 1 oracle cascades on the broken RemoteAttack oracle"
+  }
+ ],
+ "method": "Static analysis only (checks + triage; no fixes, no cargo builds, no driver runs, no oracle repairs, no commits \u2014 the coordinator commits). javap -c on the named 26.2 server-game jar for every vanilla method in scope, source comparison against versions/26.2/crates/, and checks of the prepared 26.2 data (versions/26.2/.local/horizon-client/26.2/; prepare finished during the run, 2048.7 s, EXIT 0). Oracle status quoted from the measured docs/sweep/26.2/batch-0-oracles.json. A class-file scan over all 716 entity classes established the complete declarer sets for checkSpawnRules, getWalkTargetValue, checkSpawnObstruction, removeWhenFarAway and getMaxSpawnClusterSize.",
+ "name": "Entities / mobs",
+ "out_of_scope_failures": "Adjacent findings for other batches (not defected here): 35723 hardcoded state counts in 25 other drivers \u2014 test_block_properties, test_block_state_codec, test_block_support, test_block_survival, test_climbing, test_collision, test_contextual_collision, test_feature_catalog, test_fill_layer, test_fluid_occupancy, test_fluid, test_free_space, test_movement_registry, test_paletted_container, test_piston_shape, test_registry_fall_ray, test_registry_fluid, test_replace_block, test_retrogen_chunk, test_scattered_ore, test_state_provider, test_world_collision_check, test_world_edge_backoff, test_world_movement, test_world (Batch 1/2/6 scope); 26.3 resources-path hardcodes in other batches' drivers \u2014 test_bed_explosion, test_exploration_map_command, test_forced_end, test_item_use_order, test_online_mode, test_predicate_reference_startup, test_recipe_book_variants, test_secure_chat, test_selector_criterion, test_self_pose_metadata, test_server_dimension_players, test_server_ops_feedback, test_server_player_targets, test_server_resource_pack, test_server_wool_vibration, test_server_world_gen, test_tick_order, test_unused_feature_startup, test_user_cache, test_vault, plus test_spawn_loot_parity.py:34 (functional 26.3 RESOURCES, borderline loot scope) and e2e/bench scripts; VanillaAudioAttributesOracle (borderline attributes); VanillaTeleportConsumeOracle (Batch 7 chorus-fruit area, PASS); VanillaEntityAnimOracle / VanillaDragonRenderOracle (Batch 10 render). B3-G07 was assigned and WITHDRAWN in the 1.21.7 batch (happy-ghast tempt matches vanilla exactly) \u2014 do not reuse the number without noting the withdrawal. 1.21.7 defects G01, G02, G03, G04, G08, G10, G12, G13, G14, G15, G16, G17, G18, G21 were re-checked against vanilla 26.2 and do NOT carry over (see the report's 'Re-checked, not defects' section); they are not items here.",
+ "source": "docs/PARITY-SWEEP.md \u00a74 Batch 3 \u2014 checks + triage only, no fixes. Scope: mob AI, spawning, trading, attributes, projectiles, vehicles; 158 entity types (86 living + 72 misc); 167 drivers curated to 157 core.",
+ "systemic_note": "No systemic thread in 26.2's Batch 3. The 1.21.7 batch's three systemic threads are all resolved for 26.2 by the version itself: (1) 26.x tag/form leakage \u2014 26.2 IS a 26.x version, so the tags, data formats, items and APIs the port carries exist in vanilla 26.2 (G03 immune tags, G14/G15 teleport grounding, G16 data-driven trades, G21 iron spear all check out); the port was written against 26.2's own jar under the vanilla-check rule. (2) Goal-cadence conversion \u2014 26.2 vanilla HAS reducedTickDelay/adjustedTickDelay, so the port's reduced() is correct here (G17). (3) RNG-stream divergences \u2014 G13 fixed (unconditional draw), G02's form is vanilla's; only G11's y-range bound remains, a single-site off-by-one, not a pattern. The four remaining port gaps (G05, G06, G09, G11) are independent single-site omissions carried over from 1.21.7, and the two driver gaps (G19, G20) are stale 26.3 constants. The oracle groups (B3-O01\u2013O05) are all 26.3-form stubs (fuelValues, LocalPlayer ctor, 26.3-only methods/symbols) failing against 26.2's API \u2014 mechanical repairs, not port defects.",
+ "version": "26.2"
+}
