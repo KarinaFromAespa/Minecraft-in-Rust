@@ -108,8 +108,8 @@ enum ServersCmd {
 enum AccountCmd {
     /// The signed-in accounts and which one plays
     List,
-    /// Sign in with a Microsoft account in your browser (device code). Play needs one that owns
-    /// Minecraft: Java Edition
+    /// Sign in with a Microsoft account in your browser (device code). Needed for online
+    /// servers; the game plays offline without one
     SignIn {
         /// Sign this account (name or UUID) in again: another Microsoft account is refused and
         /// who plays stays the same
@@ -1949,10 +1949,15 @@ fn account_command(action: AccountCmd, as_json: bool) -> Result<(), String> {
                     "owner": accounts.has_owner(account::store()),
                 }));
             } else if accounts.accounts.is_empty() && accounts.offline.is_empty() {
-                println!(
-                    "No Microsoft account signed in. Play needs one that owns Minecraft: Java \
-                     Edition: horizon-launcher account sign-in"
-                );
+                if account::client_id().is_some() {
+                    println!(
+                        "No Microsoft account signed in. The game plays offline; sign in for online \\\n                     servers: horizon-launcher account sign-in"
+                    );
+                } else {
+                    println!(
+                        "No Microsoft account signed in (this build has no Microsoft sign-in). \\\n                     The game plays offline."
+                    );
+                }
             } else {
                 for a in &accounts.accounts {
                     let mark = if accounts.selected.as_ref() == Some(&a.uuid) {
@@ -1977,7 +1982,9 @@ fn account_command(action: AccountCmd, as_json: bool) -> Result<(), String> {
                         "Playing offline as the game's own name (`account select NAME` to switch)."
                     );
                 }
-                if !accounts.has_owner(account::store()) {
+                // With no account signed in at all Play starts offline, so there is
+                // nothing to sign in for.
+                if !accounts.accounts.is_empty() && !accounts.has_owner(account::store()) {
                     println!(
                         "{} {}",
                         account::NoOwner::default(),

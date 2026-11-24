@@ -1237,8 +1237,9 @@ impl Launcher {
                                 continue;
                             }
                         };
-                        // Past the gate by the developer option alone is no owner.
-                        if !self.settings.dev_offline {
+                        // Past the gate by the developer option alone, or with no account
+                        // signed in at all, is no owner.
+                        if !self.settings.dev_offline && !self.accounts.accounts.is_empty() {
                             self.owner = Some(true);
                         }
                         if let Some(file) = file {
@@ -3535,9 +3536,9 @@ impl Launcher {
                 &t,
             )),
         };
-        // The top bar shows who plays; a row only when there is something to do about it: no
-        // account that owns the game (Play needs one), or offline. The glass look's top bar has
-        // Sign in with Microsoft and says Offline itself.
+        // The top bar shows who plays; a row only when there is something to do about it: a
+        // signed-in account that doesn't own the game (Play needs one that does), or offline.
+        // The glass look's top bar has Sign in with Microsoft and says Offline itself.
         if !t.glass {
             if self.owner_shown() == Some(false) {
                 rows = rows.child(index_row(
