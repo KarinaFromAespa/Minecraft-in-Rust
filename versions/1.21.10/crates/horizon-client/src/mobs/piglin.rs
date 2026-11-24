@@ -109,8 +109,6 @@ pub struct Memories {
     /// Retreats other mobs' `broadcastRetreat` asked of this one, which its
     /// next tick starts with: who to retreat from and where it stands.
     pub retreats: Vec<(Who, Vec3)>,
-    /// The spear behaviours' memories (`SPEAR_STATUS`...).
-    pub spear: super::spear_use::Memories,
     /// `ADMIRING_ITEM` set by `StartAdmiringItemIfSeen` (nothing in the off
     /// hand yet): the ticks left before it expires.
     pub seen_admire: i32,
@@ -1262,12 +1260,9 @@ pub fn register_piglin(m: &mut Mob) {
     // held item itself (it only starts while a crossbow is in the main hand).
     g.add(3, super::illager::crossbow_goal(1.0, 8.0));
     g.add(3, BackUpIfTooClose);
-    // `PiglinAi.initFightActivity`: the spear behaviours come before the melee one.
-    g.add(3, super::spear_use::PiglinSpear::new());
-    g.add(
-        3,
-        super::spear_use::NoMeleeWithSpear(MeleeAttack::new(1.0, true)),
-    );
+    // `PiglinAi.initFightActivity`: the melee attack alone. (1.21.11 adds
+    // the spear behaviours before it; piglins hold no spear in 1.21.10.)
+    g.add(3, MeleeAttack::new(1.0, true));
     g.add(4, NotRiding(PiglinAvoidRepellent));
     g.add(4, GoToWantedItem);
     g.add(4, Celebrate);

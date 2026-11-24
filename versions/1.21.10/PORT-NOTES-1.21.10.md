@@ -718,3 +718,26 @@ index the table in double (1.21.11) vs float (1.21.10) — at most one
 table step, noise; clampedLerp/clampedMap are parameter-order swaps
 with identical semantics. 130's phantom rule resolves through the
 gamerule name-translation table (spawn_phantoms <-> doInsomnia).
+
+Batch 21 (rank 2 404 -> 412, total 422/719): 3 ported, 5 no-change.
+76 piglin.rs: removed the 1.21.11-only piglin spear behaviours
+(SpearApproach/SpearAttack/SpearRetreat: SpearStatus, Memories,
+PiglinSpear goal, NoMeleeWithSpear — spear_use.rs lines 519-898 — plus
+the piglin state's spear field); initFightActivity now registers plain
+MeleeAttack. converting() already the 1.21.10 form (presets:
+piglins_zombify true overworld/end, false nether = !piglinSafe()).
+96 stations.rs: the netherite-upgrade smithing icon list is 9 in 1.21.10
+(nautilus_armor + spear are 1.21.11 additions); smithing_slot_icons
+narrowed 11 -> 9 with its test. Stonecutter scrolling reset and the
+instrument description were already the 1.21.10 form. 33 remote.rs:
+ShelfBlock#useItemOn returns SUCCESS on the client unconditionally in
+1.21.10, so an empty main-hand click now consumes the click (the
+UseItemOn packet is sent before this check). No-change: 114 (guardian
+needsSync rename + trig noise), 301 (the falling-block fixture probes
+landing only; the ENTITY_DROPS drop rule is unmodelled in it), 29
+(step_move_and_hit is single-nearest, the 1.21.10 findHitEntity form),
+48 (DataVersion defaults to -1; backup stamp is local time), 181
+(ambience biome lookup path differs, same biome).
+
+CI run 45330007250 (head 8f229a80, batches 18-19): SUCCESS, all 7 suites
+green.

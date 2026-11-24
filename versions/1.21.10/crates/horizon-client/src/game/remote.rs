@@ -8507,10 +8507,10 @@ impl Game<'_> {
             .as_ref()
             .is_some_and(|stack| &*stack.item == "minecraft:debug_stick");
         if let Some(hit) = self.pick() {
-            // ShelfBlock.useItemOn consumes a nonempty main-hand click client-side
-            // without predicting the inventory swap or swinging.
+            // ShelfBlock.useItemOn consumes a main-hand click client-side in
+            // 1.21.10 (SUCCESS, empty hand too) without predicting the
+            // inventory swap or swinging. (1.21.11 passes an empty hand on.)
             let shelf_reacts = hand == Hand::Main
-                && held.is_some()
                 && !(self.remote_shift_down()
                     && (self.stack_in(self.selected).is_some() || self.offhand.is_some()))
                 && self.shelf_hit(&hit).is_some();

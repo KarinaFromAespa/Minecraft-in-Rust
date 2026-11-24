@@ -280,8 +280,8 @@ const EMPTY_TEMPLATE_ICONS: [&str; 2] = [
 /// `getAdditionalSlotEmptyIcons` give them.
 fn smithing_slot_icons(
     template: Option<&str>,
-) -> ([&'static str; 11], usize, [&'static str; 7], usize) {
-    let none = ([""; 11], 0, [""; 7], 0);
+) -> ([&'static str; 9], usize, [&'static str; 7], usize) {
+    let none = ([""; 9], 0, [""; 7], 0);
     match template.map(|t| t.trim_start_matches("minecraft:")) {
         Some("netherite_upgrade_smithing_template") => (
             [
@@ -294,10 +294,8 @@ fn smithing_slot_icons(
                 "boots",
                 "hoe",
                 "shovel",
-                "nautilus_armor",
-                "spear",
             ],
-            11,
+            9,
             ["ingot", "", "", "", "", "", ""],
             1,
         ),
@@ -307,8 +305,6 @@ fn smithing_slot_icons(
                 "chestplate",
                 "leggings",
                 "boots",
-                "",
-                "",
                 "",
                 "",
                 "",
@@ -3177,7 +3173,7 @@ mod cycling_tests {
     fn the_icons_of_a_smithing_slot_follow_the_template() {
         let (base, n, additions, m) =
             smithing_slot_icons(Some("minecraft:netherite_upgrade_smithing_template"));
-        assert_eq!(base[..n].len(), 11);
+        assert_eq!(base[..n].len(), 9);
         assert_eq!(additions[..m], ["ingot"]);
         let (base, n, additions, m) =
             smithing_slot_icons(Some("minecraft:coast_armor_trim_smithing_template"));

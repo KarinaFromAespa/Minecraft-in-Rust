@@ -919,7 +919,7 @@ impl Ticker<'_, '_, '_, '_> {
             .then(|| self.block_position());
         let block = self.scene.clip(from, to, ignored);
         let end = block.map_or(to, |b| b.0);
-        // findHitEntities: ProjectileUtil.computeMargin and the search box.
+        // findHitEntity: ProjectileUtil.computeMargin and the search box.
         let margin = f64::from(((self.p.age as i32 - 2) as f32 / 20.0).clamp(0.0, 0.3));
         let area = bounds(from)
             .expand_towards(self.p.velocity)

@@ -1,8 +1,8 @@
 {
  "release": "1.21.10",
  "rank": 2,
- "batch": 20,
- "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review). Batch 6: 13 missing-only no-change (1.21.11-only/1.21.10-only methods unreferenced or identically modelled; Timeline + hand.rs deliberate non-carry-overs with jar evidence). Batch 7: 5 real-method no-change (normalisation gaps + unmodelled methods, each with method diff + Rust-side check). Batch 8: 12 smallest real-method items (10 no-change: renames/noise/unmodelled; 2 ported: 154 equine isMobControlled/MountPanic removal, 256 loom scrolling reset). Batches 9-12: 44 small real-method items (41 no-change: renames, API gaps, unmodelled; 3 ported: 132 piglin spear, 276 furnace Math.random, 277 spawn-mobs gate). Batches 13-14: 16 items (14 no-change; 2 ported: 212 explosion radius guard, 74 music volume threading). Batches 15-16: 16 items (13 no-change; 3 ported: 222 sea-pickle draw, 115 border current size, 262 slime two-draw moon check incl. oracle+harness updates). Batch 17: 3 ported (261 attribute compute unfiltered, 71 client border tick unconditional, 68 play_sound single sound), 5 no-change (34 Christmas dates identical, 85 chunk save unmodelled, 116 codec plumbing, 117 spear path unreachable, 173 raid trig noise). Batch 18: 3 ported (172 sync registry list trimmed to 1.21.10's 21, 202 Nether map spin on day time, 25 fox food test is FOOD-only), 5 no-change (15 criterion renames, 27 panda trig + modelled MOB_DROPS, 61 menu-chrome layout, 69 options migration unmodelled, 84 villager renames + dragging assign). Batch 19: 1 ported (40 golem statue lead drop gated on entity_drops), 7 no-change (23 wolf anger countdown already 1.21.10, 65 golem package moves, 72 font pipeline refactor, 99 Netty plumbing, 119 frame survives already checks entities, 229 bonemeal event same, 278 screen double-click unmodelled). Batch 20: 0 ported, 8 no-change (28 aquatic renames/trig, 100 isMoonVisible window already exact, 102 MOB_GRIEFING gap, 109 Mth trig indexing noise + clampedLerp order swap, 130 stats IO + phantom rule translation, 135 recipe filter button refactor, 147 Netty plumbing, 225 post-process null reorder).",
+ "batch": 21,
+ "note": "Batch 21: 8 items (76, 114, 96, 301, 33, 29, 48, 181); 3 ported (76 piglin spear behaviours removed, 96 smithing icons 11->9, 33 shelf empty-hand consume), 5 no-change. Rank 2: 412/454.",
  "items": {
   "201": {
    "module": "crates/horizon-client/src/game/frame_geometry.rs",
@@ -2373,6 +2373,46 @@
    "module": "crates/horizon-client-render/src/block_entities.rs",
    "verdict": "no-change",
    "evidence": "LevelChunk#postProcessGeneration: 1.21.10 null-checks the post-processing list before getting its iterator, 1.21.11 after \u2014 same behaviour (skip null lists). Chunk post-processing is unmodelled in block_entities.rs (0 refs)."
+  },
+  "76": {
+   "module": "crates/horizon-client/src/mobs/piglin.rs",
+   "verdict": "ported",
+   "evidence": "PiglinAi#initFightActivity: 1.21.11 adds SpearApproach/SpearAttack/SpearRetreat; 1.21.10 has none. Removed the spear behaviours (SpearStatus, Memories, PiglinSpear goal, NoMeleeWithSpear - spear_use.rs lines 519-898), the piglin state's spear field, and the registration; initFightActivity now registers plain MeleeAttack. converting() already the 1.21.10 form: presets give piglins_zombify=true (overworld/end) / false (nether), i.e. !piglinSafe(), with the immune/no-AI checks. maybeRetaliate is a UNIVERSAL_ANGER GameRules API gap (Rust reads w.universal_anger)."
+  },
+  "114": {
+   "module": "crates/horizon-client/src/mobs/guardian.rs",
+   "verdict": "no-change",
+   "evidence": "Guardian#aiStep is the needsSync/hasImpulse field rename (unmodelled, 0 refs); GuardianRenderer#renderBeam is f32-vs-double trig (sub-rounding render noise)."
+  },
+  "96": {
+   "module": "crates/horizon-client/src/game/stations.rs",
+   "verdict": "ported",
+   "evidence": "SmithingTemplateItem#createNetheriteUpgradeIconList returns 9 icons in 1.21.10 (nautilus_armor + spear are 1.21.11 additions); smithing_slot_icons narrowed 11->9 with its test updated. StonecutterScreen#mouseClicked already resets scrolling=false at the start of the click (the 1.21.10 form, same as the loom fix in batch 8). InstrumentComponent#addToTooltip: the Rust's instrument_line already adds the instrument description (the 1.21.10 form). EnchantmentScreen#tickBook loop difference is menu-chrome animation."
+  },
+  "301": {
+   "module": "crates/horizon-client/examples/probe/falling_block_fixture.rs",
+   "verdict": "no-change",
+   "evidence": "The fixture probes landing only (falling_block_landed); FallingBlockEntity#tick's 600-tick drop gated on ENTITY_DROPS is unmodelled in it (the rule exists in both versions, API rename only)."
+  },
+  "33": {
+   "module": "crates/horizon-client/src/game/remote.rs",
+   "verdict": "ported",
+   "evidence": "ShelfBlock#useItemOn returns SUCCESS on the client unconditionally in 1.21.10 (1.21.11 passes an empty hand on); dropped the held.is_some() gate from shelf_reacts so an empty main-hand click consumes the click (the UseItemOn packet is sent before this check, so the server still processes the swap). handleLogin/handleRespawn setClientLoaded unmodelled; handlePlayerCombatKill + ConnectScreen#startConnecting menu chrome; extractCapeState trig noise; renderHand rename; useItem/useItemOn MutableObject.get/getValue rename."
+  },
+  "29": {
+   "module": "crates/horizon-client/src/arrows.rs",
+   "verdict": "no-change",
+   "evidence": "step_move_and_hit picks the single nearest hit per step (the 1.21.10 findHitEntity form); 1.21.11's findHitEntities returns a collection for multi-hit-per-step. Comment corrected to findHitEntity. onHitEntity + performShooting are criterion renames."
+  },
+  "48": {
+   "module": "crates/horizon-client/src/save.rs",
+   "verdict": "no-change",
+   "evidence": "DataVersion defaults to -1 when missing (the 1.21.10 getDataVersion(tag, -1) form); backup_stamp uses chrono::Local (the 1.21.10 LocalDateTime form); upgradeChunkTag is delegation-vs-inline plumbing with the same outcome; SerializableChunkData#read null-check reorder is behaviour-identical."
+  },
+  "181": {
+   "module": "crates/horizon-client/src/ambience.rs",
+   "verdict": "no-change",
+   "evidence": "BiomeAmbientSoundsHandler#tick: 1.21.11 gets the biome from the player's level, 1.21.10 from the BiomeManager at the player's position; same biome, different lookup path. The Rust looks up ambient sounds by dimension + biome name."
   }
  }
 }
