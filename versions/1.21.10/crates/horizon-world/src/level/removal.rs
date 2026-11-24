@@ -118,14 +118,17 @@ pub fn drop_item_stack_at<R: RandomSource>(
     out
 }
 
-/// `JukeboxBlockEntity.popOutTheItem`: `Vec3.atLowerCornerWithOffset(pos, 0.5,
-/// 1.01, 0.5).offsetRandomXZ(level.random, 0.7)`.
+/// `JukeboxBlockEntity.popOutTheItem` (and `ComposterBlock.extractProduce`):
+/// `Vec3.atLowerCornerWithOffset(pos, 0.5, 1.01, 0.5).offsetRandom(level.random,
+/// 0.7)` — three draws, X then Y then Z. 1.21.10's `Vec3` has no
+/// `offsetRandomXZ`; the XZ-only form is 1.21.11's.
 pub fn jukebox_pop_position<R: RandomSource>(random: &mut R, pos: BlockPos) -> [f64; 3] {
     let dx = f64::from((random.next_float() - 0.5) * 0.7);
+    let dy = f64::from((random.next_float() - 0.5) * 0.7);
     let dz = f64::from((random.next_float() - 0.5) * 0.7);
     [
         f64::from(pos.x) + 0.5 + dx,
-        f64::from(pos.y) + 1.01,
+        f64::from(pos.y) + 1.01 + dy,
         f64::from(pos.z) + 0.5 + dz,
     ]
 }
@@ -292,5 +295,23 @@ mod spill_tests {
                 assert_eq!(random.next_int(), next, "count={count}, origin={origin:?}");
             }
         }
+    }
+
+    #[test]
+    fn the_jukebox_pop_offsets_all_three_axes_in_draw_order() {
+        // `Vec3.offsetRandom`: three draws, X then Y then Z. The 1.21.11
+        // `offsetRandomXZ` form drew two and left Y at exactly 1.01.
+        let pos = BlockPos::new(-17, 200, 9);
+        let mut expected = LegacyRandom::new(42);
+        let (dx, dy, dz) = (
+            f64::from((expected.next_float() - 0.5) * 0.7),
+            f64::from((expected.next_float() - 0.5) * 0.7),
+            f64::from((expected.next_float() - 0.5) * 0.7),
+        );
+        let mut random = LegacyRandom::new(42);
+        let at = jukebox_pop_position(&mut random, pos);
+        assert_eq!(at, [-17.0 + 0.5 + dx, 200.0 + 1.01 + dy, 9.0 + 0.5 + dz]);
+        assert_ne!(at[1], 201.01);
+        assert_eq!(random.next_int(), expected.next_int());
     }
 }

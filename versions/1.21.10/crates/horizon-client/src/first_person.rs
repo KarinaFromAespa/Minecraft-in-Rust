@@ -758,13 +758,17 @@ pub trait HandWorld {
     fn held_count(&mut self, hand: Hand) -> i32;
     /// `Player.hasInfiniteMaterials`.
     fn infinite_materials(&self) -> bool;
-    /// `Player.cannotAttackWithItem(heldItem, 0)`.
+    /// `Player.cannotAttackWithItem(heldItem, 0)`. 1.21.11-only: the
+    /// 1.21.10 attack path never calls it (no spear can exist in 1.21.10
+    /// data); kept for the spear-system cleanup.
     fn cannot_attack(&mut self) -> bool;
-    /// The main-hand item is a `PIERCING_WEAPON`.
+    /// The main-hand item is a `PIERCING_WEAPON`. 1.21.11-only: the
+    /// 1.21.10 attack path never calls it; kept for the spear-system cleanup.
     fn piercing_weapon(&mut self) -> bool;
     fn attack_animation(&mut self) -> SwingAnimation;
     fn interact_animation(&mut self, hand: Hand) -> SwingAnimation;
-    /// `MultiPlayerGameMode.piercingAttack`.
+    /// `MultiPlayerGameMode.piercingAttack`. 1.21.11-only: the 1.21.10
+    /// attack path never calls it; kept for the spear-system cleanup.
     fn piercing_attack(&mut self, animation: SwingAnimation);
     /// `Player.attack` on the targeted entity when the item's attack range
     /// allows it; false when out of range.
@@ -940,14 +944,12 @@ impl Clicks {
             w.spectate_hit_entity();
             return true;
         }
-        if !w.item_enabled(Hand::Main) || w.cannot_attack() {
+        if !w.item_enabled(Hand::Main) {
             return false;
         }
         let animation = w.attack_animation();
-        if w.piercing_weapon() {
-            w.piercing_attack(animation);
-            return true;
-        }
+        // 1.21.10 has no cannotAttackWithItem gate and no piercing-weapon
+        // branch in startAttack: both are 1.21.11's spear attack.
         let mut end = false;
         let mut miss = false;
         match w.hit() {
@@ -980,7 +982,9 @@ impl Clicks {
         if !down {
             self.miss_time = 0;
         }
-        if self.miss_time > 0 || w.using_item() || w.piercing_weapon() {
+        // 1.21.10's continueAttack gates only on the miss time and item
+        // use; the piercing-weapon gate is 1.21.11's.
+        if self.miss_time > 0 || w.using_item() {
             return;
         }
         let animation = w.attack_animation();

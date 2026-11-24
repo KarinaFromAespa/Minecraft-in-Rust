@@ -965,3 +965,22 @@ updated to the 1.21.10 form (item shares layer 0 with the block
 texture; counts 2 layers / 4 names / 2 mips / 2*16*16*4 pixels),
 not the code. All other suites green (440 + 3 + 110 + 483 + 83 +
 1285 + 2510 passed). Fixed in this batch (sprites.rs).
+
+Batch 27 (2 items, rank 2 452 -> 454, 464/719; RANK 2 COMPLETE). 13
+game.rs: startAttack loses the cannotAttackWithItem gate and the
+PIERCING_WEAPON branch, continueAttack loses the piercing gate
+(1.21.11's spear attack; the ATTACK_RANGE check was never modelled in
+the Rust's start_attack). The HandWorld spear methods stay for the
+deferred spear cleanup, docs noted. jukebox_pop_position now draws X,
+Y, Z: 1.21.10's Vec3 has no offsetRandomXZ (javap-verified) and both
+the jukebox and the composter use offsetRandom in 1.21.10; a test pins
+the draw order. No-change in 13: isSpawningMonsters is identical in
+both versions (javap-verified; 1.21.10 DOES have RULE_SPAWN_MONSTERS),
+disconnect is a method split, getSituationalMusic was item 98's,
+hasControlDown is a pure rename (1.21.10's checks
+EDIT_SHORTCUT_KEY_MODIFIER, exactly 1.21.11's hasControlDownWithQuirk),
+and the rest are GameRules renames or unmodelled plumbing. 52
+debug_keys.rs: no-change — the Rust's keybind defaults are exactly
+the 1.21.10 hardcoded debug keys (F3/A/B/C/D/G/H/I/L/N/P/S/T/V/1/2/3/
+F4/F6); the rebindable surface is a Horizon feature on top, and F3+Q
+is unmodelled in both trees.
