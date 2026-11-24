@@ -1,8 +1,8 @@
 {
  "release": "1.21.10",
  "rank": 2,
- "batch": 6,
- "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review). Batch 6: 13 missing-only no-change (1.21.11-only/1.21.10-only methods unreferenced or identically modelled; Timeline + hand.rs deliberate non-carry-overs with jar evidence).",
+ "batch": 7,
+ "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review). Batch 6: 13 missing-only no-change (1.21.11-only/1.21.10-only methods unreferenced or identically modelled; Timeline + hand.rs deliberate non-carry-overs with jar evidence). Batch 7: 5 real-method no-change (normalisation gaps + unmodelled methods, each with method diff + Rust-side check).",
  "items": {
   "201": {
    "module": "crates/horizon-client/src/game/frame_geometry.rs",
@@ -1748,6 +1748,31 @@
    "module": "crates/horizon-client/src/mobs/frog.rs",
    "verdict": "no-change",
    "evidence": "Frog#travelInWater is 1.21.11-only (missing-new), unreferenced in both trees. Trees agree (0 non-comment normalised diff lines)."
+  },
+  "35": {
+   "module": "crates/horizon-client/src/game/commands/extra.rs",
+   "verdict": "no-change",
+   "evidence": "Util#onThreadException: log-message formatting only \u2014 1.21.10 String.format('Caught exception in thread %s') + error(String, Throwable) vs 1.21.11 SLF4J placeholder + error(String, Object, Object). Unmodelled in Rust (0 refs in either tree). Trees agree (0 non-comment normalised diff lines)."
+  },
+  "41": {
+   "module": "crates/horizon-client/src/mobs/turtle.rs",
+   "verdict": "no-change",
+   "evidence": "Turtle#ageBoundaryReached: GameRules-API normalisation gap \u2014 1.21.10 getBoolean(RULE_DOMOBLOOT) vs 1.21.11 get(MOB_DROPS), same doMobLoot semantics; rest is the animal/turtle package move. The scute gift-loot drop is unmodelled in Rust (no Turtle case in finalize.rs age_boundary_reached, 0 refs in turtle.rs). Trees agree."
+  },
+  "57": {
+   "module": "crates/horizon-client/src/mobs/ai.rs",
+   "verdict": "no-change",
+   "evidence": "EyeblossomBlock#tryChangingState is a real diff (1.21.11 EYEBLOSSOM_OPEN environment attribute vs 1.21.10 dimension.natural + CreakingHeartBlock.isNaturalNight) but unmodelled in Rust: only entityInside (poison-on-bee contact) exists in ai.rs; no open/close transition logic anywhere in either tree. The module's 4-line tree diff is the 1.21.11 Horse/ZombieHorse pathfinding malus (DANGER_OTHER/DAMAGE_OTHER -1.0) \u2014 1.21.11-only: 1.21.10's Horse/ZombieHorse/AbstractHorse constructors set no malus (javap-verified), so the 1.21.10 tree correctly omits it."
+  },
+  "60": {
+   "module": "crates/horizon-client-render/src/gfx/entity_batch.rs",
+   "verdict": "no-change",
+   "evidence": "Sheets#translucentItemSheet: field rename only \u2014 1.21.10 TRANSLUCENT_ITEM_CULL_BLOCK_SHEET vs 1.21.11 TRANSLUCENT_ITEM_SHEET, same method returning the translucent item sheet. Rust models it as layer constant TRANSLUCENT_ITEM_OVERLAY = 32 (doc cites the method name, present in both jars). Trees agree."
+  },
+  "62": {
+   "module": "crates/horizon-client-render/src/font.rs",
+   "verdict": "no-change",
+   "evidence": "TrueTypeGlyphProviderDefinition#load: 1.21.10 has an extra ByteBuffer.flip() after reading the font file (buffer-position reset); Rust reads the file into a fresh Vec via read_resource and hands it to FontVec::try_from_vec \u2014 no buffer-position concept, so the flip has no Rust equivalent. Rest of the diff is exception-table offset shifts. Trees agree."
   }
  }
 }
