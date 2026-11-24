@@ -223,10 +223,13 @@ pub struct ItemInfo {
     pub weapon_damage: Option<u32>,
     /// `villager_food.nutrition`: what a villager gets from eating it.
     pub villager_food: Option<i32>,
-    /// `use_effects.speed_multiplier` (UseEffects.DEFAULT: 0.2).
+    /// `use_effects.speed_multiplier` (UseEffects.DEFAULT: 0.2). 1.21.10
+    /// has no `use_effects` component and never reads this: any item in
+    /// use slows the input to 0.2 (see `Game.sync_player_body`).
     pub use_speed: f32,
     /// `use_effects.can_sprint` (default false): sprinting may start while the
-    /// item is in use.
+    /// item is in use. 1.21.10 has no `use_effects` component and never
+    /// reads this: any item in use keeps a sprint from starting.
     pub can_sprint: bool,
     /// `use_effects.interact_vibrations` (default true).
     pub interact_vibrations: bool,

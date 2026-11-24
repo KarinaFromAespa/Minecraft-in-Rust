@@ -425,7 +425,7 @@ mod tests {
             })
         );
         assert_eq!(
-            parse(r#"{"texture":{"clamp":true,"mipmap_strategy":"mean"}}"#),
+            parse(r#"{"texture":{"clamp":true,"unknown_field":1}}"#),
             Some(TextureFlags {
                 blur: false,
                 clamp: true

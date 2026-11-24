@@ -15130,11 +15130,8 @@ mod sprite_upload_tests {
             .collect();
         let settings: Vec<_> = (0..layers)
             .map(|i| crate::mipmap::Settings {
-                strategy: if i % 2 == 0 {
-                    crate::mipmap::Strategy::Mean
-                } else {
-                    crate::mipmap::Strategy::StrictCutout
-                },
+                has_transparent: i % 2 == 0,
+                dither_cutouts: i % 3 == 0,
                 ..Default::default()
             })
             .collect();
@@ -15199,13 +15196,8 @@ mod sprite_upload_tests {
             .collect();
         let settings: Vec<_> = (0..layers)
             .map(|i| crate::mipmap::Settings {
-                strategy: match i % 3 {
-                    0 => crate::mipmap::Strategy::Mean,
-                    1 => crate::mipmap::Strategy::Cutout,
-                    _ => crate::mipmap::Strategy::DarkCutout,
-                },
-                alpha_cutoff_bias: (i % 4) as f32 / 4.0,
-                item: i % 7 == 0,
+                has_transparent: i % 2 == 0,
+                dither_cutouts: i % 3 == 0,
                 ..Default::default()
             })
             .collect();

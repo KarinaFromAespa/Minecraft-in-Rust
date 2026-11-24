@@ -657,7 +657,7 @@ fn player_hurt(player: Option<&PlayerView>, e: &MobEvent) -> bool {
 
 /// `player_down`: the scenario's player is no valid target (creative, or
 /// killed this tick).
-fn print(out: &mut String, t: i32, i: usize, m: &Mob, player_down: bool, now: i64) {
+fn print(out: &mut String, t: i32, i: usize, m: &Mob, player_down: bool) {
     let _ = write!(out, "{t} {i}");
     if m.removed {
         // Entity.RemovalReason: the end of the death animation, else a discard.
@@ -790,8 +790,8 @@ fn print(out: &mut String, t: i32, i: usize, m: &Mob, player_down: bool, now: i6
         let _ = write!(out, "\twolf {anger}");
     }
     if let Some(b) = horizon_client::mobs::bee::get(m) {
-        let anger = if b.anger_end > 0 {
-            b.anger_end - now
+        let anger = if b.anger > 0 {
+            i64::from(b.anger)
         } else {
             -1
         };
@@ -1179,7 +1179,7 @@ pub fn main() -> horizon_client::Result<()> {
         // from it, and the scenarios feed neither.
         let mut level_random = LegacyRandom::new(0);
         for (i, m) in mobs.iter().enumerate() {
-            print(&mut out, 0, i, m, s.creative, world.game_time);
+            print(&mut out, 0, i, m, s.creative);
         }
         // No player has a chest open in the scenarios.
         let lid_openers = std::collections::HashMap::new();
@@ -1636,14 +1636,7 @@ pub fn main() -> horizon_client::Result<()> {
                 .iter()
                 .any(|e| player_hurt(player.as_ref(), e) && player_damage(e) >= 20.0);
             for (i, m) in mobs.iter().enumerate() {
-                print(
-                    &mut out,
-                    t,
-                    i,
-                    m,
-                    s.creative || player_killed,
-                    world.game_time,
-                );
+                print(&mut out, t, i, m, s.creative || player_killed);
             }
             if s.name.starts_with("leash_death_") {
                 let _ = writeln!(out, "{t} leads {dropped_leads}");

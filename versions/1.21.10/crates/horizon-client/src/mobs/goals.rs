@@ -1900,7 +1900,7 @@ impl Goal for HurtByTarget {
             && m.within_home_at(t.position)
     }
     fn can_continue(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
-        if self.bee && !super::bee::angry(m, cx.w) {
+        if self.bee && !super::bee::angry(m) {
             return false;
         }
         target_continue(&mut self.st, true, m, cx)

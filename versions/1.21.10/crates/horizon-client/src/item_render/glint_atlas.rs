@@ -77,16 +77,13 @@ pub(super) fn load(
 }
 
 /// `TextureMetadataSection.CODEC`: invalid fields reject the sprite, even without mipmaps.
+/// 1.21.10's section has only `blur` and `clamp`; anything else is an
+/// unknown field, which the codec ignores.
 fn texture_metadata(section: &serde_json::Value) -> Option<()> {
     let fields = section.as_object()?;
     for (name, value) in fields.iter().filter(|(_, value)| !value.is_null()) {
         let valid = match name.as_str() {
             "blur" | "clamp" => value.is_boolean(),
-            "mipmap_strategy" => matches!(
-                value.as_str(),
-                Some("auto" | "mean" | "cutout" | "strict_cutout" | "dark_cutout")
-            ),
-            "alpha_cutoff_bias" => value.is_number(),
             _ => true,
         };
         if !valid {

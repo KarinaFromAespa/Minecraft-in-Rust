@@ -532,7 +532,7 @@ pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
         ),
         // BeeRenderer.getTextureLocation: angry, carrying nectar, or both.
         S::Bee => {
-            let angry = super::bee::get(m).is_some_and(|b| b.anger_end > 0);
+            let angry = super::bee::get(m).is_some_and(|b| b.anger > 0);
             let nectar = super::bee::has_nectar(m);
             let texture = match (angry, nectar) {
                 (true, true) => "entity/bee/bee_angry_nectar",

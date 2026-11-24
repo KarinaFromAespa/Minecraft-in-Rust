@@ -3605,8 +3605,13 @@ impl Game<'_> {
                 }
             })
             .and_then(|s| self.items().get(&s.item));
-        let item_use_speed = item_in_use.map(|i| i.use_speed);
-        let item_use_slows_sprint = item_in_use.is_some_and(|i| !i.can_sprint);
+        // 1.21.10 has no per-item use speed: `LocalPlayer.modifyInput`
+        // scales the input by a flat 0.2 while any item is in use, and
+        // `isUsingItem` (any use) keeps a sprint from starting — the
+        // item's `use_effects` (1.21.11's `itemUseSpeedMultiplier` /
+        // `isSlowDueToUsingItem`) are not read here.
+        let item_use_speed = item_in_use.map(|_| 0.2);
+        let item_use_slows_sprint = item_in_use.is_some();
         let respiration = self.armor[0]
             .as_ref()
             .map_or(0, |s| s.enchantment_level("minecraft:respiration") as i32);

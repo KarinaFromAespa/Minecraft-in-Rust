@@ -681,6 +681,26 @@ pub fn mob_to_nbt(
             },
         }
     }
+    // The bee keeps its own anger (`BeeState`): the same `AngerTime` +
+    // `AngryAt`, read from the bee's fields instead of `Extra`.
+    if m.species() == S::Bee {
+        put(
+            &mut tag,
+            "AngerTime",
+            Tag::Int(crate::mobs::bee::anger_left(m)),
+        );
+        match crate::mobs::bee::anger_target(m) {
+            Some(crate::mobs::Who::Mob(0)) => {}
+            target => match target.and_then(|who| who_uuid(who, &mut uuid_of)) {
+                Some(uuid) => put(&mut tag, "AngryAt", Tag::IntArray(uuid.to_vec())),
+                None => {
+                    if let Tag::Compound(map) = &mut tag {
+                        map.remove(&"AngryAt".into());
+                    }
+                }
+            },
+        }
+    }
     // `Mannequin.addAdditionalSaveData`: the profile whose skin it wears, whether it
     // is `immovable`, and its description (the default is not written; none is `hide_description`).
     if m.species() == crate::mobs::Species::Mannequin {
@@ -1309,7 +1329,7 @@ pub fn mob_to_nbt(
         }
         // `Warden.addAdditionalSaveData`: the anger - one `{uuid, anger}` pair
         // per suspect - and the vibration listener, and nothing else. A warden
-        // is no `NeutralMob`, so there is no `angry_at` or `anger_end_time`: the
+        // is no `NeutralMob`, so there is no `AngryAt` or `AngerTime`: the
         // entity a suspect is is named by its UUID, not by a live id.
         "minecraft:warden" => {
             if let Some(st) = &m.extra.warden {
@@ -2066,6 +2086,16 @@ pub fn mob_from_nbt_with_random(
             Some(_) => Some(crate::mobs::Who::Mob(0)),
             None => None,
         };
+    }
+    // The bee keeps its own anger (`BeeState`), read the same way.
+    if m.species() == crate::mobs::Species::Bee {
+        let anger = number(tag.get("AngerTime")).unwrap_or(0) as i32;
+        let angry_at = match uuid_from_tag(tag.get("AngryAt")) {
+            Some(uuid) if uuid == player_uuid() => Some(crate::mobs::Who::Player),
+            Some(_) => Some(crate::mobs::Who::Mob(0)),
+            None => None,
+        };
+        crate::mobs::bee::set_anger(&mut m, anger, angry_at);
     }
     // `Mannequin.readAdditionalSaveData`: the profile comes back with the skin, then
     // validated pose, `immovable`, `hide_description` and `description` (`updateDescription`).

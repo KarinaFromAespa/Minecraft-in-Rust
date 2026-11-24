@@ -2117,7 +2117,7 @@ fn server_ai_step(
     if !super::axolotl::is_playing_dead(m) {
         m.move_control_tick(w, events);
         // BeeLookControl: still while angry.
-        if !(m.species() == Species::Bee && super::bee::angry(m, w)) {
+        if !(m.species() == Species::Bee && super::bee::angry(m)) {
             m.look_control_tick();
         }
     }

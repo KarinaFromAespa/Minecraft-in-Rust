@@ -263,7 +263,7 @@ fn apply(m: &mut Mob, values: &[(u8, i32, Value)], builtin: &Builtin, local_enti
             }
             // Bee.DATA_FLAGS_ID and DATA_ANGER_END_TIME (after Animal's).
             (Species::Bee, 17, Value::Byte(flags)) => bee::set_synced(m, Some(*flags as u8), None),
-            (Species::Bee, 18, Value::Long(end)) => bee::set_synced(m, None, Some(*end)),
+            (Species::Bee, 18, Value::Int(anger)) => bee::set_synced(m, None, Some(*anger)),
             // AbstractFish.FROM_BUCKET takes 16: Salmon.DATA_TYPE (small 0
             // to large 2), Pufferfish.PUFF_STATE and
             // TropicalFish.DATA_ID_TYPE_VARIANT.

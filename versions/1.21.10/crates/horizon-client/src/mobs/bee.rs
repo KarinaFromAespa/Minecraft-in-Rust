@@ -29,8 +29,8 @@ const FLAG_HAS_NECTAR: u8 = 8;
 pub struct Bee {
     /// `DATA_FLAGS_ID`: rolling, has stung, has nectar.
     pub flags: u8,
-    /// `DATA_ANGER_END_TIME`, -1 when calm.
-    pub anger_end: i64,
+    /// `DATA_REMAINING_ANGER_TIME`: the remaining anger ticks, 0 when calm.
+    pub anger: i32,
     /// `persistentAngerTarget`.
     pub angry_at: Option<Who>,
     pub roll: f32,
@@ -57,7 +57,7 @@ impl Default for Bee {
     fn default() -> Self {
         Self {
             flags: 0,
-            anger_end: -1,
+            anger: 0,
             angry_at: None,
             roll: 0.0,
             roll_o: 0.0,
@@ -104,16 +104,30 @@ pub fn has_stung(m: &Mob) -> bool {
 pub fn rolling(m: &Mob) -> bool {
     flag(m, FLAG_ROLL)
 }
-/// A client's bee from the server's `DATA_FLAGS_ID` and `DATA_ANGER_END_TIME`
-/// (the texture and the roll read them).
-pub fn set_synced(m: &mut Mob, flags: Option<u8>, anger_end: Option<i64>) {
+/// A client's bee from the server's `DATA_FLAGS_ID` and
+/// `DATA_REMAINING_ANGER_TIME` (the texture and the roll read them).
+pub fn set_synced(m: &mut Mob, flags: Option<u8>, anger: Option<i32>) {
     let b = st(m);
     if let Some(flags) = flags {
         b.flags = flags;
     }
-    if let Some(anger_end) = anger_end {
-        b.anger_end = anger_end;
+    if let Some(anger) = anger {
+        b.anger = anger;
     }
+}
+/// The bee's remaining anger ticks, for the save (`AngerTime`).
+pub fn anger_left(m: &Mob) -> i32 {
+    get(m).map_or(0, |b| b.anger)
+}
+/// The bee's persistent anger target, for the save (`AngryAt`).
+pub fn anger_target(m: &Mob) -> Option<Who> {
+    get(m).and_then(|b| b.angry_at)
+}
+/// The bee's anger from the save (`AngerTime` + `AngryAt`).
+pub fn set_anger(m: &mut Mob, anger: i32, angry_at: Option<Who>) {
+    let b = st(m);
+    b.anger = anger;
+    b.angry_at = angry_at;
 }
 /// `Bee.setHasNectar`: nectar resets the time without it.
 pub fn set_has_nectar(m: &mut Mob, value: bool) {
@@ -196,9 +210,9 @@ pub fn draw_cooldowns(m: &mut Mob) {
 
 // --- NeutralMob -------------------------------------------------------------
 
-/// `NeutralMob.isAngry`.
-pub fn angry(m: &Mob, w: &MobWorld) -> bool {
-    get(m).is_some_and(|b| b.anger_end > 0 && b.anger_end - w.game_time > 0)
+/// `NeutralMob.isAngry`: the countdown is still running.
+pub fn angry(m: &Mob) -> bool {
+    get(m).is_some_and(|b| b.anger > 0)
 }
 /// `NeutralMob.stopBeingAngry`.
 pub fn stop_being_angry(m: &mut Mob) {
@@ -207,7 +221,7 @@ pub fn stop_being_angry(m: &mut Mob) {
     m.ai.target = None;
     let b = st(m);
     b.angry_at = None;
-    b.anger_end = -1;
+    b.anger = 0;
 }
 /// `NeutralMob.playerDied`: the anger at the player who died ends.
 pub fn forgive_dead_player(m: &mut Mob) {
@@ -216,14 +230,16 @@ pub fn forgive_dead_player(m: &mut Mob) {
     }
 }
 /// `Bee.startPersistentAngerTimer`: 20 to 39 seconds.
-fn start_anger_timer(m: &mut Mob, w: &MobWorld) {
+fn start_anger_timer(m: &mut Mob) {
     let ticks = next_int(m, 400, 780);
-    st(m).anger_end = w.game_time + i64::from(ticks);
+    st(m).anger = ticks;
 }
-/// `NeutralMob.updatePersistentAnger(level, false)`: the timer starts over
-/// every tick a target is held, so a bee's anger only runs out once the
-/// target is gone (26.1 restarted it on a new target alone when
-/// `stayAngryIfTargetPresent` is false). There is no forgiveness for a
+/// `NeutralMob.updatePersistentAnger(level, false)`: the anger target is
+/// a UUID in 1.21.10, and the timer is a remaining-ticks countdown. A
+/// target that is gone or dead ends the anger when the stored target is
+/// a mob still in the world; a NEW target restarts the timer (a held
+/// target does not — the countdown runs down every tick instead, and
+/// the anger ends when it reaches 0). There is no forgiveness for a
 /// creative, spectator or Peaceful player: 26.1's immediate stop and its
 /// Peaceful check in `isValidPlayerTarget` are gone, and `Mob.getTarget`
 /// is the raw target (26.1 filtered it through `asValidTarget`).
@@ -234,26 +250,37 @@ fn update_persistent_anger(m: &mut Mob, w: &MobWorld) {
         Who::Mob(id) => w.seen(id).is_none_or(|s| !s.alive),
         Who::Player => false,
     };
-    if let Some(p) = target
-        && dead_mob(p)
-        && angry_at == Some(p)
-    {
+    // (target == null || target.isDeadOrDying()) && the stored target
+    // resolves to a Mob: the anger ends. A stored player never ends it
+    // this way, and neither does a stored mob that is not in the world.
+    let target_gone_or_dead = match target {
+        None => true,
+        Some(p) => dead_mob(p),
+    };
+    if target_gone_or_dead && matches!(angry_at, Some(Who::Mob(id)) if w.seen(id).is_some()) {
         stop_being_angry(m);
         return;
     }
-    if let Some(target) = target {
-        if angry_at != Some(target) {
-            st(m).angry_at = Some(target);
-        }
-        start_anger_timer(m, w);
+    if let Some(target) = target
+        && angry_at != Some(target)
+    {
+        st(m).angry_at = Some(target);
+        start_anger_timer(m);
     }
-    if angry_at.is_some() && !angry(m, w) {
-        stop_being_angry(m);
+    // The bee passes stayAngryIfTargetPresent=false, so the countdown
+    // runs down every tick it is above 0, whatever the target is; at 0
+    // the anger ends. A countdown already at 0 leaves the stored target
+    // alone (vanilla's `getRemainingPersistentAngerTime() <= 0` skip).
+    if get(m).is_some_and(|b| b.anger > 0) {
+        st(m).anger -= 1;
+        if get(m).is_some_and(|b| b.anger == 0) {
+            stop_being_angry(m);
+        }
     }
 }
 /// `beeCanTarget`: angry and still armed.
-fn can_target(m: &Mob, w: &MobWorld) -> bool {
-    angry(m, w) && !has_stung(m)
+fn can_target(m: &Mob, _w: &MobWorld) -> bool {
+    angry(m) && !has_stung(m)
 }
 
 // --- the bee's ticks ----------------------------------------------------------
@@ -292,7 +319,7 @@ pub fn ai_step(m: &mut Mob, w: &MobWorld) {
     let close = m
         .target_info(w)
         .is_some_and(|t| m.distance_sqr(t.position) < 4.0);
-    let roll = angry(m, w) && !has_stung(m) && close;
+    let roll = angry(m) && !has_stung(m) && close;
     set_flag(m, FLAG_ROLL, roll);
     if m.age.is_multiple_of(20) && !hive_valid(m, w) {
         st(m).hive = None;
@@ -532,8 +559,8 @@ fn pathfind_randomly_towards(m: &mut Mob, w: &MobWorld, p: [i32; 3]) {
 // --- goals ----------------------------------------------------------------------
 
 /// `BaseBeeGoal`: none of these run while the bee is angry.
-fn calm(m: &Mob, w: &MobWorld) -> bool {
-    !angry(m, w)
+fn calm(m: &Mob, _w: &MobWorld) -> bool {
+    !angry(m)
 }
 
 /// `BeeAttackGoal`: a melee attack while angry and armed.
@@ -581,7 +608,7 @@ impl BecomeAngryTarget {
                 .when(|m, w| {
                     get(m).is_some_and(|b| {
                         b.angry_at == Some(Who::Player)
-                            || (w.universal_anger && b.angry_at.is_none() && angry(m, w))
+                            || (w.universal_anger && b.angry_at.is_none() && angry(m))
                     })
                 }),
         )
@@ -1213,7 +1240,10 @@ impl Goal for Wander {
 pub fn stable_destination(w: &MobWorld, p: [i32; 3]) -> bool {
     !w.facts.is_air(w.world.block(p[0], p[1] - 1, p[2]))
 }
-/// `Bee.addAdditionalSaveData` (and NeutralMob's `anger_end_time`).
+/// `Bee.addAdditionalSaveData`. The anger itself (`AngerTime` +
+/// `AngryAt`) is written by the shared `NeutralMob` save in
+/// `entity_nbt`, which has the UUID resolver; this writes only the
+/// bee's own fields.
 pub fn to_nbt(m: &Mob, map: &mut horizon_world::nbt::Compound) {
     use horizon_world::nbt::Tag;
     let b = get(m).cloned().unwrap_or_default();
@@ -1235,9 +1265,9 @@ pub fn to_nbt(m: &Mob, map: &mut horizon_world::nbt::Compound) {
     );
     map.insert("CannotEnterHiveTicks".into(), Tag::Int(b.stay_out_of_hive));
     map.insert("CropsGrownSincePollination".into(), Tag::Int(b.crops_grown));
-    map.insert("anger_end_time".into(), Tag::Long(b.anger_end));
 }
-/// `Bee.readAdditionalSaveData`.
+/// `Bee.readAdditionalSaveData`. The anger itself (`AngerTime` +
+/// `AngryAt`) is read by the shared `NeutralMob` load in `entity_nbt`.
 pub fn from_nbt(m: &mut Mob, tag: &horizon_world::nbt::Tag) {
     use horizon_world::nbt::Tag;
     let int = |k: &str| match tag.get(k) {
@@ -1251,17 +1281,12 @@ pub fn from_nbt(m: &mut Mob, tag: &horizon_world::nbt::Tag) {
     };
     set_has_nectar(m, int("HasNectar").unwrap_or(0) != 0);
     set_has_stung(m, int("HasStung").unwrap_or(0) != 0);
-    let anger_end = match tag.get("anger_end_time") {
-        Some(Tag::Long(v)) => *v,
-        _ => -1,
-    };
     let b = st(m);
     b.ticks_without_nectar = int("TicksSincePollination").unwrap_or(0);
     b.stay_out_of_hive = int("CannotEnterHiveTicks").unwrap_or(0);
     b.crops_grown = int("CropsGrownSincePollination").unwrap_or(0);
     b.hive = pos("hive_pos");
     b.flower = pos("flower_pos");
-    b.anger_end = anger_end;
 }
 
 #[cfg(test)]
@@ -1285,7 +1310,7 @@ mod tests {
     /// `NeutralMob.updatePersistentAnger`: Peaceful does not end a bee's
     /// anger at the player — 1.21.10 has neither 26.1's immediate stop nor
     /// its Peaceful check in `isValidPlayerTarget`; the anger runs out
-    /// only when its timer does.
+    /// only when its countdown does.
     #[test]
     fn peaceful_does_not_end_a_bees_anger_at_the_player() {
         with_test_world(&[], |w, _| {
@@ -1297,39 +1322,52 @@ mod tests {
                 let mut m = bee();
                 let b = super::st(&mut m);
                 b.angry_at = Some(Who::Player);
-                b.anger_end = w.game_time + 400;
+                b.anger = 400;
                 super::update_persistent_anger(&mut m, &w);
                 assert!(
                     super::get(&m).is_some_and(|b| b.angry_at.is_some()),
                     "difficulty {difficulty}"
                 );
+                assert_eq!(super::get(&m).map(|b| b.anger), Some(399));
             }
         });
     }
 
-    /// `NeutralMob.updatePersistentAnger`: a held target restarts the anger
-    /// timer every tick, so the anger outlives its first end time; once the
-    /// target is gone the timer runs out and the anger ends.
+    /// `NeutralMob.updatePersistentAnger`: a NEW target restarts the
+    /// anger timer (20-39s, less the tick it runs down on the same
+    /// tick); a held target does not restart it — the countdown runs
+    /// down instead, and the anger ends when it reaches 0.
     #[test]
-    fn a_held_target_restarts_a_bees_anger_timer() {
+    fn a_new_target_restarts_a_bees_anger_timer_but_a_held_one_does_not() {
         with_test_world(&[], |w, _| {
             let mut w = w.clone();
             w.player = Some(crate::mobs::world::test_player(Vec3::new(1.0, 0.0, 0.0)));
+            // A new target: the timer restarts.
             let mut m = bee();
             m.ai.target = Some(Who::Player);
             let b = super::st(&mut m);
-            b.angry_at = Some(Who::Player);
-            b.anger_end = w.game_time + 1;
+            b.anger = 1;
             super::update_persistent_anger(&mut m, &w);
-            let end = super::get(&m).map(|b| b.anger_end).unwrap_or(-1);
+            let anger = super::get(&m).map(|b| b.anger).unwrap_or(0);
             assert!(
-                (w.game_time + 400..=w.game_time + 780).contains(&end),
-                "timer restarted to {end}"
+                (399..=779).contains(&anger),
+                "timer restarted to {anger}"
             );
-            // The target gone: the timer runs out and the anger ends.
-            m.ai.target = None;
+            assert!(super::get(&m).is_some_and(|b| b.angry_at == Some(Who::Player)));
+            // The same target held: the countdown runs down, no restart.
+            let before = anger;
+            super::update_persistent_anger(&mut m, &w);
+            assert_eq!(super::get(&m).map(|b| b.anger), Some(before - 1));
+            // The countdown runs out and the anger ends.
             let b = super::st(&mut m);
-            b.anger_end = w.game_time;
+            b.anger = 1;
+            super::update_persistent_anger(&mut m, &w);
+            assert!(super::get(&m).is_some_and(|b| b.angry_at.is_none()));
+            // The target gone: the timer runs out the same way.
+            let mut m = bee();
+            let b = super::st(&mut m);
+            b.angry_at = Some(Who::Player);
+            b.anger = 1;
             super::update_persistent_anger(&mut m, &w);
             assert!(super::get(&m).is_some_and(|b| b.angry_at.is_none()));
         });
@@ -1352,7 +1390,7 @@ mod tests {
                 m.ai.target = Some(Who::Player);
                 let b = super::st(&mut m);
                 b.angry_at = Some(Who::Player);
-                b.anger_end = w.game_time + 1;
+                b.anger = 400;
                 super::update_persistent_anger(&mut m, &w);
                 assert!(
                     super::get(&m).is_some_and(|b| b.angry_at.is_some()),
@@ -1454,7 +1492,7 @@ mod tests {
                 let mut m = bee();
                 let b = super::st(&mut m);
                 b.angry_at = None;
-                b.anger_end = w.game_time + 400;
+                b.anger = 400;
                 m.ai.goals.add(1, super::BecomeAngryTarget::new());
                 let mut random = LegacyRandom::new(1);
                 let mut events = Vec::new();

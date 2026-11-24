@@ -38,7 +38,9 @@ impl Game<'_> {
                 }?;
                 self.res.items().get(&stack.item)
             })
-            .map(|item| (item.use_speed, !item.can_sprint));
+            // 1.21.10 has no per-item use speed: any item in use slows the
+            // input to 0.2 and keeps a sprint from starting.
+            .map(|_| (0.2, true));
         let Some(g) = host.hub.guest_mut(conn) else {
             return;
         };

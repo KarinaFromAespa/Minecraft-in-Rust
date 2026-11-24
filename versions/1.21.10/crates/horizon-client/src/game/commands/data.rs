@@ -1712,16 +1712,12 @@ mod wolf_live_anger_tests {
         .unwrap();
         game.build_registries();
         game.world.game_time = 12_345;
-        // The bee's independently modeled end is the first control, before the
-        // wolf regression; the bee still writes `anger_end_time` until item 20
-        // ports its save, while the wolf's anger is the remaining ticks.
+        // The bee and the wolf both keep the countdown now (item 20
+        // ported the bee's save to `AngerTime`): the same writes run
+        // against both, and the rest of each mob's state is kept.
         for (kind, health, number) in [("bee", 10.0_f32, 1), ("wolf", 8.0, 2)] {
             game.mobs.clear();
-            let (key, initial): (&str, Tag) = if kind == "bee" {
-                ("anger_end_time", Tag::Long(-1))
-            } else {
-                ("AngerTime", Tag::Int(0))
-            };
+            let (key, initial): (&str, Tag) = ("AngerTime", Tag::Int(0));
             let tag = Tag::Compound(
                 [
                     (
@@ -1753,21 +1749,13 @@ mod wolf_live_anger_tests {
             game.mobs[i].last_hurt = 2.0;
             game.mobs[i].age = 6;
             game.mobs[i].in_powder_snow = true;
-            let values: [i64; 4] = if kind == "bee" {
-                [12_395, 12_395, 12_420, -1]
-            } else {
-                [50, 50, 75, 0]
-            };
+            let values: [i64; 4] = [50, 50, 75, 0];
             for v in values {
                 let mut tag = game.mob_tree_nbt(i);
                 let Tag::Compound(fields) = &mut tag else {
                     panic!("mob compound")
                 };
-                let value = if kind == "bee" {
-                    Tag::Long(v)
-                } else {
-                    Tag::Int(v as i32)
-                };
+                let value = Tag::Int(v as i32);
                 fields.insert(key.into(), value.clone());
                 game.apply_entity_nbt(Target::Mob(id), tag).unwrap();
                 let saved = game.mob_tree_nbt(i);

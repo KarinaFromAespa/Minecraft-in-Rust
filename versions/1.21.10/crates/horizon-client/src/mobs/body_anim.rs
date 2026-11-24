@@ -880,7 +880,7 @@ pub fn anim(m: &Mob, s: &State, p: &mut Poses, a: &Animations) -> bool {
                 has_stinger: !super::bee::has_stung(m),
                 on_ground: m.on_ground && m.velocity.length_squared() < 1.0e-7,
                 // The anger end time is cleared the tick after it passes.
-                angry: super::bee::get(m).is_some_and(|b| b.anger_end > 0),
+                angry: super::bee::get(m).is_some_and(|b| b.anger > 0),
                 // Bee.getRollAmount(partialTick).
                 roll_amount: super::bee::get(m)
                     .map_or(0.0, |b| b.roll_o + (b.roll - b.roll_o) * s.partial),

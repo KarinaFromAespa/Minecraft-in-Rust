@@ -418,7 +418,8 @@ fn mob_variant_meta(
             }
         }
         // Bee.DATA_FLAGS_ID (rolling 2, stung 4, nectar 8) and
-        // DATA_ANGER_END_TIME: the texture shows the nectar and the anger.
+        // DATA_REMAINING_ANGER_TIME: the texture shows the nectar and the
+        // anger. 1.21.10 syncs the remaining ticks as an int (0 when calm).
         "minecraft:bee" => {
             let bee = horizon_client::mobs::bee::get(m);
             let flags = bee.map_or(0, |b| b.flags);
@@ -426,11 +427,11 @@ fn mob_variant_meta(
                 meta.push((17, serializer::BYTE, Value::Byte(flags as i8)));
             }
             defaults.push((17, serializer::BYTE, Value::Byte(0)));
-            let anger_end = bee.map_or(-1, |b| b.anger_end);
-            if anger_end != -1 {
-                meta.push((18, serializer::LONG, Value::Long(anger_end)));
+            let anger = bee.map_or(0, |b| b.anger);
+            if anger != 0 {
+                meta.push((18, serializer::INT, Value::Int(anger)));
             }
-            defaults.push((18, serializer::LONG, Value::Long(-1)));
+            defaults.push((18, serializer::INT, Value::Int(0)));
         }
         // AbstractFish.FROM_BUCKET takes 16: Salmon.DATA_TYPE (small 0,
         // medium 1, large 2; medium is the data's default, so always sent),

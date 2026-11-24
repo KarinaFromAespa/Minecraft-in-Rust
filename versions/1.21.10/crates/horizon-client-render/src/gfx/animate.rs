@@ -576,10 +576,10 @@ fn source_chain(pixels: &[u8], size: u32, settings: &[Settings], layer: u32) -> 
 
 /// Every frame's chain, laid out as one frame's `source_chain`, but mipmapped as
 /// vanilla's `SpriteContents.increaseMipLevel` does: over the whole animation
-/// sheet (the frames stacked), so `solidify` and the alpha-to-coverage scale
-/// of each level are the sheet's, not each frame's. A frame alone has a
-/// single texel square at its 2x2 level, and its coverage scale could round
-/// a whole far frame transparent (kelp blinking out at distance).
+/// sheet (the frames stacked), so the `alphaBlend` of each level is the
+/// sheet's, not each frame's. A frame alone has a single texel square at its
+/// 2x2 level, and its alpha cutoff could round a whole far frame transparent
+/// (kelp blinking out at distance).
 fn source_chains(
     frames: &[&[u8]],
     size: u32,
@@ -630,7 +630,6 @@ fn source_chains(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mipmap::Strategy;
 
     /// `animate.wgsl` on the CPU: `chain` (first level `edge` wide) as the
     /// full chain of a `size` layer, mixed `millis` thousandths of the way
@@ -677,12 +676,11 @@ mod tests {
             .collect()
     }
 
-    fn settings(native: u32, strategy: Strategy) -> Settings {
+    fn settings(native: u32, has_transparent: bool, dither_cutouts: bool) -> Settings {
         Settings {
             native_size: native,
-            strategy,
-            alpha_cutoff_bias: -0.1,
-            ..Default::default()
+            has_transparent,
+            dither_cutouts,
         }
     }
 
@@ -691,20 +689,11 @@ mod tests {
         // Sprites scaled up by whole pixels, at the array's size, and of a
         // size that is not a power of two (scaled up to the next one).
         for (native, size) in [(16, 16), (16, 64), (8, 32), (32, 64), (1, 16), (24, 32)] {
-            for strategy in [
-                Strategy::Auto,
-                Strategy::Mean,
-                Strategy::Cutout,
-                Strategy::StrictCutout,
-                Strategy::DarkCutout,
-            ] {
-                for item in [false, true] {
+            for has_transparent in [false, true] {
+                for dither_cutouts in [false, true] {
                     let settings = [
                         Settings::default(),
-                        Settings {
-                            item,
-                            ..settings(native, strategy)
-                        },
+                        settings(native, has_transparent, dither_cutouts),
                     ];
                     let pixels = crate::sprites::resample(&frame(native, 3), native, size);
                     let (expected, _) = super::super::mip_chain(&pixels, size, &settings, 1, 1);
@@ -714,7 +703,7 @@ mod tests {
                     assert_eq!(
                         reference(&chain, &chain, 0, edge, size),
                         expected,
-                        "{native} in {size}, {strategy:?}, item {item}"
+                        "{native} in {size}, transparent {has_transparent}, dither {dither_cutouts}"
                     );
                 }
             }
@@ -931,7 +920,7 @@ mod tests {
         let animations: Vec<_> = clips
             .iter()
             .map(|&(layer, native, metadata)| {
-                mips[layer as usize] = settings(native, Strategy::Cutout);
+                mips[layer as usize] = settings(native, false, false);
                 let frames = (0..3)
                     .map(|f| crate::sprites::resample(&frame(native, layer * 7 + f), native, size))
                     .collect();
@@ -1019,7 +1008,7 @@ mod tests {
         let animations: Vec<_> = clips
             .iter()
             .map(|&(layer, native, metadata)| {
-                mips[layer as usize] = settings(native, Strategy::Cutout);
+                mips[layer as usize] = settings(native, false, false);
                 let frames = (0..3)
                     .map(|f| crate::sprites::resample(&frame(native, layer * 7 + f), native, size))
                     .collect();

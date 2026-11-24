@@ -857,3 +857,57 @@ environment_system_fixture.rs built Conditions with the removed `clock`
 field (now `day_time`). The probe compiles clean now; note the parity
 oracles still do not compile against 1.21.10 jars, so these fixtures are
 compile-verified only, not parity-run.
+
+CI run 45345350796 (batches 23+24, head c6512557): SUCCESS — all 7
+suites green, 12 minutes. No pre-existing failures identified so far on
+this branch; every CI failure has been a port regression fixed in the
+following batch.
+
+Batch 25 (8 items, Nov 24, 2026; rank 2: 436 -> 444, total 454/719):
+3 ported, 5 no-change. 20 bee.rs: the bee's anger from the 1.21.11
+absolute-end-time model to 1.21.10's remaining-ticks countdown
+(javap-verified: Bee.DATA_REMAINING_ANGER_TIME is an int;
+updatePersistentAnger restarts the timer ONLY on target change, not
+every tick while held, decrements every tick with stop at 0, and stops
+when the stored target is a dead/absent Mob, never for a stored player).
+Bee.anger_end -> anger: i32; entity_nbt.rs saves/loads the bee's
+AngerTime + AngryAt (the bee's AngryAt was never saved before); the sync
+sends Value::Int at index 18. wantsToEnterHive and isAngryAt already
+match 1.21.10 (the End has no day timeline, matching the != END
+exclusion). The wolf's metadata sync stays item 168's. 49 motion.rs:
+modifyInput scales by a flat 0.2f for any item in use (not the per-item
+use_effects multiplier), and any item use keeps a sprint from starting
+(isUsingItem, not isSlowDueToUsingItem) — game.rs and game/prediction.rs
+now hard-code Some(0.2) / is_some(); the Item use_speed/can_sprint
+fields stay parsed but unread. isSprintingPossible is a NO-CHANGE
+despite the reorder: javap-verified hasEnoughFoodToSprint is
+isPassenger() || food > 6 || mayfly, so the food gate only ever bites a
+non-passenger, exactly what sprint.rs possible() already does.
+isAlwaysFlying is a pure rename of isSpectator (javap: both are
+localPlayerMode == SPECTATOR); the 1.21.11 jumpableVehicle check in the
+swim-jump branch is unmodelled in the Rust's movement tick. 91
+mipmap.rs: the mipmap generation from 1.21.11's MipmapStrategy system
+to 1.21.10's alphaBlend form (javap-verified: hasTransparentPixel once
+from the base, transparent pixels skipped, sums / 4.0, each channel
+(int)(Math.pow(mean, 1/2.2) * 255.0), computed alpha below 96 cut to 0;
+POW22[i] = (float)Math.pow((float)i/255.0f, 2.2)). Strategy, the .mcmeta
+mipmap_strategy/alpha_cutoff_bias parse, solidify, fill_empty_dark, the
+alpha-coverage system and the sRGB tables are all removed; the sprite
+cache format is bumped to version 2; the dither (a Horizon enhancement,
+off by default) is kept, keyed on has_transparent. 1.21.10's
+TextureMetadataSection has only blur/clamp, so the 1.21.11 keys are
+unknown fields the codec ignores (glint validation updated). New tests
+pin the verified values (135 for one visible pixel in four, 0 for a
+faint alpha below the cutoff, 186 for white+black alpha). No-change:
+180 (anisotropy already ported in batch 2; the minWidth/minHeight
+max is a no-shrink re-stitch the Rust's fresh-texture path does not
+need; the mip-0 async skip is scheduling), 38 (the SPEAR arm pose and
+the STAB check are dead — no piglin can hold a spear in 1.21.10;
+crossbow charge already passes int ticks, the 1.21.10 form;
+getArmPose is just return EMPTY in 1.21.10), 144 (Camera renames +
+trig noise), 45 (server console source, scoreboard plumbing,
+permission ints, no game-rule-change hook, loop scheduling), 36 (the
+Rust already uses int distances at the RandomPos API boundary, the
+1.21.10 form; package moves and criterion renames). Also fixed a
+batch-24 leftover: finalize_load_tests.rs used anger_end_time:5000L,
+ignored since item 11 — now AngerTime:5000.
