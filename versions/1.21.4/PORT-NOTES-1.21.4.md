@@ -460,3 +460,249 @@ jar's EndIslandDensityFunction bytecode. The end-to-end worldgen
 test (`prepared_world_builds_and_generates_chunks`, run by the
 worldgen-verify CI job) now generates two chunks per dimension
 and dumps them as JSON; it caught this gap.
+
+## Behaviour port — rank 1 (10 items, CLOSED 2026-11-24)
+
+- Item 1 components (PORTED): the wire layer was already 1.21.4's
+  (`crates/horizon-protocol/src/item/v1_21_4.rs` codec,
+  `HIDE_ADDITIONAL_TOOLTIP = 15`, `HIDE_TOOLTIP = 16`, synthesized
+  `TOOLTIP_DISPLAY = -1003`), but `DATA_COMPONENT_TYPES` in
+  `crates/horizon-assets/src/item_model.rs` was the stale 26.3
+  122-entry list, still containing all 31 removed components (the
+  1.21.5 tree's list is stale the same way — the 1.21.5 port never
+  rebuilt it). Rebuilt to the 67-entry 1.21.4 list, alphabetically
+  sorted, jar-verified from `DataComponents.<clinit>` in the 1.21.4
+  named client jar: 67 ids in registration order, [15] =
+  hide_additional_tooltip, [16] = hide_tooltip, none of the 31
+  removed names present, both added names present. Behaviour
+  fallout — code that reads the removed components by name —
+  belongs to the rank-2 items for those modules.
+- Item 2 protocol (verified): all 131 play clientbound + 62 play
+  serverbound ids in `crates/horizon-protocol/src/ids.rs` match the
+  report's renumbering table exactly (0 errors across the 117
+  renumbered, 3 added, 3 removed); zero test-block packet remnants
+  in the file.
+- Items 3–8 regenerate (verified): `regen-determinism.json` shows all
+  six generators reproduce the committed tables byte-identical, with
+  no overrides.
+- Item 9 save-format (PORTED from the 1.21.11 template's final state,
+  with 1.21.4 adjustments — the full removal, not the 1.21.10 port's
+  always-false stub): 1.21.4 has no `FileFixerUpper`
+  (`net/minecraft/util/filefix` is absent from both named jars) and
+  no `FILE_FIXING_REQUIRED` backup status (`LevelSummary$BackupStatus`
+  is only NONE/DOWNGRADE/UPGRADE_TO_SNAPSHOT, javap-verified from the
+  named client jar). Deleted fix_1493/4772/4773/4899,
+  `level_dat_to_saved_data` and their helpers
+  (`resolve`/`move_file`/`delete`/`dimensions`, `read_level`/
+  `write_level`/`write_saved_data`/`read_saved_data`),
+  `requires_file_fixing` and the `FILE_FIXES` constants; the
+  whole-world upgrade follows the pre-26.x layout (overworld at the
+  root, DIM-1/DIM1, `playerdata/`, `advancements/`, `stats/`);
+  `current_world_gen_settings` reads `WorldGenSettings` from
+  level.dat's `Data` only; `saved_data_type` keeps only the types
+  1.21.4's `DataFixTypes` defines — the 1.21.11 set minus
+  stopwatches (no `Stopwatch` class in the jar) and minus
+  world_border (no world-border saved data in 1.21.4; the border
+  lives in level.dat) — with `ForcedChunksSavedData.FILE_ID =
+  "chunks"` javap-verified for the flat `chunks.dat` mapping.
+  `NbtUtils.getDataVersion` in 1.21.4 has only the two-argument
+  `(CompoundTag, int)` form (no `(Dynamic, int)` form yet).
+  `WorldUpgrader` has the inner classes (`AbstractUpgrader`,
+  `ChunkUpgrader`, `SimpleRegionStorageUpgrader`, `EntityUpgrader`,
+  `PoiUpgrader`, `FileToUpgrade`, `DimensionToUpgrade`),
+  javap-verified, so the 1.21.11 doc shape applies. The 4 "added"
+  fixes are already implemented in the Rust table in their 1.21.4
+  (split) forms: `BlockEntitySignTextStrictJsonFix` +
+  `ItemWrittenBookPagesStrictJsonFix` at key(165, 0) (1.21.5
+  consolidated them into `TextComponentStrictJsonFix`),
+  `ObjectiveDisplayNameFix` + `TeamDisplayNameFix` at key(1514, 0)
+  (1.21.5 consolidated them into `ScoreboardDisplayNameFix`).
+  `DataFixers`: 1.21.4's fix versions (177 ≤ 4189) are a subset of
+  1.21.5's (191 ≤ 4325) except key 2537 (`legacy_dimension_id`,
+  kept per the 1.21.11/1.21.10 templates — the 1.21.5 tree lacks
+  it); the 15 1.21.5-only versions are all > 4189 (4293–4314, the
+  1.21.5-release fixes), so the CURRENT-gated fix table is correct
+  as-is. The 93 changed datafix classes are mechanical noise only
+  (sampled `FixWolfHealth` — a package move into `fixes/`;
+  `BlockEntityIdFix` — `ID_MAP` public→private;
+  `ItemStackTagFix` — the Typed→Dynamic API reshape plus lambda
+  renumbering — no behaviour change), so the Rust fix
+  implementations are untouched. Files:
+  `datafix/{files,mod,progress,world_upgrader,tests}.rs`,
+  `datafix/fixes_legacy.rs` (doc comments naming the 1.21.4 fix
+  classes), `save.rs` (`needs_file_fixes` deleted,
+  `world_gen_settings` reads level.dat only, test replaced with the
+  level.dat-through-the-fix-pipeline form), `title.rs`
+  (`WorldEntry.file_fixing` field deleted, `can_edit` /
+  `should_backup` simplified, the file-fixing backup branch and
+  the `selectWorld.upgrade_and_play` button gone, the backup
+  prompts' file-fixing arms replaced with `unreachable!`, the
+  file-fixing tooltip block deleted, `select_tooltip` loses its
+  `selected` parameter), `title/tests.rs` (the file-fixing
+  optimize test deleted). NOT in item 9: the `save.rs` settings
+  store still writes `world_gen_settings.dat` / `world_clocks.dat`
+  / `game_rules.dat` as saved-data files (26.x) instead of
+  level.dat's `Data` — that rewire is rank-2 save_roundtrip work,
+  as in 1.21.11.
+- Item 10 facts (verified): `version.rs` reads 1.21.4, protocol 769,
+  data version 4189, data pack 61.0, resource pack 46.0, Java 21,
+  stable, build time Tue Dec 03 10:09:48 UTC 2024.
+
+## Behaviour port — rank 2
+
+Triage (2026-11-24): a batched javap jardiff of the 1.21.5 and
+1.21.4 named client jars (1,565 rank-2/3 classes: 1,333 common, 7
+added, 225 removed, 1,313 method-changed, 0 javap failures) crossed
+with a per-module diff of the 1.21.5 and 1.21.4 trees (248 identical,
+145 differs, 102 widely-named, 2 only-in-1.21.4) gives 42 no-change,
+13 carry-over and 293 review. The semantic diff over the 962 changed
+named methods of the review items classifies 719 real, 101 same, 131
+missing-new, 11 missing-old; `real_diff.py` clusters the real ones by
+shape for the review batches.
+
+- Batch 1 (42 no-change): items 90, 172, 183, 190, 194, 233, 235,
+  236, 243, 244, 247, 250, 257, 262, 263, 271, 273, 275, 282, 283,
+  284, 285, 290, 291, 295, 296, 297, 298, 299, 300, 317, 318, 320,
+  321, 322, 324, 325, 327, 328, 330, 331, 358. Each module is
+  identical between the 1.21.5 and 1.21.4 trees (0 diff lines) and
+  no named method changed 1.21.5→1.21.4 per jardiff (verified
+  programmatically across all 42: 0 named-method hits, including
+  class removals). Rank 2: 42/348.
+
+- Batch 2 (8 of 13 carry-over): items 189, 216, 227, 229, 242,
+  272, 294, 329. Each module's 1.21.5 form carried with jar
+  evidence; no named method changed 1.21.5→1.21.4 for any of them.
+  189 item_model_fixture.rs: the `oversized_in_gui` fixture field
+  removed (1.21.6-only; `oversized` occurs only in RegionFile and
+  RealmsDownloadLatestWorldScreen in both jars). 216
+  remote_mob_data.rs: the HappyGhast STAYS_STILL/IS_LEASH_HOLDER
+  arms removed (0 HappyGhast classes in the 1.21.4 jar); test
+  renamed, happy ghast → cow. 227 perspective.rs: comment-only,
+  the `camera_distance` comments reworded to 1.21.4 (the attribute
+  is 1.21.6-only; the 1.21.4 distance is a flat 4× scale). 229
+  game/recipe_book.rs: `Call::Stratum` removed (nextStratum added
+  in 1.21.6; Stratum absent from both jars), with its fixture arm.
+  242 collision_context.rs: `placement()`/`with_position()`
+  removed (1.21.4 `CollisionContext` has only `empty`/`of`/`of`;
+  `placementContext` arrived in 1.21.5, `withPosition` in 1.21.6),
+  fixture/oracle/drivers trimmed; the `placement` flag stays,
+  always false. Caveat: the oracle still calls
+  `emptyWithFluidCollisions()` and `positionContext(y)`, absent
+  from both jars — pre-existing in the 1.21.5 oracle too, and the
+  collision harnesses are not in the 1.21.5 pin profile, so oracle
+  compile status is unproven until a CI harness run. 272
+  functions.rs: `create_pack`/`is_portable_name` and the
+  `/datapack create` node removed (`create` is not a
+  DataPackCommand literal in either jar). 294 lan.rs: the dialog
+  sync, the waypoint fields and `lan_update_waypoints` call, the
+  HappyGhast metadata arms and the dialog test fixtures removed;
+  the frog-variant hunk KEPT (pig/cow/chicken variants are
+  1.21.5-only), so lan.rs is otherwise byte-identical to 1.21.5.
+  329 recipe_book.rs: the 1.21.5 read/write form carried,
+  jar-verified (a missing list reads as empty, settings still
+  load; all eight open/filter flags written unconditionally), with
+  a new `a_book_without_lists_still_loads_its_settings` test.
+  The waypoint/locator-bar system removal anchored at item 294
+  spans game.rs (the contextual HUD bar → the direct jump/XP bar,
+  the Game fields, the mod decls), client_lib.rs, game/packs.rs,
+  game/resource_loader.rs, game/remote.rs, game/world_session.rs,
+  game/lan_attributes.rs, game/mounts.rs (`mount_jumping`),
+  game/commands.rs + commands/extra.rs + commands/admin.rs (the
+  `/waypoint`, `/dialog` and `/version` commands),
+  attribute_updates.rs, motion.rs (`MotionEvent::Waypoint`),
+  item_tooltip.rs (the waypoint attributes, the invisibility
+  mapping), gamerules.rs + save.rs (the `locator_bar` gamerule),
+  lan/mod.rs, scene_motion_probe.rs, and the deleted files
+  game/locator_bar.rs, game/lan_waypoints.rs, lan/waypoints.rs,
+  locator_bar.rs. The dialog-system removal (dialog.rs,
+  dialog_screen.rs, game/dialogs.rs, screens.rs, remote_chat.rs,
+  packets/play.rs `TrackedWaypoint`/`DialogHolder`) is still in
+  progress and is recorded under items 274/323. Rank 2: 50/348.
+
+- Batch 2 continued (item 177): `crates/horizon-protocol/src/
+  item/hash/raw.rs` verified against the jar-verified 67-entry
+  1.21.4 component registry: the mechanical publish had already
+  re-pinned every component arm to the 1.21.4 ids and dropped the
+  1.21.5-only components (`potion_duration_scale`,
+  `provides_trim_material`, `weapon`, `blocks_attacks`,
+  `break_sound` — all absent from the 1.21.4 registry) from the
+  arms and the test cases. The variant serializer arms (72–95,
+  Horizon synthetic ids) are unchanged from 1.21.5; arms 74/84/
+  85/86 reference registries 1.21.4 lacks (wolf_sound_variant,
+  pig/cow/chicken variants — confirmed via `Registries` javap)
+  and return None, the documented no-codec-form outcome; they
+  stay because the default arm falls through to
+  `gameplay::code` and removing them would change that path.
+  The 13 mob-variant test cases the publish's regen dropped
+  were restored with their 1.21.5 hashes (the arms are live code
+  in 1.21.4, the CRC32C hashes version-independent;
+  1.21.5/1.21.10/1.21.11 all keep them). Rank 2: 51/348.
+
+- Batch 2 continued (items 274, 323): the dialog-system removal
+  is closed. Item 274 (`packets/play.rs`): the `DialogHolder`
+  enum + codec and the waypoint types (`waypoint_operation`,
+  `WaypointId`, `WaypointTarget`, `TrackedWaypoint` + codec)
+  removed; the `dialog_holder_encodes_registry_as_id_plus_one`
+  test removed; the "1.21.5 has no dialog packets" comments
+  fixed to "1.21.4" in play.rs, configuration.rs and adapter.rs.
+  KEPT, jar-verified: the `AddExperienceOrb` packet + enum entry
+  (1.21.4 HAS `ClientboundAddExperienceOrbPacket`; 1.21.5 does
+  not — removed in 1.21.5, orbs spawn through AddEntity there)
+  and the ABSENCE of the test-block packets (0 test-block classes
+  in the 1.21.4 jar). Item 323 (`game/remote_chat.rs`): the
+  1.21.5 form carried wholesale — the command-confirmation system
+  removed (`CommandCheck` + `verify_command`, `CommandAccept`,
+  `Behind`, `CommandPrompt`, `send_unattended_command`) and
+  `send_unsigned_command` restored; jar-verified, 1.21.4's
+  `ClientPacketListener` has `sendUnsignedCommand`, not
+  `sendUnattendedCommand`. The removal spans game.rs (the
+  `dialogs` and `command_prompt` fields, the `DialogWarning`
+  screen, every `dialog_open` guard), remote_chat.rs,
+  net_harness.rs, native_screen_observer.rs, chat.rs, books.rs
+  (click-handler hunks), sign_edit.rs, screens.rs,
+  server_links.rs, agent.rs, control.rs, core_tests.rs,
+  debug_options.rs, play_keys.rs, key_codes.rs, play_input.rs,
+  ime.rs, inventory_input.rs, pad.rs, pad_menu.rs,
+  pointer_capture.rs, screen_backgrounds.rs, remote.rs
+  (`ContainerClose`), narrator.rs (`edit_box_focused` hunk),
+  net.rs (`send_custom_click`), widgets.rs (`CHECKBOX_BOX`),
+  horizon-client-core text.rs + component.rs,
+  horizon-client-render signs.rs + hud_layout.rs,
+  horizon-command codec.rs + component.rs + tree_extra.rs (the
+  `/dialog` and `/waypoint` commands), lan/data.rs (the
+  `minecraft:dialog` registry + `pack_entries` + dialog tests),
+  and the deleted files dialog.rs, dialog_screen.rs,
+  game/dialogs.rs, game/quick_actions.rs. Final sweep: no
+  `dialog_open`/`dialog_key`/`command_prompt`/`DialogHolder`/
+  `TrackedWaypoint`/waypoint code refs remain (only the
+  component.rs test proving 1.21.6 click actions are dropped,
+  pathfinding waypoints, and comments). Rank 2: 53/348.
+
+- Batch 2 continued (items 249, 326): the HappyGhast system
+  removal is closed, and batch 2 is complete (13/13 carry-over).
+  Item 249 (`mobs/animal_brain.rs`): the 1.21.5 form carried
+  wholesale, jar-verified (HappyGhast 0 classes in the 1.21.4
+  jar; `FollowTemptation` has only the 2 ctors in 1.21.4, no
+  3-arg look-in-eyes form) — the Ghastling brain and the 1.21.6
+  struct shapes (`Tracker.block_eye`, `AnimalPanic.fly`,
+  `FollowTemptation.look_in_the_eyes`, `FollowAdult.player`,
+  `B::reset`) removed. The removal spans mobs.rs, species.rs,
+  riders.rs, entity_culling.rs, ai.rs, living.rs,
+  living_tests.rs, anim.rs, render.rs, equine.rs, finalize.rs,
+  drops.rs, leash.rs, mounts.rs, passengers.rs,
+  remote_mob_use.rs, remote_vehicles.rs, remote.rs,
+  creatures.rs, mob_sounds.rs + sound_engine.rs, anticheat.rs,
+  dispenser.rs, entity_nbt.rs, scoreboard.rs + stats_screen.rs,
+  boat_leads.rs, cem.rs, sound_tests.rs,
+  block_update_fixture.rs, nether_fossil.rs (`placeDriedGhast`),
+  animate_tick.rs, game.rs, and the deleted files
+  mobs/happy_ghast.rs + game/ghasts.rs. KEPT, matching 1.21.5:
+  the dried-ghast BLOCK handling (animate_tick, horizon-world
+  level classes/fluids/place/shapes/tick/timeline) — data-driven
+  dead code, the block is not in the 1.21.4 tables. Final sweep:
+  0 HappyGhast/happy_ghast/ghastling refs in Rust code. Item 326
+  (`mobs/parrot.rs`): the 1.21.5 form carried wholesale,
+  jar-verified — 1.21.4's `Parrot.MOB_SOUND_MAP` has exactly 37
+  entries, the ender dragon IS imitated (None key) and happy
+  ghast/camel husk/parched/zombie horse/zombie nautilus are NOT
+  in it. Rank 2: 55/348.
