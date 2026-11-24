@@ -3376,10 +3376,16 @@ pub fn horizon_update(releases: &[Release], installed: &[String]) -> Option<Rele
 
 /// The newest launcher release with an archive for this platform, if newer than this launcher
 /// ([`own_tag`]: a launcher from before 0.2 takes any `launcher@` release).
-pub fn launcher_update(releases: &[Release]) -> Option<Release> {
-    launcher_update_from(releases, &own_tag())
+///
+/// None in this tree: the launcher is distributed with the game release, not through the
+/// upstream `launcher@` channel — a self-update would replace Free Horizon with upstream's
+/// launcher, and with it the Nightly channel this tree does not ship. The comparison
+/// (`launcher_update_from`) stays for the tests that pin its shape.
+pub fn launcher_update(_releases: &[Release]) -> Option<Release> {
+    None
 }
 
+#[cfg(test)]
 fn launcher_update_from(releases: &[Release], own: &str) -> Option<Release> {
     releases
         .iter()
@@ -5758,7 +5764,8 @@ pub fn {f}("
             prerelease: false,
             nightly: None,
         };
-        // Self-update compares releases with that version: this launcher's own release is no update.
+        // No self-update in this tree: not even a newer launcher release is one.
+        assert!(launcher_update(&[r("launcher@99.0.0".into())]).is_none());
         assert!(launcher_update(&[r(own_tag())]).is_none());
         assert_eq!(launcher_version(&own_tag()), Some(VERSION));
         assert_eq!(

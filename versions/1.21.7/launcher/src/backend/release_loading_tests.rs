@@ -119,7 +119,8 @@ fn publish_releases_before_older_launcher_fallback() {
     )
     .unwrap();
     assert_eq!(*events.borrow(), ["releases", "fallback", "fallback"]);
-    assert_eq!(result.launcher.is_some(), LAUNCHER_ASSET.is_some());
+    // No launcher update is ever offered in this tree, whatever the list holds.
+    assert!(result.launcher.is_none());
 }
 
 #[test]
