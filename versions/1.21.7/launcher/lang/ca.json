@@ -349,7 +349,6 @@
   "Local file · {file}": "Fitxer local · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "El paisatge d'Horizon. Tria una imatge PNG, JPEG o WebP pròpia.",
   "Not needed": "No cal",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Aquesta versió del llançador no té cap inici de sessió de Microsoft (HORIZON_MSA_CLIENT_ID), de manera que no pot iniciar el joc.",
   "Offline name · plays": "Nom fora de línia · juga",
   "Run the game through": "Executeu el joc",
   "needed by another pack": "necessari per un altre paquet",

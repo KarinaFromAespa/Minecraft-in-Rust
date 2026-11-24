@@ -349,7 +349,6 @@
   "Local file · {file}": "ლოკალური ფაილი · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "Horizon-ის პეიზაჟი. შეარჩიეთ თქვენი PNG, JPEG ან WebP სურათი.",
   "Not needed": "არ არის საჭირო",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "გამშვების ამ კონსტრუქციას არ აქვს Microsoft-ის შესვლა (HORIZON_MSA_CLIENT_ID), ამიტომ მას არ შეუძლია თამაშის დაწყება.",
   "Offline name · plays": "ხაზგარეშე სახელი · უკრავს",
   "Run the game through": "გაუშვით თამაში",
   "needed by another pack": "საჭიროა სხვა შეკვრა",

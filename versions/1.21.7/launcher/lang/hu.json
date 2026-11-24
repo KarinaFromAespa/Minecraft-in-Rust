@@ -350,7 +350,6 @@
   "Local file · {file}": "Helyi fájl · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "A horizont tája. Válasszon egy saját PNG, JPEG vagy WebP képet.",
   "Not needed": "Nem szükséges",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Az indító ezen buildje nem rendelkezik Microsoft-bejelentkezéssel (HORIZON_MSA_CLIENT_ID), így nem tudja elindítani a játékot.",
   "Offline name · plays": "Offline név · játszik",
   "Run the game through": "Futtassa végig a játékot",
   "needed by another pack": "egy másik csomagra van szükség",

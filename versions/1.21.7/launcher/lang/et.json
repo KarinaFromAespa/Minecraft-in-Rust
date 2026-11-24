@@ -349,7 +349,6 @@
   "Local file · {file}": "Kohalik fail · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "Horizoni maastik. Valige oma PNG-, JPEG- või WebP-pilt.",
   "Not needed": "Pole vaja",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Sellel käivitusprogrammi järgul pole Microsofti sisselogimist (HORIZON_MSA_CLIENT_ID), seega ei saa see mängu käivitada.",
   "Offline name · plays": "Võrguühenduseta nimi · mängib",
   "Run the game through": "Käivitage mäng läbi",
   "needed by another pack": "vajab teine pakk",

@@ -349,7 +349,6 @@
   "Local file · {file}": "உள்ளூர் கோப்பு · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "Horizon இன் நிலப்பரப்பு. உங்கள் சொந்த PNG, JPEG அல்லது WebP படத்தைத் தேர்ந்தெடுக்கவும்.",
   "Not needed": "தேவை இல்லை",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "துவக்கியின் இந்தப் பதிப்பில் Microsoft உள்நுழைவு (HORIZON_MSA_CLIENT_ID) இல்லை, எனவே அது கேமைத் தொடங்க முடியாது.",
   "Offline name · plays": "ஆஃப்லைன் பெயர் · நாடகங்கள்",
   "Run the game through": "விளையாட்டை இயக்கவும்",
   "needed by another pack": "மற்றொரு பேக் தேவை",

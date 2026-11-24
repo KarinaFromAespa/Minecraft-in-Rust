@@ -349,7 +349,6 @@
   "Local file · {file}": "Локална датотека · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "пејзажот на Horizon. Изберете своја PNG, JPEG или WebP слика.",
   "Not needed": "Не е потребно",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Оваа верзија на фрлачот нема најавување на Microsoft (HORIZON_MSA_CLIENT_ID), така што не може да ја започне играта.",
   "Offline name · plays": "Офлајн име · игра",
   "Run the game through": "Водете ја играта",
   "needed by another pack": "потребни за друго пакување",

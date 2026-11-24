@@ -349,7 +349,6 @@
   "Local file · {file}": "Tokiko fitxategia · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "Horizonren paisaia. Aukeratu PNG, JPEG edo WebP irudi bat.",
   "Not needed": "Ez da beharrezkoa",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Abiarazlearen eraikuntza honek ez du Microsoft-en saioa hasteko (HORIZON_MSA_CLIENT_ID), beraz, ezin du jokoa hasi.",
   "Offline name · plays": "Lineaz kanpoko izena · antzezlanak",
   "Run the game through": "Exekutatu jokoa",
   "needed by another pack": "beste pakete batek behar du",

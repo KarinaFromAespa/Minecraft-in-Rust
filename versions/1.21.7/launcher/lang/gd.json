@@ -349,7 +349,6 @@
   "Local file · {file}": "Faidhle ionadail · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "cruth-tìre Horizon. Tagh dealbh PNG, JPEG no WebP dhut fhèin.",
   "Not needed": "Chan eil feum air",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Chan eil clàradh a-steach Microsoft aig an togail seo den lannsair (HORIZON_MSA_CLIENT_ID), agus mar sin chan urrainn dha an geama a thòiseachadh.",
   "Offline name · plays": "Ainm far loidhne · cluich",
   "Run the game through": "Ruith an geama troimhe",
   "needed by another pack": "feum air pasgan eile",

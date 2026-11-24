@@ -349,7 +349,6 @@
   "Local file · {file}": "Staðbundin skrá · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "Landslag Horizon. Veldu þína eigin PNG, JPEG eða WebP mynd.",
   "Not needed": "Ekki þörf",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Þessi smíði ræsiforritsins hefur enga Microsoft innskráningu (HORIZON_MSA_CLIENT_ID), svo hún getur ekki ræst leikinn.",
   "Offline name · plays": "Nafn án nettengingar · spilar",
   "Run the game through": "Keyrðu leikinn í gegn",
   "needed by another pack": "þarf af öðrum pakka",

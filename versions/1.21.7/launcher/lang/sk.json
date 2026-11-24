@@ -350,7 +350,6 @@
   "Local file · {file}": "Miestny súbor · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "Horizontská krajina. Vyberte si svoj vlastný obrázok PNG, JPEG alebo WebP.",
   "Not needed": "Nie je potrebné",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Táto zostava spúšťača nemá žiadne prihlásenie od spoločnosti Microsoft (HORIZON_MSA_CLIENT_ID), takže nemôže spustiť hru.",
   "Offline name · plays": "Offline názov · hrá",
   "Run the game through": "Spustite hru",
   "needed by another pack": "potrebuje ďalší balík",

@@ -350,7 +350,6 @@
   "Local file · {file}": "Lokal fil · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "Horizons landskap. Välj en egen PNG-, JPEG- eller WebP-bild.",
   "Not needed": "Behövs inte",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Den här versionen av startprogrammet har ingen Microsoft-inloggning (HORIZON_MSA_CLIENT_ID), så den kan inte starta spelet.",
   "Offline name · plays": "Offlinenamn · spelar",
   "Run the game through": "Kör igenom spelet",
   "needed by another pack": "behövs av ett annat paket",

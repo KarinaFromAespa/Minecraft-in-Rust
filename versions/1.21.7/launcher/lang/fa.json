@@ -350,7 +350,6 @@
   "Local file · {file}": "فایل محلی · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "منظرهٔ Horizon. یک عکس PNG، JPEG یا WebP از خودتان انتخاب کنید.",
   "Not needed": "مورد نیاز نیست",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "این ساختنی از راه‌انداز هیچ ورود به سیستم مایکروسافت (HORIZON_MSA_CLIENT_ID) ندارد، بنابراین نمی‌تواند بازی را شروع کند.",
   "Offline name · plays": "نام آفلاین · پخش می کند",
   "Run the game through": "بازی را اجرا کنید",
   "needed by another pack": "یک بسته دیگر مورد نیاز است",

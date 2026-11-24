@@ -350,7 +350,6 @@
   "Local file · {file}": "ไฟล์ในเครื่อง · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "ภาพทิวทัศน์ของ Horizon เลือกรูป PNG, JPEG หรือ WebP ของตัวเองได้",
   "Not needed": "ไม่จำเป็น",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "ลันเชอร์บิลด์นี้ไม่มีระบบลงชื่อเข้าใช้ Microsoft (HORIZON_MSA_CLIENT_ID) จึงเปิดเกมไม่ได้",
   "Offline name · plays": "ชื่อออฟไลน์ · ใช้เล่นอยู่",
   "Run the game through": "รันเกมผ่าน",
   "needed by another pack": "แพ็กอื่นต้องใช้",

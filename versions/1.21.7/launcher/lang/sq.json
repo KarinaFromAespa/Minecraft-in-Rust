@@ -349,7 +349,6 @@
   "Local file · {file}": "skedar lokal · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "peizazhi i Horizon. Zgjidhni një foto tuajën PNG, JPEG ose WebP.",
   "Not needed": "Nuk nevojitet",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Ky ndërtim i lëshuesit nuk ka hyrje në Microsoft (HORIZON_MSA_CLIENT_ID), kështu që nuk mund ta nisë lojën.",
   "Offline name · plays": "Emri jashtë linje · luan",
   "Run the game through": "Drejtoni lojën",
   "needed by another pack": "nevojiten nga një paketë tjetër",

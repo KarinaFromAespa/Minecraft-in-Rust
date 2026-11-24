@@ -350,7 +350,6 @@
   "Local file · {file}": "קובץ מקומי · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "הנוף של Horizon. בחר תמונת PNG, JPEG או WebP משלך.",
   "Not needed": "אין צורך",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "למבנה הזה של המשגר אין כניסה של Microsoft (HORIZON_MSA_CLIENT_ID), כך שהוא לא יכול להפעיל את המשחק.",
   "Offline name · plays": "שם לא מקוון · משחק",
   "Run the game through": "הפעל את המשחק עד הסוף",
   "needed by another pack": "נחוץ על ידי חבילה אחרת",

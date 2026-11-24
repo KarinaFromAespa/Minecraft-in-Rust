@@ -349,7 +349,6 @@
   "Local file · {file}": "Жергілікті файл · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "Horizon пейзажы. Өзіңіздің PNG, JPEG немесе WebP суретін таңдаңыз.",
   "Not needed": "Қажет емес",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Іске қосу құралының бұл құрастырылымында Microsoft жүйесіне кіру мүмкіндігі жоқ (HORIZON_MSA_CLIENT_ID), сондықтан ол ойынды бастау мүмкін емес.",
   "Offline name · plays": "Желіден тыс атау · ойнайды",
   "Run the game through": "Ойынды өткізіңіз",
   "needed by another pack": "басқа пакетке қажет",

@@ -350,7 +350,6 @@
   "Local file · {file}": "स्थानीय फ़ाइल · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "Horizon का लैंडस्केप। अपनी खुद की PNG, JPEG या WebP तस्वीर चुनें।",
   "Not needed": "आवश्यक नहीं",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "ल लॉन्चर के इस बिल्ड में कोई माइक्रोसॉफ्ट साइन-इन (HORIZON_MSA_CLIENT_ID) नहीं है, इसलिए यह गेम शुरू नहीं कर सकता।",
   "Offline name · plays": "ऑफ़लाइन नाम · खेलता है",
   "Run the game through": "इसके माध्यम से गेम चलाएं",
   "needed by another pack": "दूसरे पैक द्वारा आवश्यक",

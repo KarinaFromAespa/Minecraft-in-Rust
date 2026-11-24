@@ -349,7 +349,6 @@
   "Local file · {file}": "Ffeil leol · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "tirwedd Horizon. Dewiswch lun PNG, JPEG neu WebP eich hun.",
   "Not needed": "Dim angen",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Nid oes gan y llun hwn o'r lansiwr unrhyw mewngofnodi Microsoft (HORIZON_MSA_CLIENT_ID), felly ni all ddechrau'r gêm.",
   "Offline name · plays": "Enw all-lein · dramâu",
   "Run the game through": "Rhedeg y gêm drwodd",
   "needed by another pack": "angen pecyn arall",

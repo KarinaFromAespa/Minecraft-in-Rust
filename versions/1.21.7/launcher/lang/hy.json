@@ -349,7 +349,6 @@
   "Local file · {file}": "Տեղական ֆայլ · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "Horizon-ի լանդշաֆտը: Ընտրեք ձեր սեփական PNG, JPEG կամ WebP նկար:",
   "Not needed": "Պետք չէ",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Գործարկիչի այս կառուցվածքը չունի Microsoft-ի մուտք (HORIZON_MSA_CLIENT_ID), ուստի այն չի կարող սկսել խաղը:",
   "Offline name · plays": "Անցանց անուն · խաղում է",
   "Run the game through": "Անցկացրեք խաղը",
   "needed by another pack": "անհրաժեշտ է մեկ այլ փաթեթ",

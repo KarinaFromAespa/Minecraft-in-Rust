@@ -350,7 +350,6 @@
   "Local file · {file}": "Fișier local · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "Peisajul Horizon. Alegeți o imagine PNG, JPEG sau WebP proprie.",
   "Not needed": "Nu este necesar",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Această versiune a lansatorului nu are conectare Microsoft (HORIZON_MSA_CLIENT_ID), așa că nu poate porni jocul.",
   "Offline name · plays": "Nume offline · redă",
   "Run the game through": "Executați jocul",
   "needed by another pack": "nevoie de un alt pachet",

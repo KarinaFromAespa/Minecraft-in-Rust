@@ -350,7 +350,6 @@
   "Local file · {file}": "Τοπικό αρχείο · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "Τοπίο του Horizon. Επιλέξτε μια δική σας εικόνα PNG, JPEG ή WebP.",
   "Not needed": "Δεν χρειάζεται",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Αυτή η έκδοση του προγράμματος εκκίνησης δεν έχει σύνδεση στη Microsoft (HORIZON_MSA_CLIENT_ID), επομένως δεν μπορεί να ξεκινήσει το παιχνίδι.",
   "Offline name · plays": "Όνομα εκτός σύνδεσης · παίζει",
   "Run the game through": "Τρέξτε το παιχνίδι",
   "needed by another pack": "χρειάζεται ένα άλλο πακέτο",

@@ -349,7 +349,6 @@
   "Local file · {file}": "Vietējais fails · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "Horizonta ainava. Izvēlieties savu PNG, JPEG vai WebP attēlu.",
   "Not needed": "Nav vajadzīgs",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Šai palaišanas programmas versijai nav Microsoft pierakstīšanās (HORIZON_MSA_CLIENT_ID), tāpēc tā nevar sākt spēli.",
   "Offline name · plays": "Bezsaistes nosaukums · atskaņo",
   "Run the game through": "Palaidiet spēli cauri",
   "needed by another pack": "nepieciešams citam iepakojumam",

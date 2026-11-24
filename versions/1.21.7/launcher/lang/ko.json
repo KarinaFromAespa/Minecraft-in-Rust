@@ -350,7 +350,6 @@
   "Local file · {file}": "로컬 파일 · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "Horizon 배경화면. 원하는 PNG, JPEG 또는 WebP 사진을 선택하세요.",
   "Not needed": "필요 없음",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "이 런처 빌드에는 Microsoft 로그인 정보(HORIZON_MSA_CLIENT_ID)가 없어 게임을 시작할 수 없습니다.",
   "Offline name · plays": "오프라인 이름 · 플레이",
   "Run the game through": "게임 실행 방식:",
   "needed by another pack": "다른 팩에서 필요함",

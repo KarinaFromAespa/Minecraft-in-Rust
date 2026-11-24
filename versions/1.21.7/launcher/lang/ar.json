@@ -350,7 +350,6 @@
   "Local file · {file}": "ملف محلي · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "خلفية هورايزون الأفقية. اختر صورة بصيغة PNG أو JPEG أو WebP خاصة بك.",
   "Not needed": "غير مطلوب",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "هذا الإصدار من المشغل لا يحتوي على ميزة تسجيل دخول مايكروسوفت (HORIZON_MSA_CLIENT_ID)، لذا لا يمكنه بدء اللعبة.",
   "Offline name · plays": "اسم غير متصل · يلعب",
   "Run the game through": "تشغيل اللعبة عبر",
   "needed by another pack": "مطلوب بواسطة حزمة أخرى",

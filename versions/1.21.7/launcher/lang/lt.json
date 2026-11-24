@@ -350,7 +350,6 @@
   "Local file · {file}": "Vietinis failas · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "Horizonto peizažas. Pasirinkite savo PNG, JPEG arba WebP paveikslėlį.",
   "Not needed": "Nereikia",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Šioje paleidimo priemonės versijoje nėra „Microsoft“ prisijungimo (HORIZON_MSA_CLIENT_ID), todėl negalima paleisti žaidimo.",
   "Offline name · plays": "Vardas neprisijungus · groja",
   "Run the game through": "Vykdykite žaidimą",
   "needed by another pack": "reikalinga kitai pakuotei",

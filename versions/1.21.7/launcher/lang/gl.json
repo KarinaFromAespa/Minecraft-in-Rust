@@ -349,7 +349,6 @@
   "Local file · {file}": "Ficheiro local · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "paisaxe de Horizon. Escolle unha imaxe PNG, JPEG ou WebP propia.",
   "Not needed": "Non é necesario",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Esta versión do iniciador non ten inicio de sesión de Microsoft (HORIZON_MSA_CLIENT_ID), polo que non pode iniciar o xogo.",
   "Offline name · plays": "Nome sen conexión · xoga",
   "Run the game through": "Executar o xogo",
   "needed by another pack": "necesario por outro paquete",

@@ -349,7 +349,6 @@
   "Local file · {file}": "Comhad áitiúil · {file}",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "tírdhreach Horizon. Roghnaigh pictiúr PNG, JPEG nó WebP de do chuid féin.",
   "Not needed": "Ní gá",
-  "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Níl aon logáil isteach ag Microsoft (HORIZON_MSA_CLIENT_ID) sa leagan seo den tosaitheoir, mar sin ní féidir leis an gcluiche a thosú.",
   "Offline name · plays": "Ainm as líne · drámaí",
   "Run the game through": "Rith an cluiche tríd",
   "needed by another pack": "ag teastáil le paca eile",
