@@ -1,0 +1,20 @@
+# Pre-existing launcher test failures, baselined so the CI ratchet only
+# fails on NEW failures. All 16 are browser-fixture failures: the fixtures
+# hardcode Minecraft 26.3 while this tree pins 1.21.7. Recorded from CI
+# run 45357081040 (head 6a31581c). Do not add branch fallout here - fix it.
+browser::horizon::pack::tests::a_pack_installs_as_a_profile_with_its_mods
+browser::horizon::pack::tests::a_pack_update_keeps_the_players_mod_choices
+browser::horizon::pack::tests::a_pack_with_a_taken_down_mod_installs_nothing
+browser::horizon::tests::a_registry_data_pack_is_checked_then_goes_into_a_world
+browser::horizon::tests::a_search_keeps_only_what_its_filter_takes
+browser::horizon::tests::installs_a_shader_pack_into_shaderpacks
+browser::horizon::tests::installs_checked_turns_on_and_removes
+browser::horizon::tests::native_registry_entries_are_mods_that_say_they_run_native_code
+browser::horizon::tests::registry_versions_run_when_made_for_this_game
+browser::horizon::tests::searches_by_category_and_tag
+browser::horizon::tests::searches_by_kind_and_words
+browser::horizon::tests::versions_for_a_newer_horizon_are_not_installed
+browser::tests::curseforge_answers
+browser::tests::data_packs_are_their_own_kind
+browser::tests::modrinth_answers
+browser::tests::modrinth_search_asks_for_what_runs
