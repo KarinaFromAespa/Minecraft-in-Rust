@@ -141,7 +141,11 @@ pub(super) fn register(out: &mut Vec<(Key, FixFn)>) {
             set(be, "sherds", unpack_pot_decorations(sherds));
         });
     }));
-    out.push((key(4997, 0), |cx| cx.each_out(Ty::Chunk, blending_data)));
+    // `BlendingDataFix` is registered at 4295 in vanilla 1.21.10's
+    // DataFixer (jar-verified); the 26.x table's 4997 is past this
+    // build's CURRENT (4556), so the fix never ran and pre-1.18
+    // Overworld chunks kept no `blending_data`.
+    out.push((key(4295, 0), |cx| cx.each_out(Ty::Chunk, blending_data)));
     out.push((key(5002, 0), |cx| {
         cx.block_entity("minecraft:sign", |be| {
             set(be, "allow_op_features", boolean(true))

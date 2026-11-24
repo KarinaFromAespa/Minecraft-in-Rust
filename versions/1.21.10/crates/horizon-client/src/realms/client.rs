@@ -1934,14 +1934,14 @@ mod tests {
         assert_eq!(
             header(&request, "Cookie"),
             Some(
-                "sid=token:eyJsecret.token.value:0123456789abcdef0123456789abcdef;user=Steve;version=26.3"
+                "sid=token:eyJsecret.token.value:0123456789abcdef0123456789abcdef;user=Steve;version=1.21.10"
             )
         );
         assert_eq!(header(&request, "Authorization"), None, "{request}");
-        assert_eq!(header(&request, "Client-Ref"), Some("26.3"));
-        assert_eq!(header(&request, "X-NetworkProtocolVersion"), Some("777"));
+        assert_eq!(header(&request, "Client-Ref"), Some("1.21.10"));
+        assert_eq!(header(&request, "X-NetworkProtocolVersion"), Some("773"));
         assert_eq!(header(&request, "Is-Prerelease"), Some("false"));
-        assert_eq!(header(&request, "User-Agent"), Some("Java/25"));
+        assert_eq!(header(&request, "User-Agent"), Some("Java/21"));
         // The token appears once in the whole request: in the cookie.
         assert_eq!(request.matches(TOKEN).count(), 1);
         assert_eq!(

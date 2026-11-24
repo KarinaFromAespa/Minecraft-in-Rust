@@ -1442,21 +1442,19 @@ mod tests {
         assert_eq!(def(Species::Mule).baby_scale(), 0.5);
     }
 
-    /// `Horse` and `ZombieHorse` (1.21.10 ctors): DANGER_OTHER and
-    /// DAMAGE_OTHER at -1.0; no other equine sets them (a donkey keeps
-    /// the 8.0 DangerOther default).
+    /// `Horse` and `ZombieHorse` (1.21.10 ctors): no DANGER_OTHER /
+    /// DAMAGE_OTHER malus — the ctors return before setting them (the
+    /// -1.0 is 1.21.11-only, javap-verified). Horses keep the 8.0
+    /// DangerOther default, like donkeys.
     #[test]
     fn horses_and_zombie_horses_avoid_other_dangers() {
         use crate::mobs::path::PathType;
-        for s in [Species::Horse, Species::ZombieHorse] {
+        for s in [Species::Horse, Species::ZombieHorse, Species::Donkey] {
             let mut m = horse(s);
             crate::mobs::ai::register(&mut m);
-            assert_eq!(m.malus(PathType::DangerOther), -1.0);
+            assert_eq!(m.malus(PathType::DangerOther), 8.0);
             assert_eq!(m.malus(PathType::DamageOther), -1.0);
         }
-        let mut donkey = horse(Species::Donkey);
-        crate::mobs::ai::register(&mut donkey);
-        assert_eq!(donkey.malus(PathType::DangerOther), 8.0);
     }
 }
 

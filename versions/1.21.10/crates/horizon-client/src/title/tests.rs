@@ -2273,8 +2273,11 @@ fn a_finished_optimization_stamps_the_level_data() {
     f.world("World", "World");
     let path = f.title.saves.join("World/level.dat");
     let mut root = crate::save::read_dat(&path).unwrap();
+    // Start just below CURRENT (4556): above the last file fix (4548)
+    // so the optimizer stamps the level data, not above CURRENT (4950
+    // was the 26.x start value — a world from the future is skipped).
     if let Some(Tag::Compound(data)) = root.get_mut("Data") {
-        data.insert("DataVersion".into(), Tag::Int(4950));
+        data.insert("DataVersion".into(), Tag::Int(4550));
     }
     crate::save::write_dat(&path, root).unwrap();
     f.select();

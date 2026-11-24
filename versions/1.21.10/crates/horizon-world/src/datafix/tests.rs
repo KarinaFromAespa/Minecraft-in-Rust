@@ -36,26 +36,24 @@ fn item_stacks_of_1_20_take_components() {
 
 #[test]
 fn level_data_of_1_20_moves_to_the_new_fields() {
+    // 1.21.10's own form (verified against the real 1.21.10 world's
+    // level.dat): the spawn compound exists (fix 4548), but the
+    // difficulty-settings move (4771) and the game-rules registry move
+    // (4658) are 1.21.11 fixes — 1.21.10 keeps `Difficulty`,
+    // `DifficultyLocked`, `hardcore` and `GameRules` as written.
     let mut level = snbt(
         "{DataVersion: 3465, Difficulty: 3b, DifficultyLocked: 1b, hardcore: 0b, SpawnX: 1, SpawnY: 64, SpawnZ: -3, \
          SpawnAngle: 90.0f, GameRules: {doFireTick: \"false\", keepInventory: \"true\", randomTickSpeed: \"5\"}}",
     );
     update(Ty::Level, &mut level, 3465, CURRENT);
-    let settings = level
-        .get("difficulty_settings")
-        .expect("difficulty settings");
-    assert_eq!(
-        dynamic::as_str(settings.get("difficulty")).as_deref(),
-        Some("hard")
-    );
-    assert_eq!(settings.get("locked"), Some(&Tag::Byte(1)));
-    let rules = level.get("game_rules").expect("game rules");
-    assert_eq!(rules.get("minecraft:keep_inventory"), Some(&Tag::Byte(1)));
-    assert_eq!(rules.get("minecraft:random_tick_speed"), Some(&Tag::Int(5)));
-    assert_eq!(
-        rules.get("minecraft:fire_spread_radius_around_player"),
-        Some(&Tag::Int(0))
-    );
+    assert!(level.get("difficulty_settings").is_none());
+    assert_eq!(level.get("Difficulty"), Some(&Tag::Byte(3)));
+    assert_eq!(level.get("DifficultyLocked"), Some(&Tag::Byte(1)));
+    assert_eq!(level.get("hardcore"), Some(&Tag::Byte(0)));
+    let rules = level.get("GameRules").expect("game rules");
+    assert_eq!(rules.get("doFireTick"), Some(&dynamic::string("false")));
+    assert_eq!(rules.get("keepInventory"), Some(&dynamic::string("true")));
+    assert_eq!(rules.get("randomTickSpeed"), Some(&dynamic::string("5")));
     assert_eq!(
         level.get("spawn").and_then(|s| s.get("pos")),
         Some(&Tag::IntArray(vec![1, 64, -3]))
@@ -64,19 +62,32 @@ fn level_data_of_1_20_moves_to_the_new_fields() {
 
 #[test]
 fn block_states_take_their_new_field_names() {
+    // 1.21.10's own form (verified against the real 1.21.10 world's
+    // region files): palette entries keep `Name`/`Properties` — the
+    // `id`/`properties` rename is a 1.21.11 fix. A chunk newer than
+    // CURRENT is left untouched. (`chain` becomes `iron_chain` on the
+    // way up: the 1.21.9 copper-chain rename, which 1.21.10 carries.)
     let mut chunk = snbt(
-        "{DataVersion: 4903, Status: \"minecraft:full\", sections: [{Y: 0b, block_states: \
+        "{DataVersion: 3465, Status: \"minecraft:full\", sections: [{Y: 0b, block_states: \
          {palette: [{Name: \"minecraft:chain\", Properties: {axis: \"y\"}}]}}]}",
     );
     update_chunk(&mut chunk, "minecraft:the_nether", Some("minecraft:noise"));
     let section = &dynamic::stream(chunk.get("sections"))[0];
     let state = &dynamic::stream(section.get("block_states").and_then(|b| b.get("palette")))[0];
     assert_eq!(
-        dynamic::as_str(state.get("id")).as_deref(),
-        Some("minecraft:chain")
+        dynamic::as_str(state.get("Name")).as_deref(),
+        Some("minecraft:iron_chain")
     );
-    assert!(state.get("properties").is_some());
+    assert!(state.get("Properties").is_some());
+    assert!(state.get("id").is_none());
     assert_eq!(chunk.get("DataVersion"), Some(&Tag::Int(CURRENT)));
+
+    let mut future = snbt(
+        "{DataVersion: 4903, Status: \"minecraft:full\", sections: [{Y: 0b, block_states: \
+         {palette: [{Name: \"minecraft:chain\", Properties: {axis: \"y\"}}]}}]}",
+    );
+    update_chunk(&mut future, "minecraft:the_nether", Some("minecraft:noise"));
+    assert_eq!(future.get("DataVersion"), Some(&Tag::Int(4903)));
 }
 
 #[test]

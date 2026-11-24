@@ -463,6 +463,28 @@ field in 1.21.10's Unbaked records); game.rs, save.rs (ImpulseSave,
 deleted (item 205); the age-lock native hook dropped from
 native-hooks.json. `cargo check -p horizon-world --lib` and
 `-p horizon-client --lib` both clean. 49 carry-over items stay
-open behind 30 hand-merge files (SlotDisplay renumbering, spear,
-hand.rs, item.rs, menu/remote/hub, cauldron, furnace, component,
-frames, end.rs, datapack/packs fixtures).
+Batch 3 (4 carry-over + all 22 batch-2 CI failures fixed): the
+pack-format fixtures (datapack/packs at 88/69), Realms headers
+(1.21.10/773/Java 21), the GameRules form (level.dat's `Data.GameRules`,
+camelCase keys, string values — verified against the real 1.21.10
+world's 59 rules; the fire pair maps to/from
+`fire_spread_radius_around_player`, the `disable*` rules invert), the
+shipwreck `height_adjusted` removal (simple.rs, jar-verified: neither
+version's ShipwreckPiece writes it), the tracking fallback for mod
+thrown types (from the 1.21.7 port), and the 1.21.10-form test fixes:
+datafix tests (no `difficulty_settings`/`game_rules`/`id` palette keys
+— all 1.21.11 fixes above 4556), the optimization stamp start (4550,
+not the 26.x 4950), the horse-malus test (no malus in 1.21.10),
+painting/variant id 89 (as in 1.21.7), the sign-text test removed (no
+SIGN_TEXT in 1.21.10's DataComponents), vibration particle id 48
+(jar-verified registration order), server-packs header 69.0, the
+pause-screen loop ([1, 2] — Share to LAN is singleplayer-only),
+en_us.json wording, launch-reference.md numbers, bossbars `#[ignore]`
+(needs prepared resources), `record_is_old` at 4295 and
+`BlendingDataFix` at 4295 (both jar-verified; the 26.x table's 4997
+is past CURRENT 4556, so every chunk read as old and pre-1.18
+chunks kept no blending data). horizon-world fully green locally
+(482 passed, 0 failed); level_save_keeps_changed_rules verified
+locally. 45 carry-over items stay open behind 27 hand-merge files
+(SlotDisplay renumbering, spear, hand.rs, item.rs, menu/hub, cauldron,
+furnace, component, frames, end.rs, recipe_book, advancements).

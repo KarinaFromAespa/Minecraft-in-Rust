@@ -1072,7 +1072,9 @@ mod tests {
             (button.0, button.1, button.2, button.5),
             (links[3].0, links[3].1, 204.0, true)
         );
-        for id in [1, 9, 2] {
+        for id in [1, 2] {
+            // (No 9: Share to LAN is singleplayer-only, absent on a
+            // remote server — the loop used to include it and panic.)
             let add = with.iter().find(|b| b.4 == id).unwrap();
             let link = links.iter().find(|b| b.4 == id).unwrap();
             assert_eq!(add.1, link.1);

@@ -1,7 +1,7 @@
 //! World persistence in the vanilla 1.21.10 layout, readable by both Horizon and
 //! the vanilla game:
 //! - `level.dat` (`Data`: name, game type, time, spawn, difficulty, version,
-//!   and the world itself — `WorldGenSettings`, `game_rules`, the weather,
+//!   and the world itself — `WorldGenSettings`, `GameRules`, the weather,
 //!   `Player`, the boss bars, the wandering trader, the dragon fight);
 //! - per dimension `dimensions/minecraft/<name>/region/r.X.Z.mca` (chunks:
 //!   paletted sections with light, heightmaps, block entities, scheduled
@@ -2772,7 +2772,7 @@ impl SaveDir {
     }
     /// The chunks of a region file that an older version generated, as
     /// `IOWorker.createOldDataForRegion` finds them (bit `x + z * 32`): saved
-    /// before DataVersion 4997, or with `blending_data`.
+    /// before DataVersion 4295, or with `blending_data`.
     pub fn old_chunk_bits(&self, rx: i32, rz: i32) -> [u64; 16] {
         let mut bits = [0u64; 16];
         let Ok(region) = RegionFile::open(self.region_path("region", rx, rz)) else {
@@ -3526,7 +3526,7 @@ pub(crate) fn read_doubles<const N: usize>(tag: Option<&Tag>) -> Option<[f64; N]
     }
 }
 
-/// Default game rules of a new 1.21.10 world (level.dat's `Data.game_rules`).
+/// Default game rules of a new 1.21.10 world (level.dat's `Data.GameRules`).
 const GAME_RULES: [(&str, i32); 58] = [
     ("spawn_wandering_traders", 1),
     ("block_drops", 1),
@@ -4170,15 +4170,57 @@ impl Level {
             .iter()
             .map(|(k, v)| ((*k).to_owned(), *v))
             .collect();
-        // `PrimaryLevelData.parse`: the rules are `Data.game_rules`, the same
-        // `minecraft:<name>` → typed value compound.
-        let saved_rules = data.get("game_rules").cloned();
+        // `PrimaryLevelData.parse`: the rules are `Data.GameRules`,
+        // camelCase keys → string values (1.21.10's form; the
+        // `minecraft:<name>` → typed value `game_rules` compound is
+        // 1.21.11's). The fire pair maps to one engine rule, the
+        // `disable*` rules are stored inverted.
+        let saved_rules = data.get("GameRules").cloned();
         if let Some(Tag::Compound(map)) = &saved_rules {
+            let fire_tick = map
+                .get(&JavaString::from("doFireTick"))
+                .and_then(|v| text(Some(v)))
+                .map(|s| s == "true")
+                .unwrap_or(true);
+            let away = map
+                .get(&JavaString::from("allowFireTicksAwayFromPlayer"))
+                .and_then(|v| text(Some(v)))
+                .map(|s| s == "true")
+                .unwrap_or(false);
+            if map.contains_key(&JavaString::from("doFireTick"))
+                || map.contains_key(&JavaString::from("allowFireTicksAwayFromPlayer"))
+            {
+                rules.insert(
+                    "fire_spread_radius_around_player".to_owned(),
+                    crate::gamerules::fire_radius(fire_tick, away),
+                );
+            }
             for (k, v) in map {
-                let name = k.to_string_lossy();
-                let name = name.strip_prefix("minecraft:").unwrap_or(&name).to_owned();
-                if let Some(v) = number(Some(v)) {
-                    rules.insert(name, v as i32);
+                let key = k.to_string_lossy();
+                let Some(name) = crate::gamerules::from_vanilla_key(&key) else {
+                    continue;
+                };
+                let Some(text) = text(Some(v)) else {
+                    continue;
+                };
+                let value = if INT_RULES.contains(&name.as_str()) {
+                    text.parse::<i32>().ok()
+                } else {
+                    match text.as_str() {
+                        "true" => Some(1),
+                        "false" => Some(0),
+                        _ => None,
+                    }
+                    .map(|b| {
+                        if crate::gamerules::vanilla_inverted(&name) {
+                            1 - b
+                        } else {
+                            b
+                        }
+                    })
+                };
+                if let Some(value) = value {
+                    rules.insert(name, value);
                 }
             }
         }
@@ -4662,14 +4704,15 @@ impl Level {
         let mut data = compound_or_empty(existing);
         if let Tag::Compound(map) = &mut data {
             // Keys no version of the file keeps: the pre-`spawn` coordinates, the
-            // pre-`world_border` flat border, the old capital `GameRules`, the
-            // 26.x split's `difficulty_settings` and `singleplayer_uuid`.
+            // pre-`world_border` flat border, the 1.21.11 lowercase
+            // `game_rules`, the 26.x split's `difficulty_settings` and
+            // `singleplayer_uuid`.
             for key in [
                 "SpawnX",
                 "SpawnY",
                 "SpawnZ",
                 "SpawnAngle",
-                "GameRules",
+                "game_rules",
                 "DimensionData",
                 "BorderCenterX",
                 "BorderCenterZ",
@@ -4810,17 +4853,38 @@ impl Level {
                 world_gen_settings_tag(self.seed, WorldGen::default(), None, None),
             );
         }
-        // `game_rules`, lowercase, in `Data`: only rules vanilla knows, an unknown
-        // key makes it reject the file.
+        // `GameRules`, capital, in `Data`: camelCase keys → string
+        // values (1.21.10's form; the `minecraft:<name>` → typed value
+        // `game_rules` compound is 1.21.11's). Only rules vanilla knows;
+        // an unknown key makes it reject the file.
         let mut rules = Tag::Compound(Compound::new());
         for (name, default) in GAME_RULES {
             let value = self.game_rules.get(name).copied().unwrap_or(default);
-            let tag = if INT_RULES.contains(&name) {
-                Tag::Int(value)
-            } else {
-                Tag::Byte(i8::from(value != 0))
+            if name == "fire_spread_radius_around_player" {
+                for (key, b) in crate::gamerules::fire_keys(value) {
+                    put(
+                        &mut rules,
+                        key,
+                        Tag::String(if b { "true" } else { "false" }.into()),
+                    );
+                }
+                continue;
+            }
+            let Some(key) = crate::gamerules::vanilla_key(name) else {
+                continue;
             };
-            put(&mut rules, &format!("minecraft:{name}"), tag);
+            let text = if INT_RULES.contains(&name) {
+                value.to_string()
+            } else {
+                let b = value != 0;
+                let b = if crate::gamerules::vanilla_inverted(name) {
+                    !b
+                } else {
+                    b
+                };
+                if b { "true" } else { "false" }.to_owned()
+            };
+            put(&mut rules, &key, Tag::String(text.as_str().into()));
         }
         if self
             .enabled_features
@@ -4837,13 +4901,12 @@ impl Level {
                 .copied()
                 .filter(|v| (rule.min..=rule.max).contains(v))
                 .unwrap_or(default);
-            put(
-                &mut rules,
-                &format!("minecraft:{}", rule.name),
-                Tag::Int(value),
-            );
+            if let Some(key) = crate::gamerules::vanilla_key(rule.name) {
+                let text = value.to_string();
+                put(&mut rules, &key, Tag::String(text.as_str().into()));
+            }
         }
-        put(&mut data, "game_rules", rules);
+        put(&mut data, "GameRules", rules);
         // `PrimaryLevelData.createTag` always writes `ScheduledEvents`;
         // here it is written when the game handed over a queue, and the
         // loaded value is kept otherwise.
@@ -5476,11 +5539,12 @@ impl<G: ChunkGenerator> ChunkGenerator for Persistent<G> {
     }
 }
 
-/// `IOWorker.createOldDataForRegion`'s test of one record: saved before DataVersion 4997, or
-/// with `blending_data`.
+/// `IOWorker.createOldDataForRegion`'s test of one record: saved before DataVersion 4295, or
+/// with `blending_data` (`IOWorker.isOldChunk`, jar-verified); the 26.3 base's 4997 is past this
+/// build's CURRENT (4556), so it classified every 1.21.10 chunk as old.
 fn record_is_old(root: &NamedTag) -> bool {
     let before_blending = match root.tag.get("DataVersion") {
-        Some(Tag::Int(version)) => *version < 4997,
+        Some(Tag::Int(version)) => *version < 4295,
         _ => true,
     };
     before_blending || root.tag.get("blending_data").is_some()
@@ -7769,7 +7833,7 @@ mod tests {
             number(data.get("WorldGenSettings").and_then(|w| w.get("seed"))),
             Some(-42)
         );
-        assert!(data.get("game_rules").is_some());
+        assert!(data.get("GameRules").is_some());
         assert!(data.get("Player").is_some());
         assert!(!dir.join("data").exists());
         let _ = fs::remove_dir_all(&dir);
@@ -8573,8 +8637,11 @@ mod tests {
         else {
             panic!("no palette");
         };
+        // 1.21.10's palette entries keep `Name` (the `id` rename is a
+        // 1.21.11 fix); the grass itself is renamed to short_grass by
+        // the 1.20.3 fix on the way up.
         assert_eq!(
-            text(palette[0].get("id")).as_deref(),
+            text(palette[0].get("Name")).as_deref(),
             Some("minecraft:short_grass")
         );
         // Decoded, it keeps its blocks: read raw, the 26.x decoder finds no `id` in a
@@ -8631,7 +8698,7 @@ mod tests {
         );
         // A 1.20.1 Nether chunk: upgraded it has no `blending_data` (only Overworld
         // chunks blend) and the current DataVersion, so only the saved record says
-        // it is older than blending (4997), as `IOWorker.isOldChunk` reads it.
+        // it is older than blending (4295), as `IOWorker.isOldChunk` reads it.
         write_old_record(
             &nether,
             "region",

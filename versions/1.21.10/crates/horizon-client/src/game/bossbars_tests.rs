@@ -43,6 +43,7 @@ fn game() -> Game<'static> {
 }
 
 #[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
 fn adding_a_boss_bar_leaves_the_level_random_untouched() {
     let mut game = game();
     let mut before = game.world.random.clone();

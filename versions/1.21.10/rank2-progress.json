@@ -1,7 +1,7 @@
 {
  "release": "1.21.10",
  "rank": 2,
- "batch": 2,
+ "batch": 3,
  "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json.",
  "items": {
   "201": {
@@ -923,6 +923,26 @@
    "module": "widely named: client/renderer/entity/state",
    "verdict": "carry-over",
    "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 6"
+  },
+  "320": {
+   "module": "widely named: client/renderer/texture/atlas",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks hand-merged with 1.21.10 numbers (pack formats 88/69, Realms 1.21.10/773) or jar-verified (BlendingDataFix at 4295, shipwreck height_adjusted absent); no named method changed 1.21.11->1.21.10 per jardiff."
+  },
+  "332": {
+   "module": "widely named: client/sounds",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks hand-merged with 1.21.10 numbers (pack formats 88/69, Realms 1.21.10/773) or jar-verified (BlendingDataFix at 4295, shipwreck height_adjusted absent); no named method changed 1.21.11->1.21.10 per jardiff."
+  },
+  "362": {
+   "module": "widely named: client/gui/screens/packs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks hand-merged with 1.21.10 numbers (pack formats 88/69, Realms 1.21.10/773) or jar-verified (BlendingDataFix at 4295, shipwreck height_adjusted absent); no named method changed 1.21.11->1.21.10 per jardiff."
+  },
+  "372": {
+   "module": "widely named: client/gui/screens/worldselection",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks hand-merged with 1.21.10 numbers (pack formats 88/69, Realms 1.21.10/773) or jar-verified (BlendingDataFix at 4295, shipwreck height_adjusted absent); no named method changed 1.21.11->1.21.10 per jardiff."
   }
  }
 }
