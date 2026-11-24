@@ -273,9 +273,8 @@ fn attack_damage(m: &Mob) -> f32 {
 /// `AbstractCubeMob.push(entity)`: an iron golem whose `pushEntities` takes
 /// this cube (its box overlaps the cube's, `EntitySelector.pushableBy`) gets
 /// `dealDamage`: alive, `doTeamsAllowDamage`, `isWithinMeleeAttackRange`
-/// (true for overlapping boxes unless a held spear's minimum range refuses
-/// them) and `hasLineOfSight`, then a
-/// `mobAttack` hit for `getAttackDamage`.
+/// (true for overlapping boxes — 1.21.10 has no attack-range component)
+/// and `hasLineOfSight`, then a `mobAttack` hit for `getAttackDamage`.
 fn hurt_touching_golems(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
     // canDealDamage also needs Mob.isEffectiveAi: a NoAI cube never hurts.
     if !can_deal_damage(m) || m.no_ai || !m.alive() {

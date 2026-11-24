@@ -1,0 +1,548 @@
+{
+ "release": "1.21.10",
+ "rank": 3,
+ "batch": 1,
+ "note": "",
+ "items": {
+  "485": {
+   "module": "crates/horizon-client/src/shadows.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. Shadow-size name table includes camel_husk/nautilus/zombie_nautilus \u2014 dead on 1.21.10 data (those entities never exist)."
+  },
+  "500": {
+   "module": "crates/horizon-client-render/src/trims.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "507": {
+   "module": "crates/horizon-client/src/mobs/dolphin.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module. The nautilus vehicle check is dead on 1.21.10 data (no nautilus vehicles); the diff is the version label in the doc comment."
+  },
+  "516": {
+   "module": "crates/horizon-client/src/game/advancements_screen.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "518": {
+   "module": "crates/horizon-world/src/loot/odds.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "519": {
+   "module": "crates/horizon-client/src/game/block_editor.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "521": {
+   "module": "crates/horizon-client/src/game/zombie_villagers.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "523": {
+   "module": "crates/horizon-client-core/src/pattern.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "525": {
+   "module": "crates/horizon-client/src/game/resource_loader.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "531": {
+   "module": "crates/horizon-client-core/src/component.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "532": {
+   "module": "crates/horizon-client/src/game/commands/misc.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "534": {
+   "module": "crates/horizon-client/src/game/mount_menu.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module. The nautilus slot checks are dead on 1.21.10 data (no nautilus species)."
+  },
+  "539": {
+   "module": "crates/horizon-client/src/debug_overlay.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "543": {
+   "module": "crates/horizon-client/src/game/stats_screen.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module. The nautilus_one_cm stat name sits in a format table \u2014 dead (no such stat in 1.21.10 data)."
+  },
+  "545": {
+   "module": "crates/horizon-client/src/lan/guest.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "552": {
+   "module": "crates/horizon-client/src/dialog_screen.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "554": {
+   "module": "crates/horizon-client/src/game/debug_renderers.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "560": {
+   "module": "crates/horizon-client/src/mobs/caravan.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "561": {
+   "module": "crates/horizon-client/src/title/buffet.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "574": {
+   "module": "crates/horizon-client-render/src/gfx/core_lines.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "575": {
+   "module": "crates/horizon-client-render/src/inventory_effects.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "576": {
+   "module": "crates/horizon-client/src/dialog.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "577": {
+   "module": "crates/horizon-server/src/management_schema.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "578": {
+   "module": "crates/horizon-world/src/worldgen/structure/ocean_ruin.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "579": {
+   "module": "crates/horizon-client/src/advancements/state_ranges.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "580": {
+   "module": "crates/horizon-client/src/game/lan_screen.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "581": {
+   "module": "crates/horizon-protocol/src/packets/configuration.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "582": {
+   "module": "crates/horizon-shaders/src/custom.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "583": {
+   "module": "crates/horizon-world/src/worldgen/structure/jigsaw.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "585": {
+   "module": "crates/horizon-client-core/src/bossbar.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "586": {
+   "module": "crates/horizon-client-render/src/options_file.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "587": {
+   "module": "crates/horizon-client/src/mobs/armadillo.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module. The ZombieNautilus match arm is dead on 1.21.10 data (the species never spawns)."
+  },
+  "589": {
+   "module": "crates/horizon-command/src/packrat.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "590": {
+   "module": "crates/horizon-protocol/src/hash_ops.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "591": {
+   "module": "crates/horizon-world/src/worldgen/structure/mansion.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "593": {
+   "module": "crates/horizon-assets/src/item_bake.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "594": {
+   "module": "crates/horizon-client-render/src/gfx/submit.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "595": {
+   "module": "crates/horizon-client/src/game/cauldrons.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "596": {
+   "module": "crates/horizon-command/src/codec.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "598": {
+   "module": "crates/horizon-world/src/worldgen/structure/end_city.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "599": {
+   "module": "crates/horizon-client-render/src/command_block.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "600": {
+   "module": "crates/horizon-client-render/src/jigsaw_block.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "601": {
+   "module": "crates/horizon-prepare/src/artifacts.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "602": {
+   "module": "crates/horizon-client-core/src/text.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "603": {
+   "module": "crates/horizon-client-input/src/gamepad.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "604": {
+   "module": "crates/horizon-client/src/menu/equippable.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "607": {
+   "module": "crates/horizon-bots/src/main.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "608": {
+   "module": "crates/horizon-client-render/src/vault.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "609": {
+   "module": "crates/horizon-client/src/game/block_items.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "610": {
+   "module": "crates/horizon-client/src/game/cat_spawner.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "611": {
+   "module": "crates/horizon-client/src/item_render.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "612": {
+   "module": "crates/horizon-client/src/scoreboard_cmd.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "613": {
+   "module": "crates/horizon-world/src/worldgen/structure/fortress.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "614": {
+   "module": "crates/horizon-world/src/worldgen/structure/piece_limited.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "616": {
+   "module": "launcher/src/screenshots.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "619": {
+   "module": "crates/horizon-client-render/src/crash.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "620": {
+   "module": "crates/horizon-client-render/src/social.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "621": {
+   "module": "crates/horizon-client/src/flatgen.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "622": {
+   "module": "crates/horizon-client/src/game/allays.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "623": {
+   "module": "crates/horizon-client/src/game/commands/effects.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "624": {
+   "module": "crates/horizon-client/src/game/friends.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "626": {
+   "module": "crates/horizon-client/src/game/names.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "627": {
+   "module": "crates/horizon-client/src/game/native_criteria.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "628": {
+   "module": "crates/horizon-client/src/game/saving.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "629": {
+   "module": "crates/horizon-client/src/game/social.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "630": {
+   "module": "crates/horizon-client/src/game/spectator.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "631": {
+   "module": "crates/horizon-client/src/lan/waypoints.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "632": {
+   "module": "crates/horizon-client/src/legacy_combat.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The undead/arthropod name lists include 1.21.11-only species (parched, camel_husk, zombie_nautilus) \u2014 dead on 1.21.10 data."
+  },
+  "633": {
+   "module": "crates/horizon-shaders/src/biomes.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "634": {
+   "module": "crates/horizon-world/src/level/feature_world.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "635": {
+   "module": "crates/horizon-world/src/level/redstone/experimental.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "636": {
+   "module": "crates/horizon-world/src/level/sculk.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "638": {
+   "module": "crates/horizon-world/src/worldgen/structure/processor.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "641": {
+   "module": "crates/horizon-client-core/src/registries.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module. The minecraft:timeline registry field stays empty on 1.21.10 data (no timeline package in 1.21.10); all readers are data-driven."
+  },
+  "642": {
+   "module": "crates/horizon-client-input/src/clipboard.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "643": {
+   "module": "crates/horizon-client-render/src/auth.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "644": {
+   "module": "crates/horizon-client-render/src/core_shader.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "645": {
+   "module": "crates/horizon-client-render/src/gfx/end_sky/tests.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "646": {
+   "module": "crates/horizon-client-render/src/gfx/frame_gen.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "647": {
+   "module": "crates/horizon-client-render/src/pack_palette.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "648": {
+   "module": "crates/horizon-client-render/src/streaming.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "649": {
+   "module": "crates/horizon-client/src/game/code_of_conduct.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "650": {
+   "module": "crates/horizon-client/src/game/commands/items/contents.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "651": {
+   "module": "crates/horizon-client/src/game/commands/raid.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "652": {
+   "module": "crates/horizon-client/src/game/item_particles.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "653": {
+   "module": "crates/horizon-client/src/game/lan_crafting.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "654": {
+   "module": "crates/horizon-client/src/game/launch_options.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "655": {
+   "module": "crates/horizon-client/src/game/native_client_entities.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "656": {
+   "module": "crates/horizon-client/src/game/pickups.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "657": {
+   "module": "crates/horizon-client/src/game/quick_actions.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "658": {
+   "module": "crates/horizon-client/src/game/resource_load.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "659": {
+   "module": "crates/horizon-client/src/game/sculk.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "660": {
+   "module": "crates/horizon-client/src/game/window_handler.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "661": {
+   "module": "crates/horizon-client/src/mobs/cube.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. Stale spear comment fixed (melee_reaches is already the ported 1.21.10 form from item 19)."
+  },
+  "662": {
+   "module": "crates/horizon-client/src/stopwatches.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "663": {
+   "module": "crates/horizon-client/src/title/create_world.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "664": {
+   "module": "crates/horizon-port-pack/src/carry.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "665": {
+   "module": "crates/horizon-port-pack/src/lithostitched.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "666": {
+   "module": "crates/horizon-server-files/src/profiles.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "667": {
+   "module": "crates/horizon-world/src/datafix/dynamic.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "668": {
+   "module": "crates/horizon-world/src/level/shapes.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "669": {
+   "module": "crates/horizon-world/src/level/update.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "670": {
+   "module": "crates/horizon-world/src/worldgen/dripstone.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "671": {
+   "module": "crates/horizon-world/src/worldgen/end_spike.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "672": {
+   "module": "crates/horizon-world/src/worldgen/generator_decoration.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "673": {
+   "module": "crates/horizon-world/src/worldgen/structure/monument.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "674": {
+   "module": "crates/horizon-world/src/worldgen/structure/start.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "499": {
+   "module": "crates/horizon-client-render/src/gfx/pack_atlas/stitch.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); its single named vanilla method is unchanged 1.21.11->1.21.10 (named_changed is empty)."
+  }
+ }
+}

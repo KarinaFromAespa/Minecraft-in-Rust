@@ -984,3 +984,15 @@ debug_keys.rs: no-change — the Rust's keybind defaults are exactly
 the 1.21.10 hardcoded debug keys (F3/A/B/C/D/G/H/I/L/N/P/S/T/V/1/2/3/
 F4/F6); the rebindable surface is a Horizon feature on top, and F3+Q
 is unmodelled in both trees.
+
+Rank 3 batch 1 (108 items, rank 3 0 -> 108, 572/719). All named-0
+modules whose current tree diff vs 1.21.11 is zero (73 no-change) or
+comment-only version labels (34 carry-over) plus stitch.rs (499: its
+one named method is unchanged, diff 0). Every file was spot-checked
+for 1.21.11-only content (spear/nautilus/parched/camel_husk/timeline/
+attributes/attack_range): the only hits are dead name lists and
+empty-on-1.21.10-data registries (shadows, dolphin, mount_menu,
+stats_screen, armadillo, legacy_combat, registries' minecraft:timeline
+field), each noted in its ledger entry. One stale comment fixed
+(cube.rs: the spear minimum-range parenthetical; melee_reaches is
+already the ported 1.21.10 form from item 19).
