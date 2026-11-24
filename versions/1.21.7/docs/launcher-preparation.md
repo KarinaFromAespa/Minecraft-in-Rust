@@ -25,6 +25,24 @@ pinned dependency checksums and compiler settings. Class checksums detect missin
 outputs. Compilation happens in a private staging folder before publishing a complete cache
 entry. Sources and paths are normalized so one release bundle works on all three platforms.
 
+Obfuscated releases are remapped during import, before the inventories are written and the
+exporters run. Mojang publishes official mapping tables for them (the manifest's
+`client_mappings` and `server_mappings` downloads), and the import stage renames both jars
+with tiny-remapper 0.15.0, mirroring `tools/lab.py`'s `remap_stage`: the remapper, mapping-io
+0.7.1 and asm 9.9.1 are downloaded at prepare time from Maven Central and Fabric Maven,
+sha1-verified and cached under `.local/mapping-frontend/deps/`; the tables come from the
+manifest's public URLs, sha1-verified against the manifest. The remap driver is the mapping
+front-end's `Remap.java`, embedded in the preparer as source and compiled with the same JDK
+the exporters use (the launcher's downloaded Mojang runtime, passed as `java_home`), so no
+new Java requirement appears. The remapped jars replace the imported ones with their
+signatures stripped; `remapped.json` records their digests and the tables' sha1s, the
+server's mapped-classes stats land beside the server jar, and the client's under
+`.local/mapping-frontend/<version>/`. Verification accepts the remapped jars through
+`remapped.json`, so a repeat prepare reuses them without remapping again, and a
+Python-built `.local` keeps verifying the same way. Unobfuscated releases publish no
+tables, so the stage is a no-op for them. Nothing Mojang-derived is distributed: the tester
+downloads their own copy from Mojang's public URLs and the launcher remaps it locally.
+
 Compatible exporters run through one server JVM (two with 6 processors or more, below) and one
 client JVM, each worker's exporters in a fixed order, the workers side by side. They keep
 Minecraft's initialized built-in registries. Every task restores the original registry tags
