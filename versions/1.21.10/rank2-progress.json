@@ -1,8 +1,8 @@
 {
  "release": "1.21.10",
  "rank": 2,
- "batch": 17,
- "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review). Batch 6: 13 missing-only no-change (1.21.11-only/1.21.10-only methods unreferenced or identically modelled; Timeline + hand.rs deliberate non-carry-overs with jar evidence). Batch 7: 5 real-method no-change (normalisation gaps + unmodelled methods, each with method diff + Rust-side check). Batch 8: 12 smallest real-method items (10 no-change: renames/noise/unmodelled; 2 ported: 154 equine isMobControlled/MountPanic removal, 256 loom scrolling reset). Batches 9-12: 44 small real-method items (41 no-change: renames, API gaps, unmodelled; 3 ported: 132 piglin spear, 276 furnace Math.random, 277 spawn-mobs gate). Batches 13-14: 16 items (14 no-change; 2 ported: 212 explosion radius guard, 74 music volume threading). Batches 15-16: 16 items (13 no-change; 3 ported: 222 sea-pickle draw, 115 border current size, 262 slime two-draw moon check incl. oracle+harness updates). Batch 17: 3 ported (261 attribute compute unfiltered, 71 client border tick unconditional, 68 play_sound single sound), 5 no-change (34 Christmas dates identical, 85 chunk save unmodelled, 116 codec plumbing, 117 spear path unreachable, 173 raid trig noise).",
+ "batch": 18,
+ "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review). Batch 6: 13 missing-only no-change (1.21.11-only/1.21.10-only methods unreferenced or identically modelled; Timeline + hand.rs deliberate non-carry-overs with jar evidence). Batch 7: 5 real-method no-change (normalisation gaps + unmodelled methods, each with method diff + Rust-side check). Batch 8: 12 smallest real-method items (10 no-change: renames/noise/unmodelled; 2 ported: 154 equine isMobControlled/MountPanic removal, 256 loom scrolling reset). Batches 9-12: 44 small real-method items (41 no-change: renames, API gaps, unmodelled; 3 ported: 132 piglin spear, 276 furnace Math.random, 277 spawn-mobs gate). Batches 13-14: 16 items (14 no-change; 2 ported: 212 explosion radius guard, 74 music volume threading). Batches 15-16: 16 items (13 no-change; 3 ported: 222 sea-pickle draw, 115 border current size, 262 slime two-draw moon check incl. oracle+harness updates). Batch 17: 3 ported (261 attribute compute unfiltered, 71 client border tick unconditional, 68 play_sound single sound), 5 no-change (34 Christmas dates identical, 85 chunk save unmodelled, 116 codec plumbing, 117 spear path unreachable, 173 raid trig noise). Batch 18: 3 ported (172 sync registry list trimmed to 1.21.10's 21, 202 Nether map spin on day time, 25 fox food test is FOOD-only), 5 no-change (15 criterion renames, 27 panda trig + modelled MOB_DROPS, 61 menu-chrome layout, 69 options migration unmodelled, 84 villager renames + dragging assign).",
  "items": {
   "201": {
    "module": "crates/horizon-client/src/game/frame_geometry.rs",
@@ -2253,6 +2253,46 @@
    "module": "crates/horizon-client/src/mobs/equip.rs",
    "verdict": "ported",
    "evidence": "ItemAttributeModifiers#compute changed signature: 1.21.10 compute(double, EquipmentSlot) applies ALL modifiers for the slot regardless of attribute (bytecode-verified \u2014 no attribute check, only the slot test; ADD_VALUE/ADD_MULTIPLIED_BASE/ADD_MULTIPLIED_TOTAL switch); 1.21.11 compute(Holder<Attribute>, double, EquipmentSlot) filters by attribute. Its only caller is Mob#getApproximateAttributeWith (the canReplaceCurrentItem comparison). Rust attribute_with filtered by attribute (the 1.21.11 form). Added approximate_with (unfiltered, the 1.21.10 compute) and switched mob_looting attributes() to it; attribute_with stays filtered for its other callers (gear.rs attack_damage + legacy_rules.rs modern_weapon_damage are real per-attribute application, filtered in both versions). Shared the operation switch into apply_op. Regression test the_approximate_comparison_applies_every_modifier_for_the_slot pins the quirk (a sword's attack-speed modifier lands in its armour comparison too)."
+  },
+  "15": {
+   "module": "crates/horizon-client/src/game/advancements.rs",
+   "verdict": "no-change",
+   "evidence": "All four real methods (LocationPredicate#matches, SimpleCriterionTrigger#trigger, ServerRecipeBook#addRecipes, RandomizableContainer#unpackLootTable) are criterion/critereon package renames only (Mojang typo fix in 1.21.11) \u2014 same behaviour."
+  },
+  "25": {
+   "module": "crates/horizon-client/src/mobs/fox.rs",
+   "verdict": "ported",
+   "evidence": "Fox#canHoldItem: 1.21.10 checks stack.has(DataComponents.FOOD); 1.21.11 calls isConsumableFood (food AND consumable) \u2014 a 1.21.11-only helper, absent from 1.21.10's Fox class (javap-verified). Rust fox_food checked both components; narrowed to food-only. The fox.rs eats() helper (food+consumable, used by the eat path) stays: the eat path is identical in both versions. Fox#handleEntityEvent 45: 1.21.10 uses Math.random() for crumb offsets vs the entity's random in 1.21.11 \u2014 the Rust only emits the event, crumb offsets are unmodelled render detail. registerGoals is a PolarBear package move."
+  },
+  "27": {
+   "module": "crates/horizon-client/src/mobs/panda.rs",
+   "verdict": "no-change",
+   "evidence": "Panda#afterSneeze + #handleRoll are f32-vs-double trig (Mth.sin/cos(F) vs (D)) \u2014 sub-rounding noise on sneeze-particle velocities (same pattern as items 118/145/196). The MOB_DROPS rule IS modelled: the GiftLoot handler checks mob_drops for minecraft:gameplay/panda_sneeze (and turtle_grow), and the 1.21.10 loot table exists with the 1/700 weights (1 slime_ball : 699 empty)."
+  },
+  "61": {
+   "module": "crates/horizon-client-render/src/options_ui.rs",
+   "verdict": "no-change",
+   "evidence": "CycleButton#createLabelForValue: 1.21.11 DisplayState enum vs 1.21.10 boolean displayOnlyValue \u2014 same behaviour (value-only label or not). VideoSettingsScreen#addOptions: 1.21.11 added DISPLAY_HEADER/QUALITY_HEADER sections + displayOptions/qualityOptions grouping \u2014 a menu-chrome layout refactor; the Rust pins the 1.21.11 option order in its test. Menu chrome does not need to be version-faithful (owner rule)."
+  },
+  "69": {
+   "module": "crates/horizon-client-render/src/settings.rs",
+   "verdict": "no-change",
+   "evidence": "Options#createSoundSliderOptionInstance differs only in what its lambda captures (Options+SoundSource vs SoundSource) \u2014 the setter behaviour is the same, and per-source volumes are modelled without lambdas. Options#load: 1.21.10 migrates legacy fancyGraphics into graphicsMode; Options#processOptions renames musicToast to showNowPlayingToast \u2014 neither the migration nor the toast option is modelled (0 refs in settings.rs)."
+  },
+  "84": {
+   "module": "crates/horizon-client/src/game/trading.rs",
+   "verdict": "no-change",
+   "evidence": "AbstractVillager#getOffers: 1.21.11 instanceof-ServerLevel cast + updateTrades(ServerLevel) vs 1.21.10 isClientSide check + updateTrades() \u2014 same behaviour (throws on client, updates on server); the level parameter is unmodelled (no update_trades in trading.rs). notifyTrade is a criterion/critereon rename. stillValid is isWithinEntityInteractionRange vs canInteractWithEntity, same 4.0 range (as item 134). MerchantScreen#mouseClicked: 1.21.10 resets isDragging=false at the start of every click; the Rust's click handler assigns m.dragging = on_scroller(...) (not OR), so a click off the scroller already clears it \u2014 the 1.21.10 form."
+  },
+  "172": {
+   "module": "crates/horizon-client/src/lan/data.rs",
+   "verdict": "ported",
+   "evidence": "Registries: 1.21.11 added GAME_RULE, ENVIRONMENT_ATTRIBUTE, ATTRIBUTE_TYPE, SLOT_SOURCE_TYPE registry keys; 1.21.10 has SCHEDULE. The modelled surface is SYNCHRONIZED (RegistryDataLoader.SYNCHRONIZED_REGISTRIES): 1.21.10's list is 21 entries (javap-verified against the 1.21.10 server jar \u2014 net.minecraft.resources.RegistryDataLoader in 1.21.10). Removed 6 entries the Rust carried from 1.21.11: zombie_nautilus_variant (ZombieNautilus absent from the 1.21.10 jar), world_clock + timeline (1.21.11-only time system), decorated_pot_pattern (exists in 1.21.10 but not synchronized there), block_transformer (no such registry in 1.21.10), worldgen/block_state_provider (worldgen-only in 1.21.10, not synchronized). Kept sulfur_cube_archetype: Horizon-only content, in neither vanilla jar \u2014 removing it is a Horizon-content decision, not a version port."
+  },
+  "202": {
+   "module": "crates/horizon-client/src/game/maps.rs",
+   "verdict": "ported",
+   "evidence": "MapItemSavedData#calculateRotation: 1.21.10 spins Nether map markers on getLevelData().getDayTime(), 1.21.11 on getGameTime() (bytecode-verified). Rust passed game_time through add_decoration/add_item_decorations/toggle_banner/tick_framed to decoration_rotation; switched the rotation chain to day_time (world.day_time), keeping game_time for holder tracking (h.carried/h.framed/drop_holders) and the every-10-ticks gate. tick_framed gained a day_time param (2 test call sites updated with 0). MapItem#renderBiomePreviewMap is f32-vs-double sin (render noise). Regression test the_nether_marker_spins_on_the_day_time pins the hash for known day times (values computed independently)."
   }
  }
 }

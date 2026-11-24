@@ -139,10 +139,11 @@ impl Game<'_> {
         }
     }
     /// `Fox.isConsumableFood`.
+    /// `Fox.canHoldItem`'s food test: in 1.21.10 the item only needs the
+    /// FOOD component — `isConsumableFood` (food AND consumable) is a
+    /// 1.21.11 helper, and 1.21.10's `canHoldItem` inlines `has(FOOD)`.
     fn fox_food(&self, item: &str) -> bool {
-        self.items()
-            .get(item)
-            .is_some_and(|i| i.food.is_some() && i.consumable.is_some())
+        self.items().get(item).is_some_and(|i| i.food.is_some())
     }
     /// `Fox.pickUpItem`: the extra items drop where it stands, what it held is spat out
     /// ahead of it, and it holds one of the item.

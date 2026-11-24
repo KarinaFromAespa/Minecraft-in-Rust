@@ -14,7 +14,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// RegistryDataLoader.SYNCHRONIZED_REGISTRIES, in vanilla's order.
+/// RegistryDataLoader.SYNCHRONIZED_REGISTRIES, in vanilla's order — the
+/// 1.21.10 list (21 entries). 1.21.11 added zombie_nautilus_variant,
+/// world_clock, timeline, decorated_pot_pattern, block_transformer and
+/// worldgen/block_state_provider to the sync list; none of them is
+/// synchronized in 1.21.10. sulfur_cube_archetype is Horizon's own (in
+/// neither vanilla jar) and stays.
 pub const SYNCHRONIZED: &[&str] = &[
     "minecraft:worldgen/biome",
     "minecraft:chat_type",
@@ -27,7 +32,6 @@ pub const SYNCHRONIZED: &[&str] = &[
     "minecraft:cat_variant",
     "minecraft:cow_variant",
     "minecraft:chicken_variant",
-    "minecraft:zombie_nautilus_variant",
     "minecraft:painting_variant",
     "minecraft:sulfur_cube_archetype",
     "minecraft:dimension_type",
@@ -39,11 +43,6 @@ pub const SYNCHRONIZED: &[&str] = &[
     "minecraft:test_environment",
     "minecraft:test_instance",
     "minecraft:dialog",
-    "minecraft:world_clock",
-    "minecraft:timeline",
-    "minecraft:decorated_pot_pattern",
-    "minecraft:block_transformer",
-    "minecraft:worldgen/block_state_provider",
 ];
 pub const BIOME_REGISTRY: &str = "minecraft:worldgen/biome";
 /// The table a client plays a server with: `known` and the biomes of the

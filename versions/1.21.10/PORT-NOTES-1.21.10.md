@@ -676,3 +676,23 @@ unreachable in 1.21.10 — Kinetic::of matches only 1.21.11 spear ids;
 full spear-system removal is a deferred cross-cutting cleanup, no
 triage item covers spear.rs), 173 (raid spawn-pos trig is f32-vs-f64
 noise on a random candidate).
+
+CI run 45326110344 (head 54819e07, batches 15-16): SUCCESS — all 7 suites
+green. CI run 45327263625 (head 0cd7e906, batch 17: attribute compute,
+border tick, play_sound): SUCCESS — all 7 suites green.
+
+Batch 18 (rank 2 380 -> 388, total 398/719): 3 ported, 5 no-change.
+172 lan/data.rs: SYNCHRONIZED trimmed to 1.21.10's 21 registries
+(javap-verified against the 1.21.10 server jar): removed
+zombie_nautilus_variant, world_clock, timeline, decorated_pot_pattern,
+block_transformer, worldgen/block_state_provider. sulfur_cube_archetype
+kept (Horizon-only, in neither vanilla jar). 202 maps.rs: Nether map
+markers spin on the day time in 1.21.10 (getDayTime), the game time in
+1.21.11 — the rotation chain (add_decoration, add_item_decorations,
+toggle_banner, tick_framed, decoration_rotation) now takes day_time;
+holder tracking stays on game time. 25 foxes.rs: Fox.canHoldItem tests
+FOOD only in 1.21.10 (isConsumableFood is 1.21.11-only). No-change: 15
+(criterion renames), 27 (panda trig noise; MOB_DROPS modelled), 61
+(video-settings layout is menu chrome), 69 (options migration + toast
+rename unmodelled), 84 (villager renames; dragging assign already the
+1.21.10 form).

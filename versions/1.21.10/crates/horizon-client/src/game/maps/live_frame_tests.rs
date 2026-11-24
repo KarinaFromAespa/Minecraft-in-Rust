@@ -83,6 +83,7 @@ fn frame_adoption(glow_first: bool) {
         game.map(0).unwrap().tick_framed(
             1,
             0,
+            0,
             false,
             false,
             Framed {
@@ -159,7 +160,7 @@ fn frame_adoption(glow_first: bool) {
                 facing: frame.facing,
                 id: id as i32,
             };
-            game.map(0).unwrap().tick_framed(1, 0, false, false, f);
+            game.map(0).unwrap().tick_framed(1, 0, 0, false, false, f);
         }
     }
 }
