@@ -175,9 +175,6 @@ impl NaturalLevel for Column<'_> {
     fn unobstructed(&self, _bounds: horizon_core::geometry::Aabb) -> bool {
         self.unobstructed
     }
-    fn spawn_mobs(&self) -> bool {
-        true
-    }
     fn heightmap(&self, _kind: Heightmap, _x: i32, _z: i32) -> i32 {
         self.surface
     }

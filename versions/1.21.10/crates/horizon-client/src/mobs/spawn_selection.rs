@@ -380,8 +380,6 @@ pub trait NaturalLevel: SpawnLevel {
     fn no_collision(&self, bounds: Aabb) -> bool;
     /// `isUnobstructed(entity)`: no entity blocking building overlaps.
     fn unobstructed(&self, bounds: Aabb) -> bool;
-    /// The `spawn_mobs` game rule.
-    fn spawn_mobs(&self) -> bool;
     /// `getHeight(heightmap, x, z)`.
     fn heightmap(&self, kind: Heightmap, x: i32, z: i32) -> i32;
     /// `isPathfindable(PathComputationType.LAND)` of the block.
@@ -1408,7 +1406,9 @@ pub enum GenEvent {
 }
 /// `NaturalSpawner.spawnMobsForChunkGeneration`: creature packs placed on
 /// the chunk's surface. `rules` is the region's random, which the spawn
-/// predicates and `spawn` (finalizeSpawn) draw from.
+/// predicates and `spawn` (finalizeSpawn) draw from. 1.21.10 does not gate
+/// this on the `spawn_mobs` game rule (the gate is 1.21.11-only); it
+/// returns early only when the creature spawn list is empty.
 #[allow(clippy::too_many_arguments)]
 pub fn spawn_mobs_for_chunk_generation<L: NaturalLevel, R: RandomSource, Q: RandomSource>(
     l: &L,
@@ -1419,9 +1419,6 @@ pub fn spawn_mobs_for_chunk_generation<L: NaturalLevel, R: RandomSource, Q: Rand
     spawn: &mut dyn FnMut(&L, &SpawnRequest, &mut Q) -> bool,
     trace: &mut dyn FnMut(GenEvent),
 ) {
-    if !l.spawn_mobs() {
-        return;
-    }
     let [sx, sy, sz] = source;
     let mobs = l
         .biome_spawns(sx, sy, sz)

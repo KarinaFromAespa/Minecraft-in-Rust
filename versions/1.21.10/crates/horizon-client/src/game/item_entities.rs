@@ -824,11 +824,7 @@ impl Game<'_> {
             _ => return,
         };
         for (count, experience) in used {
-            let xp = horizon_client::containers::create_experience(
-                count,
-                experience,
-                &mut self.world.random,
-            );
+            let xp = horizon_client::containers::create_experience(count, experience);
             self.spawn_orbs(at, xp);
         }
     }

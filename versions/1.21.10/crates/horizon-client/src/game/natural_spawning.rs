@@ -589,9 +589,6 @@ impl NaturalLevel for GameLevel<'_, '_> {
                 .mobs_near(bounds)
                 .any(|(_, b, alive, _)| alive && b.intersects(bounds))
     }
-    fn spawn_mobs(&self) -> bool {
-        self.game.ui.rules.bool("spawn_mobs")
-    }
     /// WORLD_SURFACE (every spawn attempt's) is the chunk's kept heightmap.
     /// The others are scanned down the column: sections of air alone are
     /// skipped (air counts for no heightmap). An unloaded column reads as air.

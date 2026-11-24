@@ -343,9 +343,6 @@ impl NaturalLevel for World<'_> {
             .iter()
             .any(|(_, b)| b.intersects(bounds))
     }
-    fn spawn_mobs(&self) -> bool {
-        self.spawn_mobs
-    }
     fn heightmap(&self, kind: Heightmap, x: i32, z: i32) -> i32 {
         (self.min_y()..=self.max_y())
             .rev()

@@ -612,11 +612,8 @@ impl GameLevel<'_> {
                             f64::from(pos.z) + 0.5,
                         ];
                         for (count, experience) in f.recipe_experience(self.recipes) {
-                            let xp = horizon_client::containers::create_experience(
-                                count,
-                                experience,
-                                &mut self.world.random,
-                            );
+                            let xp =
+                                horizon_client::containers::create_experience(count, experience);
                             self.award_orbs(at, xp);
                         }
                     }
