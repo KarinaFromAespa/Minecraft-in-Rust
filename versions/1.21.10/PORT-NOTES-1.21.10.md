@@ -709,3 +709,12 @@ already checks blocks + entities + border, the 1.21.10 noCollision form;
 1.21.11's hasLevelCollision is blocks + border only), 229 (bonemeal
 emits ITEM_INTERACT_FINISH at the player in both), 278 (screen-level
 double-click state unmodelled; container double-click identical).
+
+Batch 20 (rank 2 396 -> 404, total 414/719): 0 ported, 8 no-change,
+ledger only. 100 isMoonVisible is natural + dayTime%24000 in
+[12600, 23400] (javap-verified; isNaturalNight just delegates to it)
+and the Rust's render_tick computes exactly that window. 109 Mth.sin/cos
+index the table in double (1.21.11) vs float (1.21.10) — at most one
+table step, noise; clampedLerp/clampedMap are parameter-order swaps
+with identical semantics. 130's phantom rule resolves through the
+gamerule name-translation table (spawn_phantoms <-> doInsomnia).
