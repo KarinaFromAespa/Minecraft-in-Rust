@@ -1,0 +1,213 @@
+{
+ "batch": 4,
+ "checks": {
+  "gap": 17,
+  "pass": 74,
+  "total": 91
+ },
+ "coordinator_note": "Coordinator reconciliation (2026-11-24): this batch used the MEASURED Batch 0 table directly - all 10 oracle-defect claims verify exactly against docs/sweep/26.2/batch-0-oracles.json (class, error count, first-error line all match), and all 16 withdrawn oracles pass (ContainerScreen passes client+both, as stated). No corrections needed. Check tally arithmetic verified: 26 + 20 + 11 + 34 = 91 checks; 26 + 19 + 0 + 29 = 74 pass; 0 + 1 + 11 + 5 = 17 gap. CROSS-BATCH OVERLAP (dedup at merge time, do not double-count in the merged ledger): B4-O16 (VanillaBlockEntityRenderOracle, 7 errors) is the SAME oracle defect as B10-O03 (recorded major there, with the UvMapping cause); B4-O18 (VanillaRecipeBookScreenOracle, 4 errors, renderpearl) is ONE of the five oracles grouped under B10-O05. At merge, fold B4-O16 into B10-O03 and B4-O18 into B10-O05, keeping the B10 items canonical and these as cross-references. The per-batch slice keeps its own numbering (the 1.21.7 convention) and its Batch 4 driver impact (test_block_entity_render, test_recipe_book_render).",
+ "date": "2026-11-24",
+ "items": [
+  {
+   "area": "block_entity",
+   "evidence": "horizon-client/src/game/machines.rs:941 hoppers_catch_items tests the narrow INSIDE bowl (0.125..0.875, 11/16..1) while vanilla 26.2 HopperBlockEntity.entityInside uses getSuckAabb() = Block.column(16,11,32) -> (0, 11/16, 0)-(1, 2, 1) (server-game.jar). Tick path covers the full AABB, so pickup is at most 1-2 ticks late, never missed. Unchanged from 1.21.7.",
+   "id": "B4-G08",
+   "name": "Hopper entity-catch uses the narrow bowl, not the full SUCK_AABB",
+   "severity": "minor",
+   "status": "gap",
+   "subsystem": "block-entity",
+   "tags": [
+    "hopper"
+   ]
+  },
+  {
+   "area": "block_entity",
+   "evidence": "crafter_eject (horizon-client/src/game/machines/crafter.rs:144) consults only the block-only Containers::view (machines.rs:213, returns None without a block entity), while vanilla 26.2 dispense uses HopperBlockEntity.getContainerAt (block container, else getEntityContainer). Hopper/dropper have the entity_container_at fallback (machines.rs:1274); the crafter lacks it. Result drops as an item instead. Unchanged from 1.21.7.",
+   "id": "B4-G09",
+   "name": "Crafter never ejects into container entities",
+   "severity": "minor",
+   "status": "gap",
+   "subsystem": "block-entity",
+   "tags": [
+    "crafter",
+    "container"
+   ]
+  },
+  {
+   "area": "block_entity",
+   "evidence": "crafter_eject trigger block (machines/crafter.rs:180-205) checks only self.player against the 17-box; vanilla 26.2 CrafterBlock.dispenseItem triggers ALL ServerPlayers in AABB.ofSize(center, 17, 17, 17) (server-game.jar). Geometry (8.5 half-extent strict intersects) matches for the host; LAN guests in range miss the trigger. Unchanged from 1.21.7.",
+   "id": "B4-G10",
+   "name": "Crafter recipe_crafted trigger fires only for the host player (LAN)",
+   "severity": "minor",
+   "status": "gap",
+   "subsystem": "block-entity",
+   "tags": [
+    "crafter",
+    "lan"
+   ]
+  },
+  {
+   "area": "block_entity",
+   "evidence": "open_ender_chest (horizon-client/src/game/storage.rs:157-163) swaps the HOST's ender_items into the shared block BE; close (storage.rs:217) copies back and leaves an empty Chest(27). A LAN guest sees the host's items (while the host has it open) or an empty chest, never their own EnderItems. Single-player correct. storage.rs has 0 changed lines vs 1.21.7.",
+   "id": "B4-G14",
+   "name": "Ender chest shows the wrong inventory to LAN guests",
+   "severity": "minor",
+   "status": "gap",
+   "subsystem": "block-entity",
+   "tags": [
+    "ender_chest",
+    "lan"
+   ]
+  },
+  {
+   "area": "block_entity",
+   "evidence": "BlockEntity::for_block returns None for minecraft:decorated_pot (no branch in containers.rs:376-516, no container_size entry at containers.rs:320-332), but vanilla 26.2 HAS the minecraft:decorated_pot BE type (DecoratedPotBlockEntity implements ContainerSingleItem$BlockContainerSingleItem, 1-slot container). Hopper insert/extract, dropper insert and comparator reads fail; chunk saves carry no pot BEs (port keeps pot item+sherds in a spill tag). Manual insert via use_decorated_pot works. In test_pot_hopper's scope (still a gap).",
+   "id": "B4-G15",
+   "name": "Hoppers/droppers cannot see decorated pots; port has no pot block entity",
+   "severity": "minor",
+   "status": "gap",
+   "subsystem": "block-entity",
+   "tags": [
+    "decorated_pot",
+    "hopper",
+    "dropper"
+   ]
+  },
+  {
+   "area": "oracle",
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaDispenserOracle FAILS on all three classpaths, no-override, 1 error (360: method does not override or implement a method from a supertype). Blocks test_dispenser and test_crafter in this batch, plus block_removal, composter, mace, use_item_on sweep-wide (6 drivers).",
+   "id": "B4-O06",
+   "name": "VanillaDispenserOracle does not compile against 26.2 jars",
+   "severity": "major",
+   "status": "oracle-defect",
+   "subsystem": "oracle",
+   "tags": [
+    "dispenser",
+    "oracle"
+   ]
+  },
+  {
+   "area": "oracle",
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaMenuOracle FAILS on all three classpaths, missing-symbol, 1 error (138: cannot find symbol). Shared dependency: blocks test_menu_click directly and test_recipe_book, test_place_recipe, test_ghost_recipe via cascades (4 drivers).",
+   "id": "B4-O08",
+   "name": "VanillaMenuOracle does not compile against 26.2 jars",
+   "severity": "major",
+   "status": "oracle-defect",
+   "subsystem": "oracle",
+   "tags": [
+    "menu",
+    "oracle"
+   ]
+  },
+  {
+   "area": "oracle",
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaRecipeBookOracle fails as a cascade on broken VanillaMenuOracle. Blocks test_recipe_book. Repaired by the same fix as B4-O08.",
+   "id": "B4-O09",
+   "name": "VanillaRecipeBookOracle blocked by VanillaMenuOracle",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "subsystem": "oracle",
+   "tags": [
+    "recipe_book",
+    "oracle"
+   ]
+  },
+  {
+   "area": "oracle",
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaPlaceRecipeOracle fails as a cascade on broken VanillaMenuOracle. Blocks test_place_recipe. Repaired by the same fix as B4-O08.",
+   "id": "B4-O10",
+   "name": "VanillaPlaceRecipeOracle blocked by VanillaMenuOracle",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "subsystem": "oracle",
+   "tags": [
+    "place_recipe",
+    "oracle"
+   ]
+  },
+  {
+   "area": "oracle",
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaSculkOracle FAILS on all three classpaths, missing-symbol, 4 errors (327: cannot find symbol). Blocks test_sculk. Down from 60 errors in 1.21.7.",
+   "id": "B4-O14",
+   "name": "VanillaSculkOracle does not compile against 26.2 jars",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "subsystem": "oracle",
+   "tags": [
+    "sculk",
+    "oracle"
+   ]
+  },
+  {
+   "area": "oracle",
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaBlockEntityAnimOracle FAILS on all three classpaths, missing-override, 1 error (102: World is not abstract and does not override abstract method fuelValues() in Level). Batch 0 group G1: the fake level lacks fuelValues(). Blocks test_block_entity_anim.",
+   "id": "B4-O15",
+   "name": "VanillaBlockEntityAnimOracle fake level lacks fuelValues()",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "subsystem": "oracle",
+   "tags": [
+    "block_entity_anim",
+    "oracle"
+   ]
+  },
+  {
+   "area": "oracle",
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaBlockEntityRenderOracle FAILS on all three classpaths, missing-symbol, 7 errors (23: cannot find symbol). Blocks test_block_entity_render (also blocked by Batch 10's VanillaTextDisplayRenderOracle, 1 error - not double-counted). Down from 99 errors in 1.21.7.",
+   "id": "B4-O16",
+   "name": "VanillaBlockEntityRenderOracle does not compile against 26.2 jars",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "subsystem": "oracle",
+   "tags": [
+    "block_entity_render",
+    "oracle"
+   ]
+  },
+  {
+   "area": "oracle",
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaRecipeBookScreenOracle FAILS on all three classpaths, missing-package, 4 errors (4: package com.mojang.renderpearl.api.pipeline does not exist). Batch 0 group G4: renderpearl is a 26.3-only API; needs a rewrite against 26.2's screen APIs. Blocks test_recipe_book_render.",
+   "id": "B4-O18",
+   "name": "VanillaRecipeBookScreenOracle imports 26.3-only renderpearl package",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "subsystem": "oracle",
+   "tags": [
+    "recipe_book_screen",
+    "oracle"
+   ]
+  },
+  {
+   "area": "oracle",
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaTradingOracle FAILS on all three classpaths, missing-symbol, 1 error (254: cannot find symbol). Blocks test_trading.",
+   "id": "B4-O25",
+   "name": "VanillaTradingOracle does not compile against 26.2 jars",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "subsystem": "oracle",
+   "tags": [
+    "trading",
+    "oracle"
+   ]
+  },
+  {
+   "area": "oracle",
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaGhostRecipeOracle FAILS on all three classpaths, missing-symbol, 1 error (56: cannot find symbol). Blocks test_ghost_recipe (which also needs VanillaMenuOracle).",
+   "id": "B4-O26",
+   "name": "VanillaGhostRecipeOracle does not compile against 26.2 jars",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "subsystem": "oracle",
+   "tags": [
+    "ghost_recipe",
+    "oracle"
+   ]
+  }
+ ],
+ "method": "static-only: javap -c on the named 26.2 server-game jar (Mojang-mapped), Rust source comparison (read-only), prepared 26.2 data (items.json, registries.json, block-behaviours.json, gameplay-facts.json, tags), jar-data scans and 26.2 datagen reports. No driver was run, no code executed, no fixes, no edits under versions/26.2/, no commits. Oracle statuses are Batch 0's MEASURED table (docs/sweep/26.2/batch-0-oracles.json). Programmatic comparisons: FuelValues.vanillaBurnTimes vs FUEL_VALUES (64/64 exact), PotionBrewing.addVanillaMixes vs brewing mixes (63 potion + 2 container, exact set and order).",
+ "name": "Block entities + containers",
+ "out_of_scope_failures": "drivers in other batches' scope (bonus_chest, decorated_region, storage_alias, food_storage, server_player_sculk, shulker_bullet, held_item_stack, finalize_spawn, natural_spawn, screen_layout, text_display_render); unmeasured drivers with no oracle (test_disconnect_crafting, test_hive_default_patch); Batch 10 items not double-counted (VanillaTextDisplayRenderOracle, VanillaLoomScreenOracle, ParityFont)",
+ "source": "26.2 parity sweep batch 4",
+ "systemic_note": "The 1.21.7 systemic cause (26.x component/tag logic carried into a version that lacks those lookups) is inverted for 26.2: the 26.2 port was written against 26.2's own forms and all three 1.21.7 MAJOR defects are fixed (furnaces light from the FuelValues table, brewing brews from the #brewing_fuel tag, cartography zooms with no tag gate). Six more 1.21.7 defects are withdrawn because vanilla itself changed between 1.21.7 and 26.2. The five remaining defects are one-off logic divergences carried over unchanged. Oracle breakage is far lighter than 1.21.7's: 16 of 26 oracles now pass; the 10 remaining failures are 1-7 errors each, dominated by two one-error repairs (MenuOracle blocking 4 drivers, DispenserOracle blocking 6 sweep-wide).",
+ "version": "26.2"
+}
