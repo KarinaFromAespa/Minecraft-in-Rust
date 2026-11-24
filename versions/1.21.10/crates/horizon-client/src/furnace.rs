@@ -79,11 +79,12 @@ impl FurnaceCooking for Furnace {
             if let Some(ingredient) = self.items[0].clone() {
                 if let Some(recipe) = recipes.cook(self.kind.recipe_type(), &ingredient) {
                     let max = items.get(&recipe.result.item).map_or(64, |i| i.max_stack);
+                    // 1.21.10's canBurn only needs room for one more item in
+                    // the output (26.x required room for the whole result).
                     let can_burn = match &self.items[2] {
                         None => true,
                         Some(out) => {
-                            out.same_item_same_components(&recipe.result)
-                                && out.count + recipe.result.count <= max
+                            out.same_item_same_components(&recipe.result) && out.count < max
                         }
                     };
                     if can_burn {
@@ -105,9 +106,9 @@ impl FurnaceCooking for Furnace {
                                     (ratio * self.cooking_total as f32).ceil() as i32;
                             }
                             if time > 0 {
-                                // AbstractFurnaceBlockEntity.consumeFuel: the fuel's crafting
-                                // remainder takes the slot once the stack is used up, else
-                                // it is dropped.
+                                // serverTick's fuel burn: the fuel's crafting
+                                // remainder takes the slot once the stack is
+                                // used up, else it is dropped.
                                 if let Some(f) = self.items[1].as_mut() {
                                     let remainder = items
                                         .get(&f.item)
@@ -129,7 +130,10 @@ impl FurnaceCooking for Furnace {
                                 self.cooking_timer = 0;
                                 self.cooking_total = total_time(recipe.time, self.speed);
                                 match &mut self.items[2] {
-                                    Some(out) => out.count += recipe.result.count,
+                                    // 1.21.10's burn grows the output by one,
+                                    // even when the recipe yields more (26.x
+                                    // grows it by the whole result count).
+                                    Some(out) => out.count += 1,
                                     None => self.items[2] = Some(recipe.result.clone()),
                                 }
                                 *self
@@ -161,6 +165,10 @@ impl FurnaceCooking for Furnace {
                     } else {
                         self.cooking_timer = 0;
                     }
+                } else {
+                    // 1.21.10 resets the timer when the ingredient has no
+                    // recipe (26.x left it untouched).
+                    self.cooking_timer = 0;
                 }
             } else {
                 self.cooking_timer = 0;
@@ -216,13 +224,22 @@ mod tests {
     /// with two fuels: `test:coal` (no remainder) and `test:cell` (a content mod's item
     /// that leaves `test:husk`). The folder is gone when this returns.
     fn data(name: &str) -> (Items, Recipes, Providers) {
-        let root =
-            std::env::temp_dir().join(format!("horizon-furnace-{name}-{}", std::process::id(),));
+        data_count(name, 1)
+    }
+
+    /// As `data`, with the recipe yielding `count` ingots per ore.
+    fn data_count(name: &str, count: u32) -> (Items, Recipes, Providers) {
+        let root = std::env::temp_dir().join(format!(
+            "horizon-furnace-{name}-{count}-{}",
+            std::process::id(),
+        ));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("data/minecraft/recipe")).unwrap();
         fs::write(
             root.join("data/minecraft/recipe/test_ingot.json"),
-            br#"{"type":"minecraft:smelting","ingredient":"test:ore","result":{"id":"test:ingot"}}"#,
+            format!(
+                r#"{{"type":"minecraft:smelting","ingredient":"test:ore","result":{{"id":"test:ingot","count":{count}}}}}"#
+            ),
         )
         .unwrap();
         fs::create_dir_all(root.join("data/minecraft/loot_table")).unwrap();
@@ -370,6 +387,70 @@ mod tests {
         }
     }
 
+    /// 1.21.10's serverTick resets the cooking timer when the ingredient
+    /// has no recipe; 26.x left it untouched.
+    #[test]
+    fn an_ingredient_without_a_recipe_resets_the_cooking_timer() {
+        let (items, recipes, providers) = data("no-recipe-reset");
+        let mut f = Furnace {
+            kind: FurnaceKind::Furnace,
+            items: [
+                Some(ItemStack::new("test:ingot", 1)),
+                Some(ItemStack::new("test:coal", 1)),
+                None,
+            ],
+            lit_remaining: 20,
+            lit_total: 20,
+            cooking_timer: 100,
+            cooking_total: 200,
+            speed: 1.0,
+            recipes_used: HashMap::new(),
+        };
+        let mut drops = Vec::new();
+        f.tick(&recipes, &items, &providers, &mut drops);
+        assert_eq!(f.cooking_timer, 0);
+        assert!(drops.is_empty());
+    }
+
+    /// 1.21.10's canBurn only needs room for one more item, and burn grows
+    /// the output by one even when the recipe yields more; 26.x required
+    /// room for the whole result and grew it by the whole count. (All
+    /// vanilla cooking recipes yield one, so only datapack recipes with a
+    /// count above one can tell the two apart.)
+    #[test]
+    fn a_multi_count_recipe_only_adds_one_to_a_nonempty_output() {
+        let (items, recipes, providers) = data_count("multi-count", 2);
+        let mut f = Furnace {
+            kind: FurnaceKind::Furnace,
+            items: [
+                Some(ItemStack::new("test:ore", 3)),
+                Some(ItemStack::new("test:coal", 2)),
+                Some(ItemStack::new("test:ingot", 63)),
+            ],
+            lit_remaining: 0,
+            lit_total: 0,
+            cooking_timer: 0,
+            cooking_total: 200,
+            speed: 1.0,
+            recipes_used: HashMap::new(),
+        };
+        let mut drops = Vec::new();
+        assert_eq!(
+            f.tick(&recipes, &items, &providers, &mut drops),
+            Some(true),
+            "room for one is enough to light the furnace"
+        );
+        for _ in 0..400 {
+            if f.items[0].as_ref().unwrap().count == 2 {
+                break;
+            }
+            f.tick(&recipes, &items, &providers, &mut drops);
+        }
+        assert_eq!(f.items[0].as_ref().unwrap().count, 2);
+        assert_eq!(f.items[2].as_ref().unwrap().count, 64);
+        assert!(drops.is_empty());
+    }
+
     /// The furnace sleeps while `idle`, so its tick must change nothing then: run the
     /// real tick on every idle case and compare, and check a furnace that can smelt
     /// isn't idle and does change.
@@ -441,7 +522,7 @@ mod tests {
         furnace.items[1].as_ref().map(|s| (&*s.item, s.count))
     }
 
-    /// `AbstractFurnaceBlockEntity.consumeFuel`: the last of a fuel with a remainder
+    /// serverTick's fuel burn: the last of a fuel with a remainder
     /// leaves it in the fuel slot.
     #[test]
     fn the_last_fuel_leaves_its_remainder_in_the_slot() {

@@ -12736,7 +12736,7 @@ mod tests {
         assert!(level.get("Player").is_none());
         assert!(level.get("singleplayer_uuid").is_none());
         assert!(level.get("WorldGenSettings").is_some());
-        assert!(level.get("game_rules").is_some());
+        assert!(level.get("GameRules").is_some());
         assert!(!dir.join("players").exists());
         assert!(!dir.join("data").exists());
         let _ = std::fs::remove_dir_all(&dir);

@@ -1,5 +1,5 @@
 //! `AbstractContainerMenu.clicked` over vanilla's slot layouts: every
-//! `ContainerInput` (pickup, quick move, swap, clone, throw, the three quick
+//! `ClickType` (pickup, quick move, swap, clone, throw, the three quick
 //! craft drags, pickup all) for the player inventory, the crafting table, the
 //! chest family, hoppers, dispensers, shulker boxes, the furnaces, the brewing
 //! stand, the crafter (its client menu and the block entity's server menu with
@@ -3184,7 +3184,7 @@ impl Menu {
     }
 
     /// What a quick craft drag of type `ty` over `slots` shows
-    /// (`AbstractContainerScreen.extractSlot` and
+    /// (`AbstractContainerScreen.renderSlot` and
     /// `recalculateQuickCraftRemaining`): each slot's would-be count and
     /// whether the slot caps it (a yellow count), then the count left in
     /// hand. Nothing while the drag spans a single slot.

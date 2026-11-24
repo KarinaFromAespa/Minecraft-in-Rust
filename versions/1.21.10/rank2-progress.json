@@ -1,8 +1,8 @@
 {
  "release": "1.21.10",
  "rank": 2,
- "batch": 3,
- "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json.",
+ "batch": 4,
+ "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed.",
  "items": {
   "201": {
    "module": "crates/horizon-client/src/game/frame_geometry.rs",
@@ -943,6 +943,231 @@
    "module": "widely named: client/gui/screens/worldselection",
    "verdict": "carry-over",
    "evidence": "1.21.11-port hunks hand-merged with 1.21.10 numbers (pack formats 88/69, Realms 1.21.10/773) or jar-verified (BlendingDataFix at 4295, shipwreck height_adjusted absent); no named method changed 1.21.11->1.21.10 per jardiff."
+  },
+  "137": {
+   "module": "widely named: net/minecraft: 15 vanilla classes changed (47 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 105"
+  },
+  "158": {
+   "module": "widely named: client: 9 vanilla classes changed (37 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 35"
+  },
+  "185": {
+   "module": "widely named: sounds: 2 vanilla classes changed (29 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 21"
+  },
+  "186": {
+   "module": "widely named: world/level/block/entity: 10 vanilla classes changed (29 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 37"
+  },
+  "193": {
+   "module": "widely named: world/inventory: 9 vanilla classes changed (27 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 33"
+  },
+  "216": {
+   "module": "widely named: world/entity: 12 vanilla classes changed (24 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 157"
+  },
+  "234": {
+   "module": "widely named: client/renderer: 5 vanilla classes changed (22 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 55"
+  },
+  "241": {
+   "module": "widely named: world/level/block: 14 vanilla classes changed (20 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 93"
+  },
+  "245": {
+   "module": "widely named: world/entity/player: 2 vanilla classes changed (19 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 134"
+  },
+  "248": {
+   "module": "widely named: client/multiplayer: 5 vanilla classes changed (18 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 88"
+  },
+  "251": {
+   "module": "widely named: client/gui/screens/inventory: 6 vanilla classes changed (17 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 18"
+  },
+  "252": {
+   "module": "widely named: server: 5 vanilla classes changed (17 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 50"
+  },
+  "253": {
+   "module": "widely named: tags: 7 vanilla classes changed (17 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 34"
+  },
+  "258": {
+   "module": "widely named: resources: 2 vanilla classes changed (16 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 11"
+  },
+  "259": {
+   "module": "widely named: world/entity/ai/attributes: 3 vanilla classes changed (16 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 11"
+  },
+  "272": {
+   "module": "widely named: network/codec: 4 vanilla classes changed (14 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 15"
+  },
+  "273": {
+   "module": "widely named: server/level: 7 vanilla classes changed (14 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 101"
+  },
+  "274": {
+   "module": "widely named: util: 7 vanilla classes changed (14 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 30"
+  },
+  "295": {
+   "module": "widely named: advancements: 3 vanilla classes changed (12 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 8"
+  },
+  "297": {
+   "module": "widely named: world/effect: 3 vanilla classes changed (12 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 29"
+  },
+  "321": {
+   "module": "widely named: nbt: 2 vanilla classes changed (10 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 27"
+  },
+  "327": {
+   "module": "widely named: server/players: 3 vanilla classes changed (9 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 39"
+  },
+  "339": {
+   "module": "widely named: server/packs/resources: 2 vanilla classes changed (7 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 9"
+  },
+  "340": {
+   "module": "widely named: world/level/chunk: 5 vanilla classes changed (7 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 50"
+  },
+  "354": {
+   "module": "widely named: client/input: 5 vanilla classes changed (5 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 16"
+  },
+  "368": {
+   "module": "crates/horizon-client/src/recipe_book.rs: 1 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 1"
+  },
+  "376": {
+   "module": "widely named: core/component: 2 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 29"
+  },
+  "379": {
+   "module": "widely named: server/network: 2 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 36"
+  },
+  "384": {
+   "module": "widely named: world/item/alchemy: 3 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 19"
+  },
+  "385": {
+   "module": "widely named: world/item/crafting: 1 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 6"
+  },
+  "386": {
+   "module": "widely named: world/item/equipment/trim: 1 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 6"
+  },
+  "387": {
+   "module": "widely named: world/level/block/state: 2 vanilla classes changed (3 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 17"
+  },
+  "394": {
+   "module": "crates/horizon-client/src/container_screen.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 1"
+  },
+  "415": {
+   "module": "widely named: world/entity/animal/nautilus: 2 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 18"
+  },
+  "416": {
+   "module": "widely named: world/item/enchantment: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 4"
+  },
+  "419": {
+   "module": "widely named: world/level/chunk/status: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 4"
+  },
+  "424": {
+   "module": "widely named: world/level/storage/loot/functions: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 4"
+  },
+  "426": {
+   "module": "widely named: world: 2 vanilla classes changed (2 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 11"
+  },
+  "448": {
+   "module": "widely named: client/renderer/rendertype: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 18"
+  },
+  "449": {
+   "module": "widely named: network/chat: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 6"
+  },
+  "450": {
+   "module": "widely named: network/syncher: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 9"
+  },
+  "454": {
+   "module": "widely named: world/entity/ai/control: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 5"
+  },
+  "460": {
+   "module": "widely named: world/level/gameevent: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification (batch 4 blockers: end flash game-time tick + ambient colour, ObjectContents fallback removal, furnace canBurn/burn/timer, createItemStack no-validateStrict, sign-board rendering, SlotDisplay codec rewire to the 1.21.10 8-entry registry, copper-golem/banner/book sprite paths, chest xmas order, environment-attribute trim); no named method changed 1.21.11->1.21.10 per jardiff. Files: 19"
+  },
+  "275": {
+   "module": "widely named: world/item/component: 11 vanilla classes changed (14 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "No carry-over applies: the only remaining blocker file is spear.rs, whose 1.21.11 changes are spear dismount thresholds and sway timing for a mechanic 1.21.10 lacks (iron_spear absent from the 1.21.10 jar; no spear lunge in 1.21.10's Player; lungeForwardMaybe/postPiercingAttack absent from both jars' entity/item/player classes). All other files for this item are merged or verified. Files: 35"
+  },
+  "322": {
+   "module": "widely named: world/item: 5 vanilla classes changed (10 methods, 0 named in Horizon)",
+   "verdict": "no-change",
+   "evidence": "No carry-over applies: the only remaining blocker file is spear.rs, whose 1.21.11 changes are spear dismount thresholds and sway timing for a mechanic 1.21.10 lacks (iron_spear absent from the 1.21.10 jar; no spear lunge in 1.21.10's Player; lungeForwardMaybe/postPiercingAttack absent from both jars' entity/item/player classes). All other files for this item are merged or verified. Files: 14"
   }
  }
 }

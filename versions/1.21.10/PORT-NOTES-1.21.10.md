@@ -488,3 +488,89 @@ chunks kept no blending data). horizon-world fully green locally
 locally. 45 carry-over items stay open behind 27 hand-merge files
 (SlotDisplay renumbering, spear, hand.rs, item.rs, menu/hub, cauldron,
 furnace, component, frames, end.rs, recipe_book, advancements).
+
+## Rank 2, batch 4 — remaining carry-over blockers (45 items, Nov 24, 2026)
+
+Closes the last 45 carry-over items (43 by merge, 2 by no-change
+evidence). All 129 carry-over items are now closed; rank 2 stands at
+163/454, with the 291 review items remaining.
+
+Hand-merges, each jar-verified against 1.21.10's own jars:
+
+- `game/end.rs`: EnderDragonFight → EndDragonFight; the flash
+  ambient colour ([0.99, 1.12, 1.0], `END_FLASH_SKY_LIGHT_COLOR`,
+  0.99f/1.12f in 1.21.10's LightTexture) and the flash tick from
+  game time (1.21.10's ClientLevel calls
+  `EndFlashState.tick(getGameTime())`).
+- `component.rs`: ObjectContents `fallback` removed — the record is
+  identical in both versions (only `contents`, no fallback field).
+- `furnace.rs`: canBurn needs room for one more item only
+  (`getCount() >= getMaxStackSize()`), burn grows the output by one
+  (`grow(1)`), serverTick resets the timer when the ingredient has
+  no recipe — all three byte-identical between the jars.
+- `game/commands/items.rs`: createItemStack does NOT validateStrict
+  afterwards — byte-identical in both jars, no validateStrict call;
+  the damageable+stackable rejection and `item_validation_components`
+  are deleted.
+- `game/frames.rs`: `isOutsideBuildHeight` (both jars), the frame
+  board/needle owner (ItemFrame.setDirection uses get2DDataValue in
+  both; NeedleDirectionHelper exists in both client jars), the map
+  bounds widening removed.
+- `block_entity_render.rs`: sign boards as entity models
+  (SignRenderer/HangingSignRenderer + AttachmentType exist in
+  1.21.10; the sign block models are empty), copper-golem statue
+  textures (`exposed_copper_golem.png` etc. in 1.21.10's assets),
+  banner cloth at `entity/banner_base.png`, the end-gateway beam at
+  `entity/end_gateway_beam.png`, the enchanting-table book at
+  `entity/enchanting_table_book.png`, copper chests wearing the
+  christmas textures (1.21.10's getChestMaterial checks xmas before
+  copper: ENDER → CHRISTMAS → TRAPPED → copper → REGULAR), the sign
+  atlas-revision cache.
+- `environment_attributes.rs`: the 3 26.1-only light attributes
+  removed (absent from both jars — 1.21.10 has no
+  `net/minecraft/world/attribute` classes at all; the table is the
+  engine's environment model carried from 1.21.11), turtle-egg
+  hatch default 0.002 → 0.0.
+- `packets/recipes.rs` + `recipe_book.rs` + `lan/advancements.rs` +
+  adapter ids: the SlotDisplay codec rewired to 1.21.10's 8-entry
+  registry (empty, any_fuel, item, item_stack, tag, smithing_trim,
+  with_remainder, composite — identical order in both versions; the
+  26.x with_any_potion/only_with_component/dyed do not exist here).
+  The hand-corrected tables are gone: v1_21_8/v1_21_10/v1_21_11_ids
+  are now `Remap::Same`, and v26_1_2/v26_2_ids carry the 26.x →
+  1.21.10 remap (26.x 4/5/6 → 2/3/4, 8/9/10 → 5/6/7).
+- `container_screen.rs`, `game/remote_stations.rs`, `lan/hub.rs`,
+  `menu.rs`, `cauldron.rs`, `game/enchant_effects.rs`: merged to
+  0 diff (ClickType in both jars, no ContainerInput;
+  CauldronInteraction at `net/minecraft/core/cauldron/` in both;
+  `doLungeEffects` only in 1.21.11).
+- `game/spear.rs`: comments reworded only — `lungeForwardMaybe`
+  exists only in 1.21.11's Player; 1.21.10 has no spear lunge.
+
+Deliberately NOT merged, with jar evidence:
+
+- Top-level `spear.rs`: the 1.21.11 changes are spear dismount
+  thresholds and sway timing for a mechanic 1.21.10 lacks
+  (iron_spear absent from the 1.21.10 jar). Items 275 and 322 close
+  as no-change on this evidence.
+- `protocol/item.rs`: the whole diff is 1.21.10's own 96-component
+  numbering (correct) plus 1.21.11-only components (ATTACK_RANGE,
+  DAMAGE_TYPE, ZOMBIE_NAUTILUS_VARIANT, kinetic_weapon); 1.21.10's
+  skip_dropped arms for the 8 removed components are correct as-is.
+- `game/hand.rs`: only the `Entity.updateFluidOnEyes` comment
+  applies (the method exists in 1.21.10's Entity). The spectator
+  min-range and getActiveItem changes concern `attack_range`, which
+  1.21.10 lacks entirely (no `entityAttackRange` in its
+  LivingEntity); the code stays as inert 26.3-base dead code.
+- `packets/play.rs`: only the Horse/Mount rename remains — 1.21.10's
+  form is correct and kept.
+
+Batch-3 CI fixes (run 45305592498: 2 failures, down from 22):
+the realms upload test now asserts `GameRules` (the 1.21.10 vanilla
+save form from batch 3, not the 1.21.11 `game_rules` key), and the
+86 bundled lang files were synced from 1.21.11 (pure stale-key
+removals: "Fills the screen (borderless).", "Fullscreen takes the
+display over, at the mode below.", "The display mode exclusive
+fullscreen uses. Applies when you leave." — all removed from
+en_us.json in batch 3, so the lang test's no-stale-keys check
+failed). Lang test verified locally passing.
