@@ -12,20 +12,28 @@ the same method that produced the 26.3 rewrite.
 
 The 1.21.7 port is in open playtest. The latest test build is on the
 **[releases page](https://github.com/KarinaFromAespa/Minecraft-in-Rust/releases)**
-(currently [1.21.7 test build #5](https://github.com/KarinaFromAespa/Minecraft-in-Rust/releases/tag/1.21.7-build-5)):
-the launcher for Windows and Linux, plus the 1.21.7 game build.
+(currently [1.21.7 test build #7](https://github.com/KarinaFromAespa/Minecraft-in-Rust/releases/tag/1.21.7-build-7)):
+the launcher for Windows and Linux, plus the 1.21.7 game build for
+Windows. No Microsoft account is needed.
 
-1. Run the launcher.
-2. Import a game build: pick the `horizon-client-1.21.7-windows.zip` from
-   the release.
-3. Sign in with a Microsoft account that owns Minecraft: Java Edition.
-4. Press Play. The launcher prepares the 1.21.7 files from your own
-   Minecraft install, or downloads them from Mojang, then starts the game.
+1. Download `horizon-launcher-1.21.7-windows.zip` and
+   `horizon-client-1.21.7-windows.zip` from the release, and unzip both.
+2. Run `horizon-launcher.exe`.
+3. Press Prepare. The launcher downloads the 1.21.7 game files from
+   Mojang and prepares them — a few minutes the first time.
+4. Import a game build: pick `horizon-client.exe` from the unzipped
+   game build.
+5. Press Play, then create or open a world.
 
-Requirements: Windows 10/11 x64 (or Linux x64), a Microsoft account that
-owns Java Edition, a few GB free, a GPU with Vulkan or DirectX 12. Keep
-render distance at 12 — the slider allows 128 and that can crash smaller
-GPUs. Report problems as
+If the first world load sticks on "Loading terrain…", close the
+launcher completely and press Play again — the world loads on the
+second try. Some menu icons show as blank squares; that is cosmetic
+only.
+
+Requirements: Windows 10/11 x64 (or Linux x64 for the launcher; the
+game build is Windows-only for now), a few GB free, a GPU with Vulkan
+or DirectX 12. Keep render distance at 12 — the slider allows 128 and
+that can crash smaller GPUs. Report problems as
 [issues](https://github.com/KarinaFromAespa/Minecraft-in-Rust/issues), with
 what you did, a screenshot or clip, the world seed, and the game log
 (in the launcher: Console, then Share log).
