@@ -1079,4 +1079,68 @@ mod tests {
         );
         fs::remove_dir_all(root).unwrap();
     }
+
+    #[test]
+    fn downloads_verify_against_sha1_and_reuse_verified_copies() {
+        // The real download path (ureq GET, streaming copy, .part + rename,
+        // sha1 verify) against a one-shot local server — the VM's egress
+        // proxy keeps the live Maven URLs out of reach, so the e2e seeds its
+        // cache instead; this test is what proves the fetching itself.
+        const BODY: &[u8] = b"tiny-remapper stand-in";
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = std::thread::spawn(move || {
+            // Exactly two requests: the good fetch, then the bad-checksum one.
+            for _ in 0..2 {
+                let (mut stream, _) = listener.accept().unwrap();
+                use std::io::Read;
+                let mut buf = [0u8; 4096];
+                let mut read = 0;
+                while read < buf.len() {
+                    match stream.read(&mut buf[read..]) {
+                        Ok(0) | Err(_) => break,
+                        Ok(n) => {
+                            read += n;
+                            if buf[..read].windows(4).any(|w| w == b"\r\n\r\n") {
+                                break;
+                            }
+                        }
+                    }
+                }
+                stream
+                    .write_all(
+                        format!(
+                            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                            BODY.len()
+                        )
+                        .as_bytes(),
+                    )
+                    .unwrap();
+                stream.write_all(BODY).unwrap();
+                stream.flush().unwrap();
+            }
+        });
+        let root = dir("download");
+        let probe = root.join("probe.bin");
+        fs::write(&probe, BODY).unwrap();
+        let sha1 = digest(&probe, "sha1").unwrap();
+        let url = format!("http://127.0.0.1:{port}/dep.jar");
+        let dest = root.join("dep.jar");
+        assert_eq!(download(&url, &dest, &sha1, &|_| {}).unwrap(), dest);
+        assert_eq!(fs::read(&dest).unwrap(), BODY);
+        assert!(!root.join("dep.jar.part").exists());
+        // A verified copy is reused without touching the network (the server
+        // has no third response to give).
+        assert_eq!(download(&url, &dest, &sha1, &|_| {}).unwrap(), dest);
+        // A wrong checksum is rejected and leaves no file behind.
+        let bad = root.join("bad.jar");
+        let error = download(&url, &bad, &"0".repeat(40), &|_| {})
+            .err()
+            .expect("a bad checksum downloaded");
+        assert!(error.contains("Checksum mismatch"), "{error}");
+        assert!(!bad.exists());
+        assert!(!root.join("bad.jar.part").exists());
+        server.join().unwrap();
+        fs::remove_dir_all(root).unwrap();
+    }
 }
