@@ -979,7 +979,7 @@ impl Game<'_> {
         for r in &allowed {
             let list = tree.recipe_criteria(r);
             self.trigger_criteria(&tree, &list, |c, _| {
-                c["recipes"]
+                c["recipe"]
                     .as_str()
                     .is_some_and(|id| adv::full(id) == r.as_str())
             });
@@ -1863,7 +1863,7 @@ impl Game<'_> {
         };
         let me = self.player_entity_for("minecraft:enter_block");
         self.trigger("minecraft:enter_block", move |c, w| {
-            let block_ok = adv::id_matches(&c["blocks"], "block", &definition.name, w);
+            let block_ok = adv::block_condition(c, &definition.name, w);
             let state_ok = c["state"]
                 .as_object()
                 .into_iter()
@@ -1888,7 +1888,13 @@ impl Game<'_> {
                 tool: None,
                 block_pos: None,
             };
-            adv::conditions(&c["player"], &ctx, w) && adv::block(c, pos, w)
+            let (name, props) = w.block(pos);
+            let state_ok = c["state"]
+                .as_object()
+                .into_iter()
+                .flatten()
+                .all(|(k, v)| props.get(k).map(String::as_str) == v.as_str());
+            adv::conditions(&c["player"], &ctx, w) && state_ok && adv::block_condition(c, &name, w)
         });
     }
     /// `TargetBlockTrigger`: signal and projectile conditions are evaluated in
@@ -2055,7 +2061,7 @@ impl Game<'_> {
                 .into_iter()
                 .flatten()
                 .all(|(k, v)| definition.properties.get(k).map(String::as_str) == v.as_str());
-            adv::id_matches(&c["blocks"], "block", &definition.name, w)
+            adv::block_condition(c, &definition.name, w)
                 && state_ok
                 && adv::item(&c["item"], &tool, w)
                 && adv::range_i(&c["num_bees_inside"], bees)
@@ -2116,7 +2122,7 @@ impl Game<'_> {
                 block_pos: None,
             };
             adv::conditions(&c["player"], &pctx, w)
-                && adv::id_matches(&c["recipes"], "recipe", &recipe, w)
+                && adv::recipe_condition(c, &recipe, w)
                 && adv::recipe_ingredients(&c["ingredients"], &used, w)
         });
     }
@@ -2133,7 +2139,7 @@ impl Game<'_> {
                 block_pos: None,
             };
             adv::conditions(&c["player"], &pctx, w)
-                && adv::id_matches(&c["loot_tables"], "loot_table", &table, w)
+                && adv::loot_table_condition(c, &table, w)
         });
     }
     /// `BredAnimalsTrigger`.

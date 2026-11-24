@@ -105,10 +105,12 @@ impl Providers {
             floats: HashMap::new(),
         }
     }
-    /// `FuelValues.vanillaBurnTimes` (26.2): the hardcoded burn-time table.
-    /// The `fast` flag is 26.3's provider context; 26.2 burn time is the
-    /// same in every furnace.
-    pub fn burn_time(&self, items: &Items, stack: &ItemStack, _fast: bool) -> i32 {
-        crate::items::burn_time(items, &stack.item)
+    /// `AbstractFurnaceBlockEntity.getBurnDuration` in this furnace: the
+    /// `FuelValues` table value, halved in a smoker or blast furnace
+    /// (`SmokerBlockEntity`/`BlastFurnaceBlockEntity` return
+    /// `super.getBurnDuration(...) / 2`, 26.2 jar).
+    pub fn burn_time(&self, items: &Items, stack: &ItemStack, fast: bool) -> i32 {
+        let time = crate::items::burn_time(items, &stack.item);
+        if fast { time / 2 } else { time }
     }
 }

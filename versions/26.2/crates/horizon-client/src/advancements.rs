@@ -247,7 +247,7 @@ impl Tree {
             .flatten()
         {
             // `read`: the index alone keeps none of the criteria read.
-            match self.list[ai].criteria[ci].conditions.read()["recipes"].as_str() {
+            match self.list[ai].criteria[ci].conditions.read()["recipe"].as_str() {
                 Some(r) => self
                     .by_recipe
                     .entry(full(r).into_owned())
@@ -786,6 +786,24 @@ pub fn id_matches(v: &Value, registry: &str, id: &str, w: &dyn World) -> bool {
         Value::Array(a) => a.iter().any(|x| id_matches(x, registry, id, w)),
         _ => false,
     }
+}
+/// A `recipe_crafted`/`crafter_recipe_crafted` criterion names its
+/// recipe with the singular `recipe_id` key (vanilla 26.2's
+/// `RecipeCraftedTrigger`; the crafter trigger reuses its instance).
+/// Reading the 26.x plural `recipes` key instead matched every craft.
+pub fn recipe_condition(v: &Value, recipe: &str, w: &dyn World) -> bool {
+    id_matches(&v["recipe_id"], "recipe", recipe, w)
+}
+/// A `player_generates_container_loot` criterion names its table with
+/// the singular `loot_table` key (vanilla 26.2's `LootTableTrigger`).
+pub fn loot_table_condition(v: &Value, table: &str, w: &dyn World) -> bool {
+    id_matches(&v["loot_table"], "loot_table", table, w)
+}
+/// A single-block trigger's criterion (`enter_block`,
+/// `bee_nest_destroyed`, `slide_down_block`) names its block with the
+/// singular `block` key (vanilla 26.2's triggers).
+pub fn block_condition(v: &Value, name: &str, w: &dyn World) -> bool {
+    id_matches(&v["block"], "block", name, w)
 }
 /// `PotionsPredicate`: the potion in a `HolderSet`, plus a `CollectionPredicate`
 /// over the potion's effects (`contains`, `count`, `size`).
@@ -2194,27 +2212,112 @@ mod tests {
             &Flat
         ));
     }
-    /// A `recipe_crafted` criterion names `minecraft:x`; the craft hands
-    /// the recipe book and the trigger the same whole id (`award_crafted`
-    /// qualifies). The bare name the crafting copy uses never matched —
-    /// the second half of #7186.
+    /// A `recipe_crafted`/`crafter_recipe_crafted` criterion names its
+    /// recipe with the singular `recipe_id` key (vanilla 26.2's
+    /// `RecipeCraftedTrigger`): it matches only that recipe. Reading
+    /// the 26.x plural `recipes` key instead matched every craft.
+    /// The craft hands the trigger the whole id (`award_crafted`
+    /// qualifies); the bare name the crafting copy uses never matched
+    /// — the second half of #7186.
     #[test]
-    fn a_recipe_crafted_criterion_matches_the_whole_id_only() {
+    fn recipe_conditions_match_only_their_recipe() {
         let w = Flat;
-        let criterion = serde_json::json!({"recipes": "minecraft:folder_recipe"});
+        let trim = serde_json::json!({
+            "recipe_id": "minecraft:bolt_armor_trim_smithing_template_smithing_trim"
+        });
+        assert!(recipe_condition(
+            &trim,
+            "minecraft:bolt_armor_trim_smithing_template_smithing_trim",
+            &w
+        ));
         assert!(
-            !id_matches(&criterion["recipes"], "recipe", "folder_recipe", &w),
+            !recipe_condition(&trim, "minecraft:birch_planks", &w),
+            "birch planks are not a smithing trim"
+        );
+        let crafter = serde_json::json!({"recipe_id": "minecraft:crafter"});
+        assert!(recipe_condition(&crafter, "minecraft:crafter", &w));
+        assert!(!recipe_condition(&crafter, "minecraft:stick", &w));
+        assert!(
+            !recipe_condition(&crafter, "crafter", &w),
             "the crafting copy's bare name never matched the criterion"
         );
+        assert!(recipe_condition(
+            &crafter,
+            &crate::crafting::qualified("crafter"),
+            &w
+        ));
+        // No `recipe_id` key constrains nothing; the plural key is not read.
+        assert!(recipe_condition(
+            &serde_json::json!({}),
+            "minecraft:birch_planks",
+            &w
+        ));
+        assert!(recipe_condition(
+            &serde_json::json!({"recipes": "minecraft:bolt_armor_trim_smithing_template_smithing_trim"}),
+            "minecraft:birch_planks",
+            &w
+        ));
+    }
+    /// A `player_generates_container_loot` criterion names its table
+    /// with the singular `loot_table` key (vanilla 26.2's
+    /// `LootTableTrigger`): it matches only that table. Reading the
+    /// 26.x plural `loot_tables` key instead let any loot container
+    /// grant every loot criterion.
+    #[test]
+    fn loot_table_conditions_match_only_their_table() {
+        let w = Flat;
+        let treasure =
+            serde_json::json!({"loot_table": "minecraft:chests/bastion_treasure"});
+        assert!(loot_table_condition(
+            &treasure,
+            "minecraft:chests/bastion_treasure",
+            &w
+        ));
         assert!(
-            id_matches(
-                &criterion["recipes"],
-                "recipe",
-                &crate::crafting::qualified("folder_recipe"),
-                &w
-            ),
-            "the whole id award_crafted passes matches"
+            !loot_table_condition(&treasure, "minecraft:chests/bastion_bridge", &w),
+            "a bridge chest is not the treasure room"
         );
+        // No `loot_table` key constrains nothing; the plural key is not read.
+        assert!(loot_table_condition(
+            &serde_json::json!({}),
+            "minecraft:chests/bastion_bridge",
+            &w
+        ));
+        assert!(loot_table_condition(
+            &serde_json::json!({"loot_tables": "minecraft:chests/bastion_treasure"}),
+            "minecraft:chests/bastion_bridge",
+            &w
+        ));
+    }
+    /// A single-block trigger's condition names its block with the singular
+    /// `block` key (vanilla 26.2's `EnterBlockTrigger`, `BeeNestDestroyedTrigger`,
+    /// `SlideDownBlockTrigger`): the conditions below are the real
+    /// `minecraft:end/enter_end_gateway` criterion (Remote Getaway) and the
+    /// boat recipe's water one. Reading the 26.x plural `blocks` key instead
+    /// matched every block and granted Remote Getaway at spawn.
+    #[test]
+    fn single_block_trigger_conditions_match_only_their_block() {
+        let w = Flat;
+        let gateway = serde_json::json!({"block": "minecraft:end_gateway"});
+        assert!(
+            !block_condition(&gateway, "minecraft:grass_block", &w),
+            "a grass block is not an end gateway"
+        );
+        assert!(block_condition(&gateway, "minecraft:end_gateway", &w));
+        let water = serde_json::json!({"block": "minecraft:water"});
+        assert!(block_condition(&water, "minecraft:water", &w));
+        assert!(!block_condition(&water, "minecraft:stone", &w));
+        // No `block` key constrains nothing; the plural key is not read.
+        assert!(block_condition(
+            &serde_json::json!({}),
+            "minecraft:stone",
+            &w
+        ));
+        assert!(block_condition(
+            &serde_json::json!({"blocks": "minecraft:end_gateway"}),
+            "minecraft:grass_block",
+            &w
+        ));
     }
     /// `LockCode.canUnlock` for a chest with
     /// `lock:{items:"minecraft:gold_ingot"}`: a gold ingot opens it, an empty
@@ -2635,10 +2738,10 @@ mod tests {
     fn recipe_index_keeps_the_criteria_of_the_recipe() {
         let mut tree = Tree::default();
         for (i, conditions) in [
-            serde_json::json!({"recipes": "minecraft:oak_planks"}),
-            serde_json::json!({"recipes": "minecraft:stick"}),
+            serde_json::json!({"recipe": "minecraft:oak_planks"}),
+            serde_json::json!({"recipe": "minecraft:stick"}),
             serde_json::json!({}),
-            serde_json::json!({"recipes": "minecraft:oak_planks"}),
+            serde_json::json!({"recipe": "minecraft:oak_planks"}),
         ]
         .into_iter()
         .enumerate()
@@ -2815,7 +2918,7 @@ mod tests {
             &serde_json::json!({"criteria": {
                 "items": {"trigger": "inventory_changed",
                     "conditions": {"items": [{"items": ["cobblestone", "#planks"]}]}},
-                "recipe": {"trigger": "recipe_unlocked", "conditions": {"recipes": "stick"}}
+                "recipe": {"trigger": "recipe_unlocked", "conditions": {"recipe": "stick"}}
             }}),
         )
         .unwrap();

@@ -1458,9 +1458,14 @@ mod tests {
         );
         t.last_state = registry.default_state("minecraft:stone");
         let tag = t.to_nbt([1; 4], &registry, None);
+        // `inBlockState` is `BlockState.CODEC`'s `{Name, Properties}` form
+        // (26.2's codec; the bare-id form is 26.3's rename, not 26.2's).
         assert_eq!(
             tag.get("inBlockState"),
-            Some(&Tag::String("minecraft:stone".into()))
+            Some(&Tag::compound([(
+                "Name",
+                Tag::String("minecraft:stone".into())
+            )]))
         );
         let loaded = horizon_client::entity_nbt::trident_from_nbt(&tag).unwrap();
         let back = ThrownTrident::from_nbt(loaded, &tag, &registry);

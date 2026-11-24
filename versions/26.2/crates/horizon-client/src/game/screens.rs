@@ -967,9 +967,11 @@ mod tests {
     }
 
     /// `Screen.isPauseScreen` per 26.3: the class default is true, and only
-    /// these classes override it false; the game-master editors keep the
-    /// default. A world with one of the true screens open stops ticking
-    /// (`Minecraft.pause` through `Gui.isPausing`).
+    /// these classes override it false. 26.2's `StructureBlockEditScreen`
+    /// and `TestBlockEditScreen` return false (26.3 removed both overrides),
+    /// so `BlockEditor` is false here and `Game::block_editor_pauses`
+    /// answers per editor kind. A world with one of the true screens open
+    /// stops ticking (`Minecraft.pause` through `Gui.isPausing`).
     #[test]
     fn only_the_screens_that_override_is_pause_screen_keep_the_world_running() {
         for screen in [
@@ -984,6 +986,7 @@ mod tests {
             Screen::Mod,
             Screen::Studio,
             Screen::Win,
+            Screen::BlockEditor,
         ] {
             assert!(!screen.is_pause_screen(), "{}", screen.id());
         }
@@ -998,7 +1001,6 @@ mod tests {
             Screen::ConfirmLink,
             Screen::DialogWarning,
             Screen::CommandBlock,
-            Screen::BlockEditor,
             Screen::DebugOptions,
             Screen::HudEditor,
         ] {

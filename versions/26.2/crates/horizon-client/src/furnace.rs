@@ -88,7 +88,9 @@ impl FurnaceCooking for Furnace {
                         if !lit {
                             // 26.2's getBurnDuration: the FuelValues table
                             // only — no cooking_fuel component, no fuel
-                            // speed, no progress re-scale on refuel.
+                            // speed, no progress re-scale on refuel. The
+                            // smoker/blast-furnace halving lives in
+                            // `Providers::burn_time` (`fast`).
                             let fuel = self.items[1].clone();
                             let time = fuel
                                 .as_ref()
@@ -221,6 +223,93 @@ mod tests {
         let providers = Providers::load(&root);
         let _ = fs::remove_dir_all(&root);
         (items, recipes, providers)
+    }
+
+    /// Vanilla 26.2 burns one coal for 1600 ticks in a furnace and 800
+    /// in a smoker (`FuelValues.vanillaBurnTimes`, halved by
+    /// `SmokerBlockEntity.getBurnDuration`); the smoker also cooks in
+    /// half the time (100 ticks). Stone is not fuel: the furnace never
+    /// lights and nothing cooks.
+    #[test]
+    fn vanilla_coal_burns_from_the_fuel_values_table() {
+        let (items, recipes, providers) = data("vanilla-coal");
+        let mut furnace = Furnace {
+            kind: FurnaceKind::Furnace,
+            items: [None, Some(ItemStack::new("minecraft:coal", 1)), None],
+            lit_remaining: 0,
+            lit_total: 0,
+            cooking_timer: 0,
+            cooking_total: 0,
+            recipes_used: HashMap::new(),
+        };
+        furnace.set_input(&recipes, Some(ItemStack::new("test:ore", 1)));
+        assert_eq!(furnace.tick(&recipes, &items, &providers), Some(true));
+        assert_eq!((furnace.lit_remaining, furnace.lit_total), (1600, 1600));
+        for _ in 0..199 {
+            furnace.tick(&recipes, &items, &providers);
+        }
+        assert_eq!(furnace.items[2].as_ref().unwrap().item.as_ref(), "test:ingot");
+        assert_eq!(furnace.lit_remaining, 1401);
+
+        // The smoker: the same coal burns half as long, and the smoking
+        // recipe cooks in half the time.
+        let root = std::env::temp_dir().join(format!(
+            "horizon-furnace-vanilla-coal-smoker-{}",
+            std::process::id(),
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("data/minecraft/recipe")).unwrap();
+        fs::write(
+            root.join("data/minecraft/recipe/test_ingot.json"),
+            br#"{"type":"minecraft:smoking","ingredient":"test:ore","result":{"id":"test:ingot"},"cookingtime":100}"#,
+        )
+        .unwrap();
+        fs::create_dir_all(root.join("data/minecraft/loot_table")).unwrap();
+        fs::write(
+            root.join("items.json"),
+            r#"{"test:ore": {}, "test:ingot": {}, "minecraft:coal": {}}"#,
+        )
+        .unwrap();
+        let items = Items::catalog(&root, &PackOverlay::NONE).unwrap();
+        let recipes = Recipes::load(&root, &items, &PackOverlay::NONE).unwrap();
+        let providers = Providers::load(&root);
+        let _ = fs::remove_dir_all(&root);
+        let mut smoker = Furnace {
+            kind: FurnaceKind::Smoker,
+            items: [None, Some(ItemStack::new("minecraft:coal", 1)), None],
+            lit_remaining: 0,
+            lit_total: 0,
+            cooking_timer: 0,
+            cooking_total: 0,
+            recipes_used: HashMap::new(),
+        };
+        smoker.set_input(&recipes, Some(ItemStack::new("test:ore", 1)));
+        assert_eq!(smoker.tick(&recipes, &items, &providers), Some(true));
+        assert_eq!((smoker.lit_remaining, smoker.lit_total), (800, 800));
+        for _ in 0..99 {
+            smoker.tick(&recipes, &items, &providers);
+        }
+        assert_eq!(smoker.items[2].as_ref().unwrap().item.as_ref(), "test:ingot");
+        assert_eq!(smoker.lit_remaining, 701);
+
+        // Stone is not fuel: the furnace never lights.
+        let (items, recipes, providers) = data("vanilla-coal-stone");
+        let mut furnace = Furnace {
+            kind: FurnaceKind::Furnace,
+            items: [None, Some(ItemStack::new("minecraft:stone", 1)), None],
+            lit_remaining: 0,
+            lit_total: 0,
+            cooking_timer: 0,
+            cooking_total: 0,
+            recipes_used: HashMap::new(),
+        };
+        furnace.set_input(&recipes, Some(ItemStack::new("test:ore", 1)));
+        assert_eq!(furnace.tick(&recipes, &items, &providers), None);
+        assert_eq!(furnace.lit_remaining, 0);
+        for _ in 0..200 {
+            furnace.tick(&recipes, &items, &providers);
+        }
+        assert!(furnace.items[2].is_none());
     }
 
     #[test]
