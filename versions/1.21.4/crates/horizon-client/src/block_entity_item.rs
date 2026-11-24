@@ -74,22 +74,18 @@ pub fn spawn_egg_op_warning(stack: &crate::items::ItemStack) -> bool {
 /// entity data id, else the egg's own type) and, for an op
 /// (`PlayerList.isOp`), that entity data for `Spawner.setEntityData`; anyone
 /// else sets only the type (`setEntityId`).
-pub fn spawn_egg_on_spawner(
-    stack: &crate::items::ItemStack,
-    op: bool,
-) -> (String, Option<Compound>) {
+pub fn spawn_egg_on_spawner(stack: &crate::items::ItemStack) -> String {
     let data = match stack.data().and_then(|d| d.other("minecraft:entity_data")) {
         Some(Tag::Compound(c)) => Some(c),
         _ => None,
     };
-    let id = match data.and_then(|c| c.get(&JavaString::from("id"))) {
+    match data.and_then(|c| c.get(&JavaString::from("id"))) {
         Some(Tag::String(id)) => id.to_string_lossy(),
         _ => {
             let kind = stack.item.trim_end_matches("_spawn_egg");
             format!("minecraft:{}", kind.trim_start_matches("minecraft:"))
         }
-    };
-    (id, data.filter(|_| op).cloned())
+    }
 }
 
 /// `EntityType.updateCustomEntityTag`: the `minecraft:entity_data` a spawn egg

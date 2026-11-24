@@ -4676,7 +4676,15 @@ impl Game<'_> {
                     r.reduced_debug_info = p.event == 22;
                 }
                 // Ravager.handleEntityEvent 69: the roar's puff and push.
-                if p.event == 69 {
+                // Only a 1.21.6+ server sends it; a 1.21.5-or-older server
+                // leaves the roar to the client's own tick.
+                if p.event == 69
+                    && self.remote.as_ref().is_some_and(|r| {
+                        use horizon_protocol::adapter::ServerVersion;
+                        let v = r.session.server_version();
+                        v != ServerVersion::Current && !v.at_most(ServerVersion::V1_21_5)
+                    })
+                {
                     self.remote_ravager_roar(p.id);
                 }
                 // ClientPacketListener.handleEntityEvent 63: a sniffer's digging sound.
@@ -7308,6 +7316,15 @@ impl Game<'_> {
         let tab_players = &r.tab_players;
         let mut using = Vec::new();
         let mut mob_fx = water_fx;
+        // Ravager.roar on a 1.21.5-or-older server: the client fires the
+        // roar itself when the roar clock reaches 10 (1.21.6 moved it to
+        // entity event 69). `Current` is the 1.21.4 pin.
+        let old_roar = {
+            use horizon_protocol::adapter::ServerVersion;
+            let v = r.session.server_version();
+            v == ServerVersion::Current || v.at_most(ServerVersion::V1_21_5)
+        };
+        let mut roaring = Vec::new();
         for i in 0..self.mobs.len() {
             let m = &mut self.mobs[i];
             let rain = rain[i];
@@ -7500,6 +7517,15 @@ impl Game<'_> {
             // The animation states a server computes in its own `ai_step`,
             // and the particles vanilla draws on the client.
             horizon_client::mobs::sync::client_tick(m, game_time, &mut mob_fx);
+            // Ravager.roar on a 1.21.5-or-older server: the roar clock
+            // reaching 10 fires the puff and the push (fired below, once
+            // the borrow of the mobs is released).
+            if old_roar
+                && m.species() == horizon_client::mobs::Species::Ravager
+                && m.extra.anim_ticks == 10
+            {
+                roaring.push(m.id);
+            }
             match m.species() {
                 // WitherBoss.aiStep: the side heads turn toward their targets.
                 horizon_client::mobs::Species::Wither => {
@@ -7616,6 +7642,11 @@ impl Game<'_> {
         // Entity.playSound, so the sound stays the server's.
         for splash in entered {
             self.apply_item_splash(splash);
+        }
+        // Ravager.roar on a 1.21.5-or-older server: the puff and the push
+        // for the ravagers whose roar clock reached 10 this tick.
+        for id in roaring {
+            self.remote_ravager_roar(id as i32);
         }
         let _ = self.handle_mob_events_reusable(&mut mob_fx);
         if let Some(r) = self.remote.as_mut() {

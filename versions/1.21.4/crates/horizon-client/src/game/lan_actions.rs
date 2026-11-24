@@ -5346,14 +5346,12 @@ impl Game<'_> {
                         [velocity.x, velocity.y, velocity.z],
                     );
                 }
-                // LivingEntity.baseTick's entity event 67, to every client
-                // around, the guest's own included; this window draws it too.
+                // LivingEntity.baseTick drowning: 1.21.4 has no entity
+                // event 67 (`makeDrownParticles` is 1.21.5) — the bubbles
+                // go out as level particles, to every client around, the
+                // guest's own included; this window draws them too.
                 MotionEvent::Drown => {
-                    if let Some(g) = host.hub.guest(conn) {
-                        host.hub
-                            .entity_event(g.entity_id, super::combat::DROWN_EVENT, at);
-                    }
-                    self.drown_particles(at, [0.0; 3]);
+                    self.drown_particles(Some(host), at, [0.0; 3]);
                 }
                 // ServerPlayer.onInsideBlock: the enter_block trigger, for the
                 // player who moved.

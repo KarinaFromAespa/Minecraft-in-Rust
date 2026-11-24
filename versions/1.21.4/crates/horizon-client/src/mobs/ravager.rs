@@ -96,7 +96,7 @@ pub fn ai_step(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
         return;
     }
     // The speed lives in the attribute's base, which the save writes and the
-    // load restores (AttributeMap.pack and apply).
+    // load restores (AttributeMap.save and load).
     let speed = if immobile(m) {
         0.0
     } else {
@@ -202,8 +202,9 @@ pub fn entity_event(m: &mut Mob, event: u8) {
     }
 }
 /// `Ravager.aiStep`'s clocks on a client: the bite and roar run down, and
-/// the end of the stun starts the roar (the sounds, particles and the roar's
-/// damage are the server's).
+/// the end of the stun starts the roar. The roar's damage is the server's;
+/// the puff and the push fire from the client's own tick when the roar
+/// clock reaches 10 (`tick_remote_entities`, 1.21.5-or-older servers).
 pub fn client_tick(m: &mut Mob) {
     if !m.alive() {
         return;
@@ -263,9 +264,10 @@ fn roar(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
             velocity: fling(s.position),
         });
     }
-    // Entity event 69: a puff of smoke, and the client's own push. A client
-    // of this server (the window of the server thread) gets the event;
-    // this window draws the puff itself.
+    // 1.21.4 has no roar broadcast: this event stays local, driving the
+    // host's armor-stand push (`handle_mob_events_reusable`); the puff
+    // below is this window's own, and a remote client fires the roar
+    // from its own tick (a 1.21.6+ server sends the real event 69).
     events.push(MobEvent::EntityEvent {
         mob: m.id,
         event: 69,

@@ -2399,13 +2399,15 @@ impl Game<'_> {
                 MobEvent::SquidCycle { mob, at } => self.lan_entity_event(mob as i32, 19, at),
                 MobEvent::RabbitHop { mob, at } => self.lan_entity_event(mob as i32, 1, at),
                 MobEvent::Drown { mob, at } => {
-                    self.lan_entity_event(mob as i32, super::combat::DROWN_EVENT, at);
+                    // 1.21.4 has no drown broadcast: baseTick spawns the
+                    // bubbles directly, so `drown_particles` sends them as
+                    // level particles (no entity event 67).
                     let v = self
                         .mobs
                         .iter()
                         .find(|m| m.id == mob)
                         .map_or([0.0; 3], |m| [m.velocity.x, m.velocity.y, m.velocity.z]);
-                    self.drown_particles(at, v);
+                    self.drown_particles(None, at, v);
                 }
                 MobEvent::PowderSnowParticle { at, velocity } => {
                     self.snowflake_particle(at, velocity);
@@ -2426,7 +2428,13 @@ impl Game<'_> {
                     {
                         self.roar_pushes_armor_stands(area, at);
                     }
-                    self.lan_entity_event(mob as i32, event, at)
+                    // 1.21.4 has no roar broadcast: event 69 stays local
+                    // (the armor-stand push above). A remote client fires
+                    // the roar from its own tick; only a 1.21.6+ server
+                    // sends the real event.
+                    if event != 69 {
+                        self.lan_entity_event(mob as i32, event, at)
+                    }
                 }
                 MobEvent::LevelParticles {
                     kind,
@@ -3882,9 +3890,18 @@ impl Game<'_> {
             }
             return;
         }
-        // (Mooshroom draws its own coin in getOffspringVariant.)
-        let coin = p.species() != Species::Mooshroom
-            && self.world.random.next_int_bound(2).unwrap_or(0) == 0;
+        // Fox, Cat and Wolf.getBreedOffspring: either parent's variant, from
+        // the mother's random. (Pig, Cow and Chicken have no variants in
+        // 1.21.4, so no draw for them.)
+        let coin = matches!(
+            p.species(),
+            Species::Fox | Species::Cat | Species::Wolf
+        ) && self
+            .mobs
+            .iter_mut()
+            .find(|m| m.id == parent)
+            .map(|m| m.random.next_boolean())
+            .unwrap_or(false);
         // Axolotl.getBreedOffspring: useRareVariant (one in 1200) makes it blue,
         // else either parent's variant. The draws come from the mother's random.
         let axolotl = if p.species() == Species::Axolotl {
@@ -4073,14 +4090,11 @@ impl Game<'_> {
                 child.extra.owner = p.extra.owner;
                 child.persistent = true;
             }
-            // Offspring inherit a parent's variant (pigs/cows/chickens) or mixed wool.
+            // Offspring inherit the mother's variant, or mixed wool.
             child.extra.variant = p.extra.variant;
-            // Fox, Pig, Cow and Chicken.getBreedOffspring: either parent's variant.
-            if matches!(
-                p.species(),
-                Species::Fox | Species::Pig | Species::Cow | Species::Chicken
-            ) && !coin
-            {
+            // Fox.getBreedOffspring: either parent's variant. (Pig, Cow and
+            // Chicken have no variants in 1.21.4.)
+            if p.species() == Species::Fox && !coin {
                 child.extra.variant = q.as_ref().map_or(p.extra.variant, |q| q.extra.variant);
             }
             if let Some(variant) = mooshroom {
@@ -5087,7 +5101,9 @@ impl Game<'_> {
                 let Ok(cracked) = registry.resolve(&pot) else {
                     return;
                 };
-                self.with_level(|b, level, ticks| b.set_block(level, ticks, at, cracked, 260));
+                // DecoratedPotBlock.onProjectileHit cracks it with flags 4
+                // (1.21.5 raised it to 260).
+                self.with_level(|b, level, ticks| b.set_block(level, ticks, at, cracked, 4));
             }
             _ => return,
         }
@@ -6504,12 +6520,6 @@ impl Game<'_> {
             self.swing_arm();
             return Ok(true);
         }
-        if let Some(sheared) = self.shear_saddle(index, &item) {
-            if sheared {
-                self.swing_arm();
-            }
-            return Ok(sheared);
-        }
         // AbstractHorse.mobInteract: feed, equip or ride.
         if self.interact_mount(index, &item) {
             self.swing_arm();
@@ -6565,8 +6575,7 @@ impl Game<'_> {
             .as_ref()
             .map(|p| [p.position.x, p.position.y, p.position.z]);
         let acting = self.acting_player_uuid();
-        let sneaking =
-            self.keys.held(Action::Sneak) || self.keys.raw(&winit::keyboard::KeyCode::ShiftRight);
+        let creative = self.creative;
         let held_damage = held.as_ref().map_or(0, |h| h.damage as i32);
         let held_extra = held.as_ref().and_then(|h| h.extra.clone());
         let m = &mut self.mobs[index];
@@ -6712,13 +6721,21 @@ impl Game<'_> {
                 wool = true;
                 self.damage_held_tool();
             }
-            // Entity.interact: shears take a tamed wolf's armor off for its owner.
+            // Wolf.mobInteract: shears take a tamed wolf's armor off for its
+            // owner (1.21.4's inline branch; 1.21.6 moved it to the generic
+            // shear-equipment path, which also gated it on not sneaking).
+            // Curse of Binding holds it on outside creative.
             Species::Wolf
                 if item == "minecraft:shears"
                     && m.extra.tame
                     && m.extra.owner == Some(acting)
                     && m.extra.body.is_some()
-                    && !sneaking =>
+                    && (creative
+                        || !m.extra.body_extra.as_ref().is_some_and(|e| {
+                            e.enchantments
+                                .iter()
+                                .any(|(id, _)| &**id == "minecraft:binding_curse")
+                        })) =>
             {
                 let mut stack = ItemStack::new("minecraft:wolf_armor", 1);
                 stack.damage = m.extra.body_damage.max(0) as u32;
@@ -7202,9 +7219,9 @@ impl Game<'_> {
             }
         }
         if let Some(stack) = armor_drop {
-            // Mob.shearItem: PLAYER_SHEARED_EQUIPMENT with the armor and the wolf.
-            let target = self.mob_entity(&self.mobs[index]);
-            self.trigger_item_entity("minecraft:player_sheared_equipment", &stack, &target);
+            // Wolf.mobInteract: the armor drops at the wolf's feet (1.21.6's
+            // shear-equipment path also fires PLAYER_SHEARED_EQUIPMENT;
+            // the trigger does not exist in 1.21.4).
             self.spawn_item(stack, [center[0], center[1] + 0.5, center[2]], [0.0; 3], 10);
         }
         if let Some(equip) = equip_event {
@@ -7468,7 +7485,7 @@ impl Game<'_> {
             (parent.species(), parent.extra.variant, parent.extra.color);
         let target = self.mob_entity(&self.mobs[index]);
         // SpawnEggItem.spawnOffspringFromSpawnEgg: `type.create(level, SPAWN_ITEM_USE)`
-        // creates the baby without finalizeSpawn, and `snapTo(pos, 0, 0)` faces
+        // creates the baby without finalizeSpawn, and `moveTo(pos, 0, 0)` faces
         // it south without a level-random draw.
         let Some(id) =
             self.spawn_mob_internal(&kind, at, false, false, false, false, SpawnYaw::Fixed(0.0))
@@ -7477,6 +7494,12 @@ impl Game<'_> {
         };
         if let Some(child) = self.mobs.iter_mut().find(|m| m.id == id) {
             horizon_client::mobs::finalize::spawn_egg_offspring(child, species, variant, color);
+            // 1.21.4 puts only the egg's custom name on the offspring (after
+            // the add; 1.21.5's applyComponentsFromItemStack puts all of them
+            // on, before it).
+            if let Some(name) = stack.custom_name() {
+                child.custom_name = Some(name);
+            }
         }
         // `Mob.checkAndHandleImportantInteractions` then calls
         // `onOffspringSpawnedFromEgg`: `Fox`'s makes the baby trust the player
@@ -7536,12 +7559,9 @@ impl Game<'_> {
             self.use_failed = true;
             return Ok(true);
         }
-        // SpawnEggItem.useOn on a spawner sets its mob (and an op's egg data).
-        let (spawner_id, data) = horizon_client::block_entity_item::spawn_egg_on_spawner(
-            stack,
-            self.acting_player_is_op(),
-        );
-        if let Some(done) = self.use_spawn_egg_on_spawner(hit.pos, &spawner_id, data.as_ref()) {
+        // SpawnEggItem.useOn on a spawner sets its mob (only the type).
+        let spawner_id = horizon_client::block_entity_item::spawn_egg_on_spawner(stack);
+        if let Some(done) = self.use_spawn_egg_on_spawner(hit.pos, &spawner_id) {
             if done {
                 self.swing_arm();
                 self.award_stat("used", &stack.item, 1);

@@ -1019,3 +1019,177 @@ shape for the review batches.
   test-compile errors from earlier batches (fixed above);
   batches from here run the --tests check, not just the lib.
   Rank 2: 62/348.
+
+  Batch 7 (items 16 + 17 + 18). Item 16 (game/game_tests.rs):
+  NO-CHANGE on all three tree-diff hunks. The 1.21.4 jar has no
+  TestInstanceBlock classes at all (1.21.5 has 10): 1.21.4's
+  game-test framework is the structure-block model
+  (`GameTestInfo` with `TestFunction` + `StructureBlockEntity`;
+  `prepareTestStructure` returns GameTestInfo and calls
+  `StructureUtils.prepareTestStructure`), while 1.21.5's is the
+  test-instance-block model (`GameTestInstance` +
+  `TestInstanceBlockEntity`, `createTestInstanceBlock` +
+  `placeStructure`). The 1.21.4 tree's runner is therefore a
+  1.21.5-form system on 1.21.4 data, but it is safe: no panic
+  path was found (`set_test_block_state` returns early when
+  `default_state` is None; `prepare_test_structure` inserts a
+  default TestInstanceBlock block entity when absent), and the
+  runner is a dev-only subsystem (`/test`), not player
+  gameplay. `track_and_start_runner` (16 lines, 1.21.5-only) is
+  dead in 1.21.4 — the 1.21.4 tree's test_instances.rs has no
+  test-instance-block action packet and no `track_and_start`
+  call, and the 1.21.4 test calls `track_and_start_batches`
+  directly — so it is not added. `prepare_test_structure`'s
+  `bool` return (false when the block is gone; both callers
+  check it) fits 1.21.4's structure-block model, where the
+  block can be absent; 1.21.5's `()` form requires the block
+  entity. `say` stays `say` (1.21.5 renamed it `say_report`
+  because `Game::say` is the narrator's; the 1.21.4 tree has
+  no `Game::say`). A rewrite of the runner to the
+  structure-block model is a separate job, recorded as a known
+  limitation, not a behaviour-port item.
+
+  Item 17 (game/creatures.rs): PORTED. The ravager roar
+  broadcast (event 69) is gone: neither 1.21.4's nor 1.21.5's
+  Ravager broadcasts it (`roar()` has no broadcastEntityEvent;
+  `handleEntityEvent` handles only event 4), and 1.21.4's
+  `Ravager.aiStep` fires the roar from the entity's own tick
+  (`roarTick == 10`). The creatures.rs handler skips the LAN
+  broadcast for event 69; remote.rs (item 13 follow-up) gates
+  the event-69 handler on 1.21.6+ servers and fires the roar
+  client-side when `anim_ticks == 10` for 1.21.5-or-older
+  servers (ravager.rs, item 107 follow-up, comments only:
+  AttributeMap.pack -> save, roar doc, event-69 comment). The
+  wolf armor shear gate is the 1.21.5 form: 1.21.4's
+  `Wolf.mobInteract` shears branch has NO sneak check — shears
+  + owned + wearing body armor + (creative if the armor has
+  PREVENT_ARMOR_CHANGE) — so the `!sneaking` gate became
+  `(creative || !binding_curse)`. `shear_saddle` is deleted
+  (mounts.rs: `Mob.canShearEquipment` exists in neither 1.21.4
+  nor 1.21.5 — a 1.21.6 addition), and the
+  PLAYER_SHEARED_EQUIPMENT trigger fire is deleted (the trigger
+  exists in neither version's `Criteria`). The spawn egg on a
+  spawner is the 1.21.5 form (type only): 1.21.4's
+  `SpawnEggItem.useOn` calls only `Spawner.setEntityId(type,
+  random)` — no data, no op check — so `spawn_egg_on_spawner`
+  returns a String (block_entity_item.rs, item 129 follow-up),
+  `use_spawn_egg_on_spawner` drops its data param
+  (game/spawner.rs, item 152 follow-up), `set_entity_data`
+  leaves the spawner trait + impl + its test (mobs/spawner.rs,
+  unowned module), `override_entity_data` leaves the trial
+  spawner trait + impl (mobs/trial_spawner.rs, item 140
+  follow-up), and the dispenser.rs call site takes the 1-arg
+  form (it was still calling the old 2-arg signature — a
+  compile error caught before the check). The decorated-pot
+  crack is flags 4, not 260 (routed from batch 4; 1.21.4's
+  `DecoratedPotBlock.onProjectileHit` uses `iconst_4`). The
+  LAN drowning broadcast is particles, not event 67 (routed
+  from batch 6; 1.21.4's `LivingEntity.baseTick` spawns the
+  eight BUBBLE particles directly): creatures.rs drops the
+  `lan_entity_event(67)` call, combat.rs's `drown_particles`
+  gains a `host: Option<&LanHost>` param and sends each bubble
+  to LAN (item 210 follow-up), and lan_actions.rs's guest
+  Drown handler calls it with `Some(host)` (item 28
+  follow-up); the `DROWN_EVENT` const stays for remote.rs's
+  1.21.5+ receive handler. The spawn-egg offspring takes only
+  the egg's custom name, after the add (1.21.4's
+  `spawnOffspringFromSpawnEgg`: `moveTo` then
+  `addFreshEntityWithPassengers`, then CUSTOM_NAME ->
+  `setCustomName`; 1.21.5's `snapTo` is byte-identical to
+  1.21.4's `moveTo` — a pure rename — and its
+  `applyComponentsFromItemStack` puts all components on before
+  the add). The breeding coin is drawn from the mother's
+  random, and only for Fox/Cat/Wolf: 1.21.4's
+  `Chicken.getBreedOffspring` is create-only (no draw, no
+  variant), Pig/Cow likewise, while Fox/Cat/Wolf draw
+  `this.random.nextBoolean()`; the variant-pick branch now
+  covers Fox only (Pig/Cow/Chicken have no variants in
+  1.21.4). NO-CHANGE, jar-verified: the potion splash centres
+  on the hit location (1.21.4's `ThrowableProjectile.tick`
+  calls `setPos(hitResult.getLocation())` before
+  `hitTargetOrDeflectSelf`, identical in 1.21.5 — the 1.21.4
+  tree is right and the 1.21.5 tree's `p.previous` form
+  contradicts BOTH jars, a 1.21.5-port deviation flagged to the
+  parent, out of scope here); the guardian's
+  `isInWaterOrBubble` vs `isInWater` (the Rust's block facts
+  classify bubble columns as water, so `in_water` is already
+  true there); the dragon fireball's `setPotionDurationScale
+  0.25f` (1.21.5-only, unobservable — the cloud's only effect
+  is instant HARM, which has no duration); the thrown egg
+  (1.21.4's onHit is `setAge` + `moveTo` + add, no variant);
+  the egg's PROJECTILE_SHOOT_POWER (1.5f in both — the
+  `use()` difference is literal-vs-constant only);
+  `EntityType#by` (string + parse + getOptional vs CODEC —
+  same result); `updateCustomEntityTag` (1.21.4 takes a Player
+  param with a null check, 1.21.5 a LivingEntity with an
+  instanceof check — same op-only behaviour in every path the
+  Rust models; the dispenser path is identical in both trees,
+  a shared gap, not a port difference);
+  `DistanceManager#inEntityTickingRange` (a pure rename:
+  `tickingTicketsTracker`/`TickingTracker` vs
+  `simulationChunkTracker`/`SimulationChunkTracker`);
+  TurtleEggBlock's randomTick (snapTo -> moveTo rename),
+  fallOn (double vs float — API-only) and decreaseEggs
+  (playSound overload); AmethystBlock, Parrot, WitherBoss,
+  EnderpearlItem, SnowballItem, WitherRoseBlock (playSound
+  Entity-vs-Player overloads only). DEFERRED to batch 8 (the
+  leash-system port, unowned): the LeashBreak `sound` field —
+  1.21.4's `Leashable` is the LEGACY system
+  (`legacyElasticRangeLeashBehaviour`, 10.0/6.0 distances, 0.4
+  pull, identical to 1.21.5; `dropLeash` plays no sound),
+  while the 1.21.4 tree carries the 1.21.6 Wrench/spring
+  system (SNAP=12, `spring`, `elastic_pull`, quad-leash APIs,
+  `HolderState.center`), and the creatures.rs hunk cannot be
+  done in isolation (the event shape is shared with leash.rs
+  producers). Routed: the potion splash's dead `age` param
+  (item 26, potions.rs); chicken/pig/cow variant finalize
+  (empty registries in 1.21.4 — item 117, finalize.rs);
+  `leads.rs` quad-leash call sites (batch 8 / item 463, rank
+  3). The 1.21.5 tree's breed has no chicken-variant
+  inheritance (the 1.21.5 jar has it) — a second 1.21.5-port
+  deviation, flagged to the parent.
+
+  Item 18 (mobs/tame.rs): NO-CHANGE except one comment carry.
+  Wolf sound variants do not exist in 1.21.4 (no
+  `wolf_sound_variant` registry data in the 1.21.4 jar;
+  1.21.5 has sad/puglin/grumpy/...): `getHurtSound` returns
+  WOLF_HURT directly (the species table's
+  "entity.wolf.hurt" — correct), `defineSynchedData` uses the
+  WOLF_VARIANT registry with a RED default collar (the Rust
+  defaults to `tame::RED` when CollarColor is absent), and
+  `Wolf#get` (the 1.21.5-only component accessor) has no Rust
+  equivalent. `getTexture` is the 1.21.4 direct form
+  (`tameTexture`/`angryTexture`/`wildTexture` — the Rust's
+  `tame::texture` builds `entity/wolf/{file}{_tame|_angry}
+  {_baby}`; 1.21.5's assetInfo resolves to the same paths).
+  `readAdditionalSaveData` reads "variant" as a string and
+  "CollarColor" as an int (entity_nbt.rs does both, with the
+  RED default). `tick`'s `isInWaterRainOrBubble` collapses to
+  the Rust's `in_water || in_rain` (bubble columns are water
+  in the block facts). The one tree-diff hunk, a test comment,
+  takes the 1.21.5 form: vanilla writes `AngerTime`/`AngryAt`
+  in both versions. ROUTED (found here, owned elsewhere): the
+  sound-variant assignment is wrong for 1.21.4 in TWO places
+  — finalize.rs's `sound()` (item 117) assigns
+  `Some(r.random())` unconditionally, and `random()` returns
+  0 for an empty registry, so every 1.21.4 wolf gets
+  sound_variant 0 = "angry" (the hardcoded list is sorted
+  alphabetically: angry, big, classic, ...); spawning.rs's
+  `finalize` (item 188) assigns from the HARDCODED list length
+  (`sound_variants(species).len()`), so every spawned wolf/pig/
+  cow/chicken/cat gets a random 1.21.5 sound variant. The fix
+  (don't assign when the version has no such registry) and the
+  entity_nbt.rs sound_variant save/load question (item 11 is
+  closed; the save writes "sound_variant" whenever the species
+  has a hardcoded list, defaulting to "classic") belong to
+  items 117/188.
+  `cargo check -p horizon-client -p horizon-world
+  -p horizon-client-input` green (EXIT 0, 2m44s; the first run
+  failed on a missing `LanHost` import in combat.rs, fixed)
+  and the --tests check green (EXIT 0, 6m19s, 0 errors). The
+  nine rustfmt-checked leaf files are clean (ravager.rs,
+  mounts.rs, block_entity_item.rs, mobs/spawner.rs,
+  mobs/trial_spawner.rs, combat.rs, lan_actions.rs,
+  dispenser.rs, tame.rs); creatures.rs, remote.rs and
+  game/spawner.rs are module roots and were not formatted.
+  Rank 2: 65/348.

@@ -1,6 +1,6 @@
 //! The player's `CombatTracker`: the damage taken lately, who dealt it and
 //! where the player fell from, turned into the vanilla death message.
-use super::{Game, commands::Target};
+use super::{Game, commands::Target, lan::LanHost};
 
 // The test names `super::commands`, as it did when game.rs held it.
 #[cfg(test)]
@@ -222,9 +222,19 @@ impl CombatTracker {
     }
 }
 impl Game<'_> {
-    /// `LivingEntity.makeDrownParticles`: eight bubbles around the entity,
-    /// moving with it.
-    pub(super) fn drown_particles(&mut self, at: [f64; 3], velocity: [f64; 3]) {
+    /// `LivingEntity.baseTick` drowning: eight bubbles around the entity,
+    /// moving with it. 1.21.4 has no drown broadcast (`makeDrownParticles`
+    /// is 1.21.5): the server spawns the bubbles directly, so the host
+    /// sends each bubble to its guests as a level particle (count 0: one
+    /// particle, the velocity in the spread) and draws them in this window.
+    /// `host` is the hub of a guest's turn, which is out of `self.lan`
+    /// meanwhile.
+    pub(super) fn drown_particles(
+        &mut self,
+        host: Option<&LanHost>,
+        at: [f64; 3],
+        velocity: [f64; 3],
+    ) {
         let bubble = ParticleOptions::simple(ParticleType::Bubble);
         for _ in 0..8 {
             let mut triangle = || {
@@ -233,6 +243,7 @@ impl Game<'_> {
             };
             let p = [at[0] + triangle(), at[1] + triangle(), at[2] + triangle()];
             self.particles.add(&bubble, p, velocity);
+            self.lan_level_particles(host, &bubble, p, velocity, 1.0, 0, None);
         }
     }
     /// Entity event 67 from a server, for this client's own player or an
@@ -251,7 +262,7 @@ impl Game<'_> {
             })
         };
         if let Some((at, v)) = body {
-            self.drown_particles(at, v);
+            self.drown_particles(None, at, v);
         }
     }
     /// The display name of a mob: its custom name or its type's name.
