@@ -148,7 +148,7 @@ impl Launcher {
                     summary.map_or_else(|| tr("Modpack").into(), |p| p.summary()),
                 )
             }
-            InstanceKind::Pack => (Tone::Off, tr("From Horizon's registry").into()),
+            InstanceKind::Pack => (Tone::Off, tr("From Free Horizon's registry").into()),
         }
     }
 

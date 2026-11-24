@@ -1,7 +1,7 @@
 # Host a server
 
-`horizon-server` hosts a Minecraft Java Edition 26.3 server with Horizon's own game as the engine: one native
-program, no Java, one settings file, a command line, and a web panel. Vanilla 26.3 clients and Horizon clients
+`horizon-server` hosts a Minecraft Java Edition 26.3 server with Free Horizon's own game as the engine: one native
+program, no Java, one settings file, a command line, and a web panel. Vanilla 26.3 clients and Free Horizon clients
 can join it. This page covers what works on `main` today and says plainly what doesn't yet. The design and the
 plan are in [server.md](server.md).
 
@@ -9,7 +9,7 @@ plan are in [server.md](server.md).
 
 - **Online mode checks accounts** (release v2026.10.17.07 and newer). With `online_mode = true`, the
   default, every player joins with their own account, as on a vanilla server: vanilla players signed in with
-  the official Minecraft launcher, Horizon players with the Microsoft account they signed in with in Horizon's
+  the official Minecraft launcher, Free Horizon players with the Microsoft account they signed in with in Free Horizon's
   launcher ([microsoft-account.md](microsoft-account.md)).
 - **Names you add are accounts** (release v2026.10.17.14 and newer). `init --player`, `horizon-server
   whitelist add` and `op`, and the console's `whitelist add`, `op` and `ban` look a name up the way vanilla
@@ -20,8 +20,8 @@ plan are in [server.md](server.md).
   takes the account's UUID when someone owns that name, as vanilla does, and that player is then refused.
 - **An offline server** (`online_mode = false`) never checks accounts: anyone who reaches it can join under
   any name. Keep it on your LAN or a tailnet (Tailscale, ZeroTier), or share it only with friends you trust.
-  A Horizon player under an offline name can join only such a server.
-- **Secure chat** works as on vanilla's server: in online mode, vanilla clients and Horizon's (Nightly
+  A Free Horizon player under an offline name can join only such a server.
+- **Secure chat** works as on vanilla's server: in online mode, vanilla clients and Free Horizon's (Nightly
   2026-11-01 and newer) sign their chat, and with `enforce-secure-profile=true` (the default) unsigned chat is
   refused. On an offline server, or for a player without a chat session, chat stays unsigned and shows as not
   secure.
@@ -53,7 +53,7 @@ irm https://raw.githubusercontent.com/horizon-rust/horizon/main/packaging/server
 ```
 
 The script picks the machine's x64 or ARM64 archive, including when PowerShell runs under x64 emulation. It downloads
-the current Horizon Nightly from GitHub (the only build Horizon ships;
+the current Free Horizon Nightly from GitHub (the only build Free Horizon ships;
 `--version` picks another), checks it against the release's signature when OpenSSL 3 is installed (on Windows, Git
 for Windows includes it), else against the SHA-256 GitHub publishes, and never asks for sudo or administrator rights. It installs:
 
@@ -66,12 +66,12 @@ Options: `--version vX.Y.Z`, `--dir FOLDER`, `--bin FOLDER` (Windows: `-Version`
 such as Linux on ARM, build from source: `cargo build --release -p horizon-client --bin horizon-client -p
 horizon-server` and keep both programs in one folder.
 
-The Horizon launcher also installs releases. Every release folder holds `horizon-server`, so you can run it
+The Free Horizon launcher also installs releases. Every release folder holds `horizon-server`, so you can run it
 from there too.
 
 ## 2. Prepare the game files
 
-Horizon reads Minecraft's data from your own copy of the game. You need Minecraft Java Edition 26.3, played
+Free Horizon reads Minecraft's data from your own copy of the game. You need Minecraft Java Edition 26.3, played
 once from the official launcher on this computer, a Java 25 runtime, and the 26.3 `server.jar`: it's the
 `downloads.server.url` in your launcher's `versions/26.3/26.3.json`. Then:
 
@@ -210,8 +210,8 @@ while each operator still reads their own command's answer.
 
 ### Older clients: `accept_older_clients`
 
-Off by default, a Horizon setting with no vanilla equivalent: a vanilla server, and Horizon's, turn away a client of
-any other release. With `accept_older_clients = true` a 26.2 client may join too. Horizon renumbers its packets and
+Off by default, a Free Horizon setting with no vanilla equivalent: a vanilla server, and Free Horizon's, turn away a client of
+any other release. With `accept_older_clients = true` a 26.2 client may join too. Free Horizon renumbers its packets and
 the blocks, items, entities, particles and sounds in them both ways, with no proxy in between; what 26.3 added and
 26.2 lacks is shown as the nearest thing 26.2 has (a poplar log as a birch log, a wool slab as a stone slab), and
 what has no such thing (a cushion) isn't shown. The server list shows the server as joinable for 26.2.
@@ -222,7 +222,7 @@ server sends anything it would misread. 26.3 clients are served exactly as befor
 
 ### Seeing further: `max_view_distance`
 
-Off by default (0), a Horizon setting with no vanilla equivalent. Past `view_distance`, up to
+Off by default (0), a Free Horizon setting with no vanilla equivalent. Past `view_distance`, up to
 `max_view_distance` (at most 32), each player is also sent the chunks the world has already saved, as far
 as their own render distance goes. Those chunks are only read and sent: the server never generates them,
 keeps them loaded or ticks them, so what lies out there stands still (no mobs, no growing crops, no
@@ -259,7 +259,7 @@ Native mods run unsandboxed: only build code you have read and trust.
 ### Behind a Velocity proxy
 
 A network can put one Velocity proxy in front of several servers: the proxy signs the players in with their
-Microsoft accounts, and the servers behind it trust what it forwards. To run Horizon as one of them:
+Microsoft accounts, and the servers behind it trust what it forwards. To run Free Horizon as one of them:
 
 1. Set `online_mode = false` in `server.toml` and keep the server's port reachable only from the proxy (bind it
    to `127.0.0.1` or put it on a private network).
@@ -323,7 +323,7 @@ lists from the files when the server is stopped. Any console command works throu
 `cmd`: `horizon-server cmd ban Griefer`, `horizon-server cmd say Restarting in 5 minutes`.
 #### Temporary bans
 
-`tempban PLAYER DURATION [REASON]` is a Horizon extra for dedicated servers (vanilla has only `ban`, which is
+`tempban PLAYER DURATION [REASON]` is a Free Horizon extra for dedicated servers (vanilla has only `ban`, which is
 permanent). Operators of level 3 (`/ban`'s level) run it in game as `/tempban`; the console takes the same words
 without the slash, and `horizon-server cmd tempban Griefer 12h griefing` runs it through the control API. The
 duration is a whole number and `s`, `m`, `h`, `d` or `w`: `30m`, `12h`, `7d`. It writes an entry with `expires` set
@@ -337,16 +337,16 @@ event with `reason`, `by` and `until`. `tempbanlist` lists the bans that end by 
 who banned, the time left, the end and the reason. Both are in operators' command tree (level 3 and above), so
 their clients complete them, as they do the [mute commands](chat-filter.md#muting-by-hand).
 
-To generate the world around spawn ahead of the players, Horizon has its own `pregen` command, off until
+To generate the world around spawn ahead of the players, Free Horizon has its own `pregen` command, off until
 `server.toml` has `horizon-pregen = true` under `[properties]`: `horizon-server cmd pregen start 2500`
 ([pregeneration](pregeneration.md)).
-To let only the Horizon client join, set `horizon-clients-only = true` under `[properties]` (off by default).
-Other clients are turned away while they connect with "This server is for the Horizon client:
+To let only the Free Horizon client join, set `horizon-clients-only = true` under `[properties]` (off by default).
+Other clients are turned away while they connect with "This server is for the Free Horizon client:
 playhorizon.dev", and the console says which client it was. The check reads the brand a client names itself
-by (`minecraft:brand`), which any client can fake: it keeps out players who didn't install Horizon, not
+by (`minecraft:brand`), which any client can fake: it keeps out players who didn't install Free Horizon, not
 cheaters. The server's own checks (reach, movement) are what protect it.
 
-Horizon clients can get their far terrain (Video Settings → LOD Distance) from the server: set
+Free Horizon clients can get their far terrain (Video Settings → LOD Distance) from the server: set
 `horizon-lod-distance` under `[properties]` to how far, in chunks (1024 at most), and the server samples the
 tiles each player's client asks for out to there. It is off (0) by default: far tiles show the world's terrain
 far past the view distance, which helps players find the seed. A player's own LOD Distance applies when it is
@@ -466,8 +466,8 @@ the API and the panel show the webhook as `(set)`. The letters are Pixelify Sans
 
 ### Tools written for vanilla's management protocol
 
-Vanilla 26.3 has its own management protocol, JSON-RPC over a WebSocket, and Horizon's server speaks it too, so a
-tool written for a vanilla server manages a Horizon one. It's off by default; turn it on in `server.toml`:
+Vanilla 26.3 has its own management protocol, JSON-RPC over a WebSocket, and Free Horizon's server speaks it too, so a
+tool written for a vanilla server manages a Free Horizon one. It's off by default; turn it on in `server.toml`:
 
 ```toml
 [properties]
@@ -480,7 +480,7 @@ management-server-port = 8132          # 0: a free port, logged at the start
 
 It listens on `localhost` (`management-server-host`). A client sends the secret as `Authorization: Bearer <secret>`,
 or, from a browser, in the WebSocket subprotocol (`minecraft-v1,<secret>`) from an origin listed in
-`management-server-allowed-origins`. `rpc.discover` lists the methods; Horizon answers more of them with each release
+`management-server-allowed-origins`. `rpc.discover` lists the methods; Free Horizon answers more of them with each release
 ([api/server.md](api/server.md#not-there-yet)).
 
 TLS is on, as in vanilla (`wss://`). The certificate and its key come from a PKCS12 keystore, as vanilla's do:
@@ -490,7 +490,7 @@ TLS is on, as in vanilla (`wss://`). The certificate and its key come from a PKC
 - Its password comes from the `MINECRAFT_MANAGEMENT_TLS_KEYSTORE_PASSWORD` variable, else from
   `management-server-tls-keystore-password`.
 
-Where vanilla refuses to start without a keystore, Horizon makes one:
+Where vanilla refuses to start without a keystore, Free Horizon makes one:
 
 - a self-signed certificate for `localhost`, `127.0.0.1` and `management-server-host`, saved in
   `.horizon/management-keystore.p12`, which only the server's user can read;
@@ -502,7 +502,7 @@ As in vanilla, a wrong secret or keystore stops the server from starting.
 
 ### Tools that speak RCON
 
-Hosting panels, Discord bridges and scripts often run commands through RCON, vanilla's remote console, and Horizon's
+Hosting panels, Discord bridges and scripts often run commands through RCON, vanilla's remote console, and Free Horizon's
 server serves it. It's off by default and needs a password; turn it on in `server.toml` (the dotted keys are
 quoted in TOML):
 
@@ -532,7 +532,7 @@ A command runs from a source named `Rcon`: operators in game see what it did as 
 ### Tools that read the query
 
 Server lists, status pages and monitoring tools (`mcstatus`, Prometheus exporters, hosting panels) often read the
-MOTD, the version and who is online through vanilla's GS4 query, a UDP port, and Horizon's server serves it. It's off
+MOTD, the version and who is online through vanilla's GS4 query, a UDP port, and Free Horizon's server serves it. It's off
 by default; turn it on in `server.toml`:
 
 ```toml
@@ -642,11 +642,11 @@ Import `packaging/server/pterodactyl-egg.json` under Nests. Its Docker image is
 it is read at install and reinstall.
 
 **AMP** (CubeCoders): `packaging/server/amp/` is a template for AMP's generic module, the same setup with AMP's
-words. Its update runs the egg's install script (the release named by "Horizon release", checked against its
+words. Its update runs the egg's install script (the release named by "Free Horizon release", checked against its
 SHA-256) and the start runs the same `horizon-start.sh`, with the port from AMP's "Server Port". AMP reads templates
 from the root of a configuration repository: put the five files at the root of a repository of yours (a fork of
 CubeCoders/AMPTemplates, for example), add it under Configuration → Instance Deployment → Configuration Repositories,
-then Fetch latest, and "Horizon" is in the list of applications for a new instance. Linux only, x86-64.
+then Fetch latest, and "Free Horizon" is in the list of applications for a new instance. Linux only, x86-64.
 
 ## 9. Docker (build it yourself)
 
@@ -678,7 +678,7 @@ docker run -d --name horizon -p 25565:25565 --stop-timeout 180 \
 
 ## 10. How fast is it
 
-The latest bot benchmark compares Horizon with vanilla 26.3, Paper and Fabric + Lithium:
+The latest bot benchmark compares Free Horizon with vanilla 26.3, Paper and Fabric + Lithium:
 [benchmarks/server-four-way-2026-10-19](https://github.com/horizon-rust/horizon/blob/main/benchmarks/server-four-way-2026-10-19/README.md).
 It ran release v2026.10.19 on a 4-thread laptop CPU (i7-7500U), with 1 to 50 players walking, exploring and
 standing around spawn, the bots on another machine. All four servers did the same work. Against
@@ -689,11 +689,11 @@ Pumpkin: [performance/server-vs-pumpkin.md](performance/server-vs-pumpkin.md). I
 - **Start:** ready in 8 to 9 s, against 15 s for vanilla, 17 s for Fabric and 19 to 22 s for Paper.
 - **CPU:** from 10 players up, the least of the four (1.4 cores at 50, against Paper's 2.1 and Fabric's 2.4).
 - **Average tick:** Paper's is shorter at every count (10.3 against 13.7 ms with one player, 46.9 against
-  47.8 with 50), and Fabric + Lithium's with 1 and 10 players. Horizon's is shorter than vanilla's (equal
+  47.8 with 50), and Fabric + Lithium's with 1 and 10 players. Free Horizon's is shorter than vanilla's (equal
   with 10), and than Fabric's from 25 players up.
-- **Slow ticks:** from 10 players up, Horizon's slowest ticks (99th percentile) are the shortest of the
+- **Slow ticks:** from 10 players up, Free Horizon's slowest ticks (99th percentile) are the shortest of the
   four (73 ms with 50, against 110 for Paper and 174 for Fabric).
-- **50 players:** Horizon and Paper keep 20 TPS, Fabric + Lithium drops to 17, and vanilla's watchdog
+- **50 players:** Free Horizon and Paper keep 20 TPS, Fabric + Lithium drops to 17, and vanilla's watchdog
   stopped it.
 
 For more than 50 active players, give it more cores.

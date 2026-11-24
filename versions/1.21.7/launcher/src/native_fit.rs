@@ -89,21 +89,21 @@ fn short(revision: &str) -> &str {
 /// What the player reads about `fit`.
 pub fn describe(fit: &Fit, plays: &Plays) -> String {
     match fit {
-        Fit::Fits => tr("Builds on the Horizon you play").to_owned(),
+        Fit::Fits => tr("Builds on the Free Horizon you play").to_owned(),
         Fit::NeedsNewer { needs, has } => trf(
-            "Needs native hook points v{needs}, the Horizon you play has v{has}: update Horizon first",
+            "Needs native hook points v{needs}, the Free Horizon you play has v{has}: update Free Horizon first",
             &[("needs", &needs.to_string()), ("has", &has.to_string())],
         ),
         Fit::Clashes { pin, with } => trf(
-            "Made for Horizon {pin}, but {mods} pin another commit: the build will ask you to Build anyway and may not compile",
+            "Made for Free Horizon {pin}, but {mods} pin another commit: the build will ask you to Build anyway and may not compile",
             &[("pin", short(pin)), ("mods", &with.join(", "))],
         ),
         Fit::MovesTo { pin } => trf(
-            "Made for Horizon {pin}: the launcher builds it on {yours}, the one you play, and on {pin} only if it doesn't compile there",
+            "Made for Free Horizon {pin}: the launcher builds it on {yours}, the one you play, and on {pin} only if it doesn't compile there",
             &[("pin", short(pin)), ("yours", short(&plays.revision))],
         ),
         Fit::Broken { code } => trf(
-            "Doesn't build on the Horizon you play ({code}): a build leaves it out until its author updates it",
+            "Doesn't build on the Free Horizon you play ({code}): a build leaves it out until its author updates it",
             &[("code", code)],
         ),
     }
@@ -273,7 +273,7 @@ mod tests {
         );
         assert_eq!(
             describe(&found.unwrap(), &at_28),
-            "Doesn't build on the Horizon you play (E_TARGET_NOT_FOUND): a build leaves it out until its author updates it"
+            "Doesn't build on the Free Horizon you play (E_TARGET_NOT_FOUND): a build leaves it out until its author updates it"
         );
         // Broken on another commit than the one played: as before.
         let elsewhere = [BrokenOn {

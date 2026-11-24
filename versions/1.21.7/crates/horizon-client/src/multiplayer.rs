@@ -367,7 +367,7 @@ pub fn save_server_icon(saves: &Path, address: &str, png: &[u8]) {
 /// Horizon's official survival server: a name and an address like any entry. The address is
 /// `horizon_telemetry::server_status::OFFICIAL_ADDRESS`, the one place it is kept.
 pub const OFFICIAL_SERVER: (&str, &str) = (
-    "Horizon Official",
+    "Free Horizon Official",
     horizon_telemetry::server_status::OFFICIAL_ADDRESS,
 );
 /// Beside servers.dat once the official server was offered, so a player who
@@ -2609,7 +2609,7 @@ mod tests {
         // The game added it: it goes, the rest stays in order, and only once.
         fresh(
             &[
-                ServerEntry::new("Horizon Official", official),
+                ServerEntry::new("Free Horizon Official", official),
                 added.clone(),
                 ServerEntry::new("Mine", "127.0.0.1:2"),
             ],

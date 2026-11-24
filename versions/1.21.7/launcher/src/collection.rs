@@ -188,10 +188,10 @@ impl Launcher {
             .child(
                 text(theme::HEADING)
                     .text_color(t.ink)
-                    .child(tr("Help make Horizon faster and steadier?")),
+                    .child(tr("Help make Free Horizon faster and steadier?")),
             )
             .child(text(theme::UI).text_color(t.muted).child(tr(
-                "Horizon can send a few things to its developers. Each switch is off until you turn it on, and Settings can change it any time.",
+                "Free Horizon can send a few things to its developers. Each switch is off until you turn it on, and Settings can change it any time.",
             )))
             .child(
                 div()

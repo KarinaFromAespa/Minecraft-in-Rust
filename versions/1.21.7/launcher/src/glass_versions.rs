@@ -92,7 +92,7 @@ impl Launcher {
         let page_title = ui::page_head(
             tr("Versions"),
             tr(
-                "Horizon's Nightly builds, newest first. Your worlds live in the game \
+                "Free Horizon's Nightly builds, newest first. Your worlds live in the game \
                 folder, so removing a version never touches them.",
             ),
         )
@@ -162,7 +162,7 @@ impl Launcher {
                                 .child(tr("Support the work below")),
                         )
                         .child(ui::text(14., FontWeight::NORMAL, ink::BODY).child(tr(
-                            "Horizon is built in the open. Sponsors fund the next release.",
+                            "Free Horizon is built in the open. Sponsors fund the next release.",
                         ))),
                 )
                 .child(
@@ -200,7 +200,7 @@ impl Launcher {
                 "Imported builds",
                 build_import::is_imported,
                 Some(tr(
-                    "Unsigned: you picked these programs yourself, and Horizon can't \
+                    "Unsigned: you picked these programs yourself, and Free Horizon can't \
                     check where they came from. Updates never replace them.",
                 )),
                 on_disk,

@@ -1,7 +1,7 @@
 # Translations
 
-Horizon's own text (its menus, settings and the launcher) is translated into about 85 languages. Vanilla's text
-comes from the player's own Minecraft install and is not translated here. Most of Horizon's translations were
+Free Horizon's own text (its menus, settings and the launcher) is translated into about 85 languages. Vanilla's text
+comes from the player's own Minecraft install and is not translated here. Most of Free Horizon's translations were
 written by machine, and players reported some of them as wrong, so the project decided on 2026-11-09 that every
 machine-written string carries an **unreviewed** mark until a person who speaks the language has read it. Players see
 no difference: the mark lives in a file the game and the launcher never read.
@@ -28,7 +28,7 @@ python3 tools/lang_coverage.py --json                      # the same, for a scr
 
 ## Reviewing a language
 
-Review happens in **#translations on Horizon's Discord** ([discord.gg/playhorizon](https://discord.gg/playhorizon)).
+Review happens in **#translations on Free Horizon's Discord** ([discord.gg/playhorizon](https://discord.gg/playhorizon)).
 
 1. **Report a wrong string**: post the language, where you saw it (screen, setting, launcher page), the current text
    and the better text. Anyone can do this; you don't need GitHub.

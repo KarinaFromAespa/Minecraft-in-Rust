@@ -644,17 +644,17 @@ fn the_mods_of_one_build_pin_one_revision() {
         pinned("b", None),
         pinned("c", Some(A)),
     ];
-    assert_eq!(agreed(&same, "Horizon", get, never).unwrap(), A);
+    assert_eq!(agreed(&same, "Free Horizon", get, never).unwrap(), A);
     let none = [pinned("a", None)];
-    assert_eq!(agreed(&none, "Horizon", get, || Ok(B.into())).unwrap(), B);
+    assert_eq!(agreed(&none, "Free Horizon", get, || Ok(B.into())).unwrap(), B);
     let split = [pinned("veinminer", Some(A)), pinned("minimap", Some(B))];
-    let err = agreed(&split, "Horizon", get, never).unwrap_err();
+    let err = agreed(&split, "Free Horizon", get, never).unwrap_err();
     assert!(
         err.contains("veinminer → aaaaaaa") && err.contains("minimap → bbbbbbb"),
         "{err}"
     );
     let bad = [pinned("a", Some("nightly"))];
-    assert!(agreed(&bad, "Horizon", get, never).is_err());
+    assert!(agreed(&bad, "Free Horizon", get, never).is_err());
 }
 
 /// A player's report (11-04): Right-Click Crops 1.0.0 pins Nightly 2026-10-31's commit, so
@@ -687,7 +687,7 @@ fn a_pin_chooses_the_commit_unless_the_player_builds_on_the_picked_version() {
     assert_eq!(
         pinned_revision(&mods, true, picked, no_date).unwrap(),
         (B.to_owned(), Vec::new()),
-        "Rebuild on Horizon builds on the picked Nightly"
+        "Rebuild on Free Horizon builds on the picked Nightly"
     );
     assert_eq!(
         pinned_revision(&mods[1..], false, picked, no_date).unwrap(),
@@ -773,7 +773,7 @@ fn mods_made_for_different_revisions_build_on_the_newest() {
         pinned("zoom", None, None),
     ];
     assert_eq!(
-        newest(&split, "Horizon", horizon, never, None, date).unwrap(),
+        newest(&split, "Free Horizon", horizon, never, None, date).unwrap(),
         B
     );
     // horizon-mixins: never older than a pin, and the launcher's own when it is newer.
@@ -790,11 +790,11 @@ fn mods_made_for_different_revisions_build_on_the_newest() {
     let no_date = |_: &str| -> Result<String, String> { panic!("no date needed") };
     let same = [pinned("a", Some(A), None), pinned("b", Some(A), None)];
     assert_eq!(
-        newest(&same, "Horizon", horizon, never, None, no_date).unwrap(),
+        newest(&same, "Free Horizon", horizon, never, None, no_date).unwrap(),
         A
     );
     let offline = |_: &str| -> Result<String, String> { Err("offline".into()) };
-    let err = newest(&split, "Horizon", horizon, never, None, offline).unwrap_err();
+    let err = newest(&split, "Free Horizon", horizon, never, None, offline).unwrap_err();
     assert!(err.contains("offline"), "{err}");
     // What the player is shown: each mod made for another revision, and the build's.
     assert_eq!(
@@ -933,7 +933,7 @@ fn mods_needing_newer_hook_points_move_the_build_to_the_installed_game() {
     assert_eq!(
         with_hooks(&hooked, A.into(), true, game, at, listed).unwrap(),
         B,
-        "a rebuild that stayed on an older Horizon moves to the game"
+        "a rebuild that stayed on an older Free Horizon moves to the game"
     );
     let with_pin = [mod_("carryblock", A, None), mod_("recipes", &d, Some(2))];
     let revision = with_hooks(&with_pin, A.into(), false, game, at, listed).unwrap();
@@ -1598,7 +1598,7 @@ fn a_build_is_up_to_date_incremental_or_the_first() {
     let plan = classify(false, Some(&before), &next);
     assert_eq!(
         plan.label(),
-        "Incremental rebuild: Horizon commit aaaaaaa to bbbbbbb; mods keys, zoom"
+        "Incremental rebuild: Free Horizon commit aaaaaaa to bbbbbbb; mods keys, zoom"
     );
     // A removed mod counts as a change too.
     next = record("aaaaaaa1111", &[("zoom", "1")]);

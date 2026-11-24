@@ -1,14 +1,14 @@
-# Modpacks: porting any pack to Horizon
+# Modpacks: porting any pack to Free Horizon
 
 Goal (Ludovic, 2026-10-16): **support modpacks like All the Mods 10 far better than Minecraft
 does, and be able to port any of them.** "Better" is measured: pack load time, RAM, FPS, TPS
 and world-generation speed against the same pack on NeoForge or Fabric. "Any of them" means a
 pipeline, not a list of hand ports. It takes a pack as players download it and produces native
-Horizon mods. The pipeline is AI agents in dependency order, each port checked against the
+Free Horizon mods. The pipeline is AI agents in dependency order, each port checked against the
 original mod running in a dev-only Java instance.
 
 This page is the design. It builds on [mods.md](mods.md) (content mods, native mods, and
-why Java jars cannot run in Horizon, so we port instead). The ATM10 inventory behind the numbers below is
+why Java jars cannot run in Free Horizon, so we port instead). The ATM10 inventory behind the numbers below is
 [modpacks/atm10-mods.csv](modpacks/atm10-mods.csv).
 
 ## In one picture
@@ -56,11 +56,11 @@ was downloaded.
 | Class | What it is | Port? | ATM10 |
 |---|---|---|---:|
 | **content** | adds or changes gameplay: blocks, items, machines, mobs, worldgen, magic | yes: carry-over or agent | **287** |
-| **library** | APIs and code shared by other mods (Architectury, Curios, GeckoLib, Kotlin for Forge, Balm...) | no: maps to Horizon's own code or a native mod | **80** |
+| **library** | APIs and code shared by other mods (Architectury, Curios, GeckoLib, Kotlin for Forge, Balm...) | no: maps to Free Horizon's own code or a native mod | **80** |
 | **integration** | glue between two other mods (JEI plugins, AE2 ↔ Mekanism, Create add-on wiring) | after both sides are ported | **44** |
 | **client-ui** | client-only screens, HUDs, tooltips, maps, recipe viewers | yes: client API, or built in | **32** |
 | **other** | pack tooling and engine features: KubeJS, Almost Unified, shader mods, CTM, crash/version tools | no: folded into the pipeline or the engine | **25** |
-| **performance** | Sodium, FerriteCore, ModernFix, ImmediatelyFast, spark, AI and recipe speed-ups | no: Horizon is the replacement | **16** |
+| **performance** | Sodium, FerriteCore, ModernFix, ImmediatelyFast, spark, AI and recipe speed-ups | no: Free Horizon is the replacement | **16** |
 | **server-only** | admin and server features: ranks, essentials, backups, claims, spawn control | yes: server API | **11** |
 | | | | **495** |
 
@@ -90,7 +90,7 @@ Class by tier:
 What this says:
 
 - **A quarter of ATM10 needs no port at all** (125: libraries, performance mods, pack tooling).
-  Horizon's renderer and simulation replace the performance mods. Libraries become API
+  Free Horizon's renderer and simulation replace the performance mods. Libraries become API
   features: Curios becomes accessory slots, GeckoLib an animated-model format, Patchouli,
   Modonomicon and GuideME a guide-book reader, the config libraries a config schema.
 - **68 mods are data tier.** They are the structure packs (YUNG's, Moog's, Formations, CTOV,
@@ -243,14 +243,14 @@ the content root is rejected. Leave the map out to keep the template default.
 
 Most decoration and resource blocks are vanilla classes with other numbers: Macaw's doors are
 `DoorBlock`s, XTones are full cubes, ore sets are `DropExperienceBlock`s. So templates cover the
-data tier without code. Templates also give mod blocks every behaviour Horizon already
+data tier without code. Templates also give mod blocks every behaviour Free Horizon already
 implements and the harnesses already check. Items work the same way (`"template":
 "minecraft:diamond"`, overriding `max_stack_size`, `rarity`, `crafting_remainder` and any
 data component in `components`; a block's item takes `components` too).
 
 How the game loads them, without touching vanilla's path:
 
-- Horizon reads everything from one resource root. Resource packs already work as an
+- Free Horizon reads everything from one resource root. Resource packs already work as an
   **overlay root** (`packs::startup_root`) with vanilla's files linked and the overridden ones
   rewritten. Content mods add one more layer: the enabled mods' `assets/` and `data/`, and the
   prepared per-state tables (`facts.json`, `gameplay-facts.json`, `block-behaviours.json`, the
@@ -272,19 +272,19 @@ How the game loads them, without touching vanilla's path:
   rule before it starts a pack (`pipeline::loadable`) and lists what it left off.
 - The overlay is built on the first start with a set of mods and kept for later starts. A stamp
   (`horizon-mod-content.stamp`) hashes the game executable, the base tables and every mod file's
-  size and mtime. Adding, removing or editing a mod, or a new build of Horizon, rebuilds it. For
+  size and mtime. Adding, removing or editing a mod, or a new build of Free Horizon, rebuilds it. For
   ATM10's 40 data-tier mods the build takes about a minute of the first start on a busy machine.
 - **Worldgen.** Mods' structures, structure sets, template pools, processor lists, configured and
   placed features join the `worldgen/*.json` bundles. Their structure templates go under
   `worldgen/structure/<ns>/`. Their biome tags are merged into `worldgen/biome_tags.json`, minus
-  the biomes and tags Horizon does not have. Mod biomes, noise and density functions are not
+  the biomes and tags Free Horizon does not have. Mod biomes, noise and density functions are not
   carried yet.
 - **Limits.** Chunk sections size their global palette to the registry: 16 bits for vanilla's
   35,723 states (the same chunks, saves and packets as before), one more bit each time content
   mods double it, up to 2^20 states (1,048,576). Past that the content root is refused with the
   states per mod. ATM10's 42 carried mods take the registry to 193,762 states (18 bits). On the
   network the width is the registry's: unchanged for vanilla clients as long as no content mod
-  is on, wider only between Horizons that share the same mods; a Horizon with content mods still
+  is on, wider only between Horizons that share the same mods; a Free Horizon with content mods still
   reads a vanilla server's 16-bit chunks. Block sprites fill texture arrays of 2048 layers, eight
   at most (16,384; vanilla takes 1,250, identical textures share a layer; ATM10's 42 take 9,790).
 - **Broken mod files load as vanilla loads them.** A blockstate definition that does not bind
@@ -420,7 +420,7 @@ On ATM10's 498 jars (2026-11-05, 8 s), 416 of 497 mods listen to events or use c
 uses of 326 names. Main's catalog had a hook for 23% of those uses, and 43% once #9924 labelled 32
 core hooks. The most used names with no hook are mod setup and registration
 (`FMLClientSetupEvent` 208 mods, `RegisterPayloadHandlersEvent` 180,
-`RegisterCapabilitiesEvent` 162, `RegisterMenuScreensEvent` 143), which a Horizon mod does its own
+`RegisterCapabilitiesEvent` 162, `RegisterMenuScreensEvent` 143), which a Free Horizon mod does its own
 way. After those come `ClientTickEvent.Post` and `.Pre` (95, 46), `RenderLevelStageEvent` (81) and
 `ClientPlayerNetworkEvent.LoggingOut` and `.LoggingIn` (53, 35).
 
@@ -508,7 +508,7 @@ Per jar, without decompiling:
   the vanilla classes they target; whether the jar has code beyond its data.
 - **Census of classes:** the superclass names in the class files (constant pool only): how
   many block entities, menus, screens, entities, renderers, recipe serializers, payload types.
-- **Known mods:** a reviewed table in the repo (id → class, tier, Horizon equivalent: "sodium:
+- **Known mods:** a reviewed table in the repo (id → class, tier, Free Horizon equivalent: "sodium:
   performance, built in", "jei: client-ui, recipe viewer built in") wins over heuristics. It
   starts with ATM10's 495 rows.
 
@@ -531,14 +531,14 @@ API feature exists. Cycles (rare: optional mutual integrations) are broken at op
 Mechanical, the same for every mod, and no agent:
 
 1. Extract `assets/` and `data/` from the jar into `mods/<id>/carry/`.
-2. **Upgrade to 26.3.** ATM10 is 1.21.1 and Horizon is 26.3. Item models moved to `items/`
+2. **Upgrade to 26.3.** ATM10 is 1.21.1 and Free Horizon is 26.3. Item models moved to `items/`
    (1.21.4), recipe ingredients and results changed shape (1.21.2), some definitions moved to
    files of their own, and some registries and tags were renamed. The upgrader is a table of these changes generated from
    vanilla's own datafixers and pack-format notes, applied per file. A file it cannot upgrade
    is listed, not guessed.
 3. **Registrations.** Block and item ids registered in Java code are read from the oracle
    (step 6): its facts exporter writes each mod block state's hardness, sounds, shapes, light,
-   map colour and class chain. These are the same exporters that produce Horizon's vanilla
+   map colour and class chain. These are the same exporters that produce Free Horizon's vanilla
    `gameplay-facts.json`, run on the modded game. The class chain picks the template (a
    `DoorBlock` → a vanilla door). Without an oracle, the blockstate's property set gives the
    template (`facing, half, hinge, open, powered` is a door), with the template's numbers.
@@ -636,7 +636,7 @@ Two cases the oracle fills in:
     keeps both.
     In Java, Lithostitched also lays out every jigsaw structure its own way (villages,
     outposts, trial chambers; CTOV's villages are `lithostitched:jigsaw`, carried as vanilla's
-    jigsaw). Horizon keeps vanilla's layouts, so with Lithostitched in a pack, structure layouts
+    jigsaw). Free Horizon keeps vanilla's layouts, so with Lithostitched in a pack, structure layouts
     differ from the Java pack's for the same seed (their positions do not).
     The processors that build outside their template are carried too: Repurposed's and
     Moog's pillar processors become the game's `horizon:pillar` (a column from a placeholder
@@ -727,7 +727,7 @@ Two cases the oracle fills in:
     Frog" were granted on the first dive into the sea, and its boat recipes' "in water"
     criteria).
   - **Big templates** (#838). Vanilla reads structure templates with no limit on their tag
-    count; Horizon now does too (`nbt::Limits::templates`). Seven of ATM10's 8,962 carried
+    count; Free Horizon now does too (`nbt::Limits::templates`). Seven of ATM10's 8,962 carried
     templates are past the old 1,000,000-tag cap: YUNG's monument start, four When Dungeons
     Arise main pieces and two Nullscape pieces. They used to load as empty templates, so their
     structures never started.
@@ -845,14 +845,14 @@ budget allows:
 
 ### 6. The Java oracle and per-mod harnesses
 
-The oracle is **dev-only**, like Horizon's vanilla oracles in `tools/`: the pack's own
+The oracle is **dev-only**, like Free Horizon's vanilla oracles in `tools/`: the pack's own
 Minecraft version (1.21.1 for ATM10) with NeoForge or Fabric, the mod and its dependencies,
 plus a small exporter mod (written by us, never shipped to players). It runs headless and is
 driven over a socket, as the vanilla oracles are.
 
 A **harness per mod**, generated from the tier:
 
-| Tier | What is compared, oracle vs Horizon with the port |
+| Tier | What is compared, oracle vs Free Horizon with the port |
 |---|---|
 | data | every registered block state's facts (hardness, sounds, shapes, light, map colour, drops via loot), every item's facts, every recipe's result for its inputs, loot table outputs over fixed seeds, tags; structure placement over fixed seeds and chunks |
 | logic | scripted interactions: place, use, break, tick N times; the world diff and the inventories after each step |
@@ -881,7 +881,7 @@ python3 tools/mod_port_harness.py --work <work>      # or --jars/--deps to expor
   equip sound and texture layers), recipes (type, result, count, resolved ingredients) and tags. One run
   with the seven mods below takes about 30 s.
 - `crates/horizon-client/examples/mod_port_probe.rs` builds the content root from the carried
-  mods and dumps what Horizon's loaders make of the same blocks, drops, recipes and tags.
+  mods and dumps what Free Horizon's loaders make of the same blocks, drops, recipes and tags.
 - `tools/mod_port_harness.py` compares them per mod (blocks, properties, sounds, shapes, drops,
   placement against the template's in the oracle, vanilla tags, recipes, items) and writes
   `<work>/mods/<id>/harness/result.json`. It maps 1.21.1 sound events to 26.3's through the
@@ -930,7 +930,7 @@ and its harness result. A data-tier mod is **ported** when its harness is green 
 left out (blocks with a class of their own are counted and named, since facts cannot show
 their extra code); **partial** with the failing checks, the blocks left out and what the
 templates miss; **not yet** with the API tier it waits for, or the dependency; **not needed**
-for libraries, performance mods, pack tooling and what Horizon has built in. Unclassified mods
+for libraries, performance mods, pack tooling and what Free Horizon has built in. Unclassified mods
 (the 20 CurseForge-only rows the reviewed table only guesses) count as not yet. A mod made for
 1.20 or older (its `recipes/` and `loot_tables/` folders named as before 1.21, which 26.3 does
 not read) is carried with its data files moved to 1.21's folder names (`recipe/`, `loot_table/`,
@@ -976,65 +976,65 @@ Terrarium License; nothing is published.
 
 ## Measuring "10x"
 
-`tools/perf_bench.py` already measures Horizon against vanilla and vanilla with performance
+`tools/perf_bench.py` already measures Free Horizon against vanilla and vanilla with performance
 mods on the same machine, world and camera path ([benchmark.md](benchmark.md)). With
 `--game neoforge --mod-jars <dir> --deps <dir>` it runs the mods on their own loader (NeoForge
 21.1.259 for ATM10, installed under `.local/neoforge-oracle`, `-Xmx2G` like the launcher),
 driven by the same steps through a dev-only NeoForge port of the bench mod
 (`mods/horizon/src/neoforge-bench`). `--game horizon --port-work <work>` loads a work folder's
-carried-over mods into Horizon. A whole pack (`--pack`, its recommended JVM arguments) is next.
+carried-over mods into Free Horizon. A whole pack (`--pack`, its recommended JVM arguments) is next.
 
-| Metric | How | Horizon side |
+| Metric | How | Free Horizon side |
 |---|---|---|
 | **Load time** | start → title screen; start → in a fresh world, every chunk around the spawn drawn | the same with the ported pack's `.hmod`s enabled |
 | **RAM** | peak and steady RSS of the process, sampled 4 times a second from outside (the whole JVM for Java) | the whole process |
 | **FPS** | the four flight scenes: mean, 1 % and 0.1 % lows, p99 frame time | same |
-| **TPS / MSPT** | a fixed server-load world: N loaded chunks with the pack's machines and mobs placed by the harness fixtures; mean and p99 milliseconds per tick over 60 s (NeoForge: `/neoforge tps` and spark; Horizon: the integrated server's tick times, which today feed only the debug chart, exposed through `horizon-ctl`) | same fixture, the ported content |
-| **World generation** | chunks per second pregenerating a fixed square (Chunky on NeoForge; Horizon gets a pregeneration command for this) with the pack's worldgen | same |
+| **TPS / MSPT** | a fixed server-load world: N loaded chunks with the pack's machines and mobs placed by the harness fixtures; mean and p99 milliseconds per tick over 60 s (NeoForge: `/neoforge tps` and spark; Free Horizon: the integrated server's tick times, which today feed only the debug chart, exposed through `horizon-ctl`) | same fixture, the ported content |
+| **World generation** | chunks per second pregenerating a fixed square (Chunky on NeoForge; Free Horizon gets a pregeneration command for this) with the pack's worldgen | same |
 | **Disk and download** | install size of the pack against its `.hmod`s | |
 
 Two comparisons, both published:
 
-1. **Same content.** NeoForge with only the mods Horizon has ported (plus their dependencies)
-   against Horizon with those ports. Content matches, so this is the honest ratio.
+1. **Same content.** NeoForge with only the mods Free Horizon has ported (plus their dependencies)
+   against Free Horizon with those ports. Content matches, so this is the honest ratio.
 2. **What players run today.** The full pack on NeoForge as a reference row, labelled as
-   such, beside Horizon's partial pack. This is not a like-for-like ratio.
+   such, beside Free Horizon's partial pack. This is not a like-for-like ratio.
 
 "10x" is claimed per metric only where the same-content ratio reaches it over the repeats'
 confidence interval. Other ratios are reported as they come out. Caveat (in every report):
-the pack runs Minecraft 1.21.1 and Horizon runs 26.3, so the vanilla parts differ by a few
+the pack runs Minecraft 1.21.1 and Free Horizon runs 26.3, so the vanilla parts differ by a few
 versions.
 
 ### Measured: six ported mods against the same mods on NeoForge
 
 Cloud Glass, Factory Blocks, Glassential, Macaw's Fences, Paths and Trapdoors (Doors left out:
 with Trapdoors it passes the block states chunks hold, see Limits), carried over and loaded as
-dev mods in Horizon, against their jars plus Architectury and Fusion on NeoForge 21.1.259.
+dev mods in Free Horizon, against their jars plus Architectury and Fusion on NeoForge 21.1.259.
 Mac mini M4 Pro, 1280x720, seed 1234, the four flight scenes, 2 games per row, 2026-10-17.
 Means; FPS is the mean of the four scenes. "Title" is start to title screen, "world" start to
 a fresh world drawn around the spawn, "scene load" a teleport to every chunk drawn.
 
 | RD | game | title s | world s | scene load s | FPS | RSS steady / peak MB | load avg |
 |---|---|---:|---:|---:|---:|---:|---:|
-| 8 | Horizon + 6 mods | 9.8 | 16.2 | 4.0 | 122 | 2,644 / 2,771 | 32 |
+| 8 | Free Horizon + 6 mods | 9.8 | 16.2 | 4.0 | 122 | 2,644 / 2,771 | 32 |
 | 8 | NeoForge + 6 mods | 19.5 | 50.0 | 30.2 | 72 | 2,325 / 2,592 | 56 |
-| 8 | Horizon | 5.0 | 11.0 | 4.0 | 124 | 1,559 / 1,629 | 51 |
+| 8 | Free Horizon | 5.0 | 11.0 | 4.0 | 124 | 1,559 / 1,629 | 51 |
 | 8 | NeoForge | 12.8 | 36.1 | 21.9 | 104 | 2,334 / 2,558 | 30 |
-| 16 | Horizon + 6 mods | 10.8 | 27.0 | 11.3 | 90 | 2,925 / 3,032 | 40 |
+| 16 | Free Horizon + 6 mods | 10.8 | 27.0 | 11.3 | 90 | 2,925 / 3,032 | 40 |
 | 16 | NeoForge + 6 mods | 26.4 | 82.5 | 64.3 | 25 | 3,016 / 3,519 | 45 |
-| 16 | Horizon | 3.5 | 10.0 | 7.4 | 119 | 1,732 / 1,871 | 56 |
+| 16 | Free Horizon | 3.5 | 10.0 | 7.4 | 119 | 1,732 / 1,871 | 56 |
 | 16 | NeoForge | 16.9 | 73.7 | 43.2 | 36 | 2,748 / 3,425 | 48 |
 
-Same content, Horizon against NeoForge: the world is ready 3.1x sooner at 8 chunks and 3.1x at
+Same content, Free Horizon against NeoForge: the world is ready 3.1x sooner at 8 chunks and 3.1x at
 16, the title screen 2.0x and 2.4x sooner, and the flights run 1.7x and 3.6x the frames. RAM is
-not lower: Horizon's steady RSS grows 1.1 GB with the mods (61,816 block states against
+not lower: Free Horizon's steady RSS grows 1.1 GB with the mods (61,816 block states against
 vanilla's 35,723; the per-state tables are the next thing to measure), while the JVM stays
 inside its 2 GB heap. Caveats, so none of this is a "10x" claim yet: other sessions and CI
 runners kept the machine's load average between 30 and 56 on 14 threads, so the confidence
-intervals are as wide as the means (`perf_bench.py --table`); Horizon's frames are paced near
-the display's 144 Hz at 8 chunks; Horizon's title time includes building the content overlay
+intervals are as wide as the means (`perf_bench.py --table`); Free Horizon's frames are paced near
+the display's 144 Hz at 8 chunks; Free Horizon's title time includes building the content overlay
 (about 5 s for six mods; it was rebuilt on every start then, and is kept for later starts now);
-and the pack runs 1.21.1 against Horizon's 26.3.
+and the pack runs 1.21.1 against Free Horizon's 26.3.
 A quiet rerun with more games is the next measurement.
 
 **Where the RAM goes (2026-10-17).** RSS overstates it on macOS. `ps` counts pages the allocator
@@ -1045,8 +1045,8 @@ games per row:
 
 | game | RSS steady MB | footprint steady MB |
 |---|---:|---:|
-| Horizon | 1,598-1,636 | 1,277-1,295 |
-| Horizon + 6 mods | 2,996-3,052 | 1,736-1,869 |
+| Free Horizon | 1,598-1,636 | 1,277-1,295 |
+| Free Horizon + 6 mods | 2,996-3,052 | 1,736-1,869 |
 
 So the six mods cost about 0.5 GB of footprint, not 1.1-1.4 GB. ATM10's 42 mods (193,762
 states) take the game to 7.7 GB RSS but 3.9 GB footprint. The rest is startup garbage the
@@ -1101,12 +1101,12 @@ game each, load average 80-125 on 14 threads; `--warm` measures a later start:
 
 | game | title / world s | RSS steady / peak MB | footprint steady / peak MB |
 |---|---|---|---|
-| Horizon before #756 (every start) | 81.1 / 102.8 | 4,008 / 4,164 | 2,368 / 2,554 |
-| Horizon, first start | 105.2 / 128.8 | 3,795 / 3,993 | 2,306 / 2,560 |
-| **Horizon, later starts** | **21.6 / 33.7** | **2,629 / 2,935** | **2,445 / 2,731** |
+| Free Horizon before #756 (every start) | 81.1 / 102.8 | 4,008 / 4,164 | 2,368 / 2,554 |
+| Free Horizon, first start | 105.2 / 128.8 | 3,795 / 3,993 | 2,306 / 2,560 |
+| **Free Horizon, later starts** | **21.6 / 33.7** | **2,629 / 2,935** | **2,445 / 2,731** |
 | NeoForge + 40 mods | 53.2 / 119.9 | 3,099 / 3,203 | 3,304 / 3,381 |
 
-On later starts, Horizon uses 15 % less RSS and 26 % less footprint than NeoForge with the
+On later starts, Free Horizon uses 15 % less RSS and 26 % less footprint than NeoForge with the
 same mods. It reaches the title 2.5x sooner and the world 3.6x sooner, and its flights ran at
 93-233 FPS against NeoForge's 27-62. The first start is slower than NeoForge's to the title,
 because it builds the content root once. One game per row on a loaded machine is not a

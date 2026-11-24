@@ -16,7 +16,7 @@ MCP: none: the player's switch.
 
 ## `horizon-launcher versions`
 
-List Horizon releases, or the installed versions.
+List Free Horizon releases, or the installed versions.
 
     horizon-launcher versions
 
@@ -105,17 +105,17 @@ MCP: `native_cache`.
 
 ## `horizon-launcher native-build`
 
-Native mods (docs/native-mods.md): compile mixin bundles on the Horizon revision they pin, else the one the instance plays, with the launcher's own Rust, as the version the instance then plays. Not sandboxed: the mods' code runs with your rights.
+Native mods (docs/native-mods.md): compile mixin bundles on the Free Horizon revision they pin, else the one the instance plays, with the launcher's own Rust, as the version the instance then plays. Not sandboxed: the mods' code runs with your rights.
 
     horizon-launcher native-build [FOLDER]
 
 - `FOLDER`: A mod folder (horizon-mixin.toml, or an unpacked .hnmod), or a folder of them (default: the native mods installed and turned on in the instance)
 - `--server-output`: Export mode: build a standalone dedicated-server engine into this folder instead of an instance's build. Needs a mod FOLDER; no instance is read or changed, and no launcher config is written
 - `--instance`: The instance whose installed native mods to build, and which then plays the build (default: the selected one)
-- `--update`: Move to the newest installed release or Nightly instead of the Horizon the instance plays (a full rebuild)
+- `--update`: Move to the newest installed release or Nightly instead of the Free Horizon the instance plays (a full rebuild)
 - `--trust-native-code`: You read the mods' source and trust it with full access to this computer
-- `--allow-version-mismatch`: Build mods made for different Horizon versions together anyway, on the newest of them
-- `--ignore-pins`: Build every mod on the commit of the version the build starts from, even the mods that pin another Horizon commit (they may not apply or compile there)
+- `--allow-version-mismatch`: Build mods made for different Free Horizon versions together anyway, on the newest of them
+- `--ignore-pins`: Build every mod on the commit of the version the build starts from, even the mods that pin another Free Horizon commit (they may not apply or compile there)
 - `--profile` (performance, dev, release): The build profile: performance (the default: incremental, quick to rebuild), dev (quickest to rebuild a mod, slow game) or release (thin LTO: slowest to build, slightly faster game). Default: the native-profile setting
 
 MCP: none: the player's switch.
@@ -233,7 +233,7 @@ MCP: `account_skin`.
 
 ## `horizon-launcher settings`
 
-Show the launcher's settings, or set one (the Settings page): selected-version TAG, game-architecture auto|x64|arm64, minecraft-dir PATH, server-dir PATH ("default" resets a folder), install-new-versions on|off, prune-old-versions on|off (delete old versions after an install, keeping the selected one, the ones instances use and the newest few), keep-versions N (how many of the newest to keep; "default" is 2), opening-animation on|off, proxy http://host:port|socks5://host:port ("default" removes it), while-playing stay|minimize|hide (what the window does while the game runs), language system|en|fr|ru|de|zh|es|uk|pl (the window's language; system follows the computer's), accent violet|blue|teal|green|amber|red|pink|#rrggbb|DEGREES (a named accent, any colour, or any hue), background PATH (a picture behind Home; "default" shows Horizon's landscape), native-cache-gib N (combined native compilation cache limit in GiB, default 30; 0 disables automatic cleanup), native-profile performance|dev|release (the profile native mods build with: performance is incremental, dev rebuilds a mod quickest for a slow game, release is slowest to build and slightly faster to play).
+Show the launcher's settings, or set one (the Settings page): selected-version TAG, game-architecture auto|x64|arm64, minecraft-dir PATH, server-dir PATH ("default" resets a folder), install-new-versions on|off, prune-old-versions on|off (delete old versions after an install, keeping the selected one, the ones instances use and the newest few), keep-versions N (how many of the newest to keep; "default" is 2), opening-animation on|off, proxy http://host:port|socks5://host:port ("default" removes it), while-playing stay|minimize|hide (what the window does while the game runs), language system|en|fr|ru|de|zh|es|uk|pl (the window's language; system follows the computer's), accent violet|blue|teal|green|amber|red|pink|#rrggbb|DEGREES (a named accent, any colour, or any hue), background PATH (a picture behind Home; "default" shows Free Horizon's landscape), native-cache-gib N (combined native compilation cache limit in GiB, default 30; 0 disables automatic cleanup), native-profile performance|dev|release (the profile native mods build with: performance is incremental, dev rebuilds a mod quickest for a slow game, release is slowest to build and slightly faster to play).
 
     horizon-launcher settings [KEY] [VALUE]
 
@@ -285,7 +285,7 @@ MCP: `logs`.
 
 ## `horizon-launcher update`
 
-Look for a newer Horizon release and launcher, and install them.
+Look for a newer Free Horizon release and launcher, and install them.
 
     horizon-launcher update
 
@@ -295,7 +295,7 @@ MCP: `update`.
 
 ## `horizon-launcher desktop-entry`
 
-Linux: put Horizon in the applications menu (an entry and the icon, under $XDG_DATA_HOME), or take it out with --remove.
+Linux: put Free Horizon in the applications menu (an entry and the icon, under $XDG_DATA_HOME), or take it out with --remove.
 
     horizon-launcher desktop-entry
 
@@ -394,7 +394,7 @@ Make an instance: empty but for your options and name, or a copy of another one'
 
 - `NAME`
 - `--copy`: The instance to copy (its name or id)
-- `--minecraft`: Make a Minecraft: Java Edition instance of this version (1.21.4, latest or latest-snapshot) instead of a Horizon one
+- `--minecraft`: Make a Minecraft: Java Edition instance of this version (1.21.4, latest or latest-snapshot) instead of a Free Horizon one
 - `--loader`: With this mod loader: fabric, quilt, forge or neoforge
 - `--loader-version`: The loader's version (default: its newest stable one)
 
@@ -451,7 +451,7 @@ MCP: `instance_rename`.
 
 ## `horizon-launcher instance delete`
 
-Delete an instance: its folder (worlds, options, packs) goes to the Trash, where you can get it back. Horizon's own instance stays.
+Delete an instance: its folder (worlds, options, packs) goes to the Trash, where you can get it back. Free Horizon's own instance stays.
 
     horizon-launcher instance delete <INSTANCE>
 
@@ -493,7 +493,7 @@ MCP: `instance_select`.
 
 ## `horizon-launcher instance version`
 
-Keep an instance on one installed Horizon version, or "latest" to follow updates again.
+Keep an instance on one installed Free Horizon version, or "latest" to follow updates again.
 
     horizon-launcher instance version <INSTANCE> <VERSION>
 
@@ -503,7 +503,7 @@ MCP: `instance_version`.
 
 ## `horizon-launcher instance export`
 
-Export an instance (or a port) to share: its settings, packs, Horizon mods and the worlds named, as a .mrpack (resource packs from Modrinth listed by download) or a zip. Never logs, screenshots or account data; worlds go without their per-player files.
+Export an instance (or a port) to share: its settings, packs, Free Horizon mods and the worlds named, as a .mrpack (resource packs from Modrinth listed by download) or a zip. Never logs, screenshots or account data; worlds go without their per-player files.
 
     horizon-launcher instance export [INSTANCE]
 
@@ -550,7 +550,7 @@ Import what a file is, as dropping it on the window does: a shared instance (a .
 
 - `FILE`
 - `--instance`: The instance a pack goes into
-- `--java`: A .mrpack becomes a Minecraft: Java Edition instance with its Minecraft version, mod loader, mods and overrides, instead of a Horizon instance or a Modpacks import
+- `--java`: A .mrpack becomes a Minecraft: Java Edition instance with its Minecraft version, mod loader, mods and overrides, instead of a Free Horizon instance or a Modpacks import
 
 MCP: `instance_import`.
 
@@ -715,7 +715,7 @@ MCP: `packs_remove`, needs `confirm: true`.
 
 ## `horizon-launcher java list`
 
-The Java runtimes Horizon downloaded from Mojang and the ones installed on this computer.
+The Java runtimes Free Horizon downloaded from Mojang and the ones installed on this computer.
 
     horizon-launcher java list
 
@@ -846,7 +846,7 @@ MCP: `mods_list`.
 
 ## `horizon-launcher mods search`
 
-Search for packs Horizon loads, or for what a Java instance runs (made for its Minecraft version and loader).
+Search for packs Free Horizon loads, or for what a Java instance runs (made for its Minecraft version and loader).
 
     horizon-launcher mods search [TEXT]...
 
@@ -860,7 +860,7 @@ MCP: `mods_search`.
 
 ## `horizon-launcher mods check`
 
-Say how well a Java mod runs in Horizon: its jar is downloaded (checksum checked), carried over and read; the answer is kept.
+Say how well a Java mod runs in Free Horizon: its jar is downloaded (checksum checked), carried over and read; the answer is kept.
 
     horizon-launcher mods check <PROJECT>
 
@@ -898,7 +898,7 @@ MCP: `mods_update`.
 
 ## `horizon-launcher mods add-github`
 
-Install a native mod from a GitHub link (docs/native-mods.md, "Install from GitHub"): https://github.com/OWNER/REPO (its latest release, else its default branch), .../releases/tag/TAG, .../tree/REF or .../commit/SHA. Resolved to an exact release file or commit, checked like a registry mod. NOT reviewed by the Horizon registry.
+Install a native mod from a GitHub link (docs/native-mods.md, "Install from GitHub"): https://github.com/OWNER/REPO (its latest release, else its default branch), .../releases/tag/TAG, .../tree/REF or .../commit/SHA. Resolved to an exact release file or commit, checked like a registry mod. NOT reviewed by the Free Horizon registry.
 
     horizon-launcher mods add-github <URL>
 

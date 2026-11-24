@@ -260,8 +260,8 @@ impl Instance {
         match &self.java {
             None => Ok(()),
             Some(java) => Err(format!(
-                "{} plays Minecraft {} (Java Edition), not Horizon: Play starts it, without a \
-                 Horizon version.",
+                "{} plays Minecraft {} (Java Edition), not Free Horizon: Play starts it, without a \
+                 Free Horizon version.",
                 self.name, java.minecraft
             )),
         }
@@ -294,7 +294,7 @@ fn list_in(game_home: &Path, data: &Path) -> Vec<Instance> {
     let mut store = Store::load(data);
     let mut found = vec![(
         DEFAULT.to_string(),
-        "Horizon".to_string(),
+        "Free Horizon".to_string(),
         Kind::Default,
         game_home.to_path_buf(),
         game_home.to_path_buf(),

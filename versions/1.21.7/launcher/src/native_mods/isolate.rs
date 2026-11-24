@@ -40,7 +40,7 @@ impl LeftOut {
     pub fn label(&self) -> String {
         match &self.why {
             Why::OtherVersion => trf(
-                "{name} was left out: made for another Horizon version",
+                "{name} was left out: made for another Free Horizon version",
                 &[("name", &self.id)],
             ),
             Why::Clash(other) => trf(
@@ -234,7 +234,7 @@ mod tests {
         );
         assert_eq!(
             left.label(),
-            "eatinganimation was left out: made for another Horizon version"
+            "eatinganimation was left out: made for another Free Horizon version"
         );
         // A diagnostic naming no mod of the build is the build's own error.
         assert_eq!(

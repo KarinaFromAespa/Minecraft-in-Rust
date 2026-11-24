@@ -32,7 +32,7 @@ const CHECKING: usize = 2;
 /// The sources to pick from on the tabs that have both ([`switches`]); CurseForge is shown
 /// beside them as coming soon.
 pub(super) const SOURCES: [(SourceId, &str); 2] = [
-    (SourceId::Horizon, "Horizon"),
+    (SourceId::Horizon, "Free Horizon"),
     (SourceId::Modrinth, "Modrinth"),
 ];
 const PAGE: usize = 20;
@@ -827,7 +827,7 @@ impl Launcher {
         let home = self.mods.home();
         let instance = self
             .selected_instance()
-            .map_or_else(|| "Horizon".to_string(), |i| i.name.clone());
+            .map_or_else(|| "Free Horizon".to_string(), |i| i.name.clone());
         std::thread::spawn(move || {
             let result = horizon::install_chosen(&id, &version, &home, &|_, _| {}).map(|e| {
                 trf(
@@ -874,7 +874,7 @@ impl Launcher {
         let java = self.mods.java.clone();
         let instance = self
             .selected_instance()
-            .map_or_else(|| "Horizon".to_string(), |i| i.name.clone());
+            .map_or_else(|| "Free Horizon".to_string(), |i| i.name.clone());
         let world = self.mods.world.clone().and_then(|path| {
             let (_, name) = self.mods.worlds.iter().find(|(p, _)| *p == path)?;
             Some((path, name.clone()))
@@ -1226,7 +1226,7 @@ impl Launcher {
         }
         let header = page_header(
             "Mods",
-            "Mods and shader packs made for Horizon from its own reviewed registry, and \
+            "Mods and shader packs made for Free Horizon from its own reviewed registry, and \
              resource packs from Modrinth. Each file is checked against its source's checksum \
              before it reaches your game folder.",
             &t,
@@ -1819,11 +1819,11 @@ impl Launcher {
         if let (Some(tag), Some(build)) = (&version, &build) {
             let said = match pinned.is_empty() {
                 true => trf(
-                    "Plays {build}, built on Horizon {version}.",
+                    "Plays {build}, built on Free Horizon {version}.",
                     &[("build", tag), ("version", &build.horizon())],
                 ),
                 false => trf(
-                    "Plays {build}, built on Horizon {commit}, the commit pinned by {mods}, not on {version}.",
+                    "Plays {build}, built on Free Horizon {commit}, the commit pinned by {mods}, not on {version}.",
                     &[
                         ("build", tag),
                         ("commit", &build.horizon[..build.horizon.len().min(7)]),
@@ -1866,7 +1866,7 @@ impl Launcher {
                 button(
                     "native-update",
                     trf(
-                        "Rebuild on Horizon {version}",
+                        "Rebuild on Free Horizon {version}",
                         &[("version", &native_status::horizon_label(&newer))],
                     ),
                     Kind::Secondary,
@@ -1963,11 +1963,11 @@ impl Launcher {
                     &t,
                 );
             } else if m.source == SourceId::Horizon {
-                tr("Nothing in Horizon's registry matches yet.")
+                tr("Nothing in Free Horizon's registry matches yet.")
             } else if m.everything {
                 tr("Nothing found.")
             } else {
-                tr("Nothing found that runs in Horizon. Show everything lists the rest.")
+                tr("Nothing found that runs in Free Horizon. Show everything lists the rest.")
             };
             return centered(line, &t);
         }

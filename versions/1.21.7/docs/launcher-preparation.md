@@ -1,7 +1,7 @@
 # Launcher resource preparation
 
 Release folders include `exporters/server`, `exporters/client` and an integrity manifest.
-These contain only Horizon's original Java exporter classes. Minecraft jars, libraries,
+These contain only Free Horizon's original Java exporter classes. Minecraft jars, libraries,
 assets and generated resources remain local and are verified against `research-lock.json`.
 The same platform-independent class bundle is used in game and dedicated-server releases.
 

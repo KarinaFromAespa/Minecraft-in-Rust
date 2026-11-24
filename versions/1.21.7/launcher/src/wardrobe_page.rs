@@ -937,7 +937,7 @@ impl Launcher {
             .is_some_and(|me| me.owned.is_empty());
         let header = page_header(
             "Wardrobe",
-            "What you wear in every Horizon world and server. Changes reach other players the next \
+            "What you wear in every Free Horizon world and server. Changes reach other players the next \
              time they see you.",
             &t,
         );
@@ -1476,7 +1476,7 @@ impl Launcher {
                     "wardrobe-others",
                     hidden,
                     "Hide other players' cosmetics",
-                    "Others look like plain players to you. Also in the game's Horizon settings.",
+                    "Others look like plain players to you. Also in the game's Free Horizon settings.",
                 )
                 .on_click(save(Prefs {
                     others: Some(if hidden {
@@ -1492,7 +1492,7 @@ impl Launcher {
                     "wardrobe-hide-fx",
                     prefs.hide_fx,
                     "Hide other players' trails and auras",
-                    "Off by default. Also in the game's Horizon settings.",
+                    "Off by default. Also in the game's Free Horizon settings.",
                 )
                 .on_click(save(Prefs {
                     hide_fx: !prefs.hide_fx,

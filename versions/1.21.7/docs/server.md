@@ -1,6 +1,6 @@
-# Hosting a Horizon server: design
+# Hosting a Free Horizon server: design
 
-Horizon's dedicated server should be the easiest and lightest Minecraft 26.3 server to host. It should be one
+Free Horizon's dedicated server should be the easiest and lightest Minecraft 26.3 server to host. It should be one
 small native program with no Java and no Python, one command to install it, one config file, and a CLI, a web
 panel and a control API to manage it. At the same view and simulation distance and with the same players, it
 should beat vanilla, Paper and Fabric + Lithium on TPS/MSPT, RAM, CPU, chunk generation and start time.
@@ -31,7 +31,7 @@ The dedicated server is the game itself, run headless:
   online. It supports `pause-when-empty-seconds`, `player-idle-timeout` and the autosave.
 - **Console (stdin).** `stop`, `save-all`, `save-on`/`save-off`, `list [uuids]`, `op`/`deop`,
   `whitelist on|off|list|reload|add|remove`, `ban`, `ban-ip`, `pardon`, `pardon-ip`, `banlist`, `kick` and
-  `say` behave as in `DedicatedServer`. `tempban <player> <duration> [reason]` is Horizon's own: a ban that
+  `say` behave as in `DedicatedServer`. `tempban <player> <duration> [reason]` is Free Horizon's own: a ban that
   ends by itself ([hosting](hosting.md#temporary-bans)). Every other command goes to the game's own dispatcher as the
   server (permission level 4). The log follows vanilla's Log4j pattern, in `logs/latest.log` and on stdout.
 - **Player names.** `usercache.json` in the universe folder works as vanilla's `CachedUserNameToIdResolver`.
@@ -44,7 +44,7 @@ The dedicated server is the game itself, run headless:
 ### Scale
 
 Measured against vanilla on equal work (section 9): 20 TPS up to 50 bots, 9 to 11 TPS at 100, where vanilla's
-watchdog stops it. Horizon is ahead with few players and when exploring; with 25 to 50 players near spawn
+watchdog stops it. Free Horizon is ahead with few players and when exploring; with 25 to 50 players near spawn
 vanilla's tick is shorter. What the dedicated server checks against vanilla (online mode, secure chat,
 dimensions, remote players' gameplay) is in its harnesses: `python3 tools/parity.py dedicated_server online_mode
 secure_chat server_dimension_players server_player_combat server_player_damage`.
@@ -259,7 +259,7 @@ by default; see below). The parts, in the order the reply lists them, and what e
 
 A part that is not asked for keeps what the held player has, which is what this server loaded for it when it logged
 in: its own file, or a new player's defaults. An imported inventory or ender chest replaces the held player's whole: a
-slot the record leaves empty is empty afterwards. The keys of the compound that Horizon does not model, the values
+slot the record leaves empty is empty afterwards. The keys of the compound that Free Horizon does not model, the values
 mods attached to the player, and the last death, the post effects and the credits, are taken only when every part
 is. Only the compound of the record is read: the fields above it (`position`, `rotation`, `velocity`, `dimension`)
 are for whoever reads the record.
@@ -647,7 +647,7 @@ path as `horizon-server update` (section 7) and then shows how it went.
 the modpack work).
 
 **Tech:** one HTML page with plain JS and CSS (`crates/horizon-server/panel/`), embedded in the binary with
-`include_str!`. No build step, no framework, no CDN. It uses Horizon's design system tokens (`horizon-theme`'s
+`include_str!`. No build step, no framework, no CDN. It uses Free Horizon's design system tokens (`horizon-theme`'s
 colours, light and dark) and draws charts on a canvas. It polls the control API's routes once a second
 (`status`, `metrics?since=`, `logs?since=`), served by the same small HTTP code on `std::net`, with no async
 runtime or new dependency. Server-sent events can replace the polling later if a tab ever costs too much.
@@ -700,7 +700,7 @@ runtime or new dependency. Server-sent events can replace the polling later if a
   newer release a minute after it starts and then every 6 hours, and only says so, in its log, in `status`
   and in the panel (`HORIZON_NO_UPDATE_CHECK=1` turns the check off). `update --check` asks GitHub once.
   `update`:
-  1. downloads the current Nightly's archive for this computer (the only build Horizon ships since 2026-10-28;
+  1. downloads the current Nightly's archive for this computer (the only build Free Horizon ships since 2026-10-28;
      GitHub's latest release while there is none; on Linux the server build; `--version` picks another: a
      `vX.Y.Z` release, or a `nightly-<date>` of the last 7 days) and checks it against its SHA256SUMS, whose Ed25519
      signature must check with a key built into `horizon-server` (docs/release-flow.md, "Signed checksums"),
@@ -783,13 +783,13 @@ runtime or new dependency. Server-sent events can replace the polling later if a
   echoed as lossy UTF-8.
 - **Vanilla's own management protocol.** Vanilla 26.3 has a server management protocol: JSON-RPC over a
   WebSocket, set up by the `management-server-*` keys in server.properties, so tools written for vanilla can
-  manage a Horizon server too. The supervisor serves it (`management.rs`, the WebSocket in `websocket.rs`, std
+  manage a Free Horizon server too. The supervisor serves it (`management.rs`, the WebSocket in `websocket.rs`, std
   only like `http.rs`; TLS, on by default as in vanilla, through rustls in `management_tls.rs`, from a PKCS12
-  keystore, or a self-signed one Horizon makes when none is set), so it answers while the game restarts
+  keystore, or a self-signed one Free Horizon makes when none is set), so it answers while the game restarts
   (`server/status` says `started: false` then); calls that change the game go through its console.
   Authentication, errors and replies follow vanilla's `net.minecraft.server.jsonrpc` (`AuthenticationHandler`,
   `Connection`, `methods/*Service`), and `rpc.discover` gives vanilla's OpenRPC document (`management_schema.rs`).
-  `tools/test_management_protocol_parity.py` sends vanilla's server and Horizon's the same messages over TLS
+  `tools/test_management_protocol_parity.py` sends vanilla's server and Free Horizon's the same messages over TLS
   (one keystore for both) and compares the answers, and the document with the data generator's
   `json-rpc-api-schema.json`.
   - built: the WebSocket and its authentication, TLS, `rpc.discover`, `players`, `players/kick`,
@@ -826,7 +826,7 @@ The goal is the published claim: "runs 50–100 players on hardware where vanill
 reproducible by anyone, and show the same gameplay on both sides.
 
 - **Servers:**
-  - Horizon (`horizon-server`);
+  - Free Horizon (`horizon-server`);
   - vanilla 26.3 (the owner's `server.jar`);
   - Paper (a jar the owner downloads; Paper's defaults are kept, and noted as non-vanilla);
   - optionally Fabric + Lithium (via the pinned `tools/benchmark-deps/mods.lock.json`).
@@ -857,7 +857,7 @@ reproducible by anyone, and show the same gameplay on both sides.
   on one machine.
 - **Measured** (once a second, for 5 minutes after the last bot joins, after a 1-minute warm-up):
   - TPS and MSPT (average, P50/P95/P99), from each server's own `/tick query` (vanilla's
-    `ServerTickRateManager`; Horizon implements the same command and clock), so every server measures itself
+    `ServerTickRateManager`; Free Horizon implements the same command and clock), so every server measures itself
     the same way;
   - RSS and CPU (process tree, `horizon_bench::rss_bytes`/`cpu_seconds`);
   - chunk generation: chunks per second while the `explore` bots run, and time until each new bot has its
@@ -870,5 +870,5 @@ reproducible by anyone, and show the same gameplay on both sides.
   machine, commit, Java version, settings and every run) and prints a comparison table. Results are
   published like the client benchmark, with the machine, the versions and the exact commands. TPS is derived
   from `/tick query`'s average (20 while it fits in 50 ms), since the command reports times, not the rate.
-- **Results.** The latest comparison (Horizon, Pumpkin and vanilla under the same bots) is
+- **Results.** The latest comparison (Free Horizon, Pumpkin and vanilla under the same bots) is
   [performance/server-vs-pumpkin.md](performance/server-vs-pumpkin.md); `tools/server_bench.py` reruns it.

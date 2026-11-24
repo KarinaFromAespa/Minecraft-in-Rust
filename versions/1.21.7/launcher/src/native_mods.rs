@@ -315,7 +315,7 @@ pub fn classify(exists: bool, before: Option<&Record>, now: &Record) -> Plan {
     if before.horizon != now.horizon {
         let short = |r: &str| r.chars().take(7).collect::<String>();
         changes.push(format!(
-            "Horizon commit {} to {}",
+            "Free Horizon commit {} to {}",
             short(&before.horizon),
             short(&now.horizon)
         ));
@@ -762,7 +762,7 @@ pub(crate) fn bundle_in(dir: &Path) -> Result<Option<Bundle>, String> {
     let found = bundle(&dir.join("mixins").join(&id), field("mixins"))?;
     match (&found.horizon, field("horizon")) {
         (Some(pinned), Some(native)) if *pinned != native => Err(format!(
-            "{id}: {NATIVE_MANIFEST} pins Horizon {native}, its {MANIFEST} {pinned}."
+            "{id}: {NATIVE_MANIFEST} pins Free Horizon {native}, its {MANIFEST} {pinned}."
         )),
         (_, native) => Ok(Some(Bundle {
             horizon: found.horizon.clone().or(native),
@@ -1094,7 +1094,7 @@ fn ask_github(repo: &str, revision: &str) -> Result<String, String> {
 
 /// How [`build`] starts its error when mods pin other Horizon revisions than the one it would
 /// use and the player hasn't agreed to try (`anyway`); the rest lists them.
-pub const MISMATCH: &str = "Made for other Horizon versions: ";
+pub const MISMATCH: &str = "Made for other Free Horizon versions: ";
 
 /// Each pinned mod whose Horizon revision isn't `revision`, as `id → pin`, and the build's.
 fn mismatch(mods: &[Bundle], revision: &str) -> Option<String> {
@@ -1201,7 +1201,7 @@ fn with_hooks(
     let tested: Vec<Bundle> = hooked.iter().map(|b| (*b).clone()).collect();
     let fallback = agreed(
         &tested,
-        "Horizon",
+        "Free Horizon",
         |b| b.horizon.as_ref(),
         || Err(String::new()),
     );
@@ -1221,7 +1221,7 @@ fn with_hooks(
         .map(|b| format!("{} (hook points v{})", b.id, b.hooks.unwrap_or_default()))
         .collect();
     Err(format!(
-        "Horizon {} doesn't have the native hook points these mods use: {}. Update Horizon or the mods.",
+        "Free Horizon {} doesn't have the native hook points these mods use: {}. Update Free Horizon or the mods.",
         &pinned[..pinned.len().min(7)],
         list.join(", ")
     ))
@@ -1368,7 +1368,7 @@ fn pinned_revision(
     if on_base {
         return Ok((base()?, Vec::new()));
     }
-    let revision = newest(pins, "Horizon", |b| b.horizon.as_ref(), base, None, date)?;
+    let revision = newest(pins, "Free Horizon", |b| b.horizon.as_ref(), base, None, date)?;
     let by = pins
         .iter()
         .filter(|b| b.horizon.as_ref() == Some(&revision))
@@ -1516,12 +1516,12 @@ impl Step {
             ),
             Self::Tool => tr("Building horizon-mixins (once)").into(),
             Self::Source(revision) => trf(
-                "Downloading Horizon's source at {revision}",
+                "Downloading Free Horizon's source at {revision}",
                 &[("revision", &revision[..7])],
             ),
             Self::Mixins => tr("Applying the mixins").into(),
             Self::CachedMixins => tr("Reusing patched game source").into(),
-            Self::Crates => tr("Checking the mods' crates against Horizon's Cargo.lock").into(),
+            Self::Crates => tr("Checking the mods' crates against Free Horizon's Cargo.lock").into(),
             Self::Plan(plan, profile) => format!("{} ({})", plan.label(), profile.name()),
             Self::Compile {
                 done,
@@ -1552,7 +1552,7 @@ impl Step {
             Self::Install => tr("Installing the build").into(),
             Self::LeftOut(left) => left.label(),
             Self::OnTheirHorizon(mods) => trf(
-                "{mods} didn't build on the Horizon you play: building on the one they were made for",
+                "{mods} didn't build on the Free Horizon you play: building on the one they were made for",
                 &[("mods", &mods.join(", "))],
             ),
             Self::Done {
@@ -2217,7 +2217,7 @@ fn pipeline(
     }
     if let Some(list) = &other {
         log_warning(&format!(
-            "Some mods were made for other Horizon versions ({list}). Building anyway on {}.",
+            "Some mods were made for other Free Horizon versions ({list}). Building anyway on {}.",
             &revision[..revision.len().min(7)]
         ));
     }
@@ -2236,7 +2236,7 @@ fn pipeline(
                 many => format!(" (pinned by {})", many.join(", ")),
             };
             format!(
-                "{e}\n\nSome mods were made for other Horizon versions ({list}{by}), which may be why. Install versions made for the same Nightly."
+                "{e}\n\nSome mods were made for other Free Horizon versions ({list}{by}), which may be why. Install versions made for the same Nightly."
             )
         }
         None => e,
@@ -2342,7 +2342,7 @@ fn pipeline(
             // Offline metadata resolves all targets, including packages not fetched for this host.
             let mut fetch = cargo(&rust, &source, "fetch");
             fetch.arg("--locked");
-            run(fetch, "Downloading Horizon's crates", |_| {})?;
+            run(fetch, "Downloading Free Horizon's crates", |_| {})?;
         }
         let has_api = api::stage(&fresh, &mods, &declared, &resolution)?;
         if has_api {

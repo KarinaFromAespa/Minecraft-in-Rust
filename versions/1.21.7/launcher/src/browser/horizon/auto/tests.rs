@@ -577,7 +577,7 @@ fn a_native_mod_updates_only_to_a_version_that_builds_on_the_horizon_played() {
     assert_eq!(
         to(&entry("1.1.0"), &fits),
         None,
-        "1.2.0 is for another Horizon"
+        "1.2.0 is for another Free Horizon"
     );
     assert_eq!(
         to(&entry("1.0.0"), &PLAY),

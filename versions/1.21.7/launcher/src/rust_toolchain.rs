@@ -1451,7 +1451,7 @@ mod tests {
     /// exercises the downloaded host compiler, C dependencies, Windows imports and final linker.
     #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
     #[test]
-    #[ignore = "downloads the managed Windows ARM64 toolchain and builds Horizon"]
+    #[ignore = "downloads the managed Windows ARM64 toolchain and builds Free Horizon"]
     fn managed_arm64_toolchain_builds_the_game() {
         let home = std::env::var_os("HORIZON_LAUNCHER_HOME").map_or_else(
             || {

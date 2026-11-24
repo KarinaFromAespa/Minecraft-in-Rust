@@ -26,7 +26,7 @@ language.
 - The volume is the **Voice/Speech** slider times **Master Volume**.
 - Where text-to-speech can't start, the option reads "Not Available" and the
   toast says so; the game goes on without it (vanilla asks in a message box
-  first; Horizon logs vanilla's message instead).
+  first; Free Horizon logs vanilla's message instead).
 
 ## Voices per platform
 
@@ -59,7 +59,7 @@ the game runs and the narrator is "Not Available".
 ## How screens record their narration
 
 Vanilla screens are trees of widget objects that narrate themselves.
-Horizon's screens are drawn each frame, so they record what they would
+Free Horizon's screens are drawn each frame, so they record what they would
 narrate as they draw, and `ScreenNarrator::frame` reads the finished frame:
 
 - `widgets::begin_screen(|| ScreenInfo::new(id, title))` starts the screen.
@@ -131,7 +131,7 @@ vanilla's widget trees but not always all the way:
 - A click focuses the widget under the mouse even where a scrolled list
   hides it behind the header or footer.
 - The macOS backend has no `crashed` state: a failing synthesizer message
-  would end vanilla's narration for good, and raises nothing in Horizon.
+  would end vanilla's narration for good, and raises nothing in Free Horizon.
 - The first narration of a screen runs after its first frame (vanilla's runs
   in `init`, before it); what `init` couldn't see then (the hovered widget)
   is left out, as in vanilla.

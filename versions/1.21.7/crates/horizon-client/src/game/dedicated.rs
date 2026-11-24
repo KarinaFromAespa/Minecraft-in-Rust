@@ -2300,7 +2300,7 @@ impl Game<'_> {
         };
         lists.lock().unwrap().bans.add(BanEntry::new(
             user,
-            Some("Horizon anticheat".into()),
+            Some("Free Horizon anticheat".into()),
             None,
             Some(reason.to_owned()),
         ));

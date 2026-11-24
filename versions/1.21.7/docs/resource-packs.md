@@ -1,8 +1,8 @@
 # Resource packs: what works
 
-Java Edition resource packs load in Horizon: put the folder or `.zip` in `resourcepacks/`, pick it on the Resource Packs
+Java Edition resource packs load in Free Horizon: put the folder or `.zip` in `resourcepacks/`, pick it on the Resource Packs
 screen (the same screen as vanilla's) or in game, and every loader reloads from it. This page lists everything a
-26.3 resource pack can change and whether Horizon honours it, with the proof.
+26.3 resource pack can change and whether Free Horizon honours it, with the proof.
 
 ## How it works
 
@@ -22,7 +22,7 @@ of them.
 
 ## The table
 
-**Works**: Horizon reads it from the pack and draws or plays it like vanilla. **Partly**: some of it.
+**Works**: Free Horizon reads it from the pack and draws or plays it like vanilla. **Partly**: some of it.
 **No**: ignored (the vanilla version stays). Proof: a parity harness in `tools/` (compares with the pinned 26.3
 client), a unit test, or the loader reading the overlay (vanilla's files go through the same loader, and the
 harness named checks that loader against vanilla).
@@ -33,7 +33,7 @@ harness named checks that loader against vanilla).
 | Overlays per format | `pack.mcmeta` `overlays` | works | `test_resource_pack_parity` (an overlay for 26.3 applied, an older one not) |
 | Filters | `pack.mcmeta` `filter` | works | `test_resource_pack_parity` (`horizon-client-core/src/pattern.rs` regex subset) |
 | Folder and zip packs, order, built-in packs | `resourcepacks/` | works | `test_resource_pack_parity`, `test_pack_selection_parity` |
-| Server resource packs: the prompt, the server list's Server Resource Packs setting, download (250 MiB, SHA-1, `downloads/` keeps 20), download toasts, a progress screen while the packs reload, applied on top of the player's packs, removed on leaving | the server's `resource_pack_push`/`_pop` | works | `tools/server_pack_e2e.py` (against vanilla's server and Horizon's), unit tests in `server_packs.rs`; `test_server_resource_pack_parity` for Horizon's server |
+| Server resource packs: the prompt, the server list's Server Resource Packs setting, download (250 MiB, SHA-1, `downloads/` keeps 20), download toasts, a progress screen while the packs reload, applied on top of the player's packs, removed on leaving | the server's `resource_pack_push`/`_pop` | works | `tools/server_pack_e2e.py` (against vanilla's server and Free Horizon's), unit tests in `server_packs.rs`; `test_server_resource_pack_parity` for Free Horizon's server |
 | Other namespaces | `assets/<namespace>/` | works | `test_resource_pack_parity` |
 | Block states: variants, multipart, weights, rotations, uvlock | `blockstates/` | works | `test_blockstate_model_parity`, `test_model_choice_parity`, `test_blockstate_transform_parity` |
 | Block models: parents, elements, rotations, faces, cullface, tint, shade, light emission, ambient occlusion | `models/block/` | works | `test_model_resolution_parity`, `test_model_baking_parity`, `test_section_mesh_parity` |
@@ -94,5 +94,5 @@ reads the pack; what is left is the GUI scaling types and the core shaders, plus
 ## Testing a pack
 
 `tools/test_resource_pack_parity.py` builds small packs (folder and zip, overlays, a filter, textures, languages,
-sounds, fonts, atlases), and a Java oracle answers what vanilla's loaders read from them; Horizon's loaders must
+sounds, fonts, atlases), and a Java oracle answers what vanilla's loaders read from them; Free Horizon's loaders must
 give the same answers. Never commit third-party packs: build test packs in the harness or the test.

@@ -1,23 +1,23 @@
 # The launcher's mod browser
 
-Search Modrinth (CurseForge support is coming soon) for Java mods, modpacks, resource packs and data packs, and Horizon's
-registry for Horizon's own mods, modpacks, resource packs and shader packs; see how well each one runs before installing it, and install it with its checksum checked. This is item 16 of the roadmap and issue #577. The code is in
+Search Modrinth (CurseForge support is coming soon) for Java mods, modpacks, resource packs and data packs, and Free Horizon's
+registry for Free Horizon's own mods, modpacks, resource packs and shader packs; see how well each one runs before installing it, and install it with its checksum checked. This is item 16 of the roadmap and issue #577. The code is in
 `launcher/src/browser.rs` and `launcher/src/browser/`.
 
 ## What it offers
 
-Horizon doesn't run Java code ([mods.md](mods.md)). It ports what a Java mod
+Free Horizon doesn't run Java code ([mods.md](mods.md)). It ports what a Java mod
 carries as data (blocks, items, recipes, loot tables, tags, worldgen, textures, names) with `horizon-port-pack`, and
-says before install which of the mod's features that leaves out. Horizon's own mods (content mods, `.hmod`, and native
+says before install which of the mod's features that leaves out. Free Horizon's own mods (content mods, `.hmod`, and native
 mods, `.hnmod`) aren't on Modrinth or CurseForge yet (Modrinth has no `horizon` loader).
 
 | Kind | Goes to | How well it runs |
 |---|---|---|
 | Java mods (Fabric, NeoForge, Forge, Quilt) | ported into `horizon-mods/<mod id>/` and turned on | Checked from its jar before install: **Works**, **Partly** or **Doesn't run** ([below](#java-mods)) |
-| Resource packs | `resourcepacks/` beside `options.txt` | **Works** when made for 26.3 ([resource-packs.md](resource-packs.md) lists what Horizon reads). Older packs are **Partly**: they load with vanilla's compatibility warning |
-| Modpacks (`.mrpack`, CurseForge zip) | the Modpacks page's import | **Partly**: Horizon runs the mods it can port, from the player's own downloads ([modpacks.md](modpacks.md)) |
-| Shader packs (`.hshader` and `shaders/`-format zips, Horizon's registry only) | `shaderpacks/` beside `options.txt` | **Works** when made for 26.3: checked against the registry's index before install (a `.hshader` by the game's own check, [shaders.md](shaders.md)). The `shaders/`-format packs on Modrinth and CurseForge are not offered |
-| Data packs (Horizon's registry, Modrinth) | `datapacks/` of the world picked on the **Data packs** tab (`mods install <pack> --world <world>`); not in the Installed list: each world's list on Home has them | **Partly**: Horizon runs a data pack's functions, function tags, predicates and item modifiers, not yet its recipes, loot tables, advancements, other tags or worldgen. The install reads the zip and says what of it runs; a pack with none of those (worldgen only, such as Tectonic) is refused |
+| Resource packs | `resourcepacks/` beside `options.txt` | **Works** when made for 26.3 ([resource-packs.md](resource-packs.md) lists what Free Horizon reads). Older packs are **Partly**: they load with vanilla's compatibility warning |
+| Modpacks (`.mrpack`, CurseForge zip) | the Modpacks page's import | **Partly**: Free Horizon runs the mods it can port, from the player's own downloads ([modpacks.md](modpacks.md)) |
+| Shader packs (`.hshader` and `shaders/`-format zips, Free Horizon's registry only) | `shaderpacks/` beside `options.txt` | **Works** when made for 26.3: checked against the registry's index before install (a `.hshader` by the game's own check, [shaders.md](shaders.md)). The `shaders/`-format packs on Modrinth and CurseForge are not offered |
+| Data packs (Free Horizon's registry, Modrinth) | `datapacks/` of the world picked on the **Data packs** tab (`mods install <pack> --world <world>`); not in the Installed list: each world's list on Home has them | **Partly**: Free Horizon runs a data pack's functions, function tags, predicates and item modifiers, not yet its recipes, loot tables, advancements, other tags or worldgen. The install reads the zip and says what of it runs; a pack with none of those (worldgen only, such as Tectonic) is refused |
 
 Mods, resource packs and shader packs go into the game folder of the instance selected in the sidebar, and the
 Installed list, updates and Remove are that instance's: picking another instance reads its list. The page says which
@@ -43,7 +43,7 @@ its answer comes.
   mod's own types, block entities (machines, containers), menus, mobs and entities, blocks and items with behaviour
   of their own, worldgen written in Java, Mixins, the game events it reacts to.
 - **Doesn't run**: nothing to port (performance mods, libraries, everything in code), a jar made for 1.20 or older,
-  or a mod id with characters Horizon mods can't use (`fabric-api`). Never offered for install.
+  or a mod id with characters Free Horizon mods can't use (`fabric-api`). Never offered for install.
 
 The answer is kept in `mod-browser/checks-1/<checksum>/` under the game folder, with the carry when something
 ports; the jar itself isn't kept. A file is checked once. On ten 26.3 jars a check took 0.2 to 3 s (24 s for an
@@ -83,27 +83,27 @@ start); the hedge places and its recipe crafts 4.
 
 The launcher's **Mods** page has the five kinds as tabs: **Mods**, **Modpacks**, **Resource packs**, **Shader packs**
 and **Data packs**, each with a search field (Enter searches). Mods, Modpacks, Resource packs and Data packs pick their
-source: Horizon's registry or Modrinth, with **CurseForge (coming soon)** beside them, disabled. Mods start on
-Horizon's registry; **Shader packs** search it only (Horizon's own packs); data packs install into the world picked
-under the search. On Horizon's registry, **Filters** lists the kind's categories (`horizon_mods::index::page::categories`,
+source: Free Horizon's registry or Modrinth, with **CurseForge (coming soon)** beside them, disabled. Mods start on
+Free Horizon's registry; **Shader packs** search it only (Free Horizon's own packs); data packs install into the world picked
+under the search. On Free Horizon's registry, **Filters** lists the kind's categories (`horizon_mods::index::page::categories`,
 named and ordered as on playhorizon.dev) and the tags its projects carry (the 30 most used, `#tag`): a result has
 every category and tag picked, and the search words, which also match a project's tags, narrow them further. While
 the panel is closed, what is picked stays in view as chips under **Filters**, each with a cross that removes it, and
 **Clear filters**. A project's page shows its categories. A Java instance's tabs always search Modrinth for its version and
-loader, with the version and loader filters. A Horizon instance searching Modrinth's Java mods sees them all, each
-marked **Works**, **Partly** or **Doesn't run in Horizon** once its jar is checked; **Show everything** adds what was
+loader, with the version and loader filters. A Free Horizon instance searching Modrinth's Java mods sees them all, each
+marked **Works**, **Partly** or **Doesn't run in Free Horizon** once its jar is checked; **Show everything** adds what was
 made for other Minecraft versions. Each result is an index row: its summary, author,
 downloads, source and licence, how well it runs (and why), **Page** (the project's page on its source) and
-**Install** (**Import** for a modpack). A registry result says **from Horizon** only when Horizon made it (author
-Horizon, source under github.com/horizon-rust: the site's "Official"); a contributor's reads **by <author>** alone. The Modpacks tab lists the imported packs first, with their coverage
+**Install** (**Import** for a modpack). A registry result says **from Free Horizon** only when Free Horizon made it (author
+Free Horizon, source under github.com/horizon-rust: the site's "Official"); a contributor's reads **by <author>** alone. The Modpacks tab lists the imported packs first, with their coverage
 report, **Port** and **Play** ([modpacks.md](modpacks.md)). Installed packs are listed above the results with their version, source,
 file and the checksum they were checked against, with **Update to …** when a newer version runs and **Remove**
 (asked twice). **Update all (N)** above the list updates every pack a newer version was found for, of every kind,
 one after the other; one that fails is named and doesn't stop the others.
 
 **Automatic updates** (Settings > Game > **Update registry mods automatically**, on by default): when the launcher
-starts (every Horizon instance) and before Play (the instance it starts), what was installed from Horizon's registry
-moves to its newest version for the Minecraft that version is for and the Horizon that plays it
+starts (every Free Horizon instance) and before Play (the instance it starts), what was installed from Free Horizon's registry
+moves to its newest version for the Minecraft that version is for and the Free Horizon that plays it
 (`Index::installable`), checked as an install is (`browser::horizon::auto`). Native mods update at the start only, and
 the next Play first builds the game again with them (the Mods page's Build, `build_native`), then plays it. Never
 updated automatically: a modpack's profile (its `.hpack` pins each mod by SHA-256; the pack updates as a whole when the
@@ -145,7 +145,7 @@ browser installed from it, the URLs asked for in one request (`GET /projects?ids
 (`fabric.mod.json`/`quilt.mod.json` `icon`, `mods.toml` `logoFile`), read from the jar off the UI thread and scaled to
 the row; else a generic glyph. The tab builds only the rows near the view, so a pack of hundreds costs what a few do.
 
-**Vanilla Minecraft** is marked with Horizon's own grass block (`launcher/assets/logos/grass-block.png`, drawn by
+**Vanilla Minecraft** is marked with Free Horizon's own grass block (`launcher/assets/logos/grass-block.png`, drawn by
 `tools/launcher_grass_block.py` from our palette, not from Mojang's textures): the game-version filter, the Java Edition
 tab and plain Minecraft instances show it. No Mojang file or logo is in the launcher or the repository.
 
@@ -163,14 +163,14 @@ and the checksum it was checked against. The browser replaces or removes only th
 same name the player put there is never overwritten.
 
 - **Install** picks the newest version that runs, then its required dependencies, checked before any download: a
-  dependency that isn't a pack Horizon loads (a Java mod) stops the install. Dependencies go in first. A resource
+  dependency that isn't a pack Free Horizon loads (a Java mod) stops the install. Dependencies go in first. A resource
   pack still has to be turned on in the game's Resource Packs screen, as in vanilla, and a shader pack picked in
   the game's Shader Packs page.
 - **Update** installs the newer version and removes the old file.
 - **Update all** does the same for each pack with a newer version (`horizon-launcher mods update` with no pack name).
 - **Remove** deletes the file and its entry. Packs installed as dependencies stay.
 - **A modpack** is downloaded (checked the same way) into `ports/downloads/`, imported, and ported straight away
-  for the selected version when it is prepared (`modpacks::import_and_port`): the jars of the mods Horizon can carry
+  for the selected version when it is prepared (`modpacks::import_and_port`): the jars of the mods Free Horizon can carry
   over come from the pack's links or Modrinth, and the message says how many of its files play. **Play** on the
   Modpacks tab starts it with every ported mod on together. A ported mod that owns a namespace an earlier one owns
   (the game would refuse it) is left off before the game starts and listed under the pack ("Left off: ..."); the
@@ -190,7 +190,7 @@ horizon-launcher mods remove faithful-32x
 
 ## Sources
 
-**Horizon's registry.** Content mods (`.hmod`), native mods (`.hnmod`), modpacks (`.hpack`), resource packs and shader packs (`.hshader`) made for Horizon, reviewed as pull requests in
+**Free Horizon's registry.** Content mods (`.hmod`), native mods (`.hnmod`), modpacks (`.hpack`), resource packs and shader packs (`.hshader`) made for Free Horizon, reviewed as pull requests in
 [horizon-rust/horizon-mods](https://github.com/horizon-rust/horizon-mods) ([api/mod-index.md](api/mod-index.md)). The
 launcher reads its `index.json` (`browser/horizon.rs`; `HORIZON_MOD_INDEX=<file or https address>` reads a test
 registry instead, whose files may then be on disk) at most every ten minutes, and keeps the last copy in
@@ -201,7 +201,7 @@ has a key, the file's own manifest against the index). A content mod becomes `ho
 `horizon-native-mods/<id>.hnmod`, and the launcher builds it into the game ([native-mods.md](native-mods.md));
 `mods disable` and `mods enable` switch it in `horizon-mods.txt`. When the index takes a file down, the launcher turns
 it off the next time it reads the index or starts the game, says why, and refuses to install it or turn it back on.
-A Horizon modpack (`.hpack`) installs as its own profile (`browser/horizon/pack.rs`): `horizon-packs/<id>/` holds the
+A Free Horizon modpack (`.hpack`) installs as its own profile (`browser/horizon/pack.rs`): `horizon-packs/<id>/` holds the
 checked pack, `pack.json` and `home/`, the profile's game folder, where each of the pack's mods is downloaded and checked
 like any registry mod and turned on or off as the pack says; its overrides (settings, resource packs, a mod's saved
 settings) are copied in on the first install only, so the player's changes survive updates. A pack whose mod was taken

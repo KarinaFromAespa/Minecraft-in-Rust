@@ -268,7 +268,7 @@ pub(super) fn refused(
     api_ids: &[&str],
 ) -> Option<String> {
     let why = |mod_id: &str, name: &str, version: &str| {
-        format!("{mod_id} needs {name} {version}, which isn't in Horizon's Cargo.lock. A native mod's crate can use only the crates Horizon itself uses, in the versions its Cargo.lock has.")
+        format!("{mod_id} needs {name} {version}, which isn't in Free Horizon's Cargo.lock. A native mod's crate can use only the crates Free Horizon itself uses, in the versions its Cargo.lock has.")
     };
     if let Some(w) = wanted
         .iter()
@@ -301,7 +301,7 @@ pub(super) fn locked(error: String) -> String {
     if !error.contains("--locked was passed") {
         return error;
     }
-    format!("A native mod's crate needs a crate that isn't in Horizon's Cargo.lock, through one of its dependencies' features. A native mod's crate can use only the crates Horizon itself uses, with the features that need no others.\n\n{error}")
+    format!("A native mod's crate needs a crate that isn't in Free Horizon's Cargo.lock, through one of its dependencies' features. A native mod's crate can use only the crates Free Horizon itself uses, with the features that need no others.\n\n{error}")
 }
 
 /// A mod's post-build step: a program of one of its crates, run after the game compiles.
@@ -506,7 +506,7 @@ checksum = "def"
         // Asked for by name, and not in the lock: refused before Cargo looks online.
         let err = refused(&horizon, None, &[wants("bake", "rand", "0.9")], &[]).unwrap();
         assert!(
-            err.starts_with("bake needs rand 0.9, which isn't in Horizon's Cargo.lock"),
+            err.starts_with("bake needs rand 0.9, which isn't in Free Horizon's Cargo.lock"),
             "{err}"
         );
         // In the lock, but the update had to change its version.
@@ -641,7 +641,7 @@ checksum = "def"
         let horizon = downloaded(LOCK).unwrap();
         let err = refused(&horizon, None, &wanted, &[]).unwrap();
         assert!(err.starts_with(
-            "bake needs gtnh-lv-compressor-eval-industrial-sim 1, which isn't in Horizon's Cargo.lock"
+            "bake needs gtnh-lv-compressor-eval-industrial-sim 1, which isn't in Free Horizon's Cargo.lock"
         ));
     }
 

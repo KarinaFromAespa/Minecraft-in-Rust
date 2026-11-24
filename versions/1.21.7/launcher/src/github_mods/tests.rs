@@ -316,7 +316,7 @@ fn an_unpacked_hnmod_keeps_its_pins_and_hook_points_and_ships_only_sources() {
             mixin("zoom", false)
         ),
     );
-    assert!(find_mods(&root).unwrap_err().contains("pins Horizon"));
+    assert!(find_mods(&root).unwrap_err().contains("pins Free Horizon"));
     let _ = fs::remove_dir_all(root);
 }
 

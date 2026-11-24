@@ -6,9 +6,9 @@ use crate::ui_theme::{self, Face, Ui, color};
 
 const TITLE: &str = "Start Horizon from the launcher";
 const PARAGRAPHS: [&str; 3] = [
-    "This is the game the Horizon launcher installs and starts. On its own it has none of \
+    "This is the game the Free Horizon launcher installs and starts. On its own it has none of \
      Minecraft's files, so it can't start.",
-    "Horizon needs your own copy of Minecraft: Java Edition. The launcher prepares the game \
+    "Free Horizon needs your own copy of Minecraft: Java Edition. The launcher prepares the game \
      files from it; no sign-in is needed to play offline.",
     "Start the game from the launcher (horizon-launcher) beside this download, then press \
      Play there.",
