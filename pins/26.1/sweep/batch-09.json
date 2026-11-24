@@ -1,0 +1,194 @@
+{
+ "batch": 9,
+ "checks": {
+  "gap": 12,
+  "pass": 11,
+  "total": 23
+ },
+ "date": "2026-11-24",
+ "items": [
+  {
+   "evidence": "CLOSED for 26.1. Vanilla 26.1's net.minecraft.world.level.gamerules.GameRules registers 59 snake_case rules (javap static initializer; doFireTick absent \u2014 no fire-tick rule in 26.1 at all). The Rust table (gamerules.rs:51-126) is the same 58 ungated rules in the same order with the same sampled defaults (fire_spread_radius_around_player 128/min -1, max_block_modifications 32768/1, max_command_forks 65536/0, max_command_sequence_length 65536/0, max_entity_cramming 24/0, random_tick_speed 3/0, players_nether_portal_default_delay 80/0, tnt_explosion_drop_decay false), plus max_minecart_speed (8/1/1000) gated behind FeatureFlags.MINECART_IMPROVEMENTS exactly as vanilla. Nit only: the MAX_MINECART_SPEED comment says '(26.3)' \u2014 the rule is in 26.1 too. (The command_parse run that would confirm the 484 gamerule corpus cases empirically is blocked \u2014 B9-H01; the closure rests on the javap + source.)",
+   "id": "B9-G01",
+   "method": "javap + source",
+   "severity": "major",
+   "status": "closed",
+   "title": "/gamerule table (1.21.7: snake_case vs camelCase) \u2014 closed: vanilla 26.1 is snake_case"
+  },
+  {
+   "evidence": "REPRODUCES in part (posteffect only). Full top-level diff of the Rust release tree (77 literals) against vanilla 26.1's dispatcher dump (datagen commands.json, 91 top-level; 76 integrated after removing the 15 dedicated-only per Commands.<init>): 76 of 76 vanilla integrated commands present, zero missing; one extra, posteffect. Vanilla 26.1 has no PostEffectCommand class in the server-game jar, no posteffect in the datagen dump, no PostEffectCommand.register in Commands.<init>, and no minecraft:post_effects registry in registries.json (so the tree's ArgType::Id(\"post_effects\") argument at tree_extra.rs:40,50 references a nonexistent registry). The Rust tree registers it unconditionally in tree_extra::register (tree_extra.rs:36). The 26.2 port removed it; the 26.1 port did not. stopwatch, swing, fetchprofile are all in vanilla 26.1's tree; /execute if|unless stopwatch is in vanilla's tree; the /time clock subcommands are all in vanilla 26.1 and the Rust clock_nodes matches node for node (incl. query gametime only on the default clock). compute is gone from the Rust tree entirely; unpublish was never added for 26.1 (vanilla 26.1 has no UnpublishCommand \u2014 it arrived in 26.2). The corpus carries two posteffect edge cases for the rerun (the run itself is blocked - B9-H01). Note: vanilla registers jfr only when the JVM profiler is available; Rust registers it unconditionally \u2014 effectively always available, not recorded as a defect.",
+   "id": "B9-G02",
+   "method": "tree diff vs datagen commands.json",
+   "severity": "major",
+   "status": "gap",
+   "title": "26.x commands in the tree (1.21.7) \u2014 reproduces in part: /posteffect remains in the 26.1 release tree"
+  },
+  {
+   "evidence": "CLOSED. Rust 26.1 uses ArgType::ResKey(\"minecraft:worldgen/configured_feature\") (tree_world.rs:65), matching vanilla 26.1's PlaceCommand (ResourceKeyArgument.key(Registries.CONFIGURED_FEATURE)).",
+   "id": "B9-G03",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "/place feature registry (1.21.7) \u2014 closed: port uses configured_feature"
+  },
+  {
+   "evidence": "CLOSED (inverted). Vanilla 26.1's SetSpawnCommand and SetWorldSpawnCommand use RotationArgument.rotation(), not AngleArgument. Rust ArgType::Rotation (vanilla.rs:341,350) matches vanilla 26.1.",
+   "id": "B9-G04",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "spawnpoint/setworldspawn angle (1.21.7: Rotation vs Angle) \u2014 closed: vanilla 26.1 uses Rotation"
+  },
+  {
+   "evidence": "CLOSED. Rust 26.1 /publish is publish [<allowCommands> [<gamemode> [<port>]]] (tree_extra.rs:76-85), matching vanilla 26.1's PublishCommand (BoolArgumentType, GameModeArgument.gameMode, IntegerArgumentType(0, 65535)). The corpus carries the case 'publish true survival 25565' for the rerun (the run itself is blocked - B9-H01).",
+   "id": "B9-G05",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "/publish gamemode argument (1.21.7) \u2014 closed: port has it"
+  },
+  {
+   "evidence": "CLOSED (both parts, both inverted). (a) Vanilla 26.1's EntityDataSource holds a CompilableString<EntitySelector>; CompilableString$CommandParserHelper.apply returns DataResult.error on CommandSyntaxException (exception table 9-69 -> 70), so decoding {\"nbt\":\"a\",\"entity\":\"@x\"} FAILS in vanilla 26.1 \u2014 the Rust rejection (component.rs:278-299, selector_string must parse) matches. (b) Vanilla 26.1 HAS ObjectContents (network/chat/contents/ObjectContents.class, with AtlasSprite and PlayerSprite in contents/objects/) \u2014 the Rust object arm is correct for 26.1.",
+   "id": "B9-G06",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "Chat-component decoder (1.21.7) \u2014 closed: vanilla 26.1 rejects bad-selector NBT and has ObjectContents"
+  },
+  {
+   "evidence": "REPRODUCES in part (a only; b closed). (a) The 26.1 dispatch() in codec.rs:41-67 reads the \"type\" key unconditionally, and the minecraft:item_modifier arm (codec.rs:171-173) calls it directly, so {\"function\":\"minecraft:set_count\",\"count\":1} fails with a missing \"type\" key error. Vanilla 26.1 loot data uses the \"function\" key (client jar data/minecraft/loot_table/entities/zombie.json: \"function\": \"minecraft:set_count\"). The 26.2 port fixed this (26.2's dispatch takes the key as a parameter; the item-modifier arm dispatches on \"function\", codec.rs:203-212); the 26.1 port carries the 1.21.7 form. (The run that would flag it empirically is blocked - B9-H01; the verdict rests on the source + loot data.) (b) CLOSED: /item ... from entity <source> uses ArgType::Entity { single: true } (tree_misc.rs:200-208), matching vanilla 26.1's ItemCommands (EntityArgument.entity() for source, entities() for targets).",
+   "id": "B9-G07",
+   "method": "javap + source + loot data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Item modifiers (1.21.7: type key + multi-entity source) \u2014 reproduces in part: inline JSON still fails on the type key"
+  },
+  {
+   "evidence": "REPRODUCES. Rust 26.1 particle_options (args.rs:1048-1060) returns an error for ANY non-string block_state value \u2014 the compound branch builds an error mentioning the id key and returns it. Vanilla 26.1's StateHolder.codec dispatches on \"Name\" (javap: Codec.dispatch(\"Name\", ...), ldc \"Name\" at offset 1), so block_state:{Name:\"minecraft:stone\"} is valid in vanilla and rejected by the port. The 26.2 port fixed this (26.2 args.rs accepts a compound with a string Name and returns Ok(())); the 26.1 port carries the 1.21.7 form. (The run that would flag it empirically is blocked - B9-H01; the verdict rests on the source + javap.)",
+   "id": "B9-G08",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Particle block_state Name-form (1.21.7) \u2014 reproduces: port rejects the Name-form compound"
+  },
+  {
+   "evidence": "REPRODUCES (both parts). Vanilla 26.1 still has the OLD selector parser \u2014 the option-state refactor (InvertableSetOptionState, SetOnceOptionState) that closed this defect for 26.2 had NOT happened yet in 26.1 (neither class exists in 26.1's EntitySelectorOptions/EntitySelectorParser); the Rust parser (selector.rs) implements the 26.2 option-state shape. (a) Duplicate options: vanilla 26.1's EntitySelectorOptions.get() runs the canUse gate BEFORE the value is read but does NOT roll back (only the unknown-option branch does setCursor(start)); the inapplicable branch throws at the cursor as it stands, i.e. at the END of the option name. Rust rolls back to the option-name START (selector.rs:333-341). For @e[type=pig,type=cow] the cursors differ by the option-name length (4 for type). (b) @a[type=player]: vanilla 26.1's type canUse is !parser.isTypeLimited() (lambda$bootStrap$42), and @a/@p/@r call limitToType(EntityType.PLAYER) during parseSelector, so vanilla 26.1 REJECTS it; Rust pushes minecraft:player into s.types without marking type_option (selector.rs:218-242), so can_use(\"type\") stays true and Rust ACCEPTS it. (The run that would flag both parts empirically is blocked - B9-H01; the verdict rests on the javap + source.)",
+   "id": "B9-G09",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Selector option errors (1.21.7) \u2014 reproduces: vanilla 26.1 predates the selector refactor the Rust parser implements"
+  },
+  {
+   "evidence": "CLOSED (inverted). Vanilla 26.1's WorldBorderCommand uses TimeArgument.time(0); Rust ArgType::Time { min: 0 } (tree_world.rs:335) matches, including the d/s/t suggestions.",
+   "id": "B9-G10",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "/worldborder time (1.21.7: Time vs integer) \u2014 closed: vanilla 26.1 uses Time"
+  },
+  {
+   "evidence": "CLOSED (with a correction to the 26.2 record). The 1.21.7 defect as stated \u2014 vanilla suggests nothing for a complete recipe argument, Rust re-suggests \u2014 does NOT hold against REAL vanilla 26.1. Real vanilla 26.1 DOES suggest recipes: CommandSourceStack.suggestRegistryElements has a Registries.RECIPE special case (javap offsets 0-36) suggesting from RecipeManager.getRecipes(), even though there is no minecraft:recipe registry. For the case in the corpus (recipe give @s minecraft:stick), the two suggestion lists agree by static comparison: real vanilla suggests minecraft:stick, minecraft:stick_from_bamboo_item, minecraft:sticky_piston \u2014 exactly what Rust suggests from its learnable_recipes list (args.rs:1747-1748, 1,491 entries). Note for the rerun: it WILL show recipe suggestion mismatches, but they will be an ORACLE artifact: the oracle's Src class overrides suggestRegistryElements (VanillaCommandParseOracle.java:93-99) to look the registry up in the RegistryAccess and return Suggestions.empty() when absent, bypassing vanilla's RECIPE special case. The residual real divergence (special recipes Rust omits) is recorded as B9-G17. The suggestion mechanism (lib.rs:suggestion_context, byte-identical to 26.2's, verified against Brigadier 1.3.10 findSuggestionContext) mirrors Brigadier.",
+   "id": "B9-G11",
+   "method": "javap + oracle source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "Suggestions for complete arguments (1.21.7: recipe) \u2014 closed: real vanilla 26.1 suggests recipes, matching Rust; the run's mismatches are an oracle artifact"
+  },
+  {
+   "evidence": "CLOSED. The 26.3-only SlotSource argument type is gone from the 26.1 tree: execute if items uses ArgType::Slots (tree_execute.rs:239), /item uses ArgType::Slot. The Slot/Slots parse matches vanilla 26.1's SlotArgument exactly: read-until-space (lambda$parse$0: c != ' '), slot.unknown / slot.only_single_allowed at the cursor after the word (same keys/text in the 26.1 en_us.json), and the slot_ranges() table matches vanilla 26.1's SlotRanges entry for entry (contents 0; container. 0x54, hotbar. 0x9, inventory. 9x27, enderchest. 200x27, mob.inventory. 300x8, horse. 500x15, weapon.* x2, armor.* x5, player.crafting. 500x4, singles 98/99/100-103/105/106/499).",
+   "id": "B9-G12",
+   "method": "javap + source + en_us.json",
+   "severity": "minor",
+   "status": "closed",
+   "title": "Slot errors (1.21.7) \u2014 closed: SlotSource removed, Slot/Slots parse matches vanilla 26.1"
+  },
+  {
+   "evidence": "CLOSED. Vanilla 26.1's ArgumentTypeInfos bootstrap registers 57 types in exactly the Rust ARGUMENT_TYPES order (horizon-protocol/src/packets/play/commands.rs:25-82), and index 16 is color in vanilla 26.1 (17th register call, ldc \"color\") \u2014 the 26.1 port ships minecraft:color at index 16, matching vanilla 26.1. Note the three-version shape: 1.21.7 color, 26.1 color, 26.2 team_color \u2014 the rename happened between 26.1 and 26.2.",
+   "id": "B9-G13",
+   "method": "javap + registry diff",
+   "severity": "minor",
+   "status": "closed",
+   "title": "Argument-type table (1.21.7: team_color vs color) \u2014 closed: vanilla 26.1 uses color at index 16, matching the port"
+  },
+  {
+   "evidence": "Vanilla 26.1 registers PerfCommand inside the includeDedicated block of net.minecraft.commands.Commands (javap: PerfCommand.register at bytecode offset 710, between PardonIpCommand and SaveAllCommand, inside the includeDedicated guard at 651-762 \u2014 the same offsets as 26.2). The command is perf start|stop, owners permission (datagen commands.json agrees). The Rust release (integrated) tree correctly lacks it, but the dedicated tree (tree_extra.rs:register_dedicated, 14 commands) lacks it too \u2014 the only one of vanilla's 15 dedicated commands not registered. Single command, dedicated-only, profiling use. Carried from 26.2 (B9-G14), verified fresh for 26.1.",
+   "id": "B9-G14",
+   "method": "javap + tree diff vs datagen commands.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "/perf missing from the dedicated tree"
+  },
+  {
+   "evidence": "Vanilla 26.1's dev block (SharedConstants.DEBUG_DEV_COMMANDS || IS_RUNNING_IN_IDE, Commands constructor offsets 580-632) registers raid, debugpath, debugmobspawning, warden_spawn_tracker, spawnarmortrims, serverpack (plus debugconfig when dedicated, plus chase under the separate DEBUG_CHASE_COMMAND flag \u2014 the same layout as 26.2). The Rust dev tree has only the two if dev blocks in vanilla.rs:161,385 (raid, warden_spawn_tracker). debugpath, debugmobspawning, spawnarmortrims, serverpack (and debugconfig/chase) have no Rust tree node at all (grep over horizon-command/src finds no mention). Dev-tree only \u2014 no release player ever sees these; the coordinator may rule dev-tree parity out of scope (the 26.2 merge kept B9-G15 as a minor gap). Carried from 26.2 (B9-G15), verified fresh for 26.1.",
+   "id": "B9-G15",
+   "method": "javap + source grep",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Dev tree is missing six vanilla 26.1 dev commands"
+  },
+  {
+   "evidence": "REPRODUCES - proven statically (the 26.2 form of this item came from the run's node diff; the 26.1 run is blocked - B9-H01 - so the comparison here is the tree-builder literals against vanilla's datagen dump, and the literals ARE what the fixture would report). Seven label pairs: /item replace block pos (vanilla) vs targetPos (Rust, tree_misc.rs:190); /item replace entity targets vs target (tree_misc.rs:188); /item replace ... from block source vs sourcePos (tree_misc.rs:211); /item modify block pos vs targetPos (tree_misc.rs:174); /item modify entity targets vs target (tree_misc.rs:172); /execute if items entity entities vs source (tree_execute.rs:230); /execute if items block pos vs sourcePos (tree_execute.rs:237). The first five are the same five pairs as 26.2; the modify pair is one the 26.2 run never saw (no 26.2 corpus case parsed far enough into modify to carry nodes). From-entity agrees (source on both sides). Node names surface in parse output and client-side command feedback - a real (if cosmetic) divergence. The rerun's node diff (node_diff.py, ready in the batch dir) will confirm empirically; the corpus covers all seven paths (187 /item replace, 20 /item modify, 523 execute if items cases).",
+   "id": "B9-G16",
+   "method": "source literals + datagen commands.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Argument node names differ from vanilla in /item replace and /execute if items"
+  },
+  {
+   "evidence": "NEW for 26.1. Real vanilla 26.1 suggests recipe names from RecipeManager.getRecipes() \u2014 ALL recipes (CommandSourceStack.suggestRegistryElements RECIPE special case, javap offsets 0-36). Rust suggests from the oracle-exported learnable_recipes list (args.rs:1747-1748), which the oracle builds as the non-special recipes only (VanillaCommandParseOracle.java:279-280, filtering !isSpecial()): 1,491 entries, against 1,515 recipe files in the 26.1 client jar, of which 23 are crafting_special (banner duplicates, book cloning, armour dyeing, ...). So Rust omits the ~23 special recipes that real vanilla suggests. No corpus case covers a special-recipe prefix, so a future run would not demonstrate this either; verified by jar + source + counts. (When the run eventually happens, its recipe suggestion mismatches will be a different thing - an oracle artifact, see B9-G11.) The 26.2 port does not have the learnable-recipes suggestion branch at all (26.2 args.rs suggests from reg.ids(\"minecraft:recipe\"), empty). Suggestions only, special recipes only.",
+   "id": "B9-G17",
+   "method": "javap + source + jar recipe census",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Recipe suggestions omit special recipes (Rust suggests the learnable subset; real vanilla suggests all recipes)"
+  },
+  {
+   "evidence": "The command_parse fixture is the client_probe example's command_parse_fixture mode, and the example does not compile on the committed 26.1 tree: game_loop_probe.rs:159-160 sets focused and exclusive_fullscreen on a FrameContext literal, and 26.1's FrameContext (horizon-client-input/src/window.rs:56) has neither field (E0560 x 2; driver log: compile-rust failed (101)). The probe file is byte-identical to 26.3's - the 26.1 port carried it verbatim - while 26.1's FrameContext deliberately omits the two 26.3-only fields (the throttle_reason doc comment says 26.3 also throttles an unfocused window in exclusive fullscreen). The 26.2 and 1.21.11 ports adapted their probe files; 26.1, 26.1.1, 26.1.2 and 1.21.7 did not. The fix is two deleted lines (exactly as the 26.2 port's probe does); 26.1's on_move still takes the 26.3 6-argument form, so the probe's move handler typechecks and only the field lines are wrong. The fix was NOT attempted (checks + triage only). Major because it blocks the batch's core measurement and any other driver that builds the client_probe example - not because of gameplay impact (the game-loop probe is test scaffolding). The run was attempted four times (two VM reboots, one unexplained process kill, then this deterministic compile failure); the corpus (34,542 commands, md5 aa28f318ef41b52e2cc75a727e290317) and oracle exports are preserved in the batch dir for the rerun.",
+   "id": "B9-H01",
+   "method": "driver build (4 attempts)",
+   "severity": "major",
+   "status": "gap",
+   "title": "client_probe example does not compile on 26.1 (game_loop_probe.rs sets 26.3-only FrameContext fields) - blocks command_parse"
+  },
+  {
+   "evidence": "REPRODUCES for 26.1 (it passed in 26.2 \u2014 26.1 predates TeamColor). Batch 0's 26.1 measurement (docs/sweep/26.1/batch-0-oracles.json; full errors in versions/26.1/.local/measure-oracles/results.json): fails all three classpaths, missing-symbol, 3 errors. The 1.21.7 pack-method errors (line 44) are gone \u2014 26.1's Scoreboard HAS the packing methods \u2014 but the two TeamColor sites fail: line 242 (t.getColor().map(TeamColor::getSerializedName)): cannot find symbol \u2014 no TeamColor class in the 26.1 server jar; 26.1's PlayerTeam.getColor() returns ChatFormatting. Line 436 (t.setColor(Optional.of(TeamColor.byName(...)))): incompatible types + cannot find symbol \u2014 26.1's PlayerTeam.setColor takes a bare ChatFormatting, not an Optional. Repair scope: small, in-family, NOT attempted: TeamColor::getSerializedName -> ChatFormatting's own getSerializedName (it implements StringRepresentable), TeamColor.byName -> ChatFormatting.getByName, drop the Optional wrapper at line 436. Needs an end-to-end driver run after repair.",
+   "id": "B9-O01",
+   "method": "batch-0-oracles.json + javap",
+   "severity": "minor",
+   "status": "gap",
+   "title": "VanillaScoreboardOracle fails javac (3 errors: TeamColor) \u2014 blocks scoreboard"
+  },
+  {
+   "evidence": "Batch 0's 26.1 measurement (results.json): client cp missing-symbol, 6 errors (worse than 26.2's 2 \u2014 26.1 predates the Hud split). The server-cp failure (41 errors, net.minecraft.client absent) is expected \u2014 the driver uses the client jar, so the client cp is the operative one. Line 14 (import net.minecraft.client.gui.Hud): cannot find symbol \u2014 no Hud class in the 26.1 client jar; 26.1's Gui has no hud field and the HUD-hidden flag is Options.hideGui (public boolean). Lines 188 (x2), 189: the three Hud uses, all downstream of the missing import. Line 101 (Viewer()): super(null x6, false, null, null) \u2014 9 arguments; 26.1's LocalPlayer constructor takes 8: (Minecraft, ClientLevel, ClientPacketListener, StatsCounter, ClientRecipeBook, Input, boolean, ChatAbilities) (javap on the 26.1 client jar). Line 197: own.doTeamsAllowDamage(other) \u2014 no such method in 26.1; the 26.1 form is PlayerTeam.isAllowFriendlyFire(). Repair scope: medium (larger than 26.2's), in-family, NOT attempted. Needs an end-to-end driver run after repair.",
+   "id": "B9-O02",
+   "method": "batch-0 results.json + javap",
+   "severity": "minor",
+   "status": "gap",
+   "title": "VanillaTeamRulesOracle fails javac (6 client errors) \u2014 blocks team_rules"
+  },
+  {
+   "evidence": "Batch 0's 26.1 measurement: fails all three classpaths, missing-symbol, 13 errors (full list from versions/26.1/.local/measure-oracles/big-compile-client.log \u2014 the results file lists only the first 8; worse than 26.2's 10 \u2014 26.1 predates both the EntityTypes move and the 6-arg teleport-accept packet). Causes, verified against the 26.1 client jar: lines 393-395, 407, 409, 413: packet.removed() / packet.added() / packet.progress() on ClientboundUpdateAdvancementsPacket \u2014 26.1 uses getter names getRemoved()/getAdded()/getProgress() (shouldReset() exists as-is, so line 405 is fine); line 668: canUseCommandBlocks() override \u2014 no such method on the supertype in 26.1 (GameProtocols$Context has only hasInfiniteMaterials()); lines 683, 906, 911: net.minecraft.world.entity.EntityTypes.PLAYER \u2014 no EntityTypes class in 26.1 (registration still lives in EntityType); use EntityType.PLAYER. Lines 690, 916: removed.entityIds() / rm.entityIds() on ClientboundRemoveEntitiesPacket \u2014 26.1's accessor is getEntityIds(). Line 977: new ServerboundAcceptTeleportationPacket(t.id(), x, y, z, yaw, pitch) \u2014 no suitable constructor: 26.1's packet has only the 1-arg (int) constructor. Repair scope: per-symbol renames (the five named fixes cover all 13 errors). Medium; NOT attempted \u2014 and out of family for a commands batch (packet-client helper shared with the locator-bar harness; the 26.2 merge recorded B3-O04 as canonical for this oracle \u2014 expect the same overlap for 26.1's Batch 3).",
+   "id": "B9-O03",
+   "method": "batch-0 results.json + javap",
+   "severity": "minor",
+   "status": "gap",
+   "title": "LocatorBarClient fails javac (13 errors) \u2014 blocks exploration_map_command"
+  },
+  {
+   "evidence": "CLOSED. The command_parse fixture loads language from the prepared-resources root (command_parse_fixture.rs:147, lang::Language::load(&[&root], ...); root = lab.RESOURCES = .local/horizon-client/26.1/). Unlike 1.21.7, the prepared 26.1 root DOES contain assets/minecraft/lang/en_us.json \u2014 md5-identical to the 26.1 client jar's file (98deafdb5e90e4438db30853494e1aeb, 7,886 keys, including every command error key the driver compares). The 1.21.7 defect was the file's ABSENCE, and the file is present and jar-identical here, so the 86,241-mismatch artifact of the 1.21.7 run cannot recur on that account. (The run confirmation - 0 error-text mismatches - is unavailable because the run is blocked, B9-H01; the closure rests on the md5 + the fixture's load path.)",
+   "id": "B9-O04",
+   "method": "md5 vs client jar + fixture source",
+   "severity": "major",
+   "status": "closed",
+   "title": "command_parse fixture language (1.21.7: 86,241 error-text mismatches) \u2014 closed: fixture language present and jar-identical"
+  }
+ ],
+ "method": "Static triage (javap -c on the named 26.1 server-game jar and the 26.1 client jar; Rust source reads; vanilla 26.1 datagen reports; Batch 0 oracle measurement) PLUS a command_parse run ATTEMPTED four times and BLOCKED: tools/test_command_parse_parity.py (oracle compiled clean, 34,542-command corpus from the oracle's own tree export, generated identically three times) reached the end of the fast-profile build before the client_probe example failed to compile (B9-H01, 2 errors in game_loop_probe.rs - the 26.3-form probe file against 26.1's FrameContext). No report.json, no parses, no mismatch data. The corpus, oracle exports, and analysis scripts (node_diff.py, classify_mismatches.py) are preserved in the batch dir for the rerun. The other 21 drivers are classified by blocker in the batch doc \u00a75. Checks: 23 behaviour verifications (11 pass, 12 gap); the 18 unrun e2e drivers are not counted as checks.",
+ "name": "Commands",
+ "out_of_scope_failures": "command_parse BUILD-BLOCKED (B9-H01: the client_probe example does not compile on 26.1; corpus generated, oracle clean, library compiled - a two-line probe fix unblocks the rerun). 18 drivers not run - all game-binary e2e drivers needing a full fast-profile client build plus a Java reference run: command_exec (oracle compiles clean; needs the build; known fixture blocker /execute if predicate effect_view:always recorded, not chased) + 17 no-oracle e2e drivers (7 via the command_exec driver). command_exec is the linchpin for the family. 3 drivers oracle-blocked: scoreboard (B9-O01, 3 errors - the 26.2 run's cheapest remaining driver is blocked again for 26.1), team_rules (B9-O02), exploration_map_command (B9-O03).",
+ "source": "docs/PARITY-SWEEP.md \u00a74 Batch 9 + \u00a73 methodology \u2014 parsing, execution, selectors, functions, scoreboard; 22 drivers; 57 argument types; 59 game rules. See docs/sweep/26.1/batch-9-commands.md (this batch's report.md).",
+ "systemic_note": "This batch is the reverse of the 26.2 one: the dominant pattern is 26.2 forms that are NOT correct for 26.1 (the selector option-state refactor, TeamColor, team_color, the Hud split, EntityTypes, the 6-arg teleport-accept packet), plus 1.21.7 forms the 26.1 port never fixed (particle Name compound, item-modifier function key, /posteffect), plus a 26.3-form probe file (game_loop_probe.rs) against a 26.1 FrameContext that predates it - which blocks the command_parse fixture from compiling at all. 4 of 13 re-checked 1.21.7 defects reproduce (vs 0 of 13 for 26.2), all three in-scope oracles fail (vs 1 of 3 for 26.2), and the core measurement is blocked. The port sits between versions: it carries 26.2-era code against a 26.1 vanilla that predates those, and 1.21.7-era code that the 26.2 port fixed but the 26.1 port never carried. The remaining risk is execution, not parsing: 18 of 22 drivers are unrun e2e drivers.",
+ "version": "26.1",
+ "coordinator_note": "COORDINATOR (2026-11-24): verified from raw artifacts. Report 870 lines / 50814 bytes, complete tail, no truncation markers. Slice 23/11/12 arithmetic exact; 22 items (12 gap, 10 closed); no fix key. Oracle cross-check: O01 Scoreboard (fail x3, 3 errors), O02 TeamRules (fail x3, 6 errors), O03 LocatorBarClient (fail x3, 13 errors) all match the Batch 0 table; VanillaCommandParseOracle passes on all three classpaths (the run is blocked by the Rust probe, not the oracle). All 17 1.21.7 B9 items decided. H01 VERIFIED END-TO-END: 26.1 FrameContext (window.rs:56-64) has 7 fields, no focused/exclusive_fullscreen (deliberate, documented in the throttle_reason comment); game_loop_probe.rs:159-160 sets both; the probe file is byte-identical to 26.3's (md5 d976bbe391ec32563301c0fa5d1d2c1a) while 26.2's probe differs and has neither line; driver + compile logs show exactly E0560 x2, compile-rust failed (101). Corpus verified: md5 aa28f318ef41b52e2cc75a727e290317, 34542 lines, 2095436 bytes. G02 verified both halves (port dispatches /posteffect at commands.rs:1265 + extra.rs:552 + tree_extra.rs:36 root literal; no PostEffectCommand in either jar - the 1 client-jar hit is DebugEntryPostEffect). G14 verified (dedicated tree 14 commands, no perf; no 'perf' literal in horizon-command). G16 verified all 7 pairs from BOTH sides (Rust literals in tree_misc.rs/tree_execute.rs + vanilla names from datagen commands.json: pos/targets/source/entities). G11/G17 RECIPE special case verified via javap: CommandSourceStack.suggestRegistryElements branches on Registries.RECIPE and streams RecipeManager.getRecipes() - real vanilla 26.1 DOES suggest all recipes; the 26.2 run's G11 closure missed this (oracle artifact, not a port defect). O04 verified (en_us.json 7886 keys; md5 identity from Batch 0). TALLY: kept as-delivered 23 (11/12) - it follows the 26.2 B9 precedent exactly (26.2's B9 also counted oracle gap items as gap checks: 5 gap items incl. O02/O03 = 5 gap checks). Behaviour-only restatement: 19 checks (11 pass, 8 gap) after removing O01/O02/O03 + H01. CORRECTION: G16's prose undercounts - 'five label pairs, the same five as 26.2' is wrong; the table has 7 pairs and 26.2's G16 had FOUR pairs (26.2 coordinator note: 14 inputs, 4 label pairs). Correct: 4 shared with 26.2 + 3 new (2x /item modify + /execute if items block). The table itself is correct. MEMBER FOLD: ('B3-O05', 'LocatorBarClient', 'B9-O03') - supersedes the earlier note that LocatorBarClient stays in B3-O05. FOLLOW-UP (fix decision, not sweep work): the H01 two-line fix unblocks the command_parse rerun (minutes - library compiled, corpus preserved) and any other client_probe-based driver; the same unadapted probe is in 26.1.1, 26.1.2 and 1.21.7."
+}
