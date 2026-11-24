@@ -1,0 +1,2660 @@
+{
+ "files": {
+  "ComponentWireCapture": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "57: package net.minecraft.advancements.predicates.StatePropertiesPredicate does not exist",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "ElderCurseTranscript": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "EntityTranscript": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "23: cannot find symbol",
+   "n_errors": 7,
+   "server": "fail"
+  },
+  "GoatVoiceTranscript": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "KnockbackClient": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "55: cannot find symbol",
+   "n_errors": 6,
+   "server": "fail"
+  },
+  "LevelEventTranscript": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "LocatorBarClient": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "393: cannot find symbol",
+   "n_errors": 13,
+   "server": "fail"
+  },
+  "OfflineLanHost": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "29: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "ParityData": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "ParityFont": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "43: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "PhasedTranscript": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "PrepareWorker": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "RideTranscript": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "19: cannot find symbol",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "SecureChatClient": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "369: method does not override or implement a method from a supertype",
+   "n_errors": 8,
+   "server": "fail"
+  },
+  "SeedAgent": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "ServerPackClient": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "264: method does not override or implement a method from a supertype",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaActiveEffectTickOracle": {
+   "both": "fail",
+   "class": "missing-override",
+   "client": "fail",
+   "first_error": "54: ClientEffectLevel is not abstract and does not override abstract method fuelValues() in Level",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaActiveEffectsOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaAllayInteractionStateOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "34: constructor LocalPlayer in class LocalPlayer cannot be applied to given types;",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaAmbientOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "50: constructor LocalPlayer in class LocalPlayer cannot be applied to given types;",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaAnchorOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "14: package net.minecraft.world.level.levelgen.densityfunction does not exist",
+   "n_errors": 10,
+   "server": "fail"
+  },
+  "VanillaArrowOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "78: method does not override or implement a method from a supertype",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaAttributeHealthOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaAttributeMapQueriesOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaAttributeOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaAttributeUpdatesOracle": {
+   "both": "fail",
+   "class": "missing-override",
+   "client": "fail",
+   "first_error": "52: ClientEffectLevel is not abstract and does not override abstract method fuelValues() in Level",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaAudioAttributesOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "72: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaAutoJumpOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "71: constructor LocalPlayer in class LocalPlayer cannot be applied to given types;",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaBasicFeatureOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "37: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaBiomeChunkOracle": {
+   "both": "fail",
+   "class": "incompatible-types",
+   "client": "fail",
+   "first_error": "37: incompatible types: incompatible parameter types in lambda expression",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaBiomeExport": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaBiomeGenerationOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "18: package net.minecraft.world.level.levelgen.material.rule does not exist",
+   "n_errors": 12,
+   "server": "fail"
+  },
+  "VanillaBiomePlacementOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "39: constructor Feature in class Feature<FC> cannot be applied to given types;",
+   "n_errors": 8,
+   "server": "fail"
+  },
+  "VanillaBiomeSourceCodecOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "12: package net.minecraft.world.level.levelgen.densityfunction does not exist",
+   "n_errors": 9,
+   "server": "fail"
+  },
+  "VanillaBiomeSourceOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "11: package net.minecraft.world.level.levelgen.densityfunction does not exist",
+   "n_errors": 10,
+   "server": "fail"
+  },
+  "VanillaBiomeTemperatureOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaBiomeZoomOracle": {
+   "both": "fail",
+   "class": "other",
+   "client": "fail",
+   "first_error": "22: method getBiome in class BiomeManager cannot be applied to given types;",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaBlockBehaviourExporter": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaBlockCollisionScanOracle": {
+   "both": "fail",
+   "class": "cascade",
+   "client": "fail",
+   "first_error": "depends on broken: VanillaFaceSupportOracle",
+   "n_errors": null,
+   "server": "fail"
+  },
+  "VanillaBlockEntityAnimOracle": {
+   "both": "fail",
+   "class": "missing-override",
+   "client": "fail",
+   "first_error": "102: World is not abstract and does not override abstract method fuelValues() in Level",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaBlockEntityRenderOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "23: cannot find symbol",
+   "n_errors": 9,
+   "server": "fail"
+  },
+  "VanillaBlockEntityStorageOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaBlockEntityTickerOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaBlockEventReadinessOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaBlockLandingOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaBlockParticlesOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "4: package com.mojang.blaze3d.platform does not exist",
+   "n_errors": 41,
+   "server": "fail"
+  },
+  "VanillaBlockPlacementOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaBlockPropertiesOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaBlockPushOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaBlockStateBindingOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "8: package net.minecraft.client.renderer.block.dispatch.multipart does not exist",
+   "n_errors": 8,
+   "server": "fail"
+  },
+  "VanillaBlockStateCodecOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaBlockStateModelOracle": {
+   "both": "pass",
+   "class": "missing-symbol",
+   "client": "pass",
+   "first_error": "15: cannot find symbol",
+   "n_errors": 13,
+   "server": "fail"
+  },
+  "VanillaBlockSupportOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaBlockSurvivalOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaBlockTintOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "8: package net.minecraft.client.color.block does not exist",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaBlockTransformerOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "19: cannot find symbol",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaBlockUpdateOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "450: cannot find symbol",
+   "n_errors": 32,
+   "server": "fail"
+  },
+  "VanillaBlockingItemDamageOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "21: method does not override or implement a method from a supertype",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaBlockingRulesOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaBoatAuthorityOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "14: cannot find symbol",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaBoatRiderOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "38: method does not override or implement a method from a supertype",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaBreakingModelOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "12: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaBreezeHookOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "16: cannot find symbol",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaBrewingFuelOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "13: cannot find symbol",
+   "n_errors": 8,
+   "server": "fail"
+  },
+  "VanillaBrewingOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "23: cannot find symbol",
+   "n_errors": 14,
+   "server": "fail"
+  },
+  "VanillaBulkSectionOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "44: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaBundleWeightOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaCameraOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "125: constructor LocalPlayer in class LocalPlayer cannot be applied to given types;",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaCanyonCarverOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "24: cannot find symbol",
+   "n_errors": 6,
+   "server": "fail"
+  },
+  "VanillaCarvingGeometryOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "25: cannot find symbol",
+   "n_errors": 7,
+   "server": "fail"
+  },
+  "VanillaCarvingMaskOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "11: cannot find symbol",
+   "n_errors": 7,
+   "server": "fail"
+  },
+  "VanillaCauldronOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "118: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaCaveCarverOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "24: cannot find symbol",
+   "n_errors": 6,
+   "server": "fail"
+  },
+  "VanillaChatScreenOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "20: cannot find symbol",
+   "n_errors": 5,
+   "server": "fail"
+  },
+  "VanillaChestLoadOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaChestPairOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaChunkGenerationOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaChunkStageOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "27: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaChunkStatusOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaClientArrowOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "38: method does not override or implement a method from a supertype",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaClientRedstonePreviewOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "4: package net.minecraft.client.multiplayer does not exist",
+   "n_errors": 8,
+   "server": "fail"
+  },
+  "VanillaClimbingOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaCloudRenderOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "6: package net.minecraft.client.renderer does not exist",
+   "n_errors": 6,
+   "server": "fail"
+  },
+  "VanillaCollisionContextOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "87: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaCollisionOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaCombatRulesOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaCommandExecOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaCommandParseOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaCommandSuggestionsExporter": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaComponentDurabilityOracle": {
+   "both": "fail",
+   "class": "incompatible-types",
+   "client": "fail",
+   "first_error": "23: incompatible types: Item cannot be converted to ItemStack",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaComponentPatchOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaConsumableEmissionOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaConsumableOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "76: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaConsumeEffectOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaContainerScreenOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "9: package net.minecraft.client does not exist",
+   "n_errors": 49,
+   "server": "fail"
+  },
+  "VanillaContainerTitleOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaContextualCollisionAudit": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaConversionTagsOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaCoreOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "136: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaCrackFeedbackOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaCreativeMiningOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaCreativeSearchOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "7: package net.minecraft.client.multiplayer does not exist",
+   "n_errors": 6,
+   "server": "fail"
+  },
+  "VanillaCreativeTabsExporter": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaCuboidModelOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "8: package net.minecraft.client.resources.model.sprite does not exist",
+   "n_errors": 14,
+   "server": "fail"
+  },
+  "VanillaCushionPlacementOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "12: cannot find symbol",
+   "n_errors": 14,
+   "server": "fail"
+  },
+  "VanillaDamageCatalogOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaDamageImmunityOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "20: method does not override or implement a method from a supertype",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaDamageReductionOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaDamageSourceOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaDataFixOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaDataFixTablesExporter": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaDecorationOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "48: constructor Feature in class Feature<FC> cannot be applied to given types;",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaDecorationRegionOracle": {
+   "both": "fail",
+   "class": "missing-override",
+   "client": "fail",
+   "first_error": "49: <anonymous dev.horizonlab.parity.VanillaDecorationRegionOracle$3> is not abstract and does not override abstract method <T>lookup(ResourceKey<? extends Registry<? extends T>>) in RegistryInfoLookup",
+   "n_errors": 6,
+   "server": "fail"
+  },
+  "VanillaDensityOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "11: cannot find symbol",
+   "n_errors": 251,
+   "server": "fail"
+  },
+  "VanillaDispenserOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "212: package EntityTypes does not exist",
+   "n_errors": 15,
+   "server": "fail"
+  },
+  "VanillaDragonContactsOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "15: cannot find symbol",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaDragonRenderOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "31: method does not override or implement a method from a supertype",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaDynamicSupportOracle": {
+   "both": "fail",
+   "class": "cascade",
+   "client": "fail",
+   "first_error": "depends on broken: VanillaFaceSupportOracle",
+   "n_errors": null,
+   "server": "fail"
+  },
+  "VanillaEdgeBackoffOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaEffectAttributeModifiersOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaEffectNotificationsOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaEffectParticlesOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaEffectSyncOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaEmitterParticlesOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "9: package net.minecraft.client.multiplayer does not exist",
+   "n_errors": 14,
+   "server": "fail"
+  },
+  "VanillaEnchantDurabilityOracle": {
+   "both": "fail",
+   "class": "cascade",
+   "client": "fail",
+   "first_error": "depends on broken: VanillaBlockUpdateOracle",
+   "n_errors": null,
+   "server": "fail"
+  },
+  "VanillaEnchantingOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaEnchantmentComponentsOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaEntityAnimOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "106: method does not override or implement a method from a supertype",
+   "n_errors": 5,
+   "server": "fail"
+  },
+  "VanillaEntityAttributeOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaEntityCollisionOracle": {
+   "both": "fail",
+   "class": "cascade",
+   "client": "fail",
+   "first_error": "depends on broken: VanillaFaceSupportOracle",
+   "n_errors": null,
+   "server": "fail"
+  },
+  "VanillaEntityComponentsOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "11: package net.minecraft.advancements.predicates.entity does not exist",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaEntityDeathLootOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "80: method does not override or implement a method from a supertype",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaEntityFluidOracle": {
+   "both": "fail",
+   "class": "other",
+   "client": "fail",
+   "first_error": "74: 'void' type not allowed here",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaEntityModelExporter": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "9: package net.minecraft.client.model.geom does not exist",
+   "n_errors": 11,
+   "server": "fail"
+  },
+  "VanillaEntityMoveOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "66: cannot find symbol",
+   "n_errors": 8,
+   "server": "fail"
+  },
+  "VanillaEntityObstructionOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaEntityParticlesOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "8: package net.minecraft.client.multiplayer does not exist",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaEntitySoundPacketOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "62: constructor MinecraftServer in class MinecraftServer cannot be applied to given types;",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaEntityTypesExporter": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaEnvironmentAttributeModifierOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaEnvironmentOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "71: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaEnvironmentSystemOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaEnvironmentTimelineOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaExplosionItemsOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "29: method does not override or implement a method from a supertype",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaExtraItemsOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "15: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaFaceSupportOracle": {
+   "both": "fail",
+   "class": "other",
+   "client": "fail",
+   "first_error": "45: CubeVoxelShape(DiscreteVoxelShape) has protected access in CubeVoxelShape",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaFaceVisibilityOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaFallDamageOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaFallingBlockOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "30: constructor ChunkMap in class ChunkMap cannot be applied to given types;",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaFeatureCatalogOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "31: cannot find symbol",
+   "n_errors": 11,
+   "server": "fail"
+  },
+  "VanillaFeatureGraphOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "38: cannot find symbol",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaFeaturePlacementOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "33: constructor Feature in class Feature<FC> cannot be applied to given types;",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaFeatureRegionOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "77: cannot find symbol",
+   "n_errors": 10,
+   "server": "fail"
+  },
+  "VanillaFeatureSortOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "17: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaFillLayerOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "38: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaFinalizeSpawnOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "119: method does not override or implement a method from a supertype",
+   "n_errors": 7,
+   "server": "fail"
+  },
+  "VanillaFireStarterSoundOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "61: constructor LocalPlayer in class LocalPlayer cannot be applied to given types;",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaFireworkTooltipOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaFirstPersonOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "14: cannot find symbol",
+   "n_errors": 20,
+   "server": "fail"
+  },
+  "VanillaFloatLogOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "5: package net.minecraft.world.level.levelgen.densityfunction.op does not exist",
+   "n_errors": 9,
+   "server": "fail"
+  },
+  "VanillaFloatTextOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaFluidBoxOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaFluidFlowOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "15: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaFluidOccupancyOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaFluidOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "50: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaFluidShapeOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaFoodOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaFoodPropertiesOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaFoodStorageOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaFrameLimiterOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaFurnaceOracle": {
+   "both": "fail",
+   "class": "cascade",
+   "client": "fail",
+   "first_error": "depends on broken: VanillaBlockUpdateOracle",
+   "n_errors": null,
+   "server": "fail"
+  },
+  "VanillaGallerySelectionOracle": {
+   "both": "pass",
+   "class": "missing-symbol",
+   "client": "pass",
+   "first_error": "33: cannot find symbol",
+   "n_errors": 42,
+   "server": "fail"
+  },
+  "VanillaGameLoopOracle": {
+   "both": "fail",
+   "class": "other",
+   "client": "fail",
+   "first_error": "70: no suitable constructor found for CommandSourceStack(<null>,<null>,<null>,<null>,<null>,Component,<null>)",
+   "n_errors": 12,
+   "server": "fail"
+  },
+  "VanillaGameplayFactsExporter": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaGatewayReplacementOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaGenerationTickOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaGeometryOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "168: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaGhostRecipeOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "56: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaGroundStateOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaHeightProviderOracle": {
+   "both": "fail",
+   "class": "cascade",
+   "client": "fail",
+   "first_error": "depends on broken: VanillaAnchorOracle",
+   "n_errors": null,
+   "server": "fail"
+  },
+  "VanillaHeightmapOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaHeldDropOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "38: constructor Gui in class Gui cannot be applied to given types;",
+   "n_errors": 6,
+   "server": "fail"
+  },
+  "VanillaHeldItemStackOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "30: cannot find symbol",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaHelmetDamageOracle": {
+   "both": "fail",
+   "class": "cascade",
+   "client": "fail",
+   "first_error": "depends on broken: VanillaBlockUpdateOracle",
+   "n_errors": null,
+   "server": "fail"
+  },
+  "VanillaHotbarOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "8: package net.minecraft.client does not exist",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaHudOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "4: package com.mojang.renderpearl.api.pipeline does not exist",
+   "n_errors": 34,
+   "server": "fail"
+  },
+  "VanillaInlineObjectOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "4: package com.mojang.blaze3d.font does not exist",
+   "n_errors": 32,
+   "server": "fail"
+  },
+  "VanillaInteractionInputOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "39: constructor Gui in class Gui cannot be applied to given types;",
+   "n_errors": 5,
+   "server": "fail"
+  },
+  "VanillaInteractionShapeOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaInventoryPickupOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "33: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaInventoryTickOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaInventoryUseOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaInventoryUseStartOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "19: constructor ServerChunkCache in class ServerChunkCache cannot be applied to given types;",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaItemAfterUseOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaItemBlockingOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "29: method does not override or implement a method from a supertype",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaItemCooldownsOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaItemDurabilityOracle": {
+   "both": "fail",
+   "class": "incompatible-types",
+   "client": "fail",
+   "first_error": "20: incompatible types: Item cannot be converted to ItemStack",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaItemModelOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "37: cannot find symbol",
+   "n_errors": 10,
+   "server": "fail"
+  },
+  "VanillaItemParticlesOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaItemStackStorageOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaItemTemplateOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "25: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaItemUseCatalogOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "12: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaItemUseLifecycleOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaItemUseOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaItemUseStartOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "16: constructor ServerChunkCache in class ServerChunkCache cannot be applied to given types;",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaItemWireOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaJavaHashMapOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaJavaIdentityMapOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaLanAuthOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "18: cannot find symbol",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaLanOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "10: package net.minecraft.client.server does not exist",
+   "n_errors": 11,
+   "server": "fail"
+  },
+  "VanillaLateEntityPairOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "16: method does not override or implement a method from a supertype",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaLavaCauldronItemOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "28: method does not override or implement a method from a supertype",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaLevelShapeOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaLiveAttributeUpdatesOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaLiveAttributesOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaLivingAirOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "30: cannot find symbol",
+   "n_errors": 6,
+   "server": "fail"
+  },
+  "VanillaLivingDamageOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaLivingFallOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaLivingFluidOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "30: cannot find symbol",
+   "n_errors": 9,
+   "server": "fail"
+  },
+  "VanillaLivingHealthOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaLivingHurtOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "34: cannot find symbol",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaLivingLandingOracle": {
+   "both": "fail",
+   "class": "missing-override",
+   "client": "fail",
+   "first_error": "38: ClientLevel is not abstract and does not override abstract method fuelValues() in Level",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaLivingMotionOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "21: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaLocalInputOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "27: constructor LocalPlayer in class LocalPlayer cannot be applied to given types;",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaLoomScreenOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "4: package com.mojang.renderpearl.api.pipeline does not exist",
+   "n_errors": 5,
+   "server": "fail"
+  },
+  "VanillaLootFillOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "78: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaLoreTooltipOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaMapSavedDataOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaMarkerParticlesOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "44: constructor LocalPlayer in class LocalPlayer cannot be applied to given types;",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaMaterialConditionOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "27: cannot find symbol",
+   "n_errors": 76,
+   "server": "fail"
+  },
+  "VanillaMaterialExtensionOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "17: package net.minecraft.world.level.levelgen.densityfunction does not exist",
+   "n_errors": 12,
+   "server": "fail"
+  },
+  "VanillaMaterialStageOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "22: package net.minecraft.world.level.levelgen.material.rule does not exist",
+   "n_errors": 26,
+   "server": "fail"
+  },
+  "VanillaMaterialSurfaceOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "16: cannot find symbol",
+   "n_errors": 15,
+   "server": "fail"
+  },
+  "VanillaMenuOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "138: cannot find symbol",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaMipmapOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "5: package com.mojang.blaze3d.platform does not exist",
+   "n_errors": 12,
+   "server": "fail"
+  },
+  "VanillaMobAiOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "63: cannot find symbol",
+   "n_errors": 12,
+   "server": "fail"
+  },
+  "VanillaMobAirOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaMobAttributesOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "26: method does not override or implement a method from a supertype",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaMobBreathingOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "20: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaMobDataExporter": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "20: package net.minecraft.client.animation does not exist",
+   "n_errors": 11,
+   "server": "fail"
+  },
+  "VanillaMobDiscardOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaMobFallResetOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "14: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaModelBakingOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "53: cannot find symbol",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaModelChoiceOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "7: package net.minecraft.client.resources.model.sprite does not exist",
+   "n_errors": 11,
+   "server": "fail"
+  },
+  "VanillaModelResolutionOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "9: package net.minecraft.client.resources.model.geometry does not exist",
+   "n_errors": 11,
+   "server": "fail"
+  },
+  "VanillaMovementEmissionOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaMovementRegistryOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaMovementSupportOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaMover": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "45: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaMusicOracle": {
+   "both": "fail",
+   "class": "cascade",
+   "client": "fail",
+   "first_error": "depends on broken: VanillaSoundRig",
+   "n_errors": null,
+   "server": "fail"
+  },
+  "VanillaNamedRandomChanceOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaNativeEntityMovesOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaNaturalSpawnOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "191: method does not override or implement a method from a supertype",
+   "n_errors": 16,
+   "server": "fail"
+  },
+  "VanillaNbtPathReaderOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaNoiseOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "14: cannot find symbol",
+   "n_errors": 32,
+   "server": "fail"
+  },
+  "VanillaObjectOpenMapOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaObjectOpenSetOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaOpenedLootOracle": {
+   "both": "fail",
+   "class": "cascade",
+   "client": "fail",
+   "first_error": "depends on broken: VanillaBlockUpdateOracle",
+   "n_errors": null,
+   "server": "fail"
+  },
+  "VanillaOptionsOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "8: package net.minecraft.client does not exist",
+   "n_errors": 10,
+   "server": "fail"
+  },
+  "VanillaOptionsTableExporter": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "11: package net.minecraft.client does not exist",
+   "n_errors": 16,
+   "server": "fail"
+  },
+  "VanillaPackResourcesOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "65: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaPackScreenOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "4: package com.mojang.renderpearl.api.pipeline does not exist",
+   "n_errors": 13,
+   "server": "fail"
+  },
+  "VanillaPackSelectionOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "7: package net.minecraft.client.gui.screens.packs does not exist",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaPacketCodecOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "132: cannot find symbol",
+   "n_errors": 5,
+   "server": "fail"
+  },
+  "VanillaPalettedContainerOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaParticleProvidersOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "164: cannot find symbol",
+   "n_errors": 10,
+   "server": "fail"
+  },
+  "VanillaPickBlockDataOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaPistonMovementOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaPistonPushOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaPistonShapeOracle": {
+   "both": "fail",
+   "class": "cascade",
+   "client": "fail",
+   "first_error": "depends on broken: VanillaFaceSupportOracle",
+   "n_errors": null,
+   "server": "fail"
+  },
+  "VanillaPlaceRecipeOracle": {
+   "both": "fail",
+   "class": "cascade",
+   "client": "fail",
+   "first_error": "depends on broken: VanillaMenuOracle",
+   "n_errors": null,
+   "server": "fail"
+  },
+  "VanillaPlacementOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaPlayerEquipmentOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaPlayerFoodOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaPlayerHealthOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaPlayerHurtOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "37: cannot find symbol",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaPlayerInventoryOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "28: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaPlayerSyncOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "31: constructor LocalPlayer in class LocalPlayer cannot be applied to given types;",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaPlayerTravelOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "31: method does not override or implement a method from a supertype",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaPortalOracle": {
+   "both": "fail",
+   "class": "cascade",
+   "client": "fail",
+   "first_error": "depends on broken: VanillaBlockUpdateOracle",
+   "n_errors": null,
+   "server": "fail"
+  },
+  "VanillaPortalTicketsOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaProtocolClient": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "409: cannot find symbol",
+   "n_errors": 34,
+   "server": "fail"
+  },
+  "VanillaProtocolIdentifierOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaProtocolStringsOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaRaidOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "250: package net.minecraft.advancements.triggers does not exist",
+   "n_errors": 11,
+   "server": "fail"
+  },
+  "VanillaRaiderCelebrationOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaRandomTickSectionsOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaRecipeBookOracle": {
+   "both": "fail",
+   "class": "cascade",
+   "client": "fail",
+   "first_error": "depends on broken: VanillaMenuOracle",
+   "n_errors": null,
+   "server": "fail"
+  },
+  "VanillaRecipeBookScreenOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "4: package com.mojang.renderpearl.api.pipeline does not exist",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaRecipeBookViewOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "11: package net.minecraft.client does not exist",
+   "n_errors": 24,
+   "server": "fail"
+  },
+  "VanillaRecipeOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaRedstoneCatalogOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "188: cannot find symbol",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaRedstonePersistenceOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaRegisteredEntityFluidOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "9: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaRegisteredPlayerCombatOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "27: method does not override or implement a method from a supertype",
+   "n_errors": 6,
+   "server": "fail"
+  },
+  "VanillaRegistryCollisionScanOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "95: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaRegistryFallRayOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "47: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaRegistryFluidOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "11: cannot find symbol",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaRemoteAttackOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "82: constructor LocalPlayer in class LocalPlayer cannot be applied to given types;",
+   "n_errors": 8,
+   "server": "fail"
+  },
+  "VanillaReplaceBlockOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "36: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaRestitutionOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "30: method does not override or implement a method from a supertype",
+   "n_errors": 12,
+   "server": "fail"
+  },
+  "VanillaRetrogenDataOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaRuleTestOracle": {
+   "both": "fail",
+   "class": "other",
+   "client": "fail",
+   "first_error": "29: method test in class RuleTest cannot be applied to given types;",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaScatteredOreOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "36: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaSceneCollisionOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "99: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaSceneMotionOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "238: cannot find symbol",
+   "n_errors": 14,
+   "server": "fail"
+  },
+  "VanillaScoreboardOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "242: cannot find symbol",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaSculkOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "327: cannot find symbol",
+   "n_errors": 7,
+   "server": "fail"
+  },
+  "VanillaSectionMeshOracle": {
+   "both": "fail",
+   "class": "other",
+   "client": "fail",
+   "first_error": "84: no interface expected here",
+   "n_errors": 7,
+   "server": "fail"
+  },
+  "VanillaServerAddressOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "11: package net.minecraft.client.multiplayer.resolver does not exist",
+   "n_errors": 21,
+   "server": "fail"
+  },
+  "VanillaServerFilesOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "209: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaServerPlayerCombatOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "33: method does not override or implement a method from a supertype",
+   "n_errors": 6,
+   "server": "fail"
+  },
+  "VanillaServerPlayerDamageOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaServerPropertyNumbersOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaSheepDyeOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "35: constructor LocalPlayer in class LocalPlayer cannot be applied to given types;",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaShulkerBulletOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "15: cannot find symbol",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaShulkerSpaceOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "10: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaSimpleBlockOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaSimpleContainerOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaSituationalMusicOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "11: cannot find symbol",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaSkinImageOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "3: package com.mojang.blaze3d.platform does not exist",
+   "n_errors": 6,
+   "server": "fail"
+  },
+  "VanillaSlotHoverOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "7: package net.minecraft.client.gui.screens.inventory does not exist",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaSnbtUnicodeOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaSoundEngineOracle": {
+   "both": "fail",
+   "class": "constructor-mismatch",
+   "client": "fail",
+   "first_error": "33: constructor LocalPlayer in class LocalPlayer cannot be applied to given types;",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaSoundEventOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "83: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaSoundRig": {
+   "both": "fail",
+   "class": "cascade",
+   "client": "fail",
+   "first_error": "depends on broken: VanillaSoundEventOracle",
+   "n_errors": null,
+   "server": "fail"
+  },
+  "VanillaSourceSilenceOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "74: cannot find symbol",
+   "n_errors": 5,
+   "server": "fail"
+  },
+  "VanillaSpawnRulesOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "81: method does not override or implement a method from a supertype",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaSprintInputOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "37: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaSpriteAnimationOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "6: package com.mojang.renderpearl.api.buffers does not exist",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaSquidClientOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "25: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaStackFoilOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaStackMiningOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaStackModelFlagsOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "9: package net.minecraft.client.renderer.item.properties.conditional does not exist",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaStateCodec": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaStateProviderOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "64: cannot find symbol",
+   "n_errors": 11,
+   "server": "fail"
+  },
+  "VanillaStatusEffectOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaStatusTickOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaSteppedInterpolationOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "12: cannot find symbol",
+   "n_errors": 16,
+   "server": "fail"
+  },
+  "VanillaStopSoundWireOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaStorageMenuOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaStoredConsumeOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaStoredEffectAttributesOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaStoredEffectNotificationsOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaStoredEnchantmentPatchOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaStructureBlockExporter": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaStructureDensityOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "8: package net.minecraft.world.level.levelgen.densityfunction does not exist",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaStructurePlacementOracle": {
+   "both": "fail",
+   "class": "other",
+   "client": "fail",
+   "first_error": "89: no suitable method found for create(Registry<NoiseParameters>,long,NoiseGeneratorSettings)",
+   "n_errors": 7,
+   "server": "fail"
+  },
+  "VanillaStructureStartOracle": {
+   "both": "fail",
+   "class": "other",
+   "client": "fail",
+   "first_error": "51: no suitable method found for create(Registry<NoiseParameters>,long,NoiseGeneratorSettings)",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaSubtitleOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "188: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaSuffocationOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "46: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaSwimmingOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaSyncedBytesOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaSyncedFloatsOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaTabListOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "8: package com.mojang.authlib.services does not exist",
+   "n_errors": 36,
+   "server": "fail"
+  },
+  "VanillaTagExport": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaTeamRulesOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "14: cannot find symbol",
+   "n_errors": 6,
+   "server": "fail"
+  },
+  "VanillaTeleportConsumeOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "27: method does not override or implement a method from a supertype",
+   "n_errors": 5,
+   "server": "fail"
+  },
+  "VanillaTerrainOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "21: package net.minecraft.world.level.levelgen.material.rule does not exist",
+   "n_errors": 13,
+   "server": "fail"
+  },
+  "VanillaTextDisplayOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "20: method does not override or implement a method from a supertype",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaTextDisplayRenderOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "52: method does not override or implement a method from a supertype",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaTextDisplayTransformOracle": {
+   "both": "fail",
+   "class": "cascade",
+   "client": "fail",
+   "first_error": "depends on broken: VanillaTextDisplayOracle",
+   "n_errors": null,
+   "server": "fail"
+  },
+  "VanillaTickDataOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaTickOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaTickScript": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "29: package org.lwjgl.sdl does not exist",
+   "n_errors": 19,
+   "server": "fail"
+  },
+  "VanillaTitleDebugOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "29: cannot find symbol",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaToggleKeysOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "4: package com.mojang.blaze3d.platform does not exist",
+   "n_errors": 26,
+   "server": "fail"
+  },
+  "VanillaTooltipDisplayOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaTradeComponentsOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaTradingOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "254: cannot find symbol",
+   "n_errors": 6,
+   "server": "fail"
+  },
+  "VanillaTranslucencyOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "5: package com.mojang.renderpearl.api.pipeline does not exist",
+   "n_errors": 4,
+   "server": "fail"
+  },
+  "VanillaTreeFeatureOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "67: method does not override or implement a method from a supertype",
+   "n_errors": 11,
+   "server": "fail"
+  },
+  "VanillaUseFlagReactionOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaUseRemainderOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "26: cannot find symbol",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaValueProviderOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaVehicleContainerOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "20: cannot find symbol",
+   "n_errors": 3,
+   "server": "fail"
+  },
+  "VanillaViewDirectionOracle": {
+   "both": "fail",
+   "class": "other",
+   "client": "fail",
+   "first_error": "13: non-static method calculateViewVector(float,float) cannot be referenced from a static context",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaVillagerFarmingOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaWaterSplashOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaWeatherRenderOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "3: package com.mojang.blaze3d.vertex does not exist",
+   "n_errors": 13,
+   "server": "fail"
+  },
+  "VanillaWetFireOracle": {
+   "both": "fail",
+   "class": "no-override",
+   "client": "fail",
+   "first_error": "25: method does not override or implement a method from a supertype",
+   "n_errors": 2,
+   "server": "fail"
+  },
+  "VanillaWorldBorderOracle": {
+   "both": "fail",
+   "class": "cascade",
+   "client": "fail",
+   "first_error": "depends on broken: VanillaFaceSupportOracle",
+   "n_errors": null,
+   "server": "fail"
+  },
+  "VanillaWorldBorderRenderOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "5: package com.mojang.renderpearl.api.buffers does not exist",
+   "n_errors": 34,
+   "server": "fail"
+  },
+  "VanillaWorldOptionsOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaWorldOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaWorldRayOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "64: cannot find symbol",
+   "n_errors": 1,
+   "server": "fail"
+  },
+  "VanillaWorldSpawnOracle": {
+   "both": "fail",
+   "class": "missing-symbol",
+   "client": "fail",
+   "first_error": "23: cannot find symbol",
+   "n_errors": 5,
+   "server": "fail"
+  },
+  "VanillaWorldSpawnPacketOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaWorldgenOracle": {
+   "both": "fail",
+   "class": "missing-package",
+   "client": "fail",
+   "first_error": "132: package net.minecraft.world.level.levelgen.densityfunction does not exist",
+   "n_errors": 42,
+   "server": "fail"
+  },
+  "VanillaWorldgenRandomOracle": {
+   "both": "pass",
+   "client": "pass",
+   "server": "pass"
+  },
+  "VanillaZombieCureSoundOracle": {
+   "both": "pass",
+   "class": "missing-package",
+   "client": "pass",
+   "first_error": "7: package net.minecraft.client.multiplayer does not exist",
+   "n_errors": 3,
+   "server": "fail"
+  }
+ },
+ "generated": "2026-11-25",
+ "method": "fixpoint big-compile per classpath (docs/sweep/measure-oracles.py) against the named 26.1.2 jars: server-game.jar + server libraries + jsr305 (server), client.jar + client libraries + jsr305 (client), both jars + both library sets (both). javac --release 25 -proc:none, JDK 25. class/first_error/n_errors taken from the client cp (the superset), falling back to server cp for client-only oracles that fail on server only."
+}

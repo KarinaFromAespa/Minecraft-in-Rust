@@ -1,0 +1,759 @@
+# Batch 0 measurement: oracle compilability against the 26.1.2 jars
+
+Date: 2026-11-25. Branch: `parity-sweep-26.1.2`. Measured before any repair.
+Companion data: `docs/sweep/26.1.2/batch-0-oracles.json` (per-oracle table, all
+391 files) and `docs/sweep/measure-oracles.py` (the measurement script,
+rerunnable).
+
+**Scope decision (coordinator, per the sweep brief): Batch 0 for 26.1.2 is
+measurement + triage ONLY — no oracle repairs — with ONE explicit exception:
+the client_probe check (H01, "The client_probe check (H01)" below).** The
+oracle `.java` files live in `versions/26.1.2/mods/horizon/`. The 1.21.7
+Batch 0 did repair oracles (135/391 pass after repair, up from 94); for
+26.1.2 the repair list below is a follow-up decision for the parent. Batches
+use static checks (javap + source + data) for drivers whose oracles don't
+compile, as 1.21.7 Batch 2 did.
+
+## Headline
+
+**189 of 391 oracles (48.3%) compile against the 26.1.2 jars on at least one
+classpath; 202 (51.7%) fail on all three.** The measured table is
+**identical to 26.1.1's in every field** — same 189/202 split, same
+per-classpath counts, same first-error class, first-error message and error
+count for all 391 files (see "Comparison against the 26.1.1 table" below).
+That is expected, not a measurement failure: the oracle sources are
+byte-identical between the two trees (`diff -rq` over the parity dir: no
+output), and the 26.1.1→26.1.2 jar delta changes no public API any oracle
+touches (8 changed class files, all method-body/internal; the only
+member-level change is two `private` members on `Checkbox`). The breakage
+is concentrated in a few systematic 26.1.2-vs-26.3 API deltas plus a long
+tail of 1–3-error files: median 3 errors per failing file, 155 of 186 with
+≤10 errors, 55 with exactly 1 error.
+
+| Classpath (driver configuration) | Pass | Fail | Failure rate |
+|---|---|---|---|
+| server — server-game.jar + server libraries + jsr305 (direct drivers) | 158 | 233 | **59.6%** |
+| client — client.jar + client libraries + jsr305 (oracle_harness drivers) | 189 | 202 | **51.7%** |
+| both — server + client jars + both library sets (superset) | 189 | 202 | 51.7% |
+| **fail on all three classpaths (genuinely broken vs 26.1.2)** | — | **202** | **51.7%** |
+
+Notes:
+
+- The `both` set is identical to the `client` set, and every server-pass file
+  also passes on client cp: the client jar contains the shared/server classes
+  these oracles use, so client cp is the superset that matters. The 31 files
+  that pass on client but fail on server are client-only oracles
+  (`net.minecraft.client.*`, blaze3d) — expected, not breakage.
+- Unlike the 26.1.1 run, this run needed NO correction to the both-cp
+  result: the both fixpoint converged cleanly in 2 rounds (15 + 1 cascade
+  drops). The 26.1.1 run's third both round dropped `ElderCurseTranscript`
+  on a transient filesystem error (`error while writing
+  ElderCurseTranscript: Operation not permitted`) and had to be corrected
+  by a standalone recompile; no such artifact occurred here, and
+  `ElderCurseTranscript` passes on all three classpaths in the raw
+  measurement.
+- The client-cp measurement adds jsr305 to the classpath. The harness itself
+  does not (see §5, driver defect 1): without jsr305, javac can crash
+  (`CompletionFailure: class file for javax.annotation.Nullable not found`,
+  rc=4) on some oracles. The measurement isolates oracle breakage from that
+  harness bug; the harness bug is recorded separately and NOT fixed in this
+  batch (scope decision above). Note the measurement setup: jsr305 is
+  absent from `versions/26.1.2/tools/` (as from every 26.x tree in this
+  worktree); it was copied in from `versions/1.21.7/tools/jsr305-3.0.2.jar`
+  (sha1 `25ea2e8b…`, matching the copy in the 26.1 sweep worktree) as
+  untracked measurement scaffolding, not a code change — the script reads
+  it from `ROOT/tools/jsr305-3.0.2.jar`.
+- Error totals: server cp 4,286 errors in 219 files; client cp 1,391 errors
+  in 186 files (both cp identical). For comparison, 26.1.1 was 4,286 server /
+  1,391 client (identical); 26.1 was 4,220 server / 1,310 client; 26.2 was
+  3,913 server / 894 client; 1.21.7 pre-repair was 6,199 server / 3,916
+  client.
+
+## Method
+
+Same fixpoint big-compile as the 1.21.7/26.2/26.1/26.1.1 measurements
+(`docs/sweep/measure-oracles.py`, unchanged): per classpath, compile all 391
+files together, then iterate the clean set (sourcepath=False) until the
+compile passes. Fixpoint iterations: server 1 round (14 cascade drops),
+client 2 rounds (15 + 1 cascade drops), both 2 rounds (15 + 1 cascade
+drops). Total runtime 11m53s wall (javac 25.0.5).
+
+Jars: the named 26.1.2 jars from the prepared `.local/minecraft/26.1.2/`
+(see §6); `javac --release 25 -proc:none`, JDK 25.0.5. The 26.1.2
+server-game.jar IS named (Mojang-mapped classes and methods) — the
+"no named jar exists for any 26.x version" note in PARITY-SWEEP.md §7
+(Nov 22) is outdated for 26.1.2 as it was for 26.1.1, 26.1 and 26.2. Note
+the release flag: 26.1.2's `java_major` is 25, matching the version
+manifest's `javaVersion.majorVersion` (DataVersion 4790, protocol 775).
+Jar sha1s verified against the research-lock pins before measuring:
+client `4e618f09…`, server-game `83eb1106…`, bundler server `97ccd4c0…`
+(the bundler jar was never javap'd). The script was run with
+`HORIZON_VERSION_DIR` pointed at `versions/26.1.2` (its committed home
+in `docs/sweep/` would otherwise resolve the repo root as the version
+tree).
+
+## Failure classes (first error per file)
+
+Server cp (233 failures):
+
+| Class | Files | Meaning |
+|---|---|---|
+| missing-package | 98 | imports a package that does not exist on the server cp (mostly client-only packages — 31 of these pass on client cp) |
+| missing-symbol | 78 | references a class/method/field 26.1.2 does not have (renamed/moved API) |
+| no-override | 22 | `@Override` of a method 26.1.2's supertype lacks |
+| cascade | 14 | file itself is clean; fails only because a helper it pulls is broken |
+| other | 7 | assorted (static-context, access, …) |
+| constructor-mismatch | 7 | calls a constructor with a 26.3 signature |
+| missing-override | 4 | abstract-method gap |
+| incompatible-types | 3 | 26.3 vs 26.1.2 signature change |
+
+Client cp (202 failures): missing-symbol 99, no-override 27,
+missing-package 23, constructor-mismatch 20, cascade 16, other 9,
+missing-override 5, incompatible-types 3. The client cp sheds the
+client-package failures and exposes the real drift: missing symbols
+dominate (99) — the `EntityTypes` holder move alone accounts for 31
+files' symbol errors, and the re-ported Feature-form files (G10) add 9
+newly-failing files to the count (inherited from 26.1.1, see below).
+
+Every class count above is identical to 26.1.1's, on all three
+classpaths.
+
+### The systematic groups (repair list for the follow-up decision)
+
+All groups below were derived FRESH from the 26.1.2 measurement
+(`evidence/group.py` + `evidence/groups.json`: error-text and
+source-pattern matching over the 26.1.2 big-compile logs, same
+derivation as 26.1.1) and verified against 26.1.2's own jars with
+javap / jar listings — none was copied from the 26.1.1 report. Every
+group's membership is identical to 26.1.1's.
+
+**G1 — `Level.fuelValues()` abstract-method gap (4 oracles, 1 error each,
+plus 1 more referencing it).** 26.1.2's `Level` declares
+`public abstract FuelValues fuelValues()` (javap-verified:
+`net.minecraft.world.level.block.entity.FuelValues`); 26.3's does not (or
+not abstractly), so the oracles' fake `Level` subclasses don't implement
+it: `VanillaActiveEffectTickOracle`,
+`VanillaAttributeUpdatesOracle`, `VanillaBlockEntityAnimOracle`
+(3 errors), `VanillaLivingLandingOracle`.
+`VanillaBlockEntityRenderOracle` also references `fuelValues()` among its
+9 errors. Mechanical repair: add a `fuelValues()` override returning a
+default to each fake level. (Two more missing-override files have
+different abstract gaps: `VanillaDecorationRegionOracle` (first error at
+line 49) / `VanillaFeatureCatalogOracle` (line 42, behind a
+missing-symbol first error) — anonymous classes missing a `lookup…`
+override on `RegistryInfoLookup`. Note the 26.2 group's third member
+differs here: 26.1.2's `VanillaSectionMeshOracle` fails as `other` —
+`no interface expected here` at line 84 — not on `MaterialBaker.bake`.)
+
+**G2 — `LocalPlayer` constructor (20 oracles carry the error; 11 as first
+error).** 26.1.2's `LocalPlayer` constructor takes 8 arguments
+(`Minecraft, ClientLevel, ClientPacketListener, StatsCounter,
+ClientRecipeBook, Input, boolean, ChatAbilities` — javap-verified on the
+26.1.2 client jar); the oracles pass the 26.3 9-argument form. First-error
+files: `VanillaAllayInteractionStateOracle`,
+`VanillaAmbientOracle`, `VanillaAutoJumpOracle`, `VanillaCameraOracle`,
+`VanillaFireStarterSoundOracle`, `VanillaLocalInputOracle`,
+`VanillaMarkerParticlesOracle`, `VanillaPlayerSyncOracle`,
+`VanillaRemoteAttackOracle`, `VanillaSheepDyeOracle`,
+`VanillaSoundEngineOracle`. Nine more carry a `LocalPlayer` ctor error
+behind another first error: `VanillaBoatRiderOracle`,
+`VanillaFirstPersonOracle`, `VanillaGameLoopOracle`,
+`VanillaHeldDropOracle`, `VanillaHeldItemStackOracle`,
+`VanillaHudOracle`, `VanillaInteractionInputOracle`,
+`VanillaSprintInputOracle`, `VanillaTeamRulesOracle`. One signature
+translation, verified once against the 26.1.2 jar, rescues the 7
+single-cause files outright (`VanillaAmbientOracle`,
+`VanillaAutoJumpOracle`, `VanillaCameraOracle`,
+`VanillaFireStarterSoundOracle`, `VanillaLocalInputOracle`,
+`VanillaMarkerParticlesOracle`, `VanillaPlayerSyncOracle`); the other 13
+carry additional unrelated errors. Membership identical to 26.1.1 and
+26.1.
+
+**G3 — `densityfunction` package absent from 26.1.2 (17 oracles).**
+`net.minecraft.world.level.levelgen.densityfunction` has ZERO entries in
+the 26.1.2 server-game.jar AND client.jar (verified by jar listing) — the
+`SamplerContext`/`DensityVolume` API is a 26.3 addition, not a 26.1.2 one.
+Files: `VanillaAnchorOracle` (10 errors, blocks 9 drivers),
+`VanillaBiomeGenerationOracle` (12),
+`VanillaBiomeSourceCodecOracle` (9), `VanillaBiomeSourceOracle` (10),
+`VanillaDensityOracle` (251 errors, the largest single failure),
+`VanillaFloatLogOracle` (9), `VanillaMaterialConditionOracle` (76 errors,
+blocks 5 drivers), `VanillaMaterialExtensionOracle` (12),
+`VanillaMaterialStageOracle` (26), `VanillaMaterialSurfaceOracle` (15),
+`VanillaNoiseOracle` (32), `VanillaStructureDensityOracle` (4),
+`VanillaStructurePlacementOracle` (7),
+`VanillaStructureStartOracle` (2), `VanillaTerrainOracle` (13),
+`VanillaWorldSpawnOracle` (5), `VanillaWorldgenOracle` (42). Several
+files reference the package fully-qualified
+(`…densityfunction.SamplerContext.builder()…`) rather than by import, so
+the package error hides behind a symbol first error in some files.
+`VanillaStructureDensityOracle` is unrepairable by design (it directly
+exercises the 26.3-only API; density is verified via bytecode/chunk
+comparison instead — same ruling as 1.21.7, 26.2, 26.1 and 26.1.1). The
+others need per-file translation to 26.1.2's actual density API, not
+import fixes. Membership identical to 26.1.1 and 26.1.
+
+**G4 — `EntityTypes` holder move (31 oracles; the 26.1-line group).**
+26.1.2 predates the `EntityTypes`/`BlockEntityTypes` move — registration
+still lives in `net.minecraft.world.entity.EntityType` /
+`net.minecraft.world.level.block.entity.BlockEntityType` (the 1.21.x
+shape). `EntityTypes` and `BlockEntityTypes` have ZERO entries in the
+26.1.2 server-game.jar (verified by jar listing); the constants the oracles
+want exist on the old holder instead (`EntityType.PLAYER`,
+`EntityType.CHICKEN`, `EntityType.VILLAGER`,
+`EntityType.WANDERING_TRADER` — javap-verified static finals), and
+`BlockEntityType.BED` exists (26.1.2 keeps the bed block-entity type).
+Every oracle referencing `EntityTypes.X` fails: `EntityTranscript`,
+`KnockbackClient`, `LocatorBarClient` (13 errors, blocks 8 drivers),
+`RideTranscript`, `VanillaAllayInteractionStateOracle`,
+`VanillaBlockEntityAnimOracle`, `VanillaBoatAuthorityOracle`,
+`VanillaBoatRiderOracle`, `VanillaBreezeHookOracle`,
+`VanillaDispenserOracle` (15 errors, blocks 6 drivers),
+`VanillaEntityDeathLootOracle`, `VanillaFinalizeSpawnOracle`,
+`VanillaItemModelOracle`, `VanillaLateEntityPairOracle`,
+`VanillaMenuOracle` (4 errors, blocks 4 drivers plus 2 cascades),
+`VanillaMobAiOracle`, `VanillaMobBreathingOracle`,
+`VanillaMobFallResetOracle`, `VanillaNaturalSpawnOracle`,
+`VanillaProtocolClient` (34 errors, blocks 8 drivers),
+`VanillaRegistryFallRayOracle`, `VanillaRemoteAttackOracle`,
+`VanillaSceneMotionOracle`, `VanillaShulkerBulletOracle`,
+`VanillaShulkerSpaceOracle`, `VanillaSourceSilenceOracle`,
+`VanillaSprintInputOracle`, `VanillaSquidClientOracle`,
+`VanillaTradingOracle`, `VanillaWetFireOracle`, `VanillaWorldRayOracle`
+(9 by import, 22 fully-qualified). Repair is a mechanical
+`EntityTypes.X` → `EntityType.X` holder translation per reference, but
+most files carry additional unrelated errors, so the translation alone
+rescues few outright. This group does not exist for 26.2 (26.2 already
+has the moved holder) and is the single biggest reason 26.1.2 measures
+worse than 26.2. Membership identical to 26.1.1 and 26.1.
+
+**G5 — `renderpearl` package absent from 26.1.2 (8 oracles).**
+`com.mojang.renderpearl.api.pipeline` (and `.buffers`) do not exist in
+26.1.2 — the render-pipeline API is 26.3-only (0 entries in the client
+jar). Files: `VanillaHudOracle` (34 errors), `VanillaLoomScreenOracle`
+(5), `VanillaPackScreenOracle` (13), `VanillaRecipeBookScreenOracle` (4),
+`VanillaSpriteAnimationOracle` (2), `VanillaTabListOracle` (36, also
+authlib — G7), `VanillaTranslucencyOracle` (4),
+`VanillaWorldBorderRenderOracle` (34). These need rewrites against
+26.1.2's screen/render APIs, not import fixes. Membership identical to
+26.1.1 and 26.1.
+
+**G6 — Other constructor mismatches (5 files as first error, plus
+overlaps).** `VanillaDecorationOracle` (`Feature` ctor, 4 errors —
+26.1.2's takes only `Codec<FC>`, javap-verified),
+`VanillaFallingBlockOracle` (`ChunkMap` ctor),
+`VanillaInventoryUseStartOracle` +
+`VanillaItemUseStartOracle` (`ServerChunkCache` ctor),
+`VanillaEntitySoundPacketOracle` (`MinecraftServer` ctor).
+Behind other first errors: `Gui` ctor in `VanillaHeldDropOracle` +
+`VanillaInteractionInputOracle` + `VanillaPackScreenOracle` (26.1.2's
+takes only `Minecraft`, javap-verified), `MinecraftServer` ctor in
+`VanillaBlockUpdateOracle` / `VanillaGameLoopOracle` /
+`VanillaMobAiOracle` / `VanillaRedstoneCatalogOracle` /
+`VanillaSculkOracle` / `VanillaTradingOracle`,
+`ServerChunkCache`/`ChunkMap` in `VanillaNaturalSpawnOracle` (both at
+once, plus `EntityTypes` — G4) and `VanillaBlockUpdateOracle`,
+`DedicatedServer` ctor in `VanillaMenuOracle` /
+`VanillaNaturalSpawnOracle`, `PerlinNoise`/`SimplexNoise` ctors in
+`VanillaDensityOracle` / `VanillaNoiseOracle` (both G3), and two
+packet/effect ctor forms — `ServerboundAcceptTeleportationPacket` in
+`SecureChatClient`, `TeleportRandomlyConsumeEffect` in
+`VanillaTeleportConsumeOracle`. `VanillaGameLoopOracle` additionally
+fails on a `CommandSourceStack` constructor form. Each is a
+one-signature translation against the 26.1.2 jar.
+
+**G7 — Other missing packages (9 oracles).**
+`net.minecraft.world.level.levelgen.material.rule` does not exist in
+26.1.2 (the 26.3 material-system package, 0 jar entries):
+`VanillaBiomeGenerationOracle` (12 errors), `VanillaMaterialStageOracle`
+(26), `VanillaTerrainOracle` (13) as first error, plus
+`VanillaAnchorOracle` and `VanillaMaterialConditionOracle`, which also
+import it (all five also G3). The 26.3 advancements packages do not exist
+in 26.1.2 — only `advancements/criterion` does (verified by jar listing):
+`ComponentWireCapture` (`advancements.predicates.StatePropertiesPredicate`,
+1 error), `VanillaEntityComponentsOracle`
+(`advancements.predicates.entity`, 3 errors), `VanillaRaidOracle`
+(`advancements.triggers`, 11 errors). `VanillaTabListOracle` (36 errors)
+imports `com.mojang.authlib.services`, absent from authlib 7.0.63 (0
+entries in the library jar); and `VanillaTickScript` (19 errors) imports
+`org.lwjgl.sdl`, absent from the 26.1.2 libraries (no lwjgl-sdl jar;
+lwjgl 3.4.1 has no `org/lwjgl/sdl`). Each needs per-file investigation
+against the 26.1.2 jar/libraries.
+
+**G8 — The long tail (91 files after the groups above, G10, the G7
+advancements/sdl files and the cascades are set aside: 57 missing-symbol +
+20 no-override + 5 constructor-mismatch + 6 other + 3
+incompatible-types).** Per-API translation, verified against the 26.1.2
+jar per file. 37 of the 91 have exactly 1 error. The cheapest high-leverage
+single repair in the whole batch is here: `VanillaFaceSupportOracle` — 1
+error (`CubeVoxelShape(DiscreteVoxelShape)` has protected access in
+26.1.2 — javap-verified), blocking 19 drivers, plus 5 cascade oracles
+depend on it. `VanillaRegistryCollisionScanOracle` (8 drivers, 1 error),
+`ParityFont` (8 drivers, 1 error — same cheapest-repair as 26.2, 26.1 and
+26.1.1), `VanillaSuffocationOracle` (7 drivers, 2 errors) and
+`VanillaCollisionContextOracle` (5 drivers, 1 error) are the other
+one-error blockers. `VanillaBlockUpdateOracle` (32 errors, 6 drivers)
+anchors 5 cascade oracles. Notable single-file causes in the tail:
+`VanillaFirstPersonOracle` (26.3-only `FirstPersonHandsAndItems`, 0
+entries in the client jar — plus G10, see below),
+`VanillaItemModelOracle` (`ResourceManager.Selector`, `ItemQuads` — both
+0 entries; `MaterialInfo.shadeDirectionOverride()`,
+`BundleContents.asMutable()` — no such method in 26.1.2, javap-verified;
+`MaterialBaker` is an interface in 26.1.2, not a class —
+`MaterialBaker is abstract; cannot be instantiated` at line 379),
+`VanillaPackResourcesOracle` (`PackResources.forEach` absent in 26.1.2 —
+1 error; the interface has only `getResource`/`listResources`,
+javap-verified), `VanillaStructurePlacementOracle` /
+`VanillaStructureStartOracle` / `VanillaWorldSpawnOracle`
+(`RandomState.create(Registry<NoiseParameters>, long,
+NoiseGeneratorSettings)` — no such overload in 26.1.2; its two `create`
+overloads take a `HolderGetter.Provider` + settings key, or settings +
+`HolderGetter<NoiseParameters>`, javap-verified).
+
+**G9 — Cascades (16 oracles).** Clean files failing only via a broken
+helper: via `VanillaFaceSupportOracle` (5) —
+`VanillaBlockCollisionScanOracle`, `VanillaDynamicSupportOracle`,
+`VanillaEntityCollisionOracle`, `VanillaPistonShapeOracle`,
+`VanillaWorldBorderOracle`; via `VanillaBlockUpdateOracle` (5) —
+`VanillaEnchantDurabilityOracle`, `VanillaFurnaceOracle`,
+`VanillaHelmetDamageOracle`, `VanillaOpenedLootOracle`,
+`VanillaPortalOracle`; via `VanillaMenuOracle` (2) —
+`VanillaPlaceRecipeOracle`, `VanillaRecipeBookOracle`; via
+`VanillaAnchorOracle` (1) — `VanillaHeightProviderOracle`; via
+`VanillaSoundEventOracle` (2, chained) — `VanillaSoundRig`, then
+`VanillaMusicOracle` via `VanillaSoundRig`; via
+`VanillaTextDisplayOracle` (1) — `VanillaTextDisplayTransformOracle`.
+These pass for free once their helpers are repaired — do not schedule
+them separately. (26.1 had 17 cascades; `VanillaBrewingOracle` is no
+longer one — it now has 14 own errors, G10. 26.1.1 had the same 16.)
+
+**G10 — Re-ported 26.3-form oracle sources (17 files; inherited
+unchanged from 26.1.1).** The 26.1.2 tree inherits the 26.1.1 tree's
+19 re-ported oracle files wholesale — the 26.1.1→26.1.2 delta touches
+no oracle file (coordinator Step 0; verified: `diff -rq` over the
+parity dirs is empty) — so all 17 files that failed new or worse in
+26.1.1 vs 26.1 fail identically here, with identical error counts
+(proven by the zero-deviation diff, below):
+
+- 9 newly failing (vs 26.1): `VanillaBasicFeatureOracle` (2 errors),
+  `VanillaBiomePlacementOracle` (8), `VanillaBlockTransformerOracle` (3),
+  `VanillaBrewingFuelOracle` (8), `VanillaFeaturePlacementOracle` (3),
+  `VanillaFeatureSortOracle` (1), `VanillaFillLayerOracle` (1),
+  `VanillaReplaceBlockOracle` (1), `VanillaScatteredOreOracle` (1).
+- 7 with error-count growth (vs 26.1): `VanillaBrewingOracle` (cascade →
+  14 own errors), `VanillaDecorationRegionOracle` (5 → 6),
+  `VanillaFeatureCatalogOracle` (5 → 11), `VanillaFeatureGraphOracle`
+  (3 → 4), `VanillaFeatureRegionOracle` (7 → 10),
+  `VanillaFirstPersonOracle` (11 → 20), `VanillaTreeFeatureOracle`
+  (8 → 11).
+- 1 new file (vs 26.1): `VanillaSteppedInterpolationOracle` (16 errors),
+  replacing the passing `VanillaInterpolationOracle` (the driver
+  `test_interpolation_parity.py` was likewise replaced by
+  `test_stepped_interpolation_parity.py`, plus a new
+  `test_inline_feature_parse_parity.py` — net +1 driver, 648 vs 647;
+  both drivers are present in the 26.1.2 tree, the old one absent).
+
+The re-port signature is the 26.3 unconfigured-Feature form:
+`Feature.DIRECT_CODEC` (absent from 26.1.2 — only
+`ConfiguredFeature.DIRECT_CODEC` exists, javap-verified), no-arg
+`new Feature()` (26.1.2's `Feature` takes only `Codec<FC>`), the 4-arg
+`place(WorldGenLevel, ChunkGenerator, RandomSource, BlockPos)` (26.1.2's
+abstract `place` takes `FeaturePlaceContext`), and `FeaturePlacer`-based
+placement. The non-Feature re-ports use 26.3-only APIs throughout:
+the `BrewingFuel` component (0 jar entries),
+`net.minecraft.core.component.BlockTransformer`, the
+`BrewingInput`/`BrewingRecipe`/`PotionIngredient`/`RecipePropertySet`
+crafting APIs, `PositionAndRotation` (0 jar entries, in
+`VanillaSteppedInterpolationOracle`), and `LivingEntity.SwingState`
+(0 jar entries, in `VanillaFirstPersonOracle`, which also uses the 26.3
+boolean `swing(InteractionHand, SwingAnimation, boolean)` — 26.1.2's
+`LivingEntity` has only `swing(InteractionHand)` and
+`swing(InteractionHand, boolean)`, javap-verified). The 26.1-adapted
+forms are the repair template for all 17 — e.g. 26.1's
+`VanillaBrewingFuelOracle` documents "26.1 has no `brewing_fuel`
+component: fuel is any item in the tag, 20 uses, and the brew time is a
+flat 400 ticks", and 26.1's `VanillaBlockTransformerOracle` documents
+"26.1 has no block_transformer registry". One re-ported file still
+compiles: `VanillaSimpleBlockOracle` (its `CONFIGURED_FEATURE` →
+`FEATURE` registry change passes on all cps).
+
+26 oracles are never referenced by any driver; 8 of them fail on all
+three classpaths (`ComponentWireCapture`, `EntityTranscript`,
+`OfflineLanHost`, `RideTranscript`, `VanillaLootFillOracle`,
+`VanillaMover`, `VanillaSceneMotionOracle`,
+`VanillaStructurePlacementOracle`) — the same 8 as 26.1.1 (unlike 26.1,
+where all 18 never-referenced oracles passed). Three of the eight are
+referenced by non-driver scripts (`OfflineLanHost` in
+`tools/vanilla_client.py`, `RideTranscript` in
+`tools/cart_portal_player_e2e.py`, `VanillaMover` in
+`tools/anticheat_e2e.py`); `EntityTranscript` appears only in a comment
+in `test_server_entities_parity.py`. The other four have no reference
+anywhere in `tools/`.
+
+## Driver impact
+
+Driver→oracle map built by parsing all 648 drivers (`.java` basenames +
+oracle-name string literals passed to `oracle_harness`). Each driver's
+oracle set was checked against the classpath its own path uses
+(oracle_harness → both, direct `jars['server']` → server, client jar →
+client, both jars → both). 20 drivers reference an oracle without a
+detectable classpath (they compile via a shared `vanilla.compile(...)`
+helper); those were judged against the `both` superset — 14 blocked, 6
+runnable.
+
+| Driver state | Drivers |
+|---|---|
+| **Blocked: ≥1 oracle fails to compile under its path's cp** | **231** |
+| Oracles compile under their path's cp (can yield a measurement when run) | 163 |
+| No oracle reference (server-e2e, data-only, wrappers) — not oracle-blocked | 254 |
+| **Total** | **648** |
+
+- 417 drivers have no oracle blocker (163 + 254), vs 417 for 26.1.1
+  (identical), 426 for 26.1 (173 + 253) and 509 for 26.2 (248 + 261)
+  and 321 for 1.21.7 pre-repair (67 + 254). The 254 no-oracle drivers
+  were never oracle-blocked, but that does not mean they pass: they run
+  real servers / the game / data diffs and have their own failure modes.
+- Blocked by classpath: server 111, both 77, client 29, no-flag
+  (judged on both) 14. Identical to 26.1.1.
+- The highest-leverage repairs are shared helpers: `VanillaFaceSupportOracle`
+  blocks 19 drivers (1 error — cheapest), `VanillaAnchorOracle` 9
+  (10 errors, densityfunction — G3), `VanillaRegistryCollisionScanOracle`
+  8 (1 error), `VanillaProtocolClient` 8 (34 errors),
+  `ParityFont` 8 (1 error), `LocatorBarClient` 8 (13 errors),
+  `VanillaSuffocationOracle` 7 (2 errors), `VanillaDispenserOracle` 6
+  (15 errors, EntityTypes — G4), `VanillaBlockUpdateOracle` 6
+  (32 errors, plus 5 cascades), `VanillaMaterialConditionOracle` 5
+  (76 errors, densityfunction — G3), `VanillaCollisionContextOracle` 5
+  (1 error). Fixing the top few one-error helpers unblocks ~50
+  driver-oracle pairs (overlaps exist).
+- Compiling ≠ running: the 163 "runnable" drivers are runnable by
+  javac only. No driver was run in this batch (scope decision above),
+  so the runtime-failure layer the 1.21.7 sample found (a compiling
+  oracle throwing NPE at runtime) is unmeasured for 26.1.2. Every
+  repaired oracle needs an end-to-end driver run to confirm it yields
+  a measurement.
+
+## The 9-harness check (1.21.7's table, re-measured for 26.1.2)
+
+Of the 9 harnesses the 1.21.7 plan (§2) records as dying on oracle javac
+failures in CI run 44441686979, **6 pass on at least one classpath for
+26.1.2 at measurement time; 3 fail on all three and need repair before
+their drivers can run** (same 6/3 split as 26.1.1 and 26.1; for 26.2 all
+9 passed):
+
+| Harness | Oracle | 26.1.2 status |
+|---|---|---|
+| chunk_generation | VanillaChunkGenerationOracle | **PASS** (all cps) |
+| command_exec | VanillaCommandExecOracle | **PASS** (all cps) |
+| component_patch | VanillaComponentPatchOracle | **PASS** (all cps) |
+| datafix | VanillaDataFixOracle | **PASS** (all cps) |
+| first_person | VanillaFirstPersonOracle | **FAIL** (all cps; client 20 errors, same as 26.1.1: 26.3-only `FirstPersonHandsAndItems` (import at line 14; field refs at 242–245, 280, 378), `LivingEntity.SwingState` (field refs at 246–248, 278, 358), LocalPlayer ctor (151), 3 no-override (123, 161, 166), `swing(InteractionHand,SwingAnimation,boolean)` (162), `itemUsed(InteractionHand)` (168), `getCurrentSwing()` (383), `getSwingAnimation(...)` (386)) |
+| food | VanillaFoodOracle | **PASS** (all cps) |
+| item_model | VanillaItemModelOracle | **FAIL** (all cps; client 10 errors: EntityTypes, `ResourceManager.Selector`, `ItemQuads`, `shadeDirectionOverride()`, `createWorldLookup()`, `MaterialBaker` interface, `asMutable()`) |
+| options | VanillaOptionsOracle | **PASS** (client + both; server fails on client packages — expected) |
+| resource_pack | VanillaPackResourcesOracle | **FAIL** (all cps; client 1 error: `PackResources.forEach` absent in 26.1.2) |
+
+For 1.21.7, 8 of these passed only AFTER Batch 0 repairs and `options`
+still failed. For 26.1.2 the `command_parse`/`command_exec`/`food`/
+`component_patch` drivers — the ones that yielded the 1.21.7 sweep's
+first real parity measurements — are oracle-clean from the start, but
+`first_person`, `item_model` and `resource_pack` are not: the
+`resource_pack` failure is a single missing method (cheapest of the
+three), while `first_person` and `item_model` need per-API translation
+against 26.1.2's client classes.
+
+## Comparison against the 26.1.1 table
+
+The oracle sources are identical between the 26.1.1 and 26.1.2 trees
+(no oracle files in the 34-file delta — coordinator Step 0; verified
+here by `diff -rq` over the parity dirs: no output), and the
+26.1.1→26.1.2 jar delta is small. The measured table was diffed against
+`26.1.1/batch-0-oracles.json` file by file on every field (server /
+client / both status, first-error class, first-error message, error
+count):
+
+**Deviations: ZERO.** All 391 files match on all six fields. No file
+fails new, none passes new, no error-count change, no changed first
+error. The headline counts (158/189/189 pass; 202 fail-all), the
+per-classpath failure-class histograms, the error totals (4,286 server /
+1,391 client), the error distribution (median 3, p90 14, max 251, 55
+one-error files), the driver split (231/163/254) and the 9-harness
+verdicts are all identical to 26.1.1's.
+
+The jar delta explains why (verified by a class-bytes hash diff of the
+26.1.1 vs 26.1.2 jars, `evidence/jar-delta-26.1.1-26.1.2.log`):
+
+- No class added or removed in either jar (client 10,682 classes,
+  server-game 7,351 classes, both counts unchanged).
+- Changed class files: 8 in the client jar, 3 in the server-game jar —
+  8 distinct files, 5 top-level classes: `DetectedVersion`,
+  `SharedConstants` (version stamps), `Checkbox` (+ `Builder` and
+  `OnValueChange` inner classes), `AbstractReportScreen` (+
+  `DiscardReportWarningScreen` inner class), and
+  `ServerGamePacketListenerImpl` (in both jars).
+- Public-API diff (`javap`, and `javap -p` for all members) of the
+  three non-stamp classes: `AbstractReportScreen`,
+  `ServerGamePacketListenerImpl` and both `Checkbox` inner classes are
+  member-identical; the ONLY member-level change in the whole delta is
+  in `Checkbox`: one added `private static final int ROWS` field and
+  one added `private boolean overflowsRowLimit(Font)` method — both
+  private, invisible to oracles. All other changed bytes are method
+  bodies. (Counting note: the common brief describes the delta as "6
+  changed classes (5 methods changed, 1 method and 1 field added)";
+  measured here as 8 changed class files / 5 top-level classes. The
+  substance agrees — the added method + field are exactly the two
+  private `Checkbox` members — only the class counting differs, by
+  whether inner classes are counted separately.)
+- No oracle references `Checkbox` or `AbstractReportScreen` (grep over
+  the parity dir: no hits). Several oracles DO reference
+  `ServerGamePacketListenerImpl` (`VanillaAttributeUpdatesOracle`,
+  `VanillaCommandExecOracle` — including a reflective
+  `getDeclaredField("ackBlockChangesUpTo")` at line 898,
+  `VanillaDamageImmunityOracle`, `VanillaDispenserOracle`,
+  `VanillaEffectNotificationsOracle`, …) — all unaffected, since that
+  class's members are identical between the two jars.
+
+Consequence: there is NO O9-style "fails new or worse" group for this
+run — O9 is the inherited re-port group (G10 above), unchanged. The
+26.1.1 Batch 0 table stands as the oracle authority for 26.1.2 with no
+corrections.
+
+## Driver defects found (Batch 0 scope)
+
+1. **`client_libraries()` omits jsr305 — javac can crash (latent).**
+   `versions/26.1.2/tools/test_model_baking_parity.py:client_libraries()`
+   (lines 58–68) builds the client classpath from the manifest only;
+   it does not append `tools/jsr305-3.0.2.jar`. No `tools/*.py` file in
+   the 26.1.2 tree mentions jsr305 at all. The 1.21.7 Batch 0 fix
+   for the identical defect (`d7a14e91`) is NOT in the 26.1.2 tree
+   (same gap as 26.1, 26.1.1 and 26.2). Without jsr305, javac crashes
+   (`CompletionFailure: class file for javax.annotation.Nullable not
+   found`, rc=4) when compiling an oracle that completes a
+   `Nullable`-referencing symbol — a latent crash across the
+   oracle_harness drivers, not a deterministic one. The measurement
+   adds jsr305 itself, so this did not affect the numbers above. Fix
+   direction (follow-up, not this batch): append jsr305 in
+   `client_libraries()` — one point, fixes all users. (Compounding
+   note: `tools/jsr305-3.0.2.jar` does not even exist in the 26.1.2
+   tree — it had to be copied in from the 1.21.7 tree for this
+   measurement; see Headline. The `client_libraries()` fix and the
+   missing jar are two halves of the same gap.)
+2. **`.local/minecraft/26.1.2/` did not exist in any worktree** (same gap
+   as the 1.21.7 pilot's blocker, 26.2's, 26.1's and 26.1.1's). Resolved
+   — see §6. No driver could run VM-local before this.
+
+## `.local/minecraft/26.1.2/` setup (recipe for later batches)
+
+`verify_artifacts()` needs `manifest.json` (pinned sha1), `jars/client.jar`
++ `jars/server.jar` (manifest sha1s or `remapped.json` digests), the inner
+`jars/server-game.jar` (bundle checksum or `remapped.json`), and
+`libraries/server/` + `libraries/client/` (sha-verified). No worktree had
+it; unlike 26.2 (which reused a complete prepared directory from the port
+work), 26.1.2 was built fresh from the research jars with `lab.py prepare`.
+Unlike 26.1.1 (which needed a fetch script to assemble a launcher-style
+source dir), the 26.1.x version store already holds a complete one for
+26.1.2 (`~/workspace/mcir-work/26.1.x/versions/26.1.2/launcher/`, with
+`versions/26.1.2/26.1.2.jar` sha1-verified against the pin and 60 client
+library jars), so no download was needed for the game files:
+
+```sh
+cd ~/workspace/mcir-work/sweep-26.1.2/versions/26.1.2
+python3 tools/lab.py prepare --minecraft-dir ~/workspace/mcir-work/26.1.x/versions/26.1.2/launcher --server-jar ~/workspace/mcir-work/26.1.x/versions/26.1.2/jars/server.jar
+python3 -c "import sys; sys.path.insert(0,'tools'); import test_rust_parity as t; t.verify_artifacts(); print('GATE OK')"
+```
+
+`lab.py prepare` imports the client + server, unpacks `server-game.jar`
++ the server libraries FROM the bundler jar, downloads vineflower, and
+writes `prepared.json` + `reports/` — no remap stage runs, because the
+26.1.2 version manifest's `downloads` has only client+server (no mappings).
+Vineflower 1.12.0 was pre-seeded into `.local/tools/` from the 26.1.1 run
+(sha256-verified, so `download()` skipped the network fetch). The prepare
+ran in 36 s, exit 0. Result (226 MB): named client jar (10,682 classes,
+92,528 methods) + named inner server jar (7,351 classes, 68,401
+methods), 39 server + 60 client libraries, `manifest.json` sha1
+`4e618f09…` (client) / `97ccd4c0…` (server, the pinned ones in
+research-lock.json). Verified: the gate passes. Never commit `.local`.
+
+## Prepared-data setup (for Batch 9 and the B3-G22 re-check)
+
+Prepared 26.1.2 **minecraft** data now exists (see §6 above, built by
+this batch in the sweep worktree). Prepared 26.1.2 **horizon-client**
+data does NOT exist anywhere on this VM:
+
+- `versions/26.1.2/.local/` in the sweep worktree holds only
+  `minecraft/26.1.2/`, `measure-oracles/` and `tools/` — no
+  `horizon-client/` dir.
+- `~/workspace/mcir-work/26.1.x/ports/26.1.2/.local/` (the port's
+  workdir) holds `minecraft/26.1.2/`, `datagen/`, `port-regen/` and
+  `tools/` — no `horizon-client/` dir.
+- The 26.1.x version store (`26.1.x/versions/26.1.2/`) holds jars,
+  launcher data, sources and datagen — no horizon-client data.
+- The 26.1.1 sweep worktree's `.local/horizon-client/26.1.1/` (190 MB)
+  is version-specific and cannot substitute for 26.1.2 data.
+
+What Batch 9's `command_parse` run needs, and what is present:
+
+| Need | Present? |
+|---|---|
+| Prepared minecraft data (`.local/minecraft/26.1.2/`, gate OK) | YES (built by this batch) |
+| `VanillaCommandExecOracle` / command_parse oracles compile | YES (9-harness: command_exec PASS on all cps) |
+| Prepared horizon-client data (`.local/horizon-client/26.1.2/`) | NO — must be built (below) |
+| Built `client_probe` binary (`cargo build --locked -p horizon-client-lib --example client_probe`) | NO — only `cargo check` was run (H01); a full probe build is Batch 9's job (CI-or-quiet-window under this VM's memory budget) |
+
+What the B3-G22 re-check (client loading its core tables with prepared
+26.1.2 data) needs: the same `.local/horizon-client/26.1.2/` directory
+(registries, items, movement-properties, landing-definitions, …) plus a
+built client. It cannot run until the prepare below completes.
+
+Exact commands to produce the missing data (mirroring the 26.1.1 run,
+which completed in 93.1 s on a quiet VM after a transient first-run
+failure — see the caution below):
+
+```sh
+cd ~/workspace/mcir-work/sweep-26.1.2/versions/26.1.2
+# Build horizon-prepare (taskset -c 0, -j 1; the 26.1.1 build took 3m27s):
+RUSTUP_HOME=~/workspace/tools/rustup CARGO_HOME=~/workspace/tools/cargo \
+  PATH=~/workspace/tools/jdk-25/bin:~/workspace/tools/cargo/bin:$PATH \
+  taskset -c 0 cargo build --locked -j 1 -p horizon-prepare --release
+# Run it against the prepared minecraft data:
+./target/release/horizon-prepare --minecraft-dir .local/minecraft/26.1.2
+# Then check for the expected asset-store gaps only:
+./target/release/horizon-prepare --check
+```
+
+Caution (from the 26.1.1 run): the FIRST horizon-prepare run failed at
+2m20s in "Exporting movement and attributes" (`Exporter
+VanillaBlockLandingOracle failed:
+"java.lang.reflect.InvocationTargetException"`, with an empty
+`.local/horizon-client-motion/export.log`) — a transient: it ran
+concurrently with the javac big-compiles, and the oracle itself compiles
+cleanly on all three classpaths. The retry, on a quieter VM, completed
+in full. If a later batch hits the same `InvocationTargetException`
+with an empty export log, retry before assuming a real exporter defect.
+Expected gaps after a successful run (26.1.1 precedent — verify fresh
+for 26.1.2, do not assume): panorama, fonts, packs and the languages
+import are skipped without the official launcher's asset index, and
+sounds need the separate `horizon-prepare sounds` step; `lang/en_us.json`
+still arrives via the client-jar asset copy, so do NOT claim lang files
+are missing — only `sounds.json` is genuinely absent. This batch did
+NOT run horizon-prepare (its own work needed only the minecraft data),
+so none of the above is verified for 26.1.2 yet.
+
+## What the numbers mean
+
+- Batch 0's repair load is **202 files**, identical to 26.1.1 — and the
+  profile is identical too (median 3 errors; 55 one-error files; p90 14;
+  max still 251). There is no new vanilla drift to explain: the
+  26.1.1→26.1.2 jar delta changes no public API, and the oracle sources
+  are byte-identical. The 26.1-adapted oracle forms remain the repair
+  template for the 17 G10 files — the fix is a re-adaptation, not new
+  API research. Two mechanical groups (G2 LocalPlayer ctor, 20 files
+  with 7 single-cause; G1 fuelValues, 4 files) rescue files with two
+  signature translations. The densityfunction (G3, 17 files) and
+  renderpearl/material.rule (G5, G7) groups are the genuinely hard
+  ones: 26.3-only APIs with no 26.1.2 equivalent to translate to
+  import-by-import — those oracles need rewrites against 26.1.2's
+  actual APIs (or, for StructureDensity, stay unrepaired by design).
+- Sequencing for batches 3–12: the 163 oracle-clean drivers can run
+  once their probes build (and once Batch 9's prepared horizon-client
+  data exists — see above); the 231 blocked drivers wait on Batch 0
+  repairs, shared helpers first (`VanillaFaceSupportOracle` unblocks
+  19 drivers with a 1-error repair; `ParityFont` and
+  `VanillaRegistryCollisionScanOracle` 8 each, also 1 error). The 254
+  no-oracle drivers were never oracle-blocked. In practice this sweep's
+  batches run statically (javap + source + data) and record driver
+  runs as follow-up needs — the VM's 6 GB budget under multi-agent load
+  makes probe builds (client_probe OOMs single-threaded) a CI-or-quiet-
+  window job, not a sweep-batch job.
+- The 26.1.2-vs-26.3 API deltas this measurement exposes are themselves
+  sweep input: the `EntityTypes`/`BlockEntityTypes` holder move (26.1.2
+  still registers on `EntityType`/`BlockEntityType`, and keeps the bed
+  BE type), `Level.fuelValues()` (abstract in 26.1.2), the
+  `LocalPlayer`/`Gui`/`ServerChunkCache`/`ChunkMap`/`MinecraftServer`/
+  `Feature` constructor forms, the absence of the `densityfunction`,
+  `renderpearl` and `material.rule` APIs, the advancements
+  `predicates`/`triggers` packages (26.1.2 has only `criterion`), the
+  `RandomState.create` overloads, the `ConfiguredFeature` form (26.1.2
+  has no `Feature.DIRECT_CODEC`, no-arg `Feature()` or 4-arg `place`),
+  the absence of the `BrewingFuel`/`BlockTransformer` components and of
+  `LivingEntity.SwingState`, and the `MaterialBaker` /
+  registry-lookup abstract methods. Family batches should check the
+  port's Rust against 26.1.2's forms of these, not 26.3's.
+
+## The client_probe check (H01)
+
+**Verdict: H01 does NOT reproduce in 26.1.2 — `client_probe` compiles
+with the two probe lines present. No edit was made; the probe file is
+unmodified.**
+
+In 26.1, `client_probe` failed to compile with E0560:
+`game_loop_probe.rs` initialised `FrameContext` fields `focused` and
+`exclusive_fullscreen` that 26.1's `FrameContext` does not have, so the
+two lines had to be deleted. 26.1.2's `FrameContext`
+(`crates/horizon-client-input/src/window.rs:56-66`) keeps the 26.3 form,
+with `pub focused: bool` (line 59) and `pub exclusive_fullscreen: bool`
+(line 60), so the same two lines are valid initialisers here — the
+26.1.2 port inherits this code from the 26.1.1 re-port, as it did the
+19 oracle files (see Headline). The probe source is byte-identical to
+26.1.1's (`cmp` over `game_loop_probe.rs` and over `window.rs`: no
+output), and `crates/horizon-client-lib/` is byte-identical too. The
+PORT-NOTES-26.1.2.md:50 "now-building `client_probe`" claim is true.
+
+Check (2026-11-25):
+
+```
+cd versions/26.1.2
+RUSTUP_HOME=~/workspace/tools/rustup CARGO_HOME=~/workspace/tools/cargo \
+  PATH=~/workspace/tools/jdk-25/bin:~/workspace/tools/cargo/bin:$PATH \
+  taskset -c 0 cargo check --locked -j 1 -p horizon-client-lib --example client_probe
+```
+
+Note the package: the `client_probe` target is declared in
+`crates/horizon-client-lib/Cargo.toml:200-202` (path
+`../horizon-client/examples/probe/main.rs`), not in
+`horizon-client/Cargo.toml`; this is the selection the harnesses use
+(`tools/oracle_harness.py:38` runs `cargo build --locked -p
+horizon-client-lib --example client_probe`).
+
+- Before-state: `crates/horizon-client/examples/probe/game_loop_probe.rs:159-160`
+  still read `focused: b(&c["focused"]),` and
+  `exclusive_fullscreen: false,` — unmodified.
+- First run (`evidence/client-probe-check.log`): started on a cold
+  `target/` and killed after ~5 min (it had reached only
+  `Compiling syn v2.0.119`) to seed the cache: the 26.1.1 worktree's
+  warm `target/` (4.5 GB) was rsynced in (`--ignore-existing`, 108 s).
+  Cargo fingerprinting governs reuse — stale absolute paths in the
+  rsynced dep-info force rebuild where needed — and the verdict below
+  rests on artifacts rewritten during the 26.1.2 run itself, not on
+  reused ones.
+- Second run (`evidence/client-probe-check2.log`): EXIT=0 in 10m 38s,
+  no errors (only the 6 dead-code warnings from `horizon-protocol`
+  already present in the tree). The log's last unit is
+  "Checking horizon-client-lib": cargo displays an example unit's
+  status line under its package name, so no "Checking client_probe"
+  line ever appears — the example compile is evidenced by its
+  rewritten artifacts, not by a log line. The example's
+  `target/debug/examples/libclient_probe-7f5c9e82df826d1b.rmeta`
+  (19:20:18 UTC), its dep-info (19:20:20 UTC) and its fingerprint
+  (`.fingerprint/horizon-client-lib-7f5c9e82df826d1b/example-client_probe*`,
+  19:20:37 UTC) were all rewritten during this run's final minute,
+  proving rustc compiled the example from the current 26.1.2 sources
+  with both lines present.
+- Forced recheck (`evidence/client-probe-check3-forced.log`):
+  `game_loop_probe.rs` was touched (mtime only, no content change —
+  `cmp` against 26.1.1's copy still clean afterwards) to dirty the
+  example unit and the check re-run — EXIT=0 in 9.01s, no errors, and
+  the example artifacts were rewritten again (19:21:07–19:21:08 UTC).
+- After-state: compiles. No lines deleted, no edit, no slice.json item —
+  H01 is closed for 26.1.2 and blocks no harness here. (`cargo build`
+  of the probe binary itself, with codegen, was not run: the check
+  verdict is what H01 asks, and a full probe build is Batch 9's job —
+  a CI-or-quiet-window job under this VM's memory budget.)
+
+## Per-oracle table
+
+`docs/sweep/26.1.2/batch-0-oracles.json` — all 391 files: pass/fail per
+classpath, first-error class + message + error count for failures. Raw
+big-compile logs (4,286 server-cp / 1,391 client-cp errors) are in the
+measuring workdir's `.local/measure-oracles/` and copied to the batch's
+evidence dir (regenerable with `docs/sweep/measure-oracles.py`).
