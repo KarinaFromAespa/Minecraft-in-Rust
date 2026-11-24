@@ -28,7 +28,8 @@ const UP: isize = super::step_index([0, 1, 0]);
 /// For the occlusion face toward `direction`: the height from the bottom over
 /// which its slice flush with the `direction` side covers the whole width
 /// (vertical faces: 1 when the whole square is covered, else 0). This is what
-/// `Shapes.blockOccludes` decides for a fluid box of a given height.
+/// `Shapes.blockOccudes` decides for a fluid box of a given height (spelled
+/// `blockOccludes` from 1.21.5, when the typo was fixed).
 pub(super) fn coverage(shape: &VoxelShape, direction: Direction) -> f32 {
     let (axis, u, v) = match direction {
         Direction::Down | Direction::Up => (Axis::Y, Axis::X, Axis::Z),

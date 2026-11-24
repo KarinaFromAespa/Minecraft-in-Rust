@@ -1585,3 +1585,69 @@ shape for the review batches.
   properties loop) are API-only with identical behaviour. Lib check
   green (EXIT 0, 2m06s); --tests check green (EXIT 0, 3m08s).
   Both edited leaf files rustfmt-clean. Rank 2: 80/348.
+  Batch 14 (items 34 + 35 + 36). Item 34 (animate_tick.rs):
+  PORTED. The ambient desert sound system does not exist in 1.21.4
+  (no AmbientDesertBlockSoundsPlayer in the client jar, no desert
+  sound tags in 1.21.4 data, no DryGrass blocks, DeadBushBlock has
+  no animateTick, block.sand.idle in neither sounds.json) — removed
+  wholesale, not carried: Animate::Falling loses its sand flag,
+  the DeadBush/DryGrass variants and their tick arms are gone, the
+  desert_sand_sounds / desert_dry_vegetation_sounds / terracotta
+  tables are gone, sand_sound_nearby and
+  desert_dry_vegetation_sounds are gone, and block_animate_tick
+  loses its orphaned player param (the DryGrass arm was its only
+  user). Neither tree's form was right for 1.21.4 (the 1.21.4 tree
+  carried the 1.21.6 three-tag system, the 1.21.5 tree the 1.21.5
+  single-tag one). NO-CHANGE: the SoundSource AMBIENT-vs-BLOCKS
+  differences (eyeblossom, hanging moss, lava/water fluids) are
+  unobservable — sound() carries no category; Eyeblossom
+  tryChangingState is unmodelled (1.21.5 uses
+  CreakingHeartBlock.isNaturalNight, 1.21.4 ServerLevel.isDay with
+  the open-check inverted); leaf drip (LeavesBlock
+  #makeDrippingWaterParticles, missing-new) is unmodelled; lava/
+  water entityInside lives in entities.rs/fluids.rs, not here.
+  ROUTED to item 80: the lava randomTick fire gate — 1.21.4 has
+  only doFireTick, no RULE_ALLOWFIRETICKAWAYFROMPLAYERS, and the
+  Rust models no doFireTick at all (can_spread_fire_around gates
+  only on the nonexistent fire_spread_radius_around_player rule,
+  default -1 = always); item 82 owns the fire tick's shared gate.
+  Item 35 (mesher/fluid.rs): NO-CHANGE, comment-only. The only
+  named method is Shapes#blockOccludes [missing-new], which is
+  1.21.4 Shapes#blockOccudes renamed (the typo was fixed in
+  1.21.5) — 1.21.4 LiquidBlockRenderer.isFaceOccludedByState calls
+  blockOccudes with the same logic (empty-shape and full-block
+  shortcuts, fluid box vs face occlusion shape). The Rust's
+  coverage() implements the test directly from shape boxes; only
+  its doc comment named the 1.21.5 spelling. Item 36 (arrows.rs):
+  PORTED. (1) The computeMargin ramp is removed — flat
+  ENTITY_HIT_MARGIN (0.3) from the first tick; computeMargin
+  exists in neither jar (routed from batch 11). (2) The
+  powder-snow fire clear is carried: 1.21.4 applyEffectsFromBlocks
+  extinguishes via isInPowderSnow, which the arrow's
+  apply_block_effects does not model (Extinguish only for water),
+  so a direct is_powder_snow(state) arm is added. (3) The
+  contain-check no longer zeroes velocity — setDeltaMovement(ZERO)
+  after setInGround is a 1.21.5 addition; 1.21.4 only sticks (the
+  in-ground branch returns before any move, so the retained
+  velocity is inert until the arrow falls out). (4)
+  is_pushed_by_fluid now always returns true — AbstractArrow has
+  no override in 1.21.4 (the !isInGround override is 1.21.5);
+  behaviourally a no-op today, since the stuck-arrow tick returns
+  before the fluid tick. (5) The bubble column: the gate is
+  isAir above (1.21.4), not the 1.21.5 collision-shape/fluid
+  gate, and the velocities are clamped per onAboveBubbleCol
+  (drag max(-0.9, vy-0.03), lift min(1.8, vy+0.1)) and
+  onInsideBubbleColumn (drag max(-0.3, vy-0.03), lift min(0.7,
+  vy+0.06), fall reset). (6) The FireIgnite comment is carried
+  (the inline entityInside form; igniteForTicks is a max, matching
+  the Rust). NO-CHANGE verified: EnderMan hurtServer (the
+  ThrownPotion class rename only); the arrow save/load forms match
+  1.21.4's manual NBT (pickup byte ordinal, damage an
+  unconditional double, SoundEvent a registry-key string, item/
+  weapon via save, item falling back to getDefaultPickupItem);
+  ARROW_HIT_PLAYER is already the 1.21.4 name in remote.rs; the
+  on-fire flag sync is covered by synced_fire. The tnt_explodes
+  refs stay, routed to item 66. Lib check green (EXIT 0, 2m08s);
+  --tests check green (EXIT 0, 3m21s). All three edited files
+  rustfmt-clean (arrows.rs checked, not reformatted — it declares
+  the client_tests file module). Rank 2: 83/348.

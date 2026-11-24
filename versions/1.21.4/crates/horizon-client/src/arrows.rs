@@ -10,7 +10,7 @@ use crate::{
     collisions::SceneCollisions,
     mobs::Who,
     motion::{FluidResources, LAVA, WATER},
-    projectiles::{Hit, Projectile, ProjectileKind},
+    projectiles::{ENTITY_HIT_MARGIN, Hit, Projectile, ProjectileKind},
     world::World,
 };
 use horizon_core::{
@@ -356,6 +356,11 @@ impl ArrowScene<'_, '_> {
     }
     fn is_air(&self, state: BlockStateId) -> bool {
         self.facts.is_air(state)
+    }
+    fn is_powder_snow(&self, state: BlockStateId) -> bool {
+        self.registry
+            .state(state)
+            .is_some_and(|s| s.name == "minecraft:powder_snow")
     }
     /// `BlockState.getCollisionShape(level, pos)` (an empty collision context).
     fn collision_boxes(&self, state: BlockStateId, p: BlockPos) -> Vec<Aabb> {
@@ -722,8 +727,10 @@ impl Ticker<'_, '_, '_, '_> {
                 .collision_boxes(state, block_pos)
                 .iter()
                 .any(|b| b.move_by(origin).contains(at));
+            // `AbstractArrow.tick`: inside a block's shape the arrow sticks
+            // (`setInGround`), but 1.21.4 does NOT stop it — the
+            // `setDeltaMovement(ZERO)` is a 1.21.5 addition.
             if inside && !self.st.canceled_impact_inside {
-                self.p.velocity = Vec3::ZERO;
                 self.st.in_ground = true;
             }
             self.st.canceled_impact_inside &= inside;
@@ -733,7 +740,11 @@ impl Ticker<'_, '_, '_, '_> {
         if self.st.shake > 0 {
             self.st.shake -= 1;
         }
-        if self.st.was_touching_water || self.in_rain() {
+        // `AbstractArrow.tick` clears a burning arrow's fire in water or rain;
+        // powder snow extinguishes it too, via `applyEffectsFromBlocks`
+        // (`isInPowderSnow`), which the arrow's `apply_block_effects` does
+        // not model — hence the direct check here (1.21.6 dropped the arm).
+        if self.st.was_touching_water || self.in_rain() || self.scene.is_powder_snow(state) {
             self.st.clear_fire();
         }
         if self.st.in_ground && physics {
@@ -919,8 +930,9 @@ impl Ticker<'_, '_, '_, '_> {
             .then(|| self.block_position());
         let block = self.scene.clip(from, to, ignored);
         let end = block.map_or(to, |b| b.0);
-        // findHitEntities: ProjectileUtil.computeMargin and the search box.
-        let margin = f64::from(((self.p.age as i32 - 2) as f32 / 20.0).clamp(0.0, 0.3));
+        // findHitEntities: the search box (no `computeMargin` ramp in
+        // 1.21.4 — the margin is a flat 0.3 from the first tick).
+        let margin = ENTITY_HIT_MARGIN;
         let area = bounds(from)
             .expand_towards(self.p.velocity)
             .inflate(Vec3::new(1.0, 1.0, 1.0));
@@ -1156,19 +1168,34 @@ impl Ticker<'_, '_, '_, '_> {
     fn bubble_column(&mut self, state: BlockStateId, p: BlockPos) {
         let drag = self.scene.property(state, "drag") == Some("true");
         let above = self.scene.block(BlockPos::new(p.x, p.y + 1, p.z));
-        // The state above's collision shape, queried at this position.
-        let nothing_above = self.scene.collision_boxes(above, p).is_empty()
-            && self.scene.fluids.fluid(above).kind() == FluidKind::Empty;
+        // 1.21.4 gates on the block above being air; the collision-shape /
+        // fluid gate is a 1.21.5 change.
+        let nothing_above = self.scene.is_air(above);
         if self.st.in_ground {
             return;
         }
         if nothing_above {
-            self.add_velocity(if drag { -0.03 } else { 0.1 });
+            // `Entity.onAboveBubbleCol`: drag pulls down to -0.9, lift rises
+            // to 1.8; the server also sends two splash/bubble bursts.
+            let vy = self.p.velocity.y;
+            let next = if drag {
+                (vy - 0.03).max(-0.9)
+            } else {
+                (vy + 0.1).min(1.8)
+            };
+            self.p.velocity = Vec3::new(self.p.velocity.x, next, self.p.velocity.z);
             self.st
                 .events
                 .push(ArrowEvent::BubbleColumnParticles { pos: p });
         } else {
-            self.add_velocity(if drag { -0.03 } else { 0.06 });
+            // `Entity.onInsideBubbleColumn`: drag to -0.3, lift to 0.7.
+            let vy = self.p.velocity.y;
+            let next = if drag {
+                (vy - 0.03).max(-0.3)
+            } else {
+                (vy + 0.06).min(0.7)
+            };
+            self.p.velocity = Vec3::new(self.p.velocity.x, next, self.p.velocity.z);
             self.st.fall_distance = 0.0;
         }
     }
@@ -1242,7 +1269,8 @@ impl ArrowScene<'_, '_> {
             match effect {
                 Effect::ClearFreeze => {}
                 Effect::FireIgnite => {
-                    // BaseFireBlock.fireIgnite for a non-player entity.
+                    // `BaseFireBlock.entityInside` for a non-player entity:
+                    // a negative count ticks up, then 8 seconds of fire.
                     if fire_ticks < 0 {
                         fire_ticks += 1;
                     }
@@ -1494,9 +1522,10 @@ impl FluidInteractionWorld for Ticker<'_, '_, '_, '_> {
     }
 }
 impl EntityFluidTickWorld for Ticker<'_, '_, '_, '_> {
-    /// `AbstractArrow.isPushedByFluid`: not when stuck.
+    /// `Entity.isPushedByFluid`: always true — `AbstractArrow` has no
+    /// override in 1.21.4 (the `!isInGround` override is a 1.21.5 addition).
     fn is_pushed_by_fluid(&mut self) -> Result<bool, Error> {
-        Ok(!self.st.in_ground)
+        Ok(true)
     }
     fn reset_fall_distance(&mut self) -> Result<(), Error> {
         self.st.fall_distance = 0.0;
