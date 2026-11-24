@@ -190,10 +190,10 @@ pub fn register(m: &mut Mob) {
     let stand_interval = m.kind.ambient_interval;
     let g = &mut m.ai.goals;
     // registerGoals: the mount panic first, then the bolting — both at 1.
-    // 1.21.10 registers MountPanicGoal here, for every horse (26.1 kept it
-    // in addBehaviourGoals, which the skeleton's empty override and the
-    // zombie's override both dropped).
-    g.add(1, MountPanic(Panic::new(1.2)));
+    // 1.21.10 registers a plain PanicGoal here, for every horse
+    // (MountPanicGoal, with its isMobControlled gate, is 1.21.11-only:
+    // the class does not exist in 1.21.10's jar).
+    g.add(1, Panic::new(1.2));
     g.add(1, RunAroundLikeCrazy);
     g.add(2, Breed::new(1.0));
     g.add(4, FollowParent::new(1.0));
@@ -346,33 +346,6 @@ fn boost_factor(m: &mut Mob) -> f32 {
     }
     1.0 + 1.15 * (m.extra.counter as f32 / m.extra.counter2 as f32 * PI).msin()
 }
-/// `AbstractHorse.MountPanicGoal`: `shouldPanic` is `!isMobControlled() &&
-/// super.shouldPanic()` — a mob on a zombie horse's back keeps it from
-/// panicking, but a player rider does not.
-#[derive(Clone, Debug)]
-struct MountPanic(Panic);
-impl Goal for MountPanic {
-    goal_clone!();
-    fn flags(&self) -> u8 {
-        self.0.flags()
-    }
-    fn can_use(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
-        !mob_controlled_rider(m) && self.0.can_use(m, cx)
-    }
-    fn can_continue(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
-        !mob_controlled_rider(m) && self.0.can_continue(m, cx)
-    }
-    fn start(&mut self, m: &mut Mob, cx: &mut Cx) {
-        self.0.start(m, cx)
-    }
-    fn stop(&mut self, m: &mut Mob, cx: &mut Cx) {
-        self.0.stop(m, cx)
-    }
-}
-/// `ZombieHorse.isMobControlled`: a mob on its back keeps it from bolting.
-fn mob_controlled_rider(m: &Mob) -> bool {
-    m.species() == Species::ZombieHorse && m.extra.rider.is_some()
-}
 /// `RunAroundLikeCrazyGoal`: an untamed horse with a rider bolts about until
 /// it is tamed (temper) or throws the rider off.
 #[derive(Clone, Debug)]
@@ -383,9 +356,11 @@ impl Goal for RunAroundLikeCrazy {
         MOVE
     }
     fn can_use(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
-        // `RunAroundLikeCrazyGoal.canUse`: `!isMobControlled() && !isTamed()
-        // && isVehicle()`; `isVehicle` is any rider, not only the player.
-        if m.extra.tame || mob_controlled_rider(m) || !is_vehicle(m) {
+        // `RunAroundLikeCrazyGoal.canUse` (1.21.10): `!isTamed() &&
+        // isVehicle()` — no `isMobControlled` check (the method and the
+        // check are 1.21.11-only); `isVehicle` is any rider, not only the
+        // player, so a mob-ridden zombie horse bolts too.
+        if m.extra.tame || !is_vehicle(m) {
             return false;
         }
         let r = &mut m.random;
@@ -1356,9 +1331,10 @@ mod tests {
         assert_eq!(swim_volume(&horse, 0.35), 0.35);
     }
 
-    /// `RunAroundLikeCrazyGoal.canUse`: `isVehicle()` is any rider, so an
-    /// untamed horse with a mob on its back bolts; a zombie horse with a mob
-    /// rider is `isMobControlled()` and does not.
+    /// `RunAroundLikeCrazyGoal.canUse` (1.21.10): `isVehicle()` is any rider,
+    /// so an untamed horse with a mob on its back bolts — and a zombie horse
+    /// with a mob rider bolts too, because 1.21.10 has no `isMobControlled`
+    /// check (1.21.11-only).
     #[test]
     fn a_mob_riding_an_untamed_horse_starts_the_bolt() {
         use crate::mobs::world::with_built_test_world;
@@ -1415,8 +1391,8 @@ mod tests {
         }
         assert_eq!(
             outcomes,
-            vec![true, false],
-            "a mob-ridden horse bolts; a mob-ridden zombie horse is controlled"
+            vec![true, true],
+            "a mob-ridden horse bolts, and a mob-ridden zombie horse bolts too"
         );
     }
 

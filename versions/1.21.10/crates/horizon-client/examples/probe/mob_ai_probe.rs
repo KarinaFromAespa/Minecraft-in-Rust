@@ -258,7 +258,6 @@ fn goal_name(m: &Mob, name: &str) -> String {
         "FreezeWhenLookedAt" => "EndermanFreezeWhenLookedAt",
         "LookForPlayer" => "EndermanLookForPlayerGoal",
         "HealRaiders" => "NearestHealableRaiderTargetGoal",
-        "MountPanic" => "MountPanicGoal",
         "LlamaHurtBy" => "LlamaHurtByTargetGoal",
         other => return other.to_owned(),
     };

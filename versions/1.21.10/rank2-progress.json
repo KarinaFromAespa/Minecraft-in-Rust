@@ -1,8 +1,8 @@
 {
  "release": "1.21.10",
  "rank": 2,
- "batch": 7,
- "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review). Batch 6: 13 missing-only no-change (1.21.11-only/1.21.10-only methods unreferenced or identically modelled; Timeline + hand.rs deliberate non-carry-overs with jar evidence). Batch 7: 5 real-method no-change (normalisation gaps + unmodelled methods, each with method diff + Rust-side check).",
+ "batch": 8,
+ "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review). Batch 6: 13 missing-only no-change (1.21.11-only/1.21.10-only methods unreferenced or identically modelled; Timeline + hand.rs deliberate non-carry-overs with jar evidence). Batch 7: 5 real-method no-change (normalisation gaps + unmodelled methods, each with method diff + Rust-side check). Batch 8: 12 smallest real-method items (10 no-change: renames/noise/unmodelled; 2 ported: 154 equine isMobControlled/MountPanic removal, 256 loom scrolling reset).",
  "items": {
   "201": {
    "module": "crates/horizon-client/src/game/frame_geometry.rs",
@@ -1773,6 +1773,66 @@
    "module": "crates/horizon-client-render/src/font.rs",
    "verdict": "no-change",
    "evidence": "TrueTypeGlyphProviderDefinition#load: 1.21.10 has an extra ByteBuffer.flip() after reading the font file (buffer-position reset); Rust reads the file into a fresh Vec via read_resource and hands it to FontVec::try_from_vec \u2014 no buffer-position concept, so the flip has no Rust equivalent. Rest of the diff is exception-table offset shifts. Trees agree."
+  },
+  "290": {
+   "module": "crates/horizon-core/src/version.rs",
+   "verdict": "no-change",
+   "evidence": "SharedConstants#getProtocolVersion: 773 vs 774 \u2014 the version constant. version.rs already pins PROTOCOL_VERSION = 773 (mechanical publish). Tree diff is only BUILD_TIME (Oct vs Dec)."
+  },
+  "66": {
+   "module": "crates/horizon-client-render/src/datapack.rs",
+   "verdict": "no-change",
+   "evidence": "MutableObject.get() vs getValue() \u2014 commons-lang3 library rename, same semantics. Unmodelled in Rust (Java library API). Trees agree (0 non-comment normalised diff lines)."
+  },
+  "128": {
+   "module": "crates/horizon-client-render/src/biome.rs",
+   "verdict": "no-change",
+   "evidence": "BiomeSpecialEffects.grassColorModifier() vs getGrassColorModifier() \u2014 accessor rename (record-style vs getter), same semantics. Trees agree."
+  },
+  "138": {
+   "module": "crates/horizon-client-render/src/audio.rs",
+   "verdict": "no-change",
+   "evidence": "ldc_w vs ldc for the same 'Missing sound for event: {}' string \u2014 constant-pool instruction difference only, zero behaviour change. Trees agree."
+  },
+  "151": {
+   "module": "crates/horizon-client-render/src/atlas_sources.rs",
+   "verdict": "no-change",
+   "evidence": "SpriteSourceList#list: invokedynamic get:()Loader vs apply:()Function \u2014 lambda/method-reference shape difference, same loader supplier behaviour. Trees agree."
+  },
+  "167": {
+   "module": "crates/horizon-client/src/game/inventory_input.rs",
+   "verdict": "no-change",
+   "evidence": "AbstractContainerScreen#keyPressed: real diff (1.21.10 returns true after slotClicked, 1.21.11 false) but unmodelled in Rust \u2014 no keyPressed/slot-click handling in inventory_input.rs in either tree (key handling lives in play_keys.rs and does not model the container return value). Trees agree."
+  },
+  "284": {
+   "module": "crates/horizon-client/src/game/entity.rs",
+   "verdict": "no-change",
+   "evidence": "FireworkRocketEntity#tick: needsSync vs hasImpulse field rename, same set-true semantics. Trees agree."
+  },
+  "288": {
+   "module": "crates/horizon-client/src/mobs/living.rs",
+   "verdict": "no-change",
+   "evidence": "MagmaCube#jumpInLiquid: same needsSync/hasImpulse field rename. Trees agree."
+  },
+  "312": {
+   "module": "crates/horizon-client/src/projectiles.rs",
+   "verdict": "no-change",
+   "evidence": "ShulkerBullet#selectNextMoveDirection: same needsSync/hasImpulse field rename. Trees agree."
+  },
+  "120": {
+   "module": "crates/horizon-client/src/mobs/animal_brain.rs",
+   "verdict": "no-change",
+   "evidence": "InteractWithDoor#create: new MutableObject() vs new MutableObject(null) \u2014 identical (default ctor sets null). Library API difference. Trees agree."
+  },
+  "154": {
+   "module": "crates/horizon-client/src/game/mounts.rs",
+   "verdict": "ported",
+   "evidence": "RunAroundLikeCrazyGoal#canUse: 1.21.11 checks isMobControlled, 1.21.10 does not (method absent from 1.21.10's AbstractHorse). Removed the mob_controlled_rider gate from equine.rs can_use; bolt test now expects both horse and zombie horse to bolt. Also removed the 1.21.11-only MountPanicGoal wrapper (class absent from 1.21.10's jar; 1.21.10 registers plain PanicGoal) + mob_controlled_rider helper + probe mapping. tick is same; getPlayerJumpPendingScale is 1.21.11-only but its formula is identical to 1.21.10's inline computation in AbstractHorse.onPlayerJump (bytecode-verified), so jump_pending_scale stands."
+  },
+  "256": {
+   "module": "crates/horizon-client/src/game/loom.rs",
+   "verdict": "ported",
+   "evidence": "LoomScreen#mouseClicked: 1.21.10 clears scrolling first; 1.21.11 dropped the reset. Added the reset at the start of loom_click. The 1.21.11 thumb_hovered cursor code is 1.21.11-only (no cursor logic in 1.21.10's renderBg) and correctly absent."
   }
  }
 }

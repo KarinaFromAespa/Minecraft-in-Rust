@@ -105,6 +105,11 @@ impl Game<'_> {
     }
     /// A left click inside the loom's pattern grid or scroller.
     pub(super) fn loom_click(&mut self, local: (f32, f32)) -> bool {
+        // `LoomScreen.mouseClicked` (1.21.10) clears `scrolling` first, so a
+        // click anywhere stops a drag; 1.21.11 dropped the reset.
+        if let Some(s) = self.station.as_mut() {
+            s.loom.scrolling = false;
+        }
         let Some(start_row) = self
             .station
             .as_ref()
