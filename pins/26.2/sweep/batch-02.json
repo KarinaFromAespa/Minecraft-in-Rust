@@ -1,0 +1,106 @@
+{
+ "batch": 2,
+ "checks": {
+  "gap": 3,
+  "pass": 42,
+  "total": 45
+ },
+ "coordinator_note": "Coordinator reconciliation (2026-11-24): every oracle claim in this batch was verified against the measured Batch 0 table (docs/sweep/26.2/batch-0-oracles.json) - VanillaRedstoneCatalogOracle fails all three classpaths with 1 error (188: cannot find symbol), the five other Batch 2 oracles pass all three, VanillaClientRedstonePreviewOracle passes client+both (server-only failure is client packages, expected). No corrections needed. horizon-prepare for 26.2 finished after this batch ran (2048.7 s, EXIT 0, 2026-11-24); .local/horizon-client/26.2/ now holds block-behaviours.json, gameplay-facts.json and the rest (203 MB), so B2-H01/H02's data precondition is met - the diffs and driver runs themselves remain follow-up work.",
+ "date": "2026-11-24",
+ "items": [
+  {
+   "evidence": "Vanilla 26.2 PistonBaseBlock.isPushable (net.minecraft.world.level.block.piston.PistonBaseBlock, jar-verified) bounds-checks y > maxY (320; overworld dimension_type min_y -64 + height 384) and refuses only UP-pushes from y == maxY. The port uses max_y = level.max_y() - 1 (319) at level/pistons.rs:337, so it refuses y == 320 outright and refuses UP-pushes from y == 319. A piston at y == 319 pushing up fails in the port where vanilla extends. Floor side matches vanilla exactly. 1.21.7 G10 survives in 26.2.",
+   "id": "B2-G01",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "is_pushable Y-bound off by one at the ceiling"
+  },
+  {
+   "evidence": "tools/test_piston_shape_parity.py:63 asserts len(facts['states']) == 35723, so it fails outright on 26.2 before comparing anything. 26.2 has 32,366 states (docs/sweep/26.2/inventory.md, from the 26.2 datagen reports). The oracle (VanillaPistonShapeOracle) compiles clean against the 26.2 jars (Batch 0 measurement, all three classpaths); the driver constant is the defect. No other Batch 2 driver hardcodes 35723. 1.21.7 G13 survives in 26.2.",
+   "id": "B2-G02",
+   "method": "driver read + data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Piston-shape driver hardcodes the 26.3 state count (35723); 26.2 has 32366"
+  },
+  {
+   "evidence": "tools/test_projectile_piston_cobweb_parity.py:16 documents in its own docstring that vanilla's second push is 0.01 higher than Horizon's, by the cobweb or not, and deliberately does not compare height. Cause unknown; recorded as a known divergence, not an accepted gap (no cause or owner established). 1.21.7 G14 survives in 26.2. (The Entity.limitPistonMovement clamp itself matches vanilla 26.2 exactly; this is about entity lift height.)",
+   "id": "B2-G03",
+   "method": "driver read",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Documented 0.01 piston-push height divergence (vanilla's second push higher)"
+  },
+  {
+   "evidence": "Batch 0 measurement (docs/sweep/26.2/batch-0-oracles.json): fails on all three classpaths, 1 error, '188: cannot find symbol'. The symbol is datapackWorldRegistries() on the WorldLoader load-context (VanillaRedstoneCatalogOracle.java:188). 26.2's WorldLoader$DataLoadContext (jar-verified) has no such accessor \u2014 its record components are resources(), dataConfiguration(), datapackWorldgen(), datapackDimensions(); datapackWorldRegistries() is the 26.3 name. The 26.2 equivalent for the world-preset lookup is datapackDimensions(). Blocks test_redstone_catalog_parity only.",
+   "id": "B2-O01",
+   "method": "Batch 0 measurement + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaRedstoneCatalogOracle does not compile for 26.2 (1 break: datapackWorldRegistries)"
+  },
+  {
+   "evidence": "tools/redstone_diff.py:453 defaults --resources to ROOT / '.local/horizon-client/26.3'; the docstring (line 2) says 'vanilla 26.3'. On 26.2 the default points at data that does not exist. Overridable via --resources, so minor.",
+   "id": "B2-O02",
+   "method": "driver read",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "redstone_diff.py defaults --resources to the 26.3 path"
+  },
+  {
+   "evidence": "tools/piston_step_e2e.py:31 defaults --resources to ROOT / '.local/horizon-client/26.3'; the docstring (line 2) says 'actual vanilla 26.3 server'. Same shape as B2-O02. Overridable via --resources, so minor.",
+   "id": "B2-O03",
+   "method": "driver read",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "piston_step_e2e.py defaults --resources to the 26.3 path"
+  },
+  {
+   "evidence": "The lever/button/torch/redstone-block weak/strong nibbles and the ticksToStayPressed values live in prepared gameplay-facts.json / block-behaviours.json, and no prepared 26.2 data exists. The logic is jar-verified (LeverBlock.getDirectSignal: powered && connected direction -> 15; ButtonBlock.press/tick/checkPressed structure; the port reads ticks_to_stay_pressed from the export at level/data.rs:1018), but the per-state values cannot be checked until a 26.2 prepare run lands. Design: prepare 26.2, then diff the nibble tables against the jar-derived expectations per state (same method as the 1.21.7 batch).",
+   "id": "B2-H01",
+   "method": "javap + source (data missing)",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "Per-state weak/strong signal nibbles + button press times need prepared 26.2 data"
+  },
+  {
+   "evidence": "The 10 Batch 2 drivers (tick-by-tick circuits, catalog contraptions, piston push/shape/movement corpus, persistence round-trips) need (a) a 26.2 prepare run (no .local/horizon-client/26.2/ exists) and (b) the B2-O01 catalog-oracle repair. 9 of 10 drivers' oracles already compile for 26.2 (Batch 0 measurement). The static checks in this batch cover the logic; the drivers cover the corpus.",
+   "id": "B2-H02",
+   "method": "Batch 0 measurement + driver read",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "Tick-by-tick circuit equivalence + piston corpus driver runs need prepare + oracle repair"
+  },
+  {
+   "evidence": "level/tests.rs carries redstone_lever_wire_and_lamp (:1253), levers_power_wire_through_interaction (:1734), pistons_push_and_sticky_pistons_pull (:1781) and pistons_pop_fragile_blocks_and_refuse_obsidian (:2120). The three pilot failures' root causes (1.21.7 G7/G8/G9) are all fixed in this tree, so the tests are expected to pass \u2014 but no cargo builds were allowed in this batch (shared 6 GB VM), so a test run is still needed to confirm behaviourally.",
+   "id": "B2-H03",
+   "method": "source (no cargo run allowed)",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "The 4 level::tests need a cargo test run to confirm the G7/G8/G9 fixes behaviourally"
+  }
+ ],
+ "method": "javap -c on the named 26.2 server-game jar (26.1-adapters/versions/26.2/jars/server-game.jar, Mojang-mapped) for every vanilla method in scope, source comparison against versions/26.2/crates/, checks of the 26.2 datagen reports and the 26.2 client jar datapack, and the 26.2 Batch 0 oracle measurement (docs/sweep/26.2/batch-0-oracles.json). No driver runs and no cargo tests: blocked by the batch constraints (no builds on the shared VM), and independently no prepared 26.2 data exists and one Batch 2 oracle does not compile for 26.2 (B2-O01).",
+ "name": "Redstone + pistons",
+ "out_of_scope_failures": "None in Batch 2 scope. The 35723 hardcode also appears in many drivers outside Batch 2 scope (test_block_properties_parity.py, test_collision_parity.py, ...) \u2014 flagged for the coordinator. The experimental redstone evaluator, dispense/dropper behaviours beyond the redstone trigger, and sculk sensors were not verified here. The full class-table coverage sweep needs block-behaviours.json, which does not exist for 26.2; the Batch 2 classes were all verified present in classes.rs individually.",
+ "source": "docs/PARITY-SWEEP.md \u00a74 Batch 2 \u2014 checks only, no fixes. Scope: redstone ticking, pistons, observers, comparators; 10 drivers + circuit probes; pilot leftovers (4 level::tests). DRAFT: not committed \u2014 the coordinator commits these deliverables.",
+ "systemic_note": "The 26.2 tree is the 1.21.11-template lineage, and it shows: all three 1.21.7 majors (G7 wire class name, G8 push-reaction loader, G9 obsidian hardcode) are fixed at the template and carried into 26.2, and five of six Batch 2 oracles compile clean for 26.2 (vs one of six for 1.21.7). The remaining gaps are the template's leftovers, not new 26.2 regressions: the Y-bound off-by-one (B2-G01) and the two driver constants (B2-G02/B2-G03). Two 1.21.7 defects (G11, G12) do not apply to 26.2 at all \u2014 vanilla itself changed between 1.21.7 and 26.2 (comparator takes max(frame, block); moveBlocks destroys with setBlock(air, 18)), and the port matches 26.2's form. The vanilla-check rule mattered in both directions here: assuming the 1.21.7 form would have filed two false defects, and assuming the 26.3 form (PushReaction renames, obsidian IMMOVEABLE, datapackWorldRegistries) would have missed the real ones.",
+ "version": "26.2",
+ "withdrawn": [
+  {
+   "evidence": "1.21.7's G11 was that vanilla takes the item frame first and the port takes max(frame, block). In 26.2 vanilla CHANGED: ComparatorBlock.getInputSignal (bytecode offsets 98-164) computes Math.max(frameAnalogOrMIN, blockAnalogOrMIN) and uses it unless both are absent \u2014 vanilla 26.2 takes the max, exactly as the port does (level/redstone.rs:543-549). The port matches 26.2; no defect. (1.21.7 G11 stands for 1.21.7 only.)",
+   "id": "B2-W01",
+   "method": "javap + source",
+   "status": "withdrawn",
+   "title": "G11 comparator conductor branch \u2014 withdrawn, vanilla 26.2 takes max(frame, block)"
+  },
+  {
+   "evidence": "1.21.7's G12 was that vanilla destroys via Level.destroyBlock (flags 3) plus an explicit loop while the port sets air with flags 18. In 26.2 vanilla CHANGED: moveBlocks' destroy loop calls setBlock(air, 18) (bytecode offset 302, bipush 18), then runs the explicit updateNeighborsAt loop \u2014 exactly what the port does (level/pistons.rs:611, explicit loop at :679-683). The port matches 26.2; no defect. (1.21.7 G12 stands for 1.21.7 only.)",
+   "id": "B2-W02",
+   "method": "javap + source",
+   "status": "withdrawn",
+   "title": "G12 piston-destroyed blocks notify twice \u2014 withdrawn, vanilla 26.2 uses setBlock(air, 18)"
+  }
+ ]
+}
