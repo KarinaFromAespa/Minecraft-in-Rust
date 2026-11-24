@@ -1,0 +1,77 @@
+{
+ "batch": 7,
+ "checks": {
+  "gap": 7,
+  "pass": 35,
+  "total": 42
+ },
+ "coordinator_note": "Coordinator reconciliation (2026-11-24): this batch used the MEASURED Batch 0 table directly - all 18 blocking-oracle claims in the section 5 driver inventory verify exactly against docs/sweep/26.2/batch-0-oracles.json (error class + count, all fail on all three classpaths; 0 mismatches). Runnable spot checks confirm StackModelFlags and Hotbar pass client+both and Food and ComponentPatch pass all three (one name unverified: no VanillaItemCooldownOracle entry exists in the Batch 0 table, so the item_cooldowns driver's oracle name could not be confirmed from the table - the driver map is in b7-26.2-analysis/driver-map-26.2.json). Check tally arithmetic verified: D1-D8 (8 pass) + B1-B34 (27 pass, 7 gap) = 42 total, 35 pass, 7 gap. Gap-check note: the 7 gap checks carry 7 defects, with the hoe and shovel checks each carrying two defects (B7-G13 + B7-G14 both span the hoe and shovel checks). No corrections needed.",
+ "date": "2026-11-24",
+ "deliverable_status": "Checks + triage only, no fixes. Static analysis only (javap + source + data); no cargo builds, no driver runs, no edits under versions/26.2/. Saved under ~/workspace/mcir-work/sweep-26.2-scratch/batch-07/ for the coordinator to commit.",
+ "items": [
+  {
+   "evidence": "Vanilla 26.2 SpawnEggItem.getType reads the entity_data component's typed type() and spawns THAT type (javap-verified); the Rust derives the type from the item name only (trim_end_matches(\"_spawn_egg\")) and spawn_egg_entity_data returns None when the data's id names a different type. Commands/op-only edge. Persists from 1.21.7 (same defect, different jar mechanism: TypedEntityData.type() in 26.2 vs CustomData.parseEntityType in 1.21.7).",
+   "id": "B7-G03",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Spawn egg entity_data id type override ignored"
+  },
+  {
+   "evidence": "Vanilla 26.2 EntityType.spawn calls Mob.playAmbientSound() after addFreshEntityWithPassengers (javap-verified). The Rust's spawn_mob_spawned / use_spawn_egg play no sound; ambient sounds only come from the periodic Mob.baseTick timer later. Persists from 1.21.7.",
+   "id": "B7-G06",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "No Mob.playAmbientSound() on spawn-egg placement"
+  },
+  {
+   "evidence": "Vanilla 26.2 BoatItem.use returns PASS when the player's eye is inside a pickable entity's inflated bounding box (entities in the player bbox expanded 5.0 along the view + inflate 1.0; javap-verified). The Rust's boat_to_place only checks the boat's own bbox (unobstructed + boat_entity_collision, which checks the boat's bbox vs entities, not the eye). Edge case: standing inside a mob while placing a boat \u2014 the Rust places where vanilla passes. Persists from 1.21.7.",
+   "id": "B7-G12",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Boat placement missing the eye-inside-entity PASS check"
+  },
+  {
+   "evidence": "Rust block_transform (game.rs:7895-7903) returns None when the offhand holds a blocks_attacks item and the player is not sneaking, for axe, hoe AND shovel. Vanilla's playerHasBlockingItemUseIntent is axe-only (javap-verified: present only in AxeItem; requires hand == MAIN_HAND + offhand has BLOCKS_ATTACKS + not secondary-use-active; no such check in HoeItem/ShovelItem). The Rust also does not check the acting hand is the main hand. Latent note in 1.21.7 (unobservable while the transformer was dead); observable in 26.2 now the transformer is live: a shield in the off hand blocks hoe tilling and shovel path-making/flattening where vanilla tills/flattens.",
+   "id": "B7-G13",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Shield blocking-intent check (axe-only in vanilla) also blocks hoe/shovel transforms, and ignores the acting hand"
+  },
+  {
+   "evidence": "Rust use_block_transformer fires item_used_on_block (game.rs:7945) for ALL transforms, and use_campfire_douse fires it too (campfire_douse.rs:102). Vanilla 26.2 fires ITEM_USED_ON_BLOCK only in AxeItem.useOn (1 reference, javap-verified); HoeItem and ShovelItem have zero trigger references, and ItemStack.useOn does not fire it either (it only awards the ITEM_USED stat on Success). Hoe tilling, shovel flattening and shovel campfire dousing incorrectly trigger the advancement criterion in the port.",
+   "id": "B7-G14",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ITEM_USED_ON_BLOCK trigger fired for hoe till, shovel flatten and shovel campfire douse; vanilla fires it only for the axe"
+  },
+  {
+   "evidence": "Rust transform_copper_chest_neighbour (game.rs:7980-8019) posts a BLOCK_CHANGE game event AND the scrape/wax-off level event (3004/3005) at the NEIGHBOUR half of a double copper chest. Vanilla 26.2 AxeItem.useOn sends the level event and BLOCK_CHANGE only at the clicked position (javap-verified). The neighbour particle + sculk-visible BLOCK_CHANGE is 26.3 BlockTransformer COPPER_CHEST behaviour (transform_type == \"copper_chest\", block_transform.rs:201,309,315) leaking into the 26.2 port.",
+   "id": "B7-G15",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Copper-chest scrape/wax-off posts a BLOCK_CHANGE + level event at the neighbour half (26.3 COPPER_CHEST behaviour)"
+  },
+  {
+   "evidence": "Vanilla 26.2 ItemStack.use calls applyAfterUseComponentSideEffects for instant-use items (use duration <= 0) on Success, applying USE_REMAINDER and USE_COOLDOWN (javap-verified). items.json: ender_pearl 1.0s, wind_charge 0.5s. The port applies no cooldown on the throw path, implementing the opposite belief in four places (game/creatures.rs:7432, game/remote.rs:9327, game/using_item.rs:26: \"26.2's ItemStack.use does not apply the use_cooldown component (26.3 added the side-effects call)\" \u2014 the premise is wrong for 26.2; the side-effects call IS in 26.2's ItemStack.use). The cooldown gate itself exists but is never armed for pearls/wind charges, so they can be spammed. Chorus fruit is unaffected (timed consume; cooldown applies at finishUsingItem, which the port handles). No instant-use item has a use_remainder, so only the cooldown half bites.",
+   "id": "B7-G16",
+   "method": "javap + source + data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Thrown ender pearls / wind charges start no use_cooldown; vanilla 26.2 applies it in ItemStack.use"
+  }
+ ],
+ "method": "Static analysis only \u2014 javap -c on the named 26.2 server-game jar for every vanilla method in scope, Rust source reads, and prepared-data checks (items.json, block-tags.json, entity-types.json, jar data files). NO drivers were run and NO oracle repairs were done: this batch is checks + triage only per the brief (no cargo builds, no driver runs). The 38 runnable drivers and 17 no-oracle drivers are recorded as not run, not as passes. Driver inventory: 74 drivers in the working set \u2014 38 runnable-but-unrun, 19 blocked on 18 measured-failing oracles (Batch 0's measured table), 17 no-oracle. Withdrawn for 26.2 (re-checked against 26.2's jar + 26.2 tree; numbers NOT reused): B7-G01 (fixed in the 26.2 tree), B7-G02 (26.2's BucketItem HAS the sneak check), B7-G04 (peaceful gate exists, 38/38 types match the jar), B7-G05 (26.2 posts ENTITY_PLACE at the spawn position), B7-G07 (26.2 has no block_transformer registry; the port hardcodes the correct tables), B7-G08 (campfire douse implemented directly), B7-G09 (26.2 randomTeleport is blocksMotion-grounded), B7-G10 (26.2 gates splash-water on is(Potions.WATER) directly), B7-G11 (port uses convertable_to_mud).",
+ "name": "Items",
+ "oracle_defects_found": "None new. The 19 drivers blocked on 18 failing oracles are Batch 0's measured failures (recorded in the batch doc's driver inventory with error class + count), not new findings. 38 runnable drivers and 17 no-oracle drivers were not run \u2014 not run, not passed.",
+ "oracle_repairs": "None \u2014 none in this batch (record only).",
+ "out_of_scope_notes": "Observations recorded in docs/sweep/26.2/batch-7-items.md without defect numbers: splash potions ignore POTION_DURATION_SCALE (commands-only edge); potion throw sound plays at the eye where vanilla plays at the feet; endermite spawn skipped in peaceful where vanilla spawns then despawns (unobservable); fishing canSeeSky approximated by sky-light 15; spawn-egg alignPosition Y-offset not applied; failed spawn-egg spawn returns false (click falls through) vs vanilla FAIL; trident in_water_or_rain checks the feet block only; pearl portal-cooldown transfer not implemented; predict_campfire_douse returns false while sneaking (prediction-only lag; the server still douses). The 1.21.7 B7-G09 shared-tag flag (enderman teleport / spreadplayers using #entities_can_teleport_to) does not apply to 26.2: the tag does not exist in 26.2 and the port's chorus-fruit teleport is blocksMotion-grounded.",
+ "source": "docs/PARITY-SWEEP.md \u00a74 Batch 7 \u2014 checks + triage only, no fixes. Scope: item use, food, tools, armour, buckets, spawn eggs, components \u2014 1,537 items. The \u00a71.1 spec gap (block-behaviours.json holds only BlockItem entries) was resolved by extracting the item\u2192Java-class map from the named 26.2 jar: all 1,537 items mapped to 70 classes, 0 unmapped, 0 mismatches against block-behaviours.json. New 26.2 families checked: spears (7 items, kinetic/piercing weapon) and nautilus armour (5 items), plus copper tool/armour material and copper/netherite horse armour.",
+ "systemic_note": "The 26.2 story is the inverse of 1.21.7's. In 1.21.7, four majors shared one root cause: the port carried 26.x mechanisms for behaviours 1.21.7 implements in hardcoded Java, and the lookups silently degraded. In 26.2, the port authors already did the version-specific work: the block_transformer registry is correctly absent and replaced by hardcoded tables, the campfire douse / splash-water / teleport gates are implemented in 26.2's own (non-tag) form, and the bucket sneak check and spawn-egg peaceful gate \u2014 which ARE 26.2 behaviours \u2014 are implemented. The seven defects left are all small, local, and minor: three are 1.21.7 leftovers the 26.2 work did not touch (G03, G06, G12), and four are new 26.2 divergences where the port over- or under-applies a 26.2 rule (G13: axe-only check widened to hoe/shovel; G14: axe-only trigger widened to hoe/shovel; G15: a 26.3 chest behaviour carried into 26.2; G16: a wrong '26.2 ItemStack.use does not apply use_cooldown' belief baked into four comments). No whole item family is non-functional in 26.2.",
+ "version": "26.2"
+}
