@@ -3,7 +3,7 @@
 A player's own AI agent (Claude Code, Codex, Cursor, any MCP client) or a script can do
 everything a player does with the mouse and keyboard, in the launcher and in the game. This page
 covers developers: the surfaces, the full inventory, and the rules every new command follows.
-Players read [Control Horizon with your AI agent](https://playhorizon.dev/docs/agents)
+Players read [Control Free Horizon with your AI agent](https://playhorizon.dev/docs/agents)
 (playhorizon.dev/docs/agents).
 
 The command lists are generated, so they can't drift:
@@ -19,12 +19,12 @@ The command lists are generated, so they can't drift:
 
 | Surface | Where | Transport |
 | --- | --- | --- |
-| Game control socket | `horizon-client --control` / `--control-socket PATH`, or Agent Control on in Horizon Settings > AI Agent (`crates/horizon-client/src/control.rs`; commands in `src/game/control.rs`, `agent.rs`, `ui_control.rs`, `saves_control.rs` and friends) | text line in, one JSON line out; Unix socket, or localhost TCP and a token where there is none |
+| Game control socket | `horizon-client --control` / `--control-socket PATH`, or Agent Control on in Free Horizon Settings > AI Agent (`crates/horizon-client/src/control.rs`; commands in `src/game/control.rs`, `agent.rs`, `ui_control.rs`, `saves_control.rs` and friends) | text line in, one JSON line out; Unix socket, or localhost TCP and a token where there is none |
 | `horizon-ctl` | `crates/horizon-client/src/bin/horizon-ctl/` | CLI over the socket; one table of commands (`commands.rs`) gives the help, the argument checks, the MCP tools and the reference |
 | `horizon-ctl mcp` | same | MCP over stdio, one tool per command of the table |
 | Launcher CLI | `launcher/src/cli.rs` | `horizon-launcher <command> [--json]` |
 | Launcher MCP | `launcher/src/mcp.rs`, `cli_tools.rs`, `game_tools.rs` | `horizon-launcher mcp` (stdio): every CLI command as a tool, the session tools, and the game's tools as `game_*` |
-| Connecting | `launcher/src/agents.rs`, `agents_page.rs`; `src/game/agent_settings.rs` | `horizon-launcher agent-config`; Settings > AI in the launcher; Horizon Settings > AI Agent in the game |
+| Connecting | `launcher/src/agents.rs`, `agents_page.rs`; `src/game/agent_settings.rs` | `horizon-launcher agent-config`; Settings > AI in the launcher; Free Horizon Settings > AI Agent in the game |
 | No AI | `crates/horizon-core/src/no_ai.rs` | `noAi:true` in `<game home>/horizon-extras.txt`, read by every surface |
 
 ## One MCP server for everything
@@ -134,8 +134,8 @@ passes on without checking it).
 | Open to LAN | Pause > Open to LAN | yes | yes | `lan open\|close\|status` |
 | Play with Friends: host, stop, status | Pause | yes | yes | `friends host\|stop\|status` |
 | Vanilla options, every page | Options | yes | yes | `options-get`, `options-set` (all of options.txt, typed) |
-| Horizon Settings: Extras, PvP & HUD, AI Agent; the graphics screen (Video Settings); Controller (Controls) | Horizon Settings, Video Settings, Controls | yes | yes | `options horizon\|graphics\|extras\|agent...`, then `ui`/`click`/`set` |
-| Agent control on or off, status, connection details | Horizon Settings > AI Agent | yes | yes | `options horizon`, the page's widgets (`ai-agent`) |
+| Free Horizon Settings: Extras, PvP & HUD, AI Agent; the graphics screen (Video Settings); Controller (Controls) | Free Horizon Settings, Video Settings, Controls | yes | yes | `options horizon\|graphics\|extras\|agent...`, then `ui`/`click`/`set` |
+| Agent control on or off, status, connection details | Free Horizon Settings > AI Agent | yes | yes | `options horizon`, the page's widgets (`ai-agent`) |
 | Key binds | Controls > Key Binds | yes | yes | `options-set key_key.jump key.keyboard.j` |
 | Resource packs | Options > Resource Packs | yes | yes | `options packs`, then `ui` rows and `click`; `options-set resourcePacks` |
 | Chat and commands | Chat | yes | yes | `chat`, `command`, `messages`, `chat-log` |
@@ -166,12 +166,12 @@ its working directory, which is that folder. `horizon_core::no_ai` reads and wri
   never on;
 - `REFUSAL` is the one line every surface prints.
 
-The switch is in three places: Settings > AI in the launcher, Horizon Settings in the game
+The switch is in three places: Settings > AI in the launcher, Free Horizon Settings in the game
 (`Item::NoAi`), and `horizon-launcher no-ai on|off`. When it is on:
 
 | Surface | What happens |
 | --- | --- |
-| Game | opens no control socket, even with `--control` (it logs the refusal); Horizon Settings hides AI Agent...; turning it on in a running game closes the socket at once |
+| Game | opens no control socket, even with `--control` (it logs the refusal); Free Horizon Settings hides AI Agent...; turning it on in a running game closes the socket at once |
 | `horizon-ctl` | every command refuses: exit status 4, `{"error": REFUSAL, "kind": "denied"}` |
 | `horizon-ctl mcp` | refuses to start (exit 4, REFUSAL on stderr); a session already running refuses each call |
 | `horizon-launcher mcp` | refuses to start; a running session answers each `tools/call` with error -32000 and REFUSAL |
@@ -194,7 +194,7 @@ turn the switch off.
   - **Test the connection** (`agents::self_test`) starts `<exe> mcp`, lists its tools and says
     how many answered.
   - `horizon-launcher agent-config [--client ID] [--json] [--test]` prints the same thing.
-- **Game, Horizon Settings > AI Agent:**
+- **Game, Free Horizon Settings > AI Agent:**
   - **Agent Control** (`agentControl` in horizon-extras.txt, off by default) opens the default
     endpoint (`$HORIZON_CONTROL`, else `horizon-control.sock` in the runtime directory, or
     `horizon-control.json` in the temporary directory on Windows) in a game the player started.
@@ -399,7 +399,7 @@ of the frame ([#8750](https://github.com/horizon-rust/horizon/issues/8750)).
   - the HUD: the hearts' jiggle and blink, chat fading, titles, the action bar, the held item's
     name, the locator bar and the tab list (a title shown while frozen fades in on the next
     `/tick step`);
-  - a shader pack's clock (Iris's `frameTimeCounter`, `frameCounter` and `frameTime`, a Horizon
+  - a shader pack's clock (Iris's `frameTimeCounter`, `frameCounter` and `frameTime`, a Free Horizon
     pack's `time`, `frame_index` and `delta_time`, with smoothed values at their targets) and the
     randoms behind custom uniforms, cave mood (`playerMood`), obfuscated text and a clock or
     compass that spins;
@@ -429,7 +429,7 @@ of the frame ([#8750](https://github.com/horizon-rust/horizon/issues/8750)).
   using an item, riding, running out of air.
 - A shader pack's own buffers, kept from frame to frame, take `horizon-ctl screenshot-sequence
   FRAMES STEP_MS PATH`: the pack starts over (its buffers, images, shadow maps, smoothed values and
-  custom uniforms, or a Horizon pack's `history` and eased values) and draws FRAMES frames on a set
+  custom uniforms, or a Free Horizon pack's `history` and eased values) and draws FRAMES frames on a set
   clock, frame n at n frames and (n - 1) × STEP_MS milliseconds (0 since the frame before on frame
   1, STEP_MS after; a decimal, `16.666667` for 60 fps). The last is written as `screenshot PATH`
   writes it (with its `-hdr.png` under HDR output), and the reply, once it is, names the pack and
@@ -468,7 +468,7 @@ of the frame ([#8750](https://github.com/horizon-rust/horizon/issues/8750)).
 
 These are tracked in FEATURES.md (LATER):
 
-- Horizon's own option files by key (`horizon-graphics.txt`, controller, extras) next to
+- Free Horizon's own option files by key (`horizon-graphics.txt`, controller, extras) next to
   `options-get` and `options-set`.
 - Adding and removing saved servers by command.
 - `subscribe`: events as a stream on one connection.

@@ -1,11 +1,11 @@
-# Horizon shader packs
+# Free Horizon shader packs
 
-Horizon has its own shader packs: WGSL written against stages of Horizon's renderer, checked before they run. This page
+Free Horizon has its own shader packs: WGSL written against stages of Free Horizon's renderer, checked before they run. This page
 is the guide for pack authors. The design and the pack format are in [api/shaders.md](api/shaders.md); every stage's
 signature, input, resource and limit is in the generated [api/shaders-reference.md](api/shaders-reference.md).
 
 Shader packs in the Iris/OptiFine format are a separate feature with its own loader; this page is only about
-Horizon's own format.
+Free Horizon's own format.
 
 | Part | Where | State |
 |---|---|---|
@@ -47,7 +47,7 @@ my_pack 0.1.0 (shader API 0.1): FAILED
 ## Trying a pack in the game
 
 Put the pack folder (or its `.hshader`) in `shaderpacks/` beside `options.txt` (Open Pack Folder opens it) and pick
-it on Options > Video Settings > Shaders > Shader Packs..., which lists Horizon's packs, marked (Horizon), beside packs in the
+it on Options > Video Settings > Shaders > Shader Packs..., which lists Free Horizon's packs, marked (Free Horizon), beside packs in the
 `shaders/` format; one runs at a time, and clicking it again turns it off. `HORIZON_SHADER_PACK=<its folder or file
 name>` runs a pack whatever the page says, for development. The game checks the pack first, and refuses one that
 fails, with its problems in the chat. While it runs, the game looks at the pack twice a second: save a file
@@ -60,11 +60,11 @@ there are more than it has room for, they collapse into one `‹ Name ›` row t
 bumpers step through); deeper screens open from their links, and Escape goes back. A click, Enter or Right picks an
 option's next value, a Shift click or Left the one before, and the options the pack lists in
 `sliders` are sliders. Pointing at one shows what the pack says of it (`option.NAME.comment`); the search finds an
-option on any screen. Undo puts back the pick, the Shadow Cache, the Horizon packs' options and the options of the
+option on any screen. Undo puts back the pick, the Shadow Cache, the Free Horizon packs' options and the options of the
 `shaders/` pack that was picked when the screen opened; another `shaders/` pack keeps what was saved for it (picking
 away from it saves its changes, as Apply does). A `shaders/` pack's
 options are saved to `shaderpacks/<pack>.txt` (`NAME=value` lines), and the pack loads again with them, with Apply
-(shown while they differ from the saved ones) or on leaving the screen; a Horizon pack's apply at once.
+(shown while they differ from the saved ones) or on leaving the screen; a Free Horizon pack's apply at once.
 
 ## Testing a pack frame by frame
 
@@ -110,15 +110,15 @@ Every key is in [api/shaders.md](api/shaders.md#the-pack-format-schema-1).
 
 ## Stages
 
-A stage is one function your file defines. Horizon puts its prelude (the structs, `frame`, the stage's resources and
+A stage is one function your file defines. Free Horizon puts its prelude (the structs, `frame`, the stage's resources and
 helpers) before your file and calls the function from its own pass, so the world is still culled, batched and meshed
-by Horizon: a pack changes how things look, not how they are drawn.
+by Free Horizon: a pack changes how things look, not how they are drawn.
 
 | Stage | Your function | What it does |
 | --- | --- | --- |
 | `[sky]` | `fn sky(input: SkyInput) -> vec4<f32>` | the sky's colour along each view ray, opaque (alpha is ignored), drawn where vanilla draws its sky dome (the Overworld's sky; not the Nether's or the End's); the sun, moon, stars and clouds are drawn over it |
 | `[material]` | `fn material(input: MaterialInput) -> Surface` | the lit colour of each point of a block's surface, before the alpha test and fog: every terrain section and distant tile, solid, cutout and translucent (not entities, block entities or particles) |
-| `[weather]` | `fn weather(input: WeatherInput) -> vec4<f32>` | the colour of each point of a rain or snow streak, blended over the world with its alpha; Horizon's light and fog aren't applied, so the pack applies its own |
+| `[weather]` | `fn weather(input: WeatherInput) -> vec4<f32>` | the colour of each point of a rain or snow streak, blended over the world with its alpha; Free Horizon's light and fog aren't applied, so the pack applies its own |
 | `[[post]]` | `fn post(input: PostInput) -> vec4<f32>` | a full-screen pass over the world's picture (up to 8, in order), under the hand and HUD. Return `input.color.a` as your alpha: HDR output reads it to find light sources |
 
 A pack has at least one stage; a stage it leaves out keeps vanilla's look. Each input says what vanilla would draw

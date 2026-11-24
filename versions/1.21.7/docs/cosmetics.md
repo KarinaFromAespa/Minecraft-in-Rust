@@ -1,15 +1,15 @@
 # Cosmetics
 
-Small items Horizon players wear: a hat, something on the back, a shirt, a pet on the shoulder, a
-style for their name tag. They are drawn by Horizon clients only and change nothing in the game.
+Small items Free Horizon players wear: a hat, something on the back, a shirt, a pet on the shoulder, a
+style for their name tag. They are drawn by Free Horizon clients only and change nothing in the game.
 **On by default** (Ludovic, 2026-11-04: on when the shop opens), your own shown. Other players'
 show by default only if your account owns a cosmetic: a player who owns none sees a vanilla game,
-and the game asks the service nothing about other players (CONTRIBUTING.md: Horizon-only features
+and the game asks the service nothing about other players (CONTRIBUTING.md: Free Horizon-only features
 that change the look are off by default). The settings below change both.
 
 ## Rules
 
-- **Only Horizon clients see them.** Other Horizon players learn what someone wears from Horizon's
+- **Only Free Horizon clients see them.** Other Free Horizon players learn what someone wears from Free Horizon's
   cosmetics service, keyed by the Minecraft UUID. The game protocol doesn't change: servers, vanilla
   clients and anticheats receive nothing.
 - **No gameplay effect of any kind**, no capes or anything that looks or acts like one, no random
@@ -58,7 +58,7 @@ y points down, as in vanilla's `ModelPart`s and Blockbench's "Modded Entity" mod
   moves it `amplitude` pixels (at most 4), `spin` turns it all the way round once per period.
 
 A **name tag style** (`"slot": "name_tag"`) has no model: its texture is a square badge of at most
-16×16 drawn after the player's name (before it sits Horizon's own mark, for Horizon players), and
+16×16 drawn after the player's name (before it sits Free Horizon's own mark, for Free Horizon players), and
 `"tag": {"line": "#rrggbb"}` the colour of a line under it. `parts` stays empty and there are no animations; no other slot has a `tag`.
 
 ```json
@@ -196,17 +196,17 @@ props; `Playing` is an emote someone plays (its start, its cancel) and gives its
 
 Vanilla servers stay untouched: emotes travel through the cosmetics service only.
 
-- **Mine**: while one plays, the game says so, signed in as for *Show me as Horizon*
+- **Mine**: while one plays, the game says so, signed in as for *Show me as Free Horizon*
   (`POST /v1/emote {"emote": id}`, `{"emote": null}` when it stops early), with a service
   session kept for the hour it lives (`account::Kept`: one Mojang `join` an hour, not one per
   emote). A loop is said again every 30 s (the service keeps one a minute). Only while *Show me
-  as Horizon* is on: playing an emote tells anyone who asks that you play Horizon, so with it off
+  as Free Horizon* is on: playing an emote tells anyone who asks that you play Free Horizon, so with it off
   nothing is sent. An offline account sends nothing. The service takes at most 6 at once, then
   one every 2 s per account, owned emotes only.
-- **Theirs**: each tick the game names the Horizon players in view (the `horizon` list of the
+- **Theirs**: each tick the game names the Free Horizon players in view (the `horizon` list of the
   `/v1/worn` answers, at most 64) to a thread of its own, which asks
   `POST /v1/emotes {"players": [...]}` at most once a second, only while someone is named
-  (nobody in view who plays Horizon: no request). The answer gives each player's emote, its
+  (nobody in view who plays Free Horizon: no request). The answer gives each player's emote, its
   file's hash and how long ago it started (`{"playing": {uuid: {"id", "hash", "ms"}}}`), and the
   game plays it on that player's model from that point; the item file comes once
   (`/v1/items`). A player who moves ends theirs on this screen at once. A failure waits 15 s,
@@ -223,14 +223,14 @@ Vanilla servers stay untouched: emotes travel through the cosmetics service only
 
 ## What other players wear (`horizon_cosmetics::Cosmetics`)
 
-The game asks Horizon's cosmetics service (HTTPS, JSON) what the players in view wear, and draws
+The game asks Free Horizon's cosmetics service (HTTPS, JSON) what the players in view wear, and draws
 from its answers. The frame never waits on the network: it reads a cache, and a thread of its own
 does the asking.
 
 - **One request for the players in view**: `POST /v1/worn` with up to 64 UUIDs
   (`{"players": ["<uuid hex>", …]}`) answers `{"ttl": seconds, "players": {"<uuid hex>": [{"id",
   "hash"}, …]}, "horizon": ["<uuid hex>", …]}`; a player who wears nothing is left out of
-  `players`, and `horizon` lists the batch's Horizon players (below). Only the UUIDs of players the
+  `players`, and `horizon` lists the batch's Free Horizon players (below). Only the UUIDs of players the
   game draws or lists are sent, nothing else about them or the server.
 - **Cached for the service's TTL** (kept within 1 minute to 1 hour). Past it the last answer stays
   drawn while the player is asked for again. The 4096 players seen most recently are remembered.
@@ -242,26 +242,26 @@ does the asking.
   ids and hashes, written only when an answer changes them). They are read only when the service doesn't
   answer, so a game started while it is down still shows what players last wore, until it answers.
 
-## Horizon players' mark
+## Free Horizon players' mark
 
-Like Lunar Client's: Horizon players see Horizon's mark (two white bars over a violet line,
-`horizon_cosmetics::mark`) before the names of other Horizon players, above their heads (both
+Like Lunar Client's: Free Horizon players see Free Horizon's mark (two white bars over a violet line,
+`horizon_cosmetics::mark`) before the names of other Free Horizon players, above their heads (both
 views, and your own with *Own name tag*) and in the player list, after the head. Nothing changes on
-the wire to Minecraft servers: which players use Horizon comes from the cosmetics service, in the
+the wire to Minecraft servers: which players use Free Horizon comes from the cosmetics service, in the
 same cached `/v1/worn` answers as what they wear (no request of its own, nothing per frame).
 
-- **Who is reported**: a player whose game said "I play Horizon" lately. While *Show me as
-  Horizon* is on, the game signs in (Mojang's `join`, as for *My cosmetics*) and sends
+- **Who is reported**: a player whose game said "I play Free Horizon" lately. While *Show me as
+  Free Horizon* is on, the game signs in (Mojang's `join`, as for *My cosmetics*) and sends
   `POST /v1/presence {"listed": true}` at start, then every hour (`account::PRESENCE_EVERY`); the
   service reports them for 3 hours after the last time (`COSMETICS_PRESENCE_WINDOW`). Off, the game
   sends `{"listed": false}` and the service forgets them at once: it never reports them again until
   they turn it back on. An offline account sends nothing and is never reported.
 - **Anyone can ask**: `/v1/worn` takes no sign-in (as for what players wear), so anyone, a server
-  included, can learn whether a UUID played Horizon in the last 3 hours while that player shows
-  themselves. *Show me as Horizon*'s tooltip says so.
-- **Settings** (Extras › Cosmetics, both on by default): *Horizon logos* ("Show the Horizon logo
-  next to Horizon players"; off: the game draws no mark, and asks for nothing more than cosmetics
-  need) and *Show me as Horizon* ("Show me as a Horizon player").
+  included, can learn whether a UUID played Free Horizon in the last 3 hours while that player shows
+  themselves. *Show me as Free Horizon*'s tooltip says so.
+- **Settings** (Extras › Cosmetics, both on by default): *Free Horizon logos* ("Show the Free Horizon logo
+  next to Free Horizon players"; off: the game draws no mark, and asks for nothing more than cosmetics
+  need) and *Show me as Free Horizon* ("Show me as a Free Horizon player").
 - **The player list** keeps a 9-pixel column for the mark once anyone listed has it, so names stay
   aligned.
 - **Cost**: in a name tag, the mark is five filled rectangles beside the text, looked up under the
@@ -277,7 +277,7 @@ same cached `/v1/worn` answers as what they wear (no request of its own, nothing
   emote over and over (the art and the bench, without the network).
 - **Settings** (Extras, under "Cosmetics", shown only with the flag on), the same three as the
   launcher's Wardrobe (`horizon_cosmetics::prefs`, lines of `horizon-extras.txt`):
-  - *My cosmetics: Shown / Hidden* is the account's (`PUT /v1/visible`): hidden, every Horizon
+  - *My cosmetics: Shown / Hidden* is the account's (`PUT /v1/visible`): hidden, every Free Horizon
     player sees you without them, you included. The game signs in for that one call the way the
     launcher does (`horizon_cosmetics::account`, Mojang's `join` with the player's session) and
     notes what the service confirmed in `cosmetics-visible.txt`; offline it tries again after 15 s,
@@ -287,15 +287,15 @@ same cached `/v1/worn` answers as what they wear (no request of its own, nothing
     player presses it there is no `cosmeticsOthers` line, and it follows ownership
     (`prefs::Others::effective`): *Shown* if the signed-in account owns a cosmetic, else *Hidden*.
     The button shows that value; pressing it writes the line, which then wins. Hidden, nothing of
-    theirs is drawn, yet with *Horizon logos* on the game still asks the same `/v1/worn` batch who
-    plays Horizon.
+    theirs is drawn, yet with *Free Horizon logos* on the game still asks the same `/v1/worn` batch who
+    plays Free Horizon.
   - **Ownership** (`horizon_cosmetics::account::owns`): once a run, in a world, the game signs in
     as for *My cosmetics* and reads `GET /v1/me`; an account whose `owned` list has anything owns
     one. The answer is kept per account in `cosmetics-owned.txt` (beside `cosmetics-visible.txt`;
     the launcher's Wardrobe writes it too) and used at the next start until the service answers.
     Not known yet, failed (retried after 15 s, doubling to 10 minutes) or offline: not owning. An
     answer that says owns shows others' at once, without a restart. Only one of the sign-ins (this,
-    *My cosmetics*, *Show me as Horizon*) runs at a time (Mojang keeps one joined server id per
+    *My cosmetics*, *Show me as Free Horizon*) runs at a time (Mojang keeps one joined server id per
     account). `HORIZON_COSMETICS_LOCAL` counts as owning.
   - *Hide other players' trails and auras*, off by default (`cosmeticsHideFx`): their trails
     and auras stay hidden, their other cosmetics (companions included) still show.
@@ -303,11 +303,11 @@ same cached `/v1/worn` answers as what they wear (no request of its own, nothing
     window's own server names the player by their offline profile, which the service doesn't
     know, so in single player (open to LAN too) the game draws and asks nothing for the player's
     own model. On, it asks by the signed-in account's UUID: their cosmetics, their name tag style
-    (with *Own name tag*) and Horizon's mark show in their own worlds. Offline accounts: nothing.
+    (with *Own name tag*) and Free Horizon's mark show in their own worlds. Offline accounts: nothing.
 - **Name tag styles** (`game/names.rs`): the badge, 8 text pixels square, after the name and a
   one-pixel line in the style's colour under the name's background, in the name tag's own pass
-  (the badge is in the atlas like the other items' textures). Horizon's mark goes before the name.
-- **Over tall items** (`names::cosmetic_lift`, Horizon only): a player wearing an item whose
+  (the badge is in the atlas like the other items' textures). Free Horizon's mark goes before the name.
+- **Over tall items** (`names::cosmetic_lift`, Free Horizon only): a player wearing an item whose
   highest point (`Item::top`: pixels above the model's neck with the bones at rest, animations
   included, found when the item is read) passes the tag's lowest pixel (2.05 blocks up, standing)
   has the whole tag, mark and badge included, lifted to one text pixel over it. Everyone else's
@@ -400,7 +400,7 @@ in the browser; no card is ever typed into the launcher.
   be claimed on the website only between the window's start and end; after that it is retired for
   good and never offered again. Players who claimed it keep it, and it shows in the Wardrobe.
 - **Launcher themes** are never claimed or sold: they are free for everyone in Settings ›
-  Appearance (*Launcher theme*: Horizon or First Light, `horizon_launcher::themes::THEMES`). A
+  Appearance (*Launcher theme*: Free Horizon or First Light, `horizon_launcher::themes::THEMES`). A
   catalogue entry with `"slot": "theme"` is ignored.
 - **Offline**: the last catalogue and answer, and the changes not sent yet, are kept per account
   in the launcher's data folder (`wardrobe/<uuid>.json`; never a session or token), item files
@@ -420,8 +420,8 @@ page stays hidden.
 
 - **A row per slot** (head, back, shirt, shoulder pet, name tag) with what it wears,
   "Nothing equipped" or "None owned yet"; **your player** in the middle, in 3D on your own skin,
-  wearing it, with your name tag over the head as others see it (Horizon's mark unless the game's
-  *Show me as Horizon* is off, your style's badge after the name): drag to turn, scroll to zoom,
+  wearing it, with your name tag over the head as others see it (Free Horizon's mark unless the game's
+  *Show me as Free Horizon* is off, your style's badge after the name): drag to turn, scroll to zoom,
   *Reset view* (the live view above, `launcher/src/wardrobe_page/viewer.rs`); **what you own for
   the chosen slot**, "Nothing" first. Hovering a card tries its item on the player (or, for
   "Nothing", takes the slot's item off) until the pointer leaves; equipping shows at once.
@@ -468,7 +468,7 @@ for it. No countdowns, scarcity, buyer counts, "limited" wording or loot boxes.
   aura from above, a trail's particles grown), a shirt on a plain figure, an emote on the player at
   its fullest move, a look on the player, the pack as its looks side by side. Name tags show as the
   game draws them. Without a skin the launcher can read (signed out, offline, an unreadable one),
-  the player is Horizon's stand-in, the website shop's own original art (`stand_in` in
+  the player is Free Horizon's stand-in, the website shop's own original art (`stand_in` in
   `wardrobe_page.rs`, `standInSkin` on the site), never Mojang's Steve or Alex.
 - **A tile opens it big**: the account's own player in 3D wearing it over what it wears
   (`shop::try_on`; drag to turn, scroll to zoom; an emote plays, again each time it ends), its name,

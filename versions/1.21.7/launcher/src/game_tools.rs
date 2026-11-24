@@ -284,7 +284,7 @@ fn explain_unreachable(mut result: Value) -> Value {
         });
     if unreachable {
         result["content"] = json!([{ "type": "text", "text": json!({
-            "error": "The game is not running under agent control. Start it with play, then game_wait_ready, or ask the player to turn on Agent Control in the game they started (Options > Horizon Settings > AI Agent).",
+            "error": "The game is not running under agent control. Start it with play, then game_wait_ready, or ask the player to turn on Agent Control in the game they started (Options > Free Horizon Settings > AI Agent).",
             "kind": "state",
         }).to_string() }]);
     }

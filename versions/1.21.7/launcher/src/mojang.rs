@@ -1,8 +1,9 @@
 //! The player's own download of the pinned version from Mojang, for a signed-in account that
-//! owns Minecraft: Java Edition (#434), as other launchers get it: the version JSON, the client
-//! jar, this system's libraries and the assets (the sounds), each checked against its sha1,
-//! in the official launcher's layout in the launcher's data folder. sources.rs then finds them
-//! there like any launcher's. Nothing of Mojang's is part of Horizon.
+//! owns Minecraft: Java Edition (#434), or with no Microsoft account signed in at all, as
+//! other launchers get it: the version JSON, the client jar, this system's libraries and the
+//! assets (the sounds), each checked against its sha1, in the official launcher's layout in
+//! the launcher's data folder. sources.rs then finds them there like any launcher's. Nothing
+//! of Mojang's is part of Horizon.
 //!
 //! Each file is checked against the size and sha1 Mojang lists, and written whole. A download
 //! stopped half way (cancelled, no network) keeps the files it finished: the next one fetches
@@ -357,7 +358,7 @@ fn fetch_file(fetch: Fetch, file: &File) -> Result<Vec<u8>, String> {
     }
     match sha1_hex(&body) {
         actual if actual == file.sha1 => Ok(body),
-        actual => Err(format!("is not the one Horizon pins (sha1 {actual})")),
+        actual => Err(format!("is not the one Free Horizon pins (sha1 {actual})")),
     }
 }
 

@@ -22,7 +22,7 @@ tunes it. LAN worlds and single player don't filter.
 ## Muting by hand
 
 Operators of level 3 (`/ban`'s level) mute players themselves; the console takes the same words without the
-slash. These are Horizon extras, and exist only on servers that filter chat. They are in the command tree of
+slash. These are Free Horizon extras, and exist only on servers that filter chat. They are in the command tree of
 operators of level 3 and above, so their clients complete them; other players don't see them.
 
 - `/mute <player> [duration] [reason]`: muted until `/unmute`, or for the duration when the word after the name

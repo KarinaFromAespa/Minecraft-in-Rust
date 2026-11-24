@@ -17,7 +17,7 @@ const MIN_SECONDS: f32 = 60.0;
 
 /// The details of a crash report that say what the game was doing, and only those: not the
 /// world, the server or the resource packs.
-const CRASH_DETAILS: [&str; 3] = ["Horizon Version", "Graphics Adapter", "Render Settings"];
+const CRASH_DETAILS: [&str; 3] = ["Free Horizon Version", "Graphics Adapter", "Render Settings"];
 
 static STARTED: OnceLock<Instant> = OnceLock::new();
 static CORE_READY_MS: AtomicU32 = AtomicU32::new(u32::MAX);
@@ -352,7 +352,7 @@ mod tests {
             side: "client",
             details: vec![
                 (
-                    "Horizon Version".into(),
+                    "Free Horizon Version".into(),
                     "v2026.10.15 (client 0.1.0)".into(),
                 ),
                 (
@@ -380,7 +380,7 @@ mod tests {
         assert_eq!(
             crash.details,
             [(
-                "Horizon Version".to_owned(),
+                "Free Horizon Version".to_owned(),
                 "v2026.10.15 (client 0.1.0)".to_owned()
             )]
         );

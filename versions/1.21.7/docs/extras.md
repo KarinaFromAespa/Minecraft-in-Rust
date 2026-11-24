@@ -1,4 +1,4 @@
-# Horizon extras
+# Free Horizon extras
 
 Optional conveniences built into the client: fullbright, dynamic lights, your own name tag, hiding block-break particles, auto-reconnect,
 Mouse Tweaks-style inventory controls, inventory sorting, a smooth chat and a music page. **Every one is off by default**: a fresh
@@ -20,7 +20,7 @@ again restores vanilla's behaviour completely.
 | Sort order and its clicks | `crates/horizon-client/src/inv_sort.rs` (pure, unit tested) |
 | The music page's rows, and the pools it filters | `options_ui.rs` (`Page::Music`), `crates/horizon-client/src/music.rs` (`track_groups`, `MusicManager::set_off`), `sound_events.rs` (`sound_except`) |
 | Cosmetics (show mine, show others'), off with their flag | `extras.rs`, `crates/horizon-client/src/game/cosmetics.rs` ([cosmetics.md](cosmetics.md)) |
-| The settings page | `extras_ui.rs` (`Page::Extras`, on `settings_shell.rs`): **Options → Horizon Settings... → Extras...**; fullbright, dynamic lights and hiding block-break particles change the picture, so they are on the graphics screen's Quality page instead (`graphics_ui.rs`, **Options → Video Settings...**) |
+| The settings page | `extras_ui.rs` (`Page::Extras`, on `settings_shell.rs`): **Options → Free Horizon Settings... → Extras...**; fullbright, dynamic lights and hiding block-break particles change the picture, so they are on the graphics screen's Quality page instead (`graphics_ui.rs`, **Options → Video Settings...**) |
 
 The settings are grouped by extra, under a header each, one to a row, and the strip
 under the list says what the row in focus or under the pointer does. An
@@ -36,8 +36,8 @@ extras stay out of the way of other input and options work.
 `horizon-graphics.txt`. `options.txt` is untouched, so a vanilla client can share
 the folder. Unknown or broken lines fall back to the defaults.
 
-Extras' keys (the sort key) are Horizon settings stored in that file and bound on
-the Extras page, not in vanilla's Key Binds screen: Horizon has no Horizon category
+Extras' keys (the sort key) are Free Horizon settings stored in that file and bound on
+the Extras page, not in vanilla's Key Binds screen: Free Horizon has no Free Horizon category
 in Controls, and adding one would put a non-vanilla mapping into `options.txt`.
 
 ## The extras
@@ -130,7 +130,7 @@ The game still draws the minimap, for the native mod (`native_minimap` in `nativ
   hundreds of blocks at once) then can't stop the pause menu's clicks.
 - Vanilla 26.3 gives all 247 to whatever starts first
   (`Library.acquireChannel` returns null once the pool is full); with the
-  extra off Horizon does exactly that. Below 231 sounds at once nothing
+  extra off Free Horizon does exactly that. Below 231 sounds at once nothing
   changes either way. Streaming sounds (music, records) are untouched
   (`sound_engine.rs`, `listener_reserve`). Client-only.
 
@@ -201,7 +201,7 @@ and the container screen tests are unchanged).
 
 ### Splitscreen (`splitscreen`, default off)
 
-**Options → Horizon Settings... → Splitscreen...** turns local joining on or off at once.
+**Options → Free Horizon Settings... → Splitscreen...** turns local joining on or off at once.
 In P1's single-player world, a controller P1 isn't using can press a button, then A to join
 (or Y to play as P1, while P1 has no controller). Each
 player picks an instance-local profile with its own options and saved progress. LB/RB on

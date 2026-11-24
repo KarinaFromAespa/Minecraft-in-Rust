@@ -1,24 +1,34 @@
 //! The owner gate in the window (`horizon_launcher::account::launch`): the screen that asks for a
 //! Microsoft account that owns Minecraft: Java Edition. It covers the launcher once for players
-//! without one (those who played offline before the gate), and again whenever Play is refused.
-//! The sign-in runs on it, code and all.
+//! with a signed-in account that doesn't own the game, and again whenever Play is refused. With
+//! no account signed in at all Play starts offline, and a build without sign-in configured never
+//! shows the screen: there is no sign-in to run on it. The sign-in runs on it, code and all.
 use super::*;
 
 impl Launcher {
     /// Whether the screen covers the window: no owner, and either Play was refused or the player
-    /// hasn't read it yet. The data question comes first.
+    /// hasn't read it yet. The data question comes first. A build without sign-in configured
+    /// never shows it (there is no sign-in to run on it), and neither does a player with no
+    /// account signed in at all (Play starts offline for them; see [`Self::owner_shown`]).
     pub(crate) fn asking_owner(&self) -> bool {
-        (self.owner_shown() == Some(false) || sign_in_preview())
+        (account::client_id().is_some() || sign_in_preview())
+            && (self.owner_shown() == Some(false) || sign_in_preview())
             && (self.owner_screen_open || !self.settings.owner_notice_seen || sign_in_preview())
             && !self.asking_consent()
             && self.opening.is_none()
     }
 
     /// `owner` as the window shows it: the developer option that lets offline names play without
-    /// an owner (`dev_options`) hides the gate, as if the keychain hadn't answered yet.
+    /// an owner (`dev_options`) hides the gate, as if the keychain hadn't answered yet. So does
+    /// having no Microsoft account signed in at all: Play starts offline then, and there is no
+    /// gate to show.
     pub(crate) fn owner_shown(&self) -> Option<bool> {
         match self.owner {
-            Some(false) if self.settings.dev_offline => None,
+            Some(false)
+                if self.settings.dev_offline || self.accounts.accounts.is_empty() =>
+            {
+                None
+            }
             owner => owner,
         }
     }
@@ -77,11 +87,11 @@ impl Launcher {
                     .child(tr("Sign in to play").to_string()),
             )
             .child(line(
-                "Horizon needs a Microsoft account that owns Minecraft: Java Edition, like other launchers.",
+                "Free Horizon needs a Microsoft account that owns Minecraft: Java Edition, like other launchers.",
                 n.ink_soft,
             ))
             .child(line(
-                "No Minecraft install needed: Horizon downloads it from Mojang for your account.",
+                "No Minecraft install needed: Free Horizon downloads it from Mojang for your account.",
                 n.ink_soft,
             ))
             .child(line(
@@ -321,10 +331,10 @@ impl Launcher {
                     .flex_col()
                     .gap(px(8.))
                     .child(ui::text(14., FontWeight::NORMAL, ink::BODY).child(tr(
-                        "Horizon needs a Microsoft account that owns Minecraft: Java Edition, like other launchers.",
+                        "Free Horizon needs a Microsoft account that owns Minecraft: Java Edition, like other launchers.",
                     )))
                     .child(ui::text(14., FontWeight::NORMAL, ink::BODY).child(tr(
-                        "No Minecraft install needed: Horizon downloads it from Mojang for your account.",
+                        "No Minecraft install needed: Free Horizon downloads it from Mojang for your account.",
                     )))
                     .child(ui::text(14., FontWeight::NORMAL, ink::QUIET).child(tr(
                         "Your worlds, offline names and settings stay where they are.",
@@ -538,7 +548,8 @@ enum Shown<'a> {
 }
 
 /// `HORIZON_LAUNCHER_PAGE=sign-in` opens the sheet with a made-up code, for screenshots: nothing
-/// asks Microsoft, and the gate itself is as it was (no account, no Play).
+/// asks Microsoft, and the gate itself is as it was (a signed-in account that doesn't own the
+/// game gets no Play).
 pub(super) fn sign_in_preview() -> bool {
     static PREVIEW: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *PREVIEW.get_or_init(|| std::env::var("HORIZON_LAUNCHER_PAGE").as_deref() == Ok("sign-in"))

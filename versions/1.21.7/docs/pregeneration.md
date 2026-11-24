@@ -1,7 +1,7 @@
 # Pregeneration: `/pregen`
 
 `/pregen` generates every chunk of a square or a circle ahead of the players, lights it and saves it, as
-Chunky does on a Java server. It is Horizon's own command (vanilla has none), available in single player
+Chunky does on a Java server. It is Free Horizon's own command (vanilla has none), available in single player
 with cheats on and to operators (level 2) on a server, from the chat or the server console
 (`horizon-server cmd pregen start 2500`).
 
@@ -9,7 +9,7 @@ It is off until you turn it on, so `/help` and the command tree stay vanilla's:
 
 - a server: `horizon-pregen = true` under `[properties]` in `server.toml` (or `horizon-pregen=true` in a
   vanilla folder's `server.properties`), then restart it;
-- single player and LAN: turn on **Options → Horizon Settings... → Extras... → Chunk pregeneration**.
+- single player and LAN: turn on **Options → Free Horizon Settings... → Extras... → Chunk pregeneration**.
   The choice is saved in `horizon-extras.txt` and applies immediately, including in an open world.
   Cheats must still be enabled. `--pregen` also works and keeps the command enabled for that run,
   even when the saved switch is off.

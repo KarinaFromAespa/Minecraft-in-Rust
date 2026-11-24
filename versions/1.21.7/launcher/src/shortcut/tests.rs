@@ -11,13 +11,13 @@ fn scratch(name: &str) -> PathBuf {
 fn names_fit_every_system() {
     assert_eq!(
         file_name("Hardcore", System::Linux),
-        "Hardcore (Horizon).desktop"
+        "Hardcore (Free Horizon).desktop"
     );
     assert_eq!(
         file_name("A/B: C?", System::Windows),
-        "A-B- C- (Horizon).lnk"
+        "A-B- C- (Free Horizon).lnk"
     );
-    assert_eq!(file_name(" .. ", System::Mac), "Instance (Horizon).app");
+    assert_eq!(file_name(" .. ", System::Mac), "Instance (Free Horizon).app");
     assert_eq!(slug("port:all the mods"), "port-all-the-mods");
 }
 
@@ -109,7 +109,7 @@ fn read_lnk(b: &[u8]) -> (u32, String, String, Vec<String>) {
 #[test]
 fn a_windows_shortcut_is_a_shell_link_to_the_launcher() {
     let exe = r"C:\Users\Zoé\AppData\Local\Horizon\horizon-launcher.exe";
-    let b = lnk(exe, &windows_args("port:atm"), "Play ATM in Horizon");
+    let b = lnk(exe, &windows_args("port:atm"), "Play ATM in Free Horizon");
     let (flags, ansi, wide, strings) = read_lnk(&b);
     assert_eq!(flags, 0x02 | 0x04 | 0x10 | 0x20 | 0x40 | 0x80);
     assert_eq!(
@@ -120,7 +120,7 @@ fn a_windows_shortcut_is_a_shell_link_to_the_launcher() {
     assert_eq!(
         strings,
         [
-            "Play ATM in Horizon",
+            "Play ATM in Free Horizon",
             r"C:\Users\Zoé\AppData\Local\Horizon",
             "play --instance \"port:atm\"",
             exe,
@@ -134,15 +134,15 @@ fn a_windows_shortcut_is_a_shell_link_to_the_launcher() {
 #[test]
 fn the_shell_written_link_keeps_the_instance_it_plays() {
     let root = scratch("plays");
-    let exe = root.join("Horizon Launcher").join("horizon-launcher.exe");
+    let exe = root.join("Free Horizon Launcher").join("horizon-launcher.exe");
     fs::create_dir_all(exe.parent().unwrap()).unwrap();
     fs::write(&exe, b"x").unwrap();
-    let link = root.join("Hardcore (Horizon).lnk");
+    let link = root.join("Hardcore (Free Horizon).lnk");
     write_windows_link(
         &link,
         &exe,
         &windows_args("hardcore"),
-        "Play Hardcore in Horizon",
+        "Play Hardcore in Free Horizon",
     )
     .unwrap();
     assert!(plays(&link, "hardcore"));
@@ -218,7 +218,7 @@ fn shortcuts_are_made_found_renamed_and_removed() {
         assert_eq!(mode & 0o111, 0o111);
     }
     // Someone else's file of that name stays.
-    fs::write(desktop.join("Mine (Horizon).desktop"), "not ours").unwrap();
+    fs::write(desktop.join("Mine (Free Horizon).desktop"), "not ours").unwrap();
     let err = make_in(System::Linux, &desktop, None, exe, "mine", "Mine", t).unwrap_err();
     assert!(err.contains("isn't this instance's shortcut"), "{err}");
     fs::remove_dir_all(&root).unwrap();

@@ -126,7 +126,7 @@ impl Launcher {
             _ => None,
         };
         let base = match j.kind {
-            NewKind::Horizon => tr("My Horizon").to_string(),
+            NewKind::Horizon => tr("My Free Horizon").to_string(),
             _ => j.default_name(&j.minecraft(versions)?),
         };
         let taken: Vec<&str> = self
@@ -242,7 +242,7 @@ impl Launcher {
         let now = self.instances.dialog.as_ref().map(|d| d.java.kind);
         div().flex().gap(px(4.)).children(
             [
-                (NewKind::Horizon, "Horizon"),
+                (NewKind::Horizon, "Free Horizon"),
                 (NewKind::Vanilla, "Vanilla"),
                 (NewKind::Modded, "Modded"),
             ]
@@ -577,10 +577,10 @@ mod tests {
 
     #[test]
     fn a_default_name_skips_the_ones_taken() {
-        assert_eq!(free_name("My Horizon".into(), &["Horizon"]), "My Horizon");
+        assert_eq!(free_name("My Free Horizon".into(), &["Free Horizon"]), "My Free Horizon");
         assert_eq!(
-            free_name("My Horizon".into(), &["my horizon", "My Horizon 2"]),
-            "My Horizon 3"
+            free_name("My Free Horizon".into(), &["my free horizon", "My Free Horizon 2"]),
+            "My Free Horizon 3"
         );
     }
 }

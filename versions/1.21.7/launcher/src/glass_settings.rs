@@ -249,7 +249,7 @@ impl Launcher {
             Some(
                 div()
                     .child(tr(
-                        "At start and before you play, what you installed from Horizon's registry moves to its newest version for this game. Never inside a modpack, and an update that would remove blocks or items waits for you.",
+                        "At start and before you play, what you installed from Free Horizon's registry moves to its newest version for this game. Never inside a modpack, and an update that would remove blocks or items waits for you.",
                     ))
                     .into_any_element(),
             ),
@@ -374,7 +374,7 @@ impl Launcher {
             .gap(px(8.))
             .child(tile(
                 self.horizon_mark(42.),
-                "Horizon".into(),
+                "Free Horizon".into(),
                 installed.unwrap_or_else(|| tr("Nightly").to_string()),
                 div()
                     .flex()
@@ -497,7 +497,7 @@ impl Launcher {
                     0,
                     tr("Applications menu"),
                     note(if self.settings.desktop_entry() {
-                        "Horizon and its icon are in your desktop's menu."
+                        "Free Horizon and its icon are in your desktop's menu."
                     } else {
                         "Not in your desktop's menu."
                     }),

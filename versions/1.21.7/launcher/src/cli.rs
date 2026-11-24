@@ -20,7 +20,7 @@ use std::process::Command;
 #[command(
     name = "horizon-launcher",
     version = backend::VERSION,
-    about = "Installs, prepares and starts Horizon. Without a subcommand, opens the window."
+    about = "Installs, prepares and starts Free Horizon. Without a subcommand, opens the window."
 )]
 struct Cli {
     /// Print JSON instead of text, where a command has something to report
@@ -108,8 +108,8 @@ enum ServersCmd {
 enum AccountCmd {
     /// The signed-in accounts and which one plays
     List,
-    /// Sign in with a Microsoft account in your browser (device code). Play needs one that owns
-    /// Minecraft: Java Edition
+    /// Sign in with a Microsoft account in your browser (device code). Needed for online
+    /// servers; the game plays offline without one
     SignIn {
         /// Sign this account (name or UUID) in again: another Microsoft account is refused and
         /// who plays stays the same
@@ -1442,7 +1442,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             trust_unsigned,
         } => {
             if !trust_unsigned {
-                return Err("An imported build is unsigned: Horizon can't check where it came from. If you trust it, pass --trust-unsigned.".into());
+                return Err("An imported build is unsigned: Free Horizon can't check where it came from. If you trust it, pass --trust-unsigned.".into());
             }
             let tag = build_import::import(&path, version.as_deref())?;
             let prepared = backend::check_prepared(&tag);
@@ -1500,7 +1500,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 {
                     return Err(format!(
                         "{} plays Minecraft: Java Edition: --version, --world, --creative, \
-                         --join and --account are for Horizon instances.",
+                         --join and --account are for Free Horizon instances.",
                         instance.name
                     ));
                 }
@@ -1763,10 +1763,10 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             settings.save()?;
             if remove {
                 horizon_launcher::desktop::remove()?;
-                println!("Removed Horizon from the applications menu.");
+                println!("Removed Free Horizon from the applications menu.");
             } else {
                 horizon_launcher::desktop::install(backend::exe_path())?;
-                println!("Horizon is in the applications menu.");
+                println!("Free Horizon is in the applications menu.");
             }
         }
         Cmd::Worlds { action } => worlds(
@@ -1808,11 +1808,11 @@ fn java(action: JavaCmd, as_json: bool) -> Result<(), String> {
             if as_json {
                 json(serde_json::json!(all));
             } else if all.is_empty() {
-                println!("No Java yet. Horizon downloads Mojang's when an instance needs it.");
+                println!("No Java yet. Free Horizon downloads Mojang's when an instance needs it.");
             } else {
                 for r in &all {
                     let from = match r.source {
-                        java::Source::Mojang => "Mojang's, downloaded by Horizon",
+                        java::Source::Mojang => "Mojang's, downloaded by Free Horizon",
                         java::Source::Installed => "installed",
                     };
                     println!("Java {}  ({from})\n  {}", r.version, r.home.display());
@@ -1895,12 +1895,12 @@ fn update(check: bool, as_json: bool) -> Result<(), String> {
         return Ok(());
     }
     match &updates.horizon {
-        None => println!("Horizon: up to date."),
-        Some(r) if check => println!("Horizon: {} is available.", r.tag),
+        None => println!("Free Horizon: up to date."),
+        Some(r) if check => println!("Free Horizon: {} is available.", r.tag),
         Some(r) => {
             let tag =
                 backend::install_tag(&r.tag, true, progress(format!("Installing {}", r.tag)))?;
-            println!("Horizon: installed {tag}.");
+            println!("Free Horizon: installed {tag}.");
         }
     }
     match &updates.launcher {
@@ -1949,10 +1949,15 @@ fn account_command(action: AccountCmd, as_json: bool) -> Result<(), String> {
                     "owner": accounts.has_owner(account::store()),
                 }));
             } else if accounts.accounts.is_empty() && accounts.offline.is_empty() {
-                println!(
-                    "No Microsoft account signed in. Play needs one that owns Minecraft: Java \
-                     Edition: horizon-launcher account sign-in"
-                );
+                if account::client_id().is_some() {
+                    println!(
+                        "No Microsoft account signed in. The game plays offline; sign in for online \\\n                     servers: horizon-launcher account sign-in"
+                    );
+                } else {
+                    println!(
+                        "No Microsoft account signed in (this build has no Microsoft sign-in). \\\n                     The game plays offline."
+                    );
+                }
             } else {
                 for a in &accounts.accounts {
                     let mark = if accounts.selected.as_ref() == Some(&a.uuid) {
@@ -1977,7 +1982,9 @@ fn account_command(action: AccountCmd, as_json: bool) -> Result<(), String> {
                         "Playing offline as the game's own name (`account select NAME` to switch)."
                     );
                 }
-                if !accounts.has_owner(account::store()) {
+                // With no account signed in at all Play starts offline, so there is
+                // nothing to sign in for.
+                if !accounts.accounts.is_empty() && !accounts.has_owner(account::store()) {
                     println!(
                         "{} {}",
                         account::NoOwner::default(),
@@ -2307,7 +2314,7 @@ fn servers(action: ServersCmd, as_json: bool) -> Result<(), String> {
             let tag = backend::resolve_version(version.as_deref())?;
             servers::set_up(&tag)?;
             println!(
-                "Servers run Horizon {}",
+                "Servers run Free Horizon {}",
                 servers::runtime_release().unwrap_or(tag)
             );
         }
@@ -2345,7 +2352,7 @@ fn github_native(
     trust: bool,
 ) -> Result<(), String> {
     if java {
-        return Err("Native mods from GitHub are for Horizon instances.".into());
+        return Err("Native mods from GitHub are for Free Horizon instances.".into());
     }
     println!("{}", found.label());
     println!("Source, to read: {}", found.source_url());
@@ -2756,7 +2763,7 @@ fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
             ..
         } => {
             if java.is_some() {
-                return Err("Native mods from GitHub are for Horizon instances.".into());
+                return Err("Native mods from GitHub are for Free Horizon instances.".into());
             }
             let mut origins = github_mods::origins(&home);
             origins.retain(|o| id.as_deref().is_none_or(|i| o.id == i));
@@ -3012,7 +3019,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
         } => {
             let Some(java) = instances::find(&instance)?.java else {
                 return Err(format!(
-                    "{instance} is a Horizon instance: mod loaders are for Java instances."
+                    "{instance} is a Free Horizon instance: mod loaders are for Java instances."
                 ));
             };
             if list {
@@ -3058,7 +3065,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
             let window = window.as_deref().map(parse_window).transpose()?;
             if instances::find(&instance)?.java.is_none() {
                 return Err(format!(
-                    "{instance} is a Horizon instance: Horizon is not a Java program."
+                    "{instance} is a Free Horizon instance: Free Horizon is not a Java program."
                 ));
             }
             changed(instances::edit(&instance, |m| {
@@ -3741,7 +3748,7 @@ fn modpack(action: ModpackCmd, as_json: bool) -> Result<(), String> {
                     );
                 } else {
                     println!(
-                        "{} {}  ({}, from Horizon's registry)\n  {}",
+                        "{} {}  ({}, from Free Horizon's registry)\n  {}",
                         p.name,
                         p.version,
                         p.id,

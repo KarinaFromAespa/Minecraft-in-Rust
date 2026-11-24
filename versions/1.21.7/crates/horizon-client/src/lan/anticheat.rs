@@ -538,7 +538,7 @@ impl Hub {
             events.push(HostEvent::Ban {
                 uuid,
                 name,
-                reason: format!("Horizon anticheat: {}", check.name()),
+                reason: format!("Free Horizon anticheat: {}", check.name()),
             });
         } else if v.kick {
             self.anticheat_kick(self.guests[i].conn);

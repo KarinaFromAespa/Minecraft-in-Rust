@@ -28,14 +28,14 @@ impl Launcher {
             if tag.is_empty() {
                 "Minecraft"
             } else {
-                "Horizon"
+                "Free Horizon"
             },
             |i| i.name.as_str(),
         );
         let mut what = vec![format!("Minecraft: Java Edition {game}")];
         if !tag.is_empty() {
             what.push(format!(
-                "Horizon {}",
+                "Free Horizon {}",
                 horizon_launcher::nightly::label(tag)
                     .or_else(|| horizon_launcher::build_import::label(tag))
                     .unwrap_or_else(|| tag.trim_start_matches('v').to_string())
@@ -243,7 +243,12 @@ impl Launcher {
             .child(label(
                 tr(if running { "Running" } else { "Play" }).to_string(),
             ));
-        match play_press(ready, self.owner, self.preparing || running) {
+        match play_press(
+            ready,
+            self.owner,
+            self.accounts.accounts.is_empty(),
+            self.preparing || running,
+        ) {
             PlayPress::Nothing => play = disabled(play),
             PlayPress::Play => {
                 play = play.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {

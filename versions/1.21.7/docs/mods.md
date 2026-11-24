@@ -1,6 +1,6 @@
-# Horizon mods
+# Free Horizon mods
 
-Two kinds of mod run in Horizon:
+Two kinds of mod run in Free Horizon:
 
 | Kind | File | What it is | Where it runs |
 |---|---|---|---|
@@ -8,9 +8,9 @@ Two kinds of mod run in Horizon:
 | **Native mod** | `.hnmod` | A [horizon-mixins](https://github.com/horizon-rust/horizon-mixins) bundle: Rust that changes the game's own source before it is compiled. | In a game the launcher builds for the player ([native-mods.md](native-mods.md)) |
 
 Fabric and NeoForge jars do **not** run as they are: their code calls and patches Minecraft's Java classes, and
-Horizon has none. What carries over is the data and assets inside a jar ([modpacks.md](modpacks.md)).
+Free Horizon has none. What carries over is the data and assets inside a jar ([modpacks.md](modpacks.md)).
 
-Running Java mods unchanged needs a Java bridge (a JVM beside the game, proposed in [#10216](https://github.com/horizon-rust/horizon/pull/10216); not in Horizon today).
+Running Java mods unchanged needs a Java bridge (a JVM beside the game, proposed in [#10216](https://github.com/horizon-rust/horizon/pull/10216); not in Free Horizon today).
 The project decided on 2026-11-09 that it will only ever be a **separate, optional download, never installed or on by
 default**: when the game or the launcher finds a Java mod it may offer to turn it on, and the player decides. Before
 it is promoted out of beta, its server MSPT and memory are measured against the Java client running the same mods
@@ -21,7 +21,7 @@ Mods are **off by default**. A fresh install has no `horizon-mods` folder and pl
 ## Playing with mods
 
 1. Install a mod from the launcher's Mods page ([mod-browser.md](mod-browser.md)) or from the game (Options > Mods >
-   **Browse Mods**: Horizon's registry, checked as the launcher checks it), or put its files by hand in the
+   **Browse Mods**: Free Horizon's registry, checked as the launcher checks it), or put its files by hand in the
    game folder (the one holding `options.txt`): a content mod's `.hmod` (or a folder holding `horizon-mod.toml`) in
    `horizon-mods/`. Native mods go in `horizon-native-mods/`, and the launcher builds them
    ([native-mods.md](native-mods.md)).
@@ -55,7 +55,7 @@ cargo horizon-mod check target/horizon-mod/my_mod.hmod   # the registry's checks
 ```
 
 - `new <path> [--name "Name"]` writes the template. `--template native [--horizon <commit>]` writes a native trait
-  mod's bundle instead: `horizon-mixin.toml` (pinned to that Horizon commit, else unpinned) and an `[api]` crate with
+  mod's bundle instead: `horizon-mixin.toml` (pinned to that Free Horizon commit, else unpinned) and an `[api]` crate with
   one hook, built with `horizon-launcher native-build <path> --trust-native-code`
   ([native-mods.md](native-mods.md#trait-mods-draft)). Any other `--template` is refused.
 - `build` packs `horizon-mod.toml`, `assets/` and `data/` into `target/horizon-mod/<id>.hmod`, with the same checks
@@ -273,7 +273,7 @@ Native mods can register component types before content loads. A content item
 can set a registered type with a JSON value, such as `"sample:charge": {"charge": 42}`.
 JSON values become NBT values. Values must fit the network NBT limits and
 round-trip through saved NBT; negative zero is not supported. A key such as
-`"!sample:charge": {}` removes the template's default. Unknown types fail when Horizon builds the content root;
+`"!sample:charge": {}` removes the template's default. Unknown types fail when Free Horizon builds the content root;
 `cargo horizon-mod check` cannot check native registrations.
 
 `crafting_remainder` names what the item leaves in the crafting grid when a
@@ -443,9 +443,9 @@ It is the menu type `<id>:<name>`, with its network id after vanilla's. A mod bl
 its slots, then the player's 36. A shift-click from the inventory goes to the first slots with room, never a result
 slot, and one on the container goes to the inventory, as a chest's does. `results` fence players only: hoppers follow the
 container's faces and `inputs`, so leave result slots out of `inputs`. The data slots are the block entity's `data`
-(16-bit on the network, as vanilla's), all sent when it opens, then each change. A Horizon client shows it through the
+(16-bit on the network, as vanilla's), all sent when it opens, then each change. A Free Horizon client shows it through the
 mod's own screen (`native_screen`); without one it closes again. Clients join a server only with the same mods' menu
-types, as with its blocks, and a client that isn't Horizon's is never sent one: the block opens nothing for it. Its
+types, as with its blocks, and a client that isn't Free Horizon's is never sent one: the block opens nothing for it. Its
 clicks run on the server's vanilla menu engine (`menu::Kind::Mod`), shift-clicks routed as `ChestMenu`'s, and a native
 mod can decide what a slot takes in code with `native_menu_slot_rules` ([native-mods.md](native-mods.md#menu-slot-rules)).
 A native mod can hand the screen bytes of its own when the block opens it
@@ -616,9 +616,9 @@ keep its own server config in `serverconfig/` ([native-mods.md](native-mods.md))
 
 ## Publish your mod
 
-Horizon's registry lists mods, modpacks (`.hpack`) and resource packs made for Horizon. **A project is reviewed
+Free Horizon's registry lists mods, modpacks (`.hpack`) and resource packs made for Free Horizon. **A project is reviewed
 once, when it is listed; its later releases are checked by machine, not read by a person.** Players find them at
-[playhorizon.dev/mods](https://playhorizon.dev/mods) and in the launcher (Mods, then **Horizon** beside Modrinth),
+[playhorizon.dev/mods](https://playhorizon.dev/mods) and in the launcher (Mods, then **Free Horizon** beside Modrinth),
 which checks every file before it installs it.
 
 1. Run `cargo horizon-mod check` on the file (above): the registry runs the same checks.
@@ -658,9 +658,9 @@ words win. Its owners, key, kind and icon are the registry's, changed by a pull 
 - **Takedowns.** A file the registry takes down (`revoked.toml`) is refused by the launcher and turned off where
   installed.
 
-## Horizon's official mods
+## Free Horizon's official mods
 
-Horizon's own mods are native. They live in
+Free Horizon's own mods are native. They live in
 [horizon-rust/horizon-mods](https://github.com/horizon-rust/horizon-mods) under `native/<name>/`:
 
 | Mod | Folder | Replaces |

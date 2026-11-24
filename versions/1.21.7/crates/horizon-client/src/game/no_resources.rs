@@ -1,9 +1,9 @@
 //! A game started without its prepared files (the game build run by hand, not
-//! through the launcher): a window that says where to get the launcher
+//! through the launcher): a window that says to start it from the launcher
 //! (`horizon_client::no_resources`) and quits when it is closed. No loader, no
 //! crash report: nothing went wrong in the game.
 use super::*;
-use horizon_client::no_resources::{Action, DOWNLOAD_URL, NoResources};
+use horizon_client::no_resources::{Action, NoResources};
 use winit::event::MouseButton;
 
 struct Missing {
@@ -81,7 +81,6 @@ impl Missing {
     fn click(&mut self, event_loop: &ActiveEventLoop) {
         let mut batch = HudBatch::new(self.size());
         match self.with_ui(&mut batch, |ui| self.screen.click(ui)) {
-            Some(Action::Download) => packs::open_uri(DOWNLOAD_URL),
             Some(Action::Quit) => event_loop.exit(),
             None => {}
         }
@@ -94,7 +93,7 @@ impl ApplicationHandler for Missing {
             return;
         }
         let attributes = horizon_client::window::with_horizon_icon(
-            Window::default_attributes().with_title("Horizon"),
+            Window::default_attributes().with_title("Free Horizon"),
         )
         .with_inner_size(winit::dpi::LogicalSize::new(1040.0, 700.0));
         let made = event_loop

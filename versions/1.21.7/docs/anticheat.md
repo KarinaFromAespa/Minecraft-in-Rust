@@ -1,6 +1,6 @@
 # The dedicated server's anticheat
 
-Horizon's dedicated server checks what players send beyond what vanilla checks. It is **on** by default,
+Free Horizon's dedicated server checks what players send beyond what vanilla checks. It is **on** by default,
 every check with it, but only the checks a vanilla client can't trip act on their own: `combat` drops the
 attacks of a kill aura, kicks it, and bans it when it comes back and does it again; `ground` drops the
 false ground claims of a no-fall or a walk on water (never sending the player back), kicks one that keeps at
@@ -51,7 +51,7 @@ are told (at most once a second per player and check); from `kick` on, the playe
 
 A check's kicks are counted for each player, across sessions and restarts (`strikes`,
 `anticheat-strikes.json`). The kick that reaches the check's `ban_after` bans instead: the player goes
-into `banned-players.json` as `/ban` puts them, with "Horizon anticheat" as the source and "Horizon
+into `banned-players.json` as `/ban` puts them, with "Free Horizon anticheat" as the source and "Free Horizon
 anticheat: <check>" as the reason, and is sent away with vanilla's ban message. A ban starts the count
 again, so a player an operator pardons (`/pardon`) is kicked once more before another ban. Only checks
 no legit client trips ban by default (`combat`); `ban_after = 0` turns a check's bans off.

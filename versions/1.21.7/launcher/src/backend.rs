@@ -1224,7 +1224,7 @@ pub fn install(release: &Release, progress: impl Fn(f32)) -> Result<(), String> 
                 .filter(|v| *v == release.tag)
                 .ok_or_else(|| {
                     crate::i18n::trf(
-                        "This Nightly's title ({title}) doesn't name its date and commit as Horizon \
+                        "This Nightly's title ({title}) doesn't name its date and commit as Free Horizon \
                          signs them, so it can't be checked: it was not installed.",
                         &[("title", &format!("{:?}", release.name))],
                     )
@@ -1238,7 +1238,7 @@ pub fn install(release: &Release, progress: impl Fn(f32)) -> Result<(), String> 
             )?
         }
         None if is_game_tag(tag) => signed_digest(tag, asset)?,
-        None => return Err(format!("{tag} is not a Horizon release.")),
+        None => return Err(format!("{tag} is not a Free Horizon release.")),
     };
     install_as(
         release,
@@ -1518,7 +1518,7 @@ pub fn resources_summary(prepared: bool, sounds: bool, version: &str) -> String 
     use crate::i18n::trf;
     match (prepared, sounds) {
         (false, _) => trf(
-            "Not prepared. Horizon needs the files of your own Minecraft {version}.",
+            "Not prepared. Free Horizon needs the files of your own Minecraft {version}.",
             &[("version", version)],
         ),
         (true, true) => trf("Prepared for Minecraft {version}", &[("version", version)]),
@@ -1935,7 +1935,8 @@ pub fn complete_assets(tag: &str) {
     });
 }
 
-/// Horizon's own download (an owner's) may have stopped before the sounds and the languages,
+/// Horizon's own download (an owner's, or a no-account download's) may have stopped before
+/// the sounds and the languages,
 /// and the copies of `complete_assets` read them from its store: asked again, once per run, through
 /// the same owner gate as any download from Mojang (`download_for_owner`), which keeps the files
 /// already whole. Called where a download is expected (`reuse_prepared_everywhere`), never on Play.
@@ -2105,8 +2106,9 @@ fn preparer_binary(dir: &Path) -> Option<PathBuf> {
 }
 
 /// Downloads the pinned version from Mojang into `dir` when an account in the launcher owns
-/// Minecraft (asked again now), else says what signing in would do, as the last line of the
-/// not-found error.
+/// Minecraft (asked again now), or when no Microsoft account is signed in at all — the
+/// files are Mojang's public downloads, checked against the pins. Otherwise says what
+/// signing in would do, as the last line of the not-found error.
 fn download_for_owner(
     pins: &sources::Pins,
     dir: &Path,
@@ -2130,7 +2132,7 @@ fn download_for_owner(
 
 /// Downloads Minecraft `id` (any version on Mojang's list, its version file's sha1 from it) into
 /// Horizon's own game folder, in the official launcher's layout, for an account that owns the
-/// game (asked again now). Returns that folder.
+/// game (asked again now) — or with no Microsoft account signed in at all. Returns that folder.
 pub fn download_version_for_owner(
     id: &str,
     manifest_sha1: &str,
@@ -2163,7 +2165,7 @@ pub fn java_game(
 ) -> Result<Command, String> {
     let game = instance.java.as_ref().ok_or_else(|| {
         format!(
-            "{} plays Horizon, not Minecraft: Java Edition",
+            "{} plays Free Horizon, not Minecraft: Java Edition",
             instance.name
         )
     })?;
@@ -2246,8 +2248,10 @@ pub fn java_game(
     )
 }
 
-/// What [`download_for_owner`] does with the owner gate's answer: Mojang's files only for its
-/// `owner`, an account the services said owns the game just now.
+/// What [`download_for_owner`] does with the owner gate's answer: Mojang's files for its
+/// `owner`, an account the services said owns the game just now — or with no Microsoft
+/// account signed in at all, for nobody in particular: the files are Mojang's public
+/// downloads, checked against the pins, and a player without an account plays offline.
 fn download_for(
     pins: &sources::Pins,
     dir: &Path,
@@ -2257,39 +2261,45 @@ fn download_for(
     log: &dyn Fn(String),
 ) -> Result<(), String> {
     let v = &pins.version;
-    match pass {
+    // Who the download runs for: an owner by name, or nobody signed in at all.
+    let owner = match pass {
         Ok(account::Launch {
             owner: Some((owner, _)),
             ..
-        }) => {
-            let name = owner.name;
-            log(format!(
-                "{name} owns Minecraft: downloading {v} from Mojang"
-            ));
-            let os = match sources::Os::current() {
-                sources::Os::Linux => "linux",
-                sources::Os::MacOs => "osx",
-                sources::Os::Windows => "windows",
-            };
-            mojang::download(pins, dir, os, 8, fetch, &mojang::CANCEL, log).map_err(|e| {
-                format!("\n  • Horizon tried to download {v} from Mojang for {name}, but: {e}")
-            })
-        }
+        }) => Some(owner.name),
         // An owner by its last answer, who can't be asked now.
-        Ok(pass) => Err(format!(
-            "\n  • Downloading {v} from Mojang needs your Microsoft account, which could not be \
-             checked: {}",
-            pass.offline.unwrap_or_default()
-        )),
-        Err(_) if signed_in => Err(
-            "\n  • No signed-in account owns Minecraft: Java Edition, so Horizon can't download it."
-                .into(),
-        ),
-        Err(_) => Err(format!(
-            "\n  • Or sign in with the Microsoft account that owns Minecraft: Horizon then \
-             downloads {v} from Mojang itself."
+        Ok(pass) => {
+            return Err(format!(
+                "\n  • Downloading {v} from Mojang needs your Microsoft account, which could not be \
+                 checked: {}",
+                pass.offline.unwrap_or_default()
+            ));
+        }
+        Err(_) if signed_in => {
+            return Err(
+                "\n  • No signed-in account owns Minecraft: Java Edition, so Free Horizon can't download it."
+                    .into(),
+            );
+        }
+        Err(_) => None,
+    };
+    match &owner {
+        Some(name) => log(format!("{name} owns Minecraft: downloading {v} from Mojang")),
+        None => log(format!(
+            "No Microsoft account is signed in: downloading {v} from Mojang"
         )),
     }
+    let os = match sources::Os::current() {
+        sources::Os::Linux => "linux",
+        sources::Os::MacOs => "osx",
+        sources::Os::Windows => "windows",
+    };
+    mojang::download(pins, dir, os, 8, fetch, &mojang::CANCEL, log).map_err(|e| match &owner {
+        Some(name) => {
+            format!("\n  • Free Horizon tried to download {v} from Mojang for {name}, but: {e}")
+        }
+        None => format!("\n  • Free Horizon tried to download {v} from Mojang, but: {e}"),
+    })
 }
 
 /// The Java home for this version: a runtime for precompiled exporters, a JDK for older
@@ -2345,7 +2355,7 @@ fn java(
     let runtime = data_dir().join("minecraft").join("runtime");
     let home = mojang::java_runtime(&component, &runtime, 8, &fetch, &mojang::CANCEL, log)
         .map_err(|e| {
-        format!("{missing}\n  • Horizon also tried to download Minecraft's own Java from Mojang, but: {e}")
+        format!("{missing}\n  • Free Horizon also tried to download Minecraft's own Java from Mojang, but: {e}")
     })?;
     find(major, &[home]).map(|jdk| jdk.home())
 }
@@ -2399,10 +2409,11 @@ fn assets_folder(
 /// Where the preparation takes Minecraft's files from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MinecraftFrom {
-    /// The player's own install (any launcher's); Mojang only when none has the version and an
-    /// account that owns the game is signed in.
+    /// The player's own install (any launcher's); Mojang only when none has the version —
+    /// for an account that owns the game, or with no account signed in at all.
     Install,
-    /// Mojang, for the signed-in account that owns the game ("Download and prepare").
+    /// Mojang, for the signed-in account that owns the game ("Download and prepare") — or
+    /// with no account signed in at all.
     Mojang,
 }
 
@@ -2463,7 +2474,7 @@ pub fn preparer(
             .and_then(|lock| sources::Pins::read(&lock))
             .ok_or("The version's research-lock.json doesn't pin the Minecraft files")?;
         let own = data_dir().join("minecraft");
-        let mut known = vec![("Horizon's own download", own.clone())];
+        let mut known = vec![("Free Horizon's own download", own.clone())];
         known.extend(
             sources::Folders::current()
                 .map(|f| sources::known_folders(sources::Os::current(), &f))
@@ -2479,7 +2490,8 @@ pub fn preparer(
         };
         let linked = data_dir().join("linked-minecraft");
         if from == MinecraftFrom::Mojang {
-            // Straight from Mojang (what is already there and whole is kept), for an owner only.
+            // Straight from Mojang (what is already there and whole is kept), for an owner
+            // or with no account signed in at all.
             download_for_owner(&pins, &own, &fetch, log)
                 .map_err(|e| e.trim_start_matches("\n  • ").to_string())?;
             own
@@ -2535,7 +2547,16 @@ pub fn preparer(
     let jar = data_dir()
         .join("server-jars")
         .join(format!("{version}.jar"));
-    if !reused && !jar.exists() {
+    // The lock pins the server jar too: a copy already there is kept only when whole,
+    // and a fresh download is checked before it is written (a lock without the pin
+    // keeps the old behaviour: an existing jar is trusted, a download is not checked).
+    let server_sha1 = read_json(&dir.join("research-lock.json"))
+        .and_then(|lock| lock["minecraft"]["server_sha1"].as_str().map(String::from));
+    let whole = match &server_sha1 {
+        Some(sha1) => sources::sha1_file(&jar).as_ref() == Some(sha1),
+        None => jar.exists(),
+    };
+    if !reused && !whole {
         let json: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&manifest).map_err(|e| e.to_string())?)
                 .map_err(|e| e.to_string())?;
@@ -2549,6 +2570,14 @@ pub fn preparer(
             .into_reader()
             .read_to_end(&mut body)
             .map_err(|e| e.to_string())?;
+        if let Some(sha1) = &server_sha1 {
+            let actual = sources::sha1_hex(&body);
+            if actual != *sha1 {
+                return Err(format!(
+                    "The {version} server jar from Mojang is not the one Free Horizon pins (sha1 {actual})"
+                ));
+            }
+        }
         let partial = jar.with_extension("partial");
         fs::write(&partial, body)
             .and_then(|_| fs::rename(&partial, &jar))
@@ -2936,7 +2965,7 @@ pub fn client_command(tag: &str) -> Command {
     if std::env::var_os("PIPEWIRE_PROPS").is_none() {
         cmd.env(
             "PIPEWIRE_PROPS",
-            "{ application.name = \"Horizon\" media.role = \"Game\" }",
+            "{ application.name = \"Free Horizon\" media.role = \"Game\" }",
         );
     }
     cmd
@@ -3245,7 +3274,7 @@ pub fn release_notes(tag: Option<&str>) -> Result<Release, String> {
         Some(tag) => releases
             .into_iter()
             .find(|r| r.tag == tag)
-            .ok_or_else(|| format!("No Horizon release is tagged {tag}.")),
+            .ok_or_else(|| format!("No Free Horizon release is tagged {tag}.")),
         None => releases
             .into_iter()
             .next()
@@ -3442,7 +3471,7 @@ pub fn install_tag(tag: &str, as_update: bool, progress: impl Fn(f32)) -> Result
         releases
             .iter()
             .find(|r| r.tag == tag)
-            .ok_or_else(|| format!("No Horizon release is tagged {tag}."))?
+            .ok_or_else(|| format!("No Free Horizon release is tagged {tag}."))?
     };
     if release.asset.is_none() {
         return Err(format!("{} has no build for this platform.", release.tag));
@@ -4457,13 +4486,6 @@ pub struct Settings {
     /// one now (the owner gate's screen).
     #[serde(default)]
     pub owner_notice_seen: bool,
-    /// Seconds a partner banner (the sidebar's card or the Servers page's banner) has been on
-    /// screen, over every start, up to `partner::SEEN_BEFORE_HIDE`: only then can the player hide it.
-    #[serde(default)]
-    pub partner_seen_secs: u64,
-    /// The player hid a partner banner: the sidebar's card and the Servers page's banner are both gone for good.
-    #[serde(default)]
-    pub partner_hidden: bool,
     /// What the window does while the game runs. Stays by default.
     #[serde(default)]
     pub while_playing: WhilePlaying,
@@ -4782,12 +4804,14 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
     }
 
-    /// The launcher downloads Mojang's game files (client jar, libraries, assets) only for an
-    /// account the services said owns the game: never without one, and never past the gate by
+    /// The launcher downloads Mojang's game files (client jar, libraries, assets) for an
+    /// account the services said owns the game, or with no Microsoft account signed in at
+    /// all — never for a signed-in account that doesn't own it, and never past the gate by
     /// the developer option (`Settings::dev_offline`), whose pass has no owner.
     #[test]
-    fn mojang_downloads_only_for_an_owner() {
-        let dir = std::env::temp_dir().join(format!("horizon-owner-only-{}", std::process::id()));
+    fn mojang_downloads_for_an_owner_or_with_no_account() {
+        let dir =
+            std::env::temp_dir().join(format!("horizon-download-gate-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         let pins = sources::Pins::read(&serde_json::json!({ "minecraft": {
             "version": "26.3",
@@ -4802,8 +4826,9 @@ mod tests {
         };
         let log = |_: String| {};
         let no_owner = || Ok(account::Launch::default());
+        // A signed-in account that doesn't own the game, or an owner that can't be asked
+        // now: nothing is fetched, nothing is written.
         for (pass, signed_in) in [
-            (Err(account::NoOwner::default()), false),
             (Err(account::NoOwner::default()), true),
             (no_owner(), false),
             (no_owner(), true),
@@ -4812,6 +4837,20 @@ mod tests {
         }
         assert!(asked.lock().unwrap().is_empty());
         assert!(!dir.exists());
+        // No account signed in at all: Mojang is asked (and the download fails here,
+        // without network).
+        assert!(
+            download_for(
+                &pins,
+                &dir,
+                Err(account::NoOwner::default()),
+                false,
+                &fetch,
+                &log
+            )
+            .is_err()
+        );
+        assert!(!asked.lock().unwrap().is_empty());
         // An owner: Mojang is asked (and the download fails here, without network).
         let owner = account::Account {
             uuid: "069a79f444e94726a5befca90e38aaf5".into(),
@@ -4827,6 +4866,7 @@ mod tests {
             owner: Some((owner, secrets)),
             ..Default::default()
         });
+        asked.lock().unwrap().clear();
         assert!(download_for(&pins, &dir, pass, true, &fetch, &log).is_err());
         assert!(!asked.lock().unwrap().is_empty());
         let _ = fs::remove_dir_all(&dir);
@@ -5351,7 +5391,7 @@ pub fn {f}("
             .and_then(|(_, v)| v);
         assert!(props.is_some_and(|v| v
             .to_string_lossy()
-            .contains("application.name = \"Horizon\"")));
+            .contains("application.name = \"Free Horizon\"")));
     }
 
     #[test]
@@ -7160,7 +7200,7 @@ pub fn {f}("
         let start = std::time::SystemTime::now() - std::time::Duration::from_secs(2);
         assert!(crash_report_in_since(&dir, start).is_none());
         fs::create_dir_all(&dir).unwrap();
-        let report = "---- Horizon Crash Report ----\n// Details below.\n\nTime: 2026-10-14 09:05:07\nDescription: Unexpected error\n\npanicked at src/game.rs:10:5:\nboom\n\t0: horizon_client::game::frame\n";
+        let report = "---- Free Horizon Crash Report ----\n// Details below.\n\nTime: 2026-10-14 09:05:07\nDescription: Unexpected error\n\npanicked at src/game.rs:10:5:\nboom\n\t0: horizon_client::game::frame\n";
         fs::write(dir.join("crash-2026-10-14_09.05.07-client.txt"), report).unwrap();
         fs::write(dir.join("notes.txt"), "x").unwrap();
         assert_eq!(

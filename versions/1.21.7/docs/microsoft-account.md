@@ -1,16 +1,19 @@
 # Microsoft account sign-in and online-mode play
 
-Horizon signs players in with their Microsoft account in the launcher and joins online-mode
-(authenticated) servers like vanilla 26.3 does. The launcher plays only with an account that owns
-Minecraft: Java Edition ([the owner gate](#the-owner-gate)); offline names, LAN and offline-mode
-servers play behind it. This note is the design, the status of each part and what Ludovic has to
-register.
+Free Horizon signs players in with their Microsoft account in the launcher and joins online-mode
+(authenticated) servers like vanilla 26.3 does. With a Microsoft account signed in, the launcher
+plays only while one owns Minecraft: Java Edition ([the owner gate](#the-owner-gate)); with no
+account signed in at all it plays offline, under an offline name or the name the game made up —
+and it still downloads the game files from Mojang itself to prepare the game
+([downloading the game](#downloading-the-game)). Sign-in is optional, and only available when
+the build has a client ID configured. This note is the design, the status of each part and what
+Ludovic has to register.
 
 ## What Ludovic registers (needs his accounts)
 
 Nothing below can be done by an agent: the app registrations belong to Ludovic. A build without
-the client ID can't sign in, so its launcher can't start the game ("This build of the launcher has
-no Microsoft sign-in"); release builds have it.
+the client ID can't sign in, so its launcher plays offline only ("This build of the launcher has
+no Microsoft sign-in. The game still plays offline."); release builds have it.
 
 1. **Azure app registration** (https://portal.azure.com → Microsoft Entra ID → App registrations →
    New registration):
@@ -20,7 +23,7 @@ no Microsoft sign-in"); release builds have it.
    - Redirect URI: none needed for the device-code flow. If the form insists, add a
      "Mobile and desktop applications" redirect `https://login.microsoftonline.com/common/oauth2/nativeclient`.
    - After creating it: Authentication → Advanced settings → **Allow public client flows: Yes**
-     (this enables the device-code flow; there is no client secret, Horizon is a public client).
+     (this enables the device-code flow; there is no client secret, Free Horizon is a public client).
    - API permissions: none to add. The launcher requests the scopes `XboxLive.signin offline_access`
      at sign-in time; `offline_access` gives the refresh token.
    - Copy the **Application (client) ID** (a GUID).
@@ -75,43 +78,54 @@ All requests use HTTPS and JSON except the two OAuth calls (form-encoded):
 
 ## The owner gate
 
-Decided 2026-10-27 (Ludovic, after a modder's suggestion): like other launchers, Horizon's
-launcher starts the game only while an account in it owns Java Edition. Offline play stays
-possible; the launcher just doesn't offer it on its own.
+Decided 2026-10-27 (Ludovic, after a modder's suggestion): like other launchers, Free Horizon's
+launcher starts the game only while an account in it owns Java Edition — while an account is
+signed in. With no account signed in at all there is nobody to own the game, so the launcher
+starts it offline instead of blocking (2026-11-24).
 
-- **Play needs an owner.** Every Play (Home, instances and packs, `horizon-launcher play`,
-  `modpack play`, the MCP's `play`) asks `account::launch` first. It asks the Minecraft services
-  again for each account, the selected one first, until one owns the game: the token renewal
-  (below) if due, then entitlements and profile. Without an owner the game doesn't start and Play
-  says "Sign in with a Microsoft account that owns Minecraft: Java Edition to play", with Sign in.
-- **The window says it once.** A player without an owner (one who played offline until now) sees
-  the gate's screen once when the launcher opens: why Horizon needs the account ("like other
+- **Play needs an owner — while an account is signed in.** Every Play (Home, instances and packs,
+  `horizon-launcher play`, `modpack play`, the MCP's `play`) asks `account::launch_for_game` first.
+  It asks the Minecraft services again for each account, the selected one first, until one owns the
+  game: the token renewal (below) if due, then entitlements and profile. With an account signed in
+  and no owner, the game doesn't start and Play says "Sign in with a Microsoft account that owns
+  Minecraft: Java Edition to play", with Sign in. With no account signed in at all, the game
+  starts offline, without a session.
+- **The window says it once.** A player with a signed-in account that doesn't own the game sees
+  the gate's screen once when the launcher opens: why Free Horizon needs the account ("like other
   launchers"), that worlds, offline names and settings stay where they are, and Sign in, which shows
   the device code on the same screen. It comes back whenever Play is refused; Not now closes it,
-  and Home keeps a Sign in row (`launcher/src/owner_page.rs`).
+  and Home keeps a Sign in row (`launcher/src/owner_page.rs`). A player with no account signed in
+  at all never sees it — Play starts offline for them — and neither does a build without sign-in
+  configured.
 - **The answer lives with the tokens.** Each account's keychain item keeps the last answer
   (`owns`), so accounts.json can't say yes. Where there is no keychain the answer sits in the
   secrets file with the tokens; a player can edit that file, as they can write keychain items with
   `secret-tool` or Keychain Access. With no network (or a sign-in that can't be renewed) the
   last answer stands: being offline never blocks a player who passed before, and the game starts
   without a session, offline. An answer of "doesn't own" (or no profile) blocks at once.
-- **Offline names play behind an owner.** They can be added and played only while an owning
-  account is signed in. Signing the last one out keeps them, and they play again once one is back.
+- **Offline names play freely with no account, behind an owner otherwise.** With no Microsoft
+  account signed in at all they can be added and played without one. Beside a signed-in account
+  they play only while an owning account is signed in: signing the last owner out keeps them, and
+  they play on their own once no account is signed in.
 - **Who isn't affected:** the game binary itself (`horizon-client`, `horizon-ctl launch`, the
   harnesses, CI), the dedicated server and `horizon-server`, the website. There is no bypass flag:
   the launcher's tests use accounts in a memory store (`MemoryStore`, and `HORIZON_NO_KEYCHAIN`
   for the CLI and MCP tests, which then have no owner).
 
-## Downloading the game for an owner
+## Downloading the game
 
-Decided 2026-10-27. This is the only exception to "Horizon never downloads the game", and it
-applies only on the player's machine, for an account the owner gate just asked about. The
-launcher's "Download and prepare" (`horizon-launcher prepare --download`) fetches the pinned
-version straight from Mojang (`launcher/src/mojang.rs`): the version file, the client jar,
-libraries, the asset index and the assets, each checked against the size and sha1 Mojang lists.
-They go to `minecraft/` in the launcher's data folder, and the preparation runs as usual. The
-download can be cancelled and goes on where it stopped. CI, agents, harnesses and the repo never
-download or keep Mojang's files.
+Decided 2026-10-27. This is the only exception to "Free Horizon never downloads the game", and it
+applies only on the player's machine, for an account the owner gate just asked about — or, since
+2026-11-24, with no Microsoft account signed in at all: the files are Mojang's public downloads,
+and a player without an account plays offline once they are prepared. The launcher's "Download
+and prepare" (`horizon-launcher prepare --download`) fetches the pinned version straight from
+Mojang (`launcher/src/mojang.rs`): the version file, the client jar, libraries, the asset index
+and the assets, each checked against the size and sha1 Mojang lists; the version file and the
+client jar are checked against the sha1s the version's research-lock.json pins, and the server
+jar the preparation also downloads is checked against its pinned sha1 the same way. They go to
+`minecraft/` in the launcher's data folder, and the preparation runs as usual. The download can
+be cancelled and goes on where it stopped. CI, agents, harnesses and the repo never download or
+keep Mojang's files.
 
 Refresh: the Minecraft token is renewed from the Microsoft refresh token (steps 2-5 with
 `grant_type=refresh_token`) when it has less than an hour left, before every launch; steps 6-7 run
@@ -234,7 +248,7 @@ or offline name currently selected for Play. Adding a new account remains a sepa
 ## Handing the session to the game
 
 Vanilla's launcher passes `--accessToken <token>` on the command line, where every user of the
-machine can read it in the process list. Horizon keeps it out of argv:
+machine can read it in the process list. Free Horizon keeps it out of argv:
 
 - The launcher writes `session-<random>.json` (mode 0600 on Unix, created new, in the game home's
   `sessions/` folder) with `{"name", "uuid", "access_token", "user_type": "msa", "xuid"}` and starts
@@ -274,9 +288,9 @@ Vanilla's `ClientHandshakePacketListenerImpl.handleHello`, `Crypt` and authlib's
    game and the launcher)", `InsufficientPrivilegesException` → "Multiplayer is disabled…",
    `multiplayer.access.banned` / `FORCED_USERNAME_CHANGE` → "You are banned from playing online",
    5xx or no network → "The authentication servers are currently not reachable…". Without a session
-   the game says "This server is in online mode. Sign in with your Microsoft account in the Horizon
+   the game says "This server is in online mode. Sign in with your Microsoft account in the Free Horizon
    launcher to join it." (Vanilla goes on after a failed join on LAN-discovered servers, which then
-   refuse the player anyway; Horizon stops at once.)
+   refuse the player anyway; Free Horizon stops at once.)
 5. Send `ServerboundKeyPacket` (the secret and the challenge, each RSA PKCS#1 v1.5 encrypted with
    the server key), then AES/CFB8 (key = IV = the secret) both ways.
 
@@ -284,13 +298,13 @@ The connecting screen follows vanilla's states: "Connecting to the server..." un
 request, "Logging in..." while joining the session service, "Encrypting...", then "Joining world...".
 Code: `horizon-protocol` (`rsa.rs`, `crypto::server_hash`), `horizon-client` (`auth.rs`, `net.rs`).
 
-Horizon's dedicated server verifies players when `online-mode=true`. A LAN or Play with Friends world
+Free Horizon's dedicated server verifies players when `online-mode=true`. A LAN or Play with Friends world
 verifies its guests when the host is signed in, as vanilla's `IntegratedServer` does
 (`OnlineMode::lan`); under an offline name it stays offline-mode. The host's own player joins through
 memory and is never asked to authenticate.
 
 `HORIZON_API_DISCOVERY` overrides the discovery URL, the counterpart of authlib's
-`-Dminecraft.api.discovery.host`; it is how the harness points both the vanilla server and Horizon at
+`-Dminecraft.api.discovery.host`; it is how the harness points both the vanilla server and Free Horizon at
 a local mock.
 
 ## Skins and capes (part b)
@@ -347,7 +361,7 @@ validators; the script above doesn't send another player's chat.
 services (discovery document, `join`, `hasJoined`/`verify`, no public keys) and a vanilla 26.3
 dedicated server in online mode started with `-Dminecraft.api.discovery.host=<mock>` (authlib
 10.0.77's only override: it replaces the whole discovery URL; the old `minecraft.api.session.host`
-style properties are gone). Horizon's
+style properties are gone). Free Horizon's
 headless client (`HORIZON_NET_REPORT`) joins with a session file holding a mock token: the server
 verifies the join through the mock with the hash it computed itself (so the RSA wrapping, the hash
 and AES/CFB8 are all checked against vanilla's code), the player spawns, chats and runs `/list`.

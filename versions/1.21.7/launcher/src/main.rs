@@ -56,7 +56,6 @@ mod native_log_page;
 mod new_instance;
 mod owner_page;
 mod packs_page;
-mod partner;
 mod perf;
 mod picture_cache;
 mod plate;
@@ -528,30 +527,6 @@ impl Launcher {
                 .timer(Duration::from_millis(80))
                 .await;
             if this.update(cx, |this, cx| this.drain(cx)).is_err() {
-                break;
-            }
-        })
-        .detach();
-        // Counts the time a partner banner is on screen, until it may be hidden.
-        cx.spawn(async move |this, cx| loop {
-            cx.background_executor()
-                .timer(Duration::from_secs(10))
-                .await;
-            let counting = this.update(cx, |this, cx| {
-                let s = &mut this.settings;
-                if s.partner_hidden || s.partner_seen_secs >= partner::SEEN_BEFORE_HIDE {
-                    return false;
-                }
-                // On screen on every page: the card in the sidebar, the banner on Servers.
-                s.partner_seen_secs += 10;
-                if s.partner_seen_secs % 60 == 0 || s.partner_seen_secs >= partner::SEEN_BEFORE_HIDE
-                {
-                    this.save_settings();
-                    cx.notify();
-                }
-                true
-            });
-            if !matches!(counting, Ok(true)) {
                 break;
             }
         })
@@ -1041,7 +1016,7 @@ impl Launcher {
             None => native_mods::base_for(plays.as_deref(), &self.installed, false),
         };
         let Some(base) = base else {
-            let error = tr("Install Horizon first.").to_string();
+            let error = tr("Install Free Horizon first.").to_string();
             self.native_log_preflight(&error);
             self.native_error = Some(error);
             return;
@@ -1262,8 +1237,9 @@ impl Launcher {
                                 continue;
                             }
                         };
-                        // Past the gate by the developer option alone is no owner.
-                        if !self.settings.dev_offline {
+                        // Past the gate by the developer option alone, or with no account
+                        // signed in at all, is no owner.
+                        if !self.settings.dev_offline && !self.accounts.accounts.is_empty() {
                             self.owner = Some(true);
                         }
                         if let Some(file) = file {
@@ -1565,7 +1541,7 @@ impl Launcher {
                             };
                             if let Some(api) = switched {
                                 self.client_error = Some(trf(
-                                    "Horizon's Vulkan renderer crashed while starting on this \
+                                    "Free Horizon's Vulkan renderer crashed while starting on this \
                                      graphics card, so the game now uses {api}. Press Play to \
                                      start it again. Video Settings > Graphics API switches back.",
                                     &[("api", api)],
@@ -1772,8 +1748,8 @@ impl Launcher {
         cx.notify();
     }
 
-    /// Prepares the selected version, its Minecraft files from the player's install or, for an
-    /// owner who asks, from Mojang.
+    /// Prepares the selected version, its Minecraft files from the player's install or,
+    /// for an owner who asks — or with no account signed in at all — from Mojang.
     fn prepare(&mut self, from: backend::MinecraftFrom) {
         let Some(tag) = self.selected().cloned() else {
             return;
@@ -2531,10 +2507,12 @@ fn segments<T: Copy + PartialEq + 'static>(
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PlayPress {
     Play,
-    /// Not prepared, for an account that owns the game: prepare it (from the player's install,
-    /// else downloaded from Mojang for that account), then play, as the official launcher does.
+    /// Not prepared, for an account that owns the game — or with no account signed in at
+    /// all: prepare it (from the player's install, else downloaded from Mojang), then play,
+    /// as the official launcher does.
     PrepareThenPlay,
-    /// Not prepared and no owner (signing in comes first), or busy preparing or playing.
+    /// Not prepared and a signed-in account that doesn't own the game (signing in comes
+    /// first), or busy preparing or playing.
     Nothing,
 }
 
@@ -2582,11 +2560,19 @@ fn sign_in_change(shown: &mut Option<SignInState>, next: SignInState) -> Option<
 }
 
 /// `owner`: whether an account here owns the game, by the keychain (`Launcher::owner`).
-fn play_press(prepared: bool, owner: Option<bool>, busy: bool) -> PlayPress {
+/// `no_accounts`: no Microsoft account is signed in at all — then Play prepares and plays
+/// offline, as it does for an owner.
+fn play_press(
+    prepared: bool,
+    owner: Option<bool>,
+    no_accounts: bool,
+    busy: bool,
+) -> PlayPress {
     match (prepared, owner) {
         _ if busy => PlayPress::Nothing,
         (true, _) => PlayPress::Play,
         (false, Some(true)) => PlayPress::PrepareThenPlay,
+        (false, _) if no_accounts => PlayPress::PrepareThenPlay,
         (false, _) => PlayPress::Nothing,
     }
 }
@@ -2595,7 +2581,7 @@ fn play_press(prepared: bool, owner: Option<bool>, busy: bool) -> PlayPress {
 /// code, a pack's Play) starts it now: only when Play would play. Never while a preparation runs:
 /// the game would open on half-written files.
 fn starts_now(prepared: bool, preparing: bool, running: bool) -> bool {
-    play_press(prepared, None, preparing || running) == PlayPress::Play
+    play_press(prepared, None, false, preparing || running) == PlayPress::Play
 }
 
 /// Whether `tag` can start being deleted now: it is installed, no install is writing it, and it
@@ -3001,7 +2987,6 @@ impl Launcher {
             },
         ));
         let items = self.instance_items(heading, cx);
-        let mut rows = items.len();
         let list = div()
             .flex()
             .flex_col()
@@ -3017,8 +3002,6 @@ impl Launcher {
         if !servers.is_empty() {
             list = list.child(heading(tr("SERVERS").into()));
         }
-        rows += servers.len();
-        let headings = 1 + usize::from(!servers.is_empty());
         for e in servers {
             let up = self.servers.is_up(&e.dir);
             let open = self.page == Page::Servers && self.servers.open.as_ref() == Some(&e.dir);
@@ -3165,34 +3148,6 @@ impl Launcher {
             }
             _ => {}
         }
-        // Sculk's card above the links: seen without scrolling, on every page but Servers, which shows
-        // its wide banner. Tall where the sidebar has the height for it besides the wordmark, its rows
-        // (52 high each, under headings of 40) and the links, compact otherwise. After a while on
-        // screen a "Hide" beside its label puts it away for good.
-        if self.page != Page::Servers && !self.settings.partner_hidden {
-            let free = f32::from(window.viewport_size().height)
-                - theme::TOPBAR
-                - 40. * headings as f32
-                - 52. * rows as f32
-                - 110.;
-            let mut side = div().relative().mb(px(8.)).child(partner::card(
-                "partner-side",
-                theme::SIDEBAR - 20.,
-                free < partner::TALL_HEIGHT,
-                &t,
-            ));
-            if self.settings.partner_seen_secs >= partner::SEEN_BEFORE_HIDE {
-                let hide = partner::hide_button("partner-hide", &t).on_click(cx.listener(
-                    |this, _: &ClickEvent, _, cx| {
-                        this.settings.partner_hidden = true;
-                        this.save_settings();
-                        cx.notify();
-                    },
-                ));
-                side = side.child(hide);
-            }
-            foot = foot.child(side);
-        }
         if !self.links.sponsor.is_empty() {
             foot = foot.child(link(
                 "sponsor",
@@ -3241,7 +3196,7 @@ impl Launcher {
                 .child(
                     shell::text(theme::night::TITLE, shell::c(n.ink))
                         .font_family(theme::DISPLAY_FONT)
-                        .child("Horizon"),
+                        .child("Free Horizon"),
                 )
         });
         shell::sidebar_plate(&t)
@@ -3441,8 +3396,9 @@ impl Launcher {
         let left = self.download_left();
         let steps = self.preparing.then(|| self.steps(&version, left));
 
-        // Not prepared: an owner can have Horizon download Minecraft from Mojang; without an
-        // owner there is nothing to play, so signing in comes first.
+        // Not prepared: an owner can have Free Horizon download Minecraft from Mojang, and
+        // so can a player with no account signed in at all (Play prepares offline then);
+        // only a signed-in account that doesn't own the game is asked to sign in first.
         let first = (!prepared && !self.preparing)
             .then_some(self.owner_shown())
             .flatten();
@@ -3455,7 +3411,7 @@ impl Launcher {
                 &[("version", &version)],
             ),
             Some(true) => trf(
-                "Not prepared. Horizon can download Minecraft {version} from Mojang for your account, or use your own install.",
+                "Not prepared. Free Horizon can download Minecraft {version} from Mojang for your account, or use your own install.",
                 &[("version", &version)],
             ),
             Some(false) => trf(
@@ -3531,7 +3487,7 @@ impl Launcher {
             || {
                 div()
                     .child(if owner {
-                        tr("None needed: Horizon downloads Minecraft from Mojang for your account.")
+                        tr("None needed: Free Horizon downloads Minecraft from Mojang for your account.")
                     } else {
                         tr("Not found. Choose the folder where your launcher keeps Minecraft.")
                     })
@@ -3591,9 +3547,9 @@ impl Launcher {
                 &t,
             )),
         };
-        // The top bar shows who plays; a row only when there is something to do about it: no
-        // account that owns the game (Play needs one), or offline. The glass look's top bar has
-        // Sign in with Microsoft and says Offline itself.
+        // The top bar shows who plays; a row only when there is something to do about it: a
+        // signed-in account that doesn't own the game (Play needs one that does), or offline.
+        // The glass look's top bar has Sign in with Microsoft and says Offline itself.
         if !t.glass {
             if self.owner_shown() == Some(false) {
                 rows = rows.child(index_row(
@@ -3820,7 +3776,7 @@ impl Launcher {
             .child(
                 text(theme::HEADING)
                     .text_color(t.ink)
-                    .child(tr("Horizon crashed")),
+                    .child(tr("Free Horizon crashed")),
             );
         if !crash.summary.is_empty() {
             body = body.child(div().text_color(t.ink_soft).child(crash.summary));
@@ -4055,7 +4011,7 @@ impl Launcher {
                     .child(accounts)
                     .child(offline)
                     .child(group("Updates", "reload"))
-                    .child(index_row(n + 1, "Horizon", Some(plain(&horizon)), horizon_action, &t))
+                    .child(index_row(n + 1, "Free Horizon", Some(plain(&horizon)), horizon_action, &t))
                     .child(index_row(
                         n + 1,
                         tr("Launcher"),
@@ -4139,7 +4095,7 @@ impl Launcher {
                             n + 11,
                             tr("Applications menu"),
                             Some(plain(if self.settings.desktop_entry() {
-                                "Horizon and its icon are in your desktop's menu."
+                                "Free Horizon and its icon are in your desktop's menu."
                             } else {
                                 "Not in your desktop's menu."
                             })),
@@ -4182,7 +4138,7 @@ impl Launcher {
             .child(tr("The build compiles the game: 20 to 30 minutes and a few GB of disk the first time (it downloads Rust), a few minutes after that.").to_string())
             .children(self.native_update.as_ref().map(|newer| {
                 div().text_color(t.warn).child(trf(
-                    "This moves the instance to Horizon {version}. It compiles the game from scratch, so it takes longer than a normal rebuild: up to 30 minutes.",
+                    "This moves the instance to Free Horizon {version}. It compiles the game from scratch, so it takes longer than a normal rebuild: up to 30 minutes.",
                     &[("version", &native_status::horizon_label(newer))],
                 ))
             }));
@@ -4224,7 +4180,7 @@ impl Launcher {
             .mt(px(8.))
             .p(px(12.))
             .bg(t.well)
-            .child(div().text_color(t.danger).child(tr("These mods were made for different Horizon versions").to_string()))
+            .child(div().text_color(t.danger).child(tr("These mods were made for different Free Horizon versions").to_string()))
             .child(list.to_owned())
             .child(tr("They often still work together. If the build fails, install versions made for the same Nightly.").to_string())
             .child(
@@ -4641,7 +4597,7 @@ impl Launcher {
             }
             Some(SignInState::Done(Err(e))) => div().text_color(t.danger).child(e.clone()),
             None if self.accounts.accounts.is_empty() => div().child(tr(
-                "Horizon needs a Microsoft account that owns Minecraft: Java Edition, like other launchers. It also plays online servers with your name and skin.",
+                "Free Horizon needs a Microsoft account that owns Minecraft: Java Edition, like other launchers. It also plays online servers with your name and skin.",
             )),
             None => div().child(tr("Add another account.")),
         };
@@ -5009,7 +4965,7 @@ impl Launcher {
                                 .child(tr("Support the work below")),
                         )
                         .child(text(theme::UI).text_color(t.muted).child(tr(
-                            "Horizon is built in the open. Sponsors fund the next release.",
+                            "Free Horizon is built in the open. Sponsors fund the next release.",
                         ))),
                 )
                 .child(
@@ -5055,7 +5011,7 @@ impl Launcher {
                 "Imported builds",
                 build_import::is_imported,
                 Some(tr(
-                    "Unsigned: you picked these programs yourself, and Horizon can't \
+                    "Unsigned: you picked these programs yourself, and Free Horizon can't \
                     check where they came from. Updates never replace them.",
                 )),
                 &on_disk,
@@ -5726,8 +5682,8 @@ fn page_after_startup(page: Page, data_folder_failed: bool) -> Page {
 fn menus() -> Vec<Menu> {
     vec![
         Menu {
-            name: "Horizon Launcher".into(),
-            items: vec![MenuItem::action("Quit Horizon Launcher", Quit)],
+            name: "Free Horizon Launcher".into(),
+            items: vec![MenuItem::action("Quit Free Horizon Launcher", Quit)],
             disabled: false,
         },
         Menu {
@@ -5922,21 +5878,21 @@ mod tests {
     fn a_press_on_a_sidebar_row_opens_its_menu_or_closes_it() {
         let open = |id: &str| Some((id.to_string(), false));
         assert_eq!(
-            super::row_menu_after_press(None, "Horizon"),
-            open("Horizon")
+            super::row_menu_after_press(None, "Free Horizon"),
+            open("Free Horizon")
         );
         assert_eq!(
-            super::row_menu_after_press(open("Other"), "Horizon"),
-            open("Horizon")
+            super::row_menu_after_press(open("Other"), "Free Horizon"),
+            open("Free Horizon")
         );
         assert_eq!(
-            super::row_menu_after_press(open("Horizon"), "Horizon"),
+            super::row_menu_after_press(open("Free Horizon"), "Free Horizon"),
             None
         );
         // A Delete… already pressed on another row does not carry over.
         assert_eq!(
-            super::row_menu_after_press(Some(("Other".into(), true)), "Horizon"),
-            open("Horizon")
+            super::row_menu_after_press(Some(("Other".into(), true)), "Free Horizon"),
+            open("Free Horizon")
         );
     }
 
@@ -5955,21 +5911,30 @@ mod tests {
     }
 
     /// An owner's Play works on a version not prepared yet: it prepares it (downloading
-    /// Minecraft from Mojang when this computer has no install), then plays. Without an owner
-    /// it stays off: signing in comes first.
+    /// Minecraft from Mojang when this computer has no install), then plays. So does Play
+    /// with no Microsoft account signed in at all. With a signed-in account that doesn't
+    /// own the game it stays off: signing in comes first.
     #[test]
-    fn play_prepares_first_for_an_owner() {
+    fn play_prepares_first_for_an_owner_or_with_no_account() {
         use super::{play_press, PlayPress};
-        assert_eq!(play_press(true, Some(true), false), PlayPress::Play);
-        assert_eq!(play_press(true, None, false), PlayPress::Play);
+        assert_eq!(play_press(true, Some(true), false, false), PlayPress::Play);
+        assert_eq!(play_press(true, None, false, false), PlayPress::Play);
         assert_eq!(
-            play_press(false, Some(true), false),
+            play_press(false, Some(true), false, false),
             PlayPress::PrepareThenPlay
         );
-        assert_eq!(play_press(false, Some(false), false), PlayPress::Nothing);
-        assert_eq!(play_press(false, None, false), PlayPress::Nothing);
-        assert_eq!(play_press(false, Some(true), true), PlayPress::Nothing);
-        assert_eq!(play_press(true, Some(true), true), PlayPress::Nothing);
+        assert_eq!(
+            play_press(false, None, true, false),
+            PlayPress::PrepareThenPlay
+        );
+        assert_eq!(
+            play_press(false, Some(false), true, false),
+            PlayPress::PrepareThenPlay
+        );
+        assert_eq!(play_press(false, Some(false), false, false), PlayPress::Nothing);
+        assert_eq!(play_press(false, None, false, false), PlayPress::Nothing);
+        assert_eq!(play_press(false, Some(true), false, true), PlayPress::Nothing);
+        assert_eq!(play_press(true, Some(true), false, true), PlayPress::Nothing);
     }
 
     /// A server's Join (and every other shortcut) waits like Play: not while the version's
@@ -6020,10 +5985,10 @@ mod tests {
     #[test]
     fn the_app_menu_has_quit() {
         let menus = super::menus();
-        assert_eq!(menus[0].name, "Horizon Launcher");
+        assert_eq!(menus[0].name, "Free Horizon Launcher");
         assert!(matches!(
             &menus[0].items[0],
-            gpui::MenuItem::Action { name, .. } if name == "Quit Horizon Launcher"
+            gpui::MenuItem::Action { name, .. } if name == "Quit Free Horizon Launcher"
         ));
     }
 

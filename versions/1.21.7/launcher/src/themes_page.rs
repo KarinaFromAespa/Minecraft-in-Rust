@@ -54,7 +54,7 @@ impl Launcher {
     pub(super) fn launcher_theme_row(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let current = themes::theme(self.settings.theme.as_deref()).map(|th| th.id);
-        let mut options: Vec<(Option<&'static str>, &'static str)> = vec![(None, "Horizon")];
+        let mut options: Vec<(Option<&'static str>, &'static str)> = vec![(None, "Free Horizon")];
         options.extend(themes::THEMES.iter().map(|th| (Some(th.id), th.name)));
         let this = cx.entity().downgrade();
         let picker = segments("launcher-theme", &options, current, &t, move |id, _, cx| {
@@ -134,7 +134,7 @@ impl Launcher {
             Some(
                 div()
                     .child(tr(
-                        "Horizon's violet by default. Every colour keeps text as easy to read.",
+                        "Free Horizon's violet by default. Every colour keeps text as easy to read.",
                     ))
                     .into_any_element(),
             ),
@@ -401,7 +401,7 @@ impl Launcher {
             Some(
                 div()
                     .child(tr(
-                        "Accent colour, glass, blur, language and the options above go back to how Horizon ships.",
+                        "Accent colour, glass, blur, language and the options above go back to how Free Horizon ships.",
                     ))
                     .into_any_element(),
             ),
@@ -630,7 +630,7 @@ impl Launcher {
         let said = if custom {
             tr("Your picture, behind Home, cropped to fill it.")
         } else {
-            tr("Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.")
+            tr("Free Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.")
         };
         let detail = div().flex().flex_col().child(said.to_string()).children(
             self.background_error

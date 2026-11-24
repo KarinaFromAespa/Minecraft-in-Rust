@@ -99,7 +99,7 @@ pub fn what(file: &Path) -> Result<Dropped, String> {
         // extension, so a file nothing else claims is read before giving up.
         _ if is_build(file) => return Ok(Dropped::Build),
         _ => {
-            let kinds = "a .mrpack, a .zip, a .hshader or a Horizon game build";
+            let kinds = "a .mrpack, a .zip, a .hshader or a Free Horizon game build";
             return Err(format!("{name} can't be imported: drop {kinds}."));
         }
     }
@@ -134,7 +134,7 @@ pub fn what(file: &Path) -> Result<Dropped, String> {
         return Ok(Dropped::Build);
     }
     Err(format!(
-        "{name} is neither a pack, a shared instance nor a game build: nothing in it that Horizon reads."
+        "{name} is neither a pack, a shared instance nor a game build: nothing in it that Free Horizon reads."
     ))
 }
 

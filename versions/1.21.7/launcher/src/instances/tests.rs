@@ -105,7 +105,7 @@ fn existing_worlds_stay_where_they_are_and_every_folder_becomes_an_instance() {
     let all = list_in(&home, &data);
     let ids: Vec<&str> = all.iter().map(|i| i.id.as_str()).collect();
     assert_eq!(ids, [DEFAULT, "pack:cozy", "port:small-pack"]);
-    assert_eq!(all[0].name, "Horizon");
+    assert_eq!(all[0].name, "Free Horizon");
     assert_eq!(all[0].home, home);
     assert_eq!(all[1].home, home.join("horizon-packs/cozy/home"));
     assert_eq!(all[2].name, "Small Pack");
@@ -466,7 +466,7 @@ fn switching_what_an_instance_plays_keeps_its_worlds_mods_and_settings() {
         [
             Unkept::Mods {
                 count: 1,
-                made_for: "Horizon".into()
+                made_for: "Free Horizon".into()
             },
             Unkept::Worlds {
                 count: 1,

@@ -1,6 +1,6 @@
 # PvP & HUD
 
-Settings PvP players expect from a client, on **Options → Horizon Settings... → PvP & HUD...**. Every one is
+Settings PvP players expect from a client, on **Options → Free Horizon Settings... → PvP & HUD...**. Every one is
 off by default: a fresh install looks exactly like vanilla 26.3, and turning one off restores vanilla.
 
 ## Fair play
@@ -167,7 +167,7 @@ knockback, no damage); hurt sounds and crit particles stay. `pvp::Combat`.
 
 ## 1.8 combat in worlds you host (`combatRules`, default off)
 
-The other options only change the look; this one changes the rules, so it applies only where Horizon is the
+The other options only change the look; this one changes the rules, so it applies only where Free Horizon is the
 server: single player (its server thread) and the worlds you open to LAN, at once when switched, and a dedicated
 server whose `server.toml` has `[combat]` `legacy = true` ([hosting.md](hosting.md)). Servers you join keep their
 own rules. Melee hits follow 1.8.9's `EntityPlayer.attackTargetEntityWithCurrentItem`:
@@ -192,7 +192,7 @@ block-hit packets), so vanilla servers and their anticheats see nothing new. Cod
 
 ## PvP preset
 
-The **PvP preset** button (first on the PvP & HUD page and on Horizon Extras) turns on, in one click: the custom
+The **PvP preset** button (first on the PvP & HUD page and on Free Horizon Extras) turns on, in one click: the custom
 crosshair, the armour and effects widgets, vanilla's Toggle Sprint and Toggle Sneak (Controls), lower fire (40% unless
 already set), and the official FPS counter and keystrokes (with CPS) native mods when they are installed
 (`pvp::PRESET_MODS`). It only turns things on and keeps each option's own settings, so any of them can be turned

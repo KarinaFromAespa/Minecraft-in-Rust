@@ -74,7 +74,7 @@ pub fn file_name(name: &str, system: System) -> String {
         .collect();
     let clean = clean.trim().trim_matches('.');
     let clean = if clean.is_empty() { "Instance" } else { clean };
-    format!("{clean} (Horizon).{}", system.extension())
+    format!("{clean} (Free Horizon).{}", system.extension())
 }
 
 /// The id as a file name or bundle id part: letters, digits and `-`.
@@ -91,7 +91,7 @@ pub fn desktop_entry(exe: &Path, id: &str, name: &str) -> String {
         "[Desktop Entry]\n\
          Type=Application\n\
          Name={name}\n\
-         Comment=Play {name} in Horizon\n\
+         Comment=Play {name} in Free Horizon\n\
          Exec={} play --instance {}\n\
          TryExec={}\n\
          Icon=horizon\n\
@@ -148,7 +148,7 @@ pub fn mac_app(exe: &Path, id: &str, name: &str) -> Vec<(&'static str, Vec<u8>, 
         xml(id),
     );
     let script = format!(
-        "#!/bin/sh\n# Plays the Horizon instance {}.\nexec {} play --instance {}\n",
+        "#!/bin/sh\n# Plays the Free Horizon instance {}.\nexec {} play --instance {}\n",
         name.replace('\n', " "),
         sh_quote(&exe.to_string_lossy()),
         sh_quote(id),
@@ -370,7 +370,7 @@ pub fn make_in(
         }
         System::Windows => {
             let args = windows_args(id);
-            let comment = format!("Play {name} in Horizon");
+            let comment = format!("Play {name} in Free Horizon");
             // On Windows the shell writes the shortcut (`write_windows_link`); elsewhere, and in
             // tests for the other systems, it is laid out from the format.
             #[cfg(windows)]

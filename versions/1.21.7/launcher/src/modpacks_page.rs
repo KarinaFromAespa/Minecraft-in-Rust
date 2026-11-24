@@ -190,7 +190,7 @@ impl Launcher {
             .child(pick("import-folder", "Import an instance folder…", true))
             .child(text(theme::CAPTION).w_full().text_color(t.muted).child(tr(
                 ".mrpack (Modrinth), .zip (CurseForge), or a Prism, MultiMC or CurseForge instance. \
-                 Horizon ports what it can on this computer, from your own downloads, and plays \
+                 Free Horizon ports what it can on this computer, from your own downloads, and plays \
                  the pack as its own profile. Nothing is uploaded or shared.",
             )));
         let mut page = div().flex().flex_col().gap(px(16.));
@@ -345,7 +345,7 @@ impl Launcher {
                     )),
                 );
             let detail = trf(
-                "{version} from Horizon's registry, its own profile: {mods}",
+                "{version} from Free Horizon's registry, its own profile: {mods}",
                 &[("version", &p.version), ("mods", &p.mods.join(", "))],
             );
             list = list.child(index_row(
@@ -515,7 +515,7 @@ impl Launcher {
             notes.push(trf("Left off: {line}.", &[("line", line)]));
         }
         if !can_play {
-            notes.push(tr("Playing needs a prepared Horizon version (Play page).").into());
+            notes.push(tr("Playing needs a prepared Free Horizon version (Play page).").into());
         }
         let mut rows: Vec<&horizon_port_pack::report::Row> = p
             .rows

@@ -319,10 +319,10 @@ pub fn trust_and_capabilities(
         return Vec::new();
     };
     let mut lines = vec![if official(p) {
-        "Made by Horizon".to_owned()
+        "Made by Free Horizon".to_owned()
     } else {
         format!(
-            "Made by {}. Not made or endorsed by the Horizon project ({POLICY})",
+            "Made by {}. Not made or endorsed by the Free Horizon project ({POLICY})",
             p.authors.join(", ")
         )
     }];
@@ -341,14 +341,14 @@ pub fn trust_and_capabilities(
                     .and_then(|i| crate::native_fit::line(i, &p.id, v.hooks, pin, &v.broken_on))
                     .unwrap_or_else(|| {
                         format!(
-                            "Built by the launcher on Horizon {}",
+                            "Built by the launcher on Free Horizon {}",
                             &pin[..pin.len().min(7)]
                         )
                     }),
             );
             if let Some(older) = instance.and_then(|i| older_fit(p, v, i)) {
                 lines.push(crate::i18n::trf(
-                    "An older version, {version}, builds on the Horizon you play: installing picks it",
+                    "An older version, {version}, builds on the Free Horizon you play: installing picks it",
                     &[("version", &older)],
                 ));
             }
@@ -571,10 +571,10 @@ impl Source for Registry {
         let index = index()?;
         let p = index
             .project(id)
-            .ok_or_else(|| format!("{id} isn't in Horizon's registry."))?;
+            .ok_or_else(|| format!("{id} isn't in Free Horizon's registry."))?;
         project_of(p).ok_or_else(|| {
             format!(
-                "{} is a {} in Horizon's registry: this launcher can't install those yet.",
+                "{} is a {} in Free Horizon's registry: this launcher can't install those yet.",
                 p.name,
                 p.kind.name()
             )
@@ -585,7 +585,7 @@ impl Source for Registry {
         let index = index()?;
         let p = index
             .project(&project.id)
-            .ok_or_else(|| format!("{} isn't in Horizon's registry.", project.title))?;
+            .ok_or_else(|| format!("{} isn't in Free Horizon's registry.", project.title))?;
         let level = crate::backend::game_mod_api_level();
         Ok(p.versions
             .iter()
@@ -614,7 +614,7 @@ impl Source for Registry {
         let index = index()?;
         let p = index
             .project(&project.id)
-            .ok_or_else(|| format!("{} isn't in Horizon's registry.", project.title))?;
+            .ok_or_else(|| format!("{} isn't in Free Horizon's registry.", project.title))?;
         let newest = p.versions.first();
         let mut body = p.description.clone();
         if let Some(v) = newest.filter(|v| !v.capabilities.is_empty()) {
@@ -759,7 +759,7 @@ fn install_from(
 ) -> Result<Vec<installed::Entry>, String> {
     let p = index
         .project(&project.id)
-        .ok_or_else(|| format!("{} isn't in Horizon's registry.", project.title))?;
+        .ok_or_else(|| format!("{} isn't in Free Horizon's registry.", project.title))?;
     let v = match fitting(index, p, level, home) {
         Some(v) => v,
         None => newest(index, p, level)?,
@@ -793,7 +793,7 @@ fn fetch_datapack_from(
     let p = index
         .project(&project.id)
         .filter(|p| p.kind == index::Kind::DataPack)
-        .ok_or_else(|| format!("{} isn't a data pack in Horizon's registry.", project.title))?;
+        .ok_or_else(|| format!("{} isn't a data pack in Free Horizon's registry.", project.title))?;
     let v = newest(index, p, None)?;
     let file = &version_of(index, p, v, None).files[0];
     let path = fetch(file, folder, local, progress)?;
@@ -880,7 +880,7 @@ pub fn standings(
                 let standing = match about.left_out.iter().find(|l| &l.id == id) {
                     Some(left) => Standing::LeftOut(left.label()),
                     None if moved => Standing::Moved(crate::i18n::trf(
-                        "In the last build, on Horizon {commit} for {mods}, not on {horizon}",
+                        "In the last build, on Free Horizon {commit} for {mods}, not on {horizon}",
                         &[
                             ("commit", &about.horizon[..about.horizon.len().min(7)]),
                             ("mods", &about.pinned_by.join(", ")),
@@ -1019,7 +1019,7 @@ pub fn install_chosen(
     let index = index()?;
     let p = index
         .project(id)
-        .ok_or_else(|| format!("{id} isn't in Horizon's registry."))?;
+        .ok_or_else(|| format!("{id} isn't in Free Horizon's registry."))?;
     let v = p
         .versions
         .iter()
@@ -1189,7 +1189,7 @@ pub fn fit_versions(instance: &crate::instances::Instance) -> Vec<String> {
         };
         if install_version_guarded(&index, local(), p, v, home, &|_| Ok(()), &|_, _| {}).is_ok() {
             lines.push(crate::i18n::trf(
-                "{mod}: using version {version}, made for the Horizon you play",
+                "{mod}: using version {version}, made for the Free Horizon you play",
                 &[("mod", &p.name), ("version", &v.version)],
             ));
         }
@@ -1221,8 +1221,8 @@ fn newest<'a>(
     })
 }
 
-const NEEDS_NEWER: &str = "needs a newer Horizon than the game you play";
-const NEEDS_PORT: &str = "needs a native port: Horizon doesn't run WebAssembly mods any more";
+const NEEDS_NEWER: &str = "needs a newer Free Horizon than the game you play";
+const NEEDS_PORT: &str = "needs a native port: Free Horizon doesn't run WebAssembly mods any more";
 
 /// Whether version `v` is a WebAssembly mod with code: a `.hmod` that may do more than add
 /// content. The registry keeps it for the modpacks that need it; a modpack installs it with its

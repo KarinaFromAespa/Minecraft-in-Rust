@@ -105,7 +105,7 @@ pub(crate) fn json_with(
     }
     Err(match from_mirror {
         Some(m) => format!(
-            "{why}, and Horizon's mirror of GitHub couldn't help either ({m}). Try again in a few minutes."
+            "{why}, and Free Horizon's mirror of GitHub couldn't help either ({m}). Try again in a few minutes."
         ),
         None => why,
     })

@@ -1,8 +1,11 @@
 //! Developer options: a Settings section nothing in the window points to. Seven clicks on the
 //! sidebar's "Launcher x.y.z" reveal it for this run; it stays shown while one of its options is
-//! on. Its one option lets offline names play without an account that owns the game
-//! (`backend::Settings::dev_offline`). The game still comes from the player's own install: the
-//! launcher downloads Mojang's files only for an owner (`backend::download_for_owner`).
+//! on. Its one option lets offline names play without an account that owns the game, beside a
+//! signed-in account that doesn't own it (with no account signed in at all they play without
+//! the option too; `account::launch_for_game`). The game still comes from the player's own
+//! install beside a signed-in account that doesn't own it: the launcher downloads Mojang's
+//! files only for an owner, or with no account signed in at all
+//! (`backend::download_for_owner`).
 use super::*;
 
 /// Clicks on the launcher's version that reveal the section.
