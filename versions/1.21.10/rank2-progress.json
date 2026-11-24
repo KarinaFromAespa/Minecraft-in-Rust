@@ -1,8 +1,8 @@
 {
  "release": "1.21.10",
  "rank": 2,
- "batch": 5,
- "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review).",
+ "batch": 6,
+ "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review). Batch 6: 13 missing-only no-change (1.21.11-only/1.21.10-only methods unreferenced or identically modelled; Timeline + hand.rs deliberate non-carry-overs with jar evidence).",
  "items": {
   "201": {
    "module": "crates/horizon-client/src/game/frame_geometry.rs",
@@ -1683,6 +1683,71 @@
    "module": "widely named: world/level/levelgen/synth",
    "verdict": "no-change",
    "evidence": "Vacuous no-change: no named method changed 1.21.11->1.21.10 (named_total=0 per triage-rank23.json; semantic review empty) and the 1.21.11 port touched nothing in this area (tree_diff_lines=0) \u2014 nothing to carry over, nothing to port."
+  },
+  "37": {
+   "module": "crates/horizon-client/src/mobs/happy_ghast.rs",
+   "verdict": "no-change",
+   "evidence": "All 17 other named methods same; HappyGhast#getDismountLocationForPassenger is 1.21.11-only (missing-new) and unreferenced in both trees (0 refs). Trees agree (0 non-comment normalised diff lines)."
+  },
+  "75": {
+   "module": "crates/horizon-world/src/environment_attributes.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method same; 5 ARGB/ExtraCodecs methods (addRgb, alphaBlend, meanLinear, srgbLerp, hexColor) are 1.21.11-only (missing-new) and unreferenced in both trees. Trees agree (0 non-comment normalised diff lines)."
+  },
+  "122": {
+   "module": "crates/horizon-world/src/environment_timeline.rs",
+   "verdict": "no-change",
+   "evidence": "Timeline#createTrackSampler/getCurrentTicks/validateInternal are 1.21.11-only (missing-new), unreferenced in both trees. 1.21.10 has no net/minecraft/world/timeline package at all (verified in both named jars) and its entity.schedule.Timeline is the simple keyframe list (getValueAt); the module models a system 1.21.10 lacks, so the 1.21.11 bezier-oracle refinement has no 1.21.10 oracle to verify against. Deliberate non-carry-over (cf. batch-2 Timeline revert). Trees differ only in the 1.21.11 oracle test + solver variant \u2014 inert dead code in 1.21.10."
+  },
+  "133": {
+   "module": "crates/horizon-client-render/src/screen_draw.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method same; MultiLineTextWidget#visitLines is 1.21.11-only (missing-new), unreferenced in both trees. Trees agree (0 non-comment normalised diff lines)."
+  },
+  "149": {
+   "module": "crates/horizon-client/src/gizmos.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method same; ChunkBorderRenderer#emitGizmos is 1.21.11-only (missing-new), unreferenced in both trees. Trees agree (0 non-comment normalised diff lines)."
+  },
+  "152": {
+   "module": "crates/horizon-client/src/game/hand.rs",
+   "verdict": "no-change",
+   "evidence": "All 3 named methods are DataComponentType#ignoreSwapAnimation forms, 1.21.11-only (missing-new), unreferenced in both trees. The tree diff is the 1.21.11 spectator min-range (attack_reach spectator arg) \u2014 deliberately NOT carried over: 1.21.10 lacks attack_range entirely (no entityAttackRange in its LivingEntity); see PORT-NOTES batch-4 record. Code stays as inert 26.3-base dead code."
+  },
+  "175": {
+   "module": "crates/horizon-client-render/src/ui.rs",
+   "verdict": "no-change",
+   "evidence": "AbstractWidget#handleCursor is 1.21.11-only (missing-new), unreferenced in both trees. Trees agree (0 non-comment normalised diff lines)."
+  },
+  "197": {
+   "module": "crates/horizon-protocol/src/buf.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method same; NbtAccounter#defaultQuota is 1.21.11-only (missing-new), unreferenced in both trees. Trees agree (0 non-comment normalised diff lines)."
+  },
+  "200": {
+   "module": "crates/horizon-client-render/src/fluid_render.rs",
+   "verdict": "no-change",
+   "evidence": "TextureAtlasSprite#uvShrinkRatio is 1.21.10-only (missing-old \u2014 present in 1.21.10, absent in 1.21.11) and referenced identically in both trees (6 refs each); the 1.21.10 tree already models it. Trees agree (0 non-comment normalised diff lines)."
+  },
+  "206": {
+   "module": "crates/horizon-client-render/src/gfx.rs",
+   "verdict": "no-change",
+   "evidence": "Window#getAppropriateLineWidth is 1.21.11-only (missing-new), unreferenced in both trees. Trees agree (0 non-comment normalised diff lines)."
+  },
+  "237": {
+   "module": "crates/horizon-client-render/src/mesher.rs",
+   "verdict": "no-change",
+   "evidence": "LeavesBlock#skipRendering is 1.21.11-only (missing-new), unreferenced in both trees. Trees agree (0 non-comment normalised diff lines)."
+  },
+  "240": {
+   "module": "crates/horizon-client/src/mobs/spear_use.rs",
+   "verdict": "no-change",
+   "evidence": "MeleeAttack#isHoldingUsableNonMeleeWeapon is 1.21.11-only (missing-new), unreferenced in both trees. Trees agree (0 non-comment normalised diff lines)."
+  },
+  "287": {
+   "module": "crates/horizon-client/src/mobs/frog.rs",
+   "verdict": "no-change",
+   "evidence": "Frog#travelInWater is 1.21.11-only (missing-new), unreferenced in both trees. Trees agree (0 non-comment normalised diff lines)."
   }
  }
 }
