@@ -1142,3 +1142,9 @@ EasingType — corrected. Rank 5 acknowledges the unported
 classes (1 new, 1044 changed/removed) as by design: Horizon
 mirrors none of them. The behaviour port is complete at
 719/719.
+
+CI runs 45375747364 (layout-test fix + stopwatch removal,
+d1fcc1bf), 45376255422 (rank 3 complete, 5e33faed) and
+45376855229 (ranks 4-5, b3cd0028): all SUCCESS, all suites
+green. The behaviour port is complete at 719/719 with a
+green CI proof on the tip.
