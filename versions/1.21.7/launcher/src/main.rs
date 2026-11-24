@@ -548,6 +548,12 @@ impl Launcher {
                 let _ = horizon_launcher::desktop::repair(backend::exe_path());
             });
         }
+        // The launcher's own version, before anything lists or selects one: a fresh install
+        // opens on it, and an import takes its game files from it. A failure is a line in
+        // the log, not a launcher that won't start; the Versions page shows what is there.
+        if let Err(e) = horizon_launcher::seed::ensure_local_version() {
+            eprintln!("Providing this launcher's own version failed: {e}");
+        }
         let installed = backend::installed();
         if settings
             .selected

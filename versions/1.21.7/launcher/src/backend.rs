@@ -1029,7 +1029,7 @@ fn short_path(path: &Path) -> Option<PathBuf> {
     (got != 0 && got < need).then(|| PathBuf::from(std::ffi::OsString::from_wide(&buf[..got])))
 }
 
-fn versions_dir() -> PathBuf {
+pub(crate) fn versions_dir() -> PathBuf {
     data_dir().join("versions")
 }
 

@@ -44,6 +44,7 @@ pub mod proxy;
 pub mod relocation;
 pub mod rust_toolchain;
 pub mod screenshots;
+pub mod seed;
 pub mod server_list;
 pub mod servers;
 pub mod setup_args;
