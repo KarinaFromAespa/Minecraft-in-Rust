@@ -1,0 +1,489 @@
+{
+ "batch": 3,
+ "checks": {
+  "total": 97,
+  "pass": 61,
+  "gap": 36
+ },
+ "date": "2026-11-25",
+ "items": [
+  {
+   "evidence": "Vanilla 1.21.10 Bat.checkBatSpawnRules (fresh dump Bat.txt:540-600): on Halloween (LocalDate Oct 31) the light limit is 7 and the 50% nextBoolean() coin flip is skipped; otherwise limit 4 + coin flip. The port's Bat arm (mobs/spawn_rules.rs check_spawn_rules) always applies the coin flip + next_int_bound(4); SpawnLevel has no date source. Reproduces from 1.21.7 (fixed in 26.1.2; the 1.21.10 port does not carry that fix).",
+   "id": "B3-G01",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Bat: missing Halloween branch (limit 7, no coin flip on Oct 31)"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 EntityType.<clinit> passes LITERAL block sets to immuneTo (6 calls, fresh dump: fox to sweet_berry_bush; polar_bear/snow_golem/stray to powder_snow; wither/wither_skeleton to wither_rose). The port's immune_tag (mobs/spawn_rules.rs:181-190) resolves six block tags (fox_immune_to, polar_bear_immune_to, snow_golem_immune_to, stray_immune_to, wither_immune_to, wither_skeleton_immune_to) - none exists in 1.21.10 data (wither_immune_to exists only as a damage_type tag). Reproduces from 1.21.7 and 26.1.2.",
+   "id": "B3-G03",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "immune_tag tags don't exist"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 notInPeaceful = 36 types (parsed fresh from EntityType.<clinit>; PHANTOM included, HOGLIN absent). The port's allowed_in_peaceful (mobs/spawn_rules.rs:136) disallows 38, including Hoglin (plus Parched, a dead 26.x-only arm). Reproduces from 1.21.7 and 26.1.2.",
+   "id": "B3-G04",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Hoglin wrongly disallowed in peaceful"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 Camel.isFood = #camel_food (tag exists in the client jar). The port's food_tag() (mobs/species.rs:1666) has no Camel arm (covers CamelHusk, Nautilus, ZombieNautilus, SulfurCube instead - all 26.x-only). Camels cannot breed. Reproduces from 1.21.7 and 26.1.2.",
+   "id": "B3-G05",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Camel has no food"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 Armadillo.getMaxHeadYRot = isScared() ? 0 : 32. The port's max_head_y_rot (mobs/species.rs:1745) returns 32.0 unconditionally. Reproduces from 1.21.7 and 26.1.2.",
+   "id": "B3-G06",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Armadillo scared head rotation ignored"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 canSpawnFarFromPlayer defaults to MISC, with exactly two explicit setters (PILLAGER, SHULKER - parsed fresh from EntityType.<clinit>). The port's spawns_far_from_player (mobs/spawn_selection.rs:317-320) returns true for CREATURE and MISC plus Pillager/Shulker. Reproduces from 1.21.7 (fixed in 26.1.2; the 1.21.10 port does not carry that fix).",
+   "id": "B3-G10",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Creatures spawn too far from players"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 NaturalSpawner.getRandomPosWithin: top = getHeight(WORLD_SURFACE)+1, y drawn with randomBetweenInclusive(minY, top) - H+1 is reachable. The port's spawn_category_for_chunk (mobs/spawn_selection.rs:1090) uses top = H, y in [minY, H]. Reproduces from 1.21.7 and 26.1.2.",
+   "id": "B3-G11",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "getRandomPosWithin y-range off by one"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 draws minCount + nextInt(1+maxCount-minCount) unconditionally at both sample sites in NaturalSpawner (fresh dump offsets ~298-318 and ~91-108) - even when min == max. The port's sample_count (mobs/spawn_selection.rs:780) returns the constant without drawing. Reproduces from 1.21.7 and 26.1.2.",
+   "id": "B3-G13",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Constant-count packs skip an RNG draw"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 EnderMan.teleport + LivingEntity.randomTeleport ground the destination search on blocksMotion(). The port (mobs/enderman.rs:117) grounds on #entities_can_teleport_to, a tag that does not exist in 1.21.10 data (0 entries in the client jar) - the search finds nothing and the teleport never executes. Reproduces from 1.21.7 and 26.1.2.",
+   "id": "B3-G14",
+   "method": "javap + source",
+   "severity": "major",
+   "status": "gap",
+   "title": "Endermen never teleport"
+  },
+  {
+   "evidence": "Half fixed: the goal-start gate now uses #beds (mobs/tame.rs:1246). But the hop still grounds on the absent #entities_can_teleport_to (mobs/tame.rs:1341, scanning to the world bottom, never executing) and the leash-holder origin is dropped (vanilla uses getLeashHolder().blockPosition() when leashed). The gift itself still drops (DropGift sits outside the hop gate). Reproduces from 1.21.7 and 26.1.2.",
+   "id": "B3-G15",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Cat morning gift never happens"
+  },
+  {
+   "evidence": "The driver reads criterion['conditions']['entity']['predicate'] then predicate['minecraft:components'] (26.x form). In 1.21.10, conditions.entity is a LIST of entity_properties loot conditions (113 list-form entity conditions tree-wide, 0 dict-form - verified in the client jar; the three advancements use predicate: {components: {...}} with key 'components', not 'minecraft:components'), so the driver raises TypeError. Reproduces from 1.21.7 and 26.1.2.",
+   "id": "B3-G18",
+   "method": "driver source + jar data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "DRIVER: entity_components predicate form"
+  },
+  {
+   "evidence": "tools/test_suffocation_parity.py:66 and tools/test_registered_entity_fluid_parity.py:66 assert the state count is 35723 (26.3's count). 1.21.10 has 29,671 states, so both drivers always fail. 36 drivers tree-wide hardcode 35723. Reproduces from 1.21.7 and 26.1.2.",
+   "id": "B3-G19",
+   "method": "driver source + jar data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "DRIVER: state-count hardcode 35723"
+  },
+  {
+   "evidence": "Five drivers build the Rust server command with lab.LOCAL / 'horizon-client/26.3': test_locator_bar_parity.py:269, test_server_dragon_parity.py:111, test_server_entities_parity.py:186, test_server_knockback_parity.py:435, test_projectile_shoot.py:46. 1.21.10 resources live at horizon-client/1.21.10. 45 drivers tree-wide use the narrow horizon-client/26.3 path. Reproduces from 1.21.7 and 26.1.2.",
+   "id": "B3-G20",
+   "method": "driver source + jar data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "DRIVER: 26.3 resources path"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 Zombie.populateDefaultEquipmentSlots: nextFloat < (hard ? 0.05 : 0.01), then nextInt(3): 0 to iron sword, else iron shovel - no spear; iron_spear does not exist in 1.21.10 (0 matches in datagen items.json). The port is split: finalize.rs:1346-1348 is FIXED (nextInt(3), sword/shovel, comment '(no spear)'), but spawning.rs:221-223 still uses nextInt(6) with 1 to minecraft:iron_spear. Reproduces from 1.21.7 (one arm only).",
+   "id": "B3-G21",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Zombies spawn holding iron spears"
+  },
+  {
+   "evidence": "The suffocation RULE is fixed in 1.21.10 (vanilla default blocksMotion() && isCollisionShapeFullBlock(), confirmed via javap -v BootstrapMethods; port bind has _ => MotionFullCollision). But the startup path still fails: resource_load.rs:324 gameplay_tables -> MotionResources::load_with_facts requires tag('minecraft:suppresses_bounce')? (motion.rs:142, first failure in evaluation order) and tag('minecraft:causes_suffocation')? (motion.rs:145), both absent from 1.21.10 data; tag() errors on missing tags and horizon-prepare synthesizes neither. The 1.21.10 client cannot load its core tables with prepared 1.21.10 data. Reproduces from 26.1.2.",
+   "id": "B3-G22",
+   "method": "javap + source",
+   "severity": "major",
+   "status": "gap",
+   "title": "Default suffocation is tag-gated on absent #causes_suffocation"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 LivingEntity.isInWall = !isSleeping() && super.isInWall(). The port's base_tick in-wall check (mobs/ai.rs:1266) has the Vex exclusion but no sleeping check. Reproduces from 26.1.2.",
+   "id": "B3-G23",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Sleeping mobs suffocate"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 Villager.rewardTradeXp defers the level-up: updateMerchantTimer = 40 + increaseProfessionLevelOnUpdate = true. The port's Trader::notify_trade (merchant.rs:404-405) levels up immediately and calls update_special_prices() on the new offers (lines 411, 422). No level_up_pending / update_merchant_timer exists in the tree. Reproduces from 26.1.2.",
+   "id": "B3-G24",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Villager level-up is immediate and new offers are discounted"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 MinecartFurnace.getMaxSpeed = super x 0.75 (wet) / 0.5 (dry), and the new behaviour calls the VIRTUAL in calculateTrackSpeed and comeOffTrack (fresh dumps). The port's old-behavior max_speed (game/minecarts.rs:750-757) HAS the furnace factor, but the new-behavior max_speed_new (:991-994) has none and is used at all three sites - the step cap (:1069) is correct, calculateTrackSpeed (:1208) and comeOffTrack (:1344) are wrong. Experiment-gated: DEFAULT_FLAGS = VANILLA_SET (FeatureFlags.txt). Reproduces from 26.1.2.",
+   "id": "B3-G25",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Furnace minecart too fast under minecart_improvements"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 checks isPanicking() in both BreedGoal.getFreePartner and canContinueToUse. The port's partner search and can_continue (mobs/goals.rs, alive && in_love && love_time < 60) omit the panic clause. Reproduces from 26.1.2.",
+   "id": "B3-G26",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "BreedGoal ignores partner panic"
+  },
+  {
+   "evidence": "Reproduces with corrected evidence: vanilla 1.21.10 has NO #zombie_horse_food tag and ZombieHorse does NOT override isFood (0 occurrences in the complete 133-line dump) - it inherits AbstractHorse.isFood = #horse_food. The port's food_tag() has no ZombieHorse arm. Reproduces from 26.1.2.",
+   "id": "B3-G27",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Zombie horse has no food"
+  },
+  {
+   "evidence": "SkeletonHorse has 0 isFood occurrences in the fresh dump - it inherits #horse_food; the port covers Horse|Donkey|Mule only. Reproduces from 26.1.2.",
+   "id": "B3-G28",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Skeleton horse has no food"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 SpawnPlacements.checkSpawnRules has NO peaceful gate (only Map.get + SpawnPredicate.test); the gate lives in the per-type predicates. The port moved the gate into check_spawn_rules (mobs/spawn_rules.rs:322) and dropped the per-type gates from monster_rules (:285), blaze/breeze/zoglin (:376), endermite/silverfish (:395) and pillager (:439) - phantom/shulker now fail in peaceful where vanilla lets them spawn. Reproduces from 26.1.2.",
+   "id": "B3-G29",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Peaceful gate moved into checkSpawnRules; phantom/shulker can no longer spawn in peaceful"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 baby dims re-extracted FRESH from the jar (evidence/baby_dims2-1.21.10.py): 13 BABY_DIMENSIONS declarers; Drowned/Husk/ZombieVillager inherit Zombie's; Donkey/Mule inherit AbstractChestedHorse.babyDimensions (adult x 0.5); all others scale by age scale (0.5 default; Dolphin 0.65, HappyGhast 0.2375, Armadillo 0.6, Camel 0.45, Turtle 0.3 - all from getAgeScale bytecode). The port's Def.baby table (41 non-None entries, parsed fresh) is partly adapted (Drowned/ZombieVillager, Sniffer, Villager, Squid, Axolotl, Fox, Turtle correct) but 18 species are still wrong: pig/cow/mooshroom/sheep/goat/panda/polar bear/wolf/cat/ocelot/armadillo/dolphin/happy ghast/strider eyes; chicken/camel/hoglin/zoglin w/h/eye. Reproduces from 26.1.2 (29 species wrong there; 11 fixed here).",
+   "id": "B3-G30",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Baby-dimensions table carries the 26.2 form; 18 species wrong"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 Camel.SITTING_DIMENSIONS = scalable(width, height-1.43) with eye 0.845 (fresh Camel dump: 1.43f/0.845f in <clinit>); sitting baby scales by the camel age scale 0.45 to (0.765, 0.425, 0.38). The port's sitting_dims (mobs/camel.rs:52-54) returns (0.95, 0.425, 0.41) for a baby. The port's body_anchor_y (camel.rs:124-125) uses the double form (0.09375 baby / 0.375 adult offsets) vs vanilla float height - 0.375F * scale. Reproduces from 26.1.2.",
+   "id": "B3-G31",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Camel sitting baby dims wrong; body-anchor offset uses the 26.2 double form"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 heightmap predicates are code-based, never tag-based: MATERIAL_MOTION_BLOCKING = BlockStateBase::blocksMotion (method reference, Heightmap-v.txt BootstrapMethods #1); MOTION_BLOCKING = blocksMotion() || fluid not empty; MOTION_BLOCKING_NO_LEAVES = the same && !(block instanceof LeavesBlock) (HeightmapTypes.txt:119-144); WORLD_SURFACE = NOT_AIR = !isAir. The port's predicates (mobs/spawn_selection.rs:417-422) ground on #blocks_motion_in_heightmap* tags that do not exist in 1.21.10 data. Reproduces from 26.1.2.",
+   "id": "B3-G32",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Heightmap predicates use absent #blocks_motion_in_heightmap* tags"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 LivingEntity.getVisibilityPercent hardcodes five head rules (skeleton, zombie, piglin, piglin-brute, creeper heads, each x0.5) and has NO clamp (plain dreturn). The port's visibility_percent (mobs.rs:3171) reads the mob_visibility item component - 0 occurrences in 1.21.10's 1,488 datagen items - and applies a 0..=10 clamp vanilla lacks. Reproduces from 26.1.2.",
+   "id": "B3-G33",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Worn heads never reduce detection range"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 TradeWithPlayerGoal / LookAndFollowTradingPlayerSink gate on !hurtMarked. The port gates on m.hurt_time <= 0 (mobs/trader.rs:198, mobs/villager_brain.rs:3464) - hurt_time is set to 10 on hit (mobs.rs:3885) and decremented per tick (mobs/ai.rs:1353). Reproduces from 26.1.2.",
+   "id": "B3-G34",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Trader hurt gating uses the 10-tick hurt window instead of hurtMarked"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 BreathAirGoal.findAirPosition searches BlockPos.betweenClosed(x-1, y, z-1, x+1, y+8, z+1) (3x9x3 box), and start() calls findAirPosition() ONLY - there is no nav.stop() at all in 1.21.10 (corrects the 26.1.2 report's 'findAirPosition THEN nav.stop()' framing). The port uses the neighborColumn five-column search (mobs/goals.rs air_position) with start() calling nav_stop() FIRST, then find_air. Reproduces from 26.1.2.",
+   "id": "B3-G35",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "BreathAirGoal uses the 26.2 five-column search with swapped start order"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 ServerChunkCache.tickChunks computes timeDiff = gameTime - lastInhabitedUpdate -> incrementInhabitedTime(timeDiff). The port adds 1 unconditionally (game/natural_spawning.rs:808); no last_inhabited_update field exists in the render world. Reproduces from 26.1.2.",
+   "id": "B3-G37",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Inhabited time accrues +1 unconditionally instead of the game-time difference"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 Pufferfish.getScale(0) = 0.5 - a fresh spawn is half-size. 0 fresh_dimensions references in game/natural_spawning.rs. Reproduces from 26.1.2.",
+   "id": "B3-G38",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "fresh_dimensions removed; pufferfish spawn at full size"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 SpawnEggItem.useOn calls only Spawner.setEntityId(type, random); TrialSpawnerBlockEntity has no setEntityData method (0 occurrences). The port applies egg data to both: the trial arm (game/spawner.rs:450 + mobs/trial_spawner.rs override_entity_data) and the regular arm (game/spawner.rs:464 set_entity_data). Reproduces from 26.1.2.",
+   "id": "B3-G39",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Spawn-egg entity data applied to spawners; vanilla drops it"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 ArmadilloBallUp.checkExtraStartConditions = onGround() only. The port (mobs/armadillo.rs:379) adds !liquid(m) (in water or lava). Reproduces from 26.1.2.",
+   "id": "B3-G40",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Armadillo ball-up refuses in liquid"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 Slime.dealDamage = alive + isWithinMeleeAttackRange + hasLineOfSight + mobAttack, NO team check. The port (mobs/cube.rs:242, 296) adds teams_allow_damage. Reproduces from 26.1.2.",
+   "id": "B3-G41",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Slime/magma-cube dealDamage adds a team check vanilla lacks"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 TeleportRandomlyConsumeEffect has ONLY a diameter field; apply emits the TELEPORT game event + sound, no level event. The port parses directional_particles with .unwrap_or(true) (horizon-items/src/items.rs:157-160); 1.21.10 chorus-fruit data is {\"type\": \"minecraft:teleport_randomly\"} with no such field, so the fox path (mobs/fox.rs:388-398) emits level event 2017 on every chorus-fruit teleport. Reproduces from 26.1.2.",
+   "id": "B3-G43",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Fox chorus-fruit teleport emits a level event 2017 trail vanilla lacks"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 LivingEntity.baseTick calls setPosToBed (flat 0.6875 above the head-block base). The port's sleeping_position (mobs/world.rs:141-145) gates on facts.has_class(\"AbstractBedBlock\") - a class with 0 entries in the 1.21.10 jar (only plain BedBlock exists) - so it always returns None and refresh_sleeping_position (mobs/villager.rs:117-121) never moves the sleeper. Reproduces from 26.1.2.",
+   "id": "B3-G44",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Loaded sleeping villager position never refreshed"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 has NO restituteMovementAfterCollisions / bounceRestitution (0 occurrences in the Entity dump); bounce lives in the blocks: SlimeBlock.bounceUp = -vy x (1.0 living / 0.8 non-living) at any falling speed, BedBlock.bounceUp = -vy x 0.66 x (1.0 / 0.8). The port's vertical_collision_velocity (entities.rs:36-52) uses the 26.2 restitution form with a gravity threshold (-current_y > gravity) and no bed branch. Reproduces from 26.1.2.",
+   "id": "B3-G46",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Item-entity landing bounce uses the 26.2 restitution form; bed bounce gone"
+  },
+  {
+   "evidence": "The spawn-path table is correct (mobs/spawn_selection.rs:145). But the AI-path walk_target_value (mobs/ai.rs:2608-2682) misses them: Enderman, Pillager and Warden fall into the hostile branch -> -light() where vanilla returns 0.0f (fresh dumps: EnderMan, Pillager, Warden all fconst_0; freturn); Giant -> -light() where vanilla returns +getPathfindingCostFromLightLevels (unnegated); Mooshroom -> 10.0 over GRASS_BLOCK where vanilla wants MYCELIUM. (Creaking IS correct in the AI path here - ai.rs:2653-2659 - unlike 26.1.2.) Reproduces from 26.1.2 (four wrong arms, one fewer than 26.1.2).",
+   "id": "B3-G47",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "AI walk-target value misses the Zero arms and the Giant/Mooshroom arms"
+  },
+  {
+   "evidence": "Vanilla 1.21.10's burn set is code-driven (no #burn_in_daylight tag exists): {Zombie, Drowned, ZombieVillager} via Zombie.aiStep + isSunSensitive(); {Skeleton, Stray, Bogged, WitherSkeleton} via AbstractSkeleton.aiStep (HEAD-slot protection); {Phantom} via Phantom.aiStep. Husk overrides isSunSensitive() = false (port correctly excludes it). ZombieHorse has no burn path at all (complete 133-line dump: no aiStep, no isSunSensitive, no isSunBurnTick; AbstractHorse also has none). The port's burns_in_day (mobs/species.rs:1576) includes ZombieHorse (plus dead ZombieNautilus), and burn_undead (mobs/ai.rs:2004) ignites it for 160 ticks with body-slot protection via drops::body_slot_species - doubly wrong, since vanilla 1.21.10 has no getSunProtectionSlot / body-slot protection at all (all burners protect via HEAD). NEW in 1.21.10.",
+   "id": "B3-G48",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "NEW: Zombie horses burn in daylight where vanilla spares them"
+  },
+  {
+   "evidence": "Vanilla 1.21.10 handleInteract returns BEFORE resetLastActionTime when !hasClientLoaded() (ServerGamePacketListenerImpl.txt:4962-5019). The port's process_inbox (lan/hub.rs:4039-4060) resets last_action_tick for Interact/UseItem/PlayerAction/PlayerCommand (acted = true via the _ arm) BEFORE the client_loaded() gate in the dispatch match (:4063-4068), so a not-yet-loaded client's interacts keep its idle timer fresh where vanilla leaves it untouched. (The spectator form matches vanilla 1.21.10 - see report B8 - this is only the gate order.) NEW in 1.21.10.",
+   "id": "B3-G49",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "NEW: Idle timer resets before the hasClientLoaded gate"
+  },
+  {
+   "evidence": "FIXED in 1.21.10: the port's slime_rules (mobs/spawn_rules.rs:511) draws twice (0.5, then moon brightness), with an explicit comment noting the 1.21.10 vs 1.21.11 form. The 26.x environment-attribute form is gone. Verified absent in the 1.21.10 tree.",
+   "id": "B3-G02",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "Slime surface spawn uses the 26.x environment-attribute form, ignoring moon phase"
+  },
+  {
+   "evidence": "FIXED in 1.21.10: burns_in_day includes Drowned (mobs/species.rs:1576); Drowned inherits Zombie.aiStep + isSunSensitive() == true (0 occurrences in the Drowned dump - it inherits, it does not override). Verified absent in the 1.21.10 tree.",
+   "id": "B3-G08",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "Drowned missing from burns_in_day"
+  },
+  {
+   "evidence": "FIXED in 1.21.10: sun_burn_tick (mobs/ai.rs:2036) includes m.in_powder_snow in wet. Residual (not minted): wasInPowderSnow has no previous-tick field, so a mob burns one tick early after leaving powder snow. Verified absent in the 1.21.10 tree.",
+   "id": "B3-G09",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "Sun-burn ignores powder snow"
+  },
+  {
+   "evidence": "FIXED in 1.21.10: the port has hardcoded villager_trades.rs (1,313 lines): all 13 trade professions x levels 1-5, wandering trader 3 groups (2/2/5 = 9 offers); merchant.rs falls back to listings when no trade set exists. Verified absent in the 1.21.10 tree.",
+   "id": "B3-G16",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "Villagers and wandering traders have NO trades"
+  },
+  {
+   "evidence": "FIXED in 1.21.10: can_lie_on (mobs/tame.rs:1390) uses #beds + empty-above; can_sit_on (mobs/tame.rs:1430) uses chest / lit furnace / bed foot - both match vanilla CatLieOnBedGoal / CatSitOnBlockGoal (verified: BEDS / CHEST / FURNACE / BEDS, no tag gate). Verified absent in the 1.21.10 tree.",
+   "id": "B3-G36",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "Cat lie-on-bed / sit-on-block goals gated on absent tags"
+  },
+  {
+   "evidence": "WITHDRAWN as framed: vanilla 1.21.10 EnderMan.getWalkTargetValue IS overridden, returning 0.0f (changed since 1.21.7, where it had 0 occurrences); the port's spawn-table Zero is correct. Premise fails on 1.21.10 evidence.",
+   "id": "B3-G12",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "Enderman walk-target value wrong"
+  },
+  {
+   "evidence": "WITHDRAWN: vanilla 1.21.10 Goal HAS reducedTickDelay = positiveCeilDiv(t,2) and adjustedTickDelay; the port's reduced(ticks)=(ticks+1)/2 + adjusted (mobs/goals.rs:66-71) matches. Vanilla changed since 1.21.7. Premise fails on 1.21.10 evidence.",
+   "id": "B3-G17",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "reduced() halves all non-every-tick goal delays"
+  },
+  {
+   "evidence": "NEVER EXISTED: vanilla 1.21.10 Mob.setItemSlotAndDropWhenKilled = setItemSlot + setGuaranteedDrop (2.0) + persistenceRequired = true (verified in the Mob dump). So vanilla's non-barter arm = persistent + 2.0 drop, barter arm = setItemSlot + setGuaranteedDrop = 2.0, no persistence - exactly what the port does (mobs/piglin.rs:31-33). Premise fails on 1.21.10 evidence.",
+   "id": "B3-G42",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "Piglin offhand items made persistent with a 2.0 drop chance"
+  },
+  {
+   "evidence": "WITHDRAWN: vanilla 1.21.10 has no kinetic weapons at all (0 occurrences of recentKineticEnemies / KineticWeapon / iron_spear in LivingEntity; 0 items with the kinetic_weapon component in datagen items.json). The port's mobs/spear_use.rs stab path is gated on main_hand_kinetic(m) and is unreachable dead code. Premise fails on 1.21.10 evidence.",
+   "id": "B3-G45",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "Spear stab knockback applied as two pushes instead of one summed push"
+  },
+  {
+   "evidence": "Level.fuelValues() is public abstract in 1.21.10 (fresh dump Level.txt:1995); the oracle level stubs lack the override (grep-confirmed absent in the 1.21.10 tree sources: VanillaActiveEffectTickOracle, VanillaAttributeUpdatesOracle, VanillaLivingLandingOracle). The Level ctor is 8-arg in 1.21.10, matching the stubs, so the fuelValues error is the only one. Provisional from the 26.1.2 Batch 0 table; re-verify against the 1.21.10 table when it lands. Reproduces from 26.1.2.",
+   "id": "B3-O01",
+   "method": "Batch 0 table + jar anchors + oracle source grep",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "ORACLE: 3 oracles miss the fuelValues() override (1.21.10's abstract Level.fuelValues)"
+  },
+  {
+   "evidence": "LocalPlayer ctor takes 7 args in 1.21.10 (fresh dump from the client jar); MinecraftServer ctor takes 8 args (fresh dump). Oracle sources construct with the 26.3 form (e.g. VanillaAllayInteractionStateOracle has Actor extends LocalPlayer; VanillaEntitySoundPacketOracle constructs MinecraftServer). Provisional from the 26.1.2 Batch 0 table. Reproduces from 26.1.2 (different arities than 26.1.2's 8/10).",
+   "id": "B3-O02",
+   "method": "Batch 0 table + jar anchors + oracle source grep",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "ORACLE: 5 oracles construct LocalPlayer/MinecraftServer with the 26.3 form"
+  },
+  {
+   "evidence": "26.3 methods absent in 1.21.10; n_errors per the 26.1.2 table: Arrow 1, BlockingItemDamage 2, BoatRider 4, ClientArrow 1, DamageImmunity 2, EntityDeathLoot 4, FinalizeSpawn 7, LateEntityPair 4, MobAttributes 1, NaturalSpawn 16, PlayerTravel 1, RegisteredPlayerCombat 6, ServerPlayerCombat 6, SpawnRules 1. Includes 1.21.7's O06 content (LivingFall confirmed fresh: 1.21.10 lacks resetCurrentImpulseContext / tryResetCurrentImpulseContext / propagateFallToPassengers). Provisional from the 26.1.2 Batch 0 table. Reproduces from 26.1.2.",
+   "id": "B3-O03",
+   "method": "Batch 0 table + jar anchors + oracle source grep",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "ORACLE: 14 oracles override 26.3-only methods (no-override)"
+  },
+  {
+   "evidence": "All 9 sources reference EntityTypes (grep-verified in the 1.21.10 tree; 33 files tree-wide), incl. transcripts EntityTranscript n=7, RideTranscript n=4. EntityTypes has 0 entries in either 1.21.10 jar (1.21.10 predates the holder move). Provisional from the 26.1.2 Batch 0 table. Reproduces from 26.1.2.",
+   "id": "B3-O04",
+   "method": "Batch 0 table + jar anchors + oracle source grep",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "ORACLE: 9 oracles reference EntityTypes (1.21.10 predates the holder move)"
+  },
+  {
+   "evidence": "Anchors verified fresh: BlockTags has 203 fields, none of CAUSES_SUFFOCATION / SUPPRESSES_BOUNCE / BLOCKS_FLUID_FLOW; ClientboundUpdateAdvancementsPacket is a plain class (no Record attribute) with private added / removed / progress fields and only getAdded() / getRemoved() / getProgress() accessors - LocatorBarClient n=13 reproduces; Enderman (26.3 name) absent, EnderMan present; densityfunction package 0; ServerboundPunchPacket 0; EntitySpawnRequest / NoiseSpawnFinder / MoveSimulationType 0. Includes 1.21.7's O05 content except VanillaTradeComponentsOracle, VanillaVillagerFarmingOracle and VanillaWorldSpawnPacketOracle (pass in 26.1.2; key symbols resolve in 1.21.10 - provisional pending the Batch 0 table). Provisional from the 26.1.2 Batch 0 table. Reproduces from 26.1.2.",
+   "id": "B3-O05",
+   "method": "Batch 0 table + jar anchors + oracle source grep",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "ORACLE: 16 oracles reference missing 26.3 symbols"
+  },
+  {
+   "evidence": "Advancements triggers / predicates packages absent in 1.21.10 (only critereon, 164 entries - verified fresh). Provisional from the 26.1.2 Batch 0 table. Reproduces from 26.1.2.",
+   "id": "B3-O06",
+   "method": "Batch 0 table + jar anchors + oracle source grep",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "ORACLE: 2 oracles reference the absent advancements triggers/predicates packages"
+  },
+  {
+   "evidence": "Depend on broken VanillaFaceSupportOracle / VanillaBlockUpdateOracle. Provisional from the 26.1.2 Batch 0 table. Reproduces from 26.1.2.",
+   "id": "B3-O07",
+   "method": "Batch 0 table + jar anchors + oracle source grep",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "ORACLE: 2 oracles cascade from broken VanillaFaceSupportOracle / VanillaBlockUpdateOracle"
+  },
+  {
+   "evidence": "'void' type not allowed here at line 74 (source-level, version-independent). Provisional from the 26.1.2 Batch 0 table. Reproduces from 26.1.2.",
+   "id": "B3-O08",
+   "method": "Batch 0 table + jar anchors + oracle source grep",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "ORACLE: VanillaEntityFluidOracle - 'void' type not allowed here (n=1)"
+  },
+  {
+   "evidence": "NEW numbering; 1.21.7's O01. net.minecraft.world.level.gamerules has 0 entries in either 1.21.10 jar (GameRules lives in net.minecraft.world.level here); 6 oracle sources still reference it (grep-verified): VanillaAttributeHealthOracle, VanillaDamageImmunityOracle, VanillaEntityDeathLootOracle, VanillaRaidOracle, VanillaRegisteredPlayerCombatOracle, VanillaServerPlayerCombatOracle. (VanillaNaturalSpawnOracle, the 7th in 1.21.7's group, no longer references it in the 1.21.10 sources; its failure is the no-override class, O03.) Reproduces from 1.21.7.",
+   "id": "B3-O09",
+   "method": "Batch 0 table + jar anchors + oracle source grep",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "ORACLE: 6 oracles reference the 26.x gamerules package (net.minecraft.world.level.gamerules)"
+  },
+  {
+   "evidence": "NEW numbering; 1.21.7's O03. projectile/arrow, animal/cow, vehicle/minecart, vehicle/boat, monster/zombie all have 0 entries in both 1.21.10 jars (the classes live flat: projectile/Arrow, animal/Cow, vehicle/AbstractMinecart, vehicle/Boat, monster/Zombie): VanillaArrowOracle, VanillaLateEntityPairOracle, VanillaMobBreathingOracle, VanillaEntitySoundPacketOracle, VanillaFluidBoxOracle, VanillaEffectSyncOracle. (VanillaSpawnRulesOracle, the 7th in 1.21.7's group, references util/debug, which EXISTS in 1.21.10 (34 entries) - its failure is the no-override class, O03.) Reproduces from 1.21.7.",
+   "id": "B3-O10",
+   "method": "Batch 0 table + jar anchors + oracle source grep",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "ORACLE: 6 oracles reference 26.x entity subpackages"
+  },
+  {
+   "evidence": "NEW numbering; 1.21.7's O04. net.minecraft.world.clock has 0 entries in either 1.21.10 jar: VanillaAttributeUpdatesOracle, VanillaActiveEffectTickOracle (both also carry the O01 fuelValues error). Reproduces from 1.21.7.",
+   "id": "B3-O11",
+   "method": "Batch 0 table + jar anchors + oracle source grep",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "ORACLE: 2 oracles reference the 26.x world.clock package"
+  }
+ ],
+ "method": "Static analysis only (checks + triage; no fixes, no cargo builds, no driver runs, no oracle repairs): javap -c on the named 1.21.10 server-game jar (sha1 ba1fc89ead95b8ebdb8727f84e2bd487533c8b7f) + client jar, source comparison against versions/1.21.10/crates/, JVM-free class-file scans over the jar's entity classes (BABY_DIMENSIONS declarers, getDimensions/getScale/getDefaultDimensions/getAgeScale overrides, createAttributes suppliers, fire-immune types, adult dimensions), and checks against the 1.21.10 datagen reports. No prepared 1.21.10 .local data exists; the A3 attribute-values check is recorded as not-verifiable-here. Oracle triage provisional from the 26.1.2 Batch 0 table + the 1.21.7 oracle groups, all anchors re-verified fresh.",
+ "name": "Entities / mobs",
+ "out_of_scope_failures": "Adjacent findings for other batches (not defected here): 35723 hardcoded state counts in 34 other drivers - block_landing, block_properties, block_state_codec, block_support, block_survival, bulk_section, chunk_stage, climbing, collision, contextual_collision, decoration_region, feature_catalog, feature_region, fill_layer, fluid, fluid_occupancy, free_space, heightmap, movement_registry, paletted_container, piston_shape, registry_collision_scan, registry_fall_ray, registry_fluid, replace_block, retrogen_chunk, rule_test, scattered_ore, state_provider, terrain, world, world_collision_check, world_edge_backoff, world_movement; 26.3 resources path in 40 other drivers - attack_swap_e2e, bed_explosion, bundle_tooltip_e2e, creative_hover_e2e, entity_occlusion_bench, environment_system, environment_timeline, exploration_map_command, forced_end, hdr_gallery, item_use_order, mod_browser_harness, mod_port_harness, online_mode, pacing_bench, pad_menu_e2e, pad_parity_e2e, piston_step_e2e, predicate_reference_startup, profile_gameplay_decode, profile_shared_json, recipe_book_variants, redstone_diff, secure_chat, secure_chat_client_e2e, selector_criterion, self_pose_metadata, server_dimension_players, server_ops_feedback, server_player_targets, server_resource_pack, server_wool_vibration, server_world_gen, spawner_display_e2e, splitscreen_e2e, startup_trace, tick_order, unused_feature_startup, user_cache, vault. Full lists in evidence/drivers-35723.txt and evidence/drivers-263-paths.txt.",
+ "source": "docs/PARITY-SWEEP.md \u00a74 Batch 3 - checks + triage only, no fixes. Scope: mob AI, spawning, trading, attributes, projectiles, vehicles; 153 entity types (72 misc, 32 creature, 40 monster, 1 axolotls, 1 ambient, 4 water ambient, 2 water creature, 1 underground water creature); 144 drivers curated to 135 core.",
+ "systemic_note": "The systemic thread is the 26.x-form residue in a genuinely adapted port: the 1.21.10 tree fixed six carried defects outright (G02, G08, G09, G16, G36, and the G21 finalize arm) and narrowed two more (G30: 29 species wrong -> 18; G15: goal-start gate fixed, hop still broken), but the remaining 36 port defects all share one cause - code or data lookups written against the 26.x form (absent tags: #entities_can_teleport_to, #blocks_motion_in_heightmap*, #causes_suffocation, #suppresses_bounce, the immune_* tags; absent classes: AbstractBedBlock, EntityTypes; absent items/components: iron_spear, mob_visibility, kinetic_weapon; 26.x-only species arms) that silently degrade in 1.21.10 because the lookups fail soft. The two majors are the sharpest instances: G14 (endermen never teleport) and G22 (the suffocation startup blocker, where the lookup fails HARD at load time). The slice also carries 9 resolved re-check items (5 fixed: G02, G08, G09, G16, G36; 4 closed: G12, G17, G42, G45) per common.md; the withdrawn 1.21.7 oracle group O02 (client.multiplayer - the package exists in 1.21.10's client jar) is recorded in the report only, since its ID is taken by the live constructor-mismatch group.",
+ "version": "1.21.10"
+}
