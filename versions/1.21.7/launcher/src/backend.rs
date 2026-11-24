@@ -740,9 +740,10 @@ pub(crate) fn game_releases(_list: &serde_json::Value) -> Vec<Release> {
 
 /// [`game_releases`] for one platform's asset, and the one it installs from a release that has
 /// none of its own ([`GAME_FALLBACK`]).
-// Only the tests call this, but it stays compiled rather than `#[cfg(test)]`: the source scan
+// Only the tests call this, but it stays compiled rather than test-gated: the source scan
 // in `mojang_downloads_for_an_owner_or_with_no_account` truncates backend.rs at the first
-// `#[cfg(test)]`, and that must stay after `download_for`.
+// test gate in the file, and that must stay after `download_for`. (This comment must not
+// spell out that gate's attribute: the scan is a plain-text search.)
 #[allow(dead_code)]
 fn game_releases_with(
     list: &serde_json::Value,
