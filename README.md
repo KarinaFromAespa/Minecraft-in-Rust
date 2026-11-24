@@ -43,7 +43,7 @@ what you did, a screenshot or clip, the world seed, and the game log
 | Era templates at full parity | 0 / 11 | 0% |
 | Delta releases verified | 0 / 92 | 0% |
 | Trees published on main | 19 / 103 | 18.4% |
-| Behaviour items closed | 3,291 / 5,969 | 55.1% |
+| Behaviour items closed | 4,010 / 5,969 | 67.2% |
 | Harnesses passing (16 profiled versions) | 39 / 272 | 14.3% |
 
 Phase 0 is done: the mappings front-end, CI, the delta gate and the
