@@ -98,8 +98,6 @@ impl Game<'_> {
                     && self.riding != Some(m.id)
                     && !self.mobs.iter().any(|o| o.extra.mount == Some(m.id))
             }
-            // HappyGhast.mobInteract: a harnessed adult is ridden.
-            Species::HappyGhast => !baby && m.extra.body.is_some(),
             // TamableAnimal (wolf, cat, parrot) on a client: CONSUME once tame.
             Species::Wolf | Species::Cat | Species::Parrot => m.extra.tame,
             // Allay.mobInteract: gives an item or takes it back.

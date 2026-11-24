@@ -866,7 +866,6 @@ impl Game<'_> {
             "block_break_speed",
             "block_interaction_range",
             "burning_time",
-            "camera_distance",
             "explosion_knockback_resistance",
             "entity_interaction_range",
             "fall_damage_multiplier",
@@ -949,7 +948,7 @@ impl Game<'_> {
         // Timelines of the overworld clock and their time markers.
         self.ui.timelines = ids.timelines.iter().cloned().collect();
         self.ui.markers = ids.markers.iter().cloned().collect();
-        // Vanilla's built-in registries (mob effects, components, dialogs...).
+        // Vanilla's built-in registries (mob effects, components...).
         for dir in [&self.options.resources, &self.ui.vanilla_root] {
             if let Some(export) = command_export(dir, self.options.dedicated.is_none()) {
                 self.ui.registries.fill_from_exported(&export);
@@ -1530,20 +1529,11 @@ impl Game<'_> {
                 }
             }
             Some(ClickEvent::RunCommand(command)) => self.click_command(&command),
-            // Screen.defaultHandleGameClickEvent: the dialog opens over the
-            // screen, and closes back to it.
-            Some(ClickEvent::ShowDialog(dialog)) => self.show_dialog_ref(&dialog),
-            // Screen.defaultHandleGameClickEvent: custom actions retain chat.
-            Some(ClickEvent::Custom { id, payload }) => {
-                if let Some(remote) = &self.remote {
-                    remote.session.send_custom_click(&id, payload);
-                }
-            }
-            // Screen.defaultHandleClickEvent: a page link means nothing in chat.
+            // Screen.handleComponentClicked's default arm: a page link means nothing in chat.
             Some(ClickEvent::ChangePage(_)) | None => {}
         }
     }
-    /// `Screen.clickUrlAction`: nothing with Web Links off, else the link
+    /// `Screen.handleComponentClicked`'s OpenUrl arm: nothing with Web Links off, else the link
     /// opens, after the confirmation unless Prompt on Links is off.
     pub(super) fn click_url(&mut self, url: String) {
         if !self.settings.chat_links {
@@ -1627,17 +1617,17 @@ impl Game<'_> {
             self.answer_link_prompt(button == LINK_YES);
         }
     }
-    /// `Screen.clickCommandAction`: run a clicked command as the player
-    /// without adding it to the chat history. A client mod's command goes
-    /// first, as `ClientPacketListener.sendUnattendedCommand` lets client
-    /// commands take it.
+    /// `Screen.handleComponentClicked`'s RunCommand arm: run a clicked command as the player
+    /// without adding it to the chat history, unsigned — and refused, with an error, when it
+    /// has a signed argument (`ClientPacketListener.sendUnsignedCommand`). A client mod's
+    /// command goes first.
     pub(super) fn click_command(&mut self, command: &str) {
         let command = command.strip_prefix('/').unwrap_or(command);
         if self.client_mod_command(command) {
             return;
         }
         if self.remote.is_some() {
-            self.send_unattended_command(command);
+            self.send_unsigned_command(command);
         } else {
             self.run_command(command);
         }

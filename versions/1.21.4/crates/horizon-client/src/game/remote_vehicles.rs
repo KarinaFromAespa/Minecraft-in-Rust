@@ -15,7 +15,7 @@
 //! moves on the server with the rider's input, and the rider sits in it.
 use super::{Game, Keys, ray_box};
 use crate::Result;
-use horizon_client::mobs::{Mob, equine, happy_ghast};
+use horizon_client::mobs::{Mob, equine};
 use horizon_client::{keybinds, text::Text};
 use horizon_core::geometry::{Aabb, Vec3};
 use horizon_protocol::packets::play::{self, Serverbound as S};
@@ -244,17 +244,6 @@ impl Game<'_> {
             self.riding = None;
             if let Some(m) = self.mob_index.get_mut(&mut self.mobs, vehicle_id) {
                 m.rider = None;
-            }
-            // HappyGhast.removePassenger: a still timeout of 10 (the server's
-            // STAYS_STILL confirms it), and the rider lands on top of the ghast
-            // (`place_ghast_under`).
-            if let Some(m) = self.mobs.iter_mut().find(|m| {
-                m.id == vehicle_id && m.species() == horizon_client::mobs::Species::HappyGhast
-            }) {
-                m.extra.counter = 10;
-                if let Some(r) = self.remote.as_mut() {
-                    r.ghast_dismount = Some(vehicle_id);
-                }
             }
         }
     }
@@ -626,11 +615,7 @@ impl Game<'_> {
 
 /// Whether a player's client moves `m`, the mount it rides
 /// (`isLocalInstanceAuthoritative`): a saddled horse, donkey, mule or camel
-/// it is the first passenger of (`AbstractHorse.getControllingPassenger`),
-/// or a harnessed adult Happy Ghast it is the first passenger of
-/// (`HappyGhast.getControllingPassenger`: wearing body armor, player on
-/// top, not on a still timeout — the rider steers it with `travelRidden`
-/// on their own client, and the mount goes to the server as `MoveVehicle`).
+/// it is the first passenger of (`AbstractHorse.getControllingPassenger`).
 fn client_moves(m: &Mob, first_passenger: bool, steer: bool) -> bool {
     if !first_passenger || !m.alive() {
         return false;
@@ -641,9 +626,7 @@ fn client_moves(m: &Mob, first_passenger: bool, steer: bool) -> bool {
             horizon_client::mobs::Species::Pig | horizon_client::mobs::Species::Strider
         ) || steer;
     }
-    m.species() == horizon_client::mobs::Species::HappyGhast
-        && happy_ghast::harnessed_adult(m)
-        && !happy_ghast::on_still_timeout(m)
+    false
 }
 
 /// `LocalPlayer.sendRidingJump`: START_RIDING_JUMP with
@@ -856,22 +839,6 @@ mod tests {
                 "{kind} behind another rider"
             );
         }
-    }
-
-    /// #4107: on a vanilla server the rider's client moves a harnessed adult
-    /// Happy Ghast (`getControllingPassenger`); an unharnessed one, a baby
-    /// or a second passenger's ride is the server's.
-    #[test]
-    fn the_rider_moves_a_harnessed_ghast_on_its_client() {
-        let Some(mut m) = mob("minecraft:happy_ghast") else {
-            return;
-        };
-        assert!(!client_moves(&m, true, false), "ghast without a harness");
-        m.extra.body = Some("minecraft:white_happy_ghast_harness".into());
-        assert!(client_moves(&m, true, false), "harnessed adult");
-        assert!(!client_moves(&m, false, false), "behind another rider");
-        m.extra.age = -1;
-        assert!(!client_moves(&m, true, false), "baby ghast");
     }
 
     /// The mount ticks before its rider (`ClientLevel.tickNonPassenger`): it

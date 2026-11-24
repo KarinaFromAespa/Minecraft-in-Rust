@@ -128,27 +128,13 @@ impl<'a> CollisionContext<'a> {
         }
     }
 
-    /// `player`, when present, must describe a player (and thus a living entity).
-    pub fn placement(player: Option<CollisionEntity<'a>>) -> Self {
-        let y = player.map_or(-f64::MAX, |player| player.y);
-        Self::with_position(player, y)
-    }
-
-    /// Native withPosition is a placement context. A missing entity ignores y.
-    pub fn with_position(entity: Option<CollisionEntity<'a>>, y: f64) -> Self {
-        let mut context = entity.map_or_else(
-            || Self {
-                height: Height::Bottom(-f64::MAX),
-                ..Self::empty(false)
-            },
-            |entity| Self {
-                height: Height::Bottom(y),
-                ..Self::for_entity(entity, false)
-            },
-        );
-        context.placement = true;
-        context
-    }
+    // 1.21.4 has no placement collision context: `CollisionContext.of`
+    // is what block placement uses (`BlockItem` calls `of`, never
+    // `placementContext` — that arrived in 1.21.5 — and `withPosition`
+    // arrived in 1.21.6), so there is no `placement` or `with_position`
+    // constructor here. The `placement` flag below is always false in
+    // 1.21.4; `is_placement` stays so the scaffolding and powder-snow
+    // shapes keep their 1.21.5 shape, dead in this version.
 
     pub fn entity_kind(&self) -> EntityContextKind {
         self.kind

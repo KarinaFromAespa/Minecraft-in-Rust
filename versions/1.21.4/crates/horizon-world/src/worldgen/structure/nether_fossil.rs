@@ -4,10 +4,7 @@ use super::{
     legacy::{LegacyPiece, PieceContext, Result, TemplateHandler, TemplatePiece},
     processor::ProcessorList,
 };
-use horizon_core::{
-    position::BlockPos,
-    random::{LegacyRandom, PositionalRandom, RandomSource},
-};
+use horizon_core::random::RandomSource;
 use std::sync::Arc;
 
 const FOSSILS: usize = 14;
@@ -86,31 +83,11 @@ impl LegacyPiece for NetherFossilPiece {
                 .template
                 .bounding_box(piece.position, piece.rotation, piece.pivot, piece.mirror);
         // Vanilla grows the chunk box to the whole fossil before placing.
+        // 1.21.4 places nothing else here: the dried ghast at the fossil's
+        // base (`placeDriedGhast`) is a 1.21.6 addition.
         let saved = c.chunk_box;
         c.chunk_box.encapsulate(&fossil);
-        let result = piece.place_at(c, piece.position, &[]).and_then(|_| {
-            // placeDriedGhast.
-            let seed = c.world.seed()?;
-            let center = fossil.center();
-            let mut random = LegacyRandom::new(seed)
-                .fork_positional()
-                .at(BlockPos::new(center[0], center[1], center[2]));
-            if random.next_float() < 0.5 {
-                let [sx, _, sz] = fossil.span();
-                let x = fossil.min[0] + random.next_int_bound(sx).unwrap_or(0);
-                let z = fossil.min[2] + random.next_int_bound(sz).unwrap_or(0);
-                let pos = [x, fossil.min[1], z];
-                let current = c.world.block(pos)?;
-                if c.is_air(current) && c.chunk_box.is_inside(pos) {
-                    let state = c
-                        .resources
-                        .transforms
-                        .rotate(c.state("dried_ghast"), Rotation::random(&mut random));
-                    c.world.set(pos, state, 2)?;
-                }
-            }
-            Ok(())
-        });
+        let result = piece.place_at(c, piece.position, &[]).map(|_| ());
         c.chunk_box = saved;
         result
     }

@@ -441,12 +441,6 @@ impl Session {
             w.shutdown();
         }
     }
-    /// A dialog's answer — unsent: 1.21.5 has no custom-click-action
-    /// packet (it arrived with dialogs in 1.21.6), so the answer has
-    /// nowhere to go. Kept as a no-op for the dialog click handlers;
-    /// the behaviour port removes the dialog system.
-    pub fn send_custom_click(&self, _id: &str, _payload: Option<horizon_world::nbt::Tag>) {
-    }
     // No accept_code_of_conduct: 1.21.8 has no code-of-conduct packets (added in 1.21.9).
     /// `Connection.disconnect`: the socket closes and the game goes on at once.
     /// The reader thread is left to end on its own: on Windows a shutdown

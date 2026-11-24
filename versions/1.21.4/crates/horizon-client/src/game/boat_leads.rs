@@ -214,11 +214,6 @@ impl Game<'_> {
         };
         // Leashable.whenLeashedTo: `leashHolder.notifyLeashHolder(this)`; a
         // boat supports a quad lead.
-        if let Holder::Mob(id) = holder
-            && let Some(m) = self.mobs.iter_mut().find(|m| m.id == id)
-        {
-            horizon_client::mobs::happy_ghast::notify_leash_holder(m);
-        }
         let away = distance(state.center, center(b));
         if away > leash::SNAP {
             let p = state.position;

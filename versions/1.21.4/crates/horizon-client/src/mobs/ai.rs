@@ -56,7 +56,7 @@ fn block_contact_damage(
 #[derive(Clone, Debug, Default)]
 pub struct Ai {
     /// `Mob.homePosition` and `homeRadius`: where a restricted mob stays
-    /// (a lead's holder, a happy ghast's float area).
+    /// (a lead's holder).
     pub home: Option<([i32; 3], i32)>,
     /// Mob keeps homePosition even when clearHome makes homeRadius -1.
     /// Active homes still use `home`; this only retains its hidden position.
@@ -201,7 +201,6 @@ pub enum Family {
     Trader,
     Breeze,
     Sniffer,
-    HappyGhast,
     Warden,
     Creaking,
     /// Nautili and zombie nautili.
@@ -251,7 +250,6 @@ pub fn family(s: Species) -> Family {
         S::WanderingTrader => Family::Trader,
         S::Breeze => Family::Breeze,
         S::Sniffer => Family::Sniffer,
-        S::HappyGhast => Family::HappyGhast,
         S::Piglin | S::PiglinBrute | S::Hoglin | S::Zoglin => Family::Piglin,
         S::Horse
         | S::Donkey
@@ -298,7 +296,6 @@ fn constructor_maluses(m: &mut Mob) {
             | S::Fox
             | S::Frog
             | S::Goat
-            | S::HappyGhast
             | S::Hoglin
             | S::Horse
             | S::Llama
@@ -428,7 +425,6 @@ pub fn register(m: &mut Mob) {
         Family::Trader => super::trader::register(m),
         Family::Breeze => super::breeze::register(m),
         Family::Sniffer => super::sniffer::register(m),
-        Family::HappyGhast => super::happy_ghast::register(m),
         Family::Warden => super::warden::register(m),
         Family::Creaking => super::creaking::register(m),
         Family::Nautilus => super::nautilus::register(m),
@@ -500,9 +496,6 @@ pub fn custom_move_control(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>
     }
     if m.species() == Species::Ghast {
         return super::nether::ghast_move_control(m, w);
-    }
-    if m.species() == Species::HappyGhast {
-        return super::happy_ghast::move_control(m, w);
     }
     if m.species() == Species::Phantom {
         return super::phantom::move_control(m);
@@ -1548,9 +1541,6 @@ fn play_ambient(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
         Species::Allay if m.extra.main_hand.is_some() => "entity.allay.ambient_with_item",
         // Strider.getAmbientSound: quiet while panicking or tempted.
         Species::Strider if m.ai.panicking || m.ai.goals.is_running("Tempt") => return,
-        // HappyGhast: its own voice; `Mob::voice` plays it at the feet
-        // (`Entity.playSound`), never for a Silent ghast, at pitch 1.0.
-        Species::HappyGhast => super::happy_ghast::sounds(m)[0],
         // Sniffer.getAmbientSound.
         Species::Sniffer => match super::sniffer::ambient(m) {
             Some(s) => s,
@@ -2043,10 +2033,6 @@ fn server_ai_step(
     events: &mut Vec<MobEvent>,
 ) {
     m.ai.no_action_time += 1;
-    // A happy ghast set up for its age (ageBoundaryReached runs at once).
-    if m.species() == Species::HappyGhast {
-        super::happy_ghast::ensure_setup(m);
-    }
     // A saddled mount follows its rider instead of its goals.
     if super::equine::controlled(m) {
         super::equine::ridden_step(m);
@@ -2096,10 +2082,8 @@ fn server_ai_step(
         // Warden.customServerAiStep: the brain and its bookkeeping.
         super::warden::server_ai_step(m, w, level_random, events);
     }
-    // Sniffer and HappyGhast.customServerAiStep: the brain (a happy ghast's
-    // only while it is a ghastling), then updateActivity.
+    // Sniffer.customServerAiStep: the brain, then updateActivity.
     if m.species() == Species::Sniffer
-        || m.species() == Species::HappyGhast && m.is_baby()
         || m.species() == Species::CopperGolem
         || m.species() == Species::Axolotl
         || m.species() == Species::Tadpole
@@ -2230,7 +2214,6 @@ fn species_ai_step(
         Species::PolarBear => super::polar_bear::ai_step(m, w),
         Species::Breeze => super::breeze::ai_step(m),
         Species::Sniffer => super::sniffer::ai_step(m, events),
-        Species::HappyGhast => super::happy_ghast::ai_step(m, w),
         Species::Villager => super::villager::ai_step(m, w, events),
         Species::WanderingTrader => {
             super::villager::ai_step(m, w, events);
@@ -2392,8 +2375,6 @@ pub fn voice_sounds(m: &Mob) -> [&'static str; 3] {
         Species::Nautilus | Species::ZombieNautilus => super::nautilus::sounds(m),
         Species::SulfurCube => super::sulfur_cube::sounds(m),
         Species::Armadillo => super::armadillo::sounds(m),
-        // HappyGhast.getHurtSound and getDeathSound: the ghastling's by age.
-        Species::HappyGhast => super::happy_ghast::sounds(m),
         // Panda.getAmbientSound.
         Species::Panda => {
             let ambient = if super::panda::is_aggressive(m) {
@@ -2648,7 +2629,6 @@ pub fn eating_sound(
 pub fn sound_volume(m: &Mob) -> f32 {
     match m.species() {
         Species::Ghast => 5.0,
-        Species::HappyGhast => super::happy_ghast::volume(m),
         Species::Warden => 4.0,
         Species::Slime | Species::MagmaCube | Species::SulfurCube => {
             0.4 * m.extra.size.max(1) as f32
@@ -2671,17 +2651,6 @@ pub fn walk_target_value(m: &Mob, w: &MobWorld, p: [i32; 3]) -> f32 {
     // Guardian.getWalkTargetValue: water first.
     if family(m.species()) == Family::Guardian && w.fluid(p[0], p[1], p[2]) == Fluid::Water {
         return 10.0 + light();
-    }
-    // HappyGhast.getWalkTargetValue: open air, best just above the ground.
-    if m.species() == Species::HappyGhast {
-        let air = |y: i32| w.facts.is_air(w.world.block(p[0], y, p[2]));
-        return if !air(p[1]) {
-            0.0
-        } else if air(p[1] - 1) && !air(p[1] - 2) {
-            10.0
-        } else {
-            5.0
-        };
     }
     if m.species() == Species::Strider {
         return super::strider::walk_target_value(m, w, p);
@@ -3287,7 +3256,6 @@ pub fn step_sound(
         | S::TropicalFish
         | S::Pufferfish
         | S::Tadpole
-        | S::HappyGhast
         | S::Nautilus
         | S::ZombieNautilus => None,
         S::Armadillo => quiet("entity.armadillo.step"),
@@ -5899,79 +5867,6 @@ mod nautilus_noai_air_tests {
         check(false, false, 100, [99, 98]);
         check(true, false, 300, [300, 300]);
         check(true, false, 100, [300, 300]);
-    }
-}
-
-#[cfg(test)]
-mod happy_ghast_ambient_tests {
-    use super::*;
-    use std::sync::Arc;
-
-    #[test]
-    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-    fn natural_happy_ghast_ambient_uses_entity_position() {
-        let root = std::path::PathBuf::from(std::env::var_os("HORIZON_TEST_RESOURCES").unwrap());
-        let ran = crate::mobs::world::with_resource_test_world(
-            &root,
-            &[],
-            true,
-            true,
-            |world, _| {
-                world
-                    .chunks
-                    .insert((0, 0), Arc::new(crate::chunk::Chunk::empty(0, 0)));
-            },
-            |w, types| {
-                for baby in [false, true] {
-                    let kind = Arc::new(types.types["minecraft:happy_ghast"].clone());
-                    let mut mob = Mob::new(1, kind, Vec3::new(10.5, 208.0, 10.5), 0.0);
-                    mob.no_ai = true;
-                    mob.no_gravity = true;
-                    mob.persistent = true;
-                    mob.extra.age = if baby { -24000 } else { 0 };
-                    let sound = super::super::happy_ghast::sounds(&mob)[0];
-                    let mut random = LegacyRandom::new(0);
-                    let mut heard = false;
-                    // Natural scheduling: no ambient counter is forced or reset here.
-                    for _ in 0..1200 {
-                        let mut events = Vec::new();
-                        assert!(tick(&mut mob, w, &mut random, &mut events));
-                        for event in events {
-                            if let MobEvent::Sound(name, at, _, _) = event
-                                && name == sound
-                            {
-                                assert_eq!(at, [10.5, 208.0, 10.5], "baby={baby}");
-                                heard = true;
-                            }
-                        }
-                        if heard {
-                            break;
-                        }
-                    }
-                    assert!(heard, "no natural ambient event, baby={baby}");
-                }
-                // Entity.playSound plays nothing for a Silent entity.
-                let kind = Arc::new(types.types["minecraft:happy_ghast"].clone());
-                let mut mob = Mob::new(1, kind, Vec3::new(10.5, 208.0, 10.5), 0.0);
-                mob.no_ai = true;
-                mob.no_gravity = true;
-                mob.persistent = true;
-                mob.silent = true;
-                let sound = super::super::happy_ghast::sounds(&mob)[0];
-                let mut random = LegacyRandom::new(0);
-                for _ in 0..1200 {
-                    let mut events = Vec::new();
-                    assert!(tick(&mut mob, w, &mut random, &mut events));
-                    assert!(
-                        !events
-                            .iter()
-                            .any(|e| matches!(e, MobEvent::Sound(name, ..) if *name == sound)),
-                        "a Silent happy ghast is heard"
-                    );
-                }
-            },
-        );
-        assert!(ran, "prepared-data callback did not run");
     }
 }
 

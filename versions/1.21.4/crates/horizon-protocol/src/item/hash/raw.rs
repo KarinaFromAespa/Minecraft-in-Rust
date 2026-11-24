@@ -496,7 +496,7 @@ mod tests {
     /// through `HashOps.CRC32C_INSTANCE`).
     #[test]
     fn components_read_past_hash_as_vanilla_does() {
-        let cases: [(&str, i32, &str, i32); 26] = [
+        let cases: [(&str, i32, &str, i32); 39] = [
         (
         "potion_contents",
         41,
@@ -613,6 +613,23 @@ mod tests {
         ),
         ("enchantable", 27, "05", -1577171417),
         ("glider", 30, "", -982207288),
+        // The mob-variant serializer arms (72-95, Horizon's synthetic ids,
+        // unchanged from 1.21.5): the mechanical publish's regen dropped
+        // these cases because the ids are not 1.21.4 component ids, but the
+        // arms are still live code and the hashes are version-independent.
+        ("wolf/collar", 75, "0b", 199633461),
+        ("sheep/color", 94, "05", -1201809287),
+        ("villager/variant", 72, "00", 1867638223),
+        ("fox/variant", 76, "01", -1511535024),
+        ("salmon/size", 77, "02", -886537313),
+        ("parrot/variant", 78, "04", -727074367),
+        ("tropical_fish/pattern", 79, "8108", 312926869),
+        ("mooshroom/variant", 82, "01", -541737949),
+        ("rabbit/variant", 83, "63", 1619861300),
+        ("rabbit/variant", 83, "05", 359467842),
+        ("horse/variant", 88, "06", -337512376),
+        ("llama/variant", 90, "03", -727074367),
+        ("axolotl/variant", 91, "04", 199633461),
     ];
         for (name, kind, hex, expected) in cases {
             let bytes = unhex(hex);

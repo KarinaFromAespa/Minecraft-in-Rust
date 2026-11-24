@@ -127,7 +127,6 @@ mod debug_stick;
 mod decorated_pot;
 mod dedicated;
 mod deflect;
-mod dialogs;
 #[cfg(feature = "discord")]
 mod discord;
 mod dispense_fixture;
@@ -175,7 +174,6 @@ mod functions;
 mod game_mode;
 mod game_tests;
 mod gamemode_switcher;
-mod ghasts;
 mod glowing;
 mod golems;
 mod growth;
@@ -225,7 +223,6 @@ mod lan_screen;
 mod lan_stations;
 mod lan_trading;
 mod lan_vehicles;
-mod lan_waypoints;
 mod launch_api;
 mod launch_options;
 mod leads;
@@ -236,7 +233,6 @@ mod lightning;
 mod llamas;
 mod loading_screen;
 mod loading_window;
-mod locator_bar;
 mod loom;
 mod mace;
 mod machines;
@@ -384,7 +380,6 @@ mod powder_snow;
 mod prediction;
 mod pumpkin;
 mod pvp;
-mod quick_actions;
 mod raids;
 mod random_textures;
 mod recipe_book;
@@ -558,7 +553,7 @@ use horizon_world::{
     registry::BlockStateId,
 };
 use key_codes::{
-    container_key_clones, drop_held_behind_dialog, follow_named_keymap, gameplay_has_keyboard,
+    container_key_clones, follow_named_keymap, gameplay_has_keyboard,
     glfw_button, glfw_modifiers, keyboard_button,
 };
 use launch_options::Options;
@@ -662,8 +657,6 @@ enum Screen {
     ServerLinks,
     /// ConfirmLinkScreen for a server link (game/server_links.rs).
     ConfirmLink,
-    /// DialogScreen.WarningScreen: the note about custom screens.
-    DialogWarning,
     /// WinScreen: the end poem and the credits (game/win.rs).
     Win,
     /// DebugOptionsScreen, F3+F6 (game/debug_options.rs).
@@ -701,7 +694,6 @@ impl Screen {
             Screen::BlockEditor => "block_editor",
             Screen::ServerLinks => "server_links",
             Screen::ConfirmLink => "confirm_link",
-            Screen::DialogWarning => "dialog_warning",
             Screen::Win => "win",
             Screen::DebugOptions => "debug_options",
             Screen::Mod => "mod",
@@ -2146,12 +2138,8 @@ struct Game<'a> {
     server_packs: server_packs::ServerPackState,
     /// The link a chat click asks to open (`ConfirmLinkScreen`).
     link_prompt: Option<String>,
-    /// A command the player didn't type, waiting for their answer
-    /// (game/remote_chat.rs).
-    command_prompt: Option<remote_chat::CommandPrompt>,
     /// A server's Code of Conduct to accept (game/code_of_conduct.rs).
     code_of_conduct: Option<code_of_conduct::Prompt>,
-    dialogs: dialogs::DialogState,
     /// Single player's server while it loads its world (`Minecraft.doWorldLoad`).
     integrated_starting: Option<integrated::Starting>,
     world_renderer_ready: bool,
@@ -2655,12 +2643,6 @@ struct Game<'a> {
     /// Entities of types Horizon does not simulate.
     others: Vec<commands::OtherEntity>,
     armor_stand_assets: armor_stands::ArmorStandAssets,
-    /// `WaypointStyleManager`.
-    waypoint_styles: horizon_client::locator_bar::WaypointStyles,
-    /// `ClientWaypointManager`: the locator bar's waypoints.
-    waypoints: horizon_client::locator_bar::ClientWaypoints,
-    /// The camera the last frame drew from (position, yaw, pitch, fov), for the locator bar.
-    locator_camera: Option<([f64; 3], f32, f32, f32)>,
     native_camera_frame: Option<horizon_client::mod_api::NativeCamera>,
     native_tasks: native_tasks::NativeTasks,
     /// The yaw and pitch a native mod's camera drew the last frame from (`native_camera_pose`),
@@ -3124,7 +3106,7 @@ struct Game<'a> {
     /// A dedicated server's operator, whitelist and ban lists, for `/op`,
     /// `/ban` and friends (`DedicatedPlayerList`).
     server_lists: Option<std::sync::Arc<std::sync::Mutex<dedicated::Lists>>>,
-    /// State of `/spectate`, `/posteffect`, `/debug`, `/waypoint` and friends.
+    /// State of `/spectate`, `/posteffect`, `/debug` and friends.
     cmds: commands::extra::CommandExtras,
     ui: chat::UiState,
     combat: combat::CombatTracker,
@@ -4743,11 +4725,6 @@ impl Game<'_> {
                     kind: "portal_spawn",
                     ..
                 } => self.portal_spawn([pos.x, pos.y, pos.z]),
-                LevelEvent::BlockEvent {
-                    pos,
-                    state,
-                    kind: "spawn_ghastling",
-                } => self.spawn_ghastling([pos.x, pos.y, pos.z], state),
                 LevelEvent::GameEvent { pos, event, state } => {
                     self.sculk_level_event(pos, event, state)
                 }
@@ -5248,7 +5225,7 @@ impl Game<'_> {
         if self.destroy_delay > 0 {
             self.destroy_delay -= 1;
         }
-        if !self.left || self.screen != Screen::Playing || self.dialog_open() {
+        if !self.left || self.screen != Screen::Playing {
             self.mining = None;
             return Ok(());
         }
@@ -5823,7 +5800,6 @@ impl Game<'_> {
             && self.use_delay == 0
             && self.using.is_none()
             && self.screen == Screen::Playing
-            && !self.dialog_open()
             && self.sleeping.is_none()
         {
             self.use_with_hand()?;
@@ -5847,22 +5823,16 @@ impl Game<'_> {
         // The pack prompt replaces the connecting screen (setScreen), but
         // in game it opens over the world.
         let mut batch = if (self.server_packs.prompt.is_some()
-            || self.code_of_conduct.is_some()
-            || self.dialog_open())
+            || self.code_of_conduct.is_some())
             && self.player.is_none()
         {
             HudBatch::new(size)
         } else {
             self.hud_layers(size)
         };
-        // Vanilla's confirmation replaces the dialog as the screen.
-        if self.command_prompt.is_none() {
-            self.draw_dialog(&mut batch);
-        }
         self.draw_pack_prompt(&mut batch);
         self.draw_code_of_conduct(&mut batch);
         self.draw_link_prompt(&mut batch);
-        self.draw_command_prompt(&mut batch);
         // The ToastManager draws over every screen, the title and the
         // options included: the narrator's toast follows the player there.
         self.draw_narrator_toast(&mut batch);
@@ -6066,17 +6036,11 @@ impl Game<'_> {
             self.draw_extras(&mut batch);
         }
         if show_hud {
-            // Hud.nextContextualInfoState: the jump bar, the experience bar or
-            // the locator bar above the hotbar.
+            // `Hud.extractHotbarAndDecorations`: 1.21.4 has no contextual bar
+            // system — the jump bar when riding a jumpable vehicle, else the
+            // experience bar.
             let has_experience = !self.creative && !spectator;
-            let contextual = horizon_client::locator_bar::ContextualBar::next(
-                self.waypoints.has_waypoints(),
-                !spectator && self.jumpable_mount(),
-                self.mount_jumping(),
-                has_experience,
-                self.experience_recent(),
-            );
-            use horizon_client::locator_bar::ContextualBar;
+            let jumpable = !spectator && self.jumpable_mount();
             // The mount's hearts.
             let vehicle_hearts = if spectator {
                 0
@@ -6150,25 +6114,12 @@ impl Game<'_> {
                     self.audio.capture = capture;
                 }
             }
-            // After the health rows (Hud.extractHotbarAndDecorations): jump, locator or XP bar.
-            self.gui_layer("minecraft:contextual_info_bar", &mut batch, |g, batch| {
-                if contextual == ContextualBar::JumpableVehicle {
+            // After the health rows (`Hud.extractHotbarAndDecorations`): the
+            // jump meter, or the experience bar with its level.
+            self.gui_layer("minecraft:experience_bar", &mut batch, |g, batch| {
+                if jumpable {
                     g.draw_jump_bar(batch, wi, hi);
-                }
-                if contextual == ContextualBar::Locator {
-                    let (sprite, [x, y, w, h]) = horizon_client::locator_bar::background(wi, hi);
-                    horizon_client::ui::nine_slice(
-                        batch,
-                        &g.gui.atlas,
-                        sprite,
-                        x as f32,
-                        y as f32,
-                        w as f32,
-                        h as f32,
-                        u32::MAX,
-                    );
-                }
-                if has_experience && g.player.is_some() {
+                } else if has_experience && g.player.is_some() {
                     let atlas = &g.gui.atlas;
                     let width = |s: &str| HudBatch::text_width(atlas, s) as i32;
                     let draws = hud_layout::experience_colored(
@@ -6177,14 +6128,10 @@ impl Game<'_> {
                         hi,
                         g.experience.progress,
                         g.experience.level,
-                        contextual == ContextualBar::Experience,
+                        true,
                         &width,
                     );
                     hud_layout::paint(batch, atlas, &draws);
-                }
-                if contextual == ContextualBar::Locator {
-                    let draws = g.locator_bar_draws(wi, hi);
-                    hud_layout::paint(batch, &g.gui.atlas, &draws);
                 }
             });
             if !spectator {
@@ -6275,7 +6222,6 @@ impl Game<'_> {
             Screen::Social => self.draw_social_screen(&mut batch),
             Screen::ServerLinks => self.draw_server_links(&mut batch),
             Screen::ConfirmLink => self.draw_confirm_link(&mut batch),
-            Screen::DialogWarning => self.draw_dialog_warning(&mut batch),
             Screen::CommandBlock => self.draw_command_block(&mut batch),
             Screen::BlockEditor => self.draw_block_editor(&mut batch),
             Screen::DebugOptions => self.draw_debug_options(&mut batch),
@@ -9674,8 +9620,6 @@ impl Game<'_> {
         self.native_gui_render_post(&mut hud, self.ui.hide_gui, self.focused);
         self.resolve_inline_profiles(&hud.inline_profiles);
         pr.lap("pr_hud");
-        self.locator_camera =
-            (!title).then_some((camera.to_array(), view_yaw, view_pitch, fov_degrees));
         let mut requested_post_effects = self.requested_post_effects();
         // The packs' Polytone post chains, after vanilla's (#11486).
         let game_ticks = self.world.game_time as f64 + alpha;
@@ -10538,9 +10482,6 @@ impl Game<'_> {
                         if self.screen_mouse_dragged(previous) {
                             return Ok(());
                         }
-                        if self.dialog_open() {
-                            self.dialog_drag();
-                        }
                         if self.screen == Screen::BlockEditor {
                             self.block_editor_drag();
                         }
@@ -10640,7 +10581,7 @@ impl Game<'_> {
                     // tells: the top one hears the wheel, as the click arms below pick it, and
                     // nothing behind it does.
                     if self.prompt_open() {
-                        if self.command_prompt.is_some() || self.link_prompt.is_some() {
+                        if self.link_prompt.is_some() {
                         } else if self.code_of_conduct.is_some() {
                             self.code_of_conduct_scroll(d);
                         } else if self.server_packs.prompt.is_none() {
@@ -10734,11 +10675,6 @@ impl Game<'_> {
                         self.advancements_scroll(scaled(raw_x) as f32, d);
                     }
                 }
-                WindowEvent::MouseInput { state, button, .. } if self.command_prompt.is_some() => {
-                    if state == ElementState::Pressed && button == MouseButton::Left {
-                        self.command_prompt_click();
-                    }
-                }
                 WindowEvent::MouseInput { state, button, .. } if self.link_prompt.is_some() => {
                     if state == ElementState::Pressed && button == MouseButton::Left {
                         self.link_prompt_click();
@@ -10756,16 +10692,7 @@ impl Game<'_> {
                         self.pack_prompt_click()?;
                     }
                 }
-                WindowEvent::MouseInput { state, button, .. } if self.dialog_open() => {
-                    if button == MouseButton::Left {
-                        if state == ElementState::Pressed {
-                            self.dialog_click()?;
-                        } else {
-                            self.dialog_release();
-                        }
-                    }
-                }
-                // ConnectScreen's Cancel, under the prompts and dialogs above.
+                // ConnectScreen's Cancel, under the prompts above.
                 WindowEvent::MouseInput { state, button, .. } if self.remote_loading() => {
                     if state == ElementState::Pressed && button == MouseButton::Left {
                         self.connect_screen_click()?;
@@ -11064,9 +10991,6 @@ impl Game<'_> {
                         Screen::ConfirmLink if pressed && button == MouseButton::Left => {
                             self.confirm_link_click()
                         }
-                        Screen::DialogWarning if pressed && button == MouseButton::Left => {
-                            self.dialog_warning_click()?
-                        }
                         Screen::WorldOptions if button == MouseButton::Left => {
                             self.world_options_release()
                         }
@@ -11121,14 +11045,6 @@ impl Game<'_> {
                         self.death_confirm_answer(false)?;
                     }
                 }
-                // ConfirmScreen.keyPressed: Escape answers no.
-                WindowEvent::KeyboardInput { event, .. } if self.command_prompt.is_some() => {
-                    if event.state == ElementState::Pressed
-                        && let PhysicalKey::Code(key) = event.physical_key
-                    {
-                        self.command_prompt_key(key);
-                    }
-                }
                 WindowEvent::KeyboardInput { event, .. } if self.link_prompt.is_some() => {
                     if event.state == ElementState::Pressed
                         && event.physical_key == PhysicalKey::Code(KeyCode::Escape)
@@ -11143,14 +11059,6 @@ impl Game<'_> {
                         && event.physical_key == PhysicalKey::Code(KeyCode::Escape)
                     {
                         self.answer_pack_prompt(false)?;
-                    }
-                }
-                WindowEvent::KeyboardInput { event, .. } if self.dialog_open() => {
-                    let shortcut = self.edit_shortcut(&event);
-                    if event.state == ElementState::Pressed
-                        && let PhysicalKey::Code(key) = event.physical_key
-                    {
-                        self.dialog_key(key, shortcut, event.text.as_deref())?
                     }
                 }
                 WindowEvent::KeyboardInput { event, .. }
@@ -11415,7 +11323,6 @@ impl Game<'_> {
                     self.previous = now;
                     if self.studio_freecam.active
                         && self.screen == Screen::Playing
-                        && !self.dialog_open()
                     {
                         let held = |key| f64::from(u8::from(self.keys.raw(&key)));
                         let forward = held(KeyCode::KeyW) - held(KeyCode::KeyS);
@@ -11437,7 +11344,6 @@ impl Game<'_> {
                         && self.title.is_none()
                         && self.sign_edit.is_none()
                         && self.book.is_none()
-                        && !self.dialog_open()
                     {
                         let turn = |k| f32::from(u8::from(self.keys.raw(&k)));
                         let secs = elapsed.as_secs_f32().min(0.1);
@@ -11797,9 +11703,7 @@ impl<'a> Game<'a> {
             pack_reload: None,
             server_packs: Default::default(),
             link_prompt: None,
-            command_prompt: None,
             code_of_conduct: None,
-            dialogs: Default::default(),
             integrated_starting: None,
             world_renderer_ready: false,
             collision: res.collision(),
@@ -12083,9 +11987,6 @@ impl<'a> Game<'a> {
             cushions: Vec::new(),
             others: Vec::new(),
             armor_stand_assets: prepared.armor_stand_assets,
-            waypoint_styles: prepared.waypoint_styles,
-            waypoints: Default::default(),
-            locator_camera: None,
             native_camera_frame: None,
             native_tasks: native_tasks::NativeTasks::new(),
             posed_rotation: None,

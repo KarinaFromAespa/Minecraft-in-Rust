@@ -117,7 +117,7 @@ fn modifier_line(
 }
 
 /// `Attribute.getStyle`: the colour of a line for an attribute whose value
-/// rises or falls. Gravity, scale and the waypoint ranges are neutral, burning
+/// rises or falls. Gravity and scale are neutral, burning
 /// time and fall damage are negative, every other attribute is positive.
 fn attribute_color(attribute: &str, rises: bool) -> u32 {
     let (blue, red) = (rgba(85, 85, 255, 255), rgba(255, 85, 85, 255));
@@ -129,7 +129,7 @@ fn attribute_color(attribute: &str, rises: bool) -> u32 {
                 blue
             }
         }
-        "gravity" | "scale" | "waypoint_transmit_range" | "waypoint_receive_range" => {
+        "gravity" | "scale" => {
             rgba(170, 170, 170, 255)
         }
         _ => {
@@ -204,7 +204,6 @@ fn effect_modifier(effect: &str) -> Option<(&'static str, f64, usize)> {
         "weakness" => ("attack_damage", -4.0, 0),
         "jump_boost" => ("safe_fall_distance", 1.0, 0),
         "luck" => ("luck", 1.0, 0),
-        "invisibility" => ("waypoint_transmit_range", -1.0, 2),
         _ => return None,
     })
 }

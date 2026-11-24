@@ -47,19 +47,6 @@ fn pt(x: f32, y: f32, z: f32) -> [f64; 3] {
 fn up(y: f32) -> [f64; 3] {
     pt(0.0, y, 0.0)
 }
-/// `EntityType.HAPPY_GHAST` `passengerAttachments`: four seats at the corners
-/// of the back (front, left, back, right), picked by the rider's place in
-/// `getPassengers` (`EntityAttachments.get` clamps the index to the last).
-pub fn happy_ghast_attachment(index: usize) -> [f64; 3] {
-    const SEATS: [[f32; 3]; 4] = [
-        [0.0, 4.0, 1.7],
-        [-1.7, 4.0, 0.0],
-        [0.0, 4.0, -1.7],
-        [1.7, 4.0, 0.0],
-    ];
-    let [x, y, z] = SEATS[index.min(SEATS.len() - 1)];
-    pt(x, y, z)
-}
 /// `Pig.getDefaultDimensions` and other species' age-specific passenger attachments.
 fn base_attachment(v: &Mob) -> [f64; 3] {
     let baby = v.is_baby();
@@ -98,7 +85,6 @@ fn base_attachment(v: &Mob) -> [f64; 3] {
         Species::Endermite | Species::Silverfish => up(0.2375),
         Species::Enderman => up(2.80625),
         Species::Ghast => up(4.0625),
-        Species::HappyGhast => happy_ghast_attachment(0),
         Species::Warden => up(3.15),
         Species::Sniffer => up(2.09375),
         Species::Fox => pt(0.0, 0.6375, -0.25),
@@ -163,7 +149,7 @@ fn unscaled_vehicle_attachment(r: &Mob, vehicle_width: f32) -> f64 {
         | S::Parched => f64::from(0.7_f32),
         S::WitherSkeleton => f64::from(0.875_f32),
         // `ridingOffset(0.5F)` and kin: a negative seat offset lifts the rider.
-        S::Ghast | S::HappyGhast => f64::from(-0.5_f32),
+        S::Ghast => f64::from(-0.5_f32),
         S::Allay | S::Vex => f64::from(-0.04_f32),
         S::Phantom => f64::from(0.125_f32),
         S::Giant => f64::from(3.75_f32),
@@ -203,11 +189,10 @@ pub fn link(mobs: &mut [Mob], rider: u32, vehicle: u32) {
 }
 /// `canAddPassenger` with `aboard` passengers on `v`: a camel takes another
 /// while it carries at most two (`Camel`: `getPassengers().size() <= 2`, a baby
-/// too), a happy ghast up to four, anything else only when empty (`Entity`).
+/// too), anything else only when empty (`Entity`).
 pub fn can_add_passenger(v: &Mob, aboard: usize) -> bool {
     match v.species() {
         s if super::camel::is_camel(s) => aboard <= 2,
-        Species::HappyGhast => aboard < 4,
         _ => aboard == 0,
     }
 }
@@ -419,7 +404,7 @@ pub fn mob_controlled(m: &Mob, w: &MobWorld) -> bool {
 /// player aboard sits first, `Entity.addPassenger`), the vehicle not NoAI,
 /// and a rider able to steer (`Entity.canControlVehicle`: not tagged
 /// `non_controlling_rider`). The overrides in `AbstractHorse`, `Pig`,
-/// `Strider`, `HappyGhast` and `AbstractNautilus` fall back to it for a mob.
+/// `Strider` and `AbstractNautilus` fall back to it for a mob.
 pub fn controls_vehicle(
     vehicle: &Mob,
     rider: &Mob,
@@ -836,20 +821,5 @@ mod tests {
         ];
         assert!(start_riding(&mut single, 1, 10));
         assert!(!start_riding(&mut single, 2, 10));
-    }
-}
-
-#[cfg(test)]
-mod happy_ghast_seat_tests {
-    use super::happy_ghast_attachment;
-
-    #[test]
-    fn passengers_take_separate_seats() {
-        assert_eq!(happy_ghast_attachment(0), [0.0, 4.0, f64::from(1.7_f32)]);
-        let seats: Vec<_> = (0..4).map(happy_ghast_attachment).collect();
-        for (i, a) in seats.iter().enumerate() {
-            assert!(seats[i + 1..].iter().all(|b| a != b));
-        }
-        assert_eq!(happy_ghast_attachment(9), seats[3]);
     }
 }

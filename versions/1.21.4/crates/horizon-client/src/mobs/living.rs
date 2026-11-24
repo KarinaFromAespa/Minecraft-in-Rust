@@ -527,8 +527,6 @@ impl Mob {
             1.0
         };
         match self.species() {
-            // HappyGhast.sanitizeScale: min(scale, 1), it never grows.
-            super::Species::HappyGhast => scale.min(1.0),
             // Shulker.sanitizeScale: min(scale, 3).
             super::Species::Shulker => scale.min(3.0),
             _ => scale,
@@ -762,7 +760,7 @@ impl Mob {
     /// and fall distance (Entity.checkFallDamage).
     /// `EntityGetter.getEntityCollisions(this, box.expandTowards(movement))`:
     /// the boxes of the mobs whose `canBeCollidedWith(this)` holds (a living
-    /// shulker, a happy ghast held still), but not this mob's vehicle or a
+    /// shulker), but not this mob's vehicle or a
     /// fellow passenger (`Entity.canCollideWith`).
     fn entity_collisions(&self, w: &MobWorld, movement: Vec3) -> Vec<Aabb> {
         let area = self.bounds().expand_towards(movement);
@@ -1537,27 +1535,16 @@ impl Mob {
             }
         }
     }
-    /// LivingEntity.travelFlying: no gravity, `0.91F` drag in the air,
-    /// `0.8F` in water and 0.5 in lava. A happy ghast swims as fast as it
-    /// flies (`HappyGhast.travel`); the others at 0.02.
+    /// The flying travel 1.21.4 inlines per mob (`Allay.travel` and the
+    /// like; 1.21.6 extracted it into `LivingEntity.travelFlying`): no
+    /// gravity, `0.91F` drag in the air, `0.8F` in water and 0.5 in lava.
     fn travel_flying(&mut self, w: &MobWorld, input: Vec3, events: &mut Vec<MobEvent>) {
-        let fluid_speed = if self.species() == super::Species::HappyGhast {
-            self.kind.air_speed
-        } else {
-            0.02
-        };
-        self.travel_flying_speeds(
-            w,
-            input,
-            events,
-            fluid_speed,
-            fluid_speed,
-            self.kind.air_speed,
-        );
+        self.travel_flying_speeds(w, input, events, 0.02, 0.02, self.kind.air_speed);
     }
-    /// `LivingEntity.travelFlying(input, waterSpeed, lavaSpeed, airSpeed)`:
-    /// the speeds vary per mob (an allay flies at the speed its move control
-    /// set, `Allay.travel`).
+    /// The flying travel 1.21.4 inlines per mob, with the speeds as
+    /// parameters: the speeds vary per mob (an allay flies at the speed
+    /// its move control set, `Allay.travel`). 1.21.6 extracted this into
+    /// `LivingEntity.travelFlying(input, waterSpeed, lavaSpeed, airSpeed)`.
     pub fn travel_flying_speeds(
         &mut self,
         w: &MobWorld,

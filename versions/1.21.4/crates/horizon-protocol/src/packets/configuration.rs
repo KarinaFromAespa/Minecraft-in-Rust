@@ -91,7 +91,7 @@ packet!(
     /// Links the pause menu's "Server Links..." screen lists.
     ServerLinks { links: Vec<ServerLink> => List<ServerLink> }
 );
-// No ShowDialog / CustomClickAction: 1.21.5 has no dialog packets
+// No ShowDialog / CustomClickAction: 1.21.4 has no dialog packets
 // (arrived in 1.21.6).
 
 packet_enum!(Clientbound, crate::ids::configuration::clientbound {
@@ -111,7 +111,7 @@ packet_enum!(Clientbound, crate::ids::configuration::clientbound {
     UpdateTags(UpdateTags) = UPDATE_TAGS,
     SelectKnownPacks(SelectKnownPacks) = SELECT_KNOWN_PACKS,
     ServerLinks(ServerLinks) = SERVER_LINKS,
-    // No ClearDialog / ShowDialog: 1.21.5 has no dialog packets (arrived in 1.21.6).
+    // No ClearDialog / ShowDialog: 1.21.4 has no dialog packets (arrived in 1.21.6).
     // No CodeOfConduct: 1.21.8 has no code-of-conduct packets (added in 1.21.9).
 });
 
@@ -191,7 +191,7 @@ packet_enum!(Serverbound, crate::ids::configuration::serverbound {
     ResourcePack(ResourcePackResponse) = RESOURCE_PACK,
     SelectKnownPacks(SelectKnownPacks) = SELECT_KNOWN_PACKS,
     // No AcceptCodeOfConduct: 1.21.8 has no code-of-conduct packets (added in 1.21.9).
-    // No CustomClickAction: 1.21.5 has no dialog packets (arrived in 1.21.6).
+    // No CustomClickAction: 1.21.4 has no dialog packets (arrived in 1.21.6).
 });
 
 #[cfg(test)]

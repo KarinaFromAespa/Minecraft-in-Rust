@@ -482,12 +482,6 @@ impl SoundInstance {
         };
         s
     }
-    /// `new RidingEntitySoundInstance(player, happyGhast, false,
-    /// HAPPY_GHAST_RIDING, happyGhast.getSoundSource(), 0, 1, 5)`, from
-    /// `LocalPlayer.startRiding`.
-    pub fn riding_happy_ghast(ghast: &RiddenSound, random: LegacyRandom) -> Self {
-        Self::riding_entity("minecraft:entity.happy_ghast.riding", ghast, false, random)
-    }
     /// `new RidingEntitySoundInstance(player, nautilus, true,
     /// NAUTILUS_RIDING, nautilus.getSoundSource(), 0, 1, 5)`, from
     /// `LocalPlayer.startRiding`.
@@ -1838,49 +1832,6 @@ mod tests {
         assert_eq!(engine.census()["playing"], 0);
         assert_eq!(engine.census()["ticking"], 0);
         assert_eq!(engine.census()["handles"], 0);
-    }
-
-    #[test]
-    fn happy_ghast_riding_sound_follows_the_ghast_speed() {
-        let ghast = RiddenSound {
-            id: 7,
-            speed: 0.1,
-            silent: false,
-            underwater: false,
-        };
-        let mut s = SoundInstance::riding_happy_ghast(&ghast, crate::random_source::create());
-        assert_eq!(s.volume, 0.0);
-        let mut ctx = TickContext {
-            ridden: Some(ghast),
-            ..TickContext::default()
-        };
-        // 5 * clampedLerp(speed, 0, 1).
-        s.tick(&ctx);
-        assert!((s.volume - 0.5).abs() < 1e-6, "{}", s.volume);
-        ctx.ridden = Some(RiddenSound {
-            speed: 3.0,
-            ..ghast
-        });
-        s.tick(&ctx);
-        assert_eq!(s.volume, 5.0);
-        ctx.ridden = Some(RiddenSound {
-            speed: 0.005,
-            ..ghast
-        });
-        s.tick(&ctx);
-        assert_eq!(s.volume, 0.0);
-        // Under water the ghast's sound is not the underwater one.
-        ctx.ridden = Some(RiddenSound {
-            underwater: true,
-            ..ghast
-        });
-        s.tick(&ctx);
-        assert_eq!(s.volume, 0.0);
-        assert!(!s.stopped);
-        // Off the ghast, it stops.
-        ctx.ridden = None;
-        s.tick(&ctx);
-        assert!(s.stopped);
     }
 
     #[test]

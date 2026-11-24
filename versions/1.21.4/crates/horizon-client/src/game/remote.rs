@@ -641,9 +641,6 @@ pub(super) struct Remote {
     stepped: HashMap<i32, SteppedInterpolation>,
     /// `LivingEntity.lerpHeadTo`: the head yaw and the ticks left to reach it.
     head_lerps: HashMap<i32, (f32, u32)>,
-    /// The happy ghast the player just got off, until the server's teleport
-    /// puts the player on top of it (`place_ghast_under`).
-    pub(super) ghast_dismount: Option<u32>,
     /// Whether the player is the first passenger of its vehicle, the one
     /// `getControllingPassenger` names.
     pub(super) first_passenger: bool,
@@ -1116,7 +1113,6 @@ impl Game<'_> {
             r.clear_sections(self.world.layout());
         }
         self.apply_settings();
-        self.clear_waypoints();
         self.boss_overlay.reset();
         // The chat's tree until the server sends its own, or forever when it
         // sends none: the game's own, plus the commands native mods own.
@@ -1208,7 +1204,6 @@ impl Game<'_> {
             cart_lerps: HashMap::new(),
             stepped: HashMap::new(),
             head_lerps: HashMap::new(),
-            ghast_dismount: None,
             first_passenger: false,
             passenger_index: 0,
             pending_items: HashMap::new(),
@@ -1366,7 +1361,6 @@ impl Game<'_> {
             r.clear_sections(self.world.layout());
         }
         self.apply_settings();
-        self.clear_waypoints();
         self.boss_overlay.reset();
 
         let chat_tree = self.chat_tree_for(None);
@@ -1438,7 +1432,6 @@ impl Game<'_> {
             cart_lerps: HashMap::new(),
             stepped: HashMap::new(),
             head_lerps: HashMap::new(),
-            ghast_dismount: None,
             first_passenger: false,
             passenger_index: 0,
             pending_items: HashMap::new(),
@@ -1524,7 +1517,6 @@ impl Game<'_> {
             // Leaving on purpose: nothing for auto-reconnect to retry.
             self.extras_left();
         }
-        self.clear_waypoints();
         self.hud_disconnected();
         // Vanilla's Hud also ticks on the title and connect screens, so the
         // action bar has run out by the next world; Horizon's ticks in one.
@@ -2363,15 +2355,12 @@ impl Game<'_> {
                 }
                 Event::Reconfigured(registries) => {
                     // handleConfigurationStart → clearClientLevel, and the next
-                    // ClientPacketListener starts with no players or scoreboard,
-                    // no waypoints (its own ClientWaypointManager: a proxy's next
-                    // server never untracks the last one's), and its new
-                    // ClientSuggestionProvider with no custom chat completions.
-                    // clearClientLevel clears the narrator.
+                    // ClientPacketListener starts with no players or scoreboard
+                    // and its new ClientSuggestionProvider with no custom chat
+                    // completions. clearClientLevel clears the narrator.
                     self.clear_narrator();
                     self.hud_disconnected();
                     self.score.board = Default::default();
-                    self.clear_waypoints();
                     if let Some(r) = self.remote.as_mut() {
                         r.attachments.clear();
                         r.players.clear();
@@ -5195,16 +5184,8 @@ impl Game<'_> {
             C::MerchantOffers(p) => self.remote_merchant_offers(p),
             C::ContainerClose(_) => {
                 // `LocalPlayer.clientSideCloseContainer` sets the screen to
-                // null, including dialogs and WaitingForResponseScreen. This
-                // differs from clearDialog, which restores the parent screen.
-                let dialog = self.dialog_open();
-                if dialog {
-                    self.close_dialogs();
-                    self.ui.chat_screen = None;
-                    self.book = None;
-                    self.sign_edit = None;
-                }
-                if !self.remote_lectern_closed() && (self.screen == Screen::Inventory || dialog) {
+                // null.
+                if !self.remote_lectern_closed() && self.screen == Screen::Inventory {
                     self.remote_close_local();
                     self.screen = Screen::Playing;
                     self.capture(true);
@@ -6320,37 +6301,6 @@ impl Game<'_> {
             p.health.food.saturation = saturation;
         }
     }
-    /// `ServerPlayer.dismountTo` lands a rider at the ghast's own (x, maxY, z)
-    /// (`HappyGhast.getDismountLocationForPassenger`). A vanilla client
-    /// simulates the ghast it rides, so its copy is where the server has it;
-    /// this window's copy trails the server's by the stepped interpolation and
-    /// would rise into the rider's feet, which lets the rider fall through.
-    /// Put the copy under the landing spot.
-    fn place_ghast_under(&mut self, id: u32, spot: Vec3) {
-        let Some(m) = self
-            .mobs
-            .iter_mut()
-            .find(|m| m.id == id && m.species() == horizon_client::mobs::Species::HappyGhast)
-        else {
-            return;
-        };
-        let at = Vec3::new(spot.x, spot.y - f64::from(m.height()), spot.z);
-        // Only a teleport that is that dismount: right above the ghast.
-        if (at.x - m.position.x).powi(2) + (at.z - m.position.z).powi(2) > 25.0
-            || (at.y - m.position.y).abs() > 5.0
-        {
-            return;
-        }
-        m.position = at;
-        m.previous = at;
-        if let Some(handler) = self
-            .remote
-            .as_mut()
-            .and_then(|r| r.stepped.get_mut(&(id as i32)))
-        {
-            handler.cancel();
-        }
-    }
     /// `ClientPacketListener.handleLookAt`: `Entity.lookAt` from this
     /// player's feet or eyes, towards the packet's entity (its feet or eyes)
     /// when this client tracks it, else towards the packet's point.
@@ -6467,9 +6417,6 @@ impl Game<'_> {
             m.previous_head_pitch =
                 position_packet_pitch(m.previous_head_pitch, p.pitch, relative_pitch);
             m.head_pitch = pitch;
-        }
-        if let Some(id) = self.remote.as_mut().and_then(|r| r.ghast_dismount.take()) {
-            self.place_ghast_under(id, position);
         }
         // handleMovePlayer does not change LocalPlayer.sendPosition's baseline:
         // the next tick must still report the corrected state.
@@ -6720,7 +6667,7 @@ impl Game<'_> {
             .remote
             .as_ref()
             .is_some_and(|r| r.level_load.is_active());
-        let playing = self.screen == Screen::Playing && !loading && !self.dialog_open();
+        let playing = self.screen == Screen::Playing && !loading;
         let held = |action| playing && self.keys.held(action);
         let mut keys = Keys {
             forward: held(Action::Forward),

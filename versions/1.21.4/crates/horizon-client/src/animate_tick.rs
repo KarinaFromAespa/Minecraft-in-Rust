@@ -313,6 +313,8 @@ pub struct AnimateTables {
     power_provider: Vec<bool>,
     power_transmitter: Vec<bool>,
     /// `#triggers_ambient_dried_ghast_block_sounds` (soul sand, soul soil).
+    /// The tag does not exist in 1.21.4 data, so this is all false — as is
+    /// the dried ghast branch itself (the block is not in the 1.21.4 tables).
     dried_ghast_sounds: Vec<bool>,
     /// `#triggers_ambient_desert_sand_block_sounds` (sand, red sand).
     desert_sand_sounds: Vec<bool>,

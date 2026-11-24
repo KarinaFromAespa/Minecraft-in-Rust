@@ -538,7 +538,7 @@ mod tests {
     fn renumbered_clientbound_play_packets_reach_their_26_3_ids() {
         let v = ServerVersion::V26_2;
         // keep_alive 44 -> 45, login 49 -> 50, respawn 82 -> 84.
-        // clear_dialog 139 -> None: 1.21.5 has no dialog packets.
+        // clear_dialog 139 -> None: 1.21.4 has no dialog packets.
         assert_eq!(
             v.clientbound_id(State::Play, 44),
             Some(ids::play::clientbound::KEEP_ALIVE)

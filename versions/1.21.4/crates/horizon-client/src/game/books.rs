@@ -148,36 +148,17 @@ impl Game<'_> {
                 }
             }
             ClickEvent::OpenUrl(url) => self.click_url(url),
-            // closeContainerOnServer, then clickCommandAction with no screen
-            // after the command: the book closes and the command runs. A
-            // lectern's screen goes with its menu; a book is still the screen
-            // a confirmation returns to.
+            // handleComponentClicked's RunCommand arm (1.21.4):
+            // `BookViewScreen.handleComponentClicked` runs the command
+            // through the screen first and only then closes the book.
             ClickEvent::RunCommand(command) => {
-                let book = if lectern.is_none() {
-                    self.book.take()
-                } else {
-                    None
-                };
-                self.close_book();
                 self.click_command(&command);
-                if let Some(book) = book {
-                    self.command_prompt_returns_to(super::remote_chat::Behind::Book(Box::new(
-                        book,
-                    )));
-                }
+                self.close_book();
             }
-            // Screen.defaultHandleClickEvent: copied, the book stays open.
+            // Screen.handleComponentClicked: copied, the book stays open.
             ClickEvent::CopyToClipboard(value) => {
                 use horizon_client::clipboard::Clipboard;
                 self.clipboard.set(&value);
-            }
-            // defaultHandleGameClickEvent: the dialog opens over the book.
-            ClickEvent::ShowDialog(dialog) => self.show_dialog_ref(&dialog),
-            // Screen.defaultHandleGameClickEvent: custom actions retain the book.
-            ClickEvent::Custom { id, payload } => {
-                if let Some(remote) = &self.remote {
-                    remote.session.send_custom_click(&id, payload);
-                }
             }
             // SuggestCommand's insertText does nothing on a book; a server's
             // text never opens a file.

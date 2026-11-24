@@ -1,10 +1,7 @@
-//! `ServerLinksDialogScreen`: the pause menu's "Server Links..." button opens
-//! the `minecraft:server_links` dialog (the `pause_screen_additions` tag's
-//! fallback when a server sent ClientboundServerLinksPacket): a scrollable
-//! list of the server's links, each opened through `ConfirmLinkScreen`
-//! (Screen.clickUrlAction), and the `dialog/warning_button`'s
-//! DialogScreen.WarningScreen ("Note about custom screens").
-//! https://mcsrc.dev/2/26.3/net/minecraft/client/gui/screens/dialog/ServerLinksDialogScreen
+//! `ServerLinksScreen`: the pause menu's "Server Links..." button opens
+//! the list of the server's links (sent by ClientboundServerLinksPacket):
+//! a scrollable list, each opened through `ConfirmLinkScreen`
+//! (`Screen.handleComponentClicked`'s OpenUrl arm).
 use super::{Game, Screen, packs::open_uri};
 use horizon_client::{Result, clipboard::Clipboard, hud::HudBatch, text::Text, ui};
 use horizon_protocol::packets::configuration::{ServerLink, ServerLinkKind};
@@ -14,14 +11,12 @@ use horizon_protocol::packets::configuration::{ServerLink, ServerLinkKind};
 const HEADER: f32 = 33.0;
 const FOOTER: f32 = 33.0;
 const CONTENT_TOP: f32 = HEADER + 30.0;
-/// `server_links.json`: `columns` 1, `button_width` 310, `exit_action`'s 200.
+/// `ServerLinksScreen`: `LINK_BUTTON_WIDTH` 310, the footer's Back 200.
 const LINK_WIDTH: f32 = 310.0;
 /// packControlsIntoColumns: rowSpacing 2 under the 20-pixel buttons.
 const ROW: f32 = 22.0;
 /// ScrollableLayout's BOTH reserve (scrollbarSpacing 4 + SCROLLBAR_WIDTH 6).
 const SCROLL_RESERVE: f32 = 10.0;
-/// DialogScreen's `dialog/warning_button` ImageButton.
-const WARNING_BUTTON: f32 = 20.0;
 
 /// The ServerLinks screen's state: ScrollableLayout's scroll and the link
 /// ConfirmLinkScreen is asking about (`Screen::ConfirmLink`).
@@ -115,17 +110,6 @@ fn link_buttons(w: f32, top: f32, n: usize) -> Vec<(f32, f32)> {
     let x = ((w - LINK_WIDTH - 2.0 * SCROLL_RESERVE) / 2.0 + SCROLL_RESERVE).floor();
     (0..n).map(|i| (x, top + i as f32 * ROW)).collect()
 }
-/// The warning button beside the title (DialogScreen's title row: 10 pixels
-/// apart), clamped onto the screen (makeSureWarningButtonIsInBounds).
-fn warning_button(w: f32, h: f32, title_width: f32) -> (f32, f32) {
-    let x = ((w - title_width - 30.0) / 2.0).floor() + title_width + 10.0;
-    let y = ((HEADER - WARNING_BUTTON) / 2.0).floor();
-    if x < 0.0 || y < 0.0 || x > w - WARNING_BUTTON || y > h - WARNING_BUTTON {
-        (0.0f32.max(w - 40.0), 5.0f32.min(h))
-    } else {
-        (x, y)
-    }
-}
 fn back_button(w: f32, h: f32) -> (f32, f32) {
     (
         ((w - 200.0) / 2.0).floor(),
@@ -141,10 +125,10 @@ impl Game<'_> {
             .as_ref()
             .map_or(&[], |r| r.server_links.as_slice())
     }
-    /// DialogScreen over the pause menu: `menu.server_links.title`, the
+    /// Over the pause menu: `menu.server_links.title`, the
     /// scrollable link buttons and `gui.back` in the footer.
     pub(super) fn draw_server_links(&mut self, batch: &mut HudBatch) {
-        // ServerLinksDialogScreen: the dialog's title.
+        // ServerLinksScreen: the title.
         horizon_client::widgets::begin_screen(|| {
             horizon_client::widgets::ScreenInfo::new(
                 "server_links",
@@ -160,45 +144,11 @@ impl Game<'_> {
             .scroll
             .clamp(0.0, scroll_limit(h, links.len()));
         let top = list_top(h, links.len()) - self.links_ui.scroll.trunc();
-        // The title row: the title, then 10 pixels on the warning button.
+        // The title row: the title centred.
         let title = Text::translate("menu.server_links.title", &[]);
         let tw = atlas.font.width_text(&title);
-        let tx = ((w - tw - 30.0) / 2.0).floor();
+        let tx = ((w - tw) / 2.0).floor();
         batch.text_styled(atlas, &title, tx, 12.0, u32::MAX, true);
-        let (wx, wy) = warning_button(w, h, tw);
-        let wh = ui::hovered(self.cursor, wx, wy, WARNING_BUTTON, WARNING_BUTTON);
-        // DialogScreen.createWarningButton: an ImageButton with its own
-        // message and its tooltip.
-        horizon_client::widgets::narratable(|| {
-            horizon_client::widgets::Narratable::button(
-                super::screen_info::tr("menu.custom_screen_info.button_narration", &[]),
-                [wx, wy, WARNING_BUTTON, WARNING_BUTTON],
-                true,
-            )
-            .hovered(wh)
-            .hint(super::screen_info::tr(
-                "menu.custom_screen_info.tooltip",
-                &[],
-            ))
-        });
-        horizon_client::widgets::record(
-            "menu.custom_screen_info.tooltip",
-            [wx, wy, WARNING_BUTTON, WARNING_BUTTON],
-            true,
-        );
-        batch.sprite_scaled(
-            atlas,
-            if wh {
-                "gui/sprites/dialog/warning_button_highlighted"
-            } else {
-                "gui/sprites/dialog/warning_button"
-            },
-            wx,
-            wy,
-            WARNING_BUTTON,
-            WARNING_BUTTON,
-            u32::MAX,
-        );
         let first = batch.vertices.len();
         let inside = self.cursor.1 >= HEADER && self.cursor.1 < h - FOOTER;
         for (link, (x, y)) in links.iter().zip(link_buttons(w, top, links.len())) {
@@ -239,14 +189,6 @@ impl Game<'_> {
             true,
             hover,
         );
-        if wh {
-            ui::tooltip(
-                batch,
-                atlas,
-                &[Text::translate("menu.custom_screen_info.tooltip", &[])],
-                self.cursor,
-            );
-        }
     }
     /// A click on `Screen::ServerLinks`: a link, the warning button or Back.
     pub(super) fn server_links_click(&mut self) -> Result<()> {
@@ -263,14 +205,6 @@ impl Game<'_> {
             self.click_link(&links[i].link);
             return Ok(());
         }
-        let title = Text::translate("menu.server_links.title", &[]);
-        let tw = self.gui.atlas.font.width_text(&title);
-        let (wx, wy) = warning_button(w, h, tw);
-        if ui::hovered(self.cursor, wx, wy, WARNING_BUTTON, WARNING_BUTTON) {
-            self.audio.play_button_click();
-            self.screen = Screen::DialogWarning;
-            return Ok(());
-        }
         let (bx, by) = back_button(w, h);
         if ui::hovered(self.cursor, bx, by, 200.0, 20.0) {
             self.audio.play_button_click();
@@ -278,7 +212,7 @@ impl Game<'_> {
         }
         Ok(())
     }
-    /// `Screen.clickUrlAction`: "Web Links" off ignores the click; "Prompt on
+    /// `Screen.handleComponentClicked`'s OpenUrl arm: "Web Links" off ignores the click; "Prompt on
     /// Links" asks with ConfirmLinkScreen, else the browser opens directly.
     fn click_link(&mut self, url: &str) {
         if !self.settings.chat_links {
@@ -382,74 +316,6 @@ impl Game<'_> {
             return;
         }
     }
-    /// `DialogScreen.WarningScreen`: the custom-screens note, a disconnect
-    /// button ("Custom screen rejected" is the shown reason) and Back.
-    pub(super) fn draw_dialog_warning(&mut self, batch: &mut HudBatch) {
-        horizon_client::widgets::begin_screen(|| {
-            super::screen_info::confirm(
-                "dialog_warning",
-                &super::screen_info::tr("menu.custom_screen_info.title", &[]),
-                &super::screen_info::tr("menu.custom_screen_info.contents", &[]),
-            )
-        });
-        let atlas = &self.gui.atlas;
-        let (w, h) = (batch.width, batch.height);
-        ui::menu_background(batch, atlas, 0.0, 0.0, w, h, true);
-        let layout = dialog_warning_layout(atlas, (w, h));
-        for (line, x, y) in &layout.lines {
-            batch.text_styled(atlas, line, *x, *y, u32::MAX, true);
-        }
-        let quit = if self.external_server() {
-            "menu.disconnect"
-        } else {
-            "menu.returnToMenu"
-        };
-        for ((x, y), key) in layout.buttons.into_iter().zip([quit, "gui.back"]) {
-            let hover = ui::hovered(self.cursor, x, y, 150.0, 20.0);
-            if key == "gui.back" {
-                horizon_client::widgets::declare_action(
-                    horizon_client::widgets::Action::Back,
-                    [x, y, 150.0, 20.0],
-                    true,
-                );
-            }
-            ui::button(
-                batch,
-                atlas,
-                x,
-                y,
-                150.0,
-                20.0,
-                &Text::translate(key, &[]),
-                true,
-                hover,
-            );
-        }
-    }
-    /// WarningScreen's answer: disconnect, or back to Server Links.
-    pub(super) fn dialog_warning_click(&mut self) -> Result<()> {
-        let (w, h) = self.gui_size();
-        let layout = dialog_warning_layout(&self.gui.atlas, (w, h));
-        for (i, (x, y)) in layout.buttons.iter().enumerate() {
-            if !ui::hovered(self.cursor, *x, *y, 150.0, 20.0) {
-                continue;
-            }
-            self.audio.play_button_click();
-            if i == 0 {
-                // DialogConnectionAccess.disconnect: leave with the custom
-                // screens' reason.
-                let reason = self.translate(
-                    "menu.custom_screen_info.disconnect",
-                    "Custom screen rejected",
-                );
-                self.leave_server(Some(reason))?;
-            } else {
-                self.screen = Screen::ServerLinks;
-            }
-            return Ok(());
-        }
-        Ok(())
-    }
 }
 
 /// A confirm screen's laid-out text (title, message, extra warning lines) and
@@ -542,16 +408,6 @@ fn confirm_link_labels(trusted: bool) -> [&'static str; 3] {
     } else {
         ["gui.yes", "gui.copy_link_to_clipboard", "gui.no"]
     }
-}
-fn dialog_warning_layout(atlas: &horizon_client::hud::HudAtlas, size: (f32, f32)) -> ConfirmLayout {
-    confirm_layout(
-        &atlas.font,
-        size,
-        &Text::translate("menu.custom_screen_info.title", &[]),
-        &Text::translate("menu.custom_screen_info.contents", &[]),
-        &[],
-        &[150.0; 2],
-    )
 }
 
 #[cfg(test)]

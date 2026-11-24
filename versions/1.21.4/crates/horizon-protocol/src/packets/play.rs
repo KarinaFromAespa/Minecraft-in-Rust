@@ -258,31 +258,6 @@ impl Codec<i32> for HolderId {
         w.varint(v + 1)
     }
 }
-/// `Holder<Dialog>` as Dialog.STREAM_CODEC sends it: an entry of the
-/// `minecraft:dialog` registry the server sent in configuration, or the
-/// dialog itself.
-#[derive(Clone, Debug, PartialEq)]
-pub enum DialogHolder {
-    Registry(i32),
-    Direct(Tag),
-}
-impl Codec<DialogHolder> for DialogHolder {
-    fn read(r: &mut Reader) -> Result<Self> {
-        Ok(match r.varint()? {
-            0 => Self::Direct(r.nbt()?),
-            id => Self::Registry(id - 1),
-        })
-    }
-    fn write(v: &Self, w: &mut Writer) {
-        match v {
-            Self::Registry(id) => w.varint(id + 1),
-            Self::Direct(tag) => {
-                w.varint(0);
-                w.nbt(tag);
-            }
-        }
-    }
-}
 packet!(
     /// ChatType.Bound.
     ChatTypeBound { chat_type: i32 => HolderId, name: Tag => Nbt, target: Option<Tag> => Opt<Nbt> }
@@ -1748,126 +1723,13 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     Explode(Explode) = EXPLODE,
     UpdateMobEffect(UpdateMobEffect) = UPDATE_MOB_EFFECT,
     UpdateTags(UpdateTags) = UPDATE_TAGS,
-    // No TrackedWaypoint / ClearDialog / ShowDialog: 1.21.5 has no
+    // No TrackedWaypoint / ClearDialog / ShowDialog: 1.21.4 has no
     // waypoint or dialog packets (both arrived in 1.21.6).
 });
 packet!(
     /// ClientboundClearTitlesPacket: whether to also reset the timings.
     Bool1 { value: bool => Bool }
 );
-
-/// ClientboundTrackedWaypointPacket.Operation, by ordinal.
-pub mod waypoint_operation {
-    pub const TRACK: i32 = 0;
-    pub const UNTRACK: i32 = 1;
-    pub const UPDATE: i32 = 2;
-}
-
-/// TrackedWaypoint's identifier: `Either<UUID, String>`.
-#[derive(Clone, Debug, PartialEq)]
-pub enum WaypointId {
-    Uuid(u128),
-    Name(String),
-}
-
-/// What a TrackedWaypoint points at (its `Type` and contents).
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum WaypointTarget {
-    /// `TrackedWaypoint.empty`: an untracked waypoint.
-    Empty,
-    /// A block position (`Vec3iWaypoint`).
-    Block([i32; 3]),
-    /// A chunk (`ChunkWaypoint`).
-    Chunk([i32; 2]),
-    /// An angle in radians (`AzimuthWaypoint`).
-    Azimuth(f32),
-}
-
-/// ClientboundTrackedWaypointPacket: the locator bar's waypoints.
-#[derive(Clone, Debug, PartialEq)]
-pub struct TrackedWaypoint {
-    /// `waypoint_operation`.
-    pub operation: i32,
-    pub id: WaypointId,
-    /// Waypoint.Icon: the style (a `waypoint_style_asset` key) and an RGB colour.
-    pub style: String,
-    pub color: Option<i32>,
-    pub target: WaypointTarget,
-}
-
-impl Codec<TrackedWaypoint> for TrackedWaypoint {
-    fn read(r: &mut Reader) -> Result<TrackedWaypoint> {
-        let operation = r.varint()?;
-        if !(0..=2).contains(&operation) {
-            return Err(Error::new(format!("waypoint operation {operation}")));
-        }
-        let id = if r.bool()? {
-            WaypointId::Uuid(r.uuid()?)
-        } else {
-            WaypointId::Name(r.string(32767)?)
-        };
-        let style = Ident::read(r)?;
-        // ByteBufCodecs.RGB_COLOR: three bytes, read back as an opaque ARGB colour.
-        let color = if r.bool()? {
-            let [red, green, blue] = [r.u8()?, r.u8()?, r.u8()?].map(i32::from);
-            Some(-16_777_216 | red << 16 | green << 8 | blue)
-        } else {
-            None
-        };
-        let target = match r.varint()? {
-            0 => WaypointTarget::Empty,
-            1 => WaypointTarget::Block([r.varint()?, r.varint()?, r.varint()?]),
-            2 => WaypointTarget::Chunk([r.varint()?, r.varint()?]),
-            3 => WaypointTarget::Azimuth(r.f32()?),
-            other => return Err(Error::new(format!("waypoint type {other}"))),
-        };
-        Ok(TrackedWaypoint {
-            operation,
-            id,
-            style,
-            color,
-            target,
-        })
-    }
-    fn write(v: &TrackedWaypoint, w: &mut Writer) {
-        w.varint(v.operation);
-        match &v.id {
-            WaypointId::Uuid(uuid) => {
-                w.bool(true);
-                w.uuid(*uuid);
-            }
-            WaypointId::Name(name) => {
-                w.bool(false);
-                w.string(name);
-            }
-        }
-        w.string(&v.style);
-        w.bool(v.color.is_some());
-        if let Some(color) = v.color {
-            for shift in [16, 8, 0] {
-                w.u8((color >> shift) as u8);
-            }
-        }
-        match v.target {
-            WaypointTarget::Empty => w.varint(0),
-            WaypointTarget::Block([x, y, z]) => {
-                w.varint(1);
-                w.varint(x);
-                w.varint(y);
-                w.varint(z);
-            }
-            WaypointTarget::Chunk([x, z]) => {
-                w.varint(2);
-                w.varint(x);
-                w.varint(z);
-            }
-            WaypointTarget::Azimuth(angle) => {
-                w.varint(3);
-                w.f32(angle);
-            }
-        }
-    }
-}
 
 // ---- serverbound -------------------------------------------------------
 
@@ -2335,7 +2197,7 @@ packet_enum!(Serverbound, crate::ids::play::serverbound {
     ContainerClose(ContainerClose) = CONTAINER_CLOSE,
     CookieResponse(CookieResponse) = COOKIE_RESPONSE,
     CustomPayload(CustomPayload) = CUSTOM_PAYLOAD,
-    // No CustomClickAction: 1.21.5 has no dialog packets (arrived in 1.21.6).
+    // No CustomClickAction: 1.21.4 has no dialog packets (arrived in 1.21.6).
     EditBook(EditBook) = EDIT_BOOK,
     Interact(Interact) = INTERACT,
     KeepAlive(KeepAlive) = KEEP_ALIVE,

@@ -1256,8 +1256,6 @@ impl Game<'_> {
             "item" => self.cmd_item(ctx),
             "item.modify" => self.cmd_item_modify(ctx),
             "spectate" => self.cmd_spectate(ctx),
-            id if id.starts_with("waypoint.") => self.cmd_waypoint(id, ctx),
-            id if id.starts_with("dialog.") => self.cmd_dialog(id, ctx),
             id if id.starts_with("posteffect.") => self.cmd_posteffect(id, ctx),
             "kick" => self.cmd_kick(ctx),
             "op" | "deop" | "ban" | "pardon" => self.cmd_profiles(id, ctx),
@@ -1274,7 +1272,6 @@ impl Game<'_> {
             "unpublish" => self.cmd_unpublish(),
             "debug" => self.cmd_debug(ctx),
             "jfr" => self.cmd_jfr(ctx),
-            "version" => self.cmd_version(),
             id if id.starts_with("test.") => self.cmd_test(id, ctx),
             "compute" => self.cmd_compute(ctx),
             "place" => self.cmd_place(ctx),
@@ -1288,19 +1285,7 @@ impl Game<'_> {
             "playsound" => self.cmd_playsound(ctx),
             "stopsound" => self.cmd_stopsound(ctx),
             "particle" => self.cmd_particle(ctx),
-            id if id.starts_with("attribute.") => {
-                let result = self.cmd_attribute(id, ctx);
-                // AttributeInstance.setDirty: the entity reacts when it ticks.
-                if result.is_ok()
-                    && matches!(ctx.get("attribute"), Some(Arg::Resource(a)) if a == "minecraft:waypoint_transmit_range")
-                    && !id.ends_with("get")
-                    && let Ok(t) = self.entities(ctx, "target", false)
-                {
-                    let target = self.waypoint_target(t[0]);
-                    self.cmds.waypoint_dirty.push(target);
-                }
-                result
-            }
+            id if id.starts_with("attribute.") => self.cmd_attribute(id, ctx),
             "ride.mount" | "ride.dismount" => self.cmd_ride(id, ctx),
             "spreadplayers" => self.cmd_spreadplayers(ctx),
             id if id.starts_with("forceload.") => self.cmd_forceload(id, ctx),

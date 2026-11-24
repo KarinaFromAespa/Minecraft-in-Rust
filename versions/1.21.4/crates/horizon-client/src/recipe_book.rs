@@ -1297,32 +1297,29 @@ impl Settings {
     pub fn read(tag: Option<&Tag>) -> Self {
         Self::read_valid(tag, &|_| true)
     }
-    /// `ServerRecipeBook.loadUntrusted`: unknown recipes are dropped. Without
-    /// both lists the compound does not decode and nothing is read.
+    /// `ServerRecipeBook.fromNbt`: unknown recipes are dropped. A missing
+    /// list reads as empty (`getList` returns an empty list); the settings
+    /// still load.
     pub fn read_valid(tag: Option<&Tag>, valid: &dyn Fn(&str) -> bool) -> Self {
         let mut s = Self::default();
         let Some(tag) = tag else { return s };
         let ids = |key: &str| match tag.get(key) {
-            Some(Tag::List(list)) => Some(
-                list.iter()
-                    .filter_map(|t| match t {
-                        Tag::String(id) => Some(id.to_string_lossy()),
-                        _ => None,
-                    })
-                    .map(|id| {
-                        if id.contains(':') {
-                            id
-                        } else {
-                            format!("minecraft:{id}")
-                        }
-                    })
-                    .filter(|id| valid(id))
-                    .collect::<BTreeSet<String>>(),
-            ),
-            _ => None,
-        };
-        let (Some(recipes), Some(to_be_displayed)) = (ids("recipes"), ids("toBeDisplayed")) else {
-            return s;
+            Some(Tag::List(list)) => list
+                .iter()
+                .filter_map(|t| match t {
+                    Tag::String(id) => Some(id.to_string_lossy()),
+                    _ => None,
+                })
+                .map(|id| {
+                    if id.contains(':') {
+                        id
+                    } else {
+                        format!("minecraft:{id}")
+                    }
+                })
+                .filter(|id| valid(id))
+                .collect::<BTreeSet<String>>(),
+            _ => BTreeSet::new(),
         };
         let flag = |k: &str| matches!(tag.get(k), Some(Tag::Byte(b)) if *b != 0);
         for b in BookType::ALL {
@@ -1330,23 +1327,20 @@ impl Settings {
             s.open[b.index()] = flag(open);
             s.filtering[b.index()] = flag(filter);
         }
-        s.recipes = recipes;
-        s.to_be_displayed = to_be_displayed;
+        s.recipes = ids("recipes");
+        s.to_be_displayed = ids("toBeDisplayed");
         s
     }
-    /// The compound written to the player file (vanilla's lists follow an
-    /// identity hash order; these are sorted).
+    /// The compound written to the player file (`ServerRecipeBook.toNbt`):
+    /// `RecipeBookSettings.write` puts all eight open/filter flags,
+    /// true or false (1.21.6's codec omits the false ones). Vanilla's
+    /// lists follow an identity hash order; these are sorted.
     pub fn write(&self) -> Tag {
         let mut entries: Vec<(&str, Tag)> = Vec::new();
         for b in BookType::ALL {
             let (open, filter) = b.keys();
-            // The codec omits settings at their default (false).
-            if self.open[b.index()] {
-                entries.push((open, Tag::Byte(1)));
-            }
-            if self.filtering[b.index()] {
-                entries.push((filter, Tag::Byte(1)));
-            }
+            entries.push((open, Tag::Byte(i8::from(self.open[b.index()]))));
+            entries.push((filter, Tag::Byte(i8::from(self.filtering[b.index()]))));
         }
         let list = |ids: &BTreeSet<String>| {
             Tag::List(ids.iter().map(|i| Tag::String(i.as_str().into())).collect())
@@ -1375,6 +1369,24 @@ mod tests {
             ["minecraft:folder_recipe".to_owned()].into_iter().collect()
         );
         assert!(read.to_be_displayed.contains("minecraft:folder_recipe"));
+    }
+
+    /// 1.21.4 `ServerRecipeBook.fromNbt`: a missing list reads as empty
+    /// (`getList` returns an empty list), and the settings still load —
+    /// the compound is not dropped whole.
+    #[test]
+    fn a_book_without_lists_still_loads_its_settings() {
+        use horizon_world::nbt::{Compound, Tag};
+        let mut compound = Compound::new();
+        compound.insert("isGuiOpen".into(), Tag::Byte(1));
+        compound.insert("isFurnaceFilteringCraftable".into(), Tag::Byte(1));
+        let tag = Tag::Compound(compound);
+        let read = Settings::read_valid(Some(&tag), &|_| true);
+        assert!(read.recipes.is_empty());
+        assert!(read.to_be_displayed.is_empty());
+        assert!(read.open[0]);
+        assert!(read.filtering[1]);
+        assert!(!read.open[1]);
     }
 
     use super::*;

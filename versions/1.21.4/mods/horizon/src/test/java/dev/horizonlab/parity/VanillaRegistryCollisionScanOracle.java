@@ -92,7 +92,7 @@ public final class VanillaRegistryCollisionScanOracle {
                     if(method.getName().equals("getBlockEntity")){var p=(BlockPos)values[0];trace.query("entity global "+p.getX()+" "+p.getY()+" "+p.getZ());return entities[modes.get(0).getAsInt()];}
                     throw new AssertionError(method);
                 });
-                int mode=f.get("context").getAsInt();var context=mode==0?CollisionContext.empty():mode==1?CollisionContext.emptyWithFluidCollisions():mode==2?CollisionContext.positionContext(number(f.get("y"))):CollisionContext.placementContext(null);
+                int mode=f.get("context").getAsInt();var context=mode==0?CollisionContext.empty():mode==1?CollisionContext.emptyWithFluidCollisions():mode==2?CollisionContext.positionContext(number(f.get("y"))):(CollisionContext)null;
                 var v=f.getAsJsonArray("box");var bounds=new AABB(number(v.get(0)),number(v.get(1)),number(v.get(2)),number(v.get(3)),number(v.get(4)),number(v.get(5)));
                 if(f.has("movement")){
                     var m=f.getAsJsonObject("movement");var level=(StepLevel)allocate.invoke(unsafe,StepLevel.class);level.trace=trace;level.world=world;level.context=context;

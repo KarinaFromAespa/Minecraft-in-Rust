@@ -262,18 +262,8 @@ fn parse_click_event(e: &serde_json::Map<String, Value>) -> Option<crate::text::
             .or_else(legacy)
             .map(crate::text::ClickEvent::RunCommand),
         Some("copy_to_clipboard") => text("value").map(crate::text::ClickEvent::CopyToClipboard),
-        // ClickEvent.ShowDialog.CODEC: a `minecraft:dialog` registry id or
-        // the dialog itself; the server may send it (isAllowedFromServer).
-        Some("show_dialog") => e.get("dialog").map(|dialog| {
-            crate::text::ClickEvent::ShowDialog(crate::scoreboard::json_to_tag(dialog))
-        }),
-        Some("custom") => Some(crate::text::ClickEvent::Custom {
-            id: crate::identifier::parse_identifier(&text("id")?)?,
-            payload: e
-                .get("payload")
-                .filter(|value| !value.is_null())
-                .map(crate::scoreboard::json_to_tag),
-        }),
+        // 1.21.4 has no `show_dialog` or `custom` actions (both arrived with
+        // dialogs in 1.21.6): they fall through to the unknown-action arm.
         _ => None,
     }
 }
@@ -696,59 +686,26 @@ mod tests {
     }
 
     #[test]
-    fn custom_click_events_keep_payloads_and_inherit_to_inline_objects() {
-        use crate::text::ClickEvent;
-        use horizon_world::nbt::Tag;
-
-        for (payload, expected) in [
-            (None, None),
-            (Some(serde_json::Value::Null), None),
-            (Some(serde_json::json!(42)), Some(Tag::Int(42))),
-            (
-                Some(serde_json::json!({"shop": "potions", "amount": 3})),
-                Some(Tag::Compound(
-                    [
-                        ("amount".into(), Tag::Int(3)),
-                        ("shop".into(), Tag::String("potions".into())),
-                    ]
-                    .into_iter()
-                    .collect(),
-                )),
-            ),
+    fn one_twenty_one_six_click_actions_are_dropped() {
+        // `show_dialog` and `custom` arrived with dialogs in 1.21.6; a
+        // 1.21.5 client has no such actions, so the event is dropped and
+        // the text keeps its characters, inline objects included.
+        for event in [
+            serde_json::json!({"action": "custom", "id": "test:shop"}),
+            serde_json::json!({"action": "custom", "id": "test:shop", "payload": {"shop": "potions", "amount": 3}}),
+            serde_json::json!({"action": "show_dialog", "dialog": "test:shop"}),
+            serde_json::json!({"action": "show_dialog", "dialog": {"type": "minecraft:notice"}}),
         ] {
-            let mut event = serde_json::json!({"action": "custom", "id": "test:shop"});
-            if let Some(payload) = payload {
-                event["payload"] = payload;
-            }
             let component = serde_json::json!({
                 "text": "", "click_event": event,
                 "extra": [{"object": "atlas", "sprite": "minecraft:item/potion"}, "Shop"]
             });
             let text = to_text(&component, &mut |_| Text::empty());
             for (_, style) in text.chars() {
-                assert_eq!(
-                    style.click,
-                    Some(ClickEvent::Custom {
-                        id: "test:shop".into(),
-                        payload: expected.clone(),
-                    })
-                );
+                assert_eq!(style.click, None);
             }
-            let encoded = text.component();
-            let decoded = to_text(&encoded, &mut |_| Text::empty());
-            assert_eq!(decoded, text);
-            if expected.is_none() {
-                assert!(!encoded.to_string().contains("\"payload\""));
-            }
-        }
-        for id in ["Bad ID", "Uppercase:shop"] {
-            let text = to_text(
-                &serde_json::json!({
-                    "text": "Shop", "click_event": {"action": "custom", "id": id}
-                }),
-                &mut |_| Text::empty(),
-            );
-            assert_eq!(text.spans[0].style.click, None);
+            let plain: String = text.chars().map(|(c, _)| c).collect();
+            assert!(plain.ends_with("Shop"), "{plain:?}");
         }
     }
 

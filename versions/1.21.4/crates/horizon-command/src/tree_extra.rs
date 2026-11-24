@@ -1,6 +1,6 @@
-//! Commands of the hosted game rather than the world: `/dialog`, `/kick`,
+//! Commands of the hosted game rather than the world: `/kick`,
 //! `/posteffect`, `/fetchprofile`, `/spectate`, `/publish`, `/unpublish`,
-//! `/waypoint`, `/debug`, `/jfr` and `/test`; on a dedicated server only,
+//! `/debug`, `/jfr` and `/test`; on a dedicated server only,
 //! `/op`, `/deop`, `/ban`, `/ban-ip`, `/banlist`, `/pardon`, `/pardon-ip`,
 //! `/setidletimeout`, `/transfer` and `/whitelist`.
 use super::{
@@ -13,17 +13,7 @@ const ADMINS: u8 = 3;
 const OWNERS: u8 = 4;
 
 pub fn register(d: &mut Dispatcher, root: usize) {
-    // DialogCommand
-    let dialog = d.literal(root, "dialog");
-    d.requires(dialog, GAMEMASTERS);
-    let show = d.literal(dialog, "show");
-    let t = d.argument(show, "targets", PLAYERS);
-    let dl = d.argument(t, "dialog", ArgType::ResourceOrId("minecraft:dialog"));
-    d.executes(dl, "dialog.show");
-    let clear = d.literal(dialog, "clear");
-    let t = d.argument(clear, "targets", PLAYERS);
-    d.executes(t, "dialog.clear");
-
+    // No DialogCommand or WaypointCommand: both arrived in 1.21.6.
     // KickCommand
     let kick = d.literal(root, "kick");
     d.requires(kick, ADMINS);
@@ -83,28 +73,6 @@ pub fn register(d: &mut Dispatcher, root: usize) {
     let unpublish = d.literal(root, "unpublish");
     d.requires(unpublish, OWNERS);
     d.executes(unpublish, "unpublish");
-
-    // WaypointCommand
-    let wp = d.literal(root, "waypoint");
-    d.requires(wp, GAMEMASTERS);
-    let list = d.literal(wp, "list");
-    d.executes(list, "waypoint.list");
-    let modify = d.literal(wp, "modify");
-    let w = d.argument(modify, "waypoint", ENTITY);
-    let color = d.literal(w, "color");
-    let c = d.argument(color, "color", ArgType::TeamColor);
-    d.executes(c, "waypoint.modify");
-    let hex = d.literal(color, "hex");
-    let h = d.argument(hex, "color", ArgType::HexColor);
-    d.executes(h, "waypoint.modify");
-    let reset = d.literal(color, "reset");
-    d.executes(reset, "waypoint.modify");
-    let style = d.literal(w, "style");
-    let reset = d.literal(style, "reset");
-    d.executes(reset, "waypoint.modify");
-    let set = d.literal(style, "set");
-    let st = d.argument(set, "style", ArgType::Id("none"));
-    d.executes(st, "waypoint.modify");
 
     // DebugCommand
     let debug = d.literal(root, "debug");

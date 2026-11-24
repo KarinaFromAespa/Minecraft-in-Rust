@@ -445,14 +445,6 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let _ = writeln!(result, "L 1001 {} 0", p(*pos));
                     }
                 },
-                // DriedGhastBlock.spawnGhastling, as the client does it.
-                LevelEvent::BlockEvent {
-                    kind: "spawn_ghastling",
-                    ..
-                } => {
-                    let _ = writeln!(result, "E minecraft:happy_ghast");
-                    let _ = writeln!(result, "S entity minecraft:entity.ghastling.spawn");
-                }
                 // A fresh shrieker has warning level 0 and so never responds,
                 // and no player is near enough for a portal to spawn a piglin.
                 // A fresh command block has no command and is neither powered

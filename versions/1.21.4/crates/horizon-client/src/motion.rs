@@ -168,10 +168,6 @@ pub struct LocationEffects {
 /// hurt dispatch updates stored health synchronously before these are drained.
 #[derive(Clone, Copy, Debug)]
 pub enum MotionEvent {
-    Waypoint {
-        receiver: bool,
-        enabled: bool,
-    },
     Health(crate::health::HealthEvent),
     /// `LivingEntity.handleDamageEvent`: the hurt sound the player hears.
     HurtSound(&'static str),

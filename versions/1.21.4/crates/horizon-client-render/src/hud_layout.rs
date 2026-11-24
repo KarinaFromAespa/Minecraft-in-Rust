@@ -424,7 +424,7 @@ fn crosshair_draws(w: i32, h: i32, attack: Option<f32>, full: bool) -> Vec<GuiDr
     out
 }
 
-/// `ExperienceBar.extractBackground` and `ContextualBar.extractExperienceLevel`;
+/// `Gui.renderExperienceBar` and `Gui.renderExperienceLevel`;
 /// `width` measures text with the font.
 pub fn experience(
     w: i32,

@@ -382,7 +382,6 @@ pub fn check_spawn_rules<L: SpawnLevel>(
         S::Chicken
         | S::Cow
         | S::Donkey
-        | S::HappyGhast
         | S::Horse
         | S::Llama
         | S::Mule

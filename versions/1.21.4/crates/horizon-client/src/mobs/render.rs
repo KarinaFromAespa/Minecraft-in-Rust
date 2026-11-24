@@ -299,14 +299,6 @@ pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
             baby_or(m, "panda#main", "panda_baby#main"),
             super::panda::texture(m).into(),
         ),
-        S::HappyGhast => (
-            baby_or(m, "happy_ghast#main", "happy_ghast_baby#main"),
-            if baby {
-                "entity/ghast/happy_ghast_baby".into()
-            } else {
-                "entity/ghast/happy_ghast".into()
-            },
-        ),
         S::Nautilus | S::ZombieNautilus => (
             super::nautilus::model(m).into(),
             super::nautilus::texture(m).into(),
@@ -659,41 +651,6 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
                 abgr(dye(m.extra.color as usize)),
                 false,
             );
-        }
-        // SimpleEquipmentLayer: the harness over the body.
-        S::HappyGhast => {
-            let harness = m
-                .extra
-                .body
-                .as_deref()
-                .and_then(super::happy_ghast::harness_texture);
-            if !m.is_baby()
-                && let Some(texture) = &harness
-            {
-                push(
-                    &mut v,
-                    "happy_ghast_harness#main",
-                    texture.clone(),
-                    white,
-                    false,
-                );
-            }
-            // RopesLayer: the ropes over a harnessed body while the ghast
-            // holds a quad lead (`isLeashHolder`), the baby's model for a baby.
-            if harness.is_some() && super::happy_ghast::is_leash_holder(m) {
-                let model = if m.is_baby() {
-                    "happy_ghast_baby_ropes#main"
-                } else {
-                    "happy_ghast_ropes#main"
-                };
-                push(
-                    &mut v,
-                    model,
-                    "entity/ghast/happy_ghast_ropes",
-                    white,
-                    false,
-                );
-            }
         }
         // BreezeWindLayer and BreezeEyesLayer. The wind layer's texture
         // scrolls (`RenderTypes.breezeWind`): the offset is taken inside the

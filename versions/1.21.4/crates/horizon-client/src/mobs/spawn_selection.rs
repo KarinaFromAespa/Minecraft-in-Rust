@@ -140,7 +140,6 @@ enum WalkTarget {
     Strider,
     Hoglin,
     Bee,
-    HappyGhast,
 }
 fn walk_target(s: Species) -> WalkTarget {
     use Species as S;
@@ -185,7 +184,6 @@ fn walk_target(s: Species) -> WalkTarget {
         S::Strider => W::Strider,
         S::Hoglin => W::Hoglin,
         S::Bee => W::Bee,
-        S::HappyGhast => W::HappyGhast,
         // Animal subclasses with their own value.
         S::Axolotl | S::Nautilus | S::ZombieNautilus => W::Zero,
         S::Pig
@@ -291,7 +289,6 @@ fn is_animal(s: Species) -> bool {
                 | S::Strider
                 | S::Hoglin
                 | S::Bee
-                | S::HappyGhast
         )
 }
 /// `Mob.getMaxSpawnClusterSize`.
@@ -309,7 +306,7 @@ pub fn max_cluster_size(s: Species) -> u32 {
         | S::CamelHusk => 6,
         S::Cod | S::TropicalFish | S::Pufferfish | S::Tadpole | S::Wolf => 8,
         S::Salmon => 5,
-        S::Ghast | S::HappyGhast | S::Pillager => 1,
+        S::Ghast | S::Pillager => 1,
         _ => 4,
     }
 }
@@ -508,16 +505,6 @@ pub(crate) fn mob_spawn_rules<L: NaturalLevel>(s: Species, l: &L, x: i32, y: i32
                 10.0
             } else {
                 0.0
-            }
-        }
-        WalkTarget::HappyGhast => {
-            let air = |dy| l.facts().is_air(l.state(x, y + dy, z));
-            if !air(0) {
-                0.0
-            } else if air(-1) && !air(-2) {
-                10.0
-            } else {
-                5.0
             }
         }
     };

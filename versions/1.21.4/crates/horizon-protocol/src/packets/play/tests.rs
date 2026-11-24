@@ -1205,20 +1205,6 @@ fn boss_event_round_trips() {
     );
 }
 
-/// A registry entry is its id + 1, the dialog itself a 0 then its NBT.
-/// (The dialog packets themselves are gone in 1.21.5; only the holder
-/// codec remains, for the game-side dialog types.)
-#[test]
-fn dialog_holder_encodes_registry_as_id_plus_one() {
-    let mut w = Writer::new();
-    DialogHolder::write(&DialogHolder::Registry(3), &mut w);
-    assert_eq!(w.data, [4]);
-    let mut w = Writer::new();
-    let notice = Tag::compound([("type", Tag::String("minecraft:notice".into()))]);
-    DialogHolder::write(&DialogHolder::Direct(notice), &mut w);
-    assert_eq!(w.data[0], 0);
-}
-
 #[test]
 fn set_command_minecart_writes_entity_command_then_track_output() {
     let packet = SetCommandMinecart {

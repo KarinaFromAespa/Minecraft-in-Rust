@@ -56,8 +56,6 @@ pub mod debug_entries;
 pub mod debug_keys;
 pub mod debug_overlay;
 pub mod debugworld;
-pub mod dialog;
-pub mod dialog_screen;
 #[cfg(feature = "discord")]
 pub mod discord_presence;
 pub mod end_crystal;
@@ -88,7 +86,6 @@ pub mod join_seq;
 pub mod lan;
 pub mod landing;
 pub mod legacy_combat;
-pub mod locator_bar;
 pub mod lod_net;
 pub mod menu;
 pub mod merchant;

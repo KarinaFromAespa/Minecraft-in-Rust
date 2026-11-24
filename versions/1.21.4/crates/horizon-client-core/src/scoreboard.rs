@@ -243,7 +243,6 @@ pub const CUSTOM_STATS: &[&str] = &[
     "minecart_one_cm",
     "boat_one_cm",
     "pig_one_cm",
-    "happy_ghast_one_cm",
     "horse_one_cm",
     "aviate_one_cm",
     "swim_one_cm",

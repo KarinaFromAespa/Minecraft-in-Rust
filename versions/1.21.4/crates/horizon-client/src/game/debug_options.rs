@@ -511,7 +511,7 @@ impl Game<'_> {
 /// screen Escape closes yields; the death screen and the level teardown keep
 /// theirs; the title explicitly allows interruption. The text-box screens
 /// (chat, options, sign, book, the search tabs) do not reach it either: a
-/// focused box takes every key press first. A playing overlay (a dialog, a
+/// focused box takes every key press first. A playing overlay (a
 /// prompt) keeps its own Esc. The credits' close is fallible and this path is
 /// not, so it keeps its screen too (vanilla interrupts it).
 fn debug_options_interrupts(screen: Screen, playing_overlay: bool) -> bool {
@@ -527,7 +527,6 @@ fn debug_options_interrupts(screen: Screen, playing_overlay: bool) -> bool {
         | Screen::Social
         | Screen::ServerLinks
         | Screen::ConfirmLink
-        | Screen::DialogWarning
         | Screen::Mod => true,
         Screen::Chat
         | Screen::Options
@@ -588,7 +587,6 @@ mod tests {
             Screen::Social,
             Screen::ServerLinks,
             Screen::ConfirmLink,
-            Screen::DialogWarning,
             Screen::Mod,
         ] {
             assert!(

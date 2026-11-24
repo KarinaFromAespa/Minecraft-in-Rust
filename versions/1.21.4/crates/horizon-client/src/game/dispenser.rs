@@ -230,7 +230,7 @@ fn mob_can_use_slot(m: &Mob, slot: Slot) -> bool {
         {
             grown && m.extra.tame
         }
-        Species::SulfurCube | Species::HappyGhast if slot == Slot::Body => grown,
+        Species::SulfurCube if slot == Slot::Body => grown,
         _ => true,
     }
 }
@@ -244,7 +244,7 @@ fn mob_can_dispenser_equip(m: &Mob, slot: Slot) -> bool {
         _ if horizon_client::mobs::nautilus::is_nautilus(s) => {
             matches!(slot, Slot::Body | Slot::Saddle) || loot
         }
-        Species::SulfurCube | Species::HappyGhast => slot == Slot::Body,
+        Species::SulfurCube => slot == Slot::Body,
         Species::Dolphin | Species::Panda | Species::Fox => slot == Slot::MainHand && loot,
         Species::Allay => false,
         _ => loot,

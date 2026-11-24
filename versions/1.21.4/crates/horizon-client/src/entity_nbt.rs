@@ -225,7 +225,6 @@ fn is_animal(id: &str) -> bool {
             | "camel"
             | "camel_husk"
             | "sniffer"
-            | "happy_ghast"
             | "nautilus"
             | "zombie_nautilus"
     )
@@ -1364,11 +1363,6 @@ pub fn mob_to_nbt(
             map.insert("Peek".into(), Tag::Byte(m.extra.counter as i8));
             map.insert("Color".into(), Tag::Byte(m.extra.color as i8));
         }
-        // HappyGhast.addAdditionalSaveData: the still timeout (`serverStillTimeout`,
-        // kept in `counter`), which vanilla writes even at 0.
-        "minecraft:happy_ghast" => {
-            map.insert("still_timeout".into(), Tag::Int(m.extra.counter));
-        }
         // GlowSquid.addAdditionalSaveData.
         "minecraft:glow_squid" => {
             map.insert(
@@ -1677,9 +1671,8 @@ pub fn mob_to_nbt(
         if let Some(saddle) = m.saddle_item() {
             equipment.insert("saddle".into(), crate::save::item_to_nbt(&saddle));
         }
-        // A happy ghast wears its harness in the body slot (and a nautilus
-        // its armour, a sulfur cube its swallowed block, a wolf its armor,
-        // with the durability it lost).
+        // A nautilus wears its armour in the body slot (a sulfur cube its
+        // swallowed block, a wolf its armor, with the durability it lost).
         if crate::mobs::species::body_slot(m.species())
             && let Some(id) = &m.extra.body
         {
@@ -2028,8 +2021,8 @@ pub fn mob_from_nbt_with_random(
         if !crate::mobs::equine::is_equine(m.species()) {
             let slot = |key| eq.get(key).and_then(|i| text(i.get("id"))).map(Into::into);
             m.extra.head = slot("head");
-            // A happy ghast wears its harness in the body slot (and a
-            // nautilus its armour, a sulfur cube its swallowed block).
+            // A nautilus wears its armour in the body slot (a sulfur cube
+            // its swallowed block).
             if crate::mobs::species::body_slot(m.species()) {
                 m.extra.body = slot("body");
             }
@@ -2659,11 +2652,6 @@ pub fn mob_from_nbt_with_random(
             .get("carriedBlockState")
             .and_then(|t| state_from_nbt(registry, t))
             .filter(|&state| !is_air(registry, state));
-    }
-    // HappyGhast.readAdditionalSaveData: the still timeout, 0 when absent (a fresh
-    // ghast, or one saved by a version that did not write it).
-    if m.species() == crate::mobs::Species::HappyGhast {
-        m.extra.counter = number(tag.get("still_timeout")).unwrap_or(0) as i32;
     }
     if m.species() == crate::mobs::Species::Shulker {
         m.extra.variant3 = number(tag.get("AttachFace")).unwrap_or(0).clamp(0, 5) as u8;
@@ -6542,47 +6530,6 @@ mod axolotl_nbt_tests {
                 .get("FromBucket")
                 .is_none()
         );
-    }
-
-    /// `HappyGhast.addAdditionalSaveData` / `readAdditionalSaveData`: the still timeout
-    /// (`serverStillTimeout`) goes with the world. A ghast saved while it was held still
-    /// comes back still, which is what keeps the box a dropped item rests on
-    /// (`EntityGetter.getEntityCollisions`) and the control a rider has
-    /// (`getControllingPassenger` reads `isOnStillTimeout`).
-    #[test]
-    fn a_happy_ghast_keeps_its_still_timeout() {
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../.local/horizon-client")
-            .join(horizon_core::VANILLA_VERSION);
-        if !root.join("items.json").exists() {
-            return;
-        }
-        let data = crate::mobs::MobTypes::load(&root).unwrap();
-        let types: HashMap<_, _> = data
-            .types
-            .into_iter()
-            .map(|(id, kind)| (id, Arc::new(kind)))
-            .collect();
-        let kind = types["minecraft:happy_ghast"].clone();
-        let mut m = Mob::new(1, kind, Vec3::new(0.5, 80.0, 0.5), 0.0);
-        // Past `HappyGhast.tick`'s 60-tick gate, so the timer counts down from here.
-        m.extra.age = 100;
-        for timeout in [0, 7, 10] {
-            m.extra.counter = timeout;
-            let saved = mob_to_nbt(&m, [1; 4], None, None, |_| None);
-            assert_eq!(
-                number(saved.get("still_timeout")),
-                Some(i64::from(timeout)),
-                "{timeout}"
-            );
-            let back = mob_from_nbt(&saved, &types, 2, None).unwrap();
-            assert_eq!(back.extra.counter, timeout, "{timeout}");
-            assert_eq!(
-                crate::mobs::happy_ghast::on_still_timeout(&back),
-                timeout > 0,
-                "{timeout}"
-            );
-        }
     }
 
     #[test]

@@ -457,7 +457,9 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             0 => CollisionContext::empty(false),
             1 => CollisionContext::empty(true),
             2 => CollisionContext::position(number(&f["y"])),
-            _ => CollisionContext::placement(None),
+            // 1.21.4 has no placement context (that arrived in 1.21.5), so
+            // the driver only sends codes 0-2.
+            _ => unreachable!(),
         };
         let v = &f["box"];
         let bounds = Aabb::new(

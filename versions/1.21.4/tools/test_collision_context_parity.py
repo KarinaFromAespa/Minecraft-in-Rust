@@ -29,7 +29,7 @@ def corpus():
             threshold=(y+top)-epsilon
             heights += [math.nextafter(threshold,-math.inf),threshold,math.nextafter(threshold,math.inf),y+top-1e-5,y+top]
     heights += [-float.fromhex('0x1.fffffffffffffp1023'),float.fromhex('0x1.fffffffffffffp1023'),-math.inf,math.inf,math.nan,-0.0,0.0]
-    modes=['empty','position','player','marker','factory_player','factory_marker','placement','placement_null','with_player','with_marker','with_null']
+    modes=['empty','position','player','marker','factory_player','factory_marker']
     counts=[-2147483648,-1,0,1,64,2147483647]
     for mode in modes:
         for i,y in enumerate(heights):

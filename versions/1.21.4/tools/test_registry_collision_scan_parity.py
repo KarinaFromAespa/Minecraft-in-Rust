@@ -32,7 +32,7 @@ def corpus(facts):
               'minecraft:moving_piston','minecraft:bamboo','minecraft:pointed_dripstone','minecraft:sulfur_spike',
               'minecraft:piston','minecraft:sticky_piston','minecraft:oak_stairs','minecraft:stone_slab']]
     for state in dynamic:
-        for context in range(4):
+        for context in range(3):
             for suffocating in [False,True]:
                 for at in [(15,0,15),(-16,-1,-16)]:yield row(state,context,suffocating,at=at)
         if states[state]['id'].endswith('shulker_box'):
@@ -45,7 +45,7 @@ def corpus(facts):
     for index in range(1500):
         at=rng.choice([(15,0,15),(-16,0,-16),(0,-16,0),(0,31,0)])
         x,y,z=at
-        f=row(rng.randrange(len(states)),context=index%4,suffocating=bool(index%2),at=at,
+        f=row(rng.randrange(len(states)),context=index%3,suffocating=bool(index%2),at=at,
               bounds=[x-0.2,y-0.2,z-0.2,x+1.2,y+1.2,z+1.2],
               entities=(rng.randrange(3),rng.randrange(3)),fail=rng.choice([-1,-1,0,5,20,50]),limit=rng.choice([0,1,3,100000]))
         f['chunks']=[c for c in f['chunks'] if c==[x>>4,z>>4] or rng.randrange(2)]
@@ -114,7 +114,7 @@ def main():
               'definition_counts':dict(collections.Counter(definitions.values())),
               'native_chunk_storage':'ProtoChunk', 'rust_chunk_storage':'TerrainChunk', 'fixtures':count, 'sources_sha256':tested, 'fixtures_sha256':fixtures,
               'rust_output_sha256':lab.digest(build/'rust.txt', 'sha256'), 'references':references,
-              'scope':'Native BlockCollisions over actual registered block behavior and resident ProtoChunk sections compared with RegistryCollisionWorld, contextual dispatch and TerrainChunk storage. All states cover ordinary and suffocating-only selection. Context variants include empty, always-fluid, position and placement; dynamic and representative partial shapes cover positive/negative chunk boundaries. Shulker cases distinguish chunk-local suffocation entities from global collision entities, with ordered failure injection. Seeded scenes cover resident/missing chunks, build-height edges, block replacements and early consumer termination. This validates registry/storage integration for these snapshots, not chunk loading, entity lifecycle, experimental minecarts or gameplay movement.'}
+              'scope':'Native BlockCollisions over actual registered block behavior and resident ProtoChunk sections compared with RegistryCollisionWorld, contextual dispatch and TerrainChunk storage. All states cover ordinary and suffocating-only selection. Context variants include empty, always-fluid and position; dynamic and representative partial shapes cover positive/negative chunk boundaries. Shulker cases distinguish chunk-local suffocation entities from global collision entities, with ordered failure injection. Seeded scenes cover resident/missing chunks, build-height edges, block replacements and early consumer termination. This validates registry/storage integration for these snapshots, not chunk loading, entity lifecycle, experimental minecarts or gameplay movement.'}
     lab.write_json(report_path, report);print(f'Scoped registry collision-scan parity passed: {report_path}', flush=True)
 
 

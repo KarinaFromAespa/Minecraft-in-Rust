@@ -183,7 +183,7 @@ fn a_new_pair_does_not_reorder_sounds_or_remove_an_old_emitter_early() {
                 "minecraft:entity_type".into(),
                 horizon_protocol::registry::Ids::from_names(vec![
                     "minecraft:mooshroom".into(),
-                    "minecraft:happy_ghast".into(),
+                    "minecraft:pig".into(),
                 ]),
             );
             let (mut hub, rx) = hub_with_sync(sync);
@@ -203,7 +203,7 @@ fn a_new_pair_does_not_reorder_sounds_or_remove_an_old_emitter_early() {
             let fresh = EntityState {
                 id: 38,
                 uuid: 38,
-                kind: "minecraft:happy_ghast".into(),
+                kind: "minecraft:pig".into(),
                 ..old.clone()
             };
             let mut world = World::new(horizon_world::registry::BlockStateId(0), 0);
@@ -244,7 +244,7 @@ fn a_new_pair_does_not_reorder_sounds_or_remove_an_old_emitter_early() {
                 except_entity: None,
             };
             let fresh_sound = crate::audio::CapturedSound {
-                event: "minecraft:entity.ghastling.spawn".into(),
+                event: "minecraft:entity.pig.ambient".into(),
                 source: 4,
                 entity: Some(38),
                 ..old_sound.clone()

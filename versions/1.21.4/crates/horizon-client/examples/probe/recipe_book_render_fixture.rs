@@ -251,7 +251,6 @@ pub fn main() -> horizon_client::Result<()> {
                     Call::ItemTooltip { stack, more } => {
                         json!({"t": "item_tooltip", "id": &*stack.item, "more": more})
                     }
-                    Call::Stratum => json!({"t": "stratum"}),
                 };
                 o["m"] = json!(m);
                 Some(o)
