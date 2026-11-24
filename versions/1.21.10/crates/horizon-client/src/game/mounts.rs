@@ -86,17 +86,9 @@ fn eating(species: Species, item: &str) -> Option<(f32, i32, u8, bool)> {
     if species != Species::CamelHusk && camel != (item == "minecraft:cactus") {
         return None;
     }
-    let food = match species {
-        Species::ZombieHorse => item == "minecraft:red_mushroom",
-        Species::Horse | Species::Donkey | Species::Mule | Species::SkeletonHorse => {
-            item != "minecraft:red_mushroom"
-        }
-        // Camels and llamas answer their own tags above or in the table.
-        _ => true,
-    };
-    if !food {
-        return None;
-    }
+    // The table is the gate: every horse eats the horse food tag (a
+    // zombie horse inherits it in 1.21.10 — the red mushroom is a
+    // 1.21.11 addition to `handleEating` and the `zombie_horse_food` tag).
     Some(match item {
         "minecraft:rabbit_foot" if species == Species::CamelHusk => (2.0, 10, 0, false),
         // Camel.handleEating.
@@ -105,7 +97,6 @@ fn eating(species: Species, item: &str) -> Option<(f32, i32, u8, bool)> {
         "minecraft:sugar" => (1.0, 30, 3, false),
         "minecraft:hay_block" => (20.0, 180, 0, false),
         "minecraft:apple" => (3.0, 60, 3, false),
-        "minecraft:red_mushroom" => (3.0, 0, 3, false),
         "minecraft:carrot" => (3.0, 60, 3, false),
         "minecraft:golden_carrot" => (4.0, 60, 5, true),
         "minecraft:golden_apple" | "minecraft:enchanted_golden_apple" => (10.0, 240, 10, true),
@@ -337,9 +328,14 @@ impl Game<'_> {
         if species == Species::SkeletonHorse && !m.extra.tame {
             return false;
         }
+        // ZombieHorse.mobInteract (1.21.10): PASS while untamed; a tamed
+        // one falls through to AbstractHorse.mobInteract below.
+        if species == Species::ZombieHorse && !m.extra.tame {
+            return false;
+        }
         let sneaking =
             self.keys.held(Action::Sneak) || self.keys.raw(&winit::keyboard::KeyCode::ShiftRight);
-        // Horse / ZombieHorse.mobInteract: food is fed, and anything else in
+        // AbstractHorse.mobInteract: food is fed, and anything else in
         // hand makes an untamed one mad instead of seating the player.
         let mut events = Vec::new();
         match equine::held_item(&mut self.mobs[index], item, sneaking, &mut events) {
@@ -1204,24 +1200,19 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
 
-    /// `ZombieHorse.isFood` is `#minecraft:zombie_horse_food`, which holds only
-    /// the red mushroom, and `AbstractHorse.isFood` is `#minecraft:horse_food`,
-    /// which holds none (#8593). A skeleton horse inherits the horse food tag.
+    /// `AbstractHorse.isFood` is `#minecraft:horse_food`, which holds no
+    /// red mushroom, and a zombie horse inherits it in 1.21.10: the
+    /// `zombie_horse_food` tag and the red-mushroom branch of
+    /// `handleEating` are 1.21.11 additions. A skeleton horse inherits the
+    /// horse food tag.
     #[test]
-    fn only_a_zombie_horse_eats_a_red_mushroom() {
-        assert_eq!(
-            eating(Species::ZombieHorse, "minecraft:red_mushroom"),
-            Some((3.0, 0, 3, false)),
-            "a zombie horse takes the red mushroom"
-        );
-        for item in ["minecraft:wheat", "minecraft:apple", "minecraft:hay_block"] {
-            assert_eq!(eating(Species::ZombieHorse, item), None, "{item}");
-        }
+    fn no_horse_eats_a_red_mushroom() {
         for species in [
             Species::Horse,
             Species::Donkey,
             Species::Mule,
             Species::SkeletonHorse,
+            Species::ZombieHorse,
         ] {
             assert_eq!(
                 eating(species, "minecraft:red_mushroom"),

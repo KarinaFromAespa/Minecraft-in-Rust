@@ -433,8 +433,10 @@ pub fn make_mad(m: &mut Mob, events: &mut Vec<MobEvent>) {
     m.voice(sound, events);
 }
 /// What `Horse`, `AbstractChestedHorse` (donkeys, mules, llamas) and
-/// `ZombieHorse.mobInteract` do with a held item before
-/// `AbstractHorse.mobInteract`.
+/// What `AbstractHorse.mobInteract` does with a held item before seating
+/// the player: feed it, or make an untamed mount mad. (1.21.11 gives
+/// `ZombieHorse.mobInteract` its own branch for the red mushroom; in
+/// 1.21.10 an untamed zombie horse just passes and a tamed one uses this.)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HeldItem {
     /// `isFood`: `fedFood`, whether it eats or not.
@@ -459,7 +461,6 @@ pub fn held_item(
             | Species::Mule
             | Species::Llama
             | Species::TraderLlama
-            | Species::ZombieHorse
     ) {
         return None;
     }
@@ -467,12 +468,8 @@ pub fn held_item(
     if m.rider.is_some() || open_inventory || item.is_empty() {
         return None;
     }
-    // ZombieHorse.isFood: the zombie_horse_food tag.
-    let food = if species == Species::ZombieHorse {
-        item == "minecraft:red_mushroom"
-    } else {
-        m.kind.food.iter().any(|f| f == item)
-    };
+    // `AbstractHorse.isFood`: the horse food tag.
+    let food = m.kind.food.iter().any(|f| f == item);
     if food {
         return Some(HeldItem::Feed);
     }

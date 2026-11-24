@@ -1,8 +1,8 @@
 {
  "release": "1.21.10",
  "rank": 2,
- "batch": 21,
- "note": "Batch 21: 8 items (76, 114, 96, 301, 33, 29, 48, 181); 3 ported (76 piglin spear behaviours removed, 96 smithing icons 11->9, 33 shelf empty-hand consume), 5 no-change. Rank 2: 412/454.",
+ "batch": 22,
+ "note": "Batch 22: 8 items (47, 21, 98, 53, 131, 18, 59, 26); 2 ported (98 music volume source + selection order, 18 horse red mushroom + zombie horse PASS), 6 no-change. Rank 2: 420/454.",
  "items": {
   "201": {
    "module": "crates/horizon-client/src/game/frame_geometry.rs",
@@ -2377,7 +2377,7 @@
   "76": {
    "module": "crates/horizon-client/src/mobs/piglin.rs",
    "verdict": "ported",
-   "evidence": "PiglinAi#initFightActivity: 1.21.11 adds SpearApproach/SpearAttack/SpearRetreat; 1.21.10 has none. Removed the spear behaviours (SpearStatus, Memories, PiglinSpear goal, NoMeleeWithSpear - spear_use.rs lines 519-898), the piglin state's spear field, and the registration; initFightActivity now registers plain MeleeAttack. converting() already the 1.21.10 form: presets give piglins_zombify=true (overworld/end) / false (nether), i.e. !piglinSafe(), with the immune/no-AI checks. maybeRetaliate is a UNIVERSAL_ANGER GameRules API gap (Rust reads w.universal_anger)."
+   "evidence": "PiglinAi#initFightActivity: 1.21.11 adds SpearApproach/SpearAttack/SpearRetreat; 1.21.10 has none. Removed the spear behaviours (SpearStatus, Memories, PiglinSpear goal, NoMeleeWithSpear - spear_use.rs lines 519-898), the piglin state's spear field, and the registration; initFightActivity now registers plain MeleeAttack. converting() already the 1.21.10 form: presets give piglins_zombify=true (overworld/end) / false (nether), i.e. !piglinSafe(), with the immune/no-AI checks. maybeRetaliate is a UNIVERSAL_ANGER GameRules API gap (Rust reads w.universal_anger). Follow-up (batch 22): the spear removal also dropped the crossbow gate on the melee goal; restored as NoMeleeWithCrossbow in piglin.rs - vanilla 1.21.10's MeleeAttack behaviour does not start while holding a usable projectile weapon (javap-verified isHoldingUsableProjectileWeapon), and the piglin test pins it."
   },
   "114": {
    "module": "crates/horizon-client/src/mobs/guardian.rs",
@@ -2413,6 +2413,46 @@
    "module": "crates/horizon-client/src/ambience.rs",
    "verdict": "no-change",
    "evidence": "BiomeAmbientSoundsHandler#tick: 1.21.11 gets the biome from the player's level, 1.21.10 from the BiomeManager at the player's position; same biome, different lookup path. The Rust looks up ambient sounds by dimension + biome name."
+  },
+  "47": {
+   "module": "crates/horizon-client/src/mobs/illager.rs",
+   "verdict": "no-change",
+   "evidence": "EvokerWololoSpellGoal#canUse is a MOB_GRIEFING GameRules API gap (Rust reads w.mob_griefing); EvokerAttackSpellGoal#performSpellCasting is f32-vs-double trig (noise); EvokerSummonSpellGoal#performSpellCasting calls getCurrentDifficultyAt on the same level either way (ServerLevel arg vs this.level())."
+  },
+  "21": {
+   "module": "crates/horizon-client/src/mobs/villager.rs",
+   "verdict": "no-change",
+   "evidence": "registerBrainGoals: the Rust's activity_at windows match the 1.21.10 Schedule exactly (javap-verified: VILLAGER_BABY idle 10/play 3000/idle 6000/play 10000/rest 12000; VILLAGER_DEFAULT idle 10/work 2000/meet 9000/idle 11000/rest 12000). shouldRestock: restock_if_due passes day = day_time/24000, the 1.21.10 form (1.21.11's getDayCount is the same value). increaseMerchantCareer(ServerLevel) vs () is an unmodelled level param."
+  },
+  "98": {
+   "module": "crates/horizon-client/src/music.rs",
+   "verdict": "ported",
+   "evidence": "Music volume source + selection order ported to the 1.21.10 form (javap-verified against Minecraft#getSituationalMusic): Layer::parse now reads effects.music (weighted list, single or bare) + effects.music_volume instead of the 1.21.11 environment attributes; BackgroundMusic is the biome's list with a weighted pick; Situation::music follows screen > menu > End (boss END_BOSS else END) > biome list (an empty list plays nothing) > underwater (global, tag-gated or already playing) > creative (global, never Nether) > GAME; volume is the biome's except screen/menu/End (1.0). fadePlaying now sets the current instance's volume (1.21.10 setVolume), not the MUSIC category (1.21.11 updateCategoryVolume). Fixture updated (tag loading, fixed-seed pick); the parity oracle itself does not compile against 1.21.10 jars (1.21.11-only RegistryLayer/attribute APIs) - separate oracle-porting job."
+  },
+  "53": {
+   "module": "crates/horizon-client/src/game/dragon.rs",
+   "verdict": "no-change",
+   "evidence": "EnderDragon#aiStep is f32-vs-double trig (noise); tickDeath's MOB_DROPS gates are a GameRules API gap (Rust reads rules.bool(\"mob_drops\")); AbstractDragonSittingPhase#onHurt is a WindCharge package move."
+  },
+  "131": {
+   "module": "crates/horizon-client/src/game/fishing.rs",
+   "verdict": "no-change",
+   "evidence": "getPlayerHandPos + catchingFish are f32-vs-double trig (noise) + ldc/ldc_w; retrieve is criterion renames; FishingRodItem#use emits ITEM_INTERACT_FINISH/START at the player in both versions (causeUseVibration vs Player.gameEvent, same as item 229)."
+  },
+  "18": {
+   "module": "crates/horizon-client/src/mobs/equine.rs",
+   "verdict": "ported",
+   "evidence": "AbstractHorse#handleEating has no red-mushroom branch in 1.21.10 (javap-verified: the branch is 1.21.11-only); removed the red_mushroom table entry from mounts.rs eating() and the tag-gate match (the table is the gate now). ZombieHorse#mobInteract in 1.21.10 is PASS while untamed, super.mobInteract when tamed (javap-verified); 1.21.10 has no zombie_horse_food tag and no ZombieHorse#isFood override (inherits horse_food, which has no red mushroom). Removed ZombieHorse from equine held_item and added the untamed-PASS guard in mounts.rs; tamed zombie horses now feed via horse food. Test rewritten (no_horse_eats_a_red_mushroom). onPlayerJump's inline formula matches jump_pending_scale (batch 8); tameWithName is a criterion rename; SkeletonHorse baby dimensions already pin the 1.21.10 0.5 scale."
+  },
+  "59": {
+   "module": "crates/horizon-client/src/title.rs",
+   "verdict": "no-change",
+   "evidence": "SplashManager#getSplash: 1.21.11 SpecialDates vs 1.21.10 Calendar checks for the same dates (Dec 24, Jan 1, Oct 31) - menu chrome. ExperimentsScreen init/onDone are BiConsumer lambda shapes; BackupConfirmScreen#init adds a text colour (menu chrome); CreateWorldScreen MoreTab is a GameRules package rename; RecoverWorldDataScreen#buildInfo formats the same date (ZonedDateTime vs Instant)."
+  },
+  "26": {
+   "module": "crates/horizon-client/src/advancements.rs",
+   "verdict": "no-change",
+   "evidence": "All four methods (MovementPredicate, DistancePredicate, PlayerPredicate, StatMatcher #matches) are criterion/critereon package renames only."
   }
  }
 }

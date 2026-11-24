@@ -741,3 +741,35 @@ landing only; the ENTITY_DROPS drop rule is unmodelled in it), 29
 
 CI run 45330007250 (head 8f229a80, batches 18-19): SUCCESS, all 7 suites
 green.
+
+Batch 22 (rank 2 412 -> 420, total 430/719): 2 ported, 6 no-change.
+98 music.rs: the music volume source + selection order, ported to the
+1.21.10 form (javap-verified against Minecraft#getSituationalMusic).
+Layer::parse reads effects.music (weighted list) + effects.music_volume
+instead of the 1.21.11 environment attributes; BackgroundMusic is the
+biome's list with a weighted pick; Situation follows screen > menu >
+End (boss END_BOSS else END) > biome list (an empty list plays nothing)
+> underwater (global, tag-gated or already playing) > creative (global,
+never Nether) > GAME; the fade sets the current instance's volume, not
+the MUSIC category. The situational-music parity oracle does not compile
+against 1.21.10 jars (1.21.11-only RegistryLayer/attribute APIs) — the
+fixture was updated to the new shape, the oracle is a separate job.
+18 equine.rs/mounts.rs: no horse eats a red mushroom in 1.21.10 (the
+handleEating branch and the zombie_horse_food tag are 1.21.11-only;
+1.21.10 has neither, javap-verified); a zombie horse passes while
+untamed and uses AbstractHorse.mobInteract when tamed. No-change: 47
+(evoker griefing gap + trig + same-level difficulty), 21 (villager
+activity windows match the 1.21.10 Schedule exactly, javap-verified;
+restock day is day_time/24000), 53 (dragon trig + MOB_DROPS gap +
+WindCharge move), 131 (fishing trig + criterion renames + game-event
+form), 59 (title splash dates identical; menu chrome), 26 (criterion
+renames).
+
+Batch 21 follow-up (in the batch 22 commit): the piglin spear removal
+also dropped the melee goal's crossbow gate, which broke the lib test
+compile (holds_non_melee_weapon was deleted with the spear code).
+Restored as NoMeleeWithCrossbow in piglin.rs — vanilla 1.21.10's
+MeleeAttack behaviour does not start while holding a usable projectile
+weapon (javap-verified), so a crossbow piglin shoots instead of
+meleeing; only the spear half of the old gate is gone. CI run
+45332512840 (batch 21 head) FAILED on exactly this compile error.

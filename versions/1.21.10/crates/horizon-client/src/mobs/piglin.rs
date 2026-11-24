@@ -1245,6 +1245,45 @@ impl Goal for BackUpIfTooClose {
         m.yaw = super::control::rotate_if_necessary(m.yaw, m.head_yaw, 0.0);
     }
 }
+/// `MeleeAttack`'s `isHoldingUsableProjectileWeapon`: the melee goal stays
+/// off while a crossbow is in the main hand — a crossbow piglin shoots
+/// instead of meleeing. (1.21.11's wrapper also covered the spear; piglins
+/// hold no spear in 1.21.10.)
+#[derive(Clone, Debug)]
+struct NoMeleeWithCrossbow<G>(G);
+fn holds_crossbow(m: &Mob) -> bool {
+    m.extra.main_hand.as_deref() == Some("minecraft:crossbow")
+}
+impl<G: Goal + Clone + 'static> Goal for NoMeleeWithCrossbow<G> {
+    goal_clone!();
+    fn flags(&self) -> u8 {
+        self.0.flags()
+    }
+    fn name(&self) -> &'static str {
+        self.0.name()
+    }
+    fn can_use(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
+        !holds_crossbow(m) && self.0.can_use(m, cx)
+    }
+    fn can_continue(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
+        !holds_crossbow(m) && self.0.can_continue(m, cx)
+    }
+    fn interruptable(&self) -> bool {
+        self.0.interruptable()
+    }
+    fn every_tick(&self) -> bool {
+        self.0.every_tick()
+    }
+    fn start(&mut self, m: &mut Mob, cx: &mut Cx) {
+        self.0.start(m, cx)
+    }
+    fn stop(&mut self, m: &mut Mob, cx: &mut Cx) {
+        self.0.stop(m, cx)
+    }
+    fn tick(&mut self, m: &mut Mob, cx: &mut Cx) {
+        self.0.tick(m, cx)
+    }
+}
 pub fn register_piglin(m: &mut Mob) {
     // `AbstractPiglin.<init>`: a piglin's navigation opens doors.
     m.ai.nav.can_open_doors = true;
@@ -1260,9 +1299,10 @@ pub fn register_piglin(m: &mut Mob) {
     // held item itself (it only starts while a crossbow is in the main hand).
     g.add(3, super::illager::crossbow_goal(1.0, 8.0));
     g.add(3, BackUpIfTooClose);
-    // `PiglinAi.initFightActivity`: the melee attack alone. (1.21.11 adds
-    // the spear behaviours before it; piglins hold no spear in 1.21.10.)
-    g.add(3, MeleeAttack::new(1.0, true));
+    // `PiglinAi.initFightActivity`: the melee attack, off while a crossbow
+    // is held. (1.21.11 adds the spear behaviours before it; piglins hold
+    // no spear in 1.21.10.)
+    g.add(3, NoMeleeWithCrossbow(MeleeAttack::new(1.0, true)));
     g.add(4, NotRiding(PiglinAvoidRepellent));
     g.add(4, GoToWantedItem);
     g.add(4, Celebrate);
@@ -2393,11 +2433,11 @@ mod crossbow_tests {
     fn a_piglin_with_a_crossbow_shoots_instead_of_meleeing() {
         let mut m = piglin();
         assert!(format!("{:?}", m.ai.goals).contains("CrossbowAttack"));
-        assert!(!super::super::spear_use::holds_non_melee_weapon(&m));
+        assert!(!super::holds_crossbow(&m));
         m.extra.set_main_hand(Some("minecraft:crossbow".into()));
-        assert!(super::super::spear_use::holds_non_melee_weapon(&m));
+        assert!(super::holds_crossbow(&m));
         m.extra.set_main_hand(Some("minecraft:golden_sword".into()));
-        assert!(!super::super::spear_use::holds_non_melee_weapon(&m));
+        assert!(!super::holds_crossbow(&m));
     }
 
     #[test]
