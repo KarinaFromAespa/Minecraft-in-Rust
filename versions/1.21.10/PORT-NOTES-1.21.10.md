@@ -650,3 +650,6 @@ Horse/ZombieHorse/AbstractHorse constructors set no malus, so the
 
 CI run 45318465400 (head 3b4d2c4e, sprite fix + batch 7): SUCCESS —
 first fully-green crate-tests run on this branch (all 7 suites).
+
+CI run 45322694411 (head 1061fc67, batches 9-12: piglin spear, furnace
+Math.random, spawn-mobs gate): SUCCESS — all 7 suites green.
