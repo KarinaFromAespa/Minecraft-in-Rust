@@ -730,24 +730,17 @@ pub fn releases() -> Result<Vec<Release>, String> {
     Ok(game_releases(&release_list()?))
 }
 
-/// The game's builds in `list`, newest first. A Nightly is listed under the version it installs as
-/// ([`crate::nightly::version_of`]); only the current one (`nightly`) is an update.
-pub(crate) fn game_releases(list: &serde_json::Value) -> Vec<Release> {
-    let settings = Settings::load();
-    let assets = game_assets_for(
-        std::env::consts::OS,
-        native_windows_architecture(),
-        std::env::consts::ARCH,
-        settings.game_architecture,
-    );
-    let (asset, fallback) = assets.map_or((ASSET, GAME_FALLBACK), |(asset, fallback)| {
-        (Some(asset), fallback)
-    });
-    game_releases_with(list, asset, fallback)
+/// The game's builds in `list`: none. This tree's launcher ships no upstream game channel —
+/// its only version is the local one (`seed`), and game builds arrive by import — so no
+/// upstream release is ever listed, installed, or offered as an update. The parser
+/// (`game_releases_with`, tests only) stays for the tests that pin its shape.
+pub(crate) fn game_releases(_list: &serde_json::Value) -> Vec<Release> {
+    Vec::new()
 }
 
 /// [`game_releases`] for one platform's asset, and the one it installs from a release that has
 /// none of its own ([`GAME_FALLBACK`]).
+#[cfg(test)]
 fn game_releases_with(
     list: &serde_json::Value,
     asset: Option<&str>,
@@ -5755,7 +5748,6 @@ pub fn {f}("
                 .filter(|v| !v.is_empty())
                 .unwrap_or(env!("CARGO_PKG_VERSION"))
         );
-        // Self-update compares releases with that version: this launcher's own release is no update.
         let r = |tag: String| Release {
             tag,
             name: String::new(),
@@ -5766,6 +5758,7 @@ pub fn {f}("
             prerelease: false,
             nightly: None,
         };
+        // Self-update compares releases with that version: this launcher's own release is no update.
         assert!(launcher_update(&[r(own_tag())]).is_none());
         assert_eq!(launcher_version(&own_tag()), Some(VERSION));
         assert_eq!(
@@ -6258,10 +6251,11 @@ pub fn {f}("
         ));
     }
 
-    /// The Nightly is the only build Horizon ships (docs/release-flow.md): every launcher takes the
-    /// current one as its update, over every release; the last week's are listed, never offered.
+    /// The upstream list still parses the same (a Nightly under the version it installs as, the
+    /// current one first), and an update would still be offered from it — but this tree's
+    /// launcher offers none of it: it ships no upstream game channel.
     #[test]
-    fn every_launcher_updates_to_the_current_nightly() {
+    fn the_upstream_list_parses_but_this_launcher_offers_none_of_it() {
         let asset = ASSET.unwrap_or("horizon-linux-x86_64.tar.gz");
         let build = |url: &str| serde_json::json!([{"name": asset, "browser_download_url": url, "size": 1}]);
         let list = serde_json::json!([
@@ -6274,7 +6268,8 @@ pub fn {f}("
             {"tag_name": "nightly-2026-10-27", "name": "Nightly 2026-10-27 · 7954902", "prerelease": true,
              "published_at": "2026-10-28T00:15:40Z", "assets": build("e")},
         ]);
-        let releases = game_releases(&list);
+        assert!(game_releases(&list).is_empty());
+        let releases = game_releases_with(&list, ASSET, None);
         let listed: Vec<_> = releases
             .iter()
             .map(|r| (r.tag.as_str(), r.nightly.as_deref(), r.prerelease))

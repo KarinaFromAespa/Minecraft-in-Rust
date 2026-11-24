@@ -29,14 +29,13 @@ fn installed_fixture() -> Vec<String> {
 }
 
 // The former startup paths: each decodes its own response; the update path parses games again.
+// This tree's launcher offers no upstream game channel, so both sides of the comparison are
+// empty there; the launcher half and the one-request property are what the test still pins.
 fn baseline(load: impl Fn() -> Result<serde_json::Value, String>) -> (Vec<Release>, Updates) {
-    let releases = parse_releases(&load().unwrap(), ASSET, is_game_tag);
+    let releases = game_releases(&load().unwrap());
     let list = load().unwrap();
     let updates = Updates {
-        horizon: horizon_update(
-            &parse_releases(&list, ASSET, is_game_tag),
-            &installed_fixture(),
-        ),
+        horizon: horizon_update(&game_releases(&list), &installed_fixture()),
         launcher: launcher_update(&parse_releases(&list, LAUNCHER_ASSET, is_launcher_tag)),
     };
     (releases, updates)
@@ -92,7 +91,7 @@ fn errors_reach_releases_and_updates_without_fallback() {
 }
 
 #[test]
-fn publish_games_before_older_launcher_fallback() {
+fn publish_releases_before_older_launcher_fallback() {
     let events = RefCell::new(Vec::new());
     let result = releases_and_updates_with(
         || Ok(serde_json::json!([{"tag_name": "v2026.10.14", "assets": []}])),
@@ -114,7 +113,7 @@ fn publish_games_before_older_launcher_fallback() {
             })
         },
         |r| {
-            assert_eq!(r.unwrap()[0].tag, "v2026.10.14");
+            assert!(r.unwrap().is_empty());
             events.borrow_mut().push("releases");
         },
     )
@@ -124,7 +123,7 @@ fn publish_games_before_older_launcher_fallback() {
 }
 
 #[test]
-fn failed_launcher_fallback_keeps_game_result_and_checks_stay_fresh() {
+fn failed_launcher_fallback_keeps_results_and_checks_stay_fresh() {
     let requests = AtomicUsize::new(0);
     for day in [14, 15] {
         let mut published = None;
@@ -138,7 +137,7 @@ fn failed_launcher_fallback_keeps_game_result_and_checks_stay_fresh() {
             |r| published = Some(r.unwrap()),
         )
         .unwrap();
-        assert_eq!(published.unwrap()[0].tag, format!("v2026.10.{day}"));
+        assert!(published.unwrap().is_empty());
         assert!(updates.launcher.is_none());
     }
     assert_eq!(requests.load(Ordering::Relaxed), 2);
@@ -164,16 +163,11 @@ fn benchmark_shared_startup_response() {
     );
     let concurrent_old = || {
         std::thread::scope(|scope| {
-            let releases = scope.spawn(|| {
-                parse_releases(&load(Duration::from_millis(5)).unwrap(), ASSET, is_game_tag)
-            });
+            let releases = scope.spawn(|| game_releases(&load(Duration::from_millis(5)).unwrap()));
             let updates = scope.spawn(|| {
                 let list = load(Duration::from_millis(5)).unwrap();
                 Updates {
-                    horizon: horizon_update(
-                        &parse_releases(&list, ASSET, is_game_tag),
-                        &installed_fixture(),
-                    ),
+                    horizon: horizon_update(&game_releases(&list), &installed_fixture()),
                     launcher: launcher_update(&parse_releases(
                         &list,
                         LAUNCHER_ASSET,
