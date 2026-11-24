@@ -383,16 +383,10 @@ impl Game<'_> {
                     p.velocity = p.velocity.add_vector(impulse);
                 }
             }
-            // The sound for the level (a list picks by level), heard by all.
+            // `PlaySoundEffect.apply`: the one sound (`soundEvent`), heard by
+            // all. (1.21.11 made it a per-level list.)
             Some("minecraft:play_sound") => {
-                let sounds: Vec<&str> = match &effect["sound"] {
-                    serde_json::Value::Array(list) => {
-                        list.iter().filter_map(|s| s.as_str()).collect()
-                    }
-                    one => one.as_str().into_iter().collect(),
-                };
-                let index = (level as usize).saturating_sub(1);
-                if let Some(sound) = sounds.get(index.min(sounds.len().saturating_sub(1))) {
+                if let Some(sound) = effect["sound"].as_str() {
                     let float = |key: &str| effect[key].as_f64().unwrap_or(1.0) as f32;
                     let at = self
                         .player

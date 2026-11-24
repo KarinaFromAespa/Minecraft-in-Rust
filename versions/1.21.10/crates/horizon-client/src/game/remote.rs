@@ -6616,10 +6616,11 @@ impl Game<'_> {
                 *pop = pop.saturating_sub(1);
             }
         }
-        // ClientLevel.tick: the border's size change, while the level runs.
-        if running {
-            self.border.tick();
-        }
+        // ClientLevel.tick: the border's size change ticks first and
+        // unconditionally — 1.21.10 ticks the border before the runs-normally
+        // check, so a frozen client still advances it. (1.21.11 moved it
+        // inside the running branch.)
+        self.border.tick();
         // ClientLevel.tick: the End's sky flash, frozen or not.
         self.tick_end_flash();
         self.player_border();

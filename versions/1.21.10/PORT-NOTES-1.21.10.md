@@ -653,3 +653,26 @@ first fully-green crate-tests run on this branch (all 7 suites).
 
 CI run 45322694411 (head 1061fc67, batches 9-12: piglin spear, furnace
 Math.random, spawn-mobs gate): SUCCESS — all 7 suites green.
+
+CI run 45326110344 (head 54819e07, batches 15-16: sea-pickle bonemeal,
+moving-border current size, slime moon-brightness two-draw): in progress
+at the batch-17 commit; conclusion to be recorded with the next batch.
+
+Batch 17 (rank 2 372 -> 380, total 390/719): 3 ported, 5 no-change.
+261 equip.rs: 1.21.10's ItemAttributeModifiers.compute(base, slot) applies
+EVERY slot-matching modifier regardless of attribute (bytecode-verified;
+its only caller is Mob#getApproximateAttributeWith) — added
+approximate_with for the mob-looting comparison, kept attribute_with
+filtered for gear.rs/legacy_rules.rs (real per-attribute application).
+71 particles.rs: 1.21.10's ClientLevel#tick ticks the border first and
+unconditionally; ungated tick_remote's border.tick(). (ServerLevel#tick
+gates it on runsNormally in 1.21.10 too — the server side was already
+right.) 68 enchant_effects.rs: PlaySoundEffect is a single soundEvent in
+1.21.10, a per-level list in 1.21.11 — simplified to the single sound
+(channeling/soul_speed data confirmed single-string). No-change: 34
+(Christmas range Dec 24-26 in both), 85 (chunk save/flush unmodelled),
+116 (singleCodec is codec plumbing; JSON shape same), 117 (spear path
+unreachable in 1.21.10 — Kinetic::of matches only 1.21.11 spear ids;
+full spear-system removal is a deferred cross-cutting cleanup, no
+triage item covers spear.rs), 173 (raid spawn-pos trig is f32-vs-f64
+noise on a random candidate).

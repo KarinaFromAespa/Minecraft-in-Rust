@@ -61,9 +61,25 @@ fn group_matches(group: &str, slot: Slot) -> bool {
     }
 }
 
-/// `ItemAttributeModifiers.compute(attribute, base, slot)`: `base` (the mob's
-/// own attribute value) plus the item's modifiers for `attribute` that apply
-/// in `slot`, in the order the item lists them.
+/// What one modifier adds to the running value: `add_value` adds its amount,
+/// `add_multiplied_base` adds the amount times the original base,
+/// `add_multiplied_total` adds the amount times the value so far
+/// (`ItemAttributeModifiers.compute`'s operation switch, in both versions).
+fn apply_op(value: f64, base: f64, operation: &str, amount: f64) -> f64 {
+    value
+        + match operation {
+            "add_multiplied_base" => amount * base,
+            "add_multiplied_total" => amount * value,
+            _ => amount,
+        }
+}
+
+/// The item's modifiers for `attribute` that apply in `slot`, folded onto
+/// `base` (the mob's own attribute value) in the order the item lists them:
+/// what the attribute map applies when the item is equipped, per attribute.
+/// (The 1.21.11 `ItemAttributeModifiers.compute(attribute, base, slot)` takes
+/// this form; the 1.21.10 `compute` does not filter by attribute — see
+/// `approximate_with`.)
 pub fn attribute_with(
     modifiers: &[(String, String, f64, String, String)],
     attribute: &str,
@@ -75,11 +91,29 @@ pub fn attribute_with(
         if kind != attribute || !group_matches(group, slot) {
             continue;
         }
-        value += match operation.as_str() {
-            "add_multiplied_base" => amount * base,
-            "add_multiplied_total" => amount * value,
-            _ => *amount,
-        };
+        value = apply_op(value, base, operation, *amount);
+    }
+    value
+}
+
+/// `ItemAttributeModifiers.compute(base, slot)` as 1.21.10 has it, for
+/// `Mob.getApproximateAttributeWith`: EVERY modifier that applies in `slot`,
+/// whatever its attribute, folded onto `base` — 1.21.10's `compute` has no
+/// attribute parameter and never checks one, so a sword's attack-speed
+/// modifier lands in its "armour" comparison too. (1.21.11 added the
+/// attribute filter; the name says approximate, and the comparison runs the
+/// same quirk on both sides.)
+pub fn approximate_with(
+    modifiers: &[(String, String, f64, String, String)],
+    base: f64,
+    slot: Slot,
+) -> f64 {
+    let mut value = base;
+    for (_, _, amount, operation, group) in modifiers {
+        if !group_matches(group, slot) {
+            continue;
+        }
+        value = apply_op(value, base, operation, *amount);
     }
     value
 }
@@ -406,6 +440,30 @@ mod tests {
         let damage = |slot| attribute_with(&modifiers, "minecraft:attack_damage", 1.0, slot);
         assert_eq!(damage(Slot::MainHand), 1.0 + 7.0 + 1.0);
         assert_eq!(damage(Slot::OffHand), 2.0);
+    }
+
+    #[test]
+    fn the_approximate_comparison_applies_every_modifier_for_the_slot() {
+        // 1.21.10's `ItemAttributeModifiers.compute` has no attribute
+        // parameter: a sword's attack-speed modifier lands in its "armour"
+        // comparison too, and its damage modifier in the armour one.
+        let entry = |attribute: &str, amount: f64, operation: &str, group: &str| {
+            (
+                attribute.to_owned(),
+                "minecraft:test".to_owned(),
+                amount,
+                operation.to_owned(),
+                group.to_owned(),
+            )
+        };
+        let modifiers = [
+            entry("minecraft:attack_damage", 7.0, "add_value", "mainhand"),
+            entry("minecraft:attack_speed", -2.4, "add_value", "mainhand"),
+            entry("minecraft:armor", 4.0, "add_value", "chest"),
+        ];
+        assert_eq!(approximate_with(&modifiers, 0.0, Slot::MainHand), 7.0 - 2.4);
+        assert_eq!(approximate_with(&modifiers, 0.0, Slot::Chest), 4.0);
+        assert_eq!(approximate_with(&modifiers, 2.0, Slot::Feet), 2.0);
     }
 
     #[test]
