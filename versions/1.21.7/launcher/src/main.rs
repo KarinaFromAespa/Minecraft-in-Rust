@@ -1748,8 +1748,8 @@ impl Launcher {
         cx.notify();
     }
 
-    /// Prepares the selected version, its Minecraft files from the player's install or, for an
-    /// owner who asks, from Mojang.
+    /// Prepares the selected version, its Minecraft files from the player's install or,
+    /// for an owner who asks — or with no account signed in at all — from Mojang.
     fn prepare(&mut self, from: backend::MinecraftFrom) {
         let Some(tag) = self.selected().cloned() else {
             return;
@@ -2507,10 +2507,12 @@ fn segments<T: Copy + PartialEq + 'static>(
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PlayPress {
     Play,
-    /// Not prepared, for an account that owns the game: prepare it (from the player's install,
-    /// else downloaded from Mojang for that account), then play, as the official launcher does.
+    /// Not prepared, for an account that owns the game — or with no account signed in at
+    /// all: prepare it (from the player's install, else downloaded from Mojang), then play,
+    /// as the official launcher does.
     PrepareThenPlay,
-    /// Not prepared and no owner (signing in comes first), or busy preparing or playing.
+    /// Not prepared and a signed-in account that doesn't own the game (signing in comes
+    /// first), or busy preparing or playing.
     Nothing,
 }
 
@@ -2558,11 +2560,19 @@ fn sign_in_change(shown: &mut Option<SignInState>, next: SignInState) -> Option<
 }
 
 /// `owner`: whether an account here owns the game, by the keychain (`Launcher::owner`).
-fn play_press(prepared: bool, owner: Option<bool>, busy: bool) -> PlayPress {
+/// `no_accounts`: no Microsoft account is signed in at all — then Play prepares and plays
+/// offline, as it does for an owner.
+fn play_press(
+    prepared: bool,
+    owner: Option<bool>,
+    no_accounts: bool,
+    busy: bool,
+) -> PlayPress {
     match (prepared, owner) {
         _ if busy => PlayPress::Nothing,
         (true, _) => PlayPress::Play,
         (false, Some(true)) => PlayPress::PrepareThenPlay,
+        (false, _) if no_accounts => PlayPress::PrepareThenPlay,
         (false, _) => PlayPress::Nothing,
     }
 }
@@ -2571,7 +2581,7 @@ fn play_press(prepared: bool, owner: Option<bool>, busy: bool) -> PlayPress {
 /// code, a pack's Play) starts it now: only when Play would play. Never while a preparation runs:
 /// the game would open on half-written files.
 fn starts_now(prepared: bool, preparing: bool, running: bool) -> bool {
-    play_press(prepared, None, preparing || running) == PlayPress::Play
+    play_press(prepared, None, false, preparing || running) == PlayPress::Play
 }
 
 /// Whether `tag` can start being deleted now: it is installed, no install is writing it, and it
@@ -3386,8 +3396,9 @@ impl Launcher {
         let left = self.download_left();
         let steps = self.preparing.then(|| self.steps(&version, left));
 
-        // Not prepared: an owner can have Horizon download Minecraft from Mojang; without an
-        // owner there is nothing to play, so signing in comes first.
+        // Not prepared: an owner can have Free Horizon download Minecraft from Mojang, and
+        // so can a player with no account signed in at all (Play prepares offline then);
+        // only a signed-in account that doesn't own the game is asked to sign in first.
         let first = (!prepared && !self.preparing)
             .then_some(self.owner_shown())
             .flatten();
@@ -5900,21 +5911,30 @@ mod tests {
     }
 
     /// An owner's Play works on a version not prepared yet: it prepares it (downloading
-    /// Minecraft from Mojang when this computer has no install), then plays. Without an owner
-    /// it stays off: signing in comes first.
+    /// Minecraft from Mojang when this computer has no install), then plays. So does Play
+    /// with no Microsoft account signed in at all. With a signed-in account that doesn't
+    /// own the game it stays off: signing in comes first.
     #[test]
-    fn play_prepares_first_for_an_owner() {
+    fn play_prepares_first_for_an_owner_or_with_no_account() {
         use super::{play_press, PlayPress};
-        assert_eq!(play_press(true, Some(true), false), PlayPress::Play);
-        assert_eq!(play_press(true, None, false), PlayPress::Play);
+        assert_eq!(play_press(true, Some(true), false, false), PlayPress::Play);
+        assert_eq!(play_press(true, None, false, false), PlayPress::Play);
         assert_eq!(
-            play_press(false, Some(true), false),
+            play_press(false, Some(true), false, false),
             PlayPress::PrepareThenPlay
         );
-        assert_eq!(play_press(false, Some(false), false), PlayPress::Nothing);
-        assert_eq!(play_press(false, None, false), PlayPress::Nothing);
-        assert_eq!(play_press(false, Some(true), true), PlayPress::Nothing);
-        assert_eq!(play_press(true, Some(true), true), PlayPress::Nothing);
+        assert_eq!(
+            play_press(false, None, true, false),
+            PlayPress::PrepareThenPlay
+        );
+        assert_eq!(
+            play_press(false, Some(false), true, false),
+            PlayPress::PrepareThenPlay
+        );
+        assert_eq!(play_press(false, Some(false), false, false), PlayPress::Nothing);
+        assert_eq!(play_press(false, None, false, false), PlayPress::Nothing);
+        assert_eq!(play_press(false, Some(true), false, true), PlayPress::Nothing);
+        assert_eq!(play_press(true, Some(true), false, true), PlayPress::Nothing);
     }
 
     /// A server's Join (and every other shortcut) waits like Play: not while the version's

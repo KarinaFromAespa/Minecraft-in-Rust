@@ -3,7 +3,8 @@
 //! on. Its one option lets offline names play without an account that owns the game, beside a
 //! signed-in account that doesn't own it (with no account signed in at all they play without
 //! the option too; `account::launch_for_game`). The game still comes from the player's own
-//! install: the launcher downloads Mojang's files only for an owner
+//! install beside a signed-in account that doesn't own it: the launcher downloads Mojang's
+//! files only for an owner, or with no account signed in at all
 //! (`backend::download_for_owner`).
 use super::*;
 

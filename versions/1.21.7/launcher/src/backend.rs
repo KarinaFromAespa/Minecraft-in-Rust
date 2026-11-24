@@ -1935,7 +1935,8 @@ pub fn complete_assets(tag: &str) {
     });
 }
 
-/// Horizon's own download (an owner's) may have stopped before the sounds and the languages,
+/// Horizon's own download (an owner's, or a no-account download's) may have stopped before
+/// the sounds and the languages,
 /// and the copies of `complete_assets` read them from its store: asked again, once per run, through
 /// the same owner gate as any download from Mojang (`download_for_owner`), which keeps the files
 /// already whole. Called where a download is expected (`reuse_prepared_everywhere`), never on Play.
@@ -2105,8 +2106,9 @@ fn preparer_binary(dir: &Path) -> Option<PathBuf> {
 }
 
 /// Downloads the pinned version from Mojang into `dir` when an account in the launcher owns
-/// Minecraft (asked again now), else says what signing in would do, as the last line of the
-/// not-found error.
+/// Minecraft (asked again now), or when no Microsoft account is signed in at all — the
+/// files are Mojang's public downloads, checked against the pins. Otherwise says what
+/// signing in would do, as the last line of the not-found error.
 fn download_for_owner(
     pins: &sources::Pins,
     dir: &Path,
@@ -2130,7 +2132,7 @@ fn download_for_owner(
 
 /// Downloads Minecraft `id` (any version on Mojang's list, its version file's sha1 from it) into
 /// Horizon's own game folder, in the official launcher's layout, for an account that owns the
-/// game (asked again now). Returns that folder.
+/// game (asked again now) — or with no Microsoft account signed in at all. Returns that folder.
 pub fn download_version_for_owner(
     id: &str,
     manifest_sha1: &str,
@@ -2246,8 +2248,10 @@ pub fn java_game(
     )
 }
 
-/// What [`download_for_owner`] does with the owner gate's answer: Mojang's files only for its
-/// `owner`, an account the services said owns the game just now.
+/// What [`download_for_owner`] does with the owner gate's answer: Mojang's files for its
+/// `owner`, an account the services said owns the game just now — or with no Microsoft
+/// account signed in at all, for nobody in particular: the files are Mojang's public
+/// downloads, checked against the pins, and a player without an account plays offline.
 fn download_for(
     pins: &sources::Pins,
     dir: &Path,
@@ -2257,39 +2261,45 @@ fn download_for(
     log: &dyn Fn(String),
 ) -> Result<(), String> {
     let v = &pins.version;
-    match pass {
+    // Who the download runs for: an owner by name, or nobody signed in at all.
+    let owner = match pass {
         Ok(account::Launch {
             owner: Some((owner, _)),
             ..
-        }) => {
-            let name = owner.name;
-            log(format!(
-                "{name} owns Minecraft: downloading {v} from Mojang"
-            ));
-            let os = match sources::Os::current() {
-                sources::Os::Linux => "linux",
-                sources::Os::MacOs => "osx",
-                sources::Os::Windows => "windows",
-            };
-            mojang::download(pins, dir, os, 8, fetch, &mojang::CANCEL, log).map_err(|e| {
-                format!("\n  • Free Horizon tried to download {v} from Mojang for {name}, but: {e}")
-            })
-        }
+        }) => Some(owner.name),
         // An owner by its last answer, who can't be asked now.
-        Ok(pass) => Err(format!(
-            "\n  • Downloading {v} from Mojang needs your Microsoft account, which could not be \
-             checked: {}",
-            pass.offline.unwrap_or_default()
-        )),
-        Err(_) if signed_in => Err(
-            "\n  • No signed-in account owns Minecraft: Java Edition, so Free Horizon can't download it."
-                .into(),
-        ),
-        Err(_) => Err(format!(
-            "\n  • Or sign in with the Microsoft account that owns Minecraft: Free Horizon then \
-             downloads {v} from Mojang itself."
+        Ok(pass) => {
+            return Err(format!(
+                "\n  • Downloading {v} from Mojang needs your Microsoft account, which could not be \
+                 checked: {}",
+                pass.offline.unwrap_or_default()
+            ));
+        }
+        Err(_) if signed_in => {
+            return Err(
+                "\n  • No signed-in account owns Minecraft: Java Edition, so Free Horizon can't download it."
+                    .into(),
+            );
+        }
+        Err(_) => None,
+    };
+    match &owner {
+        Some(name) => log(format!("{name} owns Minecraft: downloading {v} from Mojang")),
+        None => log(format!(
+            "No Microsoft account is signed in: downloading {v} from Mojang"
         )),
     }
+    let os = match sources::Os::current() {
+        sources::Os::Linux => "linux",
+        sources::Os::MacOs => "osx",
+        sources::Os::Windows => "windows",
+    };
+    mojang::download(pins, dir, os, 8, fetch, &mojang::CANCEL, log).map_err(|e| match &owner {
+        Some(name) => {
+            format!("\n  • Free Horizon tried to download {v} from Mojang for {name}, but: {e}")
+        }
+        None => format!("\n  • Free Horizon tried to download {v} from Mojang, but: {e}"),
+    })
 }
 
 /// The Java home for this version: a runtime for precompiled exporters, a JDK for older
@@ -2399,10 +2409,11 @@ fn assets_folder(
 /// Where the preparation takes Minecraft's files from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MinecraftFrom {
-    /// The player's own install (any launcher's); Mojang only when none has the version and an
-    /// account that owns the game is signed in.
+    /// The player's own install (any launcher's); Mojang only when none has the version —
+    /// for an account that owns the game, or with no account signed in at all.
     Install,
-    /// Mojang, for the signed-in account that owns the game ("Download and prepare").
+    /// Mojang, for the signed-in account that owns the game ("Download and prepare") — or
+    /// with no account signed in at all.
     Mojang,
 }
 
@@ -2479,7 +2490,8 @@ pub fn preparer(
         };
         let linked = data_dir().join("linked-minecraft");
         if from == MinecraftFrom::Mojang {
-            // Straight from Mojang (what is already there and whole is kept), for an owner only.
+            // Straight from Mojang (what is already there and whole is kept), for an owner
+            // or with no account signed in at all.
             download_for_owner(&pins, &own, &fetch, log)
                 .map_err(|e| e.trim_start_matches("\n  • ").to_string())?;
             own
@@ -2535,7 +2547,16 @@ pub fn preparer(
     let jar = data_dir()
         .join("server-jars")
         .join(format!("{version}.jar"));
-    if !reused && !jar.exists() {
+    // The lock pins the server jar too: a copy already there is kept only when whole,
+    // and a fresh download is checked before it is written (a lock without the pin
+    // keeps the old behaviour: an existing jar is trusted, a download is not checked).
+    let server_sha1 = read_json(&dir.join("research-lock.json"))
+        .and_then(|lock| lock["minecraft"]["server_sha1"].as_str().map(String::from));
+    let whole = match &server_sha1 {
+        Some(sha1) => sources::sha1_file(&jar).as_ref() == Some(sha1),
+        None => jar.exists(),
+    };
+    if !reused && !whole {
         let json: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&manifest).map_err(|e| e.to_string())?)
                 .map_err(|e| e.to_string())?;
@@ -2549,6 +2570,14 @@ pub fn preparer(
             .into_reader()
             .read_to_end(&mut body)
             .map_err(|e| e.to_string())?;
+        if let Some(sha1) = &server_sha1 {
+            let actual = sources::sha1_hex(&body);
+            if actual != *sha1 {
+                return Err(format!(
+                    "The {version} server jar from Mojang is not the one Free Horizon pins (sha1 {actual})"
+                ));
+            }
+        }
         let partial = jar.with_extension("partial");
         fs::write(&partial, body)
             .and_then(|_| fs::rename(&partial, &jar))
@@ -4775,12 +4804,14 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
     }
 
-    /// The launcher downloads Mojang's game files (client jar, libraries, assets) only for an
-    /// account the services said owns the game: never without one, and never past the gate by
+    /// The launcher downloads Mojang's game files (client jar, libraries, assets) for an
+    /// account the services said owns the game, or with no Microsoft account signed in at
+    /// all — never for a signed-in account that doesn't own it, and never past the gate by
     /// the developer option (`Settings::dev_offline`), whose pass has no owner.
     #[test]
-    fn mojang_downloads_only_for_an_owner() {
-        let dir = std::env::temp_dir().join(format!("horizon-owner-only-{}", std::process::id()));
+    fn mojang_downloads_for_an_owner_or_with_no_account() {
+        let dir =
+            std::env::temp_dir().join(format!("horizon-download-gate-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         let pins = sources::Pins::read(&serde_json::json!({ "minecraft": {
             "version": "26.3",
@@ -4795,8 +4826,9 @@ mod tests {
         };
         let log = |_: String| {};
         let no_owner = || Ok(account::Launch::default());
+        // A signed-in account that doesn't own the game, or an owner that can't be asked
+        // now: nothing is fetched, nothing is written.
         for (pass, signed_in) in [
-            (Err(account::NoOwner::default()), false),
             (Err(account::NoOwner::default()), true),
             (no_owner(), false),
             (no_owner(), true),
@@ -4805,6 +4837,20 @@ mod tests {
         }
         assert!(asked.lock().unwrap().is_empty());
         assert!(!dir.exists());
+        // No account signed in at all: Mojang is asked (and the download fails here,
+        // without network).
+        assert!(
+            download_for(
+                &pins,
+                &dir,
+                Err(account::NoOwner::default()),
+                false,
+                &fetch,
+                &log
+            )
+            .is_err()
+        );
+        assert!(!asked.lock().unwrap().is_empty());
         // An owner: Mojang is asked (and the download fails here, without network).
         let owner = account::Account {
             uuid: "069a79f444e94726a5befca90e38aaf5".into(),
@@ -4820,6 +4866,7 @@ mod tests {
             owner: Some((owner, secrets)),
             ..Default::default()
         });
+        asked.lock().unwrap().clear();
         assert!(download_for(&pins, &dir, pass, true, &fetch, &log).is_err());
         assert!(!asked.lock().unwrap().is_empty());
         let _ = fs::remove_dir_all(&dir);

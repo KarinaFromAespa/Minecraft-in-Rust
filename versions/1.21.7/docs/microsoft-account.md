@@ -3,9 +3,11 @@
 Free Horizon signs players in with their Microsoft account in the launcher and joins online-mode
 (authenticated) servers like vanilla 26.3 does. With a Microsoft account signed in, the launcher
 plays only while one owns Minecraft: Java Edition ([the owner gate](#the-owner-gate)); with no
-account signed in at all it plays offline, under an offline name or the name the game made up.
-Sign-in is optional, and only available when the build has a client ID configured. This note is
-the design, the status of each part and what Ludovic has to register.
+account signed in at all it plays offline, under an offline name or the name the game made up —
+and it still downloads the game files from Mojang itself to prepare the game
+([downloading the game](#downloading-the-game)). Sign-in is optional, and only available when
+the build has a client ID configured. This note is the design, the status of each part and what
+Ludovic has to register.
 
 ## What Ludovic registers (needs his accounts)
 
@@ -110,16 +112,20 @@ starts it offline instead of blocking (2026-11-24).
   the launcher's tests use accounts in a memory store (`MemoryStore`, and `HORIZON_NO_KEYCHAIN`
   for the CLI and MCP tests, which then have no owner).
 
-## Downloading the game for an owner
+## Downloading the game
 
 Decided 2026-10-27. This is the only exception to "Free Horizon never downloads the game", and it
-applies only on the player's machine, for an account the owner gate just asked about. The
-launcher's "Download and prepare" (`horizon-launcher prepare --download`) fetches the pinned
-version straight from Mojang (`launcher/src/mojang.rs`): the version file, the client jar,
-libraries, the asset index and the assets, each checked against the size and sha1 Mojang lists.
-They go to `minecraft/` in the launcher's data folder, and the preparation runs as usual. The
-download can be cancelled and goes on where it stopped. CI, agents, harnesses and the repo never
-download or keep Mojang's files.
+applies only on the player's machine, for an account the owner gate just asked about — or, since
+2026-11-24, with no Microsoft account signed in at all: the files are Mojang's public downloads,
+and a player without an account plays offline once they are prepared. The launcher's "Download
+and prepare" (`horizon-launcher prepare --download`) fetches the pinned version straight from
+Mojang (`launcher/src/mojang.rs`): the version file, the client jar, libraries, the asset index
+and the assets, each checked against the size and sha1 Mojang lists; the version file and the
+client jar are checked against the sha1s the version's research-lock.json pins, and the server
+jar the preparation also downloads is checked against its pinned sha1 the same way. They go to
+`minecraft/` in the launcher's data folder, and the preparation runs as usual. The download can
+be cancelled and goes on where it stopped. CI, agents, harnesses and the repo never download or
+keep Mojang's files.
 
 Refresh: the Minecraft token is renewed from the Microsoft refresh token (steps 2-5 with
 `grant_type=refresh_token`) when it has less than an hour left, before every launch; steps 6-7 run
