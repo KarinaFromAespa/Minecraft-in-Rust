@@ -571,31 +571,35 @@ impl MusicManager {
         if self.current.is_none() && !loading {
             self.next_song_delay -= 1;
             if self.next_song_delay <= 0 {
-                self.start_playing(music, sounds);
+                self.start_playing(music, volume, sounds);
             }
         }
     }
     /// `MusicManager.startPlaying`, with the Music page's off tracks left out
-    /// of the pool.
-    pub fn start_playing(&mut self, music: &Music, sounds: &mut impl Sounds) {
-        self.start_playing_with(music, None, sounds);
+    /// of the pool. `volume` is the situational music volume: 1.21.10's
+    /// `forMusic` takes it at creation (1.21.11 hardcodes 1.0).
+    pub fn start_playing(&mut self, music: &Music, volume: f32, sounds: &mut impl Sounds) {
+        self.start_playing_with(music, volume, None, sounds);
     }
     /// Play one track of `event` now (a Music page row): it takes the
     /// manager's slot, and the situation's own music waits until it ends.
-    /// False when the event has no such track.
+    /// False when the event has no such track. A hand-played track starts
+    /// at full volume; the next tick fades it to the situational volume.
     pub fn play_track(&mut self, event: &str, track: &str, sounds: &mut impl Sounds) -> bool {
         let music = Music::new(event, 0, 0, true);
-        self.start_playing_with(&music, Some(track), sounds)
+        self.start_playing_with(&music, 1.0, Some(track), sounds)
     }
     /// `MusicManager.startPlaying`, choosing the concrete sound with `only`
     /// (that track alone) or else `off` left out.
     fn start_playing_with(
         &mut self,
         music: &Music,
+        volume: f32,
         only: Option<&str>,
         sounds: &mut impl Sounds,
     ) -> bool {
-        let mut instance = SoundInstance::for_music(&music.sound, crate::random_source::create());
+        let mut instance =
+            SoundInstance::for_music(&music.sound, volume, crate::random_source::create());
         // No track off and no row to play: vanilla's startPlaying as it is.
         // `resolve` picks the track, and an event with nothing to play (or no
         // event) is still the current music, with the delay at its maximum.
@@ -897,6 +901,7 @@ mod tests {
         let menu = Music::menu();
         m.start_playing(
             &menu,
+            1.0,
             &mut Bound {
                 engine: &mut engine,
                 backend: &mut backend,
@@ -925,6 +930,7 @@ mod tests {
         let game = Music::new("minecraft:music.game", 12000, 24000, false);
         m.start_playing(
             &game,
+            1.0,
             &mut Bound {
                 engine: &mut engine,
                 backend: &mut backend,
@@ -1046,6 +1052,7 @@ mod tests {
         m.set_off(&["minecraft:music/game/one".to_owned()]);
         m.start_playing(
             &Music::game(),
+            1.0,
             &mut Bound {
                 engine: &mut engine,
                 backend: &mut backend,
@@ -1069,6 +1076,7 @@ mod tests {
         ]);
         m.start_playing(
             &Music::game(),
+            1.0,
             &mut Bound {
                 engine: &mut engine,
                 backend: &mut backend,
@@ -1085,6 +1093,7 @@ mod tests {
         let mut m = MusicManager::new(13);
         m.start_playing(
             &Music::menu(),
+            1.0,
             &mut Bound {
                 engine: &mut engine,
                 backend: &mut backend,

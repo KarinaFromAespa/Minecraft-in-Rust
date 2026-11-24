@@ -1,8 +1,8 @@
 {
  "release": "1.21.10",
  "rank": 2,
- "batch": 12,
- "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review). Batch 6: 13 missing-only no-change (1.21.11-only/1.21.10-only methods unreferenced or identically modelled; Timeline + hand.rs deliberate non-carry-overs with jar evidence). Batch 7: 5 real-method no-change (normalisation gaps + unmodelled methods, each with method diff + Rust-side check). Batch 8: 12 smallest real-method items (10 no-change: renames/noise/unmodelled; 2 ported: 154 equine isMobControlled/MountPanic removal, 256 loom scrolling reset). Batches 9-12: 44 small real-method items (41 no-change: renames, API gaps, unmodelled; 3 ported: 132 piglin spear, 276 furnace Math.random, 277 spawn-mobs gate).",
+ "batch": 14,
+ "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review). Batch 6: 13 missing-only no-change (1.21.11-only/1.21.10-only methods unreferenced or identically modelled; Timeline + hand.rs deliberate non-carry-overs with jar evidence). Batch 7: 5 real-method no-change (normalisation gaps + unmodelled methods, each with method diff + Rust-side check). Batch 8: 12 smallest real-method items (10 no-change: renames/noise/unmodelled; 2 ported: 154 equine isMobControlled/MountPanic removal, 256 loom scrolling reset). Batches 9-12: 44 small real-method items (41 no-change: renames, API gaps, unmodelled; 3 ported: 132 piglin spear, 276 furnace Math.random, 277 spawn-mobs gate). Batches 13-14: 16 items (14 no-change; 2 ported: 212 explosion radius guard, 74 music volume threading).",
  "items": {
   "201": {
    "module": "crates/horizon-client/src/game/frame_geometry.rs",
@@ -2053,6 +2053,86 @@
    "module": "crates/horizon-client/src/game/creaking.rs",
    "verdict": "no-change",
    "evidence": "CreakingHeartBlockEntity#serverTick: CREAKING_ACTIVE attribute (1.21.11) vs isNaturalNight (1.21.10); the activation check is unmodelled in creaking.rs (0 refs). Trees agree."
+  },
+  "103": {
+   "module": "crates/horizon-client/src/game/passengers.rs",
+   "verdict": "no-change",
+   "evidence": "Husk#doHurtTarget: 1.21.11 reads the difficulty from the target's level, 1.21.10 from the husk's own level \u2014 the same Level either way (both server-side). Unmodelled in passengers.rs (only finalizeSpawn's camel-husk). Trees agree."
+  },
+  "212": {
+   "module": "crates/horizon-client/src/game/explosion.rs",
+   "verdict": "ported",
+   "evidence": "ServerExplosion#hurtEntities: 1.21.11 early-returns when radius < 1.0E-5; 1.21.10 has no guard. Removed the guard from explosion_hurt_entities. shouldAffectBlocklikeEntities is a GameRules-API normalisation gap (MOB_GRIEFING)."
+  },
+  "74": {
+   "module": "crates/horizon-client-render/src/sound_engine.rs",
+   "verdict": "ported",
+   "evidence": "SimpleSoundInstance#forMusic: 1.21.10 takes the volume (Biome.getBackgroundMusicVolume(); pale_garden is 0.0, every other vanilla biome 1.0), 1.21.11 hardcodes 1.0. Threaded the situational volume through for_music/start_playing (play_track starts at 1.0, the tick fade adjusts it). DirectionalSoundInstance#setPosition is a Camera.position/getPosition rename. NOTE: the volume SOURCE (biome music_volume vs the 1.21.11 environment attribute) belongs to item 98 (music.rs, open); until then probe_volume is 1.0."
+  },
+  "113": {
+   "module": "crates/horizon-client/src/game/remote_projectiles.rs",
+   "verdict": "no-change",
+   "evidence": "AreaEffectCloud#clientTick: float-vs-double trig; the Rust uses f32 cos/sin (angle is f32) = 1.21.10's Mth.cos(F)/sin(F). Trees agree."
+  },
+  "123": {
+   "module": "crates/horizon-client/src/game/commands/terrain_cmds.rs",
+   "verdict": "no-change",
+   "evidence": "LocationPredicate$PositionPredicate#matches: criterion/critereon package rename; unmodelled in terrain_cmds.rs. Trees agree."
+  },
+  "145": {
+   "module": "crates/horizon-client/src/mobs/nether.rs",
+   "verdict": "no-change",
+   "evidence": "GhastModel#animateTentacles: the Rust uses f32 msin = 1.21.10's Mth.sin(F); Blaze#customServerAiStep is a needsSync/hasImpulse field rename. Trees agree."
+  },
+  "134": {
+   "module": "crates/horizon-client/src/game/sign_edit.rs",
+   "verdict": "no-change",
+   "evidence": "TextFieldHelper#keyPressed: 1.21.10's hasControlDown IS quirk-aware (same as item 159); SignBlockEntity#createCommandSourceStack GAMEMASTER vs 2 (the Rust uses permission 2); playerIsTooFarAwayToEdit is canInteractWithBlock vs isWithinBlockInteractionRange, same 4.0 range. Trees agree."
+  },
+  "224": {
+   "module": "crates/horizon-client-input/src/interaction_input.rs",
+   "verdict": "no-change",
+   "evidence": "BlockItem#place: criterion/critereon rename; shouldPrintOpWarning PermissionSet vs getPermissionLevel>=2, same levels, unmodelled in interaction_input.rs (0 refs). Trees agree."
+  },
+  "183": {
+   "module": "crates/horizon-client/src/game/game_mode.rs",
+   "verdict": "no-change",
+   "evidence": "AdventureModePredicate#computeTooltip + #test: criterion/critereon package rename (x2). Trees agree."
+  },
+  "226": {
+   "module": "crates/horizon-client/src/block_entity_item.rs",
+   "verdict": "no-change",
+   "evidence": "SpawnEggItem#shouldPrintOpWarning: PermissionSet vs getPermissionLevel>=2, same (the Rust's spawn_egg_op_warning only checks the item type); #useOn: isSpawnerBlockEnabled moved from ServerLevel to MinecraftServer, same value. Trees agree."
+  },
+  "268": {
+   "module": "crates/horizon-client/src/game/glowing.rs",
+   "verdict": "no-change",
+   "evidence": "EntityRenderer#extractRenderState: 1.21.10's extra debug-hitbox extraction (ENTITY_HITBOXES debug entry) is unmodelled in glowing.rs (0 hitbox refs). Trees agree."
+  },
+  "80": {
+   "module": "crates/horizon-client/src/game/game_tests.rs",
+   "verdict": "no-change",
+   "evidence": "GameTestInfo#startTest: 1.21.11 starts a Stopwatch (1.21.10 lacks it); ReportGameListener#testPassed: 1.21.11's pass message includes the tick. Both unmodelled in game_tests.rs (dev-framework instrumentation). Trees agree."
+  },
+  "165": {
+   "module": "crates/horizon-client/src/lan/entity.rs",
+   "verdict": "no-change",
+   "evidence": "ServerEntity#sendChanges + #sendPairingData: 1.21.11's updateDataBeforeSync() call is unmodelled in lan/entity.rs (0 refs); 1.21.10 lacks it, so the Rust's behaviour is correct as-is. needsSync/hasImpulse renames. Trees agree."
+  },
+  "231": {
+   "module": "crates/horizon-world/src/level/hooks.rs",
+   "verdict": "no-change",
+   "evidence": "IceBlock#melt + #playerDestroy: WATER_EVAPORATES environment attribute (1.21.11) vs dimensionType.ultraWarm() (1.21.10); the Rust reads dimension_type().water_evaporates and the built-in presets carry ultraWarm correctly (nether true). The datapack-dimension JSON parse reads the 1.21.11 attribute shape (ultrawarm ignored) \u2014 belongs to item 157 (dimension_type.rs, open). Trees agree."
+  },
+  "232": {
+   "module": "crates/horizon-world/src/level/redstone.rs",
+   "verdict": "no-change",
+   "evidence": "DaylightDetectorBlock#updateSignalStrength: the Rust's formula (sun_angle degrees x DEG_TO_RAD, offset, cos) matches 1.21.10's getSunAngle-based formula \u2014 identical to the merged 1.21.7 tree's. The sun-angle SOURCE (environment attribute, 0.0 for 1.21.10 data with no attributes/timelines) is the systemic environment gap \u2014 belongs to item 351 (render/environment.rs, open), whose template is 1.21.7's built-in fallback (0 deg at noon, linear in time). The cos float/double diff is sub-rounding noise. Trees agree."
+  },
+  "184": {
+   "module": "crates/horizon-client/src/game/packs.rs",
+   "verdict": "no-change",
+   "evidence": "LoadingOverlay#tick: Screen.init(Minecraft, w, h) vs init(w, h); unmodelled in packs.rs (0 refs); menu chrome in any case. Trees agree."
   }
  }
 }

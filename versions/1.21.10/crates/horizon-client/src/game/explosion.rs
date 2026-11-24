@@ -586,6 +586,8 @@ impl Game<'_> {
     /// `ServerExplosion.hurtEntities` (player, mobs, items, primed TNT, minecarts);
     /// the player takes `damage_type`. Returns the players whose clients add a
     /// push from the explosion packet, and how much (`explosion_hurt_player`).
+    /// 1.21.10 has no minimum-radius early return (1.21.11 added one for
+    /// radius < 1.0E-5): even a degenerate blast hurts what it touches.
     fn explosion_hurt_entities(
         &mut self,
         center: [f64; 3],
@@ -594,9 +596,6 @@ impl Game<'_> {
         interaction: BlockInteraction,
         blocks: &[[i32; 3]],
     ) -> Vec<(u32, [f64; 3])> {
-        if radius < 1.0e-5 {
-            return Vec::new();
-        }
         self.explosion_hits_special(center, radius, blocks);
         let diameter = f64::from(radius * 2.0);
         let damage = |dist: f64, exposure: f32| {

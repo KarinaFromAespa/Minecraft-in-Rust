@@ -313,12 +313,14 @@ impl SoundInstance {
             true,
         )
     }
-    /// `SimpleSoundInstance.forMusic`.
-    pub fn for_music(id: &str, random: LegacyRandom) -> Self {
+    /// `SimpleSoundInstance.forMusic` (1.21.10 takes the volume — the
+    /// situational music volume, `Biome.getBackgroundMusicVolume()`; 1.21.11
+    /// hardcodes 1.0).
+    pub fn for_music(id: &str, volume: f32, random: LegacyRandom) -> Self {
         Self::new(
             id,
             MUSIC,
-            1.0,
+            volume,
             1.0,
             random,
             false,
