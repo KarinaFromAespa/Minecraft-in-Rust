@@ -135,7 +135,6 @@ pub mod spectator_menu;
 pub mod sprint;
 pub mod stand_up;
 pub mod stations;
-pub mod stopwatches;
 pub mod structure_blocks;
 pub mod studio;
 pub mod telemetry;

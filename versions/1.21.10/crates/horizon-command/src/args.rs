@@ -1745,7 +1745,6 @@ impl ArgType {
                     "storages" => reg.storages.clone(),
                     "bossbars" => reg.bossbars.clone(),
                     "schedules" => reg.schedules.clone(),
-                    "stopwatches" => reg.stopwatches.clone(),
                     "recipes" => reg.recipes.clone(),
                     "sounds" => reg.sounds.clone(),
                     "damage_types" => reg.damage_types.clone(),

@@ -62,7 +62,6 @@ pub struct Registries {
     pub predicates: Vec<String>,
     pub item_modifiers: Vec<String>,
     pub schedules: Vec<String>,
-    pub stopwatches: Vec<String>,
     pub recipes: Vec<String>,
     pub sounds: Vec<String>,
     pub damage_types: Vec<String>,

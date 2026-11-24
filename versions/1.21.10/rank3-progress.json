@@ -1,7 +1,7 @@
 {
  "release": "1.21.10",
  "rank": 3,
- "batch": 32,
+ "batch": 33,
  "note": "",
  "items": {
   "485": {
@@ -1008,6 +1008,11 @@
    "module": "crates/horizon-world/src/worldgen/feature_catalog.rs",
    "verdict": "ported",
    "evidence": "The mechanical publish wrongly removed flower/no_bonemeal_flower/random_patch from the nested-`feature` expansion arm. 1.21.10's `RandomPatchConfiguration` HAS a `feature` field (javap-verified) and all 33 vanilla flower/random_patch configs carry one \u2014 the removal was a latent datapack bug (a key-referenced nested feature would stay unresolved). The three kinds are restored to the arm, the 1.21.11 form."
+  },
+  "592": {
+   "module": "widely named: server/commands",
+   "verdict": "ported",
+   "evidence": "StopwatchCommand exists in 1.21.11 and not in 1.21.10 (0 stopwatch classes in either 1.21.10 jar; the jardiff lists it as removed) \u2014 the whole system is 1.21.11-only and it EXECUTED in the 1.21.10 tree, so it is removed: the /stopwatch tree (tree_misc.rs), the `stopwatch.*` dispatch (commands.rs) and `cmd_stopwatch` (misc.rs), the /execute if stopwatch condition (tree_execute.rs, execute.rs), the `stopwatches` id list (args.rs), the Stopwatches store (stopwatches.rs deleted, client_lib.rs mod line removed, ScoreState field + load/save + registry fill removed), the `stopwatches` registry list (registries.rs), and the unreferenced `SavedStopwatches` datafix variant (schema.rs). The datafix comment already recorded stopwatches as 1.21.11-only and is kept. (Residual verification of the group's other changed command classes follows from the wide semantic diff; this entry will be extended.)"
   }
  }
 }

@@ -1096,3 +1096,13 @@ updated to the 310-wide layout (row_left 58.0, button_xs
 166/226/286; the footer is width-independent). Everything
 else in both runs was green, including the batch-3 ports'
 own tests.
+
+Rank 3 batch 6, part 1 (item 592, rank 3 201 -> 202, 666/719):
+the /stopwatch system is 1.21.11-only (StopwatchCommand is in
+1.21.11's jar, absent from both 1.21.10 jars) and it executed
+in the 1.21.10 tree, so it is removed whole: the command tree,
+the handler, the /execute condition, the Stopwatches store and
+its save file, the registry list, and the datafix variant.
+(The stopwatches.rs deletion landed in the layout-test fix
+commit a8cadd9a via a staged `git rm`; this commit carries the
+rest of the removal, so the tip compiles again.)

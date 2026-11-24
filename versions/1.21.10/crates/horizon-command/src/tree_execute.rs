@@ -190,11 +190,6 @@ fn conditionals(d: &mut Dispatcher, m: usize, ex: usize) {
     );
     conditional(d, p, ex);
 
-    let stopwatch = d.literal(m, "stopwatch");
-    let id = d.argument(stopwatch, "id", ArgType::Id("stopwatches"));
-    let range = d.argument(id, "range", ArgType::FloatRange);
-    conditional(d, range, ex);
-
     let function = d.literal(m, "function");
     let name = d.argument(function, "name", ArgType::Function);
     d.suggests(name, super::Suggests::Functions);
