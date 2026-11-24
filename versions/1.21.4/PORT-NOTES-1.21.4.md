@@ -1237,3 +1237,74 @@ shape for the review batches.
   -p horizon-world -p horizon-client-input` green (EXIT 0,
   0 warnings) and the --tests check green (EXIT 0, 7m18s).
   Rank 2: still 65/348 (batch 8 closes no numbered item).
+
+  Batch 9 (items 19 + 20 + 21). Item 19 (game/native_hooks.rs):
+  NO-CHANGE, comment-only carry. The tree diff is 46 comment
+  lines naming 1.21.6 features (the dialog system, the locator
+  bar, the `now_playing` toast, the happy ghast) that do not
+  exist in 1.21.4; the 1.21.5 tree's comments are correct for
+  1.21.4, so the file was copied wholesale (12,786 lines, no
+  code diff). The jar diffs are API-only or modelled elsewhere:
+  `destroyBlock`'s `canDestroyBlock` vs `canAttackBlock` (item
+  119, already routed); the BLOCKS_ATTACKS component in
+  `getUseAnimation`/`getUseDuration`/`use` (items 126/55);
+  the enderpearl `unRide` (already modelled — `stop_riding`
+  before the teleport in creatures.rs); `handleBlockBreakAction`
+  / `useItemOn` / `BlockItem#canPlace` / `Item#hurtEnemy` /
+  `Level#playSound` (overload and accessor reshaping, same
+  behaviour).
+
+  Item 20 (game/minecarts.rs): PORTED. `prime_cart` and
+  `explode_cart` drop their `tnt_explodes` gamerule gates:
+  `RULE_TNT_EXPLODES` does NOT exist in 1.21.4 — it was added
+  in 1.21.5 (verified: the 1.21.4 jar has no such field in
+  `GameRules`, and no references to it in `MinecartTNT`,
+  `PrimedTnt`, `TntBlock`, `ServerLevel` or `Explosion`, while
+  1.21.5's `TntBlock` has 3 and its `MinecartTNT.primeFuse` /
+  `explode` check it). In 1.21.4 a TNT minecart primes and
+  explodes regardless of any gamerule. Two comment carries:
+  `CompoundTag`'s (not `ValueInput`'s) numeric getters, and
+  `cart_lava_tick` no longer names `lavaIgnite` (absent in
+  1.21.4 — the cart takes `lavaHurt` twice and never burns
+  because it has no `baseTick`). NO-CHANGE, jar-verified: the
+  fall damage (`(fall / 10)^2` at fall >= 3); the display
+  offset/block (the Rust returns the default without a custom
+  display — the 1.21.4 `hasCustomDisplay` form; display.rs is
+  identical in both trees); the destroy fuse (two
+  `nextInt(20)` draws); the render `mulPose`, `getDisplay-
+  BlockState`, `causeFallDamage` and `primeFuse()` shapes
+  (API-only); the `getKnownMovement` NaN guard and the
+  interpolation check (unmodelled). SHARED GAP (both trees,
+  not a port difference): `hurt_vehicle` passes `fire=false`,
+  so a burning projectile never primes a TNT cart — 1.21.4's
+  `hurtServer` checks any `Projectile`, 1.21.5's only
+  `AbstractArrow`, both requiring on-fire plus a speed
+  threshold; the `Projectile` struct has `on_fire()`, so the
+  fix is feasible later. ROUTED: the cross-cutting
+  `tnt_explodes` removal — the rule is defined in
+  gamerules.rs (no item) and read in 13 files (arrows.rs,
+  game.rs, chat.rs, creatures.rs, dispenser.rs, explosion.rs,
+  sulfur_cubes.rs, tnt.rs, sulfur_cube.rs, save.rs,
+  datafix/fixes_c.rs, plus the minecarts.rs sites done here)
+  — to item 66 (tnt.rs) as its natural home.
+
+  Item 21 (raid.rs): NO-CHANGE. The tree diff is empty, and
+  every jar diff is API-only: `level` as a method parameter
+  (1.21.5) vs the `this.level` field (1.21.4) in
+  `findRandomSpawnPos`, `playSound`, `spawnGroup`, `tick`,
+  `updateRaiders`, `createOrExtendRaid` and `Raids.tick`;
+  `raidMap` as fastutil `Int2ObjectMap` vs `java.util.Map`;
+  `getNumGroups` returns the same 3/5/7 for EASY/NORMAL/HARD
+  (only the switch compilation differs);
+  `getOminousBannerInstance` hides the banner patterns via
+  `TOOLTIP_DISPLAY.withHidden` (1.21.5) vs
+  `HIDE_ADDITIONAL_TOOLTIP` (1.21.4) — same result, and the
+  banner item itself is unmodelled in raid.rs;
+  `findRandomSpawnPos` is local-slot renumbering plus
+  instruction reordering with identical operations and
+  constants (0.22f, PI, 32.0f, the same random draws).
+  `cargo check -p horizon-client -p horizon-world
+  -p horizon-client-input` green (EXIT 0, 1m28s) and the
+  --tests check green (EXIT 0, 3m31s, 0 errors). minecarts.rs,
+  native_hooks.rs and minecarts/display.rs are rustfmt-clean.
+  Rank 2: 68/348.

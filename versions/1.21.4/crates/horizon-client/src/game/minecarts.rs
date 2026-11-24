@@ -1606,11 +1606,10 @@ impl Game<'_> {
     }
     /// `MinecartTNT.primeFuse`: fuse 80, then `Level.broadcastEntityEvent`
     /// (`EntityEvent.TNT_PRIME`, 70) and `SoundEvents.TNT_PRIMED`. A client
-    /// that receives 70 only sets the fuse (`handleEntityEvent`).
+    /// that receives 70 only sets the fuse (`handleEntityEvent`). 1.21.4
+    /// primes regardless of the `tntExplodes` gamerule (1.21.5's primeFuse
+    /// returns early when it is false).
     fn prime_cart(&mut self, c: &mut Minecart) {
-        if !self.ui.rules.bool("tnt_explodes") {
-            return;
-        }
         c.fuse = 80;
         let at = [c.position.x, c.position.y, c.position.z];
         let id = c.id as i32;
@@ -1634,9 +1633,9 @@ impl Game<'_> {
         }
     }
     fn explode_cart(&mut self, c: &mut Minecart, speed_sqr: f64) {
-        if !self.ui.rules.bool("tnt_explodes") {
-            return;
-        }
+        // 1.21.4 has no `tntExplodes` gamerule (added in 1.21.5): a TNT
+        // minecart always explodes here. Its removal from the rule table
+        // and the other call sites is routed to item 66 (tnt.rs).
         let speed = speed_sqr.sqrt().min(5.0);
         let r = c.random.next_double();
         let power = (4.0 + r * 1.5 * speed) as f32;
@@ -2052,7 +2051,7 @@ impl Game<'_> {
     /// behaviour's `applyEffectsFromBlocks`, then from `AbstractMinecart.tick`'s
     /// own `isInLava`. The second breaks the cart, or primes a TNT minecart
     /// (`MinecartTNT.destroy` for a fire source). A cart has no `baseTick`,
-    /// so the fire `lavaIgnite` lights never burns it.
+    /// so it never burns from the lava it sits in.
     fn cart_lava_tick(&mut self, id: u32, slot: usize) {
         for _ in 0..2 {
             let Some(i) = cart_at(&self.carts, id, slot) else {
@@ -3103,7 +3102,7 @@ impl Minecart {
         c.on_ground = horizon_client::entity_nbt::flag(tag, "OnGround");
         c.pitch = horizon_client::entity_nbt::rotation(tag)[1];
         c.previous_pitch = c.pitch;
-        // ValueInput's numeric getters take any NumericTag: getIntOr is its
+        // CompoundTag's numeric getters take any NumericTag: getIntOr is its
         // intValue, getShortOr the low 16 bits of it, getBooleanOr
         // `byteValue() != 0` (the low 8), getDoubleOr its doubleValue.
         let int = |k: &str| {
