@@ -605,8 +605,6 @@ impl Game<'_> {
         let stats = (host.play.get(&conn).map(|p| &p.stats)).filter(|s| s.loaded);
         adv::PlayerFacts {
             level: asked.level.then_some(g.xp_level),
-            // The guest's food as last written back from its body.
-            food: Some((g.food, g.saturation)),
             stats: stats.filter(|_| asked.stats).map(|s| s.values.clone()),
             advancements: asked
                 .advancements
@@ -638,17 +636,13 @@ impl Game<'_> {
         me
     }
     /// The player's level, statistics, advancements and recipes that
-    /// `asked` names, and its food, for `PlayerPredicate`; records not
-    /// loaded stay `None`.
+    /// `asked` names, for `PlayerPredicate`; records not loaded stay `None`.
     fn player_facts(&self, asked: adv::FactsAsked) -> adv::PlayerFacts {
-        let Some(p) = self.player.as_ref() else {
+        if self.player.is_none() {
             return adv::PlayerFacts::default();
-        };
+        }
         adv::PlayerFacts {
             level: asked.level.then_some(self.experience.level),
-            // `ServerPlayer.getFoodData`, read by every player predicate:
-            // two numbers, so always filled.
-            food: Some((p.health.food.food, p.health.food.saturation)),
             stats: (asked.stats && self.stats.loaded).then(|| self.stats.values.clone()),
             advancements: (asked.advancements && self.adv.loaded)
                 .then(|| (self.adv.tree.clone(), self.adv.progress.clone())),
@@ -2193,7 +2187,7 @@ impl Game<'_> {
     }
     /// `ToastManager.SLOT_COUNT`.
     pub(super) const TOAST_SLOTS: usize = 5;
-    /// `ToastManager.update` and `extractRenderState` for the `AdvancementToast`s and
+    /// `ToastManager.update` and `render` for the `AdvancementToast`s and
     /// `RecipeToast`s: up to five stack in 32-pixel slots, the rest queue. `hidden` (F1)
     /// keeps them timing out without drawing them.
     pub(super) fn draw_toasts(&mut self, batch: &mut HudBatch, hidden: bool) {
@@ -2302,7 +2296,7 @@ impl Game<'_> {
         let atlas = &self.gui.atlas;
         batch.sprite(atlas, "gui/sprites/toast/advancement", x, y);
         let (key, color) = toast_label(frame);
-        // AdvancementToast.extractRenderState: a title of one line sits under
+        // AdvancementToast.render: a title of one line sits under
         // the frame's label; a longer one is wrapped at 125, the label fading
         // out first (to 1.5 s) and the lines fading in after it over 0.3 s.
         let lines = atlas.font.split(&title.resolve_legacy(), 125.0);

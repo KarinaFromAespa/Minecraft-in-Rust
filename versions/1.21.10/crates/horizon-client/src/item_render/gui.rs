@@ -3,8 +3,9 @@
 //! `scale(16, -16, 16)`), lit with `Lighting.Entry.ITEMS_3D` or `ITEMS_FLAT`
 //! (`minecraft_mix_light` on the transformed normals), back faces culled,
 //! drawn far to near, and clipped to the item's 16x16 slot unless the model
-//! is oversized in the GUI (`GuiItemAtlas` draws each item into a scissored
-//! 16x16 slot; oversized items get a picture-in-picture of their bounds).
+//! is oversized in the GUI (`GuiRenderer` draws each item into a scissored
+//! 16x16 slot of its items atlas; oversized items get a picture-in-picture
+//! of their bounds — `GuiItemRenderState.oversizedItemBounds`).
 use super::{Foil, Glint, ItemQuad, ItemRenderState, ItemRenderer, SpecialHost};
 use crate::cit::Rule;
 use crate::cit_glint::StackGlint;
@@ -441,7 +442,7 @@ pub fn banner_result_pose(x0: f32, y0: f32) -> Mat4 {
         * Mat4::from_translation(Vec3::new(0.0, 0.25, 0.0))
 }
 
-/// The quads of `GuiGraphicsExtractor.bannerPattern` (the loom's result
+/// The quads of `GuiGraphics.submitBannerPatternRenderState` (the loom's result
 /// preview) at `(x0, y0)`: base dye and `(texture, dye)` layers.
 pub fn banner_result_quads(
     renderer: &ItemRenderer,
@@ -517,7 +518,7 @@ pub fn enchanting_book_pages(flip: f32) -> (f32, f32) {
     (page(0.25), page(0.75))
 }
 
-/// `GuiGraphicsExtractor.book` from `EnchantmentScreen.extractBook`: the
+/// `GuiGraphics.submitBookModelRenderState` from `EnchantmentScreen.extractBook`: the
 /// enchanting table's book, `open` (0 to 1) and turning its pages with
 /// `flip`, in the 38x31 box at `(x0, y0)`.
 pub fn draw_enchanting_book(

@@ -9,6 +9,10 @@ use std::io;
 
 pub trait LiquidCollisionWorld {
     type Error;
+    /// The 26.x per-entity liquid shape (`LivingEntity.getLiquidCollisionShape`).
+    /// 1.21.10 uses the fixed `SHAPE_STABLE` instead, so `shape` no longer
+    /// calls this; it stays for the collision-context fixture until the
+    /// 26.3-based oracle is reworked for 1.21.10 (T4).
     fn entity_liquid_shape(&mut self, entity: EntityIdentity) -> Result<VoxelShape, Self::Error>;
     fn fluid(&mut self, position: BlockPos) -> Result<FluidState, Self::Error>;
     fn entity_can_stand(
@@ -16,6 +20,12 @@ pub trait LiquidCollisionWorld {
         entity: EntityIdentity,
         fluid: FluidState,
     ) -> Result<bool, Self::Error>;
+}
+
+/// `LiquidBlock.SHAPE_STABLE`: the bottom half of the block
+/// (`Block.column(16.0, 0.0, 8.0)`).
+fn shape_stable() -> VoxelShape {
+    VoxelShape::from_cube([1, 2, 1], &[true, false]).expect("a valid half-block column")
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -32,6 +42,9 @@ impl LiquidCollision {
         }))
     }
 
+    /// `LiquidBlock.getCollisionShape` in 1.21.10: the fixed `SHAPE_STABLE`
+    /// for any context above it that can stand on the fluid (26.x gated on
+    /// a living entity and asked it for its own shape).
     pub fn shape<W: LiquidCollisionWorld>(
         &self,
         world: &mut W,
@@ -44,10 +57,7 @@ impl LiquidCollision {
         if !self.fluid.is_source() {
             return Ok(VoxelShape::empty());
         }
-        let Some(entity) = context.living_entity() else {
-            return Ok(VoxelShape::empty());
-        };
-        let shape = world.entity_liquid_shape(entity)?;
+        let shape = shape_stable();
         if context.is_above(&shape, position, true) {
             // The above-block query precedes the entity callback, even if the
             // candidate shape is empty or the two fluid types are equivalent.

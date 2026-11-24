@@ -183,7 +183,7 @@ pub fn fill_common_defaults(tag: &mut Tag) {
     }
 }
 
-/// The mobs that save `Age` and `AgeLocked`.
+/// The mobs that save `Age`.
 fn saves_age(s: crate::mobs::Species) -> bool {
     use crate::mobs::{Species, finalize::ageable, species::can_be_a_baby};
     s == Species::Tadpole || (ageable(s) && can_be_a_baby(s))
@@ -656,25 +656,46 @@ pub fn mob_to_nbt(
             Tag::Long(m.extra.death_loot_seed),
         );
     }
-    // `NeutralMob.addPersistentAngerSaveData`: the anger ends at an
-    // absolute game time, and the target is the entity the mob is angry at.
+    // `NeutralMob.addPersistentAngerSaveData`: the anger's remaining ticks
+    // (`AngerTime`), and the target is the entity the mob is angry at
+    // (`AngryAt`). 1.21.10 has no absolute anger end time.
     if persistent_anger(m.species()) {
         put(
             &mut tag,
-            "anger_end_time",
-            // The absolute value as it is, also zero or one already past.
-            Tag::Long(m.extra.anger_end),
+            "AngerTime",
+            // The countdown as it is, also zero when the mob is calm.
+            Tag::Int(m.extra.anger),
         );
-        // `angry_at` only while there is an anger target: the UUID of the one
+        // `AngryAt` only while there is an anger target: the UUID of the one
         // the level has (`uuid_of`). A mob target read from the save that is
         // not in the world (`Who::Mob(0)`) keeps the loaded UUID.
         match m.extra.angry_at {
             Some(crate::mobs::Who::Mob(0)) => {}
             target => match target.and_then(|who| who_uuid(who, &mut uuid_of)) {
-                Some(uuid) => put(&mut tag, "angry_at", Tag::IntArray(uuid.to_vec())),
+                Some(uuid) => put(&mut tag, "AngryAt", Tag::IntArray(uuid.to_vec())),
                 None => {
                     if let Tag::Compound(map) = &mut tag {
-                        map.remove(&"angry_at".into());
+                        map.remove(&"AngryAt".into());
+                    }
+                }
+            },
+        }
+    }
+    // The bee keeps its own anger (`BeeState`): the same `AngerTime` +
+    // `AngryAt`, read from the bee's fields instead of `Extra`.
+    if m.species() == S::Bee {
+        put(
+            &mut tag,
+            "AngerTime",
+            Tag::Int(crate::mobs::bee::anger_left(m)),
+        );
+        match crate::mobs::bee::anger_target(m) {
+            Some(crate::mobs::Who::Mob(0)) => {}
+            target => match target.and_then(|who| who_uuid(who, &mut uuid_of)) {
+                Some(uuid) => put(&mut tag, "AngryAt", Tag::IntArray(uuid.to_vec())),
+                None => {
+                    if let Tag::Compound(map) = &mut tag {
+                        map.remove(&"AngryAt".into());
                     }
                 }
             },
@@ -808,10 +829,6 @@ pub fn mob_to_nbt(
     ] {
         map.entry(key.into()).or_insert(value);
     }
-    map.insert(
-        "current_impulse_context_reset_grace_time".into(),
-        Tag::Int(m.impulse_grace_time),
-    );
     // What the mob's class saves: a content mod's living type saves as its
     // template does (the `id` written above stays its own).
     let id = m.kind.class_id();
@@ -820,7 +837,6 @@ pub fn mob_to_nbt(
     let species = m.species();
     if saves_age(species) {
         map.insert("Age".into(), Tag::Int(m.extra.age));
-        map.insert("AgeLocked".into(), Tag::Byte(i8::from(m.extra.age_locked)));
         if species != crate::mobs::Species::Tadpole {
             map.insert("ForcedAge".into(), Tag::Int(m.extra.forced_age));
         }
@@ -829,7 +845,7 @@ pub fn mob_to_nbt(
         // false — the frog, the parrot, the zombie nautilus, the camel husk,
         // the slime and the magma cube: drop the ignored values a raw input
         // compound carried rather than writing them back out.
-        for key in ["Age", "ForcedAge", "AgeLocked"] {
+        for key in ["Age", "ForcedAge"] {
             map.remove(&key.into());
         }
     }
@@ -1141,8 +1157,6 @@ pub fn mob_to_nbt(
         }
         "minecraft:villager" => {
             map.insert("VillagerData".into(), villager_data(m));
-            // A loaded villager with VillagerData is finalized.
-            map.insert("VillagerDataFinalized".into(), Tag::Byte(1));
             let t = m.extra.trade.as_deref().cloned().unwrap_or_default();
             map.insert("Xp".into(), Tag::Int(t.xp));
             map.insert("LastRestock".into(), Tag::Long(t.last_restock));
@@ -1227,7 +1241,7 @@ pub fn mob_to_nbt(
             );
             let mut memories: Vec<(&str, Tag)> = Vec::new();
             if m.extra.tame {
-                // `MemorySlot.visit`: the time to live only when it can expire.
+                // `ExpirableValue.codec`: the time to live only when it can expire.
                 let mut liked = vec![(
                     "value",
                     Tag::IntArray(m.extra.owner.unwrap_or([0, 0, 0, 1]).to_vec()),
@@ -1315,7 +1329,7 @@ pub fn mob_to_nbt(
         }
         // `Warden.addAdditionalSaveData`: the anger - one `{uuid, anger}` pair
         // per suspect - and the vibration listener, and nothing else. A warden
-        // is no `NeutralMob`, so there is no `angry_at` or `anger_end_time`: the
+        // is no `NeutralMob`, so there is no `AngryAt` or `AngerTime`: the
         // entity a suspect is is named by its UUID, not by a live id.
         "minecraft:warden" => {
             if let Some(st) = &m.extra.warden {
@@ -1510,7 +1524,7 @@ pub fn mob_to_nbt(
             | "minecraft:zombified_piglin"
             | "minecraft:enderman"
     ) {
-        map.entry("anger_end_time".into()).or_insert(Tag::Long(-1));
+        map.entry("AngerTime".into()).or_insert(Tag::Int(0));
     }
     if let Some(a) = m.extra.attributes.as_deref() {
         put_attributes(map, m, a);
@@ -2055,25 +2069,33 @@ pub fn mob_from_nbt_with_random(
         m.extra.set_main_hand(None);
     }
     m.death_time = number(tag.get("DeathTime")).unwrap_or(0) as i32;
-    m.impulse_grace_time =
-        number(tag.get("current_impulse_context_reset_grace_time")).unwrap_or(0) as i32;
     // Mob.readAdditionalSaveData overrides what the constructor set (copper
     // golems and elder guardians start persistent).
     m.persistent = flag(tag, "PersistenceRequired");
     m.extra.death_loot_table = text(tag.get("DeathLootTable"))
         .and_then(|t| horizon_client_core::identifier::normalize_id(&t));
     m.extra.death_loot_seed = number(tag.get("DeathLootTableSeed")).unwrap_or(0);
-    // `NeutralMob.readPersistentAngerSaveData`: the anger end time and the
-    // target come back with the mob.
+    // `NeutralMob.readPersistentAngerSaveData`: the remaining anger ticks
+    // and the target come back with the mob.
     if persistent_anger(m.species()) {
-        m.extra.anger_end = number(tag.get("anger_end_time")).unwrap_or(-1);
+        m.extra.anger = number(tag.get("AngerTime")).unwrap_or(0) as i32;
         // Anger at an entity other than the player is anger at a mob that may
         // not be here (`EntityReference`): it still is not `isAngryAtAllPlayers`.
-        m.extra.angry_at = match uuid_from_tag(tag.get("angry_at")) {
+        m.extra.angry_at = match uuid_from_tag(tag.get("AngryAt")) {
             Some(uuid) if uuid == player_uuid() => Some(crate::mobs::Who::Player),
             Some(_) => Some(crate::mobs::Who::Mob(0)),
             None => None,
         };
+    }
+    // The bee keeps its own anger (`BeeState`), read the same way.
+    if m.species() == crate::mobs::Species::Bee {
+        let anger = number(tag.get("AngerTime")).unwrap_or(0) as i32;
+        let angry_at = match uuid_from_tag(tag.get("AngryAt")) {
+            Some(uuid) if uuid == player_uuid() => Some(crate::mobs::Who::Player),
+            Some(_) => Some(crate::mobs::Who::Mob(0)),
+            None => None,
+        };
+        crate::mobs::bee::set_anger(&mut m, anger, angry_at);
     }
     // `Mannequin.readAdditionalSaveData`: the profile comes back with the skin, then
     // validated pose, `immovable`, `hide_description` and `description` (`updateDescription`).
@@ -2139,7 +2161,6 @@ pub fn mob_from_nbt_with_random(
     if saves_age(m.species()) {
         m.extra.age = tag.get("Age").and_then(int_value).unwrap_or(0);
         m.extra.forced_age = tag.get("ForcedAge").and_then(int_value).unwrap_or(0);
-        m.extra.age_locked = flag(tag, "AgeLocked");
     }
     if is_animal(&m.kind.id) {
         m.extra.in_love = tag.get("InLove").and_then(int_value).unwrap_or(0);
@@ -2465,7 +2486,8 @@ pub fn mob_from_nbt_with_random(
             .and_then(|v| crate::save::uuid_from_tag(Some(v)));
         // `Brain.readAdditionalSaveData`: a memory saved with a time to live
         // (`Codec.LONG`, read from any integer tag). `Long.MAX_VALUE` is
-        // `MemorySlot.NEVER_EXPIRE`: that memory never expires.
+        // the never-expire sentinel (`ExpirableValue.of` uses it): that
+        // memory never expires.
         if let Some(st) = m.extra.allay.as_mut() {
             st.liked_player_ttl = liked
                 .and_then(|l| match l.get("ttl")? {
@@ -3864,7 +3886,6 @@ pub fn armor_stand_to_nbt(a: &ArmorStand, uuid: [i32; 4], raw: Option<&Tag>) -> 
             ("DeathTime", Tag::Short(0)),
             ("AbsorptionAmount", Tag::Float(0)),
             ("FallFlying", Tag::Byte(0)),
-            ("current_impulse_context_reset_grace_time", Tag::Int(0)),
             // AttributeMap.pack: the movement_speed instance the stand's first
             // tick makes (removeFrost), at the registry default.
             (
@@ -4435,7 +4456,7 @@ mod tests {
             ("UUID", Tag::IntArray(vec![9, 9, 9, 9])),
             ("Owner", Tag::IntArray(old.to_vec())),
             ("Thrower", Tag::IntArray(old.to_vec())),
-            ("angry_at", Tag::IntArray(old.to_vec())),
+            ("AngryAt", Tag::IntArray(old.to_vec())),
             (
                 "Trusted",
                 Tag::List(vec![
@@ -4452,7 +4473,7 @@ mod tests {
         migrate_player_uuid(&mut tag, old, new);
         assert_eq!(tag.get("Owner"), Some(&Tag::IntArray(new.to_vec())));
         assert_eq!(tag.get("Thrower"), Some(&Tag::IntArray(new.to_vec())));
-        assert_eq!(tag.get("angry_at"), Some(&Tag::IntArray(new.to_vec())));
+        assert_eq!(tag.get("AngryAt"), Some(&Tag::IntArray(new.to_vec())));
         assert_eq!(
             tag.get("Trusted"),
             Some(&Tag::List(vec![
@@ -4590,20 +4611,14 @@ mod tests {
             let mut mob = Mob::new(1, kind, Vec3::ZERO, 0.0);
             mob.extra.age = -123;
             mob.extra.forced_age = 19;
-            mob.extra.age_locked = true;
             let raw = Tag::compound([
                 ("Age", Tag::Int(37)),
                 ("ForcedAge", Tag::Int(99)),
-                ("AgeLocked", Tag::Byte(0)),
                 ("audit:unrelated", Tag::Int(7)),
             ]);
             for base in [None, Some(&raw)] {
                 let saved = mob_to_nbt(&mob, [0; 4], base, None, |_| None);
-                for (key, expected) in [
-                    ("Age", Tag::Int(-123)),
-                    ("ForcedAge", Tag::Int(19)),
-                    ("AgeLocked", Tag::Byte(1)),
-                ] {
+                for (key, expected) in [("Age", Tag::Int(-123)), ("ForcedAge", Tag::Int(19))] {
                     if species == Species::ZombieNautilus {
                         assert!(saved.get(key).is_none(), "{id}: {key}");
                     } else {
@@ -5732,7 +5747,6 @@ mod tests {
                 ("Pos", doubles(&[4.5, 200.0, 4.5])),
                 ("NoAI", Tag::Byte(1)),
                 ("NoGravity", Tag::Byte(1)),
-                ("AgeLocked", Tag::Byte(1)),
                 ("Unrelated", string("keep")),
             ]);
             if let Some(value) = input.as_ref() {
@@ -5746,7 +5760,7 @@ mod tests {
                 (expected, expected, expected),
                 "{input:?}"
             );
-            assert!(mob.no_ai && mob.no_gravity && mob.extra.age_locked);
+            assert!(mob.no_ai && mob.no_gravity);
             for source in [None, Some(&raw)] {
                 let saved = mob_to_nbt(&mob, [0, 0, 0, 55], source, None, |_| None);
                 for key in ["Age", "ForcedAge", "InLove"] {
@@ -5757,7 +5771,6 @@ mod tests {
                     );
                 }
                 assert_eq!(saved.get("NoAI"), Some(&Tag::Byte(1)));
-                assert_eq!(saved.get("AgeLocked"), Some(&Tag::Byte(1)));
                 assert_eq!(
                     saved.get("Unrelated"),
                     source.and_then(|tag| tag.get("Unrelated"))
@@ -6215,11 +6228,6 @@ pub fn bucket_data(m: &Mob) -> Tag {
         crate::mobs::Species::Axolotl | crate::mobs::Species::Tadpole
     ) {
         put(&mut data, "Age", Tag::Int(m.extra.age));
-        put(
-            &mut data,
-            "AgeLocked",
-            Tag::Byte(i8::from(m.extra.age_locked)),
-        );
     }
     for (key, on) in [
         ("NoAI", m.no_ai),
@@ -6239,11 +6247,6 @@ pub fn bucket_data(m: &Mob) -> Tag {
     // SulfurCube.saveToBucketTag: after the default data, its age.
     if m.species() == crate::mobs::Species::SulfurCube {
         put(&mut data, "age", Tag::Int(m.extra.age));
-        put(
-            &mut data,
-            "age_locked",
-            Tag::Byte(i8::from(m.extra.age_locked)),
-        );
     }
     data
 }
@@ -6310,9 +6313,6 @@ pub fn apply_item_components(m: &mut Mob, stack: &crate::items::ItemStack) {
     if let Some(data) = components.other("minecraft:bucket_entity_data") {
         if let Some(v) = number(data.get("Age")) {
             m.extra.age = v as i32;
-        }
-        if let Some(v) = number(data.get("AgeLocked")) {
-            m.extra.age_locked = v != 0;
         }
         // Keep old Horizon buckets readable; the modern component below takes precedence.
         if let Some(v) = number(data.get("Variant")) {
@@ -6381,23 +6381,14 @@ pub fn apply_item_components(m: &mut Mob, stack: &crate::items::ItemStack) {
             m.extra.variant3 = id as u8;
         }
     }
-    // Chicken, Cow and Pig.applyImplicitComponents: their variant and sound
-    // variant components, both registry names (`minecraft:warm`,
-    // `minecraft:picky`).
+    // Chicken, Cow and Pig.applyImplicitComponents: their variant component
+    // (a registry name like `minecraft:warm`). 1.21.10 has no sound-variant
+    // components for them, so the sound side stays None.
     let species = m.species();
     let (variant, sound) = match species {
-        crate::mobs::Species::Chicken => (
-            Some("minecraft:chicken/variant"),
-            Some("minecraft:chicken/sound_variant"),
-        ),
-        crate::mobs::Species::Cow => (
-            Some("minecraft:cow/variant"),
-            Some("minecraft:cow/sound_variant"),
-        ),
-        crate::mobs::Species::Pig => (
-            Some("minecraft:pig/variant"),
-            Some("minecraft:pig/sound_variant"),
-        ),
+        crate::mobs::Species::Chicken => (Some("minecraft:chicken/variant"), None),
+        crate::mobs::Species::Cow => (Some("minecraft:cow/variant"), None),
+        crate::mobs::Species::Pig => (Some("minecraft:pig/variant"), None),
         // ZombieNautilus.applyImplicitComponents: the variant only.
         crate::mobs::Species::ZombieNautilus => (Some("minecraft:zombie_nautilus/variant"), None),
         // Fox and Frog.applyImplicitComponent: `setVariant` from the component
@@ -6599,7 +6590,6 @@ mod axolotl_nbt_tests {
         crate::mobs::animal_brain::set_hunting_cooldown(&mut m, 123);
         m.extra.variant = 4;
         m.extra.age = -24000;
-        m.extra.age_locked = true;
         m.no_ai = true;
         m.silent = true;
         m.no_gravity = true;
@@ -6656,14 +6646,7 @@ mod axolotl_nbt_tests {
             crate::mobs::animal_brain::hunting_cooldown(&restored),
             Some(123)
         );
-        assert_eq!(
-            (
-                restored.extra.variant,
-                restored.extra.age,
-                restored.extra.age_locked
-            ),
-            (4, -24000, true)
-        );
+        assert_eq!((restored.extra.variant, restored.extra.age), (4, -24000));
         assert!(
             restored.no_ai
                 && restored.silent
@@ -7085,7 +7068,7 @@ mod sheep_nbt_tests {
     }
 
     #[test]
-    fn farm_animals_keep_their_variant_and_sound_variant() {
+    fn farm_animals_keep_their_variant_and_wolves_their_sound_variant() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../.local/horizon-client")
             .join(horizon_core::VANILLA_VERSION);
@@ -7109,20 +7092,29 @@ mod sheep_nbt_tests {
             text(tag.get("variant")).as_deref(),
             Some("minecraft:temperate")
         );
-        assert_eq!(
-            text(tag.get("sound_variant")).as_deref(),
-            Some("minecraft:classic")
-        );
-        // Spawned in a warm biome with the mini sounds.
+        // 1.21.10 pigs have no sound variant: none is saved, even if one was set.
+        assert_eq!(text(tag.get("sound_variant")).as_deref(), None);
         (m.extra.variant, m.extra.sound_variant) = (1, Some(2));
         let tag = mob_to_nbt(&m, [1, 2, 3, 4], None, None, |_| None);
         assert_eq!(text(tag.get("variant")).as_deref(), Some("minecraft:warm"));
+        assert_eq!(text(tag.get("sound_variant")).as_deref(), None);
+        let back = mob_from_nbt(&tag, &types, 2, None).unwrap();
+        assert_eq!((back.extra.variant, back.extra.sound_variant), (1, None));
+        // A wolf keeps its sound variant through the save.
+        let mut wolf = Mob::new(
+            2,
+            types["minecraft:wolf"].clone(),
+            Vec3::new(0.0, 4.0, 0.0),
+            0.0,
+        );
+        wolf.extra.sound_variant = Some(3);
+        let tag = mob_to_nbt(&wolf, [1, 2, 3, 4], None, None, |_| None);
         assert_eq!(
             text(tag.get("sound_variant")).as_deref(),
-            Some("minecraft:mini")
+            Some("minecraft:cute")
         );
         let back = mob_from_nbt(&tag, &types, 2, None).unwrap();
-        assert_eq!((back.extra.variant, back.extra.sound_variant), (1, Some(2)));
+        assert_eq!(back.extra.sound_variant, Some(3));
         let mut hen = Mob::new(
             3,
             types["minecraft:chicken"].clone(),
@@ -7134,22 +7126,14 @@ mod sheep_nbt_tests {
         assert_eq!(text(tag.get("variant")).as_deref(), Some("minecraft:cold"));
         let back = mob_from_nbt(&tag, &types, 4, None).unwrap();
         assert_eq!((back.extra.variant, back.extra.egg_time), (2, 7795));
-        // The sound variants are indices into the registries finalizeSpawn draws from.
+        // The wolf sound variants are indices into the registry finalizeSpawn draws from.
         use crate::mobs::{Species, finalize};
         let registries = finalize::SpawnRegistries::load(&root);
-        for (species, registry) in [
-            (Species::Pig, &registries.pig_sound),
-            (Species::Cow, &registries.cow_sound),
-            (Species::Chicken, &registries.chicken_sound),
-            (Species::Cat, &registries.cat_sound),
-            (Species::Wolf, &registries.wolf_sound),
-        ] {
-            assert_eq!(
-                finalize::sound_variants(species),
-                registry.names,
-                "{species:?}"
-            );
-        }
+        assert_eq!(
+            finalize::sound_variants(Species::Wolf),
+            registries.wolf_sound.names,
+            "wolf"
+        );
     }
 
     #[test]
@@ -7212,8 +7196,11 @@ mod sheep_nbt_tests {
         assert_eq!(m.extra.age, -21359);
         let tag = mob_to_nbt(&m, [1, 2, 3, 4], None, None, |_| None);
         assert_eq!(number(tag.get("Age")), Some(-21359));
-        assert_eq!(number(tag.get("AgeLocked")), Some(0));
-        assert_eq!(number(tag.get("VillagerDataFinalized")), Some(1));
+        // 1.21.10 drops `AgeLocked`: `AgeableMob` no longer writes it.
+        assert!(tag.get("AgeLocked").is_none());
+        // 1.21.10 drops `VillagerDataFinalized`: `Villager` no longer
+        // writes it, and the finalize gate moved to the spawn reason.
+        assert!(tag.get("VillagerDataFinalized").is_none());
     }
 
     /// `Dolphin.addAdditionalSaveData`: a fed dolphin stays fed and a wet one
@@ -8260,8 +8247,8 @@ mod fireball_nbt_tests {
 mod neutral_anger_tests {
     use super::*;
 
-    /// #2784: a neutral mob's anger survives the save: the anger ends at an
-    /// absolute game time and the target comes back with it
+    /// #2784: a neutral mob's anger survives the save: the remaining ticks
+    /// (`AngerTime`) and the target (`AngryAt`) come back with it
     /// (`NeutralMob.addPersistentAngerSaveData` / `readPersistentAngerSaveData`).
     #[test]
     fn a_neutral_mobs_anger_survives_the_save() {
@@ -8284,43 +8271,38 @@ mod neutral_anger_tests {
             0.0,
         );
         m.extra.anger = 400;
-        m.extra.anger_end = 3000;
         m.extra.angry_at = Some(crate::mobs::Who::Player);
         let tag = mob_to_nbt(&m, [1, 2, 3, 4], None, None, |_| None);
-        assert_eq!(number(tag.get("anger_end_time")), Some(3000));
-        assert!(tag.get("angry_at").is_some());
+        assert_eq!(tag.get("AngerTime"), Some(&Tag::Int(400)));
+        assert!(tag.get("AngryAt").is_some());
         let back = mob_from_nbt(&tag, &types, 2, None).unwrap();
-        assert_eq!(back.extra.anger_end, 3000);
+        assert_eq!(back.extra.anger, 400);
         assert_eq!(back.extra.angry_at, Some(crate::mobs::Who::Player));
         // An iron golem angry at a monster: the target's UUID comes back as
         // anger at a mob (not at every player under universal_anger), and is
         // written back as it was read.
         let mut golem = Mob::new(4, types["minecraft:iron_golem"].clone(), Vec3::ZERO, 0.0);
         golem.extra.anger = 400;
-        golem.extra.anger_end = 3000;
         let mut raw = mob_to_nbt(&golem, [1, 2, 3, 6], None, None, |_| None);
         if let Tag::Compound(map) = &mut raw {
-            map.insert("angry_at".into(), Tag::IntArray(vec![9, 8, 7, 6]));
+            map.insert("AngryAt".into(), Tag::IntArray(vec![9, 8, 7, 6]));
         }
         let back = mob_from_nbt(&raw, &types, 5, None).unwrap();
         assert_eq!(back.extra.angry_at, Some(crate::mobs::Who::Mob(0)));
         let again = mob_to_nbt(&back, [1, 2, 3, 6], Some(&raw), None, |_| None);
         assert_eq!(
-            crate::save::uuid_from_tag(again.get("angry_at")),
+            crate::save::uuid_from_tag(again.get("AngryAt")),
             Some([9, 8, 7, 6])
         );
         // Once the anger is over (`stopBeingAngry`), the loaded target goes.
         let mut calm = back.clone();
         calm.extra.angry_at = None;
         let again = mob_to_nbt(&calm, [1, 2, 3, 6], Some(&raw), None, |_| None);
-        assert!(again.get("angry_at").is_none());
+        assert!(again.get("AngryAt").is_none());
         // A mob that is no NeutralMob writes no anger.
         let pig = Mob::new(3, types["minecraft:pig"].clone(), Vec3::ZERO, 0.0);
         let tag = mob_to_nbt(&pig, [1, 2, 3, 5], None, None, |_| None);
-        assert!(tag.get("anger_end_time").is_none());
-        // The anger that is left when the mob comes back.
-        assert_eq!(crate::mobs::anger_left(3000, 1000), 2000);
-        assert_eq!(crate::mobs::anger_left(3000, 4000), 0);
+        assert!(tag.get("AngerTime").is_none());
     }
 }
 
@@ -8329,7 +8311,7 @@ mod uuid_bridge_tests {
     use super::*;
     use crate::mobs::{Species, sensor_scan_tests::kind};
 
-    /// A wolf, whose anger is `NeutralMob`'s, so its save carries `angry_at`.
+    /// A wolf, whose anger is `NeutralMob`'s, so its save carries `AngryAt`.
     /// No resources are needed: only the species decides that.
     fn wolf(id: u32) -> Mob {
         let mut kind = (*kind()).clone();
@@ -8337,7 +8319,6 @@ mod uuid_bridge_tests {
         kind.species = Species::Wolf;
         let mut m = Mob::new(id, Arc::new(kind), Vec3::ZERO, 0.0);
         m.extra.anger = 400;
-        m.extra.anger_end = 3000;
         m
     }
 
@@ -8351,19 +8332,19 @@ mod uuid_bridge_tests {
         let tag = mob_to_nbt(&m, [1, 2, 3, 4], None, None, |id| {
             (id == 7).then_some(target)
         });
-        assert_eq!(tag.get("angry_at"), Some(&Tag::IntArray(target.to_vec())));
-        assert_eq!(number(tag.get("anger_end_time")), Some(3000));
+        assert_eq!(tag.get("AngryAt"), Some(&Tag::IntArray(target.to_vec())));
+        assert_eq!(tag.get("AngerTime"), Some(&Tag::Int(400)));
     }
 
     /// A target the map does not know (a mob that left the level) is not named:
     /// nothing is written rather than a made-up UUID no entity answers for.
     #[test]
-    fn an_unknown_anger_target_writes_no_angry_at() {
+    fn an_unknown_anger_target_writes_no_target() {
         let mut m = wolf(1);
         m.extra.angry_at = Some(Who::Mob(7));
         let tag = mob_to_nbt(&m, [1, 2, 3, 4], None, None, |_| None);
-        assert_eq!(tag.get("angry_at"), None);
-        assert_eq!(number(tag.get("anger_end_time")), Some(3000));
+        assert_eq!(tag.get("AngryAt"), None);
+        assert_eq!(tag.get("AngerTime"), Some(&Tag::Int(400)));
     }
 
     /// The player is not an id: its UUID needs no map from the caller.
@@ -8373,7 +8354,7 @@ mod uuid_bridge_tests {
         m.extra.angry_at = Some(Who::Player);
         let tag = mob_to_nbt(&m, [1, 2, 3, 4], None, None, |_| None);
         assert_eq!(
-            tag.get("angry_at"),
+            tag.get("AngryAt"),
             Some(&Tag::IntArray(player_uuid().to_vec()))
         );
     }
@@ -8393,7 +8374,7 @@ mod uuid_bridge_tests {
         let uuids: HashMap<u32, [i32; 4]> = HashMap::from([(1, wolf_uuid), (9, pig_uuid)]);
         wolf.extra.angry_at = Some(Who::Mob(pig.id));
         let tag = mob_to_nbt(&wolf, wolf_uuid, None, None, |id| uuids.get(&id).copied());
-        let Some(Tag::IntArray(stored)) = tag.get("angry_at") else {
+        let Some(Tag::IntArray(stored)) = tag.get("AngryAt") else {
             panic!("anger at a mob is saved as that mob's UUID");
         };
         assert_eq!(stored, &pig_uuid.to_vec());
@@ -8475,8 +8456,8 @@ mod warden_anger_tests {
             (id == 7).then_some(pig_uuid)
         });
         // A warden is no `NeutralMob`: neither of its keys is written.
-        assert!(tag.get("angry_at").is_none());
-        assert!(tag.get("anger_end_time").is_none());
+        assert!(tag.get("AngryAt").is_none());
+        assert!(tag.get("AngerTime").is_none());
         let stored = tag.get("anger").and_then(|t| t.get("suspects"));
         let Some(Tag::List(pairs)) = stored else {
             panic!("the anger is saved as a suspects list");

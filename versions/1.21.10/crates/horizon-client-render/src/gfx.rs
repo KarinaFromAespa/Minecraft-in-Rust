@@ -67,12 +67,12 @@ mod weather;
 mod world_text;
 use entity_batch::EntityBatch;
 pub use entity_batch::{
-    ADDITIVE_PARTICLE_OVERLAY, DISSOLVE_OVERLAY, DRAGON_RAYS_OVERLAY, ENERGY_SWIRL_OVERLAY,
-    FLUID_OVERLAY, OIT_ENTITY, SHADOW_OVERLAY, TERRAIN_MODEL_CUTOUT_MIPPED_OVERLAY,
-    TERRAIN_MODEL_CUTOUT_OVERLAY, TERRAIN_MODEL_SOLID_OVERLAY, TEXT_POLYGON_OFFSET_OVERLAY,
-    TRANSLUCENT_GLINT_ITEM_OVERLAY, TRANSLUCENT_ITEM_OVERLAY, TRANSLUCENT_PARTICLE_OVERLAY,
-    WATER_MASK_OVERLAY, WORLD_TEXT_OVERLAY, WORLD_TEXT_POLYGON_OFFSET_OVERLAY, is_native_terrain,
-    mark_oit,
+    ADDITIVE_PARTICLE_OVERLAY, DISSOLVE_HURT_OVERLAY, DISSOLVE_OVERLAY, DRAGON_EXPLOSION_OVERLAY,
+    DRAGON_RAYS_OVERLAY, ENERGY_SWIRL_OVERLAY, FLUID_OVERLAY, OIT_ENTITY, SHADOW_OVERLAY,
+    TERRAIN_MODEL_CUTOUT_MIPPED_OVERLAY, TERRAIN_MODEL_CUTOUT_OVERLAY, TERRAIN_MODEL_SOLID_OVERLAY,
+    TEXT_POLYGON_OFFSET_OVERLAY, TRANSLUCENT_GLINT_ITEM_OVERLAY, TRANSLUCENT_ITEM_OVERLAY,
+    TRANSLUCENT_PARTICLE_OVERLAY, WATER_MASK_OVERLAY, WORLD_TEXT_OVERLAY,
+    WORLD_TEXT_POLYGON_OFFSET_OVERLAY, is_native_terrain, mark_oit,
 };
 pub use view::{View, ViewSet};
 
@@ -1101,7 +1101,7 @@ pub struct Frame<'a> {
     pub night_vision: f32,
     /// Torch flicker added to the block light factor of 1.4.
     pub block_flicker: f32,
-    /// `lightmap.fsh` BossOverlayWorldDarkeningFactor (a wither's bar).
+    /// `lightmap.fsh` DarkenWorldFactor (a wither's bar).
     pub boss_darken: f32,
     /// `Screen.extractBlurredBackground`: blur the frame by this radius
     /// (`menuBackgroundBlurriness`) before the screen is drawn over it.
@@ -3475,8 +3475,9 @@ impl Renderer {
             true,
             Some(alpha_blend),
         );
-        // RenderPipelines.LINES: DepthStencilState.DEFAULT, so an opaque hitbox or
-        // chunk border keeps the water and clouds drawn after it behind it.
+        // RenderPipelines.LINES: depth test and write, the RenderPipeline builder's
+        // default in 1.21.10, so an opaque hitbox or chunk border keeps the water and
+        // clouds drawn after it behind it.
         let debug_lines_opaque = pipeline(
             "Debug lines opaque",
             "vs_debug_line",
@@ -4534,8 +4535,8 @@ impl Renderer {
             cache: None,
         };
         let additive_pipeline = kept.create_render_pipeline(&additive_descriptor);
-        // `RenderPipelines.DRAGON_RAYS` uses DepthStencilState.DEFAULT:
-        // unlike eyes, a ray hides the faces and rays behind it.
+        // `RenderPipelines.DRAGON_RAYS` keeps the RenderPipeline builder's default
+        // depth test and write: unlike eyes, a ray hides the faces and rays behind it.
         let dragon_rays_pipeline = kept.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Dragon death rays"),
             primitive: wgpu::PrimitiveState {
@@ -7892,6 +7893,65 @@ impl Renderer {
         let aspect = self.config.width as f32 / self.config.height.max(1) as f32;
         View::screen(yaw, pitch, fov_degrees, aspect, far)
     }
+    /// `lightmap.fsh` (1.21.10): one lightmap pixel, as RGBA bytes, for the
+    /// block level `b` and sky level `s` (0..16).
+    fn lightmap_pixel(
+        sky: &Sky,
+        darkness: f32,
+        gamma: f32,
+        night_vision: f32,
+        flicker: f32,
+        boss_darken: f32,
+        b: u8,
+        s: u8,
+    ) -> [u8; 4] {
+        let brightness = |level: f32| level / (4.0 - 3.0 * level);
+        let block_level = f32::from(b) / 15.0;
+        let sky_level = f32::from(s) / 15.0;
+        let block_brightness = brightness(block_level) * (1.5 + flicker);
+        let sky_brightness = brightness(sky_level) * sky.sky_light_factor;
+        // The block light's cubic tint: yellowish in the middle, white
+        // when saturated (no tint attribute in 1.21.10).
+        let bb = block_brightness;
+        let mut color = Vec3::new(
+            bb,
+            bb * ((bb * 0.6 + 0.4) * 0.6 + 0.4),
+            bb * (bb * bb * 0.6 + 0.4),
+        );
+        color = color.lerp(Vec3::from(sky.ambient_color), sky.ambient_light);
+        color += Vec3::from(sky.sky_light_color) * sky_brightness;
+        color = color.lerp(Vec3::splat(0.75), 0.04);
+        if sky.ambient_light == 0.0 {
+            // A boss bar mixes the light toward 70/60/60% — only where
+            // the dimension has no ambient light.
+            color = color.lerp(color * Vec3::new(0.7, 0.6, 0.6), boss_darken);
+        }
+        if night_vision > 0.0 {
+            // Scale up uniformly until 1.0 is hit by one of the colors.
+            // (The 0.75 mix above keeps every channel above zero, so the
+            // division is safe.)
+            let max_component = color.max_element();
+            if max_component < 1.0 {
+                color = color.lerp(color / max_component, night_vision);
+            }
+        }
+        if sky.ambient_light == 0.0 {
+            color -= Vec3::splat(darkness);
+        }
+        color = color.clamp(Vec3::ZERO, Vec3::ONE);
+        let max = color.max_element().max(1e-6);
+        let inverted = 1.0 - max;
+        let scaled = 1.0 - inverted.powi(4);
+        let not_gamma = color * (scaled / max);
+        color = color.lerp(not_gamma, gamma);
+        color = color.lerp(Vec3::splat(0.75), 0.04);
+        [
+            (color.x * 255.0) as u8,
+            (color.y * 255.0) as u8,
+            (color.z * 255.0) as u8,
+            255,
+        ]
+    }
     fn update_lightmap(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
@@ -7902,36 +7962,22 @@ impl Renderer {
         flicker: f32,
         boss_darken: f32,
     ) {
-        // lightmap.fsh: per (block, sky) level.
-        let brightness = |level: f32| level / (4.0 - 3.0 * level);
+        // lightmap.fsh (1.21.10): per (block, sky) level.
         let mut pixels = [0u8; 16 * 16 * 4];
-        for s in 0..16 {
-            for b in 0..16 {
-                let block_level = b as f32 / 15.0;
-                let sky_level = s as f32 / 15.0;
-                let block_brightness = brightness(block_level) * (1.4 + flicker);
-                let sky_brightness = brightness(sky_level) * sky.sky_light_factor;
-                // NightVisionColor defaults to 0x999999.
-                let mut color =
-                    Vec3::from(sky.ambient_light_color).max(Vec3::splat(0.6 * night_vision));
-                color += Vec3::from(sky.sky_light_color) * sky_brightness;
-                let parabolic = (2.0 * block_level - 1.0).powi(2);
-                let block_color = Vec3::from(sky.block_light_tint).lerp(Vec3::ONE, 0.9 * parabolic);
-                color += block_color * block_brightness;
-                // lightmap.fsh: a boss bar mixes the light toward 70/60/60%.
-                color = color.lerp(color * Vec3::new(0.7, 0.6, 0.6), boss_darken);
-                color -= Vec3::splat(darkness);
-                color = color.clamp(Vec3::ZERO, Vec3::ONE);
-                let max = color.max_element().max(1e-6);
-                let inverted = 1.0 - max;
-                let scaled = 1.0 - inverted.powi(4);
-                let not_gamma = color * (scaled / max);
-                color = color.lerp(not_gamma, gamma);
-                let i = (s * 16 + b) * 4;
-                pixels[i] = (color.x * 255.0) as u8;
-                pixels[i + 1] = (color.y * 255.0) as u8;
-                pixels[i + 2] = (color.z * 255.0) as u8;
-                pixels[i + 3] = 255;
+        for s in 0..16u8 {
+            for b in 0..16u8 {
+                let pixel = Self::lightmap_pixel(
+                    sky,
+                    darkness,
+                    gamma,
+                    night_vision,
+                    flicker,
+                    boss_darken,
+                    b,
+                    s,
+                );
+                let i = (usize::from(s) * 16 + usize::from(b)) * 4;
+                pixels[i..i + 4].copy_from_slice(&pixel);
             }
         }
         if self.fullbright {
@@ -11094,7 +11140,7 @@ impl Renderer {
                 pass.draw_indexed(0..text_quads * 6, (entity_quads * 4) as i32, 0..1);
                 pass.set_bind_group(0, &self.group, &[]);
             }
-            // FeatureRenderDispatcher.PreparedFrame.executeTranslucent: the shadows
+            // FeatureRenderDispatcher.renderAllFeatures: the shadows
             // come before the translucent items, which then cover them (#7026).
             if shadow_quads > 0 && !oit_on {
                 pass.set_pipeline(warped.map_or(&self.shadow_blob_pipeline, |w| &w.entity_shadows));
@@ -13228,6 +13274,38 @@ fn frustum(m: Mat4) -> [Vec4; 6] {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn lightmap_pixels_follow_the_12111_shader() {
+        use super::{Renderer, Sky};
+        // Overworld day, no effects: white sky light, no ambient light.
+        let sky = Sky {
+            sky_light_factor: 1.0,
+            sky_light_color: [1.0; 3],
+            ambient_color: [1.0; 3],
+            ..Sky::default()
+        };
+        let pixel = |b, s| Renderer::lightmap_pixel(&sky, 0.0, 0.0, 0.0, 0.0, 0.0, b, s);
+        // Full block and sky light saturates to white, then the final
+        // 0.75 mix pulls it to 252.
+        assert_eq!(pixel(15, 15), [252, 252, 252, 255]);
+        // No light at all: only the two 0.75 mixes lift the black.
+        assert_eq!(pixel(0, 0), [14, 14, 14, 255]);
+        // Full night vision scales the darkest pixel up to white.
+        assert_eq!(
+            Renderer::lightmap_pixel(&sky, 0.0, 0.0, 1.0, 0.0, 0.0, 0, 0),
+            [252, 252, 252, 255]
+        );
+        // The nether's ambient light (0.1) lifts the darkest pixel.
+        let nether = Sky {
+            ambient_light: 0.1,
+            ..sky
+        };
+        assert_eq!(
+            Renderer::lightmap_pixel(&nether, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0),
+            [38, 38, 38, 255]
+        );
+    }
+
+    #[test]
     fn float_frames_never_schedule_light_mark_passes() {
         use super::{LINEAR_FRAME, WIDE_FRAME, light_marks};
         use wgpu::TextureFormat::{Bgra8Unorm, Rgb10a2Unorm, Rgba8Unorm};
@@ -15052,11 +15130,8 @@ mod sprite_upload_tests {
             .collect();
         let settings: Vec<_> = (0..layers)
             .map(|i| crate::mipmap::Settings {
-                strategy: if i % 2 == 0 {
-                    crate::mipmap::Strategy::Mean
-                } else {
-                    crate::mipmap::Strategy::StrictCutout
-                },
+                has_transparent: i % 2 == 0,
+                dither_cutouts: i % 3 == 0,
                 ..Default::default()
             })
             .collect();
@@ -15121,13 +15196,8 @@ mod sprite_upload_tests {
             .collect();
         let settings: Vec<_> = (0..layers)
             .map(|i| crate::mipmap::Settings {
-                strategy: match i % 3 {
-                    0 => crate::mipmap::Strategy::Mean,
-                    1 => crate::mipmap::Strategy::Cutout,
-                    _ => crate::mipmap::Strategy::DarkCutout,
-                },
-                alpha_cutoff_bias: (i % 4) as f32 / 4.0,
-                item: i % 7 == 0,
+                has_transparent: i % 2 == 0,
+                dither_cutouts: i % 3 == 0,
                 ..Default::default()
             })
             .collect();

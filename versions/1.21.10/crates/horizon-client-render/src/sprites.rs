@@ -94,8 +94,7 @@ struct StillKey {
     frame: u64,
     pbr: u64,
     side: u32,
-    settings: [u32; 2],
-    flags: [bool; 4],
+    flags: [bool; 3],
 }
 
 #[derive(Default)]
@@ -473,17 +472,6 @@ impl Sprites {
             .as_ref()
             .and_then(|m| m.get("animation"))
             .map(|v| v.get().to_owned());
-        // The sheet's `texture` section is each tile's.
-        let texture = texture_section(metadata.as_ref());
-        let strategy = texture
-            .as_ref()
-            .and_then(|t| t["mipmap_strategy"].as_str())
-            .and_then(crate::mipmap::Strategy::parse)
-            .unwrap_or_default();
-        let alpha_cutoff_bias = texture
-            .as_ref()
-            .and_then(|t| t["alpha_cutoff_bias"].as_f64())
-            .unwrap_or(0.0) as f32;
         let (width, height, pixels) = read_rgba(&path)?;
         let side = width / columns.max(1);
         // How far down the next frame of a tile is, and the next row of tiles.
@@ -525,8 +513,6 @@ impl Sprites {
                 let decoded = crate::sprite_cache::Decoded {
                     side,
                     animation: animation.clone().filter(|_| frames.len() > 1),
-                    strategy,
-                    alpha_cutoff_bias,
                     has_transparent: alphas().any(|&a| a == 0),
                     opaque: alphas().all(|&a| a == 255),
                     translucent: alphas().any(|&a| a != 0 && a != 255),
@@ -619,20 +605,10 @@ impl Sprites {
             }
             frames.push(frame);
         }
-        let texture = texture_section(metadata.as_ref());
         Ok(crate::sprite_cache::Decoded {
             side,
             frames,
             animation: animation_text,
-            strategy: texture
-                .as_ref()
-                .and_then(|t| t["mipmap_strategy"].as_str())
-                .and_then(crate::mipmap::Strategy::parse)
-                .unwrap_or_default(),
-            alpha_cutoff_bias: texture
-                .as_ref()
-                .and_then(|t| t["alpha_cutoff_bias"].as_f64())
-                .unwrap_or(0.0) as f32,
             has_transparent: pixels.as_chunks::<4>().0.iter().any(|p| p[3] == 0),
             opaque: pixels.as_chunks::<4>().0.iter().all(|p| p[3] == 255),
             translucent: pixels
@@ -653,8 +629,6 @@ impl Sprites {
             side,
             frames,
             animation: animation_text,
-            strategy,
-            alpha_cutoff_bias,
             has_transparent,
             opaque,
             translucent,
@@ -676,14 +650,7 @@ impl Sprites {
         };
         let settings = crate::mipmap::Settings {
             native_size: side,
-            strategy,
-            alpha_cutoff_bias,
             has_transparent,
-            // Custom Item Textures' ids are all item textures.
-            item: name.starts_with("horizon_cit:")
-                || name
-                    .split_once(':')
-                    .is_some_and(|(_, p)| p.starts_with("item/")),
             dither_cutouts: crate::mipmap::dither_cutouts(),
         };
         let still = (animation.is_none() && frames.len() == 1).then(|| {
@@ -696,11 +663,7 @@ impl Sprites {
                 frame: frame.finish(),
                 pbr: maps.finish(),
                 side,
-                settings: [
-                    settings.strategy as u32,
-                    settings.alpha_cutoff_bias.to_bits(),
-                ],
-                flags: [settings.has_transparent, settings.item, opaque, translucent],
+                flags: [settings.has_transparent, opaque, translucent],
             }
         });
         if let Some(&same) = still.as_ref().and_then(|k| self.still.get(k)) {
@@ -825,16 +788,6 @@ fn pbr_map(
         .collect();
     Some((output_side, frames))
 }
-/// SpriteContents: the `.mcmeta` `texture` section (TextureMetadataSection's
-/// mipmap strategy and alpha cutoff bias).
-fn texture_section(
-    metadata: Option<&BTreeMap<String, Box<serde_json::value::RawValue>>>,
-) -> Option<serde_json::Value> {
-    metadata
-        .and_then(|v| v.get("texture"))
-        .and_then(|v| serde_json::from_str(v.get()).ok())
-}
-
 #[cfg(test)]
 pub(crate) fn test_animation(size: u32, layer: u32) -> SpriteAnimation {
     test_clip(size, layer, r#"{"frametime":1,"frames":[0,1]}"#)
@@ -1134,7 +1087,7 @@ mod tests {
         assert_eq!(red(&second, layer), 20);
     }
     #[test]
-    fn custom_item_textures_mip_as_items() {
+    fn item_and_block_textures_with_the_same_pixels_share_a_layer() {
         let root =
             std::env::temp_dir().join(format!("horizon-sprite-cit-mip-{}", std::process::id()));
         let write = |rel: &str| {
@@ -1143,7 +1096,8 @@ mod tests {
             let mut encoder = png::Encoder::new(File::create(path).unwrap(), 16, 16);
             encoder.set_color(png::ColorType::Rgba);
             encoder.set_depth(png::BitDepth::Eight);
-            // Any pixels: whether a texture mips as an item is part of the shared-layer key.
+            // Any pixels: 1.21.10's `MipmapGenerator` has no item
+            // distinction, so the same pixels mip the same in every atlas.
             let pixels: Vec<u8> = (0..256)
                 .flat_map(|i| [9, 9, 9, if i % 2 == 0 { 255 } else { 0 }])
                 .collect();
@@ -1163,9 +1117,9 @@ mod tests {
             .insert(&root, "horizon_cit:minecraft/optifine/cit/x")
             .unwrap();
         fs::remove_dir_all(&root).unwrap();
-        // The same pixels share a layer only with the same mipmap settings: the CIT texture's
-        // are the item's.
-        assert_ne!(block, item);
+        // The same pixels share a layer whichever atlas they came from:
+        // block, item and CIT all mip the same way in 1.21.10.
+        assert_eq!(block, item);
         assert_eq!(cit, item);
     }
     #[test]
@@ -1266,7 +1220,8 @@ mod tests {
         let one = sprites.insert(&root, "a:block/one").unwrap();
         let copy = sprites.insert(&root, "a:block/copy").unwrap();
         let other = sprites.insert(&root, "a:block/other").unwrap();
-        // The same pixels as an item sprite mip differently: a layer of its own.
+        // The same pixels as an item sprite mip the same way in 1.21.10
+        // (no strategy system), so they share the layer.
         fs::create_dir_all(root.join("assets/a/textures/item")).unwrap();
         fs::copy(
             directory.join("one.png"),
@@ -1275,11 +1230,11 @@ mod tests {
         .unwrap();
         let item = sprites.insert(&root, "a:item/one").unwrap();
         fs::remove_dir_all(&root).unwrap();
-        assert_eq!((one, copy, other, item), (0, 0, 1, 2));
-        assert_eq!((sprites.count(), sprites.layers.len()), (3, 4));
-        assert_eq!((sprites.opaque.len(), sprites.mips.len()), (3, 3));
+        assert_eq!((one, copy, other, item), (0, 0, 1, 0));
+        assert_eq!((sprites.count(), sprites.layers.len()), (2, 4));
+        assert_eq!((sprites.opaque.len(), sprites.mips.len()), (2, 2));
         sprites.finish();
-        assert_eq!(sprites.pixels.len(), 3 * 16 * 16 * 4);
+        assert_eq!(sprites.pixels.len(), 2 * 16 * 16 * 4);
     }
     #[test]
     fn a_32px_only_atlas_does_not_add_an_extra_mipmap() {

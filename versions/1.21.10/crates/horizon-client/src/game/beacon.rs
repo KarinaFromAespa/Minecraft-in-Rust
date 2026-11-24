@@ -618,7 +618,7 @@ impl Game<'_> {
             .gui
             .atlas
             .sprites
-            .get("entity/beacon/beacon_beam")
+            .get("entity/beacon_beam")
             .copied()
         else {
             return;

@@ -3,7 +3,7 @@ use super::*;
 
 impl Game<'_> {
     /// What the cauldron at `pos` answers to `held` on a client, which only
-    /// asks (`CauldronInteractions` acts `if (!level.isClientSide())`). A
+    /// asks (`CauldronInteraction` acts `if (!level.isClientSide())`). A
     /// sneak with something in hand skips `useItemOn`
     /// (`Player.isSecondaryUseActive`).
     pub(super) fn cauldron_outcome(
@@ -24,7 +24,7 @@ impl Game<'_> {
         let removes_dye = cauldron::removes_dye(self.items(), &held.item);
         cauldron::outcome(&state, under_water, removes_dye, held)
     }
-    /// `CauldronInteractions` for the held item aimed at a cauldron.
+    /// `CauldronInteraction` for the held item aimed at a cauldron.
     pub(super) fn use_on_cauldron(&mut self, pos: [i32; 3]) -> Result<bool> {
         use horizon_client::cauldron::{self, Outcome};
         struct Hand<'g, 'a>(&'g mut Game<'a>);

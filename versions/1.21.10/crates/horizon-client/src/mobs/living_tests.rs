@@ -83,6 +83,32 @@ fn a_negative_age_is_a_baby_only_where_can_be_a_baby_allows_it() {
     );
 }
 
+/// 1.21.10 drops `Villager.getDefaultDimensions` (its BABY_DIMENSIONS of
+/// 0.49 by 0.99, eyes at 0.63): a baby villager takes the type's box at
+/// `LivingEntity.getAgeScale`'s 0.5 — 0.3 by 0.975, eyes at 0.81.
+#[test]
+fn a_baby_villager_takes_half_its_type_box() {
+    use crate::mobs::Species;
+    let mut kind = (*crate::mobs::sensor_scan_tests::kind()).clone();
+    kind.id = "minecraft:villager".into();
+    kind.species = Species::Villager;
+    // `EntityType.VILLAGER`: 0.6 by 1.95, eyes at 1.62.
+    kind.width = 0.6;
+    kind.height = 1.95;
+    kind.eye_height = 1.62;
+    let mut villager = Mob::new(1, std::sync::Arc::new(kind), Vec3::ZERO, 0.0);
+    villager.extra.age = -24_000;
+    assert!(villager.is_baby());
+    assert_eq!(
+        villager.dims(),
+        (
+            f64::from(0.3_f32),
+            f64::from(0.975_f32),
+            f64::from(0.81_f32)
+        )
+    );
+}
+
 /// `Entity.getLightProbePosition(partialTick)` for a living entity is
 /// `getEyePosition`: `getEyeHeight()` over `Mth.lerp(partialTick, xo, x)`.
 /// Horizon probed this tick's own position, so a mob walking into the next
@@ -179,7 +205,6 @@ fn a_mob_bounces_off_a_bouncy_block_and_not_off_stone() {
             others_villagers: None,
             others_solid: None,
             daylight: true,
-            monsters_burn: false,
             game_time: 1000,
             day_time: 18000,
             raining: false,
@@ -296,7 +321,6 @@ fn a_ridden_horse_floats_in_deep_water() {
         others_villagers: None,
         others_solid: None,
         daylight: true,
-        monsters_burn: false,
         game_time: 1000,
         day_time: 18000,
         raining: false,
@@ -418,7 +442,6 @@ fn a_falling_mob_lands_on_a_shulker_or_a_held_happy_ghast() {
             others_villagers: None,
             others_solid: None,
             daylight: true,
-            monsters_burn: false,
             game_time: 1000,
             day_time: 6000,
             raining: false,
@@ -860,12 +883,12 @@ fn a_mob_in_vines_slides_down_slowly() {
     );
 }
 
-/// `LivingEntity.onClimbable`: `isFallFlying` in a block of
-/// `#minecraft:can_glide_through` (vines) answers false before the
-/// climbable test; a ladder is not in that tag, so a glider still holds
-/// on to it.
+/// `LivingEntity.onClimbable` in 1.21.10: vanilla's method has no
+/// fall-flying exception (verified against the 1.21.10 client jar), so a
+/// gliding mob in vines is still on climbable — the `can_glide_through`
+/// exception came with a later version's tag.
 #[test]
-fn a_gliding_mob_passes_through_vines_but_not_a_ladder() {
+fn a_gliding_mob_still_holds_vines_and_ladders() {
     let build = |world: &mut crate::world::World,
                  registry: &horizon_world::registry::BlockRegistry| {
         world.chunks.insert(
@@ -879,12 +902,38 @@ fn a_gliding_mob_passes_through_vines_but_not_a_ladder() {
     };
     crate::mobs::world::with_built_test_world(&[], build, |w, types| {
         let kind = std::sync::Arc::new(types.types["minecraft:zombie"].clone());
-        for (x, block, gliding_holds) in [(1.5, "vine", false), (3.5, "ladder", true)] {
+        for (x, block) in [(1.5, "vine"), (3.5, "ladder")] {
             let mut m = Mob::new(1, kind.clone(), Vec3::new(x, 5.0, 1.5), 0.0);
             assert!(m.on_climbable(w), "{block}: climbable when not gliding");
             m.extra.fall_flying = true;
-            assert_eq!(m.on_climbable(w), gliding_holds, "{block}: while gliding");
+            assert!(m.on_climbable(w), "{block}: still climbable while gliding");
         }
+    });
+}
+
+/// `LivingEntity.travelInFluid`: Dolphins Grace sets the water drag to
+/// 0.96, whatever the species' own slowdown.
+#[test]
+fn dolphins_grace_sets_the_water_drag_to_096() {
+    crate::mobs::world::with_test_world(&[], |w, types| {
+        let kind = std::sync::Arc::new(types.types["minecraft:cow"].clone());
+        let drag = |grace: bool| {
+            let mut m = Mob::new(1, kind.clone(), Vec3::new(0.5, 64.0, 0.5), 0.0);
+            m.fluids.in_water = true;
+            m.on_ground = false;
+            m.velocity = Vec3::new(1.0, 0.0, 0.0);
+            if grace {
+                m.extra.effects.push(("minecraft:dolphins_grace", 200, 0));
+            }
+            m.travel(w, Vec3::ZERO, &mut Vec::new());
+            m.velocity.x
+        };
+        let plain = drag(false);
+        assert!(plain < 0.96, "a cow drags harder than 0.96: {plain}");
+        assert!(
+            (drag(true) - 0.96).abs() < 1e-6,
+            "Dolphins Grace drags at 0.96"
+        );
     });
 }
 #[test]

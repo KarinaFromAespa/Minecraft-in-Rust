@@ -216,7 +216,7 @@ pub fn stack(tag: &Tag) -> Option<Tag> {
     }
     Some(Tag::compound(out))
 }
-/// `ItemStackTemplate.CODEC`: an item id or `{id, count?, components?}`.
+/// `ItemStack.CODEC`: an item id or `{id, count?, components?}`.
 /// Encoding uses the primary record form, including for a bare item id.
 fn template(tag: &Tag) -> Option<Tag> {
     match tag {

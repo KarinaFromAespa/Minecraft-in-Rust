@@ -144,7 +144,8 @@ impl LevelLoadTracker {
     pub fn wants_player_section(&self) -> bool {
         matches!(self.state, Some(ClientState::WaitingForPlayerChunk { .. }))
     }
-    /// The callback: the player's section is compiled and visible.
+    /// The callback: the player's section is compiled (`isSectionCompiled` in 1.21.10;
+    /// 1.21.11's `isSectionCompiledAndVisible` also wants it visible).
     pub fn player_section_ready(&mut self) {
         if let Some(ClientState::WaitingForPlayerChunk {
             player_section_ready,
@@ -340,7 +341,7 @@ pub fn brand_background(dark: bool) -> u32 {
     }
 }
 
-/// `LevelLoadingScreen.extractRenderState` over its background: the text,
+/// `LevelLoadingScreen.render` over its background: the text,
 /// the progress bar and the chunk map, `status(x, z)` for x and z in
 /// `0..=2 * STATUS_RADIUS` from the map's north-west corner.
 pub fn draw(
@@ -352,7 +353,7 @@ pub fn draw(
     let (x_center, y_center) = ((batch.width as i32) / 2, (batch.height as i32) / 2);
     let text_top = match status {
         Some(status) => {
-            // extractChunksForRendering(size 2, margin 0).
+            // renderChunks(size 2, margin 0).
             let diameter = STATUS_RADIUS * 2 + 1;
             let start = (x_center - diameter, y_center - diameter);
             for x in 0..diameter {
@@ -388,7 +389,7 @@ pub fn draw(
 /// `LoadingOverlay.MOJANG_STUDIOS_LOGO_LOCATION`, from the player's own resources.
 pub const MOJANG_STUDIOS_LOGO: &str = "gui/title/mojangstudios";
 
-/// `LoadingOverlay.extractRenderState`'s logo on a GUI `w` x `h`: the left
+/// `LoadingOverlay.render`'s logo on a GUI `w` x `h`: the left
 /// half's corner, then each half's width and height.
 pub fn logo_layout(w: f32, h: f32) -> (i32, i32, i32, i32) {
     let (w, h) = (f64::from(w), f64::from(h));
@@ -404,7 +405,7 @@ pub fn logo_layout(w: f32, h: f32) -> (i32, i32, i32, i32) {
     )
 }
 
-/// `GuiGraphicsExtractor.fill(x0, y0, x1, y1, color)`: the corners in either order.
+/// `GuiGraphics.fill(x0, y0, x1, y1, color)`: the corners in either order.
 fn fill_corners(batch: &mut HudBatch, atlas: &HudAtlas, [x0, y0, x1, y1]: [i32; 4], color: u32) {
     let (left, right) = (x0.min(x1), x0.max(x1));
     let (top, bottom) = (y0.min(y1), y0.max(y1));
@@ -412,10 +413,10 @@ fn fill_corners(batch: &mut HudBatch, atlas: &HudAtlas, [x0, y0, x1, y1]: [i32; 
     batch.fill(atlas, left as f32, top as f32, w, h, color);
 }
 
-/// `LoadingOverlay.extractRenderState`: fills the frame with `BRAND_BACKGROUND`
+/// `LoadingOverlay.render`: fills the frame with `BRAND_BACKGROUND`
 /// (Mojang red, or black when `darkMojangStudiosBackground` is set), draws the
 /// Mojang Studios logo as its two halves side by side, and the progress bar
-/// at 83.25% of the height (`extractProgressBar`, unfaded), with the stage's
+/// at 83.25% of the height (`drawProgressBar`, unfaded), with the stage's
 /// line above it. The logo's `MOJANG_LOGO` pipeline adds it (`SRC_ALPHA, ONE`):
 /// its texels are white, which alpha blending matches but for the red channel
 /// of the logo's soft edges, a 16/255 difference at most.
@@ -507,7 +508,7 @@ pub fn connect_cancel(w: f32, h: f32) -> (f32, f32) {
     ((w / 2.0).trunc() - 100.0, (h / 4.0).trunc() + 132.0)
 }
 
-/// `ConnectScreen.extractRenderState` over the menu background: the status
+/// `ConnectScreen.render` over the menu background: the status
 /// centred at (width / 2, height / 2 - 50) and, while the connection can
 /// still be cancelled, Cancel.
 pub fn draw_connecting(
@@ -536,7 +537,7 @@ pub fn file_fixer_cancel(w: f32, h: f32) -> (f32, f32) {
     (((w as i32 - 200) / 2) as f32, (h as i32 / 2 + 100) as f32)
 }
 
-/// `GuiGraphicsExtractor.centeredText` with the screen's grey (`-6250336`) or white.
+/// `GuiGraphics.drawCenteredString` with the screen's grey (`-6250336`) or white.
 fn centered_line(
     batch: &mut HudBatch,
     atlas: &HudAtlas,

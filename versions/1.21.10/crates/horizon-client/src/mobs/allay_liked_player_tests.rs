@@ -1,5 +1,5 @@
 //! An Allay's `minecraft:liked_player` memory and its time to live, as
-//! `Brain` reads, writes and ticks it (`MemorySlot`): vanilla 26.3 counts a
+//! `Brain` reads, writes and ticks it (`ExpirableValue`): vanilla 1.21.10 counts a
 //! finite memory down on each brain tick and clears it on the tick after 0;
 //! `NoAI` runs no brain tick; a memory without a time to live never expires
 //! (tools/test_allay_liked_player_parity.py measures the same).
@@ -97,7 +97,7 @@ fn a_loaded_finite_liked_player_saves_its_own_time_to_live() {
     assert!(ran, "the prepared resources were not found");
 }
 
-/// `MemorySlot.tick` in the Allay's brain tick: 2, 1, 0, then gone; a memory
+/// `ExpirableValue.tick` in the Allay's brain tick: 2, 1, 0, then gone; a memory
 /// at 0 goes on the first tick; `NoAI` keeps it as it was; a permanent one
 /// stays. A gone memory no longer makes the Allay like its player.
 #[test]
@@ -171,7 +171,7 @@ fn a_given_item_makes_the_liked_player_permanent_again() {
     assert!(ran, "the prepared resources were not found");
 }
 
-/// Added controls. `MemorySlot.canExpire` is `ttl != Long.MAX_VALUE`: a
+/// Added controls. `ExpirableValue.canExpire` is `ttl != Long.MAX_VALUE`: a
 /// memory saved with that time to live never expires and is saved without
 /// one. A memory that expired and is given again is permanent. A new owner
 /// replaces the old one with no time to live carried over.

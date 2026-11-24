@@ -410,7 +410,7 @@ impl GameLevel<'_> {
             self.pop_resource([pos.x, pos.y, pos.z], ItemStack::new(&item, 1));
         }
     }
-    /// An item `atLowerCornerWithOffset(pos, 0.5, 1.01, 0.5).offsetRandomXZ(random,
+    /// An item `atLowerCornerWithOffset(pos, 0.5, 1.01, 0.5).offsetRandom(random,
     /// 0.7)` with the default pickup delay (`ComposterBlock.extractProduce`).
     pub(super) fn pop_above(&mut self, pos: BlockPos, item: std::sync::Arc<str>) {
         let at = removal::jukebox_pop_position(&mut self.world.random, pos);
@@ -612,11 +612,8 @@ impl GameLevel<'_> {
                             f64::from(pos.z) + 0.5,
                         ];
                         for (count, experience) in f.recipe_experience(self.recipes) {
-                            let xp = horizon_client::containers::create_experience(
-                                count,
-                                experience,
-                                &mut self.world.random,
-                            );
+                            let xp =
+                                horizon_client::containers::create_experience(count, experience);
                             self.award_orbs(at, xp);
                         }
                     }

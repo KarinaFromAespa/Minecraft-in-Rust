@@ -293,6 +293,93 @@ fn biome_colors_and_a_grass_block_colormap_replace_their_whole_biome_function() 
 }
 
 #[test]
+fn a_tall_grass_upper_half_tints_from_the_block_below() {
+    // Plains below quart 33, desert above: the grass colour changes across
+    // the boundary, so an upper half must read the layer below it
+    // (`BlockColors`: `HALF == UPPER ? pos.below() : pos`).
+    let biomes = Biomes::from_jsons(&[
+        (
+            "minecraft:plains",
+            serde_json::json!({"effects": {"grass_color": 0x00FF00}}),
+        ),
+        (
+            "minecraft:desert",
+            serde_json::json!({"effects": {"grass_color": 0xFF0000}}),
+        ),
+    ]);
+    let (plains, desert) = (biomes.id("minecraft:plains"), biomes.id("minecraft:desert"));
+    let layered = |cx: i32, cz: i32| {
+        let mut chunk = Chunk::empty(cx, cz);
+        for qy in 0..(384 / 4) {
+            for qz in 0..4 {
+                for qx in 0..4 {
+                    chunk.set_biome_cell(qx, qy, qz, if qy < 33 { plains } else { desert });
+                }
+            }
+        }
+        chunk
+    };
+    let chunks: Vec<Vec<Chunk>> = (0..3)
+        .map(|rz| (0..3).map(|rx| layered(rx - 1, rz - 1)).collect())
+        .collect();
+    let region: [[Option<&Chunk>; 3]; 3] =
+        std::array::from_fn(|rz| std::array::from_fn(|rx| Some(&chunks[rz][rx])));
+    let mut tints = Tints::new(&region, &biomes, BiomeZoom::new(0), 0, [0, 0, 64]);
+    // Find a column where the grass tint changes between two layers; the
+    // quart jitter decides exactly where, so search rather than assume.
+    let mut spot = None;
+    'search: for y in 1..16 {
+        for z in 0..16 {
+            for x in 0..16 {
+                if tints.get(Resolver::Grass, x, y, z) != tints.get(Resolver::Grass, x, y - 1, z) {
+                    spot = Some((x, y, z));
+                    break 'search;
+                }
+            }
+        }
+    }
+    let (x, y, z) = spot.expect("the boundary must show between two layers");
+    let upper = Info {
+        solid: false,
+        full: false,
+        permeable: false,
+        shade: 1.0,
+        emission: 0,
+        tier: 0,
+        emissive: false,
+        fluid: FluidState::EMPTY,
+        model: false,
+        block_entity: false,
+        tints: [Tint::TallGrassUpper; 2],
+        tint_count: 1,
+        colormap: None,
+        offset: None,
+        legacy_solid: false,
+        overlay: false,
+        leaves: false,
+        pane: false,
+        opaque_cube: false,
+        blocks_flow: false,
+        ice: false,
+        opaque_ice: false,
+        sturdy: 0,
+        face: [0; 6],
+        cover: [0.0; 6],
+    };
+    assert_eq!(
+        Mesher::tint(&upper, 0, &mut tints, [x, y, z]),
+        Some(tints.get(Resolver::Grass, x, y - 1, z)),
+        "an upper half at {x} {y} {z} tints from the layer below"
+    );
+    // And at the section's bottom layer it falls back to its own layer
+    // rather than reading past the section.
+    assert_eq!(
+        Mesher::tint(&upper, 0, &mut tints, [x, 0, z]),
+        Some(tints.get(Resolver::Grass, x, 0, z)),
+    );
+}
+
+#[test]
 fn only_a_colormap_that_ignores_the_height_is_shared_up_a_column() {
     let root = pack(&[
         (

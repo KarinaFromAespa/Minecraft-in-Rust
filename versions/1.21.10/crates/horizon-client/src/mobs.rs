@@ -60,9 +60,7 @@ pub mod model_layers;
 pub mod monster_brain;
 pub mod nautilus;
 pub mod neutral_anger;
-pub use neutral_anger::{
-    adopt_anger_end, anger_left, persistent_anger, resume_anger, settle_anger_end,
-};
+pub use neutral_anger::persistent_anger;
 pub mod nav;
 pub mod nether;
 pub mod panda;
@@ -116,7 +114,7 @@ use crate::{blocks::BlockFacts, mesher::Vertex, world::World};
 pub use data::MobData;
 use horizon_core::{
     geometry::{Aabb, Vec3},
-    random::{LegacyRandom, RandomSource},
+    random::{LegacyRandom, RandomSource, math_random},
 };
 use horizon_world::block_collision::BlockCollisionRegistry;
 use serde_json::Value;
@@ -1113,12 +1111,6 @@ pub struct Extra {
     pub passenger: bool,
     /// AgeableMob.age: negative while a baby (a tadpole counts up to 24000).
     pub age: i32,
-    /// `AgeLocked` (tadpoles fed a slime ball... and ageable mobs).
-    pub age_locked: bool,
-    /// `AgeableMob.ageLockParticleTimer` (a tadpole's too): the ticks of
-    /// growth particles left after a golden dandelion, and the cooldown
-    /// before the next one can be used. Not saved.
-    pub age_lock_particle_timer: i32,
     /// AgeableMob.forcedAge: the age fed food added, restored as the age
     /// when it reaches 0 (`ForcedAge`).
     pub forced_age: i32,
@@ -1179,13 +1171,10 @@ pub struct Extra {
     /// Sheep eat-grass / iron golem attack / ravager animation ticks.
     pub anim_ticks: i32,
     pub egg_time: i32,
+    /// `NeutralMob`'s remaining anger ticks (`AngerTime` in the save): the
+    /// countdown ticks down once per tick the mob ticks, and freezes while
+    /// it does not. 1.21.10 has no absolute anger end time.
     pub anger: i32,
-    /// `NeutralMob.getPersistentAngerEndTime`: the absolute game time the
-    /// anger ends at, -1 when the mob is calm. The save keeps it, so the
-    /// anger goes on while the chunk is unloaded.
-    pub anger_end: i64,
-    /// Countdown and age when `anger_end` was last settled (`neutral_anger`).
-    pub anger_stamp: Option<(i32, u32)>,
     /// `NeutralMob.getPersistentAngerTarget`: the entity the mob is angry
     /// at, which the save keeps with it.
     pub angry_at: Option<Who>,
@@ -1542,9 +1531,6 @@ pub struct Mob {
     /// the mob is invulnerable as with `Invulnerable` (`isTemporarilyInvulnerable`).
     pub invulnerable_time: i32,
     pub death_time: i32,
-    /// `LivingEntity.currentImpulseContextResetGraceTime`: ticks left to keep
-    /// the impulse context after a wind charge or mace impulse.
-    pub impulse_grace_time: i32,
     pub age: u32,
     pub limb_position: f32,
     pub limb_speed: f32,
@@ -3156,7 +3142,7 @@ pub struct PlayerView {
     /// (`getControllingPassenger`).
     pub vehicle: Option<Vehicle>,
 }
-/// What a player rides, for the mobs that follow it (`FollowPlayerRiddenEntityGoal`).
+/// What a player rides, for the mobs that follow it (`FollowBoatGoal`).
 #[derive(Clone, Debug)]
 pub struct Vehicle {
     pub nautilus: bool,
@@ -3248,9 +3234,6 @@ pub struct MobWorld<'a> {
     /// ([`Seen::may_block_mobs`]), when the caller keeps them; None: any.
     pub others_solid: Option<&'a [u32]>,
     pub daylight: bool,
-    /// The `gameplay/monsters_burn` attribute: the overworld day timeline's
-    /// step track, false in every other dimension.
-    pub monsters_burn: bool,
     pub game_time: i64,
     pub day_time: i64,
     pub raining: bool,
@@ -3409,7 +3392,6 @@ impl Mob {
             invulnerable: 0,
             invulnerable_time: 0,
             death_time: 0,
-            impulse_grace_time: 0,
             age: 0,
             limb_position: 0.0,
             limb_speed: 0.0,
@@ -3498,7 +3480,6 @@ impl Mob {
         if mob.species() == Species::Salmon {
             mob.extra.variant = 1;
         }
-        neutral_anger::init(&mut mob);
         // `Creeper.explosionRadius = 3` until a save or a command sets it.
         mob.extra.explosion_radius = 3;
         // The PathNavigation constructor: the base follow range.
@@ -4166,9 +4147,11 @@ impl Mob {
             return;
         }
         self.needs_sync = true;
+        // LivingEntity.knockback: the near-zero direction fallback draws
+        // from Math.random, not the entity's random.
         while xd * xd + zd * zd < f64::from(1.0e-5_f32) {
-            xd = (self.random.next_double() - self.random.next_double()) * 0.01;
-            zd = (self.random.next_double() - self.random.next_double()) * 0.01;
+            xd = (math_random() - math_random()) * 0.01;
+            zd = (math_random() - math_random()) * 0.01;
         }
         let len = (xd * xd + zd * zd).sqrt();
         let (kx, kz) = (xd / len * power, zd / len * power);
@@ -4193,7 +4176,7 @@ impl Mob {
         // LivingEntity.tick: CombatTracker.recheckStatus.
         let alive = self.alive();
         self.combat.recheck(alive, self.age);
-        neutral_anger::around_tick(self, w.game_time, |m| ai::tick(m, w, level_random, events))
+        ai::tick(self, w, level_random, events)
     }
     /// The section the mob is in, noted when it changes (`EntitySection` lists).
     fn track_section(&mut self) {

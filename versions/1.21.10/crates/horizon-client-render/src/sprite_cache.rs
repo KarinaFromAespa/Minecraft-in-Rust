@@ -3,7 +3,6 @@
 //! root, valid only while the `textures` trees still have the same paths,
 //! sizes and modification times and the format version is the same; anything
 //! else (missing, corrupt, stale, unwritable) means the normal decoding path.
-use crate::mipmap::Strategy;
 use std::{
     collections::HashMap,
     fs,
@@ -13,7 +12,7 @@ use std::{
 
 const MAGIC: &[u8; 4] = b"HSPR";
 /// Bump when `Decoded` or the decoding in `Sprites::decode` changes.
-const VERSION: u32 = 1;
+const VERSION: u32 = 2;
 const FILE: &str = "horizon-sprites.cache";
 
 /// What decoding one texture gives, before it takes a layer.
@@ -23,8 +22,6 @@ pub(crate) struct Decoded {
     pub frames: Vec<Vec<u8>>,
     /// The `.mcmeta` `animation` value, as text.
     pub animation: Option<String>,
-    pub strategy: Strategy,
-    pub alpha_cutoff_bias: f32,
     pub has_transparent: bool,
     pub opaque: bool,
     pub translucent: bool,
@@ -122,8 +119,6 @@ fn serialize(fingerprint: u64, entries: &HashMap<String, Decoded>) -> Vec<u8> {
         }
         put_bytes(&mut out, d.animation.as_deref().unwrap_or("").as_bytes());
         out.push(u8::from(d.animation.is_some()));
-        out.push(d.strategy as u8);
-        out.extend_from_slice(&d.alpha_cutoff_bias.to_bits().to_le_bytes());
         out.push(
             u8::from(d.has_transparent) | u8::from(d.opaque) << 1 | u8::from(d.translucent) << 2,
         );
@@ -170,15 +165,6 @@ fn parse(bytes: &[u8], fingerprint: u64) -> Option<HashMap<String, Decoded>> {
         }
         let animation = String::from_utf8(r.bytes()?.to_vec()).ok()?;
         let has_animation = r.take(1)?[0] != 0;
-        let strategy = match r.take(1)?[0] {
-            0 => Strategy::Auto,
-            1 => Strategy::Mean,
-            2 => Strategy::Cutout,
-            3 => Strategy::StrictCutout,
-            4 => Strategy::DarkCutout,
-            _ => return None,
-        };
-        let alpha_cutoff_bias = f32::from_bits(r.u32()?);
         let flags = r.take(1)?[0];
         let frame_len = (side as usize).checked_mul(side as usize)?.checked_mul(4)?;
         if frames.is_empty() || frames.iter().any(|f| f.len() != frame_len) {
@@ -190,8 +176,6 @@ fn parse(bytes: &[u8], fingerprint: u64) -> Option<HashMap<String, Decoded>> {
                 side,
                 frames,
                 animation: has_animation.then_some(animation),
-                strategy,
-                alpha_cutoff_bias,
                 has_transparent: flags & 1 != 0,
                 opaque: flags & 2 != 0,
                 translucent: flags & 4 != 0,
@@ -210,8 +194,6 @@ mod tests {
             side: 2,
             frames: vec![vec![blue; 16], vec![blue + 1; 16]],
             animation: animation.map(str::to_owned),
-            strategy: Strategy::Cutout,
-            alpha_cutoff_bias: 0.25,
             has_transparent: true,
             opaque: false,
             translucent: true,
@@ -236,10 +218,9 @@ mod tests {
                 (d.side, &d.frames, &d.animation),
                 (e.side, &e.frames, &e.animation)
             );
-            assert_eq!(d.alpha_cutoff_bias, e.alpha_cutoff_bias);
             assert_eq!(
-                (d.has_transparent, d.opaque, d.translucent, d.strategy as u8),
-                (e.has_transparent, e.opaque, e.translucent, e.strategy as u8)
+                (d.has_transparent, d.opaque, d.translucent),
+                (e.has_transparent, e.opaque, e.translucent)
             );
         }
     }

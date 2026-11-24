@@ -91,7 +91,7 @@ impl Game<'_> {
         });
         accepts
     }
-    /// `GuiGraphicsExtractor.itemDecorations`: the count (or `count_text`)
+    /// `GuiGraphics.renderItemDecorations`: the count (or `count_text`)
     /// and damage bar.
     pub(super) fn draw_item_decorations(
         &self,
@@ -101,7 +101,7 @@ impl Game<'_> {
         y: f32,
         count_text: Option<String>,
     ) {
-        // GuiGraphicsExtractor.itemDecorations, laid out at the origin and
+        // GuiGraphics.renderItemDecorations, laid out at the origin and
         // moved to (x, y): the damage bar, the cooldown shade and the count.
         let info = self.items().get(&stack.item);
         // ItemStack.isBarVisible: isDamaged, which an unbreakable stack never is.

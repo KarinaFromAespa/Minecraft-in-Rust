@@ -203,6 +203,23 @@ pub trait RaidLevel {
     fn ravager_can_spawn(&self, pos: [i32; 3]) -> bool;
     fn player(&self) -> Option<RaidPlayer>;
 }
+
+/// The draws `Raid.findRandomSpawnPos` makes from the LEVEL random
+/// (1.21.10; 26.1 drew them from the raid's own random): the wave's
+/// starting angle and each try's jitter. The raid's own random still
+/// drives the wave composition and the horn seed.
+pub trait SpawnRandom {
+    fn next_float(&mut self) -> f32;
+    fn next_int_bound(&mut self, bound: i32) -> i32;
+}
+impl SpawnRandom for LegacyRandom {
+    fn next_float(&mut self) -> f32 {
+        RandomSource::next_float(self)
+    }
+    fn next_int_bound(&mut self, bound: i32) -> i32 {
+        RandomSource::next_int_bound(self, bound).unwrap_or(0)
+    }
+}
 /// `ServerLevel.isVillage`.
 pub fn is_village(level: &dyn RaidLevel, pos: [i32; 3]) -> bool {
     level.sections_to_village(pos) <= 1
@@ -425,7 +442,7 @@ impl Raid {
         let extra = match kind {
             RaiderType::Vindicator | RaiderType::Pillager => {
                 if easy {
-                    self.random.next_int_bound(2).unwrap_or(0)
+                    RandomSource::next_int_bound(&mut self.random, 2).unwrap_or(0)
                 } else if normal {
                     1
                 } else {
@@ -442,7 +459,7 @@ impl Raid {
             RaiderType::Ravager => i32::from(!easy && bonus),
         };
         base + if extra > 0 {
-            self.random.next_int_bound(extra + 1).unwrap_or(0)
+            RandomSource::next_int_bound(&mut self.random, extra + 1).unwrap_or(0)
         } else {
             0
         }
@@ -482,20 +499,26 @@ impl Raid {
         out
     }
     /// `Raid.findRandomSpawnPos`: a ring around the centre that closes in as
-    /// the countdown runs down.
-    fn find_spawn_pos(&mut self, level: &dyn RaidLevel, max_tries: i32) -> Option<[i32; 3]> {
+    /// the countdown runs down. The angle and jitter come from the level
+    /// random (`random`), not the raid's own (1.21.10; 26.1 used the raid's).
+    fn find_spawn_pos(
+        &mut self,
+        level: &dyn RaidLevel,
+        random: &mut dyn SpawnRandom,
+        max_tries: i32,
+    ) -> Option<[i32; 3]> {
         let seconds = self.cooldown_ticks / 20;
         let how_far = 0.22 * seconds as f32 - 0.24;
-        let start = self.random.next_float() * (std::f32::consts::PI * 2.0);
+        let start = random.next_float() * (std::f32::consts::PI * 2.0);
         let far = how_far.floor() as i32;
         for i in 0..max_tries {
             let angle = start + std::f32::consts::PI * i as f32 / 8.0;
             let x = self.center[0]
                 + (trig::cos(f64::from(angle)) * 32.0 * how_far).floor() as i32
-                + self.random.next_int_bound(3).unwrap_or(0) * far;
+                + random.next_int_bound(3) * far;
             let z = self.center[2]
                 + (trig::sin(f64::from(angle)) * 32.0 * how_far).floor() as i32
-                + self.random.next_int_bound(3).unwrap_or(0) * far;
+                + random.next_int_bound(3) * far;
             let y = level.surface_height(x, z);
             if (y - self.center[1]).abs() > 96 {
                 continue;
@@ -545,10 +568,12 @@ impl Raid {
 
     /// `Raid.tick`. `members` are the raid's raiders; `in_raid` answers
     /// whether the player stands in this raid (`getRaidAt(pos) == this`,
-    /// with the raid's current centre and state).
+    /// with the raid's current centre and state). `random` is the level
+    /// random, which `findRandomSpawnPos` draws from in 1.21.10.
     pub fn tick(
         &mut self,
         level: &dyn RaidLevel,
+        random: &mut dyn SpawnRandom,
         members: &[RaiderInfo],
         in_raid: &dyn Fn(&Raid, [i32; 3]) -> bool,
     ) -> Vec<Action> {
@@ -607,7 +632,7 @@ impl Raid {
                         try_find = true;
                     }
                     if try_find {
-                        self.wave_spawn_pos = self.find_spawn_pos(level, 8);
+                        self.wave_spawn_pos = self.find_spawn_pos(level, random, 8);
                     }
                     if self.cooldown_ticks == PRE_RAID_TICKS || self.cooldown_ticks % 20 == 0 {
                         let p = player_in(self);
@@ -636,7 +661,7 @@ impl Raid {
             while self.should_spawn_group(members.len()) {
                 let pos = match self.wave_spawn_pos {
                     Some(p) => Some(p),
-                    None => self.find_spawn_pos(level, 20),
+                    None => self.find_spawn_pos(level, random, 20),
                 };
                 if let Some(pos) = pos {
                     self.started = true;
@@ -856,10 +881,12 @@ impl Raids {
     }
     /// `Raids.tick`: each raid in map order (stopped ones removed, every
     /// raid stopped when the `raids` rule is off). `members` gives a raid's
-    /// raiders. Returns the raids' actions.
+    /// raiders. Returns the raids' actions. `random` is the level random,
+    /// which `findRandomSpawnPos` draws from in 1.21.10.
     pub fn tick(
         &mut self,
         level: &dyn RaidLevel,
+        random: &mut dyn SpawnRandom,
         rules_raids: bool,
         members: &dyn Fn(i32) -> Vec<RaiderInfo>,
     ) -> Vec<(i32, Action)> {
@@ -900,7 +927,7 @@ impl Raids {
                 }
                 best.is_some_and(|b| b.0 == id)
             };
-            for a in raid.tick(level, &members(id), &in_raid) {
+            for a in raid.tick(level, &mut *random, &members(id), &in_raid) {
                 out.push((id, a));
             }
             false
@@ -1625,8 +1652,9 @@ mod tests {
         let mut raid = Raid::new([0, 64, 0], 2, 3);
         raid.absorb_omen(0);
         let mut spawned = None;
+        let mut level_random = LegacyRandom::new(0);
         for _ in 0..400 {
-            for a in raid.tick(&l, &[], &nobody) {
+            for a in raid.tick(&l, &mut level_random, &[], &nobody) {
                 if let Action::Spawn { wave, spawns, .. } = a {
                     spawned = Some((wave, spawns));
                 }
@@ -1647,16 +1675,17 @@ mod tests {
         let mut raid = Raid::new([0, 64, 0], 2, 3);
         raid.groups_spawned = 1;
         l.village = false;
-        raid.tick(&l, &[], &nobody);
+        let mut level_random = LegacyRandom::new(0);
+        raid.tick(&l, &mut level_random, &[], &nobody);
         assert!(raid.is_loss());
         let mut fresh = Raid::new([0, 64, 0], 2, 3);
-        fresh.tick(&l, &[], &nobody);
+        fresh.tick(&l, &mut level_random, &[], &nobody);
         assert!(fresh.is_stopped());
     }
     #[test]
     fn peaceful_stops_raids() {
         let mut raid = Raid::new([0, 64, 0], 2, 3);
-        raid.tick(&level(0), &[], &nobody);
+        raid.tick(&level(0), &mut LegacyRandom::new(0), &[], &nobody);
         assert!(raid.is_stopped());
     }
     /// 13/32 of the way from the origin to a centre 32 blocks east is 13.

@@ -1343,7 +1343,7 @@ impl<'a> Plan<'a> {
             row.set("render_shape", J::Str(shape.name().into()));
         }
         // `noOcclusion`: a block that can't occlude is never a solid render either, and a solid
-        // render's full light dampening becomes a non-solid block's (`getLightDampening`: 0 when
+        // render's full light dampening becomes a non-solid block's (`getLightBlock`: 0 when
         // skylight passes down, else 1, as for leaves and spawners).
         if p.occludes == Some(false) {
             let solid = matches!(row.get("solid_render"), Some(J::Bool(true)));

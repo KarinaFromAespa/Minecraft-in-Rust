@@ -14,7 +14,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// RegistryDataLoader.SYNCHRONIZED_REGISTRIES, in vanilla's order.
+/// RegistryDataLoader.SYNCHRONIZED_REGISTRIES, in vanilla's order — the
+/// 1.21.10 list (21 entries). 1.21.11 added zombie_nautilus_variant,
+/// world_clock, timeline, decorated_pot_pattern, block_transformer and
+/// worldgen/block_state_provider to the sync list; none of them is
+/// synchronized in 1.21.10. sulfur_cube_archetype is Horizon's own (in
+/// neither vanilla jar) and stays.
 pub const SYNCHRONIZED: &[&str] = &[
     "minecraft:worldgen/biome",
     "minecraft:chat_type",
@@ -23,15 +28,10 @@ pub const SYNCHRONIZED: &[&str] = &[
     "minecraft:wolf_variant",
     "minecraft:wolf_sound_variant",
     "minecraft:pig_variant",
-    "minecraft:pig_sound_variant",
     "minecraft:frog_variant",
     "minecraft:cat_variant",
-    "minecraft:cat_sound_variant",
-    "minecraft:cow_sound_variant",
     "minecraft:cow_variant",
-    "minecraft:chicken_sound_variant",
     "minecraft:chicken_variant",
-    "minecraft:zombie_nautilus_variant",
     "minecraft:painting_variant",
     "minecraft:sulfur_cube_archetype",
     "minecraft:dimension_type",
@@ -43,11 +43,6 @@ pub const SYNCHRONIZED: &[&str] = &[
     "minecraft:test_environment",
     "minecraft:test_instance",
     "minecraft:dialog",
-    "minecraft:world_clock",
-    "minecraft:timeline",
-    "minecraft:decorated_pot_pattern",
-    "minecraft:block_transformer",
-    "minecraft:worldgen/block_state_provider",
 ];
 pub const BIOME_REGISTRY: &str = "minecraft:worldgen/biome";
 /// The table a client plays a server with: `known` and the biomes of the
@@ -182,8 +177,8 @@ fn pack_entries(
     }
 }
 
-/// ResourceManagerRegistryLoadTask.load: the entries register sorted by the
-/// file `Identifier` FileToIdConverter.listMatchingResources keys them by
+/// RegistryDataLoader.loadContentsFromManager: the entries register in the
+/// order `FileToIdConverter.listMatchingResources` keys them by
 /// (`<dir>/<path>.json`), path first, then namespace (Identifier.compareTo).
 /// The `.json` counts: `x-y` comes before `x`, as `-` sorts before `.`.
 fn file_order<T>(entries: &mut [((String, String), T, bool)]) {

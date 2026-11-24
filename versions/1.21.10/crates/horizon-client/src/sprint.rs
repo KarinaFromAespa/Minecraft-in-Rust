@@ -64,6 +64,13 @@ pub struct Conditions {
     pub minor_horizontal_collision: bool,
 }
 impl Conditions {
+    /// `LocalPlayer.isSprintingPossible(allowShallowWater)`: not
+    /// mobility-restricted, enough food to sprint, and (as a passenger) a
+    /// vehicle that can sprint, with the shallow-water check last. 1.21.10's
+    /// `hasEnoughFoodToSprint` is true for a passenger outright (`isPassenger
+    /// || food > 6 || mayfly`), so the food gate only ever bites a
+    /// non-passenger — which is why the passenger arm asks the vehicle's
+    /// `canSprint` and this client's authority there, not food.
     fn possible(self, allow_shallow_water: bool) -> bool {
         !self.mobility_restricted
             && if self.passenger {

@@ -1,4 +1,5 @@
-//! Vanilla's two seeded random streams. No platform/default Rust RNG is used.
+//! Vanilla's two seeded random streams. No platform/default Rust RNG is used,
+//! except for `Math.random()` below, which vanilla itself leaves unseeded.
 mod hash;
 mod positional;
 mod worldgen;
@@ -62,6 +63,24 @@ impl std::fmt::Display for InvalidBound {
 }
 
 impl std::error::Error for InvalidBound {}
+
+/// `Math.random()`: Java's one unseeded stream — a single shared
+/// `LegacyRandom`, seeded once from the clock (Java seeds it from
+/// `seedUniquifier() ^ System.nanoTime()`). Callers that vanilla gives
+/// `Math.random()` (1.21.10's furnace XP roll) draw here instead of a
+/// seeded stream, so the draw neither reproduces from the world seed nor
+/// perturbs any seeded sequence.
+pub fn math_random() -> f64 {
+    static RANDOM: std::sync::OnceLock<std::sync::Mutex<LegacyRandom>> =
+        std::sync::OnceLock::new();
+    let lock = RANDOM.get_or_init(|| {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos() as i64);
+        std::sync::Mutex::new(LegacyRandom::new(nanos))
+    });
+    lock.lock().map_or(0.0, |mut r| r.next_double())
+}
 
 pub trait RandomSource: Sized {
     type Positional: PositionalRandom<Source = Self>;

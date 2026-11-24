@@ -329,16 +329,14 @@ fn release(
         // setBeeReleaseData: the time inside counts towards growing up and
         // away from love.
         let ticks = occupant.ticks_in_hive;
-        if !m.extra.age_locked {
-            let age = m.extra.age;
-            m.extra.age = if age < 0 {
-                (age + ticks).min(0)
-            } else if age > 0 {
-                (age - ticks).max(0)
-            } else {
-                age
-            };
-        }
+        let age = m.extra.age;
+        m.extra.age = if age < 0 {
+            (age + ticks).min(0)
+        } else if age > 0 {
+            (age - ticks).max(0)
+        } else {
+            age
+        };
         m.extra.in_love = (m.extra.in_love - ticks).max(0);
         if let Some(f) = flower
             && bee::get(&m).is_none_or(|b| b.flower.is_none())

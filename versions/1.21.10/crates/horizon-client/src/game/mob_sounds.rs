@@ -60,7 +60,6 @@ impl Game<'_> {
     /// swaps the flying loop for the aggressive one and back), forget the mobs
     /// that are gone, and read what the instances follow.
     pub(super) fn start_mob_sounds(&mut self) -> Vec<MobSound> {
-        let game_time = self.world.game_time;
         let mobs: Vec<MobSound> = self
             .mobs
             .iter()
@@ -80,9 +79,9 @@ impl Game<'_> {
                 // Vec3.horizontalDistance.
                 speed: m.velocity.x.hypot(m.velocity.z),
                 baby: m.is_baby(),
-                // NeutralMob.isAngry: the anger end time is ahead.
+                // NeutralMob.isAngry: the countdown is still running.
                 angry: m.species() == Species::Bee
-                    && bee::get(m).is_some_and(|b| b.anger_end > 0 && b.anger_end - game_time > 0),
+                    && bee::get(m).is_some_and(|b| b.anger > 0),
                 silent: m.silent,
                 attack_scale: guardian::attack_scale(m),
                 // SnifferSoundInstance.tick.

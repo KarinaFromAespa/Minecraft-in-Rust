@@ -77,7 +77,7 @@ impl Game<'_> {
         let fill = EndPortalFill {
             sprites: [
                 sprite("environment/end_sky"),
-                sprite("entity/end_portal/end_portal"),
+                sprite("entity/end_portal"),
             ],
             game_time: (self.world.game_time % 24000) as f32 / 24000.0,
         };

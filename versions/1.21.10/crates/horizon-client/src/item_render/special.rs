@@ -1,8 +1,10 @@
 //! `SpecialModelRenderer`s: items drawn with entity models (chests, shulker
-//! boxes, banners, heads, shields, tridents, decorated pots, conduits, bells,
-//! books and copper golem statues). Each submits its model at the layer pose
-//! as vanilla's `submit` does (no block-entity placement transform) and
-//! reports `getExtents` over the same posed parts.
+//! boxes, banners, heads, shields, tridents, decorated pots, conduits and
+//! copper golem statues). On the item path each renderer applies its 1.21.10
+//! inline transform in `submit` and `getExtents`: 26.x carried the transform
+//! in the item model's `transformation` field, 1.21.10's item models have
+//! none, so the renderer does it (`item_transform`). The worn-skull path
+//! (`submit_worn`) supplies its own pose and takes none.
 use super::{Foil, ItemQuad, ItemRenderer, ItemSink, SpecialHost, argb};
 use crate::{block_entity_render::ModelPart, hud::Rect, mobs::EntityModelDocument};
 use glam::{Mat4, Quat, Vec3};
@@ -11,7 +13,7 @@ use serde_json::Value;
 use std::{collections::HashMap, f32::consts::PI, path::Path};
 
 /// Entity model layers the special renderers bake (`ModelLayers`).
-const LAYERS: [(&str, &str); 22] = [
+const LAYERS: [(&str, &str); 21] = [
     ("chest", "minecraft:chest#main"),
     ("double_chest_left", "minecraft:double_chest_left#main"),
     ("double_chest_right", "minecraft:double_chest_right#main"),
@@ -27,7 +29,6 @@ const LAYERS: [(&str, &str); 22] = [
     ("dragon", "minecraft:dragon_skull#main"),
     ("piglin", "minecraft:piglin_head#main"),
     ("player", "minecraft:player_head#main"),
-    ("bell", "minecraft:bell#main"),
     ("book", "minecraft:book#main"),
     ("conduit_shell", "minecraft:conduit#shell"),
     ("decorated_pot_base", "minecraft:decorated_pot_base#main"),
@@ -202,14 +203,6 @@ fn dye(name: &str) -> u32 {
     0xFF00_0000 | crate::banner::dye_rgb(name)
 }
 
-/// The chest model of a chest type, with `ChestModel.setupAnim(openness)`.
-fn chest_model(chest_type: &str) -> &'static str {
-    match chest_type {
-        "left" => "double_chest_left",
-        "right" => "double_chest_right",
-        _ => "chest",
-    }
-}
 fn skull_layer(kind: &str) -> &'static str {
     match kind {
         "skeleton" => "skeleton",
@@ -297,10 +290,13 @@ fn book_pose(openness: f32, flip1: f32, flip2: f32) -> impl Fn(&str, &mut [f32; 
         _ => {}
     }
 }
-/// `CopperGolemStatueModel.setupAnim`.
+/// `CopperGolemStatueModel.setupAnim` for the item's `Direction.SOUTH`
+/// state: root y 0, yRot the opposite facing (north, 180 degrees),
+/// zRot 180 degrees. 26.x's `setupAnim(Unit)` set only y and zRot.
 fn statue_pose(name: &str, p: &mut [f32; 9]) {
     if name == "root" {
         p[1] = 0.0;
+        p[4] = PI;
         p[5] = PI;
     }
 }
@@ -313,48 +309,90 @@ fn statue_layer(pose: &str) -> &'static str {
     }
 }
 
+/// `Direction.getRotation`, as `block_entity_render::direction_rotation`.
+fn orientation_rotation(orientation: &str) -> Quat {
+    let xyz = |x: f32, y: f32, z: f32| Quat::from_euler(glam::EulerRot::XYZ, x, y, z);
+    match orientation {
+        "down" => Quat::from_rotation_x(PI),
+        "north" => xyz(PI / 2.0, 0.0, PI),
+        "south" => Quat::from_rotation_x(PI / 2.0),
+        "west" => xyz(PI / 2.0, 0.0, PI / 2.0),
+        "east" => xyz(PI / 2.0, 0.0, -PI / 2.0),
+        _ => Quat::IDENTITY,
+    }
+}
+
+/// The transform each special renderer applies inline in 1.21.10's `submit`
+/// and `getExtents` (26.x carried it in the item model's `transformation`,
+/// or a `DEFAULT_TRANSFORMATION`; 1.21.10's item models have none). Chest
+/// and decorated pot have none in either version.
+fn item_transform(kind: &SpecialKind) -> Mat4 {
+    match kind {
+        // `BannerRenderer.submitBanner` at angle 0: banner items are always
+        // standing (`submitSpecial` takes no attachment in 1.21.10).
+        SpecialKind::Banner { .. } => {
+            Mat4::from_translation(Vec3::new(0.5, 0.0, 0.5))
+                * Mat4::from_scale(Vec3::new(2.0 / 3.0, -2.0 / 3.0, -2.0 / 3.0))
+        }
+        // `ShieldSpecialRenderer.submit` / `TridentSpecialRenderer.submit`.
+        SpecialKind::Shield | SpecialKind::Trident => Mat4::from_scale(Vec3::new(1.0, -1.0, -1.0)),
+        // `SkullBlockRenderer.submitSkull(null, 180, 0)`: translate, then
+        // the 180-degree yaw the state carries, then the flip — the
+        // pose-level form of vanilla's translate + scale + state yRot,
+        // the same algebra the block-entity skull path uses.
+        SpecialKind::Head { .. } | SpecialKind::PlayerHead => {
+            Mat4::from_translation(Vec3::new(0.5, 0.0, 0.5))
+                * Mat4::from_rotation_y(PI)
+                * Mat4::from_scale(Vec3::new(-1.0, -1.0, 1.0))
+        }
+        // `ConduitSpecialRenderer.submit`.
+        SpecialKind::Conduit => Mat4::from_translation(Vec3::splat(0.5)),
+        // `ShulkerBoxRenderer.prepareModel`.
+        SpecialKind::ShulkerBox { orientation, .. } => {
+            Mat4::from_translation(Vec3::splat(0.5))
+                * Mat4::from_scale(Vec3::splat(0.9995))
+                * Mat4::from_quat(orientation_rotation(orientation))
+                * Mat4::from_scale(Vec3::new(1.0, -1.0, -1.0))
+                * Mat4::from_translation(Vec3::new(0.0, -1.0, 0.0))
+        }
+        // `CopperGolemStatueSpecialRenderer.positionModel`.
+        SpecialKind::CopperGolemStatue { .. } => {
+            Mat4::from_translation(Vec3::new(0.5, 1.5, 0.5))
+                * Mat4::from_scale(Vec3::new(-1.0, -1.0, 1.0))
+        }
+        SpecialKind::Chest { .. } | SpecialKind::DecoratedPot => Mat4::IDENTITY,
+    }
+}
+
 /// `SpecialModelRenderer.getExtents`.
 pub(super) fn extents(renderer: &ItemRenderer, model: &SpecialModel) -> Vec<Vec3> {
     let mut out = Vec::new();
-    let id = Mat4::IDENTITY;
+    let base = item_transform(&model.kind);
     let mut add = |key: &str, adjust: Adjust| {
         if let Some(part) = renderer.part(key) {
-            extents_of(part, "root", id, adjust, &mut out);
+            extents_of(part, "root", base, adjust, &mut out);
         }
     };
     match &model.kind {
-        SpecialKind::Bell => add("bell", &none),
         SpecialKind::Banner { .. } => {
             // `BannerRenderer.getExtents`: the standing models only.
             add("standing_banner", &none);
             add("standing_banner_flag", &flag_pose);
         }
-        SpecialKind::Book {
-            open_angle,
-            page1,
-            page2,
-        } => add(
-            "book",
-            &book_pose(open_angle * (PI / 180.0), *page1, *page2),
-        ),
         SpecialKind::Conduit => add("conduit_shell", &none),
-        SpecialKind::Chest {
-            openness,
-            chest_type,
-            ..
-        } => add(chest_model(chest_type), &chest_pose(*openness)),
+        SpecialKind::Chest { openness, .. } => add("chest", &chest_pose(*openness)),
         SpecialKind::CopperGolemStatue { pose, .. } => add(statue_layer(pose), &statue_pose),
         SpecialKind::DecoratedPot => {
-            if let Some(base) = renderer.part("decorated_pot_base") {
-                // `neck`, `top` and `bottom` are posed from an identity stack.
+            if let Some(pot_base) = renderer.part("decorated_pot_base") {
+                // `DecoratedPotRenderer.getExtents`: neck, top and bottom
+                // only, not the sides.
                 for name in ["neck", "top", "bottom"] {
-                    if let Some(part) = child(base, name) {
-                        extents_of(part, name, id, &none, &mut out);
+                    if let Some(part) = child(pot_base, name) {
+                        extents_of(part, name, base, &none, &mut out);
                     }
                 }
             }
         }
-        SpecialKind::EndCube { .. } => {}
         SpecialKind::Head {
             kind, animation, ..
         } => add(skull_layer(kind), &skull_pose(kind, *animation)),
@@ -440,7 +478,7 @@ pub(super) fn submit_banner_result(
             draw(flag, "root", pose, &flag_pose, r, color, Foil::None, sink);
         }
     };
-    part("entity/banner/banner_base", argb(-1));
+    part("entity/banner_base", argb(-1));
     part("entity/banner/base", dye(base));
     for (texture, color) in layers.iter().take(16) {
         part(texture, dye(color));
@@ -460,9 +498,7 @@ pub(super) fn submit_book(
 ) {
     let (Some(book), Some(r)) = (
         renderer.part("book"),
-        sprites
-            .get("entity/enchantment/enchanting_table_book")
-            .copied(),
+        sprites.get("entity/enchanting_table_book").copied(),
     ) else {
         return;
     };
@@ -471,7 +507,8 @@ pub(super) fn submit_book(
     draw(book, "root", pose, &pose_for, r, argb(-1), Foil::None, sink);
 }
 
-/// `SpecialModelRenderer.submit`.
+/// `SpecialModelRenderer.submit`: the item path, with the renderer's 1.21.10
+/// inline transform (`item_transform`).
 #[allow(clippy::too_many_arguments)]
 pub(super) fn submit(
     renderer: &ItemRenderer,
@@ -483,6 +520,49 @@ pub(super) fn submit(
     host: &dyn SpecialHost,
     sink: &mut dyn ItemSink,
 ) {
+    submit_inner(
+        renderer, model, argument, has_foil, pose, sprites, host, sink, true,
+    );
+}
+
+/// A worn skull (`CustomHeadLayer`): the caller supplies the head pose and
+/// the model draws untransformed — vanilla's worn path composes the skull
+/// transform into the head pose itself (the flips and the 180-degree yaw
+/// cancel to a uniform 1.1875 scale), so applying the item transform here
+/// would double it.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn submit_worn(
+    renderer: &ItemRenderer,
+    model: &SpecialModel,
+    argument: &Value,
+    has_foil: bool,
+    pose: Mat4,
+    sprites: &HashMap<String, Rect>,
+    host: &dyn SpecialHost,
+    sink: &mut dyn ItemSink,
+) {
+    submit_inner(
+        renderer, model, argument, has_foil, pose, sprites, host, sink, false,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn submit_inner(
+    renderer: &ItemRenderer,
+    model: &SpecialModel,
+    argument: &Value,
+    has_foil: bool,
+    pose: Mat4,
+    sprites: &HashMap<String, Rect>,
+    host: &dyn SpecialHost,
+    sink: &mut dyn ItemSink,
+    as_item: bool,
+) {
+    let pose = if as_item {
+        pose * item_transform(&model.kind)
+    } else {
+        pose
+    };
     let white = argb(-1);
     let mut part = |key: &str, adjust: Adjust, texture: &str, color: u32, foil: Foil| {
         if let (Some(p), Some(r)) = (renderer.part(key), sprites.get(texture).copied()) {
@@ -490,18 +570,6 @@ pub(super) fn submit(
         }
     };
     match &model.kind {
-        SpecialKind::Bell => part("bell", &none, "entity/bell/bell_body", white, Foil::None),
-        SpecialKind::Book {
-            open_angle,
-            page1,
-            page2,
-        } => part(
-            "book",
-            &book_pose(open_angle * (PI / 180.0), *page1, *page2),
-            "entity/enchantment/enchanting_table_book",
-            white,
-            Foil::None,
-        ),
         SpecialKind::Conduit => {
             part(
                 "conduit_shell",
@@ -511,18 +579,16 @@ pub(super) fn submit(
                 Foil::None,
             );
         }
-        SpecialKind::Chest {
-            texture,
-            openness,
-            chest_type,
-        } => part(
-            chest_model(chest_type),
+        SpecialKind::Chest { texture, openness } => part(
+            "chest",
             &chest_pose(*openness),
             &mapped("chest", texture),
             white,
             Foil::None,
         ),
-        SpecialKind::ShulkerBox { texture, openness } => part(
+        SpecialKind::ShulkerBox {
+            texture, openness, ..
+        } => part(
             "shulker_box",
             &shulker_pose(*openness),
             &mapped("shulker", texture),
@@ -574,22 +640,14 @@ pub(super) fn submit(
         }
         SpecialKind::Trident => {
             let foil = if has_foil { Foil::Standard } else { Foil::None };
-            part("trident", &none, "entity/trident/trident", white, foil);
+            part("trident", &none, "entity/trident", white, foil);
         }
-        SpecialKind::Banner { color, wall } => {
-            let (main, flag) = if *wall {
-                ("wall_banner", "wall_banner_flag")
-            } else {
-                ("standing_banner", "standing_banner_flag")
-            };
-            part(main, &none, "entity/banner/banner_base", white, Foil::None);
-            part(
-                flag,
-                &flag_pose,
-                "entity/banner/banner_base",
-                white,
-                Foil::None,
-            );
+        SpecialKind::Banner { color } => {
+            // `BannerRenderer.submitSpecial`: banner items are always
+            // standing in 1.21.10 (no attachment in the codec).
+            let (main, flag) = ("standing_banner", "standing_banner_flag");
+            part(main, &none, "entity/banner_base", white, Foil::None);
+            part(flag, &flag_pose, "entity/banner_base", white, Foil::None);
             // `submitPatterns`: the base layer in the banner's colour, then up to 16 layers.
             part(
                 flag,
@@ -608,10 +666,14 @@ pub(super) fn submit(
             let patterns = pattern_layers(&argument["minecraft:banner_patterns"]);
             let base_color = argument["minecraft:base_color"].as_str();
             let has_patterns = !patterns.is_empty() || base_color.is_some();
+            // `ModelBakery.SHIELD_BASE` / `NO_PATTERN_SHIELD`: 1.21.10 keeps
+            // them at `textures/entity/shield_base.png` and
+            // `textures/entity/shield_base_nopattern.png`; 26.x moved them
+            // under `entity/shield/`.
             let base = if has_patterns {
-                "entity/shield/shield_base"
+                "entity/shield_base"
             } else {
-                "entity/shield/shield_base_nopattern"
+                "entity/shield_base_nopattern"
             };
             // Without patterns: `entitySolidGlint`. With them, vanilla draws
             // `patternedShieldGlint` last, the glint alone over the finished
@@ -661,9 +723,6 @@ pub(super) fn submit(
                 }
             }
         }
-        // `EndCubeSpecialRenderer` draws the end portal/gateway effect; no
-        // bundled item uses it.
-        SpecialKind::EndCube { .. } => {}
     }
 }
 
@@ -767,8 +826,8 @@ mod tests {
         let renderer = ItemRenderer::load_with_library(&root, library).unwrap();
         let _ = std::fs::remove_dir_all(&root);
         let textures = [
-            "entity/shield/shield_base",
-            "entity/shield/shield_base_nopattern",
+            "entity/shield_base",
+            "entity/shield_base_nopattern",
             "entity/shield/base",
             "entity/shield/stripe_bottom",
         ];
@@ -825,7 +884,7 @@ mod tests {
         assert_eq!(
             drawn(banner.clone(), true),
             [
-                ("entity/shield/shield_base", Foil::Standard),
+                ("entity/shield_base", Foil::Standard),
                 ("entity/shield/base", Foil::Standard),
                 ("entity/shield/stripe_bottom", Foil::Standard),
             ]
@@ -833,16 +892,191 @@ mod tests {
         assert_eq!(
             drawn(banner, false),
             [
-                ("entity/shield/shield_base", Foil::None),
+                ("entity/shield_base", Foil::None),
                 ("entity/shield/base", Foil::None),
                 ("entity/shield/stripe_bottom", Foil::None),
             ]
         );
         assert_eq!(
             drawn(Value::Null, true),
-            [("entity/shield/shield_base_nopattern", Foil::Standard)]
+            [("entity/shield_base_nopattern", Foil::Standard)]
         );
     }
+    /// Each renderer's 1.21.10 inline transform, checked by moving a point
+    /// through it: the expected coordinates are worked out by hand from the
+    /// Java (`BannerRenderer.submitBanner`, `ShieldSpecialRenderer.submit`,
+    /// `SkullBlockRenderer.submitSkull(null, 180, 0)`,
+    /// `ShulkerBoxRenderer.prepareModel`, `CopperGolemStatueSpecialRenderer
+    /// .positionModel`), not from the matrix the code builds.
+    #[test]
+    fn item_transforms_match_the_1_21_11_inline_forms() {
+        let moved = |kind: &SpecialKind, p: Vec3| item_transform(kind).transform_point3(p);
+        let near = |a: Vec3, b: Vec3| (a - b).length() < 1e-5;
+        let banner = SpecialKind::Banner {
+            color: "white".to_owned(),
+        };
+        assert!(near(
+            moved(&banner, Vec3::new(3.0, 3.0, 3.0)),
+            Vec3::new(2.5, -2.0, -1.5)
+        ));
+        assert!(near(moved(&banner, Vec3::ZERO), Vec3::new(0.5, 0.0, 0.5)));
+        for kind in [SpecialKind::Shield, SpecialKind::Trident] {
+            assert!(near(
+                moved(&kind, Vec3::new(1.0, 2.0, 3.0)),
+                Vec3::new(1.0, -2.0, -3.0)
+            ));
+        }
+        let head = SpecialKind::Head {
+            kind: "skeleton".to_owned(),
+            texture: None,
+            animation: 0.0,
+        };
+        for kind in [&head, &SpecialKind::PlayerHead] {
+            assert!(near(
+                moved(kind, Vec3::new(1.0, 2.0, 3.0)),
+                Vec3::new(1.5, -2.0, -2.5)
+            ));
+        }
+        assert!(near(
+            moved(&SpecialKind::Conduit, Vec3::new(1.0, 2.0, 3.0)),
+            Vec3::new(1.5, 2.5, 3.5)
+        ));
+        let shulker = |orientation: &str| SpecialKind::ShulkerBox {
+            texture: "minecraft:shulker".to_owned(),
+            openness: 0.0,
+            orientation: orientation.to_owned(),
+        };
+        // `prepareModel` at the origin, one orientation each: the up case
+        // lands exactly on the 26.x item-model translation (0.5, 1.4995,
+        // 0.5), the others on the matching face.
+        assert!(near(
+            moved(&shulker("up"), Vec3::ZERO),
+            Vec3::new(0.5, 1.4995, 0.5)
+        ));
+        assert!(near(
+            moved(&shulker("down"), Vec3::ZERO),
+            Vec3::new(0.5, -0.4995, 0.5)
+        ));
+        assert!(near(
+            moved(&shulker("north"), Vec3::ZERO),
+            Vec3::new(0.5, 0.5, -0.4995)
+        ));
+        assert!(near(
+            moved(&shulker("south"), Vec3::ZERO),
+            Vec3::new(0.5, 0.5, 1.4995)
+        ));
+        assert!(near(
+            moved(&shulker("west"), Vec3::ZERO),
+            Vec3::new(-0.4995, 0.5, 0.5)
+        ));
+        assert!(near(
+            moved(&shulker("east"), Vec3::ZERO),
+            Vec3::new(1.4995, 0.5, 0.5)
+        ));
+        let statue = SpecialKind::CopperGolemStatue {
+            texture: "minecraft:textures/entity/copper_golem/copper_golem.png".to_owned(),
+            pose: "standing".to_owned(),
+        };
+        assert!(near(
+            moved(&statue, Vec3::new(1.0, 2.0, 3.0)),
+            Vec3::new(-0.5, -0.5, 3.5)
+        ));
+        let chest = SpecialKind::Chest {
+            texture: "minecraft:normal".to_owned(),
+            openness: 0.0,
+        };
+        for kind in [&chest, &SpecialKind::DecoratedPot] {
+            assert!(near(
+                moved(kind, Vec3::new(1.0, 2.0, 3.0)),
+                Vec3::new(1.0, 2.0, 3.0)
+            ));
+        }
+    }
+
+    /// The item path applies the transform and the worn path does not: a
+    /// shield item's quad is flipped in y and z, a worn player head's is
+    /// not, and the shield's extents carry the flip too.
+    #[test]
+    fn submit_applies_the_item_transform_and_submit_worn_does_not() {
+        let root =
+            std::env::temp_dir().join(format!("horizon-special-pose-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("items.json"), "{}").unwrap();
+        std::fs::write(
+            root.join("entity-models.json"),
+            serde_json::json!({
+                "minecraft:shield#main": {
+                    "pose": [0, 0, 0, 0, 0, 0, 1, 1, 1],
+                    "polygons": [[[0, 0, 0, 0, 0], [1, 0, 0, 1, 0],
+                                  [1, 1, 0, 1, 1], [0, 1, 0, 0, 1]]],
+                    "children": {}
+                },
+                "minecraft:player_head#main": {
+                    "pose": [0, 0, 0, 0, 0, 0, 1, 1, 1],
+                    "polygons": [[[0, 0, 0, 0, 0], [1, 0, 0, 1, 0],
+                                  [1, 1, 0, 1, 1], [0, 1, 0, 0, 1]]],
+                    "children": {}
+                },
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let library = crate::model_library::ParsedModels::default().into_item_library();
+        let renderer = ItemRenderer::load_with_library(&root, library).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        let sprite = Rect {
+            u0: 0.0,
+            v0: 0.0,
+            u1: 1.0,
+            v1: 1.0,
+            w: 16,
+            h: 16,
+        };
+        let sprites: HashMap<String, Rect> =
+            ["entity/shield_base_nopattern", "entity/player/slim/steve"]
+                .into_iter()
+                .map(|name| (name.to_owned(), sprite))
+                .collect();
+        let mut quads: Vec<ItemQuad> = Vec::new();
+        submit(
+            &renderer,
+            &SpecialModel {
+                kind: SpecialKind::Shield,
+            },
+            &Value::Null,
+            false,
+            Mat4::IDENTITY,
+            &sprites,
+            &super::super::NoHost,
+            &mut quads,
+        );
+        assert_eq!(quads.len(), 1);
+        assert_eq!(quads[0].pos[2], Vec3::new(1.0 / 16.0, -1.0 / 16.0, 0.0));
+        let points = extents(
+            &renderer,
+            &SpecialModel {
+                kind: SpecialKind::Shield,
+            },
+        );
+        assert!(points.contains(&Vec3::new(1.0 / 16.0, -1.0 / 16.0, 0.0)));
+        assert!(!points.contains(&Vec3::new(1.0 / 16.0, 1.0 / 16.0, 0.0)));
+        let mut worn: Vec<ItemQuad> = Vec::new();
+        submit_worn(
+            &renderer,
+            &SpecialModel {
+                kind: SpecialKind::PlayerHead,
+            },
+            &Value::Null,
+            false,
+            Mat4::IDENTITY,
+            &sprites,
+            &super::super::NoHost,
+            &mut worn,
+        );
+        assert_eq!(worn.len(), 1);
+        assert_eq!(worn[0].pos[2], Vec3::new(1.0 / 16.0, 1.0 / 16.0, 0.0));
+    }
+
     /// `DecoratedPotRenderer` draws every part with `RenderTypes.entitySolid`,
     /// whose pipeline culls back faces: the pot's flat `top` and `bottom`
     /// planes would otherwise show both sides and z-fight in the hand too.

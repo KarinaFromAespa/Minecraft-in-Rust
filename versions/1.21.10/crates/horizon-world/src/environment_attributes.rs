@@ -65,7 +65,7 @@ const fn a(id: &'static str, kind: Kind, default: Default, range: Range) -> Attr
 }
 
 /// `EnvironmentAttributes`, in registration order.
-pub static ATTRIBUTES: [Attribute; 51] = {
+pub static ATTRIBUTES: [Attribute; 48] = {
     use Default as D;
     use Kind::*;
     [
@@ -126,26 +126,8 @@ pub static ATTRIBUTES: [Attribute; 51] = {
         a("visual/star_angle", AngleDegrees, D::Float(0.0), Range::Any),
         a("visual/moon_phase", Other, D::Unported, Range::Any),
         a("visual/star_brightness", Float, D::Float(0.0), UNIT),
-        a(
-            "visual/block_light_tint",
-            RgbColor,
-            D::Rgb(-10_100),
-            Range::Any,
-        ),
         a("visual/sky_light_color", RgbColor, D::Rgb(-1), Range::Any),
         a("visual/sky_light_factor", Float, D::Float(1.0), UNIT),
-        a(
-            "visual/night_vision_color",
-            RgbColor,
-            D::Rgb(-6_710_887),
-            Range::Any,
-        ),
-        a(
-            "visual/ambient_light_color",
-            RgbColor,
-            D::Rgb(-16_777_216),
-            Range::Any,
-        ),
         a(
             "visual/default_dripstone_particle",
             Other,
@@ -205,7 +187,7 @@ pub static ATTRIBUTES: [Attribute; 51] = {
         a(
             "gameplay/turtle_egg_hatch_chance",
             Float,
-            D::Float(0.002),
+            D::Float(0.0),
             UNIT,
         ),
         a(
@@ -875,5 +857,33 @@ impl Attribute {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_table_is_the_12110_registry() {
+        // 1.21.10 vanilla has no EnvironmentAttribute system at all (no
+        // `net/minecraft/world/attribute` classes in its jar); the table
+        // is the engine's environment model, carried from 1.21.11's
+        // registry: 45 attributes plus the three 26.3-only entries the
+        // engine inherited (`natural_mob_spawns`,
+        // `creature_world_gen_spawn_probability`, `straw_bed_rule`).
+        assert_eq!(ATTRIBUTES.len(), 48);
+        // The 26.1-only light attributes are gone in 1.21.10 and 1.21.11.
+        for id in [
+            "visual/block_light_tint",
+            "visual/night_vision_color",
+            "visual/ambient_light_color",
+        ] {
+            assert!(attribute(id).is_none(), "{id} is registered");
+        }
+        // The turtle-egg default is 0 in 1.21.10 and 1.21.11 (0.002 in
+        // 26.1); the day timeline's track supplies the 0.002 where it runs.
+        let hatch = attribute("gameplay/turtle_egg_hatch_chance").unwrap();
+        assert_eq!(hatch.default_value(), Some(Value::Float(0.0)));
     }
 }

@@ -247,7 +247,8 @@ impl Game<'_> {
             .filter(|(feet, _)| feet.distance_squared(m.position) < 64.0 * 64.0)
             .map(|(_, eye)| horizon_core::geometry::Vec3::new(eye[0], eye[1], eye[2]))
     }
-    /// `GoAndGiveItemsToTarget` / `AllayAi.throwItem`: within 3 blocks of
+    /// `GoAndGiveItemsToTarget` / `GoAndGiveItemsToTarget.throwItem` (1.21.10;
+    /// 26.1 moved it to `AllayAi.onItemThrown`): within 3 blocks of
     /// the deposit, one item a tick, each restarting the three-second pause
     /// before it picks anything up again.
     fn allay_deliver(&mut self, i: usize) {
@@ -294,14 +295,14 @@ impl Game<'_> {
         ];
         let len = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt().max(1e-6);
         let v = [d[0] / len * 0.2, d[1] / len * 0.3, d[2] / len * 0.2];
-        // AllayAi.throwItem: the liked player hears of the block below the deposit.
+        // GoAndGiveItemsToTarget.tick: the liked player hears of the block below the deposit.
         let below = [
             target.x.floor() as i32,
             (target.y - 1.0).floor() as i32,
             target.z.floor() as i32,
         ];
         let uuid = self.allay_liked_uuid(i);
-        // AllayAi.throwItem: one item of the pocket stack, its components and all.
+        // GoAndGiveItemsToTarget.tick: one item of the pocket stack, its components and all.
         let stack = ItemStack { count: 1, ..item };
         self.for_each_player(|g| {
             if g.acting_uuid() == uuid && !g.spectator() {

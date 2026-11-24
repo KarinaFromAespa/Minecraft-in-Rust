@@ -88,9 +88,9 @@ SCENARIOS = {
     'redstone-torch': dict(b=dict(m1='minecraft:stone', p0='minecraft:redstone_torch'), sky=0, light=7, y=40, surface=80),
     'tall-grass': dict(b=dict(m1='minecraft:grass_block', p0='minecraft:short_grass', p1='minecraft:air'), sky=15, darken=11, y=70, surface=70),
     'low-ceiling': dict(b=dict(m1='minecraft:stone', p1='minecraft:stone'), sky=0, y=40, surface=80),
-    'swamp-surface': dict(b=dict(m1='minecraft:grass_block'), sky=15, darken=11, y=62, surface=63, biome='minecraft:swamp', slime=0.5),
-    'swamp-full-moon': dict(b=dict(m1='minecraft:grass_block'), sky=15, darken=4, y=64, surface=65, biome='minecraft:swamp', slime=0.5),
-    'swamp-new-moon': dict(b=dict(m1='minecraft:grass_block'), sky=15, darken=11, y=63, surface=64, biome='minecraft:swamp', slime=0.0),
+    'swamp-surface': dict(b=dict(m1='minecraft:grass_block'), sky=15, darken=11, y=62, surface=63, biome='minecraft:swamp', moon=1.0),
+    'swamp-full-moon': dict(b=dict(m1='minecraft:grass_block'), sky=15, darken=4, y=64, surface=65, biome='minecraft:swamp', moon=1.0),
+    'swamp-new-moon': dict(b=dict(m1='minecraft:grass_block'), sky=15, darken=11, y=63, surface=64, biome='minecraft:swamp', moon=0.0),
     'bat-cave': dict(b=dict(m1='minecraft:stone'), sky=0, y=10, surface=80),
     'bat-surface': dict(b=dict(m1='minecraft:stone'), sky=0, y=79, surface=79),
 }

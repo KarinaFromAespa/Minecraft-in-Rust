@@ -49,7 +49,7 @@ impl Game<'_> {
         self.save_schedule();
         self.save_warden_tracker();
         self.sync_level();
-        // Level::write can synchronously replace the integrated owner file.
+        // Level::write can synchronously replace the integrated owner's level.dat player.
         let _ = self.finish_player_autosaves(true);
         let stored_owner = self.store_owner();
         write_level_for_role(
@@ -63,8 +63,8 @@ impl Game<'_> {
             self.native_player_save_to_file(uuid, &name, &directory);
         }
         // PlayerList.saveAll: every placed player saves with the server, to
-        // their own file (`PlayerDataStorage.save`); the owner is also in the
-        // file level.dat names, which is the one it loads from
+        // their own file (`PlayerDataStorage.save`); the owner is also in
+        // level.dat's `Player`, which is the one it loads from
         // (`playerdata::load_owner`).
         if self.options.dedicated.is_some()
             && !self.options.execution_role.is_client()

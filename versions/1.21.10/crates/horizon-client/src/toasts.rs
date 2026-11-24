@@ -133,8 +133,8 @@ impl SystemToast {
                 && ((fully - self.last_changed) as f64) < self.display_time * multiplier
         })
     }
-    /// `extractRenderState` at `y`, in from the right edge by the visible
-    /// portion (`Toast.xPos`).
+    /// `render` (26.1's `extractRenderState`) at `y`, in from the right
+    /// edge by the visible portion (`Toast.xPos`).
     pub fn draw(&self, atlas: &HudAtlas, batch: &mut HudBatch, y: f32) {
         let width = std::iter::once(&self.title)
             .chain(&self.message)
@@ -288,8 +288,8 @@ impl NowPlayingToast {
         }
         self.finished = finished;
     }
-    /// `ToastInstance.extractRenderState` with `Toast.xPos`: nothing once it
-    /// has slid out.
+    /// `ToastInstance.render` (26.1's `extractRenderState`) with
+    /// `Toast.xPos`: nothing once it has slid out.
     pub fn draw(&self, atlas: &HudAtlas, batch: &mut HudBatch, song: &str, notes: &MusicNotes) {
         if self.finished {
             return;

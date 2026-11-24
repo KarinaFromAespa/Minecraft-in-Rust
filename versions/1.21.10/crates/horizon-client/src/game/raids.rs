@@ -12,7 +12,7 @@ use horizon_client::{
         spawn_selection::{Heightmap, NaturalLevel},
         spawning,
     },
-    patrol::{GameplayAttributes, Member, PatrolLevel, PatrolSpawner},
+    patrol::{Member, PatrolLevel, PatrolSpawner},
     raid::{self, Action, BarName, RaidLevel, RaidPlayer, RaiderInfo, RaiderType, Raids, Spawn},
     random_source,
 };
@@ -34,7 +34,6 @@ pub(super) struct Raiding {
     omen_loaded: bool,
     /// The last raider hurt each raid's bar has seen (`Raider.hurtServer`).
     bar_hurts: HashMap<i32, u64>,
-    attributes: Option<std::sync::Arc<GameplayAttributes>>,
     /// Beds near each raid's centre, rescanned now and then (`HOME` points
     /// of interest for `RaiderMoveThroughVillageGoal`).
     homes: HashMap<i32, (i64, std::sync::Arc<Vec<[i32; 3]>>)>,
@@ -176,8 +175,8 @@ impl SpawnLevel for PatrolCx<'_, '_, '_> {
     fn dimension_type(&self) -> &horizon_world::dimension_type::DimensionFacts {
         self.level.dimension_type()
     }
-    fn surface_slime_chance(&self, x: i32, y: i32, z: i32) -> f32 {
-        self.level.surface_slime_chance(x, y, z)
+    fn moon_brightness(&self) -> f32 {
+        self.level.moon_brightness()
     }
     fn world_seed(&self) -> i64 {
         self.level.world_seed()
@@ -190,8 +189,11 @@ impl PatrolLevel for PatrolCx<'_, '_, '_> {
     fn spawn_patrols(&self) -> bool {
         self.level.game.ui.rules.bool("spawn_patrols")
     }
+    fn day_time(&self) -> i64 {
+        self.level.game.world.day_time
+    }
     fn bright_outside(&self) -> bool {
-        !self.level.game.dimension_type().has_fixed_time && self.level.game.sky_darken() < 4
+        self.level.game.bright_outside()
     }
     /// `PatrolSpawner.tick` picks from `level.players()`: the local player
     /// and every guest in the level.
@@ -353,33 +355,6 @@ impl Game<'_> {
             }
         }
     }
-    fn gameplay_attributes(&mut self) -> std::sync::Arc<GameplayAttributes> {
-        if self.raiding.attributes.is_none() {
-            self.raiding.attributes = Some(std::sync::Arc::new(GameplayAttributes::load(
-                &self.options.resources,
-            )));
-        }
-        self.raiding.attributes.clone().unwrap_or_default()
-    }
-    /// A boolean gameplay attribute at a position (dimension, biome, then
-    /// the timelines at the overworld clock).
-    fn gameplay_attribute(&mut self, key: &str, at: [i32; 3]) -> bool {
-        let attributes = self.gameplay_attributes();
-        let biome = self
-            .world
-            .chunks
-            .get(&(at[0] >> 4, at[2] >> 4))
-            .map(|c| {
-                self.res
-                    .biomes()
-                    .get(c.biome(at[0], at[1], at[2]))
-                    .name
-                    .clone()
-            })
-            .unwrap_or_default();
-        attributes.value(key, &self.dimension_type().id, &biome, self.world.day_time)
-    }
-
     /// `BadOmenMobEffect` and `RaidOmenMobEffect.applyEffectTick` for the
     /// player's effect tick: Bad Omen inside a village becomes Raid Omen,
     /// whose last tick starts or extends a raid where it began.
@@ -428,12 +403,13 @@ impl Game<'_> {
             .play("minecraft:event.mob_effect.raid_omen", Some(at), 1.0, 1.0);
     }
     /// `Raids.createOrExtendRaid`: not for spectators, with the `raids` rule
-    /// and where raids may start; the raid centres on the occupied village
-    /// points of interest within 64 blocks.
+    /// and where raids may start (`dimensionType.hasRaids()`: the Nether
+    /// forbids them, the End allows them); the raid centres on the occupied
+    /// village points of interest within 64 blocks.
     fn create_or_extend_raid(&mut self, at: [i32; 3], amplifier: Option<i32>) -> Option<i32> {
         if self.spectator()
             || !self.ui.rules.bool("raids")
-            || !self.gameplay_attribute(horizon_client::patrol::CAN_START_RAID, at)
+            || !self.dimension_type().has_raids
         {
             return None;
         }
@@ -624,6 +600,13 @@ impl Game<'_> {
             })
             .collect();
         let mut raids = std::mem::take(&mut self.raiding.raids);
+        // `findRandomSpawnPos` draws from the level random in 1.21.10;
+        // taken out like the patrol spawner's (the `Lvl` below borrows
+        // the game, so the random cannot stay in place).
+        let mut random = std::mem::replace(
+            &mut self.world.random,
+            horizon_core::random::LegacyRandom::new(0),
+        );
         let actions = {
             let lvl = Lvl {
                 game: self,
@@ -631,8 +614,9 @@ impl Game<'_> {
                 centers: &centers,
             };
             let members = |id: i32| infos.get(&id).cloned().unwrap_or_default();
-            raids.tick(&lvl, self.ui.rules.bool("raids"), &members)
+            raids.tick(&lvl, &mut random, self.ui.rules.bool("raids"), &members)
         };
+        self.world.random = random;
         self.raiding.raids = raids;
         for (id, (old, _)) in old_states {
             if let Some(r) = self.raiding.raids.get(id)
@@ -1187,8 +1171,10 @@ impl Game<'_> {
 
     /// The raid bar a living player at `at` is in (`Raid.getPlayers`): red,
     /// notched in tens. The name is the translate component the client draws.
+    /// No dimension gate: a raid can start in the End (`has_raids` is
+    /// true there); only the Nether forbids it, via `has_raids`.
     pub(super) fn raid_boss_at(&self, at: [f64; 3], alive: bool) -> Option<(i32, Tag, f32)> {
-        if !alive || self.dim != Dim::Overworld {
+        if !alive {
             return None;
         }
         let block = block_of(Vec3::new(at[0], at[1], at[2]));
@@ -1257,7 +1243,8 @@ impl Game<'_> {
         if self.dim != Dim::Overworld {
             return;
         }
-        let attributes = self.gameplay_attributes();
+        // PatrolSpawner.tick: no patrols in a `#without_patrol_spawns`
+        // biome (mushroom fields in 1.21.10).
         let biome_ok = |game: &Game, at: [i32; 3]| {
             let biome = game
                 .world
@@ -1271,12 +1258,10 @@ impl Game<'_> {
                         .clone()
                 })
                 .unwrap_or_default();
-            attributes.value(
-                horizon_client::patrol::CAN_PILLAGER_PATROL_SPAWN,
-                game.dim.id(),
-                &biome,
-                game.world.day_time,
-            )
+            !game
+                .res
+                .mob_data()
+                .biome_has("minecraft:without_patrol_spawns", &biome)
         };
         let enemies = self.ui.rules.bool("spawn_mobs") && self.ui.rules.bool("spawn_monsters");
         let mut random = std::mem::replace(
@@ -1315,17 +1300,18 @@ impl Game<'_> {
     }
     /// `VillageSiege.tick`: at midnight one night in ten, 20 zombies spawn
     /// two ticks apart near a village 32 blocks from a player standing in it.
+    /// Every level ticks its custom spawners, so a village in the Nether or
+    /// the End can be sieged too (`Level.isBrightOutside` is never true
+    /// where time is fixed; only `mushroom_fields` biomes are exempt).
     pub(super) fn tick_village_siege(&mut self) {
-        if self.dim != Dim::Overworld {
-            return;
-        }
         let enemies = self.ui.rules.bool("spawn_mobs") && self.ui.rules.bool("spawn_monsters");
-        if self.sky_darken() < 4 || !enemies {
+        // `Level.isBrightOutside`: `!hasFixedTime && skyDarken < 4`.
+        if (!self.dimension_type().has_fixed_time && self.sky_darken() < 4) || !enemies {
             self.raiding.siege.tonight = false;
             self.raiding.siege.set_up = false;
             return;
         }
-        // ClockTimeMarkers.ROLL_VILLAGE_SIEGE: tick 18000 of the 24000 tick day.
+        // The roll is at `getDayTime() % 24000 == 18000` (midnight).
         if self.world.day_time.rem_euclid(24000) == 18000 {
             self.raiding.siege.tonight = self.world.random.next_int_bound(10).unwrap_or(1) == 0;
         }
@@ -1418,7 +1404,7 @@ impl Game<'_> {
             (m.yaw, m.previous_yaw, m.body_yaw, m.previous_body_yaw) = (yaw, yaw, yaw, yaw);
             (m.head_yaw, m.previous_head_yaw) = (yaw, yaw);
         }
-        self.spawn_jockeys(id, false);
+        self.spawn_jockeys(id);
     }
     /// `VillageSiege.findRandomSpawnPos`: ten tries within 8 blocks of the
     /// spot for a village column where a zombie may spawn.

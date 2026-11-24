@@ -194,6 +194,14 @@ fn rotation_in((lo, hi): (Option<f64>, Option<f64>), angle: f32) -> bool {
         angle >= min && angle <= max
     }
 }
+/// `CloneCommands.clone`'s area check: the spans multiplied as 32-bit
+/// ints, wrapping — 1.21.10 multiplies `int`s, so a region whose true
+/// volume overflows 32 bits wraps (a 4096-cubed region wraps to 0 and
+/// passes the check; a 2000-cubed one wraps negative); 26.1 widens
+/// the product to `long`, so it rejects those.
+fn clone_area(spans: [i32; 3]) -> i32 {
+    spans.iter().fold(1i32, |a, &s| a.wrapping_mul(s))
+}
 /// `Mth.wrapDegrees`.
 fn wrap_degrees(angle: f32) -> f32 {
     let wrapped = angle % 360.0;
@@ -1284,7 +1292,6 @@ impl Game<'_> {
             "recipe.give" | "recipe.take" => self.cmd_recipe(id, ctx),
             "damage" => self.cmd_damage(ctx),
             "rotate" => self.cmd_rotate(ctx),
-            "swing" => self.cmd_swing(ctx),
             "playsound" => self.cmd_playsound(ctx),
             "stopsound" => self.cmd_stopsound(ctx),
             "particle" => self.cmd_particle(ctx),
@@ -1309,7 +1316,6 @@ impl Game<'_> {
             id if id.starts_with("worldborder.") => self.cmd_worldborder(id, ctx),
             id if id.starts_with("loot.") => self.cmd_loot(id, ctx),
             "teammsg" => self.cmd_teammsg(ctx),
-            id if id.starts_with("stopwatch.") => self.cmd_stopwatch(id, ctx),
             id if id.starts_with("tick.") => self.cmd_tick(id, ctx),
             id if id.starts_with("random.") => self.cmd_random(id, ctx),
             "function" => self.cmd_function(ctx),
@@ -2228,153 +2234,59 @@ impl Game<'_> {
                 .1
         }
     }
-    /// `TimeCommand.getDefaultClock`: explicit registered clocks and dimension defaults are
-    /// separate; built-in timelines and markers belong only to Overworld.
+    /// `TimeCommand` (1.21.10: the classic command — no clocks, markers,
+    /// timelines, pause or rate). Set/add apply to every level; the levels
+    /// share one canonical day time (`enter_level` copies it into a parked
+    /// level on swap), so setting it here sets it everywhere, and the hub's
+    /// `sync_world` broadcasts the jump on the next tick
+    /// (`forceTimeSynchronization`).
     fn cmd_time(&mut self, id: &str, ctx: &Context) -> R<i32> {
-        if id == "time.query.gametime" {
-            let t = self.world.game_time;
-            self.feedback_unbroadcast(Text::tr("commands.time.query.gametime", &[&t]));
-            return Ok((t % i64::from(i32::MAX)) as i32);
-        }
-        // `time of <clock>` names the clock; otherwise the dimension's default clock.
-        let clock = match ctx.get("clock") {
-            Some(Arg::Resource(c)) => c.clone(),
-            _ => match self.dimension_type().default_clock.clone() {
-                Some(clock) => clock,
-                None => return Err(err("commands.time.no_default_clock", &[&self.dim.id()])),
-            },
-        };
-        let total = self.command_clock_time(&clock);
         match id {
             "time.set" => {
-                let t = i64::from(Self::int(ctx, "time").unwrap_or(0));
-                if total == t {
-                    return Err(err("commands.time.set.already_at_time", &[&clock, &t]));
-                }
-                self.jump_clock(&clock, total, t, "command");
-                self.feedback(Text::tr("commands.time.set.absolute", &[&clock, &t]));
-                Ok(t as i32)
-            }
-            "time.set.marker" => {
-                let Some(Arg::Resource(marker)) = ctx.get("timemarker").cloned() else {
-                    return Ok(0);
+                // set day|noon|night|midnight, else the time argument.
+                let t = if ctx.has("day") {
+                    1000
+                } else if ctx.has("noon") {
+                    6000
+                } else if ctx.has("night") {
+                    13000
+                } else if ctx.has("midnight") {
+                    18000
+                } else {
+                    i64::from(Self::int(ctx, "time").unwrap_or(0))
                 };
-                let Some(m) = (clock == "minecraft:overworld")
-                    .then(|| self.ui.markers.get(&marker).copied())
-                    .flatten()
-                else {
-                    return Err(err(
-                        "commands.time.no_time_marker_found",
-                        &[&marker, &clock],
-                    ));
-                };
-                if m.occurs_at(total) {
-                    return Err(err(
-                        "commands.time.set.already_at_time_marker",
-                        &[&clock, &marker],
-                    ));
-                }
-                let target = m.resolve(total);
-                let mut cancel = false;
-                self.native_time_skip(self.dim.id(), total, target, "command", &mut cancel);
-                if !cancel {
-                    self.set_command_clock_time(&clock, target);
-                    self.command_clock_state(&clock).partial = 0.0;
-                }
-                self.feedback(Text::tr(
-                    "commands.time.set.time_marker",
-                    &[&clock, &marker],
-                ));
-                Ok((self.command_clock_time(&clock) % i64::from(i32::MAX)) as i32)
+                self.jump_clock("minecraft:overworld", self.world.day_time, t, "command");
+                self.feedback(Text::tr("commands.time.set", &[&t]));
+                Ok((self.world.day_time % 24_000) as i32)
             }
             "time.add" => {
                 let t = i64::from(Self::int(ctx, "time").unwrap_or(0));
-                let target = (total + t).max(0);
+                let total = self.world.day_time;
+                let target = total + t;
                 let mut cancel = false;
                 self.native_time_skip(self.dim.id(), total, target, "command", &mut cancel);
                 if !cancel {
-                    self.set_command_clock_time(&clock, target);
+                    self.world.day_time = target;
                 }
-                let now = self.command_clock_time(&clock);
-                self.feedback(Text::tr("commands.time.set.absolute", &[&clock, &now]));
-                Ok((now % i64::from(i32::MAX)) as i32)
+                let now = (self.world.day_time % 24_000) as i32;
+                self.feedback(Text::tr("commands.time.set", &[&now]));
+                Ok(now)
             }
-            "time.pause" | "time.resume" => {
-                let pause = id == "time.pause";
-                if self.command_clock_state(&clock).paused == pause {
-                    return Err(err(
-                        if pause {
-                            "commands.time.pause.already_paused"
-                        } else {
-                            "commands.time.pause.already_running"
-                        },
-                        &[&clock],
-                    ));
-                }
-                self.command_clock_state(&clock).paused = pause;
-                self.feedback(Text::tr(
-                    if pause {
-                        "commands.time.pause"
-                    } else {
-                        "commands.time.resume"
-                    },
-                    &[&clock],
-                ));
-                Ok(1)
+            "time.query.daytime" => {
+                let t = (self.world.day_time % 24_000) as i32;
+                self.feedback_unbroadcast(Text::tr("commands.time.query", &[&t]));
+                Ok(t)
             }
-            "time.rate" => {
-                let rate = match ctx.get("rate") {
-                    Some(Arg::Float(r)) => *r,
-                    _ => 1.0,
-                };
-                if self.command_clock_state(&clock).rate == rate {
-                    return Err(err(
-                        "commands.time.rate.already_same",
-                        &[&clock, &java_float(f64::from(rate))],
-                    ));
-                }
-                self.command_clock_state(&clock).rate = rate;
-                self.feedback(Text::tr(
-                    "commands.time.rate",
-                    &[&clock, &java_float(f64::from(rate))],
-                ));
-                Ok(1)
+            "time.query.gametime" => {
+                let t = (self.world.game_time % i64::from(i32::MAX)) as i32;
+                self.feedback_unbroadcast(Text::tr("commands.time.query", &[&t]));
+                Ok(t)
             }
-            "time.query.time" => {
-                self.feedback_unbroadcast(Text::tr(
-                    "commands.time.query.absolute",
-                    &[&clock, &total],
-                ));
-                Ok((total % i64::from(i32::MAX)) as i32)
-            }
-            "time.query.timeline" | "time.query.repetition" => {
-                let Some(Arg::Resource(timeline)) = ctx.get("timeline").cloned() else {
-                    return Ok(0);
-                };
-                let Some(period) = (clock == "minecraft:overworld")
-                    .then(|| self.ui.timelines.get(&timeline).copied())
-                    .flatten()
-                else {
-                    return Err(err(
-                        "commands.time.wrong_timeline_for_clock",
-                        &[&timeline, &clock],
-                    ));
-                };
-                if id == "time.query.timeline" {
-                    let ticks = period.map_or(total, |p| total.rem_euclid(p));
-                    self.feedback_unbroadcast(Text::tr(
-                        "commands.time.query.timeline",
-                        &[&timeline, &ticks],
-                    ));
-                    Ok(ticks as i32)
-                } else {
-                    let reps = period.map_or(0, |p| total / p);
-                    self.feedback_unbroadcast(Text::tr(
-                        "commands.time.query.timeline.repetitions",
-                        &[&timeline, &reps],
-                    ));
-                    Ok(reps as i32)
-                }
+            "time.query.day" => {
+                // ServerLevel.getDayCount: the day time over 24000.
+                let t = (self.world.day_time / 24_000 % i64::from(i32::MAX)) as i32;
+                self.feedback_unbroadcast(Text::tr("commands.time.query", &[&t]));
+                Ok(t)
             }
             _ => Ok(0),
         }
@@ -3356,9 +3268,9 @@ impl Game<'_> {
         if !ctx.has("force") && !moving && from_dim == to_dim && overlap {
             return Err(err("commands.clone.overlap", &[]));
         }
-        let area = (0..3).map(|i| i64::from(size[i] + 1)).product::<i64>();
+        let area = clone_area([size[0] + 1, size[1] + 1, size[2] + 1]);
         let limit = self.ui.rules.int("max_block_modifications");
-        if area > i64::from(limit) {
+        if area > limit {
             return Err(err("commands.clone.toobig", &[&limit, &area]));
         }
         self.clone_enter(to_dim)?;
@@ -3810,8 +3722,10 @@ impl Game<'_> {
             Some(Arg::Coords(c)) => c.rotation(self.source_rotation()),
             _ => [0.0, 0.0],
         };
-        let yaw = ((rot[0] + 180.0).rem_euclid(360.0)) - 180.0;
-        let pitch = rot[1].clamp(-90.0, 90.0);
+        // 1.21.10's `RespawnData.of` stores the angle as given; 1.21.11 wraps
+        // the yaw and clamps the pitch.
+        let yaw = rot[0];
+        let pitch = rot[1];
         // SetSpawnCommand: a forced point in the source's level, for each target.
         let level = self.dim;
         for &t in &targets {
@@ -3874,8 +3788,8 @@ impl Game<'_> {
             Some(Arg::Coords(c)) => c.rotation(self.source_rotation()),
             _ => [0.0, 0.0],
         };
-        // SetWorldSpawnCommand uses RespawnData.of before storing or comparing.
-        let rot = [wrap_degrees(rot[0]), rot[1].clamp(-90.0, 90.0)];
+        // The angle is stored as given: 1.21.10's `RespawnData.of` neither
+        // wraps the yaw nor clamps the pitch (1.21.11 does both).
         // LevelData.setRespawnData: the world's spawn (level.dat `spawn`).
         let previous_point = self.world_spawn_position().map(|v| v.floor() as i32);
         let old = self.level.world_spawn.replace(pos);
@@ -6049,5 +5963,23 @@ mod global_selector_order_tests {
             failures.is_empty(),
             "actual registered selector order/limits: {failures:#?}"
         );
+    }
+}
+
+#[cfg(test)]
+mod clone_area_tests {
+    use super::clone_area;
+
+    #[test]
+    fn the_clone_area_wraps_like_java_ints() {
+        assert_eq!(clone_area([1, 1, 1]), 1);
+        assert_eq!(clone_area([16, 16, 16]), 4096);
+        // 4096^3 = 2^36 wraps to 0: the check passes in 1.21.10.
+        assert_eq!(clone_area([4096, 4096, 4096]), 0);
+        // 2000^3 = 8_000_000_000 wraps negative.
+        assert_eq!(clone_area([2000, 2000, 2000]), -589_934_592);
+        // 3000^3 = 27_000_000_000 wraps to 1_230_196_224 (still
+        // over the limit, but the error shows the wrapped value).
+        assert_eq!(clone_area([3000, 3000, 3000]), 1_230_196_224);
     }
 }

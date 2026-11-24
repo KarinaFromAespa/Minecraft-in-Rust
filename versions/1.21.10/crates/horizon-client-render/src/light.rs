@@ -1,6 +1,6 @@
 //! Sky and block light for one chunk, flood-filled over its 3x3 neighbourhood
 //! with vanilla's `LightEngine` rules:
-//! - light entering a block loses `max(1, getLightDampening)` (`getOpacity`);
+//! - light entering a block loses `max(1, getLightBlock)` (`getOpacity`);
 //! - it cannot cross a face where the two blocks' occlusion faces together
 //!   cover the whole square (`shapeOccludes`, using `getFaceOcclusionShape`
 //!   only for states with `canOcclude && useShapeForLightOcclusion`), which is

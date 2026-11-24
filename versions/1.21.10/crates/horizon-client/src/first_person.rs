@@ -595,20 +595,20 @@ impl Default for HandHeights {
     }
 }
 impl HandHeights {
-    /// `FirstPersonHandsAndItems.tick`'s heights. `changed` says per hand
+    /// `ItemInHandRenderer.tick`'s heights. `changed` says per hand
     /// whether the visible item differs from the held one once
-    /// `shouldInstantlyReplaceVisibleItem` has run; `swap_scale` is
-    /// `getItemSwapScale(1.0F)`. Returns whether each hand's visible item
-    /// is replaced at the end.
-    pub fn tick(&mut self, hands_busy: bool, swap_scale: f32, changed: [bool; 2]) -> [bool; 2] {
-        self.tick_with(hands_busy, swap_scale, changed, false)
+    /// `shouldInstantlyReplaceVisibleItem` has run; `attack_scale` is
+    /// `getAttackStrengthScale(1.0F)`. Returns whether each hand's visible
+    /// item is replaced at the end.
+    pub fn tick(&mut self, hands_busy: bool, attack_scale: f32, changed: [bool; 2]) -> [bool; 2] {
+        self.tick_with(hands_busy, attack_scale, changed, false)
     }
     /// [`Self::tick`]; `legacy` (Combat feel Legacy) raises the main hand fully whatever the
     /// attack strength, as 1.8.9's `ItemRenderer.updateEquippedItem` did (no dip after a hit).
     pub fn tick_with(
         &mut self,
         hands_busy: bool,
-        swap_scale: f32,
+        attack_scale: f32,
         changed: [bool; 2],
         legacy: bool,
     ) -> [bool; 2] {
@@ -618,7 +618,7 @@ impl HandHeights {
             self.main = (self.main - 0.4).clamp(0.0, 1.0);
             self.off = (self.off - 0.4).clamp(0.0, 1.0);
         } else {
-            let attack = if legacy { 1.0 } else { swap_scale };
+            let attack = if legacy { 1.0 } else { attack_scale };
             let main_target = if changed[0] {
                 0.0
             } else {
@@ -758,17 +758,27 @@ pub trait HandWorld {
     fn held_count(&mut self, hand: Hand) -> i32;
     /// `Player.hasInfiniteMaterials`.
     fn infinite_materials(&self) -> bool;
-    /// `Player.cannotAttackWithItem(heldItem, 0)`.
+    /// `Player.cannotAttackWithItem(heldItem, 0)`. 1.21.11-only: the
+    /// 1.21.10 attack path never calls it (no spear can exist in 1.21.10
+    /// data); kept for the spear-system cleanup.
     fn cannot_attack(&mut self) -> bool;
-    /// The main-hand item is a `PIERCING_WEAPON`.
+    /// The main-hand item is a `PIERCING_WEAPON`. 1.21.11-only: the
+    /// 1.21.10 attack path never calls it; kept for the spear-system cleanup.
     fn piercing_weapon(&mut self) -> bool;
     fn attack_animation(&mut self) -> SwingAnimation;
     fn interact_animation(&mut self, hand: Hand) -> SwingAnimation;
-    /// `MultiPlayerGameMode.piercingAttack`.
+    /// `MultiPlayerGameMode.piercingAttack`. 1.21.11-only: the 1.21.10
+    /// attack path never calls it; kept for the spear-system cleanup.
     fn piercing_attack(&mut self, animation: SwingAnimation);
     /// `Player.attack` on the targeted entity when the item's attack range
     /// allows it; false when out of range.
     fn attack_entity(&mut self) -> bool;
+    /// `ServerPlayer.attack` for a spectator: the click spectates the
+    /// entity hit instead of attacking it; true when a camera moved.
+    /// Worlds without a camera keep the default (no spectating).
+    fn spectate_hit_entity(&mut self) -> bool {
+        false
+    }
     /// `Player.blockActionRestricted` for the game mode.
     fn block_action_restricted(&mut self, pos: [i32; 3]) -> bool;
     /// `WorldBorder.isWithinBounds`.
@@ -930,16 +940,16 @@ impl Clicks {
             return false;
         }
         if w.spectator() {
+            // A spectator's click spectates the entity hit (no swing).
+            w.spectate_hit_entity();
             return true;
         }
-        if !w.item_enabled(Hand::Main) || w.cannot_attack() {
+        if !w.item_enabled(Hand::Main) {
             return false;
         }
         let animation = w.attack_animation();
-        if w.piercing_weapon() {
-            w.piercing_attack(animation);
-            return true;
-        }
+        // 1.21.10 has no cannotAttackWithItem gate and no piercing-weapon
+        // branch in startAttack: both are 1.21.11's spear attack.
         let mut end = false;
         let mut miss = false;
         match w.hit() {
@@ -972,7 +982,9 @@ impl Clicks {
         if !down {
             self.miss_time = 0;
         }
-        if self.miss_time > 0 || w.using_item() || w.piercing_weapon() {
+        // 1.21.10's continueAttack gates only on the miss time and item
+        // use; the piercing-weapon gate is 1.21.11's.
+        if self.miss_time > 0 || w.using_item() {
             return;
         }
         let animation = w.attack_animation();

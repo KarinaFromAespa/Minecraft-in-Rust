@@ -1,13 +1,14 @@
-//! `CauldronInteractions`: what an item does to an empty, water, lava or
+//! `CauldronInteraction`: what an item does to an empty, water, lava or
 //! powder snow cauldron. `tools/test_cauldron_parity.py` compares every item
 //! with vanilla's `useItemOn`.
 use crate::items::{ItemStack, Items};
 
-/// `ItemTags.CAULDRON_CAN_REMOVE_DYE` membership.
+/// `ItemTags.DYEABLE` membership (1.21.11's cauldron dye-removal tag;
+/// 26.x renamed it `CAULDRON_CAN_REMOVE_DYE` with identical contents).
 pub fn removes_dye(items: &Items, item: &str) -> bool {
     items
         .item_tags
-        .get("minecraft:cauldron_can_remove_dye")
+        .get("minecraft:dyeable")
         .is_some_and(|members| members.contains(item))
 }
 use horizon_world::chunk::BlockState;
@@ -210,7 +211,9 @@ pub fn interact(
         .unwrap_or(0);
     let item = &*held.item;
     let water_potion = held.data().and_then(|d| d.potion.as_deref()) == Some("minecraft:water");
-    // Dispatcher.get: tags first, then the item map.
+    // InteractionMap.get: the item map (1.21.11 dropped the 26.1 Dispatcher's
+    // tag map; the dyeable tag's members are exactly the items it registers,
+    // so the tag check below still answers the same for vanilla data).
     if kind == "water" && removes_dye {
         if held.data().and_then(|d| d.dyed_color).is_none() {
             return pass();

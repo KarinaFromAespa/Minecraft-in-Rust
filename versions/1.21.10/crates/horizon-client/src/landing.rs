@@ -645,6 +645,9 @@ impl LivingFallWorld for FallCall<'_, '_, '_, '_> {
     fn impact_position(&self) -> Option<Vec3> {
         self.world.player.impulse.impact_position
     }
+    fn ignoring_fall_damage(&self) -> bool {
+        self.world.player.impulse.ignores_fall_damage()
+    }
     fn y(&self) -> f64 {
         self.world.player.position.y
     }

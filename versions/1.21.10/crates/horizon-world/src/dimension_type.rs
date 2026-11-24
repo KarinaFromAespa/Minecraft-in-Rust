@@ -112,7 +112,9 @@ pub struct DimensionFacts {
     pub nether_portal_spawns_piglin: bool,
     pub piglins_zombify: bool,
     pub snow_golem_melts: bool,
-    pub can_start_raid: bool,
+    /// `DimensionType.hasRaids`: whether raids can start here (the Nether
+    /// forbids them; the overworld, its caves and the End allow them).
+    pub has_raids: bool,
     pub sky_light_level: f32,
     pub bed_rule: BedRule,
     pub straw_bed_rule: BedRule,
@@ -159,7 +161,7 @@ static VANILLA: LazyLock<[DimensionFacts; 4]> = LazyLock::new(|| {
         nether_portal_spawns_piglin: true,
         piglins_zombify: true,
         snow_golem_melts: false,
-        can_start_raid: true,
+        has_raids: true,
         sky_light_level: 15.0,
         bed_rule: BedRule::CAN_SLEEP_WHEN_DARK,
         straw_bed_rule: BedRule::DESTROY_ON_LEAVE,
@@ -191,7 +193,7 @@ static VANILLA: LazyLock<[DimensionFacts; 4]> = LazyLock::new(|| {
         nether_portal_spawns_piglin: false,
         piglins_zombify: false,
         snow_golem_melts: true,
-        can_start_raid: false,
+        has_raids: false,
         sky_light_level: 4.0,
         bed_rule: BedRule::DESTROY_ON_USE,
         straw_bed_rule: BedRule::DESTROY_ON_USE,
@@ -274,15 +276,23 @@ impl DimensionFacts {
                 .collect(),
             _ => return Err(format!("{id} has invalid timelines")),
         };
-        let default_clock = match &json["default_clock"] {
-            Value::String(s) => Some(s.clone()),
-            Value::Object(o) => o.get("id").and_then(Value::as_str).map(str::to_owned),
+        // 1.21.10's `DimensionType` codec has no `default_clock` (the
+        // world-clock system is 26.x-only): the adapter's clock model
+        // keeps the 26.1-shaped mapping, derived from the type id.
+        let default_clock = match id {
+            "minecraft:the_nether" => None,
+            "minecraft:the_end" => Some("minecraft:the_end".to_owned()),
+            "minecraft:overworld" | "minecraft:overworld_caves" => {
+                Some("minecraft:overworld".to_owned())
+            }
             _ => None,
         };
         Ok(Self {
             id: id.to_owned(),
             has_fixed_time: flag("has_fixed_time", false),
-            has_ender_dragon_fight: flag("has_ender_dragon_fight", false),
+            // 1.21.10's `DimensionType` codec has no
+            // `has_ender_dragon_fight`: the fight belongs to the End.
+            has_ender_dragon_fight: id == "minecraft:the_end",
             coordinate_scale: number("coordinate_scale")?,
             height,
             infiniburn: name("infiniburn")
@@ -316,7 +326,9 @@ impl DimensionFacts {
             nether_portal_spawns_piglin: bool_attr("nether_portal_spawns_piglin", false),
             piglins_zombify: bool_attr("piglins_zombify", true),
             snow_golem_melts: bool_attr("snow_golem_melts", false),
-            can_start_raid: bool_attr("can_start_raid", true),
+            // A top-level `has_raids` in 1.21.10's dimension JSON, not an
+            // attribute; a datapack dimension omitting it forbids raids.
+            has_raids: flag("has_raids", false),
             sky_light_level: attribute("sky_light_level").as_f64().unwrap_or(15.0) as f32,
             bed_rule: bed("bed_rule", BedRule::CAN_SLEEP_WHEN_DARK)?,
             straw_bed_rule: bed("straw_bed_rule", BedRule::DESTROY_ON_LEAVE)?,
@@ -402,6 +414,53 @@ mod tests {
     }
 
     #[test]
+    fn from_json_derives_the_fight_and_clock_from_the_id() {
+        // 1.21.10's `DimensionType` codec has neither
+        // `has_ender_dragon_fight` nor `default_clock` (verified in the
+        // 1.21.10 jar's data), so both come from the type id — and a
+        // 26.x-shaped file carrying the keys is ignored, not honoured.
+        let json = || {
+            serde_json::json!({
+                "coordinate_scale": 1.0,
+                "min_y": 0,
+                "height": 256,
+                "logical_height": 256,
+                "has_skylight": true,
+                "has_ceiling": false,
+                "infiniburn": "#minecraft:infiniburn_end",
+                "ambient_light": 0.25,
+                "monster_spawn_light_level": 15,
+                "monster_spawn_block_light_limit": 0,
+            })
+        };
+        let no_tag = |_: &str| Vec::new();
+        let end = DimensionFacts::from_json("minecraft:the_end", &json(), &no_tag).expect("end");
+        assert!(end.has_ender_dragon_fight, "the End has the fight");
+        assert_eq!(
+            end.default_clock.as_deref(),
+            Some("minecraft:the_end"),
+            "the End keeps its clock"
+        );
+        let over =
+            DimensionFacts::from_json("minecraft:overworld", &json(), &no_tag).expect("overworld");
+        assert!(!over.has_ender_dragon_fight, "the Overworld has no fight");
+        assert_eq!(
+            over.default_clock.as_deref(),
+            Some("minecraft:overworld"),
+            "the Overworld keeps its clock"
+        );
+        let mut foreign = json();
+        foreign["has_ender_dragon_fight"] = serde_json::Value::Bool(true);
+        foreign["default_clock"] = serde_json::Value::String("minecraft:the_end".into());
+        let custom = DimensionFacts::from_json("example:sky", &foreign, &no_tag).expect("custom");
+        assert!(
+            !custom.has_ender_dragon_fight,
+            "a 26.x fight key on a custom type is ignored"
+        );
+        assert_eq!(custom.default_clock, None, "a 26.x clock key is ignored");
+    }
+
+    #[test]
     fn built_in_levels_use_their_own_type() {
         let ty = |k| DimensionFacts::of_builtin_level(k).id.as_str();
         assert_eq!(ty(LevelKey::OVERWORLD), "minecraft:overworld");
@@ -430,6 +489,40 @@ mod tests {
         assert!(!BedRuleTest::WhenDark.test(false));
         assert!(BedRuleTest::Always.test(false));
         assert!(!BedRuleTest::Never.test(true));
+    }
+
+    #[test]
+    fn raids_follow_has_raids() {
+        // 1.21.10's dimension JSONs: the overworld and the End allow raids,
+        // the Nether forbids them; a datapack dimension omitting the key
+        // forbids them too.
+        assert!(DimensionFacts::overworld().has_raids);
+        assert!(
+            DimensionFacts::vanilla("minecraft:overworld_caves")
+                .is_some_and(|c| c.has_raids)
+        );
+        assert!(DimensionFacts::of_builtin_level(LevelKey::END).has_raids);
+        assert!(!DimensionFacts::of_builtin_level(LevelKey::NETHER).has_raids);
+        let no_tag = |_: &str| Vec::new();
+        let base = serde_json::json!({
+            "coordinate_scale": 1.0,
+            "min_y": 0,
+            "height": 256,
+            "logical_height": 256,
+            "has_skylight": true,
+            "has_ceiling": false,
+            "infiniburn": "#minecraft:infiniburn_overworld",
+            "ambient_light": 0.0,
+            "monster_spawn_light_level": 15,
+            "monster_spawn_block_light_limit": 0,
+        });
+        let custom =
+            DimensionFacts::from_json("example:sky", &base, &no_tag).expect("custom");
+        assert!(!custom.has_raids, "omitting has_raids forbids raids");
+        let mut with = base.clone();
+        with["has_raids"] = serde_json::Value::Bool(true);
+        let custom = DimensionFacts::from_json("example:sky", &with, &no_tag).expect("custom");
+        assert!(custom.has_raids, "has_raids: true allows raids");
     }
 
     #[test]

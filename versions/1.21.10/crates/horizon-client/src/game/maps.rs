@@ -1,8 +1,8 @@
 //! Maps (`EmptyMapItem`, `MapItem`, `MapItemSavedData`, `MapRenderer`):
 //! creating a map centred on the player's grid cell, revealing it while held
 //! (`MapItem.update`: dominant map colour per pixel, height and water-depth
-//! shading, the dithered edge), the player marker, `data/minecraft/maps/<id>.dat` and
-//! `maps/last_id.dat`, the 128x128 texture in an atlas slot, the two-handed
+//! shading, the dithered edge), the player marker, `data/map_<id>.dat` and
+//! `data/idcounts.dat`, the 128x128 texture in an atlas slot, the two-handed
 //! first-person view and maps in item frames.
 use super::{Game, lan::LanHost};
 use horizon_client::{
@@ -357,13 +357,16 @@ impl MapData {
     /// `z_pos` under `key`, in place when the key has a decoration so that the
     /// order (the drawing order) stays. A position off the map leaves it out
     /// (a player's turns into an off-map arrow, then nothing past 320 without
-    /// unlimited tracking) and removes what the key had. `game_time` is the
-    /// level's: without a level the Nether's spinning rotation is not used.
+    /// unlimited tracking) and removes what the key had. `day_time` is the
+    /// level's day time (`LevelData.getDayTime`, what 1.21.10's
+    /// `calculateRotation` spins the Nether markers with; 1.21.11 switched
+    /// to the game time): without a level the Nether's spinning rotation
+    /// is not used.
     #[allow(clippy::too_many_arguments)]
     fn add_decoration(
         &mut self,
         sprite: &'static str,
-        game_time: Option<i64>,
+        day_time: Option<i64>,
         key: Key,
         x_pos: f64,
         z_pos: f64,
@@ -387,12 +390,12 @@ impl MapData {
             self.remove_decoration(key);
             return;
         };
-        let spinning = self.dimension == "minecraft:the_nether" && game_time.is_some();
+        let spinning = self.dimension == "minecraft:the_nether" && day_time.is_some();
         let decoration = Decoration {
             sprite,
             x: clamp_map_coordinate(dx),
             y: clamp_map_coordinate(dz),
-            rot: decoration_rotation(spinning, game_time.unwrap_or(0), y_rot),
+            rot: decoration_rotation(spinning, day_time.unwrap_or(0), y_rot),
             name,
             key,
         };
@@ -414,13 +417,13 @@ impl MapData {
     }
     /// `tickCarriedBy` adds only missing component keys. Another carried
     /// copy without those entries must not erase an explorer map's target.
-    fn add_item_decorations(&mut self, targets: Vec<StaticDecoration>, game_time: i64) {
+    fn add_item_decorations(&mut self, targets: Vec<StaticDecoration>, day_time: i64) {
         for (name, sprite, x, z, rotation) in targets {
             let key = Key::Item(name);
             if !self.decorations.iter().any(|d| d.key == key) {
                 self.add_decoration(
                     sprite,
-                    Some(game_time),
+                    Some(day_time),
                     key,
                     x,
                     z,
@@ -443,13 +446,25 @@ impl MapData {
             self.remove_decoration(Key::Player(w));
         }
     }
-    /// `MapItemSavedData.tickCarriedBy` with `placedInFrame`, for `who`, a
+    /// `MapItemSavedData.tickCarriedBy` for a map in a frame, for `who`, a
     /// player in the level of `frame`, the item frame holding the map.
-    /// `carries` is whether their inventory holds the map (`mapMatcher`),
-    /// `invisible` whether they wear map invisibility gear. Without a carried
-    /// copy the player has no marker; the frame gets its own, which replaces
-    /// the marker of another frame entity remembered at the same block.
-    fn tick_framed(&mut self, who: u32, now: i64, carries: bool, invisible: bool, frame: Framed) {
+    /// 1.21.10 reads the frame from the stack (`ItemStack.isFramed` /
+    /// `getFrame`); a Rust stack carries no frame, so the caller passes
+    /// it explicitly. `carries` is whether their inventory holds the map
+    /// (`mapMatcher`), `invisible` whether they wear map invisibility
+    /// gear. Without a carried copy the player has no marker; the frame
+    /// gets its own, which replaces the marker of another frame entity
+    /// remembered at the same block. `now` is the game time (holder
+    /// tracking); `day_time` is the day time (the Nether marker spin).
+    fn tick_framed(
+        &mut self,
+        who: u32,
+        now: i64,
+        day_time: i64,
+        carries: bool,
+        invisible: bool,
+        frame: Framed,
+    ) {
         let h = self.holder(who);
         h.framed = now;
         h.invisible = invisible;
@@ -469,7 +484,7 @@ impl MapData {
         let rotation = direction_2d(frame.facing) * 90;
         let (x, z) = (f64::from(pos[0]), f64::from(pos[2]));
         let key = Key::Frame(frame.id);
-        self.add_decoration(FRAME, Some(now), key, x, z, f64::from(rotation), None);
+        self.add_decoration(FRAME, Some(day_time), key, x, z, f64::from(rotation), None);
         let marker = MapFrame {
             pos,
             rotation,
@@ -494,21 +509,21 @@ impl MapData {
         self.frames.retain(|f| f.pos != pos);
         self.dirty = true;
     }
-    /// `MapItemSavedData.isTrackedCountOverLimit`: more than `limit`
+    /// `MapItemSavedData.isTrackedCountOverLimit`: at least `limit`
     /// decorations count (`MapDecorationType.trackCount`).
     pub(super) fn tracked_over_limit(&self, limit: usize) -> bool {
         self.decorations
             .iter()
             .filter(|d| tracks_count(d.sprite))
             .count()
-            > limit
+            >= limit
     }
     /// `MapItemSavedData.toggleBanner`: a banner inside the map that has no
     /// marker gets one (unless the map tracks too many), one whose marker is
     /// there as it stands loses it, and a changed banner's marker is renewed.
     /// `current` is the banner at `pos` (`MapBanner.fromWorld`); true when
     /// the markers changed.
-    fn toggle_banner(&mut self, pos: [i32; 3], current: Option<MapBanner>, game_time: i64) -> bool {
+    fn toggle_banner(&mut self, pos: [i32; 3], current: Option<MapBanner>, day_time: i64) -> bool {
         let (x_pos, z_pos) = (f64::from(pos[0]) + 0.5, f64::from(pos[2]) + 0.5);
         let scale = f64::from(1 << self.scale);
         let xd = (x_pos - f64::from(self.center[0])) / scale;
@@ -533,7 +548,7 @@ impl MapData {
         let sprite = banner.sprite();
         self.add_decoration(
             sprite,
-            Some(game_time),
+            Some(day_time),
             Key::Banner(pos),
             x_pos,
             z_pos,
@@ -709,7 +724,7 @@ impl MapData {
 }
 pub(super) struct Maps {
     pub data: HashMap<i32, MapData>,
-    /// The highest map id handed out (`maps/last_id.dat`), loaded on first use.
+    /// The highest map id handed out (`data/idcounts.dat`), loaded on first use.
     last_id: Option<i32>,
     /// The atlas slots holding map textures.
     pub slots: super::atlas_slots::AtlasSlots<i32>,
@@ -898,9 +913,9 @@ fn clamp_map_coordinate(d: f32) -> i8 {
     }
 }
 /// `MapItemSavedData.calculateRotation`: spinning in the Nether.
-fn decoration_rotation(nether: bool, game_time: i64, y_rot: f64) -> u8 {
+fn decoration_rotation(nether: bool, day_time: i64, y_rot: f64) -> u8 {
     if nether {
-        let s = (game_time / 10) as i32;
+        let s = (day_time / 10) as i32;
         (s.wrapping_mul(s)
             .wrapping_mul(34_187_121)
             .wrapping_add(s.wrapping_mul(121))
@@ -923,13 +938,14 @@ impl Game<'_> {
             _ => "minecraft:overworld",
         }
     }
-    fn map_path(&self, name: &str) -> std::path::PathBuf {
-        self.world_root.join("data/minecraft/maps").join(name)
+    /// `MapId.key`: the map's data file, `data/map_<id>.dat`.
+    fn map_path(&self, id: i32) -> std::path::PathBuf {
+        self.world_root.join("data").join(format!("map_{id}.dat"))
     }
-    /// The map's data, loaded from `data/minecraft/maps/<id>.dat` on first use.
+    /// The map's data, loaded from `data/map_<id>.dat` on first use.
     pub(super) fn map(&mut self, id: i32) -> Option<&mut MapData> {
         if !self.maps.data.contains_key(&id) && !self.maps.missing.contains(&id) {
-            let loaded = horizon_client::save::read_dat(&self.map_path(&format!("{id}.dat")))
+            let loaded = horizon_client::save::read_dat(&self.map_path(id))
                 .and_then(|t| MapData::from_nbt(&t));
             match loaded {
                 Some(m) => {
@@ -999,7 +1015,7 @@ impl Game<'_> {
     }
     fn next_map_id(&mut self) -> i32 {
         let last = *self.maps.last_id.get_or_insert_with(|| {
-            horizon_client::save::read_dat(&self.world_root.join("data/minecraft/maps/last_id.dat"))
+            horizon_client::save::read_dat(&self.world_root.join("data/idcounts.dat"))
                 .and_then(|t| match t.get("data")?.get("map")? {
                     Tag::Int(v) => Some(*v),
                     _ => None,
@@ -1260,10 +1276,10 @@ impl Game<'_> {
             return false;
         }
         let current = self.map_banner_at(hit.pos);
-        let game_time = self.world.game_time;
+        let day_time = self.world.day_time;
         let failed = self
             .map(id)
-            .is_some_and(|m| !m.toggle_banner(hit.pos, current, game_time));
+            .is_some_and(|m| !m.toggle_banner(hit.pos, current, day_time));
         if failed {
             return true;
         }
@@ -1401,6 +1417,7 @@ impl Game<'_> {
             .collect();
         let (yaw, dim) = (self.yaw, self.dimension_id());
         let game_time = self.world.game_time;
+        let day_time = self.world.day_time;
         let invisible = self.map_invisibility_worn(&self.armor);
         // The guest whose turn it is, else the host.
         let me = self.lan_acting.unwrap_or(HOST);
@@ -1414,7 +1431,7 @@ impl Game<'_> {
             if m.tracking && m.dimension == dim {
                 m.add_decoration(
                     PLAYER,
-                    Some(game_time),
+                    Some(day_time),
                     Key::Player(me),
                     p.x,
                     p.z,
@@ -1425,7 +1442,7 @@ impl Game<'_> {
                 m.remove_decoration(Key::Player(me));
             }
             m.hide_invisible(me);
-            m.add_item_decorations(targets, game_time);
+            m.add_item_decorations(targets, day_time);
         }
         for id in held {
             self.update_map(id);
@@ -1465,6 +1482,7 @@ impl Game<'_> {
             .filter_map(map_id)
             .collect();
         let now = self.world.game_time;
+        let day_time = self.world.day_time;
         if now % 10 == 0 && host.hub.here(g) {
             let framed: Vec<(i32, std::sync::Arc<str>, Framed)> = self
                 .item_frames
@@ -1494,7 +1512,7 @@ impl Game<'_> {
                     .flatten()
                     .any(|s| s.item == item && map_id(s) == Some(id));
                 if let Some(m) = self.map(id) {
-                    m.tick_framed(conn, now, carries, invisible, frame);
+                    m.tick_framed(conn, now, day_time, carries, invisible, frame);
                     ids.push(id);
                 }
             }
@@ -1691,10 +1709,7 @@ impl Game<'_> {
     pub(super) fn save_maps(&mut self) {
         for (id, m) in &mut self.maps.data {
             if m.dirty {
-                let path = self
-                    .world_root
-                    .join("data/minecraft/maps")
-                    .join(format!("{id}.dat"));
+                let path = self.world_root.join("data").join(format!("map_{id}.dat"));
                 if horizon_client::save::write_dat(&path, m.to_nbt()).is_ok() {
                     m.dirty = false;
                 }
@@ -1705,10 +1720,9 @@ impl Game<'_> {
                 ("data", Tag::compound([("map", Tag::Int(last))])),
                 ("DataVersion", Tag::Int(horizon_world::DATA_VERSION)),
             ]);
-            if let Err(e) = horizon_client::save::write_dat(
-                &self.world_root.join("data/minecraft/maps/last_id.dat"),
-                tag,
-            ) {
+            if let Err(e) =
+                horizon_client::save::write_dat(&self.world_root.join("data/idcounts.dat"), tag)
+            {
                 log::warn!("Horizon: the next map id is not saved: {e}");
             }
         }
@@ -2001,6 +2015,34 @@ mod tests {
         );
     }
 
+    /// `MapItemSavedData.isTrackedCountOverLimit`: at exactly 256 tracked
+    /// decorations a new banner marker is refused in 1.21.10 (`>=`); 26.x
+    /// allowed one more (`>`).
+    #[test]
+    fn two_hundred_fifty_six_tracked_decorations_is_the_limit() {
+        let mut map = MapData::fresh(0.0, 0.0, 0, "minecraft:overworld");
+        for i in 0..255 {
+            map.decorations.push(Decoration {
+                sprite: "map/decorations/frame",
+                x: 0,
+                y: 0,
+                rot: 0,
+                name: None,
+                key: Key::Frame(i),
+            });
+        }
+        assert!(!map.tracked_over_limit(256));
+        map.decorations.push(Decoration {
+            sprite: "map/decorations/frame",
+            x: 0,
+            y: 0,
+            rot: 0,
+            name: None,
+            key: Key::Frame(255),
+        });
+        assert!(map.tracked_over_limit(256));
+    }
+
     #[test]
     fn every_target_decoration_type_has_its_sprite() {
         // MapDecorationTypes: (name, asset).
@@ -2029,6 +2071,22 @@ mod tests {
             );
         }
         assert_eq!(decoration_sprite("minecraft:nothing"), None);
+    }
+
+    #[test]
+    fn the_nether_marker_spins_on_the_day_time() {
+        // `MapItemSavedData.calculateRotation` in 1.21.10 hashes
+        // `getDayTime() / 10` (1.21.11 switched to the game time): the spin
+        // follows the time of day, so /time set moves it and a day's
+        // passing brings it back.
+        assert_eq!(decoration_rotation(true, 0, 0.0), 0);
+        assert_eq!(decoration_rotation(true, 100, 0.0), 10);
+        assert_eq!(decoration_rotation(true, 6000, 0.0), 3);
+        assert_eq!(decoration_rotation(true, 18000, 0.0), 15);
+        assert_eq!(decoration_rotation(true, 24000, 0.0), 8);
+        // Outside the Nether the marker follows the facing, not the time.
+        assert_eq!(decoration_rotation(false, 6000, 0.0), 0);
+        assert_eq!(decoration_rotation(false, 6000, 90.0), 4);
     }
 
     #[test]

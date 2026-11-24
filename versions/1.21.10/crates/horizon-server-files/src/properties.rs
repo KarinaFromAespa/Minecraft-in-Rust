@@ -48,7 +48,6 @@ pub struct ServerProperties {
     pub management_server_tls_enabled: bool,
     pub management_server_tls_keystore: String,
     pub management_server_tls_keystore_password: String,
-    pub management_server_allowed_origins: String,
     pub announce_player_achievements: Option<bool>,
     pub enable_query: bool,
     pub query_port: i32,
@@ -287,7 +286,6 @@ impl ServerProperties {
         let management_server_tls_keystore = r.string("management-server-tls-keystore", "");
         let management_server_tls_keystore_password =
             r.string("management-server-tls-keystore-password", "");
-        let management_server_allowed_origins = r.string("management-server-allowed-origins", "");
         let announce_player_achievements = r
             .legacy("announce-player-achievements")
             .map(|s| java_bool(&s));
@@ -413,7 +411,6 @@ impl ServerProperties {
             management_server_tls_enabled,
             management_server_tls_keystore,
             management_server_tls_keystore_password,
-            management_server_allowed_origins,
             announce_player_achievements,
             enable_query,
             query_port,

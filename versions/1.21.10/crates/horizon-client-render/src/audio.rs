@@ -117,7 +117,7 @@ struct Mixer {
     /// A mod's muffle of the sounds it does not exempt.
     muffle: Muffle,
     limiter_peak: f32,
-    /// The output device the stream was opened on (`Library.currentDeviceName`).
+    /// The output device the stream was opened on (`Library.getCurrentDeviceName`).
     #[cfg(feature = "audio")]
     device_name: String,
     /// The stream reported its device gone (`Library.isCurrentDeviceDisconnected`).
@@ -496,7 +496,8 @@ pub struct Audio {
     preview: crate::sound_preview::SoundPreview,
     /// A mod's muffle fading out (`muffle`), advanced by `tick`.
     muffle: Option<MuffleFade>,
-    /// `SoundEngine.lastSeenDevices`: the system default output last seen.
+    /// `Library.defaultDeviceName`: the system default output last seen, as
+    /// `hasDefaultDeviceChanged` compares it.
     #[cfg(feature = "audio")]
     default_seen: Option<String>,
     /// The ALSA cards (Linux) or Core Audio devices (macOS) last seen: listing
@@ -504,10 +505,11 @@ pub struct Audio {
     /// (`card_fingerprint`).
     #[cfg(feature = "audio")]
     cards_seen: Option<String>,
-    /// The other half of `lastSeenDevices`: every output device last seen.
+    /// Every output device last seen (`Library.getAvailableSoundDevices`).
     #[cfg(feature = "audio")]
     devices_seen: Vec<String>,
-    /// Ticks since the output devices were last looked at (`DeviceTracker.tick`).
+    /// Ticks since the output devices were last looked at: once a second
+    /// (`SoundEngine.DEFAULT_DEVICE_CHECK_INTERVAL_MS`).
     #[cfg(feature = "audio")]
     device_ticks: u32,
     /// Opening the output again after it failed to (`Reopen`).
@@ -1618,8 +1620,8 @@ impl Audio {
     /// `SoundEngine.shouldChangeDevice`: the open device was lost, the system
     /// default changed (with no device chosen in the options), or the chosen
     /// device came back; the output is then opened again. The devices are looked
-    /// at once a second, on a thread of their own: a later tick reads what it
-    /// found.
+    /// at once a second (`DEFAULT_DEVICE_CHECK_INTERVAL_MS`), on a thread of
+    /// their own: a later tick reads what it found.
     #[cfg(feature = "audio")]
     fn should_change_device(&mut self) -> bool {
         // A splitscreen share plays through the first player's output: it leaves the device,
@@ -2051,13 +2053,6 @@ impl Audio {
     pub fn stop_and_release(&mut self, id: InstanceId) {
         self.stop_instance(id);
         self.release(id);
-    }
-    /// `SoundBufferLibrary.enumerate`: the decoded buffers kept and their bytes.
-    pub fn cache_stats(&self) -> (usize, usize) {
-        self.backend
-            .cache
-            .lock()
-            .map_or((0, 0), |c| (c.entries.len(), c.bytes))
     }
     /// Every sound event id (for command completion).
     /// The engine's table sizes and the mixer's channels (`status`).

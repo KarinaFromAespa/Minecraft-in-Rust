@@ -98,7 +98,7 @@ fn sprite(name: &'static str, x: i32, y: i32, w: i32, h: i32) -> GuiDraw {
     }
 }
 
-/// `PlayerFaceExtractor.extractRenderState`: the skin's face, then its hat
+/// `PlayerFaceRenderer.draw`: the skin's face, then its hat
 /// layer, upside down for Dinnerbone and Grumm.
 #[allow(clippy::too_many_arguments)]
 pub fn face(
@@ -282,7 +282,7 @@ pub fn name_for_display(p: &TabPlayer, board: &Scoreboard) -> Text {
     if spectator { name.italic() } else { name }
 }
 
-/// `PlayerTabOverlay.extractPingIcon`'s sprite.
+/// `PlayerTabOverlay.renderPingIcon`'s sprite.
 pub fn ping_sprite(latency: i32) -> &'static str {
     match latency {
         i32::MIN..=-1 => "icon/ping_unknown",
@@ -425,7 +425,7 @@ impl TabList {
         }
         &self.order.as_ref().unwrap().2
     }
-    /// `extractRenderState`: retain text, measurements and geometry, not animated hearts.
+    /// `render`: retain text, measurements and geometry, not animated hearts.
     pub fn layout(&mut self, i: &TabInputs, font: &Font) -> Vec<GuiDraw> {
         let language = crate::lang::current();
         let dimensions = (i.screen_width, i.online_mode, i.background, font.epoch());
@@ -684,7 +684,7 @@ impl TabList {
         }
         out
     }
-    /// `extractTablistHearts`.
+    /// `renderTablistHearts`.
     #[allow(clippy::too_many_arguments)]
     fn hearts(
         &mut self,

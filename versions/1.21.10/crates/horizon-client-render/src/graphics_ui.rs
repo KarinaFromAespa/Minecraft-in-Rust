@@ -222,16 +222,11 @@ pub fn rows() -> Vec<(Page, Vec<(&'static str, Vec<Setting>)>)> {
                     "Display",
                     vec![
                         v(Opt::GuiScale, None, "Size of menus and the HUD."),
-                        v(Opt::Fullscreen, None, "Fills the screen (borderless)."),
-                        v(
-                            Opt::ExclusiveFullscreen,
-                            None,
-                            "Fullscreen takes the display over, at the mode below.",
-                        ),
+                        v(Opt::Fullscreen, None, "Takes the display over, at the mode below."),
                         v(
                             Opt::ExclusiveMode,
                             None,
-                            "The display mode exclusive fullscreen uses. Applies when you leave.",
+                            "The display mode fullscreen uses. Applies when you leave.",
                         ),
                         v(
                             Opt::Vsync,
@@ -1208,7 +1203,6 @@ impl Item {
             Item::Vanilla(Opt::Vsync) => s.vsync,
             Item::Extra(e) => return e.switch(&s.extras),
             Item::Vanilla(Opt::Fullscreen) => s.fullscreen,
-            Item::Vanilla(Opt::ExclusiveFullscreen) => s.file.bool("exclusiveFullscreen"),
             Item::Vanilla(Opt::SmoothLighting) => s.smooth_lighting,
             Item::Vanilla(Opt::EntityShadows) => s.entity_shadows,
             Item::Vanilla(Opt::Vignette) => s.vignette,
@@ -1287,7 +1281,6 @@ impl Item {
                 | Item::Vanilla(
                     Opt::GuiScale
                         | Opt::Fullscreen
-                        | Opt::ExclusiveFullscreen
                         | Opt::ExclusiveMode
                         | Opt::Vsync
                         | Opt::MaxFps
@@ -1359,11 +1352,7 @@ fn row(setting: Setting, s: &Settings, out: &EffectiveOutput) -> Row<Item> {
 }
 
 /// The vanilla rows `options.txt` keeps as it read them, not in `Settings`' own fields.
-const FILE_KEYS: [&str; 3] = [
-    "exclusiveFullscreen",
-    "textureFiltering",
-    "maxAnisotropyBit",
-];
+const FILE_KEYS: [&str; 2] = ["textureFiltering", "maxAnisotropyBit"];
 
 /// What the screen's rows read from the settings: what Undo puts back (`GraphicsScreen::undo`),
 /// and what changes beside the screen (fullscreen, the language, the display's modes). A test
@@ -1848,7 +1837,7 @@ mod tests {
 
     /// The rows only vanilla's Video Settings had work here as they do there: its preset
     /// applies its distances (`Options.applyGraphicsPreset`), Max Anisotropy waits for
-    /// Anisotropic filtering, Exclusive Fullscreen is a tick box of `options.txt`.
+    /// Anisotropic filtering.
     #[test]
     fn vanilla_video_rows_work_on_the_graphics_screen() {
         let mut s = Settings::default();
@@ -1873,11 +1862,6 @@ mod tests {
             filtering.cycle(&mut s, false, FB, &NONE);
         }
         assert!(anisotropy.blocked(&s, &NONE).is_none());
-        let exclusive = Item::Vanilla(Opt::ExclusiveFullscreen);
-        assert_eq!(exclusive.switch(&s, &NONE), Some(false));
-        exclusive.cycle(&mut s, false, FB, &NONE);
-        assert_eq!(exclusive.switch(&s, &NONE), Some(true));
-        assert!(s.file.bool("exclusiveFullscreen"));
         // The graphics extras switch their own setting.
         let lights = Item::Extra(crate::extras::Item::DynamicLights);
         lights.cycle(&mut s, false, FB, &NONE);

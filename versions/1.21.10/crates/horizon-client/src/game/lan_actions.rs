@@ -172,7 +172,7 @@ pub(super) struct GuestSwap {
     i: usize,
     play: GuestPlay,
     player: Option<PlayerMotion>,
-    player_save_projection: (Option<i32>, Option<bool>),
+    player_save_projection: (Option<i32>, Option<bool>, Option<crate::save::ImpulseSave>),
     /// The guest's eye height and the game's.
     eye: (f32, f32),
     yaw: f32,
@@ -567,6 +567,7 @@ impl Game<'_> {
         let player_save_projection = (
             self.level.player_impulse_grace.take(),
             self.level.player_fall_particles.take(),
+            self.level.player_impulse.take(),
         );
         self.sculk.swap_player(&mut play.sculk);
         // The guest's own CombatTracker: damage to them is not the host's.
@@ -1107,6 +1108,7 @@ impl Game<'_> {
         std::mem::swap(&mut self.level.player_extra, &mut g.saved);
         self.level.player_impulse_grace = player_save_projection.0;
         self.level.player_fall_particles = player_save_projection.1;
+        self.level.player_impulse = player_save_projection.2;
         std::mem::swap(&mut self.stats, &mut play.stats);
         std::mem::swap(&mut self.hook, &mut play.hook);
         self.adv.loaded = adv_loaded;
@@ -2082,25 +2084,6 @@ impl Game<'_> {
         dimension == "minecraft:overworld" && dx.max(dz) <= radius as u32
     }
 
-    /// ServerPlayer.sendSpawnProtectionMessage.
-    fn spawn_protection_message(&self, host: &LanHost, conn: u32, pos: [i32; 3]) {
-        let message = horizon_client::text::Text::translate(
-            "build.spawn_protection",
-            &[horizon_client::text::Text::literal(format!(
-                "{}, {}, {}",
-                pos[0], pos[1], pos[2]
-            ))],
-        )
-        .with_color(horizon_client::text::RED);
-        host.hub.send_to(
-            conn,
-            &C::SystemChat(play::SystemChat {
-                content: horizon_client::lan::data::component_nbt(&message.component()),
-                overlay: true,
-            }),
-        );
-    }
-
     /// `ServerGamePacketListenerImpl.wasBlockPlacementAttempt`: a block item,
     /// or a bucket with something in it, that is not cooling down.
     fn was_block_placement_attempt(&mut self, hand: Hand) -> bool {
@@ -2119,14 +2102,13 @@ impl Game<'_> {
                 ))
     }
 
-    /// `ServerPlayer.sendBuildLimitMessage`: the red overlay with the limit.
-    fn build_limit_message(&self, host: &LanHost, conn: u32, too_high: bool, limit: i32) {
+    /// `ServerGamePacketListenerImpl.handleUseItemOn`'s build-limit
+    /// message: the red overlay with the top of the world
+    /// (`build.tooHigh`; 1.21.10 builds it inline in the handler and
+    /// has no bottom-of-the-world message here).
+    fn build_limit_message(&self, host: &LanHost, conn: u32, limit: i32) {
         let message = horizon_client::text::Text::translate(
-            if too_high {
-                "build.tooHigh"
-            } else {
-                "build.tooLow"
-            },
+            "build.tooHigh",
             &[horizon_client::text::Text::literal(limit.to_string())],
         )
         .with_color(horizon_client::text::RED);
@@ -2231,15 +2213,13 @@ impl Game<'_> {
                     }
                     // ServerPlayerGameMode.handleBlockBreakAction: no dig starts
                     // under spawn protection (the ack puts the block back).
-                    if self.under_spawn_protection(host, gi, a.pos) {
-                        self.spawn_protection_message(host, conn, a.pos);
-                        return;
-                    }
-                    // mayInteract: a block outside the world border can't be
-                    // dug (the ack puts it back on the client).
-                    if !self
-                        .border
-                        .contains(f64::from(a.pos[0]), f64::from(a.pos[2]))
+                    // mayInteract: spawn protection or the world border
+                    // blocks the dig silently (the ack puts the block back
+                    // on the client).
+                    if self.under_spawn_protection(host, gi, a.pos)
+                        || !self
+                            .border
+                            .contains(f64::from(a.pos[0]), f64::from(a.pos[2]))
                     {
                         return;
                     }
@@ -2422,8 +2402,8 @@ impl Game<'_> {
                     let guest = &host.hub.guests[gi];
                     self.native_player_swap_with_equipment_slot(guest.uuid, &guest.name, "offhand");
                 }
-                // STAB: `PiercingWeapon.attack` of a left click with a spear.
-                8 if !spectator => self.guest_jab(host, conn),
+                // No case 8: STAB (`PiercingWeapon.attack`) is 1.21.11-only;
+                // 1.21.10's handlePlayerAction switch ends at 7.
                 _ => {}
             },
             // handleSetCarriedItem: a new slot stops a main-hand use.
@@ -2530,26 +2510,17 @@ impl Game<'_> {
                     ],
                 };
                 let hand = if p.hand == 1 { Hand::Off } else { Hand::Main };
-                // handleUseItemOn: above or below the world nothing is used and
-                // the player is told the limit (the blocks are not resent);
-                // under spawn protection nothing is used or placed; the player
-                // is told and the blocks below go back. mayInteract: nothing is
-                // used on a block outside the world border either.
-                let min_y = self.world.shape.min_y;
+                // handleUseItemOn: above the world the player is told the
+                // limit and nothing is used, but the blocks below still go
+                // back; mayInteract (spawn protection or the world border)
+                // blocks the use silently, with no message either way.
                 let max_y = self.world.shape.max_y() - 1;
                 if p.pos[1] > max_y {
-                    self.build_limit_message(host, conn, true, max_y);
-                    return;
-                }
-                if p.pos[1] < min_y {
-                    self.build_limit_message(host, conn, false, min_y);
-                    return;
-                }
-                if self.under_spawn_protection(host, gi, p.pos) {
-                    self.spawn_protection_message(host, conn, p.pos);
-                } else if self
-                    .border
-                    .contains(f64::from(p.pos[0]), f64::from(p.pos[2]))
+                    self.build_limit_message(host, conn, max_y);
+                } else if !self.under_spawn_protection(host, gi, p.pos)
+                    && self
+                        .border
+                        .contains(f64::from(p.pos[0]), f64::from(p.pos[2]))
                 {
                     if spectator && self.spectator_use_portal(host, conn, gi, p.pos) {
                         return;
@@ -2585,20 +2556,14 @@ impl Game<'_> {
                     let swung = used.map(|u| u.0);
                     self.lan_swing_back(host, conn, swung);
                     self.guest_use_sounds(host, conn, logged, heard);
-                    // A placement that did nothing at the top or bottom of the
-                    // world says why. Vanilla asks twice for the top (once
-                    // before the swing, once in the check that also has the
-                    // bottom), so a player there is told twice.
-                    if let Some((_, false, true)) = used {
-                        if p.face == 1 && p.pos[1] >= max_y {
-                            self.build_limit_message(host, conn, true, max_y);
-                            self.build_limit_message(host, conn, true, max_y);
-                        } else if p.face == 0 && p.pos[1] <= min_y {
-                            self.build_limit_message(host, conn, false, min_y);
-                        }
+                    // A placement that did nothing at the top of the world
+                    // says why, once, for an upward face.
+                    if let Some((_, false, true)) = used
+                        && p.face == 1
+                        && p.pos[1] >= max_y
+                    {
+                        self.build_limit_message(host, conn, max_y);
                     }
-                } else {
-                    self.build_limit_message(host, conn, true, max_y);
                 }
                 // The client predicted a result: correct it with what really is.
                 for pos in [
@@ -2939,7 +2904,13 @@ impl Game<'_> {
                 self.guest_recipe_transfer(host, conn, &p.data);
             }
             S::ChatCommandSigned(p) => self.guest_signed_command(host, conn, p),
-            S::ChangeDifficulty(p) if host.hub.guests[gi].permission >= 2 => {
+            // ServerGamePacketListenerImpl.handleChangeDifficulty: the gamemaster
+            // permission, or the singleplayer owner (`isSingleplayerOwner`) —
+            // the owner changes difficulty from the options without cheats.
+            S::ChangeDifficulty(p)
+                if host.hub.guests[gi].permission >= 2
+                    || host.hub.singleplayer_owner == Some(host.hub.guests[gi].uuid) =>
+            {
                 if !self.level.difficulty_locked && (0..=3).contains(&p.difficulty) {
                     self.ui.difficulty = if self.level.hardcore {
                         3
@@ -2957,7 +2928,11 @@ impl Game<'_> {
                         }));
                 }
             }
-            S::LockDifficulty(p) if host.hub.guests[gi].permission >= 2 => {
+            // handleLockDifficulty: the same gate as the difficulty change.
+            S::LockDifficulty(p)
+                if host.hub.guests[gi].permission >= 2
+                    || host.hub.singleplayer_owner == Some(host.hub.guests[gi].uuid) =>
+            {
                 self.level.difficulty_locked = p.locked;
                 host.hub
                     .broadcast(&C::ChangeDifficulty(play::ChangeDifficulty {
@@ -3385,37 +3360,6 @@ impl Game<'_> {
         Some((centre, eye))
     }
 
-    /// `ServerGamePacketListenerImpl.handlePlayerAction` for STAB: the spear in
-    /// the guest's main hand jabs once its charge allows it (with five ticks
-    /// of tolerance). The guest's client is sent the dash Lunge gave them.
-    fn guest_jab(&mut self, host: &mut LanHost, conn: u32) {
-        let Some(g) = host.hub.guest(conn) else {
-            return;
-        };
-        let at = g.position;
-        let players = self.stab_players_for(host, conn);
-        let sound = self
-            .guest_hit_by(host, conn, |g| {
-                if g.cannot_attack_with_item(g.attack_ticks as i32, 5) {
-                    None
-                } else {
-                    let outer = std::mem::replace(&mut g.stab_players, players);
-                    let sound = g.jab();
-                    g.stab_players = outer;
-                    sound
-                }
-            })
-            .flatten();
-        // The players the jab stabbed, now that the hub is back.
-        self.land_player_stabs(host);
-        // PiercingWeapon.makeSound: `playSound(causer, ...)`, so the guest's
-        // own client plays it.
-        if let Some(name) = sound {
-            let source = horizon_client::settings::sound_source(name) as i32;
-            host.hub.sound(name, at, 1.0, 1.0, source, Some(conn));
-        }
-    }
-
     /// `Level.getEntityOrPart(id).getBoundingBox()` for a guest's attack or
     /// interaction: the host, another player, a mob, a vehicle or object, a
     /// dragon part or crystal, a projectile. None for an id the level doesn't
@@ -3477,16 +3421,22 @@ impl Game<'_> {
         let Some(gi) = host.hub.guests.iter().position(|g| g.conn == conn) else {
             return;
         };
-        if host.hub.guests[gi].spectator() {
-            return;
-        }
-        // handleAttack: a target inside the world border, then
-        // `isWithinAttackRange(mainHandItem, box, 3.0)` before anything else, players,
+        // handleInteract: a target inside the world border, then
+        // `isWithinAttackRange(box, 3.0)` before anything else, players,
         // mobs, objects and fireballs alike.
-        if let Some(target) = self.guest_target_box(host, gi, id)
+        let target = self.guest_target_box(host, gi, id);
+        if let Some(target) = target
             && (!self.inside_border(&target)
                 || self.as_guest(host, conn, |g| g.within_attack_range(&target)) != Some(true))
         {
+            return;
+        }
+        // ServerPlayer.attack: a spectator's click sets the camera on
+        // the target instead of attacking it.
+        if host.hub.guests[gi].spectator() {
+            if target.is_some() {
+                self.guest_set_camera(host, gi, Some(id));
+            }
             return;
         }
         // Native mods, where Player.attack starts: a canceled blow does
@@ -4330,6 +4280,11 @@ impl Game<'_> {
             // guest's own client counts.
             let play = host.play.entry(conn).or_default();
             play.shield_cooldown = play.shield_cooldown.saturating_sub(1);
+            // Player.tick's impulse grace countdown, once a tick for each
+            // player, on the guest's own motion (not the swapped-in body).
+            if let Some(motion) = host.hub.guests[gi].motion.as_mut() {
+                motion.impulse.tick();
+            }
             // ServerItemCooldowns.onCooldownEnded: a finished entry is told to
             // the guest (a duration of 0 removes it).
             for group in play.cooldowns.tick() {
@@ -6603,6 +6558,140 @@ mod swing_echo_tests {
         // BedBlock.useWithoutItem: SUCCESS_SERVER, the server's swing only.
         game.lan_guest_packet(&mut host, 2, use_on([6, 200, 4], [0.5, 0.5625, 0.5], 2));
         assert_eq!(swings_back(), 1, "a bed's use is swung back");
+    }
+}
+
+#[cfg(test)]
+mod difficulty_packet_tests {
+    use crate::game::{Audio, Game, Options, Progress, Settings, load_resources};
+    use horizon_client::lan::{Joined, NetConfig, PlayerSender, guest::Guest, hub::HubConfig};
+    use horizon_protocol::packets::{
+        configuration::ClientInformation,
+        play::{self, Serverbound},
+    };
+    use std::sync::{Arc, atomic::AtomicI32, mpsc};
+
+    /// ServerGamePacketListenerImpl.handleChangeDifficulty / handleLockDifficulty:
+    /// the gamemaster permission, or the singleplayer owner — the owner changes
+    /// and locks the difficulty from the options without cheats, a guest without
+    /// the permission cannot, and a locked difficulty refuses changes.
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn the_singleplayer_owner_changes_difficulty_without_cheats() {
+        let root = std::path::PathBuf::from(std::env::var_os("HORIZON_TEST_RESOURCES").unwrap());
+        let settings = Settings::default();
+        let loaded = load_resources(
+            root.clone(),
+            None,
+            &root,
+            &settings,
+            std::time::Instant::now(),
+            false,
+            true,
+            &Progress::new(),
+            &mut |_, _| unreachable!(),
+        )
+        .unwrap();
+        let mut options = Options::parse(std::iter::empty()).unwrap().unwrap();
+        options.resources = root.clone();
+        options.game_dir = Some(
+            std::env::temp_dir().join(format!("horizon-difficulty-unit-{}", std::process::id())),
+        );
+        options.execution_role = crate::game::execution_role::ExecutionRole::IntegratedServer;
+        let mut game = Game::new(
+            &loaded.resources,
+            loaded.pack,
+            loaded.gui.unwrap(),
+            options,
+            settings,
+            Audio::silent(&root),
+            None,
+        )
+        .unwrap();
+        game.build_registries();
+        game.lan_host(
+            super::super::lan::LanSettings {
+                port: 0,
+                guest_commands: false,
+                force_game_mode: false,
+            },
+            NetConfig {
+                announce: false,
+                ..NetConfig::loopback(0, "difficulty-owner-test".into(), 2)
+            },
+            HubConfig {
+                default_game_mode: 0,
+                guest_commands: false,
+                force_game_mode: false,
+                hardcore: false,
+                view_distance: 2,
+                simulation_distance: 2,
+                dimension: "minecraft:overworld".into(),
+                allow_flight: false,
+                seed: 0,
+                max_players: 3,
+                integrated: true,
+                levels: Default::default(),
+            },
+        )
+        .unwrap();
+        let (tx, _rx) = mpsc::channel();
+        let guest = |conn: u32, uuid: u128, name: &str, entity_id: i32| {
+            Guest::new(
+                Joined {
+                    conn,
+                    uuid,
+                    name: name.into(),
+                    properties: Vec::new(),
+                    info: ClientInformation::new(2),
+                    brand: "test".into(),
+                    sender: PlayerSender::new(tx.clone(), Arc::default()),
+                    latency: Arc::new(AtomicI32::new(0)),
+                    address: "127.0.0.1:25565".parse().unwrap(),
+                    expected: false,
+                    configured: Default::default(),
+                },
+                entity_id,
+                [4.5, 200.0, 4.5],
+                2,
+            )
+        };
+        let mut host = game.lan.take().unwrap();
+        // The owner, through memory at permission 0 (no cheats), and two
+        // guests: one without the permission, one op.
+        host.hub.singleplayer_owner = Some(7);
+        host.hub.guests.push(guest(0, 7, "Owner", 2));
+        host.hub.guests.push(guest(2, 331, "Guest", 3));
+        let mut op = guest(3, 9, "OpGuest", 4);
+        op.permission = 2;
+        host.hub.guests.push(op);
+        game.ui.difficulty = 2;
+        let change =
+            |d: i32| Serverbound::ChangeDifficulty(play::ChangeDifficultyRequest { difficulty: d });
+        // A guest without the gamemaster permission is refused.
+        game.lan_guest_packet(&mut host, 2, change(3));
+        assert_eq!(game.ui.difficulty, 2, "an unprivileged guest changed it");
+        // The singleplayer owner is allowed at permission 0.
+        game.lan_guest_packet(&mut host, 0, change(3));
+        assert_eq!(game.ui.difficulty, 3, "the owner could not change it");
+        // The owner locks it; a further change is refused while locked.
+        game.lan_guest_packet(
+            &mut host,
+            0,
+            Serverbound::LockDifficulty(play::LockDifficulty { locked: true }),
+        );
+        assert!(game.level.difficulty_locked, "the owner could not lock it");
+        game.lan_guest_packet(&mut host, 0, change(0));
+        assert_eq!(game.ui.difficulty, 3, "a locked difficulty changed");
+        // Unlocking lets an op guest change it again.
+        game.lan_guest_packet(
+            &mut host,
+            0,
+            Serverbound::LockDifficulty(play::LockDifficulty { locked: false }),
+        );
+        assert!(!game.level.difficulty_locked);
+        game.lan_guest_packet(&mut host, 3, change(1));
+        assert_eq!(game.ui.difficulty, 1, "an op guest could not change it");
     }
 }
 

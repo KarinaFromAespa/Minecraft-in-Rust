@@ -84,7 +84,10 @@ impl CurrentAccumulator {
         self.count = self.count.wrapping_add(1);
     }
     pub fn apply_to<W: CurrentTarget>(&self, world: &mut W, speed: f64) -> Result<(), W::Error> {
-        if self.count == 0 || self.accumulated.length_squared() < f64::from(1.0e-5f32) {
+        // `Entity.updateFluidHeightAndDoFluidPushing`: any nonzero current
+        // pushes — the 26.x tracker's 1e-5 squared-length floor is gone.
+        // A non-finite sum has no length above zero, so it pushes nothing.
+        if self.count == 0 || !(self.accumulated.length_squared() > 0.0) {
             return Ok(());
         }
         let mut current = if world.is_player_class() {
@@ -114,7 +117,6 @@ pub trait FluidInteractionWorld: FluidMembership {
     /// FULL chunk lookup without generating/loading absent chunks.
     fn loaded_chunk(&mut self, x: i32, z: i32) -> Result<Option<Self::Chunk>, Self::Error>;
     fn chunk_sections(&mut self, chunk: Self::Chunk) -> Result<FluidSections<'_>, Self::Error>;
-    fn bounding_box_min_y(&self) -> f64;
     fn block_x(&self) -> i32;
     fn eye_y(&mut self) -> Result<f64, Self::Error>;
     fn block_z(&self) -> i32;
@@ -335,7 +337,6 @@ impl EntityFluidInteraction {
         )? {
             return Ok(false);
         }
-        let base_y = world.bounding_box_min_y();
         let block_x = world.block_x();
         let eye = world.eye_y().map_err(FluidInteractionError::World)?;
         let block_z = world.block_z();
@@ -386,6 +387,9 @@ impl EntityFluidInteraction {
                         last = Some(entry);
                         entry
                     };
+                    // `Entity.updateFluidOnEyes`: the eyes are in the fluid
+                    // only when its surface is strictly above them — a surface
+                    // exactly at eye level does not count.
                     if x == block_x && z == block_z && eye >= f64::from(y) {
                         let top = f64::from(y)
                             + f64::from(
@@ -393,12 +397,15 @@ impl EntityFluidInteraction {
                                     .camera_height(state, p)
                                     .map_err(FluidInteractionError::World)?,
                             );
-                        if eye <= top {
+                        if eye < top {
                             self.trackers[index].eyes_inside = true;
                         }
                     }
+                    // `Entity.updateFluidHeightAndDoFluidPushing`: the height
+                    // is measured from the deflated box's bottom, not the
+                    // entity box's — 0.001 lower than the 26.x helper's.
                     self.trackers[index].height =
-                        java_max(surface - base_y, self.trackers[index].height);
+                        java_max(surface - a.y, self.trackers[index].height);
                     if let Some(i) = current {
                         let mut flow =
                             world.flow(state, p).map_err(FluidInteractionError::World)?;
@@ -419,6 +426,108 @@ impl EntityFluidInteraction {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const WATER: FluidTagId = FluidTagId(0);
+    const LAVA: FluidTagId = FluidTagId(1);
+    const WET: &[bool] = &[true];
+
+    /// One source-water block at (0, 4, 0) under a box whose feet are at
+    /// y = 4: the surface sits at 4 + 8/9, the deflated box starts at 4.001.
+    struct Scene {
+        eye: f64,
+    }
+    impl FluidMembership for Scene {
+        fn fluid_in_tag(&self, fluid: FluidKind, tag: FluidTagId) -> bool {
+            if tag == WATER {
+                matches!(fluid, FluidKind::Water | FluidKind::FlowingWater)
+            } else {
+                matches!(fluid, FluidKind::Lava | FluidKind::FlowingLava)
+            }
+        }
+    }
+    impl FluidInteractionWorld for Scene {
+        type Error = std::convert::Infallible;
+        type Chunk = ();
+        fn interaction_box(&mut self) -> Result<Option<Aabb>, Self::Error> {
+            Ok(Some(Aabb::new(
+                Vec3::new(0.001, 4.001, 0.001),
+                Vec3::new(0.599, 5.799, 0.599),
+            )))
+        }
+        fn loaded_chunk(&mut self, _: i32, _: i32) -> Result<Option<()>, Self::Error> {
+            Ok(Some(()))
+        }
+        fn chunk_sections(&mut self, _: ()) -> Result<FluidSections<'_>, Self::Error> {
+            Ok(FluidSections {
+                minimum_section_y: 0,
+                has_fluid: WET,
+            })
+        }
+        fn block_x(&self) -> i32 {
+            0
+        }
+        fn eye_y(&mut self) -> Result<f64, Self::Error> {
+            Ok(self.eye)
+        }
+        fn block_z(&self) -> i32 {
+            0
+        }
+        fn fluid_state(&mut self, p: BlockPos) -> Result<FluidState, Self::Error> {
+            Ok(if p == BlockPos::new(0, 4, 0) {
+                FluidState::WATER
+            } else {
+                FluidState::EMPTY
+            })
+        }
+        fn fluid_height(&mut self, _: FluidState, _: BlockPos) -> Result<f32, Self::Error> {
+            Ok(8.0 / 9.0)
+        }
+        fn camera_height(&mut self, _: FluidState, _: BlockPos) -> Result<f32, Self::Error> {
+            Ok(8.0 / 9.0)
+        }
+        fn flow(&mut self, _: FluidState, _: BlockPos) -> Result<Vec3, Self::Error> {
+            Ok(Vec3::ZERO)
+        }
+    }
+
+    /// `updateFluidHeightAndDoFluidPushing` measures the height from the
+    /// deflated box's bottom (4.001 here), not the entity box's (4.0): the
+    /// 26.x helper's value would be 0.001 higher.
+    #[test]
+    fn immersion_height_is_measured_from_the_deflated_box() {
+        let mut scene = Scene { eye: 5.0 };
+        let mut interaction = EntityFluidInteraction::new([WATER, LAVA]);
+        assert!(interaction.update(&mut scene, true, 4096).unwrap());
+        let surface = 4.0 + f64::from(8.0f32 / 9.0);
+        let height = interaction.fluid_height(&scene, WATER);
+        assert!(
+            (height - (surface - 4.001)).abs() < 1e-9,
+            "height from the deflated box: {height}"
+        );
+    }
+
+    /// `updateFluidOnEyes`: the eyes are in the fluid when its surface is
+    /// strictly above them — exactly at eye level does not count.
+    #[test]
+    fn eyes_are_in_only_when_the_surface_is_above_them() {
+        let surface = 4.0 + f64::from(8.0f32 / 9.0);
+        let mut scene = Scene { eye: surface };
+        let mut interaction = EntityFluidInteraction::new([WATER, LAVA]);
+        assert!(interaction.update(&mut scene, true, 4096).unwrap());
+        assert!(
+            !interaction.is_eye_in_fluid(&scene, WATER),
+            "a surface exactly at eye level leaves the eyes out"
+        );
+        let mut scene = Scene {
+            eye: surface - 0.001,
+        };
+        let mut interaction = EntityFluidInteraction::new([WATER, LAVA]);
+        assert!(interaction.update(&mut scene, true, 4096).unwrap());
+        assert!(
+            interaction.is_eye_in_fluid(&scene, WATER),
+            "a surface above the eyes puts them in"
+        );
+    }
 
     /// A body the accumulator pushes: the player flag and the velocity it
     /// reads are the only things `apply_to` asks for.
@@ -441,7 +550,7 @@ mod tests {
         }
     }
 
-    /// `EntityFluidInteraction$CurrentAccumulator.applyTo`: a body that is not
+    /// `Entity.updateFluidHeightAndDoFluidPushing`: a body that is not
     /// a player takes the direction of the accumulated current, so two samples
     /// of one block push as hard as one; a player takes their average, so the
     /// push grows with the number of blocks and is halved by two of them.
@@ -513,10 +622,12 @@ mod tests {
         );
     }
 
-    /// `applyTo` returns before reading the velocity with no samples, and when
-    /// the accumulated current is under the 1e-5 of a squared length.
+    /// `updateFluidHeightAndDoFluidPushing` pushes on any nonzero current:
+    /// with no samples nothing moves, but a sample under the 26.x 1e-5
+    /// squared-length floor still pushes — a mob by its direction, a still
+    /// player up to the 0.0045 minimum.
     #[test]
-    fn no_current_and_a_current_under_the_threshold_push_nothing() {
+    fn no_current_pushes_nothing_but_any_current_pushes() {
         let mut body = Body {
             player: false,
             velocity: Vec3::ZERO,
@@ -529,6 +640,21 @@ mod tests {
         let mut acc = CurrentAccumulator::default();
         acc.accumulate(Vec3::new(0.001, 0.0, 0.0));
         acc.apply_to(&mut body, 0.014).unwrap();
-        assert_eq!(body.added, Vec3::ZERO);
+        assert!(
+            (body.added.x - 0.014).abs() < 1e-12,
+            "a 0.001 sample pushes a mob by its direction: {}",
+            body.added.x
+        );
+        let mut player = Body {
+            player: true,
+            velocity: Vec3::ZERO,
+            added: Vec3::ZERO,
+        };
+        acc.apply_to(&mut player, 0.014).unwrap();
+        assert!(
+            (player.added.x - 0.0045).abs() < 1e-12,
+            "a 0.001 sample lifts a still player to the minimum: {}",
+            player.added.x
+        );
     }
 }

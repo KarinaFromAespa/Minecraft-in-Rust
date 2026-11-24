@@ -28,7 +28,7 @@ const PORTAL_TICKET: u32 = 300;
 
 /// ServerLevel.END_SPAWN_POINT.
 pub(super) const END_SPAWN: [i32; 3] = [100, 50, 0];
-/// EnderDragonFight gateway ring radius and height.
+/// EndDragonFight gateway ring radius and height.
 const GATEWAY_RADIUS: f64 = 96.0;
 const GATEWAY_Y: i32 = 75;
 
@@ -445,14 +445,20 @@ impl Game<'_> {
         )
     }
 
-    /// LightmapRenderStateExtractor: End flashes add to the sky light factor
+    /// LightTexture.updateLightTexture: End flashes add to the sky light factor
     /// unless Hide Lightning Flashes is on (the sky sprite is not gated), a
-    /// third of it under a boss bar's world fog.
+    /// third of it under a boss bar's world fog. The lightmap's
+    /// `AmbientColor` is the flash colour while a flash is active, hidden
+    /// flashes included (`LightTexture.updateLightTexture`).
     pub(super) fn end_flash_sky(&self, sky: &mut horizon_client::environment::Sky, partial: f64) {
-        if self.dimension_type().skybox == horizon_world::dimension_type::Skybox::End
-            && !self.settings.file.bool("hideLightningFlashes")
-        {
-            let intensity = self.end.flash.intensity(partial as f32);
+        if self.dimension_type().skybox != horizon_world::dimension_type::Skybox::End {
+            return;
+        }
+        let intensity = self.end.flash.intensity(partial as f32);
+        if intensity > 0.0 {
+            sky.ambient_color = [0.99, 1.12, 1.0];
+        }
+        if !self.settings.file.bool("hideLightningFlashes") {
             sky.sky_light_factor += if self.boss_overlay.should_create_world_fog() {
                 intensity / 3.0
             } else {
@@ -597,9 +603,9 @@ impl Game<'_> {
         if self.dimension_type().skybox != horizon_world::dimension_type::Skybox::End {
             return;
         }
-        // getDefaultClockTime: the End's own clock (the client keeps the
-        // dimension's default clock in day_time), not the game time.
-        self.end.flash.tick(self.world.day_time);
+        // EndFlashState.tick(getGameTime): 1.21.10 drives the flash from the
+        // game time, not the default clock (the day time) 26.1 used.
+        self.end.flash.tick(self.world.game_time);
         if self.end.flash.started_this_tick() && self.win.is_none() {
             let flash = &self.end.flash;
             let instance = horizon_client::sound_engine::SoundInstance::directional(
@@ -760,7 +766,7 @@ impl Game<'_> {
         Ok(Some((Vec3::new(target.x, y, target.z), None)))
     }
 
-    /// EnderDragonFight without a dragon: once the centre of the main island
+    /// EndDragonFight without a dragon: once the centre of the main island
     /// is loaded, place the active exit portal (EndPodiumFeature) and the
     /// first gateway (spawnNewGateway) if the portal is not there yet. Like
     /// scanState and spawnExitPortal, only while the fight has no exit portal
@@ -853,7 +859,7 @@ impl Game<'_> {
         self.place_gateway(pos)
     }
 
-    /// The first gateway of the shuffled ring (EnderDragonFight constructor
+    /// The first gateway of the shuffled ring (EndDragonFight constructor
     /// and spawnNewGateway).
     fn first_gateway(&self) -> [i32; 3] {
         let mut gateways: Vec<i32> = (0..20).collect();

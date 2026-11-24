@@ -130,6 +130,16 @@ impl Game<'_> {
         let forward = self.forward();
         let at = [camera.x, camera.y, camera.z];
         let fog_type = fog_type(&self.world, self.res.facts(), at, &self.near_plane());
+        // FogRenderer.getFogType: past the fluids, the Nether's fog and a
+        // createWorldFog boss bar's are the dimension-or-boss environment.
+        let boss_world_fog = self.boss_overlay.should_create_world_fog();
+        let fog_type = if fog_type == FogType::Atmospheric
+            && (self.dim == Dim::Nether || boss_world_fog)
+        {
+            FogType::DimensionOrBoss
+        } else {
+            fog_type
+        };
         let (rain, thunder) = self.view_weather(self.clock.fraction() as f32);
         let title_fog = horizon_client::fog::FogTables::default();
         let tables = if self.title.is_some() {
@@ -161,7 +171,7 @@ impl Game<'_> {
             darken_world: self
                 .boss_overlay
                 .darken_amount(self.clock.fraction() as f32),
-            boss_world_fog: self.boss_overlay.should_create_world_fog(),
+            boss_world_fog,
             spectator: self.spectator(),
             fire_resistance: self.potions.effects.get("fire_resistance").is_some()
                 || self.settings.extras.pvp.tweaks.clear_lava,

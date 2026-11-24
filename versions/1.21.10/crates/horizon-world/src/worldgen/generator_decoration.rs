@@ -72,8 +72,9 @@ pub(super) struct Decoration {
     catalog: FeatureCatalog,
     /// Placed features referenced by name (feature pool elements), decoded lazily.
     named: std::sync::Mutex<HashMap<String, Option<Arc<PlacedFeatureDefinition>>>>,
-    /// BlockBehaviour.Properties.postProcess: states whose worldgen writes mark
-    /// their own position (mushrooms) or the one above (soul sand, magma).
+    /// BlockBehaviour.Properties.hasPostProcess: states whose worldgen writes mark
+    /// their own position (mushrooms, magma) — no block marks the one above in
+    /// 1.21.10 (26.x moved magma above and added soul sand for bubble columns).
     postprocess_self: Vec<BlockStateId>,
     postprocess_above: Vec<BlockStateId>,
     /// A superflat world's `FillLayerFeature`s (`TOP_LAYER_MODIFICATION`): the level Y and state
@@ -300,8 +301,12 @@ impl Decoration {
                 .filter_map(|n| registry.default_state(n))
                 .collect()
         };
-        let postprocess_self = states(&["minecraft:brown_mushroom", "minecraft:red_mushroom"]);
-        let postprocess_above = states(&["minecraft:soul_sand", "minecraft:magma_block"]);
+        let postprocess_self = states(&[
+            "minecraft:brown_mushroom",
+            "minecraft:red_mushroom",
+            "minecraft:magma_block",
+        ]);
+        let postprocess_above = states(&[]);
         Ok(Some(Self {
             postprocess_self,
             postprocess_above,
@@ -998,7 +1003,7 @@ impl FeatureWorld for World<'_> {
         if !same_block {
             self.block_entities.retain(|(p, _)| *p != position);
         }
-        // WorldGenRegion.setBlock: BlockState.getPostProcessPos unless UPDATE_KNOWN_SHAPE.
+        // WorldGenRegion.setBlock: BlockState.hasPostProcess unless UPDATE_KNOWN_SHAPE.
         if flags & 16 == 0 {
             let [x, y, z] = position;
             let mark = if self.decoration.postprocess_self.contains(&state) {
@@ -1494,6 +1499,10 @@ impl PlacementContext for World<'_> {
         position: [i32; 3],
         _drop_resources: bool,
     ) -> Result<bool, PlacementQueryError> {
+        // 1.21.10's WorldGenRegion.destroyBlock also drops the block's
+        // resources when asked (Block.dropResources into the level); no loot
+        // is evaluated during worldgen here, so the drops are lost. Only the
+        // end podium destroys with drops during generation.
         let chunk = self.region.chunk(position[0] >> 4, position[2] >> 4)?;
         let state = chunk.block(position[0], position[1], position[2]);
         if chunk.block_properties(state).is_air() {

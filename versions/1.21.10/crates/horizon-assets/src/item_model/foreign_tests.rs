@@ -36,15 +36,9 @@ fn node_with_a_nested_node_decodes_it() {
         r#"{"type":"mod:x","model":{"type":"mod:y","model":"mod:item/inner"},"transformation":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]}"#,
     )
     .unwrap();
-    let ItemModelNode::Composite {
-        models,
-        transformation,
-    } = n
-    else {
-        panic!("a transformation wraps the nested node")
-    };
-    assert!(transformation.is_some());
-    assert_eq!(model_id(&models[0]), "mod:item/inner");
+    // 1.21.10 has no per-model transformation: the field is ignored and the
+    // nested node decodes directly, unwrapped.
+    assert_eq!(model_id(&n), "mod:item/inner");
 }
 
 #[test]

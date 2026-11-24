@@ -437,7 +437,7 @@ impl Game<'_> {
         self.native_break_speed(pos, state, speed, &mut speed);
         speed / hardness / if harvest { 30.0 } else { 100.0 }
     }
-    /// `EntityFluidInteraction`: compare the eyes with the camera fluid surface.
+    /// `Entity.updateFluidOnEyes`: compare the eyes with the camera fluid surface.
     fn mining_eyes_in_water(&self) -> bool {
         use horizon_client::blocks::Fluid;
         let Some(eye) = self.eye_position() else {
@@ -564,7 +564,7 @@ impl Game<'_> {
         let speed = self.main_hand_attack_speed();
         let replace = self.heights.tick_with(
             self.hands_busy(),
-            self.hand_strength.swap_scale(1.0, speed),
+            self.hand_strength.scale(1.0, speed),
             changed,
             self.settings.extras.pvp.combat.legacy,
         );
@@ -901,7 +901,7 @@ impl HandWorld for GameHands<'_, '_> {
         if let Some(sound) = self.game.jab() {
             self.game.play_at_feet(sound);
         }
-        self.game.hand_strength.reset_attack();
+        self.game.hand_strength.reset();
     }
     fn attack_entity(&mut self) -> bool {
         self.game.attack()

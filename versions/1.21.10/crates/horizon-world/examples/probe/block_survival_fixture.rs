@@ -137,7 +137,12 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             use SurvivalRule::*;
             let rule = match rule.as_str() {
                 value if value.starts_with("TagBelow:") => TagBelow(value[9..].to_owned()),
+
+                value if value.starts_with("BlockBelow:") => BlockBelow(value[11..].to_owned()),
                 "CactusFlower" => CactusFlower,
+
+                "Vegetation" => Vegetation,
+                "WitherRose" => WitherRose,
                 "Seagrass" => Seagrass,
                 "BubbleColumn" => BubbleColumn,
                 "RedstoneWire" => RedstoneWire,

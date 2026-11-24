@@ -1286,13 +1286,7 @@ impl Game<'_> {
         if hooks.is_empty() {
             return;
         }
-        let Some(r) = self
-            .gui
-            .atlas
-            .sprites
-            .get("entity/fishing/fishing_hook")
-            .copied()
-        else {
+        let Some(r) = self.gui.atlas.sprites.get("entity/fishing_hook").copied() else {
             return;
         };
         let forward = glam::DVec3::from_array(view_vector(self.yaw, self.pitch));
@@ -1362,7 +1356,7 @@ impl Game<'_> {
         let eye = glam::DVec3::new(feet.x, feet.y + f64::from(p.dimensions.eye_height), feet.z);
         if self.camera_type.first_person() {
             let fov = self.settings.fov as i32 as f32;
-            // Camera.getNearPlane(fov).getPointOnPlane(invert * 0.525, -0.1).
+            // Camera.getNearPlane().getPointOnPlane(invert * 0.525, -0.1).
             let aspect = f64::from(size[0]) / f64::from(size[1].max(1));
             let height =
                 (f64::from(fov * (std::f64::consts::PI / 180.0) as f32) / 2.0).tan() * 0.05;

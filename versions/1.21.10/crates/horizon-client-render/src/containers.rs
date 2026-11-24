@@ -786,18 +786,16 @@ impl ChestHalf<'_> {
     }
 }
 
-/// `AbstractFurnaceBlockEntity.createExperience`: `count * experience`, floored, and one
-/// more with the chance of what is left over (a level random draw only when there is some).
-pub fn create_experience(
-    count: u32,
-    experience: f32,
-    random: &mut impl horizon_core::random::RandomSource,
-) -> u32 {
+/// `AbstractFurnaceBlockEntity.createExperience` (1.21.10): `count *
+/// experience`, floored, and one more with the chance of what is left over.
+/// The roll is `Math.random()` (unseeded, compared as a double), not the
+/// level random — 1.21.11 switched to `level.random`.
+pub fn create_experience(count: u32, experience: f32) -> u32 {
     let total = count as f32 * experience;
     let whole = total.floor();
     let fraction = total - whole;
     let mut xp = whole.max(0.0) as u32;
-    if fraction != 0.0 && random.next_float() < fraction {
+    if fraction != 0.0 && horizon_core::random::math_random() < f64::from(fraction) {
         xp += 1;
     }
     xp
@@ -824,7 +822,6 @@ pub fn block_menu_type(block: &str) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use horizon_core::random::{LegacyRandom, RandomSource};
 
     /// a client that isn't Horizon's is sent vanilla's menu types only.
     #[test]
@@ -955,18 +952,15 @@ mod tests {
     }
 
     /// A whole amount pays itself without a draw; a fraction is a chance of one more.
+    /// (`Math.random()` is unseeded, so only whole amounts are exact and the
+    /// fraction is pinned by its distribution, not by a seeded draw.)
     #[test]
     fn create_experience_rounds_the_fraction_by_chance() {
-        let mut random = LegacyRandom::new(7);
-        let mut untouched = LegacyRandom::new(7);
-        assert_eq!(create_experience(4, 0.5, &mut random), 2);
-        assert_eq!(create_experience(3, 0.0, &mut random), 0);
-        assert_eq!(random.next_long(), untouched.next_long());
-        let paid: u32 = (0..1000)
-            .map(|_| create_experience(1, 0.35, &mut random))
-            .sum();
+        assert_eq!(create_experience(4, 0.5), 2);
+        assert_eq!(create_experience(3, 0.0), 0);
+        let paid: u32 = (0..1000).map(|_| create_experience(1, 0.35)).sum();
         assert!((250..450).contains(&paid), "{paid}");
-        assert!((0..100).all(|_| (1..=2).contains(&create_experience(1, 1.7, &mut random))));
+        assert!((0..100).all(|_| (1..=2).contains(&create_experience(1, 1.7))));
     }
 
     /// An ender chest placed with /setblock gets its block entity (`EnderChestBlock.newBlockEntity`),

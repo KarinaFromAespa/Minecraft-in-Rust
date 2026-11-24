@@ -1,6 +1,8 @@
 //! The player's attack strength (`Player.attackStrengthTicker`,
-//! `itemSwapTicker`, `getAttackStrengthScale`, `getCurrentItemAttackStrengthDelay`):
-//! the charge the attack indicator shows and attacks scale their damage by.
+//! `getAttackStrengthScale`, `getCurrentItemAttackStrengthDelay`): the
+//! charge the attack indicator shows and attacks scale their damage by.
+//! 1.21.10 has no `itemSwapTicker`: `resetAttackStrengthTicker` resets
+//! only the attack ticker, and the hand height reads the attack scale.
 
 /// `Attributes.ATTACK_SPEED` base value.
 pub const BASE_ATTACK_SPEED: f64 = 4.0;
@@ -9,8 +11,6 @@ pub const BASE_ATTACK_SPEED: f64 = 4.0;
 pub struct AttackStrength {
     /// `LivingEntity.attackStrengthTicker`.
     pub ticker: i32,
-    /// `LivingEntity.itemSwapTicker`.
-    pub swap_ticker: i32,
     /// `Player.lastItemInMainHand`: the stack as last compared.
     last_item: Option<HeldStack>,
 }
@@ -33,13 +33,12 @@ impl AttackStrength {
     pub fn main_hand_changed(&self, main_hand: &Option<HeldStack>) -> bool {
         self.last_item != *main_hand
     }
-    /// The attack-strength part of `Player.tick`: both tickers advance, and a
-    /// main-hand change to a different item resets them
+    /// The attack-strength part of `Player.tick`: the ticker advances, and
+    /// a main-hand change to a different item resets it
     /// (`!ItemStack.matches` and `!ItemStack.isSameItem`).
-    /// Whether they were reset.
+    /// Whether it was reset.
     pub fn tick(&mut self, main_hand: Option<HeldStack>) -> bool {
         self.ticker += 1;
-        self.swap_ticker += 1;
         let mut reset = false;
         if self.last_item != main_hand {
             let same_item = match (&self.last_item, &main_hand) {
@@ -56,29 +55,22 @@ impl AttackStrength {
         reset
     }
     /// `resetAttackStrengthTicker`: swinging at nothing, attacking or
-    /// stopping a block break.
+    /// stopping a block break. In 1.21.10 this resets only the attack
+    /// ticker; there is no second ticker to reset.
     pub fn reset(&mut self) {
-        self.ticker = 0;
-        self.swap_ticker = 0;
-    }
-    /// `resetOnlyAttackStrengthTicker` (`Player.onAttack`).
-    pub fn reset_attack(&mut self) {
         self.ticker = 0;
     }
     /// `getAttackStrengthScale(a)` with the ATTACK_SPEED attribute value.
     pub fn scale(&self, a: f32, attack_speed: f64) -> f32 {
         ((self.ticker as f32 + a) / delay(attack_speed)).clamp(0.0, 1.0)
     }
-    /// `getItemSwapScale(a)`.
-    pub fn swap_scale(&self, a: f32, attack_speed: f64) -> f32 {
-        ((self.swap_ticker as f32 + a) / delay(attack_speed)).clamp(0.0, 1.0)
-    }
 }
 
-/// `Player.attack`'s extra knockback: `getKnockback` (`weapon`, halved: the
-/// ATTACK_KNOCKBACK value, plus on a server the weapon's knockback enchantment)
-/// and a sprinting full-strength hit (0.5), and whether the hit is that
-/// sprinting knockback attack.
+/// `Player.attack`'s extra knockback: `causeExtraKnockback`'s power —
+/// `getKnockback` halved at the call site (`weapon`: the ATTACK_KNOCKBACK
+/// value, plus on a server the weapon's knockback enchantment; 1.21.10
+/// halves here, not in `getKnockback`) — plus 0.5 for a sprinting
+/// full-strength hit, and whether the hit is that sprinting knockback attack.
 pub fn extra_knockback(weapon: f32, strength: f32, sprinting: bool) -> (f32, bool) {
     let knockback_attack = strength > 0.9 && sprinting;
     let bonus = if knockback_attack { 0.5 } else { 0.0 };
@@ -145,10 +137,10 @@ mod tests {
             "the same item with another count keeps charging"
         );
         s.tick(held("minecraft:diamond_sword", ""));
-        assert_eq!((s.ticker, s.swap_ticker), (0, 0));
+        assert_eq!(s.ticker, 0, "switching items resets the charge");
         s.tick(held("minecraft:diamond_sword", ""));
-        s.reset_attack();
-        assert_eq!((s.ticker, s.swap_ticker), (0, 1));
+        s.reset();
+        assert_eq!(s.ticker, 0, "an attack resets the charge");
     }
     #[test]
     fn a_stack_change_of_the_same_item_is_seen_but_does_not_reset() {
@@ -196,7 +188,7 @@ mod tests {
         // 1.8-style servers raise ATTACK_SPEED: with 1024 the delay is under
         // a tick, so getAttackStrengthScale(0.5) is full right after a hit.
         let mut s = AttackStrength::default();
-        s.reset_attack();
+        s.reset();
         assert_eq!(s.scale(0.5, 1024.0), 1.0);
         assert!(attacker_slows_after_hit(
             CLIENT_DAMAGE,

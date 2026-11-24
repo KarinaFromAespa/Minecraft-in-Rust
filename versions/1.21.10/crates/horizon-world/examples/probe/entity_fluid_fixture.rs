@@ -116,9 +116,6 @@ impl FluidInteractionWorld for World<'_> {
             has_fluid: &self.wet,
         })
     }
-    fn bounding_box_min_y(&self) -> f64 {
-        number(&self.op["base_y"])
-    }
     fn block_x(&self) -> i32 {
         self.block.x
     }
@@ -188,9 +185,6 @@ impl FluidEntityWorld for World<'_> {
     }
     fn chunk_sections(&mut self, c: ()) -> io::Result<FluidSections<'_>> {
         FluidInteractionWorld::chunk_sections(self, c)
-    }
-    fn bounding_box_min_y(&self) -> f64 {
-        FluidInteractionWorld::bounding_box_min_y(self)
     }
     fn block_x(&self) -> i32 {
         FluidInteractionWorld::block_x(self)

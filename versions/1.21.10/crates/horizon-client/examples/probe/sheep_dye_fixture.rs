@@ -5,7 +5,6 @@ use horizon_client::{
     mobs::{Anim, Brain, Flags, Mob, MobType, Part, Species, sheep_dye},
 };
 use horizon_core::geometry::Vec3;
-use horizon_world::nbt::Tag;
 use std::{io::Write, sync::Arc};
 
 fn kind() -> Arc<MobType> {
@@ -68,7 +67,8 @@ pub fn main() -> Result<()> {
                 "minecraft:red_dye",
                 "minecraft:black_dye",
             ] {
-                for patch in 0..3 {
+                // 1.21.10 has no `minecraft:dye` component to patch.
+                for patch in 0..1 {
                     for sheared in [false, true] {
                         for alive in [false, true] {
                             for client in [false, true] {
@@ -79,18 +79,6 @@ pub fn main() -> Result<()> {
                                     mob.health = 0.0;
                                 }
                                 let mut stack = ItemStack::new(item, 2);
-                                if patch == 1 {
-                                    stack.data_mut().set_other(
-                                        "minecraft:dye",
-                                        Some(Tag::String("blue".into())),
-                                    );
-                                }
-                                if patch == 2 {
-                                    stack.data_mut().set_other(
-                                        "!minecraft:dye",
-                                        Some(Tag::Compound(Default::default())),
-                                    );
-                                }
                                 for step in 0..2 {
                                     let result = sheep_dye::interact(&mut mob, &mut stack, client);
                                     let sound = if result {

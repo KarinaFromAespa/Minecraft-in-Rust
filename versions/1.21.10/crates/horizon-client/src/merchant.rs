@@ -3,6 +3,13 @@
 //! set's `RandomSequence`), `MerchantOffer` pricing, demand and stock, and the
 //! `VillagerData` level thresholds. The villager entity itself is not part of
 //! this module; anything that can trade calls [`Merchant`].
+//!
+//! The data-driven registries are 26.1-only: 1.21.10 has no `trade_set` or
+//! `villager_trade` data (and no `TradeSet` / `VillagerTrade` / `TradeCost`
+//! classes), so `Trades` loads empty here and villagers get their offers
+//! from the hardcoded `VillagerTrades` tables in `villager_trades`
+//! (item 751). The offer, pricing, demand and restock machinery below is
+//! version-shared and live.
 use crate::{
     enchant::Enchantments,
     items::{ItemStack, Items},
@@ -403,6 +410,17 @@ impl Session {
                         self.offers.extend(more);
                         self.update_special_prices();
                         prices = true;
+                    } else {
+                        // 1.21.10 has no trade sets: the new level's offers
+                        // come from the hardcoded `VillagerTrades` table.
+                        let profession = self.profession.clone();
+                        let more =
+                            self.offers_from_listings(env, items, &profession, self.level);
+                        if !more.is_empty() {
+                            self.offers.extend(more);
+                            self.update_special_prices();
+                            prices = true;
+                        }
                     }
                 }
                 self.events.push(Event::LevelUp(self.level));
@@ -439,6 +457,26 @@ impl Session {
         let out = env.trades.offers_from_set(&ctx, set, &mut random);
         self.sequences.insert(sequence, random);
         out
+    }
+    /// `Villager.updateTrades` for 1.21.10: 2 offers from the hardcoded
+    /// `VillagerTrades` table for this level, drawn on the merchant's own
+    /// random (`AbstractVillager.addOffersFromItemListings` uses
+    /// `this.random`, not a random sequence).
+    fn offers_from_listings(
+        &mut self,
+        env: &TradeEnv<'_>,
+        items: &Items,
+        profession: &str,
+        level: i32,
+    ) -> Vec<MerchantOffer> {
+        let ctx = TradeContext {
+            items,
+            enchantments: env.enchantments,
+            variant: &self.variant,
+            origin: self.origin,
+            maps: env.maps,
+        };
+        crate::villager_trades::offers_for(profession, level, &ctx, &mut self.random)
     }
     /// `AbstractVillager.notifyTradeUpdated`.
     pub fn notify_trade_updated(&mut self, has_result: bool) {

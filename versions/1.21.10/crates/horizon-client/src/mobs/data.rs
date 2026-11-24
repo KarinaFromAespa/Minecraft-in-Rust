@@ -189,7 +189,7 @@ impl MobData {
                 } else if name.ends_with("leaves") {
                     PathType::Leaves
                 } else if name == "minecraft:fire" || name == "minecraft:magma_block" {
-                    PathType::Fire
+                    PathType::DamageFire
                 } else if f.full_collision {
                     PathType::Blocked
                 } else if f.fluid == Fluid::Water {

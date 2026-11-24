@@ -68,7 +68,6 @@ const CUSTOM: &[(&str, Format)] = &[
     ("interact_with_crafting_table", Format::Default),
     ("open_chest", Format::Default),
     ("sleep_in_bed", Format::Default),
-    ("sleep_in_straw_bed", Format::Default),
     ("open_shulker_box", Format::Default),
     ("open_barrel", Format::Default),
     ("interact_with_blast_furnace", Format::Default),
@@ -555,9 +554,12 @@ impl Game<'_> {
                 if visible(y) {
                     for (c, (ty, sprite)) in COLUMNS.iter().enumerate() {
                         let x = left + 75.0 + 40.0 * c as f32 - 18.0;
-                        let hover = ui::hovered(self.cursor, x, y + 1.0, 18.0, 18.0);
                         // StatSortButton: an ImageButton named by its stat
-                        // type, which is its tooltip too.
+                        // type, which is its tooltip too. Its background
+                        // is always the header sprite: WidgetSprites(HEADER,
+                        // SLOT) gives the focused variant the header too,
+                        // and the button is never inactive, so the slot
+                        // sprite is never drawn.
                         horizon_client::widgets::narratable(|| {
                             let name = tr(&format!("stat_type.minecraft.{ty}"), &[]);
                             horizon_client::widgets::Narratable::button(
@@ -569,12 +571,7 @@ impl Game<'_> {
                             .key(horizon_client::widgets::key_of(&("stats/sort", c)))
                             .child_of(list_key, 0)
                         });
-                        let bg = if hover {
-                            "gui/sprites/statistics/header"
-                        } else {
-                            "gui/sprites/container/slot"
-                        };
-                        batch.sprite(atlas, bg, x, y + 1.0);
+                        batch.sprite(atlas, "gui/sprites/statistics/header", x, y + 1.0);
                         batch.sprite(atlas, sprite, x, y + 1.0);
                         if let Some((sc, order)) = self.stats_ui.sort
                             && sc == c
@@ -584,7 +581,9 @@ impl Game<'_> {
                             } else {
                                 "gui/sprites/statistics/sort_up"
                             };
-                            batch.sprite(atlas, s, x, y + 1.0);
+                            // The arrow sits 18 pixels left of its button
+                            // (`getColumnX` - 36), not on the button.
+                            batch.sprite(atlas, s, x - 18.0, y + 1.0);
                         }
                     }
                 }
@@ -612,7 +611,7 @@ impl Game<'_> {
                         y + 1.0,
                     );
                     self.draw_item(batch, &stack, left + 2.0, y + 2.0);
-                    // `ItemRowWidget.extractTooltip`: the item's tooltip at the slot's corner.
+                    // `ItemRowWidget.renderTooltip`: the item's tooltip at the slot's corner.
                     if ui::hovered(self.cursor, left + 1.0, y + 1.0, 18.0, 18.0) {
                         tip = Some((stack.clone(), left + 19.0, y + 19.0));
                     }
@@ -798,9 +797,21 @@ mod tests {
     use super::*;
     use winit::keyboard::KeyCode::{Digit0, Digit1, Digit2, Digit3, Numpad8, Tab};
 
+    /// `Stats.CUSTOM` in 1.21.10: 77 custom stats, in registration order —
+    /// no `sleep_in_straw_bed` (the straw bed is a later addition), and
+    /// `sneak_time` keeps its id (only the Java field was renamed).
+    #[test]
+    fn custom_stats_are_the_1_21_11_set() {
+        assert_eq!(CUSTOM.len(), 77);
+        assert_eq!(CUSTOM[0].0, "leave_game");
+        assert_eq!(CUSTOM[CUSTOM.len() - 1].0, "interact_with_smithing_table");
+        assert_eq!(CUSTOM[5].0, "sneak_time");
+        assert!(!CUSTOM.iter().any(|(k, _)| *k == "sleep_in_straw_bed"));
+    }
+
     /// `ItemStatisticsList`: a mined block's row is its item (`Block.asItem`),
     /// air dropped, and a `BlockItem`'s Mined column reads its block's count.
-    /// The block <-> item pairs are vanilla 26.3's (`Items`: wheat seeds place
+    /// The block <-> item pairs are vanilla's (`Items`: wheat seeds place
     /// wheat, redstone places redstone wire, a torch places torch and wall
     /// torch; water has no item).
     #[test]

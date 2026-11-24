@@ -445,8 +445,8 @@ impl SpawnLevel for GameLevel<'_, '_> {
     fn dimension_type(&self) -> &DimensionFacts {
         self.game.dimension_type()
     }
-    fn surface_slime_chance(&self, x: i32, y: i32, z: i32) -> f32 {
-        self.w.surface_slime_chance(x, y, z)
+    fn moon_brightness(&self) -> f32 {
+        self.w.moon_brightness()
     }
     fn world_seed(&self) -> i64 {
         self.w.world_seed
@@ -589,9 +589,6 @@ impl NaturalLevel for GameLevel<'_, '_> {
                 .mobs_near(bounds)
                 .any(|(_, b, alive, _)| alive && b.intersects(bounds))
     }
-    fn spawn_mobs(&self) -> bool {
-        self.game.ui.rules.bool("spawn_mobs")
-    }
     /// WORLD_SURFACE (every spawn attempt's) is the chunk's kept heightmap.
     /// The others are scanned down the column: sections of air alone are
     /// skipped (air counts for no heightmap). An unloaded column reads as air.
@@ -702,7 +699,7 @@ impl<'a> Game<'a> {
             self.enchant_spawn_equipment(id);
             self.halloween_spawn_head(id);
             if !persistent {
-                self.spawn_jockeys(id, true);
+                self.spawn_jockeys(id);
             }
         }
     }

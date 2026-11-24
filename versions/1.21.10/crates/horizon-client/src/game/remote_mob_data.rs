@@ -90,11 +90,6 @@ fn apply(m: &mut Mob, values: &[(u8, i32, Value)], builtin: &Builtin, local_enti
             (i, Value::Bool(b)) if Some(i) == baby => {
                 m.extra.age = if *b && can_be_a_baby(species) { -1 } else { 0 };
             }
-            // AgeableMob.AGE_LOCKED, the entry after DATA_BABY_ID (not
-            // Zombie's or Piglin's).
-            (17, Value::Bool(locked)) if baby == Some(16) && finalize::ageable(species) => {
-                m.extra.age_locked = *locked
-            }
             _ => {}
         }
         match (species, *index, value) {
@@ -112,24 +107,24 @@ fn apply(m: &mut Mob, values: &[(u8, i32, Value)], builtin: &Builtin, local_enti
                 });
             }
             // Panda: the counters, the two genes and DATA_ID_FLAGS (after
-            // AgeableMob's two entries).
-            (Species::Panda, 18, Value::Int(n)) => panda::set_unhappy(m, *n),
-            (Species::Panda, 19, Value::Int(n)) => panda::set_sneeze(m, *n),
-            (Species::Panda, 20, Value::Int(n)) => panda::set_eat(m, *n),
-            (Species::Panda, 21, Value::Byte(gene)) => m.extra.variant = (*gene).clamp(0, 6) as u8,
-            (Species::Panda, 22, Value::Byte(gene)) => m.extra.variant2 = (*gene).clamp(0, 6) as u8,
-            (Species::Panda, 23, Value::Byte(flags)) => panda::set_flags(m, *flags as u8),
+            // AgeableMob's DATA_BABY_ID).
+            (Species::Panda, 17, Value::Int(n)) => panda::set_unhappy(m, *n),
+            (Species::Panda, 18, Value::Int(n)) => panda::set_sneeze(m, *n),
+            (Species::Panda, 19, Value::Int(n)) => panda::set_eat(m, *n),
+            (Species::Panda, 20, Value::Byte(gene)) => m.extra.variant = (*gene).clamp(0, 6) as u8,
+            (Species::Panda, 21, Value::Byte(gene)) => m.extra.variant2 = (*gene).clamp(0, 6) as u8,
+            (Species::Panda, 22, Value::Byte(flags)) => panda::set_flags(m, *flags as u8),
             // PolarBear.DATA_STANDING_ID: the client animates the rearing.
-            (Species::PolarBear, 18, Value::Bool(standing)) => m.extra.flag = *standing,
+            (Species::PolarBear, 17, Value::Bool(standing)) => m.extra.flag = *standing,
             // Bat.DATA_ID_FLAGS: resting in bit 0.
             (Species::Bat, 16, Value::Byte(flags)) => bat::set_resting(m, flags & 1 != 0),
             // Fox.DATA_TYPE_ID and DATA_FLAGS_ID.
-            (Species::Fox, 18, Value::Int(variant)) => {
+            (Species::Fox, 17, Value::Int(variant)) => {
                 m.extra.variant = (*variant).clamp(0, 1) as u8
             }
-            (Species::Fox, 19, Value::Byte(flags)) => m.extra.ints[0] = i32::from(*flags as u8),
+            (Species::Fox, 18, Value::Byte(flags)) => m.extra.ints[0] = i32::from(*flags as u8),
             // Sheep.DATA_WOOL_ID: the colour in the low nibble, 16 sheared.
-            (Species::Sheep, 18, Value::Byte(wool)) => {
+            (Species::Sheep, 17, Value::Byte(wool)) => {
                 m.extra.color = (*wool & 15) as u8;
                 m.extra.sheared = wool & 16 != 0;
             }
@@ -137,37 +132,35 @@ fn apply(m: &mut Mob, values: &[(u8, i32, Value)], builtin: &Builtin, local_enti
             (Species::SnowGolem, 16, Value::Byte(flags)) => m.extra.sheared = flags & 16 == 0,
             // Bogged.DATA_SHEARED: the mushrooms on its head are gone.
             (Species::Bogged, 16, Value::Bool(sheared)) => m.extra.sheared = *sheared,
-            // Tadpole.AGE_LOCKED (after AbstractFish's FROM_BUCKET).
-            (Species::Tadpole, 17, Value::Bool(locked)) => m.extra.age_locked = *locked,
-            // MushroomCow.DATA_TYPE (after AgeableMob's DATA_BABY_ID and
-            // AGE_LOCKED): 0 red, 1 brown.
-            (Species::Mooshroom, 18, Value::Int(variant)) => {
+            // MushroomCow.DATA_TYPE (after AgeableMob's DATA_BABY_ID):
+            // 0 red, 1 brown.
+            (Species::Mooshroom, 17, Value::Int(variant)) => {
                 m.extra.variant = (*variant == 1) as u8
             }
             // Pig.DATA_BOOST_TIME and Strider.DATA_BOOST_TIME (the first entry
-            // after AgeableMob's two; the variant and DATA_SUFFOCATING are 19).
-            // ItemBasedSteering.onSynced: boosting starts, boostTime is 0, and
-            // the total is this int (140 to 980 from boost()).
-            (Species::Pig | Species::Strider, 18, Value::Int(total)) => {
+            // after AgeableMob's DATA_BABY_ID; the variant and DATA_SUFFOCATING
+            // are 18). ItemBasedSteering.onSynced: boosting starts, boostTime
+            // is 0, and the total is this int (140 to 980 from boost()).
+            (Species::Pig | Species::Strider, 17, Value::Int(total)) => {
                 m.extra.counter = 0;
                 m.extra.counter2 = *total;
             }
             // Piglin.DATA_IS_DANCING: the dance pose.
             (Species::Piglin, 19, Value::Bool(dancing)) => m.extra.scratch[0] = i32::from(*dancing),
             // TamableAnimal.DATA_FLAGS_ID: sitting 1, tame 4.
-            (Species::Wolf | Species::Cat | Species::Parrot, 18, Value::Byte(flags)) => {
+            (Species::Wolf | Species::Cat | Species::Parrot, 17, Value::Byte(flags)) => {
                 m.extra.sitting = flags & 1 != 0;
                 m.extra.tame = flags & 4 != 0;
             }
             // Cat.IS_LYING and RELAX_STATE_ONE.
-            (Species::Cat, 21, Value::Bool(lying)) => m.extra.flag = *lying,
-            (Species::Cat, 22, Value::Bool(relaxing)) => m.extra.relax_one = *relaxing,
-            // Ocelot.DATA_TRUSTING (after AgeableMob's two).
-            (Species::Ocelot, 18, Value::Bool(trusting)) => m.extra.trusting = *trusting,
+            (Species::Cat, 20, Value::Bool(lying)) => m.extra.flag = *lying,
+            (Species::Cat, 21, Value::Bool(relaxing)) => m.extra.relax_one = *relaxing,
+            // Ocelot.DATA_TRUSTING (after AgeableMob's DATA_BABY_ID).
+            (Species::Ocelot, 17, Value::Bool(trusting)) => m.extra.trusting = *trusting,
             // Wolf.DATA_INTERESTED_ID: begging, which tilts the head.
-            (Species::Wolf, 20, Value::Bool(begging)) => m.extra.flag = *begging,
+            (Species::Wolf, 19, Value::Bool(begging)) => m.extra.flag = *begging,
             // Wolf.DATA_COLLAR_COLOR and Cat's.
-            (Species::Wolf, 21, Value::Int(c)) | (Species::Cat, 23, Value::Int(c)) => {
+            (Species::Wolf, 20, Value::Int(c)) | (Species::Cat, 22, Value::Int(c)) => {
                 m.extra.color = (*c & 15) as u8;
             }
             // AbstractCubeMob.ID_SIZE: its size and box (refreshDimensions).
@@ -194,36 +187,36 @@ fn apply(m: &mut Mob, values: &[(u8, i32, Value)], builtin: &Builtin, local_enti
                     st.client_anger = *anger;
                 }
             }
-            // Sniffer.DATA_STATE (after AgeableMob's two): the animation
-            // follows it in `sync::client_tick`.
-            (Species::Sniffer, 18, Value::Id(state)) => {
+            // Sniffer.DATA_STATE (after AgeableMob's DATA_BABY_ID): the
+            // animation follows it in `sync::client_tick`.
+            (Species::Sniffer, 17, Value::Id(state)) => {
                 sniffer::set_state(m, (*state).clamp(0, 6) as u8);
             }
-            // Armadillo.ARMADILLO_STATE (after AgeableMob's two): the shell and
-            // its animations follow it in `sync::client_tick`.
-            (Species::Armadillo, 18, Value::Id(state)) => {
+            // Armadillo.ARMADILLO_STATE (after AgeableMob's DATA_BABY_ID):
+            // the shell and its animations follow it in `sync::client_tick`.
+            (Species::Armadillo, 17, Value::Id(state)) => {
                 armadillo::set_state(m, (*state).clamp(0, 3) as u8);
             }
             // Goat.DATA_HAS_LEFT_HORN and DATA_HAS_RIGHT_HORN: the model hides
             // a horn the goat lost.
-            (Species::Goat, 19, Value::Bool(has)) => m.extra.lost_horns[0] = !*has,
-            (Species::Goat, 20, Value::Bool(has)) => m.extra.lost_horns[1] = !*has,
+            (Species::Goat, 18, Value::Bool(has)) => m.extra.lost_horns[0] = !*has,
+            (Species::Goat, 19, Value::Bool(has)) => m.extra.lost_horns[1] = !*has,
             // Shulker.DATA_ATTACH_FACE_ID, DATA_PEEK_ID and DATA_COLOR_ID.
             (Species::Shulker, 16, Value::Id(face)) => m.extra.variant3 = (*face).clamp(0, 5) as u8,
             (Species::Shulker, 17, Value::Byte(peek)) => m.extra.counter = i32::from(*peek),
             (Species::Shulker, 18, Value::Byte(color)) => m.extra.color = *color as u8,
             // Camel.DASH and LAST_POSE_CHANGE_TICK (after AbstractHorse's
             // flags).
-            (Species::Camel | Species::CamelHusk, 19, Value::Bool(dashing)) => {
+            (Species::Camel | Species::CamelHusk, 18, Value::Bool(dashing)) => {
                 camel::set_dashing(m, *dashing);
             }
-            (Species::Camel | Species::CamelHusk, 20, Value::Long(tick)) => {
+            (Species::Camel | Species::CamelHusk, 19, Value::Long(tick)) => {
                 camel::set_synced_pose_tick(m, *tick);
             }
             // Vex.DATA_FLAGS_ID: charging in bit 0.
             (Species::Vex, 16, Value::Byte(flags)) => m.extra.flag = flags & 1 != 0,
-            // GlowSquid.DATA_DARK_TICKS_REMAINING (after AgeableMob's two).
-            (Species::GlowSquid, 18, Value::Int(ticks)) => {
+            // GlowSquid.DATA_DARK_TICKS_REMAINING (after AgeableMob's DATA_BABY_ID).
+            (Species::GlowSquid, 17, Value::Int(ticks)) => {
                 horizon_client::mobs::aquatic::set_dark_ticks(m, *ticks);
             }
             // Creaking.CAN_MOVE, IS_ACTIVE and IS_TEARING_DOWN.
@@ -236,14 +229,14 @@ fn apply(m: &mut Mob, values: &[(u8, i32, Value)], builtin: &Builtin, local_enti
             (Species::Allay, 17, Value::Bool(can)) => m.extra.egg_time = i32::from(!*can),
             // Axolotl.DATA_PLAYING_DEAD (after DATA_VARIANT): the factors
             // ease in `sync::client_tick`.
-            (Species::Axolotl, 19, Value::Bool(dead)) => m.extra.axolotl.playing_dead = *dead,
+            (Species::Axolotl, 18, Value::Bool(dead)) => m.extra.axolotl.playing_dead = *dead,
             // CopperGolem.COPPER_GOLEM_STATE (after DATA_WEATHER_STATE).
             (Species::CopperGolem, 17, Value::Id(state)) => {
                 m.extra.variant3 = (*state).clamp(0, 4) as u8;
             }
-            // AbstractHorse's flags take 18. Horse.DATA_ID_TYPE_VARIANT: the
+            // AbstractHorse's flags take 17. Horse.DATA_ID_TYPE_VARIANT: the
             // colour in the low byte, the markings in the next.
-            (Species::Horse, 19, Value::Int(v)) => {
+            (Species::Horse, 18, Value::Int(v)) => {
                 m.extra.variant = (v & 0xFF).clamp(0, 6) as u8;
                 m.extra.variant2 = ((v >> 8) & 0xFF).clamp(0, 4) as u8;
             }
@@ -251,26 +244,26 @@ fn apply(m: &mut Mob, values: &[(u8, i32, Value)], builtin: &Builtin, local_enti
             // and DATA_VARIANT_ID.
             (
                 Species::Donkey | Species::Mule | Species::Llama | Species::TraderLlama,
-                19,
+                18,
                 Value::Bool(chested),
             ) => m.extra.chested = *chested,
-            (Species::Llama | Species::TraderLlama, 20, Value::Int(strength)) => {
+            (Species::Llama | Species::TraderLlama, 19, Value::Int(strength)) => {
                 m.extra.variant2 = (*strength).clamp(1, 5) as u8;
             }
-            (Species::Llama | Species::TraderLlama, 21, Value::Int(variant)) => {
+            (Species::Llama | Species::TraderLlama, 20, Value::Int(variant)) => {
                 m.extra.variant = (*variant).clamp(0, 3) as u8;
             }
             // Axolotl.DATA_VARIANT (lucy 0 to blue 4) and Parrot.DATA_VARIANT_ID
             // (after TamableAnimal's flags and owner).
-            (Species::Axolotl, 18, Value::Int(v)) => m.extra.variant = (*v).clamp(0, 4) as u8,
-            (Species::Parrot, 20, Value::Int(v)) => m.extra.variant = (*v).clamp(0, 4) as u8,
+            (Species::Axolotl, 17, Value::Int(v)) => m.extra.variant = (*v).clamp(0, 4) as u8,
+            (Species::Parrot, 19, Value::Int(v)) => m.extra.variant = (*v).clamp(0, 4) as u8,
             // Rabbit.DATA_TYPE_ID: the killer bunny's 99 has no model here.
-            (Species::Rabbit, 18, Value::Int(t)) if (0..=5).contains(t) => {
+            (Species::Rabbit, 17, Value::Int(t)) if (0..=5).contains(t) => {
                 m.extra.variant = *t as u8;
             }
             // Bee.DATA_FLAGS_ID and DATA_ANGER_END_TIME (after Animal's).
-            (Species::Bee, 18, Value::Byte(flags)) => bee::set_synced(m, Some(*flags as u8), None),
-            (Species::Bee, 19, Value::Long(end)) => bee::set_synced(m, None, Some(*end)),
+            (Species::Bee, 17, Value::Byte(flags)) => bee::set_synced(m, Some(*flags as u8), None),
+            (Species::Bee, 18, Value::Int(anger)) => bee::set_synced(m, None, Some(*anger)),
             // AbstractFish.FROM_BUCKET takes 16: Salmon.DATA_TYPE (small 0
             // to large 2), Pufferfish.PUFF_STATE and
             // TropicalFish.DATA_ID_TYPE_VARIANT.
@@ -286,7 +279,7 @@ fn apply(m: &mut Mob, values: &[(u8, i32, Value)], builtin: &Builtin, local_enti
             }
             // AbstractHorse.DATA_ID_FLAGS: eating 16 and standing 32 (the
             // graze and the rear), which `sync::client_tick` animates.
-            (s, 18, Value::Byte(flags)) if equine::grazes(s) => equine::set_flags(m, *flags as u8),
+            (s, 17, Value::Byte(flags)) if equine::grazes(s) => equine::set_flags(m, *flags as u8),
             // Enderman.DATA_CARRY_STATE (0 for none): the block it holds.
             (Species::Enderman, 16, Value::Id(state)) => {
                 m.extra.carried = (*state > 0).then_some(BlockStateId(*state as u32));
@@ -305,22 +298,23 @@ fn apply(m: &mut Mob, values: &[(u8, i32, Value)], builtin: &Builtin, local_enti
             (Species::ZombieVillager, 19, Value::Bool(converting)) => {
                 zombie_villager::set_converting(m, *converting);
             }
-            // AbstractVillager.DATA_UNHAPPY_COUNTER (after AgeableMob's two):
-            // the head shake of `no`, which the server counts down.
-            (Species::Villager | Species::WanderingTrader, 18, Value::Int(ticks)) => {
+            // AbstractVillager.DATA_UNHAPPY_COUNTER (after AgeableMob's
+            // DATA_BABY_ID): the head shake of `no`, which the server counts down.
+            (Species::Villager | Species::WanderingTrader, 17, Value::Int(ticks)) => {
                 m.extra.ints[0] = *ticks;
             }
-            // Hoglin.DATA_IMMUNE_TO_ZOMBIFICATION (after AgeableMob's two) and
-            // AbstractPiglin's: `sync`'s conversion shake reads it.
-            (Species::Hoglin, 18, Value::Bool(immune))
+            // Hoglin.DATA_IMMUNE_TO_ZOMBIFICATION (after AgeableMob's
+            // DATA_BABY_ID) and AbstractPiglin's: `sync`'s conversion shake
+            // reads it.
+            (Species::Hoglin, 17, Value::Bool(immune))
             | (Species::Piglin | Species::PiglinBrute, 16, Value::Bool(immune)) => {
                 m.extra.flag2 = *immune;
             }
             // Blaze.DATA_FLAGS_ID: charged 1, which makes it burn.
             (Species::Blaze, 16, Value::Byte(flags)) => m.extra.flag = flags & 1 != 0,
-            // Turtle.HAS_EGG and LAYING_EGG (after AgeableMob's two).
-            (Species::Turtle, 18, Value::Bool(has_egg)) => m.extra.flag = *has_egg,
-            (Species::Turtle, 19, Value::Bool(laying)) => m.extra.flag2 = *laying,
+            // Turtle.HAS_EGG and LAYING_EGG (after AgeableMob's DATA_BABY_ID).
+            (Species::Turtle, 17, Value::Bool(has_egg)) => m.extra.flag = *has_egg,
+            (Species::Turtle, 18, Value::Bool(laying)) => m.extra.flag2 = *laying,
             // WitherBoss.DATA_TARGET_B and _C (after DATA_TARGET_A): the
             // entities the side heads turn toward in `wither::client_tick`.
             (Species::Wither, 17, Value::Int(id)) => m.extra.ints[0] = *id,
@@ -332,21 +326,21 @@ fn apply(m: &mut Mob, values: &[(u8, i32, Value)], builtin: &Builtin, local_enti
             // Pillager.IS_CHARGING_CROSSBOW: the charge pose (Raider's
             // IS_CELEBRATING takes 16).
             (Species::Pillager, 17, Value::Bool(charging)) => m.extra.flag = *charging,
-            // HappyGhast.STAYS_STILL (after AgeableMob's two and IS_LEASH_HOLDER):
-            // `isOnStillTimeout` on a client, which keeps the ghast solid to
-            // the player (`canBeCollidedWith`).
+            // HappyGhast.STAYS_STILL (after AgeableMob's DATA_BABY_ID and
+            // IS_LEASH_HOLDER): `isOnStillTimeout` on a client, which keeps
+            // the ghast solid to the player (`canBeCollidedWith`).
             // HappyGhast.IS_LEASH_HOLDER: RopesLayer draws the ropes while set.
-            (Species::HappyGhast, 18, Value::Bool(holder)) => {
+            (Species::HappyGhast, 17, Value::Bool(holder)) => {
                 m.extra.scratch[1] = i32::from(*holder)
             }
-            (Species::HappyGhast, 19, Value::Bool(still)) => m.extra.counter = i32::from(*still),
+            (Species::HappyGhast, 18, Value::Bool(still)) => m.extra.counter = i32::from(*still),
             // SpellcasterIllager.DATA_SPELL_CASTING_ID: the casting pose.
             (Species::Evoker | Species::Illusioner, 17, Value::Byte(spell)) => {
                 m.extra.variant2 = (*spell).max(0) as u8;
             }
             // Villager.DATA_VILLAGER_DATA and ZombieVillager's (after
             // Zombie's three): what VillagerProfessionLayer draws.
-            (Species::Villager, 19, Value::Ids(data))
+            (Species::Villager, 18, Value::Ids(data))
             | (Species::ZombieVillager, 20, Value::Ids(data)) => villager_data(m, data, builtin),
             // Mannequin.DATA_PROFILE (after Avatar's two): whose skin it
             // wears; update_remote_skins resolves it like a tab player's.
@@ -392,16 +386,29 @@ fn apply_registry_data(
 ) {
     let species = m.species();
     for (index, _, value) in values {
+        // Wolf.DATA_SOUND_VARIANT_ID: the variant's sounds.
+        if species == Species::Wolf && *index == 23 {
+            if let Value::Id(id) = value
+                && let Some(name) = registries.name("minecraft:wolf_sound_variant", *id)
+            {
+                let name = name.strip_prefix("minecraft:").unwrap_or(name);
+                m.extra.sound_variant = finalize::sound_variants(species)
+                    .iter()
+                    .position(|v| *v == name)
+                    .map(|i| i as u8);
+            }
+            continue;
+        }
         let registry = match (species, *index, value) {
-            (Species::Cat, 20, Value::Id(_)) => "minecraft:cat_variant",
-            (Species::Wolf, 23, Value::Id(_)) => "minecraft:wolf_variant",
-            (Species::Frog, 18, Value::Id(_)) => "minecraft:frog_variant",
-            (Species::Pig, 19, Value::Id(_)) => "minecraft:pig_variant",
-            (Species::Cow, 18, Value::Id(_)) => "minecraft:cow_variant",
-            (Species::Chicken, 18, Value::Id(_)) => "minecraft:chicken_variant",
+            (Species::Cat, 19, Value::Id(_)) => "minecraft:cat_variant",
+            (Species::Wolf, 22, Value::Id(_)) => "minecraft:wolf_variant",
+            (Species::Frog, 17, Value::Id(_)) => "minecraft:frog_variant",
+            (Species::Pig, 18, Value::Id(_)) => "minecraft:pig_variant",
+            (Species::Cow, 17, Value::Id(_)) => "minecraft:cow_variant",
+            (Species::Chicken, 17, Value::Id(_)) => "minecraft:chicken_variant",
             (Species::ZombieNautilus, 21, Value::Id(_)) => "minecraft:zombie_nautilus_variant",
             // Wolf.DATA_ANGER_END_TIME: the angry texture while it lies ahead.
-            (Species::Wolf, 22, Value::Long(end)) => {
+            (Species::Wolf, 21, Value::Long(end)) => {
                 m.extra.anger = (end - game_time).clamp(0, i64::from(i32::MAX)) as i32;
                 continue;
             }
@@ -1008,17 +1015,15 @@ mod tests {
     }
 
     #[test]
-    fn a_mooshroom_takes_its_type_after_the_age_lock() {
+    fn a_mooshroom_takes_its_type_after_the_baby_flag() {
         let Some(mut m) = mob("minecraft:mooshroom") else {
             return;
         };
-        // AgeableMob.AGE_LOCKED (17) is not the colour.
-        apply(&mut m, &[(17, s::BOOLEAN, Value::Bool(true))]);
-        assert_eq!(m.extra.variant, 0);
-        // MushroomCow.DATA_TYPE (18): what MushroomCow.thunderHit changes.
-        apply(&mut m, &[(18, s::INT, Value::Int(1))]);
+        // MushroomCow.DATA_TYPE (17, right after DATA_BABY_ID): what
+        // MushroomCow.thunderHit changes.
+        apply(&mut m, &[(17, s::INT, Value::Int(1))]);
         assert_eq!(m.extra.variant, 1);
-        apply(&mut m, &[(18, s::INT, Value::Int(0))]);
+        apply(&mut m, &[(17, s::INT, Value::Int(0))]);
         assert_eq!(m.extra.variant, 0);
     }
 
@@ -1027,9 +1032,9 @@ mod tests {
         let Some(mut m) = mob("minecraft:sheep") else {
             return;
         };
-        apply(&mut m, &[(18, s::BYTE, Value::Byte(14 | 16))]);
+        apply(&mut m, &[(17, s::BYTE, Value::Byte(14 | 16))]);
         assert_eq!((m.extra.color, m.extra.sheared), (14, true));
-        apply(&mut m, &[(18, s::BYTE, Value::Byte(0))]);
+        apply(&mut m, &[(17, s::BYTE, Value::Byte(0))]);
         assert_eq!((m.extra.color, m.extra.sheared), (0, false));
         let mut calf = mob("minecraft:cow").unwrap();
         apply(&mut calf, &[(16, s::BOOLEAN, Value::Bool(true))]);
@@ -1165,8 +1170,8 @@ mod tests {
         apply(
             &mut m,
             &[
-                (18, s::BYTE, Value::Byte(4 | 1)),
-                (21, s::INT, Value::Int(11)),
+                (17, s::BYTE, Value::Byte(4 | 1)),
+                (20, s::INT, Value::Int(11)),
             ],
         );
         assert!(m.extra.tame && m.extra.sitting);
@@ -1182,7 +1187,7 @@ mod tests {
         let Some(mut m) = mob("minecraft:wolf") else {
             return;
         };
-        apply(&mut m, &[(20, s::BOOLEAN, Value::Bool(true))]);
+        apply(&mut m, &[(19, s::BOOLEAN, Value::Bool(true))]);
         client_tick(&mut m, 0, &mut Vec::new());
         assert!((m.anim.v[tame::INTEREST] - 0.4).abs() < 1e-6);
         assert_eq!(m.anim.vo[tame::INTEREST], 0.0);
@@ -1193,7 +1198,7 @@ mod tests {
             client_tick(&mut m, 0, &mut Vec::new());
         }
         assert!(m.anim.v[tame::INTEREST] > 0.999);
-        apply(&mut m, &[(20, s::BOOLEAN, Value::Bool(false))]);
+        apply(&mut m, &[(19, s::BOOLEAN, Value::Bool(false))]);
         client_tick(&mut m, 0, &mut Vec::new());
         assert!(m.anim.v[tame::INTEREST] < 0.61);
         for _ in 0..30 {
@@ -1256,13 +1261,13 @@ mod tests {
         };
         apply(
             &mut m,
-            &[(19, s::VILLAGER_DATA, Value::Ids(vec![desert, farmer, 2]))],
+            &[(18, s::VILLAGER_DATA, Value::Ids(vec![desert, farmer, 2]))],
         );
         assert_eq!(name(&m), ("desert", "farmer", 2));
         // A job taken later: only the profession and the level change.
         apply(
             &mut m,
-            &[(19, s::VILLAGER_DATA, Value::Ids(vec![desert, librarian, 5]))],
+            &[(18, s::VILLAGER_DATA, Value::Ids(vec![desert, librarian, 5]))],
         );
         assert_eq!(name(&m), ("desert", "librarian", 5));
         // A zombie villager's data comes after Zombie's three entries.
@@ -1350,16 +1355,16 @@ mod tests {
         assert_eq!(m.profile, Some(profile));
     }
 
-    /// `Ocelot.DATA_TRUSTING` (after AgeableMob's two).
+    /// `Ocelot.DATA_TRUSTING` (after AgeableMob's DATA_BABY_ID).
     #[test]
     fn an_ocelot_takes_its_trusting_flag() {
         let Some(mut m) = mob("minecraft:ocelot") else {
             return;
         };
         assert!(!m.extra.trusting);
-        apply(&mut m, &[(18, s::BOOLEAN, Value::Bool(true))]);
+        apply(&mut m, &[(17, s::BOOLEAN, Value::Bool(true))]);
         assert!(m.extra.trusting);
-        apply(&mut m, &[(18, s::BOOLEAN, Value::Bool(false))]);
+        apply(&mut m, &[(17, s::BOOLEAN, Value::Bool(false))]);
         assert!(!m.extra.trusting);
     }
 
@@ -1443,7 +1448,7 @@ mod tests {
     }
 
     /// `Pig.onSyncedDataUpdated` and `Strider.onSyncedDataUpdated`: a synced
-    /// `DATA_BOOST_TIME` (index 18, after AgeableMob's two) calls
+    /// `DATA_BOOST_TIME` (index 17, after AgeableMob's DATA_BABY_ID) calls
     /// `ItemBasedSteering.onSynced`. Boosting starts, `boostTime` is 0, and
     /// the total is the int (`boost()`'s minimum is 140). The next
     /// `tickBoost` then `boostFactor` is `1 + 1.15 * sin(boostTime / total * PI)`.
@@ -1482,9 +1487,9 @@ mod tests {
             m.extra.counter = 5;
             m.extra.counter2 = 3;
             // The next entry (pig variant, strider suffocating) is not the boost.
-            apply(&mut m, &[(19, s::INT, Value::Int(TOTAL))]);
-            assert_eq!((m.extra.counter, m.extra.counter2), (5, 3), "{kind}");
             apply(&mut m, &[(18, s::INT, Value::Int(TOTAL))]);
+            assert_eq!((m.extra.counter, m.extra.counter2), (5, 3), "{kind}");
+            apply(&mut m, &[(17, s::INT, Value::Int(TOTAL))]);
             assert_eq!(m.extra.counter, 0, "{kind}: onSynced sets boostTime to 0");
             assert_eq!(m.extra.counter2, TOTAL, "{kind}: the synced total");
             m.rider = Some(equine::Rider {

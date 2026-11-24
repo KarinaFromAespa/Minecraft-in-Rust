@@ -351,7 +351,7 @@ fn run(case: &Value, out: &mut impl Write) -> Result<()> {
         let speed = probe.attack_speed();
         let replace = probe.heights.tick(
             probe.step["busy"].as_bool().unwrap(),
-            strength.swap_scale(1.0, speed),
+            strength.scale(1.0, speed),
             changed,
         );
         for h in 0..2 {
@@ -370,14 +370,13 @@ fn run(case: &Value, out: &mut impl Write) -> Result<()> {
         let d = &clicks.destroying;
         writeln!(
             out,
-            "tick {s} {current} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {}",
+            "tick {s} {current} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {}",
             sw.ticks,
             fb(sw.animation),
             fb(sw.old_animation),
             fb(sw.animation(0.5)),
             strength.ticker,
-            strength.swap_ticker,
-            fb(strength.swap_scale(1.0, speed)),
+            fb(strength.scale(1.0, speed)),
             fb(h.main),
             fb(h.old_main),
             fb(h.off),
@@ -396,7 +395,7 @@ fn run(case: &Value, out: &mut impl Write) -> Result<()> {
     Ok(())
 }
 
-/// The probe with the attack-strength tickers it resets.
+/// The probe with the attack-strength ticker it resets.
 struct ResetWorld<'p, 'c> {
     probe: &'p mut Probe<'c>,
     strength: &'p mut AttackStrength,

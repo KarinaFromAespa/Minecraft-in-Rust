@@ -1043,7 +1043,7 @@ mod tests {
             (
                 "full",
                 Some(
-                    r#"{"pack":{"description":"full","pack_format":121,"min_format":[121,0],"max_format":[121,0]}}"#,
+                    r#"{"pack":{"description":"full","pack_format":88,"min_format":[88,0],"max_format":[88,0]}}"#,
                 ),
             ),
             (
@@ -1454,13 +1454,13 @@ mod tests {
         write(
             "fns",
             "pack.mcmeta",
-            r#"{"pack":{"description":"fixture","min_format":121,"max_format":121}}"#,
+            r#"{"pack":{"description":"fixture","min_format":88,"max_format":88}}"#,
         );
         write("fns", "data/x/function/f.mcfunction", "say hi");
         write(
             "off",
             "pack.mcmeta",
-            r#"{"pack":{"description":"fixture","min_format":121,"max_format":121}}"#,
+            r#"{"pack":{"description":"fixture","min_format":88,"max_format":88}}"#,
         );
         std::fs::create_dir_all(&dir).unwrap();
         let mut zip = zip::ZipWriter::new(std::fs::File::create(dir.join("old.zip")).unwrap());

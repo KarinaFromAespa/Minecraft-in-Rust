@@ -104,8 +104,8 @@ impl Game<'_> {
             .as_ref()
             .is_some_and(|p| p.fall_distance > FALL_THRESHOLD && !p.fall_flying)
     }
-    /// A held mace about to smash (`MaceItem.getItemDamageSource`: the attack
-    /// is `mace_smash` damage).
+    /// A held mace about to smash (`MaceItem.getDamageSource`: the attack
+    /// is `mace_smash` damage; 1.21.11 renamed it `getItemDamageSource`).
     pub(super) fn smash_attack(&self) -> bool {
         self.holds_mace() && self.can_smash_attack()
     }
@@ -364,7 +364,9 @@ impl Game<'_> {
             Some(at) if at.y <= p.position.y => at,
             _ => p.position,
         };
-        p.impulse.set_ignore_fall_damage(true, Some(impact));
+        // MaceItem.hurtEnemy: the impact position is set, then the waiver.
+        p.impulse.impact_position = Some(impact);
+        p.impulse.set_ignore_fall_damage(true);
         let fall = p.fall_distance;
         let feet = [p.position.x, p.position.y, p.position.z];
         let sound = if target_on_ground {

@@ -347,10 +347,8 @@ fn invalid_texture_metadata_does_not_move_book_glint() {
     for invalid in [
         r#"{"texture":[]}"#,
         r#"{"texture":null}"#,
-        r#"{"texture":{"mipmap_strategy":"issue5851_invalid"}}"#,
         r#"{"texture":{"blur":"true"}}"#,
         r#"{"texture":{"clamp":1}}"#,
-        r#"{"texture":{"alpha_cutoff_bias":"0.5"}}"#,
     ] {
         fs::write(&metadata, invalid).unwrap();
         let atlas = glint_atlas::load(&root, 1, 16384).unwrap();
@@ -369,14 +367,15 @@ fn invalid_texture_metadata_does_not_move_book_glint() {
             "{invalid}"
         );
     }
-    for strategy in ["auto", "mean", "cutout", "strict_cutout", "dark_cutout"] {
-        fs::write(
-            &metadata,
-            serde_json::json!({"texture":{"blur":true,"clamp":false,
-                "mipmap_strategy":strategy,"alpha_cutoff_bias":0.5}})
-            .to_string(),
-        )
-        .unwrap();
+    // 1.21.10's texture section has only `blur` and `clamp`: 1.21.11's
+    // `mipmap_strategy` and `alpha_cutoff_bias` are unknown fields, which
+    // the codec ignores — even with values 1.21.11 would reject.
+    for extra in [
+        r#"{"texture":{"mipmap_strategy":"issue5851_invalid"}}"#,
+        r#"{"texture":{"alpha_cutoff_bias":"0.5"}}"#,
+        r#"{"texture":{"blur":true,"clamp":false,"mipmap_strategy":"mean","alpha_cutoff_bias":0.5}}"#,
+    ] {
+        fs::write(&metadata, extra).unwrap();
         let atlas = glint_atlas::load(&root, 1, 16384).unwrap();
         assert_eq!((atlas["item/large"].w, atlas["item/large"].h), (512, 256));
     }

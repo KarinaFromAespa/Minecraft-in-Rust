@@ -19,10 +19,10 @@ use horizon_core::{
     random::{LegacyRandom, RandomSource},
 };
 
-/// `MemorySlot.NEVER_EXPIRE`.
+/// `ExpirableValue.of(value)`'s TTL: `Long.MAX_VALUE`, never expiring.
 pub(super) const NEVER: i64 = i64::MAX;
 
-/// `MemorySlot`: a value and its time to live.
+/// `ExpirableValue`: a value and its time to live.
 #[derive(Clone, Debug)]
 pub struct Slot<T> {
     v: Option<T>,
@@ -37,7 +37,8 @@ impl<T> Default for Slot<T> {
     }
 }
 impl<T> Slot<T> {
-    /// `MemorySlot.tick` (`Brain.forgetOutdatedMemories`).
+    /// `ExpirableValue.tick` under `Brain.tick`: a present value with a
+    /// finite TTL counts down, and clears at zero.
     pub(super) fn tick(&mut self) {
         if self.v.is_some() && self.ttl != NEVER {
             if self.ttl <= 0 {
@@ -419,13 +420,15 @@ fn schedule(baby: bool, day_time: i64) -> Act {
     }
 }
 
-/// `Brain.Provider.makeBrain` and `Villager.registerBrainGoals`: a new brain
-/// from the packed memories (the sensors' first scans are delayed by draws
-/// from the mob's random), on the timeline's activity.
+/// A new brain from the packed memories (the sensors' first scans are
+/// delayed by draws from the brain seed — 1.21.10's `Sensor`
+/// constructor draws them from the static `Sensor.RANDOM`, never the
+/// mob's random), on the timeline's activity.
 fn make_brain(m: &mut Mob, packed: Memories, shuffle_seed: i64, w_times: (i64, i64)) -> Brain {
     let mut b = Brain::new(m.is_baby(), shuffle_seed, super::villager::is_farmer(m));
+    let mut delay = LegacyRandom::new(shuffle_seed);
     for (i, rate) in SENSOR_RATES.iter().enumerate() {
-        b.sensors[i] = i64::from(m.random.next_int_bound(*rate as i32).unwrap_or(0));
+        b.sensors[i] = i64::from(delay.next_int_bound(*rate as i32).unwrap_or(0));
     }
     b.mem = packed;
     b.update_from_schedule(w_times.0, w_times.1);
@@ -465,7 +468,7 @@ pub fn tick(m: &mut Mob, w: &MobWorld, lr: &mut LegacyRandom, events: &mut Vec<M
         let seed = i64::from(m.id);
         init(m, w.game_time, w.day_time, seed);
     }
-    // forgetOutdatedMemories
+    // Brain.tick forgets outdated memories first
     mem(m).tick();
     tick_sensors(m, w, lr);
     let mut list = std::mem::take(&mut brain_mut(m).list);

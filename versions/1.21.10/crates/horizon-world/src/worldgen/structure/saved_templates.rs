@@ -175,9 +175,8 @@ pub(crate) fn read(
         ignore,
         handler,
     );
-    if id == "shipwreck" && flag(tag, "height_adjusted") {
-        *piece.state.lock().unwrap() = Some(piece.position[1]);
-    }
+    // 1.21.10 writes no `height_adjusted` flag (a 26.1 addition): a loaded
+    // shipwreck re-adjusts on its next postProcess, as in vanilla.
     if id == "ecp" {
         return Some(Box::new(EndCityPiece(piece, int(tag, "GD"))));
     }
@@ -345,9 +344,11 @@ mod tests {
                         ignore,
                         handler,
                     );
-                    if id == "shipwreck" && on {
-                        *piece.state.lock().unwrap() = Some(60);
-                    }
+                    // 1.21.10 persists no settled-height state for a
+                    // shipwreck (no `height_adjusted` flag — a 26.1
+                    // addition), so the piece keeps `state: None` here:
+                    // a loaded wreck re-adjusts on its next postProcess,
+                    // and the round-trip compares every runtime field.
                     piece.gen_depth = variant as i32 - 3;
                     let piece: Box<dyn LegacyPiece> = match id {
                         "nefos" => Box::new(NetherFossilPiece(piece)),

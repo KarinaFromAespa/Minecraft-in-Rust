@@ -18,7 +18,7 @@ const CONTENT_TOP: f32 = HEADER + 30.0;
 const LINK_WIDTH: f32 = 310.0;
 /// packControlsIntoColumns: rowSpacing 2 under the 20-pixel buttons.
 const ROW: f32 = 22.0;
-/// ScrollableLayout's BOTH reserve (scrollbarSpacing 4 + SCROLLBAR_WIDTH 6).
+/// ScrollableLayout's `SCROLLBAR_RESERVE` (10).
 const SCROLL_RESERVE: f32 = 10.0;
 /// DialogScreen's `dialog/warning_button` ImageButton.
 const WARNING_BUTTON: f32 = 20.0;

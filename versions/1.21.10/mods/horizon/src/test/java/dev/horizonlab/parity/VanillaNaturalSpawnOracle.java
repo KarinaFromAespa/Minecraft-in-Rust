@@ -42,7 +42,7 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.entity.EntityTypeTest;
-import net.minecraft.world.level.gamerules.GameRules;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.FlatLevelSource;
 import net.minecraft.util.Mth;
@@ -138,7 +138,7 @@ public final class VanillaNaturalSpawnOracle {
     }
 
     static final class Lvl extends ServerLevel {
-        Lvl() { super(null, null, null, null, null, null, false, 0L, List.of(), false); }
+        Lvl() { super(null, null, null, null, null, null, false, 0L, List.of(), false, null); }
         RegistryAccess registries;
         net.minecraft.server.MinecraftServer fake;
         @Override public net.minecraft.server.MinecraftServer getServer() { return fake; }
@@ -157,7 +157,8 @@ public final class VanillaNaturalSpawnOracle {
         List<Start> starts = new ArrayList<>();
         List<Entity> entities = new ArrayList<>();
         List<ServerPlayer> playerList = new ArrayList<>();
-        net.minecraft.world.attribute.EnvironmentAttributeSystem attributes;
+        float moon;
+        net.minecraft.world.RandomSequences sequences;
         BiomeManager biomeManager;
         WorldBorder border = new WorldBorder();
         GameRules rules;
@@ -188,7 +189,6 @@ public final class VanillaNaturalSpawnOracle {
             return waypoints;
         }
         @Override public long getGameTime() { return time; }
-        @Override public int getNextEntityId() { return next++; }
         @Override public net.minecraft.world.flag.FeatureFlagSet enabledFeatures() { return net.minecraft.world.flag.FeatureFlags.REGISTRY.allFlags(); }
         @Override public BlockState getBlockState(BlockPos pos) {
             for (int i = blocks.size() - 1; i >= 0; i--)
@@ -222,7 +222,8 @@ public final class VanillaNaturalSpawnOracle {
         }
         @Override public Holder<Biome> getBiome(BlockPos pos) { return biomeAt(pos.getX(), pos.getY(), pos.getZ()); }
         @Override public BiomeManager getBiomeManager() { return biomeManager; }
-        @Override public net.minecraft.world.attribute.EnvironmentAttributeSystem environmentAttributes() { return attributes; }
+        @Override public float getMoonBrightness() { return moon; }
+        @Override public RandomSource getRandomSequence(ResourceLocation key) { return sequences.get(key); }
         @Override public WorldBorder getWorldBorder() { return border; }
         @Override public GameRules getGameRules() { return rules; }
         @Override public RandomSource getRandom() {
@@ -332,14 +333,11 @@ public final class VanillaNaturalSpawnOracle {
         }
     }
 
-    /** The server: loot tables and random sequences for trial spawner rewards. */
+    /** The server: loot tables for trial spawner rewards (random sequences live on the level in 1.21.10). */
     static final class OracleServer extends net.minecraft.server.dedicated.DedicatedServer {
-        OracleServer() { super(null, null, null, null, null, null, null, null, null, null); }
+        OracleServer() { super(null, null, null, null, null, null, null); }
         net.minecraft.server.ReloadableServerRegistries.Holder registries;
-        net.minecraft.world.RandomSequences sequences;
-        long seed;
         @Override public net.minecraft.server.ReloadableServerRegistries.Holder reloadableRegistries() { return registries; }
-        @Override public RandomSource getRandomSequence(ResourceLocation key) { return sequences.get(key, seed); }
     }
 
     static final class Chunk extends LevelChunk {
@@ -354,14 +352,14 @@ public final class VanillaNaturalSpawnOracle {
     }
 
     static final class Source extends ServerChunkCache {
-        Source() { super(null, null, null, null, null, null, 0, 0, false, null); }
+        Source() { super(null, null, null, null, null, null, 0, 0, false, null, null); }
         ChunkGenerator generator;
         @Override public ChunkGenerator getGenerator() { return generator; }
     }
 
     /** getPlayersCloseForSpawning: none past the natural spawn chunk tracker's 8 chunks, else non-spectators within 128 blocks of the chunk centre. */
     static final class Map2 extends ChunkMap {
-        Map2() { super(null, null, null, null, null, null, null, null, null, null, 0, false); }
+        Map2() { super(null, null, null, null, null, null, null, null, null, null, null, 0, false); }
         Lvl level;
         @Override public List<ServerPlayer> getPlayersCloseForSpawning(ChunkPos pos) {
             boolean tracked = false;
@@ -711,13 +709,9 @@ public final class VanillaNaturalSpawnOracle {
                     level.sea = Integer.parseInt(c.getOrDefault("sea", "63"));
                     level.seed = Long.parseLong(c.getOrDefault("wseed", "0"));
                     level.difficulty = Difficulty.byName(c.getOrDefault("difficulty", "normal"));
-                    level.rules.set(net.minecraft.world.level.gamerules.GameRules.SPAWN_MOBS, !c.getOrDefault("rules", "1").equals("0"), null);
-                    level.rules.set(net.minecraft.world.level.gamerules.GameRules.SPAWNER_BLOCKS_WORK, !c.getOrDefault("spawners", "1").equals("0"), null);
-                    // The dimension and biome layers; the moon timeline's surface slime chance as a constant.
-                    level.attributes = net.minecraft.world.attribute.EnvironmentAttributeSystem.builder().addStaticLayers(level)
-                        .addConstantLayer(net.minecraft.world.attribute.EnvironmentAttributeMap.builder()
-                            .set(net.minecraft.world.attribute.EnvironmentAttributes.SURFACE_SLIME_SPAWN_CHANCE, Float.parseFloat(c.getOrDefault("slime", "0.0"))).build())
-                        .build();
+                    level.rules.getRule(net.minecraft.world.level.GameRules.RULE_DOMOBSPAWNING).set(!c.getOrDefault("rules", "1").equals("0"), null);
+                    level.rules.getRule(net.minecraft.world.level.GameRules.RULE_SPAWNER_BLOCKS_ENABLED).set(!c.getOrDefault("spawners", "1").equals("0"), null);
+                    level.moon = Float.parseFloat(c.getOrDefault("moon", "0.0"));
                     level.unloaded.clear();
                     if (c.containsKey("unloaded")) for (String u : c.get("unloaded").split(";")) {
                         String[] p = u.split(",");
@@ -772,8 +766,7 @@ public final class VanillaNaturalSpawnOracle {
                         level.entities.add(e);
                     }
                     put(level, ServerLevel.class, "players", level.playerList);
-                    server.sequences = new net.minecraft.world.RandomSequences();
-                    server.seed = level.seed;
+                    level.sequences = new net.minecraft.world.RandomSequences(level.seed);
                     level.time = 0L;
                     level.trial = null;
                     RandomSource mainRandom = RandomSource.create(Long.parseLong(c.getOrDefault("seed", "0")));

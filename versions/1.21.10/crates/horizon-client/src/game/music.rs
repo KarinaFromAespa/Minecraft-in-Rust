@@ -123,9 +123,9 @@ impl Game<'_> {
         Some(horizon_client::lang::get_or(&key, &key))
     }
     /// `ToastManager.update` (it plays no toast sound for this toast) and
-    /// `extractRenderState` for the Now Playing toast, which slides in at the
+    /// `renderToast` for the Now Playing toast, which slides in at the
     /// top left over every screen but the pause screen, and
-    /// `PauseScreen.extractRenderState` with its `tick`, which draws the song
+    /// `PauseScreen.render` with its `tick`, which draws the song
     /// name on the pause menu under the Pause and Pause and Toast settings
     /// while music is audible. `hidden` (F1) keeps the toast
     /// timing out without drawing it.
@@ -220,7 +220,7 @@ impl Game<'_> {
         self.audio.stop_all();
     }
     /// `getSituationalMusic` and `getMusicVolume`.
-    pub(super) fn situational_music(&self) -> (Option<Music>, f32) {
+    pub(super) fn situational_music(&mut self) -> (Option<Music>, f32) {
         let empty = BackgroundMusic::default();
         // The title screen has no player (and no level for the camera probe).
         // A server's client has its player from handleLogin on, before the
@@ -237,15 +237,28 @@ impl Game<'_> {
                     .then_some([0.0; 3])
             })
         };
-        let (background, probe_volume) = match eye {
+        let (background, probe_volume, biome) = match eye {
             Some(eye) => {
                 let (dimension, biome) = (self.dim.id(), self.biome_at(eye));
-                self.res
+                let (background, probe_volume) = self
+                    .res
                     .music()
-                    .at(dimension, biome, world_biomes!(self).pack_file(biome))
+                    .at(dimension, biome, world_biomes!(self).pack_file(biome));
+                (background, probe_volume, Some(biome))
             }
-            None => (empty, 1.0),
+            None => (empty, 1.0, None),
         };
+        // `#minecraft:plays_underwater_music`: oceans and rivers.
+        let plays_underwater_music = biome.is_some_and(|b| {
+            self.res
+                .mob_data()
+                .biome_has("minecraft:plays_underwater_music", b)
+        });
+        let biome_has_music = background.music.is_some();
+        let biome_music = self.music.pick_biome_music(&background);
+        let playing_underwater = self
+            .music
+            .is_playing_music(&Music::under_water(), &self.audio.engine);
         let situation = Situation {
             // WinScreen.getBackgroundMusic.
             screen_music: self
@@ -254,11 +267,15 @@ impl Game<'_> {
                 .then(horizon_client::music::Music::credits),
             in_world: eye.is_some(),
             in_end: self.dim == super::Dim::End,
+            in_nether: self.dim == super::Dim::Nether,
             boss_music: self.boss_music(),
-            background: &background,
+            biome_has_music,
+            biome_music,
             probe_volume,
             creative: self.creative,
             underwater: self.ambience.was_underwater(),
+            playing_underwater,
+            plays_underwater_music,
         };
         (situation.music(), situation.volume())
     }

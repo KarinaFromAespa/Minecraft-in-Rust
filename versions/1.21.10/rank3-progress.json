@@ -1,0 +1,1063 @@
+{
+ "release": "1.21.10",
+ "rank": 3,
+ "batch": 33,
+ "note": "",
+ "items": {
+  "485": {
+   "module": "crates/horizon-client/src/shadows.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. Shadow-size name table includes camel_husk/nautilus/zombie_nautilus \u2014 dead on 1.21.10 data (those entities never exist)."
+  },
+  "500": {
+   "module": "crates/horizon-client-render/src/trims.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "507": {
+   "module": "crates/horizon-client/src/mobs/dolphin.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module. The nautilus vehicle check is dead on 1.21.10 data (no nautilus vehicles); the diff is the version label in the doc comment."
+  },
+  "516": {
+   "module": "crates/horizon-client/src/game/advancements_screen.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "518": {
+   "module": "crates/horizon-world/src/loot/odds.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "519": {
+   "module": "crates/horizon-client/src/game/block_editor.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "521": {
+   "module": "crates/horizon-client/src/game/zombie_villagers.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "523": {
+   "module": "crates/horizon-client-core/src/pattern.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "525": {
+   "module": "crates/horizon-client/src/game/resource_loader.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "531": {
+   "module": "crates/horizon-client-core/src/component.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "532": {
+   "module": "crates/horizon-client/src/game/commands/misc.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "534": {
+   "module": "crates/horizon-client/src/game/mount_menu.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module. The nautilus slot checks are dead on 1.21.10 data (no nautilus species)."
+  },
+  "539": {
+   "module": "crates/horizon-client/src/debug_overlay.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "543": {
+   "module": "crates/horizon-client/src/game/stats_screen.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module. The nautilus_one_cm stat name sits in a format table \u2014 dead (no such stat in 1.21.10 data)."
+  },
+  "545": {
+   "module": "crates/horizon-client/src/lan/guest.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "552": {
+   "module": "crates/horizon-client/src/dialog_screen.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "554": {
+   "module": "crates/horizon-client/src/game/debug_renderers.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "560": {
+   "module": "crates/horizon-client/src/mobs/caravan.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "561": {
+   "module": "crates/horizon-client/src/title/buffet.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "574": {
+   "module": "crates/horizon-client-render/src/gfx/core_lines.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "575": {
+   "module": "crates/horizon-client-render/src/inventory_effects.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "576": {
+   "module": "crates/horizon-client/src/dialog.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "577": {
+   "module": "crates/horizon-server/src/management_schema.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "578": {
+   "module": "crates/horizon-world/src/worldgen/structure/ocean_ruin.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "579": {
+   "module": "crates/horizon-client/src/advancements/state_ranges.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "580": {
+   "module": "crates/horizon-client/src/game/lan_screen.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "581": {
+   "module": "crates/horizon-protocol/src/packets/configuration.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "582": {
+   "module": "crates/horizon-shaders/src/custom.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "583": {
+   "module": "crates/horizon-world/src/worldgen/structure/jigsaw.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "585": {
+   "module": "crates/horizon-client-core/src/bossbar.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "586": {
+   "module": "crates/horizon-client-render/src/options_file.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "587": {
+   "module": "crates/horizon-client/src/mobs/armadillo.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module. The ZombieNautilus match arm is dead on 1.21.10 data (the species never spawns)."
+  },
+  "589": {
+   "module": "crates/horizon-command/src/packrat.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "590": {
+   "module": "crates/horizon-protocol/src/hash_ops.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "591": {
+   "module": "crates/horizon-world/src/worldgen/structure/mansion.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "593": {
+   "module": "crates/horizon-assets/src/item_bake.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "594": {
+   "module": "crates/horizon-client-render/src/gfx/submit.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "595": {
+   "module": "crates/horizon-client/src/game/cauldrons.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "596": {
+   "module": "crates/horizon-command/src/codec.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "598": {
+   "module": "crates/horizon-world/src/worldgen/structure/end_city.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "599": {
+   "module": "crates/horizon-client-render/src/command_block.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "600": {
+   "module": "crates/horizon-client-render/src/jigsaw_block.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "601": {
+   "module": "crates/horizon-prepare/src/artifacts.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "602": {
+   "module": "crates/horizon-client-core/src/text.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "603": {
+   "module": "crates/horizon-client-input/src/gamepad.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "604": {
+   "module": "crates/horizon-client/src/menu/equippable.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "607": {
+   "module": "crates/horizon-bots/src/main.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "608": {
+   "module": "crates/horizon-client-render/src/vault.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "609": {
+   "module": "crates/horizon-client/src/game/block_items.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "610": {
+   "module": "crates/horizon-client/src/game/cat_spawner.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "611": {
+   "module": "crates/horizon-client/src/item_render.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "612": {
+   "module": "crates/horizon-client/src/scoreboard_cmd.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "613": {
+   "module": "crates/horizon-world/src/worldgen/structure/fortress.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "614": {
+   "module": "crates/horizon-world/src/worldgen/structure/piece_limited.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "616": {
+   "module": "launcher/src/screenshots.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "619": {
+   "module": "crates/horizon-client-render/src/crash.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "620": {
+   "module": "crates/horizon-client-render/src/social.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "621": {
+   "module": "crates/horizon-client/src/flatgen.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "622": {
+   "module": "crates/horizon-client/src/game/allays.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "623": {
+   "module": "crates/horizon-client/src/game/commands/effects.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "624": {
+   "module": "crates/horizon-client/src/game/friends.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "626": {
+   "module": "crates/horizon-client/src/game/names.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "627": {
+   "module": "crates/horizon-client/src/game/native_criteria.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "628": {
+   "module": "crates/horizon-client/src/game/saving.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "629": {
+   "module": "crates/horizon-client/src/game/social.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "630": {
+   "module": "crates/horizon-client/src/game/spectator.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "631": {
+   "module": "crates/horizon-client/src/lan/waypoints.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "632": {
+   "module": "crates/horizon-client/src/legacy_combat.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The undead/arthropod name lists include 1.21.11-only species (parched, camel_husk, zombie_nautilus) \u2014 dead on 1.21.10 data."
+  },
+  "633": {
+   "module": "crates/horizon-shaders/src/biomes.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "634": {
+   "module": "crates/horizon-world/src/level/feature_world.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "635": {
+   "module": "crates/horizon-world/src/level/redstone/experimental.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "636": {
+   "module": "crates/horizon-world/src/level/sculk.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "638": {
+   "module": "crates/horizon-world/src/worldgen/structure/processor.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "641": {
+   "module": "crates/horizon-client-core/src/registries.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module. The minecraft:timeline registry field stays empty on 1.21.10 data (no timeline package in 1.21.10); all readers are data-driven."
+  },
+  "642": {
+   "module": "crates/horizon-client-input/src/clipboard.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "643": {
+   "module": "crates/horizon-client-render/src/auth.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "644": {
+   "module": "crates/horizon-client-render/src/core_shader.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "645": {
+   "module": "crates/horizon-client-render/src/gfx/end_sky/tests.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "646": {
+   "module": "crates/horizon-client-render/src/gfx/frame_gen.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "647": {
+   "module": "crates/horizon-client-render/src/pack_palette.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "648": {
+   "module": "crates/horizon-client-render/src/streaming.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "649": {
+   "module": "crates/horizon-client/src/game/code_of_conduct.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "650": {
+   "module": "crates/horizon-client/src/game/commands/items/contents.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "651": {
+   "module": "crates/horizon-client/src/game/commands/raid.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "652": {
+   "module": "crates/horizon-client/src/game/item_particles.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "653": {
+   "module": "crates/horizon-client/src/game/lan_crafting.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "654": {
+   "module": "crates/horizon-client/src/game/launch_options.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "655": {
+   "module": "crates/horizon-client/src/game/native_client_entities.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "656": {
+   "module": "crates/horizon-client/src/game/pickups.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "657": {
+   "module": "crates/horizon-client/src/game/quick_actions.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "658": {
+   "module": "crates/horizon-client/src/game/resource_load.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "659": {
+   "module": "crates/horizon-client/src/game/sculk.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "660": {
+   "module": "crates/horizon-client/src/game/window_handler.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "661": {
+   "module": "crates/horizon-client/src/mobs/cube.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. Stale spear comment fixed (melee_reaches is already the ported 1.21.10 form from item 19)."
+  },
+  "662": {
+   "module": "crates/horizon-client/src/stopwatches.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "663": {
+   "module": "crates/horizon-client/src/title/create_world.rs",
+   "verdict": "carry-over",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module. The 1.21.11 behaviour is already carried over verbatim."
+  },
+  "664": {
+   "module": "crates/horizon-port-pack/src/carry.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "665": {
+   "module": "crates/horizon-port-pack/src/lithostitched.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "666": {
+   "module": "crates/horizon-server-files/src/profiles.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "667": {
+   "module": "crates/horizon-world/src/datafix/dynamic.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "668": {
+   "module": "crates/horizon-world/src/level/shapes.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "669": {
+   "module": "crates/horizon-world/src/level/update.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "670": {
+   "module": "crates/horizon-world/src/worldgen/dripstone.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "671": {
+   "module": "crates/horizon-world/src/worldgen/end_spike.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "672": {
+   "module": "crates/horizon-world/src/worldgen/generator_decoration.rs",
+   "verdict": "carry-over",
+   "evidence": "Diff vs the 1.21.11 tree is comment-only (version labels); no vanilla method is named in the module."
+  },
+  "673": {
+   "module": "crates/horizon-world/src/worldgen/structure/monument.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "674": {
+   "module": "crates/horizon-world/src/worldgen/structure/start.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); no vanilla method is named in the module."
+  },
+  "499": {
+   "module": "crates/horizon-client-render/src/gfx/pack_atlas/stitch.rs",
+   "verdict": "no-change",
+   "evidence": "Module identical between the 1.21.11 and 1.21.10 trees (0 diff lines); its single named vanilla method is unchanged 1.21.11->1.21.10 (named_changed is empty)."
+  },
+  "468": {
+   "module": "crates/horizon-client/src/mobs/polar_bear.rs",
+   "verdict": "no-change",
+   "evidence": "7 named method(s), all same after rename normalisation: net/minecraft/world/entity/animal/PolarBear#getDefaultDimensions, net/minecraft/world/entity/animal/PolarBear#getStandingAnimationScale, net/minecraft/world/entity/animal/PolarBear#playWarningSound, net/minecraft/world/entity/animal/PolarBear#setStanding, net/minecraft/world/entity/animal/PolarBear#tick, net/minecraft/world/entity/animal/PolarBear$PolarBearMeleeAttackGoal#checkAndPerformAttack, net/minecraft/world/entity/animal/PolarBear$PolarBearAttackPlayersGoal#canUse. No behaviour diff 1.21.11->1.21.10."
+  },
+  "482": {
+   "module": "crates/horizon-world/src/datafix/world_upgrader.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/util/worldupdate/WorldUpgrader#work. No behaviour diff 1.21.11->1.21.10."
+  },
+  "486": {
+   "module": "crates/horizon-client/src/game/jigsaw_blocks.rs",
+   "verdict": "no-change",
+   "evidence": "2 named method(s), all same after rename normalisation: net/minecraft/world/level/block/entity/JigsawBlockEntity#generate, net/minecraft/world/level/block/entity/JigsawBlockEntity#loadAdditional. No behaviour diff 1.21.11->1.21.10."
+  },
+  "487": {
+   "module": "crates/horizon-world/src/worldgen/structure/simple.rs",
+   "verdict": "no-change",
+   "evidence": "2 named method(s), all same after rename normalisation: net/minecraft/world/level/levelgen/structure/structures/IglooPieces#addPieces, net/minecraft/world/level/levelgen/structure/structures/ShipwreckPieces#addRandomPiece. No behaviour diff 1.21.11->1.21.10."
+  },
+  "488": {
+   "module": "crates/horizon-client/src/game/commands/test_locate.rs",
+   "verdict": "no-change",
+   "evidence": "2 named method(s), all same after rename normalisation: net/minecraft/gametest/framework/TestCommand#createNewStructure, net/minecraft/gametest/framework/StructureUtils#createNewEmptyTest. No behaviour diff 1.21.11->1.21.10."
+  },
+  "490": {
+   "module": "crates/horizon-client/src/item_render/gui.rs",
+   "verdict": "no-change",
+   "evidence": "2 named method(s), all same after rename normalisation: net/minecraft/client/gui/render/pip/GuiBannerResultRenderer#renderToTexture, net/minecraft/client/gui/render/pip/GuiBookModelRenderer#renderToTexture. No behaviour diff 1.21.11->1.21.10."
+  },
+  "492": {
+   "module": "crates/horizon-world/src/worldgen/structure/ruined_portal.rs",
+   "verdict": "no-change",
+   "evidence": "2 named method(s), all same after rename normalisation: net/minecraft/world/level/levelgen/structure/structures/RuinedPortalPiece#makeSettings, net/minecraft/world/level/levelgen/structure/structures/RuinedPortalStructure#findGenerationPoint. No behaviour diff 1.21.11->1.21.10."
+  },
+  "494": {
+   "module": "crates/horizon-client-render/src/zip.rs",
+   "verdict": "no-change",
+   "evidence": "2 named method(s), all same after rename normalisation: net/minecraft/server/packs/FilePackResources#getResource, net/minecraft/server/packs/FilePackResources#listResources. No behaviour diff 1.21.11->1.21.10."
+  },
+  "498": {
+   "module": "crates/horizon-world/src/worldgen/generator.rs",
+   "verdict": "no-change",
+   "evidence": "2 named method(s), all same after rename normalisation: net/minecraft/world/level/levelgen/structure/pools/JigsawPlacement#addPieces, net/minecraft/world/level/levelgen/structure/pools/JigsawPlacement#generateJigsaw. No behaviour diff 1.21.11->1.21.10."
+  },
+  "512": {
+   "module": "crates/horizon-client/src/game/commands/data.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method, same. The tree diff vs 1.21.11 (40 lines) is the already-ported item-11/item-20 anger work from batches 24-25 (AngerTime countdown, live-wolf-anger test rewrite)."
+  },
+  "513": {
+   "module": "crates/horizon-client/src/game/gamemode_switcher.rs",
+   "verdict": "ported",
+   "evidence": "1 real method: none \u2014 the single named method (GameModeSwitcherScreen#mouseReleased) is missing-new, 1.21.11-only. PORTED: 1.21.10's GameModeSwitcherScreen has NO mouseReleased (javap-verified: only init/render/renderBackground/keyPressed/isPauseScreen), so the mouse-release apply was removed: the game.rs match arm, Game::switcher_release, game_mode_switcher::release_applies and its test. The keyboard-modifier release path (the 1.21.10 mechanism) is untouched."
+  },
+  "515": {
+   "module": "crates/horizon-client/src/mobs/sniffer.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/client/model/SnifferModel#setupAnim. No behaviour diff 1.21.11->1.21.10."
+  },
+  "517": {
+   "module": "crates/horizon-client/src/title/flat.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/client/gui/screens/PresetFlatWorldScreen#fromString. No behaviour diff 1.21.11->1.21.10."
+  },
+  "520": {
+   "module": "crates/horizon-client/src/game/dialogs.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method, missing-new: AbstractStringWidget#setComponentClickHandler is 1.21.11-only (1.21.10's AbstractStringWidget has no click-handler API), but the behaviour exists in 1.21.10 through DialogScreen.runAction(Optional<ClickEvent>) (javap-verified) \u2014 clicking styled dialog text runs its click event in both versions. The Rust resolves the click event from the styled text itself; the comment now cites runAction."
+  },
+  "522": {
+   "module": "crates/horizon-command/src/network.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/commands/synchronization/SuggestionProviders#getProvider. No behaviour diff 1.21.11->1.21.10."
+  },
+  "527": {
+   "module": "crates/horizon-client-render/src/gfx/native_material.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method, missing-new: SectionRenderDispatcher$RenderSection#getVisibility is 1.21.11-only. The Rust module (native_material.rs) never references it \u2014 its visibility is the terrain-instance shader distance blend, unrelated to the chunk-section API."
+  },
+  "528": {
+   "module": "crates/horizon-client/src/game/clone_dimensions_tests.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/commands/arguments/DimensionArgument#getDimension. No behaviour diff 1.21.11->1.21.10."
+  },
+  "529": {
+   "module": "crates/horizon-client/src/mobs/hostile.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/world/entity/monster/Spider$SpiderAttackGoal#canUse. No behaviour diff 1.21.11->1.21.10."
+  },
+  "533": {
+   "module": "crates/horizon-client/src/game/debug_lines.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/client/gui/components/debug/DebugEntryChunkGeneration#display. No behaviour diff 1.21.11->1.21.10."
+  },
+  "536": {
+   "module": "crates/horizon-client/src/locator_bar.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/client/resources/WaypointStyle#sprite. No behaviour diff 1.21.11->1.21.10."
+  },
+  "537": {
+   "module": "crates/horizon-client/src/mobs/creaking.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/client/model/CreakingModel#setupAnim. No behaviour diff 1.21.11->1.21.10."
+  },
+  "538": {
+   "module": "crates/horizon-world/src/worldgen/structure/nether_fossil.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/world/level/levelgen/structure/structures/NetherFossilPieces#addPieces. No behaviour diff 1.21.11->1.21.10."
+  },
+  "542": {
+   "module": "crates/horizon-client/src/game/mace.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method, missing-new: MaceItem#getItemDamageSource is 1.21.11's rename of 1.21.10's MaceItem#getDamageSource (javap-verified: canSmashAttack -> damageSources.mace, else super.getDamageSource) \u2014 exactly what the Rust's attack_source does (Damage::mace when smashing, else Damage::player). Doc comment fixed to the 1.21.10 name."
+  },
+  "544": {
+   "module": "crates/horizon-client/src/item_render/glint_atlas.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method, same. The tree diff vs 1.21.11 (5 lines) is the already-ported item-91 mipmap work from batch 25 (TextureMetadataSection has only blur/clamp in 1.21.10)."
+  },
+  "547": {
+   "module": "crates/horizon-server/src/management_methods.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method, missing-new: MinecraftServerSettingsServiceImpl#getOperatorUserPermissions is 1.21.11-only vanilla service API. The Rust's management server is its own JSON-RPC implementation; the serversettings/operator_user_permission_level endpoint is the Rust's own and is unaffected by the vanilla service split."
+  },
+  "555": {
+   "module": "crates/horizon-prepare/src/sounds.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/server/packs/repository/BuiltInPackSource#populatePackList. No behaviour diff 1.21.11->1.21.10."
+  },
+  "556": {
+   "module": "crates/horizon-client-render/src/gfx/lightning.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/client/renderer/entity/LightningBoltRenderer#submit. No behaviour diff 1.21.11->1.21.10."
+  },
+  "559": {
+   "module": "crates/horizon-client/src/game/spill.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method, same. The tree diff vs 1.21.11 (7 lines) is already-ported work: the batch-27 offsetRandom doc fix and the create_experience random-param removal from an earlier batch."
+  },
+  "562": {
+   "module": "crates/horizon-world/src/worldgen/structure.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/world/level/block/Rotation#getRandom. No behaviour diff 1.21.11->1.21.10."
+  },
+  "563": {
+   "module": "crates/horizon-client/src/debug_chart.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/client/gui/components/debugchart/AbstractDebugChart#getSampleColor. No behaviour diff 1.21.11->1.21.10."
+  },
+  "566": {
+   "module": "crates/horizon-client/src/game/item_draw.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/client/renderer/entity/ItemEntityRenderer#submit. No behaviour diff 1.21.11->1.21.10."
+  },
+  "571": {
+   "module": "crates/horizon-world/src/worldgen/structure/temple.rs",
+   "verdict": "no-change",
+   "evidence": "1 named method(s), all same after rename normalisation: net/minecraft/world/level/levelgen/structure/structures/DesertPyramidStructure#afterPlace. No behaviour diff 1.21.11->1.21.10."
+  },
+  "466": {
+   "module": "crates/horizon-client-render/src/post_chain.rs",
+   "verdict": "no-change",
+   "evidence": "TextureInput ctor/filter plumbing in post_chain: 1.21.11's `PostChain` passes texture inputs differently, but the Rust's post-chain is Horizon's own wgpu pipeline \u2014 same rendered output, no vanilla behaviour to mirror."
+  },
+  "467": {
+   "module": "crates/horizon-client/src/game/paintings.rs",
+   "verdict": "no-change",
+   "evidence": "GameRules rename only: `ENTITY_DROPS` (1.21.11) vs `RULE_DOENTITYDROPS` (1.21.10) in the paintings drop check; the Rust reads the rule through its version-agnostic API."
+  },
+  "469": {
+   "module": "crates/horizon-server/src/management.rs",
+   "verdict": "ported",
+   "evidence": "1.21.10's `AuthenticationHandler.validateAuthentication` (javap-verified) takes the secret as a Bearer token ONLY \u2014 no WebSocket-subprotocol token, no origin check (both 1.21.11's) \u2014 and denies every failure with the one message 'Invalid or missing API key'. `authenticate` is now Bearer-only (`startsWith(\"Bearer\")`, trim, constant-time compare); the `management-server-allowed-origins` property is removed (1.21.10's `SecurityConfig` record has only `secretKey`); the handshake echoes `minecraft-v1` when the client offers it, as vanilla's Netty handler does. The `Method#apply`/`ParameterlessMethod#apply` diffs are codec plumbing (MethodInfo indirection vs direct fields), same behaviour. Test rewritten for the 1.21.10 cases."
+  },
+  "472": {
+   "module": "crates/horizon-client/src/mobs/illusioner.rs",
+   "verdict": "no-change",
+   "evidence": "`Illusioner#aiStep` and `#finalizeSpawn` diffs are EMPTY; `registerGoals` is a package move (`monster/illager/` vs `monster/`), same goals in the same order."
+  },
+  "475": {
+   "module": "crates/horizon-client/src/game/dedicated/management.rs",
+   "verdict": "ported",
+   "evidence": "1.21.10's gamerule RPC takes an `UntypedRule`: the value is a STRING \u2014 `Boolean.parseBoolean` (only \"true\" is true, never an error) and `Integer.parseInt` (`For input string: \"...\"` on failure) \u2014 and `IntegerValue.set` has no range check (javap-verified: it just sets). `TypedRule`'s value is likewise a string (`String.valueOf`), type names \"boolean\"/\"integer\" (RuleType serializes so). The update path now takes string values with no range check; `typed_rule` writes string values; test updated. `get` is unchanged (same rule list, same typed output)."
+  },
+  "477": {
+   "module": "crates/horizon-client/src/game/test_instances.rs",
+   "verdict": "ported",
+   "evidence": "`GameTestBlockHighlightRenderer.highlightPos`'s fill is -2147418368 (ARGB 0x8000FF00) in 1.21.10, 1610678016 (0x6000FF00) in 1.21.11 \u2014 the alpha byte differs. `HIGHLIGHT_FILL` is now 0x8000_FF00. `submitErrorMarker` is render-plumbing (different submit API), no behaviour to mirror."
+  },
+  "478": {
+   "module": "crates/horizon-assets/src/bake.rs",
+   "verdict": "no-change",
+   "evidence": "`FaceBakery#bakeQuad`/`calculateFacing` are restructured in 1.21.11 (inline vertex baking with FaceInfo/bakeVertex; `GeometryUtils.normal` + `findClosestDirection`) but the math is identical \u2014 cross product, closest direction by dot product, UV shrink (already handled per item 200). Same baked quads."
+  },
+  "479": {
+   "module": "crates/horizon-client/src/multiplayer.rs",
+   "verdict": "no-change",
+   "evidence": "The Rust's server-list hover helpers (`over_right_half`/`over_top_left`/`over_bottom_left`) already use the 1.21.10 inline float regions (16.0/32.0); 1.21.11's int-coord helpers are the same regions."
+  },
+  "480": {
+   "module": "crates/horizon-client/src/game/commands/place.rs",
+   "verdict": "no-change",
+   "evidence": "`IdentifierException` vs `ResourceLocationException` \u2014 a rename, same error."
+  },
+  "481": {
+   "module": "crates/horizon-client/src/game/item_use.rs",
+   "verdict": "no-change",
+   "evidence": "`renderArmWithItem`: the `applyItemArmTransform` placement move and the `swingArm` extra float are vanilla render plumbing; the Rust's first-person poses come from its own `first_person` module, not vanilla's call order. `TridentItem#releaseUsing` is a package move (`projectile/arrow/` vs `projectile/`) plus f32-vs-double trig noise."
+  },
+  "483": {
+   "module": "crates/horizon-client/src/game/respawn_anchor.rs",
+   "verdict": "no-change",
+   "evidence": "`canSetSpawn` already reads the dimension type's `respawnAnchorWorks` \u2014 the 1.21.10 form (1.21.11 reads the `RESPAWN_ANCHOR_WORKS` environment attribute). `explode`/`useWithoutItem` diffs are ServerLevel-vs-Level receivers and restructure, same outcome. Doc fixed to say dimension type, not attribute."
+  },
+  "484": {
+   "module": "crates/horizon-client/src/spear.rs",
+   "verdict": "no-change",
+   "evidence": "`ProjectileUtil#getMobArrow` diff is EMPTY \u2014 a false positive."
+  },
+  "489": {
+   "module": "crates/horizon-client/src/game/command_minecarts.rs",
+   "verdict": "no-change",
+   "evidence": "`MinecartCommandBase#createCommandSourceStack` is PermissionSet vs int level 2 (same permission); `#onUpdated` diff is EMPTY."
+  },
+  "493": {
+   "module": "crates/horizon-client-render/src/hud/pack_text.rs",
+   "verdict": "no-change",
+   "evidence": "`GlobalSettingsUniform#update`'s camera-position UBO write is 1.21.11-only; the Rust's wgpu uniform layout is Horizon-owned, no vanilla behaviour to mirror."
+  },
+  "495": {
+   "module": "crates/horizon-client/src/game/wandering_trader.rs",
+   "verdict": "no-change",
+   "evidence": "`WanderingTraderSpawner#spawn` diff is EMPTY; `#tick` is a GameRules rename (`SPAWN_WANDERING_TRADERS` vs `RULE_DO_TRADER_SPAWNING`)."
+  },
+  "496": {
+   "module": "crates/horizon-client/src/mobs/phantom.rs",
+   "verdict": "no-change",
+   "evidence": "f32-vs-double trig noise, sub-rounding."
+  },
+  "497": {
+   "module": "crates/horizon-client/src/toasts.rs",
+   "verdict": "no-change",
+   "evidence": "`getCurrentSongName` vs the music-manager key \u2014 the same value."
+  },
+  "501": {
+   "module": "crates/horizon-client/src/game/cartography.rs",
+   "verdict": "no-change",
+   "evidence": "`RenderTypes.text` vs `RenderType.text` \u2014 a rename."
+  },
+  "502": {
+   "module": "crates/horizon-client/src/game/test_environments.rs",
+   "verdict": "no-change",
+   "evidence": "GAMEMASTER PermissionSet vs permission level 2 \u2014 the same level."
+  },
+  "503": {
+   "module": "crates/horizon-client/src/mobs/trader.rs",
+   "verdict": "no-change",
+   "evidence": "`TradeWithPlayerGoal#canUse` diff is EMPTY \u2014 a false positive."
+  },
+  "504": {
+   "module": "crates/horizon-client/src/realms/upload.rs",
+   "verdict": "no-change",
+   "evidence": "`worldClosed()` vs `isWorldClosed()` \u2014 a rename."
+  },
+  "505": {
+   "module": "crates/horizon-client/src/game/debug_options.rs",
+   "verdict": "ported",
+   "evidence": "`DebugOptionsScreen$OptionList#getRowWidth` returns 310 in 1.21.10, 350 in 1.21.11. `ROW_WIDTH` is now 310.0. (Menu chrome, but a one-constant fix.)"
+  },
+  "506": {
+   "module": "crates/horizon-client/src/game/initial_spawn.rs",
+   "verdict": "no-change",
+   "evidence": "GameRules rename: `RESPAWN_RADIUS` vs `RULE_SPAWN_RADIUS`."
+  },
+  "508": {
+   "module": "crates/horizon-client/src/mobs/enderman.rs",
+   "verdict": "no-change",
+   "evidence": "Both enderman goals are a GameRules rename (`MOB_GRIEFING` vs `RULE_MOBGRIEFING`)."
+  },
+  "509": {
+   "module": "crates/horizon-client/src/game/dispenser.rs",
+   "verdict": "no-change",
+   "evidence": "`SpectralArrowItem#asProjectile` diff is EMPTY \u2014 a false positive."
+  },
+  "510": {
+   "module": "crates/horizon-client-render/src/gfx/panorama.rs",
+   "verdict": "no-change",
+   "evidence": "Render-pass plumbing (`writeTransform`/`bindSampler`) in the panorama renderer; the Rust's panorama is its own implementation."
+  },
+  "514": {
+   "module": "crates/horizon-client/src/game/native_client_services.rs",
+   "verdict": "no-change",
+   "evidence": "`isOverlayVisible` vs `isF3Visible` \u2014 a rename, same flag."
+  },
+  "524": {
+   "module": "crates/horizon-client/src/game/commands/profiles.rs",
+   "verdict": "no-change",
+   "evidence": "LEVEL_ADMINS PermissionSet vs permission level 3 \u2014 the same level."
+  },
+  "526": {
+   "module": "crates/horizon-client/src/game/tutorial.rs",
+   "verdict": "no-change",
+   "evidence": "Instruction reordering in the tutorial, same values in the same order of effect."
+  },
+  "530": {
+   "module": "crates/horizon-world/src/level/fluids.rs",
+   "verdict": "no-change",
+   "evidence": "The Rust's `can_spread_fire_around` already implements the 1.21.10 gate: `doFireTick` + `allowFireTickAwayFromPlayers` + 128-block player proximity (`anyPlayerCloseEnoughForSpawning`), folded into `fire_spread_radius_around_player` by `gamerules::fire_radius` (0 off, -1 away, else 128). The 1.21.11-only part is just the method's name in vanilla; the helper's implementation is the 1.21.10 form. Doc fixed to cite the 1.21.10 gate. (Contrast item 169: lightning gates on doFireTick only in 1.21.10, with no proximity check \u2014 that one was a real port.)"
+  },
+  "535": {
+   "module": "crates/horizon-client/src/game/totem.rs",
+   "verdict": "no-change",
+   "evidence": "f32-vs-double trig noise in the totem activation animation, sub-rounding."
+  },
+  "540": {
+   "module": "crates/horizon-client/src/game/crossbow.rs",
+   "verdict": "no-change",
+   "evidence": "`Stray#getArrow` diff is EMPTY \u2014 a false positive."
+  },
+  "541": {
+   "module": "crates/horizon-client/src/game/golem_defense_tests.rs",
+   "verdict": "no-change",
+   "evidence": "`DefendVillageTargetGoal#canUse` diff is EMPTY \u2014 a false positive."
+  },
+  "546": {
+   "module": "crates/horizon-client/src/title/tests.rs",
+   "verdict": "no-change",
+   "evidence": "`AccessibilityOnboardingScreen#init` is widget-construction plumbing (builder vs ctor for FocusableTextWidget, storing the field in 1.21.10); the screen renders the same text."
+  },
+  "548": {
+   "module": "crates/horizon-server/src/query.rs",
+   "verdict": "ported",
+   "evidence": "1.21.10's `NetworkDataOutputStream.writeString` is `DataOutputStream.writeBytes` \u2014 the low byte of each UTF-16 code unit \u2014 while 1.21.11 writes explicit UTF-8. The query protocol's `string()` now writes low bytes (a MOTD section sign sends one 0xA7 byte, not two UTF-8 bytes). Test added."
+  },
+  "550": {
+   "module": "crates/horizon-client-render/src/ban_notice.rs",
+   "verdict": "no-change",
+   "evidence": "`getBanReasonText` is a `Component.copy()` + `MutableComponent` signature change; the rendered ban text is identical."
+  },
+  "551": {
+   "module": "crates/horizon-client-render/src/multiline_edit.rs",
+   "verdict": "no-change",
+   "evidence": "`hasControlDownWithQuirk` vs `hasControlDown` \u2014 the same rename as item 13 (1.21.10's `hasControlDown` IS the quirk form, javap-verified); the file calls neither. macOS-only either way."
+  },
+  "553": {
+   "module": "crates/horizon-client/src/game/boat_passengers.rs",
+   "verdict": "no-change",
+   "evidence": "`BoatItem#use` diff is EMPTY \u2014 a false positive."
+  },
+  "557": {
+   "module": "crates/horizon-client-render/src/level_loading.rs",
+   "verdict": "no-change",
+   "evidence": "The Rust fires `player_section_ready` when the player's chunk is lit (compiled) \u2014 no visibility check \u2014 which is 1.21.10's `isSectionCompiled` form (1.21.11's `isSectionCompiledAndVisible` also wants it visible). Doc fixed."
+  },
+  "558": {
+   "module": "crates/horizon-client/src/game/clone_block_ticks_tests.rs",
+   "verdict": "no-change",
+   "evidence": "GameRules rename: `MAX_BLOCK_MODIFICATIONS` vs `RULE_COMMAND_MODIFICATION_BLOCK_LIMIT`."
+  },
+  "564": {
+   "module": "crates/horizon-client/src/game/brush.rs",
+   "verdict": "no-change",
+   "evidence": "`criterion` vs `critereon` package rename."
+  },
+  "565": {
+   "module": "crates/horizon-client/src/game/end.rs",
+   "verdict": "no-change",
+   "evidence": "`EnderEyeItem#use` diff is EMPTY \u2014 a false positive."
+  },
+  "567": {
+   "module": "crates/horizon-command/src/vanilla.rs",
+   "verdict": "ported",
+   "evidence": "Two ports in one. (1) The review method `VersionCommand#register` is a no-change (LEVEL_GAMEMASTERS/LEVEL_ALL vs levels 2/0). (2) The tree diff was real 26.x leakage: the 1.21.10 tree's time command used `clock_nodes` (clocks, timemarkers, pause/resume/rate, timeline queries), but both 1.21.10 and 1.21.11 vanilla `TimeCommand`s are the simple set/add/query form with day/noon/night/midnight literals (javap-verified; 1.21.10 has no `world/timeline` package at all). The time section is now the 1.21.11 tree's form verbatim and `clock_nodes` is deleted; the `Resource::Clock`/`Resource::Timeline` variants and `Suggests::TimeMarkers` stay as dead pub API (same treatment as the deferred spear cleanup). This also fixes `parses_vanilla_commands` (`time set day`, `time query daytime`), which was failing silently \u2014 horizon-command is not in CI's 7 suites."
+  },
+  "568": {
+   "module": "crates/horizon-protocol/src/packets/play/commands.rs",
+   "verdict": "no-change",
+   "evidence": "`IdentifierArgument` vs `ResourceLocationArgument` \u2014 a class rename."
+  },
+  "569": {
+   "module": "crates/horizon-world/src/worldgen/ore_feature.rs",
+   "verdict": "no-change",
+   "evidence": "f32-vs-double trig noise in ore placement, sub-rounding."
+  },
+  "570": {
+   "module": "crates/horizon-world/src/worldgen/structure/mineshaft.rs",
+   "verdict": "no-change",
+   "evidence": "`MineShaftCorridor#createChest` diff is EMPTY \u2014 a false positive."
+  },
+  "465": {
+   "module": "crates/horizon-client/src/realms/client.rs",
+   "verdict": "no-change",
+   "evidence": "Realms DTO parsing: record-vs-mutable construction (WorldTemplate, WorldTemplatePaginatedList, Backup), log-message texts ('Could not parse X' vs 'Could not parse X: {}'), Instant vs Date for the same instants, OutboundPlayer vs PlayerInfo, token() vs getToken(), record accessors vs fields. 1.21.10's WorldTemplate HAS a `type` field (javap-verified), so the Rust's `kind` matches. Noted deviation: `JsonUtils.getDateOr` returns now in 1.21.10 when the key is missing, EPOCH in 1.21.11; the Rust defaults to 0 (epoch), as in the template \u2014 the service always sends lastModifiedDate, and a wall-clock default in a deserializer is non-deterministic."
+  },
+  "470": {
+   "module": "crates/horizon-client/src/game/trident.rs",
+   "verdict": "no-change",
+   "evidence": "All six `ThrownTrident` methods (addAdditionalSaveData, findHitEntity, playerTouch, readAdditionalSaveData, tick, tryPickup) have EMPTY diffs \u2014 false positives."
+  },
+  "471": {
+   "module": "crates/horizon-client/src/game/command_blocks.rs",
+   "verdict": "no-change",
+   "evidence": "`BaseCommandBlock#performCommand`: the 1.21.10 `isClientSide` gate and the `isCommandBlockEnabled` read from the server (vs the level) are the same value server-side; `createSource` takes no level arg in 1.21.10. `sendSystemMessage` is an `onUpdated()` signature change. `CommandBlock#execute`/`executeChain`/`setPlacedBy` are Level-vs-ServerLevel receivers plus GameRules renames (`MAX_COMMAND_SEQUENCE_LENGTH` vs `RULE_MAX_COMMAND_CHAIN_LENGTH`, `SEND_COMMAND_FEEDBACK` vs `RULE_SENDCOMMANDFEEDBACK`)."
+  },
+  "473": {
+   "module": "crates/horizon-client/src/game/commands/items.rs",
+   "verdict": "no-change",
+   "evidence": "`ItemCommands#getContainer` is a control-flow reorder with the same outcome. `SlotAccess$1/$2/$3#set` are anonymous-class renumbering: the same four behaviours (no-op-false, setter-consumer, validator+entity-slot, validator+container) exist in both versions under different $ numbers, so the $1-to-$1 diffs compare different implementations."
+  },
+  "474": {
+   "module": "crates/horizon-client/src/block_pattern.rs",
+   "verdict": "no-change",
+   "evidence": "Golem patterns: 1.21.11 wraps the state predicate in `BlockInWorld.hasState`, 1.21.10 passes the raw predicate \u2014 the same matching. `spawnGolemInWorld` is a criterion/critereon rename; `trySpawnGolem` is EMPTY; `BlockPatternBuilder#aisle` is CharSet-vs-Map internals with the same validation."
+  },
+  "476": {
+   "module": "crates/horizon-client/src/realms/download.rs",
+   "verdict": "no-change",
+   "evidence": "`FileDownload#contentLength` swaps the HTTP client (java.net.http HEAD in 1.21.11, Apache HttpClient GET in 1.21.10) for the same result; `download` is a lambda arg-order swap; `untarGzipArchive` is a log-message change; `checkDownloadSize` is a record accessor vs a field. The Rust's download code is its own implementation."
+  },
+  "491": {
+   "module": "crates/horizon-protocol/src/item/hash/gameplay.rs",
+   "verdict": "carry-over",
+   "evidence": "Already ported in the tree: the 1.21.11-only hash functions are gone (`SwingAnimation`/`swing`, `KineticWeapon.Condition`/`kinetic_condition`, the `UseEffects` case) and the component-type ids are renumbered to 1.21.10's registry. Verified against 1.21.10's `DataComponents` bootstrap order: no swing/kinetic/use_effects entries exist in 1.21.10."
+  },
+  "511": {
+   "module": "crates/horizon-client/src/item_sync.rs",
+   "verdict": "carry-over",
+   "evidence": "Already ported in the tree: the painting/variant id is 89, verified against 1.21.10's `DataComponents` bootstrap order (90th registration, 0-based 89). The sign-text wire test was removed because 1.21.10 has no `sign_text_front`/`sign_text_back` components at all (no SIGN_TEXT in DataComponents; no `collectImplicitComponents` on SignBlockEntity) \u2014 sign text lives on the block entity only."
+  },
+  "588": {
+   "module": "crates/horizon-client/src/mobs/nautilus.rs",
+   "verdict": "carry-over",
+   "evidence": "Already ported in the tree: `feed_heal` (the `AbstractNautilus.mobInteract` feed heal) and its test are removed. Verified: the 1.21.10 jar has zero Nautilus classes \u2014 `AbstractNautilus` does not exist in 1.21.10. The rest of nautilus.rs is dead code (no spawn path), same deferred species removal as ZombieNautilus/CamelHusk/Parched."
+  },
+  "597": {
+   "module": "crates/horizon-world/src/level/timeline.rs",
+   "verdict": "carry-over",
+   "evidence": "Already ported in the tree: `turtle_hatch_chance` falls back to the 0.002 default when the dimension has no day timeline, instead of 1.21.11's 0.0. Verified against 1.21.10's `TurtleEggBlock.shouldUpdateHatchLevel` (javap): the dawn window (timeOfDay 0.65-0.69) else a 1-in-500 roll \u2014 no timeline gate at all in 1.21.10. Noted gap (item 157's territory): datapack dimensions parse with no timelines, so the dawn 1.0 window never applies to them in the Rust, while 1.21.10 vanilla applies it via getTimeOfDay in any dimension with a day cycle."
+  },
+  "605": {
+   "module": "crates/horizon-command/src/tree_extra.rs",
+   "verdict": "ported",
+   "evidence": "The `fetchprofile entity <entity>` branch was 26.x leakage: 1.21.10's `FetchProfileCommand` has only the `name` and `id` branches (javap-verified; 26.1 added `entity`). The tree nodes are removed and the 1.21.11 comment restored; the handler reads only name/id, so nothing else changes."
+  },
+  "615": {
+   "module": "crates/horizon-world/src/worldgen/structure/saved_templates.rs",
+   "verdict": "carry-over",
+   "evidence": "Already ported in the tree: a loaded shipwreck keeps `state: None` (no settled-height state) instead of 1.21.11's `Some(60)`. Verified against 1.21.10's `ShipwreckPiece`: `addAdditionalSaveData` only calls super (no height state saved) and `postProcess` re-derives the height from the heightmaps every time it runs."
+  },
+  "618": {
+   "module": "crates/horizon-client-core/src/gamerules.rs",
+   "verdict": "ported",
+   "evidence": "The gamerule translation layer was verified against 1.21.10's full 60-key set from the jar: all 25 renames and the fire pair are correct, and `universalAnger`/`waterSourceConversion` exist in 1.21.10 (an earlier truncated key list had wrongly flagged them). Two fixes. (1) The `max_minecart_speed` rename was missing: 1.21.10's key is `minecartMaxSpeed` (default 8, matching the engine), so the rule round-tripped to the unknown key `maxMinecartSpeed` \u2014 added to both tables, with a test. (2) `Rules::set` enforced the 1.21.11 int ranges, but 1.21.10's `IntegerValue.set` just sets (javap-verified) \u2014 the range check is removed (min/max kept as carried, unenforced fields), which also completes the item-475 RPC port (an out-of-range RPC update was silently dropped by `set`). Tests updated to the 1.21.10 form."
+  },
+  "625": {
+   "module": "crates/horizon-client/src/game/mob_looting.rs",
+   "verdict": "carry-over",
+   "evidence": "Already ported in the tree: `attributes` uses `equip::approximate_with` (the unfiltered fold) instead of the attribute-filtered `attribute_with`. Verified against 1.21.10's `ItemAttributeModifiers.compute` (javap): it iterates every modifier, filters only by slot group, and never checks which attribute a modifier belongs to \u2014 the unfiltered fold IS the 1.21.10 form (1.21.11 fixed it to filter)."
+  },
+  "637": {
+   "module": "crates/horizon-world/src/worldgen/feature_catalog.rs",
+   "verdict": "ported",
+   "evidence": "The mechanical publish wrongly removed flower/no_bonemeal_flower/random_patch from the nested-`feature` expansion arm. 1.21.10's `RandomPatchConfiguration` HAS a `feature` field (javap-verified) and all 33 vanilla flower/random_patch configs carry one \u2014 the removal was a latent datapack bug (a key-referenced nested feature would stay unresolved). The three kinds are restored to the arm, the 1.21.11 form."
+  },
+  "592": {
+   "module": "widely named: server/commands",
+   "verdict": "ported",
+   "evidence": "StopwatchCommand exists in 1.21.11 and not in 1.21.10 (0 stopwatch classes in either 1.21.10 jar; the jardiff lists it as removed) \u2014 the whole system is 1.21.11-only and it EXECUTED in the 1.21.10 tree, so it is removed: the /stopwatch tree (tree_misc.rs), the `stopwatch.*` dispatch (commands.rs) and `cmd_stopwatch` (misc.rs), the /execute if stopwatch condition (tree_execute.rs, execute.rs), the `stopwatches` id list (args.rs), the Stopwatches store (stopwatches.rs deleted, client_lib.rs mod line removed, ScoreState field + load/save + registry fill removed), the `stopwatches` registry list (registries.rs), and the unreferenced `SavedStopwatches` datafix variant (schema.rs). The datafix comment already recorded stopwatches as 1.21.11-only and is kept. Residual verification (wide semantic diff over the 77 changed server-command classes): 59 register diffs are pure permission renames (LEVEL_* vs int levels), 7 add Identifier renames, 2 are ldc/ldc_w noise. Behaviour methods reviewed: ItemCommands (helper renames; the bounds checks the Rust covers with no_such_slot), RandomCommand#resetSequence (re-creates from the world seed in both versions), SetSpawn (item 32's already-ported wrap/clamp removal), SetWorldSpawn (lambda capture shape), Fill/Place/Summon/Loot/BossBar/GameMode/Function (renames), DataPack#createPack (1.21.10's STRICT_PATH_SEGMENT_CHECK `[-._a-z0-9]+` is exactly the Rust's charset). Two ports from the review: (1) /worldborder time args are plain integers in 1.21.10 (`IntegerArgumentType.integer(0)`), not 1.21.11's Time arguments \u2014 the tree uses integer(0) now and the tests use plain ticks; (2) WorldBorder#setSize feedback passes the raw double in 1.21.10 (Double.toString), not 1.21.11's pre-formatted %.1f \u2014 the Rust now uses java_text::double_to_string."
+  },
+  "549": {
+   "module": "widely named: core/component/predicates",
+   "verdict": "carry-over",
+   "evidence": "The 1.21.11 predicate type-hierarchy refactor (AnyValue/TypeBase/ConcreteType) is internal Java API: both versions expose the same `CODEC`/`singleCodec` shape (predicate + value fields), and `EnchantmentsPredicate.matches` bytecode is identical between the jars. The Rust only models enchantment matching (returns None for other ids), so the CustomData/WrittenBook changes cannot affect it. Component-id renumbering in skip.rs is the already-ported mechanical work (see item 491)."
+  },
+  "572": {
+   "module": "widely named: client/gui/screens/advancements",
+   "verdict": "carry-over",
+   "evidence": "The advancements UI diff vs 1.21.11 is two comment lines (version labels); the advancements/ directory is byte-identical. Menu chrome; the vanilla AdvancementsScreen/Widget changes are render plumbing the Rust's own UI does not mirror."
+  },
+  "573": {
+   "module": "widely named: world/entity/projectile/windcharge",
+   "verdict": "carry-over",
+   "evidence": "Package move only: the wind-charge classes live in `projectile/windcharge/` in 1.21.10 and at the `projectile/` root in 1.21.11. The rank-2 semantic diff rates every compared method `same` (AbstractWindCharge canHitEntity/tick/onHitEntity/makeBoundingBox, WindChargeItem.use), and the Rust's projectiles.rs is byte-identical between the trees."
+  },
+  "584": {
+   "module": "widely named: client/resources/metadata/texture",
+   "verdict": "carry-over",
+   "evidence": "Covered by items 91/544: 1.21.10's TextureMetadataSection is a record with only `blur` and `clamp`, and the 1.21.11-only `mipmap_strategy`/`alpha_cutoff_bias` fields are already removed from sprites.rs, glint_atlas.rs and screen_effects.rs (whose test now asserts an unknown field is ignored, as 1.21.10's codec does). atlas_sources.rs is identical."
+  },
+  "606": {
+   "module": "widely named: commands/arguments",
+   "verdict": "carry-over",
+   "evidence": "Verified by a fresh semantic diff over the 43 changed argument classes (732 methods across groups 592/606/675; 618 same, 113 real, 1 missing-old). The argument methods: listSuggestions (x2) and Message#resolveComponent are the allowSelectors gate, which the Rust already passes as `permission >= 2` \u2014 exactly 1.21.10's `allowsSelectors()` (hasPermission(2), javap-verified); NbtPath removeTag is a void-vs-Tag return; createGrammar (x2) and isAllowedPatternCharacter are Identifier renames (the charset is the same `[-._a-z0-9]` + `*?`); LocalCoordinates#getPosition's inline basis math (yaw+90/pitch/pitch+90, forward x up, left = -(f x u)) is exactly what the Rust's Coordinates::position implements."
+  },
+  "617": {
+   "module": "widely named: client/gui/screens/social",
+   "verdict": "carry-over",
+   "evidence": "social.rs and social_screen.rs are byte-identical between the trees. Menu chrome; the vanilla PlayerEntry/PlayerSocialManager/SocialInteractionsScreen changes are render/plumbing the Rust's own UI does not mirror."
+  },
+  "639": {
+   "module": "widely named: client/gui/layouts",
+   "verdict": "carry-over",
+   "evidence": "screen_layout.rs, hud_layout.rs and split_layout.rs are byte-identical between the trees. The Rust's UI layouts are its own implementation; the vanilla FrameLayout/GridLayout/HeaderAndFooterLayout/LinearLayout changes are internal layout plumbing."
+  },
+  "640": {
+   "module": "widely named: client/gui/screens/dialog",
+   "verdict": "carry-over",
+   "evidence": "dialog.rs and dialog_screen.rs are byte-identical between the trees. Item 520 covered the one behavioural method (dialog text clicks run through DialogScreen.runAction in 1.21.10); the remaining DialogScreen/body/input changes are render plumbing."
+  },
+  "675": {
+   "module": "widely named: server/commands/data",
+   "verdict": "carry-over",
+   "evidence": "DataCommands' method sets are identical between the jars (72 each); the register diff is permission renames only, and StorageDataAccessor$1#wrap/#access are Identifier renames. data_cmd.rs is identical; game/commands/data.rs differs only by the already-ported item 11/20 anger-NBT work."
+  }
+ }
+}

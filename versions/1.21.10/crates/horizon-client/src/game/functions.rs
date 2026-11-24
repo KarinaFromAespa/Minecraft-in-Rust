@@ -24,6 +24,52 @@ pub(super) struct Scheduled {
     pub time: i64,
     pub seq: u64,
 }
+
+/// `TimerQueue.store`'s event form: `Name`, `TriggerTime` and the
+/// `Callback` (`FunctionCallback` / `FunctionTagCallback`), whose `Name`
+/// is the function or tag id without the `#` the event id carries.
+fn scheduled_event_tag(e: &Scheduled) -> Tag {
+    let (kind, name) = match e.id.strip_prefix('#') {
+        Some(tag) => ("minecraft:function_tag", tag),
+        None => ("minecraft:function", e.id.as_str()),
+    };
+    Tag::compound([
+        ("Name", Tag::String(e.id.as_str().into())),
+        ("TriggerTime", Tag::Long(e.time)),
+        (
+            "Callback",
+            Tag::compound([
+                ("type", Tag::String(kind.into())),
+                ("Name", Tag::String(name.into())),
+            ]),
+        ),
+    ])
+}
+
+/// `TimerQueue.loadEvent`: the callback must parse (else the event is
+/// dropped); the event's `Name` is the schedule key (default `""`) and
+/// `TriggerTime` defaults to 0. The callback's `Name` is not read back:
+/// the engine stores one id per event, and vanilla-written files always
+/// agree (the callback's name is the event's name without the `#`).
+fn parse_scheduled_event(e: &Tag) -> Option<(String, i64)> {
+    let cb = e.get("Callback")?;
+    let kind = match (cb.get("type"), cb.get("Name")) {
+        (Some(Tag::String(t)), Some(Tag::String(_))) => t.to_string_lossy(),
+        _ => return None,
+    };
+    if kind != "minecraft:function" && kind != "minecraft:function_tag" {
+        return None;
+    }
+    let id = match e.get("Name") {
+        Some(Tag::String(n)) => n.to_string_lossy(),
+        _ => String::new(),
+    };
+    let time = match e.get("TriggerTime") {
+        Some(Tag::Long(t)) => *t,
+        _ => 0,
+    };
+    Some((id, time))
+}
 impl FnState {
     /// The file `path` of the highest enabled pack that has it.
     pub(super) fn pack_file(&self, path: &str) -> Option<Vec<u8>> {
@@ -383,67 +429,41 @@ impl Game<'_> {
 
     // ---- scheduled events ------------------------------------------------------
 
-    fn schedule_path(&self) -> std::path::PathBuf {
-        self.world_root.join("data/minecraft/scheduled_events.dat")
-    }
+    /// `PrimaryLevelData`'s `ScheduledEvents`: in 1.21.10 the `/schedule`
+    /// queue lives in level.dat's `Data`, not in its own file (26.1 moved
+    /// it to a `TimerQueue` SavedData at
+    /// `data/minecraft/scheduled_events.dat`).
     fn load_schedule(&mut self) {
-        let Some(root) = save::read_dat(&self.schedule_path()) else {
+        let Some(root) = save::read_dat(&self.world_root.join("level.dat")) else {
             return;
         };
-        let Some(Tag::List(events)) = root.get("data").and_then(|d| d.get("events")) else {
+        let Some(Tag::List(events)) = root.get("Data").and_then(|d| d.get("ScheduledEvents"))
+        else {
             return;
         };
         for e in events {
-            let (Some(Tag::Long(time)), Some(Tag::String(id)), Some(cb)) =
-                (e.get("trigger_time"), e.get("id"), e.get("callback"))
-            else {
+            let Some((id, time)) = parse_scheduled_event(e) else {
                 continue;
             };
-            let _ = cb;
             self.fns.next_seq += 1;
             self.fns.schedule.push(Scheduled {
-                id: id.to_string_lossy(),
-                time: *time,
+                id,
+                time,
                 seq: self.fns.next_seq,
             });
         }
     }
-    pub(super) fn save_schedule(&self) {
+    /// `PrimaryLevelData.createTag`: the queue goes back into level.dat's
+    /// `Data.ScheduledEvents` with the level write, so this hands the built
+    /// list to the level instead of writing a file of its own.
+    pub(super) fn save_schedule(&mut self) {
         if !self.fns.loaded || self.remote.is_some() {
             return;
         }
         let mut events = self.fns.schedule.clone();
         events.sort_by_key(|e| (e.time, e.seq));
-        let list = events
-            .iter()
-            .map(|e| {
-                let (kind, name) = match e.id.strip_prefix('#') {
-                    Some(tag) => ("minecraft:function_tag", tag),
-                    None => ("minecraft:function", e.id.as_str()),
-                };
-                Tag::compound([
-                    ("trigger_time", Tag::Long(e.time)),
-                    ("id", Tag::String(e.id.as_str().into())),
-                    (
-                        "callback",
-                        Tag::compound([
-                            ("type", Tag::String(kind.into())),
-                            ("id", Tag::String(name.into())),
-                        ]),
-                    ),
-                ])
-            })
-            .collect();
-        if events.is_empty() && !self.schedule_path().exists() {
-            return;
-        }
-        let _ = save::write_dat(
-            &self.schedule_path(),
-            Tag::compound([
-                ("data", Tag::compound([("events", Tag::List(list))])),
-                ("DataVersion", Tag::Int(horizon_world::DATA_VERSION)),
-            ]),
-        );
+        self.level.scheduled_events =
+            Some(Tag::List(events.iter().map(scheduled_event_tag).collect()));
     }
 
     // ---- ticking -----------------------------------------------------------------
@@ -968,7 +988,7 @@ impl Game<'_> {
             _ => String::new(),
         };
         let description = self.component_arg(ctx, "description")?;
-        // FileUtil.isValidPathSegment: lowercase letters, digits, '-', '.' and '_'.
+        // FileUtil.isValidStrictPathSegment: lowercase letters, digits, '-', '.' and '_'.
         let valid = !id.is_empty()
             && id != "."
             && id != ".."
@@ -1216,6 +1236,73 @@ const FEATURE_PACKS: &[(&str, &str)] = &[
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn scheduled_events_round_trip_in_the_12111_form() {
+        let e = Scheduled {
+            id: "ns:fn".to_owned(),
+            time: 42,
+            seq: 1,
+        };
+        let tag = scheduled_event_tag(&e);
+        assert_eq!(tag.get("Name"), Some(&Tag::String("ns:fn".into())));
+        assert_eq!(tag.get("TriggerTime"), Some(&Tag::Long(42)));
+        let cb = tag.get("Callback").unwrap();
+        assert_eq!(
+            cb.get("type"),
+            Some(&Tag::String("minecraft:function".into()))
+        );
+        assert_eq!(cb.get("Name"), Some(&Tag::String("ns:fn".into())));
+        assert_eq!(parse_scheduled_event(&tag), Some(("ns:fn".to_owned(), 42)));
+        // A tag keeps the `#` on the event and drops it in the callback.
+        let t = Scheduled {
+            id: "#ns:tag".to_owned(),
+            time: 7,
+            seq: 2,
+        };
+        let tag = scheduled_event_tag(&t);
+        assert_eq!(tag.get("Name"), Some(&Tag::String("#ns:tag".into())));
+        let cb = tag.get("Callback").unwrap();
+        assert_eq!(
+            cb.get("type"),
+            Some(&Tag::String("minecraft:function_tag".into()))
+        );
+        assert_eq!(cb.get("Name"), Some(&Tag::String("ns:tag".into())));
+        assert_eq!(parse_scheduled_event(&tag), Some(("#ns:tag".to_owned(), 7)));
+    }
+
+    #[test]
+    fn scheduled_events_with_unparseable_callbacks_are_dropped() {
+        // No Callback at all: vanilla's `loadEvent` reads null and skips.
+        let no_cb = Tag::compound([
+            ("Name", Tag::String("ns:fn".into())),
+            ("TriggerTime", Tag::Long(5)),
+        ]);
+        assert_eq!(parse_scheduled_event(&no_cb), None);
+        // An unknown callback type.
+        let bad = Tag::compound([
+            ("Name", Tag::String("ns:fn".into())),
+            ("TriggerTime", Tag::Long(5)),
+            (
+                "Callback",
+                Tag::compound([
+                    ("type", Tag::String("minecraft:other".into())),
+                    ("Name", Tag::String("ns:fn".into())),
+                ]),
+            ),
+        ]);
+        assert_eq!(parse_scheduled_event(&bad), None);
+        // A missing Name / TriggerTime defaults, as vanilla's
+        // `getStringOr` / `getLongOr` do.
+        let defaults = Tag::compound([(
+            "Callback",
+            Tag::compound([
+                ("type", Tag::String("minecraft:function".into())),
+                ("Name", Tag::String("ns:fn".into())),
+            ]),
+        )]);
+        assert_eq!(parse_scheduled_event(&defaults), Some((String::new(), 0)));
+    }
 
     #[test]
     #[ignore = "needs prepared resources and scratch homes/cwd"]

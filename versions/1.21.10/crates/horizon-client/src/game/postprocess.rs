@@ -1,8 +1,10 @@
 //! LevelChunk.postProcessGeneration: positions that worldgen marked for
 //! postprocessing (aquifer fluids next to open air, features' shape-dependent
 //! blocks) are updated once the chunk is live, which starts cave waterfalls
-//! and lava falls, raises bubble columns over magma and soul sand and fixes
-//! block shapes against their neighbours.
+//! and lava falls and fixes block shapes against their neighbours. Liquids
+//! get only their fluid tick: 1.21.10 skips the block tick and the shape
+//! update for them (26.1 ticked them), and bubble columns over magma and
+//! soul sand come from those blocks' own shape update instead.
 use super::Game;
 use horizon_client::{Result, blocks::Fluid};
 use horizon_core::position::BlockPos;
@@ -49,10 +51,14 @@ impl Game<'_> {
                     if fluid {
                         b.scheduled_fluid_tick(level, ticks, pos);
                     }
-                    if liquid_block {
-                        // LiquidBlock.tick: bubble columns over soul sand and magma.
-                        b.scheduled_block_tick(level, ticks, pos);
-                    } else {
+                    // 1.21.10 skips LiquidBlocks here entirely: no block
+                    // tick and no shape update (26.1 ticked them, which
+                    // raised bubble columns). The columns still form:
+                    // MagmaBlock/SoulSandBlock.updateShape schedules the
+                    // 20-tick bubble-column check when water is above, and
+                    // those blocks are not liquids, so they are updated
+                    // below.
+                    if !liquid_block {
                         let updated = b.update_from_neighbour_shapes(level, ticks, pos, state);
                         if updated != state {
                             b.set_block(level, ticks, pos, updated, POSTPROCESS_FLAGS);

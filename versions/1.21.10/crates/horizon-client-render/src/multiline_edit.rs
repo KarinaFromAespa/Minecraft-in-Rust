@@ -16,8 +16,8 @@ use winit::keyboard::KeyCode;
 const PADDING: f32 = 4.0;
 /// `Font.lineHeight`.
 const LINE: f32 = 9.0;
-/// `AbstractScrollArea.defaultSettings((int) (9.0 / 2.0))`'s scroll rate.
-const SCROLL_RATE: f32 = 4.0;
+/// `MultiLineEditBox.scrollRate`: half a line height.
+const SCROLL_RATE: f32 = 4.5;
 
 /// `StringSplitter.splitLines(value, width, Style.EMPTY, false, ..)`: each
 /// line's `[begin, end)`. A line ends at a `\n`, or once a character overflows
@@ -467,8 +467,8 @@ impl MultiLineEdit {
         bottom - self.scroll.amount >= self.y && top - self.scroll.amount <= self.y + self.height
     }
 
-    /// `extractWidgetRenderState`: the frame, the text under a scissor, the
-    /// scroll bar and the character count.
+    /// `renderWidget` (26.1's `extractWidgetRenderState`): the frame, the
+    /// text under a scissor, the scroll bar and the character count.
     pub fn draw(&self, batch: &mut HudBatch, atlas: &HudAtlas) {
         crate::widgets::target_as(
             [self.x, self.y, self.width, self.height],
@@ -525,7 +525,8 @@ impl MultiLineEdit {
         }
     }
 
-    /// `MultiLineEditBox.extractContents` (the placeholder is empty).
+    /// `MultiLineEditBox.renderContents` (26.1's `extractContents`; the
+    /// placeholder is empty).
     fn draw_contents(&self, batch: &mut HudBatch, atlas: &HudAtlas) {
         if self.chars.is_empty() && !self.focused {
             return;
@@ -579,9 +580,6 @@ impl MultiLineEdit {
         }
         if show_cursor && !insert_cursor && self.within(cursor_y + shift, cursor_y + shift + LINE) {
             batch.text(atlas, "_", cursor_x, cursor_y, cursor_color, true);
-        }
-        if self.focused {
-            crate::preedit::report_caret(cursor_x, cursor_y, 10.0);
         }
         if self.has_selection() {
             let (sel_begin, sel_end) = self.selected();

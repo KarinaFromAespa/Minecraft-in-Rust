@@ -131,9 +131,9 @@ impl Game<'_> {
     }
 
     pub(super) fn apply_settings(&mut self) {
-        // LocalPlayer.refreshChatAbilities: the chat shows what the Chat option allows.
-        let abilities = self.chat_abilities();
-        self.ui.chat.set_abilities(&self.gui.atlas.font, abilities);
+        // The Chat option's visibility: it only gates the draw (Hidden
+        // draws nothing); the messages themselves always stay.
+        self.ui.chat.set_visibility(self.chat_visibility());
         let render_distance_changed = self.streaming.radius != self.settings.render_distance;
         self.streaming.radius = self.settings.render_distance;
         // Options.renderDistance, biomeBlendRadius, ambientOcclusion,

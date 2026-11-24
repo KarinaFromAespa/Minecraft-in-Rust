@@ -37,10 +37,11 @@ fn step(pos: BlockPos, dir: Direction, n: i32) -> BlockPos {
 }
 
 impl<L: LevelAccess + ?Sized> Sim<'_, L> {
+    /// `PortalShape.FRAME`: obsidian, checked directly — the
+    /// `minecraft:nether_portal_frame` tag exists in neither version's
+    /// data, so a tag lookup here never matches and no frame is found.
     fn portal_frame(&self, state: BlockStateId) -> bool {
-        let b = self.b;
-        b.tag("minecraft:nether_portal_frame")
-            .is_some_and(|tag| b.in_set(state, tag))
+        self.b.is_block(state, self.b.named.obsidian)
     }
     /// `PortalShape.isEmpty`: air, fire or a portal block.
     fn portal_empty(&self, state: BlockStateId) -> bool {

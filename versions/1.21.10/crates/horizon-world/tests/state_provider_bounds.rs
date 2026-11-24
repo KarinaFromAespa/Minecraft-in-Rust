@@ -24,23 +24,23 @@ fn bound_recursive_providers_and_registry_lists_before_sampling() {
     .unwrap();
     let bindings =
         StateProviderBindings::new(&registry, BTreeSet::new(), &BTreeMap::new()).unwrap();
-    let mut source = r#"{"id":"stone"}"#.to_owned();
+    let mut source = r#"{"Name":"stone"}"#.to_owned();
     for _ in 0..140 {
         source = format!(r#"{{"type":"rotated","state":{source}}}"#);
     }
     assert!(BlockStateProvider::from_json(&source, &bindings).is_err());
     let source = serde_json::json!({"type":"random_block","blocks":vec!["stone";8193]}).to_string();
     assert!(BlockStateProvider::from_json(&source, &bindings).is_err());
-    let rule = serde_json::json!({"if_true":{"type":"true"},"then":{"id":"stone"}});
-    let valid = serde_json::json!({"type":"rule_based","rules":vec![rule.clone();8192]});
-    assert!(BlockStateProvider::from_json(&valid.to_string(), &bindings).is_ok());
-    let oversized = serde_json::json!({"type":"rule_based","rules":vec![rule;8193]});
-    assert!(BlockStateProvider::from_json(&oversized.to_string(), &bindings).is_err());
-    // Every individual list fits, but the aggregate predicate/provider tree
-    // must share a work budget rather than resetting it for each rule.
-    let branching = serde_json::json!({"if_true":{"type":"all_of","predicates":vec![serde_json::json!({"type":"true"});7]},"then":{"id":"stone"}});
-    let oversized = serde_json::json!({"type":"rule_based","rules":vec![branching;8192]});
-    assert!(BlockStateProvider::from_json(&oversized.to_string(), &bindings).is_err());
+    // 1.21.10 has no typed rule-based provider: the rule-based form is a
+    // standalone record decoded only by DiskConfiguration. Both typed
+    // spellings decode-error; the rule-count and shared work-budget bounds
+    // are covered by the record-form unit test in state_provider.rs.
+    let rule = serde_json::json!({"if_true":{"type":"true"},"then":{"Name":"stone"}});
+    let typed =
+        serde_json::json!({"type":"rule_based","fallback":{"Name":"stone"},"rules":vec![rule.clone();1]});
+    assert!(BlockStateProvider::from_json(&typed.to_string(), &bindings).is_err());
+    let typed = serde_json::json!({"type":"minecraft:rule_based_state_provider","fallback":{"Name":"stone"},"rules":vec![rule;1]});
+    assert!(BlockStateProvider::from_json(&typed.to_string(), &bindings).is_err());
     // Content mods' blocks join shared tags: the cap is 2^20 blocks.
     let tags = BTreeMap::from([("horizon:large".into(), vec!["stone".into(); 8193])]);
     assert!(StateProviderBindings::new(&registry, BTreeSet::new(), &tags).is_ok());
@@ -56,7 +56,7 @@ fn bound_recursive_providers_and_registry_lists_before_sampling() {
             "horizon:cycle".into(),
             r#"{"type":"copy_properties","source":"horizon:cycle"}"#.into(),
         ),
-        ("horizon:valid".into(), r#"{"id":"stone"}"#.into()),
+        ("horizon:valid".into(), r#"{"Name":"stone"}"#.into()),
         ("horizon:invalid".into(), r#"{"type":"missing"}"#.into()),
         ("horizon:alias".into(), r#""horizon:valid""#.into()),
     ]);

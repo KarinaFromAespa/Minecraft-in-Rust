@@ -353,5 +353,798 @@ command-parse oracle ported to the pre-permissions API; adapter
 ladder re-based to the 773 pin; exporter mains ported to the 1.21.10 API and jsr305 on the javac classpath (prepare
 verified ok end-to-end);
 workspace compiles; protocol tests 438 pass / 2 fail
-(sandbox-network pair only). Behaviour port unstarted (0/719).
+(sandbox-network pair only). Behaviour port: rank 1 closed (10/719).
 Harness profile (9 of 17 measured locally): 1 pass, 4 oracle, 4 fail.
+
+## Behaviour port — rank 1 (10 items, CLOSED 2026-11-24)
+
+- Item 1 components (verified, no code change): the wire layer is
+  1.21.10's — the component id table in
+  `crates/horizon-protocol/src/item.rs` lists 56 named consts with the
+  8 removed types absent (`ATTACK_RANGE`, `DAMAGE_TYPE`,
+  `ZOMBIE_NAUTILUS_VARIANT` dropped vs 1.21.11's 59; the other five
+  never had consts), and `skip_dropped` reads-and-drops all 8 with
+  their 1.21.11 stream codecs. No code references the removed id
+  constants (only doc comments, plus the unrelated entity-data
+  serializer `ZOMBIE_NAUTILUS_VARIANT`). Behaviour fallout — code
+  that reads the removed components by name (`items.rs` use_effects,
+  `hand.rs` swing/attack-range, `spear_use.rs` kinetic_weapon) —
+  belongs to the rank-2 items for those modules.
+- Item 2 protocol (verified): the mount→horse rename is complete
+  (`HORSE_SCREEN_OPEN` = 40); zero `MountScreenOpen` remnants in the
+  tree.
+- Items 3–8 regenerate (verified): `regen-determinism.json` shows all
+  six generators reproduce the committed tables byte-identical, with
+  no overrides.
+- Item 9 save-format (PORTED from the 1.21.11 port's 2b1a914, with one
+  1.21.10 adjustment): 1.21.10 has no `FileFixerUpper`
+  (`net/minecraft/util/filefix` is absent from the named server jar)
+  and no `FILE_FIXING_REQUIRED` backup status (`BackupStatus` is only
+  NONE/DOWNGRADE/UPGRADE_TO_SNAPSHOT, javap-verified from the named
+  client jar). Deleted fix_1493/4772/4773/4899,
+  `level_dat_to_saved_data` and their helpers; `requires_file_fixing`
+  is always false; the whole-world upgrade follows the pre-26.x
+  layout (confirmed against the real 1.21.10 world in
+  vanilla-world-mc: flat `scoreboard.dat`/`chunks.dat` under `data/`,
+  DIM-1/DIM1, `playerdata/`, `advancements/`, `stats/`);
+  `saved_data_type` keeps only the types 1.21.10's `DataFixTypes`
+  defines — 1.21.11's set minus stopwatches (`SAVED_DATA_STOPWATCHES`
+  and `DEBUG_PROFILE` are not in 1.21.10's enum, javap-verified).
+  `DataFixers`: 1.21.10's fix versions are a strict subset of
+  1.21.11's (247 vs 256; the 8 extras are all above 4556, plus one
+  schema version, 2556), so the CURRENT-gated fix table is correct
+  as-is. The 45 changed datafix classes are mechanical noise only
+  (sampled `EntityCatSplitFix`, `ChunkHeightAndBiomeFix`,
+  `EntityRenameFix`: `isEmpty`→`length`, `Util` moved packages,
+  `MutableObject.get`→`getValue` — no behaviour change), so the
+  Rust fix implementations are untouched. Files:
+  `datafix/{files,mod,progress,world_upgrader,tests}.rs`, `save.rs`
+  (`needs_file_fixes` doc + test assertion), `datafix_world.rs`
+  (doc header). `requires_file_fixing` is kept as an always-false
+  stub — its full removal is rank-2 item 205's, matching the 1.21.11
+  port's item 21. NOT in item 9: the `save.rs` settings store still
+  writes `world_gen_settings.dat` / `world_clocks.dat` /
+  `game_rules.dat` as saved-data files (26.x) instead of level.dat's
+  `Data` — that rewire is rank-2 save_roundtrip work, as in 1.21.11.
+- Item 10 facts (verified): `version.rs` reads protocol 773, data
+  version 4556, data pack 88.0, resource pack 69.0.
+
+## Behaviour port — rank 2
+
+Triage (2026-11-24, `port-1.21.10-triage/`): a batched javap jardiff
+of all 2,472 rank-2/3 classes, 1.21.11 client jar vs 1.21.10 client
+jar — 1,801 common, 452 in 1.21.10 only, 219 in 1.21.11 only, 1,758
+method-changed, 0 javap failures — crossed with the per-module tree
+diff (1.21.11 tree vs 1.21.10 tree). Verdicts: 129 carry-over (no
+named method changed; apply the 1.21.11 port's hunks), 34 no-change
+(module identical in both trees and no named method changed), 291
+review (a named method — or a lambda inside one — changed, or a
+widely-named item with no single module). Per-item verdicts and
+evidence in `rank2-progress.json`.
+
+Batch 1 (34 no-change): 201, 207, 260, 264, 270, 279, 300, 318, 330,
+346, 352, 361, 364, 365, 367, 369, 389, 390, 391, 392, 396, 397, 398,
+399, 427, 431, 434, 435, 438, 439, 440, 441, 443, 444. Each module is
+byte-identical between the trees and none of its named methods
+changed 1.21.11→1.21.10 per the jardiff (lambdas counted against
+their enclosing method — item 182's `MappedRegistry.freeze` went to
+review on exactly that: `lambda$freeze$5/7` changed).
+
+Batch 2 (80 carry-over): the 1.21.11 port's hunks applied by
+three-way merge (`git merge-file`, base = the mechanical-publish base
+2e2ef22, ours = the 1.21.10 tree, theirs = current 1.21.11) — 285
+carry-over files + 70 files the 1.21.11 port touched that no delta
+item covers (survive.rs, live.rs, block_survival.rs among them: the
+719-item delta only tracks 1.21.11→1.21.10 differences, so 89
+port files have no item). Hand-merged where the E6 triage flagged
+1.21.11-specific or uncertain units; 1.21.11-only parts reverted with
+jar evidence: the Horse/ZombieHorse DANGER_OTHER/DAMAGE_OTHER -1.0
+ctor malus (1.21.10's ctor returns before it), nautilus feeding
+(no nautilus in the 1.21.10 jar), the Timeline/WorldClock system
+(no `world/timeline`, ClockManager or WorldClock in the jar;
+tracks sample at day time instead), the preedit overlay (no
+PreeditEvent/IMEPreeditOverlay/preedit.png — preedit.rs deleted).
+Jar-verified carry-overs: shulker `orientation` (present in
+1.21.10), piglin 30-degree baby ears (no 5-degree angle),
+VillagerTrades bytecode-identical (modulo the npc→npc/villager
+package move), baby dims (Zombie/Fox/Piglin/ZombifiedPiglin
+BABY_DIMENSIONS values match 1.21.11's), texture renames
+(temperate_pig et al. present in 1.21.10), Particle.getLightColor
+(identical `hasChunkAt` guard), warnOnLowDiskSpace (present in
+both), ShareToLanScreen/WaterlilyBlock/EndDragonFight (all
+1.21.10's names). Also in this batch: item_model.rs rebuilt with
+the 96-entry 1.21.10 DATA_COMPONENT_TYPES list (1.21.11's 104
+minus the 8 removed) and no per-model `transformation` (no such
+field in 1.21.10's Unbaked records); game.rs, save.rs (ImpulseSave,
+`chunks` saved-data id, DragonFight/ScheduledEvents in level.dat
+— verified against the real 1.21.10 world), villager_trades.rs
+(new file), ice_spike.rs + random_patch.rs (new files; 26.x-only
+`minecraft:spike` removed with spike.rs); requires_file_fixing
+deleted (item 205); the age-lock native hook dropped from
+native-hooks.json. `cargo check -p horizon-world --lib` and
+`-p horizon-client --lib` both clean. 49 carry-over items stay
+Batch 3 (4 carry-over + all 22 batch-2 CI failures fixed): the
+pack-format fixtures (datapack/packs at 88/69), Realms headers
+(1.21.10/773/Java 21), the GameRules form (level.dat's `Data.GameRules`,
+camelCase keys, string values — verified against the real 1.21.10
+world's 59 rules; the fire pair maps to/from
+`fire_spread_radius_around_player`, the `disable*` rules invert), the
+shipwreck `height_adjusted` removal (simple.rs, jar-verified: neither
+version's ShipwreckPiece writes it), the tracking fallback for mod
+thrown types (from the 1.21.7 port), and the 1.21.10-form test fixes:
+datafix tests (no `difficulty_settings`/`game_rules`/`id` palette keys
+— all 1.21.11 fixes above 4556), the optimization stamp start (4550,
+not the 26.x 4950), the horse-malus test (no malus in 1.21.10),
+painting/variant id 89 (as in 1.21.7), the sign-text test removed (no
+SIGN_TEXT in 1.21.10's DataComponents), vibration particle id 48
+(jar-verified registration order), server-packs header 69.0, the
+pause-screen loop ([1, 2] — Share to LAN is singleplayer-only),
+en_us.json wording, launch-reference.md numbers, bossbars `#[ignore]`
+(needs prepared resources), `record_is_old` at 4295 and
+`BlendingDataFix` at 4295 (both jar-verified; the 26.x table's 4997
+is past CURRENT 4556, so every chunk read as old and pre-1.18
+chunks kept no blending data). horizon-world fully green locally
+(482 passed, 0 failed); level_save_keeps_changed_rules verified
+locally. 45 carry-over items stay open behind 27 hand-merge files
+(SlotDisplay renumbering, spear, hand.rs, item.rs, menu/hub, cauldron,
+furnace, component, frames, end.rs, recipe_book, advancements).
+
+## Rank 2, batch 4 — remaining carry-over blockers (45 items, Nov 24, 2026)
+
+Closes the last 45 carry-over items (43 by merge, 2 by no-change
+evidence). All 129 carry-over items are now closed; rank 2 stands at
+163/454, with the 291 review items remaining.
+
+Hand-merges, each jar-verified against 1.21.10's own jars:
+
+- `game/end.rs`: EnderDragonFight → EndDragonFight; the flash
+  ambient colour ([0.99, 1.12, 1.0], `END_FLASH_SKY_LIGHT_COLOR`,
+  0.99f/1.12f in 1.21.10's LightTexture) and the flash tick from
+  game time (1.21.10's ClientLevel calls
+  `EndFlashState.tick(getGameTime())`).
+- `component.rs`: ObjectContents `fallback` removed — the record is
+  identical in both versions (only `contents`, no fallback field).
+- `furnace.rs`: canBurn needs room for one more item only
+  (`getCount() >= getMaxStackSize()`), burn grows the output by one
+  (`grow(1)`), serverTick resets the timer when the ingredient has
+  no recipe — all three byte-identical between the jars.
+- `game/commands/items.rs`: createItemStack does NOT validateStrict
+  afterwards — byte-identical in both jars, no validateStrict call;
+  the damageable+stackable rejection and `item_validation_components`
+  are deleted.
+- `game/frames.rs`: `isOutsideBuildHeight` (both jars), the frame
+  board/needle owner (ItemFrame.setDirection uses get2DDataValue in
+  both; NeedleDirectionHelper exists in both client jars), the map
+  bounds widening removed.
+- `block_entity_render.rs`: sign boards as entity models
+  (SignRenderer/HangingSignRenderer + AttachmentType exist in
+  1.21.10; the sign block models are empty), copper-golem statue
+  textures (`exposed_copper_golem.png` etc. in 1.21.10's assets),
+  banner cloth at `entity/banner_base.png`, the end-gateway beam at
+  `entity/end_gateway_beam.png`, the enchanting-table book at
+  `entity/enchanting_table_book.png`, copper chests wearing the
+  christmas textures (1.21.10's getChestMaterial checks xmas before
+  copper: ENDER → CHRISTMAS → TRAPPED → copper → REGULAR), the sign
+  atlas-revision cache.
+- `environment_attributes.rs`: the 3 26.1-only light attributes
+  removed (absent from both jars — 1.21.10 has no
+  `net/minecraft/world/attribute` classes at all; the table is the
+  engine's environment model carried from 1.21.11), turtle-egg
+  hatch default 0.002 → 0.0.
+- `packets/recipes.rs` + `recipe_book.rs` + `lan/advancements.rs` +
+  adapter ids: the SlotDisplay codec rewired to 1.21.10's 8-entry
+  registry (empty, any_fuel, item, item_stack, tag, smithing_trim,
+  with_remainder, composite — identical order in both versions; the
+  26.x with_any_potion/only_with_component/dyed do not exist here).
+  The hand-corrected tables are gone: v1_21_8/v1_21_10/v1_21_11_ids
+  are now `Remap::Same`, and v26_1_2/v26_2_ids carry the 26.x →
+  1.21.10 remap (26.x 4/5/6 → 2/3/4, 8/9/10 → 5/6/7).
+- `container_screen.rs`, `game/remote_stations.rs`, `lan/hub.rs`,
+  `menu.rs`, `cauldron.rs`, `game/enchant_effects.rs`: merged to
+  0 diff (ClickType in both jars, no ContainerInput;
+  CauldronInteraction at `net/minecraft/core/cauldron/` in both;
+  `doLungeEffects` only in 1.21.11).
+- `game/spear.rs`: comments reworded only — `lungeForwardMaybe`
+  exists only in 1.21.11's Player; 1.21.10 has no spear lunge.
+
+Deliberately NOT merged, with jar evidence:
+
+- Top-level `spear.rs`: the 1.21.11 changes are spear dismount
+  thresholds and sway timing for a mechanic 1.21.10 lacks
+  (iron_spear absent from the 1.21.10 jar). Items 275 and 322 close
+  as no-change on this evidence.
+- `protocol/item.rs`: the whole diff is 1.21.10's own 96-component
+  numbering (correct) plus 1.21.11-only components (ATTACK_RANGE,
+  DAMAGE_TYPE, ZOMBIE_NAUTILUS_VARIANT, kinetic_weapon); 1.21.10's
+  skip_dropped arms for the 8 removed components are correct as-is.
+- `game/hand.rs`: only the `Entity.updateFluidOnEyes` comment
+  applies (the method exists in 1.21.10's Entity). The spectator
+  min-range and getActiveItem changes concern `attack_range`, which
+  1.21.10 lacks entirely (no `entityAttackRange` in its
+  LivingEntity); the code stays as inert 26.3-base dead code.
+- `packets/play.rs`: only the Horse/Mount rename remains — 1.21.10's
+  form is correct and kept.
+
+Batch-3 CI fixes (run 45305592498: 2 failures, down from 22):
+the realms upload test now asserts `GameRules` (the 1.21.10 vanilla
+save form from batch 3, not the 1.21.11 `game_rules` key), and the
+86 bundled lang files were synced from 1.21.11 (pure stale-key
+removals: "Fills the screen (borderless).", "Fullscreen takes the
+display over, at the mode below.", "The display mode exclusive
+fullscreen uses. Applies when you leave." — all removed from
+en_us.json in batch 3, so the lang test's no-stale-keys check
+failed). Lang test verified locally passing.
+
+Checkpoint verification (Nov 24, continuation session): the
+8007a10b WIP checkpoint moved the ledger 173/719 -> 237/719 by
+closing 64 rank-2 items no-change on the semantic bytecode diff.
+The continuation verified all 64 against review-per-item.json
+(all present; 63 with real=0, missing=0) and against the actual
+code (each module diffed 1.21.10 vs 1.21.11 tree, numbers and
+version mentions normalised). 63 stand as closed.
+
+One correction — item 126 (spectator_menu.rs): the semantic diff
+was right (all 4 named methods same), but the 1.21.10 tree still
+carried the 26.3-base form — the 1.21.11 item-122 hunk (83456f28)
+was missed by the carry-over (spectator_menu.rs absent from
+carryover-units). Carried over verbatim in this commit: the team
+icon's colour square now fades with the menu alpha via
+color_from_float (was argb(255,...)), doc citations reworded to
+the 1.21.10 names, regression test added. Jar-verified: 1.21.10's
+SpectatorGui has renderHotbar/renderAction/getHotbarAlpha and
+SpectatorMenuItem has renderIcon, so the 1.21.11 names hold in
+1.21.10. Item 126 reclassified no-change -> ported; count
+unchanged at 237/719 (rank 2: 227/454).
+
+Minor correction — item 136 (witch.rs): evidence now records 2
+named methods checked, not 3 (the triage title counts 3 but
+named_changed lists 2; both same). Verdict unchanged.
+
+Lesson for the remaining ranks: a no-change verdict needs BOTH
+the semantic diff AND a tree-diff check that the 1.21.10 tree
+already contains the 1.21.11 behaviour — the carry-over unit
+list missed at least one file.
+
+CI triage (Nov 24, continuation session):
+- Run 45292840975 (rank 1 head ce7a7b4c): failure — baseline; superseded.
+- Run 45298555004 (batch 2 head e24143e9): 22 failures
+  (datafix/saved_templates/datapack/packs/lan) — all fixed in
+  batch 3, all port regressions, none pre-existing.
+- Run 45305592498 (batch 3 head 0864c72c): 2 failures —
+  lang::tests::bundled_files_are_served_and_have_no_stale_or_repeated_keys
+  (client-core) and
+  realms::tests::a_generated_upload_world_carries_only_what_the_realm_needs
+  (client-lib, asserted the 1.21.11 `game_rules` key) — both
+  fixed in batch 4; batch 4's run shows both suites green.
+- Run 45307802187 (batch 4 head 5919dcb0): 6/7 suites green
+  (protocol 440, items 110, world 483, client-core 83, client
+  1286, client-lib 2510 — all 0 failed); only
+  horizon-client-render failed, on one compile error E0063:
+  the sign_text_cache test's Kind::Sign initializer missed the
+  `wood`/`attached` fields batch 4's block_entity_render merge
+  added. Fixed by adding wood: "oak", attached: false, matching
+  the 1.21.11 test file. No pre-existing failures identified so
+  far — every CI failure on this branch has been a port
+  regression, fixed in the following batch.
+
+CI run 45315118303 (batch 5 head d481e74d): render suite 2067 passed,
+2 failed — banner_cache (8 vertices, expected 16) and
+copper_statue_cache (0 vertices, expected 4). Root cause: the test
+file kept the 26.3-base sprite names (entity/banner/banner_base,
+entity/copper_golem/copper_golem_*) while the implementation uses
+the 1.21.10 names. Verified against the 1.21.10 client jar:
+textures/entity/banner_base.png exists at top level (no
+banner_base.png under entity/banner/), and the golem textures are
+exposed/weathered/oxidized_copper_golem.png. Fixed the test file
+(8 names); it is now byte-identical to 1.21.11's. The implementation
+was already right.
+
+Rank 2 batch 7 (sample of the real-method tail): the 622 "real"
+methods include normalisation gaps (GameRules API, float-vs-double
+trig, renames) and genuinely different but unmodelled methods.
+Each closure below cites the method diff + the Rust-side check.
+Item 57's module diff (Horse/ZombieHorse pathfinding malus) is a
+second item-126-style carry-over gap, resolved jar-side: 1.21.10's
+Horse/ZombieHorse/AbstractHorse constructors set no malus, so the
+1.21.11 malus hunk is 1.21.11-only and correctly absent.
+
+CI run 45318465400 (head 3b4d2c4e, sprite fix + batch 7): SUCCESS —
+first fully-green crate-tests run on this branch (all 7 suites).
+
+CI run 45322694411 (head 1061fc67, batches 9-12: piglin spear, furnace
+Math.random, spawn-mobs gate): SUCCESS — all 7 suites green.
+
+CI run 45326110344 (head 54819e07, batches 15-16: sea-pickle bonemeal,
+moving-border current size, slime moon-brightness two-draw): in progress
+at the batch-17 commit; conclusion to be recorded with the next batch.
+
+Batch 17 (rank 2 372 -> 380, total 390/719): 3 ported, 5 no-change.
+261 equip.rs: 1.21.10's ItemAttributeModifiers.compute(base, slot) applies
+EVERY slot-matching modifier regardless of attribute (bytecode-verified;
+its only caller is Mob#getApproximateAttributeWith) — added
+approximate_with for the mob-looting comparison, kept attribute_with
+filtered for gear.rs/legacy_rules.rs (real per-attribute application).
+71 particles.rs: 1.21.10's ClientLevel#tick ticks the border first and
+unconditionally; ungated tick_remote's border.tick(). (ServerLevel#tick
+gates it on runsNormally in 1.21.10 too — the server side was already
+right.) 68 enchant_effects.rs: PlaySoundEffect is a single soundEvent in
+1.21.10, a per-level list in 1.21.11 — simplified to the single sound
+(channeling/soul_speed data confirmed single-string). No-change: 34
+(Christmas range Dec 24-26 in both), 85 (chunk save/flush unmodelled),
+116 (singleCodec is codec plumbing; JSON shape same), 117 (spear path
+unreachable in 1.21.10 — Kinetic::of matches only 1.21.11 spear ids;
+full spear-system removal is a deferred cross-cutting cleanup, no
+triage item covers spear.rs), 173 (raid spawn-pos trig is f32-vs-f64
+noise on a random candidate).
+
+CI run 45326110344 (head 54819e07, batches 15-16): SUCCESS — all 7 suites
+green. CI run 45327263625 (head 0cd7e906, batch 17: attribute compute,
+border tick, play_sound): SUCCESS — all 7 suites green.
+
+Batch 18 (rank 2 380 -> 388, total 398/719): 3 ported, 5 no-change.
+172 lan/data.rs: SYNCHRONIZED trimmed to 1.21.10's 21 registries
+(javap-verified against the 1.21.10 server jar): removed
+zombie_nautilus_variant, world_clock, timeline, decorated_pot_pattern,
+block_transformer, worldgen/block_state_provider. sulfur_cube_archetype
+kept (Horizon-only, in neither vanilla jar). 202 maps.rs: Nether map
+markers spin on the day time in 1.21.10 (getDayTime), the game time in
+1.21.11 — the rotation chain (add_decoration, add_item_decorations,
+toggle_banner, tick_framed, decoration_rotation) now takes day_time;
+holder tracking stays on game time. 25 foxes.rs: Fox.canHoldItem tests
+FOOD only in 1.21.10 (isConsumableFood is 1.21.11-only). No-change: 15
+(criterion renames), 27 (panda trig noise; MOB_DROPS modelled), 61
+(video-settings layout is menu chrome), 69 (options migration + toast
+rename unmodelled), 84 (villager renames; dragging assign already the
+1.21.10 form).
+
+Batch 19 (rank 2 388 -> 396, total 406/719): 1 ported, 7 no-change.
+40 copper_golems.rs: turnToStatue's lead drop is gated on the entity-drops
+rule in both versions (RULE_DOENTITYDROPS / ENTITY_DROPS) — the Rust
+dropped it unconditionally; gated on ui.rules.bool("entity_drops").
+No-change: 23 (wolf anger is already the 1.21.10 int countdown; the NBT
+anger_end_time long form belongs to item 11), 65 (AbstractGolem package
+moves + needsSync rename + f32 sin), 72 (font pipeline refactor; debug
+dump rename), 99 (Netty ping plumbing unmodelled), 119 (frame_survives
+already checks blocks + entities + border, the 1.21.10 noCollision form;
+1.21.11's hasLevelCollision is blocks + border only), 229 (bonemeal
+emits ITEM_INTERACT_FINISH at the player in both), 278 (screen-level
+double-click state unmodelled; container double-click identical).
+
+Batch 20 (rank 2 396 -> 404, total 414/719): 0 ported, 8 no-change,
+ledger only. 100 isMoonVisible is natural + dayTime%24000 in
+[12600, 23400] (javap-verified; isNaturalNight just delegates to it)
+and the Rust's render_tick computes exactly that window. 109 Mth.sin/cos
+index the table in double (1.21.11) vs float (1.21.10) — at most one
+table step, noise; clampedLerp/clampedMap are parameter-order swaps
+with identical semantics. 130's phantom rule resolves through the
+gamerule name-translation table (spawn_phantoms <-> doInsomnia).
+
+Batch 21 (rank 2 404 -> 412, total 422/719): 3 ported, 5 no-change.
+76 piglin.rs: removed the 1.21.11-only piglin spear behaviours
+(SpearApproach/SpearAttack/SpearRetreat: SpearStatus, Memories,
+PiglinSpear goal, NoMeleeWithSpear — spear_use.rs lines 519-898 — plus
+the piglin state's spear field); initFightActivity now registers plain
+MeleeAttack. converting() already the 1.21.10 form (presets:
+piglins_zombify true overworld/end, false nether = !piglinSafe()).
+96 stations.rs: the netherite-upgrade smithing icon list is 9 in 1.21.10
+(nautilus_armor + spear are 1.21.11 additions); smithing_slot_icons
+narrowed 11 -> 9 with its test. Stonecutter scrolling reset and the
+instrument description were already the 1.21.10 form. 33 remote.rs:
+ShelfBlock#useItemOn returns SUCCESS on the client unconditionally in
+1.21.10, so an empty main-hand click now consumes the click (the
+UseItemOn packet is sent before this check). No-change: 114 (guardian
+needsSync rename + trig noise), 301 (the falling-block fixture probes
+landing only; the ENTITY_DROPS drop rule is unmodelled in it), 29
+(step_move_and_hit is single-nearest, the 1.21.10 findHitEntity form),
+48 (DataVersion defaults to -1; backup stamp is local time), 181
+(ambience biome lookup path differs, same biome).
+
+CI run 45330007250 (head 8f229a80, batches 18-19): SUCCESS, all 7 suites
+green.
+
+Batch 22 (rank 2 412 -> 420, total 430/719): 2 ported, 6 no-change.
+98 music.rs: the music volume source + selection order, ported to the
+1.21.10 form (javap-verified against Minecraft#getSituationalMusic).
+Layer::parse reads effects.music (weighted list) + effects.music_volume
+instead of the 1.21.11 environment attributes; BackgroundMusic is the
+biome's list with a weighted pick; Situation follows screen > menu >
+End (boss END_BOSS else END) > biome list (an empty list plays nothing)
+> underwater (global, tag-gated or already playing) > creative (global,
+never Nether) > GAME; the fade sets the current instance's volume, not
+the MUSIC category. The situational-music parity oracle does not compile
+against 1.21.10 jars (1.21.11-only RegistryLayer/attribute APIs) — the
+fixture was updated to the new shape, the oracle is a separate job.
+18 equine.rs/mounts.rs: no horse eats a red mushroom in 1.21.10 (the
+handleEating branch and the zombie_horse_food tag are 1.21.11-only;
+1.21.10 has neither, javap-verified); a zombie horse passes while
+untamed and uses AbstractHorse.mobInteract when tamed. No-change: 47
+(evoker griefing gap + trig + same-level difficulty), 21 (villager
+activity windows match the 1.21.10 Schedule exactly, javap-verified;
+restock day is day_time/24000), 53 (dragon trig + MOB_DROPS gap +
+WindCharge move), 131 (fishing trig + criterion renames + game-event
+form), 59 (title splash dates identical; menu chrome), 26 (criterion
+renames).
+
+Batch 21 follow-up (in the batch 22 commit): the piglin spear removal
+also dropped the melee goal's crossbow gate, which broke the lib test
+compile (holds_non_melee_weapon was deleted with the spear code).
+Restored as NoMeleeWithCrossbow in piglin.rs — vanilla 1.21.10's
+MeleeAttack behaviour does not start while holding a usable projectile
+weapon (javap-verified), so a crossbow piglin shoots instead of
+meleeing; only the spear half of the old gate is gone. CI run
+45332512840 (batch 21 head) FAILED on exactly this compile error.
+
+CI run 45336648733 (head 8c5305fa, batch 22): SUCCESS, all 7 suites
+green.
+
+Batch 23 (rank 2 420 -> 428, total 438/719): 4 ported, 4 no-change.
+199 border_render.rs: the renderer reads the border's current size now
+(1.21.10's getMinX() etc.), not the partial-tick interpolation; the
+no-arg WorldBorder::bounds() is fixed the same way (javap-verified:
+1.21.10 reads the extent directly, 1.21.11 delegates to getMinX(0.0F),
+the previous size — this corrects item 112's "same value" claim for a
+moving border). 31 undead.rs: the zombified piglin loses its spear goal
+and its 1-in-20 golden-spear roll (always a golden sword); the drowned
+loses its zombie-nautilus jockey; the husk loses its camel-husk-parched
+jockey (a triage gap — Husk#finalizeSpawn was assigned to no item), in
+both finalize.rs and the game's spawn_jockeys path, which also loses
+the zombie-horse jockey with its iron spear (ZombieHorse#finalizeSpawn
+is 1.21.11-only). The 1.21.10 jar has no ZombieNautilus, camel husk or
+parched at all. Removing SpawnData::camel_husk_size also unblocked
+StructureMobFinalizer::load, which returned None on 1.21.10 data for
+want of a camel_husk type — no structure mob was being finalized.
+Zombie's SpearUse stays (item 12). 32 commands.rs: /spawnpoint and
+/setworldspawn store the respawn angle as given (1.21.11's
+RespawnData.of wraps the yaw and clamps the pitch). 169 lightning.rs:
+spawnFire gates on doFireTick only (1.21.11's canSpreadFireAround is a
+1.21.11-only method, absent from the 1.21.10 jar); the copper cleaning
+never unwaxed, already the 1.21.10 form. No-change: 24 (the STAB render
+branch is dead — a kind-2 swing is constructed only for spears; jeb
+wool lerps linearly, the 1.21.10 form; parrot package move; hitbox
+submit unmodelled), 67 (chat insertion-click mode unmodelled; menu
+chrome), 70 (smithing armor-stand preview unmodelled; turtle eggs use
+the level day-time window; armor-stand griefing reads the rule), 14
+(computeSpeed unmodelled; minecart max speed via the camelCase table;
+TNT fuse + spawner gate read their rules; command-cart interact has the
+same outcome as usedBy).
+Batch 24 (rank 2 428 -> 436, total 446/719): 2 ported, 6 no-change.
+11 entity_nbt.rs: the NeutralMob anger save is the 1.21.10 form now —
+AngerTime (int, remaining ticks) + AngryAt, not 1.21.11's anger_end_time
+(long, absolute game time) + angry_at (javap-verified against NeutralMob
+on the 1.21.10 server jar). 1.21.10 has no getPersistentAngerEndTime
+anywhere, so the absolute-end-time model was removed wholesale:
+Extra::anger_end and Extra::anger_stamp are gone, neutral_anger.rs keeps
+only persistent_anger + stop, and the countdown ticks down once per tick
+the mob ticks and freezes while it does not (missed ticks never count —
+the rewritten h13076 test pins 999999 - 2 after two ticks, not 999999 -
+7). Save/load/tests rewritten in entity_nbt.rs, persist.rs (incl. the
+h262 enderman tests), commands/data.rs, anger_tests.rs, and the
+enderman_anger_saved_fixture.py harness tool. Deferred: the bee's own
+anger save (item 20), the bee/wolf metadata sync + wolf_anger_corpus.py
++ the mob_anger harness op (item 168). 46 native_hooks.rs: the End has
+weather in 1.21.10 — level_can_have_weather dropped the 1.21.11-only End
+exclusion (verified: the_end.json has has_skylight=true, has_ceiling=
+false; advanceWeatherCycle is gated only on hasSkyLight + doWeatherCycle;
+non-overworld dimensions read weather through DerivedLevelData, so the
+End shares the overworld's weather — which the Rust's single shared
+weather state already matches). No-change: 77 (hub.rs stats unmodelled;
+suspendFlushing is network optimisation; GameRules API; permission ints;
+view-distance null check trivia), 97 (entity-selector suggestions use
+permission level >= 2, the 1.21.10 form; Coordinates::position matches
+the 1.21.10 inlined local-coordinates formula exactly), 17 (no isFinite
+check on delta movement, the 1.21.10 form; computeSpeed unmodelled; trig
+noise; handlePortal method-location move; leash CONSUME is a client
+InteractionResult distinction the Rust does not model; FAST_LAVA vs
+ultraWarm unmodelled in boats.rs — datapack dimensions are item 157's;
+animatePaddle arg-order + trig noise; MOB_GRIEFING API), 87 (book/lectern
+screen chrome), 92 (debug-entry renames; the Rust already handles both
+inF3/inOverlay statuses), 22 (all 16 Realms screen methods are menu
+chrome or renames; the settings-save name trim is a whitespace edge case
+on a Realms screen).
+
+Probe repairs (with batches 23+24): the batches 23+24 check exposed two
+test-compile breaks in commands/data.rs (a dangling `{end}` format capture
+left by the item-11 rewrite, and a `failures` vec whose `String` type lost
+its inference pin when the anger_end assertions went — both fixed), and the
+first-ever client_probe check on this branch exposed 7 pre-existing
+fixture breaks: audio_attributes_fixture.rs still used batch 22's old
+BackgroundMusic API (default/creative/underwater + select — rewritten to
+the biome-list form with a per-line fixed-seed Situation pick),
+environment_fixture.rs read Sky.block_light_tint/ambient_light_color,
+removed by batch 2's carry-over in favour of ambient_light/ambient_color
+(the two puts dropped — 1.21.10 has no such environment attributes), and
+environment_system_fixture.rs built Conditions with the removed `clock`
+field (now `day_time`). The probe compiles clean now; note the parity
+oracles still do not compile against 1.21.10 jars, so these fixtures are
+compile-verified only, not parity-run.
+
+CI run 45345350796 (batches 23+24, head c6512557): SUCCESS — all 7
+suites green, 12 minutes. No pre-existing failures identified so far on
+this branch; every CI failure has been a port regression fixed in the
+following batch.
+
+Batch 25 (8 items, Nov 24, 2026; rank 2: 436 -> 444, total 454/719):
+3 ported, 5 no-change. 20 bee.rs: the bee's anger from the 1.21.11
+absolute-end-time model to 1.21.10's remaining-ticks countdown
+(javap-verified: Bee.DATA_REMAINING_ANGER_TIME is an int;
+updatePersistentAnger restarts the timer ONLY on target change, not
+every tick while held, decrements every tick with stop at 0, and stops
+when the stored target is a dead/absent Mob, never for a stored player).
+Bee.anger_end -> anger: i32; entity_nbt.rs saves/loads the bee's
+AngerTime + AngryAt (the bee's AngryAt was never saved before); the sync
+sends Value::Int at index 18. wantsToEnterHive and isAngryAt already
+match 1.21.10 (the End has no day timeline, matching the != END
+exclusion). The wolf's metadata sync stays item 168's. 49 motion.rs:
+modifyInput scales by a flat 0.2f for any item in use (not the per-item
+use_effects multiplier), and any item use keeps a sprint from starting
+(isUsingItem, not isSlowDueToUsingItem) — game.rs and game/prediction.rs
+now hard-code Some(0.2) / is_some(); the Item use_speed/can_sprint
+fields stay parsed but unread. isSprintingPossible is a NO-CHANGE
+despite the reorder: javap-verified hasEnoughFoodToSprint is
+isPassenger() || food > 6 || mayfly, so the food gate only ever bites a
+non-passenger, exactly what sprint.rs possible() already does.
+isAlwaysFlying is a pure rename of isSpectator (javap: both are
+localPlayerMode == SPECTATOR); the 1.21.11 jumpableVehicle check in the
+swim-jump branch is unmodelled in the Rust's movement tick. 91
+mipmap.rs: the mipmap generation from 1.21.11's MipmapStrategy system
+to 1.21.10's alphaBlend form (javap-verified: hasTransparentPixel once
+from the base, transparent pixels skipped, sums / 4.0, each channel
+(int)(Math.pow(mean, 1/2.2) * 255.0), computed alpha below 96 cut to 0;
+POW22[i] = (float)Math.pow((float)i/255.0f, 2.2)). Strategy, the .mcmeta
+mipmap_strategy/alpha_cutoff_bias parse, solidify, fill_empty_dark, the
+alpha-coverage system and the sRGB tables are all removed; the sprite
+cache format is bumped to version 2; the dither (a Horizon enhancement,
+off by default) is kept, keyed on has_transparent. 1.21.10's
+TextureMetadataSection has only blur/clamp, so the 1.21.11 keys are
+unknown fields the codec ignores (glint validation updated). New tests
+pin the verified values (135 for one visible pixel in four, 0 for a
+faint alpha below the cutoff, 186 for white+black alpha). No-change:
+180 (anisotropy already ported in batch 2; the minWidth/minHeight
+max is a no-shrink re-stitch the Rust's fresh-texture path does not
+need; the mip-0 async skip is scheduling), 38 (the SPEAR arm pose and
+the STAB check are dead — no piglin can hold a spear in 1.21.10;
+crossbow charge already passes int ticks, the 1.21.10 form;
+getArmPose is just return EMPTY in 1.21.10), 144 (Camera renames +
+trig noise), 45 (server console source, scoreboard plumbing,
+permission ints, no game-rule-change hook, loop scheduling), 36 (the
+Rust already uses int distances at the RandomPos API boundary, the
+1.21.10 form; package moves and criterion renames). Also fixed a
+batch-24 leftover: finalize_load_tests.rs used anger_end_time:5000L,
+ignored since item 11 — now AngerTime:5000.
+
+Batch 26 (8 items, rank 2 444 -> 452, 462/719). 93 raids.rs: the
+1.21.11 GameplayAttributes system is deleted outright; the raid gate
+is DimensionFacts.has_raids (renamed from can_start_raid, which had
+no readers; datapack dimensions default to false, matching vanilla),
+the patrol gate is the hardcoded day-5 check plus the
+#without_patrol_spawns biome tag (single member mushroom_fields).
+PatrolLevel gained day_time(); the day check sits between the
+countdown reset and the bright check, matching 1.21.10's javap
+order. 58 fog.rs: the DimensionOrBoss fog environment
+(javap-verified: 7 environments in 1.21.10, DimensionOrBoss between
+Water and Atmospheric; applies when the dimension is foggy at the
+camera - always true for the Nether - or a boss overlay wants world
+fog). New FogType::DimensionOrBoss, resolved in frame_fog; start
+rd*0.05, end min(rd,192)*0.5, sky/cloud = end; Atmospheric
+hard-coded to the 1.21.10 constants with the boss min-block removed.
+30 melee.rs: the item-swap ticker is 1.21.11-only (no itemSwapTicker
+field, no getItemSwapScale in 1.21.10) - swap_ticker, swap_scale()
+and reset_attack() are gone, the hand height uses the attack-strength
+scale; plus Player#tick wakes a sleeper when bright outside (new
+Game::bright_outside, also used by the patrol level). 19
+creatures.rs: melee reach is always sqrt(2.04)-0.6 (no attack_range
+component in 1.21.10); sun_burn_tick gates on bright-outside and the
+monsters_burn field is deleted; the wet check includes powder snow.
+12 mobs.rs: zombie spear goal + spear equipment roll + zombie-horse
+jockey all removed (javap-verified 1.21.11-only); the
+can_glide_through launch-blocker fixed by mirroring the 1.21.7 tree
+(empty set at load, no glide exception on climbables - 1.21.10 has no
+such tag); disable-blocking reads the weapon unconditionally;
+knockback fallback uses math_random(); armadillo babies' timers never
+count down and the mob_drops gate is gone; dolphins grace sets the
+water drag to 0.96. 16 lan_actions.rs: handlePlayerAction case 8
+(spear STAB) and guest_jab removed (1.21.10's switch ends at 7);
+entering spectator no longer stops item use. No-change: 73
+(core_sky - JOML interface/class types, trig noise, render-pass
+plumbing; the single-rotation sun/moon/stars form is geometrically
+identical to the Rust's separate rotations provided moon_angle =
+sun_angle + 180, an item-351 attribute-value question), 42 (camera -
+Level/BlockGetter types, JOML types, pick plumbing, render scheduling;
+the 1.21.10 renderLevel fog boolean confirms the item-58 analysis;
+the player's attack_range component read is inert on 1.21.10 data).
+
+CI run 45357219692 (batch 25, head d72cd46d): FAILURE - 2 tests in
+horizon-client-render, both batch-25 regressions from the mipmap
+rewrite: custom_item_textures_mip_as_items and
+identical_still_textures_share_a_layer asserted that item textures
+get a layer of their own. The old item flag only gated solidify,
+which the 1.21.10 form has no use for (vanilla 1.21.10's
+MipmapGenerator has no item parameter, javap-verified), so identical
+pixels now mip identically and share a layer - the tests were
+updated to the 1.21.10 form (item shares layer 0 with the block
+texture; counts 2 layers / 4 names / 2 mips / 2*16*16*4 pixels),
+not the code. All other suites green (440 + 3 + 110 + 483 + 83 +
+1285 + 2510 passed). Fixed in this batch (sprites.rs).
+
+Batch 27 (2 items, rank 2 452 -> 454, 464/719; RANK 2 COMPLETE). 13
+game.rs: startAttack loses the cannotAttackWithItem gate and the
+PIERCING_WEAPON branch, continueAttack loses the piercing gate
+(1.21.11's spear attack; the ATTACK_RANGE check was never modelled in
+the Rust's start_attack). The HandWorld spear methods stay for the
+deferred spear cleanup, docs noted. jukebox_pop_position now draws X,
+Y, Z: 1.21.10's Vec3 has no offsetRandomXZ (javap-verified) and both
+the jukebox and the composter use offsetRandom in 1.21.10; a test pins
+the draw order. No-change in 13: isSpawningMonsters is identical in
+both versions (javap-verified; 1.21.10 DOES have RULE_SPAWN_MONSTERS),
+disconnect is a method split, getSituationalMusic was item 98's,
+hasControlDown is a pure rename (1.21.10's checks
+EDIT_SHORTCUT_KEY_MODIFIER, exactly 1.21.11's hasControlDownWithQuirk),
+and the rest are GameRules renames or unmodelled plumbing. 52
+debug_keys.rs: no-change — the Rust's keybind defaults are exactly
+the 1.21.10 hardcoded debug keys (F3/A/B/C/D/G/H/I/L/N/P/S/T/V/1/2/3/
+F4/F6); the rebindable surface is a Horizon feature on top, and F3+Q
+is unmodelled in both trees.
+
+Rank 3 batch 1 (108 items, rank 3 0 -> 108, 572/719). All named-0
+modules whose current tree diff vs 1.21.11 is zero (73 no-change) or
+comment-only version labels (34 carry-over) plus stitch.rs (499: its
+one named method is unchanged, diff 0). Every file was spot-checked
+for 1.21.11-only content (spear/nautilus/parched/camel_husk/timeline/
+attributes/attack_range): the only hits are dead name lists and
+empty-on-1.21.10-data registries (shadows, dolphin, mount_menu,
+stats_screen, armadillo, legacy_combat, registries' minecraft:timeline
+field), each noted in its ledger entry. One stale comment fixed
+(cube.rs: the spear minimum-range parenthetical; melee_reaches is
+already the ported 1.21.10 form from item 19).
+
+CI runs 45362866602 (batch 26, 7b9ffd68) and 45364393502 (batch 27,
+dd457e07): both SUCCESS, all suites green.
+
+Rank 3 batch 2 (32 items, rank 3 108 -> 140, 604/719): the review
+items with zero real methods (semantic diff run fresh for rank 3:
+175 methods, 94 real, 14 missing-new, 67 same). 513
+gamemode_switcher.rs PORTED: 1.21.10's GameModeSwitcherScreen has no
+mouseReleased, so the mouse-release apply is gone (game.rs arm,
+switcher_release, release_applies + test); the keyboard release path
+is untouched. The other four missing-new items are no-change: 520
+(dialog text clicks run through DialogScreen.runAction in 1.21.10),
+542 (getItemDamageSource is 1.21.11's rename of getDamageSource —
+same mace-smash logic), 527 (getVisibility unreferenced), 547 (the
+Rust's JSON-RPC endpoint is its own implementation). The remaining
+27 are all-same. Three carry already-ported tree diffs, noted in
+their entries: 512 (anger work), 544 (mipmap metadata), 559
+(offsetRandom + create_experience).
+
+Rank 3 batch 3 (46 items, rank 3 140 -> 186, 650/719): the review
+items with 1-3 real methods, read from review-real-diffs-r3.json.
+Six ports. 505 debug_options.rs: getRowWidth is 310 in 1.21.10, 350
+in 1.21.11 (one constant). 548 query.rs: 1.21.10's
+NetworkDataOutputStream.writeString is DataOutputStream.writeBytes
+(the low byte of each char), not UTF-8 — query strings now send low
+bytes, with a test. 477 test_instances.rs: the gametest highlight
+fill is 0x8000FF00 in 1.21.10, 0x6000FF00 in 1.21.11. 469
+management.rs: 1.21.10's validateAuthentication takes a Bearer
+token only — the WebSocket-subprotocol token and origin check are
+1.21.11's — denying everything with "Invalid or missing API key";
+the management-server-allowed-origins property is removed
+(1.21.10's SecurityConfig has only secretKey); the handshake echoes
+minecraft-v1 when the client offers it. 475
+dedicated/management.rs: 1.21.10's gamerule RPC takes an UntypedRule
+(a string value: Boolean.parseBoolean / Integer.parseInt, no range
+check — IntegerValue.set just sets) and returns a TypedRule whose
+value is likewise a string. 567 vanilla.rs: the time command's
+clock/timeline nodes were 26.x leakage — both vanilla TimeCommands
+are the simple set/add/query form (javap-verified; 1.21.10 has no
+world/timeline package) — so the section is the 1.21.11 tree's form
+verbatim and clock_nodes is deleted; the Resource::Clock/Timeline
+variants and Suggests::TimeMarkers stay as dead pub API. That also
+fixes parses_vanilla_commands (time set day, time query daytime),
+which was failing silently: horizon-command is not in CI's 7
+suites. Three doc fixes on no-change verdicts: 530
+(can_spread_fire_around already implements the 1.21.10 two-rule fire
+gate via fire_radius), 557 (the level-load callback is compiled-only,
+the 1.21.10 isSectionCompiled form), 483 (canSetSpawn reads the
+dimension type's respawnAnchorWorks). The other 37 are renames,
+empty diffs, trig noise, or render plumbing.
+
+CI runs 45368236380 (rank 3 batch 1, f5592b62) and 45369286305
+(rank 3 batch 2, f9209342): both SUCCESS, all suites green.
+
+Rank 3 batch 4 (6 items, rank 3 186 -> 192, 656/719): the last
+review items (4-10 real methods each), all no-change. 465
+(realms/client.rs): Realms DTO parsing is record-vs-mutable
+construction, log texts and Instant-vs-Date; 1.21.10's
+WorldTemplate has a type field too. One noted deviation:
+JsonUtils.getDateOr returns now in 1.21.10 when the key is
+missing (EPOCH in 1.21.11); the Rust defaults to 0, as in the
+template — the service always sends the date. 470: all six
+ThrownTrident diffs are empty. 471: command-block API shapes
+plus GameRules renames. 473: SlotAccess $1/$2/$3 are
+anonymous-class renumbering (the same four behaviours under
+different numbers). 474: golem-pattern predicate wrapping and
+aisle internals. 476: the Realms download's HTTP client swap
+and log texts.
+
+Rank 3 batch 5 (9 items, rank 3 192 -> 201, 665/719): the
+code-diff carry-over files, each verified against the jar
+rather than trusted. Three ports. 605 tree_extra.rs: the
+fetchprofile `entity` branch was 26.x leakage (26.1 added it;
+1.21.10 has name/id only). 618 gamerules.rs: the full 60-key
+set verified (all 25 renames correct); the `max_minecart_speed`
+rename was missing (1.21.10's key is `minecartMaxSpeed`) and
+`Rules::set` enforced 1.21.11 int ranges that 1.21.10's
+IntegerValue.set does not have — both fixed, tests updated.
+637 feature_catalog.rs: the mechanical publish wrongly dropped
+flower/no_bonemeal_flower/random_patch from the nested-feature
+expansion (RandomPatchConfiguration has the field in 1.21.10) —
+restored. Six verified carry-overs: 491 (component renumbering,
+swing/kinetic/use_effects absent from 1.21.10), 511
+(painting/variant id 89; no sign-text components in 1.21.10),
+588 (no Nautilus in 1.21.10), 597 (turtle hatch 1-in-500
+fallback, no timeline gate), 615 (shipwreck saves no height
+state), 625 (ItemAttributeModifiers.compute filters by slot
+only). One noted gap, item 157's: datapack dimensions parse
+with no timelines, so the turtle dawn window never applies to
+them in the Rust.
+
+CI runs 45371920187 (rank 3 batch 3, ee286d72) and 45372546811
+(rank 3 batch 5, 6f884304): both FAILURE on the same single
+test, `the_layout_matches_vanilla_at_854_by_480` — a batch-3
+regression from item 505's ROW_WIDTH change (350 -> 310): the
+test pinned the 350-wide coordinates. The expectations are
+updated to the 310-wide layout (row_left 58.0, button_xs
+166/226/286; the footer is width-independent). Everything
+else in both runs was green, including the batch-3 ports'
+own tests.
+
+Rank 3 batch 6, part 1 (item 592, rank 3 201 -> 202, 666/719):
+the /stopwatch system is 1.21.11-only (StopwatchCommand is in
+1.21.11's jar, absent from both 1.21.10 jars) and it executed
+in the 1.21.10 tree, so it is removed whole: the command tree,
+the handler, the /execute condition, the Stopwatches store and
+its save file, the registry list, and the datafix variant.
+(The stopwatches.rs deletion landed in the layout-test fix
+commit a8cadd9a via a staged `git rm`; this commit carries the
+rest of the removal, so the tip compiles again.)
+
+Rank 3 batch 6, part 2 (9 items + the 592 residual, rank 3
+202 -> 211 COMPLETE, 675/719): the widely-named items. The
+residual was verified with a fresh semantic diff over the
+changed classes in groups 592/606/675 (120 classes, 732
+methods: 618 same, 113 real, 1 missing-old — the private
+ItemCommands#getEntityItem helper, behaviour covered). Two
+ports from it, both in 592: /worldborder time args are plain
+integers in 1.21.10 (not Time arguments), and setSize feedback
+passes the raw double (Double.toString), not %.1f. The rest
+is renames (permissions, Identifier, criterion, GameRules,
+ldc/ldc_w), already-ported work (SetSpawn's wrap/clamp, the
+anger NBT, items 91/544's texture metadata), or code the Rust
+already matches (allowSelectors as permission >= 2, the local
+coordinate basis, the strict path-segment charset, the
+predicate JSON shape). 549/572/573/584/606/617/639/640/675
+all close as carry-over. Rank 3 is complete.
+
+Rank 4 (42 items, 675 -> 717/719) and rank 5 (2 items, 717 ->
+719/719): COMPLETE. Rank 4 is the new-classes groups —
+1.21.10-only classes, verified one group at a time rather than
+trusted on triage's "(0 already named)". The verifications
+that matter: 686, the villager schedules match 1.21.10's
+Schedule data exactly (javap); 677/680/708, covered by items
+618/475; 689, covered by item 58; 693/705/707/710, the
+PermissionSource/ResourceLocation renames; 687, a false
+name-match (profiling spans) — the real item-model spans
+render identically per-pixel; 716, zero 1.21.10 vanilla
+biomes carry a `particle` field, so the empty ambient table
+is correct (a datapack-only gap, folded into open item 351);
+678, the easing solver is dead on 1.21.10 data (no EasingType,
+no timelines) and its doc comment wrongly cited 1.21.10's
+EasingType — corrected. Rank 5 acknowledges the unported
+classes (1 new, 1044 changed/removed) as by design: Horizon
+mirrors none of them. The behaviour port is complete at
+719/719.
+
+CI runs 45375747364 (layout-test fix + stopwatch removal,
+d1fcc1bf), 45376255422 (rank 3 complete, 5e33faed) and
+45376855229 (ranks 4-5, b3cd0028): all SUCCESS, all suites
+green. The behaviour port is complete at 719/719 with a
+green CI proof on the tip.

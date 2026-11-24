@@ -144,12 +144,20 @@ impl Game<'_> {
     }
     /// `ChestBlockEntity.playSound` for a chest the recheck closed.
     fn golem_chest_sound(&mut self, p: [i32; 3], open: bool) {
-        let name = self
-            .res
-            .facts()
-            .get(self.world.block(p[0], p[1], p[2]))
-            .name
-            .clone();
+        let block = self.world.block(p[0], p[1], p[2]);
+        // A left half is silent; a right half plays from the middle of the
+        // pair (`playSound` skips LEFT and offsets RIGHT by the connected
+        // direction).
+        let chest_type = self
+            .pack
+            .assets
+            .registry
+            .state(block)
+            .and_then(|s| s.properties.get("type").cloned());
+        if chest_type.as_deref() == Some("left") {
+            return;
+        }
+        let name = self.res.facts().get(block).name.clone();
         let base = name
             .trim_start_matches("minecraft:")
             .trim_start_matches("waxed_");
@@ -163,11 +171,17 @@ impl Game<'_> {
             "copper_chest"
         };
         let side = if open { "open" } else { "close" };
-        let at = [
+        let mut at = [
             f64::from(p[0]) + 0.5,
             f64::from(p[1]) + 0.5,
             f64::from(p[2]) + 0.5,
         ];
+        if chest_type.as_deref() == Some("right")
+            && let Some(o) = self.chest_other_half((p[0], p[1], p[2]))
+        {
+            at[0] += f64::from(o.0 - p[0]) * 0.5;
+            at[2] += f64::from(o.2 - p[2]) * 0.5;
+        }
         let pitch = self.world.random.next_float() * 0.1 + 0.9;
         self.audio.play(
             &format!("minecraft:block.{kind}.{side}"),
@@ -227,7 +241,9 @@ impl Game<'_> {
         self.golem_drop_equipment(m);
         m.extra.opened_chest = None;
         if m.extra.leash.is_some() {
-            self.break_leash(m.id, true, false);
+            // `turnToStatue`: the lead drops only with entity drops on
+            // (RULE_DOENTITYDROPS in 1.21.10, ENTITY_DROPS in 1.21.11).
+            self.break_leash(m.id, self.ui.rules.bool("entity_drops"), false);
             m.extra.leash = None;
         }
         m.removed = true;
@@ -300,19 +316,72 @@ impl Game<'_> {
         }
     }
     // ---- interactions -----------------------------------------------------
-    /// `WeatheringCopperGolemStatueBlock.useItemOn`: an axe on an unoxidized
-    /// statue turns it back into a golem (`CopperGolemStatueBlockEntity.removeStatue`),
+    /// `WeatheringCopperGolemStatueBlock.useItemOn`: any hand but an axe (or
+    /// honeycomb, which passes through to wax) cycles the pose
+    /// (`CopperGolemStatueBlock.updatePose`); an axe on an unoxidized statue
+    /// turns it back into a golem (`CopperGolemStatueBlockEntity.removeStatue`),
     /// wearing the axe. Weathered statues are scraped by the axe's own
     /// transform instead.
     pub(super) fn use_golem_statue(&mut self, pos: [i32; 3], held: Option<&ItemStack>) -> bool {
-        if !held.is_some_and(|s| s.item.ends_with("_axe")) {
-            return false;
-        }
         let registry = self.pack.assets.registry;
         let Some(state) = registry.state(self.world.block(pos[0], pos[1], pos[2])) else {
             return false;
         };
-        if state.name != "minecraft:copper_golem_statue" {
+        // Every statue block, waxed or not, cycles its pose.
+        let base = state
+            .name
+            .trim_start_matches("minecraft:")
+            .trim_start_matches("waxed_");
+        if !base.ends_with("copper_golem_statue") {
+            return false;
+        }
+        if !held.is_some_and(|s| s.item.ends_with("_axe")) {
+            if held.is_some_and(|s| &*s.item == "minecraft:honeycomb") {
+                return false;
+            }
+            // `Pose.getNextPose`: standing -> sitting -> running -> star ->
+            // standing, with the become-statue sound and a BLOCK_CHANGE event.
+            let poses = ["standing", "sitting", "running", "star"];
+            let current = state
+                .properties
+                .get("copper_golem_pose")
+                .map(String::as_str)
+                .unwrap_or("standing");
+            let next = poses
+                .iter()
+                .position(|p| *p == current)
+                .map_or(0, |i| (i + 1) % poses.len());
+            let mut next_state = state.clone();
+            next_state
+                .properties
+                .insert("copper_golem_pose".to_string(), poses[next].to_string());
+            if let Some(id) = registry.id(&next_state) {
+                let _ = self.level_set(pos, id);
+            }
+            let at = [
+                f64::from(pos[0]) + 0.5,
+                f64::from(pos[1]) + 0.5,
+                f64::from(pos[2]) + 0.5,
+            ];
+            self.audio.play(
+                "minecraft:entity.copper_golem_become_statue",
+                Some(at),
+                1.0,
+                1.0,
+            );
+            self.post_block_game_event(
+                "minecraft:block_change",
+                pos,
+                Some(horizon_client::mobs::Who::Player),
+                None,
+            );
+            return true;
+        }
+        // Only an unaffected statue turns back (`getAge() == UNAFFECTED`) —
+        // waxed or not.
+        if state.name != "minecraft:copper_golem_statue"
+            && state.name != "minecraft:waxed_copper_golem_statue"
+        {
             return false;
         }
         // `Direction.toYRot` of the statue's facing.
@@ -422,6 +491,9 @@ impl Game<'_> {
                 let p = self.mobs[index].position;
                 self.spawn_at_location(p, 1.5, a);
             }
+            // `CopperGolem.mobInteract`: `gameEvent(GameEvent.SHEAR, player)`.
+            let ctx = self.who_context(Some(horizon_client::mobs::Who::Player), None);
+            self.post_game_event("minecraft:shear", at, ctx);
             self.damage_held_tool();
             return true;
         }

@@ -107,8 +107,9 @@ impl Game<'_> {
         s.properties.insert("charges".into(), charges.to_string());
         self.pack.assets.registry.resolve(&s).ok()
     }
-    /// `RespawnAnchorBlock.canSetSpawn`: the `respawn_anchor_works` attribute
-    /// (only the Nether's dimension type sets it).
+    /// `RespawnAnchorBlock.canSetSpawn`: the dimension type's `respawnAnchorWorks`
+    /// (only the Nether's dimension type sets it). 1.21.11 reads the
+    /// `RESPAWN_ANCHOR_WORKS` environment attribute instead.
     pub(super) fn anchor_works(&self) -> bool {
         self.dimension_type().respawn_anchor_works
     }

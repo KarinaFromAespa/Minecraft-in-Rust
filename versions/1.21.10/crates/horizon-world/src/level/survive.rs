@@ -44,7 +44,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 self.sturdy(rel(pos, facing.opposite()), facing)
             }
             Class::BambooSapling | Class::BambooStalk => {
-                b.in_set(self.below_state(pos), &t.supports_bamboo)
+                b.in_set(self.below_state(pos), &t.bamboo_plantable_on)
             }
             Class::Banner | Class::Cake | Class::CandleCake | Class::StandingSign => {
                 b.is_solid(self.below_state(pos))
@@ -68,19 +68,23 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 let below = self.below_state(pos);
                 b.is_block(below, block)
                     || b.is_block(below, n.big_dripleaf_stem)
-                    || b.in_set(below, &t.supports_big_dripleaf)
+                    || b.in_set(below, &t.big_dripleaf_placeable)
             }
             Class::BigDripleafStem => {
                 let below = self.below_state(pos);
                 let above = self.above_state(pos);
-                (b.is_block(below, block) || b.in_set(below, &t.supports_big_dripleaf))
+                (b.is_block(below, block) || b.in_set(below, &t.big_dripleaf_placeable))
                     && (b.is_block(above, block) || b.is_block(above, n.big_dripleaf))
             }
             Class::BubbleColumn => {
                 let below = self.below_state(pos);
+                // `BubbleColumnBlock.canSurvive` in 1.21.10: the block
+                // below is a bubble column, magma or soul sand,
+                // hardcoded (26.1 reads the `enables_bubble_column_*`
+                // tags instead, gone in 1.21.10).
                 b.is_block(below, block)
-                    || b.in_set(below, &t.enables_bubble_column_push_up)
-                    || b.in_set(below, &t.enables_bubble_column_drag_down)
+                    || b.is_block(below, n.magma_block)
+                    || b.is_block(below, n.soul_sand)
             }
             Class::Cactus => {
                 for direction in HORIZONTAL {
@@ -90,7 +94,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     }
                 }
                 let below = self.below_state(pos);
-                (b.is_block(below, block) || b.in_set(below, &t.supports_cactus))
+                // `CactusBlock.mayPlaceOn` in 1.21.10: cactus or the sand
+                // tag (26.1 renamed it `supports_cactus`).
+                (b.is_block(below, block) || b.in_set(below, &t.sand))
                     && !b.liquid(self.above_state(pos))
             }
             Class::Carpet => !self.is_empty_block(below(pos)),
@@ -99,7 +105,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             }
             Class::ChorusFlower => {
                 let below = self.below_state(pos);
-                if b.is_block(below, n.chorus_plant) || b.in_set(below, &t.supports_chorus_flower) {
+                // `ChorusFlowerBlock.canSurvive` in 1.21.10: chorus plant or
+                // end stone, hardcoded (26.1 moved end stone into the
+                // `supports_chorus_flower` tag, which held only it).
+                if b.is_block(below, n.chorus_plant) || b.is_block(below, n.end_stone) {
                     return Some(true);
                 }
                 if !b.is_air(below) {
@@ -129,12 +138,14 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                             return Some(false);
                         }
                         let under = self.below_state(neighbour_pos);
-                        if b.is_block(under, block) || b.in_set(under, &t.supports_chorus_plant) {
+                        // 1.21.10 hardcodes end stone (26.1 reads the
+                        // `supports_chorus_plant` tag, which held only it).
+                        if b.is_block(under, block) || b.is_block(under, n.end_stone) {
                             return Some(true);
                         }
                     }
                 }
-                b.is_block(below_state, block) || b.in_set(below_state, &t.supports_chorus_plant)
+                b.is_block(below_state, block) || b.is_block(below_state, n.end_stone)
             }
             Class::Cocoa => b.in_set(self.rel_state(pos, b.facing(state)), &t.supports_cocoa),
             Class::Crop => {
@@ -193,7 +204,15 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             Class::PistonHead => self.piston_head_can_survive(state, pos),
             Class::Farmland => {
                 let above = self.above_state(pos);
-                !b.is_solid(above) || b.in_set(above, &t.maintains_farmland)
+                // `FarmBlock.canSurvive` in 1.21.10: not solid, or a fence
+                // gate or a moving piston, hardcoded (26.1 consults the
+                // `maintains_farmland` tag, which 26.1's data extends with
+                // both; 1.21.10's tag holds only crops, so the tag read
+                // dropped farmland under a fence gate). The moisture tick
+                // still reads the tag (see `tick.rs`): both versions do.
+                !b.is_solid(above)
+                    || b.in_set(above, &t.fence_gates)
+                    || b.is_block(above, b.named.moving_piston)
             }
             Class::Fire => {
                 self.sturdy(below(pos), Direction::Up) || self.is_valid_fire_location(pos)
@@ -263,7 +282,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             Class::Mushroom => {
                 let below_pos = below(pos);
                 let below_state = self.state(below_pos);
-                if b.in_set(below_state, &t.overrides_mushroom_light_requirement) {
+                if b.in_set(below_state, &t.mushroom_grow_block) {
                     true
                 } else {
                     self.raw_brightness(pos, 0) < 13
@@ -304,7 +323,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                             && b.table.int(below_state, p.layers) == 8)
                 }
             }
-            Class::Speleothem => {
+            Class::Speleothem | Class::PointedDripstone => {
                 let tip = b
                     .table
                     .dir(state, p.vertical_direction)
@@ -372,24 +391,40 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let data = b.data(state);
         for class in &data.chain {
             let result = match class {
-                Class::AttachedStem | Class::NetherFungus | Class::NetherRoots | Class::Stem => {
-                    data.support_tag
-                        .as_ref()
-                        .is_some_and(|tag| b.in_set(ground, tag))
-                }
+                // `StemBlock`/`AttachedStemBlock.mayPlaceOn`: farmland only in
+                // 1.21.10 (the `stemSupportBlocks`/`supportBlocks` tag fields
+                // are gone); the fungus/root classes keep their tag until
+                // their own item lands (FungusBlock/RootsBlock, item 757).
+                Class::AttachedStem | Class::Stem => b.is_block(ground, b.named.farmland),
+                Class::NetherFungus | Class::NetherRoots => data
+                    .support_tag
+                    .as_ref()
+                    .is_some_and(|tag| b.in_set(ground, tag)),
                 Class::Azalea => b.in_set(ground, &t.supports_azalea),
                 Class::CactusFlower => {
                     let below = self.state(ground_pos);
                     b.in_set(below, &t.support_override_cactus_flower)
                         || b.is_face_sturdy_center(below, Direction::Up)
                 }
-                Class::Crop | Class::PitcherCrop => b.in_set(ground, &t.supports_crops),
-                Class::DryVegetation => b.in_set(ground, &t.supports_dry_vegetation),
+                // `CropBlock`/`PitcherCropBlock.mayPlaceOn` in 1.21.10:
+                // farmland, hardcoded (the `supports_crops` tag is gone; it
+                // held only farmland).
+                Class::Crop | Class::PitcherCrop => b.is_block(ground, b.named.farmland),
+                // `DryVegetationBlock.mayPlaceOn` in 1.21.10: the
+                // `dry_vegetation_may_place_on` tag (26.1 renamed it
+                // `supports_dry_vegetation`).
+                Class::DryVegetation => b.in_set(ground, &t.dry_vegetation_may_place_on),
+                // `WaterlilyBlock.mayPlaceOn` in 1.21.10: the fluid below
+                // is water, or the ground is an `IceBlock` (ice or frosted
+                // ice; packed and blue ice are plain `Block`), and the
+                // fluid above is empty (26.1 reads the `supports_lily_pad`
+                // tags instead, both gone in 1.21.10).
                 Class::LilyPad => {
                     let fluid = self.fluid_at(ground_pos);
                     let above = self.fluid_at(above(ground_pos));
-                    (b.fluid_in(fluid.kind(), b.fluid_tags.supports_lily_pad)
-                        || b.in_set(ground, &t.supports_lily_pad))
+                    (b.fluid_in(fluid.kind(), b.fluid_tags.water)
+                        || b.is_block(ground, b.named.ice)
+                        || b.is_block(ground, b.named.frosted_ice))
                         && above.kind() == crate::fluid::FluidKind::Empty
                 }
                 Class::MangrovePropagule => b.in_set(ground, &t.supports_mangrove_propagule),
@@ -407,12 +442,27 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                         && !b.in_set(ground, &t.cannot_support_seagrass)
                 }
                 Class::SmallDripleaf => {
-                    b.in_set(ground, &t.supports_small_dripleaf)
+                    b.in_set(ground, &t.small_dripleaf_placeable)
                         || (self.fluid_at(above(ground_pos)) == crate::fluid::FluidState::WATER
-                            && b.in_set(ground, &t.supports_vegetation))
+                            && (b.in_set(ground, &t.dirt) || b.is_block(ground, b.named.farmland)))
                 }
-                Class::WitherRose => b.in_set(ground, &t.supports_wither_rose),
-                Class::Vegetation => b.in_set(ground, &t.supports_vegetation),
+                // `WitherRoseBlock.mayPlaceOn` in 1.21.10: its parent's
+                // check (the dirt tag or farmland) or netherrack, soul
+                // sand or soul soil (26.1 reads the `supports_wither_rose`
+                // tag instead, gone in 1.21.10).
+                Class::WitherRose => {
+                    b.in_set(ground, &t.dirt)
+                        || b.is_block(ground, b.named.farmland)
+                        || b.is_block(ground, b.named.netherrack)
+                        || b.is_block(ground, b.named.soul_sand)
+                        || b.is_block(ground, b.named.soul_soil)
+                }
+                // `VegetationBlock.mayPlaceOn`: the dirt tag or farmland in
+                // 1.21.10 (`BlockTags.SUPPORTS_VEGETATION` is gone; the dirt
+                // tag holds the same blocks the old tag did, farmland aside).
+                Class::Vegetation => {
+                    b.in_set(ground, &t.dirt) || b.is_block(ground, b.named.farmland)
+                }
                 _ => continue,
             };
             return result;
@@ -473,11 +523,13 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             .unwrap_or(block);
         (head, body)
     }
-    /// `GrowingPlantBlock.canAttachTo` (kelp refuses `cannot_support_kelp`).
+    /// `GrowingPlantBlock.canAttachTo` in 1.21.10: kelp refuses magma blocks,
+    /// hardcoded (26.1 moved magma into the `cannot_support_kelp` tag, which
+    /// held only it).
     fn growing_plant_can_attach_to(&self, state: BlockStateId, attached: BlockStateId) -> bool {
         let b = self.b;
         if b.instance_of(state, Class::Kelp) || b.instance_of(state, Class::KelpPlant) {
-            !b.in_set(attached, &b.tags.cannot_support_kelp)
+            !b.is_block(attached, b.named.magma_block)
         } else {
             true
         }

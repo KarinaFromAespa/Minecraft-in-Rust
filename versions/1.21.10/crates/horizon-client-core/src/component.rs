@@ -393,7 +393,7 @@ pub fn to_text_with(
             let style = object_style(o);
             let content = if let Some(t) = contents(o) {
                 t
-            } else if let Some(object) = inline_object(o, resolve, contents) {
+            } else if let Some(object) = inline_object(o) {
                 let mut text = Text::literal("\u{fffc}");
                 text.spans[0].style.inline_object = Some(object);
                 text
@@ -444,28 +444,21 @@ pub fn to_text_with(
     }
 }
 
-fn inline_object(
-    object: &serde_json::Map<String, Value>,
-    resolve: &mut dyn FnMut(&str) -> Text,
-    contents: &mut dyn FnMut(&serde_json::Map<String, Value>) -> Option<Text>,
-) -> Option<InlineObject> {
+fn inline_object(object: &serde_json::Map<String, Value>) -> Option<InlineObject> {
     let kind = object.get("object").and_then(Value::as_str);
-    let fallback = object
-        .get("fallback")
-        .map(|value| to_text_with(value, resolve, contents).plain());
+    // 1.21.10's ObjectContents has no `fallback` field (26.1 added one):
+    // the plain-text rendering is always the object's description().
     match kind {
         Some("player") | None if object.contains_key("player") => {
             let profile = object.get("player")?.clone();
-            // PlayerSprite.defaultFallback.
-            let fallback = fallback.unwrap_or_else(|| {
-                match profile
-                    .as_str()
-                    .or_else(|| profile.get("name").and_then(Value::as_str))
-                {
-                    Some(name) => format!("[{name} head]"),
-                    None => "[unknown player head]".to_owned(),
-                }
-            });
+            // PlayerSprite.description.
+            let fallback = match profile
+                .as_str()
+                .or_else(|| profile.get("name").and_then(Value::as_str))
+            {
+                Some(name) => format!("[{name} head]"),
+                None => "[unknown player head]".to_owned(),
+            };
             Some(InlineObject::Player {
                 profile,
                 hat: object.get("hat").and_then(Value::as_bool).unwrap_or(true),
@@ -479,8 +472,8 @@ fn inline_object(
                 .unwrap_or("minecraft:blocks")
                 .to_owned();
             let sprite = object.get("sprite")?.as_str()?.to_owned();
-            // AtlasSprite.defaultFallback: short names, the atlas unless blocks.
-            let fallback = fallback.unwrap_or_else(|| {
+            // AtlasSprite.description: short names, the atlas unless blocks.
+            let fallback = {
                 let short = |id: &str| match id.split_once(':') {
                     Some(("minecraft", path)) => path.to_owned(),
                     Some(_) => id.to_owned(),
@@ -491,7 +484,7 @@ fn inline_object(
                 } else {
                     format!("[{}@{}]", short(&sprite), short(&atlas))
                 }
-            });
+            };
             Some(InlineObject::Atlas {
                 atlas,
                 sprite,
@@ -623,7 +616,9 @@ mod tests {
             ]
         });
         let text = to_text(&component, &mut |_| Text::empty());
-        assert_eq!(text.plain(), "<[head] >");
+        // 1.21.10's ObjectContents has no `fallback` field: the JSON one is
+        // ignored and the plain text is the player's description.
+        assert_eq!(text.plain(), "<[elyapluggin head] >");
         assert!(matches!(
             &text.spans[1].style.inline_object,
             Some(InlineObject::Player { hat: false, .. })
@@ -636,7 +631,7 @@ mod tests {
             &text.spans[0].style.inline_object,
             Some(InlineObject::Atlas { sprite, .. }) if sprite == "minecraft:item/porkchop"
         ));
-        // ObjectContents.visit without a fallback: the sprite's defaultFallback.
+        // ObjectContents.visit: the sprite's description.
         assert_eq!(text.plain(), "[item/porkchop]");
         let head = serde_json::json!({"object": "player", "player": {"name": "Steve"}});
         assert_eq!(

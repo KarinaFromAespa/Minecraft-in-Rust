@@ -109,8 +109,6 @@ pub struct Memories {
     /// Retreats other mobs' `broadcastRetreat` asked of this one, which its
     /// next tick starts with: who to retreat from and where it stands.
     pub retreats: Vec<(Who, Vec3)>,
-    /// The spear behaviours' memories (`SPEAR_STATUS`...).
-    pub spear: super::spear_use::Memories,
     /// `ADMIRING_ITEM` set by `StartAdmiringItemIfSeen` (nothing in the off
     /// hand yet): the ticks left before it expires.
     pub seen_admire: i32,
@@ -1247,6 +1245,45 @@ impl Goal for BackUpIfTooClose {
         m.yaw = super::control::rotate_if_necessary(m.yaw, m.head_yaw, 0.0);
     }
 }
+/// `MeleeAttack`'s `isHoldingUsableProjectileWeapon`: the melee goal stays
+/// off while a crossbow is in the main hand — a crossbow piglin shoots
+/// instead of meleeing. (1.21.11's wrapper also covered the spear; piglins
+/// hold no spear in 1.21.10.)
+#[derive(Clone, Debug)]
+struct NoMeleeWithCrossbow<G>(G);
+fn holds_crossbow(m: &Mob) -> bool {
+    m.extra.main_hand.as_deref() == Some("minecraft:crossbow")
+}
+impl<G: Goal + Clone + 'static> Goal for NoMeleeWithCrossbow<G> {
+    goal_clone!();
+    fn flags(&self) -> u8 {
+        self.0.flags()
+    }
+    fn name(&self) -> &'static str {
+        self.0.name()
+    }
+    fn can_use(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
+        !holds_crossbow(m) && self.0.can_use(m, cx)
+    }
+    fn can_continue(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
+        !holds_crossbow(m) && self.0.can_continue(m, cx)
+    }
+    fn interruptable(&self) -> bool {
+        self.0.interruptable()
+    }
+    fn every_tick(&self) -> bool {
+        self.0.every_tick()
+    }
+    fn start(&mut self, m: &mut Mob, cx: &mut Cx) {
+        self.0.start(m, cx)
+    }
+    fn stop(&mut self, m: &mut Mob, cx: &mut Cx) {
+        self.0.stop(m, cx)
+    }
+    fn tick(&mut self, m: &mut Mob, cx: &mut Cx) {
+        self.0.tick(m, cx)
+    }
+}
 pub fn register_piglin(m: &mut Mob) {
     // `AbstractPiglin.<init>`: a piglin's navigation opens doors.
     m.ai.nav.can_open_doors = true;
@@ -1262,12 +1299,10 @@ pub fn register_piglin(m: &mut Mob) {
     // held item itself (it only starts while a crossbow is in the main hand).
     g.add(3, super::illager::crossbow_goal(1.0, 8.0));
     g.add(3, BackUpIfTooClose);
-    // `PiglinAi.initFightActivity`: the spear behaviours come before the melee one.
-    g.add(3, super::spear_use::PiglinSpear::new());
-    g.add(
-        3,
-        super::spear_use::NoMeleeWithSpear(MeleeAttack::new(1.0, true)),
-    );
+    // `PiglinAi.initFightActivity`: the melee attack, off while a crossbow
+    // is held. (1.21.11 adds the spear behaviours before it; piglins hold
+    // no spear in 1.21.10.)
+    g.add(3, NoMeleeWithCrossbow(MeleeAttack::new(1.0, true)));
     g.add(4, NotRiding(PiglinAvoidRepellent));
     g.add(4, GoToWantedItem);
     g.add(4, Celebrate);
@@ -1291,9 +1326,13 @@ fn time_between_hunts(m: &mut Mob) -> i32 {
         .unwrap_or(600)
 }
 /// `StartHuntingHoglin`: an adult piglin that is not angry, has not hunted
-/// recently and sees no adult piglin that has, goes for the nearest adult
+/// recently and sees no adult piglin at all, goes for the nearest adult
 /// hoglin it sees; then it and the adult piglins near it wait before the next
-/// hunt, and the others join in (`broadcastAngerTarget`).
+/// hunt, and the others join in (`broadcastAngerTarget`). 1.21.10 gates on
+/// the bare presence of the `NEAREST_VISIBLE_ADULT_PIGLINS` memory
+/// (`.map(...).isPresent()` — the `hasHuntedRecently` check is dead), where
+/// 26.1 filtered the list for a piglin that hunted recently; a piglin in a
+/// group never initiates a hunt in 1.21.10.
 #[derive(Clone, Debug)]
 struct HuntHoglin {
     found: Option<u32>,
@@ -1323,10 +1362,14 @@ impl Goal for HuntHoglin {
         let range = m.attrs.follow_range;
         let pos = Vec3::new(m.position.x, m.eye_y(), m.position.z);
         let id = m.id;
+        // 1.21.10's `StartHuntingHoglin` gates on the bare presence of the
+        // `NEAREST_VISIBLE_ADULT_PIGLINS` memory (`.map(...).isPresent()`),
+        // so ANY visible adult piglin blocks the hunt — not just one that
+        // hunted recently, as 26.1's `.filter(...)` form did.
         if cx
             .w
             .nearby(pos, range, |s| {
-                s.id != id && s.species == Species::Piglin && !s.baby && s.hunted_recently
+                s.id != id && s.species == Species::Piglin && !s.baby
             })
             .next()
             .is_some()
@@ -2025,10 +2068,11 @@ pub fn hoglin_hurt_target(m: &mut Mob, who: Who, cx: &mut Cx) {
     cx.events.push(MobEvent::Sound(sound, m.center(), 1.0, 1.0));
 }
 /// `AbstractPiglinModel.setupAnim`: the ears flap around their default angle
-/// (30 degrees for adults, 5 for babies).
+/// of 30 degrees (0.5235988 radians, the same for babies and adults — 26.1's
+/// baby piglins flapped around 5 degrees instead, via the deleted
+/// `BabyPiglinModel`/`BabyZombifiedPiglinModel`).
 pub fn ears(p: &mut Poses, s: &State) {
-    use horizon_core::geometry::trig::DEG_TO_RAD;
-    let default = if s.baby { 5.0 } else { 30.0 } * DEG_TO_RAD;
+    let default = 0.523_598_8;
     let freq = s.age * 0.1 + s.pos * 0.5;
     let amp = 0.08 + s.speed * 0.4;
     p.zrot("left_ear", -default - (freq * 1.2).mcos() * amp);
@@ -2389,11 +2433,11 @@ mod crossbow_tests {
     fn a_piglin_with_a_crossbow_shoots_instead_of_meleeing() {
         let mut m = piglin();
         assert!(format!("{:?}", m.ai.goals).contains("CrossbowAttack"));
-        assert!(!super::super::spear_use::holds_non_melee_weapon(&m));
+        assert!(!super::holds_crossbow(&m));
         m.extra.set_main_hand(Some("minecraft:crossbow".into()));
-        assert!(super::super::spear_use::holds_non_melee_weapon(&m));
+        assert!(super::holds_crossbow(&m));
         m.extra.set_main_hand(Some("minecraft:golden_sword".into()));
-        assert!(!super::super::spear_use::holds_non_melee_weapon(&m));
+        assert!(!super::holds_crossbow(&m));
     }
 
     #[test]
@@ -2668,5 +2712,135 @@ mod brute_home_tests {
         piglin.extra.off_hand = Some("minecraft:shield".into());
         stop_admiring(&mut piglin);
         assert_eq!(piglin.extra.off_hand.as_deref(), Some("minecraft:shield"));
+    }
+}
+
+#[cfg(test)]
+mod ear_tests {
+    use super::*;
+    use crate::mobs::Part;
+
+    fn ear_poses() -> Poses {
+        let ear = |name: &str| Part {
+            name: name.to_string(),
+            pose: [0.0; 9],
+            polygons: Vec::new(),
+            children: Vec::new(),
+        };
+        Poses::new(&Part {
+            name: "root".to_string(),
+            pose: [0.0; 9],
+            polygons: Vec::new(),
+            children: vec![ear("left_ear"), ear("right_ear")],
+        })
+    }
+
+    fn state(baby: bool) -> State {
+        State {
+            pos: 0.0,
+            speed: 0.0,
+            age: 0.0,
+            y_rot: 0.0,
+            x_rot: 0.0,
+            swing: 0.0,
+            baby,
+            partial: 0.0,
+        }
+    }
+
+    /// `AbstractPiglinModel.setupAnim`: at rest (frequency 0, amplitude 0.08)
+    /// a baby piglin's ears sit at the same 30 degrees as an adult's —
+    /// 1.21.10 has no 5-degree baby angle.
+    #[test]
+    fn a_baby_piglins_ears_sit_at_thirty_degrees_like_an_adults() {
+        for baby in [false, true] {
+            let mut p = ear_poses();
+            ears(&mut p, &state(baby));
+            assert_eq!(p.get("left_ear")[5], -0.603_598_77, "baby={baby}");
+            assert_eq!(p.get("right_ear")[5], 0.603_598_77, "baby={baby}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod baby_dims_tests {
+    use super::Species;
+    use crate::mobs::species::{Baby, def};
+
+    /// `Piglin.BABY_DIMENSIONS`: the adult box scaled 0.5 in 1.21.10 (26.x:
+    /// an absolute 0.49 x 0.99), eyes at 0.97.
+    #[test]
+    fn a_baby_piglin_is_half_its_adult_box() {
+        assert_eq!(def(Species::Piglin).baby_scale(), 0.5);
+        assert!(matches!(
+            def(Species::Piglin).baby,
+            Baby::Scale(0.5, Some(0.97))
+        ));
+    }
+}
+
+#[cfg(test)]
+mod hunt_tests {
+    use super::*;
+    use crate::mobs::world::with_test_world;
+    use std::sync::Arc;
+
+    /// Real mobs from the vanilla data, with their goals, at these spots;
+    /// `None` without the data.
+    fn real<const N: usize>(kinds: [&str; N], at: [[f64; 3]; N]) -> Option<[Mob; N]> {
+        let mut out = None;
+        with_test_world(&[], |_, types| {
+            let mut id = 0;
+            out = Some(std::array::from_fn(|i| {
+                id += 1;
+                let kind = Arc::new(types.types[kinds[i]].clone());
+                let mut m = Mob::new(id, kind, Vec3::new(at[i][0], at[i][1], at[i][2]), 0.0);
+                m.on_ground = true;
+                m
+            }));
+        });
+        out
+    }
+
+    fn can_hunt(m: &mut Mob, w: &MobWorld) -> bool {
+        let mut lr = LegacyRandom::new(0);
+        let mut events = Vec::new();
+        let mut cx = Cx {
+            w,
+            lr: &mut lr,
+            events: &mut events,
+        };
+        HuntHoglin::default().can_use(m, &mut cx)
+    }
+
+    /// `StartHuntingHoglin` in 1.21.10: any visible adult piglin blocks the
+    /// hunt — the other piglin here has never hunted, and the huntable hoglin
+    /// is in sight, so under 26.1's filter the hunt would start. A lone
+    /// piglin with the same hoglin in sight does start one.
+    #[test]
+    fn a_piglin_does_not_hunt_while_another_adult_piglin_is_near() {
+        let Some([mut subject, other, hoglin]) = real(
+            ["minecraft:piglin", "minecraft:piglin", "minecraft:hoglin"],
+            [[0.5, 65.0, 0.5], [0.5, 65.0, 5.5], [0.5, 65.0, 10.5]],
+        ) else {
+            return;
+        };
+        assert!(
+            !other.seen(None).hunted_recently,
+            "the other piglin never hunted"
+        );
+        assert!(hoglin.seen(None).huntable, "the hoglin is huntable");
+        with_test_world(&[other.seen(None), hoglin.seen(None)], |w, _| {
+            assert!(
+                !can_hunt(&mut subject, w),
+                "a nearby adult piglin blocks the hunt"
+            );
+        });
+        with_test_world(&[hoglin.seen(None)], |w, _| {
+            assert!(
+                can_hunt(&mut subject, w),
+                "a lone piglin hunts a hoglin in sight"
+            );
+        });
     }
 }

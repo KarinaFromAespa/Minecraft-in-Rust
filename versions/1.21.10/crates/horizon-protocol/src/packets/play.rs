@@ -1976,7 +1976,7 @@ impl Codec<Vec<(i16, Option<Hashed>)>> for ChangedSlots {
     }
 }
 packet!(
-    /// ContainerInput: 0 pickup, 1 quick move, 2 swap, 3 clone, 4 throw, 5 quick craft, 6 pickup all.
+    /// ClickType: 0 pickup, 1 quick move, 2 swap, 3 clone, 4 throw, 5 quick craft, 6 pickup all.
     ContainerClick {
         container: i32 => VarInt,
         state: i32 => VarInt,

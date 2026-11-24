@@ -787,7 +787,7 @@ impl Processor {
             "minecraft:lava_submerged_block" => Self::LavaSubmerged,
             "minecraft:blackstone_replace" => Self::BlackstoneReplace,
             "minecraft:capped" => {
-                // CappedProcessor's limit is IntProviders.POSITIVE_CODEC: a
+                // CappedProcessor's limit is IntProvider.POSITIVE_CODEC: a
                 // provider that can draw 0 or less is refused at decode.
                 let limit = IntProvider::from_json(&value["limit"].to_string())?;
                 if limit.bounds()[0] < 1 {

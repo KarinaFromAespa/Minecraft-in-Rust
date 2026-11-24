@@ -6,14 +6,18 @@
 //! as `state.getBlock() instanceof LeavesBlock` for any recognised ancestor.
 
 macro_rules! classes {
-    ($($name:ident = $java:literal,)*) => {
+    // A variant may carry a 1.21.10 alias (`| "OldName"`) when the class
+    // was renamed between 1.21.10 and the 26.x base the list was taken
+    // from; without the alias the variant never matches the exported
+    // 1.21.10 class chain and every arm on it is dead code.
+    ($($name:ident = $java:literal $(| $alt:literal)?,)*) => {
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
         #[repr(u16)]
         pub enum Class { $($name,)* }
         impl Class {
             pub const ALL: &'static [Class] = &[$(Class::$name,)*];
             pub fn from_java(name: &str) -> Option<Self> {
-                match name { $($java => Some(Class::$name),)* _ => None }
+                match name { $($java $(| $alt)? => Some(Class::$name),)* _ => None }
             }
         }
     };
@@ -148,7 +152,7 @@ classes! {
     Eyeblossom = "EyeblossomBlock",
     WitherRose = "WitherRoseBlock",
     FaceAttachedHorizontalDirectional = "FaceAttachedHorizontalDirectionalBlock",
-    Farmland = "FarmlandBlock",
+    Farmland = "FarmlandBlock" | "FarmBlock",
     Fence = "FenceBlock",
     FenceGate = "FenceGateBlock",
     FireflyBush = "FireflyBushBlock",
@@ -163,8 +167,8 @@ classes! {
     MultifaceSpreadeable = "MultifaceSpreadeableBlock",
     GlowLichen = "GlowLichenBlock",
     SculkVein = "SculkVeinBlock",
-    Snowy = "SnowyBlock",
-    SpreadingSnowy = "SpreadingSnowyBlock",
+    Snowy = "SnowyBlock" | "SnowyDirtBlock",
+    SpreadingSnowy = "SpreadingSnowyBlock" | "SpreadingSnowyDirtBlock",
     Grass = "GrassBlock",
     Mycelium = "MyceliumBlock",
     Grindstone = "GrindstoneBlock",
@@ -188,7 +192,7 @@ classes! {
     Lectern = "LecternBlock",
     Lever = "LeverBlock",
     Light = "LightBlock",
-    LilyPad = "LilyPadBlock",
+    LilyPad = "WaterlilyBlock",
     Liquid = "LiquidBlock",
     Loom = "LoomBlock",
     Magma = "MagmaBlock",
@@ -197,15 +201,15 @@ classes! {
     MovingPiston = "MovingPistonBlock",
     Mud = "MudBlock",
     Mushroom = "MushroomBlock",
-    NetherFungus = "NetherFungusBlock",
+    NetherFungus = "NetherFungusBlock" | "FungusBlock",
     NetherPortal = "NetherPortalBlock",
-    NetherRoots = "NetherRootsBlock",
+    NetherRoots = "NetherRootsBlock" | "RootsBlock",
     NetherSprouts = "NetherSproutsBlock",
     NetherWart = "NetherWartBlock",
     Note = "NoteBlock",
     Nylium = "NyliumBlock",
     Observer = "ObserverBlock",
-    Path = "PathBlock",
+    Path = "PathBlock" | "DirtPathBlock",
     AbstractSkull = "AbstractSkullBlock",
     Skull = "SkullBlock",
     WallSkull = "WallSkullBlock",
@@ -221,7 +225,7 @@ classes! {
     Pumpkin = "PumpkinBlock",
     RedStoneOre = "RedStoneOreBlock",
     RedstoneLamp = "RedstoneLampBlock",
-    RedstoneWire = "RedstoneWireBlock",
+    RedstoneWire = "RedstoneWireBlock" | "RedStoneWireBlock",
     RespawnAnchor = "RespawnAnchorBlock",
     RootedDirt = "RootedDirtBlock",
     Sapling = "SaplingBlock",
@@ -336,5 +340,19 @@ impl ClassSet {
     pub fn contains(self, class: Class) -> bool {
         let i = class as usize;
         self.0[i / 64] & (1 << (i % 64)) != 0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The 1.21.10 prepared class chain names the lily pad
+    /// `WaterlilyBlock` (26.1 renamed it `LilyPadBlock`); the boat
+    /// friction skip, the boat-breaks-pad hook and the lily-pad
+    /// survival rule all recognise it through this name.
+    #[test]
+    fn lily_pad_recognises_the_1_21_11_class_name() {
+        assert_eq!(Class::from_java("WaterlilyBlock"), Some(Class::LilyPad));
     }
 }

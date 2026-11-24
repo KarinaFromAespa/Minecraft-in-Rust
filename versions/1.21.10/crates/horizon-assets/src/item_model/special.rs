@@ -1,36 +1,30 @@
 //! `special` item models: the block-entity style renderers an item can ask
 //! for (`SpecialModelRenderers`), their codec fields and what each reads from
-//! the stack (`extractArgument`).
+//! the stack (`extractArgument`). 1.21.10's registry holds 13 types; the
+//! 26.x bell, book and end_cube kinds are absent, so a model naming one
+//! fails to decode here, as it does in vanilla. Bed, standing-sign and
+//! hanging-sign types exist in 1.21.10's registry but have no kind here yet:
+//! a model naming one fails to decode and the item falls back to the missing
+//! model (a known gap, not a 1.21.10 behaviour).
 use super::{Result, float, get, ident, object, required, string};
 use crate::json::error as err;
 use serde_json::{Map, Value, json};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum SpecialKind {
-    Bell,
     Banner {
         color: String,
-        wall: bool,
-    },
-    Book {
-        open_angle: f32,
-        page1: f32,
-        page2: f32,
     },
     Conduit,
     Chest {
         texture: String,
         openness: f32,
-        chest_type: String,
     },
     CopperGolemStatue {
         texture: String,
         pose: String,
     },
     DecoratedPot,
-    EndCube {
-        effect: String,
-    },
     Head {
         kind: String,
         texture: Option<String>,
@@ -40,6 +34,7 @@ pub enum SpecialKind {
     ShulkerBox {
         texture: String,
         openness: f32,
+        orientation: String,
     },
     Shield,
     Trident,
@@ -88,27 +83,19 @@ impl SpecialModel {
         let m = object(v)?;
         let float_or = |key: &str, default: f32| get(m, key).map_or(Ok(default), float);
         let kind = match ident(required(m, "type")?)?.as_str() {
-            "minecraft:bell" => SpecialKind::Bell,
+            // 1.21.10's banner codec holds only `color`: the 26.x `attachment`
+            // field is gone (`BannerRenderer.submitSpecial` takes no
+            // attachment), so a model naming one renders standing.
             "minecraft:banner" => SpecialKind::Banner {
                 color: one_of(required(m, "color")?, &DYES)?,
-                wall: match get(m, "attachment") {
-                    None => false,
-                    Some(a) => one_of(a, &["wall", "ground"])? == "wall",
-                },
-            },
-            "minecraft:book" => SpecialKind::Book {
-                open_angle: float(required(m, "open_angle")?)?,
-                page1: float(required(m, "page1")?)?,
-                page2: float(required(m, "page2")?)?,
             },
             "minecraft:conduit" => SpecialKind::Conduit,
+            // 1.21.10's chest codec holds only `texture` and `openness`:
+            // the 26.x `chest_type` field is gone (bake always uses
+            // `ModelLayers.CHEST`), so a model naming one renders single.
             "minecraft:chest" => SpecialKind::Chest {
                 texture: ident(required(m, "texture")?)?,
                 openness: float_or("openness", 0.0)?,
-                chest_type: match get(m, "chest_type") {
-                    None => "single".to_owned(),
-                    Some(t) => one_of(t, &["single", "left", "right"])?,
-                },
             },
             "minecraft:copper_golem_statue" => SpecialKind::CopperGolemStatue {
                 texture: ident(required(m, "texture")?)?,
@@ -118,9 +105,6 @@ impl SpecialModel {
                 )?,
             },
             "minecraft:decorated_pot" => SpecialKind::DecoratedPot,
-            "minecraft:end_cube" => SpecialKind::EndCube {
-                effect: one_of(required(m, "effect")?, &["portal", "gateway"])?,
-            },
             "minecraft:head" => SpecialKind::Head {
                 kind: one_of(
                     required(m, "kind")?,
@@ -141,6 +125,11 @@ impl SpecialModel {
             "minecraft:shulker_box" => SpecialKind::ShulkerBox {
                 texture: ident(required(m, "texture")?)?,
                 openness: float_or("openness", 0.0)?,
+                // 1.21.10 has `orientation` (default up); 26.x had none.
+                orientation: match get(m, "orientation") {
+                    None => "up".to_owned(),
+                    Some(o) => one_of(o, &["down", "up", "north", "south", "west", "east"])?,
+                },
             },
             "minecraft:shield" => SpecialKind::Shield,
             "minecraft:trident" => SpecialKind::Trident,
@@ -155,36 +144,15 @@ impl SpecialModel {
             m.insert(k.to_owned(), v);
         };
         let ty = match &self.kind {
-            SpecialKind::Bell => "bell",
-            SpecialKind::Banner { color, wall } => {
+            SpecialKind::Banner { color } => {
                 put("color", json!(color));
-                if *wall {
-                    put("attachment", json!("wall"));
-                }
                 "banner"
             }
-            SpecialKind::Book {
-                open_angle,
-                page1,
-                page2,
-            } => {
-                put("open_angle", json!(open_angle));
-                put("page1", json!(page1));
-                put("page2", json!(page2));
-                "book"
-            }
             SpecialKind::Conduit => "conduit",
-            SpecialKind::Chest {
-                texture,
-                openness,
-                chest_type,
-            } => {
+            SpecialKind::Chest { texture, openness } => {
                 put("texture", json!(texture));
                 if *openness != 0.0 {
                     put("openness", json!(openness));
-                }
-                if chest_type != "single" {
-                    put("chest_type", json!(chest_type));
                 }
                 "chest"
             }
@@ -194,10 +162,6 @@ impl SpecialModel {
                 "copper_golem_statue"
             }
             SpecialKind::DecoratedPot => "decorated_pot",
-            SpecialKind::EndCube { effect } => {
-                put("effect", json!(effect));
-                "end_cube"
-            }
             SpecialKind::Head {
                 kind,
                 texture,
@@ -213,10 +177,17 @@ impl SpecialModel {
                 "head"
             }
             SpecialKind::PlayerHead => "player_head",
-            SpecialKind::ShulkerBox { texture, openness } => {
+            SpecialKind::ShulkerBox {
+                texture,
+                openness,
+                orientation,
+            } => {
                 put("texture", json!(texture));
                 if *openness != 0.0 {
                     put("openness", json!(openness));
+                }
+                if orientation != "up" {
+                    put("orientation", json!(orientation));
                 }
                 "shulker_box"
             }
@@ -255,5 +226,97 @@ impl SpecialModel {
             }
             _ => Value::Null,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn banner_and_chest_ignore_the_fields_1_21_11_dropped() {
+        // 26.x codecs held `attachment` (banner) and `chest_type` (chest);
+        // 1.21.10's hold neither, so a model naming one decodes as if the
+        // field were absent: standing banner, single chest.
+        let banner = SpecialModel::decode(&serde_json::json!({
+            "type": "minecraft:banner",
+            "color": "red",
+            "attachment": "wall",
+        }))
+        .unwrap();
+        assert_eq!(
+            banner.kind,
+            SpecialKind::Banner {
+                color: "red".to_owned()
+            }
+        );
+        assert_eq!(
+            banner.to_json(),
+            serde_json::json!({"type": "minecraft:banner", "color": "red"})
+        );
+        let chest = SpecialModel::decode(&serde_json::json!({
+            "type": "minecraft:chest",
+            "texture": "minecraft:normal",
+            "chest_type": "left",
+        }))
+        .unwrap();
+        assert_eq!(
+            chest.kind,
+            SpecialKind::Chest {
+                texture: "minecraft:normal".to_owned(),
+                openness: 0.0,
+            }
+        );
+        assert_eq!(
+            chest.to_json(),
+            serde_json::json!({"type": "minecraft:chest", "texture": "minecraft:normal"})
+        );
+    }
+
+    #[test]
+    fn shulker_orientation_defaults_to_up_and_round_trips() {
+        let plain = SpecialModel::decode(&serde_json::json!({
+            "type": "minecraft:shulker_box",
+            "texture": "minecraft:shulker_white",
+        }))
+        .unwrap();
+        assert_eq!(
+            plain.kind,
+            SpecialKind::ShulkerBox {
+                texture: "minecraft:shulker_white".to_owned(),
+                openness: 0.0,
+                orientation: "up".to_owned(),
+            }
+        );
+        assert_eq!(
+            plain.to_json(),
+            serde_json::json!({
+                "type": "minecraft:shulker_box",
+                "texture": "minecraft:shulker_white",
+            })
+        );
+        let east = SpecialModel::decode(&serde_json::json!({
+            "type": "minecraft:shulker_box",
+            "texture": "minecraft:shulker_white",
+            "orientation": "east",
+        }))
+        .unwrap();
+        assert_eq!(
+            east.kind,
+            SpecialKind::ShulkerBox {
+                texture: "minecraft:shulker_white".to_owned(),
+                openness: 0.0,
+                orientation: "east".to_owned(),
+            }
+        );
+        assert_eq!(east.to_json()["orientation"], serde_json::json!("east"));
+        assert!(
+            SpecialModel::decode(&serde_json::json!({
+                "type": "minecraft:shulker_box",
+                "texture": "minecraft:shulker_white",
+                "orientation": "sideways",
+            }))
+            .is_err()
+        );
     }
 }

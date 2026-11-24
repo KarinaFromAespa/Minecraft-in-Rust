@@ -1,5 +1,7 @@
 //! `CommandStorage`: named compounds for `/data ... storage <id>`, kept per
-//! namespace in `data/<namespace>/command_storage.dat`.
+//! namespace in `data/command_storage_<namespace>.dat` (1.21.10's
+//! `DimensionDataStorage` layout; 26.x moved them to
+//! `data/<namespace>/command_storage.dat`).
 use crate::save;
 use horizon_world::nbt::{Compound, Tag};
 use std::{
@@ -18,20 +20,25 @@ fn split_id(id: &str) -> (&str, &str) {
 }
 fn file(root: &Path, namespace: &str) -> PathBuf {
     root.join("data")
-        .join(namespace)
-        .join("command_storage.dat")
+        .join(format!("command_storage_{namespace}.dat"))
 }
 impl CommandStorage {
-    /// Read every `data/<namespace>/command_storage.dat` under a world.
+    /// Read every `data/command_storage_<namespace>.dat` under a world.
     pub fn load(root: &Path) -> Self {
         let mut s = Self::default();
-        let Ok(dirs) = std::fs::read_dir(root.join("data")) else {
+        let Ok(entries) = std::fs::read_dir(root.join("data")) else {
             return s;
         };
-        for dir in dirs.flatten() {
-            let namespace = dir.file_name().to_string_lossy().into_owned();
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let Some(namespace) = name
+                .strip_prefix("command_storage_")
+                .and_then(|n| n.strip_suffix(".dat"))
+            else {
+                continue;
+            };
             let Some(data) =
-                save::read_dat(&file(root, &namespace)).and_then(|t| t.get("data").cloned())
+                save::read_dat(&entry.path()).and_then(|t| t.get("data").cloned())
             else {
                 continue;
             };
@@ -40,7 +47,7 @@ impl CommandStorage {
                     .iter()
                     .map(|(k, v)| (k.to_string_lossy(), v.clone()))
                     .collect();
-                s.namespaces.insert(namespace, map);
+                s.namespaces.insert(namespace.to_owned(), map);
             }
         }
         s

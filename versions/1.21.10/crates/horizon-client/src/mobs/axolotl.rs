@@ -17,7 +17,12 @@ pub fn prey_eligible(
 ) -> bool {
     distance <= 64.0 && water && (hostile || hunt && !cooldown) && attackable
 }
-/// Preserve the ordered random draws in Axolotl.hurtServer, even out of water.
+/// Axolotl.hurtServer draws its two play-dead rolls from the level random in
+/// 1.21.10 (`level().random.nextInt(3)`); 26.1 drew them from the entity
+/// random. The Rust still draws from the mob's random: the damage pipeline
+/// (`Mob::damage` and its callers) carries no level random, and threading one
+/// through it is a cross-cutting refactor, not this item's fix. The ordered
+/// draws are preserved either way, even out of water.
 fn roll_play_dead(
     random: &mut impl RandomSource,
     no_ai: bool,
@@ -73,16 +78,20 @@ pub fn on_stop_attacking(m: &Mob, w: &MobWorld, target: Who, events: &mut Vec<Mo
         events.push(MobEvent::AxolotlSupportPlayer { mob: m.id });
     }
 }
-/// BinaryAnimator(10, IN_OUT_SINE), plus the seven exclusive baby animation states.
+/// BinaryAnimator(10, IN_OUT_SINE): the four animators `tickAnimations` drives
+/// for every age in 1.21.10. 26.1 ticked seven extra baby-only keyframe states
+/// (`tickBabyAnimations`); 1.21.10 has no baby/adult split.
 #[derive(Clone, Debug, Default)]
 pub struct Animation {
     pub playing_dead: bool,
     old: [u8; 4],
     value: [u8; 4],
+    /// 26.1's baby keyframe states: nothing starts them in 1.21.10, so they
+    /// stay stopped; item 779 removes them with the model poses.
     pub states: [AnimationState; 7],
 }
 impl Animation {
-    pub fn tick(&mut self, baby: bool, water: bool, ground: bool, moving: bool, age: f32) {
+    pub fn tick(&mut self, water: bool, ground: bool, moving: bool) {
         self.old = self.value;
         let flags = [
             self.playing_dead,
@@ -96,32 +105,6 @@ impl Animation {
             } else {
                 v.saturating_sub(1)
             };
-        }
-        if baby {
-            let selected = if self.playing_dead {
-                6
-            } else if moving {
-                if water && !ground {
-                    1
-                } else if !water && ground {
-                    0
-                } else {
-                    2
-                }
-            } else if water && !ground {
-                4
-            } else if water && ground {
-                5
-            } else {
-                3
-            };
-            for (i, state) in self.states.iter_mut().enumerate() {
-                if i == selected {
-                    state.start_if_stopped(age);
-                } else {
-                    state.stop();
-                }
-            }
         }
     }
     pub fn factor(&self, i: usize, partial: f32) -> f32 {
@@ -137,10 +120,7 @@ pub fn tick_animation(m: &mut Mob) {
     }
     let moving =
         m.limb_speed > 1.0e-5 || m.yaw != m.previous_yaw || m.head_pitch != m.previous_head_pitch;
-    let baby = m.is_baby();
-    m.extra
-        .axolotl
-        .tick(baby, m.fluids.in_water, m.on_ground, moving, m.age as f32);
+    m.extra.axolotl.tick(m.fluids.in_water, m.on_ground, moving);
 }
 #[cfg(test)]
 mod axolotl_parity_tests {
@@ -184,24 +164,25 @@ mod axolotl_parity_tests {
         }
     }
     #[test]
-    fn playing_dead_eases_and_selects_exclusive_baby_pose() {
+    fn playing_dead_eases_and_no_baby_state_starts() {
         let mut x = Animation {
             playing_dead: true,
             ..Animation::default()
         };
         for _ in 0..10 {
-            x.tick(true, true, true, true, 20.0);
+            x.tick(true, true, true);
         }
         assert_eq!(x.factor(0, 1.0), 1.0);
         assert_eq!(x.factor(1, 1.0), 0.0);
-        assert_eq!(x.states.iter().filter(|s| s.started.is_some()).count(), 1);
-        assert!(x.states[6].started.is_some());
+        // 1.21.10 has no baby keyframe states: `tickAnimations` drives the
+        // four animators for every age, and nothing starts a baby state.
+        assert!(x.states.iter().all(|s| s.started.is_none()));
         x.playing_dead = false;
         for _ in 0..10 {
-            x.tick(true, true, false, true, 30.0);
+            x.tick(true, false, true);
         }
         assert_eq!(x.factor(0, 1.0), 0.0);
         assert_eq!(x.factor(1, 1.0), 1.0);
-        assert!(x.states[1].started.is_some());
+        assert!(x.states.iter().all(|s| s.started.is_none()));
     }
 }

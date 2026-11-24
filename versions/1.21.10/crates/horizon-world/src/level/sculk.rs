@@ -617,7 +617,11 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             for dy in 0..=2 {
                 for dx in -4..=4 {
                     let state = self.state(pos.offset(dx, dy, dz));
-                    if self.sculk_in_tag(state, "minecraft:sculk_growth_inhibitors") {
+                    // SculkBlock.canPlaceGrowth counts sensors and shriekers
+                    // directly; there is no growth-inhibitors tag in 1.21.10.
+                    if b.is_block(state, b.named.sculk_sensor)
+                        || b.is_block(state, b.named.sculk_shrieker)
+                    {
                         matched += 1;
                         if matched >= 3 {
                             return false;

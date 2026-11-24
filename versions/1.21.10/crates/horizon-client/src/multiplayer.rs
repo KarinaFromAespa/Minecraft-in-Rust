@@ -1057,7 +1057,7 @@ impl Screen {
         let max = self.max_length();
         crate::widgets::begin_screen(|| self.narration());
         crate::ui::menu_background(batch, atlas, 0.0, 0.0, w, h, false);
-        // GuiGraphicsExtractor.centeredText at width / 2: x - width(text) / 2.
+        // GuiGraphics.drawCenteredString at width / 2: x - width(text) / 2.
         let centered = |batch: &mut HudBatch, text: &str, y: f32, color: u32| {
             let tw = HudBatch::text_width(atlas, text);
             batch.text(atlas, text, centered_x(w, tw), y, color, true);
@@ -1090,8 +1090,9 @@ impl Screen {
                 let content = content_height(servers.len(), games.len());
                 let mut scroll = *scroll;
                 scroll.clamp(top, bottom, content);
-                // AbstractSelectionList.extractWidgetRenderState: background,
-                // the rows clipped to the list, separators, scrollbar.
+                // AbstractSelectionList.renderWidget (26.1's
+                // `extractWidgetRenderState`): background, the rows clipped
+                // to the list, separators, scrollbar.
                 crate::ui::list_background(batch, atlas, top, bottom, false);
                 let first = batch.vertices.len();
                 let pings = pings.lock().unwrap();
@@ -1310,8 +1311,9 @@ impl Screen {
                             let header = crate::lang::get_or("lanServer.title", "LAN World");
                             batch.text(atlas, &header, cx + 35.0, cy + 1.0, u32::MAX, false);
                             batch.text(atlas, &game.motd, cx + 35.0, cy + 12.0, gray, false);
-                            // NetworkServerEntry.extractContent: `hideServerAddress`
-                            // draws HIDDEN_ADDRESS_TEXT in the address's place.
+                            // NetworkServerEntry.renderContent (26.1's
+                            // `extractContent`): `hideServerAddress` draws
+                            // HIDDEN_ADDRESS_TEXT in the address's place.
                             let hidden;
                             let address = if hide_address {
                                 hidden =

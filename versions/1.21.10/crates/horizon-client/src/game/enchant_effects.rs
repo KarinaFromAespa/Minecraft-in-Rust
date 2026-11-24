@@ -167,9 +167,10 @@ impl Game<'_> {
             base,
         )
     }
-    /// `Player.attack`'s extra knockback: `getKnockback` (the weapon's knockback
-    /// enchantment, halved) plus 0.5 for a sprinting full-strength hit, and
-    /// whether the hit is that knockback attack.
+    /// `Player.attack`'s extra knockback: `causeExtraKnockback`'s power
+    /// (`getKnockback`'s knockback enchantment, halved at the call site)
+    /// plus 0.5 for a sprinting full-strength hit, and whether the hit is
+    /// that knockback attack.
     pub(super) fn extra_knockback(&mut self, target_kind: &str, scale: f32) -> (f32, bool) {
         let sprinting = self.player.as_ref().is_some_and(|p| p.sprinting);
         let enchanted = match self.held().cloned() {
@@ -300,9 +301,10 @@ impl Game<'_> {
         }
         self.post_attack_bursts(&held, &kind);
     }
-    /// `EnchantmentHelper.doPostPiercingAttackEffects`: the
+    /// `EnchantmentHelper.doLungeEffects`: the
     /// `minecraft:post_piercing_attack` effects of the weapon in hand after a
-    /// jab (Lunge's dash).
+    /// jab (Lunge's dash). The Java helper was renamed from
+    /// `doPostPiercingAttackEffects`; the effect component's id is unchanged.
     pub(super) fn post_piercing_attack(&mut self) {
         let Some(held) = self.held().cloned() else {
             return;
@@ -321,7 +323,10 @@ impl Game<'_> {
             }
         }
         // Lunge's requirements: not riding, gliding or in water, and a
-        // player outside creative with at least 7 food.
+        // player with at least 7 food, or one that may fly
+        // (`Player.lungeForwardMaybe`'s `hasEnoughFoodToDoExhaustiveManoeuvres`;
+        // 1.21.11 moved the food term out of the enchantment's data into that
+        // gate). Spectators may fly but never jab, so here may-fly is creative.
         let Some(p) = self.player.as_ref() else {
             return;
         };
@@ -379,16 +384,10 @@ impl Game<'_> {
                     p.velocity = p.velocity.add_vector(impulse);
                 }
             }
-            // The sound for the level (a list picks by level), heard by all.
+            // `PlaySoundEffect.apply`: the one sound (`soundEvent`), heard by
+            // all. (1.21.11 made it a per-level list.)
             Some("minecraft:play_sound") => {
-                let sounds: Vec<&str> = match &effect["sound"] {
-                    serde_json::Value::Array(list) => {
-                        list.iter().filter_map(|s| s.as_str()).collect()
-                    }
-                    one => one.as_str().into_iter().collect(),
-                };
-                let index = (level as usize).saturating_sub(1);
-                if let Some(sound) = sounds.get(index.min(sounds.len().saturating_sub(1))) {
+                if let Some(sound) = effect["sound"].as_str() {
                     let float = |key: &str| effect[key].as_f64().unwrap_or(1.0) as f32;
                     let at = self
                         .player

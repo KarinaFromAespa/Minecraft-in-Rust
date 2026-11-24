@@ -1,6 +1,6 @@
 //! Headless transport for the HUD parity gate: replays each case through
 //! `horizon_client::hud_layout` and writes the draw calls in vanilla's
-//! GuiGraphicsExtractor terms. Case kinds: `decorations` (crosshair,
+//! GuiGraphics terms. Case kinds: `decorations` (crosshair,
 //! hotbar, health, mount hearts, experience bar and level) and the
 //! overlays handled in `kinds`.
 #![forbid(unsafe_code)]

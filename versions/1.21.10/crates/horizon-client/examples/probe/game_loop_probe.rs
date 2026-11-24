@@ -156,8 +156,6 @@ fn limit(c: &Value, out: &mut impl Write) -> Result<()> {
             InactivityFpsLimit::Minimized
         },
         iconified: b(&c["iconified"]),
-        focused: b(&c["focused"]),
-        exclusive_fullscreen: false,
         now_ms: c["ago"].as_i64().unwrap(),
         latest_input_ms: 0,
         has_level: b(&c["level"]),

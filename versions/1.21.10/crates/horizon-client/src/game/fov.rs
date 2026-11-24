@@ -1,4 +1,4 @@
-//! Field of view (`Camera.tickFov`, `calculateFov`,
+//! Field of view (`GameRenderer.tickFov`, `GameRenderer.getFov`,
 //! `AbstractClientPlayer.getFieldOfViewModifier`), view and hurt bobbing
 //! (`GameRenderer.bobHurt`, `bobView`), the portal and Nausea spin
 //! (`GameRenderer.renderLevel`) and the spyglass (`SpyglassItem`,
@@ -86,8 +86,9 @@ impl Game<'_> {
             using,
         })
     }
-    /// `Camera.tick`: the eye height and the field-of-view modifier ease
-    /// halfway toward the player's each tick.
+    /// `Camera.tick` (the eye height) and `GameRenderer.tickFov` (the
+    /// field-of-view modifier) each ease halfway toward the player's
+    /// each tick.
     pub(super) fn tick_fov(&mut self) {
         let first_person = self.camera_type.first_person();
         let effect = self.fov_effect_scale();
@@ -130,10 +131,11 @@ impl Game<'_> {
             FogType::Water => CameraFluid::Water,
             FogType::Lava => CameraFluid::Lava,
             FogType::PowderSnow => CameraFluid::PowderSnow,
-            FogType::Atmospheric => CameraFluid::None,
+            FogType::Atmospheric | FogType::DimensionOrBoss => CameraFluid::None,
         }
     }
-    /// `Camera.calculateFov` with `modifyFovBasedOnDeathOrFluid`.
+    /// `GameRenderer.getFov(camera, partial, true)` with the death and fluid
+    /// effects.
     pub(super) fn fov_degrees(&self, partial: f32, camera: [f64; 3]) -> f32 {
         if self.studio_freecam.active {
             return self.studio_freecam.fov.clamp(1.0, 179.0);
@@ -183,7 +185,7 @@ impl Game<'_> {
             self.zoom_magnification(camera),
         )
     }
-    /// `Camera.calculateHudFov`: the first-person hand's field of view.
+    /// `GameRenderer.getFov(camera, partial, false)`: the first-person hand's field of view.
     pub(super) fn hud_fov_degrees(&self, partial: f32, camera: [f64; 3]) -> f32 {
         self.view.calculate_hud_fov(
             partial,

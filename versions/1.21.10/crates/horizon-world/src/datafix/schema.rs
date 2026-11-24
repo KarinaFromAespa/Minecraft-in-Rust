@@ -65,7 +65,6 @@ pub enum Ty {
     SavedScheduledEvents,
     SavedMapIndex,
     SavedCommandStorage,
-    SavedStopwatches,
     Options,
     DebugProfile,
 }

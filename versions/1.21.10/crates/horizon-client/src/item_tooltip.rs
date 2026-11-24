@@ -641,7 +641,12 @@ pub fn jukebox_line(
         None => info?.jukebox_song.clone()?,
     };
     let key = format!("jukebox_song.{}", song.replacen(':', ".", 1));
-    Some(translate(&key).unwrap_or(key))
+    // `EitherHolder.unwrap`: a song id the registry does not know shows no
+    // line (1.21.10), so an untranslated description key hides the line
+    // instead of showing the raw key. (A datapack song whose description is
+    // a literal rather than its `jukebox_song.*` key still shows no line —
+    // the tooltip reads the key, not the song's description.)
+    translate(&key)
 }
 
 /// `DyedItemColor.addToTooltip`: "Dyed" (italic, the flag), or with advanced
@@ -1266,6 +1271,30 @@ mod tests {
                 .iter()
                 .any(|l| l == "Music Disc - 5")
         );
+    }
+
+    #[test]
+    fn a_disc_naming_an_unknown_song_shows_no_jukebox_line() {
+        let translate =
+            |k: &str| (k == "jukebox_song.minecraft.13").then(|| "C418 - 13".to_owned());
+        let mut known = ItemStack::new("minecraft:music_disc_13", 1);
+        known.data_mut().set_other(
+            "minecraft:jukebox_playable",
+            Some(Tag::String("minecraft:13".into())),
+        );
+        let display = TooltipDisplay::for_stack(&known);
+        assert_eq!(
+            jukebox_line(&known, None, &display, &translate).as_deref(),
+            Some("C418 - 13")
+        );
+        // `EitherHolder.unwrap` fails for a song id the registry does not
+        // know: 1.21.10 shows no line, not the raw key.
+        let mut unknown = ItemStack::new("minecraft:music_disc_13", 1);
+        unknown.data_mut().set_other(
+            "minecraft:jukebox_playable",
+            Some(Tag::String("minecraft:not_a_song".into())),
+        );
+        assert_eq!(jukebox_line(&unknown, None, &display, &translate), None);
     }
 
     #[test]

@@ -1,14 +1,17 @@
-//! The 26.3 client item definitions (`assets/<ns>/items/*.json`): the model
+//! The 1.21.10 client item definitions (`assets/<ns>/items/*.json`): the model
 //! tree (`model`, `composite`, `condition`, `select`, `range_dispatch`,
 //! `special`, `bundle/selected_item`, `empty`), its properties and tints, and
 //! the resolver that turns one stack into render layers
 //! (`ItemModelResolver.updateForTopItem`).
 //!
 //! Baked geometry lives in [`crate::item_bake`]; this module decides *which*
-//! model, tints, foil and transformation each layer gets.
+//! model, tints and foil each layer gets. (1.21.10 has no per-model
+//! `transformation`: 26.x added the field to every Unbaked record and a
+//! `Transformation.compose` at bake; a pack carrying the field parses with
+//! it ignored, as DFU codecs ignore unknown fields.)
 use crate::{
     json::{DecodeError, error as err},
-    math::{Mat4, normalize_quaternion, quaternion_from_axis_angle},
+    math::Mat4,
 };
 use serde_json::{Map, Value};
 use std::{
@@ -25,10 +28,7 @@ type Result<T> = std::result::Result<T, DecodeError>;
 
 /// `BuiltInRegistries.DATA_COMPONENT_TYPE`, which `has_component` and the
 /// `component` select validate against (checked by the harness).
-pub const DATA_COMPONENT_TYPES: [&str; 122] = [
-    "minecraft:additional_trade_cost",
-    "minecraft:attack_animation",
-    "minecraft:attack_range",
+pub const DATA_COMPONENT_TYPES: [&str; 96] = [
     "minecraft:attribute_modifiers",
     "minecraft:axolotl/variant",
     "minecraft:banner_patterns",
@@ -36,38 +36,28 @@ pub const DATA_COMPONENT_TYPES: [&str; 122] = [
     "minecraft:bees",
     "minecraft:block_entity_data",
     "minecraft:block_state",
-    "minecraft:block_transformer",
     "minecraft:blocks_attacks",
     "minecraft:break_sound",
-    "minecraft:brewing_fuel",
     "minecraft:bucket_entity_data",
     "minecraft:bundle_contents",
     "minecraft:can_break",
     "minecraft:can_place_on",
     "minecraft:cat/collar",
-    "minecraft:cat/sound_variant",
     "minecraft:cat/variant",
     "minecraft:charged_projectiles",
-    "minecraft:chicken/sound_variant",
     "minecraft:chicken/variant",
-    "minecraft:compostable",
     "minecraft:consumable",
     "minecraft:container",
     "minecraft:container_loot",
-    "minecraft:cooking_fuel",
-    "minecraft:cow/sound_variant",
     "minecraft:cow/variant",
     "minecraft:creative_slot_lock",
-    "minecraft:cushion/color",
     "minecraft:custom_data",
     "minecraft:custom_model_data",
     "minecraft:custom_name",
     "minecraft:damage",
     "minecraft:damage_resistant",
-    "minecraft:damage_type",
     "minecraft:death_protection",
     "minecraft:debug_stick_state",
-    "minecraft:dye",
     "minecraft:dyed_color",
     "minecraft:enchantable",
     "minecraft:enchantment_glint_override",
@@ -83,36 +73,30 @@ pub const DATA_COMPONENT_TYPES: [&str; 122] = [
     "minecraft:horse/variant",
     "minecraft:instrument",
     "minecraft:intangible_projectile",
-    "minecraft:interact_animation",
     "minecraft:item_model",
     "minecraft:item_name",
     "minecraft:jukebox_playable",
-    "minecraft:kinetic_weapon",
     "minecraft:llama/variant",
     "minecraft:lock",
     "minecraft:lodestone_tracker",
     "minecraft:lore",
+    "minecraft:map_color",
     "minecraft:map_decorations",
     "minecraft:map_id",
     "minecraft:map_post_processing",
     "minecraft:max_damage",
     "minecraft:max_stack_size",
-    "minecraft:minimum_attack_charge",
-    "minecraft:mob_visibility",
     "minecraft:mooshroom/variant",
     "minecraft:note_block_sound",
     "minecraft:ominous_bottle_amplifier",
     "minecraft:painting/variant",
     "minecraft:parrot/variant",
-    "minecraft:piercing_weapon",
-    "minecraft:pig/sound_variant",
     "minecraft:pig/variant",
     "minecraft:pot_decorations",
     "minecraft:potion_contents",
     "minecraft:potion_duration_scale",
     "minecraft:profile",
     "minecraft:provides_banner_patterns",
-    "minecraft:provides_pottery_pattern",
     "minecraft:provides_trim_material",
     "minecraft:rabbit/variant",
     "minecraft:rarity",
@@ -122,10 +106,7 @@ pub const DATA_COMPONENT_TYPES: [&str; 122] = [
     "minecraft:salmon/size",
     "minecraft:sheep/color",
     "minecraft:shulker/color",
-    "minecraft:sign_text_back",
-    "minecraft:sign_text_front",
     "minecraft:stored_enchantments",
-    "minecraft:sulfur_cube_content",
     "minecraft:suspicious_stew_effects",
     "minecraft:tool",
     "minecraft:tooltip_display",
@@ -136,18 +117,14 @@ pub const DATA_COMPONENT_TYPES: [&str; 122] = [
     "minecraft:tropical_fish/pattern_color",
     "minecraft:unbreakable",
     "minecraft:use_cooldown",
-    "minecraft:use_effects",
     "minecraft:use_remainder",
     "minecraft:villager/variant",
-    "minecraft:villager_food",
-    "minecraft:waxed",
     "minecraft:weapon",
     "minecraft:wolf/collar",
     "minecraft:wolf/sound_variant",
     "minecraft:wolf/variant",
     "minecraft:writable_book_content",
     "minecraft:written_book_content",
-    "minecraft:zombie_nautilus/variant",
 ];
 
 // ---------------------------------------------------------------------------
@@ -315,34 +292,6 @@ fn opaque(color: i32) -> i32 {
     color | (0xFF00_0000u32 as i32)
 }
 
-/// `Transformation.EXTENDED_CODEC`.
-fn transformation(v: &Value) -> Result<Mat4> {
-    if v.is_array() {
-        return Ok(Mat4::from_row_major(vector::<16>(v)?));
-    }
-    let m = object(v)?;
-    let quaternion = |v: &Value| -> Result<[f32; 4]> {
-        if v.is_array() {
-            return Ok(normalize_quaternion(vector::<4>(v)?));
-        }
-        let o = object(v)?;
-        Ok(quaternion_from_axis_angle(
-            float(required(o, "angle")?)?,
-            vector::<3>(required(o, "axis")?)?,
-        ))
-    };
-    let translation = vector::<3>(required(m, "translation")?)?;
-    let left = quaternion(required(m, "left_rotation")?)?;
-    let scale = vector::<3>(required(m, "scale")?)?;
-    let right = quaternion(required(m, "right_rotation")?)?;
-    Ok(Mat4::translation(translation)
-        .rotate(left)
-        .scale(scale)
-        .rotate(right))
-}
-fn optional_transformation(m: &Map<String, Value>) -> Result<Option<Mat4>> {
-    get(m, "transformation").map(transformation).transpose()
-}
 /// `Mth.floor(float)` as `ARGB.as8BitChannel` uses it.
 /// `ARGB.as8BitChannel`: `Mth.floor(value * 255.0F)`.
 fn channel(v: f32) -> i32 {
@@ -383,7 +332,6 @@ impl ClientItem {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ModelLeaf {
     pub model: String,
-    pub transformation: Option<Mat4>,
     pub tints: Vec<TintSource>,
 }
 #[derive(Clone, Debug)]
@@ -392,22 +340,18 @@ pub enum ItemModelNode {
     Model(ModelLeaf),
     Composite {
         models: Vec<ItemModelNode>,
-        transformation: Option<Mat4>,
     },
     Condition {
-        transformation: Option<Mat4>,
         property: ConditionProperty,
         on_true: Box<ItemModelNode>,
         on_false: Box<ItemModelNode>,
     },
     Select {
-        transformation: Option<Mat4>,
         property: SelectProperty,
         cases: Vec<SwitchCase>,
         fallback: Option<Box<ItemModelNode>>,
     },
     RangeDispatch {
-        transformation: Option<Mat4>,
         property: NumericProperty,
         scale: f32,
         /// Sorted by threshold (a stable sort, as `bake` does).
@@ -416,7 +360,6 @@ pub enum ItemModelNode {
     },
     Special {
         base: String,
-        transformation: Option<Mat4>,
         model: SpecialModel,
     },
     BundleSelectedItem,
@@ -436,7 +379,6 @@ impl ItemModelNode {
             let property = ident(required(m, "property")?)?;
             if !property.starts_with("minecraft:") {
                 return Ok(Self::Condition {
-                    transformation: optional_transformation(m)?,
                     property: ConditionProperty::Custom(property),
                     on_true: Box::new(Self::decode(required(m, "on_true")?)?),
                     on_false: Box::new(Self::decode(required(m, "on_false")?)?),
@@ -447,7 +389,6 @@ impl ItemModelNode {
             "minecraft:empty" => Self::Empty,
             "minecraft:model" => Self::Model(ModelLeaf {
                 model: ident(required(m, "model")?)?,
-                transformation: optional_transformation(m)?,
                 tints: match get(m, "tints") {
                     None => Vec::new(),
                     Some(t) => list(t)?
@@ -461,14 +402,11 @@ impl ItemModelNode {
                     .iter()
                     .map(Self::decode)
                     .collect::<Result<_>>()?,
-                transformation: optional_transformation(m)?,
             },
-            "minecraft:condition" if foreign::property_is_foreign(m)? => foreign::wrap(
-                Self::decode(required(m, "on_false")?)?,
-                optional_transformation(m)?,
-            ),
+            "minecraft:condition" if foreign::property_is_foreign(m)? => {
+                Self::decode(required(m, "on_false")?)?
+            }
             "minecraft:condition" => Self::Condition {
-                transformation: optional_transformation(m)?,
                 property: ConditionProperty::decode(m)?,
                 on_true: Box::new(Self::decode(required(m, "on_true")?)?),
                 on_false: Box::new(Self::decode(required(m, "on_false")?)?),
@@ -476,10 +414,9 @@ impl ItemModelNode {
             "minecraft:select" if foreign::property_is_foreign(m)? => {
                 // No case can match a property Horizon cannot read.
                 let fallback = get(m, "fallback").map(Self::decode).transpose()?;
-                foreign::wrap(fallback.unwrap_or(Self::Empty), optional_transformation(m)?)
+                fallback.unwrap_or(Self::Empty)
             }
             "minecraft:select" => {
-                let transformation = optional_transformation(m)?;
                 let property = SelectProperty::decode(m)?;
                 let cases = list(required(m, "cases")?)?
                     .iter()
@@ -496,7 +433,6 @@ impl ItemModelNode {
                     seen.push(value);
                 }
                 Self::Select {
-                    transformation,
                     property,
                     cases,
                     fallback: get(m, "fallback")
@@ -524,13 +460,9 @@ impl ItemModelNode {
                     let chosen = last_index_less_or_equal(&entries, 0.0)
                         .map(|i| entries.swap_remove(i).1)
                         .or(fallback);
-                    return Ok(foreign::wrap(
-                        chosen.unwrap_or(Self::Empty),
-                        optional_transformation(m)?,
-                    ));
+                    return Ok(chosen.unwrap_or(Self::Empty));
                 }
                 Self::RangeDispatch {
-                    transformation: optional_transformation(m)?,
                     property: NumericProperty::decode(m)?,
                     scale: get(m, "scale").map_or(Ok(1.0), float)?,
                     entries,
@@ -543,13 +475,11 @@ impl ItemModelNode {
                 // The mod's own renderer is not run: the base model stands in.
                 Self::Model(ModelLeaf {
                     model: ident(required(m, "base")?)?,
-                    transformation: optional_transformation(m)?,
                     tints: Vec::new(),
                 })
             }
             "minecraft:special" => Self::Special {
                 base: ident(required(m, "base")?)?,
-                transformation: optional_transformation(m)?,
                 model: SpecialModel::decode(required(m, "model")?)?,
             },
             "minecraft:bundle/selected_item" => Self::BundleSelectedItem,
@@ -1168,8 +1098,8 @@ impl ItemModels {
             env,
         };
         match definition {
-            Some(d) => state.node(out, &d.model, &Mat4::IDENTITY),
-            None => state.missing(out, &Mat4::IDENTITY),
+            Some(d) => state.node(out, &d.model),
+            None => state.missing(out),
         }
     }
     /// `ItemModelResolver.shouldPlaySwapAnimation`.
@@ -1203,10 +1133,6 @@ struct Resolve<'a> {
     components: ComponentsView<'a>,
     ctx: &'a Context<'a>,
     env: &'a dyn ItemEnv,
-}
-
-fn compose(parent: &Mat4, own: &Option<Mat4>) -> Mat4 {
-    own.as_ref().map_or(*parent, |t| parent.mul(t))
 }
 
 impl Resolve<'_> {
@@ -1247,19 +1173,20 @@ impl Resolve<'_> {
             .and_then(|v| int(v).ok())
             .unwrap_or(1)
     }
-    fn missing(&self, out: &mut ResolvedItem, transform: &Mat4) {
+    fn missing(&self, out: &mut ResolvedItem) {
         out.layers.push(Layer {
             content: LayerContent::Missing,
             tints: Vec::new(),
             foil: FoilType::None,
-            transform: *transform,
+            // 1.21.10 has no per-model transformation: every layer is identity
+            // here, and the display transform applies at render time.
+            transform: Mat4::IDENTITY,
         });
     }
-    fn node(&mut self, out: &mut ResolvedItem, node: &ItemModelNode, parent: &Mat4) {
+    fn node(&mut self, out: &mut ResolvedItem, node: &ItemModelNode) {
         match node {
             ItemModelNode::Empty => {}
             ItemModelNode::Model(leaf) => {
-                let transform = compose(parent, &leaf.transformation);
                 let foil = if self.has_foil() {
                     if matches!(self.stack.item.as_str(), "minecraft:clock")
                         || self.item_in_compass_tag()
@@ -1278,39 +1205,31 @@ impl Resolve<'_> {
                     },
                     tints,
                     foil,
-                    transform,
+                    transform: Mat4::IDENTITY,
                 });
             }
-            ItemModelNode::Composite {
-                models,
-                transformation,
-            } => {
-                let child = compose(parent, transformation);
+            ItemModelNode::Composite { models } => {
                 for m in models {
-                    self.node(out, m, &child);
+                    self.node(out, m);
                 }
             }
             ItemModelNode::Condition {
-                transformation,
                 property,
                 on_true,
                 on_false,
             } => {
-                let child = compose(parent, transformation);
                 let chosen = if self.condition(property) {
                     on_true
                 } else {
                     on_false
                 };
-                self.node(out, chosen, &child);
+                self.node(out, chosen);
             }
             ItemModelNode::Select {
-                transformation,
                 property,
                 cases,
                 fallback,
             } => {
-                let child = compose(parent, transformation);
                 let value = self.select_value(property);
                 let chosen = value.and_then(|v| {
                     cases
@@ -1319,19 +1238,17 @@ impl Resolve<'_> {
                         .map(|c| &c.model)
                 });
                 match (chosen, fallback) {
-                    (Some(m), _) => self.node(out, m, &child),
-                    (None, Some(f)) => self.node(out, f, &child),
-                    (None, None) => self.missing(out, &child),
+                    (Some(m), _) => self.node(out, m),
+                    (None, Some(f)) => self.node(out, f),
+                    (None, None) => self.missing(out),
                 }
             }
             ItemModelNode::RangeDispatch {
-                transformation,
                 property,
                 scale,
                 entries,
                 fallback,
             } => {
-                let child = compose(parent, transformation);
                 let value = self.numeric(property) * scale;
                 let chosen = if value.is_nan() {
                     None
@@ -1339,17 +1256,12 @@ impl Resolve<'_> {
                     last_index_less_or_equal(entries, value).map(|i| &entries[i].1)
                 };
                 match (chosen, fallback) {
-                    (Some(m), _) => self.node(out, m, &child),
-                    (None, Some(f)) => self.node(out, f, &child),
-                    (None, None) => self.missing(out, &child),
+                    (Some(m), _) => self.node(out, m),
+                    (None, Some(f)) => self.node(out, f),
+                    (None, None) => self.missing(out),
                 }
             }
-            ItemModelNode::Special {
-                base,
-                transformation,
-                model,
-            } => {
-                let transform = compose(parent, transformation);
+            ItemModelNode::Special { base, model } => {
                 out.layers.push(Layer {
                     content: LayerContent::Special {
                         base: base.clone(),
@@ -1362,7 +1274,7 @@ impl Resolve<'_> {
                     } else {
                         FoilType::None
                     },
-                    transform,
+                    transform: Mat4::IDENTITY,
                 });
             }
             ItemModelNode::BundleSelectedItem => {
@@ -1380,7 +1292,7 @@ impl Resolve<'_> {
             "minecraft:compass" | "minecraft:recovery_compass"
         )
     }
-    /// `BundleItem.getSelectedItem`: the template at the selected index.
+    /// `BundleItem.getSelectedItemStack`: the template at the selected index.
     fn bundle_selected(&self) -> Option<StackView> {
         let items = self.component("minecraft:bundle_contents")?.as_array()?;
         let template = items.get(usize::try_from(self.stack.bundle_selected).ok()?)?;
@@ -1740,7 +1652,8 @@ fn custom_data_at<'a>(data: &'a Value, list: &str, index: i32) -> Option<&'a Val
 fn template_id(t: &Value) -> Option<&str> {
     t.get("id")?.as_str()
 }
-/// `ItemStackTemplate.create`: id, count and a component patch.
+/// An item stack from its `{id, count?, components?}` form (`ItemStack.CODEC`;
+/// 26.x names the same shape `ItemStackTemplate`).
 fn stack_from_template(template: &Value) -> Option<StackView> {
     let id = identifier(template.get("id")?.as_str()?).ok()?;
     let count = template.get("count").map_or(Some(1), |c| int(c).ok())?;

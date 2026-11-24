@@ -42,8 +42,8 @@ impl ProjectileWorld for ProjWorld<'_, '_> {
             None => hit,
         }
     }
-    /// Entity.updateFluidInteraction over the projectile's box, not the
-    /// block at its feet (#3072).
+    /// `Entity.updateInWaterStateAndDoFluidPushing` over the projectile's
+    /// box, not the block at its feet (#3072).
     fn in_water(&self, bounds: Aabb) -> bool {
         self.w.fluids(bounds, bounds.max_position().y).in_water
     }

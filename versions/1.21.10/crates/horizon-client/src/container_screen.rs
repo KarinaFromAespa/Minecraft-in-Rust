@@ -1,7 +1,7 @@
 //! The input handling every survival and container screen shares
 //! (`AbstractContainerScreen.mouseClicked` / `mouseReleased`): which slot id
 //! a click targets (-999 outside the window, `hasClickedOutside` with the
-//! recipe book's own rule) and which `ContainerInput` it sends. Shift is
+//! recipe book's own rule) and which `ClickType` it sends. Shift is
 //! the event's own modifiers (`InputWithModifiers.hasShiftDown`: the
 //! physical Shift keys, never the remapped or toggled sneak key). The
 //! keyboard's hotbar and off-hand keys are the same screen's

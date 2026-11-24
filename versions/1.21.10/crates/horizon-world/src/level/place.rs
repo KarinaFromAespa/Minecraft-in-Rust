@@ -353,7 +353,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
         let horizontal = ctx.horizontal_direction();
         Some(match class {
-            Class::AbstractBed => {
+            Class::AbstractBed | Class::Bed => {
                 let relative = rel(pos, horizontal);
                 if self.can_be_replaced(self.state(relative), ctx) {
                     Some(table.set_dir(default, p.facing, horizontal))
@@ -412,7 +412,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     return Some(None);
                 }
                 let below_state = self.below_state(pos);
-                if !b.in_set(below_state, &t.supports_bamboo) {
+                if !b.in_set(below_state, &t.bamboo_plantable_on) {
                     None
                 } else if b.is_block(below_state, n.bamboo_sapling) {
                     Some(table.set_int(default, p.age, 0))
@@ -1153,7 +1153,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 let snowy = b.in_set(self.above_state(pos), &t.snow);
                 Some(table.set_bool(default, p.snowy, snowy))
             }
-            Class::Speleothem => {
+            Class::Speleothem | Class::PointedDripstone => {
                 let default_tip = ctx.nearest_looking_vertical().opposite();
                 let tip = if self.is_valid_speleothem_placement(block, pos, default_tip) {
                     default_tip
@@ -1326,7 +1326,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             let neighbour = self.rel_state(pos, direction);
             let mut connect = b.is_block(neighbour, block) || b.is_block(neighbour, flower);
             if direction == Direction::Down {
-                connect |= b.in_set(neighbour, &b.tags.supports_chorus_plant);
+                // 1.21.10 hardcodes end stone (26.1 reads the
+                // `supports_chorus_plant` tag, which held only end stone).
+                connect |= b.is_block(neighbour, b.named.end_stone);
             }
             result = b
                 .table
@@ -1478,7 +1480,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let p = b.props;
         let data = b.data(state);
         let block = b.block(state);
-        if data.is(Class::AbstractBed) {
+        if data.is(Class::AbstractBed) || data.is(Class::Bed) {
             let other = rel(pos, b.facing(state));
             self.set_block_and_update(other, b.table.set_text(state, p.part, "head"));
         } else if data.is(Class::Crafter) {

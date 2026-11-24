@@ -295,10 +295,13 @@ impl Game<'_> {
                 }
                 let light = Self::display_light(&self.world, &d, position);
                 if let Some(state) = display.block {
-                    // BlockModelResolver.update: model seed 42.
+                    // BlockRenderDispatcher.renderSingleBlock ->
+                    // ModelBlockRenderer.renderModel: model seed 42.
                     self.block_model_vertices(state, 42, matrix, light, true, out);
-                    // CompositeBlockModel.update: the special model of a chest,
-                    // head, banner and the like comes on top of the block model.
+                    // SubmitNodeCollection.submitBlock: the special model of a
+                    // chest, head, banner and the like comes on top of the
+                    // block model (SpecialBlockModelRenderer.renderByBlock,
+                    // ItemDisplayContext.NONE).
                     if self
                         .res
                         .facts()

@@ -17,8 +17,8 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 /// `HeaderAndFooterLayout(this, 61, 33)`.
 const HEADER: f32 = 61.0;
 const FOOTER: f32 = 33.0;
-/// `OptionList.getRowWidth` and `ITEM_HEIGHT`.
-const ROW_WIDTH: f32 = 350.0;
+/// `OptionList.getRowWidth` and `ITEM_HEIGHT`: 310 in 1.21.10 (350 is 1.21.11's).
+const ROW_WIDTH: f32 = 310.0;
 const ITEM: f32 = 20.0;
 /// `OptionEntry.BUTTON_WIDTH`, at the CycleButtons' 16 pixels high.
 const BUTTON: f32 = 60.0;
@@ -531,7 +531,7 @@ fn debug_options_interrupts(screen: Screen, playing_overlay: bool) -> bool {
         | Screen::Mod => true,
         Screen::Chat
         | Screen::Options
-        | Screen::WorldOptions
+        | Screen::ShareToLan
         | Screen::CommandBlock
         | Screen::BlockEditor
         | Screen::Dead
@@ -564,9 +564,11 @@ mod tests {
 
     #[test]
     fn the_layout_matches_vanilla_at_854_by_480() {
-        // 854x480 at GUI scale 2 is 427x240.
-        assert_eq!(row_left(427.0), 38.0);
-        assert_eq!(button_xs(40.0), [206.0, 266.0, 326.0]);
+        // 854x480 at GUI scale 2 is 427x240. The row is 310 wide in
+        // 1.21.10 (350 in 1.21.11), so it starts 20 further right and
+        // the row buttons sit 40 further left.
+        assert_eq!(row_left(427.0), 58.0);
+        assert_eq!(button_xs(40.0), [166.0, 226.0, 286.0]);
         assert_eq!(footer(427.0, 240.0), ([2.0, 126.0, 250.0, 364.0], 213.0));
     }
 
@@ -601,7 +603,7 @@ mod tests {
             Screen::Dead,
             Screen::Chat,
             Screen::Options,
-            Screen::WorldOptions,
+            Screen::ShareToLan,
             Screen::CommandBlock,
             Screen::BlockEditor,
             Screen::Win,

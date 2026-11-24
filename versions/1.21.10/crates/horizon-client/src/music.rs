@@ -1,9 +1,9 @@
 //! Situational music: `MusicManager.tick` choosing tracks from
-//! `Minecraft.getSituationalMusic`, with the `minecraft:audio/background_music`
-//! and `minecraft:audio/music_volume` environment attributes of dimension
-//! types and biomes (a biome value overrides its dimension's).
+//! `Minecraft.getSituationalMusic`, with each biome's `effects.music`
+//! weighted list and `effects.music_volume` (a biome value overrides the
+//! `Musics.GAME` fallback; the End plays `Musics.END` / `Musics.END_BOSS`).
 use crate::options_ui::{MusicGroup, MusicTrack};
-use crate::sound_engine::{InstanceId, MUSIC, PlayResult, SoundEngine, SoundInstance, Sounds};
+use crate::sound_engine::{InstanceId, PlayResult, SoundEngine, SoundInstance, Sounds};
 use crate::sound_events::{Sentinel, SoundRegistry};
 use horizon_core::random::{LegacyRandom, RandomSource};
 use serde_json::Value;
@@ -161,43 +161,65 @@ fn biome_group(event: &str) -> (u8, &'static str) {
         (4, "horizon.pages.music.other")
     }
 }
+/// `Biome.getBackgroundMusic`: the biome's `effects.music` weighted list.
+/// `None` when the biome file has no `music` field; an empty list (pale
+/// garden) means the biome plays no music at all — the situation does not
+/// fall through to `Musics.GAME`.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct BackgroundMusic {
-    pub default: Option<Music>,
-    pub creative: Option<Music>,
-    pub underwater: Option<Music>,
+    pub music: Option<Vec<(Music, i32)>>,
 }
 impl BackgroundMusic {
+    /// `effects.music`: a bare `Music` or a list of `{data, weight}`.
     fn parse(v: &Value) -> Self {
+        if v.is_null() {
+            return Self { music: None };
+        }
+        if let Some(list) = v.as_array() {
+            return Self {
+                music: Some(
+                    list.iter()
+                        .filter_map(|e| {
+                            let m = Music::parse(&e["data"])?;
+                            Some((m, e["weight"].as_i64().unwrap_or(1) as i32))
+                        })
+                        .collect(),
+                ),
+            };
+        }
         Self {
-            default: Music::parse(&v["default"]),
-            creative: Music::parse(&v["creative"]),
-            underwater: Music::parse(&v["underwater"]),
+            music: Music::parse(v).map(|m| vec![(m, 1)]),
         }
     }
-    /// `BackgroundMusic.select`.
-    pub fn select(&self, creative: bool, underwater: bool) -> Option<&Music> {
-        if underwater && self.underwater.is_some() {
-            self.underwater.as_ref()
-        } else if creative && self.creative.is_some() {
-            self.creative.as_ref()
-        } else {
-            self.default.as_ref()
+    /// One entry by weight (`WeightedList.getRandom`); `None` for no list
+    /// or an empty one.
+    pub fn pick(&self, random: &mut LegacyRandom) -> Option<Music> {
+        let list = self.music.as_ref()?;
+        let total: i32 = list.iter().map(|(_, w)| *w).sum();
+        if total <= 0 {
+            return None;
         }
+        let mut roll = random.next_int_bound(total).unwrap_or(0);
+        for (m, w) in list {
+            roll -= *w;
+            if roll < 0 {
+                return Some(m.clone());
+            }
+        }
+        list.last().map(|(m, _)| m.clone())
     }
 }
 #[derive(Clone, Debug, Default)]
 struct Layer {
-    music: Option<BackgroundMusic>,
+    music: BackgroundMusic,
     volume: Option<f32>,
 }
 impl Layer {
     fn parse(json: &Value) -> Self {
-        let attributes = &json["attributes"];
-        let music = &attributes["minecraft:audio/background_music"];
+        let effects = &json["effects"];
         Self {
-            music: (!music.is_null()).then(|| BackgroundMusic::parse(music)),
-            volume: attributes["minecraft:audio/music_volume"]
+            music: BackgroundMusic::parse(&effects["music"]),
+            volume: effects["music_volume"]
                 .as_f64()
                 .map(|v| v.clamp(0.0, 1.0) as f32),
         }
@@ -205,25 +227,33 @@ impl Layer {
 }
 /// What `Minecraft.getSituationalMusic` and `getMusicVolume` read.
 #[derive(Clone, Debug)]
-pub struct Situation<'a> {
+pub struct Situation {
     /// `Screen.getBackgroundMusic` of the open screen.
     pub screen_music: Option<Music>,
     /// `Minecraft.player != null`.
     pub in_world: bool,
     /// The player's level is the End.
     pub in_end: bool,
+    /// The player's level is the Nether (no creative music there).
+    pub in_nether: bool,
     /// `BossHealthOverlay.shouldPlayMusic`: a boss bar asks for music.
     pub boss_music: bool,
-    /// `BACKGROUND_MUSIC` at the camera.
-    pub background: &'a BackgroundMusic,
-    /// `MUSIC_VOLUME` at the camera (1 without a level).
+    /// The biome has an `effects.music` list at all (even an empty one).
+    pub biome_has_music: bool,
+    /// The list's pick this tick (`None` for an empty list).
+    pub biome_music: Option<Music>,
+    /// `Biome.getBackgroundMusicVolume` at the camera (1 without a level).
     pub probe_volume: f32,
     /// `abilities.instabuild && abilities.mayfly`.
     pub creative: bool,
     /// `LocalPlayer.isUnderWater`.
     pub underwater: bool,
+    /// `MusicManager.isPlayingMusic(UNDER_WATER)`.
+    pub playing_underwater: bool,
+    /// The biome is in `#minecraft:plays_underwater_music`.
+    pub plays_underwater_music: bool,
 }
-impl Situation<'_> {
+impl Situation {
     /// `Minecraft.getSituationalMusic`.
     pub fn music(&self) -> Option<Music> {
         if let Some(music) = &self.screen_music {
@@ -232,16 +262,29 @@ impl Situation<'_> {
         if !self.in_world {
             return Some(Music::menu());
         }
-        if self.in_end && self.boss_music {
-            return Some(Music::end_boss());
+        if self.in_end {
+            return Some(if self.boss_music {
+                Music::end_boss()
+            } else {
+                Music::end()
+            });
         }
-        self.background
-            .select(self.creative, self.underwater)
-            .cloned()
+        if self.biome_has_music {
+            return self.biome_music.clone();
+        }
+        if self.playing_underwater || (self.underwater && self.plays_underwater_music) {
+            return Some(Music::under_water());
+        }
+        if self.creative && !self.in_nether {
+            return Some(Music::creative());
+        }
+        Some(Music::game())
     }
-    /// `Minecraft.getMusicVolume`.
+    /// `Minecraft.getMusicVolume`: the biome's volume in the world, 1.0
+    /// for a screen, the menu and the End (their `MusicInfo` is built
+    /// without one).
     pub fn volume(&self) -> f32 {
-        if self.screen_music.is_some() {
+        if self.screen_music.is_some() || !self.in_world || self.in_end {
             1.0
         } else {
             self.probe_volume
@@ -275,15 +318,19 @@ impl MusicTables {
             biomes: read("worldgen/biome"),
         }
     }
-    /// `EnvironmentAttributes.BACKGROUND_MUSIC` at a position.
+    /// `Biome.getBackgroundMusic` at a position: the biome's `effects.music`
+    /// list, or the dimension's when the biome has none (dimension types
+    /// carry no music in 1.21.10, so that is always an empty list).
     pub fn background(&self, dimension: &str, biome: &str) -> BackgroundMusic {
-        self.biomes
-            .get(biome)
-            .and_then(|l| l.music.clone())
-            .or_else(|| self.dimensions.get(dimension).and_then(|l| l.music.clone()))
+        if let Some(l) = self.biomes.get(biome).filter(|l| l.music.music.is_some()) {
+            return l.music.clone();
+        }
+        self.dimensions
+            .get(dimension)
+            .map(|l| l.music.clone())
             .unwrap_or_default()
     }
-    /// `EnvironmentAttributes.MUSIC_VOLUME` at a position (default 1).
+    /// `Biome.getBackgroundMusicVolume` at a position (default 1).
     pub fn volume(&self, dimension: &str, biome: &str) -> f32 {
         self.biomes
             .get(biome)
@@ -303,10 +350,11 @@ impl MusicTables {
         let layer = Layer::parse(json);
         let dimension = self.dimensions.get(dimension);
         (
-            layer
-                .music
-                .or_else(|| dimension.and_then(|l| l.music.clone()))
-                .unwrap_or_default(),
+            if layer.music.music.is_some() {
+                layer.music
+            } else {
+                dimension.map(|l| l.music.clone()).unwrap_or_default()
+            },
             layer
                 .volume
                 .or_else(|| dimension.and_then(|l| l.volume))
@@ -491,6 +539,11 @@ impl MusicManager {
             toast_requests: Vec::new(),
         }
     }
+    /// `WeightedList.getRandom` on a biome's background-music list, on the
+    /// manager's random (vanilla draws from the level's).
+    pub fn pick_biome_music(&mut self, list: &BackgroundMusic) -> Option<Music> {
+        list.pick(&mut self.random)
+    }
     /// The sound event of the current track.
     pub fn current<'a>(&self, sounds: &'a SoundEngine) -> Option<&'a str> {
         self.current
@@ -571,31 +624,35 @@ impl MusicManager {
         if self.current.is_none() && !loading {
             self.next_song_delay -= 1;
             if self.next_song_delay <= 0 {
-                self.start_playing(music, sounds);
+                self.start_playing(music, volume, sounds);
             }
         }
     }
     /// `MusicManager.startPlaying`, with the Music page's off tracks left out
-    /// of the pool.
-    pub fn start_playing(&mut self, music: &Music, sounds: &mut impl Sounds) {
-        self.start_playing_with(music, None, sounds);
+    /// of the pool. `volume` is the situational music volume: 1.21.10's
+    /// `forMusic` takes it at creation (1.21.11 hardcodes 1.0).
+    pub fn start_playing(&mut self, music: &Music, volume: f32, sounds: &mut impl Sounds) {
+        self.start_playing_with(music, volume, None, sounds);
     }
     /// Play one track of `event` now (a Music page row): it takes the
     /// manager's slot, and the situation's own music waits until it ends.
-    /// False when the event has no such track.
+    /// False when the event has no such track. A hand-played track starts
+    /// at full volume; the next tick fades it to the situational volume.
     pub fn play_track(&mut self, event: &str, track: &str, sounds: &mut impl Sounds) -> bool {
         let music = Music::new(event, 0, 0, true);
-        self.start_playing_with(&music, Some(track), sounds)
+        self.start_playing_with(&music, 1.0, Some(track), sounds)
     }
     /// `MusicManager.startPlaying`, choosing the concrete sound with `only`
     /// (that track alone) or else `off` left out.
     fn start_playing_with(
         &mut self,
         music: &Music,
+        volume: f32,
         only: Option<&str>,
         sounds: &mut impl Sounds,
     ) -> bool {
-        let mut instance = SoundInstance::for_music(&music.sound, crate::random_source::create());
+        let mut instance =
+            SoundInstance::for_music(&music.sound, volume, crate::random_source::create());
         // No track off and no row to play: vanilla's startPlaying as it is.
         // `resolve` picks the track, and an event with nothing to play (or no
         // event) is still the current music, with the delay at its maximum.
@@ -725,7 +782,13 @@ impl MusicManager {
             self.stop_playing(situational, sounds);
             false
         } else {
-            sounds.update_category_volume(MUSIC, self.current_gain);
+            // 1.21.10 fades the current instance (`setVolume`); 1.21.11
+            // fades the whole MUSIC category (`updateCategoryVolume`).
+            if let Some(current) = self.current
+                && let Some(instance) = sounds.engine().instance_mut(current)
+            {
+                instance.volume = self.current_gain;
+            }
             true
         }
     }
@@ -749,36 +812,42 @@ mod tests {
         SoundEngine::new(registry)
     }
 
-    /// A data pack's biome file replaces the built-in biome's attributes:
-    /// what it leaves out comes from the dimension, not the built-in biome.
+    /// A data pack's biome file replaces the built-in biome's effects: what
+    /// it leaves out comes from the dimension, not the built-in biome.
     #[test]
     fn a_pack_biome_reads_its_own_file_over_the_dimension() {
         let layer_of = |json: serde_json::Value| Layer::parse(&json);
         let tables = MusicTables {
             dimensions: HashMap::from([(
                 "minecraft:overworld".to_owned(),
-                layer_of(serde_json::json!({"attributes": {
-                    "minecraft:audio/background_music": {"default": {"sound": "minecraft:music.game"}},
-                    "minecraft:audio/music_volume": 0.8
+                layer_of(serde_json::json!({"effects": {
+                    "music": [{"data": {"sound": "minecraft:music.game"}, "weight": 1}],
+                    "music_volume": 0.8
                 }})),
             )]),
             biomes: HashMap::from([(
                 "minecraft:plains".to_owned(),
-                layer_of(serde_json::json!({"attributes": {
-                    "minecraft:audio/background_music": {"default": {"sound": "minecraft:music.overworld.meadow"}},
-                    "minecraft:audio/music_volume": 0.3
+                layer_of(serde_json::json!({"effects": {
+                    "music": [{"data": {"sound": "minecraft:music.overworld.meadow"}, "weight": 1}],
+                    "music_volume": 0.3
                 }})),
             )]),
         };
-        let sound =
-            |(music, volume): (BackgroundMusic, f32)| (music.default.map(|m| m.sound), volume);
+        let sound = |(music, volume): (BackgroundMusic, f32)| {
+            (
+                music
+                    .music
+                    .and_then(|l| l.into_iter().next().map(|(m, _)| m.sound)),
+                volume,
+            )
+        };
         let builtin = tables.at("minecraft:overworld", "minecraft:plains", None);
         assert_eq!(
             sound(builtin),
             (Some("minecraft:music.overworld.meadow".into()), 0.3)
         );
-        let pack = serde_json::json!({"attributes": {
-            "minecraft:audio/background_music": {"default": {"sound": "pack:music.dunes"}}
+        let pack = serde_json::json!({"effects": {
+            "music": [{"data": {"sound": "pack:music.dunes"}, "weight": 1}]
         }});
         let packed = tables.at("minecraft:overworld", "minecraft:plains", Some(&pack));
         assert_eq!(sound(packed), (Some("pack:music.dunes".into()), 0.8));
@@ -897,6 +966,7 @@ mod tests {
         let menu = Music::menu();
         m.start_playing(
             &menu,
+            1.0,
             &mut Bound {
                 engine: &mut engine,
                 backend: &mut backend,
@@ -925,6 +995,7 @@ mod tests {
         let game = Music::new("minecraft:music.game", 12000, 24000, false);
         m.start_playing(
             &game,
+            1.0,
             &mut Bound {
                 engine: &mut engine,
                 backend: &mut backend,
@@ -947,16 +1018,94 @@ mod tests {
         assert!((290..=310).contains(&ticks), "{ticks}");
     }
 
+    /// `Minecraft.getSituationalMusic`'s order: screen, menu, End boss /
+    /// End, the biome's list (an empty one plays nothing), underwater,
+    /// creative (never in the Nether), then `Musics.GAME`.
     #[test]
-    fn select_prefers_underwater_then_creative() {
-        let bg = BackgroundMusic {
-            default: Some(Music::new("a", 0, 0, false)),
-            creative: Some(Music::new("b", 0, 0, false)),
-            underwater: Some(Music::new("c", 0, 0, false)),
+    fn the_situational_music_follows_the_biome_then_the_fallbacks() {
+        let mut s = Situation {
+            screen_music: None,
+            in_world: true,
+            in_end: false,
+            in_nether: false,
+            boss_music: false,
+            biome_has_music: false,
+            biome_music: None,
+            probe_volume: 0.5,
+            creative: false,
+            underwater: false,
+            playing_underwater: false,
+            plays_underwater_music: false,
         };
-        assert_eq!(bg.select(true, true).unwrap().sound, "c");
-        assert_eq!(bg.select(true, false).unwrap().sound, "b");
-        assert_eq!(bg.select(false, false).unwrap().sound, "a");
+        assert_eq!(s.music().unwrap().sound, "minecraft:music.game");
+        assert_eq!(s.volume(), 0.5);
+        // The biome's list wins over every fallback, and an empty list
+        // plays nothing.
+        s.biome_has_music = true;
+        s.biome_music = Some(Music::new(
+            "minecraft:music.overworld.grove",
+            12000,
+            24000,
+            false,
+        ));
+        s.creative = true;
+        s.underwater = true;
+        s.plays_underwater_music = true;
+        assert_eq!(s.music().unwrap().sound, "minecraft:music.overworld.grove");
+        s.biome_music = None;
+        assert!(s.music().is_none());
+        s.biome_has_music = false;
+        // Underwater music: already playing, or under water in an ocean
+        // biome.
+        assert_eq!(s.music().unwrap().sound, "minecraft:music.under_water");
+        s.plays_underwater_music = false;
+        assert_eq!(s.music().unwrap().sound, "minecraft:music.creative");
+        s.playing_underwater = true;
+        assert_eq!(s.music().unwrap().sound, "minecraft:music.under_water");
+        s.playing_underwater = false;
+        s.underwater = false;
+        // Creative music never plays in the Nether.
+        s.in_nether = true;
+        assert_eq!(s.music().unwrap().sound, "minecraft:music.game");
+        s.in_nether = false;
+        // The End plays its own music at full volume, boss or not.
+        s.in_end = true;
+        assert_eq!(s.music().unwrap().sound, "minecraft:music.end");
+        assert_eq!(s.volume(), 1.0);
+        s.boss_music = true;
+        assert_eq!(s.music().unwrap().sound, "minecraft:music.dragon");
+        // No player: the menu, at full volume.
+        s.in_world = false;
+        s.in_end = false;
+        assert_eq!(s.music().unwrap().sound, "minecraft:music.menu");
+        assert_eq!(s.volume(), 1.0);
+        // A screen's music beats everything.
+        s.screen_music = Some(Music::credits());
+        assert_eq!(s.music().unwrap().sound, "minecraft:music.credits");
+    }
+
+    #[test]
+    fn a_biome_music_list_picks_by_weight() {
+        let bg = BackgroundMusic {
+            music: Some(vec![
+                (Music::new("a", 0, 0, false), 1),
+                (Music::new("b", 0, 0, false), 3),
+            ]),
+        };
+        let mut random = LegacyRandom::new(0);
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..100 {
+            seen.insert(bg.pick(&mut random).unwrap().sound);
+        }
+        assert_eq!(seen.len(), 2);
+        assert!(BackgroundMusic::default().pick(&mut random).is_none());
+        assert!(
+            BackgroundMusic {
+                music: Some(vec![])
+            }
+            .pick(&mut random)
+            .is_none()
+        );
     }
 
     #[test]
@@ -1046,6 +1195,7 @@ mod tests {
         m.set_off(&["minecraft:music/game/one".to_owned()]);
         m.start_playing(
             &Music::game(),
+            1.0,
             &mut Bound {
                 engine: &mut engine,
                 backend: &mut backend,
@@ -1069,6 +1219,7 @@ mod tests {
         ]);
         m.start_playing(
             &Music::game(),
+            1.0,
             &mut Bound {
                 engine: &mut engine,
                 backend: &mut backend,
@@ -1085,6 +1236,7 @@ mod tests {
         let mut m = MusicManager::new(13);
         m.start_playing(
             &Music::menu(),
+            1.0,
             &mut Bound {
                 engine: &mut engine,
                 backend: &mut backend,

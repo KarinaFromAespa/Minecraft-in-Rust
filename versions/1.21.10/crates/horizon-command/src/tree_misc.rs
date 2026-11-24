@@ -21,7 +21,6 @@ pub fn register(d: &mut Dispatcher, root: usize) {
     item(d, root);
     bossbar(d, root);
     function(d, root);
-    stopwatch(d, root);
 
     // return <value> | fail | run <command>
     let ret = d.literal(root, "return");
@@ -289,31 +288,3 @@ fn function(d: &mut Dispatcher, root: usize) {
     }
 }
 
-/// stopwatch create <id> | query <id> [<scale>] | restart <id> | remove <id>
-fn stopwatch(d: &mut Dispatcher, root: usize) {
-    let sw = d.literal(root, "stopwatch");
-    d.requires(sw, GAMEMASTERS);
-    let create = d.literal(sw, "create");
-    let id = d.argument(create, "id", ArgType::Id("none"));
-    d.executes(id, "stopwatch.create");
-    let query = d.literal(sw, "query");
-    let id = d.argument(query, "id", ArgType::Id("stopwatches"));
-    d.executes(id, "stopwatch.query");
-    let scale = d.argument(
-        id,
-        "scale",
-        ArgType::Double {
-            min: f64::MIN,
-            max: f64::MAX,
-        },
-    );
-    d.executes(scale, "stopwatch.query");
-    for (name, command) in [
-        ("restart", "stopwatch.restart"),
-        ("remove", "stopwatch.remove"),
-    ] {
-        let l = d.literal(sw, name);
-        let id = d.argument(l, "id", ArgType::Id("stopwatches"));
-        d.executes(id, command);
-    }
-}

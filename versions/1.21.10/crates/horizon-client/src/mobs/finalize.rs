@@ -156,11 +156,12 @@ impl Ageable {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Group {
     Ageable(Ageable),
-    /// `Zombie.ZombieGroupData`, and `Husk.HuskGroupData` with `tried_camel`.
+    /// `Zombie.ZombieGroupData` (1.21.11's `Husk.HuskGroupData` adds a
+    /// `tried_camel` flag for the camel-husk jockey feature, which 1.21.10
+    /// does not have).
     Zombie {
         baby: bool,
         jockey: bool,
-        husk: Option<bool>,
     },
     /// `Spider.SpiderEffectsGroupData`.
     Spider(Option<&'static str>),
@@ -325,10 +326,6 @@ pub struct SpawnRegistries {
     pub wolf: VariantRegistry,
     pub frog: VariantRegistry,
     pub zombie_nautilus: VariantRegistry,
-    pub pig_sound: VariantRegistry,
-    pub cow_sound: VariantRegistry,
-    pub chicken_sound: VariantRegistry,
-    pub cat_sound: VariantRegistry,
     pub wolf_sound: VariantRegistry,
 }
 impl SpawnRegistries {
@@ -359,10 +356,6 @@ impl SpawnRegistries {
             wolf: r("wolf_variant"),
             frog: r("frog_variant"),
             zombie_nautilus: r("zombie_nautilus_variant"),
-            pig_sound: r("pig_sound_variant"),
-            cow_sound: r("cow_sound_variant"),
-            chicken_sound: r("chicken_sound_variant"),
-            cat_sound: r("cat_sound_variant"),
             wolf_sound: r("wolf_sound_variant"),
         }
     }
@@ -373,8 +366,6 @@ pub struct SpawnData<'a> {
     pub registries: &'a SpawnRegistries,
     pub enchantments: &'a Enchantments,
     pub items: &'a Items,
-    /// `EntityTypes.CAMEL_HUSK` dimensions (width, height).
-    pub camel_husk_size: (f32, f32),
 }
 
 /// A finalizeSpawn call and the entities it made.
@@ -748,8 +739,12 @@ pub fn mob_spawn(m: &mut Mob, random: &mut impl RandomSource) {
     }
     m.extra.left_handed = random.next_float() < 0.05;
 }
-/// `Zombie.handleAttributes`, from the zombie's own random.
-pub fn zombie_attributes(m: &mut Mob, special: f32, reason: Reason) {
+/// `Zombie.handleAttributes`, from the zombie's own random. 1.21.10's
+/// form takes only the difficulty multiplier and never heals: a leader
+/// zombie spawns with its old health under its raised maximum (the
+/// 26.1-only `setHealth(getMaxHealth())` after the leader bonus is
+/// gone, with the spawn-reason parameter that gated it).
+pub fn zombie_attributes(m: &mut Mob, special: f32) {
     let r = &mut m.random;
     let reinforcements = if m.kind.species == Species::ZombifiedPiglin {
         0.0
@@ -792,12 +787,6 @@ pub fn zombie_attributes(m: &mut Mob, special: f32, reason: Reason) {
             health,
             Op::AddMultipliedTotal,
         );
-        if !matches!(
-            reason,
-            Reason::Conversion | Reason::Load | Reason::DimensionTravel
-        ) {
-            m.health = max_health(m);
-        }
         super::doors::set_can_break_doors(m, true);
     }
 }
@@ -959,7 +948,16 @@ pub fn set_age(m: &mut Mob, age: i32) {
 fn age_boundary_reached(m: &mut Mob) {
     let baby = m.is_baby();
     match m.species() {
-        Species::Goat | Species::Hoglin => {
+        Species::Goat => {
+            if let Some(damage) = age_attack_damage(m.species(), baby) {
+                set_base(m, Attr::AttackDamage, damage);
+            }
+            // Goat.ageBoundaryReached: a baby loses its horns, an adult
+            // grows them back (1.21.10; 26.1 keeps the horns and gates
+            // dropHorn on babies instead).
+            m.extra.lost_horns = [baby; 2];
+        }
+        Species::Hoglin => {
             if let Some(damage) = age_attack_damage(m.species(), baby) {
                 set_base(m, Attr::AttackDamage, damage);
             }
@@ -1342,10 +1340,12 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
                 self.armor(m);
                 let chance = if self.difficulty.hard { 0.05 } else { 0.01 };
                 if self.float() < chance {
-                    let weapon = match self.int(6) {
-                        0 => "minecraft:iron_sword",
-                        1 => "minecraft:iron_spear",
-                        _ => "minecraft:iron_shovel",
+                    // Zombie.populateDefaultEquipmentSlots: nextInt(3),
+                    // 0 an iron sword, else an iron shovel (no spear).
+                    let weapon = if self.int(3) == 0 {
+                        "minecraft:iron_sword"
+                    } else {
+                        "minecraft:iron_shovel"
                     };
                     set_item(m, MAINHAND, weapon);
                 }
@@ -1360,14 +1360,9 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
                     set_item(m, MAINHAND, weapon);
                 }
             }
-            S::ZombifiedPiglin => {
-                let weapon = if self.int(20) == 0 {
-                    "minecraft:golden_spear"
-                } else {
-                    "minecraft:golden_sword"
-                };
-                set_item(m, MAINHAND, weapon);
-            }
+            // 1.21.10 always hands a zombified piglin a golden sword;
+            // 1.21.11 rolls a golden spear 1 in 20.
+            S::ZombifiedPiglin => set_item(m, MAINHAND, "minecraft:golden_sword"),
             S::WitherSkeleton => set_item(m, MAINHAND, "minecraft:stone_sword"),
             s if skeleton(s) => {
                 self.armor(m);
@@ -1509,7 +1504,6 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
             g = Some(Group::Zombie {
                 baby: self.float() < 0.05,
                 jockey: true,
-                husk: None,
             });
         }
         if let Some(Group::Zombie { baby, jockey, .. }) = g {
@@ -1545,71 +1539,17 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
             }
         }
         self.halloween(m);
-        zombie_attributes(m, special, reason);
+        zombie_attributes(m, special);
         g
     }
     fn husk(&mut self, m: &mut Mob, g: Option<Group>, reason: Reason) -> Option<Group> {
-        let mut g = self.zombie(m, g, reason);
+        let g = self.zombie(m, g, reason);
         if reason != Reason::Conversion {
             m.extra.pick_up_loot = self.float() < 0.55 * self.special();
         }
-        if let Some(Group::Zombie { baby, jockey, .. }) = g {
-            g = Some(Group::Zombie {
-                baby,
-                jockey,
-                husk: Some(reason != Reason::Natural),
-            });
-        }
-        if let Some(Group::Zombie {
-            husk: Some(tried @ false),
-            ..
-        }) = &mut g
-        {
-            let (bx, by, bz) = (
-                m.position.x.floor(),
-                m.position.y.floor(),
-                m.position.z.floor(),
-            );
-            let (w, h) = self.data.camel_husk_size;
-            let half = w / 2.0;
-            let bounds = Aabb::new(
-                horizon_core::geometry::Vec3::new(
-                    bx + 0.5 - f64::from(half),
-                    by,
-                    bz + 0.5 - f64::from(half),
-                ),
-                horizon_core::geometry::Vec3::new(
-                    bx + 0.5 + f64::from(half),
-                    by + f64::from(h),
-                    bz + 0.5 + f64::from(half),
-                ),
-            );
-            if self.level.no_collision(bounds) {
-                *tried = true;
-                if self.float() < 0.1 {
-                    set_item(m, MAINHAND, "minecraft:iron_spear");
-                    if let Some(mut camel) =
-                        self.level.create("minecraft:camel_husk", Reason::Natural)
-                    {
-                        // setPos: the husk's position, the camel's own rotation.
-                        camel.position = m.position;
-                        camel.previous = m.position;
-                        self.finalize(&mut camel, reason, None);
-                        self.ride(m, &mut camel);
-                        if let Some(mut parched) =
-                            self.create("minecraft:parched", Reason::Natural, m)
-                        {
-                            self.finalize(&mut parched, reason, None);
-                            self.ride(&mut parched, &mut camel);
-                            self.created.push(camel);
-                            self.created.push(parched);
-                        } else {
-                            self.created.push(camel);
-                        }
-                    }
-                }
-            }
-        }
+        // 1.21.11's husk-camel-husk-parched jockey feature (a 1-in-10 roll
+        // for a natural husk with room for a camel) does not exist in
+        // 1.21.10: there is no camel husk and no parched.
         g
     }
     fn drowned(&mut self, m: &mut Mob, g: Option<Group>, reason: Reason) -> Option<Group> {
@@ -1618,27 +1558,9 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
             set_item(m, OFFHAND, "minecraft:nautilus_shell");
             set_drop_chance(m, OFFHAND, 2.0);
         }
-        let at = [
-            m.position.x.floor() as i32,
-            m.position.y.floor() as i32,
-            m.position.z.floor() as i32,
-        ];
-        if matches!(reason, Reason::Natural | Reason::Structure)
-            && m.extra.main_hand.as_deref() == Some("minecraft:trident")
-            && self.float() < 0.5
-            && !m.is_baby()
-            && !self
-                .level
-                .biome_tag("minecraft:more_frequent_drowned_spawns", at)
-            && let Some(mut nautilus) = self.create("minecraft:zombie_nautilus", Reason::Jockey, m)
-        {
-            if reason == Reason::Structure {
-                nautilus.persistent = true;
-            }
-            self.finalize(&mut nautilus, reason, None);
-            self.ride(m, &mut nautilus);
-            self.created.push(nautilus);
-        }
+        // 1.21.11's zombie-nautilus jockey (a trident drowned rides one
+        // half the time outside `#more_frequent_drowned_spawns` biomes)
+        // does not exist in 1.21.10: there is no zombie nautilus.
         g
     }
     fn skeleton(&mut self, m: &mut Mob, g: Option<Group>) -> Option<Group> {
@@ -1704,12 +1626,13 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
             if self.float() < 0.2 {
                 set_baby(m, true);
             } else if !m.is_baby() {
-                // createSpawnWeapon, from the piglin's own random.
+                // createSpawnWeapon (1.21.10), from the piglin's own random:
+                // a crossbow half the time, else a golden sword (the 1-in-10
+                // golden spear is 1.21.11-only — spears do not exist in
+                // 1.21.10).
                 let r = &mut m.random;
                 let weapon = if f64::from(r.next_float()) < 0.5 {
                     "minecraft:crossbow"
-                } else if r.next_int_bound(10).unwrap_or(1) == 0 {
-                    "minecraft:golden_spear"
                 } else {
                     "minecraft:golden_sword"
                 };
@@ -1737,7 +1660,6 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
                     Some(Group::Zombie {
                         baby,
                         jockey: false,
-                        husk: None,
                     }),
                 ));
                 set_item(&mut jockey, MAINHAND, "minecraft:warped_fungus_on_a_stick");
@@ -1843,22 +1765,19 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
         let s = m.species();
         match s {
             S::Pig | S::Cow | S::Chicken => {
-                let (v, sound): (
-                    fn(&SpawnRegistries) -> &VariantRegistry,
-                    fn(&SpawnRegistries) -> &VariantRegistry,
-                ) = match s {
-                    S::Pig => (|r| &r.pig, |r| &r.pig_sound),
-                    S::Cow => (|r| &r.cow, |r| &r.cow_sound),
-                    _ => (|r| &r.chicken, |r| &r.chicken_sound),
+                // 1.21.10 has no pig/cow/chicken sound variants (only wolves
+                // do), so finalizeSpawn picks the variant alone.
+                let v: fn(&SpawnRegistries) -> &VariantRegistry = match s {
+                    S::Pig => |r| &r.pig,
+                    S::Cow => |r| &r.cow,
+                    _ => |r| &r.chicken,
                 };
                 self.variant(m, v);
-                self.sound(m, sound);
                 self.ageable(m, g)
             }
             S::Cat => {
                 let g = self.ageable(m, g);
                 self.variant(m, |r| &r.cat);
-                self.sound(m, |r| &r.cat_sound);
                 g
             }
             S::Wolf => {
@@ -1982,17 +1901,9 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
                 self.horse(m, Some(g))
             }
             S::Donkey | S::Mule | S::SkeletonHorse => self.horse(m, g),
-            S::ZombieHorse => {
-                if reason == Reason::Natural
-                    && let Some(mut zombie) = self.create("minecraft:zombie", Reason::Jockey, m)
-                {
-                    self.finalize(&mut zombie, reason, None);
-                    set_item(&mut zombie, MAINHAND, "minecraft:iron_spear");
-                    self.ride(&mut zombie, m);
-                    self.created.push(zombie);
-                }
-                self.horse(m, g)
-            }
+            // ZombieHorse.finalizeSpawn is 1.21.11-only: in 1.21.10 a
+            // zombie horse spawns alone, with no zombie jockey.
+            S::ZombieHorse => self.horse(m, g),
             S::Camel | S::CamelHusk => {
                 let now = self.level.game_time();
                 m.extra.pose_change_tick = (now - 52 - 1).max(0);
@@ -2084,7 +1995,13 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
                     if reason == Reason::Breeding {
                         m.extra.variant2 = 0;
                     }
-                    self.villager_type(m);
+                    // `Villager.finalizeSpawn`: only a command, a spawn egg,
+                    // a spawner or a dispenser types the villager by its
+                    // biome; a structure villager keeps the type its
+                    // template carries, a bred or loaded one its own.
+                    if finalize_types_villager_by_biome(reason) {
+                        self.villager_type(m);
+                    }
                 }
                 self.ageable(m, g.or(Some(Group::Ageable(Ageable::babies(false)))))
             }
@@ -2168,7 +2085,13 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
             }
             S::Zombie | S::ZombifiedPiglin => self.zombie(m, g, reason),
             S::ZombieVillager => {
-                self.villager_type(m);
+                // `ZombieVillager.finalizeSpawn`: `REASONS_NOT_TO_SET_TYPE`
+                // (load, dimension travel, conversion, spawn egg, spawner)
+                // keeps the data it arrived with; every other reason types
+                // it by its biome.
+                if finalize_types_zombie_villager_by_biome(reason) {
+                    self.villager_type(m);
+                }
                 m.extra.variant2 = super::zombie_villager::constructor_profession(m);
                 self.zombie(m, g, reason)
             }
@@ -2364,33 +2287,28 @@ pub fn saves_variant_name(s: Species) -> bool {
             | Species::ZombieNautilus
     )
 }
-/// The `*_sound_variant` registry of a species, in registry order.
+/// The `*_sound_variant` registry of a species, in registry order. Only
+/// wolves have one in 1.21.10 (WolfSoundVariant); pigs, cows, chickens and
+/// cats play their plain species sounds.
 pub fn sound_variants(s: Species) -> &'static [&'static str] {
     match s {
-        Species::Pig => &["big", "classic", "mini"],
-        Species::Cow => &["classic", "moody"],
-        Species::Chicken => &["classic", "picky"],
-        Species::Cat => &["classic", "royal"],
         Species::Wolf => &["angry", "big", "classic", "cute", "grumpy", "puglin", "sad"],
         _ => &[],
     }
 }
-/// A sound of the mob's `*_sound_variant` set (`Pig.getSoundSet`,
-/// `Wolf.getSoundSet`, `Cat.getSoundSet`, ...): `kind` is the sound's key
-/// (`ambient`, `hurt`, `step`, `growl`, `purreow`...). Babies use the species'
-/// baby set (cows have none); an adult's set is `entity.<species>.*` for
-/// `classic` and `entity.<species>_<variant>.*` otherwise, except the
-/// footsteps that every variant shares (not the cow's). None for a species
-/// without sound variants.
+/// A sound of the wolf's `WolfSoundVariant` set (`Wolf.getSoundSet` in 26.1;
+/// 1.21.10's variant is a flat record of six holders, with no baby/adult
+/// split and no step — babies use the same set at the baby voice pitch):
+/// `kind` is the sound's key (`ambient`, `hurt`, `step`, `growl`, `pant`...).
+/// The set is `entity.wolf.*` for `classic` and `entity.wolf_<variant>.*`
+/// otherwise, except the footsteps that every variant shares. None for a
+/// species without sound variants (only wolves have them in 1.21.10); the
+/// callers fall back to the plain species sound.
 pub fn variant_sound(m: &Mob, kind: &str) -> Option<&'static str> {
     use std::{collections::HashMap, sync::Mutex};
     let species = m.species();
     let name = match species {
-        Species::Pig => "pig",
-        Species::Cow => "cow",
-        Species::Chicken => "chicken",
         Species::Wolf => "wolf",
-        Species::Cat => "cat",
         _ => return None,
     };
     let variant = m
@@ -2399,9 +2317,9 @@ pub fn variant_sound(m: &Mob, kind: &str) -> Option<&'static str> {
         .and_then(|i| sound_variants(species).get(i as usize))
         .copied()
         .unwrap_or("classic");
-    let id = if m.is_baby() && species != Species::Cow {
-        format!("entity.baby_{name}.{kind}")
-    } else if variant == "classic" || (kind == "step" && species != Species::Cow) {
+    // Baby wolves use their variant set at the baby voice pitch: there are no
+    // baby_wolf sound events in either version.
+    let id = if variant == "classic" || kind == "step" {
         format!("entity.{name}.{kind}")
     } else {
         format!("entity.{name}_{variant}.{kind}")
@@ -2439,6 +2357,34 @@ pub fn variant_name(s: Species, index: u8) -> &'static str {
             .unwrap_or("temperate"),
     }
 }
+/// `Villager.finalizeSpawn` types by biome only for a command, a spawn
+/// egg, a spawner of either kind (`EntitySpawnReason.isSpawner`) or a
+/// dispenser.
+fn finalize_types_villager_by_biome(reason: Reason) -> bool {
+    matches!(
+        reason,
+        Reason::Command
+            | Reason::SpawnItemUse
+            | Reason::Spawner
+            | Reason::TrialSpawner
+            | Reason::Dispenser
+    )
+}
+
+/// `ZombieVillager.finalizeSpawn` types by biome for every reason except
+/// `REASONS_NOT_TO_SET_TYPE`.
+fn finalize_types_zombie_villager_by_biome(reason: Reason) -> bool {
+    !matches!(
+        reason,
+        Reason::Load
+            | Reason::DimensionTravel
+            | Reason::Conversion
+            | Reason::SpawnItemUse
+            | Reason::Spawner
+            | Reason::TrialSpawner
+    )
+}
+
 /// `VillagerType.byBiome` (index into `render::VILLAGER_TYPES`: plains,
 /// desert, jungle, savanna, snow, swamp, taiga).
 pub fn villager_type(biome: &str) -> u8 {
@@ -2580,6 +2526,34 @@ mod tests {
             "minecraft:cow"
         ));
         assert!(!spawn_egg_is_for("minecraft:stick", "minecraft:cow"));
+    }
+    /// `Zombie.handleAttributes` in 1.21.10 never heals: a leader zombie
+    /// spawns with its old health under its raised maximum (the 26.1
+    /// `setHealth(getMaxHealth())` after the leader bonus is gone).
+    #[test]
+    fn a_leader_zombie_spawns_with_its_old_health_under_its_raised_maximum() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../.local/horizon-client")
+            .join(horizon_core::VANILLA_VERSION);
+        if !root.join("items.json").exists() {
+            return;
+        }
+        let data = crate::mobs::MobTypes::load(&root).unwrap();
+        let kind = std::sync::Arc::new(data.types.get("minecraft:zombie").unwrap().clone());
+        let mut m = crate::mobs::Mob::new(
+            2,
+            kind,
+            horizon_core::geometry::Vec3::new(0.0, 4.0, 0.0),
+            0.0,
+        );
+        let health = m.health;
+        // special * 0.05 >= 1 forces the leader roll.
+        zombie_attributes(&mut m, 20.0);
+        assert!(
+            max_health(&m) > health,
+            "the leader bonus raises the maximum"
+        );
+        assert_eq!(m.health, health, "but nothing heals it to the new maximum");
     }
     /// #7877: `/attribute <mob> <attr> modifier add` hands `add_modifier` an
     /// id typed at run time; it lands in the value, reads back, and goes.
@@ -2757,6 +2731,49 @@ mod tests {
         assert_eq!(villager_type("minecraft:badlands"), 1);
         assert_eq!(villager_type("minecraft:grove"), 4);
         assert_eq!(villager_type("minecraft:plains"), 0);
+    }
+    /// `Villager.finalizeSpawn` types by biome only for a command, a spawn
+    /// egg, a spawner or a dispenser, while `ZombieVillager.finalizeSpawn`
+    /// types for every reason except load, dimension travel, conversion
+    /// and the egg/spawner pair.
+    #[test]
+    fn only_some_spawn_reasons_type_a_villager_by_its_biome() {
+        let villager: Vec<Reason> = Reason::ALL
+            .into_iter()
+            .filter(|r| finalize_types_villager_by_biome(*r))
+            .collect();
+        assert_eq!(
+            villager,
+            [
+                Reason::Spawner,
+                Reason::SpawnItemUse,
+                Reason::Command,
+                Reason::Dispenser,
+                Reason::TrialSpawner,
+            ]
+        );
+        let zombie_villager: Vec<Reason> = Reason::ALL
+            .into_iter()
+            .filter(|r| finalize_types_zombie_villager_by_biome(*r))
+            .collect();
+        assert_eq!(
+            zombie_villager,
+            [
+                Reason::Natural,
+                Reason::ChunkGeneration,
+                Reason::Structure,
+                Reason::Breeding,
+                Reason::MobSummoned,
+                Reason::Jockey,
+                Reason::Event,
+                Reason::Reinforcement,
+                Reason::Triggered,
+                Reason::Bucket,
+                Reason::Command,
+                Reason::Dispenser,
+                Reason::Patrol,
+            ]
+        );
     }
     /// A worn piece that wears (Thorns' `ChangeItemDamage`) keeps its
     /// enchantments and trim, and the next wear adds to the last.

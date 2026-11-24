@@ -173,6 +173,8 @@ impl Game<'_> {
 
     /// `Mob.getApproximateAttributeWith` for the item `id` in `slot`: each
     /// attribute starts from the mob's own value. (armour, toughness, damage)
+    /// In 1.21.10 `compute` applies every modifier for the slot, whatever its
+    /// attribute, so all three numbers come from the same unfiltered fold.
     fn attributes(&self, m: &Mob, id: &str, slot: Slot) -> (f64, f64, f64) {
         let empty: &[(String, String, f64, String, String)] = &[];
         let modifiers = self
@@ -180,16 +182,10 @@ impl Game<'_> {
             .get(id)
             .map_or(empty, |i| i.modifiers.as_slice());
         (
-            equip::attribute_with(modifiers, "minecraft:armor", f64::from(m.kind.armor), slot),
-            equip::attribute_with(
+            equip::approximate_with(modifiers, f64::from(m.kind.armor), slot),
+            equip::approximate_with(modifiers, f64::from(m.kind.armor_toughness), slot),
+            equip::approximate_with(
                 modifiers,
-                "minecraft:armor_toughness",
-                f64::from(m.kind.armor_toughness),
-                slot,
-            ),
-            equip::attribute_with(
-                modifiers,
-                "minecraft:attack_damage",
                 f64::from(m.attrs.attack_damage),
                 slot,
             ),

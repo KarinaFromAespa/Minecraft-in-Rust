@@ -2624,6 +2624,11 @@ trait SeededPipeline: Send + Sync {
         query: &JigsawQuery<'_>,
     ) -> Option<JigsawPieces>;
 }
+/// `NoiseRouterData.peaksAndValleys(float)`: the peaks-and-valleys transform
+/// of the ridges value, in f32 (`-((|x| - 2/3) - 1/3) * 3`).
+fn peaks_and_valleys(ridges: f32) -> f32 {
+    -((ridges.abs() - 0.6666667).abs() - 0.33333334) * 3.0
+}
 impl<R: RandomSource + 'static> SeededPipeline for Pipeline<R>
 where
     R::Positional: Clone + Send + Sync,
@@ -2831,18 +2836,47 @@ where
         let _ = self.old_world.set(world);
     }
     /// `NoiseBasedChunkGenerator.addDebugScreenInfo`: the labelled values of
-    /// the settings' `debug_functions` at `feet`, three decimals each.
+    /// the settings' `debug_functions` at `feet`, three decimals each — or,
+    /// when the settings carry none (1.21.10 has no `debug_functions`), the
+    /// hardcoded 1.21.10 line from the router: T V C E D W PV PS N, with N
+    /// the final density last (26.1 put the interpolated density first).
+    /// A superflat world has no noise generator, so no line.
     fn debug_density_line(&self, feet: [i32; 3]) -> Option<String> {
-        if self.debug_density.is_empty() {
+        let mut context = SamplerContext::cached();
+        if !self.debug_density.is_empty() {
+            let mut line = String::from("Density ");
+            for (label, sampler) in &self.debug_density {
+                let value = sampler.sample_value(&mut context, feet).ok()?;
+                line.push_str(&format!("{label}: {:.3} ", f64::from(value)));
+            }
+            line.pop();
+            return Some(line);
+        }
+        if self.flat.is_some() {
             return None;
         }
-        let mut context = SamplerContext::cached();
-        let mut line = String::from("Density ");
-        for (label, sampler) in &self.debug_density {
-            let value = sampler.sample_value(&mut context, feet).ok()?;
-            line.push_str(&format!("{label}: {:.3} ", f64::from(value)));
-        }
-        line.pop();
+        let surface = self.preliminary.sample_value(&mut context, feet).ok()?;
+        let mut sample =
+            |field: RouterField| self.router.get(field).sample_value(&mut context, feet).ok();
+        let temperature = sample(RouterField::Temperature)?;
+        let vegetation = sample(RouterField::Vegetation)?;
+        let continents = sample(RouterField::Continents)?;
+        let erosion = sample(RouterField::Erosion)?;
+        let depth = sample(RouterField::Depth)?;
+        let ridges = sample(RouterField::Ridges)?;
+        let density = sample(RouterField::FinalDensity)?;
+        let line = format!(
+            "Density T: {:.3} V: {:.3} C: {:.3} E: {:.3} D: {:.3} W: {:.3} PV: {:.3} PS: {:.3} N: {:.3}",
+            f64::from(temperature),
+            f64::from(vegetation),
+            f64::from(continents),
+            f64::from(erosion),
+            f64::from(depth),
+            f64::from(ridges),
+            f64::from(peaks_and_valleys(ridges)),
+            f64::from(surface),
+            f64::from(density),
+        );
         Some(line)
     }
     fn find_closest_biome(
@@ -3607,7 +3641,7 @@ impl OverworldGenerator {
         })
     }
     /// A dimension of a world preset, with or without structures (the
-    /// world's `generate_structures`: without, no starts, terrain adaptation,
+    /// world's `generate_features`: without, no starts, terrain adaptation,
     /// structure pieces or structure locating).
     pub fn for_world(
         data: Arc<GeneratorData>,
@@ -3766,7 +3800,8 @@ impl OverworldGenerator {
         self.pipeline.region_random(center)
     }
     /// `NoiseBasedChunkGenerator.addDebugScreenInfo`: the `Density` line of
-    /// the noise settings' `debug_functions` at the feet (none without them).
+    /// the noise settings' `debug_functions` at the feet, or the hardcoded
+    /// 1.21.10 router line when the settings carry none.
     /// It reads the pipeline's samplers only, so it needs no worker.
     pub fn debug_density_line(&self, feet: [i32; 3]) -> Option<String> {
         self.pipeline.debug_density_line(feet)
@@ -3913,7 +3948,8 @@ impl GeneratorWorker {
         self.pipeline.noise_biomes(&mut self.state, quarts)
     }
     /// `NoiseBasedChunkGenerator.addDebugScreenInfo`: the `Density` line of
-    /// the noise settings' `debug_functions` at the feet (none without them).
+    /// the noise settings' `debug_functions` at the feet, or the hardcoded
+    /// 1.21.10 router line when the settings carry none.
     pub fn debug_density_line(&self, feet: [i32; 3]) -> Option<String> {
         self.pipeline.debug_density_line(feet)
     }
@@ -5181,5 +5217,15 @@ mod tests {
         assert!(normal.iter().all(|height| (0..384).contains(height)));
         assert_ne!(normal, surface("minecraft:amplified"));
         assert_ne!(normal, surface("minecraft:large_biomes"));
+    }
+
+    #[test]
+    fn peaks_and_valleys_matches_vanilla() {
+        // `NoiseRouterData.peaksAndValleys(float)`: -1 at the valley floor,
+        // 1 at the ridge crest, 0 at the far edge.
+        assert!((peaks_and_valleys(0.0) - -1.0).abs() < 1e-6);
+        assert!((peaks_and_valleys(0.6666667) - 1.0).abs() < 1e-6);
+        assert!(peaks_and_valleys(1.0).abs() < 1e-6);
+        assert!((peaks_and_valleys(-0.6666667) - 1.0).abs() < 1e-6);
     }
 }

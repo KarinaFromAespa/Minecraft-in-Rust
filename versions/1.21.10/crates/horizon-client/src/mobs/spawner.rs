@@ -105,7 +105,9 @@ impl SpawnDataExt for SpawnData {
     }
     fn valid_position<L: SpawnerLevel>(r: CustomSpawnRules, l: &L, x: i32, y: i32, z: i32) -> bool {
         let block = l.block_light(x, y, z);
-        let sky = (l.sky_light(x, y, z) - l.sky_darken()).max(0);
+        // 1.21.10 checks the raw sky light (`getBrightness(SKY, pos)`);
+        // 26.1 subtracts the sky darken (`getEffectiveSkyBrightness`).
+        let sky = l.sky_light(x, y, z);
         (r.block.0..=r.block.1).contains(&block) && (r.sky.0..=r.sky.1).contains(&sky)
     }
 }

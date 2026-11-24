@@ -21,7 +21,7 @@ pub use horizon_client_render::{
     mipmap, mod_browser, mod_list, model_library, models, multiline_edit, native_emissive,
     options_file, options_fixes, options_ui, overlay, pack_browser, pack_formats, pack_hooks,
     pack_palette, pack_screen, packs, pad_cursor, pad_glyph, par, particles, poi_sections,
-    polytone_colors, polytone_creative_tabs, polytone_post, post_chain, potent_sulfur, preedit,
+    polytone_colors, polytone_creative_tabs, polytone_post, post_chain, potent_sulfur,
     providers, pvp, pvp_hud, random_source, screen_draw, screen_effects, sculk, section_mask,
     server_terrain, settings, shader_options, shader_pack_list, signs, skins, social, sound_engine,
     sound_events, sound_preview, spans, split_layout, split_map, split_profiles, sprites,
@@ -135,7 +135,6 @@ pub mod spectator_menu;
 pub mod sprint;
 pub mod stand_up;
 pub mod stations;
-pub mod stopwatches;
 pub mod structure_blocks;
 pub mod studio;
 pub mod telemetry;
@@ -146,6 +145,7 @@ pub mod title;
 pub mod toasts;
 pub mod ui_theme;
 pub mod vanillagen;
+pub mod villager_trades;
 pub mod voxel_occlusion;
 // Keep the old path for native callers while giving the implementation a name
 // that does not collide with the gameplay adapter in `game/entity_culling.rs`.

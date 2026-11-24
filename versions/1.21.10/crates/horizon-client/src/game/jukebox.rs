@@ -327,7 +327,7 @@ impl Game<'_> {
             self.stop_song(pos);
         }
         if let Some(record) = record {
-            // atLowerCornerWithOffset(pos, 0.5, 1.01, 0.5).offsetRandomXZ(random, 0.7);
+            // atLowerCornerWithOffset(pos, 0.5, 1.01, 0.5).offsetRandom(random, 0.7);
             // `new ItemEntity` moves it with its own random.
             let at = horizon_world::level::removal::jukebox_pop_position(
                 &mut self.world.random,

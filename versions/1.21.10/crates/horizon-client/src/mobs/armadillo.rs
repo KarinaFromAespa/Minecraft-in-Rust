@@ -282,7 +282,9 @@ pub fn after_hurt(m: &mut Mob, source: &Damage) {
     }
     m.outbox.append(&mut events);
 }
-/// `DamageTypeTags.PANIC_ENVIRONMENTAL_CAUSES`.
+/// `DamageTypeTags.PANIC_ENVIRONMENTAL_CAUSES`: the 1.21.10 tag's seven
+/// members. A sulfur cube's hot floor is not one — `sulfur_cube_hot` is
+/// no damage type in 1.21.10 (nor in 26.1), so it is not in the tag.
 pub fn environmental(kind: DamageKind) -> bool {
     matches!(
         kind,
@@ -293,7 +295,6 @@ pub fn environmental(kind: DamageKind) -> bool {
             | DamageKind::LightningBolt
             | DamageKind::HotFloor
             | DamageKind::Freeze
-            | DamageKind::SulfurCubeHot
     )
 }
 /// The hurt sound: a ball's is muffled, and it has no ambient sound
@@ -919,7 +920,6 @@ mod panic_environmental_tests {
             ("minecraft:lava", DamageKind::Lava),
             ("minecraft:lightning_bolt", DamageKind::LightningBolt),
             ("minecraft:on_fire", DamageKind::OnFire),
-            ("minecraft:sulfur_cube_hot", DamageKind::SulfurCubeHot),
         ];
         assert_eq!(ids, kinds.map(|(id, _)| id).to_vec());
         for (id, kind) in kinds {

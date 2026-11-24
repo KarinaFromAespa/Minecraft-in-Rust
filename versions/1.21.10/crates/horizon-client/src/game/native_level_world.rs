@@ -97,8 +97,8 @@ impl Game<'_> {
     /// ticks of clear weather, then `weather_time` ticks of the new state (rain, thunder or
     /// neither) as `raining` and `thundering` say. Mods hear `weather_change` and
     /// `thunder_change` first and can keep the old state. False for a negative time, a level that
-    /// can't have weather (the Nether, the End) or isn't the one in place, a handle that isn't
-    /// this open's on the server, or when a mod kept the old state. API
+    /// can't have weather (the Nether; the End has weather in 1.21.10) or isn't the one in place,
+    /// a handle that isn't this open's on the server, or when a mod kept the old state. API
     /// @API:level_world_setters@.
     pub(super) fn native_level_set_weather(
         &mut self,

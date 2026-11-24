@@ -661,14 +661,6 @@ impl Goal for Beg {
         self.ticks -= 1;
     }
 }
-/// `NeutralMob.isValidPlayerTarget`: a player in survival or adventure, off
-/// peaceful.
-fn valid_player_target(w: &MobWorld) -> bool {
-    w.player
-        .as_ref()
-        .is_some_and(|p| !p.creative && !p.spectator)
-        && w.difficulty.id != 0
-}
 /// `NeutralMob.stopBeingAngry`.
 fn stop_being_angry(m: &mut Mob) {
     // setLastHurtByMob(null) also stamps the time.
@@ -690,7 +682,11 @@ pub fn forgive_dead_player(m: &mut Mob) {
 /// monster) is the anger's target, and the 20 to 39 seconds of
 /// `PERSISTENT_ANGER_TIME` (the same for both) start over every tick it is held.
 /// Without a target the anger runs out (`extra.anger` counts down to the end
-/// time), and anger at a mob ends when that mob dies.
+/// time), and anger at a mob ends when that mob dies. 1.21.10's
+/// `Mob.getTarget` is the raw target — no creative/spectator filter (26.1's
+/// `asValidTarget`) — and there is no forgiveness for a creative, spectator
+/// or Peaceful player: the goal layer drops such a player from the target
+/// (`can_target_player`), and only then does the timer run out.
 pub(super) fn update_persistent_anger(m: &mut Mob, w: &MobWorld) {
     let angry_at = m.extra.angry_at;
     if let Some(target @ Who::Mob(id)) = m.ai.target
@@ -700,13 +696,7 @@ pub(super) fn update_persistent_anger(m: &mut Mob, w: &MobWorld) {
         stop_being_angry(m);
         return;
     }
-    // Mob.getTarget: a player in creative or spectator mode is no target.
-    let target = m.ai.target.filter(|t| {
-        *t != Who::Player
-            || w.player
-                .as_ref()
-                .is_some_and(|p| !p.creative && !p.spectator)
-    });
+    let target = m.ai.target;
     if let Some(target) = target {
         m.extra.angry_at = Some(target);
         // Wolf.startPersistentAngerTimer: TimeUtil.rangeOfSeconds(20, 39).
@@ -714,20 +704,7 @@ pub(super) fn update_persistent_anger(m: &mut Mob, w: &MobWorld) {
     } else if m.extra.anger > 0 {
         m.extra.anger -= 1;
     }
-    if angry_at.is_some()
-        && m.extra.anger == 0
-        && !(target == Some(Who::Player) && valid_player_target(w))
-    {
-        stop_being_angry(m);
-    }
-    // The anger's target as it was when the tick began, once it is found: a
-    // player who is not here yet (a reloaded wolf ticks before the player
-    // joins) keeps the anger.
-    if angry_at == Some(Who::Player)
-        && w.player
-            .as_ref()
-            .is_some_and(|p| p.creative || p.spectator || w.difficulty.id == 0)
-    {
+    if angry_at.is_some() && m.extra.anger == 0 {
         stop_being_angry(m);
     }
 }
@@ -886,7 +863,8 @@ fn body_roll(shake: f32, offset: f32) -> f32 {
     let p = ((shake + offset) / 1.8).clamp(0.0, 1.0);
     (p * PI).msin() * (p * PI * 11.0).msin() * 0.15 * PI
 }
-/// `WolfModel.setupAnim` with the adult and baby overrides.
+/// `WolfModel.setupAnim` (1.21.10: one model for adults and babies; the baby
+/// mesh is the same parts at ageScale 0.5, not a separate `BabyWolfModel`).
 pub fn anim(m: &Mob, s: &State, p: &mut Poses) {
     let (pos, speed) = (s.pos, s.speed);
     let baby = m.is_baby();
@@ -914,11 +892,10 @@ pub fn anim(m: &Mob, s: &State, p: &mut Poses) {
         add(p, "right_front_leg", 0.01 * age, 1.0 * age, 0.0);
         p.xrot("left_front_leg", 5.811_947);
         add(p, "left_front_leg", -0.01 * age, 1.0 * age, 0.0);
-        if baby {
-            let x = p.get("body")[3] - PI / 2.0;
-            p.xrot("body", x);
-        } else if p.has("upper_body") {
-            p.get("upper_body")[1] += 2.0;
+        // 1.21.10's single WolfModel adds the upper-body offset for adults and
+        // babies alike (26.1's BabyWolfModel rotated the body −π/2 instead).
+        if p.has("upper_body") {
+            p.get("upper_body")[1] += 2.0 * age;
             p.xrot("upper_body", PI * 2.0 / 5.0);
             p.yrot("upper_body", 0.0);
         }
@@ -932,19 +909,16 @@ pub fn anim(m: &Mob, s: &State, p: &mut Poses) {
     let shake = m.anim.lerp(SHAKE, s.partial);
     let roll = m.anim.lerp(INTEREST, s.partial) * 0.15 * PI;
     p.zrot("body", body_roll(shake, -0.16));
-    if baby {
-        p.zrot("head", roll + body_roll(shake, 0.0));
-        p.zrot("tail", body_roll(shake, -0.2));
-    } else {
-        if p.has("real_head") {
-            p.zrot("real_head", roll + body_roll(shake, 0.0));
-        }
-        if p.has("upper_body") {
-            p.zrot("upper_body", body_roll(shake, -0.08));
-        }
-        if p.has("real_tail") {
-            p.zrot("real_tail", body_roll(shake, -0.2));
-        }
+    // 1.21.10's single WolfModel rolls the real parts for adults and babies
+    // alike (26.1's BabyWolfModel rolled the shared head/tail instead).
+    if p.has("real_head") {
+        p.zrot("real_head", roll + body_roll(shake, 0.0));
+    }
+    if p.has("upper_body") {
+        p.zrot("upper_body", body_roll(shake, -0.08));
+    }
+    if p.has("real_tail") {
+        p.zrot("real_tail", body_roll(shake, -0.2));
     }
     p.xrot("head", s.x_rot.to_radians());
     p.yrot("head", s.y_rot.to_radians());
@@ -959,7 +933,9 @@ pub fn tint(m: &Mob, partial: f32) -> u32 {
     let c = (shade * 255.0) as u32;
     0xFF00_0000 | c << 16 | c << 8 | c
 }
-/// `Wolf.getTexture`.
+/// `Wolf.getTexture`: 1.21.10 has no baby wolf textures (26.x adds one
+/// per variant and state) — babies wear the adult texture, on the baby
+/// model.
 pub fn texture(m: &Mob) -> String {
     let file = WOLF_VARIANTS[(m.extra.variant as usize).min(8)].1;
     let state = if m.extra.tame {
@@ -969,8 +945,7 @@ pub fn texture(m: &Mob) -> String {
     } else {
         ""
     };
-    let baby = if m.is_baby() { "_baby" } else { "" };
-    format!("entity/wolf/{file}{state}{baby}")
+    format!("entity/wolf/{file}{state}")
 }
 
 /// Cat variants (`CatVariants`): registry name, texture file.
@@ -1267,7 +1242,10 @@ impl Goal for CatRelaxOnOwner {
             p.position.y.floor() as i32,
             p.position.z.floor() as i32,
         ];
-        if !has_tag(w, at, "minecraft:cats_can_lie_on") {
+        // CatRelaxOnOwnerGoal.canUse: the owner must be lying on a bed
+        // (`ownerPosState.is(BlockTags.BEDS)`); there is no `cats_can_lie_on`
+        // tag in 1.21.10.
+        if !has_tag(w, at, "minecraft:beds") {
             return false;
         }
         // The bed's foot: against `BedBlock.FACING`.
@@ -1406,11 +1384,13 @@ fn give_morning_gift(m: &mut Mob, cx: &mut Cx) {
         at: here,
     });
 }
-/// `CatLieOnBlockGoal`: tame cats lie on beds and other warm blocks.
+/// `CatLieOnBedGoal`: tame cats lie on beds.
 #[derive(Clone, Debug)]
 struct CatLieOnBlock(super::goals::MoveToBlock);
 fn can_lie_on(w: &MobWorld, p: [i32; 3]) -> bool {
-    empty_above(w, p) && has_tag(w, p, "minecraft:cats_can_lie_on")
+    // CatLieOnBedGoal.isValidTarget: empty above and a bed
+    // (`BlockTags.BEDS`); there is no `cats_can_lie_on` tag in 1.21.10.
+    empty_above(w, p) && has_tag(w, p, "minecraft:beds")
 }
 impl Goal for CatLieOnBlock {
     goal_clone!();
@@ -1446,7 +1426,10 @@ impl Goal for CatLieOnBlock {
 #[derive(Clone, Debug)]
 struct CatSitOnBlock(super::goals::MoveToBlock);
 fn can_sit_on(w: &MobWorld, p: [i32; 3]) -> bool {
-    if !empty_above(w, p) || !has_tag(w, p, "minecraft:cats_can_sit_on") {
+    // CatSitOnBlockGoal.isValidTarget: empty above, then the block itself
+    // (chest / lit furnace / bed foot below); there is no `cats_can_sit_on`
+    // tag in 1.21.10.
+    if !empty_above(w, p) {
         return false;
     }
     let f = w.facts.get(w.world.block(p[0], p[1], p[2]));
@@ -1461,7 +1444,7 @@ fn can_sit_on(w: &MobWorld, p: [i32; 3]) -> bool {
                 && w.world.chest_openers.get(&key).is_none_or(|o| o.0 < 1)
         }
         // A bed's foot only (`BedBlock.PART != HEAD`).
-        _ => w.prop(p[0], p[1], p[2], "part") != Some("head"),
+        _ => has_tag(w, p, "minecraft:beds") && w.prop(p[0], p[1], p[2], "part") != Some("head"),
     }
 }
 impl Goal for CatSitOnBlock {
@@ -1586,10 +1569,12 @@ pub fn cat_variant(m: &mut Mob, w_moon_full: bool) -> u8 {
     let n = if w_moon_full { 11 } else { 10 };
     m.random.next_int_bound(n).unwrap_or(0) as u8
 }
+/// `CatRenderer.getTextureLocation`: 1.21.10 names the variant textures
+/// bare (`tabby`, `jellie`...) and has no baby cat textures (26.x
+/// prefixes `cat_` and adds one `cat_{v}_baby` per variant).
 pub fn cat_texture(m: &Mob) -> String {
     let v = CAT_VARIANTS[(m.extra.variant as usize).min(10)];
-    let baby = if m.is_baby() { "_baby" } else { "" };
-    format!("entity/cat/cat_{v}{baby}")
+    format!("entity/cat/{v}")
 }
 /// `CatRenderer.setupRotations`: lying cats roll onto their side.
 pub fn cat_rotations(m: &Mob, partial: f32) -> glam::Mat4 {
@@ -1648,7 +1633,9 @@ pub fn feline_server_ai_step(m: &mut Mob) {
     };
     m.extra.sprinting = speed == Some(1.33);
 }
-/// `AdultFelineModel` / `BabyFelineModel.setupAnim` for cats and ocelots.
+/// `FelineModel.setupAnim` for cats and ocelots (1.21.10: one model;
+/// `CatModel` / `OcelotModel` are thin subclasses, and babies pose the same
+/// at ageScale 0.5 — there is no separate `BabyFelineModel`).
 pub fn cat_anim(m: &Mob, s: &State, p: &mut Poses) {
     // FelineRenderState: Entity.isCrouching (the pose) and isSprinting.
     let st = Feline {
@@ -1662,6 +1649,9 @@ pub fn cat_anim(m: &Mob, s: &State, p: &mut Poses) {
     feline(p, s, &st);
 }
 pub fn feline(p: &mut Poses, s: &State, st: &Feline) {
+    // 1.21.10's single FelineModel poses adults and babies the same way;
+    // babies only scale by ageScale 0.5 (26.1's BabyFelineModel had its own
+    // sitting and lie-down branches).
     let baby = s.baby;
     let age = if baby { 0.5 } else { 1.0 };
     let (crouching, sprinting, sitting) = (st.crouching, st.sprinting, st.sitting);
@@ -1689,9 +1679,7 @@ pub fn feline(p: &mut Poses, s: &State, st: &Feline) {
     p.yrot("head", s.y_rot.to_radians());
     let (pos, sp) = (s.pos, s.speed);
     if !sitting {
-        if !baby {
-            p.xrot("body", PI / 2.0);
-        }
+        p.xrot("body", PI / 2.0);
         if sprinting {
             p.xrot("left_hind_leg", (pos * 0.6662).mcos() * sp);
             p.xrot("right_hind_leg", (pos * 0.6662 + 0.3).mcos() * sp);
@@ -1706,16 +1694,6 @@ pub fn feline(p: &mut Poses, s: &State, st: &Feline) {
             let swing = if crouching { 0.471_238_94 } else { PI / 4.0 };
             p.xrot("tail2", 1.727_876_1 + swing * pos.mcos() * sp);
         }
-    } else if baby {
-        let x = p.get("body")[3] - 0.436_332_32;
-        p.xrot("body", x);
-        add(p, "body", 0.0, 1.25, 0.0);
-        add(p, "head", 0.0, 0.0, 0.75);
-        let t = p.get("tail1")[3] + 0.545_415_4;
-        p.xrot("tail1", t);
-        add(p, "tail1", 0.0, 4.0, -0.9);
-        add(p, "left_hind_leg", 0.0, 0.0, -0.9);
-        add(p, "right_hind_leg", 0.0, 0.0, -0.9);
     } else {
         p.xrot("body", PI / 4.0);
         add(p, "body", 0.0, -4.0 * age, 5.0 * age);
@@ -1735,29 +1713,7 @@ pub fn feline(p: &mut Poses, s: &State, st: &Feline) {
     }
     let lie = st.lie_down;
     let lie_tail = st.lie_down_tail;
-    if lie > 0.0 && baby {
-        add(p, "body", 1.0, 0.0, 0.0);
-        let hx = p.get("head")[3];
-        p.xrot("head", rot_lerp(lie, hx, PI / 18.0));
-        let hz = p.get("head")[5];
-        p.zrot("head", rot_lerp(lie, hz, -PI * 5.0 / 12.0));
-        add(p, "head", 1.5, 0.75, -0.5);
-        p.xrot("right_front_leg", -PI / 4.0);
-        add(p, "right_front_leg", 3.5, -0.5, 0.0);
-        p.xrot("left_front_leg", -PI / 2.0);
-        add(p, "left_front_leg", 1.5, -1.0, -2.0);
-        p.xrot("right_hind_leg", PI * 2.0 / 9.0);
-        p.yrot("right_hind_leg", PI / 9.0);
-        p.zrot("right_hind_leg", -PI / 9.0);
-        add(p, "right_hind_leg", 2.5, -0.25, 0.5);
-        add(p, "left_hind_leg", 1.5, 0.0, -1.0);
-        let t = p.get("tail1");
-        let (tx, ty, tz) = (t[3], t[4], t[5]);
-        p.xrot("tail1", tx + rot_lerp(lie_tail, tx, -PI / 6.0));
-        p.yrot("tail1", ty + rot_lerp(lie_tail, ty, 0.0));
-        p.zrot("tail1", tz + rot_lerp(lie_tail, tz, -PI / 18.0));
-        add(p, "tail1", 1.0, 0.5, -0.25);
-    } else if lie > 0.0 {
+    if lie > 0.0 {
         let (hz, hy) = (p.get("head")[5], p.get("head")[4]);
         p.zrot("head", rot_lerp(lie, hz, -1.270_796_3));
         p.yrot("head", rot_lerp(lie, hy, 1.270_796_3));
@@ -2156,6 +2112,56 @@ mod tests {
             "a survival player's bone makes it beg; a spectator's does not"
         );
     }
+
+    /// `CatSitOnBlockGoal.isValidTarget` is the block itself — an unopened
+    /// chest, a lit furnace, the foot of a bed — with empty space above; and
+    /// `CatLieOnBedGoal.isValidTarget` is a bed with empty space above. Neither
+    /// was ever a `cats_can_*` tag (no such tags exist in 1.21.10).
+    #[test]
+    fn a_cat_sits_on_a_chest_and_a_bed_foot_and_lies_on_a_bed() {
+        use crate::mobs::world::with_built_test_world;
+        if !with_built_test_world(
+            &[],
+            |world, registry| {
+                world.chunks.insert(
+                    (0, 0),
+                    std::sync::Arc::new(crate::chunk::Chunk::empty(0, 0)),
+                );
+                world
+                    .set(0, 63, 0, registry.default_state("minecraft:chest").unwrap())
+                    .unwrap();
+                world
+                    .set(
+                        2,
+                        63,
+                        0,
+                        registry.default_state("minecraft:furnace").unwrap(),
+                    )
+                    .unwrap();
+                world
+                    .set(
+                        4,
+                        63,
+                        0,
+                        registry.default_state("minecraft:white_bed").unwrap(),
+                    )
+                    .unwrap();
+            },
+            |w, _| {
+                assert!(super::can_sit_on(w, [0, 63, 0]), "an unopened chest");
+                assert!(
+                    !super::can_sit_on(w, [2, 63, 0]),
+                    "an unlit furnace is cold"
+                );
+                assert!(super::can_sit_on(w, [4, 63, 0]), "the foot of a bed");
+                assert!(!super::can_sit_on(w, [6, 63, 0]), "air is not a seat");
+                assert!(super::can_lie_on(w, [4, 63, 0]), "a bed to lie on");
+                assert!(!super::can_lie_on(w, [0, 63, 0]), "a chest is not a bed");
+            },
+        ) {
+            return;
+        }
+    }
 }
 
 /// `NeutralMob.isAngryAtAllPlayers`: with the `universal_anger` game rule on, a
@@ -2185,7 +2191,7 @@ mod universal_anger_tests {
                 w.universal_anger = universal_anger;
                 let kind = Arc::new(types.types["minecraft:wolf"].clone());
                 let mut m = Mob::new(1, kind, Vec3::new(0.5, 64.0, 0.5), 0.0);
-                // `anger_end_time` still running, `angry_at` gone: angry, with
+                // The anger countdown still running, `angry_at` gone: angry, with
                 // nobody left that it was angered by.
                 m.extra.anger = 600;
                 m.extra.angry_at = None;

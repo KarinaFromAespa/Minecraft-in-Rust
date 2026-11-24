@@ -49,12 +49,13 @@ pub fn register(m: &mut Mob) {
         3,
         NearestTarget::player(true).when(|m, _| m.extra.anger > 0 && m.extra.flag2),
     );
+    // The fox goal has no selector in 1.21.10: cubs hunt foxes too. (26.1
+    // added a `!isBaby()` selector.)
     t.add(
         4,
         NearestTarget::species(&[Species::Fox], true)
             .interval(10)
-            .reach()
-            .when(|m, _| !m.is_baby()),
+            .reach(),
     );
 }
 
@@ -168,8 +169,11 @@ pub fn stand_box_scale(m: &Mob) -> f32 {
 }
 
 /// `PolarBear.tick`: the stand animation, the warning sound's delay and
-/// `NeutralMob.updatePersistentAnger`.
-pub fn ai_step(m: &mut Mob, w: &MobWorld) {
+/// `NeutralMob.updatePersistentAnger`. A creative or spectator player is
+/// not forgiven at once: 1.21.10 has no 26.1 immediate stop, and
+/// `Mob.getTarget` is the raw target; the goal layer drops such a player
+/// from the target, and only then does the timer run out.
+pub fn ai_step(m: &mut Mob, _w: &MobWorld) {
     client_tick(m);
     if m.extra.counter > 0 {
         m.extra.counter -= 1;
@@ -184,10 +188,6 @@ pub fn ai_step(m: &mut Mob, w: &MobWorld) {
         if m.extra.anger == 0 {
             stop_being_angry(m);
         }
-    }
-    // A player in creative or spectator mode is forgiven at once.
-    if m.extra.flag2 && w.player.as_ref().is_some_and(|p| p.creative || p.spectator) {
-        stop_being_angry(m);
     }
 }
 /// `NeutralMob.playerDied`: a bear angry at the player (its target, kept in
@@ -273,13 +273,13 @@ mod tests {
 mod freeze_panic_tests {
     use super::*;
 
-    /// `#panic_environmental_causes` holds freeze and sulfur_cube_hot too.
+    /// `#panic_environmental_causes` holds freeze and a hot floor too.
     #[test]
-    fn freezing_and_a_hot_sulfur_cube_are_environmental() {
+    fn freezing_and_a_hot_floor_are_environmental() {
         let kind = (*crate::mobs::sensor_scan_tests::kind()).clone();
         for cause in [
             super::super::DamageKind::Freeze,
-            super::super::DamageKind::SulfurCubeHot,
+            super::super::DamageKind::HotFloor,
         ] {
             let mut m = Mob::new(
                 1,

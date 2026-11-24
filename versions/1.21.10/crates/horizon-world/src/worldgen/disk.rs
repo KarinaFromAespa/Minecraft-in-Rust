@@ -7,14 +7,14 @@ use super::{
     int_range,
     placement::{PlacementContext, PlacementQueryError},
     required,
-    state_provider::{BlockStateProvider, StateProviderError},
+    state_provider::{RuleBasedBlockStateProvider, StateProviderError},
     value_provider::IntProvider,
 };
 use crate::registry::BlockStateId;
 use horizon_core::random::{InvalidBound, RandomSource};
 #[derive(Clone, Debug)]
 pub struct DiskFeature {
-    provider: BlockStateProvider,
+    provider: RuleBasedBlockStateProvider,
     target: BlockPredicate,
     radius: IntProvider,
     half_height: i32,
@@ -59,11 +59,15 @@ impl DiskFeature {
             .simple_blocks
             .as_ref()
             .ok_or(DecodeError::Field("disk provider bindings"))?;
-        let provider = catalog.provider_with_budget(
+        // 1.21.10's `DiskConfiguration.state_provider` is the rule-based
+        // record (`fallback` + `rules`, no `type` field) — not a typed
+        // `BlockStateProvider` (26.x promoted it to one).
+        let provider = RuleBasedBlockStateProvider::decode(
             required(&object, "state_provider")?.get(),
             providers,
             depth + 1,
             remaining,
+            Some(catalog),
         )?;
         let target = BlockPredicate::decode_with_blocks(
             required(&object, "target")?.get(),
@@ -121,18 +125,19 @@ impl DiskFeature {
                 spend(&mut remaining)?;
                 let p = [x, y, z];
                 if self.target.test(world, p).map_err(DiskError::Query)? {
-                    if let Some(state) = self
+                    // 1.21.10's rule-based `getState` always returns a
+                    // state (the fallback is required); there is no
+                    // 26.x `getOptionalState` to decline.
+                    let state = self
                         .provider
-                        .get_optional_state(world, random, p)
-                        .map_err(DiskError::Provider)?
-                    {
-                        world.set_block(p, state, 2).map_err(DiskError::World)?;
-                        if !previous_placed {
-                            self.mark_above(world, p)?;
-                        }
-                        any = true;
-                        previous_placed = true;
+                        .get_state(world, random, p)
+                        .map_err(DiskError::Provider)?;
+                    world.set_block(p, state, 2).map_err(DiskError::World)?;
+                    if !previous_placed {
+                        self.mark_above(world, p)?;
                     }
+                    any = true;
+                    previous_placed = true;
                 } else {
                     previous_placed = false;
                 }

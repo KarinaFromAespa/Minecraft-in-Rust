@@ -186,14 +186,12 @@ impl Game<'_> {
         let (xd, zd) = self.extra_knockback_direction();
         self.attack_ticks = 0;
         self.swing_arm();
-        // LivingEntity.getSecondsToDisableBlocking: the held weapon's value,
-        // none while another item is in use.
-        let disable_blocking = if self.using.is_some() {
-            0.0
-        } else {
-            self.attack_item_info()
-                .map_or(0.0, |i| i.disable_blocking_seconds)
-        };
+        // LivingEntity.getSecondsToDisableBlocking: the held weapon's
+        // value, unconditionally (1.21.10 reads it whether or not the
+        // weapon is the item in use; the active-item gate is 1.21.11's).
+        let disable_blocking = self
+            .attack_item_info()
+            .map_or(0.0, |i| i.disable_blocking_seconds);
         let ignite = self.weapon_ignite_seconds();
         Some(Strike {
             attacker: self.lan_acting,

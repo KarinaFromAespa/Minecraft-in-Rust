@@ -40,6 +40,10 @@ pub struct SocialView {
     /// `serverLabel`: the server's name and the players online.
     pub server_label: Text,
     pub scroll: f32,
+    /// `PlayerEntry`'s constructor only builds the row's buttons when the
+    /// chat is allowed (`getChatStatus().isChatAllowed(isLocalServer())`):
+    /// with the chat hidden, the rows show no buttons at all.
+    pub chat_allowed: bool,
 }
 /// What a click does.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -118,7 +122,8 @@ fn row_rect(w: f32, y: f32) -> [f32; 4] {
         ITEM_HEIGHT - 4.0,
     ]
 }
-/// `PlayerEntry.extractContent`: the hide or show button, and the report button after it.
+/// `PlayerEntry.renderContent` (26.1's `extractContent`): the hide or show button, and the
+/// report button after it.
 fn row_buttons(w: f32, y: f32) -> ([f32; 2], [f32; 2]) {
     let [x, y, width, height] = row_rect(w, y);
     let hide = [
@@ -169,6 +174,9 @@ pub fn click(size: (f32, f32), cursor: (f32, f32), view: &SocialView) -> Option<
     if cursor.1 < LIST_START || cursor.1 >= list_end(h) {
         return None;
     }
+    if !view.chat_allowed {
+        return None;
+    }
     for (i, y) in visible(view, h) {
         let e = &view.entries[i];
         if e.local {
@@ -188,7 +196,7 @@ pub fn click(size: (f32, f32), cursor: (f32, f32), view: &SocialView) -> Option<
 /// The tooltip of what the cursor is over.
 fn tooltip(size: (f32, f32), cursor: (f32, f32), view: &SocialView) -> Option<Text> {
     let (w, h) = size;
-    if cursor.1 < LIST_START || cursor.1 >= list_end(h) {
+    if cursor.1 < LIST_START || cursor.1 >= list_end(h) || !view.chat_allowed {
         return None;
     }
     for (i, y) in visible(view, h) {
@@ -227,7 +235,7 @@ pub fn draw(
     let title = Text::translate(TITLE, &[]);
     let tw = atlas.font.width_text(&title);
     batch.text_styled(atlas, &title, ((w - tw) / 2.0).floor(), 15.0, WHITE, true);
-    // `extractBackground`: the panel and the search icon.
+    // `renderBackground` (26.1: `extractBackground`): the panel and the search icon.
     let mx = margin_x(w) + 3.0;
     ui::blit_sprite(
         batch,
@@ -332,7 +340,7 @@ pub fn draw(
                 false,
             );
         }
-        if !e.local {
+        if view.chat_allowed && !e.local {
             let (hide, report) = row_buttons(w, y);
             let sprite = |base: &str, hover: bool| {
                 format!(
@@ -448,8 +456,9 @@ mod tests {
         me.local = true;
         let mut hidden = entry(3, "Hidden");
         hidden.hidden = true;
-        let view = SocialView {
+        let mut view = SocialView {
             entries: vec![me, entry(2, "Other"), hidden],
+            chat_allowed: true,
             ..SocialView::default()
         };
         let rows: Vec<_> = visible(&view, size.1).collect();
@@ -472,6 +481,10 @@ mod tests {
         );
         let [dx, dy, ..] = done(size.0, size.1);
         assert_eq!(click(size, (dx + 2.0, dy + 2.0), &view), Some(Action::Done));
+        // With the chat hidden, the rows have no buttons to click.
+        view.chat_allowed = false;
+        assert_eq!(click(size, at(1), &view), None);
+        assert_eq!(click(size, (dx + 2.0, dy + 2.0), &view), Some(Action::Done));
     }
 
     /// The list scrolls by whole rows less its height, and a row scrolled out is not clickable.
@@ -481,6 +494,7 @@ mod tests {
         let entries: Vec<_> = (0..10).map(|i| entry(i + 1, &format!("P{i}"))).collect();
         let mut view = SocialView {
             entries,
+            chat_allowed: true,
             ..SocialView::default()
         };
         let shown = visible(&view, h).count();

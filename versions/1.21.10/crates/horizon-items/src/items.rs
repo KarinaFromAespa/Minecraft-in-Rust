@@ -13,6 +13,34 @@ use std::{
     sync::Arc,
 };
 
+/// The sixteen dye colours, in DyeColor id order.
+const DYE_NAMES: [&str; 16] = [
+    "white",
+    "orange",
+    "magenta",
+    "light_blue",
+    "yellow",
+    "lime",
+    "pink",
+    "gray",
+    "light_gray",
+    "cyan",
+    "purple",
+    "blue",
+    "brown",
+    "green",
+    "red",
+    "black",
+];
+
+/// The dye colour of a dye item from its name (`minecraft:red_dye` -> "red"):
+/// 1.21.10 has no `minecraft:dye` component, the colour is the item's own
+/// (DyeItem's dyeColor field).
+pub fn dye_from_name(name: &str) -> Option<&str> {
+    let dye = name.strip_prefix("minecraft:")?.strip_suffix("_dye")?;
+    DYE_NAMES.contains(&dye).then_some(dye)
+}
+
 fn tool_number(value: &horizon_world::nbt::Tag) -> Option<f32> {
     horizon_world::datafix::dynamic::as_number(value).map(|n| n.float_value())
 }
@@ -195,10 +223,13 @@ pub struct ItemInfo {
     pub weapon_damage: Option<u32>,
     /// `villager_food.nutrition`: what a villager gets from eating it.
     pub villager_food: Option<i32>,
-    /// `use_effects.speed_multiplier` (UseEffects.DEFAULT: 0.2).
+    /// `use_effects.speed_multiplier` (UseEffects.DEFAULT: 0.2). 1.21.10
+    /// has no `use_effects` component and never reads this: any item in
+    /// use slows the input to 0.2 (see `Game.sync_player_body`).
     pub use_speed: f32,
     /// `use_effects.can_sprint` (default false): sprinting may start while the
-    /// item is in use.
+    /// item is in use. 1.21.10 has no `use_effects` component and never
+    /// reads this: any item in use keeps a sprint from starting.
     pub can_sprint: bool,
     /// `use_effects.interact_vibrations` (default true).
     pub interact_vibrations: bool,
@@ -937,7 +968,10 @@ impl Items {
                         .as_str()
                         .map(str::to_owned),
                     jukebox_song: c["minecraft:jukebox_playable"].as_str().map(str::to_owned),
-                    dye: c["minecraft:dye"].as_str().map(str::to_owned),
+                    dye: c["minecraft:dye"]
+                        .as_str()
+                        .map(str::to_owned)
+                        .or_else(|| dye_from_name(name).map(str::to_owned)),
                     cushion_color: c["minecraft:cushion/color"].as_str().map(str::to_owned),
                     block_transformer: c["minecraft:block_transformer"].as_str().map(str::to_owned),
                     bundle: c.get("minecraft:bundle_contents").is_some(),

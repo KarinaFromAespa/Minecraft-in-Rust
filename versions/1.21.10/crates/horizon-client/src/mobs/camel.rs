@@ -21,6 +21,9 @@ use std::collections::HashMap;
 const SIT_DOWN: i64 = 40;
 const STAND_UP: i64 = 52;
 pub const DASH_COOLDOWN: i32 = 55;
+/// `Camel.BABY_SCALE` (`getAgeScale` for a baby) in 1.21.10: 0.45
+/// (26.1 raised it to 0.6).
+const BABY_SCALE: f32 = 0.45;
 
 pub fn register(m: &mut Mob) {
     m.extra.tame = true;
@@ -185,7 +188,7 @@ fn body_anchor_y(m: &Mob, front: bool, height: f32, scale: f32) -> f64 {
 /// front body anchor (sinking while the camel sits) less 0.2 scaled, and
 /// 0.56 of the width ahead.
 pub fn leash_offset(m: &Mob) -> [f64; 3] {
-    let scale = if m.is_baby() { 0.6 } else { 1.0 };
+    let scale = if m.is_baby() { BABY_SCALE } else { 1.0 };
     [
         0.0,
         body_anchor_y(m, true, m.height(), scale) - f64::from(0.2_f32 * scale),
@@ -193,7 +196,7 @@ pub fn leash_offset(m: &Mob) -> [f64; 3] {
     ]
 }
 /// `Camel.getPassengerAttachmentPoint` of the first (driver) seat, before
-/// the camel's yaw turns it: half a block ahead (scaled by `getAgeScale`, 0.6
+/// the camel's yaw turns it: half a block ahead (scaled by `getAgeScale`, 0.45
 /// for a baby) at the body anchor, which sinks while the camel sits.
 pub fn passenger_attachment(m: &Mob) -> [f64; 3] {
     passenger_attachment_at(m, 0, 1, false)
@@ -202,7 +205,7 @@ pub fn passenger_attachment(m: &Mob) -> [f64; 3] {
 /// (`getPassengers().indexOf`): with more than one aboard the second seat is
 /// 0.7 behind the middle, and an `Animal` sits 0.2 further ahead.
 pub fn passenger_attachment_at(m: &Mob, index: usize, count: usize, animal: bool) -> [f64; 3] {
-    let scale = if m.is_baby() { 0.6 } else { 1.0 };
+    let scale = if m.is_baby() { BABY_SCALE } else { 1.0 };
     let driver = index == 0;
     let height = body_anchor_y(m, driver, m.height(), scale) as f32;
     let mut offset = 0.5_f32;
@@ -496,6 +499,25 @@ mod tests {
             assert!((passenger_attachment_at(&m, 1, 2, true)[2] + 0.5).abs() < 1e-6);
             assert!((passenger_attachment_at(&m, 0, 2, true)[2] - 0.7).abs() < 1e-6);
             assert_eq!(passenger_attachment_at(&m, 0, 1, true)[2], 0.5);
+        });
+    }
+
+    /// `Camel.getAgeScale` in 1.21.10 is 0.45 for a baby (26.1: 0.6):
+    /// the driver seat sits 0.5 * 0.45 ahead, and the lead hangs
+    /// 0.2 * 0.45 below the front body anchor of the standing baby.
+    #[test]
+    fn a_baby_camel_seats_and_leashes_at_the_1_21_11_scale() {
+        with_test_world(&[], |_, types| {
+            let kind = std::sync::Arc::new(types.types["minecraft:camel"].clone());
+            let mut m = Mob::new(1, kind, Vec3::new(0.5, 64.0, 0.5), 0.0);
+            m.extra.age = -24000;
+            m.age = 1000;
+            m.extra.egg_time = 0;
+            assert!(m.is_baby());
+            assert!((passenger_attachment_at(&m, 0, 1, false)[2] - 0.225).abs() < 1e-6);
+            let leash = leash_offset(&m);
+            assert!((leash[1] - (1.4 - 0.09375 - 0.09)).abs() < 1e-6);
+            assert!((leash[2] - 0.95 * 0.56).abs() < 1e-6);
         });
     }
 

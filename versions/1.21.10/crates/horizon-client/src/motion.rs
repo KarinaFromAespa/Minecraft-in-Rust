@@ -119,11 +119,17 @@ impl MotionResources {
                 .cloned()
                 .collect())
         };
+        // 1.21.10 has no `can_glide_through` tag, and vanilla 1.21.10's
+        // `LivingEntity.onClimbable` has no fall-flying exception at all
+        // (verified against the 1.21.10 client jar): a gliding entity in
+        // vines is on climbable, as in vanilla. The registry keeps the
+        // parameter for versions that do have the tag.
+        let no_glide_through: BTreeSet<String> = BTreeSet::new();
         let climbing = ClimbingRegistry::new(
             assets.registry,
             &tag("minecraft:trapdoors")?,
             &tag("minecraft:climbable")?,
-            &tag("minecraft:can_glide_through")?,
+            &no_glide_through,
         )?;
         Ok(Self {
             landing: crate::landing::load(root, &properties)?,
@@ -369,10 +375,13 @@ pub struct PlayerMotion {
     /// next refreshes.
     pub scale: f32,
     pub speed: f32,
-    /// `LocalPlayer.itemUseSpeedMultiplier` while using an item (not riding).
+    /// `LocalPlayer.modifyInput`'s 0.2 while using an item (not riding):
+    /// 1.21.10 scales the input by a flat 0.2 for any item in use, not a
+    /// per-item multiplier.
     pub item_use_speed: Option<f32>,
-    /// `LocalPlayer.isSlowDueToUsingItem`: an item in use whose `use_effects`
-    /// do not allow sprinting.
+    /// `LocalPlayer.isUsingItem`: any item in use keeps a sprint from
+    /// starting (1.21.11's `isSlowDueToUsingItem` only counts items whose
+    /// `use_effects` slow the player).
     pub item_use_slows_sprint: bool,
     /// `LocalPlayer.moveTowardsClosestSpace`'s new x and z speeds this tick,
     /// worked out by the caller (which knows the blocks); applied before the
@@ -403,7 +412,7 @@ pub struct PlayerMotion {
     pub health: crate::health::PlayerHealth,
     /// Status effects and armor protection seen by movement and damage.
     pub status: crate::effects::StatusFlags,
-    /// Water and lava around the player (`Entity.fluidInteraction`).
+    /// Water and lava around the player (`Entity.fluidHeight` / `fluidOnEyes`).
     pub fluids: PlayerFluids,
     /// `Entity.isInPowderSnow` / `wasInPowderSnow`.
     pub in_powder_snow: bool,
@@ -1289,6 +1298,8 @@ impl MotionWorld<'_, '_, '_> {
         self.apply_fire_contact()?;
         self.player.refresh_attributes()?;
         self.update_player_pose()?;
+        // Player.tick, after updatePlayerPose: the impulse grace counts down.
+        self.player.impulse.tick();
         // The resident scene accepts the resolved local movement directly.
         // Vanilla dispatches this separately from travel, on packet acceptance.
         self.check_movement_statistics(previous.vector_to(self.player.position))?;
@@ -5973,12 +5984,14 @@ mod tests {
         );
     }
 
-    /// Vanilla `LocalPlayer.aiStep`: an item in use whose `use_effects` do not
-    /// allow sprinting (a raised shield) keeps the sprint key, and a
-    /// double-tap of forward, from starting a sprint; an item that allows it
-    /// (a spear) does not.
+    /// Vanilla `LocalPlayer.aiStep` + `canStartSprinting`: any item in
+    /// use (a raised shield) keeps the sprint key, and a double-tap of
+    /// forward, from starting a sprint — 1.21.10 has no item that allows
+    /// sprinting while in use (`isUsingItem`, not 1.21.11's
+    /// `isSlowDueToUsingItem`); once the item is put away the sprint key
+    /// starts one again.
     #[test]
-    fn an_item_in_use_stops_a_sprint_from_starting_unless_it_allows_sprinting() {
+    fn an_item_in_use_stops_a_sprint_from_starting() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../.local/horizon-client")
             .join(horizon_core::VANILLA_VERSION);
@@ -6019,11 +6032,11 @@ mod tests {
             w.controlled_simulation_tick(keys).unwrap();
         }
         assert!(!w.player.sprinting, "a raised shield stops a double-tap");
-        // A spear's use_effects allow sprinting.
-        w.player.item_use_speed = Some(1.0);
+        // The item put away: the sprint key starts a sprint again.
+        w.player.item_use_speed = None;
         w.player.item_use_slows_sprint = false;
         w.controlled_simulation_tick(sprint_key).unwrap();
-        assert!(w.player.sprinting, "an item that can_sprint lets it start");
+        assert!(w.player.sprinting, "no item in use lets it start");
     }
 
     /// Vanilla `LocalPlayer.isSprintingPossible`: blindness

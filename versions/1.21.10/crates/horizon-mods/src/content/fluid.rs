@@ -6,7 +6,8 @@ use serde::Deserialize;
 pub const FLUID_TEMPLATES: [&str; 2] = ["minecraft:water", "minecraft:lava"];
 
 /// A fluid the mod adds: NeoForge's `FluidType` and `BaseFlowingFluid.Properties`
-/// over a copy of a [`FLUID_TEMPLATES`] fluid, drawn as its `FluidModel`. Like
+/// over a copy of a [`FLUID_TEMPLATES`] fluid, drawn with its own
+/// still/flowing/overlay sprites by the liquid renderer. Like
 /// vanilla's, it is two fluids: the source `<mod id>:<path>` and the flowing
 /// [`Fluid::flowing_id`]. A number left out is the template's.
 #[derive(Clone, Debug, Deserialize, PartialEq)]
@@ -59,8 +60,9 @@ pub struct Fluid {
     pub bucket: Option<String>,
     #[serde(default)]
     pub block: Option<String>,
-    /// `FluidModel`: the still, flowing and overlay sprites (texture ids in the
-    /// block atlas, `<namespace>:block/...`), and an ARGB tint over them.
+    /// The liquid renderer's sprites for this fluid: the still, flowing and
+    /// overlay sprites (texture ids in the block atlas,
+    /// `<namespace>:block/...`), and an ARGB tint over them.
     pub still: String,
     pub flowing: String,
     #[serde(default)]

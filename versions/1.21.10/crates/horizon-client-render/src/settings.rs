@@ -873,9 +873,8 @@ pub enum Opt {
     SharePresence,
     DirectionalAudio,
     MusicToast,
-    /// `Options.exclusiveFullscreen`.
-    ExclusiveFullscreen,
-    /// VideoSettingsScreen's "Exclusive Fullscreen Mode": the monitor's mode to take.
+    /// VideoSettingsScreen's fullscreen-resolution row: the monitor's mode
+    /// fullscreen takes (`options.fullscreen.resolution`).
     ExclusiveMode,
     /// `Options.preferredGraphicsBackend`.
     GraphicsBackend,

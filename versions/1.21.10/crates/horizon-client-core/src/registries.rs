@@ -2,6 +2,17 @@
 //! arguments against (what the server's registry access holds).
 use std::collections::BTreeMap;
 
+/// An item's default stack size and durability, from the vanilla export's
+/// `item_defaults` (written by `VanillaCommandParseOracle registries`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ItemDefaults {
+    /// The default `minecraft:max_stack_size` (1 when the item has none:
+    /// `DataComponentMap.getOrDefault(MAX_STACK_SIZE, 1)`).
+    pub max_stack_size: i32,
+    /// The default `minecraft:max_damage`, None when the item has none.
+    pub max_damage: Option<i32>,
+}
+
 /// Registry contents and source state used to validate and complete arguments.
 #[derive(Clone, Debug, Default)]
 pub struct Registries {
@@ -51,7 +62,6 @@ pub struct Registries {
     pub predicates: Vec<String>,
     pub item_modifiers: Vec<String>,
     pub schedules: Vec<String>,
-    pub stopwatches: Vec<String>,
     pub recipes: Vec<String>,
     pub sounds: Vec<String>,
     pub damage_types: Vec<String>,
@@ -79,6 +89,12 @@ pub struct Registries {
     pub block_tag_members: BTreeMap<String, Vec<String>>,
     /// Data component types with a codec (not transient).
     pub persistent_components: Vec<String>,
+    /// Item id -> its default stack size and durability, what `ItemParser`
+    /// validates a parsed stack's components against
+    /// (`ItemStack.validateComponents`: a damageable item cannot stack, and
+    /// a container's stacks cannot exceed their maximum). Items the export
+    /// does not list (a content mod's) skip the check.
+    pub item_defaults: BTreeMap<String, ItemDefaults>,
     /// Recipes `/recipe` can give (not special).
     pub learnable_recipes: Vec<String>,
     /// Advancement id -> criterion names.
@@ -161,9 +177,9 @@ pub fn modify_custom_completions(
     }
 }
 impl Registries {
-    /// `ClientSuggestionProvider.getCustomTabSuggestions`: what chat (not a
-    /// command) completes, the online players' names with the server's custom
-    /// completions, each once.
+    /// `ClientSuggestionProvider.getCustomTabSugggestions` (sic, 1.21.10's
+    /// typo): what chat (not a command) completes, the online players' names
+    /// with the server's custom completions, each once.
     pub fn custom_tab_suggestions(&self) -> std::collections::BTreeSet<&str> {
         self.players
             .iter()
@@ -198,6 +214,17 @@ impl Registries {
         fill(&mut self.templates, "templates");
         fill(&mut self.persistent_components, "persistent_components");
         fill(&mut self.learnable_recipes, "learnable_recipes");
+        if self.item_defaults.is_empty() {
+            for (id, d) in r["item_defaults"].as_object().into_iter().flatten() {
+                self.item_defaults.insert(
+                    id.clone(),
+                    ItemDefaults {
+                        max_stack_size: d["max_stack_size"].as_i64().unwrap_or(1) as i32,
+                        max_damage: d["max_damage"].as_i64().map(|v| v as i32),
+                    },
+                );
+            }
+        }
         if self.summonable.is_empty() {
             self.summonable = strings(&r["summonable"]);
             self.summonable.sort();
@@ -271,6 +298,9 @@ impl Registries {
         fill(&mut self.templates, &e.templates);
         fill(&mut self.persistent_components, &e.persistent_components);
         fill(&mut self.learnable_recipes, &e.learnable_recipes);
+        if self.item_defaults.is_empty() {
+            self.item_defaults.clone_from(&e.item_defaults);
+        }
         if self.summonable.is_empty() {
             self.summonable.clone_from(&e.summonable);
             self.summonable.sort();
@@ -399,6 +429,42 @@ mod tests {
         assert_eq!(
             reg.ids("minecraft:damage_type"),
             ["minecraft:fall", "minecraft:magic"]
+        );
+    }
+
+    /// The export's `item_defaults` fill the per-item stack size and
+    /// durability the item parser validates against; a missing stack size
+    /// reads as 1, as `getOrDefault(MAX_STACK_SIZE, 1)` does.
+    #[test]
+    fn item_defaults_come_from_the_export() {
+        use super::ItemDefaults;
+        let export = Registries::from_export(&serde_json::json!({
+            "item_defaults": {
+                "minecraft:stone": {"max_stack_size": 64},
+                "minecraft:diamond_sword": {"max_stack_size": 1, "max_damage": 1561},
+                "minecraft:odd": {},
+            },
+        }));
+        assert_eq!(
+            export.item_defaults.get("minecraft:stone"),
+            Some(&ItemDefaults {
+                max_stack_size: 64,
+                max_damage: None
+            })
+        );
+        assert_eq!(
+            export.item_defaults.get("minecraft:diamond_sword"),
+            Some(&ItemDefaults {
+                max_stack_size: 1,
+                max_damage: Some(1561)
+            })
+        );
+        assert_eq!(
+            export.item_defaults.get("minecraft:odd"),
+            Some(&ItemDefaults {
+                max_stack_size: 1,
+                max_damage: None
+            })
         );
     }
 }

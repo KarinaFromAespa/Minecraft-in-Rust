@@ -356,8 +356,9 @@ impl Game<'_> {
     }
 
     /// `PiercingWeapon.attack` of the spear in the main hand, for a left
-    /// click: every mob along the view is stabbed, then `postPiercingAttack`
-    /// (Lunge), the hit sound and the swing. Gives the sound of the jab
+    /// click: every mob along the view is stabbed, then the lunge
+    /// (1.21.11's `lungeForwardMaybe`; 1.21.10 has no spear lunge — spears
+    /// are 1.21.11-only), the hit sound and the swing. Gives the sound of the jab
     /// (`makeSound`), which everyone but the user hears from the server.
     pub(super) fn jab(&mut self) -> Option<&'static str> {
         let kinetic = self.held().and_then(|s| Kinetic::of(&s.item))?;
@@ -378,7 +379,7 @@ impl Game<'_> {
                 }
             }
         }
-        // Player.onAttack, then postPiercingAttack.
+        // Player.onAttack, then the lunge (1.21.11-only).
         self.attack_ticks = 0;
         self.post_piercing_attack();
         if hit {

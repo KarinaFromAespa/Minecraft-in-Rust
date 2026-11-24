@@ -270,10 +270,6 @@ fn print_properties(p: &ServerProperties, before: &str, out: &mut String) -> std
             p.management_server_tls_keystore_password.clone(),
         ),
         (
-            "management-server-allowed-origins",
-            p.management_server_allowed_origins.clone(),
-        ),
-        (
             "announce-player-achievements",
             opt_bool(p.announce_player_achievements),
         ),

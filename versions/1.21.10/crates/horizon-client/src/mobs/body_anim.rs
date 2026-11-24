@@ -18,9 +18,6 @@ const FPI: f32 = PI as f32;
 fn rad(v: f64) -> f32 {
     v as f32
 }
-fn lerp(a: f32, p: f32, q: f32) -> f32 {
-    p + a * (q - p)
-}
 /// `Mth.rotLerpRad`.
 fn rot_lerp_rad(a: f32, from: f32, to: f32) -> f32 {
     let mut diff = to - from;
@@ -67,7 +64,7 @@ impl Goat {
         }
     }
 }
-/// `GoatModel` / `BabyGoatModel.setupAnim`.
+/// `GoatModel.setupAnim`.
 pub fn goat(p: &mut Poses, s: &State, g: &Goat) {
     quadruped(p, s);
     p.visible("left_horn", g.left_horn);
@@ -75,9 +72,8 @@ pub fn goat(p: &mut Poses, s: &State, g: &Goat) {
     if g.ramming_x_head_rot != 0.0 {
         p.xrot("head", g.ramming_x_head_rot);
     }
-    if s.baby && g.ramming_x_head_rot == 0.0 {
-        p.xrot("head", rad(PI / 8.0));
-    }
+    // 1.21.10 has no baby branch: the PI/8 head tilt is 26.1's
+    // `BabyGoatModel.setupAnim`, and a baby goat's head follows the look.
 }
 
 // ---- polar bear -----------------------------------------------------------
@@ -99,8 +95,11 @@ pub fn polar_bear(p: &mut Poses, s: &State, stand_scale: f32) {
     l[1] = y;
     l[2] = z;
     l[3] -= stand * FPI * 0.45;
-    adds(p, "head", 1, -(stand * 24.0));
-    adds(p, "head", 2, stand * 13.0);
+    // `PolarBearModel`: the head's stand offsets scale by `1 / BABY_HEAD_SCALE`
+    // (4/9) for a cub; the body and legs use `ageScale` instead.
+    let head = if s.baby { 0.444_444_45 } else { 1.0 };
+    adds(p, "head", 1, -(stand * head * 24.0));
+    adds(p, "head", 2, stand * head * 13.0);
     adds(p, "head", 3, stand * FPI * 0.15);
 }
 
@@ -116,7 +115,8 @@ pub struct Panda {
     pub lie_on_back_amount: f32,
     pub roll_amount: f32,
 }
-/// `PandaModel` / `BabyPandaModel.setupAnim`.
+/// `PandaModel.setupAnim` (1.21.10 has no `BabyPandaModel`: a baby panda
+/// sits like an adult; only its baked layer differs).
 pub fn panda(p: &mut Poses, s: &State, st: &Panda) {
     quadruped(p, s);
     let age = s.age;
@@ -138,30 +138,10 @@ pub fn panda(p: &mut Poses, s: &State, st: &Panda) {
     }
     if st.sit_amount > 0.0 {
         let a = st.sit_amount;
-        if s.baby {
-            let x = rot_lerp_rad(a, p.get("body")[3], rad(PI / 18.0));
-            p.xrot("body", x);
-            let v = lerp(a, p.get("body")[2], -1.5);
-            p.get("body")[2] = v;
-            let v = lerp(a, p.get("head")[2], -11.5);
-            p.get("head")[2] = v;
-            let v = lerp(a, p.get("head")[1], 17.5);
-            p.get("head")[1] = v;
-            for (part, z) in [
-                ("right_front_leg", -5.0),
-                ("left_front_leg", -5.0),
-                ("right_hind_leg", 3.0),
-                ("left_hind_leg", 3.0),
-            ] {
-                let v = lerp(a, p.get(part)[2], z);
-                p.get(part)[2] = v;
-            }
-        } else {
-            let x = rot_lerp_rad(a, p.get("body")[3], 1.740_796_3);
-            p.xrot("body", x);
-            let x = rot_lerp_rad(a, p.get("head")[3], rad(PI / 2.0));
-            p.xrot("head", x);
-        }
+        let x = rot_lerp_rad(a, p.get("body")[3], 1.740_796_3);
+        p.xrot("body", x);
+        let x = rot_lerp_rad(a, p.get("head")[3], rad(PI / 2.0));
+        p.xrot("head", x);
         p.zrot("right_front_leg", -0.270_796_42);
         p.zrot("left_front_leg", 0.270_796_42);
         p.zrot("right_hind_leg", 0.570_796_4);
@@ -219,7 +199,10 @@ pub struct Turtle {
     pub laying_egg: bool,
     pub has_egg: bool,
 }
-/// `TurtleModel` / `AdultTurtleModel.setupAnim`.
+/// `TurtleModel.setupAnim`: one model serves both ages in 1.21.10 —
+/// the egg belly shows whenever the turtle carries an egg, with no
+/// baby gate (26.1 split the model into `AdultTurtleModel` /
+/// `BabyTurtleModel`).
 pub fn turtle(p: &mut Poses, s: &State, t: &Turtle) {
     quadruped(p, s);
     let (pos, speed) = (s.pos, s.speed);
@@ -241,11 +224,9 @@ pub fn turtle(p: &mut Poses, s: &State, t: &Turtle) {
         p.zrot("right_front_leg", -swing);
         p.zrot("left_front_leg", swing);
     }
-    if !s.baby {
-        p.visible("egg_belly", t.has_egg);
-        if t.has_egg {
-            adds(p, "root", 1, -1.0);
-        }
+    p.visible("egg_belly", t.has_egg);
+    if t.has_egg {
+        adds(p, "root", 1, -1.0);
     }
 }
 
@@ -259,7 +240,7 @@ fn bristles(p: &mut Poses, age: f32, flow: f32, parts: [&str; 3], axis: usize) {
     adds(p, parts[1], axis, 0.1 * (age * 0.2).msin());
     adds(p, parts[2], axis, 0.05 * (age * -0.4).msin());
 }
-/// `StriderModel` / `AdultStriderModel` / `BabyStriderModel.setupAnim`.
+/// `StriderModel.setupAnim`.
 pub fn strider(p: &mut Poses, s: &State, ridden: bool) {
     let pos = s.pos;
     let speed = s.speed.min(0.25);
@@ -282,46 +263,42 @@ pub fn strider(p: &mut Poses, s: &State, ridden: bool) {
         rad(PI / 18.0) * (pos * 1.5 * 0.5 + FPI).mcos() * speed,
     );
     let flow = (pos * 1.5 + FPI).mcos() * speed;
-    if !s.baby {
-        p.zrot("right_bottom_bristle", -1.221_730_5);
-        p.zrot("right_middle_bristle", -1.134_464);
-        p.zrot("right_top_bristle", -0.872_664_63);
-        p.zrot("left_top_bristle", 0.872_664_63);
-        p.zrot("left_middle_bristle", 1.134_464);
-        p.zrot("left_bottom_bristle", 1.221_730_5);
-        bristles(
-            p,
-            s.age,
-            flow,
-            [
-                "right_top_bristle",
-                "right_middle_bristle",
-                "right_bottom_bristle",
-            ],
-            5,
-        );
-        bristles(
-            p,
-            s.age,
-            flow,
-            [
-                "left_top_bristle",
-                "left_middle_bristle",
-                "left_bottom_bristle",
-            ],
-            5,
-        );
-        p.get("body")[1] = 2.0;
-        p.get("body")[1] -= 2.0 * (pos * 1.5).mcos() * 2.0 * speed;
-        p.get("left_leg")[1] = 8.0 + 2.0 * (pos * 1.5 * 0.5 + FPI).msin() * 2.0 * speed;
-        p.get("right_leg")[1] = 8.0 + 2.0 * (pos * 1.5 * 0.5).msin() * 2.0 * speed;
-    } else {
-        p.get("body")[1] = 17.25;
-        p.get("body")[1] -= 1.0 * (pos * 1.5).mcos() * 2.0 * speed;
-        p.get("left_leg")[1] = 20.0 + 2.0 * (pos * 1.5 * 0.5 + FPI).msin() * 2.0 * speed;
-        p.get("right_leg")[1] = 20.0 + 2.0 * (pos * 1.5 * 0.5).msin() * 2.0 * speed;
-        bristles(p, s.age, flow, ["bristle2", "bristle1", "bristle0"], 3);
-    }
+    // One `StriderModel.setupAnim` serves both ages in 1.21.10: the baby layer
+    // is the adult mesh scaled 0.5, with the same six named bristles. The
+    // 17.25/20.0 body and leg heights and the `bristle0/1/2` parts are 26.1's
+    // `BabyStriderModel`.
+    p.zrot("right_bottom_bristle", -1.221_730_5);
+    p.zrot("right_middle_bristle", -1.134_464);
+    p.zrot("right_top_bristle", -0.872_664_63);
+    p.zrot("left_top_bristle", 0.872_664_63);
+    p.zrot("left_middle_bristle", 1.134_464);
+    p.zrot("left_bottom_bristle", 1.221_730_5);
+    bristles(
+        p,
+        s.age,
+        flow,
+        [
+            "right_top_bristle",
+            "right_middle_bristle",
+            "right_bottom_bristle",
+        ],
+        5,
+    );
+    bristles(
+        p,
+        s.age,
+        flow,
+        [
+            "left_top_bristle",
+            "left_middle_bristle",
+            "left_bottom_bristle",
+        ],
+        5,
+    );
+    p.get("body")[1] = 2.0;
+    p.get("body")[1] -= 2.0 * (pos * 1.5).mcos() * 2.0 * speed;
+    p.get("left_leg")[1] = 8.0 + 2.0 * (pos * 1.5 * 0.5 + FPI).msin() * 2.0 * speed;
+    p.get("right_leg")[1] = 8.0 + 2.0 * (pos * 1.5 * 0.5).msin() * 2.0 * speed;
 }
 
 // ---- snow golem -----------------------------------------------------------
@@ -465,7 +442,7 @@ pub struct Bee {
     pub angry: bool,
     pub roll_amount: f32,
 }
-/// `BeeModel` / `AdultBeeModel.setupAnim`.
+/// `BeeModel.setupAnim`.
 pub fn bee(p: &mut Poses, s: &State, b: &Bee) {
     p.visible("stinger", b.has_stinger);
     let age = s.age;
@@ -490,10 +467,11 @@ pub fn bee(p: &mut Poses, s: &State, b: &Bee) {
         adds(p, "bone", 1, -((age * 0.18).mcos() * 0.9));
         p.xrot("front_legs", -speed * FPI * 0.1 + rad(PI / 8.0));
         p.xrot("back_legs", -speed * FPI * 0.05 + rad(PI / 4.0));
-        if !s.baby {
-            p.xrot("left_antenna", speed * FPI * 0.03);
-            p.xrot("right_antenna", speed * FPI * 0.03);
-        }
+        // The antennae animate at every age: 1.21.10's one `BeeModel` carries
+        // them, and the baby mesh is the adult mesh scaled 0.5. Only 26.1's
+        // base `BeeModel` lacks them (they live on `AdultBeeModel`).
+        p.xrot("left_antenna", speed * FPI * 0.03);
+        p.xrot("right_antenna", speed * FPI * 0.03);
     }
     if b.roll_amount > 0.0 {
         let x = rot_lerp_rad(b.roll_amount, p.get("bone")[3], 3.091_592_8);
@@ -537,90 +515,40 @@ pub fn armadillo(p: &mut Poses, s: &State, st: &Armadillo, a: &Animations) {
         p.visible("cube", false);
         p.xrot("head", s.x_rot.clamp(-22.5, 25.0) * rad(PI / 180.0));
         p.yrot("head", s.y_rot.clamp(-32.5, 32.5) * rad(PI / 180.0));
-        let prefix = if s.baby {
-            "BabyArmadilloAnimation.ARMADILLO_BABY_"
-        } else {
-            "ArmadilloAnimation.ARMADILLO_"
-        };
-        walk(a, &format!("{prefix}WALK"), s, 16.5, 2.5, p);
     }
-    let prefix = if s.baby {
-        "BabyArmadilloAnimation.ARMADILLO_BABY_"
-    } else {
-        "ArmadilloAnimation.ARMADILLO_"
-    };
-    run(a, &format!("{prefix}ROLL_OUT"), &st.roll_out, s, p);
-    run(a, &format!("{prefix}ROLL_UP"), &st.roll_up, s, p);
-    run(a, &format!("{prefix}PEEK"), &st.peek, s, p);
+    // 1.21.10 applies the walk even while hiding (26.1 gates it on
+    // `!isHidingInShell`), and one `ArmadilloAnimation` serves both ages:
+    // `BabyArmadilloAnimation` is 26.1-only, so the baby prefix resolved to
+    // nothing and baby armadillos never animated.
+    walk(a, "ArmadilloAnimation.ARMADILLO_WALK", s, 16.5, 2.5, p);
+    run(
+        a,
+        "ArmadilloAnimation.ARMADILLO_ROLL_OUT",
+        &st.roll_out,
+        s,
+        p,
+    );
+    run(a, "ArmadilloAnimation.ARMADILLO_ROLL_UP", &st.roll_up, s, p);
+    run(a, "ArmadilloAnimation.ARMADILLO_PEEK", &st.peek, s, p);
 }
 
 // ---- axolotl --------------------------------------------------------------
 #[derive(Clone, Debug, Default)]
+/// The `AxolotlRenderState` factors (`Axolotl$AnimationState`:
+/// PLAYING_DEAD / IN_WATER / ON_GROUND / IN_AIR selects which lerps
+/// toward 1). 1.21.10 has no keyframe animation states for axolotls
+/// — the 26.1 `BabyAxolotlAnimation` clips are gone (item 779).
 pub struct Axolotl {
     pub playing_dead: f32,
     pub in_water: f32,
     pub on_ground: f32,
     pub moving: f32,
-    pub swim: AnimationState,
-    pub walk: AnimationState,
-    pub idle_on_ground: AnimationState,
-    pub idle_underwater_on_ground: AnimationState,
-    pub idle_underwater: AnimationState,
-    pub play_dead: AnimationState,
 }
-/// `AdultAxolotlModel` / `BabyAxolotlModel.setupAnim`.
-pub fn axolotl(p: &mut Poses, s: &State, x: &Axolotl, a: &Animations) {
-    if s.baby {
-        if x.walk.started.is_some() {
-            walk(
-                a,
-                "BabyAxolotlAnimation.AXOLOTL_WALK_FLOOR",
-                s,
-                15.0,
-                30.0,
-                p,
-            );
-        }
-        run(a, "BabyAxolotlAnimation.BABY_AXOLOTL_SWIM", &x.swim, s, p);
-        run(
-            a,
-            "BabyAxolotlAnimation.WALK_FLOOR_UNDERWATER",
-            // The model reads `walkAnimationState` again here, not the
-            // underwater state the renderer also copies.
-            &x.walk,
-            s,
-            p,
-        );
-        run(
-            a,
-            "BabyAxolotlAnimation.BABY_AXOLOTL_IDLE_FLOOR",
-            &x.idle_on_ground,
-            s,
-            p,
-        );
-        run(
-            a,
-            "BabyAxolotlAnimation.IDLE_UNDERWATER",
-            &x.idle_underwater,
-            s,
-            p,
-        );
-        run(
-            a,
-            "BabyAxolotlAnimation.IDLE_FLOOR_UNDERWATER",
-            &x.idle_underwater_on_ground,
-            s,
-            p,
-        );
-        run(
-            a,
-            "BabyAxolotlAnimation.BABY_AXOLOTL_PLAY_DEAD",
-            &x.play_dead,
-            s,
-            p,
-        );
-        return;
-    }
+/// `AxolotlModel.setupAnim` (1.21.10: one model for adults and babies —
+/// the renderer bakes the `AXOLOTL_BABY` layer for babies, but the pose is
+/// the same procedural one; 26.1 split it into `AdultAxolotlModel` /
+/// `BabyAxolotlModel`, the baby running keyframe clips).
+pub fn axolotl(p: &mut Poses, s: &State, x: &Axolotl, _a: &Animations) {
     let not_moving = 1.0 - x.moving;
     let mirrored = 1.0 - x.on_ground.min(x.moving);
     adds(p, "body", 4, s.y_rot * rad(PI / 180.0));
@@ -790,25 +718,18 @@ pub fn frog(p: &mut Poses, s: &State, f: &Frog, a: &Animations) {
 }
 
 // ---- rabbit ---------------------------------------------------------------
-/// `RabbitModel.setupAnim`.
-pub fn rabbit(
-    p: &mut Poses,
-    s: &State,
-    hop: &AnimationState,
-    tilt: &AnimationState,
-    a: &Animations,
-) {
-    if tilt.started.is_none() {
-        p.yrot("head", s.y_rot * rad(PI / 180.0));
-        p.xrot("head", s.x_rot * rad(PI / 180.0));
-    }
-    let prefix = if s.baby {
-        "BabyRabbitAnimation."
-    } else {
-        "RabbitAnimation."
-    };
-    run(a, &format!("{prefix}HOP"), hop, s, p);
-    run(a, &format!("{prefix}IDLE_HEAD_TILT"), tilt, s, p);
+/// `RabbitModel.setupAnim`: the classic procedural hop. 1.21.10 has no
+/// keyframe animations for rabbits — the hop/idle-tilt keyframes and the
+/// entity's `hopAnimationState`/`idleHeadTiltAnimationState` are 26.1-only —
+/// so the head always follows the look and the legs ride `jumpCompletion`.
+pub fn rabbit(p: &mut Poses, s: &State, jump_completion: f32) {
+    p.yrot("head", s.y_rot * rad(PI / 180.0));
+    p.xrot("head", s.x_rot * rad(PI / 180.0));
+    let hop = (jump_completion * FPI).msin();
+    adds(p, "left_haunch", 3, hop * rad(50.0 * PI / 180.0));
+    adds(p, "right_haunch", 3, hop * rad(50.0 * PI / 180.0));
+    adds(p, "left_front_leg", 3, hop * rad(-40.0 * PI / 180.0));
+    adds(p, "right_front_leg", 3, hop * rad(-40.0 * PI / 180.0));
 }
 
 // ---- fox ------------------------------------------------------------------
@@ -817,45 +738,30 @@ pub struct Fox {
     pub crouching: bool,
     pub sleeping: bool,
     pub sitting: bool,
-    pub pouncing: bool,
     pub faceplanted: bool,
     pub head_roll_angle: f32,
     pub crouch_amount: f32,
     /// `FoxModel.legMotionPos` after this frame's `+= 0.67`.
     pub leg_motion_pos: f32,
 }
-/// `FoxModel` / `AdultFoxModel` / `BabyFoxModel.setupAnim`.
-pub fn fox(p: &mut Poses, s: &State, f: &Fox, a: &Animations) {
+/// `FoxModel.setupAnim`: one form for both ages, scaled by `ageScale`
+/// (0.5 for a kit). The `FoxBabyAnimation` walk, the bespoke baby sleep/sit
+/// poses and the pouncing pose are 26.1's `AdultFoxModel`/`BabyFoxModel`;
+/// 1.21.10's single model has no pouncing pose at all.
+pub fn fox(p: &mut Poses, s: &State, f: &Fox) {
     let baby = s.baby;
     let age_scale = if baby { 0.5 } else { 1.0 };
-    // setWalkingPose
+    let (pos, speed) = (s.pos, s.speed);
+    p.xrot("right_hind_leg", (pos * 0.6662).mcos() * 1.4 * speed);
+    p.xrot("left_hind_leg", (pos * 0.6662 + FPI).mcos() * 1.4 * speed);
+    p.xrot("right_front_leg", (pos * 0.6662 + FPI).mcos() * 1.4 * speed);
+    p.xrot("left_front_leg", (pos * 0.6662).mcos() * 1.4 * speed);
     p.zrot("head", f.head_roll_angle);
-    if baby {
-        walk(a, "FoxBabyAnimation.FOX_BABY_WALK", s, 1.0, 2.5, p);
-    } else {
-        let (pos, speed) = (s.pos, s.speed);
-        p.xrot("right_hind_leg", (pos * 0.6662).mcos() * 1.4 * speed);
-        p.xrot("left_hind_leg", (pos * 0.6662 + FPI).mcos() * 1.4 * speed);
-        p.xrot("right_front_leg", (pos * 0.6662 + FPI).mcos() * 1.4 * speed);
-        p.xrot("left_front_leg", (pos * 0.6662).mcos() * 1.4 * speed);
-    }
     if f.crouching {
-        // setCrouchingPose
         adds(p, "body", 3, 0.104_719_76);
+        adds(p, "body", 1, f.crouch_amount * age_scale);
         adds(p, "head", 1, f.crouch_amount * age_scale);
-        let wiggle = s.age.mcos() * 0.05;
-        p.yrot("body", wiggle);
-        p.zrot("right_hind_leg", wiggle);
-        p.zrot("left_hind_leg", wiggle);
-        p.zrot("right_front_leg", wiggle / 2.0);
-        p.zrot("left_front_leg", wiggle / 2.0);
-        if baby {
-            adds(p, "body", 1, f.crouch_amount / 6.0);
-        } else {
-            adds(p, "body", 1, f.crouch_amount);
-        }
     } else if f.sleeping {
-        // setSleepingPose
         for leg in [
             "right_hind_leg",
             "left_hind_leg",
@@ -864,76 +770,42 @@ pub fn fox(p: &mut Poses, s: &State, f: &Fox, a: &Animations) {
         ] {
             p.visible(leg, false);
         }
+        p.zrot("body", rad(-PI / 2.0));
+        adds(p, "body", 1, 5.0 * age_scale);
         if baby {
-            p.zrot("body", rad(-PI / 2.0));
-            p.xrot("body", rad(-PI / 18.0));
-            adds(p, "body", 1, 1.5);
-            adds(p, "body", 2, -1.5);
-            adds(p, "body", 0, -1.5);
-            p.xrot("tail", rad(-PI * 5.0 / 6.0));
+            // A sleeping kit curls its tail further and shifts the body.
             p.xrot("tail", -2.181_661_6);
-            adds(p, "tail", 0, -0.7);
-            adds(p, "tail", 2, 0.6);
-            adds(p, "tail", 1, 0.9);
-            adds(p, "head", 0, -2.0);
-            adds(p, "head", 1, 2.8);
-            adds(p, "head", 2, -4.0);
-            p.yrot("head", rad(-PI * 2.0 / 3.0));
-            p.zrot("head", 0.0);
+            adds(p, "body", 2, 2.0);
         } else {
-            p.zrot("body", rad(-PI / 2.0));
-            adds(p, "body", 1, 5.0);
             p.xrot("tail", rad(-PI * 5.0 / 6.0));
-            adds(p, "head", 0, 2.0);
-            adds(p, "head", 1, 2.99);
-            p.yrot("head", rad(-PI * 2.0 / 3.0));
-            p.zrot("head", 0.0);
         }
+        adds(p, "head", 0, 2.0 * age_scale);
+        adds(p, "head", 1, 2.99 * age_scale);
+        p.yrot("head", rad(-PI * 2.0 / 3.0));
+        p.zrot("head", 0.0);
     } else if f.sitting {
-        // setSittingPose
+        p.xrot("body", rad(PI / 6.0));
+        adds(p, "body", 1, -7.0 * age_scale);
+        adds(p, "body", 2, 3.0 * age_scale);
+        p.xrot("tail", rad(PI / 4.0));
+        adds(p, "tail", 2, -1.0 * age_scale);
         p.xrot("head", 0.0);
         p.yrot("head", 0.0);
         if baby {
-            p.xrot("body", -0.959_931);
-            adds(p, "body", 2, -(4.5 * age_scale));
-            adds(p, "body", 1, 3.0 * age_scale);
-            adds(p, "tail", 1, -0.6);
-            adds(p, "tail", 2, -(2.0 * age_scale));
-            p.xrot("tail", 0.959_931_14);
-            adds(p, "head", 1, -0.75);
-            adds(p, "head", 2, 0.0);
-            p.xrot("right_front_leg", rad(-PI / 12.0));
-            p.xrot("left_front_leg", rad(-PI / 12.0));
-            adds(p, "right_front_leg", 2, -1.5);
-            adds(p, "left_front_leg", 2, -1.5);
-            adds(p, "right_front_leg", 0, 0.01);
-            adds(p, "left_front_leg", 0, -0.01);
-            adds(p, "right_hind_leg", 2, -3.75);
-            adds(p, "left_hind_leg", 2, -3.75);
-            adds(p, "right_hind_leg", 0, 0.01);
-            adds(p, "left_hind_leg", 0, -0.01);
+            adds(p, "head", 1, -1.75);
+            adds(p, "head", 2, -0.375);
         } else {
-            p.xrot("body", rad(PI / 6.0));
-            adds(p, "body", 1, -7.0);
-            adds(p, "body", 2, 3.0);
-            p.xrot("tail", rad(PI / 4.0));
             adds(p, "head", 1, -6.5);
             adds(p, "head", 2, 2.75);
-            p.xrot("right_front_leg", rad(-PI / 12.0));
-            p.xrot("left_front_leg", rad(-PI / 12.0));
-            p.xrot("right_hind_leg", rad(-PI * 5.0 / 12.0));
-            adds(p, "right_hind_leg", 1, 4.0);
-            adds(p, "right_hind_leg", 2, -0.25);
-            p.xrot("left_hind_leg", rad(-PI * 5.0 / 12.0));
-            adds(p, "left_hind_leg", 1, 4.0);
-            adds(p, "left_hind_leg", 2, -0.25);
-            adds(p, "tail", 2, -1.0);
         }
-    }
-    if f.pouncing && !baby {
-        let crouch = f.crouch_amount / 2.0;
-        adds(p, "body", 1, -crouch);
-        adds(p, "head", 1, -crouch);
+        p.xrot("right_hind_leg", rad(-PI * 5.0 / 12.0));
+        adds(p, "right_hind_leg", 1, 4.0 * age_scale);
+        adds(p, "right_hind_leg", 2, -0.25 * age_scale);
+        p.xrot("left_hind_leg", rad(-PI * 5.0 / 12.0));
+        adds(p, "left_hind_leg", 1, 4.0 * age_scale);
+        adds(p, "left_hind_leg", 2, -0.25 * age_scale);
+        p.xrot("right_front_leg", rad(-PI / 12.0));
+        p.xrot("left_front_leg", rad(-PI / 12.0));
     }
     if !f.sleeping && !f.faceplanted && !f.crouching {
         p.xrot("head", s.x_rot * rad(PI / 180.0));
@@ -943,6 +815,15 @@ pub fn fox(p: &mut Poses, s: &State, f: &Fox, a: &Animations) {
         p.xrot("head", 0.0);
         p.yrot("head", rad(-PI * 2.0 / 3.0));
         p.zrot("head", (s.age * 0.027).mcos() / 22.0);
+    }
+    if f.crouching {
+        // 1.21.10's wiggle is `cos(ageInTicks) * 0.01`; 26.1's base uses 0.05.
+        let wiggle = s.age.mcos() * 0.01;
+        p.yrot("body", wiggle);
+        p.zrot("right_hind_leg", wiggle);
+        p.zrot("left_hind_leg", wiggle);
+        p.zrot("right_front_leg", wiggle / 2.0);
+        p.zrot("left_front_leg", wiggle / 2.0);
     }
     if f.faceplanted {
         let m = f.leg_motion_pos;
@@ -999,7 +880,7 @@ pub fn anim(m: &Mob, s: &State, p: &mut Poses, a: &Animations) -> bool {
                 has_stinger: !super::bee::has_stung(m),
                 on_ground: m.on_ground && m.velocity.length_squared() < 1.0e-7,
                 // The anger end time is cleared the tick after it passes.
-                angry: super::bee::get(m).is_some_and(|b| b.anger_end > 0),
+                angry: super::bee::get(m).is_some_and(|b| b.anger > 0),
                 // Bee.getRollAmount(partialTick).
                 roll_amount: super::bee::get(m)
                     .map_or(0.0, |b| b.roll_o + (b.roll - b.roll_o) * s.partial),
@@ -1030,8 +911,8 @@ pub fn anim(m: &Mob, s: &State, p: &mut Poses, a: &Animations) -> bool {
             },
             a,
         ),
-        Species::Rabbit => rabbit(p, s, &st[0], &st[1], a),
-        Species::Fox => fox(p, s, &super::fox::pose(m, s.partial), a),
+        Species::Rabbit => rabbit(p, s, super::rabbit::jump_completion(m, s.partial)),
+        Species::Fox => fox(p, s, &super::fox::pose(m, s.partial)),
         _ => return false,
     }
     true
@@ -1044,13 +925,286 @@ impl Axolotl {
             in_water: x.factor(1, partial),
             on_ground: x.factor(2, partial),
             moving: x.factor(3, partial),
-            // Native baby model deliberately reads walkAnimationState, not its underwater counterpart.
-            walk: x.states[0],
-            swim: x.states[1],
-            idle_on_ground: x.states[3],
-            idle_underwater: x.states[4],
-            idle_underwater_on_ground: x.states[5],
-            play_dead: x.states[6],
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mobs::Part;
+    use serde_json::json;
+    use std::sync::Arc;
+
+    fn model(children: &[&str]) -> Arc<Part> {
+        let mut map = serde_json::Map::new();
+        for c in children {
+            map.insert((*c).to_string(), json!({}));
+        }
+        Arc::new(Part::parse("root", &json!({ "children": map })))
+    }
+
+    fn state(baby: bool) -> State {
+        State {
+            pos: 0.0,
+            speed: 0.0,
+            age: 0.0,
+            y_rot: 0.0,
+            x_rot: 0.0,
+            swing: 0.0,
+            baby,
+            partial: 0.0,
+        }
+    }
+
+    fn near(a: f32, b: f32) {
+        assert!((a - b).abs() < 1.0e-4, "{a} != {b}");
+    }
+
+    #[test]
+    fn a_baby_polar_bears_head_stands_by_four_ninths() {
+        let m = model(&[
+            "head",
+            "body",
+            "right_front_leg",
+            "left_front_leg",
+            "right_hind_leg",
+            "left_hind_leg",
+        ]);
+        let mut p = Poses::new(&m);
+        polar_bear(&mut p, &state(true), 1.0);
+        // `PolarBearModel`: the head offsets scale by `1 / BABY_HEAD_SCALE`.
+        near(p.get("head")[1], -0.444_444_45 * 24.0);
+        near(p.get("head")[2], 0.444_444_45 * 13.0);
+        let mut p = Poses::new(&m);
+        polar_bear(&mut p, &state(false), 1.0);
+        near(p.get("head")[1], -24.0);
+        near(p.get("head")[2], 13.0);
+    }
+
+    #[test]
+    fn a_turtles_egg_belly_shows_at_either_age() {
+        let m = model(&[
+            "head",
+            "body",
+            "egg_belly",
+            "right_front_leg",
+            "left_front_leg",
+            "right_hind_leg",
+            "left_hind_leg",
+        ]);
+        // An adult with an egg shows the belly and sinks one unit.
+        let mut p = Poses::new(&m);
+        turtle(
+            &mut p,
+            &state(false),
+            &Turtle {
+                on_land: true,
+                laying_egg: false,
+                has_egg: true,
+            },
+        );
+        assert!(!p.is_hidden_named("egg_belly"));
+        near(p.get("root")[1], -1.0);
+        // Without an egg the belly hides and the root stays put.
+        let mut p = Poses::new(&m);
+        turtle(
+            &mut p,
+            &state(false),
+            &Turtle {
+                on_land: true,
+                laying_egg: false,
+                has_egg: false,
+            },
+        );
+        assert!(p.is_hidden_named("egg_belly"));
+        near(p.get("root")[1], 0.0);
+        // 1.21.10's `TurtleModel.setupAnim` has no baby gate: a baby
+        // with an egg set shows the belly too (unreachable in play —
+        // only a bred adult carries one).
+        let mut p = Poses::new(&m);
+        turtle(
+            &mut p,
+            &state(true),
+            &Turtle {
+                on_land: true,
+                laying_egg: false,
+                has_egg: true,
+            },
+        );
+        assert!(!p.is_hidden_named("egg_belly"));
+        near(p.get("root")[1], -1.0);
+    }
+
+    #[test]
+    fn a_baby_strider_runs_the_adult_animation() {
+        let m = model(&[
+            "body",
+            "left_leg",
+            "right_leg",
+            "right_bottom_bristle",
+            "right_middle_bristle",
+            "right_top_bristle",
+            "left_top_bristle",
+            "left_middle_bristle",
+            "left_bottom_bristle",
+        ]);
+        let mut p = Poses::new(&m);
+        strider(&mut p, &state(true), false);
+        // 26.1's `BabyStriderModel` used 17.25 / 20.0 and `bristle0/1/2`.
+        near(p.get("body")[1], 2.0);
+        near(p.get("left_leg")[1], 8.0);
+        near(p.get("right_leg")[1], 8.0);
+        near(p.get("right_bottom_bristle")[5], -1.221_730_5);
+        near(p.get("left_top_bristle")[5], 0.872_664_63);
+    }
+
+    #[test]
+    fn a_baby_panda_sits_like_an_adult() {
+        let m = model(&[
+            "head",
+            "body",
+            "right_front_leg",
+            "left_front_leg",
+            "right_hind_leg",
+            "left_hind_leg",
+        ]);
+        let st = Panda {
+            sit_amount: 1.0,
+            ..Panda::default()
+        };
+        let mut p = Poses::new(&m);
+        panda(&mut p, &state(true), &st);
+        // 1.21.10 has no `BabyPandaModel`: the sit lerps the body to
+        // 1.7407963 and the head to PI/2, as for an adult (26.1's baby
+        // model used PI/18 and shifted the parts instead).
+        near(p.get("body")[3], 1.740_796_3);
+        near(p.get("head")[3], std::f32::consts::FRAC_PI_2);
+        near(p.get("right_front_leg")[5], -0.270_796_42);
+        near(p.get("left_hind_leg")[5], -0.570_796_4);
+        let mut p = Poses::new(&m);
+        panda(&mut p, &state(false), &st);
+        near(p.get("body")[3], 1.740_796_3);
+        near(p.get("head")[3], std::f32::consts::FRAC_PI_2);
+    }
+
+    #[test]
+    fn a_baby_fox_sleeps_and_sits_at_half_scale() {
+        let m = model(&[
+            "head",
+            "body",
+            "tail",
+            "right_hind_leg",
+            "left_hind_leg",
+            "right_front_leg",
+            "left_front_leg",
+        ]);
+        let mut p = Poses::new(&m);
+        fox(
+            &mut p,
+            &state(true),
+            &Fox {
+                sleeping: true,
+                ..Fox::default()
+            },
+        );
+        near(p.get("body")[1], 2.5);
+        near(p.get("body")[2], 2.0);
+        near(p.get("tail")[3], -2.181_661_6);
+        near(p.get("head")[0], 1.0);
+        near(p.get("head")[1], 1.495);
+        let mut p = Poses::new(&m);
+        fox(
+            &mut p,
+            &state(true),
+            &Fox {
+                sitting: true,
+                ..Fox::default()
+            },
+        );
+        near(p.get("body")[1], -3.5);
+        near(p.get("head")[1], -1.75);
+        near(p.get("head")[2], -0.375);
+    }
+
+    #[test]
+    fn a_crouching_fox_wiggles_by_one_hundredth() {
+        let m = model(&[
+            "head",
+            "body",
+            "tail",
+            "right_hind_leg",
+            "left_hind_leg",
+            "right_front_leg",
+            "left_front_leg",
+        ]);
+        let mut p = Poses::new(&m);
+        fox(
+            &mut p,
+            &state(false),
+            &Fox {
+                crouching: true,
+                crouch_amount: 1.0,
+                ..Fox::default()
+            },
+        );
+        // 1.21.10's wiggle is `cos(ageInTicks) * 0.01`; 26.1's base uses 0.05.
+        near(p.get("body")[4], 0.01);
+        near(p.get("right_hind_leg")[5], 0.01);
+        near(p.get("right_front_leg")[5], 0.005);
+    }
+
+    #[test]
+    fn a_baby_bees_antennae_bob() {
+        let m = model(&[
+            "bone",
+            "stinger",
+            "front_legs",
+            "middle_legs",
+            "back_legs",
+            "left_antenna",
+            "right_antenna",
+            "left_wing",
+            "right_wing",
+        ]);
+        let mut p = Poses::new(&m);
+        bee(
+            &mut p,
+            &state(true),
+            &Bee {
+                has_stinger: true,
+                on_ground: false,
+                angry: false,
+                roll_amount: 0.0,
+            },
+        );
+        near(p.get("left_antenna")[3], FPI * 0.03);
+        near(p.get("right_antenna")[3], FPI * 0.03);
+    }
+
+    #[test]
+    fn a_baby_goat_has_no_head_tilt() {
+        let m = model(&[
+            "head",
+            "body",
+            "left_horn",
+            "right_horn",
+            "right_hind_leg",
+            "left_hind_leg",
+            "right_front_leg",
+            "left_front_leg",
+        ]);
+        let mut p = Poses::new(&m);
+        goat(
+            &mut p,
+            &state(true),
+            &Goat {
+                left_horn: true,
+                right_horn: true,
+                ramming_x_head_rot: 0.0,
+            },
+        );
+        // 26.1's `BabyGoatModel` tilted the head by PI/8 when not ramming.
+        near(p.get("head")[3], 0.0);
     }
 }

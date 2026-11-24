@@ -960,7 +960,7 @@ impl PackScreen {
         }
     }
 
-    /// The shown screen's calls (`Screen.extractRenderState`); `blink_ms`
+    /// The shown screen's calls (`Screen.render`); `blink_ms`
     /// is the time since the search box took the focus.
     pub fn draw(&self, m: &Measure, mouse: (i32, i32), blink_ms: u64, now_ms: i64) -> Vec<Draw> {
         let mut out = Vec::new();

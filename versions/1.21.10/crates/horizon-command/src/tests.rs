@@ -183,8 +183,14 @@ fn parses_vanilla_commands() {
     );
     assert_eq!(run("time set 1000").unwrap().0, "time.set");
     assert_eq!(run("time set 1d").unwrap().0, "time.set");
-    assert_eq!(run("time set day").unwrap().0, "time.set.marker");
+    assert_eq!(run("time set day").unwrap().0, "time.set");
+    assert_eq!(run("time set noon").unwrap().0, "time.set");
+    assert_eq!(run("time set night").unwrap().0, "time.set");
+    assert_eq!(run("time set midnight").unwrap().0, "time.set");
+    assert_eq!(run("time add 100").unwrap().0, "time.add");
+    assert_eq!(run("time query daytime").unwrap().0, "time.query.daytime");
     assert_eq!(run("time query gametime").unwrap().0, "time.query.gametime");
+    assert_eq!(run("time query day").unwrap().0, "time.query.day");
     assert_eq!(run("weather rain 10s").unwrap().0, "weather");
     assert_eq!(run("xp add @s 5 levels").unwrap().0, "experience");
     assert_eq!(run("gamerule keep_inventory true").unwrap().0, "gamerule");
@@ -309,7 +315,13 @@ fn suggestions_like_vanilla() {
         ]
     );
     assert_eq!(suggestions("time set 5"), ["d", "s", "t"]);
-    assert!(suggestions("time set ").contains(&"minecraft:day".to_owned()));
+    let set_suggestions = suggestions("time set ");
+    for name in ["day", "noon", "night", "midnight"] {
+        assert!(
+            set_suggestions.contains(&name.to_owned()),
+            "time set suggests {name}"
+        );
+    }
 }
 /// ClientSuggestionProvider: block and column positions offer the targeted
 /// block (`getRelevantCoordinates`), `Vec3` and `Vec2` the exact hit point
@@ -660,8 +672,6 @@ fn world_command_trees() {
         ("rotate @s 90 0", "rotate"),
         ("rotate @s facing entity @e[limit=1] eyes", "rotate"),
         ("rotate @s facing 0 64 0", "rotate"),
-        ("swing", "swing"),
-        ("swing @e offhand whack 10", "swing"),
         ("playsound minecraft:entity.cow.ambient", "playsound"),
         (
             "playsound minecraft:block.stone.break block @s ~ ~ ~ 1 1 0.5",
@@ -708,11 +718,13 @@ fn world_command_trees() {
             "fillbiome 0 0 0 10 10 10 minecraft:plains replace minecraft:desert",
             "fillbiome",
         ),
-        ("worldborder set 100 5s", "worldborder.set"),
+        // 1.21.10's worldborder times are plain integers of ticks
+        // (1.21.11's are Time arguments, so `5s`/`10s` no longer parse).
+        ("worldborder set 100 100", "worldborder.set"),
         ("worldborder add -10", "worldborder.add"),
         ("worldborder center 5 5", "worldborder.center"),
         ("worldborder damage amount 1", "worldborder.damage.amount"),
-        ("worldborder warning time 10s", "worldborder.warning.time"),
+        ("worldborder warning time 200", "worldborder.warning.time"),
         ("worldborder get", "worldborder.get"),
         (
             "loot give @s loot minecraft:chests/simple_dungeon",
@@ -1094,7 +1106,12 @@ fn time_argument_rounds_like_math_round_float() {
     // 0.49999997 + 0.5 rounds up to 1.0 in f32, but Math.round is exact.
     assert_eq!(ticks("time set 0.49999997t"), 0);
     assert_eq!(ticks("time set 0.5t"), 1);
-    assert_eq!(ticks("time add -2.5t"), -2);
+    // 1.21.10's `time add` takes TimeArgument.time(): min 0, no negatives.
+    let e = vanilla::dispatcher()
+        .parse("time add -2.5t", &reg())
+        .executable()
+        .unwrap_err();
+    assert_eq!(e.message.plain(), "argument.time.tick_count_too_low");
 }
 
 #[test]

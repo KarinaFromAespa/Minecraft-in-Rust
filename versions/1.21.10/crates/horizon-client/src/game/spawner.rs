@@ -162,7 +162,7 @@ impl Game<'_> {
                     self.native_mobs_joined(self.mobs.len() - 1, false);
                     self.enchant_spawn_equipment(id);
                     self.halloween_spawn_head(id);
-                    self.spawn_jockeys(id, false);
+                    self.spawn_jockeys(id);
                     Some((id, equipment))
                 }
                 Planned::Loaded(tag, equipment) => {

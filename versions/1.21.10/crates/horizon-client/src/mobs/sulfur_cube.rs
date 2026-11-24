@@ -1382,12 +1382,7 @@ pub fn to_nbt(m: &Mob, map: &mut horizon_world::nbt::Compound) {
         Tag::Byte(i8::from(m.extra.scratch[3] != 0)),
     );
     map.insert("fuse".into(), Tag::Int(fuse(m)));
-    for (key, value) in [
-        ("Age", Tag::Int(m.extra.age)),
-        ("AgeLocked", Tag::Byte(i8::from(m.extra.age_locked))),
-    ] {
-        map.insert(key.into(), value);
-    }
+    map.insert("Age".into(), Tag::Int(m.extra.age));
     map.entry("ForcedAge".into()).or_insert(Tag::Int(0));
 }
 /// `SulfurCube.readAdditionalSaveData`: size precedes the living health default.
@@ -1399,7 +1394,6 @@ pub fn from_nbt(m: &mut Mob, tag: &horizon_world::nbt::Tag) {
         _ => None,
     };
     m.extra.age = int("Age").unwrap_or(0);
-    m.extra.age_locked = int("AgeLocked").unwrap_or(0) != 0;
     let health = m.health;
     set_size(m, int("Size").unwrap_or(0) + 1, false);
     m.health = if tag.get("Health").is_some() {

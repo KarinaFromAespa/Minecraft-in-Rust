@@ -1,0 +1,218 @@
+{
+ "release": "1.21.10",
+ "rank": 4,
+ "batch": 34,
+ "note": "New-classes groups: 1.21.10-only classes, mostly unmodelled or covered by ported rank-2/3 items.",
+ "items": {
+  "676": {
+   "module": "new-classes: client/renderer",
+   "verdict": "carry-over",
+   "evidence": "1.21.10-only render classes: DimensionSpecialEffects (End/Nether/Overworld effects + SkyType) and the old GL RenderStateShard/RenderType composite system. The Rust names none of them (verified by tree grep). The dimension-effects behaviour is covered by item 58 (FogType::DimensionOrBoss + the 1.21.10 fog constants) and item 351 (open, environment attributes); the render-state system is unmodelled \u2014 the Rust's renderer is wgpu, not vanilla's GL state shards."
+  },
+  "677": {
+   "module": "new-classes: world/level",
+   "verdict": "carry-over",
+   "evidence": "1.21.10's GameRules at world/level (moved to world/level/gamerules in 1.21.11) + LevelTimeAccess. Covered by item 618: the Rust implements 1.21.10's 60-key camelCase set with the rename table and the fire pair, and IntegerValue.set has no range check. LevelTimeAccess is vanilla's time interface; the Rust reads day/game time through its own level API."
+  },
+  "678": {
+   "module": "new-classes: util",
+   "verdict": "no-change",
+   "evidence": "Unmodelled vanilla utils (BinaryAnimator, CubicSampler, DebugBuffer, LazyLoadedValue, OptionEnum, ResourceLocationPattern) \u2014 the Rust names none of them (verified by tree grep); biome sampling is per-column, not cubic-blended, in both trees. The associated environment_timeline.rs easing solver is dead on 1.21.10 data (1.21.10 has no EasingType and no timelines \u2014 verified in both jars); its doc comment wrongly cited 1.21.10's EasingType and is corrected here."
+  },
+  "679": {
+   "module": "new-classes: client/renderer/texture",
+   "verdict": "carry-over",
+   "evidence": "Sprite animation tickers (SpriteContents$Ticker, SpriteTicker, TextureAtlasSprite$Ticker, Tickable, InterpolationData). The Rust's sprite animation is its own implementation in sprites.rs/mipmap.rs (items 91/544); the associated files differ only by that already-ported work. The vanilla ticker classes are unmodelled."
+  },
+  "680": {
+   "module": "new-classes: server/jsonrpc/methods",
+   "verdict": "carry-over",
+   "evidence": "Covered by item 475: GameRulesService$TypedRule/UntypedRule/RuleType are 1.21.10's gamerule RPC shapes (string values, parseBoolean/parseInt, no range check), which the Rust's dedicated management now implements. IllegalMethodDefinitionException is JSON-RPC plumbing, unmodelled."
+  },
+  "681": {
+   "module": "new-classes: world/level/storage/loot/functions",
+   "verdict": "carry-over",
+   "evidence": "CopyComponentsFunction$Source (EntitySource/ItemStackSource) and CopyNameFunction$Source. The Rust's loot evaluator has no copy_components/copy_name arms at all \u2014 the block-entity copies are hardcoded in spill.rs (Pending::record: heads, hives, banners, shulkers), which differs from 1.21.11 only by the already-ported item-559 work. The Source classes are unmodelled loot-function plumbing."
+  },
+  "682": {
+   "module": "new-classes: client/gui/components",
+   "verdict": "no-change",
+   "evidence": "GUI components (MultiLineLabel$Align, OptionsList$OptionEntry, StateSwitchingButton). Menu chrome; the Rust's UI is its own. The one MultiLineLabel hit in the tree is a doc comment citing create() in screen_draw.rs."
+  },
+  "683": {
+   "module": "new-classes: client/model",
+   "verdict": "no-change",
+   "evidence": "Entity models (LavaSlimeModel, TropicalFishModelA/B). The Rust's entity models are its own (baked/CEM); it names none of these classes (verified by tree grep)."
+  },
+  "684": {
+   "module": "new-classes: com/mojang/realmsclient/client",
+   "verdict": "carry-over",
+   "evidence": "Realms download/upload progress listeners. Covered by item 476 (FileDownload's HTTP client swap + log texts); the listener classes themselves are unmodelled \u2014 the Rust's download progress is its own."
+  },
+  "685": {
+   "module": "new-classes: net/minecraft",
+   "verdict": "no-change",
+   "evidence": "Annotations (FieldsAreNonnullByDefault, MethodsReturnNonnullByDefault) plus ResourceLocationException \u2014 the IdentifierException rename, already the established pattern (item 480). No behaviour."
+  },
+  "686": {
+   "module": "new-classes: world/entity/schedule",
+   "verdict": "carry-over",
+   "evidence": "Schedule/ScheduleBuilder/ActivityTransition. The Rust implements the schedules directly in villager::activity_at, and its transition times match 1.21.10's Schedule data exactly (javap-verified: villager_baby IDLE 10 / PLAY 3000 / IDLE 6000 / PLAY 10000 / REST 12000; villager_default IDLE 10 / WORK 2000 / MEET 9000 / IDLE 11000 / REST 12000). The classes themselves are vanilla's data form, unmodelled."
+  },
+  "687": {
+   "module": "new-classes: client/renderer/block/model",
+   "verdict": "carry-over",
+   "evidence": "ItemModelGenerator$Span/SpanFacing. The triage's file association (spans.rs) is a false name-match \u2014 that file is frame-timing spans. The Rust implements item-model generation in item_bake.rs (extrude_layer), which differs from 1.21.11 only in version-label comments: it emits one thin face per opaque/transparent pixel edge, while vanilla merges consecutive edges into spans \u2014 the same pixels covered, the same rendered image."
+  },
+  "688": {
+   "module": "new-classes: client/renderer/entity/state",
+   "verdict": "no-change",
+   "evidence": "Debug render state (HitboxesRenderState, ServerHitboxesRenderState). The Rust's hitbox debug rendering is its own; it names neither class."
+  },
+  "689": {
+   "module": "new-classes: client/renderer/fog/environment",
+   "verdict": "carry-over",
+   "evidence": "Covered by item 58: 1.21.10's fog environments (AirBased, DimensionOrBoss, Atmospheric, Blindness, Darkness, Lava, PowderSnow, MobEffect, Water) map onto the Rust's FogType (Atmospheric, DimensionOrBoss, Water, Lava, PowderSnow) with blindness/darkness as FogData fields. The DimensionOrBoss environment is 1.21.10-only and was ported under item 58."
+  },
+  "690": {
+   "module": "new-classes: com/mojang/blaze3d",
+   "verdict": "no-change",
+   "evidence": "Annotations only (FieldsAreNonnullByDefault, MethodsReturnNonnullByDefault). No behaviour."
+  },
+  "691": {
+   "module": "new-classes: com/mojang/math",
+   "verdict": "no-change",
+   "evidence": "Annotations only (FieldsAreNonnullByDefault, MethodsReturnNonnullByDefault). No behaviour."
+  },
+  "692": {
+   "module": "new-classes: com/mojang/realmsclient/dto",
+   "verdict": "no-change",
+   "evidence": "Realms ServerActivity/ServerActivityList DTOs. Unmodelled \u2014 the Rust's realms client never reads them (the tree's ServerActivity hits are the unrelated ServerActivityMonitor in the management server)."
+  },
+  "693": {
+   "module": "new-classes: commands",
+   "verdict": "carry-over",
+   "evidence": "PermissionSource/Check \u2014 1.21.10's permission API (hasPermission(int), allowsSelectors). The Rust's command model uses int levels throughout (GAMEMASTERS = 2); the wide semantic diff verified allowSelectors is hasPermission(2), which the Rust passes as `permission >= 2`."
+  },
+  "694": {
+   "module": "new-classes: world/level/chunk/storage",
+   "verdict": "no-change",
+   "evidence": "ChunkStorage/RecreatingChunkStorage. The Rust's chunk/region IO is its own implementation; it names neither class. The associated save.rs/persist.rs diffs are the already-ported item 11/20 NBT work."
+  },
+  "695": {
+   "module": "new-classes: advancements/critereon",
+   "verdict": "no-change",
+   "evidence": "package-info only. No code."
+  },
+  "696": {
+   "module": "new-classes: client/gui",
+   "verdict": "no-change",
+   "evidence": "GuiGraphics$OutlineBox. Menu-chrome render plumbing; the Rust's screen drawing is its own."
+  },
+  "697": {
+   "module": "new-classes: client/model/dragon",
+   "verdict": "no-change",
+   "evidence": "package-info only. No code."
+  },
+  "698": {
+   "module": "new-classes: client/renderer/feature",
+   "verdict": "no-change",
+   "evidence": "HitboxFeatureRenderer. Debug rendering; the Rust's hitbox rendering is its own and names neither this nor the render-state classes."
+  },
+  "699": {
+   "module": "new-classes: client/renderer/texture/atlas",
+   "verdict": "carry-over",
+   "evidence": "SpriteSource$SpriteSupplier. Atlas-source plumbing; atlas_sources.rs is identical between the trees, and the glint/packs diffs are the already-ported items 91/544 texture-metadata work."
+  },
+  "700": {
+   "module": "new-classes: client/resources/sounds",
+   "verdict": "no-change",
+   "evidence": "RidingHappyGhastSoundInstance. The Rust's audio is its own; it names no such class."
+  },
+  "701": {
+   "module": "new-classes: client/searchtree",
+   "verdict": "no-change",
+   "evidence": "ResourceLocationSearchTree. The Rust's search (recipe book etc.) is its own; the associated files are identical between the trees."
+  },
+  "702": {
+   "module": "new-classes: client/sounds",
+   "verdict": "no-change",
+   "evidence": "MusicInfo. The Rust's music system is its own (items 74/98 ported situational music); the one tree hit is a doc comment citing MusicInfo in music.rs."
+  },
+  "703": {
+   "module": "new-classes: client",
+   "verdict": "no-change",
+   "evidence": "GraphicsStatus. The Rust's graphics settings are its own enum; it names no such class."
+  },
+  "704": {
+   "module": "new-classes: com/mojang/realmsclient/util",
+   "verdict": "no-change",
+   "evidence": "Realms LevelType. Unmodelled Realms util; the Rust's realms client never reads it."
+  },
+  "705": {
+   "module": "new-classes: commands/arguments",
+   "verdict": "carry-over",
+   "evidence": "ResourceLocationArgument \u2014 the 1.21.11 rename is IdentifierArgument. The Rust's ArgType::Id parses resource locations identically in both trees (args.rs differs by one line, the worldborder-adjacent integer helper)."
+  },
+  "706": {
+   "module": "new-classes: gametest/framework",
+   "verdict": "no-change",
+   "evidence": "TestEnvironmentDefinition$SetGameRules$Entry. Gametest framework plumbing; the Rust's game-test support (test_instances.rs, item 477) covers rendering only, and the associated files differ only by that work."
+  },
+  "707": {
+   "module": "new-classes: resources",
+   "verdict": "carry-over",
+   "evidence": "ResourceLocation \u2014 renamed Identifier in 1.21.11. The Rust's only references are doc comments citing ResourceLocation.parse/withDefaultNamespace (missing namespace reads as minecraft:), which are correct for 1.21.10. The identifier parsing itself is the Rust's own and is version-independent."
+  },
+  "708": {
+   "module": "new-classes: server/jsonrpc/internalapi",
+   "verdict": "carry-over",
+   "evidence": "The jsonrpc internalapi GameRules interface. Covered by item 475 (the UntypedRule/TypedRule service shapes); the interface itself is unmodelled plumbing."
+  },
+  "709": {
+   "module": "new-classes: server/jsonrpc",
+   "verdict": "carry-over",
+   "evidence": "IncomingRpcMethod$Factory. JSON-RPC plumbing; the Rust's endpoint is its own implementation (items 469/547). The associated management.rs diffs are the already-ported item-469 auth work."
+  },
+  "710": {
+   "module": "new-classes: util/parsing/packrat/commands",
+   "verdict": "carry-over",
+   "evidence": "ResourceLocationParseRule \u2014 the 1.21.11 rename is IdentifierParseRule. The Rust's packrat parsers are its own; the associated files differ only in comments and the integer helper."
+  },
+  "711": {
+   "module": "new-classes: util/thread",
+   "verdict": "no-change",
+   "evidence": "NamedThreadFactory. Threading util; the Rust's threading is its own."
+  },
+  "712": {
+   "module": "new-classes: world/entity/animal/coppergolem",
+   "verdict": "no-change",
+   "evidence": "package-info only. No code. (The associated entity_nbt.rs/copper_golems.rs diffs are the already-ported item 11/40 work.)"
+  },
+  "713": {
+   "module": "new-classes: world/entity/animal/horse",
+   "verdict": "no-change",
+   "evidence": "package-info only. No code. (The associated equine.rs diff is the already-ported item-18 horse work.)"
+  },
+  "714": {
+   "module": "new-classes: world/entity/boss",
+   "verdict": "no-change",
+   "evidence": "package-info only. No code."
+  },
+  "715": {
+   "module": "new-classes: world/entity/projectile/windcharge",
+   "verdict": "no-change",
+   "evidence": "package-info only. No code. (The wind-charge behaviour is item 573, carried over via the rank-2 semantic diff.)"
+  },
+  "716": {
+   "module": "new-classes: world/level/biome",
+   "verdict": "carry-over",
+   "evidence": "AmbientParticleSettings (biome `particle`). Verified: ZERO 1.21.10 vanilla biomes carry a `particle` field, so the Rust's empty ambient table is correct for vanilla data. A 1.21.10 datapack biome with `particle` would be missed (the Rust reads only the attribute form) \u2014 a datapack-only gap, folded into open item 351's environment-attribute record."
+  },
+  "717": {
+   "module": "new-classes: world/level/saveddata",
+   "verdict": "no-change",
+   "evidence": "SavedData$Context. Save plumbing; the Rust's save code is its own. The associated diffs are the already-ported item 11/20 work and the stopwatch removal (scoreboard.rs)."
+  }
+ }
+}

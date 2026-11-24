@@ -60,8 +60,6 @@ pub struct DebugCharts {
     pub fps: bool,
     /// `renderNetworkCharts` (F3+3).
     pub network: bool,
-    /// `renderLightmapTexture` (F3+4).
-    pub lightmap: bool,
     /// `frameTimeLogger`: nanoseconds between frames.
     pub frame_times: SampleLogger,
     /// `tickTimeLogger`: the integrated server's ticks.
@@ -86,7 +84,6 @@ impl DebugCharts {
         if self.fps {
             *overlay = true;
             self.network = false;
-            self.lightmap = false;
         }
     }
     /// `toggleNetworkCharts`.
@@ -95,16 +92,6 @@ impl DebugCharts {
         if self.network {
             *overlay = true;
             self.fps = false;
-            self.lightmap = false;
-        }
-    }
-    /// `toggleLightmapTexture`.
-    pub fn toggle_lightmap(&mut self, overlay: &mut bool) {
-        self.lightmap = !*overlay || !self.lightmap;
-        if self.lightmap {
-            *overlay = true;
-            self.fps = false;
-            self.network = false;
         }
     }
     /// `reset`: leaving a world.
@@ -152,15 +139,16 @@ impl DebugCharts {
         }
         self.packet_tick = (self.packet_tick + 1) % 20;
     }
-    /// Whether `draw` (or the lightmap view) puts something in the bottom
-    /// left and the bottom right corner, for a `remote` server or not.
+    /// Whether `draw` puts something in the bottom left and the bottom
+    /// right corner, for a `remote` server or not.
     pub fn corners(&self, remote: bool) -> [bool; 2] {
         [
             self.fps || (self.network && remote),
-            (self.fps && !self.tick_times.is_empty()) || self.network || self.lightmap,
+            (self.fps && !self.tick_times.is_empty()) || self.network,
         ]
     }
-    /// The charts along the bottom of the screen (`extractRenderState`):
+    /// The charts along the bottom of the screen (`drawChart`, 26.1's
+    /// `extractRenderState`):
     /// frame times left and tick times right, or bandwidth left (remote
     /// servers only) and ping right. `mspt` is the level's milliseconds
     /// per tick.
@@ -206,22 +194,6 @@ impl DebugCharts {
     }
 }
 
-/// The lightmap view (`showLightmapTexture`): the 16 by 16 texture at 64
-/// by 64 in the bottom right corner on a black border, sky light up and
-/// block light right (the blit flips the texture's rows). `pixels` are RGBA
-/// rows of sky level by block level.
-pub fn lightmap(pixels: &[u8; 16 * 16 * 4], width: i32, height: i32) -> Vec<GuiDraw> {
-    let (x, y) = (width - 64 - 2, height - 64 - 2);
-    let mut out = vec![fill(x - 1, y - 1, x + 64 + 1, y + 64 + 1, 0xFF00_0000)];
-    for (i, p) in pixels.as_chunks::<4>().0.iter().enumerate() {
-        let (sky, block) = ((i / 16) as i32, (i % 16) as i32);
-        let color = argb(255, u32::from(p[0]), u32::from(p[1]), u32::from(p[2]));
-        let (cx, cy) = (x + block * 4, y + (15 - sky) * 4);
-        out.push(fill(cx, cy, cx + 4, cy + 4, color));
-    }
-    out
-}
-
 /// The four charts and what each needs to scale its bars.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Chart {
@@ -258,7 +230,7 @@ impl Chart {
     pub fn width(max_width: i32) -> i32 {
         (CAPACITY as i32 + 2).min(max_width)
     }
-    /// `AbstractDebugChart.extractRenderState`.
+    /// `AbstractDebugChart.drawChart` (26.1's `extractRenderState`).
     pub fn draw(
         self,
         font: &Font,
@@ -358,7 +330,8 @@ impl Chart {
             _ => samples.get(index, 0),
         }
     }
-    /// `extractAdditionalLinesAndLabels`.
+    /// `renderAdditionalLinesAndLabels` (26.1's
+    /// `extractAdditionalLinesAndLabels`).
     fn lines_and_labels(
         self,
         out: &mut Vec<GuiDraw>,
@@ -475,11 +448,11 @@ pub fn srgb_lerp(alpha: f32, p0: u32, p1: u32) -> u32 {
     };
     argb(channel(24), channel(16), channel(8), channel(0))
 }
-/// `GuiGraphicsExtractor.horizontalLine`.
+/// `GuiGraphics.hLine`.
 fn horizontal_line(out: &mut Vec<GuiDraw>, x0: i32, x1: i32, y: i32, color: u32) {
     out.push(fill(x0.min(x1), y, x0.max(x1) + 1, y + 1, color));
 }
-/// `GuiGraphicsExtractor.verticalLine`.
+/// `GuiGraphics.vLine`.
 fn vertical_line(out: &mut Vec<GuiDraw>, x: i32, y0: i32, y1: i32, color: u32) {
     out.push(fill(x, y0.min(y1) + 1, x + 1, y0.max(y1), color));
 }
@@ -492,7 +465,8 @@ fn text(out: &mut Vec<GuiDraw>, s: String, x: i32, y: i32, color: u32, shadow: b
         shadow,
     });
 }
-/// `extractStringWithShade`: a label on a dark backdrop, without shadow.
+/// `drawStringWithShade` (26.1's `extractStringWithShade`): a label on
+/// a dark backdrop, without shadow.
 fn shaded(out: &mut Vec<GuiDraw>, font: &Font, s: &str, x: i32, y: i32) {
     out.push(fill(x, y, x + font.width(s) as i32 + 1, y + 9, BACKDROP));
     text(out, s.to_owned(), x + 1, y + 1, LABEL, false);
@@ -523,9 +497,8 @@ mod tests {
         assert!(c.network && !c.fps);
         c.toggle_network(&mut overlay);
         assert!(!c.network && overlay);
-        c.toggle_lightmap(&mut overlay);
         c.toggle_fps(&mut overlay);
-        assert!(c.fps && !c.lightmap);
+        assert!(c.fps && !c.network);
         // With the overlay hidden, the key shows it again with the chart on.
         c.toggle_fps(&mut overlay);
         overlay = false;
@@ -547,21 +520,6 @@ mod tests {
         c.network = true;
         assert_eq!(c.corners(false), [false, true]);
         assert_eq!(c.corners(true), [true, true]);
-        // The lightmap view, bottom right.
-        c.network = false;
-        c.lightmap = true;
-        assert_eq!(c.corners(true), [false, true]);
-    }
-
-    #[test]
-    fn the_lightmap_puts_full_sky_light_at_the_top_left() {
-        let mut pixels = [0u8; 16 * 16 * 4];
-        // Sky 15, block 0: the last row's first texel.
-        pixels[15 * 64..15 * 64 + 4].copy_from_slice(&[10, 20, 30, 255]);
-        let draws = lightmap(&pixels, 427, 240);
-        assert_eq!(draws[0], fill(360, 173, 426, 239, 0xFF00_0000));
-        assert_eq!(draws.len(), 257);
-        assert!(draws.contains(&fill(361, 174, 365, 178, 0xFF0A_141E)));
     }
 
     #[test]

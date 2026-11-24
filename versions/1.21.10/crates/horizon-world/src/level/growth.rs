@@ -151,7 +151,6 @@ pub(crate) struct TreeGrower {
     trees: &'static [(&'static str, i32)],
     mega_trees: &'static [(&'static str, i32)],
     flower_trees: &'static [(&'static str, i32)],
-    shortest: Option<&'static str>,
 }
 
 pub(crate) const GROWERS: &[TreeGrower] = &[
@@ -163,70 +162,60 @@ pub(crate) const GROWERS: &[TreeGrower] = &[
             ("minecraft:oak_bees_005", 9),
             ("minecraft:fancy_oak_bees_005", 1),
         ],
-        shortest: Some("minecraft:oak"),
     },
     TreeGrower {
         name: "spruce",
         trees: &[("minecraft:spruce", 1)],
         mega_trees: &[("minecraft:mega_spruce", 1), ("minecraft:mega_pine", 1)],
         flower_trees: &[],
-        shortest: Some("minecraft:spruce"),
     },
     TreeGrower {
         name: "mangrove",
         trees: &[("minecraft:mangrove", 15), ("minecraft:tall_mangrove", 85)],
         mega_trees: &[],
         flower_trees: &[],
-        shortest: Some("minecraft:mangrove"),
     },
     TreeGrower {
         name: "azalea",
         trees: &[("minecraft:azalea_tree", 1)],
         mega_trees: &[],
         flower_trees: &[],
-        shortest: Some("minecraft:azalea_tree"),
     },
     TreeGrower {
         name: "birch",
         trees: &[("minecraft:birch", 1)],
         mega_trees: &[],
         flower_trees: &[("minecraft:birch_bees_005", 1)],
-        shortest: Some("minecraft:birch"),
     },
     TreeGrower {
         name: "jungle",
         trees: &[("minecraft:jungle_tree_no_vine", 1)],
         mega_trees: &[("minecraft:mega_jungle_tree", 1)],
         flower_trees: &[],
-        shortest: Some("minecraft:jungle_tree_no_vine"),
     },
     TreeGrower {
         name: "acacia",
         trees: &[("minecraft:acacia", 1)],
         mega_trees: &[],
         flower_trees: &[],
-        shortest: Some("minecraft:acacia"),
     },
     TreeGrower {
         name: "cherry",
         trees: &[("minecraft:cherry", 1)],
         mega_trees: &[],
         flower_trees: &[("minecraft:cherry_bees_005", 1)],
-        shortest: Some("minecraft:cherry"),
     },
     TreeGrower {
         name: "dark_oak",
         trees: &[],
         mega_trees: &[("minecraft:dark_oak", 1)],
         flower_trees: &[],
-        shortest: None,
     },
     TreeGrower {
         name: "pale_oak",
         trees: &[],
         mega_trees: &[("minecraft:pale_oak_bonemeal", 1)],
         flower_trees: &[],
-        shortest: None,
     },
     TreeGrower {
         name: "poplar",
@@ -237,7 +226,6 @@ pub(crate) const GROWERS: &[TreeGrower] = &[
         ],
         mega_trees: &[],
         flower_trees: &[],
-        shortest: Some("minecraft:red_poplar"),
     },
 ];
 
@@ -305,6 +293,36 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             features.place_definition(
                 feature,
                 "an inline feature",
+                &mut world,
+                &mut random,
+                [pos.x, pos.y, pos.z],
+            )
+        };
+        *self.random() = random;
+        placed
+    }
+    /// `PlacedFeature.place(level, generator, level.random, pos)` for an
+    /// inline placed feature already decoded, with the same level random
+    /// as a named one.
+    pub(crate) fn place_inline_placed_feature(
+        &mut self,
+        feature: &crate::worldgen::feature_graph::PlacedFeatureDefinition,
+        pos: BlockPos,
+    ) -> bool {
+        let b = self.b;
+        let Some(features) = b.live_features() else {
+            return false;
+        };
+        let mut random = self.random().clone();
+        let placed = {
+            let mut world = LevelFeatureWorld {
+                sim: self,
+                features,
+                entities: Vec::new(),
+            };
+            features.place_placed_definition(
+                feature,
+                "an inline placed feature",
                 &mut world,
                 &mut random,
                 [pos.x, pos.y, pos.z],
@@ -441,15 +459,6 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         } else {
             true
         }
-    }
-    /// `TreeGrower.getMinimumHeight`: the shortest tree's trunk base height.
-    pub(crate) fn tree_minimum_height(&self, grower: &TreeGrower) -> i32 {
-        grower
-            .shortest
-            .and_then(|name| self.b.live_features()?.configured_json(name))
-            .filter(|json| json["type"] == "minecraft:tree")
-            .and_then(|json| json["trunk_placer"]["base_height"].as_i64())
-            .map_or(0, |h| h as i32)
     }
     /// `SaplingBlock.advanceTree` with the grower run inline when features are
     /// installed; otherwise reported as [`LevelEvent::GrowTree`].

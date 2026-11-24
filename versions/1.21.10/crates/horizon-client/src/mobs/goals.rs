@@ -652,10 +652,9 @@ impl Mob {
         self.ai.seen_cache.push((who, v));
         v
     }
-    /// Mob.isWithinMeleeAttackRange: the box inflated by sqrt(2.04) - 0.6, or
-    /// for an active item with `attack_range` (the spears) by its
-    /// `effectiveMaxRange` for a mob (`max_reach * mob_factor`), and not
-    /// within its `effectiveMinRange` (`min_reach * mob_factor`).
+    /// Mob.isWithinMeleeAttackRange: the attack box inflated by
+    /// sqrt(2.04) - 0.6 against the target's box. 1.21.10 has no
+    /// `attack_range` component: the reach never depends on the held item.
     pub fn within_melee_range(&self, w: &MobWorld, t: &TargetInfo) -> bool {
         self.melee_reaches(w, t.hitbox)
     }
@@ -673,42 +672,8 @@ impl Mob {
     }
     /// [`Self::melee_reaches`] with the vehicle's box given.
     pub fn melee_reaches_beside(&self, vehicle: Option<Aabb>, target: Aabb) -> bool {
-        let (max, min) = match self.active_attack_range() {
-            Some((max, min)) => (f64::from(max), f64::from(min)),
-            None => (2.04f32.sqrt() as f64 - 0.6, 0.0),
-        };
-        let reaches = |range: f64| self.attack_box(range, vehicle).intersects(target);
-        reaches(max) && (min <= 0.0 || !reaches(min))
-    }
-    /// The active item's `attack_range` for a mob: `effectiveMaxRange` and
-    /// `effectiveMinRange` (`max_reach` and `min_reach` times `mob_factor`).
-    /// A patch on the held stack wins (`!minecraft:attack_range` removes it;
-    /// the codec's defaults are 0, 3 and a factor of 1); else the spears'.
-    fn active_attack_range(&self) -> Option<(f32, f32)> {
-        let item = self.active_item()?;
-        let patch = (self.extra.main_hand.as_deref() == Some(item))
-            .then(|| self.extra.main_hand_stack().and_then(|s| s.data()))
-            .flatten();
-        if patch.is_some_and(|d| d.other("!minecraft:attack_range").is_some()) {
-            return None;
-        }
-        if let Some(range) = patch.and_then(|d| d.other("minecraft:attack_range")) {
-            let float = |key: &str, default: f32| match range.get(key) {
-                Some(horizon_world::nbt::Tag::Float(bits)) => f32::from_bits(*bits),
-                Some(horizon_world::nbt::Tag::Double(bits)) => f64::from_bits(*bits) as f32,
-                Some(horizon_world::nbt::Tag::Int(v)) => *v as f32,
-                _ => default,
-            };
-            let factor = float("mob_factor", 1.0);
-            return Some((
-                float("max_reach", 3.0) * factor,
-                float("min_reach", 0.0) * factor,
-            ));
-        }
-        crate::spear::Kinetic::of(item).map(|_| {
-            let r = &crate::spear::REACH;
-            (r.max * r.mob_factor, r.min * r.mob_factor)
-        })
+        self.attack_box(2.04f32.sqrt() as f64 - 0.6, vehicle)
+            .intersects(target)
     }
     /// `LivingEntity.getActiveItem`: the item being used, else the main hand's.
     pub fn active_item(&self) -> Option<&str> {
@@ -731,12 +696,12 @@ impl Mob {
         )
     }
     /// `IronGolem.isPlayerCreated`: a golem a player built, which
-    /// `IronGolem.canAttack` never lets attack a player.
+    /// `IronGolem.canAttackType` never lets attack a player.
     pub fn built_by_player(&self) -> bool {
         self.species() == Species::IronGolem && self.extra.player_created
     }
-    /// `canAttack` for the player: a golem a player built never attacks
-    /// players (`IronGolem.canAttack`), and a pet never attacks its owner
+    /// `canAttackType` for the player: a golem a player built never attacks
+    /// players (`IronGolem.canAttackType`), and a pet never attacks its owner
     /// (`TamableAnimal.canAttack`: `isOwnedBy`). In Peaceful nothing attacks a
     /// player (`LivingEntity.canAttack`, `TargetingConditions.test`: combat
     /// conditions fail when the difficulty is PEACEFUL).
@@ -749,8 +714,8 @@ impl Mob {
                     .as_ref()
                     .is_some_and(|p| super::tame::owned_by(self.extra.owner, p.uuid)))
     }
-    /// `canAttack` of any target: the player rules above, and
-    /// `IronGolem.canAttack`'s refusal of creepers. The callers check that
+    /// `canAttackType` of any target: the player rules above, and
+    /// `IronGolem.canAttackType`'s refusal of creepers. The callers check that
     /// the target is alive and can be seen as an enemy.
     pub fn spares_target(&self, w: &MobWorld, who: Who) -> bool {
         // Dolphin.canAttack: a baby dolphin attacks nobody, so whatever hurt it
@@ -761,7 +726,7 @@ impl Mob {
         match who {
             Who::Player => self.spares_players(w),
             Who::Mob(id) => {
-                // `Mob.canAttack` refuses a Ghast for every mob.
+                // `Mob.canAttackType` refuses a Ghast for every mob.
                 w.seen(id).is_some_and(|s| s.species == Species::Ghast)
                     || (self.species() == Species::IronGolem
                         && w.seen(id).is_some_and(|s| s.species == Species::Creeper))
@@ -855,8 +820,8 @@ impl Goal for Float {
 /// `ClimbOnTopOfPowderSnowGoal`: a powder-snow walker standing in powder snow
 /// jumps while the block above is powder snow or has no collision.
 #[derive(Clone, Debug)]
-pub struct ClimbOnTopOfPowderSnow;
-impl Goal for ClimbOnTopOfPowderSnow {
+pub struct ClimbDangerPowderSnow;
+impl Goal for ClimbDangerPowderSnow {
     goal_clone!();
     fn flags(&self) -> u8 {
         JUMP
@@ -1900,7 +1865,7 @@ impl Goal for HurtByTarget {
             && m.within_home_at(t.position)
     }
     fn can_continue(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
-        if self.bee && !super::bee::angry(m, cx.w) {
+        if self.bee && !super::bee::angry(m) {
             return false;
         }
         target_continue(&mut self.st, true, m, cx)
@@ -3035,9 +3000,10 @@ mod built_by_player_tests {
         Mob::new(1, kind, Vec3::ZERO, 0.0)
     }
 
-    /// `IronGolem.canAttack`: only a golem a player built spares players, so
-    /// the save restore drops that target (`Mob.asValidTarget`) while another
-    /// mob's `PlayerCreated` byte means nothing.
+    /// `IronGolem.canAttackType`: only a golem a player built spares players,
+    /// so the save restore drops that target (the target goal re-checks via
+    /// `TargetingConditions`) while another mob's `PlayerCreated` byte means
+    /// nothing.
     #[test]
     fn only_a_golem_spares_the_player_that_built_it() {
         let mut built = mob(Species::IronGolem);
@@ -3301,37 +3267,26 @@ mod melee_range_tests {
     /// times its mob factor 0.5; a patched component with the codec's
     /// defaults (`mob_factor` 1, `min_reach` 0); a removed one the default.
     #[test]
-    fn the_active_items_attack_range_sets_the_reach() {
-        let sword = mob_holding("minecraft:iron_sword", None);
-        assert!(sword.melee_reaches_beside(None, target(&sword, 0.8)));
-        assert!(!sword.melee_reaches_beside(None, target(&sword, 0.9)));
-
-        let spear = mob_holding("minecraft:iron_spear", None);
-        assert!(spear.melee_reaches_beside(None, target(&spear, 2.2)));
-        assert!(!spear.melee_reaches_beside(None, target(&spear, 2.3)));
-        assert!(
-            !spear.melee_reaches_beside(None, target(&spear, 0.5)),
-            "inside the minimum range"
-        );
-        assert!(spear.melee_reaches_beside(None, target(&spear, 1.1)));
-
-        let long = mob_holding(
-            "minecraft:iron_sword",
-            Some(r#"{"minecraft:attack_range":{max_reach:6.0f}}"#),
-        );
-        assert!(long.melee_reaches_beside(None, target(&long, 5.9)));
-        assert!(
-            long.melee_reaches_beside(None, target(&long, 0.0)),
-            "no minimum by default"
-        );
-        assert!(!long.melee_reaches_beside(None, target(&long, 6.1)));
-
-        let blunt = mob_holding(
-            "minecraft:iron_spear",
-            Some(r#"{"!minecraft:attack_range":{}}"#),
-        );
-        assert!(blunt.melee_reaches_beside(None, target(&blunt, 0.5)));
-        assert!(!blunt.melee_reaches_beside(None, target(&blunt, 2.0)));
+    fn melee_reach_is_the_same_whatever_the_mob_holds() {
+        // Mob.isWithinMeleeAttackRange: sqrt(2.04) - 0.6 (about 0.83),
+        // whatever the held item, even one carrying an `attack_range`
+        // component patch (a 1.21.11 component 1.21.10 never reads).
+        for m in [
+            mob_holding("minecraft:iron_sword", None),
+            mob_holding("minecraft:iron_spear", None),
+            mob_holding(
+                "minecraft:iron_sword",
+                Some(r#"{"minecraft:attack_range":{max_reach:6.0f}}"#),
+            ),
+            mob_holding(
+                "minecraft:iron_spear",
+                Some(r#"{"!minecraft:attack_range":{}}"#),
+            ),
+        ] {
+            assert!(m.melee_reaches_beside(None, target(&m, 0.8)));
+            assert!(!m.melee_reaches_beside(None, target(&m, 0.9)));
+            assert!(m.melee_reaches_beside(None, target(&m, 0.0)));
+        }
     }
 
     /// `Mob.getAttackBoundingBox`: a rider's box widened on x and z to its

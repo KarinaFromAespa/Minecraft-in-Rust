@@ -42,9 +42,10 @@ import net.minecraft.world.level.material.FluidState;
  * entity type at a position of a controlled column world. The stand-in
  * ServerLevel answers block states from the case (air elsewhere), uniform sky
  * and block light, the sky darkening, thunder, difficulty, dimension type,
- * biome, sea level, WORLD_SURFACE height, world seed, the surface slime spawn
- * chance and an optional nearby player. Each case prints the two answers and
- * the next nextInt(1000) of its random, which pins the number of draws.
+ * biome, sea level, WORLD_SURFACE height, world seed, the moon brightness
+ * (1.21.10's slime check draws against it directly) and an optional nearby
+ * player. Each case prints the two answers and the next nextInt(1000) of its
+ * random, which pins the number of draws.
  */
 public final class VanillaSpawnRulesOracle {
     static Object unsafe;
@@ -58,7 +59,7 @@ public final class VanillaSpawnRulesOracle {
     }
 
     static final class Lvl extends ServerLevel {
-        Lvl() { super(null, null, null, null, null, null, false, 0L, List.of(), false); }
+        Lvl() { super(null, null, null, null, null, null, false, 0L, List.of(), false, null); }
         RegistryAccess registries;
         Map<Integer, BlockState> column = new HashMap<>();
         int x0, z0, sky, block, darken, sea, surface;
@@ -70,7 +71,7 @@ public final class VanillaSpawnRulesOracle {
         Difficulty difficulty;
         DimensionType dimension;
         Holder<Biome> biome;
-        net.minecraft.world.attribute.EnvironmentAttributeSystem attributes;
+        float moon;
         List<Player> playerList = new ArrayList<>();
         WorldBorder border = new WorldBorder();
         int next = 1;
@@ -78,7 +79,6 @@ public final class VanillaSpawnRulesOracle {
         @Override public MinecraftServer getServer() { return server; }
         @Override public Difficulty getDifficulty() { return difficulty; }
         @Override public long getGameTime() { return 0L; }
-        @Override public int getNextEntityId() { return next++; }
         @Override public net.minecraft.world.flag.FeatureFlagSet enabledFeatures() { return net.minecraft.world.flag.FeatureFlags.REGISTRY.allFlags(); }
         @Override public BlockState getBlockState(BlockPos pos) {
             if (pos.getX() != x0 || pos.getZ() != z0) return Blocks.AIR.defaultBlockState();
@@ -96,7 +96,7 @@ public final class VanillaSpawnRulesOracle {
         @Override public long getSeed() { return seed; }
         @Override public DimensionType dimensionType() { return dimension; }
         @Override public Holder<Biome> getBiome(BlockPos pos) { return biome; }
-        @Override public net.minecraft.world.attribute.EnvironmentAttributeSystem environmentAttributes() { return attributes; }
+        @Override public float getMoonBrightness() { return moon; }
         @Override public WorldBorder getWorldBorder() { return border; }
         @SuppressWarnings({"unchecked", "rawtypes"})
         @Override public List players() { return playerList; }
@@ -108,7 +108,6 @@ public final class VanillaSpawnRulesOracle {
         @Override public GameType gameMode() { return mode; }
         @Override public boolean isCreative() { return mode == GameType.CREATIVE; }
         @Override public boolean isSpectator() { return mode == GameType.SPECTATOR; }
-        @Override public net.minecraft.world.item.component.ResolvableProfile getProfile() { return net.minecraft.world.item.component.ResolvableProfile.createResolved(this.getGameProfile()); }
     }
 
     public static void main(String[] args) throws Exception {
@@ -186,11 +185,7 @@ public final class VanillaSpawnRulesOracle {
                     level.difficulty = Difficulty.byName(c.getOrDefault("difficulty", "normal"));
                     level.dimension = dimensions.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, ResourceLocation.parse(c.getOrDefault("dim", "minecraft:overworld")))).value();
                     level.biome = biomes.getOrThrow(ResourceKey.create(Registries.BIOME, ResourceLocation.parse(c.getOrDefault("biome", "minecraft:plains"))));
-                    level.attributes = net.minecraft.world.attribute.EnvironmentAttributeSystem.builder()
-                        .addConstantLayer(net.minecraft.world.attribute.EnvironmentAttributeMap.builder()
-                            .set(net.minecraft.world.attribute.EnvironmentAttributes.SURFACE_SLIME_SPAWN_CHANCE, Float.parseFloat(c.getOrDefault("slime", "0.0")))
-                            .build())
-                        .build();
+                    level.moon = Float.parseFloat(c.getOrDefault("moon", "0.0"));
                     level.playerList.clear();
                     if (c.containsKey("player")) {
                         String[] p = c.get("player").split(",");
