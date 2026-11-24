@@ -1,0 +1,114 @@
+{
+ "batch": 6,
+ "checks": {
+  "gap": 28,
+  "pass": 51,
+  "total": 79
+ },
+ "coordinator_note": "Reconciled Nov 24, 2026 against the measured Batch 0 table, the 26.2 tree, and the vanilla 26.2 reference world. Oracle + driver triage verify exactly (0 mismatches): 26 failing / 28 passing oracles, 19 runnable / 14 no-oracle / 27 blocked drivers. TALLY CONVENTION: Batch 6 counts oracle status checks in its tally (79 = 25 behaviour + 54 oracle), matching the 1.21.7 template; other 26.2 batches do not - the merge must present behaviour and oracle-status checks separately. Behaviour tally reconstruction: 5 defect + 5 data + 10 code-vs-jar + 5 census = 25. B6-G03 is UNVERIFIED for 26.2 (no 26.2 evidence; full aquifer audit found no divergence; B6-H arbitrates) - do not present as a demonstrated 26.2 defect. \"Fixed\" on B6-G01/G02/G04 means \"1.21.7 defect withdrawn for 26.2 - verified absent\", not a fix applied during the sweep. PER-ORACLE OVERLAPS (dedup at merge): VanillaFinalizeSpawnOracle folds into B3-O03, VanillaWorldSpawnOracle into B3-O04, VanillaSculkOracle into B4-O14; the other 23 oracles are first per-batch records. B6-G05 verified at sculk.rs:352 and :595. Reference seed confirmed by the coordinator from world_gen_settings.dat (data.seed = -1514548643533799951); census numbers verified against evidence/world-26.2-census.json.",
+ "date": "2026-11-24",
+ "items": [
+  {
+   "evidence": "26.2 worldgen/sculk.rs decodes catalyst_chance, extra_rare_growths, catalyst (default sculk_catalyst state) and shrieker (default + can_summon=true), and place() implements the full tail, verified line-by-line against the 26.2 jar SculkPatchFeature.place bytecode: nextFloat() <= catalystChance + below collision-full -> catalyst at origin, flag 3; then extraRareGrowths.sample x origin.offset(nextInt(5)-2, 0, nextInt(5)-2) air-above-face-sturdy -> shrieker, flag 3; catalyst roll before the growth sample (same RNG order). canSpreadFrom also matches. The vanilla 26.2 reference world contains no deep dark (0 sculk blocks), so no world-side catalyst count exists to re-measure; the withdrawal rests on the code-vs-jar verification.",
+   "id": "B6-G01",
+   "method": "javap + source (re-check of 1.21.7 defect)",
+   "severity": "major",
+   "status": "fixed",
+   "title": "sculk_patch catalyst / extra rare growths tail is implemented in 26.2 (1.21.7 defect withdrawn)"
+  },
+  {
+   "evidence": "Mechanism root-caused and verified closed. Vanilla 26.2 SnowLayerBlock.canSurvive returns false when the block below is in #cannot_support_snow_layer (jar tag: ice, packed_ice, barrier). The port's Rule::SnowLayer (block_survival.rs) implements the same three steps (deny tag -> allow tag support_override_snow_layer -> face-full collision UP or same-block layers==8), reachable via both block_survives paths, and the 26.2 prepared data contains the tag with exactly the jar's members. SnowAndFreezeFeature.place and Biome.shouldSnow/shouldFreeze match the jar step by step. The snow path is byte-identical between the 1.21.7 and 26.2 trees, so the 1.21.7 +7.6% measurement is not explained by a code difference; the likely explanation is stale prepared tag data on the laptop at generation time (tag_states silently yields an empty set for a missing tag). Caveat: no frozen_peaks biome in the 26.2 reference world and no port world, so the figure cannot be re-measured; live confirmation is B6-H.",
+   "id": "B6-G02",
+   "method": "javap + source + prepared data (re-check of 1.21.7 defect)",
+   "severity": "major",
+   "status": "fixed",
+   "title": "Snow-on-packed-ice mechanism verified closed in 26.2 (1.21.7 defect withdrawn)"
+  },
+  {
+   "evidence": "The 1.21.7 world comparison (2026-11-22, 4,145 paired chunks, both post-decorate) measured water -1.04% underground with surface water matching; never root-caused. This batch did the full noise-based aquifer audit the 1.21.7 batch did not do and found NO divergence: computeFluid (13 SURFACE_OFFSETS, preliminarySurfaceLevel+8, center/above picker logic, minimum over raw surface), computeSurfaceLevel (deep-dark exclusion synthesized from erosion/depth matching OverworldBiomeBuilder.isDeepDarkRegion, clampedMap factor, thresholds -0.3->0.8 flooded / -0.8->0.4 dry), computeRandomizedFluidSurfaceLevel (floorDiv 16/40/16, base floorDiv(y,40)*40+20, spread x10 quantized by 3), computeFluidType (lava gate, |lavaNoise|>0.3), calculatePressure, similarity = 1-(b-a)/25, FLOWING_UPDATE_SIMILARITY = 1-44/25, grid constants, fluid picker. The aquifer code is effectively identical between the 1.21.7 and 26.2 trees (only diff: a test helper's f32->f64 return type). Cannot be re-measured for 26.2 (no port world on the VM); vanilla-side water is 6,227,889 blocks over 6,018 chunks. Status open; measurement deferred to B6-H.",
+   "id": "B6-G03",
+   "method": "javap + source (re-check of 1.21.7 defect; full aquifer audit)",
+   "severity": "major",
+   "status": "gap",
+   "title": "Underground water deficit (-1.04% in 1.21.7) carried over unverified; aquifer core matches the 26.2 jar"
+  },
+  {
+   "evidence": "PoolPiece::save (structure/jigsaw.rs) goes through legacy::piece_tag(\"minecraft:jigsaw\", bbox, None, 0), which writes (\"GD\", Tag::Int(gen_depth)) \u2014 GD=0 present, matching vanilla's base StructurePiece serialization. Reference world confirms the vanilla form: trial chambers 1,112/1,112 pieces GD=0, trail ruins 17/17 GD=0, mineshaft GD 0-9 by corridor depth, with ground_level_delta the live propagated value (trial chambers -46..+18, trail ruins -12..+11).",
+   "id": "B6-G04",
+   "method": "source + vanilla NBT (re-check of 1.21.7 defect)",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "PoolPiece NBT writes the GD (genDepth) key in 26.2 (1.21.7 defect withdrawn)"
+  },
+  {
+   "evidence": "Two sites in worldgen/sculk.rs use the WATER_SOURCE flag where vanilla 26.2 tests whether the fluid IS water (any water, including flowing): (1) attempt_spread_vein, Default branch \u2014 vanilla regrows the vein when the cursor cell is air OR any water (fluidState.is(WATER)); the port requires a water source. (2) can_place_growth, above-open gate \u2014 vanilla accepts air or any water above; the port requires a water source. Verified against the 26.2 jar SculkPatchFeature/SculkSpreader bytecode. Impact confined to sculk patch generation adjacent to flowing water (underground waterfalls / lake edges in the deep dark). No RNG-stream effect (no random calls in either gate). Same root pattern at both sites, so one fix covers both. The rest of the sculk spreader core was verified faithful (constants, post-move 15-block check, all three behaviours, canPlaceGrowth box, onDischarged, valid_movement, MultifaceSpreader equivalence).",
+   "id": "B6-G05",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Sculk spreader water gates narrowed to water sources (attempt_spread_vein, can_place_growth)"
+  },
+  {
+   "evidence": "Batch 0 measured table (2026-11-24): VanillaAnchorOracle, VanillaBiomeSourceCodecOracle, VanillaBiomeSourceOracle, VanillaDensityOracle, VanillaMaterialConditionOracle, VanillaMaterialExtensionOracle, VanillaStructureDensityOracle, VanillaWorldgenOracle fail on the 26.3-only densityfunction package (absent from 26.2). Blocks biome_source_codec, biome_source, density, material_condition, material_extension, material_rule_library, material_stage, structure_density, worldgen. VanillaStructureDensityOracle is UNREPAIRABLE against 26.2 per the brief (26.3-only SamplerContext/DensityVolume API) \u2014 density is verified via bytecode/chunk comparison. The other seven need A3-style rewrites against 26.2's own density API.",
+   "id": "B6-O01",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "major",
+   "status": "gap",
+   "title": "Oracles reference the 26.3-only densityfunction package (missing in 26.2, 8 oracles)"
+  },
+  {
+   "evidence": "Batch 0 measured table: VanillaBiomeGenerationOracle, VanillaMaterialStageOracle, VanillaTerrainOracle fail 'package net.minecraft.world.level.levelgen.material.rule does not exist'. Blocks biome_generation, material_stage, terrain. 26.2's material rules/conditions are code-only (no registry resources); oracle rewrite needed against the 26.2 API.",
+   "id": "B6-O02",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "major",
+   "status": "gap",
+   "title": "Oracles reference the missing material/rule package (3 oracles)"
+  },
+  {
+   "evidence": "Batch 0 measured table: VanillaDecorationOracle fails on the 26.3 Feature constructor signature ('constructor Feature in class Feature<FC> cannot be applied to given types'). Blocks decoration. Small in-family repair: adapt the constructor call to the 26.2 Feature signature (javap-verified).",
+   "id": "B6-O03",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "major",
+   "status": "gap",
+   "title": "Oracle uses the 26.3 Feature constructor signature (1 oracle)"
+  },
+  {
+   "evidence": "Batch 0 measured table, all 'cannot find symbol': VanillaBiomeChunkOracle, VanillaChunkStageOracle, VanillaCushionPlacementOracle, VanillaFeatureGraphOracle, VanillaFeatureRegionOracle, VanillaMaterialSurfaceOracle, VanillaSculkOracle, VanillaTreeFeatureOracle, VanillaWorldSpawnOracle. Blocks biome_chunk, chunk_stage, retrogen_chunk, cushion_placement, feature_graph, feature_region, material_surface, sculk, tree_feature, world_spawn. Each needs its missing symbol javap-checked against the 26.2 jar and the oracle adapted; sizes vary, none yet attempted.",
+   "id": "B6-O04",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "major",
+   "status": "gap",
+   "title": "Oracles fail on missing symbols (26.x API drift, 9 oracles)"
+  },
+  {
+   "evidence": "Batch 0 measured table: VanillaDecorationRegionOracle and VanillaFeatureCatalogOracle fail on a missing-override 'lookup' (method does not override or implement a method from a supertype). Blocks decoration_region, feature_catalog. Oracle rewrite needed against the 26.2 lookup API.",
+   "id": "B6-O05",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "major",
+   "status": "gap",
+   "title": "Oracles fail on missing-override lookup (2 oracles)"
+  },
+  {
+   "evidence": "Batch 0 measured table: VanillaBiomeZoomOracle (BiomeManager.getBiome signature), VanillaStructureStartOracle (NoiseGeneratorSettings.create), VanillaFinalizeSpawnOracle (no-override). Blocks biome_zoom, structure_start_nbt, finalize_spawn. Each needs its signature/factory javap-checked against the 26.2 jar and the oracle adapted.",
+   "id": "B6-O06",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "major",
+   "status": "gap",
+   "title": "Oracles fail on other signature / factory / no-override issues (3 oracles)"
+  },
+  {
+   "evidence": "No port world exists for 26.2 on the VM (26.2 was played on the laptop). When a port world is generated at the reference seed -1514548643533799951, compare it against the vanilla '26.2 World' (6,018 chunks, 3,002 minecraft:full) with the STAGE RULE: the port's generate_proto output is terrain-level (before structure placement/decoration); vanilla region files are post-decorate. Direct comparison is only valid where structure templates contain no air (ancient city: 0 air) \u2014 trial chambers/villages carve air during placement, so a terrain-vs-post-decorate gap there is a measurement artifact, not a density bug. Compare post-decorate to post-decorate for blocks, terrain-level to terrain-level for density. This is the live confirmation for B6-G02 (withdrawn on static evidence), the re-measurement for B6-G03, and the first 26.2 biome/height/cave-air agreement numbers. Vanilla-side ground truth is recorded in evidence/world-26.2-census.json.",
+   "id": "B6-H",
+   "method": "needs-harness (paired chunk comparison)",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "Paired port-vs-vanilla chunk comparison for 26.2 (stage rule applies)"
+  }
+ ],
+ "method": "javap -c on the named 26.2 server-game jar for every vanilla method spot-checked (SculkPatchFeature, SculkSpreader behaviours, SnowAndFreezeFeature, Biome.shouldSnow/shouldFreeze, SnowLayerBlock.canSurvive, JigsawPlacement/Placer, OreFeature, Aquifer$NoiseBasedAquifer incl. computeFluid/computeSurfaceLevel/computeRandomizedFluidSurfaceLevel/computeFluidType/calculatePressure/similarity, OverworldBiomeBuilder.isDeepDarkRegion, Climate$SpawnFinder/ParameterPoint/Parameter, MultiNoiseBiomeSourceParameterList Preset); exact data diffs of prepared resources vs jar (12 worldgen registries, 952 entries; structure NBTs 1212/1212; flat presets 9/9 + visible tag; multi-noise presets); vanilla 26.2 reference world census with an own NBT parser (seed -1514548643533799951, 6,018 chunks, block/biome/structure census); decode-coverage audit of every worldgen dispatch arm; Batch 0 oracle-status triage for all 54 oracles referenced by the batch's 60 drivers (28 pass / 26 fail). No driver was run: 33 drivers have no oracle blocker (19 passing-oracle + 14 no-oracle) and are ready to run when the execution block lifts; 27 are blocked on failing oracles. Checks tally = 25 behaviour checks (23 pass, 2 gap) + 54 oracle status checks (28 pass, 26 fail).",
+ "name": "Worldgen / features",
+ "out_of_scope_failures": "None. Adjacent findings NOT recorded as B6 defects: (1) the tag_states silent-empty footgun (missing tag -> empty set, no error) likely explains the 1.21.7 snow measurement; it is a robustness gap in the shared survival loader, not a 26.2 worldgen defect (all tags used here are present in the prepared data); (2) the aquifer deep-dark exclusion synthesis uses double constants -0.225/0.9 where vanilla uses the float-widened -0.22499999403953552/0.8999999761581421 \u2014 a ~1e-8 boundary window, negligible; (3) PORT-NOTES item 115 beardifier float-vs-double precision is density-engine-wide debt, recorded not reworked; (4) bubble columns and beds block entities are owned by other batches; (5) the 19 passing-oracle and 14 no-oracle drivers were not run (execution block) \u2014 they are unmeasured, not passing.",
+ "source": "docs/PARITY-SWEEP.md \u00a74 Batch 6 \u2014 checks + triage only, no fixes. Scope: noise/density functions, carvers, configured/placed features, structures and structure sets, template pools, biomes and biome sources, chunk generation stages, spawn finding, world presets. Static checks only (javap + source + data diffs + vanilla world census); no cargo builds, no driver runs, no commits.",
+ "systemic_note": "No single systemic cause across this batch's open defects. B6-G05 is a narrow predicate narrowing (source-flag used for a fluid-is-water test) at two sites in one file, same root pattern. B6-G03 is a measured-but-unroot-caused 1.21.7 divergence whose mechanism was not found in the aquifer core (verified faithful against the 26.2 jar) \u2014 if it reproduces for 26.2, the cause lies outside the aquifer. The oracle failures share one pattern: the oracles were written against the 26.3 API and 26.2 moved or never had those packages/signatures (densityfunction, material/rule, Feature ctor, lookup overrides). Decode-coverage is complete (every dispatch arm present) but arm presence is not correctness \u2014 B6-G05 was a silent narrowing inside present arms, found only by javap-diffing the feature's gates. Three of four 1.21.7 defects are fixed in the 26.2 tree; the 26.2 port is materially more faithful on worldgen than the 1.21.7 tree was at sweep time.",
+ "version": "26.2"
+}
