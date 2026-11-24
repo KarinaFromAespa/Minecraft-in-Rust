@@ -472,11 +472,10 @@ pub(super) fn missing_resources(root: &std::path::Path) -> Option<String> {
     if !root.join("horizon-resources.json").is_file() {
         return Some(format!(
             "Horizon's prepared game files are missing: no horizon-resources.json in {}\n\
-             Horizon is started from its launcher: download it at {} (Download). It needs your \
-             own Minecraft: Java Edition; the launcher signs you in and prepares the game files.\n\
+             Horizon is started from its launcher (horizon-launcher): run it and press Play there. It needs your \
+             own Minecraft: Java Edition; the launcher prepares the game files from it.\n\
              Developers: horizon-prepare --prepare, or pass --resources <folder>",
             shown.display(),
-            horizon_client::no_resources::DOWNLOAD_URL
         ));
     }
     damaged_prepared(root).map(|problem| {

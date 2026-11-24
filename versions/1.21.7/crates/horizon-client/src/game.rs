@@ -12709,8 +12709,8 @@ pub fn run_with() -> Result<()> {
     );
     if let Some(error) = missing_resources(&vanilla_root) {
         // The game build started by hand (the release's zip), not by the
-        // launcher: a window says where to get it. Scripts and servers get
-        // the error.
+        // launcher: a window says to start it from the launcher. Scripts and
+        // servers get the error.
         if !options.offscreen && !synchronous_startup(&options) {
             log::error!("Horizon: {error}");
             let settings = Settings::load(&Game::options_path());
