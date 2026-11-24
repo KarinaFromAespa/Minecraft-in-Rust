@@ -1,0 +1,129 @@
+{
+ "batch": 5,
+ "checks": {
+  "gap": 16,
+  "pass": 111,
+  "total": 127
+ },
+ "date": "2026-11-24",
+ "items": [
+  {
+   "id": "B5-G03",
+   "title": "Dirt path never reverts: DirtPathBlock unmapped in classes.rs (REPRODUCES from 1.21.7)",
+   "severity": "minor",
+   "status": "gap",
+   "method": "javap + source + data",
+   "evidence": "26.1's jar HAS DirtPathBlock (no PathBlock); the export chain is ['DirtPathBlock','Block']. But the 26.1 tree's classes.rs:208 reads Path = \"PathBlock\" only \u2014 the \"DirtPathBlock\" alias 26.2's tree carries was dropped. The class resolves to plain Block, so every path arm is dead: survive (survive.rs:273), updateShape, scheduled tick (tick.rs:202, unconditional turn_to_base_block), placement. Dirt paths never revert to dirt when the block above becomes solid, and never revert on schedule. Vanilla 26.1 DirtPathBlock behaviour itself is unchanged from 26.2. Fix note: add \"DirtPathBlock\" to the Path alias (the 26.2 form), with the unit test 26.2's tree carries."
+  },
+  {
+   "id": "B5-G13",
+   "title": "Dripstone fully dead: no SpeleothemBlock class in 26.1 AND #speleothems tag absent (REPRODUCES from 1.21.7)",
+   "severity": "major",
+   "status": "gap",
+   "method": "javap + source + data",
+   "evidence": "Two independent causes, either alone sufficient. (a) Class dispatch dead: 26.1 has no SpeleothemBlock class (PointedDripstoneBlock extends Block directly; export chain ['PointedDripstoneBlock','Block']). The Class::Speleothem dispatch arms never fire: scheduled tick -> spawn_falling_stalactite (tick.rs:248), random tick -> growth (tick.rs:434), survive (survive.rs:307), updateShape (shapes.rs:728), placement (place.rs:1156). (b) Tag predicates dead: #speleothems is ABSENT from 26.1 data (verified in block-tags.json and in the client jar \u2014 no speleothems.json), so all tag predicates fail: speleothem.rs:15, falling.rs:55, place.rs:1407, shapes.rs:1189. Vanilla 26.1 uses hardcoded Blocks.POINTED_DRIPSTONE checks instead. Observable: dripstone never grows, stalactites never fall, can_survive defaults true (floating dripstone never pops), placement tip direction/thickness never computed. Cauldron-fill half remains Batch 1's G6. Fix note: dispatch on PointedDripstoneBlock directly and replace the #speleothems tag reads with a hardcoded pointed-dripstone check, matching vanilla 26.1's own form. While fixing, also fix the latent B5-G16: vanilla 26.1 PointedDripstoneBlock.canGrow requires the fluid two blocks above the stalactite start to be WATER and a source (isSource()); the port (speleothem.rs:104-107) checks only fluid.kind() == FluidKind::Water. Unobservable while growth is dead, so not minted separately."
+  },
+  {
+   "id": "B5-G15",
+   "title": "Bonemeal validity too permissive at the build ceiling: sapling/azalea/mushroom height gates read the wrong JSON level (MUTATED from 1.21.7)",
+   "severity": "minor",
+   "status": "gap",
+   "method": "javap + source + data",
+   "evidence": "Vanilla 26.1 HAS bonemeal height gates (unlike 1.21.7): SaplingBlock.isValidBonemealTarget = ServerLevel && isInsideBuildHeight(pos.above(getMinimumHeight)); AzaleaBlock = same + 2 and fluid above empty; MushroomBlock = feature exists && AbstractHugeMushroomFeature && HugeMushroomFeatureConfiguration && isInsideBuildHeight(pos.above(4+foliageRadius)). getMinimumHeight = the primary tree's trunkPlacer.getBaseHeight(). The port's bonemeal_valid (bonemeal.rs:331-360) matches in form, but tree_minimum_height (growth.rs:434) reads json[\"trunk_placer\"][\"base_height\"] at the JSON top level while the stored feature JSON (verified in data/minecraft/worldgen/configured_feature/*.json) nests it under config \u2014 configured_json (worldgen/live.rs:234) returns the raw whole feature JSON {\"type\":..., \"config\": {...}} \u2014 so it always returns 0. Vanilla trunk base heights: oak 4, spruce 5, mangrove 2, azalea 4, birch 5, jungle 4, acacia 5, cherry 7, dark/pale oak 6. Same nesting bug for mushrooms: the port reads json[\"foliage_radius\"] top-level (bonemeal.rs:328) but it lives under config (brown=3, red=2); the port always uses 2 \u2014 red correct by luck, brown's gate is pos.y+6 instead of pos.y+7. isBonemealSuccess (sapling/azalea 0.45, mushroom/fungus 0.4) matches vanilla exactly. The 1.21.7 over-strict form is GONE \u2014 the port comment explicitly says canGrow is 26.3-only. Note: worldgen/features.json in the prepared data is EMPTY ({}); live features come from data/minecraft/worldgen/configured_feature/*.json. Fix note: read config.trunk_placer.base_height and config.foliage_radius (configured_json's only other caller is the mushroom check)."
+  },
+  {
+   "id": "B5-G17",
+   "title": "Chorus flower never ticks at the build ceiling (REPRODUCES from 26.2)",
+   "severity": "minor",
+   "status": "gap",
+   "method": "javap + source",
+   "evidence": "Vanilla 26.1 ChorusFlowerBlock.randomTick proceeds when above.y <= getMaxY() (320) \u2014 bytecode if_icmple 28. The port (tick.rs:1424, chorus_flower_random_tick) returns early when above_pos.y > max_y() - 1, i.e. above.y >= 320. A flower at pos.y == 319: vanilla still ages/branches (horizontal targets at y=319 are in-bounds); the port returns early and the flower stays forever young. The rest of the chorus logic matches exactly (age < 5, support/pillar logic, height < 2 || height <= rand(5 or 4), grow-up with allNeighborsEmpty + empty at +2, branch attempts rand(4) + pillar?1:0, events 1033/1034, age-5 death). Note for the fix agent: the analogous vine up-branch guard (pos.y < max_y() - 1 vs vanilla pos.y < maxY) is NOT a defect \u2014 at y=319 vanilla's up-branch has no observable effect either (no block can exist at y=320 to attach to). Only the chorus-flower gate is wrong, because its horizontal branches at y=319 are observable."
+  },
+  {
+   "id": "B5-G18",
+   "title": "Bell isProperHit height comparison inverted (REPRODUCES from 26.2)",
+   "severity": "minor",
+   "status": "gap",
+   "method": "javap + source",
+   "evidence": "Vanilla 26.1 BellBlock.isProperHit (bytecode read in full) requires click_y > 0.8123999834060669 \u2014 hit the UPPER part of the bell \u2014 plus a non-Y face plus attachment/axis rules (floor: facing axis == hit axis; single/double wall: axes differ; ceiling: always). The port (redstone.rs:1433, bell_hit) requires click_y <= 0.8124f32 \u2014 inverted. Hits at the top ring ring in vanilla but not in the port; hits at the bottom ring ring in the port but not in vanilla. The attachment/axis arms match; bell_ring (block event 1 + sound volume 2.0 pitch 1.0 + BLOCK_CHANGE) matches vanilla attemptToRing (null direction -> facing fallback; the port passes facing directly \u2014 same result). Bell neighborChanged (powered toggle + ring), placement, survive and updateShape all match."
+  },
+  {
+   "id": "B5-G19",
+   "title": "Water bottle on dirt never makes mud: port reads #convertible_to_mud, 26.1's tag is #convertable_to_mud (NEW)",
+   "severity": "minor",
+   "status": "gap",
+   "method": "javap + source + data",
+   "evidence": "The port reads #convertible_to_mud (with 'i') in four places: data.rs:459 (tag table), horizon-client/src/game/potions.rs:710 (water bottle use), horizon-client/src/game/remote.rs:8690, horizon-client/src/game/dispenser.rs:2249 (dispenser water bottle). 26.1's tag is #convertable_to_mud (with 'a') \u2014 verified three ways: BlockTags.CONVERTABLE_TO_MUD in the jar, data/minecraft/tags/block/convertable_to_mud.json in the client jar (values dirt, coarse_dirt, rooted_dirt), and vanilla PotionItem.useOn checks it. The port's tag read returns nothing, so the mud conversion never fires. 26.2's tree uses the correct 'a' spelling; the 26.1 port wrongly took the 26.3 spelling. Fix note: rename all four reads to convertable_to_mud."
+  },
+  {
+   "id": "B5-G20",
+   "title": "No nether portal can ever be created: portal_frame reads the absent #nether_portal_frame tag (NEW)",
+   "severity": "major",
+   "status": "gap",
+   "method": "javap + source + data",
+   "evidence": "The port's portal_frame() (portal.rs:40-44) reads #nether_portal_frame, which is ABSENT from 26.1 data (verified in block-tags.json; no synthesis anywhere in the tree) -> always false. Vanilla 26.1 PortalShape.FRAME is hardcoded state.is(Blocks.OBSIDIAN) (lambda$static$0 in PortalShape.txt). Consequence: find_portal_shape (portal.rs:67) always returns width/height 0, find_empty_portal_shape (portal.rs:131) always returns None, and hooks.rs:588-597 base_fire_on_place never creates portal blocks \u2014 no nether portal can ever be created in the 26.1 port. 26.2's tree correctly hardcoded obsidian. Fix note: hardcode obsidian, matching vanilla 26.1 and the 26.2 tree's form."
+  },
+  {
+   "id": "B5-G21",
+   "title": "Snow never accumulates on land, ice never forms except on water: motion_blocking_top reads the absent #blocks_motion_in_heightmap tag (NEW)",
+   "severity": "major",
+   "status": "gap",
+   "method": "javap + source + data",
+   "evidence": "The port's motion_blocking_top (weather.rs:41-59) reads #blocks_motion_in_heightmap, which is ABSENT from 26.1 data (verified in block-tags.json; no synthesis anywhere in the tree) -> only fluids count as motion-blocking. Vanilla 26.1 Heightmap.MATERIAL_MOTION_BLOCKING is a method reference to BlockStateBase.blocksMotion() (bootstrap method 1 in Heightmap.txt); the MOTION_BLOCKING heightmap type uses it. Consequence: precipitation_info computes top = min_y in fluidless columns -> snow never accumulates on land and ice never forms except on water. The same wrong top also feeds is_raining_at (under-glass check, weather.rs:127), lightning strike height (lightning.rs:199), and portal-travel spawn height (portal_travel.rs:506). 26.2's tree correctly used per-state blocksMotion(). Fix note: replace the tag read with the per-state blocksMotion() value from the prepared data (26.2's form), or synthesise the tag at prepare time from it."
+  },
+  {
+   "id": "B5-O01",
+   "title": "VanillaCauldronOracle: Player.drop override uses a 3-arg signature 26.1 lacks",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "method": "javap + oracle source",
+   "evidence": "Batch 0 ledger (measured Nov 24, 2026): FAIL all classpaths, 1 error, missing-symbol, line 118 'cannot find symbol'. Same cause as 1.21.7 and 26.2: the oracle's FakePlayer overrides drop(ItemStack, boolean, net.minecraft.util.Prediction) (line 118); net.minecraft.util.Prediction does NOT exist in the 26.1 jar ('Error: class not found') and 26.1's Player.drop is the 2-arg drop(ItemStack, boolean) (Player.txt line 1128). Fix pattern same as 1.21.7 B5-O01: drop the Prediction parameter. Overlap B1. Blocks test_cauldron_parity.py."
+  },
+  {
+   "id": "B5-O05",
+   "title": "VanillaFallingBlockOracle: ChunkMap constructor mismatch",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "method": "javap + oracle source",
+   "evidence": "Batch 0 ledger (measured Nov 24, 2026): FAIL all classpaths, 1 error, constructor-mismatch, line 30. The oracle's NoopChunkMap calls super(...) with 12 args; 26.1's ChunkMap ctor takes 13 (adds TicketStorage before the int/boolean \u2014 ChunkMap.txt:83). Same cause as 26.2. Overlap B1. Blocks test_falling_block_parity.py."
+  },
+  {
+   "id": "B5-O06",
+   "title": "VanillaDispenserOracle: EntityTypes holder does not exist in 26.1 (NEW primary cause)",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "method": "javap + oracle source",
+   "evidence": "Batch 0 ledger (measured Nov 24, 2026): FAIL all classpaths, 15 errors, missing-package, line 212 'package EntityTypes does not exist' (Batch 0 group G4). The oracle references EntityTypes.PLAYER/VILLAGER at lines 212, 235-236, 560-561, 618-619, 725, 728, 780; EntityTypes has zero entries in the 26.1 jar \u2014 the constants live on EntityType (e.g. EntityType.PLAYER, EntityType.txt:325). NEW primary cause vs 26.2. Latent second cause behind it: the oracle's onEquippedItemBroken(ItemStack, EquipmentSlot) at line 360 vs 26.1's ServerPlayer.onEquippedItemBroken(Item, EquipmentSlot) (ServerPlayer.txt:5333) \u2014 same as 26.2's cause. Minor per-batch-local; note B4 may record major (blocks 6 drivers). Blocks test_block_removal_parity.py (dispenser side)."
+  },
+  {
+   "id": "B5-O07",
+   "title": "VanillaSectionMeshOracle: MaterialBaker is an interface in 26.1, cannot be extended (NEW cause)",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "method": "javap + oracle source",
+   "evidence": "Batch 0 ledger (measured Nov 24, 2026): FAIL, 7 errors, other, line 84 'no interface expected here'. The oracle's Materials extends MaterialBaker + super(atlas, atlas); but 26.1's MaterialBaker is an INTERFACE (public interface in the client jar, MaterialBaker.txt) with abstract get(Material, ModelDebugName) and reportMissingReference(String, ModelDebugName) plus default resolveSlot \u2014 no ctor, cannot extend. NEW cause vs 26.2 (abstract bake(Material)) and 1.21.7 (blaze3d). Blocks test_breaking_model_parity.py."
+  },
+  {
+   "id": "B5-O08",
+   "title": "VanillaBreakingModelOracle: BlockModelFeatureRenderer does not exist in 26.1 (NEW id \u2014 independent defect)",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "method": "javap + oracle source",
+   "evidence": "Batch 0 ledger (measured Nov 24, 2026): FAIL, 2 errors, missing-symbol, line 12. Import net.minecraft.client.renderer.feature.BlockModelFeatureRenderer (:12) + reflective use at :68 (putPartQuads); the class does not exist in the 26.1 client jar (the package has BlockFeatureRenderer instead; 21 entries, no BlockModelFeatureRenderer). INDEPENDENT defect in 26.1 \u2014 in 26.2 this oracle was a cascade via SectionMesh (B5-O07). Blocks test_breaking_model_parity.py."
+  },
+  {
+   "id": "B5-O09",
+   "title": "VanillaFaceSupportOracle: CubeVoxelShape(DiscreteVoxelShape) has protected access in 26.1",
+   "severity": "major",
+   "status": "oracle-defect",
+   "method": "javap + oracle source",
+   "evidence": "Batch 0 ledger (measured Nov 24, 2026): FAIL, 1 error, other, line 45 \u2014 CubeVoxelShape(DiscreteVoxelShape) has protected access in CubeVoxelShape (javap-verified: the ctor is protected). MAJOR: blocks 19 drivers + 5 cascade oracles (BlockCollisionScan, DynamicSupport, EntityCollision, PistonShape, WorldBorder). Cross-ref note: the blocked drivers span collision/piston/worldborder batches; the coordinator may reassign this item; recorded here because FaceSupport is in-scope for Batch 5's support checks."
+  }
+ ],
+ "method": "javap -c on the named 26.1 server jar for every vanilla method in scope (79 classes dumped + TreeGrower, EnvironmentAttributes, GameRules, LevelChunk, Level, Player, ChunkMap, Heightmap, PortalShape spot checks; client jar for MaterialBaker, BlockModelFeatureRenderer, tag JSONs), source comparison against versions/26.1/crates/horizon-world/src/level/ (tick/survive/shapes/hooks/interact/place/update/growth/bonemeal/removal/speleothem/falling/rails/redstone/timeline/portal/weather) and the game layer where behaviour splits (beds, turtle-egg trample, tripwire disarm, drop consumer, mud conversion, portal travel, lightning), and checks of the prepared 26.1 data (block-behaviours.json, gameplay-facts.json, block-tags.json, data/minecraft/worldgen/configured_feature/*.json, data/minecraft/timeline/day.json). No drivers run, no cargo tests, no oracle repairs. Prepared data landed before this batch, so the chain-liveness half was done directly against block-behaviours.json.",
+ "name": "Block behaviour (ticks, interaction, survival, support, updates, breaking)",
+ "out_of_scope_failures": "1.21.7 defects re-checked against 26.1: B5-G01, G02, G04-G12, G14 all EVAPORATE (class names and 26.x tags match 26.1's jar/data; B5-G14's form is reversed in 26.1 \u2014 vanilla 26.1 leaves water from a waterlogged sapling, 1.21.7 left air); B5-G03 and B5-G13 REPRODUCE (see items); B5-G15 MUTATES (see items). Oracle defects B5-O03-O04 EVAPORATE (PASS all classpaths in the measured Batch 0 table); B5-O02 is a cascade via VanillaBlockUpdateOracle with no independent defect (Portal's own 1.21.7 cause evaporates \u2014 Entity.getRelativePortalPosition exists in 26.1; cascade root is BlockUpdateOracle's missing ClockInstance, Batch 2's). B5-G16 (dripstone grows under flowing water) is LATENT inside dead G13 code, not separately minted. Cross-references, not re-minted: redstone wire unmapped in 26.1 (RedStoneWireBlock, capital S; the 26.2 evaporation REVERSES for 26.1 \u2014 Batch 2); PushReaction facts use OLD names only in 26.1 gameplay-facts.json, so every block reads as PushPull (Batch 2, pistons); fire spread ignoring doFireTick (Batch 1 G4) EVAPORATES for 26.1 \u2014 there is no doFireTick gamerule in vanilla 26.1 at all (GameRules has 59 rules; only FIRE_DAMAGE and FIRE_SPREAD_RADIUS_AROUND_PLAYER are fire-related; only GameRuleRegistryFix mentions 'doFireTick' anywhere in the jar); Batch 1's G4 needs re-examination for 26.1. Dripstone cauldron fill (Batch 1 G6) still Batch 1's (port implements the transfer, matching vanilla maybeTransferFluid; note the dripstone side is dead in 26.1 via G13). Potent sulfur does not exist in 26.1 (no sulfur classes/tags \u2014 Batch 4's scope is moot). DiodeBlock.neighborChanged has no guard in vanilla 26.1 \u2014 the tree's guard removal is CORRECT (verified for Batch 2). TreeFeatureOracle (markPosForPostprocessing, lowercase p) is Batch 6's worldgen scope; CushionPlacementOracle (net.minecraft.world.entity.decoration.Cushion absent) is entity-decoration scope. update.rs BE-creation change is Batch 4's scope. Loot tables behind drop_resources are Batch 3's scope. Nits recorded as passes, not defects: dirt-path place arm (no pushEntitiesUp \u2014 moot while the class is unmapped); door !correct_tool extra 2001 event; sniffer-egg hardcoded moss_block (matches shipped data); turtle-egg/eyeblossom hardcoded overworld timelines (match vanilla 26.1 timeline data); tripwire disarm flags 260 vs vanilla 3 (unobservable); bamboo dead bamboo_height_above query.",
+ "source": "docs/PARITY-SWEEP.md \u00a74 Batch 5 \u2014 checks only, no fixes. Scope: block ticks, interaction, survival, support, updates, breaking \u2014 1,168 blocks grouped by Java class chain. Worktree: sweep-26.1, branch parity-sweep-26.1; vanilla ground truth is 26.1's OWN jar/data only. sounds.json is genuinely absent from the prepared data (separate step not run); en_us.json is present. worldgen/features.json is empty ({}); live features come from data/minecraft/worldgen/configured_feature/*.json.",
+ "systemic_note": "1.21.7's two systemic causes HALF-return for 26.1. (1) Class-name drift: partial \u2014 the export carries 291 distinct class names, 271 known in level/classes.rs; 26 of the 28 unmapped names fall back to a mapped ancestor with working arms, but DirtPathBlock and RedStoneWireBlock (capital S) fall back to plain Block because the 26.1 tree dropped the aliases 26.2's tree carries, and SpeleothemBlock does not exist in 26.1 at all. (2) Tags: three absent \u2014 #speleothems, #nether_portal_frame, #blocks_motion_in_heightmap \u2014 and one misspelled by the port (#convertible_to_mud vs 26.1's #convertable_to_mud). All other 26.x tags the port reads exist with verified contents. The remaining defects are one JSON-nesting bug (B5-G15), one off-by-one at the build ceiling (B5-G17), and one inverted comparison (B5-G18).",
+ "version": "26.1"
+}
