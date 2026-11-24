@@ -1,8 +1,8 @@
 {
  "release": "1.21.10",
  "rank": 2,
- "batch": 8,
- "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review). Batch 6: 13 missing-only no-change (1.21.11-only/1.21.10-only methods unreferenced or identically modelled; Timeline + hand.rs deliberate non-carry-overs with jar evidence). Batch 7: 5 real-method no-change (normalisation gaps + unmodelled methods, each with method diff + Rust-side check). Batch 8: 12 smallest real-method items (10 no-change: renames/noise/unmodelled; 2 ported: 154 equine isMobControlled/MountPanic removal, 256 loom scrolling reset).",
+ "batch": 12,
+ "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review). Batch 6: 13 missing-only no-change (1.21.11-only/1.21.10-only methods unreferenced or identically modelled; Timeline + hand.rs deliberate non-carry-overs with jar evidence). Batch 7: 5 real-method no-change (normalisation gaps + unmodelled methods, each with method diff + Rust-side check). Batch 8: 12 smallest real-method items (10 no-change: renames/noise/unmodelled; 2 ported: 154 equine isMobControlled/MountPanic removal, 256 loom scrolling reset). Batches 9-12: 44 small real-method items (41 no-change: renames, API gaps, unmodelled; 3 ported: 132 piglin spear, 276 furnace Math.random, 277 spawn-mobs gate).",
  "items": {
   "201": {
    "module": "crates/horizon-client/src/game/frame_geometry.rs",
@@ -1833,6 +1833,226 @@
    "module": "crates/horizon-client/src/game/loom.rs",
    "verdict": "ported",
    "evidence": "LoomScreen#mouseClicked: 1.21.10 clears scrolling first; 1.21.11 dropped the reset. Added the reset at the start of loom_click. The 1.21.11 thumb_hovered cursor code is 1.21.11-only (no cursor logic in 1.21.10's renderBg) and correctly absent."
+  },
+  "187": {
+   "module": "crates/horizon-client/src/end_crystal.rs",
+   "verdict": "no-change",
+   "evidence": "EndCrystalRenderer#getY: float-vs-double trig \u2014 Rust y() uses f32 msin, matching 1.21.10's Mth.sin(F); 1.21.11's f2d+sin(D) is the double form. Trees agree."
+  },
+  "203": {
+   "module": "crates/horizon-client/src/vanillagen/structure_mobs.rs",
+   "verdict": "no-change",
+   "evidence": "WorldGenRegion#getCurrentDifficultyAt: getMoonBrightness(BlockPos) vs getMoonBrightness() \u2014 same value (moon brightness does not depend on position); unmodelled in structure_mobs.rs (0 refs). Trees agree."
+  },
+  "214": {
+   "module": "crates/horizon-world/src/level/mod.rs",
+   "verdict": "no-change",
+   "evidence": "PortalShape#findAnyShape: MutableInt.intValue() vs getValue().intValue() \u2014 library API difference, same value. Trees agree."
+  },
+  "311": {
+   "module": "crates/horizon-client/src/mobs/spawner.rs",
+   "verdict": "no-change",
+   "evidence": "SpawnerBlockEntity#getUpdateTag: CompoundTag.remove returns Tag (1.21.11, popped) vs void (1.21.10) \u2014 same removal effect. Trees agree."
+  },
+  "95": {
+   "module": "crates/horizon-assets/src/item_model.rs",
+   "verdict": "no-change",
+   "evidence": "NeedleDirectionHelper#get: 1.21.10's extra owner null check is provably dead (owner already null-checked 5 instructions earlier, returning 0.0 if null); 1.21.11 removed the redundant check. Rust requires owner+level Some, else 0.0. The module's 8-line tree diff is 1.21.11-only data components (attack_range, damage_type, kinetic_weapon, minimum_attack_charge), correctly absent in 1.21.10 (cf. item 152)."
+  },
+  "112": {
+   "module": "crates/horizon-client/src/game/native_world_border.rs",
+   "verdict": "no-change",
+   "evidence": "WorldBorder#getMinX: 1.21.11 delegates to getMinX(0.0F), 1.21.10 reads the extent directly \u2014 same value. Unmodelled in native_world_border.rs (rect only). Trees agree."
+  },
+  "163": {
+   "module": "crates/horizon-client/src/mod_content_tests.rs",
+   "verdict": "no-change",
+   "evidence": "NoiseBasedChunkGenerator#addDebugScreenInfo: DecimalFormat with Locale.ROOT symbols (1.21.11) vs default-locale (1.21.10) \u2014 debug-screen text; unmodelled in mod_content_tests.rs (0 refs). Trees agree."
+  },
+  "219": {
+   "module": "crates/horizon-client/src/game/spawner.rs",
+   "verdict": "no-change",
+   "evidence": "TrialSpawner#spawnMob: EntityProcessor vs Function parameter in loadEntityRecursive \u2014 1.21.11 introduced the EntityProcessor interface; same lambda behaviour. Trees agree."
+  },
+  "266": {
+   "module": "crates/horizon-client/src/beehive.rs",
+   "verdict": "no-change",
+   "evidence": "BeehiveBlockEntity$Occupant#createEntity: same EntityProcessor vs Function refactor. Trees agree."
+  },
+  "211": {
+   "module": "crates/horizon-client/src/game/dedicated.rs",
+   "verdict": "no-change",
+   "evidence": "ServerWatchdog#run: ldc vs ldc_w for the same crash-report string + exception-table offset shifts \u2014 pure noise. Trees agree."
+  },
+  "227": {
+   "module": "crates/horizon-client/src/game/consume.rs",
+   "verdict": "no-change",
+   "evidence": "Consumable#onConsume: criterion vs critereon package \u2014 Mojang's typo fix in 1.21.11; same trigger class. Trees agree."
+  },
+  "132": {
+   "module": "crates/horizon-client/src/mobs/finalize.rs",
+   "verdict": "ported",
+   "evidence": "Piglin#createSpawnWeapon: 1.21.11 adds a 1-in-10 golden spear roll; 1.21.10 always gives a golden sword (after the 50% crossbow). Removed the spear branch from finalize.rs piglin(). The zombified-piglin spear site (finalize.rs, 1-in-20) belongs to item 31 (ZombifiedPiglin#populateDefaultEquipmentSlots), still open."
+  },
+  "142": {
+   "module": "crates/horizon-items/src/items.rs",
+   "verdict": "no-change",
+   "evidence": "FlintAndSteelItem#useOn: criterion/critereon package rename (PLACED_BLOCK trigger). Trees agree."
+  },
+  "161": {
+   "module": "crates/horizon-client/src/game/storage.rs",
+   "verdict": "no-change",
+   "evidence": "BaseContainerBlockEntity#canOpen: 1.21.11 lockKey.canUnlock(player) vs 1.21.10 static canUnlock(player, lockKey, displayName); LockCode/canOpen unmodelled in Rust (no lock handling in storage.rs/menu.rs). Trees agree."
+  },
+  "194": {
+   "module": "crates/horizon-client/src/menu.rs",
+   "verdict": "no-change",
+   "evidence": "BrewingStandMenu$PotionSlot#onTake: criterion/critereon package rename (BREWED_POTION). Trees agree."
+  },
+  "208": {
+   "module": "crates/horizon-client/src/game/beacon.rs",
+   "verdict": "no-change",
+   "evidence": "BeaconBlockEntity#tick: criterion/critereon package rename (CONSTRUCT_BEACON). Trees agree."
+  },
+  "235": {
+   "module": "crates/horizon-items/src/enchant.rs",
+   "verdict": "no-change",
+   "evidence": "Enchantment#getFullname: mergeStyles result popped (1.21.10) vs stored (1.21.11); mergeStyles mutates the component in place (setStyle) and returns the same instance, so pop vs astore is a no-op. Bytecode-verified. Trees agree."
+  },
+  "250": {
+   "module": "crates/horizon-client/src/game/machines/crafter.rs",
+   "verdict": "no-change",
+   "evidence": "CrafterBlock#dispenseItem: criterion/critereon package rename (CRAFTER_RECIPE_CRAFTED). Trees agree."
+  },
+  "314": {
+   "module": "crates/horizon-world/src/level/removal.rs",
+   "verdict": "no-change",
+   "evidence": "JukeboxBlockEntity#popOutTheItem: offsetRandom vs offsetRandomXZ is a rename (same random XZ offset); 1.21.11's extra onSongChanged() call is unmodelled in Rust (0 refs tree-wide). Rust models only the pop position. Trees agree."
+  },
+  "218": {
+   "module": "crates/horizon-client/src/game/breeding_orb_tests.rs",
+   "verdict": "no-change",
+   "evidence": "Animal#finalizeSpawnChildFromBreeding: GameRules-API normalisation gap (MOB_DROPS). Trees agree."
+  },
+  "247": {
+   "module": "crates/horizon-client/src/mobs/doors.rs",
+   "verdict": "no-change",
+   "evidence": "BreakDoorGoal#canUse: GameRules-API normalisation gap (MOB_GRIEFING). Trees agree."
+  },
+  "285": {
+   "module": "crates/horizon-client/src/health.rs",
+   "verdict": "no-change",
+   "evidence": "FoodData#tick: GameRules-API normalisation gap (NATURAL_HEALTH_REGENERATION). Trees agree."
+  },
+  "286": {
+   "module": "crates/horizon-client/src/mobs/drops.rs",
+   "verdict": "no-change",
+   "evidence": "Monster#shouldDropLoot: GameRules-API normalisation gap (MOB_DROPS). Trees agree."
+  },
+  "292": {
+   "module": "crates/horizon-world/src/level/tick.rs",
+   "verdict": "no-change",
+   "evidence": "VineBlock#randomTick: GameRules-API normalisation gap (SPREAD_VINES). Trees agree."
+  },
+  "313": {
+   "module": "crates/horizon-client/src/text_display.rs",
+   "verdict": "no-change",
+   "evidence": "Display$TextDisplay#readAdditionalSaveData: withPermission(GAMEMASTER) vs withPermission(2) \u2014 PermissionSet API refactor; GAMEMASTER == level 2. Unmodelled in text_display.rs (0 refs). Trees agree."
+  },
+  "104": {
+   "module": "crates/horizon-client/src/game/persist.rs",
+   "verdict": "no-change",
+   "evidence": "EntityType#loadEntityRecursive + loadPassengersRecursive: EntityProcessor vs Function (x2). Trees agree."
+  },
+  "159": {
+   "module": "crates/horizon-client/src/game/clipboard.rs",
+   "verdict": "no-change",
+   "evidence": "InputWithModifiers: 1.21.10's hasControlDown is quirk-aware (EDIT_SHORTCUT_KEY_MODIFIER: Cmd on macOS); 1.21.11 split it into plain hasControlDown (const 2) + hasControlDownWithQuirk; isSelectAll is quirk-aware in both. Rust implements has_control_down_with_quirk and uses it for edit shortcuts \u2014 the 1.21.10 form. Trees agree."
+  },
+  "223": {
+   "module": "crates/horizon-client-core/src/lang.rs",
+   "verdict": "no-change",
+   "evidence": "I18n#get: String.format with Locale.ROOT (1.21.11) vs default locale (1.21.10); Rust formatting is locale-independent (no locale concept). Difference only shows in exotic locales. Trees agree."
+  },
+  "220": {
+   "module": "crates/horizon-client/src/mobs/monster_brain.rs",
+   "verdict": "no-change",
+   "evidence": "BehaviorUtils#isWithinAttackRange: 1.21.11 canUseNonMeleeWeapon vs 1.21.10 canFireProjectileWeapon; the ranged branch is unmodelled in Rust (within_attack_range checks melee range only). Trees agree."
+  },
+  "276": {
+   "module": "crates/horizon-client-render/src/containers.rs",
+   "verdict": "ported",
+   "evidence": "AbstractFurnaceBlockEntity#createExperience: 1.21.10 rolls the fraction with Math.random() (unseeded, double compare), 1.21.11 with level.random.nextFloat(). Added horizon_core::random::math_random() (one shared time-seeded LegacyRandom, Java's Math.random semantics); create_experience now draws from it with no random param; both callers + test updated."
+  },
+  "90": {
+   "module": "crates/horizon-client-core/src/scoreboard.rs",
+   "verdict": "no-change",
+   "evidence": "ServerScoreboard#updatePlayerWaypoint: 1.21.10's extra instanceof ServerLevel guard is defensive (server-side, always a ServerLevel); same effective behaviour. Unmodelled in scoreboard.rs (0 refs). Trees agree."
+  },
+  "168": {
+   "module": "crates/horizon-client/src/game/lan.rs",
+   "verdict": "no-change",
+   "evidence": "IntegratedServer#publishServer: PermissionSet vs int level API; same permission levels (Rust uses int levels). Trees agree."
+  },
+  "198": {
+   "module": "crates/horizon-world/src/worldgen/blending.rs",
+   "verdict": "no-change",
+   "evidence": "Blender#blendDensity + blendOffsetAndFactor: LongObjectBiConsumer vs BiConsumer lambda type in forEach; same iteration. Trees agree."
+  },
+  "283": {
+   "module": "crates/horizon-client/src/game/combat.rs",
+   "verdict": "no-change",
+   "evidence": "TamableAnimal#die: GameRules-API normalisation gap (SHOW_DEATH_MESSAGES). Trees agree."
+  },
+  "56": {
+   "module": "crates/horizon-client/src/game/functions.rs",
+   "verdict": "no-change",
+   "evidence": "FileUtil: 1.21.10's isValidStrictPathSegment and 1.21.11's containsAllowedCharactersOnly are byte-identical (STRICT_PATH_SEGMENT_CHECK regex); pure rename. 1.21.11's isValidPathSegment adds '.'/'..' rejection, but the Rust does not model datapack-name validation. Trees agree."
+  },
+  "86": {
+   "module": "crates/horizon-client/src/game/potions.rs",
+   "verdict": "no-change",
+   "evidence": "BottleItem#use: criterion/critereon rename; InfestedMobEffect#spawnSilverfish: Vec3(Vector3fc) vs Vec3(Vector3f) constructor (JOML interface vs class, same). Trees agree."
+  },
+  "191": {
+   "module": "crates/horizon-client/src/mobs/control.rs",
+   "verdict": "no-change",
+   "evidence": "MoveControl#tick: float-vs-double trig; strafe trig unmodelled in control.rs (0 sin/cos refs). Trees agree."
+  },
+  "277": {
+   "module": "crates/horizon-client/src/mobs/spawn_selection.rs",
+   "verdict": "ported",
+   "evidence": "NaturalSpawner#spawnMobsForChunkGeneration: 1.21.11 gates on the spawn_mobs game rule; 1.21.10 returns early only when the creature list is empty. Removed the gate + the now-unused NaturalLevel::spawn_mobs trait method and its 3 impls. The rule itself is still consulted by the per-tick spawner (level/tick.rs)."
+  },
+  "176": {
+   "module": "crates/horizon-client-render/src/gfx/animate.rs",
+   "verdict": "no-change",
+   "evidence": "SpriteContents#increaseMipLevel: 1.21.11's generateMipLevels takes (name, strategy, alphaCutoffBias), 1.21.10's takes (images, level) only; unmodelled in animate.rs (GPU mip upload only). The strategy/bias modelling in mipmap.rs belongs to item 91 (open)."
+  },
+  "228": {
+   "module": "crates/horizon-client/src/game/cushions.rs",
+   "verdict": "no-change",
+   "evidence": "BlockAttachedEntity#hurtServer: GameRules-API gap (MOB_GRIEFING); setPos: needsSync/hasImpulse field rename. Trees agree."
+  },
+  "204": {
+   "module": "crates/horizon-command/src/tests.rs",
+   "verdict": "no-change",
+   "evidence": "SeedCommand/SetPlayerIdleTimeoutCommand#register: LEVEL_GAMEMASTERS/LEVEL_ADMINS vs levels 2/3; same permission levels. Trees agree."
+  },
+  "171": {
+   "module": "crates/horizon-client/src/game/use_hand.rs",
+   "verdict": "no-change",
+   "evidence": "FlowerPotBlock#randomTick: same eyeblossom pattern as item 57 (environment attribute vs dimension.natural + isNaturalNight); the potted-eyeblossom transition is unmodelled in Rust (use_hand.rs models potting only). Trees agree."
+  },
+  "190": {
+   "module": "crates/horizon-client/src/game/screens.rs",
+   "verdict": "no-change",
+   "evidence": "DeathScreen#init: 1.21.10 sets deathScore (translatable deathScreen.score.value, yellow); the Rust already renders it (screens.rs:734). The module's only tree diff is a test-loop adaptation ([1,2] vs [1,9,2] pause buttons, with a documented reason: button 9 Share-to-LAN is singleplayer-only)."
+  },
+  "243": {
+   "module": "crates/horizon-client/src/game/creaking.rs",
+   "verdict": "no-change",
+   "evidence": "CreakingHeartBlockEntity#serverTick: CREAKING_ACTIVE attribute (1.21.11) vs isNaturalNight (1.21.10); the activation check is unmodelled in creaking.rs (0 refs). Trees agree."
   }
  }
 }

@@ -647,3 +647,6 @@ Item 57's module diff (Horse/ZombieHorse pathfinding malus) is a
 second item-126-style carry-over gap, resolved jar-side: 1.21.10's
 Horse/ZombieHorse/AbstractHorse constructors set no malus, so the
 1.21.11 malus hunk is 1.21.11-only and correctly absent.
+
+CI run 45318465400 (head 3b4d2c4e, sprite fix + batch 7): SUCCESS —
+first fully-green crate-tests run on this branch (all 7 suites).

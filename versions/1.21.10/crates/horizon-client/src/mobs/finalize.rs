@@ -1703,12 +1703,13 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
             if self.float() < 0.2 {
                 set_baby(m, true);
             } else if !m.is_baby() {
-                // createSpawnWeapon, from the piglin's own random.
+                // createSpawnWeapon (1.21.10), from the piglin's own random:
+                // a crossbow half the time, else a golden sword (the 1-in-10
+                // golden spear is 1.21.11-only — spears do not exist in
+                // 1.21.10).
                 let r = &mut m.random;
                 let weapon = if f64::from(r.next_float()) < 0.5 {
                     "minecraft:crossbow"
-                } else if r.next_int_bound(10).unwrap_or(1) == 0 {
-                    "minecraft:golden_spear"
                 } else {
                     "minecraft:golden_sword"
                 };
