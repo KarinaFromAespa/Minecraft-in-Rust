@@ -113,3 +113,24 @@ fn block_states_from_before_the_flattening_take_their_new_names() {
         ("minecraft:stone".to_owned(), granite.to_vec())
     );
 }
+
+#[test]
+fn saved_data_types_cover_both_layouts() {
+    // 1.21.4's flat ids, and the 26.x namespaced forms kept as fallback.
+    assert_eq!(saved_data_type("scoreboard.dat"), Some(Ty::SavedScoreboard));
+    assert_eq!(
+        saved_data_type("minecraft/scoreboard.dat"),
+        Some(Ty::SavedScoreboard)
+    );
+    assert_eq!(saved_data_type("chunks.dat"), Some(Ty::SavedTickets));
+    assert_eq!(
+        saved_data_type("minecraft/chunk_tickets.dat"),
+        Some(Ty::SavedTickets)
+    );
+    assert_eq!(saved_data_type("minecraft/raids.dat"), Some(Ty::SavedRaids));
+    assert_eq!(saved_data_type("minecraft/ender_dragon_fight.dat"), None);
+    // 1.21.4 has no world-border or stopwatch saved data (no DataFixTypes
+    // entry, no class in the jar), so those names map to nothing.
+    assert_eq!(saved_data_type("minecraft/world_border.dat"), None);
+    assert_eq!(saved_data_type("minecraft/stopwatches.dat"), None);
+}

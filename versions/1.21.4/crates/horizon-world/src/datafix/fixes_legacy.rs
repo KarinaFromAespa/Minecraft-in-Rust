@@ -495,7 +495,7 @@ fn rewrite_from_lenient(text: &[u16]) -> Vec<u16> {
     json::text_component_json(text)
 }
 
-/// `SignTextStrictJsonFix`: the lines of a sign are strict JSON.
+/// `BlockEntitySignTextStrictJsonFix`: the lines of a sign are strict JSON.
 fn sign_text_strict_json(cx: &mut Cx) {
     cx.block_entity("Sign", |be| {
         for line in ["Text1", "Text2", "Text3", "Text4"] {
@@ -507,7 +507,7 @@ fn sign_text_strict_json(cx: &mut Cx) {
     });
 }
 
-/// `WrittenBookPagesStrictJsonFix`: the pages of a written book are strict JSON.
+/// `ItemWrittenBookPagesStrictJsonFix`: the pages of a written book are strict JSON.
 fn written_book_pages_strict_json(cx: &mut Cx) {
     cx.item(
         |id| id == "minecraft:written_book",

@@ -1,7 +1,7 @@
 //! Title, world selection and world creation screens (TitleScreen,
 //! SelectWorldScreen, CreateWorldScreen layouts), drawn as HUD quads.
 use crate::{
-    dialog_screen::BOX,
+    widgets::CHECKBOX_BOX,
     game_rules_screen::{Exit, RulesScreen},
     hud::{HudAtlas, HudBatch, rgba},
     lang,
@@ -207,8 +207,6 @@ pub struct WorldEntry {
     /// `LevelSummary.isCompatible` false: the saved game version's name, for a world
     /// from another series.
     pub incompatible: Option<String>,
-    /// `LevelSummary.requiresFileFixing`: opening the world upgrades its files first.
-    pub file_fixing: bool,
     /// `BackupStatus.DOWNGRADE`: a newer version saved the world.
     pub downgrade: bool,
     /// `LevelSummary.isExperimental`: an experimental feature flag is enabled.
@@ -229,12 +227,13 @@ impl WorldEntry {
     }
     /// `LevelSummary.canEdit` and `canRecreate`.
     fn can_edit(&self) -> bool {
-        !self.corrupted && !self.disabled() && !self.file_fixing
+        !self.corrupted && !self.disabled()
     }
-    /// `BackupStatus.shouldBackup`: the world needs its files fixed or comes from
-    /// a newer version.
+    /// `BackupStatus.shouldBackup`: the world comes from a newer version.
+    /// (1.21.4 dropped `BackupStatus.FILE_FIXING_REQUIRED` — there is no
+    /// file-fixing flow here, so a downgrade is the only backup reason.)
     fn should_backup(&self) -> bool {
-        self.file_fixing || self.downgrade
+        self.downgrade
     }
     /// `CorruptedLevelSummary`: named after its folder, nothing else known.
     fn corrupted(folder: String, modified: std::time::SystemTime) -> Self {
@@ -249,7 +248,6 @@ impl WorldEntry {
             locked: false,
             corrupted: true,
             incompatible: None,
-            file_fixing: false,
             downgrade: false,
             experimental: false,
         }
@@ -592,7 +590,6 @@ pub fn list_worlds(saves: &Path) -> Vec<WorldEntry> {
                 locked: crate::save::SessionLock::is_locked(&path),
                 corrupted: false,
                 incompatible: crate::save::incompatible_version(&path),
-                file_fixing: crate::save::needs_file_fixes(&path),
                 downgrade: crate::save::downgraded_from(&path).is_some(),
                 experimental: experimental_features(data),
             })
@@ -690,14 +687,14 @@ fn world_info(world: &WorldEntry) -> crate::text::Text {
     } else {
         (mode, commands)
     };
-    // A world that asks for a backup shows its version in italics, red when downgrading.
+    // A world from a newer version (`BackupStatus.DOWNGRADE`) shows its
+    // version in red; the other backup-asking status, `UPGRADE_TO_SNAPSHOT`,
+    // only fires on snapshot builds, and `FILE_FIXING_REQUIRED` is gone.
     let version = crate::text::Text::literal(world.version.clone());
-    let version = if !world.should_backup() {
-        version
-    } else if world.downgrade {
+    let version = if world.downgrade {
         version.with_color(crate::text::RED)
     } else {
-        version.italic()
+        version
     };
     mode.append(crate::text::Text::literal(format!(
         "{commands}, {} ",
@@ -1473,14 +1470,6 @@ impl Title {
             };
             return Action::None;
         }
-        if crate::save::needs_file_fixes(&self.saves.join(&world.folder)) {
-            self.mode = Mode::BackupBeforeUpgrade {
-                world,
-                downgrade: None,
-                stem: None,
-            };
-            return Action::None;
-        }
         // BackupStatus.DOWNGRADE: a world from a newer version asks for a backup too.
         if let Some(version) = crate::save::downgraded_from(&self.saves.join(&world.folder)) {
             let version = if version.is_empty() {
@@ -1548,17 +1537,15 @@ impl Title {
         *self.recent.borrow_mut() = None;
         self.mode = Mode::Recovered { world, success };
     }
-    /// `OptimizeWorldScreen.create`: a world that still needs its file fixes or whose level data
-    /// does not read can't be optimized (vanilla logs and `setScreen(null)`, the main menu here).
+    /// `OptimizeWorldScreen.create`: a world whose level data does not read
+    /// can't be optimized (vanilla logs and `setScreen(null)`, the main menu here).
     /// Horizon stamps level.dat when the run finishes, not before: opening a world with an
     /// older DataVersion is what converts it whole.
     fn begin_optimize(&mut self, world: WorldEntry, erase_cache: bool) {
         let dir = self.saves.join(&world.folder);
         // `getUnfixedDataTagWithFallback`: level.dat_old stands in for a level.dat that does not read.
         crate::save::fall_back_to_level_dat_old(&dir);
-        if crate::save::needs_file_fixes(&dir)
-            || crate::save::level_data_needs_recovery(&dir).is_some()
-        {
+        if crate::save::level_data_needs_recovery(&dir).is_some() {
             eprintln!("Failed to load datapacks, can't optimize world");
             self.mode = Mode::Main;
             return;
@@ -1975,8 +1962,6 @@ impl Title {
                 let editable = world.is_some_and(WorldEntry::can_edit);
                 let play = if corrupted {
                     lang::get_or("recover_world.button", "Attempt to Recover")
-                } else if world.is_some_and(|w| w.file_fixing) {
-                    lang::get_or("selectWorld.upgrade_and_play", "Upgrade and Play")
                 } else {
                     lang::get_or("selectWorld.select", "Play Selected World")
                 };
@@ -2431,16 +2416,25 @@ impl Title {
                 ]),
             ),
             // BackupConfirmScreen narrates its title, the question.
-            Mode::BackupBeforeUpgrade { downgrade, .. } => {
-                let question = match downgrade {
-                    Some(_) => get(
+            Mode::BackupBeforeUpgrade {
+                downgrade, stem, ..
+            } => {
+                let question = match (downgrade, stem) {
+                    (Some(_), _) => get(
                         "selectWorld.backupQuestion.downgrade",
                         "Downgrading a world is not supported",
                     ),
-                    None => get(
-                        "selectWorld.backupQuestion.file_fixing_required",
-                        "Create a backup before upgrading this world?",
+                    (None, Some(StemIssue::Customized)) => get(
+                        "selectWorld.backupQuestion.customized",
+                        "Customized worlds are no longer supported",
                     ),
+                    (None, Some(StemIssue::Experimental)) => get(
+                        "selectWorld.backupQuestion.experimental",
+                        "Worlds using Experimental Settings are not supported",
+                    ),
+                    // 1.21.4 dropped `BackupStatus.FILE_FIXING_REQUIRED`: the
+                    // prompt is only ever built with a downgrade or a stem issue.
+                    (None, None) => unreachable!("backup prompt without a reason"),
                 };
                 ScreenInfo::new("backup_confirm", question)
             }
@@ -3091,17 +3085,9 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                         ),
                         rgba(223, 80, 80, 255),
                     ),
-                    (None, None) => (
-                        lang::get_or(
-                            "selectWorld.backupQuestion.file_fixing_required",
-                            "Create a backup before upgrading this world?",
-                        ),
-                        lang::get_or(
-                            "selectWorld.backupWarning.file_fixing_required",
-                            "This world needs to be upgraded before you can play it. We strongly suggest creating a backup before continuing in case you experience world corruption.",
-                        ),
-                        u32::MAX,
-                    ),
+                    // 1.21.4 dropped `BackupStatus.FILE_FIXING_REQUIRED`: the
+                    // prompt is only ever built with a downgrade or a stem issue.
+                    (None, None) => unreachable!("backup prompt without a reason"),
                 };
                 let lines = wrapped(atlas, &warning, w - 50.0);
                 self.message_lines.set(lines.len());
@@ -3131,23 +3117,23 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                 }
                 // The Checkbox: at `width / 2 - 155 + 80`, `76 + textSize`.
                 let label = lang::get_or("selectWorld.backupEraseCache", "Erase Cached Data");
-                let width = BOX + 4.0 + HudBatch::text_width(atlas, &label).ceil();
+                let width = CHECKBOX_BOX + 4.0 + HudBatch::text_width(atlas, &label).ceil();
                 let x = (w / 2.0).floor() - 155.0 + 80.0;
                 let y = 76.0 + (lines.len() as f32 + 1.0) * 9.0;
-                self.erase_check.set([x, y, width, BOX]);
-                crate::widgets::target([x, y, width, BOX]);
-                let hover = (x..x + width).contains(&cursor.0) && (y..y + BOX).contains(&cursor.1);
+                self.erase_check.set([x, y, width, CHECKBOX_BOX]);
+                crate::widgets::target([x, y, width, CHECKBOX_BOX]);
+                let hover = (x..x + width).contains(&cursor.0) && (y..y + CHECKBOX_BOX).contains(&cursor.1);
                 let sprite = match (*erase_cache, hover) {
                     (true, true) => "gui/sprites/widget/checkbox_selected_highlighted",
                     (true, false) => "gui/sprites/widget/checkbox_selected",
                     (false, true) => "gui/sprites/widget/checkbox_highlighted",
                     (false, false) => "gui/sprites/widget/checkbox",
                 };
-                batch.sprite_scaled(atlas, sprite, x, y, BOX, BOX, u32::MAX);
+                batch.sprite_scaled(atlas, sprite, x, y, CHECKBOX_BOX, CHECKBOX_BOX, u32::MAX);
                 batch.text(
                     atlas,
                     &label,
-                    x + BOX + 4.0,
+                    x + CHECKBOX_BOX + 4.0,
                     y + 4.0,
                     rgba(224, 224, 224, 255),
                     true,
@@ -3302,17 +3288,17 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                 // Checkbox: the box, its label right of it (as the dialogs draw theirs).
                 let label =
                     lang::get_or("multiplayerWarning.check", "Do not show this screen again");
-                let width = BOX + 4.0 + HudBatch::text_width(atlas, &label).ceil();
+                let width = CHECKBOX_BOX + 4.0 + HudBatch::text_width(atlas, &label).ceil();
                 let x = (w / 2.0).floor() - (width / 2.0).floor();
                 let y = top + 57.0 + lines.len() as f32 * 9.0;
-                self.warning_check.set([x, y, width, BOX]);
-                crate::widgets::target([x, y, width, BOX]);
-                let hover = (x..x + width).contains(&cursor.0) && (y..y + BOX).contains(&cursor.1);
+                self.warning_check.set([x, y, width, CHECKBOX_BOX]);
+                crate::widgets::target([x, y, width, CHECKBOX_BOX]);
+                let hover = (x..x + width).contains(&cursor.0) && (y..y + CHECKBOX_BOX).contains(&cursor.1);
                 crate::widgets::narratable(|| {
                     crate::widgets::Narratable::checkbox(
                         label.clone(),
                         *check,
-                        [x, y, width, BOX],
+                        [x, y, width, CHECKBOX_BOX],
                         true,
                     )
                     .hovered(hover)
@@ -3323,11 +3309,11 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                     (false, true) => "gui/sprites/widget/checkbox_highlighted",
                     (false, false) => "gui/sprites/widget/checkbox",
                 };
-                batch.sprite_scaled(atlas, sprite, x, y, BOX, BOX, u32::MAX);
+                batch.sprite_scaled(atlas, sprite, x, y, CHECKBOX_BOX, CHECKBOX_BOX, u32::MAX);
                 batch.text(
                     atlas,
                     &label,
-                    x + BOX + 4.0,
+                    x + CHECKBOX_BOX + 4.0,
                     y + 4.0,
                     rgba(224, 224, 224, 255),
                     true,
@@ -3456,8 +3442,8 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
         {
             self.create_tooltip(atlas, batch, cursor, name, *creative, options);
         }
-        if let Mode::Select { worlds, selected } = &self.mode {
-            self.select_tooltip(atlas, batch, cursor, (w, h), worlds, *selected);
+        if let Mode::Select { worlds, .. } = &self.mode {
+            self.select_tooltip(atlas, batch, cursor, (w, h), worlds);
         }
         if let Mode::Multiplayer(screen) = &self.mode {
             screen.draw_tooltip(atlas, batch, cursor);
@@ -3497,7 +3483,6 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
         cursor: (f32, f32),
         size: (f32, f32),
         worlds: &[WorldEntry],
-        selected: Option<usize>,
     ) {
         let red = |key: &str| Text::translate(key, &[]).with_color(crate::text::RED);
         if let Some((row, (rx, ry))) = self.world_row_at(worlds, cursor, size)
@@ -3522,27 +3507,7 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                 Vec::new()
             };
             crate::ui::tooltip(batch, atlas, &lines, cursor);
-            return;
         }
-        if !selected
-            .and_then(|i| worlds.get(i))
-            .is_some_and(|w| w.file_fixing)
-        {
-            return;
-        }
-        let (x, y) = cursor;
-        let hovered = self
-            .buttons(size.0, size.1)
-            .into_iter()
-            .find(|b| x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + 20.0);
-        let key = match hovered.map(|b| b.id) {
-            Some(10) => "selectWorld.requiresFileFixingTooltip.play",
-            Some(13) => "selectWorld.requiresFileFixingTooltip.edit",
-            Some(15) => "selectWorld.requiresFileFixingTooltip.recreate",
-            _ => return,
-        };
-        let lines = atlas.font.split(&Text::translate(key, &[]), 170.0);
-        crate::ui::tooltip(batch, atlas, &lines, cursor);
     }
     /// `TabManager.setCurrentTab`: the screen shows `tab`, whose own fields
     /// take no focus, and whether the open tab changed (the click sound).

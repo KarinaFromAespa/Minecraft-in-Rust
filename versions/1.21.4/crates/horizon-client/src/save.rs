@@ -223,19 +223,6 @@ pub fn upgrade_older_world_with(
         .map_err(|e| format!("upgrading {}: {e}", world.display()))?;
     Ok(())
 }
-/// Whether opening the world runs file fixes, which vanilla asks for a backup
-/// first (`BackupStatus.FILE_FIXING_REQUIRED`). Saves of 1.8 and before have no
-/// DataVersion, read as -1.
-pub fn needs_file_fixes(world: &Path) -> bool {
-    let Some(root) = read_dat(&world.join("level.dat")) else {
-        return false;
-    };
-    let Some(data) = root.get("Data") else {
-        return false;
-    };
-    let version = number(data.get("DataVersion")).unwrap_or(-1);
-    i32::try_from(version).is_ok_and(horizon_world::datafix::files::requires_file_fixing)
-}
 /// `LevelVersion.parse`: the saved game version's name, this build's when the `Version`
 /// compound has no `Name`, and empty without a `Version` (`getWorldVersionName` then
 /// shows `selectWorld.versionUnknown`).
@@ -3451,17 +3438,15 @@ fn read_saved_data(world: &Path, name: &str) -> Option<Tag> {
 /// The world's generator settings: world_gen_settings.dat (26.3) or
 /// level.dat's Data.WorldGenSettings.
 pub fn world_gen_settings(world: &Path) -> Option<Tag> {
-    // A world still to be file-fixed has them in level.dat in an older shape: they are read as
+    // A world from an older version has them in level.dat in an older shape: they are read as
     // the fixes would leave them, so the questions on opening it are the same ones.
     if let Ok(Some(settings)) = horizon_world::datafix::files::current_world_gen_settings(world) {
         return Some(settings);
     }
-    read_saved_data(world, "world_gen_settings").or_else(|| {
-        read_dat(&world.join("level.dat"))?
-            .get("Data")?
-            .get("WorldGenSettings")
-            .cloned()
-    })
+    read_dat(&world.join("level.dat"))?
+        .get("Data")?
+        .get("WorldGenSettings")
+        .cloned()
 }
 fn write_saved_data(world: &Path, name: &str, data: Tag) -> Result<()> {
     write_dat(
@@ -3594,7 +3579,6 @@ const GAME_RULES: [(&str, i32); 58] = [
     ("max_command_forks", 65536),
     ("drowning_damage", 1),
     ("command_block_output", 1),
-    ("locator_bar", 1),
     ("show_advancement_messages", 1),
     ("respawn_radius", 10),
     ("raids", 1),
@@ -8294,10 +8278,11 @@ mod tests {
         let _ = fs::remove_dir_all(dir);
     }
 
-    /// A world that still needs its file fixes keeps its generator settings in level.dat; they
-    /// are read as the fixes would leave them, so the question is asked on the first open.
+    /// A world's generator settings in level.dat are read through the datafix path
+    /// (`current_world_gen_settings`), so the stability question is asked on the
+    /// settings as the fixes would leave them.
     #[test]
-    fn world_gen_settings_of_a_world_needing_file_fixes_are_read_in_memory() {
+    fn world_gen_settings_in_level_dat_are_read_through_the_fix_pipeline() {
         let dir = gen_world("stem-prefix");
         write_world_gen_settings(&dir, 7, WorldGen::default()).unwrap();
         let settings = world_gen_settings(&dir).unwrap();
@@ -8308,8 +8293,6 @@ mod tests {
             }
             tag
         };
-        // 26.3 layout moved back to the old one: settings in level.dat, no saved data file.
-        fs::remove_file(saved_data_path(&dir, "world_gen_settings")).unwrap();
         write_dat(
             &dir.join("level.dat"),
             Tag::compound([(
@@ -8321,7 +8304,6 @@ mod tests {
             )]),
         )
         .unwrap();
-        assert!(needs_file_fixes(&dir));
         let read = world_gen_settings(&dir).expect("settings");
         assert!(read.get("dimensions").is_some());
         assert!(!world_gen_unstable(&dir));
