@@ -962,8 +962,13 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 let end_y = 2 + pos.y - 1;
                 for y in (end_y - 2)..end_y {
                     let position = BlockPos::new(x_start + x, y, pos.z - z_offset + z);
-                    if position != pos
-                        && self.next_int(6) == 0
+                    // 1.21.10 compares the candidate to `pos` by reference
+                    // (`if_acmpne` on a freshly built BlockPos: always true),
+                    // so the draw below happens even at the original position
+                    // — 1.21.11 fixed it to `.equals()`, skipping the draw.
+                    // The water check excludes the original position anyway
+                    // (it holds the pickle), so no `position != pos` here.
+                    if self.next_int(6) == 0
                         && b.is_block(self.state(position), b.named.water)
                         && self.in_tag(self.below_state(position), "minecraft:coral_blocks")
                     {

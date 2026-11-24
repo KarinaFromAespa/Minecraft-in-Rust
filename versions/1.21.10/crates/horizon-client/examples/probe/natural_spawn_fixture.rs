@@ -114,7 +114,7 @@ struct World<'a> {
     peaceful: bool,
     dimension: &'static DimensionFacts,
     dimension_id: String,
-    slime: f32,
+    moon: f32,
     starts: Vec<Start>,
     players: Vec<([f64; 3], String)>,
     /// Where the non-spectators among them are.
@@ -223,8 +223,8 @@ impl SpawnLevel for World<'_> {
     fn dimension_type(&self) -> &DimensionFacts {
         self.dimension
     }
-    fn surface_slime_chance(&self, _: i32, _: i32, _: i32) -> f32 {
-        self.slime
+    fn moon_brightness(&self) -> f32 {
+        self.moon
     }
     fn world_seed(&self) -> i64 {
         self.seed
@@ -726,7 +726,7 @@ pub fn main() -> horizon_client::Result<()> {
             peaceful: get("difficulty", "normal") == "peaceful",
             dimension,
             dimension_id: dimension_id.clone(),
-            slime: get("slime", "0.0").parse()?,
+            moon: get("moon", "0.0").parse()?,
             starts,
             nearest: players
                 .iter()

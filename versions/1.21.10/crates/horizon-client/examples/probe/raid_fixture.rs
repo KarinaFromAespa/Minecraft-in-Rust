@@ -180,7 +180,7 @@ impl SpawnLevel for World<'_> {
     fn dimension_type(&self) -> &DimensionFacts {
         self.dimension
     }
-    fn surface_slime_chance(&self, _: i32, _: i32, _: i32) -> f32 {
+    fn moon_brightness(&self) -> f32 {
         0.0
     }
     fn world_seed(&self) -> i64 {

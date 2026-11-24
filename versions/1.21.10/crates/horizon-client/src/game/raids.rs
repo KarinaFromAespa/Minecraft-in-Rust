@@ -176,8 +176,8 @@ impl SpawnLevel for PatrolCx<'_, '_, '_> {
     fn dimension_type(&self) -> &horizon_world::dimension_type::DimensionFacts {
         self.level.dimension_type()
     }
-    fn surface_slime_chance(&self, x: i32, y: i32, z: i32) -> f32 {
-        self.level.surface_slime_chance(x, y, z)
+    fn moon_brightness(&self) -> f32 {
+        self.level.moon_brightness()
     }
     fn world_seed(&self) -> i64 {
         self.level.world_seed()

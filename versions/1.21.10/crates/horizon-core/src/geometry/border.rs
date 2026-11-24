@@ -212,8 +212,10 @@ impl BorderGeometry {
             }
         }
     }
-    /// [minX, minZ, maxX, maxZ]. Ordinary collision bounds use partial_tick=0,
-    /// hence the previous size while moving. Static extents ignore partial_tick.
+    /// [minX, minZ, maxX, maxZ], interpolating between the previous and the
+    /// current size by partial tick while moving. Static extents ignore
+    /// partial_tick. Only the renderer passes a fractional tick: gameplay
+    /// (1.21.10's `getMinX()` etc.) reads the current size, i.e. tick 1.
     pub fn bounds(&self, partial_tick: f32) -> [f64; 4] {
         match self.extent {
             Extent::Static { bounds, .. } => bounds,
@@ -227,18 +229,20 @@ impl BorderGeometry {
     pub fn collision_shape(&self) -> Result<VoxelShape, ShapeError> {
         match &self.extent {
             Extent::Static { shape, .. } => Ok(shape.clone()),
-            Extent::Moving { .. } => Self::shape_for(self.bounds(0.0)),
+            // 1.21.10's `getCollisionShape` reads the current size; 1.21.11's
+            // passes partial tick 0 (the previous size).
+            Extent::Moving { .. } => Self::shape_for(self.bounds(1.0)),
         }
     }
     pub fn distance_to_border(&self, x: f64, z: f64) -> f64 {
-        let [min_x, min_z, max_x, max_z] = self.bounds(0.0);
+        let [min_x, min_z, max_x, max_z] = self.bounds(1.0);
         java_min(
             java_min(java_min(x - min_x, max_x - x), z - min_z),
             max_z - z,
         )
     }
     pub fn is_within_bounds(&self, x: f64, z: f64, margin: f64) -> bool {
-        let [min_x, min_z, max_x, max_z] = self.bounds(0.0);
+        let [min_x, min_z, max_x, max_z] = self.bounds(1.0);
         x >= min_x - margin && x < max_x + margin && z >= min_z - margin && z < max_z + margin
     }
     pub fn is_inside_close_to_border(&self, entity_x: f64, entity_z: f64, bounds: Aabb) -> bool {

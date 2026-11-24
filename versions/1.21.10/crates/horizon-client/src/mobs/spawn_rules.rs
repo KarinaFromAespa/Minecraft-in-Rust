@@ -61,8 +61,10 @@ pub trait SpawnLevel {
     fn world_surface(&self, x: i32, z: i32) -> i32;
     fn peaceful(&self) -> bool;
     fn dimension_type(&self) -> &DimensionFacts;
-    /// The `gameplay/surface_slime_spawn_chance` environment attribute.
-    fn surface_slime_chance(&self, x: i32, y: i32, z: i32) -> f32;
+    /// `Level.getMoonBrightness` (1.21.10's slime check draws against it
+    /// directly; 1.21.11 folded it into the `surface_slime_spawn_chance`
+    /// environment attribute).
+    fn moon_brightness(&self) -> f32;
     fn world_seed(&self) -> i64;
     /// `getNearestPlayer(x, y, z, distance, true) != null`: a survival or
     /// adventure player that close.
@@ -522,8 +524,10 @@ fn slime_rules<L: SpawnLevel>(
         return mob_rules(s, l, reason, x, y, z);
     }
     if l.biome_tag("minecraft:allows_surface_slime_spawns", x, y, z) && y > 50 && y < 70 {
-        let chance = l.surface_slime_chance(x, y, z);
-        if random.next_float() < chance
+        // 1.21.10 draws twice (0.5, then the moon brightness); 1.21.11 draws
+        // once against the folded `surface_slime_spawn_chance` attribute.
+        if random.next_float() < 0.5
+            && random.next_float() < l.moon_brightness()
             && raw_brightness(l, x, y, z, l.sky_darken()) <= random.next_int_bound(8).unwrap_or(0)
         {
             return mob_rules(s, l, reason, x, y, z);
@@ -597,9 +601,9 @@ impl SpawnLevel for super::MobWorld<'_> {
     fn dimension_type(&self) -> &DimensionFacts {
         self.dimension_type
     }
-    fn surface_slime_chance(&self, _: i32, _: i32, _: i32) -> f32 {
+    fn moon_brightness(&self) -> f32 {
         let phase = self.day_time.div_euclid(24000).rem_euclid(8) as usize;
-        0.5 * super::spawning::MOON_BRIGHTNESS[phase]
+        super::spawning::MOON_BRIGHTNESS[phase]
     }
     fn world_seed(&self) -> i64 {
         self.world_seed

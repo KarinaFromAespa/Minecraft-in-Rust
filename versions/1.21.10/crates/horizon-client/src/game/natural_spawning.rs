@@ -445,8 +445,8 @@ impl SpawnLevel for GameLevel<'_, '_> {
     fn dimension_type(&self) -> &DimensionFacts {
         self.game.dimension_type()
     }
-    fn surface_slime_chance(&self, x: i32, y: i32, z: i32) -> f32 {
-        self.w.surface_slime_chance(x, y, z)
+    fn moon_brightness(&self) -> f32 {
+        self.w.moon_brightness()
     }
     fn world_seed(&self) -> i64 {
         self.w.world_seed

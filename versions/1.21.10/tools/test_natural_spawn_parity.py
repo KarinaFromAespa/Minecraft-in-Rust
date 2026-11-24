@@ -411,7 +411,7 @@ def common(w, rng, seed):
         if rng.random() < 0.08:
             w.kv['thunder'] = 1
         if rng.random() < 0.3:
-            w.kv['slime'] = rng.choice([0.0, 0.125, 0.25, 0.5])
+            w.kv['moon'] = rng.choice([0.0, 0.25, 0.5, 1.0])
     w.kv['difficulty'] = rng.choice(['normal', 'normal', 'hard', 'easy', 'peaceful'])
     if rng.random() < 0.15:
         w.kv['respawn'] = f'{rng.randrange(-20, 36)},{w.surface},{rng.randrange(-20, 36)}/{w.kv["dim"]}'
@@ -516,7 +516,7 @@ def corpus():
             else:
                 w.biomes.append(f'{box(x - 8, y - 3, z - 8, x + 8, y + 6, z + 8)}/{biome}')
         if biome in ('minecraft:swamp', 'minecraft:mangrove_swamp'):
-            w.kv['slime'] = rng.choice([0.0, 0.25, 0.5])
+            w.kv['moon'] = rng.choice([0.0, 0.5, 1.0])
         cases.append(f'target/{k} mode=pos cat={category} start={x},{y},{z} {w.tokens()}')
     # Chunk generation: creature packs placed on the surface.
     for k in range(1500):

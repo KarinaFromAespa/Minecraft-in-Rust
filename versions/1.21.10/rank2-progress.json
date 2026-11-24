@@ -1,8 +1,8 @@
 {
  "release": "1.21.10",
  "rank": 2,
- "batch": 14,
- "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review). Batch 6: 13 missing-only no-change (1.21.11-only/1.21.10-only methods unreferenced or identically modelled; Timeline + hand.rs deliberate non-carry-overs with jar evidence). Batch 7: 5 real-method no-change (normalisation gaps + unmodelled methods, each with method diff + Rust-side check). Batch 8: 12 smallest real-method items (10 no-change: renames/noise/unmodelled; 2 ported: 154 equine isMobControlled/MountPanic removal, 256 loom scrolling reset). Batches 9-12: 44 small real-method items (41 no-change: renames, API gaps, unmodelled; 3 ported: 132 piglin spear, 276 furnace Math.random, 277 spawn-mobs gate). Batches 13-14: 16 items (14 no-change; 2 ported: 212 explosion radius guard, 74 music volume threading).",
+ "batch": 16,
+ "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review). Batch 6: 13 missing-only no-change (1.21.11-only/1.21.10-only methods unreferenced or identically modelled; Timeline + hand.rs deliberate non-carry-overs with jar evidence). Batch 7: 5 real-method no-change (normalisation gaps + unmodelled methods, each with method diff + Rust-side check). Batch 8: 12 smallest real-method items (10 no-change: renames/noise/unmodelled; 2 ported: 154 equine isMobControlled/MountPanic removal, 256 loom scrolling reset). Batches 9-12: 44 small real-method items (41 no-change: renames, API gaps, unmodelled; 3 ported: 132 piglin spear, 276 furnace Math.random, 277 spawn-mobs gate). Batches 13-14: 16 items (14 no-change; 2 ported: 212 explosion radius guard, 74 music volume threading). Batches 15-16: 16 items (13 no-change; 3 ported: 222 sea-pickle draw, 115 border current size, 262 slime two-draw moon check incl. oracle+harness updates).",
  "items": {
   "201": {
    "module": "crates/horizon-client/src/game/frame_geometry.rs",
@@ -2133,6 +2133,86 @@
    "module": "crates/horizon-client/src/game/packs.rs",
    "verdict": "no-change",
    "evidence": "LoadingOverlay#tick: Screen.init(Minecraft, w, h) vs init(w, h); unmodelled in packs.rs (0 refs); menu chrome in any case. Trees agree."
+  },
+  "196": {
+   "module": "crates/horizon-client/src/mobs/ambient.rs",
+   "verdict": "no-change",
+   "evidence": "Phantom#tick: float-vs-double trig (x4); the Rust uses f32 mcos/msin = 1.21.10's Mth.cos(F)/sin(F). Trees agree."
+  },
+  "79": {
+   "module": "crates/horizon-client/src/item_render/special.rs",
+   "verdict": "no-change",
+   "evidence": "BannerRenderer#getExtents + #submitPatterns + ModelPart#getExtentsForGui: BannerModel package move, getExtentsForGui Consumer-vs-Set param (same collected extents; the Rust dedupes vertices itself), RenderTypes vs RenderType rename. Trees agree."
+  },
+  "55": {
+   "module": "crates/horizon-client/src/mobs/camel.rs",
+   "verdict": "no-change",
+   "evidence": "Camel#executeRidersJump: needsSync/hasImpulse rename; #handleStartJump/#tick use CAMEL_DASH/CAMEL_DASH_READY constants in 1.21.10 vs virtual getters in 1.21.11 \u2014 identical sounds for a Camel (the getters return those constants). CamelHusk does not exist in 1.21.10 (verified: no class in either 1.21.10 jar; present in 1.21.11). The 1.21.11-only husk-camel-husk-parched spawn feature (finalize.rs) is a triage coverage gap (Husk#finalizeSpawn is missing-new but assigned to no item) \u2014 deferred to item 31 (undead.rs, open). Trees agree."
+  },
+  "108": {
+   "module": "crates/horizon-client-render/src/pack_screen.rs",
+   "verdict": "no-change",
+   "evidence": "PackSelectionScreen#init: layout refactor (HeaderAndFooterLayout vs addRenderableWidget) + 1.21.10 sets initial focus to the search box; TransferableSelectionList#updateList: refreshScrollAmount is 1.21.11-only. Menu chrome; unmodelled in pack_screen.rs (0 refs). Trees agree."
+  },
+  "170": {
+   "module": "crates/horizon-client/src/game/tnt.rs",
+   "verdict": "no-change",
+   "evidence": "TntBlock#useItemOn + #wasExploded: GameRules-API normalisation gap (TNT_EXPLODES); the Rust reads rules.bool(\"tnt_explodes\"). Trees agree."
+  },
+  "222": {
+   "module": "crates/horizon-world/src/level/bonemeal.rs",
+   "verdict": "ported",
+   "evidence": "SeaPickleBlock#performBonemeal: 1.21.10 compares the candidate to the original by reference (if_acmpne on a fresh BlockPos: always true), so the nextInt(6) draw happens even at the original position; 1.21.11 fixed it to .equals(). Removed the `position != pos` short-circuit from sea_pickle_bonemeal (the water check excludes the original position anyway \u2014 it holds the pickle). Bytecode-verified."
+  },
+  "115": {
+   "module": "crates/horizon-client-render/src/collisions.rs",
+   "verdict": "ported",
+   "evidence": "MovingBorderExtent#getCollisionShape + #getMinX: 1.21.11 interpolates by partial tick (getCollisionShape passes 0.0, the previous size); 1.21.10 reads the current size. BorderGeometry collision_shape/distance_to_border/is_within_bounds now use bounds(1.0) (current size). The renderer keeps its partial-tick smoothing (item 199's domain)."
+  },
+  "124": {
+   "module": "crates/horizon-client/src/mobs/wither.rs",
+   "verdict": "no-change",
+   "evidence": "WitherBoss#customServerAiStep: MOB_GRIEFING API gap; #getHeadX float-vs-double cos (the Rust uses f32 mcos); #hurtServer WindCharge package move. Trees agree."
+  },
+  "140": {
+   "module": "crates/horizon-client/src/entities.rs",
+   "verdict": "no-change",
+   "evidence": "ItemEntity#hurtServer: MOB_GRIEFING API gap; ItemEntity#tick + ExperienceOrb#tick: needsSync/hasImpulse renames. Trees agree."
+  },
+  "118": {
+   "module": "crates/horizon-client/src/game/leads.rs",
+   "verdict": "no-change",
+   "evidence": "Vec3#xRot/#yRot: float-vs-double trig (the Rust's leash rendering works in f64 throughout \u2014 sub-pixel render noise); LeashFeatureRenderer#addVertexPair: Matrix4fc vs Matrix4f (JOML interface vs class, same values). Trees agree."
+  },
+  "148": {
+   "module": "crates/horizon-client/src/game/key_focus.rs",
+   "verdict": "no-change",
+   "evidence": "EditBox#keyPressed: hasControlDownWithQuirk vs hasControlDown (same as items 159/134 \u2014 1.21.10's is quirk-aware); TitleScreen#init: RealmsNotificationsScreen.init(Minecraft, w, h) vs init(w, h) \u2014 menu chrome. Unmodelled in key_focus.rs (0 ctrl refs). Trees agree."
+  },
+  "64": {
+   "module": "crates/horizon-client/src/game/structure_blocks.rs",
+   "verdict": "no-change",
+   "evidence": "StructureBlockEntity#isStructureLoadable: IdentifierException vs ResourceLocationException (class rename); StructureTemplate#fillEntityList: Painting package move; #placeEntities: CompoundTag.remove returns Tag vs void (same removal). Trees agree."
+  },
+  "262": {
+   "module": "crates/horizon-client/src/mobs/spawn_rules.rs",
+   "verdict": "ported",
+   "evidence": "Slime#checkSlimeSpawnRules: 1.21.10 draws twice (0.5, then the moon brightness); 1.21.11 draws once against the SURFACE_SLIME_SPAWN_CHANCE attribute. Replaced SpawnLevel::surface_slime_chance with moon_brightness() (6 impls + 2 fixtures renamed slime to moon); slime_rules now does the two-draw form. Both parity oracles (spawn-rules + natural-spawn) updated the same way (moon field + getMoonBrightness override; the natural oracle's GameRules lines also moved to the 1.21.10 API: getRule(RULE_DOMOBSPAWNING / RULE_SPAWNER_BLOCKS_ENABLED)); harness cases pass moon values (full moon 1.0, new moon 0.0). Bytecode-verified against the 1.21.10 jar. ORACLE STATUS (javac-checked against the 1.21.10 server jar + libraries): both oracles were uncompilable before this change and remain so, for unrelated pre-existing reasons \u2014 the spawn-rules oracle is down to 3 in-file errors, all in the registry bootstrap (RegistryLayer/RegistryDataLoader are 1.21.11-only; 1.21.10 needs a WorldLoader-based bootstrap, shared by every oracle in the tree), and the natural oracle to 22 (same bootstrap + cubemob/DataComponentInitializers/EntityTypes 1.21.11 API). Full oracle porting is a separate job; the slime/moon part of both oracles is done and introduces no new errors."
+  },
+  "83": {
+   "module": "crates/horizon-client/src/game/mob_blocks.rs",
+   "verdict": "no-change",
+   "evidence": "PlayerItemInHandLayer#submitArmWithItem: local-variable renumbering + the 1.21.11 super call takes an extra ItemStack param; the Rust resolves the held item's render state from the stack directly (resolve_item_in_hand), so no behaviour turns on the param. Trees agree."
+  },
+  "44": {
+   "module": "crates/horizon-client/src/mobs/golem.rs",
+   "verdict": "no-change",
+   "evidence": "IronGolem super calls (x6): AbstractGolem package move (animal/golem/ vs animal/). The module's 7-line tree diff is a next_float hoist (same draw) + snow-layer tag names already in their 1.21.10 forms (cannot_support_snow_layer / support_override_snow_layer)."
+  },
+  "105": {
+   "module": "crates/horizon-client/src/game/nether_portal.rs",
+   "verdict": "no-change",
+   "evidence": "NetherPortalBlock#getPortalTransitionTime: GameRules-API gap (portal delays); #randomTick: 1.21.10 checks dimensionType().natural() where 1.21.11 checks the NETHER_PORTAL_SPAWNS_PIGLINS attribute; the Rust reads dimension_type().nether_portal_spawns_piglin, whose built-in presets equal natural() (overworld true only), alongside the spawn-monsters + difficulty checks (tick.rs). Trees agree."
   }
  }
 }

@@ -48,7 +48,7 @@ struct Column<'a> {
     peaceful: bool,
     dimension: &'static DimensionFacts,
     biome: String,
-    slime: f32,
+    moon: f32,
     /// A player position and whether it is survival or adventure.
     player: Option<([f64; 3], bool)>,
     /// `LevelReader.isUnobstructed` for the obstruction family.
@@ -105,8 +105,8 @@ impl SpawnLevel for Column<'_> {
     fn dimension_type(&self) -> &DimensionFacts {
         self.dimension
     }
-    fn surface_slime_chance(&self, _: i32, _: i32, _: i32) -> f32 {
-        self.slime
+    fn moon_brightness(&self) -> f32 {
+        self.moon
     }
     fn world_seed(&self) -> i64 {
         self.seed
@@ -293,7 +293,7 @@ pub fn main() -> horizon_client::Result<()> {
                 "minecraft:overworld",
             ))),
             biome: get("biome", "minecraft:plains"),
-            slime: get("slime", "0.0").parse()?,
+            moon: get("moon", "0.0").parse()?,
             player,
             unobstructed: !get("unobstructed", "1").eq("0"),
             structure_spawns: StructureSpawns::default(),
