@@ -148,9 +148,9 @@ pub(super) struct Minecart {
     /// `Entity.firstTick`: not ticked yet (saved as `HasTicked`).
     pub first_tick: bool,
     /// `Entity.isInWater` (`wasTouchingWater`): `AbstractMinecart.tick`
-    /// updates it after the move (`updateFluidInteraction`), so the move
-    /// goes by where the cart was a tick before, and a new cart's first
-    /// move is a dry one.
+    /// updates it after the move (`updateInWaterStateAndDoFluidPushing`), so
+    /// the move goes by where the cart was a tick before, and a new cart's
+    /// first move is a dry one.
     pub in_water: bool,
     /// Command block minecarts: the cart's `BaseCommandBlock` (command,
     /// success count, last output, output tracking). The block-only flags of
@@ -1496,12 +1496,15 @@ impl Game<'_> {
             }
         }
         // OldMinecartBehavior.tick ends with pushAndPickupEntities, before
-        // AbstractMinecart.tick's updateFluidInteraction. The experiment still
-        // uses this fallback until its per-move pickup/push retry is ported.
+        // AbstractMinecart.tick's updateInWaterStateAndDoFluidPushing. The
+        // experiment still uses this fallback until its per-move pickup/push
+        // retry is ported.
         self.push_from_ticked_cart(c, slot, index);
-        // AbstractMinecart.tick: updateFluidInteraction, a stream pushes the cart.
+        // AbstractMinecart.tick: updateInWaterStateAndDoFluidPushing, a stream
+        // pushes the cart.
         c.in_water = c.push_by_fluid(&self.world, &self.res.motion().fluids).0 > 0.0;
-        // updateFluidInteraction: being in water resets the fall distance.
+        // updateInWaterStateAndDoFluidPushing: being in water resets the
+        // fall distance.
         if c.in_water {
             c.fall_distance = 0.0;
         }
@@ -2785,7 +2788,7 @@ impl Game<'_> {
             .gui
             .atlas
             .sprites
-            .get("entity/minecart/minecart")
+            .get("entity/minecart")
             .map(|r| [r.u0, r.v0, r.u1, r.v1])
         else {
             return;
@@ -2914,14 +2917,15 @@ impl Game<'_> {
                     self.special_block_model(state, display, l, out);
                 } else {
                     // TNT minecarts flash white as the fuse runs out (TntMinecartRenderer).
-                    let swell = if c.kind == CartKind::Tnt && c.fuse > -1 {
-                        let fuse = c.fuse as f32 - a + 1.0;
-                        if fuse < 10.0 {
-                            let g = (1.0 - fuse / 10.0).clamp(0.0, 1.0);
-                            1.0 + g * g * g * g * 0.3
-                        } else {
-                            1.0
-                        }
+                    // fuseRemainingInTicks: the fuse interpolated by the partial tick.
+                    let fuse = if c.kind == CartKind::Tnt && c.fuse > -1 {
+                        c.fuse as f32 - a + 1.0
+                    } else {
+                        -1.0
+                    };
+                    let swell = if fuse > -1.0 && fuse < 10.0 {
+                        let g = (1.0 - fuse / 10.0).clamp(0.0, 1.0);
+                        1.0 + g * g * g * g * 0.3
                     } else {
                         1.0
                     };
@@ -2929,7 +2933,7 @@ impl Game<'_> {
                         * glam::Mat4::from_translation(glam::Vec3::splat(0.5))
                         * glam::Mat4::from_scale(glam::Vec3::splat(swell))
                         * glam::Mat4::from_translation(glam::Vec3::splat(-0.5));
-                    let flash = c.kind == CartKind::Tnt && c.fuse > -1 && (c.fuse / 5) % 2 == 0;
+                    let flash = fuse > -1.0 && (fuse as i32 / 5) % 2 == 0;
                     let start = out.len();
                     self.block_model_vertices(state, 0, m, packed, false, out);
                     if flash {

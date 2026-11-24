@@ -637,12 +637,16 @@ impl Game<'_> {
             Some(&self.res.motion().blocks),
             step,
         );
-        item.push_by_bubble_column(
-            &self.world,
-            self.pack.assets.registry,
-            self.res.facts(),
-            self.collision,
-        );
+        // `BubbleColumnBlock.entityInside` runs inside `applyEffectsFromBlocks`,
+        // which 1.21.10 calls only on move ticks (no idle arm).
+        if step.did_move {
+            item.push_by_bubble_column(
+                &self.world,
+                self.pack.assets.registry,
+                self.res.facts(),
+                self.collision,
+            );
+        }
         let alive = item.tick_settle(&self.world, self.res.facts(), no_physics, step);
         // ItemEntity.tick refreshes immersion and splashes on water entry.
         let (water, _) = item.push_by_fluid(&self.world, &self.res.motion().fluids);

@@ -1,8 +1,8 @@
 {
  "release": "1.21.10",
  "rank": 2,
- "batch": 1,
- "note": "No-change closures: module identical in both trees and no named method changed per jardiff. Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json.",
+ "batch": 2,
+ "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json.",
  "items": {
   "201": {
    "module": "crates/horizon-client/src/game/frame_geometry.rs",
@@ -523,6 +523,406 @@
      "jardiff": "method-changed"
     }
    ]
+  },
+  "63": {
+   "module": "widely named: advancements/critereon",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 16"
+  },
+  "78": {
+   "module": "widely named: client/gui",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 29"
+  },
+  "110": {
+   "module": "widely named: client/gui/components",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 57"
+  },
+  "143": {
+   "module": "widely named: world/entity/animal",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 11"
+  },
+  "157": {
+   "module": "crates/horizon-world/src/dimension_type.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "166": {
+   "module": "widely named: client/renderer/block/model",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 5"
+  },
+  "174": {
+   "module": "widely named: core",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 86"
+  },
+  "236": {
+   "module": "widely named: world/entity/npc",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 9"
+  },
+  "238": {
+   "module": "crates/horizon-client/src/game/remote_mob_data.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "242": {
+   "module": "widely named: world/level",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 32"
+  },
+  "246": {
+   "module": "widely named: world/entity/vehicle",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 26"
+  },
+  "249": {
+   "module": "crates/horizon-client/src/first_person.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "254": {
+   "module": "widely named: world/level/levelgen",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 7"
+  },
+  "255": {
+   "module": "crates/horizon-client-render/src/mesher/fluid.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "263": {
+   "module": "widely named: client/gui/screens",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 34"
+  },
+  "271": {
+   "module": "crates/horizon-client/src/recipe_book_screen.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "296": {
+   "module": "widely named: client/renderer/texture",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 7"
+  },
+  "298": {
+   "module": "widely named: world/level/levelgen/structure/templatesystem",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 17"
+  },
+  "299": {
+   "module": "crates/horizon-client-core/src/particle_type.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "307": {
+   "module": "crates/horizon-client/src/game/scoreboard.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "310": {
+   "module": "crates/horizon-client/src/mobs/brain.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "315": {
+   "module": "widely named: commands/arguments/blocks",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 4"
+  },
+  "317": {
+   "module": "crates/horizon-client/src/game_rules_screen.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "319": {
+   "module": "widely named: client/renderer/entity/layers",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 9"
+  },
+  "324": {
+   "module": "crates/horizon-client/src/game/commands/text_commands.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "325": {
+   "module": "crates/horizon-client/src/stations.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "326": {
+   "module": "crates/horizon-protocol/src/item/hash/raw.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "328": {
+   "module": "widely named: world/level/storage/loot",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 19"
+  },
+  "329": {
+   "module": "crates/horizon-client-input/src/window.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "331": {
+   "module": "widely named: client/renderer/block",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 5"
+  },
+  "335": {
+   "module": "crates/horizon-client/src/win_screen.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "341": {
+   "module": "widely named: world/level/storage",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 5"
+  },
+  "342": {
+   "module": "crates/horizon-client-render/src/weather.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "343": {
+   "module": "crates/horizon-client/src/command_storage.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "344": {
+   "module": "crates/horizon-client/src/mobs/axolotl.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "345": {
+   "module": "crates/horizon-core/src/density/graph/seeded.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "347": {
+   "module": "widely named: world/entity/animal/horse",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 11"
+  },
+  "348": {
+   "module": "widely named: world/level/chunk/storage",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 4"
+  },
+  "349": {
+   "module": "widely named: world/phys/shapes",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 9"
+  },
+  "351": {
+   "module": "crates/horizon-client-render/src/environment.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "353": {
+   "module": "crates/horizon-world/src/environment_system.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "356": {
+   "module": "widely named: world/entity/ai/village/poi",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 12"
+  },
+  "357": {
+   "module": "widely named: world/entity/monster",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 24"
+  },
+  "358": {
+   "module": "widely named: world/level/levelgen/structure/pools",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 6"
+  },
+  "359": {
+   "module": "crates/horizon-client-render/src/hud_overlays.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "360": {
+   "module": "crates/horizon-client-render/src/tab_list.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "363": {
+   "module": "widely named: world/level/levelgen/structure",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 5"
+  },
+  "366": {
+   "module": "crates/horizon-client/examples/probe/entity_anim_fixture.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "370": {
+   "module": "widely named: client/gui/components/toasts",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 13"
+  },
+  "373": {
+   "module": "widely named: client/particle",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 8"
+  },
+  "374": {
+   "module": "widely named: com/mojang/blaze3d/platform",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 6"
+  },
+  "377": {
+   "module": "widely named: server/dedicated",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 4"
+  },
+  "380": {
+   "module": "widely named: stats",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 6"
+  },
+  "381": {
+   "module": "widely named: world/entity/animal/goat",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 5"
+  },
+  "382": {
+   "module": "widely named: world/entity/projectile",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 10"
+  },
+  "383": {
+   "module": "widely named: world/entity/variant",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 5"
+  },
+  "388": {
+   "module": "crates/horizon-assets/src/item_model/special.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "393": {
+   "module": "crates/horizon-client-render/src/widgets.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "395": {
+   "module": "crates/horizon-client/src/game/inventory_slots.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "402": {
+   "module": "widely named: client/model",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 4"
+  },
+  "403": {
+   "module": "widely named: client/player",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 5"
+  },
+  "417": {
+   "module": "widely named: world/level/block/entity/trialspawner",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 4"
+  },
+  "418": {
+   "module": "widely named: world/level/border",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 16"
+  },
+  "421": {
+   "module": "widely named: world/level/levelgen/blending",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 5"
+  },
+  "425": {
+   "module": "widely named: world/ticks",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 4"
+  },
+  "428": {
+   "module": "crates/horizon-client-render/src/random_source.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "429": {
+   "module": "crates/horizon-client/src/crafting.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "430": {
+   "module": "crates/horizon-client/src/game/lan_mount_menu.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "432": {
+   "module": "crates/horizon-client/src/game/options.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "433": {
+   "module": "crates/horizon-client/src/game/world_loading.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "436": {
+   "module": "crates/horizon-client/src/mobs/goat.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "437": {
+   "module": "crates/horizon-client/src/mobs/trial_spawner.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "442": {
+   "module": "crates/horizon-protocol/src/item/hash.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "445": {
+   "module": "crates/horizon-world/src/nbt.rs",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 1"
+  },
+  "447": {
+   "module": "widely named: client/renderer/entity",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 4"
+  },
+  "455": {
+   "module": "widely named: world/entity/ai/goal",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 4"
+  },
+  "456": {
+   "module": "widely named: world/entity/animal/camel",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 5"
+  },
+  "457": {
+   "module": "widely named: world/entity/animal/sheep",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 8"
+  },
+  "458": {
+   "module": "widely named: world/entity/item",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 15"
+  },
+  "464": {
+   "module": "widely named: client/renderer/entity/state",
+   "verdict": "carry-over",
+   "evidence": "1.21.11-port hunks applied to the 1.21.10 tree via three-way merge (base 2e2ef22) or hand-merge with jar verification; no named method changed 1.21.11->1.21.10 per jardiff; module compiles (cargo check horizon-client --lib clean). Files: 6"
   }
  }
 }

@@ -59,10 +59,8 @@ impl Game<'_> {
                 return false;
             }
             let m = &mut self.mobs[index];
-            if !m.extra.age_locked {
-                let secs = ((-m.extra.age / 20) as f32 * 0.1) as i32;
-                horizon_client::mobs::ai::age_up(m, secs, true);
-            }
+            let secs = ((-m.extra.age / 20) as f32 * 0.1) as i32;
+            horizon_client::mobs::ai::age_up(m, secs, true);
             let sound = nautilus::eat_sound(m);
             self.use_nautilus_food(item);
             self.nautilus_sound(index, sound);
@@ -100,7 +98,10 @@ impl Game<'_> {
             }
             let m = &self.mobs[index];
             if food && m.health < m.attrs.max_health {
-                // feed(player, hand, stack, 2, 1).
+                // feed(player, hand, stack, 2, 1). (The nautilus is
+                // 1.21.10-only — absent from the 1.21.10 jar — so the
+                // 1.21.10 feed-heal rework does not apply here; this
+                // path is unreachable in 1.21.10.)
                 let sound = nautilus::eat_sound(m);
                 let m = &mut self.mobs[index];
                 m.heal(2.0);

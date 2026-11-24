@@ -19,7 +19,10 @@ use horizon_client::{
 };
 use horizon_core::geometry::{Aabb, Vec3};
 use serde_json::Value;
-use std::{cell::RefCell, collections::HashMap};
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, HashMap},
+};
 
 /// The game's answers to what the resolver cannot read from the stack.
 pub(super) struct Env<'a, 'g> {
@@ -53,7 +56,7 @@ impl ItemEnv for Env<'_, '_> {
             .grass_color(temperature, downfall)
     }
     fn bundle_fullness(&self, _stack: &StackView, components: &Components) -> f32 {
-        // `BundleContents.weight`: count / max stack size, summed.
+        // `BundleContents.weight`: the sum of each item's weight.
         let Some(items) = components
             .get("minecraft:bundle_contents")
             .and_then(Value::as_array)
@@ -61,18 +64,10 @@ impl ItemEnv for Env<'_, '_> {
             return 0.0;
         };
         let prototypes = &self.game.pack.item_renderer.models.prototypes;
-        let mut total = 0.0f64;
-        for item in items {
-            let id = item["id"].as_str().unwrap_or("");
-            let count = item["count"].as_i64().unwrap_or(1) as f64;
-            let max = prototypes
-                .get(id)
-                .and_then(|c| c.get("minecraft:max_stack_size"))
-                .and_then(Value::as_i64)
-                .unwrap_or(1) as f64;
-            total += count / max;
-        }
-        total as f32
+        items
+            .iter()
+            .map(|item| bundle_item_weight(item, prototypes))
+            .sum::<f64>() as f32
     }
     fn has_shift_down(&self) -> bool {
         self.game.has_shift_down()
@@ -91,6 +86,40 @@ impl ItemEnv for Env<'_, '_> {
         (nanos % 1_000_000) as f32 / 1_000_000.0
     }
 }
+/// `BundleContents.getWeight` over the JSON form of a stack, times its
+/// count: a nested bundle weighs its contents plus 1/16, a beehive with
+/// bees weighs 1, the rest weigh 1 / max stack size. (The menus' exact
+/// `Fraction` version is `horizon_items::bundle::item_weight`; this one
+/// only feeds the bundle-fullness model property, which takes an f32.)
+fn bundle_item_weight(item: &Value, prototypes: &BTreeMap<String, Components>) -> f64 {
+    let components = item.get("components").and_then(Value::as_object);
+    let count = item.get("count").and_then(Value::as_i64).unwrap_or(1) as f64;
+    if let Some(inside) = components
+        .and_then(|c| c.get("minecraft:bundle_contents"))
+        .and_then(Value::as_array)
+    {
+        let inner: f64 = inside
+            .iter()
+            .map(|i| bundle_item_weight(i, prototypes))
+            .sum();
+        return (inner + 1.0 / 16.0) * count;
+    }
+    if components
+        .and_then(|c| c.get("minecraft:bees"))
+        .and_then(Value::as_array)
+        .is_some_and(|bees| !bees.is_empty())
+    {
+        return count;
+    }
+    let id = item.get("id").and_then(Value::as_str).unwrap_or("");
+    let max = prototypes
+        .get(id)
+        .and_then(|c| c.get("minecraft:max_stack_size"))
+        .and_then(Value::as_i64)
+        .unwrap_or(1) as f64;
+    count / max
+}
+
 /// The days since 1970-01-01 as a civil (year, month, day) date.
 fn civil(days: i64) -> (i64, u32, u32) {
     let z = days + 719_468;
@@ -779,6 +808,66 @@ mod tests {
         assert_eq!(civil(0), (1970, 1, 1));
         assert_eq!(civil(19_716), (2023, 12, 25));
         assert_eq!(civil(11_016), (2000, 2, 29));
+    }
+
+    #[test]
+    fn bundle_fullness_weighs_nested_bundles_and_beehives() {
+        // `BundleContents.getWeight`: a nested bundle weighs its contents
+        // plus 1/16, a beehive with bees weighs 1, the rest weigh
+        // count / max stack size.
+        let mut prototypes: BTreeMap<String, Components> = BTreeMap::new();
+        for (id, max) in [
+            ("minecraft:cobblestone", 64),
+            ("minecraft:dirt", 64),
+            ("minecraft:beehive", 64),
+            ("minecraft:bundle", 1),
+        ] {
+            let mut c = Components::new();
+            c.insert("minecraft:max_stack_size".into(), json!(max));
+            prototypes.insert(id.into(), c);
+        }
+        // 32 cobblestone: 32/64.
+        assert_eq!(
+            bundle_item_weight(
+                &json!({"id": "minecraft:cobblestone", "count": 32}),
+                &prototypes
+            ),
+            0.5
+        );
+        // A beehive with bees weighs 1, not 1/64.
+        assert_eq!(
+            bundle_item_weight(
+                &json!({"id": "minecraft:beehive", "components": {"minecraft:bees": [{}]}}),
+                &prototypes
+            ),
+            1.0
+        );
+        // An empty beehive weighs 1/64.
+        assert_eq!(
+            bundle_item_weight(
+                &json!({"id": "minecraft:beehive", "components": {"minecraft:bees": []}}),
+                &prototypes
+            ),
+            1.0 / 64.0
+        );
+        // A bundle holding 16 dirt weighs 1/16 + 16/64.
+        assert_eq!(
+            bundle_item_weight(
+                &json!({"id": "minecraft:bundle", "components": {"minecraft:bundle_contents": [
+                    {"id": "minecraft:dirt", "count": 16}
+                ]}}),
+                &prototypes
+            ),
+            1.0 / 16.0 + 0.25
+        );
+        // An empty bundle still weighs 1/16.
+        assert_eq!(
+            bundle_item_weight(
+                &json!({"id": "minecraft:bundle", "components": {"minecraft:bundle_contents": []}}),
+                &prototypes
+            ),
+            1.0 / 16.0
+        );
     }
 
     #[test]

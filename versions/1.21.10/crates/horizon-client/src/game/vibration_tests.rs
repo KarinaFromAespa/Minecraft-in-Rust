@@ -343,7 +343,7 @@ fn a_landing_posts_the_block_game_event_its_rule_posts() {
     });
 }
 
-/// `CauldronInteractions`: a bucket dipped into a cauldron ends with
+/// `CauldronInteraction`: a bucket dipped into a cauldron ends with
 /// `level.gameEvent(null, GameEvent.FLUID_PICKUP, pos)` and one poured into
 /// it with `FLUID_PLACE`, both after `playSound`; a glass bottle takes a level
 /// off first (`lowerFillLevel`'s `BLOCK_CHANGE`, already posted) and then

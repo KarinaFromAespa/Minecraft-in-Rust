@@ -217,10 +217,17 @@ enum Light {
     FullBright,
     /// `LightCoordsUtil.withBlock(light, 15)`.
     Block15,
-    /// `addSmoothBlockEmission` with the age fraction.
+    /// `FlameParticle.getLightColor` / `GlowParticle.getLightColor`: the
+    /// clamped age fraction times 15 * 16 added to the block channel.
     AgeEmission,
-    /// `addSmoothBlockEmission` with the age fraction to the fourth power.
-    AgeEmission4,
+    /// 1.21.10's glowing-particle light: the constant 240 (sky 0, block 15).
+    /// 26.x replaced it with `withBlock(light, 15)` (sky preserved).
+    Bright240,
+    /// `PortalParticle.getLightColor` /
+    /// `FlyTowardsPositionParticle.getLightColor` (non-glowing): the age
+    /// fraction to the fourth power times 15 * 16 added to the SKY channel.
+    /// 26.x's `addSmoothBlockEmission` adds it to the block channel instead.
+    AgeEmissionSky4,
     /// `FireflyParticle.getLightCoords`: block light fading in and out, no sky.
     Firefly,
     /// A Polytone particle's `light_level`: block light at least this level.
@@ -1087,18 +1094,19 @@ impl Particle {
             self.velocity[2] *= f64::from(0.7f32);
         }
     }
-    /// `getLightCoords(a)` from the world's smooth sky and block light (0..=240).
+    /// `getLightColor(a)` from the world's smooth sky and block light (0..=240).
     fn light_coords(&self, partial: f32, sky: u32, block: u32) -> (u32, u32) {
         let t = ((self.age as f32 + partial) / self.lifetime as f32).clamp(0.0, 1.0);
         match self.light {
             Light::World => (sky, block),
             Light::FullBright => (240, 240),
             Light::Block15 => (sky, 240),
-            Light::AgeEmission => (sky, (block + (t * 240.0) as u32).min(240)),
-            Light::AgeEmission4 => {
+            Light::AgeEmission => (sky, (block + (t * 15.0 * 16.0) as u32).min(240)),
+            Light::Bright240 => (0, 240),
+            Light::AgeEmissionSky4 => {
                 let b = self.age as f32 / self.lifetime as f32;
                 let b = (b * b) * (b * b);
-                (sky, (block + (b.clamp(0.0, 1.0) * 240.0) as u32).min(240))
+                ((sky + (b * 15.0 * 16.0) as u32).min(240), block)
             }
             Light::MinBlock(level) => (sky, block.max(u32::from(level) * 16)),
             Light::Firefly => (
@@ -1311,8 +1319,9 @@ pub struct ParticleEngine {
     pub created_requests: Option<Vec<(ParticleOptions, [f64; 3], [f64; 3])>>,
     names: Vec<String>,
     rects: Vec<Option<Rect>>,
-    /// Each named sprite, and whether `SingleQuadParticle.Layer.bySprite` puts
-    /// it on the translucent layer (a texel with 0 < alpha < 255).
+    /// Each named sprite, and whether it has a texel with 0 < alpha < 255
+    /// (26.x's `SingleQuadParticle.Layer.bySprite` put such sprites on the
+    /// translucent layer; 1.21.10 picks the layer by atlas — items 354/192).
     atlas: HashMap<String, (Rect, bool)>,
     sets: HashMap<ParticleType, u32>,
     /// A native mod's sprite sets, by namespaced particle name.
@@ -1689,7 +1698,9 @@ impl ParticleEngine {
         q.size = 0.3;
         q.lifetime = ticks;
         q.has_physics = false;
-        q.light = Light::Block15;
+        // `VibrationSignalParticle.getLightColor`: the constant 240 in
+        // 1.21.10; 26.x replaced it with `withBlock(light, 15)`.
+        q.light = Light::Bright240;
         let d = [from[0] - to[0], from[1] - to[1], from[2] - to[2]];
         let rot = d[0].atan2(d[2]) as f32;
         let pitch = d[1].atan2((d[0] * d[0] + d[2] * d[2]).sqrt()) as f32;
@@ -2857,7 +2868,7 @@ impl ParticleEngine {
                 q.set_color(br * 0.9, br * 0.3, br);
                 q.lifetime = (r.next_float() * 10.0) as i32 + 40;
                 q.free_move = true;
-                q.light = Light::AgeEmission4;
+                q.light = Light::AgeEmissionSky4;
                 if ty == T::Portal {
                     q.size_curve = Size::Portal;
                     q.behaviour = Behaviour::Portal { start: p };
@@ -2889,9 +2900,9 @@ impl ParticleEngine {
                 q.lifetime = (r.next_float() * 10.0) as i32 + 30;
                 q.free_move = true;
                 q.light = if ty == T::VaultConnection {
-                    Light::Block15
+                    Light::Bright240
                 } else {
-                    Light::AgeEmission4
+                    Light::AgeEmissionSky4
                 };
                 q.behaviour = Behaviour::FlyTowards { start: p, alpha };
                 if ty == T::VaultConnection {
@@ -3130,7 +3141,7 @@ impl ParticleEngine {
                 q.scale(if ty == T::SculkCharge { 1.5 } else { 1.0 });
                 q.has_physics = false;
                 q.velocity = v;
-                q.light = Light::Block15;
+                q.light = Light::Bright240;
                 q.behaviour = Behaviour::Animated;
                 q.set = set;
                 if ty == T::SculkCharge {
@@ -3159,7 +3170,9 @@ impl ParticleEngine {
                 q.lifetime = 30;
                 q.gravity = 0.0;
                 q.velocity = [0.0, 0.1, 0.0];
-                q.light = Light::Block15;
+                // `ShriekParticle.getLightColor`: the constant 240 in
+                // 1.21.10; 26.x replaced it with `withBlock(light, 15)`.
+                q.light = Light::Bright240;
                 q.size_curve = Size::Shriek;
                 q.behaviour = Behaviour::Shriek {
                     delay: o.scale as i32,
@@ -3482,7 +3495,8 @@ impl ParticleEngine {
                 let sprite = if ty == T::SulfurCubeGoo {
                     self.first(ty)
                 } else {
-                    // ItemStackRenderState.pickParticleMaterial.
+                    // `ItemStackRenderState.pickParticleIcon` (26.x called it
+                    // `pickParticleMaterial`): a random layer's sprite.
                     let layers = match ty {
                         T::Item => o.item.clone().unwrap_or_default(),
                         _ => self.item_sprites.get(&ty).cloned().unwrap_or_default(),
@@ -3558,7 +3572,9 @@ impl ParticleEngine {
                 q.size *= 0.75 * scale;
                 // Mth.randomBetween(random, 0.5, 1.0).
                 q.lifetime = ((8.0 / (r.next_float() * (1.0 - 0.5) + 0.5) * scale) as i32).max(1);
-                q.light = Light::Block15;
+                // `TrialSpawnerDetectionParticle.getLightColor`: the constant
+                // 240 in 1.21.10; 26.x replaced it with `withBlock(light, 15)`.
+                q.light = Light::Bright240;
                 q.size_curve = Size::GrowIn;
                 q.behaviour = Behaviour::Animated;
                 q.set = set;
@@ -3577,7 +3593,9 @@ impl ParticleEngine {
                 q.has_physics = false;
                 q.free_move = true;
                 q.lifetime = (r.next_float() * 5.0) as i32 + 25;
-                q.light = Light::Block15;
+                // `FlyStraightTowardsParticle.getLightColor`: the constant 240
+                // in 1.21.10; 26.x replaced it with `withBlock(light, 15)`.
+                q.light = Light::Bright240;
                 q.behaviour = Behaviour::FlyStraight {
                     start: p,
                     colors: [0xFF45_AEFE, 0xFFFF_FFFF],
@@ -3599,16 +3617,6 @@ impl ParticleEngine {
                 q.velocity = v;
                 q.behaviour = Behaviour::Wake;
                 q.set = set;
-                q
-            }
-            // SimpleVerticalParticle.
-            T::PauseMobGrowth | T::ResetMobGrowth => {
-                let mut q = Particle::moving(r, ty, p, v);
-                q.velocity = v;
-                q.gravity = 0.0;
-                q.velocity[1] += if ty == T::ResetMobGrowth { 0.03 } else { -0.03 };
-                q.size *= r.next_float() * 0.6 + 0.5;
-                q.lifetime = 8;
                 q
             }
             // BlockMarker: the block's particle sprite, half a block wide, 80 ticks.
@@ -5973,6 +5981,77 @@ mod tests {
             engine.make(&bare, [0.0; 3], [0.0; 3], 1).is_none(),
             "no destination, no signal"
         );
+    }
+    /// `getLightColor` for the four constant-240 particles (item 28):
+    /// `FlyStraightTowardsParticle` (ominous spawning), `ShriekParticle`,
+    /// `TrialSpawnerDetectionParticle` and `VibrationSignalParticle` return
+    /// 240 (sky 0, block 15) in 1.21.10; 26.x replaced it with
+    /// `withBlock(light, 15)`, which keeps the sky light. The snapshot
+    /// probes against full sky light, so the 26.x form would read 15728880.
+    #[test]
+    fn constant_240_particles_snapshot_to_240_not_full_bright() {
+        let mut engine = ParticleEngine::new(Path::new(""), &HashMap::new(), &HashSet::new());
+        for ty in [
+            ParticleType::Shriek,
+            ParticleType::TrialSpawnerDetection,
+            ParticleType::TrialSpawnerDetectionOminous,
+            ParticleType::OminousSpawning,
+        ] {
+            let options = ParticleOptions::simple(ty);
+            let q = engine
+                .make(&options, [0.0; 3], [0.0; 3], 1)
+                .expect("the particle is made");
+            let quad = engine.snapshot(&q).quad.expect("the particle renders");
+            assert_eq!(quad.light, 240, "{} light", ty.name());
+        }
+        // Vibration needs its option (destination + arrival time).
+        let options = ParticleOptions::vibration(
+            PositionSource::Block([10, 70, -4]),
+            [10.5, 70.5, -3.5],
+            20,
+        );
+        let q = engine
+            .make(&options, [0.5, 1.5, 0.5], [0.0; 3], 1)
+            .expect("the signal is made");
+        let quad = engine.snapshot(&q).quad.expect("the signal renders");
+        assert_eq!(quad.light, 240, "vibration light");
+    }
+    /// `FlameParticle.getLightColor` adds the clamped age fraction times
+    /// 15 * 16 to the BLOCK channel; `PortalParticle.getLightColor` adds
+    /// the age fraction to the fourth power times 15 * 16 to the SKY
+    /// channel (26.x's `addSmoothBlockEmission` put both on block).
+    #[test]
+    fn flame_and_portal_light_go_to_their_12111_channels() {
+        let mut engine = ParticleEngine::new(Path::new(""), &HashMap::new(), &HashSet::new());
+        let options = ParticleOptions::simple(ParticleType::Flame);
+        let mut q = engine
+            .make(&options, [0.0; 3], [0.0; 3], 1)
+            .expect("the flame is made");
+        q.lifetime = 10;
+        q.age = 5;
+        assert_eq!(q.light_coords(0.0, 0, 0), (0, 120));
+        let options = ParticleOptions::simple(ParticleType::Portal);
+        let mut q = engine
+            .make(&options, [0.0; 3], [0.0; 3], 1)
+            .expect("the portal mote is made");
+        q.lifetime = 10;
+        q.age = 5;
+        assert_eq!(q.light_coords(0.0, 0, 0), (15, 0));
+    }
+    /// `GlowParticle.getLayer` (item 28): TRANSLUCENT in 1.21.10, OPAQUE in
+    /// 26.x — for the particle and every provider sharing the class.
+    #[test]
+    fn glow_family_renders_on_the_translucent_layer() {
+        for ty in [
+            ParticleType::Glow,
+            ParticleType::WaxOn,
+            ParticleType::WaxOff,
+            ParticleType::ElectricSpark,
+            ParticleType::Scrape,
+        ] {
+            assert!(ty.translucent_layer(), "{} is translucent", ty.name());
+        }
+        assert!(!ParticleType::Crit.translucent_layer());
     }
     #[test]
     fn particle_names_round_trip() {

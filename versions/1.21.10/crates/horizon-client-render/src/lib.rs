@@ -106,7 +106,6 @@ pub mod polytone_post;
 pub mod post_chain;
 pub mod post_glsl;
 pub mod potent_sulfur;
-pub mod preedit;
 pub mod providers;
 pub mod pvp;
 pub mod pvp_hud;

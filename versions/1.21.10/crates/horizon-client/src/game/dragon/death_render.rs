@@ -1,14 +1,17 @@
 //! The dying dragon's dissolve and death rays (`EnderDragonRenderer`).
 use super::*;
 
-/// The dying model's colour, `ARGB.white(1 - deathTime / 200)`: `Mth.floor` of the alpha
-/// shifted as a Java int, so past 200 it wraps as vanilla's does.
+/// The dying model's colour, `ARGB.white(deathTime / 200)`: `Mth.floor` of the alpha
+/// shifted as a Java int, so past 200 it wraps as vanilla's does. Both 1.21.10 passes
+/// use it as the alpha threshold — the explosion pass keeps texels at or above it, the
+/// decal pass keeps mask texels at or above it — so the dragon dissolves starting from
+/// the explosion texture's transparent regions.
 pub(super) fn dissolve_color(death: f32) -> u32 {
-    let alpha = ((1.0 - death / 200.0) * 255.0).floor() as i32;
+    let alpha = ((death / 200.0) * 255.0).floor() as i32;
     (alpha << 24) as u32 | 0x00FF_FFFF
 }
-/// `DissolveMaskSampler` at the vertex's `UV0`: the same place in the mask's sprite as in the
-/// skin's, as the dissolve overlay reads it from `glint_uv` (entity.wgsl).
+/// The explosion texture at the vertex's `UV0`: the same place in the mask's sprite as in the
+/// skin's, as the decal overlay reads it from `glint_uv` (entity.wgsl) for its mask test.
 pub(super) fn dissolve_mask(quads: &mut [Vertex], skin: [f32; 4], mask: [f32; 4]) {
     for v in quads {
         let u = (v.uv[0] - skin[0]) / (skin[2] - skin[0]);

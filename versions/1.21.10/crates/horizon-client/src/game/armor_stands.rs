@@ -1464,7 +1464,7 @@ impl Game<'_> {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             emissive.overlay(texture).and_then(uv_of)
         };
-        let Some(wood) = uv_of("entity/armorstand/armorstand") else {
+        let Some(wood) = uv_of("entity/armorstand/wood") else {
             return;
         };
         let Some(model) = (if a.small { &assets.small } else { &assets.main }) else {
@@ -1505,7 +1505,7 @@ impl Game<'_> {
                 0,
                 out,
             );
-            if let Some(glow) = glow_of("entity/armorstand/armorstand") {
+            if let Some(glow) = glow_of("entity/armorstand/wood") {
                 let full = horizon_client::mobs::render::FULL_BRIGHT;
                 put(
                     &mut skin,
@@ -2030,20 +2030,16 @@ pub(super) fn spared_by_blast(a: &ArmorStand) -> bool {
     a.invisible || a.marker
 }
 
-/// `ArmorStand.brokenByAnything`: the equipment, less what curse of vanishing
-/// keeps (`PREVENT_EQUIPMENT_DROP`), popped at `blockPosition().above()`.
+/// `ArmorStand.brokenByAnything`: every piece of equipment, popped at
+/// `blockPosition().above()`. 1.21.10 drops them all: the
+/// `PREVENT_EQUIPMENT_DROP` (curse of vanishing) check is 26.1-only.
 fn broken_armor_stand_equipment(a: ArmorStand) -> ([i32; 3], Vec<ItemStack>) {
     let pos = [
         a.position.x.floor() as i32,
         a.position.y.floor() as i32 + 1,
         a.position.z.floor() as i32,
     ];
-    let drops = a
-        .equipment
-        .into_iter()
-        .flatten()
-        .filter(|stack| stack.enchantment_level("minecraft:vanishing_curse") == 0)
-        .collect();
+    let drops = a.equipment.into_iter().flatten().collect();
     (pos, drops)
 }
 #[cfg(test)]
@@ -2126,7 +2122,7 @@ mod burn_drop_tests {
         assert!(spared_by_blast(&stand));
     }
     #[test]
-    fn burnt_equipment_drops_above_the_block_and_vanishing_items_do_not_drop() {
+    fn burnt_equipment_drops_above_the_block_including_vanishing_items() {
         let mut stand = ArmorStand::new(1, Vec3::new(-0.1, 4.8, 0.0), 0.0);
         let kept = ItemStack::new("minecraft:diamond_boots", 1);
         let mut vanished = ItemStack::new("minecraft:diamond_helmet", 1);
@@ -2135,10 +2131,12 @@ mod burn_drop_tests {
             .enchantments
             .push(("minecraft:vanishing_curse".into(), 1));
         stand.equipment[0] = Some(kept.clone());
-        stand.equipment[1] = Some(vanished);
+        stand.equipment[1] = Some(vanished.clone());
         let (pos, drops) = broken_armor_stand_equipment(stand);
         assert_eq!(pos, [-1, 5, 0]);
-        assert_eq!(drops, vec![kept]);
+        // 1.21.10's brokenByAnything drops every piece: the
+        // PREVENT_EQUIPMENT_DROP check is 26.1-only.
+        assert_eq!(drops, vec![kept, vanished]);
     }
 }
 #[cfg(test)]

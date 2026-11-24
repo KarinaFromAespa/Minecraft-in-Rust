@@ -138,7 +138,7 @@ impl Limits {
     }
 
     /// Structure templates (`structure/*.nbt`): vanilla reads them with
-    /// `NbtAccounter.unlimitedHeap()` (TemplateSource.readStructure), and
+    /// `NbtAccounter.unlimitedHeap()` (StructureTemplateManager.readStructure), and
     /// mods ship templates past the default node cap (YUNG's Better Ocean
     /// Monuments' start piece, 115x64x126 blocks, holds millions of tags).
     /// The byte cap stays as the only guard on the decompressed file.

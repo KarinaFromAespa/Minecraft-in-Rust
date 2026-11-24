@@ -17,7 +17,7 @@ pub struct Column {
     pub top_y: i32,
     pub u_offset: f32,
     pub v_offset: f32,
-    /// Vanilla packed light (`LightCoordsUtil.pack`: block << 4 | sky << 20).
+    /// Vanilla packed light (`LightTexture.pack`: block << 4 | sky << 20).
     pub light_coords: i32,
 }
 

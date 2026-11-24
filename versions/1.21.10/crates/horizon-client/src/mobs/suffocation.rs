@@ -40,7 +40,7 @@ pub fn bind<'r>(
                 Never
             }
             Some(name) if name == "shulker_box" || name.ends_with("_shulker_box") => ClosedShulker,
-            _ => TaggedFullCollision,
+            _ => MotionFullCollision,
         };
         definitions.insert(state.name.clone(), definition);
     }

@@ -749,8 +749,10 @@ pub struct PiglinSpear {
 impl PiglinSpear {
     /// `new SpearApproach(1.0, 10.0F)`: the squared approach distance.
     const APPROACH_DISTANCE_SQ: f32 = 10.0 * 10.0;
-    /// `new SpearAttack(1.0, 1.0, 2.0F)`: the speed charging and the squared
-    /// radius around the target that ends the run at it.
+    /// `new SpearAttack(1.0, 1.0, 10.0F, 2.0F)`: the speed charging and
+    /// the squared radius around the target that ends the run at it.
+    /// (The 10.0F approach distance 1.21.10's constructor also takes is
+    /// never read by the behaviour — dead state 26.1 dropped.)
     const SPEED_MODIFIER_WHEN_CHARGING: f64 = 1.0;
     const TARGET_IN_RANGE_RADIUS_SQ: f32 = 2.0 * 2.0;
     /// The `speedModifierWhenRepositioning` of the three behaviours.

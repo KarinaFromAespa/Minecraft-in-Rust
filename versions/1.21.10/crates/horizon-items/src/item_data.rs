@@ -231,7 +231,7 @@ impl StackData {
         self.set_other("minecraft:debug_stick_state", Some(Tag::Compound(map)));
     }
 }
-/// `Raid.getBannerComponentPatch`: the ominous banner's pattern layers.
+/// `Raid.getOminousBannerInstance`: the ominous banner's pattern layers.
 pub const OMINOUS_LAYERS: [(&str, &str); 8] = [
     ("rhombus", "cyan"),
     ("stripe_bottom", "light_gray"),

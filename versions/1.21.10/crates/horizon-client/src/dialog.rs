@@ -98,7 +98,7 @@ pub enum Click {
 pub enum Body {
     /// `PlainMessage`: centred text wrapped to `width`.
     Message { contents: Text, width: i32 },
-    /// `ItemBody`: the item as `ItemStackTemplate` sent it.
+    /// `ItemBody`: the item as `ItemStack` sent it.
     Item {
         item: Tag,
         description: Option<(Text, i32)>,

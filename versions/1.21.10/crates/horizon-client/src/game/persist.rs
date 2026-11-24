@@ -1103,8 +1103,9 @@ impl Game<'_> {
         }
         // `NeutralMob.readPersistentAngerSaveData`: the anger runs until its
         // end time, and the mob is angry at the target again, through
-        // `Mob.setTarget` -> `asValidTarget`: a player the golem cannot attack
-        // (`IronGolem.canAttack`) comes back as no target.
+        // `Mob.setTarget`; the target goal re-checks via `TargetingConditions`,
+        // so a player the golem cannot attack (`IronGolem.canAttackType`)
+        // comes back as no target.
         horizon_client::mobs::adopt_anger_end(&mut m, self.world.game_time);
         if m.extra.anger > 0 && m.extra.angry_at.is_some() {
             m.ai.target = (!m.built_by_player()).then_some(horizon_client::mobs::Who::Player);

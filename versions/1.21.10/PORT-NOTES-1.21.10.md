@@ -429,3 +429,40 @@ byte-identical between the trees and none of its named methods
 changed 1.21.11→1.21.10 per the jardiff (lambdas counted against
 their enclosing method — item 182's `MappedRegistry.freeze` went to
 review on exactly that: `lambda$freeze$5/7` changed).
+
+Batch 2 (80 carry-over): the 1.21.11 port's hunks applied by
+three-way merge (`git merge-file`, base = the mechanical-publish base
+2e2ef22, ours = the 1.21.10 tree, theirs = current 1.21.11) — 285
+carry-over files + 70 files the 1.21.11 port touched that no delta
+item covers (survive.rs, live.rs, block_survival.rs among them: the
+719-item delta only tracks 1.21.11→1.21.10 differences, so 89
+port files have no item). Hand-merged where the E6 triage flagged
+1.21.11-specific or uncertain units; 1.21.11-only parts reverted with
+jar evidence: the Horse/ZombieHorse DANGER_OTHER/DAMAGE_OTHER -1.0
+ctor malus (1.21.10's ctor returns before it), nautilus feeding
+(no nautilus in the 1.21.10 jar), the Timeline/WorldClock system
+(no `world/timeline`, ClockManager or WorldClock in the jar;
+tracks sample at day time instead), the preedit overlay (no
+PreeditEvent/IMEPreeditOverlay/preedit.png — preedit.rs deleted).
+Jar-verified carry-overs: shulker `orientation` (present in
+1.21.10), piglin 30-degree baby ears (no 5-degree angle),
+VillagerTrades bytecode-identical (modulo the npc→npc/villager
+package move), baby dims (Zombie/Fox/Piglin/ZombifiedPiglin
+BABY_DIMENSIONS values match 1.21.11's), texture renames
+(temperate_pig et al. present in 1.21.10), Particle.getLightColor
+(identical `hasChunkAt` guard), warnOnLowDiskSpace (present in
+both), ShareToLanScreen/WaterlilyBlock/EndDragonFight (all
+1.21.10's names). Also in this batch: item_model.rs rebuilt with
+the 96-entry 1.21.10 DATA_COMPONENT_TYPES list (1.21.11's 104
+minus the 8 removed) and no per-model `transformation` (no such
+field in 1.21.10's Unbaked records); game.rs, save.rs (ImpulseSave,
+`chunks` saved-data id, DragonFight/ScheduledEvents in level.dat
+— verified against the real 1.21.10 world), villager_trades.rs
+(new file), ice_spike.rs + random_patch.rs (new files; 26.x-only
+`minecraft:spike` removed with spike.rs); requires_file_fixing
+deleted (item 205); the age-lock native hook dropped from
+native-hooks.json. `cargo check -p horizon-world --lib` and
+`-p horizon-client --lib` both clean. 49 carry-over items stay
+open behind 30 hand-merge files (SlotDisplay renumbering, spear,
+hand.rs, item.rs, menu/remote/hub, cauldron, furnace, component,
+frames, end.rs, datapack/packs fixtures).

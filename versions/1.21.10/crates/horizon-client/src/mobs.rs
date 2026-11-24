@@ -1113,12 +1113,6 @@ pub struct Extra {
     pub passenger: bool,
     /// AgeableMob.age: negative while a baby (a tadpole counts up to 24000).
     pub age: i32,
-    /// `AgeLocked` (tadpoles fed a slime ball... and ageable mobs).
-    pub age_locked: bool,
-    /// `AgeableMob.ageLockParticleTimer` (a tadpole's too): the ticks of
-    /// growth particles left after a golden dandelion, and the cooldown
-    /// before the next one can be used. Not saved.
-    pub age_lock_particle_timer: i32,
     /// AgeableMob.forcedAge: the age fed food added, restored as the age
     /// when it reaches 0 (`ForcedAge`).
     pub forced_age: i32,
@@ -1542,9 +1536,6 @@ pub struct Mob {
     /// the mob is invulnerable as with `Invulnerable` (`isTemporarilyInvulnerable`).
     pub invulnerable_time: i32,
     pub death_time: i32,
-    /// `LivingEntity.currentImpulseContextResetGraceTime`: ticks left to keep
-    /// the impulse context after a wind charge or mace impulse.
-    pub impulse_grace_time: i32,
     pub age: u32,
     pub limb_position: f32,
     pub limb_speed: f32,
@@ -3156,7 +3147,7 @@ pub struct PlayerView {
     /// (`getControllingPassenger`).
     pub vehicle: Option<Vehicle>,
 }
-/// What a player rides, for the mobs that follow it (`FollowPlayerRiddenEntityGoal`).
+/// What a player rides, for the mobs that follow it (`FollowBoatGoal`).
 #[derive(Clone, Debug)]
 pub struct Vehicle {
     pub nautilus: bool,
@@ -3409,7 +3400,6 @@ impl Mob {
             invulnerable: 0,
             invulnerable_time: 0,
             death_time: 0,
-            impulse_grace_time: 0,
             age: 0,
             limb_position: 0.0,
             limb_speed: 0.0,

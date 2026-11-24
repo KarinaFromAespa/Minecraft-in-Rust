@@ -624,6 +624,13 @@ impl Game<'_> {
             })
             .collect();
         let mut raids = std::mem::take(&mut self.raiding.raids);
+        // `findRandomSpawnPos` draws from the level random in 1.21.10;
+        // taken out like the patrol spawner's (the `Lvl` below borrows
+        // the game, so the random cannot stay in place).
+        let mut random = std::mem::replace(
+            &mut self.world.random,
+            horizon_core::random::LegacyRandom::new(0),
+        );
         let actions = {
             let lvl = Lvl {
                 game: self,
@@ -631,8 +638,9 @@ impl Game<'_> {
                 centers: &centers,
             };
             let members = |id: i32| infos.get(&id).cloned().unwrap_or_default();
-            raids.tick(&lvl, self.ui.rules.bool("raids"), &members)
+            raids.tick(&lvl, &mut random, self.ui.rules.bool("raids"), &members)
         };
+        self.world.random = random;
         self.raiding.raids = raids;
         for (id, (old, _)) in old_states {
             if let Some(r) = self.raiding.raids.get(id)
@@ -1187,8 +1195,10 @@ impl Game<'_> {
 
     /// The raid bar a living player at `at` is in (`Raid.getPlayers`): red,
     /// notched in tens. The name is the translate component the client draws.
+    /// No dimension gate: a raid can start in the End (`can_start_raid`
+    /// defaults true there); only the Nether forbids it, via the attribute.
     pub(super) fn raid_boss_at(&self, at: [f64; 3], alive: bool) -> Option<(i32, Tag, f32)> {
-        if !alive || self.dim != Dim::Overworld {
+        if !alive {
             return None;
         }
         let block = block_of(Vec3::new(at[0], at[1], at[2]));
@@ -1315,17 +1325,18 @@ impl Game<'_> {
     }
     /// `VillageSiege.tick`: at midnight one night in ten, 20 zombies spawn
     /// two ticks apart near a village 32 blocks from a player standing in it.
+    /// Every level ticks its custom spawners, so a village in the Nether or
+    /// the End can be sieged too (`Level.isBrightOutside` is never true
+    /// where time is fixed; only `mushroom_fields` biomes are exempt).
     pub(super) fn tick_village_siege(&mut self) {
-        if self.dim != Dim::Overworld {
-            return;
-        }
         let enemies = self.ui.rules.bool("spawn_mobs") && self.ui.rules.bool("spawn_monsters");
-        if self.sky_darken() < 4 || !enemies {
+        // `Level.isBrightOutside`: `!hasFixedTime && skyDarken < 4`.
+        if (!self.dimension_type().has_fixed_time && self.sky_darken() < 4) || !enemies {
             self.raiding.siege.tonight = false;
             self.raiding.siege.set_up = false;
             return;
         }
-        // ClockTimeMarkers.ROLL_VILLAGE_SIEGE: tick 18000 of the 24000 tick day.
+        // The roll is at `getDayTime() % 24000 == 18000` (midnight).
         if self.world.day_time.rem_euclid(24000) == 18000 {
             self.raiding.siege.tonight = self.world.random.next_int_bound(10).unwrap_or(1) == 0;
         }

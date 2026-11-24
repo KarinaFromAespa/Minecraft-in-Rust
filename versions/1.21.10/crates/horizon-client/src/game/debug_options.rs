@@ -531,7 +531,7 @@ fn debug_options_interrupts(screen: Screen, playing_overlay: bool) -> bool {
         | Screen::Mod => true,
         Screen::Chat
         | Screen::Options
-        | Screen::WorldOptions
+        | Screen::ShareToLan
         | Screen::CommandBlock
         | Screen::BlockEditor
         | Screen::Dead
@@ -601,7 +601,7 @@ mod tests {
             Screen::Dead,
             Screen::Chat,
             Screen::Options,
-            Screen::WorldOptions,
+            Screen::ShareToLan,
             Screen::CommandBlock,
             Screen::BlockEditor,
             Screen::Win,

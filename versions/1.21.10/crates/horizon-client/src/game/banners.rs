@@ -50,7 +50,7 @@ pub(super) fn map_banner(
     })
 }
 
-/// Texture names and tints of banner layers (`Sheets.getBannerSprite`).
+/// Texture names and tints of banner layers (`Sheets.getBannerMaterial`).
 pub(super) fn layer_textures(
     banners: &banner::Banners,
     layers: &[BannerLayer],

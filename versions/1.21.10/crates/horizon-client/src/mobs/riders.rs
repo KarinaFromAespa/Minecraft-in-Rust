@@ -72,7 +72,12 @@ fn base_attachment(v: &Mob) -> [f64; 3] {
         Species::Spider => up(0.765),
         Species::Ravager => pt(0.0, 2.2625, -0.0625),
         Species::Horse => up(1.44375),
+        // `AbstractChestedHorse`'s baby dimensions (1.21.10): the seat
+        // is the type's height less 0.15625, centred, halved with the
+        // box — donkey 1.5, mule 1.6.
+        Species::Donkey if baby => up(0.671875),
         Species::Donkey => up(1.1125),
+        Species::Mule if baby => up(0.721875),
         Species::Mule => up(1.2125),
         Species::SkeletonHorse | Species::ZombieHorse => up(1.31875),
         Species::Pig if baby => up(0.5),
@@ -103,6 +108,9 @@ fn base_attachment(v: &Mob) -> [f64; 3] {
         Species::Sniffer => up(2.09375),
         Species::Fox => pt(0.0, 0.6375, -0.25),
         Species::Frog => pt(0.0, 0.375, -0.25),
+        // `Llama.BABY_DIMENSIONS` (1.21.10): the seat is the height
+        // (1.87) less 0.8125, halved with the box.
+        Species::Llama | Species::TraderLlama if baby => pt(0.0, 0.52875, -0.15),
         Species::Llama | Species::TraderLlama => pt(0.0, 1.37, -0.3),
         Species::Turtle => pt(0.0, 0.55625, -0.25),
         Species::Wolf => pt(0.0, 0.81875, -0.0625),
@@ -699,6 +707,50 @@ mod tests {
             1.312_500_059_604_645
         ));
     }
+    /// `AbstractChestedHorse`'s and `Llama`'s `BABY_DIMENSIONS` override
+    /// PASSENGER: a baby chested horse's seat is its height less
+    /// 0.15625, centred; a baby llama's is its height less 0.8125;
+    /// both halved with the box.
+    #[test]
+    fn baby_chested_horses_and_llamas_use_their_own_passenger_attachments() {
+        let base = (*crate::mobs::sensor_scan_tests::kind()).clone();
+        for (species, id, baby, adult) in [
+            (
+                Species::Donkey,
+                "minecraft:donkey",
+                [0.0, 0.671875, 0.0],
+                [0.0, 1.112_499_952_316_284_2, 0.0],
+            ),
+            (
+                Species::Mule,
+                "minecraft:mule",
+                [0.0, 0.721_875_011_920_929, 0.0],
+                [0.0, 1.212_499_976_158_142, 0.0],
+            ),
+            (
+                Species::Llama,
+                "minecraft:llama",
+                [0.0, 0.528_750_002_384_185_8, -0.150_000_005_960_464_48],
+                [0.0, 1.370_000_004_768_371_6, -0.300_000_011_920_928_96],
+            ),
+            (
+                Species::TraderLlama,
+                "minecraft:trader_llama",
+                [0.0, 0.528_750_002_384_185_8, -0.150_000_005_960_464_48],
+                [0.0, 1.370_000_004_768_371_6, -0.300_000_011_920_928_96],
+            ),
+        ] {
+            let mut kind = base.clone();
+            kind.id = id.into();
+            kind.species = species;
+            let mut vehicle = Mob::new(1, std::sync::Arc::new(kind), Vec3::ZERO, 0.0);
+            for (age, expected) in [(-24000, baby), (-1, baby), (0, adult), (42, adult)] {
+                vehicle.extra.age = age;
+                assert_eq!(passenger_attachment(&vehicle), expected, "{id} age={age}");
+            }
+        }
+    }
+
     /// `Pig.getDefaultDimensions`: BABY_DIMENSIONS overrides PASSENGER.
     #[test]
     fn a_baby_pig_uses_its_own_passenger_attachment() {

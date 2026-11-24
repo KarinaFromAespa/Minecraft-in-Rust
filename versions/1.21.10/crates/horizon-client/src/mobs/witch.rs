@@ -230,11 +230,12 @@ fn witch_attack(m: &mut Mob, who: Who, _power: f32, cx: &mut Cx) {
         start,
         Some(Who::Mob(m.id)),
     );
-    // Splash potions throw with gravity 0.05.
+    // Splash potions throw with gravity 0.05. 1.21.10 always throws at
+    // 0.75 (26.1 slowed close-range throws to 0.45 within 2 blocks).
     p.shoot(
         &mut crate::random_source::entity(),
         [xd, yd + dist * 0.2, zd],
-        if dist <= 2.0 { 0.45 } else { 0.75 },
+        0.75,
         8.0,
     );
     cx.events.push(MobEvent::Projectile(p));
@@ -457,6 +458,16 @@ mod tests {
         assert!(events.is_empty());
         let mut untouched = LegacyRandom::new(11);
         assert_eq!(quiet.random.next_float(), untouched.next_float());
+    }
+
+    #[test]
+    fn the_witch_wears_the_flat_texture() {
+        // `WitchRenderer`: 1.21.10 keeps the texture at
+        // `textures/entity/witch.png` (26.1 moved it under `witch/`).
+        assert_eq!(
+            crate::mobs::species::def(Species::Witch).texture,
+            "entity/witch"
+        );
     }
 
     /// The hoisted list is exactly the set `is_raider` answers yes for.

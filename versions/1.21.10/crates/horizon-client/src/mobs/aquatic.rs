@@ -175,8 +175,9 @@ pub fn register(m: &mut Mob) {
             g.add(6, MeleeAttack::new(f64::from(1.2_f32), true));
             g.add(7, super::dolphin::MoveToItem::default());
             g.add(8, super::dolphin::PlayWithItems);
-            g.add(8, super::dolphin::FollowPlayerRidden::new(false));
-            g.add(8, super::dolphin::FollowPlayerRidden::new(true));
+            // `Dolphin.registerGoals`: one FollowBoatGoal at 8 (26.1
+            // adds a second for nautiluses).
+            g.add(8, super::dolphin::FollowBoat::new());
             // `Dolphin.registerGoals`: AvoidEntityGoal(Guardian.class, 8, 1, 1).
             g.add(
                 9,
@@ -250,13 +251,6 @@ pub fn puff_scale(state: i32) -> f64 {
         _ => 1.0,
     }
 }
-/// `Tadpole.setAgeLockedData`: a golden dandelion flips the lock, puts the
-/// age back to 0 and starts the particle timer (40 ticks).
-pub fn set_age_locked_data(m: &mut Mob) {
-    m.extra.age_locked = !m.extra.age_locked;
-    m.extra.age = 0;
-    m.extra.age_lock_particle_timer = 40;
-}
 /// Species aiStep additions.
 pub fn ai_step(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
     use Species as S;
@@ -268,7 +262,7 @@ pub fn ai_step(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
         }
         S::Tadpole => {
             // Tadpole.aiStep: growing up into a frog after 24000 ticks.
-            if m.extra.age >= 0 && !m.extra.age_locked {
+            if m.extra.age >= 0 {
                 m.extra.age += 1;
                 if m.extra.age >= 24_000 && !m.removed {
                     m.removed = true;
@@ -300,8 +294,6 @@ pub fn ai_step(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
                 m.on_ground = false;
                 m.sound("entity.tadpole.flop", events);
             }
-            // Tadpole.aiStep: the age lock's particles, after the age.
-            super::ai::make_age_locked_particle(m, events);
         }
         S::Cod | S::Salmon | S::TropicalFish | S::Pufferfish => {
             // AbstractFish.aiStep flops on land (applied before travel next tick).

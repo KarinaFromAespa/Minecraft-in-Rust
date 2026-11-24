@@ -1,6 +1,6 @@
 //! `Player.getCooldowns()` (`ItemCooldowns`) as the game keeps it: the
 //! `use_cooldown` component's entries by cooldown group, counted down once a
-//! tick, and the percent `GuiGraphicsExtractor.itemCooldown` shades a slot
+//! tick, and the percent `GuiGraphics.renderItemCooldown` shades a slot
 //! by. The world crate's `item_cooldowns` models vanilla's hash map and its
 //! observers for the parity harness; this is the same data with the lookup a
 //! slot needs, and no observer (vanilla's own player uses the plain class).

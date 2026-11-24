@@ -255,6 +255,31 @@ fn a_knot_tied_again_after_its_last_lead_is_a_new_entity() {
 
 #[test]
 #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn a_fence_clicked_with_a_lead_keeps_its_knot_when_nothing_attaches() {
+    let mut game = game();
+    // A pig on the player's lead, 14 blocks from the fence: in hand (the
+    // 16-block box) but out of snapping range (12), so it cannot attach.
+    let command = "summon pig 22.5 201 0.5 {NoAI:1b,PersistenceRequired:1b,NoGravity:1b,UUID:[I;24730,0,0,1]}";
+    assert!(game.run_command(command), "{command}");
+    step(&mut game);
+    let i = mob(&mut game, PIG);
+    game.mobs[i].extra.leash = Some(Holder::Player);
+    game.mobs[i].extra.leash_player = Some(game.acting_uuid());
+    assert!(game.run_command("item replace entity @s weapon.mainhand with lead"));
+    assert!(!game.use_knot([8, 201, 0], false), "nothing attaches");
+    let i = mob(&mut game, PIG);
+    assert_eq!(game.mobs[i].extra.leash, Some(Holder::Player));
+    // 1.21.10's bindPlayerMobs made the knot on the first leashable mob and
+    // kept it (26.1 discards a knot nothing hung on).
+    assert!(
+        game.knot_ids.contains_key(&[8, 201, 0]),
+        "the knot stays: {:?}",
+        game.knot_ids
+    );
+}
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
 fn the_same_fence_position_in_another_level_is_another_knot() {
     let mut game = game();
     game.enter_command_level(Dim::Nether);

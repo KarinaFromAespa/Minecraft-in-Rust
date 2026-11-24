@@ -123,9 +123,9 @@ impl Game<'_> {
         Some(horizon_client::lang::get_or(&key, &key))
     }
     /// `ToastManager.update` (it plays no toast sound for this toast) and
-    /// `extractRenderState` for the Now Playing toast, which slides in at the
+    /// `renderToast` for the Now Playing toast, which slides in at the
     /// top left over every screen but the pause screen, and
-    /// `PauseScreen.extractRenderState` with its `tick`, which draws the song
+    /// `PauseScreen.render` with its `tick`, which draws the song
     /// name on the pause menu under the Pause and Pause and Toast settings
     /// while music is audible. `hidden` (F1) keeps the toast
     /// timing out without drawing it.

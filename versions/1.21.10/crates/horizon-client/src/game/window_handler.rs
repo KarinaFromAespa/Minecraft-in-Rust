@@ -318,7 +318,6 @@ impl ApplicationHandler for Game<'_> {
         }
         self.window = Some(window);
         self.ime_allowed = false;
-        self.ime_area = None;
         self.apply_settings();
         self.previous = Instant::now();
     }

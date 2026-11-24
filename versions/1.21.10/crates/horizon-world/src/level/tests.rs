@@ -2333,6 +2333,59 @@ fn dripstone_fills_cauldrons() {
 }
 
 #[test]
+fn dripstone_grows_only_under_a_water_source_block() {
+    // `PointedDripstoneBlock.canGrow` in 1.21.10 wants a water BLOCK
+    // (source) two above the dripstone: waterlogged fluid alone, which
+    // 26.1's fluid-state test accepted, does not grow it. Each column
+    // ticks in its own world, so the two columns' random streams are
+    // independent.
+    let mut a = world!();
+    let block = a.id("dripstone_block", &[]);
+    let water = a.id("water", &[]);
+    let tip_a = a.id(
+        "pointed_dripstone",
+        &[("vertical_direction", "down"), ("thickness", "tip")],
+    );
+    a.put(BlockPos::new(0, 11, 0), water);
+    a.put(BlockPos::new(0, 10, 0), block);
+    a.put(BlockPos::new(0, 9, 0), tip_a);
+    let mut b = world!();
+    let block = b.id("dripstone_block", &[]);
+    let fence = b.id("oak_fence", &[("waterlogged", "true")]);
+    let tip_b = b.id(
+        "pointed_dripstone",
+        &[("vertical_direction", "down"), ("thickness", "tip")],
+    );
+    b.put(BlockPos::new(0, 11, 0), fence);
+    b.put(BlockPos::new(0, 10, 0), block);
+    b.put(BlockPos::new(0, 9, 0), tip_b);
+    // Precondition: the waterlogged fence really does hold water, so the
+    // old fluid-kind test would have let this column grow.
+    assert_eq!(
+        b.b().fluid(b.get(BlockPos::new(0, 11, 0))).kind(),
+        crate::fluid::FluidKind::Water,
+        "the fence holds water"
+    );
+    for _ in 0..1000 {
+        a.b()
+            .random_tick(&mut a.level, &mut a.ticks, BlockPos::new(0, 9, 0));
+        b.b()
+            .random_tick(&mut b.level, &mut b.ticks, BlockPos::new(0, 9, 0));
+    }
+    assert!(
+        a.name(BlockPos::new(0, 8, 0))
+            .starts_with("pointed_dripstone"),
+        "the water-source column grows: {}",
+        a.name(BlockPos::new(0, 8, 0))
+    );
+    assert_eq!(
+        b.name(BlockPos::new(0, 8, 0)),
+        "air",
+        "the waterlogged-fence column does not grow"
+    );
+}
+
+#[test]
 fn a_level_can_answer_for_a_blocks_signal() {
     let mut w = world!();
     let source = BlockPos::new(0, 1, 0);
@@ -2507,6 +2560,49 @@ fn sculk_charge_spreads_veins_and_sculk() {
             .any(|e| matches!(e, LevelEvent::LevelEvent { id: 3006, .. })),
         "charge particles are reported"
     );
+}
+
+/// `SculkBlock.canPlaceGrowth`: three sensors or shriekers near a charged
+/// sculk block stop it growing a new one above it; with fewer, the charge
+/// grows one.
+#[test]
+fn sculk_growth_stops_at_three_nearby_sensors() {
+    for sensors in [0, 3] {
+        let mut w = world!();
+        w.floor(0, 14, "stone");
+        let origin = BlockPos::new(0, 1, 0);
+        let catalyst = w.id("sculk_catalyst", &[]);
+        w.put(origin, catalyst);
+        let sculk_pos = BlockPos::new(10, 1, 0);
+        w.put(sculk_pos, w.id("sculk", &[]));
+        let sensor = w.id("sculk_sensor", &[]);
+        for (dx, dz) in [(-2, 0), (2, 0), (0, 2)].into_iter().take(sensors) {
+            w.put(BlockPos::new(10 + dx, 1, dz), sensor);
+        }
+        let mut spreader = sculk::SculkSpreader::default();
+        spreader.add_cursors(sculk_pos, 40);
+        for _ in 0..80 {
+            w.f.behaviours.sculk_update_cursors(
+                &mut w.level,
+                &mut w.ticks,
+                &mut spreader,
+                origin,
+                true,
+            );
+        }
+        let above = w.get(BlockPos::new(10, 2, 0));
+        let grown = above == w.id("sculk_sensor", &[]) || above == w.id("sculk_shrieker", &[]);
+        assert_eq!(
+            grown,
+            sensors == 0,
+            "with {sensors} sensors nearby, growth above the sculk is {}",
+            if sensors == 0 {
+                "expected"
+            } else {
+                "inhibited"
+            }
+        );
+    }
 }
 
 #[test]
@@ -2708,6 +2804,29 @@ fn a_bucket_replaces_a_bubble_column_and_breaks_a_flower() {
     assert_eq!(pour(&mut w), Some(at));
     assert_eq!(w.name(at), "water[level=0]");
     assert!(broke(&w), "a flower is broken before the water goes in");
+}
+
+#[test]
+fn soul_sand_under_water_raises_a_bubble_column_from_its_own_shape_update() {
+    let mut w = world!();
+    let sand = BlockPos::new(0, 10, 0);
+    let water = BlockPos::new(0, 11, 0);
+    // Raw placement (world generation): no onPlace, no neighbour updates,
+    // so the water-side check never fires. postProcessGeneration calls
+    // updateShape on the non-liquid blocks; SoulSandBlock.updateShape
+    // schedules the 20-tick bubble-column check when water is above, and
+    // its tick raises the column (drag=false: soul sand pushes up).
+    w.put(sand, w.id("soul_sand", &[]));
+    w.put(water, w.id("water", &[("level", "0")]));
+    let state = w.get(sand);
+    let updated = w
+        .b()
+        .update_from_neighbour_shapes(&mut w.level, &mut w.ticks, sand, state);
+    assert_eq!(updated, state);
+    for _ in 0..20 {
+        w.tick();
+    }
+    assert_eq!(w.name(water), "bubble_column[drag=false]");
 }
 
 #[test]
@@ -3003,6 +3122,481 @@ fn torch_survives_on_a_box_opening_down_but_not_on_an_open_lid() {
             .sim(&mut w.level, &mut w.ticks)
             .can_survive(torch, torch_pos),
         "the base plate of a box opening down still holds a torch"
+    );
+}
+
+#[test]
+fn vegetation_stands_on_dirt_or_farmland_but_not_on_stone() {
+    // `VegetationBlock.mayPlaceOn` in 1.21.10: the dirt tag or farmland
+    // (the `supports_vegetation` tag is gone).
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let plant_pos = BlockPos::new(0, 2, 0);
+    let dandelion = w.id("dandelion", &[]);
+    w.put(plant_pos, dandelion);
+    for (ground, stands) in [
+        ("dirt", true),
+        ("grass_block", true),
+        ("mud", true),
+        ("farmland", true),
+        ("stone", false),
+        ("sand", false),
+    ] {
+        w.put(ground_pos, w.id(ground, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(dandelion, plant_pos),
+            stands,
+            "a dandelion on {ground}"
+        );
+    }
+}
+
+#[test]
+fn a_stem_stands_on_farmland_only() {
+    // `StemBlock.mayPlaceOn` in 1.21.10: farmland, hardcoded (the
+    // `stemSupportBlocks` tag field is gone).
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let stem_pos = BlockPos::new(0, 2, 0);
+    let stem = w.id("pumpkin_stem", &[("age", "0")]);
+    w.put(stem_pos, stem);
+    for (ground, stands) in [
+        ("farmland", true),
+        ("dirt", false),
+        ("grass_block", false),
+        ("stone", false),
+    ] {
+        w.put(ground_pos, w.id(ground, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(stem, stem_pos),
+            stands,
+            "a pumpkin stem on {ground}"
+        );
+    }
+}
+
+#[test]
+fn a_crop_stands_on_farmland_only() {
+    // `CropBlock.mayPlaceOn` in 1.21.10: farmland, hardcoded (the
+    // `supports_crops` tag is gone; it held only farmland).
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let crop_pos = BlockPos::new(0, 2, 0);
+    let wheat = w.id("wheat", &[("age", "0")]);
+    w.put(crop_pos, wheat);
+    for (ground, stands) in [
+        ("farmland", true),
+        ("dirt", false),
+        ("grass_block", false),
+        ("stone", false),
+    ] {
+        w.put(ground_pos, w.id(ground, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(wheat, crop_pos),
+            stands,
+            "wheat on {ground}"
+        );
+    }
+}
+
+#[test]
+fn a_pitcher_crop_stands_on_farmland_only() {
+    // `PitcherCropBlock.mayPlaceOn` in 1.21.10: farmland, hardcoded (the
+    // `supports_crops` tag is gone).
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let crop_pos = BlockPos::new(0, 2, 0);
+    let pitcher = w.id("pitcher_crop", &[("half", "lower"), ("age", "0")]);
+    w.put(crop_pos, pitcher);
+    for (ground, stands) in [
+        ("farmland", true),
+        ("dirt", false),
+        ("grass_block", false),
+        ("stone", false),
+    ] {
+        w.put(ground_pos, w.id(ground, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(pitcher, crop_pos),
+            stands,
+            "a pitcher crop on {ground}"
+        );
+    }
+}
+
+#[test]
+fn big_dripleaf_stands_on_dirt_but_not_on_stone() {
+    // `BigDripleafBlock.canSurvive` in 1.21.10: the placeable tag (renamed
+    // `big_dripleaf_placeable`, same members: dirt, grass, mud, farmland,
+    // clay, moss and the rest).
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let leaf_pos = BlockPos::new(0, 2, 0);
+    let leaf = w.id(
+        "big_dripleaf",
+        &[
+            ("facing", "north"),
+            ("tilt", "none"),
+            ("waterlogged", "false"),
+        ],
+    );
+    w.put(leaf_pos, leaf);
+    for (ground, stands) in [
+        ("dirt", true),
+        ("grass_block", true),
+        ("mud", true),
+        ("farmland", true),
+        ("clay", true),
+        ("stone", false),
+        ("sand", false),
+    ] {
+        w.put(ground_pos, w.id(ground, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(leaf, leaf_pos),
+            stands,
+            "a big dripleaf on {ground}"
+        );
+    }
+}
+
+#[test]
+fn a_cactus_stands_on_sand_or_cactus() {
+    // `CactusBlock.mayPlaceOn` in 1.21.10: cactus or the sand tag (26.1
+    // renamed it `supports_cactus`, which does not exist in 1.21.10).
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let cactus_pos = BlockPos::new(0, 2, 0);
+    let cactus = w.id("cactus", &[("age", "0")]);
+    w.put(cactus_pos, cactus);
+    for (ground, stands) in [
+        ("sand", true),
+        ("red_sand", true),
+        ("cactus", true),
+        ("dirt", false),
+        ("stone", false),
+    ] {
+        w.put(ground_pos, w.id(ground, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(cactus, cactus_pos),
+            stands,
+            "a cactus on {ground}"
+        );
+    }
+}
+
+#[test]
+fn a_wither_rose_stands_on_dirt_farmland_or_soul_blocks() {
+    // `WitherRoseBlock.mayPlaceOn` in 1.21.10: its parent's check (the
+    // dirt tag or farmland) or netherrack, soul sand or soul soil (26.1
+    // reads the `supports_wither_rose` tag instead, gone in 1.21.10).
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let rose_pos = BlockPos::new(0, 2, 0);
+    let rose = w.id("wither_rose", &[]);
+    w.put(rose_pos, rose);
+    for (ground, stands) in [
+        ("dirt", true),
+        ("grass_block", true),
+        ("farmland", true),
+        ("netherrack", true),
+        ("soul_sand", true),
+        ("soul_soil", true),
+        ("stone", false),
+        ("sand", false),
+    ] {
+        w.put(ground_pos, w.id(ground, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(rose, rose_pos),
+            stands,
+            "a wither rose on {ground}"
+        );
+    }
+}
+
+#[test]
+fn a_lily_pad_stands_on_water_or_ice() {
+    // `WaterlilyBlock.mayPlaceOn` in 1.21.10: the fluid below is water,
+    // or the ground is an `IceBlock` (ice or frosted ice; packed and blue
+    // ice are plain `Block`), and the fluid above is empty.
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let pad_pos = BlockPos::new(0, 2, 0);
+    let pad = w.id("lily_pad", &[]);
+    w.put(pad_pos, pad);
+    for (ground, stands) in [
+        ("water", true),
+        ("ice", true),
+        ("frosted_ice", true),
+        ("packed_ice", false),
+        ("blue_ice", false),
+        ("dirt", false),
+    ] {
+        w.put(ground_pos, w.id(ground, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(pad, pad_pos),
+            stands,
+            "a lily pad on {ground}"
+        );
+    }
+}
+
+#[test]
+fn farmland_stands_under_a_fence_gate_or_moving_piston() {
+    // `FarmBlock.canSurvive` in 1.21.10: the block above is not solid, or
+    // a fence gate or a moving piston, hardcoded (26.1 consults the
+    // `maintains_farmland` tag, which 26.1's data extends with both).
+    let mut w = world!();
+    let farm_pos = BlockPos::new(0, 1, 0);
+    let above_pos = BlockPos::new(0, 2, 0);
+    let farm = w.id("farmland", &[("moisture", "0")]);
+    w.put(farm_pos, farm);
+    assert!(
+        w.b()
+            .sim(&mut w.level, &mut w.ticks)
+            .can_survive(farm, farm_pos),
+        "farmland under air"
+    );
+    for (above, stands) in [
+        ("stone", false),
+        ("oak_fence_gate", true),
+        ("moving_piston", true),
+    ] {
+        w.put(above_pos, w.id(above, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(farm, farm_pos),
+            stands,
+            "farmland under {above}"
+        );
+    }
+}
+
+#[test]
+fn crop_growth_speed_counts_moist_farmland() {
+    // `CropBlock.getGrowthSpeed` in 1.21.10: farmland under the crop counts
+    // (the `grows_crops` tag is gone); moist farmland counts 3, dry 1.
+    let mut w = world!();
+    let crop_pos = BlockPos::new(0, 2, 0);
+    let under = BlockPos::new(0, 1, 0);
+    let wheat = w.b().table.block_by_name("minecraft:wheat").unwrap();
+    w.put(crop_pos, w.id("wheat", &[("age", "0")]));
+    w.put(under, w.id("farmland", &[("moisture", "7")]));
+    let moist = w
+        .b()
+        .sim(&mut w.level, &mut w.ticks)
+        .crop_growth_speed(wheat, crop_pos);
+    assert!((moist - 4.0).abs() < 0.001, "moist farmland: {moist}");
+    w.put(under, w.id("farmland", &[("moisture", "0")]));
+    let dry = w
+        .b()
+        .sim(&mut w.level, &mut w.ticks)
+        .crop_growth_speed(wheat, crop_pos);
+    assert!((dry - 2.0).abs() < 0.001, "dry farmland: {dry}");
+    w.put(under, w.id("dirt", &[]));
+    let dirt = w
+        .b()
+        .sim(&mut w.level, &mut w.ticks)
+        .crop_growth_speed(wheat, crop_pos);
+    assert!((dirt - 1.0).abs() < 0.001, "dirt: {dirt}");
+}
+
+#[test]
+fn bone_meal_still_feeds_a_sweet_berry_bush_with_a_block_above() {
+    // `SweetBerryBushBlock.isValidBonemealTarget` in 1.21.10 is age < 3
+    // only (26.1 also required air above inside the build height), so
+    // bonemeal on a growing bush under a solid block is still consumed.
+    let mut w = world!();
+    let pos = BlockPos::new(0, 1, 0);
+    w.put(pos, w.id("sweet_berry_bush", &[("age", "0")]));
+    w.put(BlockPos::new(0, 2, 0), w.id("stone", &[]));
+    assert!(
+        w.b().sim(&mut w.level, &mut w.ticks).grow_crop(pos),
+        "bonemeal is consumed under a solid block"
+    );
+    assert_eq!(w.prop(pos, "age"), "1", "the bush grows a stage");
+}
+
+#[test]
+fn bone_meal_still_feeds_grass_at_the_build_ceiling() {
+    // `GrassBlock.isValidBonemealTarget` in 1.21.10 has no build-height
+    // check (26.x added one), so bonemeal on grass at y 319 is consumed
+    // even though nothing can grow above the ceiling.
+    let mut w = world!();
+    let pos = BlockPos::new(0, 319, 0);
+    w.put(pos, w.id("grass_block", &[("snowy", "false")]));
+    assert!(
+        w.b().sim(&mut w.level, &mut w.ticks).grow_crop(pos),
+        "bonemeal is consumed at the ceiling"
+    );
+}
+
+#[test]
+fn bone_meal_still_feeds_an_azalea_at_the_build_ceiling() {
+    // `AzaleaBlock.isValidBonemealTarget` in 1.21.10 asks only for the
+    // fluid above to be empty (26.x also asked the build height via
+    // `TreeGrower.getMinimumHeight`, a method 1.21.10 does not have), so
+    // bonemeal on an azalea at y 319 is consumed.
+    let mut w = world!();
+    let pos = BlockPos::new(0, 319, 0);
+    w.put(pos, w.id("azalea", &[]));
+    assert!(
+        w.b().sim(&mut w.level, &mut w.ticks).grow_crop(pos),
+        "bonemeal is consumed at the ceiling"
+    );
+}
+
+#[test]
+fn bone_meal_still_feeds_tall_grass_at_the_build_ceiling() {
+    // `TallGrassBlock.isValidBonemealTarget` in 1.21.10 has no build-height
+    // check (26.x added one): the short grass still grows into a tall one,
+    // and only the upper half fails to place above the ceiling.
+    let mut w = world!();
+    let pos = BlockPos::new(0, 319, 0);
+    w.put(BlockPos::new(0, 318, 0), w.id("dirt", &[]));
+    w.put(pos, w.id("short_grass", &[]));
+    assert!(
+        w.b().sim(&mut w.level, &mut w.ticks).grow_crop(pos),
+        "bonemeal is consumed at the ceiling"
+    );
+    assert_eq!(
+        w.get(pos),
+        w.id("tall_grass", &[("half", "lower"), ("waterlogged", "false")]),
+        "the lower half still grows"
+    );
+}
+
+#[test]
+fn a_pitcher_crop_still_grows_at_the_build_ceiling() {
+    // `PitcherCropBlock.canGrow` in 1.21.10 has no build-height check (26.x
+    // added one): a pitcher crop at y 319 still ages, and only the upper
+    // half fails to place above the ceiling.
+    let mut w = world!();
+    let pos = BlockPos::new(0, 319, 0);
+    w.put(
+        pos,
+        w.id("pitcher_crop", &[("half", "lower"), ("age", "2")]),
+    );
+    assert!(
+        w.b().sim(&mut w.level, &mut w.ticks).grow_crop(pos),
+        "bonemeal is consumed at the ceiling"
+    );
+    assert_eq!(w.prop(pos, "age"), "3", "the crop still ages");
+}
+
+#[test]
+fn bone_meal_refuses_a_dripleaf_stem_whose_leaf_is_at_the_ceiling() {
+    // `BigDripleafStemBlock.isValidBonemealTarget` in 1.21.10 asks the
+    // leaf's `canPlaceAt` above the head, build height included — so a stem
+    // whose leaf sits at y 319 takes no meal, and the ungated
+    // `performBonemeal` (which trusts the valid check, in both versions)
+    // never runs to overwrite the leaf with a stem. Lower down, the same
+    // meal grows the column: the leaf becomes a stem and a new leaf opens
+    // above it.
+    let mut w = world!();
+    let dirt = w.id("dirt", &[]);
+    let stem = w.id("big_dripleaf_stem", &[("facing", "north")]);
+    let leaf = w.id("big_dripleaf", &[("facing", "north")]);
+    w.put(BlockPos::new(0, 317, 0), dirt);
+    w.put(BlockPos::new(0, 318, 0), stem);
+    w.put(BlockPos::new(0, 319, 0), leaf);
+    assert!(
+        !w.b()
+            .sim(&mut w.level, &mut w.ticks)
+            .grow_crop(BlockPos::new(0, 318, 0)),
+        "bonemeal is refused at the ceiling"
+    );
+    assert_eq!(
+        w.get(BlockPos::new(0, 319, 0)),
+        leaf,
+        "the leaf stays a leaf"
+    );
+    assert_eq!(
+        w.get(BlockPos::new(0, 318, 0)),
+        stem,
+        "the stem stays a stem"
+    );
+    w.put(BlockPos::new(4, 98, 0), dirt);
+    w.put(BlockPos::new(4, 99, 0), stem);
+    w.put(BlockPos::new(4, 100, 0), leaf);
+    assert!(
+        w.b()
+            .sim(&mut w.level, &mut w.ticks)
+            .grow_crop(BlockPos::new(4, 99, 0)),
+        "bonemeal grows the lower column"
+    );
+    assert_eq!(
+        w.get(BlockPos::new(4, 100, 0)),
+        stem,
+        "the leaf becomes a stem"
+    );
+    assert_eq!(
+        w.get(BlockPos::new(4, 101, 0)),
+        leaf,
+        "a new leaf opens above"
+    );
+}
+
+#[test]
+fn small_dripleaf_stands_on_clay_or_watered_dirt() {
+    // `SmallDripleafBlock.mayPlaceOn`: the placeable tag (clay, moss) or,
+    // with water above the ground, `VegetationBlock.mayPlaceOn` (dirt or
+    // farmland). The tag was renamed `small_dripleaf_placeable` in 1.21.10.
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let leaf_pos = BlockPos::new(0, 2, 0);
+    let dry = w.id(
+        "small_dripleaf",
+        &[
+            ("half", "lower"),
+            ("facing", "north"),
+            ("waterlogged", "false"),
+        ],
+    );
+    let wet = w.id(
+        "small_dripleaf",
+        &[
+            ("half", "lower"),
+            ("facing", "north"),
+            ("waterlogged", "true"),
+        ],
+    );
+    w.put(ground_pos, w.id("clay", &[]));
+    w.put(leaf_pos, dry);
+    assert!(
+        w.b()
+            .sim(&mut w.level, &mut w.ticks)
+            .can_survive(dry, leaf_pos),
+        "a small dripleaf stands on clay"
+    );
+    w.put(ground_pos, w.id("dirt", &[]));
+    assert!(
+        !w.b()
+            .sim(&mut w.level, &mut w.ticks)
+            .can_survive(dry, leaf_pos),
+        "a dry small dripleaf does not stand on dirt"
+    );
+    w.put(leaf_pos, wet);
+    assert!(
+        w.b()
+            .sim(&mut w.level, &mut w.ticks)
+            .can_survive(wet, leaf_pos),
+        "a waterlogged small dripleaf stands on dirt"
     );
 }
 
@@ -3970,6 +4564,34 @@ fn a_level_can_answer_how_a_block_burns() {
     assert_eq!(w.get(at.offset(1, 0, 0)), glass, "and never burns it away");
 }
 
+/// `BaseFireBlock.onPlace`: fire lit inside an empty obsidian frame
+/// (Overworld) creates the portal blocks.
+#[test]
+fn fire_lit_inside_an_obsidian_frame_creates_a_portal() {
+    let mut w = world!();
+    w.floor(0, 10, "stone");
+    let obsidian = w.id("obsidian", &[]);
+    // A 4-wide, 5-tall frame at z = 0, interior 2 by 3.
+    for x in 0..4 {
+        w.set(BlockPos::new(x, 1, 0), obsidian);
+        w.set(BlockPos::new(x, 5, 0), obsidian);
+    }
+    for y in 2..5 {
+        w.set(BlockPos::new(0, y, 0), obsidian);
+        w.set(BlockPos::new(3, y, 0), obsidian);
+    }
+    w.set(BlockPos::new(1, 2, 0), w.id("fire", &[]));
+    for y in 2..5 {
+        for x in 1..3 {
+            assert_eq!(
+                w.name(BlockPos::new(x, y, 0)),
+                "nether_portal[axis=x]",
+                "the frame's interior becomes portal blocks"
+            );
+        }
+    }
+}
+
 #[test]
 fn a_level_can_answer_what_makes_a_campfire_signal() {
     let mut w = world!();
@@ -4169,6 +4791,90 @@ fn fresh_chunk_block_events_do_not_wait_for_ticking_readiness() {
             assert!(w.ticks.block_events.is_empty());
         }
     }
+}
+
+/// `DragonEggBlock.teleport`: 1.21.10 takes the first air block inside the
+/// build height, with no support below; 26.1 required a non-air block below
+/// the target, so in an all-air world the old rule never finds one.
+#[test]
+fn a_dragon_egg_teleports_without_support_below() {
+    let mut w = world!();
+    let pos = BlockPos::new(0, 64, 0);
+    let egg = w.id("dragon_egg", &[]);
+    w.put(pos, egg);
+    assert_eq!(w.use_block(pos), InteractionResult::Success);
+    assert_eq!(w.get(pos), w.b().air(), "the egg left its block");
+    let mut found = 0;
+    for x in -16..=16 {
+        for y in -8..=8 {
+            for z in -16..=16 {
+                if w.get(BlockPos::new(x, 64 + y, z)) == egg {
+                    found += 1;
+                }
+            }
+        }
+    }
+    assert_eq!(found, 1, "the egg landed exactly once, over air");
+}
+
+#[test]
+fn soul_sand_under_water_forms_a_push_up_bubble_column() {
+    let mut w = world!();
+    w.floor(0, 2, "stone");
+    let water = w.id("water", &[]);
+    // A stone shaft so the source water cannot spread sideways.
+    for y in 1..=3 {
+        w.put(BlockPos::new(0, y, 0), water);
+        for (x, z) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            w.put(BlockPos::new(x, y, z), w.id("stone", &[]));
+        }
+    }
+    w.set(BlockPos::new(0, 0, 0), w.id("soul_sand", &[]));
+    for _ in 0..21 {
+        w.tick();
+    }
+    let up = w.id("bubble_column", &[("drag_down", "false")]);
+    for y in 1..=3 {
+        assert_eq!(w.get(BlockPos::new(0, y, 0)), up, "column at y={y}");
+    }
+}
+
+#[test]
+fn magma_under_water_forms_a_drag_down_bubble_column() {
+    let mut w = world!();
+    w.floor(0, 2, "stone");
+    let water = w.id("water", &[]);
+    for y in 1..=3 {
+        w.put(BlockPos::new(0, y, 0), water);
+        for (x, z) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            w.put(BlockPos::new(x, y, z), w.id("stone", &[]));
+        }
+    }
+    w.set(BlockPos::new(0, 0, 0), w.id("magma_block", &[]));
+    for _ in 0..21 {
+        w.tick();
+    }
+    let down = w.id("bubble_column", &[("drag_down", "true")]);
+    for y in 1..=3 {
+        assert_eq!(w.get(BlockPos::new(0, y, 0)), down, "column at y={y}");
+    }
+}
+
+#[test]
+fn a_bubble_column_without_support_becomes_water() {
+    let mut w = world!();
+    w.floor(0, 2, "stone");
+    w.put(
+        BlockPos::new(0, 1, 0),
+        w.id("bubble_column", &[("drag_down", "true")]),
+    );
+    // A neighbour change runs the column's updateShape, which finds no
+    // support below and schedules the 5-tick column check.
+    w.set(BlockPos::new(0, 1, 1), w.id("stone", &[]));
+    for _ in 0..6 {
+        w.tick();
+    }
+    assert_eq!(w.get(BlockPos::new(0, 1, 0)), w.id("water", &[]));
 }
 
 mod barrel;

@@ -39,7 +39,7 @@ impl Game<'_> {
             used = true;
         }
         let mut happy = false;
-        if m.is_baby() && !m.extra.age_locked {
+        if m.is_baby() {
             m.extra.age = (m.extra.age + age_up * 20).min(0);
             used = true;
             happy = true;

@@ -57,11 +57,11 @@ pub fn is_active(m: &Mob) -> bool {
 /// `Creaking.setTransient`: bind to the heart at `pos` and avoid damage.
 pub fn set_transient(m: &mut Mob, pos: [i32; 3]) {
     m.extra.home = Some(pos);
-    m.set_malus(PathType::Damaging, 8.0);
+    m.set_malus(PathType::DamageOther, 8.0);
     m.set_malus(PathType::PowderSnow, 8.0);
     m.set_malus(PathType::Lava, 8.0);
-    m.set_malus(PathType::Fire, 0.0);
-    m.set_malus(PathType::FireInNeighbor, 0.0);
+    m.set_malus(PathType::DamageFire, 0.0);
+    m.set_malus(PathType::DangerFire, 0.0);
 }
 /// `Creaking.setTearingDown`: the heart was broken by someone.
 pub fn set_tearing_down(m: &mut Mob) {

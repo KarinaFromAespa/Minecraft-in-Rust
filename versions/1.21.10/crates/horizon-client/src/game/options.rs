@@ -10,7 +10,7 @@ use horizon_client::{
     window::{FrameContext, InactivityFpsLimit, framerate_limit},
 };
 use serde_json::{Value, json};
-use winit::{event::MouseButton, keyboard::KeyCode, window::Fullscreen};
+use winit::{event::MouseButton, keyboard::KeyCode};
 
 /// `CommonLinks.ACCESSIBILITY_HELP`, the Accessibility page's footer link.
 pub(super) const ACCESSIBILITY_HELP_LINK: &str = "https://aka.ms/MinecraftJavaAccessibility";
@@ -126,10 +126,21 @@ impl Game<'_> {
         self.options_from_title = from_title;
         let minecart_improvements = self.minecart_improvements();
         let mods_live = self.mods_live_now();
+        // OptionsScreen.createOnlineButton: the Main page's difficulty control
+        // reads the world's difficulty, lock and hardcore state, and shows
+        // only in a singleplayer world.
+        let difficulty = self.ui.difficulty;
+        let difficulty_locked = self.level.difficulty_locked;
+        let hardcore = self.level.hardcore;
+        let singleplayer = self.has_singleplayer_server();
         let ui = &mut self.ui.options;
         ui.open_at(!from_title && self.title.is_none(), page);
         ui.mods_live = mods_live;
         ui.minecart_improvements = minecart_improvements;
+        ui.difficulty = difficulty;
+        ui.difficulty_locked = difficulty_locked;
+        ui.hardcore = hardcore;
+        ui.singleplayer = singleplayer;
         let root = self.options.resources.clone();
         ui.languages = lang::available(&[&root]);
         self.refresh_pack_lists();
@@ -389,8 +400,6 @@ impl Game<'_> {
                     self.settings.save(&Self::options_path());
                     self.screen = if let Some(screen) = self.panel.recipes_settings_return.take() {
                         screen
-                    } else if std::mem::take(&mut self.options_to_world_options) {
-                        Screen::WorldOptions
                     } else if self.options_from_title {
                         Screen::Playing
                     } else {
@@ -402,6 +411,23 @@ impl Game<'_> {
                 }
                 Event::Language(code) => {
                     self.load_language(&code);
+                }
+                // OptionsScreen.createDifficultyButton's onValueChange: the
+                // new difficulty goes to the integrated server, which applies
+                // it (`ServerGamePacketListenerImpl.handleChangeDifficulty`)
+                // and broadcasts it back; the button is inactive while locked
+                // or hardcore, so the server's guards are a second line.
+                Event::Difficulty(i) => {
+                    use horizon_protocol::packets::play::{ChangeDifficultyRequest, Serverbound};
+                    self.send(Serverbound::ChangeDifficulty(ChangeDifficultyRequest {
+                        difficulty: i32::from(i),
+                    }));
+                }
+                // lockCallback(true): lock the difficulty on the integrated
+                // server (`handleLockDifficulty`); the broadcast confirms it.
+                Event::LockDifficulty => {
+                    use horizon_protocol::packets::play::{LockDifficulty, Serverbound};
+                    self.send(Serverbound::LockDifficulty(LockDifficulty { locked: true }));
                 }
                 Event::Packs(_) => {
                     self.settings.save(&Self::options_path());
@@ -511,8 +537,8 @@ impl Game<'_> {
         self.ui.chat.rescale(&self.gui.atlas);
         self.creative_screen.forget_items();
     }
-    /// Window.updateFullscreenIfChanged: only a changed option asks the
-    /// window to change, so applying settings never undoes a fullscreen
+    /// `Window.updateDisplay`'s fullscreen check: only a changed option asks
+    /// the window to change, so applying settings never undoes a fullscreen
     /// the compositor set up.
     fn apply_fullscreen(&mut self) {
         // A splitscreen guest draws in a window it shares: its option never changes the window.
@@ -529,7 +555,6 @@ impl Game<'_> {
             }
             let in_video_screen = self.screen == Screen::Options && self.ui.options.video_open();
             let wanted = self.settings.fullscreen;
-            let exclusive = self.settings.file.bool("exclusiveFullscreen");
             let preferred = self
                 .settings
                 .file
@@ -538,7 +563,7 @@ impl Game<'_> {
                 .and_then(horizon_client::window::VideoMode::read);
             let leaving = !wanted && w.fullscreen().is_some();
             self.fullscreen
-                .apply(&w, wanted, exclusive, preferred, in_video_screen);
+                .apply(&w, wanted, preferred, in_video_screen);
             if leaving {
                 windowed_again(&w);
             }
@@ -632,8 +657,10 @@ impl Game<'_> {
             self.update_remote_skins();
         }
     }
-    /// `Window.updateFullscreenState`: a fullscreen change made by the window
-    /// system is adopted by the option (`Minecraft.fullscreenStateChanged`).
+    /// A fullscreen change made by the window system is adopted by the
+    /// option (vanilla 1.21.10 has no such path — under GLFW only
+    /// `glfwSetWindowMonitor` changes fullscreen — so this is the winit
+    /// half of the `fullscreen` / `actuallyFullscreen` pair).
     pub(super) fn observe_fullscreen(&mut self) {
         // HDR calibration's own fullscreen is not the player's option: it
         // goes back to what it was when the calibration ends.
@@ -689,12 +716,6 @@ impl Game<'_> {
                 .window
                 .as_ref()
                 .is_some_and(|w| w.is_minimized().unwrap_or(false)),
-            focused: self.focused,
-            // Window.isExclusiveFullscreen.
-            exclusive_fullscreen: self
-                .window
-                .as_ref()
-                .is_some_and(|w| matches!(w.fullscreen(), Some(Fullscreen::Exclusive(_)))),
             now_ms: self.started.elapsed().as_millis() as i64,
             latest_input_ms: self.last_input.duration_since(self.started).as_millis() as i64,
             has_level: self.title.is_none(),

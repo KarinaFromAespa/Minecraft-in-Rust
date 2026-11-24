@@ -15,7 +15,6 @@ pub(crate) const AIR: u32 = 1;
 pub(crate) const LEAVES: u32 = 1 << 1;
 pub(crate) const REPLACEABLE_BY_TREES: u32 = 1 << 2;
 pub(crate) const LOGS: u32 = 1 << 3;
-pub(crate) const PREVENTS_LEAF_DECAY: u32 = 1 << 4;
 pub(crate) const VINE: u32 = 1 << 5;
 pub(crate) const WATER_BLOCK: u32 = 1 << 6;
 pub(crate) const WATER_SOURCE: u32 = 1 << 7;
@@ -122,11 +121,6 @@ impl TreeBlocks {
             &mut flags,
         );
         mark_tag("minecraft:logs", LOGS, &mut flags);
-        mark_tag(
-            "minecraft:prevents_nearby_leaf_decay",
-            PREVENTS_LEAF_DECAY,
-            &mut flags,
-        );
         mark_tag(
             "minecraft:replaceable_by_mushrooms",
             MUSHROOM_REPLACEABLE,
@@ -264,7 +258,9 @@ impl TreeBlocks {
     }
     /// LeavesBlock.getOptionalDistanceAt.
     pub(crate) fn leaf_distance(&self, state: BlockStateId) -> Option<i32> {
-        if self.has(state, PREVENTS_LEAF_DECAY) {
+        // 1.21.10 anchors on the logs tag; the
+        // `prevents_nearby_leaf_decay` tag is 26.1-only.
+        if self.has(state, LOGS) {
             return Some(0);
         }
         match self.distance.get(state.0 as usize) {

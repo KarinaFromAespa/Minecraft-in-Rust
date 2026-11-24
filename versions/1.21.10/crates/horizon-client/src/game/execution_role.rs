@@ -16,7 +16,7 @@ impl ExecutionRole {
     }
 
     /// Single-player worlds (on the integrated server thread) keep the owner's state in
-    /// `Level` and write `players/data/<singleplayer_uuid>.dat` with the world; a dedicated
+    /// `Level` and write it into level.dat's `Player` with the world; a dedicated
     /// server saves each connected player separately.
     pub fn writes_singleplayer_player(self) -> bool {
         self != Self::DedicatedServer

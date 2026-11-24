@@ -1678,3 +1678,29 @@ mod trident_continue_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod baby_dims_tests {
+    use super::super::species::{Baby, def};
+    use super::Species;
+
+    /// 1.21.10 drops the zombie family's own BABY_DIMENSIONS (26.1: an
+    /// absolute 0.49 x 0.99): a baby zombie is its type's 0.6 x 1.95 box
+    /// scaled 0.5 with eyes at 0.93, and baby drowned, husks and zombie
+    /// villagers inherit it.
+    #[test]
+    fn baby_zombies_are_half_the_adult_box() {
+        for species in [
+            Species::Zombie,
+            Species::Drowned,
+            Species::Husk,
+            Species::ZombieVillager,
+        ] {
+            assert!(
+                matches!(def(species).baby, Baby::Abs(0.3, 0.975, 0.93)),
+                "{species:?}: {:?}",
+                def(species).baby
+            );
+        }
+    }
+}

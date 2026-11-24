@@ -10,6 +10,7 @@ use horizon_assets::{
         choice::CompiledChoices,
     },
     model::Direction,
+    resolve::MISSING_MODEL,
 };
 use horizon_core::{
     position::BlockPos,
@@ -89,8 +90,9 @@ impl QuadShape {
 pub struct BakedFace {
     pub quad: ModelQuad,
     pub layer: u32,
-    /// The texels under the quad's UVs are all opaque (`SpriteContents.computeTransparency`):
-    /// drawn in the solid layer without an alpha test.
+    /// The texels under the quad's UVs are all opaque (this engine's own
+    /// pixel scan — 26.x's `SpriteContents.computeTransparency` is gone in
+    /// 1.21.10): drawn in the solid layer without an alpha test.
     pub opaque: bool,
     /// Fractional alpha: drawn in the sorted translucent pass.
     pub translucent: bool,
@@ -148,6 +150,10 @@ pub struct StateModels {
     baked: Vec<(Variant, BakedModel)>,
     /// Standalone models by id: their index in `baked`.
     standalone: BTreeMap<String, u32>,
+    /// The missing cube for states no definition covers
+    /// (`ModelManager.createBlockStateToModelDispatch` fills every state
+    /// with it). Kept out of `baked`, so face overrides never touch it.
+    missing: Option<(Variant, BakedModel)>,
 }
 fn key(variant: &Variant) -> VariantKey {
     (variant.model.clone(), variant.rotations, variant.uv_lock)
@@ -447,6 +453,24 @@ impl StateModels {
                 choices[*choice].single_variant(selected).copied()
             })
             .collect();
+        // `ModelManager.createBlockStateToModelDispatch`: a state no
+        // definition covers draws the missing cube, so bake it once here.
+        // A failure leaves the fallback out (and unbound states stay
+        // unbound, as before).
+        let missing = library
+            .resolve(MISSING_MODEL)
+            .ok()
+            .and_then(|model| bake_resolved(root, sprites, &model, [0; 3], false).ok())
+            .map(|model| {
+                (
+                    Variant {
+                        model: MISSING_MODEL.to_owned(),
+                        rotations: [0; 3],
+                        uv_lock: false,
+                    },
+                    model,
+                )
+            });
         Ok(Self {
             choices,
             bounds: OnceLock::new(),
@@ -454,6 +478,7 @@ impl StateModels {
             single_models,
             baked,
             standalone: BTreeMap::new(),
+            missing,
         })
     }
     /// Bakes `names`, models no blockstate needs to name (vanilla's
@@ -520,10 +545,12 @@ impl StateModels {
         // Blocks use their position seed; contained/displayed blocks can supply one.
         self.collect_seeded(state, position_seed(position))
     }
-    /// `BlockStateModel.particleMaterial`: the particle sprite layer of the
+    /// `BlockStateModel.particleIcon`: the particle sprite layer of the
     /// state's first variant (see `CompiledChoices::particle_variant`).
     pub fn particle(&self, state: BlockStateId) -> Option<u32> {
-        let (choice, selected) = self.state(state)?;
+        let Some((choice, selected)) = self.state(state) else {
+            return self.missing.as_ref().and_then(|m| m.1.particle);
+        };
         let model = self.choices[*choice].particle_variant(selected)?;
         self.baked[*model as usize].1.particle
     }
@@ -590,7 +617,15 @@ impl StateModels {
         seed: i64,
         mut f: impl FnMut(&'a (Variant, BakedModel)),
     ) -> Result<()> {
-        let (choice, selected) = self.state(state).ok_or("unbound gallery block state")?;
+        let Some((choice, selected)) = self.state(state) else {
+            // `ModelManager.createBlockStateToModelDispatch`: a state no
+            // definition covers draws the missing cube.
+            if let Some(missing) = &self.missing {
+                f(missing);
+                return Ok(());
+            }
+            return Err("unbound gallery block state".into());
+        };
         let mut random = LegacyRandom::new(seed);
         self.choices[*choice].for_each(selected, &mut random, |&model| {
             f(&self.baked[model as usize]);
@@ -746,6 +781,68 @@ mod tests {
         )?;
         assert_eq!(models.baked.len(), 2);
         assert_eq!(models.standalone.get("lanef:block/shared"), Some(&1));
+        Ok(())
+    }
+
+    /// `ModelManager.createBlockStateToModelDispatch`: a state no
+    /// definition covers draws the missing cube (and breaks into its
+    /// particle), instead of drawing nothing.
+    #[test]
+    fn a_state_no_definition_covers_draws_the_missing_cube() -> Result<()> {
+        let fixture = Fixture(
+            std::env::temp_dir().join(format!("horizon-missing-state-{}", std::process::id())),
+        );
+        fixture.write(
+            "fixture:block/low",
+            r##"{"textures":{"all":"fixture:block/shared"},"elements":[{"from":[0,4,0],"to":[8,4,8],"faces":{"up":{"texture":"#all"}}}]}"##,
+        );
+        let blockstate = fixture
+            .0
+            .join("assets/fixture/blockstates/signal.json");
+        fs::create_dir_all(blockstate.parent().unwrap()).unwrap();
+        fs::write(
+            blockstate,
+            r#"{"variants":{"active=false":{"model":"fixture:block/low"}}}"#,
+        )
+        .unwrap();
+        let registry = serde_json::json!({"defaults":{"minecraft:air":0,"fixture:signal":1},"states":[
+            ["air",true,false,"", "minecraft:air"],
+            ["signal",false,false,"",{"id":"fixture:signal","properties":{"active":"false"}}],
+            ["signal",false,false,"",{"id":"fixture:signal","properties":{"active":"true"}}]
+        ]});
+        let registry = horizon_world::registry::BlockRegistry::from_facts_json(
+            registry.to_string().as_bytes(),
+        )
+        .unwrap();
+        let facts = BTreeMap::from([(
+            "fixture:signal".to_owned(),
+            serde_json::json!({
+                "schema":{"active":{"named":["false","true"]}},
+                "states":[{"active":"false"},{"active":"true"}]
+            }),
+        )]);
+        let mut sprites = Sprites::default();
+        let catalog = StateModels::from_facts(
+            &fixture.0,
+            &registry,
+            &["fixture:signal"],
+            &mut sprites,
+            &facts,
+        )?;
+        let pos = BlockPos::new(0, 0, 0);
+        let mut out = Vec::new();
+        catalog.models_at(BlockStateId(1), pos, &mut out)?;
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].faces.len(), 1);
+        catalog.models_at(BlockStateId(2), pos, &mut out)?;
+        assert_eq!(out.len(), 1, "the missing cube, not nothing");
+        assert_eq!(out[0].faces.len(), 6);
+        assert_eq!(
+            catalog.collect_seeded(BlockStateId(2), 0)?[0].0.model.as_str(),
+            MISSING_MODEL
+        );
+        assert_eq!(catalog.particle(BlockStateId(2)), out[0].particle);
+        assert!(catalog.particle(BlockStateId(2)).is_some());
         Ok(())
     }
 }

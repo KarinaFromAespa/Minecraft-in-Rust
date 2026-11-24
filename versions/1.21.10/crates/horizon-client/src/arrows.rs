@@ -1468,9 +1468,6 @@ impl FluidInteractionWorld for Ticker<'_, '_, '_, '_> {
             has_fluid: crate::chunk::every_section(layout),
         })
     }
-    fn bounding_box_min_y(&self) -> f64 {
-        self.p.position.y
-    }
     fn block_x(&self) -> i32 {
         self.p.position.x.floor() as i32
     }

@@ -1601,9 +1601,18 @@ impl<R: RandomSource> Context<'_, R> {
                     if stack.item == "minecraft:book" {
                         stack.item = "minecraft:enchanted_book".into();
                     }
+                    // `SetEnchantmentsFunction.run`: with `add`, the level
+                    // adds to the one the stack already has; every level
+                    // clamps to 0..255.
+                    let add = f["add"].as_bool() == Some(true);
                     for (name, level) in map {
                         let level = self.int(level);
-                        enchant(&mut stack, name, level);
+                        let level = if add {
+                            item_level(&stack, name) + level
+                        } else {
+                            level
+                        };
+                        enchant(&mut stack, name, level.clamp(0, 255));
                     }
                 }
             }
@@ -1628,8 +1637,9 @@ impl<R: RandomSource> Context<'_, R> {
             "minecraft:set_ominous_bottle_amplifier" => {
                 stack.ominous_amplifier = Some(self.int(&f["amplifier"]));
             }
-            // SetInstrumentFunction: `options.getRandomElement(random)` becomes the item's
-            // `instrument` component (a goat horn's tune).
+            // SetInstrumentFunction: the registry's random member of the
+            // `options` tag (`Registry.getRandomElementOf`) becomes the
+            // item's `instrument` component (a goat horn's tune).
             "minecraft:set_instrument" => {
                 let options = data.holder_set("instrument", &f["options"]);
                 if !options.is_empty() {
@@ -2594,6 +2604,81 @@ mod namespace_tests {
             seen.into_iter().collect::<Vec<_>>(),
             ["minecraft:ponder_goat_horn", "minecraft:sing_goat_horn"]
         );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// `SetInstrumentFunction` in its 1.21.10 form: `options` is a tag, not
+    /// a list (`TagKey`, resolved at run time) — the pillager outpost's
+    /// `"#minecraft:regular_goat_horns"`.
+    #[test]
+    fn set_instrument_picks_from_its_tag() {
+        let root =
+            std::env::temp_dir().join(format!("horizon-loot-horn-tag-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let table = r##"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:goat_horn",
+            "modifier": [{"type": "minecraft:set_instrument", "options": "#minecraft:regular_goat_horns"}]}]}]}"##;
+        let tag = r#"{"values": ["minecraft:ponder_goat_horn", "minecraft:sing_goat_horn", "minecraft:seek_goat_horn", "minecraft:feel_goat_horn"]}"#;
+        let files = [
+            ("items.json", r#"{"minecraft:goat_horn": {}}"#),
+            ("data/minecraft/loot_table/chests/horn.json", table),
+            (
+                "data/minecraft/tags/instrument/regular_goat_horns.json",
+                tag,
+            ),
+        ];
+        for (name, text) in files {
+            let path = root.join(name);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, text).unwrap();
+        }
+        let data = LootData::load(&root, &PackOverlay::NONE).unwrap();
+        let mut seen = std::collections::BTreeSet::new();
+        for seed in (0..80).map(|n| n * 7_919) {
+            let filled = data.fill("minecraft:chests/horn", seed, 27, None);
+            let horn = filled.iter().flatten().next().expect("a horn");
+            let instrument: Vec<_> = horn
+                .components
+                .iter()
+                .filter(|(k, _)| k == "minecraft:instrument")
+                .collect();
+            assert_eq!(instrument.len(), 1, "{:?}", horn.components);
+            seen.insert(instrument[0].1.as_str().unwrap().to_owned());
+        }
+        assert_eq!(
+            seen.into_iter().collect::<Vec<_>>(),
+            [
+                "minecraft:feel_goat_horn",
+                "minecraft:ponder_goat_horn",
+                "minecraft:seek_goat_horn",
+                "minecraft:sing_goat_horn",
+            ]
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// `SetEnchantmentsFunction.run`: levels clamp to 0..255, and `add`
+    /// adds to the level the stack already has.
+    #[test]
+    fn set_enchantments_clamps_levels_and_adds_when_asked() {
+        let root = std::env::temp_dir().join(format!("horizon-loot-ench-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let table = r##"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:diamond_sword",
+            "modifier": [{"type": "minecraft:set_enchantments", "enchantments": {"minecraft:sharpness": 3, "minecraft:unbreaking": 300}},
+            {"type": "minecraft:set_enchantments", "add": true, "enchantments": {"minecraft:sharpness": 2}}]}]}]}"##;
+        let files = [
+            ("items.json", r#"{"minecraft:diamond_sword": {}}"#),
+            ("data/minecraft/loot_table/chests/ench.json", table),
+        ];
+        for (name, text) in files {
+            let path = root.join(name);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, text).unwrap();
+        }
+        let data = LootData::load(&root, &PackOverlay::NONE).unwrap();
+        let filled = data.fill("minecraft:chests/ench", 0, 27, None);
+        let sword = filled.iter().flatten().next().expect("a sword");
+        assert_eq!(item_level(sword, "minecraft:sharpness"), 5);
+        assert_eq!(item_level(sword, "minecraft:unbreaking"), 255);
         let _ = fs::remove_dir_all(&root);
     }
 

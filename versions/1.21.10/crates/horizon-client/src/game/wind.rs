@@ -418,10 +418,12 @@ impl Game<'_> {
             p.velocity.y + push[1],
             p.velocity.z + push[2],
         );
-        // ServerPlayer.onExplosionHit: a wind charge's burst cancels the
-        // fall; any other burst ends the grace of the last impulse.
+        // ServerPlayer.onExplosionHit: the impact position is always the
+        // player's own position; only a wind charge's burst cancels the
+        // fall, any other burst ends the grace of the last impulse.
         let at = p.position;
-        p.impulse.set_ignore_fall_damage(wind_charge, Some(at));
+        p.impulse.impact_position = Some(at);
+        p.impulse.set_ignore_fall_damage(wind_charge);
         // The cause is the charge that burst (`ServerExplosion.source`); a mace's
         // burst has none.
         let cause = if wind_charge {

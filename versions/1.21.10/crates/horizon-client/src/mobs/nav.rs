@@ -128,7 +128,7 @@ impl Navigation {
     pub fn can_cut_corner(t: PathType) -> bool {
         !matches!(
             t,
-            PathType::FireInNeighbor | PathType::DamagingInNeighbor | PathType::WalkableDoor
+            PathType::DangerFire | PathType::DangerOther | PathType::WalkableDoor
         )
     }
 }
@@ -218,8 +218,8 @@ impl Mob {
         match self.ai.nav.kind {
             // GroundPathNavigation.canUpdatePath: onGround() || isInLiquid() ||
             // isPassenger(). A mob riding a vehicle keeps making and following
-            // paths where it sits (`create_path_raw` and `recompute_path` refuse
-            // without this).
+            // paths where it sits (`create_path_raw` refuses without this;
+            // `recompute_path` does NOT gate on it in 1.21.10 — item 427).
             NavKind::Ground | NavKind::WallClimber => {
                 self.ai.navigation_redirect.as_ref().map_or_else(
                     || self.on_ground || self.is_in_liquid() || self.extra.mount.is_some(),
@@ -433,7 +433,13 @@ impl Mob {
         self.ai.nav.path = None;
     }
     fn recompute_path(&mut self, w: &MobWorld) {
-        if w.game_time - self.ai.nav.time_last_recompute <= 20 || !self.can_update_path() {
+        // 1.21.10's `recomputePath` has NO `canUpdatePath` gate: the
+        // recompute is attempted whenever 20+ ticks elapsed, and the
+        // gate lives inside `createPath` (via `create_path_raw`), so a
+        // mob that cannot update still gets `path = None`, the timer
+        // reset and the delayed flag cleared. 26.1 added the gate
+        // here, leaving the recompute delayed and retried every tick.
+        if w.game_time - self.ai.nav.time_last_recompute <= 20 {
             self.ai.nav.delayed_recompute = true;
         } else if let Some(t) = self.ai.nav.target_pos {
             self.ai.nav.path = None;

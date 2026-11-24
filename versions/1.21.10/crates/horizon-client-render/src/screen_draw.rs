@@ -1,4 +1,4 @@
-//! Menu screens as the `GuiGraphicsExtractor` calls vanilla's widgets make
+//! Menu screens as the `GuiGraphics` calls vanilla's widgets make
 //! (sprites, texture blits, fills, text highlight, text, scissor and the
 //! tooltip), with ports of the widgets that make them: `StringWidget`,
 //! `MultiLineTextWidget`, `Button`, `EditBox` (a font-aware port, scrolling
@@ -384,7 +384,7 @@ pub fn center_left(anchor: i32, width: i32) -> i32 {
     anchor - width / 2
 }
 
-/// `ComponentRenderUtils.clipText`: as much as fits before an unstyled "...".
+/// `StringWidget.clipText`: as much as fits before an unstyled "...".
 pub fn clip(m: &Measure, t: &Text, width: i32) -> Text {
     m.head(t, width - m.width_str("..."))
         .append(Text::literal("..."))
@@ -530,7 +530,7 @@ pub fn scrolling_with_default_center(
     scrolling_text(out, m, message, center, left, right, top, bottom, now_ms);
 }
 
-/// `AbstractWidget.extractScrollingStringOverContents`: `message` over the
+/// `AbstractWidget.renderScrollingStringOverContents`: `message` over the
 /// widget's box less `margin` on each side (centred, or scrolling when too
 /// wide).
 pub fn scrolling_string_over_contents(
@@ -548,8 +548,8 @@ pub fn scrolling_string_over_contents(
     scrolling_with_default_center(out, m, message, left, right, y, y + h, now_ms);
 }
 
-/// `Button` (`extractDefaultSprite`, then `AbstractButton.extractDefaultLabel`:
-/// `extractScrollingStringOverContents` with a margin of 2, which scrolls a
+/// `Button` (`renderDefaultSprite`, then `AbstractButton.renderDefaultLabel`:
+/// `renderScrollingStringOverContents` with a margin of 2, which scrolls a
 /// label wider than the button with the clock, `now_ms`).
 pub fn button(
     out: &mut Vec<Draw>,
@@ -686,7 +686,8 @@ impl TextField {
         self.set_highlight(m, self.cursor);
     }
     /// `insertText`: replaces the selection within the maximum length. True
-    /// when the value changed (its responder runs).
+    /// when the responder runs: `insertText` fires `onValueChange` whenever
+    /// there is room, even when the inserted text is empty.
     pub fn insert_text(&mut self, m: &Measure, input: &str) -> bool {
         let (start, end) = (
             self.cursor.min(self.highlight),
@@ -713,6 +714,8 @@ impl TextField {
         true
     }
     /// `deleteChars(dir)`: the selection, or `dir` characters from the cursor.
+    /// True when it deleted: `deleteCharsToPos` runs the responder only when
+    /// `start != end`, so a Backspace at the start is silent.
     pub fn delete_chars(&mut self, m: &Measure, dir: isize) -> bool {
         if self.value.is_empty() {
             return false;
@@ -770,7 +773,11 @@ impl TextField {
     pub fn word_position(&self, dir: isize, from: usize) -> usize {
         crate::ui::word_position(&self.value, dir, from)
     }
-    /// `keyPressed` of a focused, editable box: `Some(changed)` when handled.
+    /// `keyPressed` of a focused, editable box: `Some(true)` when handled and
+    /// the key runs the responder (`ChatScreen.onEdited`). 1.21.10's
+    /// `moveCursorTo` ends in `onValueChange`, so a cursor move fires it just
+    /// as an edit does (26.1's ends in `updateTextPosition` only); a deletion
+    /// fires only when it deletes (`deleteCharsToPos`'s `start != end` guard).
     pub fn key(
         &mut self,
         m: &Measure,
@@ -813,7 +820,9 @@ impl TextField {
             }
             _ => return None,
         }
-        Some(false)
+        // A cursor move: 1.21.10's `moveCursorTo` ends in `onValueChange`,
+        // so the responder runs even though the value did not change.
+        Some(true)
     }
     /// Ctrl+A/C/V/X (`EditBox.keyPressed`). True when the value changed.
     pub fn shortcut(
@@ -857,7 +866,7 @@ impl TextField {
             && x < (self.x + self.width) as f64
             && y < (self.y + self.height) as f64
     }
-    /// `extractWidgetRenderState`; `blink_ms` is the time since the field
+    /// `renderWidget`; `blink_ms` is the time since the field
     /// was focused, `format` styles a substring starting at a character index.
     pub fn draw(
         &self,
@@ -964,14 +973,6 @@ impl TextField {
                 );
             }
         }
-        if self.focused {
-            // `TextInputManager.setTextInputArea`, in GUI pixels: the caret
-            // the input method's composition and its candidate window go to.
-            // The chat and in-bed chat boxes and the pack screen's search are
-            // `TextField`s; the other fields are an `EditBox` or a multiline
-            // box, which report their own.
-            crate::preedit::report_caret(cursor_x as f32, ty as f32, 10.0);
-        }
     }
 }
 
@@ -996,7 +997,7 @@ fn intersect(a: [i32; 4], b: [i32; 4]) -> [i32; 4] {
 /// the atlas (`textures/gui/x.png` is `gui/x`; tiled textures from their
 /// corner), scissor clipping, and the tooltip at the mouse.
 pub fn paint(batch: &mut HudBatch, atlas: &HudAtlas, draws: &[Draw]) {
-    // `GuiGraphicsExtractor.ScissorStack`: a scissor clips what is drawn since
+    // `GuiGraphics.ScissorStack`: a scissor clips what is drawn since
     // it opened, cut to the screen while none is open and to the one around it
     // otherwise; closing it puts the enclosing one back.
     let screen = [0, 0, batch.width as i32, batch.height as i32];
@@ -1348,7 +1349,7 @@ mod scissor_tests {
         Draw::Scissor { x0, y0, x1, y1 }
     }
 
-    /// `GuiGraphicsExtractor.ScissorStack.push`: a scissor inside another is
+    /// `GuiGraphics.ScissorStack.push`: a scissor inside another is
     /// intersected with it (`ScreenRectangle.intersection`), and the outer one
     /// still clips what is drawn after the inner one closes.
     #[test]
@@ -1378,8 +1379,10 @@ mod scissor_tests {
         );
     }
 
-    /// A scissor with no scissor around it is cut to the screen, as
-    /// `ScissorStack.push` intersects with the screen while the stack is empty.
+    /// A scissor with no scissor around it is cut to the screen:
+    /// `ScissorStack.push` itself does not intersect (it pushes the
+    /// rectangle as-is), but the GL scissor clips to the framebuffer,
+    /// so nothing draws outside the screen.
     #[test]
     fn a_scissor_wider_than_the_screen_is_cut_to_it() {
         let atlas = atlas();

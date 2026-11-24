@@ -157,11 +157,13 @@ impl Game<'_> {
         let fences = self.lead_fences();
         self.knot_ids.retain(|p, _| fences.contains(p));
     }
-    /// `LeashFenceKnotEntity.getOrCreateKnot` → `createKnot`: the first lead
-    /// tied to a fence makes its knot, a real entity with its own id (the
-    /// shared `Entity.id` counter) and UUID, whether or not anyone tracks
-    /// it. A fence that already has one keeps it. Call
-    /// [`Self::forget_untied_knots`] before the tie.
+    /// `LeashFenceKnotEntity.getOrCreateKnot`: the first lead tied to a
+    /// fence makes its knot, a real entity with its own id (the shared
+    /// `Entity.id` counter) and UUID, whether or not anyone tracks it. A
+    /// fence that already has one keeps it. (26.1 split the scan and the
+    /// creation into `getKnot` / `createKnot`; 1.21.10 inlines both into
+    /// `getOrCreateKnot`.) Call [`Self::forget_untied_knots`] before the
+    /// tie.
     pub(super) fn tie_knot(&mut self, fence: [i32; 3]) {
         if self.knot_ids.contains_key(&fence) {
             return;
@@ -640,6 +642,19 @@ impl Game<'_> {
             return true;
         }
         self.forget_untied_knots();
+        // `LeadItem.bindPlayerMobs` (1.21.10): the first leashable mob makes
+        // the knot (`getOrCreateKnot`) and plays its placement sound before
+        // the attach check, so a fence clicked with a lead keeps its knot
+        // and the sound even when nothing attaches. 26.1 waits for an
+        // attachment and discards a knot nothing hung on. The knot's own
+        // interact keeps the sound on an attachment, so this is the fence
+        // click only.
+        let binding =
+            !knot_hit && (!in_hand.is_empty() || !boats_in_hand.is_empty());
+        if binding {
+            self.tie_knot(knot_pos);
+            self.lead_sound("tied", at);
+        }
         let mut attached = self.tie_player_boats(center, Holder::Knot(knot_pos));
         for j in in_hand {
             if self.can_attach_lead(j, center) {
@@ -669,7 +684,10 @@ impl Game<'_> {
                 knot_pos.map(|v| f64::from(v) + 0.5)
             };
             self.lead_game_event("minecraft:block_attach", event_at);
-            self.lead_sound("tied", at);
+            // The fence click already played the tied sound above.
+            if !binding {
+                self.lead_sound("tied", at);
+            }
             self.swing_arm();
         }
         attached
@@ -865,7 +883,7 @@ impl Game<'_> {
         let Some(model) = self.entity_models.leash_knot.as_ref() else {
             return;
         };
-        let Some(r) = atlas.sprites.get("entity/lead_knot/lead_knot").copied() else {
+        let Some(r) = atlas.sprites.get("entity/lead_knot").copied() else {
             return;
         };
         for p in knots {
@@ -1042,7 +1060,7 @@ mod rope_hold_tests {
     }
 
     #[test]
-    fn legacy_singleplayer_uuid_leash_restores_to_integrated_owner() {
+    fn legacy_offline_uuid_leash_restores_to_integrated_owner() {
         let level_player_uuid = uuid_ints(offline_uuid("Player"));
         let owner_uuid = uuid_ints(offline_uuid("Player46606"));
 
@@ -1055,7 +1073,7 @@ mod rope_hold_tests {
             |_| None,
             |_| None,
         )
-        .expect("restored legacy singleplayer leash");
+        .expect("restored legacy offline leash");
         assert_eq!(holder, Holder::Player);
         assert_eq!(restored_player, Some(owner_uuid));
         assert!(held_by_acting_player(

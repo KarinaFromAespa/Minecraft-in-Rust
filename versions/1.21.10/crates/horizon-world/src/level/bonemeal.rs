@@ -335,42 +335,37 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 if b.live_features().is_none() || !self.tree_can_grow(g, pos, state) {
                     return false;
                 }
-                let height = self.tree_minimum_height(g);
-                self.is_inside_build_height(pos.y + height)
+                // `SaplingBlock.isValidBonemealTarget` in 1.21.10:
+                // always true (26.x also asked
+                // `TreeGrower.getMinimumHeight` against the build
+                // height, a method 1.21.10 does not have).
+                true
             }
             Kind::Propagule => !b.table.bool(state, p.hanging) || b.table.int(state, p.age) != 4,
             Kind::Mushroom => {
-                let Some(feature) = b.data(state).feature.as_deref() else {
-                    return false;
-                };
-                let Some(json) = b.live_features().and_then(|f| f.configured_json(feature)) else {
-                    return false;
-                };
-                let huge = matches!(
-                    json["type"].as_str(),
-                    Some("minecraft:huge_red_mushroom" | "minecraft:huge_brown_mushroom")
-                );
-                let radius = json["foliage_radius"].as_i64().unwrap_or(2) as i32;
-                huge && self.is_inside_build_height(pos.y + 4 + radius)
+                // `MushroomBlock.isValidBonemealTarget` in 1.21.10:
+                // always true (26.x also asked the configured
+                // feature to be a huge mushroom and the space
+                // above (4 + foliage radius) to be inside the
+                // build height).
+                true
             }
             Kind::Fungus => {
                 let below_state = self.below_state(pos);
+                // `FungusBlock.isValidBonemealTarget` in 1.21.10: only the
+                // required block below (26.x also asked the build height).
                 b.data(state)
                     .link
                     .is_some_and(|required| b.is_block(below_state, required))
-                    && self.is_inside_build_height(pos.y + 1)
             }
-            Kind::Azalea => {
-                let Some(g) = grower("azalea") else {
-                    return false;
-                };
-                let height = self.tree_minimum_height(g);
-                self.is_inside_build_height(pos.y + height + 2)
-                    && self.fluid_at(up) == FluidState::EMPTY
-            }
-            Kind::Grass | Kind::Nylium | Kind::BambooSapling => {
-                b.is_air(self.state(up)) && self.is_inside_build_height(up.y)
-            }
+            // `AzaleaBlock.isValidBonemealTarget` in 1.21.10:
+            // only the fluid above is empty (26.x also asked
+            // the build height via `TreeGrower.getMinimumHeight`).
+            Kind::Azalea => self.fluid_at(up) == FluidState::EMPTY,
+            // `GrassBlock` / `NyliumBlock` / `BambooSaplingBlock`
+            // `.isValidBonemealTarget` in 1.21.10: air above, no build-height
+            // check (26.x added one, so bonemeal at the ceiling was kept).
+            Kind::Grass | Kind::Nylium | Kind::BambooSapling => b.is_air(self.state(up)),
             Kind::Netherrack => {
                 if !b.has_flag(self.state(up), super::data::state_flags::SKYLIGHT_DOWN) {
                     return false;
@@ -378,9 +373,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 self.netherrack_nylium_near(pos) != (false, false)
             }
             Kind::FeaturePlacer => b.is_air(self.state(up)),
-            Kind::RootedDirt => {
-                b.is_air(self.state(below(pos))) && self.is_inside_build_height(pos.y - 1)
-            }
+            // `RootedDirtBlock.isValidBonemealTarget` in 1.21.10: air below,
+            // no build-height check (26.x added one).
+            Kind::RootedDirt => b.is_air(self.state(below(pos))),
             Kind::MangroveLeaves => b.is_air(self.state(below(pos))),
             Kind::Crop => b.table.int(state, p.age) < self.crop_max_age(state),
             Kind::Stem => b.table.int(state, p.age) != 7,
@@ -394,13 +389,13 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             Kind::Bamboo => {
                 let height_above = self.bamboo_height_above(pos);
                 let height_below = self.bamboo_height_below(pos);
-                let growth = pos.offset(0, height_above + 1, 0);
+                // `BambooStalkBlock.isValidBonemealTarget` in 1.21.10: only
+                // the height and the stage (26.x added build-height and
+                // empty checks).
                 height_above + height_below + 1 < 16
                     && b.table
                         .int(self.state(pos.offset(0, height_above, 0)), p.stage)
                         != 1
-                    && self.is_inside_build_height(growth.y)
-                    && self.is_empty_block(growth)
             }
             Kind::Cocoa => b.table.int(state, p.age) < 2,
             Kind::SweetBerry => b.table.int(state, p.age) < 3,
@@ -408,9 +403,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 let Some(grown) = self.tall_grass_grown(state) else {
                     return false;
                 };
-                self.can_survive(grown, pos)
-                    && self.is_empty_block(up)
-                    && self.is_inside_build_height(up.y)
+                // `TallGrassBlock.isValidBonemealTarget` in 1.21.10: no
+                // build-height check (26.x added one).
+                self.can_survive(grown, pos) && self.is_empty_block(up)
             }
             Kind::TallFlower | Kind::FlowerBed | Kind::SmallDripleaf | Kind::ShortDryGrass => true,
             Kind::SpreadingBush => self.spreadable_neighbour(pos, state, false).is_some(),
@@ -422,16 +417,19 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             }
             Kind::PlantHead => {
                 let growth = rel(pos, b.data(state).growth_direction);
+                // `GrowingPlantHeadBlock.isValidBonemealTarget` in 1.21.10:
+                // `canGrowInto` only, no build-height check (26.x added one).
                 self.plant_can_grow_into(state, self.state(growth))
-                    && self.is_inside_build_height(growth.y)
             }
             Kind::CaveVines | Kind::CaveVinesPlant => !b.table.bool(state, p.berries),
             Kind::PlantBody => match self.plant_head_pos(pos, state) {
                 Some(head) => {
                     let head_state = self.state(head);
                     let growth = rel(head, b.data(state).growth_direction);
+                    // The body's target check delegates to the head's
+                    // `canGrowInto`, which has no build-height check in
+                    // 1.21.10 (26.x added one to the body too).
                     self.plant_can_grow_into(head_state, self.state(growth))
-                        && self.is_inside_build_height(growth.y)
                 }
                 None => false,
             },
@@ -440,20 +438,25 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 b.table.bool(state, p.waterlogged)
                     && self.in_tag(self.below_state(pos), "minecraft:coral_blocks")
             }
-            Kind::BigDripleaf => self.dripleaf_can_grow_into(up),
+            // `BigDripleafBlock.isValidBonemealTarget` in 1.21.10 asks
+            // `canReplace` (no build height); the stem's asks `canPlaceAt`
+            // (with it), and `performBonemeal` gates on `canPlaceAt` too.
+            Kind::BigDripleaf => self.dripleaf_can_replace(up),
             Kind::BigDripleafStem => {
                 let Some(leaf) = b.table.block_by_name("minecraft:big_dripleaf") else {
                     return false;
                 };
                 self.top_connected(pos, b.block(state), Direction::Up, leaf)
-                    .is_some_and(|head| self.dripleaf_can_grow_into(above(head)))
+                    .is_some_and(|head| self.dripleaf_can_place_at(above(head)))
             }
             Kind::GlowLichen => Direction::ALL
                 .iter()
                 .any(|&face| self.lichen_can_spread_in_any_direction(state, pos, face.opposite())),
             Kind::HangingMoss => {
+                // `HangingMossBlock.isValidBonemealTarget` in 1.21.10:
+                // `canGrowInto` only, no build-height check (26.x added one).
                 let grow = below(self.hanging_moss_tip(pos, state));
-                b.is_air(self.state(grow)) && self.is_inside_build_height(grow.y)
+                b.is_air(self.state(grow))
             }
             Kind::MossyCarpet => {
                 b.table.bool(state, p.bottom) && !b.is_air(self.mossy_topper_all_sides(pos))
@@ -508,9 +511,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             }
             Kind::Grass => self.grass_bonemeal(pos, state),
             Kind::Nylium => {
-                if self.is_inside_build_height(up.y) {
-                    self.place_configured_feature("minecraft:nylium_bonemeal", up);
-                }
+                // No build-height gate: neither version's
+                // `NyliumBlock.performBonemeal` checks one.
+                self.place_configured_feature("minecraft:nylium_bonemeal", up);
             }
             Kind::Netherrack => {
                 let (warped, crimson) = self.netherrack_nylium_near(pos);
@@ -580,10 +583,12 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     let top = pos.offset(0, height_above + i, 0);
                     let top_state = self.state(top);
                     let growth = above(top);
+                    // `BambooStalkBlock.performBonemeal` in 1.21.10: no
+                    // build-height check (26.x added one); the empty check
+                    // stays.
                     if total + i >= 16
                         || b.table.int(top_state, p.stage) == 1
                         || !self.is_empty_block(growth)
-                        || !self.is_inside_build_height(growth.y)
                     {
                         return;
                     }
@@ -653,7 +658,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             }
             Kind::SeaPickle => self.sea_pickle_bonemeal(pos, state),
             Kind::BigDripleaf => {
-                if self.dripleaf_can_grow_into(up) {
+                if self.dripleaf_can_place_at(up) {
                     let facing = b.facing(state);
                     let fluid = b.fluid(state);
                     self.dripleaf_stem_place(pos, fluid, facing);
@@ -769,13 +774,13 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let below_state = self.state(below_pos);
         is_lower(below_state).then_some((below_pos, below_state))
     }
-    /// `PitcherCropBlock.canGrow`.
+    /// `PitcherCropBlock.canGrow` in 1.21.10: no build-height check (26.x
+    /// added one).
     fn pitcher_can_grow(&self, lower_pos: BlockPos, lower: BlockStateId, new_age: i32) -> bool {
         let b = self.b;
         let upper = self.state(above(lower_pos));
         b.table.int(lower, b.props.age) < 4
             && self.raw_brightness(lower_pos, 0) >= 8
-            && self.is_inside_build_height(lower_pos.y + 1)
             && (new_age < 3 || b.is_air(upper) || b.is_block(upper, b.named.pitcher_crop))
     }
     /// `TallGrassBlock.getGrownBlock`.
@@ -879,9 +884,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             1
         };
         for _ in 0..count {
-            if !self.plant_can_grow_into(state, self.state(forward))
-                || !self.is_inside_build_height(forward.y)
-            {
+            // 1.21.10 checks only `canGrowInto` here (26.x also stopped at
+            // the build ceiling); `set_block_and_update` no-ops above it.
+            if !self.plant_can_grow_into(state, self.state(forward)) {
                 break;
             }
             self.set_block_and_update(forward, b.table.set_int(state, b.props.age, next_age));
@@ -980,14 +985,20 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
         self.set_block(pos, b.table.set_int(state, p.pickles, 4), 2);
     }
-    /// `BigDripleafBlock.canGrowInto` / `canPlaceAt`.
-    fn dripleaf_can_grow_into(&self, pos: BlockPos) -> bool {
+    /// `BigDripleafBlock.canReplace`: air, water or a small dripleaf, with no
+    /// build-height check — what `isValidBonemealTarget` asks in 1.21.10.
+    fn dripleaf_can_replace(&self, pos: BlockPos) -> bool {
         let b = self.b;
         let state = self.state(pos);
-        self.is_inside_build_height(pos.y)
-            && (b.is_air(state)
-                || b.is_block(state, b.named.water)
-                || b.table.name(state) == "minecraft:small_dripleaf")
+        b.is_air(state)
+            || b.is_block(state, b.named.water)
+            || b.table.name(state) == "minecraft:small_dripleaf"
+    }
+    /// `BigDripleafBlock.canPlaceAt`: `canReplace` inside the build height —
+    /// what `performBonemeal`, the stem's `isValidBonemealTarget` and
+    /// `placeWithRandomHeight` ask in 1.21.10.
+    fn dripleaf_can_place_at(&self, pos: BlockPos) -> bool {
+        self.is_inside_build_height(pos.y) && self.dripleaf_can_replace(pos)
     }
     fn dripleaf_set(&mut self, name: &str, pos: BlockPos, fluid: FluidState, facing: Direction) {
         let b = self.b;
@@ -1011,7 +1022,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let desired = next_int_between(self.random(), 2, 5);
         let mut pos = bottom;
         let mut height = 0;
-        while height < desired && self.dripleaf_can_grow_into(pos) {
+        while height < desired && self.dripleaf_can_place_at(pos) {
             height += 1;
             pos = above(pos);
         }
@@ -1230,7 +1241,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         {
             self.perform_bonemeal(Kind::TallGrass, test, test_state);
         }
-        if b.is_air(test_state) && self.is_inside_build_height(test.y) {
+        // 1.21.10 checks only that the cell is air (26.x also required it
+        // inside the build height); a placement above the ceiling no-ops.
+        if b.is_air(test_state) {
             if self.random().next_float() < 0.125 {
                 let Some(features) = b.live_features() else {
                     return;
@@ -1242,12 +1255,27 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 else {
                     return;
                 };
-                let list = features.bone_meal_features(biome);
+                let list = features.flower_features(biome);
                 if list.is_empty() {
                     return;
                 }
                 let feature = list[self.next_int(list.len() as i32) as usize].clone();
-                self.place_configured_feature(&feature, test);
+                // `RandomPatchConfiguration.feature()`: a flower feature's
+                // inner placed feature, placed once, directly (26.x placed
+                // the configured feature itself).
+                let Some(json) = features.configured_json(&feature) else {
+                    return;
+                };
+                let Some(placed) = json.get("config").and_then(|c| c.get("feature")) else {
+                    return;
+                };
+                let Ok(text) = serde_json::to_string(placed) else {
+                    return;
+                };
+                let Some(placed) = features.placed_inline(&text) else {
+                    return;
+                };
+                self.place_inline_placed_feature(&placed, test);
             } else {
                 self.place_placed_feature("minecraft:grass_bonemeal", test);
             }

@@ -82,9 +82,11 @@ impl ChorusPlantFeature {
         }
         Ok(Self {
             air: bindings.air,
+            // 1.21.10 hardcodes end stone (26.1 reads the
+            // `supports_chorus_plant` tag, which held only end stone).
             support: bindings
-                .tags
-                .get("minecraft:supports_chorus_plant")
+                .blocks
+                .get("minecraft:end_stone")
                 .cloned()
                 .unwrap_or_default(),
             connectors,

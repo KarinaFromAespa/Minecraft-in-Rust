@@ -19,7 +19,7 @@ use crate::block_placement::BlockPlacementBindings;
 use horizon_core::random::RandomSource;
 use serde_json::Value;
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::HashMap,
     sync::{Arc, Mutex},
 };
 
@@ -32,8 +32,8 @@ pub struct LiveFeatures {
     blocks: FeatureBlocks,
     configured: Cache<FeatureDefinition>,
     placed: Cache<PlacedFeatureDefinition>,
-    /// `BiomeGenerationSettings.getBoneMealFeatures` per biome, in vanilla order.
-    bone_meal: Vec<Vec<String>>,
+    /// `BiomeGenerationSettings.getFlowerFeatures` per biome, in vanilla order.
+    flower_features: Vec<Vec<String>>,
     /// Temperature settings per biome (`Biome.getTemperature`).
     temperatures: Vec<super::biome_temperature::BiomeTemperatureSettings>,
 }
@@ -131,24 +131,22 @@ impl LiveFeatures {
                     )?,
                 )?;
         }
-        // Configured-feature tag membership (feature_tags names configured features).
-        let mut bone_meal_tag = BTreeSet::new();
-        if let Some(json) = resources
-            .feature_tags
-            .get("minecraft:can_spawn_from_bone_meal")
-        {
-            let value: Value = serde_json::from_str(json)?;
-            for entry in value["values"].as_array().into_iter().flatten() {
-                if let Some(name) = entry.as_str() {
-                    bone_meal_tag.insert(super::tags::identifier(name)?);
-                }
-            }
-        }
+        // `BiomeGenerationSettings.getFlowerFeatures` in 1.21.10: the
+        // biome's configured features whose type is `minecraft:flower`
+        // (26.x filtered the same walk on the
+        // `#can_spawn_from_bone_meal` tag, which 1.21.10 does not have).
+        let is_flower = |name: &str| {
+            resources
+                .features
+                .get(name)
+                .and_then(|text| serde_json::from_str::<Value>(text).ok())
+                .is_some_and(|json| json["type"].as_str() == Some("minecraft:flower"))
+        };
         let placed_tags = feature_tags
             .build(|name, _| resources.placed.contains_key(name).then(|| name.to_owned()))
             .map_err(|e| resource(format!("feature tags: {e:?}")))?
             .tags;
-        let mut bone_meal = Vec::with_capacity(data.biome_names().len());
+        let mut flower_features = Vec::with_capacity(data.biome_names().len());
         for i in 0..data.biome_names().len() {
             let biome: Value = serde_json::from_str(data.biome_json(BiomeId(i as u32)))?;
             let mut list = Vec::new();
@@ -190,10 +188,10 @@ impl LiveFeatures {
                         }
                         inline => nested_features(inline, &resources.features, 0, &mut found),
                     }
-                    list.extend(found.into_iter().filter(|f| bone_meal_tag.contains(f)));
+                    list.extend(found.into_iter().filter(|f| is_flower(f)));
                 }
             }
-            bone_meal.push(list);
+            flower_features.push(list);
         }
         let temperatures = (0..data.biome_names().len())
             .map(|i| {
@@ -210,7 +208,7 @@ impl LiveFeatures {
             blocks: FeatureBlocks::from_registry(registry)?,
             configured: Mutex::new(HashMap::new()),
             placed: Mutex::new(HashMap::new()),
-            bone_meal,
+            flower_features,
         }))
     }
     pub fn data(&self) -> &Arc<GeneratorData> {
@@ -348,10 +346,41 @@ impl LiveFeatures {
         let Some(feature) = self.placed(name) else {
             return false;
         };
+        self.place_placed_definition(&feature, name, world, random, origin)
+    }
+    /// An inline placed-feature value (a name or an object, as a flower
+    /// feature's `RandomPatchConfiguration.feature` holds it), decoded by the
+    /// same codec as a named placed feature; it is not cached. `None` when
+    /// it does not decode.
+    pub fn placed_inline(&self, json: &str) -> Option<PlacedFeatureDefinition> {
+        match self
+            .catalog
+            .placed_feature_with_blocks(json, &self.bindings)
+        {
+            Ok(feature) => Some(feature),
+            Err(e) => {
+                eprintln!("Horizon: inline placed feature cannot be placed: {e}");
+                None
+            }
+        }
+    }
+    /// `PlacedFeature.place` for a decoded placed feature; `label` names it
+    /// in errors. Execution errors report failure.
+    pub fn place_placed_definition<W: FeatureWorld + PlacementContext>(
+        &self,
+        feature: &PlacedFeatureDefinition,
+        label: &str,
+        world: &mut W,
+        random: &mut impl RandomSource,
+        origin: [i32; 3],
+    ) -> bool
+    where
+        W::Error: std::fmt::Display,
+    {
         match feature.place(world, random, origin, self.blocks) {
             Ok(placed) => placed,
             Err(e) => {
-                eprintln!("Horizon: placing {name} failed: {e}");
+                eprintln!("Horizon: placing {label} failed: {e}");
                 false
             }
         }
@@ -374,9 +403,9 @@ impl LiveFeatures {
     pub fn block_tag_entries(&self, tag: &str) -> &[String] {
         self.data.block_tags.get(tag).map_or(&[], Vec::as_slice)
     }
-    /// `BiomeGenerationSettings.getBoneMealFeatures` of a biome.
-    pub fn bone_meal_features(&self, biome: BiomeId) -> &[String] {
-        self.bone_meal
+    /// `BiomeGenerationSettings.getFlowerFeatures` of a biome.
+    pub fn flower_features(&self, biome: BiomeId) -> &[String] {
+        self.flower_features
             .get(biome.0 as usize)
             .map_or(&[], Vec::as_slice)
     }

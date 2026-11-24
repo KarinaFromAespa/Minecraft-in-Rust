@@ -238,8 +238,8 @@ impl Game<'_> {
     pub(super) fn type_into_screen(&mut self, text: &str) -> Result<()> {
         if text == "\\b" {
             match self.screen {
-                Screen::WorldOptions => {
-                    self.world_options_text(None);
+                Screen::ShareToLan => {
+                    self.share_to_lan_text(None);
                     return Ok(());
                 }
                 Screen::Inventory | Screen::Creative if self.mod_browser_typing() => {
@@ -299,8 +299,8 @@ impl Game<'_> {
             Screen::BlockEditor => self.block_editor_type(text),
             Screen::DebugOptions => self.debug_options_type(text),
             Screen::Options => self.ui.options.type_text(&self.gui.atlas, text),
-            // The port, or the game rules' search and number boxes.
-            Screen::WorldOptions => self.world_options_text(Some(text)),
+            // The port box.
+            Screen::ShareToLan => self.share_to_lan_text(Some(text)),
             Screen::Inventory | Screen::Creative if self.mod_browser_typing() => {
                 self.mod_browser_text(Some(text), false)
             }
@@ -1369,7 +1369,7 @@ impl Game<'_> {
             Screen::Chat => "chat",
             Screen::Stats => "stats",
             Screen::Advancements => "advancements",
-            Screen::WorldOptions => "world-options",
+            Screen::ShareToLan => "share-to-lan",
             Screen::Friends => "friends",
             Screen::Social => "social",
             Screen::ServerLinks => "server-links",

@@ -150,8 +150,9 @@ impl Game<'_> {
         }
         true
     }
-    /// `Entity.belowNameDisplay`: the score holder's score in the objective
-    /// shown below names, then a space and the objective's name.
+    /// `AbstractClientPlayer`'s below-name display: the score holder's score
+    /// in the objective shown below names, then a space and the objective's
+    /// name. Only players show one — 1.21.10 has no `Entity.belowNameDisplay`.
     fn below_name_text(&self, holder: &str) -> Option<Text> {
         let board = &self.score.board;
         let objective = board.display_objective(sb::SLOT_BELOW_NAME)?;
@@ -403,15 +404,16 @@ impl Game<'_> {
                 .map(|text| Text::literal(text).resolve_legacy())
                 .unwrap_or(shown);
             let mut lines = Vec::new();
-            // EntityRenderer.extractNameTags: the score shows within the
-            // below-name distance (10), under the name.
+            // The below-name score shows within the below-name distance (10),
+            // under the name — for players only.
             let mut lift = 0.0;
             if m.species() == horizon_client::mobs::Species::Mannequin {
                 if let Some(text) = description {
                     lines.push((text, 0.0));
                     lift = f64::from(9.0f32 * 1.15 * 0.025);
                 }
-            } else if distance_sqr < 10.0 * 10.0
+            } else if player
+                && distance_sqr < 10.0 * 10.0
                 && let Some(score) = holder.and_then(|h| self.below_name_text(&h))
             {
                 lines.push((score.resolve_legacy(), 0.0));
@@ -509,15 +511,8 @@ impl Game<'_> {
                 .map(|text| Text::literal(text).resolve_legacy())
                 .unwrap_or(shown);
             let mut lines = Vec::new();
-            let mut lift = 0.0;
-            let holder = self.persist.uuids.get(&a.id).map(|u| uuid_text(*u));
-            if distance_sqr < 10.0 * 10.0
-                && let Some(score) = holder.and_then(|h| self.below_name_text(&h))
-            {
-                lines.push((score.resolve_legacy(), 0.0));
-                lift = f64::from(9.0f32 * 1.15 * 0.025);
-            }
-            lines.push((shown, lift));
+            // No below-name score: only players show one.
+            lines.push((shown, 0.0));
             // The tag rides with the body, between last tick's position and this one's.
             let at = a.render_position(alpha);
             let l = self.world.light(

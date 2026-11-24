@@ -102,7 +102,10 @@ impl<K: Clone + Eq, V: Clone + PartialEq> ComponentMap<K, V> {
         index(&self.patch.0, key).is_some()
     }
     /// Vanilla set returns the prototype value for an earlier removal marker.
-    /// An unsanitized removal with no prototype causes an error after mutation.
+    /// In 1.21.10 an unsanitized removal with no prototype returns null, not an
+    /// error: the patch map holds `Optional`s, so the old value is
+    /// `previous.orElse(prototype)` — null when there is no prototype value
+    /// (26.3's `Removed` sentinel path threw here instead).
     pub fn set(&mut self, key: K, value: Option<V>) -> Result<Option<V>, MissingPrototype> {
         let base = self.prototype.get(&key).cloned();
         let entries = Arc::make_mut(&mut self.patch.0);
@@ -113,8 +116,7 @@ impl<K: Clone + Eq, V: Clone + PartialEq> ComponentMap<K, V> {
         };
         match previous {
             Some(Some(v)) => Ok(Some(v)),
-            Some(None) => base.map(Some).ok_or(MissingPrototype),
-            None => Ok(base),
+            _ => Ok(base),
         }
     }
     pub fn remove(&mut self, key: K) -> Option<V> {

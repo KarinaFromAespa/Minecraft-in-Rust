@@ -40,8 +40,9 @@ impl DensityCompiler {
         self.next_cache
     }
     /// Resolve a registered noise using this compiler's fixed world seed.
-    /// Ordinary names reuse their sampler; Nether biome compatibility names
-    /// create a fresh sampler from their dedicated legacy seed on each call.
+    /// Ordinary names reuse their sampler; under legacy settings the
+    /// temperature and vegetation names create a fresh legacy nether-biome
+    /// sampler from their dedicated legacy seed on each call.
     pub fn get_noise_sampler(&self, noise: NoiseId) -> Result<Arc<dyn Noise>, CompileError> {
         self.context
             .as_ref()

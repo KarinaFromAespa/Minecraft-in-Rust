@@ -433,7 +433,12 @@ fn survival_rule(rule: &str) -> SurvivalRule {
     use SurvivalRule::*;
     match rule {
         value if value.starts_with("TagBelow:") => TagBelow(value[9..].to_owned()),
+
+        value if value.starts_with("BlockBelow:") => BlockBelow(value[11..].to_owned()),
         "CactusFlower" => CactusFlower,
+
+        "Vegetation" => Vegetation,
+        "WitherRose" => WitherRose,
         "Seagrass" => Seagrass,
         "BubbleColumn" => BubbleColumn,
         "RedstoneWire" => RedstoneWire,

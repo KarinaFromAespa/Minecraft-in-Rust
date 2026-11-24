@@ -268,7 +268,7 @@ fn slot_entry(entry: &Tag) -> Option<Tag> {
     Some(container_slot(slot, item))
 }
 
-/// An `ItemContainerContents` slot: `ItemStackTemplate` leaves out a count of 1.
+/// An `ItemContainerContents` slot: `ItemStack` leaves out a count of 1.
 fn container_slot(slot: i32, mut item: Compound) -> Tag {
     if item.get(&JavaString::from("count")) == Some(&Tag::Int(1)) {
         item.remove(&JavaString::from("count"));

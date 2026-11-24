@@ -501,7 +501,7 @@ fn components_tag(s: &Stack, builtin: &Builtin, synced: &Dynamic) -> Option<Tag>
                         .chain(color.map(|c| ("custom_color", Tag::Int(c)))),
                 )
             }
-            // ItemStackTemplate.CODEC: id, count and components.
+            // ItemStack.CODEC: id, count and components.
             Component::Stacks(stacks) => Tag::List(
                 stacks
                     .iter()
@@ -584,7 +584,7 @@ fn components_tag(s: &Stack, builtin: &Builtin, synced: &Dynamic) -> Option<Tag>
     Some(out)
 }
 
-/// An `ItemStackTemplate` as its NBT codec writes it: id, count and components.
+/// An `ItemStack` as its NBT codec writes it: id, count and components.
 fn template_tag(t: &Stack, builtin: &Builtin, synced: &Dynamic) -> Tag {
     let mut entries = vec![
         (
@@ -1501,8 +1501,10 @@ mod tests {
     }
 
     /// The raid captain's banner keeps the name, rarity and hidden pattern
-    /// layers `Raid.getBannerComponentPatch` gives it, so a guest's copy reads
-    /// as the ominous banner rather than a white one (#12530).
+    /// layers `Raid.getOminousBannerInstance` gives it (1.21.10 builds the
+    /// stack directly; 26.1 built it from `getBannerComponentPatch`), so a
+    /// guest's copy reads as the ominous banner rather than a white one
+    /// (#12530).
     #[test]
     fn an_ominous_banner_keeps_its_name_across_the_wire() {
         use horizon_protocol::buf::{Codec, Reader, Writer};

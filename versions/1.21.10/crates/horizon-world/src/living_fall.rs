@@ -1,18 +1,36 @@
-//! Living-entity fall damage calculation, impulse exemption and callback order.
+//! Player fall damage calculation, impulse exemption and callback order.
+//! (1.21.10 keeps the impulse context on Player only; 26.1 moved it to
+//! LivingEntity. `cause_living_fall_damage` is the player path —
+//! `landing.rs` is its only game caller.)
 use horizon_core::geometry::Vec3;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ImpulseContext {
     pub reset_grace_time: i32,
     pub impact_position: Option<Vec3>,
+    /// `Player.ignoreFallDamageFromCurrentImpulse`: the waiver is a
+    /// separate flag in 1.21.10, not the impact position being set
+    /// (26.1's `isIgnoringFallDamageFromCurrentImpulse` read the
+    /// position). A burst that is not a wind charge sets the position
+    /// and clears the flag, so the two diverge.
+    pub ignore_fall_damage: bool,
 }
 impl ImpulseContext {
-    pub fn set_ignore_fall_damage(&mut self, ignore: bool, position: Option<Vec3>) {
+    /// `Player.setIgnoreFallDamageFromCurrentImpulse(boolean)`: the flag
+    /// and the grace time only — callers set `impact_position`
+    /// themselves (`Player.onExplosionHit`, `MaceItem.hurtEnemy`).
+    pub fn set_ignore_fall_damage(&mut self, ignore: bool) {
+        self.ignore_fall_damage = ignore;
         if ignore {
             self.apply_grace_time(40);
-            self.impact_position = position;
         } else {
             self.reset_grace_time = 0;
+        }
+    }
+    /// `Player.tick`: the grace time counts down once a tick.
+    pub fn tick(&mut self) {
+        if self.reset_grace_time > 0 {
+            self.reset_grace_time -= 1;
         }
     }
     pub fn apply_grace_time(&mut self, ticks: i32) {
@@ -21,6 +39,7 @@ impl ImpulseContext {
     pub fn reset(&mut self) {
         self.reset_grace_time = 0;
         self.impact_position = None;
+        self.ignore_fall_damage = false;
     }
     pub fn try_reset(&mut self) {
         if self.reset_grace_time == 0 {
@@ -38,13 +57,17 @@ impl ImpulseContext {
         self.reset_grace_time > 0
     }
     pub fn ignores_fall_damage(&self) -> bool {
-        self.impact_position.is_some()
+        self.ignore_fall_damage
     }
 }
 pub trait LivingFallWorld {
     type Error;
     type Sound: Copy;
     fn impact_position(&self) -> Option<Vec3>;
+    /// `Player.isIgnoringFallDamageFromCurrentImpulse`: the waiver flag.
+    /// Separate from the impact position — a burst that is not a wind
+    /// charge sets the position and clears the flag.
+    fn ignoring_fall_damage(&self) -> bool;
     fn y(&self) -> f64;
     fn reset_impulse(&mut self) -> Result<(), Self::Error>;
     fn try_reset_impulse(&mut self) -> Result<(), Self::Error>;
@@ -89,7 +112,7 @@ fn java_min(a: f64, b: f64) -> f64 {
         a.min(b)
     }
 }
-/// Default LivingEntity and Entity fall behavior. Entity-type overrides of the
+/// Default Player and Entity fall behavior. Entity-type overrides of the
 /// calculation/parent method are a separate dispatch layer. The same damage
 /// source must be retained by the provider for riders and the final hurt call.
 pub fn cause_living_fall_damage<W: LivingFallWorld>(
@@ -97,7 +120,12 @@ pub fn cause_living_fall_damage<W: LivingFallWorld>(
     distance: f64,
     multiplier: f32,
 ) -> Result<bool, W::Error> {
-    let distance = if let Some(impact) = world.impact_position() {
+    // `Player.causeFallDamage`: the waiver needs both the flag and an
+    // impact position; a burst that is not a wind charge leaves the
+    // position set with the flag cleared, and waives nothing.
+    let distance = if world.ignoring_fall_damage()
+        && let Some(impact) = world.impact_position()
+    {
         let distance = java_min(distance, impact.y - world.y());
         if distance <= 0.0 {
             world.reset_impulse()?;
@@ -141,6 +169,9 @@ mod tests {
         type Sound = bool;
         fn impact_position(&self) -> Option<Vec3> {
             None
+        }
+        fn ignoring_fall_damage(&self) -> bool {
+            false
         }
         fn y(&self) -> f64 {
             0.0
@@ -206,6 +237,7 @@ mod tests {
         ImpulseContext {
             reset_grace_time: 0,
             impact_position: Some(Vec3::new(0.5, 64.0, 0.5)),
+            ignore_fall_damage: true,
         }
     }
 
@@ -233,7 +265,8 @@ mod tests {
     #[test]
     fn the_grace_time_defers_the_liquid_reset() {
         let mut impulse = ImpulseContext::default();
-        impulse.set_ignore_fall_damage(true, Some(Vec3::new(0.5, 64.0, 0.5)));
+        impulse.impact_position = Some(Vec3::new(0.5, 64.0, 0.5));
+        impulse.set_ignore_fall_damage(true);
         impulse.landed_in_liquid(-0.08, true);
         assert!(impulse.ignores_fall_damage());
     }

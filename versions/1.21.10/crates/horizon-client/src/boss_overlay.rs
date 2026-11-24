@@ -54,7 +54,8 @@ impl Event {
 #[derive(Clone, Debug, Default)]
 pub struct BossOverlay {
     events: Vec<Event>,
-    /// `bossOverlayWorldDarkening` and the previous tick's value.
+    /// `darkenWorldAmount` (26.1's `bossOverlayWorldDarkening`) and the
+    /// previous tick's value.
     darken: f32,
     darken_o: f32,
 }
@@ -132,7 +133,7 @@ impl BossOverlay {
             self.darken = (self.darken - 0.0125).max(0.0);
         }
     }
-    /// `GameRenderer.bossOverlayWorldDarkening`.
+    /// `GameRenderer.getDarkenWorldAmount`.
     pub fn darken_amount(&self, partial: f32) -> f32 {
         let t = partial.clamp(0.0, 1.0);
         self.darken_o + (self.darken - self.darken_o) * t

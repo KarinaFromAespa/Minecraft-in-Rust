@@ -163,24 +163,14 @@ fn variant(m: &Mob, regs: &SpawnRegistries, v: &mut Vec<String>) {
     };
     let var = format!("minecraft:{}", finalize::variant_name(s, m.extra.variant));
     match s {
-        S::Pig => {
-            v.push(var);
-            v.push(named(&regs.pig_sound, m.extra.sound_variant));
-        }
-        S::Cow => {
-            v.push(var);
-            v.push(named(&regs.cow_sound, m.extra.sound_variant));
-        }
+        S::Pig => v.push(var),
+        S::Cow => v.push(var),
         S::Mooshroom => v.push(if m.extra.variant == 0 { "red" } else { "brown" }.into()),
         S::Chicken => {
             v.push(var);
-            v.push(named(&regs.chicken_sound, m.extra.sound_variant));
             v.push(format!("jockey={}", m.extra.jockey));
         }
-        S::Cat => {
-            v.push(var);
-            v.push(named(&regs.cat_sound, m.extra.sound_variant));
-        }
+        S::Cat => v.push(var),
         S::Wolf => {
             v.push(var);
             v.push(named(&regs.wolf_sound, m.extra.sound_variant));

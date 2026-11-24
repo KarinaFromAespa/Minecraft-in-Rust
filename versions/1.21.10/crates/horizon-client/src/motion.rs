@@ -403,7 +403,7 @@ pub struct PlayerMotion {
     pub health: crate::health::PlayerHealth,
     /// Status effects and armor protection seen by movement and damage.
     pub status: crate::effects::StatusFlags,
-    /// Water and lava around the player (`Entity.fluidInteraction`).
+    /// Water and lava around the player (`Entity.fluidHeight` / `fluidOnEyes`).
     pub fluids: PlayerFluids,
     /// `Entity.isInPowderSnow` / `wasInPowderSnow`.
     pub in_powder_snow: bool,
@@ -1289,6 +1289,8 @@ impl MotionWorld<'_, '_, '_> {
         self.apply_fire_contact()?;
         self.player.refresh_attributes()?;
         self.update_player_pose()?;
+        // Player.tick, after updatePlayerPose: the impulse grace counts down.
+        self.player.impulse.tick();
         // The resident scene accepts the resolved local movement directly.
         // Vanilla dispatches this separately from travel, on packet acceptance.
         self.check_movement_statistics(previous.vector_to(self.player.position))?;

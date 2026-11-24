@@ -191,15 +191,16 @@ fn pickable_projectile_hitboxes(
 }
 
 /// `FlameFeatureRenderer`: fire quads stacked up a burning entity's box,
-/// turned to the camera around Y, at full block light. `at` is the entity's
-/// feet relative to the camera.
+/// turned to the camera around Y, at block light 15 and sky light 0
+/// (`fireVertex`'s hardcoded light 240). `at` is the entity's feet
+/// relative to the camera. 26.1 keeps the entity's sky light instead
+/// (`LightCoordsUtil.withBlock(lightCoords, 15)`).
 fn flame_geometry(
     atlas: &horizon_client::hud::HudAtlas,
     at: glam::Vec3,
     width: f32,
     height: f32,
     camera_yaw: f32,
-    light: u8,
     out: &mut Vec<Vertex>,
 ) {
     let (Some(fire0), Some(fire1)) = (
@@ -213,7 +214,7 @@ fn flame_geometry(
     // Mth.rotationAroundAxis(Y, camera.orientation): the camera's turn about Y.
     let turn = glam::Mat3::from_rotation_y(std::f32::consts::PI - camera_yaw.to_radians());
     let lift = 0.3 - (h as i32) as f32 * 0.02;
-    let packed = (u32::from(light >> 4) * 16) | ((15 * 16) << 8);
+    let packed = (15 * 16) << 8;
     let (mut r, mut yo, mut zo, mut ss) = (0.5f32, 0.0f32, 0.0f32, 0);
     while h > 0.0 {
         let tex = if ss % 2 == 0 { fire0 } else { fire1 };
@@ -858,11 +859,7 @@ impl Game<'_> {
         if matches!(from.species(), Species::Zombie | Species::Husk) {
             let at = [from.position.x, from.position.y, from.position.z];
             let special = self.local_difficulty(at).special();
-            horizon_client::mobs::finalize::zombie_attributes(
-                &mut mob,
-                special,
-                horizon_client::mobs::finalize::Reason::Conversion,
-            );
+            horizon_client::mobs::finalize::zombie_attributes(&mut mob, special);
         }
         let id = mob.id;
         // ConversionType.SINGLE: the passengers get off and board the new mob.
@@ -3926,6 +3923,17 @@ impl Game<'_> {
         } else {
             None
         };
+        // Wolf.getBreedOffspring: the pup's sound variant is a fresh random
+        // draw from the mother's random, not the default (`classic`).
+        let wolf_sound = if p.species() == Species::Wolf {
+            let n = horizon_client::mobs::finalize::sound_variants(Species::Wolf).len() as i32;
+            self.mobs
+                .iter_mut()
+                .find(|m| m.id == parent)
+                .map(|m| m.random.next_int_bound(n).unwrap_or(0) as u8)
+        } else {
+            None
+        };
         // A horse and a donkey have a mule.
         let kind = match (p.species(), q.as_ref().map(|q| q.species())) {
             (Species::Horse, Some(Species::Donkey)) | (Species::Donkey, Some(Species::Horse)) => {
@@ -3941,8 +3949,9 @@ impl Game<'_> {
             // No Mob.finalizeSpawn either: no follow range bonus, right-handed.
             spawning::bred_offspring(child);
             // getBreedOffspring creates the baby without finalizeSpawn: it keeps
-            // the default (`classic`) sound variant.
-            child.extra.sound_variant = None;
+            // the default (`classic`) sound variant — except a wolf pup, whose
+            // sound variant is a fresh random draw (see `wolf_sound` above).
+            child.extra.sound_variant = wolf_sound;
             // Fox.getBreedOffspring runs no finalizeSpawn: nothing in the
             // baby fox's mouth.
             if p.species() == Species::Fox {
@@ -3959,8 +3968,10 @@ impl Game<'_> {
             }
             // Goat.getBreedOffspring: GoatAi.initMemories, then the baby
             // screams if the parent a coin toss picks does, or on a 2% roll.
+            // A newborn has no horns (Goat.ageBoundaryReached adds them
+            // when it grows up); 26.1's babies keep theirs.
             if p.species() == Species::Goat {
-                child.extra.lost_horns = [false; 2];
+                child.extra.lost_horns = [true; 2];
                 horizon_client::mobs::finalize::goat_init_memories(child, &mut self.world.random);
                 let pick_parent = self.world.random.next_boolean();
                 let parent_screams = if pick_parent {
@@ -6226,69 +6237,6 @@ impl Game<'_> {
             self.particles.add(&options, at, v);
         }
     }
-    /// `AgeableMob.mobInteract`: whether a click with `item` on `m` gets to
-    /// the golden dandelion check (`canUseGoldenDandelion`, which a tadpole
-    /// calls with `isBaby` true). A panda that is scared or on its back and an
-    /// armadillo in its shell answer in their own `mobInteract` first.
-    pub(super) fn age_lock_takes(&self, m: &Mob, item: &str) -> bool {
-        let species = m.species();
-        let baby = if species == Species::Tadpole {
-            true
-        } else if horizon_client::mobs::finalize::ageable(species) {
-            m.is_baby()
-                && !(species == Species::Panda
-                    && (horizon_client::mobs::panda::scared(m)
-                        || horizon_client::mobs::panda::is_on_back(m)))
-                && !(species == Species::Armadillo && horizon_client::mobs::armadillo::scared(m))
-        } else {
-            false
-        };
-        let cannot = self
-            .res
-            .mob_data()
-            .entity_has("minecraft:cannot_be_age_locked", &m.kind.id);
-        horizon_client::mobs::ai::can_use_golden_dandelion(
-            item,
-            baby,
-            m.extra.age_lock_particle_timer,
-            cannot,
-        )
-    }
-    /// `AgeableMob.setAgeLocked`: a golden dandelion on mob `index` flips its
-    /// age lock (a tadpole's or an ageable mob's own `setAgeLockedData`) and is
-    /// used up; a locked mob stays (`setPersistenceRequired`), and the lock's
-    /// use or unuse sound plays at its block for everyone near.
-    pub(super) fn set_age_locked(&mut self, index: usize) {
-        let m = &mut self.mobs[index];
-        if m.species() == Species::Tadpole {
-            horizon_client::mobs::aquatic::set_age_locked_data(m);
-        } else {
-            horizon_client::mobs::ai::set_age_locked_data(m);
-        }
-        self.consume_held();
-        let m = &mut self.mobs[index];
-        let locked = m.extra.age_locked;
-        if locked {
-            m.persistent = true;
-        }
-        // Level.playSound(null, blockPosition, ..): the middle of the block.
-        let at = [
-            m.position.x.floor() + 0.5,
-            m.position.y.floor() + 0.5,
-            m.position.z.floor() + 0.5,
-        ];
-        let chunk = (
-            m.position.x.floor() as i32 >> 4,
-            m.position.z.floor() as i32 >> 4,
-        );
-        self.world.modified.insert(chunk);
-        let sound = if locked {
-            "minecraft:item.golden_dandelion.use"
-        } else {
-            "minecraft:item.golden_dandelion.unuse"
-        };
-        self.audio.play(sound, Some(at), 1.0, 1.0);
-    }
     /// The mob a normal interaction can reach: a packet's exact validated ID,
     /// or the crosshair's mob before its blocking shape.
     pub(super) fn mob_interaction_target(&self, target: Option<InteractTarget>) -> Option<usize> {
@@ -6432,27 +6380,6 @@ impl Game<'_> {
             self.swing_arm();
             return Ok(true);
         }
-        // AgeableMob.mobInteract: a golden dandelion on a baby freezes its
-        // growth, or lets it grow again.
-        if self.mobs[index].alive() && self.age_lock_takes(&self.mobs[index], &item) {
-            let entity_id = self.mobs[index].id;
-            self.set_age_locked(index);
-            if let (Some(player), Some(name)) = (self.lan_acting_uuid, self.lan_acting_name.clone())
-            {
-                self.native_player_toggle_entity_age_lock(
-                    player,
-                    &name,
-                    entity_id,
-                    self.mobs[index].extra.age_locked,
-                );
-            }
-            if let Some(stack) = &held {
-                let target = self.mob_entity(&self.mobs[index]);
-                self.trigger_item_entity("minecraft:player_interacted_with_entity", stack, &target);
-            }
-            self.swing_arm();
-            return Ok(true);
-        }
         let creative = self.creative;
         // The hand's slot (Player.interactOn passes the hand).
         let selected = self.held_slot();
@@ -6551,14 +6478,11 @@ impl Game<'_> {
             .items()
             .get(&item)
             .is_some_and(|i| i.max_damage > 0);
-        // Wolf.mobInteract: the owner's #wolf_collar_dyes item only ever dyes the
-        // collar; one of the colour the collar already has does nothing.
-        let wolf_collar_dye = self
-            .res
-            .items()
-            .item_tags
-            .get("minecraft:wolf_collar_dyes")
-            .is_some_and(|t| t.contains(&*item));
+        // Wolf.mobInteract: any DyeItem dyes the collar (1.21.10 has no
+        // #wolf_collar_dyes tag); one of the colour the collar already has
+        // does nothing.
+        let wolf_collar_dye =
+            horizon_client::items::dye_from_name(&item).is_some();
         let parrot_poisonous = self
             .res
             .items()
@@ -6683,9 +6607,10 @@ impl Game<'_> {
                 }])?;
                 self.damage_held_tool();
             }
-            // MushroomCow.mobInteract: a brown adult takes the flower's effects
-            // unless it holds some already, when it only puffs smoke.
-            Species::Mooshroom if m.extra.variant == 1 && !m.is_baby() && flower.is_some() => {
+            // MushroomCow.mobInteract: a brown mooshroom takes the flower's
+            // effects unless it holds some already, when it only puffs
+            // smoke. 1.21.10 has no adult gate here (26.1 added one).
+            Species::Mooshroom if m.extra.variant == 1 && flower.is_some() => {
                 if m.extra.stew_effects.is_some() {
                     stew_particles = Some(false);
                 } else {
@@ -6745,7 +6670,8 @@ impl Game<'_> {
                     .get(&item)
                     .and_then(|i| i.food.as_ref())
                     .map_or(2.0, |f| f.0 as f32 * 2.0);
-                // TamableAnimal.feed(.., 2.0F, 2.0F): heals twice the nutrition,
+                // Wolf.mobInteract inlines the feed (TamableAnimal.feed is gone
+                // in 1.21.10): heals twice the nutrition,
                 // then playEatingSound, which wolves leave empty.
                 m.heal(heal);
                 consume = true;
@@ -6888,7 +6814,8 @@ impl Game<'_> {
                     .get(&item)
                     .and_then(|i| i.food.as_ref())
                     .map_or(1.0, |f| f.0 as f32);
-                // TamableAnimal.feed.
+                // Cat.mobInteract inlines the feed (TamableAnimal.feed is gone
+                // in 1.21.10).
                 m.heal(heal);
                 consume = true;
                 eat = eating_sound(m, &mut self.world.random);
@@ -7011,9 +6938,11 @@ impl Game<'_> {
             }
             // Dolphin.mobInteract: a fish makes a baby grow by a tenth and an
             // adult remember it (`gotFish`), to swim to a treasure.
+            // 1.21.10 checks `isBaby()`; 26.1's `canAgeUp()` also refuses
+            // an age-locked baby, and age locking is 26.x-only.
             Species::Dolphin if fish => {
                 eat = Some(("entity.dolphin.eat", 1.0, 1.0));
-                if horizon_client::mobs::ai::can_age_up(m) {
+                if m.is_baby() {
                     let secs = ((-m.extra.age / 20) as f32 * 0.1) as i32;
                     horizon_client::mobs::ai::age_up(m, secs, true);
                 } else {
@@ -7023,7 +6952,7 @@ impl Game<'_> {
             }
             // Tadpole.feed: frog food ages it by a tenth of the time left to
             // grow into a frog (it grows on its next tick once past 24000).
-            Species::Tadpole if is_food && !m.extra.age_locked => {
+            Species::Tadpole if is_food => {
                 consume = true;
                 let left = 24_000 - m.extra.age;
                 m.extra.age += ((left / 20) as f32 * 0.1) as i32 * 20;
@@ -8113,7 +8042,7 @@ impl Game<'_> {
             // GuardianRenderer: the laser to the locked target.
             if let Some((time, scale)) = beam
                 && let Some(target) = self.beam_target(mob.ai.target, alpha)
-                && let Some(uv) = lookup("entity/guardian/guardian_beam")
+                && let Some(uv) = lookup("entity/guardian_beam")
             {
                 let a = alpha;
                 let eye = glam::DVec3::new(
@@ -8184,9 +8113,9 @@ impl Game<'_> {
                 };
                 // SpectralArrowRenderer, and TippableArrowRenderer's `getColor() > 0`.
                 let texture = if a.is_spectral_arrow() {
-                    "entity/projectiles/arrow_spectral"
+                    "entity/projectiles/spectral_arrow"
                 } else if a.arrow.as_ref().is_some_and(|s| s.effect_color > 0) {
-                    "entity/projectiles/arrow_tipped"
+                    "entity/projectiles/tipped_arrow"
                 } else {
                     "entity/projectiles/arrow"
                 };
@@ -8230,7 +8159,7 @@ impl Game<'_> {
                     out,
                 );
                 if a.arrow.as_ref().is_some_and(|s| s.on_fire()) {
-                    flame_geometry(atlas, c, 0.5, 0.5, self.yaw, light, out);
+                    flame_geometry(atlas, c, 0.5, 0.5, self.yaw, out);
                 }
                 continue;
             }
@@ -8239,7 +8168,7 @@ impl Game<'_> {
                 let Some(model) = self.trident_model.as_ref() else {
                     continue;
                 };
-                let Some(r) = atlas.sprites.get("entity/trident/trident").copied() else {
+                let Some(r) = atlas.sprites.get("entity/trident").copied() else {
                     continue;
                 };
                 let m = glam::Mat4::from_translation(c)
@@ -8360,7 +8289,7 @@ impl Game<'_> {
             // over its box as any other entity renderer does.
             if a.on_fire() {
                 let size = a.kind.size() as f32;
-                flame_geometry(atlas, c, size, size, self.yaw, light, out);
+                flame_geometry(atlas, c, size, size, self.yaw, out);
             }
             // `ThrownItemRenderer` for a fireball: the item `Fireball.getItem`
             // returns (a fire charge until `setItem` gave it another), its model
@@ -8848,9 +8777,8 @@ mod tests {
         )
         .unwrap();
         let mut player = PlayerMotion::new(game.motion, Vec3::new(0.0, 64.0, 0.0)).unwrap();
-        player
-            .impulse
-            .set_ignore_fall_damage(true, Some(player.position));
+        player.impulse.impact_position = Some(player.position);
+        player.impulse.set_ignore_fall_damage(true);
         player.fall_distance = 4.0;
         game.player = Some(player);
         let destination = Vec3::new(0.0, 80.0, 0.0);
@@ -8991,10 +8919,11 @@ fn dye_mix(recipes: &Recipes, random: &mut impl RandomSource, a: u8, b: u8) -> u
     if random.next_boolean() { a } else { b }
 }
 
-/// `DyeColor.findColorMixInRecipes`: the dye colour a two-dye crafting recipe
-/// makes, when its result is a dye. The two dyes are the grid's first row
-/// (`CraftingInput.of(2, 1, ...)`) and the recipe manager answers for it; the
-/// result's `_dye` item names the colour.
+/// `DyeColor.getMixedColor`'s recipe lookup (`makeCraftColorInput`: the two
+/// canonical dye items in the grid's first row, `CraftingInput.of(2, 1, ...)`).
+/// The dye colour a two-dye crafting recipe makes, when its result is a dye;
+/// the result's `_dye` item names the colour. 26.1's `findColorMixInRecipes`
+/// instead tries every dye item of each colour.
 fn dye_color_mix_in_recipes(recipes: &Recipes, a: u8, b: u8) -> Option<u8> {
     let dye = |c: u8| {
         let name = horizon_client::mobs::render::DYE_NAMES[usize::from(c) & 15];
@@ -9096,8 +9025,8 @@ mod pearl_tests {
     use super::*;
 
     /// A pearl's water test is `Entity.isInWater`: `wasTouchingWater` from the
-    /// last `updateFluidInteraction`, water whose surface reaches its 0.25
-    /// box (#3072), not the block at its feet.
+    /// last `updateInWaterStateAndDoFluidPushing`, water whose surface reaches
+    /// its 0.25 box (#3072), not the block at its feet.
     #[test]
     fn a_pearl_feels_the_water_its_box_touches() {
         // The throwable air drag is the float 0.99 widened to a double.

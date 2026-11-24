@@ -1440,7 +1440,7 @@ fn network_stack(
                 horizon_protocol::item::Component::BannerPatterns(layers),
             ));
         }
-        // The raid captain's banner: `Raid.getBannerComponentPatch` gives it
+        // The raid captain's banner: `Raid.getOminousBannerInstance` gives it
         // the ominous name, rarity and hidden layers, which `StackData` keeps
         // as `ominous_banner` rather than in `other` (#12530).
         if d.ominous_banner {

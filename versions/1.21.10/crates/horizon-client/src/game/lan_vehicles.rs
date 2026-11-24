@@ -662,8 +662,8 @@ impl Game<'_> {
         b.on_ground = p.on_ground;
         // handleMoveVehicle's `vehicle.move` counts the fall
         // (AbstractBoat.checkFallDamage); the server's baseTick resets it in
-        // water (updateFluidInteraction), which this boat's skipped tick
-        // doesn't run.
+        // water (updateInWaterStateAndDoFluidPushing), which this boat's
+        // skipped tick doesn't run.
         use super::entity::Entity as _;
         let mut probe = self.boats[i].clone();
         let in_water = probe

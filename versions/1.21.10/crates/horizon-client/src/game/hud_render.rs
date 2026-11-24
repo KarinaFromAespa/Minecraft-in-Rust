@@ -1,6 +1,6 @@
 //! The HUD-render gates `Hud`/`GameRenderer` apply before drawing.
 
-/// GameRenderer.render3dHud: the debug crosshair, first person with the HUD shown, and only over
+/// `DebugScreenOverlay.render3dCrosshair`: the debug crosshair, first person with the HUD shown, and only over
 /// a level. The F3 overlay stays on when the world closes, so it must not reach the panorama.
 pub(super) fn debug_crosshair_drawn(
     enabled: bool,

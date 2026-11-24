@@ -170,8 +170,8 @@ pub fn finalize(m: &mut Mob, biome: &BiomeFacts, difficulty: &LocalDifficulty) {
         Climate::Warm => 1,
         Climate::Cold => 2,
     };
-    // `Registry.getRandom` of the `*_sound_variant` registry (pig, cow,
-    // chicken, cat and wolf), drawn by their finalizeSpawn.
+    // `Registry.getRandom` of the `wolf_sound_variant` registry (only wolves
+    // have sound variants in 1.21.10), drawn by `Wolf.finalizeSpawn`.
     let sounds = super::finalize::sound_variants(m.species()).len();
     if sounds > 0 {
         m.extra.sound_variant = Some(m.random.next_int_bound(sounds as i32).unwrap_or(0) as u8);
@@ -345,11 +345,7 @@ pub fn finalize(m: &mut Mob, biome: &BiomeFacts, difficulty: &LocalDifficulty) {
         m.species(),
         S::Zombie | S::Husk | S::Drowned | S::ZombieVillager | S::ZombifiedPiglin
     ) {
-        super::finalize::zombie_attributes(
-            m,
-            difficulty.special(),
-            super::finalize::Reason::Natural,
-        );
+        super::finalize::zombie_attributes(m, difficulty.special());
     }
     // Drowned.finalizeSpawn, once Zombie.finalizeSpawn is done: a nautilus
     // shell in an empty offhand, as a guaranteed drop. Java draws it from the

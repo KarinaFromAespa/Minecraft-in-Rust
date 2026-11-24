@@ -274,9 +274,6 @@ impl Game<'_> {
         if message.is_empty() {
             return Err("the message is empty".into());
         }
-        if !self.chat_abilities().allows(message) {
-            return Err("the Chat option blocks this message".into());
-        }
         self.send_chat(message);
         Ok(())
     }

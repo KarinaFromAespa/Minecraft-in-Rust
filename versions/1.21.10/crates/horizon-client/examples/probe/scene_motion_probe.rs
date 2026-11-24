@@ -436,14 +436,19 @@ pub fn main() -> Result<()> {
                     )?;
                 }
                 "seed" => world.scene.random.set_seed(op["value"].as_i64().unwrap()),
-                "impulse" => world.player.impulse.set_ignore_fall_damage(
-                    op["ignore"].as_bool().unwrap(),
-                    if op["value"].is_null() {
+                // `Player.setIgnoreFallDamageFromCurrentImpulse` takes no
+                // position in 1.21.10; the op sets the field directly.
+                "impulse" => {
+                    world.player.impulse.impact_position = if op["value"].is_null() {
                         None
                     } else {
                         Some(vector(&op["value"]))
-                    },
-                ),
+                    };
+                    world
+                        .player
+                        .impulse
+                        .set_ignore_fall_damage(op["ignore"].as_bool().unwrap());
+                }
                 // A block, or every block of the box from position to "to".
                 "block" | "fill" => {
                     let p = &op["position"];
@@ -490,7 +495,7 @@ pub fn main() -> Result<()> {
                     )?;
                 }
                 // Entity.baseTick's fluid phase alone (wasEyeInWater,
-                // updateFluidInteraction, lava fall halving, firstTick).
+                // updateInWaterStateAndDoFluidPushing, lava fall halving, firstTick).
                 "fluid_tick" => world.fluid_base_tick()?,
                 // LivingEntity.baseTick's air supply alone.
                 "air_tick" => world.tick_environment_damage()?,

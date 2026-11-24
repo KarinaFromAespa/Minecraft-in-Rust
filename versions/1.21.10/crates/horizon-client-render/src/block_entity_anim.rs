@@ -152,7 +152,7 @@ pub struct BookRender {
     pub open: f32,
     pub time: f32,
     pub y_rot: f32,
-    /// `BookModel.State.forAnimation`: openness, pageFlip1, pageFlip2.
+    /// `BookModel.State` (animationPos, pageFlip1, pageFlip2, open): openness.
     pub openness: f32,
     pub page_flip1: f32,
     pub page_flip2: f32,

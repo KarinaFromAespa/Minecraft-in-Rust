@@ -100,7 +100,9 @@ fn root_owner(mut owner: [i32; 4], pet_owner: impl Fn([i32; 4]) -> Option<[i32; 
 
 impl Game<'_> {
     fn scoreboard_path(&self) -> std::path::PathBuf {
-        self.world_root.join("data/minecraft/scoreboard.dat")
+        // 1.21.10's `ScoreboardSaveData.TYPE` id is the plain string
+        // "scoreboard" (flat under `data/`); the namespaced form is 26.x's.
+        self.world_root.join("data/scoreboard.dat")
     }
     /// `ServerLevel.getWorldBorder`'s file: each dimension's own
     /// `data/minecraft/world_border.dat`.
@@ -136,7 +138,7 @@ impl Game<'_> {
             log::warn!("the world border of {} was not written: {e}", self.dim.id());
         }
     }
-    /// `ScoreboardSaveData` read from `data/minecraft/scoreboard.dat`.
+    /// `ScoreboardSaveData` read from `data/scoreboard.dat`.
     pub(super) fn load_scoreboard(&mut self) {
         if self.score.loaded || self.remote.is_some() {
             return;

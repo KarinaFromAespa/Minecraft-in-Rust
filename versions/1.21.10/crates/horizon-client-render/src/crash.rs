@@ -574,21 +574,13 @@ fn is_worker_thread(name: Option<&str>) -> bool {
     name.is_some_and(|n| n.starts_with("horizon-worker-"))
 }
 
-/// `Util.onThreadException`: a panic on a worker thread is made a report titled "Exception on
-/// worker thread", with the thread's name, as `BlockableEventLoop.relayDelayCrash` hands it to
-/// the main thread.
-pub fn worker_panic_report(info: &std::panic::PanicHookInfo, side: &'static str) -> Report {
-    Report {
-        description: "Exception on worker thread".into(),
-        ..panic_report(info, side)
-    }
-}
-
 /// Reports panics: on the main thread a crash report (the panic then ends the game, exit code
-/// 101); on a worker thread (`Util.onThreadException`) a crash report too, and the game ends
-/// with it; on other threads the error goes to the log, as vanilla's uncaught exception handler
-/// does. The default hook still prints the panic. A panic inside `contain` is only logged. A
-/// panic inside a native mod's hook names the mod and the hook.
+/// 101); on a worker thread (`Util.onThreadException`) the error goes to the log only, as in
+/// 1.21.10 — there is no delayed crash to relay (`BlockableEventLoop.relayDelayCrash` is
+/// 26.1-only), and the pool contains the panic, so the game carries on; on other threads the
+/// error goes to the log, as vanilla's uncaught exception handler does. The default hook still
+/// prints the panic. A panic inside `contain` is only logged. A panic inside a native mod's
+/// hook names the mod and the hook.
 pub fn install(home: PathBuf, side: &'static str) {
     let default = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
@@ -600,9 +592,14 @@ pub fn install(home: PathBuf, side: &'static str) {
         if main {
             deliver(&home, panic_report(info, side));
         } else if is_worker_thread(std::thread::current().name()) {
-            deliver(&home, worker_panic_report(info, side));
-            // The crash ends the game, as the relayed report does on vanilla's main thread.
-            std::process::exit(101);
+            // `Util.onThreadException` in 1.21.10: a plain exception is logged
+            // and the thread carries on (only a ReportedException prints its
+            // report and exits, and a panic never carries one).
+            log::error!(
+                "Caught exception in thread {}: {}",
+                thread_name(side),
+                panic_message(info)
+            );
         } else {
             log::error!(
                 "Caught previously unhandled exception in thread {}: {}",

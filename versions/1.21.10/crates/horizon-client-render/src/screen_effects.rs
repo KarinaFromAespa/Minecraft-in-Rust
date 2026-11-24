@@ -96,7 +96,7 @@ impl Default for ScreenEffects {
         }
     }
 }
-/// `Lightmap.getBrightness`.
+/// `LightTexture.getBrightness`.
 pub fn lightmap_brightness(ambient_light: f32, level: u8) -> f32 {
     let v = f32::from(level) / 15.0;
     let curved = v / (4.0 - 3.0 * v);

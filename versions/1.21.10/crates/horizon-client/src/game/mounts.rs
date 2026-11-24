@@ -341,18 +341,8 @@ impl Game<'_> {
             self.keys.held(Action::Sneak) || self.keys.raw(&winit::keyboard::KeyCode::ShiftRight);
         // Horse / ZombieHorse.mobInteract: food is fed, and anything else in
         // hand makes an untamed one mad instead of seating the player.
-        let dandelion = [self.held(), self.offhand.as_ref()]
-            .into_iter()
-            .flatten()
-            .any(|s| &*s.item == "minecraft:golden_dandelion");
         let mut events = Vec::new();
-        match equine::held_item(
-            &mut self.mobs[index],
-            item,
-            sneaking,
-            dandelion,
-            &mut events,
-        ) {
+        match equine::held_item(&mut self.mobs[index], item, sneaking, &mut events) {
             Some(equine::HeldItem::Feed) => return self.feed_mount(index, item),
             Some(equine::HeldItem::Refused) => {
                 let _ = self.handle_mob_events(events);
@@ -449,7 +439,7 @@ impl Game<'_> {
             m.heal(heal);
             used = true;
         }
-        if m.is_baby() && age_up > 0 && !m.extra.age_locked {
+        if m.is_baby() && age_up > 0 {
             m.extra.age = (m.extra.age + age_up * 20).min(0);
             used = true;
         }
@@ -469,7 +459,6 @@ impl Game<'_> {
             Species::CamelHusk => "minecraft:entity.camel_husk.eat",
             Species::Donkey => "minecraft:entity.donkey.eat",
             Species::Mule => "minecraft:entity.mule.eat",
-            Species::Horse if m.is_baby() => "minecraft:entity.baby_horse.eat",
             // ZombieHorse.getEatingSound.
             Species::ZombieHorse => "minecraft:entity.zombie_horse.eat",
             _ => "minecraft:entity.horse.eat",

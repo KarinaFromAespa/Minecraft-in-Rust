@@ -1048,6 +1048,16 @@ pub fn available_port() -> u16 {
         .map_or(25565, |a| a.port())
 }
 
+/// HttpUtil.isPortAvailable: whether a server could bind the port.
+pub fn is_port_available(port: u16) -> bool {
+    let bind = if cfg!(test) || test_loopback() {
+        "127.0.0.1"
+    } else {
+        "0.0.0.0"
+    };
+    TcpListener::bind((bind, port)).is_ok()
+}
+
 /// Same-machine harnesses opt in; real LAN runs keep the normal network interfaces.
 pub(super) fn test_loopback() -> bool {
     std::env::var_os("HORIZON_TEST_LOOPBACK").is_some_and(|v| v == "1")

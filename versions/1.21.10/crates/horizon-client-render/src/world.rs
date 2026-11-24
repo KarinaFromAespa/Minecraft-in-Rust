@@ -108,8 +108,10 @@ pub struct World {
     pub inhabited: FxHashMap<(i32, i32), i64>,
     pub game_time: i64,
     pub day_time: i64,
-    /// The End's world clock (`WorldClocks.THE_END`, the End sky flash's), saved apart from
+    /// The End's world clock (the 26.x `WorldClocks.THE_END`, kept as
+    /// adapter-internal state: 1.21.10 has no world clocks), saved apart from
     /// the game time and, like every clock, still while `advance_time` is off.
+    /// The End sky flash does NOT run on it — it ticks on the game time.
     pub end_clock: i64,
     pub weather: Weather,
     /// Every block position written since the log was last drained, kept

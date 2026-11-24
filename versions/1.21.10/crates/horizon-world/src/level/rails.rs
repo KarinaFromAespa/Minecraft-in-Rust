@@ -711,10 +711,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             let opposite = direction.opposite();
             self.set_block_and_update(test, b.table.set_dir(new_state, p.facing, opposite));
             self.tripwire_hook_notify(block, test, opposite);
-            if !b.is_block(self.state(pos), b.named.tripwire_hook) {
-                self.tripwire_hook_removed(pos, new_state);
-                return;
-            }
+            // 1.21.10 has no 26.1 check for the near hook having vanished
+            // during the far hook's notification (no early return, no
+            // onRemoved): the state is emitted either way.
             self.tripwire_emit(test, attached, powered, was_attached, was_powered);
         }
         self.tripwire_emit(pos, attached, powered, was_attached, was_powered);

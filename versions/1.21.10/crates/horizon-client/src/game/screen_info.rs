@@ -18,15 +18,10 @@ fn join_lines(parts: &[&str]) -> String {
 }
 
 /// `ChatScreen.updateNarrationState` (and `InBedChatScreen`'s): its title,
-/// how to send (and that the chat is restricted), and the message typed so
-/// far one level in. No widget and no navigation.
-pub(super) fn chat(in_bed: bool, value: &str, restricted: bool, tr: Tr<'_>) -> ScreenInfo {
+/// how to send, and the message typed so far one level in. No widget and
+/// no navigation.
+pub(super) fn chat(in_bed: bool, value: &str, tr: Tr<'_>) -> ScreenInfo {
     let usage = tr("chat_screen.usage", &[]);
-    let usage = if restricted {
-        join_for_narration(&[&usage, &tr("chat_screen.restricted.narration", &[])])
-    } else {
-        usage
-    };
     let id = if in_bed { "chat/in_bed" } else { "chat" };
     let info = ScreenInfo::new(id, tr("chat_screen.title", &[]))
         .without_widgets()
@@ -41,8 +36,8 @@ pub(super) fn chat(in_bed: bool, value: &str, restricted: bool, tr: Tr<'_>) -> S
 
 /// `LevelLoadingScreen`: no title and no navigation; `updateNarratedWidget`
 /// says the server's progress (`loading.progress`, floored to a percent) in
-/// the title's place when there is one, and `extractRenderState` narrates
-/// what changed every 2 s.
+/// the title's place when there is one, and `render` (26.1's
+/// `extractRenderState`) narrates what changed every 2 s.
 pub(super) fn level_loading(progress: Option<f32>, tr: Tr<'_>) -> ScreenInfo {
     let info = ScreenInfo::new("level_loading", "")
         .without_widgets()
@@ -101,11 +96,6 @@ pub(super) fn confirm(id: &str, title: &str, message: &str) -> ScreenInfo {
     ScreenInfo::new(id, join_for_narration(&[title, message]))
 }
 
-/// `PopupScreen.getNarrationMessage`: the title and the messages, a line each.
-pub(super) fn popup(id: &str, title: &str, messages: &[&str]) -> ScreenInfo {
-    ScreenInfo::new(id, join_for_narration(&[title, &join_lines(messages)]))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -121,7 +111,7 @@ mod tests {
 
     #[test]
     fn the_chat_narrates_its_usage_and_the_message_typed_but_no_widget() {
-        let empty = chat(false, "", false, &keys);
+        let empty = chat(false, "", &keys);
         assert_eq!(empty.id, "chat");
         assert_eq!(empty.title, "chat_screen.title");
         assert!(!empty.widgets && !empty.navigation);
@@ -129,7 +119,7 @@ mod tests {
             empty.extra,
             [(ElementType::Usage, 0, vec!["chat_screen.usage".to_owned()])]
         );
-        let typed = chat(true, "hello", true, &keys);
+        let typed = chat(true, "hello", &keys);
         assert_eq!(typed.id, "chat/in_bed");
         assert_eq!(
             typed.extra,
@@ -137,7 +127,7 @@ mod tests {
                 (
                     ElementType::Usage,
                     0,
-                    vec!["chat_screen.usage. chat_screen.restricted.narration".to_owned()]
+                    vec!["chat_screen.usage".to_owned()]
                 ),
                 (
                     ElementType::Title,
@@ -180,14 +170,10 @@ mod tests {
     }
 
     #[test]
-    fn confirm_and_popup_screens_join_their_title_and_message() {
+    fn confirm_screens_join_their_title_and_message() {
         assert_eq!(
             confirm("link", "Open this?", "https://example.com").title,
             "Open this?. https://example.com"
-        );
-        assert_eq!(
-            popup("lock", "Lock difficulty", &["Are you sure?", "Really?"]).title,
-            "Lock difficulty. Are you sure?\nReally?"
         );
     }
 }

@@ -51,7 +51,7 @@ pub struct BlockEntityDraw {
     /// The level's game time, for animations.
     pub game_time: i64,
     /// The light the helpers draw with: the block's own
-    /// (`LevelRenderer.getLightCoords`), 16 times sky light in bits 0..8 and
+    /// (`LevelRenderer.getLightColor`), 16 times sky light in bits 0..8 and
     /// 16 times block light in bits 8..16; set it to light a part otherwise.
     pub light: u32,
     /// The block drawn, for `native_draw_item`'s owner.

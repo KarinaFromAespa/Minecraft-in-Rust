@@ -1,5 +1,5 @@
-//! The recipe book's drawing (`RecipeBookComponent.extractRenderState`,
-//! `extractTooltip` and `GhostSlots.extractRenderState`) as the list of GUI
+//! The recipe book's drawing (`RecipeBookComponent.render`,
+//! `renderTooltip` and `GhostSlots.render`) as the list of GUI
 //! calls vanilla's widgets make: the background, the search `EditBox`, the
 //! `RecipeBookTabButton`s, the craftable filter `CycleButton`, the
 //! `RecipeBookPage` with its `RecipeButton`s, page number and arrows, the
@@ -27,7 +27,7 @@ impl Run {
     }
 }
 
-/// How an item is drawn: `GuiGraphicsExtractor.item`, `fakeItem` or `itemDecorations`.
+/// How an item is drawn: `GuiGraphics.renderItem`, `renderFakeItem` or `renderItemDecorations`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ItemCall {
     Item,
@@ -123,7 +123,8 @@ pub struct Search {
     pub highlight: usize,
     pub display: usize,
     pub focused: bool,
-    /// Milliseconds since the box was focused (`TextCursorUtils.isCursorVisible`).
+    /// Milliseconds since the box was focused (the cursor's blink: on for
+    /// `CURSOR_BLINK_INTERVAL_MS` = 300 ms of every 600).
     pub blink_ms: u64,
 }
 
@@ -312,7 +313,7 @@ pub fn draw(s: &Screen) -> Vec<Drawn> {
             IDENTITY,
         );
     }
-    // RecipeBookPage.extractRenderState.
+    // RecipeBookPage.render.
     if s.pages > 1 {
         let text = (s.translate)("gui.recipebook.page")
             .replacen("%s", &(s.page + 1).to_string(), 1)
@@ -409,7 +410,7 @@ pub fn draw(s: &Screen) -> Vec<Drawn> {
     if let Some(o) = s.overlay {
         overlay(s, o, &mut put);
     }
-    // RecipeBookPage.extractTooltip.
+    // RecipeBookPage.renderTooltip.
     if let Some((stack, more)) = hovered
         && s.overlay.is_none()
     {
@@ -421,7 +422,7 @@ pub fn draw(s: &Screen) -> Vec<Drawn> {
     out
 }
 
-/// `GhostSlots.extractRenderState` for a container whose corner is `(left, top)`.
+/// `GhostSlots.render` for a container whose corner is `(left, top)`.
 pub fn ghost(index: usize, left: i32, top: i32, big: bool, ghosts: &[GhostView]) -> Vec<Drawn> {
     let mut out = Vec::new();
     let mut put = |call: Call, pose: [f32; 6]| out.push(Drawn { call, pose });
@@ -501,7 +502,7 @@ fn same_result_display(entries: &[Vec<ItemStack>]) -> bool {
     items.all(|s| first.same_item_same_components(s))
 }
 
-/// `EditBox.extractWidgetRenderState` for the recipe book's search box.
+/// `EditBox.renderWidget` for the recipe book's search box.
 fn search_box(s: &Screen, x: i32, y: i32, put: &mut impl FnMut(Call, [f32; 6])) {
     let b = s.search;
     let (w, h) = (81, 9 + 5);
@@ -647,7 +648,7 @@ pub fn overlay_origin(button_x: i32, button_y: i32, total: usize, xo: i32, yo: i
     (x, y)
 }
 
-/// `OverlayRecipeComponent.extractRenderState`.
+/// `OverlayRecipeComponent.render`.
 fn overlay(s: &Screen, o: &OverlayView, put: &mut impl FnMut(Call, [f32; 6])) {
     let total = o.recipes.len() as i32;
     let max_row = if total <= 16 { 4 } else { 5 };

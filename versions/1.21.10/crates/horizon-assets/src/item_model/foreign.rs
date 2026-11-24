@@ -1,9 +1,6 @@
 //! Nodes and properties of other namespaces (a mod's, NeoForge's) decode to the closest vanilla behaviour.
-use super::{
-    ItemModelNode, ModelLeaf, Result, TintSource, get, ident, identifier, list, object,
-    optional_transformation,
-};
-use crate::{json::error as err, math::Mat4};
+use super::{ItemModelNode, ModelLeaf, Result, TintSource, get, ident, identifier, list, object};
+use crate::json::error as err;
 use serde_json::{Map, Value};
 
 /// Keys a mod's node usually keeps its real model under, in order of preference.
@@ -11,17 +8,6 @@ const MODEL_KEYS: [&str; 4] = ["model", "base_model", "base", "fallback"];
 
 pub fn is_foreign(id: &str) -> bool {
     !id.starts_with("minecraft:")
-}
-
-/// A composite carries the transformation a collapsed node had.
-pub fn wrap(node: ItemModelNode, transformation: Option<Mat4>) -> ItemModelNode {
-    match transformation {
-        None => node,
-        Some(_) => ItemModelNode::Composite {
-            models: vec![node],
-            transformation,
-        },
-    }
 }
 
 pub fn property_is_foreign(m: &Map<String, Value>) -> Result<bool> {
@@ -43,7 +29,6 @@ fn leaf(model: String, m: &Map<String, Value>) -> ItemModelNode {
         .unwrap_or_default();
     ItemModelNode::Model(ModelLeaf {
         model,
-        transformation: optional_transformation(m).ok().flatten(),
         tints,
     })
 }
@@ -57,7 +42,7 @@ pub fn decode_node(kind: &str, m: &Map<String, Value>) -> ItemModelNode {
         match m.get(key) {
             Some(nested @ Value::Object(_)) => {
                 if let Ok(node) = ItemModelNode::decode(nested) {
-                    return wrap(node, optional_transformation(m).ok().flatten());
+                    return node;
                 }
             }
             Some(Value::String(id)) => {
@@ -97,18 +82,13 @@ fn fluid_container(m: &Map<String, Value>) -> ItemModelNode {
         .map(|model| {
             ItemModelNode::Model(ModelLeaf {
                 model,
-                transformation: None,
                 tints: Vec::new(),
             })
         })
         .collect();
-    let transformation = optional_transformation(m).ok().flatten();
     match models.len() {
         0 => ItemModelNode::Empty,
-        1 => wrap(models.remove(0), transformation),
-        _ => ItemModelNode::Composite {
-            models,
-            transformation,
-        },
+        1 => models.remove(0),
+        _ => ItemModelNode::Composite { models },
     }
 }

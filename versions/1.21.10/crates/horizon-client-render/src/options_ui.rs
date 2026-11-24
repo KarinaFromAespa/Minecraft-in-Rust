@@ -41,6 +41,28 @@ fn percent(caption: &str, value: f32) -> Text {
         ],
     )
 }
+/// `Difficulty` ids in `Difficulty.values()` order. `Difficulty.getDisplayName`
+/// is `options.difficulty.<id>`.
+const DIFFICULTIES: [&str; 4] = ["peaceful", "easy", "normal", "hard"];
+/// The display name of difficulty `.0` (`Difficulty.getDisplayName`).
+fn difficulty_name(d: u8) -> Text {
+    tr(&format!(
+        "options.difficulty.{}",
+        DIFFICULTIES[usize::from(d.min(3))]
+    ))
+}
+/// `LockIconButton.Icon`: the sprite for the lock button's state, drawn over
+/// the whole 20x20 button (`LockIconButton.renderContents`).
+fn lock_icon_sprite(locked: bool, active: bool, hover: bool) -> &'static str {
+    match (locked, active, hover) {
+        (true, false, _) => "gui/sprites/widget/locked_button_disabled",
+        (true, _, true) => "gui/sprites/widget/locked_button_highlighted",
+        (true, _, _) => "gui/sprites/widget/locked_button",
+        (false, false, _) => "gui/sprites/widget/unlocked_button_disabled",
+        (false, _, true) => "gui/sprites/widget/unlocked_button_highlighted",
+        (false, _, _) => "gui/sprites/widget/unlocked_button",
+    }
+}
 /// `text` cut into lines of at most `width` characters, at spaces where it has them.
 fn wrap(text: &str, width: usize) -> Vec<String> {
     let mut lines = Vec::new();
@@ -228,8 +250,7 @@ impl Opt {
             Opt::MaxFps => "options.framerateLimit",
             Opt::Vsync => "options.vsync",
             Opt::Fullscreen => "options.fullscreen",
-            Opt::ExclusiveFullscreen => "options.exclusiveFullscreen",
-            Opt::ExclusiveMode => "options.fullscreen.exclusive.mode",
+            Opt::ExclusiveMode => "options.fullscreen.resolution",
             Opt::GraphicsBackend => "options.graphicsApi",
             Opt::TextureFiltering => "options.textureFiltering",
             Opt::MaxAnisotropy => "options.maxAnisotropy",
@@ -420,14 +441,6 @@ impl Opt {
                 "options.prioritizeChunkUpdates.byPlayer",
                 "options.prioritizeChunkUpdates.nearby",
             ][usize::from(s.prioritize_chunk_updates.min(2))],
-            // Options.exclusiveFullscreen: a tooltip per value.
-            Opt::ExclusiveFullscreen => {
-                if s.file.bool("exclusiveFullscreen") {
-                    "options.exclusiveFullscreen.on"
-                } else {
-                    "options.exclusiveFullscreen.off"
-                }
-            }
             Opt::TextureFiltering => [
                 "options.textureFiltering.none",
                 "options.textureFiltering.rgss",
@@ -743,7 +756,6 @@ impl Opt {
             Opt::ViewBobbing => on_off(s.view_bobbing),
             Opt::Vsync => on_off(s.vsync),
             Opt::Fullscreen => on_off(s.fullscreen),
-            Opt::ExclusiveFullscreen => on_off(s.file.bool("exclusiveFullscreen")),
             Opt::TextureFiltering => tr([
                 "options.textureFiltering.none",
                 "options.textureFiltering.rgss",
@@ -1035,11 +1047,6 @@ impl Opt {
             Opt::ViewBobbing => s.view_bobbing = !s.view_bobbing,
             Opt::Vsync => s.vsync = !s.vsync,
             Opt::Fullscreen => s.fullscreen = !s.fullscreen,
-            Opt::ExclusiveFullscreen => {
-                let on = s.file.bool("exclusiveFullscreen");
-                s.file
-                    .set("exclusiveFullscreen", crate::options_file::V::Bool(!on));
-            }
             Opt::TextureFiltering => {
                 let n = next(s.file.int("textureFiltering").clamp(0, 2) as u8, 3);
                 s.file.set(
@@ -1376,6 +1383,11 @@ enum Act {
     Push(Page),
     Done,
     Cycle(Opt),
+    /// The Main page's difficulty button (`OptionsScreen.createDifficultyButton`):
+    /// cycles to the next difficulty and sends it to the integrated server.
+    CycleDifficulty,
+    /// The Main page's lock button (`LockIconButton`): opens the lock confirm.
+    LockDifficulty,
     Extra(crate::extras::Item),
     Key(&'static str),
     ResetKey(&'static str),
@@ -1415,6 +1427,12 @@ enum Act {
 enum WKind {
     Button {
         label: Text,
+        active: bool,
+        act: Act,
+    },
+    /// A button that draws a sprite, not a label (`LockIconButton`): the
+    /// sprite comes from the screen's state at draw time.
+    IconButton {
         active: bool,
         act: Act,
     },
@@ -1465,6 +1483,7 @@ fn focus_id(i: usize, wd: &Widget) -> FocusId {
             ..
         } => FocusId::Cycle(*opt),
         WKind::Button { act, .. } if *act != Act::None => FocusId::Act(act.clone()),
+        WKind::IconButton { act, .. } if *act != Act::None => FocusId::Act(act.clone()),
         WKind::LanguageRow { code, .. } => FocusId::Lang(code.clone()),
         _ => FocusId::Index(i),
     }
@@ -1481,6 +1500,7 @@ fn matches_focus(id: &FocusId, i: usize, wd: &Widget) -> bool {
             },
         ) => a == opt,
         (FocusId::Act(a), WKind::Button { act, .. }) => a == act,
+        (FocusId::Act(a), WKind::IconButton { act, .. }) => a == act,
         (FocusId::Lang(a), WKind::LanguageRow { code, .. }) => a == code,
         (FocusId::Index(idx), _) => *idx == i,
         _ => false,
@@ -1511,6 +1531,13 @@ pub enum Event {
     Volume(usize, f32),
     /// The language changed (reload translations).
     Language(String),
+    /// The Main page's difficulty button cycled to this difficulty
+    /// (`OptionsScreen.createDifficultyButton`'s `onValueChange`): send it to
+    /// the integrated server (`ServerboundChangeDifficultyPacket`).
+    Difficulty(u8),
+    /// The difficulty-lock confirm answered yes (`lockCallback`): send the
+    /// lock to the integrated server (`ServerboundLockDifficultyPacket`).
+    LockDifficulty,
     /// The pack selection changed (reload resources).
     Packs(Vec<String>),
     /// Create World's Data Packs screen closed with a new selection.
@@ -1664,6 +1691,20 @@ pub struct OptionsUi {
     pub in_world: bool,
     /// AccessibilityOptionsScreen: the loaded world's experimental feature.
     pub minecart_improvements: bool,
+    /// `OptionsScreen.createOnlineButton`: the world's difficulty (0 peaceful
+    /// .. 3 hard), for the Main page's difficulty button. The game sets it
+    /// when the options open; the button cycles it locally and the server's
+    /// `ChangeDifficulty` broadcast confirms it.
+    pub difficulty: u8,
+    /// `LevelData.isDifficultyLocked`: both difficulty controls inactive.
+    pub difficulty_locked: bool,
+    /// `LevelData.isHardcore`: the difficulty button alone (inactive), no lock.
+    pub hardcore: bool,
+    /// `Minecraft.hasSingleplayerServer`: the difficulty control shows only in
+    /// a singleplayer world; otherwise the Online button.
+    pub singleplayer: bool,
+    /// The difficulty-lock confirm (`ConfirmScreen`, `lockCallback`) is open.
+    difficulty_confirm: bool,
     /// Scroll the selected language into the middle on the next layout.
     center_language: bool,
     /// The output of the renderer the options are drawn for, as of the last draw. It lives
@@ -1753,6 +1794,11 @@ impl Default for OptionsUi {
             pack_reselected: false,
             in_world: false,
             minecart_improvements: false,
+            difficulty: 2,
+            difficulty_locked: false,
+            hardcore: false,
+            singleplayer: false,
+            difficulty_confirm: false,
             center_language: false,
             output: crate::gfx::EffectiveOutput::NONE,
             graphics: Default::default(),
@@ -1796,10 +1842,23 @@ fn button(x: f32, y: f32, w: f32, label: Text, act: Act) -> Widget {
     }
 }
 fn inactive(mut w: Widget) -> Widget {
-    if let WKind::Button { active, .. } = &mut w.kind {
-        *active = false;
+    match &mut w.kind {
+        WKind::Button { active, .. } | WKind::IconButton { active, .. } => *active = false,
+        _ => {}
     }
     w
+}
+/// A 20x20 sprite button (`LockIconButton` is 20x20).
+fn icon_button(x: f32, y: f32, act: Act) -> Widget {
+    Widget {
+        x,
+        y,
+        w: 20.0,
+        h: 20.0,
+        kind: WKind::IconButton { active: true, act },
+        list: false,
+        row: 0,
+    }
 }
 fn option_widget(s: &Settings, opt: Opt, x: f32, y: f32, w: f32) -> Widget {
     // OptionsSubScreen.addContents: the narrator button is active only while
@@ -2738,7 +2797,6 @@ impl OptionsUi {
                     Opt::InactivityFps,
                     Opt::GuiScale,
                     Opt::Fullscreen,
-                    Opt::ExclusiveFullscreen,
                     Opt::Gamma,
                     Opt::GraphicsBackend,
                 ]));
@@ -3035,13 +3093,39 @@ impl OptionsUi {
                     row: 0,
                 });
                 out.push(option_widget(s, Opt::Fov, cx - 154.0, 29.0, 150.0));
-                out.push(button(
-                    cx + 4.0,
-                    29.0,
-                    150.0,
-                    tr("options.online"),
-                    Act::Push(Page::Online),
-                ));
+                // OptionsScreen.createOnlineButton: in a singleplayer world
+                // the Online slot holds the difficulty control instead — a
+                // CycleButton over `Difficulty.values()` (150 wide, or 130
+                // with the 20-wide lock button beside it) — and the Online
+                // button only otherwise.
+                if self.in_world && self.singleplayer {
+                    let locked = self.difficulty_locked;
+                    let diff_w = if self.hardcore { 150.0 } else { 130.0 };
+                    let diff = button(
+                        cx + 4.0,
+                        29.0,
+                        diff_w,
+                        generic("options.difficulty", difficulty_name(self.difficulty)),
+                        Act::CycleDifficulty,
+                    );
+                    out.push(if locked || self.hardcore {
+                        inactive(diff)
+                    } else {
+                        diff
+                    });
+                    if !self.hardcore {
+                        let lock = icon_button(cx + 134.0, 29.0, Act::LockDifficulty);
+                        out.push(if locked { inactive(lock) } else { lock });
+                    }
+                } else {
+                    out.push(button(
+                        cx + 4.0,
+                        29.0,
+                        150.0,
+                        tr("options.online"),
+                        Act::Push(Page::Online),
+                    ));
+                }
                 let entries = [
                     ("options.skinCustomisation", Some(Page::Skin)),
                     ("options.sounds", Some(Page::Sound)),
@@ -3569,6 +3653,89 @@ impl OptionsUi {
             Narratable::container_list(self.row_bands.len(), hovered_row, rect).key(key)
         });
     }
+    /// The difficulty-lock confirm's geometry (`ConfirmScreen.init`, as
+    /// `PackScreen::confirm_layout` lays it out): title, the question wrapped
+    /// to the width minus 50 (at most 15 rows, centred), Yes/No buttons 150
+    /// wide and 4 apart, 16 below the message, the whole layout centred.
+    /// Returns the title's position, the message lines with their x and y,
+    /// and the two buttons' positions.
+    fn difficulty_confirm_layout(
+        &self,
+        atlas: &HudAtlas,
+        w: f32,
+        h: f32,
+    ) -> ((f32, f32), (Vec<Text>, f32, f32), [(f32, f32); 2]) {
+        let title = tr("difficulty.lock.title");
+        let message = Text::translate(
+            "difficulty.lock.question",
+            &[difficulty_name(self.difficulty)],
+        );
+        let max = (w - 50.0).max(1.0);
+        let lines: Vec<Text> = atlas
+            .font
+            .split(&message, max)
+            .into_iter()
+            .take(15)
+            .collect();
+        let mw = lines
+            .iter()
+            .map(|l| atlas.font.width_text(l))
+            .fold(0.0f32, f32::max);
+        let mh = lines.len() as f32 * 9.0;
+        let tw = atlas.font.width_text(&title);
+        let col = tw.max(mw).max(304.0);
+        let total = 9.0 + 8.0 + mh + 8.0 + 36.0;
+        let lx = (w - col) / 2.0;
+        let ly = (h - total) / 2.0;
+        let cell = |w: f32| lx + (col - w) / 2.0;
+        let by = ly + 9.0 + 8.0 + mh + 8.0 + 16.0;
+        let bx = cell(304.0);
+        (
+            (cell(tw), ly),
+            (lines, cell(mw), ly + 17.0),
+            [(bx, by), (bx + 154.0, by)],
+        )
+    }
+    /// Draw the difficulty-lock confirm over the options (`ConfirmScreen`).
+    fn draw_difficulty_confirm(
+        &mut self,
+        batch: &mut HudBatch,
+        atlas: &HudAtlas,
+        cursor: (f32, f32),
+    ) {
+        let (w, h) = (batch.width, batch.height);
+        self.size = (w, h);
+        ui::menu_background(batch, atlas, 0.0, 0.0, w, h, self.in_world);
+        let title = tr("difficulty.lock.title");
+        let message = Text::translate(
+            "difficulty.lock.question",
+            &[difficulty_name(self.difficulty)],
+        );
+        crate::widgets::begin_screen(|| {
+            crate::widgets::ScreenInfo::new(
+                "options/difficulty_lock",
+                crate::widgets::join_for_narration(&[&title.plain(), &message.plain()]),
+            )
+        });
+        let ((tx, ty), (lines, mx, my), buttons) = self.difficulty_confirm_layout(atlas, w, h);
+        batch.text_styled(atlas, &title, tx, ty, u32::MAX, true);
+        for (i, line) in lines.iter().enumerate() {
+            batch.text_styled(atlas, line, mx, my + i as f32 * 9.0, u32::MAX, true);
+        }
+        for (i, (bx, by)) in buttons.into_iter().enumerate() {
+            let label = if i == 0 { tr("gui.yes") } else { tr("gui.no") };
+            ui::focused_button(
+                batch,
+                atlas,
+                [bx, by, 150.0, 20.0],
+                &label,
+                true,
+                ui::hovered(cursor, bx, by, 150.0, 20.0),
+                false,
+                None,
+            );
+        }
+    }
     /// `output`: that of the renderer the options are drawn for, each draw, so the graphics
     /// screen's rows and calibration read its offer and report as they are now, not another
     /// window's, and not one from before the page opened.
@@ -3624,6 +3791,12 @@ impl OptionsUi {
                 true,
                 ui::hovered(cursor, w / 2.0 - 100.0, h - 28.0, 200.0, 20.0),
             );
+            return;
+        }
+        // The difficulty-lock confirm replaces the page while it is open
+        // (`ConfirmScreen` over the options screen).
+        if self.difficulty_confirm {
+            self.draw_difficulty_confirm(batch, atlas, cursor);
             return;
         }
         // The page is its own screen (OptionsScreen, VideoSettingsScreen...).
@@ -3751,6 +3924,38 @@ impl OptionsUi {
                     );
                     crate::widgets::last_narratable(|n| {
                         narrate_widget(n, s, wd, hover, list_key, framebuffer);
+                    });
+                }
+                WKind::IconButton { active, .. } => {
+                    // LockIconButton.renderContents: the icon sprite over the
+                    // whole 20x20 button, picked by state.
+                    batch.sprite_scaled(
+                        atlas,
+                        lock_icon_sprite(self.difficulty_locked, *active, hover),
+                        wd.x,
+                        wd.y,
+                        wd.w,
+                        wd.h,
+                        u32::MAX,
+                    );
+                    // LockIconButton.createNarrationMessage: the lock button
+                    // and whether it is locked.
+                    let locked = self.difficulty_locked;
+                    let message = crate::widgets::join_for_narration(&[
+                        &tr("narrator.button.difficulty_lock").plain(),
+                        &tr(if locked {
+                            "narrator.button.difficulty_lock.locked"
+                        } else {
+                            "narrator.button.difficulty_lock.unlocked"
+                        })
+                        .plain(),
+                    ]);
+                    crate::widgets::narratable(|| {
+                        crate::widgets::Narratable::button(
+                            message,
+                            [wd.x, wd.y, wd.w, wd.h],
+                            *active,
+                        )
                     });
                 }
                 WKind::Slider { label, value, opt } => {
@@ -3931,6 +4136,25 @@ impl OptionsUi {
             {
                 self.resource_error = None;
                 return vec![Event::ButtonClick];
+            }
+            return Vec::new();
+        }
+        if self.difficulty_confirm {
+            // The lock confirm's callback (`lockCallback`): back to the
+            // options, and on Yes lock the difficulty and deactivate both
+            // controls at once.
+            if !drag && !right {
+                let (_, _, buttons) = self.difficulty_confirm_layout(atlas, size.0, size.1);
+                for (i, (bx, by)) in buttons.into_iter().enumerate() {
+                    if ui::hovered((x, y), bx, by, 150.0, 20.0) {
+                        self.difficulty_confirm = false;
+                        if i == 0 {
+                            self.difficulty_locked = true;
+                            return vec![Event::ButtonClick, Event::LockDifficulty];
+                        }
+                        return vec![Event::ButtonClick];
+                    }
+                }
             }
             return Vec::new();
         }
@@ -4165,7 +4389,10 @@ impl OptionsUi {
             }
             // AbstractWidget.mouseClicked rejects inactive buttons before the
             // container can focus them.
-            if matches!(wd.kind, WKind::Button { active: false, .. }) {
+            if matches!(
+                wd.kind,
+                WKind::Button { active: false, .. } | WKind::IconButton { active: false, .. }
+            ) {
                 return events;
             }
             // A click focuses the widget for its highlight only: vanilla's wheel
@@ -4175,7 +4402,8 @@ impl OptionsUi {
             match wd.kind {
                 WKind::Button {
                     active: true, act, ..
-                } => {
+                }
+                | WKind::IconButton { active: true, act } => {
                     self.can_change_value = false;
                     events.push(Event::ButtonClick);
                     match act {
@@ -4197,6 +4425,16 @@ impl OptionsUi {
                         Act::Done => events.extend(self.back(s)),
                         Act::Cycle(opt) => {
                             events.extend(self.cycle_option(s, opt, self.shift, framebuffer));
+                        }
+                        Act::CycleDifficulty => {
+                            // CycleButton.onValueChange: the next difficulty,
+                            // shown at once and sent to the server.
+                            let next = (self.difficulty + 1) % 4;
+                            self.difficulty = next;
+                            events.push(Event::Difficulty(next));
+                        }
+                        Act::LockDifficulty => {
+                            self.difficulty_confirm = true;
                         }
                         Act::Extra(item) => {
                             if let Some(name) = item.key_name() {
@@ -4791,6 +5029,13 @@ impl OptionsUi {
             }
             return Vec::new();
         }
+        if self.difficulty_confirm {
+            // ConfirmScreen.keyPressed: Escape answers no.
+            if key == K::Escape {
+                self.difficulty_confirm = false;
+            }
+            return Vec::new();
+        }
         if self.page() == Page::Packs
             && let Some(p) = &mut self.pack_screen
         {
@@ -4906,6 +5151,7 @@ impl OptionsUi {
         for (i, wd) in widgets.iter().enumerate() {
             match wd.kind {
                 WKind::Button { active: true, .. }
+                | WKind::IconButton { active: true, .. }
                 | WKind::Slider { .. }
                 | WKind::LanguageRow { .. } => {
                     focusables.push((focus_id(i, wd), [wd.x, wd.y, wd.w, wd.h], wd.list));
@@ -5083,6 +5329,14 @@ impl OptionsUi {
                         }
                         Act::Cycle(opt) => {
                             events.extend(self.cycle_option(s, opt, shift, self.framebuffer));
+                        }
+                        Act::CycleDifficulty => {
+                            let next = (self.difficulty + 1) % 4;
+                            self.difficulty = next;
+                            events.push(Event::Difficulty(next));
+                        }
+                        Act::LockDifficulty => {
+                            self.difficulty_confirm = true;
                         }
                         Act::Extra(item) => {
                             if let Some(name) = item.key_name() {
@@ -5597,6 +5851,300 @@ mod tests {
         assert!(ui.resource_error.is_none());
     }
 
+    /// OptionsScreen.createOnlineButton: in a singleplayer world the Online
+    /// slot holds the difficulty control — the CycleButton (130 wide, the
+    /// lock's 20 beside it) — and the Online button only otherwise.
+    #[test]
+    fn main_page_shows_difficulty_control_in_singleplayer_world() {
+        let s = Settings::default();
+        let mut ui = OptionsUi {
+            in_world: true,
+            singleplayer: true,
+            difficulty: 2,
+            ..Default::default()
+        };
+        let (widgets, _, _, _) = ui.layout(&s, 854.0, 480.0);
+        let diff = widgets.iter().find(|w| {
+            matches!(
+                w.kind,
+                WKind::Button {
+                    act: Act::CycleDifficulty,
+                    ..
+                }
+            )
+        });
+        let Some(diff) = diff else {
+            panic!("no difficulty button on the Main page in a singleplayer world");
+        };
+        assert_eq!((diff.x, diff.y, diff.w, diff.h), (431.0, 29.0, 130.0, 20.0));
+        assert!(matches!(diff.kind, WKind::Button { active: true, .. }));
+        let lock = widgets.iter().find(|w| {
+            matches!(
+                w.kind,
+                WKind::IconButton {
+                    act: Act::LockDifficulty,
+                    ..
+                }
+            )
+        });
+        let Some(lock) = lock else {
+            panic!("no lock button beside the difficulty button");
+        };
+        assert_eq!((lock.x, lock.y, lock.w, lock.h), (561.0, 29.0, 20.0, 20.0));
+        assert!(matches!(lock.kind, WKind::IconButton { active: true, .. }));
+        assert!(
+            !widgets.iter().any(|w| matches!(
+                w.kind,
+                WKind::Button {
+                    act: Act::Push(Page::Online),
+                    ..
+                }
+            )),
+            "the Online button must not show beside the difficulty control"
+        );
+        // The title screen, and a multiplayer world, keep the Online button.
+        for (in_world, singleplayer) in [(false, true), (true, false), (false, false)] {
+            ui.in_world = in_world;
+            ui.singleplayer = singleplayer;
+            let (widgets, _, _, _) = ui.layout(&s, 854.0, 480.0);
+            assert!(
+                widgets.iter().any(|w| matches!(
+                    w.kind,
+                    WKind::Button {
+                        act: Act::Push(Page::Online),
+                        ..
+                    }
+                )),
+                "in_world={in_world} singleplayer={singleplayer}: no Online button"
+            );
+            assert!(
+                !widgets.iter().any(|w| matches!(
+                    w.kind,
+                    WKind::Button {
+                        act: Act::CycleDifficulty,
+                        ..
+                    } | WKind::IconButton { .. }
+                )),
+                "in_world={in_world} singleplayer={singleplayer}: difficulty control shown"
+            );
+        }
+    }
+
+    /// The difficulty button says "Difficulty: Normal" (CycleButton's
+    /// caption: value), and the lock confirm asks with the current
+    /// difficulty's name (`difficulty.lock.question`).
+    #[test]
+    fn difficulty_button_and_lock_question_name_the_difficulty() {
+        struct Vanilla;
+        impl lang::ResourceSource for Vanilla {
+            fn read(&self, path: &str) -> Option<Vec<u8>> {
+                if path != "assets/minecraft/lang/en_us.json" {
+                    return None;
+                }
+                serde_json::to_vec(&serde_json::json!({
+                    "options.generic_value": "%s: %s",
+                    "options.difficulty": "Difficulty",
+                    "options.difficulty.normal": "Normal",
+                    "difficulty.lock.question": "Lock the difficulty to %s?",
+                }))
+                .ok()
+            }
+        }
+        let s = Settings::default();
+        let mut ui = OptionsUi {
+            in_world: true,
+            singleplayer: true,
+            difficulty: 2,
+            ..Default::default()
+        };
+        let ((button_label, question), _) =
+            lang::scoped(lang::Language::load(&[&Vanilla], "en_us"), || {
+                let (widgets, _, _, _) = ui.layout(&s, 854.0, 480.0);
+                let label = widgets
+                    .iter()
+                    .find_map(|w| match &w.kind {
+                        WKind::Button {
+                            label,
+                            act: Act::CycleDifficulty,
+                            ..
+                        } => Some(label.plain()),
+                        _ => None,
+                    })
+                    .unwrap_or_default();
+                let (_, (lines, _, _), _) = ui.difficulty_confirm_layout(&atlas(), 854.0, 480.0);
+                let question = lines.first().map(|l| l.plain()).unwrap_or_default();
+                (label, question)
+            });
+        assert_eq!(button_label, "Difficulty: Normal");
+        assert_eq!(question, "Lock the difficulty to Normal?");
+    }
+
+    /// A locked difficulty deactivates both controls; hardcore shows the
+    /// difficulty button alone, inactive, at the full 150 width, with no lock.
+    #[test]
+    fn difficulty_controls_follow_lock_and_hardcore() {
+        let s = Settings::default();
+        let mut ui = OptionsUi {
+            in_world: true,
+            singleplayer: true,
+            difficulty: 2,
+            difficulty_locked: true,
+            ..Default::default()
+        };
+        let (widgets, _, _, _) = ui.layout(&s, 854.0, 480.0);
+        for w in &widgets {
+            match w.kind {
+                WKind::Button {
+                    act: Act::CycleDifficulty,
+                    active,
+                    ..
+                } => {
+                    assert!(!active, "a locked difficulty still cycles");
+                    assert_eq!(w.w, 130.0);
+                }
+                WKind::IconButton { active, .. } => {
+                    assert!(!active, "a locked difficulty still locks");
+                }
+                _ => {}
+            }
+        }
+        ui.difficulty_locked = false;
+        ui.hardcore = true;
+        let (widgets, _, _, _) = ui.layout(&s, 854.0, 480.0);
+        let diff = widgets.iter().find(|w| {
+            matches!(
+                w.kind,
+                WKind::Button {
+                    act: Act::CycleDifficulty,
+                    ..
+                }
+            )
+        });
+        let Some(diff) = diff else {
+            panic!("no difficulty button in a hardcore world");
+        };
+        assert_eq!(diff.w, 150.0);
+        assert!(matches!(diff.kind, WKind::Button { active: false, .. }));
+        assert!(
+            !widgets
+                .iter()
+                .any(|w| matches!(w.kind, WKind::IconButton { .. })),
+            "hardcore must not show a lock button"
+        );
+    }
+
+    /// Pressing the difficulty button cycles to the next difficulty (wrapping
+    /// from hard to peaceful) and sends it to the server.
+    #[test]
+    fn difficulty_button_cycles_and_sends_the_new_value() {
+        let atlas = atlas();
+        let mut s = Settings::default();
+        let mut ui = OptionsUi {
+            in_world: true,
+            singleplayer: true,
+            difficulty: 2,
+            ..Default::default()
+        };
+        let size = (854.0, 480.0);
+        let events = ui.click(&mut s, &atlas, 496.0, 39.0, size, [1708, 960], false, false);
+        assert_eq!(events, vec![Event::ButtonClick, Event::Difficulty(3)]);
+        assert_eq!(ui.difficulty, 3);
+        let events = ui.click(&mut s, &atlas, 496.0, 39.0, size, [1708, 960], false, false);
+        assert_eq!(events, vec![Event::ButtonClick, Event::Difficulty(0)]);
+        assert_eq!(ui.difficulty, 0);
+    }
+
+    /// Tab to the difficulty button and Enter cycles it too.
+    #[test]
+    fn difficulty_button_cycles_from_the_keyboard() {
+        let atlas = atlas();
+        let mut s = Settings::default();
+        let mut ui = OptionsUi {
+            in_world: true,
+            singleplayer: true,
+            difficulty: 2,
+            ..Default::default()
+        };
+        ui.size = (854.0, 480.0);
+        // Tab once to the FOV slider, once to the difficulty button.
+        ui.key(&mut s, &atlas, winit::keyboard::KeyCode::Tab, None);
+        ui.key(&mut s, &atlas, winit::keyboard::KeyCode::Tab, None);
+        let events = ui.key(&mut s, &atlas, winit::keyboard::KeyCode::Enter, None);
+        assert_eq!(events, vec![Event::ButtonClick, Event::Difficulty(3)]);
+        assert_eq!(ui.difficulty, 3);
+    }
+
+    /// The lock button opens the confirm; Yes locks the difficulty (and
+    /// deactivates both controls), No and Escape leave it unlocked.
+    #[test]
+    fn lock_button_opens_the_confirm_and_yes_locks() {
+        use winit::keyboard::KeyCode;
+        let atlas = atlas();
+        let mut s = Settings::default();
+        let mut ui = OptionsUi {
+            in_world: true,
+            singleplayer: true,
+            difficulty: 2,
+            ..Default::default()
+        };
+        let size = (854.0, 480.0);
+        let events = ui.click(&mut s, &atlas, 571.0, 39.0, size, [1708, 960], false, false);
+        assert_eq!(events, vec![Event::ButtonClick]);
+        assert!(ui.difficulty_confirm);
+        // The confirm's buttons: 150 wide, 4 apart, centred.
+        let (_, _, buttons) = ui.difficulty_confirm_layout(&atlas, size.0, size.1);
+        assert_eq!(buttons[1].0 - buttons[0].0, 154.0);
+        assert_eq!(buttons[0].0 + 152.0, size.0 / 2.0);
+        // Escape answers no.
+        assert!(ui.key(&mut s, &atlas, KeyCode::Escape, None).is_empty());
+        assert!(!ui.difficulty_confirm);
+        assert!(!ui.difficulty_locked);
+        // No answers no.
+        ui.click(&mut s, &atlas, 571.0, 39.0, size, [1708, 960], false, false);
+        let (_, _, buttons) = ui.difficulty_confirm_layout(&atlas, size.0, size.1);
+        let events = ui.click(
+            &mut s,
+            &atlas,
+            buttons[1].0 + 75.0,
+            buttons[1].1 + 10.0,
+            size,
+            [1708, 960],
+            false,
+            false,
+        );
+        assert_eq!(events, vec![Event::ButtonClick]);
+        assert!(!ui.difficulty_confirm);
+        assert!(!ui.difficulty_locked);
+        // Yes locks.
+        ui.click(&mut s, &atlas, 571.0, 39.0, size, [1708, 960], false, false);
+        let (_, _, buttons) = ui.difficulty_confirm_layout(&atlas, size.0, size.1);
+        let events = ui.click(
+            &mut s,
+            &atlas,
+            buttons[0].0 + 75.0,
+            buttons[0].1 + 10.0,
+            size,
+            [1708, 960],
+            false,
+            false,
+        );
+        assert_eq!(events, vec![Event::ButtonClick, Event::LockDifficulty]);
+        assert!(!ui.difficulty_confirm);
+        assert!(ui.difficulty_locked);
+        let (widgets, _, _, _) = ui.layout(&s, 854.0, 480.0);
+        for w in &widgets {
+            match w.kind {
+                WKind::Button {
+                    act: Act::CycleDifficulty,
+                    active,
+                    ..
+                } => assert!(!active),
+                WKind::IconButton { active, .. } => assert!(!active),
+                _ => {}
+            }
+        }
+    }
+
     /// The Extras page joins caption and value with the language's `options.generic_value`
     /// (26.3's templates), not an English ": " (#6072).
     #[test]
@@ -5970,10 +6518,10 @@ mod tests {
                 _ => Vec::new(),
             })
             .collect();
-        // VideoSettingsScreen.addOptions: the exclusive mode row, displayOptions, the preset,
-        // qualityOptions, then the preferences.
+        // VideoSettingsScreen.addOptions: the fullscreen-resolution row, displayOptions,
+        // the preset, qualityOptions, then the preferences.
         assert_eq!(
-            opts[..9],
+            opts[..8],
             [
                 Opt::ExclusiveMode,
                 Opt::MaxFps,
@@ -5981,7 +6529,6 @@ mod tests {
                 Opt::InactivityFps,
                 Opt::GuiScale,
                 Opt::Fullscreen,
-                Opt::ExclusiveFullscreen,
                 Opt::Gamma,
                 Opt::GraphicsBackend,
             ]
@@ -5993,7 +6540,7 @@ mod tests {
     }
 
     #[test]
-    fn exclusive_fullscreen_mode_picks_a_monitor_mode_or_the_current_one() {
+    fn fullscreen_mode_picks_a_monitor_mode_or_the_current_one() {
         let mut s = Settings::default();
         // No monitor mode: the slider changes nothing.
         Opt::ExclusiveMode.set_slider(&mut s, 1.0);
@@ -6238,27 +6785,6 @@ mod tests {
     }
 
     #[test]
-    fn exclusive_fullscreen_and_its_tooltips_follow_the_option() {
-        let mut s = Settings::default();
-        assert!(!s.file.bool("exclusiveFullscreen"));
-        assert_eq!(
-            Opt::ExclusiveFullscreen.tooltip_key(&s),
-            "options.exclusiveFullscreen.off.tooltip"
-        );
-        Opt::ExclusiveFullscreen.cycle(&mut s, false, [854, 480]);
-        assert!(s.file.bool("exclusiveFullscreen"));
-        assert_eq!(
-            Opt::ExclusiveFullscreen.tooltip_key(&s),
-            "options.exclusiveFullscreen.on.tooltip"
-        );
-        // The mode row's own tooltip says it only matters with Exclusive Fullscreen.
-        assert_eq!(
-            Opt::ExclusiveMode.tooltip_key(&s),
-            "options.fullscreen.exclusive.mode.tooltip"
-        );
-    }
-
-    #[test]
     fn the_graphics_api_option_cycles_default_opengl_vulkan_and_asks_for_a_restart() {
         use crate::graphics::GraphicsApi;
         let mut s = Settings::default();
@@ -6320,17 +6846,17 @@ mod tests {
         s.video_modes = vec![mode(1280, 60.0), mode(1920, 144.0), mode(2560, 59.94)];
         assert_eq!(
             Opt::ExclusiveMode.label(&s).plain(),
-            "Exclusive Fullscreen Mode: Current"
+            "Fullscreen Resolution: Current"
         );
         Opt::ExclusiveMode.set_slider(&mut s, 2.0 / 3.0);
         assert_eq!(
             Opt::ExclusiveMode.label(&s).plain(),
-            "Exclusive Fullscreen Mode: 1920x1080@144 (24bit)"
+            "Fullscreen Resolution: 1920x1080@144 (24bit)"
         );
         Opt::ExclusiveMode.set_slider(&mut s, 1.0);
         assert_eq!(
             Opt::ExclusiveMode.label(&s).plain(),
-            "Exclusive Fullscreen Mode: 2560x1440@59.94 (24bit)"
+            "Fullscreen Resolution: 2560x1440@59.94 (24bit)"
         );
         s.horizon.api = GraphicsApi::Vulkan;
         assert_eq!(

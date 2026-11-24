@@ -474,6 +474,20 @@ fn grass_bone_meal_places_grass_and_flowers() {
     );
 }
 #[test]
+fn hanging_moss_bonemeals_at_the_bottom_of_the_world() {
+    let Some(f) = fixture() else { return };
+    let mut w = World::new(f, 1);
+    // The tip at min_y: its growth cell is below build height, so 26.1's
+    // `isValidBonemealTarget` refused it; 1.21.10 checks `canGrowInto` only,
+    // so the meal is used even though the growth cell is out of bounds and
+    // nothing is placed.
+    let tip = BlockPos::new(0, -64, 0);
+    let moss = w.id("pale_hanging_moss", &[("tip", "true")]);
+    w.put(tip, moss);
+    assert!(w.bone_meal(tip));
+    assert_eq!(w.level.block_state(BlockPos::new(0, -65, 0)), w.level.air);
+}
+#[test]
 fn huge_mushroom_and_fungus_grow() {
     let Some(f) = fixture() else { return };
     let mut grew = (false, false);

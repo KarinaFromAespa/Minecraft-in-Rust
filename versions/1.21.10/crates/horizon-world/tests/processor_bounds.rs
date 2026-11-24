@@ -73,7 +73,7 @@ fn list(json: Value) -> Result<ProcessorList, horizon_world::worldgen::DecodeErr
     ProcessorList::decode(&json.to_string(), &resources, &bindings)
 }
 
-/// A capping processor's `limit` is `IntProviders.POSITIVE_CODEC` in vanilla:
+/// A capping processor's `limit` is `IntProvider.POSITIVE_CODEC` in vanilla:
 /// a provider whose range reaches 0 or below fails the pack, it is not run as
 /// a processor that never keeps a block.
 #[test]

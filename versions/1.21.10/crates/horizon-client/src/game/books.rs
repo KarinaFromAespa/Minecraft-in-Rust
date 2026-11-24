@@ -46,6 +46,15 @@ fn book_page_box() -> ui::EditBox {
     edit
 }
 
+/// `BookEditScreen.eraseEmptyTrailingPages`: every trailing empty page
+/// goes, even when that empties the list — the editor puts one blank page
+/// back on open, as the screen's constructor does.
+fn drop_trailing_empty_pages(pages: &mut Vec<String>) {
+    while pages.last().is_some_and(String::is_empty) {
+        pages.pop();
+    }
+}
+
 /// Where a book's text is, from its top left corner, above its page buttons.
 const BOOK_TEXT: [f32; 4] = [36.0, 16.0, 120.0, 136.0];
 
@@ -294,9 +303,7 @@ impl Game<'_> {
             return;
         };
         let mut pages = pages;
-        while pages.len() > 1 && pages.last().is_some_and(String::is_empty) {
-            pages.pop();
-        }
+        drop_trailing_empty_pages(&mut pages);
         let title = sign.then(|| title.trim().to_owned());
         if self.remote.is_some() {
             self.send(S::EditBook(play::EditBook {
@@ -1272,7 +1279,7 @@ impl Game<'_> {
             }
         };
         let indicator = |batch: &mut HudBatch, page: usize, count: usize| {
-            // BookViewScreen.getPageNumberMessage: 26.3's en_us template is
+            // BookViewScreen.getPageNumberMessage: the en_us template is
             // positional ("Page %1$s of %2$s").
             let text = horizon_protocol::text::format_java(
                 &tr("book.pageIndicator", "Page %1$s of %2$s"),
@@ -1792,5 +1799,22 @@ mod lectern_reach_tests {
             game.book.is_none(),
             "the lectern screen stayed open out of reach"
         );
+    }
+}
+
+#[cfg(test)]
+mod save_book_tests {
+    use super::drop_trailing_empty_pages;
+
+    #[test]
+    fn saving_drops_every_trailing_empty_page() {
+        let mut pages = vec!["one".to_string(), String::new(), String::new()];
+        drop_trailing_empty_pages(&mut pages);
+        assert_eq!(pages, ["one"]);
+        // Even when that empties the list: the editor puts one blank page
+        // back on open, as the screen's constructor does.
+        let mut pages = vec![String::new(), String::new()];
+        drop_trailing_empty_pages(&mut pages);
+        assert!(pages.is_empty());
     }
 }
