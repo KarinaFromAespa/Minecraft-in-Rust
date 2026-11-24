@@ -1,0 +1,82 @@
+{
+ "batch": 8,
+ "checks": {
+  "gap": 5,
+  "pass": 278,
+  "total": 283
+ },
+ "coordinator_note": "Coordinator reconciliation (2026-11-24): this batch ran before Batch 0 landed and triaged oracles by import resolution only. Reconciled against the measured Batch 0 table (docs/sweep/26.2/batch-0-oracles.json): VanillaMarkerParticlesOracle fails all three classpaths (1 error, LocalPlayer constructor - Batch 0 G2), so B8-O01 was added and the marker_particles driver is oracle-blocked, not merely unrun. The other six particle oracles pass on their real classpath (Block/Emitter/Entity/Providers pass client+both; Item and EffectParticles pass all three; EffectSync passes all three) - the agent's import-level assessment holds for those. Check tally arithmetic: the section 3 subsections sum to 281 checks / 276 pass; the 283 / 278 tally counts the two section 3 'Other passes' items (elder-guardian apparition re-implementation, bubble-column animate arm) as checks 282-283. horizon-prepare for 26.2 finished after this batch ran (2048.7 s, EXIT 0, 2026-11-24); .local/horizon-client/26.2/ now holds the prepared data (203 MB), so the data precondition for the driver runs in section 8 is met - the runs themselves remain follow-up work.",
+ "date": "2026-11-24",
+ "items": [
+  {
+   "evidence": "Vanilla 26.2 registers ELDER_GUARDIAN (SimpleParticleType, wire id 24, overrideLimiter=true) with a dedicated ElderGuardianParticle$Provider (ParticleResources.registerProviders, 26.2 has its own ElderGuardianParticle class) and spawns it on game event GUARDIAN_ELDER_EFFECT (ClientPacketListener.handleGameEvent, addParticle at the player position, bytecode offset 536). The port's ParticleType enum (127 variants) lacks it, so received_particle drops server-sent elder_guardian packets (lan_particles.rs:482), /particle rejects it (particle.notFound, world_cmds.rs:770), and override_limiter() misses it (32 vanilla vs 31 Rust). Unlike 1.21.7, the 26.2 providers driver does NOT send elder_guardian cases (omitted from SIMPLE), so the defect blocks no driver here \u2014 it silently skips the type. The in-game curse apparition IS re-implemented via game event 10 + elder_apparition_geometry (30-tick lifetime, mob_blocks.rs:70/79), so the main visible path works through a different mechanism (fidelity unverified).",
+   "id": "B8-G01",
+   "method": "javap + class-file parse + source + data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "elder_guardian has no port implementation at all: no ParticleType variant, no engine provider, no limiter entry (recurs from 1.21.7)"
+  },
+  {
+   "evidence": "Particle::read decodes wire id 49 (flash, verified against the 26.2 registry) as Color(i32) \u2014 a flash particle always carries a colour \u2014 but hub_particle has no Flash arm in its Color match (EntityEffect | TintedLeaves only, lan_particles.rs:431), so the packet is built with data None and Particle::write (writes data by presence, not id) emits the id with no colour bytes; guests reading id 49 consume the next 4 stream bytes as the colour and desync. Reachable only via /particle flash on a LAN host (cmd_particle builds ParticleOptions::simple(Flash), world_cmds.rs:881; Flash is otherwise created client-side only, in firework explosions, particles.rs:3739); the local player draws directly and is unaffected.",
+   "id": "B8-G02",
+   "method": "source + jar registry",
+   "severity": "minor",
+   "status": "gap",
+   "title": "/particle minecraft:flash sends a malformed packet to LAN guests (recurs from 1.21.7)"
+  },
+  {
+   "evidence": "Vanilla 26.2 registers SPRUCE_LEAVES as TintedParticleLeavesBlock with leafParticleChance 0.01 (Blocks.class: BlockItemIds.SPRUCE_LEAVES -> lambda$static$27 -> TintedParticleLeavesBlock(0.01F); LeavesBlock.animateTick rolls nextFloat() < chance). The port maps spruce_leaves to Animate::Leaves(None, None) \u2014 no falling particle (animate_tick.rs:149). All 10 other leaf blocks match vanilla (cherry 0.1, pale oak 0.02, rest tinted 0.01; azalea fixed colour -9399763 matches exactly). The marker driver would fail its spruce zoo cases (oracle emits, probe emits none); the driver's own comment ('the spruce that never falls') encodes the same wrong belief and needs correcting with the fix.",
+   "id": "B8-G03",
+   "method": "javap + class-file parse + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Spruce leaves never drop falling-leaf particles (recurs from 1.21.7)"
+  },
+  {
+   "evidence": "The port implements vibration end to end (Particle::read id 55, hub_particle arm, make() arm) and the providers oracle's options() handles it, but the providers driver's kind set never sends a vibration case, so the vibration provider's numerics have no driver coverage. Add vibration cases (target + duration) to test_particle_providers_parity.py.",
+   "id": "B8-H01",
+   "method": "source + driver",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "Providers driver omits vibration: no driver coverage for the vibration provider"
+  },
+  {
+   "evidence": "The providers driver's SIMPLE list carries red/orange/yellow_poplar_leaves, which are not in the 26.2 registry (26.3-only). The oracle resolves kinds by registry name and throws AssertionError('unknown particle ' + id) for an unregistered type (VanillaParticleProvidersOracle.java:131), so the driver cannot run against the 26.2 oracle as-is \u2014 it would die on the first poplar case (12 cases per kind). Trim the 3 kinds for 26.2.",
+   "id": "B8-H02",
+   "method": "source + driver + jar registry",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "Providers driver includes 3 poplar leaves (26.3-only); oracle throws on them against the 26.2 registry"
+  },
+  {
+   "evidence": "The marker driver's zoo_states() sends red_poplar_leaves[distance=3,...] cases, but no such block exists in 26.2 (verified against registries.json) \u2014 the oracle cannot build that world. The port is correct to have no classify arm for it (26.2 has no poplar trees; animate_tick.rs:40-41). Trim the zoo case for 26.2.",
+   "id": "B8-H03",
+   "method": "source + driver + jar registry",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "Marker driver zoo includes red_poplar_leaves (26.3-only block)"
+  },
+  {
+   "evidence": "zombie_nautilus and camel_husk are real 26.2 entity types and both inherit the 6/7/18 bursts (ZombieNautilus extends AbstractNautilus extends TamableAnimal; CamelHusk extends Camel extends AbstractHorse \u2014 verified by javap on the 26.2 jar), and the port's entity_event_burst covers them via its tamable/horse sets, but the entity driver's EVENTS table has no entries for them (6 untested pairs). Add them to test_entity_particles_parity.py.",
+   "id": "B8-H04",
+   "method": "javap + source + driver",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "Entity driver omits live 26.2 entities zombie_nautilus and camel_husk"
+  },
+  {
+   "evidence": "Coordinator reconciliation against the measured Batch 0 table (docs/sweep/26.2/batch-0-oracles.json): VanillaMarkerParticlesOracle FAILS on all three classpaths, 1 error, class constructor-mismatch - '44: constructor LocalPlayer in class LocalPlayer cannot be applied to given types'. This is Batch 0 group G2 (the LocalPlayer constructor mismatch, 17 oracles). The batch agent ran before Batch 0 landed and triaged oracles by import resolution only, which cannot see constructor mismatches; imports resolve, compilation fails. Blocks the marker_particles driver entirely (before it can reach the B8-G03 spruce cases). The other six particle oracles pass on their real classpath: Block/ Emitter/Entity/Providers pass client+both (server-only failures are client packages, expected); Item and EffectParticles pass all three; EffectSync passes all three.",
+   "id": "B8-O01",
+   "method": "Batch 0 measurement (coordinator reconciliation)",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaMarkerParticlesOracle does not compile for 26.2 (1 break: LocalPlayer constructor, Batch 0 G2); blocks marker_particles driver"
+  }
+ ],
+ "method": "Static analysis only (no driver runs, no cargo tests, no commits \u2014 per the batch brief; no prepared 26.2 data exists). javap on the named 26.2 server-game jar (26.1-adapters/versions/26.2/jars/server-game.jar) and the Mojang-mapped 26.2 client jar (leakage-audit/jars/26.2-client.jar, whose ParticleTypes.class is byte-identical to the server jar's); direct class-file parsing of Blocks.class (constant pool + BootstrapMethods + bytecode walk) for the leaves associations, where javap would be too slow under CPU throttle; source comparison against versions/26.2/crates/; data checks against the 26.2 datagen reports (registries.json, blocks.json). Registry/type coverage, wire-codec ids, override-limiter flags, entity-burst table, marker-zoo coverage, leaves chances, dripstone/tag checks, oracle API existence, and oracle-import resolution against both 26.2 jars. 26.x shapes adapted to: Blocks registers via BlockItemIds + lambdas (no ldc name strings); providers live in ParticleResources.registerProviders(), not ParticleEngine.",
+ "name": "Particles",
+ "out_of_scope_failures": "Cross-references, not re-minted: pilot G1 (bubble columns never form, so the correct client-side BubbleColumnUp animate arm never triggers; 26.2 server-side status is Batch 5's scope); pilot G6 (dripstone->cauldron transfer is server-side only \u2014 the client-side drip particles match vanilla's same-block climb, 0.12 roll and 0.02 rule; 26.2 server-side status is Batch 5's scope); B12-G04 pattern (the 3 extra 26.3 poplar-leaf types in the Rust enum are dead but unreachable: ids are name-resolved from the server's registry, and a 26.2 server never sends those names). Not verified (need driver runs): all per-tick provider numerics, emitter/entity-burst RNG draws, marker-loop exactness, the translucent-layer table, sprite-set resolution, level events other than 3002-3005, apparition visual fidelity, the dripstone climb-limit off-by-one question (vanilla passes 11 to findBlockVertical; the port climbs 10 steps), and compilation of the 26.2 oracles (no 26.2 Batch 0 measurement exists; all imports resolve against the 26.2 jars, but no javac run has happened). 31 particles.rs unit tests unrun. The plan's 9th driver does not exist in the tree.",
+ "source": "docs/PARITY-SWEEP.md \u00a74 Batch 8 \u2014 checks only, no fixes. Scope: all 125 particle types, emitters, providers; 8 drivers found in the tree (7 particle-named + effect_sync, particle-adjacent; the plan claims 9, the 9th is unaccounted for). DRAFT: not committed \u2014 checks + triage only per the batch brief. All three 1.21.7 Batch 8 defects recur in 26.2 unchanged.",
+ "systemic_note": "Same shape as the 1.21.7 batch, with one 26.2 twist: the three defects are three different shapes \u2014 a missing registry entry carried through every table (B8-G01: one type absent from the enum, the limiter list, the command parser and the probe), a write-path/read-path asymmetry in one codec arm (B8-G02: the reader expects data the writer omits), and a wrong per-block belief baked into both the port and the driver's own comment (B8-G03: spruce). The 26.2 twist is that the drivers drifted toward the port instead of vanilla: the providers driver silently dropped elder_guardian from its kind set (so B8-G01 blocks nothing here, unlike 1.21.7 where it blocked the driver), while both drivers still carry 26.3-only poplar entries that cannot run against the 26.2 oracle (B8-H02, B8-H03). The positive systemic finding is that the port's particle tables are otherwise exact: all 125 types covered end-to-end except elder_guardian, all 22 data-carrying wire ids correct, all 32 limiter flags correct except elder_guardian, all 30 entity-burst pairs and all 42 real marker-zoo blocks covered, and all 11 leaf blocks' chances verified \u2014 the gaps are narrow and enumerated, not a broad drift. The 3 extra 26.3 types in the Rust enum (poplar leaves) are dead but unreachable.",
+ "version": "26.2"
+}
