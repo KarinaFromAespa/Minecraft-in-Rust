@@ -728,7 +728,12 @@ pub(crate) fn remap_if_needed(
 
 /// Fetch `url` to `destination`, checked against `sha1` like a download; an existing
 /// verified copy is kept (the front-end's `fetch`, the pipeline's `download`).
-fn download(url: &str, destination: &Path, sha1: &str, log: Log) -> Result<PathBuf, String> {
+pub(crate) fn download(
+    url: &str,
+    destination: &Path,
+    sha1: &str,
+    log: Log,
+) -> Result<PathBuf, String> {
     let name = destination
         .file_name()
         .unwrap_or_default()
@@ -772,6 +777,27 @@ fn download(url: &str, destination: &Path, sha1: &str, log: Log) -> Result<PathB
     fs::rename(&temporary, destination).map_err(|e| e.to_string())?;
     log(&format!("  saved   {name} (sha1 ok)"));
     Ok(destination.to_path_buf())
+}
+
+/// Fetch `url` into memory, unchecked: for documents no checksum is pinned for
+/// (the version manifest, the trust root everything below it is checked
+/// against). Same agent and timeouts as `download`.
+pub(crate) fn fetch_text(url: &str, _log: Log) -> Result<String, String> {
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(Duration::from_secs(30))
+        .timeout_read(Duration::from_secs(120))
+        .build();
+    let response = agent
+        .get(url)
+        .set("User-Agent", USER_AGENT)
+        .call()
+        .map_err(|e| match e {
+            ureq::Error::Status(code, _) => format!("{url} answered {code}"),
+            ureq::Error::Transport(t) => format!("Cannot reach {url}: {t}"),
+        })?;
+    response
+        .into_string()
+        .map_err(|e| format!("Cannot read {url}: {e}"))
 }
 
 /// The remapper's jars in `.local/mapping-frontend/deps/` (the front-end's
