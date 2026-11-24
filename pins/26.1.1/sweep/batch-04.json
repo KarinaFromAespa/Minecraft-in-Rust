@@ -1,0 +1,513 @@
+{
+  "batch": 4,
+  "checks": {
+    "gap": 48,
+    "pass": 47,
+    "total": 95
+  },
+  "date": "2026-11-24",
+  "items": [
+    {
+      "evidence": "Providers::burn_time (horizon-client-render/src/providers.rs) reads i.fuel, the minecraft:cooking_fuel component; counted over prepared 26.1.1 data, 0 of 1,506 items carry it (or brewing_fuel, villager_food, compostable, mob_visibility). Every burn time is 0; no furnace, smoker or blast furnace ever lights. menu.rs is_fuel, hopper fuel insertion (machines.rs) and recipe-book AnyFuel groups fail the same way. Vanilla 26.1.1 uses FuelValues.vanillaBurnTimes (64 Builder.add calls, verified in the jar). The 26.1 tree restored the hardcoded table; the 26.1.1 tree regressed to the component read. 1.21.7 re-check, reproduces; was FIXED in 26.1.",
+      "id": "B4-G01",
+      "method": "javap + source + prepared data (1.21.7 re-check, reproduces; regressed from 26.1 FIXED)",
+      "severity": "major",
+      "status": "gap",
+      "title": "Furnaces never light: burn_time reads the absent cooking_fuel component"
+    },
+    {
+      "evidence": "Brewing::load (brewing.rs) reads data-driven minecraft:brewing recipes; the 26.1.1 jar has 0 data/minecraft/recipe/brewing/ files, so find/is_reagent/is_bottle never match and the menu slots refuse every input (the tree's stations.rs test expects 279 recipes, the 26.3 number). Independently, brewing_fuel reads the brewing_fuel component, carried by 0 items. Vanilla 26.1.1 uses the #brewing_fuel item tag (exists in the jar) + PotionBrewing mixes (class exists), FUEL_USES 20, 400-tick brew. The stations.rs brewing-totals change (B3 flag) is a facet of this defect: the totals default to vanilla's constants (400/20/1.0) and the mutating paths require the absent component. 1.21.7 re-check, reproduces; was FIXED in 26.1.",
+      "id": "B4-G02",
+      "method": "javap + source + prepared data (1.21.7 re-check, reproduces; regressed from 26.1 FIXED)",
+      "severity": "major",
+      "status": "gap",
+      "title": "Brewing stands never brew: data-driven recipes (0 exist) + absent brewing_fuel component"
+    },
+    {
+      "evidence": "furnace.rs:128 completes when cooking >= total. Vanilla AbstractFurnaceBlockEntity.serverTick completes only on == (if_icmpne at bytecode 274; dump in evidence/javap/AbstractFurnaceBlockEntity.txt). 26.1 re-check, reproduces.",
+      "id": "B4-G04",
+      "method": "javap + source (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Furnace completes on >= where vanilla completes only on =="
+    },
+    {
+      "evidence": "furnace.rs:120 pushes the fuel remainder to drops. Vanilla consumeFuel places the remainder (e.g. empty bucket) only when the fuel stack empties after the shrink. 26.1 re-check, reproduces.",
+      "id": "B4-G05",
+      "method": "javap + source (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Fuel remainder pushed to drops instead of staying in the fuel slot"
+    },
+    {
+      "evidence": "machines.rs:973 hopper suction bowl is 0.125..0.875. Vanilla Hopper.getSuckAabb is Block.column(16.0, 11.0, 32.0), i.e. (0, 11/16, 0)-(1, 2, 1). 26.1 re-check, reproduces.",
+      "id": "B4-G08",
+      "method": "javap + source (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Hopper suction bowl is 0.125..0.875 instead of vanilla's 11/16..2 column"
+    },
+    {
+      "evidence": "crafter.rs:149-152 crafter_eject uses block-only Containers::view. Vanilla CrafterBlock.dispenseItem uses HopperBlockEntity.getContainerAt + AABB.ofSize and reaches entity containers (dump in evidence/javap/CrafterBlock.txt). 26.1 re-check, reproduces.",
+      "id": "B4-G09",
+      "method": "javap + source (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Crafter eject reaches blocks only, not entity containers"
+    },
+    {
+      "evidence": "crafter.rs:188 the crafter trigger checks only self.player. Vanilla iterates ALL ServerPlayers. 26.1 re-check, reproduces.",
+      "id": "B4-G10",
+      "method": "javap + source (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Crafter trigger checks only the local player instead of all players"
+    },
+    {
+      "evidence": "containers.rs for_block has no bed arm; save.rs:1022 decode_block_entity does BlockEntity::for_block(block)?, dropping bed block entities. Worse than 26.1: block_entity_nbt.rs TYPES also dropped 'minecraft:bed' (48 to 47) and the bed save arm is gone. Vanilla has BedBlockEntity (colour field only) and BlockEntityType.BED. 26.1 re-check, reproduces.",
+      "id": "B4-G13",
+      "method": "javap + source (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "No bed block entity; canonicalizer dropped the bed type too"
+    },
+    {
+      "evidence": "storage.rs:157 open_ender_chest opens on LAN guests. 26.1 re-check, reproduces.",
+      "id": "B4-G14",
+      "method": "source (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Ender chest opens on LAN guests"
+    },
+    {
+      "evidence": "containers.rs for_block has no decorated-pot arm; container_size covers only chest/barrel/ender_chest/hopper/dispenser/dropper/shulker/copper_chest, so None for the pot. Vanilla DecoratedPotBlockEntity implements ContainerSingleItem$BlockContainerSingleItem + RandomizableContainer, and BlockEntityType.DECORATED_POT exists. 26.1 re-check, reproduces.",
+      "id": "B4-G15",
+      "method": "javap + source (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "No decorated-pot block entity"
+    },
+    {
+      "evidence": "menu.rs:1290 gates map cloning on #extendable_maps, which does not exist in the 26.1.1 jar. Vanilla CartographyTableMenu has 0 ItemTags references. 26.1 re-check, reproduces.",
+      "id": "B4-G16",
+      "method": "javap + source + jar data (26.1 re-check, reproduces)",
+      "severity": "major",
+      "status": "gap",
+      "title": "Cartography table gated on nonexistent #extendable_maps tag"
+    },
+    {
+      "evidence": "dispenser.rs:2245 checks minecraft:convertible_to_mud. Vanilla DispenseItemBehavior$14 uses BlockTags.CONVERTABLE_TO_MUD; the jar has convertable_to_mud and no convertible_to_mud. 26.1 re-check, reproduces.",
+      "id": "B4-G18",
+      "method": "javap + source + jar data (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Dispenser mud uses the wrong tag spelling (convertible vs convertable)"
+    },
+    {
+      "evidence": "game/spawner.rs merges egg data into the spawner config (setEntityData). Vanilla's Spawner interface has only setEntityId; 0 setEntityData refs in its class bytes. 26.1 re-check, reproduces.",
+      "id": "B4-G20",
+      "method": "javap + source (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Spawner merges egg entity data; vanilla has only setEntityId"
+    },
+    {
+      "evidence": "menu.rs:1512-1517 may_pickup gate on the merchant result slot. Vanilla MerchantResultSlot has NO mayPickup override (methods: mayPlace, remove, onQuickCraft, checkTakeAchievements, onTake). 26.1 re-check, reproduces.",
+      "id": "B4-G21",
+      "method": "javap + source (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Merchant result slot blocks pickup with a mayPickup gate vanilla lacks"
+    },
+    {
+      "evidence": "Vanilla MapExtendingRecipe.matches calls MapItemSavedData.isExplorationMap(); the port uses a different predicate. 26.1 re-check, reproduces.",
+      "id": "B4-G22",
+      "method": "javap + source (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Exploration-map check uses the wrong predicate"
+    },
+    {
+      "evidence": "merchant.rs:109 hero discount is f64::from(0.3f32 + 0.0625f32 * a). Vanilla Villager updateSpecialPrices uses 0.3d + 0.0625d * amplifier with Math.floor (double). 26.1 re-check, reproduces.",
+      "id": "B4-G23",
+      "method": "javap + source (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Hero discount computed in f32 instead of vanilla's double"
+    },
+    {
+      "evidence": "merchant.rs:398 level += 1 levels the villager up immediately. Vanilla rewardTradeXp sets updateMerchantTimer = 40, increaseProfessionLevelOnUpdate = true; the level-up is deferred to the next merchant update. 26.1 re-check, reproduces.",
+      "id": "B4-G24",
+      "method": "javap + source (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Villager levels up immediately instead of on the deferred merchant update"
+    },
+    {
+      "evidence": "merchant.rs:675 int_provider uses as_i64(); :768 reads singular given_item_modifier. Re-quantified against the 26.1.1 jar data, identical to 26.1: 387 trades in data/minecraft/villager_trade/**/*.json; 218 float wants.count, 0 float gives.count, 371 float max_uses, 266 float xp, 41 plural given_item_modifiers, 0 singular; 68 trade-set files, 68/68 with float amount. 26.1 re-check, reproduces.",
+      "id": "B4-G25",
+      "method": "javap + source + prepared data (26.1 re-check, reproduces)",
+      "severity": "major",
+      "status": "gap",
+      "title": "Merchant float parsing: int_provider truncates, given_item_modifier singular"
+    },
+    {
+      "evidence": "horizon-items/src/items.rs reads ['modifier'] only (lines 1839-1840, 2112, 2253) and condition() reads the 'type' key only (line 1957). Re-quantified against the 26.1.1 jar data, identical to 26.1: 1,326 loot tables; 983 'functions' occurrences, 0 'modifier'; 1,545 condition objects naming kind via the 'condition' key. 26.1 re-check, reproduces.",
+      "id": "B4-G26",
+      "method": "source + prepared data (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Loot engine reads 26.3 key names (modifier/type) instead of 26.1.1's (functions/condition)"
+    },
+    {
+      "evidence": "block_entity_nbt.rs:383 furnace int times + speed_multiplier (vanilla: 4x putShort, no speed_multiplier); sign allow_op_features kept in the save (vanilla SignBlockEntity.saveAdditional writes front_text, back_text, is_waxed only). 26.1 re-check, reproduces.",
+      "id": "B4-G27",
+      "method": "javap + source (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Furnace int times + speed_multiplier and sign allow_op_features in saves"
+    },
+    {
+      "evidence": "block_entity_nbt.rs:664-672 pot sherds saved in compound form. Vanilla PotDecorations.CODEC is byNameCodec().sizeLimitedListOf(4).xmap(...) - list form. 26.1 re-check, reproduces.",
+      "id": "B4-G28",
+      "method": "javap + source (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Decorated-pot sherds saved in compound form instead of vanilla's list form"
+    },
+    {
+      "evidence": "crafter.rs:206 trigger reads c['recipes']. Vanilla RecipeCraftedTrigger$TriggerInstance has the singular recipeId field, and advancement adventure/crafters_crafting_crafters.json has 'recipe_id': 'minecraft:crafter'. 26.1 re-check, reproduces.",
+      "id": "B4-G29",
+      "method": "javap + source + jar data (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Crafter trigger reads the 'recipes' key; vanilla uses singular recipeId"
+    },
+    {
+      "evidence": "composter.rs compostable() reads i.compostable, the minecraft:compostable component - 0 items carry it, so composter_add, use_composter, composter_takes, composter_container_insert and villager_insert_item all refuse every item: the whole system is dead. Vanilla ComposterBlock uses the hardcoded COMPOSTABLES Object2FloatMap (verified: exists) with addItem and nextFloat chance rolls. The 26.1 tree carried the hardcoded table; the 26.1.1 tree regressed to the component form. Flagged by Batch 2; verified fresh. New defect in 26.1.1.",
+      "id": "B4-G30",
+      "method": "javap + source diff vs the 26.1 tree (new defect in 26.1.1)",
+      "severity": "major",
+      "status": "gap",
+      "title": "Composter never composts: reads the absent compostable component"
+    },
+    {
+      "evidence": "menu.rs:306 beacon_required_levels + :1203 beacon_update validate the effect pair and return false when invalid; lan_stations.rs kicks LAN guests on invalid beacon effects. Vanilla 26.1.1 has NO validation: BeaconBlockEntity has no validateEffects/getRequiredLevelsFor, and BeaconMenu.updateEffects is payment check, encode both effects, set data, remove payment, with no validation step. The 26.1 tree had no validation; the 26.1.1 tree added the 26.2 form. New defect in 26.1.1.",
+      "id": "B4-G31",
+      "method": "javap + source diff vs the 26.1 tree (new defect in 26.1.1)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Beacon validates effects and kicks LAN guests; vanilla has no validation"
+    },
+    {
+      "evidence": "sign_edit.rs:154-175 gates click commands, dialogs and custom actions on allow_op_features, showing 'Click actions are disabled' when false (:183). SignData (horizon-client-render/src/chunk/block_entity.rs:509-516) derives Default, so allow_op_features defaults to false; it is loaded from the save tag only (signs.rs:222-223) and saved only when true (:181-182). Vanilla 26.1.1 saves never carry the tag, so no sign ever runs a click action. Vanilla runs them unconditionally: SignBlock.useWithoutItem calls executeClickCommandsIfPresent FIRST, before the waxed check (dump in evidence/javap-SignBlock-useWithoutItem.txt), and SignBlockEntity has NO allow_op_features field. New defect in 26.1.1.",
+      "id": "B4-G32",
+      "method": "javap + source diff vs the 26.1 tree (new defect in 26.1.1)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Sign click actions never run: gated on allow_op_features, default false"
+    },
+    {
+      "evidence": "block_entity_item.rs maps sign text/wax to minecraft:sign_text_front, minecraft:sign_text_back and minecraft:waxed components on pick/place. None of those components exists in 26.1.1 (DataComponents has none of them); vanilla signs lose their text and wax when picked up. The 26.1 tree did not carry the components. New defect in 26.1.1.",
+      "id": "B4-G33",
+      "method": "javap + source diff vs the 26.1 tree (new defect in 26.1.1)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Sign pick/place preserves text and wax via nonexistent components"
+    },
+    {
+      "evidence": "game/spawner.rs:450-451 calls override_entity_data when egg data is present; mobs/trial_spawner.rs:405 defines it (merges the data into both trial-spawner configs). Vanilla TrialSpawnerBlockEntity has only setEntityId; 0 overrideEntityData refs in its class bytes. The trial-spawner analogue of G20. The 26.1 tree had no merge. New defect in 26.1.1.",
+      "id": "B4-G34",
+      "method": "javap + source diff vs the 26.1 tree (new defect in 26.1.1)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Trial spawner op egg merges entity data; vanilla has only setEntityId"
+    },
+    {
+      "evidence": "dispenser.rs returns the stack unshrunk with no event when the spawn returns null. Vanilla SpawnEggItemBehavior (net.minecraft.core.dispenser class; dump in evidence/javap/SpawnEggItemBehavior.txt) does EntityType.spawn(...) then pop, shrink(1), gameEvent(ENTITY_PLACE), return stack: a null spawn still shrinks the egg and fires the event. The 26.1 tree matched vanilla. New defect in 26.1.1.",
+      "id": "B4-G35",
+      "method": "javap + source diff vs the 26.1 tree (new defect in 26.1.1)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Dispensed spawn egg on a null spawn is returned unshrunk with no ENTITY_PLACE event"
+    },
+    {
+      "evidence": "block_entity_nbt.rs:516 and save.rs write int BrewTime + total_brew_time + int Fuel + total_fuel + float speed_multiplier. Vanilla BrewingStandBlockEntity.saveAdditional writes BrewTime short + Fuel byte only; the class's only fields are brewTime/fuel (dump in evidence/javap/BrewingStandBlockEntity.txt). The 26.1 port matched vanilla; this is a 26.1.1 regression. Minted separately from G27 (distinct regression, own code path). New defect in 26.1.1.",
+      "id": "B4-G36",
+      "method": "javap + source diff vs the 26.1 tree (new defect in 26.1.1)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Brewing-stand save is the 26.3 form (int times + totals + speed_multiplier)"
+    },
+    {
+      "evidence": "level/sculk.rs:620 reads the minecraft:sculk_growth_inhibitors tag, which does not exist in 26.1.1; sculk_in_tag (:103-104) returns false when the tag is absent, so the >=3 inhibitor count never fires and sensors/shriekers pile up without limit. Vanilla SculkBlock.canPlaceGrowth hardcodes Blocks.SCULK_SENSOR/SCULK_SHRIEKER and returns false when the count in the box exceeds 2 (dump in evidence/javap-SculkBlock-canPlaceGrowth.txt). The 26.1 tree checked sensor/shrieker directly. Flagged by Batch 6 (their B6-G07 is the worldgen-side twin; this is the live-gameplay side). New defect in 26.1.1.",
+      "id": "B4-G37",
+      "method": "javap + source diff vs the 26.1 tree (new defect in 26.1.1)",
+      "severity": "minor",
+      "status": "gap",
+      "title": "Sculk growth is never inhibited: reads the absent sculk_growth_inhibitors tag"
+    },
+    {
+      "evidence": "Batch 0 table: 32 errors, cascade on the broken VanillaBlockUpdateOracle (Batch 2's item). Blocks test_crafter, test_furnace, test_vault. 26.1 re-check, reproduces with identical error count/first error.",
+      "id": "B4-O03",
+      "method": "Batch 0 measurement + javap (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "oracle-defect",
+      "title": "VanillaFurnaceOracle: cascade on broken VanillaBlockUpdateOracle"
+    },
+    {
+      "evidence": "Batch 0 table: 14 errors, first '23: cannot find symbol'. Line 23 of the 26.1.1 oracle file is 'import net.minecraft.world.item.crafting.BrewingInput;' - BrewingInput is absent from the 26.1.1 jar. CHANGED SHAPE vs 26.1 (was a cascade): the 26.1.1 oracle is the 26.3 form (BrewingRecipe, RecipePropertySet, DataComponents.BREWING_FUEL, totalBrewTime/totalFuel/speedMultiplier); 26.1's was retargeted to PotionBrewing. Diff in evidence/oracle-brewing-26.1-vs-26.1.1.diff. Blocks test_brewing.",
+      "id": "B4-O04",
+      "method": "Batch 0 measurement + javap (26.1 re-check, reproduces in changed form)",
+      "severity": "minor",
+      "status": "oracle-defect",
+      "title": "VanillaBrewingOracle: 26.3-form oracle, BrewingInput absent from the jar"
+    },
+    {
+      "evidence": "Batch 0 table: 8 errors, first '13: cannot find symbol'. Line 13 is 'import net.minecraft.world.item.component.BrewingFuel;' - absent from the jar. NEW for 26.1.1 (passed in 26.1): the 26.1.1 oracle is the 26.3 form (DataComponents.BREWING_FUEL, getUses/getSpeedMultiplier); 26.1's was tag-based. Diff in evidence/oracle-brewingfuel-26.1-vs-26.1.1.diff. Blocks test_brewing_fuel.",
+      "id": "B4-O05",
+      "method": "Batch 0 measurement + javap (new failure in 26.1.1; passed in 26.1)",
+      "severity": "minor",
+      "status": "oracle-defect",
+      "title": "VanillaBrewingFuelOracle: 26.3-form oracle, BrewingFuel absent from the jar"
+    },
+    {
+      "evidence": "Batch 0 table: 15 errors, '212: package EntityTypes does not exist'. EntityTypes is absent from the jar. Blocks test_dispenser. 26.1 re-check, reproduces with identical error count/first error.",
+      "id": "B4-O06",
+      "method": "Batch 0 measurement + javap (26.1 re-check, reproduces)",
+      "severity": "major",
+      "status": "oracle-defect",
+      "title": "VanillaDispenserOracle: EntityTypes package does not exist"
+    },
+    {
+      "evidence": "Batch 0 table: 4 errors, '138: cannot find symbol' (Prediction). net.minecraft.util.Prediction is absent from the jar. Blocks test_menu_click. 26.1 re-check, reproduces with identical error count/first error. 26.1 dedup: B4-O08 to B10-O05 at merge.",
+      "id": "B4-O08",
+      "method": "Batch 0 measurement + javap (26.1 re-check, reproduces)",
+      "severity": "major",
+      "status": "oracle-defect",
+      "title": "VanillaMenuOracle: Prediction absent from the jar"
+    },
+    {
+      "evidence": "Batch 0 table: cascade on MenuOracle. Blocks test_recipe_book. 26.1 re-check, reproduces.",
+      "id": "B4-O09",
+      "method": "Batch 0 measurement (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "oracle-defect",
+      "title": "VanillaRecipeBookOracle: cascade on MenuOracle"
+    },
+    {
+      "evidence": "Batch 0 table: cascade on MenuOracle. Blocks test_place_recipe. 26.1 re-check, reproduces.",
+      "id": "B4-O10",
+      "method": "Batch 0 measurement (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "oracle-defect",
+      "title": "VanillaPlaceRecipeOracle: cascade on MenuOracle"
+    },
+    {
+      "evidence": "Batch 0 table: 7 errors, '327: cannot find symbol' (datapackWorldRegistries). WorldLoader$DataLoadContext has datapackWorldgen()/datapackDimensions() only - no datapackWorldRegistries(). Blocks test_sculk. 26.1 re-check, reproduces with identical error count/first error.",
+      "id": "B4-O14",
+      "method": "Batch 0 measurement + javap (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "oracle-defect",
+      "title": "VanillaSculkOracle: datapackWorldRegistries absent from DataLoadContext"
+    },
+    {
+      "evidence": "Batch 0 table: 3 errors; the fake level lacks a fuelValues() override. Level.fuelValues() is abstract in the jar. Blocks test_block_entity_anim. 26.1 re-check, reproduces with identical error count/first error.",
+      "id": "B4-O15",
+      "method": "Batch 0 measurement + javap (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "oracle-defect",
+      "title": "VanillaBlockEntityAnimOracle: fake level lacks fuelValues() override"
+    },
+    {
+      "evidence": "Batch 0 table: 9 errors, UvMapping. Same defect as B10-O03 - dedup at merge, keep B10 canonical (26.1 record). Blocks test_block_entity_render. 26.1 re-check, reproduces with identical error count/first error.",
+      "id": "B4-O16",
+      "method": "Batch 0 measurement + javap (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "oracle-defect",
+      "title": "VanillaBlockEntityRenderOracle: UvMapping (dedup to B10-O03)"
+    },
+    {
+      "evidence": "Batch 0 table: 4 errors, renderpearl package. One of five oracles under B10-O05 - dedup at merge (26.1 record). Blocks test_recipe_book_render. 26.1 re-check, reproduces with identical error count/first error.",
+      "id": "B4-O18",
+      "method": "Batch 0 measurement + javap (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "oracle-defect",
+      "title": "VanillaRecipeBookScreenOracle: renderpearl package (dedup to B10-O05)"
+    },
+    {
+      "evidence": "Batch 0 table: cascade on BlockUpdateOracle. Blocks test_enchant_durability. 26.1 re-check, reproduces.",
+      "id": "B4-O19",
+      "method": "Batch 0 measurement (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "oracle-defect",
+      "title": "VanillaEnchantDurabilityOracle: cascade on BlockUpdateOracle"
+    },
+    {
+      "evidence": "Batch 0 table: 3 errors, EntitySpawnRequest. The class is absent from the jar. Blocks test_vehicle_container. 26.1 re-check, reproduces with identical error count/first error.",
+      "id": "B4-O21",
+      "method": "Batch 0 measurement + javap (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "oracle-defect",
+      "title": "VanillaVehicleContainerOracle: EntitySpawnRequest absent from the jar"
+    },
+    {
+      "evidence": "Batch 0 table: 2 errors, EntityTypes. Blocks test_shulker_space. 26.1 re-check, reproduces with identical error count/first error.",
+      "id": "B4-O22",
+      "method": "Batch 0 measurement + javap (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "oracle-defect",
+      "title": "VanillaShulkerSpaceOracle: EntityTypes absent from the jar"
+    },
+    {
+      "evidence": "Batch 0 table: 16 errors, getNextEntityId() override. ServerLevel has 0 getNextEntityId. Blocks test_spawner, test_trial_spawner. 26.1 re-check, reproduces with identical error count/first error.",
+      "id": "B4-O23",
+      "method": "Batch 0 measurement + javap (26.1 re-check, reproduces)",
+      "severity": "major",
+      "status": "oracle-defect",
+      "title": "VanillaNaturalSpawnOracle: getNextEntityId absent from ServerLevel"
+    },
+    {
+      "evidence": "Batch 0 table: 6 errors, datapackWorldRegistries (same cause as O14). Blocks test_trading. Batch 3 overlap - cross-reference. 26.1 re-check, reproduces with identical error count/first error.",
+      "id": "B4-O25",
+      "method": "Batch 0 measurement + javap (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "oracle-defect",
+      "title": "VanillaTradingOracle: datapackWorldRegistries absent from DataLoadContext"
+    },
+    {
+      "evidence": "Batch 0 table: 1 error, 26.3 ContextMap API. net.minecraft.util.context.ContextMap has no builder()/set/buildAndValidate. Blocks test_ghost_recipe. 26.1 re-check, reproduces with identical error count/first error.",
+      "id": "B4-O26",
+      "method": "Batch 0 measurement + javap (26.1 re-check, reproduces)",
+      "severity": "minor",
+      "status": "oracle-defect",
+      "title": "VanillaGhostRecipeOracle: 26.3 ContextMap API absent"
+    },
+    {
+      "evidence": "The 26.1.1 tree removed the 3003 wax-on sound from block_particle_event in level_particles.rs (the 26.1 tree played it via play_unshared). process_level_events routes 3002..=3005 to block_particle_event (particles only) and the catch-all sound table in game.rs has no 3003 entry, so the dispenser's explicit audio.play(wax_on) is now the only play. Sound plays exactly once. 26.1 re-check, FIXED.",
+      "id": "B4-G19",
+      "method": "source diff vs the 26.1 tree (26.1 re-check, fixed)",
+      "severity": "minor",
+      "status": "fixed",
+      "title": "Dispenser wax sound played twice (now once)"
+    },
+    {
+      "evidence": "WITHDRAWN: vanilla 26.1.1 grows furnace output by the FULL result count (burn() grows output by result.getCount()). 1.21.7 re-check; vanilla differs from 1.21.7.",
+      "id": "B4-G03",
+      "method": "javap (1.21.7 re-check, withdrawn)",
+      "severity": "minor",
+      "status": "closed",
+      "title": "Furnace output grew by one instead of the full result count"
+    },
+    {
+      "evidence": "WITHDRAWN: vanilla 26.1.1 does NOT reset the cooking timer on recipe-less input (the null-recipe check jumps past any timer reset). 1.21.7 re-check; vanilla differs from 1.21.7.",
+      "id": "B4-G06",
+      "method": "javap (1.21.7 re-check, withdrawn)",
+      "severity": "minor",
+      "status": "closed",
+      "title": "Furnace cooking timer not reset on recipe-less input"
+    },
+    {
+      "evidence": "WITHDRAWN: SpawnEggItem has no defaultType field in 26.1.1; an egg whose entity_data was removed drops. 1.21.7 re-check; vanilla differs from 1.21.7.",
+      "id": "B4-G07",
+      "method": "javap (1.21.7 re-check, withdrawn)",
+      "severity": "minor",
+      "status": "closed",
+      "title": "Spawn egg with removed entity_data kept a defaultType"
+    },
+    {
+      "evidence": "WITHDRAWN: spawner_blocks_work EXISTS in 26.1.1 and is checked in both spawner paths (GameRules.SPAWNER_BLOCKS_WORK; BaseSpawner.serverTick calls ServerLevel.isSpawnerBlockEnabled(); TrialSpawner.canSpawnInLevel checks it first). 1.21.7 re-check; vanilla differs from 1.21.7.",
+      "id": "B4-G11",
+      "method": "javap (1.21.7 re-check, withdrawn)",
+      "severity": "minor",
+      "status": "closed",
+      "title": "spawner_blocks_work gamerule missing"
+    },
+    {
+      "evidence": "WITHDRAWN: creative enchanting without lapis is allowed in 26.1.1 (EnchantmentMenu.clickMenuButton: the lapis isEmpty check sits inside the creative guard, same as 26.1). 1.21.7 re-check; vanilla differs from 1.21.7.",
+      "id": "B4-G12",
+      "method": "javap (1.21.7 re-check, withdrawn)",
+      "severity": "minor",
+      "status": "closed",
+      "title": "Creative enchanting required lapis"
+    },
+    {
+      "evidence": "WITHDRAWN: VanillaBlockEntityTickerOracle passes in 26.1.1 (Batch 0 table). 1.21.7 re-check.",
+      "id": "B4-O01",
+      "method": "Batch 0 measurement (1.21.7 re-check, oracle now passes)",
+      "severity": "minor",
+      "status": "closed",
+      "title": "VanillaBlockEntityTickerOracle (now passes)"
+    },
+    {
+      "evidence": "WITHDRAWN: VanillaBlockEntityStorageOracle passes in 26.1.1 (Batch 0 table). 1.21.7 re-check.",
+      "id": "B4-O02",
+      "method": "Batch 0 measurement (1.21.7 re-check, oracle now passes)",
+      "severity": "minor",
+      "status": "closed",
+      "title": "VanillaBlockEntityStorageOracle (now passes)"
+    },
+    {
+      "evidence": "WITHDRAWN: VanillaEnchantingOracle passes in 26.1.1 (Batch 0 table). 1.21.7 re-check.",
+      "id": "B4-O07",
+      "method": "Batch 0 measurement (1.21.7 re-check, oracle now passes)",
+      "severity": "minor",
+      "status": "closed",
+      "title": "VanillaEnchantingOracle (now passes)"
+    },
+    {
+      "evidence": "WITHDRAWN: VanillaSimpleContainerOracle passes in 26.1.1 (Batch 0 table). 1.21.7 re-check.",
+      "id": "B4-O11",
+      "method": "Batch 0 measurement (1.21.7 re-check, oracle now passes)",
+      "severity": "minor",
+      "status": "closed",
+      "title": "VanillaSimpleContainerOracle (now passes)"
+    },
+    {
+      "evidence": "WITHDRAWN: VanillaItemStackStorageOracle passes in 26.1.1 (Batch 0 table). 1.21.7 re-check.",
+      "id": "B4-O12",
+      "method": "Batch 0 measurement (1.21.7 re-check, oracle now passes)",
+      "severity": "minor",
+      "status": "closed",
+      "title": "VanillaItemStackStorageOracle (now passes)"
+    },
+    {
+      "evidence": "WITHDRAWN: VanillaPalettedContainerOracle passes in 26.1.1 (Batch 0 table). 1.21.7 re-check.",
+      "id": "B4-O13",
+      "method": "Batch 0 measurement (1.21.7 re-check, oracle now passes)",
+      "severity": "minor",
+      "status": "closed",
+      "title": "VanillaPalettedContainerOracle (now passes)"
+    },
+    {
+      "evidence": "WITHDRAWN: VanillaContainerScreenOracle passes on client+both in 26.1.1 (Batch 0 table); the server side fails on the client package only, which is expected, not breakage. 1.21.7 re-check.",
+      "id": "B4-O17",
+      "method": "Batch 0 measurement (1.21.7 re-check, oracle now passes)",
+      "severity": "major",
+      "status": "closed",
+      "title": "VanillaContainerScreenOracle (now passes)"
+    },
+    {
+      "evidence": "WITHDRAWN: VanillaStoredEnchantmentPatchOracle passes in 26.1.1 (Batch 0 table). 1.21.7 re-check.",
+      "id": "B4-O20",
+      "method": "Batch 0 measurement (1.21.7 re-check, oracle now passes)",
+      "severity": "minor",
+      "status": "closed",
+      "title": "VanillaStoredEnchantmentPatchOracle (now passes)"
+    },
+    {
+      "evidence": "WITHDRAWN: VanillaRecipeOracle passes in 26.1.1 (Batch 0 table). 1.21.7 re-check.",
+      "id": "B4-O24",
+      "method": "Batch 0 measurement (1.21.7 re-check, oracle now passes)",
+      "severity": "major",
+      "status": "closed",
+      "title": "VanillaRecipeOracle (now passes)"
+    }
+  ],
+  "method": "static-only: Batch 0 oracle table (docs/sweep/26.1.1/batch-0-oracles.json, not re-measured) for driver status; javap -c on the named 26.1.1 server-game jar (client jar for render/client-only classes); Rust source diff 26.1 -> 26.1.1 (read-only) for the regression finding; prepared 26.1.1 data (items.json, trade sets, loot tables) for data counts; driver assertion reads for the 20 no-oracle drivers. No driver was run live; the 17 oracle-passing drivers are declared pass per the 26.2 precedent.",
+  "name": "Block entities + containers",
+  "out_of_scope_failures": "game/stations.rs crossbow charged-projectiles tooltip (multiple line uses the plain name; 26.1 used the [name] display name for both) - Batch 7. game/commands/items.rs (970 lines, /item command slot machinery) - Batch 10. horizon-world/src/level/redstone.rs DiodeBlock.neighborChanged guard added (26.2 form) - Batch 2. creatures.rs spawn_egg_allowed peaceful gate (likely the B7-G04 fix; vanilla 26.1.1 HAS the gate - SpawnEggItem.spawnMob checks EntityType.isAllowedInPeaceful() + Difficulty.PEACEFUL) - Batch 7, with the jar evidence in b04/evidence/javap/SpawnEggItem.txt. B6 water-gate disagreement: B6's sculk water-gate item rests on fluidState.is(Fluids.WATER) being true for flowing water; TypedInstance.is is a type-identity check (flowing water's type is FLOWING_WATER), so vanilla's gate is source-only and the port matches - B6's item may need withdrawal (evidence: b04/evidence/javap-TypedInstance-is.txt). test_brewing_parity.py:129 reads 26.3 resources where the 26.1 tree reads 26.1's - latent driver defect, moot while B4-O04 blocks the driver.",
+  "source": "26.1.1 parity sweep batch 4",
+  "systemic_note": "The 26.1.1 tree REGRESSED the 26.1 fixes: it carries 26.3-form code in files where the 26.1 tree carries corrected forms (items.rs, brewing.rs, providers.rs, menu.rs, block_entity_nbt.rs, block_entity_item.rs, sign_edit.rs, composter.rs, level/sculk.rs, dispenser.rs, spawner.rs, trial_spawner.rs, lan_stations.rs, save.rs, recipe_book.rs, machines.rs - diffs in b04/evidence/diffs/). The mechanism is one pattern: component/tag reads for data that does not exist in 26.1.1 (cooking_fuel, brewing_fuel, villager_food, compostable, mob_visibility, sign_text_front/back, waxed components; sculk_growth_inhibitors, extendable_maps tags). Where the 26.1 tree replaced those reads with the 26.1-form source (hardcoded tables, tag checks, FuelValues), the 26.1.1 tree reads the absent component/tag and gets nothing. Consequence: two 1.21.7 majors that 26.1 had FIXED are back (G01 furnaces never light, G02 brewing stands never brew), and 8 new defects (G30-G37) appear in systems that were correct in 26.1. Vanilla 26.1.1 == vanilla 26.1 for every Batch 4 class (PORT-NOTES-26.1.1.md), so every difference is a port-side regression, not a vanilla change.",
+  "version": "26.1.1"
+}
