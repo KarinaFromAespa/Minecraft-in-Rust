@@ -62,15 +62,9 @@ the completed tree (below).
   `crates/horizon-client/src/game/hand.rs` and is the one changed class
   the combat harnesses prove (report item #4, rank 2: server_player_combat,
   registered_player_combat, damage_immunity, attribute_updates and four
-  more). The changed method body is **not** ported in this delta, and
-  those harnesses cannot run on this line until the inherited protocol
-  blocker clears. This is the delta's one real behaviour item; it is
-  flagged here, not silently absorbed. The flag is unchanged by the
-  carry-forward: the completion pass's rework of `hand.rs` (the swing
-  packet family) does not touch the server-side attack handler, and the
-  changed method body remains unported — now the blocker it was waiting
-  on is gone, so porting the method body is follow-up work in its own
-  right.
+  more). The changed method body was ported in the behaviour port
+  (2026-11-23, 7/7 closed) with regression tests, green in CI
+  (run 45150986405); the 26.1.2 parity sweep's Batch 11 re-verified it.
 - **Checkbox row limit.** `Checkbox` gained a `ROWS` field and an
   `overflowsRowLimit` method, `Checkbox$Builder.build()` changed with it,
   and `AbstractReportScreen.createFooter()` changed on the screen that
