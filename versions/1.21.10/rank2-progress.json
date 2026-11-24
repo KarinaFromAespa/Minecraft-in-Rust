@@ -1,8 +1,8 @@
 {
  "release": "1.21.10",
  "rank": 2,
- "batch": 22,
- "note": "Batch 22: 8 items (47, 21, 98, 53, 131, 18, 59, 26); 2 ported (98 music volume source + selection order, 18 horse red mushroom + zombie horse PASS), 6 no-change. Rank 2: 420/454.",
+ "batch": 24,
+ "note": "Batch 24: 8 items (77, 97, 17, 87, 11, 92, 22, 46); 2 ported (11 NeutralMob anger NBT form, 46 End weather), 6 no-change. Rank 2: 436/454.",
  "items": {
   "201": {
    "module": "crates/horizon-client/src/game/frame_geometry.rs",
@@ -2453,6 +2453,86 @@
    "module": "crates/horizon-client/src/advancements.rs",
    "verdict": "no-change",
    "evidence": "All four methods (MovementPredicate, DistancePredicate, PlayerPredicate, StatMatcher #matches) are criterion/critereon package renames only."
+  },
+  "24": {
+   "module": "crates/horizon-client/src/mobs/render.rs",
+   "verdict": "no-change",
+   "evidence": "ParrotRenderer#getVariantTexture is a Parrot package move. ArmedEntityRenderState#extractArmedEntityRenderState: 1.21.11 adds swingAnimationType/attackTime/hand stacks; 1.21.10 has no SwingAnimation component. The Rust's STAB branch (render.rs swing_stab) is set only by swing_hand_modified with a kind-2 animation, constructed only in spear.rs Kinetic::attack_animation, so no spear can be held in 1.21.10 and the branch is dead (deferred spear-system cleanup). EntityRenderDispatcher#submit hitboxes are unmodelled (debug). ColorLerper#getLerpedColor: jeb_wool_rgb lerps per-channel linearly (ARGB.lerp, the 1.21.10 form), not srgbLerp - pinned by jeb_wool_lerps_through_the_sixteen_dye_colours."
+  },
+  "199": {
+   "module": "crates/horizon-client-render/src/border_render.rs",
+   "verdict": "ported",
+   "evidence": "WorldBorderRenderer#extract: 1.21.11 interpolates by partial tick (getMinX(F)), 1.21.10 reads the current size (getMinX()). extract now uses bounds_at(1.0); the partial param stays (ignored) so the game/fixture call sites keep their shape. WorldBorder::bounds() (the no-arg getters) also fixed to bounds_at(1.0) - javap-verified: 1.21.10 getMinX() reads the extent directly, 1.21.11 delegates to getMinX(0.0F) (previous size); this corrects item 112's 'same value' claim for a moving border. Fixture bounds output likewise 1.0. Tests: a_moving_border_is_drawn_at_its_current_size; worldborder bounds test updated (75.0)."
+  },
+  "31": {
+   "module": "crates/horizon-client/src/mobs/undead.rs",
+   "verdict": "ported",
+   "evidence": "ZombifiedPiglin#addBehaviourGoals: removed the 1.21.11-only SpearUseGoal (undead.rs); ZombifiedPiglin#populateDefaultEquipmentSlots: removed the 1-in-20 golden-spear roll, always a golden sword now. Drowned#finalizeSpawn: removed the 1.21.11-only zombie-nautilus jockey (finalize.rs + passengers.rs spawn_zombie_nautilus_jockey) - the 1.21.10 jar has no ZombieNautilus class. Husk camel-husk-parched jockey (triage gap: Husk#finalizeSpawn missing-new assigned to no item): removed from finalize.rs (husk() + the husk tried_camel field + SpawnData::camel_husk_size, which also unblocked StructureMobFinalizer::load - it returned None on 1.21.10 data for want of a camel_husk type) and from passengers.rs (spawn_camel_husk_jockey). ZombieHorse#finalizeSpawn is 1.21.11-only (missing-new): removed the zombie-horse jockey with its iron spear from passengers.rs spawn_jockeys (MountRolls + the natural param go with it). Drowned#isVisuallySwimming already the 1.21.10 form (drowned_client_tick uses the swimming flag, no passenger check); performRangedAttack is a ThrownTrident package move; RemoveBlockGoal#canUse checks mob_griefing. Zombie's SpearUse stays - item 12's domain. Test: a_zombified_piglin_has_no_spear_goal."
+  },
+  "67": {
+   "module": "crates/horizon-client-render/src/chat.rs",
+   "verdict": "no-change",
+   "evidence": "ChatScreen#mouseClicked/#render/#resize + AbstractCommandBlockEditScreen#init: 1.21.11 ClickableStyleFinder + insertionClickMode vs 1.21.10 getComponentStyleAt + handleChatQueueClicked + message-tag tooltip. The insertion-click mode is unmodelled in chat.rs; menu chrome."
+  },
+  "70": {
+   "module": "crates/horizon-client/src/game/armor_stands.rs",
+   "verdict": "no-change",
+   "evidence": "SmithingScreen#updateArmorStandPreview is a render-state-vs-entity difference, menu chrome, unmodelled (no armor-stand preview in stations.rs/armor_stands.rs). TurtleEggBlock#randomTick: turtle_hatch_chance uses the level's day-time window (21062..21905) with no position - the 1.21.10 shouldUpdateHatchLevel(level) form (the 1.21.11 pos param is for per-position timelines). ArmorStand#hurtServer: the Rust reads mob_griefing."
+  },
+  "32": {
+   "module": "crates/horizon-client/src/game/commands.rs",
+   "verdict": "ported",
+   "evidence": "LevelData$RespawnData#of: 1.21.11 wraps the yaw and clamps the pitch, 1.21.10 stores the angle as given - removed the wrap/clamp from both /spawnpoint and /setworldspawn (Coordinates::rotation does no normalising of its own). Test: setworldspawn_keeps_an_unwrapped_angle (540/100 stored raw). Rest no-change: CommandSourceStack#broadcastToAdmins/#withLevel/#withSuppressedOutput + Commands#hasPermission are the PermissionSet-vs-int API (the Rust uses int levels throughout); FillCommand#fillBlocks reads max_block_modifications via the commandModificationBlockLimit translation; SummonCommand#createEntity's EntityProcessor-vs-Function is an API shape (summon_with_nbt applies the SNBT); SayCommand broadcasts independently of feedback; EntitySelectorParser#createRotationPredicate is a criterion rename."
+  },
+  "14": {
+   "module": "crates/horizon-client/src/game/minecarts.rs",
+   "verdict": "no-change",
+   "evidence": "AbstractMinecart#tick: 1.21.11's computeSpeed() is unmodelled. NewMinecartBehavior#getMaxSpeed reads max_minecart_speed, which the gamerule table maps to minecartMaxSpeed by camelCase. moveAlongTrack/OldMinecartBehavior#tick + MinecartCommandBlock#activateMinecart: ServerLevel-vs-Server param differences, unmodelled. MinecartTNT#primeFuse reads tnt_explodes. MinecartCommandBlock#interact: canUseGameMasterBlocks gates the editor, the same observable outcome as 1.21.10's usedBy. BaseSpawner#serverTick: the spawner-enabled gate reads spawner_blocks_work (spawnerBlocksEnabled)."
+  },
+  "169": {
+   "module": "crates/horizon-client/src/game/lightning.rs",
+   "verdict": "ported",
+   "evidence": "LightningBolt#spawnFire: 1.21.10 gates on doFireTick only, 1.21.11 on ServerLevel.canSpreadFireAround (a 1.21.11-only method - absent from the 1.21.10 jar). bolt_fire now returns 0 when fire_spread_radius_around_player is 0 (exactly doFireTick off via gamerules::fire_radius); the proximity gate is gone. Test rewritten: a_bolt_starts_fire_whenever_fire_tick_is_on (fires at radius 128/1/-1 with the player 1000 blocks away, none at 0). clearCopperOnLightningStrike: no unwaxing in the Rust (copper_previous_name never strips waxed_) - the 1.21.10 form; tick is criterion renames."
+  },
+  "77": {
+   "module": "crates/horizon-client/src/lan/hub.rs",
+   "verdict": "no-change",
+   "evidence": "6 real: PlayerList#getPlayerStats (1.21.10 loads the stats file from disk with the legacy <name>.json -> <uuid>.json rename; 1.21.11 delegates to a stats manager) is unmodelled \u2014 hub.rs has no stats. placeNewPlayer: 1.21.11 suspendFlushing is a network optimisation with no observable behaviour; the rest is a GameRules API package move. sendLevelInfo: GameRules API (ADVANCE_TIME vs RULE_DAYLIGHT), translation-table territory. sendPlayerPermissionLevel: PermissionSet vs int; the Rust uses ints. setSimulationDistance/setViewDistance: 1.21.10 has a null check on the level that 1.21.11 lacks (trivia; hub.rs set_view_distance sets config + guest view distances on the single level)."
+  },
+  "97": {
+   "module": "crates/horizon-command/src/args.rs",
+   "verdict": "no-change",
+   "evidence": "2 real. EntityArgument#listSuggestions: 1.21.11 checks PermissionSet.hasPermission(COMMANDS_ENTITY_SELECTORS), 1.21.10 calls EntitySelectorParser.allowSelectors (permission level >= 2); the Rust uses reg.permission >= 2 (args.rs:1128, 1150, 1382, 1472) \u2014 the 1.21.10 form. LocalCoordinates#getPosition: 1.21.11 calls Vec3.applyLocalCoordinatesToRotation (double trig, javap-verified on the 1.21.11 jar: Mth.cos(D)/Mth.sin(D)), 1.21.10 inlines the same math with float trig; the Rust's Coordinates::position (args.rs:277) matches the 1.21.10 inlined formula exactly (cos/sin of yaw+90, -pitch, -pitch+90; forward/up/left = -(forward x up); anchor + f.forwards + u.up + l.left)."
+  },
+  "17": {
+   "module": "crates/horizon-client/src/game/boats.rs",
+   "verdict": "no-change",
+   "evidence": "11 real. addDeltaMovement: 1.21.11 checks Vec3.isFinite first; 1.21.10 adds as-is \u2014 the Rust has no is_finite check in boats.rs or entities.rs (the 1.21.10 form). baseTick: 1.21.11 calls computeSpeed(), unmodelled (item 14). calculateViewVector, getCollisionHorizontalEscapeVector, getInputVector: f32-vs-double trig noise. handlePortal: isAllowedToEnterPortal moved from ServerLevel (1.21.11) to MinecraftServer (1.21.10), same behaviour. interact: the leash-attach branch returns CONSUME on the client in 1.21.11 and skips the block in 1.21.10 \u2014 a client InteractionResult distinction the Rust does not model (interact_boat_leash returns a bool, click taken or not). load: needsSync/hasImpulse rename. updateInWaterStateAndDoFluidPushing: 1.21.11 reads the FAST_LAVA environment attribute, 1.21.10 reads dimensionType.ultraWarm() \u2014 not modelled in boats.rs; the generic fluid code reads dimension_type.fast_lava, correct for built-in dimensions (Nether preset true), wrong only for datapack dimensions (item 157). animatePaddle: argument-order shuffle + trig noise, same computation. ignoreExplosion: GameRules MOB_GRIEFING API gap (Rust reads mob_griefing through its own API)."
+  },
+  "87": {
+   "module": "crates/horizon-client/src/game/books.rs",
+   "verdict": "no-change",
+   "evidence": "4 real, all menu chrome. BookViewScreen#getPageNumberMessage (1.21.11 applies PAGE_TEXT_STYLE), #handleClickEvent (1.21.11 adds a null check + local renumbering), #mouseClicked (1.21.11 ClickableStyleFinder + visitText vs 1.21.10 getClickedComponentStyleAt \u2014 same pattern as item 67), LecternScreen#createMenuControls (button-position arithmetic). books.rs models book content (pages as strings, 100-page limit), not screen-rendering details. Menu chrome does not need to be version-faithful (owner principle)."
+  },
+  "11": {
+   "module": "crates/horizon-client/src/entity_nbt.rs",
+   "verdict": "ported",
+   "evidence": "13 real. Pig#thunderHit: lambda-signature difference (1.21.11 finalizeConversion takes the ServerLevel too; same conversion). Horse #applyImplicitComponent/#get/#getBreedOffspring: equine vs horse package moves. All five Mooshroom methods: cow/AbstractCow vs animal/AbstractCow package moves. SpellcasterIllager#tick: f32-vs-double trig noise. SnowGolem #addAdditionalSaveData/#readAdditionalSaveData: golem/AbstractGolem package moves. SnowGolem#aiStep: 1.21.11 checks the SNOW_GOLEM_MELTS environment attribute, 1.21.10 checks the #snow_golem_melts biome tag \u2014 verified from the 1.21.10 jar: the tag's 12 members are exactly the biomes with temperature > 1.0 (all 2.0), so the Rust's dimension_type.snow_golem_melts || temperature > 1.0 check (golem.rs:553-554) is behaviour-identical for vanilla data. PORTED: the NeutralMob anger NBT form. Javap-verified against NeutralMob on the 1.21.10 server jar: 1.21.10 writes AngerTime (int, REMAINING ticks via getRemainingPersistentAngerTime) + AngryAt (UUID), and reads via getIntOr(\"AngerTime\", 0) + setRemainingPersistentAngerTime; the Rust wrote anger_end_time (long, absolute game time) + angry_at (the 1.21.11 form). 1.21.10 has no getPersistentAngerEndTime anywhere (verified: Bee has only getRemainingPersistentAngerTime), so the whole absolute-end-time model was removed, not just renamed: Extra::anger_end and Extra::anger_stamp fields gone; neutral_anger.rs keeps only persistent_anger + stop (anger_left, adopt_anger_end, resume_anger, settle_anger_end, init, around_tick removed); Mob::tick calls ai::tick directly; the pre-save settle and load adopt are gone; the countdown ticks down once per tick the mob ticks and freezes while it does not (missed ticks never count \u2014 the 1.21.10 form, pinned by the rewritten h13076 test: 999999 - 2 after two ticks, not 999999 - 7). Save/load/tests rewritten in entity_nbt.rs, persist.rs (incl. the h262 enderman tests), commands/data.rs (incl. the boat bookkeeping test, which probed the settle 0 -> -1 side effect), anger_tests.rs, game/persist/anger_tests.rs, and the enderman_anger_saved_fixture.py harness tool. DEFERRED: the bee's own anger save (bee.rs to_nbt/from_nbt still write anger_end_time) is item 20's; the bee/wolf metadata sync (lan.rs LONG index 18 / DATA_ANGER_END_TIME) and the wolf_anger_corpus.py harness + the mob_anger harness op are item 168's."
+  },
+  "92": {
+   "module": "crates/horizon-client/src/debug_entries.rs",
+   "verdict": "no-change",
+   "evidence": "4 real, all renames/shims. DebugScreenEntryList#load (1.21.11 reads with explicit UTF_8 charset, 1.21.10 with the default charset), #rebuildCurrentList (isOverlayVisible/IN_OVERLAY vs isF3Visible/IN_F3), #save (codec field vs static CODEC + charset arg), DebugScreenEntries#getEntry (ENTRIES_BY_ID vs ENTRIES_BY_LOCATION, ldc vs ldc_w). The Rust already handles both namings in profile loading (debug_entries.rs:371-374: the 4650 fix maps the inF3 status to inOverlay) and reads profiles through its own SerializedOptions.CODEC. Cosmetic only."
+  },
+  "22": {
+   "module": "crates/horizon-client/src/realms.rs",
+   "verdict": "no-change",
+   "evidence": "16 real, all Realms screen/UI behaviour (menu chrome) or renames. RealmsGenericErrorScreen#init (field shape), AbstractSliderButton#onDrag/#onRelease/#setFocused (WithInactiveMessage vs AbstractWidget superclass), RealmsResetWorldScreen#forEmptySlot/#init (subtitle colour int + setColor), RealmsSettingsTab#save (1.21.10 null-checks regionSelectionPreference and does not trim the server name; 1.21.11 trims it \u2014 the Rust trims at realms.rs:2394, a whitespace edge case on a Realms settings screen, chrome), RealmsSelectWorldTemplateScreen#fetchTemplates and RealmsNewsManager#updateNewsStorage (record accessor vs field, same values), RealmsSubscriptionTab#localPresentation (date formatting), RealmsWorldsTab#resetButtonPressed (copy vs clone) and #switchToMinigame (a colour on a translatable component), WorldSelectionList$WorldListEntry#mouseClicked (click-coordinate handling), RealmsConfigureWorldScreen#init (setTabActiveState), RealmsUtil#convertToAgePresentationFromInstant (toEpochMilli vs getTime, same value), RealmsBackupInfoScreen#checkForSpecificMetadata (1.21.11 adds a world_type metadata parse). Menu chrome does not need to be version-faithful (owner principle); Realms needs a live Mojang account to reach at all."
+  },
+  "46": {
+   "module": "crates/horizon-client/src/game/native_hooks.rs",
+   "verdict": "ported",
+   "evidence": "11 real. PORTED: Level#canHaveWeather. 1.21.11 adds a dimension != END check; 1.21.10 is hasSkyLight && !hasCeiling only. Verified from the 1.21.10 jar: the_end.json has has_skylight=true, has_ceiling=false, so the End CAN have weather in 1.21.10; ServerLevel#advanceWeatherCycle is gated only on hasSkyLight + the doWeatherCycle rule; and non-overworld dimensions read their weather through DerivedLevelData (delegating getters, no-op setters), so the End shares the overworld's weather state. level_can_have_weather (game.rs:3313) dropped the is_end parameter (now sky_light && !has_ceiling); the Rust's single shared weather state (levels.rs:502) already matches the DerivedLevelData sharing, so the End now rains when the overworld rains. Test weather_follows_the_dimension_type_not_the_id rewritten; native_level_set_weather doc updated (the Nether only). Rest no-change: getBlockEntity/getBlockState/isLoaded (isInValidBounds vs isOutsideBuildHeight \u2014 the Rust's chunk-map lookup returns air/null for out-of-range positions either way; the +/-30M horizontal edge is unmodelled), updateSkyBrightness (1.21.11 SKY_LIGHT_LEVEL attribute vs 1.21.10 rain formula \u2014 the Rust reads the attribute via environment::sky_darken, item 351's systemic gap; native_hooks.rs does not model it), Item#getUseAnimation/#getUseDuration/#use (BlocksAttacks get-vs-has, same outcome; the 1.21.11 KINETIC_WEAPON/spear branch is not modelled anywhere in the item-use code), ServerPlayerGameMode#handleBlockBreakAction (isWithinBlockInteractionRange vs canInteractWithBlock rename), #useItemOn (criterion/critereon package rename), FireBlock#tick (1.21.11 gates on the 1.21.11-only canSpreadFireAround; 1.21.10 on doFireTick + proximity \u2014 the Rust's can_spread_fire_around reads the 1.21.10 fire pair: radius 0 never spreads, -1 always, else near-player; consistent with item 169)."
   }
  }
 }

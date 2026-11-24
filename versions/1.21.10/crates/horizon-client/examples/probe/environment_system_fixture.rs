@@ -95,7 +95,7 @@ fn run(
         thunder: case["thunder"].as_f64().ok_or("thunder")? as f32,
         blend: blended.then_some(&blend),
         biome: &biome,
-        clock: &|_| case["ticks"].as_i64().unwrap_or(0),
+        day_time: case["ticks"].as_i64().unwrap_or(0),
         post_blend: None,
         post_biome: None,
     };

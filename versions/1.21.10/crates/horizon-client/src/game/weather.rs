@@ -10,11 +10,7 @@ impl Game<'_> {
     }
 
     pub(super) fn can_have_weather(&self) -> bool {
-        level_can_have_weather(
-            self.world.shape.sky_light,
-            self.world.shape.has_ceiling,
-            self.dim == Dim::End,
-        )
+        level_can_have_weather(self.world.shape.sky_light, self.world.shape.has_ceiling)
     }
 
     /// The rain and thunder levels (`Level.getRainLevel`, `getThunderLevel`):

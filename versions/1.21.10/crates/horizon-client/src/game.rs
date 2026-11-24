@@ -3308,10 +3308,13 @@ fn gliding_pieces(items: &Items, armor: &[Option<ItemStack>; 4]) -> [bool; 4] {
             .is_some_and(|s| horizon_client::item_sync::can_glide_using(s, SLOTS[i], items))
     })
 }
-/// `Level.canHaveWeather`: sky light, no ceiling, and not the End (the one
-/// level the rule names by id).
-fn level_can_have_weather(sky_light: bool, has_ceiling: bool, is_end: bool) -> bool {
-    sky_light && !has_ceiling && !is_end
+/// `Level.canHaveWeather`: sky light and no ceiling, by the dimension type
+/// alone. 1.21.10 names no level by id, so the End (sky light, no ceiling)
+/// has weather: its state is the overworld's, read through
+/// `DerivedLevelData`, and it rains there when it rains there. The End
+/// exclusion is 1.21.11's.
+fn level_can_have_weather(sky_light: bool, has_ceiling: bool) -> bool {
+    sky_light && !has_ceiling
 }
 /// `Camera.setRotation` (`rotationYXZ(π - yaw, -pitch, 0)`) for the player's
 /// view, turned round in third-person front view (`Camera.setup`).

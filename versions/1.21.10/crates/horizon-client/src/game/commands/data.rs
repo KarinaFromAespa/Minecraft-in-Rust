@@ -458,14 +458,8 @@ impl Game<'_> {
                     slot.extra.adopted_body = old.extra.adopted_body;
                     slot.age = old.age;
                     slot.previous = slot.position;
-                    // Wolf.readAdditionalSaveData initializes persistent anger at
-                    // the live level clock, just as load_mob does on admission.
-                    if slot.species() == horizon_client::mobs::Species::Wolf {
-                        horizon_client::mobs::adopt_anger_end(slot, self.world.game_time);
-                    } else {
-                        // `readPersistentAngerSaveData` set the end time as written.
-                        slot.extra.anger_stamp = Some((slot.extra.anger, slot.age));
-                    }
+                    // `readPersistentAngerSaveData` read the remaining anger
+                    // ticks as written; there is nothing to adopt.
                 }
             }
             Target::Item(id) => {
@@ -1688,7 +1682,7 @@ mod wolf_live_anger_tests {
 
     #[test]
     #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-    fn live_wolf_anger_writes_use_the_level_clock_and_keep_bee_state() {
+    fn live_wolf_anger_writes_use_the_countdown_and_keep_bee_state() {
         let root = std::path::PathBuf::from(std::env::var_os("HORIZON_TEST_RESOURCES").unwrap());
         let settings = Settings::default();
         let loaded = load_resources(
@@ -1718,9 +1712,16 @@ mod wolf_live_anger_tests {
         .unwrap();
         game.build_registries();
         game.world.game_time = 12_345;
-        // Bee's independently modeled end is the first control, before the Wolf regression.
+        // The bee's independently modeled end is the first control, before the
+        // wolf regression; the bee still writes `anger_end_time` until item 20
+        // ports its save, while the wolf's anger is the remaining ticks.
         for (kind, health, number) in [("bee", 10.0_f32, 1), ("wolf", 8.0, 2)] {
             game.mobs.clear();
+            let (key, initial): (&str, Tag) = if kind == "bee" {
+                ("anger_end_time", Tag::Long(-1))
+            } else {
+                ("AngerTime", Tag::Int(0))
+            };
             let tag = Tag::Compound(
                 [
                     (
@@ -1741,7 +1742,7 @@ mod wolf_live_anger_tests {
                     ("NoGravity".into(), Tag::Byte(1)),
                     ("Silent".into(), Tag::Byte(1)),
                     ("PersistenceRequired".into(), Tag::Byte(1)),
-                    ("anger_end_time".into(), Tag::Long(-1)),
+                    (key.into(), initial),
                 ]
                 .into_iter()
                 .collect(),
@@ -1752,19 +1753,25 @@ mod wolf_live_anger_tests {
             game.mobs[i].last_hurt = 2.0;
             game.mobs[i].age = 6;
             game.mobs[i].in_powder_snow = true;
-            for end in [12_395, 12_395, 12_420, -1] {
+            let values: [i64; 4] = if kind == "bee" {
+                [12_395, 12_395, 12_420, -1]
+            } else {
+                [50, 50, 75, 0]
+            };
+            for v in values {
                 let mut tag = game.mob_tree_nbt(i);
                 let Tag::Compound(fields) = &mut tag else {
                     panic!("mob compound")
                 };
-                fields.insert("anger_end_time".into(), Tag::Long(end));
+                let value = if kind == "bee" {
+                    Tag::Long(v)
+                } else {
+                    Tag::Int(v as i32)
+                };
+                fields.insert(key.into(), value.clone());
                 game.apply_entity_nbt(Target::Mob(id), tag).unwrap();
                 let saved = game.mob_tree_nbt(i);
-                assert_eq!(
-                    saved.get("anger_end_time"),
-                    Some(&Tag::Long(end)),
-                    "{kind} end={end}"
-                );
+                assert_eq!(saved.get(key), Some(&value), "{kind} v={v}");
                 assert_eq!(game.world.game_time, 12_345);
                 assert_eq!(game.persist.uuids.get(&id), Some(&[316, 1, 0, number]));
                 assert_eq!(game.mobs[i].health, health);
@@ -1777,7 +1784,7 @@ mod wolf_live_anger_tests {
                     ),
                     (17, 2.0, 6)
                 );
-                assert!(game.mobs[i].in_powder_snow, "{kind} end={end}");
+                assert!(game.mobs[i].in_powder_snow, "{kind} v={v}");
             }
         }
     }
@@ -1809,10 +1816,6 @@ mod boat_passenger_tree_tests {
             !game.persist.raw.contains_key(&child),
             "fresh actual runtime child has no raw NBT"
         );
-        assert_eq!(
-            game.mobs[ci].extra.anger_end, 0,
-            "unprimed constructor state"
-        );
         game.ride_mount(Target::Mob(child), Target::Boat(bid))
             .unwrap();
         assert_eq!(game.mobs[ci].extra.mount, Some(bid));
@@ -1823,21 +1826,16 @@ mod boat_passenger_tree_tests {
         let before = (
             game.persist.uuids.len(),
             game.persist.uuid_of(child),
-            game.mobs[ci].extra.anger_end,
             game.mobs[ci].extra.angry_at,
         );
         let first = game.entity_nbt(Target::Boat(bid)).unwrap();
         let after = (
             game.persist.uuids.len(),
             game.persist.uuid_of(child),
-            game.mobs[ci].extra.anger_end,
             game.mobs[ci].extra.angry_at,
         );
         println!("parent-first bookkeeping before={before:?} after={after:?}");
-        let mut failures = Vec::new();
-        if after.2 != -1 {
-            failures.push("first parent must use existing 0->-1 normalization".to_owned());
-        }
+        let mut failures: Vec<String> = Vec::new();
         if after.1.is_none() || after.0 != before.0 + usize::from(before.1.is_none()) {
             failures.push("first parent must use existing UUID registration once".into());
         }
@@ -1848,22 +1846,18 @@ mod boat_passenger_tree_tests {
         game.mobs[di].no_ai = true;
         game.mobs[di].no_gravity = true;
         assert!(!game.persist.raw.contains_key(&control));
-        assert_eq!(game.mobs[di].extra.anger_end, 0);
         let direct_before = (
             game.persist.uuids.len(),
             game.persist.uuid_of(control),
-            game.mobs[di].extra.anger_end,
         );
         let direct_control = game.entity_nbt(Target::Mob(control)).unwrap();
         let direct_after = (
             game.persist.uuids.len(),
             game.persist.uuid_of(control),
-            game.mobs[di].extra.anger_end,
         );
         println!(
             "existing child-getter bookkeeping before={direct_before:?} after={direct_after:?}"
         );
-        assert_eq!(direct_after.2, -1);
         assert_eq!(
             direct_after.0,
             direct_before.0 + usize::from(direct_before.1.is_none())
@@ -1888,7 +1882,6 @@ mod boat_passenger_tree_tests {
                 failures.push("repeated parent must keep exactly one actual child".into());
             }
             assert_eq!(game.persist.uuids.len(), stable);
-            assert_eq!(game.mobs[ci].extra.anger_end, -1);
             assert_eq!(game.mobs[ci].extra.mount, Some(bid));
         }
         assert!(game.run_command("scoreboard objectives add h151 dummy"));

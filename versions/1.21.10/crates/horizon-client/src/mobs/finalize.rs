@@ -156,11 +156,12 @@ impl Ageable {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Group {
     Ageable(Ageable),
-    /// `Zombie.ZombieGroupData`, and `Husk.HuskGroupData` with `tried_camel`.
+    /// `Zombie.ZombieGroupData` (1.21.11's `Husk.HuskGroupData` adds a
+    /// `tried_camel` flag for the camel-husk jockey feature, which 1.21.10
+    /// does not have).
     Zombie {
         baby: bool,
         jockey: bool,
-        husk: Option<bool>,
     },
     /// `Spider.SpiderEffectsGroupData`.
     Spider(Option<&'static str>),
@@ -365,8 +366,6 @@ pub struct SpawnData<'a> {
     pub registries: &'a SpawnRegistries,
     pub enchantments: &'a Enchantments,
     pub items: &'a Items,
-    /// `EntityTypes.CAMEL_HUSK` dimensions (width, height).
-    pub camel_husk_size: (f32, f32),
 }
 
 /// A finalizeSpawn call and the entities it made.
@@ -1359,14 +1358,9 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
                     set_item(m, MAINHAND, weapon);
                 }
             }
-            S::ZombifiedPiglin => {
-                let weapon = if self.int(20) == 0 {
-                    "minecraft:golden_spear"
-                } else {
-                    "minecraft:golden_sword"
-                };
-                set_item(m, MAINHAND, weapon);
-            }
+            // 1.21.10 always hands a zombified piglin a golden sword;
+            // 1.21.11 rolls a golden spear 1 in 20.
+            S::ZombifiedPiglin => set_item(m, MAINHAND, "minecraft:golden_sword"),
             S::WitherSkeleton => set_item(m, MAINHAND, "minecraft:stone_sword"),
             s if skeleton(s) => {
                 self.armor(m);
@@ -1508,7 +1502,6 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
             g = Some(Group::Zombie {
                 baby: self.float() < 0.05,
                 jockey: true,
-                husk: None,
             });
         }
         if let Some(Group::Zombie { baby, jockey, .. }) = g {
@@ -1548,67 +1541,13 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
         g
     }
     fn husk(&mut self, m: &mut Mob, g: Option<Group>, reason: Reason) -> Option<Group> {
-        let mut g = self.zombie(m, g, reason);
+        let g = self.zombie(m, g, reason);
         if reason != Reason::Conversion {
             m.extra.pick_up_loot = self.float() < 0.55 * self.special();
         }
-        if let Some(Group::Zombie { baby, jockey, .. }) = g {
-            g = Some(Group::Zombie {
-                baby,
-                jockey,
-                husk: Some(reason != Reason::Natural),
-            });
-        }
-        if let Some(Group::Zombie {
-            husk: Some(tried @ false),
-            ..
-        }) = &mut g
-        {
-            let (bx, by, bz) = (
-                m.position.x.floor(),
-                m.position.y.floor(),
-                m.position.z.floor(),
-            );
-            let (w, h) = self.data.camel_husk_size;
-            let half = w / 2.0;
-            let bounds = Aabb::new(
-                horizon_core::geometry::Vec3::new(
-                    bx + 0.5 - f64::from(half),
-                    by,
-                    bz + 0.5 - f64::from(half),
-                ),
-                horizon_core::geometry::Vec3::new(
-                    bx + 0.5 + f64::from(half),
-                    by + f64::from(h),
-                    bz + 0.5 + f64::from(half),
-                ),
-            );
-            if self.level.no_collision(bounds) {
-                *tried = true;
-                if self.float() < 0.1 {
-                    set_item(m, MAINHAND, "minecraft:iron_spear");
-                    if let Some(mut camel) =
-                        self.level.create("minecraft:camel_husk", Reason::Natural)
-                    {
-                        // setPos: the husk's position, the camel's own rotation.
-                        camel.position = m.position;
-                        camel.previous = m.position;
-                        self.finalize(&mut camel, reason, None);
-                        self.ride(m, &mut camel);
-                        if let Some(mut parched) =
-                            self.create("minecraft:parched", Reason::Natural, m)
-                        {
-                            self.finalize(&mut parched, reason, None);
-                            self.ride(&mut parched, &mut camel);
-                            self.created.push(camel);
-                            self.created.push(parched);
-                        } else {
-                            self.created.push(camel);
-                        }
-                    }
-                }
-            }
-        }
+        // 1.21.11's husk-camel-husk-parched jockey feature (a 1-in-10 roll
+        // for a natural husk with room for a camel) does not exist in
+        // 1.21.10: there is no camel husk and no parched.
         g
     }
     fn drowned(&mut self, m: &mut Mob, g: Option<Group>, reason: Reason) -> Option<Group> {
@@ -1617,27 +1556,9 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
             set_item(m, OFFHAND, "minecraft:nautilus_shell");
             set_drop_chance(m, OFFHAND, 2.0);
         }
-        let at = [
-            m.position.x.floor() as i32,
-            m.position.y.floor() as i32,
-            m.position.z.floor() as i32,
-        ];
-        if matches!(reason, Reason::Natural | Reason::Structure)
-            && m.extra.main_hand.as_deref() == Some("minecraft:trident")
-            && self.float() < 0.5
-            && !m.is_baby()
-            && !self
-                .level
-                .biome_tag("minecraft:more_frequent_drowned_spawns", at)
-            && let Some(mut nautilus) = self.create("minecraft:zombie_nautilus", Reason::Jockey, m)
-        {
-            if reason == Reason::Structure {
-                nautilus.persistent = true;
-            }
-            self.finalize(&mut nautilus, reason, None);
-            self.ride(m, &mut nautilus);
-            self.created.push(nautilus);
-        }
+        // 1.21.11's zombie-nautilus jockey (a trident drowned rides one
+        // half the time outside `#more_frequent_drowned_spawns` biomes)
+        // does not exist in 1.21.10: there is no zombie nautilus.
         g
     }
     fn skeleton(&mut self, m: &mut Mob, g: Option<Group>) -> Option<Group> {
@@ -1737,7 +1658,6 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
                     Some(Group::Zombie {
                         baby,
                         jockey: false,
-                        husk: None,
                     }),
                 ));
                 set_item(&mut jockey, MAINHAND, "minecraft:warped_fungus_on_a_stick");

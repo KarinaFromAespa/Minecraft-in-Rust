@@ -1,10 +1,9 @@
 #[test]
 fn weather_follows_the_dimension_type_not_the_id() {
     use super::level_can_have_weather as w;
-    assert!(w(true, false, false)); // open sky
-    assert!(!w(true, true, false)); // ceiling (Nether, overworld_caves)
-    assert!(!w(false, false, false)); // no sky light
-    assert!(!w(true, false, true)); // the End is named by id
+    assert!(w(true, false)); // open sky, the End included
+    assert!(!w(true, true)); // ceiling (Nether, overworld_caves)
+    assert!(!w(false, false)); // no sky light
 }
 
 use super::*;

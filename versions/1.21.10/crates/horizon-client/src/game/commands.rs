@@ -3723,8 +3723,10 @@ impl Game<'_> {
             Some(Arg::Coords(c)) => c.rotation(self.source_rotation()),
             _ => [0.0, 0.0],
         };
-        let yaw = ((rot[0] + 180.0).rem_euclid(360.0)) - 180.0;
-        let pitch = rot[1].clamp(-90.0, 90.0);
+        // 1.21.10's `RespawnData.of` stores the angle as given; 1.21.11 wraps
+        // the yaw and clamps the pitch.
+        let yaw = rot[0];
+        let pitch = rot[1];
         // SetSpawnCommand: a forced point in the source's level, for each target.
         let level = self.dim;
         for &t in &targets {
@@ -3787,8 +3789,8 @@ impl Game<'_> {
             Some(Arg::Coords(c)) => c.rotation(self.source_rotation()),
             _ => [0.0, 0.0],
         };
-        // SetWorldSpawnCommand uses RespawnData.of before storing or comparing.
-        let rot = [wrap_degrees(rot[0]), rot[1].clamp(-90.0, 90.0)];
+        // The angle is stored as given: 1.21.10's `RespawnData.of` neither
+        // wraps the yaw nor clamps the pitch (1.21.11 does both).
         // LevelData.setRespawnData: the world's spawn (level.dat `spawn`).
         let previous_point = self.world_spawn_position().map(|v| v.floor() as i32);
         let old = self.level.world_spawn.replace(pos);

@@ -537,9 +537,10 @@ impl Game<'_> {
     ) -> Option<u32> {
         self.spawn_mob_reason(kind, at, persistent, scripted, !persistent)
     }
-    /// `spawn_mob_for` with the spawn reason's NATURAL flag explicit: only a
-    /// natural spawn rolls the jockey mounts of zombie horses, husks and
-    /// drowned (`reinforcement` and spawner spawns pass `false`).
+    /// `spawn_mob_for` with the spawn reason's NATURAL flag explicit. In
+    /// 1.21.11 only a natural spawn rolls the jockey mounts of zombie
+    /// horses, husks and drowned; 1.21.10 has no natural-only mounts, so
+    /// the flag is kept for the spawn API but gates nothing here.
     pub(super) fn spawn_mob_reason(
         &mut self,
         kind: &str,
@@ -576,7 +577,9 @@ impl Game<'_> {
         at: [f64; 3],
         persistent: bool,
         scripted: bool,
-        natural: bool,
+        // Kept for the spawn API; 1.21.10 has no natural-only mounts, so it
+        // gates nothing here.
+        _natural: bool,
         finalize: bool,
         yaw: SpawnYaw,
     ) -> Option<u32> {
@@ -628,7 +631,7 @@ impl Game<'_> {
             self.enchant_spawn_equipment(id);
             self.halloween_spawn_head(id);
             if !persistent && !scripted {
-                self.spawn_jockeys(id, natural);
+                self.spawn_jockeys(id);
             }
         }
         Some(id)
@@ -910,7 +913,7 @@ impl Game<'_> {
                 -24000
             };
         }
-        self.spawn_jockeys(id, false);
+        self.spawn_jockeys(id);
         Ok(id)
     }
     /// The `mobs` command: nearby mobs with position, health and running goals.

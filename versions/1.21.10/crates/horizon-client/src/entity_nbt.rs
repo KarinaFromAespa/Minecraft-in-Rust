@@ -656,25 +656,26 @@ pub fn mob_to_nbt(
             Tag::Long(m.extra.death_loot_seed),
         );
     }
-    // `NeutralMob.addPersistentAngerSaveData`: the anger ends at an
-    // absolute game time, and the target is the entity the mob is angry at.
+    // `NeutralMob.addPersistentAngerSaveData`: the anger's remaining ticks
+    // (`AngerTime`), and the target is the entity the mob is angry at
+    // (`AngryAt`). 1.21.10 has no absolute anger end time.
     if persistent_anger(m.species()) {
         put(
             &mut tag,
-            "anger_end_time",
-            // The absolute value as it is, also zero or one already past.
-            Tag::Long(m.extra.anger_end),
+            "AngerTime",
+            // The countdown as it is, also zero when the mob is calm.
+            Tag::Int(m.extra.anger),
         );
-        // `angry_at` only while there is an anger target: the UUID of the one
+        // `AngryAt` only while there is an anger target: the UUID of the one
         // the level has (`uuid_of`). A mob target read from the save that is
         // not in the world (`Who::Mob(0)`) keeps the loaded UUID.
         match m.extra.angry_at {
             Some(crate::mobs::Who::Mob(0)) => {}
             target => match target.and_then(|who| who_uuid(who, &mut uuid_of)) {
-                Some(uuid) => put(&mut tag, "angry_at", Tag::IntArray(uuid.to_vec())),
+                Some(uuid) => put(&mut tag, "AngryAt", Tag::IntArray(uuid.to_vec())),
                 None => {
                     if let Tag::Compound(map) = &mut tag {
-                        map.remove(&"angry_at".into());
+                        map.remove(&"AngryAt".into());
                     }
                 }
             },
@@ -1503,7 +1504,7 @@ pub fn mob_to_nbt(
             | "minecraft:zombified_piglin"
             | "minecraft:enderman"
     ) {
-        map.entry("anger_end_time".into()).or_insert(Tag::Long(-1));
+        map.entry("AngerTime".into()).or_insert(Tag::Int(0));
     }
     if let Some(a) = m.extra.attributes.as_deref() {
         put_attributes(map, m, a);
@@ -2054,13 +2055,13 @@ pub fn mob_from_nbt_with_random(
     m.extra.death_loot_table = text(tag.get("DeathLootTable"))
         .and_then(|t| horizon_client_core::identifier::normalize_id(&t));
     m.extra.death_loot_seed = number(tag.get("DeathLootTableSeed")).unwrap_or(0);
-    // `NeutralMob.readPersistentAngerSaveData`: the anger end time and the
-    // target come back with the mob.
+    // `NeutralMob.readPersistentAngerSaveData`: the remaining anger ticks
+    // and the target come back with the mob.
     if persistent_anger(m.species()) {
-        m.extra.anger_end = number(tag.get("anger_end_time")).unwrap_or(-1);
+        m.extra.anger = number(tag.get("AngerTime")).unwrap_or(0) as i32;
         // Anger at an entity other than the player is anger at a mob that may
         // not be here (`EntityReference`): it still is not `isAngryAtAllPlayers`.
-        m.extra.angry_at = match uuid_from_tag(tag.get("angry_at")) {
+        m.extra.angry_at = match uuid_from_tag(tag.get("AngryAt")) {
             Some(uuid) if uuid == player_uuid() => Some(crate::mobs::Who::Player),
             Some(_) => Some(crate::mobs::Who::Mob(0)),
             None => None,
@@ -4425,7 +4426,7 @@ mod tests {
             ("UUID", Tag::IntArray(vec![9, 9, 9, 9])),
             ("Owner", Tag::IntArray(old.to_vec())),
             ("Thrower", Tag::IntArray(old.to_vec())),
-            ("angry_at", Tag::IntArray(old.to_vec())),
+            ("AngryAt", Tag::IntArray(old.to_vec())),
             (
                 "Trusted",
                 Tag::List(vec![
@@ -4442,7 +4443,7 @@ mod tests {
         migrate_player_uuid(&mut tag, old, new);
         assert_eq!(tag.get("Owner"), Some(&Tag::IntArray(new.to_vec())));
         assert_eq!(tag.get("Thrower"), Some(&Tag::IntArray(new.to_vec())));
-        assert_eq!(tag.get("angry_at"), Some(&Tag::IntArray(new.to_vec())));
+        assert_eq!(tag.get("AngryAt"), Some(&Tag::IntArray(new.to_vec())));
         assert_eq!(
             tag.get("Trusted"),
             Some(&Tag::List(vec![
@@ -8216,8 +8217,8 @@ mod fireball_nbt_tests {
 mod neutral_anger_tests {
     use super::*;
 
-    /// #2784: a neutral mob's anger survives the save: the anger ends at an
-    /// absolute game time and the target comes back with it
+    /// #2784: a neutral mob's anger survives the save: the remaining ticks
+    /// (`AngerTime`) and the target (`AngryAt`) come back with it
     /// (`NeutralMob.addPersistentAngerSaveData` / `readPersistentAngerSaveData`).
     #[test]
     fn a_neutral_mobs_anger_survives_the_save() {
@@ -8240,43 +8241,38 @@ mod neutral_anger_tests {
             0.0,
         );
         m.extra.anger = 400;
-        m.extra.anger_end = 3000;
         m.extra.angry_at = Some(crate::mobs::Who::Player);
         let tag = mob_to_nbt(&m, [1, 2, 3, 4], None, None, |_| None);
-        assert_eq!(number(tag.get("anger_end_time")), Some(3000));
-        assert!(tag.get("angry_at").is_some());
+        assert_eq!(tag.get("AngerTime"), Some(&Tag::Int(400)));
+        assert!(tag.get("AngryAt").is_some());
         let back = mob_from_nbt(&tag, &types, 2, None).unwrap();
-        assert_eq!(back.extra.anger_end, 3000);
+        assert_eq!(back.extra.anger, 400);
         assert_eq!(back.extra.angry_at, Some(crate::mobs::Who::Player));
         // An iron golem angry at a monster: the target's UUID comes back as
         // anger at a mob (not at every player under universal_anger), and is
         // written back as it was read.
         let mut golem = Mob::new(4, types["minecraft:iron_golem"].clone(), Vec3::ZERO, 0.0);
         golem.extra.anger = 400;
-        golem.extra.anger_end = 3000;
         let mut raw = mob_to_nbt(&golem, [1, 2, 3, 6], None, None, |_| None);
         if let Tag::Compound(map) = &mut raw {
-            map.insert("angry_at".into(), Tag::IntArray(vec![9, 8, 7, 6]));
+            map.insert("AngryAt".into(), Tag::IntArray(vec![9, 8, 7, 6]));
         }
         let back = mob_from_nbt(&raw, &types, 5, None).unwrap();
         assert_eq!(back.extra.angry_at, Some(crate::mobs::Who::Mob(0)));
         let again = mob_to_nbt(&back, [1, 2, 3, 6], Some(&raw), None, |_| None);
         assert_eq!(
-            crate::save::uuid_from_tag(again.get("angry_at")),
+            crate::save::uuid_from_tag(again.get("AngryAt")),
             Some([9, 8, 7, 6])
         );
         // Once the anger is over (`stopBeingAngry`), the loaded target goes.
         let mut calm = back.clone();
         calm.extra.angry_at = None;
         let again = mob_to_nbt(&calm, [1, 2, 3, 6], Some(&raw), None, |_| None);
-        assert!(again.get("angry_at").is_none());
+        assert!(again.get("AngryAt").is_none());
         // A mob that is no NeutralMob writes no anger.
         let pig = Mob::new(3, types["minecraft:pig"].clone(), Vec3::ZERO, 0.0);
         let tag = mob_to_nbt(&pig, [1, 2, 3, 5], None, None, |_| None);
-        assert!(tag.get("anger_end_time").is_none());
-        // The anger that is left when the mob comes back.
-        assert_eq!(crate::mobs::anger_left(3000, 1000), 2000);
-        assert_eq!(crate::mobs::anger_left(3000, 4000), 0);
+        assert!(tag.get("AngerTime").is_none());
     }
 }
 
@@ -8285,7 +8281,7 @@ mod uuid_bridge_tests {
     use super::*;
     use crate::mobs::{Species, sensor_scan_tests::kind};
 
-    /// A wolf, whose anger is `NeutralMob`'s, so its save carries `angry_at`.
+    /// A wolf, whose anger is `NeutralMob`'s, so its save carries `AngryAt`.
     /// No resources are needed: only the species decides that.
     fn wolf(id: u32) -> Mob {
         let mut kind = (*kind()).clone();
@@ -8293,7 +8289,6 @@ mod uuid_bridge_tests {
         kind.species = Species::Wolf;
         let mut m = Mob::new(id, Arc::new(kind), Vec3::ZERO, 0.0);
         m.extra.anger = 400;
-        m.extra.anger_end = 3000;
         m
     }
 
@@ -8307,19 +8302,19 @@ mod uuid_bridge_tests {
         let tag = mob_to_nbt(&m, [1, 2, 3, 4], None, None, |id| {
             (id == 7).then_some(target)
         });
-        assert_eq!(tag.get("angry_at"), Some(&Tag::IntArray(target.to_vec())));
-        assert_eq!(number(tag.get("anger_end_time")), Some(3000));
+        assert_eq!(tag.get("AngryAt"), Some(&Tag::IntArray(target.to_vec())));
+        assert_eq!(tag.get("AngerTime"), Some(&Tag::Int(400)));
     }
 
     /// A target the map does not know (a mob that left the level) is not named:
     /// nothing is written rather than a made-up UUID no entity answers for.
     #[test]
-    fn an_unknown_anger_target_writes_no_angry_at() {
+    fn an_unknown_anger_target_writes_no_target() {
         let mut m = wolf(1);
         m.extra.angry_at = Some(Who::Mob(7));
         let tag = mob_to_nbt(&m, [1, 2, 3, 4], None, None, |_| None);
-        assert_eq!(tag.get("angry_at"), None);
-        assert_eq!(number(tag.get("anger_end_time")), Some(3000));
+        assert_eq!(tag.get("AngryAt"), None);
+        assert_eq!(tag.get("AngerTime"), Some(&Tag::Int(400)));
     }
 
     /// The player is not an id: its UUID needs no map from the caller.
@@ -8329,7 +8324,7 @@ mod uuid_bridge_tests {
         m.extra.angry_at = Some(Who::Player);
         let tag = mob_to_nbt(&m, [1, 2, 3, 4], None, None, |_| None);
         assert_eq!(
-            tag.get("angry_at"),
+            tag.get("AngryAt"),
             Some(&Tag::IntArray(player_uuid().to_vec()))
         );
     }
@@ -8349,7 +8344,7 @@ mod uuid_bridge_tests {
         let uuids: HashMap<u32, [i32; 4]> = HashMap::from([(1, wolf_uuid), (9, pig_uuid)]);
         wolf.extra.angry_at = Some(Who::Mob(pig.id));
         let tag = mob_to_nbt(&wolf, wolf_uuid, None, None, |id| uuids.get(&id).copied());
-        let Some(Tag::IntArray(stored)) = tag.get("angry_at") else {
+        let Some(Tag::IntArray(stored)) = tag.get("AngryAt") else {
             panic!("anger at a mob is saved as that mob's UUID");
         };
         assert_eq!(stored, &pig_uuid.to_vec());
@@ -8431,8 +8426,8 @@ mod warden_anger_tests {
             (id == 7).then_some(pig_uuid)
         });
         // A warden is no `NeutralMob`: neither of its keys is written.
-        assert!(tag.get("angry_at").is_none());
-        assert!(tag.get("anger_end_time").is_none());
+        assert!(tag.get("AngryAt").is_none());
+        assert!(tag.get("AngerTime").is_none());
         let stored = tag.get("anger").and_then(|t| t.get("suspects"));
         let Some(Tag::List(pairs)) = stored else {
             panic!("the anger is saved as a suspects list");

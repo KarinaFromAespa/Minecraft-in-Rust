@@ -400,12 +400,10 @@ pub fn main() -> horizon_client::Result<()> {
     let enchantments = Enchantments::load(root);
     let types = MobTypes::load(root)?;
     let registries = SpawnRegistries::load(root);
-    let camel = &types.types["minecraft:camel_husk"];
     let data = SpawnData {
         registries: &registries,
         enchantments: &enchantments,
         items: &items,
-        camel_husk_size: (camel.width as f32, camel.height as f32),
     };
     let mut out = format!("halloween {halloween}\n");
     for line in input.lines().filter(|l| !l.trim().is_empty()) {

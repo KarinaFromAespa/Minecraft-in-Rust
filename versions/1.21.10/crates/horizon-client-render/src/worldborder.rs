@@ -142,9 +142,11 @@ impl WorldBorder {
     pub fn bounds_at(&self, partial: f32) -> [f64; 4] {
         self.geometry.bounds(partial)
     }
-    /// `getMinX()` etc. (partial tick 0: the previous size while moving).
+    /// `getMinX()` etc.: 1.21.10 reads the extent directly, so the no-arg
+    /// getters are the current size while moving; 1.21.11 delegates to
+    /// `getMinX(0.0F)`, the previous size.
     pub fn bounds(&self) -> [f64; 4] {
-        self.bounds_at(0.0)
+        self.bounds_at(1.0)
     }
     /// `getDistanceToBorder(x, z)`: negative outside.
     pub fn distance(&self, x: f64, z: f64) -> f64 {
@@ -238,8 +240,9 @@ mod tests {
         }
         assert_eq!(b.size(), 150.0);
         assert_eq!(b.remaining_ticks(), 5);
-        // Bounds at partial tick 0 still use the previous tick's size.
-        assert_eq!(b.bounds()[2], 70.0);
+        // The no-arg getters are the current size (1.21.10 reads the extent
+        // directly); 1.21.11's delegate to partial tick 0, the previous size.
+        assert_eq!(b.bounds()[2], 75.0);
         assert_eq!(b.bounds_at(1.0)[2], 75.0);
         for _ in 0..5 {
             b.tick();

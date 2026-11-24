@@ -4315,6 +4315,17 @@ mod world_spawn_sync_tests {
         assert_eq!(game.server_ctx().spawn_angle, [45.0, -10.0]);
     }
 
+    /// `SetWorldSpawnCommand`: 1.21.10's `RespawnData.of` stores the angle
+    /// as given — no yaw wrap, no pitch clamp (1.21.11 does both).
+    #[test]
+    #[ignore = "needs prepared resources and scratch homes/cwd"]
+    fn setworldspawn_keeps_an_unwrapped_angle() {
+        let mut game = super::super::native_machines::tests::server_game();
+        game.build_registries();
+        game.as_console(|game| assert!(game.run_command("setworldspawn 0 80 0 540 100")));
+        assert_eq!(game.level.world_spawn_angle, [540.0, 100.0]);
+    }
+
     #[test]
     #[ignore = "needs prepared resources and scratch homes/cwd"]
     fn setworldspawn_reaches_guests_in_other_dimensions_and_keeps_compass_overrides() {

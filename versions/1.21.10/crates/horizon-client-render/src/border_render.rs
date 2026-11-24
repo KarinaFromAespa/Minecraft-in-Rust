@@ -51,15 +51,18 @@ fn java_double_compare(a: f64, b: f64) -> std::cmp::Ordering {
     }
 }
 
-/// `WorldBorderRenderer.extract`.
+/// `WorldBorderRenderer.extract`: 1.21.10 reads the border's current size
+/// (`getMinX()` etc.), so the partial tick is ignored — 1.21.11 interpolates
+/// by it (`getMinX(partial)`). The parameter stays so the game and fixture
+/// call sites keep their shape.
 pub fn extract(
     border: &WorldBorder,
-    partial: f32,
+    _partial: f32,
     camera: [f64; 3],
     render_distance: f64,
     state: &mut BorderRenderState,
 ) {
-    let [min_x, min_z, max_x, max_z] = border.bounds_at(partial);
+    let [min_x, min_z, max_x, max_z] = border.bounds_at(1.0);
     state.min_x = min_x;
     state.max_x = max_x;
     state.min_z = min_z;
@@ -280,5 +283,21 @@ mod tests {
         extract(&border, 0.0, camera, 128.0, &mut state);
         assert_eq!(state.alpha, 0.0);
         assert!(!r.prepare(&state, camera, 128.0, 512.0));
+    }
+
+    /// `WorldBorderRenderer.extract` reads the current size, not the
+    /// partial-tick interpolation: a border lerping 100 -> 200, one tick
+    /// in, is drawn at 110 whatever the partial tick is.
+    #[test]
+    fn a_moving_border_is_drawn_at_its_current_size() {
+        let mut border = WorldBorder::default();
+        border.set_size(100.0);
+        border.lerp_between(100.0, 200.0, 10);
+        border.tick();
+        let mut state = BorderRenderState::default();
+        extract(&border, 0.0, [0.0, 64.0, 0.0], 128.0, &mut state);
+        assert_eq!((state.min_x, state.max_x), (-55.0, 55.0));
+        extract(&border, 0.9, [0.0, 64.0, 0.0], 128.0, &mut state);
+        assert_eq!((state.min_x, state.max_x), (-55.0, 55.0));
     }
 }

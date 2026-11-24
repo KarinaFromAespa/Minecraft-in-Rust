@@ -35,12 +35,9 @@ struct Data {
     registries: SpawnRegistries,
     enchantments: Enchantments,
     items: Items,
-    camel_husk: (f32, f32),
 }
 fn load(root: &std::path::Path) -> Option<Data> {
     let types = MobTypes::load(root).ok()?.types;
-    let camel = types.get("minecraft:camel_husk")?;
-    let camel_husk = (camel.width as f32, camel.height as f32);
     Some(Data {
         types: types.into_iter().map(|(k, t)| (k, Arc::new(t))).collect(),
         biome_tags: crate::items::load_tags(
@@ -52,7 +49,6 @@ fn load(root: &std::path::Path) -> Option<Data> {
         registries: SpawnRegistries::load(root),
         enchantments: Enchantments::load(root),
         items: Items::tags_only(root, &horizon_world::loot::PackOverlay::NONE).ok()?,
-        camel_husk,
     })
 }
 
@@ -286,7 +282,6 @@ impl StructureMobFinalizer {
             registries: &data.registries,
             enchantments: &data.enchantments,
             items: &data.items,
-            camel_husk_size: data.camel_husk,
         };
         let any = random.as_any();
         let created = if let Some(r) = any.downcast_mut::<LegacyRandom>() {

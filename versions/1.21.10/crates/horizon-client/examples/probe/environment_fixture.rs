@@ -53,8 +53,10 @@ pub fn main() -> horizon_client::Result<()> {
             format!("{:?}", sky.sky_light_factor),
         );
         put("visual/sky_light_color", v3(sky.sky_light_color));
-        put("visual/block_light_tint", v3(sky.block_light_tint));
-        put("visual/ambient_light_color", v3(sky.ambient_light_color));
+        // 1.21.10's `Sky` has no `block_light_tint` or
+        // `ambient_light_color` (1.21.11 environment attributes): the
+        // lightmap reads `DimensionType.ambientLight` and the end-flash
+        // colour instead (`Sky.ambient_light` / `Sky.ambient_color`).
         put("visual/sun_angle", format!("{:?}", sky.sun_angle));
         put("visual/moon_angle", format!("{:?}", sky.moon_angle));
         put("visual/star_angle", format!("{:?}", sky.star_angle));

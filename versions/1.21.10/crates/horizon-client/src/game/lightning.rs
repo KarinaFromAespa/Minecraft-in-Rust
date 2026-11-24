@@ -310,8 +310,8 @@ impl Game<'_> {
     }
     /// `spawnFire`: fire at the strike point and `extra` random neighbours
     /// (from the bolt's own `random`), wherever `BaseFireBlock.getState` fire
-    /// can survive, when a player is within the fire-spread radius. Returns how
-    /// many blocks it set on fire.
+    /// can survive, when `doFireTick` is on. Returns how many blocks it set
+    /// on fire.
     fn bolt_fire(&mut self, at: [f64; 3], extra: i32, random: &mut LegacyRandom) -> i32 {
         let mut set = 0;
         let base = [
@@ -319,12 +319,13 @@ impl Game<'_> {
             at[1].floor() as i32,
             at[2].floor() as i32,
         ];
-        // ServerLevel.canSpreadFireAround at the bolt: no fire at all, and no
-        // draws for the extra sources, away from every player (#11376).
-        let origin = BlockPos::new(base[0], base[1], base[2]);
-        if !self.with_level(|_, level, _| {
-            horizon_world::level::LevelAccess::can_spread_fire_around(level, origin)
-        }) {
+        // 1.21.10's `spawnFire` gates on `doFireTick` only; 1.21.11's gates
+        // on `ServerLevel.canSpreadFireAround` (a player within the
+        // fire-spread radius). The engine rule
+        // `fire_spread_radius_around_player` is 0 exactly when the 1.21.10
+        // pair has `doFireTick` off (see `gamerules::fire_radius`), so no
+        // fire at all — and no draws for the extra sources — when it is 0.
+        if self.ui.rules.int("fire_spread_radius_around_player") == 0 {
             return 0;
         }
         let mut spots = vec![base];
@@ -782,11 +783,15 @@ mod tests {
     use horizon_core::geometry::Vec3;
     use std::sync::Arc;
 
-    /// `LightningBolt.spawnFire` places nothing, and draws no extra sources,
-    /// unless `canSpreadFireAround` passes at the bolt (#11376).
+    /// `LightningBolt.spawnFire` gates on `doFireTick` only in 1.21.10: a
+    /// bolt starts fire wherever it strikes when fire tick is on, however
+    /// far the nearest player is (1.21.11's `canSpreadFireAround` gate
+    /// needs a player within the fire-spread radius). The engine rule
+    /// `fire_spread_radius_around_player` is 0 exactly when `doFireTick`
+    /// is off; then it places nothing and draws no extra sources.
     #[test]
     #[ignore = "needs prepared resources (HORIZON_TEST_RESOURCES)"]
-    fn a_bolt_away_from_players_starts_no_fire() {
+    fn a_bolt_starts_fire_whenever_fire_tick_is_on() {
         use horizon_client::gamerules::Value;
         let mut game = super::super::native_machines::tests::server_game();
         let stone = game
@@ -800,8 +805,8 @@ mod tests {
         let bolt = [8.5, 65.0, 8.5];
         // (radius, player's x): fires expected at the strike.
         for (radius, player_x, fires) in [
-            (128, 12.5, true),
-            (1, 12.5, false),
+            (128, 1000.0, true),
+            (1, 1000.0, true),
             (0, 8.5, false),
             (-1, 1000.0, true),
         ] {

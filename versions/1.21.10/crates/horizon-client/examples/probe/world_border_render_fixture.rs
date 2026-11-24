@@ -72,7 +72,9 @@ pub fn main() -> Result<()> {
                         BorderStatus::Stationary => "STATIONARY",
                     };
                     let mut frame = json!({
-                        "bounds": doubles(&border.bounds_at(partial)),
+                        // 1.21.10's extract reads the current size
+                        // (`getMinX()` etc.); 1.21.11 interpolates by partial.
+                        "bounds": doubles(&border.bounds_at(1.0)),
                         "sizes": doubles(&[border.size(), border.target_size(), border.lerp_speed(), border.distance(camera[0], camera[2])]),
                         "lerpTime": border.remaining_ticks(),
                         "status": status,

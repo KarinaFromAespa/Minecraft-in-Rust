@@ -773,3 +773,87 @@ MeleeAttack behaviour does not start while holding a usable projectile
 weapon (javap-verified), so a crossbow piglin shoots instead of
 meleeing; only the spear half of the old gate is gone. CI run
 45332512840 (batch 21 head) FAILED on exactly this compile error.
+
+CI run 45336648733 (head 8c5305fa, batch 22): SUCCESS, all 7 suites
+green.
+
+Batch 23 (rank 2 420 -> 428, total 438/719): 4 ported, 4 no-change.
+199 border_render.rs: the renderer reads the border's current size now
+(1.21.10's getMinX() etc.), not the partial-tick interpolation; the
+no-arg WorldBorder::bounds() is fixed the same way (javap-verified:
+1.21.10 reads the extent directly, 1.21.11 delegates to getMinX(0.0F),
+the previous size — this corrects item 112's "same value" claim for a
+moving border). 31 undead.rs: the zombified piglin loses its spear goal
+and its 1-in-20 golden-spear roll (always a golden sword); the drowned
+loses its zombie-nautilus jockey; the husk loses its camel-husk-parched
+jockey (a triage gap — Husk#finalizeSpawn was assigned to no item), in
+both finalize.rs and the game's spawn_jockeys path, which also loses
+the zombie-horse jockey with its iron spear (ZombieHorse#finalizeSpawn
+is 1.21.11-only). The 1.21.10 jar has no ZombieNautilus, camel husk or
+parched at all. Removing SpawnData::camel_husk_size also unblocked
+StructureMobFinalizer::load, which returned None on 1.21.10 data for
+want of a camel_husk type — no structure mob was being finalized.
+Zombie's SpearUse stays (item 12). 32 commands.rs: /spawnpoint and
+/setworldspawn store the respawn angle as given (1.21.11's
+RespawnData.of wraps the yaw and clamps the pitch). 169 lightning.rs:
+spawnFire gates on doFireTick only (1.21.11's canSpreadFireAround is a
+1.21.11-only method, absent from the 1.21.10 jar); the copper cleaning
+never unwaxed, already the 1.21.10 form. No-change: 24 (the STAB render
+branch is dead — a kind-2 swing is constructed only for spears; jeb
+wool lerps linearly, the 1.21.10 form; parrot package move; hitbox
+submit unmodelled), 67 (chat insertion-click mode unmodelled; menu
+chrome), 70 (smithing armor-stand preview unmodelled; turtle eggs use
+the level day-time window; armor-stand griefing reads the rule), 14
+(computeSpeed unmodelled; minecart max speed via the camelCase table;
+TNT fuse + spawner gate read their rules; command-cart interact has the
+same outcome as usedBy).
+Batch 24 (rank 2 428 -> 436, total 446/719): 2 ported, 6 no-change.
+11 entity_nbt.rs: the NeutralMob anger save is the 1.21.10 form now —
+AngerTime (int, remaining ticks) + AngryAt, not 1.21.11's anger_end_time
+(long, absolute game time) + angry_at (javap-verified against NeutralMob
+on the 1.21.10 server jar). 1.21.10 has no getPersistentAngerEndTime
+anywhere, so the absolute-end-time model was removed wholesale:
+Extra::anger_end and Extra::anger_stamp are gone, neutral_anger.rs keeps
+only persistent_anger + stop, and the countdown ticks down once per tick
+the mob ticks and freezes while it does not (missed ticks never count —
+the rewritten h13076 test pins 999999 - 2 after two ticks, not 999999 -
+7). Save/load/tests rewritten in entity_nbt.rs, persist.rs (incl. the
+h262 enderman tests), commands/data.rs, anger_tests.rs, and the
+enderman_anger_saved_fixture.py harness tool. Deferred: the bee's own
+anger save (item 20), the bee/wolf metadata sync + wolf_anger_corpus.py
++ the mob_anger harness op (item 168). 46 native_hooks.rs: the End has
+weather in 1.21.10 — level_can_have_weather dropped the 1.21.11-only End
+exclusion (verified: the_end.json has has_skylight=true, has_ceiling=
+false; advanceWeatherCycle is gated only on hasSkyLight + doWeatherCycle;
+non-overworld dimensions read weather through DerivedLevelData, so the
+End shares the overworld's weather — which the Rust's single shared
+weather state already matches). No-change: 77 (hub.rs stats unmodelled;
+suspendFlushing is network optimisation; GameRules API; permission ints;
+view-distance null check trivia), 97 (entity-selector suggestions use
+permission level >= 2, the 1.21.10 form; Coordinates::position matches
+the 1.21.10 inlined local-coordinates formula exactly), 17 (no isFinite
+check on delta movement, the 1.21.10 form; computeSpeed unmodelled; trig
+noise; handlePortal method-location move; leash CONSUME is a client
+InteractionResult distinction the Rust does not model; FAST_LAVA vs
+ultraWarm unmodelled in boats.rs — datapack dimensions are item 157's;
+animatePaddle arg-order + trig noise; MOB_GRIEFING API), 87 (book/lectern
+screen chrome), 92 (debug-entry renames; the Rust already handles both
+inF3/inOverlay statuses), 22 (all 16 Realms screen methods are menu
+chrome or renames; the settings-save name trim is a whitespace edge case
+on a Realms screen).
+
+Probe repairs (with batches 23+24): the batches 23+24 check exposed two
+test-compile breaks in commands/data.rs (a dangling `{end}` format capture
+left by the item-11 rewrite, and a `failures` vec whose `String` type lost
+its inference pin when the anger_end assertions went — both fixed), and the
+first-ever client_probe check on this branch exposed 7 pre-existing
+fixture breaks: audio_attributes_fixture.rs still used batch 22's old
+BackgroundMusic API (default/creative/underwater + select — rewritten to
+the biome-list form with a per-line fixed-seed Situation pick),
+environment_fixture.rs read Sky.block_light_tint/ambient_light_color,
+removed by batch 2's carry-over in favour of ambient_light/ambient_color
+(the two puts dropped — 1.21.10 has no such environment attributes), and
+environment_system_fixture.rs built Conditions with the removed `clock`
+field (now `day_time`). The probe compiles clean now; note the parity
+oracles still do not compile against 1.21.10 jars, so these fixtures are
+compile-verified only, not parity-run.

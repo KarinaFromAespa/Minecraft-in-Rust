@@ -71,7 +71,7 @@ pub fn register(m: &mut Mob) {
             g.add(4, AttackTurtleEgg::default());
             g.add(8, LookAtPlayer::new(8.0));
             g.add(8, RandomLookAround::default());
-            g.add(1, SpearUse::new(1.0, 1.0, 10.0, 2.0));
+            // 1.21.11 adds a SpearUseGoal here; 1.21.10 has no spear at all.
             g.add(2, MeleeAttack::new(1.0, false).zombie());
             g.add(7, Stroll::avoiding_water(1.0));
             let t = &mut m.ai.targets;
@@ -512,7 +512,6 @@ fn zombified_piglin_step(m: &mut Mob, cx: &mut Cx) {
             // `stopBeingAngry`.
             m.ai.target = None;
             m.extra.angry_at = None;
-            m.extra.anger_end = -1;
             m.extra.flag2 = false;
         }
     } else {
@@ -1702,5 +1701,28 @@ mod baby_dims_tests {
                 def(species).baby
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mobs::sensor_scan_tests::kind;
+    use std::sync::Arc;
+
+    fn mob(species: Species) -> Mob {
+        let mut kind = kind();
+        Arc::make_mut(&mut kind).species = species;
+        Mob::new(1, kind, Vec3::ZERO, 0.0)
+    }
+
+    /// `ZombifiedPiglin.addBehaviourGoals`: 1.21.10 has no spear goal —
+    /// 1.21.11 adds `SpearUseGoal` at priority 1.
+    #[test]
+    fn a_zombified_piglin_has_no_spear_goal() {
+        let mut m = mob(Species::ZombifiedPiglin);
+        register(&mut m);
+        assert!(!m.ai.goals.has("SpearUse"), "no SpearUseGoal in 1.21.10");
+        assert!(m.ai.goals.has("MeleeAttack"), "it still fights in melee");
     }
 }

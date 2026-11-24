@@ -699,7 +699,7 @@ impl<'a> Game<'a> {
             self.enchant_spawn_equipment(id);
             self.halloween_spawn_head(id);
             if !persistent {
-                self.spawn_jockeys(id, true);
+                self.spawn_jockeys(id);
             }
         }
     }

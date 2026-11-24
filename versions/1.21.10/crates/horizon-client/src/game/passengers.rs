@@ -1,6 +1,6 @@
 //! Mobs riding mobs: boarding and dismounting, keeping riders on their
 //! vehicles, the jockeys that spawn mounted (chicken jockeys, spider
-//! jockeys, strider jockeys, zombie horsemen) and the skeleton horse trap.
+//! jockeys and strider jockeys) and the skeleton horse trap.
 //! Saving riders under `Passengers` lives in `persist.rs`.
 use super::Game;
 use horizon_client::mobs::{Species, riders};
@@ -28,26 +28,6 @@ fn zombie_kind(s: Species) -> bool {
         s,
         Species::Zombie | Species::Husk | Species::Drowned | Species::ZombieVillager
     )
-}
-
-/// Which `finalizeSpawn` mounts a mob may roll for its spawn reason.
-#[derive(Debug, PartialEq, Eq)]
-struct MountRolls {
-    zombie_horse_rider: bool,
-    camel_husk: bool,
-    nautilus: bool,
-}
-
-/// `ZombieHorse.finalizeSpawn` (NATURAL only), `Husk.finalizeSpawn`
-/// (`triedToSpawnCamelHusk = reason != NATURAL`) and `Drowned.finalizeSpawn`
-/// (never a baby; vanilla also allows STRUCTURE, which comes from worldgen and
-/// never reaches `spawn_jockeys`, so only `natural` is modelled here).
-fn mount_rolls(species: Species, baby: bool, natural: bool) -> MountRolls {
-    MountRolls {
-        zombie_horse_rider: natural && species == Species::ZombieHorse,
-        camel_husk: natural && species == Species::Husk,
-        nautilus: natural && species == Species::Drowned && !baby,
-    }
 }
 
 impl Game<'_> {
@@ -488,16 +468,17 @@ impl Game<'_> {
         ))
     }
 
-    /// `finalizeSpawn` jockeys of a naturally spawned mob: baby zombies on
-    /// chickens, skeletons on spiders, piglins and baby striders on striders,
-    /// zombies on zombie horses.
-    pub(super) fn spawn_jockeys(&mut self, id: u32, natural: bool) {
+    /// `finalizeSpawn` jockeys of a spawned mob: baby zombies on chickens,
+    /// skeletons on spiders, piglins and baby striders on striders.
+    /// 1.21.11 adds three more — a zombie with an iron spear on a zombie
+    /// horse, a husk on a camel husk with a parched, a trident drowned on
+    /// a zombie nautilus — none of which exist in 1.21.10.
+    pub(super) fn spawn_jockeys(&mut self, id: u32) {
         let Some(m) = self.mobs.iter().find(|m| m.id == id) else {
             return;
         };
         let (species, baby) = (m.species(), m.is_baby());
         let at = [m.position.x, m.position.y, m.position.z];
-        let mounts = mount_rolls(species, baby, natural);
         match species {
             s if zombie_kind(s) && baby => {
                 if self.world.random.next_float() < CHICKEN_JOCKEY_ODDS {
@@ -519,85 +500,7 @@ impl Game<'_> {
                 }
             }
             Species::Strider if !baby => self.spawn_strider_jockey(id, at),
-            // ZombieHorse.finalizeSpawn: a zombie with an iron spear. The rider
-            // comes from EntityType.create, which makes no zombie in peaceful
-            // (canSpawn), so a peaceful zombie horse spawns without one.
-            Species::ZombieHorse
-                if mounts.zombie_horse_rider
-                    && (self.ui.difficulty != 0
-                        || horizon_client::mobs::spawn_rules::allowed_in_peaceful(
-                            Species::Zombie,
-                        )) =>
-            {
-                if let Some(zombie) = self.spawn_mob("minecraft:zombie", at, false) {
-                    if let Some(z) = self.mobs.iter_mut().find(|m| m.id == zombie) {
-                        z.extra.set_main_hand(Some("minecraft:iron_spear".into()));
-                    }
-                    self.mount_mob(zombie, id);
-                }
-            }
             _ => {}
-        }
-        // After Zombie.finalizeSpawn's chickens: Husk and Drowned mounts.
-        match species {
-            Species::Husk if mounts.camel_husk => self.spawn_camel_husk_jockey(id, at),
-            Species::Drowned if mounts.nautilus => self.spawn_zombie_nautilus_jockey(id, at),
-            _ => {}
-        }
-    }
-    /// `Husk.finalizeSpawn`: where a camel husk fits, one natural husk in ten
-    /// takes an iron spear and rides one, with a parched in its second seat.
-    fn spawn_camel_husk_jockey(&mut self, id: u32, at: [f64; 3]) {
-        let (bx, by, bz) = (at[0].floor(), at[1].floor(), at[2].floor());
-        let room = {
-            let w = self.mob_world_base(&[]);
-            w.no_collision(horizon_core::geometry::Aabb::new(
-                Vec3::new(bx + 0.5 - 0.85, by, bz + 0.5 - 0.85),
-                Vec3::new(bx + 0.5 + 0.85, by + 2.375, bz + 0.5 + 0.85),
-            ))
-        };
-        if !room || self.world.random.next_float() >= 0.1 {
-            return;
-        }
-        if let Some(h) = self.mobs.iter_mut().find(|m| m.id == id) {
-            h.extra.set_main_hand(Some("minecraft:iron_spear".into()));
-        }
-        let Some(camel) = self.spawn_mob("minecraft:camel_husk", at, false) else {
-            return;
-        };
-        self.mount_mob(id, camel);
-        if let Some(parched) = self.spawn_mob("minecraft:parched", at, false) {
-            self.mount_mob(parched, camel);
-        }
-    }
-    /// `Drowned.finalizeSpawn`: half the natural drowned holding a trident,
-    /// outside the rivers and oceans that breed more drowned, ride a zombie
-    /// nautilus.
-    fn spawn_zombie_nautilus_jockey(&mut self, id: u32, at: [f64; 3]) {
-        let Some(d) = self.mobs.iter().find(|m| m.id == id) else {
-            return;
-        };
-        if d.extra.main_hand.as_deref() != Some("minecraft:trident")
-            || self.world.random.next_float() >= 0.5
-        {
-            return;
-        }
-        let (x, y, z) = (
-            at[0].floor() as i32,
-            at[1].floor() as i32,
-            at[2].floor() as i32,
-        );
-        let frequent = self.world.chunks.get(&(x >> 4, z >> 4)).is_some_and(|c| {
-            let b = world_biomes!(self).get(c.biome(x, y, z));
-            self.res
-                .mob_data()
-                .biome_has("minecraft:more_frequent_drowned_spawns", &b.name)
-        });
-        if frequent {
-            return;
-        }
-        if let Some(n) = self.spawn_mob("minecraft:zombie_nautilus", at, false) {
-            self.mount_mob(id, n);
         }
     }
     fn free_chicken_near(&self, at: [f64; 3]) -> Option<u32> {
@@ -736,36 +639,5 @@ impl Game<'_> {
             }
         }
         Some(id)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn spawner_and_reinforcement_spawns_get_no_mounts() {
-        for (species, baby) in [
-            (Species::ZombieHorse, false),
-            (Species::Husk, false),
-            (Species::Drowned, false),
-        ] {
-            let none = MountRolls {
-                zombie_horse_rider: false,
-                camel_husk: false,
-                nautilus: false,
-            };
-            assert_eq!(mount_rolls(species, baby, false), none, "{species:?}");
-        }
-    }
-
-    #[test]
-    fn natural_spawns_roll_their_own_mount() {
-        let r = |s, b| mount_rolls(s, b, true);
-        assert!(r(Species::ZombieHorse, false).zombie_horse_rider);
-        assert!(r(Species::Husk, false).camel_husk);
-        assert!(r(Species::Drowned, false).nautilus);
-        assert!(!r(Species::Drowned, true).nautilus);
-        assert!(!r(Species::Zombie, false).camel_husk);
     }
 }

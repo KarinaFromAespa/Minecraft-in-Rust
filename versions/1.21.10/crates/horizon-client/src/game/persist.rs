@@ -1101,12 +1101,11 @@ impl Game<'_> {
         if horizon_client::mobs::camel::is_camel(m.species()) {
             horizon_client::mobs::camel::finish_load(&mut m, self.world.game_time);
         }
-        // `NeutralMob.readPersistentAngerSaveData`: the anger runs until its
-        // end time, and the mob is angry at the target again, through
-        // `Mob.setTarget`; the target goal re-checks via `TargetingConditions`,
-        // so a player the golem cannot attack (`IronGolem.canAttackType`)
-        // comes back as no target.
-        horizon_client::mobs::adopt_anger_end(&mut m, self.world.game_time);
+        // `NeutralMob.readPersistentAngerSaveData`: the remaining anger ticks
+        // come back as they were read, and the mob is angry at the target
+        // again, through `Mob.setTarget`; the target goal re-checks via
+        // `TargetingConditions`, so a player the golem cannot attack
+        // (`IronGolem.canAttackType`) comes back as no target.
         if m.extra.anger > 0 && m.extra.angry_at.is_some() {
             m.ai.target = (!m.built_by_player()).then_some(horizon_client::mobs::Who::Player);
         }
@@ -1554,19 +1553,10 @@ impl Game<'_> {
         for suspect in suspects {
             self.uuid_for(suspect);
         }
-        // `NeutralMob.addPersistentAngerSaveData`: the anger ends at an
-        // absolute game time, so it goes on while the chunk is unloaded, and
-        // the target is the entity the mob is angry at (`settle_anger_end`).
+        // `NeutralMob.addPersistentAngerSaveData`: the anger's remaining ticks
+        // are saved as they stand, and the target is the entity the mob is
+        // angry at.
         let anger = self.mobs[i].extra.anger;
-        if horizon_client::mobs::persistent_anger(self.mobs[i].species()) {
-            horizon_client::mobs::settle_anger_end(&mut self.mobs[i], self.world.game_time);
-        } else {
-            self.mobs[i].extra.anger_end = if anger > 0 {
-                self.world.game_time + i64::from(anger)
-            } else {
-                -1
-            };
-        }
         self.mobs[i].extra.angry_at = if anger > 0 {
             // A wolf and an iron golem keep their anger's target themselves,
             // also once the target is gone (`tame::update_persistent_anger`).
@@ -3224,8 +3214,8 @@ mod tests {
         game.mobs[0].extra.angry_at = Some(horizon_client::mobs::Who::Mob(2));
         assert_eq!(game.persist.uuid_of(2), None);
         let tag = game.mob_tree_nbt(0);
-        let Some(Tag::IntArray(named)) = tag.get("angry_at") else {
-            panic!("no angry_at in {tag:?}");
+        let Some(Tag::IntArray(named)) = tag.get("AngryAt") else {
+            panic!("no AngryAt in {tag:?}");
         };
         assert_eq!(
             Some(named.as_slice()),
@@ -5216,7 +5206,7 @@ mod summon_uuid_conflict_tests {
 }
 
 #[cfg(test)]
-mod h262_enderman_absolute_anger_tests {
+mod h262_enderman_anger_tests {
     use super::*;
     use crate::game::{Audio, Options, Progress, Settings, load_resources};
     use horizon_client::{chunk::Chunk, motion::PlayerMotion};
@@ -5281,10 +5271,8 @@ mod h262_enderman_absolute_anger_tests {
         game.world.random = LegacyRandom::new(262);
         test(&mut game);
     }
-    fn load(game: &mut Game<'_>, n: i32, end: Option<i64>) -> (u32, usize) {
-        let suffix = end
-            .map(|v| format!(",anger_end_time:{v}L"))
-            .unwrap_or_default();
+    fn load(game: &mut Game<'_>, n: i32, end: Option<i32>) -> (u32, usize) {
+        let suffix = end.map(|v| format!(",AngerTime:{v}")).unwrap_or_default();
         let cmd = format!(
             "summon enderman 6.5 200 4.5 {{UUID:[I;262,1,0,{n}],Health:40f,NoAI:1b,NoGravity:1b,Motion:[0d,0d,0d],Tags:[h262],CustomName:\"end\"{suffix}}}"
         );
@@ -5303,21 +5291,21 @@ mod h262_enderman_absolute_anger_tests {
         assert!(game.mobs[i].no_ai);
         assert_eq!(game.mobs[i].health, 40.0);
         assert_eq!(game.mobs[i].position, Vec3::new(6.5, 200.0, 4.5));
-        assert_eq!(game.mobs[i].extra.anger_end, end.unwrap_or(-1));
+        assert_eq!(game.mobs[i].extra.anger, end.unwrap_or(0));
         (id, i)
     }
     fn check(
         game: &mut Game<'_>,
         i: usize,
-        expected: i64,
+        expected: i32,
         label: &str,
         failures: &mut Vec<String>,
     ) {
         let saved = game.mob_tree_nbt(i);
-        if saved.get("anger_end_time") != Some(&Tag::Long(expected)) {
+        if saved.get("AngerTime") != Some(&Tag::Int(expected)) {
             failures.push(format!(
-                "{label}: expected {expected}L, actual {:?}",
-                saved.get("anger_end_time")
+                "{label}: expected {expected}, actual {:?}",
+                saved.get("AngerTime")
             ));
         }
         assert_eq!(
@@ -5363,16 +5351,13 @@ mod h262_enderman_absolute_anger_tests {
                 check(game, i, 999999, "repeated", &mut failures);
             }
             game.persist.raw.remove(&id);
-            game.mobs[i].extra.anger_end = 777777;
+            game.mobs[i].extra.anger = 777777;
             check(game, i, 777777, "no raw/model mutation", &mut failures);
             game.persist.raw.insert(
                 id,
-                Tag::compound([
-                    ("anger_end_time", Tag::Long(123)),
-                    ("retained", Tag::Int(17)),
-                ]),
+                Tag::compound([("AngerTime", Tag::Int(123)), ("retained", Tag::Int(17))]),
             );
-            game.mobs[i].extra.anger_end = 888888;
+            game.mobs[i].extra.anger = 888888;
             check(
                 game,
                 i,
@@ -5386,7 +5371,7 @@ mod h262_enderman_absolute_anger_tests {
     }
     #[test]
     #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-    fn h262_noai_enderman_absent_zero_past_and_future_are_actual_longs() {
+    fn h262_noai_enderman_absent_zero_past_and_future_are_actual_ints() {
         with_game(|game| {
             game.world.game_time = 100;
             let mut failures = Vec::new();
@@ -5398,7 +5383,7 @@ mod h262_enderman_absolute_anger_tests {
                 check(
                     game,
                     i,
-                    end.unwrap_or(-1),
+                    end.unwrap_or(0),
                     "typed loaded boundary",
                     &mut failures,
                 );
@@ -5408,14 +5393,14 @@ mod h262_enderman_absolute_anger_tests {
     }
     #[test]
     #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-    fn h262_live_enderman_write_uses_actual_decoded_timestamp() {
+    fn h262_live_enderman_write_uses_actual_decoded_countdown() {
         with_game(|game| {
             game.world.game_time = 100;
             let (id, i) = load(game, 9, Some(999999));
             let age = game.mobs[i].age;
-            assert!(game.run_command("data modify entity 00000106-0000-0001-0000-000000000009 anger_end_time set value 777777L"));
+            assert!(game.run_command("data modify entity 00000106-0000-0001-0000-000000000009 AngerTime set value 777777"));
             assert_eq!(
-                game.mobs[i].extra.anger_end, 777777,
+                game.mobs[i].extra.anger, 777777,
                 "actual adoption, before saved read"
             );
             assert_eq!(game.mobs[i].id, id);
@@ -5436,8 +5421,8 @@ mod h262_enderman_absolute_anger_tests {
             game.mobs[i].no_ai = false;
             game.mobs[i].extra.anger = 50;
             assert_eq!(
-                game.mob_tree_nbt(i).get("anger_end_time"),
-                Some(&Tag::Long(150))
+                game.mob_tree_nbt(i).get("AngerTime"),
+                Some(&Tag::Int(50))
             );
             assert!(
                 game.run_command(
@@ -5451,13 +5436,13 @@ mod h262_enderman_absolute_anger_tests {
                 .unwrap();
             game.mobs[i].extra.anger = 50;
             assert_eq!(
-                game.mob_tree_nbt(i).get("anger_end_time"),
-                Some(&Tag::Long(150))
+                game.mob_tree_nbt(i).get("AngerTime"),
+                Some(&Tag::Int(50))
             );
             game.world.game_time += 1;
             assert_eq!(
-                game.mob_tree_nbt(i).get("anger_end_time"),
-                Some(&Tag::Long(150)) // an absolute end (#13076)
+                game.mob_tree_nbt(i).get("AngerTime"),
+                Some(&Tag::Int(50)) // the countdown, not the clock (#13076)
             );
         });
     }
