@@ -11,6 +11,11 @@ use horizon_core::{
     random::RandomSource,
 };
 
+/// `ProjectileUtil.DEFAULT_ENTITY_HIT_RESULT_MARGIN`: 1.21.4 grows every
+/// target's box by a flat 0.3 from the first tick (1.21.6's
+/// `computeMargin` ramps it up over the projectile's first eight ticks).
+pub const ENTITY_HIT_MARGIN: f64 = 0.3;
+
 /// `AbstractArrow.startFalling`'s per-axis random velocity damping.
 pub fn start_falling_velocity(
     velocity: Vec3,

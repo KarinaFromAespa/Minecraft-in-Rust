@@ -20,7 +20,7 @@ use horizon_client::{
     mesher::Vertex,
     mobs::{Damage, DamageKind, Who},
     particles::{ParticleOptions, ParticleType},
-    projectiles::{Projectile, ProjectileKind},
+    projectiles::{ENTITY_HIT_MARGIN, Projectile, ProjectileKind},
     text::Text,
 };
 use horizon_core::{
@@ -77,7 +77,7 @@ pub(super) struct ThrownPotion {
     random: LegacyRandom,
 }
 /// The player (not one of `skip`, the thrower and who rides with them before
-/// it has left them) whose box, grown by `margin` (`ProjectileUtil.computeMargin`),
+/// it has left them) whose box, grown by `margin` (the 0.3 hit margin),
 /// holds `p` (`Projectile.canHitEntity`).
 fn thrown_player_at<'a>(
     players: &'a [(Who, Aabb)],
@@ -88,10 +88,6 @@ fn thrown_player_at<'a>(
     players.iter().find(|(who, b)| {
         !skip.contains(who) && b.inflate(Vec3::new(margin, margin, margin)).contains(p)
     })
-}
-/// `ProjectileUtil.computeMargin`: how far the pick box is grown at `age`.
-fn thrown_margin(age: u32) -> f64 {
-    ((f64::from(age) - 2.0) / 20.0).clamp(0.0, 0.3)
 }
 /// `Projectile.isOutsideOwnerCollisionRange` (`checkLeftOwner`): none of the
 /// boxes of the thrower's vehicle tree (`owner.getRootVehicle().getSelfAndPassengers()`,
@@ -133,8 +129,10 @@ pub(super) struct PotionCloud {
     pub(super) radius_per_tick: f32,
     /// The potion's colour (`PotionContents.getColor`).
     color: u32,
-    /// `AreaEffectCloud.customParticle`: the `custom_particle` compound as saved.
-    custom_particle: Option<Tag>,
+    /// `AreaEffectCloud`'s particle: the `Particle` compound as saved, with
+    /// a colour particle recoloured to the potion's colour at load
+    /// (`updateColor`).
+    particle: Option<Tag>,
     /// Each victim and the tick it can be affected again.
     victims: Vec<(Victim, i32)>,
     /// Who its instant damage names (`indirectMagic(cloud, owner)`): the
@@ -147,12 +145,12 @@ pub(super) struct PotionCloud {
     guest: Option<u32>,
 }
 impl PotionCloud {
-    /// `AreaEffectCloud.updateParticle`: the custom particle when one is set,
-    /// else an entity effect in the potion's colour.
+    /// `AreaEffectCloud`'s particle: the saved `Particle` as decoded, else
+    /// an entity effect in the potion's colour.
     pub(super) fn particle(&self) -> ParticleOptions {
-        self.custom_particle
+        self.particle
             .as_ref()
-            .and_then(cloud_particle::custom_particle_options)
+            .and_then(cloud_particle::particle_options)
             .unwrap_or_else(|| {
                 let c = |shift: u32| (self.color >> shift & 255) as f32 / 255.0;
                 ParticleOptions::colored(ParticleType::EntityEffect, [c(16), c(8), c(0), 1.0])
@@ -244,21 +242,29 @@ impl Game<'_> {
         );
     }
 }
-/// `ThrownSplashPotion.onHitAsPotion`: the squared distance from the potion's
-/// box at the hit point to an entity's box grown by the hit margin
-/// (`ProjectileUtil.computeMargin`), for entities that meet the potion's box
-/// grown by (4, 2, 4); none when it is 16 or more.
-fn splash_distance_sqr(at: Vec3, age: u32, bounds: Aabb) -> Option<f64> {
+/// `ThrownSplashPotion.onHitAsPotion`: the strength an entity at `pos`
+/// (whose box is `bounds`) takes from a potion at `from`: full strength
+/// for the entity it hit directly, else `1 - distance / 4` while its feet
+/// are within 4 blocks and its box meets the potion's box grown by
+/// (4, 2, 4); none beyond that. (1.21.6 anchors the box at the hit point
+/// and measures box to box, with no direct-hit full strength.)
+fn splash_intensity(from: Vec3, direct: bool, pos: Vec3, bounds: Aabb) -> Option<f64> {
     let potion = Aabb::new(
-        Vec3::new(at.x - 0.125, at.y, at.z - 0.125),
-        Vec3::new(at.x + 0.125, at.y + 0.25, at.z + 0.125),
+        Vec3::new(from.x - 0.125, from.y, from.z - 0.125),
+        Vec3::new(from.x + 0.125, from.y + 0.25, from.z + 0.125),
     );
     if !potion.inflate(Vec3::new(4.0, 2.0, 4.0)).intersects(bounds) {
         return None;
     }
-    let margin = ((f64::from(age) - 2.0) / 20.0).clamp(0.0, 0.3);
-    let d2 = potion.distance_squared_to_box(bounds.inflate(Vec3::new(margin, margin, margin)));
-    (d2 < 16.0).then_some(d2)
+    let d2 = from.distance_squared(pos);
+    if d2 >= 16.0 {
+        return None;
+    }
+    Some(if direct {
+        1.0
+    } else {
+        1.0 - d2.sqrt() / 4.0
+    })
 }
 impl Game<'_> {
     /// `LivingEntity.triggerOnDeathMobEffects` (`onMobRemoved` with the reason
@@ -1331,7 +1337,7 @@ impl Game<'_> {
             );
             // Hit a block along the step (sampled), a mob, a player, or fell out
             // of the world.
-            let margin = thrown_margin(t.age);
+            let margin = ENTITY_HIT_MARGIN;
             let steps = 4;
             let mut hit = None;
             let mut deflect_stop = false;
@@ -1399,9 +1405,9 @@ impl Game<'_> {
                 landed.push((
                     t.stack.clone(),
                     p,
+                    t.position,
                     mob,
                     block,
-                    t.age,
                     t.owner.clone(),
                     t.guest,
                     self.entity_silent(t.id),
@@ -1432,7 +1438,7 @@ impl Game<'_> {
                 );
             }
         }
-        for (stack, at, mob, block, age, owner, guest, silent) in landed {
+        for (stack, at, from, mob, block, owner, guest, silent) in landed {
             // Projectile.onHit (super.onHit of AbstractThrownPotion): a block
             // is heard at its centre, an entity at the hit.
             let heard = if mob.is_some() {
@@ -1455,7 +1461,7 @@ impl Game<'_> {
                 self.native_potion_splash_v2(&item, [at.x, at.y, at.z], &mut cancel);
             }
             if !cancel {
-                self.splash(&stack, at, mob, block, age, &owner, silent);
+                self.splash(&stack, at, from, mob, block, &owner, silent);
                 if item != "minecraft:experience_bottle" {
                     self.native_potion_splash(&item, [at.x, at.y, at.z]);
                 }
@@ -1501,7 +1507,11 @@ impl Game<'_> {
         let Some(potion) = c.potion.as_mut() else {
             return true;
         };
-        if c.duration != -1 && c.age.wrapping_sub(potion.settings.wait_time) >= c.duration {
+        // `AreaEffectCloud.serverTick` (1.21.4): no `duration != -1` guard —
+        // an infinite cloud discards once its age passes its wait time, as
+        // `tickCount >= waitTime + duration` reads with duration -1 (the
+        // guard is a 1.21.5 addition).
+        if c.age.wrapping_sub(potion.settings.wait_time) >= c.duration {
             return false;
         }
         let waiting = c.age < potion.settings.wait_time;
@@ -1583,7 +1593,10 @@ impl Game<'_> {
                 }
                 c.radius = c.radius.clamp(0.0, 32.0);
             }
-            if potion.settings.duration_on_use != 0 && c.duration != -1 {
+            // `AreaEffectCloud.serverTick` (1.21.4): no `duration != -1`
+            // guard here either — an infinite cloud with a duration on use
+            // becomes finite (the guard is a 1.21.5 addition).
+            if potion.settings.duration_on_use != 0 {
                 c.duration = c.duration.wrapping_add(potion.settings.duration_on_use);
                 if c.duration <= 0 {
                     return false;
@@ -1593,8 +1606,10 @@ impl Game<'_> {
         true
     }
     /// `Creeper.spawnLingeringCloud`: an `AreaEffectCloud` of radius 2.5, wait time 10, duration 300,
-    /// shrinking by `-radius / duration` a tick and by 0.5 for each entity it affects, applying
-    /// the creeper's effects at 0.25 of their remaining duration.
+    /// shrinking by `-radius / duration` a tick and by 0.5 for each entity it affects. The creeper's
+    /// effects reach the cloud through `AreaEffectCloud.addEffect` (custom effects), so 1.21.4
+    /// applies them unscaled — only a named potion's effects take the quarter duration (1.21.5
+    /// sets the cloud's scale to 0.25 instead).
     pub(super) fn spawn_creeper_cloud(
         &mut self,
         at: [f64; 3],
@@ -1613,13 +1628,16 @@ impl Game<'_> {
             from_dragon: false,
             victims: Vec::new(),
             potion: Some(PotionCloud {
-                settings: CloudSettings::lingering(),
+                settings: CloudSettings {
+                    duration_scale: 1.0,
+                    ..CloudSettings::lingering()
+                },
                 effects,
                 hidden,
                 ambient,
                 radius_per_tick: -2.5 / 300.0,
                 color,
-                custom_particle: None,
+                particle: None,
                 victims: Vec::new(),
                 source: Text::translate("entity.minecraft.area_effect_cloud", &[]),
                 owner: None,
@@ -1629,7 +1647,11 @@ impl Game<'_> {
     }
     /// What a cloud puts on one entity: instant effects at half strength
     /// (`applyInstantaneousEffect` with 0.5), the others at the cloud's duration
-    /// scale (`PotionContents.forEachEffect`).
+    /// scale. (1.21.4's `serverTick` builds the list by hand: a named
+    /// potion's effects at a quarter duration, custom effects unscaled —
+    /// the quarter is taken at load for a saved cloud, and the lingering
+    /// cloud's 0.25 scale covers it for a fresh one. 1.21.5 folds both
+    /// into `PotionContents.forEachEffect` with the cloud's scale.)
     fn cloud_affect(
         &mut self,
         victim: Victim,
@@ -1645,8 +1667,11 @@ impl Game<'_> {
             name: Some(source.clone()),
             ..Default::default()
         };
-        // MobEffectInstance.withScaledDuration: floor(duration * scale), at least 1; an infinite
-        // effect stays infinite.
+        // The cloud's duration scale, as `withScaledDuration` computes it
+        // (floor(duration * scale), at least 1; an infinite effect stays
+        // infinite). 1.21.4's own quarter is plain integer division
+        // (`mapDuration`, duration / 4), which gives 0 below 4 ticks — no
+        // vanilla potion effect is that short, so the two agree in play.
         let scaled = |duration| horizon_client::effects::scaled_duration(duration, duration_scale);
         match victim {
             Victim::Player(who) => self.as_fight_player(who, |g| {
@@ -1856,8 +1881,8 @@ impl Game<'_> {
     fn splash_on_player(
         &mut self,
         effects: &'static [(&'static str, i32, i32)],
-        at: Vec3,
-        age: u32,
+        from: Vec3,
+        direct: Option<Vec3>,
         owner: &PotionOwner,
     ) {
         if let Some(p) = self.player.as_ref() {
@@ -1870,8 +1895,9 @@ impl Game<'_> {
                     p.position.z + w,
                 ),
             );
-            if let Some(d2) = splash_distance_sqr(at, age, bounds) {
-                let intensity = 1.0 - d2.sqrt() / 4.0;
+            // The hit entity's feet, as `tick_thrown_potions` recorded them.
+            let hit = direct.is_some_and(|d| d.distance_squared(p.position) < 1e-12);
+            if let Some(intensity) = splash_intensity(from, hit, p.position, bounds) {
                 for (id, duration, amp) in effects {
                     let instant = brewing::effect(id).is_some_and(|e| e.instant);
                     if instant {
@@ -1913,14 +1939,17 @@ impl Game<'_> {
     /// `AbstractThrownPotion.onHit` with `ThrownSplashPotion.onHitAsPotion`, or
     /// `ThrownLingeringPotion.onHitAsPotion` for a lingering potion, read from
     /// the stack's `potion_contents`; `mob` is where it hit a mob, `hit` the
-    /// block and face it hit, `age` its age, `silent` its Silent flag.
+    /// block and face it hit, `age` its age, `silent` its Silent flag, `motion` its motion as it hit.
+    /// `AbstractThrownPotion.onHit`: `at` is the hit point, `from` the
+    /// potion's position (the splash centres on it, not the hit), `mob` the
+    /// feet of the entity it hit directly, if any.
     pub(super) fn splash(
         &mut self,
         stack: &ItemStack,
         at: Vec3,
+        from: Vec3,
         mob: Option<Vec3>,
         hit: Option<([i32; 3], Direction)>,
-        age: u32,
         owner: &PotionOwner,
         silent: bool,
     ) {
@@ -1944,7 +1973,7 @@ impl Game<'_> {
         if let Some((cell, face)) = hit {
             self.potion_hit_block(stack, cell, face);
         }
-        self.affect_entities_around(stack, at, owner.player);
+        self.affect_entities_around(stack, from, owner.player);
         let lingering = &*stack.item == "minecraft:lingering_potion";
         // AbstractThrownPotion.onHit: level event 2007 and sound 1054 for a
         // potion with instant effects, 2002 and 1053 otherwise.
@@ -1964,8 +1993,8 @@ impl Game<'_> {
         // projectile's box inflated by 4, 2 and 4 (Axolotl.rehydrate, 1800).
         if stack.potion() == Some("minecraft:water") {
             let (lo, hi) = (
-                [at.x - 0.125 - 4.0, at.y - 2.0, at.z - 0.125 - 4.0],
-                [at.x + 0.125 + 4.0, at.y + 0.25 + 2.0, at.z + 0.125 + 4.0],
+                [from.x - 0.125 - 4.0, from.y - 2.0, from.z - 0.125 - 4.0],
+                [from.x + 0.125 + 4.0, from.y + 0.25 + 2.0, from.z + 0.125 + 4.0],
             );
             for m in self
                 .mobs
@@ -2011,7 +2040,7 @@ impl Game<'_> {
                         ambient: Vec::new(),
                         radius_per_tick: -3.0 / 600.0,
                         color,
-                        custom_particle: None,
+                        particle: None,
                         victims: Vec::new(),
                         source: owner.name.clone().unwrap_or_else(|| {
                             Text::translate("entity.minecraft.area_effect_cloud", &[])
@@ -2025,18 +2054,19 @@ impl Game<'_> {
         }
         // Every player in range (`ThrownSplashPotion.applySplash` over
         // `LivingEntity`s, the players among them).
-        self.for_each_player(|g| g.splash_on_player(def.effects, at, age, owner));
+        self.for_each_player(|g| g.splash_on_player(def.effects, from, mob, owner));
         // Mobs take the instant effects (undead invert healing and harming).
         let undead = &self.stations().enchantments.entity_tags;
         let mut hits = Vec::new();
         for (i, m) in self.mobs.iter().enumerate() {
+            let hit = mob.is_some_and(|d| d.distance_squared(m.position) < 1e-12);
             if m.alive()
-                && let Some(d2) = splash_distance_sqr(at, age, m.bounds())
+                && let Some(intensity) = splash_intensity(from, hit, m.position, m.bounds())
             {
                 let inverted = undead
                     .get("minecraft:inverted_healing_and_harm")
                     .is_some_and(|t| t.contains(&m.kind.id));
-                hits.push((i, 1.0 - d2.sqrt() / 4.0, inverted));
+                hits.push((i, intensity, inverted));
             }
         }
         for (i, intensity, inverted) in hits {
@@ -2067,7 +2097,7 @@ impl Game<'_> {
                 } else if harm {
                     // HealOrHarmMobEffect.applyInstantaneousEffect: indirectMagic(potion, owner).
                     let harm = (intensity * f64::from(6 << amp) + 0.5) as i32 as f32;
-                    let source = Damage::indirect_magic(owner.who(), [at.x, at.y, at.z]);
+                    let source = Damage::indirect_magic(owner.who(), [from.x, from.y, from.z]);
                     if m.damage_by(harm, source, "minecraft:splash_potion") && owner.player {
                         let id = m.id;
                         self.last_hurt_by_player.insert(id, owner.guest);
@@ -2200,7 +2230,7 @@ mod tests {
                 ambient: vec!["poison"],
                 radius_per_tick: -0.008_750,
                 color: 0x0033_FF44,
-                custom_particle: None,
+                particle: None,
                 victims: Vec::new(),
                 source: Text::translate("entity.minecraft.area_effect_cloud", &[]),
                 owner: None,
@@ -2222,7 +2252,10 @@ mod tests {
             (10, 25, -5)
         );
         assert!((potion.settings.radius_on_use + 0.5).abs() < 1.0e-6);
-        assert!((potion.settings.duration_scale - 0.5).abs() < 1.0e-6);
+        // No `potion_duration_scale` key in 1.21.4: the loaded cloud
+        // applies its effects as stored (scale 1.0), whatever the cloud
+        // carried in memory.
+        assert!((potion.settings.duration_scale - 1.0).abs() < 1.0e-6);
         assert!((potion.radius_per_tick + 0.008_750).abs() < 1.0e-6);
         assert_eq!(
             potion.effects,
@@ -2241,7 +2274,6 @@ mod tests {
             "ReapplicationDelay",
             "RadiusOnUse",
             "DurationOnUse",
-            "potion_duration_scale",
             "potion_contents",
         ] {
             assert!(tag.get(key).is_some(), "{key}");
@@ -2279,8 +2311,8 @@ mod tests {
         let ridden = [body(0.0)];
         let eye = Vec3::new(0.0, 1.52, 0.0);
         let up = Vec3::new(0.0, 0.5, 0.0);
-        let m = thrown_margin(10);
-        assert!((m - 0.3).abs() < 1e-12 && thrown_margin(1) == 0.0);
+        let m = ENTITY_HIT_MARGIN;
+        assert!((m - 0.3).abs() < 1e-12);
         // Thrown from the eye: still within a block of its thrower.
         assert!(!thrown_left_owner(&ridden, eye, up));
         assert!(thrown_player_at(&players, &[thrower], eye, m).is_none());
@@ -2429,7 +2461,7 @@ mod tests {
                 ambient: Vec::new(),
                 radius_per_tick: -3.0 / 600.0,
                 color: 0,
-                custom_particle: None,
+                particle: None,
                 victims: Vec::new(),
                 source: Text::empty(),
                 owner: None,

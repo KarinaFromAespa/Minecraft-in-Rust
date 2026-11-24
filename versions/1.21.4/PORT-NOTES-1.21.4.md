@@ -1394,3 +1394,68 @@ shape for the review batches.
   ItemLore / OminousBottleAmplifier / SuspiciousStewEffects
   addToTooltip are bytecode-identical. Lib check green (EXIT 0,
   2m14s); --tests check green (EXIT 0, 3m14s). Rank 2: 71/348.
+
+  Batch 11 (items 25 + 26 + 27). Item 25 (menu.rs): NO-CHANGE. The
+  tree diff is empty. The Inventory compartments difference
+  (1.21.4's List<NonNullList> vs 1.21.5's flat items +
+  EntityEquipment) is structural only: the Rust models the player
+  inventory as a flat 36-slot vec plus separate armor/offhand
+  fields, never as compartments, so contains / dropAll / setItem /
+  tick all agree in behaviour, and native_inventory_tick(slot,
+  selected) is already the 1.21.4 form (1.21.5 passes an
+  EquipmentSlot). AnvilMenu's hasInfiniteMaterials vs
+  getAbilities().instabuild is the same value (the Rust passes
+  creative through; cost >= 40 && !creative). The onCraftedBy
+  signature in the result-slot achievements is API-only. MapItem's
+  onCraftedPostProcess / scaleMap run on any Level in 1.21.4 and
+  require a ServerLevel in 1.21.5 — the Rust runs post-processing
+  server-side with no gate, matching 1.21.4.
+  Item 26 (game/potions.rs): PORTED. (1) The splash system is
+  carried from the 1.21.5 tree, jar-verified against 1.21.4's
+  ThrownPotion.applySplash: entities in the potion's box inflated
+  (4, 2, 4), distanceToSqr from the potion's position with a 16
+  cutoff, full strength for the directly hit entity else 1 -
+  sqrt(d2)/4. splash_intensity(from, direct, pos, bounds) replaces
+  splash_distance_sqr (the 1.21.6 box-to-box + age-margin form); the
+  landed tuple carries from (t.position) instead of age, which also
+  resolves the dead-age routing from item 17. ENTITY_HIT_MARGIN
+  (0.3) is added to projectiles.rs —
+  DEFAULT_ENTITY_HIT_RESULT_MARGIN is 0.3f in both 1.21.4 and
+  1.21.5, and computeMargin exists in neither. The creatures.rs
+  splash call site passes at as from (the potion's position at the
+  hit IS the hit location after setPos — the 1.21.5 tree's
+  p.previous there contradicts both jars, as batch 7 found); the
+  xp_bottle test call site is updated the same way. (2) The cloud
+  particle is carried: the Particle key + load_particle (updateColor
+  recolour) + particle_options replace the 1.21.6 custom_particle
+  form (both jars use "Particle"). (3) Cloud NBT load defaults are
+  1.21.4's plain getInt/getFloat zeros (Radius 0, Duration 0,
+  WaitTime 0, ReapplicationDelay 0), not 1.21.5's getOr defaults.
+  (4) There is no potion_duration_scale in 1.21.4 — no such
+  DataComponent, no cloud field: the load pre-scales a named
+  potion's effects by /4 (the mapDuration lambda, plain integer
+  division) and sets duration_scale 1.0 so custom effects stay
+  unscaled; the save drops the key; the round-trip test is updated.
+  (5) The creeper cloud is unscaled: its effects reach the cloud
+  through addEffect, i.e. custom effects, which 1.21.4 applies
+  unscaled (1.21.5's setPotionDurationScale(0.25) is the 1.21.5
+  form). (6) Both duration != -1 guards are removed from
+  tick_potion_cloud: 1.21.4 has neither, so an infinite cloud
+  discards at age >= wait - 1 and a duration on use makes it finite.
+  NO-CHANGE: the InfestedMobEffect snapTo/moveTo rename; the
+  MobEffectInstance tick split (the Rust has a single tick); the XP
+  bottle's position() vs getLocation() (the same point after
+  setPos); the playSound / mayInteract overloads; the
+  ThrowablePotionItem factory. ROUTED: the 1.21.6 computeMargin ramp
+  also leaks into arrows.rs (item 36), fireworks.rs, fishing.rs and
+  trident.rs — their items verify. The 1.21.5 files potions.rs,
+  cloud_particle.rs and cloud_nbt.rs were copied wholesale, then the
+  1.21.4 edits above applied; rustfmt drift in the two copied leaf
+  files cleaned (potions.rs is a module root and was not formatted).
+  Item 27 (widely named: network/codec): NO-CHANGE. 20 vanilla
+  classes (all anonymous ByteBufCodecs$N inner classes), 153
+  methods, 0 named in Horizon; module_status missing-both — no
+  module file in either tree, nothing to port. Codec behaviour lives
+  in horizon-protocol, mechanically ported for 769. Lib check green
+  (EXIT 0, 1m26s); --tests check green (EXIT 0, 1m45s). Rank 2:
+  74/348.

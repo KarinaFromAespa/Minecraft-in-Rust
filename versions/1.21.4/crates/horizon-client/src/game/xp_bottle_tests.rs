@@ -16,7 +16,9 @@ fn bottle_orbs_start_where_the_bottle_hit() {
         None,
     ] {
         game.orbs.clear();
-        game.splash(&bottle, at, None, face, 0, &PotionOwner::default(), false);
+        // The bottle's position at the hit is the hit point itself
+        // (`ThrowableProjectile.tick` sets it there before `onHit`).
+        game.splash(&bottle, at, at, None, face, &PotionOwner::default(), false);
         assert!(!game.orbs.is_empty());
         for o in game.orbs.iter() {
             assert_eq!(

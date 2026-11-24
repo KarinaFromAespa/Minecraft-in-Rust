@@ -6107,12 +6107,15 @@ impl Game<'_> {
                     self.native_potion_splash_v2(&item, [at.x, at.y, at.z], &mut cancel);
                 }
                 if !cancel {
+                    // `ThrowableProjectile.tick` sets the potion's position
+                    // to the hit location before `onHit`, so `from` is the
+                    // hit point itself (not the previous position).
                     self.splash(
                         stack,
                         at,
+                        at,
                         mob,
                         block,
-                        p.age,
                         &owner,
                         self.entity_silent(p.id),
                     );
