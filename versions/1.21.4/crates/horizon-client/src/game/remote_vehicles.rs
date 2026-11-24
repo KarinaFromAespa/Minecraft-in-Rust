@@ -277,12 +277,20 @@ impl Game<'_> {
             return Ok(false);
         };
         // LocalPlayer.aiStep runs its sprint decisions in a vehicle too: `canSprint` and
-        // this client's authority stand in for food (`isSprintingPossible`).
-        let (can_sprint, local) = self
-            .driven_mount()
-            .map_or((false, false), |m| (equine::can_sprint(m.species()), true));
+        // this client's authority stand in for food (`isSprintingPossible`), and the
+        // ground gate reads the mount's `onGround`.
+        let (can_sprint, local, vehicle_on_ground) = self.driven_mount().map_or(
+            (false, false, false),
+            |m| (equine::can_sprint(m.species()), true, m.on_ground),
+        );
         if let Some(p) = self.player.as_mut() {
-            p.sprint_input_tick_riding(keys, sprint_window, can_sprint, local)?;
+            p.sprint_input_tick_riding(
+                keys,
+                sprint_window,
+                can_sprint,
+                local,
+                vehicle_on_ground,
+            )?;
         }
         // Settle an invisible seat riding a moving avatar before reading it.
         // The normal end-of-tick pass alone leaves the local rider a tick behind.
@@ -543,7 +551,8 @@ impl Game<'_> {
     /// controlling client. The vehicle ticks before its passenger
     /// (`ClientLevel.tickNonPassenger`), so the mount moves (`tickRidden`,
     /// then `travel`) on what the rider's previous tick left: `xxa`/`zza` from
-    /// `applyInput` (the keys through `modifyInput`: ×0.98, square movement),
+    /// the input multipliers (the keys through `modify_input`: ×0.98, no
+    /// square-movement correction in 1.21.4),
     /// the sprint and the jump `onPlayerJump` set. Only then does this tick's
     /// aiStep read the keys, send a released jump (`sendRidingJump`) and run
     /// `onPlayerJump`, for the mount's next tick. Moving on this tick's keys
@@ -587,7 +596,7 @@ impl Game<'_> {
         let [strafe, forward] = horizon_client::input::modify_input(keys.direction(), None, None);
         // The rider's sprint state, not the key: Camel.getRiddenSpeed reads
         // `controller.isSprinting()`, which keeps the double-tapped sprint
-        // after the key is let go (`shouldStopRunSprinting` decides the end).
+        // after the key is let go (the aiStep stop block decides the end).
         let sprinting = self.player.as_ref().is_some_and(|p| p.sprinting);
         let m = &mut self.mobs[i];
         if jump > 0.0 && equine::is_equine(m.species()) {
@@ -843,7 +852,7 @@ mod tests {
 
     /// The mount ticks before its rider (`ClientLevel.tickNonPassenger`): it
     /// moves on the input the rider's previous tick applied (`zza`, the key
-    /// ×0.98 through `LocalPlayer.modifyInput`), so a press reaches it a tick
+    /// ×0.98 through the aiStep damping), so a press reaches it a tick
     /// late and a release a tick late too, as the server's anticheats expect.
     #[test]
     #[ignore = "requires prepared resources (HORIZON_TEST_RESOURCES)"]
@@ -900,7 +909,7 @@ mod tests {
             game.mobs[0].ai.zza
         };
         assert_eq!(zza(&mut game, forward), 0.0, "the press waits a tick");
-        assert_eq!(zza(&mut game, forward), 0.98, "modifyInput's 0.98");
+        assert_eq!(zza(&mut game, forward), 0.98, "the aiStep 0.98 damping");
         assert_eq!(
             zza(&mut game, Keys::default()),
             0.98,

@@ -1561,7 +1561,7 @@ impl ExperienceOrb {
         }
         // ExperienceOrb.tick applies block effects after moving, before drag.
         let discarded =
-            server && self.apply_lava_contact_damage(world, fluids, wanted, next_float, on_sound);
+            server && self.apply_lava_contact_damage(world, fluids, next_float, on_sound);
         // `float friction = getAirDrag()` (0.98F), the ground's block
         // friction multiplied in as a float, widened once for the scale.
         let mut friction = 0.98_f32;
@@ -1598,14 +1598,13 @@ impl ExperienceOrb {
         &mut self,
         world: &World,
         fluids: &crate::motion::FluidResources,
-        wanted: Vec3,
         next_float: &mut dyn FnMut() -> f32,
         on_sound: &mut dyn FnMut([f64; 3], f32),
     ) -> bool {
         if self.health <= 0 {
             return true;
         }
-        let contacts = orb_lava_contacts(self.previous, self.position, wanted, |p| {
+        let contacts = orb_lava_contacts(self.previous, self.position, |p| {
             let fluid = fluids.fluid(world.block(p.x, p.y, p.z));
             if !fluid
                 .kind()
@@ -5214,7 +5213,6 @@ mod orb_lava_tests {
             let discarded = dead_orb.apply_lava_contact_damage(
                 world,
                 fluids,
-                Vec3::ZERO,
                 &mut || {
                     dead_draws += 1;
                     0.5
@@ -5307,13 +5305,11 @@ mod orb_lava_tests {
             world.set(21, 4, 20, lava).unwrap();
             let mut multi_orb = sample_orb(Vec3::new(21.5, 4.1, 20.5), 5);
             multi_orb.previous = Vec3::new(19.8, 4.1, 20.5);
-            let wanted = Vec3::new(1.7, 0.0, 0.0);
             let mut float_draws = vec![0.2_f32, 0.8_f32];
             let mut multi_sounds = Vec::new();
             let discarded = multi_orb.apply_lava_contact_damage(
                 world,
                 fluids,
-                wanted,
                 &mut || float_draws.remove(0),
                 &mut |pos, pitch| multi_sounds.push((pos, pitch)),
             );
@@ -5327,11 +5323,13 @@ mod orb_lava_tests {
 }
 
 /// `Entity.checkInsideBlocks` and `collidedWithFluid`: fluid AABB contacts
-/// along Entity.move's axis-ordered path, each block visited once.
+/// along Entity.move's axis-ordered path, each block visited once. The
+/// axis order follows the RESOLVED move (1.21.4 traverses straight-line;
+/// 1.21.5's `axisStepOrder` takes the resolved delta explicitly), not
+/// the pre-collision intent.
 fn orb_lava_contacts(
     from: Vec3,
     to: Vec3,
-    wanted: Vec3,
     mut lava_height: impl FnMut(BlockPos) -> Option<f64>,
 ) -> usize {
     let delta = to.subtract(from);
@@ -5371,8 +5369,9 @@ fn orb_lava_contacts(
         iterations + 1
     };
     if delta.length_squared() > 0.0 {
-        // Direction.axisStepOrder uses the original, uncollided movement.
-        let order = if wanted.x.abs() < wanted.z.abs() {
+        // The axis order follows the resolved move, the path actually
+        // travelled — not the pre-collision intent.
+        let order = if delta.x.abs() < delta.z.abs() {
             [1, 2, 0]
         } else {
             [1, 0, 2]
@@ -5402,7 +5401,7 @@ mod orb_lava_shape_tests {
     use super::*;
 
     fn contacts(from: Vec3, to: Vec3) -> usize {
-        orb_lava_contacts(from, to, to.subtract(from), |p| {
+        orb_lava_contacts(from, to, |p| {
             (p == BlockPos::new(0, 0, 0)).then_some(f64::from(8.0_f32 / 9.0))
         })
     }
@@ -5425,11 +5424,8 @@ mod orb_lava_shape_tests {
         let from = Vec3::new(0.1, 0.1, 0.1);
         let to = Vec3::new(0.7, 0.2, 0.7);
         assert_eq!(contacts(from, to), 1);
-        assert_eq!(
-            orb_lava_contacts(from, to, Vec3::new(0.1, 0.1, 0.9), |p| {
-                (p == BlockPos::new(0, 0, 0)).then_some(1.0)
-            }),
-            1
-        );
+        // The other axis order (Z before X) visits it once too.
+        let to_z = Vec3::new(0.2, 0.2, 0.7);
+        assert_eq!(contacts(from, to_z), 1);
     }
 }

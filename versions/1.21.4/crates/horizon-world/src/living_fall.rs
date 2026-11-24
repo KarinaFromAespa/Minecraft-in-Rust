@@ -67,6 +67,10 @@ pub trait LivingFallWorld {
     /// Dispatch native Entity.hurt semantics (server-only), preserving its source.
     fn hurt(&mut self, damage: f32) -> Result<(), Self::Error>;
 }
+/// `LivingEntity.calculateFallDamage` in 1.21.4's form: the fall over
+/// the safe distance, times the multiplier, in float, then times the
+/// fall-damage multiplier and ceiled. 1.21.5 floors instead
+/// (`calculateFallPower`).
 pub fn calculate_fall_damage<W: LivingFallWorld>(
     world: &mut W,
     distance: f64,
@@ -75,8 +79,9 @@ pub fn calculate_fall_damage<W: LivingFallWorld>(
     if world.immune_to_fall_damage()? {
         return Ok(0);
     }
-    let power = distance + 1.0e-6 - world.safe_fall_distance()?;
-    Ok((power * f64::from(multiplier) * world.fall_damage_multiplier()?).floor() as i32)
+    let safe = world.safe_fall_distance()? as f32;
+    let power = (distance as f32 - safe) * multiplier;
+    Ok((f64::from(power) * world.fall_damage_multiplier()?).ceil() as i32)
 }
 fn java_min(a: f64, b: f64) -> f64 {
     if a.is_nan() {
@@ -184,6 +189,21 @@ mod tests {
             Ok(())
         }
     }
+    /// 1.21.4 ceils the fall over the safe distance; 1.21.5 floors it,
+    /// so a half-block excess hurts one more here.
+    #[test]
+    fn fall_damage_ceils_the_excess() {
+        let mut w = Landing {
+            replacement: None,
+            damage: 0.0,
+            sounds: 0,
+        };
+        assert_eq!(calculate_fall_damage(&mut w, 13.5, 1.0), Ok(11));
+        assert_eq!(calculate_fall_damage(&mut w, 13.0, 1.0), Ok(10));
+        assert_eq!(calculate_fall_damage(&mut w, 3.5, 1.0), Ok(1));
+        assert_eq!(calculate_fall_damage(&mut w, 3.0, 1.0), Ok(0));
+    }
+
     #[test]
     fn landing_damage_is_changed_before_sounds_and_hurt() {
         for (replacement, expected) in [(None, 10.0), (Some(2.0), 2.0), (Some(0.0), 0.0)] {

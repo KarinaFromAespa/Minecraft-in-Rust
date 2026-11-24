@@ -269,8 +269,9 @@ pub enum MotionEvent {
         sound: bool,
         particles: bool,
     },
-    /// Entity event 67 (`LivingEntity.makeDrownParticles`): eight bubbles
-    /// around a drowning player.
+    /// `LivingEntity.baseTick`'s drowning: eight bubbles around a
+    /// drowning player. 1.21.4 spawns them directly on the server;
+    /// 1.21.5 broadcasts entity event 67 (`makeDrownParticles`) instead.
     Drown,
 }
 #[derive(Clone)]
@@ -320,9 +321,12 @@ pub struct PlayerMotion {
     pub auto_jump_enabled: bool,
     pub auto_jump_time: i32,
     pub was_auto_jump: bool,
-    /// `input.getMoveVector()` this tick (before `modifyInput`).
+    /// The raw [left, forward] impulses this tick (1.21.4's
+    /// `KeyboardInput` stores them unnormalized; 1.21.5 normalizes them
+    /// into `input.getMoveVector()`).
     pub move_vector: [f32; 2],
-    /// `LocalPlayer.xxa` / `zza`: the move vector after `modifyInput`.
+    /// `LocalPlayer.xxa` / `zza`: the impulses after the aiStep
+    /// multipliers (item use, sneaking) and the 0.98 damping.
     pub applied_input: [f32; 2],
     /// A usable glider (elytra) is worn; the game sets it each tick.
     pub glider: bool,
@@ -774,7 +778,7 @@ impl PlayerMotion {
         }
         Ok(())
     }
-    /// `AttributeMap.pack` in `AttributeInstance.Packed.LIST_CODEC`'s form: the
+    /// `AttributeMap.save`'s ListTag form: the
     /// player's `attributes` list (LivingEntity.addAdditionalSaveData), each
     /// instance's id, base and permanent modifiers.
     pub fn saved_attributes(&self) -> horizon_world::nbt::Tag {
@@ -937,18 +941,21 @@ impl PlayerMotion {
         self.run_sprint_tick(keys, conditions, sprint_window)
     }
     /// The same phase for a passenger: `LocalPlayer.isSprintingPossible` asks the
-    /// vehicle's `canSprint` and this client's authority there, not food.
+    /// vehicle's `canSprint` and this client's authority there, not food; the
+    /// ground gate reads the vehicle's `onGround` (1.21.4's start block).
     pub fn sprint_input_tick_riding(
         &mut self,
         keys: crate::sprint::Keys,
         sprint_window: i32,
         vehicle_can_sprint: bool,
         vehicle_local: bool,
+        vehicle_on_ground: bool,
     ) -> Result<()> {
         let conditions = crate::sprint::Conditions {
             passenger: true,
             vehicle_can_sprint,
             vehicle_local,
+            vehicle_on_ground,
             ..self.sprint_conditions()
         };
         self.run_sprint_tick(keys, conditions, sprint_window)
@@ -1449,14 +1456,10 @@ impl MotionWorld<'_, '_, '_> {
         {
             horizon_world::living_fluid::travel_in_fluid(self, input)?;
         } else if self.player.fall_flying {
-            // LivingEntity.travelFallFlying: on a climbable the glide ends and
-            // the player moves like in the air.
-            if self.climbable()? {
-                self.travel_in_air(input)?;
-                self.player.fall_flying = false;
-            } else {
-                self.travel_fall_flying()?;
-            }
+            // 1.21.4's `LivingEntity.travelFallFlying` has no climbable
+            // check: the glide continues on a climbable. (1.21.5 ends the
+            // glide there and moves like in the air.)
+            self.travel_fall_flying()?;
         } else {
             self.travel_in_air(input)?;
         }
@@ -1644,8 +1647,15 @@ impl MotionWorld<'_, '_, '_> {
             let delta = movement.to.subtract(movement.from);
             let mut budget = 16;
             match movement.original {
-                Some(original) if delta.length_squared() > 0.0 => {
-                    for axis in Axis::step_order(original) {
+                // `Entity.move` splits the RESOLVED move into axis steps
+                // (1.21.5's `axisStepOrder` on the move's own delta, YZX
+                // when |x| < |z|, else YXZ); the pre-collision `original`
+                // only marks a recorded move, it never sets the order.
+                // 1.21.4 traverses straight-line (`BlockGetter
+                // .boxTraverseBlocks`), and the resolved delta — the path
+                // actually travelled — is the closer approximation of it.
+                Some(_) if delta.length_squared() > 0.0 => {
+                    for axis in Axis::step_order(delta) {
                         let step = delta.component(axis);
                         if step != 0.0 {
                             let to = from.relative(
@@ -1804,7 +1814,7 @@ impl MotionWorld<'_, '_, '_> {
             let powder_snow = name == "minecraft:powder_snow";
             // A filled cauldron's content top in blocks: the lava's 15/16
             // (LavaCauldronBlock.FILLED_SHAPE), or a layered cauldron's
-            // getPixelContentHeight, 6 + 3 per level (FILLED_SHAPES).
+            // getContentHeight, 6 + 3 per level.
             let content_top = match name {
                 "minecraft:lava_cauldron" => Some(15.0 / 16.0),
                 "minecraft:water_cauldron" | "minecraft:powder_snow_cauldron" => {
@@ -1819,14 +1829,29 @@ impl MotionWorld<'_, '_, '_> {
                 }
                 _ => None,
             };
-            // getEntityInsideCollisionShape is the whole block but for powder
-            // snow (its collision shape, the whole block when it is empty),
-            // filled cauldrons, end portals and tripwires; Horizon doesn't
-            // follow the player into those last two.
+            // A layered cauldron (water, powder snow).
+            let layered =
+                matches!(name, "minecraft:water_cauldron" | "minecraft:powder_snow_cauldron");
+            // `BlockBehaviour.getEntityInsideCollisionShape` is the whole
+            // block in 1.21.4; only end portals and tripwires override it
+            // (their visual shape), and Horizon doesn't follow the player
+            // into those. Powder snow's override (its collision shape)
+            // and the nether portal's (its visual slab) are 1.21.5
+            // additions — in 1.21.4 both fire entityInside on plain
+            // whole-block overlap. The sweep still tests powder snow's
+            // collision shape (empty, or the whole block with leather
+            // boots — inside either way) and the lava cauldron's
+            // shape-or-content (vanilla checks the content inside
+            // entityInside, `isEntityInsideContent`).
             if matches!(name, "minecraft:end_portal" | "minecraft:tripwire") {
                 continue;
             }
-            let inside = !(powder_snow || content_top.is_some()) || {
+            // A layered cauldron has no shape override in either version:
+            // entityInside fires on the AABB overlap the sweep already
+            // found, and the content check lives in
+            // layered_cauldron_inside
+            // (AbstractCauldronBlock.isEntityInsideContent).
+            let inside = layered || !(powder_snow || content_top.is_some()) || {
                 let context = self.context();
                 let binding = self.collision_binding;
                 let shape = binding.collision_shape_with_context(
@@ -1840,8 +1865,9 @@ impl MotionWorld<'_, '_, '_> {
                         let offset = Vec3::new(f64::from(p.x), f64::from(p.y), f64::from(p.z));
                         let mut boxes: Vec<_> = shape.moved(offset).boxes().to_vec();
                         if let Some(top) = content_top {
-                            // The cauldron's shape or its content,
-                            // Block.column(12, 4, top).
+                            // The lava cauldron's shape or its content,
+                            // Block.column(12, 4, top). (Layered cauldrons
+                            // never reach here: they short-circuit above.)
                             boxes.push(Aabb::new(
                                 Vec3::new(2.0 / 16.0, 4.0 / 16.0, 2.0 / 16.0).add_vector(offset),
                                 Vec3::new(14.0 / 16.0, top, 14.0 / 16.0).add_vector(offset),
@@ -1878,7 +1904,7 @@ impl MotionWorld<'_, '_, '_> {
                     "minecraft:cactus" => self.environment_hurt("minecraft:cactus", 1.0)?,
                     "minecraft:lava_cauldron" => self.lava_cauldron_inside()?,
                     "minecraft:water_cauldron" | "minecraft:powder_snow_cauldron" => {
-                        self.layered_cauldron_inside(p);
+                        self.layered_cauldron_inside(p, content_top.unwrap_or(0.0));
                     }
                     "minecraft:wither_rose" => {
                         self.player.events.push(MotionEvent::InsideWitherRose);
@@ -2015,11 +2041,20 @@ impl MotionWorld<'_, '_, '_> {
         self.player.ignite_for_ticks(300)?;
         self.environment_hurt("minecraft:lava", 4.0)
     }
-    /// `LayeredCauldronBlock.entityInside`: on a server, a burning player
-    /// asks for the cauldron's `handleEntityOnFireInside` (runBefore
-    /// EXTINGUISH, so while still burning), then EXTINGUISH
-    /// (`Entity.clearFire`) puts the fire out.
-    fn layered_cauldron_inside(&mut self, pos: BlockPos) {
+    /// `LayeredCauldronBlock.entityInside`: a burning player inside the
+    /// content asks for the cauldron's `handleEntityOnFireInside` (the
+    /// level drops) when it may interact, and `Entity.clearFire` puts
+    /// the fire out. `AbstractCauldronBlock.isEntityInsideContent`:
+    /// the feet below the content top, the head above the block's
+    /// first quarter. 1.21.4 clears the fire first, then checks
+    /// `mayInteract` for the level drop.
+    fn layered_cauldron_inside(&mut self, pos: BlockPos, content_top: f64) {
+        let base = f64::from(pos.y);
+        if self.player.position.y >= base + content_top
+            || self.player.bounds().max_position().y <= base + 0.25
+        {
+            return;
+        }
         if self.player.fire_ticks > 0 && !self.player.spectator {
             self.player
                 .events
@@ -3326,7 +3361,7 @@ mod tests {
 
     #[test]
     fn attribute_bases_survive_a_save_and_reload() {
-        // #4425: LivingEntity.addAdditionalSaveData writes AttributeMap.pack
+        // #4425: LivingEntity.addAdditionalSaveData writes AttributeMap.save
         // and readAdditionalSaveData applies it (before the health).
         let root = std::env::var_os("HORIZON_TEST_RESOURCES")
             .map(std::path::PathBuf::from)
@@ -6024,7 +6059,7 @@ mod tests {
 
     /// Vanilla `LocalPlayer.isSprintingPossible`: blindness
     /// (`Player.isMobilityRestricted`) keeps the sprint key from starting a
-    /// sprint and stops a running one (`shouldStopRunSprinting`).
+    /// sprint and stops a running one (the aiStep stop block).
     #[test]
     fn blindness_stops_a_sprint_and_keeps_one_from_starting() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"))

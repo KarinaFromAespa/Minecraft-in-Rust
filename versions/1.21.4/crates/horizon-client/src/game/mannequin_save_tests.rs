@@ -175,7 +175,7 @@ fn a_mannequin_reads_and_saves_from_its_own_state() {
         assert_eq!(tag.get("main_hand"), Some(&Tag::String("left".into())));
         assert_eq!(tag.get("hidden_layers"), Some(&snbt("[\"cape\",\"hat\"]")));
         assert_eq!(tag.get("profile"), Some(&snbt("{}")));
-        for key in MOB_ONLY.iter().chain([
+        for key in MOB_ONLY.iter().chain(&[
             "ArmorItems",
             "HandItems",
             "ArmorDropChances",

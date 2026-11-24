@@ -20,7 +20,7 @@ pub struct AutoJumper {
     pub y_rot: f32,
     /// `getSpeed()`.
     pub speed: f32,
-    /// `input.getMoveVector()` (x: strafe, y: forward).
+    /// The raw [left, forward] impulses (x: strafe, y: forward).
     pub move_vector: [f32; 2],
     /// `getBbWidth()`, `getBbHeight()`.
     pub width: f32,

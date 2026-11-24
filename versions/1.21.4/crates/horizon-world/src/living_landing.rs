@@ -35,8 +35,11 @@ pub fn check_living_fall_damage<W: LivingLandingWorld>(
     }
     if world.is_server_level() && on_ground && world.fall_distance() > 0.0 {
         world.on_changed_block(landing)?;
-        let power = world.fall_distance() + 1.0e-6 - world.safe_fall_distance()?;
-        let power = f64::from((power.floor() as i32).max(0));
+        // 1.21.4's `LivingEntity.checkFallDamage` landing particles: the
+        // power is the fall over the safe distance, ceiled (1.21.5
+        // floors `calculateFallPower`), and the magnitude is
+        // 0.2 + power / 15 in float, capped at 2.5.
+        let power = (world.fall_distance() - world.safe_fall_distance()?).ceil();
         if power > 0.0 && !world.state_is_air(state)? {
             let mut position = world.position();
             let current = world.block_position()?;
@@ -52,7 +55,7 @@ pub fn check_living_fall_damage<W: LivingLandingWorld>(
                 position.x = f64::from(landing.x) + 0.5 + dx / scale * 0.5;
                 position.z = f64::from(landing.z) + 0.5 + dz / scale * 0.5;
             }
-            let magnitude = (f64::from(0.2f32) + power / 15.0).min(2.5);
+            let magnitude = f64::from(0.2f32 + power as f32 / 15.0f32).min(2.5);
             world.landing_particles(
                 state,
                 position,

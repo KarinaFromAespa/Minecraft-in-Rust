@@ -198,7 +198,7 @@ pub fn apply_effects_from_blocks(
 /// Each block `checkInsideBlocks` reaches, in order, with whether its
 /// `entityInside` counts the block as intersected (every block of a movement a
 /// block or longer, else only those the box ends in) and the step reaching it.
-/// Each movement sweeps its axes in `Direction.axisStepOrder` within 16
+/// Each movement sweeps its axes in the resolved move's step order within 16
 /// iterations, then the end alone. `visit` says whether the box was inside the
 /// block's `getEntityInsideCollisionShape`; only a block it was inside is not
 /// visited again.
@@ -236,9 +236,13 @@ fn inside_blocks(
     let delta = to.subtract(from);
     let mut budget = 16;
     match original {
-        Some(original) if delta.length_squared() > 0.0 => {
+        // The axis order follows the RESOLVED move, the path actually
+        // travelled (1.21.4 traverses straight-line; 1.21.5's
+        // `axisStepOrder` takes the resolved delta explicitly) — the
+        // pre-collision `original` only marks a recorded move.
+        Some(_) if delta.length_squared() > 0.0 => {
             let mut at = from;
-            for axis in Axis::step_order(original) {
+            for axis in Axis::step_order(delta) {
                 let step = delta.component(axis);
                 if step != 0.0 {
                     let positive = match axis {

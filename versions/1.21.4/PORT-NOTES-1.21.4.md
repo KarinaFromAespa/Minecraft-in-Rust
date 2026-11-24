@@ -890,3 +890,132 @@ shape for the review batches.
   `placePortalTicket` (likely unmodelled in the client).
   `cargo check -p horizon-client` green (EXIT 0, 0 errors).
   Rank 2: 61/348.
+
+  Batch 6 (item 15). Item 15 (motion.rs + the input/sprint/fall
+  system, which has no rank-2 item of its own): the input model is
+  1.21.4's — `KeyboardInput.tick` stores RAW impulses, so
+  `keyboard_direction` returns them unnormalized (1.21.5
+  normalizes into `moveVector`; the normalization in 1.21.4
+  happens later, in `moveRelative`'s `getInputVector`, which the
+  Rust already implements), and `modify_input` drops the
+  square-movement correction (`square_movement` deleted;
+  1.21.5's `modifyInput` only — 1.21.4 has no `modifyInput`, the
+  0.2 item-use and sneaking multipliers apply directly to the
+  impulses in aiStep and the 0.98 damping lives in
+  `LivingEntity.aiStep`). Movement-equivalence checked by hand:
+  raw + no-square reproduces vanilla 1.21.4 exactly in every
+  case (full diagonal, item-use, sneak, straight); the old
+  normalized + square form matched too for keyboard input, but
+  boosted analog diagonals. Sprint is 1.21.4's
+  `LocalPlayer.aiStep`: the start threshold is
+  `hasEnoughImpulseToStartSprinting` (0.8 on land, any forward
+  impulse underwater, on the raw impulse — a half-pushed stick
+  no longer starts a sprint on land), the stop block keeps
+  `hasForwardImpulse` (> 1e-5), `canStart` forbids fall-flying
+  outright (1.21.5 allows it underwater), the start block needs
+  the ground (the vehicle's `onGround` for a passenger, threaded
+  through `sprint_input_tick_riding` from `driven_mount`) or
+  water — no mid-air sprint start (1.21.5 drops the gate) — the
+  sprint key also starts a surface swim, the double-tap window
+  resets on shift and item use but NOT on backward (the
+  backward reset is 1.21.5's), and the fresh-press edge is the
+  previous tick's `hasEnoughImpulse`. Three new sprint tests pin
+  the threshold, the ground gate and the backward rule. Fall
+  damage is 1.21.4's ceil form: `calculate_fall_damage`
+  (living_fall.rs) computes `(fall - safe) * multiplier` in
+  float, times the fall-damage multiplier, ceiled (1.21.5
+  floors `calculateFallPower`); the landing-particle power in
+  living_landing.rs ceils too, with the magnitude in float
+  (0.2 + power / 15, capped 2.5). A fall-flying player glides
+  on past a climbable (1.21.5's `travelFallFlying` climbable
+  early-out removed). `checkInsideBlocks` axis order follows
+  the RESOLVED move in all three sweep sites (motion.rs,
+  entities.rs `orb_lava_contacts` — its `wanted` parameter is
+  gone — falling_block.rs `inside_blocks`): 1.21.4 traverses
+  straight-line (`boxTraverseBlocks`) and the resolved delta is
+  the closer approximation; 1.21.5's `axisStepOrder` takes the
+  resolved delta explicitly. Cauldrons: the layered short-circuit
+  is carried (entityInside fires on sweep overlap; the content
+  check lives in `layered_cauldron_inside`, now taking the
+  content top and applying `isEntityInsideContent` — feet below
+  the top, head above a quarter block), `getContentHeight`
+  (not `getPixelContentHeight`), and the lava-cauldron comment;
+  the nether-portal visual-slab test is NOT carried — jar-verified,
+  1.21.4's NetherPortalBlock has no
+  `getEntityInsideCollisionShape` override (added in 1.21.5),
+  so portals fire on whole-block overlap, as the tree already
+  does. Same jar check: the base shape is `Shapes.block()` in
+  both versions; only end portals and tripwires override it in
+  1.21.4 (powder snow's override is 1.21.5's too). The
+  `was_on_fire` snapshot in `applyEffectsFromBlocks` is NOT
+  carried — 1.21.5-only; 1.21.4 sets -20 whenever not inside
+  fire/lava, alive, with `remainingFireTicks <= 0`, which the
+  tree's `apply_fire_contact` already does. `AttributeMap.save`
+  (not `pack`) in two comments. Drowning: baseTick spawns the
+  eight bubbles directly in 1.21.4 (no entity event 67, no
+  `makeDrownParticles`); the `MotionEvent::Drown` doc says so
+  now. No-change, jar-verified: `MobEffectInstance` save/load
+  delegate to the CODEC in 1.21.4 too (the lowercase effect-NBT
+  shape stands; the `readAdditionalSaveData` difference is the
+  Java call shape only); `LivingEntity.tick`'s run/oRun and
+  `animStep` (animation, unmodelled in motion.rs);
+  `onAttributeUpdated`'s SCALE branch (1.21.4 refreshes
+  dimensions in `tick` instead — same net behaviour);
+  `getItemBySlot`/`setItemSlot` (abstract in 1.21.4, concrete
+  via EntityEquipment in 1.21.5 — API-only);
+  `getKillCredit`/`getLastHurtByMob`/
+  `resolvePlayerResponsibleForDamage` (EntityReference vs
+  direct fields — same behaviour); `pushEntities` (same
+  behaviour, `getEntities` vs `getPushableEntities`);
+  `handleRelativeFrictionAndCalculateMovement` (the powder-snow
+  check reads the block state directly in 1.21.4, same
+  behaviour); `causeFallDamage` (super first, then damage, in
+  both — only float/double signatures differ); `breakItem`
+  (BREAK_SOUND component vs `getBreakingSound` — same sound);
+  `collectEquipmentChanges` (per-slot fields vs the map — same
+  behaviour); the MobEffects renames (MINING_FATIGUE/
+  DIG_SLOWDOWN, RESISTANCE/DAMAGE_RESISTANCE, JUMP_BOOST/JUMP);
+  `tickEffects` (one `tick` vs the tickServer/tickClient
+  split); `travel`/`travelRidden` (the
+  `isControlledByLocalInstance` early return and the no-arg
+  `travelFallFlying` — same values); `LayeredCauldronBlock.
+  entityInside` (bytecode-identical); the aiStep
+  lerp/InterpolationHandler difference (interpolation is
+  unmodelled in motion.rs in both trees). Pre-existing gaps in
+  BOTH trees, not port differences: the run-stop's
+  `(isInWater && !isUnderWater)` term is missing from
+  `should_stop`; blindness is not modelled in sprint
+  `Conditions`; the aiStep-start `shouldStopSprinting` check
+  (fall-flying/blindness/moving-slowly/using-item) is not
+  modelled in the sprint phase. Routed with jar evidence:
+  `canUseSlot` (base false in 1.21.4, true in 1.21.5; Player
+  overrides it in 1.21.4) and the dispenser `mob_can_use_slot`
+  default (item 39); `canFreeze`'s BODY-slot check — leather
+  horse armor protects in 1.21.4 (item 187, mobs/ai.rs);
+  `getItemBlockingWith`/`hurtServer` shield blocking
+  (BLOCK animation + 5-tick delay; `hurtCurrentlyUsedShield`;
+  event 29 broadcast) and `entityEventForEquipmentBreak`
+  (7 slots, no saddle/68) (item 126); the mob fall-damage
+  formula in `mobs/living.rs` (same floor -> ceil port as the
+  player path) (item 126); `onEquipItem`/`releaseUsingItem`/
+  `onEffectAdded`/`onEffectsRemoved` (items 126/55);
+  `handleEntityEvent` 29/30 shield sounds and the missing 67/68
+  cases — the LAN event-67 broadcast in lan_actions.rs (item 28)
+  and creatures.rs (item 17) should send particles instead, and
+  remote.rs's event-67 handling (item 13, closed) is dead in
+  1.21.4 play; the swing/head placement (1.21.5's Player.aiStep
+  calls `updateSwingTime` and sets `yHeadRot = yRot`; 1.21.4
+  does neither — swing advances in `LivingEntity.tick`) (item
+  164); `Player.attack`'s sweep ordering (knockback + hurt
+  before the server check in 1.21.4; `hurtServer` inside it in
+  1.21.5) (item 13, closed — check whether batch 4 covered
+  it); the `makeDrownParticles` doc names in combat.rs (item
+  210) and mobs.rs (item 55). Follow-up hunks in closed modules:
+  the axis-order fix in entities.rs (item 14) and the
+  `modifyInput` doc in game.rs (item 12).
+  `cargo check -p horizon-client -p horizon-world
+  -p horizon-client-input --tests` green (EXIT 0, 0 errors;
+  the lib check green too). The --tests run caught two
+  test-compile errors from earlier batches (fixed above);
+  batches from here run the --tests check, not just the lib.
+  Rank 2: 62/348.
