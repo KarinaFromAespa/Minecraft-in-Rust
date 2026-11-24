@@ -1,0 +1,74 @@
+{
+ "batch": 11,
+ "checks": {
+  "gap": 0,
+  "pass": 175,
+  "total": 177
+ },
+ "coordinator_note": "Coordinator reconciliation (2026-11-24): B11-G01 (MAJOR, beds) independently re-verified - classes.rs:62 maps AbstractBed to AbstractBedBlock and :63 maps Bed to BedBlock; arms dispatch on AbstractBed at hooks.rs:459, interact.rs:365, place.rs:356, place.rs:1481, shapes.rs:124; nothing dispatches on Class::Bed; AbstractBedBlock is absent from both 26.2 jars and present in jars-26.3/client-26.3.jar (11,383 classes) - the 26.3-leak attribution holds. The 26.2-behaviour workdir is confirmed gone, so the agent's note about the missing triage script is correct. Tally convention differs from 1.21.7 Batch 11: the 4 defects are cross-cutting (no owning rank-3 item) and are NOT counted in the 177-item tally (175 pass + 2 accepted-gap); in 1.21.7 the per-item gaps were counted. horizon-prepare for 26.2 finished after this batch ran (2048.7 s, EXIT 0, 2026-11-24); block-behaviours.json now exists, so B11-H01's data precondition is met - the chain-liveness re-run itself remains follow-up work.",
+ "date": "2026-11-24",
+ "items": [
+  {
+   "evidence": "Class::AbstractBed = \"AbstractBedBlock\" never matches any 26.2 chain (beds are BedBlock directly; no AbstractBedBlock in either 26.2 jar; BedBlock extends HorizontalDirectionalBlock). Class::Bed exists (classes.rs:63) but nothing dispatches on it. Dead arms: place.rs:356 + place.rs:1481 set_placed_by (the ONLY head placement, place.rs:1483), interact.rs:365 (the ONLY PlayerEffect::Sleep emitter, interact.rs:377/380), hooks.rs:459, shapes.rs:124. 26.3-leak: AbstractBedBlock EXISTS in the 26.3 jar. The interact.rs:366-369 comment documents the 26.2 BedBlock form while the arm dispatches on the dead 26.3 name.",
+   "id": "B11-G01",
+   "method": "class-table sweep + javap + Rust grep",
+   "severity": "major",
+   "status": "gap",
+   "title": "Beds place foot-only; sleep is unreachable (AbstractBed dead) [= 1.21.7 B11-G01]"
+  },
+  {
+   "evidence": "Vanilla 26.2 has 6 number providers (EnchantmentLevelProvider, ScoreboardValue, StorageValue all in the server jar). Both Rust implementations handle only 3 (constant/uniform/binomial) \u2014 enchantment_level/score/storage fall to _ => 0 (loot.rs int/float 1346-1385; items.rs number 2033-2063). Data check: 0/1355 vanilla 26.2 loot tables use the 3 missing providers. The only enchantment_level uses in 26.2 datapack (soul_speed/thorns chance) go through the separate enchant.rs random_chance path, which handles it explicitly and matches vanilla's amount.calculate(level) exactly.",
+   "id": "B11-G02",
+   "method": "javap + data check + Rust grep",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Three number providers return 0 (datapack-only) [= 1.21.7 B11-G12]"
+  },
+  {
+   "evidence": "Vanilla 26.2 AnyFuel.resolve returns FuelValues.fuelItems() \u2014 the keySet of an insertion-ordered Object2IntLinkedOpenHashMap populated by the hardcoded vanillaBurnTimes sequence (LAVA_BUCKET first). The Rust groups fuels by burn-time value in registry order (recipe_book.rs:566-585, native_panel_recipes.rs:173-190) \u2014 first fuel in registry order is oak planks (id 63; lava bucket 1042). Burn times unaffected, display order only. 26.3-form carry-over: 26.3 resolves via DataComponentLookup.findAll(COOKING_FUEL).",
+   "id": "B11-G03",
+   "method": "javap + Rust grep + registries.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Recipe-book fuel slot cycles fuels in the wrong order [= 1.21.7 B11-G15]"
+  },
+  {
+   "evidence": "Vanilla 26.2 DebugEntrySoundMood appends String.format(ROOT, \"  (Mood %d%%)\") \u2014 TWO spaces \u2014 to the channel debug string. The Rust's sound_mood_line (debug_overlay.rs:399-408) uses ONE space: \"Sounds: {}/{} + {}/{} (Mood {}%)\". Cosmetic. The other two thirds of 1.21.7's B11-G20 do NOT apply: 26.2's Local Difficulty line has no Day suffix (day count is a separate DebugEntryDayCount entry, \"Day #\", which the Rust renders) and 26.2's memory lines use MiB, as does the Rust. 26.3's entry literal is also two-spaced, so this is a 26.1-form leftover, not a 26.3 leak.",
+   "id": "B11-G04",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "gap",
+   "title": "F3 sound mood has one space before (Mood [part of 1.21.7 B11-G20]"
+  },
+  {
+   "evidence": "The \u00a76.1 sweep did the jar-existence half (271 mappings, 268 live, 3 dead). The chain-liveness half \u2014 which blocks' chains actually contain each mapped name \u2014 needs block-behaviours.json from horizon-prepare, which does not exist for 26.2 yet. The jar half already settles the dead mappings (a name absent from the jar cannot appear in any chain); the converse (jar-live but chain-dead) is unmeasured. Harness design in batch-11-rank3.md \u00a73: export block-behaviours.json once prepare lands and re-run the sweep against the chains.",
+   "id": "B11-H01",
+   "method": "class-table sweep (jar half) + Rust grep",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "Class-table chain-liveness half \u2014 needs block-behaviours.json from prepare"
+  },
+  {
+   "evidence": "The Rust ports the 26.3 merged WorldOptionsScreen (lan_screen.rs, incl. open_multiplayer_options at lan_screen.rs:712) while 26.2 keeps WorldOptionsScreen and MultiplayerOptionsScreen separate. The underlying operations all match 26.2; only the screen layout differs (one merged screen vs two separate screens, snapshot vs immediate apply). Accepted by the port ledger (item 427); splitting the screen is a multi-hour rewrite with LAN-flow regression risk. NOTE: the tracking note the ledger cites (screens.rs:455-458) no longer exists in the tree.",
+   "id": "B11-A01",
+   "method": "port ledger + Rust grep",
+   "severity": "minor",
+   "status": "accepted-gap",
+   "title": "Merged LAN screen (item 427) \u2014 accepted gap"
+  },
+  {
+   "evidence": "26.2's editServerCallback copies the edited entry back via copyFrom and KEEPS the old ping state; 26.3 resets to INITIAL (re-ping). The Rust's edit-save rebuilds the list fresh (Self::list(saves), multiplayer.rs:1753/1767/2087), matching 26.3 \u2014 a 1-2s re-ping difference. Accepted by the port ledger (item 436); porting the 26.2 keep-state form needs a multiplayer-screen lifecycle refactor.",
+   "id": "B11-A02",
+   "method": "port ledger + Rust grep",
+   "severity": "minor",
+   "status": "accepted-gap",
+   "title": "Edit-server save re-pings (item 436) \u2014 accepted gap"
+  }
+ ],
+ "method": "Tally: 177 items = 175 pass + 0 gap + 0 needs-harness + 0 needs-probe + 2 accepted-gap (427, 436 \u2014 the port ledger's own verdicts). The 4 defects are cross-cutting (class-table sweep + 1.21.7-defect cross-checks), with no single owning rank-3 item. Method: javap -c on the named 26.2 jars (server-game 7,445 classes; client 10,952) for every vanilla method in scope; automated class cross-check of every named vanilla class against both 26.2 jars and the 26.3 client jar (39 items name 26.3-only classes, 59 tokens); data checks against the 26.2 client-jar datapack (811 tag files) and the 26.2 datagen reports; all 32 'ported' verdicts individually re-verified in the current tree; all 23 of 1.21.7 Batch 11's defects re-checked against 26.2 (only beds carries over). No cargo builds, no driver runs, no .local data used.",
+ "name": "Rank-3 items (177) \u2014 26.2's own ledger",
+ "out_of_scope_failures": "None noted for this batch. The ExecuteCommand report hole from item 419's NOTE (ExecuteCommand absent from the 26.3->26.2 diff report, non-slot differences 'covered by NO item') was CLOSED by this batch: a method-by-method bytecode comparison between the 26.2 and 26.3 jars shows the only real differences are the slots/items conditional swap (ported in item 419) and the ArgProvider/DataProvider rename (item 533).",
+ "source": "docs/PARITY-SWEEP.md \u00a74 Batch 11 \u2014 26.2's OWN 177 rank-3 items (pins/26.2/rank3-progress.json, the closed list: A 90 / B 64 / D 23), triaged against vanilla 26.2's jar/data and the 26.2 port. Checks + triage only, no fixes. The triage script + output referenced in rank3-progress.json (26.2-behaviour/rank3-triage.{py,json}) does not exist \u2014 the workdir is gone \u2014 so triage rests on the per-item evidence + jar/Rust verification.",
+ "systemic_note": "Two systemic causes recur, both inverted from 1.21.7. (1) Class-table: only 1 of 1.21.7's 9 renames carries to 26.2 \u2014 AbstractBed (B11-G01), a 26.3-leak (AbstractBedBlock exists in the 26.3 jar, not 26.2's); the other eight 26.x names match the 26.2 jar, and the port already carries the dual names for Path and RedstoneWire. Group B (StrawBed, ShelfMushroom) is 26.3-only content, harmless. (2) Tags: 26.2 HAS the 26.x tags the port reads (cauldron wash, chorus, mushroom light, snow-layer, speleothems all live in 26.2 data), so 1.21.7's tag-degradation defects do not apply; the correctly-absent tags (sculk_growth_inhibitors, potion douses_fire) are correctly handled (explicit block check; Potions.WATER equality). RE-BASE WARNING: 26.2 is 26.x where 1.21.7 is not in nine verified behaviours (trident passenger check, SwellGoal alive check, polar-bear fox age gate, lead-knot discard, mushroom/sapling bonemeal gates, trader heightmap + SavedData storage, shipwreck heightAdjusted) \u2014 do not propagate 1.21.7 forms to 26.2. The 1e-5 fluid floor is present in both 26.2 vanilla (7x in Entity) and the Rust.",
+ "version": "26.2"
+}
