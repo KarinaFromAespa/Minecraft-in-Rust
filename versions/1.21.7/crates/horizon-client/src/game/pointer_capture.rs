@@ -44,11 +44,15 @@ impl Game<'_> {
         self.turn_player(x * zoom, y * zoom);
     }
     /// `Minecraft.pause`: a single-player game with a pausing screen open.
+    /// Never while terrain is loading: the load tracker only finishes on a
+    /// running tick, and a paused server sends no chunks, so pausing mid-load
+    /// deadlocks the load behind a loading screen that hides the pause menu.
     pub(super) fn pauses_game(&self) -> bool {
         self.has_singleplayer_server()
             && !self.is_published()
             && !self.has_split_players()
             && self.title.is_none()
+            && !self.remote_loading()
             && (self.screen.is_pause_screen() || self.book.is_some() || self.win_screen_pauses())
     }
     /// A screen open over gameplay while `screen` stays `Playing`: a book or
@@ -68,13 +72,16 @@ impl Game<'_> {
     }
     /// `Minecraft.pauseIfInactive`: a window without focus for more than 500 ms
     /// pauses the game. An open screen (books, signs, the pack prompt, a server
-    /// dialog) stays instead of pausing (`Gui.setPauseScreen`).
+    /// dialog) stays instead of pausing (`Gui.setPauseScreen`). The loading
+    /// screen counts as an open screen too (`Minecraft.pauseGame` no-ops with
+    /// one up): no focus-loss pause while terrain is loading.
     pub(super) fn pause_if_inactive(&mut self) {
         if self
             .focus_lost
             .is_some_and(|t| t.elapsed() > Duration::from_millis(500))
             && self.control.is_none()
             && self.screen == Screen::Playing
+            && !self.remote_loading()
             && !studio_suppresses_focus_pause(
                 self.studio_replay.is_some(),
                 self.studio_freecam.active,

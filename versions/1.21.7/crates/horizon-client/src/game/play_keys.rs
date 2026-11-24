@@ -82,6 +82,15 @@ impl Game<'_> {
                         self.capture(false);
                         return Ok(());
                     }
+                    // LevelLoadingScreen.shouldCloseOnEsc is false: Escape
+                    // does nothing while terrain is loading, so a pause
+                    // cannot land mid-load and deadlock it (a paused server
+                    // sends no chunks, the frozen tick never finishes the
+                    // load tracker, and the loading screen hides the pause
+                    // menu, so there is no way back).
+                    if self.remote_loading() {
+                        return Ok(());
+                    }
                     self.pause_focus = None;
                     self.screen = Screen::Paused;
                     self.pause_menu = true;
