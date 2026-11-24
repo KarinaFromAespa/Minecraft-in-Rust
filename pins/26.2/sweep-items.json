@@ -1,0 +1,1290 @@
+{
+ "batches": {
+  "0": {
+   "checks": {
+    "gap": 129,
+    "pass": 262,
+    "total": 391
+   },
+   "date": "2026-11-24",
+   "name": "Oracle measurement (Batch 0, no repairs)",
+   "status": "complete"
+  },
+  "1": {
+   "checks": {
+    "gap": 2,
+    "pass": 108,
+    "total": 110
+   },
+   "date": "2026-11-24",
+   "name": "Fluids + falling blocks",
+   "status": "complete"
+  },
+  "10": {
+   "checks": {
+    "gap": 6,
+    "pass": 11,
+    "total": 17
+   },
+   "date": "2026-11-24",
+   "name": "Rendering, sound, UI",
+   "status": "complete"
+  },
+  "11": {
+   "checks": {
+    "gap": 0,
+    "pass": 175,
+    "total": 177
+   },
+   "date": "2026-11-24",
+   "name": "Rank-3 items (177) \u2014 26.2's own ledger",
+   "status": "complete"
+  },
+  "12": {
+   "checks": {
+    "gap": 102,
+    "pass": 8815,
+    "total": 8917
+   },
+   "date": "2026-11-24",
+   "name": "Data-driven registries",
+   "status": "complete"
+  },
+  "2": {
+   "checks": {
+    "gap": 3,
+    "pass": 42,
+    "total": 45
+   },
+   "date": "2026-11-24",
+   "name": "Redstone + pistons",
+   "status": "complete"
+  },
+  "3": {
+   "checks": {
+    "gap": 6,
+    "pass": 72,
+    "total": 78
+   },
+   "date": "2026-11-24",
+   "name": "Entities / mobs",
+   "status": "complete"
+  },
+  "4": {
+   "checks": {
+    "gap": 17,
+    "pass": 74,
+    "total": 91
+   },
+   "date": "2026-11-24",
+   "name": "Block entities + containers",
+   "status": "complete"
+  },
+  "5": {
+   "checks": {
+    "gap": 4,
+    "pass": 119,
+    "total": 123
+   },
+   "date": "2026-11-24",
+   "name": "Block behaviour (ticks, interaction, survival, support, updates, breaking)",
+   "status": "complete"
+  },
+  "6": {
+   "checks": {
+    "gap": 28,
+    "pass": 51,
+    "total": 79
+   },
+   "date": "2026-11-24",
+   "name": "Worldgen / features",
+   "status": "complete"
+  },
+  "7": {
+   "checks": {
+    "gap": 7,
+    "pass": 35,
+    "total": 42
+   },
+   "date": "2026-11-24",
+   "name": "Items",
+   "status": "complete"
+  },
+  "8": {
+   "checks": {
+    "gap": 5,
+    "pass": 278,
+    "total": 283
+   },
+   "date": "2026-11-24",
+   "name": "Particles",
+   "status": "complete"
+  },
+  "9": {
+   "checks": {
+    "gap": 5,
+    "pass": 16,
+    "total": 21
+   },
+   "date": "2026-11-24",
+   "name": "Commands",
+   "status": "complete"
+  }
+ },
+ "dedup": {
+  "batch0_overlap": {
+   "O1 (LocalPlayer ctor, 17 oracles)": "Per-batch records: B3-O02 (5), B8-O01 (MarkerParticles), B9-O02 (TeamRules), B10-O04 (3 sound oracles). 7 oracles (AutoJump, Camera, GameLoop, HeldDrop, InteractionInput, LocalInput, SprintInput) appear only here.",
+   "O2 (jsr305 client-libraries crash)": "Latent driver defect; no per-batch item (test_model_baking_parity.py client_libraries omits jsr305).",
+   "O3 (fuelValues + 3 missing overrides)": "Per-batch records: B3-O01 (3 fuelValues oracles), B4-O15 (BlockEntityAnim), B5-O07 (SectionMesh bake), B6-O05 (DecorationRegion/FeatureCatalog lookup).",
+   "O4 (densityfunction, 9 oracles)": "Per-batch record: B6-O01 (8 of 9; VanillaFloatLogOracle appears only here).",
+   "O5 (other 26.3-only packages)": "Per-batch records: B10-O05 (renderpearl, 5 of 7; SpriteAnimation + Translucency only here), B6-O02 (material/rule, all 3). TabList (authlib.services) and TickScript (lwjgl.sdl) appear only here.",
+   "O6 (129 fail / 147 drivers blocked)": "Headline roll-up; every per-batch oracle item is a subset of these 129.",
+   "O7 (StructureDensity unrepairable)": "Also a member of B6-O01; kept as its own item because it is unrepairable by design.",
+   "O8 (runtime layer unmeasured)": "No per-batch item; only command_parse was run end-to-end (0 mismatches, 103,743 parses)."
+  },
+  "oracle_member_folds": [
+   {
+    "canonical": "B1-O01",
+    "from_group": "B3-O04",
+    "note": "Oracle also recorded inside a later batch group item; the group item stays, this member folds into the earlier canonical item.",
+    "oracle": "VanillaRegisteredEntityFluidOracle"
+   },
+   {
+    "canonical": "B1-O05",
+    "from_group": "B3-O04",
+    "note": "Oracle also recorded inside a later batch group item; the group item stays, this member folds into the earlier canonical item.",
+    "oracle": "VanillaLivingFluidOracle"
+   },
+   {
+    "canonical": "B4-O25",
+    "from_group": "B3-O04",
+    "note": "Oracle also recorded inside a later batch group item; the group item stays, this member folds into the earlier canonical item.",
+    "oracle": "VanillaTradingOracle"
+   },
+   {
+    "canonical": "B3-O04",
+    "from_group": "B6-O04",
+    "note": "Oracle also recorded inside a later batch group item; the group item stays, this member folds into the earlier canonical item.",
+    "oracle": "VanillaWorldSpawnOracle"
+   },
+   {
+    "canonical": "B4-O14",
+    "from_group": "B6-O04",
+    "note": "Oracle also recorded inside a later batch group item; the group item stays, this member folds into the earlier canonical item.",
+    "oracle": "VanillaSculkOracle"
+   },
+   {
+    "canonical": "B3-O03",
+    "from_group": "B6-O06",
+    "note": "Oracle also recorded inside a later batch group item; the group item stays, this member folds into the earlier canonical item.",
+    "oracle": "VanillaFinalizeSpawnOracle"
+   }
+  ],
+  "whole_item_folds": [
+   {
+    "canonical": "B10-O03",
+    "duplicate": "B4-O16",
+    "note": "Same oracle defect recorded in two batches; duplicate removed from the merged list, kept in its slice."
+   },
+   {
+    "canonical": "B10-O05",
+    "duplicate": "B4-O18",
+    "note": "Same oracle defect recorded in two batches; duplicate removed from the merged list, kept in its slice."
+   },
+   {
+    "canonical": "B1-O02",
+    "duplicate": "B5-O01",
+    "note": "Same oracle defect recorded in two batches; duplicate removed from the merged list, kept in its slice."
+   },
+   {
+    "canonical": "B1-O03",
+    "duplicate": "B5-O05",
+    "note": "Same oracle defect recorded in two batches; duplicate removed from the merged list, kept in its slice."
+   },
+   {
+    "canonical": "B4-O06",
+    "duplicate": "B5-O06",
+    "note": "Same oracle defect recorded in two batches; duplicate removed from the merged list, kept in its slice."
+   },
+   {
+    "canonical": "B3-O04",
+    "duplicate": "B9-O03",
+    "note": "Same oracle defect recorded in two batches; duplicate removed from the merged list, kept in its slice."
+   }
+  ]
+ },
+ "generated_from": "docs/PARITY-SWEEP.md (branch parity-sweep); per-batch slices in pins/26.2/sweep/batch-NN.json",
+ "items": [
+  {
+   "evidence": "26.2's LocalPlayer constructor takes different arguments than 26.3's; all 17 oracles constructing a LocalPlayer with the 26.3 form fail (mostly 1 error each): VanillaAllayInteractionStateOracle, VanillaAmbientOracle, VanillaAutoJumpOracle, VanillaBoatRiderOracle, VanillaCameraOracle, VanillaFireStarterSoundOracle, VanillaGameLoopOracle, VanillaHeldDropOracle, VanillaInteractionInputOracle, VanillaLocalInputOracle, VanillaMarkerParticlesOracle, VanillaPlayerSyncOracle, VanillaRemoteAttackOracle, VanillaSheepDyeOracle, VanillaSoundEngineOracle, VanillaSprintInputOracle, VanillaTeamRulesOracle. One signature translation, verified once against the 26.2 jar, rescues all 17. No repair attempted in this batch (measurement + triage only, per the sweep brief).",
+   "fix": null,
+   "id": "O1",
+   "method": "javac fixpoint + javap",
+   "severity": "major",
+   "status": "gap",
+   "title": "LocalPlayer constructor group: 17 oracles fail on the 26.3 ctor form"
+  },
+  {
+   "evidence": "versions/26.2/tools/test_model_baking_parity.py:client_libraries() (lines 58-68) builds the client classpath from the manifest only and does not append tools/jsr305-3.0.2.jar. The 1.21.7 Batch 0 fix for the identical defect (d7a14e91) is NOT in the 26.2 tree. Without jsr305, javac crashes (rc=4, CompletionFailure: class file for javax.annotation.Nullable not found) when compiling an oracle that completes a Nullable-referencing symbol \u2014 a latent crash across the oracle_harness drivers. The measurement adds jsr305 itself, so the numbers above are unaffected. Fix direction: append jsr305 in client_libraries() \u2014 one point, fixes all users. Not fixed in this batch (measurement + triage only).",
+   "fix": null,
+   "id": "O2",
+   "method": "source read + 1.21.7 precedent (d7a14e91)",
+   "severity": "major",
+   "status": "gap",
+   "title": "Client-classpath javac crash (latent): jsr305 missing from client libraries"
+  },
+  {
+   "evidence": "26.2's Level declares public abstract FuelValues fuelValues() (javap-verified: net.minecraft.world.level.block.entity.FuelValues); the oracles' fake Level subclasses, written against 26.3, do not implement it: VanillaActiveEffectTickOracle, VanillaAttributeUpdatesOracle, VanillaBlockEntityAnimOracle, VanillaLivingLandingOracle (1 error each). Three more missing-override files have different abstract gaps: VanillaDecorationRegionOracle / VanillaFeatureCatalogOracle (anonymous classes missing a lookup override), VanillaSectionMeshOracle (Materials missing bake(Material) in MaterialBaker). Mechanical repair: add the missing override(s) per fake class. No repair attempted in this batch (measurement + triage only).",
+   "fix": null,
+   "id": "O3",
+   "method": "javac fixpoint + javap on the 26.2 server-game jar",
+   "severity": "major",
+   "status": "gap",
+   "title": "Abstract-method gaps: Level.fuelValues() (4 oracles) + 3 other missing overrides"
+  },
+  {
+   "evidence": "net.minecraft.world.level.levelgen.densityfunction has ZERO entries in the 26.2 server-game.jar (verified by jar listing) \u2014 the SamplerContext/DensityVolume API is a 26.3 addition. First-error files (7): VanillaAnchorOracle (10 errors), VanillaBiomeSourceCodecOracle, VanillaBiomeSourceOracle, VanillaFloatLogOracle, VanillaMaterialExtensionOracle, VanillaStructureDensityOracle, VanillaWorldgenOracle (42 errors). VanillaDensityOracle (247 errors, the largest single failure) and VanillaMaterialConditionOracle (76 errors) fail on the same API's symbols. Anchor blocks 7 drivers; MaterialCondition blocks 5. These need per-file translation to 26.2's actual density API, not import fixes. See O7 for StructureDensity (unrepairable by design).",
+   "fix": null,
+   "id": "O4",
+   "method": "javac fixpoint + jar listing",
+   "severity": "major",
+   "status": "gap",
+   "title": "densityfunction package absent from 26.2 (26.3-only API): 9 oracles"
+  },
+  {
+   "evidence": "com.mojang.renderpearl.api.pipeline (and .buffers) do not exist in 26.2 \u2014 the render-pipeline API is 26.3-only: VanillaHudOracle, VanillaLoomScreenOracle, VanillaPackScreenOracle, VanillaRecipeBookScreenOracle, VanillaSpriteAnimationOracle, VanillaTranslucencyOracle, VanillaWorldBorderRenderOracle (28 errors). net.minecraft.world.level.levelgen.material.rule does not exist in 26.2 (the 26.3 material-system package): VanillaBiomeGenerationOracle (12 errors), VanillaMaterialStageOracle (26), VanillaTerrainOracle (13). VanillaTabListOracle (29 errors) imports com.mojang.authlib.services, absent from the 26.2 classpath; VanillaTickScript (17 errors) imports org.lwjgl.sdl, absent likewise. All 12 need rewrites against 26.2's actual APIs, not import fixes.",
+   "fix": null,
+   "id": "O5",
+   "method": "javac fixpoint + jar listing",
+   "severity": "major",
+   "status": "gap",
+   "title": "Other 26.3-only packages: renderpearl (7), material.rule (3), authlib.services (1), lwjgl.sdl (1)"
+  },
+  {
+   "evidence": "Server cp: 217 pass / 174 fail. Client cp: 262 pass / 129 fail. Fail-on-all: 129 (33.0%; 1.21.7 pre-repair was 297, 76.0%). First-error classes (client cp): missing-symbol 51, constructor-mismatch 21, missing-package 19, no-override 13, missing-override 7, other 7, cascade 7, incompatible-types 4. Errors/file: median 2, p90 12, max 247; <=10 errors: 114 files; exactly 1 error: 46. After the O1/O3/O4/O5 groups and the 7 cascades (which pass for free once their helpers are repaired), the residual is 84 files of per-API translation: 49 missing-symbol, 13 no-override, 4 incompatible-types, 7 other, 4 other-constructor (Feature, ChunkMap, ServerChunkCache x2). Top remaining blockers: ParityFont (8 drivers, 1 error \u2014 cheapest repair in the batch), VanillaProtocolClient (8 drivers, 32 errors), LocatorBarClient (8 drivers, 10 errors), VanillaDispenserOracle (6 drivers, 1 error), KnockbackClient (4), VanillaMenuOracle (4 drivers, 1 error). 25 oracles are never referenced by any driver; 6 of them fail on all cps (lowest priority). Full table: docs/sweep/26.2/batch-0-oracles.json.",
+   "fix": null,
+   "id": "O6",
+   "method": "javac fixpoint",
+   "severity": "major",
+   "status": "gap",
+   "title": "129 oracles fail javac on all three classpaths (33.0%); 147 drivers blocked"
+  },
+  {
+   "evidence": "Imports SamplerContext/DensityVolume from net.minecraft.world.level.levelgen.densityfunction, which does not exist in 26.2 (or 1.21.7/1.21.11). No 26.2 equivalent API exists to translate to. Accepted limitation per plan section 3: density is verified via bytecode/chunk comparison instead. Do NOT force a repair.",
+   "fix": null,
+   "id": "O7",
+   "method": "javap + jar listing on the 26.2 jars",
+   "severity": "minor",
+   "status": "gap",
+   "title": "VanillaStructureDensityOracle is unrepairable against 26.2 (26.3-only densityfunction API)"
+  },
+  {
+   "evidence": "No driver was run in this batch (measurement + triage only), so the runtime-failure layer the 1.21.7 sample found (a compiling oracle throwing NullPointerException at runtime \u2014 Unsafe-allocated ClientLevel subclass) is unmeasured for 26.2. The 248 'runnable' drivers are runnable by javac only. Every repaired oracle needs an end-to-end driver run to confirm it yields a measurement; driver runs cost ~10-30 min each on this VM for the large harnesses, and client_probe builds OOM single-threaded under multi-agent load \u2014 a CI-or-quiet-window job, not a sweep-batch job.",
+   "fix": null,
+   "id": "O8",
+   "method": "1.21.7 precedent (batch-0-measurement.md section 5)",
+   "severity": "major",
+   "status": "gap",
+   "title": "Runtime-failure layer unmeasured: compiling oracles can still throw at runtime"
+  },
+  {
+   "evidence": "Vanilla 26.2 FallingBlockEntity.tick runs the landing branch at the first water cell (onGround || local5, where local5 = concrete powder && fluid is WATER tag, with a fast-fall clip check); the port's game/falling_blocks.rs fall_step has no concrete-powder water check at all and game/falling_damage.rs finish_falling_block always passes stuck_in_water=false, so powder sinks to the lakebed. The horizon-world landing branch itself (level/falling.rs falling_block_landed) matches vanilla, including the onLand replaced-state check \u2014 the fix is local to the client fall step. Carries over from pilot G2.",
+   "fix": null,
+   "id": "B1-G02",
+   "method": "javap + source comparison",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Concrete powder falling into water does not solidify on contact"
+  },
+  {
+   "evidence": "Coordinator reconciliation against the measured Batch 0 table (docs/sweep/26.2/batch-0-oracles.json): three oracles fail on the same missing symbol, BlockTags.BLOCKS_FLUID_FLOW - VanillaFluidFlowOracle (1 error, line 15), VanillaRegisteredEntityFluidOracle (2 errors, line 9), VanillaRegistryFluidOracle (3 errors, line 11). javap-verified: BlockTags has no BLOCKS_FLUID_FLOW field in the 26.2 server-game jar - it is a 26.3-only tag (this batch's own tag inventory confirms blocks_fluid_flow does not exist in 26.2's data). The port deliberately maps blocks_fluid_flow := blocks_motion for 26.2, so the repair is to bind the tag from the blocks_motion table, not to add the tag.\n\n[Merge note: Absorbs member oracle(s) VanillaRegisteredEntityFluidOracle (from B3-O04), also recorded inside a later batch group item; folded here at merge.]",
+   "fix": null,
+   "id": "B1-O01",
+   "method": "Batch 0 measurement + javap (coordinator reconciliation)",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "Three fluid oracles do not compile for 26.2: BlockTags.BLOCKS_FLUID_FLOW is 26.3-only (FluidFlow, RegisteredEntityFluid, RegistryFluid)"
+  },
+  {
+   "evidence": "Coordinator reconciliation against the measured Batch 0 table: VanillaCauldronOracle fails on all three classpaths, 1 error, missing-symbol at line 118 - the drop() override signature references net.minecraft.util.Prediction, which does not exist in the 26.2 jar (jar listing confirms; B11 section 6.5 independently lists Prediction as a 26.3-only class). The 26.2 Player.drop signature differs.\n\n[Merge note: Absorbs duplicate item(s) B5-O01 (same oracle defect, recorded again in a later batch; folded here at merge).]",
+   "fix": null,
+   "id": "B1-O02",
+   "method": "Batch 0 measurement + jar listing (coordinator reconciliation)",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaCauldronOracle does not compile for 26.2 (1 break: net.minecraft.util.Prediction is 26.3-only)"
+  },
+  {
+   "evidence": "Coordinator reconciliation against the measured Batch 0 table: VanillaFallingBlockOracle fails on all three classpaths, 1 error, constructor-mismatch at line 30 - NoopChunkMap calls super() with 12 arguments (10 nulls + 0 + false), but 26.2's ChunkMap constructor takes 13 parameters (javap-verified: ServerLevel, LevelStorageAccess, DataFixer, StructureTemplateManager, Executor, BlockableEventLoop, LightChunkGetter, ChunkGenerator, ChunkStatusUpdateListener, Supplier, TicketStorage, int, boolean). Batch 0 group G5.\n\n[Merge note: Absorbs duplicate item(s) B5-O05 (same oracle defect, recorded again in a later batch; folded here at merge).]",
+   "fix": null,
+   "id": "B1-O03",
+   "method": "Batch 0 measurement + javap (coordinator reconciliation)",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaFallingBlockOracle does not compile for 26.2 (1 break: ChunkMap constructor arity, Batch 0 G5)"
+  },
+  {
+   "evidence": "Coordinator reconciliation against the measured Batch 0 table: VanillaFluidOracle fails on all three classpaths, 1 error, missing-symbol at line 50 - the line calls state.getHeightForCamera(world, p). javap-verified: 26.2's FluidState has only getHeight(BlockGetter, BlockPos); getHeightForCamera is a 26.3-only method.",
+   "fix": null,
+   "id": "B1-O04",
+   "method": "Batch 0 measurement + javap (coordinator reconciliation)",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaFluidOracle does not compile for 26.2 (1 break: FluidState.getHeightForCamera is 26.3-only)"
+  },
+  {
+   "evidence": "Coordinator reconciliation against the measured Batch 0 table: VanillaLivingFluidOracle fails on all three classpaths, 3 errors, missing-symbol at line 50 - the line references FluidTags.ENTITY_FLOATABLE. javap-verified: 26.2's FluidTags has no ENTITY_FLOATABLE field (26.2 has only 6 fluid tags, per this batch's own inventory); it is a 26.3-only tag.\n\n[Merge note: Absorbs member oracle(s) VanillaLivingFluidOracle (from B3-O04), also recorded inside a later batch group item; folded here at merge.]",
+   "fix": null,
+   "id": "B1-O05",
+   "method": "Batch 0 measurement + javap (coordinator reconciliation)",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaLivingFluidOracle does not compile for 26.2 (3 breaks: FluidTags.ENTITY_FLOATABLE is 26.3-only)"
+  },
+  {
+   "evidence": "Vanilla 26.2 PistonBaseBlock.isPushable (net.minecraft.world.level.block.piston.PistonBaseBlock, jar-verified) bounds-checks y > maxY (320; overworld dimension_type min_y -64 + height 384) and refuses only UP-pushes from y == maxY. The port uses max_y = level.max_y() - 1 (319) at level/pistons.rs:337, so it refuses y == 320 outright and refuses UP-pushes from y == 319. A piston at y == 319 pushing up fails in the port where vanilla extends. Floor side matches vanilla exactly. 1.21.7 G10 survives in 26.2.",
+   "fix": null,
+   "id": "B2-G01",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "is_pushable Y-bound off by one at the ceiling"
+  },
+  {
+   "evidence": "tools/test_piston_shape_parity.py:63 asserts len(facts['states']) == 35723, so it fails outright on 26.2 before comparing anything. 26.2 has 32,366 states (docs/sweep/26.2/inventory.md, from the 26.2 datagen reports). The oracle (VanillaPistonShapeOracle) compiles clean against the 26.2 jars (Batch 0 measurement, all three classpaths); the driver constant is the defect. No other Batch 2 driver hardcodes 35723. 1.21.7 G13 survives in 26.2.",
+   "fix": null,
+   "id": "B2-G02",
+   "method": "driver read + data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Piston-shape driver hardcodes the 26.3 state count (35723); 26.2 has 32366"
+  },
+  {
+   "evidence": "tools/test_projectile_piston_cobweb_parity.py:16 documents in its own docstring that vanilla's second push is 0.01 higher than Horizon's, by the cobweb or not, and deliberately does not compare height. Cause unknown; recorded as a known divergence, not an accepted gap (no cause or owner established). 1.21.7 G14 survives in 26.2. (The Entity.limitPistonMovement clamp itself matches vanilla 26.2 exactly; this is about entity lift height.)",
+   "fix": null,
+   "id": "B2-G03",
+   "method": "driver read",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Documented 0.01 piston-push height divergence (vanilla's second push higher)"
+  },
+  {
+   "evidence": "Batch 0 measurement (docs/sweep/26.2/batch-0-oracles.json): fails on all three classpaths, 1 error, '188: cannot find symbol'. The symbol is datapackWorldRegistries() on the WorldLoader load-context (VanillaRedstoneCatalogOracle.java:188). 26.2's WorldLoader$DataLoadContext (jar-verified) has no such accessor \u2014 its record components are resources(), dataConfiguration(), datapackWorldgen(), datapackDimensions(); datapackWorldRegistries() is the 26.3 name. The 26.2 equivalent for the world-preset lookup is datapackDimensions(). Blocks test_redstone_catalog_parity only.",
+   "fix": null,
+   "id": "B2-O01",
+   "method": "Batch 0 measurement + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaRedstoneCatalogOracle does not compile for 26.2 (1 break: datapackWorldRegistries)"
+  },
+  {
+   "evidence": "tools/redstone_diff.py:453 defaults --resources to ROOT / '.local/horizon-client/26.3'; the docstring (line 2) says 'vanilla 26.3'. On 26.2 the default points at data that does not exist. Overridable via --resources, so minor.",
+   "fix": null,
+   "id": "B2-O02",
+   "method": "driver read",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "redstone_diff.py defaults --resources to the 26.3 path"
+  },
+  {
+   "evidence": "tools/piston_step_e2e.py:31 defaults --resources to ROOT / '.local/horizon-client/26.3'; the docstring (line 2) says 'actual vanilla 26.3 server'. Same shape as B2-O02. Overridable via --resources, so minor.",
+   "fix": null,
+   "id": "B2-O03",
+   "method": "driver read",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "piston_step_e2e.py defaults --resources to the 26.3 path"
+  },
+  {
+   "evidence": "The lever/button/torch/redstone-block weak/strong nibbles and the ticksToStayPressed values live in prepared gameplay-facts.json / block-behaviours.json, and no prepared 26.2 data exists. The logic is jar-verified (LeverBlock.getDirectSignal: powered && connected direction -> 15; ButtonBlock.press/tick/checkPressed structure; the port reads ticks_to_stay_pressed from the export at level/data.rs:1018), but the per-state values cannot be checked until a 26.2 prepare run lands. Design: prepare 26.2, then diff the nibble tables against the jar-derived expectations per state (same method as the 1.21.7 batch).",
+   "fix": null,
+   "id": "B2-H01",
+   "method": "javap + source (data missing)",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "Per-state weak/strong signal nibbles + button press times need prepared 26.2 data"
+  },
+  {
+   "evidence": "The 10 Batch 2 drivers (tick-by-tick circuits, catalog contraptions, piston push/shape/movement corpus, persistence round-trips) need (a) a 26.2 prepare run (no .local/horizon-client/26.2/ exists) and (b) the B2-O01 catalog-oracle repair. 9 of 10 drivers' oracles already compile for 26.2 (Batch 0 measurement). The static checks in this batch cover the logic; the drivers cover the corpus.",
+   "fix": null,
+   "id": "B2-H02",
+   "method": "Batch 0 measurement + driver read",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "Tick-by-tick circuit equivalence + piston corpus driver runs need prepare + oracle repair"
+  },
+  {
+   "evidence": "level/tests.rs carries redstone_lever_wire_and_lamp (:1253), levers_power_wire_through_interaction (:1734), pistons_push_and_sticky_pistons_pull (:1781) and pistons_pop_fragile_blocks_and_refuse_obsidian (:2120). The three pilot failures' root causes (1.21.7 G7/G8/G9) are all fixed in this tree, so the tests are expected to pass \u2014 but no cargo builds were allowed in this batch (shared 6 GB VM), so a test run is still needed to confirm behaviourally.",
+   "fix": null,
+   "id": "B2-H03",
+   "method": "source (no cargo run allowed)",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "The 4 level::tests need a cargo test run to confirm the G7/G8/G9 fixes behaviourally"
+  },
+  {
+   "evidence": "Vanilla 26.2 Camel.isFood = #camel_food (cactus; the tag exists in the jar's data and prepared block-tags.json). Port food_tag() (mobs/species.rs:1633) covers CamelHusk but NOT Camel; 'camel_food' appears nowhere in the port, so MobType.food is empty for camel and feeding/breeding/tempting never fire. Camels cannot breed. Carried over unchanged from 1.21.7.",
+   "fix": null,
+   "id": "B3-G05",
+   "method": "javap + source + data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Camel has no food \u2014 camels cannot breed"
+  },
+  {
+   "evidence": "Vanilla 26.2 Armadillo.getMaxHeadYRot = isScared() ? 0 : 32. Port species.rs:1712 returns 32.0 unconditionally, although the port HAS armadillo::scared(m) state (mobs/armadillo.rs:160). Carried over unchanged from 1.21.7.",
+   "fix": null,
+   "id": "B3-G06",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Armadillo scared head rotation ignored (vanilla: 0 when scared, 32 otherwise)"
+  },
+  {
+   "evidence": "Vanilla 26.2 Mob.isSunBurnTick excludes isInWaterOrRain || isInPowderSnow || wasInPowderSnow; port sun_burn_tick (mobs/ai.rs:2033) checks only in-water / in-rain although Mob has in_powder_snow state (mobs.rs:1617, updated ai.rs:1413-1414). A skeleton standing in powder snow burns in the port, not in vanilla. Carried over unchanged from 1.21.7.",
+   "fix": null,
+   "id": "B3-G09",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Sun-burn ignores powder snow (vanilla excludes isInPowderSnow || wasInPowderSnow)"
+  },
+  {
+   "evidence": "Vanilla 26.2 NaturalSpawner.getRandomPosWithin: top = getHeight(WORLD_SURFACE)+1, y = randomBetweenInclusive(minY, top) -> [minY, H+1]. Port (spawn_category_for_chunk, mobs/spawn_selection.rs:1117): y = min + nextInt(top-min+1) where top = heightmap(WorldSurface) = H -> [minY, H]. Port never picks the top value and consumes a different nextInt bound, so the RNG stream diverges for every spawn attempt. Carried over unchanged from 1.21.7.",
+   "fix": null,
+   "id": "B3-G11",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "getRandomPosWithin y-range off by one (port never picks H+1; RNG stream diverges)"
+  },
+  {
+   "evidence": "Line 66: len(facts['states']) != 35723 -> AssertionError. 26.2 has 32,366 block states, so the driver always fails. Note the 1.21.7 instance (test_suffocation_parity.py) is FIXED in 26.2: its line 68 checks 32366. The remaining 35723 hardcodes in the tree belong to other batches (see out_of_scope_failures).",
+   "fix": null,
+   "id": "B3-G19",
+   "method": "driver read",
+   "severity": "minor",
+   "status": "gap",
+   "title": "DRIVER: test_registered_entity_fluid_parity.py hardcodes the 26.3 state count 35723"
+  },
+  {
+   "evidence": "test_server_dragon_parity.py:111, test_locator_bar_parity.py:269, test_projectile_shoot.py:46, test_server_entities_parity.py:186 and test_server_knockback_parity.py:435 all build the Rust server command with lab.LOCAL / 'horizon-client/26.3'; 26.2 resources live at horizon-client/26.2. lab.RESOURCES = LOCAL / 'horizon-client' / VERSION is version-parameterised \u2014 the drivers should use it.",
+   "fix": null,
+   "id": "B3-G20",
+   "method": "driver read",
+   "severity": "minor",
+   "status": "gap",
+   "title": "DRIVER: five Batch 3 drivers hardcode the 26.3 resources path"
+  },
+  {
+   "evidence": "VanillaActiveEffectTickOracle, VanillaAttributeUpdatesOracle, VanillaLivingLandingOracle \u2014 all 'Client* Level is not abstract and does not override abstract method fuelValues() in Level' (missing-override, 1 error each, fail on all three classpaths). 26.2's Level declares public abstract FuelValues fuelValues(); the oracles' 26.3-form level stubs lack it. Batch 0 group G1.",
+   "fix": null,
+   "id": "B3-O01",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 3 oracles miss the fuelValues() override (26.2's abstract Level.fuelValues)"
+  },
+  {
+   "evidence": "VanillaAllayInteractionStateOracle (n=2), VanillaBoatRiderOracle (n=2), VanillaSheepDyeOracle (n=1), VanillaRemoteAttackOracle (n=1), VanillaPlayerSyncOracle (n=1) \u2014 all 'constructor LocalPlayer in class LocalPlayer cannot be applied to given types' (constructor-mismatch, fail on all three classpaths). 26.2's LocalPlayer constructor takes different arguments than 26.3's. Batch 0 group G2.",
+   "fix": null,
+   "id": "B3-O02",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 5 oracles construct LocalPlayer with the 26.3 form"
+  },
+  {
+   "evidence": "VanillaDamageImmunityOracle (n=2), VanillaRaidOracle (n=7), VanillaRegisteredPlayerCombatOracle (n=4), VanillaServerPlayerCombatOracle (n=4), VanillaBlockingItemDamageOracle (n=2), VanillaFinalizeSpawnOracle (n=4) \u2014 all 'method does not override or implement a method from a supertype' (no-override, fail on all three classpaths). 26.3 methods absent in 26.2.\n\n[Merge note: Absorbs member oracle(s) VanillaFinalizeSpawnOracle (from B6-O06), also recorded inside a later batch group item; folded here at merge.]",
+   "fix": null,
+   "id": "B3-O03",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 6 oracles override 26.3 methods absent in 26.2"
+  },
+  {
+   "evidence": "VanillaEntityDeathLootOracle (n=1), VanillaEntityMoveOracle (n=4), VanillaLateEntityPairOracle (n=1), VanillaRegisteredEntityFluidOracle (n=2), VanillaWorldSpawnOracle (n=5), VanillaMobAiOracle (n=2), VanillaLivingHurtOracle (n=2), VanillaLivingFluidOracle (n=3), VanillaTradingOracle (n=1), VanillaPlayerHurtOracle (n=2), VanillaPlayerInventoryOracle (n=1), EntityTranscript (n=5), LocatorBarClient (n=10), KnockbackClient (n=4), RideTranscript (n=2) \u2014 all 'cannot find symbol' (missing-symbol, fail on all three classpaths).\n\n[Merge note: Absorbs duplicate item(s) B9-O03 (same oracle defect, recorded again in a later batch; folded here at merge). Member oracle(s) folded into earlier canonical items at merge: VanillaRegisteredEntityFluidOracle -> B1-O01; VanillaLivingFluidOracle -> B1-O05; VanillaTradingOracle -> B4-O25. The remaining oracles in this group are first records here. Absorbs member oracle(s) VanillaWorldSpawnOracle (from B6-O04), also recorded inside a later batch group item; folded here at merge.]",
+   "fix": null,
+   "id": "B3-O04",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 15 oracles reference missing 26.x API symbols"
+  },
+  {
+   "evidence": "VanillaBoatAuthorityOracle \u2014 'depends on broken: VanillaRemoteAttackOracle' (cascade, fail on all three classpaths). Unblocks when B3-O02's VanillaRemoteAttackOracle is repaired.",
+   "fix": null,
+   "id": "B3-O05",
+   "method": "batch-0-oracles.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ORACLE: 1 oracle cascades on the broken RemoteAttack oracle"
+  },
+  {
+   "evidence": "horizon-client/src/game/machines.rs:941 hoppers_catch_items tests the narrow INSIDE bowl (0.125..0.875, 11/16..1) while vanilla 26.2 HopperBlockEntity.entityInside uses getSuckAabb() = Block.column(16,11,32) -> (0, 11/16, 0)-(1, 2, 1) (server-game.jar). Tick path covers the full AABB, so pickup is at most 1-2 ticks late, never missed. Unchanged from 1.21.7.",
+   "fix": null,
+   "id": "B4-G08",
+   "method": "",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Hopper entity-catch uses the narrow bowl, not the full SUCK_AABB"
+  },
+  {
+   "evidence": "crafter_eject (horizon-client/src/game/machines/crafter.rs:144) consults only the block-only Containers::view (machines.rs:213, returns None without a block entity), while vanilla 26.2 dispense uses HopperBlockEntity.getContainerAt (block container, else getEntityContainer). Hopper/dropper have the entity_container_at fallback (machines.rs:1274); the crafter lacks it. Result drops as an item instead. Unchanged from 1.21.7.",
+   "fix": null,
+   "id": "B4-G09",
+   "method": "",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Crafter never ejects into container entities"
+  },
+  {
+   "evidence": "crafter_eject trigger block (machines/crafter.rs:180-205) checks only self.player against the 17-box; vanilla 26.2 CrafterBlock.dispenseItem triggers ALL ServerPlayers in AABB.ofSize(center, 17, 17, 17) (server-game.jar). Geometry (8.5 half-extent strict intersects) matches for the host; LAN guests in range miss the trigger. Unchanged from 1.21.7.",
+   "fix": null,
+   "id": "B4-G10",
+   "method": "",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Crafter recipe_crafted trigger fires only for the host player (LAN)"
+  },
+  {
+   "evidence": "open_ender_chest (horizon-client/src/game/storage.rs:157-163) swaps the HOST's ender_items into the shared block BE; close (storage.rs:217) copies back and leaves an empty Chest(27). A LAN guest sees the host's items (while the host has it open) or an empty chest, never their own EnderItems. Single-player correct. storage.rs has 0 changed lines vs 1.21.7.",
+   "fix": null,
+   "id": "B4-G14",
+   "method": "",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Ender chest shows the wrong inventory to LAN guests"
+  },
+  {
+   "evidence": "BlockEntity::for_block returns None for minecraft:decorated_pot (no branch in containers.rs:376-516, no container_size entry at containers.rs:320-332), but vanilla 26.2 HAS the minecraft:decorated_pot BE type (DecoratedPotBlockEntity implements ContainerSingleItem$BlockContainerSingleItem, 1-slot container). Hopper insert/extract, dropper insert and comparator reads fail; chunk saves carry no pot BEs (port keeps pot item+sherds in a spill tag). Manual insert via use_decorated_pot works. In test_pot_hopper's scope (still a gap).",
+   "fix": null,
+   "id": "B4-G15",
+   "method": "",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Hoppers/droppers cannot see decorated pots; port has no pot block entity"
+  },
+  {
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaDispenserOracle FAILS on all three classpaths, no-override, 1 error (360: method does not override or implement a method from a supertype). Blocks test_dispenser and test_crafter in this batch, plus block_removal, composter, mace, use_item_on sweep-wide (6 drivers).\n\n[Merge note: Absorbs duplicate item(s) B5-O06 (same oracle defect, recorded again in a later batch; folded here at merge).]",
+   "fix": null,
+   "id": "B4-O06",
+   "method": "",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "VanillaDispenserOracle does not compile against 26.2 jars"
+  },
+  {
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaMenuOracle FAILS on all three classpaths, missing-symbol, 1 error (138: cannot find symbol). Shared dependency: blocks test_menu_click directly and test_recipe_book, test_place_recipe, test_ghost_recipe via cascades (4 drivers).",
+   "fix": null,
+   "id": "B4-O08",
+   "method": "",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "VanillaMenuOracle does not compile against 26.2 jars"
+  },
+  {
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaRecipeBookOracle fails as a cascade on broken VanillaMenuOracle. Blocks test_recipe_book. Repaired by the same fix as B4-O08.",
+   "fix": null,
+   "id": "B4-O09",
+   "method": "",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaRecipeBookOracle blocked by VanillaMenuOracle"
+  },
+  {
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaPlaceRecipeOracle fails as a cascade on broken VanillaMenuOracle. Blocks test_place_recipe. Repaired by the same fix as B4-O08.",
+   "fix": null,
+   "id": "B4-O10",
+   "method": "",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaPlaceRecipeOracle blocked by VanillaMenuOracle"
+  },
+  {
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaSculkOracle FAILS on all three classpaths, missing-symbol, 4 errors (327: cannot find symbol). Blocks test_sculk. Down from 60 errors in 1.21.7.\n\n[Merge note: Absorbs member oracle(s) VanillaSculkOracle (from B6-O04), also recorded inside a later batch group item; folded here at merge.]",
+   "fix": null,
+   "id": "B4-O14",
+   "method": "",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaSculkOracle does not compile against 26.2 jars"
+  },
+  {
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaBlockEntityAnimOracle FAILS on all three classpaths, missing-override, 1 error (102: World is not abstract and does not override abstract method fuelValues() in Level). Batch 0 group G1: the fake level lacks fuelValues(). Blocks test_block_entity_anim.",
+   "fix": null,
+   "id": "B4-O15",
+   "method": "",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaBlockEntityAnimOracle fake level lacks fuelValues()"
+  },
+  {
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaTradingOracle FAILS on all three classpaths, missing-symbol, 1 error (254: cannot find symbol). Blocks test_trading.\n\n[Merge note: Absorbs member oracle(s) VanillaTradingOracle (from B3-O04), also recorded inside a later batch group item; folded here at merge.]",
+   "fix": null,
+   "id": "B4-O25",
+   "method": "",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaTradingOracle does not compile against 26.2 jars"
+  },
+  {
+   "evidence": "Batch 0 measured (docs/sweep/26.2/batch-0-oracles.json): VanillaGhostRecipeOracle FAILS on all three classpaths, missing-symbol, 1 error (56: cannot find symbol). Blocks test_ghost_recipe (which also needs VanillaMenuOracle).",
+   "fix": null,
+   "id": "B4-O26",
+   "method": "",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaGhostRecipeOracle does not compile against 26.2 jars"
+  },
+  {
+   "evidence": "Vanilla 26.2 HAS bonemeal height gates (unlike 1.21.7): SaplingBlock.isValidBonemealTarget = ServerLevel && isInsideBuildHeight(pos.above(getMinimumHeight)); AzaleaBlock = same + 2 and fluid above empty; MushroomBlock = feature exists && AbstractHugeMushroomFeature && HugeMushroomFeatureConfiguration && isInsideBuildHeight(pos.above(4+foliageRadius)). The port's bonemeal_valid (bonemeal.rs:331-360) matches in form, but tree_minimum_height (growth.rs:437) reads json[\"trunk_placer\"][\"base_height\"] at the JSON top level while the stored feature JSON (verified in .local/horizon-client/26.2/worldgen/features.json) nests it under config \u2014 configured_json (worldgen/live.rs:234) returns the raw whole feature JSON {\"type\":..., \"config\": {...}} \u2014 so it always returns 0. Vanilla trunk base heights: oak 4, spruce 5, mangrove 2, azalea 4, birch 5, jungle 4, acacia 5, cherry 7 (dark/pale oak have no primary tree, correct by luck). Same nesting bug for mushrooms: the port reads json[\"foliage_radius\"] top-level (bonemeal.rs:343) but it lives under config (brown=3, red absent, default 2); the port always uses 2 \u2014 red correct by luck, brown's gate is pos.y+6 instead of pos.y+7. isBonemealSuccess (sapling/azalea 0.45, mushroom/fungus 0.4) matches vanilla exactly. The 1.21.7 over-strict form (refusing a lone dark/pale oak sapling) is GONE \u2014 the port comment explicitly says canGrow is 26.3-only. Fix note: read config.trunk_placer.base_height and config.foliage_radius (configured_json's only other caller is the mushroom check).",
+   "fix": null,
+   "id": "B5-G15",
+   "method": "javap + source + data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Bonemeal validity too permissive at the build ceiling: sapling/azalea/mushroom height gates read the wrong JSON level (MUTATED from 1.21.7)"
+  },
+  {
+   "evidence": "Vanilla PointedDripstoneBlock.canGrow requires the fluid at pos.above(2) to be WATER and a source (isSource()). The port (speleothem.rs:104-107) checks only fluid.kind() == FluidKind::Water. Flowing water two blocks above the stalactite start lets dripstone grow in the port, not in vanilla. The rest of the speleothem logic matches exactly (growth chance 0.011377778, canGrow via link/blockToGrowOn, max length 2 sulfur / 7 dripstone, 50/50 grow-down vs stalagmite-below, maybeTransferFluid probabilities, falling-stalactite damage max(1+pos.y-fall.y, 6)).",
+   "fix": null,
+   "id": "B5-G16",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Dripstone grows under flowing water (missing isSource check in canGrow)"
+  },
+  {
+   "evidence": "Vanilla ChorusFlowerBlock.randomTick proceeds when above.y <= getMaxY() (320) \u2014 bytecode if_icmple 28. The port (tick.rs:1425, chorus_flower_random_tick) returns early when above_pos.y > max_y() - 1, i.e. above.y >= 320. A flower at pos.y == 319: vanilla still ages/branches (horizontal targets at y=319 are in-bounds); the port returns early and the flower stays forever young. The rest of the chorus logic matches exactly (age<5, support/pillar logic, height < 2 || height <= rand(5 or 4), grow-up with allNeighborsEmpty + empty at +2, branch attempts rand(4) + pillar?1:0, events 1033/1034, age-5 death). Note: the analogous vine up-branch guard (pos.y < max_y() - 1 vs vanilla pos.y < maxY) is NOT a defect \u2014 at y=319 vanilla's up-branch has no observable effect either (no block can exist at y=320 to attach to).",
+   "fix": null,
+   "id": "B5-G17",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Chorus flower never ticks at the build ceiling (off-by-one: > max_y()-1 vs <= maxY)"
+  },
+  {
+   "evidence": "Vanilla BellBlock.isProperHit (bytecode read in full) requires click_y > 0.8123999834060669 (hit the upper part of the bell) plus a non-Y face plus attachment/axis rules (floor: facing axis == hit axis; single/double wall: axes differ; ceiling: always). The port (redstone.rs:1432, bell_hit) requires click_y <= 0.8124f32 \u2014 inverted. Hits at the top ring ring in vanilla but not in the port; hits at the bottom ring ring in the port but not in vanilla. The attachment/axis arms match; bell_ring (block event 1 + sound volume 2.0 pitch 1.0 + BLOCK_CHANGE) matches vanilla attemptToRing (null direction falls back to facing; the port passes facing directly \u2014 same result). Bell neighborChanged (powered toggle + ring), placement, survive and updateShape all match.",
+   "fix": null,
+   "id": "B5-G18",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Bell isProperHit height comparison inverted (rings on low hits, not high hits)"
+  },
+  {
+   "evidence": "Batch 0 ledger (measured Nov 24, 2026): FAIL, 4 errors, missing-override, line 84. The oracle's Materials extends MaterialBaker overrides get(Material, ModelDebugName) (concrete in the base) but never implements the abstract bake(Material); 26.2's MaterialBaker lives at net.minecraft.client.resources.model.sprite.MaterialBaker (client jar) with protected abstract Material.Baked bake(Material) and a 1-arg ctor MaterialBaker(TextureAtlasSprite) (the oracle calls super(atlas, atlas)). NEW cause vs 1.21.7 (whose cause was blaze3d). VanillaBreakingModelOracle FAILs as a cascade via VanillaSectionMeshOracle (Batch 0 group G8) \u2014 no independent defect. Blocks test_breaking_model_parity.py.",
+   "fix": null,
+   "id": "B5-O07",
+   "method": "javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaSectionMeshOracle: MaterialBaker abstract bake(Material) not implemented; VanillaBreakingModelOracle cascades"
+  },
+  {
+   "evidence": "26.2 worldgen/sculk.rs decodes catalyst_chance, extra_rare_growths, catalyst (default sculk_catalyst state) and shrieker (default + can_summon=true), and place() implements the full tail, verified line-by-line against the 26.2 jar SculkPatchFeature.place bytecode: nextFloat() <= catalystChance + below collision-full -> catalyst at origin, flag 3; then extraRareGrowths.sample x origin.offset(nextInt(5)-2, 0, nextInt(5)-2) air-above-face-sturdy -> shrieker, flag 3; catalyst roll before the growth sample (same RNG order). canSpreadFrom also matches. The vanilla 26.2 reference world contains no deep dark (0 sculk blocks), so no world-side catalyst count exists to re-measure; the withdrawal rests on the code-vs-jar verification.",
+   "fix": null,
+   "id": "B6-G01",
+   "method": "javap + source (re-check of 1.21.7 defect)",
+   "severity": "major",
+   "status": "fixed",
+   "title": "sculk_patch catalyst / extra rare growths tail is implemented in 26.2 (1.21.7 defect withdrawn)"
+  },
+  {
+   "evidence": "Mechanism root-caused and verified closed. Vanilla 26.2 SnowLayerBlock.canSurvive returns false when the block below is in #cannot_support_snow_layer (jar tag: ice, packed_ice, barrier). The port's Rule::SnowLayer (block_survival.rs) implements the same three steps (deny tag -> allow tag support_override_snow_layer -> face-full collision UP or same-block layers==8), reachable via both block_survives paths, and the 26.2 prepared data contains the tag with exactly the jar's members. SnowAndFreezeFeature.place and Biome.shouldSnow/shouldFreeze match the jar step by step. The snow path is byte-identical between the 1.21.7 and 26.2 trees, so the 1.21.7 +7.6% measurement is not explained by a code difference; the likely explanation is stale prepared tag data on the laptop at generation time (tag_states silently yields an empty set for a missing tag). Caveat: no frozen_peaks biome in the 26.2 reference world and no port world, so the figure cannot be re-measured; live confirmation is B6-H.",
+   "fix": null,
+   "id": "B6-G02",
+   "method": "javap + source + prepared data (re-check of 1.21.7 defect)",
+   "severity": "major",
+   "status": "fixed",
+   "title": "Snow-on-packed-ice mechanism verified closed in 26.2 (1.21.7 defect withdrawn)"
+  },
+  {
+   "evidence": "The 1.21.7 world comparison (2026-11-22, 4,145 paired chunks, both post-decorate) measured water -1.04% underground with surface water matching; never root-caused. This batch did the full noise-based aquifer audit the 1.21.7 batch did not do and found NO divergence: computeFluid (13 SURFACE_OFFSETS, preliminarySurfaceLevel+8, center/above picker logic, minimum over raw surface), computeSurfaceLevel (deep-dark exclusion synthesized from erosion/depth matching OverworldBiomeBuilder.isDeepDarkRegion, clampedMap factor, thresholds -0.3->0.8 flooded / -0.8->0.4 dry), computeRandomizedFluidSurfaceLevel (floorDiv 16/40/16, base floorDiv(y,40)*40+20, spread x10 quantized by 3), computeFluidType (lava gate, |lavaNoise|>0.3), calculatePressure, similarity = 1-(b-a)/25, FLOWING_UPDATE_SIMILARITY = 1-44/25, grid constants, fluid picker. The aquifer code is effectively identical between the 1.21.7 and 26.2 trees (only diff: a test helper's f32->f64 return type). Cannot be re-measured for 26.2 (no port world on the VM); vanilla-side water is 6,227,889 blocks over 6,018 chunks. Status open; measurement deferred to B6-H.",
+   "fix": null,
+   "id": "B6-G03",
+   "method": "javap + source (re-check of 1.21.7 defect; full aquifer audit)",
+   "severity": "major",
+   "status": "gap",
+   "title": "Underground water deficit (-1.04% in 1.21.7) carried over unverified; aquifer core matches the 26.2 jar"
+  },
+  {
+   "evidence": "PoolPiece::save (structure/jigsaw.rs) goes through legacy::piece_tag(\"minecraft:jigsaw\", bbox, None, 0), which writes (\"GD\", Tag::Int(gen_depth)) \u2014 GD=0 present, matching vanilla's base StructurePiece serialization. Reference world confirms the vanilla form: trial chambers 1,112/1,112 pieces GD=0, trail ruins 17/17 GD=0, mineshaft GD 0-9 by corridor depth, with ground_level_delta the live propagated value (trial chambers -46..+18, trail ruins -12..+11).",
+   "fix": null,
+   "id": "B6-G04",
+   "method": "source + vanilla NBT (re-check of 1.21.7 defect)",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "PoolPiece NBT writes the GD (genDepth) key in 26.2 (1.21.7 defect withdrawn)"
+  },
+  {
+   "evidence": "Two sites in worldgen/sculk.rs use the WATER_SOURCE flag where vanilla 26.2 tests whether the fluid IS water (any water, including flowing): (1) attempt_spread_vein, Default branch \u2014 vanilla regrows the vein when the cursor cell is air OR any water (fluidState.is(WATER)); the port requires a water source. (2) can_place_growth, above-open gate \u2014 vanilla accepts air or any water above; the port requires a water source. Verified against the 26.2 jar SculkPatchFeature/SculkSpreader bytecode. Impact confined to sculk patch generation adjacent to flowing water (underground waterfalls / lake edges in the deep dark). No RNG-stream effect (no random calls in either gate). Same root pattern at both sites, so one fix covers both. The rest of the sculk spreader core was verified faithful (constants, post-move 15-block check, all three behaviours, canPlaceGrowth box, onDischarged, valid_movement, MultifaceSpreader equivalence).",
+   "fix": null,
+   "id": "B6-G05",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Sculk spreader water gates narrowed to water sources (attempt_spread_vein, can_place_growth)"
+  },
+  {
+   "evidence": "Batch 0 measured table (2026-11-24): VanillaAnchorOracle, VanillaBiomeSourceCodecOracle, VanillaBiomeSourceOracle, VanillaDensityOracle, VanillaMaterialConditionOracle, VanillaMaterialExtensionOracle, VanillaStructureDensityOracle, VanillaWorldgenOracle fail on the 26.3-only densityfunction package (absent from 26.2). Blocks biome_source_codec, biome_source, density, material_condition, material_extension, material_rule_library, material_stage, structure_density, worldgen. VanillaStructureDensityOracle is UNREPAIRABLE against 26.2 per the brief (26.3-only SamplerContext/DensityVolume API) \u2014 density is verified via bytecode/chunk comparison. The other seven need A3-style rewrites against 26.2's own density API.",
+   "fix": null,
+   "id": "B6-O01",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "major",
+   "status": "gap",
+   "title": "Oracles reference the 26.3-only densityfunction package (missing in 26.2, 8 oracles)"
+  },
+  {
+   "evidence": "Batch 0 measured table: VanillaBiomeGenerationOracle, VanillaMaterialStageOracle, VanillaTerrainOracle fail 'package net.minecraft.world.level.levelgen.material.rule does not exist'. Blocks biome_generation, material_stage, terrain. 26.2's material rules/conditions are code-only (no registry resources); oracle rewrite needed against the 26.2 API.",
+   "fix": null,
+   "id": "B6-O02",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "major",
+   "status": "gap",
+   "title": "Oracles reference the missing material/rule package (3 oracles)"
+  },
+  {
+   "evidence": "Batch 0 measured table: VanillaDecorationOracle fails on the 26.3 Feature constructor signature ('constructor Feature in class Feature<FC> cannot be applied to given types'). Blocks decoration. Small in-family repair: adapt the constructor call to the 26.2 Feature signature (javap-verified).",
+   "fix": null,
+   "id": "B6-O03",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "major",
+   "status": "gap",
+   "title": "Oracle uses the 26.3 Feature constructor signature (1 oracle)"
+  },
+  {
+   "evidence": "Batch 0 measured table, all 'cannot find symbol': VanillaBiomeChunkOracle, VanillaChunkStageOracle, VanillaCushionPlacementOracle, VanillaFeatureGraphOracle, VanillaFeatureRegionOracle, VanillaMaterialSurfaceOracle, VanillaSculkOracle, VanillaTreeFeatureOracle, VanillaWorldSpawnOracle. Blocks biome_chunk, chunk_stage, retrogen_chunk, cushion_placement, feature_graph, feature_region, material_surface, sculk, tree_feature, world_spawn. Each needs its missing symbol javap-checked against the 26.2 jar and the oracle adapted; sizes vary, none yet attempted.\n\n[Merge note: Member oracle(s) folded into earlier canonical items at merge: VanillaWorldSpawnOracle -> B3-O04; VanillaSculkOracle -> B4-O14. The remaining oracles in this group are first records here.]",
+   "fix": null,
+   "id": "B6-O04",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "major",
+   "status": "gap",
+   "title": "Oracles fail on missing symbols (26.x API drift, 9 oracles)"
+  },
+  {
+   "evidence": "Batch 0 measured table: VanillaDecorationRegionOracle and VanillaFeatureCatalogOracle fail on a missing-override 'lookup' (method does not override or implement a method from a supertype). Blocks decoration_region, feature_catalog. Oracle rewrite needed against the 26.2 lookup API.",
+   "fix": null,
+   "id": "B6-O05",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "major",
+   "status": "gap",
+   "title": "Oracles fail on missing-override lookup (2 oracles)"
+  },
+  {
+   "evidence": "Batch 0 measured table: VanillaBiomeZoomOracle (BiomeManager.getBiome signature), VanillaStructureStartOracle (NoiseGeneratorSettings.create), VanillaFinalizeSpawnOracle (no-override). Blocks biome_zoom, structure_start_nbt, finalize_spawn. Each needs its signature/factory javap-checked against the 26.2 jar and the oracle adapted.\n\n[Merge note: Member oracle(s) folded into earlier canonical items at merge: VanillaFinalizeSpawnOracle -> B3-O03. The remaining oracles in this group are first records here.]",
+   "fix": null,
+   "id": "B6-O06",
+   "method": "Batch 0 oracle-status triage",
+   "severity": "major",
+   "status": "gap",
+   "title": "Oracles fail on other signature / factory / no-override issues (3 oracles)"
+  },
+  {
+   "evidence": "No port world exists for 26.2 on the VM (26.2 was played on the laptop). When a port world is generated at the reference seed -1514548643533799951, compare it against the vanilla '26.2 World' (6,018 chunks, 3,002 minecraft:full) with the STAGE RULE: the port's generate_proto output is terrain-level (before structure placement/decoration); vanilla region files are post-decorate. Direct comparison is only valid where structure templates contain no air (ancient city: 0 air) \u2014 trial chambers/villages carve air during placement, so a terrain-vs-post-decorate gap there is a measurement artifact, not a density bug. Compare post-decorate to post-decorate for blocks, terrain-level to terrain-level for density. This is the live confirmation for B6-G02 (withdrawn on static evidence), the re-measurement for B6-G03, and the first 26.2 biome/height/cave-air agreement numbers. Vanilla-side ground truth is recorded in evidence/world-26.2-census.json.",
+   "fix": null,
+   "id": "B6-H",
+   "method": "needs-harness (paired chunk comparison)",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "Paired port-vs-vanilla chunk comparison for 26.2 (stage rule applies)"
+  },
+  {
+   "evidence": "Vanilla 26.2 SpawnEggItem.getType reads the entity_data component's typed type() and spawns THAT type (javap-verified); the Rust derives the type from the item name only (trim_end_matches(\"_spawn_egg\")) and spawn_egg_entity_data returns None when the data's id names a different type. Commands/op-only edge. Persists from 1.21.7 (same defect, different jar mechanism: TypedEntityData.type() in 26.2 vs CustomData.parseEntityType in 1.21.7).",
+   "fix": null,
+   "id": "B7-G03",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Spawn egg entity_data id type override ignored"
+  },
+  {
+   "evidence": "Vanilla 26.2 EntityType.spawn calls Mob.playAmbientSound() after addFreshEntityWithPassengers (javap-verified). The Rust's spawn_mob_spawned / use_spawn_egg play no sound; ambient sounds only come from the periodic Mob.baseTick timer later. Persists from 1.21.7.",
+   "fix": null,
+   "id": "B7-G06",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "No Mob.playAmbientSound() on spawn-egg placement"
+  },
+  {
+   "evidence": "Vanilla 26.2 BoatItem.use returns PASS when the player's eye is inside a pickable entity's inflated bounding box (entities in the player bbox expanded 5.0 along the view + inflate 1.0; javap-verified). The Rust's boat_to_place only checks the boat's own bbox (unobstructed + boat_entity_collision, which checks the boat's bbox vs entities, not the eye). Edge case: standing inside a mob while placing a boat \u2014 the Rust places where vanilla passes. Persists from 1.21.7.",
+   "fix": null,
+   "id": "B7-G12",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Boat placement missing the eye-inside-entity PASS check"
+  },
+  {
+   "evidence": "Rust block_transform (game.rs:7895-7903) returns None when the offhand holds a blocks_attacks item and the player is not sneaking, for axe, hoe AND shovel. Vanilla's playerHasBlockingItemUseIntent is axe-only (javap-verified: present only in AxeItem; requires hand == MAIN_HAND + offhand has BLOCKS_ATTACKS + not secondary-use-active; no such check in HoeItem/ShovelItem). The Rust also does not check the acting hand is the main hand. Latent note in 1.21.7 (unobservable while the transformer was dead); observable in 26.2 now the transformer is live: a shield in the off hand blocks hoe tilling and shovel path-making/flattening where vanilla tills/flattens.",
+   "fix": null,
+   "id": "B7-G13",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Shield blocking-intent check (axe-only in vanilla) also blocks hoe/shovel transforms, and ignores the acting hand"
+  },
+  {
+   "evidence": "Rust use_block_transformer fires item_used_on_block (game.rs:7945) for ALL transforms, and use_campfire_douse fires it too (campfire_douse.rs:102). Vanilla 26.2 fires ITEM_USED_ON_BLOCK only in AxeItem.useOn (1 reference, javap-verified); HoeItem and ShovelItem have zero trigger references, and ItemStack.useOn does not fire it either (it only awards the ITEM_USED stat on Success). Hoe tilling, shovel flattening and shovel campfire dousing incorrectly trigger the advancement criterion in the port.",
+   "fix": null,
+   "id": "B7-G14",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ITEM_USED_ON_BLOCK trigger fired for hoe till, shovel flatten and shovel campfire douse; vanilla fires it only for the axe"
+  },
+  {
+   "evidence": "Rust transform_copper_chest_neighbour (game.rs:7980-8019) posts a BLOCK_CHANGE game event AND the scrape/wax-off level event (3004/3005) at the NEIGHBOUR half of a double copper chest. Vanilla 26.2 AxeItem.useOn sends the level event and BLOCK_CHANGE only at the clicked position (javap-verified). The neighbour particle + sculk-visible BLOCK_CHANGE is 26.3 BlockTransformer COPPER_CHEST behaviour (transform_type == \"copper_chest\", block_transform.rs:201,309,315) leaking into the 26.2 port.",
+   "fix": null,
+   "id": "B7-G15",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Copper-chest scrape/wax-off posts a BLOCK_CHANGE + level event at the neighbour half (26.3 COPPER_CHEST behaviour)"
+  },
+  {
+   "evidence": "Vanilla 26.2 ItemStack.use calls applyAfterUseComponentSideEffects for instant-use items (use duration <= 0) on Success, applying USE_REMAINDER and USE_COOLDOWN (javap-verified). items.json: ender_pearl 1.0s, wind_charge 0.5s. The port applies no cooldown on the throw path, implementing the opposite belief in four places (game/creatures.rs:7432, game/remote.rs:9327, game/using_item.rs:26: \"26.2's ItemStack.use does not apply the use_cooldown component (26.3 added the side-effects call)\" \u2014 the premise is wrong for 26.2; the side-effects call IS in 26.2's ItemStack.use). The cooldown gate itself exists but is never armed for pearls/wind charges, so they can be spammed. Chorus fruit is unaffected (timed consume; cooldown applies at finishUsingItem, which the port handles). No instant-use item has a use_remainder, so only the cooldown half bites.",
+   "fix": null,
+   "id": "B7-G16",
+   "method": "javap + source + data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Thrown ender pearls / wind charges start no use_cooldown; vanilla 26.2 applies it in ItemStack.use"
+  },
+  {
+   "evidence": "Vanilla 26.2 registers ELDER_GUARDIAN (SimpleParticleType, wire id 24, overrideLimiter=true) with a dedicated ElderGuardianParticle$Provider (ParticleResources.registerProviders, 26.2 has its own ElderGuardianParticle class) and spawns it on game event GUARDIAN_ELDER_EFFECT (ClientPacketListener.handleGameEvent, addParticle at the player position, bytecode offset 536). The port's ParticleType enum (127 variants) lacks it, so received_particle drops server-sent elder_guardian packets (lan_particles.rs:482), /particle rejects it (particle.notFound, world_cmds.rs:770), and override_limiter() misses it (32 vanilla vs 31 Rust). Unlike 1.21.7, the 26.2 providers driver does NOT send elder_guardian cases (omitted from SIMPLE), so the defect blocks no driver here \u2014 it silently skips the type. The in-game curse apparition IS re-implemented via game event 10 + elder_apparition_geometry (30-tick lifetime, mob_blocks.rs:70/79), so the main visible path works through a different mechanism (fidelity unverified).",
+   "fix": null,
+   "id": "B8-G01",
+   "method": "javap + class-file parse + source + data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "elder_guardian has no port implementation at all: no ParticleType variant, no engine provider, no limiter entry (recurs from 1.21.7)"
+  },
+  {
+   "evidence": "Particle::read decodes wire id 49 (flash, verified against the 26.2 registry) as Color(i32) \u2014 a flash particle always carries a colour \u2014 but hub_particle has no Flash arm in its Color match (EntityEffect | TintedLeaves only, lan_particles.rs:431), so the packet is built with data None and Particle::write (writes data by presence, not id) emits the id with no colour bytes; guests reading id 49 consume the next 4 stream bytes as the colour and desync. Reachable only via /particle flash on a LAN host (cmd_particle builds ParticleOptions::simple(Flash), world_cmds.rs:881; Flash is otherwise created client-side only, in firework explosions, particles.rs:3739); the local player draws directly and is unaffected.",
+   "fix": null,
+   "id": "B8-G02",
+   "method": "source + jar registry",
+   "severity": "minor",
+   "status": "gap",
+   "title": "/particle minecraft:flash sends a malformed packet to LAN guests (recurs from 1.21.7)"
+  },
+  {
+   "evidence": "Vanilla 26.2 registers SPRUCE_LEAVES as TintedParticleLeavesBlock with leafParticleChance 0.01 (Blocks.class: BlockItemIds.SPRUCE_LEAVES -> lambda$static$27 -> TintedParticleLeavesBlock(0.01F); LeavesBlock.animateTick rolls nextFloat() < chance). The port maps spruce_leaves to Animate::Leaves(None, None) \u2014 no falling particle (animate_tick.rs:149). All 10 other leaf blocks match vanilla (cherry 0.1, pale oak 0.02, rest tinted 0.01; azalea fixed colour -9399763 matches exactly). The marker driver would fail its spruce zoo cases (oracle emits, probe emits none); the driver's own comment ('the spruce that never falls') encodes the same wrong belief and needs correcting with the fix.",
+   "fix": null,
+   "id": "B8-G03",
+   "method": "javap + class-file parse + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Spruce leaves never drop falling-leaf particles (recurs from 1.21.7)"
+  },
+  {
+   "evidence": "The port implements vibration end to end (Particle::read id 55, hub_particle arm, make() arm) and the providers oracle's options() handles it, but the providers driver's kind set never sends a vibration case, so the vibration provider's numerics have no driver coverage. Add vibration cases (target + duration) to test_particle_providers_parity.py.",
+   "fix": null,
+   "id": "B8-H01",
+   "method": "source + driver",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "Providers driver omits vibration: no driver coverage for the vibration provider"
+  },
+  {
+   "evidence": "The providers driver's SIMPLE list carries red/orange/yellow_poplar_leaves, which are not in the 26.2 registry (26.3-only). The oracle resolves kinds by registry name and throws AssertionError('unknown particle ' + id) for an unregistered type (VanillaParticleProvidersOracle.java:131), so the driver cannot run against the 26.2 oracle as-is \u2014 it would die on the first poplar case (12 cases per kind). Trim the 3 kinds for 26.2.",
+   "fix": null,
+   "id": "B8-H02",
+   "method": "source + driver + jar registry",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "Providers driver includes 3 poplar leaves (26.3-only); oracle throws on them against the 26.2 registry"
+  },
+  {
+   "evidence": "The marker driver's zoo_states() sends red_poplar_leaves[distance=3,...] cases, but no such block exists in 26.2 (verified against registries.json) \u2014 the oracle cannot build that world. The port is correct to have no classify arm for it (26.2 has no poplar trees; animate_tick.rs:40-41). Trim the zoo case for 26.2.",
+   "fix": null,
+   "id": "B8-H03",
+   "method": "source + driver + jar registry",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "Marker driver zoo includes red_poplar_leaves (26.3-only block)"
+  },
+  {
+   "evidence": "zombie_nautilus and camel_husk are real 26.2 entity types and both inherit the 6/7/18 bursts (ZombieNautilus extends AbstractNautilus extends TamableAnimal; CamelHusk extends Camel extends AbstractHorse \u2014 verified by javap on the 26.2 jar), and the port's entity_event_burst covers them via its tamable/horse sets, but the entity driver's EVENTS table has no entries for them (6 untested pairs). Add them to test_entity_particles_parity.py.",
+   "fix": null,
+   "id": "B8-H04",
+   "method": "javap + source + driver",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "Entity driver omits live 26.2 entities zombie_nautilus and camel_husk"
+  },
+  {
+   "evidence": "Coordinator reconciliation against the measured Batch 0 table (docs/sweep/26.2/batch-0-oracles.json): VanillaMarkerParticlesOracle FAILS on all three classpaths, 1 error, class constructor-mismatch - '44: constructor LocalPlayer in class LocalPlayer cannot be applied to given types'. This is Batch 0 group G2 (the LocalPlayer constructor mismatch, 17 oracles). The batch agent ran before Batch 0 landed and triaged oracles by import resolution only, which cannot see constructor mismatches; imports resolve, compilation fails. Blocks the marker_particles driver entirely (before it can reach the B8-G03 spruce cases). The other six particle oracles pass on their real classpath: Block/ Emitter/Entity/Providers pass client+both (server-only failures are client packages, expected); Item and EffectParticles pass all three; EffectSync passes all three.",
+   "fix": null,
+   "id": "B8-O01",
+   "method": "Batch 0 measurement (coordinator reconciliation)",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaMarkerParticlesOracle does not compile for 26.2 (1 break: LocalPlayer constructor, Batch 0 G2); blocks marker_particles driver"
+  },
+  {
+   "evidence": "CLOSED for 26.2. Vanilla 26.2's net.minecraft.world.level.gamerules.GameRules registers 59 snake_case rules (javap static initializer; doFireTick absent \u2014 no fire-tick rule in 26.2 at all). The Rust table (gamerules.rs:51-126) is the same 58 ungated rules in the same order with the same sampled defaults (fire_spread_radius_around_player 128/min -1, max_block_modifications 32768/1, players_nether_portal_default_delay 80/0, tnt_explosion_drop_decay false, max_command_forks 65536/0), plus max_minecart_speed (8/1/1000) gated behind FeatureFlags.MINECART_IMPROVEMENTS exactly as vanilla. The 484 /gamerule corpus cases all match (0 mismatches). Nit only: the MAX_MINECART_SPEED comment says '(26.3)' \u2014 the rule is in 26.2 too.",
+   "fix": null,
+   "id": "B9-G01",
+   "method": "javap + command_parse run",
+   "severity": "major",
+   "status": "closed",
+   "title": "/gamerule table (1.21.7: snake_case vs camelCase) \u2014 closed: vanilla 26.2 is snake_case"
+  },
+  {
+   "evidence": "CLOSED as stated. Full top-level diff of the Rust release tree (77 literals) against vanilla 26.2's dispatcher dump (datagen commands.json, 92 top-level; 77 integrated after removing the 15 dedicated-only per Commands.<init>): exact set match, zero extras, zero missing. stopwatch, swing, fetchprofile, unpublish are all in vanilla 26.2's tree; /execute if|unless stopwatch is in vanilla's tree; the /time clock subcommands (pause, resume, rate, of <clock>, set <timemarker>, query <timeline>) are all in vanilla 26.2 and the Rust clock_nodes matches node for node (incl. query gametime only on the default clock). compute and posteffect are gone from the Rust tree entirely. The only tree gap found is the dedicated-tree /perf (B9-G14). Note: vanilla registers jfr only when the JVM profiler is available; Rust registers it unconditionally \u2014 effectively always available, not recorded as a defect.",
+   "fix": null,
+   "id": "B9-G02",
+   "method": "tree diff vs datagen commands.json + command_parse run",
+   "severity": "major",
+   "status": "closed",
+   "title": "26.x commands in the tree (1.21.7) \u2014 closed: all present in vanilla 26.2"
+  },
+  {
+   "evidence": "CLOSED. Rust 26.2 uses ArgType::ResKey(\"minecraft:worldgen/configured_feature\") (tree_world.rs:65), matching vanilla 26.2's PlaceCommand (ResourceKeyArgument.key(Registries.CONFIGURED_FEATURE)).",
+   "fix": null,
+   "id": "B9-G03",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "/place feature registry (1.21.7) \u2014 closed: port uses configured_feature"
+  },
+  {
+   "evidence": "CLOSED (inverted). Vanilla 26.2's SetSpawnCommand and SetWorldSpawnCommand use RotationArgument.rotation(), not AngleArgument. Rust ArgType::Rotation (vanilla.rs:341,350) matches vanilla 26.2.",
+   "fix": null,
+   "id": "B9-G04",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "spawnpoint/setworldspawn angle (1.21.7: Rotation vs Angle) \u2014 closed: vanilla 26.2 uses Rotation"
+  },
+  {
+   "evidence": "CLOSED. Rust 26.2 /publish is publish [<allowCommands> [<gamemode> [<port>]]] (tree_extra.rs:60-67), matching vanilla 26.2's PublishCommand (BoolArgumentType, GameModeArgument.gameMode, IntegerArgumentType(0, 65535)). The corpus case 'publish true survival 25565' matches.",
+   "fix": null,
+   "id": "B9-G05",
+   "method": "javap + source + command_parse run",
+   "severity": "minor",
+   "status": "closed",
+   "title": "/publish gamemode argument (1.21.7) \u2014 closed: port has it"
+  },
+  {
+   "evidence": "CLOSED (both parts, both inverted). (a) Vanilla 26.2's EntityDataSource holds a CompilableString<EntitySelector>; CompilableString$CommandParserHelper.apply returns DataResult.error on CommandSyntaxException (exception table 9-69 -> 70), so decoding {\"nbt\":\"a\",\"entity\":\"@x\"} FAILS in vanilla 26.2 \u2014 the Rust rejection matches. (b) Vanilla 26.2 HAS ObjectContents (network/chat/contents/ObjectContents.class, with AtlasSprite and PlayerSprite) \u2014 the Rust object arm is correct for 26.2.",
+   "fix": null,
+   "id": "B9-G06",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "Chat-component decoder (1.21.7) \u2014 closed: vanilla 26.2 rejects bad-selector NBT and has ObjectContents"
+  },
+  {
+   "evidence": "CLOSED (both parts). (a) codec.rs:204-212 dispatches minecraft:item_modifier on the \"function\" key, with a unit test proving {\"function\":\"minecraft:set_count\",\"count\":1} decodes; vanilla 26.2 loot data confirms (data/minecraft/loot_table/entities/zombie.json: \"function\": \"minecraft:set_count\"). The corpus inline-modifier cases match. (b) /item ... from entity <source> uses ArgType::Entity { single: true } (tree_misc.rs:203-210), matching vanilla 26.2's ItemCommands (EntityArgument.entity() for source, entities() for targets).",
+   "fix": null,
+   "id": "B9-G07",
+   "method": "javap + source + command_parse run + loot data",
+   "severity": "minor",
+   "status": "closed",
+   "title": "Item modifiers (1.21.7: type key + multi-entity source) \u2014 closed: port uses function key + single source"
+  },
+  {
+   "evidence": "CLOSED. Rust 26.2 particle_options (args.rs:1054-1058) accepts the compound form with a Name key; vanilla 26.2's StateHolder.codec dispatches on \"Name\" (javap: Codec.dispatch(\"Name\", ...)).",
+   "fix": null,
+   "id": "B9-G08",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "Particle block_state Name-form (1.21.7) \u2014 closed: port accepts it"
+  },
+  {
+   "evidence": "CLOSED (both parts). Vanilla 26.2 refactored the selector parser to the option-state shape the Rust code already implements (InvertableSetOptionState). (a) Duplicate options: the canUse gate now runs in EntitySelectorOptions.get() BEFORE the value is read, rolling back to the option-name start \u2014 exactly the Rust behaviour. (b) @a[type=player] is ACCEPTED by vanilla 26.2 (limitToType doesn't touch option state; type canUse = typeOption().canParseAny()) and by Rust; no final validation in parse() after options (verified bytecode offsets 327-399).",
+   "fix": null,
+   "id": "B9-G09",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "Selector option errors (1.21.7) \u2014 closed: vanilla 26.2 matches the Rust parser"
+  },
+  {
+   "evidence": "CLOSED (inverted). Vanilla 26.2's WorldBorderCommand uses TimeArgument.time(0); Rust ArgType::Time { min: 0 } (tree_world.rs:318) matches, including the d/s/t suggestions.",
+   "fix": null,
+   "id": "B9-G10",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "/worldborder time (1.21.7: Time vs integer) \u2014 closed: vanilla 26.2 uses Time"
+  },
+  {
+   "evidence": "CLOSED. Vanilla 26.2 has no minecraft:recipe registry (absent from datagen registries.json; recipes live in RecipeManager), so vanilla suggests nothing for recipe and Rust suggests nothing (reg.ids(\"minecraft:recipe\") empty, args.rs:1744-1748). The suggestion mechanism (lib.rs:suggestion_context, byte-identical to 1.21.7) mirrors Brigadier 1.3.10 findSuggestionContext (verified against the brigadier jar in .local/datagen/libraries). The run confirms: 0 suggestion mismatches in 103,743 parses.",
+   "fix": null,
+   "id": "B9-G11",
+   "method": "registry diff + brigadier jar + command_parse run",
+   "severity": "minor",
+   "status": "closed",
+   "title": "Suggestions for complete arguments (1.21.7: recipe) \u2014 closed: no recipe registry on either side"
+  },
+  {
+   "evidence": "CLOSED. The 26.3-only SlotSource argument type is gone from the 26.2 tree: execute if items uses ArgType::Slots (tree_execute.rs:239), /item uses ArgType::Slot. The Slot/Slots parse matches vanilla 26.2's SlotArgument exactly: read-until-space (lambda$parse$0: c != ' '), slot.unknown / slot.only_single_allowed at the cursor after the word (same keys/text in the 26.2 en_us.json), and the slot_ranges() table matches vanilla 26.2's SlotRanges entry for entry (container x54, hotbar x9, inventory x27, enderchest x27, mob.inventory x8, horse x15, weapon.* x2, armor.* x5, player.crafting x4, singles 98/99/100-103/105/106/499).",
+   "fix": null,
+   "id": "B9-G12",
+   "method": "javap + source + en_us.json",
+   "severity": "minor",
+   "status": "closed",
+   "title": "Slot errors (1.21.7) \u2014 closed: SlotSource removed, Slot/Slots parse matches vanilla 26.2"
+  },
+  {
+   "evidence": "CLOSED. Vanilla 26.2's ArgumentTypeInfos bootstrap registers 57 types in exactly the Rust ARGUMENT_TYPES order (horizon-protocol/src/packets/play/commands.rs:25-82), and index 16 is team_color in vanilla 26.2 (17th register call).",
+   "fix": null,
+   "id": "B9-G13",
+   "method": "javap + registry diff",
+   "severity": "minor",
+   "status": "closed",
+   "title": "Argument-type table (1.21.7: team_color vs color) \u2014 closed: vanilla 26.2 uses team_color at index 16"
+  },
+  {
+   "evidence": "Vanilla 26.2 registers PerfCommand inside the includeDedicated block of net.minecraft.commands.Commands (javap: PerfCommand.register at bytecode offset 710, between PardonIpCommand and SaveAllCommand, inside the includeDedicated guard at 651-762). The command is perf start|stop, owners permission (datagen commands.json agrees). The Rust release (integrated) tree correctly lacks it, but the dedicated tree (tree_extra.rs:register_dedicated, 14 commands) lacks it too \u2014 the only one of vanilla's 15 dedicated commands not registered. Single command, dedicated-only, profiling use.",
+   "fix": null,
+   "id": "B9-G14",
+   "method": "javap + tree diff vs datagen commands.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "/perf missing from the dedicated tree"
+  },
+  {
+   "evidence": "Vanilla 26.2's dev block (SharedConstants.DEBUG_DEV_COMMANDS || IS_RUNNING_IN_IDE, Commands constructor offsets 580-632) registers raid, debugpath, debugmobspawning, warden_spawn_tracker, spawnarmortrims, serverpack (plus debugconfig when dedicated, plus chase under the separate DEBUG_CHASE_COMMAND flag). The Rust dev tree has only the two if dev blocks in vanilla.rs:161,385 (raid, warden_spawn_tracker). debugpath, debugmobspawning, spawnarmortrims, serverpack (and debugconfig/chase) have no Rust tree node at all (grep over horizon-command/src finds no mention). Dev-tree only \u2014 no release player ever sees these; the coordinator may rule dev-tree parity out of scope.",
+   "fix": null,
+   "id": "B9-G15",
+   "method": "javap + source grep",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Dev tree is missing six vanilla 26.2 dev commands"
+  },
+  {
+   "evidence": "Found by this batch's node-path comparison on the command_parse run (the driver's compare() strips nodes, so this is invisible to the driver itself). Parse structure identical \u2014 same length, same positions \u2014 only the argument-name labels differ (vanilla names from the 26.2 datagen commands.json dump, confirmed by the oracle's live tree): /item replace block pos vs Rust targetPos (tree_misc.rs:174,190); /item replace entity targets vs Rust target (tree_misc.rs:172,188); /item replace ... from block source vs Rust sourcePos (tree_misc.rs:211); /execute if items entity entities vs Rust source (tree_execute.rs:230); /execute if items block pos vs Rust sourcePos (tree_execute.rs:237). 14 corpus commands show the difference; the /execute if items block row is invisible to the corpus because all 260 block variants fail on the slots sample (0 is not a valid slot) and failed parses carry no nodes \u2014 verified by code + dump instead. Parse behaviour on all 14 is identical (ok/cursor/error/suggestions agree); the names surface only in the tree's network form (the commands packet carries argument node names). Vanilla is itself inconsistent \u2014 execute if data uses source/sourcePos and execute store uses target/targetPos, both matching Rust. The 1.21.7 tree carries the same names, so this is a shared upstream naming choice, not a 26.2 regression. Fix is a five-name rename in the tree definitions.",
+   "fix": null,
+   "id": "B9-G16",
+   "method": "command_parse node comparison + datagen commands.json + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Argument node names differ from vanilla in /item replace and /execute if items"
+  },
+  {
+   "evidence": "CLOSED. VanillaScoreboardOracle compiles clean on BOTH classpaths in Batch 0's 26.2 measurement (versions/26.2/.local/measure-oracles/results.json; 26.x has TeamColor and the Scoreboard packing methods the 1.21.7 oracle lacked). The scoreboard driver is unblocked at the oracle level; it still needs its driver run.",
+   "fix": null,
+   "id": "B9-O01",
+   "method": "batch-0 results.json",
+   "severity": "minor",
+   "status": "closed",
+   "title": "VanillaScoreboardOracle (1.21.7: 6 javac errors) \u2014 closed: compiles clean for 26.2"
+  },
+  {
+   "evidence": "Batch 0's 26.2 measurement (results.json): client cp constructor-mismatch, 2 errors (down from 19 in 1.21.7). The server-cp failure (41 errors, net.minecraft.client absent) is expected \u2014 the driver uses the client jar, so the client cp is the operative one. Line 101 (Viewer()): super(null x6, false, null, null) \u2014 9 arguments; 26.2's LocalPlayer constructor takes 8: (Minecraft, ClientLevel, ClientPacketListener, StatsCounter, ClientRecipeBook, Input, boolean, ChatAbilities) (javap on the 26.2 client jar). Line 197: own.doTeamsAllowDamage(other) \u2014 no such method in 26.2; the 26.2 form is PlayerTeam.isAllowFriendlyFire(). Repair scope: small, in-family, NOT attempted (no fixes in this batch). Needs an end-to-end driver run after repair (compiling != running).",
+   "fix": null,
+   "id": "B9-O02",
+   "method": "batch-0 results.json + javap",
+   "severity": "minor",
+   "status": "gap",
+   "title": "VanillaTeamRulesOracle fails javac (2 client errors) \u2014 blocks team_rules"
+  },
+  {
+   "evidence": "CLOSED. The command_parse fixture loads language from the prepared-resources root (command_parse_fixture.rs:147, lang::Language::load(&[&root], ...); root = lab.RESOURCES = .local/horizon-client/26.2/). Unlike 1.21.7, the prepared 26.2 root DOES contain assets/minecraft/lang/en_us.json \u2014 md5-identical to the 26.2 client jar's file (8,123 keys, including every command error key the driver compares). Confirmed by the command_parse run: 0 error-text mismatches across 103,743 parses. Note: the coordinator's mid-batch update said lang files were still absent; direct verification shows en_us.json present and jar-identical (only sounds.json is genuinely absent, and no command check needs it).",
+   "fix": null,
+   "id": "B9-O04",
+   "method": "command_parse run + md5 vs client jar",
+   "severity": "major",
+   "status": "closed",
+   "title": "command_parse fixture language (1.21.7: 86,241 error-text mismatches) \u2014 closed: 0 error-text mismatches"
+  },
+  {
+   "evidence": "audio_harness.require_sounds() (tools/audio_harness.py:35-37) exits unless .local/horizon-client/26.2/assets/minecraft/sounds.json exists. The prepared .local (prepare run in progress the morning of 2026-11-24, started 02:49 UTC) has a full assets/minecraft/ tree but no sounds.json and no sounds/ directory; the file is also absent from the client jar (ships only in the asset index). The absence does not depend on the prepare run's completion: sounds are never imported by the --prepare flow. Root cause is prepare: sounds need the separate 'horizon-prepare sounds' subcommand (horizon-prepare/src/main.rs:240) or --complete. Runtime: SoundRegistry::load silently skips a missing sounds.json (sound_events.rs:280-282), so every event resolves to Sound::empty(). Blocks all 6 audio_harness drivers (sound_event, ambient_sound, music, situational_music, sound_engine, audio_attributes); 3 are oracle-clean (sound_event, music, situational_music \u2014 data-only block) and 3 are oracle-blocked as well (ambient_sound, sound_engine, audio_attributes \u2014 see B10-O04). The wiring spec itself is clean (1,968 sounds.json events vs 1,968 registry events; only the intentionally_empty sentinel lacks an entry, plus one vanilla orphan: entity.chicken_picky.step in sounds.json with no registry event).",
+   "fix": null,
+   "id": "B10-G02",
+   "method": "data + source",
+   "severity": "major",
+   "status": "gap",
+   "title": "No sounds.json in the prepared 26.2 resources: the game is silent and 6 audio drivers cannot run"
+  },
+  {
+   "evidence": "Vanilla 26.2 registers 26 BE renderers (BlockEntityRenderers, javap -c); the port's Kind (block_entity_render.rs:321-371) covers 17 slots plus beacon beams, and classify() falls through to Kind::None for the rest. Missing with visible effect: mob/trial spawner spinning mob (+ trial items) \u2014 cage is a block model (cube_all_inner_faces / cube_bottom_top_inner_faces), the mob is BE-rendered; campfire cooking items (logs are template_campfire, 7 elements; items BE-rendered); moving piston \u2014 moving_piston's block model is EMPTY, PistonHeadRenderer draws the moving block, so it vanishes mid-stroke (port has only collision shapes, collisions.rs:579); brushable-block brushed item (block renders via cube_all sand models); vault display item (template_vault block renders; item BE-rendered); shelf displayed items \u2014 NEW for 26.2, ShelfRenderer registered, template_shelf_body renders the shelf but the 3 displayed items are BE-rendered and the port has only the BE data (chunk/block_entity.rs:96-97). Structure-block and test-instance-block renderers are also absent but their visible in-play output is unverified (both have cube block models) \u2014 noted, not claimed. potent_sulfur has no vanilla renderer, so rendering nothing for it is correct.",
+   "fix": null,
+   "id": "B10-G04",
+   "method": "javap + jar assets + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Seven vanilla block-entity renderers have no port equivalent (spawner, trial spawner, campfire, moving piston, brushable, vault, shelf)"
+  },
+  {
+   "evidence": "REINSTATED on coordinator reconciliation: the batch agent withdrew this on the import-level check (both font packages exist in 26.2), but the measured Batch 0 table shows a 1-symbol failure. ParityFont.java:43 calls pack.asResourceManager() on a VanillaPackResources; the method does not exist in 26.2 (error: cannot find symbol, symbol: method asResourceManager(), location: variable pack of type VanillaPackResources). Client cp: 1 error; server cp: 41 errors (blaze3d.font is client-only, expected). Repair: find 26.2's way to get a ResourceManager from a VanillaPackResources (javap the 26.2 class). Highest-leverage single-symbol repair in the batch: ParityFont blocks 8 drivers programme-wide (7 in this batch: block_entity_render, chat_screen, hud, pack_screen, recipe_book_render, subtitle, text_display_render) and cascades into VanillaSubtitleOracle and VanillaChatScreenOracle.",
+   "fix": null,
+   "id": "B10-O02",
+   "method": "javac fixpoint (Batch 0 measured table) + jar check",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "ParityFont needs VanillaPackResources.asResourceManager(), absent in 26.2 (8 drivers blocked)"
+  },
+  {
+   "evidence": "VanillaBlockEntityRenderOracle imports net.minecraft.client.renderer.texture.UvMapping (line 23), a 26.3-only class absent from the 26.2 client jar (verified against the full 10,952-class list); it casts the SubmitNodeCollector proxy's args[7] to UvMapping at line 155. Measured: 7 errors on the client cp (first error line 23, the import). Blocks test_block_entity_render_parity \u2014 the driver that would catch B10-G04. Repair is small: in 26.2, OrderedSubmitNodeCollector.submitModel's 8th parameter IS the TextureAtlasSprite directly (javap), so cast args[7] to TextureAtlasSprite and drop the import; light/overlay/tint positions (args 4/5/6) already match. Note the driver is blocked by two more oracles as well: ParityFont (B10-O02, 1 error) and VanillaTextDisplayRenderOracle (missing-symbol, 1 error); all three must compile before the driver runs. ParityData compiles clean.\n\n[Merge note: Absorbs duplicate item(s) B4-O16 (same oracle defect, recorded again in a later batch; folded here at merge).]",
+   "fix": null,
+   "id": "B10-O03",
+   "method": "javap + import-level oracle check vs 26.2 client jar",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "VanillaBlockEntityRenderOracle needs UvMapping, a 26.3-only class (block_entity_render blocked)"
+  },
+  {
+   "evidence": "REINSTATED on coordinator reconciliation: the batch agent withdrew this (all 10 sound oracles import-clean), but the measured Batch 0 table shows 5 failures, all method-level. VanillaAmbientOracle FAIL 1 error, VanillaSoundEngineOracle FAIL 4 errors, VanillaFireStarterSoundOracle FAIL 1 error \u2014 all on the LocalPlayer constructor (Batch 0 G2 group; one signature translation rescues all 17 oracles programme-wide). VanillaAudioAttributesOracle FAIL 1 error: ClockInstance class missing (:72, new ClockInstance() \u2014 26.2 has world.clock.ClockManager but no ClockInstance). VanillaSubtitleOracle FAIL cascade (depends on broken ParityFont \u2014 passes for free once B10-O02 is repaired). The other 6 sound oracles PASS on the client cp (EntitySoundPacket, SoundRig, Music, SituationalMusic, ZombieCureSound, SoundEvent). Drivers blocked: ambient_sound, entity_bound_sound + sound_engine (via SoundEngineOracle), fire_starter_sound, audio_attributes, subtitle. Note the 6 audio_harness drivers are data-gated by B10-G02 regardless \u2014 oracle repair alone does not make them runnable.",
+   "fix": null,
+   "id": "B10-O04",
+   "method": "javac fixpoint (Batch 0 measured table)",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "Sound oracle family: 4 fail on own errors (3 LocalPlayer ctor, 1 ClockInstance), 1 cascades on ParityFont"
+  },
+  {
+   "evidence": "com.mojang.renderpearl.* appears ZERO times in the 26.2 client jar \u2014 the render-pipeline API the 26.3-derived oracles use does not exist in 26.2. Five oracles import it: VanillaHudOracle (9 errors), VanillaPackScreenOracle (7), VanillaRecipeBookScreenOracle (4), VanillaLoomScreenOracle (4) (each missing renderpearl.api.pipeline.RenderPipeline only) and VanillaWorldBorderRenderOracle (28 errors: GpuBuffer, CommandEncoder, RenderPass, GpuDevice, RenderPipeline, plus net.minecraft.client.renderer.DynamicGpuData). Drivers blocked: hud, pack_screen, recipe_book_render, screen_layout, world_border_render, plus chat_screen (compiles VanillaPackScreenOracle as a dependency, test_chat_screen_parity.py:146). Repair is a 26.3-to-26.2 backport: 26.2 screens render through the SubmitNodeCollector/RenderType path, not a GPU pipeline object. The family's other members, measured: VanillaContainerScreenOracle and VanillaOptionsOracle PASS on the client cp; VanillaChatScreenOracle is a cascade failure (depends on broken ParityFont + VanillaPackScreenOracle); VanillaMenuOracle fails on its own 1 error (3-arg Player.drop with net.minecraft.util.Prediction, absent in 26.2).\n\n[Merge note: Absorbs duplicate item(s) B4-O18 (same oracle defect, recorded again in a later batch; folded here at merge).]",
+   "fix": null,
+   "id": "B10-O05",
+   "method": "import-level oracle check vs 26.2 client jar",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "UI/screen oracle family needs renderpearl, a 26.3-only API (6 drivers blocked)"
+  },
+  {
+   "evidence": "Class::AbstractBed = \"AbstractBedBlock\" never matches any 26.2 chain (beds are BedBlock directly; no AbstractBedBlock in either 26.2 jar; BedBlock extends HorizontalDirectionalBlock). Class::Bed exists (classes.rs:63) but nothing dispatches on it. Dead arms: place.rs:356 + place.rs:1481 set_placed_by (the ONLY head placement, place.rs:1483), interact.rs:365 (the ONLY PlayerEffect::Sleep emitter, interact.rs:377/380), hooks.rs:459, shapes.rs:124. 26.3-leak: AbstractBedBlock EXISTS in the 26.3 jar. The interact.rs:366-369 comment documents the 26.2 BedBlock form while the arm dispatches on the dead 26.3 name.",
+   "fix": null,
+   "id": "B11-G01",
+   "method": "class-table sweep + javap + Rust grep",
+   "severity": "major",
+   "status": "gap",
+   "title": "Beds place foot-only; sleep is unreachable (AbstractBed dead) [= 1.21.7 B11-G01]"
+  },
+  {
+   "evidence": "Vanilla 26.2 has 6 number providers (EnchantmentLevelProvider, ScoreboardValue, StorageValue all in the server jar). Both Rust implementations handle only 3 (constant/uniform/binomial) \u2014 enchantment_level/score/storage fall to _ => 0 (loot.rs int/float 1346-1385; items.rs number 2033-2063). Data check: 0/1355 vanilla 26.2 loot tables use the 3 missing providers. The only enchantment_level uses in 26.2 datapack (soul_speed/thorns chance) go through the separate enchant.rs random_chance path, which handles it explicitly and matches vanilla's amount.calculate(level) exactly.",
+   "fix": null,
+   "id": "B11-G02",
+   "method": "javap + data check + Rust grep",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Three number providers return 0 (datapack-only) [= 1.21.7 B11-G12]"
+  },
+  {
+   "evidence": "Vanilla 26.2 AnyFuel.resolve returns FuelValues.fuelItems() \u2014 the keySet of an insertion-ordered Object2IntLinkedOpenHashMap populated by the hardcoded vanillaBurnTimes sequence (LAVA_BUCKET first). The Rust groups fuels by burn-time value in registry order (recipe_book.rs:566-585, native_panel_recipes.rs:173-190) \u2014 first fuel in registry order is oak planks (id 63; lava bucket 1042). Burn times unaffected, display order only. 26.3-form carry-over: 26.3 resolves via DataComponentLookup.findAll(COOKING_FUEL).",
+   "fix": null,
+   "id": "B11-G03",
+   "method": "javap + Rust grep + registries.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Recipe-book fuel slot cycles fuels in the wrong order [= 1.21.7 B11-G15]"
+  },
+  {
+   "evidence": "Vanilla 26.2 DebugEntrySoundMood appends String.format(ROOT, \"  (Mood %d%%)\") \u2014 TWO spaces \u2014 to the channel debug string. The Rust's sound_mood_line (debug_overlay.rs:399-408) uses ONE space: \"Sounds: {}/{} + {}/{} (Mood {}%)\". Cosmetic. The other two thirds of 1.21.7's B11-G20 do NOT apply: 26.2's Local Difficulty line has no Day suffix (day count is a separate DebugEntryDayCount entry, \"Day #\", which the Rust renders) and 26.2's memory lines use MiB, as does the Rust. 26.3's entry literal is also two-spaced, so this is a 26.1-form leftover, not a 26.3 leak.",
+   "fix": null,
+   "id": "B11-G04",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "gap",
+   "title": "F3 sound mood has one space before (Mood [part of 1.21.7 B11-G20]"
+  },
+  {
+   "evidence": "The \u00a76.1 sweep did the jar-existence half (271 mappings, 268 live, 3 dead). The chain-liveness half \u2014 which blocks' chains actually contain each mapped name \u2014 needs block-behaviours.json from horizon-prepare, which does not exist for 26.2 yet. The jar half already settles the dead mappings (a name absent from the jar cannot appear in any chain); the converse (jar-live but chain-dead) is unmeasured. Harness design in batch-11-rank3.md \u00a73: export block-behaviours.json once prepare lands and re-run the sweep against the chains.",
+   "fix": null,
+   "id": "B11-H01",
+   "method": "class-table sweep (jar half) + Rust grep",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "Class-table chain-liveness half \u2014 needs block-behaviours.json from prepare"
+  },
+  {
+   "evidence": "The Rust ports the 26.3 merged WorldOptionsScreen (lan_screen.rs, incl. open_multiplayer_options at lan_screen.rs:712) while 26.2 keeps WorldOptionsScreen and MultiplayerOptionsScreen separate. The underlying operations all match 26.2; only the screen layout differs (one merged screen vs two separate screens, snapshot vs immediate apply). Accepted by the port ledger (item 427); splitting the screen is a multi-hour rewrite with LAN-flow regression risk. NOTE: the tracking note the ledger cites (screens.rs:455-458) no longer exists in the tree.",
+   "fix": null,
+   "id": "B11-A01",
+   "method": "port ledger + Rust grep",
+   "severity": "minor",
+   "status": "accepted-gap",
+   "title": "Merged LAN screen (item 427) \u2014 accepted gap"
+  },
+  {
+   "evidence": "26.2's editServerCallback copies the edited entry back via copyFrom and KEEPS the old ping state; 26.3 resets to INITIAL (re-ping). The Rust's edit-save rebuilds the list fresh (Self::list(saves), multiplayer.rs:1753/1767/2087), matching 26.3 \u2014 a 1-2s re-ping difference. Accepted by the port ledger (item 436); porting the 26.2 keep-state form needs a multiplayer-screen lifecycle refactor.",
+   "fix": null,
+   "id": "B11-A02",
+   "method": "port ledger + Rust grep",
+   "severity": "minor",
+   "status": "accepted-gap",
+   "title": "Edit-server save re-pings (item 436) \u2014 accepted gap"
+  },
+  {
+   "evidence": "horizon-items/src/items.rs LootContext::modifiers() (line 2401) covers 11 of the 19 function kinds 26.2's data uses; the default arm _ => {} (line 2607) silently no-ops copy_components, furnace_smelt, set_enchantments, set_stew_effect, set_name, exploration_map, set_ominous_bottle_amplifier, set_instrument. expand() (line 2227) has no minecraft:tag arm (default _ => false, line 2319). Counted over all 1,355 tables: 102 carry >=1 unhandled function/entry \u2014 71 block tables (copy_components), 18 entity (furnace_smelt 16, set_ominous_bottle_amplifier 1, tag entry in entities/creeper.json), 9 chest, 3 equipment, 1 archaeology. Survival gameplay is largely shielded: block breaking is covered by game/spill.rs Pending::record/attach (lines 44/100), which copies block-entity components by BE type and covers all six distinct include sets in the data (34x custom_name-only, 17x shulker set, 16x banner set, 2x bees, 1x pot_decorations, 1x skull set); only lock/container_loot on shulker boxes are not copied (unreachable in vanilla survival). Entity/chest/fishing loot goes through loot.rs in gameplay, which handles every kind those tables use. What breaks is /loot (cmd_loot, terrain_cmds.rs:585), which routes every table through items.rs: /loot mine on a shulker box drops it empty, /loot kill on a creeper loses the music-disc tag entry, /loot kill on a cow loses furnace_smelt, /loot on chest tables loses set_name/set_enchantments/set_instrument/set_ominous_bottle_amplifier/set_stew_effect/exploration_map. Condition handling is complete (all 12 kinds), so only functions/entries are affected.",
+   "fix": null,
+   "id": "B12-G01",
+   "method": "parser arms vs per-family data census + spill.rs coverage check + cmd_loot call-site trace",
+   "severity": "minor",
+   "status": "gap",
+   "title": "items.rs has no copy_components arm (and 7 more function kinds + the tag entry); /loot rolls lose them silently"
+  },
+  {
+   "evidence": "crafting.rs Ingredient::parse_object (line 123) requires a neoforge:ingredient_type or type key and returns None otherwise, so vanilla object forms ({\"item\": \"...\"}, {\"tag\": \"...\"}) fail to parse and the recipe is dropped. No vanilla 26.2 recipe uses object ingredients (all 3,542 ingredient slots are strings, plus 84 array slots whose elements are all strings), so this affects only player datapack / mod recipes using the object form. Same code and same data property as 1.21.7's B12-G05.",
+   "fix": null,
+   "id": "B12-G02",
+   "method": "parser read + data scan",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Object-form recipe ingredients are rejected (datapack scope only)"
+  }
+ ],
+ "note": "Sweep ledger for 26.2, merged 2026-11-24 from the 13 per-batch slices. Same shape as the 1.21.7 merged ledger (pins/1.21.7/sweep-items.json): one item per defect found, with evidence, method, severity, status. Fixes are separate work, never on this branch; every fix field is null. ID convention: all ids are batch-prefixed (B<n>-Gxx behaviour/driver, B<n>-Oxx oracle, B<n>-Hxx needs-harness, O1-O8 Batch 0 repair groups). TALLY CONVENTION: Batch 6 counts oracle-status checks in its tally (79 = 25 behaviour + 54 oracle status), exactly as the 1.21.7 Batch 6 did (69 = 22 + 47); the other twelve batches do not. The \"totals\" block therefore gives both the as-tallied total and the behaviour-only total. STATUS MEANINGS: \"gap\" = demonstrated defect in 26.2, except B6-G03 (carried over from 1.21.7 UNVERIFIED \u2014 full aquifer audit found no divergence; B6-H arbitrates). \"oracle-defect\" = an oracle that fails javac against the 26.2 jars (Batch 0 measured table). \"fixed\" (B6-G01, B6-G02, B6-G04) means \"1.21.7 defect withdrawn for 26.2 \u2014 verified absent\", NOT a fix applied during this sweep. \"closed\" (15 Batch 9 items) means \"1.21.7 defect re-checked and closed for 26.2\". \"accepted-gap\" (B11-A01/A02) = known, accepted. BATCH 0 vs PER-BATCH: Batch 0 items O1-O8 are repair-group items (one per failure class); per-batch O-items are the same oracles recorded per driver family. Both are kept; the overlap is mapped in \"dedup\".batch0_overlap \u2014 it is not double-counting, it is two views of the same 129 failing oracles. ORACLE COVERAGE: the per-batch O-items name 84 distinct failing oracles; the remaining 45 failing oracles appear only in the Batch 0 group items (including VanillaProtocolClient, 32 errors, blocking 8 drivers, and VanillaModelBakingOracle \u2014 per-batch triage covered in-scope drivers only, not the full failing list). LANG CORRECTION: prepared en_us.json IS present and md5-identical to the 26.2 client jar file (8,123 keys) \u2014 the \"lang absent\" statements in the Batch 0/3/5/10 notes are wrong; only sounds.json is genuinely absent (B10-G02).",
+ "totals": {
+  "checks_as_tallied": {
+   "accepted_gap": 2,
+   "gap": 314,
+   "pass": 10058,
+   "total": 10374
+  },
+  "checks_behaviour_only": {
+   "accepted_gap": 2,
+   "gap": 288,
+   "pass": 10030,
+   "total": 10320
+  },
+  "items_by_severity": {
+   "major": 25,
+   "minor": 88
+  },
+  "items_by_status": {
+   "accepted-gap": 2,
+   "closed": 15,
+   "fixed": 3,
+   "gap": 62,
+   "needs-harness": 9,
+   "oracle-defect": 22
+  },
+  "items_live": 93,
+  "items_live_major": 20,
+  "items_raw": 119,
+  "items_unique": 113,
+  "live_major_ids": [
+   "B10-G02",
+   "B10-O03",
+   "B10-O05",
+   "B11-G01",
+   "B4-O06",
+   "B4-O08",
+   "B6-G03",
+   "B6-O01",
+   "B6-O02",
+   "B6-O03",
+   "B6-O04",
+   "B6-O05",
+   "B6-O06",
+   "O1",
+   "O2",
+   "O3",
+   "O4",
+   "O5",
+   "O6",
+   "O8"
+  ]
+ },
+ "version": "26.2"
+}
