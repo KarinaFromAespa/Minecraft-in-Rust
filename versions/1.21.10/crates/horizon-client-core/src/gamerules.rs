@@ -24,6 +24,8 @@ pub struct Rule {
     pub name: &'static str,
     pub category: &'static str,
     pub default: Value,
+    /// 1.21.11's range for the rule, carried for the table: 1.21.10's
+    /// `IntegerValue.set` has no range check, so `set` does not enforce it.
     pub min: i32,
     pub max: i32,
 }
@@ -175,6 +177,7 @@ pub fn vanilla_key(name: &str) -> Option<String> {
         "max_command_sequence_length" => "maxCommandChainLength",
         "max_block_modifications" => "commandModificationBlockLimit",
         "max_command_forks" => "maxCommandForkCount",
+        "max_minecart_speed" => "minecartMaxSpeed",
         "max_snow_accumulation_height" => "snowAccumulationHeight",
         "respawn_radius" => "spawnRadius",
         "show_advancement_messages" => "announceAdvancements",
@@ -210,6 +213,7 @@ pub fn from_vanilla_key(key: &str) -> Option<String> {
         "maxCommandChainLength" => "max_command_sequence_length",
         "commandModificationBlockLimit" => "max_block_modifications",
         "maxCommandForkCount" => "max_command_forks",
+        "minecartMaxSpeed" => "max_minecart_speed",
         "snowAccumulationHeight" => "max_snow_accumulation_height",
         "spawnRadius" => "respawn_radius",
         "announceAdvancements" => "show_advancement_messages",
@@ -328,7 +332,8 @@ impl GameRules {
     pub fn bool(&self, name: &str) -> bool {
         matches!(self.get(name), Some(Value::Bool(true)))
     }
-    /// Parse a network rule value, retaining type and range validation.
+    /// Parse a network rule value, retaining type validation (1.21.10 has
+    /// no range validation to retain).
     pub fn set_string(&mut self, name: &str, text: &str) -> bool {
         let value = match self.get(name) {
             Some(Value::Bool(_)) => text.parse::<bool>().ok().map(Value::Bool),
@@ -343,14 +348,16 @@ impl GameRules {
             _ => 0,
         }
     }
-    /// Set a rule; false if the name or value type is wrong.
+    /// Set a rule; false if the name or value type is wrong. Any integer
+    /// sets: 1.21.10's `IntegerValue.set` has no range check (the 1.21.11
+    /// range on `Rule` is unenforced here).
     pub fn set(&mut self, name: &str, value: Value) -> bool {
         let Some(r) = rule(name).filter(|r| self.get(r.name).is_some()) else {
             return false;
         };
         let ok = match (r.default, value) {
             (Value::Bool(_), Value::Bool(_)) => true,
-            (Value::Int(_), Value::Int(v)) => (r.min..=r.max).contains(&v),
+            (Value::Int(_), Value::Int(_)) => true,
             _ => false,
         };
         if ok && value == r.default {
@@ -530,7 +537,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn network_values_validate_rule_names_types_and_bounds() {
+    fn network_values_validate_rule_names_and_types() {
         let mut rules = GameRules::default();
         assert!(rules.set_string("minecraft:keep_inventory", "true"));
         assert!(rules.bool("keep_inventory"));
@@ -538,19 +545,24 @@ mod tests {
         assert!(rules.bool("keep_inventory"));
         assert!(rules.set_string("minecraft:random_tick_speed", "7"));
         assert_eq!(rules.int("random_tick_speed"), 7);
-        assert!(!rules.set_string("minecraft:random_tick_speed", "-1"));
+        // 1.21.10 has no range check: -1 sets (only an unparseable
+        // integer fails).
+        assert!(rules.set_string("minecraft:random_tick_speed", "-1"));
+        assert_eq!(rules.int("random_tick_speed"), -1);
         assert!(!rules.set_string("minecraft:random_tick_speed", "999999999999"));
         assert!(!rules.set_string("minecraft:unknown", "true"));
         assert!(!rules.set_string("other:keep_inventory", "false"));
-        assert_eq!(rules.int("random_tick_speed"), 7);
+        assert_eq!(rules.int("random_tick_speed"), -1);
     }
     #[test]
-    fn defaults_bounds_and_round_trip() {
+    fn defaults_and_round_trip() {
         let mut rules = GameRules::default();
         assert!(rules.bool("advance_time"));
         assert_eq!(rules.int("random_tick_speed"), 3);
         assert!(!rules.set("random_tick_speed", Value::Bool(true)));
-        assert!(!rules.set("max_snow_accumulation_height", Value::Int(9)));
+        // 1.21.10 has no range check: 9 sets on a rule whose 1.21.11
+        // range ends at 8.
+        assert!(rules.set("max_snow_accumulation_height", Value::Int(9)));
         assert!(rules.set("keep_inventory", Value::Bool(true)));
         assert!(rules.set("minecraft:random_tick_speed", Value::Int(10)));
         let back = GameRules::from_nbt(&rules.to_nbt().tag);
@@ -560,5 +572,16 @@ mod tests {
         rules.save(&dir).unwrap();
         assert_eq!(GameRules::load(&dir), rules);
         let _ = fs::remove_dir_all(dir);
+    }
+    #[test]
+    fn the_minecart_speed_rule_renames_both_ways() {
+        assert_eq!(
+            vanilla_key("max_minecart_speed").as_deref(),
+            Some("minecartMaxSpeed")
+        );
+        assert_eq!(
+            from_vanilla_key("minecartMaxSpeed").as_deref(),
+            Some("max_minecart_speed")
+        );
     }
 }

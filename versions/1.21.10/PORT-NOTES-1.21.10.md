@@ -1064,3 +1064,25 @@ anonymous-class renumbering (the same four behaviours under
 different numbers). 474: golem-pattern predicate wrapping and
 aisle internals. 476: the Realms download's HTTP client swap
 and log texts.
+
+Rank 3 batch 5 (9 items, rank 3 192 -> 201, 665/719): the
+code-diff carry-over files, each verified against the jar
+rather than trusted. Three ports. 605 tree_extra.rs: the
+fetchprofile `entity` branch was 26.x leakage (26.1 added it;
+1.21.10 has name/id only). 618 gamerules.rs: the full 60-key
+set verified (all 25 renames correct); the `max_minecart_speed`
+rename was missing (1.21.10's key is `minecartMaxSpeed`) and
+`Rules::set` enforced 1.21.11 int ranges that 1.21.10's
+IntegerValue.set does not have — both fixed, tests updated.
+637 feature_catalog.rs: the mechanical publish wrongly dropped
+flower/no_bonemeal_flower/random_patch from the nested-feature
+expansion (RandomPatchConfiguration has the field in 1.21.10) —
+restored. Six verified carry-overs: 491 (component renumbering,
+swing/kinetic/use_effects absent from 1.21.10), 511
+(painting/variant id 89; no sign-text components in 1.21.10),
+588 (no Nautilus in 1.21.10), 597 (turtle hatch 1-in-500
+fallback, no timeline gate), 615 (shipwreck saves no height
+state), 625 (ItemAttributeModifiers.compute filters by slot
+only). One noted gap, item 157's: datapack dimensions parse
+with no timelines, so the turtle dawn window never applies to
+them in the Rust.

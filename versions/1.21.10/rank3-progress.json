@@ -1,7 +1,7 @@
 {
  "release": "1.21.10",
  "rank": 3,
- "batch": 31,
+ "batch": 32,
  "note": "",
  "items": {
   "485": {
@@ -963,6 +963,51 @@
    "module": "crates/horizon-client/src/realms/download.rs",
    "verdict": "no-change",
    "evidence": "`FileDownload#contentLength` swaps the HTTP client (java.net.http HEAD in 1.21.11, Apache HttpClient GET in 1.21.10) for the same result; `download` is a lambda arg-order swap; `untarGzipArchive` is a log-message change; `checkDownloadSize` is a record accessor vs a field. The Rust's download code is its own implementation."
+  },
+  "491": {
+   "module": "crates/horizon-protocol/src/item/hash/gameplay.rs",
+   "verdict": "carry-over",
+   "evidence": "Already ported in the tree: the 1.21.11-only hash functions are gone (`SwingAnimation`/`swing`, `KineticWeapon.Condition`/`kinetic_condition`, the `UseEffects` case) and the component-type ids are renumbered to 1.21.10's registry. Verified against 1.21.10's `DataComponents` bootstrap order: no swing/kinetic/use_effects entries exist in 1.21.10."
+  },
+  "511": {
+   "module": "crates/horizon-client/src/item_sync.rs",
+   "verdict": "carry-over",
+   "evidence": "Already ported in the tree: the painting/variant id is 89, verified against 1.21.10's `DataComponents` bootstrap order (90th registration, 0-based 89). The sign-text wire test was removed because 1.21.10 has no `sign_text_front`/`sign_text_back` components at all (no SIGN_TEXT in DataComponents; no `collectImplicitComponents` on SignBlockEntity) \u2014 sign text lives on the block entity only."
+  },
+  "588": {
+   "module": "crates/horizon-client/src/mobs/nautilus.rs",
+   "verdict": "carry-over",
+   "evidence": "Already ported in the tree: `feed_heal` (the `AbstractNautilus.mobInteract` feed heal) and its test are removed. Verified: the 1.21.10 jar has zero Nautilus classes \u2014 `AbstractNautilus` does not exist in 1.21.10. The rest of nautilus.rs is dead code (no spawn path), same deferred species removal as ZombieNautilus/CamelHusk/Parched."
+  },
+  "597": {
+   "module": "crates/horizon-world/src/level/timeline.rs",
+   "verdict": "carry-over",
+   "evidence": "Already ported in the tree: `turtle_hatch_chance` falls back to the 0.002 default when the dimension has no day timeline, instead of 1.21.11's 0.0. Verified against 1.21.10's `TurtleEggBlock.shouldUpdateHatchLevel` (javap): the dawn window (timeOfDay 0.65-0.69) else a 1-in-500 roll \u2014 no timeline gate at all in 1.21.10. Noted gap (item 157's territory): datapack dimensions parse with no timelines, so the dawn 1.0 window never applies to them in the Rust, while 1.21.10 vanilla applies it via getTimeOfDay in any dimension with a day cycle."
+  },
+  "605": {
+   "module": "crates/horizon-command/src/tree_extra.rs",
+   "verdict": "ported",
+   "evidence": "The `fetchprofile entity <entity>` branch was 26.x leakage: 1.21.10's `FetchProfileCommand` has only the `name` and `id` branches (javap-verified; 26.1 added `entity`). The tree nodes are removed and the 1.21.11 comment restored; the handler reads only name/id, so nothing else changes."
+  },
+  "615": {
+   "module": "crates/horizon-world/src/worldgen/structure/saved_templates.rs",
+   "verdict": "carry-over",
+   "evidence": "Already ported in the tree: a loaded shipwreck keeps `state: None` (no settled-height state) instead of 1.21.11's `Some(60)`. Verified against 1.21.10's `ShipwreckPiece`: `addAdditionalSaveData` only calls super (no height state saved) and `postProcess` re-derives the height from the heightmaps every time it runs."
+  },
+  "618": {
+   "module": "crates/horizon-client-core/src/gamerules.rs",
+   "verdict": "ported",
+   "evidence": "The gamerule translation layer was verified against 1.21.10's full 60-key set from the jar: all 25 renames and the fire pair are correct, and `universalAnger`/`waterSourceConversion` exist in 1.21.10 (an earlier truncated key list had wrongly flagged them). Two fixes. (1) The `max_minecart_speed` rename was missing: 1.21.10's key is `minecartMaxSpeed` (default 8, matching the engine), so the rule round-tripped to the unknown key `maxMinecartSpeed` \u2014 added to both tables, with a test. (2) `Rules::set` enforced the 1.21.11 int ranges, but 1.21.10's `IntegerValue.set` just sets (javap-verified) \u2014 the range check is removed (min/max kept as carried, unenforced fields), which also completes the item-475 RPC port (an out-of-range RPC update was silently dropped by `set`). Tests updated to the 1.21.10 form."
+  },
+  "625": {
+   "module": "crates/horizon-client/src/game/mob_looting.rs",
+   "verdict": "carry-over",
+   "evidence": "Already ported in the tree: `attributes` uses `equip::approximate_with` (the unfiltered fold) instead of the attribute-filtered `attribute_with`. Verified against 1.21.10's `ItemAttributeModifiers.compute` (javap): it iterates every modifier, filters only by slot group, and never checks which attribute a modifier belongs to \u2014 the unfiltered fold IS the 1.21.10 form (1.21.11 fixed it to filter)."
+  },
+  "637": {
+   "module": "crates/horizon-world/src/worldgen/feature_catalog.rs",
+   "verdict": "ported",
+   "evidence": "The mechanical publish wrongly removed flower/no_bonemeal_flower/random_patch from the nested-`feature` expansion arm. 1.21.10's `RandomPatchConfiguration` HAS a `feature` field (javap-verified) and all 33 vanilla flower/random_patch configs carry one \u2014 the removal was a latent datapack bug (a key-referenced nested feature would stay unresolved). The three kinds are restored to the arm, the 1.21.11 form."
   }
  }
 }
