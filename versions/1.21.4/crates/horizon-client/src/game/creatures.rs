@@ -3545,7 +3545,7 @@ impl Game<'_> {
                 MobEvent::StartFollowing { .. }
                 | MobEvent::SchoolSize { .. }
                 | MobEvent::PufferfishSting { .. } => {}
-                MobEvent::LeashBreak { mob, drop, sound } => self.break_leash(mob, drop, sound),
+                MobEvent::LeashBreak { mob, drop } => self.break_leash(mob, drop),
                 MobEvent::Vibration {
                     from,
                     to,
@@ -6426,7 +6426,7 @@ impl Game<'_> {
             let species = bucket.trim_end_matches("_bucket").to_owned();
             let id = self.mobs[index].id as i32;
             // Leashable.dropLeash, then discard.
-            self.break_leash(id as u32, true, false);
+            self.break_leash(id as u32, true);
             self.mobs[index].removed = true;
             if self.creative {
                 if let Some(rest) = self.give(filled) {

@@ -405,13 +405,6 @@ impl Game<'_> {
         {
             return false;
         }
-        // Server path of `use`: `dropAllLeashConnections(null)`, and when that
-        // drops anything `playSound(null, player, LEAD_BREAK, NEUTRAL, 1, 1)`.
-        // The entity overload follows the player and excludes nobody, including
-        // the guest whose action is running while its hub is swapped out.
-        if self.drop_all_leash_connections() {
-            self.play_player_bound_sound("minecraft:item.lead.break", 6, 1.0, 1.0, false);
-        }
         let at = self.player.as_ref().map_or(Vec3::ZERO, |p| p.position);
         let mut rocket = self.new_rocket(at, stack, true);
         rocket.owner = Some(Who::Player);

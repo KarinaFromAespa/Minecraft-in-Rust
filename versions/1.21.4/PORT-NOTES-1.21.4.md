@@ -1193,3 +1193,47 @@ shape for the review batches.
   dispenser.rs, tame.rs); creatures.rs, remote.rs and
   game/spawner.rs are module roots and were not formatted.
   Rank 2: 65/348.
+
+  Batch 8 (the leash-system port, unowned — deferred from item
+  17; closes no numbered item). 1.21.4's `Leashable` is the
+  LEGACY system, identical to 1.21.5's (jar-verified:
+  `legacyElasticRangeLeashBehaviour`, LEASH_TOO_FAR_DIST=10.0,
+  LEASH_ELASTIC_DIST=6.0, 0.4 pull; `dropLeash` plays no
+  sound), while the 1.21.4 tree carried the 1.21.6 Wrench/
+  spring system (SNAP=12, `spring`, `elastic_pull`, quad-leash
+  APIs, `HolderState.center`). Carried the 1.21.5 legacy system
+  wholesale: mobs/leash.rs, game/boat_leads.rs and
+  game/leads.rs copied from the 1.21.5 tree (version mentions
+  in comments adapted 1.21.5 -> 1.21.4; rustfmt drift in the
+  three copied files cleaned — 9 small hunks). `MobEvent::
+  LeashBreak` loses its `sound` field (mobs.rs, item 55
+  follow-up) and `break_leash` loses its third arg
+  (creatures.rs handler + bucket call — completing item 17's
+  deferred hunk — and the call sites in beehives.rs,
+  boat_passengers.rs, copper_golems.rs, knot_identity_tests.rs,
+  llamas.rs, minecarts.rs, nautili.rs, sulfur_cubes.rs).
+  equine.rs and camel.rs gain `handle_leash_at_distance`
+  (the 1.21.5 form, distance > 6.0 gate inside) in place of
+  the dead `on_elastic_leash_pull` (its only caller was the old
+  leash.rs). Two methods the old leads.rs had are 1.21.6-only
+  and were removed with their call sites, jar-verified:
+  `drop_all_leash_connections` (neither 1.21.4's nor 1.21.5's
+  `FireworkRocketItem.use` calls it — the leash-drop block
+  leaves boost_firework) and `forget_untied_knots`
+  (`notifyLeasheeRemoved` exists in neither version — a knot
+  outlives its last lead, so lan_entities.rs drops the call).
+  Dead code the port left behind is removed: `Boat.leash_spin`
+  (`LeashData.angularMomentum`) and `Boat.in_liquid`
+  (for `Leashable.angularFriction`) — neither exists in the
+  1.21.5 tree's boats.rs. Routed: equine.rs's stand-counter
+  hunks (counter 1 vs 20, counting up vs down — a separate
+  behaviour difference, not leash) to item 205; the chest-boat
+  sneak hunk in boats.rs (1.21.4's `AbstractChestBoat.interact`
+  checks `isSecondaryUseActive` first, matching the 1.21.5
+  form) to item 57; leads.rs's carry to item 463 (rank 3 —
+  the quad sites are gone, the rank-3 agent verifies the rest);
+  camel.rs's leash hunk to item 395 (rank 3 — it was camel.rs's
+  only tree diff). `cargo check -p horizon-client
+  -p horizon-world -p horizon-client-input` green (EXIT 0,
+  0 warnings) and the --tests check green (EXIT 0, 7m18s).
+  Rank 2: still 65/348 (batch 8 closes no numbered item).

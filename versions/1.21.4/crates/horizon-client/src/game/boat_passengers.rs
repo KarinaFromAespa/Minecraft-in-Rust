@@ -318,7 +318,7 @@ impl Game<'_> {
                         m.ai.nav.stop();
                         count += 1;
                         // Mob.startRiding drops its lead.
-                        self.break_leash(mob, true, false);
+                        self.break_leash(mob, true);
                         self.note_started_riding(id);
                         self.vehicle_picked_up();
                     }

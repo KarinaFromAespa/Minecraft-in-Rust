@@ -1902,7 +1902,7 @@ impl Game<'_> {
                     m.ai.nav.stop();
                     m.needs_sync = true;
                     occupied = true;
-                    self.break_leash(mob, true, false);
+                    self.break_leash(mob, true);
                     self.note_started_riding(id);
                     self.vehicle_picked_up();
                 }

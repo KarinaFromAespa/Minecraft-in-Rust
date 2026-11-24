@@ -143,7 +143,7 @@ impl Game<'_> {
         if !self.native_may_board(id) {
             return true;
         }
-        self.break_leash(id, true, false);
+        self.break_leash(id, true);
         let m = &mut self.mobs[index];
         m.extra.flag = false;
         m.extra.counter = 0;

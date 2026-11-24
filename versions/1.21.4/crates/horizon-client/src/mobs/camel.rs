@@ -111,10 +111,15 @@ pub fn can_change_pose(m: &Mob, w: &MobWorld) -> bool {
         Vec3::new(at.x + half, at.y + f64::from(height), at.z + half),
     ))
 }
-/// `Camel.onElasticLeashPull`: a taut lead stands a sitting camel up, once it
-/// is not changing pose and has room to stand.
-pub fn on_elastic_leash_pull(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
-    if sitting(m) && !in_transition(m) && can_change_pose(m, w) {
+/// `Camel.handleLeashAtDistance`: past six blocks a taut lead stands a
+/// sitting camel up, once it is not changing pose and has room to stand.
+pub fn handle_leash_at_distance(
+    m: &mut Mob,
+    distance: f32,
+    w: &MobWorld,
+    events: &mut Vec<MobEvent>,
+) {
+    if distance > 6.0 && sitting(m) && !in_transition(m) && can_change_pose(m, w) {
         stand_up(m, events);
     }
 }

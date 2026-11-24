@@ -2469,7 +2469,6 @@ pub enum MobEvent {
     LeashBreak {
         mob: u32,
         drop: bool,
-        sound: bool,
     },
     /// A zombie villager's cure is complete: the game turns it back into a villager.
     CureZombieVillager {
