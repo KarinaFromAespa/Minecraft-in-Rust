@@ -830,7 +830,7 @@
   "Game files from {base}": "File di zûc di {base}",
   "Imported · {date}": "Importât · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} nol è un zûc Horizon par chest ordenadôr.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Instalâ une version o Nightly prime: une compilazion impuartade e zuie cui siei file di zûc.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} al ten no {program}.",
   "Could not import the build: {error}": "No si è rivât a impuartâ la compilazion: {error}",
   "Sort by: {order}": "Ordenâ secont: {order}",

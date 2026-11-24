@@ -828,7 +828,7 @@
   "Game files from {base}": "{base} ನಿಂದ ಆಟದ ಫೈಲ್‌ಗಳು",
   "Imported · {date}": "ಆಮದು ಮಾಡಲಾಗಿದೆ · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} ಈ ಕಂಪ್ಯೂಟರ್‌ಗೆ Horizon ಆಟವಲ್ಲ.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "ಮೊದಲು ಬಿಡುಗಡೆ ಅಥವಾ ರಾತ್ರಿಯನ್ನು ಸ್ಥಾಪಿಸಿ: ಆಮದು ಮಾಡಿದ ಬಿಲ್ಡ್ ಅದರ ಆಟದ ಫೈಲ್‌ಗಳೊಂದಿಗೆ ಪ್ಲೇ ಆಗುತ್ತದೆ.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} ಯಾವುದೇ {program} ಅನ್ನು ಹೊಂದಿದೆ.",
   "Could not import the build: {error}": "ನಿರ್ಮಾಣವನ್ನು ಆಮದು ಮಾಡಿಕೊಳ್ಳಲಾಗಲಿಲ್ಲ: {error}",
   "Sort by: {order}": "ವಿಂಗಡಿಸಿ: {order}",

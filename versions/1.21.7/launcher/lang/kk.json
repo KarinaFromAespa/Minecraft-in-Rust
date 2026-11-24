@@ -828,7 +828,7 @@
   "Game files from {base}": "{base} ойын файлдары",
   "Imported · {date}": "Импортталған · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} бұл компьютерге арналған Horizon ойыны емес.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Шығарылымды немесе Түнді бірінші орнатыңыз: импортталған құрастыру оның ойын файлдарымен ойнайды.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} жоқ {program}.",
   "Could not import the build: {error}": "Құрылымды импорттау мүмкін болмады: {error}",
   "Sort by: {order}": "Сұрыптау: {order}",

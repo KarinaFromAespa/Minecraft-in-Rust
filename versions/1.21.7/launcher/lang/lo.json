@@ -828,7 +828,7 @@
   "Game files from {base}": "ໄຟລ໌ເກມຈາກ {base}",
   "Imported · {date}": "ນຳເຂົ້າແລ້ວ · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} ບໍ່ແມ່ນເກມ Horizon ສໍາລັບຄອມພິວເຕີເຄື່ອງນີ້.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "ຕິດຕັ້ງການປ່ອຍຫຼື Nightly ຄັ້ງທໍາອິດ: ການນໍາເຂົ້າ build plays ກັບໄຟລ໌ເກມຂອງຕົນ.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} ຖືບໍ່ມີ {program}.",
   "Could not import the build: {error}": "ບໍ່ສາມາດນໍາເຂົ້າການກໍ່ສ້າງໄດ້: {error}",
   "Sort by: {order}": "ຮຽງຕາມ: {order}",

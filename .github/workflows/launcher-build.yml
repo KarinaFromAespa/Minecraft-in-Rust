@@ -229,8 +229,10 @@ jobs:
           OUT="$GITHUB_WORKSPACE/test-output-${{ matrix.version }}.txt"
           # The exit code is NOT the verdict: pre-existing baseline
           # failures also exit non-zero. The ratchet below decides.
+          # --no-fail-fast: the bin suite must run even when the lib suite
+          # fails, so the ratchet sees both suites' failures.
           set +e
-          cargo test --lib --bins --color=never 2>&1 | tee "$OUT"
+          cargo test --lib --bins --no-fail-fast --color=never 2>&1 | tee "$OUT"
           set -e
           if ! grep -q "^test result:" "$OUT"; then
             echo "::error::no test result line — the suite did not run (compile error? see the log)"

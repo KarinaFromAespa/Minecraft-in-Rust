@@ -828,7 +828,7 @@
   "Game files from {base}": "Вӑйӑ файлисем {base}",
   "Imported · {date}": "Импортланӑ · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} ку компьютер валли Horizon вӑйӑ мар.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Малтан релиз е Nightly лартӑр: импортланӑ сборка хӑйӗн вӑйӑ файлӗсемпе вылять.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} {program} ҫук.",
   "Could not import the build: {error}": "Сборкӑна импортлама май килмерӗ: {error}",
   "Sort by: {order}": "Сортировка тӑрӑх: {order}",

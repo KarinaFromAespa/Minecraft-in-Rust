@@ -830,7 +830,7 @@
   "Game files from {base}": "קבצי משחק מ-{base}",
   "Imported · {date}": "מיובא · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} אינו משחק Horizon עבור המחשב הזה.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "התקן גרסה או Nightly תחילה: מבנה מיובא משחק עם קבצי המשחק שלו.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} אינו מכיל {program}.",
   "Could not import the build: {error}": "לא ניתן לייבא את ה-build: {error}",
   "Sort by: {order}": "מיין לפי: {order}",

@@ -830,7 +830,7 @@
   "Game files from {base}": "ไฟล์เกมจาก {base}",
   "Imported · {date}": "นำเข้า · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} ไม่ใช่เกม Horizon สำหรับคอมพิวเตอร์เครื่องนี้",
-  "Install a release or Nightly first: an imported build plays with its game files.": "ติดตั้งรุ่นปกติหรือ Nightly ก่อน: บิลด์ที่นำเข้าจะเล่นด้วยไฟล์เกมของรุ่นนั้น",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} ไม่มี {program} อยู่ข้างใน",
   "Could not import the build: {error}": "นำเข้าบิลด์ไม่ได้: {error}",
   "Sort by: {order}": "จัดเรียงตาม: {order}",

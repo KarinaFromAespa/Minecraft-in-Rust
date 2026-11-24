@@ -828,7 +828,7 @@
   "Game files from {base}": "Ffeiliau gêm o {base}",
   "Imported · {date}": "Wedi'i fewnforio · {date}",
   "{file} is not a Free Horizon game for this computer.": "Nid yw {file} yn gêm Horizon ar gyfer y cyfrifiadur hwn.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Gosod datganiad neu Nightly first: mae adeiladwaith wedi'i fewnforio yn chwarae gyda'i ffeiliau gêm.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "Nid yw {file} yn dal {program}.",
   "Could not import the build: {error}": "Methu mewnforio'r adeilad: {error}",
   "Sort by: {order}": "Trefnu yn ôl: {order}",

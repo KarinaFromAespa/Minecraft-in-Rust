@@ -828,7 +828,7 @@
   "Game files from {base}": "Spēļu faili no {base}",
   "Imported · {date}": "Importēts · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} nav Horizon spēle šim datoram.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Vispirms instalējiet laidienu vai Nightly: importēta versija tiek atskaņota ar tās spēļu failiem.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} nesatur {program}.",
   "Could not import the build: {error}": "Nevarēja importēt būvējumu: {error}",
   "Sort by: {order}": "Kārtot pēc: {order}",

@@ -830,7 +830,7 @@
   "Game files from {base}": "Αρχεία παιχνιδιού από {base}",
   "Imported · {date}": "Εισήχθη · {date}",
   "{file} is not a Free Horizon game for this computer.": "Το {file} δεν είναι παιχνίδι Horizon για αυτόν τον υπολογιστή.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Εγκαταστήστε πρώτα μια έκδοση ή το Nightly: μια εισαγόμενη έκδοση παίζει με τα αρχεία παιχνιδιών της.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} δεν έχει {program}.",
   "Could not import the build: {error}": "Δεν ήταν δυνατή η εισαγωγή της κατασκευής: {error}",
   "Sort by: {order}": "Ταξινόμηση κατά: {order}",

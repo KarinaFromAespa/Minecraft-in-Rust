@@ -828,7 +828,7 @@
   "Game files from {base}": "Mängufailid saidilt {base}",
   "Imported · {date}": "Imporditud · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} ei ole selle arvuti jaoks mõeldud Horizoni mäng.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Installige esmalt väljalase või Nightly: imporditud järg mängib selle mängufailidega.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} ei sisalda {program}.",
   "Could not import the build: {error}": "Järeldust ei saanud importida: {error}",
   "Sort by: {order}": "Sorteerimisalus: {order}",

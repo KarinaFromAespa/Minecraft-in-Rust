@@ -828,7 +828,7 @@
   "Game files from {base}": "Spælfílur frá {base} .",
   "Imported · {date}": "Innflutt · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} er ikki eitt Horizon spæl til hesa telduna.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Set eina útgávu ella Nightly upp fyrst: ein innfluttur bygging spælir við sínum spælifílum.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} heldur nr {program}.",
   "Could not import the build: {error}": "Kundi ikki innflyta byggingina: {error}",
   "Sort by: {order}": "Sortera eftir: {order}",

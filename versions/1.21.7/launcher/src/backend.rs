@@ -733,14 +733,17 @@ pub fn releases() -> Result<Vec<Release>, String> {
 /// The game's builds in `list`: none. This tree's launcher ships no upstream game channel —
 /// its only version is the local one (`seed`), and game builds arrive by import — so no
 /// upstream release is ever listed, installed, or offered as an update. The parser
-/// (`game_releases_with`, tests only) stays for the tests that pin its shape.
+/// (`game_releases_with`) stays compiled for the tests that pin its shape.
 pub(crate) fn game_releases(_list: &serde_json::Value) -> Vec<Release> {
     Vec::new()
 }
 
 /// [`game_releases`] for one platform's asset, and the one it installs from a release that has
 /// none of its own ([`GAME_FALLBACK`]).
-#[cfg(test)]
+// Only the tests call this, but it stays compiled rather than `#[cfg(test)]`: the source scan
+// in `mojang_downloads_for_an_owner_or_with_no_account` truncates backend.rs at the first
+// `#[cfg(test)]`, and that must stay after `download_for`.
+#[allow(dead_code)]
 fn game_releases_with(
     list: &serde_json::Value,
     asset: Option<&str>,
@@ -6246,7 +6249,10 @@ pub fn {f}("
         );
         assert!(horizon_update(&releases, &["v2026.10.13".into()]).is_none());
         assert!(launcher_update(&[r("launcher-v0.0.1")]).is_none());
-        assert!(launcher_update(&[r("launcher@99.0.0")]).is_some());
+        // This tree's launcher offers no self-update from the upstream channel,
+        // whatever the upstream releases say; the comparison itself is pinned
+        // by the launcher_update_from assertion below.
+        assert!(launcher_update(&[r("launcher@99.0.0")]).is_none());
         assert!(launcher_update_from(&[r("launcher-v99.0.0")], "launcher-v0.16.0").is_some());
         let installed = ["v2026.10.12".to_string(), "v2026.10.1".to_string()];
         assert!(select_after_update(Some("v2026.10.12"), &installed));

@@ -830,7 +830,7 @@
   "Game files from {base}": "Файлы игры из {base}",
   "Imported · {date}": "Импортировано · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} — не игра Horizon для этого компьютера.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Сначала установите релиз или Nightly: импортированная сборка использует его файлы игры.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "В {file} нет {program}.",
   "Could not import the build: {error}": "Не удалось импортировать сборку: {error}",
   "Sort by: {order}": "Сортировка: {order}",

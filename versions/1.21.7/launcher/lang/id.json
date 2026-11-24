@@ -830,7 +830,7 @@
   "Game files from {base}": "File game dari {base}",
   "Imported · {date}": "Diimpor · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} bukan game Horizon untuk komputer ini.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Instal rilis atau Nightly terlebih dahulu: build yang diimpor dimainkan menggunakan file gamenya.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} tidak berisi {program}.",
   "Could not import the build: {error}": "Tidak dapat mengimpor build: {error}",
   "Sort by: {order}": "Urutkan berdasarkan: {order}",

@@ -828,7 +828,7 @@
   "Game files from {base}": "Spultsjebestannen fan {base}",
   "Imported · {date}": "Ymportearre · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} is gjin Horizon spultsje foar dizze kompjûter.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Ynstallearje in release of Nightly earst: in ymporteare build spilet mei syn spielbestannen.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} hâldt gjin {program}.",
   "Could not import the build: {error}": "Koe de build net ymportearje: {error}",
   "Sort by: {order}": "Sortearje op: {order}",

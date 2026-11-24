@@ -828,7 +828,7 @@
   "Game files from {base}": "Fitxers del joc de {base}",
   "Imported · {date}": "Importat · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} no és un joc Horizon per a aquest ordinador.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Instal·leu una versió o Nightly primer: una compilació importada juga amb els seus fitxers de joc.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} no té cap {program}.",
   "Could not import the build: {error}": "No s'ha pogut importar la compilació: {error}",
   "Sort by: {order}": "Ordena per: {order}",

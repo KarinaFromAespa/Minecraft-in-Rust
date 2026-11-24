@@ -828,7 +828,7 @@
   "Game files from {base}": "{base}dan oʻyin fayllari",
   "Imported · {date}": "Import qilingan · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} bu kompyuter uchun Horizon oʻyin emas.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Relizni yoki tungi versiyasini o'rnating: import qilingan tuzilma uning o'yin fayllari bilan o'ynaydi.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} {program} ga ega emas.",
   "Could not import the build: {error}": "Qurilishni import qilib bo‘lmadi: {error}",
   "Sort by: {order}": "Saralash: {order}",

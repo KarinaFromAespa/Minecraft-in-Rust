@@ -828,7 +828,7 @@
   "Game files from {base}": "Faịlụ egwuregwu sitere na {base}",
   "Imported · {date}": "Ebubatara · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} abụghị egwuregwu Horizon maka kọmputa a.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Wụnye ntọhapụ ma ọ bụ abalị mbụ: ihe owuwu ebubatara na-eji faịlụ egwuregwu ya egwu.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} ejideghị {program}.",
   "Could not import the build: {error}": "Enweghị ike ibubata ihe owuwu ahụ: {error}",
   "Sort by: {order}": "Hazie site na: {order}",

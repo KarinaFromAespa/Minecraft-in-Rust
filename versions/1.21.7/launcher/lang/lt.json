@@ -830,7 +830,7 @@
   "Game files from {base}": "Žaidimų failai iš {base}",
   "Imported · {date}": "Importuota · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} nėra Horizon žaidimas šiam kompiuteriui.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Pirmiausia įdiekite leidimą arba „Nightly“: importuota versija paleidžiama su žaidimų failais.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} neturi {program}.",
   "Could not import the build: {error}": "Nepavyko importuoti versijos: {error}",
   "Sort by: {order}": "Rūšiuoti pagal: {order}",

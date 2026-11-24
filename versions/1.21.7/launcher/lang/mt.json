@@ -828,7 +828,7 @@
   "Game files from {base}": "Fajls tal-logħob minn {base}",
   "Imported · {date}": "Importat · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} mhix logħba Horizon għal dan il-kompjuter.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Installa rilaxx jew Filgħaxija l-ewwel: bini importat jilgħab mal-fajls tal-logħob tiegħu.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} m'għandux {program}.",
   "Could not import the build: {error}": "Ma setgħetx timporta l-bini: {error}",
   "Sort by: {order}": "Issortja skond: {order}",

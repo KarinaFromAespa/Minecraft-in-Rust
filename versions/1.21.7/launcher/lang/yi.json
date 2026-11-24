@@ -828,7 +828,7 @@
   "Game files from {base}": "שפּיל טעקעס פֿון {base}",
   "Imported · {date}": "ימפּאָרטיד · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} איז נישט אַ Horizon שפּיל פֿאַר דעם קאָמפּיוטער.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "ינסטאַלירן אַ מעלדונג אָדער ניגהטלי ערשטער: אַ ימפּאָרטיד בויען פיעסעס מיט זיין שפּיל טעקעס.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} האלט ניט {program}.",
   "Could not import the build: {error}": "קען נישט אַרייַנפיר די בויען: {error}",
   "Sort by: {order}": "סאָרטירן לויט: {order}",

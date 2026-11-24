@@ -828,7 +828,7 @@
   "Game files from {base}": "Awọn faili ere lati {base}",
   "Imported · {date}": "Akowọle · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} kii ṣe ere Horizon fun kọnputa yii.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Fi itusilẹ sori ẹrọ tabi Ni alẹ ni akọkọ: kikọ agbewọle ti n ṣiṣẹ pẹlu awọn faili ere rẹ.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} ko si {program}.",
   "Could not import the build: {error}": "Ko le gbe ile-iṣẹ wọle: {error}",
   "Sort by: {order}": "Eto nipasẹ: {order}",

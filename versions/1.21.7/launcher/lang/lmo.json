@@ -830,7 +830,7 @@
   "Game files from {base}": "File di giœugh de {base}",
   "Imported · {date}": "Impurtà · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} l’è minga un giœugh Horizon per chestu urdinaduur.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Instala prima una version o Nightly: una build impurtada giœga cunt i sò file di giœugh.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} g’ha nissun {program}.",
   "Could not import the build: {error}": "Pudeva minga impurtar la compilaziun: {error}",
   "Sort by: {order}": "Ordina per: {order}",

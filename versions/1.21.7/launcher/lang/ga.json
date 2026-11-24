@@ -828,7 +828,7 @@
   "Game files from {base}": "Comhaid chluiche ó {base}",
   "Imported · {date}": "Iompórtáilte · {date}",
   "{file} is not a Free Horizon game for this computer.": "Ní cluiche Horizon é {file} don ríomhaire seo.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Suiteáil scaoileadh nó Nightly ar dtús: imríonn tógáil allmhairithe lena comhaid cluiche.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "Níl {program} ag {file}.",
   "Could not import the build: {error}": "Níorbh fhéidir an tógáil a iompórtáil: {error}",
   "Sort by: {order}": "Sórtáil de réir: {order}",

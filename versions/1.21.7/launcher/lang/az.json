@@ -828,7 +828,7 @@
   "Game files from {base}": "{base}-dan oyun faylları",
   "Imported · {date}": "İdxal edilib · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} bu kompüter üçün Horizon oyunu deyil.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Buraxılış və ya əvvəlcə Gecə quraşdırın: idxal edilmiş quruluş oyun faylları ilə oynayır.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} {program} yoxdur.",
   "Could not import the build: {error}": "Quraşdırmanı idxal etmək mümkün olmadı: {error}",
   "Sort by: {order}": "Sırala: {order}",

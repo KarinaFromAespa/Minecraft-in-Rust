@@ -828,7 +828,7 @@
   "Game files from {base}": "Уен файллары {base}",
   "Imported · {date}": "Импортланган · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file}түгелHorizonбу санак өчен уен.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Башта чыгарылыш яки Төнге урнаштырыгыз: читтән кертелгән уен уен файллары белән уйный.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} юк {program}.",
   "Could not import the build: {error}": "Төзелешне кертә алмый: {error}",
   "Sort by: {order}": "Сортировать: {order}",

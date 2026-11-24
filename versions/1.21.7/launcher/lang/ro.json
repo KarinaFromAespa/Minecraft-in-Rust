@@ -830,7 +830,7 @@
   "Game files from {base}": "Fișiere de joc de la {base}",
   "Imported · {date}": "Importat · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} nu este un joc Horizon pentru acest computer.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Instalați mai întâi o versiune sau Nightly: o versiune importată se joacă cu fișierele sale de joc.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} nu deține {program}.",
   "Could not import the build: {error}": "Nu s-a putut importa versiunea: {error}",
   "Sort by: {order}": "Sortați după: {order}",

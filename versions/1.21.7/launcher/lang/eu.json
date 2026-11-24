@@ -828,7 +828,7 @@
   "Game files from {base}": "{base}-ren joko fitxategiak",
   "Imported · {date}": "Inportatua · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} ez da ordenagailu honetarako Horizon joko bat.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Instalatu bertsio bat edo Nightly lehenik: inportatutako eraikuntza batek bere joko-fitxategiekin jokatzen du.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} ez du {program}.",
   "Could not import the build: {error}": "Ezin izan da inportatu eraikuntza: {error}",
   "Sort by: {order}": "Honen arabera ordenatu: {order}",

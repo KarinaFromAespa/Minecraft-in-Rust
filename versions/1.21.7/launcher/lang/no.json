@@ -830,7 +830,7 @@
   "Game files from {base}": "Spillfiler fra {base}",
   "Imported · {date}": "Importert · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} er ikke et Horizon-spill for denne datamaskinen.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Installer en utgivelse eller Nightly først: en importert versjon spiller med spillfilene.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} inneholder ingen {program}.",
   "Could not import the build: {error}": "Kunne ikke importere bygget: {error}",
   "Sort by: {order}": "Sorter etter: {order}",

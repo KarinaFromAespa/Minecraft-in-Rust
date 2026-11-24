@@ -828,7 +828,7 @@
   "Game files from {base}": "Galalka ciyaarta {base}",
   "Imported · {date}": "La soo dejiyay · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} maaha ciyaar Horizon kumbuyuutarkan.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Ku rakib sii-deynta ama Habeenkii marka hore: dhisme la soo dejiyay wuxuu ku ciyaaraa galalka ciyaarta.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} ma hayo {program}.",
   "Could not import the build: {error}": "Lama keeni karo dhismaha: {error}",
   "Sort by: {order}": "U kala sooc: {order}",

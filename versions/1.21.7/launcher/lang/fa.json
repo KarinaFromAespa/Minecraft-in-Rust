@@ -830,7 +830,7 @@
   "Game files from {base}": "فایل های بازی از {base}",
   "Imported · {date}": "وارد شده · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} یک بازی Horizon برای این رایانه نیست.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "ابتدا نسخه‌ای یا Nightly را نصب کنید: یک بیلد وارداتی با فایل‌های بازی خود بازی می‌کند.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} هیچ {program} را ندارد.",
   "Could not import the build: {error}": "نمی‌توان ساخت را وارد کرد: {error}",
   "Sort by: {order}": "مرتب سازی بر اساس: {order}",

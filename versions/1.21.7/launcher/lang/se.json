@@ -830,7 +830,7 @@
   "Game files from {base}": "Speallofiillat {base} rájes",
   "Imported · {date}": "Buvttaduvvon · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} ii leat Horizon speallu dán dihtorii.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Installeret almmuhusa dahje Nightly vuos: importerejuvvon huksen speallá iežas speallanfiillaiguin.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} ii leat {program}.",
   "Could not import the build: {error}": "Ii sáhttán importeret huksema: {error}",
   "Sort by: {order}": "Sortere: {order}",

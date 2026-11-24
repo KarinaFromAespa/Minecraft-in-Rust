@@ -828,7 +828,7 @@
   "Game files from {base}": "Spilldateien vun {base}",
   "Imported · {date}": "Importéiert · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} ass keen Horizon Spill fir dëse Computer.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Installéiert eng Verëffentlechung oder Nightly éischt: en importéierte Build spillt mat senge Spilldateien.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} hält keen {program}.",
   "Could not import the build: {error}": "Konnt de Build net importéieren: {error}",
   "Sort by: {order}": "Sortéieren no: {order}",

@@ -830,7 +830,7 @@
   "Game files from {base}": "{base} से गेम फ़ाइलें",
   "Imported · {date}": "आयातित · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} इस कंप्यूटर के लिए Horizon गेम नहीं है।",
-  "Install a release or Nightly first: an imported build plays with its game files.": "पहले एक रिलीज़ या Nightly इंस्टॉल करें: एक आयातित बिल्ड अपनी गेम फ़ाइलों के साथ चलता है।",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} में कोई {program} नहीं है।",
   "Could not import the build: {error}": "बिल्ड आयात नहीं किया जा सका: {error}",
   "Sort by: {order}": "इसके अनुसार क्रमबद्ध करें: {order}",

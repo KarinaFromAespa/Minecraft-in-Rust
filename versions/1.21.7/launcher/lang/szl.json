@@ -830,7 +830,7 @@
   "Game files from {base}": "Pliki gr ôd {base}",
   "Imported · {date}": "Importowane · {date}",
   "{file} is not a Free Horizon game for this computer.": "{file} niy ma gra Horizon do tego kōmputra.",
-  "Install a release or Nightly first: an imported build plays with its game files.": "Zainstaluj piyrszy wersyjo abo Nightly: importowano build ôdtworzo sie ze swojimi plikami gry.",
+  "No version is installed to import onto: an imported build plays with a version's game files.": "No version is installed to import onto: an imported build plays with a version's game files.",
   "{file} holds no {program}.": "{file} niy zawiyro {program}.",
   "Could not import the build: {error}": "Niy mōg importować build: {error}",
   "Sort by: {order}": "Sortuj podle: {order}",
