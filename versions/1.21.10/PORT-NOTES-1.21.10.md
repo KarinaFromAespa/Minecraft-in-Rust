@@ -1086,3 +1086,13 @@ state), 625 (ItemAttributeModifiers.compute filters by slot
 only). One noted gap, item 157's: datapack dimensions parse
 with no timelines, so the turtle dawn window never applies to
 them in the Rust.
+
+CI runs 45371920187 (rank 3 batch 3, ee286d72) and 45372546811
+(rank 3 batch 5, 6f884304): both FAILURE on the same single
+test, `the_layout_matches_vanilla_at_854_by_480` — a batch-3
+regression from item 505's ROW_WIDTH change (350 -> 310): the
+test pinned the 350-wide coordinates. The expectations are
+updated to the 310-wide layout (row_left 58.0, button_xs
+166/226/286; the footer is width-independent). Everything
+else in both runs was green, including the batch-3 ports'
+own tests.

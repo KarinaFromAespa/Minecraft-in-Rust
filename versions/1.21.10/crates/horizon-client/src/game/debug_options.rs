@@ -564,9 +564,11 @@ mod tests {
 
     #[test]
     fn the_layout_matches_vanilla_at_854_by_480() {
-        // 854x480 at GUI scale 2 is 427x240.
-        assert_eq!(row_left(427.0), 38.0);
-        assert_eq!(button_xs(40.0), [206.0, 266.0, 326.0]);
+        // 854x480 at GUI scale 2 is 427x240. The row is 310 wide in
+        // 1.21.10 (350 in 1.21.11), so it starts 20 further right and
+        // the row buttons sit 40 further left.
+        assert_eq!(row_left(427.0), 58.0);
+        assert_eq!(button_xs(40.0), [166.0, 226.0, 286.0]);
         assert_eq!(footer(427.0, 240.0), ([2.0, 126.0, 250.0, 364.0], 213.0));
     }
 
