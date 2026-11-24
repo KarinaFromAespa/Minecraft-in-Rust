@@ -1,0 +1,65 @@
+{
+ "batch": 10,
+ "checks": {
+  "gap": 6,
+  "pass": 11,
+  "total": 17
+ },
+ "date": "2026-11-24",
+ "items": [
+  {
+   "evidence": "audio_harness.require_sounds() (tools/audio_harness.py:35-37) exits unless .local/horizon-client/26.2/assets/minecraft/sounds.json exists. The prepared .local (prepare run in progress the morning of 2026-11-24, started 02:49 UTC) has a full assets/minecraft/ tree but no sounds.json and no sounds/ directory; the file is also absent from the client jar (ships only in the asset index). The absence does not depend on the prepare run's completion: sounds are never imported by the --prepare flow. Root cause is prepare: sounds need the separate 'horizon-prepare sounds' subcommand (horizon-prepare/src/main.rs:240) or --complete. Runtime: SoundRegistry::load silently skips a missing sounds.json (sound_events.rs:280-282), so every event resolves to Sound::empty(). Blocks all 6 audio_harness drivers (sound_event, ambient_sound, music, situational_music, sound_engine, audio_attributes); 3 are oracle-clean (sound_event, music, situational_music \u2014 data-only block) and 3 are oracle-blocked as well (ambient_sound, sound_engine, audio_attributes \u2014 see B10-O04). The wiring spec itself is clean (1,968 sounds.json events vs 1,968 registry events; only the intentionally_empty sentinel lacks an entry, plus one vanilla orphan: entity.chicken_picky.step in sounds.json with no registry event).",
+   "id": "B10-G02",
+   "method": "data + source",
+   "severity": "major",
+   "status": "gap",
+   "title": "No sounds.json in the prepared 26.2 resources: the game is silent and 6 audio drivers cannot run"
+  },
+  {
+   "evidence": "Vanilla 26.2 registers 26 BE renderers (BlockEntityRenderers, javap -c); the port's Kind (block_entity_render.rs:321-371) covers 17 slots plus beacon beams, and classify() falls through to Kind::None for the rest. Missing with visible effect: mob/trial spawner spinning mob (+ trial items) \u2014 cage is a block model (cube_all_inner_faces / cube_bottom_top_inner_faces), the mob is BE-rendered; campfire cooking items (logs are template_campfire, 7 elements; items BE-rendered); moving piston \u2014 moving_piston's block model is EMPTY, PistonHeadRenderer draws the moving block, so it vanishes mid-stroke (port has only collision shapes, collisions.rs:579); brushable-block brushed item (block renders via cube_all sand models); vault display item (template_vault block renders; item BE-rendered); shelf displayed items \u2014 NEW for 26.2, ShelfRenderer registered, template_shelf_body renders the shelf but the 3 displayed items are BE-rendered and the port has only the BE data (chunk/block_entity.rs:96-97). Structure-block and test-instance-block renderers are also absent but their visible in-play output is unverified (both have cube block models) \u2014 noted, not claimed. potent_sulfur has no vanilla renderer, so rendering nothing for it is correct.",
+   "id": "B10-G04",
+   "method": "javap + jar assets + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Seven vanilla block-entity renderers have no port equivalent (spawner, trial spawner, campfire, moving piston, brushable, vault, shelf)"
+  },
+  {
+   "evidence": "REINSTATED on coordinator reconciliation: the batch agent withdrew this on the import-level check (both font packages exist in 26.2), but the measured Batch 0 table shows a 1-symbol failure. ParityFont.java:43 calls pack.asResourceManager() on a VanillaPackResources; the method does not exist in 26.2 (error: cannot find symbol, symbol: method asResourceManager(), location: variable pack of type VanillaPackResources). Client cp: 1 error; server cp: 41 errors (blaze3d.font is client-only, expected). Repair: find 26.2's way to get a ResourceManager from a VanillaPackResources (javap the 26.2 class). Highest-leverage single-symbol repair in the batch: ParityFont blocks 8 drivers programme-wide (7 in this batch: block_entity_render, chat_screen, hud, pack_screen, recipe_book_render, subtitle, text_display_render) and cascades into VanillaSubtitleOracle and VanillaChatScreenOracle.",
+   "id": "B10-O02",
+   "method": "javac fixpoint (Batch 0 measured table) + jar check",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "ParityFont needs VanillaPackResources.asResourceManager(), absent in 26.2 (8 drivers blocked)"
+  },
+  {
+   "evidence": "VanillaBlockEntityRenderOracle imports net.minecraft.client.renderer.texture.UvMapping (line 23), a 26.3-only class absent from the 26.2 client jar (verified against the full 10,952-class list); it casts the SubmitNodeCollector proxy's args[7] to UvMapping at line 155. Measured: 7 errors on the client cp (first error line 23, the import). Blocks test_block_entity_render_parity \u2014 the driver that would catch B10-G04. Repair is small: in 26.2, OrderedSubmitNodeCollector.submitModel's 8th parameter IS the TextureAtlasSprite directly (javap), so cast args[7] to TextureAtlasSprite and drop the import; light/overlay/tint positions (args 4/5/6) already match. Note the driver is blocked by two more oracles as well: ParityFont (B10-O02, 1 error) and VanillaTextDisplayRenderOracle (missing-symbol, 1 error); all three must compile before the driver runs. ParityData compiles clean.",
+   "id": "B10-O03",
+   "method": "javap + import-level oracle check vs 26.2 client jar",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "VanillaBlockEntityRenderOracle needs UvMapping, a 26.3-only class (block_entity_render blocked)"
+  },
+  {
+   "evidence": "REINSTATED on coordinator reconciliation: the batch agent withdrew this (all 10 sound oracles import-clean), but the measured Batch 0 table shows 5 failures, all method-level. VanillaAmbientOracle FAIL 1 error, VanillaSoundEngineOracle FAIL 4 errors, VanillaFireStarterSoundOracle FAIL 1 error \u2014 all on the LocalPlayer constructor (Batch 0 G2 group; one signature translation rescues all 17 oracles programme-wide). VanillaAudioAttributesOracle FAIL 1 error: ClockInstance class missing (:72, new ClockInstance() \u2014 26.2 has world.clock.ClockManager but no ClockInstance). VanillaSubtitleOracle FAIL cascade (depends on broken ParityFont \u2014 passes for free once B10-O02 is repaired). The other 6 sound oracles PASS on the client cp (EntitySoundPacket, SoundRig, Music, SituationalMusic, ZombieCureSound, SoundEvent). Drivers blocked: ambient_sound, entity_bound_sound + sound_engine (via SoundEngineOracle), fire_starter_sound, audio_attributes, subtitle. Note the 6 audio_harness drivers are data-gated by B10-G02 regardless \u2014 oracle repair alone does not make them runnable.",
+   "id": "B10-O04",
+   "method": "javac fixpoint (Batch 0 measured table)",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "Sound oracle family: 4 fail on own errors (3 LocalPlayer ctor, 1 ClockInstance), 1 cascades on ParityFont"
+  },
+  {
+   "evidence": "com.mojang.renderpearl.* appears ZERO times in the 26.2 client jar \u2014 the render-pipeline API the 26.3-derived oracles use does not exist in 26.2. Five oracles import it: VanillaHudOracle (9 errors), VanillaPackScreenOracle (7), VanillaRecipeBookScreenOracle (4), VanillaLoomScreenOracle (4) (each missing renderpearl.api.pipeline.RenderPipeline only) and VanillaWorldBorderRenderOracle (28 errors: GpuBuffer, CommandEncoder, RenderPass, GpuDevice, RenderPipeline, plus net.minecraft.client.renderer.DynamicGpuData). Drivers blocked: hud, pack_screen, recipe_book_render, screen_layout, world_border_render, plus chat_screen (compiles VanillaPackScreenOracle as a dependency, test_chat_screen_parity.py:146). Repair is a 26.3-to-26.2 backport: 26.2 screens render through the SubmitNodeCollector/RenderType path, not a GPU pipeline object. The family's other members, measured: VanillaContainerScreenOracle and VanillaOptionsOracle PASS on the client cp; VanillaChatScreenOracle is a cascade failure (depends on broken ParityFont + VanillaPackScreenOracle); VanillaMenuOracle fails on its own 1 error (3-arg Player.drop with net.minecraft.util.Prediction, absent in 26.2).",
+   "id": "B10-O05",
+   "method": "import-level oracle check vs 26.2 client jar",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "UI/screen oracle family needs renderpearl, a 26.3-only API (6 drivers blocked)"
+  }
+ ],
+ "method": "javap on the named 26.2 client jar (leakage-audit/jars/26.2-client.jar, Mojang-mapped, 39,193,383 bytes) for every vanilla class in scope, plus the named server-game jar (26.1-adapters/versions/26.2/jars/server-game.jar) for server-side classes; exhaustive jar-asset scans (all 1,537 item definitions incl. nested model nodes; sign/bed/spawner/campfire/vault/shelf/piston/brushable block models and blockstates); 1,968-event sounds.json fetched sha1-verified from Mojang's asset index 32 into /tmp for the wiring diff only; source comparison against versions/26.2/crates/ on parity-sweep-26.2; prepared-data check of .local/horizon-client/26.2/ (prepare run in progress the morning of 2026-11-24); and oracle status from the measured Batch 0 table (docs/sweep/26.2/batch-0-oracles.json, fixpoint big-compile) \u2014 the batch agent's import-level check was superseded by the coordinator's reconciliation, which reinstated B10-O02 and B10-O04 and corrected the driver table (see the report header note). NO driver runs and NO cargo tests: checks-only batch. 50 drivers triaged by measured status (25 runnable, 22 oracle-blocked, 3 no-oracle server-e2e); 17 checks resolved statically (11 pass, 6 gap).",
+ "name": "Rendering, sound, UI",
+ "out_of_scope_failures": "Boundary drivers NOT counted in Batch 10: test_sign_literal_parity (sign BE NBT via commands \u2014 Batch 4/9), test_storage_menu_parity and recipe_book/recipe_book_variants/recipe_book_view (Batch 4/7). Cross-batch note: the dragon_death_roar driver documents '/damage on a dragon is a gap of Horizon's' \u2014 Batch 3/9, not Batch 10. WITHDRAWN for 26.2 (1.21.7 defects that do not carry; numbers not reused): B10-G01 sign boards (26.2 boards are block models with elements; SignRenderer is text-only), B10-G03 beds (26.2 beds are block models, no BedRenderer/BE type; bed items are minecraft:composite, decoded by the port), B10-G05 first-person swap ticker (26.2 HAS LivingEntity.itemSwapTicker + Player.getItemSwapScale; oracle and probe agree), B10-G06 silent-goat ambient suppression (port's Mob::voice checks silent + unit test a_silent_mob_makes_no_ambient_sound; driver docstring stale), B10-O01 options oracle (26.2 KeyMapping.getCategory() returns Category with id(); oracle PASSES on the client cp). B10-O02 and B10-O04 were initially withdrawn by the batch agent on the import-level check and REINSTATED by the coordinator on the measured Batch 0 table \u2014 see their items. Not verified (need driver runs): option values/defaults per key, HUD/screen pixel layouts, model-baking numerics, music situation-to-track mapping, structure/test-instance renderer visible output, first-person swap values, exact sign-text placement, beacon beam geometry.",
+ "source": "docs/PARITY-SWEEP.md \u00a74 Batch 10 \u2014 checks only, no fixes. Scope: models, block-entity rendering, screens, sound wiring, options; 50 drivers + static checks. Report completed + oracle claims reconciled against the measured Batch 0 table by the coordinator (the batch agent's draft ended mid-sentence at \u00a74 check 7).",
+ "systemic_note": "Two systemic patterns, both different from 1.21.7. (1) The 26.2 port inherits 26.3's answers, and for Batch 10 they are mostly RIGHT: signs, beds, the swap ticker, the options category chain and the font packages all work for 26.2 because 26.2 IS 26.x \u2014 5 of 1.21.7's 11 defects evaporate. What remains is the genuinely unported residue: the seven BE-rendered extras (spawner mob, campfire items, moving piston, brushable item, vault item, shelf items) that no version's port has drawn, and the 26.3-only APIs (renderpearl, UvMapping, DynamicGpuData, asResourceManager, ClockInstance) that the oracles assumed. (2) The sound stack is blocked on data AND oracles: the morning's prepare ran the export flow only, so the prepared 26.2 resources have no sounds.json \u2014 one 'horizon-prepare sounds' run fixes the silent game and unblocks the 3 oracle-clean audio drivers, but ambient_sound, sound_engine and audio_attributes also need their oracles repaired (B10-O04). The wiring spec itself is clean (1,968/1,968 real events, plus one vanilla orphan: entity.chicken_picky.step exists in sounds.json with no registry event). (3) Method lesson: an import-level oracle check is NOT a substitute for the Batch 0 measurement \u2014 it missed 12 driver-blocking failures here, all method-level.",
+ "version": "26.2"
+}
