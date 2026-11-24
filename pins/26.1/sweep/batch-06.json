@@ -1,0 +1,194 @@
+{
+ "batch": 6,
+ "checks": {
+  "gap": 7,
+  "pass": 18,
+  "total": 25
+ },
+ "coordinator_note": "COORDINATOR (2026-11-24): verified from raw artifacts. Report 708 lines, complete tail, no truncation (the one 'truncated' hit is prose about int truncation). Slice 25/18/7 arithmetic exact; 22 items; no fix key. All 34 named oracles exist in the Batch 0 table and fail on all three classpaths (short names in the slice map 1:1 to Vanilla*Oracle). All 10 1.21.7 B6 items decided. Driver split recomputed exactly from evidence/drivers-26.1.json: 63 drivers, 14 runnable / 16 no-oracle / 33 blocked; oracle triage 57 (23 pass / 34 fail) = 55 referenced (32 fail_all + 23 pass_any) + 2 group-only fails. Census recomputed: seed -1600712240839185950, 8138 chunks, 799997952 blocks (= 8138 x 98304), 18 biomes, 118 catalysts / 32 shriekers. NBTs 1202 prepared = 1202 jar. Construction cascade verified link by link: prepared carvers/features/feature_tags/rules/conditions bundles are all 2-byte {}; prepare WORLDGEN_BUNDLES maps 26.3 folder names while the 26.1 jar has configured_carver (4 files) and no worldgen/carver; generator.rs:1127 reads .get(\"aquifers\") while 26.1 settings carry aquifers_enabled only; router.rs RouterField::ALL is the 26.3 eight-field form and from_json requires all 8 while 26.1's router lacks chunk_surface_level; generator.rs:1148 hard-errors on absent material_rule while 26.1 settings carry surface_rule only; spawn_target decode uses library.named_density(name)? (generator.rs:1153-1165); zero occurrences of cache_2d/cache_once/flat_cache/shifted_noise anywhere in horizon-world/src (no decode arms); G14 table enumerates 11 types (21 features) + coral_mushroom = 22 (decode-audit.json's missing list has only 10 \u2014 it misses seagrass/weeping_vines; the report table is authoritative). G07 tag is sculk_growth_inhibitors (worldgen/sculk.rs:108), absent from the 26.1 jar; level/sculk.rs:620 carries a comment that the port knew. G02 withdrawal rests on 0 snow on packed ice across 29442 full-chunk + 2357 section-bottom + 10610 frozen_peaks-quarts snow blocks. TALLY CONVENTION: behaviour checks only (25 = 4 defect + 6 data + 10 code-vs-jar + 5 census); oracle triage is separate and NOT in the tally. MEMBER FOLDS (see MERGE-NOTES.md): VanillaSculkOracle B6-O04 -> B4-O14; VanillaNaturalSpawnOracle B6-O06 -> B4-O23; VanillaWorldSpawnOracle B6-O01 and VanillaFinalizeSpawnOracle B6-O06 -> B3 group items (pending B3).",
+ "date": "2026-11-24",
+ "items": [
+  {
+   "evidence": "26.1 worldgen/sculk.rs (727 lines) has no catalyst_chance/extra_rare_growths decode and no catalyst handling; decode reads only charge_count, amount_per_charge, spread_attempts, growth_rounds, spread_rounds; place() returns after the spreader rounds; the string 'catalyst' appears nowhere in the file. Vanilla 26.1 SculkPatchFeature.place (javap on the 26.1 server-game jar): after the spreader rounds, nextFloat() <= catalystChance with a collision-full block below places SCULK_CATALYST at the origin (flag 3), then extraRareGrowths.sample x origin.offset(nextInt(5)-2, 0, nextInt(5)-2) with air above and a face-sturdy block below places SCULK_SHRIEKER[can_summon=true] (flag 3); the catalyst roll happens BEFORE the growth sample, so the missing tail also shifts the RNG stream for features placed after a sculk_patch in the same chunk. 26.1 data: sculk_patch_deep_dark catalyst_chance 0.5, extra_rare_growths 0; sculk_patch_ancient_city 0.5, uniform 1..3. The 26.2 tree HAS the tail (sculk.rs lines 59-60, 97-112, 178, 188). Vanilla-side ground truth: the reference world has 118 sculk_catalyst and 32 sculk_shrieker blocks (deep_dark present, 123,723 cells).",
+   "id": "B6-G01",
+   "method": "javap + source + prepared data + reference-world census (re-check of 1.21.7 defect)",
+   "severity": "major",
+   "status": "gap",
+   "title": "sculk_patch catalyst / extra rare growths tail missing in 26.1 (1.21.7 defect REPRODUCES)"
+  },
+  {
+   "evidence": "Mechanism root-caused and verified closed, with stronger evidence than the 26.2 withdrawal. Jar tag cannot_support_snow_layer = [ice, packed_ice, barrier], support_override_snow_layer = [honey_block, soul_sand, mud]; prepared block-tags.json contains both with exactly the jar's members. Port Rule::SnowLayer (block_survival.rs:793) and survive.rs:293 (Class::SnowLayer) both implement deny-tag -> allow-tag -> face-full collision UP or same-block layers==8, matching jar SnowLayerBlock.canSurvive exactly; both paths load the tags from prepared data (block_survival.rs:529-530, level/data.rs:428-429). SnowAndFreezeFeature.place matches the jar exactly. BiomeWeatherBindings::should_freeze/should_snow (biome_weather.rs:46,74) match jar Biome.shouldFreeze/shouldSnow step by step, and height_adjusted matches getHeightAdjustedTemperature. Vanilla-side ground truth: 0 snow blocks on packed ice world-wide in the reference world (0 of 29,442 in full chunks, 0 of 2,357 at section bottoms, 0 of 10,610 in frozen_peaks quarts) - and unlike 26.2's world, the 26.1 world HAS frozen_peaks (70,794 cells) and deep_dark. The snow path is byte-identical between the 26.1 and 26.2 trees. Caveat: no port world exists, so live confirmation is B6-H.",
+   "id": "B6-G02",
+   "method": "javap + source + prepared data + reference-world census (re-check of 1.21.7 defect)",
+   "severity": "major",
+   "status": "fixed",
+   "title": "Snow-on-packed-ice mechanism verified closed in 26.1 (1.21.7 defect withdrawn)"
+  },
+  {
+   "evidence": "The 1.21.7 world comparison measured water -1.04% underground with surface water matching; never root-caused. For 26.1 the mechanism is demonstrated, and it is total: the port never constructs a noise-based aquifer (see B6-G09). Pipeline::new reads the 26.3 'aquifers' config object from the noise settings; no 26.1 noise settings has that key, so the aquifer is None and generation uses DisabledAquifer - sea-level picker water only, no underground lakes, no flooded caves, no aquifer lava. The 1.21.7 deficit would be far larger in 26.1: ALL aquifer water is missing. The aquifer ENGINE itself matches the 26.1 jar (noise_based.rs byte-identical to the 26.2 file, spot-checked against the 26.1 jar: router-form ctor, 13 surface offsets, computeSurfaceLevel with OverworldBiomeBuilder.isDeepDarkRegion, FLOWING_UPDATE_SIMILARITY = 1-44/25); the defect is purely the wiring. Vanilla-side water: 4,876,455 blocks over 8,138 chunks.",
+   "id": "B6-G03",
+   "method": "javap + source (re-check of 1.21.7 defect; full aquifer audit)",
+   "severity": "major",
+   "status": "gap",
+   "title": "Underground water deficit REPRODUCES in 26.1: the entire aquifer system is absent (see B6-G09)"
+  },
+  {
+   "evidence": "PoolPiece::save (worldgen/structure/jigsaw.rs:683) goes through legacy::piece_tag(\"minecraft:jigsaw\", bbox, None, 0), which writes (\"GD\", Tag::Int(gen_depth)) (legacy.rs:339). The reference world confirms the vanilla form: trial chambers 1,750/1,750 pieces GD=0, trail ruins 33/33 GD=0, villages 549/549 GD=0, mineshaft GD 0-9.",
+   "id": "B6-G04",
+   "method": "source + reference-world census (re-check of 1.21.7 defect)",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "PoolPiece NBT writes the GD (genDepth) key in 26.1 (1.21.7 defect withdrawn)"
+  },
+  {
+   "evidence": "Two sites in worldgen/sculk.rs require WATER_SOURCE where the 26.1 jar tests fluid-is-water: sculk.rs:305 (attempt_spread_vein, Default branch, non-empty facings) and sculk.rs:548 (can_place_growth above-open gate). Vanilla 26.1: SculkBehaviour$1.attemptSpreadVein regrows when the state is air OR fluidState.is(Fluids.WATER); SculkBlock.canPlaceGrowth accepts above air OR (is(WATER) AND fluidState.is(WATER)). The port's WATER_SOURCE is set only for source water (tree_blocks.rs:184; flowing water gets WATER_FLUID|ANY_FLUID only), so flowing water blocks sculk vein regrowth and growth placement that vanilla allows. No RNG effect (no random calls in either gate). Same defect as in 26.2 (B6-G05 there too).",
+   "id": "B6-G05",
+   "method": "javap + source (re-check of 1.21.7 defect)",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Sculk spreader water gates narrowed to water sources (1.21.7 defect REPRODUCES)"
+  },
+  {
+   "evidence": "Prepared worldgen/carvers.json (0 entries), worldgen/features.json (0 entries) and worldgen/feature_tags.json (empty). Cause: horizon-prepare WORLDGEN_BUNDLES (crates/horizon-prepare/src/lib.rs:1469-1478) maps (\"carvers\",\"worldgen/carver\"), (\"features\",\"worldgen/feature\"), (\"feature_tags\",\"tags/worldgen/feature\") - the 26.3 folder names. The 26.1 jar uses worldgen/configured_carver (4), worldgen/configured_feature (221), tags/worldgen/configured_feature (2 files). The 26.2 tree's prepare fixed carvers/features but NOT feature_tags (line 1478 still tags/worldgen/feature; the 26.2 jar also uses configured_feature tags, so 26.2's feature_tags is empty too - latent gap there). The raw copies under prepared data/minecraft/worldgen/ are 4/4 and 221/221 identical to the jar, but GeneratorData::load (generator.rs:486,497) reads the worldgen/*.json bundles only. CarverCatalog::from_json({}) succeeds, then decode_set errors 'unknown carver' for 59 of 65 biomes (54 list [canyon, cave, cave_extra_underground], 5 nether biomes use single-string minecraft:nether_cave, 6 have empty lists) with ?, so GeneratorData::load fails and no 26.1 world can generate; separately FeatureCatalog::named errors 'unknown feature reference' for every placed feature. First failure in the construction cascade.",
+   "id": "B6-G06",
+   "method": "prepared data vs jar data + source (new defect)",
+   "severity": "major",
+   "status": "gap",
+   "title": "Prepared carvers.json and features.json are EMPTY (26.3 folder names in horizon-prepare); GeneratorData::load fails"
+  },
+  {
+   "evidence": "Port sculk.rs:66,108 reads tag minecraft:sculk_growth_inhibitors, which does NOT exist in 26.1 (nor 26.2) - 26.3 added it; absent from both jars and from prepared block_tags.json. tag() returns an empty set, so the >=3 count at sculk.rs:556-558 never fires and sensors/shriekers pile up without limit. Both the 26.2 worldgen sculk.rs (lines 606-609) and the 26.1 level/sculk.rs (lines 620-623) check sensor/shrieker directly with an explicit comment. Note: a wrongly-passing gate also consumes RNG (nextInt(50), nextInt(11)) and returns charge-50 instead of the decay path.",
+   "id": "B6-G07",
+   "method": "javap + source + prepared data (new defect)",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Sculk can_place_growth density cap is dead (reads the 26.3-only sculk_growth_inhibitors tag)"
+  },
+  {
+   "evidence": "Port update() (sculk.rs:263-270) kills a stuck cursor (None -> on_discharged + charge=0 + return) and has NO post-move 15-block check; valid_movement (sculk.rs:642,659-663) applies a pre-move 12-block filter (dx^2+dz^2 > 144). The 26.1 jar ChargeCursor.update: a null movement pos falls through to facings/decay-delay/update-delay (NOT killed); the post-move worldgen check kills the cursor when NOT closerThan(origin-x/z, 15.0); getValidMovementPos takes no origin and has no 12-block filter. The 26.2 tree has the post-move dx^2+dz^2 >= 225 check and no pre-filter (with a comment stating 26.3 checks 12 before the move and kills stuck cursors).",
+   "id": "B6-G08",
+   "method": "javap + source (new defect)",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Sculk cursor movement uses the 26.3 form (kills stuck cursors, pre-move 12-block filter, no post-move 15-block check)"
+  },
+  {
+   "evidence": "Pipeline::new (generator.rs:1126-1129) reads settings_json[\"aquifers\"] - a 26.3 config-object key - and builds the aquifer config from it. NO 26.1 noise settings has that key (all 7 checked: overworld, amplified and large_biomes have aquifers_enabled: true; caves, end, floating_islands, nether false; none has 'aquifers'). So the aquifer is always None and generation uses DisabledAquifer (generator.rs:1770, 2031): density <= 0 -> the global fluid picker only (sea-level water), no barrier/floodedness/spread noise, no underground lakes or flooded caves. Vanilla 26.1 builds NoiseBasedAquifer from the ROUTER (jar ctor takes the NoiseRouter and reads barrierNoise, fluidLevelFloodednessNoise, fluidLevelSpreadNoise, lavaNoise, erosion, depth). The 26.2 tree fixed exactly this (from_router + aquifers_enabled gate, generator.rs:1164-1171, with synthesize::aquifer_exclusion); the 26.1 tree has neither from_router nor any aquifer_exclusion synthesis. Silent: no error is raised, the aquifer is just absent. Mechanism behind B6-G03.",
+   "id": "B6-G09",
+   "method": "javap + source + prepared data (new defect)",
+   "severity": "major",
+   "status": "gap",
+   "title": "Aquifers entirely disabled: Pipeline::new reads the 26.3 'aquifers' config object, absent from all 26.1 settings"
+  },
+  {
+   "evidence": "worldgen/router.rs declares 8 fields (temperature, vegetation, continents, erosion, depth, ridges, chunk_surface_level, final_density) and from_json requires all of them. The 26.1 jar's NoiseRouter record has 15 components (barrier, fluid_level_floodedness, fluid_level_spread, lava, preliminary_surface_level, vein_toggle, vein_ridged, vein_gap, plus the eight) - there is NO chunk_surface_level in 26.1. All 7 prepared noise settings lack that key, so NoiseRouter::from_json errors at generator.rs:1105 for every settings object, before the aquifer, rule and spawn-target steps. OverworldGenerator::for_world_with_settings (the real world-construction path) and the flat path both go through Pipeline::new, so no noise or flat world can be constructed. The 26.2 tree has the correct 15-field form (router.rs, ALL: [Self; 15], PreliminarySurfaceLevel). Second failure in the construction cascade (after G06).",
+   "id": "B6-G10",
+   "method": "javap + source + prepared data (new defect)",
+   "severity": "major",
+   "status": "gap",
+   "title": "NoiseRouter is the 26.3 eight-field form (requires chunk_surface_level); Pipeline::new fails on 26.1 settings"
+  },
+  {
+   "evidence": "generator.rs:1148-1151: settings_json[\"material_rule\"].as_str() is required, and the name is looked up in the material-rule library. No 26.1 noise settings has a material_rule key - they carry an inline surface_rule object ({type: sequence, ...}), the 1.21.x/26.2 form, and rules.json/conditions.json are legitimately empty (no such data folders exist in the 26.1 jar; SurfaceRules are inline in the settings). The 26.2 tree feeds the inline rule to the library under a synthetic name (INLINE_SURFACE_RULE). Third failure in the construction cascade (after G06, G10 - and after G13, which fires during the router decode's density resolution).",
+   "id": "B6-G11",
+   "method": "source + prepared data + jar data (new defect)",
+   "severity": "major",
+   "status": "gap",
+   "title": "Pipeline::new requires material_rule; 26.1 settings carry an inline surface_rule"
+  },
+  {
+   "evidence": "generator.rs:1153-1175 decodes each spawn_target point by mapping every field name through library.named_density(name) - looking up a density function named minecraft:<field>. None of the 7 field names used by the 26.1 overworld/amplified/large_biomes spawn targets (continentalness, depth, erosion, humidity, offset, temperature, weirdness) is a registered density function (the 35 registry entries are all minecraft:overworld/..., minecraft:end/..., minecraft:nether/..., minecraft:shift_x, minecraft:shift_z, minecraft:y, minecraft:zero), so the decode errors with 'unknown material density' for every settings object with a non-empty spawn_target. Latent second half: even if the lookups resolved, SpawnTargetPoint::sample_fitness samples each named density, but vanilla's Climate$SpawnFinder.getSpawnPositionAndFitness rebuilds the sampled TargetPoint with depth FORCED to 0 (javap: lconst_0 as the depth argument) and adds square(offset) as a constant. The 26.1 overworld depth function at y=0 is ~1.0 + the offset spline (NOT 0), so sampling it would add a large position-varying bias to every candidate's fitness. The 26.2 tree decodes spawn_target via decode_parameter_point and its spawn_finder zeroes the depth. The radial-search/fitness FORMULA in the port matches the jar exactly; only the decode and the depth handling are wrong.",
+   "id": "B6-G12",
+   "method": "javap + source + prepared data (new defect)",
+   "severity": "major",
+   "status": "gap",
+   "title": "spawn_target decode fails (named-density lookups for bare climate field names); depth not zeroed"
+  },
+  {
+   "evidence": "worldgen/density.rs has no arms for cache_2d, cache_once, flat_cache or shifted_noise; the default arm errors 'unknown density type: {kind}'. All four are used in 26.1 data: minecraft:overworld/offset is flat_cache > cache_2d > add(...) (with cache_once around blend_alpha inside) - and offset is an argument of minecraft:overworld/depth, a router field, so decoding the router's depth function fails; cache_2d x13 and shifted_noise x8 in the noise settings' surface rules; cache_2d x2 / flat_cache x2 across the density-function registry. The 26.2 tree has all four arms (density.rs:362 cache_2d|cache_once|flat_cache, :402 noise|shifted_noise); the 26.1 compiler even has a ShiftedNoiseSampler (horizon-core/src/density/mod.rs:437) that the JSON decoder never produces. Fires during the router decode in Pipeline::new (after G10's missing-field error, before G11).",
+   "id": "B6-G13",
+   "method": "source + jar data (new defect)",
+   "severity": "major",
+   "status": "gap",
+   "title": "Density decode missing cache_2d, cache_once, flat_cache, shifted_noise (all used in 26.1 data)"
+  },
+  {
+   "evidence": "Top-level configured-feature types in the 26.1 data: 53 distinct, 221 total. Eleven have NO arm in the port's feature dispatch (feature_graph.rs, plus feature.rs for the end features) - the default arm falls through to BasicFeature::from_json, which errors 'basic feature type' for anything but the three end features: basalt_columns x2, basalt_pillar x1, desert_well x1, dripstone_cluster x1, glowstone_blob x1, kelp x1, nether_forest_vegetation x6, sea_pickle x1, seagrass x4, twisting_vines x2, weeping_vines x1. All except dripstone_cluster have arms in the 26.2 tree (kelp/seagrass/sea_pickle via aquatic.rs, a file absent in 26.1; twisting/weeping vines via nether.rs); dripstone_cluster is missing in BOTH trees (both carry the 26.3 name speleothem_cluster instead). Plus coral_mushroom, nested inside warm_ocean_vegetation's simple_random_selector (dispatch has coral_tree|coral_claw only; CoralFeature::decode errors on other kinds). Total: 22 broken configured features, affecting 24 placed features. Feature decoding is lazy (FeatureCatalog::named), so these fail at decoration time when a chunk references one of the 24 placed features. Also missing: the nether_cave carver arm (carver/generation.rs has cave + canyon only; 26.2 has cave | nether_cave); the 5 nether biomes list minecraft:nether_cave as their carver.",
+   "id": "B6-G14",
+   "method": "jar data vs dispatch tables (new defect)",
+   "severity": "major",
+   "status": "gap",
+   "title": "11 configured-feature types + coral_mushroom + nether_cave have no decode arms (22 configured features, 24 placed features)"
+  },
+  {
+   "evidence": "Batch 0 measured status (docs/sweep/26.1/batch-0-oracles.json). 10 oracles: Anchor, BiomeSourceCodec, BiomeSource, Density, FloatLog*, MaterialExtension, Noise, StructureDensity, WorldSpawn, Worldgen. Verified by jar listing: the densityfunction package has 0 entries in BOTH 26.1 jars; DensityFunction lives at levelgen.DensityFunction (1.21.x shape). Anchor blocks 9 drivers including non-B6 test_anchor_parity and test_state_provider_parity. (*FloatLog is group-only: its driver test_float_log_parity is not a B6 driver; recorded here with a cross-ref.)",
+   "id": "B6-O01",
+   "method": "Batch 0 measured table + jar listing",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "Oracles reference the 26.3-only densityfunction package (missing in 26.1; 10 oracles)"
+  },
+  {
+   "evidence": "Batch 0 measured status. 5 oracles: BiomeGeneration, MaterialCondition, MaterialStage, MaterialSurface, Terrain. Verified: material/rule has 0 entries in both jars (material/ holds only MaterialRuleList); 26.1 surface rules live at levelgen.SurfaceRules.",
+   "id": "B6-O02",
+   "method": "Batch 0 measured table + jar listing",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "Oracles reference the missing material/rule package (5 oracles)"
+  },
+  {
+   "evidence": "Batch 0 measured status. 1 oracle: Decoration. The 26.1 jar's Feature ctor takes only Codec<FC>.",
+   "id": "B6-O03",
+   "method": "Batch 0 measured table + javap",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "Oracle uses the 26.3 Feature constructor signature (1 oracle)"
+  },
+  {
+   "evidence": "Batch 0 measured status; first-error symbols from the raw big-compile-client.log. 8 oracles: BiomeChunk, CanyonCarver, CaveCarver, ChunkStage, CushionPlacement, FeatureGraph, FeatureRegion, Sculk. CanyonCarver/CaveCarver: WorldCarver.DIRECT_CODEC (absent; only configuredCodec()), CarverOutput, CarvingMask.minY/maxY/carve (CarvingMask is at world.level.chunk.CarvingMask with set/get/stream/toArray only); ChunkStage/FeatureRegion: ChunkStatus.TERRAIN (the 26.1 set has NOISE/SURFACE/CARVERS, no TERRAIN); Sculk: datapackWorldRegistries() (absent; datapackWorldgen() exists), MinecraftServer ctor, WardenSpawnTracker Optional wrapping. Also absent from the jar: Interval, GradientNoise/Noise/NoiseStack/SmearedPerlinNoise (synth has only NormalNoise/PerlinNoise), NoiseSpawnFinder, DensitySampler/SamplerContext, MaterialCondition/MaterialRule/MaterialSystem, Cushion, Continuation, blockscan package, BlockMatcher, NativeDestruction, cubemob, Registries.BLOCK_STATE_PROVIDER (26.1 has BLOCK_STATE_PROVIDER_TYPE).",
+   "id": "B6-O04",
+   "method": "Batch 0 measured table + javap + compile log",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "Oracles fail on missing symbols / signature drift (26.x API drift, 8 oracles)"
+  },
+  {
+   "evidence": "Batch 0 measured status. 2 oracles: DecorationRegion, FeatureCatalog. The named methods have no override in the 26.1 jar (getNextEntityId(), startsForStructure overloads, getAllStructuresAt, getBiome(int,int,int), markPosForPostProcessing - note ProtoChunk.markPosForPostprocessing, lowercase p).",
+   "id": "B6-O05",
+   "method": "Batch 0 measured table + javap",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "Oracles fail on missing-override lookup (2 oracles)"
+  },
+  {
+   "evidence": "Batch 0 measured status. 4 oracles: FinalizeSpawn, NaturalSpawn, SpawnRules, TreeFeature. Cross-batch overlaps (coordinator dedups): FinalizeSpawn folds into B3; NaturalSpawn also referenced by spawner/trial_spawner/vault drivers.",
+   "id": "B6-O06",
+   "method": "Batch 0 measured table",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "Oracles fail on no-override (4 oracles)"
+  },
+  {
+   "evidence": "Batch 0 measured status. 4 oracles: BiomeZoom, StructureStart, HeightProvider (cascade via Anchor), StructurePlacement* (group-only, no driver references it). WorldSpawn folds into B3, Sculk into B4 per the 26.2 numbering.",
+   "id": "B6-O07",
+   "method": "Batch 0 measured table",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "Other oracle failures (4 oracles)"
+  },
+  {
+   "evidence": "Generate port chunks at seed -1600712240839185950 (the reference world's seed, confirmed from data/minecraft/world_gen_settings.dat) and compare against the vanilla reference world (~/workspace/vanilla-world-mc/26.1/, 8,138 chunks). STAGE RULE: the port's generate_proto output is terrain-level (biomes, noise fill, aquifers, material surface, carvers - the 26.1 statuses up to CARVERS); vanilla region files are post-decorate. Compare post-decorate to post-decorate for blocks, terrain-level to terrain-level for density. Direct comparison is only valid where structure templates contain no air (ancient city: 0 air) - trial chambers/villages carve air during placement, so a terrain-vs-post-decorate gap there is a measurement artifact, not a density bug (the 1.21.7 -6.4 'beardifier residual' was exactly this). B6-H arbitrates: G02/G04 live confirmation, G03's magnitude once aquifers exist, and the sculk/G07/G08 RNG-stream effects. Blocked until the construction cascade (G06/G10/G13/G11/G12) is fixed - no port world can be generated today.",
+   "id": "B6-H",
+   "method": "needs-harness (paired chunk comparison, stage rule applies)",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "Paired port-vs-vanilla chunk comparison for 26.1 (stage rule applies)"
+  }
+ ],
+ "method": "javap -c on the named 26.1 server-game jar for every vanilla method spot-checked (SculkPatchFeature, SculkSpreader behaviours, SnowAndFreezeFeature, Biome.shouldSnow/shouldFreeze/coldEnoughToSnow/getTemperature/getHeightAdjustedTemperature, SnowLayerBlock.canSurvive, SugarCaneBlock.canSurvive, JigsawPlacement/Placer, OreFeature/canPlaceOre, Aquifer$NoiseBasedAquifer incl. ctor/computeFluid/computeSurfaceLevel/calculatePressure, OverworldBiomeBuilder.isDeepDarkRegion, Climate$SpawnFinder/ParameterPoint/Parameter, MultiNoiseBiomeSourceParameterList Preset, SpringFeature/SpringConfiguration, FlatLevelGeneratorSettings, NoiseRouter, NoiseGeneratorSettings); exact data diffs of prepared resources vs jar (715 populated registry entries; structure NBTs 1202/1202; flat presets 9/9 + visible tag; multi-noise presets); vanilla 26.1 reference world census with an own NBT parser (seed -1600712240839185950, 8,138 chunks, block/biome/structure census); decode-coverage audit of every worldgen dispatch arm against the jar data; Batch 0 oracle-status triage for all 57 oracles referenced by the batch's 63 drivers (23 pass / 34 fail). No driver was run: 14 drivers have passing oracles and 16 have no oracle (ready when the execution block lifts); 33 are blocked on failing oracles. Checks tally = 25 behaviour checks only (18 pass, 7 gap); oracle triage counted separately per the 26.1 convention.",
+ "name": "Worldgen / features",
+ "out_of_scope_failures": "None. Adjacent findings NOT recorded as B6 defects: (1) DUMMY block entities (68) in the reference world - vanilla-side oddity, BEs owned by another batch; (2) the tag_states silent-empty footgun (missing tag -> empty set, no error) is the mechanism behind G07 and likely explains the 1.21.7 snow measurement; it is a robustness gap in the shared survival/tag loader, not a worldgen defect per se (all tags used by the verified snow path are present in the prepared data); (3) the port's ChunkStatus enum is the 26.3 form (single TERRAIN, no NOISE/SURFACE/CARVERS) but behaviourally inert - generate_proto performs all three 26.1 stages in one call, and the only NBT use is retrogen target_status, which no reference-world chunk carries (0 chunks with retrogen data); the 26.2 tree has the identical enum; (4) generator.rs tests still reference a 26.3 prepared-data dir (../../.local/horizon-client/26.3) in several test paths - test-only; (5) the 26.2 tree's feature_tags prepare gap (line 1478 still tags/worldgen/feature) is noted for the 26.2 coordinator; (6) dripstone_cluster is missing in BOTH the 26.1 and 26.2 trees (both carry the 26.3 name speleothem_cluster instead); (7) the 14 runnable + 16 no-oracle drivers were not run (execution block) - they are unmeasured, not passing.",
+ "source": "docs/PARITY-SWEEP.md \u00a74 Batch 6 \u2014 checks + triage only, no fixes. Scope: noise/density functions, carvers, configured/placed features, structures and structure sets, template pools, biomes and biome sources, chunk generation stages, spawn finding, world presets. Static checks only (javap + source + data diffs + vanilla world census); no cargo builds, no driver runs, no commits.",
+ "systemic_note": "Unlike 26.2, this batch HAS a single systemic cause across most of its open defects: the 26.1 tree still carries the 26.3 forms where 26.1 uses the 1.21.x forms \u2014 the prepare folder names (G06), the NoiseRouter (G10), the aquifer config object (G09), the material-rule name (G11), the spawn-target named densities (G12), the density cache/shifted-noise arms (G13), and 11 feature types + the nether carver (G14) were all fixed in the 26.2 tree and are all still 26.3-form in 26.1. The 26.2 tree is the repair template for every one of them. The sculk defects (G01/G05/G07/G08) are the exception: same narrow-predicate pattern as 26.2's G05, found only by javap-diffing the feature's gates. Arm presence is not correctness \u2014 G05, G07 and G08 were silent narrowings inside present arms, found only by javap-diffing. Three of the four 1.21.7 defects reproduce in 26.1 (G01, G03, G05); only G02 and G04 are withdrawn. The 26.1 port is materially less faithful on worldgen than the 26.2 tree was at sweep time: no 26.1 world can generate at all with the current tree + prepared data.",
+ "version": "26.1"
+}
