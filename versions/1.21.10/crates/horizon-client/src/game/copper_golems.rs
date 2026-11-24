@@ -241,7 +241,9 @@ impl Game<'_> {
         self.golem_drop_equipment(m);
         m.extra.opened_chest = None;
         if m.extra.leash.is_some() {
-            self.break_leash(m.id, true, false);
+            // `turnToStatue`: the lead drops only with entity drops on
+            // (RULE_DOENTITYDROPS in 1.21.10, ENTITY_DROPS in 1.21.11).
+            self.break_leash(m.id, self.ui.rules.bool("entity_drops"), false);
             m.extra.leash = None;
         }
         m.removed = true;

@@ -696,3 +696,16 @@ FOOD only in 1.21.10 (isConsumableFood is 1.21.11-only). No-change: 15
 (video-settings layout is menu chrome), 69 (options migration + toast
 rename unmodelled), 84 (villager renames; dragging assign already the
 1.21.10 form).
+
+Batch 19 (rank 2 388 -> 396, total 406/719): 1 ported, 7 no-change.
+40 copper_golems.rs: turnToStatue's lead drop is gated on the entity-drops
+rule in both versions (RULE_DOENTITYDROPS / ENTITY_DROPS) — the Rust
+dropped it unconditionally; gated on ui.rules.bool("entity_drops").
+No-change: 23 (wolf anger is already the 1.21.10 int countdown; the NBT
+anger_end_time long form belongs to item 11), 65 (AbstractGolem package
+moves + needsSync rename + f32 sin), 72 (font pipeline refactor; debug
+dump rename), 99 (Netty ping plumbing unmodelled), 119 (frame_survives
+already checks blocks + entities + border, the 1.21.10 noCollision form;
+1.21.11's hasLevelCollision is blocks + border only), 229 (bonemeal
+emits ITEM_INTERACT_FINISH at the player in both), 278 (screen-level
+double-click state unmodelled; container double-click identical).

@@ -1,8 +1,8 @@
 {
  "release": "1.21.10",
  "rank": 2,
- "batch": 18,
- "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review). Batch 6: 13 missing-only no-change (1.21.11-only/1.21.10-only methods unreferenced or identically modelled; Timeline + hand.rs deliberate non-carry-overs with jar evidence). Batch 7: 5 real-method no-change (normalisation gaps + unmodelled methods, each with method diff + Rust-side check). Batch 8: 12 smallest real-method items (10 no-change: renames/noise/unmodelled; 2 ported: 154 equine isMobControlled/MountPanic removal, 256 loom scrolling reset). Batches 9-12: 44 small real-method items (41 no-change: renames, API gaps, unmodelled; 3 ported: 132 piglin spear, 276 furnace Math.random, 277 spawn-mobs gate). Batches 13-14: 16 items (14 no-change; 2 ported: 212 explosion radius guard, 74 music volume threading). Batches 15-16: 16 items (13 no-change; 3 ported: 222 sea-pickle draw, 115 border current size, 262 slime two-draw moon check incl. oracle+harness updates). Batch 17: 3 ported (261 attribute compute unfiltered, 71 client border tick unconditional, 68 play_sound single sound), 5 no-change (34 Christmas dates identical, 85 chunk save unmodelled, 116 codec plumbing, 117 spear path unreachable, 173 raid trig noise). Batch 18: 3 ported (172 sync registry list trimmed to 1.21.10's 21, 202 Nether map spin on day time, 25 fox food test is FOOD-only), 5 no-change (15 criterion renames, 27 panda trig + modelled MOB_DROPS, 61 menu-chrome layout, 69 options migration unmodelled, 84 villager renames + dragging assign).",
+ "batch": 19,
+ "note": "Batch 1: 34 no-change. Batch 2: 80 carry-over (1.21.11-port hunks merged; 1.21.11-only parts reverted with jar evidence: Horse/ZombieHorse malus, nautilus feeding, spear, SlotDisplay renumbering, Timeline). Full jardiff at port-1.21.10-triage/diff-1.21.11-1.21.10-client.json. Batch 3: 4 carry-over (CI fixes: datafix/packs/title/realms/shipwreck/gamerules/equine/pause/graphics/bossbars/launch/painting/sign/projectiles/packs/vibration/save). Batch 4: 45 carry-over \u2014 all remaining blockers hand-merged (end, component, furnace, items command, frames, block_entity_render, environment attributes, adapter SlotDisplay rewire) or jar-verified no-merge (spear.rs, item.rs numbering, hand.rs attack_range). All 129 carry-over items closed. Batch 5: 39 vacuous no-change (named_total=0, tree_diff_lines=0, empty semantic review). Batch 6: 13 missing-only no-change (1.21.11-only/1.21.10-only methods unreferenced or identically modelled; Timeline + hand.rs deliberate non-carry-overs with jar evidence). Batch 7: 5 real-method no-change (normalisation gaps + unmodelled methods, each with method diff + Rust-side check). Batch 8: 12 smallest real-method items (10 no-change: renames/noise/unmodelled; 2 ported: 154 equine isMobControlled/MountPanic removal, 256 loom scrolling reset). Batches 9-12: 44 small real-method items (41 no-change: renames, API gaps, unmodelled; 3 ported: 132 piglin spear, 276 furnace Math.random, 277 spawn-mobs gate). Batches 13-14: 16 items (14 no-change; 2 ported: 212 explosion radius guard, 74 music volume threading). Batches 15-16: 16 items (13 no-change; 3 ported: 222 sea-pickle draw, 115 border current size, 262 slime two-draw moon check incl. oracle+harness updates). Batch 17: 3 ported (261 attribute compute unfiltered, 71 client border tick unconditional, 68 play_sound single sound), 5 no-change (34 Christmas dates identical, 85 chunk save unmodelled, 116 codec plumbing, 117 spear path unreachable, 173 raid trig noise). Batch 18: 3 ported (172 sync registry list trimmed to 1.21.10's 21, 202 Nether map spin on day time, 25 fox food test is FOOD-only), 5 no-change (15 criterion renames, 27 panda trig + modelled MOB_DROPS, 61 menu-chrome layout, 69 options migration unmodelled, 84 villager renames + dragging assign). Batch 19: 1 ported (40 golem statue lead drop gated on entity_drops), 7 no-change (23 wolf anger countdown already 1.21.10, 65 golem package moves, 72 font pipeline refactor, 99 Netty plumbing, 119 frame survives already checks entities, 229 bonemeal event same, 278 screen double-click unmodelled).",
  "items": {
   "201": {
    "module": "crates/horizon-client/src/game/frame_geometry.rs",
@@ -2293,6 +2293,46 @@
    "module": "crates/horizon-client/src/game/maps.rs",
    "verdict": "ported",
    "evidence": "MapItemSavedData#calculateRotation: 1.21.10 spins Nether map markers on getLevelData().getDayTime(), 1.21.11 on getGameTime() (bytecode-verified). Rust passed game_time through add_decoration/add_item_decorations/toggle_banner/tick_framed to decoration_rotation; switched the rotation chain to day_time (world.day_time), keeping game_time for holder tracking (h.carried/h.framed/drop_holders) and the every-10-ticks gate. tick_framed gained a day_time param (2 test call sites updated with 0). MapItem#renderBiomePreviewMap is f32-vs-double sin (render noise). Regression test the_nether_marker_spins_on_the_day_time pins the hash for known day times (values computed independently)."
+  },
+  "23": {
+   "module": "crates/horizon-client/src/mobs/tame.rs",
+   "verdict": "no-change",
+   "evidence": "Wolf#defineSynchedData: 1.21.10 syncs DATA_REMAINING_ANGER_TIME (int countdown, 0 default), 1.21.11 syncs DATA_ANGER_END_TIME (long absolute time, -1 default); startPersistentAngerTimer samples the same UniformInt (20-39s) into the different storage. The Rust's extra.anger IS the 1.21.10 countdown form (400 + nextInt(381), decremented per tick, in update_persistent_anger). Wolf anger is not synced over the network in the Rust (no entity-data entry), so the sync-type difference is unmodelled. The NBT form (entity_nbt.rs saves anger_end_time as a long \u2014 the 1.21.11 form; 1.21.10 saves AngerTime as an int) belongs to item 11 (entity_nbt.rs, open), not this item. Wolf#tick + WolfRenderState#getBodyRollAngle are f32-vs-double sin (render noise)."
+  },
+  "40": {
+   "module": "crates/horizon-client/src/game/copper_golems.rs",
+   "verdict": "ported",
+   "evidence": "CopperGolem#turnToStatue: the lead drop is gated on the entity-drops rule in BOTH versions (1.21.10 RULE_DOENTITYDROPS, 1.21.11 ENTITY_DROPS \u2014 API rename only). The Rust's turnToStatue dropped the lead unconditionally (break_leash with drop=true; drop_leash only consults the rule for a dying entity). Gated the drop on ui.rules.bool(\"entity_drops\"). (A fidelity fix surfaced by the item's method, not a version difference \u2014 the rule check exists in both versions.) The other 7 methods are AbstractGolem package moves (animal/golem/ vs animal/) + the CopperGolemState package move."
+  },
+  "65": {
+   "module": "crates/horizon-client/src/mobs/shulker.rs",
+   "verdict": "no-change",
+   "evidence": "7 of 8 methods are AbstractGolem package moves (animal/golem/ in 1.21.11 vs animal/ in 1.21.10); setPos also has the needsSync/hasImpulse field rename (same pattern as items 284/288/312); getPhysicalPeek is f32-vs-double sin (render noise, same as items 118/145/196)."
+  },
+  "72": {
+   "module": "crates/horizon-client-render/src/hud.rs",
+   "verdict": "no-change",
+   "evidence": "TextureAtlas#dumpContents is a maxMipLevel/mipLevel field rename in a debug dump (unmodelled). PlainTextRenderable#render + Font#drawInBatch8xOutline + Font#prepareText are a render-pipeline refactor (1.21.10 passes x/y to the shadow draw, 1.21.11 passes 0,0 with the position applied by the caller; PreparedTextBuilder gains a boolean; TextRenderable gains a Styled subtype) \u2014 same visual result, and the Rust's text/shadow rendering is its own implementation (hud.rs text_styled draws shadows first at an offset)."
+  },
+  "99": {
+   "module": "crates/horizon-client/src/net.rs",
+   "verdict": "no-change",
+   "evidence": "ServerStatusPinger#pingLegacyServer + #pingServer differ only in Netty plumbing: 1.21.11 takes the event-loop group + channel class from EventLoopGroupHolder, 1.21.10 from Connection.NETWORK_WORKER_GROUP + hardcoded NioSocketChannel. The Rust's net.rs has its own async ping (no Netty); the handshake/status/legacy-ping behaviour is the same."
+  },
+  "119": {
+   "module": "crates/horizon-client/src/game/frames.rs",
+   "verdict": "no-change",
+   "evidence": "HangingEntity#survives + ItemFrame#survives: 1.21.10 uses level.noCollision(entity, box) (blocks + entities + border); 1.21.11 uses hasLevelCollision(box), which is !noBlockCollision || !noBorderCollision (blocks + border only, NO entity check \u2014 javap-verified on 1.21.11's HangingEntity#hasLevelCollision). So in 1.21.10 a frame pops when another entity enters its pop box. The Rust's frame_survives uses scene.unobstructed -> no_world_collision, which checks blocks AND entities AND the border \u2014 already the 1.21.10 form. HangingEntityItem#appendHoverText + #useOn are PaintingVariant package moves. (The painting side of survives lives in paintings.rs, covered by its own item.)"
+  },
+  "229": {
+   "module": "crates/horizon-client/src/game/growth.rs",
+   "verdict": "no-change",
+   "evidence": "BoneMealItem#useOn: 1.21.11 calls ItemStack.causeUseVibration(entity, ITEM_INTERACT_FINISH), 1.21.10 calls Player.gameEvent(ITEM_INTERACT_FINISH) \u2014 both emit the same game event at the player; the Rust posts minecraft:item_interact_finish at the player's position (growth.rs). ShearsItem#useOn is a criterion/critereon rename."
+  },
+  "278": {
+   "module": "crates/horizon-client-input/src/keymapping.rs",
+   "verdict": "no-change",
+   "evidence": "MouseHandler#onButton: 1.21.11 tracks lastClick as a (time, screen) record, so a double-click requires the same screen; 1.21.10 tracks only lastClickTime (a fast click across two screens could double-click). The screen-level double-click state is unmodelled in the Rust (no lastClick/lastClickTime anywhere). The container double-click (container_screen.rs double_click: same slot + button within 250ms) is a different mechanism, identical in both versions."
   }
  }
 }
