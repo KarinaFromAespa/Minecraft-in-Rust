@@ -1,0 +1,409 @@
+{
+ "batch": 7,
+ "checks": {
+  "gap": 16,
+  "pass": 28,
+  "total": 44
+ },
+ "date": "2026-11-24",
+ "items": [
+  {
+   "evidence": "Vanilla 26.1.1 PatchedDataComponentMap.set returns previous.orElse(prototype) - null on a dangling removal marker, never an error (class byte-identical to 26.1's; javap-verified fresh on the 26.1.1 client jar). The 26.1.1 Rust ComponentMap::set (crates/horizon-world/src/component_patch.rs:106-119, line 116, file byte-identical to the 26.1 tree's) returns Err(MissingPrototype) on a dangling removal marker; the doc comment above it is still wrong. REPRODUCES from 26.1.",
+   "id": "B7-G01",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "ComponentMap::set errors on a dangling removal marker; vanilla returns null"
+  },
+  {
+   "evidence": "1.21.7 B7-G02 (bucket sneak-redirect) - vanilla 26.1.1 BucketItem.emptyContents HAS the sneak check (isShiftKeyDown, class byte-identical to 26.1's; javap-verified fresh), and the Rust bucket_empty (horizon-world/src/level/buckets.rs, file byte-identical to the 26.1 tree's) matches: air always takes the fluid, retry beside with a null hit result. The 1.21.7 premise (vanilla had no sneak check) fails for 26.1.1. WITHDRAWN (as in 26.1).",
+   "id": "B7-G02",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "[CLOSED] Bucket sneak-redirect: vanilla 26.1.1 HAS the sneak check"
+  },
+  {
+   "evidence": "Vanilla 26.1.1 SpawnEggItem.getType reads the typed entity_data component's type() and spawns THAT type (javap-verified fresh: getType reads DataComponents.ENTITY_DATA, TypedEntityData.type()); the Rust derives the kind from the item name only (game/creatures.rs:7531 use_spawn_egg, trim_end_matches(\"_spawn_egg\")) and ignores an entity_data id override naming a different type. REPRODUCES from 26.1.",
+   "id": "B7-G03",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Spawn egg entity_data id type override ignored"
+  },
+  {
+   "evidence": "Vanilla 26.1.1 SpawnEggItem.spawnMob FAILs hostile eggs in peaceful (!isAllowedInPeaceful && difficulty == PEACEFUL, javap-verified fresh). The 26.1.1 tree ADDED the gate the 26.1 tree lacked: game/creatures.rs:7511-7520 spawn_egg_allowed plus the use_failed return at :7532-7535, with FAIL semantics (use_failed means the action is not consumed, game/lan_actions.rs:2562-2565). The 26.1 tree's false comment ('26.1 has no eligibility gate') is gone. FIXED in 26.1.1. Residual: the shared allowed_in_peaceful list wrongly includes hoglin (37 vanilla notInPeaceful types, no hoglin; verified by extraction from the EntityType dump) - recorded as B3-G04, which also covers the spawn-egg facet.",
+   "id": "B7-G04",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "Peaceful gate for hostile spawn eggs (26.1 defect fixed in 26.1.1)"
+  },
+  {
+   "evidence": "1.21.7 B7-G05 (spawn-egg ENTITY_PLACE at the clicked block) - vanilla 26.1.1 posts ENTITY_PLACE at the spawn position (SpawnEggItem byte-identical to 26.1's), and the Rust posts at p (the spawn pos, game/creatures.rs use_spawn_egg). The 1.21.7 premise fails for 26.1.1. WITHDRAWN (as in 26.1).",
+   "id": "B7-G05",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "[CLOSED] Spawn-egg ENTITY_PLACE position: vanilla posts at the spawn position"
+  },
+  {
+   "evidence": "Vanilla 26.1.1 EntityType.spawn calls Mob.playAmbientSound() after addFreshEntityWithPassengers (javap-verified fresh, EntityType dump line 565); the Rust ambient_sound is only called from the dispenser path (game/dispenser.rs:985), never on spawn-egg placement (game/creatures.rs use_spawn_egg). REPRODUCES from 26.1.",
+   "id": "B7-G06",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "No Mob.playAmbientSound() on spawn-egg placement"
+  },
+  {
+   "evidence": "Vanilla 26.1.1 has NO block_transformer registry or component: the axe/hoe/shovel tables live in AxeItem/HoeItem/ShovelItem (all three classes byte-identical to 26.1's) and the jar's datapack carries 0 block_transformer data files. The 26.1.1 port reverted to the 26.2/26.3 form: game.rs block_transform reads the minecraft:block_transformer component from items.json (0/1,506 items carry it; horizon-items/src/items.rs:942) and returns None for every tool (game.rs:7932-7937), and block_transform.rs Transformers::load reads data/minecraft/block_transformer/*.json (0 files in the prepared data), so the transform table is empty. Axe strip/scrape/wax-off, hoe till, shovel flatten AND honeycomb wax-on (block_transform.rs:245 waxed() reads the empty axe table) are all entirely non-functional. The 26.1 tree hardcoded the correct tables. REPRODUCES 1.21.7 B7-G07 (26.1 had withdrawn it); NEW vs 26.1.",
+   "id": "B7-G07",
+   "method": "javap + source",
+   "severity": "major",
+   "status": "gap",
+   "title": "Axe/hoe/shovel transforms and honeycomb wax-on entirely non-functional (26.2/26.3 block_transformer form)"
+  },
+  {
+   "evidence": "Vanilla 26.1.1 ShovelItem.useOn dowses a lit campfire directly (face != DOWN, CampfireBlock.dowse + level event 1009); there is no #douses_campfires tag in 26.1.1 (absent from ItemTags, the client jar's datapack and the prepared item tags - 187 files, no douses_campfires.json). The 26.1.1 port reverted to the 26.3 form: game/campfire_douse.rs:12-17 gates the douse on #minecraft:douses_campfires (CampfireBlock.useItemOn), so campfire_to_douse always returns None and a shovel never puts out a campfire; the face != DOWN check was also dropped. The 26.1 tree implemented the douse directly via #minecraft:shovels. REPRODUCES 1.21.7 B7-G08 (26.1 had withdrawn it); NEW vs 26.1. (Also flagged by Batch 5 as Batch 7's.)",
+   "id": "B7-G08",
+   "method": "javap + source",
+   "severity": "major",
+   "status": "gap",
+   "title": "Shovel campfire douse dead: gated on the absent #douses_campfires tag"
+  },
+  {
+   "evidence": "Vanilla 26.1.1 LivingEntity.randomTeleport is blocksMotion-grounded (4-arg signature, no tag parameter, javap-verified fresh). The Rust game/consume.rs:120-139 walks down for #minecraft:entities_can_teleport_to, a tag absent in 26.1.1 (absent from BlockTags, the client jar's datapack and prepared block-tags.json, 248 tags), so the loop always runs to min_y and returns false - chorus fruit never teleports. REPRODUCES from 26.1. Note: the 26.1.1 tree also added a level-event 2017 directional-particle trail to the consume path (horizon-world/src/teleport_consume.rs apply + game/consume.rs:422-431 directional_particles; vanilla TeleportRandomlyConsumeEffect has only a diameter field and emits no level event, javap-verified fresh), but it is masked by this defect - the trail fires only after a successful teleport, which never happens; fixing G09 without removing the trail would expose it (the fox path already emits it: B3-G43).",
+   "id": "B7-G09",
+   "method": "javap + source + data",
+   "severity": "major",
+   "status": "gap",
+   "title": "Chorus fruit never teleports (tag #entities_can_teleport_to absent in 26.1.1)"
+  },
+  {
+   "evidence": "Vanilla 26.1.1 AbstractThrownPotion has ZERO PotionTags references - it gates on PotionContents.is(Potions.WATER) directly (class byte-identical to 26.1's; javap-verified fresh). 26.1.1's PotionTags class has only TRADEABLE and prepared tags/potion/ contains only tradeable.json. The Rust gates everything on potion tags (game/splash_water.rs:42-50 potion_in_tag: minecraft:douses_fire, hurts_water_sensitive_entities, extinguishes_entities, rehydrates_axolotls - file byte-identical to the 26.1 tree's), which always return false, so water splash/lingering bottles do nothing on impact. REPRODUCES from 26.1. DUPLICATE of B1-G03 (same defect, same gate) - coordinator to fold.",
+   "id": "B7-G10",
+   "method": "javap + source + data",
+   "severity": "major",
+   "status": "gap",
+   "title": "Water splash/lingering bottles do nothing on impact (potion-tag gate dead)"
+  },
+  {
+   "evidence": "Vanilla 26.1.1 PotionItem.useOn uses BlockTags.CONVERTABLE_TO_MUD (with an A, javap-verified fresh); the Rust uses convertible_to_mud (with an I) in all four places (game/potions.rs:710, game/dispenser.rs:2245, game/remote.rs:8658, horizon-world/src/level/data.rs:460), so the lookup always misses and a water bottle on dirt never makes mud. REPRODUCES from 26.1. DUPLICATE of B5-G19 (same defect, same four sites) - coordinator to fold.",
+   "id": "B7-G11",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Water bottle on dirt never makes mud (convertible vs convertable)"
+  },
+  {
+   "evidence": "Vanilla 26.1.1 BoatItem.use gathers entities in the player's bbox expanded 5.0 along the view + inflate 1.0 and returns PASS when the eye is inside any entity's pick-inflated bbox (class byte-identical to 26.1's; javap-verified fresh). The Rust boat_to_place (game/boats.rs:1517-1542, file byte-identical to the 26.1 tree's) only checks the boat's own bbox, so a boat is placeable while the player's eye is inside an entity. REPRODUCES from 26.1.",
+   "id": "B7-G12",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Boat placement missing the eye-inside-entity PASS check"
+  },
+  {
+   "evidence": "The shield blocking-intent check in game.rs block_transform still applies to axe AND hoe/shovel with no main-hand check (vanilla playerHasBlockingItemUseIntent is axe-only), BUT the code is unreachable in 26.1.1: block_transform returns None at the block_transformer component lookup (game.rs:7932-7937) before the shield check (game.rs:7940-7946), because no item carries the component. No transform is ever blocked by a shield in 26.1.1. FIXED behaviourally - masked by B7-G07; the code is still wrong and the defect returns if G07 is fixed.",
+   "id": "B7-G13",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "Shield blocking-intent check (masked by B7-G07; code still wrong)"
+  },
+  {
+   "evidence": "item_used_on_block is still fired for ALL transforms (game.rs:7986 use_block_transformer) and campfire douse (game/campfire_douse.rs), but both paths are unreachable in 26.1.1: no transform ever succeeds (B7-G07) and no douse ever succeeds (B7-G08), so no wrong trigger ever fires. (Vanilla fires ITEM_USED_ON_BLOCK in AxeItem.useOn and HoneycombItem.useOn only - 0 references in HoeItem/ShovelItem, javap-verified fresh; the port's honeycomb trigger is correct.) FIXED behaviourally - masked by B7-G07/B7-G08; the code is still wrong and the defect returns if those are fixed.",
+   "id": "B7-G14",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "ITEM_USED_ON_BLOCK trigger for hoe/shovel/campfire (masked by B7-G07/B7-G08; code still wrong)"
+  },
+  {
+   "evidence": "transform_copper_chest_neighbour (game.rs:8032, called at :8014) still posts BLOCK_CHANGE + particle at the neighbour half (vanilla AxeItem.useOn sends events only at the clicked pos), but it is unreachable in 26.1.1: it runs only after a successful block transform, and no transform ever succeeds (B7-G07). FIXED behaviourally - masked by B7-G07; the code is still wrong and the defect returns if G07 is fixed.",
+   "id": "B7-G15",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "Copper-chest neighbour BLOCK_CHANGE (masked by B7-G07; code still wrong)"
+  },
+  {
+   "evidence": "Vanilla 26.1.1 ItemStack.use calls applyAfterUseComponentSideEffects for instant-use items on Success, which reads USE_COOLDOWN - pearls (1.0s) and wind charges (0.5s) DO get a cooldown (ItemStack byte-identical to 26.1's). The 26.1.1 Rust still applies it: throw_item (game/creatures.rs:7379 wind charge, :7427 pearl) calls apply_use_cooldown (game.rs:5211), which reads the use_cooldown component. The 26.2 defect stays FIXED in 26.1.1 (as in 26.1).",
+   "id": "B7-G16",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "Ender pearl / wind charge use cooldown applied on throw (stays fixed)"
+  },
+  {
+   "evidence": "Vanilla 26.1.1 SpawnEggItem.useOn calls only Spawner.setEntityId - the jar has NO Spawner.setEntityData (BaseSpawner has only setEntityId overloads; TrialSpawnerBlockEntity has only setEntityId, javap-verified fresh). The Rust applies an op's egg entity_data to spawners (game/spawner.rs:464 set_entity_data for regular spawners; :450 override_entity_data for trial spawners - the trial arm is NEW in 26.1.1). REPRODUCES from 26.1 (the regular arm was 26.1 B7-G17). DUPLICATE of B3-G39 (same defect, both arms) - coordinator to fold. Note: B3-G39's evidence says the regular arm was 'missed by the 26.1 sweep' - it was not; 26.1 B7-G17 is exactly that arm.",
+   "id": "B7-G17",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Op's spawn-egg entity_data applied to spawners (26.1.1 has no Spawner.setEntityData)"
+  },
+  {
+   "evidence": "Vanilla 26.1.1 SpawnEggItemBehavior.execute pops the EntityType.spawn result and UNCONDITIONALLY shrinks the stack by 1 and fires ENTITY_PLACE at the dispenser pos (javap-verified fresh, server-game.jar) - the egg is consumed and the event fires even when the spawn returns null. The 26.1.1 port (game/dispenser.rs:1019-1021) returns the stack unshrunk with no event on a null spawn (the 26.2 form). The 26.1 tree matched vanilla (shrink + ENTITY_PLACE on null spawn). NEW in 26.1.1.",
+   "id": "B7-G18",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Dispenser spawn egg returned unshrunk with no ENTITY_PLACE on a null spawn"
+  },
+  {
+   "evidence": "Vanilla 26.1.1 PlayerSpawnFinder.findSpawn checks dimensionType().hasSkyLight() FIRST: in a dimension without skylight (or in adventure mode) it returns fixupSpawnHeight at the suggestion at once, with no radius search (javap-verified fresh, server-game.jar). The 26.1.1 port (game/initial_spawn.rs:294-298 spawn_finder) dropped the !sky_light arm, so in the Nether/End it searches the respawn radius instead of returning the fixup height. The 26.1 tree matched vanilla. NEW in 26.1.1. (Flagged by Batch 3 as Batch 7's.)",
+   "id": "B7-G19",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Respawn/initial spawn searches the radius in skylight-less dimensions instead of the fixup height"
+  },
+  {
+   "evidence": "Batch 0: missing-package, 15 errors, first error 212: package EntityTypes does not exist (EntityTypes.PLAYER.getDimensions()) - identical to the 26.1 run. Javap-verified fresh: net.minecraft.world.entity.EntityTypes does not exist in the 26.1.1 client jar (registration still in EntityType). Blocks use_item_on + mace. G4 group representative. (Also recorded as B5-O06.)",
+   "id": "B7-O01",
+   "method": "batch-0 table + javap",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "VanillaDispenserOracle: EntityTypes package does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: missing-symbol, 32 errors, first error 450: cannot find symbol (net.minecraft.world.clock.ClockInstance) - identical to the 26.1 run. Javap-verified fresh: the clock package/class does not exist in the 26.1.1 client jar. Cascade root for VanillaEnchantDurabilityOracle and VanillaHelmetDamageOracle; blocks helmet_damage directly. Cross-batch: block-domain (Batch 3).",
+   "id": "B7-O02",
+   "method": "batch-0 table + javap",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "VanillaBlockUpdateOracle: ClockInstance does not exist in 26.1.1 (32 errors)"
+  },
+  {
+   "evidence": "Batch 0: no-override, 1 error (78: method does not override) - identical to the 26.1 run. Overrides Level.getNextEntityId; javap-verified fresh: net.minecraft.world.level.Level has no getNextEntityId in 26.1.1 (0 matches in the dump). Blocks trident.",
+   "id": "B7-O03",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaArrowOracle: Level.getNextEntityId does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: no-override, 4 errors, first error 38 - identical to the 26.1 run. Overrides Level.getNextEntityId; javap-verified fresh: no such method in 26.1.1. No Batch 7 driver.",
+   "id": "B7-O04",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaBoatRiderOracle: Level.getNextEntityId does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: no-override, 1 error (38) - identical to the 26.1 run. Overrides Level.getNextEntityId; javap-verified fresh: no such method in 26.1.1. No Batch 7 driver.",
+   "id": "B7-O05",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaClientArrowOracle: Level.getNextEntityId does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: no-override, 1 error (29) - identical to the 26.1 run. Overrides Level.getNextEntityId; javap-verified fresh: no such method in 26.1.1. Blocks explosion_items (jointly with B7-O10).",
+   "id": "B7-O06",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaExplosionItemsOracle: Level.getNextEntityId does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: no-override, 1 error (28) - identical to the 26.1 run. Overrides Level.getNextEntityId; javap-verified fresh: no such method in 26.1.1. Blocks lava_cauldron_item.",
+   "id": "B7-O07",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaLavaCauldronItemOracle: Level.getNextEntityId does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: missing-symbol, 4 errors, first error 14: cannot find symbol (import net.minecraft.world.entity.EntityTypes) - identical to the 26.1 run. Javap-verified fresh: the class does not exist in the 26.1.1 client jar. No Batch 7 driver.",
+   "id": "B7-O08",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaBoatAuthorityOracle: EntityTypes does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: missing-symbol, 10 errors, first error 37: cannot find symbol (import net.minecraft.world.entity.EntityTypes) - identical to the 26.1 run. Javap-verified fresh: the class does not exist in the 26.1.1 client jar. No Batch 7 driver.",
+   "id": "B7-O09",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaItemModelOracle: EntityTypes does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: missing-symbol, 3 errors, first error 20: cannot find symbol (import net.minecraft.world.entity.EntitySpawnRequest) - identical to the 26.1 run. Javap-verified fresh: the class does not exist in the 26.1.1 client jar. Blocks explosion_items (jointly with B7-O06). Cross-batch: vehicle/container (entities).",
+   "id": "B7-O10",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaVehicleContainerOracle: EntitySpawnRequest does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: missing-symbol, 6 errors, first error 55: cannot find symbol (import net.minecraft.network.protocol.game.ServerboundPunchPacket) - identical to the 26.1 run. Javap-verified fresh: the class does not exist in the 26.1.1 client jar. Blocks item_use_order.",
+   "id": "B7-O11",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "KnockbackClient: ServerboundPunchPacket does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: missing-symbol, 1 error (76) - identical to the 26.1 run. The missing symbol is InteractionResult.Success.shouldSwing() - 26.1.1's Success is a record with a swingSource field (javap-verified fresh on InteractionResult$Success); the Consumable constructor and canConsume/startConsuming/onConsume all match. Blocks consumable.",
+   "id": "B7-O12",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaConsumableOracle: InteractionResult.Success.shouldSwing() does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: no-override, 5 errors, first error 27 - identical to the 26.1 run. Overrides randomTeleport(double, double, double, boolean, TagKey<Block>) - 26.1.1's LivingEntity.randomTeleport takes only 4 args, no tag parameter (javap-verified fresh). Same 26.2-form tag parameter behind B7-G09. Blocks teleport_consume. (Runnable in 26.2.)",
+   "id": "B7-O13",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaTeleportConsumeOracle: 5-arg randomTeleport does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: no-override, 2 errors, first error 29 - identical to the 26.1 run. Overrides blockUsingItem(ServerLevel, LivingEntity, DamageSource, float, boolean) - 26.1.1's LivingEntity.blockUsingItem takes only (ServerLevel, LivingEntity) (javap-verified fresh). Blocks item_blocking.",
+   "id": "B7-O14",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaItemBlockingOracle: 5-arg blockUsingItem does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: incompatible-types, 1 error (20: incompatible types: Item cannot be converted to ItemStack) - identical to the 26.1 run. 26.1.1's ItemStack.hurtAndBreak takes Consumer<Item>, not Consumer<ItemStack> (javap-verified fresh). Blocks item_durability.",
+   "id": "B7-O15",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaItemDurabilityOracle: hurtAndBreak takes Consumer<Item> in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: incompatible-types, 2 errors, first error 23: incompatible types: Item cannot be converted to ItemStack - identical to the 26.1 run. 26.1.1's ItemStack.hurtAndBreak takes Consumer<Item>, not Consumer<ItemStack> (javap-verified fresh). Blocks component_durability.",
+   "id": "B7-O16",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaComponentDurabilityOracle: hurtAndBreak takes Consumer<Item> in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: no-override, 2 errors, first error 21 - identical to the 26.1 run. Overrides onEquippedItemBroken(ItemStack, EquipmentSlot) - 26.1.1's LivingEntity.onEquippedItemBroken takes (Item, EquipmentSlot) (javap-verified fresh). Blocks blocking_item_damage.",
+   "id": "B7-O17",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaBlockingItemDamageOracle: onEquippedItemBroken takes Item in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: missing-symbol, 2 errors, first error 15 - identical to the 26.1 run. Overrides drop(ItemStack, boolean, Prediction) - 26.1.1's Player.drop takes only (ItemStack, boolean) (javap-verified fresh); handleExtraItemsCreatedOnUse DOES exist on 26.1.1's ServerPlayer. Blocks extra_items.",
+   "id": "B7-O18",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaExtraItemsOracle: 3-arg Player.drop does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: constructor-mismatch, 1 error (16: constructor ServerChunkCache cannot be applied) - identical to the 26.1 run. The oracle calls a 10-arg super constructor; 26.1.1's ServerChunkCache takes 11 args (..., ChunkStatusUpdateListener, Supplier<SavedDataStorage>) (javap-verified fresh on server-game.jar). Blocks item_use_start.",
+   "id": "B7-O19",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaItemUseStartOracle: ServerChunkCache takes 11 constructor args in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: constructor-mismatch, 1 error (19: constructor ServerChunkCache cannot be applied) - identical to the 26.1 run. The oracle calls a 10-arg super constructor; 26.1.1's ServerChunkCache takes 11 args (javap-verified fresh on server-game.jar). Blocks inventory_use_start.",
+   "id": "B7-O20",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaInventoryUseStartOracle: ServerChunkCache takes 11 constructor args in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: constructor-mismatch, 6 errors, first error 38: constructor Gui cannot be applied - identical to the 26.1 run. The oracle calls super(null, null, null); 26.1.1's Gui takes 1 arg (Gui(Minecraft)) (javap-verified fresh on client.jar). Blocks held_drop.",
+   "id": "B7-O21",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaHeldDropOracle: Gui takes 1 constructor arg in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: constructor-mismatch, 5 errors, first error 39: constructor Gui cannot be applied - identical to the 26.1 run. The oracle calls super(null, null, null); 26.1.1's Gui takes 1 arg (Gui(Minecraft)) (javap-verified fresh on client.jar). Blocks interaction_input.",
+   "id": "B7-O22",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaInteractionInputOracle: Gui takes 1 constructor arg in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: missing-symbol, 2 errors, first error 25: cannot find symbol (ItemStackTemplate.fromStack) - identical to the 26.1 run. Javap-verified fresh: 26.1.1's ItemStackTemplate has only 1-arg fromNonEmptyStack(ItemStack). Blocks item_template.",
+   "id": "B7-O23",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaItemTemplateOracle: ItemStackTemplate.fromStack does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: missing-symbol, 2 errors, first error 26: cannot find symbol (ItemStackTemplate.fromStack) - identical to the 26.1 run. Javap-verified fresh: 26.1.1's ItemStackTemplate has only 1-arg fromNonEmptyStack(ItemStack). Blocks use_remainder.",
+   "id": "B7-O24",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaUseRemainderOracle: ItemStackTemplate.fromStack does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: missing-symbol, 2 errors, first error 12: cannot find symbol (VanillaRegistries.createWorldLookup) - identical to the 26.1 run. Javap-verified fresh: 26.1.1's VanillaRegistries has createLookup(), not createWorldLookup. Blocks item_use_catalog.",
+   "id": "B7-O25",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaItemUseCatalogOracle: VanillaRegistries.createWorldLookup does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: missing-symbol, 1 error (33: cannot find symbol, VanillaRegistries.createWorldLookup) - identical to the 26.1 run. Javap-verified fresh: 26.1.1's VanillaRegistries has createLookup(), not createWorldLookup; Enchantments.UNBREAKING does exist (ResourceKey form). Blocks inventory_pickup.",
+   "id": "B7-O26",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaInventoryPickupOracle: VanillaRegistries.createWorldLookup does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: missing-symbol, 1 error (28: cannot find symbol, VanillaRegistries.createWorldLookup) - identical to the 26.1 run. Javap-verified fresh: 26.1.1's VanillaRegistries has createLookup(), not createWorldLookup; Enchantments.UNBREAKING does exist (ResourceKey form). Blocks player_inventory.",
+   "id": "B7-O27",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaPlayerInventoryOracle: VanillaRegistries.createWorldLookup does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: missing-symbol, 4 errors, first error 30: cannot find symbol (LivingEntity.SwingDescription getCurrentSwing()) - identical to the 26.1 run. Javap-verified fresh: SwingDescription does not exist anywhere in the 26.1.1 client jar and LivingEntity has no getCurrentSwing. Blocks held_item_stack.",
+   "id": "B7-O28",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaHeldItemStackOracle: LivingEntity.SwingDescription does not exist in 26.1.1"
+  },
+  {
+   "evidence": "Batch 0: cascade (depends on broken VanillaBlockUpdateOracle, B7-O02) - identical to the 26.1 run. No direct javac error of its own; clears when the BlockUpdate oracle is repaired. Blocks enchant_durability. Runnable in 26.2.",
+   "id": "B7-O29",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaEnchantDurabilityOracle: cascade on broken VanillaBlockUpdateOracle"
+  },
+  {
+   "evidence": "Batch 0: cascade (depends on broken VanillaBlockUpdateOracle, B7-O02) - identical to the 26.1 run. No direct javac error of its own; clears when the BlockUpdate oracle is repaired. Blocks helmet_damage. Runnable in 26.2.",
+   "id": "B7-O30",
+   "method": "batch-0 table + javap",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaHelmetDamageOracle: cascade on broken VanillaBlockUpdateOracle"
+  }
+ ],
+ "method": "Static analysis only - javap -c -p on the named 26.1.1 jars (client.jar for client classes, server-game.jar for server classes) for every vanilla method in scope, Rust source reads, prepared-data checks (items.json, block-tags.json, jar data files), and a full diff of every in-scope source file between the 26.1 and 26.1.1 trees in the worktree (389 files differ tree-wide; in-scope files individually diffed - see evidence/diff-*.txt). A sha1 byte-compare of 66 in-scope vanilla classes between the 26.1 and 26.1.1 jars found 0 diffs, so every jar-side 26.1 verification carries by identity - but each item was still re-verified fresh against the 26.1.1 jar and tree. NO drivers were run and NO oracle repairs were done: this batch is checks + triage only per the brief (no cargo builds, no driver runs). The 32 runnable drivers and 17 no-oracle drivers are recorded as not run, not as passes. Driver inventory: 74 drivers - 32 runnable-but-unrun, 25 blocked on 26 measured-failing oracles (Batch 0's measured table), 17 no-oracle; identical to 26.1. Oracle sets cross-checked against the 26.1.1 driver files; the only mismatch is interaction_input (also references the ParityData helper). Fixed in the 26.1.1 tree: B7-G04 (the peaceful gate was added), B7-G13/G14/G15 (masked - the code is still wrong but unreachable because no transform ever succeeds), B7-G16 (stays fixed, as in 26.1). Withdrawn for 26.1.1 (re-checked against 26.1.1's jar + tree): B7-G02 (26.1.1's BucketItem HAS the sneak check), B7-G05 (26.1.1 posts ENTITY_PLACE at the spawn position).",
+ "name": "Items",
+ "out_of_scope_failures": "Sign pick-block now carries sign_text_front/sign_text_back/waxed components (block_entity_item.rs, reverted from the 26.1 tree's deliberate drop) - Batch 4's scope (26.1 B4 covered the no-component form); vanilla 26.1.1 has no such components (SignBlockEntity saves only front_text/back_text/is_waxed). Enderman teleport reverted to the 26.3 tag form (mobs/enderman.rs now grounds on absent #entities_can_teleport_to, so endermen never teleport) - Batch 3's scope (B3-G14). Mob-head visibility reverted to the component form - recorded as B3-G33 (verified fresh here: vanilla getVisibilityPercent hardcodes five head/type pairs INCLUDING piglin_brute + piglin_head, correcting the 26.1 report's 'piglin brutes are not fooled' claim; LivingEntity is byte-identical between 26.1 and 26.1.1, so the 26.1 report was wrong on that point and on the 0..=10 clamp, which the method does not apply). Hoglin in the shared allowed_in_peaceful list (spawn_rules.rs:134, finalize.rs:897) - recorded as B3-G04, including the spawn-egg facet. Spear stab knockback applied as two pushes - recorded as B3-G45 (vanilla stabAttack calls causeExtraKnockback ONCE with 0.4f + getKnockback, verified fresh here). The #entities_can_teleport_to tag (absent in 26.1.1) is also consulted at game/commands/world_cmds.rs:2141-2146 - flagged for Batch 8 (commands), not counted here. The local player's item-use swings no longer send ServerboundSwingPacket (game/hand.rs swing_hand lost the unconditional send the 26.1 tree had; vanilla LocalPlayer.swing sends it always) and the swing state machine was reworked to the 26.3 cached-SwingDescription form (SwingDescription does not exist in 26.1.1's jar) - flagged for Batch 9/10 (client/network/render). The dispenser shear path gained a caller-level alive check (26.2 form; 26.1 checked per-species) - Batch 3/10's area. The 26.2 run's out-of-scope observations were NOT re-verified for 26.1.1 and are not carried forward as claims.",
+ "source": "docs/PARITY-SWEEP.md \u00a74 Batch 7 - checks + triage only, no fixes. Scope: item use, food, tools, armour, buckets, spawn eggs, components - 1,506 items. The item->Java-class map was extracted fresh from the named 26.1.1 jar: all 1,506 items mapped to 70 classes, 0 unmapped, 0 mismatches against block-behaviours.json. Spears (7) and nautilus armour (5) exist in 26.1.1 (verified in items.json and the jar's Items class), so B33/B34 are full checks. Two coordinator-flagged findings from Batch 3 were verified fresh and are included: the initial-spawn skylight gate (B7-G19, NEW defect) and the player chorus-fruit 2017 trail (verified present-but-masked by B7-G09, no separate item).",
+ "systemic_note": "The 26.1.1 tree is a stale re-port from 26.2/26.3 form, not a carry-forward of the 26.1 tree (Batch 2's \u00a76 finding, confirmed in B7 scope): every 26.1 defect reproduces except the peaceful gate (G04, genuinely fixed) and G13/G14/G15 (fixed only because the whole transform path is dead), AND the tree adds four NEW behaviour defects that are one-method reversions to the 26.2/26.3 form the 26.1 tree deliberately removed - G07 (block_transformer registry/component instead of hardcoded tables: axe/hoe/shovel/honeycomb all dead), G08 (#douses_campfires tag instead of the direct shovel douse), G18 (26.2 dispenser null-spawn form), G19 (skylight gate dropped from spawn_finder). G07 and G08 are 1.21.7 defects the 26.1 tree had fixed returning verbatim. The absent-tag root cause got worse in scope: the 26.1.1 tree reads MORE absent tags/components than the 26.1 tree did (#douses_campfires, #entities_can_teleport_to in a second place (enderman), #enderman_does_not_teleport_to, #consumable_does_not_teleport_to, the minecraft:block_transformer and minecraft:mob_visibility components), and the tag table resolves absent tags to empty sets, so every read silently degrades to false, never an error. The counter-example is G04: the 26.1.1 tree fixed the peaceful gate the 26.1 tree got wrong - version-specific work in 26.1.1 is uneven, not uniformly behind. Three of this batch's reproductions are already recorded by landed batches (B1-G03, B5-G19, B3-G39) and are flagged as duplicates for the coordinator to fold; two new findings (spear knockback, mob-head visibility) are recorded as B3-G45/B3-G33 and are cited, not re-minted.",
+ "version": "26.1.1"
+}
