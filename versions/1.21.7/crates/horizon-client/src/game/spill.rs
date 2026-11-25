@@ -393,7 +393,7 @@ pub(super) fn put_saved_entity(
 
 impl GameLevel<'_> {
     /// `Block.popResource(level, pos, stack)` with the broken block's copied components.
-    fn pop_resource(&mut self, pos: [i32; 3], mut stack: ItemStack) {
+    pub(super) fn pop_resource(&mut self, pos: [i32; 3], mut stack: ItemStack) {
         self.pending.attach(pos, &mut stack);
         let at = pop_position(&mut self.world.random, pos);
         self.spill.spawns.push(Spawn {
@@ -1053,6 +1053,79 @@ mod crafter_drop_name_tests {
         assert!(
             unexpected.is_empty(),
             "actual vanilla crafter drop retained source name: {unexpected:?}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod sweet_berry_pick_tests {
+    use super::super::native_machines::tests::server_game;
+    use super::*;
+    use horizon_core::geometry::{Direction, Vec3};
+    use horizon_world::level::{InteractionResult, PlayerContext, UseBranch};
+
+    /// `SweetBerryBushBlock.useWithoutItem` on a ripe bush: the berries drop
+    /// as item entities and the bush stays, reset to age 1.
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES and scratch homes/cwd"]
+    fn right_clicking_a_ripe_sweet_berry_bush_drops_berries_and_keeps_the_bush() {
+        let mut game = server_game();
+        let ripe = {
+            let registry = &game.pack.assets.registry;
+            let bush = registry
+                .default_state("minecraft:sweet_berry_bush")
+                .unwrap();
+            let mut ripe = registry.state(bush).unwrap().clone();
+            ripe.properties.insert("age".into(), "3".into());
+            registry.id(&ripe).unwrap()
+        };
+        game.world.set(8, 64, 10, ripe).unwrap();
+        game.dropped.clear();
+        let start = game.dropped.len();
+        let (result, branch) = game.with_level(|b, level, ticks| {
+            b.use_item_on_branch(
+                level,
+                ticks,
+                BlockPos::new(8, 64, 10),
+                Direction::North,
+                Vec3::new(8.5, 64.5, 10.0),
+                PlayerContext {
+                    yaw: 0.0,
+                    pitch: 0.0,
+                    may_build: true,
+                    can_eat: true,
+                    game_master: false,
+                },
+                None,
+            )
+        });
+        assert_eq!(result, InteractionResult::Success);
+        assert_eq!(
+            branch,
+            UseBranch::WithoutItem,
+            "an empty hand reaches useWithoutItem"
+        );
+        let berries: Vec<_> = game.dropped[start..]
+            .iter()
+            .filter(|d| &*d.stack.item == "minecraft:sweet_berries")
+            .collect();
+        assert_eq!(berries.len(), 1, "one berry drop");
+        assert!(
+            (2..=3).contains(&berries[0].stack.count),
+            "a mature bush drops 2-3 berries, got {}",
+            berries[0].stack.count
+        );
+        assert_eq!(berries[0].pickup_delay, 10, "popResource pickup delay");
+        let state = game
+            .pack
+            .assets
+            .registry
+            .state(game.world.block(8, 64, 10))
+            .unwrap();
+        assert_eq!(
+            state.properties.get("age").map(String::as_str),
+            Some("1"),
+            "the bush stays, reset to age 1"
         );
     }
 }

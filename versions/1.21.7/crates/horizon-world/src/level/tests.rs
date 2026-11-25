@@ -1964,6 +1964,79 @@ fn levers_power_wire_through_interaction() {
 }
 
 #[test]
+fn picking_a_ripe_sweet_berry_bush_drops_berries_and_leaves_it_at_age_1() {
+    let mut w = world!();
+    w.floor(0, 6, "grass_block");
+    let pos = BlockPos::new(0, 1, 0);
+    // Age 3 (mature): vanilla 1.21.7 drops 1 + random(2) berries, one more
+    // at age 3 — 2-3 — straight from the level random.
+    let ripe = w.id("sweet_berry_bush", &[("age", "3")]);
+    w.set(pos, ripe);
+    assert_eq!(
+        w.use_empty_hand(pos),
+        InteractionResult::Success,
+        "a ripe bush answers a right click"
+    );
+    assert_eq!(w.prop(pos, "age"), "1", "the bush stays, reset to age 1");
+    let drops: Vec<u32> = w
+        .level
+        .events
+        .iter()
+        .filter_map(|e| match e {
+            LevelEvent::Player {
+                effect: PlayerEffect::DropItems(item, count),
+                ..
+            } if &**item == "minecraft:sweet_berries" => Some(*count),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(drops.len(), 1, "one berry drop");
+    assert!(
+        (2..=3).contains(&drops[0]),
+        "a mature bush drops 2-3 berries, got {}",
+        drops[0]
+    );
+    // Age 2: 1-2 berries, still reset to age 1.
+    w.level.events.clear();
+    w.set(pos, w.id("sweet_berry_bush", &[("age", "2")]));
+    assert_eq!(w.use_empty_hand(pos), InteractionResult::Success);
+    assert_eq!(w.prop(pos, "age"), "1");
+    let drops: Vec<u32> = w
+        .level
+        .events
+        .iter()
+        .filter_map(|e| match e {
+            LevelEvent::Player {
+                effect: PlayerEffect::DropItems(item, count),
+                ..
+            } if &**item == "minecraft:sweet_berries" => Some(*count),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(drops.len(), 1, "one berry drop");
+    assert!(
+        (1..=2).contains(&drops[0]),
+        "an age-2 bush drops 1-2 berries, got {}",
+        drops[0]
+    );
+    // Age 1: nothing to pick.
+    w.level.events.clear();
+    w.set(pos, w.id("sweet_berry_bush", &[("age", "1")]));
+    assert_eq!(w.use_empty_hand(pos), InteractionResult::Pass);
+    assert_eq!(w.prop(pos, "age"), "1", "an unripe bush is untouched");
+    assert!(
+        !w.level.events.iter().any(|e| matches!(
+            e,
+            LevelEvent::Player {
+                effect: PlayerEffect::DropItems(..),
+                ..
+            }
+        )),
+        "an unripe bush drops nothing"
+    );
+}
+
+#[test]
 fn pistons_push_and_sticky_pistons_pull() {
     let mut w = world!();
     w.floor(0, 10, "stone");
