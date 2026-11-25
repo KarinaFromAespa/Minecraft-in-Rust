@@ -72,6 +72,17 @@
    "test": "the_prepared_sheep_table_drops_wool"
   }
  ],
+ "loot-tables": [
+  {
+   "crate": "horizon-world",
+   "test": "picking_a_ripe_sweet_berry_bush_drops_berries_and_leaves_it_at_age_1"
+  },
+  {
+   "crate": "horizon-client",
+   "suite": "horizon-client-lib",
+   "test": "right_clicking_a_ripe_sweet_berry_bush_drops_berries_and_keeps_the_bush"
+  }
+ ],
  "menu-sprites": [
   {
    "crate": "horizon-prepare",

@@ -35,6 +35,10 @@ Check ids (see docs/DEFECT-SUITE.md for the full list and how to add one):
   brewing-fuel      same class, tag-gated (fix in flight).
   loot-fields       loot tables name condition/function kinds and the
                     functions list differently per era (fixed e3bce30e).
+  loot-tables       every loot-table id the code rolls must exist in
+                    the version's own jar (the sweet-berry defect:
+                    1.21.7 has no harvest/ tables — fixed there by
+                    the direct-drop fix).
   recipe-packets    recipe_book_add packets skipped as undecodable
                     (fix in flight; rust check, no test yet).
   advancement-keys  advancement triggers name their keys singular in
@@ -775,6 +779,181 @@ def check_loot_fields(ctx: Ctx):
     return _result("loot-fields", title, PASS, detail)
 
 
+# ---------------------------------------------------------------------------
+# Loot-table references (the `loot-tables` check)
+#
+# The sweet-berry defect: the 1.21.7 port's use handler rolled
+# `minecraft:harvest/sweet_berry_bush`, but 1.21.7 ships no `harvest/`
+# loot-table directory at all (those tables arrived in 1.21.9), so the
+# lookup missed and the pick silently dropped nothing — while the break
+# path, which rolls the existing `blocks/sweet_berry_bush` table, worked.
+# The same shape recurred for cave vines, beehives, armadillo brushing,
+# pumpkin carving, charged-creeper heads and turtle grow-up, all in
+# 1.21.5-1.21.7 (see docs/LOOT-TABLE-AUDIT.md for the per-version audit).
+#
+# The check extracts every loot-table id the version's code rolls and
+# asserts each one exists in that version's own jar. Per-version
+# differences are read from the version's own data, never hardcoded:
+# a table that exists in 1.21.9 but not 1.21.7 passes in 1.21.9 and
+# fails in 1.21.7 while the code still references it; once the fix
+# removes the reference (or the version ships the table), it passes.
+# Behaviour beyond existence — what vanilla drops instead — is NOT
+# asserted here; those pins belong in each version's own unit tests.
+
+# Loot-table directories observed in vanilla jars across versions.
+# The set is the pattern vocabulary, not a table list: which tables
+# exist under each directory is read from the version's own jar.
+# harvest/, brush/, carve/, charged_creeper/ and gameplay/turtle_grow
+# arrived in 1.21.9; till/ arrived in 26.3 (26.3 also adds barrels/).
+LOOT_TABLE_DIRS = {
+    "archaeology", "barrels", "blocks", "brush", "carve",
+    "charged_creeper", "chests", "dispensers", "entities", "equipment",
+    "gameplay", "harvest", "pots", "shearing", "spawners", "till",
+}
+_LOOT_DIR_ALT = "|".join(sorted(LOOT_TABLE_DIRS))
+_LOOT_LITERAL = re.compile(
+    r'"(minecraft:(?:' + _LOOT_DIR_ALT + r')/[A-Za-z0-9_/]+)"')
+_LOOT_FORMAT = re.compile(
+    r'format!\s*\(\s*"(minecraft:(?:' + _LOOT_DIR_ALT +
+    r')/[A-Za-z0-9_/{}]+)"')
+# A cheap pre-filter over raw file text: only files containing a
+# loot-table literal pay for comment-stripping and test-range
+# detection (without it the check costs ~2 min per version).
+_LOOT_QUICK = re.compile(
+    r'"minecraft:(?:' + _LOOT_DIR_ALT + r')/|format!\s*\(\s*"minecraft:(?:'
+    + _LOOT_DIR_ALT + r')/')
+# What marks a literal occurrence as a loot-table roll (the literal's
+# line, or the ~600 chars before it for multi-line calls, plus 300
+# after for a `let table = ...` whose roll follows). `loot`/`table`
+# cover sequence_loot, InteractLoot, drop_gift_loot, LootTable NBT,
+# `let table = ...`, `table: ...`, `const TABLE` and `drops_table`;
+# `roll(` covers drops.rs's loot roller; `gift` covers the villager
+# gift-table function; `create_chest` covers structure chest loot.
+_LOOT_USE_SIGNAL = re.compile(
+    r"loot|table|sequence_loot|InteractLoot|drop_gift|native_use_drops|"
+    r"\broll\s*\(|gift|create_chest", re.I)
+# Biome/dimension attribute reads (`attributes["minecraft:gameplay/..."]`)
+# name attribute ids, not loot tables.
+_ATTRIBUTES_READ = re.compile(r"attributes\s*\[")
+
+
+def loot_table_ids(game):
+    """The loot-table ids in a game jar (`minecraft:<dir>/<path>`)."""
+    prefix = "data/minecraft/loot_table/"
+    return {"minecraft:" + name[len(prefix):-len(".json")]
+            for name in game.namelist()
+            if name.startswith(prefix) and name.endswith(".json")}
+
+
+def _is_loot_comparison(text: str, pos: int) -> bool:
+    """True when the literal at pos is a comparison operand, not a roll.
+
+    `==`/`!=` against an incoming id (a datafix matching an old id,
+    a special-case comparing a transformer's loot id) and a `matches!`
+    guard name an id to recognise, not a table to roll — the id is
+    still rolled at its other sites, if it is rolled at all.
+    """
+    line_start = text.rfind("\n", 0, pos) + 1
+    if "==" in text[line_start:pos] or "!=" in text[line_start:pos]:
+        return True
+    line_end = text.find("\n", pos)
+    line = text[line_start:line_end if line_end > 0 else len(text)]
+    return "matches!(" in line
+
+
+def loot_table_references(ctx: Ctx):
+    """Loot-table ids the version's code rolls: {id: [(file, line)]}.
+
+    Literal ids map to themselves; `format!` ids map to an `FMT:`
+    key holding the literal up to the first `{` (a dynamic prefix,
+    checked by "at least one table under it", the menu-sprites
+    precedent). Production code only: test lines are dropped (test
+    fixtures name tables that need not exist), examples are not
+    scanned, and datafix files are excluded (they name historical
+    ids by design).
+    """
+    refs: dict[str, list] = defaultdict(list)
+    for rel, path in ctx.rs_files("crates"):
+        if "/examples/" in rel or "/datafix/" in rel:
+            continue
+        try:
+            raw = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if not _LOOT_QUICK.search(raw):
+            continue
+        text, newlines = _production_text(ctx, rel)
+        if not text:
+            continue
+        for pattern, is_fmt in ((_LOOT_LITERAL, False),
+                                (_LOOT_FORMAT, True)):
+            for match in pattern.finditer(text):
+                line = _line_of(newlines, match.start())
+                if ctx.is_test_line(rel, line):
+                    continue
+                window = text[max(0, match.start() - 600):
+                              match.start() + 300]
+                if _is_loot_comparison(text, match.start()):
+                    continue
+                if _ATTRIBUTES_READ.search(window):
+                    continue
+                if not _LOOT_USE_SIGNAL.search(window):
+                    continue
+                key = match.group(1)
+                if is_fmt:
+                    key = "FMT:" + key
+                refs.setdefault(key, []).append((rel, line))
+    return refs
+
+
+def check_loot_tables(ctx: Ctx):
+    """loot-tables: every loot table the code rolls exists in this version."""
+    title = "every loot table the code rolls exists in this version"
+    # The server jar is the oracle; the client jar carries the same
+    # loot_table tree (verified for 1.21.5-1.21.7) and covers versions
+    # whose server jar is not on disk.
+    game = ctx.server_game or ctx.client_game
+    if game is None:
+        return _result("loot-tables", title, UNMEASURED,
+                       "no server or client jar: cannot inventory this "
+                       "version's loot tables")
+    tables = loot_table_ids(game)
+    if not tables:
+        return _result("loot-tables", title, UNMEASURED,
+                       "the jar holds no loot tables")
+    refs = loot_table_references(ctx)
+    failures = []
+    dynamic = 0
+    for ref in sorted(refs):
+        if ref.startswith("FMT:"):
+            dynamic += 1
+            prefix = ref[4:].split("{", 1)[0]
+            if any(t.startswith(prefix) for t in tables):
+                continue
+            failures.append(
+                f"{ref} (dynamic prefix — no table under {prefix}): "
+                + ", ".join(f"{rel}:{line}"
+                            for rel, line in refs[ref][:2]))
+            continue
+        if ref not in tables:
+            failures.append(
+                f"{ref}: "
+                + ", ".join(f"{rel}:{line}" for rel, line in refs[ref][:3]))
+    detail = (f"{len(refs)} loot-table references ({dynamic} dynamic), "
+              f"{len(tables)} tables in the version's jar")
+    if failures:
+        return _result(
+            "loot-tables", title, FAIL,
+            detail + "; missing: " + "; ".join(failures)
+            + " — the roll silently drops nothing (the 1.21.7 defect: "
+            "right-clicking a ripe sweet berry bush dropped no berries "
+            "— fixed there by the direct-drop fix; see "
+            "docs/LOOT-TABLE-AUDIT.md for what vanilla does instead)",
+            evidence=failures)
+    return _result("loot-tables", title, PASS,
+                   detail + "; every referenced table exists")
+
+
 # Advancement triggers whose condition keys differ across eras, and the
 # candidate keys the evaluator might read for each. The census decides
 # which candidate the version's data uses; the trigger's own evaluation
@@ -1333,6 +1512,9 @@ CHECKS = [
     ("loot-fields",
      "loot evaluators read this version's field names",
      check_loot_fields),
+    ("loot-tables",
+     "every loot table the code rolls exists in this version's data",
+     check_loot_tables),
     ("recipe-packets",
      "recipe_book_add packets decode (all slot display kinds)",
      None),

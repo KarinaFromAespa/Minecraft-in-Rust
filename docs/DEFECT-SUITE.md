@@ -32,6 +32,7 @@ fails something today, and the list is the point.
 | `fuel-table` | A version with no fuel component needs the FuelValues table fallback | server jar: no class mentions `cooking_fuel` | a53b0c58 |
 | `brewing-fuel` | A tag-gated version needs tag-based brewing fuel | server jar: `brewing_fuel` item tag file present | in flight |
 | `loot-fields` | Loot evaluators read the version's field names — container (`conditions` list vs `condition` object), kind keys (`condition`/`function` vs `type`), list key (`functions` vs `modifier`) | server jar: loot-table census | e3bce30e |
+| `loot-tables` | Every loot-table id the code rolls exists in the version's own jar (harvest/ tables are 1.21.9-only; the 1.21.7 sweet-berry pick rolled a table that version never shipped) | server jar (client jar fallback): loot-table inventory | in flight |
 | `recipe-packets` | `recipe_book_add` packets decode (all slot display kinds) | rust tests (none yet) | in flight |
 | `advancement-keys` | Triggers read the version's key names (singular ≤26.2, plural in 26.3) | server jar: advancement census | 59ba5f8d, caef65c4 |
 | `bed-models` | Every special item-model type the version uses has a decoder arm | client jar: item-model census | in flight |
@@ -145,6 +146,25 @@ Data-check contracts the code must satisfy (so a fix is recognised):
   items use needs a `"minecraft:xxx" =>` arm in
   `SpecialModel::decode` (`crates/horizon-assets/src/item_model/
   special.rs`).
+- `loot-tables`: a literal loot-table id counts when it is rolled —
+  an argument to `sequence_loot`, `InteractLoot`, `drop_gift_loot`,
+  `native_use_drops` or `roll`, a `let table = ...` / `table: ...` /
+  `const TABLE` binding, a `create_chest` argument, or a `LootTable:`
+  NBT string (the literal's line, or ~600 chars before it for
+  multi-line calls). `format!` ids are dynamic prefixes: at least one
+  table must exist under the prefix. Excluded: `==`/`!=` comparisons
+  and `matches!` guards (they name an id to recognise, not a table to
+  roll), `attributes[...]` reads (biome/dimension attribute ids),
+  test modules, examples, and datafix files (historical ids by
+  design). The oracle is the server jar, falling back to the client
+  jar, which carries the same loot_table tree. Behaviour beyond
+  existence is not asserted here — what vanilla drops instead is
+  pinned in each version's own unit tests (registered under
+  `loot-tables` in `tools/defect_suite_rust.json`). See
+  `docs/LOOT-TABLE-AUDIT.md` for the per-version audit, the exact
+  arrival versions (harvest/brush/carve/charged_creeper/turtle_grow
+  in 1.21.9, till/ in 26.3), and the known gaps (dynamic per-entity
+  ids, data-driven transformer loot ids, block drops).
 - `menu-sprites`: a referenced sprite must exist in the version's
   client jar, or the prepare fallback (`fallback_menu_sprites` in
   `horizon-prepare`) must be present and the sprite must exist in the
@@ -168,7 +188,7 @@ Data-check contracts the code must satisfy (so a fix is recognised):
   not recoverable from the jar without the registry dump.
 - The suite checks the defect classes it knows. A version that passes
   every check is not proven defect-free — it is proven free of these
-  ten classes.
+  eleven classes.
 
 ## Reading a failure
 
