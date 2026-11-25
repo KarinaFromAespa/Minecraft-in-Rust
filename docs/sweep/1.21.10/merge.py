@@ -1,99 +1,181 @@
 #!/usr/bin/env python3
-"""Merge the 26.1.2 sweep per-batch slices into pins/26.1.2/sweep-items.json.
+"""Merge the 1.21.10 sweep per-batch slices into pins/1.21.10/sweep-items.json.
 
-Mirrors the 26.1.1 merged ledger shape (version, generated_from, note,
+Mirrors the 26.1.2 merged ledger shape (version, generated_from, note,
 batches, items, totals, dedup). TALLY: the "totals" block gives both the
-as-tallied total (every batch's slice tally summed as delivered) and the
-behaviour-only total. NON_BEHAVIOUR (below) is filled at merge time from
-the actual non-behaviour checks the batches counted in their as-tallied
-tallies (26.2 precedent: Batch 4 driver-status, Batch 3 driver-code-
-defect, Batch 9 oracle/harness checks).
+as-tallied total (every batch's slice tally summed as delivered, with the
+B5 correction below) and the behaviour-only total. NON_BEHAVIOUR (below)
+is filled at merge time from the actual non-behaviour checks the batches
+counted in their as-tallied tallies (26.2 precedent: Batch 4 driver-status,
+Batch 3 driver-code-defect, Batch 9 oracle/harness checks).
 
 Whole-item duplicates are REMOVED from the merged items list (kept in their
 slice files); the canonical item's evidence gains a [Merge note]. Per-oracle
 member overlaps inside group items are annotated on both sides.
 
-WHOLE_FOLDS / MEMBER_FOLDS are the 26.1.1 fold record, re-verified
-at merge time against the 26.1.2 slices: every participant exists, every
-pair is live, and the duplicate/canonical evidence was compared fresh
-(splash-water 3-way, spawner 3-way, composter, dripstone 3-way all
-confirmed). The B7 worker's reversed fold suggestions (B7-G10 -> B1-G03,
-B7-G17 -> B3-G39) were declined in favour of the 26.1.1 canonicals
-(B11-G05, B7-G17).
+COORDINATOR CORRECTIONS (verified by the coordinator against the tree,
+the jars, and the Batch 0 measured table — see sweep-1.21.10-batches/
+merge-notes.md):
+1. B5 tally: 101 pass / 27 gap as delivered -> 102 / 26. The port honours
+   doFireTick via gamerules::fire_radius -> fire_spread_radius_around_player
+   -> can_spread_fire_around (tick.rs:635, fluids.rs:748). B1-G11 stays FIXED.
+2. B7-O11: fixed -> oracle-defect. B7 claimed KnockbackClient fixed (no
+   ServerboundPunchPacket ref, all 49 imports exist); the B0 table says it
+   FAILS on all three classpaths (7 no-override errors, first error line
+   362). The 26.1.2 cause is gone but a new cause replaces it.
+3. B5-O03: oracle-defect -> fixed. B5 claimed VanillaPickBlockDataOracle
+   fails because TypedEntityData has no loadInto; the B0 table says it
+   PASSES on all three, and the coordinator's own javap confirmed
+   TypedEntityData HAS both loadInto overloads in 1.21.10's jars.
+
+MINTED AT MERGE: B12-G09 (frogspawn can never survive) from B12-G03's
+evidence — B12-G03 folds into the six B5 per-block items, and frogspawn
+is its seventh block, covered nowhere else.
+
+WHOLE_FOLDS were verified fresh against the 1.21.10 slices: every
+participant exists, every pair is live, and the duplicate/canonical
+evidence was compared (splash-water 3-way, mud, spawner, dripstone,
+supports_* census vs per-block items, cauldron 3-way, dispenser 3-way,
+lava-cauldron 3-way, render/UI singletons -> B10 families all confirmed).
 """
 import json
 from collections import Counter
 
-BASE = '/home/hatch/workspace/mcir-work/sweep-26.1.2/pins/26.1.2/sweep'
+BASE = '/home/hatch/workspace/mcir-work/sweep-1.21.10/pins/1.21.10/sweep'
 
-# Whole-item folds: duplicate id -> canonical id (the 26.1.1 record,
-# re-verified at merge time against the 26.1.2 slices).
-# Canonical = family owner / earlier record (26.2 model). 31 folds.
+# Whole-item folds: duplicate id -> canonical id. 24 folds.
 WHOLE_FOLDS = {
-    # Redstone wire / dirt path / dripstone / splash water / mud (1.21.7 lineage; 26.1 precedents)
-    'B11-G02': 'B2-G01',   # redstone wire
-    'B11-G03': 'B5-G03',   # dirt path
-    'B11-G04': 'B1-G01',   # dripstone 3-way, canonical B1-G01 (3 dead causes)
-    'B5-G13': 'B1-G01',    # dripstone 3-way
-    'B1-G03': 'B11-G05',   # splash water 3-way, canonical B11-G05 (1.21.7 lineage)
-    'B7-G10': 'B11-G05',   # splash water 3-way
-    'B7-G11': 'B5-G19',    # mud tag spelling
-    'B4-G18': 'B5-G19',    # mud 3-way
-    # Cauldron / FallingBlock / LavaCauldronItem (26.2 precedents)
-    'B5-O01': 'B1-O02',    # Cauldron 3-way
-    'B11-O01': 'B1-O02',   # Cauldron 3-way
-    'B5-O05': 'B1-O03',    # FallingBlock
-    'B11-O02': 'B1-O07',   # LavaCauldronItem 3-way
-    'B7-O07': 'B1-O07',    # LavaCauldronItem 3-way
-    'B3-O08': 'B1-O06',    # EntityFluid single-oracle group -> B1 singleton
-    # Dispenser / BlockUpdate / FaceSupport
-    'B5-O06': 'B4-O06',    # Dispenser 3-way, canonical B4-O06 (26.2 precedent)
-    'B7-O01': 'B4-O06',    # Dispenser 3-way
-    'B7-O02': 'B2-O01',    # BlockUpdate, 32 errors
-    'B5-O09': 'B2-O03',    # FaceSupport
-    # Render / UI family singletons -> B10 group items (26.2 precedents)
+    # Splash water 3-way, canonical B1-G03 (fluids batch owns it; B7 asked
+    # to fold, B11's title says "overlaps B1-G03").
+    'B7-G10': 'B1-G03',
+    'B11-G05': 'B1-G03',
+    # Mud tag spelling (B7 asked to fold; same four sites).
+    'B7-G11': 'B5-G19',
+    # Spawner setEntityData (B7 asked to fold; same defect, both arms).
+    'B7-G17': 'B3-G39',
+    # Dripstone tag half: B11-G04 is a subset of B5-G13's evidence.
+    # B1-G01 stays separate (fluid-transfer/cauldron side + blockToGrowOn).
+    'B11-G04': 'B5-G13',
+    # supports_* survival census -> the six B5 per-block items (canonical
+    # B5-G37, first of the set; frogspawn minted separately as B12-G09).
+    'B12-G03': 'B5-G37',
+    # Cauldron 3-way, canonical B1-O02.
+    'B5-O01': 'B1-O02',
+    'B11-O01': 'B1-O02',
+    # FallingBlock.
+    'B5-O05': 'B1-O03',
+    # LavaCauldronItem 3-way, canonical B1-O07.
+    'B7-O07': 'B1-O07',
+    'B11-O02': 'B1-O07',
+    # EntityFluid single-oracle group -> B1 singleton.
+    'B3-O08': 'B1-O06',
+    # Dispenser 3-way, canonical B4-O06 (26.2 precedent).
+    'B5-O06': 'B4-O06',
+    'B7-O01': 'B4-O06',
+    # BlockUpdate, 63 errors.
+    'B7-O02': 'B2-O01',
+    # FaceSupport.
+    'B5-O09': 'B2-O06',
+    # VehicleContainer.
+    'B7-O10': 'B4-O21',
+    # EnchantDurability cascade (both cascade on BlockUpdate).
+    'B7-O29': 'B4-O19',
+    # Render / UI family singletons -> B10 group items (26.2 precedents).
     'B7-O09': 'B10-O03',   # ItemModel singleton -> render family
     'B5-O07': 'B10-O03',   # SectionMesh singleton -> render family
     'B5-O08': 'B10-O03',   # BreakingModel singleton -> render family
     'B4-O16': 'B10-O03',   # BlockEntityRender (26.2 precedent exactly)
     'B4-O18': 'B10-O05',   # RecipeBookScreen (26.2 precedent exactly)
     'B4-O08': 'B10-O05',   # MenuOracle singleton -> UI family
-    # Containers / trading / spawner / loot
-    'B7-O10': 'B4-O21',    # VehicleContainer
-    'B4-G20': 'B7-G17',    # spawner setEntityData (3-way with B3-G39)
-    'B3-G39': 'B7-G17',    # spawner setEntityData, trial arm (NEW vs 26.1)
-    'B3-G24': 'B4-G24',    # villager level-up (B4 owns trading)
-    'B4-G26': 'B12-G01',   # loot engine (B12 canonical, per-table impact counts)
-    # New 26.1.1 duplicates (no 26.1 record — the 26.1 tree had no composter
-    # defect and no dispenser-spawn-egg defect)
-    'B4-G30': 'B5-G22',    # composter (B5 canonical: fuller evidence, all paths)
-    'B4-G35': 'B7-G18',    # dispenser spawn egg on null spawn (B7 owns spawn-egg items)
 }
 
-# Per-oracle member folds: (source group item, oracle) -> canonical item
+# Custom merge notes for canonicals whose fold needs more than the default
+# "absorbs duplicate" text.
+FOLD_NOTES = {
+    'B5-G37': ('Absorbs B12-G03 (same defect, recorded as one census item '
+               'covering seven blocks; the other five blocks are B5-G38-'
+               'G42; the seventh block, frogspawn, is minted separately as '
+               'B12-G09).'),
+}
+
+# Per-oracle member folds: (source group item, oracle) -> canonical item.
+# Cascade/dependency mentions are NOT members (e.g. BlockUpdate named in
+# B4-O03/B4-O19/B7-O29/B7-O30/B3-O07 as the cascade source; FaceSupport
+# named in B2-O07/B3-O07 as the cascade source; RegistryFluid named in
+# B1-O04 as a shared-symbol cross-reference) — those get no fold.
 MEMBER_FOLDS = [
+    ('B3-O11', 'VanillaActiveEffectTickOracle', 'B3-O01'),
+    ('B3-O11', 'VanillaAttributeUpdatesOracle', 'B3-O01'),
+    ('B3-O10', 'VanillaArrowOracle', 'B7-O03'),
     ('B10-O03', 'VanillaBlockEntityAnimOracle', 'B4-O15'),
-    ('B6-O04', 'VanillaSculkOracle', 'B4-O14'),
-    ('B6-O06', 'VanillaNaturalSpawnOracle', 'B4-O23'),
-    ('B6-O06', 'VanillaFinalizeSpawnOracle', 'B3-O03'),
-    ('B6-O06', 'VanillaSpawnRulesOracle', 'B3-O03'),  # NEW vs 26.1: SpawnRules in both groups
-    ('B6-O01', 'VanillaWorldSpawnOracle', 'B3-O05'),
-    ('B3-O03', 'VanillaNaturalSpawnOracle', 'B4-O23'),
-    ('B3-O05', 'VanillaRegisteredEntityFluidOracle', 'B1-O01'),
-    ('B3-O05', 'VanillaLivingFluidOracle', 'B1-O05'),
-    ('B3-O05', 'VanillaTradingOracle', 'B4-O25'),
-    ('B3-O03', 'VanillaArrowOracle', 'B7-O03'),
-    ('B3-O03', 'VanillaBoatRiderOracle', 'B7-O04'),
-    ('B3-O03', 'VanillaClientArrowOracle', 'B7-O05'),
-    ('B3-O03', 'VanillaBlockingItemDamageOracle', 'B7-O17'),
-    ('B3-O05', 'VanillaVehicleContainerOracle', 'B4-O21'),
-    ('B3-O05', 'VanillaPlayerInventoryOracle', 'B7-O27'),
-    ('B3-O05', 'KnockbackClient', 'B7-O11'),
-    ('B3-O07', 'VanillaHelmetDamageOracle', 'B7-O30'),
-    ('B3-O04', 'VanillaBoatAuthorityOracle', 'B7-O08'),
-    ('B3-O04', 'VanillaShulkerSpaceOracle', 'B4-O22'),
+    ('B10-O05', 'VanillaContainerScreenOracle', 'B4-O17'),
+    ('B3-O10', 'VanillaFluidBoxOracle', 'B1-O08'),
+    ('B3-O10', 'VanillaEffectSyncOracle', 'B8-O07'),
     ('B3-O02', 'VanillaEntitySoundPacketOracle', 'B10-O04'),
-    ('B3-O05', 'LocatorBarClient', 'B9-O03'),
+    ('B3-O10', 'VanillaEntitySoundPacketOracle', 'B10-O04'),
+    ('B6-O02', 'VanillaMaterialSurfaceOracle', 'B6-O01'),
+    ('B3-O09', 'VanillaNaturalSpawnOracle', 'B4-O23'),
+    ('B6-O06', 'VanillaNaturalSpawnOracle', 'B4-O23'),
+    ('B6-O08', 'VanillaNaturalSpawnOracle', 'B4-O23'),
+    ('B10-O05', 'VanillaRecipeBookOracle', 'B4-O09'),
+    ('B10-O05', 'VanillaPlaceRecipeOracle', 'B4-O10'),
+    ('B10-O05', 'VanillaSimpleContainerOracle', 'B4-O11'),
+    ('B6-O06', 'VanillaSpawnRulesOracle', 'B3-O10'),
+    ('B6-O08', 'VanillaSpawnRulesOracle', 'B3-O10'),
+    ('B3-O05', 'VanillaTradeComponentsOracle', 'B4-O27'),
+]
+
+# Coordinator corrections: item id -> (new status, new title, note).
+CORRECTIONS = {
+    'B7-O11': (
+        'oracle-defect',
+        'KnockbackClient fails javac: 7 no-override errors (ServerboundPunchPacket cause gone, new cause replaces it)',
+        'Coordinator correction: B7 recorded this as fixed (no '
+        'ServerboundPunchPacket reference, all 49 imports exist), but the '
+        'Batch 0 measured table says KnockbackClient FAILS on all three '
+        'classpaths (7 no-override errors, first error line 362). The '
+        '26.1.2 cause is gone but a new cause replaces it. The '
+        'item_use_order driver does NOT flip to runnable.',
+    ),
+    'B5-O03': (
+        'fixed',
+        '[FIXED] VanillaPickBlockDataOracle compiles for 1.21.10 (TypedEntityData has both loadInto overloads)',
+        'Coordinator correction: B5 recorded this as an oracle defect '
+        '(TypedEntityData has no loadInto), but the Batch 0 measured table '
+        'says VanillaPickBlockDataOracle PASSES on all three classpaths, '
+        'and the coordinator\'s own javap confirmed TypedEntityData HAS '
+        'both loadInto overloads in 1.21.10\'s jars. B5\'s javap read was '
+        'wrong.',
+    ),
+}
+
+# B5 tally correction: pass 101 -> 102, gap 27 -> 26 (doFireTick check
+# passes; the port honours it via gamerules::fire_radius).
+TALLY_CORRECTIONS = {5: {'pass': 102, 'gap': 26}}
+
+# Items minted at merge from folded-item evidence.
+MINTED = [
+    {
+        'evidence': (
+            'Minted at merge from B12-G03\'s evidence (the census item '
+            'folds into the six B5 per-block items; frogspawn is its '
+            'seventh block, covered nowhere else). Vanilla 1.21.10 '
+            'FrogspawnBlock: fluid below WATER + above EMPTY '
+            '(javap-verified on the client-named jar, uses NO supports_* '
+            'tag). The port reads the absent #supports_frogspawn tag in '
+            'both survival implementations: block_survival.rs:609 (block) '
+            '+ :619 (fluid) and survive.rs:477-478. The tag is ABSENT '
+            'from 1.21.10 data (the jar ships ZERO supports_* block tags), '
+            'so frogspawn can never survive on valid ground. No '
+            'synthesize_legacy_support_tags code exists in the 1.21.10 '
+            'tree (the 1.21.7 tree\'s fix was never carried).'),
+        'fix': None,
+        'id': 'B12-G09',
+        'method': 'tag census (jar vs prepared) + runtime tag-read audit + javap',
+        'severity': 'major',
+        'status': 'gap',
+        'title': 'Frogspawn can never survive: port reads the absent #supports_frogspawn tag',
+    },
 ]
 
 slices = {}
@@ -105,24 +187,24 @@ batches = {}
 tot = Counter()
 # Behaviour-only restatement: remove the non-behaviour checks the
 # batches counted in their as-tallied tallies (each per a 26.2 precedent,
-# accepted by the coordinator): B4 37 driver-status checks (17 pass,
-# 20 gap — passing-oracle + oracle-blocked driver rows; the no-oracle
-# driver rows are behaviour checks by assertion read), B3 3
+# accepted by the coordinator): B4 37 driver-status checks (8 pass,
+# 29 gap — passing-oracle + oracle-blocked driver rows), B3 3
 # driver-code-defect checks (0 pass, 3 gap), B9 4 oracle/harness checks
-# (1 pass, 3 gap — H01 is FIXED for 26.1.2, so it counts as a pass).
-# Total removed: 44 checks (18 pass, 26 gap) — identical to 26.1.1:
-# B3 98 as-tallied = 95 behaviour + 3, B4 95 = 58 + 37, B9 24 = 20 + 4.
-NON_BEHAVIOUR = {4: (17, 20), 3: (0, 3), 9: (1, 3)}
+# (1 pass, 3 gap — H01 is FIXED for 1.21.10, so it counts as a pass).
+# Total removed: 44 checks (9 pass, 35 gap).
+NON_BEHAVIOUR = {4: (8, 29), 3: (0, 3), 9: (1, 3)}
 behav_tot = Counter()
 raw_items = 0
 for n, d in slices.items():
+    c = dict(d['checks'])
+    if n in TALLY_CORRECTIONS:
+        c.update(TALLY_CORRECTIONS[n])
     batches[str(n)] = {
         'name': d.get('name', f'Batch {n}'),
         'date': d.get('date', '2026-11-25'),
-        'checks': d.get('checks', {}),
+        'checks': c,
         'status': 'complete',
     }
-    c = d['checks']
     tot['total'] += c['total']
     tot['pass'] += c['pass']
     tot['gap'] += c['gap']
@@ -149,8 +231,15 @@ for n in range(13):
             continue  # folded into its canonical item
         title = it.get('title') or it.get('name', '')
         ev = it.get('evidence', '')
+        status = it.get('status', 'gap')
+        coord_note = None
+        if it['id'] in CORRECTIONS:
+            status, title, coord_note = CORRECTIONS[it['id']]
+            ev = ev + '\n\n[Coordinator correction: ' + coord_note + ']'
         notes = []
-        if it['id'] in absorbed:
+        if it['id'] in FOLD_NOTES:
+            notes.append(FOLD_NOTES[it['id']])
+        elif it['id'] in absorbed:
             notes.append(
                 'Absorbs duplicate item(s) %s (same defect, '
                 'recorded again in another batch; folded here at merge).'
@@ -171,15 +260,20 @@ for n in range(13):
                 % ', '.join(member_absorbed))
         if notes:
             ev = ev + '\n\n[Merge note: ' + ' '.join(notes) + ']'
-        items.append({
+        merged_item = {
             'evidence': ev,
             'fix': None,
             'id': it['id'],
             'method': it.get('method', ''),
             'severity': it.get('severity', 'minor'),
-            'status': it.get('status', 'gap'),
+            'status': status,
             'title': title,
-        })
+        }
+        if coord_note:
+            merged_item['coordinator_note'] = coord_note
+        items.append(merged_item)
+
+items.extend(MINTED)
 
 sev = Counter(i['severity'] for i in items)
 st = Counter(i['status'] for i in items)
@@ -187,59 +281,82 @@ live = [i for i in items if i['status'] in ('gap', 'oracle-defect', 'needs-harne
 live_major = [i for i in live if i['severity'] == 'major']
 
 merged = {
-    'version': '26.1.2',
+    'version': '1.21.10',
     'generated_from': ('docs/PARITY-SWEEP.md (branch parity-sweep); '
-                       'per-batch slices in pins/26.1.2/sweep/batch-NN.json'),
+                       'per-batch slices in pins/1.21.10/sweep/batch-NN.json'),
     'note': (
-        'Sweep ledger for 26.1.2, merged 2026-11-25 from the 13 per-batch slices. '
-        'Same shape as the 26.1.1 merged ledger (pins/26.1.1/sweep-items.json): '
+        'Sweep ledger for 1.21.10, merged 2026-11-25 from the 13 per-batch slices. '
+        'Same shape as the 26.1.2 merged ledger (pins/26.1.2/sweep-items.json): '
         'one item per defect found, with evidence, method, severity, status. '
         'Fixes are separate work, never on this branch; every fix field is null. '
         'ID convention: all ids are batch-prefixed (B<n>-Gxx behaviour/driver, '
-        'B<n>-Oxx oracle, B<n>-Hxx needs-harness, O1-O9 Batch 0 repair groups). '
+        'B<n>-Oxx oracle, B<n>-Hxx needs-harness, O1-O13 Batch 0 repair groups). '
+        'PROVENANCE: 1.21.10 is template-derived from the 1.21.11 template '
+        '(first adjacent delta port in E6, cross-protocol 774->773; 605 files '
+        'differ from the template; behaviour port 719/719 merged fcb0e7e3, '
+        'crate-tests 45376855229 fully green). Holder shape is 1.21.x (no '
+        'EntityTypes/BlockEntityTypes in either jar). '
         'TALLY CONVENTION: the "totals" block gives both the as-tallied total '
-        '(every batch slice tally summed as delivered) and the behaviour-only '
-        'total. Three batches count non-behaviour checks in their as-tallied '
-        'tallies, each per a 26.2 precedent the coordinator accepted: Batch 4 '
-        'counts 37 driver-status checks (17 pass, 20 gap), Batch 3 counts 3 '
-        'driver-code-defect checks (0 pass, 3 gap), Batch 9 counts 3 oracle '
-        'items + 1 harness blocker as checks (1 pass, 3 gap — H01 is fixed '
-        'for 26.1.2, so it counts as a pass). The behaviour-only total '
-        'removes all 44 (18 pass, 26 gap). No other batch counts '
-        'oracle-status checks. '
-        'STATUS MEANINGS: "gap" = demonstrated defect in 26.1.2. '
-        '"oracle-defect" = an oracle that fails javac against the 26.1.2 jars '
-        '(Batch 0 measured table). "fixed" means "26.1.1 defect withdrawn for '
-        '26.1.2 — verified absent", NOT a fix applied during this sweep. '
-        '"closed" means "26.1.1 defect re-checked and closed for 26.1.2". '
+        '(every batch slice tally summed as delivered, with the B5 correction '
+        'below) and the behaviour-only total. Three batches count non-behaviour '
+        'checks in their as-tallied tallies, each per a 26.2 precedent the '
+        'coordinator accepted: Batch 4 counts 37 driver-status checks (8 pass, '
+        '29 gap), Batch 3 counts 3 driver-code-defect checks (0 pass, 3 gap), '
+        'Batch 9 counts 3 oracle items + 1 harness blocker as checks (1 pass, '
+        '3 gap — H01 is fixed for 1.21.10, so it counts as a pass). The '
+        'behaviour-only total removes all 44 (9 pass, 35 gap). No other batch '
+        'counts oracle-status checks. '
+        'COORDINATOR CORRECTIONS (verified against the tree, the jars, and the '
+        'Batch 0 measured table): B5 tally 101/27 -> 102/26 (the port honours '
+        'doFireTick via gamerules::fire_radius; B1-G11 stays FIXED). B7-O11 '
+        'fixed -> oracle-defect (KnockbackClient fails all three classpaths, '
+        '7 no-override errors; the 26.1.2 cause is gone but a new cause '
+        'replaces it). B5-O03 oracle-defect -> fixed (VanillaPickBlockDataOracle '
+        'compiles; TypedEntityData HAS both loadInto overloads). B12-G09 '
+        '(frogspawn) minted at merge from B12-G03\'s evidence. '
+        'STATUS MEANINGS: "gap" = demonstrated defect in 1.21.10. '
+        '"oracle-defect" = an oracle that fails javac against the 1.21.10 jars '
+        '(Batch 0 measured table). "fixed" means "1.21.7 defect withdrawn for '
+        '1.21.10 — verified absent", NOT a fix applied during this sweep. '
+        '"closed" means "1.21.7 defect re-checked and closed for 1.21.10". '
         '"accepted-gap" = known, accepted. BATCH 0 vs PER-BATCH: Batch 0 items '
-        'O1-O9 are repair-group items (one per failure class); per-batch '
+        'O1-O13 are repair-group items (one per failure class); per-batch '
         'O-items are the same oracles recorded per driver family. Both are '
         'kept; the overlap is mapped in "dedup".batch0_overlap — it is not '
-        'double-counting, it is two views of the same 202 failing files. '
-        'ORACLE COVERAGE: the per-batch O-items name 162 distinct failing '
-        'files (156 Vanilla*Oracle + 6 harness/client files); the remaining 40 '
-        'failing files appear only in the Batch 0 group items (including '
-        'VanillaProtocolClient, 34 errors, blocking 8 drivers, and '
-        'VanillaTickScript, 19 errors — per-batch triage covered in-scope '
-        'drivers only, not the full failing list). B6 short oracle names map '
-        '1:1 to Vanilla*Oracle; B3-O04 EntityTranscript/RideTranscript are '
+        'double-counting, it is two views of the same 287 failing files. '
+        'ORACLE COVERAGE: the per-batch O-items name 168 distinct files, 152 '
+        'genuinely failing (16 named files pass — cross-references or passing '
+        'comparators, including VanillaPickBlockDataOracle); 135 failing files '
+        'have no per-batch record; the Batch 0 groups name 114 files (111 '
+        'failing); 82 failing files are named by neither (the long tail, '
+        'covered by O7\'s count). B3-O04 EntityTranscript/RideTranscript are '
         'driver/transcript files, not oracles. MEASUREMENT: command_parse ran '
-        'end-to-end for 26.1.2 (Batch 9 §2 — H01 fixed, the probe compiles); '
-        'it is the only end-to-end driver run in this sweep. The loot_fill '
-        'example was NOT run for 26.1.2 (Batch 12 rests on code trace + '
-        'census; the loot files are byte-identical to 26.1.1\'s, whose '
-        '26.1 live run covers the identical code shape). Batch '
-        '9\'s 18 other e2e drivers are unrun (command_exec fixture blocker). '
-        'LANG: prepared en_us.json IS present and md5-identical to the 26.1.2 '
-        'client jar file (7,886 keys); only sounds.json is genuinely absent '
-        '(B10-G02). '
-        'NEW vs 26.1.1: three items are new (B3-G47 AI walk-target arms, '
-        'B11-G10 palette-reader void, B11-G11 chat-helper formula pin); '
-        'B11-H01 is withdrawn (report-only, no slice item — the lib-test '
-        'breakage it named was fixed and the test removed). Two 26.1.1 '
-        'items land closed as NEVER EXISTED (B5-G18 bell isProperHit, '
-        'B10-G04 BE renderers) — 26.1.1-record corrections, not fixes.'
+        'end-to-end for 1.21.10 (Batch 9 §2 — H01 fixed, the probe compiles '
+        'AND links; corpus regenerated from 1.21.10\'s own tree export, '
+        '32,365 commands, 97,095 comparisons, 90,457 match); it is the only '
+        'end-to-end driver run in this sweep. The loot_fill example WAS run '
+        'for 1.21.10 (Batch 12 demonstrated G02 live). Batch 9\'s 18 other '
+        'e2e drivers are unrun (command_exec fixture blocker + '
+        'VanillaCommandExecOracle 45 errors). LANG: prepared en_us.json IS '
+        'present (horizon-client/1.21.10/assets/minecraft/lang/en_us.json); '
+        'only sounds.json is genuinely absent (B10-G02). B9-O04 (prepared data '
+        'lacks the lang file) is a snapshot gap in B9\'s own run copy, not the '
+        'prepared tree. '
+        'NEW vs 1.21.7/26.1.2: the six supports_* survival blocks (B5-G37-'
+        'G42) + frogspawn (B12-G09); B9-O05 (VanillaCommandExecOracle, 45 '
+        'errors); O10 (ServerLevel ctor, 86 files — 1.21.10\'s ctor is 11-arg '
+        'with RandomSequences; the 1.21.7 12-arg fix does NOT carry); B6-G18 '
+        '(ore veins never generate); B5-G36 (client bonemeal inverted); '
+        'B4-O27 (VanillaTradeComponentsOracle); B3-G48 (zombie horses burn), '
+        'B3-G49 (LAN idle timer); B1-G09 (fire burnout); B12-G04 (Assets::load '
+        'hard-requires three 26.x-only motion tags — the client cannot start); '
+        'B11-G10 (vanilla-written worlds load as void — inherited from the '
+        '1.21.11 template, statically derived). Two 1.21.7 items land closed '
+        'as NEVER EXISTED (B5-G17 chorus ceiling — getMaxY() is 319 in BOTH '
+        'jars; B5-G18 bell isProperHit), and B2-G11/G12 + B10-G04 are '
+        'corrected as NEVER EXISTED against 1.21.10\'s own evidence — the '
+        'B10-G04 correction extends to the 1.21.7 ledger itself (the 1.21.7 '
+        'tree also has all five geometry functions with live call sites).'
     ),
     'batches': batches,
     'totals': {
@@ -275,57 +392,84 @@ merged = {
             for s, o, c in MEMBER_FOLDS
         ],
         'batch0_overlap': {
-            'O1 (LocalPlayer ctor, 20 oracles)': 'Per-batch records: B3-O02 '
-                '(5), B10-O04 (3 sound oracles), B3-O03, B7-O04, B7-O21, '
-                'B7-O22, B7-O28, B8-O01, B9-O02, B10-O03, B10-O05 (1 each). '
-                '5 oracles (AutoJump, Camera, GameLoop, LocalInput, '
-                'SprintInput) appear only here.',
+            'O1 (LocalPlayer ctor, 20 oracles)': 'Per-batch records: B10-O04 '
+                '(3 sound oracles), B3-O02, B7-O04, B7-O21, B7-O22, B7-O28, '
+                'B8-O01, B10-O03, B10-O05 (1 each). 9 oracles (AutoJump, '
+                'Camera, GameLoop, LocalInput, PlayerSync, RemoteAttack, '
+                'SheepDye, SprintInput, TeamRules) appear only here.',
             'O2 (jsr305 client-libraries crash)': 'Latent driver defect; no '
                 'per-batch item (test_model_baking_parity.py client_libraries '
                 'omits jsr305).',
-            'O3 (fuelValues + missing overrides, 7 oracles)': 'Per-batch '
-                'records: B3-O01 (3 fuelValues oracles), B6-O05 (2, '
-                'DecorationRegion/FeatureCatalog lookup), B10-O03 (2), '
-                'B4-O15 (BlockEntityAnim), B4-O16 (1, folds into B10-O03). '
-                'None appear only here.',
+            'O3 (fuelValues + missing overrides, 6 oracles)': 'Per-batch '
+                'records: B3-O01 (3 fuelValues oracles), B3-O11 (2), '
+                'B10-O03 (2), B4-O15 (BlockEntityAnim), B6-O05, B4-O16 (1 '
+                'each). None appear only here.',
             'O4 (densityfunction, 17 oracles)': 'Per-batch records: B6-O01 '
-                '(10), B6-O02 (5), B6-O07 (4), B3-O05 (1), B6-O04 (1). None '
-                'appear only here.',
-            'O5 (EntityTypes holder move, 31 oracles)': 'Per-batch records: '
-                'B3-O04 (11), B3-O03 (5), B3-O05 (4), B3-O02 (3), B10-O03 (2), '
-                'B6-O06 (2), and 14 singletons (B4-O06, B4-O08, B4-O15, '
-                'B4-O22, B4-O23, B4-O25, B5-O06, B7-O01, B7-O04, B7-O08, '
-                'B7-O09, B7-O11, B9-O03, B10-O05). 7 oracles (ProtocolClient, '
-                'RegistryFallRay, SceneMotion, SourceSilence, SprintInput, '
+                '(10), B6-O02 (5), B6-O07 (2). 1 oracle (Noise) appears only '
+                'here.',
+            'O5 (EntityTypes holder move, 32 oracles)': 'Per-batch records: '
+                'B10-O03 (2), B6-O06 (2), B3-O10 (2), B3-O09 (2), and 17 '
+                'items with 1 each (B7-O09, B3-O02, B7-O08, B3-O05, B4-O25, '
+                'B7-O04, B4-O15, B4-O22, B4-O23, B6-O08, B4-O08, B4-O09, '
+                'B4-O10, B10-O05, B4-O06, B5-O06, B7-O01). 14 oracles '
+                '(BreezeHook, CommandExec, KnockbackClient, MobAi, '
+                'MobFallReset, RegistryFallRay, RemoteAttack, SceneMotion, '
+                'ShulkerBullet, SourceSilence, SprintInput, SquidClient, '
                 'WetFire, WorldRay) appear only here.',
-            'O6 (other 26.3-only packages, 17 oracles)': 'Per-batch records: '
-                'B10-O05 (renderpearl, 8), B6-O02 (material/rule, 4), B3-O06 '
-                '(advancements, 2), B4-O18 (1), B6-O01 (1), B6-O07 (1). 2 '
-                'oracles (ComponentWireCapture, TickScript) appear only here.',
-            'O7 (202 fail / 231 drivers blocked)': 'Headline roll-up; every '
-                'per-batch oracle item is a subset of these 202. The 14 '
-                'oracles named in its evidence (top blockers) have per-batch '
-                'records except 7 (ComponentWireCapture, OfflineLanHost, '
-                'CollisionContext, LootFill, Mover, RegistryCollisionScan, '
-                'SceneMotion). 19 of the 40 Batch-0-only failing files belong '
-                'to no group evidence list (the long tail).',
+            'O6 (other 26.3/1.21.11-only packages)': 'O6 names only 7 '
+                'oracles in its evidence (it is a package-count group: '
+                'gamerules 24, entity sub-packages 32, world.attribute 28, '
+                'gizmos 4, permissions 9); 2 have per-batch records (B3-O09, '
+                'B10-O05). The package groups are covered per-batch by group '
+                'items: B3-O09 (gamerules package, 6 oracles), B3-O10 '
+                '(entity sub-packages, 6 oracles), B6-O02 (material/rule, 4 '
+                'oracles), B10-O05 (renderpearl, 8 oracles). 5 oracles '
+                '(CommandExec, DataFix, EntityComponents, FrameLimiter, '
+                'MobAi) appear only here.',
+            'O7 (287 fail / 314 drivers blocked)': 'Headline roll-up; every '
+                'per-batch oracle item is a subset of these 287. 82 failing '
+                'files are named by neither the B0 groups nor the per-batch '
+                'items (the long tail).',
             'O8 (runtime layer unmeasured)': 'No per-batch item. Partially '
-                'measured now: command_parse ran end-to-end (Batch 9 §2); the '
-                'remaining runtime layer (other drivers) is still unmeasured.',
+                'measured now: command_parse ran end-to-end (Batch 9 §2) and '
+                'loot_fill ran (Batch 12); the remaining runtime layer (other '
+                'drivers) is still unmeasured.',
             'O9 (re-ported 26.3-form oracle sources, 17 files)': 'Per-batch '
-                'records: B6-O04 (5), B6-O03 (2), B6-O05 (2), B4-O04, B4-O05, '
-                'B5-O04, B6-O06, B10-O03 (1 each). 3 oracles (BlockTransformer, '
-                'FillLayer, SteppedInterpolation) appear only here.',
+                'records: B6-O03 (2), B6-O05 (2), B4-O04, B4-O05, B5-O04, '
+                'B10-O03, B6-O06 (1 each). 9 oracles (BasicFeature, '
+                'BlockTransformer, FeatureGraph, FeatureRegion, FeatureSort, '
+                'FillLayer, ScatteredOre, SimpleBlock, SteppedInterpolation) '
+                'appear only here.',
+            'O10 (ServerLevel ctor, 86 oracles)': 'NEW for 1.21.10: 1.21.10\'s '
+                'ServerLevel ctor is 11-arg with RandomSequences; the 1.21.7 '
+                '12-arg fix does NOT carry. Per-batch records: 5 items '
+                '(B2-O03, B4-O01, B2-O05, B7-O02, B7-O30, 1 oracle each). 20 '
+                'oracles appear only here (ActiveEffects, '
+                'AttributeMapQueries, BlockEventReadiness, BlockLanding, '
+                'CombatRules, ConsumeEffect, DamageReduction, EdgeBackoff, '
+                'FallDamage, FoodProperties, GroundState, '
+                'LiveAttributeUpdates, LivingDamage, MovementEmission, '
+                'MovementSupport, ServerPlayerDamage, StoredConsume, '
+                'StoredEffectNotifications, Swimming, WaterSplash).',
+            'O11 (MobAi driver gates)': 'No per-batch item; driver-gating '
+                'finding (20 scenarios ungated: spears + age lock).',
+            'O12 (ComponentPatch runtime crash)': 'No per-batch item; the '
+                'oracle COMPILES (B0-O12 is a runtime crash, not javac) — '
+                'the only runtime-measured oracle failure in this sweep '
+                'besides the command_parse run.',
+            'O13 (withdrawn format-change repairs)': 'CLOSED: no such repairs '
+                'in the 1.21.10 tree.',
         },
     },
     'items': items,
 }
 
-out = '/home/hatch/workspace/mcir-work/sweep-26.1.2/pins/26.1.2/sweep-items.json'
+out = '/home/hatch/workspace/mcir-work/sweep-1.21.10/pins/1.21.10/sweep-items.json'
 with open(out, 'w') as f:
     json.dump(merged, f, indent=1, sort_keys=True)
 print('wrote', out)
 print('checks:', dict(tot))
+print('behaviour-only:', dict(behav_tot))
 print('items raw:', raw_items, '| unique:', len(items), '| live:', len(live),
       '| live major:', len(live_major))
 print('by status:', dict(st))
