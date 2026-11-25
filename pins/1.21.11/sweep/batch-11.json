@@ -1,0 +1,338 @@
+{
+ "batch": 11,
+ "checks": {
+  "gap": 4,
+  "needs_harness": 0,
+  "pass": 243,
+  "total": 247
+ },
+ "date": "2026-11-25",
+ "items": [
+  {
+   "evidence": "No minecraft:speleothems tag file in 1.21.11 data (639 tag files). Dispatch is FIXED: all five Speleothem arms dispatch Class::Speleothem | Class::PointedDripstone (place.rs:1156, shapes.rs:745, survive.rs:326, tick.rs:257/443). The TAG half reproduces: minecraft:speleothems is still read at falling.rs:55, place.rs:1409, shapes.rs:1186, speleothem.rs:15/18/90 — every read hits an empty tag. Overlap: B5-G13 (dripstone is Batch 5's system). Source: 1.21.7 B11-G06 + 1.21.10 B11-G04.",
+   "id": "B11-G04",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "gap",
+   "title": "dripstone gates on minecraft:speleothems, which 1.21.11 never defined"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 gates the douse on potionContents.is(Potions.WATER) (AbstractThrownPotion offsets 55-63) — no tag; there is NO PotionTags class in either 1.21.11 jar and 0 potion tag files. Rust potion_in_tag (splash_water.rs:42-51) reads the potion-tags map, which is empty, so splash water never douses fire, wets farmland or cools magma. Attached to item 699 (gap): its triage claims 'no PotionTags usage anywhere in the Rust' — flatly false. Overlap: B1-G03. Source: 1.21.7 B11-G13 + 1.21.10 B11-G05.",
+   "id": "B11-G05",
+   "method": "javap + Rust grep",
+   "severity": "major",
+   "status": "gap",
+   "title": "splash water never douses fire"
+  },
+  {
+   "evidence": "NumberProviders has 6 entries in 1.21.11 (CONSTANT, UNIFORM, BINOMIAL, SCORE, STORAGE, ENCHANTMENT_LEVEL). Rust loot.rs:1344/1346 (_ => 0), :1363 (_ => 0.) and horizon-items items.rs:1934-1972 (_ => 0.0) yield 0 for any provider that is not constant/uniform/binomial. Attached to item 637 (gap): its triage frames the fallthrough as 26.1-only providers, missing that three LIVE 1.21.11 providers also fall through. Datapack-only: 0/1,329 vanilla loot tables use them. Source: 1.21.7 B11-G12 + 1.21.10 B11-G06.",
+   "id": "B11-G06",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "gap",
+   "title": "score/storage/enchantment_level number providers return 0"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 fuel is a code table (FuelValues.fuelItems() + vanillaBurnTimes; SlotDisplay$AnyFuel.resolve streams FuelValues.fuelItems). DataComponents (105 fields) has no COOKING_FUEL/BREWING_FUEL and 0/1,505 datagen items carry minecraft:cooking_fuel. Rust items.rs:1040-1042 reads minecraft:cooking_fuel; recipe_book.rs:566-585 + native_panel_recipes.rs:173-190 group an EMPTY list; burn_time (providers.rs:108-116) returns 0; no FuelValues synthesis anywhere. Attached to item 662 (gap): its triage claims 'the fuel SET is the same' — false, the set is empty. Overlap: B4-G01 (furnace burn_time half). Source: 1.21.7 B11-G15 + 1.21.10 B11-G07.",
+   "id": "B11-G07",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "gap",
+   "title": "recipe-book fuel list is EMPTY, not merely misordered"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 forms spawn-count entries by charAt(0)+toUpperCase (single initials). Rust debug_overlay.rs:394 uses a two-letter abbreviation table (MO, C, AM, AX, UWC, WC, WA, MI). Cosmetic only — counts are right, labels are wrong. Source: 1.21.10 B11-G09.",
+   "id": "B11-G09",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "gap",
+   "title": "F3 spawn-counts use two-letter abbreviations, vanilla uses initials"
+  },
+  {
+   "evidence": "Three verified links. (1) Reader: BlockState::from_nbt (horizon-world/src/chunk.rs:208) reads strict 'id' only, errors 'block state is missing id'; 0 from_palette_nbt anywhere; datafix key 5006 (Name->id, fixes_c.rs:155) never runs because update() runs fixes where k/10 <= to_version (datafix/mod.rs:223) and CURRENT = DATA_VERSION = 4671. (2) Load path: upgrade_record early-returns for DataVersion >= 4671 (save.rs:2433); decode_column maps unresolvable palette entries to air (save.rs:1788); saved_state_id uses BlockState::from_nbt(tag).ok() (registry.rs:230). (3) Reference world (vanilla-world-mc 1.21.11 'New World', DataVersion 4671, seed -76134417269081163) writes palettes as Name/Properties compounds (nbt_probe.py, r.0.0.mca, 3 chunks). Consequence statically derived, not demonstrated in-game. The template's OWN defect, inherited BY 1.21.10 and 26.1.2. Source: 1.21.10 B11-G10.",
+   "id": "B11-G10",
+   "method": "javap + Rust grep",
+   "severity": "major",
+   "status": "gap",
+   "title": "vanilla-written worlds load as void: the palette reader accepts only the post-5006 form"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 SaplingBlock.isValidBonemealTarget is iconst_1 (always valid); performBonemeal calls advanceTree, which returns without growing for a mega tree with no 2x2 partner (meal consumed). Rust bonemeal_valid (bonemeal.rs:331-340) returns false with no grower / no live features / tree can't grow, so a lone mega sapling keeps its meal and nothing happens. Attached to item 581 (gap): its triage claims the Sapling arm 'already returns true' — true only after the growability gates. Narrowed to the lone-mega case. Source: 1.21.7 B11-G07 + 1.21.10 B11-G12.",
+   "id": "B11-G12",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "gap",
+   "title": "bonemealing a lone mega sapling does nothing (meal kept)"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 LevelResource.PLAYER_DATA_DIR is flat 'playerdata' (PLAYER_OLD_DATA_DIR is 'players', the legacy dir). Rust lan/playerdata.rs:18 writes players/data/. A port-written save's player data is not one vanilla 1.21.11 reads (and vice versa). Item 617's triage is honest about this (rank-2 precedent) — cross-cutting, not a ledger gap. Source: 1.21.7 B11-G14 + 1.21.10 B11-G13.",
+   "id": "B11-G13",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "gap",
+   "title": "player data saved to players/data/, vanilla uses flat playerdata/"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 SnowLayerBlock.canSurvive uses SNOW_LAYER_CANNOT_SURVIVE_ON (offset 14) + SNOW_LAYER_CAN_SURVIVE_ON (offset 27); the 26.x names (cannot_support_snow_layer, support_override_snow_layer) do not exist in 1.21.11 data. Golem half FIXED: roll order is the 1.21.11 form (golem.rs:152-158, item 520) and golem.rs:579/582 uses the 1.21.11 tag names. Snow-tag half REPRODUCES: horizon-world still reads the absent 26.x names at data.rs:431-432, survive.rs:314/316, weather.rs:113/116. Overlap flag: Batch 5's survival territory. Source: 1.21.7 B11-G16 + 1.21.10 B11-G14, narrowed.",
+   "id": "B11-G14",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "gap",
+   "title": "snow-layer survival reads the 26.x tag names (golem half FIXED)"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 renders the dialog tooltip when the widget is hovered OR focused (ItemDisplayWidget uses isHoveredOrFocused, offset 104). Rust dialogs.rs:705 shows it on hover only. Item 615's triage is honest about this (known gap, no surface) — cross-cutting, not a ledger gap. Source: 1.21.7 B11-G22 + 1.21.10 B11-G15.",
+   "id": "B11-G15",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "gap",
+   "title": "dialog tooltip shows on hover only, vanilla shows it on focus too"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 has DirtPathBlock, PointedDripstoneBlock, FarmBlock, RedStoneWireBlock — no PathBlock, SpeleothemBlock or RedstoneWireBlock. Rust horizon-prepare/src/survival.rs still cites the dead names at :10 (PathBlock), :21 (SpeleothemBlock), :45 (RedstoneWireBlock); :31 (FarmBlock) is fixed. Dead entries never match, so those blocks fall back to the default survival rule. Source: 1.21.10 B11-G18.",
+   "id": "B11-G18",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "gap",
+   "title": "prepare's survival table cites dead class names"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 Player.drop is 2-arg (drop(ItemStack, boolean)); there is no Prediction class in either 1.21.11 jar. Oracle VanillaCauldronOracle.java:118 calls the 3-arg drop with a Prediction argument — does not compile against 1.21.11. The 1.21.7 repair (parity-sweep branch, c754e3a2) never reached the 1.21.11 tree. Oracle triage provisional (Batch 0 not landed) + direct javap verification. Source: 1.21.7 B11-O01 + 1.21.10 B11-O01.",
+   "id": "B11-O01",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaCauldronOracle calls the 3-arg Player.drop with Prediction"
+  },
+  {
+   "evidence": "Vanilla 1.21.11: getNextEntityId is absent from both Level and ServerLevel (verified via class bytes); ServerLevel's constructor is 11-arg (with RandomSequences). Oracle VanillaLavaCauldronItemOracle.java:28 overrides getNextEntityId — does not compile. Second compile failure in the same oracle: its Lvl constructor calls the 10-arg super while ServerLevel's ctor is 11-arg. Oracle triage provisional (Batch 0 not landed) + direct javap verification. Source: 1.21.10 B11-O02.",
+   "id": "B11-O02",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaLavaCauldronItemOracle overrides getNextEntityId, which does not exist"
+  },
+  {
+   "evidence": "Rust-side half done: 265/271 mappings jar-live, 6 dead, all duals live (§6.1). Chain half — whether every Class enum value is REACHED by a prepared block-behaviours chain — cannot run: no block-behaviours.json for 1.21.11 anywhere (only 1.21.7's exists); Batch 0 has NOT landed (no batch-0-oracles.json in docs/sweep/1.21.11/; .local/minecraft/1.21.11/ has prepared.json/reports but no block-behaviours.json). Needs the Batch 0 prepare to produce the 1.21.11 chain, then a re-run of the liveness half. Source: 1.21.10 B11-H01, carried.",
+   "id": "B11-H01",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "class-table chain-liveness half cannot run (no block-behaviours.json)"
+  },
+  {
+   "evidence": "The cauldron table harness (leather wash, dye removal, lava cauldron item interactions) is blocked on the oracle repairs (B11-O01/O02 — the oracles do not compile). CARRIES from 1.21.10 B11-H02 and 1.21.7 B11-H02 — but no longer confirmatory for a live defect: the wash itself WORKS in this tree (B11-G16 FIXED). Coverage gap, not a defect probe.",
+   "id": "B11-H02",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "cauldron behaviour table harness blocked on oracle repair"
+  },
+  {
+   "evidence": "All 103 crate-tests runs ever dispatched tested 26.1 (48), 1.21.10 (24), 1.21.7 (9 on main + fix branches), 26.1.1 (5), 26.1.2 (2), or fix branches — none tested 1.21.11. Only CI evidence is the port-verify proof run 44989513836 (Nov 22 05:27 UTC, success, profile 5 pass / 18 fail of 23, D1 fail on 21 dead production tags, D2 pass, D3 pass 502/502). The regression tests named in the triage files exist in the current tree and passed locally at port time (fog 16, golem 10, social_screen 3, debug_overlay 9, end_spike 1, growth_tests 21, block_survival 1, knot test, shipwreck test). Dispatch a crate-tests run for 1.21.11 to verify the lib suites run green. NOT breakage — an unverified status.",
+   "id": "B11-H03",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "needs-harness",
+   "title": "no crate-tests run has ever tested 1.21.11"
+  },
+  {
+   "evidence": "enchant.rs:335-337 reads provides_trim_material via .as_str() only. Vanilla 1.21.11's ProvidesTrimMaterial.material is EitherHolder<TrimMaterial> (flag, then holder or key). All 11 datagen items carrying the component use the string form, so no vanilla item is affected. The NETWORK adapter half (item 597) is handled correctly via the either_holders_and_tag_resistance quirk; this note is the item-data read only. Carried from 1.21.7 B11-A01 / 1.21.10 B11-A01.",
+   "id": "B11-A01",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "accepted-gap",
+   "title": "trim material inline form read as string only"
+  },
+  {
+   "evidence": "Foil::Special exists (item_render.rs:149-150) but gui.rs:422 + item_render.rs:1163 treat all non-None foil identically — the glint is drawn over the full quad with no special decal. Item 534's triage notes it honestly. Pre-existing in both versions. Carried from 1.21.7 B11-A03 / 1.21.10 B11-A02.",
+   "id": "B11-A02",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "accepted-gap",
+   "title": "special-foil decal not drawn"
+  },
+  {
+   "evidence": "text_commands.rs:131/:241 always joins with ', '; the Rust resolves a title/tellraw component ONCE for all players while vanilla resolves PER PLAYER (@s in a title resolves to each recipient). Item 512's triage notes both honestly as 'gaps from BOTH versions equally'. A bigger rework, not a delta. Carried from 1.21.7 B11-A04 / 1.21.10 B11-A03.",
+   "id": "B11-A03",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "accepted-gap",
+   "title": "NBT separator ignored + per-player resolution"
+  },
+  {
+   "evidence": "FIXED in the template: removes_dye reads minecraft:dyeable (cauldron.rs:8-13), the tag EXISTS in 1.21.11 data with exactly the 6 vanilla items, and the wash strips dyed_color (cauldron.rs:217-226). CORRECTION OWED to the 1.21.10 ledger: the 1.21.10 run's B11-G16 was a MISREAD — the 1.21.10 tree also reads dyeable (cauldron.rs:11) and the 1.21.10 datapack also has the tag; the agent cited the :190 doc comment, not the :8-11 code. The 1.21.7 tree genuinely read cauldron_can_remove_dye, so 1.21.7's B11-G23 was correct and oracle-confirmed.",
+   "id": "B11-G16",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "cauldron leather wash (1.21.10 B11-G16)"
+  },
+  {
+   "evidence": "FIXED in the template: the Rust uses percent_f(distance, 1) = %.1f (terrain_cmds.rs:441; commands.rs:177), matching vanilla 1.21.11's WorldBorderCommand.setSize (formats '%.1f' in setSize itself, offset 65). The 1.21.10 delta introduced the inversion.",
+   "id": "B11-G19",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "worldborder setSize feedback (1.21.10 B11-G19)"
+  },
+  {
+   "evidence": "FIXED via the class-table duals: all 5 AbstractBed arms dispatch Class::AbstractBed | Class::Bed (hooks.rs:469, interact.rs:365, place.rs:356, place.rs:1483, shapes.rs:124) and Class::Bed is live in 1.21.11.",
+   "id": "B11-G20",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "beds place foot-only and sleep unreachable (1.21.10 B11-G20)"
+  },
+  {
+   "evidence": "FIXED via the class-table dual: RedStoneWireBlock is live in 1.21.11 and the wire code dispatches on it (item 726).",
+   "id": "B11-G21",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "redstone wire never updates power (1.21.10 B11-G21)"
+  },
+  {
+   "evidence": "FIXED via the class-table duals: FarmBlock and DirtPathBlock are live in 1.21.11 and dispatch live (item 726).",
+   "id": "B11-G22",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "farmland/paths (1.21.10 B11-G22)"
+  },
+  {
+   "evidence": "FIXED via the class-table duals: SnowyDirtBlock and SpreadingSnowyDirtBlock are live in 1.21.11 and dispatch live (item 726).",
+   "id": "B11-G23",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "snowy blocks (1.21.10 B11-G23)"
+  },
+  {
+   "evidence": "FIXED via the class-table duals: FungusBlock and RootsBlock are live in 1.21.11 and dispatch live (item 726).",
+   "id": "B11-G24",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "fungus/roots (1.21.10 B11-G24)"
+  },
+  {
+   "evidence": "FIXED via ported item 541: release_trident has no passenger check (trident.rs:501-503, comment notes the 26.1-only check); javap confirms TridentItem.releaseUsing gates only on spinAttack + water/rain.",
+   "id": "B11-G25",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "riptide (1.21.10 B11-G25)"
+  },
+  {
+   "evidence": "FIXED via ported item 572: the knot is tied + sound played before the attach check (leads.rs:646-656); test a_fence_clicked_with_a_lead_keeps_its_knot_when_nothing_attaches exists; javap confirms LeadItem.bindPlayerMobs creates the knot + sound BEFORE the attach check (offsets 58/63 vs 69).",
+   "id": "B11-G26",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "lead knot (1.21.10 B11-G26)"
+  },
+  {
+   "evidence": "FIXED via ported item 666: Swell::can_use/tick have no alive check (hostile.rs:286-319); javap confirms SwellGoal has no isDeadOrDying/isAlive check.",
+   "id": "B11-G27",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "creeper defuse (1.21.10 B11-G27)"
+  },
+  {
+   "evidence": "FIXED via ported item 622: the fox goal has no selector (polar_bear.rs:54-60, comment notes cubs hunt foxes); javap confirms the fox goal passes aconst_null (offsets 194-214).",
+   "id": "B11-G28",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "polar bear cubs (1.21.10 B11-G28)"
+  },
+  {
+   "evidence": "FIXED via ported item 533: Kind::Mushroom returns true (bonemeal.rs:345-352); mushroom_grow_block in survive.rs:285 + block_survival.rs:566; javap confirms MushroomBlock + SaplingBlock isValidBonemealTarget are iconst_1 and the tag is MUSHROOM_GROW_BLOCK.",
+   "id": "B11-G29",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "mushroom (1.21.10 B11-G29)"
+  },
+  {
+   "evidence": "FIXED via ported item 523: chat_allowed gate in social.rs:147 + draw/click/buttons gated in social_screen.rs:177/199/343, tests at :461/:485; javap confirms PlayerEntry gates on isChatAllowed (offset 104) + isBlocked (offset 149).",
+   "id": "B11-G30",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "social chat gate (1.21.10 B11-G30)"
+  },
+  {
+   "evidence": "FIXED via ported item 535: world_surface (wandering_trader.rs:243), level.dat storage via load_trader_data (:57), wandering_trader.dat read-only fallback; javap confirms WanderingTraderSpawner uses WORLD_SURFACE (offset 64) and PrimaryLevelData carries WanderingTraderSpawnDelay/Chance/Id.",
+   "id": "B11-G31",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "wandering trader (1.21.10 B11-G31)"
+  },
+  {
+   "evidence": "FIXED via ported item 571: Day param (debug_overlay.rs:419), MB labels (:533/:540), two-space Mood (:439), tests pin them; javap confirms 'Local Difficulty: %.2f // %.2f (Day %d)' + getDayCount, 'Mem: %2d%% %03d/%03dMB' via bytesToMegabytes, ' (Mood %d%%)' two spaces.",
+   "id": "B11-G32",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "F3 lines (1.21.10 B11-G32)"
+  },
+  {
+   "evidence": "FIXED via ported item 544: end stone hardcoded (survive.rs:111/143/148, place.rs:1330, shapes.rs, block_survival.rs:607, chorus_plant.rs); javap confirms ChorusPlantBlock/ChorusFlowerBlock hardcode END_STONE (4+3 mentions, 0 SUPPORTS_CHORUS).",
+   "id": "B11-G33",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "chorus on end stone (1.21.10 B11-G33)"
+  },
+  {
+   "evidence": "FIXED: finalize.rs:2378-2383 lists Wolf only; entity_nbt.rs:868 has a !sounds.is_empty() write gate and :2307-2310 resolves None for non-wolves. Only WolfSoundVariants exists in the 1.21.11 jars.",
+   "id": "B11-G34",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "sound_variant on non-wolves (1.21.10 B11-G34)"
+  },
+  {
+   "evidence": "FIXED via ported item 640: no height_adjusted caching in shipwreck code (simple.rs recomputes every postProcess); javap confirms ShipwreckPiece has only isBeached. Test repurposed_shipwreck_needs_no_solid_block_around exists.",
+   "id": "B11-G35",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "shipwreck re-adjustment (1.21.10 B11-G35)"
+  },
+  {
+   "evidence": "FIXED via ported item 519 + javap: debug_chart_lines returns [String; 2] (debug_keys.rs:254), FPS uppercase (:284); jar: one-line concat template + FPS + TPS/FPS and 'To edit: press' — zero 'For help' occurrences in 1.21.11 (FPS+TPS iff getSingleplayerServer() != null).",
+   "id": "B11-G36",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "F3 chart footer (1.21.10 B11-G36)"
+  },
+  {
+   "evidence": "FIXED: chat half via the chat_allowed gate (item 523); Page::Blocked => Vec::new() (social.rs:109, 'nobody, without the service') — the blocked half is vacuous without UserApiService, which 1.21.11's offline flow never provides.",
+   "id": "B11-G37",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "chatDisabledOrBlocked (1.21.10 B11-G37)"
+  },
+  {
+   "evidence": "WITHDRAWN: vanilla 1.21.11 has no 'For help' suffix — zero occurrences in the 1.21.11 jars. The Rust matches 1.21.11 exactly (item 519 + javap). The 1.21.10 run's B11-G17 was a 26.3-form expectation, not a 1.21.11 defect. Closed, not a gap.",
+   "id": "B11-G17",
+   "method": "javap + Rust grep",
+   "severity": "minor",
+   "status": "closed",
+   "title": "F3 footer help suffix (1.21.10 B11-G17)"
+  }
+ ],
+ "method": "Tally: 247 items = 243 pass + 4 gap + 0 needs-harness + 0 needs-probe + 0 accepted-gap (ledger verdicts). All 247 checks are behaviour checks (non-behaviour 0). The 18 ported items were individually re-verified (javap on 1.21.11's own named jars + Rust grep in the current tree); the 229 no-change items were verified by module resolution (228 under crates/, 3 launcher, 14 Java-package names), named-class jar checks (129 extracted, all 17 apparent absences resolved), a 762-token evidence check (489 live, 62 26.3-only all correctly cited as absent/renamed), and a 20-item spot-check sample (seed 11, 20/20 agreement). The class-table sweep (265/271 jar-live, chain half blocked — B11-H01), palette-reader check (B11-G10 reproduces, major), lib-test check (no crate-tests run ever tested 1.21.11 — B11-H03), and oracle triage (B11-O01/O02, provisional — Batch 0 not landed) are reported with their own counts, NOT folded into the tally.",
+ "name": "Rank-3 items (247) — 1.21.11's own ledger",
+ "out_of_scope_failures": "None noted for this batch. The 1.21.10 run's B11-H01 (class-table chain-liveness half) is RE-OPENED here as B11-H01: Batch 0 has not landed for 1.21.11, so block-behaviours.json does not exist and the chain half cannot run. The 1.21.10 run's B11-H03 (lib-test) is NEW here as B11-H03: no crate-tests run has ever tested 1.21.11 (all 103 runs tested other versions); the regression tests named in the triage files exist in the current tree and passed locally at port time, but their CI status is UNVERIFIED — not breakage, not a pass.",
+ "source": "docs/PARITY-SWEEP.md §4 Batch 11 — 1.21.11's OWN 247 rank-3 ledger items (rank3-item-*.md triage files, items 503-749, all closed; 1.21.11 has NO rank3-progress.json — the triage files ARE the item source; no-change 229, ported 18), triaged against vanilla 1.21.11's own named jars (client-named 10,291 classes, server-game-named 7,163 classes; server.jar is a bundler, never javap'd) and the 1.21.11 template tree in versions/1.21.11/ (branch parity-sweep-1.21.11).",
+ "systemic_note": "Three systemic causes recur. (1) 26.x tag reads: the port reads six tag names 1.21.11 never had (speleothems, cauldron_can_remove_dye [doc comment only — the code reads dyeable], potion tags, the two 26.x snow-layer names, sculk_growth_inhibitors) — B11-G04, B11-G05, B11-G14. (2) 26.x component reads: DataComponents has no cooking_fuel/brewing_fuel/compostable/villager_food/mob_visibility — B11-G07 (fuel list EMPTY, not merely misordered). (3) The palette reader accepts only the post-5006 id/properties form while vanilla 1.21.11 still writes Name/Properties palettes — B11-G10 (major, the template's own defect, inherited BY 1.21.10 and 26.1.2). The template fixed more than its first child kept: 20 of the 35 1.21.10 re-checks and 18 of the 31 1.21.7 re-checks are FIXED here (all 18 ported items re-verify; the dual-name class table fixes beds/wire/paths/snowy/fungus/roots with no ported item). The 1.21.10 delta lost the golem roll-order fix and inverted the worldborder feedback; the 1.21.10 run's B11-G16 was a misread (NEVER EXISTED correction owed to the 1.21.10 ledger — the wash works, it reads dyeable). Re-base warnings: the 1e-5 fluid-current floor removal (item 567) must NOT propagate to 1.21.7 (which HAS the floor); Nautilus/Spear/CamelHusk/Parched ARE in 1.21.11 (absent in 1.21.10).",
+ "version": "1.21.11"
+}
