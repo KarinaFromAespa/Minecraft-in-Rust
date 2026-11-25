@@ -1116,13 +1116,13 @@ pub fn firework_lines(
         && display.shows("minecraft:fireworks")
     {
         if flight > 0 {
-            lines.push(
-                text("item.minecraft.firework_rocket.flight_duration").replacen(
-                    "%s",
-                    &flight.to_string(),
-                    1,
-                ),
-            );
+            // `Fireworks.addToTooltip`: the key carries no placeholder;
+            // the number follows after a space (`Flight Duration: 1`).
+            lines.push(format!(
+                "{} {}",
+                text("item.minecraft.firework_rocket.flight"),
+                flight
+            ));
         }
         // Fireworks.addExplosionTooltip for each run of equal explosions.
         for run in explosions.chunk_by(|a, b| a == b) {
@@ -1734,7 +1734,7 @@ mod tests {
         std::fs::write(
             dir.join("en_us.json"),
             serde_json::to_vec(&serde_json::json!({
-                "item.minecraft.firework_rocket.flight_duration": "Flight Duration: %s",
+                "item.minecraft.firework_rocket.flight": "Flight Duration:",
                 "item.minecraft.firework_rocket.multiple_stars": "%s x %s",
                 "item.minecraft.firework_star.shape.small_ball": "Small Ball",
                 "item.minecraft.firework_star.red": "Red",
