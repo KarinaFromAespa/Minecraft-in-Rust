@@ -36,7 +36,6 @@ pub enum SpecialKind {
         texture: Option<String>,
         animation: f32,
     },
-    PlayerHead,
     ShulkerBox {
         texture: String,
         openness: f32,
@@ -137,7 +136,6 @@ impl SpecialModel {
                 texture: get(m, "texture").map(ident).transpose()?,
                 animation: float_or("animation", 0.0)?,
             },
-            "minecraft:player_head" => SpecialKind::PlayerHead,
             "minecraft:shulker_box" => SpecialKind::ShulkerBox {
                 texture: ident(required(m, "texture")?)?,
                 openness: float_or("openness", 0.0)?,
@@ -212,7 +210,6 @@ impl SpecialModel {
                 }
                 "head"
             }
-            SpecialKind::PlayerHead => "player_head",
             SpecialKind::ShulkerBox { texture, openness } => {
                 put("texture", json!(texture));
                 if *openness != 0.0 {
@@ -234,7 +231,8 @@ impl SpecialModel {
     }
     /// What `extractArgument` reads: banners their pattern layers, shields
     /// their base colour and layers, decorated pots their sherds and player
-    /// heads their profile. Absent components give `null`.
+    /// heads their profile (`SkullSpecialRenderer` takes the profile for a
+    /// `player` head). Absent components give `null`.
     pub fn argument(&self, component: &dyn Fn(&str) -> Option<Value>) -> Value {
         match &self.kind {
             SpecialKind::Banner { .. } => {
@@ -243,7 +241,9 @@ impl SpecialModel {
             SpecialKind::DecoratedPot => {
                 component("minecraft:pot_decorations").unwrap_or(Value::Null)
             }
-            SpecialKind::PlayerHead => component("minecraft:profile").unwrap_or(Value::Null),
+            SpecialKind::Head { kind, .. } if kind == "player" => {
+                component("minecraft:profile").unwrap_or(Value::Null)
+            }
             SpecialKind::Shield => {
                 let mut m = Map::new();
                 for key in ["minecraft:banner_patterns", "minecraft:base_color"] {

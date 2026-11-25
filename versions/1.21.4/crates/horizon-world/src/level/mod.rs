@@ -793,9 +793,9 @@ pub trait LevelAccess {
     }
     fn emit(&mut self, _event: LevelEvent) {}
     /// `LevelChunk.setBlockState` replaced a block that had a block entity by
-    /// another block: run `BlockEntity.preRemoveSideEffects` when
-    /// `side_effects` (containers spill their contents, a jukebox pops its
-    /// record, a lectern its book...) and remove the block entity. Called
+    /// another block: run the old block's `onRemove` when `side_effects`
+    /// (containers spill their contents, a jukebox pops its record, a
+    /// lectern its book...) and remove the block entity. Called
     /// after the storage write, before `affectNeighborsAfterRemoval`. Returns
     /// how many times the side effects called `updateNeighborsAt(pos, block)`
     /// (a jukebox whose song changed), which the caller then runs.
@@ -1171,29 +1171,6 @@ impl Behaviours {
     ) -> BlockStateId {
         self.sim(level, ticks)
             .update_from_neighbour_shapes(state, pos)
-    }
-    /// `ServerLevel.updateNeighboursOnBlockSet`: what `/setblock` and `/fill` do for a block once it is in
-    /// and its shape updates are done. They place it with `UPDATE_CLIENTS` and not `UPDATE_NEIGHBORS`, so
-    /// `setBlock` notified no one: the replaced block's `affectNeighborsAfterRemoval` (when the block
-    /// changed), then the neighbours' notice with the new block as its source, then the comparators' of a
-    /// block with an analog output.
-    pub fn update_neighbours_on_block_set<L: LevelAccess + ?Sized>(
-        &self,
-        level: &mut L,
-        ticks: &mut Ticks,
-        pos: BlockPos,
-        old: BlockStateId,
-    ) {
-        let mut sim = self.sim(level, ticks);
-        let state = sim.state(pos);
-        let block = sim.block_of(state);
-        if sim.block_of(old) != block {
-            sim.affect_neighbors_after_removal(old, pos, false);
-        }
-        sim.update_neighbors_at(pos, block);
-        if sim.has_analog_output(state) {
-            sim.update_neighbour_for_output_signal(pos, block);
-        }
     }
     /// `Level.updateNeighborsAt(pos, block)`: notify the six neighbours.
     pub fn update_neighbors_at<L: LevelAccess + ?Sized>(

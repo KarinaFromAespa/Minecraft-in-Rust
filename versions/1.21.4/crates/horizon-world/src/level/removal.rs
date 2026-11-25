@@ -1,10 +1,11 @@
-//! What vanilla's `BlockEntity.preRemoveSideEffects` does when a block with a
-//! block entity is replaced by another block (`LevelChunk.setBlockState`
-//! without `UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS`), and the item spill of
+//! What vanilla's `Block.onRemove` does when a block with a block entity is
+//! replaced by another block (`LevelChunk.setBlockState` without
+//! `UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS`; 1.21.5 moved these effects into
+//! `BlockEntity.preRemoveSideEffects`), and the item spill of
 //! `Containers.dropItemStack` those side effects use.
 use horizon_core::{position::BlockPos, random::RandomSource};
 
-/// `preRemoveSideEffects` of the block entity of a block.
+/// `Block.onRemove`'s side effect for the block entity of a block.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PreRemove {
     /// No side effect (signs, banners, beacons, skulls, ...).
@@ -130,7 +131,7 @@ pub fn jukebox_pop_position<R: RandomSource>(random: &mut R, pos: BlockPos) -> [
     ]
 }
 
-/// `LecternBlockEntity.preRemoveSideEffects`: the book a quarter block
+/// `LecternBlock.popBook` (via `onRemove`): the book a quarter block
 /// towards the lectern's facing, one block up (`step` is the facing's x and z).
 pub fn lectern_book_position(pos: BlockPos, step: [i32; 2]) -> [f64; 3] {
     let xo = 0.25f32 * step[0] as f32;

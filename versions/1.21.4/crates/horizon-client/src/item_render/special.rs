@@ -358,7 +358,6 @@ pub(super) fn extents(renderer: &ItemRenderer, model: &SpecialModel) -> Vec<Vec3
         SpecialKind::Head {
             kind, animation, ..
         } => add(skull_layer(kind), &skull_pose(kind, *animation)),
-        SpecialKind::PlayerHead => add("player", &none),
         SpecialKind::ShulkerBox { openness, .. } => add("shulker_box", &shulker_pose(*openness)),
         SpecialKind::Shield => add("shield", &none),
         SpecialKind::Trident => add("trident", &none),
@@ -541,34 +540,38 @@ pub(super) fn submit(
             texture,
             animation,
         } => {
-            let skin = texture
-                .as_deref()
-                .map(|t| format!("entity/{}", t.strip_prefix("minecraft:").unwrap_or(t)))
-                .unwrap_or_else(|| skull_texture(kind).to_owned());
-            part(
-                skull_layer(kind),
-                &skull_pose(kind, *animation),
-                &skin,
-                white,
-                Foil::None,
-            );
-        }
-        SpecialKind::PlayerHead => {
-            let skin = (!argument.is_null())
-                .then(|| host.player_skin(argument))
-                .flatten()
-                .unwrap_or_else(|| "entity/player/slim/steve".to_owned());
-            // `PlayerHeadSpecialRenderer`: the skin's `entityTranslucent` render type.
-            if let (Some(p), Some(r)) = (renderer.part("player"), sprites.get(&skin).copied()) {
-                draw(
-                    p,
-                    "root",
-                    pose,
-                    &none,
-                    r,
+            if kind == "player" {
+                // `SkullSpecialRenderer` for a player head: the profile's
+                // skin, drawn translucent (the skin's hat layer can be
+                // transparent). 1.21.4 has no separate
+                // `PlayerHeadSpecialRenderer`.
+                let skin = (!argument.is_null())
+                    .then(|| host.player_skin(argument))
+                    .flatten()
+                    .unwrap_or_else(|| "entity/player/slim/steve".to_owned());
+                if let (Some(p), Some(r)) = (renderer.part("player"), sprites.get(&skin).copied()) {
+                    draw(
+                        p,
+                        "root",
+                        pose,
+                        &none,
+                        r,
+                        white,
+                        Foil::None,
+                        &mut OitEntity(sink),
+                    );
+                }
+            } else {
+                let skin = texture
+                    .as_deref()
+                    .map(|t| format!("entity/{}", t.strip_prefix("minecraft:").unwrap_or(t)))
+                    .unwrap_or_else(|| skull_texture(kind).to_owned());
+                part(
+                    skull_layer(kind),
+                    &skull_pose(kind, *animation),
+                    &skin,
                     white,
                     Foil::None,
-                    &mut OitEntity(sink),
                 );
             }
         }

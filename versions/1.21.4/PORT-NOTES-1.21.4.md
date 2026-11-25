@@ -1877,3 +1877,60 @@ shape for the review batches.
   game.rs checked only, with only pre-existing drift hunks
   elsewhere (remote.rs 5549, potions.rs 260/2004 — left alone).
   Rank 2: 95/348.
+  Batch 18 (items 49 + 50 + 51 + 52). Item 49
+  (game/armor_stands.rs): PORTED. (1) The PlayerHead special
+  model is removed: 1.21.4's data uses `head` + `kind: player`
+  (items/player_head.json, identical in 1.21.5) and neither jar
+  has a PlayerHeadSpecialRenderer (only SkullSpecialRenderer,
+  byte-identical sizes) — the 1.21.5 tree's form carries. The
+  variant is gone from horizon-assets special.rs (enum, parse
+  and serialize arms); argument() reads the profile for
+  Head{kind: player}; armor_stands.rs and mob_blocks.rs use
+  Head for all kinds; item_render/special.rs renders a player
+  head inside the Head arm (profile skin, translucent) and the
+  extents arm is dropped (skull_layer("player") is already
+  "player"). (2) The happy-ghast phrase is removed from the
+  tick comment (batch 2's removal). NO-CHANGE:
+  ArmorStandItem.useOn is API-only (createDefaultStackConfig
+  LivingEntity-vs-Player param, snapTo/moveTo, playSound
+  overload); swapWithEquipmentSlot already matches 1.21.4
+  (equip_from_hand checks no canBeEquippedBy — the 1.21.5
+  addition — and canUseSlot is vacuous for the four armour
+  slots); equipOnInteract exists only in the protocol layer,
+  correctly dropped on the 769 wire; the armor-stand save
+  already uses HandItems/ArmorItems. Item 50 (widely named:
+  world/level/block): NO-CHANGE. 26 vanilla classes, 77
+  methods, 0 named in Horizon — the same shape as items 27, 29
+  and 44. Item 51 (lan/data.rs): NO-CHANGE, comment-only.
+  ListTag.addAndUnwrap / wrapIfNeeded are 1.21.5-only, but the
+  behaviour (mixed-list {"": ...} wrappers) exists in 1.21.4
+  inside NbtOps$HeterogenousListCollector (own wrapElement /
+  isWrapper, javap-verified) and the Rust's nbt.rs already
+  wraps/unwraps the same way, so only the lan/data.rs citations
+  change. Item 52 (world/level/mod.rs): PORTED. (1) The dead
+  update_neighbours_on_block_set is removed (23 lines): no
+  callers since batch 16 removed the commands.rs call, the
+  1.21.6 form, absent from the 1.21.5 tree. (2) Removal
+  citations carried to the 1.21.4 trigger:
+  BlockEntity.preRemoveSideEffects does not exist in 1.21.4
+  (only setRemoved) — LevelChunk.setBlockState calls
+  BlockState.onRemove, and LecternBlock.onRemove + popBook and
+  JukeboxBlock.onRemove exist (all javap-verified). The
+  removal.rs module doc, PreRemove doc, lectern_book_position
+  doc (LecternBlock.popBook) and the level/mod.rs:796 doc now
+  cite onRemove; the effects themselves (contents spill,
+  jukebox pop, lectern book, dropItemStack math) are identical
+  in both versions. The PreRemove / pre_remove identifiers
+  stay (internal names). NO-CHANGE: BellBlock.onProjectileHit
+  is a local-slot reshuffle (same logic; the Rust takes no
+  entity param); the BlockEntity load/save codec-vs-MapCodec
+  differences are the item-32 components form (already
+  handled); the update.rs:348 piston preRemoveSideEffects
+  comment belongs to that module's item. Lib check green
+  (EXIT 0, 1m54s, no warnings); --tests check green (EXIT 0,
+  2m06s). armor_stands.rs, special.rs (both), mob_blocks.rs,
+  lan/data.rs and removal.rs rustfmt-clean
+  (item_render/special.rs needed one hand fix in the edited
+  region: the `if let` brace); level/mod.rs checked only
+  (module root, no drift in the edited regions). Rank 2:
+  99/348.
