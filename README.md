@@ -12,7 +12,7 @@ the same method that produced the 26.3 rewrite.
 
 The 1.21.7 port is in open playtest. The latest test build is on the
 **[releases page](https://github.com/KarinaFromAespa/Minecraft-in-Rust/releases)**
-(currently [1.21.7 test build #14](https://github.com/KarinaFromAespa/Minecraft-in-Rust/releases/tag/1.21.7-build-14)):
+(currently [1.21.7 test build #15](https://github.com/KarinaFromAespa/Minecraft-in-Rust/releases/tag/1.21.7-build-15)):
 the launcher for Windows and Linux, plus the 1.21.7 game build for
 Windows. No Microsoft account is needed.
 
