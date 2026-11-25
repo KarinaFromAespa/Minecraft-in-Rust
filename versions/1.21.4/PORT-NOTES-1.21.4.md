@@ -2148,3 +2148,41 @@ shape for the review batches.
   save.rs, creatures.rs and game.rs checked only (module
   roots / pre-existing drift elsewhere — left alone). Rank 2:
   115/348.
+  Batch 23 (items 69 + 70 + 71 + 72). Item 69
+  (assets/item_model.rs): NO-CHANGE. The tree diff is only the
+  DATA_COMPONENT_TYPES table, already the 1.21.4 list (67
+  entries, with hide_tooltip / hide_additional_tooltip and
+  map_color). GrassColor#get's inline math matches the Rust's
+  biome.rs sample (clamped temperature, downfall x temperature,
+  (y<<8|x) index, bounds-checked fallback);
+  ItemStackRenderState.isLeftHand is write-only in 1.21.4
+  (nothing reads it), so the Rust correctly carries no such
+  field (the display context already has the left-hand
+  variants). Item 70 (world/level/bonemeal.rs): PORTED.
+  GrassBlock.performBonemeal takes the biome's FIRST flower
+  feature in 1.21.4 (flowers.get(0)) and a random one in
+  1.21.5 (flowers.get(random.nextInt(size))) —
+  grass_bonemeal_effect now takes list[0]. NO-CHANGE: the
+  spreadable-neighbour helper mirrors 1.21.5's
+  getSpreadableNeighbourPos extraction, but its callers are
+  dead in 1.21.4 (no BushBlock.performBonemeal, no FireflyBush)
+  so the shuffle flag is unobservable here. KNOWN SHARED GAP:
+  the Rust's flower list is built from the
+  can_spawn_from_bone_meal tag, not the biome's flower-features
+  list (both trees). Item 71 (data_cmd.rs): NO-CHANGE,
+  comment-only. NumericTag#doubleValue/intValue/shortValue are
+  1.21.5-only names for getAsDouble/getAsInt/getAsShort
+  (identical behaviour); the Rust's numeric() cites getAsDouble
+  now. Item 72 (game/allays.rs): NO-CHANGE. Allay.travel's
+  1.21.4 isControlledByLocalInstance gate is a client-side/no-AI
+  guard — the server tick only travels AI-enabled mobs, so it
+  is already implied (comment recorded on allay::travel);
+  duplicateAllay snapTo/moveTo is a rename; mobInteract's
+  playSound overloads are API-only;
+  updateDuplicationCooldown's unconditional decrement matches
+  1.21.4 (the 1.21.5 server-gate + setDuplicationCooldown form
+  differs), and the DATA_CAN_DUPLICATE sync has no Rust
+  counterpart in either tree (a shared gap). --tests check
+  green (EXIT 0, 4m10s, no warnings) for horizon-client +
+  horizon-world. bonemeal.rs, data_cmd.rs and allay.rs
+  rustfmt-clean. Rank 2: 119/348.

@@ -156,7 +156,8 @@ pub fn single_tag(path: &NbtPath, data: &Tag) -> Result<Tag, CommandError> {
     }
     Ok(tags.remove(0))
 }
-/// The value of a tag as a double (NumericTag.doubleValue).
+/// The value of a tag as a double (`NumericTag.getAsDouble`; 1.21.5
+/// renamed it `doubleValue`).
 pub fn numeric(tag: &Tag) -> Option<f64> {
     Some(match tag {
         Tag::Byte(v) => f64::from(*v),

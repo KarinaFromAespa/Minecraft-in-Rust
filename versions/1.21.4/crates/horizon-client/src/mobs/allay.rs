@@ -413,7 +413,10 @@ pub fn tick(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
 }
 /// `Allay.travel`: `travelFlying(input, getSpeed())` — the airborne speed is
 /// the one the move control set this tick, and no gravity applies, so an
-/// allay never falls under its own travel.
+/// allay never falls under its own travel. 1.21.4 gates travel on
+/// `isControlledByLocalInstance` (a client-side/no-AI guard); the server
+/// tick only travels AI-enabled mobs, so the gate is already implied here
+/// (1.21.5 dropped it).
 pub fn travel(m: &mut Mob, w: &MobWorld, input: Vec3, events: &mut Vec<MobEvent>) -> bool {
     let speed = m.ai.speed;
     m.travel_flying_speeds(w, input, events, 0.02, 0.02, speed);

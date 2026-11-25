@@ -1246,7 +1246,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 if list.is_empty() {
                     return;
                 }
-                let feature = list[self.next_int(list.len() as i32) as usize].clone();
+                // `GrassBlock.performBonemeal` (1.21.4) takes the biome's first
+                // flower feature; 1.21.5 picks one at random.
+                let feature = list[0].clone();
                 self.place_configured_feature(&feature, test);
             } else {
                 self.place_placed_feature("minecraft:grass_bonemeal", test);
