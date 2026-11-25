@@ -2057,3 +2057,43 @@ shape for the review batches.
   interaction_shapes.rs, advancements.rs and merchant.rs
   rustfmt-clean; remote_vehicles.rs has only pre-existing drift
   elsewhere (lines 282-293 — left alone). Rank 2: 107/348.
+  Batch 21 (items 61 + 62 + 63 + 64). Item 61
+  (game/native_block_entity_draw.rs): NO-CHANGE. The Rust's
+  PoseStack is a plain Vec<Mat4> (push clones the top, pop
+  guarded to len > 1) — behaviour-identical to both jars'
+  push/pop; the List+lastIndex (1.21.5) vs Deque (1.21.4)
+  internals are unobservable through it, and rotateAround's
+  matrix+normal split equals Pose.rotateAround. ModelPart's
+  mulPose(Quaternionfc)-vs-(Quaternionf) is API-only. Item 62
+  (render/chunk/block_entity.rs): NO-CHANGE, comment-only. The
+  jukebox load/save already is the 1.21.4 form — no
+  isSameItemSameComponents same-record check (1.21.5-only), the
+  clock is honoured only with a record plus the clock key
+  (JukeboxSong.fromStack), the save writes the clock only when
+  the song exists; RecordItem parses via ItemStack.parse when
+  the key is present, else the item empties (and a playing song
+  stops). The one edit: TrialSpawnerStateData ->
+  TrialSpawnerData — the 1.21.4 jar has only TrialSpawnerData
+  (the StateData name is 26.3-era). ROUTED: the same misnomer
+  in mobs/trial_spawner.rs (items 88/140/245/268/315/339),
+  game/trial_spawner.rs (item 245) and lan/chunks.rs (items
+  163/252) belongs to those items. Item 63
+  (horizon-command/snbt.rs): NO-CHANGE, comment-only.
+  parseAsArgument / parseCompoundAsArgument / parseFully are
+  1.21.5-only names, but the Rust's three functions implement
+  1.21.4's shapes — parse_tag_argument is TagParser.readValue
+  via NbtTagArgument.parse (one value at the cursor),
+  parse_fully is TagParser.parseTag (one value, trailing data
+  is an error). Citations updated to the 1.21.4 names. Item 64
+  (game/natural_spawning.rs): NO-CHANGE.
+  close_enough_for_spawning is ChunkMap.
+  euclideanDistanceSquared < 16384 with the chunk-centre offset
+  in both (the Vec3-field vs Entity.getX/getZ difference is
+  API-only); the TriState-vs-boolean hasPlayersNearby is
+  unmodelled — the Rust computes closeness directly from player
+  positions, which is what 1.21.5's TriState.DEFAULT falls back
+  to; collectSpawningChunks and forEachBlockTickingChunk
+  (1.21.5-only) have no Rust counterpart to change. No
+  citations to fix. --tests check green (EXIT 0, 16m08s, no
+  warnings) for horizon-client-render + horizon-command.
+  block_entity.rs and snbt.rs rustfmt-clean. Rank 2: 111/348.

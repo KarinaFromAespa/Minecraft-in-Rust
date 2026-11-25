@@ -661,7 +661,7 @@ pub struct ConfigSlot {
     pub saved: Option<Tag>,
     pub config: TrialConfig,
 }
-/// `TrialSpawner` with its `TrialSpawnerStateData`.
+/// `TrialSpawner` with its `TrialSpawnerData`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TrialSpawner {
     pub normal: ConfigSlot,

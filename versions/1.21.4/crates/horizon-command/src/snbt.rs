@@ -923,7 +923,8 @@ thread_local! {
     static GRAMMAR: Grammar<SV> = grammar();
 }
 
-/// TagParser.parseAsArgument: one SNBT value at the reader's cursor.
+/// `TagParser.readValue` (via `NbtTagArgument.parse`): one SNBT value at
+/// the reader's cursor (1.21.5 named it `parseAsArgument`).
 pub fn parse_tag_argument(reader: &mut Reader) -> CmdResult<Tag> {
     GRAMMAR.with(|g| match g.parse_for_commands(reader)? {
         SV::Tag(t) => Ok(t),
@@ -934,7 +935,8 @@ pub fn parse_tag_argument(reader: &mut Reader) -> CmdResult<Tag> {
         )),
     })
 }
-/// TagParser.parseCompoundAsArgument.
+/// The compound half of `TagParser.parseTag`, at the reader's cursor
+/// (1.21.5 named it `parseCompoundAsArgument`).
 pub fn parse_compound_argument(reader: &mut Reader) -> CmdResult<Compound> {
     match parse_tag_argument(reader)? {
         Tag::Compound(c) => Ok(c),
@@ -945,7 +947,8 @@ pub fn parse_compound_argument(reader: &mut Reader) -> CmdResult<Compound> {
         )),
     }
 }
-/// TagParser.parseFully.
+/// `TagParser.parseTag`: one value from the whole string, trailing data
+/// is an error (1.21.5 named it `parseFully`).
 pub fn parse_fully(text: &str) -> CmdResult<Tag> {
     let mut reader = Reader::new(text);
     let tag = parse_tag_argument(&mut reader)?;
