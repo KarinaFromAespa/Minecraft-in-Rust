@@ -81,6 +81,11 @@
    "crate": "horizon-client",
    "suite": "horizon-client-lib",
    "test": "right_clicking_a_ripe_sweet_berry_bush_drops_berries_and_keeps_the_bush"
+  },
+  {
+   "crate": "horizon-client",
+   "suite": "horizon-client-lib",
+   "test": "dispensed_shears_on_a_full_hive_drop_three_honeycomb_and_reset"
   }
  ],
  "menu-sprites": [
