@@ -50,6 +50,25 @@ pub const SYNCHRONIZED: &[&str] = &[
     "minecraft:worldgen/block_state_provider",
 ];
 pub const BIOME_REGISTRY: &str = "minecraft:worldgen/biome";
+/// Add the overworld's entry to a `minecraft:world_clock` registry that lacks
+/// it. Versions before 26.x ship no such registry, so the synchronized copy
+/// would be empty and no client could resolve the clock id the server's
+/// `/time set` broadcasts carry (it falls back to 0, which resolves to no
+/// name) — the client's day time would never jump, only drift with the game
+/// time. A registry that already names the overworld is left alone.
+fn ensure_overworld_clock(entries: &mut Vec<((String, String), Value, bool)>) {
+    if entries
+        .iter()
+        .any(|((ns, p), _, _)| ns == "minecraft" && p == "overworld")
+    {
+        return;
+    }
+    entries.push((
+        ("minecraft".to_owned(), "overworld".to_owned()),
+        Value::Object(Default::default()),
+        false,
+    ));
+}
 /// The table a client plays a server with: `known` and the biomes of the
 /// server's biome registry that it lacks, built from their data; None when
 /// there are none.
@@ -404,6 +423,18 @@ impl SyncData {
                     let json = json.unwrap_or_else(|| Value::Object(Default::default()));
                     entries.push(((ns.to_owned(), p.to_owned()), json, pack.is_some()));
                 }
+            }
+            // 1.21.7 ships no `minecraft:world_clock` registry (the clock
+            // system is 26.x): without the overworld's entry the server's
+            // jump broadcasts label its clock id 0 and no client can resolve
+            // it, so a `/time set` never reaches the sky — the client's day
+            // time only advances with the game time and keeps the jump as a
+            // permanent offset. The protocol adapter synthesizes the same
+            // single entry for 1.21.11's wire form
+            // (`translate::world_clocks`); the sync data needs it for the
+            // integrated server and LAN hosts.
+            if *key == "minecraft:world_clock" {
+                ensure_overworld_clock(&mut entries);
             }
             let mut entries = damage_entries.unwrap_or_else(|| {
                 entries
@@ -1173,6 +1204,70 @@ mod tests {
         assert_eq!(
             changed_dimension_type("minecraft:overworld_caves", &vanilla, &levels),
             None
+        );
+    }
+
+    /// `/time set`'s jump broadcast labels its clock by id, and a client can
+    /// only apply the jump when that id resolves to `minecraft:overworld` in
+    /// the `minecraft:world_clock` registry it was sent. 1.21.7 ships no such
+    /// registry, so the synchronized copy must carry the overworld's entry
+    /// or the client's day time never jumps: it keeps advancing with the game
+    /// time and the sky holds the jump as a permanent offset.
+    #[test]
+    fn overworld_clock_entry_is_synthesized_when_the_registry_lacks_it() {
+        let mut entries: Vec<((String, String), Value, bool)> = Vec::new();
+        ensure_overworld_clock(&mut entries);
+        assert_eq!(
+            entries,
+            [(
+                ("minecraft".to_owned(), "overworld".to_owned()),
+                Value::Object(Default::default()),
+                false
+            )],
+            "the overworld's clock is added, with no data of its own"
+        );
+        // Idempotent: a second pass, or a registry that already names the
+        // overworld (26.x), must not duplicate the entry.
+        ensure_overworld_clock(&mut entries);
+        assert_eq!(entries.len(), 1);
+        let mut present: Vec<((String, String), Value, bool)> = vec![(
+            ("minecraft".to_owned(), "overworld".to_owned()),
+            Value::Object(Default::default()),
+            false,
+        )];
+        ensure_overworld_clock(&mut present);
+        assert_eq!(present.len(), 1);
+    }
+
+    #[test]
+    #[ignore = "requires prepared vanilla resources"]
+    fn sync_data_resolves_the_overworld_clock_for_time_set() {
+        use horizon_world::loot::PackOverlay;
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../.local/horizon-client")
+            .join(horizon_core::VANILLA_VERSION);
+        let sync = SyncData::load(&root, &PackOverlay { files: &[] }).unwrap();
+        let id = sync.id("minecraft:world_clock", "minecraft:overworld");
+        assert_eq!(
+            id,
+            Some(0),
+            "the jump broadcast's clock id must resolve, or the client drops the set"
+        );
+        assert_eq!(
+            sync.dynamic.len("minecraft:world_clock"),
+            1,
+            "the join-time time packet carries the overworld clock"
+        );
+        let packet = sync
+            .registry_packets(false, &LevelShapes::VANILLA)
+            .into_iter()
+            .find(|p| p.registry == "minecraft:world_clock")
+            .expect("the world_clock registry is sent");
+        assert_eq!(packet.entries.len(), 1);
+        assert_eq!(packet.entries[0].id, "minecraft:overworld");
+        assert!(
+            packet.entries[0].data.is_some(),
+            "the client learns the overworld's clock from the configuration phase"
         );
     }
 }

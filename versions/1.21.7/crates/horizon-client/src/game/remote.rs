@@ -5566,7 +5566,11 @@ impl Game<'_> {
                 let [x, y, z] = p.pos;
                 // 1.21.8 sends no dimension: the packet only ever means the world
                 // spawn, which is the Overworld's.
-                self.spawn = Some(Vec3::new(f64::from(x) + 0.5, f64::from(y), f64::from(z) + 0.5));
+                self.spawn = Some(Vec3::new(
+                    f64::from(x) + 0.5,
+                    f64::from(y),
+                    f64::from(z) + 0.5,
+                ));
                 // 1.20.2 handleSetSpawn notified ReceivingLevelScreen here; the later
                 // LEVEL_CHUNKS_LOAD_START game event did not exist yet.
                 if let Some(r) = self.remote.as_mut()
@@ -11989,6 +11993,113 @@ mod tests {
         game.connect_local(second, "HopTest").unwrap();
         assert!(game.inventory[0].is_none() && game.armor[0].is_none());
         assert!(game.offhand.is_none());
+    }
+
+    /// `/time set` moves the sky: the render time is the logical clock, not the
+    /// game time. The client only learns the clock from a SetTime whose clock
+    /// id resolves in the `minecraft:world_clock` registry its server sent;
+    /// the 20-tick syncs carry game time only, so they advance the render
+    /// time in step but can never re-anchor it — a dropped jump leaves a
+    /// permanent offset no amount of ticking closes.
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES and scratch homes/cwd"]
+    fn time_set_jump_moves_the_sky_and_normal_ticking_keeps_it_there() {
+        use crate::{
+            chunk::LevelShapes,
+            game::{
+                Audio, Game, Options, Progress, Settings, execution_role::ExecutionRole,
+                load_resources,
+            },
+            lan::data::SyncData,
+        };
+        use horizon_protocol::{
+            packets::play::{self, Clientbound as C},
+            registry::Dynamic,
+        };
+        use std::sync::Arc;
+
+        let root = std::path::PathBuf::from(std::env::var_os("HORIZON_TEST_RESOURCES").unwrap());
+        let settings = Settings::default();
+        let loaded = load_resources(
+            root.clone(),
+            None,
+            &root,
+            &settings,
+            std::time::Instant::now(),
+            false,
+            true,
+            &Progress::new(),
+            &mut |_, _| unreachable!(),
+        )
+        .unwrap();
+        let mut options = Options::parse(std::iter::empty()).unwrap().unwrap();
+        options.resources = root.clone();
+        options.execution_role = ExecutionRole::Client;
+        let mut game = Game::new(
+            &loaded.resources,
+            loaded.pack,
+            loaded.gui.unwrap(),
+            options,
+            settings,
+            Audio::silent(&root),
+            None,
+        )
+        .unwrap();
+        let (client, _server) = horizon_protocol::connection::Pipe::pair();
+        game.connect_local(client, "SkyTimeTest").unwrap();
+
+        // The configuration phase, as this version's server sends it: the
+        // registries its SyncData built from the prepared data.
+        let sync = SyncData::load(&root, &horizon_world::loot::PackOverlay { files: &[] }).unwrap();
+        let mut registries = Dynamic::default();
+        for packet in sync.registry_packets(true, &LevelShapes::VANILLA) {
+            registries.add(packet);
+        }
+        let overworld_clock = sync
+            .id("minecraft:world_clock", "minecraft:overworld")
+            .unwrap_or(0);
+        game.remote.as_mut().unwrap().registries = Arc::new(registries);
+
+        // Day, the server's clock at 1000 while the game time is far ahead of
+        // it (a world played past several sets): the render time must be the
+        // clock, and the next packet's game-time delta must not move it first.
+        game.world.game_time = 48_000;
+        game.world.day_time = 1_000;
+        game.remote.as_mut().unwrap().clock_game_time = 48_000;
+
+        // `/time set night`: the jump broadcast, no ticks between it and the
+        // frame.
+        game.handle_packet(C::SetTime(play::SetTime {
+            game_time: 48_000,
+            clocks: vec![play::ClockState {
+                clock: overworld_clock,
+                total_ticks: 13_000,
+                partial_tick: 0.0,
+                rate: 1.0,
+            }],
+        }))
+        .unwrap();
+        assert_eq!(
+            game.view_day_time(),
+            13_000,
+            "the sky follows the set at once, without a tick"
+        );
+
+        // Sustained normal ticking: the server's 20-tick syncs, game time
+        // only, no clocks — the logical clock advances 2000 ticks and the
+        // render time must stay equal to it.
+        for step in 1..=100 {
+            game.handle_packet(C::SetTime(play::SetTime {
+                game_time: 48_000 + 20 * step,
+                clocks: Vec::new(),
+            }))
+            .unwrap();
+        }
+        assert_eq!(
+            game.view_day_time(),
+            15_000,
+            "the sky stays on the logical clock through normal ticking"
+        );
     }
 
     #[test]
