@@ -2186,3 +2186,38 @@ shape for the review batches.
   green (EXIT 0, 4m10s, no warnings) for horizon-client +
   horizon-world. bonemeal.rs, data_cmd.rs and allay.rs
   rustfmt-clean. Rank 2: 119/348.
+  Batch 24 (items 73 + 74 + 75 + 76). Item 73 (widely named:
+  client/renderer): NO-CHANGE. 7 vanilla classes, 53 methods, 0
+  named in Horizon — the same shape as items 27, 29, 44, 50
+  and 65. Item 74 (world/level/sculk.rs): NO-CHANGE. All four
+  diffs are Level.playSound Player-vs-Entity overloads
+  (SculkSensorBlock#activate/tick, SculkSpreader$ChargeCursor
+  #update, SculkVeinBlock#attemptPlaceSculk) — API-only, same
+  sounds. Item 75 (game/cat_spawner.rs): NO-CHANGE.
+  Cat.finalizeSpawn's moon/tag pick already matches 1.21.4 —
+  tame::cat_variant draws uniformly over 10 variants (11 on a
+  full moon), which is exactly Registry.getRandomElementOf over
+  the verified tag data (default_spawns = the first 10 in
+  registry order; full_moon_spawns = those 10 + all_black); the
+  swamp-hut ALL_BLACK + persistence rule is already applied on
+  the spawner path (spawn_cat checks cats_spawn_as_black). The
+  CatSpawner#tick int-vs-void return is unobservable (the count
+  is ignored). ROUTED GAP (item 188, spawning.rs): an
+  egg/summon-spawned cat inside a hut does not get ALL_BLACK —
+  finalize has no world handle for the structure check. Item 76
+  (game/persist.rs): PORTED. (1) PistonMovingBlockEntity.
+  saveAdditional writes facing as an INT in 1.21.4
+  (get3DDataValue + putInt); 1.21.5 stores a byte via
+  Direction.LEGACY_ID_CODEC (a BYTE codec, javap-verified) —
+  the Rust wrote a byte; now Tag::Int. The load already reads
+  it via number() and maps through Direction::ALL (Down/Up/
+  North/South/West/East = from3DDataValue). (2) The piston tick
+  places the moved block with flags 84 in 1.21.4, not 340 —
+  340 adds 256 SKIP_BLOCK_ENTITY_SIDEEFFECTS, a 1.21.5-only
+  flag. NO-CHANGE: the blockState NbtUtils form,
+  progress/extending/source plain gets (same defaults), and
+  preRemoveSideEffects absent in 1.21.4 (already handled in
+  batch 18, item 52). --tests check green (EXIT 0, 6m06s, no
+  warnings) for horizon-client + horizon-world. pistons.rs
+  rustfmt-clean; persist.rs checked only (module root,
+  pre-existing drift elsewhere — left alone). Rank 2: 123/348.

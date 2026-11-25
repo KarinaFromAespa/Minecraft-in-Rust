@@ -235,7 +235,11 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             if b.is_block(self.state(pos), b.named.moving_piston) {
                 let mut new = self.update_from_neighbour_shapes(piston.moved_state, pos);
                 if b.is_air(new) {
-                    self.set_block(pos, piston.moved_state, 340);
+                    // `PistonMovingBlockEntity.tick` places the moved block
+                    // with 84 in 1.21.4 (64 MOVE_BY_PISTON + 16 KNOWN_SHAPE
+                    // + 4 INVISIBLE); 1.21.5 adds 256
+                    // SKIP_BLOCK_ENTITY_SIDEEFFECTS (340).
+                    self.set_block(pos, piston.moved_state, 84);
                     self.update_or_destroy(
                         piston.moved_state,
                         new,
