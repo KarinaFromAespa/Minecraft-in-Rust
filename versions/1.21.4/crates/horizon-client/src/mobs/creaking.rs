@@ -269,7 +269,6 @@ pub fn stop_in_place(m: &mut Mob) {
     m.ai.zza = 0.0;
     m.ai.speed = 0.0;
     m.velocity = horizon_core::geometry::Vec3::ZERO;
-    m.extra.leash_spin = 0.0;
 }
 /// `Entity.gameEvent(GameEvent.ENTITY_ACTION)` at the creaking.
 fn entity_action(m: &Mob, events: &mut Vec<MobEvent>) {

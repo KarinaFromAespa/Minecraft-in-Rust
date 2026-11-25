@@ -749,7 +749,7 @@ fn vanilla_mobs_at<L: NaturalLevel>(
         .map_or(&[], Vec::as_slice)
 }
 
-/// `WeightedList.getRandom`.
+/// `WeightedRandomList.getRandom` (1.21.5 renamed it `WeightedList`).
 pub fn weighted_pick(list: &[SpawnEntry], random: &mut impl RandomSource) -> Option<SpawnEntry> {
     let total: i64 = list.iter().map(|e| i64::from(e.weight)).sum();
     if total <= 0 {

@@ -227,7 +227,11 @@ impl StructureBlock {
         ]
     }
 
-    /// `StructureBlockEntity.loadAdditional`.
+    /// `StructureBlockEntity.loadAdditional`: 1.21.4 reads plain `get`
+    /// values, so a missing key is false/0 — `ignoreEntities` and
+    /// `showboundingbox` default to false and `posY` to 0, not the
+    /// constructor's true/(0,1,0) (1.21.5 loads `getBooleanOr(true)` and
+    /// `getIntOr(DEFAULT_POS)` instead).
     pub fn load(tag: &Tag) -> Self {
         let int = |key: &str, default: i32, lo: i32, hi: i32| {
             (number(tag.get(key)).unwrap_or(i64::from(default)) as i32).clamp(lo, hi)
@@ -245,7 +249,7 @@ impl StructureBlock {
         block.metadata = text(tag.get("metadata")).unwrap_or_default();
         block.pos = [
             int("posX", 0, -o, o),
-            int("posY", 1, -o, o),
+            int("posY", 0, -o, o),
             int("posZ", 0, -o, o),
         ];
         block.size = [
@@ -259,11 +263,11 @@ impl StructureBlock {
         block.mirror = text(tag.get("mirror"))
             .and_then(|m| mirror_from_legacy_name(&m))
             .unwrap_or(Mirror::None);
-        block.ignore_entities = flag("ignoreEntities", true);
+        block.ignore_entities = flag("ignoreEntities", false);
         block.strict = flag("strict", false);
         block.powered = flag("powered", false);
         block.show_air = flag("showair", false);
-        block.show_bounding_box = flag("showboundingbox", true);
+        block.show_bounding_box = flag("showboundingbox", false);
         block.integrity = float(tag.get("integrity")).map_or(1.0, |f| f as f32);
         block.seed = number(tag.get("seed")).unwrap_or(0);
         block
@@ -419,12 +423,13 @@ mod tests {
         assert_eq!(block.size, [0, 48, 0]);
         assert_eq!(block.name, None);
         assert_eq!(block.mode, StructureMode::Data);
-        assert!(block.ignore_entities && block.show_bounding_box && !block.strict);
+        assert!(!block.ignore_entities && !block.show_bounding_box && !block.strict);
         assert_eq!(block.integrity, 1.0);
-        // Pos defaults to (0, 1, 0).
+        // A missing pos is (0, 0, 0) in 1.21.4 (plain `getInt`), not the
+        // constructor's (0, 1, 0) (1.21.5 loads `getIntOr(DEFAULT_POS)`).
         assert_eq!(
             StructureBlock::load(&Tag::compound(Vec::<(&str, Tag)>::new())).pos,
-            [0, 1, 0]
+            [0, 0, 0]
         );
     }
 

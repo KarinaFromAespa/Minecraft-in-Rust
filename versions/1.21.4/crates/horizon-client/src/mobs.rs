@@ -357,7 +357,9 @@ pub struct Flags {
     /// WaterAnimal / fish: not affected by fluid physics (swims with its own control).
     pub aquatic_swimmer: bool,
     pub fall_immune: bool,
-    /// FlyingMob-style travel (ghast, phantom): travelFlying without gravity.
+    /// Flying-mob travel without gravity (ghast, phantom):
+    /// the travel dispatch picks the friction form for ghasts and
+    /// phantoms.
     pub flying: bool,
     /// Spiders: onClimbable while colliding horizontally.
     pub climber: bool,
@@ -405,7 +407,7 @@ pub struct MobType {
     pub fall_damage_multiplier: f64,
     pub water_efficiency: f64,
     pub water_slowdown: f32,
-    /// Air speed for travelFlying mobs (ghast 0.02, phantom 0.2).
+    /// Air speed for flying mobs (ghast 0.02, phantom 0.2).
     pub air_speed: f32,
     pub baby_scale: f64,
     pub head_rot_speed: f32,
@@ -1306,13 +1308,11 @@ pub struct Extra {
     pub meeting: Option<[i32; 3]>,
     /// Villager and wandering trader offers and experience.
     pub trade: Option<Box<crate::merchant::Trader>>,
-    /// Who holds this mob's lead, a holder not yet found after loading, and
-    /// the spin the rope's torque gives it.
+    /// Who holds this mob's lead, and a holder not yet found after loading.
     pub leash: Option<leash::Holder>,
     pub leash_pending: Option<leash::Pending>,
     /// The UUID of the player behind `Holder::Player` (host or guest).
     pub leash_player: Option<[i32; 4]>,
-    pub leash_spin: f64,
     /// More species scratch values.
     pub scratch: [i32; 4],
     /// Block positions a species remembers (a sniffer's explored ground).
@@ -2466,6 +2466,7 @@ pub enum MobEvent {
         pitch: f32,
     },
     /// A lead snaps or loses its holder: the lead item drops when asked.
+    /// 1.21.4 plays no sound for it (1.21.6 added LEAD_BREAK).
     LeashBreak {
         mob: u32,
         drop: bool,
@@ -2757,8 +2758,10 @@ impl Mob {
     }
     /// `Entity.extinguishFire`: a burning mob first plays the extinguish sound
     /// (`playEntityOnFireExtinguishedSound`: volume 0.7, pitch from two draws
-    /// of its random, at its feet), then `clearFire` keeps only the
-    /// fire-immune countdown.
+    /// of its random, at its feet), then `clearFire` sets the timer to 0
+    /// exactly (it does not keep a negative fire-immune countdown; the
+    /// -1 after a block-effects extinguish comes from
+    /// `applyEffectsFromBlocks`' own post-check, in the mob tick).
     pub fn extinguish_fire(&mut self) {
         if self.is_on_fire() {
             let pitch = 1.6 + (self.random.next_float() - self.random.next_float()) * 0.4;
@@ -2770,7 +2773,7 @@ impl Mob {
                 pitch,
             ));
         }
-        self.fire_ticks = self.fire_ticks.min(0);
+        self.fire_ticks = 0;
     }
     /// `Entity.isFullyFrozen`.
     pub fn is_fully_frozen(&self) -> bool {
@@ -3423,7 +3426,10 @@ impl Mob {
             projectile_motion: None,
             climbing: false,
             on_climbable: false,
-            fire_ticks: 0,
+            // `Entity.remainingFireTicks` starts at -getFireImmuneTicks()
+            // (-1) in 1.21.4, so the first lightning strike ignites a
+            // fresh mob (`thunderHit`: +1, ignite iff 0).
+            fire_ticks: -1,
             ticks_frozen: 0,
             in_powder_snow: false,
             glowing: false,

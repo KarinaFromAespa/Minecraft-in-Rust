@@ -20,16 +20,17 @@ impl Game<'_> {
     ) -> Result<Option<usize>> {
         let mut laps = horizon_client::spans::laps();
         // ServerChunkCache.tick: the tickets that time out.
-        let world = &self.world;
-        self.tickets
-            .tick_portal(|ticket| portal_ticket_can_expire(world, ticket));
+        self.tickets.tick_portal();
         self.sync_tick_chunks();
         self.start_ticking_chunks();
         laps.lap("tb_tickets");
         let levels = self.tickets.levels();
         let bounds = levels.random_tick_bounds();
         // Keep the world map's chunk order, including empty chunks
-        // (tick_chunk_random still draws for precipitation in those).
+        // (tick_chunk_random still draws for precipitation in those) —
+        // then shuffle it: `ServerChunkCache.tickChunks` (1.21.4) runs
+        // `Util.shuffle(tickingChunks, level.random)` before ticking
+        // (1.21.5 dropped the shuffle).
         scratch.ticking.clear();
         scratch
             .ticking
@@ -41,6 +42,11 @@ impl Game<'_> {
                 }
                 levels.random_ticking(x, z) && ticking_chunk(&self.world, x, z)
             }));
+        // Util.shuffle(list, level.random)
+        for i in (2..=scratch.ticking.len()).rev() {
+            let swap = self.world.random.next_int_bound(i as i32).unwrap_or(0) as usize;
+            scratch.ticking.swap(i - 1, swap);
+        }
         laps.lap("tb_chunks");
         // Entity.checkInsideBlocks for the plates, tripwires, detector rails and
         // buttons under the players (the host and the LAN guests), the minecarts

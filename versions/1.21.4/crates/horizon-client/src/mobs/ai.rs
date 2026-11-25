@@ -767,6 +767,17 @@ pub fn tick(
     count_fall_fly_ticks(m);
     effects_from_blocks(m, w, level_random, events);
     extinguish_if_wet(m, w, was_on_fire, events);
+    // `Entity.applyEffectsFromBlocks` (1.21.4): a non-burning entity leaves
+    // -getFireImmuneTicks() (-1) after the pass — every pass, not only when
+    // a fire went out in it (1.21.5 gates the reset on wasOnFire). Inside
+    // fire or lava the reset does not run.
+    if m.alive()
+        && m.fire_ticks <= 0
+        && crate::motion::environment::fire_contact(w.world, w.registry, m.bounds()) <= 0.0
+        && !touches_lava(m, w)
+    {
+        m.fire_ticks = -1;
+    }
     if m.species() == Species::SulfurCube && m.alive() {
         // SulfurCube.doPush applies the body's contact damage even with NoAI.
         // Player contact keeps its existing player_push route.

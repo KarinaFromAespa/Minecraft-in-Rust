@@ -375,16 +375,15 @@ impl ChunkTickets {
             ticks_left: PORTAL_TIMEOUT,
         });
     }
-    /// `TicketStorage.purgeStaleTickets` for the `PORTAL` tickets, once a
-    /// tick: a ticket counts down only where `can_expire` (`canTicketExpire`:
-    /// `PORTAL` waits for its chunk to finish loading) and goes below zero,
-    /// `PORTAL_TIMEOUT + 1` counted ticks after it was placed.
-    pub fn tick_portal(&mut self, mut can_expire: impl FnMut(&PortalTicket) -> bool) {
+    /// `DistanceManager.purgeStaleTickets` for the `PORTAL` tickets, once
+    /// a tick: every ticket counts down and goes below zero,
+    /// `PORTAL_TIMEOUT + 1` counted ticks after it was placed. (1.21.6
+    /// holds a ticket while its chunk is still loading
+    /// (`canTicketExpire`); 1.21.4 has no such gate — `Ticket.timedOut`
+    /// is a pure age check.)
+    pub fn tick_portal(&mut self) {
         self.portal.retain_mut(|t| {
-            if !can_expire(t) {
-                return true;
-            }
-            // `Ticket.decreaseTicksLeft`: a long, which wraps.
+            // The `timedOut` age check, as a countdown: a long, which wraps.
             t.ticks_left = t.ticks_left.wrapping_sub(1);
             t.ticks_left >= 0
         });

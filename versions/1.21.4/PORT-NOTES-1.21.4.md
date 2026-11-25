@@ -1934,3 +1934,75 @@ shape for the review batches.
   region: the `if let` brace); level/mod.rs checked only
   (module root, no drift in the edited regions). Rank 2:
   99/348.
+  Batch 19 (items 53 + 54 + 55 + 56). Item 53
+  (render/structure_block.rs): PORTED. The load defaults are the
+  1.21.4 plain-get forms: ignoreEntities and showboundingbox
+  default to false (plain getBoolean, not 1.21.5's
+  getBooleanOr(true)) and posY to 0 (plain getInt, not
+  DEFAULT_POS (0,1,0)); the constructor defaults in new() stay
+  (0,1,0)/true/true — those are the field initializers
+  (javap-verified), and load overwrites them. The load tests now
+  assert the 1.21.4 defaults. NO-CHANGE on the render box:
+  BoundingBoxRenderable does not exist in 1.21.4 (a 1.21.5
+  addition), but 1.21.4's StructureBlockRenderer gates match
+  render_mode exactly (Save/Load only; the box iff Save or
+  showBoundingBox; invisible blocks iff Save && showAir), and
+  the mirror/rotation box math is the same source, so
+  render_mode / renderable_box stand as the ported equivalents.
+  strict stays — routed to item 394 (rank 3). Item 54
+  (mobs/spawn_selection.rs): NO-CHANGE, comment-only. All diffs
+  are API-only — WeightedList vs WeightedRandomList (rename),
+  SpawnerData record accessors vs fields (same values), snapTo
+  vs moveTo; SpawnerData#equals is 1.21.5-only. One citation
+  updated (WeightedRandomList.getRandom). Item 55 (mobs.rs):
+  PORTED. (1) A mob's fire_ticks starts at -1 (the Entity
+  constructor sets -getFireImmuneTicks(), javap-verified), so
+  the first lightning strike ignites a fresh mob. (2)
+  extinguish_fire sets exactly 0 (clearFire), not min(0).
+  (3) The 1.21.4 post-check in ai.rs tick: a non-burning alive
+  entity not inside fire or lava leaves -1 after the pass —
+  EVERY pass, not only when a fire went out in it. 1.21.4's
+  applyEffectsFromBlocks has no wasOnFire gate (1.21.5 gates
+  the reset on it); the flag predicate is the #fire tag or
+  lava (the synthetic lambda, javap-verified). The wet-fire
+  test expectations move 0 -> -1. (4) The dead leash_spin
+  field is removed (write-only; the creaking.rs write is gone
+  with it). (5) The travelFlying comments are fixed (no such
+  method in either jar) and the LEAD_BREAK comment is carried
+  (1.21.4 plays no sound for a snapped lead). NO-CHANGE: the
+  Cow 0.4 volume was already correct (Cow.getSoundVolume is
+  1.21.4-only); the RemotePlayer lerp math is exactly 1.21.4's
+  lerpPositionAndRotationStep — InterpolationHandler does not
+  exist in 1.21.4 at all, and the citations in remote.rs,
+  entities.rs, fishing.rs, end.rs, interactions.rs and
+  dragon.rs are a known naming lag, behaviour verified
+  identical, deliberately not swept. KNOWN GAP: the
+  entities.rs fire_ticks: 0 inits (6 sites) plus arrows.rs and
+  fluids.rs stay 0, matching the 1.21.5 tree's scoping — the
+  jar's -1 applies to all entities. Item 56
+  (game/block_ticks.rs): PORTED. (1) The portal-ticket expiry
+  gate is removed: 1.21.4's Ticket.timedOut is a pure age
+  check (now - createdTick > timeout) and canTicketExpire is a
+  1.21.6 addition — tick_portal is bare (the 1.21.5 tree form),
+  portal_ticket_can_expire is deleted from game.rs and the
+  levels.rs doc is fixed; the tick_portal doc now cites
+  DistanceManager.purgeStaleTickets. (2) The tickChunks
+  shuffle is added: 1.21.4's ServerChunkCache.tickChunks runs
+  Util.shuffle(tickingChunks, level.random) before ticking
+  (1.21.5 dropped it) — the Rust shuffles scratch.ticking with
+  the level random in the explosion.rs pattern. Lib check
+  green (EXIT 0, 17m12s, no warnings); --tests check green
+  (EXIT 0, 53m32s, no warnings) — both slow because the disk
+  quota forced deleting target/debug/incremental (3.6G,
+  regenerable) mid-check and the cache rebuilt cold. One
+  rustfmt incident: a bare `rustfmt <file>` piped to diff
+  formatted game.rs and mobs.rs IN PLACE and recursed into
+  19 submodule files; all unintended changes were reverted
+  with git checkout and the two roots' edits re-applied, so
+  the commit holds only the batch's 10 files. (Never pipe
+  rustfmt's output for a module root — --check only.)
+  creaking.rs, structure_block.rs, spawn_selection.rs,
+  block_ticks.rs, ticket_levels.rs, levels.rs and
+  wet_fire_tests.rs rustfmt-clean; ai.rs clean by --check;
+  mobs.rs and game.rs checked only (module roots). Rank 2:
+  103/348.

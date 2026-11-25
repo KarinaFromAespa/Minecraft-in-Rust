@@ -91,10 +91,12 @@ fn wet_fire_damage_and_extinguishing_follow_the_full_mob_tick() {
                     for fire in [0, 1, 19, 20, 21, 40] {
                         let mut mob = pig(types, no_ai, false, fire);
                         let damage = if fire > 0 && fire % 20 == 0 { 1.0 } else { 0.0 };
-                        let remaining = if environment == "dry" {
-                            (fire - 1).max(0)
+                        // A non-burning mob leaves -1 after the pass
+                        // (`applyEffectsFromBlocks`' post-check, 1.21.4).
+                        let remaining = if environment == "dry" && fire > 1 {
+                            fire - 1
                         } else {
-                            0
+                            -1
                         };
                         let sound = usize::from(environment != "dry" && fire > 1);
                         check(
@@ -108,8 +110,8 @@ fn wet_fire_damage_and_extinguishing_follow_the_full_mob_tick() {
                     let mut mob = pig(types, no_ai, false, 21);
                     for (environment, expected) in [
                         ("dry", (10.0, 20, 0)),
-                        (wet, (9.0, 0, 1)),
-                        ("dry", (9.0, 0, 0)),
+                        (wet, (9.0, -1, 1)),
+                        ("dry", (9.0, -1, 0)),
                     ] {
                         check(
                             format!("NoAI={no_ai} transition={wet}/{environment}"),
@@ -123,7 +125,7 @@ fn wet_fire_damage_and_extinguishing_follow_the_full_mob_tick() {
                     check(
                         format!("NoAI={no_ai} immune {environment}"),
                         step(&mut mob, w, environment),
-                        (10.0, 0, 0),
+                        (10.0, -1, 0),
                     );
                 }
             }
