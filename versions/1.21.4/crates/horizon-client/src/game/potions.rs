@@ -2211,7 +2211,6 @@ fn client_tick_effects(effects: &mut PlayerEffects, darkness: &mut (f32, f32)) {
 mod tests {
     use super::super::sculk::darkness_blend_added;
     use super::*;
-    use horizon_client::screen_effects::nausea_blend_added;
 
     /// `AreaEffectCloud.addAdditionalSaveData` with `readAdditionalSaveData`: a
     /// lingering cloud written at a save reads back with its lifetime, radius,
@@ -2399,21 +2398,6 @@ mod tests {
         assert_eq!(darkness_blend_added(&ending, false), (0.0, 0.0));
         let infinite = EffectInstance::new("darkness", -1, 0);
         assert_eq!(darkness_blend_added(&infinite, false), (1.0, 1.0));
-    }
-
-    /// `ClientPacketListener.handleUpdateMobEffect`: a new nausea fades in
-    /// when the server blends it; one sent unblended (joining, changing
-    /// dimension) is at full strength at once, unless it is already within
-    /// its blend-out ticks.
-    #[test]
-    fn a_new_nausea_starts_blended_or_at_once() {
-        let e = EffectInstance::new("nausea", 600, 0);
-        assert_eq!(nausea_blend_added(&e, true), (0.0, 0.0));
-        assert_eq!(nausea_blend_added(&e, false), (1.0, 1.0));
-        let ending = EffectInstance::new("nausea", 40, 0);
-        assert_eq!(nausea_blend_added(&ending, false), (0.0, 0.0));
-        let infinite = EffectInstance::new("nausea", -1, 0);
-        assert_eq!(nausea_blend_added(&infinite, false), (1.0, 1.0));
     }
 
     /// `BottleItem.use`: collecting dragon's breath from an ender dragon's cloud (#8054).

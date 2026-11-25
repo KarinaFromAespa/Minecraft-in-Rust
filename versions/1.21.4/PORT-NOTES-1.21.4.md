@@ -1784,3 +1784,96 @@ shape for the review batches.
   pre-existing drift hunks elsewhere (creatures.rs 3893/6110/
   7088, persist.rs 1559, commands/extra.rs 127 — left alone).
   Rank 2: 91/348.
+  Batch 17 (items 45 + 46 + 47 + 48). Item 45 (render/camera.rs):
+  PORTED. (1) Camera distance is the flat 4.0 * scale (1.21.4's
+  Camera.setup computes 4.0f * LivingEntity.getScale(), no
+  camera_distance attribute, no mount consideration; the 1.21.5
+  form carries). (2) depth_far is renderDistance * 4 with no
+  cloud-range max (1.21.4's GameRenderer.getDepthFar; three call
+  sites drop the cloud_range arg). (3) The spin is now 1.21.4's
+  single spinning intensity: ScreenEffects keeps spinning /
+  o_spinning / confusion_animation_tick (incremented per tick);
+  tick merges the portal ramp (+0.0125), the Confusion ramp
+  (+1/150) and the decay (-0.05), clamped 0..1, per
+  LocalPlayer.handleConfusionTransitionEffect (read in full:
+  portal step also closes containers and plays PORTAL_TRIGGER at
+  intensity 0 — the nether_portal.rs gate now reads the pre-tick
+  spinning intensity). spinning_matrix uses angle =
+  (confusionAnimationTick + partial) * (7 if Confusion else 20)
+  and intensity = lerp * scale^2. The Nausea blend fields,
+  tick_spinning and nausea_blend_added are gone: BlendState
+  exists in 1.21.4's MobEffectInstance and the UpdateMobEffect
+  packet carries the flag-8 shouldBlend bit, but no 1.21.4
+  renderer reads the blend factor (grep over LocalPlayer,
+  GameRenderer, Gui, FogRenderer, LevelRenderer: 0 calls), so
+  the remote.rs nausea branch is removed with it.
+  (4) camera_overlays: the portal swirl shows when intensity > 0
+  without Confusion, the confusion swirl when Confusion is
+  present and screenEffectScale < 1 (alpha = intensity *
+  (1 - scale)), per Gui.renderCameraOverlays. NO-CHANGE: the
+  bobHurt/bobView mulPose renames, processBlurEffect (no
+  PostChain in the Rust), render/renderLevel GPU API,
+  takeAutoScreenshot and the tick null-check reorder are
+  API-only; spinning_effect_matrix is identical in both jars.
+  Tick granularity: confusionAnimationTick advances per game
+  tick here, per frame in vanilla — the same approximation the
+  1.21.5 form already made. Item 46 (game/mounts.rs): PORTED.
+  The plain-carrot horse-diet arm is removed (neither 1.21.4's
+  nor 1.21.5's AbstractHorse.handleEating mentions Items.CARROT
+  — a 1.21.6 addition; the test asserts eating(carrot) == None)
+  and the jump-meter comment now cites Gui.renderJumpMeter
+  (1.21.4 has the private method, no JumpableVehicleBar class).
+  NO-CHANGE: Strider mobInteract already checks
+  stack.is(Items.SADDLE) (the 1.21.4 form, not 1.21.5's
+  isEquippableInSlot); the strider finalize saddles + drop
+  chance 2.0 (the equipSaddle outcome); Camel handleEating/tick
+  and Strider floatStrider/spawnJockey are playSound overloads
+  or renames. The stand-counter test (counter 20) is LEFT for
+  item 205: the logic lives in equine.rs (stand_if_possible
+  sets 20; 1.21.4's jar sets standCounter = 1) and changing the
+  mounts.rs test alone would break it. Item 47
+  (entity_nbt/hanging.rs): PORTED. Hanging entities save and
+  load the tile position as TileX/TileY/TileZ ints (1.21.4's
+  BlockAttachedEntity.addAdditionalSaveData /
+  readAdditionalSaveData), not the 1.21.5 block_pos int array
+  the Rust wrote. Load order: Tile keys, then block_pos (kept
+  for saves this port wrote before the fix), then the summon
+  position's block. Tests updated (Tile keys round-trip,
+  block_pos absent from saves). NO-CHANGE: ItemFrame Facing as
+  a 3D byte (default 0 = DOWN), ItemRotation plain getByte,
+  ItemDropChance default 1.0 (read only when present),
+  Invisible/Fixed plain booleans, the Item compound check — all
+  already the 1.21.4 form; Painting variant-as-string + 2D
+  facing byte match the VARIANT_CODEC encoding. The Cushion
+  block_pos (entity_nbt.rs) is a 26.x entity, out of scope.
+  Item 48 (game/scoreboard.rs): PORTED. TamableAnimal.getTeam
+  is owner-first: a tamed pet answers its owner's team, else
+  its own (1.21.4 checks getOwner().getTeam() first, then
+  Animal.getTeam; the Rust had the 1.21.5 own-first order).
+  getRootOwner is gone (a 1.21.5 addition; 1.21.4 uses the
+  direct getOwner()): root_owner and root_owner_name are
+  replaced by owner_name resolving the direct owner, and a pet
+  owned by a pet now answers that pet's team. Tests updated
+  (both-teams case answers the owner's; pet-owned-by-pet
+  answers the pet's team). NO-CHANGE: Owner save/load is
+  already the 1.21.4 putUUID form (IntArray + uuid_from_tag);
+  the legacy username conversion (OldUsersConverter) is a
+  shared gap in both trees; tame.rs's is_owner/owned_by already
+  use the direct owner. Routed: the narrator rename
+  (say_system_now -> say_now, say_system_queued -> say,
+  say_system_chat_queued -> say_chat, and sayChat's missing
+  empty check — all jar-verified 1.21.4 behaviour, GameNarrator
+  has only sayChat/say/sayNow) spans 15 files with no owning
+  item; it goes to item 299 (horizon-narrator crate) and the
+  scoreboard.rs:885 call site stays say_system_now until then.
+  Lib check green (EXIT 0, 1m18s, one warning fixed: the unused
+  screen_effects import in remote.rs); --tests check green
+  (EXIT 0, 2m08s). camera.rs, hud_overlays.rs,
+  screen_effects.rs, kinds.rs, hanging.rs, nether_portal.rs,
+  render_tick.rs, fov.rs and screen_backgrounds.rs
+  rustfmt-clean (fov.rs and screen_backgrounds.rs needed one
+  hand fix each in the edited regions); agent.rs, mounts.rs and
+  scoreboard.rs clean; remote.rs, potions.rs, entity_nbt.rs and
+  game.rs checked only, with only pre-existing drift hunks
+  elsewhere (remote.rs 5549, potions.rs 260/2004 — left alone).
+  Rank 2: 95/348.

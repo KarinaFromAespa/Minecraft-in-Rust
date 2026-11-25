@@ -9584,7 +9584,7 @@ impl Game<'_> {
         let terrain_distance = self.terrain_distance();
         let distance = (terrain_distance * 16) as f32;
         let depth_far =
-            horizon_client::camera::depth_far(terrain_distance, self.settings.cloud_range);
+            horizon_client::camera::depth_far(terrain_distance);
         // Only native mods read it: no matrices or allocation per frame without one.
         let mods_read_camera = !horizon_client::mod_api::mods().is_empty();
         self.screen_blur_requested.set(false);

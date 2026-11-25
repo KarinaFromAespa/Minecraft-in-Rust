@@ -27,7 +27,6 @@ use horizon_client::{
     particles::TrackingTarget,
     random_source,
     save::SaveDir,
-    screen_effects,
     sprint::Keys,
     streaming::{ChunkGenerator, Proto, Streaming},
     tab_list::SPECTATOR,
@@ -1702,11 +1701,10 @@ impl Game<'_> {
                 let blend = p.flags & 8 != 0;
                 if id == "darkness" {
                     self.sculk.darkness = super::sculk::darkness_blend_added(&e, blend);
-                } else if id == "nausea" {
-                    let (o_nausea, nausea) = screen_effects::nausea_blend_added(&e, blend);
-                    self.screen_fx.o_nausea = o_nausea;
-                    self.screen_fx.nausea = nausea;
                 }
+                // Nausea has no blend state to set: 1.21.4's renderer
+                // never reads the Nausea blend factor (the spin and the
+                // overlays use the single spinning intensity instead).
                 list.push(e);
             }
         }

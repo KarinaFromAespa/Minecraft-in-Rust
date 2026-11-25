@@ -940,11 +940,13 @@ pub struct CameraOverlays {
     /// `getTicksFrozen` and `getPercentFrozen`.
     pub ticks_frozen: i32,
     pub percent_frozen: f32,
-    /// The partial tick and `oPortalEffectIntensity` / `portalEffectIntensity`.
+    /// The partial tick and `oSpinningEffectIntensity` /
+    /// `spinningEffectIntensity`: 1.21.4's single spin intensity drives
+    /// both the portal and the confusion overlay.
     pub partial: f32,
     pub portal: [f32; 2],
-    /// `getEffectBlendFactor(NAUSEA, partial)` and `Options.screenEffectScale`.
-    pub nausea: f32,
+    /// `LocalPlayer.hasEffect(CONFUSION)` and `Options.screenEffectScale`.
+    pub confused: bool,
     pub screen_effect_scale: f32,
 }
 
@@ -981,13 +983,16 @@ pub fn camera_overlays(w: i32, h: i32, i: &CameraOverlays, scope_scale: &mut f32
         ));
     }
     let portal = i.portal[0] + i.partial * (i.portal[1] - i.portal[0]);
-    if portal > 0.0 {
+    // `Gui.renderCameraOverlays`: the spinning intensity shows the portal
+    // swirl without Confusion, the confusion swirl with it (and only
+    // while Distortion Effects is below full).
+    if portal > 0.0 && !i.confused {
         out.push(portal_overlay(w, h, portal));
-    } else if i.nausea > 0.0 && i.screen_effect_scale < 1.0 {
+    } else if portal > 0.0 && i.screen_effect_scale < 1.0 {
         out.extend(confusion_overlay(
             w,
             h,
-            i.nausea * (1.0 - i.screen_effect_scale),
+            portal * (1.0 - i.screen_effect_scale),
         ));
     }
     out

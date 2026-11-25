@@ -299,10 +299,7 @@ impl Game<'_> {
                 size[1] as f32,
                 self.yaw,
                 self.pitch,
-                horizon_client::camera::depth_far(
-                    self.terrain_distance(),
-                    self.settings.cloud_range,
-                ),
+                horizon_client::camera::depth_far(self.terrain_distance()),
             );
             let near_plane = horizon_core::geometry::Aabb::new(
                 horizon_core::geometry::Vec3::new(
@@ -388,8 +385,8 @@ impl Game<'_> {
             ticks_frozen: p.ticks_frozen,
             percent_frozen: p.percent_frozen(),
             partial,
-            portal: [fx.o_portal, fx.portal],
-            nausea: self.nausea_blend(partial),
+            portal: [fx.o_spinning, fx.spinning],
+            confused: self.potions.effects.get("nausea").is_some(),
             screen_effect_scale: self.screen_effect_scale(),
         };
         let mut scope = self.scope_scale;
@@ -476,14 +473,13 @@ impl Game<'_> {
         if let Some(e) = eye {
             let brightness = self.eye_brightness(e);
             let inside_portal = self.client_portal_effect();
-            self.screen_fx.tick(brightness, inside_portal);
+            let confusion = self.potions.effects.get("nausea").map(nausea_has_effect);
+            self.screen_fx.tick(brightness, inside_portal, confusion);
             // LocalPlayer.aiStep: processPortalCooldown after the transition
             // effect (a local world's player counts down in handlePortal).
             if self.remote.is_some() && self.portals.player.cooldown > 0 {
                 self.portals.player.cooldown -= 1;
             }
-            let nausea = self.potions.effects.get("nausea").map(nausea_has_effect);
-            self.screen_fx.tick_spinning(nausea);
             // LocalPlayer water vision and AtmosphericFogEnvironment rain fog.
             let in_water =
                 fog_type(&self.world, self.res.facts(), e, &self.near_plane()) == FogType::Water;

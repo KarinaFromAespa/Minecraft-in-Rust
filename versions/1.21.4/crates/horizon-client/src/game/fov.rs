@@ -48,23 +48,22 @@ impl Game<'_> {
     pub(super) fn screen_effect_scale(&self) -> f32 {
         self.settings.file.double("screenEffectScale") as f32
     }
-    /// `LocalPlayer.getEffectBlendFactor(NAUSEA, partial)`: 0 without the effect.
-    pub(super) fn nausea_blend(&self, partial: f32) -> f32 {
-        if self.potions.effects.get("nausea").is_none() {
-            return 0.0;
-        }
-        let fx = &self.screen_fx;
-        fx.o_nausea + partial * (fx.nausea - fx.o_nausea)
-    }
     /// The spin `GameRenderer.renderLevel` multiplies into the level's
-    /// projection: the larger of the portal and Nausea intensities, scaled by
-    /// Distortion Effects squared, turning by `LocalPlayer.getSpinningEffectAngle`.
+    /// projection: 1.21.4's single spinning intensity, lerped and scaled
+    /// by Distortion Effects squared, turning by
+    /// `(confusionAnimationTick + partial) * 7` with Confusion, `* 20`
+    /// without.
     pub(super) fn spinning_matrix(&self, partial: f32) -> glam::Mat4 {
         let fx = &self.screen_fx;
-        let portal = fx.o_portal + partial * (fx.portal - fx.o_portal);
         let scale = self.screen_effect_scale();
-        let intensity = portal.max(self.nausea_blend(partial)) * (scale * scale);
-        spinning_effect_matrix(intensity, fx.spinning_time + partial * fx.spinning_speed)
+        let intensity = (fx.o_spinning + partial * (fx.spinning - fx.o_spinning)) * (scale * scale);
+        let rate = if self.potions.effects.get("nausea").is_some() {
+            7.0
+        } else {
+            20.0
+        };
+        let angle = (fx.confusion_animation_tick as f32 + partial) * rate;
+        spinning_effect_matrix(intensity, angle)
     }
     /// What `AbstractClientPlayer.getFieldOfViewModifier` reads.
     fn fov_player(&self) -> Option<FovPlayer> {

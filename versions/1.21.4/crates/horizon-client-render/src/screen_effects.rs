@@ -74,25 +74,23 @@ pub struct ScreenInputs<'a> {
 pub struct ScreenEffects {
     /// `Hud.vignetteBrightness`.
     pub vignette_brightness: f32,
-    pub portal: f32,
-    pub o_portal: f32,
-    /// Nausea's `MobEffectInstance.BlendState` factor and the previous tick's.
-    pub nausea: f32,
-    pub o_nausea: f32,
-    /// `LocalPlayer.spinningEffectTime` and `spinningEffectSpeed` (degrees).
-    pub spinning_time: f32,
-    pub spinning_speed: f32,
+    /// `LocalPlayer.spinningEffectIntensity` and the previous tick's:
+    /// 1.21.4's single spin intensity, driven by the portal (+0.0125/tick),
+    /// Confusion (+1/150/tick past its blend-out point) or decay (-0.05/tick).
+    /// 1.21.5 split it into separate portal and Nausea blend fields.
+    pub spinning: f32,
+    pub o_spinning: f32,
+    /// `GameRenderer.confusionAnimationTick`, advanced every tick: the spin
+    /// angle is `(tick + partial) * 7` with Confusion, `* 20` without.
+    pub confusion_animation_tick: i32,
 }
 impl Default for ScreenEffects {
     fn default() -> Self {
         Self {
             vignette_brightness: 1.0,
-            portal: 0.0,
-            o_portal: 0.0,
-            nausea: 0.0,
-            o_nausea: 0.0,
-            spinning_time: 0.0,
-            spinning_speed: 0.0,
+            spinning: 0.0,
+            o_spinning: 0.0,
+            confusion_animation_tick: 0,
         }
     }
 }
@@ -108,41 +106,26 @@ fn hand_scale(aspect: f32) -> [f32; 2] {
     [1.0 / (half * aspect), 1.0 / half]
 }
 impl ScreenEffects {
-    /// `Hud.updateVignetteBrightness` and `LocalPlayer.handlePortalTransitionEffect`.
-    pub fn tick(&mut self, eye_brightness: f32, inside_portal: bool) {
+    /// `Hud.updateVignetteBrightness`, `GameRenderer.tick`'s confusion
+    /// counter, and `LocalPlayer.handleConfusionTransitionEffect`.
+    /// `inside_portal` is the portal-process flag for this tick;
+    /// `confusion` is `None` without the Confusion effect, else whether
+    /// it is past its blend-out point (`!endsWithin(60)`).
+    pub fn tick(&mut self, eye_brightness: f32, inside_portal: bool, confusion: Option<bool>) {
         let target = (1.0 - eye_brightness).clamp(0.0, 1.0);
         self.vignette_brightness += (target - self.vignette_brightness) * 0.01;
-        self.o_portal = self.portal;
+        self.confusion_animation_tick = self.confusion_animation_tick.wrapping_add(1);
+        self.o_spinning = self.spinning;
         let step = if inside_portal {
             0.0125
-        } else if self.portal > 0.0 {
+        } else if confusion == Some(true) {
+            1.0 / 150.0
+        } else if self.spinning > 0.0 {
             -0.05
         } else {
             0.0
         };
-        self.portal = (self.portal + step).clamp(0.0, 1.0);
-    }
-    /// `LocalPlayer.tickSpinningEffect` and Nausea's blend. `nausea` is `None`
-    /// without the effect, else whether it is past its blend-out point
-    /// (`!endsWithin(60)`, `MobEffects.NAUSEA`).
-    pub fn tick_spinning(&mut self, nausea: Option<bool>) {
-        self.o_nausea = self.nausea;
-        match nausea {
-            // BlendState.tick: fades in over 150 ticks and out over 20.
-            Some(active) => {
-                let (target, duration) = if active { (1.0, 150.0) } else { (0.0, 20.0) };
-                self.nausea += (target - self.nausea).clamp(-1.0 / duration, 1.0 / duration);
-            }
-            // The blend state belongs to the instance, so a new one starts at 0.
-            None => self.nausea = 0.0,
-        }
-        if self.portal > 0.0 || self.nausea > 0.0 {
-            self.spinning_speed =
-                (self.portal * 20.0 + self.nausea * 7.0) / (self.portal + self.nausea);
-            self.spinning_time += self.spinning_speed;
-        } else {
-            self.spinning_speed = 0.0;
-        }
+        self.spinning = (self.spinning + step).clamp(0.0, 1.0);
     }
     pub fn build(&self, input: &ScreenInputs) -> Vec<ScreenQuad> {
         let mut out = Vec::new();
@@ -289,20 +272,11 @@ const NAUSEA_BLEND_OUT: i32 = 60;
 
 /// `MobEffectInstance.BlendState.hasEffect`: still past the blend-out point,
 /// so the effect counts as on (`!endsWithin(60)` for `MobEffects.NAUSEA`).
+/// 1.21.4's `handleConfusionTransitionEffect` reads it directly; no
+/// renderer reads the blend factor itself (that is 1.21.5's
+/// `getEffectBlendFactor` use), so there is no blend-state field to set.
 pub fn nausea_has_effect(e: &EffectInstance) -> bool {
     !e.ends_within(NAUSEA_BLEND_OUT)
-}
-
-/// A new nausea instance's `BlendState`: from nothing, or, when the server
-/// asked for no blending, at once (`MobEffectInstance.skipBlending`'s
-/// `BlendState.setImmediate`).
-pub fn nausea_blend_added(e: &EffectInstance, blend: bool) -> (f32, f32) {
-    let factor = if blend || !nausea_has_effect(e) {
-        0.0
-    } else {
-        1.0
-    };
-    (factor, factor)
 }
 
 #[cfg(test)]
@@ -315,14 +289,25 @@ mod tests {
         assert!((lightmap_brightness(0.1, 0) - 0.1).abs() < 1e-6);
     }
     #[test]
-    fn portal_intensity_ramps() {
+    fn spinning_intensity_ramps() {
         let mut e = ScreenEffects::default();
         for _ in 0..80 {
-            e.tick(1.0, true);
+            e.tick(1.0, true, None);
         }
-        assert!((e.portal - 1.0).abs() < 1e-5);
-        e.tick(1.0, false);
-        assert!((e.portal - 0.95).abs() < 1e-5);
+        assert!((e.spinning - 1.0).abs() < 1e-5);
+        e.tick(1.0, false, None);
+        assert!((e.spinning - 0.95).abs() < 1e-5);
+        // Confusion ramps at 1/150 a tick, past its blend-out point.
+        let mut e = ScreenEffects::default();
+        for _ in 0..150 {
+            e.tick(1.0, false, Some(true));
+        }
+        assert!((e.spinning - 1.0).abs() < 1e-5);
+        // Within the blend-out ticks it decays instead.
+        e.tick(1.0, false, Some(false));
+        assert!((e.spinning - 0.95).abs() < 1e-5);
+        // The confusion counter advances every tick.
+        assert_eq!(e.confusion_animation_tick, 151);
         // Vignette fades towards 1 - brightness at 1% per tick.
         assert!(e.vignette_brightness < 1.0);
     }

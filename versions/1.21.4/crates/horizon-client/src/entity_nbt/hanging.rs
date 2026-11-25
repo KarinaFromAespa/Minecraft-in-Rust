@@ -1,7 +1,8 @@
 //! Block-attached hanging entities: paintings and item frames.
 use super::*;
 
-/// Painting.addAdditionalSaveData: `facing`, `variant` and `block_pos`.
+/// Painting.addAdditionalSaveData: `facing`, `variant` and the tile
+/// position (`TileX`/`TileY`/`TileZ`).
 pub fn painting_to_nbt(p: &Painting, uuid: [i32; 4], raw: Option<&Tag>) -> Tag {
     let (lo, hi) = p.bounds();
     let base = Base {
@@ -20,13 +21,24 @@ pub fn painting_to_nbt(p: &Painting, uuid: [i32; 4], raw: Option<&Tag>) -> Tag {
     let mut tag = base.tag(raw);
     put(&mut tag, "facing", Tag::Byte(p.facing as i8));
     put(&mut tag, "variant", string(&p.variant));
-    put(&mut tag, "block_pos", Tag::IntArray(p.pos.to_vec()));
+    put_tile_pos(&mut tag, p.pos);
     tag
 }
-/// `BlockAttachedEntity.readAdditionalSaveData`: `block_pos` when saved; a
-/// summoned one has none, and `setPos` puts its block at the block holding
-/// the summon position.
+/// `BlockAttachedEntity.addAdditionalSaveData`: the tile position as three
+/// ints (1.21.5 stores it as a `block_pos` int array instead).
+fn put_tile_pos(tag: &mut Tag, pos: [i32; 3]) {
+    put(tag, "TileX", Tag::Int(pos[0]));
+    put(tag, "TileY", Tag::Int(pos[1]));
+    put(tag, "TileZ", Tag::Int(pos[2]));
+}
+/// `BlockAttachedEntity.readAdditionalSaveData`: `TileX`/`TileY`/`TileZ`;
+/// a `block_pos` int array (the 1.21.5 form, kept for saves this port wrote
+/// before the fix) and the summon position's block follow.
 fn attached_block_pos(tag: &Tag) -> Option<[i32; 3]> {
+    let tile = |k: &str| number(tag.get(k)).map(|v| v as i32);
+    if let (Some(x), Some(y), Some(z)) = (tile("TileX"), tile("TileY"), tile("TileZ")) {
+        return Some([x, y, z]);
+    }
     match tag.get("block_pos") {
         Some(Tag::IntArray(v)) if v.len() == 3 => Some([v[0], v[1], v[2]]),
         _ => {
@@ -69,7 +81,7 @@ pub fn item_frame_to_nbt(f: &ItemFrame, uuid: [i32; 4], raw: Option<&Tag>) -> Ta
         map.remove(&"CustomName".into());
     }
     put(&mut tag, "Facing", Tag::Byte(f.facing as i8));
-    put(&mut tag, "block_pos", Tag::IntArray(f.pos.to_vec()));
+    put_tile_pos(&mut tag, f.pos);
     put(&mut tag, "ItemRotation", Tag::Byte(f.rotation as i8));
     put(
         &mut tag,

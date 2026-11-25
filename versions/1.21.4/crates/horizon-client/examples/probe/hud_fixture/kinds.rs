@@ -283,7 +283,7 @@ fn overlays(c: &Value, w: i32, h: i32, state: &mut serde_json::Map<String, Value
             c["portal"][0].as_f64().unwrap_or(0.0) as f32,
             c["portal"][1].as_f64().unwrap_or(0.0) as f32,
         ],
-        nausea: float(c, "nausea", 0.0),
+        confused: float(c, "nausea", 0.0) > 0.0,
         screen_effect_scale: float(c, "screenEffectScale", 1.0),
     };
     let mut scope = float(c, "scopeScale", 0.5);

@@ -155,8 +155,7 @@ impl Game<'_> {
             self.border_section = Some(section);
         }
         // Camera.depthFar, as the renderer's far plane.
-        let depth_far =
-            horizon_client::camera::depth_far(self.terrain_distance(), self.settings.cloud_range);
+        let depth_far = horizon_client::camera::depth_far(self.terrain_distance());
         if !self
             .border_renderer
             .prepare(&self.border_state, camera, distance, depth_far)

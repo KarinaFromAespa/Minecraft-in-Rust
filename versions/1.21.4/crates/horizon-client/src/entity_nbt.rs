@@ -8010,7 +8010,7 @@ mod fireball_nbt_tests {
     }
 
     #[test]
-    fn a_summoned_painting_or_frame_has_no_block_pos_and_sits_at_its_position() {
+    fn a_summoned_painting_or_frame_has_no_tile_pos_and_sits_at_its_position() {
         // BlockAttachedEntity.setPos: the block holding the summon position.
         let painting = Tag::compound([
             ("id", Tag::String("minecraft:painting".into())),
@@ -8038,13 +8038,16 @@ mod fireball_nbt_tests {
 
     #[test]
     fn frame_missing_facing_loads_down_and_valid_directions_round_trip() {
-        // ItemFrame.readAdditionalSaveData: LEGACY_ID_CODEC, orElse(DOWN).
+        // ItemFrame.readAdditionalSaveData: getByte + from3DDataValue
+        // (an absent Facing reads 0, Direction.DOWN).
         for kind in ["minecraft:item_frame", "minecraft:glow_item_frame"] {
             // Explicit controls run before the missing-field assertion.
             for facing in [Some(0), Some(1), Some(2), Some(3), Some(4), Some(5), None] {
                 let mut tag = Tag::compound([
                     ("id", string(kind)),
-                    ("block_pos", Tag::IntArray(vec![4, 102, 6])),
+                    ("TileX", Tag::Int(4)),
+                    ("TileY", Tag::Int(102)),
+                    ("TileZ", Tag::Int(6)),
                     ("Fixed", Tag::Byte(1)),
                     ("ItemRotation", Tag::Byte(5)),
                     ("ItemDropChance", Tag::Float(0.25_f32.to_bits())),
@@ -8075,7 +8078,10 @@ mod fireball_nbt_tests {
                     assert_eq!(saved.get("ItemRotation"), Some(&Tag::Byte(5)));
                     assert_eq!(saved.get("ItemDropChance"), tag.get("ItemDropChance"));
                     assert_eq!(saved.get("Fixed"), Some(&Tag::Byte(1)));
-                    assert_eq!(saved.get("block_pos"), tag.get("block_pos"));
+                    assert_eq!(saved.get("TileX"), Some(&Tag::Int(4)));
+                    assert_eq!(saved.get("TileY"), Some(&Tag::Int(102)));
+                    assert_eq!(saved.get("TileZ"), Some(&Tag::Int(6)));
+                    assert_eq!(saved.get("block_pos"), None);
                     if facing.is_none() {
                         assert_eq!(saved.get("Pos"), Some(&doubles(&[4.5, 102.96875, 6.5])));
                     }

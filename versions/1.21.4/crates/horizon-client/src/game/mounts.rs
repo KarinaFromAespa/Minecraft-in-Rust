@@ -106,7 +106,8 @@ fn eating(species: Species, item: &str) -> Option<(f32, i32, u8, bool)> {
         "minecraft:hay_block" => (20.0, 180, 0, false),
         "minecraft:apple" => (3.0, 60, 3, false),
         "minecraft:red_mushroom" => (3.0, 0, 3, false),
-        "minecraft:carrot" => (3.0, 60, 3, false),
+        // No plain carrot: 1.21.6 added it to the horse diet (3, 60, 3);
+        // 1.21.4's handleEating has no carrot branch.
         "minecraft:golden_carrot" => (4.0, 60, 5, true),
         "minecraft:golden_apple" | "minecraft:enchanted_golden_apple" => (10.0, 240, 10, true),
         _ => return None,
@@ -834,13 +835,14 @@ impl Game<'_> {
         });
         hearts
     }
-    /// The jump bar when it is the contextual bar.
+    /// `Hud.extractJumpMeter`: the jump bar above the hotbar while riding a
+    /// jumpable vehicle.
     pub(super) fn draw_jump_bar(&self, batch: &mut HudBatch, w: i32, h: i32) {
         let Some(i) = self.mount_index() else {
             return;
         };
         let m = &self.mobs[i];
-        // JumpableVehicleBar: `getJumpCooldown`, which only the camel's and
+        // `Gui.renderJumpMeter`: `getJumpCooldown`, which only the camel's and
         // the nautilus' dash have; a horse always shows the progress.
         let cooldown = i32::from(
             self.mount.jump_ticks < 0
@@ -1142,6 +1144,11 @@ mod tests {
                 eating(species, "minecraft:wheat"),
                 Some((2.0, 20, 3, false)),
                 "{species:?}: wheat is horse food"
+            );
+            assert_eq!(
+                eating(species, "minecraft:carrot"),
+                None,
+                "{species:?}: no plain carrot before 1.21.6"
             );
         }
         assert_eq!(
