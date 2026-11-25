@@ -190,6 +190,9 @@ impl PatrolLevel for PatrolCx<'_, '_, '_> {
     fn spawn_patrols(&self) -> bool {
         self.level.game.ui.rules.bool("spawn_patrols")
     }
+    /// `PatrolSpawner.tick`'s day check: 1.21.4's `ServerLevel.isDay`
+    /// (`!hasFixedTime && skyDarken < 4`); 1.21.5 renamed it `isBrightOutside`
+    /// with the same form.
     fn bright_outside(&self) -> bool {
         !self.level.game.dimension_type().has_fixed_time && self.level.game.sky_darken() < 4
     }

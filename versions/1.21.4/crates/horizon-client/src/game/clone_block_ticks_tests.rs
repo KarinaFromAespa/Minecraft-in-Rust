@@ -141,7 +141,7 @@ fn copied_block_ticks_keep_order_priority_and_dedup() {
     // A clone that places nothing (a barrier) fails, its tick copied first.
     assert!(game.run_command("setblock 9 101 9 sand"));
     let pending = queued(&game, BlockPos::new(9, 101, 9));
-    assert!(game.run_command("setblock 9 101 9 barrier strict"));
+    assert!(game.run_command("setblock 9 101 9 barrier"));
     assert_eq!(
         queued(&game, BlockPos::new(9, 101, 9)),
         pending,

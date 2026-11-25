@@ -97,8 +97,8 @@ fn entity_die_commands() {
                 .unwrap()
                 .unwrap_or_else(|| panic!("summon did not return {kind} target"));
             assert_eq!(game.target_position(target), Some(at));
-            game.run_command("setblock 1 200 4 air strict");
-            game.run_command("setblock 1 200 4 sculk_sensor strict");
+            game.run_command("setblock 1 200 4 air");
+            game.run_command("setblock 1 200 4 sculk_sensor");
             game.sculk_prepare();
             game.sculk_sync_index();
             warden::register(&mut game.mobs[0]);

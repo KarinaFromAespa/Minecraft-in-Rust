@@ -359,11 +359,11 @@ mod live_dungeon_spawner_tests {
                     .is_some()
             );
             for cmd in [
-                "fill 3 199 3 13 204 13 barrier strict",
-                "fill 3 199 3 13 204 13 stone strict",
-                "fill 6 200 6 10 203 10 air strict",
-                "fill 11 200 8 13 201 8 air strict",
-                "setblock 24 200 24 spawner{SpawnData:{entity:{id:\"minecraft:zombie\"}},Delay:20s} strict",
+                "fill 3 199 3 13 204 13 barrier",
+                "fill 3 199 3 13 204 13 stone",
+                "fill 6 200 6 10 203 10 air",
+                "fill 11 200 8 13 201 8 air",
+                "setblock 24 200 24 spawner{SpawnData:{entity:{id:\"minecraft:zombie\"}},Delay:20s}",
             ] {
                 assert!(game.run_command(cmd), "{cmd}");
             }
@@ -430,7 +430,7 @@ mod live_dungeon_spawner_tests {
         with_game(|game| {
             use horizon_world::level::LevelAccess;
             let request=match horizon_world::nbt::parse_snbt(r#"{id:"minecraft:mob_spawner",SpawnData:{entity:{id:"minecraft:skeleton"}},SpawnPotentials:[]}"#).unwrap().0 {Tag::Compound(c)=>c,_=>unreachable!()};
-            assert!(game.run_command(r#"setblock 24 200 24 spawner{Delay:77s,MaxNearbyEntities:9s,SpawnData:{entity:{id:"minecraft:zombie",UUID:[I;173,4,5,6],Health:7f}},SpawnPotentials:[]} strict"#));
+            assert!(game.run_command(r#"setblock 24 200 24 spawner{Delay:77s,MaxNearbyEntities:9s,SpawnData:{entity:{id:"minecraft:zombie",UUID:[I;173,4,5,6],Health:7f}},SpawnPotentials:[]}"#));
             if let Some(BlockEntity::Spawner(s)) = game.world.block_entities.get_mut(&(24, 200, 24))
             {
                 s.spin = 12.5;
@@ -456,7 +456,7 @@ mod live_dungeon_spawner_tests {
                 model
             );
             assert_eq!(game.world.random.clone().next_long(), random);
-            assert!(game.run_command("setblock 26 200 24 spawner strict"));
+            assert!(game.run_command("setblock 26 200 24 spawner"));
             let mut wrong = BlockEntity::for_block("minecraft:chest").unwrap();
             wrong.slots_mut()[0] = Some(horizon_client::items::ItemStack::new(
                 "minecraft:diamond",
@@ -471,7 +471,7 @@ mod live_dungeon_spawner_tests {
                 format!("{:?}", game.world.block_entities.get(&(26, 200, 24))),
                 before
             );
-            assert!(game.run_command("setblock 28 200 24 stone strict"));
+            assert!(game.run_command("setblock 28 200 24 stone"));
             let revision = game.world.revision;
             let count = game.world.block_entities.len();
             game.with_level(|_, level, _| {

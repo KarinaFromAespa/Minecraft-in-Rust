@@ -403,6 +403,13 @@ this note, and the CI run will fill it in.
   equippable layout has no interact field, so a 1.21.5 stack's
   `equip_on_interact=true` does not survive the pin codec (the
   DOWN write to a 1.21.5 target still round-trips it).
+- **`/clone` still accepts a `strict` argument** (batch 16):
+  `strict` is a 1.21.5 addition to CloneCommands (0 occurrences
+  in 1.21.4's jar, present in 1.21.5's), but removing it needs
+  the clone block-tick tests reworked — they depend on strict
+  placement (no own tick) to assert the copied ticks — so it
+  stays until a clone-focused item takes it. `/setblock` and
+  `/fill` had their strict removed in batch 16.
 
 ## What remains, by cause
 
@@ -1710,3 +1717,70 @@ shape for the review batches.
   render.rs and dispenser.rs rustfmt-clean; potions.rs has only
   two pre-existing drift hunks (lines 260, 2004) outside the
   edited regions. Rank 2: 87/348.
+  Batch 16 (items 41 + 42 + 43 + 44). Item 41 (game/raids.rs):
+  NO-CHANGE, tree diff empty. bright_outside() is !hasFixedTime
+  && skyDarken < 4 — exactly 1.21.4's isDay form (1.21.5's
+  isBrightOutside is the same formula, a pure rename; the comment
+  now says so). PatrolSpawner.tick and tick_village_siege return
+  () — the 1.21.4 boolean/count returns are unmodelled and
+  unobservable. The raider RaidId is saved directly as Int
+  (raider.rs:713), the 1.21.4 form (1.21.5 looks it up via
+  Raids.getId). PathfindToRaidGoal.recruitNearby, VillageSiege
+  #trySpawn (snapTo vs moveTo, same), Raider.aiStep/die and
+  pickUpItem are API-only or same-logic. Item 42
+  (game/commands.rs): PORTED. (1) /setblock and /fill now notify
+  neighbours via update_neighbors_at — 1.21.4's
+  ServerLevel.blockUpdated, plain neighbour notification —
+  replacing the 1.21.6 update_neighbours_on_block_set
+  (affectNeighborsAfterRemoval exists in neither 1.21.4's nor
+  1.21.5's Block class; 1.21.4's Level.setBlock with flags=2 runs
+  neither blockUpdated nor the analog-output update, and the
+  commands send the notice themselves). The commands.rs wrapper
+  is replaced (it now reads the current state for the block);
+  fill's updated list is plain positions, no old states. (2)
+  strict REMOVED from /setblock and /fill: jar-verified a 1.21.5
+  addition (0 occurrences of "strict" in 1.21.4's
+  SetBlockCommand, FillCommand and CloneCommands; present in
+  1.21.5's; 1.21.4's setBlock has no boolean param and
+  FillCommand$Mode has only the filter field). block_input_state
+  always normalizes (1.21.4's BlockInput.place does
+  updateFromNeighbourShapes + overwriteWithDefinedProperties);
+  the dispatcher trees drop the strict literal; 44 test command
+  strings drop the token (all verified safe: fully-specified
+  properties are restored by overwriteWithDefinedProperties, the
+  rest have no neighbour-dependent properties, the fence sites
+  assert nothing about connections) and the 2 note tests use
+  explicit instrument=harp instead (one renamed). (3) The
+  debug-world check REMOVED from /setblock, /fill and /clone
+  (isDebug appears 0 times in 1.21.4's three command classes, 1
+  time each in 1.21.5's). Clone keeps its strict (CloneCommands
+  is outside item 42's classes, and the clone block-tick tests
+  depend on its strict semantics — a routed gap, see below);
+  place_state keeps its strict param for clone, and /place
+  template's strict (structure settings) is untouched.
+  NO-CHANGE: the teleportTo pitch clamp is already present
+  (pitch.clamp(-90, 90) at commands.rs:1698, matching 1.21.4's
+  Mth.clamp in teleportTo — routed from batch 5); /advancement
+  is same-behaviour (a shared helper vs inline messaging);
+  FillCommand.wrapWithMode is 1.21.5-only; the fill
+  destroy-count (affected) matches 1.21.4's DESTROY filter; the
+  block-entity clearing in place_state (remove without side
+  effects on a block change) is 1.21.4's Clearable.tryClear.
+  Item 43 (protocol/item/skip.rs): NO-CHANGE. All jar diffs are
+  ByteBufCodecs anonymous-class numbering only ($24 vs $23, $28
+  vs $26, $29 vs $27, $21 vs $20; fromCodecWithRegistries,
+  idMapper, registry are same) — zero behaviour. The tree diff
+  is just the component-id table, already re-pinned for 1.21.4
+  by the mechanical layer. Item 44 (widely named:
+  client/resources/model): NO-CHANGE. 15 vanilla classes, 85
+  methods, 0 named in Horizon; module_status missing-both — the
+  same shape as items 27 and 29. Lib check green (EXIT 0,
+  2m32s); --tests check green (EXIT 0, 4m06s). vanilla.rs,
+  entity_die_tests.rs and clone_block_ticks_tests.rs
+  rustfmt-clean; data.rs had 3 drift hunks from the strict drops
+  (fixed by hand to rustfmt's form) and terrain_cmds.rs 1 (fixed
+  the same way); commands.rs, raids.rs and the other test files
+  checked only (module roots / file-module declarers), with only
+  pre-existing drift hunks elsewhere (creatures.rs 3893/6110/
+  7088, persist.rs 1559, commands/extra.rs 127 — left alone).
+  Rank 2: 91/348.

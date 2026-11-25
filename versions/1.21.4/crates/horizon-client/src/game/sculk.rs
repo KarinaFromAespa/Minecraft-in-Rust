@@ -2706,8 +2706,8 @@ mod command_damage_listener_tests {
         let destination = (39, 200, 4);
         for (index, accepted) in [true, false].into_iter().enumerate() {
             if index != 0 {
-                assert!(game.run_command("setblock 7 200 4 air strict"));
-                assert!(game.run_command("setblock 39 200 4 air strict"));
+                assert!(game.run_command("setblock 7 200 4 air"));
+                assert!(game.run_command("setblock 39 200 4 air"));
             }
             let uuid = format!("00000071-0000-0000-0000-{:012x}", index + 1);
             assert!(game.run_command(&format!(
@@ -2716,8 +2716,8 @@ mod command_damage_listener_tests {
             )));
             let id = game.mobs.last().expect("actual summon must create pig").id;
             assert_eq!(game.uuid_for(id), [113, 0, 0, index as i32 + 1]);
-            assert!(game.run_command("setblock 7 200 4 sculk_sensor strict"));
-            assert!(game.run_command("setblock 39 200 4 sculk_sensor strict"));
+            assert!(game.run_command("setblock 7 200 4 sculk_sensor"));
+            assert!(game.run_command("setblock 39 200 4 sculk_sensor"));
             game.sculk_prepare();
             game.sculk_sync_index();
             assert!(selected(&game, origin).is_none());
@@ -2819,8 +2819,8 @@ mod shriek_capture_tests {
             .add_empty_chunk(ChunkPos::new(0, 0))
             .unwrap();
         assert!(game.run_command("forceload add 0 0"));
-        assert!(game.run_command("setblock 4 200 4 sculk_shrieker[waterlogged=false] strict"));
-        assert!(game.run_command("setblock 7 200 4 sculk_shrieker[waterlogged=true] strict"));
+        assert!(game.run_command("setblock 4 200 4 sculk_shrieker[waterlogged=false]"));
+        assert!(game.run_command("setblock 7 200 4 sculk_shrieker[waterlogged=true]"));
         assert_eq!(
             game.state_property(game.world.block(4, 200, 4), "waterlogged"),
             Some("false")

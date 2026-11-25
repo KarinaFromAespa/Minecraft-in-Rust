@@ -2363,13 +2363,15 @@ mod bell_command_identity_tests {
     fn placed_bell_is_a_real_stored_entity_with_command_metadata() {
         with_game(|game| {
             let clock = game.world.game_time;
-            assert!(game.run_command("setblock 8 200 4 chest[facing=north] strict"));
+            assert!(game.run_command("setblock 8 200 4 chest[facing=north]"));
             assert!(game.world.block_entities.contains_key(&(8, 200, 4)));
-            assert!(game.run_command("setblock 10 200 4 stone strict"));
+            assert!(game.run_command("setblock 10 200 4 stone"));
             assert!(game.block_entity_nbt([10, 200, 4]).is_none());
-            assert!(game.run_command(
-                "setblock 4 200 4 bell[facing=north,attachment=floor,powered=false] strict"
-            ));
+            assert!(
+                game.run_command(
+                    "setblock 4 200 4 bell[facing=north,attachment=floor,powered=false]"
+                )
+            );
             assert!(game.run_command(
                 "execute if block 4 200 4 bell[facing=north,attachment=floor,powered=false]"
             ));
@@ -2405,19 +2407,23 @@ mod bell_command_identity_tests {
             let (pos, back) = save::decode_block_entity(&tag).unwrap();
             assert_eq!(pos, (-3, 204, 11));
             assert_eq!(back.id(), "minecraft:bell");
-            assert!(game.run_command(
-                "setblock 4 200 4 bell[facing=east,attachment=floor,powered=false] strict"
-            ));
+            assert!(
+                game.run_command(
+                    "setblock 4 200 4 bell[facing=east,attachment=floor,powered=false]"
+                )
+            );
             assert_eq!(
                 game.world.block_entities.get(&(4, 200, 4)).unwrap().id(),
                 "minecraft:bell"
             );
-            assert!(game.run_command("setblock 4 200 4 air strict"));
+            assert!(game.run_command("setblock 4 200 4 air"));
             assert!(!game.world.block_entities.contains_key(&(4, 200, 4)));
             assert!(game.world.block_entities.contains_key(&(8, 200, 4)));
-            assert!(game.run_command(
-                "setblock 4 200 4 bell[facing=south,attachment=floor,powered=false] strict"
-            ));
+            assert!(
+                game.run_command(
+                    "setblock 4 200 4 bell[facing=south,attachment=floor,powered=false]"
+                )
+            );
             assert_eq!(
                 game.world.block_entities.get(&(4, 200, 4)).unwrap().id(),
                 "minecraft:bell"

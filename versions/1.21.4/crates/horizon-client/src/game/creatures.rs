@@ -9658,8 +9658,8 @@ mod chorus_projectile_drop_tests {
 
     fn source(game: &mut Game<'_>, x: i32, z: i32, block: &str) {
         assert!(game.world.chunks.contains_key(&(0, 0)));
-        assert!(game.run_command(&format!("setblock {x} 199 {z} end_stone strict")));
-        assert!(game.run_command(&format!("setblock {x} 200 {z} {block} strict")));
+        assert!(game.run_command(&format!("setblock {x} 199 {z} end_stone")));
+        assert!(game.run_command(&format!("setblock {x} 200 {z} {block}")));
         assert!(game.run_command(&format!("execute if block {x} 199 {z} end_stone")));
     }
     fn launch(game: &mut Game<'_>, kind: &str, n: i32, x: i32, z: i32, owner: bool) -> u32 {

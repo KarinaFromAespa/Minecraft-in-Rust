@@ -2765,16 +2765,14 @@ impl Game<'_> {
     }
     /// `BlockInput.overwriteWithDefinedProperties`: restore explicit command
     /// properties after normalizing the state against neighbouring blocks.
+    /// 1.21.4 has no `strict` mode (`SetBlockCommand`/`FillCommand` gained it
+    /// in 1.21.5): `BlockInput.place` always normalizes.
     fn block_input_state(
         &mut self,
         pos: [i32; 3],
         input: &BlockInput,
         state: BlockStateId,
-        strict: bool,
     ) -> R<BlockStateId> {
-        if strict {
-            return Ok(state);
-        }
         let updated = self.with_level(|b, level, ticks| {
             let at = horizon_core::position::BlockPos::new(pos[0], pos[1], pos[2]);
             let updated = b.update_from_neighbour_shapes(level, ticks, at, state);
@@ -2797,7 +2795,9 @@ impl Game<'_> {
     /// Place a state like BlockInput.place: false when nothing changed.
     /// `BlockInput.place` for a block of a command. `command`: `/setblock` and `/fill` place with
     /// `UPDATE_CLIENTS | UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS`, so `Level.setBlock` notifies no neighbour,
-    /// and send that notice themselves once the shape updates are done (`update_neighbours_on_block_set`):
+    /// and send that notice themselves once the shape updates are done (`update_neighbors_at`, 1.21.4's
+    /// `ServerLevel.blockUpdated` — plain neighbour notification; `updateNeighboursOnBlockSet` with its
+    /// removal side effects is a 1.21.6 addition):
     /// a block those shape updates pop off is gone before its neighbours are told of it.
     pub(super) fn place_state(
         &mut self,
@@ -2868,10 +2868,6 @@ impl Game<'_> {
             return Ok(0);
         };
         let state = self.block_state(&b)?;
-        // SetBlockCommand.setBlock: `ServerLevel.isDebug` fails it.
-        if self.world_debug {
-            return Err(err("commands.setblock.failed", &[]));
-        }
         let current = self.world.block(pos[0], pos[1], pos[2]);
         if ctx.has("keep") && current != self.world.air {
             return Err(err("commands.setblock.failed", &[]));
@@ -2886,10 +2882,8 @@ impl Game<'_> {
             true
         };
         if place_needed {
-            let state = self.block_input_state(pos, &b, state, ctx.has("strict"))?;
-            // SetBlockCommand.setBlock reads the old state after a destroy.
-            let old_state = self.world.block(pos[0], pos[1], pos[2]);
-            let placed = self.place_state(pos, state, ctx.has("strict"), true)?;
+            let state = self.block_input_state(pos, &b, state)?;
+            let placed = self.place_state(pos, state, false, true)?;
             let loaded = match &b.nbt {
                 Some(nbt) => self.load_block_entity_nbt(pos, nbt),
                 None => false,
@@ -2897,24 +2891,14 @@ impl Game<'_> {
             if !placed && !loaded {
                 return Err(err("commands.setblock.failed", &[]));
             }
-            if !ctx.has("strict") {
-                self.update_neighbours_on_block_set(pos, old_state)?;
-            }
-        } else if !ctx.has("strict") {
-            // ServerLevel.updateNeighboursOnBlockSet still runs when placing
-            // air was unnecessary. The unchanged air has no analog output or
-            // removal side effects, so only its neighbours need notification.
-            let remaining = self.world.block(pos[0], pos[1], pos[2]);
-            self.with_level(|b, level, ticks| {
-                b.update_neighbors_at(
-                    level,
-                    ticks,
-                    horizon_core::position::BlockPos::new(pos[0], pos[1], pos[2]),
-                    b.block(remaining),
-                );
-            });
-            self.process_level_events()
-                .map_err(|e| CommandError::new(Text::literal(e.to_string())))?;
+            // 1.21.4's `SetBlockCommand.setBlock` always calls `blockUpdated`
+            // (no `strict` mode to skip it — that came in 1.21.5).
+            self.update_neighbors_at(pos)?;
+        } else {
+            // `blockUpdated` still runs when placing air was unnecessary.
+            // The unchanged air has no analog output or removal side effects,
+            // so only its neighbours need notification.
+            self.update_neighbors_at(pos)?;
         }
         self.feedback(Text::tr(
             "commands.setblock.success",
@@ -2922,15 +2906,17 @@ impl Game<'_> {
         ));
         Ok(1)
     }
-    /// `ServerLevel.updateNeighboursOnBlockSet` (`Behaviours::update_neighbours_on_block_set`) for the
-    /// block now at `pos`, which replaced `old`.
-    fn update_neighbours_on_block_set(&mut self, pos: [i32; 3], old: BlockStateId) -> R<()> {
+    /// `ServerLevel.blockUpdated` (`Behaviours::update_neighbors_at`) for the
+    /// block now at `pos`: plain neighbour notification, no removal side
+    /// effects — the 1.21.4 form (`updateNeighboursOnBlockSet` is 1.21.6+).
+    fn update_neighbors_at(&mut self, pos: [i32; 3]) -> R<()> {
+        let current = self.world.block(pos[0], pos[1], pos[2]);
         self.with_level(|b, level, ticks| {
-            b.update_neighbours_on_block_set(
+            b.update_neighbors_at(
                 level,
                 ticks,
                 horizon_core::position::BlockPos::new(pos[0], pos[1], pos[2]),
-                old,
+                b.block(current),
             );
         });
         self.process_level_events()
@@ -3105,28 +3091,24 @@ impl Game<'_> {
         if area > i64::from(limit) {
             return Err(err("commands.fill.toobig", &[&limit, &area]));
         }
-        // FillCommand.fillBlocks: `ServerLevel.isDebug` fails it.
-        if self.world_debug {
-            return Err(err("commands.fill.failed", &[]));
-        }
         let state = self.block_state(&block)?;
         let air = self.world.air;
-        let (hollow, outline, destroy, strict, keep) = (
+        let (hollow, outline, destroy, keep) = (
             ctx.has("hollow"),
             ctx.has("outline"),
             ctx.has("destroy"),
-            ctx.has("strict"),
             ctx.has("keep"),
         );
-        let normalize_note = !strict
-            && self
-                .res
-                .behaviours()
-                .data(state)
-                .is(horizon_world::level::classes::Class::Note);
+        // 1.21.4 has no `strict` mode: a note block always normalizes its
+        // instrument against the block below it (`BlockInput.place`).
+        let normalize_note = self
+            .res
+            .behaviours()
+            .data(state)
+            .is(horizon_world::level::classes::Class::Note);
         let mut count = 0;
-        // What was placed, and what it replaced, for the notices after the last block.
-        let mut updated: Vec<([i32; 3], BlockStateId)> = Vec::new();
+        // What was placed, for the notices after the last block.
+        let mut updated: Vec<[i32; 3]> = Vec::new();
         // Whether the filter takes a state, worked out once per state: a fill visits up to 32768 blocks of a handful
         // of states, and matching a tag is a name lookup.
         let mut matched: std::collections::HashMap<BlockStateId, bool> =
@@ -3188,12 +3170,11 @@ impl Game<'_> {
                         state
                     };
                     let target = if normalize_note && target == state {
-                        self.block_input_state([x, y, z], &block, target, strict)?
+                        self.block_input_state([x, y, z], &block, target)?
                     } else {
                         target
                     };
-                    let previous = self.world.block(x, y, z);
-                    let placed = self.place_state([x, y, z], target, strict, true)?;
+                    let placed = self.place_state([x, y, z], target, false, true)?;
                     // BlockInput.place loads the tag into the block entity now
                     // there; a tag that changed it counts the block as placed.
                     // A hollow fill's core is plain air.
@@ -3204,9 +3185,7 @@ impl Game<'_> {
                             .is_some_and(|nbt| self.load_block_entity_nbt([x, y, z], nbt));
                     if placed || loaded {
                         count += 1;
-                        if !strict {
-                            updated.push(([x, y, z], previous));
-                        }
+                        updated.push([x, y, z]);
                     } else if affected {
                         count += 1;
                     }
@@ -3214,8 +3193,8 @@ impl Game<'_> {
             }
         }
         // FillCommand.fillBlocks: every block is in before any neighbour hears of one.
-        for (pos, previous) in updated {
-            self.update_neighbours_on_block_set(pos, previous)?;
+        for pos in updated {
+            self.update_neighbors_at(pos)?;
         }
         if count == 0 {
             return Err(err("commands.fill.failed", &[]));
@@ -3352,10 +3331,6 @@ impl Game<'_> {
             if !self.world.chunks.contains_key(&(p[0] >> 4, p[2] >> 4)) {
                 return Err(err("argument.pos.unloaded", &[]));
             }
-        }
-        // CloneCommands.clone: the destination level being a Debug world fails it.
-        if self.world_debug {
-            return Err(err("commands.clone.failed", &[]));
         }
         let filter = match ctx.get("filter") {
             Some(Arg::Block(f)) => Some(f.clone()),
@@ -5574,7 +5549,7 @@ mod fill_note_instrument_tests {
     fn an_existing_default_state_does_not_skip_note_normalization() {
         with_game(|game| {
             let clock = game.world.game_time;
-            assert!(game.run_command("setblock 4 200 4 note_block strict"));
+            assert!(game.run_command("setblock 4 200 4 note_block[instrument=harp]"));
             assert_eq!(instrument(game, 4, 4), "harp");
             assert!(
                 game.run_command("fill 4 200 4 4 200 4 note_block"),
@@ -5587,10 +5562,10 @@ mod fill_note_instrument_tests {
 
     #[test]
     #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-    fn strict_explicit_and_filtered_out_inputs_keep_their_existing_contracts() {
+    fn explicit_and_filtered_out_inputs_keep_their_existing_contracts() {
         with_game(|game| {
             let clock = game.world.game_time;
-            assert!(game.run_command("fill 4 200 4 4 200 4 note_block strict"));
+            assert!(game.run_command("fill 4 200 4 4 200 4 note_block[instrument=harp]"));
             assert_eq!(instrument(game, 4, 4), "harp");
             assert!(game.run_command("fill 8 200 4 8 200 4 note_block[instrument=banjo,note=7]"));
             assert_eq!(instrument(game, 8, 4), "banjo");

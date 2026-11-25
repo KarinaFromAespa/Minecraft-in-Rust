@@ -5783,7 +5783,7 @@ mod summoned_knot_tests {
     }
     fn summon_knots(game: &mut Game<'_>) -> [u32; 3] {
         for x in [6, 14] {
-            assert!(game.run_command(&format!("setblock {x} 200 6 oak_fence strict")));
+            assert!(game.run_command(&format!("setblock {x} 200 6 oak_fence")));
         }
         for (n, x) in [(1, 6), (2, 10), (3, 14)] {
             assert!(game.run_command(&format!("summon leash_knot {x}.2 200.8 6.9 {{UUID:[I;129,0,0,{n}],CustomName:\"knot\",Tags:[\"h129\"]}}")));
@@ -5860,7 +5860,7 @@ mod summoned_knot_tests {
                 game.tick().unwrap();
                 assert_eq!(game.world.game_time, clock + tick);
                 if tick == 1 {
-                    assert!(game.run_command("setblock 14 200 6 air strict"));
+                    assert!(game.run_command("setblock 14 200 6 air"));
                 }
                 if tick <= 100 {
                     assert!(
@@ -5908,8 +5908,8 @@ mod summoned_knot_tests {
             game.block_ticks
                 .add_empty_chunk(ChunkPos::new(-1, -1))
                 .unwrap();
-            assert!(game.run_command("setblock -2 199 -3 stone strict"));
-            assert!(game.run_command("setblock -2 200 -3 oak_fence strict"));
+            assert!(game.run_command("setblock -2 199 -3 stone"));
+            assert!(game.run_command("setblock -2 200 -3 oak_fence"));
             assert!(game.run_command("summon leash_knot -1.2 200.8 -2.1 {UUID:[I;129,0,0,5]}"));
             let id = knot_id(game, 5);
             assert_eq!(
@@ -5962,7 +5962,7 @@ mod summoned_knot_tests {
             use horizon_client::mobs::leash::Holder;
             assert!(game.run_command("tp @s 12.5 200 2.5"));
             assert!(game.run_command("item replace entity @s weapon.mainhand with lead"));
-            assert!(game.run_command("setblock 14 200 2 oak_fence strict"));
+            assert!(game.run_command("setblock 14 200 2 oak_fence"));
             let pig = game
                 .mobs
                 .iter()

@@ -239,13 +239,14 @@ fn registered_with_features(dev: bool, minecart_improvements: bool) -> Dispatche
     let nbt = d.argument(pos, "nbt", ArgType::Nbt);
     d.executes(nbt, "summon");
 
-    // setblock <pos> <block> [destroy|keep|replace|strict]
+    // setblock <pos> <block> [destroy|keep|replace] — no `strict` in 1.21.4
+    // (a 1.21.5 addition).
     let sb = d.literal(root, "setblock");
     d.requires(sb, GAMEMASTERS);
     let pos = d.argument(sb, "pos", ArgType::BlockPos);
     let block = d.argument(pos, "block", ArgType::BlockState);
     d.executes(block, "setblock");
-    for m in ["destroy", "keep", "replace", "strict"] {
+    for m in ["destroy", "keep", "replace"] {
         let l = d.literal(block, m);
         d.executes(l, "setblock");
     }
@@ -505,10 +506,10 @@ fn clock_nodes(d: &mut Dispatcher, node: usize) {
     let rep = d.literal(tl, "repetition");
     d.executes(rep, "time.query.repetition");
 }
-/// FillCommand.wrapWithMode.
+/// FillCommand.wrapWithMode. No `strict` in 1.21.4 (a 1.21.5 addition).
 fn fill_modes(d: &mut Dispatcher, node: usize) {
     d.executes(node, "fill");
-    for m in ["outline", "hollow", "destroy", "strict"] {
+    for m in ["outline", "hollow", "destroy"] {
         let l = d.literal(node, m);
         d.executes(l, "fill");
     }

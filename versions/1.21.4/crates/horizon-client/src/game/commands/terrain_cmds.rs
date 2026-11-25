@@ -1074,9 +1074,9 @@ mod loot_mine_component_tests {
             .unwrap();
         assert!(game.run_command("forceload add 0 0"));
         assert!(game.run_command("fill 0 199 0 15 199 15 stone"));
-        assert!(game.run_command(
-            "setblock 12 200 4 chest[facing=north,type=single,waterlogged=false] strict"
-        ));
+        assert!(
+            game.run_command("setblock 12 200 4 chest[facing=north,type=single,waterlogged=false]")
+        );
         assert!(
             game.run_command("item replace block 12 200 4 container.26 with minecraft:diamond 7")
         );
@@ -1111,7 +1111,7 @@ mod loot_mine_component_tests {
             ),
         ] {
             assert!(game.run_command(&format!(
-                "setblock {x} 200 4 decorated_pot[facing=north,cracked=false,waterlogged=false]{nbt} strict"
+                "setblock {x} 200 4 decorated_pot[facing=north,cracked=false,waterlogged=false]{nbt}"
             )));
             let pos = [x, 200, 4];
             let state = game.world.block(x, 200, 4);
@@ -1202,7 +1202,7 @@ mod loot_mine_component_tests {
             assert_eq!(decorations(&slot(&game, 2)), Some(empty.clone()));
             assert_eq!(game.world.game_time, start);
         }
-        assert!(game.run_command("setblock 10 200 4 dirt strict"));
+        assert!(game.run_command("setblock 10 200 4 dirt"));
         assert!(game.run_command("loot replace block 12 200 4 container.0 1 mine 10 200 4"));
         let plain = slot(&game, 0);
         assert_eq!((&*plain.item, plain.count), ("minecraft:dirt", 1));
@@ -1262,9 +1262,9 @@ mod loot_mine_component_tests {
         });
         assert!(game.source_entity().is_none());
         assert!(game.run_command("execute unless entity @s"));
-        assert!(game.run_command("setblock 12 200 4 chest strict"));
-        assert!(game.run_command("setblock 2 200 4 snow[layers=1] strict"));
-        assert!(game.run_command("setblock 4 200 4 dirt strict"));
+        assert!(game.run_command("setblock 12 200 4 chest"));
+        assert!(game.run_command("setblock 2 200 4 snow[layers=1]"));
+        assert!(game.run_command("setblock 4 200 4 dirt"));
         assert!(game.run_command("item replace block 12 200 4 container.26 with diamond 7"));
         assert!(game.run_command("item replace block 12 200 4 container.2 with diamond_shovel"));
         assert_eq!(&*slot(&game, 2).item, "minecraft:diamond_shovel");
@@ -1508,7 +1508,7 @@ mod loot_kill_target_tests {
             let before = (mob.id, mob.position, mob.velocity, mob.health);
             let x = 2 + n * 3;
             assert!(game.run_command(&format!(
-                "setblock {x} 200 8 chest[facing=north,type=single,waterlogged=false] strict"
+                "setblock {x} 200 8 chest[facing=north,type=single,waterlogged=false]"
             )));
             let Some(BlockEntity::Chest(initial)) = game.world.block_entities.get(&(x, 200, 8))
             else {
@@ -1657,9 +1657,9 @@ mod loot_mine_location_tests {
             ("absent", 12, 4, None, 0),
             ("negative-center", -4, -4, Some("oak_log[axis=x]"), 1),
         ] {
-            assert!(game.run_command(&format!("setblock {x} 200 {z} stone strict")));
+            assert!(game.run_command(&format!("setblock {x} 200 {z} stone")));
             if let Some(other) = counterpart {
-                assert!(game.run_command(&format!("setblock {} 200 {z} {other} strict", x + 1)));
+                assert!(game.run_command(&format!("setblock {} 200 {z} {other}", x + 1)));
             }
             assert!(game.run_command(&format!(
                 "execute if block {} 200 {z} {}",
@@ -1667,7 +1667,7 @@ mod loot_mine_location_tests {
                 counterpart.unwrap_or("air")
             )));
             let before = (game.world.block(x, 200, z), game.world.block(x + 1, 200, z));
-            assert!(game.run_command(&format!("setblock {x} 200 10 chest strict")));
+            assert!(game.run_command(&format!("setblock {x} 200 10 chest")));
             let Some(BlockEntity::Chest(initial)) = game.world.block_entities.get(&(x, 200, 10))
             else {
                 panic!("real output chest")

@@ -6586,8 +6586,8 @@ mod guest_close_listener_tests {
         sensor.vibration.selector.current.map(|(info, _)| info)
     }
     fn reset_listener(game: &mut Game<'_>) {
-        assert!(game.run_command("setblock 9 100 4 air strict"));
-        assert!(game.run_command("setblock 9 100 4 sculk_sensor strict"));
+        assert!(game.run_command("setblock 9 100 4 air"));
+        assert!(game.run_command("setblock 9 100 4 sculk_sensor"));
         game.sculk_prepare();
         game.sculk_sync_index();
         assert!(selected(game).is_none());
@@ -6669,7 +6669,7 @@ mod guest_close_listener_tests {
         assert!(game.run_command("forceload add 0 0 15 15"));
         assert!(game.run_command("fill 0 99 0 15 99 15 stone"));
         assert!(game.run_command("setblock 6 100 4 chest"));
-        assert!(game.run_command("setblock 9 100 4 sculk_sensor strict"));
+        assert!(game.run_command("setblock 9 100 4 sculk_sensor"));
         game.sculk_prepare();
         game.sculk_sync_index();
         assert!(selected(&game).is_none());
@@ -6780,7 +6780,7 @@ mod guest_close_listener_tests {
         close(&mut game, &mut host, 3, spectator);
         assert!(host.hub.guest(3).unwrap().menu.is_none());
         assert!(selected(&game).is_none());
-        assert!(game.run_command("setblock 6 100 4 air strict"));
+        assert!(game.run_command("setblock 6 100 4 air"));
         assert!(
             game.run_command("summon oak_chest_boat 6.5 100 4.5 {UUID:[I;112,0,0,9],NoGravity:1b}")
         );
