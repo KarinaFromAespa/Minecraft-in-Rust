@@ -153,14 +153,17 @@ pub fn armor_tint(undyed: Option<u32>, stack: Option<&crate::items::ItemStack>) 
     abgr(dyed)
 }
 pub use crate::pack_palette::{diffuse as dye, sheep_wool as sheep_wool_rgb};
-/// `ColorLerper.getLerpedColor(ColorLerper.Type.SHEEP, ageInTicks)`: the 16
-/// wool colours in DyeColor order, one per 25 ticks, lerped in between. The
-/// colour a `jeb_` sheep's wool takes.
-pub fn jeb_wool_rgb(age: f32) -> u32 {
+/// `SheepWoolLayer.render` (1.21.4; 1.21.5 moved it to
+/// `SheepRenderState.getWoolColor`): the 16 wool colours in DyeColor
+/// order, one per 25 ticks, lerped in between — the cycle index adds
+/// the sheep's entity id, so two `jeb_` sheep do not cycle in sync.
+/// 1.21.6's `ColorLerper` factored this out and dropped the id
+/// offset. The colour a `jeb_` sheep's wool takes.
+pub fn jeb_wool_rgb(id: u32, age: f32) -> u32 {
     // ageInTicks is the tick count plus the partial tick: never negative.
     let i = age.floor();
     let ticks = i as u64;
-    let j = ticks / 25;
+    let j = ticks / 25 + u64::from(id);
     let f = ((ticks % 25) as f32 + (age - i)) / 25.0;
     let lo = sheep_wool_rgb((j % 16) as u8);
     let hi = sheep_wool_rgb(((j + 1) % 16) as u8);
@@ -787,7 +790,7 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
             // MobRenderer.checkMagicName(entity, "jeb_"): an exact custom name.
             let jeb = m.custom_name.as_deref() == Some("jeb_");
             let color = abgr(if jeb {
-                jeb_wool_rgb(age)
+                jeb_wool_rgb(m.id, age)
             } else {
                 sheep_wool_rgb(m.extra.color)
             });
@@ -3254,18 +3257,23 @@ mod tests {
         assert_eq!(armor_tint(None, Some(&stack)), 0xFFFF_FFFF);
     }
 
-    /// `ColorLerper.getLerpedColor(Type.SHEEP, ageInTicks)`: the points the
-    /// 26.3 jar gave — 0, half a step, one whole step, a step boundary, the
-    /// last step back into white, and the 400-tick (16-step) wrap.
+    /// `SheepWoolLayer.render` (1.21.4): the points the 26.3 jar gave
+    /// for id 0 — 0, half a step, one whole step, a step boundary, the
+    /// last step back into white, and the 400-tick (16-step) wrap —
+    /// plus the entity-id offset: id 1 starts at orange, id 16 wraps
+    /// back to white.
     #[test]
     fn jeb_wool_lerps_through_the_sixteen_dye_colours() {
-        assert_eq!(jeb_wool_rgb(0.0), 0xE6E6E6);
-        assert_eq!(jeb_wool_rgb(12.5), 0xD0A37D);
-        assert_eq!(jeb_wool_rgb(25.0), 0xBA6015);
-        assert_eq!(jeb_wool_rgb(25.0), sheep_wool_rgb(1));
-        assert_eq!(jeb_wool_rgb(50.0), 0x953A8D);
-        assert_eq!(jeb_wool_rgb(399.0), 0xDDDDDD);
-        assert_eq!(jeb_wool_rgb(400.0), 0xE6E6E6);
+        assert_eq!(jeb_wool_rgb(0, 0.0), 0xE6E6E6);
+        assert_eq!(jeb_wool_rgb(0, 12.5), 0xD0A37D);
+        assert_eq!(jeb_wool_rgb(0, 25.0), 0xBA6015);
+        assert_eq!(jeb_wool_rgb(0, 25.0), sheep_wool_rgb(1));
+        assert_eq!(jeb_wool_rgb(0, 50.0), 0x953A8D);
+        assert_eq!(jeb_wool_rgb(0, 399.0), 0xDDDDDD);
+        assert_eq!(jeb_wool_rgb(0, 400.0), 0xE6E6E6);
+        assert_eq!(jeb_wool_rgb(1, 0.0), sheep_wool_rgb(1));
+        assert_eq!(jeb_wool_rgb(1, 25.0), sheep_wool_rgb(2));
+        assert_eq!(jeb_wool_rgb(16, 0.0), 0xE6E6E6);
     }
 
     fn sheep_layer(m: &Mob, model: &str, age: f32) -> Option<Layer> {

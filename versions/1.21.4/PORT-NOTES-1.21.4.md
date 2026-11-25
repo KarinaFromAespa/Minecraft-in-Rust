@@ -1651,3 +1651,62 @@ shape for the review batches.
   --tests check green (EXIT 0, 3m21s). All three edited files
   rustfmt-clean (arrows.rs checked, not reformatted — it declares
   the client_tests file module). Rank 2: 83/348.
+  Batch 15 (items 37 + 38 + 39 + 40). Item 37 (mobs/render.rs):
+  PORTED. jeb_wool_rgb gains the entity-id offset (ticks/25 + id)
+  — jar-verified in 1.21.4 SheepWoolLayer.render (floor(ageInTicks)
+  /25 + state.id, mod 16, ARGB.lerp with (age%25 + frac)/25); the
+  1.21.4 tree carried the 1.21.6 ColorLerper form without the id
+  (1.21.5 moved the computation to SheepRenderState.getWoolColor
+  with the same formula). The caller passes m.id and the tests are
+  extended (id 1 starts at orange, id 16 wraps to white). NO-CHANGE:
+  the mulPose Quaternionfc-vs-Quaternionf renames (AllayModel,
+  CrossedArmsItemLayer) are API-only; the four setupRotations,
+  SheepRenderer.extractRenderState and WitchItemLayer are
+  bytecode-identical; the updateForLiving left-hand bool is
+  internal to the Java item-model resolver (the Rust already
+  distinguishes hands). Item 38 (game/maps.rs): NO-CHANGE, tree
+  diff empty. CompassItem inventoryTick/useOn and EmptyMapItem.use
+  are API-only (ServerLevel cast vs isClientSide, playSound
+  overloads, local-slot reshuffles). The MapItemSavedData setDirty
+  differences (checkBanners, tickCarriedBy, toggleBanner call
+  setDirty in 1.21.5, not in 1.21.4) are server-save concerns with
+  no Rust equivalent — the Rust models banners/frames as render
+  data only. MapFrame entityId() vs getEntityId() is a
+  record-accessor rename; ExplorationMapFunction's MapItem.create
+  param type is API-only. Item 39 (game/dispenser.rs): PORTED.
+  (1) shear_off_leashes removed — tryShearLivingEntity is
+  byte-identical in both jars (Shearable + game event, no leash
+  handling); the 1.21.6 leash-cutting arm does not exist in 1.21.4.
+  (2) mob_can_use_slot rewritten to the 1.21.4 form (routed from
+  batch 6): the LivingEntity base returns false, Mob allows every
+  slot but BODY, Horse/Llama/Wolf allow them all; the
+  Pig/AbstractHorse saddle arms (grown/tame) are 1.21.5 additions,
+  and skeleton/zombie horses lose the body slot (no override —
+  they cannot wear horse armour in 1.21.4). (3)
+  mob_can_dispenser_equip rewritten: Pig/Strider have no override
+  in 1.21.4 (just canPickUpLoot), AbstractHorse is (BODY && tamed)
+  || loot — the saddle arms are 1.21.5, so a 1.21.4 dispenser
+  cannot saddle a pig, strider or horse (Animal/AgeableMob/
+  PathfinderMob add no override either). (4) Arrow
+  #doPostHurtEffects in potions.rs: the named potion's effects at
+  an eighth (integer division, min 1 tick), the custom effects
+  UNSCALED — the Rust scaled every effect by
+  potion_duration_scale, which does not exist in 1.21.4 (the
+  lambda is i/8, verified). (5) The setGuaranteedDrop comment is
+  carried (1.21.4: setDropChance(slot, 2.0F), verified equivalent
+  via DropChances.withGuaranteedDrop). NO-CHANGE: MobBucketItem
+  #spawn (createDefaultStackConfig param type), the two same-
+  methods; the Player canUseSlot comment is fixed (every slot but
+  BODY). Item 40 (game/frame_geometry.rs): NO-CHANGE, tree diff
+  empty. Every SkyRenderer difference is render-pipeline API with
+  identical geometry: buildEndSky/buildStars build GPU buffers in
+  1.21.5 vs writing into a passed VertexConsumer in 1.21.4 (same
+  vertices: sky disc at +/-100 with UV 16, 1500 stars from the
+  same random draws); renderSkyDisc/renderStars use RenderPass/
+  GpuBuffer vs VertexBuffer.drawWithRenderType; the sun/moon/
+  sunrise diffs are mulPose signature renames. The Rust models
+  frames/transforms only, with no buffer-API references. Lib check
+  green (EXIT 0, 2m01s); --tests check green (EXIT 0, 3m16s).
+  render.rs and dispenser.rs rustfmt-clean; potions.rs has only
+  two pre-existing drift hunks (lines 260, 2004) outside the
+  edited regions. Rank 2: 87/348.

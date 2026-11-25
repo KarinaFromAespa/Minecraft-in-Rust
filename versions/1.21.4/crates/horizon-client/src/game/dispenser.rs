@@ -213,34 +213,32 @@ pub(super) fn mob_slot_item(m: &Mob, slot: Slot) -> Option<Arc<str>> {
         Slot::Saddle => m.saddle_item().map(|s| s.item),
     }
 }
-/// `LivingEntity.canUseSlot` and its overrides.
+/// `LivingEntity.canUseSlot` and its overrides (1.21.4: the base returns
+/// false; `Mob` allows every slot but BODY; Horse, Llama and Wolf allow
+/// them all — the Pig/AbstractHorse saddle arms are a 1.21.5 addition).
 fn mob_can_use_slot(m: &Mob, slot: Slot) -> bool {
     let s = m.species();
     let grown = m.alive() && !m.is_baby();
     match s {
-        Species::Pig | Species::Strider if slot == Slot::Saddle => grown,
-        Species::Horse
-        | Species::SkeletonHorse
-        | Species::ZombieHorse
-        | Species::Llama
-        | Species::TraderLlama => true,
-        _ if equine(s) && slot == Slot::Saddle => grown && m.extra.tame,
+        Species::Horse | Species::Llama | Species::TraderLlama | Species::Wolf => true,
         _ if horizon_client::mobs::nautilus::is_nautilus(s)
             && matches!(slot, Slot::Saddle | Slot::Body) =>
         {
             grown && m.extra.tame
         }
         Species::SulfurCube if slot == Slot::Body => grown,
-        _ => true,
+        _ => slot != Slot::Body,
     }
 }
-/// `Mob.canDispenserEquipIntoSlot` and its overrides.
+/// `Mob.canDispenserEquipIntoSlot` and its overrides (1.21.4: the base is
+/// `canPickUpLoot`; `AbstractHorse` adds the body slot when tamed — the
+/// saddle arms are a 1.21.5 addition, so a 1.21.4 dispenser cannot saddle
+/// a pig, strider or horse).
 fn mob_can_dispenser_equip(m: &Mob, slot: Slot) -> bool {
     let s = m.species();
     let loot = m.extra.pick_up_loot;
     match s {
-        Species::Pig | Species::Strider => slot == Slot::Saddle || loot,
-        _ if equine(s) => matches!(slot, Slot::Body | Slot::Saddle) && m.extra.tame || loot,
+        _ if equine(s) => (slot == Slot::Body && m.extra.tame) || loot,
         _ if horizon_client::mobs::nautilus::is_nautilus(s) => {
             matches!(slot, Slot::Body | Slot::Saddle) || loot
         }
@@ -878,8 +876,8 @@ impl Game<'_> {
         // LivingEntity.canEquipWithDispenser: alive, the slot usable, the
         // item's allowed entities, the slot empty and the dispenser rule.
         let target = self.targets_at(front).into_iter().find(|t| match *t {
-            // Player.canUseSlot: every slot; the armour and the off hand are
-            // the ones an equippable item can reach.
+            // Player.canUseSlot: every slot but BODY; the armour and the
+            // off hand are the ones an equippable item can reach.
             Target::Player => {
                 allows("minecraft:player")
                     && match slot {
@@ -937,7 +935,7 @@ impl Game<'_> {
             Target::Mob(i) => {
                 let m = &mut self.mobs[i];
                 mob_set_slot(m, slot, one);
-                // setGuaranteedDrop / setPersistenceRequired.
+                // setDropChance(slot, 2.0F) / setPersistenceRequired.
                 m.persistent = true;
                 let sound = if m.silent {
                     None
@@ -1899,10 +1897,6 @@ impl Game<'_> {
     fn shear_entity(&mut self, target: Pos) -> Result<bool> {
         let shears = ItemStack::new("minecraft:shears", 1);
         for t in self.targets_at(target) {
-            // Entity.shearOffAllLeashConnections comes first, for any entity.
-            if self.shear_off_leashes(t) {
-                return Ok(true);
-            }
             let Target::Mob(i) = t else { continue };
             let m = &self.mobs[i];
             if !m.alive() {
@@ -2047,70 +2041,6 @@ impl Game<'_> {
             return Ok(true);
         }
         Ok(false)
-    }
-    /// `Entity.shearOffAllLeashConnections(null)`: the entity's own lead and
-    /// every lead held by it (within a 32 block box around its centre) drop;
-    /// a shear game event at the entity and a snip at its block follow.
-    fn shear_off_leashes(&mut self, t: Target) -> bool {
-        use horizon_client::mobs::{Who, leash::Holder};
-        let (holder, centre, own) = match t {
-            Target::Mob(i) => {
-                let m = &self.mobs[i];
-                let b = m.bounds();
-                (Holder::Mob(m.id), b.center(), Some(i))
-            }
-            Target::Player => {
-                let Some(v) = self.player_view() else {
-                    return false;
-                };
-                (Holder::Player, v.bounds.center(), None)
-            }
-            Target::Stand(_) => return false,
-        };
-        let area = Aabb::new(centre, centre).inflate(Vec3::new(16.0, 16.0, 16.0));
-        let mut leashed: Vec<(u32, usize)> = self
-            .mobs
-            .iter()
-            .enumerate()
-            .filter(|(_, m)| {
-                !m.removed && m.extra.leash == Some(holder) && overlaps(m.bounds(), area)
-            })
-            .map(|(j, m)| (m.id, j))
-            .collect();
-        leashed.sort_unstable();
-        let own_leashed = own.is_some_and(|i| self.mobs[i].extra.leash.is_some());
-        if leashed.is_empty() && !own_leashed {
-            return false;
-        }
-        // Leashable.dropLeash: a lead item at the leashed entity's feet.
-        let drop = |game: &mut Self, j: usize| {
-            if horizon_client::mobs::leash::remove(&mut game.mobs[j]).is_some() {
-                let at = game.mobs[j].position;
-                game.spawn_at_location(at, 0.0, ItemStack::new("minecraft:lead", 1));
-            }
-        };
-        if let Some(i) = own.filter(|_| own_leashed) {
-            drop(self, i);
-        }
-        for (_, j) in leashed {
-            drop(self, j);
-        }
-        let (at, who) = match t {
-            Target::Mob(i) => {
-                let m = &self.mobs[i];
-                (m.position, Who::Mob(m.id))
-            }
-            _ => (
-                self.player.as_ref().map_or(Vec3::ZERO, |p| p.position),
-                Who::Player,
-            ),
-        };
-        let ctx = self.who_context(Some(who), None);
-        self.post_game_event("minecraft:shear", [at.x, at.y, at.z], ctx);
-        let block = [at.x.floor() + 0.5, at.y.floor() + 0.5, at.z.floor() + 0.5];
-        self.audio
-            .play("minecraft:item.shears.snip", Some(block), 1.0, 1.0);
-        true
     }
     /// The brush behaviour: the first armadillo in front that `brushOffScute`s.
     fn dispense_brush(&mut self, pos: Pos, facing: Direction, stack: ItemStack) -> Dispensed {

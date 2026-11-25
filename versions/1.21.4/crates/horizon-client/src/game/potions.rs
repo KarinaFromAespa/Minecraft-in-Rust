@@ -845,10 +845,10 @@ impl Game<'_> {
     }
     /// `Arrow.doPostHurtEffects` and `SpectralArrow.doPostHurtEffects`: the
     /// arrow's item gives its target Glowing (spectral) or its potion contents
-    /// at the stack's duration scale (a tipped arrow's default is an eighth);
-    /// a mob's arrow without such an item (a stray's) carries its own effect.
-    /// Instant effects act at once: harming hurts and healing heals, the
-    /// other way round for the undead.
+    /// — the named potion's effects at an eighth, the custom effects
+    /// unscaled; a mob's arrow without such an item (a stray's) carries its
+    /// own effect. Instant effects act at once: harming hurts and healing
+    /// heals, the other way round for the undead.
     pub(super) fn arrow_post_hurt_effects(&mut self, p: &Projectile, who: Who) {
         let from_item = p.arrow.as_ref().map(|a| &a.pickup_item);
         let mut effects: Vec<(&'static str, i32, i32)> = match from_item {
@@ -859,13 +859,23 @@ impl Game<'_> {
                 vec![("glowing", ticks, 0)]
             }
             Some(s) => {
-                let scale = s.potion_duration_scale();
-                brewing::contents_effects(s)
-                    .into_iter()
-                    .map(|(id, d, amp)| {
-                        (id, horizon_client::effects::scaled_duration(d, scale), amp)
-                    })
-                    .collect()
+                // 1.21.4 `Arrow.doPostHurtEffects`: the named potion's
+                // effects at an eighth (integer division, min 1 tick),
+                // the custom effects unscaled — there is no
+                // `potion_duration_scale` in 1.21.4 (the 1.21.5 form
+                // scales every effect by the stack's scale).
+                let named = s
+                    .potion()
+                    .and_then(brewing::potion)
+                    .map_or(&[][..], |d: &brewing::PotionDef| d.effects);
+                let mut effects: Vec<(&'static str, i32, i32)> = named
+                    .iter()
+                    .map(|(id, d, amp)| (*id, (*d / 8).max(1), *amp))
+                    .collect();
+                effects.extend(s.custom_potion_effects().iter().filter_map(
+                    |(id, duration, amp)| Some((brewing::effect(id)?.id, *duration, *amp)),
+                ));
+                effects
             }
             None => Vec::new(),
         };
