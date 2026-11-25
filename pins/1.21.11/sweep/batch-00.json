@@ -1,0 +1,121 @@
+{
+ "batch": 0,
+ "checks": {
+  "total": 391,
+  "pass": 127,
+  "gap": 264
+ },
+ "date": "2026-11-25",
+ "items": [
+  {
+   "id": "O1",
+   "title": "LocalPlayer constructor group: 18 oracles fail on the 26.3 ctor form (1.21.11 wants 7 args)",
+   "severity": "major",
+   "status": "gap",
+   "method": "javac fixpoint + javap",
+   "evidence": "1.21.11's LocalPlayer constructor takes 7 arguments (Minecraft, ClientLevel, ClientPacketListener, StatsCounter, ClientRecipeBook, Input, boolean — javap-verified on the 1.21.11 client jar, identical to 1.21.10's); the oracles call it with the 26.3 9-argument form, so all 18 fail: VanillaAllayInteractionStateOracle, VanillaAmbientOracle, VanillaAutoJumpOracle, VanillaBoatRiderOracle, VanillaCameraOracle, VanillaFireStarterSoundOracle, VanillaGameLoopOracle, VanillaHeldDropOracle, VanillaHeldItemStackOracle, VanillaHudOracle, VanillaInteractionInputOracle, VanillaLocalInputOracle, VanillaMarkerParticlesOracle, VanillaPlayerSyncOracle, VanillaRemoteAttackOracle, VanillaSoundEngineOracle, VanillaSprintInputOracle, VanillaTeamRulesOracle (membership is 1.21.10's 20 minus VanillaFirstPersonOracle and VanillaSheepDyeOracle, both adapted in the 1.21.11 tree and now passing). 7 are first-error on client cp; 3 are single-cause (VanillaAmbientOracle, VanillaLocalInputOracle, VanillaPlayerSyncOracle — vs 1 in 1.21.10). One signature translation rescues the 3 single-cause files outright."
+  },
+  {
+   "id": "O2",
+   "title": "javac crash risk on BOTH driver classpaths: jsr305 missing from the tree and from both library paths (latent)",
+   "severity": "major",
+   "status": "gap",
+   "method": "source read + 1.21.7 precedent (d7a14e91) + 1.21.10 comparison",
+   "evidence": "No tools/*.py file in the 1.21.11 tree mentions jsr305: test_model_baking_parity.py:client_libraries() builds the client classpath from the manifest only, test_rust_parity.py does NOT carry the 1.21.7 server-path fix (d7a14e91) that 1.21.10's tree has at lines 112-115, and oracle_harness.py / lab.py have no jsr305 handling. The jar itself is absent from the tree (versions/1.21.11/tools/jsr305-3.0.2.jar does not exist; the port workdir's copy, sha1 25ea2e8b, is what the measurement used) and no manifest library contains javax.annotation.Nullable (verified by listing all 99 library jars). Without jsr305, javac can crash (CompletionFailure: class file for javax.annotation.Nullable not found, rc=4) when compiling an oracle that completes a Nullable-referencing symbol — a latent crash across both the oracle_harness drivers and the direct server-path drivers. Worse than 1.21.10, where the jar existed in-tree and the server path was fixed."
+  },
+  {
+   "id": "O3",
+   "title": "Abstract-method gaps: Level.fuelValues() (5 oracles) + 1 other missing override",
+   "severity": "major",
+   "status": "gap",
+   "method": "javac fixpoint + javap",
+   "evidence": "1.21.11's Level declares public abstract FuelValues fuelValues() (javap-verified: net.minecraft.world.level.block.entity.FuelValues); the oracles' fake Level subclasses don't implement it: VanillaActiveEffectTickOracle, VanillaAttributeUpdatesOracle, VanillaBlockEntityAnimOracle, VanillaLivingLandingOracle (same 4 as 26.1.2 and 1.21.10), plus VanillaBlockEntityRenderOracle which references fuelValues() among its errors. One more missing-override file has a different abstract gap: VanillaDecorationRegionOracle (first error at line 49 — anonymous class missing a lookup… override on RegistryInfoLookup; 16 errors, same as 1.21.10). Mechanical repair: add a fuelValues() override returning a default to each fake level."
+  },
+  {
+   "id": "O4",
+   "title": "densityfunction package absent from 1.21.11 (26.3-only API): 17 oracles",
+   "severity": "major",
+   "status": "gap",
+   "method": "javac fixpoint + jar listing",
+   "evidence": "net.minecraft.world.level.levelgen.densityfunction has ZERO entries in the 1.21.11 server-game.jar AND client.jar (verified by jar listing) — the SamplerContext/DensityVolume API is a 26.3 addition. Membership IDENTICAL to 1.21.10's and 26.1.2's 17 files: VanillaAnchorOracle (10 errors, blocks 9 drivers), VanillaBiomeGenerationOracle (12), VanillaBiomeSourceCodecOracle (9), VanillaBiomeSourceOracle (10), VanillaDensityOracle (251 errors, the largest single failure), VanillaFloatLogOracle (9), VanillaMaterialConditionOracle (76 errors, blocks 5 drivers), VanillaMaterialExtensionOracle (12), VanillaMaterialStageOracle (28 — vs 26 in 1.21.10), VanillaMaterialSurfaceOracle (15), VanillaNoiseOracle (32), VanillaStructureDensityOracle (4), VanillaStructurePlacementOracle (17 — vs 16), VanillaStructureStartOracle (2), VanillaTerrainOracle (13), VanillaWorldSpawnOracle (5), VanillaWorldgenOracle (42). VanillaStructureDensityOracle is unrepairable by design (same ruling as every prior run); the others need per-file translation to 1.21.11's actual density API."
+  },
+  {
+   "id": "O5",
+   "title": "EntityTypes holder move: 30 oracles reference the 26.2+ holder absent from 1.21.11",
+   "severity": "major",
+   "status": "gap",
+   "method": "javac fixpoint + javap + jar listing",
+   "evidence": "1.21.11 predates the EntityTypes/BlockEntityTypes move — registration still lives in net.minecraft.world.entity.EntityType / net.minecraft.world.level.block.entity.BlockEntityType (the 1.21.x shape). EntityTypes and BlockEntityTypes have ZERO entries in the 1.21.11 server-game.jar; the constants exist on the old holder instead (EntityType.PLAYER, EntityType.CHICKEN — javap-verified static finals) and BlockEntityType.BED exists. 30 files reference EntityTypes./BlockEntityTypes.: EntityTranscript, KnockbackClient, LocatorBarClient (17 errors, blocks 8 drivers), RideTranscript, VanillaAllayInteractionStateOracle, VanillaBlockEntityAnimOracle, VanillaBoatAuthorityOracle, VanillaBoatRiderOracle, VanillaBreezeHookOracle, VanillaDispenserOracle (19 errors, blocks 6 drivers), VanillaEntityDeathLootOracle, VanillaFinalizeSpawnOracle, VanillaLateEntityPairOracle, VanillaMenuOracle (8 errors), VanillaMobAiOracle, VanillaMobBreathingOracle, VanillaMobFallResetOracle, VanillaNaturalSpawnOracle, VanillaProtocolClient (39 errors, blocks 8 drivers), VanillaRegistryFallRayOracle, VanillaRemoteAttackOracle, VanillaSceneMotionOracle, VanillaShulkerBulletOracle, VanillaShulkerSpaceOracle, VanillaSourceSilenceOracle, VanillaSprintInputOracle, VanillaSquidClientOracle, VanillaTradingOracle, VanillaWetFireOracle, VanillaWorldRayOracle (1.21.10's 32 minus VanillaCommandExecOracle and VanillaItemModelOracle, both adapted out and now passing). Repair is a mechanical EntityTypes.X → EntityType.X translation per reference."
+  },
+  {
+   "id": "O6",
+   "title": "Other 26.3-only packages: renderpearl (8), material.rule (5), clock (13), classfile (3), model APIs, advancements (2), authlib.services (1), lwjgl.sdl (1); the 1.21.11-era packages do NOT reproduce",
+   "severity": "major",
+   "status": "gap",
+   "method": "javac fixpoint + jar listings (1.21.11 + 1.21.10)",
+   "evidence": "26.x-only packages absent from 1.21.11 (0 jar entries each): com.mojang.renderpearl.api.pipeline/.buffers (8 oracles, identical membership to 1.21.10), net.minecraft.world.level.levelgen.material.rule (5 source refs, 3 first-errors, all also O4), net.minecraft.world.clock (13 source refs, 10 first-errors), java.lang.classfile (+.instruction, 3 refs: SeedAgent 5 errors, VanillaFrameLimiterOracle 7 — a real --release 21 failure), net.minecraft.client.resources.model.geometry/.sprite (11 refs, 3 first-errors), net.minecraft.client.renderer.block.dispatch (7 refs), net.minecraft.client.renderer.state.level (3 refs), net.minecraft.client.model.object.book/.banner (3 refs), advancements.predicates/triggers (2 files: ComponentWireCapture, VanillaRaidOracle — 1.21.11 has only critereon), com.mojang.authlib.services (VanillaTabListOracle only — CommandExec adapted out), org.lwjgl.sdl (VanillaTickScript). NOT reproducing (present in the 1.21.11 jar, zero errors): net.minecraft.world.level.gamerules (26 refs, 9 jar entries), entity sub-packages (33 refs), net.minecraft.world.attribute (31 refs, 53 entries), net.minecraft.gizmos (4 refs, 20 entries), net.minecraft.server.permissions (12 refs, 18 entries). net.minecraft.util.filefix is GONE as a failure (0 refs — VanillaDataFixOracle rewritten without it, now passes)."
+  },
+  {
+   "id": "O7",
+   "title": "264 oracles fail javac on all three classpaths (67.5%); 289 drivers blocked",
+   "severity": "major",
+   "status": "gap",
+   "method": "javac fixpoint + driver mapping",
+   "evidence": "127/391 oracles (32.5%) compile on at least one classpath; 264 fail on all three (server 102 pass / 289 fail, client 127 pass / 264 fail, both identical to client). Of 648 drivers: 289 blocked (server 158, both 85 + 14 no-flag, client 32), 105 runnable by javac only, 254 with no oracle reference. Better than 1.21.10 (104 pass, 287 fail-all, 314 blocked): 23 files pass new vs 1.21.10, 0 fail new; 98 error counts shrank, 7 grew (all 7 source-delta). Still well below 26.1.2 (189 pass)."
+  },
+  {
+   "id": "O8",
+   "title": "Runtime-failure layer unmeasured: compiling oracles can still throw at runtime",
+   "severity": "major",
+   "status": "gap",
+   "method": "scope statement + 1.21.7 precedent",
+   "evidence": "No driver was run in this batch (scope decision: measurement + triage only), so the runtime-failure layer the 1.21.7 sample found (a compiling oracle throwing at runtime) is unmeasured for 1.21.11. The 105 'runnable' drivers are runnable by javac only. The one concrete runtime crash from prior runs (ComponentPatch Removed, O12) is FIXED in this tree, but every repaired oracle still needs an end-to-end driver run to confirm it yields a measurement."
+  },
+  {
+   "id": "O9",
+   "title": "Re-ported 26.3-form oracle sources (E6-chain inheritance): 16 of 17 still fail; the template's sources are only partially 1.21.11-form",
+   "severity": "major",
+   "status": "gap",
+   "method": "javac fixpoint + source diff + javap",
+   "evidence": "16 of the 17 1.21.10 G10 files still fail in 1.21.11 with the same 26.3-form signatures (Feature.DIRECT_CODEC, no-arg new Feature(), 4-arg place, BrewingFuel/BlockTransformer components, PositionAndRotation, LivingEntity.SwingState — all 0 jar entries in 1.21.11): VanillaBasicFeatureOracle (2), VanillaBiomePlacementOracle (8), VanillaBlockTransformerOracle (3), VanillaBrewingFuelOracle (9), VanillaBrewingOracle (14), VanillaDecorationRegionOracle (16), VanillaFeatureCatalogOracle (11), VanillaFeatureGraphOracle (4), VanillaFeaturePlacementOracle (3), VanillaFeatureRegionOracle (15), VanillaFeatureSortOracle (1), VanillaFillLayerOracle (1), VanillaReplaceBlockOracle (1), VanillaScatteredOreOracle (1), VanillaSteppedInterpolationOracle (16), VanillaTreeFeatureOracle (15 — vs 16 in 1.21.10). 8 are byte-identical to the 1.21.10 files, 8 differ in source. The exception is VanillaFirstPersonOracle, which PASSES on client+both here (the 1.21.11 source is adapted to the classic swing model). The template's sources are only partially 1.21.11-form: 19 files carry explicit 1.21.11 adaptation comments, and in 7 files the 1.21.10 port adapted further than the template did (VanillaNaturalSpawnOracle 22 → 30 errors is the visible inversion — 1.21.10's port-adapted 11-arg ServerLevel call vs the template's unadapted 10-arg form)."
+  },
+  {
+   "id": "O10",
+   "title": "ServerLevel constructor group: 85 oracles fail on the 26.x 10-arg form (1.21.11 wants 11 args)",
+   "severity": "major",
+   "status": "gap",
+   "method": "javac fixpoint + javap",
+   "evidence": "1.21.11's ServerLevel constructor takes 11 arguments (MinecraftServer, Executor, LevelStorageAccess, ServerLevelData, ResourceKey, LevelStem, boolean, long, List<CustomSpawner>, boolean, RandomSequences — javap-verified on the 1.21.11 server-game jar, IDENTICAL to 1.21.10's); the oracles call the 26.x 10-argument form (no RandomSequences). 85 files carry the error; 66 of the 82 constructor-mismatch first errors on client cp are ServerLevel. 28 files are single-cause — one mechanical fix (append the RandomSequences argument) rescues them outright: VanillaActiveEffectsOracle, VanillaAttributeHealthOracle, VanillaAttributeMapQueriesOracle, VanillaBlockEventReadinessOracle, VanillaClimbingOracle, VanillaCombatRulesOracle, VanillaConsumeEffectOracle, VanillaCrackFeedbackOracle, VanillaDamageReductionOracle, VanillaEdgeBackoffOracle, VanillaEffectSyncOracle, VanillaFallDamageOracle, VanillaFoodPropertiesOracle, VanillaGroundStateOracle, VanillaHelmetDamageOracle, VanillaItemUseLifecycleOracle, VanillaLiveAttributeUpdatesOracle, VanillaLivingDamageOracle, VanillaMovementEmissionOracle, VanillaMovementSupportOracle, VanillaPistonMovementOracle, VanillaPlayerFoodOracle, VanillaRedstonePersistenceOracle, VanillaServerPlayerDamageOracle, VanillaStoredConsumeOracle, VanillaStoredEffectNotificationsOracle, VanillaSwimmingOracle, VanillaWaterSplashOracle. The 1.21.7 12-arg fix does NOT carry (no ChunkProgressListener parameter here)."
+  },
+  {
+   "id": "O11",
+   "title": "MobAi driver gates nothing 1.21.11 cannot run: 16 age-lock scenarios ungated (spears + copper golem runnable here)",
+   "severity": "minor",
+   "status": "gap",
+   "method": "source read + jar listing + javap",
+   "evidence": "test_mob_ai_parity.py runs all 278 scenarios ungated (the 1.21.7 Batch 0 gating is NOT in the 1.21.11 tree). Against 1.21.11's own jar: copper golem EXISTS (11 jar entries — golem scenarios runnable) and spears EXIST (WOODEN_SPEAR…GOLDEN_SPEAR on Items, javap-verified — the 4 spear scenarios at lines 60-74 are runnable), so those parts of the 1.21.7/1.21.10 concern are withdrawn. But the AgeableMob age lock is ABSENT (no setAgeLocked/ageLocked — only setAge, javap-verified), so the 16 age scenarios ({pig,cow,horse,turtle}_age_{-2,2}_noai_{False,True}, lines 90-94) set an age the version cannot lock and will fail at runtime for want of the gating."
+  },
+  {
+   "id": "O12",
+   "title": "ComponentPatch oracle runtime crash: 26.x-only Removed class via reflection — FIXED in this tree",
+   "severity": "major",
+   "status": "fixed",
+   "method": "source read + jar listing + 1.21.7 precedent (B0-O10)",
+   "evidence": "The 1.21.11 VanillaComponentPatchOracle uses the Optional.empty() form (the 1.21.7 repair form): patchText reads (java.util.Optional<?>)e.getValue() and text() handles null, with NO Class.forName(\"net.minecraft.core.component.Removed\") anywhere in the file (verified by grep + diff vs the 1.21.10 oracle, which still carries the reflection at line 14). Removed has 0 entries in the 1.21.11 jars, but the oracle no longer references it, so the ClassNotFoundException cannot occur. The oracle compiles clean on all three classpaths. 1.21.10's O12 / 1.21.7's B0-O10 are FIXED for 1.21.11."
+  },
+  {
+   "id": "O13",
+   "title": "Template adaptations change oracle output formats; probe-side matching unverified",
+   "severity": "minor",
+   "status": "gap",
+   "method": "source read + re-check against the 1.21.11 measurement",
+   "evidence": "Unlike 1.21.10 (whose O13 was closed because no format-changing repairs exist in that tree), the 1.21.11 tree DOES carry format-relevant oracle adaptations: VanillaSuffocationOracle outputs motion-based rule names ('motion_full' where the 26.x oracle outputs 'tagged_full' — '1.21.11 has no causes_suffocation tag: the default rule is motion-based') and VanillaSoundEventOracle computes attenuation with the 26.x formula mirrored in the oracle ('1.21.11's Sound exposes only the base attenuation distance; the volume scaling is the 26.x getAttenuationDistance(volume) formula (max(volume, 1) * base), mirrored by the Rust fixture'). Whether the Rust probes/fixtures match these changed outputs is unverified — no driver was run in this batch. Family-batch triage (drive the suffocation/sound drivers end-to-end), not a Batch 0 fix."
+  }
+ ],
+ "method": "Fixpoint big-compile of all 391 Java oracles against the named 1.21.11 jars on three classpaths (server, client, both), one javac invocation per fixpoint round; driver mapping by parsing oracle basenames + oracle-name string literals across all 648 drivers. Measurement + triage only — no oracle was repaired and no driver was run in this batch, per the sweep brief (checks + triage only, do not touch versions/1.21.11/ code). The one exception is the probe check (H01): game_loop_probe.rs was checked statically against the 1.21.11 tree and the coordinator's cargo check is PENDING — see report.md. Systematic groups verified against the 1.21.11 jars with javap / jar listings (never assumed from the 26.3 base or the 1.21.10 form); the 1.21.10 jar was listed/javap'd to date the 1.21.11-era API arrivals.",
+ "name": "Oracle measurement (Batch 0, no repairs)",
+ "out_of_scope_failures": "No driver was run, so no parity defect was found by execution in this batch; the 9-harness check (1.21.7's table, re-measured) shows ALL 9 harnesses' oracles pass on at least one classpath for 1.21.11 at measurement time — chunk_generation (VanillaChunkGenerationOracle, all cps), command_exec (VanillaCommandExecOracle, all cps — Batch 9's command_parse run is NOT oracle-blocked), component_patch (VanillaComponentPatchOracle, all cps — and no runtime crash: the Optional.empty() form is in this tree, see O12), datafix (VanillaDataFixOracle, all cps), first_person (VanillaFirstPersonOracle, client + both), food (VanillaFoodOracle, all cps), item_model (VanillaItemModelOracle, client + both), options (VanillaOptionsOracle, client + both) and resource_pack (VanillaPackResourcesOracle, client + both). The 254 drivers with no oracle reference were mapped but not run (server-e2e/data/wrappers — outside the oracle-measurement scope). Prepared horizon-client data does not exist anywhere on the VM and must be built before any driver runs (see report.md).",
+ "source": "docs/PARITY-SWEEP.md section 4 Batch 0 + section 3 methodology — measurement run 2026-11-25, checks + triage only, no port behaviour touched, no oracle repaired. Per-oracle table: docs/sweep/1.21.11/batch-0-oracles.json; full report: docs/sweep/1.21.11/batch-0-measurement.md.",
+ "systemic_note": "Same root cause as the pilot's G1/G3/G5/G6, one API step back instead of two: the 1.21.11 tree carries 26.3 API forms (packages, constructors, abstract methods, holder classes) for things that do not exist in vanilla 1.21.11, and every such reference fails loudly at javac time in the oracles (unlike the port code, where the same pattern silently degrades). New vs 1.21.10: the 1.21.11-era APIs (GameRules, entity sub-packages, permissions, gizmos, world.attribute) now EXIST in the jar, and the template port adapted 19 oracle sources to 1.21.11 in-tree — so this run improves on 1.21.10 (23 new passes, 0 new fails) instead of degrading further. But the adaptation is uneven: the 17 re-ported 26.3-form files are still 26.3-form, and in 7 files the 1.21.10 port adapted further than the template did. The 1.21.7 sweep's repairs are not in this tree and must be re-derived for 1.21.11 (11-arg ServerLevel, not 12-arg; gamerules package, not world.level) — with the ComponentPatch Optional.empty() form already in-tree as the exception.",
+ "version": "1.21.11"
+}
