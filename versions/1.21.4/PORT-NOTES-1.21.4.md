@@ -2006,3 +2006,54 @@ shape for the review batches.
   wet_fire_tests.rs rustfmt-clean; ai.rs clean by --check;
   mobs.rs and game.rs checked only (module roots). Rank 2:
   103/348.
+  Batch 20 (items 57 + 58 + 59 + 60). Item 57 (game/boats.rs):
+  PORTED. (1) The chest-boat sneak hunk is carried (routed from
+  batch 8): AbstractChestBoat.interact checks isSecondaryUseActive
+  in both jars, byte-identical — a sneaking player opens the
+  chest instead of the leash step, even with a lead in hand.
+  (2) The bubble-column wobble's phase is the level's game time
+  in 1.21.4 (10.0f * sin(0.5f * gameTime)), not the boat's
+  tickCount (1.21.5) — tick_bubble_wobble takes game_time, the
+  dead tick_count field is removed, both call sites (boats.rs
+  and remote_vehicles.rs) pass world.game_time, and the tests
+  advance the game time. NO-CHANGE: onAboveBubbleColumn is
+  onAboveBubbleCol in 1.21.4 (a rename); the
+  getGroundFriction / pushEntitiesUp move(Vec3i)-vs-move(DDD)
+  difference is API-only; fallDistance float-vs-double is left
+  at f64 (the 1.21.5 port's scoping); the tick lerp is the
+  InterpolationHandler naming lag (item 55). Item 58
+  (game/interaction_shapes.rs): NO-CHANGE, comment-only. The
+  values are identical — 1.21.4 builds the cauldron/hopper
+  shapes with literal Block.box calls (javap-verified: cauldron
+  INSIDE box(2,4,2,14,16,14), hopper INSIDE plus the
+  *_INTERACTION_SHAPE statics) and 1.21.5 with the column/boxZ
+  helpers (1.21.5-only), so only the citations change. fallOn
+  float-vs-double and the spawnDestroyParticles Player-vs-Entity
+  overload are API-only. Item 59 (game/advancements.rs):
+  PORTED. (1) The AdvancementToast fade is carried wholesale —
+  the bytecode is identical in both jars: the label draws at
+  full opacity until 1.5 s, then the title lines fade in with
+  (fade * 252) | 0x40 (never below alpha 64); the 1.21.4 tree's
+  1.21.6 form (label fades out, lines fade in from 0) is
+  replaced, with advancement_title_alpha and its test added.
+  (2) Toast sounds are un-deduped: 1.21.4 has no
+  playedToastSounds set — every visibility change plays
+  ui.toast.in/out (1.21.5 dedups each event once per update).
+  NO-CHANGE: the showAdvancements toast gate was already
+  removed (batch 12); the AdvancementRewards#grant playSound
+  overload and ItemPredicate#test are API-only/same. Item 60
+  (merchant.rs): NO-CHANGE, comment-only.
+  DataComponentPredicate (1.21.4) and
+  DataComponentExactPredicate (1.21.5) have identical subset
+  semantics — both check Objects.equals for each expected
+  component, extras allowed (javap-verified); only the getter
+  interface differs, so only the citation changes.
+  selectEnchantment's WeightedRandom form differs only in the
+  weight-function argument (same selection); the Rust's
+  enchant.rs select_with does its own weighted pick. Lib check
+  green (EXIT 0, 7m32s, no warnings); --tests check green
+  (EXIT 0, 4m35s, no warnings). boats.rs needed one hand fix
+  in the edited region (the wobble assignment's line break);
+  interaction_shapes.rs, advancements.rs and merchant.rs
+  rustfmt-clean; remote_vehicles.rs has only pre-existing drift
+  elsewhere (lines 282-293 — left alone). Rank 2: 107/348.

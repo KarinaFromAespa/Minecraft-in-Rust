@@ -130,8 +130,10 @@ impl ItemCost {
         if s.item != self.stack.item {
             return false;
         }
-        // ItemCost.test / DataComponentExactPredicate.test: exact values for
-        // each required component, with unrelated components allowed.
+        // ItemCost.test / DataComponentPredicate.test: exact values for
+        // each required component, with unrelated components allowed
+        // (1.21.5 renamed the predicate DataComponentExactPredicate;
+        // the subset semantics are identical).
         let Some(horizon_world::nbt::Tag::Compound(required)) =
             crate::item_data::components_tag(self.stack.damage, self.stack.data())
         else {

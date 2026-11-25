@@ -71,8 +71,6 @@ pub(super) struct Boat {
     /// The server asked a rider whose client moves it (a player) to get out:
     /// `guest_vehicle_tick` honors it (`Entity.ejectPassengers`).
     pub eject_riders: bool,
-    /// `Entity.tickCount`, counted where the wobble is (a client's tick).
-    tick_count: i32,
     /// `AbstractBoat.bubbleMultiplier`, `bubbleAngle` and `bubbleAngleO`
     /// (a client's).
     bubble_multiplier: f32,
@@ -200,7 +198,6 @@ impl Boat {
             above_bubble_column: false,
             bubble_down: false,
             eject_riders: false,
-            tick_count: 0,
             bubble_multiplier: 0.0,
             bubble_angle: 0.0,
             bubble_angle_old: 0.0,
@@ -327,8 +324,9 @@ impl Boat {
     }
     /// `AbstractBoat.tickBubbleColumn`: on a client, the wobble grows by 0.05 a
     /// tick while the synched bubble time runs and fades by 0.1 otherwise.
-    pub(super) fn tick_bubble_wobble(&mut self) {
-        self.tick_count += 1;
+    /// The wobble's phase is the level's game time (`10.0f * sin(0.5f *
+    /// gameTime)`, 1.21.4; 1.21.5 switched it to the boat's tickCount).
+    pub(super) fn tick_bubble_wobble(&mut self, game_time: i64) {
         if self.bubble_time > 0 {
             self.bubble_multiplier += 0.05;
         } else {
@@ -337,7 +335,7 @@ impl Boat {
         self.bubble_multiplier = self.bubble_multiplier.clamp(0.0, 1.0);
         self.bubble_angle_old = self.bubble_angle;
         self.bubble_angle =
-            10.0 * (0.5 * f64::from(self.tick_count)).sin() as f32 * self.bubble_multiplier;
+            10.0 * ((0.5f32 * game_time as f32) as f64).sin() as f32 * self.bubble_multiplier;
     }
     /// `AbstractBoat.tickBubbleColumn`'s countdown on the server: the bubble
     /// time drops while the boat stays over a column and resets when it leaves.
@@ -1210,7 +1208,8 @@ impl Game<'_> {
         }
         self.tick_boat_bubble_column(i);
         if self.options.execution_role.is_client() {
-            self.boats[i].tick_bubble_wobble();
+            let game_time = self.world.game_time;
+            self.boats[i].tick_bubble_wobble(game_time);
         }
     }
     /// `PowderSnowBlock.entityInside` for a boat: the powder snow cells its box, and the box it
@@ -1582,7 +1581,11 @@ impl Game<'_> {
             return false;
         }
         // AbstractBoat.interact starts with Entity.interact: the lead.
-        if self.interact_boat_leash(i) {
+        // AbstractChestBoat.interact (1.21.4) only runs that step when the
+        // player is not sneaking; a sneaking player opens the chest
+        // instead, even with a lead in hand. 1.21.6 calls super.interact
+        // first, lead and all.
+        if !(self.boats[i].chest && sneaking) && self.interact_boat_leash(i) {
             self.swing_arm();
             return true;
         }
@@ -1914,25 +1917,25 @@ mod tests {
     fn the_wobble_grows_while_the_bubble_time_runs_and_fades_after() {
         let mut b = boat();
         b.bubble_time = BUBBLE_TIME;
-        for _ in 0..30 {
-            b.tick_bubble_wobble();
+        for game_time in 0..30 {
+            b.tick_bubble_wobble(game_time);
         }
         // 0.05 a tick, capped at 1.
         assert_eq!(b.bubble_multiplier, 1.0);
-        // 10 * sin(0.5 * tickCount) * multiplier.
-        let expected = 10.0 * (0.5 * 30.0f64).sin() as f32;
+        // 10 * sin(0.5 * gameTime) * multiplier, at game time 29.
+        let expected = 10.0 * ((0.5f32 * 29.0f32) as f64).sin() as f32;
         assert!((b.bubble_angle - expected).abs() < 1.0e-4);
         // The render angle lerps between the last two ticks.
         let mid = b.bubble_angle(0.5);
         assert!((mid - (b.bubble_angle_old + b.bubble_angle) / 2.0).abs() < 1.0e-5);
         // Once the bubble time is 0 the multiplier fades by 0.1 a tick.
         b.bubble_time = 0;
-        for _ in 0..4 {
-            b.tick_bubble_wobble();
+        for game_time in 30..34 {
+            b.tick_bubble_wobble(game_time);
         }
         assert!((b.bubble_multiplier - 0.6).abs() < 1.0e-5);
-        for _ in 0..10 {
-            b.tick_bubble_wobble();
+        for game_time in 34..44 {
+            b.tick_bubble_wobble(game_time);
         }
         assert_eq!(b.bubble_multiplier, 0.0);
         assert_eq!(b.bubble_angle, 0.0);
@@ -1984,8 +1987,8 @@ mod tests {
     #[test]
     fn a_boat_that_never_saw_a_column_does_not_wobble() {
         let mut b = boat();
-        for _ in 0..10 {
-            b.tick_bubble_wobble();
+        for game_time in 0..10 {
+            b.tick_bubble_wobble(game_time);
         }
         assert_eq!(b.bubble_angle, 0.0);
         assert_eq!(b.bubble_angle(0.5), 0.0);

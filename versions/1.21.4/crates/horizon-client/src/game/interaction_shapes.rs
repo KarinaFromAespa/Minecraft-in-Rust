@@ -12,7 +12,8 @@ pub(super) fn boxes(name: &str, facing: Option<&str>) -> Vec<[f64; 6]> {
     const P: f64 = 1.0 / 16.0;
     let scale = |b: [f64; 6]| b.map(|v| v * P);
     match name {
-        // `AbstractCauldronBlock.SHAPE_INSIDE`: `Block.column(12, 4, 16)`.
+        // `AbstractCauldronBlock.INSIDE`: `Block.box(2, 4, 2, 14, 16, 14)`
+        // (1.21.5 builds it with `Block.column(12, 4, 16)`).
         "minecraft:cauldron"
         | "minecraft:water_cauldron"
         | "minecraft:lava_cauldron"
@@ -20,8 +21,10 @@ pub(super) fn boxes(name: &str, facing: Option<&str>) -> Vec<[f64; 6]> {
         // `Shapes.block()`.
         "minecraft:composter" | "minecraft:scaffolding" => vec![[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]],
         "minecraft:hopper" => {
-            // `inside` is `Block.column(12, 11, 16)`; a hopper pointing sideways adds its
-            // spout, `Block.boxZ(4, 8, 10, 0, 4)` turned to face.
+            // `inside` is `Block.box(2, 11, 2, 14, 16, 14)`; a hopper pointing
+            // sideways adds its spout, `Block.box(6, 6, 0, 10, 10, 4)` turned
+            // to face (1.21.5 builds them with `Block.column(12, 11, 16)` and
+            // `Block.boxZ(4, 8, 10, 0, 4)`).
             let mut boxes = vec![scale([2.0, 11.0, 2.0, 14.0, 16.0, 14.0])];
             match facing {
                 Some("north") => boxes.push(scale([6.0, 6.0, 0.0, 10.0, 10.0, 4.0])),

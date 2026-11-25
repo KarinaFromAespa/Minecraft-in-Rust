@@ -514,7 +514,8 @@ impl Game<'_> {
                     }
                 }
             }
-            self.boats[i].tick_bubble_wobble();
+            let game_time = self.world.game_time;
+            self.boats[i].tick_bubble_wobble(game_time);
             if !driven {
                 Self::tick_boat_paddles(&mut self.boats[i], &mut self.audio);
             }
