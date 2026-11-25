@@ -1,0 +1,241 @@
+{
+ "batch": 9,
+ "checks": {
+  "gap": 18,
+  "pass": 7,
+  "total": 25
+ },
+ "date": "2026-11-25",
+ "items": [
+  {
+   "evidence": "WITHDRAWN (vanilla changed: the game_rule registry arrived in 1.21.11 with snake_case ids). Vanilla 1.21.11's GameRules clinit (net.minecraft.world.level.gamerules.GameRules \u2014 moved to the gamerules subpackage) registers 59 rules with SNAKE_CASE ids into BuiltInRegistries.GAME_RULE; name-for-name diff against the port's RULES table (gamerules.rs:52-130): 59 = 59, zero differences either way. Sampled defaults match vanilla exactly (fire_spread_radius_around_player 128, random_tick_speed 3, max_entity_cramming 24, max_command_forks 65536, max_command_sequence_length 65536, max_block_modifications 32768, max_snow_accumulation_height 1, max_minecart_speed 8). The oracle's tree export confirms the command surface: 116 gamerule literals = 58 available rules x plain + minecraft: forms (max_minecart_speed feature-gated out). The fire-pair collapse that cost 1.21.10 a count difference is gone: vanilla 1.21.11 has no doFireTick / allowFireTicksAwayFromPlayer pair \u2014 the single fire_spread_radius_around_player int IS vanilla's form. The template carries NO vanilla_key / from_vanilla_key camelCase mapping (unlike the 1.21.10 child) \u2014 it doesn't need one: the engine table IS vanilla's table, including for level.dat persistence. Corpus carries 492 gamerule cases (report \u00a72), including camelCase negative controls that fail on BOTH sides.",
+   "id": "B9-G01",
+   "method": "javap + source + oracle tree.json + oracle registries.json",
+   "severity": "major",
+   "status": "closed",
+   "title": "/gamerule exposes the 26.3 snake_case table; vanilla 1.21.10 uses camelCase names \u2014 WITHDRAWN: vanilla 1.21.11's game_rule registry uses snake_case ids"
+  },
+  {
+   "evidence": "REPRODUCES \u2014 three extras here, not 1.21.10's four: swing is absent from BOTH sides in 1.21.11 (see B9-G19). Full top-level diff (report \u00a73.2, G02 bulk): Rust release tree 78 literals vs vanilla 1.21.11's integrated tree 75 commands (oracle export) \u2014 75/75 present, zero missing; three extras: compute (tree_data.rs:51-69; no ComputeCommand class in the 1.21.11 jar, no compute in the tree export; the /data modify ... compute source is also present, counted here per the 26.1.2 precedent), posteffect (tree_extra.rs:36-53; no PostEffectCommand class, no posteffect in the tree export, no minecraft:post_effects registry in 1.21.11 \u2014 so the ArgType::Id(\"post_effects\") arguments reference a registry that does not exist), unpublish (tree_extra.rs:83-85; no UnpublishCommand class, no unpublish in the tree export \u2014 unpublish arrived in 26.2). All three registered unconditionally, gamemaster-only. The corpus carries NO parse cases for them (dropped from EXTRA per the brief); their only run footprint is the empty-input root suggestion list at all three permission levels (vanilla 75 names, Rust 78 \u2014 the three extras, report \u00a72).",
+   "id": "B9-G02",
+   "method": "javap + source + oracle tree.json + run suggestions",
+   "severity": "major",
+   "status": "gap",
+   "title": "Three 26.x commands in the release tree; vanilla 1.21.11 has none of them"
+  },
+  {
+   "evidence": "REPRODUCES \u2014 same as 1.21.10. Vanilla 1.21.11's /place feature takes ResourceKeyArgument.key(CONFIGURED_FEATURE) (Place.javap: CONFIGURED_FEATURE + ResourceKeyArgument; oracle tree export: node minecraft:resource_key, registry minecraft:worldgen/configured_feature). Rust uses ArgType::ResourceOrId(\"minecraft:worldgen/feature\") (tree_world.rs:60-64) \u2014 the wrong registry, and a form that accepts inline values vanilla rejects. The 26.1 tree's fix (ResKey(\"minecraft:worldgen/configured_feature\")) was never carried to this tree.",
+   "id": "B9-G03",
+   "method": "javap + source + oracle tree.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "/place feature uses the wrong registry and accepts inline values"
+  },
+  {
+   "evidence": "CLOSED (inverted by a vanilla change). The 1.21.7 defect was that Rust used Rotation where vanilla 1.21.7 used Angle for /spawnpoint / /setworldspawn's trailing argument. Vanilla CHANGED since 1.21.7: 1.21.11 uses RotationArgument (SetSpawn.javap / SetWorldSpawn.javap: 2 refs each, no AngleArgument; oracle tree export names the node rotation with parser minecraft:rotation), and Rust uses ArgType::Rotation (vanilla.rs:347-364) \u2014 match. (RotationArgument lives in net.minecraft.commands.arguments.coordinates in 1.21.11, not in arguments.)",
+   "id": "B9-G04",
+   "method": "javap + source + oracle tree.json",
+   "severity": "minor",
+   "status": "closed",
+   "title": "/spawnpoint and /setworldspawn use Rotation where vanilla 1.21.7 uses Angle \u2014 CLOSED: vanilla 1.21.11 uses Rotation"
+  },
+  {
+   "evidence": "REPRODUCES \u2014 same as 1.21.10. Vanilla 1.21.11's /publish is [<allowCommands> [<gamemode> [<port>]]] (Publish.javap: BoolArgumentType + GameModeArgument + IntegerArgumentType; oracle tree export: allowCommands -> gamemode -> port, integer 0-65535, required level 4). Rust is [<allowCommands> [<port>]] (tree_extra.rs:76-82) \u2014 the gamemode node is missing entirely, so /publish true survival fails to parse in Rust and /publish true 25565 binds the port where vanilla would read a gamemode first.",
+   "id": "B9-G05",
+   "method": "javap + source + oracle tree.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "/publish is missing its gamemode argument"
+  },
+  {
+   "evidence": "REPRODUCES on part (a); part (b) is CLOSED. (a) Vanilla 1.21.11's EntityDataSource.compileSelector catches CommandSyntaxException and returns null (EntityDataSource.javap: net.minecraft.network.chat.contents.data.EntityDataSource \u2014 moved into a data subpackage in 1.21.11; exception table 0-21 -> 22, aconst_null at offset 23) \u2014 the 1.21.7 form \u2014 so {\"nbt\":\"a\",\"entity\":\"@x\"} decodes in vanilla. Rust's nbt arm requires selector_string to parse (component.rs:278-299), so the same component fails. (b) Vanilla 1.21.11 HAS ObjectContents (both jars, with AtlasSprite + PlayerSprite), and the Rust object arm (component.rs:297-309, atlas + player kinds) matches it, so that half of the 1.21.7 item does not reproduce.",
+   "id": "B9-G06",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Item-component NBT with a bad selector decodes in vanilla, fails in Rust (partial)"
+  },
+  {
+   "evidence": "REPRODUCES in full \u2014 same as 1.21.10. (a) codec.rs dispatch() reads \"type\" unconditionally (codec.rs:50-51), and the minecraft:item_modifier arm calls it directly (codec.rs:296) \u2014 inline {\"function\":\"minecraft:set_count\",\"count\":1} fails in Rust. Vanilla 1.21.11's loot data uses the \"function\" key (data/minecraft/loot_table/entities/zombie.json: \"function\": \"minecraft:set_count\"). The 26.2 port's fix (key-parameter dispatch) was never carried here. (b) /item ... from entity <source> uses ENTITIES (multi, tree_misc.rs:198); vanilla uses a single-entity source (oracle tree export: from entity node is minecraft:entity, amount: single).",
+   "id": "B9-G07",
+   "method": "javap + source + oracle tree.json + vanilla data",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Item modifiers: inline JSON fails (wrong type key) AND multi-entity source"
+  },
+  {
+   "evidence": "REPRODUCES \u2014 same as 1.21.10. Vanilla 1.21.11's StateHolder.codec dispatches on \"Name\" (StateHolder.javap:356: ldc \"Name\" at offset 1, then Codec.dispatch), so the {Name, Properties} map form is a valid block state inside particle options. Rust's particle_options returns an error for ANY non-string block_state (args.rs:1011-1024, with the withAlternative(BlockState.CODEC, ...) comment noting the intended shape but implementing the rejection). The 26.2 port's Name-accepting form was never carried here.",
+   "id": "B9-G08",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Particle block_state compound with Name is rejected"
+  },
+  {
+   "evidence": "REPRODUCES (both parts). Vanilla 1.21.11 still has the OLD selector parser \u2014 the option-state refactor (InvertableSetOptionState, SetOnceOptionState) that closed this defect for 26.2 had NOT happened yet in 1.21.11 (neither class exists in the 1.21.11 server-game jar). (a) Duplicate options: vanilla 1.21.11's EntitySelectorOptions.get() (net.minecraft.commands.arguments.selector.options.EntitySelectorOptions) runs the canUse gate BEFORE the value is read \u2014 parseOptions calls get() at offset 65, right after readString, before the = and value (Selector.javap:661-730) \u2014 but does NOT roll back: only the unknown-option branch does setCursor(start) (offsets 47-52); the inapplicable branch throws ERROR_INAPPLICABLE_OPTION at the cursor as it stands, i.e. at the END of the option name (before =). Rust rolls back to the option-name START (selector.rs:331-341, rollback(reader, start, ...)). For @e[type=pig,type=cow] the cursors differ by the option-name length (4 for type). (b) @a[type=player]: vanilla 1.21.11's type option canUse is !parser.isTypeLimited() (lambda$bootStrap$47), and @a/@p/@r all call limitToType(EntityType.PLAYER) during parseSelector (offsets 165, 196, 225), so vanilla REJECTS @a[type=player] with ERROR_INAPPLICABLE_OPTION. Rust pushes minecraft:player into s.types for @a/@p/@r (selector.rs:218-242) without marking type_option, so can_use(\"type\") stays true and Rust ACCEPTS it.",
+   "id": "B9-G09",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Selector option errors: wrong cursor on duplicates; type= accepted for @a/@p/@r"
+  },
+  {
+   "evidence": "CLOSED (inverted by a vanilla change \u2014 the Time argument IS 1.21.11's form). The 1.21.7 defect was that Rust's /worldborder set/add time used a Time argument where vanilla used a plain integer; the 1.21.10 tree 'fixed' it by switching to integer(0) \u2014 with the comment 'the Time argument is 1.21.11's'. That comment is confirmed: vanilla 1.21.11's WorldBorderCommand uses TimeArgument.time(0) for set/add time (WorldBorder.javap: 3 TimeArgument refs at offsets 51, 110, 299 \u2014 set, add, warning time; the IntegerArgumentType ref at offset 268 is the warning distance), and the oracle's tree export names the node time with parser minecraft:time, min 0. The 1.21.11 tree uses ArgType::Time { min: 0 } (tree_world.rs:313,333) \u2014 match. The 1.21.10 'fix' must NOT be carried to the template: it would break 1.21.11.",
+   "id": "B9-G10",
+   "method": "javap + source + oracle tree.json",
+   "severity": "minor",
+   "status": "closed",
+   "title": "/worldborder time uses a Time argument where vanilla uses an integer \u2014 CLOSED: vanilla 1.21.11 uses Time"
+  },
+  {
+   "evidence": "CLOSED against real vanilla (run mismatches are the oracle artifact). The 1.21.7 item claimed vanilla suggests no recipes for /recipe and Rust suggests the learnable set. Against REAL vanilla 1.21.11 that premise fails: CommandSourceStack.suggestRegistryElements HAS the RECIPE special case (CommandSourceStack.javap:1004-1012, offsets 0-36: Registries.RECIPE -> RecipeManager.getRecipes() -> suggestResource), so real vanilla suggests all 1,470 recipes. The run's recipe mismatches come from the oracle's Src override (VanillaCommandParseOracle.java:96-105), which looks the registry up in the RegistryAccess and returns Suggestions.empty() when absent \u2014 bypassing the special case, exactly as in 1.21.10/26.1.2. The real divergence (the learnable subset vs all recipes) is B9-G17, verified statically.",
+   "id": "B9-G11",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "Recipe suggestions: vanilla suggests no recipes, Rust suggests the learnable set \u2014 CLOSED: real vanilla suggests all recipes"
+  },
+  {
+   "evidence": "REPRODUCES \u2014 same as 1.21.10. Rust uses ArgType::SlotSource everywhere in /item (tree_misc.rs:171,188,202) and execute if|unless items|slots (tree_execute.rs:240); vanilla 1.21.11 uses minecraft:item_slot / minecraft:item_slots (oracle tree export: /item slot node minecraft:item_slot, /execute if items slot node minecraft:item_slots). The minecraft:slot_source registry does not exist in 1.21.11 (no such key in the oracle's by_registry; the registry that DOES exist is minecraft:slot_source_type, with 6 entries \u2014 contents, empty, filtered, group, limit_slots, slot_range \u2014 a different registry). The slot-name TABLE itself matches vanilla exactly (Rust slot_ranges(), args.rs:205-239, vs vanilla SlotRanges clinit \u2014 net.minecraft.world.inventory.SlotRanges in 1.21.11, moved from commands.arguments: contents, container.x54, hotbar.x9, inventory.x27, enderchest.x27, villager.x8, horse.x15, weapon/weapon.mainhand/weapon.offhand/weapon.*, armor.head/chest/legs/feet/body, armor.*, saddle, horse.chest, player.cursor, player.crafting.x4) \u2014 the defect is the argument type, not the names. The fix form exists IN THIS TREE: /loot uses ArgType::Slot (tree_world.rs:351, network.rs:234-235 maps minecraft:item_slot -> Slot) \u2014 it was never carried to /item or /execute.",
+   "id": "B9-G12",
+   "method": "javap + source + oracle tree.json + oracle registries.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "SlotSource is back in the tree; vanilla 1.21.11 uses item_slot/item_slots"
+  },
+  {
+   "evidence": "REPRODUCES \u2014 same as 1.21.10, in the stronger 26.1.2 form (not 1.21.7's). Rust ships 26.3's 62-entry table (commands.rs:25-87, doc comment says 'registry of 26.3 in id order'), minecraft:team_color at index 16, plus five 26.3-only types (context_float_provider, context_int_provider, slot_source, feature, swing_animation) shifting later ids (dialog 58 vs 55, uuid 61 vs 56). Vanilla 1.21.11's ArgumentTypeInfos has 57 types with color at index 16 (order: 6 brigadier, entity, game_profile, block_pos, column_pos, vec3, vec2, block_state, block_predicate, item_stack, item_predicate, color, hex_color, ... dialog, uuid \u2014 ArgumentTypeInfos.javap, verified in full, 57 ldc names). The 1.21.11 adapter has command_argument_type: Remap::Same (adapter/v1_21_11_ids.rs:33) \u2014 no remap mitigates the shift, so the tree's network form mislabels every argument type from index 16 on.",
+   "id": "B9-G13",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Argument-type table is 26.3's 62, not 1.21.11's 57; index 16 is team_color"
+  },
+  {
+   "evidence": "REPRODUCES \u2014 same as 1.21.10. Vanilla 1.21.11 has 15 dedicated commands (ban, ban-ip, banlist, deop, op, pardon, pardon-ip, perf, save-all, save-off, save-on, setidletimeout, stop, transfer, whitelist \u2014 the 15 in the includeDedicated guard, Commands.<init> offsets 642-754); PerfCommand.register sits at offset 702, inside the guard. Rust's dedicated tree (register_dedicated, tree_extra.rs:215+) has 14 commands and lacks perf. (The dedicated list here is the CORRECTED one: kick is integrated \u2014 KickCommand.register at offset 216, outside the guard \u2014 and transfer is dedicated, at offset 744 inside it; publish at offset 765 is OUTSIDE the guard \u2014 integrated.)",
+   "id": "B9-G14",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "/perf missing from the dedicated tree"
+  },
+  {
+   "evidence": "REPRODUCES \u2014 same as 1.21.10. Vanilla 1.21.11's dev block (Commands.<init> offsets 572-642, under DEBUG_DEV_COMMANDS / IS_RUNNING_IN_IDE) registers raid, debugpath, debugmobspawning, warden_spawn_tracker, spawnarmortrims, serverpack, plus debugconfig when dedicated (offset 639); chase is under its own flag (DEBUG_CHASE_COMMAND, offset 559). Rust's dev tree has only raid + warden_spawn_tracker (vanilla.rs if dev blocks, lines 174 and 398) \u2014 missing debugpath, debugmobspawning, spawnarmortrims, serverpack (+ debugconfig dedicated, + chase). jfr is registered unconditionally in Rust while vanilla gates it on JvmProfiler.INSTANCE.isAvailable() (offsets 541-549) \u2014 the same non-defect nit as 1.21.10, not counted.",
+   "id": "B9-G15",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Dev tree is missing six vanilla 1.21.11 dev commands"
+  },
+  {
+   "evidence": "REPRODUCES \u2014 nine label pairs, same shape as 1.21.10 (counted by path). Proven statically from the tree-builder literals against vanilla's oracle tree export, and confirmed empirically by the run's node diff (report \u00a72). Vanilla (oracle tree.json) vs Rust: /item replace block pos -> targetPos (tree_misc.rs:185), /item replace entity targets -> target (tree_misc.rs:183), /item replace ... slot slot -> slots (tree_misc.rs:187), /item replace ... from block source -> sourcePos (tree_misc.rs:199), sourceSlot -> sourceSlots (tree_misc.rs:201), /item modify block pos -> targetPos (tree_misc.rs:168), /item modify entity targets -> target (tree_misc.rs:166), /execute if items entity entities -> source (tree_execute.rs:226), /execute if items block pos -> sourcePos (tree_execute.rs:234). (from entity agrees: both sides call it source. /item modify slot agrees on the name \u2014 only the parser differs, see B9-G12. /loot replace names match vanilla: entities -> slot for entity, targetPos -> slot for block \u2014 vanilla's /loot replace block node really is targetPos, not pos.) The run's node diff (report \u00a72) confirms eight of the nine pairs empirically (29 label-pair occurrences at perm 4); the ninth (/execute if items block pos->sourcePos) is masked because the slot argument fails first (G12) \u2014 its static evidence stands.",
+   "id": "B9-G16",
+   "method": "oracle tree.json + source + run node diff",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Argument node names differ from vanilla"
+  },
+  {
+   "evidence": "REPRODUCES \u2014 count 12 for 1.21.11 (same as 1.21.10). Vanilla 1.21.11's client jar carries 1,470 recipe files; the oracle's command-registries.json lists 1,458 learnable_recipes; the 12 omitted are armor_dye, banner_duplicate, book_cloning, decorated_pot, firework_rocket, firework_star, firework_star_fade, map_cloning, map_extending, repair_item, shield_decoration, tipped_arrow (1.21.11 has ONE banner_duplicate recipe, not 26.x's 16 colour variants \u2014 hence 12, not 24). Real vanilla suggests all recipes via the RECIPE special case in CommandSourceStack.suggestRegistryElements (CommandSourceStack.javap:1004-1012, offsets 0-36); the Rust side suggests the learnable subset. The run cannot test this faithfully: the oracle's Src override bypasses the special case, so the run's recipe mismatches are artifacts and this item rests on the static census.",
+   "id": "B9-G17",
+   "method": "javap + oracle registries.json + vanilla data census",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Recipe suggestions omit special recipes (Rust suggests the learnable subset; real vanilla suggests all recipes)"
+  },
+  {
+   "evidence": "REPRODUCES \u2014 same as 1.21.10. Rust has /item fill and /item override (tree_misc.rs:179, for mode in [\"replace\", \"fill\", \"override\"]) and /execute if|unless slots (tree_execute.rs:224, for kind in [\"items\", \"slots\"]); vanilla 1.21.11 has neither \u2014 /item is only replace + modify, and /execute if/unless has items only (oracle tree export). Note vanilla 1.21.11's /execute if/unless DOES have stopwatch (alongside items) \u2014 and so does Rust (tree_execute.rs:193) \u2014 that one matches. These extras are invisible to the corpus (vanilla's tree has no such nodes to walk) and were caught by the static tree diff.",
+   "id": "B9-G18",
+   "method": "source + oracle tree.json",
+   "severity": "minor",
+   "status": "gap",
+   "title": "26.3-era subcommands in the tree (/item fill, /item override, /execute if|unless slots)"
+  },
+  {
+   "evidence": "WITHDRAWN (doubly: no /swing in vanilla 1.21.11 AND none in the tree). The 26.1.2 secondary item's premise was that vanilla has /swing and Rust adds 26.3-era animation + duration arguments. That premise fails twice for 1.21.11: vanilla 1.21.11 has NO /swing at all \u2014 no SwingCommand class in the server-game jar, no swing in the oracle's tree export, no swing_animation argument type in vanilla's 57-entry table \u2014 AND the 1.21.11 tree has no /swing either (the rotate_swing builder, tree_world.rs:155-171, registers only /rotate; no \"swing\" literal anywhere in horizon-command/src). The 1.21.10 child ADDED /swing to its tree \u2014 a child divergence from the template, not a template defect. There is no G19 defect in 1.21.11 at all. (26.1.2's vanilla HAS /swing, so G19 stands there \u2014 this withdrawal is 1.21.11-specific.)",
+   "id": "B9-G19",
+   "method": "javap + source + oracle tree.json",
+   "severity": "minor",
+   "status": "closed",
+   "title": "/swing adds 26.3-era animation + duration arguments \u2014 WITHDRAWN: no /swing on either side in 1.21.11"
+  },
+  {
+   "evidence": "REPRODUCES \u2014 same as 1.21.10. Rust /schedule clear takes ArgType::Id(\"schedules\") (tree_misc.rs:49); vanilla 1.21.11 takes a greedy brigadier:string (oracle tree export: node named function, parser brigadier:string, type: greedy). A schedule id with spaces, or a prefix, parses in vanilla and fails in Rust. The run does NOT empirically confirm this: every schedule clear input crashes the oracle (NullPointerException: WorldData.overworldData() is null in the stand-in server), so compare() skips them \u2014 the item rests on static evidence alone (report \u00a72).",
+   "id": "B9-G20",
+   "method": "source + oracle tree.json + run",
+   "severity": "minor",
+   "status": "gap",
+   "title": "/schedule clear takes a single id where vanilla takes a greedy string"
+  },
+  {
+   "evidence": "REPRODUCES, HALVED \u2014 one extra criterion here, not 1.21.10's two: vanilla 1.21.11's custom_stat registry HAS nautilus_one_cm (77 custom stats; the nautilus stat arrived in 1.21.11), so that half of the 1.21.10 item is closed by a vanilla change. Rust's custom-stats list (scoreboard.rs:228-291, 78 entries) still includes sleep_in_straw_bed; vanilla 1.21.11 has no such stat (no straw entry in custom_stat; Stats has SLEEP_IN_BED only). Full diff of the Rust list against vanilla's 77 custom stats: exactly one extra (sleep_in_straw_bed), zero missing. (The tree even knows: stats_screen.rs:801 documents 'no sleep_in_straw_bed (the straw bed is a later addition)' \u2014 but scoreboard.rs still lists it.) The run confirms it empirically: the only difference in the scoreboard suggestion lists is the extra minecraft.custom:minecraft.sleep_in_straw_bed in Rust's list (3 suggestion mismatches at perm 4, same at perm 2; nothing missing).",
+   "id": "B9-G21",
+   "method": "oracle registries.json + source + run",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Scoreboard criterion suggestions include one criterion vanilla 1.21.11 lacks"
+  },
+  {
+   "evidence": "FIXED \u2014 the probe compiles. The 26.1 defect was that game_loop_probe.rs constructed a FrameContext with fields (focused, exclusive_fullscreen) the tree's window.rs did not declare. In the 1.21.11 tree the probe constructs FrameContext with exactly the seven fields the struct declares (no focused/exclusive_fullscreen anywhere). Two independent verifications: the coordinator's cargo check --locked -j 1 -p horizon-client-lib --example client_probe EXIT=0 in 20m13s (b00/h01-cargo-check.log, 02:13 UTC Nov 25, 0 errors, probe rmeta present), AND this batch's own driver build (report \u00a72), which compiles AND links the probe (cargo build --profile fast -p horizon-client-lib --example client_probe). One non-behaviour check, pass.",
+   "id": "B9-H01",
+   "method": "coordinator cargo check + this batch's driver build",
+   "severity": "major",
+   "status": "fixed",
+   "title": "client_probe does not compile (FrameContext field mismatch) \u2014 FIXED"
+  },
+  {
+   "evidence": "REPRODUCES in the 26.1.2 3-error form (not 1.21.7/1.21.10's 6): Batch 0's oracle table (docs/sweep/1.21.11/batch-0-oracles.json) measures VanillaScoreboardOracle FAIL on all three classpaths, 3 errors. Line 242: cannot find symbol: variable TeamColor \u2014 the oracle calls t.getColor().map(TeamColor::getSerializedName).orElse(null), but TeamColor (the 26.x class) does not exist in 1.21.11 at all, and PlayerTeam.getColor() returns ChatFormatting directly (PlayerTeam.javap), not Optional<TeamColor>. Line 436 x2: TeamColor.byName \u2014 cannot find symbol: variable TeamColor \u2014 plus incompatible types: bad type in conditional expression (no instance(s) of type variable(s) T exist so that Optional<T> conforms to ChatFormatting), because setColor takes a bare ChatFormatting. GONE (adapted in the 1.21.11 source): the line-44 pack-call errors. Repair scope: TeamColor -> ChatFormatting at both call sites, dropping the Optional handling. Blocks scoreboard.",
+   "id": "B9-O01",
+   "method": "Batch 0 oracle measurement + javap",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "VanillaScoreboardOracle fails to compile (TeamColor does not exist in 1.21.11)"
+  },
+  {
+   "evidence": "REPRODUCES in the 26.1.2 6-error form (client cp): Batch 0's oracle table measures VanillaTeamRulesOracle FAIL on all three classpaths. Line 14: cannot find symbol: class Hud \u2014 no net.minecraft.client.gui.Hud in 1.21.11; the HUD class is Gui (Gui.javap). Line 101: the LocalPlayer 9-arg constructor does not exist in 1.21.11. Lines 188 x2 + 189: Hud references in the draw calls. Line 197: cannot find symbol: method doTeamsAllowDamage(Stub) \u2014 no such method in 1.21.11. GONE (adapted): the monster.zombie package error (1.21.11 HAS the monster.zombie package) and the seven @Override errors. Blocks team_rules.",
+   "id": "B9-O02",
+   "method": "Batch 0 oracle measurement + javap",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "VanillaTeamRulesOracle fails to compile (Hud / LocalPlayer ctor / doTeamsAllowDamage)"
+  },
+  {
+   "evidence": "REPRODUCES in a 17-error form (1.21.10's was 18): Batch 0's oracle table measures LocatorBarClient FAIL on all three classpaths. Lines 222/231: ContainerInput \u2014 no such class in 1.21.11 (the ContainerInput interface arrived in 26.x). Lines 393-395/407/409/413: ClientboundUpdateAdvancementsPacket has no removed()/added()/progress() accessors in 1.21.11. Line 668: failed @Override on canUseCommandBlocks. Lines 683/906/911: EntityTypes \u2014 1.21.11 uses EntityType (the EntityTypes holder class arrived in 26.1). Lines 690/916: ClientboundRemoveEntitiesPacket.entityIds(). Lines 955/957: ClientboundSetEntityMotionPacket.id()/movement(). Line 977: ServerboundAcceptTeleportationPacket constructor arity. The 1.21.10 line-562 Action.STAB error is GONE \u2014 Action.STAB EXISTS in 1.21.11 (verified via javap on the client jar; the stab animation arrived in 1.21.11). Blocks exploration_map_command.",
+   "id": "B9-O03",
+   "method": "Batch 0 oracle measurement + javap",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "LocatorBarClient fails to compile (17 errors)"
+  },
+  {
+   "evidence": "CLOSED (prepared data HAS the lang file, jar-identical). The 26.1.2 defect was that no prepared en_us.json existed, so the Rust side emitted raw argument.* keys instead of translated text. For 1.21.11 the prepared data HAS assets/minecraft/lang/en_us.json (md5 1460272285b8f2671c56c538113d1308, 7,767 keys, contains argument.entity.invalid), md5-identical to the 1.21.11 client jar's own file \u2014 so no jar-extraction mitigation was needed, and the run emitted translated text (report \u00a72). No oracle defect, no run artifact.",
+   "id": "B9-O04",
+   "method": "prepared data inspection + jar comparison + run",
+   "severity": "minor",
+   "status": "closed",
+   "title": "No prepared lang file \u2014 Rust emits raw argument.* keys \u2014 CLOSED: lang file present, jar-identical"
+  },
+  {
+   "evidence": "FIXED (the VanillaCommandExecOracle compiles clean). The 1.21.10 item's 45-error form does NOT reproduce: Batch 0 measures VanillaCommandExecOracle PASS on all three classpaths (client, server-game, server-bundler). The 1.21.11 oracle source has no authlib.services / EntityTypes references and uses the gamerules / permissions packages that exist in 1.21.11. The command_exec driver is therefore NOT oracle-blocked for 1.21.11 \u2014 its remaining blocker is the fixture one (/execute if predicate effect_view:always, report \u00a75).",
+   "id": "B9-O05",
+   "method": "Batch 0 oracle measurement + source",
+   "severity": "major",
+   "status": "fixed",
+   "title": "VanillaCommandExecOracle fails to compile (45 errors) \u2014 FIXED for 1.21.11"
+  },
+  {
+   "evidence": "NEW (run-found; minted from the run). 10 give mismatches at perm 4 (3 ok-differs + 7 cursor-differs, same at perm 2). Vanilla 1.21.11's ContainerComponent codec requires each entry to be a ContainerItem with a slot (int) and an item (ItemStack): give @s minecraft:shulker_box[container=[{id:\"minecraft:stone\",count:64}]] fails in vanilla with Malformed 'minecraft:container' component: 'No key item in MapLike[{count:64,id:\"minecraft:stone\"}]; No key slot in MapLike[{count:64,id:\"minecraft:stone\"}]' (cursor 40). Rust ACCEPTS it (decode_component in item.rs:25-95 has NO minecraft:container arm \u2014 it falls through to _ => Ok(()), so any container value parses, including the 26.x {id, count} shape and the components:{...}-nested variant). The Rust codebase itself knows the 1.21.11 shape \u2014 snbt.rs:1027 tests {{slot:0,item:{item}}} \u2014 but the parse-time decoder never enforces it. Same class as G07a/G08 (component codec validation gap), distinct root cause. Affects every item argument carrying a container component (/give, /item, /loot, /summon with equipment), not just /give. Fix form: a minecraft:container arm in decode_component requiring a list of compounds each with an int slot and a decodable item.",
+   "id": "B9-G22",
+   "method": "run + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Item minecraft:container component accepts entries without slot/item; vanilla 1.21.11 rejects them"
+  }
+ ],
+ "method": "Static triage (javap -c on the named 1.21.11 server-game jar and the 1.21.11 client jar; Rust source reads; vanilla 1.21.11 datagen reports + oracle tree export; Batch 0 oracle measurement) PLUS one driver run end-to-end: command_parse via tools/test_command_parse_parity.py (oracle compiled clean, 34,492-command corpus regenerated from 1.21.11's tree export \u2014 md5 9e9597f33c9c5bc9e2112f0bda481720 \u2014 fast-profile client_probe fixture; per-permission results in the batch report \u00a72), with a separate node-path comparison on the run's output (node_diff.py) and mismatch classification (classify_mismatches.py). The other 21 drivers are classified by blocker in the batch doc \u00a75. Checks: 25 as-tallied (7 pass, 18 gap) = 21 behaviour (6 pass, 15 gap) + 4 non-behaviour (1 pass, 3 gap: H01 + O01/O02/O03); the 21st behaviour check is /stopwatch (new in 1.21.11, verified statically and empirically \u2014 0 mismatches in 1,870 cases) \u2014 the 1.21.10 scheme had 20 behaviour checks, and the extra pass is stated here so the count is auditable; B9-G22 (container component, run-minted) is an item, not a counted check, as G20/G21 were in 1.21.10; B9-O05 (VanillaCommandExecOracle) is FIXED for 1.21.11 \u2014 outside the as-tallied scheme, as in 1.21.10; the 17 unrun e2e drivers are not counted as checks.",
+ "name": "Commands",
+ "out_of_scope_failures": "17 drivers not run \u2014 all game-binary e2e drivers needing a full fast-profile client build plus a Java reference run: 17 no-oracle e2e drivers (7 via the command_exec driver). 3 drivers oracle-blocked: scoreboard (B9-O01, 3 errors), team_rules (B9-O02, 6 client errors), exploration_map_command (B9-O03, 17 errors). command_exec is NOT oracle-blocked for 1.21.11 (B9-O05 fixed) \u2014 only the known fixture blocker /execute if predicate effect_view:always stands, recorded not chased; it is one fixture away from running.",
+ "source": "docs/PARITY-SWEEP.md \u00a74 Batch 9 + \u00a73 methodology \u2014 parsing, execution, selectors, functions, scoreboard; 22 drivers; 57 argument types; 59 game rules. See docs/sweep/1.21.11/batch-9-commands.md (this batch's report.md).",
+ "systemic_note": "The 1.21.11 template's command surface is a 26.3-era tree carried against a 1.21.11 vanilla that predates it in some places and matches it in others \u2014 and the template is CLEANER than its first child where vanilla changed. The 1.21.10 child fixed things the template did not (the gamerule persistence mapping, the /worldborder integer time) and diverged the other way once (it ADDED /swing; the template never had it, and vanilla 1.21.11 has no /swing either). Vanilla changed between 1.21.10 and 1.21.11 in the template's favour in three places: the game_rule registry arrived with snake_case ids (G01 withdrawn \u2014 the port's table now matches vanilla exactly, 59 = 59 names, defaults match), the nautilus custom stat arrived (G21 halved \u2014 only sleep_in_straw_bed is extra now), and Action.STAB arrived (O03 down to 17 errors). The template's own defects are the familiar 26.3 carry-overs: three extra top-level commands (compute, posteffect, unpublish), the 26.3 62-entry argument-type table against vanilla's 57 (G13), SlotSource in place of item_slot/item_slots (G12), and 1.21.7-era parse code (particle/modifier handling, selector rollback) that the 26.2 port fixed but this tree never carried. The three in-scope oracles fail with the 26.1.2 forms (O01 3 errors, O02 6 client errors, O03 17 errors) \u2014 NOT 1.21.10's 1.21.7 forms \u2014 and the linchpin VanillaCommandExecOracle PASSES for 1.21.11 (B9-O05 fixed), so command_exec is one fixture away from running. 16 of 27 primary 1.21.10 items reproduce; 8 are closed/fixed (G01 withdrawn, G04 closed, G10 closed \u2014 Time IS 1.21.11's form, G11 closed, G19 doubly withdrawn, O04 closed \u2014 lang file present and jar-identical, O05 fixed, H01 fixed). H01 stays fixed: the probe compiles, so the command_parse measurement ran end-to-end (34,492 commands; perm 4: 3,172 mismatches, 90.8% match \u2014 the bulk is one cause, G12's slot error text, 2,803 cases; perm 0: 1 mismatch, the root suggestion list). The run mints one NEW item (B9-G22, the container component) and confirms the static verdicts empirically wherever the corpus reaches them \u2014 except G20, whose schedule clear cases crash the oracle (WorldData NPE) and rest on static evidence. The remaining risk is execution, not parsing: 17 of 22 drivers are unrun e2e drivers, and scoreboard/team_rules/exploration_map_command are oracle-blocked.",
+ "version": "1.21.11"
+}
