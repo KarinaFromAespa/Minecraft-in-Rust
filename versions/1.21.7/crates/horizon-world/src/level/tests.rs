@@ -2037,6 +2037,51 @@ fn picking_a_ripe_sweet_berry_bush_drops_berries_and_leaves_it_at_age_1() {
 }
 
 #[test]
+fn picking_ripe_cave_vines_drops_one_glow_berry_and_clears_berries() {
+    let mut w = world!();
+    w.floor(0, 6, "grass_block");
+    let pos = BlockPos::new(0, 1, 0);
+    // Berries present: vanilla 1.21.7 drops exactly 1 glow berry straight
+    // from `CaveVines.use`, and clears the berries.
+    let ripe = w.id("cave_vines", &[("berries", "true")]);
+    w.set(pos, ripe);
+    assert_eq!(
+        w.use_empty_hand(pos),
+        InteractionResult::Success,
+        "a vine with berries answers a right click"
+    );
+    assert_eq!(w.prop(pos, "berries"), "false", "the berries are cleared");
+    let drops: Vec<u32> = w
+        .level
+        .events
+        .iter()
+        .filter_map(|e| match e {
+            LevelEvent::Player {
+                effect: PlayerEffect::DropItems(item, count),
+                ..
+            } if &**item == "minecraft:glow_berries" => Some(*count),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(drops, [1], "exactly one glow berry drops");
+    // No berries: nothing to pick.
+    w.level.events.clear();
+    w.set(pos, w.id("cave_vines", &[("berries", "false")]));
+    assert_eq!(w.use_empty_hand(pos), InteractionResult::Pass);
+    assert_eq!(w.prop(pos, "berries"), "false", "a bare vine is untouched");
+    assert!(
+        !w.level.events.iter().any(|e| matches!(
+            e,
+            LevelEvent::Player {
+                effect: PlayerEffect::DropItems(..),
+                ..
+            }
+        )),
+        "a bare vine drops nothing"
+    );
+}
+
+#[test]
 fn pistons_push_and_sticky_pistons_pull() {
     let mut w = world!();
     w.floor(0, 10, "stone");

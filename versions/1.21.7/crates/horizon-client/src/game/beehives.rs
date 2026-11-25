@@ -265,14 +265,11 @@ impl Game<'_> {
             .as_ref()
             .map(|p| [p.position.x, p.position.y, p.position.z]);
         if shears {
-            // dropHoneycomb (harvest/beehive), the shear sound, hurtAndBreak.
-            for stack in self.sequence_loot(
-                "minecraft:harvest/beehive",
-                "minecraft:harvest/beehive",
-                Some(held),
-            ) {
-                self.pop_resource(pos, stack);
-            }
+            // dropHoneycomb: exactly 3 honeycomb, popped directly — there is
+            // no `minecraft:harvest/beehive` table in 1.21.7's data (the
+            // harvest tables arrived with 1.21.9), so rolling one here would
+            // drop nothing. Then the shear sound, hurtAndBreak.
+            self.pop_resource(pos, ItemStack::new("minecraft:honeycomb", 3));
             self.audio
                 .play("minecraft:block.beehive.shear", at, 1.0, 1.0);
             self.damage_held(1);
@@ -442,6 +439,57 @@ mod honey_overflow_tests {
         assert!(e.velocity.z > 0.2, "thrown ahead: {:?}", e.velocity);
         assert_eq!(e.thrower, None);
         assert_eq!(e.pickup_delay, 40);
+    }
+}
+
+#[cfg(test)]
+mod shear_tests {
+    use super::*;
+
+    /// `BeehiveBlock.useItemOn` with shears on a full hive: exactly 3
+    /// honeycomb pop out (`BeehiveBlock.dropHoneycomb`) and the honey level
+    /// resets to 0.
+    #[test]
+    #[ignore = "needs prepared resources (HORIZON_TEST_RESOURCES)"]
+    fn shearing_a_full_hive_drops_three_honeycomb_and_resets() {
+        let mut game = super::super::native_machines::tests::server_game();
+        let registry = &game.pack.assets.registry;
+        let hive = registry.default_state("minecraft:beehive").unwrap();
+        let mut full = registry.state(hive).unwrap().clone();
+        full.properties.insert("honey_level".into(), "5".into());
+        let full = registry.id(&full).unwrap();
+        game.world.set(8, 64, 10, full).unwrap();
+        game.player = Some(
+            horizon_client::motion::PlayerMotion::new(game.motion, Vec3::new(8.5, 64.0, 8.5))
+                .unwrap(),
+        );
+        // Facing south (+z), towards the hive.
+        game.yaw = 0.0;
+        game.pitch = 0.0;
+        let shears = ItemStack::new("minecraft:shears", 1);
+        game.inventory[0] = Some(shears.clone());
+        game.selected = 0;
+        game.dropped.clear();
+
+        assert!(game.use_beehive([8, 64, 10], Some(&shears)).unwrap());
+        let comb: Vec<_> = game
+            .dropped
+            .iter()
+            .filter(|e| &*e.stack.item == "minecraft:honeycomb")
+            .collect();
+        assert_eq!(comb.len(), 1, "one honeycomb drop");
+        assert_eq!(comb[0].stack.count, 3, "dropHoneycomb pops 3 honeycomb");
+        let state = game
+            .pack
+            .assets
+            .registry
+            .state(game.world.block(8, 64, 10))
+            .unwrap();
+        assert_eq!(
+            state.properties.get("honey_level").map(String::as_str),
+            Some("0"),
+            "the honey level resets"
+        );
     }
 }
 
