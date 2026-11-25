@@ -38,12 +38,13 @@ impl Game<'_> {
             (-1, 0) => "west",
             _ => "east",
         };
-        // dropFromBlockInteractLootTable(CARVE_PUMPKIN): each stack as an
-        // ItemEntity in front of the carved side, moved by the level random
-        // (no pickup delay).
+        // Vanilla 1.21.7 carves the seeds directly (PumpkinBlock.useItemOn:
+        // 4 pumpkin seeds, no table — the carve/pumpkin table arrived in
+        // 1.21.9): each stack as an ItemEntity in front of the carved side,
+        // moved by the level random (no pickup delay).
         let (dx, dz) = (f64::from(dx), f64::from(dz));
         let table = "minecraft:carve/pumpkin";
-        let mut drops = self.sequence_loot(table, table, Some(shears));
+        let mut drops = vec![ItemStack::new("minecraft:pumpkin_seeds", 4)];
         let origin = pos.map(|c| f64::from(c) + 0.5);
         self.native_use_drops(
             table,

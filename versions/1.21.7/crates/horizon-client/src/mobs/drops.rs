@@ -434,6 +434,21 @@ pub fn death_state(m: &mut Mob) {
         super::tame::die(m);
     }
 }
+/// The head a charged creeper's victim drops (`dropCustomDeathLoot` per
+/// victim class in 1.21.7): `None` drops nothing and does not spend the
+/// killer's one head (`Creeper.droppedSkulls`).
+fn charged_creeper_head(s: Species) -> Option<&'static str> {
+    use Species as S;
+    Some(match s {
+        S::Skeleton => "minecraft:skeleton_skull",
+        S::WitherSkeleton => "minecraft:wither_skeleton_skull",
+        S::Zombie | S::ZombifiedPiglin => "minecraft:zombie_head",
+        S::Piglin => "minecraft:piglin_head",
+        S::Creeper => "minecraft:creeper_head",
+        _ => return None,
+    })
+}
+
 /// `LivingEntity.die`'s drops for `m` (equipment it loses is removed from
 /// it). Returns the drops in spawn order and whether a charged creeper
 /// killer dropped a head (`Creeper.droppedSkulls`).
@@ -449,28 +464,19 @@ pub fn die(
     death_state(m);
     let this = loot_entity(m, d.vehicle.clone());
     let mut skulls = false;
-    // Creeper.killedEntity: a charged creeper's victim drops its head.
+    // Each victim's dropCustomDeathLoot: a charged creeper's victim drops
+    // its head directly — there is no `minecraft:charged_creeper/root`
+    // table in 1.21.7 (it arrived in 1.21.9). Only the victims with an
+    // override drop one: husks, drowned and zombie villagers return an
+    // empty skull, and strays and brutes have no override.
     if let Some(source) = d.damage.as_ref().and_then(|x| x.source.as_ref())
         && source.kind == "minecraft:creeper"
         && source.powered
         && d.mob_drops
+        && let Some(head) = charged_creeper_head(m.species())
     {
-        let params = EntityLootParams {
-            this: this.clone(),
-            damage: d.damage.clone(),
-            player: None,
-            luck: 0.0,
-        };
-        let items = roll(
-            d,
-            "minecraft:charged_creeper/root",
-            &params,
-            sequences,
-            0,
-            level_random,
-        );
-        skulls = items.iter().any(|i| !i.is_empty());
-        out.extend(items.into_iter().filter(|i| !i.is_empty()).map(Drop::Item));
+        skulls = true;
+        out.push(Drop::Item(loot_stack(head, 1)));
     }
     let killed_by_player = d.player_killed;
     let s = m.species();
@@ -858,5 +864,84 @@ mod slot_tests {
         assert_eq!(drops.len(), 1);
         assert_eq!(drops[0].item.as_ref(), "minecraft:iron_helmet");
         assert_eq!(m.extra.head, None);
+    }
+
+    /// A charged creeper's victim drops its head directly (`dropCustomDeathLoot`
+    /// per victim class in 1.21.7 — no `charged_creeper/root` table exists in
+    /// this version); victims with no override drop nothing and do not spend
+    /// the killer's one head.
+    #[test]
+    fn a_charged_creepers_victims_drop_their_heads_directly() {
+        let root =
+            std::env::temp_dir().join(format!("horizon-charged-creeper-{}", std::process::id()));
+        std::fs::create_dir_all(root.join("data/minecraft/loot_table")).unwrap();
+        std::fs::write(root.join("items.json"), "{}").unwrap();
+        let loot = LootData::load(&root, &PackOverlay::default()).unwrap();
+        let death = |mob_drops: bool, powered: bool| Death {
+            loot: &loot,
+            damage: Some(LootDamage {
+                kind: "minecraft:explosion".into(),
+                source: Some({
+                    let mut creeper = LootEntity::new("minecraft:creeper");
+                    creeper.powered = powered;
+                    creeper
+                }),
+                direct: None,
+            }),
+            player: None,
+            player_killed: false,
+            luck: 0.0,
+            vehicle: None,
+            mob_drops,
+            world_seed: 0,
+        };
+        let heads = |species: Species, mob_drops: bool, powered: bool| {
+            let mut m = mob("minecraft:zombie", species);
+            let (out, skulls) = die(
+                &mut m,
+                &death(mob_drops, powered),
+                &mut RandomSequences::default(),
+                &mut LegacyRandom::new(7),
+            );
+            let heads: Vec<_> = out
+                .iter()
+                .filter_map(|d| match d {
+                    Drop::Item(s) if s.item.ends_with("skull") || s.item.ends_with("head") => {
+                        Some(s.item.clone())
+                    }
+                    _ => None,
+                })
+                .collect();
+            (heads, skulls)
+        };
+        // The victims with a head override drop exactly one head.
+        for (species, head) in [
+            (Species::Skeleton, "minecraft:skeleton_skull"),
+            (Species::WitherSkeleton, "minecraft:wither_skeleton_skull"),
+            (Species::Zombie, "minecraft:zombie_head"),
+            (Species::ZombifiedPiglin, "minecraft:zombie_head"),
+            (Species::Piglin, "minecraft:piglin_head"),
+            (Species::Creeper, "minecraft:creeper_head"),
+        ] {
+            let (heads, skulls) = heads(species, true, true);
+            assert_eq!(heads, [head], "{species:?} drops its head");
+            assert!(skulls, "{species:?} spends the one head");
+        }
+        // No override, or an empty skull: nothing drops, the head is unspent.
+        for species in [
+            Species::Husk,
+            Species::Drowned,
+            Species::ZombieVillager,
+            Species::Stray,
+            Species::PiglinBrute,
+            Species::Spider,
+        ] {
+            let (heads, skulls) = heads(species, true, true);
+            assert!(heads.is_empty(), "{species:?} drops no head");
+            assert!(!skulls, "{species:?} does not spend the one head");
+        }
+        // An unpowered creeper, or mob loot off, drops no head.
+        assert!(heads(Species::Zombie, true, false).0.is_empty());
+        assert!(heads(Species::Zombie, false, true).0.is_empty());
     }
 }

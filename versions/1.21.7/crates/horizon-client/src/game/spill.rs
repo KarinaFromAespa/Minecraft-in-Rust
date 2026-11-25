@@ -1199,3 +1199,50 @@ mod cave_vine_pick_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod pumpkin_carve_tests {
+    use super::super::native_machines::tests::server_game;
+    use horizon_client::items::ItemStack;
+
+    /// `PumpkinBlock.useItemOn` with shears: the pumpkin becomes a carved
+    /// pumpkin facing the clicked side and 4 seeds pop out directly (the
+    /// carve/pumpkin table arrived in 1.21.9).
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES and scratch homes/cwd"]
+    fn carving_a_pumpkin_drops_four_seeds() {
+        let mut game = server_game();
+        let pumpkin = game
+            .pack
+            .assets
+            .registry
+            .default_state("minecraft:pumpkin")
+            .unwrap();
+        game.world.set(8, 64, 10, pumpkin).unwrap();
+        game.dropped.clear();
+        let start = game.dropped.len();
+        let shears = ItemStack::new("minecraft:shears", 1);
+        let carved = game.use_pumpkin([8, 64, 10], [0, 0, -1], Some(&shears));
+        assert!(carved.unwrap(), "shears carve the pumpkin");
+        let seeds: Vec<_> = game.dropped[start..]
+            .iter()
+            .filter(|d| &*d.stack.item == "minecraft:pumpkin_seeds")
+            .collect();
+        assert_eq!(seeds.len(), 1, "one seed drop");
+        assert_eq!(seeds[0].stack.count, 4, "carving drops 4 seeds");
+        let state = game
+            .pack
+            .assets
+            .registry
+            .state(game.world.block(8, 64, 10))
+            .unwrap();
+        assert_eq!(
+            state.name, "minecraft:carved_pumpkin",
+            "the block is carved"
+        );
+        assert_eq!(
+            state.properties.get("facing").map(String::as_str),
+            Some("north"),
+            "the carved face points at the clicked side"        );
+    }
+}
