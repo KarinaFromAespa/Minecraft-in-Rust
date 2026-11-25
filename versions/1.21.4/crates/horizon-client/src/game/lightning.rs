@@ -783,10 +783,11 @@ mod tests {
     use std::sync::Arc;
 
     /// `LightningBolt.spawnFire` places nothing, and draws no extra sources,
-    /// unless `canSpreadFireAround` passes at the bolt (#11376).
+    /// unless `canSpreadFireAround` passes at the bolt (#11376): in 1.21.4
+    /// that is just `doFireTick` (no player-proximity gate).
     #[test]
     #[ignore = "needs prepared resources (HORIZON_TEST_RESOURCES)"]
-    fn a_bolt_away_from_players_starts_no_fire() {
+    fn a_bolt_with_do_fire_tick_off_starts_no_fire() {
         use horizon_client::gamerules::Value;
         let mut game = super::super::native_machines::tests::server_game();
         let stone = game
@@ -798,21 +799,15 @@ mod tests {
         let air = game.res.facts().air;
         game.world.set(8, 64, 8, stone).unwrap();
         let bolt = [8.5, 65.0, 8.5];
-        // (radius, player's x): fires expected at the strike.
-        for (radius, player_x, fires) in [
-            (128, 12.5, true),
-            (1, 12.5, false),
-            (0, 8.5, false),
-            (-1, 1000.0, true),
-        ] {
+        for (do_fire_tick, fires) in [(true, true), (false, false)] {
             game.world.set(8, 65, 8, air).unwrap();
             game.ui
                 .rules
-                .set("fire_spread_radius_around_player", Value::Int(radius));
+                .set("doFireTick", Value::Bool(do_fire_tick));
             game.player = Some(
                 horizon_client::motion::PlayerMotion::new(
                     game.motion,
-                    Vec3::new(player_x, 65.0, 8.5),
+                    Vec3::new(12.5, 65.0, 8.5),
                 )
                 .unwrap(),
             );
@@ -820,7 +815,7 @@ mod tests {
             let mut bolt_random = LegacyRandom::new(0);
             let set = game.bolt_fire(bolt, 4, &mut bolt_random);
             let burning = game.world.block(8, 65, 8) != air;
-            assert_eq!((set > 0, burning), (fires, fires), "radius {radius}");
+            assert_eq!((set > 0, burning), (fires, fires), "doFireTick {do_fire_tick}");
             if !fires {
                 // No offset draws either: the bolt's own random is untouched,
                 // and a bolt never draws from the level's.

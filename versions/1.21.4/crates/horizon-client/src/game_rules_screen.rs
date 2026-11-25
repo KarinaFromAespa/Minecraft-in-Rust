@@ -692,8 +692,9 @@ mod tests {
         for s in ["", "+3", " 3", "3 ", "3.0", "x"] {
             assert_eq!(parse(r, s), None, "{s:?}");
         }
-        let r = gamerules::rule("fire_spread_radius_around_player").unwrap();
-        assert_eq!(parse(r, "-1"), Some(-1));
+        let r = gamerules::rule("random_tick_speed").unwrap();
+        assert_eq!(parse(r, "0"), Some(0));
+        assert_eq!(parse(r, "-1"), None);
     }
 
     #[test]

@@ -823,9 +823,6 @@ struct GameLevel<'w> {
     rules: horizon_world::level::GameRules,
     /// `Difficulty.getId()` (peaceful 0 .. hard 3).
     difficulty: i32,
-    /// The feet of the players who keep fire spreading around them: the local
-    /// player and the LAN guests in this level, spectators aside.
-    fire_players: Vec<[f64; 3]>,
     /// Block loot random sequences (`ServerLevel.getRandomSequence`).
     rand_sequences: &'w mut horizon_client::random_sequences::RandomSequences,
     pending: &'w mut spill::Pending,
@@ -1547,20 +1544,14 @@ impl LevelAccess for GameLevel<'_> {
     fn difficulty(&self) -> i32 {
         self.difficulty
     }
-    /// `ServerLevel.canSpreadFireAround`: a player (not a spectator) closer
-    /// than the `fire_spread_radius_around_player` rule to the block's corner
-    /// (`ChunkMap.anyPlayerCloseEnoughTo`); -1 spreads everywhere.
-    fn can_spread_fire_around(&self, pos: BlockPos) -> bool {
-        let radius = self.rules.fire_spread_radius_around_player;
-        radius == -1
-            || self.fire_players.iter().any(|p| {
-                let d = [
-                    p[0] - f64::from(pos.x),
-                    p[1] - f64::from(pos.y),
-                    p[2] - f64::from(pos.z),
-                ];
-                d[0] * d[0] + d[1] * d[1] + d[2] * d[2] < f64::from(radius) * f64::from(radius)
-            })
+    /// `ServerLevel.canSpreadFireAround` in 1.21.4 is just `doFireTick`:
+    /// `LavaFluid.randomTick`, `FireBlock.tick` and lightning fire all
+    /// spread only while the rule is on. (1.21.5 added
+    /// `RULE_ALLOWFIRETICKAWAYFROMPLAYERS` plus the player-proximity
+    /// gate, and 26.x replaced it with the
+    /// `fire_spread_radius_around_player` rule.)
+    fn can_spread_fire_around(&self, _pos: BlockPos) -> bool {
+        self.rules.do_fire_tick
     }
     fn increased_fire_burnout(&self, pos: BlockPos) -> bool {
         self.world
@@ -3807,19 +3798,6 @@ impl Game<'_> {
             Dim::End => LevelDimension::End,
         };
         let rules = self.level_rules();
-        let fire_players: Vec<[f64; 3]> = self
-            .player
-            .iter()
-            .filter(|_| !spectator)
-            .map(|p| [p.position.x, p.position.y, p.position.z])
-            .chain(self.lan.iter().flat_map(|h| {
-                h.hub
-                    .guests
-                    .iter()
-                    .filter(|g| h.hub.here(g) && !g.spectator())
-                    .map(|g| g.position)
-            }))
-            .collect();
         let mut trigger_hooks: Vec<(Aabb, bool)> = self
             .hook
             .iter()
@@ -3913,7 +3891,6 @@ impl Game<'_> {
             registry: self.pack.assets.registry,
             rules,
             difficulty: i32::from(self.ui.difficulty),
-            fire_players,
             rand_sequences: &mut self.rand_sequences,
             pending: &mut self.pending,
             spill: &mut self.spill,

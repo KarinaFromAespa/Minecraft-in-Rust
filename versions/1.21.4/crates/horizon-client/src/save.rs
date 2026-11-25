@@ -3496,7 +3496,6 @@ const GAME_RULES: [(&str, i32); 56] = [
     ("send_command_feedback", 1),
     ("global_sound_events", 1),
     ("elytra_movement_check", 1),
-    ("fire_spread_radius_around_player", 128),
     ("freeze_damage", 1),
     ("mob_explosion_drop_decay", 1),
     ("natural_health_regeneration", 1),
@@ -3529,6 +3528,7 @@ const GAME_RULES: [(&str, i32); 56] = [
     ("spawn_patrols", 1),
     ("random_tick_speed", 3),
     ("fire_damage", 1),
+    ("doFireTick", 1),
     ("entity_drops", 1),
     ("advance_time", 1),
     ("command_blocks_work", 1),
@@ -3538,11 +3538,10 @@ const GAME_RULES: [(&str, i32); 56] = [
     ("ender_pearls_vanish_on_death", 1),
 ];
 /// Integer-valued rules; the others are booleans stored as bytes.
-const INT_RULES: [&str; 11] = [
+const INT_RULES: [&str; 10] = [
     "max_snow_accumulation_height",
     "random_tick_speed",
     "max_entity_cramming",
-    "fire_spread_radius_around_player",
     "players_nether_portal_default_delay",
     "max_command_sequence_length",
     "players_nether_portal_creative_delay",

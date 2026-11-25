@@ -398,7 +398,8 @@ pub fn smokey(w: &crate::mobs::MobWorld, at: [i32; 3]) -> bool {
         if lit(y) {
             return true;
         }
-        // SHAPE_VIRTUAL_POST: Block.column(4, 0, 16), the middle quarter.
+        // VIRTUAL_FENCE_POST: Block.column(4, 0, 16), the middle quarter
+        // (1.21.5 renamed it SHAPE_VIRTUAL_POST).
         let (x0, z0) = (f64::from(at[0]), f64::from(at[2]));
         let blocked = w.block_collision_boxes(at[0], y, at[2]).iter().any(|b| {
             let (min, max) = (b.min_position(), b.max_position());

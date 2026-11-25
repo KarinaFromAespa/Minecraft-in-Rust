@@ -216,8 +216,8 @@ pub struct GameRules {
     pub max_snow_accumulation_height: i32,
     pub spawn_mobs: bool,
     pub spawn_monsters: bool,
-    /// `fire_spread_radius_around_player`: -1 spreads everywhere.
-    pub fire_spread_radius_around_player: i32,
+    /// `doFireTick`: whether fire spreads and lava ignites.
+    pub do_fire_tick: bool,
     pub spread_vines: bool,
 }
 impl Default for GameRules {
@@ -231,7 +231,7 @@ impl Default for GameRules {
             max_snow_accumulation_height: 1,
             spawn_mobs: true,
             spawn_monsters: true,
-            fire_spread_radius_around_player: 128,
+            do_fire_tick: true,
             spread_vines: true,
         }
     }
