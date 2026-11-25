@@ -286,6 +286,13 @@ fn flag_pose(name: &str, p: &mut [f32; 9]) {
         p[3] = (-0.0125 + 0.01 * (2.0 * PI * 0.0f32).cos()) * PI;
     }
 }
+/// `ShieldSpecialRenderer`'s `PoseStack.scale(1, -1, -1)`: the decorated
+/// face points away from the holder, and the texture top ends up at the
+/// top. Without it the shield is reversed and upside-down in every
+/// context (third person, first person, GUI, fixed, ground).
+fn shield_pose() -> Mat4 {
+    Mat4::from_scale(Vec3::new(1.0, -1.0, -1.0))
+}
 /// `BookModel.setupAnim`.
 fn book_pose(openness: f32, flip1: f32, flip2: f32) -> impl Fn(&str, &mut [f32; 9]) {
     move |name: &str, p: &mut [f32; 9]| match name {
@@ -381,7 +388,12 @@ pub(super) fn extents(renderer: &ItemRenderer, model: &SpecialModel) -> Vec<Vec3
         } => add(skull_layer(kind), &skull_pose(kind, *animation)),
         SpecialKind::PlayerHead => add("player", &none),
         SpecialKind::ShulkerBox { openness, .. } => add("shulker_box", &shulker_pose(*openness)),
-        SpecialKind::Shield => add("shield", &none),
+        SpecialKind::Shield => {
+            // `ShieldSpecialRenderer.getExtents`: the same (1, -1, -1) scale.
+            if let Some(part) = renderer.part("shield") {
+                extents_of(part, "root", shield_pose(), &none, &mut out);
+            }
+        }
         SpecialKind::Trident => add("trident", &none),
     }
     out
@@ -481,9 +493,7 @@ pub(super) fn submit_book(
 ) {
     let (Some(book), Some(r)) = (
         renderer.part("book"),
-        sprites
-            .get("entity/enchanting_table_book")
-            .copied(),
+        sprites.get("entity/enchanting_table_book").copied(),
     ) else {
         return;
     };
@@ -520,7 +530,16 @@ pub(super) fn submit(
             };
             for (key, back) in [("bed_head", 0.0), ("bed_foot", -1.0)] {
                 if let Some(p) = renderer.part(key) {
-                    draw(p, "root", pose * bed_pose(back), &none, r, white, Foil::None, sink);
+                    draw(
+                        p,
+                        "root",
+                        pose * bed_pose(back),
+                        &none,
+                        r,
+                        white,
+                        Foil::None,
+                        sink,
+                    );
                 }
             }
         }
@@ -616,13 +635,7 @@ pub(super) fn submit(
                 ("standing_banner", "standing_banner_flag")
             };
             part(main, &none, "entity/banner_base", white, Foil::None);
-            part(
-                flag,
-                &flag_pose,
-                "entity/banner_base",
-                white,
-                Foil::None,
-            );
+            part(flag, &flag_pose, "entity/banner_base", white, Foil::None);
             // `submitPatterns`: the base layer in the banner's colour, then up to 16 layers.
             part(
                 flag,
@@ -658,18 +671,26 @@ pub(super) fn submit(
             // pixel ends with the glint once, over the layers below it.
             // Redrawing the base with the foil would cover the patterns.
             let foil = if has_foil { Foil::Standard } else { Foil::None };
-            part("shield", &none, base, white, foil);
-            if has_patterns {
-                part(
-                    "shield",
-                    &none,
-                    "entity/shield/base",
-                    dye(base_color.unwrap_or("white")),
-                    foil,
-                );
-                for (pattern, color) in patterns.into_iter().take(16) {
-                    if let Some(t) = pattern_texture(host, false, &pattern) {
-                        part("shield", &none, &t, dye(&color), foil);
+            // The `part` closure draws at the incoming pose, but
+            // `ShieldSpecialRenderer` submits under `scale(1, -1, -1)`,
+            // so the layers go through `draw` directly, as the bed does.
+            if let Some(p) = renderer.part("shield") {
+                let mut layers: Vec<(String, u32)> = vec![(base.to_owned(), white)];
+                if has_patterns {
+                    layers.push((
+                        "entity/shield/base".to_owned(),
+                        dye(base_color.unwrap_or("white")),
+                    ));
+                    for (pattern, color) in patterns.into_iter().take(16) {
+                        if let Some(t) = pattern_texture(host, false, &pattern) {
+                            layers.push((t, dye(&color)));
+                        }
+                    }
+                }
+                let posed = pose * shield_pose();
+                for (texture, color) in layers {
+                    if let Some(r) = sprites.get(&texture).copied() {
+                        draw(p, "root", posed, &none, r, color, foil, sink);
                     }
                 }
             }
@@ -878,6 +899,96 @@ mod tests {
         assert_eq!(
             drawn(Value::Null, true),
             [("entity/shield_base_nopattern", Foil::Standard)]
+        );
+    }
+    /// Vanilla 1.21.7's `minecraft:shield#main`, verbatim from the prepared
+    /// `entity-models.json` (plate `addBox(-6, -11, -2, 12, 22, 1)`,
+    /// handle `addBox(-1, -3, -1, 2, 6, 6)`, 64x64 layer).
+    const SHIELD_MAIN_JSON: &str = r#"{"minecraft:shield#main": {"pose": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0], "polygons": [], "normals": [], "children": {"plate": {"pose": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0], "polygons": [[[6.0, -11.0, -1.0, 0.203125, 0.0], [-6.0, -11.0, -1.0, 0.015625, 0.0], [-6.0, -11.0, -2.0, 0.015625, 0.015625], [6.0, -11.0, -2.0, 0.203125, 0.015625]], [[6.0, 11.0, -2.0, 0.390625, 0.015625], [-6.0, 11.0, -2.0, 0.203125, 0.015625], [-6.0, 11.0, -1.0, 0.203125, 0.0], [6.0, 11.0, -1.0, 0.390625, 0.0]], [[-6.0, -11.0, -2.0, 0.015625, 0.015625], [-6.0, -11.0, -1.0, 0.0, 0.015625], [-6.0, 11.0, -1.0, 0.0, 0.359375], [-6.0, 11.0, -2.0, 0.015625, 0.359375]], [[6.0, -11.0, -2.0, 0.203125, 0.015625], [-6.0, -11.0, -2.0, 0.015625, 0.015625], [-6.0, 11.0, -2.0, 0.015625, 0.359375], [6.0, 11.0, -2.0, 0.203125, 0.359375]], [[6.0, -11.0, -1.0, 0.21875, 0.015625], [6.0, -11.0, -2.0, 0.203125, 0.015625], [6.0, 11.0, -2.0, 0.203125, 0.359375], [6.0, 11.0, -1.0, 0.21875, 0.359375]], [[-6.0, -11.0, -1.0, 0.40625, 0.015625], [6.0, -11.0, -1.0, 0.21875, 0.015625], [6.0, 11.0, -1.0, 0.21875, 0.359375], [-6.0, 11.0, -1.0, 0.40625, 0.359375]]], "normals": [[0.0, -1.0, 0.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]], "children": {}}, "handle": {"pose": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0], "polygons": [[[1.0, -3.0, 5.0, 0.53125, 0.0], [-1.0, -3.0, 5.0, 0.5, 0.0], [-1.0, -3.0, -1.0, 0.5, 0.09375], [1.0, -3.0, -1.0, 0.53125, 0.09375]], [[1.0, 3.0, -1.0, 0.5625, 0.09375], [-1.0, 3.0, -1.0, 0.53125, 0.09375], [-1.0, 3.0, 5.0, 0.53125, 0.0], [1.0, 3.0, 5.0, 0.5625, 0.0]], [[-1.0, -3.0, -1.0, 0.5, 0.09375], [-1.0, -3.0, 5.0, 0.40625, 0.09375], [-1.0, 3.0, 5.0, 0.40625, 0.1875], [-1.0, 3.0, -1.0, 0.5, 0.1875]], [[1.0, -3.0, -1.0, 0.53125, 0.09375], [-1.0, -3.0, -1.0, 0.5, 0.09375], [-1.0, 3.0, -1.0, 0.5, 0.1875], [1.0, 3.0, -1.0, 0.53125, 0.1875]], [[1.0, -3.0, 5.0, 0.625, 0.09375], [1.0, -3.0, -1.0, 0.53125, 0.09375], [1.0, 3.0, -1.0, 0.53125, 0.1875], [1.0, 3.0, 5.0, 0.625, 0.1875]], [[-1.0, -3.0, 5.0, 0.65625, 0.09375], [1.0, -3.0, 5.0, 0.625, 0.09375], [1.0, 3.0, 5.0, 0.625, 0.1875], [-1.0, 3.0, 5.0, 0.65625, 0.1875]]], "normals": [[0.0, -1.0, 0.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]], "children": {}}}}}"#;
+    /// `ShieldSpecialRenderer` submits the shield under `scale(1, -1, -1)`:
+    /// the decorated NORTH face points away from the holder, the back face
+    /// sits behind it, the handle sits behind the back, and the texture top
+    /// ends up at the top.
+    #[test]
+    fn a_shield_faces_away_from_its_holder() {
+        let root =
+            std::env::temp_dir().join(format!("horizon-shield-facing-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("items.json"), "{}").unwrap();
+        std::fs::write(root.join("entity-models.json"), SHIELD_MAIN_JSON).unwrap();
+        let library = crate::model_library::ParsedModels::default().into_item_library();
+        let renderer = ItemRenderer::load_with_library(&root, library).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        // An identity sprite, so the emitted UVs are the plate's own.
+        let sprites: HashMap<String, Rect> = [(
+            "entity/shield_base_nopattern".to_owned(),
+            Rect {
+                u0: 0.0,
+                v0: 0.0,
+                u1: 1.0,
+                v1: 1.0,
+                w: 64,
+                h: 64,
+            },
+        )]
+        .into_iter()
+        .collect();
+        let mut quads: Vec<ItemQuad> = Vec::new();
+        submit(
+            &renderer,
+            &SpecialModel {
+                kind: SpecialKind::Shield,
+            },
+            &Value::Null,
+            false,
+            Mat4::IDENTITY,
+            &sprites,
+            &super::super::NoHost,
+            &mut quads,
+        );
+        // The plate's six faces plus the handle's six.
+        assert_eq!(quads.len(), 12);
+        let face = |u: (f32, f32), v: (f32, f32)| {
+            quads
+                .iter()
+                .find(|q| {
+                    q.uv.iter()
+                        .all(|uv| (u.0..u.1).contains(&uv[0]) && (v.0..v.1).contains(&uv[1]))
+                })
+                .unwrap()
+        };
+        // The decorated NORTH face (u 1..13, v 1..23 of the 64px texture):
+        // normal +Z, in front of the back face, texture top at the top.
+        let north = face((0.01, 0.21), (0.01, 0.36));
+        assert!(
+            (north.normal - Vec3::Z).length() < 1e-6,
+            "north normal: {:?}",
+            north.normal
+        );
+        assert!(north.pos.iter().all(|p| p.z == 2.0 / 16.0));
+        let top = north
+            .pos
+            .iter()
+            .zip(north.uv.iter())
+            .find(|(_, uv)| uv[1] == 0.015625)
+            .map(|(p, _)| p)
+            .unwrap();
+        assert!((top.y - 11.0 / 16.0).abs() < 1e-6);
+        // The SOUTH back face (u 14..26, v 1..23): normal -Z, behind the front.
+        let south = face((0.21, 0.41), (0.01, 0.36));
+        assert!(
+            (south.normal + Vec3::Z).length() < 1e-6,
+            "south normal: {:?}",
+            south.normal
+        );
+        assert!(south.pos.iter().all(|p| p.z == 1.0 / 16.0));
+        // The handle (u past 0.41, no plate face reaches it) sits behind the
+        // back face, not past the front.
+        assert!(
+            quads
+                .iter()
+                .filter(|q| q.uv.iter().any(|uv| uv[0] > 0.41))
+                .all(|q| q.pos.iter().all(|p| p.z <= 1.0 / 16.0))
         );
     }
     /// `DecoratedPotRenderer` draws every part with `RenderTypes.entitySolid`,

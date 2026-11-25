@@ -43,8 +43,10 @@ fn fixture() -> Value {
     for cart in CARTS {
         all.insert(format!("minecraft:{cart}#main"), part.clone());
     }
-    for model in ["player", "armor_stand", "armor_stand_small"] {
-        for layer in ["helmet", "chestplate", "leggings", "boots"] {
+    // Vanilla defines no per-slot armour layers, only the inner/outer
+    // models (`HumanoidArmorLayer`).
+    for model in ["player", "player_slim", "armor_stand", "armor_stand_small"] {
+        for layer in ["inner_armor", "outer_armor"] {
             all.insert(format!("minecraft:{model}#{layer}"), part.clone());
         }
     }
@@ -103,10 +105,29 @@ fn baseline(root: &Path) -> BTreeMap<String, Part> {
             models.insert(format!("cart/{cart}"), part);
         }
     }
-    for slot in ["helmet", "chestplate", "leggings", "boots"] {
-        for model in ["player", "armor_stand", "armor_stand_small"] {
-            if let Some(part) = load_model(root, &format!("minecraft:{model}#{slot}")) {
-                models.insert(format!("{model}/{slot}"), part);
+    // The production loader maps each armour slot to vanilla's inner
+    // (leggings) or outer (the rest) model; the baseline does the same
+    // mapping directly. Production keys the slim-skinned player's slots
+    // `slim_<slot>`, so the baseline uses the same keys.
+    for (model, prefix) in [
+        ("player", ""),
+        ("player_slim", "slim_"),
+        ("armor_stand", ""),
+        ("armor_stand_small", ""),
+    ] {
+        for (slot, layer) in [
+            ("helmet", "outer_armor"),
+            ("chestplate", "outer_armor"),
+            ("leggings", "inner_armor"),
+            ("boots", "outer_armor"),
+        ] {
+            if let Some(part) = load_model(root, &format!("minecraft:{model}#{layer}")) {
+                let label = if model.starts_with("armor_stand") {
+                    format!("{model}/{slot}")
+                } else {
+                    format!("player/{prefix}{slot}")
+                };
+                models.insert(label, part);
             }
         }
     }
@@ -185,7 +206,7 @@ fn entity_model_batches_preserve_parts_missing_layers_and_load_failures() {
     let mut all = fixture();
     fs::write(&file, serde_json::to_vec(&all).unwrap()).unwrap();
     assert_equivalent(&root.0);
-    assert_eq!(optimized(&root.0).len(), 43);
+    assert_eq!(optimized(&root.0).len(), 47);
     all.as_object_mut()
         .unwrap()
         .remove("minecraft:armor_stand_small#main");
@@ -194,7 +215,7 @@ fn entity_model_batches_preserve_parts_missing_layers_and_load_failures() {
         .remove("minecraft:boat/oak#main");
     fs::write(&file, serde_json::to_vec(&all).unwrap()).unwrap();
     assert_equivalent(&root.0);
-    assert_eq!(optimized(&root.0).len(), 41);
+    assert_eq!(optimized(&root.0).len(), 45);
     let document = EntityModelDocument::load(&root.0).unwrap();
     let mut first = document.model("minecraft:armor_stand#main").unwrap();
     first.children.clear();
@@ -233,6 +254,107 @@ fn armor_equipment_loads_without_an_entity_model_document() {
         ]
     );
     assert!(!assets.equipment.contains_key("minecraft:invalid"));
+}
+
+#[test]
+fn armor_models_come_from_vanillas_inner_and_outer_layers() {
+    // Vanilla 1.21.7 defines no per-slot armour layers: the prepared
+    // `entity-models.json` carries only `player#inner_armor` /
+    // `player#outer_armor` (and the `player_slim` / `armor_stand` pairs).
+    // Every slot must still resolve — leggings from the inner model, the
+    // rest from the outer model — or worn armour is silently skipped.
+    let root = FixtureRoot::new();
+    // Distinct parts per layer, so each slot can be traced to its source.
+    let part = |n: f32| {
+        json!({
+            "pose": [n, 0, 0, 0, 0, 0, 1, 1, 1],
+            "polygons": [[[0,0,0,0,0],[1,0,0,1,0],[1,1,0,1,1],[0,1,0,0,1]]],
+            "normals": [[0,0,1]],
+            "children": {}
+        })
+    };
+    let mut all = serde_json::Map::new();
+    for (model, n) in [
+        ("player", 1.0),
+        ("player_slim", 2.0),
+        ("armor_stand", 3.0),
+        ("armor_stand_small", 4.0),
+    ] {
+        all.insert(format!("minecraft:{model}#inner_armor"), part(n));
+        all.insert(format!("minecraft:{model}#outer_armor"), part(n + 0.5));
+    }
+    fs::write(
+        root.0.join("entity-models.json"),
+        serde_json::to_vec(&Value::Object(all)).unwrap(),
+    )
+    .unwrap();
+    // Vanilla 1.21.7's `assets/minecraft/equipment/iron.json`, verbatim.
+    let equipment = root.0.join("assets/minecraft/equipment");
+    fs::create_dir_all(&equipment).unwrap();
+    fs::write(
+        equipment.join("iron.json"),
+        br#"{
+  "layers": {
+    "horse_body": [{"texture": "minecraft:iron"}],
+    "humanoid": [{"texture": "minecraft:iron"}],
+    "humanoid_leggings": [{"texture": "minecraft:iron"}]
+  }
+}"#,
+    )
+    .unwrap();
+    let document = EntityModelDocument::load(&root.0).unwrap();
+    let assets = ArmorStandAssets::load(&root.0, Some(&document));
+    let debug = |key: &str| format!("{:?}", document.model(key).unwrap());
+    // Every slot resolves, from the inner/outer layer vanilla defines.
+    for slot in ["helmet", "chestplate", "leggings", "boots"] {
+        assert!(assets.player.contains_key(slot), "missing player/{slot}");
+        assert!(
+            assets.player.contains_key(format!("slim_{slot}").as_str()),
+            "missing player/slim_{slot}"
+        );
+    }
+    assert_eq!(
+        format!("{:?}", assets.player["leggings"]),
+        debug("minecraft:player#inner_armor")
+    );
+    assert_eq!(
+        format!("{:?}", assets.player["helmet"]),
+        debug("minecraft:player#outer_armor")
+    );
+    assert_eq!(
+        format!("{:?}", assets.player["chestplate"]),
+        debug("minecraft:player#outer_armor")
+    );
+    assert_eq!(
+        format!("{:?}", assets.player["boots"]),
+        debug("minecraft:player#outer_armor")
+    );
+    assert_eq!(
+        format!("{:?}", assets.player["slim_leggings"]),
+        debug("minecraft:player_slim#inner_armor")
+    );
+    assert_eq!(
+        format!("{:?}", assets.player["slim_helmet"]),
+        debug("minecraft:player_slim#outer_armor")
+    );
+    // The armour-stand layers map the same way, for both sizes.
+    assert_eq!(
+        format!("{:?}", assets.layers[&("leggings", false)]),
+        debug("minecraft:armor_stand#inner_armor")
+    );
+    assert_eq!(
+        format!("{:?}", assets.layers[&("helmet", true)]),
+        debug("minecraft:armor_stand_small#outer_armor")
+    );
+    // The equipment table reads the asset's layers.
+    assert_eq!(
+        assets.equipment["minecraft:iron"]["humanoid"],
+        vec![("entity/equipment/humanoid/iron".to_string(), None)]
+    );
+    assert_eq!(
+        assets.equipment["minecraft:iron"]["humanoid_leggings"],
+        vec![("entity/equipment/humanoid_leggings/iron".to_string(), None)]
+    );
 }
 
 #[test]

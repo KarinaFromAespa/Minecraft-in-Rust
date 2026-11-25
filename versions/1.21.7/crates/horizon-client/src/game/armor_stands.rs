@@ -85,7 +85,8 @@ pub(super) struct ArmorStandAssets {
     pub small: Option<Arc<Part>>,
     /// (slot model suffix, small) -> model.
     pub layers: HashMap<(&'static str, bool), Arc<Part>>,
-    /// The player's armour models by slot (helmet, chestplate, leggings, boots).
+    /// The player's armour models by slot (helmet, chestplate, leggings, boots),
+    /// plus the slim-skinned set under `slim_` keys.
     pub player: HashMap<&'static str, Part>,
     /// asset id -> layer kind (humanoid / humanoid_leggings) -> each layer's (texture, undyed colour), in order.
     pub equipment: HashMap<String, HashMap<String, Vec<(String, Option<u32>)>>>,
@@ -103,13 +104,42 @@ impl ArmorStandAssets {
         let load = |key: &str| document.and_then(|document| document.model(key));
         let mut layers = HashMap::new();
         let mut player = HashMap::new();
-        for slot in ["helmet", "chestplate", "leggings", "boots"] {
-            if let Some(part) = load(&format!("minecraft:player#{slot}")) {
-                player.insert(slot, part);
+        // Vanilla defines no per-slot armour layers: `HumanoidArmorLayer`
+        // draws leggings from the inner model and the rest from the outer
+        // model (`usesInnerModel` ⟺ slot == LEGS), for the wide and the
+        // slim player models and for both armour-stand sizes alike. The
+        // per-slot keys (`player#helmet`, …) never existed, so looking
+        // them up loaded an empty table and every worn piece was
+        // silently skipped.
+        let inner = load("minecraft:player#inner_armor");
+        let outer = load("minecraft:player#outer_armor");
+        let slim_inner = load("minecraft:player_slim#inner_armor");
+        let slim_outer = load("minecraft:player_slim#outer_armor");
+        for (slot, part) in [
+            ("helmet", &outer),
+            ("chestplate", &outer),
+            ("leggings", &inner),
+            ("boots", &outer),
+            ("slim_helmet", &slim_outer),
+            ("slim_chestplate", &slim_outer),
+            ("slim_leggings", &slim_inner),
+            ("slim_boots", &slim_outer),
+        ] {
+            if let Some(part) = part {
+                player.insert(slot, part.clone());
             }
-            for (small, model) in [(false, "armor_stand"), (true, "armor_stand_small")] {
-                if let Some(part) = load(&format!("minecraft:{model}#{slot}")) {
-                    layers.insert((slot, small), Arc::new(part));
+        }
+        for (small, model) in [(false, "armor_stand"), (true, "armor_stand_small")] {
+            let inner = load(&format!("minecraft:{model}#inner_armor"));
+            let outer = load(&format!("minecraft:{model}#outer_armor"));
+            for (slot, part) in [
+                ("helmet", &outer),
+                ("chestplate", &outer),
+                ("leggings", &inner),
+                ("boots", &outer),
+            ] {
+                if let Some(part) = part {
+                    layers.insert((slot, small), Arc::new(part.clone()));
                 }
             }
         }
@@ -225,19 +255,22 @@ impl Game<'_> {
         Some([r.u0, r.v0, r.u1, r.v1])
     }
     /// `HumanoidArmorLayer` for the player: (model, texture rect, colour,
-    /// overlay) of each worn piece, head to feet.
-    pub(super) fn player_armor_layers(&self) -> Vec<(&Part, [f32; 4], u32, u32, bool)> {
-        self.stack_armor_layers(&self.armor)
+    /// overlay) of each worn piece, head to feet. `slim` selects the
+    /// slim-skinned inner/outer models, as the body does.
+    pub(super) fn player_armor_layers(&self, slim: bool) -> Vec<(&Part, [f32; 4], u32, u32, bool)> {
+        self.stack_armor_layers(&self.armor, slim)
     }
     /// `HumanoidArmorLayer` for worn stacks (head to feet), trims included.
     pub(super) fn stack_armor_layers(
         &self,
         armor: &[Option<ItemStack>; 4],
+        slim: bool,
     ) -> Vec<(&Part, [f32; 4], u32, u32, bool)> {
         self.armor_layers(
             armor
                 .each_ref()
                 .map(|s| s.as_ref().map(|s| (&*s.item, Some(s)))),
+            slim,
         )
     }
     /// `HumanoidArmorLayer` for another player's model: the armour it wears
@@ -252,6 +285,7 @@ impl Game<'_> {
                 (e.feet.as_deref(), e.armor[3].as_ref()),
             ]
             .map(|(item, stack)| item.map(|i| (i, stack))),
+            m.slim,
         )
     }
     /// The layers of the armour items `worn` (with their stacks when known,
@@ -259,6 +293,7 @@ impl Game<'_> {
     fn armor_layers(
         &self,
         worn: [Option<(&str, Option<&ItemStack>)>; 4],
+        slim: bool,
     ) -> Vec<(&Part, [f32; 4], u32, u32, bool)> {
         let assets = &self.armor_stand_assets;
         let emissive = self
@@ -297,7 +332,19 @@ impl Game<'_> {
             let Some(layers) = assets.equipment.get(&asset).and_then(|k| k.get(kind)) else {
                 continue;
             };
-            let Some(part) = assets.player.get(layer) else {
+            // `HumanoidArmorLayer` draws the slim inner/outer models for a
+            // slim-skinned player, the wide ones otherwise.
+            let key = if slim {
+                match layer {
+                    "helmet" => "slim_helmet",
+                    "chestplate" => "slim_chestplate",
+                    "leggings" => "slim_leggings",
+                    _ => "slim_boots",
+                }
+            } else {
+                layer
+            };
+            let Some(part) = assets.player.get(key) else {
                 continue;
             };
             // EquipmentLayerRenderer.renderLayers: NO_OVERLAY, the armour

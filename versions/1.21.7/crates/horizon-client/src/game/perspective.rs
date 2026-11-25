@@ -782,7 +782,7 @@ impl Game<'_> {
             &lookup,
             packed,
             self.res.mob_data(),
-            &self.player_armor_layers(),
+            &self.player_armor_layers(m.slim),
             out,
         );
         // AvatarRenderer.shouldRenderLayers: a spectator draws no layers.
@@ -910,7 +910,7 @@ impl Game<'_> {
                 &lookup,
                 240 | 240 << 8,
                 self.res.mob_data(),
-                &self.player_armor_layers(),
+                &self.player_armor_layers(m.slim),
                 &mut verts,
             );
         });
