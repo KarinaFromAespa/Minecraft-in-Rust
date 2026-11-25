@@ -12,7 +12,7 @@ the same method that produced the 26.3 rewrite.
 
 The 1.21.7 port is in open playtest. The latest test build is on the
 **[releases page](https://github.com/KarinaFromAespa/Minecraft-in-Rust/releases)**
-(currently [1.21.7 test build #7](https://github.com/KarinaFromAespa/Minecraft-in-Rust/releases/tag/1.21.7-build-7)):
+(currently [1.21.7 test build #8](https://github.com/KarinaFromAespa/Minecraft-in-Rust/releases/tag/1.21.7-build-8)):
 the launcher for Windows and Linux, plus the 1.21.7 game build for
 Windows. No Microsoft account is needed.
 
@@ -25,10 +25,9 @@ Windows. No Microsoft account is needed.
    game build.
 5. Press Play, then create or open a world.
 
-If the first world load sticks on "Loading terrain…", close the
-launcher completely and press Play again — the world loads on the
-second try. Some menu icons show as blank squares; that is cosmetic
-only.
+Build #8 fixes the first world load sticking on "Loading terrain…"
+and the blank menu icons. If you already prepared with an earlier
+build, press Prepare once more to pick the icons up.
 
 Requirements: Windows 10/11 x64 (or Linux x64 for the launcher; the
 game build is Windows-only for now), a few GB free, a GPU with Vulkan
@@ -106,8 +105,9 @@ port — 815 items, rank-1 10/10, rank-2 492/492 — merged with a green CI
 proof. The E6 chain's mechanical publishes are complete down to 1.20.5.
 1.21.7 is playable and in open playtest (see Try it above), with its
 fix wave — recipe book, entity loot, brewing fuel, mob textures, beds —
-merged and its remaining defect, a crafting-table duplication, under
-investigation with packet logging. Porting has resumed down the 26.x
+merged, plus the loading-stick and menu-icon fixes in test build #8.
+A crafting-table duplication reported earlier did not reproduce and
+is dropped. Porting has resumed down the 26.x
 line in parallel with the playtest (26.1.2 and 26.1.1 merged 2026-11-23,
 26.1 in progress; 1.21.10 and 1.21.4 next in the queue), while the E6
 re-base propagation and the water carry-over stay paused. Each version
