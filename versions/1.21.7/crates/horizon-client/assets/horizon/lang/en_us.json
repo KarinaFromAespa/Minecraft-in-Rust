@@ -1094,5 +1094,7 @@
   "selectWorld.requiresFileFixingTooltip.recreate": "This world needs to be upgraded to the latest version before you can recreate it due to underlying changes to the world format.",
   "selectWorld.upgrade_and_play": "Upgrade and Play",
   "selectWorld.waitingForBackup.message": "Depending on the size of your world, this may take a while. Please do not close the game or shut off your device.",
-  "selectWorld.waitingForBackup.title": "Creating Backup"
+  "selectWorld.waitingForBackup.title": "Creating Backup",
+  "commands.time.query": "The time is %s",
+  "commands.time.set": "Set the time to %s"
 }

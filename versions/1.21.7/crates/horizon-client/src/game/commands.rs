@@ -2232,9 +2232,12 @@ impl Game<'_> {
     /// separate; built-in timelines and markers belong only to Overworld.
     fn cmd_time(&mut self, id: &str, ctx: &Context) -> R<i32> {
         if id == "time.query.gametime" {
-            let t = self.world.game_time;
-            self.feedback_unbroadcast(Text::tr("commands.time.query.gametime", &[&t]));
-            return Ok((t % i64::from(i32::MAX)) as i32);
+            // Vanilla 1.21.7's `queryTime` reports the game time modulo
+            // 2^31-1 under the single `commands.time.query` key
+            // ("The time is %s"); the 26.x per-form keys do not exist here.
+            let t = (self.world.game_time % i64::from(i32::MAX)) as i32;
+            self.feedback_unbroadcast(Text::tr("commands.time.query", &[&t]));
+            return Ok(t);
         }
         // `time of <clock>` names the clock; otherwise the dimension's default clock.
         let clock = match ctx.get("clock") {
@@ -2261,9 +2264,10 @@ impl Game<'_> {
                     i64::from(Self::int(ctx, "time").unwrap_or(0))
                 };
                 // 1.21.7 sets unconditionally; the already-at-time error is
-                // 26.3-only.
+                // 26.3-only. Vanilla reports the new absolute time under the
+                // single `commands.time.set` key ("Set the time to %s").
                 self.jump_clock(&clock, total, t, "command");
-                self.feedback(Text::tr("commands.time.set.absolute", &[&clock, &t]));
+                self.feedback(Text::tr("commands.time.set", &[&t]));
                 Ok(t as i32)
             }
             "time.set.marker" => {
@@ -2304,7 +2308,7 @@ impl Game<'_> {
                     self.set_command_clock_time(&clock, target);
                 }
                 let now = self.command_clock_time(&clock);
-                self.feedback(Text::tr("commands.time.set.absolute", &[&clock, &now]));
+                self.feedback(Text::tr("commands.time.set", &[&now]));
                 Ok((now % i64::from(i32::MAX)) as i32)
             }
             "time.pause" | "time.resume" => {
@@ -2357,12 +2361,12 @@ impl Game<'_> {
             }
             "time.query.daytime" => {
                 let daytime = total.rem_euclid(24_000);
-                self.feedback_unbroadcast(Text::tr("commands.time.query.daytime", &[&daytime]));
+                self.feedback_unbroadcast(Text::tr("commands.time.query", &[&daytime]));
                 Ok(daytime as i32)
             }
             "time.query.day" => {
                 let day = total / 24_000;
-                self.feedback_unbroadcast(Text::tr("commands.time.query.day", &[&day]));
+                self.feedback_unbroadcast(Text::tr("commands.time.query", &[&day]));
                 Ok((day % i64::from(i32::MAX)) as i32)
             }
             "time.query.timeline" | "time.query.repetition" => {
@@ -5376,6 +5380,84 @@ mod query_feedback_tests {
         assert!(game.run_command("scoreboard players get #t q"));
         let lines = game.chat_capture.take().unwrap();
         assert!(lines[0].plain().contains("1234"), "{:?}", lines[0].plain());
+    }
+
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn time_feedback_uses_vanilla_1_21_7_keys() {
+        use crate::game::{Audio, Game, Options, Progress, Settings, load_resources};
+        let root = std::path::PathBuf::from(std::env::var_os("HORIZON_TEST_RESOURCES").unwrap());
+        let settings = Settings::default();
+        let loaded = load_resources(
+            root.clone(),
+            None,
+            &root,
+            &settings,
+            std::time::Instant::now(),
+            false,
+            true,
+            &Progress::new(),
+            &mut |_, _| unreachable!(),
+        )
+        .unwrap();
+        let mut options = Options::parse(std::iter::empty()).unwrap().unwrap();
+        options.resources = root.clone();
+        options.execution_role = crate::game::execution_role::ExecutionRole::IntegratedServer;
+        let mut game = Game::new(
+            &loaded.resources,
+            loaded.pack,
+            loaded.gui.unwrap(),
+            options,
+            settings,
+            Audio::silent(&root),
+            None,
+        )
+        .unwrap();
+        game.build_registries();
+        game.set_allow_commands(true);
+        // Vanilla 1.21.7 reports every `/time set` (value or named time)
+        // and `/time add` under the single `commands.time.set` key
+        // ("Set the time to %s"); the 26.x `commands.time.set.absolute`
+        // key does not exist in 1.21.7 and printed raw.
+        for (command, want) in [
+            ("time set 1234", "Set the time to 1234"),
+            ("time set day", "Set the time to 1000"),
+            ("time set noon", "Set the time to 6000"),
+            ("time set night", "Set the time to 13000"),
+            ("time set midnight", "Set the time to 18000"),
+        ] {
+            game.chat_capture = Some(Vec::new());
+            assert!(game.run_command(command), "{command}");
+            let lines = game.chat_capture.take().unwrap();
+            assert_eq!(lines.len(), 1, "{command}");
+            assert_eq!(lines[0].plain(), want, "{command}");
+        }
+        game.chat_capture = Some(Vec::new());
+        assert!(game.run_command("time add 100"));
+        let lines = game.chat_capture.take().unwrap();
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].plain(), "Set the time to 18100");
+        // The queries report under the single `commands.time.query` key
+        // ("The time is %s"), not the 26.x per-form keys.
+        assert!(game.run_command("time set 1234"));
+        for (command, want) in [
+            ("time query daytime", "The time is 1234"),
+            ("time query day", "The time is 0"),
+        ] {
+            game.chat_capture = Some(Vec::new());
+            assert!(game.run_command(command), "{command}");
+            let lines = game.chat_capture.take().unwrap();
+            assert_eq!(lines.len(), 1, "{command}");
+            assert_eq!(lines[0].plain(), want, "{command}");
+        }
+        game.chat_capture = Some(Vec::new());
+        assert!(game.run_command("time query gametime"));
+        let lines = game.chat_capture.take().unwrap();
+        assert_eq!(lines.len(), 1);
+        assert_eq!(
+            lines[0].plain(),
+            format!("The time is {}", game.world.game_time % i64::from(i32::MAX))
+        );
     }
 }
 

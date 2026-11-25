@@ -983,6 +983,29 @@ mod tests {
     }
 
     #[test]
+    fn bundled_layer_carries_the_time_feedback_keys() {
+        // `/time set` and `/time query` report through vanilla 1.21.7's two
+        // keys, `commands.time.set` ("Set the time to %s") and
+        // `commands.time.query` ("The time is %s"), verified against the
+        // 1.21.7 client jar's en_us.json. The 26.x per-form keys
+        // (`commands.time.set.absolute`, `commands.time.query.gametime`,
+        // ...) do not exist in 1.21.7, so naming them prints the raw key.
+        // The bundled layer carries the two real keys so the feedback
+        // resolves even before the vanilla language file loads.
+        let lang = Language::load(&[], "en_us");
+        for (key, want) in [
+            ("commands.time.query", "The time is %s"),
+            ("commands.time.set", "Set the time to %s"),
+        ] {
+            assert_eq!(
+                lang.get(key),
+                Some(want),
+                "{key} must resolve from the bundled layer"
+            );
+        }
+    }
+
+    #[test]
     fn layers_selected_language_over_english() {
         let base = Mem(HashMap::from([
             ("assets/minecraft/lang/en_us.json".into(), br#"{"a":"Apple","b":"Banana"}"#.to_vec()),

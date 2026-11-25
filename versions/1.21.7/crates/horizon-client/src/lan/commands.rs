@@ -441,6 +441,71 @@ mod tests {
         );
     }
 
+    /// The server's packet for the real 1.21.7 report's `time` subtree keeps
+    /// the literal times: a client parsing with the packet's tree must reach
+    /// `time.set` for `day`, `noon`, `night` and `midnight`, not only for a
+    /// time value.
+    #[test]
+    fn packet_keeps_time_set_literals() {
+        let report: Value = serde_json::from_str(
+            r#"{"type":"root","children":{
+                "time":{"type":"literal","children":{
+                    "set":{"type":"literal","children":{
+                        "day":{"type":"literal","executable":true},
+                        "noon":{"type":"literal","executable":true},
+                        "night":{"type":"literal","executable":true},
+                        "midnight":{"type":"literal","executable":true},
+                        "time":{"type":"argument","parser":"minecraft:time","executable":true}
+                    }},
+                    "add":{"type":"literal","children":{
+                        "time":{"type":"argument","parser":"minecraft:time","executable":true}
+                    }},
+                    "query":{"type":"literal","children":{
+                        "daytime":{"type":"literal","executable":true},
+                        "gametime":{"type":"literal","executable":true},
+                        "day":{"type":"literal","executable":true}
+                    }}
+                }}
+            }}"#,
+        )
+        .unwrap();
+        let tree = CommandTree { root: report };
+        let builtin = Builtin::default();
+        let reg = crate::command::Registries {
+            permission: 4,
+            ..crate::command::Registries::default()
+        };
+        for level in [0u8, 2, 4] {
+            let packet = tree.packet(level, false, &builtin);
+            let set = packet
+                .nodes
+                .iter()
+                .find(|n| n.name == "set")
+                .expect("set node in the packet");
+            let children: Vec<&str> = set
+                .children
+                .iter()
+                .map(|&i| packet.nodes[i as usize].name.as_str())
+                .collect();
+            assert_eq!(
+                children,
+                ["day", "noon", "night", "midnight", "time"],
+                "level {level}: the packet's time set children"
+            );
+            let d = crate::command::network::from_packet(
+                &packet,
+                crate::command::vanilla::dispatcher(),
+            );
+            for name in ["day", "noon", "night", "midnight"] {
+                let input = format!("time set {name}");
+                let parse = d.parse(&input, &reg);
+                let (ctx, id) = parse.executable().unwrap();
+                assert_eq!(id, "server", "level {level}: {input}");
+                assert!(ctx.has(name), "level {level}: {input} keeps {name}");
+            }
+        }
+    }
+
     #[test]
     fn integer_bounds_and_entity_flags() {
         let p: Value = serde_json::from_str(r#"{"min": 1, "max": 1000}"#).unwrap();
