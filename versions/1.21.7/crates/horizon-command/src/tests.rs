@@ -223,6 +223,43 @@ fn parses_vanilla_commands() {
     let (ctx, _) = parse.executable().unwrap();
     assert!(ctx.has("strict") && ctx.has("filtered") && ctx.has("force") && !ctx.has("move"));
 }
+
+/// The release tree the game runs (no development commands) parses the
+/// literal times too: the chat's parse of `/time set day` must reach the
+/// handler's named branches, not stop at `set`.
+#[test]
+fn release_tree_parses_time_set_literals() {
+    let reg = reg();
+    let d = vanilla::release_dispatcher();
+    for name in ["day", "noon", "night", "midnight"] {
+        let input = format!("time set {name}");
+        let parse = d.parse(&input, &reg);
+        let (ctx, id) = parse.executable().unwrap();
+        assert_eq!(id, "time.set");
+        assert!(ctx.has(name), "{name} should be in the parse context");
+    }
+    let set = d
+        .find("time")
+        .and_then(|t| {
+            d.nodes[t]
+                .children
+                .iter()
+                .copied()
+                .find(|&c| d.nodes[c].name() == "set")
+        })
+        .expect("time set node");
+    let children: Vec<&str> = d.nodes[set]
+        .children
+        .iter()
+        .map(|&c| d.nodes[c].name())
+        .collect();
+    // The 26.x marker argument stays for the tree's shape, after the
+    // literals vanilla registers first.
+    assert_eq!(
+        children,
+        ["day", "noon", "night", "midnight", "time", "timemarker"]
+    );
+}
 #[test]
 fn vanilla_error_messages() {
     let e = run("foo").unwrap_err();
