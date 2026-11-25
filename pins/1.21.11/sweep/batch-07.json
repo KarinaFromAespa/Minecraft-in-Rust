@@ -1,0 +1,487 @@
+{
+ "batch": 7,
+ "checks": {"gap": 14, "pass": 31, "total": 45},
+ "date": "2026-11-25",
+ "method": "Static analysis only - javap -c -p on the named 1.21.11 jars (client-named.jar for client classes, server-game-named.jar for server classes) for every vanilla method in scope, Rust source reads, data checks against Mojang's datagen report (no horizon-prepare output exists for 1.21.11), a diff of every in-scope oracle source between the 1.21.10 and 1.21.11 trees, and a full javac fixpoint measurement of all 391 oracle files on three classpaths (both 127/391 pass, client 127/391, server 102/391). No drivers were run and no oracle repairs were done (checks + triage only).",
+ "name": "Items",
+ "out_of_scope_failures": "Hoglin in the shared allowed_in_peaceful denylist (mobs/spawn_rules.rs:134-175, 38 entries = vanilla 1.21.11's 37 notInPeaceful types + Hoglin; vanilla has no hoglin) - Batch 3's scope (B3-G04, including the spawn-egg facet; the 1.21.11 Batch 3 report has not landed). Enderman teleport on the absent #entities_can_teleport_to (mobs/enderman.rs:117) and pet teleport (mobs/tame.rs:1341) and mob-head visibility via the minecraft:mob_visibility component (mobs.rs:3173) - Batch 3. Composter dead (composter.rs:24-25 reads minecraft:compostable, which does not exist in 1.21.11; vanilla uses a hardcoded COMPOSTABLES map) - Batch 5 (B5-G22). #entities_can_teleport_to at game/commands/world_cmds.rs:2100-2105 - Batch 8. Suspected duplicates flagged for the coordinator to fold: B7-G10 ~ B1-G03 (splash water), B7-G11 ~ B5-G19 (mud tag), B7-G17 ~ B3-G39 (spawner entity_data). The ServerLevel-ctor group (85 oracle files) and the bindComponents group (25 oracle files) belong to Batch 0.",
+ "source": "docs/PARITY-SWEEP.md section 4 Batch 7 - checks + triage only, no fixes. Scope: item use, food, tools, armour, buckets, spawn eggs, components - 1,505 items. The item->Java-class map was extracted fresh from the named 1.21.11 jar: all 1,505 items mapped to 70 classes, 0 unmapped, 0 multi-class segments. Checks: 45 total (45 behaviour + 0 non-behaviour), 31 pass, 14 gap.",
+ "systemic_note": "The 1.21.11 template fixed one oracle the 1.21.10 run never had passing (B7-O09 VanillaItemModelOracle, substantively adapted to 1.21.11's model API) and matches vanilla 1.21.11 where vanilla changed since 1.21.7 (bucket sneak, peaceful gate, ENTITY_PLACE position) - but every behaviour defect from 1.21.10 reproduces verbatim, including the four re-check-first regressions (G07 tool transforms, G08 campfire douse, G09 chorus fruit, G10 splash water). No new behaviour defect was found in scope. Ten oracle defects (O31-O40) are NEW to this run's ledger: they failed in the 1.21.10 measured table too but no 1.21.10 batch recorded them (provisional triage from the 26.1.2 table, where they passed). The 1.21.10 run's B7-O11 FIXED verdict for KnockbackClient was a provisional-triage error - the measured 1.21.10 table already shows it failing, and it fails in 1.21.11 with 7 errors (punch cause gone, new causes replace it). Vanilla changed between 1.21.10 and 1.21.11 in item scope: mob buckets gained food components, parched joined the peaceful denylist (37 types), spears/nautilus content arrived (B37 PASS).",
+ "version": "1.21.11",
+ "items": [
+  {
+   "evidence": "Vanilla 1.21.11 PatchedDataComponentMap.set returns previous.orElse(prototype) - null on a dangling removal marker, never an error (javap-verified fresh, PatchedDataComponentMap.txt:131-163). The 1.21.11 Rust ComponentMap::set (crates/horizon-world/src/component_patch.rs:109-122) returns Ok(base) on a dangling removal marker - the port fixed it during the behaviour port, with a doc comment citing 1.21.11's form explicitly. FIXED in the 1.21.11 port (was a gap in 1.21.7 and all 26.x runs).",
+   "id": "B7-G01",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "ComponentMap::set returns null (as Ok) on a dangling removal marker (FIXED in the 1.21.11 port)"
+  },
+  {
+   "evidence": "1.21.7 B7-G02 (bucket sneak-redirect) - vanilla 1.21.11 BucketItem.emptyContents HAS the sneak check (isShiftKeyDown, javap-verified fresh, BucketItem.txt:231), and the Rust bucket_empty (horizon-world/src/level/buckets.rs:103-146) matches: air always takes the fluid, retry beside with a null hit result. Vanilla changed between 1.21.7 (no sneak check) and 1.21.10/1.21.11. The 1.21.7 premise fails for 1.21.11. WITHDRAWN.",
+   "id": "B7-G02",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "[CLOSED] Bucket sneak-redirect: vanilla 1.21.11 HAS the sneak check"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 SpawnEggItem.getType reads the typed entity_data component's type() and spawns THAT type (javap-verified fresh, SpawnEggItem.txt:282-303). The 1.21.11 port derives the kind from the item name only (game/creatures.rs:7460 use_spawn_egg, trim_end_matches(\"_spawn_egg\")) and spawn_egg_entity_data returns None when the id differs (game/block_entity_item.rs:104-106), so an entity_data id override naming a different type is ignored. REPRODUCES from 1.21.7, 1.21.10 and 26.1.2.",
+   "id": "B7-G03",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Spawn egg entity_data id type override ignored"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 SpawnEggItem.spawnMob FAILs hostile eggs in peaceful (javap-verified fresh, SpawnEggItem.txt:156-160), and the 1.21.11 port has the gate (game/creatures.rs:7441-7448 plus the use_failed return at :7462-7465). FIXED. Residual: the shared allowed_in_peaceful denylist wrongly includes hoglin (37 vanilla notInPeaceful types extracted fresh from the 1.21.11 EntityType dump, no hoglin; port denylist at mobs/spawn_rules.rs:134-175 has 38) - recorded as B3-G04, Batch 3's tally, not this batch's. Parched is a real 1.21.11 species and correctly included (the 1.21.10 report's dead-Parched note does not apply here).",
+   "id": "B7-G04",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "Peaceful gate for hostile spawn eggs (vanilla 1.21.11 HAS the gate; the port HAS it)"
+  },
+  {
+   "evidence": "1.21.7 B7-G05 (spawn-egg ENTITY_PLACE position) - vanilla 1.21.11 posts ENTITY_PLACE at the spawn position (spawnMob posts at its BlockPos argument, the computed spawn pos; javap-verified fresh, SpawnEggItem.txt:181), and the Rust posts at p (the spawn pos, game/creatures.rs:7516). Vanilla changed between 1.21.7 (posted at the clicked block) and 1.21.10/1.21.11. The 1.21.7 premise fails for 1.21.11. WITHDRAWN.",
+   "id": "B7-G05",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "[CLOSED] Spawn-egg ENTITY_PLACE position: vanilla posts at the spawn position"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 EntityType.spawn calls Mob.playAmbientSound() after addFreshEntityWithPassengers (javap-verified fresh, EntityType dump lines 557/565). The 1.21.11 port's ambient_sound is only called from the dispenser path (game/dispenser.rs:980) and the tick-time path (mobs.rs:6499), never on spawn-egg or mob-bucket placement (game/creatures.rs use_spawn_egg) - verified by a tree-wide call-site grep. REPRODUCES from 1.21.7, 1.21.10 and 26.1.2.",
+   "id": "B7-G06",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "No Mob.playAmbientSound() on spawn-egg placement"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 has NO block_transformer registry or component: the axe/hoe/shovel tables live in AxeItem/HoeItem/ShovelItem (STRIPPABLES/TILLABLES/FLATTENABLES; 0 BlockTransformer references in any dump) and the jar's datapack carries 0 block_transformer data files. The 1.21.11 port keeps the 26.2/26.3 form: game.rs block_transform reads the minecraft:block_transformer component (game.rs:7919, lookup at :7948; horizon-items/src/items.rs:973) and returns None for every tool, and block_transform.rs Transformers::load reads data/minecraft/block_transformer/*.json (:185; 0 files in vanilla data), so the transform table is empty. Axe strip/scrape/wax-off, hoe till, shovel flatten AND honeycomb wax-on (block_transform.rs:245 waxed() reads the empty axe table) are all entirely non-functional. No horizon-prepare synthesis step exists for the registry. REPRODUCES from 1.21.7, 1.21.10 and 26.1.2; re-checked first.",
+   "id": "B7-G07",
+   "method": "javap + source + data",
+   "severity": "major",
+   "status": "gap",
+   "title": "Axe/hoe/shovel transforms and honeycomb wax-on entirely non-functional (26.2/26.3 block_transformer form)"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 ShovelItem.useOn dowses a lit campfire directly (face != DOWN, CampfireBlock.dowse + level event 1009; ShovelItem.txt:64-88); there is no #douses_campfires tag in 1.21.11 (absent from ItemTags, the client jar's datapack - 198 item tag files - and the datagen report). The 1.21.11 port keeps the 26.3 form: game/campfire_douse.rs:12-17 gates the douse on #minecraft:douses_campfires (CampfireBlock.useItemOn), so campfire_to_douse always returns None and a shovel never puts out a campfire; the face != DOWN check was also dropped. REPRODUCES from 1.21.7, 1.21.10 and 26.1.2; re-checked first.",
+   "id": "B7-G08",
+   "method": "javap + source + data",
+   "severity": "major",
+   "status": "gap",
+   "title": "Shovel campfire douse dead: gated on the absent #douses_campfires tag"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 LivingEntity.randomTeleport is blocksMotion-grounded (4-arg signature (DDDZ), no tag parameter, javap-verified fresh, LivingEntity.txt:9792). The 1.21.11 port game/consume.rs:134 walks down for #minecraft:entities_can_teleport_to, a tag absent in 1.21.11 (absent from BlockTags, the client jar's datapack and the datagen report), so the loop always runs to min_y and returns false - chorus fruit never teleports. Masked: the tree keeps the level-event 2017 directional-particle trail on the consume path (teleport_consume.rs:51-52,109-116 + game/consume.rs:422-429); vanilla TeleportRandomlyConsumeEffect has only a diameter field and emits no level event (0 level-event refs in the fresh dump, :106 calls 4-arg randomTeleport). REPRODUCES from 1.21.7, 1.21.10 and 26.1.2; re-checked first.",
+   "id": "B7-G09",
+   "method": "javap + source + data",
+   "severity": "major",
+   "status": "gap",
+   "title": "Chorus fruit never teleports (tag #entities_can_teleport_to absent in 1.21.11)"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 AbstractThrownPotion has ZERO PotionTags references - it gates on PotionContents.is(Potions.WATER) directly (javap-verified fresh; the 1.21.11 jar has no PotionTags class at all and no data/minecraft/tags/potion/). The 1.21.11 port gates all four effects on potion tags (game/splash_water.rs:42-50 potion_in_tag: douses :60, hurts :134, extinguishes :135, rehydrates :197), which always return false, so water splash/lingering bottles do nothing on impact. REPRODUCES from 1.21.7, 1.21.10 and 26.1.2; suspected duplicate of B1-G03 (coordinator to fold). Note: unlike the 1.21.7 title's 'except axolotl rehydrate' qualifier, the 1.21.11 port gates rehydrate on tags too.",
+   "id": "B7-G10",
+   "method": "javap + source",
+   "severity": "major",
+   "status": "gap",
+   "title": "Water splash/lingering bottles do nothing on impact (potion-tag gate dead, incl. rehydrate) - suspected duplicate of B1-G03"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 PotionItem.useOn uses BlockTags.CONVERTABLE_TO_MUD (with an A, javap-verified fresh, PotionItem.txt:55); the 1.21.11 port uses convertible_to_mud (with an I) in all four places (game/potions.rs:710, game/dispenser.rs:2251, game/remote.rs:8676, horizon-world/src/level/data.rs:458), so the lookup always misses and a water bottle on dirt never makes mud. REPRODUCES from 1.21.7, 1.21.10 and 26.1.2; suspected duplicate of B5-G19 (coordinator to fold).",
+   "id": "B7-G11",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Water bottle on dirt never makes mud (convertible vs convertable) - suspected duplicate of B5-G19"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 BoatItem.use gathers entities in the player's bbox expanded 5.0 along the view + inflate 1.0 and returns PASS when the eye is inside any entity's pick-inflated bbox (javap-verified fresh, BoatItem.txt:47-78: getEyePosition, AABB.inflate, InteractionResult.PASS). The 1.21.11 port boat_to_place (game/boats.rs:1518-1542) + boat_entity_collision (game/boat_passengers.rs:206) check only the boat's own bbox, so a boat is placeable while the player's eye is inside an entity. REPRODUCES from 1.21.7, 1.21.10 and 26.1.2.",
+   "id": "B7-G12",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Boat placement missing the eye-inside-entity PASS check"
+  }
+,
+  {
+   "evidence": "The shield blocking-intent check (game.rs:7952-7958) applies to any tool with no axe-only/main-hand check, but it is unreachable: block_transform returns None at game.rs:7948 before it runs, because the minecraft:block_transformer component lookup always misses (see B7-G07). FIXED behaviourally, masked by B7-G07; the code is still wrong and the defect returns if G07 is fixed.",
+   "id": "B7-G13",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "Shield blocking-intent check (masked by B7-G07; code still wrong)"
+  },
+  {
+   "evidence": "The item_used_on_block trigger (game.rs:7999, campfire game/campfire_douse.rs:88) is unreachable: block_transform returns None at game.rs:7948 before it runs (see B7-G07/G08). Vanilla fires the trigger in AxeItem (:52) and HoneycombItem (:118) only - 0 refs in HoeItem/ShovelItem - so the port's honeycomb trigger is correct and G14's scope is hoe/shovel/campfire only. FIXED behaviourally, masked by B7-G07/B7-G08; the code is still wrong and the defect returns if those are fixed.",
+   "id": "B7-G14",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "ITEM_USED_ON_BLOCK trigger for hoe/shovel/campfire (masked by B7-G07/B7-G08; code still wrong)"
+  },
+  {
+   "evidence": "The copper-chest neighbour BLOCK_CHANGE code (game.rs:8026 call, transform_copper_chest_neighbour at :8044) is unreachable: block_transform returns None at game.rs:7948 before it runs (see B7-G07). FIXED behaviourally, masked by B7-G07; the code is still wrong and the defect returns if G07 is fixed.",
+   "id": "B7-G15",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "Copper-chest neighbour BLOCK_CHANGE (masked by B7-G07; code still wrong)"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 ItemStack.use calls applyAfterUseComponentSideEffects for instant-use items on Success, which reads USE_COOLDOWN - pearls (1.0s) and wind charges (0.5s) DO get a cooldown (javap-verified fresh, ItemStack.txt:537-575; the datagen report carries use_cooldown 1.0s on ender_pearl, 0.5s on wind_charge). The 1.21.11 port still applies it: throw_item (game/creatures.rs:7308 wind charge, :7356 pearl) calls apply_use_cooldown (game.rs:5211). FIXED (stays fixed, as in 1.21.10/26.1.2).",
+   "id": "B7-G16",
+   "method": "javap + source + data",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "Ender pearl / wind charge use cooldown applied on throw (stays fixed)"
+  },
+  {
+   "evidence": "Vanilla SpawnEggItem.useOn calls only Spawner.setEntityId - the 1.21.11 jar has NO Spawner.setEntityData (0 matches in the BaseSpawner and TrialSpawnerBlockEntity dumps; BaseSpawner has only setEntityId, javap-verified fresh, BaseSpawner.txt:77). The 1.21.11 port applies an op's egg entity_data to spawners (game/spawner.rs:464 set_entity_data for regular spawners; :450 override_entity_data for trial spawners). REPRODUCES from 1.21.10/26.1.2; suspected duplicate of B3-G39 (coordinator to fold).",
+   "id": "B7-G17",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Op's spawn-egg entity_data applied to spawners (1.21.11 has no Spawner.setEntityData) - suspected duplicate of B3-G39"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 has no named SpawnEggItemBehavior class - the behaviour is the anonymous DispenseItemBehavior$1, whose execute pops the EntityType.spawn result and UNCONDITIONALLY shrinks the stack by 1 and fires ENTITY_PLACE at the dispenser pos (javap-verified fresh, server-game.jar, DispenseItemBehavior-1.txt:69 pop, :95-97 shrink, :100-112 event) - the egg is consumed and the event fires even when the spawn returns null. (Only a null getType returns the stack unchanged.) The 1.21.11 port (game/dispenser.rs:1025-1027) returns the stack unshrunk with no event on a null spawn. REPRODUCES from 1.21.10/26.1.2.",
+   "id": "B7-G18",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Dispenser spawn egg returned unshrunk with no ENTITY_PLACE on a null spawn"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 PlayerSpawnFinder.findSpawn checks dimensionType().hasSkyLight() FIRST: in a dimension without skylight (or in adventure mode) it returns fixupSpawnHeight at the suggestion at once, with no radius search (javap-verified fresh, server-game.jar, PlayerSpawnFinder.txt:69-83). The 1.21.11 port (game/initial_spawn.rs:294-298 spawn_finder) has the adventure-mode arm but dropped the !sky_light arm (no sky_light/has_sky anywhere in the file), so in the Nether/End it searches the respawn radius instead of returning the fixup height. REPRODUCES from 1.21.10/26.1.2.",
+   "id": "B7-G19",
+   "method": "javap + source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Respawn/initial spawn searches the radius in skylight-less dimensions instead of the fixup height"
+  },
+  {
+   "evidence": "MEASURED triage (this batch's javac fixpoint, both cp: missing-package, 19 errors, first error 212: package EntityTypes does not exist). Javap-verified fresh: net.minecraft.world.entity.EntityTypes does not exist in the 1.21.11 client jar (registration still in EntityType), and the 1.21.11 oracle source still references it (VanillaDispenserOracle.java:212,235-236,560). Blocks use_item_on + mace. REPRODUCES from 1.21.10.",
+   "id": "B7-O01",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "VanillaDispenserOracle: EntityTypes package does not exist in 1.21.11"
+  },
+  {
+   "evidence": "MEASURED triage (this batch's javac fixpoint, both cp: missing-package, 38 errors, first error 450: package net.minecraft.world.clock does not exist). Javap-verified fresh: ClockInstance does not exist in the 1.21.11 client jar (no world/clock/ package); the source still references it (VanillaBlockUpdateOracle.java:450). Cascade root for B7-O29. REPRODUCES from 1.21.10.",
+   "id": "B7-O02",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "VanillaBlockUpdateOracle: ClockInstance does not exist in 1.21.11"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: no-override, 5 errors). Javap-verified fresh: Level.getNextEntityId does not exist in 1.21.11 (0 matches in the Level dump) and the source still @Overrides it (:78); the measured picture is multi-cause - the source also overrides is() (:70) and calls a 10-arg ServerLevel super (:75) against vanilla's 11-arg ctor. REPRODUCES from 1.21.10.",
+   "id": "B7-O03",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaArrowOracle: getNextEntityId + is() overrides + 10-arg ServerLevel super"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: constructor-mismatch, 5 errors). Javap-verified fresh: the source calls a 10-arg ServerLevel super (:36) against vanilla's 11-arg ctor, @Overrides the absent Level.getNextEntityId (:38), and calls a wrong LocalPlayer ctor (:55; vanilla LocalPlayer ctor is 7-arg). REPRODUCES from 1.21.10.",
+   "id": "B7-O04",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaBoatRiderOracle: 10-arg ServerLevel super + getNextEntityId + LocalPlayer ctor"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: no-override, 1 error). Javap-verified fresh: Level.getNextEntityId does not exist in 1.21.11 (0 matches in the Level dump); the source still @Overrides it (:38). REPRODUCES from 1.21.10.",
+   "id": "B7-O05",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaClientArrowOracle: getNextEntityId override does not exist"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: constructor-mismatch, 2 errors). Javap-verified fresh: the source calls a 10-arg ServerLevel super (:28) against vanilla's 11-arg ctor and @Overrides the absent Level.getNextEntityId (:29). REPRODUCES from 1.21.10.",
+   "id": "B7-O06",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaExplosionItemsOracle: 10-arg ServerLevel super + getNextEntityId"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: constructor-mismatch, 2 errors). Javap-verified fresh: the source calls a 10-arg ServerLevel super (:27) against vanilla's 11-arg ctor and @Overrides the absent Level.getNextEntityId (:28). REPRODUCES from 1.21.10.",
+   "id": "B7-O07",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaLavaCauldronItemOracle: 10-arg ServerLevel super + getNextEntityId"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: missing-symbol, 5 errors). Javap-verified fresh: net.minecraft.world.entity.EntityTypes does not exist in the 1.21.11 client jar; the source imports and uses it (VanillaBoatAuthorityOracle.java:14,53,96). REPRODUCES from 1.21.10.",
+   "id": "B7-O08",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaBoatAuthorityOracle: EntityTypes does not exist in 1.21.11"
+  },
+  {
+   "evidence": "The 1.21.11 tree's VanillaItemModelOracle.java was substantively adapted: it imports client/renderer/block/model/{BakedQuad,BlockModel,ItemModelGenerator,ItemTransform} (all exist in the jar), dropped the client.resources.model.geometry/cuboid/sprite imports and the EntityTypes import; all 30 imports verified present in the 1.21.11 client jar. MEASURED: passes on the client and both classpaths (its server-classpath failure is client-package imports only - 136 errors, all net.minecraft.client.*/blaze3d - expected for a client oracle). FIXED in the 1.21.11 template (was an oracle defect in 1.21.10).",
+   "id": "B7-O09",
+   "method": "measured oracle table + oracle source + jar listing",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "VanillaItemModelOracle fixed: adapted to 1.21.11's model API, passes on client + both"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: missing-symbol, 5 errors). Javap-verified fresh: EntitySpawnRequest does not exist in the 1.21.11 client jar; the source imports and uses it (VanillaVehicleContainerOracle.java:20,118). REPRODUCES from 1.21.10.",
+   "id": "B7-O10",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaVehicleContainerOracle: EntitySpawnRequest does not exist in 1.21.11"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: no-override, 7 errors). The 1.21.10 report's FIXED verdict was a provisional-triage error: the file is byte-identical to 1.21.10's and the measured 1.21.10 table already shows it failing (no-override). In 1.21.11 it fails with NEW causes: canUseCommandBlocks override (:362), EntityTypes.PLAYER (:383), cannot-find-symbol (:394/:396/:397), ServerboundAcceptTeleportationPacket 6-arg ctor (:436). 0 ServerboundPunchPacket refs - punch sends ServerboundSwingPacket (:144/:308), so the original cause is gone and new causes replace it. REPRODUCES (with new causes).",
+   "id": "B7-O11",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "KnockbackClient: punch cause gone, 7 new errors (canUseCommandBlocks, EntityTypes.PLAYER, teleportation packet ctor)"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: constructor-mismatch, 5 errors). Javap-verified fresh: InteractionResult.Success is a record with a swingSource field and no shouldSwing() method; the source calls s.shouldSwing() (:76) - plus a 10-arg ServerLevel super (:69) against vanilla's 11-arg ctor. REPRODUCES from 1.21.10.",
+   "id": "B7-O12",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaConsumableOracle: Success.shouldSwing() does not exist + 10-arg ServerLevel super"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: no-override, 10 errors). Javap-verified fresh: LivingEntity.randomTeleport is 4-arg (DDDZ), no tag parameter (LivingEntity.txt:9792); the source overrides the 5-arg form with a TagKey<Block> (:27/:30/:38/:41). Same 26.2-form tag parameter behind B7-G09. REPRODUCES from 1.21.10.",
+   "id": "B7-O13",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaTeleportConsumeOracle: 5-arg randomTeleport does not exist in 1.21.11"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: constructor-mismatch, 4 errors). Javap-verified fresh: LivingEntity.blockUsingItem is 2-arg (ServerLevel, LivingEntity) (LivingEntity.txt:3331); the source overrides the 5-arg form (:29/:38) - plus a 10-arg ServerLevel super (:21). REPRODUCES from 1.21.10.",
+   "id": "B7-O14",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaItemBlockingOracle: 5-arg blockUsingItem does not exist + 10-arg ServerLevel super"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: incompatible-types, 1 error). Javap-verified fresh: ItemStack.hurtAndBreak takes Consumer<Item>, not Consumer<ItemStack> (ItemStack.txt:741); the source passes the lambda result to snapshot(ItemStack) (:20). REPRODUCES from 1.21.10.",
+   "id": "B7-O15",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaItemDurabilityOracle: hurtAndBreak takes Consumer<Item>"
+  }
+,
+  {
+   "evidence": "MEASURED triage (both cp: incompatible-types, 2 errors). Javap-verified fresh: ItemStack.hurtAndBreak takes Consumer<Item>, not Consumer<ItemStack> (ItemStack.txt:741); the source passes the lambda result to snapshot(ItemStack) (:23). REPRODUCES from 1.21.10.",
+   "id": "B7-O16",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaComponentDurabilityOracle: hurtAndBreak takes Consumer<Item>"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: constructor-mismatch, 3 errors). Javap-verified fresh: LivingEntity.onEquippedItemBroken takes (Item, EquipmentSlot) (LivingEntity.txt:10240); the source overrides (ItemStack, EquipmentSlot) (:21/:22) - plus a 10-arg ServerLevel super (:17). REPRODUCES from 1.21.10.",
+   "id": "B7-O17",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaBlockingItemDamageOracle: onEquippedItemBroken takes Item + 10-arg ServerLevel super"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: missing-symbol, 8 errors). Javap-verified fresh: Player.drop is 2-arg (ItemStack, boolean) (Player.txt:1161); the source overrides the 3-arg form with Prediction (:15), a class that does not exist in either 1.21.11 jar; ItemStackTemplate also absent (:12/:13). REPRODUCES from 1.21.10.",
+   "id": "B7-O18",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaExtraItemsOracle: 3-arg Player.drop does not exist (Prediction + ItemStackTemplate also absent)"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: constructor-mismatch, 2 errors). Javap-verified fresh: ServerChunkCache takes 11 constructor args in 1.21.11 (ServerChunkCache.txt:39); the source calls a 10-arg super (:16) - and also a 10-arg ServerLevel super (:17). REPRODUCES from 1.21.10.",
+   "id": "B7-O19",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaItemUseStartOracle: ServerChunkCache takes 11 constructor args"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: constructor-mismatch, 3 errors). Javap-verified fresh: ServerChunkCache takes 11 constructor args in 1.21.11 (ServerChunkCache.txt:39); the source calls a 10-arg super (:19) - and also a 10-arg ServerLevel super. REPRODUCES from 1.21.10.",
+   "id": "B7-O20",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaInventoryUseStartOracle: ServerChunkCache takes 11 constructor args"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: constructor-mismatch, 8 errors). Javap-verified fresh: Gui takes 1 arg (Gui(Minecraft), Gui.txt:181); the source calls super(null, null, null) from a Gui subclass (:38). REPRODUCES from 1.21.10.",
+   "id": "B7-O21",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaHeldDropOracle: Gui takes 1 constructor arg"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: constructor-mismatch, 6 errors). Javap-verified fresh: Gui takes 1 arg (Gui(Minecraft), Gui.txt:181); the source calls super(null, null, null) from a Gui subclass (:39). REPRODUCES from 1.21.10.",
+   "id": "B7-O22",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaInteractionInputOracle: Gui takes 1 constructor arg"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: missing-symbol, 8 errors). Javap-verified fresh: ItemStackTemplate does not exist at all in 1.21.11; the source calls ItemStackTemplate.fromStack (:25). REPRODUCES from 1.21.10.",
+   "id": "B7-O23",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaItemTemplateOracle: ItemStackTemplate.fromStack does not exist - the class itself is absent"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: missing-symbol, 8 errors). Javap-verified fresh: ItemStackTemplate does not exist at all in 1.21.11; the source calls ItemStackTemplate.fromStack (:15). REPRODUCES from 1.21.10.",
+   "id": "B7-O24",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaUseRemainderOracle: ItemStackTemplate.fromStack does not exist - the class itself is absent"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: missing-symbol, 5 errors). Javap-verified fresh: VanillaRegistries has createLookup(), not createWorldLookup (VanillaRegistries.txt:39); the source calls createWorldLookup (:12). Also an Instrument ctor error (:25). REPRODUCES from 1.21.10.",
+   "id": "B7-O25",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaItemUseCatalogOracle: VanillaRegistries.createWorldLookup does not exist"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: missing-symbol, 2 errors). Javap-verified fresh: VanillaRegistries has createLookup(), not createWorldLookup (VanillaRegistries.txt:39); the source calls createWorldLookup (:33). REPRODUCES from 1.21.10.",
+   "id": "B7-O26",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaInventoryPickupOracle: VanillaRegistries.createWorldLookup does not exist"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: missing-symbol, 2 errors). Javap-verified fresh: VanillaRegistries has createLookup(), not createWorldLookup (VanillaRegistries.txt:39); the source calls createWorldLookup (:28). REPRODUCES from 1.21.10.",
+   "id": "B7-O27",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaPlayerInventoryOracle: VanillaRegistries.createWorldLookup does not exist"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: missing-symbol, 5 errors). Javap-verified fresh: SwingDescription does not exist anywhere in the 1.21.11 client jar and LivingEntity has no getCurrentSwing; the source overrides getCurrentSwing() returning SwingDescription (:30/:31) - plus a wrong LocalPlayer ctor (:23; vanilla LocalPlayer ctor is 7-arg). REPRODUCES from 1.21.10.",
+   "id": "B7-O28",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaHeldItemStackOracle: LivingEntity.SwingDescription does not exist"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: cascade on VanillaBlockUpdateOracle - the fixpoint drops it after O02; the source references VanillaBlockUpdateOracle at :27-33). No own error; it compiles once O02 is repaired. REPRODUCES from 1.21.10 (measured, not assumed).",
+   "id": "B7-O29",
+   "method": "measured oracle table + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaEnchantDurabilityOracle: cascade on broken VanillaBlockUpdateOracle"
+  },
+  {
+   "evidence": "MEASURED triage (both cp: constructor-mismatch, 1 OWN error - the 10-arg ServerLevel super (:34) against vanilla's 11-arg ctor - not a pure cascade, though it also references VanillaBlockUpdateOracle (:33/:37/:97). The 1.21.10 report's 'cascades on O02' grouping for O30 was provisional; the measured picture corrects it. REPRODUCES from 1.21.10.",
+   "id": "B7-O30",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaHelmetDamageOracle: 10-arg ServerLevel super (own error, not a pure cascade)"
+  },
+  {
+   "evidence": "NEW in this run (failed in the 1.21.10 measured table too but recorded by no 1.21.10 batch - the batches triaged provisionally from the 26.1.2 table, where it passed). MEASURED triage (both cp: missing-symbol, 7 errors). Javap-verified fresh: ItemStackTemplate does not exist in 1.21.11 (:13); Holder.Reference.bindComponents(DataComponentMap) does not exist (:8); BundleContents.weight() returns no DataResult - weight is a Fraction field and the ctor takes List<ItemStack> (:16/:17). Blocks bundle_weight.",
+   "id": "B7-O31",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaBundleWeightOracle: ItemStackTemplate + bindComponents absent; BundleContents.weight() is a Fraction field"
+  },
+  {
+   "evidence": "NEW in this run (failed in the 1.21.10 measured table too but recorded by no 1.21.10 batch). MEASURED triage (both cp: missing-symbol, 1 error). Javap-verified fresh: Holder.Reference.bindComponents(DataComponentMap) does not exist in 1.21.11 (javap of Holder$Reference shows no such method); the source calls it at :36. Blocks creative_mining.",
+   "id": "B7-O32",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaCreativeMiningOracle: Holder.Reference.bindComponents does not exist"
+  },
+  {
+   "evidence": "NEW in this run (failed in the 1.21.10 measured table too but recorded by no 1.21.10 batch). MEASURED triage (both cp: missing-symbol, 6 errors). Javap-verified fresh: ItemStackTemplate does not exist in 1.21.11 (:12) and Holder.Reference.bindComponents(DataComponentMap) does not exist (:23/:26/:27). Blocks item_after_use.",
+   "id": "B7-O33",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaItemAfterUseOracle: ItemStackTemplate + bindComponents absent"
+  },
+  {
+   "evidence": "NEW in this run (failed in the 1.21.10 measured table too but recorded by no 1.21.10 batch). MEASURED triage (both cp: missing-symbol, 1 error). Javap-verified fresh: Holder.Reference.bindComponents(DataComponentMap) does not exist in 1.21.11; the source calls it at :24. Blocks item_cooldowns.",
+   "id": "B7-O34",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaItemCooldownsOracle: Holder.Reference.bindComponents does not exist"
+  },
+  {
+   "evidence": "NEW in this run (failed in the 1.21.10 measured table too but recorded by no 1.21.10 batch). MEASURED triage (both cp: missing-symbol, 2 errors). Javap-verified fresh: DataComponents.ADDITIONAL_TRADE_COST is absent from 1.21.11's 105-field DataComponents (:81), and JukeboxPlayable takes EitherHolder<JukeboxSong>, not Holder.direct (:83). Blocks item_wire.",
+   "id": "B7-O35",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaItemWireOracle: DataComponents.ADDITIONAL_TRADE_COST absent + JukeboxPlayable takes EitherHolder"
+  },
+  {
+   "evidence": "NEW in this run (failed in the 1.21.10 measured table too but recorded by no 1.21.10 batch). MEASURED triage (both cp: missing-symbol, 1 error). Javap-verified fresh: Holder.Reference.bindComponents(DataComponentMap) does not exist in 1.21.11; the source calls it at :21. Blocks player_equipment.",
+   "id": "B7-O36",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaPlayerEquipmentOracle: Holder.Reference.bindComponents does not exist"
+  },
+  {
+   "evidence": "NEW in this run (failed in the 1.21.10 measured table too but recorded by no 1.21.10 batch). MEASURED triage (both cp: missing-symbol, 1 error). Javap-verified fresh: ItemParser.parse returns ItemParser$ItemResult in 1.21.11 (no createItemStack method); the 1.21.11 form is ItemInput.createItemStack(int, boolean). The source calls .createItemStack(1) on the parse result (:32). Blocks stack_mining.",
+   "id": "B7-O37",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaStackMiningOracle: ItemParser.parse returns ItemResult (no createItemStack)"
+  },
+  {
+   "evidence": "NEW in this run (failed in the 1.21.10 measured table too but recorded by no 1.21.10 batch). MEASURED triage (both cp: constructor-mismatch, 4 errors). Javap-verified fresh: the source calls a 10-arg ServerLevel super (:32) against vanilla's 11-arg ctor; ItemParticleOption.getItem() returns ItemStack in 1.21.11, so t.item()/t.count() fail (:33); and Holder.Reference.bindComponents(DataComponentMap) does not exist (:35). Blocks consumable_emission.",
+   "id": "B7-O38",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaConsumableEmissionOracle: 10-arg ServerLevel super + ItemStack particle API + bindComponents absent"
+  },
+  {
+   "evidence": "NEW in this run (failed in the 1.21.10 measured table too but recorded by no 1.21.10 batch). MEASURED triage (both cp: constructor-mismatch, 2 errors). Javap-verified fresh: the source calls a 10-arg ServerLevel super (:19) against vanilla's 11-arg ctor, and Holder.Reference.bindComponents(DataComponentMap) does not exist (:35). Blocks inventory_use.",
+   "id": "B7-O39",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaInventoryUseOracle: 10-arg ServerLevel super + bindComponents absent"
+  },
+  {
+   "evidence": "NEW in this run (failed in the 1.21.10 measured table too but recorded by no 1.21.10 batch). MEASURED triage (both cp: constructor-mismatch, 2 errors). Javap-verified fresh: the source calls a 10-arg ServerLevel super (:19) against vanilla's 11-arg ctor, and Holder.Reference.bindComponents(DataComponentMap) does not exist (:36). Blocks use_flag_reaction.",
+   "id": "B7-O40",
+   "method": "measured oracle table + javap + oracle source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaUseFlagReactionOracle: 10-arg ServerLevel super + bindComponents absent"
+  }
+ ]
+}
