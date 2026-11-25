@@ -1798,16 +1798,13 @@ impl Game<'_> {
             1.0,
             1.0,
         );
-        // BeehiveBlock.dropHoneycomb (harvest/beehive), then
-        // releaseBeesAndResetHoneyLevel and the shear event.
+        // BeehiveBlock.dropHoneycomb: exactly 3 honeycomb, popped directly
+        // — there is no `minecraft:harvest/beehive` table in 1.21.7's data
+        // (the harvest tables arrived with 1.21.9), so rolling one here
+        // would drop nothing. Then releaseBeesAndResetHoneyLevel and the
+        // shear event.
         let p = [target.0, target.1, target.2];
-        for stack in self.sequence_loot(
-            "minecraft:harvest/beehive",
-            "minecraft:harvest/beehive",
-            None,
-        ) {
-            self.pop_resource(p, stack);
-        }
+        self.pop_resource(p, ItemStack::new("minecraft:honeycomb", 3));
         if let Some(reset) = self.with_props(state, &[("honey_level", "0")]) {
             self.level_set(p, reset)?;
         }
@@ -2312,6 +2309,55 @@ mod tests {
         assert_eq!(
             mod_dispensed(Some((Some(ItemStack { count: 0, ..stack }), 0))),
             Some((None, 0))
+        );
+    }
+}
+
+#[cfg(test)]
+mod shear_beehive_tests {
+    use super::super::native_machines::tests::server_game;
+    use super::*;
+
+    /// `ShearsDispenseItemBehavior.tryShearBeehive` with shears dispensed at
+    /// a full hive: exactly 3 honeycomb pop out
+    /// (`BeehiveBlock.dropHoneycomb`) and the honey level resets to 0.
+    #[test]
+    #[ignore = "needs prepared resources (HORIZON_TEST_RESOURCES)"]
+    fn dispensed_shears_on_a_full_hive_drop_three_honeycomb_and_reset() {
+        let mut game = server_game();
+        let full = {
+            let registry = &game.pack.assets.registry;
+            let hive = registry.default_state("minecraft:beehive").unwrap();
+            let mut full = registry.state(hive).unwrap().clone();
+            full.properties.insert("honey_level".into(), "5".into());
+            registry.id(&full).unwrap()
+        };
+        game.world.set(8, 64, 10, full).unwrap();
+        game.dropped.clear();
+        let shears = ItemStack::new("minecraft:shears", 1);
+
+        let (left, event) = game
+            .dispense_shears((8, 64, 9), Direction::South, shears)
+            .unwrap();
+        assert_eq!(event, CLICK, "a successful shear clicks");
+        assert!(left.is_some(), "the shears survive one use");
+        let comb: Vec<_> = game
+            .dropped
+            .iter()
+            .filter(|e| &*e.stack.item == "minecraft:honeycomb")
+            .collect();
+        assert_eq!(comb.len(), 1, "one honeycomb drop");
+        assert_eq!(comb[0].stack.count, 3, "dropHoneycomb pops 3 honeycomb");
+        let state = game
+            .pack
+            .assets
+            .registry
+            .state(game.world.block(8, 64, 10))
+            .unwrap();
+        assert_eq!(
+            state.properties.get("honey_level").map(String::as_str),
+            Some("0"),
+            "the honey level resets"
         );
     }
 }
