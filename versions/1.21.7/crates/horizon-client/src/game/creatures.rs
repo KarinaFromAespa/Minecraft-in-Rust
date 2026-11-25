@@ -3644,6 +3644,13 @@ impl Game<'_> {
                     {
                         continue;
                     }
+                    // 1.21.7's Turtle.ageBoundaryReached spawns the scute
+                    // directly (spawnAtLocation); the gameplay/turtle_grow
+                    // table arrived in 1.21.9, so there is no table to roll.
+                    if table == "minecraft:gameplay/turtle_grow" {
+                        self.spawn_item_own(ItemStack::new("minecraft:turtle_scute", 1), at, 10);
+                        continue;
+                    }
                     self.drop_gift_loot(mob, table, at);
                 }
             }
@@ -7329,11 +7336,13 @@ impl Game<'_> {
         let (id, at) = (m.id, m.position);
         let feet = [at.x, at.y, at.z];
         let tool = self.held().cloned();
-        let table = "minecraft:brush/armadillo";
-        let mut stacks = self.sequence_loot(table, table, tool.as_ref());
+        // 1.21.7's brushOffScute spawns one scute outright; the
+        // brush/armadillo loot table (and dropFromEntityInteractLootTable)
+        // came in 1.21.9, so there is no table to roll here.
+        let mut stacks = vec![ItemStack::new("minecraft:armadillo_scute", 1)];
         let kind = super::native_hooks::mob_kind(&self.mobs[index]);
         self.native_use_drops(
-            table,
+            "minecraft:brush/armadillo",
             feet,
             None,
             Some((id, &kind)),
@@ -10300,3 +10309,59 @@ mod leash_without_item_criterion_tests;
 #[cfg(test)]
 #[path = "leash_without_item_postbaseline_controls.rs"]
 mod leash_without_item_postbaseline_controls;
+
+#[cfg(test)]
+mod missing_drop_tests {
+    use super::super::native_machines::tests::server_game;
+    use horizon_client::mobs::{Mob, MobEvent};
+    use horizon_core::geometry::Vec3;
+
+    /// Brushing an adult armadillo drops one scute (`Armadillo.brushOffScute`
+    /// spawns it directly — the brush/armadillo table arrived in 1.21.9).
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn brushing_an_armadillo_drops_one_scute() {
+        let mut game = server_game();
+        let kind = game
+            .res
+            .mob_types()
+            .get("minecraft:armadillo")
+            .unwrap()
+            .clone();
+        game.mobs
+            .push(Mob::new(1, kind, Vec3::new(8.5, 64.0, 8.5), 0.0));
+        game.dropped.clear();
+        let start = game.dropped.len();
+        assert!(game.interact_armadillo(0, "minecraft:brush"));
+        let scutes: Vec<_> = game.dropped[start..]
+            .iter()
+            .filter(|d| &*d.stack.item == "minecraft:armadillo_scute")
+            .collect();
+        assert_eq!(scutes.len(), 1, "one scute drops");
+        assert_eq!(scutes[0].stack.count, 1);
+        assert_eq!(scutes[0].pickup_delay, 10, "spawnAtLocation pickup delay");
+    }
+
+    /// A baby turtle growing up drops one scute (`Turtle.ageBoundaryReached`
+    /// spawns it directly — the gameplay/turtle_grow table arrived in 1.21.9).
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn a_grown_turtle_drops_one_scute() {
+        let mut game = server_game();
+        game.dropped.clear();
+        let start = game.dropped.len();
+        game.handle_mob_events(vec![MobEvent::GiftLoot {
+            mob: 1,
+            table: "minecraft:gameplay/turtle_grow",
+            at: [8.5, 64.0, 8.5],
+        }])
+        .unwrap();
+        let scutes: Vec<_> = game.dropped[start..]
+            .iter()
+            .filter(|d| &*d.stack.item == "minecraft:turtle_scute")
+            .collect();
+        assert_eq!(scutes.len(), 1, "one scute drops");
+        assert_eq!(scutes[0].stack.count, 1);
+        assert_eq!(scutes[0].pickup_delay, 10, "spawnAtLocation pickup delay");
+    }
+}
