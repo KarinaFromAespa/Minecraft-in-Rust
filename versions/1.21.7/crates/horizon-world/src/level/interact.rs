@@ -102,6 +102,10 @@ pub enum PlayerEffect {
     GiveItem(Arc<str>),
     /// Pop the item at the block (composter bone meal).
     DropItem(Arc<str>),
+    /// Pop `count` of the item at the block (`SweetBerryBushBlock.useWithoutItem`:
+    /// 1-2 berries, one more at age 3, straight from the level random —
+    /// 1.21.7 has no harvest loot table for the pick).
+    DropItems(Arc<str>, u32),
     /// Evaluate the block-interaction loot table and pop the results.
     InteractLoot(&'static str),
     /// Try to sleep in the bed whose head is at the event position.
@@ -326,13 +330,21 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     Success
                 }
                 Class::SweetBerryBush => {
-                    if table.int(state, p.age) <= 1 {
+                    let age = table.int(state, p.age);
+                    if age <= 1 {
                         return Pass;
                     }
+                    // Vanilla 1.21.7 drops the berries straight from the level
+                    // random (1-2, one more at age 3): there is no
+                    // `minecraft:harvest/sweet_berry_bush` table in 1.21.7's
+                    // data — the harvest tables arrived with 1.21.10 — so
+                    // rolling one here would drop nothing.
+                    let count =
+                        1 + self.random().next_int_bound(2).unwrap_or(0) + i32::from(age == 3);
                     self.player_effect(
                         pos,
                         state,
-                        PlayerEffect::InteractLoot("minecraft:harvest/sweet_berry_bush"),
+                        PlayerEffect::DropItems("minecraft:sweet_berries".into(), count as u32),
                     );
                     let pitch = 0.8 + self.random().next_float() * 0.4;
                     self.emit(LevelEvent::Sound {
