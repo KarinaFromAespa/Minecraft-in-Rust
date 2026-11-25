@@ -1759,15 +1759,16 @@ impl LevelAccess for GameLevel<'_> {
                 effect: PlayerEffect::DropItem(item),
                 ..
             } => self.pop_above(pos, item),
-            // Picking cave vines: the harvest loot, popped before the pick
-            // sound draws its pitch.
+            // The block-interaction loot roll. No live emitter in 1.21.7:
+            // the harvest picks that used it (sweet berries, cave vines)
+            // drop directly, the harvest tables having arrived in 1.21.9.
             LevelEvent::Player {
                 pos,
                 state,
                 effect: PlayerEffect::InteractLoot(table),
             } => self.drop_interact_loot(pos, state, table),
-            // Picking a sweet berry bush in 1.21.7: the berries, popped at
-            // the bush (no harvest table exists in this version).
+            // Picking in 1.21.7: the berries, popped at the block (no
+            // harvest table exists in this version).
             LevelEvent::Player {
                 pos,
                 effect: PlayerEffect::DropItems(item, count),

@@ -102,9 +102,10 @@ pub enum PlayerEffect {
     GiveItem(Arc<str>),
     /// Pop the item at the block (composter bone meal).
     DropItem(Arc<str>),
-    /// Pop `count` of the item at the block (`SweetBerryBushBlock.useWithoutItem`:
-    /// 1-2 berries, one more at age 3, straight from the level random —
-    /// 1.21.7 has no harvest loot table for the pick).
+    /// Pop `count` of the item at the block (direct harvest drops with no
+    /// loot table in 1.21.7: `SweetBerryBushBlock.useWithoutItem` 1-2 berries,
+    /// one more at age 3, straight from the level random; `CaveVines.use`
+    /// exactly 1 glow berry).
     DropItems(Arc<str>, u32),
     /// Evaluate the block-interaction loot table and pop the results.
     InteractLoot(&'static str),
@@ -312,10 +313,15 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     if !table.bool(state, p.berries) {
                         return Pass;
                     }
+                    // Vanilla 1.21.7 drops the glow berry straight from
+                    // `CaveVines.use` (exactly 1, `Block.popResource`): there
+                    // is no `minecraft:harvest/cave_vine` table in 1.21.7's
+                    // data — the harvest tables arrived with 1.21.9 — so
+                    // rolling one here would drop nothing.
                     self.player_effect(
                         pos,
                         state,
-                        PlayerEffect::InteractLoot("minecraft:harvest/cave_vine"),
+                        PlayerEffect::DropItems("minecraft:glow_berries".into(), 1),
                     );
                     let pitch = self.random().next_float() * 0.4 + 0.8;
                     self.emit(LevelEvent::Sound {

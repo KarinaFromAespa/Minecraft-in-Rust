@@ -1129,3 +1129,73 @@ mod sweet_berry_pick_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod cave_vine_pick_tests {
+    use super::super::native_machines::tests::server_game;
+    use super::*;
+    use horizon_core::geometry::{Direction, Vec3};
+    use horizon_world::level::{InteractionResult, PlayerContext, UseBranch};
+
+    /// `CaveVines.use` on a vine with berries: the glow berry drops as an
+    /// item entity and the vine stays, berries cleared.
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES and scratch homes/cwd"]
+    fn right_clicking_a_berry_vine_drops_one_glow_berry_and_clears_it() {
+        let mut game = server_game();
+        let ripe = {
+            let registry = &game.pack.assets.registry;
+            let vine = registry.default_state("minecraft:cave_vines").unwrap();
+            let mut ripe = registry.state(vine).unwrap().clone();
+            ripe.properties.insert("berries".into(), "true".into());
+            registry.id(&ripe).unwrap()
+        };
+        game.world.set(8, 64, 10, ripe).unwrap();
+        game.dropped.clear();
+        let start = game.dropped.len();
+        let (result, branch) = game.with_level(|b, level, ticks| {
+            b.use_item_on_branch(
+                level,
+                ticks,
+                BlockPos::new(8, 64, 10),
+                Direction::North,
+                Vec3::new(8.5, 64.5, 10.0),
+                PlayerContext {
+                    yaw: 0.0,
+                    pitch: 0.0,
+                    may_build: true,
+                    can_eat: true,
+                    game_master: false,
+                },
+                None,
+            )
+        });
+        assert_eq!(result, InteractionResult::Success);
+        assert_eq!(
+            branch,
+            UseBranch::WithoutItem,
+            "an empty hand reaches useWithoutItem"
+        );
+        let berries: Vec<_> = game.dropped[start..]
+            .iter()
+            .filter(|d| &*d.stack.item == "minecraft:glow_berries")
+            .collect();
+        assert_eq!(berries.len(), 1, "one glow berry drop");
+        assert_eq!(
+            berries[0].stack.count, 1,
+            "a vine drops exactly one glow berry"
+        );
+        assert_eq!(berries[0].pickup_delay, 10, "popResource pickup delay");
+        let state = game
+            .pack
+            .assets
+            .registry
+            .state(game.world.block(8, 64, 10))
+            .unwrap();
+        assert_eq!(
+            state.properties.get("berries").map(String::as_str),
+            Some("false"),
+            "the vine stays, berries cleared"
+        );
+    }
+}
