@@ -5,6 +5,10 @@
 //! (`ServerPlaceRecipe`). Which recipes are known comes from the advancement
 //! rewards; the open and filter settings are saved with the player.
 use super::{Game, Screen};
+
+#[cfg(test)]
+#[path = "recipe_book_unlock_tests.rs"]
+mod recipe_book_unlock_tests;
 use horizon_client::{
     containers::{BlockEntity, FurnaceKind},
     hud::{HudBatch, Rect, rgba},

@@ -12,6 +12,12 @@ use crate::{
 use horizon_world::nbt::{JavaString, Tag};
 use horizon_world::{component_patch::Patch, loot::PackOverlay};
 use serde_json::Value;
+
+/// One test per vanilla 1.21.7 recipe, generated from the 1.21.7 server jar
+/// (`tools/recipe_coverage_gen.py`); see that file for the shape.
+#[cfg(test)]
+#[path = "recipe_coverage_tests.rs"]
+mod recipe_coverage_tests;
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
