@@ -1439,41 +1439,38 @@ fn extract_member(client: &mut Jar, name: &str, target: &Path) -> Result<(), Str
 /// missing sprite renders as an empty grey square. The owner, 2026-11-22: menu chrome need not
 /// be version-faithful — only the game, items, entities and their behaviours must correspond to
 /// the respective version. No Mojang file is committed: the sprites come from the player's own
-/// 26.3 client jar at prepare time where one is prepared, or from Mojang's public asset index
-/// for 26.3 where it is not — the player downloads their own copy, sha1-verified, like the
-/// game files and the remap stage's tables — and only under `gui/sprites/`: gameplay assets
-/// stay strictly this version's.
+/// 26.3 client jar at prepare time where one is prepared, or from Mojang's public 26.3 client
+/// jar where it is not — the player downloads their own copy, sha1-verified, cached under
+/// `.local/`, like the game files and the remap stage's tables — and only under `gui/sprites/`:
+/// gameplay assets stay strictly this version's. The sprites ship in the client jar, not in
+/// the asset index: the 26.3 asset index holds no `gui/sprites/` entry at all, so an index
+/// fetch finds nothing and fills 0.
 const FALLBACK_SPRITES_VERSION: &str = "26.3";
 /// The subtree of the fallback jar the fallback may copy from (menu chrome only).
 const FALLBACK_SPRITES_PREFIX: &str = "assets/minecraft/textures/gui/sprites/";
-/// The same subtree as the asset index names it (no `assets/` prefix).
-const FALLBACK_SPRITES_INDEX_PREFIX: &str = "minecraft/textures/gui/sprites/";
-/// Mojang's public version manifest: where the 26.3 version JSON (and so its asset
-/// index) is found when no sibling 26.3 jar is prepared.
+/// Mojang's public version manifest: where the 26.3 version JSON (and so its client
+/// jar) is found when no sibling 26.3 jar is prepared.
 const PISTON_META_MANIFEST_URL: &str =
     "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
-/// Where the asset index's files live, by the first two characters of their sha1.
-const ASSET_CDN_URL: &str = "https://resources.download.minecraft.net";
 
 /// Fills the GUI sprites this version's jar lacks, first from the sibling 26.3 client jar
-/// where the player has prepared 26.3, else by downloading the missing sprites from Mojang's
-/// public asset index for 26.3: only files the resources directory does not already have are
-/// filled, so this version's own art always wins. Returns how many were filled — 0, without
-/// failing, when neither source is available (the menus then stay as this version ships
-/// them). Deliberately outside `OUTPUT_VERSION`: what it fills depends on unpinned inputs
-/// (the sibling jar, the asset index), which the output digest cannot represent, so an
+/// where the player has prepared 26.3, else by downloading Mojang's 26.3 client jar and
+/// taking the missing sprites from it: only files the resources directory does not already
+/// have are filled, so this version's own art always wins. Returns how many were filled — 0,
+/// without failing, when neither source is available (the menus then stay as this version
+/// ships them). Deliberately outside `OUTPUT_VERSION`: what it fills depends on unpinned
+/// inputs (the sibling jar, the client jar), which the output digest cannot represent, so an
 /// existing preparation needs one re-prepare to pick the sprites up.
 fn fallback_menu_sprites(repo: &Path, root: &Path, log: Log) -> Result<usize, String> {
-    fallback_menu_sprites_from(repo, root, PISTON_META_MANIFEST_URL, ASSET_CDN_URL, log)
+    fallback_menu_sprites_from(repo, root, PISTON_META_MANIFEST_URL, log)
 }
 
-/// `fallback_menu_sprites` with its download sources as arguments, so tests can point
-/// them at a local server.
+/// `fallback_menu_sprites` with its download source as an argument, so tests can point
+/// it at a local server.
 fn fallback_menu_sprites_from(
     repo: &Path,
     root: &Path,
     manifest_url: &str,
-    cdn_url: &str,
     log: Log,
 ) -> Result<usize, String> {
     let sibling = repo
@@ -1483,19 +1480,7 @@ fn fallback_menu_sprites_from(
         if let Ok(lock) = artifacts::Lock::read(&sibling) {
             let jar = lock.directory.join("jars/client.jar");
             if jar.is_file() {
-                let mut client = open_zip(&jar)?;
-                let mut filled = 0;
-                for name in zip_names(&client)? {
-                    if !name.starts_with(FALLBACK_SPRITES_PREFIX) || name.ends_with('/') {
-                        continue;
-                    }
-                    let target = root.join(member_path(&name, "Invalid resource path")?);
-                    if target.is_file() {
-                        continue;
-                    }
-                    extract_member(&mut client, &name, &target)?;
-                    filled += 1;
-                }
+                let (_found, filled) = fill_sprites_from_jar(&jar, root)?;
                 if filled > 0 {
                     log(&format!(
                         "Filled {filled} menu sprites from the 26.3 client jar"
@@ -1505,38 +1490,58 @@ fn fallback_menu_sprites_from(
             }
         }
     }
-    // No sibling 26.3 jar: a fresh tester has none. Fetch the missing sprites from
-    // Mojang's public asset index for 26.3 instead — the player's own download, sha1
-    // verified, menu chrome only. Offline or unreachable, this is a soft no-op: the
-    // menus stay as this version ships them and prepare carries on.
-    log("The 26.3 client jar is not prepared; fetching the missing menu sprites from Mojang");
-    Ok(download_menu_sprites(root, manifest_url, cdn_url, log))
+    // No sibling 26.3 jar: a fresh tester has none. Download Mojang's 26.3 client jar
+    // and take its menu sprites instead — the player's own download, sha1 verified,
+    // cached under `.local/`, menu chrome only. Offline or unreachable, this is a soft
+    // no-op: the menus stay as this version ships them and prepare carries on.
+    log("The 26.3 client jar is not prepared; fetching its menu sprites from Mojang");
+    Ok(download_menu_sprites(repo, root, manifest_url, log))
 }
 
-/// Fetches the `gui/sprites/` files the resources directory lacks from Mojang's public
-/// asset index for the fallback version (manifest -> version JSON -> asset index ->
-/// per-file downloads, each checked against the sha1 the index publishes for it).
-/// Never fails: a step that cannot be reached or verified logs and leaves what was
-/// already filled in place, so an offline prepare still succeeds.
-fn download_menu_sprites(root: &Path, manifest_url: &str, cdn_url: &str, log: Log) -> usize {
+/// Extracts the `gui/sprites/` members the resources directory lacks from the client
+/// jar at `jar`, returning (found, filled): how many sprite members the jar holds,
+/// and how many were extracted. The version's own art always wins: a sprite the
+/// resources directory already has is never overwritten, and nothing outside
+/// `gui/sprites/` is touched.
+fn fill_sprites_from_jar(jar: &Path, root: &Path) -> Result<(usize, usize), String> {
+    let mut client = open_zip(jar)?;
+    let mut found = 0;
     let mut filled = 0;
-    if let Err(error) = download_menu_sprites_inner(root, manifest_url, cdn_url, log, &mut filled) {
+    for name in zip_names(&client)? {
+        if !name.starts_with(FALLBACK_SPRITES_PREFIX) || name.ends_with('/') {
+            continue;
+        }
+        found += 1;
+        let target = root.join(member_path(&name, "Invalid resource path")?);
+        if target.is_file() {
+            continue;
+        }
+        extract_member(&mut client, &name, &target)?;
+        filled += 1;
+    }
+    Ok((found, filled))
+}
+
+/// Downloads the fallback version's client jar from Mojang (manifest -> version JSON
+/// -> `downloads.client`, sha1-verified at each step, cached under `.local/`) and
+/// fills the `gui/sprites/` files the resources directory lacks from it. Never fails:
+/// a step that cannot be reached or verified logs and leaves what was already filled
+/// in place, so an offline prepare still succeeds. The count the jar holds is always
+/// logged, so a 0 is visible instead of silent.
+fn download_menu_sprites(repo: &Path, root: &Path, manifest_url: &str, log: Log) -> usize {
+    let mut filled = 0;
+    if let Err(error) = download_menu_sprites_inner(repo, root, manifest_url, log, &mut filled) {
         log(&format!(
             "Could not fetch the {FALLBACK_SPRITES_VERSION} menu sprites ({error}); the menus stay as this version ships them"
-        ));
-    }
-    if filled > 0 {
-        log(&format!(
-            "Filled {filled} menu sprites from Mojang's {FALLBACK_SPRITES_VERSION} asset index"
         ));
     }
     filled
 }
 
 fn download_menu_sprites_inner(
+    repo: &Path,
     root: &Path,
     manifest_url: &str,
-    cdn_url: &str,
     log: Log,
     filled: &mut usize,
 ) -> Result<(), String> {
@@ -1566,53 +1571,35 @@ fn download_menu_sprites_inner(
         ));
     }
     let version = pyjson::loads(&version_text)?;
-    let index = version
-        .get("assetIndex")
-        .ok_or("the version JSON has no assetIndex")?;
-    let index_url = index
+    let client = version
+        .get("downloads")
+        .and_then(|downloads| downloads.get("client"))
+        .ok_or("the version JSON has no downloads.client")?;
+    let jar_url = client
         .get("url")
         .and_then(Value::as_str)
-        .ok_or("the assetIndex has no url")?;
-    let index_sha1 = index
+        .ok_or("the version JSON's client download has no url")?;
+    let jar_sha1 = client
         .get("sha1")
         .and_then(Value::as_str)
-        .ok_or("the assetIndex has no sha1")?;
-    let index_text = remap::fetch_text(index_url, log)?;
-    if sha1_hex(index_text.as_bytes()) != index_sha1 {
-        return Err(format!(
-            "Checksum mismatch for the {FALLBACK_SPRITES_VERSION} asset index"
+        .ok_or("the version JSON's client download has no sha1")?;
+    // Cached under `.local/`, like the remap stage's deps: a re-prepare reuses the
+    // verified copy instead of downloading the jar again.
+    let cached = repo
+        .join(".local")
+        .join("menu-sprites")
+        .join(format!("{FALLBACK_SPRITES_VERSION}-client.jar"));
+    let jar = remap::download(jar_url, &cached, jar_sha1, log)?;
+    let (found, n) = fill_sprites_from_jar(&jar, root)?;
+    log(&format!(
+        "The {FALLBACK_SPRITES_VERSION} client jar holds {found} menu sprites"
+    ));
+    if n > 0 {
+        log(&format!(
+            "Filled {n} menu sprites from Mojang's {FALLBACK_SPRITES_VERSION} client jar"
         ));
     }
-    let index = pyjson::loads(&index_text)?;
-    let objects = index
-        .get("objects")
-        .and_then(Value::as_object)
-        .ok_or("the asset index has no objects")?;
-    for (path, entry) in objects {
-        if !path.starts_with(FALLBACK_SPRITES_INDEX_PREFIX) {
-            continue;
-        }
-        // The index is Mojang's, but a path is still untrusted input: nothing
-        // outside the sprites subtree, and no parent traversal, ever reaches disk.
-        if path.contains("..") {
-            continue;
-        }
-        let Some(hash) = entry.get("hash").and_then(Value::as_str) else {
-            continue;
-        };
-        if hash.len() < 2 {
-            continue;
-        }
-        let target = root.join("assets").join(path);
-        if target.is_file() {
-            continue;
-        }
-        let url = format!("{cdn_url}/{}/{}", &hash[..2], hash);
-        match remap::download(&url, &target, hash, log) {
-            Ok(_) => *filled += 1,
-            Err(error) => log(&format!("Could not fetch the menu sprite {path} ({error})")),
-        }
-    }
+    *filled = n;
     Ok(())
 }
 
@@ -2255,89 +2242,28 @@ mod tests {
         fs::remove_file(&jar).unwrap();
         let empty = dir.join("empty-resources");
         assert_eq!(
-            fallback_menu_sprites_from(
-                &repo,
-                &empty,
-                "http://127.0.0.1:1/manifest.json",
-                ASSET_CDN_URL,
-                log
-            )
-            .unwrap(),
+            fallback_menu_sprites_from(&repo, &empty, "http://127.0.0.1:1/manifest.json", log)
+                .unwrap(),
             0
         );
         assert!(!empty.join("assets").exists());
         fs::remove_dir_all(dir).unwrap();
     }
 
-    /// Without a sibling 26.3 jar the fallback downloads the missing sprites from
-    /// the 26.3 asset index — manifest, version JSON, index, then the sprite files,
-    /// each checked against the sha1 the step above publishes — against a local
-    /// server, since the VM's egress proxy keeps the live Mojang URLs out of reach.
-    #[test]
-    fn menu_sprites_download_from_the_26_3_asset_index_when_no_sibling_jar() {
+    /// Serves the routes `build` returns for the base URL (path -> body) on a
+    /// local TCP server, one request per connection, recording every requested
+    /// path in `requests`. Returns the base URL. Detached: the thread dies with
+    /// the test process.
+    fn serve_routes(
+        build: impl FnOnce(&str) -> Vec<(String, Vec<u8>)> + Send + 'static,
+        requests: std::sync::Arc<Mutex<Vec<String>>>,
+    ) -> String {
         use std::io::{Read, Write};
-        let dir = std::env::temp_dir().join(format!(
-            "horizon-prepare-menu-sprites-download-{}",
-            std::process::id()
-        ));
-        mkdir(&dir).unwrap();
-        let repo = dir.join("1.21.7");
-        mkdir(&repo).unwrap();
-        // No versions/26.3 at all: the fresh tester.
-        let root = dir.join("resources");
-        // This version's own sprite: the fallback must never overwrite it.
-        let sprites = "assets/minecraft/textures/gui/sprites";
-        let own = root.join(format!("{sprites}/icon/language.png"));
-        mkdir(own.parent().unwrap()).unwrap();
-        write(&own, b"language-1-21-7").unwrap();
-
-        // The server's bodies: two sprites to fill, one the version already has,
-        // one outside gui/sprites/ that must never be fetched.
-        let bug: &[u8] = b"bug-26-3";
-        let friends: &[u8] = b"friends-26-3";
-        let language: &[u8] = b"language-26-3";
-        let bug_hash = sha1_hex(bug);
-        let friends_hash = sha1_hex(friends);
-        let language_hash = sha1_hex(language);
-        let stone_hash = sha1_hex(b"stone");
-        let index = format!(
-            "{{\"objects\":{{\"minecraft/textures/gui/sprites/pause_menu/bug.png\":{{\"hash\":\"{bug_hash}\",\"size\":{}}},\"minecraft/textures/gui/sprites/friends/friends.png\":{{\"hash\":\"{friends_hash}\",\"size\":{}}},\"minecraft/textures/gui/sprites/icon/language.png\":{{\"hash\":\"{language_hash}\",\"size\":{}}},\"minecraft/textures/block/stone.png\":{{\"hash\":\"{stone_hash}\",\"size\":5}}}}}}",
-            bug.len(),
-            friends.len(),
-            language.len()
-        );
-        let index_sha1 = sha1_hex(index.as_bytes());
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let port = listener.local_addr().unwrap().port();
         let base = format!("http://127.0.0.1:{port}");
-        let version = format!(
-            "{{\"assetIndex\":{{\"id\":\"26.3\",\"sha1\":\"{index_sha1}\",\"size\":{},\"totalSize\":{},\"url\":\"{base}/index.json\"}}}}",
-            index.len(),
-            index.len()
-        );
-        let version_sha1 = sha1_hex(version.as_bytes());
-        let manifest = format!(
-            "{{\"latest\":{{\"release\":\"26.3\",\"snapshot\":\"26.3\"}},\"versions\":[{{\"id\":\"26.3\",\"type\":\"release\",\"url\":\"{base}/26.3.json\",\"time\":\"2026-01-01T00:00:00+00:00\",\"releaseTime\":\"2026-01-01T00:00:00+00:00\",\"sha1\":\"{version_sha1}\"}}]}}"
-        );
-        let routes: Vec<(String, Vec<u8>)> = vec![
-            ("/version_manifest_v2.json".into(), manifest.into_bytes()),
-            ("/26.3.json".into(), version.into_bytes()),
-            ("/index.json".into(), index.into_bytes()),
-            (format!("/{}/{}", &bug_hash[..2], bug_hash), bug.to_vec()),
-            (
-                format!("/{}/{}", &friends_hash[..2], friends_hash),
-                friends.to_vec(),
-            ),
-            (
-                format!("/{}/{}", &language_hash[..2], language_hash),
-                language.to_vec(),
-            ),
-            // No route for the stone sprite on purpose: the fallback must never
-            // ask for anything outside gui/sprites/.
-        ];
-        let _server = std::thread::spawn(move || {
-            // One request per connection, sequential: the fallback fetches in order.
-            // Detached: the thread dies with the test process.
+        let routes = build(&base);
+        std::thread::spawn(move || {
             for stream in listener.incoming() {
                 let Ok(mut stream) = stream else {
                     continue;
@@ -2363,50 +2289,363 @@ mod tests {
                     .nth(1)
                     .unwrap_or("")
                     .to_string();
+                requests.lock().unwrap().push(path.clone());
                 let (status, body) = routes
                     .iter()
                     .find(|(route, _)| *route == path)
                     .map(|(_, body)| ("200 OK", body.as_slice()))
                     .unwrap_or(("404 Not Found", b"no such route".as_slice()));
-                stream
-                    .write_all(
-                        format!(
-                            "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                            body.len()
-                        )
-                        .as_bytes(),
+                let _ = stream.write_all(
+                    format!(
+                        "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                        body.len()
                     )
-                    .unwrap();
-                stream.write_all(body).unwrap();
-                stream.flush().unwrap();
+                    .as_bytes(),
+                );
+                let _ = stream.write_all(body);
+                let _ = stream.flush();
             }
         });
-        let log: Log = &|_| {};
+        base
+    }
+
+    /// A minimal client jar holding `members` (name -> bytes), as bytes.
+    fn fixture_jar(members: &[(&str, &[u8])]) -> Vec<u8> {
+        use std::io::Write;
+        let mut archive = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        let options = zip::write::SimpleFileOptions::default();
+        for (name, data) in members {
+            archive.start_file(*name, options).unwrap();
+            archive.write_all(data).unwrap();
+        }
+        archive.finish().unwrap().into_inner()
+    }
+
+    /// The manifest and version JSON for a 26.3 client jar served at
+    /// `{base}/client.jar` with the given sha1 and size, as Mojang's
+    /// piston-meta shapes them (manifest entry -> version JSON ->
+    /// `downloads.client`).
+    fn sprite_manifest_and_version(
+        base: &str,
+        jar_sha1: &str,
+        jar_size: usize,
+    ) -> (String, String) {
+        let version = format!(
+            "{{\"downloads\":{{\"client\":{{\"sha1\":\"{jar_sha1}\",\"size\":{jar_size},\"url\":\"{base}/client.jar\"}}}}}}"
+        );
+        let version_sha1 = sha1_hex(version.as_bytes());
+        let manifest = format!(
+            "{{\"latest\":{{\"release\":\"26.3\",\"snapshot\":\"26.3\"}},\"versions\":[{{\"id\":\"26.3\",\"type\":\"release\",\"url\":\"{base}/26.3.json\",\"time\":\"2026-01-01T00:00:00+00:00\",\"releaseTime\":\"2026-01-01T00:00:00+00:00\",\"sha1\":\"{version_sha1}\"}}]}}"
+        );
+        (manifest, version)
+    }
+
+    /// Without a sibling 26.3 jar the fallback downloads Mojang's 26.3 client jar
+    /// — manifest, version JSON, then the jar, each checked against the sha1 the
+    /// step above publishes — and fills the missing sprites from it, against a
+    /// local server, since the VM's egress proxy keeps the live Mojang URLs out of
+    /// ureq's reach. The sprite paths are the ones genuinely missing from a fresh
+    /// tester's prepared data (verified against the real 26.3 client jar, 2026-11-25:
+    /// 522 sprite members, 42 missing).
+    #[test]
+    fn menu_sprites_download_from_the_26_3_client_jar_when_no_sibling_jar() {
+        let dir = std::env::temp_dir().join(format!(
+            "horizon-prepare-menu-sprites-download-{}",
+            std::process::id()
+        ));
+        mkdir(&dir).unwrap();
+        let repo = dir.join("1.21.7");
+        mkdir(&repo).unwrap();
+        // No versions/26.3 at all: the fresh tester.
+        let root = dir.join("resources");
+        // This version's own sprite: the fallback must never overwrite it.
+        let sprites = "assets/minecraft/textures/gui/sprites";
+        let own = root.join(format!("{sprites}/icon/language.png"));
+        mkdir(own.parent().unwrap()).unwrap();
+        write(&own, b"language-1-21-7").unwrap();
+
+        // The jar's members: two sprites to fill, one the version already has,
+        // one outside gui/sprites/ that must never be extracted.
+        let jar = fixture_jar(&[
+            (
+                "assets/minecraft/textures/gui/sprites/pause_menu/bug.png",
+                b"bug-26-3".as_slice(),
+            ),
+            (
+                "assets/minecraft/textures/gui/sprites/friends/friends.png",
+                b"friends-26-3".as_slice(),
+            ),
+            (
+                "assets/minecraft/textures/gui/sprites/icon/language.png",
+                b"language-26-3".as_slice(),
+            ),
+            (
+                "assets/minecraft/textures/block/stone.png",
+                b"stone-26-3".as_slice(),
+            ),
+        ]);
+        let jar_sha1 = sha1_hex(&jar);
+        let sha1_for_server = jar_sha1.clone();
+        let jar_for_server = jar.clone();
+        let requests = std::sync::Arc::new(Mutex::new(Vec::<String>::new()));
+        let served = requests.clone();
+        let base = serve_routes(
+            move |base| {
+                let (manifest, version) =
+                    sprite_manifest_and_version(base, &sha1_for_server, jar_for_server.len());
+                vec![
+                    (
+                        "/version_manifest_v2.json".to_string(),
+                        manifest.into_bytes(),
+                    ),
+                    ("/26.3.json".to_string(), version.into_bytes()),
+                    ("/client.jar".to_string(), jar_for_server),
+                ]
+            },
+            served,
+        );
+        let lines = std::sync::Arc::new(Mutex::new(Vec::<String>::new()));
+        let logged = lines.clone();
+        let log: Log = &|line: &str| {
+            logged.lock().unwrap().push(line.to_string());
+        };
         let manifest_url = format!("{base}/version_manifest_v2.json");
         assert_eq!(
-            fallback_menu_sprites_from(&repo, &root, &manifest_url, &base, log).unwrap(),
+            fallback_menu_sprites_from(&repo, &root, &manifest_url, log).unwrap(),
             2
         );
         assert_eq!(
             read(&root.join(format!("{sprites}/pause_menu/bug.png")))
                 .unwrap()
                 .as_slice(),
-            bug
+            b"bug-26-3"
         );
         assert_eq!(
             read(&root.join(format!("{sprites}/friends/friends.png")))
                 .unwrap()
                 .as_slice(),
-            friends
+            b"friends-26-3"
         );
         assert_eq!(read(&own).unwrap().as_slice(), b"language-1-21-7");
-        assert!(!root
-            .join("assets/minecraft/textures/block/stone.png")
-            .exists());
-        // A second prepare fills nothing: the filled files are already there.
+        assert!(
+            !root
+                .join("assets/minecraft/textures/block/stone.png")
+                .exists()
+        );
+        // The jar is cached under `.local/`, sha1-verified.
+        let cached = repo.join(".local/menu-sprites/26.3-client.jar");
+        assert!(cached.is_file());
+        assert_eq!(sha1_hex(&read(&cached).unwrap()), jar_sha1);
+        // The log says how many sprites the jar holds, so a 0 is visible.
+        let captured = lines.lock().unwrap();
+        assert!(
+            captured
+                .iter()
+                .any(|l| l == "The 26.3 client jar holds 3 menu sprites")
+        );
+        assert!(
+            captured
+                .iter()
+                .any(|l| l == "Filled 2 menu sprites from Mojang's 26.3 client jar")
+        );
+        drop(captured);
+        // A second prepare fills nothing, and does not download the jar again:
+        // the manifest and version JSON are re-fetched, the jar comes from cache.
         assert_eq!(
-            fallback_menu_sprites_from(&repo, &root, &manifest_url, &base, log).unwrap(),
+            fallback_menu_sprites_from(&repo, &root, &manifest_url, log).unwrap(),
             0
+        );
+        let requests = requests.lock().unwrap();
+        assert_eq!(requests.iter().filter(|p| *p == "/client.jar").count(), 1);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A client jar whose sha1 does not match the version JSON's is a soft
+    /// no-op: prepare carries on, the menus stay as this version ships them,
+    /// and the log says why.
+    #[test]
+    fn menu_sprites_download_sha1_mismatch_is_a_soft_noop() {
+        let dir = std::env::temp_dir().join(format!(
+            "horizon-prepare-menu-sprites-badsha1-{}",
+            std::process::id()
+        ));
+        mkdir(&dir).unwrap();
+        let repo = dir.join("1.21.7");
+        mkdir(&repo).unwrap();
+        let root = dir.join("resources");
+        let jar = fixture_jar(&[(
+            "assets/minecraft/textures/gui/sprites/pause_menu/bug.png",
+            b"bug-26-3".as_slice(),
+        )]);
+        // The version JSON publishes a sha1 the served jar does not have.
+        let wrong_sha1 = sha1_hex(b"something else entirely");
+        let requests = std::sync::Arc::new(Mutex::new(Vec::<String>::new()));
+        let served = requests.clone();
+        let base = serve_routes(
+            move |base| {
+                let (manifest, version) = sprite_manifest_and_version(base, &wrong_sha1, jar.len());
+                vec![
+                    (
+                        "/version_manifest_v2.json".to_string(),
+                        manifest.into_bytes(),
+                    ),
+                    ("/26.3.json".to_string(), version.into_bytes()),
+                    ("/client.jar".to_string(), jar),
+                ]
+            },
+            served,
+        );
+        let lines = std::sync::Arc::new(Mutex::new(Vec::<String>::new()));
+        let logged = lines.clone();
+        let log: Log = &|line: &str| {
+            logged.lock().unwrap().push(line.to_string());
+        };
+        let manifest_url = format!("{base}/version_manifest_v2.json");
+        assert_eq!(
+            fallback_menu_sprites_from(&repo, &root, &manifest_url, log).unwrap(),
+            0
+        );
+        assert!(
+            !root
+                .join("assets/minecraft/textures/gui/sprites/pause_menu/bug.png")
+                .exists()
+        );
+        // The failed download leaves no cache file behind.
+        assert!(!repo.join(".local/menu-sprites/26.3-client.jar").exists());
+        let captured = lines.lock().unwrap();
+        assert!(
+            captured
+                .iter()
+                .any(|l| l.contains("Could not fetch the 26.3 menu sprites"))
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// `curl -s <url>` to a string, or `None` when curl or the fetch fails.
+    fn curl_text(url: &str) -> Option<String> {
+        let output = std::process::Command::new("curl")
+            .args(["-s", "--max-time", "60", url])
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        String::from_utf8(output.stdout).ok()
+    }
+
+    /// Downloads Mojang's real 26.3 client jar into `dir` with curl, following
+    /// the manifest -> version JSON -> `downloads.client` chain and checking the
+    /// jar against the version JSON's published sha1. Returns the jar's path, or
+    /// `None` when curl or the download is unavailable (the caller skips).
+    fn download_real_26_3_client_jar(dir: &Path) -> Option<PathBuf> {
+        let manifest = curl_text(PISTON_META_MANIFEST_URL)?;
+        let manifest = pyjson::loads(&manifest).ok()?;
+        let entry = manifest
+            .get("versions")
+            .and_then(Value::as_array)?
+            .iter()
+            .find(|v| v.get("id").and_then(Value::as_str) == Some("26.3"))?;
+        let version_url = entry.get("url").and_then(Value::as_str)?;
+        let version_text = curl_text(version_url)?;
+        let version = pyjson::loads(&version_text).ok()?;
+        let client = version
+            .get("downloads")
+            .and_then(|downloads| downloads.get("client"))?;
+        let jar_url = client.get("url").and_then(Value::as_str)?;
+        let jar_sha1 = client.get("sha1").and_then(Value::as_str)?;
+        let jar_path = dir.join("26.3-client.jar");
+        let status = std::process::Command::new("curl")
+            .args(["-s", "--max-time", "300", jar_url, "-o"])
+            .arg(&jar_path)
+            .status()
+            .ok()?;
+        if !status.success() || !jar_path.is_file() {
+            return None;
+        }
+        let bytes = fs::read(&jar_path).ok()?;
+        if sha1_hex(&bytes) != jar_sha1 {
+            return None;
+        }
+        Some(jar_path)
+    }
+
+    /// The premise the asset-index fetch got wrong, checked against Mojang's real
+    /// 26.3 client jar: the sprites ship in the jar (522 members under
+    /// `gui/sprites/`), and the ones a fresh tester's prepared data lacks —
+    /// `pause_menu/bug.png`, `friends/friends.png` among them — are in it.
+    /// Downloads the jar with curl at test time (the VM's egress proxy is
+    /// invisible to ureq but curl works through it); skips cleanly when the
+    /// download is unavailable, so an offline run stays green. Never commits the
+    /// jar: it lives in a temp dir and is deleted with it.
+    #[test]
+    fn menu_sprites_fill_from_the_real_26_3_client_jar() {
+        let dir = std::env::temp_dir().join(format!(
+            "horizon-prepare-menu-sprites-realjar-{}",
+            std::process::id()
+        ));
+        mkdir(&dir).unwrap();
+        let jar_path = match download_real_26_3_client_jar(&dir) {
+            Some(path) => path,
+            None => {
+                eprintln!("skipping: the real 26.3 client jar could not be downloaded");
+                fs::remove_dir_all(dir).unwrap();
+                return;
+            }
+        };
+        let jar = read(&jar_path).unwrap();
+        let jar_sha1 = sha1_hex(&jar);
+        let sha1_for_server = jar_sha1.clone();
+        let jar_for_server = jar.clone();
+        let repo = dir.join("1.21.7");
+        mkdir(&repo).unwrap();
+        let root = dir.join("resources");
+        let requests = std::sync::Arc::new(Mutex::new(Vec::<String>::new()));
+        let served = requests.clone();
+        let base = serve_routes(
+            move |base| {
+                let (manifest, version) =
+                    sprite_manifest_and_version(base, &sha1_for_server, jar_for_server.len());
+                vec![
+                    (
+                        "/version_manifest_v2.json".to_string(),
+                        manifest.into_bytes(),
+                    ),
+                    ("/26.3.json".to_string(), version.into_bytes()),
+                    ("/client.jar".to_string(), jar_for_server),
+                ]
+            },
+            served,
+        );
+        let lines = std::sync::Arc::new(Mutex::new(Vec::<String>::new()));
+        let logged = lines.clone();
+        let log: Log = &|line: &str| {
+            logged.lock().unwrap().push(line.to_string());
+        };
+        let manifest_url = format!("{base}/version_manifest_v2.json");
+        // Every sprite member the jar holds, filled into an empty resources dir.
+        assert_eq!(
+            fallback_menu_sprites_from(&repo, &root, &manifest_url, log).unwrap(),
+            522
+        );
+        let sprites = "assets/minecraft/textures/gui/sprites";
+        for missing in [
+            "pause_menu/bug.png",
+            "friends/friends.png",
+            "container/inventory/effect_background.png",
+            "container/slot/spear.png",
+            "widget/preedit.png",
+            "widget/realms_button.png",
+        ] {
+            assert!(
+                root.join(format!("{sprites}/{missing}")).is_file(),
+                "{missing} was not filled from the real jar"
+            );
+        }
+        let captured = lines.lock().unwrap();
+        assert!(
+            captured
+                .iter()
+                .any(|l| l == "The 26.3 client jar holds 522 menu sprites")
         );
         fs::remove_dir_all(dir).unwrap();
     }
