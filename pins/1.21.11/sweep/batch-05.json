@@ -1,0 +1,325 @@
+{
+ "batch": 5,
+ "checks": {
+  "gap": 26,
+  "pass": 104,
+  "total": 130
+ },
+ "date": "2026-11-25",
+ "items": [
+  {
+   "evidence": "Vanilla 1.21.11 FungusBlock.mayPlaceOn is #NYLIUM||MYCELIUM||SOUL_SOIL||super; RootsBlock is #NYLIUM||SOUL_SOIL||super (javap fresh). Port survive.rs:399-402 reads data.support_tag, which is None for both: the exporter is reflective, FungusBlock has only requiredBlock (a Block) + feature (a ResourceKey) and RootsBlock has no fields, so no tag is ever exported. Classes ARE mapped (classes.rs aliases), so the arm fires and returns false, shadowing the Vegetation fallback.",
+   "id": "B5-G04",
+   "method": "javap+source",
+   "severity": "major",
+   "status": "gap",
+   "title": "Nether fungi/roots survive nowhere: dead-tag arm fires and shadows the fallback"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 SnowLayerBlock.canSurvive uses present #SNOW_LAYER_CANNOT_SURVIVE_ON (ice, packed_ice, barrier) / #SNOW_LAYER_CAN_SURVIVE_ON (honey_block, soul_sand, mud) (javap fresh; both tags verified in the 1.21.11 tag inventory). Port survive.rs:312-324 reads absent #cannot_support_snow_layer / #support_override_snow_layer (always empty): snow survives on ice/packed ice and pops off honey/soul sand/mud. Same root cause in weather.rs snow_survives (folded in).",
+   "id": "B5-G08",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Snow layers survive on nothing they should refuse and refuse nothing they should: port reads absent 26.x tags"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 SeagrassBlock.mayPlaceOn is face-sturdy-UP AND NOT magma, hardcoded (javap fresh). Port survive.rs:440-443 reads absent #cannot_support_seagrass (always empty), so the magma exclusion never applies.",
+   "id": "B5-G09",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Seagrass survives on magma: port reads the absent #cannot_support_seagrass tag"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 CactusFlowerBlock.mayPlaceOn is CACTUS||FARMLAND||isFaceSturdy(UP, CENTER) (javap fresh). Port survive.rs:404-408 checks absent #support_override_cactus_flower OR face-sturdy-center; cactus CENTER_UP and farmland CENTER_UP are both false, so the arm returns false on both intended supports.",
+   "id": "B5-G11",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Cactus flowers cannot survive on cacti or farmland"
+  },
+  {
+   "evidence": "Dispatch is live (PointedDripstoneBlock mapped, classes.rs:220; tick.rs:257/443, shapes.rs:761, place.rs:1165). But #speleothems is absent from 1.21.11 data, so speleothem_tag (speleothem.rs:13-17), spawn_falling_stalactite (falling.rs:51), speleothem_thickness (shapes.rs:1176, place.rs:1398) and the growth/fluid gates all fail. Vanilla 1.21.11 uses hardcoded Blocks.POINTED_DRIPSTONE checks (javap fresh). Dripstone never grows, stalactites never fall, thickness always 'tip'.",
+   "id": "B5-G13",
+   "method": "javap+source",
+   "severity": "major",
+   "status": "gap",
+   "title": "Dripstone half-alive: dispatch fixed, #speleothems tag still dead"
+  },
+  {
+   "evidence": "NEVER EXISTED. Fresh 1.21.11 bytecode: ChorusFlowerBlock.randomTick proceeds when above.y <= getMaxY(), and LevelHeightAccessor.getMaxY() = minY+height-1 = 319. Port tick.rs:1441 guard is identical. The 26.1.2 ledger item was a misread of getMaxY().",
+   "id": "B5-G17",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "Chorus flower at the build ceiling"
+  },
+  {
+   "evidence": "NEVER EXISTED. Fresh 1.21.11 bytecode: BellBlock.isProperHit requires clickY <= 0.8123999834060669d (dload_3; ldc2_w; dcmpl; ifle). Port redstone.rs:1442 matches exactly. The 26.2 run's ifle misread does not recur.",
+   "id": "B5-G18",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "closed",
+   "title": "Bell isProperHit"
+  },
+  {
+   "evidence": "Port reads #convertible_to_mud (with 'i') in data.rs:458, potions.rs:710, remote.rs:8676, dispenser.rs:2251. 1.21.11's tag is #convertable_to_mud (with 'a'): BlockTags.CONVERTABLE_TO_MUD in the jar, data/minecraft/tags/block/convertable_to_mud.json (dirt, coarse_dirt, rooted_dirt), and vanilla PotionItem.useOn checks it (javap offset 57, fresh). The port's read returns nothing, so the mud conversion never fires.",
+   "id": "B5-G19",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Water bottle on dirt never makes mud: port reads #convertible_to_mud, 1.21.11's tag is #convertable_to_mud"
+  },
+  {
+   "evidence": "Port weather.rs:46 (motion_blocking_top) reads absent #blocks_motion_in_heightmap, so only fluids count as motion-blocking. Vanilla 1.21.11 Heightmap.MATERIAL_MOTION_BLOCKING is a method reference to BlockBehaviour$BlockStateBase.blocksMotion() (javap -v bootstrap method 1, fresh). Same root cause at level/feature_world.rs:350-356 (folded in). The precipitation form itself matches vanilla (max-snow cap tick.rs:1539-1544, pushEntitiesUp on increment only) but runs on the wrong top.",
+   "id": "B5-G21",
+   "method": "javap+source",
+   "severity": "major",
+   "status": "gap",
+   "title": "Snow never accumulates on land, ice never forms except on water: motion_blocking_top reads the absent #blocks_motion_in_heightmap tag"
+  },
+  {
+   "evidence": "Port reads the minecraft:compostable component (items.rs:1046, composter.rs:24-25). Vanilla 1.21.11 has no such component: DataComponents has no COMPOSTABLE, and 0/1,505 items in the 1.21.11 datagen items.json carry it. Vanilla uses the static ComposterBlock.COMPOSTABLES table (javap fresh). No item can be composted by hand, hopper, or dispenser. The composter tick itself works (tick.rs:86).",
+   "id": "B5-G22",
+   "method": "javap+source",
+   "severity": "major",
+   "status": "gap",
+   "title": "Composter completely dead: port reads the 26.3 minecraft:compostable component no 1.21.11 item carries"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 IceBlock.melt: water-evaporates -> removeBlock, else setBlockAndUpdate(water) + neighborChanged; ZERO gameEvent references in the whole class (javap fresh). Port ice_melt (hooks.rs:701-717) adds game_event_state(pos, 'minecraft:block_destroy', state) at line 716. Sculk sensors hear a block-destroy event for every melting ice block.",
+   "id": "B5-G23",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Ice melt fires a BLOCK_DESTROY game event vanilla 1.21.11 never fires"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 IceBlock.playerDestroy: unless the tool prevents melting or water evaporates, if the block below blocksMotion() OR is liquid, the position becomes water (javap fresh). Port hooks.rs:549 tests in_set(below, tags.blocks_motion) || liquid(below); the tag is absent (always empty), so ice mined over solid ground leaves air instead of water.",
+   "id": "B5-G24",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Ice mined over solid ground leaves no water: ice_destroyed_by_player reads the absent #blocks_motion tag"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 schedules a tripwire re-check tick 10 ONLY while pressed: TripWireBlock's single scheduleTick is bipush 10 gated on the pressed flag (offset 141, fresh javap); TripWireHookBlock has exactly one scheduleTick in the whole class (the 10-tick re-check in calculateState). Port tripwire_check_pressed (rails.rs:593-597) schedules 10 when pressed and 1 'else if was'.",
+   "id": "B5-G25",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Tripwire schedules a 1-tick re-check when unpressed that vanilla 1.21.11 never schedules"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 EyeblossomBlock.tryChangingState iterates the 7x5x7 neighbour box with BlockPos.betweenClosed (x innermost, then y, then z), each matching neighbour drawing its delay from nextIntBetweenInclusive(dist*5, dist*10) in that scan order (javap fresh). Port eyeblossom_tick (timeline.rs:71-115) uses box_scan_order (section-major, y and z swapped vs vanilla), so the delay draws land on different neighbours in a different order. The delay form itself matches.",
+   "id": "B5-G26",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Eyeblossom neighbour cascade scans in 26.3 section order instead of betweenClosed order"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 BedBlock.useWithoutItem: a HEAD click needs no foot check at all - it proceeds straight to the sleep/explode path (offset 57, javap fresh); only a non-head click redirects to the head. Port interact.rs:365-386 requires the other half for BOTH parts (else Consume). A head click on a bed whose foot was broken returns Consume instead of sleeping.",
+   "id": "B5-G27",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Bed use requires the other half: a head click with no foot returns Consume instead of sleeping"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 DragonEggBlock.teleport accepts a candidate only when it is air, WorldBorder.isWithinBounds (offsets 104-111), and inside build height (javap fresh). Port dragon_egg_teleport (interact.rs:581-600) checks only air + build height: an egg near the border can teleport outside it.",
+   "id": "B5-G28",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Dragon egg teleport ignores the world border"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 SaplingBlock.isValidBonemealTarget is unconditionally true (iconst_1; ireturn, javap fresh); there is NO canGrow method on 1.21.11's TreeGrower (0 hits). Port bonemeal.rs:335 gates on live_features().is_none() || !tree_can_grow(...), and tree_can_grow (growth.rs:443, the 26.3 form) refuses a lone dark/pale oak sapling. Bonemeal is refused where vanilla accepts it.",
+   "id": "B5-G29",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Bonemeal validity too strict: the tree_can_grow gate refuses lone dark/pale oak"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 GrassBlock.performBonemeal: the tall-grass roll is nextInt(10) == 0 (offsets 170-172) and the flower-feature roll is nextInt(8) == 0 (offsets 230-232) (javap fresh). Port grass_bonemeal_effect (bonemeal.rs:1239 and :1247) uses next_float() < 0.1 and < 0.125. Probabilities coincide but the draws differ - the random stream desynchronises from vanilla.",
+   "id": "B5-G32",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Grass bonemeal rolls use nextFloat where vanilla 1.21.11 uses nextInt"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 TreeGrower (10 growers, no poplar) is the secondary-chance form: a secondaryChance float plus megaTree/secondaryMegaTree/tree/secondaryTree/flowers/secondaryFlowers optionals; getConfiguredFeature draws ONE nextFloat() unconditionally; there is NO canGrow method (0 hits) (javap fresh). Port GROWERS (growth.rs:156-269) is the 26.3 weighted-list form (trees/mega_trees/flower_trees + weighted() using next_int_bound(total)) with 11 growers including a dead poplar. Probabilities coincide but draw type and count differ.",
+   "id": "B5-G33",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "TreeGrower is the 26.3 weighted-list form; vanilla 1.21.11 is secondary-chance"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 TreeGrower.growTree: the MEGA path clears the 2x2 to AIR with flags 260; the SINGLE path clears to the fluid's legacy block (createLegacyBlock()) with flags 260 (javap fresh). Port remove_sapling (growth.rs:392-393) leaves the fluid's legacy block on BOTH paths - the mega path leaves water where vanilla sets air. (The single path IS vanilla 1.21.11's form, unlike 1.21.7.)",
+   "id": "B5-G34",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Mega-tree growth leaves water where vanilla 1.21.11 sets air"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 has NO level events 2019/2020: LevelEvent (now at net.minecraft.world.level.block.LevelEvent; javap -constants, fresh) ends its 20xx range at 2013 (PARTICLES_SMASH_ATTACK). Port destroy_progress_event (block_breaking.rs:100-101) sends 2020 every fourth tick else 2019, handled in game.rs:4301 and called from game.rs:5294/5306.",
+   "id": "B5-G35",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Digging broadcasts level events 2019/2020 that vanilla 1.21.11 never sends"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 BoneMealItem.useOn: a growCrop success returns SUCCESS on BOTH sides (offset 36: ifne 65 - the client skips the game event and level event but still returns SUCCESS at offset 65); growCrop itself returns true on the client for ANY valid target (javap fresh). 1.21.11 validity is client-valid for all three (SaplingBlock and MushroomBlock unconditionally true, AzaleaBlock fluid-above-empty only). Port bone_meal_succeeds_on_client (bonemeal.rs:216-243) EXCLUDES those three kinds, claiming they are 'only a valid target on a ServerLevel' - the 26.x form, wrong for 1.21.11.",
+   "id": "B5-G36",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "gap",
+   "title": "Bonemeal passes on the client for saplings, azalea and mushrooms where vanilla 1.21.11 returns SUCCESS"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 SugarCaneBlock.canSurvive: below is sugar cane itself, OR below is in #DIRT/#SAND with adjacent water (javap fresh). Port SugarCane arm (survive.rs:336-360) gates the planting branch on in_set(below_state, t.supports_sugar_cane) (:341); the tag is ABSENT from 1.21.11 data (tag inventory), so the branch never runs. Sugar cane can only stack on existing cane.",
+   "id": "B5-G37",
+   "method": "javap+source",
+   "severity": "major",
+   "status": "gap",
+   "title": "Sugar cane cannot be planted: ground check reads the absent #supports_sugar_cane tag"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 CocoaBlock.canSurvive: the block the cocoa faces is in #JUNGLE_LOGS (javap fresh). Port Cocoa arm (survive.rs:150) tests in_set(rel_state(facing), t.supports_cocoa); the tag is ABSENT, so the arm always returns false. Cocoa cannot survive on any log.",
+   "id": "B5-G38",
+   "method": "javap+source",
+   "severity": "major",
+   "status": "gap",
+   "title": "Cocoa can never survive: port reads the absent #supports_cocoa tag"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 AzaleaBlock.mayPlaceOn: CLAY or VegetationBlock.mayPlaceOn (#DIRT or FARMLAND) (javap fresh). Port Azalea arm (survive.rs:403) tests in_set(ground, t.supports_azalea); the tag is ABSENT, so the arm always returns false. Azalea (and flowering azalea) cannot survive on any ground.",
+   "id": "B5-G39",
+   "method": "javap+source",
+   "severity": "major",
+   "status": "gap",
+   "title": "Azalea can never survive: port reads the absent #supports_azalea tag"
+  },
+  {
+   "evidence": "Vanilla 1.21.11: planted - mayPlaceOn is SaplingBlock.mayPlaceOn (#DIRT/farmland via VegetationBlock) OR CLAY; hanging - canSurvive requires the block above to be MANGROVE_LEAVES (javap fresh). Port reads absent #supports_mangrove_propagule (survive.rs:430) and absent #supports_hanging_mangrove_propagule (survive.rs:252-260) - both always false.",
+   "id": "B5-G40",
+   "method": "javap+source",
+   "severity": "major",
+   "status": "gap",
+   "title": "Mangrove propagule can never survive, planted or hanging"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 NetherSproutsBlock.mayPlaceOn: #NYLIUM or SOUL_SOIL (javap fresh). Port NetherSprouts arm (survive.rs:432) tests in_set(ground, t.supports_nether_sprouts); the tag is ABSENT, so the arm always returns false.",
+   "id": "B5-G41",
+   "method": "javap+source",
+   "severity": "major",
+   "status": "gap",
+   "title": "Nether sprouts can never survive: port reads the absent #supports_nether_sprouts tag"
+  },
+  {
+   "evidence": "Vanilla 1.21.11 NetherWartBlock.mayPlaceOn: SOUL_SAND, hardcoded (javap fresh). Port NetherWart arm (survive.rs:433) tests in_set(ground, t.supports_nether_wart); the tag is ABSENT, so the arm always returns false.",
+   "id": "B5-G42",
+   "method": "javap+source",
+   "severity": "major",
+   "status": "gap",
+   "title": "Nether wart can never survive: port reads the absent #supports_nether_wart tag"
+  },
+  {
+   "evidence": "Oracle overrides Player.drop with the 3-arg signature (VanillaCauldronOracle.java:118: drop(ItemStack, boolean, net.minecraft.util.Prediction)). The 1.21.11 jar has NO net.minecraft.util.Prediction (0 entries in both jars) and Player has only drop(ItemStack, boolean). Provisional on Batch 0's measured table (no prepare has landed for 1.21.11).",
+   "id": "B5-O01",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaCauldronOracle fails: Player.drop 3-arg override uses net.minecraft.util.Prediction, absent in 1.21.11"
+  },
+  {
+   "evidence": "COORDINATOR CORRECTION: the worker claimed FIXED on symbol-level evidence (Entity.getRelativePortalPosition EXISTS with the exact signature the oracle calls at VanillaPortalOracle.java:180, and the gamerules import resolves), but the landed Batch 0 measured table shows VanillaPortalOracle failing on all three classpaths with first error \"depends on broken: VanillaBlockUpdateOracle\" - BlockUpdate still fails with 38 errors (first: net.minecraft.world.clock package does not exist). Own cause resolved, dependency cause standing; the oracle does not compile for 1.21.11.",
+   "id": "B5-O02",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaPortalOracle still fails: BlockUpdate dependency broken (own portal symbol resolved)"
+  },
+  {
+   "evidence": "FIXED. TypedEntityData HAS both loadInto overloads in 1.21.11 (loadInto(Entity) and loadInto(BlockEntity, HolderLookup$Provider), javap -p fresh), and the oracle's call at VanillaPickBlockDataOracle.java:59 (data.loadInto(entity, ParityData.access), entity a BlockEntity) matches the 2-arg overload. Confirms the coordinator's 1.21.10-ledger correction. Symbol-level verdict, provisional on Batch 0's measured table.",
+   "id": "B5-O03",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "fixed",
+   "title": "VanillaPickBlockDataOracle fails: TypedEntityData has no loadInto"
+  },
+  {
+   "evidence": "Oracle reads Feature.DIRECT_CODEC (VanillaReplaceBlockOracle.java:36). The 1.21.11 Feature class has NO DIRECT_CODEC (javap fresh: only the configuredCodec() instance method); ConfiguredFeature HAS DIRECT_CODEC. Same defect, same cause as 1.21.7's O04 and 1.21.10's O04. Provisional on Batch 0's measured table.",
+   "id": "B5-O04",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaReplaceBlockOracle fails: Feature.DIRECT_CODEC does not exist in 1.21.11"
+  },
+  {
+   "evidence": "NoopChunkMap extends ChunkMap with a 12-arg super call (VanillaFallingBlockOracle.java:30: 10 nulls + 0 + false). The 1.21.11 ChunkMap has ONE constructor, with 13 parameters (javap fresh). The super call does not match. (The 1.21.7 O05 cause - the missing net.minecraft.util.debug package - does NOT apply: the package EXISTS in 1.21.11.) Provisional on Batch 0's measured table.",
+   "id": "B5-O05",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaFallingBlockOracle fails: ChunkMap constructor mismatch at line 30"
+  },
+  {
+   "evidence": "Oracle references EntityTypes.PLAYER at VanillaDispenserOracle.java:212, 235-236, 560-561, 618-619 (via the wildcard net.minecraft.world.entity.* import); EntityTypes does not exist in 1.21.11 - registration still lives on EntityType itself. (The gamerules-package cause has EVAPORATED: net.minecraft.world.level.gamerules.GameRules EXISTS in 1.21.11, so the import at line 27 now resolves.) Provisional on Batch 0's measured table.",
+   "id": "B5-O06",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaDispenserOracle fails: missing EntityTypes"
+  },
+  {
+   "evidence": "Materials extends MaterialBaker (VanillaSectionMeshOracle.java:84). MaterialBaker is ABSENT from both 1.21.11 jars (0 entries, verified fresh). (The 1.21.7 O07 cause - blaze3d absent - does NOT apply: the 1.21.11 client jar HAS com.mojang.blaze3d, 234 entries.) Provisional on Batch 0's measured table.",
+   "id": "B5-O07",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaSectionMeshOracle fails: MaterialBaker absent from both jars"
+  },
+  {
+   "evidence": "Oracle imports BlockModelFeatureRenderer (VanillaBreakingModelOracle.java:12). The class does not exist in 1.21.11 (absent from the client jar, 0 entries, verified fresh). The oracle ALSO imports MaterialBaker (line 15, absent - see B5-O07), a second independent failure. (The 1.21.7 O07 blaze3d cause does not apply - see B5-O07.) Provisional on Batch 0's measured table.",
+   "id": "B5-O08",
+   "method": "javap+source",
+   "severity": "minor",
+   "status": "oracle-defect",
+   "title": "VanillaBreakingModelOracle fails: BlockModelFeatureRenderer absent"
+  },
+  {
+   "evidence": "Oracle constructs CubeVoxelShape directly (VanillaFaceSupportOracle.java:45: new CubeVoxelShape(bits)). The 1.21.11 constructor is PROTECTED (protected CubeVoxelShape(DiscreteVoxelShape), javap fresh). MAJOR because it blocks 21 driver files in tools/ plus 7 oracle callers in the 1.21.11 tree (40 files reference the oracle overall). Batch 2 also records it; the coordinator deduplicates. Provisional on Batch 0's measured table.",
+   "id": "B5-O09",
+   "method": "javap+source",
+   "severity": "major",
+   "status": "oracle-defect",
+   "title": "VanillaFaceSupportOracle fails: protected CubeVoxelShape constructor at line 45"
+  }
+ ],
+ "method": "javap -c -p on the named 1.21.11 jars (82 dumps, ~70 classes) + Rust source comparison against versions/1.21.11/crates + vanilla jar/data reads (204-tag inventory built jar-direct; datagen items.json census; day.json timeline keyframes). No cargo builds, no driver runs. Batch 0 prepare has NOT landed for 1.21.11, so oracle triage is provisional (oracle source + javap symbol check) and the census was built jar-direct.",
+ "name": "Batch 5 - Block behaviour",
+ "out_of_scope_failures": [
+  "Fire spread / doFireTick: the 1.21.10 B1 item is WITHDRAWN for 1.21.11 - vanilla 1.21.11 has no doFireTick rule (59 game rules); the fire gate is FIRE_SPREAD_RADIUS_AROUND_PLAYER (default 128), which the port implements faithfully. B1 should not re-mint it.",
+  "Sculk inhibitors (level/sculk.rs reads absent #sculk_growth_inhibitors) -> B4.",
+  "Campfire douse (absent #douses_campfires) -> B7.",
+  "can_hold_any_fluid / lava-fire walk -> B1.",
+  "Diode guard -> B2-G07. Redstone wire class -> B2-G01 (1.21.11 wire is RedStoneWireBlock, capital S; the port alias covers it).",
+  "B3-G22 startup blocker tags (#causes_suffocation / #suppresses_bounce, both verified absent) -> B3.",
+  "Dripstone cauldron fill -> B1.",
+  "Loot tables behind drop_resources -> B3.",
+  "TreeFeatureOracle -> B6.",
+  "Saved-palette legacy form (chunk.rs from_palette_nbt - absent in the 1.21.11 tree per coordinator Step 0) -> B11.",
+  "Loading stick (1.21.11 carries the identical code to the 1.21.7 defect fixed by 775a25c2) - out of B5 scope, flagged only."
+ ],
+ "source": "1.21.10 template report (batch-5-block-behaviour.md, 128 checks) + 1.21.7 slice (batch-05.json, 86 checks); all items re-checked fresh against 1.21.11's own jars and tree.",
+ "systemic_note": "The 1.21.11 template is nearly code-identical to its first child in level/: the 16 differing files differ almost entirely in comment renames, with exactly THREE real code diffs, all matching vanilla 1.21.11's own changes (sea pickle .equals(), jukebox pop position, turtle hatch default 0.0). The class aliases and hardcoded forms were already in the template. The absent-tag root cause is unchanged (204 tags, one new: can_glide_through, out of scope): the port's 26.x-shaped tag reads are the single root cause of G04, G08, G09, G11, G13, G19, G21, G24, G37-G42. Vanilla 1.21.11 changed in B5-relevant ways: GameRules moved to net.minecraft.world.level.gamerules (59 rules, no doFireTick; FIRE_SPREAD_RADIUS_AROUND_PLAYER default 128; MAX_SNOW_ACCUMULATION_HEIGHT default 1); the environment_attribute registry arrived (45 entries); LevelEvent moved; Entity.getRelativePortalPosition and TypedEntityData.loadInto overloads arrived (fixing B5-O02/O03); single-path tree clearing now sets the fluid's legacy block.",
+ "version": "1.21.11"
+}
