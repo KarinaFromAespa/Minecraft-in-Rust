@@ -5228,7 +5228,6 @@ impl Game<'_> {
             fluids: &self.motion.fluids,
             raining: rain,
             mob_griefing: self.ui.rules.bool("mob_griefing"),
-            tnt_explodes: self.ui.rules.bool("tnt_explodes"),
             owners: self,
         }
     }

@@ -2097,3 +2097,54 @@ shape for the review batches.
   citations to fix. --tests check green (EXIT 0, 16m08s, no
   warnings) for horizon-client-render + horizon-command.
   block_entity.rs and snbt.rs rustfmt-clean. Rank 2: 111/348.
+  Batch 22 (items 65 + 66 + 67 + 68). Item 65 (widely named:
+  client/renderer/block/model): NO-CHANGE. 10 vanilla classes,
+  62 methods, 0 named in Horizon — the same shape as items 27,
+  29, 44 and 50. Item 66 (game/tnt.rs): PORTED — the
+  cross-cutting `tnt_explodes` removal (routed from batch 9).
+  RULE_TNT_EXPLODES does not exist in 1.21.4 (added in 1.21.5;
+  jar-verified: 1.21.4's GameRules has only
+  RULE_TNT_EXPLOSION_DROP_DECAY). Removed across 14 files: the
+  gamerules.rs registration, the save.rs default (57 -> 56),
+  the dead fixes_c.rs rename mapping (tntExplodes can never
+  appear in a pre-rename save), the tnt_prime_allowed gate,
+  the PrimedTnt tick's despawn-without-blast, the useItemOn
+  disabled-message gate, the arrow scene field plus the TNT
+  prime gate, the explosion wasExploded gate, the three
+  dispenser gates, the three sulfur_cubes gates, the
+  sulfur_cube thread-local rule sharing (set_tnt_explodes
+  deleted; prime/tickFuse always behave as on; the two
+  rule-off tests removed, the remaining fuse test's module
+  renamed fuse_tests), and the chat.rs/game.rs rule-sharing
+  calls. 1.21.4's TntBlock calls explode() directly (prime()
+  is 1.21.5-only) and playerWillDestroy checks isCreative()
+  (not getAbilities().instabuild). One warning fixed on the
+  way: the Text import in sulfur_cubes.rs went unused with the
+  disabled-message block. Item 67 (game/beacon.rs): PORTED.
+  BeaconRenderer.getViewDistance is a flat 256 blocks in
+  1.21.4 (1.21.5 culls at the effective render distance times
+  16) — beacon_geometry's cull is now the constant 256.0.
+  NO-CHANGE: the beacon decode reads no CustomName in either
+  tree (a shared gap); the beam sections are (colour, height)
+  tuples in both (the BeaconBeamOwner$Section vs BeaconBeamSection
+  class move is API-only); shouldRender's BlockEntity-vs-
+  BeaconBlockEntity getBlockPos is API-only. Item 68
+  (world/level/hooks.rs): NO-CHANGE. ButtonBlock#getShape is a
+  Function table in 1.21.5 vs the explicit face/facing/powered
+  switch in 1.21.4 with identical shapes (data-driven in the
+  Rust, no code to change); ButtonBlock#entityInside is same;
+  SpongeBlock#tryAbsorbWater is a playSound Player-vs-Entity
+  overload; PistonHeadBlock#playerWillDestroy's
+  preventsBlockDrops() is exactly getAbilities().instabuild in
+  1.21.5 (javap-verified), and the concept is unmodelled in
+  both trees. Lib check green (EXIT 0, 2m12s) after a runtime
+  restart lost the first run's result (empty log; re-ran from
+  scratch); --tests check green (EXIT 0, 7m09s, no warnings).
+  gamerules.rs, fixes_c.rs, tnt.rs, arrow_probe.rs,
+  arrows_client_tests.rs, explosion.rs, dispenser.rs,
+  sulfur_cubes.rs, chat.rs and beacon.rs rustfmt-clean;
+  arrows.rs and sulfur_cube.rs needed one hand fix each in the
+  edited regions (a match-arm collapse, a stray blank line);
+  save.rs, creatures.rs and game.rs checked only (module
+  roots / pre-existing drift elsewhere — left alone). Rank 2:
+  115/348.

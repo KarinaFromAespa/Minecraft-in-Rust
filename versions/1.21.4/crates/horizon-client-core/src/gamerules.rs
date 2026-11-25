@@ -119,7 +119,6 @@ pub const RULES: &[Rule] = &[
     b("spawn_wardens", "spawning", true),
     b("spectators_generate_chunks", "player", true),
     b("spread_vines", "updates", true),
-    b("tnt_explodes", "misc", true),
     b("tnt_explosion_drop_decay", "drops", false),
     b("universal_anger", "mobs", false),
     b("water_source_conversion", "updates", true),

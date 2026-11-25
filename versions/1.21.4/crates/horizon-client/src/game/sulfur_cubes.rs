@@ -8,7 +8,6 @@ use horizon_client::{
     mesher::Vertex,
     mobs::{Mob, Species, Who, sulfur_cube},
     projectiles::Projectile,
-    text::Text,
 };
 use horizon_core::{position::BlockPos, random::RandomSource};
 
@@ -121,11 +120,6 @@ impl Game<'_> {
         }
         let explosive = sulfur_cube::archetype(m).is_some_and(|a| a.explosion.is_some());
         if explosive && matches!(item, "minecraft:flint_and_steel" | "minecraft:fire_charge") {
-            if !self.ui.rules.bool("tnt_explodes") {
-                let message = Text::translate("block.minecraft.tnt.disabled", &[]);
-                self.send_overlay_message(message);
-                return false;
-            }
             sulfur_cube::prime(&mut self.mobs[index], false);
             if item == "minecraft:flint_and_steel" {
                 self.damage_held_tool();
@@ -227,9 +221,6 @@ impl Game<'_> {
     /// tick started) can: `canExplode` and `primeTime` both read the cached
     /// `explosionData`, so the fuse is that body's, not the live one's.
     pub(super) fn sulfur_cube_power_priming(&mut self, primable: &[(u32, i32)]) {
-        if !self.ui.rules.bool("tnt_explodes") {
-            return;
-        }
         for i in 0..self.mobs.len() {
             let m = &self.mobs[i];
             if m.species() != Species::SulfurCube || !m.alive() || sulfur_cube::primed(m) {
@@ -251,11 +242,11 @@ impl Game<'_> {
         }
     }
     /// `SulfurCube.hurtServer`: an arrow or a trident on fire that hits an
-    /// explosive cube with a block lights its fuse (with `tnt_explodes`, as
-    /// `primeTime` asks), called after the hit's hurt, which the priming
-    /// leaves as it is, so its knock and the fuse both go ahead.
+    /// explosive cube with a block lights its fuse (as `primeTime` asks),
+    /// called after the hit's hurt, which the priming leaves as it is, so its
+    /// knock and the fuse both go ahead.
     pub(super) fn burning_arrow_primes(&mut self, p: &Projectile, who: Who) {
-        if !p.arrow.as_ref().is_some_and(|a| a.on_fire()) || !self.ui.rules.bool("tnt_explodes") {
+        if !p.arrow.as_ref().is_some_and(|a| a.on_fire()) {
             return;
         }
         if let Who::Mob(id) = who

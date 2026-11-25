@@ -510,7 +510,6 @@ const GAME_RULES: &[(&str, &str, Conv)] = &[
         "minecraft:spectators_generate_chunks",
         Conv::Bool,
     ),
-    ("tntExplodes", "minecraft:tnt_explodes", Conv::Bool),
     (
         "tntExplosionDropDecay",
         "minecraft:tnt_explosion_drop_decay",

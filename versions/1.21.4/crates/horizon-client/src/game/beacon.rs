@@ -625,9 +625,10 @@ impl Game<'_> {
         };
         let time = (self.world.game_time.rem_euclid(40)) as f32 + alpha as f32;
         let scoping = self.scoping();
-        // `BeaconRenderer.shouldRender` culls at the render distance; far
+        // `BeaconRenderer.getViewDistance` is a flat 256 blocks in 1.21.4
+        // (1.21.5 culls at the effective render distance times 16); far
         // terrain extends that to its own distance.
-        let view = f64::from(self.terrain_distance() * 16);
+        let view = 256.0;
         let world = &self.world;
         if self.lod.is_some() {
             // The beam stays after its chunk unloads; once the chunk is back,

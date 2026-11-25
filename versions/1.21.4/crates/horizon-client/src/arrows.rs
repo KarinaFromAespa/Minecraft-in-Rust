@@ -335,9 +335,8 @@ pub struct ArrowScene<'a, 'r> {
     pub fluids: &'a FluidResources,
     /// `Level.isRainingAt`.
     pub raining: &'a dyn Fn(BlockPos) -> bool,
-    /// The `mob_griefing` and `tnt_explodes` game rules.
+    /// The `mob_griefing` game rule.
     pub mob_griefing: bool,
-    pub tnt_explodes: bool,
     pub owners: &'a dyn OwnerLookup,
 }
 /// `EntityReference.getEntity` for an owner the arrow only knows by UUID.
@@ -1114,9 +1113,7 @@ impl Ticker<'_, '_, '_, '_> {
             self.scene.registry.id(&definition)
         };
         match name {
-            "minecraft:tnt" if self.may_interact() && self.scene.tnt_explodes => {
-                Some(BlockReaction::PrimeTnt)
-            }
+            "minecraft:tnt" if self.may_interact() => Some(BlockReaction::PrimeTnt),
             "minecraft:campfire" | "minecraft:soul_campfire"
                 if self.may_interact() && !flag("lit") && !flag("waterlogged") =>
             {

@@ -163,7 +163,6 @@ fn run_in(
         fluids: &fluids,
         raining: &|_| false,
         mob_griefing: rules.mob_griefing,
-        tnt_explodes: true,
         owners: rules.owners,
     };
     let mut p = Projectile::new(
