@@ -947,9 +947,9 @@ all three classpaths, so the same advice applies.)
 
 ## The client_probe check (H01)
 
-**Verdict: PENDING — the coordinator's cargo check did not finish.
-Recorded here per the brief; the coordinator closes it at merge. This
-batch did NOT run the check itself.**
+**Verdict: PASS — H01 does NOT reproduce for 1.21.11.** The
+coordinator's cargo check finished clean on rerun (see the closure
+note below). This batch did NOT run the check itself.
 
 Static evidence (verified by this batch, same as the coordinator's
 Step 0): H01 is expected NOT to reproduce for 1.21.11. In 26.1,
@@ -992,11 +992,14 @@ seed file list: 3773 files
   disk-quota error (see §0) — the coordinator's run was most likely
   killed by the same event. The seed (4.8G target dir) is intact in
   `b00/target/`, so a rerun resumes warm.
-- What the coordinator needs to close it: rerun `b00/h01-run.sh`
-  (or the equivalent cargo check) and record EXIT + the
-  `libclient_probe-*.rmeta` / fingerprint evidence the 1.21.10 run
-  used. No slice.json item is minted for H01 — it is a pending check,
-  not a defect.
+- **Coordinator closure (02:13 UTC):** the rerun of `b00/h01-run.sh`
+  (seed 01:51:46–01:52:43 UTC, target 5.3G; check 01:52:44–02:13:00
+  UTC) finished `Finished 'dev' profile [unoptimized + debuginfo]
+  target(s) in 20m 13s` with `cargo check EXIT=0` and 0 errors. The
+  probe artifact `target/debug/deps/libclient_probe-7f5c9e82df826d1b.rmeta`
+  exists, proving the example was actually checked. H01 is CLOSED as
+  PASS — no slice.json item is minted for H01 (it is a check, not a
+  defect).
 
 ## Per-oracle table
 
@@ -1033,8 +1036,9 @@ errors) are in `evidence/` (copies of the measuring workdir's
 - `evidence/server-jar-listing.txt`,
   `evidence/client-jar-listing.txt` — 1.21.11 jar class listings
   (used for the package-absence verifications).
-- `h01-cargo-check.log` (coordinator-run, stalled 01:02:53 UTC,
-  PENDING) and `h01-run.sh` — H01 cargo check output and runner.
+- `h01-cargo-check.log` (coordinator-run; first run stalled 01:02:53
+  UTC, rerun PASSED 02:13:00 UTC, EXIT=0, 20m13s, 0 errors) and
+  `h01-run.sh` — H01 cargo check output and runner.
 - `evidence/rsync-filelist.txt` — file list used for the H01 target-dir
   seed (stable files only, from the 1.21.4 port workdir's warm
   target).
@@ -1068,7 +1072,7 @@ built before any driver runs. The 1.21.7 sweep's repairs are NOT in
 this tree and must be re-derived for 1.21.11 (11-arg ServerLevel, not
 12-arg; gamerules package, not `world.level`) — with two exceptions
 already in-tree: the ComponentPatch `Optional.empty()` form (O12
-FIXED) and the template's own 1.21.11 adaptations. H01 is PENDING:
-the coordinator's cargo check stalled at 01:02:53 UTC with no process
-running; the static evidence says the probe matches its own 7-field
-`FrameContext` and the check should pass on rerun.
+FIXED) and the template's own 1.21.11 adaptations. H01 PASSED on the
+coordinator's rerun (cargo check EXIT=0, 20m13s, 0 errors, probe
+rmeta present) — the client_probe compiles for 1.21.11, as the
+static evidence predicted.
