@@ -32,6 +32,15 @@ name: launcher-build
 # the tree's pre-existing failures, and the job fails only on failures
 # not in that file (a tree with no baseline file is held to zero).
 #
+# Assemble-first (docs/restructure.md): the build and test jobs
+# assemble the version from commons + overlay chain into
+# .horizon-ports/<v> before anything that needs the workspace, and the
+# build, the binary paths and the tests all run inside the assembled
+# tree; rust-cache keys off its lockfile. The resolve job accepts a
+# version as a full tree (pre-cutover) or an overlay chain
+# (post-cutover). Until the cutover lands, commons/ does not exist yet
+# and assemble.py falls back to versions/26.3 as the base.
+#
 # Dispatched manually:
 #   gh workflow run launcher-build.yml -f version=1.21.7
 #   gh workflow run launcher-build.yml -f version=all
@@ -50,6 +59,7 @@ permissions:
 
 env:
   HORIZON_TELEMETRY_URL: "off"
+  HORIZON_PORTS: ${{ github.workspace }}/.horizon-ports
 
 jobs:
   resolve:
@@ -69,15 +79,36 @@ jobs:
           python3 - <<'EOF'
           import json, os
           wanted = os.environ["WANTED"]
+          def _chains():
+              try:
+                  with open("tools/overlay-chains.json") as f:
+                      return json.load(f).get("chains", {})
+              except (OSError, ValueError):
+                  return {}
+          def _in_tree(v, relpath):
+              # True when the assembled tree for v would contain relpath:
+              # the pre-cutover full tree, the commons base, or any
+              # overlay in the version's chain. (Verified: no overlay
+              # deletes the workspace manifests this is used for.)
+              if os.path.isfile(os.path.join("versions", v, relpath)):
+                  return True
+              if os.path.isfile(os.path.join("commons", relpath)):
+                  return True
+              for owner in _chains().get(v, []):
+                  if os.path.isfile(os.path.join("versions", owner, "overlay", relpath)):
+                      return True
+              return False
+          def has_launcher(v):
+              return _in_tree(v, os.path.join("launcher", "Cargo.toml"))
           if wanted == "all":
               versions = sorted(
-                  d for d in os.listdir("versions")
-                  if os.path.isfile(os.path.join("versions", d, "launcher", "Cargo.toml"))
+                  {d for d in os.listdir("versions") if has_launcher(d)}
+                  | {v for v in _chains() if has_launcher(v)}
               )
               if not versions:
                   raise SystemExit("no version tree has a launcher/ directory")
           else:
-              if not os.path.isfile(os.path.join("versions", wanted, "launcher", "Cargo.toml")):
+              if not has_launcher(wanted):
                   raise SystemExit(f"no launcher in versions/{wanted}/launcher")
               versions = [wanted]
           print("versions:", ", ".join(versions))
@@ -114,13 +145,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Assemble the version BEFORE anything that needs the workspace
+      # (docs/restructure.md): the build runs inside the assembled
+      # tree, and rust-cache keys off its lockfile. On this branch
+      # commons/ does not exist yet, so assemble.py uses versions/26.3
+      # as the base (its pre-cutover fallback); after the cutover it
+      # uses commons/ with no change here. The python3-or-python
+      # fallback is for the Windows runners, which do not guarantee a
+      # python3 alias.
+      - name: Assemble the version (commons + overlay chain)
+        run: |
+          V="${{ matrix.version }}"
+          mkdir -p "$HORIZON_PORTS"
+          PY="$(command -v python3 || command -v python)"
+          "$PY" tools/assemble.py "$V" --into "$HORIZON_PORTS/$V"
+
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.95.0
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: versions/${{ matrix.version }}/launcher
+          workspaces: ${{ env.HORIZON_PORTS }}/${{ matrix.version }}/launcher
           shared-key: launcher-${{ matrix.version }}-${{ matrix.os }}
           cache-on-failure: true
 
@@ -147,24 +193,24 @@ jobs:
       # build compiles the shared crates from this version's tree.
       - name: Build the launcher
         run: |
-          cd "versions/${{ matrix.version }}/launcher"
+          cd "$HORIZON_PORTS/${{ matrix.version }}/launcher"
           cargo build --release --locked --color=never
 
       # --version prints before any window or GPU is needed, so this runs
       # headless on the runner (upstream's launcher.yml does the same).
       - name: The binary runs (--version)
         run: |
-          BIN="versions/${{ matrix.version }}/launcher/target/release/${{ matrix.binary }}"
+          BIN="$HORIZON_PORTS/${{ matrix.version }}/launcher/target/release/${{ matrix.binary }}"
           OUT=$("$BIN" --version)
           echo "$OUT"
-          EXPECTED="horizon-launcher $(sed -n 's/^version = "\(.*\)"/\1/p' "versions/${{ matrix.version }}/launcher/Cargo.toml" | head -1)"
+          EXPECTED="horizon-launcher $(sed -n 's/^version = "\(.*\)"/\1/p' "$HORIZON_PORTS/${{ matrix.version }}/launcher/Cargo.toml" | head -1)"
           [ "$OUT" = "$EXPECTED" ] || { echo "::error::expected '$EXPECTED'"; exit 1; }
 
       - name: Upload the launcher binary
         uses: actions/upload-artifact@v4
         with:
           name: horizon-launcher-${{ matrix.version }}-${{ matrix.os }}
-          path: versions/${{ matrix.version }}/launcher/target/release/${{ matrix.binary }}
+          path: ${{ env.HORIZON_PORTS }}/${{ matrix.version }}/launcher/target/release/${{ matrix.binary }}
           if-no-files-found: error
 
       - name: Job summary
@@ -173,8 +219,8 @@ jobs:
           {
             echo "## launcher-build — ${{ matrix.version }} (${{ matrix.os }})"
             echo
-            echo "binary: \`versions/${{ matrix.version }}/launcher/target/release/${{ matrix.binary }}\`"
-            ls -l "versions/${{ matrix.version }}/launcher/target/release/${{ matrix.binary }}" 2>/dev/null || echo "binary missing"
+            echo "binary: \`$HORIZON_PORTS/${{ matrix.version }}/launcher/target/release/${{ matrix.binary }}\`"
+            ls -l "$HORIZON_PORTS/${{ matrix.version }}/launcher/target/release/${{ matrix.binary }}" 2>/dev/null || echo "binary missing"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # Launcher unit tests (Linux only). Before this job existed, no CI ran
@@ -201,13 +247,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Assemble the version first (docs/restructure.md): the tests run
+      # inside the assembled tree, and rust-cache keys off its lockfile.
+      # The baseline file (known-test-failures.txt) is part of the tree,
+      # so the ratchet reads it from the assembly.
+      - name: Assemble the version (commons + overlay chain)
+        run: |
+          V="${{ matrix.version }}"
+          mkdir -p "$HORIZON_PORTS"
+          python3 tools/assemble.py "$V" --into "$HORIZON_PORTS/$V"
+
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.95.0
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: versions/${{ matrix.version }}/launcher
+          workspaces: ${{ env.HORIZON_PORTS }}/${{ matrix.version }}/launcher
           shared-key: launcher-test-${{ matrix.version }}
           cache-on-failure: true
 
@@ -225,7 +281,7 @@ jobs:
 
       - name: Run the launcher unit tests
         run: |
-          cd "versions/${{ matrix.version }}/launcher"
+          cd "$HORIZON_PORTS/${{ matrix.version }}/launcher"
           OUT="$GITHUB_WORKSPACE/test-output-${{ matrix.version }}.txt"
           # The exit code is NOT the verdict: pre-existing baseline
           # failures also exit non-zero. The ratchet below decides.
