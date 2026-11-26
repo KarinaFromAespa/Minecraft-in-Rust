@@ -1799,7 +1799,8 @@ impl Game<'_> {
     pub(super) fn uuid_for(&mut self, id: u32) -> [i32; 4] {
         *self.persist.uuids.entry(id).or_insert_with(random_uuid)
     }
-    /// `BlockState.CODEC`: a block name or `{id, properties}` (or legacy `{Name, Properties}`).
+    /// Lenient read-back of a saved block state: a block name or
+    /// `{id, properties}` (or legacy `{Name, Properties}`).
     pub(super) fn state_from_nbt(&self, tag: &Tag) -> Option<BlockStateId> {
         entity_nbt::state_from_nbt(self.pack.assets.registry, tag)
     }

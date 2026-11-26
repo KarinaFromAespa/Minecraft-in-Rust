@@ -490,18 +490,20 @@ fn conversion_time(m: &Mob) -> i32 {
         -1
     }
 }
-/// `BlockState.CODEC`: the block's name when the state is that block's
-/// default, `{id, properties}` for any other state.
+/// Vanilla 1.21.7's block-state form (`StateHolder.codec`, jar-verified):
+/// every state is a `{Name, Properties}` compound, default states included —
+/// the palette codec dispatches on `Name`, so a bare name does not decode
+/// there. The reader (`state_from_nbt`) still accepts the bare name and the
+/// 26.x `{id, properties}` form, for saves older builds wrote.
 pub fn state_to_nbt(registry: &BlockRegistry, state: BlockStateId) -> Tag {
     match registry.state(state) {
-        Some(s) if registry.default_state(&s.name) == Some(state) => string(&s.name),
         Some(s) => s.to_nbt(),
-        None => string("minecraft:air"),
+        None => Tag::compound([("Name", string("minecraft:air"))]),
     }
 }
-/// `BlockState.CODEC` read back: a block name or `{id, properties}` (or the
-/// legacy `{Name, Properties}`). A name the registry knows only as a block
-/// reads as its default state, and one it does not know at all as `None`.
+/// Lenient read-back of a saved block state: a block name or `{id, properties}`
+/// (or the legacy `{Name, Properties}`). A name the registry knows only as a
+/// block reads as its default state, and one it does not know at all as `None`.
 pub fn state_from_nbt(registry: &BlockRegistry, tag: &Tag) -> Option<BlockStateId> {
     let state = match tag.get("Name") {
         Some(Tag::String(name)) => BlockState {
@@ -5146,7 +5148,10 @@ mod tests {
     fn falling_decode_absent_state_saves_actual_sand_without_raw() {
         let registry = falling_decode_registry();
         let saved = falling_decode_save(&registry, &falling_decode_input());
-        assert_eq!(saved.get("BlockState"), Some(&string("minecraft:sand")));
+        assert_eq!(
+            saved.get("BlockState"),
+            Some(&Tag::compound([("Name", string("minecraft:sand"))]))
+        );
     }
 
     #[test]
@@ -5172,7 +5177,10 @@ mod tests {
             let mut input = falling_decode_input();
             put(&mut input, "BlockState", state);
             let saved = falling_decode_save(&registry, &input);
-            assert_eq!(saved.get("BlockState"), Some(&string(expected)));
+            assert_eq!(
+                saved.get("BlockState"),
+                Some(&Tag::compound([("Name", string(expected))]))
+            );
         }
     }
 
@@ -7404,14 +7412,14 @@ mod sheep_nbt_tests {
                 .size,
             2
         );
-        // Enderman.addAdditionalSaveData: the block it carries, a block name
-        // for the block's default state and `{id, properties}` otherwise.
+        // Enderman.addAdditionalSaveData: the block it carries, as vanilla
+        // 1.21.7's `{Name, Properties}` compound.
         let mut enderman = new("minecraft:enderman");
         let grass = registry.default_state("minecraft:grass_block");
         enderman.extra.carried = grass;
         let (back, tag) = round_trip(&enderman);
         assert_eq!(
-            text(tag.get("carriedBlockState")).as_deref(),
+            text(tag.get("carriedBlockState").and_then(|t| t.get("Name"))).as_deref(),
             Some("minecraft:grass_block")
         );
         assert_eq!(back.extra.carried, grass);

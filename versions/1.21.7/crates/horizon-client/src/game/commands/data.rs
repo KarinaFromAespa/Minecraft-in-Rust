@@ -2557,7 +2557,10 @@ mod falling_live_adoption_tests {
             assert_eq!(saved.get("DropItem"), Some(&Tag::Byte(0)));
             assert_eq!(
                 saved.get("BlockState"),
-                Some(&Tag::String("minecraft:gravel".into()))
+                Some(&Tag::compound([(
+                    "Name",
+                    Tag::String("minecraft:gravel".into())
+                )]))
             );
             assert_eq!(
                 saved.get("Tags"),

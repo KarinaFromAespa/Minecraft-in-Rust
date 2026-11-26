@@ -51,7 +51,12 @@ impl PrimedTnt {
         registry: &horizon_world::registry::BlockRegistry,
     ) -> horizon_world::nbt::Tag {
         self.block_state.map_or_else(
-            || horizon_world::nbt::Tag::String("minecraft:tnt".into()),
+            || {
+                horizon_world::nbt::Tag::compound([(
+                    "Name",
+                    horizon_world::nbt::Tag::String("minecraft:tnt".into()),
+                )])
+            },
             |state| horizon_client::entity_nbt::state_to_nbt(registry, state),
         )
     }
@@ -794,6 +799,14 @@ mod tests {
                 Tag::compound([("unstable", Tag::String("true".into()))]),
             ),
         ]);
+        // Vanilla 1.21.7's form of the same state: `Name`/`Properties`.
+        let unstable_1_21_7 = Tag::compound([
+            ("Name", Tag::String("minecraft:tnt".into())),
+            (
+                "Properties",
+                Tag::compound([("unstable", Tag::String("true".into()))]),
+            ),
+        ]);
         let registry = BlockRegistry::from_nbt(&Tag::compound([
             ("DataVersion", Tag::Int(horizon_world::DATA_VERSION)),
             (
@@ -833,9 +846,15 @@ mod tests {
         };
         let raw = Tag::compound([("block_state", Tag::String("audit_missing:block".into()))]);
         for (state, expected) in [
-            (Some(BlockStateId(1)), Tag::String("minecraft:stone".into())),
-            (Some(BlockStateId(2)), unstable),
-            (None, Tag::String("minecraft:tnt".into())),
+            (
+                Some(BlockStateId(1)),
+                Tag::compound([("Name", Tag::String("minecraft:stone".into()))]),
+            ),
+            (Some(BlockStateId(2)), unstable_1_21_7),
+            (
+                None,
+                Tag::compound([("Name", Tag::String("minecraft:tnt".into()))]),
+            ),
         ] {
             tnt.block_state = state;
             let saved = horizon_client::entity_nbt::tnt_to_nbt(
@@ -1409,7 +1428,10 @@ mod tests {
             assert!(t.no_gravity);
             assert_eq!(t.power, 2.5);
             let state = t.block_state_nbt(game.pack.assets.registry);
-            assert_eq!(state, Tag::String("minecraft:stone".into()));
+            assert_eq!(
+                state,
+                Tag::compound([("Name", Tag::String("minecraft:stone".into()))])
+            );
             let saved = crate::entity_nbt::tnt_to_nbt(
                 t.position,
                 t.velocity,
