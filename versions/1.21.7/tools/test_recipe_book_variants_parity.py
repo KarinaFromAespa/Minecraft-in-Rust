@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""A multi-display recipe reaches a real client's recipe book (server-recipe-book-display-variants).
+"""Granting recipes reaches a real client's recipe book (server-recipe-book-display-variants).
 
 `ServerRecipeBook.addRecipes` sends one `ClientboundRecipeBookAddPacket.Entry` per display a recipe has
 (`RecipeManager.listDisplaysForRecipe`), and `removeRecipes` a `ClientboundRecipeBookRemovePacket` of all of
-them. `minecraft:map_cloning` is a `crafting_transmute` recipe whose `material_count` runs from 1 to 8:
-`TransmuteRecipe.display()` gives it eight shapeless displays.
+them. In 1.21.7 every learnable recipe has exactly one display — `TransmuteRecipe` has no material count
+here, its `display()` is a single shapeless display — and a special recipe (`CustomRecipe`, `isSpecial()`)
+has none: `ServerRecipeBook.addRecipes` refuses it, so granting `minecraft:map_cloning` sends nothing. The
+26.3 form, where map cloning is a transmute with a material count of 1 to 8 and sends eight entries, does
+not apply here.
 
 A real network player (LocatorBarClient) joins a dedicated server (vanilla, then Horizon) with the
 menu recorder on: every recipe book Add and Remove packet is kept with its raw payload and its fields as

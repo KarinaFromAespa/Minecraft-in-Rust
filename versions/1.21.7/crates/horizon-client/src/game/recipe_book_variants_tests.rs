@@ -1,9 +1,15 @@
-//! A recipe with several displays reaches a connected player's recipe book:
+//! Granting recipes reaches a connected player's recipe book:
 //! `ServerRecipeBook.addRecipes` sends a `ClientboundRecipeBookAddPacket.Entry`
-//! for each display (`RecipeManager.listDisplaysForRecipe`), so
-//! `minecraft:map_cloning`, a transmute recipe with a material count of 1 to 8,
-//! sends eight (tools/test_recipe_book_variants_parity.py measures the same on
-//! vanilla 26.3 with a real client).
+//! for each display (`RecipeManager.listDisplaysForRecipe`).
+//!
+//! In 1.21.7 every learnable recipe has exactly one display: `Recipe.display()`
+//! returns a single display for shaped, shapeless, transmute and the other
+//! kinds — `TransmuteRecipe` has no material count here, its `display()` is a
+//! single shapeless display — and a special recipe (`CustomRecipe`,
+//! `isSpecial()`) has none: `ServerRecipeBook.addRecipes` refuses it, so
+//! granting one sends nothing. The 26.3 form, where `minecraft:map_cloning`
+//! is a transmute with a material count of 1 to 8 and sends eight entries,
+//! does not apply here.
 use super::*;
 use horizon_client::{
     chunk::Chunk,
@@ -166,7 +172,7 @@ fn grant(
 
 #[test]
 #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-fn a_recipe_with_eight_displays_sends_eight_entries() {
+fn a_transmute_recipe_sends_one_entry_and_a_special_sends_none() {
     let (mut game, rx) = game();
     assert!(game.run_command("tick freeze"));
     // The join's own book (a new player knows the crafting table) settles on
@@ -175,24 +181,33 @@ fn a_recipe_with_eight_displays_sends_eight_entries() {
     let _ = run(&mut game, &format!("recipe take {GUEST} *"));
     step(&mut game, 2);
     let _ = added(&rx);
+    // The ordinary recipe: one display, one entry.
     let ordinary = grant(&mut game, &rx, "minecraft:crafting_table");
     assert_eq!(
         ordinary.iter().map(Vec::len).sum::<usize>(),
         1,
         "the ordinary recipe: {ordinary:?}"
     );
-    let cloning = grant(&mut game, &rx, "minecraft:map_cloning");
-    let ids: Vec<i32> = cloning.concat();
-    assert_eq!(ids.len(), 8, "one entry per display: {cloning:?}");
-    let mut distinct = ids.clone();
-    distinct.sort_unstable();
-    distinct.dedup();
-    assert_eq!(distinct.len(), 8);
+    // A genuine transmute: 1.21.7 has no material count, so one display —
+    // not eight, as 26.3's 1..8 material count would send.
+    let transmute = grant(&mut game, &rx, "minecraft:white_shulker_box");
+    assert_eq!(
+        transmute.iter().map(Vec::len).sum::<usize>(),
+        1,
+        "the transmute recipe: {transmute:?}"
+    );
+    // A special: a CustomRecipe, refused by addRecipes, nothing sent.
+    let special = grant(&mut game, &rx, "minecraft:map_cloning");
+    assert_eq!(
+        special.iter().map(Vec::len).sum::<usize>(),
+        0,
+        "the special recipe: {special:?}"
+    );
 }
 
-// Added after the baseline (the authorized adapter): a recipe with several
-// displays still has no ghost (PlaceRecipe is unchanged), and an ordinary
-// recipe's ghost is still sent.
+// Added after the baseline (the authorized adapter): a special recipe has no
+// display, so no ghost (PlaceRecipe is unchanged), and an ordinary recipe's
+// ghost is still sent.
 fn ghosts(rx: &mpsc::Receiver<horizon_client::lan::Out>) -> usize {
     use horizon_protocol::packets::play::Clientbound as C;
     let mut n = 0;
@@ -215,12 +230,12 @@ fn ghosts(rx: &mpsc::Receiver<horizon_client::lan::Out>) -> usize {
 
 #[test]
 #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-fn control_a_multi_display_recipe_still_has_no_ghost() {
+fn control_a_special_recipe_still_has_no_ghost() {
     let (mut game, rx) = game();
     let _ = ghosts(&rx);
     let hub = &mut game.lan.as_mut().unwrap().hub;
     hub.send_ghost_recipe(2, 0, "minecraft:map_cloning");
-    assert_eq!(ghosts(&rx), 0, "no ghost for eight displays");
+    assert_eq!(ghosts(&rx), 0, "no ghost for a special");
     let hub = &mut game.lan.as_mut().unwrap().hub;
     hub.send_ghost_recipe(2, 0, "minecraft:crafting_table");
     assert_eq!(ghosts(&rx), 1, "the ordinary recipe's ghost");
