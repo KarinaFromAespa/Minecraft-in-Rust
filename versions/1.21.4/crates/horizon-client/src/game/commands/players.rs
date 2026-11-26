@@ -153,11 +153,11 @@ impl Game<'_> {
         };
         shown.with_component_fields(vec![
             (
-                "click_event".into(),
-                serde_json::json!({"action": "suggest_command", "command": format!("/tell {name} ")}),
+                "clickEvent".into(),
+                serde_json::json!({"action": "suggest_command", "value": format!("/tell {name} ")}),
             ),
             (
-                "hover_event".into(),
+                "hoverEvent".into(),
                 serde_json::json!({"action": "show_entity", "id": "minecraft:player",
                     "uuid": horizon_protocol::crypto::uuid_string(uuid), "name": name}),
             ),

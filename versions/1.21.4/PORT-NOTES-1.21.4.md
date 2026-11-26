@@ -3105,3 +3105,125 @@ shape for the review batches.
   `getInterpolation`/`lerpTo` and component `get`/
   `applyImplicitComponents` reshuffles change no shulker behaviour.
   Rank 2: 158/348.
+
+  Item 113 (horizon-assets/item_model.rs): ported.
+  1.21.5 refactored `DataComponentPredicate` into an interface in
+  `core.component.predicates` with `singleCodec(String)` and a dispatched
+  `STREAM_CODEC` on the new `DATA_COMPONENT_PREDICATE_TYPE` registry;
+  1.21.4 has it as a final class in `core.component` holding a
+  `List<TypedDataComponent>`, `CODEC` a `VALUE_MAP_CODEC` map and
+  `STREAM_CODEC` a plain list of `TypedDataComponent.STREAM_CODEC`.
+  Neither the `component` condition property nor the `component` select
+  property exists in 1.21.4 (`ConditionalItemModelProperties` and
+  `SelectItemModelProperties` gain `ComponentMatches` only in 1.21.5,
+  verified in both jars' registries), but the Rust decoded the 1.21.5
+  `singleCodec` `{predicate, value}` form for both, so the item-model
+  parity harness disagreed with the 1.21.4 oracle (Rust ok=true, oracle
+  false). Removed the `Component` variants + decode/resolution arms from
+  `ConditionProperty` and `SelectProperty`, deleted
+  `item_model/component_predicate.rs`, removed
+  `ItemEnv::component_matches` and `ItemEnv::enchantment_in_tag` and the
+  game's `enchantment_in_tag` override in `game/item_draw.rs`; both
+  properties now fall through to the unknown-property errors, matching
+  vanilla 1.21.4's codec rejection. `MinMaxBounds`/`Doubles`/`Ints` are
+  identical between versions; `EnchantmentsPredicate` (+2 nested classes)
+  is 1.21.5-only. Test:
+  `the_1_21_5_component_properties_do_not_decode_in_1_21_4`. Recorded,
+  not fixed (needs its own focused item): the protocol-side
+  `DataComponentPredicate` handling is systematically 1.21.5-shaped --
+  `horizon-protocol/src/item/skip.rs::component_matchers`,
+  `item/hash/gameplay.rs::partial_predicate`,
+  `item/hash/raw.rs` (`data_component_predicate_type` id->name table
+  0-13), `lan/guest.rs` and `horizon-command/src/item.rs` reference the
+  registry; 1.21.4 has no `DATA_COMPONENT_PREDICATE_TYPE` registry
+  (verified in `BuiltInRegistries` for both jars) and its `STREAM_CODEC`
+  is a plain list of `TypedDataComponent`s (type id + value, no boolean,
+  no predicate-type registry). Rank 2: 159/348.
+
+  Item 114 (widely named: network/chat): ported.
+  1.21.5 refactored `ClickEvent` into a sealed interface with per-action
+  records and per-action codec fields (`url`/`command`/`page`/`path`),
+  and renamed the `Style` fields to `click_event`/`hover_event`; 1.21.4
+  has a single final `ClickEvent` (`Action`, `String value`) whose
+  `CODEC` is `action` + `Codec.STRING fieldOf("value")` for ALL actions
+  (`change_page`'s value is the page as a string), and
+  `Style$Serializer` uses `clickEvent`/`hoverEvent` (verified by javap
+  on both jars). The Rust's parse side already handled both forms, but
+  its encode side (`Text::component` via `style_json`) wrote the 1.21.5
+  form, so a component sent to vanilla 1.21.4 lost its click event (an
+  optional field, silently dropped). Fixed the encode to `{action,
+  value}` for every action and to `clickEvent`/`hoverEvent` keys, in
+  `text.rs` (`style_json` + `STYLE_KEYS`), `scoreboard.rs`
+  (`canonical_component` arm), `signs.rs` (`STYLE_KEYS`, `message()`
+  fallback, `click_event()` reader -- sign lines are saved as
+  `SignText.CODEC`), `commands.rs` + `commands/players.rs` +
+  `lan/hub.rs` (player display names; `with_component_fields` is sent to
+  vanilla), `lan_trading.rs` (NBT `Tag` key), `advancements.rs` (reads
+  the tree's own `component()` output), `lan/conn.rs` (component key
+  `ORDER` list), and the `horizon-command` component validator
+  (`CLICK_ACTIONS` now require `"value"` per action, key lookup accepts
+  both spellings). Tests:
+  `click_events_serialize_and_inherit_as_one_style_field` extended with
+  `OpenUrl`/`ChangePage` cases. Carry-over, no delta: `resolveStyle`
+  is the same logic in both (only the `HoverEvent` representation
+  differs); `flatCodec(int)` is `flatCodec(Integer.MAX_VALUE)` in
+  1.21.4, so no size limit (1.21.5's `flatRestrictedCodec`/`isTooLarge`
+  is new); `MessageSignature` checksum/describe are 1.21.5-only and
+  already adapter-handled (item 109). `COPY_TO_CLIPBOARD`
+  `allowFromServer` is true in 1.21.4, matching the Rust. Recorded, not
+  fixed (pre-existing, identical in both versions): `show_entity` is
+  written as `{id: entity type, uuid, name}` but vanilla (both versions)
+  wants `{type, id: UUID, name}`; the Rust's form round-trips through
+  its own parse, so player-name hovers display fine locally and it only
+  breaks if such a component is sent to vanilla. Rank 2: 160/348.
+
+  Item 115 (horizon-client-render/mesher.rs): ported.
+  `BlockElement` is a record in 1.21.5 (`Vector3fc` + accessors) vs a
+  class with public `Vector3f` fields in 1.21.4; the `Deserializer`
+  differs only in the ctor signature -- no behavioural delta, and the
+  Rust already implements 1.21.4's `fillUvs` exactly (`bake.rs`
+  `default_uv` matches all six `uvsByFace` formulas, verified against
+  the 1.21.4 jar). The real deltas are in `BlockColors.createDefault`:
+  1.21.5 added `LEAF_LITTER` with the new dry-foliage tint
+  (`getAverageDryFoliageColor`, fallback `0xFF5C3C32`), added `BUSH` to
+  the grass-tint set and `WILDFLOWERS` to the pink-petals set -- all
+  three blocks are 1.21.5-only (no `LEAF_LITTER`/`WILDFLOWERS`/`BUSH`
+  block in the 1.21.4 jar). Removed the three dead arms from the mesher
+  tint table (`bush` from the grass set, `wildflowers` from
+  `pink_petals`, `leaf_litter` -> `DryFoliage`) and the `leaf_litter` ->
+  `Tint::Dry` arm + the now-never-constructed `Tint::Dry` variant from
+  `lod/mesh.rs`; the table now matches 1.21.4's `createDefault` exactly
+  (stems keep the age formula, verified: `rgb(age*32, 255-age*8,
+  age*4)`; attached stems keep constant `0xE0C71C`; lily pad, redstone,
+  sugar cane, spruce/birch constants unchanged). Dry-foliage support
+  machinery (`Tint::DryFoliage`, `Resolver::Dry`, the biome
+  `dry_foliage` field, the Polytone `dry_foliage` function) stays: it is
+  data-driven and no 1.21.4 block uses it, and removing it is a
+  cross-crate refactor out of proportion to this item. Tests: `cargo
+  test -p horizon-client-render --lib mesher`, 68 passed. Rank 2:
+  161/348.
+
+  Item 116 (horizon-client/game/wind.rs): carry-over.
+  `FenceGateBlock`'s shape constants differ only in construction --
+  1.21.5 builds `cube(16,16,4)` + `Shapes.rotateHorizontalAxis` into
+  `SHAPES`/`SHAPES_WALL`, 1.21.4 uses explicit `Z_SHAPE` (0,0,6 ->
+  16,16,10), `X_SHAPE` (6,0,0 -> 10,16,16), `Z_SHAPE_LOW`/`X_SHAPE_LOW`
+  (y max 13); the geometry is identical. `onExplosionHit`,
+  `neighborChanged` and `useWithoutItem` differ only by the `playSound`
+  signature widening (1.21.5 `Level`/`ServerLevel.playSound` takes
+  `Entity`, 1.21.4 takes `Player`; both call sites pass null). The
+  Rust's `fence_gate_exploded` (`horizon-world` `level/interact.rs`)
+  matches 1.21.4's `onExplosionHit` exactly: returns unless the
+  explosion can trigger blocks and the gate is unpowered, toggles `OPEN`
+  via `setBlockAndUpdate`, plays `fenceGateClose`/`Open` at volume 1.0
+  and pitch `random*0.1+0.9`, emits `BLOCK_CLOSE`/`BLOCK_OPEN` with no
+  source entity, and keeps the facing (unlike a click).
+  `WindChargeItem.use` differs only by the same `playSound` signature;
+  `throw_wind_charge` matches (`PROJECTILE_SHOOT_POWER` 1.5f verified in
+  the 1.21.4 jar, sound `WIND_CHARGE_THROW` volume 0.5 pitch
+  `0.4/(random*0.4+0.8)`, `ITEM_USED` stat, consume 1 unless creative).
+  `EntityRenderState` gains only the 1.21.5 `fillCrashReportCategory`
+  crash-report helper, no behaviour. Recorded, not fixed (pre-existing,
+  identical in both versions): the wind-charge throw sound plays at the
+  eye position in the Rust vs the player's feet position in vanilla.
+  Rank 2: 162/348.

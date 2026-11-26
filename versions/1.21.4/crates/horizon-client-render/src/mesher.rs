@@ -855,7 +855,9 @@ impl MeshTables {
             let props = &state.properties;
             let prop = |k: &str| -> u8 { props.get(k).and_then(|v| v.parse().ok()).unwrap_or(0) };
             let name = s.name.strip_prefix("minecraft:").unwrap_or(&s.name);
-            // BlockColors.createDefault: tint sources by block.
+            // BlockColors.createDefault: tint sources by block. `bush`,
+            // `wildflowers` and `leaf_litter` are 1.21.5-only blocks and
+            // have no tint entry in 1.21.4.
             let (tints, tint_count) = match name {
                 "large_fern" | "tall_grass" => {
                     if props.get("half").map(String::as_str) == Some("upper") {
@@ -864,15 +866,14 @@ impl MeshTables {
                         ([Tint::Grass; 2], 1)
                     }
                 }
-                "fern" | "short_grass" | "potted_fern" | "bush" => ([Tint::Grass; 2], 1),
+                "fern" | "short_grass" | "potted_fern" => ([Tint::Grass; 2], 1),
                 "grass_block" => ([Tint::GrassBlock; 2], 1),
                 "sugar_cane" => ([Tint::SugarCane; 2], 1),
-                "pink_petals" | "wildflowers" => ([Tint::None, Tint::Grass], 2),
+                "pink_petals" => ([Tint::None, Tint::Grass], 2),
                 "spruce_leaves" => ([Tint::Constant(0x61_9961); 2], 1),
                 "birch_leaves" => ([Tint::Constant(0x80_A755); 2], 1),
                 "oak_leaves" | "jungle_leaves" | "acacia_leaves" | "dark_oak_leaves" | "vine"
                 | "mangrove_leaves" => ([Tint::Foliage; 2], 1),
-                "leaf_litter" => ([Tint::DryFoliage; 2], 1),
                 "water_cauldron" => ([Tint::Water; 2], 1),
                 // Their in-world colour is the particle-only source's -1.
                 "water" | "bubble_column" => ([Tint::None; 2], 1),

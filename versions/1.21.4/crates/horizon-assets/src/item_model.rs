@@ -16,7 +16,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-mod component_predicate;
 mod foreign;
 mod special;
 pub use special::{SpecialKind, SpecialModel};
@@ -619,8 +618,9 @@ pub enum ConditionProperty {
     ExtendedView,
     KeybindDown(String),
     ViewEntity,
-    /// A single `component` predicate; external predicate types use the host.
-    Component(Value),
+    // No `component` property: 1.21.4's `ConditionalItemModelProperties`
+    // has none; `ComponentMatches` arrived in 1.21.5. A model using it
+    // fails to decode here, as vanilla 1.21.4 rejects it.
 }
 impl ConditionProperty {
     fn decode(m: &Map<String, Value>) -> Result<Self> {
@@ -642,7 +642,6 @@ impl ConditionProperty {
             "minecraft:extended_view" => Self::ExtendedView,
             "minecraft:keybind_down" => Self::KeybindDown(string(required(m, "keybind")?)?),
             "minecraft:view_entity" => Self::ViewEntity,
-            "minecraft:component" => Self::Component(component_predicate::decode(m)?),
             _ => return Err(err("unknown condition property")),
         })
     }
@@ -663,7 +662,9 @@ pub enum SelectProperty {
     },
     ContextEntityType,
     ContextDimension,
-    Component(String),
+    // No `component` property: 1.21.4's `SelectItemModelProperties` has
+    // none; it arrived in 1.21.5 with the `DataComponentPredicate`
+    // refactor. A model using it fails to decode here.
 }
 impl SelectProperty {
     fn decode(m: &Map<String, Value>) -> Result<Self> {
@@ -685,7 +686,6 @@ impl SelectProperty {
             },
             "minecraft:context_entity_type" => Self::ContextEntityType,
             "minecraft:context_dimension" => Self::ContextDimension,
-            "minecraft:component" => Self::Component(component_type(required(m, "component")?)?),
             _ => return Err(err("unknown select property")),
         })
     }
@@ -711,7 +711,6 @@ impl SelectProperty {
                 DisplayContext::by_name(&s).ok_or_else(|| err("invalid display context"))?;
                 Value::String(s)
             }
-            Self::Component(_) => v.clone(),
         })
     }
 }
@@ -992,14 +991,6 @@ pub trait ItemEnv {
     /// `BundleItem.getFullnessDisplay`.
     fn bundle_fullness(&self, _stack: &StackView, _components: &Components) -> f32 {
         0.0
-    }
-    /// Additional component predicate types supplied by the host.
-    fn component_matches(&self, _stack: &StackView, _predicate: &Value) -> bool {
-        false
-    }
-    /// Membership in the level's enchantment registry tags.
-    fn enchantment_in_tag(&self, _enchantment: &str, _tag: &str) -> bool {
-        false
     }
     fn is_keybind_down(&self, _keybind: &str) -> bool {
         false
@@ -1371,10 +1362,6 @@ impl Resolve<'_> {
             }
             ConditionProperty::KeybindDown(key) => self.env.is_keybind_down(key),
             ConditionProperty::ViewEntity => owner.is_some_and(|o| o.is_view_entity),
-            ConditionProperty::Component(predicate) => {
-                component_predicate::matches(predicate, self.components, self.env)
-                    .unwrap_or_else(|| self.env.component_matches(self.stack, predicate))
-            }
         }
     }
     fn select_value(&self, property: &SelectProperty) -> Option<Value> {
@@ -1435,7 +1422,6 @@ impl Resolve<'_> {
             SelectProperty::ContextDimension => {
                 self.ctx.level.map(|l| Value::String(l.dimension.clone()))
             }
-            SelectProperty::Component(component) => self.component(component).cloned(),
         }
     }
     fn numeric(&self, property: &NumericProperty) -> f32 {

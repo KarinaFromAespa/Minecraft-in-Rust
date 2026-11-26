@@ -151,7 +151,7 @@ impl Game<'_> {
             }
         };
         out.insert(
-            "hover_event".into(),
+            "hoverEvent".into(),
             Tag::compound([
                 ("action", Tag::String("show_entity".into())),
                 ("id", Tag::String(kind.into())),

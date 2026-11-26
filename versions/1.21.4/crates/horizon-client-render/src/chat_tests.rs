@@ -276,8 +276,8 @@ fn locate_coordinates_fill_chat_with_teleport_without_submitting() {
         (Some(73), "/tp @s -1136 73 848"),
     ] {
         let link = Text::teleport_link(-1136, y, 848);
-        assert_eq!(link.component()["click_event"]["action"], "suggest_command");
-        assert_eq!(link.component()["click_event"]["command"], expected);
+        assert_eq!(link.component()["clickEvent"]["action"], "suggest_command");
+        assert_eq!(link.component()["clickEvent"]["value"], expected);
         let mut chat = Chat::default();
         add(&mut chat, &font, Text::literal("Found at ").append(link));
         let mut screen = ChatScreen::new(&m, &commands, "draft", false, 0, 640, 360, full());

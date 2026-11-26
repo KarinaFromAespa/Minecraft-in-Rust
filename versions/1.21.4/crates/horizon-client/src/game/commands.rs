@@ -467,11 +467,11 @@ impl Game<'_> {
         };
         self.target_name(Target::Player).with_component_fields(vec![
             (
-                "click_event".into(),
-                serde_json::json!({"action": "suggest_command", "command": format!("/tell {name} ")}),
+                "clickEvent".into(),
+                serde_json::json!({"action": "suggest_command", "value": format!("/tell {name} ")}),
             ),
             (
-                "hover_event".into(),
+                "hoverEvent".into(),
                 serde_json::json!({"action": "show_entity", "id": "minecraft:player",
                     "uuid": horizon_protocol::crypto::uuid_string(uuid), "name": name}),
             ),
@@ -1503,7 +1503,7 @@ impl Game<'_> {
         }
         wrapped
             .with_color(color)
-            .with_component_fields(vec![("hover_event".into(), shown)])
+            .with_component_fields(vec![("hoverEvent".into(), shown)])
     }
     pub(super) fn item_rarity(&self, item: &str) -> String {
         static RARITY: std::sync::OnceLock<std::collections::HashMap<String, String>> =

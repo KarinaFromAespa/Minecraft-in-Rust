@@ -553,8 +553,8 @@ const STYLE_KEYS: [&str; 11] = [
     "underlined",
     "strikethrough",
     "obfuscated",
-    "click_event",
-    "hover_event",
+    "clickEvent",
+    "hoverEvent",
     "insertion",
     "font",
 ];
@@ -583,35 +583,41 @@ fn style_json(style: &Style) -> Vec<(String, Value)> {
         }
     }
     if let Some(click) = &style.click {
+        // `ClickEvent.CODEC` in 1.21.4 is one record of `action` + `value`
+        // for every action (`change_page`'s value is the page as a string);
+        // the per-action fields (`url` / `command` / `page` / `path`) are
+        // 1.21.5's sealed-record form.
         let event = match click {
-            ClickEvent::OpenUrl(url) => json!({ "action": "open_url", "url": url }),
-            ClickEvent::ChangePage(page) => json!({ "action": "change_page", "page": page }),
+            ClickEvent::OpenUrl(url) => json!({ "action": "open_url", "value": url }),
+            ClickEvent::ChangePage(page) => {
+                json!({ "action": "change_page", "value": page.to_string() })
+            }
             ClickEvent::SuggestCommand(command) => {
-                json!({ "action": "suggest_command", "command": command })
+                json!({ "action": "suggest_command", "value": command })
             }
             ClickEvent::CopyToClipboard(value) => {
                 json!({ "action": "copy_to_clipboard", "value": value })
             }
             ClickEvent::RunCommand(command) => {
-                json!({ "action": "run_command", "command": command })
+                json!({ "action": "run_command", "value": command })
             }
-            ClickEvent::OpenFile(path) => json!({ "action": "open_file", "path": path }),
+            ClickEvent::OpenFile(path) => json!({ "action": "open_file", "value": path }),
         };
-        out.push(("click_event".to_owned(), event));
+        out.push(("clickEvent".to_owned(), event));
     }
     if let Some(hover) = &style.hover {
         out.push((
-            "hover_event".to_owned(),
+            "hoverEvent".to_owned(),
             json!({ "action": "show_text", "value": hover.component() }),
         ));
     } else if let Some(Value::Object(item)) = style.hover_item.as_deref() {
         let mut event = item.clone();
         event.insert("action".into(), "show_item".into());
-        out.push(("hover_event".to_owned(), Value::Object(event)));
+        out.push(("hoverEvent".to_owned(), Value::Object(event)));
     } else if let Some(Value::Object(entity)) = style.hover_entity.as_deref() {
         let mut event = entity.clone();
         event.insert("action".into(), "show_entity".into());
-        out.push(("hover_event".to_owned(), Value::Object(event)));
+        out.push(("hoverEvent".to_owned(), Value::Object(event)));
     }
     if let Some(insertion) = &style.insertion {
         out.push(("insertion".to_owned(), insertion.clone().into()));
@@ -733,8 +739,16 @@ mod tests {
     fn click_events_serialize_and_inherit_as_one_style_field() {
         for (event, json) in [
             (
+                ClickEvent::OpenUrl("https://example.com".into()),
+                json!({"action": "open_url", "value": "https://example.com"}),
+            ),
+            (
+                ClickEvent::ChangePage(3),
+                json!({"action": "change_page", "value": "3"}),
+            ),
+            (
                 ClickEvent::SuggestCommand("/seed".into()),
-                json!({"action": "suggest_command", "command": "/seed"}),
+                json!({"action": "suggest_command", "value": "/seed"}),
             ),
             (
                 ClickEvent::CopyToClipboard("-9223372036854775808".into()),
@@ -742,7 +756,7 @@ mod tests {
             ),
             (
                 ClickEvent::OpenFile("/tmp/My screenshots/世界.png".into()),
-                json!({"action": "open_file", "path": "/tmp/My screenshots/世界.png"}),
+                json!({"action": "open_file", "value": "/tmp/My screenshots/世界.png"}),
             ),
         ] {
             let style = Style {
@@ -750,7 +764,7 @@ mod tests {
                 ..Style::default()
             };
             let text = Text::literal("link").with_style(&style);
-            assert_eq!(text.component()["click_event"], json);
+            assert_eq!(text.component()["clickEvent"], json);
             assert_eq!(text.spans[0].style.click, Some(event));
             let child = Text::copyable("42").with_style(&style);
             assert_eq!(
@@ -758,7 +772,7 @@ mod tests {
                 Some(ClickEvent::CopyToClipboard("42".into()))
             );
             assert_eq!(
-                child.component()["extra"][0]["click_event"],
+                child.component()["extra"][0]["clickEvent"],
                 json!({"action": "copy_to_clipboard", "value": "42"})
             );
         }

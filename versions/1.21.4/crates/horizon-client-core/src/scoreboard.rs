@@ -1366,7 +1366,7 @@ fn decompose(c: &Comp) -> (serde_json::Map<String, Value>, Vec<Comp>) {
                     "separator" => {
                         node.insert(k.clone(), canonical_component(v));
                     }
-                    "hover_event" => {
+                    "hoverEvent" => {
                         let mut h = v.clone();
                         if let Some(value) = h.get("value").cloned()
                             && h.get("action").and_then(Value::as_str) == Some("show_text")

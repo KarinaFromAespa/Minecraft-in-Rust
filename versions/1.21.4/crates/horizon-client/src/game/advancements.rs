@@ -2930,7 +2930,7 @@ mod tests {
     /// The chat hover: the JSON a client receives, and the spans drawn here.
     fn hover(a: &adv::Advancement) -> (Value, Text) {
         let local = decorate_name(a.display.as_ref().unwrap());
-        let sent = adv_name(a).component()["with"][0]["hover_event"]["value"].clone();
+        let sent = adv_name(a).component()["with"][0]["hoverEvent"]["value"].clone();
         (sent, local)
     }
 

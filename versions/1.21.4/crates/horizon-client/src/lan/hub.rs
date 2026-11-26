@@ -458,14 +458,14 @@ pub fn display_name(uuid: u128, name: &str) -> Tag {
     Tag::compound([
         ("text", string(name)),
         (
-            "click_event",
+            "clickEvent",
             Tag::compound([
                 ("action", string("suggest_command")),
-                ("command", string(&format!("/tell {name} "))),
+                ("value", string(&format!("/tell {name} "))),
             ]),
         ),
         (
-            "hover_event",
+            "hoverEvent",
             Tag::compound([
                 ("action", string("show_entity")),
                 ("id", string("minecraft:player")),
@@ -554,9 +554,9 @@ impl Hub {
             (None, Some(custom)) => serde_json::json!({ "text": "", "extra": [custom] }),
             (None, None) => serde_json::json!({ "text": shown }),
         };
-        c["click_event"] =
-            serde_json::json!({"action": "suggest_command", "command": format!("/tell {name} ")});
-        c["hover_event"] = serde_json::json!({"action": "show_entity", "id": "minecraft:player",
+        c["clickEvent"] =
+            serde_json::json!({"action": "suggest_command", "value": format!("/tell {name} ")});
+        c["hoverEvent"] = serde_json::json!({"action": "show_entity", "id": "minecraft:player",
             "uuid": horizon_protocol::crypto::uuid_string(uuid), "name": name});
         c["insertion"] = name.into();
         crate::scoreboard::component_tag(&c)

@@ -93,8 +93,8 @@ fn component_value(tag: &horizon_world::nbt::Tag) -> crate::server::json::Json {
         "underlined",
         "strikethrough",
         "obfuscated",
-        "click_event",
-        "hover_event",
+        "clickEvent",
+        "hoverEvent",
         "insertion",
         "font",
     ];

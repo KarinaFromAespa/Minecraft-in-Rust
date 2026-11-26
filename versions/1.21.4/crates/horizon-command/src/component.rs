@@ -193,11 +193,14 @@ fn action_event(t: &Tag, actions: &[(&str, &[&str])]) -> R {
     Ok(())
 }
 const CLICK_ACTIONS: &[(&str, &[&str])] = &[
-    ("open_url", &["url"]),
-    ("open_file", &["path"]),
-    ("run_command", &["command"]),
-    ("suggest_command", &["command"]),
-    ("change_page", &["page"]),
+    // `ClickEvent.CODEC` in 1.21.4 is one record of `action` + `value` for
+    // every action; the per-action fields (`url` / `command` / `page` /
+    // `path`) are 1.21.5's sealed-record form.
+    ("open_url", &["value"]),
+    ("open_file", &["value"]),
+    ("run_command", &["value"]),
+    ("suggest_command", &["value"]),
+    ("change_page", &["value"]),
     ("copy_to_clipboard", &["value"]),
 ];
 const HOVER_ACTIONS: &[(&str, &[&str])] = &[
@@ -223,10 +226,13 @@ fn style_fields(map: &Compound) -> R {
             return partial("Not a number");
         }
     }
-    if let Some(v) = get(map, "click_event") {
+    // 1.21.4's `Style.Serializer` spells these `clickEvent` / `hoverEvent`;
+    // the snake_case spellings are 1.21.5's. Both are accepted (the parse
+    // side accepts both), either spelling is validated.
+    if let Some(v) = get(map, "clickEvent").or_else(|| get(map, "click_event")) {
         action_event(v, CLICK_ACTIONS)?;
     }
-    if let Some(v) = get(map, "hover_event") {
+    if let Some(v) = get(map, "hoverEvent").or_else(|| get(map, "hover_event")) {
         action_event(v, HOVER_ACTIONS)?;
     }
     if let Some(v) = get(map, "insertion")

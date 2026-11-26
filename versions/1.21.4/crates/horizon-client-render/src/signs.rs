@@ -106,7 +106,7 @@ impl SignText {
             Some(saved) => root_style(&saved.component),
             None => self.click[i]
                 .iter()
-                .map(|event| ("click_event", event.clone()))
+                .map(|event| ("clickEvent", event.clone()))
                 .collect(),
         };
         if style.is_empty() {
@@ -210,7 +210,7 @@ impl SignData {
             matches!(tag.get("allow_op_features"), Some(Tag::Byte(b)) if *b != 0);
     }
 }
-/// The `click_event` in the style of a stored line: the one of a component
+/// The `clickEvent` in the style of a stored line: the one of a component
 /// object, or of the first component of a list (`createFromList` copies it
 /// and appends the rest as siblings).
 fn click_event(tag: &Tag) -> Option<Tag> {
@@ -218,7 +218,7 @@ fn click_event(tag: &Tag) -> Option<Tag> {
         Tag::List(list) => list.first()?,
         other => other,
     };
-    match root.get("click_event") {
+    match root.get("clickEvent") {
         Some(event @ Tag::Compound(_)) => Some(event.clone()),
         _ => None,
     }
@@ -243,8 +243,8 @@ const STYLE_KEYS: [&str; 11] = [
     "obfuscated",
     "shadow_color",
     "font",
-    "click_event",
-    "hover_event",
+    "clickEvent",
+    "hoverEvent",
     "insertion",
 ];
 fn root_style(component: &Tag) -> Vec<(&'static str, Tag)> {

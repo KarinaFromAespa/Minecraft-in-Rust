@@ -26,7 +26,6 @@ enum Tint {
     None,
     Grass,
     Foliage,
-    Dry,
     Water,
     Constant(u32),
 }
@@ -139,7 +138,6 @@ impl Mesher {
                     | "azalea_leaves"
                     | "flowering_azalea_leaves"
                     | "pale_oak_leaves" => Tint::None,
-                    "leaf_litter" => Tint::Dry,
                     _ if leaves => Tint::Foliage,
                     _ => Tint::Grass,
                 };
@@ -209,7 +207,6 @@ impl Mesher {
                                 .grass(span.biome, f64::from(at[0]), f64::from(at[1]))
                         }
                         Tint::Foliage => biome.foliage,
-                        Tint::Dry => biome.dry_foliage,
                         Tint::Water => biome.water,
                         Tint::Constant(color) => color,
                     };

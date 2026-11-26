@@ -160,6 +160,30 @@ fn a_patched_stack_reads_its_patch_over_its_items_defaults() {
 }
 
 #[test]
+fn the_1_21_5_component_properties_do_not_decode_in_1_21_4() {
+    // `ComponentMatches` and the `component` select property arrived in
+    // 1.21.5 with the `DataComponentPredicate` refactor; neither registry
+    // in 1.21.4 lists them, so vanilla 1.21.4 rejects a model using either.
+    let empty = serde_json::json!({"type": "minecraft:empty"});
+    assert!(
+        ItemModelNode::decode(&serde_json::json!({
+            "type": "minecraft:condition", "property": "minecraft:component",
+            "predicate": "minecraft:enchantments", "value": [],
+            "on_true": empty, "on_false": empty,
+        }))
+        .is_err()
+    );
+    assert!(
+        ItemModelNode::decode(&serde_json::json!({
+            "type": "minecraft:select", "property": "minecraft:component",
+            "component": "minecraft:damage",
+            "cases": [{"when": "0", "model": empty}],
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn a_bed_special_model_decodes_its_colour_texture() {
     // Every vanilla bed item model is this node (`black_bed.json`).
     let node = ItemModelNode::decode(&serde_json::json!({
