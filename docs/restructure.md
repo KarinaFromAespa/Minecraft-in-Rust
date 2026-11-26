@@ -204,7 +204,27 @@ behaviour port is live, so the proposal's own sequencing constraint
   off the assembled lockfile. The version lock is still read from
   `versions/<v>/research-lock.json` in the checkout. Proof run:
   port-verify run 45887925797 on 1.21.7, dispatched 2026-11-27 from
-  `fix/repo-restructure` — [conclusion to be filled when it lands].
+  `fix/repo-restructure` (head 00ce804c) — overall conclusion FAILURE,
+  but the failure is NOT the assembly: assemble ✓, stage ✓, compile
+  gate ✓, test-target check ✓ (0 errors), protocol tests ✓ (438 pass),
+  prepare ✓, and the judge ran against the assembled tree with D2 pass
+  and D3 pass. Lab-prepare failed because Mojang republished 1.21.7's
+  version JSON (fresh sha1 609e61c2…, in neither the lock's
+  manifest_sha1 48c9b004… nor its accepted list [5149e9aa…]);
+  `lab.py::import_manifest` refuses unknown manifests. The harness step
+  was skipped as a consequence, so D1 is blocked (no prepared data) and
+  no harness profile was produced. Verified 2026-11-27: Mojang has
+  republished ALL 19 version JSONs since their locks were pinned, so
+  this lab-prepare failure would hit any port-verify run on main right
+  now, on any version — it is independent of the restructure (the
+  assembled tree is byte-identical to the published tree, so the
+  known-sha list and lock are identical either way). The fix is a
+  separate job: add each fresh manifest sha1 to the corresponding
+  lock's `accepted_manifest_sha1` (19 one-line lock updates), after
+  confirming each republish is asset-index-only (the check already
+  verifies the client/server jar sha1s match the lock). A full-green
+  proof run needs that fix first; it was NOT done on this branch (out
+  of scope — it touches all 19 published trees).
 
 **Proposal gaps found during execution (not in the Nov-12 sketch):**
 
@@ -232,8 +252,13 @@ behaviour port is live, so the proposal's own sequencing constraint
 ## 9. Cutover plan (step 5 — for the main agent to schedule)
 
 Prerequisites (all must hold before the cutover commit):
-1. The port-verify proof run on this branch is green
-   (run 45887925797, 1.21.7).
+1. The port-verify proof run on this branch shows the assembly path
+   green (run 45887925797, 1.21.7: assemble, stage, compile, tests,
+   prepare green; D2/D3 pass on the assembled tree). Full-green needs
+   the Mojang-republish lock updates first (see §8): until the 19
+   locks accept the fresh manifest sha1s, lab-prepare fails on main
+   too, and no harness profile can be produced from any tree,
+   assembled or not.
 2. `crate-tests.yml`, `client-build.yml`, `launcher-build.yml`,
    `worldgen-verify.yml` (and the tree-reading part of
    `leakage-audit.yml`) are converted to assemble-first on this branch
