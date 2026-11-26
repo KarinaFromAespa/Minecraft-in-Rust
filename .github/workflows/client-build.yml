@@ -38,6 +38,15 @@ name: client-build
 # workspace), and GitHub evicts cache LRU past the 10 GB repo limit, so
 # a full-matrix run may rebuild some versions cold. Single-version
 # dispatches are the normal case and keep their cache.
+#
+# Assemble-first (docs/restructure.md): the build job assembles the
+# version from commons + overlay chain into .horizon-ports/<v> before
+# anything that needs the workspace, and the build and the binary
+# paths all point at the assembled tree; rust-cache keys off its
+# lockfile. The resolve job accepts a version as a full tree
+# (pre-cutover) or an overlay chain (post-cutover). Until the cutover
+# lands, commons/ does not exist yet and assemble.py falls back to
+# versions/26.3 as the base.
 
 on:
   workflow_dispatch:
@@ -52,6 +61,7 @@ permissions:
 
 env:
   HORIZON_TELEMETRY_URL: "off"
+  HORIZON_PORTS: ${{ github.workspace }}/.horizon-ports
 
 jobs:
   resolve:
@@ -70,10 +80,30 @@ jobs:
           python3 - <<'EOF'
           import json, os
           wanted = os.environ["WANTED"]
+          def _chains():
+              try:
+                  with open("tools/overlay-chains.json") as f:
+                      return json.load(f).get("chains", {})
+              except (OSError, ValueError):
+                  return {}
+          def _in_tree(v, relpath):
+              # True when the assembled tree for v would contain relpath:
+              # the pre-cutover full tree, the commons base, or any
+              # overlay in the version's chain. (Verified: no overlay
+              # deletes the workspace manifests this is used for.)
+              if os.path.isfile(os.path.join("versions", v, relpath)):
+                  return True
+              if os.path.isfile(os.path.join("commons", relpath)):
+                  return True
+              for owner in _chains().get(v, []):
+                  if os.path.isfile(os.path.join("versions", owner, "overlay", relpath)):
+                      return True
+              return False
           def has_client(v):
-              return os.path.isfile(os.path.join("versions", v, "crates", "horizon-client", "Cargo.toml"))
+              return _in_tree(v, os.path.join("crates", "horizon-client", "Cargo.toml"))
           if wanted == "all":
-              versions = sorted(d for d in os.listdir("versions") if has_client(d))
+              versions = sorted({d for d in os.listdir("versions") if has_client(d)}
+                                | {v for v in _chains() if has_client(v)})
               if not versions:
                   raise SystemExit("no version tree has a horizon-client crate")
           else:
@@ -104,13 +134,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Assemble the version BEFORE anything that needs the workspace
+      # (docs/restructure.md): the build runs inside the assembled
+      # tree, and rust-cache keys off its lockfile. On this branch
+      # commons/ does not exist yet, so assemble.py uses versions/26.3
+      # as the base (its pre-cutover fallback); after the cutover it
+      # uses commons/ with no change here. The python3-or-python
+      # fallback is for the Windows runners, which do not guarantee a
+      # python3 alias.
+      - name: Assemble the version (commons + overlay chain)
+        run: |
+          V="${{ matrix.version }}"
+          mkdir -p "$HORIZON_PORTS"
+          PY="$(command -v python3 || command -v python)"
+          "$PY" tools/assemble.py "$V" --into "$HORIZON_PORTS/$V"
+
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.95.0
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: versions/${{ matrix.version }}
+          workspaces: ${{ env.HORIZON_PORTS }}/${{ matrix.version }}
           shared-key: client-${{ matrix.version }}-windows
           cache-on-failure: true
 
@@ -118,14 +163,14 @@ jobs:
       # --locked: port-verify and the laptop build do not use it.
       - name: Build the client
         run: |
-          cd "versions/${{ matrix.version }}"
+          cd "$HORIZON_PORTS/${{ matrix.version }}"
           cargo build --release -p horizon-client -p horizon-client-lib --bins --color=never
 
       # No headless smoke run: the client is a GUI app with no --version
       # path. Check the binary exists and is non-empty instead.
       - name: The binary exists
         run: |
-          BIN="versions/${{ matrix.version }}/target/release/horizon-client.exe"
+          BIN="$HORIZON_PORTS/${{ matrix.version }}/target/release/horizon-client.exe"
           [ -s "$BIN" ] || { echo "::error::binary missing or empty: $BIN"; exit 1; }
           ls -l "$BIN"
 
@@ -133,7 +178,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: horizon-client-${{ matrix.version }}-windows
-          path: versions/${{ matrix.version }}/target/release/horizon-client.exe
+          path: ${{ env.HORIZON_PORTS }}/${{ matrix.version }}/target/release/horizon-client.exe
           if-no-files-found: error
 
       - name: Job summary
@@ -142,6 +187,6 @@ jobs:
           {
             echo "## client-build — ${{ matrix.version }} (windows)"
             echo
-            echo "binary: \`versions/${{ matrix.version }}/target/release/horizon-client.exe\`"
-            ls -l "versions/${{ matrix.version }}/target/release/horizon-client.exe" 2>/dev/null || echo "binary missing"
+            echo "binary: \`$HORIZON_PORTS/${{ matrix.version }}/target/release/horizon-client.exe\`"
+            ls -l "$HORIZON_PORTS/${{ matrix.version }}/target/release/horizon-client.exe" 2>/dev/null || echo "binary missing"
           } >> "$GITHUB_STEP_SUMMARY"
