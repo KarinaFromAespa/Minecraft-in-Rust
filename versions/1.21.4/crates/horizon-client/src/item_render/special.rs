@@ -943,9 +943,11 @@ mod tests {
                 .all(|uv| (0.25..=0.375).contains(&uv[0]) && (0.125..=0.25).contains(&uv[1]))),
             "both pieces use the bed's colour sprite"
         );
+        // NB: the seed must be -inf, not 0.0: the foot's z values are all
+        // -1 and a 0.0 seed would report them as 0.
         let zs: Vec<f32> = quads
             .iter()
-            .map(|q| q.pos.iter().map(|p| p.z).fold(0.0, f32::max))
+            .map(|q| q.pos.iter().map(|p| p.z).fold(f32::NEG_INFINITY, f32::max))
             .collect();
         assert!(
             zs.iter().any(|z| z.abs() < 1e-6),
