@@ -2221,3 +2221,25 @@ shape for the review batches.
   warnings) for horizon-client + horizon-world. pistons.rs
   rustfmt-clean; persist.rs checked only (module root,
   pre-existing drift elsewhere — left alone). Rank 2: 123/348.
+  Batch 25 verification (2026-11-26, restart after the agent stopped
+  on a context limit at c4295402). The WIP touched only the item-80
+  gamerule plumbing and one item-79 comment; it closed no item and
+  updated neither work-items.json nor rank2-progress.json, so the
+  committed counts stand (rank 2: 123/348). VERIFIED against the
+  1.21.4 named server jar: (1) RULE_DOFIRETICK exists in 1.21.4
+  GameRules and no FIRE_SPREAD/ALLOWFIRE rule does;
+  LavaFluid.randomTick and FireBlock.tick both read RULE_DOFIRETICK
+  only, while 1.21.5's LavaFluid.randomTick reads RULE_DOFIRETICK
+  and RULE_ALLOWFIRETICKAWAYFROMPLAYERS — so the WIP's replacement
+  of the fire_spread_radius_around_player rule with doFireTick and
+  of can_spread_fire_around with the bare do_fire_tick read is
+  correct; `canSpreadFireAround` is a Horizon name, it occurs in
+  neither jar. (2) 1.21.4 CampfireBlock has the VIRTUAL_FENCE_POST
+  field and 1.21.5 the SHAPE_VIRTUAL_POST field, so the beehive.rs
+  comment correction is correct. REMAINING in batch 25: item 77
+  (gfx.rs WorldBorderRenderer.render), item 78
+  (natural_spawn_fixture.rs Slime/Zombie), item 79 (beehive.rs:
+  CampfireBlock.entityInside, placeLiquid, Occupant.of,
+  IGNORED_BEE_TAGS), item 80 (fluids.rs: BarrierBlock
+  canPlaceLiquid/pickupBlock, FlowingFluid.tick lava gate).
+  Rank 2: 123/348.
