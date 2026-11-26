@@ -201,7 +201,8 @@ fn is_zombie(s: Species) -> bool {
 pub struct ItemTags {
     /// `#minecraft:spears`.
     pub spear: bool,
-    /// `#minecraft:eggs`.
+    /// The item is `minecraft:egg` (1.21.4 has no `#minecraft:eggs` tag;
+    /// `Zombie.canHoldItem` checks `Items.EGG`).
     pub egg: bool,
     /// `#minecraft:wither_skeleton_disliked_weapons`.
     pub disliked_weapon: bool,

@@ -1,12 +1,17 @@
-//! The world border wall (`WorldBorderRenderer`, `WorldBorderRenderState`):
-//! which border the camera is near, the wall's fade and status colour, the
-//! cached vertex buffer of the four walls, the scrolling texture transform
-//! and which walls are drawn. Kept free of GPU types so the parity fixture
-//! can compare every value with vanilla's renderer.
+//! The world border wall (`WorldBorderRenderer.render`): which border the
+//! camera is near, the wall's fade and status colour, the cached vertex
+//! buffer of the four walls, the scrolling texture transform and which
+//! walls are drawn. Kept free of GPU types so the parity fixture can
+//! compare every value with vanilla's renderer.
+//!
+//! 1.21.4's `render` draws the walls in a fixed east, west, south, north
+//! order, emitting the wall as one-block segments every frame; it has no
+//! `closestBorder` (a 1.21.5 addition) and no 0.01 inset. The port keeps a
+//! cached buffer of one quad per wall instead: the picture is the same,
+//! because the texture wraps and the u coordinate is linear in the wall,
+//! and the scroll offset rides the texture transform instead of being
+//! baked into the vertex UVs.
 use crate::worldborder::{WorldBorder, jclamp, jmax, jmin, status_color};
-
-/// `WorldBorderRenderer.RENDERING_OFFSET`.
-const OFFSET: f64 = 0.01;
 
 /// `WorldBorderRenderState`.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -18,40 +23,6 @@ pub struct BorderRenderState {
     /// `BorderStatus.getColor`, set only when the wall is visible.
     pub tint: u32,
     pub alpha: f64,
-}
-impl BorderRenderState {
-    /// `closestBorder`: the four walls by distance from (x, z), nearest
-    /// first (a stable sort of north, south, west, east), as
-    /// `Direction.get2DDataValue` side indices and distances.
-    pub fn closest_border(&self, x: f64, z: f64) -> [(usize, f64); 4] {
-        let mut sides = [
-            (2, z - self.min_z),
-            (0, self.max_z - z),
-            (1, x - self.min_x),
-            (3, self.max_x - x),
-        ];
-        // Comparator.comparingDouble: Double.compare order, stable.
-        sides.sort_by(|a, b| java_double_compare(a.1, b.1));
-        sides
-    }
-}
-/// `Double.compare`.
-fn java_double_compare(a: f64, b: f64) -> std::cmp::Ordering {
-    use std::cmp::Ordering::*;
-    if a < b {
-        Less
-    } else if a > b {
-        Greater
-    } else {
-        let bits = |v: f64| {
-            if v.is_nan() {
-                0x7ff8_0000_0000_0000u64 as i64
-            } else {
-                v.to_bits() as i64
-            }
-        };
-        bits(a).cmp(&bits(b))
-    }
 }
 
 /// `WorldBorderRenderer.extract`.
@@ -68,15 +39,15 @@ pub fn extract(
     state.min_z = min_z;
     state.max_z = max_z;
     let (x, z) = (camera[0], camera[2]);
+    // `render` returns early deep inside the border: the camera is more
+    // than a render distance from every wall. (1.21.5 also returns early
+    // far outside it; 1.21.4 does not — but no wall is within range there
+    // either, so nothing is drawn either way.)
     let deep_inside = x < max_x - render_distance
         && x > min_x + render_distance
         && z < max_z - render_distance
         && z > min_z + render_distance;
-    let far_outside = x < min_x - render_distance
-        || x > max_x + render_distance
-        || z < min_z - render_distance
-        || z > max_z + render_distance;
-    if !deep_inside && !far_outside {
+    if !deep_inside {
         let alpha = 1.0 - border.distance(x, z) / render_distance;
         state.alpha = jclamp(horizon_core::jmath::pow(alpha, 4.0), 0.0, 1.0);
         state.tint = status_color(border.status());
@@ -89,9 +60,9 @@ pub fn extract(
 /// buffer origin and texture coordinates.
 pub type BorderVertex = [f32; 5];
 
-/// What `WorldBorderRenderer.prepareDynamicTransforms` writes: the colour
-/// modulator, the model offset of the buffer origin from the camera and
-/// the texture matrix translation (both u and v).
+/// What `render` computes per frame: the colour modulator, the model
+/// offset of the buffer origin from the camera and the texture matrix
+/// translation (both u and v).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BorderTransforms {
     pub color: [f32; 4],
@@ -138,12 +109,13 @@ fn frac(v: f64) -> f64 {
     v - v.floor()
 }
 impl BorderRenderer {
-    /// `invalidate`: rebuild on the next prepare (e.g. after a resource reload).
+    /// Rebuild on the next prepare (e.g. after a resource reload).
     pub fn invalidate(&mut self) {
         self.needs_rebuild = true;
     }
-    /// `prepare`: rebuilds the buffer when the border moved; returns whether
-    /// the wall is drawn this frame.
+    /// Rebuilds the cached buffer when the border moved; returns whether
+    /// the wall is drawn this frame. (1.21.4's `render` has no cache and
+    /// emits the wall every frame; the buffer holds the same wall.)
     pub fn prepare(
         &mut self,
         state: &BorderRenderState,
@@ -171,7 +143,10 @@ impl BorderRenderer {
         }
         true
     }
-    /// `rebuildWorldBorderBuffer`.
+    /// Builds the four wall quads from the border bounds and the camera.
+    /// (1.21.4's `render` emits the same wall as one-block segments
+    /// straight into the Tesselator; one quad per wall renders the same
+    /// picture, as the texture wraps and u is linear in the wall.)
     #[allow(clippy::too_many_arguments)]
     fn rebuild(
         &mut self,
@@ -183,10 +158,11 @@ impl BorderRenderer {
         v1: f32,
         v0: f32,
     ) {
-        let border_min_x = state.min_x + OFFSET;
-        let border_max_x = state.max_x - OFFSET;
-        let border_min_z = state.min_z + OFFSET;
-        let border_max_z = state.max_z - OFFSET;
+        // 1.21.4 draws the wall exactly on the border bounds (no inset).
+        let border_min_x = state.min_x;
+        let border_max_x = state.max_x;
+        let border_min_z = state.min_z;
+        let border_max_z = state.max_z;
         let min_z = jmax(f64::from(floor(camera_z - render_distance)), border_min_z);
         let max_z = jmin(f64::from(ceil(camera_z + render_distance)), border_max_z);
         let u0z = (floor(min_z) & 1) as f32 * 0.5;
@@ -227,7 +203,7 @@ impl BorderRenderer {
     pub fn take_rebuilt(&mut self) -> bool {
         std::mem::take(&mut self.rebuilt)
     }
-    /// `prepareDynamicTransforms` at `Util.getMillis()` = `millis`.
+    /// `render`'s per-frame transforms at `Util.getMillis()` = `millis`.
     pub fn transforms(
         &self,
         state: &BorderRenderState,
@@ -246,15 +222,23 @@ impl BorderRenderer {
             texture_offset: offset,
         }
     }
-    /// `draw`: the walls within the render distance, nearest first, as side
-    /// indices into [`Self::vertices`] (four vertices each).
+    /// `render`'s wall order: 1.21.4 draws the walls in a fixed order —
+    /// east, west, south, north — each only when the camera is within the
+    /// render distance of it. (1.21.5 sorts them nearest-first via
+    /// `WorldBorder.closestBorder`, which 1.21.4 does not have, so the
+    /// blend order at corners follows the fixed order here.)
     pub fn sides(state: &BorderRenderState, camera: [f64; 3], render_distance: f64) -> Vec<usize> {
-        state
-            .closest_border(camera[0], camera[2])
-            .into_iter()
-            .filter(|&(_, d)| d < render_distance)
-            .map(|(side, _)| side)
-            .collect()
+        let [x, z] = [camera[0], camera[2]];
+        [
+            (3, state.max_x - x),
+            (1, x - state.min_x),
+            (0, state.max_z - z),
+            (2, z - state.min_z),
+        ]
+        .into_iter()
+        .filter(|&(_, d)| d < render_distance)
+        .map(|(side, _)| side)
+        .collect()
     }
 }
 
@@ -273,10 +257,10 @@ mod tests {
         assert_eq!(state.tint, 0x20A0FF);
         let mut r = BorderRenderer::default();
         assert!(r.prepare(&state, camera, 128.0, 512.0));
-        // East wall first (10 blocks away), then north and south, then west.
+        // East, west, south, north: 1.21.4's fixed order, not nearest-first.
         assert_eq!(
             BorderRenderer::sides(&state, camera, 128.0),
-            vec![3, 2, 0, 1]
+            vec![3, 1, 0, 2]
         );
         let t = r.transforms(&state, camera, 4500);
         assert_eq!(t.texture_offset, 0.5);

@@ -1466,7 +1466,7 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
 
     fn create(&mut self, kind: &str, reason: Reason, at: &Mob) -> Option<Mob> {
         let mut j = self.level.create(kind, reason)?;
-        // snapTo(x, y, z, yRot, 0).
+        // moveTo(x, y, z, yRot, 0) (1.21.4; `snapTo` is the 1.21.5 name).
         j.position = at.position;
         j.previous = at.position;
         j.yaw = at.yaw;

@@ -53,10 +53,13 @@ impl Game<'_> {
                     continue;
                 }
                 let stack = e.stack.clone();
-                let item = &stack.item;
+                let item = &*stack.item;
                 let tags = ItemTags {
                     spear: self.items().item_in_tag("minecraft:spears", item),
-                    egg: self.items().item_in_tag("minecraft:eggs", item),
+                    // 1.21.4 has no `#minecraft:eggs` tag (`ItemTags.EGGS`
+                    // arrived in 1.21.5); `Zombie.canHoldItem` checks the
+                    // single item (`Items.EGG`).
+                    egg: item == "minecraft:egg",
                     disliked_weapon: self
                         .items()
                         .item_in_tag("minecraft:wither_skeleton_disliked_weapons", item),

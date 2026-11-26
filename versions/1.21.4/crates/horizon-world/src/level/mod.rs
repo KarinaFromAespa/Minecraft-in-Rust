@@ -660,9 +660,12 @@ pub trait LevelAccess {
     fn difficulty(&self) -> i32 {
         2
     }
-    /// `ServerLevel.canSpreadFireAround` (fire-spread radius around players).
+    /// `ServerLevel.canSpreadFireAround`: in 1.21.4 just `doFireTick`
+    /// (`LavaFluid.randomTick`, `FireBlock.tick` and lightning fire all
+    /// spread only while the rule is on; the player-proximity gate and the
+    /// `fire_spread_radius_around_player` rule are later versions').
     fn can_spread_fire_around(&self, _pos: BlockPos) -> bool {
-        true
+        self.game_rules().do_fire_tick
     }
     /// The `INCREASED_FIRE_BURNOUT` environment attribute at `pos` (a biome
     /// attribute).

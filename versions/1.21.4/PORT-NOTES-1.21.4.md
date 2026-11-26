@@ -2243,3 +2243,62 @@ shape for the review batches.
   IGNORED_BEE_TAGS), item 80 (fluids.rs: BarrierBlock
   canPlaceLiquid/pickupBlock, FlowingFluid.tick lava gate).
   Rank 2: 123/348.
+  Batch 25 (2026-11-26, restart continued): items 77, 78, 79, 80, all
+  PORTED. Item 77 (gfx.rs WorldBorderRenderer.render): the Rust was the
+  1.21.5 cached-buffer form (BorderRenderer with needs_rebuild/last_border,
+  rebuildWorldBorderBuffer's 16 vertices, closestBorder nearest-first draw
+  order). 1.21.4's WorldBorderRenderer has only render(WorldBorder, Vec3,
+  double, double) (javap vs the 1.21.4 client jar): it emits the wall as
+  one-block segments in a fixed east, west, south, north order, with no
+  closestBorder (that method does not exist on 1.21.4's WorldBorder) and no
+  0.01 inset (no RENDERING_OFFSET in either 1.21.4 or 1.21.5). Fixed: sides()
+  now returns the fixed [east 3, west 1, south 0, north 2] order filtered by
+  proximity; closest_border + java_double_compare removed; the 0.01 OFFSET
+  inset removed (the wall now sits exactly on the border bounds); the
+  far-outside early return removed (1.21.4 has only the deep-inside return;
+  nothing is drawn far outside either way). Kept the port's cached
+  single-quad buffer and texture-matrix scroll offset: the same picture as
+  1.21.4's per-frame segmented emission, since the texture wraps and u is
+  linear in the wall. Docs corrected (prepareDynamicTransforms is not a
+  vanilla method in either version). Item 78 (natural_spawn_fixture.rs
+  Slime/Zombie): PORTED — Zombie.canHoldItem in 1.21.4 checks Items.EGG (the
+  single item); 1.21.5 checks ItemTags.EGGS. The #minecraft:eggs tag does not
+  exist in 1.21.4 (no eggs.json in the jar's data, no EGGS field in 1.21.4's
+  ItemTags class — javap-verified; both exist in 1.21.5), so the Rust's
+  item_in_tag("minecraft:eggs") was always false: a baby zombie riding a
+  chicken would wrongly pick up an egg. mob_looting.rs now checks item ==
+  "minecraft:egg" (the binding is &*stack.item, as stack.item is Arc<str>).
+  NO-CHANGE: Slime.readAdditionalSaveData (getInt/getBoolean vs
+  getIntOr/getBooleanOr with the same 0/false defaults); Zombie.finalizeSpawn
+  (Chicken.moveTo in 1.21.4 vs snapTo in 1.21.5 — the Rust's create() sets
+  position + previous + yaw the same way, only the snapTo comment corrected
+  to moveTo; the Halloween-head drop chance is a direct
+  armorDropChances[HEAD] = 0.0 store in 1.21.4, which the Rust's
+  set_drop_chance already does); Zombie.readAdditionalSaveData (identical
+  defaults; the DrownedConversionTime arm matches on all producible inputs).
+  Item 79 (beehive.rs): PORTED — IGNORED_BEE_TAGS is now the exact 1.21.4
+  30-entry set from BeehiveBlockEntity's <clinit> (javap-verified, in order);
+  the Rust had 25 (the 1.21.5 set): removed drop_chances, equipment,
+  fall_distance, sleeping_pos; added ArmorDropChances, ArmorItems,
+  FallDistance, HandDropChances, HandItems, HurtByTimestamp, SleepingX,
+  SleepingY, SleepingZ. NO-CHANGE: Occupant.of's nectar read,
+  CampfireBlock.entityInside, placeLiquid. Item 80 (fluids.rs): PORTED — the
+  LevelAccess trait default can_spread_fire_around returned true with the
+  stale "(fire-spread radius around players)" comment (a 26.x concept); it
+  now returns self.game_rules().do_fire_tick, matching 1.21.4, where
+  LavaFluid.randomTick, FireBlock.tick and lightning fire all spread only
+  while doFireTick is on (javap-verified; the GameLevel override already did
+  this). Default rules have do_fire_tick=true, so fixtures keep returning
+  true. NO-CHANGE: BarrierBlock canPlaceLiquid/pickupBlock, FlowingFluid.tick
+  (value PartialEq != matches 1.21.4's .equals()). cargo check green for
+  horizon-client-render + horizon-world (5m15s, no warnings) and
+  horizon-client (1m04s, no warnings). --tests: horizon-client-render lib
+  2053 passed / 4 failed, horizon-world lib 444 passed / 3 failed,
+  horizon-client lib 1263 passed / 4 failed — all 11 failures proven
+  pre-existing by re-running them with the batch stashed (still failing).
+  horizon-client-lib lib test target does not compile on this tree: 6 errors
+  in block_entity_item.rs tests (spawn_egg_on_spawner called with 2
+  arguments, defined with 1) — also proven pre-existing the same way;
+  test-health item, CI crate-tests will show it. The border test
+  near_wall_is_drawn_and_tinted passes with the new fixed order. Rank 2:
+  127/348.

@@ -11,16 +11,19 @@ use horizon_world::nbt::{Compound, Tag};
 pub const MAX_OCCUPANTS: usize = 3;
 /// `BeehiveBlockEntity.IGNORED_BEE_TAGS`: dropped from a bee going in, and
 /// again from the tag it comes out with.
-const IGNORED_BEE_TAGS: [&str; 25] = [
+const IGNORED_BEE_TAGS: [&str; 30] = [
     "Air",
-    "drop_chances",
-    "equipment",
+    "ArmorDropChances",
+    "ArmorItems",
     "Brain",
     "CanPickUpLoot",
     "DeathTime",
-    "fall_distance",
+    "FallDistance",
     "FallFlying",
     "Fire",
+    "HandDropChances",
+    "HandItems",
+    "HurtByTimestamp",
     "HurtTime",
     "LeftHanded",
     "Motion",
@@ -29,7 +32,9 @@ const IGNORED_BEE_TAGS: [&str; 25] = [
     "PortalCooldown",
     "Pos",
     "Rotation",
-    "sleeping_pos",
+    "SleepingX",
+    "SleepingY",
+    "SleepingZ",
     "CannotEnterHiveTicks",
     "TicksSincePollination",
     "CropsGrownSincePollination",
