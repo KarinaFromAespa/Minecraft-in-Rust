@@ -52,6 +52,13 @@ name: port-verify
 # is still the tree keep the old paths. The pin is resolved the same way
 # the gate resolves it — pins/<v>/ when that directory exists, else
 # versions/<v>/ — so the workflow and the gate can never disagree.
+# v6.9 assembles the candidate from commons + overlay chain instead of
+# copying a published tree (docs/restructure.md): the "assemble" step
+# runs tools/assemble.py into .horizon-ports/<v>, and the compile,
+# test, prepare and harness steps run inside the assembled tree. The
+# version lock is still read from versions/<v>/research-lock.json in
+# the checkout. Until the cutover lands, commons/ does not exist yet
+# and assemble.py falls back to versions/26.3 as the base.
 #
 # Dispatched manually:
 #   gh workflow run port-verify.yml -f version=26.2
@@ -82,6 +89,18 @@ jobs:
 
       - name: Log directory (created first, so artifacts exist even if a later step fails)
         run: mkdir -p "$GITHUB_WORKSPACE/ci-out"
+
+      # Assemble the candidate BEFORE anything that needs the workspace:
+      # the compile gate, the tests, prepare and the harness all run
+      # inside the assembled tree, and rust-cache keys off its lockfile.
+      # On this branch commons/ does not exist yet, so assemble.py uses
+      # versions/26.3 as the base (its pre-cutover fallback); after the
+      # cutover it uses commons/ with no change here.
+      - name: Assemble the candidate (commons + overlay chain)
+        run: |
+          V="${{ inputs.version }}"
+          mkdir -p "$HORIZON_PORTS"
+          python3 tools/assemble.py "$V" --into "$HORIZON_PORTS/$V"
 
       - name: Read the version's Java major from its research lock
         id: lock
@@ -127,7 +146,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: versions/${{ inputs.version }}
+          workspaces: ${{ env.HORIZON_PORTS }}/${{ inputs.version }}
           cache-on-failure: true
 
       # BEFORE the compile gate, not before the harness stage: `cargo check
@@ -150,18 +169,16 @@ jobs:
           done
 
       # The harness stage requires its candidate to be a git worktree
-      # (port_harness checks for .git), so stage a committed copy of the
-      # published tree — the check then measures exactly what is on main,
+      # (port_harness checks for .git), so init one in the assembled
+      # tree — the check then measures exactly what assembly produces,
       # and the pipeline's writes land in the scratch copy.
-      - name: Stage the published tree as the pipeline's candidate
+      - name: Stage the assembled tree as the pipeline's candidate
         run: |
           V="${{ inputs.version }}"
-          mkdir -p "$HORIZON_PORTS"
-          cp -a "versions/$V" "$HORIZON_PORTS/$V"
           cd "$HORIZON_PORTS/$V"
           git init -q
           git add -A
-          git -c user.email=port-verify@localhost -c user.name=port-verify commit -qm "published tree, as pushed"
+          git -c user.email=port-verify@localhost -c user.name=port-verify commit -qm "assembled tree, as pushed"
           git log --oneline -1
 
       # Gate: the full workspace (lib + bins) must compile. This is the
@@ -175,7 +192,7 @@ jobs:
         run: |
           set -o pipefail
           V="${{ inputs.version }}"
-          cd "versions/$V"
+          cd "$HORIZON_PORTS/$V"
           cargo check --workspace --color=never 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/workspace-check.log"
           echo "error lines: $(grep -c '^error' "$GITHUB_WORKSPACE/ci-out/workspace-check.log" || true)"
 
@@ -189,7 +206,7 @@ jobs:
         run: |
           set -o pipefail
           V="${{ inputs.version }}"
-          cd "versions/$V"
+          cd "$HORIZON_PORTS/$V"
           # Two names for one log: the emitter reads all-targets-check.log,
           # the delta gate (D2) reads ci-out/cargo-check.log.
           cargo check --workspace --all-targets --color=never 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/all-targets-check.log" "$GITHUB_WORKSPACE/ci-out/cargo-check.log"
@@ -203,7 +220,7 @@ jobs:
         run: |
           set -o pipefail
           V="${{ inputs.version }}"
-          cd "versions/$V"
+          cd "$HORIZON_PORTS/$V"
           cargo test -p horizon-protocol --color=never 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/cargo-test-protocol.log"
 
       # --download: fetch this version's jars from Mojang's CDN into the
@@ -217,7 +234,7 @@ jobs:
         run: |
           set -o pipefail
           V="${{ inputs.version }}"
-          cd "versions/$V"
+          cd "$HORIZON_PORTS/$V"
           python3 tools/version_port.py prepare "$V" --download 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/prepare.log"
 
       # The candidate's horizon-prepare verifies a lab-prepared .local, which
@@ -281,7 +298,7 @@ jobs:
         run: |
           set -o pipefail
           V="${{ inputs.version }}"
-          cd "versions/$V"
+          cd "$HORIZON_PORTS/$V"
           RUNNER=""
           if command -v xvfb-run >/dev/null 2>&1; then RUNNER="xvfb-run -a"; fi
           $RUNNER python3 tools/version_port.py harnesses --timeout 1800 "$V" \
