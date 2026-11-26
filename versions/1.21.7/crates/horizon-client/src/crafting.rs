@@ -420,7 +420,8 @@ impl Recipe {
 #[derive(Clone, Debug)]
 pub enum Special {
     /// A patterned banner and a blank one of the same colour copy the patterns.
-    BannerDuplicate { banner: Ingredient, result: String },
+    /// No result item: vanilla's assemble copies the patterned banner itself.
+    BannerDuplicate { banner: Ingredient },
     /// A banner decorates an undecorated shield.
     ShieldDecoration {
         banner: Ingredient,
@@ -1003,13 +1004,13 @@ impl Special {
         use crate::banner;
         let stacks = input.stacks();
         let made = match self {
-            Self::BannerDuplicate { result, .. } => {
+            Self::BannerDuplicate { .. } => {
                 let source = stacks
                     .iter()
                     .find(|s| (1..=banner::MAX_LAYERS).contains(&banner::layers(s).len()))?;
-                // TransmuteRecipe.createWithOriginalComponents: the source's components.
+                // BannerDuplicateRecipe.assemble: a copy of the patterned
+                // banner itself, count 1 — no result item id is stamped on.
                 ItemStack {
-                    item: Arc::from(result.as_str()),
                     count: 1,
                     ..(**source).clone()
                 }
@@ -1666,14 +1667,10 @@ impl Recipes {
                     })
                 })()),
                 "minecraft:crafting_special_bannerduplicate" => special((|| {
+                    // Vanilla copies the patterned banner itself, so the
+                    // recipe carries no result item at all.
                     Some(Special::BannerDuplicate {
                         banner: ing_or("banner", "#minecraft:banners")?,
-                        // Vanilla copies the patterned banner itself; no
-                        // single item id says that, so the first banner
-                        // of the tag stands in (white_banner).
-                        result: horizon_world::loot::recipe_result_id(&v["result"])
-                            .map(str::to_owned)
-                            .unwrap_or_else(|| "minecraft:white_banner".to_owned()),
                     })
                 })()),
                 "minecraft:crafting_special_shielddecoration" => special((|| {
@@ -2731,7 +2728,6 @@ mod tests {
     fn banner_duplicate_copies_the_patterns_of_the_same_colour() {
         let recipe = Special::BannerDuplicate {
             banner: ingredient(&["minecraft:white_banner"]),
-            result: "minecraft:white_banner".into(),
         };
         let source = patterned("minecraft:white_banner");
         let blank = ItemStack::new("minecraft:white_banner", 1);
@@ -2743,6 +2739,21 @@ mod tests {
         // Another colour is not in the recipe's ingredient.
         let other = ItemStack::new("minecraft:red_banner", 1);
         assert!(run(&recipe, &[source, other]).is_none());
+    }
+    #[test]
+    fn banner_duplicate_keeps_a_coloured_banner_coloured() {
+        // Vanilla copies the patterned banner itself (BannerDuplicateRecipe
+        // .assemble returns copyWithCount(1) of it); the copy of a red
+        // banner is red, not the white banner a result item id would stamp.
+        let recipe = Special::BannerDuplicate {
+            banner: ingredient(&["minecraft:red_banner"]),
+        };
+        let source = patterned("minecraft:red_banner");
+        let blank = ItemStack::new("minecraft:red_banner", 1);
+        let out = run(&recipe, &[source, blank]).expect("copy");
+        assert_eq!(out.item.as_ref(), "minecraft:red_banner");
+        assert_eq!(out.count, 1);
+        assert_eq!(out.data().unwrap().banner_patterns.len(), 1);
     }
     #[test]
     fn shield_decoration_needs_a_bare_shield() {

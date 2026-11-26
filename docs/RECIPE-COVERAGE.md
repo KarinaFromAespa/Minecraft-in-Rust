@@ -173,17 +173,28 @@ The one special that already passed is `minecraft:repair_item`
 (`Some(Special::RepairItem)`).
 
 Known limits of this fix (loading only; the `Special` assemble
-logic is untouched):
+logic is untouched) — both resolved in `fix/1.21.7-specials-followup`:
 
-- `BannerDuplicate`'s assemble stamps the loaded `result` item id
-  onto the copy, so a non-white patterned banner crafts into a white
-  banner carrying the patterns — vanilla copies the source banner
-  itself. The loader can only name one item; making assemble keep
-  the source's item is a separate change to `Special::assemble`.
+- `BannerDuplicate`'s assemble used to stamp the loaded `result` item id
+  onto the copy, so a non-white patterned banner crafted into a white
+  banner carrying the patterns. Fixed: assemble now copies the patterned
+  banner itself (`BannerDuplicateRecipe.assemble` returns
+  `copyWithCount(1)` of it, verified by `javap -c` on the named 1.21.7
+  server jar), and the variant carries no result item at all. Pinned by
+  `banner_duplicate_keeps_a_coloured_banner_coloured`.
 - Only `Transmute`, `Dye` and `Imbue` have recipe-book displays
   (`Special::book_displays`); the other eight specials load and craft
-  but the book lists no entry for them. Book displays for those eight
-  are a separate change.
+  but the book lists no entry for them. That is vanilla-correct, not a
+  gap: in 1.21.7 every one of the 11 is a `CustomRecipe` subclass
+  (`isSpecial()` true, `display()` the empty default — `MapExtending`
+  is a `ShapedRecipe` that overrides `isSpecial()` to true), and
+  `ServerRecipeBook.addRecipes` skips special recipes, so none of them
+  ever becomes known and the book lists none of them. No displays were
+  added. Note the port still shows three the book should hide —
+  `armor_dye` (Dye display), `tipped_arrow` (Imbue display) and
+  `map_cloning` (Transmute display, the port models it as a transmute
+  while vanilla's `MapCloningRecipe` is a `CustomRecipe`) — removing
+  those is a separate decision.
 
 ## Full-suite check (2026-11-25, same tree)
 
