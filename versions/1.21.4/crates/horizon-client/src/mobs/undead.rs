@@ -518,6 +518,13 @@ fn zombified_piglin_step(m: &mut Mob, cx: &mut Cx) {
     } else {
         m.attrs.speed = base;
     }
+    // `ZombifiedPiglin.customServerAiStep` (1.21.4 only; 1.21.5 drops it):
+    // while angry the piglin counts as recently hurt by a player
+    // (`lastHurtByPlayerTime = tickCount`), so it drops player-kill loot
+    // and experience when it dies angry, even when no player ever hit it.
+    if m.extra.anger > 0 {
+        m.ai.last_hurt_by_player = 100;
+    }
     // maybeAlertOthers every 4 to 6 seconds while seeing the target.
     if let Some(target) = m.ai.target {
         if m.extra.counter2 > 0 {
@@ -1676,5 +1683,65 @@ mod trident_continue_tests {
             Some((true, false)),
             "a trident attack starts for a drowned holding one and stops when it is gone"
         );
+    }
+}
+
+#[cfg(test)]
+mod piglin_anger_tests {
+    use super::*;
+    use crate::mobs::world::with_test_world;
+    use horizon_core::random::LegacyRandom;
+    use std::sync::Arc;
+
+    /// One `customServerAiStep` for a zombified piglin with the given anger
+    /// and target, returning its player-kill timer afterwards (None when the
+    /// test world has no prepared resources to run in).
+    fn player_kill_timer(anger: i32, target: Option<Who>) -> Option<i32> {
+        let mut timer = None;
+        let ran = with_test_world(&[], |w, types| {
+            let mut m = Mob::new(
+                1,
+                Arc::new(types.types["minecraft:zombified_piglin"].clone()),
+                Vec3::new(0.5, 64.0, 0.5),
+                0.0,
+            );
+            m.ai.target = target;
+            m.extra.anger = anger;
+            // Anger already started: no re-roll of the timer or the delays.
+            m.extra.flag2 = true;
+            let mut lr = LegacyRandom::new(0);
+            let mut events = Vec::new();
+            let mut cx = Cx {
+                w,
+                lr: &mut lr,
+                events: &mut events,
+            };
+            custom_server_ai_step(&mut m, &mut cx);
+            timer = Some(m.ai.last_hurt_by_player);
+        });
+        if !ran {
+            return None;
+        }
+        timer
+    }
+
+    #[test]
+    fn an_angry_piglin_counts_as_hurt_by_a_player() {
+        // `ZombifiedPiglin.customServerAiStep` (1.21.4 only; 1.21.5 drops
+        // it): while angry `lastHurtByPlayerTime = tickCount`, so the piglin
+        // drops player-kill loot and experience when it dies angry, even
+        // when no player ever hit it.
+        let Some(timer) = player_kill_timer(400, Some(Who::Player)) else {
+            return;
+        };
+        assert_eq!(timer, 100);
+    }
+
+    #[test]
+    fn a_calm_piglin_keeps_no_player_kill_memory() {
+        let Some(timer) = player_kill_timer(0, None) else {
+            return;
+        };
+        assert_eq!(timer, 0);
     }
 }

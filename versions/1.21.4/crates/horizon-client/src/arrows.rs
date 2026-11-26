@@ -1248,6 +1248,10 @@ impl ArrowScene<'_, '_> {
     /// The caller handles `isAffectedByBlocks`, initial water/rain clearing and
     /// `baseTick`. `visit` preserves arrow contact hooks and bubble pushes.
     /// Returns the fire timer and whether to play the extinguishing sound.
+    /// 1.21.4 has no `InsideBlockEffectApplier` (`StepBasedCollector` is
+    /// 1.21.5): each block's `entityInside` applies at once, in the order the
+    /// sweep meets the blocks, so a water block met after a fire block puts
+    /// the fire out, and fire met after lava leaves 8 seconds, not 15.
     pub fn apply_block_effects(
         &self,
         from: Vec3,
@@ -1257,27 +1261,10 @@ impl ArrowScene<'_, '_> {
     ) -> (i32, bool) {
         let previous_fire = fire_ticks;
         let mut visited = HashSet::new();
-        let mut effects = Collector::default();
-        let used = self.check_inside_blocks(from, to, &mut visited, &mut effects, 16, &mut visit);
+        let used =
+            self.check_inside_blocks(from, to, &mut visited, &mut fire_ticks, 16, &mut visit);
         if 16 - used <= 0 {
-            self.check_inside_blocks(to, to, &mut visited, &mut effects, 1, &mut visit);
-        }
-        for effect in effects.finish() {
-            match effect {
-                Effect::ClearFreeze => {}
-                Effect::FireIgnite => {
-                    // `BaseFireBlock.entityInside` for a non-player entity:
-                    // a negative count ticks up, then 8 seconds of fire.
-                    if fire_ticks < 0 {
-                        fire_ticks += 1;
-                    }
-                    if fire_ticks >= 0 {
-                        fire_ticks = fire_ticks.max(160);
-                    }
-                }
-                Effect::LavaIgnite => fire_ticks = fire_ticks.max(300),
-                Effect::Extinguish => fire_ticks = fire_ticks.min(0),
-            }
+            self.check_inside_blocks(to, to, &mut visited, &mut fire_ticks, 1, &mut visit);
         }
         if self.in_rain(to) {
             fire_ticks = fire_ticks.min(0);
@@ -1291,12 +1278,14 @@ impl ArrowScene<'_, '_> {
         (fire_ticks, extinguished)
     }
     /// `Entity.checkInsideBlocks(from, to, ...)`: returns the iterations used.
+    /// Each block's effect lands at once, in sweep order (1.21.4 has no
+    /// step collector): fire, lava and water act as they are met.
     fn check_inside_blocks(
         &self,
         from: Vec3,
         to: Vec3,
         visited: &mut HashSet<BlockPos>,
-        effects: &mut Collector,
+        fire_ticks: &mut i32,
         max_iterations: i32,
         visit: &mut impl FnMut(BlockStateId, BlockPos, bool),
     ) -> i32 {
@@ -1316,7 +1305,7 @@ impl ArrowScene<'_, '_> {
             hits.push((p, iteration));
             true
         });
-        for (p, step) in hits {
+        for (p, _step) in hits {
             let state = self.block(p);
             if self.is_air(state) {
                 continue;
@@ -1328,7 +1317,6 @@ impl ArrowScene<'_, '_> {
             if !(inside_block || inside_fluid) || !visited.insert(p) {
                 continue;
             }
-            effects.advance(step);
             let name = &*self.facts.get(state).name;
             let precise = far
                 || deflated.intersects(Aabb::new(
@@ -1337,20 +1325,22 @@ impl ArrowScene<'_, '_> {
                 ));
             visit(state, p, precise);
             if matches!(name, "minecraft:fire" | "minecraft:soul_fire") {
-                // BaseFireBlock.entityInside (its inFire hurt does nothing to arrows).
-                effects.apply(Effect::ClearFreeze);
-                effects.apply(Effect::FireIgnite);
+                // `BaseFireBlock.entityInside` for a non-player entity:
+                // a negative count ticks up, then 8 seconds of fire.
+                if *fire_ticks < 0 {
+                    *fire_ticks += 1;
+                }
+                if *fire_ticks >= 0 {
+                    *fire_ticks = (*fire_ticks).max(160);
+                }
             }
             if inside_fluid {
-                effects.advance(step);
                 match fluid.kind().template() {
-                    // WaterFluid.entityInside.
-                    FluidTemplate::Water => effects.apply(Effect::Extinguish),
-                    // LavaFluid.entityInside (lavaHurt does nothing to arrows).
-                    FluidTemplate::Lava => {
-                        effects.apply(Effect::ClearFreeze);
-                        effects.apply(Effect::LavaIgnite);
-                    }
+                    // `WaterFluid.entityInside`: the fire goes out.
+                    FluidTemplate::Water => *fire_ticks = (*fire_ticks).min(0),
+                    // `LavaFluid.entityInside` (lavaHurt does nothing to
+                    // arrows): 15 seconds of fire.
+                    FluidTemplate::Lava => *fire_ticks = (*fire_ticks).max(300),
                     FluidTemplate::Empty => {}
                 }
             }
@@ -1387,59 +1377,6 @@ impl FluidHeightWorld for &ArrowScene<'_, '_> {
     fn sturdy_down(&mut self, p: [i32; 3]) -> Result<bool, Error> {
         let state = self.block(BlockPos::new(p[0], p[1], p[2]));
         Ok(self.fluids.sturdy(state, Direction::Down))
-    }
-}
-/// `InsideBlockEffectType`s an arrow meets, in their apply order (FREEZE
-/// needs powder snow, which an arrow's collision context passes through).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Effect {
-    ClearFreeze,
-    FireIgnite,
-    LavaIgnite,
-    Extinguish,
-}
-const EFFECT_ORDER: [Effect; 4] = [
-    Effect::ClearFreeze,
-    Effect::FireIgnite,
-    Effect::LavaIgnite,
-    Effect::Extinguish,
-];
-/// `InsideBlockEffectApplier.StepBasedCollector`: each step's effects once,
-/// in type order, steps in the order they were reached.
-struct Collector {
-    last_step: i32,
-    step: [bool; 4],
-    effects: Vec<Effect>,
-}
-impl Default for Collector {
-    fn default() -> Self {
-        Self {
-            last_step: -1,
-            step: [false; 4],
-            effects: Vec::new(),
-        }
-    }
-}
-impl Collector {
-    fn advance(&mut self, step: i32) {
-        if self.last_step != step {
-            self.last_step = step;
-            self.flush();
-        }
-    }
-    fn apply(&mut self, effect: Effect) {
-        self.step[effect as usize] = true;
-    }
-    fn flush(&mut self) {
-        for effect in EFFECT_ORDER {
-            if std::mem::take(&mut self.step[effect as usize]) {
-                self.effects.push(effect);
-            }
-        }
-    }
-    fn finish(mut self) -> Vec<Effect> {
-        self.flush();
-        self.effects
     }
 }
 struct Tags;

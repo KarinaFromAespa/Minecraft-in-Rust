@@ -2388,3 +2388,101 @@ shape for the review batches.
   empty recorded log); the prebuilt test binary it had produced was
   re-run directly and completed in 13s with the baseline result.
   Rank 2: 131/348.
+  Batch 27 (2026-11-26, restart continued): items 85, 86, 87, 88.
+  Item 85 (game/mob_blocks.rs): NO-CHANGE.
+  LivingEntityRenderer.setupRotations is 135 lines in both versions
+  (only constant-pool indices differ) and
+  CustomHeadLayer.translateToHead is 32 vs 32 with an empty diff.
+  extractRenderState differs only in one call: 1.21.4's
+  ItemModelResolver.updateForLiving(headItem, headStack,
+  ItemDisplayContext.HEAD, false, entity) passes a boolean the
+  1.21.5 4-arg form drops — stored into
+  ItemStackRenderState.isLeftHand; a head item is never in a hand, so
+  the picture is identical. extractAdditionalHitboxes is 1.21.5-only.
+  Noted pre-existing gap (no fix — identical vs 1.21.5, not a version
+  delta): a player named Dinnerbone/Grumm should flip upside-down
+  when their cape is shown (isEntityUpsideDown reads getName() and
+  requires isModelPartShown(CAPE)), but the Rust flips only on
+  Mob.custom_name, which comes solely from DATA_CUSTOM_NAME/NBT and is
+  never set from a player's username, so players with those usernames
+  never flip. The cape bit is tracked (hidden_model_parts bit 0) but
+  not consulted by the flip; fixing needs username plumbing into the
+  flip path — a backlog item, not a port delta. Item 86
+  (game/stats.rs): NO-CHANGE. ServerStatsCounter: 1.21.4 has
+  fromJson(JsonObject), getKey(Stat), getStat(StatType, String) plus
+  parseLocal/toJson lambdas; 1.21.5 has createTypedStatsCodec +
+  lambdas instead. Verified by javap: 1.21.4's toJson hand-builds
+  {"stats": {type-id: {stat-id: int}}, "DataVersion": <current>}; the
+  Rust's to_json writes exactly that shape, and DATA_VERSION = 4189 is
+  1.21.4's data version. PhantomSpawner.tick: 1.21.4 returns int (spawn
+  count), 1.21.5 returns void; ServerLevel.tickCustomSpawners
+  pops/discards the return in 1.21.4, so observably identical. The
+  Rust's spawn_phantoms matches; gamerule ids are correctly mapped by
+  the datafix layer (("doInsomnia", "minecraft:spawn_phantoms"),
+  ("doMobSpawning", "minecraft:spawn_mobs")). Item 87 (mobs/undead.rs):
+  PORTED — ZombifiedPiglin.customServerAiStep: 1.21.4 (after
+  maybeAlertOthers) does `if (isAngry()) this.lastHurtByPlayerTime =
+  this.tickCount;` — 1.21.5 has no such block. An angry piglin counts
+  as recently-hurt-by-a-player for loot/XP for as long as it stays
+  angry. Fix in zombified_piglin_step (after the anger if/else so a
+  piglin whose anger just hit 0 doesn't refresh): `if m.extra.anger >
+  0 { m.ai.last_hurt_by_player = 100; }`. Caveats: the Rust's
+  single-countdown model can't express vanilla's tick-stamp tail —
+  after anger ends the Rust's window is 100 ticks, vanilla's is
+  ~age-in-ticks; an angry-at-a-non-player death credits the local
+  player for statistics in the Rust (vanilla credits nobody, identity
+  null) while loot/XP match. The setTarget companion (1.21.4-only `if
+  (target instanceof Player) setLastHurtByPlayer(player)`) is subsumed
+  in practice: a new player target starts anger on the next AI step
+  and the refresh then covers loot/XP/credit; only uncovered window is
+  ≤1 tick between target-set and the next step, plus the
+  target-cleared-before-the-step case. MoveThroughVillageGoal.canUse
+  (191 vs 191, empty diff) and Drowned.okTarget (17 vs 17, empty diff)
+  identical; Drowned.travel's 1.21.4-only
+  isControlledByLocalInstance() guard is vacuous (all simulated mobs
+  are locally controlled). Two new tests (piglin_anger_tests,
+  horizon-client-lib): an angry piglin counts as hurt by a player
+  (timer 100 after one step), a calm piglin keeps no player-kill
+  memory — both pass. Item 88 (widely named: world/entity): PORTED —
+  InsideBlockEffectApplier/StepBasedCollector is 1.21.5-only: the
+  Rust's arrows.rs Collector deduped effects per step and applied them
+  in fixed type order, but 1.21.4's Entity.applyEffectsFromBlocks calls
+  BlockState.entityInside + entity.onInsideBlock immediately per block
+  in sweep order, with no collector. The divergent cases are exactly
+  water before an igniter (water-then-fire: 1.21.4 leaves the arrow
+  burning at 160, collector clears to 0; water-then-lava likewise 300
+  vs 0); fire/lava ignites commute (both max). Fix:
+  apply_block_effects now passes &mut fire_ticks into
+  check_inside_blocks, which applies fire/lava/water inline per block
+  in sweep order; the Effect enum, EFFECT_ORDER and Collector were
+  deleted. Two new tests (arrows::client_tests, horizon-client-lib,
+  server path, 1 tick): water-then-fire leaves the arrow burning
+  (fire_ticks 159) and water-then-lava (299) — both pass. The rest of
+  the item is NO-CHANGE by hand-checked normalized bytecode diffs:
+  AgeableMob (explicit 0-initialization / getIntOr default 0),
+  ConversionType$1.convert (same sequence; only the
+  lastHurtByPlayerTime field rename), EntityAttachments.scale/
+  Builder.build (refactor only), EntitySelector lambdas (identical),
+  EquipmentSlot$Type/Group (1.21.5 adds SADDLE type + group; the Rust
+  has neither, matching 1.21.4), Leashable/LeashData (same NBT format;
+  the 1.21.5 CODEC is 1.21.5-only), Marker (1.21.4 keeps a data
+  compound; the Rust preserves it via persist.raw),
+  SpawnPlacements.checkSpawnRules (same), DropChances/EntityEquipment
+  (1.21.5-only container move; same constants/behaviour),
+  EntityReference (1.21.5-only; the Rust resolves owners by UUID, the
+  1.21.4 form). Mob$1 is a switch-map class in both jars (the anonymous
+  Container with getTheItem/setTheItem is AbstractHorse$1, the
+  saddle-slot ContainerSingleItem built in the AbstractHorse
+  constructor, removed in 1.21.5 when the saddle became a real
+  equipment slot; the Rust's HorseInventoryMenu already models the
+  saddle slot). EntityEvent: shared events have identical values;
+  1.21.4 has ATTACK_BLOCKED=29 and SHIELD_DISABLED=30 (1.21.5 has
+  DROWN_PARTICLES=67, SADDLE_BREAK=68 instead). The local-player shield
+  sounds are already correct; the gap is the server-to-client broadcast
+  + remote handling of 29/30 (never broadcast, remote handler lacks
+  them) — a LAN-only gap, recorded, no fix in this batch (needs
+  defender entity-id plumbing plus care to avoid double-play).
+  DROWN_EVENT=67 handler is dead code in 1.21.4 (no 1.21.4 server ever
+  sends it) — left as a cleanup candidate. cargo check green for
+  horizon-client (1m39s). --tests: piglin 2/2, arrow 2/2 (both
+  horizon-client-lib). Rank 2: 135/348.

@@ -84,6 +84,11 @@ fn run_in(
         definitions.push(("bubble_column", Some(("drag", drag.to_string()))));
     }
     definitions.push(("tnt", None));
+    definitions.push(("fire", None));
+    for level in 0..16 {
+        definitions.push(("lava", Some(("level", level.to_string()))));
+    }
+    let state_count = definitions.len();
     let states: Vec<_> = definitions
         .iter()
         .map(|(name, property)| {
@@ -105,6 +110,8 @@ fn run_in(
                 ("minecraft:water", Tag::Int(2)),
                 ("minecraft:bubble_column", Tag::Int(18)),
                 ("minecraft:tnt", Tag::Int(TNT as i32)),
+                ("minecraft:fire", Tag::Int(21)),
+                ("minecraft:lava", Tag::Int(22)),
             ]),
         ),
     ]))
@@ -121,7 +128,7 @@ fn run_in(
         serde_json::json!({"states":(0..states.len()).map(|id|serde_json::json!({"id":id})).collect::<Vec<_>>()} ).to_string(),
     )
     .unwrap();
-    let behaviours = serde_json::json!({"states":(0..states.len()).map(|id|if id==1||id==20{[63,0]}else{[0,0]}).collect::<Vec<_>>(),"blocks":(["air","stone","water","bubble_column","tnt"].iter().map(|name|serde_json::json!({"name":format!("minecraft:{name}"),"class":["Block"]})).collect::<Vec<_>>())});
+    let behaviours = serde_json::json!({"states":(0..states.len()).map(|id|if id==1||id==20{[63,0]}else{[0,0]}).collect::<Vec<_>>(),"blocks":(["air","stone","water","bubble_column","tnt","fire","lava"].iter().map(|name|serde_json::json!({"name":format!("minecraft:{name}"),"class":["Block"]})).collect::<Vec<_>>())});
     let facts = BlockFacts::load_with_behaviour_json(&root, &registry, &behaviours).unwrap();
     std::fs::remove_dir_all(root).unwrap();
     let table = Tag::compound([
@@ -136,7 +143,7 @@ fn run_in(
         ),
         (
             "cached_shapes",
-            Tag::IntArray((0..21).map(|id| i32::from(id == 1 || id == TNT)).collect()),
+            Tag::IntArray((0..state_count).map(|id| i32::from(id == 1 || id == TNT as usize)).collect()),
         ),
     ]);
     let collision = BlockCollisionRegistry::new(Arc::new(
@@ -213,6 +220,31 @@ fn first_water_tick_moves_before_water_inertia_and_keeps_synced_flames() {
             assert_eq!(st.on_fire(), shared_fire);
         }
     }
+}
+
+fn server() -> Rules<'static> {
+    Rules {
+        mob_griefing: true,
+        owners: &(),
+        server: true,
+    }
+}
+#[test]
+fn water_then_fire_in_one_step_leaves_the_arrow_burning() {
+    // 1.21.4's `Entity.checkInsideBlocks` applies each block's `entityInside`
+    // at once, in the order the sweep meets the blocks: the water puts the
+    // fire out, then the fire relights it for 8 seconds. The 1.21.5 step
+    // collector applied fire before water in its fixed type order and left
+    // the arrow out. The server's end-of-tick fire decrement takes one tick
+    // off the 160.
+    let steps = run_in(&[([0, 18, 0], 2), ([1, 18, 0], 21)], 1, false, server(), |_| {});
+    assert_eq!(steps[0].arrow.as_ref().unwrap().fire_ticks, 159);
+}
+#[test]
+fn water_then_lava_in_one_step_leaves_the_arrow_burning() {
+    // Same order rule, lava's way: water out, then lava's 15 seconds.
+    let steps = run_in(&[([0, 18, 0], 2), ([1, 18, 0], 22)], 1, false, server(), |_| {});
+    assert_eq!(steps[0].arrow.as_ref().unwrap().fire_ticks, 299);
 }
 
 struct ArmorStand;
