@@ -1462,7 +1462,10 @@ mod tests {
         let tag = t.to_nbt([1; 4], &registry, None);
         assert_eq!(
             tag.get("inBlockState"),
-            Some(&Tag::String("minecraft:stone".into()))
+            Some(&Tag::compound([(
+                "Name",
+                Tag::String("minecraft:stone".into())
+            )]))
         );
         let loaded = horizon_client::entity_nbt::trident_from_nbt(&tag).unwrap();
         let back = ThrownTrident::from_nbt(loaded, &tag, &registry);
