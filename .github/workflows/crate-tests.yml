@@ -71,6 +71,16 @@ name: crate-tests
 # workspace), and GitHub evicts cache LRU past the 10 GB repo limit, so
 # a full-matrix run may rebuild some versions cold. Single-version
 # dispatches are the normal case and keep their cache.
+#
+# Assemble-first (docs/restructure.md): the test job assembles the
+# version from commons + overlay chain into .horizon-ports/<v> before
+# anything that needs the workspace, and the suites run inside the
+# assembled tree; rust-cache keys off its lockfile. The defect-suite
+# job assembles too and passes --tree so the suite scans the assembled
+# tree. The resolve job accepts a version as a full tree (pre-cutover)
+# or an overlay chain (post-cutover). Until the cutover lands,
+# commons/ does not exist yet and assemble.py falls back to
+# versions/26.3 as the base.
 
 on:
   workflow_dispatch:
@@ -85,6 +95,7 @@ permissions:
 
 env:
   HORIZON_TELEMETRY_URL: "off"
+  HORIZON_PORTS: ${{ github.workspace }}/.horizon-ports
 
 jobs:
   resolve:
@@ -103,10 +114,26 @@ jobs:
           python3 - <<'EOF'
           import json, os
           wanted = os.environ["WANTED"]
+          def _chains():
+              try:
+                  with open("tools/overlay-chains.json") as f:
+                      return json.load(f).get("chains", {})
+              except (OSError, ValueError):
+                  return {}
           def is_tree(v):
-              return os.path.isfile(os.path.join("versions", v, "Cargo.toml"))
+              # A version exists as a full tree (pre-cutover, Cargo.toml)
+              # or as an overlay chain (post-cutover); 26.3 post-cutover
+              # is the commons base and appears in the chains file.
+              # Either shape counts, so the matrix keeps resolving
+              # across the cutover (docs/restructure.md).
+              if os.path.isfile(os.path.join("versions", v, "Cargo.toml")):
+                  return True
+              if os.path.isdir(os.path.join("versions", v, "overlay")):
+                  return True
+              return v in _chains()
           if wanted == "all":
-              versions = sorted(d for d in os.listdir("versions") if is_tree(d))
+              versions = sorted({d for d in os.listdir("versions") if is_tree(d)}
+                                | set(_chains()))
               if not versions:
                   raise SystemExit("no version tree found under versions/")
           else:
@@ -130,13 +157,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Assemble the version BEFORE anything that needs the workspace
+      # (docs/restructure.md): the suites run inside the assembled
+      # tree, and rust-cache keys off its lockfile. On this branch
+      # commons/ does not exist yet, so assemble.py uses versions/26.3
+      # as the base (its pre-cutover fallback); after the cutover it
+      # uses commons/ with no change here.
+      - name: Assemble the version (commons + overlay chain)
+        run: |
+          V="${{ matrix.version }}"
+          mkdir -p "$HORIZON_PORTS"
+          python3 tools/assemble.py "$V" --into "$HORIZON_PORTS/$V"
+
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.95.0
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: versions/${{ matrix.version }}
+          workspaces: ${{ env.HORIZON_PORTS }}/${{ matrix.version }}
           shared-key: crate-tests-${{ matrix.version }}-linux
           cache-on-failure: true
 
@@ -165,7 +204,7 @@ jobs:
         id: tests
         run: |
           set -o pipefail
-          cd "versions/${{ matrix.version }}"
+          cd "$HORIZON_PORTS/${{ matrix.version }}"
           OUT="$GITHUB_WORKSPACE/ci-out/crate-tests"
           mkdir -p "$OUT"
           : > "$OUT/_summary.txt"
@@ -253,6 +292,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Assemble the version first (docs/restructure.md): the suite
+      # scans the version's tree, so it must run against the assembled
+      # tree, not the checkout's versions/<v>/ (which post-cutover is
+      # only overlay + metadata). --tree points it at the assembly.
+      - name: Assemble the version (commons + overlay chain)
+        run: |
+          V="${{ matrix.version }}"
+          mkdir -p "$HORIZON_PORTS"
+          python3 tools/assemble.py "$V" --into "$HORIZON_PORTS/$V"
+
       # The suite's oracles are the version's own vanilla jars: the
       # server jar (loot tables, advancements, tags, component
       # strings) and the client jar (item models, menu sprites), plus
@@ -307,6 +356,7 @@ jobs:
         run: |
           V="${{ matrix.version }}"
           python3 tools/defect_suite.py "$V" --jar-dir jars \
+            --tree "$HORIZON_PORTS/$V" \
             --fallback-jar jars/26.3-client.jar --report-only --json \
             > "defect-suite-$V.json"
           python3 - "$V" <<'EOF'

@@ -140,10 +140,13 @@ class Ctx:
     def __init__(self, repo: Path, version: str, server_jar=None,
                  client_jar=None, fallback_jar=None, jar_dir=None,
                  rust_manifest=None, crate_logs=None, run_rust=False,
-                 leakage_baseline=None, leakage_exceptions=None):
+                 leakage_baseline=None, leakage_exceptions=None,
+                 tree=None):
         self.repo = repo
         self.version = version
-        self.tree = repo / VERSIONS_DIRNAME / version
+        # --tree lets CI point the suite at an assembled tree
+        # (docs/restructure.md); default is versions/<version>.
+        self.tree = Path(tree) if tree else repo / VERSIONS_DIRNAME / version
         self.jar_dir = Path(jar_dir) if jar_dir else None
         self.server_jar = self._resolve_jar(server_jar, "server")
         self.client_jar = self._resolve_jar(client_jar, "client")
@@ -1622,6 +1625,10 @@ def main(argv=None) -> int:
                         help="check every version under versions/")
     parser.add_argument("--root", default=".",
                         help="repo root (default: current directory)")
+    parser.add_argument("--tree", help="version tree path "
+                        "(default: versions/<version> under the repo root; "
+                         "use it to run the suite against an assembled "
+                         "tree — docs/restructure.md)")
     parser.add_argument("--jar", help="vanilla server jar for the version")
     parser.add_argument("--client-jar", help="vanilla client jar")
     parser.add_argument("--fallback-jar",
@@ -1669,6 +1676,8 @@ def main(argv=None) -> int:
                  else lambda v: v))
     else:
         versions = args.versions
+    if args.tree and len(versions) != 1:
+        parser.error("--tree applies to a single version")
     only = None
     if args.checks:
         only = [c.strip() for c in args.checks.split(",") if c.strip()]
@@ -1678,7 +1687,7 @@ def main(argv=None) -> int:
                          f"(known: {', '.join(CHECK_IDS)})")
     results = []
     for version in versions:
-        tree = root / VERSIONS_DIRNAME / version
+        tree = Path(args.tree) if args.tree else root / VERSIONS_DIRNAME / version
         if not tree.is_dir():
             print(f"defect_suite: no tree at {tree}", file=sys.stderr)
             return 2
@@ -1688,7 +1697,8 @@ def main(argv=None) -> int:
                   rust_manifest=args.rust_manifest,
                   crate_logs=args.crate_logs, run_rust=args.run_rust,
                   leakage_baseline=args.leakage_baseline,
-                  leakage_exceptions=args.leakage_exceptions)
+                  leakage_exceptions=args.leakage_exceptions,
+                  tree=args.tree)
         results.append(run_version(ctx, only))
     if args.json:
         print(json.dumps({"results": results}, indent=2))
