@@ -45,6 +45,16 @@ name: worldgen-verify
 # parallel matrix hammers Mojang's and Maven Central's CDNs, and the
 # first full run lost jobs to a transient Maven 429/404 on the asm
 # jar and a lab-prepare download timeout.
+#
+# Assemble-first (docs/restructure.md): the verify job assembles the
+# version from commons + overlay chain into .horizon-ports/<v> before
+# anything that needs the workspace, and prepare, lab-prepare,
+# horizon-prepare and the test all run inside the assembled tree (so
+# the prepared .local and the worldgen bundle land there); rust-cache
+# keys off its lockfile. The version lock is still read from
+# versions/<v>/research-lock.json in the checkout. Until the cutover
+# lands, commons/ does not exist yet and assemble.py falls back to
+# versions/26.3 as the base.
 
 on:
   workflow_dispatch:
@@ -61,6 +71,7 @@ permissions:
 env:
   HORIZON_TELEMETRY_URL: "off"
   HORIZON_VERSIONS: ${{ github.workspace }}/.horizon-versions
+  HORIZON_PORTS: ${{ github.workspace }}/.horizon-ports
 
 jobs:
   matrix:
@@ -98,6 +109,19 @@ jobs:
       - name: Log directory (created first, so artifacts exist even if a later step fails)
         run: mkdir -p "$GITHUB_WORKSPACE/ci-out"
 
+      # Assemble the version BEFORE anything that needs the workspace
+      # (docs/restructure.md): prepare, lab-prepare, horizon-prepare
+      # and the test all run inside the assembled tree, and rust-cache
+      # keys off its lockfile. On this branch commons/ does not exist
+      # yet, so assemble.py uses versions/26.3 as the base (its
+      # pre-cutover fallback); after the cutover it uses commons/ with
+      # no change here.
+      - name: Assemble the version (commons + overlay chain)
+        run: |
+          V="${{ matrix.version }}"
+          mkdir -p "$HORIZON_PORTS"
+          python3 tools/assemble.py "$V" --into "$HORIZON_PORTS/$V"
+
       - name: Read the version's Java major from its research lock
         id: lock
         run: |
@@ -118,7 +142,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: versions/${{ matrix.version }}
+          workspaces: ${{ env.HORIZON_PORTS }}/${{ matrix.version }}
           cache-on-failure: true
 
       # Same download path as port-verify: fetch this version's jars
@@ -131,7 +155,7 @@ jobs:
         run: |
           set -o pipefail
           V="${{ matrix.version }}"
-          cd "versions/$V"
+          cd "$HORIZON_PORTS/$V"
           ok=0
           for attempt in 1 2 3; do
             if python3 tools/version_port.py prepare "$V" --download 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/prepare.log"; then ok=1; break; fi
@@ -177,7 +201,7 @@ jobs:
                   count += 1
           print(f"staged launcher dir at {launcher}: {count} library files")
           EOF
-          cd "versions/$V"
+          cd "$HORIZON_PORTS/$V"
           ok=0
           for attempt in 1 2 3; do
             if HORIZON_MINECRAFT_DIR="$LAUNCHER" \
@@ -197,7 +221,7 @@ jobs:
         run: |
           set -o pipefail
           V="${{ matrix.version }}"
-          cd "versions/$V"
+          cd "$HORIZON_PORTS/$V"
           cargo build --release -p horizon-prepare 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/horizon-prepare-build.log"
           ./target/release/horizon-prepare --root . 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/horizon-prepare.log"
 
@@ -207,7 +231,7 @@ jobs:
       - name: Gate — the worldgen bundle must exist
         run: |
           V="${{ matrix.version }}"
-          BUNDLE="versions/$V/.local/horizon-client/$V/worldgen/world_presets.json"
+          BUNDLE="$HORIZON_PORTS/$V/.local/horizon-client/$V/worldgen/world_presets.json"
           test -f "$BUNDLE" || { echo "missing worldgen bundle: $BUNDLE"; echo "horizon-prepare did not produce it; see horizon-prepare.log"; exit 1; }
           echo "bundle present: $BUNDLE"
 
@@ -218,7 +242,7 @@ jobs:
         run: |
           set -o pipefail
           V="${{ matrix.version }}"
-          cd "versions/$V"
+          cd "$HORIZON_PORTS/$V"
           HORIZON_WORLDGEN_DUMP="$GITHUB_WORKSPACE/ci-out/worldgen-$V.json" \
             cargo test -p horizon-world --lib prepared_world_builds_and_generates_chunks -- --nocapture 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/worldgen-test.log"
 
