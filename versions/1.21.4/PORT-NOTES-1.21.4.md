@@ -2539,3 +2539,68 @@ shape for the review batches.
   advancements x5, projectiles, realms, save chunks x4, title
   optimization), pre-existing programme test-health debt, not
   1.21.4 regressions.
+  Batch 28 (2026-11-26, partial: items 89, 90, 91; item 92 held on the
+  parent's CI-green priority steer — no more rank-2 items opened until
+  CI is green). Item 89 (horizon-assets/item_bake.rs): PORTED.
+  QuadCollection is 1.21.5-only; 1.21.4's ItemRenderer.renderModelLists
+  draws each culled direction in Direction order (down, up, north,
+  south, west, east), then the unculled quads, while the Rust ordered
+  unculled first then north/south/east/west/up/down (the
+  QuadCollection.getAll order). Fix in bake_resolved: culled quads in
+  Direction::ALL order, then unculled; comments now cite
+  renderModelLists. The order is the draw order (item_render.rs emits
+  baked.quads in list order), so translucent quads blended in the wrong
+  order. ItemTransform.apply matches 1.21.4 exactly (left-hand
+  negation, translate-rotate-scale then -0.5 in LayerRenderState.render);
+  ItemTransform$Deserializer defaults/clamps match (translation x0.0625
+  clamp +/-5, scale clamp +/-4). New test quads_follow_the_client_draw_order:
+  a cube's culls read [Down, Up, North, South, West, East, None] —
+  horizon-assets item_bake 3/3 pass. Item 90
+  (horizon-client-render/block_entity_render.rs): NO-CHANGE (already
+  seeded closed in rank2-progress.json; verified this session). All
+  eight renderers' typed render bodies are identical between 1.21.4
+  and 1.21.5 modulo the 1.21.5 interface changes (7th Vec3 camera
+  parameter, mulPose(Quaternionf)->Quaternionfc); translateSignText,
+  renderBanner, translateBase and ShulkerBox render likewise. The Rust
+  threads the camera in (equivalent to 1.21.4's
+  Minecraft.getInstance() lookup); sign_text_near matches
+  isOutlineVisible (distance squared < 256.0). LayerDefinitions.createRoots
+  delta is 1.21.5-only layers (cold/warm chicken/cow/pig,
+  camel/donkey/horse/mule/skeleton/zombie-horse saddle layers, sheep
+  wool undercoat) owned by other items; BlockEntityRenderers
+  TEST_INSTANCE_BLOCK registration owned by items 163/465. No
+  TestInstance arm in the Rust's block_entity_render.rs. Item 91
+  (horizon-client/stations.rs): PORTED — smithing trim was broken.
+  The Rust required the recipe JSON's "pattern" field (the 1.21.5
+  form), but 1.21.4's trim recipes carry no pattern (verified against
+  the 1.21.4 server jar's recipe JSONs) — the pattern is resolved from
+  the template stack at craft time via TrimPatterns.getFromTemplate
+  (scan the trim_pattern registry for the entry whose template_item is
+  the template stack's item). All 1.21.4 trim recipes were dropped, so
+  smithing trim did nothing. Fix: Smithing::Trim drops the pattern
+  field and makes template/addition Optional<Ingredient> (1.21.4's
+  fields are all Optional, like the transform's); StationRecipes gains
+  trim_patterns loaded from data/minecraft/trim_pattern/*.json
+  (template_item -> pattern id); the match resolves the pattern from
+  the template stack and trim_demo from the template ingredient's
+  first item. SmithingTransformRecipe.assemble already matches 1.21.4
+  (transmuteCopy + component patch; matches() identical);
+  EnchantingTableBlock SHAPE is identical (1.21.5's
+  Block.column(16,12,16) == 1.21.4's box(0,0,0,16,12,16),
+  data-driven in the Rust). Tests: the additions-trim-material test
+  re-scoped (registry-supplied pattern) and
+  smithing_trim_reads_its_pattern_from_the_template_item (new;
+  1.21.4-form JSON + trim_pattern/coast.json loads, applies the coast
+  trim, and a template with no registry pattern trims nothing) —
+  stations suite 26/26 passes. Rank 2: 137/348.
+  CI 45851997564 (dispatched Nov 26 ~21:43 NPT on head c3e46cf9):
+  completed FAILURE at 12m25s — but differently from runs 45818664429
+  and 45823137761. All 11 fixes from the test-health batch are green
+  in CI (protocol 425/0, world 447/0, render 2057/0, client 1267/0,
+  items, core pass; the two local-only protocol network failures pass
+  in CI). The only failures are the 14 horizon-client-lib tests
+  shared with the 1.21.5 parent (item_sync x2, lan advancements x5,
+  projectiles, realms, save chunks x4, title optimization) — 2417/14,
+  identical to the local run and to the parent tree. Next: fix those
+  14 (each verified against the 1.21.4 jar, not silently re-scoped)
+  before opening more rank-2 items.

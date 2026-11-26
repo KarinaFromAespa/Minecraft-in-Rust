@@ -44,8 +44,9 @@ pub trait SpriteLookup {
 
 #[derive(Clone, Debug)]
 pub struct BakedItemModel {
-    /// `QuadCollection.getAll`: unculled quads, then north, south, east,
-    /// west, up and down.
+    /// `ItemRenderer.renderModelLists`: each culled direction in
+    /// `Direction` order (down, up, north, south, west, east), then the
+    /// unculled quads — the order the quads are drawn in.
     pub quads: Vec<ModelQuad>,
     /// `gui_light: side`.
     pub uses_block_light: bool,
@@ -156,19 +157,14 @@ pub fn bake_resolved(
         for q in &mut quads {
             q.material = material(&q.material);
         }
-        // `QuadCollection.Builder.build`: unculled, then each culled direction.
-        let mut ordered: Vec<ModelQuad> =
-            quads.iter().filter(|q| q.cull.is_none()).cloned().collect();
-        for side in [
-            Direction::North,
-            Direction::South,
-            Direction::East,
-            Direction::West,
-            Direction::Up,
-            Direction::Down,
-        ] {
+        // `ItemRenderer.renderModelLists`: each culled direction in
+        // `Direction` order, then the unculled quads. (1.21.5 collects them
+        // into a `QuadCollection` unculled-first; 1.21.4 has no such class.)
+        let mut ordered: Vec<ModelQuad> = Vec::new();
+        for side in Direction::ALL {
             ordered.extend(quads.iter().filter(|q| q.cull == Some(side)).cloned());
         }
+        ordered.extend(quads.iter().filter(|q| q.cull.is_none()).cloned());
         ordered
     };
     // `resolveParticleMaterial`: a missing `particle` slot is the missing sprite.
@@ -342,6 +338,7 @@ mod tests {
                 ("horizon:loop", r#"{"parent":"horizon:loop2"}"#),
                 ("horizon:loop2", r#"{"parent":"horizon:loop"}"#),
                 ("block/slab", r##"{"textures":{"particle":"#side","side":"block/absent"},"elements":[{"from":[0,0,0],"to":[16,8,16],"faces":{"up":{"texture":"#side"},"down":{"texture":"#side","cullface":"down"}}}]}"##),
+                ("block/cube", r##"{"textures":{"particle":"#side","side":"block/absent"},"elements":[{"from":[0,0,0],"to":[16,16,16],"faces":{"down":{"texture":"#side","cullface":"down"},"up":{"texture":"#side","cullface":"up"},"north":{"texture":"#side","cullface":"north"},"south":{"texture":"#side","cullface":"south"},"west":{"texture":"#side","cullface":"west"},"east":{"texture":"#side","cullface":"east"}}},{"from":[0,0,0],"to":[16,16,16],"faces":{"up":{"texture":"#side"}}}]}"##),
             ]
             .map(|(name, json)| (name.to_owned(), CuboidModel::from_json(json).unwrap())),
         ))
@@ -365,6 +362,28 @@ mod tests {
                 .quads
                 .iter()
                 .all(|q| q.material.sprite == MISSING_SPRITE)
+        );
+    }
+    #[test]
+    fn quads_follow_the_client_draw_order() {
+        // `ItemRenderer.renderModelLists`: each culled direction in `Direction`
+        // order, then the unculled quads. The cube's faces are listed north-first
+        // in the JSON, so the order here comes from the reorder, not the input.
+        let library = library();
+        let cube = bake_item_model(&library, &Sprites, "block/cube").unwrap();
+        assert_eq!(cube.quads.len(), 7);
+        let culls: Vec<Option<Direction>> = cube.quads.iter().map(|q| q.cull).collect();
+        assert_eq!(
+            culls,
+            [
+                Some(Direction::Down),
+                Some(Direction::Up),
+                Some(Direction::North),
+                Some(Direction::South),
+                Some(Direction::West),
+                Some(Direction::East),
+                None,
+            ]
         );
     }
     #[test]

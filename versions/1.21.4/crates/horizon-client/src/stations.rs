@@ -681,10 +681,9 @@ pub enum Smithing {
     },
     Trim {
         id: String,
-        template: Ingredient,
+        template: Option<Ingredient>,
         base: Ingredient,
-        addition: Ingredient,
-        pattern: crate::item_data::trim::Holder<crate::item_data::trim::Pattern>,
+        addition: Option<Ingredient>,
     },
 }
 /// A smithing transform's `ItemStackTemplate`, retaining the patch as well as
@@ -797,6 +796,12 @@ pub struct StationRecipes {
     pub stonecutting: Vec<Stonecutting>,
     /// `trim_material` registry: id -> (asset name, description).
     pub trim_materials: Vec<(String, String)>,
+    /// `trim_pattern` registry, by template item: the template item's id ->
+    /// the pattern's id. 1.21.4's trim recipe carries no pattern of its own;
+    /// `TrimPatterns.getFromTemplate` finds the pattern whose `template_item`
+    /// is the template stack's item. (1.21.5 moved the pattern into the
+    /// recipe itself.)
+    pub trim_patterns: Vec<(String, String)>,
 }
 fn ingredient(v: &Value, items: &Items) -> Ingredient {
     Ingredient::parse(v, items).unwrap_or_else(|| Ingredient::of(Vec::new()))
@@ -836,16 +841,23 @@ fn parse_recipe_sources<'a>(
                 }
             }
             "minecraft:smithing_trim" => {
-                // TrimPattern.CODEC: one holder, named or inline; a missing
-                // or malformed pattern fails the recipe.
-                let pattern = crate::scoreboard::json_to_tag(&v["pattern"]);
-                if let Some(pattern) = crate::item_data::trim::pattern_from_nbt(&pattern) {
+                // 1.21.4's recipe has no pattern: it is the template item's,
+                // resolved at craft time (`TrimPatterns.getFromTemplate`).
+                // The ingredients are optional, as for the transform.
+                let parse_optional = |key: &str| match v.get(key) {
+                    None => Some(None),
+                    Some(value) => Ingredient::parse(value, items).map(Some),
+                };
+                if let (Some(template), Some(base), Some(addition)) = (
+                    parse_optional("template"),
+                    Ingredient::parse(&v["base"], items),
+                    parse_optional("addition"),
+                ) {
                     smithing.push(Smithing::Trim {
                         id,
-                        template: ingredient(&v["template"], items),
-                        base: ingredient(&v["base"], items),
-                        addition: ingredient(&v["addition"], items),
-                        pattern,
+                        template,
+                        base,
+                        addition,
                     });
                 }
             }
@@ -867,6 +879,36 @@ fn parse_recipe_sources<'a>(
         }
     }
     (smithing, stonecutting)
+}
+
+fn load_trim_patterns(root: &Path) -> Vec<(String, String)> {
+    let mut patterns = Vec::new();
+    let mut files: Vec<_> = fs::read_dir(root.join("data/minecraft/trim_pattern"))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|e| e.path())
+        .collect();
+    files.sort();
+    for p in files {
+        let Ok(bytes) = fs::read(&p) else {
+            continue;
+        };
+        let Ok(v) = serde_json::from_slice::<Value>(&bytes) else {
+            continue;
+        };
+        // `TrimPattern.template_item`: the smithing template that trims
+        // with this pattern (`TrimPatterns.getFromTemplate`).
+        if let Some(template) = v["template_item"].as_str()
+            && let Some(stem) = p.file_stem().and_then(|s| s.to_str())
+        {
+            patterns.push((
+                template.to_owned(),
+                format!("minecraft:{stem}"),
+            ));
+        }
+    }
+    patterns
 }
 
 fn load_trim_materials(root: &Path) -> Vec<(String, String)> {
@@ -928,6 +970,7 @@ impl StationRecipes {
             smithing,
             stonecutting,
             trim_materials: load_trim_materials(root),
+            trim_patterns: load_trim_patterns(root),
         }
     }
     pub(crate) fn load_with_defaults(
@@ -1002,6 +1045,7 @@ impl StationRecipes {
             smithing,
             stonecutting,
             trim_materials: load_trim_materials(root),
+            trim_patterns: load_trim_patterns(root),
         }
     }
     /// Recipes whose input accepts `stack`, in display order.
@@ -1025,7 +1069,7 @@ impl StationRecipes {
                     base,
                     addition,
                     ..
-                } => (Some(template), base, Some(addition)),
+                } => (template.as_ref(), base, addition.as_ref()),
             };
             [t, Some(b), a][slot].is_some_and(|ingredient| ingredient.test(stack))
         })
@@ -1084,20 +1128,33 @@ impl StationRecipes {
                     template: t,
                     base: b,
                     addition: a,
-                    pattern,
-                    ..
                 } => {
-                    if let (Some(template), Some(addition)) = (template, addition)
-                        && t.test(template)
+                    if optional_matches(t, template)
                         && b.test(base)
-                        && a.test(addition)
+                        && optional_matches(a, addition)
+                        && let Some(pattern) = template
+                            .filter(|s| nonempty(s))
+                            .and_then(|s| self.pattern_for_template(&s.item))
+                        && let Some(addition) = addition.filter(|s| nonempty(s))
                     {
-                        return apply_trim(e, base, addition, pattern).map(|r| (id.as_str(), r));
+                        return apply_trim(e, base, addition, &pattern)
+                            .map(|r| (id.as_str(), r));
                     }
                 }
             }
         }
         None
+    }
+    /// `TrimPatterns.getFromTemplate`: the pattern whose `template_item` is
+    /// `item`, if the registry knows one.
+    fn pattern_for_template(
+        &self,
+        item: &str,
+    ) -> Option<crate::item_data::trim::Holder<crate::item_data::trim::Pattern>> {
+        self.trim_patterns
+            .iter()
+            .find(|(template, _)| template == item)
+            .map(|(_, pattern)| crate::item_data::trim::Holder::Named(pattern.as_str().into()))
     }
     /// `SmithingTrimDemoSlotDisplay.resolveForFirstStack` of a trim recipe:
     /// a random base trimmed with a random material (`pick(n)` draws below n).
@@ -1110,13 +1167,20 @@ impl StationRecipes {
         let (base, addition, pattern) = self.smithing.iter().find_map(|r| match r {
             Smithing::Trim {
                 id: i,
+                template,
                 base,
                 addition,
-                pattern,
                 ..
-            } if i == id => Some((&base.order, &addition.order, pattern)),
+            } if i == id => {
+                let pattern = template
+                    .as_ref()
+                    .and_then(|t| t.order.first())
+                    .and_then(|item| self.pattern_for_template(item))?;
+                Some((&base.order, addition.as_ref().map(|a| &a.order), pattern))
+            }
             _ => None,
         })?;
+        let addition = addition?;
         if base.is_empty() || addition.is_empty() {
             return None;
         }
@@ -1124,7 +1188,7 @@ impl StationRecipes {
         (0..256).find_map(|_| {
             let base = ItemStack::new(&base[pick(base.len())], 1);
             let material = ItemStack::new(&addition[pick(addition.len())], 1);
-            apply_trim(e, &base, &material, pattern)
+            apply_trim(e, &base, &material, &pattern)
         })
     }
 }
@@ -1272,13 +1336,16 @@ mod tests {
         let recipes = StationRecipes {
             smithing: vec![Smithing::Trim {
                 id: "minecraft:coast".into(),
-                template: Ingredient::of(vec![
+                template: Some(Ingredient::of(vec![
                     "minecraft:coast_armor_trim_smithing_template".into(),
-                ]),
+                ])),
                 base: Ingredient::of(vec!["minecraft:diamond_chestplate".into()]),
-                addition: Ingredient::of(vec!["minecraft:gold_ingot".into()]),
-                pattern: "minecraft:coast".into(),
+                addition: Some(Ingredient::of(vec!["minecraft:gold_ingot".into()])),
             }],
+            trim_patterns: vec![(
+                "minecraft:coast_armor_trim_smithing_template".into(),
+                "minecraft:coast".into(),
+            )],
             ..Default::default()
         };
         let template = ItemStack::new("minecraft:coast_armor_trim_smithing_template", 1);
@@ -2152,13 +2219,28 @@ mod tests {
         fs::remove_dir_all(root).unwrap();
     }
 
+    /// Smithing: 1.21.4's trim recipe carries no pattern of its own; the
+    /// pattern is the template item's (`TrimPatterns.getFromTemplate`),
+    /// read from the `trim_pattern` registry's `template_item`.
     #[test]
-    fn smithing_trim_reads_an_inline_pattern() {
+    fn smithing_trim_reads_its_pattern_from_the_template_item() {
         let root = std::env::temp_dir().join(format!("horizon-trim-{}", std::process::id()));
         fs::create_dir_all(root.join("data/minecraft/recipe")).unwrap();
+        fs::create_dir_all(root.join("data/minecraft/trim_pattern")).unwrap();
         fs::write(
             root.join("items.json"),
             r#"{"minecraft:gold_ingot":{"minecraft:max_stack_size":64,"minecraft:provides_trim_material":"minecraft:gold"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            root.join("data/minecraft/trim_pattern/coast.json"),
+            serde_json::json!({
+                "asset_id": "minecraft:coast",
+                "description": { "text": "Coast" },
+                "decal": false,
+                "template_item": "minecraft:coast_armor_trim_smithing_template"
+            })
+            .to_string(),
         )
         .unwrap();
         fs::write(
@@ -2167,12 +2249,7 @@ mod tests {
                 "type": "minecraft:smithing_trim",
                 "template": "minecraft:coast_armor_trim_smithing_template",
                 "base": "minecraft:diamond_chestplate",
-                "addition": "minecraft:gold_ingot",
-                "pattern": {
-                    "asset_id": "minecraft:coast",
-                    "description": { "text": "Coast" },
-                    "decal": false
-                }
+                "addition": "minecraft:gold_ingot"
             })
             .to_string(),
         )
@@ -2180,6 +2257,13 @@ mod tests {
         let items = Items::tags_only(&root, &PackOverlay::NONE).unwrap();
         let recipes = StationRecipes::load(&root, &items, &PackOverlay::NONE);
         assert_eq!(recipes.smithing.len(), 1);
+        assert_eq!(
+            recipes.trim_patterns,
+            vec![(
+                "minecraft:coast_armor_trim_smithing_template".to_owned(),
+                "minecraft:coast".to_owned()
+            )]
+        );
         let out = recipes
             .smithing_result(
                 &items.enchantments,
@@ -2190,16 +2274,23 @@ mod tests {
                 Some(&ItemStack::new("minecraft:diamond_chestplate", 1)),
                 Some(&ItemStack::new("minecraft:gold_ingot", 1)),
             )
-            .expect("the inline pattern applies");
+            .expect("the template item's pattern applies");
         let trim = out.data().and_then(|d| d.trim.as_ref()).unwrap();
         assert_eq!(
             trim.1,
-            crate::item_data::trim::Holder::Direct(crate::item_data::trim::Pattern {
-                asset_id: "minecraft:coast".into(),
-                description: Tag::String("Coast".into()),
-                decal: false,
-            })
+            crate::item_data::trim::Holder::Named("minecraft:coast".into())
         );
+        // A template with no pattern in the registry trims nothing.
+        let out = recipes.smithing_result(
+            &items.enchantments,
+            Some(&ItemStack::new(
+                "minecraft:spire_armor_trim_smithing_template",
+                1,
+            )),
+            Some(&ItemStack::new("minecraft:diamond_chestplate", 1)),
+            Some(&ItemStack::new("minecraft:gold_ingot", 1)),
+        );
+        assert!(out.is_none());
         let _ = fs::remove_dir_all(&root);
     }
 

@@ -332,7 +332,7 @@ impl Game<'_> {
                     base,
                     addition,
                     ..
-                } => (id, Some(template), base, Some(addition), index.any(base)),
+                } => (id, template.as_ref(), base, addition.as_ref(), index.any(base)),
             };
             let mut r = recipe(id.clone(), RecipeKind::Smithing);
             r.slots = vec![
