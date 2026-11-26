@@ -158,3 +158,28 @@ fn a_patched_stack_reads_its_patch_over_its_items_defaults() {
     }
     assert_eq!(view.to_map(), *merged);
 }
+
+#[test]
+fn a_bed_special_model_decodes_its_colour_texture() {
+    // Every vanilla bed item model is this node (`black_bed.json`).
+    let node = ItemModelNode::decode(&serde_json::json!({
+        "type": "minecraft:special",
+        "base": "minecraft:item/black_bed",
+        "model": {"type": "minecraft:bed", "texture": "minecraft:black"}
+    }))
+    .unwrap();
+    let ItemModelNode::Special { base, model, .. } = &node else {
+        panic!("expected a special node")
+    };
+    assert_eq!(base, "minecraft:item/black_bed");
+    assert_eq!(
+        model.kind,
+        SpecialKind::Bed {
+            texture: "minecraft:black".to_owned()
+        }
+    );
+    assert_eq!(
+        model.to_json(),
+        serde_json::json!({"type": "minecraft:bed", "texture": "minecraft:black"})
+    );
+}

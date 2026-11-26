@@ -186,7 +186,9 @@ impl Hub {
             .apply_update(update.offset, update.acknowledged, update.checksum)
         {
             Ok(seen) => Some(seen),
-            // Vanilla logs the ValidationException's stack trace after the line.
+            // 1.21.4's `applyUpdate` returns empty instead of throwing:
+            // vanilla warns the same line and disconnects with
+            // `CHAT_VALIDATION_FAILED`.
             Err(_) => {
                 events.push(HostEvent::Error(format!(
                     "Failed to validate message acknowledgements from {}",

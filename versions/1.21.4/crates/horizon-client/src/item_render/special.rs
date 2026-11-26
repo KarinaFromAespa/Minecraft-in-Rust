@@ -1,6 +1,6 @@
 //! `SpecialModelRenderer`s: items drawn with entity models (chests, shulker
 //! boxes, banners, heads, shields, tridents, decorated pots, conduits, bells,
-//! books and copper golem statues). Each submits its model at the layer pose
+//! books, beds and copper golem statues). Each submits its model at the layer pose
 //! as vanilla's `submit` does (no block-entity placement transform) and
 //! reports `getExtents` over the same posed parts.
 use super::{Foil, ItemQuad, ItemRenderer, ItemSink, SpecialHost, argb};
@@ -11,7 +11,9 @@ use serde_json::Value;
 use std::{collections::HashMap, f32::consts::PI, path::Path};
 
 /// Entity model layers the special renderers bake (`ModelLayers`).
-const LAYERS: [(&str, &str); 22] = [
+const LAYERS: [(&str, &str); 24] = [
+    ("bed_head", "minecraft:bed_head#main"),
+    ("bed_foot", "minecraft:bed_foot#main"),
     ("chest", "minecraft:chest#main"),
     ("double_chest_left", "minecraft:double_chest_left#main"),
     ("double_chest_right", "minecraft:double_chest_right#main"),
@@ -361,6 +363,19 @@ pub(super) fn extents(renderer: &ItemRenderer, model: &SpecialModel) -> Vec<Vec3
         SpecialKind::ShulkerBox { openness, .. } => add("shulker_box", &shulker_pose(*openness)),
         SpecialKind::Shield => add("shield", &none),
         SpecialKind::Trident => add("trident", &none),
+        // Last: this arm calls `extents_of` directly, after `add`'s last use.
+        SpecialKind::Bed { .. } => {
+            // `BedRenderer.renderInHand` draws both pieces under the same
+            // transform as `submit` applies below.
+            for (key, z) in [("bed_head", 0.0), ("bed_foot", -1.0)] {
+                if let Some(part) = renderer.part(key) {
+                    let parent = id
+                        * Mat4::from_translation(Vec3::new(0.0, 0.5625, z))
+                        * Mat4::from_rotation_x(PI / 2.0);
+                    extents_of(part, "root", parent, &none, &mut out);
+                }
+            }
+        }
     }
     out
 }
@@ -664,6 +679,25 @@ pub(super) fn submit(
                 }
             }
         }
+        SpecialKind::Bed { texture } => {
+            // `BedRenderer.renderInHand`: the head then the foot, both facing
+            // south with the bed's colour material. `renderPiece` translates
+            // `(0, 0.5625, z)`, rotates X +90 deg, then translates
+            // `(0.5, 0.5, 0.5)`, rotates Z by `180 + SOUTH.toYRot` (360 deg,
+            // identity) and translates back, so only the first translate and
+            // the X rotation survive.
+            let sprite = mapped("bed", texture);
+            if let Some(r) = sprites.get(&sprite).copied() {
+                for (key, z) in [("bed_head", 0.0), ("bed_foot", -1.0)] {
+                    if let Some(p) = renderer.part(key) {
+                        let parent = pose
+                            * Mat4::from_translation(Vec3::new(0.0, 0.5625, z))
+                            * Mat4::from_rotation_x(PI / 2.0);
+                        draw(p, "root", parent, &none, r, white, Foil::None, sink);
+                    }
+                }
+            }
+        }
         // `EndCubeSpecialRenderer` draws the end portal/gateway effect; no
         // bundled item uses it.
         SpecialKind::EndCube { .. } => {}
@@ -845,6 +879,85 @@ mod tests {
             drawn(Value::Null, true),
             [("entity/shield/shield_base_nopattern", Foil::Standard)]
         );
+    }
+    /// `BedRenderer.renderInHand` draws the head then the foot, both facing
+    /// south under `translate(0, 0.5625, z)` and an X +90 deg turn, with the
+    /// bed's colour material (`Sheets.createBedMaterial` prefixes
+    /// `entity/bed/`). A flat quad at y=0 ends up at z=0 for the head and
+    /// z=-1 for the foot.
+    #[test]
+    fn a_bed_item_draws_its_head_and_foot_in_the_beds_colour() {
+        let root = std::env::temp_dir().join(format!("horizon-bed-item-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("items.json"), "{}").unwrap();
+        let quad = serde_json::json!({
+            "pose": [0, 0, 0, 0, 0, 0, 1, 1, 1],
+            "polygons": [[[0, 0, 0, 0, 0], [16, 0, 0, 1, 0],
+                          [16, 0, 16, 1, 1], [0, 0, 16, 0, 1]]],
+            "children": {}
+        });
+        std::fs::write(
+            root.join("entity-models.json"),
+            serde_json::json!({
+                "minecraft:bed_head#main": quad.clone(),
+                "minecraft:bed_foot#main": quad,
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let library = crate::model_library::ParsedModels::default().into_item_library();
+        let renderer = ItemRenderer::load_with_library(&root, library).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        let sprite = Rect {
+            u0: 0.25,
+            v0: 0.125,
+            u1: 0.375,
+            v1: 0.25,
+            w: 16,
+            h: 16,
+        };
+        let sprites: HashMap<String, Rect> = [("entity/bed/black".to_owned(), sprite)]
+            .into_iter()
+            .collect();
+        let model = SpecialModel {
+            kind: SpecialKind::Bed {
+                texture: "minecraft:black".to_owned(),
+            },
+        };
+        let mut quads: Vec<ItemQuad> = Vec::new();
+        submit(
+            &renderer,
+            &model,
+            &Value::Null,
+            false,
+            Mat4::IDENTITY,
+            &sprites,
+            &super::super::NoHost,
+            &mut quads,
+        );
+        assert_eq!(quads.len(), 2, "head and foot, nothing else");
+        assert!(
+            quads.iter().all(|q| q
+                .uv
+                .iter()
+                .all(|uv| (0.25..=0.375).contains(&uv[0]) && (0.125..=0.25).contains(&uv[1]))),
+            "both pieces use the bed's colour sprite"
+        );
+        let zs: Vec<f32> = quads
+            .iter()
+            .map(|q| q.pos.iter().map(|p| p.z).fold(0.0, f32::max))
+            .collect();
+        assert!(
+            zs.iter().any(|z| z.abs() < 1e-6),
+            "the head sits at z=0: {zs:?}"
+        );
+        assert!(
+            zs.iter().any(|z| (*z + 1.0).abs() < 1e-6),
+            "the foot sits at z=-1: {zs:?}"
+        );
+        let extents = super::extents(&renderer, &model);
+        assert!(extents.iter().any(|v| v.z.abs() < 1e-6));
+        assert!(extents.iter().any(|v| (v.z + 1.0).abs() < 1e-6));
     }
     /// `DecoratedPotRenderer` draws every part with `RenderTypes.entitySolid`,
     /// whose pipeline culls back faces: the pot's flat `top` and `bottom`

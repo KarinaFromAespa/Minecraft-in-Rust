@@ -12,6 +12,9 @@ pub enum SpecialKind {
         color: String,
         wall: bool,
     },
+    Bed {
+        texture: String,
+    },
     Book {
         open_angle: f32,
         page1: f32,
@@ -95,6 +98,12 @@ impl SpecialModel {
                     Some(a) => one_of(a, &["wall", "ground"])? == "wall",
                 },
             },
+            // `BedSpecialRenderer$Unbaked`: the texture is the dye colour
+            // (`minecraft:black` in every bed item model); `Sheets`
+            // prefixes it with `entity/bed/` for the material.
+            "minecraft:bed" => SpecialKind::Bed {
+                texture: ident(required(m, "texture")?)?,
+            },
             "minecraft:book" => SpecialKind::Book {
                 open_angle: float(required(m, "open_angle")?)?,
                 page1: float(required(m, "page1")?)?,
@@ -160,6 +169,10 @@ impl SpecialModel {
                     put("attachment", json!("wall"));
                 }
                 "banner"
+            }
+            SpecialKind::Bed { texture } => {
+                put("texture", json!(texture));
+                "bed"
             }
             SpecialKind::Book {
                 open_angle,

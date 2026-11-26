@@ -3023,3 +3023,85 @@ shape for the review batches.
   `NbtAccounter.create(2097152L)` in both jars. The `packet!` macro
   mirrors `composite` (fields in order); the NBT limits already match.
   Rank 2: 154/348.
+
+  Item 109 (horizon-protocol/secure_chat.rs): carry-over, comment-only.
+  1.21.5 added a checksum byte to `LastSeenMessages$Update` (2-arg ctor ->
+  3-arg, `read`/`write` gain a byte, new `verifyChecksum`/`checksum`/
+  `computeChecksum`); the Rust already has the 1.21.5 form and the wire
+  delta is adapter-handled (`adapter/translate.rs` strips the last byte
+  serverbound for `<= V1_21_4`; `adapter/client_session/step_1_21_4.rs`
+  pushes 0, which 1.21.5 reads as "not checked"). Validator semantics
+  match: 1.21.4 `applyOffset` returns boolean and `applyUpdate` returns
+  `Optional` (empty on failure), 1.21.5 throws `ValidationException`; the
+  Rust returns `Result<Vec<Signature>, String>`, matching both. The server
+  failure path matches in both: disconnect with
+  `CHAT_VALIDATION_FAILED`; 1.21.4 `unpackAndApplyLastSeen` warns the line
+  with no stack trace. The comment in `lan/hub/chat.rs` said vanilla logs
+  the exception's stack trace; corrected to the 1.21.4 form. Rank 2:
+  155/348.
+
+  Item 110 (horizon-assets/item_model.rs,
+  horizon-client/item_render/special.rs): PORTED. The 1.21.5-only deltas
+  are `RegistryContextSwapper` threading (`ClientItem.withRegistrySwapper`,
+  `BakingContext` 4-arg ctor + `contextSwapper()`,
+  `ConditionalItemModel$Unbaked.adaptProperty`/`swapContext`),
+  `ModelSelector` wrapping `SelectItemModel`'s case map, and
+  `SpecialModelWrapper` taking `ModelRenderProperties` (`getProperties`)
+  plus setting extents in `update`. None exists in the Rust (no swapper or
+  render properties anywhere; `Select` is a plain case list; `Special`
+  decodes its fields directly) -- the 1.21.4 form. Real gap found and
+  fixed: the Rust's `SpecialKind` had no `minecraft:bed` arm although
+  vanilla 1.21.4 registers it in `SpecialModelRenderers` and all 16 bed
+  item models use it (`black_bed.json`: special with base
+  `item/black_bed`, model `{type: bed, texture: minecraft:black}`), so bed
+  items failed to decode. Added `SpecialKind::Bed { texture }` (decode +
+  `to_json`), `bed_head`/`bed_foot` layers (`ModelLayers.BED_HEAD`/
+  `BED_FOOT`, present in the prepare-exported `entity-models.json` via
+  `LayerDefinitions.createRoots`), and render + extents arms following
+  `BedRenderer.renderInHand` (head then foot, both facing south, translate
+  `(0, 0.5625, z)` with z 0 / -1, X +90 deg; the 180+180 Z turn is
+  identity; `Sheets.createBedMaterial` prefixes `entity/bed/`). Tests:
+  `a_bed_special_model_decodes_its_colour_texture` (horizon-assets) and
+  `a_bed_item_draws_its_head_and_foot_in_the_beds_colour`
+  (horizon-client). Known gap, not fixed: `standing_sign`/`hanging_sign`
+  special types are registered in vanilla but have no Rust arm -- no
+  vanilla item uses them (signs use plain models), so only a pack
+  referencing them fails to decode. Rank 2: 156/348.
+
+  Item 111 (horizon-client/lan/hub.rs): carry-over.
+  `placeNewPlayer`/`respawn`/`sendAllPlayerInfo` differ only by
+  non-behavioural changes. `Entity.moveTo(DDDFF)` was renamed `snapTo` in
+  1.21.5 (bodies byte-identical: `setPosRaw`/`setYRot`/`setXRot`/
+  `setOldPosAndRot`/`reapplyPosition`; same for the `Vec3` overload).
+  `Inventory.getSelectedSlot()` in 1.21.5 is the `selected` field in
+  1.21.4. The ender-pearl/parent-vehicle load moved into
+  `Optional.ifPresent(lambda$placeNewPlayer$1)` in 1.21.5; the lambda body
+  calls exactly `loadAndSpawnEnderPearls(tag)` +
+  `loadAndSpawnParentVehicle(tag)`, the same two calls 1.21.4 makes
+  directly. The protocol-bind refactor (`UnboundProtocol.bind(Function,
+  Object)` vs `ProtocolInfo$Unbound.bind(Function)`) is network-layer
+  only. The Rust's `place_new_player`/`respawn`/`sendAllPlayerInfo`
+  already match 1.21.4 (`SetHeldSlot` from `g.selected`; respawn sets
+  position + previous position + yaw/pitch, citing `snapTo`). Known gap,
+  not a delta: the host does not re-spawn a joining player's saved thrown
+  ender pearls or parent vehicle (vanilla does in both versions). Rank 2:
+  157/348.
+
+  Item 112 (horizon-client/mobs/shulker.rs): carry-over.
+  `hitByShulkerBullet` differs only by `moveTo(Vec3)` -> `snapTo(Vec3)`
+  (bodies identical, both delegate to the 3-arg form). `setupRotations`
+  differs only by `rotateAround(Quaternionf)` -> `(Quaternionfc)`
+  signature. `defineSynchedData`: `DEFAULT_ATTACH_FACE` constant vs
+  `Direction.DOWN` literal. `addAdditionalSaveData`: 1.21.5 stores
+  `AttachFace` via `LEGACY_ID_CODEC`, 1.21.4 `putByte(get3DDataValue)` --
+  the Rust already writes `Tag::Byte` (`entity_nbt.rs`, the 1.21.4 form)
+  and reads any number, clamped 0..5. `hit_by_shulker_bullet` matches
+  vanilla: teleport, other-shulkers count excluding self (= vanilla's
+  `i - 1`), failure chance others/5.0 on the level random, baby of the
+  same colour spawned at the old position. `rotations()` matches
+  `setupRotations` (rotY(PI) + `rotateAround` of the opposite-face
+  rotation about (0, 0.5, 0)); all six `face_quat` arms verified against
+  `Direction.getRotation()` of the opposite face in the 1.21.4 jar. The
+  `getInterpolation`/`lerpTo` and component `get`/
+  `applyImplicitComponents` reshuffles change no shulker behaviour.
+  Rank 2: 158/348.
