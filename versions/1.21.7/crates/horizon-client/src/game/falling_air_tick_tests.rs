@@ -72,7 +72,13 @@ fn loaded_air_is_discarded_on_first_actual_game_tick() {
         );
         assert_eq!(game.uuid_for(ids[i]), [97, 0, 0, i as i32 + 1]);
         let (_, saved) = game.save_falling(i, &keys).expect("actual saved state");
-        assert_eq!(saved.get("BlockState"), Some(&Tag::String(state.into())));
+        assert_eq!(
+            saved.get("BlockState"),
+            Some(&Tag::compound([(
+                "Name",
+                Tag::String(state.into())
+            )]))
+        );
         assert_eq!(saved.get("Time"), Some(&Tag::Int(0)));
     }
     assert!(!game.res.facts().is_air(game.world.block(4, 199, 4)));

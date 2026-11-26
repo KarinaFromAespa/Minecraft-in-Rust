@@ -189,12 +189,17 @@ pub struct BlockState {
     pub properties: BlockProperties,
 }
 impl BlockState {
+    /// Vanilla 1.21.7's block-state form (`StateHolder.codec`, jar-verified):
+    /// `Name` plus `Properties`, the `Properties` key omitted when the state
+    /// has none. The 26.x `id`/`properties` form is datafix 5006, above
+    /// 1.21.7's CURRENT (4438): vanilla 1.21.7's palette codec dispatches
+    /// on `Name`, so a chunk saved with `id` reads back as air there.
     pub fn to_nbt(&self) -> Tag {
         let mut map = Compound::new();
-        map.insert(key("id"), Tag::String(key(&self.name)));
+        map.insert(key("Name"), Tag::String(key(&self.name)));
         if !self.properties.is_empty() {
             map.insert(
-                key("properties"),
+                key("Properties"),
                 Tag::Compound(
                     self.properties
                         .iter()
@@ -892,6 +897,41 @@ mod tests {
 
         let neither = Tag::compound([("other", Tag::String(key("minecraft:air")))]);
         assert!(BlockState::from_nbt(&neither).is_err());
+    }
+
+    /// `BlockState::to_nbt` writes vanilla 1.21.7's `Name`/`Properties`
+    /// form, never the 26.x `id`/`properties` form: the palette codec
+    /// dispatches on `Name`, so a chunk saved with `id` reads back as air
+    /// in vanilla 1.21.7.
+    #[test]
+    fn block_state_to_nbt_writes_the_1_21_7_form() {
+        let plain = BlockState {
+            name: "minecraft:stone".to_string(),
+            properties: BlockProperties::new(),
+        };
+        let tag = plain.to_nbt();
+        assert_eq!(tag.get("Name"), Some(&Tag::String(key("minecraft:stone"))));
+        assert!(tag.get("Properties").is_none());
+        assert!(tag.get("id").is_none());
+        assert!(tag.get("properties").is_none());
+        assert_eq!(BlockState::from_nbt(&tag).unwrap(), plain);
+
+        let propertied = BlockState {
+            name: "minecraft:oak_log".to_string(),
+            properties: [("axis".to_owned(), "y".to_owned())].into(),
+        };
+        let tag = propertied.to_nbt();
+        assert_eq!(
+            tag.get("Name"),
+            Some(&Tag::String(key("minecraft:oak_log")))
+        );
+        assert_eq!(
+            tag.get("Properties").and_then(|p| p.get("axis")),
+            Some(&Tag::String(key("y")))
+        );
+        assert!(tag.get("id").is_none());
+        assert!(tag.get("properties").is_none());
+        assert_eq!(BlockState::from_nbt(&tag).unwrap(), propertied);
     }
 
     /// The pre-optimization `get`, kept to compare against in the benchmark.

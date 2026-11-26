@@ -84,7 +84,7 @@ impl Game<'_> {
                     .get("block_state")
                     .and_then(|value| self.state_from_nbt(value));
                 let saved = state.map_or_else(
-                    || Tag::String("minecraft:air".into()),
+                    || Tag::compound([("Name", Tag::String("minecraft:air".into()))]),
                     |s| self.state_to_nbt(s),
                 );
                 if let Tag::Compound(fields) = tag {
