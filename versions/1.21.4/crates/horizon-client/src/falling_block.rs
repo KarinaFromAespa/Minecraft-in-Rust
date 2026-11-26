@@ -157,7 +157,7 @@ pub fn apply_effects_from_blocks(
         from,
         to,
         original,
-        |p, intersects, step_from, step_to| match block(p) {
+        |p, intersects, _step_from, _step_to| match block(p) {
             Inside::Cobweb => {
                 // makeStuckInBlock forgets the fall.
                 *fall_distance = 0.0;
@@ -165,20 +165,15 @@ pub fn apply_effects_from_blocks(
                 true
             }
             Inside::PowderSnow => {
-                // getEntityInsideCollisionShape: after a fall over 2.5 it is the
-                // 0.9-high top, which only counts once the step reaches it.
-                let corner = Vec3::new(f64::from(p.x), f64::from(p.y), f64::from(p.z));
-                let top = Aabb::new(
-                    corner,
-                    corner.add_vector(Vec3::new(1.0, f64::from(0.9_f32), 1.0)),
-                );
-                let entered = *fall_distance <= 2.5
-                    || bounds(step_from).collided_along_vector(step_to.subtract(step_from), &[top]);
-                if entered {
-                    *fall_distance = 0.0;
-                    stuck = Some(powder_snow_multiplier());
-                }
-                entered
+                // 1.21.4: `BlockBehaviour.getEntityInsideCollisionShape`
+                // is the whole block — PowderSnowBlock does not override
+                // it (its collision-shape override arrived in 1.21.5) —
+                // so `Entity.checkInsideBlocks` fires `entityInside` on
+                // plain overlap with every block the sweep reaches,
+                // whatever the fall distance.
+                *fall_distance = 0.0;
+                stuck = Some(powder_snow_multiplier());
+                true
             }
             // BubbleColumnBlock.entityInside acts only when intersecting.
             Inside::BubbleColumn(column) if intersects => {

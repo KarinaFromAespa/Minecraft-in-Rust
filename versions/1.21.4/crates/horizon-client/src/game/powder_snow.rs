@@ -34,9 +34,10 @@ impl Game<'_> {
         }
         self.extinguish_sound([at.x, at.y, at.z]);
     }
-    /// `PowderSnowBlock.entityInside` (runBefore EXTINGUISH) for a burning
-    /// player: `Level.destroyBlock(pos, false)`. A client of a remote server
-    /// leaves it to the server.
+    /// `PowderSnowBlock.entityInside` for a burning player: the block
+    /// melts (`Level.destroyBlock(pos, false)`; 1.21.5 moved this behind
+    /// the `InsideBlockEffectApplier` as runBefore EXTINGUISH). A client
+    /// of a remote server leaves it to the server.
     pub(super) fn powder_snow_melt(&mut self, pos: BlockPos) {
         let at = [pos.x, pos.y, pos.z];
         if self.remote.is_some() || !self.is_powder_snow(at) {

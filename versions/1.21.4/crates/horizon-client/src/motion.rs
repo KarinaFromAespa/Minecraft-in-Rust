@@ -1838,11 +1838,10 @@ impl MotionWorld<'_, '_, '_> {
             // into those. Powder snow's override (its collision shape)
             // and the nether portal's (its visual slab) are 1.21.5
             // additions — in 1.21.4 both fire entityInside on plain
-            // whole-block overlap. The sweep still tests powder snow's
-            // collision shape (empty, or the whole block with leather
-            // boots — inside either way) and the lava cauldron's
-            // shape-or-content (vanilla checks the content inside
-            // entityInside, `isEntityInsideContent`).
+            // whole-block overlap, which the sweep already found, so no
+            // shape test is needed for powder snow. The lava cauldron's
+            // shape-or-content is still tested (vanilla checks the content
+            // inside entityInside, `isEntityInsideContent`).
             if matches!(name, "minecraft:end_portal" | "minecraft:tripwire") {
                 continue;
             }
@@ -1851,7 +1850,7 @@ impl MotionWorld<'_, '_, '_> {
             // found, and the content check lives in
             // layered_cauldron_inside
             // (AbstractCauldronBlock.isEntityInsideContent).
-            let inside = layered || !(powder_snow || content_top.is_some()) || {
+            let inside = layered || powder_snow || content_top.is_none() || {
                 let context = self.context();
                 let binding = self.collision_binding;
                 let shape = binding.collision_shape_with_context(
@@ -1860,24 +1859,21 @@ impl MotionWorld<'_, '_, '_> {
                     p,
                     &context,
                 )?;
-                powder_snow && (shape.is_empty() || shape.boxes() == VoxelShape::block().boxes())
-                    || {
-                        let offset = Vec3::new(f64::from(p.x), f64::from(p.y), f64::from(p.z));
-                        let mut boxes: Vec<_> = shape.moved(offset).boxes().to_vec();
-                        if let Some(top) = content_top {
-                            // The lava cauldron's shape or its content,
-                            // Block.column(12, 4, top). (Layered cauldrons
-                            // never reach here: they short-circuit above.)
-                            boxes.push(Aabb::new(
-                                Vec3::new(2.0 / 16.0, 4.0 / 16.0, 2.0 / 16.0).add_vector(offset),
-                                Vec3::new(14.0 / 16.0, top, 14.0 / 16.0).add_vector(offset),
-                            ));
-                        }
-                        self.player
-                            .dimensions
-                            .bounds(from)
-                            .collided_along_vector(to.subtract(from), &boxes)
-                    }
+                let offset = Vec3::new(f64::from(p.x), f64::from(p.y), f64::from(p.z));
+                let mut boxes: Vec<_> = shape.moved(offset).boxes().to_vec();
+                if let Some(top) = content_top {
+                    // The lava cauldron's shape or its content,
+                    // Block.column(12, 4, top). (Layered cauldrons
+                    // never reach here: they short-circuit above.)
+                    boxes.push(Aabb::new(
+                        Vec3::new(2.0 / 16.0, 4.0 / 16.0, 2.0 / 16.0).add_vector(offset),
+                        Vec3::new(14.0 / 16.0, top, 14.0 / 16.0).add_vector(offset),
+                    ));
+                }
+                self.player
+                    .dimensions
+                    .bounds(from)
+                    .collided_along_vector(to.subtract(from), &boxes)
             };
             if inside && visited.insert(p.pack()) {
                 // The server's early pass: only what `makeStuckInBlock` does

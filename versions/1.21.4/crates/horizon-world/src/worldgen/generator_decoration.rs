@@ -972,7 +972,7 @@ impl FeatureWorld for World<'_> {
         &mut self,
         position: [i32; 3],
         state: BlockStateId,
-        flags: i32,
+        _flags: i32,
     ) -> Result<bool, RegionError> {
         if !self
             .zone
@@ -998,21 +998,24 @@ impl FeatureWorld for World<'_> {
         if !same_block {
             self.block_entities.retain(|(p, _)| *p != position);
         }
-        // WorldGenRegion.setBlock: BlockState.getPostProcessPos unless UPDATE_KNOWN_SHAPE.
-        if flags & 16 == 0 {
-            let [x, y, z] = position;
-            let mark = if self.decoration.postprocess_self.contains(&state) {
-                Some(y)
-            } else if self.decoration.postprocess_above.contains(&state) {
-                Some(y.wrapping_add(1))
-            } else {
-                None
-            };
-            if let Some(y) = mark {
-                self.region
-                    .chunk_mut(x >> 4, z >> 4)?
-                    .mark_postprocessing(x, y, z);
-            }
+        // `WorldGenRegion.setBlock` (1.21.4): `BlockState.hasPostProcess`
+        // marks the position for postprocessing, with no flags gate —
+        // 1.21.4's `setBlock` never reads its flags int. 1.21.5 skips the
+        // mark when UPDATE_KNOWN_SHAPE (16) is set, which the structure
+        // processor passes (`flags & !1 | 16`), so the gate dropped marks
+        // after structure placement here.
+        let [x, y, z] = position;
+        let mark = if self.decoration.postprocess_self.contains(&state) {
+            Some(y)
+        } else if self.decoration.postprocess_above.contains(&state) {
+            Some(y.wrapping_add(1))
+        } else {
+            None
+        };
+        if let Some(y) = mark {
+            self.region
+                .chunk_mut(x >> 4, z >> 4)?
+                .mark_postprocessing(x, y, z);
         }
         Ok(true)
     }

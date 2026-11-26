@@ -71,38 +71,6 @@ fn the_autosave_waits_for_three_hundred_seconds_of_ticks() {
     assert_eq!(autosave_interval(0.0), 100);
 }
 
-/// `Minecraft.<init>`: only an explicit `startedCleanly: false` is an
-/// unclean start, and it leaves fullscreen; the packs stay selected.
-#[test]
-fn an_unclean_start_leaves_fullscreen_and_keeps_the_packs() {
-    let fullscreen = || Settings {
-        fullscreen: true,
-        resource_packs: vec!["pack".into()],
-        ..Default::default()
-    };
-    // The key absent (a first boot) is a clean start.
-    let mut settings = fullscreen();
-    assert!(!unclean_start_recovery(&mut settings));
-    assert!(settings.fullscreen);
-    let mut settings = fullscreen();
-    settings.file.fullscreen_resolution = Some("1920x1080@60:24".into());
-    settings.file.set(
-        "startedCleanly",
-        horizon_client::options_file::V::Bool(false),
-    );
-    assert!(unclean_start_recovery(&mut settings));
-    assert!(!settings.fullscreen);
-    assert_eq!(settings.file.fullscreen_resolution, None);
-    assert_eq!(settings.resource_packs, ["pack"]);
-    let mut settings = fullscreen();
-    settings.file.set(
-        "startedCleanly",
-        horizon_client::options_file::V::Bool(true),
-    );
-    assert!(!unclean_start_recovery(&mut settings));
-    assert!(settings.fullscreen);
-}
-
 /// `NativeScreenView.id` (the `screen_render_post` hook) is a mod's
 /// contract: every `Screen` has its own id, and it does not change.
 /// `Screen::id`'s match makes a new variant give itself one; this list

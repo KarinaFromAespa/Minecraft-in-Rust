@@ -372,11 +372,6 @@ impl Loading {
         self.menu.handoff(&mut game);
         game.apply_settings();
         game.previous = Instant::now();
-        // Minecraft.onGameLoadFinished: a start that made it this far is clean.
-        game.settings.file.set(
-            "startedCleanly",
-            horizon_client::options_file::V::Bool(true),
-        );
         game.settings.save(&Game::options_path());
         log::info!(
             "Horizon: startup handoff {} ms (renderer {} ms, start_game {} ms)",
@@ -510,23 +505,4 @@ pub(super) fn damaged_prepared(root: &std::path::Path) -> Option<String> {
         }
     }
     None
-}
-
-/// `Minecraft.<init>`: `startedCleanly` left false means the previous start
-/// died before `onGameLoadFinished`. Vanilla then leaves fullscreen
-/// ("resetting fullscreen mode") so a start that died on the display mode can
-/// come back; the resource packs are rolled back only when their load fails
-/// (`rollbackResourcePacks`), not here. True when the last start was unclean.
-pub(super) fn unclean_start_recovery(settings: &mut Settings) -> bool {
-    // Vanilla's field defaults true: only an explicit `false` is an unclean
-    // start; an options file that never had the key is not one.
-    let unclean = matches!(
-        settings.file.get("startedCleanly"),
-        Some(horizon_client::options_file::V::Bool(false))
-    );
-    if unclean {
-        settings.fullscreen = false;
-        settings.file.fullscreen_resolution = None;
-    }
-    unclean
 }

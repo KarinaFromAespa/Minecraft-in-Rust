@@ -2737,3 +2737,94 @@ shape for the review batches.
   New ignored test `a_crossbow_loads_on_release_not_on_full_charge`
   (needs prepared resources) pins the release-load + early-release
   cases. Rank 2: 142/348.
+
+  Item 97 (horizon-client/game/powder_snow.rs): PORTED — the powder
+  snow inside shape is the 1.21.5 rule in the Rust, not 1.21.4's. In
+  1.21.4 `BlockBehaviour.getEntityInsideCollisionShape` returns the whole
+  block by default and `PowderSnowBlock` does not override it (its
+  collision-shape override arrived in 1.21.5), so
+  `Entity.checkInsideBlocks` fires `entityInside` on plain whole-block
+  overlap. `falling_block.rs` required `fall_distance <= 2.5` or a
+  collision with the 0.9-high FALLING top, and `motion.rs` fell through
+  to the same shape test when falling fast; both now fire on plain sweep
+  overlap (fall distance still reset, stuck multiplier 0.9/1.5/0.9).
+  `getCollisionShape` was already the 1.21.4 form (`is_placement` is
+  dead — the placement flag is always false in 1.21.4; `fallDistance`
+  f64 vs f32 is exact widening, same 2.5 threshold). `entityInside`'s
+  client parts are byte-identical; the fire-melt tail is inline in
+  1.21.4 vs the applier's runBefore EXTINGUISH in 1.21.5, so the
+  `powder_snow.rs` doc cited the 1.21.5 form — fixed. `pickupBlock` is
+  body-identical (Player vs LivingEntity param, unused); `fallOn`
+  differs only in the float/double param (same 4.0/7.0 sound
+  thresholds). Rank 2: 143/348.
+
+  Item 98 (horizon-world/worldgen/generator_decoration.rs): PORTED —
+  `WorldGenRegion.setBlock` in 1.21.4 never reads its flags int
+  (`setBlockState(pos, state, false)`; the postprocess mark happens
+  whenever `hasPostProcess`). 1.21.5 passes the flags through and skips
+  the mark when `flags & 16` (UPDATE_KNOWN_SHAPE) is set. The Rust's
+  `World::set_block` had the 1.21.5 gate, reachable with bit 16 via the
+  structure processor (`processor.rs:1614` passes `flags & !1 | 16` into
+  `update_from_neighbour_shapes`), so structure-placed mushrooms,
+  magma and soul sand lost their postprocess marks; the gate is removed
+  and the flags param is now ignored. The `hasPostProcess` set is
+  identical in both jars (brown/red mushroom + magma block; soul sand
+  is not in the set in either version, so its `postprocess_above` entry
+  is version-independent and left as is). `getBlockEntity` differs only
+  in `getString` vs `getStringOr`; `levelEvent`/`playSound` only widen
+  Player to Entity; `applyImplicitComponents` differs only in the
+  parameter type; `placeSpike` differs only in `moveTo` vs `snapTo`
+  (pure rename). Rank 2: 144/348.
+
+  Item 99 (horizon-client-render/block_entity_anim.rs): comment-only
+  carry-over. The three renderers' `render` methods are body-identical
+  modulo the 1.21.5-only 7th Vec3 camera parameter (slot renumbering
+  only; `Quaternionf` to `Quaternionfc` is a JOML API rename).
+  `EndGatewayBlock.entityInside` is byte-identical (the 1.21.5 applier
+  parameter is unused). `BellBlockEntity.tick` differs only in the
+  `Level.playSound` overload. `EnchantingTableBlockEntity`
+  load/saveAdditional differ only in the NBT API form. `BlockTags`:
+  1.21.5 adds 6 tags (`camels_spawnable_on`,
+  `dry_vegetation_may_place_on`, `edible_for_sheep`,
+  `plays_ambient_desert_block_sounds`, `replaceable_by_mushrooms`,
+  `sword_instantly_mines`) and drops `dead_bush_may_place_on`. One doc
+  fix: `ConduitBlockEntity`'s method is `updateDestroyTarget` in BOTH
+  jars; the 1.21.4 tree's doc said `updateAndAttackTarget`.
+  Findings NOT fixed here (1.21.5-only tags referenced in the 1.21.4
+  tree — recorded for their owning items): sheep eat via
+  `minecraft:edible_for_sheep` (`goals.rs`, item 88) but 1.21.4's
+  `EatBlockGoal` uses `IS_TALL_GRASS` = `BlockStatePredicate.forBlock`
+  (SHORT_GRASS) or GRASS_BLOCK below, so sheep never eat short grass
+  here; camels spawn via `minecraft:camels_spawnable_on`
+  (`spawn_rules.rs`, item 88) but 1.21.4 has no `checkCamelSpawnRules`
+  and no CAMEL entry in `SpawnPlacements` (camels spawn only via desert
+  village structures), so camels should never naturally spawn here;
+  huge mushrooms replace via `minecraft:replaceable_by_mushrooms`
+  (`tree_blocks.rs`/`vegetation.rs`, items 252/253) but 1.21.4's
+  `AbstractHugeMushroomFeature` uses `isAir || is(LEAVES)` in its space
+  check and no tag in `place`, so mushrooms only replace air here.
+  Also: `block_entity_nbt.rs` writes `CustomName` via the 1.21.5 NBT
+  codec form (`storeNullable`, `ComponentSerialization.CODEC`) while
+  1.21.4 writes a JSON string (`Component$Serializer.toJson`) —
+  recorded for the block-entity-NBT items (notably item 163).
+  Rank 2: 145/348.
+
+  Item 100 (horizon-client-render/options_file.rs): PORTED —
+  `Options.startedCleanly` is 1.21.5-only: neither 1.21.4's `Options`
+  nor its `Minecraft` class contains the field (no `startedCleanly`,
+  `resetting fullscreen`, or `unexpected shutdown` strings). The Rust's
+  unclean-start recovery (init: read flag, set false, save;
+  `onGameLoadFinished`: set true, save; leave fullscreen + clear
+  `fullscreenResolution` when false) is the 1.21.5 mechanism; removed
+  entirely: the `startedCleanly` entry from the options TABLE,
+  `unclean_start_recovery`, the `game.rs` init block and both
+  `onGameLoadFinished` markers, and the `core_tests` test that pinned
+  the 1.21.5 behavior (a 1.21.5-behavior test, not a 1.21.4 one). The
+  two `save()` calls are kept as plain persistence points. Everything
+  else in `Options` is NBT-API-only: `dataFix`, `load`'s
+  fancyGraphics-to-graphicsMode migration and `fullscreenResolution`
+  store, `save`'s `fullscreenResolution` write (the Rust keeps the
+  string verbatim and writes it back — the 1.21.4 form in effect),
+  `processOptions` (identical except the `startedCleanly` line),
+  constructor (`soundSourceVolumes` EnumMap factory form only).
+  Rank 2: 146/348.

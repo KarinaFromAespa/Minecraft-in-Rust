@@ -655,7 +655,7 @@ pub struct ConduitCheck {
     /// The shape changed: `CONDUIT_ACTIVATE` (true) or `CONDUIT_DEACTIVATE`.
     pub toggled: Option<bool>,
     /// The frame blocks counted, while the conduit is active: `applyEffects`
-    /// and `updateAndAttackTarget` follow (the attack needs 42 or more).
+    /// and `updateDestroyTarget` follow (the attack needs 42 or more).
     pub frames: Option<usize>,
 }
 

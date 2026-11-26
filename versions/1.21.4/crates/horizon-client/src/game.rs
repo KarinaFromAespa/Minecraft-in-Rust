@@ -558,9 +558,7 @@ use key_codes::{
     glfw_button, glfw_modifiers, keyboard_button,
 };
 use launch_options::Options;
-use loading_screen::{
-    App, Loading, leave_fullscreen_after, missing_resources, run_event_loop, unclean_start_recovery,
-};
+use loading_screen::{App, Loading, leave_fullscreen_after, missing_resources, run_event_loop};
 use loading_window::{
     build_renderer, loading_frame, loading_renderer, prepare_renderer_textures, start_game,
 };
@@ -12589,25 +12587,11 @@ pub fn run_with() -> Result<()> {
     mods::register_components(&vanilla_root)?;
     mods::register_standalone_models();
     mods::register_layer_definitions();
-    let mut early_settings = Settings::load(&Game::options_path());
+    let early_settings = Settings::load(&Game::options_path());
     // The player's Polytone pack options (#11486), before any pack is read.
     horizon_client::packs::set_polytone_choices(horizon_client::packs::load_polytone_choices(
         &horizon_client::packs::polytone_choices_file(),
     ));
-    // Minecraft.<init>: read the last start's flag, then mark this one as not
-    // finished until onGameLoadFinished. A dedicated server has no options.txt.
-    if options.execution_role.is_client() {
-        if unclean_start_recovery(&mut early_settings) {
-            log::warn!(
-                "Detected unexpected shutdown during last game startup: resetting fullscreen mode"
-            );
-        }
-        early_settings.file.set(
-            "startedCleanly",
-            horizon_client::options_file::V::Bool(false),
-        );
-        early_settings.save(&Game::options_path());
-    }
     // Minecraft's constructor opens the narrator; a server has none.
     if options.execution_role.is_client() {
         narrator::start(&early_settings);
@@ -12666,13 +12650,9 @@ pub fn run_with() -> Result<()> {
         None,
         loaded.entity_models,
     )?;
-    if let Some(mut game) = game {
-        // Minecraft.onGameLoadFinished: a start that made it this far is clean.
+    if let Some(game) = game {
+        // Persist the settings the start settled on.
         if game.options.execution_role.is_client() {
-            game.settings.file.set(
-                "startedCleanly",
-                horizon_client::options_file::V::Bool(true),
-            );
             game.settings.save(&Game::options_path());
         }
         run_event_loop(game)?;
