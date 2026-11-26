@@ -3,7 +3,8 @@
     "version": "1.21.11",
     "manifest_sha1": "812ee7fdfdf648bb872f7a1dca33718de4e786b4",
   "accepted_manifest_sha1": [
-   "a969d96978af7b52dba8df44e177f48ec4ebe0d8"
+   "a969d96978af7b52dba8df44e177f48ec4ebe0d8",
+   "673208434aebac19a7317e40f6b1588169e4e1f1"
   ],
   "accepted_manifest_note": "Mojang republished the 1.21.11 version JSON (2026-11-19): client and server jars byte-identical to the pinned ones; only the asset-index-29 hash changed.",
     "client_sha1": "ba2df812c2d12e0219c489c4cd9a5e1f0760f5bd",

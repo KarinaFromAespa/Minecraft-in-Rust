@@ -9,7 +9,8 @@
       "5df1795e16eea19d75b923d66ecca9ce183353c5",
       "80608ff6753705b6a82e2cb86a5937d4d233abd4",
       "9f67e10ed013deeaad20ac3c800652765d493408",
-      "ead839cbccf0ddf013c3f935f2840080b5cb0d26"
+      "ead839cbccf0ddf013c3f935f2840080b5cb0d26",
+      "8696584e8d2da5726487597e6c5777480387ec22"
     ],
     "accepted_manifest_note": "Other 26.3 version JSONs Mojang republished: only assetIndex differs (non-English translations), jars and libraries are identical. A launcher may still hold any of them.",
     "accepted_asset_index_sha1": [

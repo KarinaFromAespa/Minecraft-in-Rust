@@ -6,7 +6,8 @@
     "server_sha1": "05e4b48fbc01f0385adb74bcff9751d34552486c",
     "java_major": 21,
     "accepted_manifest_sha1": [
-      "5149e9aa052c041683a5b2d80aecaaabde953b87"
+      "5149e9aa052c041683a5b2d80aecaaabde953b87",
+      "609e61c2263741a9eead28c8efde6f2e1002e5e8"
     ],
     "accepted_manifest_note": "Mojang republished the 1.21.7 version JSON (asset-index-26 hash + one x86 JVM flag); the client/server jars are byte-identical to the pinned sha1s."
   },

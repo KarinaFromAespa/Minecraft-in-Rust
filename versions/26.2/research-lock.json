@@ -3,7 +3,8 @@
     "version": "26.2",
     "manifest_sha1": "f28ad96ed5d65e2438da836144a3de15bb9cafe7",
     "accepted_manifest_sha1": [
-      "cf103b8fab4900562221bf7f23b72725dd9a914a"
+      "cf103b8fab4900562221bf7f23b72725dd9a914a",
+      "e1727c77c55b6a2eba6017591e866a02f3f5cb8d"
     ],
     "accepted_manifest_note": "Mojang republished the 26.2 version JSON (2026-11-18): client and server jars byte-identical to the pinned ones; only the asset-index-32 hash and one x86 JVM flag changed.",
     "client_sha1": "2dc72797acbc1b63fc16a11c4ac393605f453754",
