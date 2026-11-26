@@ -343,6 +343,14 @@ impl Sprites {
             None => self.load(root, name),
         }
     }
+    /// Point `alias` at the layer `target` already has: a second name for the
+    /// same sprite, with no second copy of its pixels. A name the atlas lacks
+    /// is left alone.
+    pub fn alias(&mut self, alias: &str, target: &str) {
+        if let Some(&layer) = self.layers.get(target) {
+            self.layers.insert(alias.to_owned(), layer);
+        }
+    }
     /// The layer of a texture, added on first use. A texture that is missing
     /// or does not load (a resource pack's filter or a broken file) becomes
     /// vanilla's missing texture, as in a stitched atlas.
@@ -879,6 +887,42 @@ mod tests {
         assert_eq!(side_within(64, 1300, 1536 << 20), 64);
         // Never under vanilla's size, whatever the budget.
         assert_eq!(side_within(512, 1300, 1), SPRITE_SIZE);
+    }
+    #[test]
+    fn an_absent_oit_destroy_stage_aliases_the_plain_one() {
+        // 1.21.7 ships no destroy_oit_stage_* textures: the OIT name must
+        // resolve to the plain stage's sprite, not the missing texture.
+        let root = std::env::temp_dir().join(format!("horizon-destroy-oit-{}", std::process::id()));
+        fs::create_dir_all(root.join("assets/minecraft/textures/block")).unwrap();
+        let mut encoder = png::Encoder::new(
+            File::create(root.join("assets/minecraft/textures/block/destroy_stage_0.png")).unwrap(),
+            16,
+            16,
+        );
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        encoder
+            .write_header()
+            .unwrap()
+            .write_image_data(&[200, 200, 200, 255].repeat(16 * 16))
+            .unwrap();
+        let mut sprites = Sprites::with_disk_cache(&root);
+        let plain = sprites
+            .insert(&root, "minecraft:block/destroy_stage_0")
+            .unwrap();
+        assert!(
+            sprites
+                .try_insert(&root, "minecraft:block/destroy_oit_stage_0")
+                .is_err()
+        );
+        sprites.alias(
+            "minecraft:block/destroy_oit_stage_0",
+            "minecraft:block/destroy_stage_0",
+        );
+        assert_eq!(
+            sprites.layers.get("minecraft:block/destroy_oit_stage_0"),
+            Some(&plain)
+        );
     }
     #[test]
     fn labpbr_maps_follow_the_texture_budget() {

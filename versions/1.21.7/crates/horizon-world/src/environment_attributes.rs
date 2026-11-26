@@ -764,7 +764,15 @@ impl std::fmt::Debug for AttributeMap {
 
 impl AttributeMap {
     /// `EnvironmentAttributeMap.CODEC`: a JSON object from attribute id to entry.
+    /// A missing field is an empty map, not malformed data: 1.21.7 dimension
+    /// types and biomes carry no `attributes` at all (the environment-attribute
+    /// system arrived later), so indexing the absent key gives null and must
+    /// not warn — every biome did, about sixty times a session. A field that
+    /// is present but not an object is still an error.
     pub fn parse(json: &Json) -> Result<Self, String> {
+        if json.is_null() {
+            return Ok(Self::default());
+        }
         let map = json.as_object().ok_or("attributes are not an object")?;
         map.iter()
             .map(|(id, entry)| {
@@ -875,5 +883,30 @@ impl Attribute {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn a_missing_attributes_field_is_an_empty_map() {
+        // Every 1.21.7 biome and dimension type has no "attributes" key, so
+        // indexing it gives null: that is an empty map, not malformed data.
+        let map = AttributeMap::parse(&Json::Null).unwrap();
+        assert!(map.is_empty());
+        // A field that is present but not an object is still an error.
+        assert!(AttributeMap::parse(&json!("not an object")).is_err());
+        assert!(AttributeMap::parse(&json!(42)).is_err());
+    }
+
+    #[test]
+    fn an_attributes_object_parses() {
+        // The plains sky colour, as the legacy dimension synthesis builds it.
+        let map = AttributeMap::parse(&json!({"visual/sky_color": 7_907_327})).unwrap();
+        assert!(!map.is_empty());
+        assert!(AttributeMap::parse(&json!({"minecraft:unknown/attribute": 1})).is_err());
     }
 }
