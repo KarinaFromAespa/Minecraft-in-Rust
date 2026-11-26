@@ -104,12 +104,30 @@ impl CommandBlock {
         Self {
             command: text(tag.get("Command")).unwrap_or_default(),
             success_count: number(tag.get("SuccessCount")).unwrap_or(0) as i32,
-            custom_name: tag.get("CustomName").cloned(),
+            // `BaseCommandBlock.load` reads `CustomName` with `getString`:
+            // a compound (the 1.21.5 form) reads as nothing, and
+            // `parseCustomNameSafe` drops a malformed string.
+            custom_name: tag
+                .get("CustomName")
+                .filter(|t| matches!(t, Tag::String(_)))
+                .cloned(),
             track_output,
             last_output: track_output
                 .then(|| tag.get("LastOutput"))
                 .flatten()
-                .map(|t| scoreboard::comp_text(&scoreboard::tag_to_json(t))),
+                .and_then(|t| match t {
+                    // `LastOutput` is a JSON string in 1.21.4
+                    // (`Component$Serializer.toJson`); a malformed one
+                    // becomes a literal of the parse error, as vanilla's
+                    // `catch (Throwable)` does.
+                    Tag::String(s) => {
+                        match serde_json::from_str::<serde_json::Value>(&s.to_string_lossy()) {
+                            Ok(v) => Some(scoreboard::comp_text(&v)),
+                            Err(e) => Some(Text::literal(e.to_string())),
+                        }
+                    }
+                    _ => None,
+                }),
             update_last_execution,
             last_execution: if update_last_execution {
                 number(tag.get("LastExecution")).unwrap_or(-1)
@@ -122,7 +140,8 @@ impl CommandBlock {
         }
     }
     /// `CommandBlockEntity.saveAdditional`. The last output is the component
-    /// itself (`ComponentSerialization.CODEC`), styles and click events kept.
+    /// as a JSON string (`Component$Serializer.toJson`), styles and click
+    /// events kept.
     pub fn save(&self) -> Vec<(&'static str, Tag)> {
         let mut out = vec![
             ("Command", Tag::String(self.command.as_str().into())),
@@ -135,13 +154,23 @@ impl CommandBlock {
         if self.track_output
             && let Some(last) = &self.last_output
         {
-            out.push(("LastOutput", scoreboard::component_tag(&last.component())));
+            out.push((
+                "LastOutput",
+                Tag::String(
+                    serde_json::to_string(&last.component())
+                        .unwrap_or_default()
+                        .as_str()
+                        .into(),
+                ),
+            ));
         }
         out.push((
             "UpdateLastExecution",
             Tag::Byte(i8::from(self.update_last_execution)),
         ));
-        if self.update_last_execution && self.last_execution != -1 {
+        // `BaseCommandBlock.save` writes the execution time only while it
+        // is positive (1.21.5 writes any time but -1).
+        if self.update_last_execution && self.last_execution > 0 {
             out.push(("LastExecution", Tag::Long(self.last_execution)));
         }
         out.push(("powered", Tag::Byte(i8::from(self.powered))));
@@ -161,12 +190,19 @@ impl CommandBlock {
             .map(Text::plain)
             .unwrap_or_default()
     }
-    /// `getName`: the custom name, else `@`.
+    /// `getName`: the custom name, else `@`. The name is a JSON string in
+    /// 1.21.4, so a stored string parses into its component; an unparsable
+    /// one is no name at all (`parseCustomNameSafe`).
     pub fn name(&self) -> Text {
-        self.custom_name.as_ref().map_or_else(
-            || Text::literal("@"),
-            |t| scoreboard::comp_text(&scoreboard::tag_to_json(t)),
-        )
+        self.custom_name
+            .as_ref()
+            .and_then(|t| match t {
+                Tag::String(s) => serde_json::from_str::<serde_json::Value>(&s.to_string_lossy())
+                    .ok()
+                    .map(|v| scoreboard::comp_text(&v)),
+                _ => None,
+            })
+            .unwrap_or_else(|| Text::literal("@"))
     }
 }
 
@@ -227,6 +263,38 @@ mod tests {
         assert!(!power_schedules(Mode::Redstone, true, true, false));
         assert!(!power_schedules(Mode::Redstone, false, true, true));
         assert!(!power_schedules(Mode::Sequence, false, true, false));
+    }
+
+    /// `BaseCommandBlock.save`/`load` in 1.21.4 write the last output and
+    /// the custom name as JSON strings, not the component itself, and skip
+    /// an execution time of zero.
+    #[test]
+    fn components_save_as_json_strings_and_zero_execution_is_not_kept() {
+        let block = CommandBlock {
+            command: "say hi".into(),
+            custom_name: Some(Tag::String("{\"text\":\"Hi\",\"color\":\"red\"}".into())),
+            last_output: Some(Text::literal("[12:00:00] hi")),
+            last_execution: 0,
+            ..CommandBlock::default()
+        };
+        assert_eq!(block.name().plain(), "Hi");
+        let tag = Tag::compound(block.save());
+        assert_eq!(tag.get("LastExecution"), None);
+        let output = tag.get("LastOutput");
+        assert!(matches!(output, Some(Tag::String(_))), "{output:?}");
+        let back = CommandBlock::load(&tag);
+        assert_eq!(back.last_output_string(), "[12:00:00] hi");
+        assert_eq!(back.name().plain(), "Hi");
+        // A malformed output becomes a literal of the parse error, and a
+        // compound (the 1.21.5 form) reads as nothing.
+        let bad = Tag::compound(vec![
+            ("LastOutput", Tag::String("not json".into())),
+            ("CustomName", Tag::compound(Vec::<(&str, Tag)>::new())),
+        ]);
+        let loaded = CommandBlock::load(&bad);
+        assert!(loaded.last_output.is_some());
+        assert_eq!(loaded.name().plain(), "@");
+        assert!(loaded.custom_name.is_none());
     }
 
     #[test]

@@ -2911,3 +2911,105 @@ shape for the review batches.
   open parent decision (item 52). The block-entity create/remove/mismatch
   path inside `setBlockState` is identical in both jars.
   Rank 2: 150/348.
+
+  Item 105 (horizon-client-render/command_block.rs): PORTED.
+  `BaseCommandBlock.save` in 1.21.4 writes `LastOutput` as a JSON string
+  (`Component$Serializer.toJson`) and `LastExecution` only while
+  `updateLastExecution && lastExecution > 0`; the Rust wrote the codec
+  compound and any value but -1. `save` now writes
+  `Tag::String(serde_json::to_string(component))` and skips
+  `LastExecution` at 0. `load` reads `CustomName`/`LastOutput` only from
+  String tags (1.21.4's `getString` drops a compound) and parses the JSON
+  before `comp_text`: a malformed `LastOutput` becomes a literal of the
+  parse error, as vanilla's `catch (Throwable)` does, and an unparsable
+  `CustomName` is no name (`parseCustomNameSafe`); `name()` parses the
+  stored JSON string the same way. `load` otherwise matches: `track_output`
+  and `update_last_execution` default true, `LastExecution` -1 unless
+  present and updating. `CommandBlockEntity.loadAdditional` is NBT-API-only
+  noise (`getBooleanOr` vs `getBoolean`, same false defaults); the 1.21.5
+  constructor's explicit powered/auto/conditionMet false inits are field
+  defaults in 1.21.4; `isAutomatic`/`onModeSwitch`/`setAutomatic` differ
+  in spacing only. Test
+  `components_save_as_json_strings_and_zero_execution_is_not_kept` covers
+  the styled round-trip, the skipped zero, and the dropped compound forms.
+  Rank 2: 151/348.
+
+  Item 106 (horizon-client/crafting.rs): PORTED, two fixes. (1) The
+  special-recipes loader gap: all 11 1.21.4 special JSONs carry only
+  `type` + `category`, and the loader read ingredients from the JSON and
+  dropped them; three types (`crafting_special_armordye`,
+  `crafting_special_mapcloning`, `crafting_special_tippedarrow`) had no
+  loader arm at all, so armor dyeing, map cloning and tipped arrows could
+  not be crafted. Ported the 1.21.7 fix (b680e303) with every hardcoded
+  input verified against the 1.21.4 server jar: `ing_or`/`result_or`/`dyes`
+  fallbacks; armor dye targets `#minecraft:dyeable` with the sixteen dyes
+  (1.21.4 has no `#minecraft:dyes` tag); banner duplication `#minecraft:banners`
+  (vanilla tests `instanceof BannerItem`); shield decoration `#minecraft:banners`
+  + shield; book cloning source `written_book` + material `writable_book`
+  (1.21.4 has NO `#minecraft:book_cloning_target` tag — the 1.21.7
+  fallback would have resolved to an empty ingredient here); firework
+  rocket paper/gunpowder/firework_star, 3 out (assemble `iconst_3`);
+  firework star `SHAPE_BY_ITEM` (large_ball fire_charge, burst feather,
+  star gold_nugget, creeper `#minecraft:skulls`) with gunpowder/diamond/
+  glowstone_dust; star fade firework_star; map extending filled_map +
+  paper (`Items.MAP` in `MapExtendingRecipe` is only the `ShapedRecipe`
+  dummy result); map cloning as a transmute, filled_map + 1..8 map,
+  `add_count`; decorated pot `#minecraft:decorated_pot_ingredients`;
+  tipped arrow as an imbue, lingering potion + arrow, 8 out (assemble
+  `bipush 8`). `BookCloningRecipe` itself already matched
+  (`WRITTEN_BOOK`/`WRITABLE_BOOK` items; `tryCraftCopy` caps generation
+  at 2, which the Rust's `[0, 1]` bounds default reproduces; remaining
+  items stop at the first written book). Test
+  `special_recipes_load_from_type_and_category_only_jsons` loads all 11.
+  (2) `DyedItemColor`: 1.21.4's record is `(rgb, showInTooltip)` with
+  `CODEC` the record plus a bare-int alternative and `STREAM_CODEC`
+  int+bool; the Rust kept a bare `i32`, so a compound `dyed_color`
+  decoded to `None` (the colour was lost) and the line could never hide.
+  `StackData` gains `dyed_color_hidden` (default shown); the decode
+  accepts an int or `{rgb, show_in_tooltip}` in both decode paths; the
+  encode writes the record when hidden; `dyed_line` gates on it (the
+  packet path already hid it through `TooltipDisplay`); `applyDyes`
+  preserves the flag, as vanilla does (it keeps the existing
+  `showInTooltip`); the cauldron wash clears it. Only the loot
+  `ToggleTooltips` function and explicit components set it false.
+  `Recipe.recipeBookCategory` is static-init only (`KEY_CODEC` added in
+  1.21.5): no change. Rank 2: 152/348.
+
+  Item 107 (horizon-client/mobs/ravager.rs): carry-over.
+  `CropBlock.entityInside` and `PitcherCropBlock.entityInside` are the
+  same trample in both versions (ServerLevel + Ravager + mobGriefing ->
+  `destroyBlock(pos, true, entity)`; the super call is a no-op — 1.21.4
+  has no `VegetationBlock`, and neither `BushBlock` nor `DoublePlantBlock`
+  defines `entityInside`). The Rust's deflated-bounds sweep breaks
+  wheat/carrots/potatoes/beetroots/torchflower_crop/pitcher_crop with drops
+  under mobGriefing, matching. The shape deltas are real but NOT in Rust
+  source: 1.21.4's `PitcherCropBlock` keeps per-age
+  `UPPER_SHAPE_BY_AGE` (upper: ages 0/1/2/4 `box(3,0,3,13,15,13)`, age 3
+  `box(3,0,3,13,11,13)`) while 1.21.5 computes the upper half as
+  `column(w, 0, max(0, v2-16))` (ages 0/1 empty, age 2
+  `box(3,0,3,13,1,13)`, age 3 `box(3,0,3,13,12,13)`, age 4
+  `box(3,0,3,13,16,13)`); the lower halves and both collision shapes
+  (`BULB box(5,-1,5,11,3,11)`, `CROP box(3,-1,3,13,5,13)`) are identical,
+  and 1.21.4's upper-half collision falls back to
+  `BlockBehaviour.getCollisionShape` (the visual shape) while 1.21.5
+  returns `Shapes.empty()` for the upper half. Shapes live in the
+  prepare-derived `cached-collision.nbt` (`VanillaCollisionOracle` vs the
+  1.21.4 jar), so the 1.21.4 tree gets the 1.21.4 shapes by construction.
+  `CropBlock`'s `SHAPE_BY_AGE` is identical in both
+  (`box(0,0,0,16,2+2*age,16)`, ages 0..7). Rank 2: 153/348.
+
+  Item 108 (horizon-protocol/buf.rs): carry-over. `ByteTag`/`EndTag`/
+  `StreamCodec` behaviour is identical in both versions. `ByteTag` is a
+  plain class in 1.21.4 (field `data`, package-private ctor) vs a Record
+  in 1.21.5 (field `value`); the wire form is one byte either way, the
+  `valueOf` cache and `write` are identical, `getAsX` vs `xValue` are
+  renames only. `EndTag.getAsString` differs only in construction (1.21.4
+  returns `getAsString`, 1.21.5 builds via
+  `StringTagVisitor.visitEnd`) with the same empty result.
+  `StreamCodec.composite` overloads (1..8 fields) differ only in
+  anonymous-class numbering. Verified the constants the Rust cites:
+  `EndTag.sizeInBytes()` = 8 (`MIN_TAG_COST`), `ByteTag.sizeInBytes()` =
+  9, and `FriendlyByteBuf.readNbt` passes
+  `NbtAccounter.create(2097152L)` in both jars. The `packet!` macro
+  mirrors `composite` (fields in order); the NBT limits already match.
+  Rank 2: 154/348.

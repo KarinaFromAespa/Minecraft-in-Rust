@@ -217,6 +217,7 @@ pub fn interact(
         }
         if let Some(stack) = player.hand().as_mut() {
             stack.data_mut().dyed_color = None;
+            stack.data_mut().dyed_color_hidden = false;
             stack.tidy();
         }
         return changed_lowered(cauldron, None, "clean_armor");

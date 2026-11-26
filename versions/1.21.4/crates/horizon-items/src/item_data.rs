@@ -56,6 +56,11 @@ pub struct StackData {
     pub ominous_amplifier: Option<u8>,
     /// `minecraft:dyed_color` (leather armour, wolf armour, ... as RGB).
     pub dyed_color: Option<i32>,
+    /// `DyedItemColor.showInTooltip`: false hides the "Dyed" line (1.21.4
+    /// only; 1.21.5 dropped the flag and the line is gated by
+    /// `TooltipDisplay` instead). Set by the loot `ToggleTooltips`
+    /// function, or by a `{rgb, show_in_tooltip}` component.
+    pub dyed_color_hidden: bool,
     /// `minecraft:firework_explosion` (a firework star).
     pub firework_explosion: Option<crate::firework::FireworkExplosion>,
     /// `minecraft:pot_decorations`: back, left, right, front sherds.
@@ -516,6 +521,24 @@ fn int(t: &Tag) -> Option<i64> {
         Tag::Int(v) => Some(i64::from(*v)),
         Tag::Long(v) => Some(*v),
         _ => None,
+    }
+}
+/// `DyedItemColor`: a bare int, or the `{rgb, show_in_tooltip}` record
+/// 1.21.4 saves (`CODEC` is the record, with a bare-int alternative).
+/// The record form is what vanilla writes, so a compound must keep its
+/// colour — it only hides the tooltip line.
+fn dyed_color(tag: Option<&Tag>) -> (Option<i32>, bool) {
+    match tag {
+        Some(Tag::Compound(c)) => (
+            c.get(&JavaString::from("rgb"))
+                .and_then(int)
+                .map(|v| v as i32),
+            matches!(
+                c.get(&JavaString::from("show_in_tooltip")),
+                Some(Tag::Byte(0))
+            ),
+        ),
+        t => (t.and_then(int).map(|v| v as i32), false),
     }
 }
 fn string(t: &Tag) -> Option<String> {
@@ -989,7 +1012,17 @@ pub fn components_tag(damage: u32, data: Option<&StackData>) -> Option<Tag> {
             entries.push(("minecraft:firework_explosion", explosion_tag(e)));
         }
         if let Some(color) = d.dyed_color {
-            entries.push(("minecraft:dyed_color", Tag::Int(color)));
+            // A hidden line saves as the record (`CODEC` is the record,
+            // with a bare-int alternative); a shown one as the bare int.
+            let tag = if d.dyed_color_hidden {
+                Tag::compound(vec![
+                    ("rgb", Tag::Int(color)),
+                    ("show_in_tooltip", Tag::Byte(0)),
+                ])
+            } else {
+                Tag::Int(color)
+            };
+            entries.push(("minecraft:dyed_color", tag));
         }
         if let Some(sides) = &d.pot_decorations {
             let mut sherds = Vec::new();
@@ -1177,6 +1210,7 @@ pub fn decode_components(components: Option<&Tag>) -> (u32, Option<Box<StackData
     let seen = Seen::read(c);
     // NbtOps.getNumberValue supplies a boxed number; Codec.INT truncates its value.
     let damage = horizon_world::datafix::dynamic::as_int(seen.damage, 0).max(0) as u32;
+    let (dyed_color, dyed_color_hidden) = dyed_color(seen.dyed_color);
     let potion = match seen.potion_contents {
         Some(Tag::String(s)) => Some(Arc::from(s.to_string_lossy().as_str())),
         Some(t) => t
@@ -1232,7 +1266,8 @@ pub fn decode_components(components: Option<&Tag>) -> (u32, Option<Box<StackData
             })
             .filter(|(flight, explosions)| !(*flight == 1 && explosions.is_empty())),
         firework_explosion: seen.firework_explosion.map(explosion_from),
-        dyed_color: seen.dyed_color.and_then(int).map(|v| v as i32),
+        dyed_color,
+        dyed_color_hidden,
         pot_decorations: seen
             .pot_decorations
             .map(|p| {
@@ -2421,6 +2456,7 @@ mod tests {
                 .collect(),
             _ => Vec::new(),
         };
+        let (dyed_color, dyed_color_hidden) = dyed_color(c.get("minecraft:dyed_color"));
         let mut data = StackData {
             enchantments: read_levels(c.get("minecraft:enchantments")),
             stored_enchantments: read_levels(c.get("minecraft:stored_enchantments")),
@@ -2471,10 +2507,8 @@ mod tests {
                 })
                 .filter(|(flight, explosions)| !(*flight == 1 && explosions.is_empty())),
             firework_explosion: c.get("minecraft:firework_explosion").map(explosion_from),
-            dyed_color: c
-                .get("minecraft:dyed_color")
-                .and_then(int)
-                .map(|v| v as i32),
+            dyed_color,
+            dyed_color_hidden,
             pot_decorations: c
                 .get("minecraft:pot_decorations")
                 .map(|p| {
@@ -2609,6 +2643,10 @@ mod tests {
                     r#"{"minecraft:custom_data":{keep:1},"minecraft:future_component":"x","minecraft:damage\u00e9":3}"#,
                 ),
             ),
+            (
+                "dyed colour as a record",
+                parse(r#"{"minecraft:dyed_color":{"rgb":1193046,"show_in_tooltip":false}}"#),
+            ),
         ]
     }
     /// One pass over the compound decodes every shape the per-ID lookups did,
@@ -2623,6 +2661,40 @@ mod tests {
             );
         }
         assert_eq!(decode_components(None), baseline_decode_components(None));
+    }
+
+    /// `DyedItemColor` in 1.21.4 saves as the `{rgb, show_in_tooltip}`
+    /// record: the colour survives, and a hidden line round-trips.
+    #[test]
+    fn dyed_color_record_keeps_rgb_and_hides_the_line() {
+        let tag = Tag::compound(vec![(
+            "minecraft:dyed_color",
+            Tag::compound(vec![
+                ("rgb", Tag::Int(0x123456)),
+                ("show_in_tooltip", Tag::Byte(0)),
+            ]),
+        )]);
+        let (_, data) = decode_components(Some(&tag));
+        let data = data.expect("dyed colour decodes");
+        assert_eq!(data.dyed_color, Some(0x123456));
+        assert!(data.dyed_color_hidden);
+        let mut stack = ItemStack::new("minecraft:leather_chestplate", 1);
+        *stack.data_mut() = *data;
+        let encoded = encode_components(&stack).expect("dyed components encode");
+        assert!(matches!(
+            encoded.get("minecraft:dyed_color"),
+            Some(Tag::Compound(_))
+        ));
+        let (_, back) = decode_components(Some(&encoded));
+        let back = back.expect("dyed components decode");
+        assert_eq!(back.dyed_color, Some(0x123456));
+        assert!(back.dyed_color_hidden);
+        // A bare int still decodes as a shown colour.
+        let plain = Tag::compound(vec![("minecraft:dyed_color", Tag::Int(255))]);
+        let (_, plain_data) = decode_components(Some(&plain));
+        let plain_data = plain_data.expect("bare dyed colour decodes");
+        assert_eq!(plain_data.dyed_color, Some(255));
+        assert!(!plain_data.dyed_color_hidden);
     }
     /// `decode_components` against the per-ID lookups, over the cases above. 25
     /// measured rounds alternate order and report the median microseconds per

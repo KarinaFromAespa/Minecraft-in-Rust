@@ -677,6 +677,13 @@ pub fn dyed_line(
     if !display.shows("minecraft:dyed_color") {
         return None;
     }
+    // `DyedItemColor.showInTooltip` (1.21.4): the loot `ToggleTooltips`
+    // function, or a `{rgb, show_in_tooltip}` component, hides the line
+    // without removing the colour. The network path feeds the same
+    // hiding through `TooltipDisplay` above.
+    if stack.data().is_some_and(|d| d.dyed_color_hidden) {
+        return None;
+    }
     let text = |key: &str| translate(key).unwrap_or_else(|| key.to_owned());
     Some(if advanced {
         let hex = format!("#{:06X}", rgb & 0xFF_FFFF);
@@ -1287,6 +1294,21 @@ mod tests {
                 .iter()
                 .any(|l| l == "Music Disc - 5")
         );
+    }
+
+    #[test]
+    fn hidden_dyed_color_shows_no_dyed_line() {
+        let translate = |_: &str| None;
+        let mut stack = ItemStack::new("minecraft:leather_chestplate", 1);
+        stack.data_mut().dyed_color = Some(0xFF0000);
+        let display = TooltipDisplay::for_stack(&stack);
+        assert_eq!(
+            dyed_line(&stack, &display, false, &translate).map(|l| l.0),
+            Some("item.dyed".to_owned()),
+        );
+        stack.data_mut().dyed_color_hidden = true;
+        let display = TooltipDisplay::for_stack(&stack);
+        assert_eq!(dyed_line(&stack, &display, false, &translate), None);
     }
 
     #[test]
