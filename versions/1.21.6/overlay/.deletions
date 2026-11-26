@@ -1,0 +1,13 @@
+crates/horizon-client/src/game/recipe_book_unlock_tests.rs
+crates/horizon-client/src/recipe_coverage_tests.rs
+crates/horizon-core/src/density/weird_scaled.rs
+crates/horizon-prepare/src/remap.rs
+crates/horizon-world/src/worldgen/aquatic.rs
+crates/horizon-world/src/worldgen/coral.rs
+crates/horizon-world/src/worldgen/desert_well.rs
+crates/horizon-world/src/worldgen/ice_spike.rs
+crates/horizon-world/src/worldgen/nether.rs
+crates/horizon-world/src/worldgen/random_patch.rs
+crates/horizon-world/src/worldgen/synthesize.rs
+launcher/known-test-failures.txt
+launcher/src/seed.rs

@@ -1,0 +1,14 @@
+crates/horizon-client/examples/probe/inline_object_fixture.rs
+crates/horizon-client/src/debug_entries.rs
+crates/horizon-client/src/game/debug_options.rs
+crates/horizon-client/src/game/debug_renderers.rs
+crates/horizon-client/src/game/dedicated/management.rs
+crates/horizon-client/src/lan/code_of_conduct.rs
+crates/horizon-server/src/management.rs
+crates/horizon-server/src/management_methods.rs
+crates/horizon-server/src/management_schema.rs
+crates/horizon-server/src/management_tls.rs
+crates/horizon-server/src/websocket.rs
+tests/test_management_protocol.py
+tools/test_inline_object_parity.py
+tools/test_management_protocol_parity.py

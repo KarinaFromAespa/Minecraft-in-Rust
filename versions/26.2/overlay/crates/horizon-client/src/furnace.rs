@@ -1,0 +1,546 @@
+//! `AbstractFurnaceBlockEntity`'s cooking over the furnace data the chunk
+//! holds (`containers::Furnace`): it needs the recipes, so it lives above them.
+use crate::{
+    containers::{Furnace, recipe_used_key},
+    crafting::Recipes,
+    items::{ItemStack, Items},
+    providers::Providers,
+};
+
+/// The furnace methods that read the recipes.
+pub trait FurnaceCooking {
+    /// `AbstractFurnaceBlockEntity.setItem` on the input slot: anything but
+    /// the same item with the same components restarts cooking, with the
+    /// total time of the new input's recipe (200 ticks without one).
+    fn set_input(&mut self, recipes: &Recipes, stack: Option<ItemStack>);
+    /// `recipesUsed`, each recipe with its `experience` (0 for one this data pack does
+    /// not have), in the order `getRecipesToAwardAndPopExperience` pays them.
+    fn recipe_experience(&self, recipes: &Recipes) -> Vec<(u32, f32)>;
+    /// A menu click wrote its slots into `items`, and `before` was the input
+    /// slot until then: the menu called `setItem` on it only if it changed
+    /// (`Slot.setByPlayer`; partial takes and merges keep the stack).
+    fn input_clicked(&mut self, recipes: &Recipes, before: Option<ItemStack>);
+    /// One server tick. Returns `Some(lit)` when the LIT block state must change.
+    fn tick(
+        &mut self,
+        recipes: &Recipes,
+        items: &Items,
+        providers: &Providers,
+    ) -> Option<bool>;
+    fn idle(&self) -> bool;
+}
+impl FurnaceCooking for Furnace {
+    fn set_input(&mut self, recipes: &Recipes, stack: Option<ItemStack>) {
+        let same = match (&self.items[0], &stack) {
+            (Some(old), Some(new)) => old.same_item_same_components(new),
+            _ => false,
+        };
+        self.items[0] = stack;
+        if !same {
+            // 26.2's getTotalCookTime: the recipe's own cooking time (200
+            // without one); there is no fuel speed multiplier in 26.2.
+            self.cooking_total = self.items[0]
+                .as_ref()
+                .and_then(|input| recipes.cook(self.kind.recipe_type(), input))
+                .map_or(200, |recipe| recipe.time as i32);
+            self.cooking_timer = 0;
+        }
+    }
+    fn recipe_experience(&self, recipes: &Recipes) -> Vec<(u32, f32)> {
+        self.recipes_used
+            .iter()
+            .map(|(id, count)| (*count, recipes.cooking_experience(id)))
+            .collect()
+    }
+    fn input_clicked(&mut self, recipes: &Recipes, before: Option<ItemStack>) {
+        if self.items[0] != before {
+            let after = std::mem::replace(&mut self.items[0], before);
+            self.set_input(recipes, after);
+        }
+    }
+    fn tick(
+        &mut self,
+        recipes: &Recipes,
+        items: &Items,
+        providers: &Providers,
+    ) -> Option<bool> {
+        let was_lit = self.lit_remaining > 0;
+        let mut lit = false;
+        if self.lit_remaining > 0 {
+            self.lit_remaining -= 1;
+            lit = self.lit_remaining > 0;
+        }
+        let fast = self.kind.fast();
+        let has_ingredient = self.items[0].is_some();
+        let has_fuel = self.items[1].is_some();
+        if lit || has_fuel && has_ingredient {
+            if let Some(ingredient) = self.items[0].clone() {
+                if let Some(recipe) = recipes.cook(self.kind.recipe_type(), &ingredient) {
+                    let max = items.get(&recipe.result.item).map_or(64, |i| i.max_stack);
+                    let can_burn = match &self.items[2] {
+                        None => true,
+                        Some(out) => {
+                            out.same_item_same_components(&recipe.result)
+                                && out.count + recipe.result.count <= max
+                        }
+                    };
+                    if can_burn {
+                        if !lit {
+                            // 26.2's getBurnDuration: the FuelValues table
+                            // only — no cooking_fuel component, no fuel
+                            // speed, no progress re-scale on refuel. The
+                            // smoker/blast-furnace halving lives in
+                            // `Providers::burn_time` (`fast`).
+                            let fuel = self.items[1].clone();
+                            let time = fuel
+                                .as_ref()
+                                .map_or(0, |f| providers.burn_time(items, f, fast));
+                            self.lit_remaining = time;
+                            self.lit_total = time;
+                            if time > 0 {
+                                // AbstractFurnaceBlockEntity.consumeFuel:
+                                // the fuel's crafting remainder takes the
+                                // slot only once the stack is used up; with
+                                // fuel left, the remainder is lost (26.3
+                                // drops it instead).
+                                if let Some(f) = self.items[1].as_mut() {
+                                    f.count -= 1;
+                                    if f.count == 0 {
+                                        self.items[1] = items
+                                            .get(&f.item)
+                                            .and_then(|i| i.crafting_remainder.as_deref())
+                                            .map(|r| ItemStack::new(r, 1));
+                                    }
+                                }
+                                lit = true;
+                            }
+                        }
+                        if lit {
+                            self.cooking_timer += 1;
+                            // 26.2 completes on equality (26.3's >= also
+                            // covers a loaded total of 0, which 26.2
+                            // stalls on instead).
+                            if self.cooking_timer == self.cooking_total {
+                                self.cooking_timer = 0;
+                                self.cooking_total = recipe.time as i32;
+                                match &mut self.items[2] {
+                                    Some(out) => out.count += recipe.result.count,
+                                    None => self.items[2] = Some(recipe.result.clone()),
+                                }
+                                *self
+                                    .recipes_used
+                                    .entry(recipe_used_key(&recipe.id))
+                                    .or_insert(0) += 1;
+                                // AbstractFurnaceBlockEntity.burn: drying a wet sponge fills
+                                // the bucket in the fuel slot.
+                                if self.items[0]
+                                    .as_ref()
+                                    .is_some_and(|i| &*i.item == "minecraft:wet_sponge")
+                                    && self.items[1]
+                                        .as_ref()
+                                        .is_some_and(|f| &*f.item == "minecraft:bucket")
+                                {
+                                    self.items[1] =
+                                        Some(ItemStack::new("minecraft:water_bucket", 1));
+                                }
+                                if let Some(i) = self.items[0].as_mut() {
+                                    i.count -= 1;
+                                    if i.count == 0 {
+                                        self.items[0] = None;
+                                    }
+                                }
+                            }
+                        } else {
+                            self.cooking_timer = 0;
+                        }
+                    } else {
+                        self.cooking_timer = 0;
+                    }
+                }
+            } else {
+                self.cooking_timer = 0;
+            }
+        } else if self.cooking_timer > 0 {
+            self.cooking_timer = (self.cooking_timer - 2).clamp(0, self.cooking_total);
+        }
+        (was_lit != lit).then_some(lit)
+    }
+    fn idle(&self) -> bool {
+        self.lit_remaining <= 0
+            && self.cooking_timer <= 0
+            && !(self.items[0].is_some() && self.items[1].is_some())
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{containers::FurnaceKind, items::Items};
+    use horizon_world::loot::PackOverlay;
+    use std::{collections::HashMap, fs};
+
+    #[test]
+    fn a_furnace_is_idle_only_while_its_tick_changes_nothing() {
+        let stack = |id: &str| Some(ItemStack::new(id, 1));
+        let furnace = |input, fuel, lit_remaining, cooking_timer| Furnace {
+            kind: FurnaceKind::Furnace,
+            items: [input, fuel, stack("minecraft:iron_ingot")],
+            lit_remaining,
+            lit_total: 0,
+            cooking_timer,
+            cooking_total: 200,
+            recipes_used: HashMap::new(),
+        };
+        assert!(furnace(None, None, 0, 0).idle());
+        assert!(furnace(stack("minecraft:iron_ore"), None, 0, 0).idle());
+        assert!(furnace(None, stack("minecraft:coal"), 0, 0).idle());
+        assert!(!furnace(stack("minecraft:iron_ore"), stack("minecraft:coal"), 0, 0).idle());
+        assert!(!furnace(None, None, 1, 0).idle());
+        assert!(!furnace(stack("minecraft:iron_ore"), None, 0, 5).idle());
+    }
+
+    /// A data root holding one recipe, `test:ore` into `test:ingot`, and two
+    /// real fuels: `minecraft:coal` (burn 1600, no remainder) and
+    /// `minecraft:lava_bucket` (burn 20000, leaves a bucket). The folder is
+    /// gone when this returns.
+    fn data(name: &str) -> (Items, Recipes, Providers) {
+        let root =
+            std::env::temp_dir().join(format!("horizon-furnace-{name}-{}", std::process::id(),));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("data/minecraft/recipe")).unwrap();
+        fs::write(
+            root.join("data/minecraft/recipe/test_ingot.json"),
+            br#"{"type":"minecraft:smelting","ingredient":"test:ore","result":{"id":"test:ingot"}}"#,
+        )
+        .unwrap();
+        fs::create_dir_all(root.join("data/minecraft/loot_table")).unwrap();
+        fs::write(
+            root.join("items.json"),
+            r#"{"test:ore": {}, "test:ingot": {}, "minecraft:coal": {}, "minecraft:lava_bucket": {}, "minecraft:bucket": {}}"#,
+        )
+        .unwrap();
+        let items = Items::catalog(&root, &PackOverlay::NONE).unwrap();
+        let recipes = Recipes::load(&root, &items, &PackOverlay::NONE).unwrap();
+        let providers = Providers::load(&root);
+        let _ = fs::remove_dir_all(&root);
+        (items, recipes, providers)
+    }
+
+    /// Vanilla 26.2 burns one coal for 1600 ticks in a furnace and 800
+    /// in a smoker (`FuelValues.vanillaBurnTimes`, halved by
+    /// `SmokerBlockEntity.getBurnDuration`); the smoker also cooks in
+    /// half the time (100 ticks). Stone is not fuel: the furnace never
+    /// lights and nothing cooks.
+    #[test]
+    fn vanilla_coal_burns_from_the_fuel_values_table() {
+        let (items, recipes, providers) = data("vanilla-coal");
+        let mut furnace = Furnace {
+            kind: FurnaceKind::Furnace,
+            items: [None, Some(ItemStack::new("minecraft:coal", 1)), None],
+            lit_remaining: 0,
+            lit_total: 0,
+            cooking_timer: 0,
+            cooking_total: 0,
+            recipes_used: HashMap::new(),
+        };
+        furnace.set_input(&recipes, Some(ItemStack::new("test:ore", 1)));
+        assert_eq!(furnace.tick(&recipes, &items, &providers), Some(true));
+        assert_eq!((furnace.lit_remaining, furnace.lit_total), (1600, 1600));
+        for _ in 0..199 {
+            furnace.tick(&recipes, &items, &providers);
+        }
+        assert_eq!(furnace.items[2].as_ref().unwrap().item.as_ref(), "test:ingot");
+        assert_eq!(furnace.lit_remaining, 1401);
+
+        // The smoker: the same coal burns half as long, and the smoking
+        // recipe cooks in half the time.
+        let root = std::env::temp_dir().join(format!(
+            "horizon-furnace-vanilla-coal-smoker-{}",
+            std::process::id(),
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("data/minecraft/recipe")).unwrap();
+        fs::write(
+            root.join("data/minecraft/recipe/test_ingot.json"),
+            br#"{"type":"minecraft:smoking","ingredient":"test:ore","result":{"id":"test:ingot"},"cookingtime":100}"#,
+        )
+        .unwrap();
+        fs::create_dir_all(root.join("data/minecraft/loot_table")).unwrap();
+        fs::write(
+            root.join("items.json"),
+            r#"{"test:ore": {}, "test:ingot": {}, "minecraft:coal": {}}"#,
+        )
+        .unwrap();
+        let items = Items::catalog(&root, &PackOverlay::NONE).unwrap();
+        let recipes = Recipes::load(&root, &items, &PackOverlay::NONE).unwrap();
+        let providers = Providers::load(&root);
+        let _ = fs::remove_dir_all(&root);
+        let mut smoker = Furnace {
+            kind: FurnaceKind::Smoker,
+            items: [None, Some(ItemStack::new("minecraft:coal", 1)), None],
+            lit_remaining: 0,
+            lit_total: 0,
+            cooking_timer: 0,
+            cooking_total: 0,
+            recipes_used: HashMap::new(),
+        };
+        smoker.set_input(&recipes, Some(ItemStack::new("test:ore", 1)));
+        assert_eq!(smoker.tick(&recipes, &items, &providers), Some(true));
+        assert_eq!((smoker.lit_remaining, smoker.lit_total), (800, 800));
+        for _ in 0..99 {
+            smoker.tick(&recipes, &items, &providers);
+        }
+        assert_eq!(smoker.items[2].as_ref().unwrap().item.as_ref(), "test:ingot");
+        assert_eq!(smoker.lit_remaining, 701);
+
+        // Stone is not fuel: the furnace never lights.
+        let (items, recipes, providers) = data("vanilla-coal-stone");
+        let mut furnace = Furnace {
+            kind: FurnaceKind::Furnace,
+            items: [None, Some(ItemStack::new("minecraft:stone", 1)), None],
+            lit_remaining: 0,
+            lit_total: 0,
+            cooking_timer: 0,
+            cooking_total: 0,
+            recipes_used: HashMap::new(),
+        };
+        furnace.set_input(&recipes, Some(ItemStack::new("test:ore", 1)));
+        assert_eq!(furnace.tick(&recipes, &items, &providers), None);
+        assert_eq!(furnace.lit_remaining, 0);
+        for _ in 0..200 {
+            furnace.tick(&recipes, &items, &providers);
+        }
+        assert!(furnace.items[2].is_none());
+    }
+
+    #[test]
+    fn loaded_totals_survive_until_actual_completion() {
+        let (items, recipes, providers) = data("loaded-total");
+        assert_eq!(
+            recipes
+                .cook(
+                    FurnaceKind::Furnace.recipe_type(),
+                    &ItemStack::new("test:ore", 3)
+                )
+                .unwrap()
+                .time,
+            200
+        );
+        // Fresh Java's five-case Game fixture independently admits the loaded
+        // five and normal totals. (A loaded total of 0 is 26.2's stall: the
+        // timer increments past it and `==` never holds — see below.)
+        for (total, timer, completion) in [(5, 0, 5), (200, 0, 200), (5, 1, 4)] {
+            let mut f = Furnace {
+                kind: FurnaceKind::Furnace,
+                items: [Some(ItemStack::new("test:ore", 3)), None, None],
+                lit_remaining: 20,
+                lit_total: 20,
+                cooking_timer: timer,
+                cooking_total: total,
+                recipes_used: HashMap::new(),
+            };
+            for elapsed in 1..=6 {
+                assert!(!f.idle());
+                assert_eq!(f.tick(&recipes, &items, &providers), None);
+                assert_eq!((f.lit_remaining, f.lit_total), (20 - elapsed, 20));
+                assert!(f.items[1].is_none());
+                let complete = elapsed >= completion;
+                assert_eq!(
+                    f.items[0].as_ref().unwrap().count,
+                    if complete { 2 } else { 3 },
+                    "loaded {total}/{timer}, tick {elapsed}"
+                );
+                assert_eq!(
+                    f.items[2].as_ref().map(|s| (&*s.item, s.count)),
+                    if complete {
+                        Some(("test:ingot", 1))
+                    } else {
+                        None
+                    }
+                );
+                assert_eq!(f.cooking_total, if complete { 200 } else { total });
+                assert_eq!(
+                    f.cooking_timer,
+                    if complete {
+                        elapsed - completion
+                    } else {
+                        timer + elapsed
+                    }
+                );
+            }
+            // A changed input still goes through setItem's independent reset.
+            f.set_input(&recipes, Some(ItemStack::new("test:ingot", 1)));
+            assert_eq!((f.cooking_timer, f.cooking_total), (0, 200));
+        }
+    }
+
+    /// 26.2 completes on `cookingTimer == cookingTotalTime`, so a loaded
+    /// total of 0 stalls: the timer climbs past it and never equals it
+    /// (26.3's `>=` completes on the first tick instead).
+    #[test]
+    fn a_loaded_total_of_zero_stalls() {
+        let (items, recipes, providers) = data("zero-total");
+        let mut f = Furnace {
+            kind: FurnaceKind::Furnace,
+            items: [Some(ItemStack::new("test:ore", 3)), None, None],
+            lit_remaining: 20,
+            lit_total: 20,
+            cooking_timer: 0,
+            cooking_total: 0,
+            recipes_used: HashMap::new(),
+        };
+        for elapsed in 1..=6 {
+            assert_eq!(f.tick(&recipes, &items, &providers), None);
+            assert_eq!(f.items[0].as_ref().unwrap().count, 3);
+            assert!(f.items[2].is_none());
+            assert_eq!((f.cooking_timer, f.cooking_total), (elapsed, 0));
+        }
+    }
+
+    #[test]
+    fn cooking_requires_output_components_and_capacity() {
+        let (items, recipes, providers) = data("output-components");
+        let mut different = ItemStack::new("test:ingot", 1);
+        different.data_mut().custom_name = Some(horizon_world::nbt::Tag::String("Cold".into()));
+        for (output, eligible) in [
+            (Some(different), false),
+            (None, true),
+            (Some(ItemStack::new("test:ingot", 1)), true),
+            (Some(ItemStack::new("test:ingot", 64)), false),
+            (Some(ItemStack::new("test:ingot", 63)), true),
+        ] {
+            let before = output.clone();
+            let mut f = Furnace {
+                kind: FurnaceKind::Furnace,
+                items: [
+                    Some(ItemStack::new("test:ore", 3)),
+                    Some(ItemStack::new("minecraft:coal", 1)),
+                    output,
+                ],
+                lit_remaining: 0,
+                lit_total: 0,
+                cooking_timer: 0,
+                cooking_total: 200,
+                recipes_used: HashMap::new(),
+            };
+            let recipe = recipes
+                .cook(f.kind.recipe_type(), f.items[0].as_ref().unwrap())
+                .unwrap();
+            assert_eq!(
+                (&*recipe.result.item, recipe.result.count, recipe.time),
+                ("test:ingot", 1, 200)
+            );
+            assert_eq!(
+                f.tick(&recipes, &items, &providers),
+                eligible.then_some(true),
+                "output {before:?}"
+            );
+            if eligible {
+                assert!(f.items[1].is_none());
+                for _ in 1..200 {
+                    f.tick(&recipes, &items, &providers);
+                }
+                assert_eq!(f.items[0].as_ref().unwrap().count, 2);
+                assert_eq!(
+                    f.items[2].as_ref().unwrap().count,
+                    before.as_ref().map_or(0, |s| s.count) + 1
+                );
+            } else {
+                assert_eq!(f.items[0].as_ref().unwrap().count, 3);
+                assert_eq!(f.items[1].as_ref().unwrap().count, 1);
+                assert_eq!(f.items[2], before);
+                assert_eq!((f.lit_remaining, f.cooking_timer), (0, 0));
+            }
+        }
+    }
+
+    /// The furnace sleeps while `idle`, so its tick must change nothing then: run the
+    /// real tick on every idle case and compare, and check a furnace that can smelt
+    /// isn't idle and does change.
+    #[test]
+    fn an_idle_furnace_tick_changes_nothing() {
+        let (items, recipes, providers) = data("idle");
+        let stack = |id: &str| Some(ItemStack::new(id, 1));
+        let furnace = |input, fuel, output| Furnace {
+            kind: FurnaceKind::Furnace,
+            items: [input, fuel, output],
+            lit_remaining: 0,
+            lit_total: 0,
+            cooking_timer: 0,
+            cooking_total: 200,
+            recipes_used: HashMap::new(),
+        };
+        let idle = [
+            furnace(None, None, None),
+            furnace(stack("test:ore"), None, None),
+            furnace(None, stack("minecraft:coal"), None),
+            furnace(None, None, stack("test:ingot")),
+            furnace(stack("test:ingot"), None, stack("test:ingot")),
+        ];
+        for before in idle {
+            assert!(before.idle(), "{before:?}");
+            let mut after = before.clone();
+            let lit = after.tick(&recipes, &items, &providers);
+            assert_eq!(lit, None, "{before:?}");
+            assert_eq!(format!("{after:?}"), format!("{before:?}"));
+        }
+        let mut busy = furnace(stack("test:ore"), stack("minecraft:coal"), None);
+        assert!(!busy.idle());
+        let before = format!("{busy:?}");
+        assert_eq!(
+            busy.tick(&recipes, &items, &providers),
+            Some(true)
+        );
+        assert_ne!(format!("{busy:?}"), before);
+    }
+
+    /// A furnace with `fuel` x `count` burning `test:ore` into `test:ingot` ([`data`]).
+    fn burn(fuel: &str, count: u32) -> Furnace {
+        let (items, recipes, providers) =
+            data(&format!("remainder-{}-{count}", fuel.replace(':', "-")));
+        let mut furnace = Furnace {
+            kind: FurnaceKind::Furnace,
+            items: [
+                Some(ItemStack::new("test:ore", 1)),
+                Some(ItemStack::new(fuel, count)),
+                None,
+            ],
+            lit_remaining: 0,
+            lit_total: 0,
+            cooking_timer: 0,
+            cooking_total: 0,
+            recipes_used: HashMap::new(),
+        };
+        let lit = furnace.tick(&recipes, &items, &providers);
+        assert_eq!(lit, Some(true), "the fuel lit the furnace");
+        furnace
+    }
+
+    fn fuel_slot(furnace: &Furnace) -> Option<(&str, u32)> {
+        furnace.items[1].as_ref().map(|s| (&*s.item, s.count))
+    }
+
+    /// `AbstractFurnaceBlockEntity.consumeFuel`: the last of a fuel with a remainder
+    /// leaves it in the fuel slot.
+    #[test]
+    fn the_last_fuel_leaves_its_remainder_in_the_slot() {
+        let furnace = burn("minecraft:lava_bucket", 1);
+        assert_eq!(fuel_slot(&furnace), Some(("minecraft:bucket", 1)));
+    }
+
+    /// With more of the fuel left, the remainder is lost: 26.2's consumeFuel
+    /// only sets it when the stack is used up (26.3 drops it instead).
+    #[test]
+    fn a_fuel_still_in_the_stack_loses_its_remainder() {
+        let furnace = burn("minecraft:lava_bucket", 3);
+        assert_eq!(fuel_slot(&furnace), Some(("minecraft:lava_bucket", 2)));
+    }
+
+    /// A fuel without a remainder leaves nothing.
+    #[test]
+    fn a_fuel_without_a_remainder_leaves_nothing() {
+        let furnace = burn("minecraft:coal", 1);
+        assert_eq!(fuel_slot(&furnace), None);
+        let furnace = burn("minecraft:coal", 2);
+        assert_eq!(fuel_slot(&furnace), Some(("minecraft:coal", 1)));
+    }
+}

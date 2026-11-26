@@ -1,0 +1,2 @@
+crates/horizon-client/src/game/bundle_slot_tests.rs
+crates/horizon-protocol/src/item/hash/exact.rs

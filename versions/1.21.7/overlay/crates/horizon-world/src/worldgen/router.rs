@@ -1,0 +1,250 @@
+//! The fifteen terrain-router fields of 1.21.7: the six climate fields, the
+//! four aquifer fields, the surface level and final density, and the three
+//! ore-vein fields.
+use super::{DecodeError, Object, climate::ClimateSampler, density::DensityRegistry, required};
+use horizon_core::density::{
+    BinaryOp, BinarySampler, ContextBoundSampler, DensitySampler, WorldField,
+    graph::{CompileError, DensityCompiler, FunctionId},
+};
+use std::sync::Arc;
+
+/// Declaration and compilation order: the six climate fields (the climate
+/// sampler reads them positionally), then the aquifer fields, the surface
+/// level, the final density, and the ore-vein fields.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(usize)]
+pub enum RouterField {
+    Temperature,
+    Vegetation,
+    Continents,
+    Erosion,
+    Depth,
+    Ridges,
+    Barrier,
+    FluidLevelFloodedness,
+    FluidLevelSpread,
+    Lava,
+    ChunkSurfaceLevel,
+    FinalDensity,
+    VeinToggle,
+    VeinRidged,
+    VeinGap,
+}
+impl RouterField {
+    pub const ALL: [Self; 15] = [
+        Self::Temperature,
+        Self::Vegetation,
+        Self::Continents,
+        Self::Erosion,
+        Self::Depth,
+        Self::Ridges,
+        Self::Barrier,
+        Self::FluidLevelFloodedness,
+        Self::FluidLevelSpread,
+        Self::Lava,
+        Self::ChunkSurfaceLevel,
+        Self::FinalDensity,
+        Self::VeinToggle,
+        Self::VeinRidged,
+        Self::VeinGap,
+    ];
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Temperature => "temperature",
+            Self::Vegetation => "vegetation",
+            Self::Continents => "continents",
+            Self::Erosion => "erosion",
+            Self::Depth => "depth",
+            Self::Ridges => "ridges",
+            Self::Barrier => "barrier",
+            Self::FluidLevelFloodedness => "fluid_level_floodedness",
+            Self::FluidLevelSpread => "fluid_level_spread",
+            Self::Lava => "lava",
+            Self::ChunkSurfaceLevel => "chunk_surface_level",
+            Self::FinalDensity => "final_density",
+            Self::VeinToggle => "vein_toggle",
+            Self::VeinRidged => "vein_ridged",
+            Self::VeinGap => "vein_gap",
+        }
+    }
+}
+
+/// Root IDs belong to the registry graph used to decode this router.
+#[derive(Clone, Copy, Debug)]
+pub struct NoiseRouter {
+    functions: [FunctionId; 15],
+}
+impl NoiseRouter {
+    /// Decode the router object itself. Noise settings, aquifer and material
+    /// configuration are separate codecs and are not parsed by this method.
+    /// Missing/null fields or any invalid root leave the registry unchanged.
+    pub fn from_json(json: &str, registry: &mut DensityRegistry) -> Result<Self, DecodeError> {
+        let object: Object = serde_json::from_str(json)?;
+        // 1.21.7's router has no chunk_surface_level (a 26.x addition):
+        // synthesize it from the preliminary surface level, exactly as
+        // the settings upgrader does — interpolated on a 16x1 cell.
+        let mut owned: Vec<String> = Vec::with_capacity(15);
+        for field in RouterField::ALL {
+            if field == RouterField::ChunkSurfaceLevel && !object.contains_key(field.name()) {
+                let raw = required(&object, "preliminary_surface_level")?.get();
+                owned.push(format!(
+                    "{{\"type\": \"minecraft:interpolated\", \"cell_size_xz\": 16, \"cell_size_y\": 1, \"input\": {raw}}}"
+                ));
+            } else {
+                owned.push(required(&object, field.name())?.get().to_string());
+            }
+        }
+        let inputs: Vec<&str> = owned.iter().map(String::as_str).collect();
+        let functions = registry
+            .decode_functions(&inputs)?
+            .try_into()
+            .map_err(|_| DecodeError::Field("router field count"))?;
+        Ok(Self { functions })
+    }
+    pub fn function(self, field: RouterField) -> FunctionId {
+        self.functions[field as usize]
+    }
+    /// One compiler owns the cache namespace for every router field. Existing
+    /// compiler samplers and cache IDs are reused rather than reset per root.
+    pub fn compile(self, compiler: &mut DensityCompiler) -> Result<RouterSamplers, CompileError> {
+        let mut samplers: [Arc<dyn DensitySampler>; 15] = self
+            .functions
+            .iter()
+            .map(|id| compiler.get_sampler(*id))
+            .collect::<Result<Vec<_>, _>>()?
+            .try_into()
+            .expect("one sampler for each of fifteen router fields");
+        // NoiseChunk: the terrain density is final_density + the beardifier.
+        // Neither vanilla's data nor ours has a beardifier node in the graph;
+        // the constructor adds the marker and swaps in the chunk's beardifier
+        // (Beardifier.forStructuresInChunk). Without this, bearded structures
+        // keep their halls full of rock: the ancient-city, trial-chamber and
+        // village templates carry no air blocks at all, so only the beard
+        // clears them. ContextBoundSampler falls back to 0 where no
+        // beardifier is bound, so chunks without bearded structures sample
+        // exactly as before.
+        samplers[RouterField::FinalDensity as usize] = Arc::new(BinarySampler {
+            left: samplers[RouterField::FinalDensity as usize].clone(),
+            right: Arc::new(ContextBoundSampler::new(WorldField::Beardifier)),
+            operation: BinaryOp::Add,
+        });
+        Ok(RouterSamplers { samplers })
+    }
+    /// Compile only the six climate roots, in vanilla's sampler-binding order.
+    pub fn compile_climate(
+        self,
+        compiler: &mut DensityCompiler,
+    ) -> Result<ClimateSampler, CompileError> {
+        let samplers = self.functions[..6]
+            .iter()
+            .map(|id| compiler.get_sampler(*id))
+            .collect::<Result<Vec<_>, _>>()?
+            .try_into()
+            .expect("one sampler for each of six climate fields");
+        Ok(ClimateSampler::new(samplers))
+    }
+}
+#[derive(Debug)]
+pub struct RouterSamplers {
+    samplers: [Arc<dyn DensitySampler>; 15],
+}
+impl RouterSamplers {
+    pub fn get(&self, field: RouterField) -> &Arc<dyn DensitySampler> {
+        &self.samplers[field as usize]
+    }
+    pub fn climate_sampler(&self) -> ClimateSampler {
+        ClimateSampler::new(std::array::from_fn(|i| self.samplers[i].clone()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use horizon_core::density::SamplerContext;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn roots_share_holder_cache_and_failed_router_leaves_graph_unchanged() {
+        let mut registry = DensityRegistry::from_json(
+            &BTreeMap::new(),
+            &BTreeMap::from([(
+                "minecraft:shared".into(),
+                r#"{"type":"cache","input":{"type":"gradient","axis":"x","from_coordinate":0,"to_coordinate":16,"from_value":-1,"to_value":1}}"#.into(),
+            )]),
+        )
+        .unwrap();
+        let object: BTreeMap<_, _> = RouterField::ALL
+            .iter()
+            .map(|field| (field.name(), "minecraft:shared"))
+            .collect();
+        let json = serde_json::to_string(&object).unwrap();
+        let expected = registry
+            .graph()
+            .clone()
+            .insert(horizon_core::density::graph::GraphNode::Constant(123.0))
+            .unwrap();
+        let invalid = json
+            .replace(
+                "\"temperature\":\"minecraft:shared\"",
+                "\"temperature\":123",
+            )
+            .replace(
+                "\"final_density\":\"minecraft:shared\"",
+                "\"final_density\":{\"type\":\"missing\"}",
+            );
+        assert!(NoiseRouter::from_json(&invalid, &mut registry).is_err());
+        assert_eq!(registry.decode_functions(&["123"]).unwrap()[0], expected);
+        let router = NoiseRouter::from_json(&json, &mut registry).unwrap();
+        for field in RouterField::ALL {
+            assert_eq!(
+                router.function(field),
+                registry.reference("minecraft:shared").unwrap()
+            );
+        }
+        let mut compiler = DensityCompiler::new_seeded(registry.into_graph(), 0, false);
+        let samplers = router.compile(&mut compiler).unwrap();
+        assert_eq!(compiler.cache_count(), 1);
+        let mut context = SamplerContext::cached();
+        for field in RouterField::ALL {
+            assert_eq!(
+                samplers
+                    .get(field)
+                    .sample_value(&mut context, [4, 99, -32])
+                    .unwrap(),
+                -0.5
+            );
+        }
+    }
+
+    #[test]
+    fn missing_chunk_surface_level_falls_back_to_preliminary_surface() {
+        let mut registry = DensityRegistry::from_json(
+            &BTreeMap::new(),
+            &BTreeMap::from([(
+                "minecraft:shared".into(),
+                r#"{"type":"cache","input":{"type":"gradient","axis":"x","from_coordinate":0,"to_coordinate":16,"from_value":-1,"to_value":1}}"#.into(),
+            )]),
+        )
+        .unwrap();
+        // Every router field except chunk_surface_level, plus the 1.21.7
+        // preliminary surface level it is synthesized from.
+        let mut object: BTreeMap<_, _> = RouterField::ALL
+            .iter()
+            .filter(|field| **field != RouterField::ChunkSurfaceLevel)
+            .map(|field| (field.name(), "minecraft:shared"))
+            .collect();
+        object.insert("preliminary_surface_level", "minecraft:shared");
+        let json = serde_json::to_string(&object).unwrap();
+        let router = NoiseRouter::from_json(&json, &mut registry).unwrap();
+        let mut compiler = DensityCompiler::new_seeded(registry.into_graph(), 0, false);
+        let samplers = router.compile(&mut compiler).unwrap();
+        let mut context = SamplerContext::cached();
+        assert_eq!(
+            samplers
+                .get(RouterField::ChunkSurfaceLevel)
+                .sample_value(&mut context, [4, 99, -32])
+                .unwrap(),
+            -0.5
+        );
+    }
+}

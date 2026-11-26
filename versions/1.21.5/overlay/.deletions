@@ -1,0 +1,11 @@
+crates/horizon-client/src/dialog.rs
+crates/horizon-client/src/dialog_screen.rs
+crates/horizon-client/src/game/dialogs.rs
+crates/horizon-client/src/game/ghasts.rs
+crates/horizon-client/src/game/lan_waypoints.rs
+crates/horizon-client/src/game/locator_bar.rs
+crates/horizon-client/src/game/quick_actions.rs
+crates/horizon-client/src/lan/waypoints.rs
+crates/horizon-client/src/locator_bar.rs
+crates/horizon-client/src/mobs/happy_ghast.rs
+tools/test_happy_ghast_leash_parity.py

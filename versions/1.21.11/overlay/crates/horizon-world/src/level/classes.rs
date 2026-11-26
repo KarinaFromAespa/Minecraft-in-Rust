@@ -1,0 +1,358 @@
+//! Vanilla block classes recognised by Horizon's behaviour port.
+//!
+//! Each block's exported class chain (most derived first) is matched against
+//! this list: `class` is the most derived recognised class (it selects the
+//! ported overrides), and `instance_of` answers Java `instanceof` checks such
+//! as `state.getBlock() instanceof LeavesBlock` for any recognised ancestor.
+
+macro_rules! classes {
+    // A variant may carry a 1.21.11 alias (`| "OldName"`) when the class
+    // was renamed between 1.21.11 and the 26.x base the list was taken
+    // from; without the alias the variant never matches the exported
+    // 1.21.11 class chain and every arm on it is dead code.
+    ($($name:ident = $java:literal $(| $alt:literal)?,)*) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+        #[repr(u16)]
+        pub enum Class { $($name,)* }
+        impl Class {
+            pub const ALL: &'static [Class] = &[$(Class::$name,)*];
+            pub fn from_java(name: &str) -> Option<Self> {
+                match name { $($java $(| $alt)? => Some(Class::$name),)* _ => None }
+            }
+        }
+    };
+}
+
+classes! {
+    Block = "Block",
+    Air = "AirBlock",
+    AmethystCluster = "AmethystClusterBlock",
+    Anvil = "AnvilBlock",
+    AttachedStem = "AttachedStemBlock",
+    Azalea = "AzaleaBlock",
+    BambooSapling = "BambooSaplingBlock",
+    BambooStalk = "BambooStalkBlock",
+    AbstractBanner = "AbstractBannerBlock",
+    Banner = "BannerBlock",
+    WallBanner = "WallBannerBlock",
+    Barrel = "BarrelBlock",
+    BaseCoralPlantType = "BaseCoralPlantTypeBlock",
+    BaseCoralPlant = "BaseCoralPlantBlock",
+    BaseCoralFan = "BaseCoralFanBlock",
+    BaseCoralWallFan = "BaseCoralWallFanBlock",
+    CoralPlant = "CoralPlantBlock",
+    CoralFan = "CoralFanBlock",
+    CoralWallFan = "CoralWallFanBlock",
+    Coral = "CoralBlock",
+    BaseEntity = "BaseEntityBlock",
+    BaseFire = "BaseFireBlock",
+    Fire = "FireBlock",
+    SoulFire = "SoulFireBlock",
+    BasePressurePlate = "BasePressurePlateBlock",
+    PressurePlate = "PressurePlateBlock",
+    WeightedPressurePlate = "WeightedPressurePlateBlock",
+    BaseRail = "BaseRailBlock",
+    Rail = "RailBlock",
+    PoweredRail = "PoweredRailBlock",
+    DetectorRail = "DetectorRailBlock",
+    BaseTorch = "BaseTorchBlock",
+    Torch = "TorchBlock",
+    WallTorch = "WallTorchBlock",
+    RedstoneTorch = "RedstoneTorchBlock",
+    RedstoneWallTorch = "RedstoneWallTorchBlock",
+    AbstractBed = "AbstractBedBlock",
+    Bed = "BedBlock",
+    StrawBed = "StrawBedBlock",
+    Beehive = "BeehiveBlock",
+    Beetroot = "BeetrootBlock",
+    Bell = "BellBlock",
+    BigDripleaf = "BigDripleafBlock",
+    BigDripleafStem = "BigDripleafStemBlock",
+    BonemealableFeaturePlacer = "BonemealableFeaturePlacerBlock",
+    BubbleColumn = "BubbleColumnBlock",
+    BuddingAmethyst = "BuddingAmethystBlock",
+    Bush = "BushBlock",
+    Button = "ButtonBlock",
+    Cactus = "CactusBlock",
+    CactusFlower = "CactusFlowerBlock",
+    Cake = "CakeBlock",
+    Campfire = "CampfireBlock",
+    AbstractCandle = "AbstractCandleBlock",
+    Candle = "CandleBlock",
+    CandleCake = "CandleCakeBlock",
+    Carpet = "CarpetBlock",
+    WoolCarpet = "WoolCarpetBlock",
+    MossyCarpet = "MossyCarpetBlock",
+    Carrot = "CarrotBlock",
+    CarvedPumpkin = "CarvedPumpkinBlock",
+    AbstractCauldron = "AbstractCauldronBlock",
+    Cauldron = "CauldronBlock",
+    LavaCauldron = "LavaCauldronBlock",
+    LayeredCauldron = "LayeredCauldronBlock",
+    GrowingPlant = "GrowingPlantBlock",
+    GrowingPlantHead = "GrowingPlantHeadBlock",
+    GrowingPlantBody = "GrowingPlantBodyBlock",
+    CaveVines = "CaveVinesBlock",
+    CaveVinesPlant = "CaveVinesPlantBlock",
+    Kelp = "KelpBlock",
+    KelpPlant = "KelpPlantBlock",
+    TwistingVines = "TwistingVinesBlock",
+    TwistingVinesPlant = "TwistingVinesPlantBlock",
+    WeepingVines = "WeepingVinesBlock",
+    WeepingVinesPlant = "WeepingVinesPlantBlock",
+    Sign = "SignBlock",
+    StandingSign = "StandingSignBlock",
+    WallSign = "WallSignBlock",
+    CeilingHangingSign = "CeilingHangingSignBlock",
+    WallHangingSign = "WallHangingSignBlock",
+    RotatedPillar = "RotatedPillarBlock",
+    Chain = "ChainBlock",
+    AbstractChest = "AbstractChestBlock",
+    Chest = "ChestBlock",
+    TrappedChest = "TrappedChestBlock",
+    CopperChest = "CopperChestBlock",
+    EnderChest = "EnderChestBlock",
+    ChiseledBookShelf = "ChiseledBookShelfBlock",
+    ChorusFlower = "ChorusFlowerBlock",
+    ChorusPlant = "ChorusPlantBlock",
+    Pipe = "PipeBlock",
+    Cocoa = "CocoaBlock",
+    FallingBlock = "FallingBlock",
+    ColoredFalling = "ColoredFallingBlock",
+    Sand = "SandBlock",
+    ConcretePowder = "ConcretePowderBlock",
+    DragonEgg = "DragonEggBlock",
+    Comparator = "ComparatorBlock",
+    Repeater = "RepeaterBlock",
+    Diode = "DiodeBlock",
+    Composter = "ComposterBlock",
+    CopperBulb = "CopperBulbBlock",
+    Crafter = "CrafterBlock",
+    CraftingTable = "CraftingTableBlock",
+    CreakingHeart = "CreakingHeartBlock",
+    Crop = "CropBlock",
+    CrossCollision = "CrossCollisionBlock",
+    DaylightDetector = "DaylightDetectorBlock",
+    DecoratedPot = "DecoratedPotBlock",
+    Directional = "DirectionalBlock",
+    Dispenser = "DispenserBlock",
+    Dropper = "DropperBlock",
+    Door = "DoorBlock",
+    DoublePlant = "DoublePlantBlock",
+    DriedGhast = "DriedGhastBlock",
+    DropExperience = "DropExperienceBlock",
+    DryVegetation = "DryVegetationBlock",
+    ShortDryGrass = "ShortDryGrassBlock",
+    TallDryGrass = "TallDryGrassBlock",
+    EndPortalFrame = "EndPortalFrameBlock",
+    Rod = "RodBlock",
+    EndRod = "EndRodBlock",
+    LightningRod = "LightningRodBlock",
+    Flower = "FlowerBlock",
+    Eyeblossom = "EyeblossomBlock",
+    WitherRose = "WitherRoseBlock",
+    FaceAttachedHorizontalDirectional = "FaceAttachedHorizontalDirectionalBlock",
+    Farmland = "FarmlandBlock" | "FarmBlock",
+    Fence = "FenceBlock",
+    FenceGate = "FenceGateBlock",
+    FireflyBush = "FireflyBushBlock",
+    FlowerBed = "FlowerBedBlock",
+    FlowerPot = "FlowerPotBlock",
+    Frogspawn = "FrogspawnBlock",
+    Ice = "IceBlock",
+    FrostedIce = "FrostedIceBlock",
+    AbstractFurnace = "AbstractFurnaceBlock",
+    GlazedTerracotta = "GlazedTerracottaBlock",
+    Multiface = "MultifaceBlock",
+    MultifaceSpreadeable = "MultifaceSpreadeableBlock",
+    GlowLichen = "GlowLichenBlock",
+    SculkVein = "SculkVeinBlock",
+    Snowy = "SnowyBlock" | "SnowyDirtBlock",
+    SpreadingSnowy = "SpreadingSnowyBlock" | "SpreadingSnowyDirtBlock",
+    Grass = "GrassBlock",
+    Mycelium = "MyceliumBlock",
+    Grindstone = "GrindstoneBlock",
+    HalfTransparent = "HalfTransparentBlock",
+    HangingMoss = "HangingMossBlock",
+    HangingRoots = "HangingRootsBlock",
+    Hay = "HayBlock",
+    Hopper = "HopperBlock",
+    HorizontalDirectional = "HorizontalDirectionalBlock",
+    HugeMushroom = "HugeMushroomBlock",
+    Infested = "InfestedBlock",
+    InfestedRotatedPillar = "InfestedRotatedPillarBlock",
+    IronBars = "IronBarsBlock",
+    StainedGlassPane = "StainedGlassPaneBlock",
+    Jukebox = "JukeboxBlock",
+    Ladder = "LadderBlock",
+    Lantern = "LanternBlock",
+    LeafLitter = "LeafLitterBlock",
+    Leaves = "LeavesBlock",
+    MangroveLeaves = "MangroveLeavesBlock",
+    Lectern = "LecternBlock",
+    Lever = "LeverBlock",
+    Light = "LightBlock",
+    LilyPad = "WaterlilyBlock",
+    Liquid = "LiquidBlock",
+    Loom = "LoomBlock",
+    Magma = "MagmaBlock",
+    MangrovePropagule = "MangrovePropaguleBlock",
+    MangroveRoots = "MangroveRootsBlock",
+    MovingPiston = "MovingPistonBlock",
+    Mud = "MudBlock",
+    Mushroom = "MushroomBlock",
+    NetherFungus = "NetherFungusBlock" | "FungusBlock",
+    NetherPortal = "NetherPortalBlock",
+    NetherRoots = "NetherRootsBlock" | "RootsBlock",
+    NetherSprouts = "NetherSproutsBlock",
+    NetherWart = "NetherWartBlock",
+    Note = "NoteBlock",
+    Nylium = "NyliumBlock",
+    Observer = "ObserverBlock",
+    Path = "PathBlock" | "DirtPathBlock",
+    AbstractSkull = "AbstractSkullBlock",
+    Skull = "SkullBlock",
+    WallSkull = "WallSkullBlock",
+    PistonBase = "PistonBaseBlock",
+    PistonHead = "PistonHeadBlock",
+    PitcherCrop = "PitcherCropBlock",
+    Speleothem = "SpeleothemBlock",
+    PointedDripstone = "PointedDripstoneBlock",
+    SulfurSpike = "SulfurSpikeBlock",
+    Potato = "PotatoBlock",
+    PowderSnow = "PowderSnowBlock",
+    Powered = "PoweredBlock",
+    Pumpkin = "PumpkinBlock",
+    RedStoneOre = "RedStoneOreBlock",
+    RedstoneLamp = "RedstoneLampBlock",
+    RedstoneWire = "RedstoneWireBlock" | "RedStoneWireBlock",
+    RespawnAnchor = "RespawnAnchorBlock",
+    RootedDirt = "RootedDirtBlock",
+    Sapling = "SaplingBlock",
+    Scaffolding = "ScaffoldingBlock",
+    SculkSensor = "SculkSensorBlock",
+    CalibratedSculkSensor = "CalibratedSculkSensorBlock",
+    SculkShrieker = "SculkShriekerBlock",
+    SeaPickle = "SeaPickleBlock",
+    Seagrass = "SeagrassBlock",
+    Shelf = "ShelfBlock",
+    ShelfMushroom = "ShelfMushroomBlock",
+    ShulkerBox = "ShulkerBoxBlock",
+    Slab = "SlabBlock",
+    SmallDripleaf = "SmallDripleafBlock",
+    SnifferEgg = "SnifferEggBlock",
+    SnowLayer = "SnowLayerBlock",
+    SoulSand = "SoulSandBlock",
+    Sponge = "SpongeBlock",
+    WetSponge = "WetSpongeBlock",
+    SporeBlossom = "SporeBlossomBlock",
+    Stair = "StairBlock",
+    Stem = "StemBlock",
+    Stonecutter = "StonecutterBlock",
+    SugarCane = "SugarCaneBlock",
+    SweetBerryBush = "SweetBerryBushBlock",
+    TallFlower = "TallFlowerBlock",
+    TallGrass = "TallGrassBlock",
+    TallSeagrass = "TallSeagrassBlock",
+    Target = "TargetBlock",
+    Tnt = "TntBlock",
+    TorchflowerCrop = "TorchflowerCropBlock",
+    TrapDoor = "TrapDoorBlock",
+    TripWire = "TripWireBlock",
+    TripWireHook = "TripWireHookBlock",
+    TurtleEgg = "TurtleEggBlock",
+    Vegetation = "VegetationBlock",
+    Vine = "VineBlock",
+    Wall = "WallBlock",
+    WaterloggedTransparent = "WaterloggedTransparentBlock",
+    WeatheringCopperFull = "WeatheringCopperFullBlock",
+    Web = "WebBlock",
+    CopperGolemStatue = "CopperGolemStatueBlock",
+    Beacon = "BeaconBlock",
+    BrewingStand = "BrewingStandBlock",
+    Brushable = "BrushableBlock",
+    Conduit = "ConduitBlock",
+    EnchantingTable = "EnchantingTableBlock",
+    EndGateway = "EndGatewayBlock",
+    EndPortal = "EndPortalBlock",
+    Spawner = "SpawnerBlock",
+    TrialSpawner = "TrialSpawnerBlock",
+    Vault = "VaultBlock",
+    Barrier = "BarrierBlock",
+    StructureVoid = "StructureVoidBlock",
+    Command = "CommandBlock",
+    Structure = "StructureBlock",
+    Jigsaw = "JigsawBlock",
+    TestBlock = "TestBlock",
+    TestInstanceBlock = "TestInstanceBlock",
+    SmithingTable = "SmithingTableBlock",
+    CartographyTable = "CartographyTableBlock",
+    Netherrack = "NetherrackBlock",
+    Sculk = "SculkBlock",
+    SculkCatalyst = "SculkCatalystBlock",
+    PotentSulfur = "PotentSulfurBlock",
+    Honey = "HoneyBlock",
+    Slime = "SlimeBlock",
+    HeavyCore = "HeavyCoreBlock",
+    CryingObsidian = "CryingObsidianBlock",
+}
+
+/// Java interfaces Horizon's port consults through `instanceof`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum Interface {
+    SimpleWaterlogged,
+    LiquidBlockContainer,
+    BucketPickup,
+    Bonemealable,
+    Fallable,
+    Entity,
+    WeatheringCopper,
+    CaveVines,
+}
+impl Interface {
+    pub fn from_java(name: &str) -> Option<Self> {
+        Some(match name {
+            "SimpleWaterloggedBlock" => Self::SimpleWaterlogged,
+            "LiquidBlockContainer" => Self::LiquidBlockContainer,
+            "BucketPickup" => Self::BucketPickup,
+            "BonemealableBlock" => Self::Bonemealable,
+            "Fallable" => Self::Fallable,
+            "EntityBlock" => Self::Entity,
+            "WeatheringCopper" => Self::WeatheringCopper,
+            "CaveVines" => Self::CaveVines,
+            _ => return None,
+        })
+    }
+    pub const fn mask(self) -> u16 {
+        1 << self as u8
+    }
+}
+
+/// Set of recognised classes in one block's chain.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ClassSet([u64; 5]);
+impl ClassSet {
+    pub fn insert(&mut self, class: Class) {
+        let i = class as usize;
+        self.0[i / 64] |= 1 << (i % 64);
+    }
+    pub fn contains(self, class: Class) -> bool {
+        let i = class as usize;
+        self.0[i / 64] & (1 << (i % 64)) != 0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The 1.21.11 prepared class chain names the lily pad
+    /// `WaterlilyBlock` (26.1 renamed it `LilyPadBlock`); the boat
+    /// friction skip, the boat-breaks-pad hook and the lily-pad
+    /// survival rule all recognise it through this name.
+    #[test]
+    fn lily_pad_recognises_the_1_21_11_class_name() {
+        assert_eq!(Class::from_java("WaterlilyBlock"), Some(Class::LilyPad));
+    }
+}
