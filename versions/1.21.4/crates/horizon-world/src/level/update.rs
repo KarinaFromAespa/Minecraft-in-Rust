@@ -209,8 +209,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     pub fn emit(&mut self, event: LevelEvent) {
         self.level.emit(event);
     }
-    /// `TntBlock.prime` without a source: `new PrimedTnt` draws its push angle
+    /// `TntBlock.explode` without a source: `new PrimedTnt` draws its push angle
     /// from the level random, then the primed sound and `prime_fuse` event.
+    /// (1.21.4's name; 1.21.5 renamed it `prime` and gated it on the
+    /// `tntExplodes` rule, which 1.21.4 does not have.)
     pub fn prime_tnt(&mut self, pos: BlockPos) {
         let rot = self.random().next_double() * f64::from(std::f32::consts::TAU);
         self.emit(LevelEvent::PrimeTnt { pos, rot });

@@ -231,7 +231,11 @@ impl Game<'_> {
     pub(super) fn breath_affect_mob(&mut self, mob: u32, amplifier: i32, at: [f64; 3]) {
         let source = Text::translate("entity.minecraft.area_effect_cloud", &[]);
         let effect = [("instant_damage", 1, amplifier)];
-        // DragonFireball.onHit and the flame phase: `setPotionDurationScale(0.25)`.
+        // DragonFireball.onHit and the flame phase carry only instant
+        // damage, so the cloud's duration scale never applies here; the
+        // 0.25 is 1.21.4's own quarter (`AreaEffectCloud.serverTick` maps
+        // effect durations by /4 — `setPotionDurationScale` is the 1.21.5
+        // name for the same quarter, and does not exist in 1.21.4).
         self.cloud_affect(
             Victim::Mob(mob),
             &effect,

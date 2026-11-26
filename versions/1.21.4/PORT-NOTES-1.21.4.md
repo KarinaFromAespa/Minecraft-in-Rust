@@ -2302,3 +2302,89 @@ shape for the review batches.
   test-health item, CI crate-tests will show it. The border test
   near_wall_is_drawn_and_tinted passes with the new fixed order. Rank 2:
   127/348.
+  Batch 26 (2026-11-26, restart continued): items 81, 82, 83, 84.
+  Item 81 (horizon-command/src/item.rs): NO-CHANGE. 1.21.4's
+  ItemPredicateArgument has its own parse/listSuggestions over its
+  grammarWithContext field (grammar.parseForCommands + Util.allOf +
+  Result::test; suggestions via grammar.parseForSuggestions); 1.21.5's
+  extends ParserBasedArgument and inherits the same two calls, so the
+  entry points are observably identical. ComponentPredicateParser.
+  createGrammar has the same 10 lambdas and rule structure in both
+  versions; the ResourceLookupRule constructor and
+  lambda$createGrammar$9's Scope parameter are internal packrat
+  plumbing. Decode is the Tag form in 1.21.4 (ComponentWrapper/
+  PredicateWrapper decode(reader, RegistryOps<Tag>, Tag); Context
+  passes a Tag) and the Rust's decode_component/decode_predicate take
+  &Tag — the 1.21.4 form; 1.21.5's Dynamic form validates the same
+  values through the same codec. ItemParser holds TagParser<Tag> +
+  RegistryOps<Tag> in 1.21.4 (passed as parameters in 1.21.5); the
+  Rust's ItemState parses SNBT to a Tag and validates with
+  decode_component — same unknown-item/component/repeated/malformed
+  errors. The pseudo maps hold only count in both versions (javap
+  <clinit>), which the Rust handles. Item 82 (level/tick.rs): PORTED —
+  FireBlock.tick writes the aged fire with flags 4 in 1.21.4 (javap
+  offset 179-180, iconst_4) and 260 in 1.21.5; the Rust had
+  set_block(pos, state, 260) at tick.rs:652, now
+  super::flags::UPDATE_INVISIBLE (260 is UPDATE_NONE = 256 + 4, and
+  256 is the 1.21.5-only UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS bit).
+  The prime_tnt doc now names 1.21.4's TntBlock.explode (1.21.5
+  renamed it prime and gated it on the tntExplodes rule, which 1.21.4
+  does not have); behaviour already matched. NO-CHANGE: bootStrap's
+  seven 1.21.5-only flammable blocks (SHORT_DRY_GRASS, TALL_DRY_GRASS,
+  WILDFLOWERS, LEAF_LITTER, CACTUS_FLOWER, FIREFLY_BUSH, BUSH) do not
+  exist in the 1.21.4 jar, and the Rust's fire odds come from the
+  per-version block-behaviours.json; the tick gate (doFireTick via
+  can_spread_fire_around after item 80) and the rest of fire_tick
+  already match 1.21.4. Item 83 (game/dragon.rs): PORTED (comment
+  only) — breath_affect_mob cited setPotionDurationScale(0.25) for the
+  flame phase and DragonFireball.onHit; that method does not exist in
+  1.21.4 (no such method on 1.21.4's AreaEffectCloud; 1.21.5 added it
+  with DEFAULT_POTION_DURATION_SCALE). 1.21.4's quarter is
+  AreaEffectCloud.serverTick's mapDuration(duration / 4); the comment
+  now says so. Behaviour verified matching throughout: EndCrystal
+  read/add save data (beam_target as an IntArray of 3 via NbtUtils,
+  ShowBottom default true, write IntArray + ShowBottom); hurtServer
+  identical (ldc/ldc_w noise only); EnderDragon.aiStep is the 1.21.4
+  lerpSteps form (tick_dragon + tick_remote_dragon step 1/nth toward
+  the sent position/yaw), not 1.21.5's InterpolationHandler;
+  onCrystalDestroyed identical in both versions (Player-or-nearest,
+  10.0 explosion on the head when nearest, phase strafe callback);
+  readAdditionalSaveData matches on producible inputs (Phase::from_id
+  clamps like getById; DragonDeathTime contains-guarded);
+  sanitizeScale identical (returns 1.0);
+  DragonSittingFlamingPhase.doServerTick differs only in the
+  1.21.5-only setPotionDurationScale call and the HARM->INSTANT_DAMAGE
+  rename — the scale only affects non-instant effect durations and
+  both clouds carry only instant damage, and the Rust's instant
+  magnitudes (3.0 flame / 6.0 fireball at the cloud's 0.5 scale) match
+  1.21.4 exactly (cloud passes 0.5 to applyInstantenousEffect,
+  javap-verified); DragonStrafePlayerPhase.doServerTick identical;
+  EnderDragonRenderer/DragonFireballRenderer render methods identical
+  (constant-pool noise only; extractAdditionalHitboxes is 1.21.5-only).
+  Noted edge (no fix): a non-numeric DragonPhase tag coerces to
+  0/Holding in 1.21.4 (contains + getInt) while the Rust keeps Hover —
+  not producible by vanilla saves. Item 84 (hud.rs): NO-CHANGE.
+  PackSelectionScreen.loadPackIcon is identical except the
+  DynamicTexture constructor (API-only). The Rust's icon_texture
+  reproduces the naming exactly: Util.sanitizeName lowercases
+  (Locale.ROOT) then replaces chars failing
+  ResourceLocation.validPathChar ([a-z0-9_-./]) with '_', and the sha1
+  is Hashing.sha1().hashUnencodedChars(id) (UTF-16LE) — both
+  javap-verified. TextureAtlas.dumpContents writes name.png + name.txt
+  in both versions; the 1.21.5 change is the writeAsPNG overload (gl id
+  vs GpuTexture + identity operator) — API-only; dumpSpriteNames sorts
+  by key and writes '%s\tx=%d\ty=%d\tw=%d\th=%d' with getX/getY/
+  contents width/height, which the Rust's dump_atlas matches.
+  TextureAtlas upload/cycleAnimationFrames/getHeight/constructor differ
+  only in the GL-id vs GpuTexture backend (1.21.5 adds a null-texture
+  guard and passes the texture to tickAndUpload/uploadFirstFrame); the
+  Rust's wgpu atlas + SpriteAnimator reproduce the observable
+  behaviour. cargo check green for horizon-world + horizon-client
+  (1m02s, no warnings). --tests: horizon-world lib 444 passed / 3
+  failed, horizon-client lib 1263 passed / 4 failed — the same 7
+  pre-existing failures as batch 25 (datafix x3, lan_particles,
+  lan_screen, launch_api, spill). NOTE: the horizon-client lib run was
+  interrupted by a runtime restart mid-run (session proc_897ba7b003e7,
+  empty recorded log); the prebuilt test binary it had produced was
+  re-run directly and completed in 13s with the baseline result.
+  Rank 2: 131/348.

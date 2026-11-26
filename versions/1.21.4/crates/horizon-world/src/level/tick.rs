@@ -649,7 +649,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let mut state = state;
         if age != new_age {
             state = b.table.set_int(state, p.age, new_age);
-            self.set_block(pos, state, 260);
+            // `FireBlock.tick` writes the aged fire with flags 4 in 1.21.4;
+            // 1.21.5 uses 260 (`UPDATE_NONE`, which adds the 1.21.5-only
+            // `UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS` bit).
+            self.set_block(pos, state, super::flags::UPDATE_INVISIBLE);
         }
         if !infini {
             if !self.is_valid_fire_location(pos) {
