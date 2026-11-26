@@ -2918,7 +2918,10 @@ shape for the review batches.
   `updateLastExecution && lastExecution > 0`; the Rust wrote the codec
   compound and any value but -1. `save` now writes
   `Tag::String(serde_json::to_string(component))` and skips
-  `LastExecution` at 0. `load` reads `CustomName`/`LastOutput` only from
+  `LastExecution` at 0, compacting a style-less literal to the JSON string
+  itself (`toJson` of the literal is `"hi"`, not `{"text":"hi"}` — the
+  first save wrote the object form and the minecart round-trip test caught
+  it). `load` reads `CustomName`/`LastOutput` only from
   String tags (1.21.4's `getString` drops a compound) and parses the JSON
   before `comp_text`: a malformed `LastOutput` becomes a literal of the
   parse error, as vanilla's `catch (Throwable)` does, and an unparsable

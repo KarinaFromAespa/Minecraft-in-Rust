@@ -95,6 +95,19 @@ impl Default for CommandBlock {
     }
 }
 
+/// `Component$Serializer.toJson`: a style-less literal serializes as the
+/// string itself (`"hi"`), not the object (`{"text":"hi"}`); anything with
+/// style, siblings or another root kind keeps the object form.
+fn component_json(c: &serde_json::Value) -> serde_json::Value {
+    match c.as_object() {
+        Some(o) if o.len() == 1 => match o.get("text") {
+            Some(serde_json::Value::String(s)) => serde_json::Value::String(s.clone()),
+            _ => c.clone(),
+        },
+        _ => c.clone(),
+    }
+}
+
 impl CommandBlock {
     /// `CommandBlockEntity.loadAdditional` with `BaseCommandBlock.load`.
     pub fn load(tag: &Tag) -> Self {
@@ -157,7 +170,7 @@ impl CommandBlock {
             out.push((
                 "LastOutput",
                 Tag::String(
-                    serde_json::to_string(&last.component())
+                    serde_json::to_string(&component_json(&last.component()))
                         .unwrap_or_default()
                         .as_str()
                         .into(),
@@ -280,8 +293,12 @@ mod tests {
         assert_eq!(block.name().plain(), "Hi");
         let tag = Tag::compound(block.save());
         assert_eq!(tag.get("LastExecution"), None);
-        let output = tag.get("LastOutput");
-        assert!(matches!(output, Some(Tag::String(_))), "{output:?}");
+        // A style-less literal saves as the JSON string itself, not the
+        // object: `toJson` of the literal is `"[12:00:00] hi"`.
+        assert_eq!(
+            tag.get("LastOutput"),
+            Some(&Tag::String("\"[12:00:00] hi\"".into())),
+        );
         let back = CommandBlock::load(&tag);
         assert_eq!(back.last_output_string(), "[12:00:00] hi");
         assert_eq!(back.name().plain(), "Hi");
