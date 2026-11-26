@@ -695,18 +695,22 @@ fn fix_block_state_tag(v: Tag) -> Tag {
     Tag::Compound(out)
 }
 
-fn is_strictly_valid_json(v: &Tag) -> bool {
-    matches!(v, Tag::String(s) if json::parse_strict(&s.0).is_some())
-}
-
 fn fix_display(s: &mut Stack, mut d: Tag, hide_flags: i32) -> Tag {
-    if let Some(name) = d.get("Name").filter(|n| is_strictly_valid_json(n)) {
-        s.set_component("minecraft:custom_name", name.clone());
+    // `ItemStackComponentizationFix`: `display.Name` is a JSON text component,
+    // and the `custom_name` component holds it parsed, not the raw string.
+    if let Some(Tag::String(name)) = d.get("Name")
+        && let Some(parsed) = json::parse_strict(&name.0)
+        && let Some(component) = json::to_nbt(&parsed)
+    {
+        s.set_component("minecraft:custom_name", component);
     }
     if d.get("Lore").is_some() {
         let lore = stream(d.get("Lore"))
             .into_iter()
-            .filter(is_strictly_valid_json)
+            .filter_map(|entry| match &entry {
+                Tag::String(text) => json::parse_strict(&text.0).and_then(|j| json::to_nbt(&j)),
+                _ => None,
+            })
             .collect();
         s.set_component("minecraft:lore", Tag::List(lore));
     }

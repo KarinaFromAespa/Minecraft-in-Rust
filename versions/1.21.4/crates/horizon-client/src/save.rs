@@ -840,14 +840,29 @@ pub fn block_entity_data(
     tag
 }
 /// `BannerBlockEntity.loadAdditional` (and the `components` a block entity keeps).
+/// The components a block entity keeps: the `components` compound (the live
+/// form, what `encode_block_entity` writes) or, for a 1.21.4 save, the
+/// `minecraft:*` keys merged into the tag itself (`BlockEntity.loadWithComponents`
+/// parses the whole tag with `COMPONENTS_CODEC`).
+pub fn block_entity_components(tag: &Tag) -> Compound {
+    if let Some(Tag::Compound(c)) = tag.get("components") {
+        return c.clone();
+    }
+    match tag {
+        Tag::Compound(map) => map
+            .iter()
+            .filter(|(k, _)| k.to_string_lossy().starts_with("minecraft:"))
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect(),
+        _ => Compound::new(),
+    }
+}
+
 pub fn decode_banner(tag: &Tag) -> crate::containers::Banner {
     crate::containers::Banner {
         layers: crate::banner::layers_from_nbt(tag.get("patterns")),
         name: text(tag.get("CustomName")),
-        components: match tag.get("components") {
-            Some(Tag::Compound(c)) => c.clone(),
-            _ => Compound::new(),
-        },
+        components: block_entity_components(tag),
     }
 }
 /// A loaded container with a loot table and no items yet, rolled as
@@ -1139,10 +1154,7 @@ pub fn decode_block_entity(tag: &Tag) -> Option<((i32, i32, i32), crate::contain
         }
         // `BlockEntity.loadAdditional`: the components the block entity keeps.
         BlockEntity::CopperGolemStatue(components) => {
-            *components = match tag.get("components") {
-                Some(Tag::Compound(c)) => c.clone(),
-                _ => Compound::new(),
-            };
+            *components = block_entity_components(tag);
         }
         BlockEntity::Spawner(s) => **s = crate::mobs::spawner::Spawner::load(tag),
         BlockEntity::TrialSpawner(s) => **s = crate::mobs::trial_spawner::TrialSpawner::load(tag),

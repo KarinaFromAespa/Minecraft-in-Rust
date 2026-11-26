@@ -136,7 +136,8 @@ impl ServerAdvancements {
                 obtained[i].contains(&c).then_some(now_millis)
             });
         }
-        w.bool(true); // show the advancements
+        // No trailing `showAdvancements` bool in 1.21.4: the packet ends
+        // with the progress (the field is a 1.21.5 addition).
         FirstTick {
             recipe_book_add,
             update_advancements: w.data,

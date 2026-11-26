@@ -159,39 +159,52 @@ fn fix_world_files_deferred(
     Ok((loaded, Some(data)))
 }
 
+/// A saved-data file (`{"data": ..., "DataVersion": ...}`), its `data`
+/// brought to `version`. (1.21.5's `read_saved_data`; the 1.21.4 tree's
+/// writer stores the world-gen settings this way.)
+fn read_saved_data(path: &Path, ty: Ty, version: i32) -> io::Result<Option<Tag>> {
+    Ok(read_dat(path)?.map(|mut tag| {
+        let from = data_version(&tag, -1);
+        update(ty, &mut tag, from, version);
+        tag.get("data")
+            .cloned()
+            .unwrap_or_else(|| Tag::Compound(Compound::new()))
+    }))
+}
+
 /// The world's generator settings as 1.21.4 reads them: `WorldGenSettings`
-/// in level.dat's `Data`, brought to the current version. (26.x moved the
-/// settings out of level.dat into `world_gen_settings.dat` with the 4772
-/// file fix; 1.21.4 never did.)
+/// in level.dat's `Data`, brought to the current version — or, for a world
+/// this tree created, the saved-data file `data/minecraft/world_gen_settings.dat`
+/// (the 1.21.5 form the tree's writer uses). Vanilla 1.21.4 never wrote the
+/// file (its settings live in level.dat; the file form arrived with the 4772
+/// file fix in 26.1), so a level.dat that carries the settings wins over the
+/// file.
 pub fn current_world_gen_settings(base: &Path) -> io::Result<Option<Tag>> {
-    let Some(root) = read_dat(&base.join("level.dat"))? else {
-        return Ok(None);
-    };
-    let Some(data) = root.get("Data") else {
-        return Ok(None);
-    };
-    let Some(mut settings) = data.get("WorldGenSettings").cloned() else {
-        return Ok(None);
-    };
-    let from = data_version(data, -1);
-    update(Ty::WorldGenSettings, &mut settings, from, CURRENT);
-    Ok(Some(settings))
+    if let Some(root) = read_dat(&base.join("level.dat"))? {
+        if let Some(data) = root.get("Data") {
+            if let Some(mut settings) = data.get("WorldGenSettings").cloned() {
+                let from = data_version(data, -1);
+                update(Ty::WorldGenSettings, &mut settings, from, CURRENT);
+                return Ok(Some(settings));
+            }
+        }
+    }
+    read_saved_data(
+        &base.join("data/minecraft/world_gen_settings.dat"),
+        Ty::SavedWorldGenSettings,
+        CURRENT,
+    )
 }
 
 // ------------------------------------------------------------------ the read-time upgrades
 
-/// Chunk generator types per dimension from level.dat's `WorldGenSettings`,
-/// the `generator` of the context the chunk fixes read.
+/// Chunk generator types per dimension from the world's generator settings
+/// (level.dat's `WorldGenSettings`, or the saved-data file for a world this
+/// tree created), the `generator` of the context the chunk fixes read.
 pub fn generators(base: &Path) -> io::Result<Vec<(String, String)>> {
-    let Some(root) = read_dat(&base.join("level.dat"))? else {
-        return Ok(Vec::new());
-    };
+    let settings = current_world_gen_settings(base)?;
     let mut out = Vec::new();
-    if let Some(Tag::Compound(dims)) = root
-        .get("Data")
-        .and_then(|d| d.get("WorldGenSettings"))
-        .and_then(|s| s.get("dimensions"))
-    {
+    if let Some(Tag::Compound(dims)) = settings.as_ref().and_then(|s| s.get("dimensions")) {
         for (id, dim) in dims {
             if let Some(ty) = dim.get("generator").and_then(|g| as_str(g.get("type"))) {
                 out.push((id.to_string_lossy(), ty));

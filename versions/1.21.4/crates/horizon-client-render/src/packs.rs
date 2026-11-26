@@ -1588,15 +1588,18 @@ mod tests {
     }
     #[test]
     fn compatibility_ranges() {
+        // 1.21.4's pack metadata has only `pack_format` and
+        // `supported_formats` (no `min_format`/`max_format`, no minors):
+        // the resource format is 46.
         let v = |s: &str| serde_json::from_str::<serde_json::Value>(s).unwrap();
         assert!(compatible(&v(
-            r#"{"pack":{"min_format":97,"max_format":98}}"#
+            r#"{"pack":{"supported_formats":[34,60],"pack_format":46}}"#
         )));
         assert!(compatible(&v(
-            r#"{"pack":{"min_format":[97,0],"max_format":[97,1]}}"#
+            r#"{"pack":{"supported_formats":[46,46],"pack_format":46}}"#
         )));
         assert!(!compatible(&v(
-            r#"{"pack":{"min_format":[97,2],"max_format":99}}"#
+            r#"{"pack":{"supported_formats":[47,60],"pack_format":50}}"#
         )));
         assert!(!compatible(&v(r#"{"pack":{"pack_format":34}}"#)));
         assert_eq!(
@@ -2151,21 +2154,24 @@ mod tests {
     }
     #[test]
     fn overlays_and_filters() {
+        // 1.21.4's overlay entries carry `formats` as an int, a `[min, max]`
+        // pair or a `{min_inclusive, max_inclusive}` object (no
+        // `min_format`/`max_format`, no minors): the resource format is 46.
         let v = |s: &str| serde_json::from_str::<serde_json::Value>(s).unwrap();
         let meta = v(r#"{"overlays":{"entries":[
-            {"formats":[90,96],"directory":"old"},
-            {"formats":{"min_inclusive":97,"max_inclusive":97},"directory":"new"},
-            {"min_format":97,"max_format":[97,5],"directory":"also"},
+            {"formats":[40,45],"directory":"old"},
+            {"formats":{"min_inclusive":46,"max_inclusive":46},"directory":"new"},
+            {"formats":{"min_inclusive":46,"max_inclusive":50},"directory":"also"},
             {"formats":50,"directory":"no"}]}}"#);
         assert_eq!(overlays_of(&meta, &Default::default()), ["new", "also"]);
         // Only one plain folder of the pack, as vanilla's DIR_VALIDATOR has it.
         let meta = v(r#"{"overlays":{"entries":[
-            {"formats":97,"directory":".."},
-            {"formats":97,"directory":"../outside"},
-            {"formats":97,"directory":"/etc"},
-            {"formats":97,"directory":"a/b"},
-            {"formats":97,"directory":"C:"},
-            {"formats":97,"directory":"ok_1.21-x"}]}}"#);
+            {"formats":46,"directory":".."},
+            {"formats":46,"directory":"../outside"},
+            {"formats":46,"directory":"/etc"},
+            {"formats":46,"directory":"a/b"},
+            {"formats":46,"directory":"C:"},
+            {"formats":46,"directory":"ok_1.21-x"}]}}"#);
         assert_eq!(overlays_of(&meta, &Default::default()), ["ok_1.21-x"]);
         let base = std::env::temp_dir().join(format!("horizon-packs-ov-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
@@ -2186,8 +2192,8 @@ mod tests {
         fs::create_dir_all(dir.join("old/assets/minecraft/textures/block")).unwrap();
         fs::write(
             dir.join("pack.mcmeta"),
-            br#"{"pack":{"description":"p","pack_format":97},
-            "overlays":{"entries":[{"formats":97,"directory":"new"},{"formats":1,"directory":"old"}]},
+            br#"{"pack":{"description":"p","pack_format":46},
+            "overlays":{"entries":[{"formats":46,"directory":"new"},{"formats":1,"directory":"old"}]},
             "filter":{"block":[{"path":"textures/block/dirt\\.png"}]}}"#,
         )
         .unwrap();

@@ -2486,3 +2486,56 @@ shape for the review batches.
   sends it) — left as a cleanup candidate. cargo check green for
   horizon-client (1m39s). --tests: piglin 2/2, arrow 2/2 (both
   horizon-client-lib). Rank 2: 135/348.
+  Test-health (2026-11-26, alongside batch 27): crate-tests FAILED on
+  runs 45818664429 and 45823137761 with the same 11 failures (protocol
+  item hash, world datafix x3, render packs x3, client lan_particles,
+  lan_screen, launch_api, spill). All 11 fixed and verified locally:
+  protocol skip.rs gains the synthetic mob-variant ids 72-88/90-95 as
+  a varint (1.21.4 has 67 component types; PAINTING_VARIANT=89 is a
+  1.21.5 id); block_entity_item.rs spawn-egg test re-scoped to the
+  1.21.4 type-only form (neither version has Spawner.setEntityData,
+  and SpawnEggItem.useOn calls only setEntityId); datafix fix_display
+  parses 1.20 display.Name/Lore JSON into components instead of copying
+  raw strings; the three datafix tests re-scoped to 1.21.4 (level data
+  keeps Difficulty/GameRules/Spawn, chunk palette keeps Name, both
+  fixes past 4189); the three pack tests re-scoped to formats 46/61
+  (1.21.4 has no min/max_format or minors); launch-reference.md
+  regenerated (61/46.0/1.21.4); the vibration test's particle id 58
+  corrected to 46 (1.21.4's ParticleTypes order); remote GameRules
+  button follows gamemaster (the 1.21.5 tree has the same test/implementation
+  mismatch — a pre-existing inconsistency in the parent, not a delta).
+  The spill test's cause was a real data-loss bug, not a test issue:
+  canonical() dropped a placed block entity's components (it only
+  dropped the `components` key, never merging them as 1.21.4's
+  saveWithoutMetadata does), so a placed ominous banner lost its
+  item_name/rarity/tooltip_display on save and on load. Fixed by
+  merging the components into the tag as top-level `minecraft:*` keys
+  in canonical(), reading them back through a new
+  block_entity_components() helper in decode_banner and the copper
+  golem statue branch, and using the same helper in
+  collected_components() (pick-block). Local verification after the
+  fixes: horizon-protocol 423 passed / 2 failed (both network tests,
+  proven pre-existing by the stash test — the VM proxy intercepts one,
+  EPERM on a UDP bind the other; the item-hash test passes),
+  horizon-world 447/0, horizon-client-render 2055/2 (overlays fixed
+  after the run; the other failure is the local HDR/environment one,
+  still being identified), horizon-client 1267/0. Fixing the
+  block_entity_item compile error also made horizon-client-lib compile
+  for the first time on this tree: 2407 passed / 24 failed. Ten of the
+  24 were 1.21.4-only and are fixed here: the world-gen settings
+  cluster (7) — the writer stores settings in
+  data/minecraft/world_gen_settings.dat (the 1.21.5 form) but
+  current_world_gen_settings() only read level.dat, so
+  current_world_gen_settings() + generators() now fall back to the
+  file (level.dat wins when it carries the settings); the TNT owner
+  test (1.21.4's PrimedTnt.addAdditionalSaveData writes only
+  block_state/explosion_power/fuse, javap-verified — the test asserted
+  an owner the 1.21.5 form writes); the hub self-pose test
+  (first_tick hand-wrote a trailing showAdvancements bool, a 1.21.5
+  addition — removed; flushDirty already omitted it); the server-packs
+  header test (asserted 97.1, the client correctly sends 46.0).
+  After those, horizon-client-lib is 2417/14 — exactly the 14 that
+  fail identically on the 1.21.5 parent tree (item_sync x2, lan
+  advancements x5, projectiles, realms, save chunks x4, title
+  optimization), pre-existing programme test-health debt, not
+  1.21.4 regressions.

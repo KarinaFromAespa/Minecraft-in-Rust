@@ -24,6 +24,11 @@ pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
         // A VarInt (VAR_INT, an idMapper, a registry or holderRegistry id):
         // enchantable, ominous_bottle_amplifier, base_color.
         27 | 51 | 60 => varint(r),
+        // Horizon's synthetic mob-variant ids (72-95, not 1.21.4 components):
+        // a DyeColor, a registry entry or an enum id, each a single VarInt
+        // (`raw::code` hashes them the same way). 89 is the painting variant
+        // holder, handled above.
+        72..=88 | 90..=95 => varint(r),
         // Identifier.STREAM_CODEC: tooltip_style, note_block_sound.
         31 | 58 => ident(r),
         // AdventureModePredicate: can_place_on, can_break.

@@ -71,9 +71,10 @@ pub fn spawn_egg_op_warning(stack: &crate::items::ItemStack) -> bool {
 }
 
 /// `SpawnEggItem.useOn` on a spawner: the type it sets (`getType`: the egg's
-/// entity data id, else the egg's own type) and, for an op
-/// (`PlayerList.isOp`), that entity data for `Spawner.setEntityData`; anyone
-/// else sets only the type (`setEntityId`).
+/// entity data id, else the egg's own type). 1.21.4 calls only
+/// `Spawner.setEntityId` — there is no `setEntityData` on 1.21.4's `Spawner`
+/// (nor on 1.21.5's), so the egg's entity data is dropped for everyone, op
+/// or not; the op-data arm is a 26.x form, not a 1.21.4 one.
 pub fn spawn_egg_on_spawner(stack: &crate::items::ItemStack) -> String {
     let data = match stack.data().and_then(|d| d.other("minecraft:entity_data")) {
         Some(Tag::Compound(c)) => Some(c),
@@ -312,10 +313,9 @@ fn custom_only(saved: &Tag) -> Compound {
 /// Unlike Ctrl + Pick Block, this does not carry the remaining block entity NBT.
 pub fn collected_components(saved: &Tag) -> Compound {
     let id = block_entity_nbt::id(saved).unwrap_or_default();
-    let mut collected = match saved.get("components") {
-        Some(Tag::Compound(c)) => c.clone(),
-        _ => Compound::new(),
-    };
+    // The saved tag carries the components merged (`minecraft:*` keys),
+    // never under a `components` key — see `block_entity_components`.
+    let mut collected = crate::save::block_entity_components(saved);
     for part in parts(&id) {
         if let Some((component, value)) = collect(*part, saved) {
             match value {
@@ -579,7 +579,7 @@ mod tests {
     }
 
     #[test]
-    fn a_spawn_egg_sets_its_data_type_and_an_ops_data() {
+    fn a_spawn_egg_sets_only_its_type_on_a_spawner() {
         let egg = |entity_data: Option<&str>| {
             let mut stack = crate::items::ItemStack::new("minecraft:zombie_spawn_egg", 1);
             if let Some(text) = entity_data {
@@ -589,22 +589,12 @@ mod tests {
             }
             stack
         };
-        // A plain egg: its own type, no data, op or not.
-        assert_eq!(
-            spawn_egg_on_spawner(&egg(None), true),
-            ("minecraft:zombie".into(), None)
-        );
-        // Entity data: its type for anyone (getType), its data only for an op.
+        // A plain egg: its own type.
+        assert_eq!(spawn_egg_on_spawner(&egg(None)), "minecraft:zombie");
+        // Entity data names the type (`getType`); the data itself is dropped
+        // — 1.21.4's `useOn` calls only `setEntityId`, for an op too.
         let custom = egg(Some("{id:\"minecraft:skeleton\",CustomName:\"Guard\"}"));
-        let (id, data) = spawn_egg_on_spawner(&custom, false);
-        assert_eq!((id.as_str(), data), ("minecraft:skeleton", None));
-        let (id, data) = spawn_egg_on_spawner(&custom, true);
-        assert_eq!(id, "minecraft:skeleton");
-        let data = data.expect("an op's egg carries its data");
-        assert_eq!(
-            data.get(&JavaString::from("CustomName")),
-            Some(&Tag::String("Guard".into()))
-        );
+        assert_eq!(spawn_egg_on_spawner(&custom), "minecraft:skeleton");
     }
 
     #[test]

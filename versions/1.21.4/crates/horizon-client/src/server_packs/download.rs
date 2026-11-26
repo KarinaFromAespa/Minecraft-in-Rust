@@ -438,7 +438,7 @@ mod tests {
         assert_eq!(fs::read(&path).unwrap(), body);
         let sent = server.join().unwrap();
         assert!(sent.contains("X-Minecraft-Username: Alex"), "{sent}");
-        assert!(sent.contains("X-Minecraft-Pack-Format: 97.1"), "{sent}");
+        assert!(sent.contains("X-Minecraft-Pack-Format: 46.0"), "{sent}");
         // Cached: no server this time.
         let cached = Request {
             url: "http://127.0.0.1:9/gone.zip".into(),

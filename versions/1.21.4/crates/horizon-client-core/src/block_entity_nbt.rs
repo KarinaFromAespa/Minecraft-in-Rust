@@ -749,7 +749,25 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
     out.insert("keepPacked".into(), Tag::Byte(0));
     // No "components" key: 1.21.4's `BlockEntity.saveWithoutMetadata`
     // merges the encoded components into the tag itself (1.21.5 stores
-    // them under "components"), so a 1.21.4 save never carries the key.
+    // them under "components"), so a 1.21.4 save never carries the key —
+    // but the components are still there, as top-level `minecraft:*` keys.
+    // A tag that already carries them merged keeps them; a `components`
+    // compound (the live form) is merged in on top of them.
+    if let Tag::Compound(map) = tag {
+        for (k, v) in map {
+            let key = k.to_string_lossy();
+            if key.starts_with("minecraft:") && !key.starts_with('!') {
+                out.insert(k.clone(), v.clone());
+            }
+        }
+        if let Some(Tag::Compound(components)) = map.get(&"components".into()) {
+            for (k, v) in components {
+                if !k.to_string_lossy().starts_with('!') {
+                    out.insert(k.clone(), v.clone());
+                }
+            }
+        }
+    }
     Some(Tag::Compound(out))
 }
 

@@ -4407,7 +4407,11 @@ mod tnt_power_tests {
             assert!(saved.get("explosion_power").is_none(), "stale raw {raw:?}");
             assert_eq!(saved.get("fuse"), Some(&Tag::Short(80)));
             assert_eq!(saved.get("block_state"), Some(&block));
-            assert_eq!(saved.get("owner"), Some(&Tag::IntArray(vec![91, 1, 0, 90])));
+            // 1.21.4's `PrimedTnt.addAdditionalSaveData` writes only
+            // `block_state`, `explosion_power` and `fuse`: it never saves an
+            // owner (the `owner` argument the 1.21.5 form takes does not
+            // exist here), so a reloaded primed TNT has none.
+            assert!(saved.get("owner").is_none(), "stale raw {raw:?}");
             assert_eq!(saved.get("UUID"), Some(&Tag::IntArray(vec![91, 0, 0, 1])));
             if raw.is_some() {
                 assert_eq!(saved.get("Silent"), Some(&Tag::Byte(1)));

@@ -1066,8 +1066,9 @@ mod tests {
     /// themselves (`EntityPositionSource`).
     #[test]
     fn vibration_particles_carry_their_listener_and_arrival_ticks() {
-        // `Particle::read` reads a vibration's data from its pinned id, 58.
-        let mut names = vec!["minecraft:empty".to_string(); 58];
+        // `Particle::read` reads a vibration's data from its pinned id, 46
+        // (1.21.4's `ParticleTypes` order).
+        let mut names = vec!["minecraft:empty".to_string(); 46];
         names.push("minecraft:vibration".to_string());
         let (hub, rx_near, rx_far) = test_hub("VibrationTest", names);
 
@@ -1083,7 +1084,7 @@ mod tests {
         assert_eq!(p.max_speed, [0.0; 3]);
         assert_eq!(p.randomization, 0, "DEFAULT");
         assert_eq!(p.pos, at);
-        assert_eq!(p.particle.id, 58);
+        assert_eq!(p.particle.id, 46);
         assert_eq!(
             p.particle.data,
             Some(ParticleData::Vibration { source, ticks: 14 })

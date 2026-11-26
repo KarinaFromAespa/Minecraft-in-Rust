@@ -359,9 +359,12 @@ impl WorldOptions {
                 Button::Difficulty | Button::Lock => {
                     self.gamemaster && !self.hardcore && !self.difficulty_locked
                 }
-                // 1.21.11 has no packet to fetch a server's rules: a gamemaster
-                // on an external server changes them with /gamerule, as in vanilla.
-                Button::GameRules => false,
+                // A gamemaster on a server changes the rules with `/gamerule`
+                // (see `close_game_rules`): there is no packet to fetch a
+                // server's rules, so the window shows its own copy and sends
+                // what it changed. Hardcore does not hide it: the server's
+                // hardcore flag is not the guest's lock.
+                Button::GameRules => self.gamemaster,
                 Button::Restrictions | Button::Cancel => true,
                 Button::Apply => self.gamemaster && self.changed(),
                 _ => false,
