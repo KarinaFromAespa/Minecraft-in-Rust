@@ -3657,7 +3657,10 @@ mod tests {
             ("Command", Tag::String("say hi".into())),
             ("SuccessCount", Tag::Int(3)),
             ("TrackOutput", Tag::Byte(1)),
-            ("LastOutput", Tag::String("[12:00:00] hi".into())),
+            // The JSON string `toJson` writes for the literal, not the bare
+            // text: 1.21.4's `fromJson` is Gson-strict and a bare string
+            // loads as a literal of the parse error instead.
+            ("LastOutput", Tag::String("\"[12:00:00] hi\"".into())),
             ("LastExecution", Tag::Long(42)),
         ]);
         let cart = Minecart::from_nbt(&saved, 1, CartKind::CommandBlock).unwrap();

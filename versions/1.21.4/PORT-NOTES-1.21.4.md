@@ -2932,7 +2932,14 @@ shape for the review batches.
   in spacing only. Test
   `components_save_as_json_strings_and_zero_execution_is_not_kept` covers
   the styled round-trip, the skipped zero, and the dropped compound forms.
-  Rank 2: 151/348.
+  Follow-up: crate-tests 45892679369 failed on
+  `a_command_cart_saves_its_base_command_block`, whose fixture fed a bare
+  non-JSON `LastOutput` string and expected it back verbatim (the old
+  1.21.5-form literal read). 1.21.4's load calls the strict
+  `Component$Serializer.fromJson` (`JsonParser.parseString`), so a bare
+  string loads as a literal of the parse error; a vanilla-written save
+  never holds one (`toJson` quotes it). The fixture now uses the JSON-string
+  form. Rank 2: 151/348.
 
   Item 106 (horizon-client/crafting.rs): PORTED, two fixes. (1) The
   special-recipes loader gap: all 11 1.21.4 special JSONs carry only
