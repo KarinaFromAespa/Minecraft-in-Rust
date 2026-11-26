@@ -7,8 +7,9 @@ unlocks on first craft, and the inventory book hides it because it is a
 The investigation built a permanent check instead: one unit test per
 vanilla 1.21.7 recipe, asserting each exists in the port and crafts,
 cooks, cuts or smiths to the right result. That suite found a real gap
-the boat report was standing next to: **11 special recipes are absent
-from the port's crafting tables entirely** (see "Missing recipes").
+the boat report was standing next to: **11 special recipes were absent
+from the port's crafting tables entirely** — fixed in
+`fix/1.21.7-special-recipes` (see "Missing recipes", now fixed).
 
 ## The boat — vanilla-correct, no defect
 
@@ -88,9 +89,9 @@ Do not weaken the fixture to make them pass on the subset.
   `tools/defect_suite_rust.json`'s note). In CI (`crate-tests.yml`)
   they compile and skip, as the level tests do; the real run is local.
 
-## Counts (1.21.7, main `74109ffa`, run 2026-11-25)
+## Counts (1.21.7, fix `fix/1.21.7-special-recipes`)
 
-**Total 1,407 recipes: 1,396 pass, 11 missing.**
+**Total 1,407 recipes: 1,407 pass, 0 missing.**
 
 | type | count | pass | missing |
 |---|---|---|---|
@@ -104,37 +105,85 @@ Do not weaken the fixture to make them pass on the subset.
 | smithing_transform | 9 | 9 | 0 |
 | smithing_trim | 18 | 18 | 0 |
 | crafting_transmute | 32 | 32 | 0 |
-| crafting_special_* / decorated_pot | 12 | 1 | 11 |
+| crafting_special_* / decorated_pot | 12 | 12 | 0 |
 
 All 10 boat/raft recipes and all 10 chest boat/raft recipes pass.
 
-## Missing recipes (the deliverable — reported, not fixed here)
+## Missing recipes — fixed in `fix/1.21.7-special-recipes`
 
-All 11 are special recipes whose JSONs in 1.21.7 carry only `type` and
+All 11 were special recipes whose JSONs in 1.21.7 carry only `type` and
 `category` — no ingredients, no result. Vanilla hardcodes these
 recipes' inputs in their classes (`SpecialRecipe` subclasses); the
-port's loader instead reads the ingredients from the JSON, gets
-nothing, and drops the recipe from `Recipes.crafting`, so the grid
-cannot craft them and the book cannot list them. The `Special` logic
-itself exists and is unit-tested (e.g. banner duplication, shield
-decoration in `crafting.rs` tests); only the loading is missing.
+port's loader instead read the ingredients from the JSON, got
+nothing, and dropped the recipe from `Recipes.crafting`, so the grid
+could not craft them and the book could not list them. The `Special`
+logic itself exists and is unit-tested (e.g. banner duplication, shield
+decoration in `crafting.rs` tests); only the loading was missing.
 
-- `minecraft:armor_dye` — type `crafting_special_armordye`; the loader
-  has no arm for it (its `crafting_dye` arm is a different type id).
-- `minecraft:banner_duplicate` — arm reads `banner` + `result` from the JSON; neither exists.
-- `minecraft:book_cloning` — arm reads `source` + `material` + `result`; none exist.
-- `minecraft:decorated_pot` — arm reads `back`/`left`/`right`/`front` + `result`; none exist.
-- `minecraft:firework_rocket` — arm reads `shell`/`fuel`/`star` + `result`; none exist.
-- `minecraft:firework_star` — arm reads `dye`/`fuel`/`trail`/`twinkle`/`shapes` + `result`; none exist.
-- `minecraft:firework_star_fade` — arm reads `dye`/`target` + `result`; none exist.
-- `minecraft:map_cloning` — type `crafting_special_mapcloning`; the loader has no arm for it.
-- `minecraft:map_extending` — arm reads `map`/`material` + `result`; none exist.
-- `minecraft:shield_decoration` — arm reads `banner`/`target` + `result`; none exist.
-- `minecraft:tipped_arrow` — type `crafting_special_tippedarrow`; the loader has no arm for it.
+The fix is in the loader (`crafting.rs`, `from_sources`): where a
+special's JSON names a field, the data-driven value stands; where it
+does not, the loader falls back to vanilla 1.21.7's hardcoded input.
+Every fallback was verified against the 1.21.7 server jar
+(`javap` on the named `*Recipe` classes) and cross-checked against
+the data-driven 26.2 JSONs for the same recipes, which carry the
+fields the loader arms read:
 
-The one special that passes is `minecraft:repair_item`
+- `minecraft:armor_dye` — new arm for `crafting_special_armordye`
+  (the loader's `crafting_dye` arm is a different type id):
+  target `#minecraft:dyeable`, dye the sixteen `*_dye` items
+  (1.21.7 has no `#minecraft:dyes` tag), result the dyed target
+  itself (no fixed item).
+- `minecraft:banner_duplicate` — banner `#minecraft:banners`, result
+  `minecraft:white_banner` (first of the tag).
+- `minecraft:book_cloning` — source `minecraft:written_book`,
+  material `#minecraft:book_cloning_target` (`minecraft:writable_book`),
+  result `minecraft:written_book`; generations 0..1 (the arm's
+  default — vanilla's `tryCraftCopy` refuses generation 2+).
+- `minecraft:decorated_pot` — all four sides
+  `#minecraft:decorated_pot_ingredients` (brick + sherds), result
+  `minecraft:decorated_pot`.
+- `minecraft:firework_rocket` — shell `minecraft:paper`, fuel
+  `minecraft:gunpowder`, star `minecraft:firework_star`, result
+  `minecraft:firework_rocket` ×3 (vanilla assembles 3, not 1).
+- `minecraft:firework_star` — dye the sixteen dyes, fuel
+  `minecraft:gunpowder`, trail `minecraft:diamond`, twinkle
+  `minecraft:glowstone_dust`, shapes from vanilla's `SHAPE_BY_ITEM`
+  (large_ball `minecraft:fire_charge`, burst `minecraft:feather`,
+  star `minecraft:gold_nugget`, creeper `#minecraft:skulls`), result
+  `minecraft:firework_star`.
+- `minecraft:firework_star_fade` — dye the sixteen dyes, target
+  `minecraft:firework_star`, result `minecraft:firework_star`.
+- `minecraft:map_cloning` — new arm for `crafting_special_mapcloning`:
+  constructs the `Transmute` 26.2 made of it — input
+  `minecraft:filled_map`, material `minecraft:map`, 1..8 materials,
+  count added to the result (vanilla: one filled map, 1..8 empty maps,
+  copies = empties + 1).
+- `minecraft:map_extending` — map `minecraft:filled_map`, material
+  `minecraft:paper`, result `minecraft:filled_map`.
+- `minecraft:shield_decoration` — banner `#minecraft:banners`, target
+  `minecraft:shield`, result `minecraft:shield`.
+- `minecraft:tipped_arrow` — new arm for `crafting_special_tippedarrow`:
+  constructs the `Imbue` 26.2 made of it — source
+  `minecraft:lingering_potion`, material `minecraft:arrow`, result
+  `minecraft:tipped_arrow` ×8 (vanilla: 8 arrows around one lingering
+  potion, potion contents copied).
+
+The one special that already passed is `minecraft:repair_item`
 (`crafting_special_repairitem`), whose arm needs no JSON fields
 (`Some(Special::RepairItem)`).
+
+Known limits of this fix (loading only; the `Special` assemble
+logic is untouched):
+
+- `BannerDuplicate`'s assemble stamps the loaded `result` item id
+  onto the copy, so a non-white patterned banner crafts into a white
+  banner carrying the patterns — vanilla copies the source banner
+  itself. The loader can only name one item; making assemble keep
+  the source's item is a separate change to `Special::assemble`.
+- Only `Transmute`, `Dye` and `Imbue` have recipe-book displays
+  (`Special::book_displays`); the other eight specials load and craft
+  but the book lists no entry for them. Book displays for those eight
+  are a separate change.
 
 ## Full-suite check (2026-11-25, same tree)
 
@@ -154,8 +203,9 @@ The one special that passes is `minecraft:repair_item`
 - The 3 unlock tests are `#[ignore]`d, so neither suite runs them;
   they need the laptop run above.
 
-Fix direction (a separate decision, not this branch): construct these
-11 `Special`s with hardcoded ingredients as vanilla does, or give the
-loader defaults for them. The loader code is shared across version
+Done in `fix/1.21.7-special-recipes` as described above (fallback
+inputs in the loader; the loader code is shared across version
 trees, so the same gap likely exists wherever a version's special
-JSONs are minimal — check before assuming any version crafts them.
+JSONs are minimal — check before assuming any version crafts them).
+The pre-fix counts were 1,396 pass / 11 missing (main `74109ffa`,
+run 2026-11-25).
