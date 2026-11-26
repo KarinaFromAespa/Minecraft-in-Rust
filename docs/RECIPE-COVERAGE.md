@@ -182,19 +182,21 @@ logic is untouched) — both resolved in `fix/1.21.7-specials-followup`:
   `copyWithCount(1)` of it, verified by `javap -c` on the named 1.21.7
   server jar), and the variant carries no result item at all. Pinned by
   `banner_duplicate_keeps_a_coloured_banner_coloured`.
-- Only `Transmute`, `Dye` and `Imbue` have recipe-book displays
-  (`Special::book_displays`); the other eight specials load and craft
+- Only a genuine `Transmute` has recipe-book displays
+  (`Special::book_displays`); the other eleven specials load and craft
   but the book lists no entry for them. That is vanilla-correct, not a
   gap: in 1.21.7 every one of the 11 is a `CustomRecipe` subclass
   (`isSpecial()` true, `display()` the empty default — `MapExtending`
   is a `ShapedRecipe` that overrides `isSpecial()` to true), and
   `ServerRecipeBook.addRecipes` skips special recipes, so none of them
-  ever becomes known and the book lists none of them. No displays were
-  added. Note the port still shows three the book should hide —
-  `armor_dye` (Dye display), `tipped_arrow` (Imbue display) and
-  `map_cloning` (Transmute display, the port models it as a transmute
-  while vanilla's `MapCloningRecipe` is a `CustomRecipe`) — removing
-  those is a separate decision.
+  ever becomes known and the book lists none of them. The port used to
+  show three the book should hide — `armor_dye` (Dye display),
+  `tipped_arrow` (Imbue display) and `map_cloning` (Transmute display,
+  the port models it as a transmute while vanilla's `MapCloningRecipe`
+  is a `CustomRecipe`) — removed: `book_displays` returns none for
+  `Dye` and `Imbue`, and the map-cloning transmute carries a `custom`
+  flag that hides its displays, while the 32 genuine transmute recipes
+  (shulker box and bundle dyeing) keep theirs.
 
 ## Full-suite check (2026-11-25, same tree)
 

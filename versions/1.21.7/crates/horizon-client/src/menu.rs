@@ -4653,6 +4653,7 @@ pub(crate) mod tests {
                 min: 1,
                 max: 1,
                 add_count: false,
+                custom: false,
                 result: Template {
                     item: Some("minecraft:red_shulker_box".into()),
                     count: 1,

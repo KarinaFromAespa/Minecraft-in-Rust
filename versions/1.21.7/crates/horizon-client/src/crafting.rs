@@ -436,6 +436,11 @@ pub enum Special {
         min: usize,
         max: usize,
         add_count: bool,
+        /// True when this transmute models a vanilla `CustomRecipe` rather
+        /// than a `TransmuteRecipe` (map cloning in 1.21.7): it crafts like
+        /// a transmute, but `Recipe.display()` is the empty default and the
+        /// book lists no entry for it.
+        custom: bool,
         result: Template,
     },
     /// `DyeRecipe`: dyed armour.
@@ -498,10 +503,12 @@ pub enum Special {
     RepairItem,
 }
 impl Special {
-    /// The recipe-book displays of a learnable (non-custom) crafting recipe:
+    /// The recipe-book displays of a crafting recipe (`Recipe.display`):
     /// its layout, its result as the button shows it, and every stack the
     /// result display cycles through when it is more than that one
-    /// (`SlotDisplay.resolveForStacks`).
+    /// (`SlotDisplay.resolveForStacks`). A `CustomRecipe` has none — its
+    /// `display()` is the empty default — so the dye, imbue and custom
+    /// transmute arms return none; only a genuine `TransmuteRecipe` shows.
     pub fn book_displays(&self) -> Vec<BookDisplay> {
         use crate::recipe_book::Display;
         let first_of =
@@ -513,6 +520,10 @@ impl Special {
             stacks: Vec::new(),
         };
         match self {
+            // A transmute that models a vanilla `CustomRecipe` (map cloning
+            // in 1.21.7) has no display; a genuine one shows one per
+            // material count (`TransmuteRecipe.display`).
+            Self::Transmute { custom: true, .. } => Vec::new(),
             Self::Transmute {
                 input,
                 material,
@@ -520,6 +531,7 @@ impl Special {
                 max,
                 add_count,
                 result,
+                ..
             } => (*min..=*max)
                 .map(|n| {
                     let mut ingredients = vec![input.clone()];
@@ -545,69 +557,14 @@ impl Special {
                     shown(Display::Shapeless(ingredients), first_of(&all, made), all)
                 })
                 .collect(),
-            Self::Dye {
-                target,
-                dye,
-                result,
-            } => {
-                // DyedSlotDemo: the targets cycle fastest, 16 stacks at most.
-                let (targets, dyes) = (&target.order, &dye.order);
-                let all: Vec<ItemStack> = (0..targets.len() * dyes.len())
-                    .map(|i| {
-                        let mut made = result.create();
-                        made.item = Arc::from(targets[i % targets.len()].as_str());
-                        let name = dyes[i / targets.len()].trim_start_matches("minecraft:");
-                        let color = crate::block_entity_render::DYES
-                            .iter()
-                            .find(|(c, _)| name.strip_suffix("_dye") == Some(c))
-                            .map_or(crate::block_entity_render::DYES[0].1, |d| d.1);
-                        made.data_mut().dyed_color = Some(color as i32);
-                        made
-                    })
-                    .take(16)
-                    .collect();
-                let first = result.create();
-                vec![shown(
-                    Display::Shapeless(vec![target.clone(), dye.clone()]),
-                    first_of(&all, first),
-                    all,
-                )]
-            }
-            Self::Imbue {
-                source,
-                material,
-                result,
-            } => {
-                let cells = (0..9)
-                    .map(|i| Some(if i == 4 { source } else { material }.clone()))
-                    .collect();
-                // Any potion's tipped arrow.
-                let potions = |item: ItemStack| -> Vec<ItemStack> {
-                    crate::brewing::POTIONS
-                        .iter()
-                        .map(|p| item.clone().with_potion(&format!("minecraft:{}", p.id)))
-                        .collect()
-                };
-                let all = potions(result.create());
-                // The source ingredient is shown as a lingering potion of each kind.
-                let lingering = source
-                    .order
-                    .iter()
-                    .flat_map(|item| potions(ItemStack::new(item, 1)))
-                    .collect();
-                vec![BookDisplay {
-                    stacks: vec![(4, lingering)],
-                    ..shown(
-                        Display::Shaped {
-                            width: 3,
-                            height: 3,
-                            cells,
-                        },
-                        first_of(&all, result.create()),
-                        all,
-                    )
-                }]
-            }
+            // `ArmorDyeRecipe` is a `CustomRecipe`: `display()` is the empty
+            // default, so the book lists no entry for it. (In 1.21.7's data
+            // this variant only ever comes from `crafting_special_armordye`.)
+            Self::Dye { .. } => Vec::new(),
+            // `TippedArrowRecipe` is a `CustomRecipe`, same as above. (In
+            // 1.21.7's data this variant only ever comes from
+            // `crafting_special_tippedarrow`.)
+            Self::Imbue { .. } => Vec::new(),
             _ => Vec::new(),
         }
     }
@@ -761,6 +718,7 @@ impl Special {
                 max,
                 add_count,
                 result,
+                ..
             } => {
                 let n = stacks.len();
                 if n < min + 1 || n > max + 1 {
@@ -1690,6 +1648,7 @@ impl Recipes {
                         min,
                         max,
                         add_count: v["add_material_count_to_result"].as_bool().unwrap_or(false),
+                        custom: false,
                         result: result()?,
                     })
                 })()),
@@ -1796,6 +1755,7 @@ impl Recipes {
                         min: 1,
                         max: 8,
                         add_count: true,
+                        custom: true,
                         result: result_or("minecraft:filled_map", 1),
                     })
                 })()),
