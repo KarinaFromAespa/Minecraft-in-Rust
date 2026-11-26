@@ -85,7 +85,7 @@ impl Game<'_> {
         let hand_changed = slot != self.selected && slot != shield::OFFHAND_SLOT;
         if !self.right || hand_changed || self.screen != Screen::Playing {
             self.using = None;
-            self.release_used_item(&stack, ticks, hand_changed);
+            self.release_used_item(slot, &stack, ticks, hand_changed);
             return;
         }
         // ServerPlayer.updateUsingItem: USING_ITEM every tick of the use.
@@ -201,16 +201,26 @@ impl Game<'_> {
         self.using = (ticks + 1 < USE_DURATION).then_some((slot, ticks + 1));
     }
 
-    /// `LivingEntity.releaseUsingItem` (`Item.releaseUsing`) for `stack`,
-    /// used for `ticks`, its hand acting: a bow or a trident lets go (not
-    /// when its hand changed), a spyglass stops scoping, and a mod's own
-    /// release follows. A mod's `Stop` may skip the release. `stopUsingItem`
+    /// `LivingEntity.releaseUsingItem` (`Item.releaseUsing`) for `stack` in
+    /// `slot`, used for `ticks`, its hand acting: a bow or a trident lets go, a
+    /// crossbow loads on release when fully charged (1.21.4; 1.21.5 loads it
+    /// in `onUseTick`), a spyglass stops scoping, and a mod's own release
+    /// follows. A mod's `Stop` may skip the release. `stopUsingItem`
     /// ends the use after it.
-    pub(super) fn release_used_item(&mut self, stack: &ItemStack, ticks: u32, hand_changed: bool) {
+    pub(super) fn release_used_item(
+        &mut self,
+        slot: usize,
+        stack: &ItemStack,
+        ticks: u32,
+        hand_changed: bool,
+    ) {
         let canceled = !hand_changed && !self.use_item_stopped(stack, ticks);
         let (release, spyglass) = item_use::release_parts(canceled, hand_changed);
         match &*stack.item {
             "minecraft:bow" if release => self.release_bow(stack, self.ticks_held(stack, ticks)),
+            "minecraft:crossbow" if release => {
+                self.release_crossbow(stack, slot, ticks);
+            }
             "minecraft:trident" if release => self.release_trident(self.ticks_held(stack, ticks)),
             "minecraft:spyglass" if spyglass => self.stop_spyglass(),
             _ => {}

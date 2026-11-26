@@ -2375,7 +2375,7 @@ impl Game<'_> {
                                 {
                                     g.native_player_ready_arrow(uuid, &name, &arrow);
                                 }
-                                g.release_used_item(&stack, ticks, false);
+                                g.release_used_item(slot, &stack, ticks, false);
                                 if listening {
                                     g.native_player_stop_using_item(uuid, &name);
                                 }

@@ -45,11 +45,13 @@ pub struct PowderSnowSubject {
     pub leather_boots: bool,
     /// `EntityTypeTags.POWDER_SNOW_WALKABLE_MOBS`.
     pub walkable_type: bool,
-    /// A strider: lava sources hold it up (`canStandOnFluid`), on its
-    /// `getLiquidCollisionShape`.
+    /// A strider: lava sources hold it up (`Strider.canStandOnFluid`), on
+    /// `LiquidBlock.getCollisionShape`'s `STABLE_SHAPE`.
     pub lava_walker: bool,
 }
-/// `Strider.getLiquidCollisionShape`: `Block.column(16.0, 0.0, 8.0)`.
+/// `LiquidBlock.getCollisionShape`'s `STABLE_SHAPE`: `Block.box(0, 0, 0, 16, 8, 16)`
+/// for a source the context can stand on (1.21.5 renamed the field `SHAPE_STABLE`
+/// and the box helper `Block.column`).
 fn strider_liquid_shape() -> VoxelShape {
     VoxelShape::from_cube([1, 2, 1], &[true, false]).expect("a valid half-block column")
 }

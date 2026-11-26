@@ -2668,3 +2668,72 @@ shape for the review batches.
   1.21.5 adds broadcastIgnorePlayers and ServerEntity's
   broadcastWithIgnore BiConsumer; broadcast itself is identical, and the
   Rust models neither addition — correct for 1.21.4. Rank 2: 138/348.
+
+  Item 93 (horizon-client-render/collisions.rs): comment-only carry-over.
+  The strider liquid shape doc cited `Strider.getLiquidCollisionShape`
+  (exists in neither jar; both versions have only
+  `Strider.canStandOnFluid`) and `Block.column(16.0, 0.0, 8.0)`
+  (1.21.5-only; `Block.column` does not exist in 1.21.4). The shape itself
+  is already the 1.21.4 form: `from_cube([1, 2, 1], &[true, false])` is
+  the bottom half-box = `LiquidBlock.STABLE_SHAPE`
+  (`Block.box(0, 0, 0, 16, 8, 16)`), which
+  `LiquidBlock.getCollisionShape` returns for a level-0 source when
+  `CollisionContext.canStandOnFluid` (strider: lava) and the context is
+  above it. `CollisionContext` placement (1.21.5-only) was already handled
+  by item 242; `LiquidBlock.pickupBlock` is body-identical (only the
+  parameter type widens, unused). Rank 2: 139/348.
+
+  Item 94 (horizon-client-render/jigsaw_block.rs): comment-only
+  carry-over. The two `JointType` docs cited
+  `StructureTemplate.getDefaultJointType` (1.21.5-only as a named method);
+  in 1.21.4 the rule (front-facing axis horizontal to ALIGNED, else
+  ROLLABLE) is inline in `getJointType`, which
+  `JointType::default_for_front` already implements exactly.
+  `load`/`loadPalette`/`getJointType` differ only by the 1.21.5 NBT API
+  refactor. `placeInWorld`'s barrier flags (1.21.4: 20 +
+  `Clearable.tryClear`; 1.21.5: 820) belong to item 240 (`processor.rs`
+  is in its files list) — NOT fixed here. `placeEntities` `moveTo`
+  (1.21.4) vs `snapTo` (1.21.5) is a pure rename: byte-identical bodies.
+  Rank 2: 140/348.
+
+  Item 95 (horizon-client/advancements.rs): comment-only carry-over.
+  The `potions()` and custom-data docs cited `PotionsPredicate` /
+  `CustomDataPredicate.matches` (1.21.5's `core/component/predicates/`
+  package, absent in 1.21.4); in 1.21.4 they are
+  `advancements/critereon/ItemPotionsPredicate` /
+  `ItemCustomDataPredicate`, with the same matching. `NbtPredicate.matches`
+  changed signature (ItemStack to DataComponentGetter) with identical
+  semantics; `PlayerPredicate` differs only in the `gameMode` access and
+  the recipe codec construction; `AdvancementProgress` differs only in
+  codec-lambda implementation (`Util.mapValues` vs a manual stream
+  collect); `RecipeCraftedTrigger$TriggerInstance` is codec-only.
+  Findings NOT fixed here (shared with the 1.21.5 tree, not a delta):
+  `potions()` is called only from `BrewedPotionTrigger` with the
+  trigger's single-Holder `potion` condition but reads a `v["potions"]`
+  HolderSet form, so a specific-potion condition never filters; its
+  `effects` check matches no predicate in either version's jar.
+  Rank 2: 141/348.
+
+  Item 96 (horizon-client/game/crossbow.rs): PORTED — `CrossbowItem`
+  charge/load timing is the 1.21.5 refactor. In 1.21.4 the projectiles
+  load in `releaseUsing`, not in `onUseTick` at full charge.
+  `tick_crossbow` no longer loads at `now >= 1.0` (start/mid sounds
+  unchanged); new `release_crossbow` (from `release_used_item`, slot
+  threaded through from both callers) implements 1.21.4's
+  `releaseUsing`: `getPowerForTime` = min(held/charge, 1); below 1 loads
+  nothing; already-charged returns true; else `load_crossbow`
+  (`tryLoadProjectiles`: multishot 3, creative intangible, ammo consumed
+  when non-creative) + end sound with pitch `1/(rand*0.5+1)+0.2` at
+  volume 1. `getUseDuration` stays 72000: with `useOnRelease` true
+  (identical in both versions) the charge+3 duration is unobservable
+  client-side. Tooltip: `appendHoverText` (1.21.4-only; 1.21.5 moved it
+  to `ChargedProjectiles.addToTooltip`, which the 1.21.4 component
+  lacks): first projectile only as `item.minecraft.crossbow.projectile`
+  ("Projectile:" per the 1.21.4 lang) + display name; advanced +
+  firework rocket appends the rocket's own lines indented with two
+  spaces. `Stray.getArrow` is a rename only (`MOVEMENT_SLOWDOWN` to
+  `SLOWNESS`, 600 ticks; the Rust already has it).
+  `BowItem.releaseUsing` differs only in the `Level.playSound` overload.
+  New ignored test `a_crossbow_loads_on_release_not_on_full_charge`
+  (needs prepared resources) pins the release-load + early-release
+  cases. Rank 2: 142/348.

@@ -255,39 +255,68 @@ impl Game<'_> {
         if let Some(sound) = middle {
             self.audio.play(sound, at, 0.5, 1.0);
         }
-        let charged = stack.data().is_some_and(|d| !d.charged.is_empty());
-        if now >= 1.0 && !charged {
-            // tryLoadProjectiles / ProjectileWeaponItem.draw.
-            let shots = if stack.enchantment_level("minecraft:multishot") > 0 {
-                3
-            } else {
-                1
-            };
-            let Some(ammo) = self.get_projectile(stack) else {
-                return;
-            };
-            if !self.creative
-                && let Some(i) = ammo.slot
-            {
-                let cell = self.stack_in_mut(i);
-                if let Some(s) = cell.as_mut() {
-                    s.count -= 1;
-                    if s.count == 0 {
-                        *cell = None;
-                    }
+        // 1.21.4 loads the projectiles on release (`releaseUsing`, below), not
+        // here when the charge completes as 1.21.5 does.
+    }
+
+    /// `CrossbowItem.releaseUsing`: a full charge loads the projectiles on
+    /// release (1.21.4; 1.21.5 loads them in `onUseTick` when the charge
+    /// completes, and its `releaseUsing` only reports whether it is charged).
+    /// True when the crossbow ends up charged.
+    pub(super) fn release_crossbow(&mut self, stack: &ItemStack, slot: usize, ticks: u32) -> bool {
+        let charge = Self::charge_ticks(stack).max(1) as f32;
+        // `getPowerForTime`: the held ticks over the charge, capped at 1.
+        let power = (self.ticks_held(stack, ticks) as f32 / charge).min(1.0);
+        if power < 1.0 {
+            return false;
+        }
+        if stack.data().is_some_and(|d| !d.charged.is_empty()) {
+            return true;
+        }
+        self.load_crossbow(stack, slot)
+    }
+
+    /// `CrossbowItem.tryLoadProjectiles` / `ProjectileWeaponItem.draw`: take
+    /// one projectile from the inventory (multishot loads three) into the
+    /// crossbow at `slot`, then play the end sound. False with no projectile.
+    fn load_crossbow(&mut self, stack: &ItemStack, slot: usize) -> bool {
+        let shots = if stack.enchantment_level("minecraft:multishot") > 0 {
+            3
+        } else {
+            1
+        };
+        let Some(ammo) = self.get_projectile(stack) else {
+            return false;
+        };
+        if !self.creative
+            && let Some(i) = ammo.slot
+        {
+            let cell = self.stack_in_mut(i);
+            if let Some(s) = cell.as_mut() {
+                s.count -= 1;
+                if s.count == 0 {
+                    *cell = None;
                 }
             }
-            let ammo = ammo.stack;
-            // useAmmo: the extra multishot arrows and creative's are intangible.
-            let drawn = (0..shots)
-                .map(|i| horizon_client::arrows::drawn_ammo(&ammo, self.creative || i > 0))
-                .collect();
-            if let Some(bow) = self.stack_in_mut(slot).as_mut() {
-                bow.data_mut().charged = drawn;
-            }
-            let pitch = 1.0 / (self.world.random.next_float() * 0.5 + 1.0) + 0.2;
-            self.audio.play(sounds[2], at, 1.0, pitch);
         }
+        let ammo = ammo.stack;
+        // useAmmo: the extra multishot arrows and creative's are intangible.
+        let drawn = (0..shots)
+            .map(|i| horizon_client::arrows::drawn_ammo(&ammo, self.creative || i > 0))
+            .collect();
+        if let Some(bow) = self.stack_in_mut(slot).as_mut() {
+            bow.data_mut().charged = drawn;
+        }
+        let sounds = Self::charging_sounds(stack);
+        let at = self
+            .player
+            .as_ref()
+            .map(|p| [p.position.x, p.position.y, p.position.z]);
+        // `lambda$releaseUsing$0`: the end sound at the feet, volume 1, pitch
+        // `1 / (random * 0.5 + 1) + 0.2`.
+        let pitch = 1.0 / (self.world.random.next_float() * 0.5 + 1.0) + 0.2;
+        self.audio.play(sounds[2], at, 1.0, pitch);
+        true
     }
     /// `CrossbowItem.performShooting`.
     fn shoot_crossbow(&mut self) {
@@ -518,6 +547,70 @@ mod tests {
             shoot(&["minecraft:flame", "minecraft:multishot"], 3),
             vec![2000; 3]
         );
+    }
+
+    /// `CrossbowItem.releaseUsing` (1.21.4): holding a crossbow to a full
+    /// charge loads nothing — the projectiles load only on release, with the
+    /// end sound then. Releasing early, before the charge completes, loads
+    /// nothing either. (1.21.5 loads in `onUseTick` when the charge completes.)
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn a_crossbow_loads_on_release_not_on_full_charge() {
+        let root = std::path::PathBuf::from(std::env::var_os("HORIZON_TEST_RESOURCES").unwrap());
+        let end = "minecraft:item.crossbow.loading_end";
+        let (mut game, _) = game_with_player(&root);
+        let slot = game.held_slot();
+        let bow = ItemStack::new(CROSSBOW, 1);
+        *game.held_mut() = Some(bow.clone());
+        // A creative player has an arrow to load without one in inventory.
+        assert!(game.use_crossbow(&bow));
+        let charge = Game::charge_ticks(&bow);
+        let stack = game.held().unwrap().clone();
+        for ticks in 0..=charge {
+            game.tick_crossbow(slot, ticks, &stack);
+        }
+        // Fully charged and still held: uncharged, and no end sound yet.
+        let held = game.held().unwrap();
+        assert!(held.data().is_none_or(|d| d.charged.is_empty()));
+        let sounded = game.audio.capture.take().unwrap_or_default();
+        assert!(
+            sounded
+                .iter()
+                .any(|s| s.event == "minecraft:item.crossbow.loading_start")
+        );
+        assert!(
+            sounded
+                .iter()
+                .any(|s| s.event == "minecraft:item.crossbow.loading_middle")
+        );
+        assert!(!sounded.iter().any(|s| s.event == end));
+        // Letting go at full charge loads the arrow and plays the end sound.
+        game.audio.capture = Some(Vec::new());
+        assert!(game.release_crossbow(&stack, slot, charge));
+        let held = game.held().unwrap();
+        assert!(
+            held.data().is_some_and(|d| {
+                d.charged.len() == 1 && &*d.charged[0].item == "minecraft:arrow"
+            })
+        );
+        let sounded = game.audio.capture.take().unwrap_or_default();
+        assert_eq!(sounded.iter().filter(|s| s.event == end).count(), 1);
+
+        // Releasing early, before the charge completes, loads nothing.
+        let (mut game, _) = game_with_player(&root);
+        let slot = game.held_slot();
+        let bow = ItemStack::new(CROSSBOW, 1);
+        *game.held_mut() = Some(bow.clone());
+        assert!(game.use_crossbow(&bow));
+        let stack = game.held().unwrap().clone();
+        for ticks in 0..5 {
+            game.tick_crossbow(slot, ticks, &stack);
+        }
+        assert!(!game.release_crossbow(&stack, slot, 5));
+        let held = game.held().unwrap();
+        assert!(held.data().is_none_or(|d| d.charged.is_empty()));
+        let sounded = game.audio.capture.take().unwrap_or_default();
+        assert!(!sounded.iter().any(|s| s.event == end));
     }
 
     /// A charge that crosses a point between two ticks plays that point's

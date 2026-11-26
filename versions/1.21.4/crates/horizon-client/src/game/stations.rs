@@ -2295,41 +2295,26 @@ impl Game<'_> {
         for text in horizon_client::item_tooltip::written_book_lines(stack, &display, &translate) {
             push(&mut lines, text, gray);
         }
-        // ChargedProjectiles.addToTooltip: each run of equal projectiles, then
-        // the projectile's own details indented under it.
-        if display.shows("minecraft:charged_projectiles") {
-            let charged = stack.data().map_or(&[][..], |d| &d.charged[..]);
-            for run in charged.chunk_by(|a, b| a.same_item_same_components(b)) {
-                let projectile = &run[0];
-                let name = self.stack_hover_name(projectile);
-                let line = if run.len() == 1 {
-                    // `getDisplayName`: `[name]` in the rarity colour.
-                    let mut shown = horizon_client::text::Text::literal(format!("[{name}]"))
-                        .with_color(rgb_of(self.rarity_color(projectile)));
-                    if projectile.custom_name().is_some() {
-                        shown = shown.italic();
-                    }
-                    horizon_client::text::format_translation(
-                        &self.translate(
-                            "item.minecraft.crossbow.projectile.single",
-                            "Projectile: %s",
-                        ),
-                        &[shown],
-                    )
-                } else {
-                    horizon_client::text::format_translation(
-                        &self.translate(
-                            "item.minecraft.crossbow.projectile.multiple",
-                            "Projectile: %s x %s",
-                        ),
-                        &[
-                            horizon_client::text::Text::literal(run.len().to_string()),
-                            horizon_client::text::Text::literal(name),
-                        ],
-                    )
-                };
-                lines.push((line, u32::MAX));
-                for (text, c) in self.stack_tooltip_lines(projectile, true, false) {
+        // `CrossbowItem.appendHoverText` (1.21.4; 1.21.5 moved this to
+        // `ChargedProjectiles.addToTooltip`): the first charged projectile
+        // only, `item.minecraft.crossbow.projectile` ("Projectile:") plus its
+        // display name. Advanced tooltips add a firework rocket's own lines,
+        // indented, under it.
+        if display.shows("minecraft:charged_projectiles")
+            && let Some(first) = stack.data().and_then(|d| d.charged.first())
+        {
+            let mut shown = horizon_client::text::Text::literal(self.stack_hover_name(first));
+            if first.custom_name().is_some() {
+                shown = shown.italic();
+            }
+            let line = horizon_client::text::Text::literal(format!(
+                "{} ",
+                self.translate("item.minecraft.crossbow.projectile", "Projectile:")
+            ))
+            .append(shown);
+            lines.push((line, u32::MAX));
+            if advanced && &*first.item == "minecraft:firework_rocket" {
+                for (text, c) in self.stack_tooltip_lines(first, true, false) {
                     // `literal("  ").append(line).withStyle(GRAY)`: the line's
                     // own colours win over the gray.
                     let rgb = if c == u32::MAX {

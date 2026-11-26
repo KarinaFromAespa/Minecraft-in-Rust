@@ -30,8 +30,9 @@ impl JointType {
     pub fn label_key(self) -> String {
         format!("jigsaw_block.joint.{}", self.serialized_name())
     }
-    /// `StructureTemplate.getDefaultJointType`: the joint of a block whose
-    /// front faces `front` (the first word of its `orientation` value).
+    /// The joint of a block whose front faces `front` (the first word of its
+    /// `orientation` value): 1.21.4 has no `getDefaultJointType` (1.21.5-only);
+    /// the rule is inline in `StructureTemplate.getJointType`.
     pub fn default_for_front(front: &str) -> Self {
         if is_vertical_front(front) {
             Self::Rollable
@@ -91,7 +92,8 @@ impl JigsawBlock {
     }
 
     /// `loadAdditional`. A missing joint takes `default_joint`
-    /// (`StructureTemplate.getDefaultJointType` of the block's state).
+    /// (`StructureTemplate.getJointType` of the block's state in 1.21.4;
+    /// 1.21.5 factored the rule into `getDefaultJointType`).
     pub fn load(tag: &Tag, default_joint: JointType) -> Self {
         let id = |key: &str| {
             text(tag.get(key))

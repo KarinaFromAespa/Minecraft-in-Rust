@@ -787,7 +787,7 @@ pub fn id_matches(v: &Value, registry: &str, id: &str, w: &dyn World) -> bool {
         _ => false,
     }
 }
-/// `PotionsPredicate`: the potion in a `HolderSet`, plus a `CollectionPredicate`
+/// `ItemPotionsPredicate`: the potion in a `HolderSet`, plus a `CollectionPredicate`
 /// over the potion's effects (`contains`, `count`, `size`).
 pub fn potions(v: &Value, potion: Option<&str>, w: &dyn World) -> bool {
     if v.is_null() {
@@ -875,7 +875,7 @@ pub fn item(v: &Value, it: &ItemView, w: &dyn World) -> bool {
             return false;
         }
     }
-    // `CustomDataPredicate.matches`: typed subset matching of a projected
+    // `ItemCustomDataPredicate.matches`: typed subset matching of a projected
     // stack snapshot. Unprojected consumers keep their unsupported behavior.
     if let Some(pattern) = keyed(preds, "minecraft:custom_data").and_then(Value::as_str)
         && let Some(actual) = it.custom_data.as_ref()
