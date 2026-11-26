@@ -361,8 +361,17 @@ impl RenderAssets {
             sprites.insert(root, &format!("minecraft:block/{name}"))?;
         }
         for stage in 0..10 {
-            sprites.insert(root, &format!("minecraft:block/destroy_stage_{stage}"))?;
-            sprites.insert(root, &format!("minecraft:block/destroy_oit_stage_{stage}"))?;
+            // 1.21.7 ships no `destroy_oit_stage_*`: the OIT crack sprites are
+            // a 26.3 addition, so a stage with no OIT file falls back to the
+            // plain stage's sprite instead of the missing texture (which drew
+            // a magenta checker over the block being broken). A pack that
+            // provides the OIT file still wins.
+            let plain = format!("minecraft:block/destroy_stage_{stage}");
+            let oit = format!("minecraft:block/destroy_oit_stage_{stage}");
+            sprites.insert(root, &plain)?;
+            if sprites.try_insert(root, &oit).is_err() {
+                sprites.alias(&oit, &plain);
+            }
         }
         let fusion = if draws {
             let _step = crate::spans::startup::step("core.fusion");

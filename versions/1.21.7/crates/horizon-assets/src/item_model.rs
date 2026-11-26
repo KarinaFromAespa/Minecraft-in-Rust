@@ -618,6 +618,9 @@ pub enum TintSource {
     Firework(i32),
     Potion(i32),
     Team(i32),
+    /// `minecraft:map_color`: the filled map's colour (`DataComponents.MAP_COLOR`,
+    /// a bare int rgb; the default is `MapItemColor.DEFAULT`, 4603950).
+    MapColor(i32),
 }
 impl TintSource {
     fn decode(v: &Value) -> Result<Self> {
@@ -645,6 +648,7 @@ impl TintSource {
             "minecraft:firework" => Self::Firework(default()?),
             "minecraft:potion" => Self::Potion(default()?),
             "minecraft:team" => Self::Team(default()?),
+            "minecraft:map_color" => Self::MapColor(default()?),
             // A mod's own tint source, which its Java code computes: untinted here.
             other if foreign::is_foreign(other) => Self::Constant(-1),
             _ => return Err(err("unknown item tint source")),
@@ -1706,6 +1710,12 @@ impl Resolve<'_> {
                     .and_then(|o| o.team_color)
                     .unwrap_or(*default),
             ),
+            // `MapColor.calculate`: the stack's `minecraft:map_color`
+            // component when it has one, else the default.
+            TintSource::MapColor(default) => match self.component("minecraft:map_color") {
+                Some(v) => opaque(rgb(v.get("rgb").unwrap_or(v)).unwrap_or(*default)),
+                None => opaque(*default),
+            },
         }
     }
 }

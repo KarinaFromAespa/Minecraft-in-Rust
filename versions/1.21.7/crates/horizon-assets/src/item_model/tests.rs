@@ -31,6 +31,55 @@ fn a_mods_tint_source_is_untinted_and_an_unknown_vanilla_one_fails() {
 }
 
 #[test]
+fn map_color_tint_source_decodes_and_reads_the_stacks_colour() {
+    let tint = |json: &str| TintSource::decode(&serde_json::from_str(json).unwrap());
+    assert_eq!(
+        tint(r#"{"type":"minecraft:map_color","default":4603950}"#).unwrap(),
+        TintSource::MapColor(4603950)
+    );
+    // Vanilla 1.21.7's filled_map.json: the map face is untinted, the second
+    // layer takes the map's colour, default 4603950.
+    let mut models = ItemModels::default();
+    models.definitions.insert(
+        "minecraft:filled_map".into(),
+        ClientItem::from_json(
+            r#"{"model":{
+            "type":"minecraft:model","model":"minecraft:item/filled_map",
+            "tints":[
+                {"type":"minecraft:constant","value":-1},
+                {"type":"minecraft:map_color","default":4603950}
+            ]}}"#,
+        )
+        .unwrap(),
+    );
+    models.prototypes.insert(
+        "minecraft:filled_map".into(),
+        BTreeMap::from([(
+            "minecraft:item_model".into(),
+            Value::String("minecraft:filled_map".into()),
+        )]),
+    );
+    let context = Context {
+        display: DisplayContext::Gui,
+        owner: None,
+        level: None,
+        seed: 0,
+    };
+    let tints = |stack: &StackView| {
+        let resolved = models.resolve(stack, &context, &NoEnv);
+        assert_eq!(resolved.layers.len(), 1);
+        resolved.layers[0].tints.clone()
+    };
+    let stack = StackView::new("minecraft:filled_map", 1);
+    assert_eq!(tints(&stack), vec![-1, opaque(4603950)]);
+    let mut coloured = StackView::new("minecraft:filled_map", 1);
+    coloured
+        .patch
+        .insert("minecraft:map_color".into(), Some(json!(0xFF0000)));
+    assert_eq!(tints(&coloured), vec![-1, opaque(0xFF0000)]);
+}
+
+#[test]
 fn custom_condition_is_evaluated_per_stack_at_branch_selection() {
     struct Env;
     impl ItemEnv for Env {

@@ -1111,16 +1111,22 @@ impl Environment {
             for file in folder.files.iter().filter(|f| !f.name.contains('/')) {
                 let biome: Json = horizon_world::json_file::parse(&file.path, file.bytes()?)?;
                 let name = format!("minecraft:{}", file.name);
-                // 1.21.7 biomes carry no "attributes" either; their legacy
-                // `effects` colours synthesize the map, so the biome layer
-                // survives (dropping every biome left the sky black). Only
-                // a biome with neither attributes nor colours is dropped.
+                // 1.21.7 biomes carry no "attributes" either; a biome with
+                // attributes keeps them — even an explicitly empty object,
+                // which is a real biome with no attributes — while one
+                // without the field falls back to its legacy `effects`
+                // colours, so the biome layer survives (dropping every
+                // biome left the sky black). Only a biome with neither
+                // attributes nor colours is dropped, and only a malformed
+                // attributes field warns.
                 let mut map = match AttributeMap::parse(&biome["attributes"]) {
-                    Ok(map) => map,
-                    Err(e) => match legacy::biome_map(&biome) {
+                    Ok(map) if !map.is_empty() || !biome["attributes"].is_null() => map,
+                    parsed => match legacy::biome_map(&biome) {
                         Some(map) => map,
                         None => {
-                            log::warn!("biome {}: {e}", file.name);
+                            if let Err(e) = parsed {
+                                log::warn!("biome {}: {e}", file.name);
+                            }
                             continue;
                         }
                     },

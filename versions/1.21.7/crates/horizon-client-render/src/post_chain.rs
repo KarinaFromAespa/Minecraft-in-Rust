@@ -10,8 +10,9 @@
 //! by `post_glsl` and bound as vanilla binds it (`SamplerInfo`, `Globals`, the pass's
 //! own uniform blocks, a sampler per input: a target's colour or depth, or a
 //! `textures/effect/` image). Horizon's own WGSL stand-ins (`post_chain.wgsl`) for the
-//! vanilla `core/screenquad`, `post/rotscale`, `post/invert`, `post/blit`, `post/bits`,
-//! `post/color_convolve`, `post/box_blur` and `post/spiderclip` are only the fallback
+//! vanilla `core/screenquad`, `post/rotscale`, `post/sobel`, `post/blur`, `post/blit`
+//! (vertex) and `post/invert`, `post/blit`, `post/bits`, `post/color_convolve`,
+//! `post/box_blur`, `post/spiderclip` (fragment) are only the fallback
 //! for a pass whose GLSL is missing or does not translate. A chain that cannot load
 //! (an unknown shader without a stand-in, a target the frame has no equivalent of)
 //! fails like a chain that does not compile (`GameRenderer.failedPostEffects`), once,
@@ -333,9 +334,21 @@ impl Config {
 }
 
 /// A stand-in for a vanilla vertex shader: its entry point and uniform block.
-const VERTEX: [(&str, &str, &str); 2] = [
+/// The vertex shaders the stand-ins cover. Every vanilla post vertex shader
+/// draws the same fullscreen quad as `core/screenquad` (`ProjMat` over
+/// `Position.xy * OutSize`, `texCoord = Position.xy`); the extra varyings
+/// (`oneTexel`, `sampleStep`) are ones the fragment stand-ins recompute from
+/// `info` and their own uniform block, so `vs_quad_gl` serves for all of
+/// them — including the three the spectator chains name (`post/sobel` for the
+/// creeper, `post/blur` for the spider, `post/blit` for invert), whose GLSL
+/// never translates (`#moj_import` is not a directive naga's preprocessor
+/// knows, so the chains load only through these entries).
+const VERTEX: [(&str, &str, &str); 5] = [
     ("minecraft:core/screenquad", "vs_quad_gl", ""),
     ("minecraft:post/rotscale", "vs_rotscale", "RotScaleConfig"),
+    ("minecraft:post/sobel", "vs_quad_gl", ""),
+    ("minecraft:post/blur", "vs_quad_gl", ""),
+    ("minecraft:post/blit", "vs_quad_gl", ""),
 ];
 // The stand-ins are the fallback for a pass whose GLSL is missing or does not translate.
 /// A stand-in for a vanilla fragment shader: entry point, uniform block and the
@@ -1822,6 +1835,44 @@ mod tests {
         )
         .validate(&module)
         .unwrap();
+    }
+
+    #[test]
+    fn the_spectator_chains_shaders_have_stand_ins() {
+        // The chains vanilla 1.21.7 ships for spectated entities
+        // (`post_effect/creeper.json`, `spider.json`, `invert.json`) name
+        // vertex shaders whose GLSL never translates (`#moj_import` is not a
+        // directive naga's preprocessor knows), so the chains load only
+        // through the stand-in tables: every shader id those three chains
+        // name must be in them.
+        // creeper: post/sobel + post/color_convolve, post/bits.
+        // spider: post/blur + post/box_blur, post/rotscale + post/spiderclip,
+        // post/blit + post/blit.
+        // invert: post/blit + post/invert, post/blit + post/blit.
+        for vertex in [
+            "minecraft:post/sobel",
+            "minecraft:post/blur",
+            "minecraft:post/blit",
+            "minecraft:post/rotscale",
+        ] {
+            assert!(
+                VERTEX.iter().any(|v| v.0 == vertex),
+                "{vertex} has no vertex stand-in"
+            );
+        }
+        for fragment in [
+            "minecraft:post/color_convolve",
+            "minecraft:post/bits",
+            "minecraft:post/box_blur",
+            "minecraft:post/spiderclip",
+            "minecraft:post/invert",
+            "minecraft:post/blit",
+        ] {
+            assert!(
+                FRAGMENT.iter().any(|f| f.0 == fragment),
+                "{fragment} has no fragment stand-in"
+            );
+        }
     }
 
     #[test]

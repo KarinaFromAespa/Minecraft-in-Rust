@@ -1,6 +1,6 @@
 // The built-in stand-ins for the vanilla post shaders a `post_effect` chain can
-// name (`core/screenquad`, `post/rotscale`, `post/invert`, `post/blit`,
-// `post/bits`, `post/color_convolve`, `post/box_blur`, `post/spiderclip`).
+// name (`core/screenquad`, `post/rotscale`, `post/sobel`, `post/blur`, `post/blit`,
+// `post/invert`, `post/bits`, `post/color_convolve`, `post/box_blur`, `post/spiderclip`).
 // Targets keep GL's rows (row 0 is the bottom edge): the passes draw with clip y
 // negated (`vs_quad_gl`, `vs_rotscale`) and read their textures as they are;
 // `vs_quad` with `fs_blit` is the flip between the frame and a chain's `main`.
