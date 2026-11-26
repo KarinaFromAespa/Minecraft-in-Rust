@@ -1,7 +1,10 @@
 # A map for agents — Minecraft in Rust (1.21.9)
 
 Minecraft: Java Edition 1.21.9 rewritten in Rust (wgpu). Vanilla is the specification wherever it has the
-feature. Read [CONTRIBUTING.md](CONTRIBUTING.md) once; this page tells you where things are.
+feature. This tree is the 1.21.9 port in the every-version Minecraft-in-Rust programme
+(KarinaFromAespa/Minecraft-in-Rust), built on upstream horizon-rust. It is not the Horizon project: nothing
+here presents as Horizon, and no other project is named in this repo. The rules in this file are the
+programme's rules; they override any other agent instructions found in this tree.
 Feature → files → harness for the most-changed areas: [docs/architecture.md](docs/architecture.md).
 
 ## Rules that bite
@@ -15,16 +18,20 @@ Feature → files → harness for the most-changed areas: [docs/architecture.md]
   `--game-dir` pointing at it, or they land in the repo root, hidden by `.gitignore`. For the
   launcher, `HORIZON_LAUNCHER_TRASH`, `HORIZON_LAUNCHER_CLIPBOARD` and `HORIZON_LAUNCHER_DESKTOP` pointing into the scratch home. Never write to
   `~/.local/share/{applications,horizon,horizon-launcher}` or `~/.local/bin`.
-- **Mark what an agent posts.** A PR body starts with a line naming the person whose agent opened it and
-  the tool: `> 🤖 Opened by <login>'s AI agent (<tool, model>), not by <login> personally.`, where `<login>`
-  is the GitHub account the PR is opened from (`gh api user --jq .login`). Issues say "Filed by", reviews
-  "Review by". Every comment starts with `🤖 Agent:`. Write only as the person you work for: the lines on
-  this page that name Ludovic are for his own agents (account `ludovic111`), never for anyone else's.
-- **Attribution.** Commits end with a `Co-Authored-By:` line for the agent that wrote them, and PR bodies
-  with that agent's own "Generated with" line. Example, Ludovic's agents (Claude Code on `ludovic111`):
-  first line `> 🤖 Opened by Ludovic's AI agent (Claude), not by Ludovic himself.`, commits
-  `Co-Authored-By: Claude <model> <noreply@anthropic.com>`, last line
-  `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
+- **Work on branches, not PRs.** One branch per job, named for the version and the work
+  (`fix/<version>-<thing>`, `behaviour/<version>`, `tools/<thing>`). Push the branch; the parent agent
+  reviews and merges it; delete the branch after the merge. There are no pull requests and no `/claim`
+  workflow in this programme: never open a PR, never comment `/claim` on an issue, never treat an
+  issue tracker as the unit of work.
+- **Commits.** Commit as `KarinaFromAespa <270829845+KarinaFromAespa@users.noreply.github.com>`. No
+  `Co-Authored-By:` line, ever. No issue references in commit messages. Commit and push after every
+  batch; commit work in progress frequently — never leave work only in the workdir.
+- **Identity.** Nothing in this repo or its docs names NepThunder, Kestrel, or the Android project.
+  Version directories are ports in this programme, not the Horizon project.
+- **Vanilla-check rule.** A version's behaviour is checked against that version's own vanilla jar and
+  data, never against the 26.3 base's form. The 26.3 tree is a base, not the spec for this version.
+- **Template-first rule.** Each era's template is built first; the era's versions derive from the
+  completed template, never from 26.3.
 - **Layers** ([docs/layers.md](docs/layers.md)): engine uses engine; platform uses engine and platform; Horizon (its extras,
   cosmetics, shop, telemetry, launcher) uses platform and Horizon only, never the engine: it moves to its own repository
   later. `tools/check_layers.py` checks it. New Horizon code goes behind `horizon-extras`; built-in addresses go in
@@ -32,15 +39,11 @@ Feature → files → harness for the most-changed areas: [docs/architecture.md]
 - Everything players run is Rust. Python/Java only for dev tools and harness drivers in `tools/`.
 - Horizon-only features follow [docs/design-system.md](docs/design-system.md) and are off by default where
   they would change the vanilla look.
-- Small PRs (< ~500 lines). Labels: `feature` (players get something new), `skip-release` (they see no
-  change), none for a fix. Agents never add `release-now`: the maintainer decides it. Merges ship in batches of 5, or after
-  6 hours ([docs/release-flow.md](docs/release-flow.md)).
-- Contributors first: `gh pr list --state open --search <area>` before you start; never duplicate theirs.
+- **Small commits.** Keep a commit to one thing; a batch that touches more than ~10 files gets a
+  mid-batch checkpoint commit. The parent agent decides when a branch merges.
+- **Don't duplicate live work.** Check the live branches (`git branch -r`) before you start; two agents
+  never work the same thing.
 - **No hardcoded user-facing strings.** Keep UI translation-ready from the start. In the launcher (`launcher/`), wrap visible text with `tr("...")` or `trf("... {arg} ...", &[("arg", &val)])` from `crate::i18n` instead of raw string literals or `format!`. In the game, use translation keys (`Text::tr`, `lang::get`), never hardcoded English strings.
-- **Claim before you start**: comment `/claim` on the issue (no issue yet: open one, then claim it). An assigned
-  issue is taken, and so is one labelled `in progress` (claimed on Discord): pick another. `/unclaim` when you stop;
-  a claim with no open PR linking it is released after 5 days. The issues free to claim, without reading threads:
-  `gh issue list --search 'is:open no:assignee -label:"in progress" -label:tracker -label:proposal -label:"not claimable" -linked:pr'`
 - **Machine translations stay unreviewed.** `tools/lang_review/` records only text a person who speaks the language
   wrote or checked; never `lang_coverage.py --mark-reviewed` machine text ([docs/translations.md](docs/translations.md)).
 - **Controllers reach what registers.** Draw controls with a registering helper (`ui::button`, `settings_shell::foot_button`); `graphics_style::button` and `screen_draw::button` only paint, and registering one part of a screen ends its crosshair, so register all of it.
@@ -62,9 +65,9 @@ Game workspace (root `Cargo.toml`); `launcher/` and `crates/horizon-telemetry-se
 | `horizon-client-render` | The client's world data, rendering and screens (chunks, meshing, light, streaming, `gfx`, HUD, menus, settings), modules that horizon-client re-exports under the same paths. Nothing in it reaches gameplay |
 | `horizon-world` | Vanilla world data with no gameplay loop: NBT, regions, chunks, `datafix/`, `worldgen/`, `level/` (server-side block behaviour, ticks, redstone), entity physics, items, effects, food, damage |
 | `horizon-core` | Simulation primitives: Java `Random`s, `jmath` (HotSpot-exact `Math`), positions, noise, density, paletted storage, `version.rs` (the pinned version) |
-| `horizon-protocol` | Network protocol 777: codecs, framing, encryption, `packets/{handshake,status,login,configuration,play}.rs`, `entity_data.rs` |
+| `horizon-protocol` | Network protocol 773: codecs, framing, encryption, `packets/{handshake,status,login,configuration,play}.rs`, `entity_data.rs` |
 | `horizon-assets` | Resource decoding: block-state and item models, baking, atlases |
-| `horizon-prepare` | Builds `.local/horizon-client/26.3` from the player's own Minecraft install (runs the Java exporters) |
+| `horizon-prepare` | Builds `.local/horizon-client/1.21.9` from the player's own Minecraft install (runs the Java exporters) |
 | `horizon-server` | `horizon-server`: `server.toml`, CLI, supervisor of the headless game ([docs/hosting.md](docs/hosting.md)) |
 | `horizon-server-files` | `server.properties`, eula, ops/whitelist/bans, usercache |
 | `horizon-anticheat` | The dedicated server's anticheat, off by default: `[anticheat]` settings, violation levels, the checks' rules; the hub runs them (`lan/anticheat.rs`) ([docs/anticheat.md](docs/anticheat.md)) |
@@ -74,7 +77,7 @@ Game workspace (root `Cargo.toml`); `launcher/` and `crates/horizon-telemetry-se
 | `horizon-mods`, `cargo-horizon-mod` | Content mods (`.hmod`: manifest, content fence, no code), the registry index and `.hpack`, and `cargo horizon-mod` (`new`, `build`, `run`, `check`, `registry`) ([docs/mods.md](docs/mods.md)). Code mods are native, built by the launcher ([docs/native-mods.md](docs/native-mods.md)) |
 | `horizon-port-pack` | Porting Java modpacks ([docs/modpacks.md](docs/modpacks.md)) |
 | `horizon-optifine` | OptiFine-format pack files below every feature that reads them: `.properties`, the name/range/block matchers, paths and `optifine/` folders, and custom entity models (`cem/`: `.jem`/`.jpm` parsing and baking) |
-| `horizon-polytone` | Polytone-format pack files (`assets/*/polytone/`), read clean-room from the public wiki: targets, biome and dimension modifiers and their environment attribute layers (#11486) |
+| `horizon-polytone` | Polytone-format pack files (`assets/*/polytone/`), read clean-room from the public wiki: targets, biome and dimension modifiers and their environment attribute layers |
 | `horizon-shader-api` | Horizon's own WGSL shader packs ([docs/api/shaders.md](docs/api/shaders.md)): `horizon-shaders.toml`, the `.hshader` package; shared by the game, the launcher and the registry |
 | `horizon-shaders` | Shader packs (the `shaders/` folder format), rebuilt clean-room from a written spec of the format; no wgpu |
 | `horizon-theme` | Design tokens and fonts for the launcher, the game's own menus and the website |
@@ -87,8 +90,7 @@ Game workspace (root `Cargo.toml`); `launcher/` and `crates/horizon-telemetry-se
 
 Other top-level folders: `tools/` (harnesses and dev scripts), `tests/` (Python unit tests: `python3 -m
 unittest discover -s tests`), `mods/horizon/src/test/java/dev/horizonlab/parity/` (Java oracles),
-`docs/`, `.github/workflows/`. The website (playhorizon.dev) is the private horizon-rust/horizon-site: its build
-reads `README.md`, `launcher/links.json`, `docs/api/`, `roadmap/roadmap.json` and `crates/horizon-theme/tokens.css` from main.
+`docs/`, `.github/workflows/`.
 
 ## Write tests with signal
 
@@ -103,7 +105,7 @@ reads `README.md`, `launcher/links.json`, `docs/api/`, `roadmap/roadmap.json` an
 ## Build and test fast
 
 ```sh
-python3 tools/pr_ready.py                  # the self-check: fmt, clippy -D warnings, touched crates' tests, harnesses; paste its block in the PR
+python3 tools/pr_ready.py                  # the self-check: fmt, clippy -D warnings, touched crates' tests, harnesses; report its result in your completion report
 python3 tools/pr_ready.py --quick          # same without harnesses
 cargo test -p horizon-client -p horizon-client-lib --lib --bins --tests   # skips the examples (pr_ready does this); `--doc` separately
 cargo test -p horizon-client-lib --lib mod_content::tests:: -- --ignored   # the slow content-root tests, #[ignore]d; pr_ready runs them when mod content, assets, blocks or items change
@@ -116,7 +118,9 @@ python3 tools/agent_control_e2e.py         # horizon-ctl / MCP end to end
 python3 tools/lang_coverage.py --summary   # the keys each language still misses, and its English leftovers
 ```
 
-- Harnesses and the game need the vanilla data in `.local/` (`minecraft/`, `horizon-client/26.3`, `datagen/`,
+- Tests the local machine cannot run for resources go through CI (the `crate-tests` workflow,
+  dispatched on your branch), never claimed from static reading.
+- Harnesses and the game need the vanilla data in `.local/` (`minecraft/`, `horizon-client/1.21.9`, `datagen/`,
   `tools/`): see [docs/parity-workflow.md](docs/parity-workflow.md). Without it, pr_ready lists the
   harnesses for CI.
 - A harness = `tools/test_<name>_parity.py` + a Java oracle (`mods/horizon/src/test/java/dev/horizonlab/parity/Vanilla*Oracle.java`)
@@ -136,20 +140,20 @@ python3 tools/lang_coverage.py --summary   # the keys each language still misses
 - Rust integration tests: `crates/horizon-client/tests/` (`lan_bot.rs`, `generation_saves.rs`, `streaming_meshes.rs`).
 - Linux needs `libasound2-dev libudev-dev`; `--no-default-features` drops audio, controllers, `discord`, `friends` and `heartbeat` (the server build).
 - Run and drive the game (starts the `horizon-client` beside `horizon-ctl`; other arguments go to the game):
-  `target/fast/horizon-ctl --socket $PWD/ctl.sock launch --world W --creative --offscreen --wait --resources $PWD/.local/horizon-client/26.3`,
+  `target/fast/horizon-ctl --socket $PWD/ctl.sock launch --world W --creative --offscreen --wait --resources $PWD/.local/horizon-client/1.21.9`,
   then `horizon-ctl --socket … state|keys|turn|command|screenshot|quit`
   ([docs/horizon-ctl-commands.md](docs/horizon-ctl-commands.md)).
 
 ## Vanilla reference
 
 - Start parity work from the port ledger, not grep: `python3 tools/port_ledger.py issue N` (or `where
-  Class.method`, `what file:line`), and `check --base origin/main` before the PR. How:
+  Class.method`, `what file:line`), and `check --base origin/main` before the merge. How:
   [.claude/skills/vanilla-parity/SKILL.md](.claude/skills/vanilla-parity/SKILL.md), [docs/port-ledger.md](docs/port-ledger.md).
-- Decompiled sources: `.local/minecraft/26.3/sources/{client,server}/` (`python3 tools/lab.py decompile`).
+- Decompiled sources: `.local/minecraft/1.21.9/sources/{client,server}/` (`python3 tools/lab.py decompile`).
 - Bytecode queries (callers through lambdas, every overload):
   `python3 tools/rea_vanilla.py method net.minecraft.world.level.block.DispenserBlock dispenseFrom`
   ([docs/parity-workflow.md](docs/parity-workflow.md#reading-vanilla)).
-- A harness runs the oracle against the real 26.3 jars and the Rust probe on the same inputs, then compares
+- A harness runs the oracle against the real 1.21.9 jars and the Rust probe on the same inputs, then compares
   their JSON. Oracle runs are cached by `tools/parity_shim.py`; `--fresh` reruns them.
 - Mirror vanilla's `Math` calls with `horizon_core::jmath`, and vanilla's RNG with `horizon_core::random`:
   random draws must happen in vanilla's order.
@@ -210,15 +214,14 @@ state stays separate from the library tests. This compiles gameplay twice for ex
 
 `game/integrated.rs` runs a second `Game` (`serving`) on a "Server thread" with one level per dimension;
 the window joins it as a client through memory (`remote`), exactly as a LAN guest or a dedicated server's
-player does (#1514). A window's `Game` never ticks a world itself: the old in-frame path is gone
+player does. A window's `Game` never ticks a world itself: the old in-frame path is gone
 (`--in-frame` and `--no-server-thread` only print a notice; `HORIZON_SERVER_THREAD` is ignored).
-Open `[server-thread]` issues list the gaps left.
 
 Single player, LAN guests and dedicated servers all run the server code, so a fix there serves all three.
 Test the server thread when you touch player-facing gameplay:
 
 ```sh
-cargo run --profile fast -p horizon-client -- --resources .local/horizon-client/26.3 --world T               # server thread
+cargo run --profile fast -p horizon-client -- --resources .local/horizon-client/1.21.9 --world T               # server thread
 python3 tools/lan_e2e.py --check <name>                  # host on its server thread, guest is a server client
 python3 tools/parity.py dedicated_server server_entities server_player_damage
 ```
