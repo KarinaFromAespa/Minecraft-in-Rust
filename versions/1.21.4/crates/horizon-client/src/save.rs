@@ -4222,7 +4222,8 @@ impl Level {
             .map(|v| v as f32);
         // DimensionType.parseLegacy (PlayerList): a legacy numeric dimension
         // (-1 the nether, 0 the overworld, 1 the end), else the resource key;
-        // anything else keeps the overworld default.
+        // an unknown numeric (or a non-string) errors in parseLegacy and the
+        // player load falls back to the overworld.
         if let Some(d) = p.get("Dimension") {
             match number(Some(d)) {
                 Some(-1) => self.dimension = "minecraft:the_nether".into(),
@@ -4231,6 +4232,8 @@ impl Level {
                 _ => {
                     if let Some(d) = text(Some(d)) {
                         self.dimension = d;
+                    } else {
+                        self.dimension = "minecraft:overworld".into();
                     }
                 }
             }
@@ -5435,8 +5438,10 @@ impl<G: ChunkGenerator> ChunkGenerator for Persistent<G> {
 /// `IOWorker.createOldDataForRegion`'s test of one record: saved before DataVersion 4997, or
 /// with `blending_data`.
 fn record_is_old(root: &NamedTag) -> bool {
+    // `IOWorker.isOldChunk`: a chunk older than the blending fix (4185),
+    // or one that still carries blending data.
     let before_blending = match root.tag.get("DataVersion") {
-        Some(Tag::Int(version)) => *version < 4997,
+        Some(Tag::Int(version)) => *version < 4185,
         _ => true,
     };
     before_blending || root.tag.get("blending_data").is_some()
@@ -8509,8 +8514,9 @@ mod tests {
             panic!("no palette");
         };
         assert_eq!(
-            text(palette[0].get("id")).as_deref(),
-            Some("minecraft:short_grass")
+            text(palette[0].get("Name")).as_deref(),
+            Some("minecraft:short_grass"),
+            "1.20.3 renamed grass to short_grass (fix 3692); the palette keeps its `Name` key in 1.21.4 (the `Name` to `id` restructure is a 26.x fix, past 4189)"
         );
         // Decoded, it keeps its blocks: read raw, the 26.x decoder finds no `id` in a
         // 1.20 palette (`Name`) and the whole column is air.
@@ -8566,7 +8572,7 @@ mod tests {
         );
         // A 1.20.1 Nether chunk: upgraded it has no `blending_data` (only Overworld
         // chunks blend) and the current DataVersion, so only the saved record says
-        // it is older than blending (4997), as `IOWorker.isOldChunk` reads it.
+        // it is older than blending (4185), as `IOWorker.isOldChunk` reads it.
         write_old_record(
             &nether,
             "region",

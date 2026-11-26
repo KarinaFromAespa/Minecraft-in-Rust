@@ -141,7 +141,7 @@ pub(super) fn register(out: &mut Vec<(Key, FixFn)>) {
             set(be, "sherds", unpack_pot_decorations(sherds));
         });
     }));
-    out.push((key(4997, 0), |cx| cx.each_out(Ty::Chunk, blending_data)));
+    out.push((key(4185, 0), |cx| cx.each_out(Ty::Chunk, blending_data)));
     out.push((key(5002, 0), |cx| {
         cx.block_entity("minecraft:sign", |be| {
             set(be, "allow_op_features", boolean(true))

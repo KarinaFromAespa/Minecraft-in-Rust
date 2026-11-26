@@ -2604,3 +2604,45 @@ shape for the review batches.
   identical to the local run and to the parent tree. Next: fix those
   14 (each verified against the 1.21.4 jar, not silently re-scoped)
   before opening more rank-2 items.
+  Test-health, round 2 (2026-11-26, after batch 28): crate-tests run
+  45851997564 failed only on horizon-client-lib, 2417/14 — exactly the
+  14 that fail identically on the 1.21.5 parent tree. All 14 are now
+  fixed and verified locally; the lib suite is 2431/0. Each fix was
+  verified against the 1.21.4 jar, not silently re-scoped:
+  item_sync (2): the painting test used the 26.x component id 109 — the
+  Rust's internal id is 89 (1.21.5's PAINTING_VARIANT; 1.21.4 has no
+  such component, verified: DataComponents has no painting/sign entries)
+  — changed 109 to 89 in the test. The sign test used 26.x ids 118/119;
+  1.21.4 has no sign-text components (neither does 1.21.5), the text is
+  carried internally under markers -1001/-1002 that write_patch never
+  emits — re-scoped to pin that a sign with text writes as a plain sign
+  and reads back with no text on it. lan::advancements (5): the book
+  writer emitted the 26.2 recipe-display form — Tag slot display plus a
+  HolderSet, and ItemStack results item-first. 1.21.4's TagSlotDisplay
+  holds a bare tag id (javap: TagKey<Item> in both 1.21.4 and 1.21.5;
+  the pinned quirk tag_slot_display_is_id is true) and its
+  ItemStack.STREAM_CODEC is count-first (v1_21_4::read_stack reads count
+  then item). New slot_display() writes Ingredient.display()'s form
+  (tag to Tag+string, one item to Item+id, several to Composite of
+  Items; verified against Ingredient.display, displayForSingleItem and
+  AbstractCookingRecipe.display in the jar) and the result closures now
+  write count first (the owned-content test, count 2 item 1, catches the
+  swap). The three furnace tests' expectations moved from Tag(HolderSet)
+  to Item(id), the 1.21.4 form. projectiles (1): a real port gap —
+  settings() had lost the 26.3 fallback where a registered mod thrown
+  type takes its template's (snowball's) tracking settings; restored it
+  in lan/tracking.rs. realms (1): test-only — the client already sends
+  1.21.4/769/Java 21, the test expected 26.3/777/Java 25. save (4): the
+  blending fix was registered at key 4997, past 4189, so it never ran —
+  Mojang's DataFixers registers BlendingDataFix at schema 4185
+  (between addSchema(4185) and addSchema(4187)), re-keyed to 4185; the
+  same wrong 4997 sat in record_is_old, and vanilla's
+  IOWorker.isOldChunk compares against sipush 4185 — fixed to 4185.
+  The legacy-dimension fallback now sets the overworld for an unknown
+  numeric (parseLegacy errors there; the load falls back to overworld).
+  The older-records palette assertion moved from `id` to `Name`
+  (the grass to short_grass rename fires at fix 3692; the Name to id
+  restructure is a 26.x fix, past 4189). title (1): the optimization
+  fixture set DataVersion 4950, newer than 4189 — the upgrader never
+  downgrades — re-scoped to a 1.20.1 world (3465), which stamps to 4189.
+  Local verification after the fixes: horizon-client-lib 2431/0.

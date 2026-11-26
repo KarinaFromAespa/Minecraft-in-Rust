@@ -1572,15 +1572,17 @@ mod tests {
         assert_eq!(d.other("minecraft:tooltip_display"), None);
     }
 
-    /// A painting's `painting/variant` (a `painting_variant` holder, id 109)
-    /// crosses the wire both ways: a server's creative slot gets the variant
-    /// its client picked, and a client's tooltip names the server's.
+    /// A painting's `painting/variant` (a `painting_variant` holder, id 89 in
+    /// this tree's internal numbering — 1.21.4 has no such component; 1.21.5
+    /// added it as PAINTING_VARIANT, 26.x renumbered it to 109) crosses the
+    /// wire both ways: a server's creative slot gets the variant its client
+    /// picked, and a client's tooltip names the server's.
     #[test]
     fn a_painting_keeps_its_variant_across_the_wire() {
         use horizon_protocol::buf::{Codec, Reader, Writer};
         use horizon_protocol::item::Slot;
         let mut components = vec![String::new(); 110];
-        components[109] = "minecraft:painting/variant".into();
+        components[89] = "minecraft:painting/variant".into();
         let items = ["minecraft:air", "minecraft:painting"];
         let builtin = Builtin {
             registries: [
@@ -1605,8 +1607,8 @@ mod tests {
             ..Default::default()
         };
         // ItemStack.OPTIONAL_STREAM_CODEC: count 1, the painting, one added
-        // component (109: the reference to kebab, its id plus one), none removed.
-        let vanilla = [1u8, 1, 1, 0, 109, 2];
+        // component (89: the reference to kebab, its id plus one), none removed.
+        let vanilla = [1u8, 1, 1, 0, 89, 2];
         let stack = Slot::read(&mut Reader::new(&vanilla)).unwrap().unwrap();
         let back = from_network(&stack, &builtin, &dynamic);
         let variant = |s: &ItemStack| {
@@ -1627,7 +1629,7 @@ mod tests {
         );
         let mut w = Writer::new();
         Slot::write(&wire, &mut w);
-        assert_eq!(w.data, [1, 1, 1, 0, 109, 1]);
+        assert_eq!(w.data, [1, 1, 1, 0, 89, 1]);
         let wire = Slot::read(&mut Reader::new(&w.data)).unwrap().unwrap();
         assert_eq!(
             variant(&from_network(&wire, &builtin, &dynamic)),
@@ -1635,17 +1637,19 @@ mod tests {
         );
     }
 
-    /// A sign picked with its data (`SignBlockEntity.collectImplicitComponents`)
-    /// keeps its text across the wire both ways: `sign_text_front` and
-    /// `sign_text_back` (ids 118 and 119, `SignText.STREAM_CODEC`) reach the
-    /// client's stack, whose own placement puts the text on the sign (#8102).
+    /// A sign picked with its data keeps its text on the client's own stack
+    /// (`SignText`, which the client's own placement puts on the sign it
+    /// predicts, #8102) — but 1.21.4 has no `sign_text_front`/`sign_text_back`
+    /// components (26.x ids 118/119), so the text never crosses the wire:
+    /// the Rust carries it under internal markers (-1001/-1002) that
+    /// `write_patch` never emits. A sign with text writes as a plain sign,
+    /// and the plain sign reads back with no text on it.
     #[test]
-    fn a_signs_text_crosses_the_wire() {
+    fn a_signs_text_stays_off_the_wire_in_1_21_4() {
         use horizon_protocol::buf::{Reader, Writer};
         use horizon_protocol::item::Slot;
-        let mut components = vec![String::new(); 120];
-        components[118] = "minecraft:sign_text_front".into();
-        components[119] = "minecraft:sign_text_back".into();
+        // 1.21.4's component registry has 67 entries and no sign text.
+        let components = vec![String::new(); 67];
         let items = ["minecraft:air", "minecraft:oak_sign"];
         let builtin = Builtin {
             registries: [
@@ -1676,6 +1680,12 @@ mod tests {
             .set_other("minecraft:sign_text_front", Some(front.clone()));
         sign.data_mut()
             .set_other("minecraft:sign_text_back", Some(back.clone()));
+        // The local stack still carries the text (the placement prediction
+        // reads it), but the wire form is a plain sign: no components.
+        assert_eq!(
+            sign.data().and_then(|d| d.other("minecraft:sign_text_front")),
+            Some(&front)
+        );
         let wire = crate::lan::guest::stack_to_network(
             |name| items.iter().position(|i| *i == name).unwrap_or(0) as i32,
             |_, _| None,
@@ -1683,11 +1693,21 @@ mod tests {
         );
         let mut w = Writer::new();
         Slot::write(&wire, &mut w);
+        assert_eq!(w.data, [1, 1, 0, 0]);
         let wire = Slot::read(&mut Reader::new(&w.data)).unwrap().unwrap();
         let client = from_network(&wire, &builtin, &dynamic);
-        let data = client.data().expect("the sign's components");
-        assert_eq!(data.other("minecraft:sign_text_front"), Some(&front));
-        assert_eq!(data.other("minecraft:sign_text_back"), Some(&back));
+        assert_eq!(
+            client
+                .data()
+                .and_then(|d| d.other("minecraft:sign_text_front")),
+            None
+        );
+        assert_eq!(
+            client
+                .data()
+                .and_then(|d| d.other("minecraft:sign_text_back")),
+            None
+        );
     }
 
     /// `minecraft:custom_data` and `minecraft:custom_model_data` are part of

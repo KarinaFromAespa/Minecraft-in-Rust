@@ -418,29 +418,27 @@ impl ServerAdvancements {
         let slot = |n: &str| sync.id("minecraft:slot_display", n).unwrap_or(0);
         let mut w = Writer::new();
         w.varint(ids.start);
-        // The ingredients' TagSlotDisplays, an empty cell as an empty slot.
+        // The ingredients' slot displays, an empty cell as an empty slot.
         let slots = |w: &mut Writer, cells: &[Option<&Value>]| {
             w.varint(cells.len() as i32);
             for cell in cells {
                 match cell {
-                    Some(v) => {
-                        w.varint(slot("minecraft:tag"));
-                        holder_set(w, v, &item);
-                    }
+                    Some(v) => slot_display(w, v, &slot, &item),
                     None => w.varint(slot("minecraft:empty")),
                 }
             }
         };
-        // The result as its ItemStackSlotDisplay, the station as its item.
+        // The result as its ItemStackSlotDisplay (count first, 1.21.4's
+        // ItemStack.STREAM_CODEC), the station as its item.
         let result = |w: &mut Writer| {
             w.varint(slot("minecraft:item_stack"));
+            w.varint(r["result"]["count"].as_i64().unwrap_or(1) as i32);
             w.varint(
                 item(
                     horizon_world::loot::recipe_result_id(&r["result"]).unwrap_or("minecraft:air"),
                 )
                 .unwrap_or(0),
             );
-            w.varint(r["result"]["count"].as_i64().unwrap_or(1) as i32);
             w.varint(0);
             w.varint(0);
         };
@@ -496,8 +494,7 @@ impl ServerAdvancements {
                     sync.id("minecraft:recipe_display", "minecraft:furnace")
                         .unwrap_or(0),
                 );
-                w.varint(slot("minecraft:tag"));
-                holder_set(&mut w, &r["ingredient"], &item);
+                slot_display(&mut w, &r["ingredient"], &slot, &item);
                 w.varint(slot("minecraft:any_fuel"));
                 result(&mut w);
                 station(&mut w, crafting_station(kind));
@@ -596,9 +593,8 @@ impl ServerAdvancements {
                 one => vec![item(one)?],
             },
         };
-        let (shapeless, tag, empty_stack) = (
+        let (shapeless, empty_stack) = (
             sync.id("minecraft:recipe_display", "minecraft:crafting_shapeless")?,
-            slot("minecraft:tag")?,
             slot("minecraft:item_stack")?,
         );
         let (composite, item_slot) = (slot("minecraft:composite")?, slot("minecraft:item")?);
@@ -614,15 +610,14 @@ impl ServerAdvancements {
             w.varint(shapeless);
             w.varint(n as i32 + 1);
             for v in std::iter::once(input).chain(std::iter::repeat_n(material, n)) {
-                w.varint(tag);
-                holder_set(&mut w, v, &item);
+                slot_display(&mut w, v, &|n| slot(n).unwrap_or(0), &item);
             }
             // computeResultSize: the materials added to the count, or not.
             let count = if add { n as i32 + base } else { base };
             let stack = |w: &mut Writer, id: i32| {
                 w.varint(empty_stack);
-                w.varint(id);
                 w.varint(count);
+                w.varint(id);
                 w.varint(0);
                 w.varint(0);
             };
@@ -710,6 +705,53 @@ fn shrink(rows: &[Value]) -> Vec<Vec<char>> {
                 .collect()
         })
         .collect()
+}
+
+/// `Ingredient.display()` (1.21.4): a tag ingredient is a Tag slot display
+/// with the bare tag id, a single item an Item slot display, several items
+/// a Composite of Item displays. (26.2 made the Tag display hold a
+/// HolderSet instead, so the Tag-plus-HolderSet form this wrote was the
+/// later form, not 1.21.4's.) An ingredient no registry knows is an empty
+/// slot, not id 0. No WithRemainder: the writer has no remainder table,
+/// and vanilla only wraps a single item that has a crafting remainder.
+fn slot_display(
+    w: &mut Writer,
+    v: &Value,
+    slot: &dyn Fn(&str) -> i32,
+    item: &dyn Fn(&str) -> Option<i32>,
+) {
+    match v {
+        Value::String(s) if s.starts_with('#') => {
+            w.varint(slot("minecraft:tag"));
+            w.string(&s[1..]);
+        }
+        Value::String(s) => match item(s) {
+            Some(id) => {
+                w.varint(slot("minecraft:item"));
+                w.varint(id);
+            }
+            None => w.varint(slot("minecraft:empty")),
+        },
+        Value::Array(a) => {
+            let ids: Vec<i32> = a.iter().filter_map(|s| item(s.as_str()?)).collect();
+            match ids.len() {
+                0 => w.varint(slot("minecraft:empty")),
+                1 => {
+                    w.varint(slot("minecraft:item"));
+                    w.varint(ids[0]);
+                }
+                _ => {
+                    w.varint(slot("minecraft:composite"));
+                    w.varint(ids.len() as i32);
+                    for id in ids {
+                        w.varint(slot("minecraft:item"));
+                        w.varint(id);
+                    }
+                }
+            }
+        }
+        _ => w.varint(slot("minecraft:empty")),
+    }
 }
 
 /// ByteBufCodecs.holderSet for an ingredient: a tag by name, or the items.
@@ -1196,7 +1238,8 @@ mod tests {
         };
         assert_eq!(
             ingredient,
-            SlotDisplay::Tag(HolderSet::Items(vec![item("minecraft:raw_copper")]))
+            SlotDisplay::Item(item("minecraft:raw_copper")),
+            "1.21.4's Ingredient.display is an Item slot for one item, not the 26.2 Tag holding a HolderSet"
         );
         assert_eq!(fuel, SlotDisplay::AnyFuel);
         assert_eq!(
@@ -1254,8 +1297,8 @@ mod tests {
         };
         assert_eq!(
             ingredient,
-            SlotDisplay::Tag(HolderSet::Items(vec![item("minecraft:redstone")])),
-            "the display shows the swapped input too"
+            SlotDisplay::Item(item("minecraft:redstone")),
+            "the display shows the swapped input too, as 1.21.4's Item slot"
         );
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -1294,7 +1337,8 @@ mod tests {
         };
         assert_eq!(
             ingredient,
-            SlotDisplay::Tag(HolderSet::Items(vec![item("minecraft:redstone_ore")]))
+            SlotDisplay::Item(item("minecraft:redstone_ore")),
+            "1.21.4's Ingredient.display is an Item slot for one item, not the 26.2 Tag holding a HolderSet"
         );
         assert_eq!(station, SlotDisplay::Item(item("minecraft:blast_furnace")));
         assert_eq!(duration, 200);

@@ -2259,7 +2259,11 @@ fn a_finished_optimization_stamps_the_level_data() {
     let path = f.title.saves.join("World/level.dat");
     let mut root = crate::save::read_dat(&path).unwrap();
     if let Some(Tag::Compound(data)) = root.get_mut("Data") {
-        data.insert("DataVersion".into(), Tag::Int(4950));
+        // A 1.20.1 world (3465), older than this tree's current version:
+        // the 26.3 fixture's 4950 is newer than 1.21.4's 4189, and the
+        // upgrader never downgrades (`upgrade_tag` returns early when the
+        // version is already at or past the target).
+        data.insert("DataVersion".into(), Tag::Int(3465));
     }
     crate::save::write_dat(&path, root).unwrap();
     f.select();
