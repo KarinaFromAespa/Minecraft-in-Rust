@@ -49,6 +49,14 @@ name: leakage-audit
 #   gh workflow run leakage-audit.yml -f version=all
 # Results land in the per-version job summary and the
 # leakage-audit-<version> artifact (the full JSON result).
+#
+# Assemble-first (docs/restructure.md): the audit job assembles the
+# version from commons + overlay chain into .horizon-ports/<v> before
+# anything that needs the workspace, and the audit runs against the
+# assembled tree (--tree). The resolve job accepts a version as a full
+# tree (pre-cutover) or an overlay chain (post-cutover). Until the
+# cutover lands, commons/ does not exist yet and assemble.py falls
+# back to versions/26.3 as the base.
 
 on:
   workflow_dispatch:
@@ -63,6 +71,7 @@ permissions:
 
 env:
   HORIZON_TELEMETRY_URL: "off"
+  HORIZON_PORTS: ${{ github.workspace }}/.horizon-ports
 
 jobs:
   resolve:
@@ -83,11 +92,27 @@ jobs:
           wanted = os.environ["WANTED"]
           # A version tree is a directory under versions/ with a
           # workspace Cargo.toml — the same discovery rule the audit
-          # tool's --all uses.
+          # tool's --all uses — or an overlay chain (post-cutover).
+          def _chains():
+              try:
+                  with open("tools/overlay-chains.json") as f:
+                      return json.load(f).get("chains", {})
+              except (OSError, ValueError):
+                  return {}
           def has_tree(v):
-              return os.path.isfile(os.path.join("versions", v, "Cargo.toml"))
+              # A version exists as a full tree (pre-cutover, Cargo.toml)
+              # or as an overlay chain (post-cutover); 26.3 post-cutover
+              # is the commons base and appears in the chains file.
+              # Either shape counts, so the matrix keeps resolving
+              # across the cutover (docs/restructure.md).
+              if os.path.isfile(os.path.join("versions", v, "Cargo.toml")):
+                  return True
+              if os.path.isdir(os.path.join("versions", v, "overlay")):
+                  return True
+              return v in _chains()
           if wanted == "all":
-              versions = sorted(d for d in os.listdir("versions") if has_tree(d))
+              versions = sorted({d for d in os.listdir("versions") if has_tree(d)}
+                                | set(_chains()))
               if not versions:
                   raise SystemExit("no version tree found under versions/")
           else:
@@ -110,6 +135,16 @@ jobs:
       matrix: ${{ fromJson(needs.resolve.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
+
+      # Assemble the version first (docs/restructure.md): the audit
+      # scans the version's tree, so it must run against the assembled
+      # tree, not the checkout's versions/<v>/ (which post-cutover is
+      # only overlay + metadata). --tree points it at the assembly.
+      - name: Assemble the version (commons + overlay chain)
+        run: |
+          V="${{ matrix.version }}"
+          mkdir -p "$HORIZON_PORTS"
+          python3 tools/assemble.py "$V" --into "$HORIZON_PORTS/$V"
 
       # The audit needs the version's own vanilla data, and the jar is
       # authoritative for all three families (tags, attributes,
@@ -174,6 +209,7 @@ jobs:
           V="${{ matrix.version }}"
           set +e
           python3 tools/audit_26_3_leakage.py "$V" --jar "jars/$V-server.jar" \
+            --tree "$HORIZON_PORTS/$V" \
             --exceptions tools/leakage-exceptions.json \
             --baseline tools/leakage-baselines.json --json > "audit-$V.json"
           RC=$?
