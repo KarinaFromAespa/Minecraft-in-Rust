@@ -1577,6 +1577,34 @@ impl Recipes {
             let ing = |k: &str| Ingredient::parse(&v[k], items);
             let result = || Template::parse(&v["result"]);
             let special = |recipe: Option<Special>| recipe.map(Recipe::Special);
+            // A 1.21.7 special recipe's JSON carries only `type` +
+            // `category`: vanilla hardcodes the inputs in the recipe
+            // class (the `*Recipe` classes in the 1.21.7 server jar).
+            // Where the JSON names a field, the data-driven value
+            // stands; where it does not, the fallback is vanilla
+            // 1.21.7's hardcoded input, so a version whose JSON is
+            // data-driven keeps its own values.
+            let ing_or = |k: &str, fallback: &str| {
+                ing(k).or_else(|| Ingredient::parse(&Value::String(fallback.to_owned()), items))
+            };
+            let result_or = |id: &str, count: u32| {
+                result().filter(|t| t.item.is_some()).unwrap_or(Template {
+                    item: Some(Arc::from(id)),
+                    count,
+                    damage: 0,
+                    extra: None,
+                    components: None,
+                })
+            };
+            // 1.21.7 has no `#minecraft:dyes` tag: the sixteen dyes.
+            let dyes = || {
+                Some(Ingredient::of(
+                    DYE_FIREWORK_COLORS
+                        .iter()
+                        .map(|(name, _)| format!("minecraft:{name}_dye"))
+                        .collect(),
+                ))
+            };
             let parsed: Option<Recipe> = match v["type"].as_str().unwrap_or("") {
                 "minecraft:crafting_shaped" => {
                     let pattern: Vec<Vec<char>> = v["pattern"]
@@ -1627,24 +1655,36 @@ impl Recipes {
                         _ => None,
                     }
                 }
-                "minecraft:crafting_special_bannerduplicate" => special(
-                    ing("banner")
-                        .zip(horizon_world::loot::recipe_result_id(&v["result"]))
-                        .map(|(banner, id)| Special::BannerDuplicate {
-                            banner,
-                            result: id.to_owned(),
-                        }),
-                ),
-                "minecraft:crafting_special_shielddecoration" => special(
-                    ing("banner")
-                        .zip(ing("target"))
-                        .zip(horizon_world::loot::recipe_result_id(&v["result"]))
-                        .map(|((banner, target), id)| Special::ShieldDecoration {
-                            banner,
-                            target,
-                            result: id.to_owned(),
-                        }),
-                ),
+                "minecraft:crafting_special_armordye" => special((|| {
+                    // 1.21.7 has no `crafting_dye` file: ArmorDyeRecipe
+                    // tests `#minecraft:dyeable` and DyeItem directly.
+                    Some(Special::Dye {
+                        target: ing_or("target", "#minecraft:dyeable")?,
+                        dye: ing("dye").or_else(dyes)?,
+                        // No fixed result item: the dyed target itself.
+                        result: result()?,
+                    })
+                })()),
+                "minecraft:crafting_special_bannerduplicate" => special((|| {
+                    Some(Special::BannerDuplicate {
+                        banner: ing_or("banner", "#minecraft:banners")?,
+                        // Vanilla copies the patterned banner itself; no
+                        // single item id says that, so the first banner
+                        // of the tag stands in (white_banner).
+                        result: horizon_world::loot::recipe_result_id(&v["result"])
+                            .map(str::to_owned)
+                            .unwrap_or_else(|| "minecraft:white_banner".to_owned()),
+                    })
+                })()),
+                "minecraft:crafting_special_shielddecoration" => special((|| {
+                    Some(Special::ShieldDecoration {
+                        banner: ing_or("banner", "#minecraft:banners")?,
+                        target: ing_or("target", "minecraft:shield")?,
+                        result: horizon_world::loot::recipe_result_id(&v["result"])
+                            .map(str::to_owned)
+                            .unwrap_or_else(|| "minecraft:shield".to_owned()),
+                    })
+                })()),
                 "minecraft:crafting_transmute" => special((|| {
                     let (min, max) = transmute_material_bounds(v.get("material_count"));
                     Some(Special::Transmute {
@@ -1670,62 +1710,105 @@ impl Recipes {
                         result: result()?,
                     })
                 })()),
+                "minecraft:crafting_special_tippedarrow" => special((|| {
+                    // 1.21.7's TippedArrowRecipe: 8 arrows around one
+                    // lingering potion, 8 tipped arrows out; 26.2 made
+                    // it the `crafting_imbue` this arm mirrors.
+                    Some(Special::Imbue {
+                        source: ing_or("source", "minecraft:lingering_potion")?,
+                        material: ing_or("material", "minecraft:arrow")?,
+                        result: result_or("minecraft:tipped_arrow", 8),
+                    })
+                })()),
                 "minecraft:crafting_special_bookcloning" => special((|| {
                     let (min, max) = bounds(v.get("allowed_generations"), (0, 1), (0, 2));
                     Some(Special::BookCloning {
-                        source: ing("source")?,
-                        material: ing("material")?,
+                        source: ing_or("source", "minecraft:written_book")?,
+                        material: ing_or("material", "#minecraft:book_cloning_target")?,
                         min: min as i32,
                         max: max as i32,
-                        result: result()?,
+                        result: result_or("minecraft:written_book", 1),
                     })
                 })()),
                 "minecraft:crafting_special_firework_rocket" => special((|| {
                     Some(Special::FireworkRocket {
-                        shell: ing("shell")?,
-                        fuel: ing("fuel")?,
-                        star: ing("star")?,
-                        result: result()?,
+                        shell: ing_or("shell", "minecraft:paper")?,
+                        fuel: ing_or("fuel", "minecraft:gunpowder")?,
+                        star: ing_or("star", "minecraft:firework_star")?,
+                        // Vanilla assembles 3 rockets, not 1.
+                        result: result_or("minecraft:firework_rocket", 3),
                     })
                 })()),
                 "minecraft:crafting_special_firework_star" => special((|| {
                     let mut shapes = Vec::new();
-                    for (shape, value) in v["shapes"].as_object()? {
-                        shapes.push((
-                            FireworkShape::from_name(shape),
-                            Ingredient::parse(value, items)?,
-                        ));
+                    match v["shapes"].as_object() {
+                        Some(obj) => {
+                            for (shape, value) in obj {
+                                shapes.push((
+                                    FireworkShape::from_name(shape),
+                                    Ingredient::parse(value, items)?,
+                                ));
+                            }
+                        }
+                        // 1.21.7: vanilla's SHAPE_BY_ITEM, hardcoded in
+                        // FireworkStarRecipe's static block.
+                        None => {
+                            for (shape, spec) in [
+                                ("large_ball", "minecraft:fire_charge"),
+                                ("burst", "minecraft:feather"),
+                                ("star", "minecraft:gold_nugget"),
+                                ("creeper", "#minecraft:skulls"),
+                            ] {
+                                shapes.push((
+                                    FireworkShape::from_name(shape),
+                                    Ingredient::parse(&Value::String(spec.to_owned()), items)?,
+                                ));
+                            }
+                        }
                     }
                     Some(Special::FireworkStar {
-                        dye: ing("dye")?,
-                        fuel: ing("fuel")?,
-                        trail: ing("trail")?,
-                        twinkle: ing("twinkle")?,
+                        dye: ing("dye").or_else(dyes)?,
+                        fuel: ing_or("fuel", "minecraft:gunpowder")?,
+                        trail: ing_or("trail", "minecraft:diamond")?,
+                        twinkle: ing_or("twinkle", "minecraft:glowstone_dust")?,
                         shapes,
-                        result: result()?,
+                        result: result_or("minecraft:firework_star", 1),
                     })
                 })()),
                 "minecraft:crafting_special_firework_star_fade" => special((|| {
                     Some(Special::FireworkStarFade {
-                        dye: ing("dye")?,
-                        target: ing("target")?,
-                        result: result()?,
+                        dye: ing("dye").or_else(dyes)?,
+                        target: ing_or("target", "minecraft:firework_star")?,
+                        result: result_or("minecraft:firework_star", 1),
                     })
                 })()),
                 "minecraft:crafting_special_mapextending" => special((|| {
                     Some(Special::MapExtending {
-                        map: ing("map")?,
-                        material: ing("material")?,
-                        result: result()?,
+                        map: ing_or("map", "minecraft:filled_map")?,
+                        material: ing_or("material", "minecraft:paper")?,
+                        result: result_or("minecraft:filled_map", 1),
+                    })
+                })()),
+                "minecraft:crafting_special_mapcloning" => special((|| {
+                    // 1.21.7's MapCloningRecipe is a CustomRecipe (one
+                    // filled map, 1..8 empty maps, copies = empties + 1);
+                    // 26.2 made it the transmute this arm constructs.
+                    Some(Special::Transmute {
+                        input: ing_or("input", "minecraft:filled_map")?,
+                        material: ing_or("material", "minecraft:map")?,
+                        min: 1,
+                        max: 8,
+                        add_count: true,
+                        result: result_or("minecraft:filled_map", 1),
                     })
                 })()),
                 "minecraft:crafting_decorated_pot" => special((|| {
                     Some(Special::DecoratedPot {
-                        back: ing("back")?,
-                        left: ing("left")?,
-                        right: ing("right")?,
-                        front: ing("front")?,
-                        result: result()?,
+                        back: ing_or("back", "#minecraft:decorated_pot_ingredients")?,
+                        left: ing_or("left", "#minecraft:decorated_pot_ingredients")?,
+                        right: ing_or("right", "#minecraft:decorated_pot_ingredients")?,
+                        front: ing_or("front", "#minecraft:decorated_pot_ingredients")?,
+                        result: result_or("minecraft:decorated_pot", 1),
                     })
                 })()),
                 "minecraft:crafting_special_repairitem" => special(Some(Special::RepairItem)),
