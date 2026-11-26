@@ -2646,3 +2646,25 @@ shape for the review batches.
   fixture set DataVersion 4950, newer than 4189 — the upgrader never
   downgrades — re-scoped to a 1.20.1 world (3465), which stamps to 4189.
   Local verification after the fixes: horizon-client-lib 2431/0.
+
+  Item 92 (horizon-client/game/lan_entities.rs): NO-CHANGE — verified
+  against the 1.21.4 and 1.21.5 named client jars (javap -p -c,
+  normalized bytecode). Display: 1.21.5 refactored pos-rot interpolation
+  onto InterpolationHandler; 1.21.4 keeps PosRotInterpolationTarget with
+  lerpTo/cancelLerp/lerpTarget* (steps = getPosRotInterpolationDuration,
+  clamped 0..59). The Rust already implements the 1.21.4 form:
+  RemoteTextDisplay.move_to sets steps = teleport_duration.clamp(0, 59)
+  and snaps at 0, tick() eases (target - position) / steps per tick;
+  text_display.rs has teleport_duration default 0, entity-data id 10,
+  clamp 0..59. add/readAdditionalSaveData write the same fields with the
+  same defaults in both versions (only the codec API style differs);
+  createInterpolatedRenderState is byte-identical. Pinned by the existing
+  test metadata_and_position_interpolation_keep_their_separate_clocks
+  (duration 2: halfway after one tick, arrived after two).
+  MinecartFurnace: no semantic change — 1.21.5's DEFAULT_FUEL (0) and
+  DEFAULT_PUSH (Vec3.ZERO) only name 1.21.4's field defaults; the Rust
+  save/load (PushX/PushZ doubles, Fuel short, defaults 0) and DATA_ID_FUEL
+  (id 13, boolean, true when fuel > 0) already match. TrackedEntity:
+  1.21.5 adds broadcastIgnorePlayers and ServerEntity's
+  broadcastWithIgnore BiConsumer; broadcast itself is identical, and the
+  Rust models neither addition — correct for 1.21.4. Rank 2: 138/348.
