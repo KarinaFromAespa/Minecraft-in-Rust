@@ -2828,3 +2828,86 @@ shape for the review batches.
   `processOptions` (identical except the `startedCleanly` line),
   constructor (`soundSourceVolumes` EnumMap factory form only).
   Rank 2: 146/348.
+
+  Item 101 (horizon-client/game/falling_damage.rs): carry-over, one doc
+  fix. `Damage::from_nbt` is already the 1.21.4 read (`HurtEntities` or
+  the anvil default, `FallHurtAmount` or 0.0, `FallHurtMax` or 40 —
+  equivalent to 1.21.5's `getBooleanOr`/`getFloatOr`/`getIntOr` with the
+  anvil default); `impact()` is `Mth.ceil(fallDistance - 1.0F)` with the
+  same floor/min/max and `0.05 + steps * 0.05` wear chance;
+  `wear_anvil`/cancelDrop match; `finish_falling_block`'s `TileEntityData`
+  merge is 1.21.4's `getAllKeys` copy loop (1.21.5's `forEach` copies the
+  same tag per key); `causeFallDamage` returns false at the end in 1.21.4
+  and the Rust consumes no boolean. The float-vs-double fallDistance
+  param is provably the same ceil for float inputs. Doc fix:
+  `finish_falling_block` cited 1.21.4's tick as 1.21.11. Known gap, NOT
+  fixed here: the tree stores `Entity.fallDistance` as f64 everywhere
+  (the 1.21.5 form; 1.21.4's field is float) — narrowing it is a
+  tree-wide decision, like the `level/mod.rs` flags question.
+  Rank 2: 147/348.
+
+  Item 102 (horizon-client/mobs/bee.rs): PORTED — `Bee.customServerAiStep`
+  in 1.21.4 reads `Entity.isInWaterOrBubble` (water, or the bubble column
+  at the bee's feet — `Entity.isInBubbleColumn` reads the block state at
+  the entity's block position); 1.21.5 narrowed it to `isInWater`. The
+  Rust used `m.fluids.in_water` only, so a bee in a bubble column never
+  drowned here; `server_ai_step` now also checks the block at the bee's
+  feet for `minecraft:bubble_column`, with a regression test (5 ticks in
+  a column count `under_water` to 5; out of it resets to 0).
+  `isNightOrRaining` is NOT a delta: 1.21.4 `isNight()` equals 1.21.5
+  `isDarkOutside()` (`isDay()` and `isBrightOutside()` are byte-identical:
+  `!hasFixedTime() && skyDarken < 4`), and the Rust's `bees_stay_in_hive`
+  day-time range 12542..23460 reproduces `skyDarken >= 4` exactly
+  (verified numerically against `Level.updateSkyBrightness` with
+  `Mth.cos`'s table and f32 rounding); its doc cited the non-existent
+  `EnvironmentAttributes.BEES_STAY_IN_HIVE`, fixed to cite
+  `Bee.isNightOrRaining`. `TorchflowerCropBlock` is identical:
+  `getBonemealAgeIncrease` returns 1 in both; `getShape`'s `SHAPES` vs
+  `SHAPE_BY_AGE` hold the same boxes (age 0: 5,0,5,11,6,11; age 1:
+  5,0,5,11,10,11 — 1.21.5 builds them via `Block.column(6, 0, 6 +
+  age*4)`); add/readAdditionalSaveData differ only in the NBT API form.
+  Rank 2: 148/348.
+
+  Item 103 (horizon-client/mobs/zombie_villager.rs): PORTED —
+  `ZombieVillager.readAdditionalSaveData` calls `startConverting(player,
+  time)` when `ConversionTime` is present, re-applying the cure's strength
+  for the remaining time; the Rust's `read_nbt` set the cure but not the
+  effect, so a loaded converting zombie villager lost its strength.
+  `read_nbt` now adds `minecraft:strength` for the cure's remaining time
+  (and drops weakness, as `startConverting` does) after the saved
+  `active_effects` are loaded, with a round-trip test (a saved cure comes
+  back with strength 4000). `startConverting` itself already matches:
+  `DAMAGE_BOOST`'s registry id is `minecraft:strength` in 1.21.4 (the
+  1.21.5 change was a field rename only); weakness removed; entity event
+  16. `finishConversion`'s lambdas are identical modulo numbering
+  (`!EnchantmentHelper.has` `PREVENT_ARMOR_CHANGE`;
+  `dropPreservedEquipment` moves cursed stacks to villager slots
+  index+300 — the Rust's `convert_to_villager` matches, verified against
+  `Mob.dropPreservedEquipment`); `defineSynchedData`'s
+  `createDefaultVillagerData()` is `new VillagerData(PLAINS, NONE, 1)`;
+  `finalizeSpawn`'s byBiome/setType equals withType; `setVillagerData`
+  clears offers on a profession change (`villager.rs`);
+  `VillagerData`/`Offers`/`Xp` load in `entity_nbt.rs`. One comment fix:
+  the strength amplifier is `Math.min(difficulty - 1, 0)`, 0 except on
+  Peaceful where vanilla gives -1 (3 less melee damage) — this keeps 0
+  everywhere. Rank 2: 149/348.
+
+  Item 104 (horizon-client-render/block_entities.rs): carry-over.
+  The ticker-visible behaviour of `LevelChunk` is identical in both
+  versions. `postProcessGeneration` differs only in jump offsets;
+  `clearAllBlockEntities` is identical; `promotePendingBlockEntity`
+  differs only in `getString` vs `getStringOr` (same `DUMMY` check);
+  `replaceWithPacketData` decodes the heightmaps in the packet reader in
+  1.21.5 vs from the `CompoundTag` in 1.21.4, same data, and its
+  `BlockEntityTagOutput` lambda is identical (`getBlockEntity(IMMEDIATE)`,
+  type check, `loadWithComponents`). The `setBlockState` differences are
+  all outside this file's ticker bookkeeping: 1.21.4 takes a boolean and
+  calls `oldState.onRemove` server-side unconditionally, while 1.21.5
+  takes flags and calls `preRemoveSideEffects` (unless flags & 256),
+  `affectNeighborsAfterRemoval` for rails, and `onPlace` only when
+  !(flags & 512) — the 1.21.5-only flags
+  (`UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS` 256, `UPDATE_SKIP_ON_PLACE`
+  512) already present in `level/mod.rs`, whose 1.21.5 form is a known
+  open parent decision (item 52). The block-entity create/remove/mismatch
+  path inside `setBlockState` is identical in both jars.
+  Rank 2: 150/348.

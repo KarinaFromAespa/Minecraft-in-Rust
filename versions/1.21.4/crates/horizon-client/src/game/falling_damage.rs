@@ -158,8 +158,8 @@ impl Game<'_> {
                 }
             }
         }
-        // FallingBlockEntity.tick in 1.21.11 sends the block update alone (the
-        // transient-block packet is a later addition), which the landing
+        // `FallingBlockEntity.tick` in 1.21.4 sends the block update alone
+        // (the transient-block packet is a later addition), which the landing
         // above already produced.
         if matches!(landing, Landing::Broken)
             && block.drop_item

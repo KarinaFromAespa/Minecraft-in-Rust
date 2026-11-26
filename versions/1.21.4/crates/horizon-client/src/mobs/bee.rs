@@ -307,7 +307,14 @@ pub fn ai_step(m: &mut Mob, w: &MobWorld) {
 /// without nectar and the anger.
 pub fn server_ai_step(m: &mut Mob, cx: &mut Cx) {
     let stung = has_stung(m);
-    let in_water = m.fluids.in_water;
+    // `Bee.customServerAiStep` reads `Entity.isInWaterOrBubble`: water, or
+    // the bubble column at the bee's feet (`Entity.isInBubbleColumn` reads
+    // the block state at the entity's block position). 1.21.5 narrowed this
+    // to `isInWater`, so a bee in a bubble column no longer drowns there.
+    let in_water = m.fluids.in_water || {
+        let p = block_pos(m);
+        cx.w.block_name(p[0], p[1], p[2]) == "minecraft:bubble_column"
+    };
     let b = st(m);
     b.under_water = if in_water { b.under_water + 1 } else { 0 };
     if b.under_water > 20 {
@@ -427,7 +434,10 @@ fn hive_near_fire(m: &Mob, w: &MobWorld) -> bool {
         })
     })
 }
-/// `EnvironmentAttributes.BEES_STAY_IN_HIVE`: the overworld's night, or rain.
+/// `Bee.isNightOrRaining`: the overworld's night, or rain. Night is
+/// `Level.isNight` — `skyDarken >= 4` — which the day-time range
+/// 12542..23460 reproduces exactly (checked against
+/// `Level.updateSkyBrightness`, with `Mth.cos`'s table).
 pub fn bees_stay_in_hive(w: &MobWorld) -> bool {
     let night = w.dimension_type.has_timeline("minecraft:day")
         && (12542..23460).contains(&w.day_time.rem_euclid(24000));
@@ -1385,6 +1395,47 @@ mod tests {
                 }
             )));
         });
+    }
+
+    /// `Bee.customServerAiStep` in 1.21.4 reads `Entity.isInWaterOrBubble`:
+    /// a bee standing in a bubble column counts as underwater, where
+    /// 1.21.5's `isInWater` would leave it dry.
+    #[test]
+    fn a_bee_in_a_bubble_column_counts_as_underwater() {
+        crate::mobs::world::with_built_test_world(
+            &[],
+            |world, registry| {
+                let column = registry.default_state("minecraft:bubble_column").unwrap();
+                world.chunks.insert(
+                    (0, 0),
+                    std::sync::Arc::new(crate::chunk::Chunk::empty(0, 0)),
+                );
+                world.set(0, 64, 0, column).unwrap();
+            },
+            |w, _| {
+                let mut m = bee();
+                m.position = Vec3::new(0.5, 64.0, 0.5);
+                let mut random = LegacyRandom::new(1);
+                let mut events = Vec::new();
+                for _ in 0..5 {
+                    let mut cx = Cx {
+                        w,
+                        lr: &mut random,
+                        events: &mut events,
+                    };
+                    super::server_ai_step(&mut m, &mut cx);
+                }
+                assert_eq!(super::get(&m).unwrap().under_water, 5);
+                m.position = Vec3::new(0.5, 70.0, 0.5);
+                let mut cx = Cx {
+                    w,
+                    lr: &mut random,
+                    events: &mut events,
+                };
+                super::server_ai_step(&mut m, &mut cx);
+                assert_eq!(super::get(&m).unwrap().under_water, 0);
+            },
+        );
     }
 
     /// `NeutralMob.isAngryAtAllPlayers`: with `universal_anger` on and no

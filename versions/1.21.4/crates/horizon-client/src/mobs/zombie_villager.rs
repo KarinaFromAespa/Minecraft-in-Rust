@@ -68,7 +68,9 @@ pub fn start_converting(
     m.extra
         .effect_fallbacks
         .retain(|h| h.id != "minecraft:weakness");
-    // Strength amplifier: min(difficulty id - 1, 0), always 0 with monsters.
+    // Strength amplifier is `Math.min(difficulty - 1, 0)`: 0 except on
+    // Peaceful, where vanilla gives -1 (3 less melee damage). This keeps 0
+    // everywhere.
     m.add_effect("minecraft:strength", time, 0);
     events.push(MobEvent::EntityEvent {
         mob: m.id,
@@ -184,6 +186,17 @@ pub fn read_nbt(m: &mut Mob, tag: &Tag) {
         .get("Gossips")
         .map(crate::gossip::Gossips::from_nbt)
         .unwrap_or_default();
+    // `ZombieVillager.readAdditionalSaveData` re-runs `startConverting` for
+    // the remaining time when a cure was saved: the weakness is gone and the
+    // strength comes back with the save. (The entity event is a broadcast to
+    // trackers, which a loading mob has none of, so it is not repeated here.)
+    if cure.is_some() {
+        m.extra.effects.retain(|e| e.0 != "minecraft:weakness");
+        m.extra
+            .effect_fallbacks
+            .retain(|h| h.id != "minecraft:weakness");
+        m.add_effect("minecraft:strength", cure.map_or(0, |c| c.time), 0);
+    }
 }
 
 #[cfg(test)]
@@ -211,6 +224,25 @@ mod tests {
         let mut map = Compound::new();
         put_cure(&mut map, Some(cure));
         assert_eq!(parse_cure(&Tag::Compound(map)), Some(cure));
+    }
+    /// `ZombieVillager.readAdditionalSaveData` re-runs `startConverting`
+    /// for a saved cure: the strength comes back with the save.
+    #[test]
+    fn a_saved_cure_comes_back_with_its_strength() {
+        let mut m = zombie_villager();
+        start_converting(&mut m, None, 4000, &mut Vec::new());
+        let mut map = Compound::new();
+        write_nbt(&m, &mut map);
+        let mut loaded = zombie_villager();
+        read_nbt(&mut loaded, &Tag::Compound(map));
+        assert_eq!(cure(&loaded).map(|c| c.time), Some(4000));
+        assert!(loaded.has_effect("minecraft:strength"));
+        assert!(
+            loaded
+                .extra
+                .effects
+                .contains(&("minecraft:strength", 4000, 0))
+        );
     }
     /// `ZombieVillager.tick` counts the cure down before `Zombie.tick`,
     /// whatever the AI: a `NoAI` zombie villager finishes curing too (#3429).
