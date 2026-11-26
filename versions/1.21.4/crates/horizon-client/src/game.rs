@@ -1739,13 +1739,23 @@ impl LevelAccess for GameLevel<'_> {
                 effect: PlayerEffect::DropItem(item),
                 ..
             } => self.pop_above(pos, item),
-            // Picking a sweet berry bush or cave vines: the harvest loot,
-            // popped before the pick sound draws its pitch.
+            // Picking cave vines: the harvest loot, popped before the
+            // pick sound draws its pitch.
             LevelEvent::Player {
                 pos,
                 state,
                 effect: PlayerEffect::InteractLoot(table),
             } => self.drop_interact_loot(pos, state, table),
+            // A harvest that drops directly in code (sweet berries in
+            // 1.21.4): `Block.popResource` of the counted stack.
+            LevelEvent::Player {
+                pos,
+                effect: PlayerEffect::DropStack(item, count),
+                ..
+            } => self.pop_resource(
+                [pos.x, pos.y, pos.z],
+                ItemStack::new(&item, count),
+            ),
             event => self.events.push(event),
         }
     }
@@ -4589,6 +4599,7 @@ impl Game<'_> {
                     }
                     // Popped as the behaviour emits it (GameLevel::emit).
                     PlayerEffect::DropItem(_) => {}
+                    PlayerEffect::DropStack(..) => {}
                     PlayerEffect::EatCake => {
                         // CakeBlock.eat
                         self.award_custom_stat("eat_cake_slice", 1);

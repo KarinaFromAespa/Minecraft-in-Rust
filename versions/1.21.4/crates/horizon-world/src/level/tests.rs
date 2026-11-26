@@ -1503,6 +1503,34 @@ fn use_on_a_block_says_which_branch_answered() {
 }
 
 #[test]
+fn picking_a_grown_sweet_berry_bush_drops_berries_directly() {
+    // `SweetBerryBushBlock.useWithoutItem` in 1.21.4: the harvest loot
+    // table does not exist before 1.21.9, so the berries drop directly in
+    // code -- 1 + nextInt(2), plus one more at full growth -- and the bush
+    // resets to age 1. A loot-table roll would drop nothing here.
+    let mut w = world!();
+    let pos = BlockPos::new(0, 1, 0);
+    let bush = w.id("sweet_berry_bush", &[("age", "3")]);
+    w.put(pos, bush);
+    assert_eq!(w.use_empty_hand(pos), InteractionResult::Success);
+    assert_eq!(w.prop(pos, "age"), "1");
+    let mut drops = w.level.events.iter().filter_map(|e| match e {
+        LevelEvent::Player {
+            effect: PlayerEffect::DropStack(item, count),
+            ..
+        } => Some((&**item, *count)),
+        _ => None,
+    });
+    let (item, count) = drops.next().expect("one counted berry drop");
+    assert_eq!(item, "minecraft:sweet_berries");
+    assert!(
+        (2..=4).contains(&count),
+        "age 3 drops 1 + nextInt(2) + 1 berries, got {count}"
+    );
+    assert_eq!(drops.next(), None, "exactly one drop");
+}
+
+#[test]
 fn glowstone_charges_a_respawn_anchor_up_to_four() {
     // RespawnAnchorBlock.useItemOn: glowstone on an anchor below 4 charges
     // charges it and the click ends (SUCCESS), so no glowstone is placed (#3034).

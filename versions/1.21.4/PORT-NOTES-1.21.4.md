@@ -3311,3 +3311,73 @@ shape for the review batches.
   1.21.5-only -- neither class exists in either 1.21.4 jar;
   `test_block.rs` cites `level.updateNeighborsAt`, the 1.21.5-only
   method. Rank 2: 166/348.
+
+  Item 121 (horizon-client/text_display.rs): carry-over.
+  `Brightness.pack` in 1.21.4 is inline (`block << 4 | sky << 20`);
+  1.21.5 extracts static `pack`/`block`/`sky` helpers. `unpack` is the
+  same split in both. The Rust's `text_display.rs:269-277` already does
+  exactly the 1.21.4 form. `Display$TextDisplay` save/load differ only
+  by codec form: 1.21.4 saves `text` as a JSON string and reads
+  `line_width`/`background`/`text_opacity` behind `contains(key, 99)`
+  guards with defaults 200 / `0x40000000` / -1; the Rust's
+  `text_display_data` already matches those defaults (flags shadow 1 /
+  see-through 2 / default-background 4 / align left 8 / right 16).
+  Rank 2: 167/348.
+
+  Item 122 (horizon-client-render/signs.rs): PORTED.
+  `SignBlockEntity.executeClickCommandsIfPresent` and
+  `SignText.hasAnyClickCommands` differ only by the `ClickEvent`
+  representation: 1.21.5 pattern-matches the `RunCommand` record and
+  reads `command()`; 1.21.4 checks `getAction() == RUN_COMMAND` and
+  reads `getValue()`. The Rust's `signs.rs::click_action` read
+  `event.get("command")` -- the 1.21.5 form -- so a waxed sign whose
+  `run_command` click event came from vanilla 1.21.4 (command in `value`)
+  never fired. Fix: `click_action` now reads `value` first, falling back
+  to `command`, with the doc comment corrected to `clickEvent`. Test
+  added: `a_run_command_click_reads_its_command_from_value`. Rank 2:
+  168/348.
+
+  Item 123 (horizon-client/health.rs): PORTED.
+  `SweetBerryBushBlock.useWithoutItem` in 1.21.4: if `age > 1`, pop
+  `1 + nextInt(2) + (age == 3 ? 1 : 0)` sweet berries, play
+  `SWEET_BERRY_BUSH_PICK_BERRIES` (volume 1.0, pitch
+  `0.8 + nextFloat()*0.4`), set age to 1 (flags 2), emit `BLOCK_CHANGE`,
+  return `SUCCESS`. There is no `harvest/sweet_berry_bush` loot table in
+  1.21.4 (the table arrived in 1.21.9); the Rust instead emitted
+  `PlayerEffect::InteractLoot("minecraft:harvest/sweet_berry_bush")`,
+  which resolves to nothing when the table is absent, so right-clicking
+  a mature bush dropped no berries -- the exact defect reported live in
+  1.21.7 on Nov 25, 2026. Fix: new `PlayerEffect::DropStack(Arc<str>,
+  u32)` variant; the bush arm draws the count first (before the pitch
+  draw, as vanilla draws it) and emits `DropStack`; `game.rs` handles
+  it via `pop_resource` (widened to `pub(super)`), and the server-side
+  `LevelEvent::Player` arm treats it as already popped. Test added:
+  `picking_a_grown_sweet_berry_bush_drops_berries_directly`. The other
+  123 classes match: `entityInside` (stuck multiplier `(0.8, 0.75,
+  0.8)`, foxes/bees exempt, age 0 exempt, prick 1.0 at `|x| >= 0.003` or
+  `|z| >= 0.003`), `performBonemeal` (`min(3, age+1)`, flags 2),
+  `DamageEffects` identical. Recorded, NOT fixed (needs their own
+  focused items): the cave-vine arm in the same `interact.rs` still
+  uses `InteractLoot("minecraft:harvest/cave_vine")`, and the
+  beehive-shear path still uses a harvest table -- both tables are
+  absent in 1.21.4 and both need the same direct-drop treatment. Rank 2:
+  169/348.
+
+  Item 124 (horizon-client/examples/probe/scene_motion_probe.rs):
+  PORTED. `NetherPortalBlock.randomTick` in 1.21.4: natural dimension,
+  `doMobSpawning`, `nextInt(2000) < difficulty.getId()`, walk down while
+  the block is a portal, `isValidSpawn` for `ZOMBIFIED_PIGLIN` at the
+  block below, spawn with `EntitySpawnReason.STRUCTURE` at
+  `below.above()`, `setPortalCooldown()` on the piglin and its vehicle.
+  There is NO `anyPlayerCloseEnoughForSpawning` check in 1.21.4's
+  `randomTick`; 1.21.5 added it. The Rust's `portal_spawn` applied the
+  1.21.5 gate (non-spectator within 128 blocks of the chunk centre) and
+  returned early without it. Fix: the gate is removed. The tick side
+  already matches (natural dimension, `spawn_mobs` + `spawn_monsters`
+  reducing to `doMobSpawning`, difficulty roll, `portal_spawn` event);
+  the spawn itself matches (walk down, sturdy top face, spawn at
+  `+0.5 / y+1 / +0.5`, cooldown; no vehicle is ever attached by a
+  zombified piglin's `finalizeSpawn`). `getEntityInsideCollisionShape`:
+  1.21.5's portal override returns `getShape`, 1.21.4 has no override
+  (base form is the whole block) -- the Rust's `inside_blocks` already
+  tests whole-block overlap, the 1.21.4 form. Rank 2: 170/348.

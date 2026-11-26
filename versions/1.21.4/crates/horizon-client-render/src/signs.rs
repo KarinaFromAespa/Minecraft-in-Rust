@@ -52,14 +52,17 @@ pub enum ClickAction {
     /// `ClickEvent.RunCommand`.
     RunCommand(String),
 }
-/// A saved `click_event` as its action: the `run_command` one, read the
-/// way `ClickEvent.CODEC` does; any other action or a malformed one is None.
+/// A saved `clickEvent` as its action: the `run_command` one, read the
+/// way `ClickEvent.CODEC` does in 1.21.4 -- the command is the `value`
+/// field, not the 1.21.5 per-action `command` field (accepted too, as the
+/// component parser accepts both). Any other action or a malformed one
+/// is None.
 pub fn click_action(event: &Tag) -> Option<ClickAction> {
     let Some(Tag::String(action)) = event.get("action") else {
         return None;
     };
     match action.to_string_lossy().as_str() {
-        "run_command" => match event.get("command") {
+        "run_command" => match event.get("value").or_else(|| event.get("command")) {
             Some(Tag::String(command)) => Some(ClickAction::RunCommand(command.to_string_lossy())),
             _ => None,
         },
@@ -406,6 +409,33 @@ mod tests {
             .into_iter()
             .map(|s| (s.text, s.style.color))
             .collect()
+    }
+    /// A 1.21.4 sign's `run_command` click event carries the command in
+    /// `value` (`ClickEvent.CODEC`: `action` + `value`); the 1.21.5
+    /// per-action `command` field is accepted too.
+    #[test]
+    fn a_run_command_click_reads_its_command_from_value() {
+        let value = Tag::compound([
+            ("action", Tag::String("run_command".into())),
+            ("value", Tag::String("/say hi".into())),
+        ]);
+        assert_eq!(
+            click_action(&value),
+            Some(ClickAction::RunCommand("/say hi".into()))
+        );
+        let command = Tag::compound([
+            ("action", Tag::String("run_command".into())),
+            ("command", Tag::String("/say hi".into())),
+        ]);
+        assert_eq!(
+            click_action(&command),
+            Some(ClickAction::RunCommand("/say hi".into()))
+        );
+        let other = Tag::compound([
+            ("action", Tag::String("open_url".into())),
+            ("value", Tag::String("https://example.com".into())),
+        ]);
+        assert_eq!(click_action(&other), None);
     }
     #[test]
     fn a_lines_color_is_read_and_written_back() {

@@ -8610,23 +8610,11 @@ pub(super) fn from_loot(stack: &horizon_world::loot::LootStack) -> ItemStack {
     item
 }
 impl Game<'_> {
-    /// The rest of `NetherPortalBlock.randomTick` after a won roll: with a
-    /// player close enough for spawning, a zombified piglin spawns on the block
-    /// under the portal column when it is a valid spawn.
+    /// The rest of `NetherPortalBlock.randomTick` after a won roll: a
+    /// zombified piglin spawns on the block under the portal column when
+    /// it is a valid spawn. 1.21.4 has no player nearby: the
+    /// `anyPlayerCloseEnoughForSpawning` gate is 1.21.5's.
     pub(super) fn portal_spawn(&mut self, pos: [i32; 3]) {
-        // ChunkMap.anyPlayerCloseEnoughForSpawning: a non-spectator within 128
-        // blocks of the chunk centre.
-        let centre = [
-            f64::from((pos[0] >> 4) * 16 + 8),
-            f64::from((pos[2] >> 4) * 16 + 8),
-        ];
-        let close = self.level_players().iter().any(|p| {
-            let (dx, dz) = (p.position.x - centre[0], p.position.z - centre[1]);
-            !p.spectator && dx * dx + dz * dz < 16384.0
-        });
-        if !close {
-            return;
-        }
         let mut y = pos[1];
         while &*self
             .res
