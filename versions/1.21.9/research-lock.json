@@ -7,7 +7,8 @@
     "java_major": 21,
     "accepted_manifest_sha1": [
       "1b06d2917e16b01b311a74e6e3abf644f390249c",
-      "61826f3fa6b54439cac19731be4305bb2f388c78"
+      "61826f3fa6b54439cac19731be4305bb2f388c78",
+      "b64c7e8c102157e5d4451303bd6232fb34d1e5a6"
     ],
     "accepted_manifest_note": "Mojang republished the 1.21.9 version manifest; the live sha1 61826f3f differs from the pinned 1b06d291 (JVM flags + asset-index hash only; client/server jars byte-identical). Accepted 2026-11-19 so lab-prepare does not fail on the republish."
   },

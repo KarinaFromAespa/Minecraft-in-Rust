@@ -2,6 +2,9 @@
   "minecraft": {
     "version": "26.1",
     "manifest_sha1": "389f92510868468e073b7a12f19e70a7bf8684cd",
+    "accepted_manifest_sha1": [
+      "63f0ca27cbe8a855cc1f59aaee6e283d5c0ee58b"
+    ],
     "client_sha1": "191771837687b766537a8c4607cb6fad79c533a1",
     "server_sha1": "3872a7f07a1a595e651aef8b058dfc2bb3772f46",
     "java_major": 25
