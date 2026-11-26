@@ -396,10 +396,6 @@ impl Game<'_> {
             }
         };
         let breakable = !self.block_action_restricted(hit.pos)
-            && self
-                .res
-                .items()
-                .can_destroy_block(self.held(), self.creative)
             && (self.creative
                 || self
                     .res

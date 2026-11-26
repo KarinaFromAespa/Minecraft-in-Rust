@@ -4937,13 +4937,6 @@ impl Game<'_> {
         if self.block_action_restricted(pos) {
             return Ok(false);
         }
-        if !self
-            .res
-            .items()
-            .can_destroy_block(self.held(), self.creative)
-        {
-            return Ok(false);
-        }
         // ServerPlayerGameMode.destroyBlock (and MultiPlayerGameMode.destroyBlock
         // on the client): a GameMasterBlock stays when the player cannot use
         // game master blocks (Player.canUseGameMasterBlocks).
@@ -5190,12 +5183,7 @@ impl Game<'_> {
         };
         // Player.blockActionRestricted: spectators, and adventure players
         // without a matching can_break item.
-        if self.block_action_restricted(hit.pos)
-            || !self
-                .res
-                .items()
-                .can_destroy_block(self.held(), self.creative)
-        {
+        if self.block_action_restricted(hit.pos) {
             self.mining = None;
             return Ok(());
         }

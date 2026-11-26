@@ -8037,15 +8037,6 @@ impl Game<'_> {
         let debug_stick = self
             .held()
             .is_some_and(|stack| &*stack.item == "minecraft:debug_stick");
-        if !self
-            .res
-            .items()
-            .can_destroy_block(self.held(), self.creative)
-        {
-            self.stop_remote_mining();
-            self.mining = None;
-            return;
-        }
         let Some(r) = self.remote.as_mut() else {
             return;
         };

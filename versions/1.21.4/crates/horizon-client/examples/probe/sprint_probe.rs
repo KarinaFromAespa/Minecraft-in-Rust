@@ -52,6 +52,9 @@ pub fn main() -> Result<()> {
                 swimming: flag(12),
                 in_water: flag(13),
                 on_ground: flag(14),
+                // The oracle's mock vehicle never reports onGround, so the
+                // passenger's vehicle is never on the ground here.
+                vehicle_on_ground: false,
                 horizontal_collision: flag(15),
                 minor_horizontal_collision: flag(16),
             };

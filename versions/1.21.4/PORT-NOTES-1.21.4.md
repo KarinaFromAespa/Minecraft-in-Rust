@@ -3227,3 +3227,87 @@ shape for the review batches.
   identical in both versions): the wind-charge throw sound plays at the
   eye position in the Rust vs the player's feet position in vanilla.
   Rank 2: 162/348.
+
+  Item 117 (horizon-client/mobs/finalize.rs): carry-over.
+  `VillagerType.byBiome` maps 29 biomes to 7 types identically in both
+  versions (verified pair by pair against the 1.21.4 jar; only the value
+  type differs -- 1.21.5 stores `ResourceKey<VillagerType>`, 1.21.4 the
+  type directly) and the Rust's `villager_type` matches all 29 pairs
+  exactly (plains 0, desert 1, jungle 2, savanna 3, snow 4, swamp 5,
+  taiga 6). `PatrollingMonster` differs only by codec-form reshuffles
+  (`storeNullable`/`read` vs `NbtUtils.writeBlockPos`/`readBlockPos`,
+  `getBooleanOr(key, false)` vs `getBoolean(key)` -- same NBT, same
+  results; the ctor's explicit false inits are Java field defaults).
+  `AttributeModifier` is the record conversion + whitespace only.
+  `Spider$SpiderEffectsGroupData.setRandomEffect` differs only by
+  effect field renames (1.21.5 `SPEED`/`STRENGTH` vs 1.21.4
+  `MOVEMENT_SPEED`/`DAMAGE_BOOST` -- same registry ids
+  `minecraft:speed`/`minecraft:strength`); the Rust's `spider()`
+  matches (`int(5)`: 0|1 speed, 2 strength, 3 regeneration, else
+  invisibility, hard + 10% chance, duration -1 amplifier 0).
+  `DataComponentGetter` and `SpawnPrioritySelectors` are 1.21.5-only
+  classes (absent from the 1.21.4 jar); the Rust needs neither -- the
+  mooshroom variant goes through `species_variant_component` and variant
+  spawn conditions are read straight from the variant JSONs'
+  `spawn_conditions` (`VariantRegistry`). Rank 2: 163/348.
+
+  Item 118 (horizon-client/examples/probe/mob_ai_probe.rs): carry-over.
+  `serverTick`/`addOccupant`/`releaseOccupant` differ only by the
+  `playSound` signature widening (`Entity` vs `Player`) and
+  `moveTo`->`snapTo`. The Rust's `beehive.rs` already matches 1.21.4:
+  `IGNORED_BEE_TAGS` is exactly the 1.21.4 30-entry list in order
+  (verified against the jar; 1.21.5 merged `ArmorDropChances`+
+  `HandDropChances` into `drop_chances` and renamed `FallDistance` to
+  `fall_distance`, 29 entries). `loadAdditional`/`saveAdditional` are
+  codec-form reshuffles (`CompoundTag.read` vs `NbtOps` parse,
+  `NbtUtils.readBlockPos` vs `BlockPos.CODEC`) with identical NBT
+  (`bees` + `flower_pos`). The `BEES` component is a raw list in
+  1.21.4 vs the `Bees` record in 1.21.5; the Rust writes `Tag::List`
+  (`beehive.rs` `to_nbt`, `block_entity_nbt.rs`) -- the 1.21.4 form.
+  `applyImplicitComponents`/`collectImplicitComponents` differ only by
+  the `Bees` record wrap. Rank 2: 164/348.
+
+  Item 119 (horizon-items/items.rs): ported.
+  1.21.5 added `can_destroy_blocks_in_creative` (bool, default true)
+  as a 4th `Tool` record field -- in both the `CODEC`
+  (`optionalFieldOf`) and the `STREAM_CODEC` (trailing bool) -- and
+  added `Item.canDestroyBlock` (a tool with the field false blocks
+  destruction for instabuild players). Neither exists in 1.21.4
+  (verified by javap: no `canDestroyBlock` on `Item`, 3-field `Tool`).
+  Removed `can_destroy_blocks_in_creative` from `ItemInfo` + the
+  loader, removed `can_destroy_block` and its guards in `game.rs`
+  (`break_block_as_player`, mining tick), `game/remote.rs`
+  (`remote_mining`) and `game/pad/guide.rs` (`breakable` chain); in
+  1.21.4 creative always destroys. Rewrote the creative-mining harness
+  for 1.21.4: the probe prints true per row and the oracle prints true
+  per row (the 1.21.5 oracle used the 4-arg `Tool` ctor +
+  `canDestroyBlock` and cannot compile against the 1.21.4 jar); the
+  driver now reads `items.json` from `lab.pinned_version()` instead of
+  the hardcoded 26.3 path. `FireChargeItem.playSound` /
+  `FlintAndSteelItem.useOn` differ only by the `playSound` signature;
+  `fire_starter_pitch` already matches both formulas (fire charge
+  `(next-next)*0.2+1.0`, flint `next*0.4+0.8`). The wire side is
+  adapter-handled (`horizon-protocol` `v1_21_4.rs` strips the trailing
+  `Tool` bool; `skip.rs` reads the 1.21.5 layout). Incidental
+  pre-existing fix in the same commit: `sprint_probe.rs` omitted the
+  `Conditions.vehicle_on_ground` field, so the `client_probe` example
+  did not compile on this branch; set to false (the sprint oracle's
+  mock vehicle never reports onGround). Tests: horizon-items lib 111
+  passed; `client_probe` example compiles. Rank 2: 165/348.
+
+  Item 120 (horizon-client/game/lan/level_event_targets.rs): carry-over.
+  `LevelAccessor` differs only by the `Entity`-vs-`Player` widening on
+  `levelEvent`/`playSound` (both abstract and default overloads; the
+  3-arg `levelEvent` delegates to the 4-arg with null in both) and by
+  two empty default methods -- `blockUpdated` (1.21.4-only) and
+  `updateNeighborsAt` (1.21.5-only) -- which both just return.
+  `level_event_targets.rs` correctly models the null-source delegation
+  (`level_event_except`: the listed ids include the acting player);
+  event 1500 verified in the 1.21.4 jar (`ComposterBlock` calls
+  `Level.levelEvent(int, BlockPos, int)`). Recorded, NOT fixed (needs
+  its own focused item): the `TestBlock`/`TestInstanceBlock` feature
+  (`test_block.rs`, `BlockEntity::TestBlock` wiring, `block_editor`
+  `open_test_block`, `game_tests` `test_instance_block` references) is
+  1.21.5-only -- neither class exists in either 1.21.4 jar;
+  `test_block.rs` cites `level.updateNeighborsAt`, the 1.21.5-only
+  method. Rank 2: 166/348.
