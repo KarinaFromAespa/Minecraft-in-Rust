@@ -5523,3 +5523,48 @@ shape for the review batches.
   `choice.rs:83` keeps multipart as `Vec<Choice<T>>` with per-selector
   weighted variants and `nextLong` consumption for a multipart root.
   Rank 2: 276/348.
+
+  Item 241 (report id 251, widely named: advancements/critereon):
+  carry-over. `ItemPredicate$Builder`: 1.21.4 has
+  `hasComponents(DataComponentPredicate)` and `withSubPredicate`;
+  1.21.5 replaced them with `withComponents(DataComponentMatchers)`
+  (the `DataComponentPredicate` -> `DataComponentMatchers` rework, same
+  as item 113). `EntityPredicate$Builder`: 1.21.5 added
+  `components(DataComponentMatchers)`. The Rust implements the 1.21.4
+  form: `advancements.rs:771` / `2245` reads `ItemPredicate`
+  components / predicates keyed by registry, and `item_model.rs`
+  implements the 1.21.4 `DataComponentPredicate` form (item 113).
+  Rank 2: 277/348.
+
+  Item 242 (report id 252, widely named: core): carry-over.
+  `Direction$Axis.choose(boolean, boolean, boolean)`,
+  `SectionPos.sectionToChunk(long)` and
+  `HolderGetter$Provider.getOrThrow` are 1.21.5-only additions with no
+  1.21.4 counterpart and no Rust consumer. `Vec3i`: the only difference
+  is the 1.21.5-added `STREAM_CODEC` (three VarInts); the Rust's
+  `buf.rs:497` `VarVec3i` already writes / reads three VarInts - the
+  same wire form 1.21.4's `FriendlyByteBuf.writeVec3i` uses.
+  Rank 2: 278/348.
+
+  Item 243 (report id 253, widely named: net/minecraft): carry-over.
+  `Util`: `blockUntilDone` / `toShuffledList` /
+  `createIndexIdentityLookup` / `createIndexLookup` / `sanitizeName`
+  differ only by alignment (single-instruction spacing); the rest is
+  lambda renumbering from added methods. `makeEnumMap`'s return type
+  widened (`EnumMap` -> `Map`); `mapValues` / `mapValuesLazy` /
+  `growByHalf` are 1.21.5-only. The Rust has no consumer of any of
+  these. `ChatFormatting`: the same 22 constants in both jars
+  (javap-verified); 1.21.5 only added a `COLOR_CODEC` field and codec
+  lambdas. Rank 2: 279/348.
+
+  Item 244 (report id 254, widely named: util): carry-over.
+  `CommonLinks`: the only difference is the 1.21.5-added
+  `INTENTIONAL_GAME_DESIGN_BUG` URI
+  (https://bugs.mojang.com/browse/MCPE-28723, the same URL as item 210);
+  `extendRealms` itself is unchanged and the Rust has no `CommonLinks`
+  consumer. `GsonHelper.getNonNull` differs only by alignment (same
+  `JsonSyntaxException` "Missing <key>"); `encodesLongerThan` +
+  `CountedAppendable` are 1.21.5-only with no Rust consumer.
+  `ExtraCodecs`: lambda renumbering, the 1.21.5-only `legacyEnum`
+  codec, and the `Matrix4f` -> `Matrix4fc` JOML migration (same as item
+  198). `Unit.$values` differs only by alignment. Rank 2: 280/348.
