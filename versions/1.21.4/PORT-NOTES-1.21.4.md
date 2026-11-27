@@ -5623,3 +5623,53 @@ shape for the review batches.
   potions are `ThrownPotion` there (1.21.5 split the class); the Rust's
   `game/potions.rs:54` has the single `ThrownPotion` form
   (`splash_water.rs` cites `AbstractThrownPotion`). Rank 2: 284/348.
+
+  Item 250 (report id 260, widely named: world/scores): carry-over.
+  `Score`: 1.21.4 has direct NBT `write(HolderLookup$Provider)` /
+  `read(CompoundTag, HolderLookup$Provider)`; 1.21.5 replaced them with
+  a `RecordCodecBuilder` codec and a 4-arg constructor (int, boolean,
+  `Optional<Component>`, `Optional<NumberFormat>`). The stored fields
+  are the same in both: value (`Score`), locked (`Locked`), display
+  (`display`), number_format (`format`). The Rust's `scoreboard.rs:704`
+  `Score` has exactly those four fields (value, locked, display
+  `Option<Comp>`, number_format `Option<NumberFormat>`).
+  Rank 2: 285/348.
+
+  Item 251 (report id 261,
+  crates/horizon-client/examples/probe/entity_sound_packet_fixture.rs):
+  carry-over. `StreamCodec$15` / `$16` are vanilla's internal anonymous
+  `StreamCodec` factory classes, not packet code: 1.21.5's `$15` is a
+  9-part composite (`Function9` constructor) and `$16` is a new
+  memoized lazy codec (`Suppliers.memoize` + `UnaryOperator` factory).
+  The numbering shifted because 1.21.5 added a factory; neither changes
+  any packet's wire format (a composite just sequences its parts). The
+  Rust's `entity_sound_packet_fixture.rs` builds sound packets through
+  its own hand-written protocol codec and round-trips them; no
+  `StreamCodec` factory is involved. Rank 2: 286/348.
+
+  Item 254 (report id 264, widely named:
+  client/renderer/blockentity): carry-over.
+  `BlockEntityRenderer.render` gained a `Vec3` camera-position
+  parameter in 1.21.5 (and `SkullBlockRenderer`'s two render overloads
+  with it); the render bodies are identical otherwise - no differing
+  body is listed. The Rust renders skulls / block entities through its
+  own wgpu renderer (`block_entity_render.rs`, `block_entity_anim.rs`,
+  `block_entity_cem.rs`) and does not mirror the Java renderer
+  interface. Rank 2: 287/348.
+
+  Item 255 (report id 265, widely named: world/item/crafting):
+  carry-over. `SmithingRecipe.baseIngredient()` returns
+  `Optional<Ingredient>` in 1.21.4 vs `Ingredient` in 1.21.5; `matches`
+  tests the base via `testOptionalIngredient` in 1.21.4 vs a direct
+  test in 1.21.5 - identical for every vanilla smithing recipe (all
+  have a base; an empty `Optional` matches anything, which no 1.21.5
+  recipe can express). `RecipeManager.lambda$static$1` returns the same
+  `Optional` in both (1.21.5 wraps the direct base in `Optional.of`).
+  `TransmuteRecipe$Serializer`: 1.21.5's result is a `TransmuteResult`
+  record (item + count + `DataComponentPatch`, with its own
+  `CODEC` / `STREAM_CODEC`); 1.21.4's result is a plain item `Holder`
+  (`Item.CODEC` + `holderRegistry` stream codec). The Rust's
+  `crafting.rs` `Transmute` has `result: Template` and builds the
+  result as the item with count 1 and the source's components
+  (`createWithOriginalComponents`, `crafting.rs:1004`) - the 1.21.4
+  form. Rank 2: 288/348.
