@@ -5320,3 +5320,48 @@ shape for the review batches.
   `acceptTextures` = PROMPT); icons are base64-decoded (malformed ->
   dropped, where 1.21.4 logs a warn - logging only). The game's pack
   status itself lives in `servers.rs` (item 196). Rank 2: 260/348.
+
+  Item 214 (report id 224, widely named: world): carry-over.
+  `BossEvent$BossBarColor` / `Overlay`: constants identical in both
+  (PINK / BLUE / RED / GREEN / YELLOW / PURPLE / WHITE;
+  PROGRESS / NOTCHED_6 / 10 / 12 / 20); 1.21.5 only added
+  `getSerializedName()` (`StringRepresentable`) and dropped the static
+  `byName(String)`. The Rust `boss_overlay.rs` uses numeric color (0..6)
+  / overlay (0..4) indices in the same order - no name lookup.
+  `Container` `hasAnyMatching` / `countItem`: 1.21.5 iterates via the
+  new `iterator()` (`ContainerIterator`, 1.21.5-only), 1.21.4 loops by
+  index with `getItem(i)` - same results; `hasAnyOf` identical modulo
+  invokedynamic numbering. `Containers`: 1.21.4
+  `dropContentsOnDestroy(old, new, level, pos)` drops the contents when
+  the block changed and updates the output-signal neighbour; 1.21.5
+  split it into `updateNeighboursAfterDestroy` (neighbours only), the
+  dropping having moved to the block entity's pre-remove. The Rust
+  `spill.rs:585` implements
+  `BaseContainerBlockEntity.preRemoveSideEffects`
+  (`Containers.dropContents`) on removal, with neighbour updates after -
+  the 1.21.4 combined behaviour. Rank 2: 261/348.
+
+  Item 215 (report id 225,
+  crates/horizon-client/src/container_screen.rs): carry-over.
+  `AbstractContainerScreen.mouseClicked`: 1.21.4 checks
+  `gameMode.hasInfiniteItems()`, 1.21.5 checks
+  `player.hasInfiniteMaterials()` - the same check as item 200
+  (`InventoryScreen`). The Rust `inventory_pick_press`
+  (`inventory_input.rs:458`) passes `self.creative` as the `cloning`
+  flag to `container_screen` `press`, and `press` documents cloning as
+  "`keyPickItem` with infinite materials". Rank 2: 262/348.
+
+  Item 216 (report id 226,
+  crates/horizon-client/src/game/copper_golems.rs): carry-over.
+  `ChestBlockEntity.playSound` differs only by the playSound overload
+  (`Entity` in 1.21.5 vs `Player` in 1.21.4); the pitch / volume maths
+  (random 0.9..1.0 range) are identical. Rank 2: 263/348.
+
+  Item 218 (report id 228, crates/horizon-client/src/game/piglins.rs):
+  carry-over. `PiglinAi.isWearingSafeArmor`: 1.21.5 iterates
+  `EquipmentSlotGroup.ARMOR` slots and calls `getItemBySlot(slot)`;
+  1.21.4 iterates `LivingEntity.getArmorAndBodyArmorSlots()` directly -
+  the same slots (feet / legs / chest / head / body), and the same check
+  (any stack in the `PIGLIN_SAFE_ARMOR` tag -> true). The Rust
+  `wearing_gold` (`piglins.rs:226`) iterates `self.armor` and checks the
+  `minecraft:piglin_safe_armor` tag. Rank 2: 264/348.

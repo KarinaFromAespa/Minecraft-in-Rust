@@ -3360,6 +3360,42 @@
       "classes": [
         "ServerData"
       ]
+    },
+    "224": {
+      "module": "world (widely named)",
+      "verdict": "carry-over",
+      "evidence": "BossEvent$BossBarColor/Overlay: constants identical in both (PINK/BLUE/RED/GREEN/YELLOW/PURPLE/WHITE; PROGRESS/NOTCHED_6/10/12/20); 1.21.5 only added getSerializedName() (StringRepresentable) and dropped the static byName(String). Rust boss_overlay.rs uses numeric color (0..6) / overlay (0..4) indices in the same order - no name lookup. Container hasAnyMatching/countItem: 1.21.5 iterates via the new iterator() (ContainerIterator, 1.21.5-only), 1.21.4 loops by index with getItem(i) - same results; hasAnyOf identical modulo invokedynamic numbering. Containers: 1.21.4 dropContentsOnDestroy(old, new, level, pos) drops the contents when the block changed and updates the output-signal neighbour; 1.21.5 split it into updateNeighboursAfterDestroy (neighbours only), the dropping having moved to the block entity's pre-remove. Rust spill.rs:585 implements BaseContainerBlockEntity.preRemoveSideEffects (Containers.dropContents) on removal, with neighbour updates after - the 1.21.4 combined behaviour. No Rust change.",
+      "classes": [
+        "BossEvent$BossBarColor",
+        "BossEvent$BossBarOverlay",
+        "Container",
+        "Containers",
+        "Container$ContainerIterator"
+      ]
+    },
+    "225": {
+      "module": "container_screen.rs",
+      "verdict": "carry-over",
+      "evidence": "AbstractContainerScreen.mouseClicked: 1.21.4 checks gameMode.hasInfiniteItems(), 1.21.5 checks player.hasInfiniteMaterials() - the same check as item 200 (InventoryScreen). Rust inventory_pick_press (inventory_input.rs:458) passes self.creative as the cloning flag to container_screen press, and press documents cloning as 'keyPickItem with infinite materials'. No Rust change.",
+      "classes": [
+        "AbstractContainerScreen"
+      ]
+    },
+    "226": {
+      "module": "copper_golems.rs",
+      "verdict": "carry-over",
+      "evidence": "ChestBlockEntity.playSound differs only by the playSound overload (Entity in 1.21.5 vs Player in 1.21.4); the pitch/volume maths (random 0.9..1.0 range) are identical. No Rust change.",
+      "classes": [
+        "ChestBlockEntity"
+      ]
+    },
+    "228": {
+      "module": "piglins.rs",
+      "verdict": "carry-over",
+      "evidence": "PiglinAi.isWearingSafeArmor: 1.21.5 iterates EquipmentSlotGroup.ARMOR slots and calls getItemBySlot(slot); 1.21.4 iterates LivingEntity.getArmorAndBodyArmorSlots() directly - the same slots (feet/legs/chest/head/body), and the same check (any stack in the PIGLIN_SAFE_ARMOR tag -> true). Rust wearing_gold (piglins.rs:226) iterates self.armor and checks the minecraft:piglin_safe_armor tag. No Rust change.",
+      "classes": [
+        "PiglinAi"
+      ]
     }
   }
 }
