@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": 2,
-  "batch": 55,
-  "note": "LEDGER RECONCILIATION (2026-11-27, Butler): rank2-progress.json re-keyed uniformly by REPORT ID (id = rank-2 ordinal + 10), verified entry-by-entry against diff-1.21.5-1.21.4/report.json by module/class match. True closed count is 216, not 220: three ordinals were counted twice under different keys and are now merged (264 under keys 274+174, 42 under keys 52+80, 59 under keys 69+110+113). Session 3 keyed batches 46-50 by ordinal, so its keys 161-180 are renumbered +10 to report ids 171-190; the batch-50 correction (225 -> 220) had found only part of the overcount. Lowest unclosed ordinals are 151-154 (report ids 161-164) = batch 51. Prior batch note: Batch 50 closed (2026-11-27): item 178 ported (the chunk-generation finalize path read cat and frog variants only from the 1.21.5-only variant data registries, so in 1.21.4 every chunk-generated cat stayed tabby (variant 0). Batch 51 closed (2026-11-27): report ids 161-164 (ordinals 151-154) - 161 ported (paletted fixture VarInt long count), 162 ported (SNBT control chars pass through raw), 163/164 carry-over. Rank 2 now 220/348. Batch 52 closed (2026-11-27): report ids 165-168 (ordinals 155-158) - all carry-over (per-component show_in_tooltip folded via TOOLTIP_FLAGS; bundle/enchantment/adventure-predicate semantics identical; 11 items added in 1.21.5 only; cake/sign/sound-effect overloads only). Rank 2 now 224/348. Batch 53 (2026-11-27): items 80, 110, 169, 170 - 169 PORTED (creaking stop-attack: 1.21.5 isAttackTargetStillReachable removed; 1.21.4's no-arg StopAttackingIfTargetInvalid.create() default condition always returns false), the rest carry-over (fluid Player->LivingEntity signature + equals-vs-identity no-op; RegistryContextSwapper refactor; component-patch codec refactor + 1.21.5-only delimited codec). Rank 2 now 228/348. Batch 54 (2026-11-27): items 113, 178, 184, 191 - all carry-over (1.21.5 DataComponentPredicate interface refactor; horse-equipment rework + loom pattern-item component; long-array framing + 1.21.5-only HashedStack; loom getSelectablePatterns component form). Rank 2 now 232/348. Batch 55 (2026-11-27): items 192, 193, 195, 196 - all carry-over (cartography onTake/quick-move overloads + Quaternionfc; NBT all-elements invokeinterface-vs-virtual; BlockGetter boxTraverseBlocks vs visitor form; ServerPackStatus FIELD_CODEC). Rank 2 now 236/348.",
+  "batch": 56,
+  "note": "LEDGER RECONCILIATION (2026-11-27, Butler): rank2-progress.json re-keyed uniformly by REPORT ID (id = rank-2 ordinal + 10), verified entry-by-entry against diff-1.21.5-1.21.4/report.json by module/class match. True closed count is 216, not 220: three ordinals were counted twice under different keys and are now merged (264 under keys 274+174, 42 under keys 52+80, 59 under keys 69+110+113). Session 3 keyed batches 46-50 by ordinal, so its keys 161-180 are renumbered +10 to report ids 171-190; the batch-50 correction (225 -> 220) had found only part of the overcount. Lowest unclosed ordinals are 151-154 (report ids 161-164) = batch 51. Prior batch note: Batch 50 closed (2026-11-27): item 178 ported (the chunk-generation finalize path read cat and frog variants only from the 1.21.5-only variant data registries, so in 1.21.4 every chunk-generated cat stayed tabby (variant 0). Batch 51 closed (2026-11-27): report ids 161-164 (ordinals 151-154) - 161 ported (paletted fixture VarInt long count), 162 ported (SNBT control chars pass through raw), 163/164 carry-over. Rank 2 now 220/348. Batch 52 closed (2026-11-27): report ids 165-168 (ordinals 155-158) - all carry-over (per-component show_in_tooltip folded via TOOLTIP_FLAGS; bundle/enchantment/adventure-predicate semantics identical; 11 items added in 1.21.5 only; cake/sign/sound-effect overloads only). Rank 2 now 224/348. Batch 53 (2026-11-27): items 80, 110, 169, 170 - 169 PORTED (creaking stop-attack: 1.21.5 isAttackTargetStillReachable removed; 1.21.4's no-arg StopAttackingIfTargetInvalid.create() default condition always returns false), the rest carry-over (fluid Player->LivingEntity signature + equals-vs-identity no-op; RegistryContextSwapper refactor; component-patch codec refactor + 1.21.5-only delimited codec). Rank 2 now 228/348. Batch 54 (2026-11-27): items 113, 178, 184, 191 - all carry-over (1.21.5 DataComponentPredicate interface refactor; horse-equipment rework + loom pattern-item component; long-array framing + 1.21.5-only HashedStack; loom getSelectablePatterns component form). Rank 2 now 232/348. Batch 55 (2026-11-27): items 192, 193, 195, 196 - all carry-over (cartography onTake/quick-move overloads + Quaternionfc; NBT all-elements invokeinterface-vs-virtual; BlockGetter boxTraverseBlocks vs visitor form; ServerPackStatus FIELD_CODEC). Rank 2 now 236/348. Batch 56 (2026-11-27): items 197, 198, 199, 200 - all carry-over (ChunkAccess setBlockState flags + getPosFromTag; PoseStack JOML *fc migration; ArmorTrim showInTooltip + layerAssetId; InventoryScreen hasInfiniteItems vs hasInfiniteMaterials). Rank 2 now 240/348.",
   "items": {
     "90": {
       "module": "crates/horizon-client-render/src/block_entity_render.rs",
@@ -3161,6 +3161,38 @@
       "classes": [
         "ServerData$ServerPackStatus",
         "ServerList"
+      ]
+    },
+    "197": {
+      "module": "crates/horizon-world/src/worldgen/placement/context.rs",
+      "verdict": "carry-over",
+      "evidence": "ChunkAccess.setBlockState changed from (BlockPos, BlockState, boolean) in 1.21.4 to (BlockPos, BlockState, int) in 1.21.5, plus a 2-arg form in 1.21.5 - the flags parameter widened. The Rust's placement context documents \"ChunkAccess.setBlockState(pos, state, false) in generation (a ProtoChunk write with its heightmaps, no neighbour or block-entity effects)\" and set_chunk_block writes the section directly - the 1.21.4 generation form. setBlockEntityNbt: 1.21.5's BlockEntity.getPosFromTag(ChunkPos, CompoundTag) vs 1.21.4's getPosFromTag(CompoundTag) (reads x/y/z ints from the tag, javap-verified); the rest is identical (blockEntities contains -> put there, else pendingBlockEntities). The Rust reads block-entity positions as x/y/z ints from the tag (block_entity_nbt.rs:375) - the 1.21.4 form.",
+      "classes": [
+        "ChunkAccess"
+      ]
+    },
+    "198": {
+      "module": "widely named: com/mojang/blaze3d/vertex",
+      "verdict": "carry-over",
+      "evidence": "PoseStack$Pose is the 1.21.5 JOML *fc (read-only interface) migration: 1.21.5 added computeNormalMatrix (lazy normal matrix), setIdentity, scale, translate, mulPose(Matrix4fc), rotate(Quaternionfc), rotateAround, and changed transformNormal to take Vector3fc instead of Vector3f; 1.21.4's copy() uses the copy-constructor. Same matrix math in both - the Rust's renderer uses its own matrices (glam), not JOML, and the PoseStack equivalents in horizon-client-render (camera.rs, first_person.rs) implement the same translate/rotate/scale/normal behaviour. Same family as the mulPose(Quaternionfc) diffs in items 182 and 190.",
+      "classes": [
+        "PoseStack$Pose"
+      ]
+    },
+    "199": {
+      "module": "widely named: world/item/equipment/trim",
+      "verdict": "carry-over",
+      "evidence": "ArmorTrim is the 1.21.5 trim rework: 1.21.4 has (material, pattern, showInTooltip boolean) with withTooltip/showInTooltip/hasPatternAndMaterial and addToTooltip(ctx, consumer, flag); 1.21.5 dropped the boolean (moved to tooltip_display.hidden_components, like the other components in items 155-156) and added layerAssetId(String, ResourceKey<EquipmentAsset>) plus a DataComponentGetter addToTooltip. The Rust handles the 1.21.4 form: TRIM is kind 45, which IS in v1_21_4::TOOLTIP_FLAGS ([4, 10, 11, 12, 13, 33, 34, 45, 52]), so the show boolean is folded on read (v1_21_4.rs:52) and in saves; the TRIM decode reads material + pattern holders (TrimDirect for direct holders). Trim rendering uses the 1.21.4 layer form (trims.rs: textures/trims/entity/<layer>/<pattern>.png recoloured by palette, with equipment-asset trim_overrides).",
+      "classes": [
+        "ArmorTrim"
+      ]
+    },
+    "200": {
+      "module": "crates/horizon-client/src/game/game_mode.rs",
+      "verdict": "carry-over",
+      "evidence": "InventoryScreen.init/containerTick: 1.21.4 checks gameMode.hasInfiniteItems() (javap-verified: localPlayerMode.isCreative()) where 1.21.5 checks player.hasInfiniteMaterials() - the Rust gates on the creative mode flag (inventory_after_mode / mode_changed_under_inventory: a survival inventory open when the player gains infinite materials becomes the creative one, with a unit test pinning it), matching 1.21.4. renderEntityInInventory differs only by PoseStack.mulPose(Quaternionfc) vs (Quaternionf). renderEntityInInventoryFollowsMouse differs only by ldc vs ldc_w (same constants 20.0f and 0.017453292f).",
+      "classes": [
+        "InventoryScreen"
       ]
     }
   }

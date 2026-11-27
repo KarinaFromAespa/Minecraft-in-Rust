@@ -5021,3 +5021,64 @@ shape for the review batches.
   path - no difference in the stored `servers.dat` form, which the
   Rust's `load` / `save` / `add_hidden` / `prepend` mirror.
   Rank 2: 236/348.
+
+  Item 187 (report id 197,
+  crates/horizon-world/src/worldgen/placement/context.rs):
+  carry-over. `ChunkAccess.setBlockState` changed from `(BlockPos,
+  BlockState, boolean)` in 1.21.4 to `(BlockPos, BlockState, int)` in
+  1.21.5, plus a 2-arg form in 1.21.5 - the flags parameter widened.
+  The Rust's placement context documents
+  "`ChunkAccess.setBlockState(pos, state, false)` in generation (a
+  `ProtoChunk` write with its heightmaps, no neighbour or block-entity
+  effects)" and `set_chunk_block` writes the section directly - the
+  1.21.4 generation form. `setBlockEntityNbt`: 1.21.5's
+  `BlockEntity.getPosFromTag(ChunkPos, CompoundTag)` vs 1.21.4's
+  `getPosFromTag(CompoundTag)` (reads x/y/z ints from the tag,
+  javap-verified); the rest is identical (`blockEntities` contains ->
+  put there, else `pendingBlockEntities`). The Rust reads block-entity
+  positions as x/y/z ints from the tag (`block_entity_nbt.rs:375`) -
+  the 1.21.4 form. Rank 2: 237/348.
+
+  Item 188 (report id 198, widely named:
+  com/mojang/blaze3d/vertex): carry-over. `PoseStack$Pose` is the
+  1.21.5 JOML `*fc` (read-only interface) migration: 1.21.5 added
+  `computeNormalMatrix` (lazy normal matrix), `setIdentity`, `scale`,
+  `translate`, `mulPose(Matrix4fc)`, `rotate(Quaternionfc)`,
+  `rotateAround`, and changed `transformNormal` to take `Vector3fc`
+  instead of `Vector3f`; 1.21.4's `copy()` uses the copy-constructor.
+  Same matrix math in both - the Rust's renderer uses its own matrices
+  (glam), not JOML, and the `PoseStack` equivalents in
+  `horizon-client-render` (`camera.rs`, `first_person.rs`) implement
+  the same translate / rotate / scale / normal behaviour. Same family
+  as the `mulPose(Quaternionfc)` diffs in items 182 and 190.
+  Rank 2: 238/348.
+
+  Item 189 (report id 199, widely named:
+  world/item/equipment/trim): carry-over. `ArmorTrim` is the 1.21.5
+  trim rework: 1.21.4 has (material, pattern, `showInTooltip` boolean)
+  with `withTooltip` / `showInTooltip` / `hasPatternAndMaterial` and
+  `addToTooltip(ctx, consumer, flag)`; 1.21.5 dropped the boolean
+  (moved to `tooltip_display.hidden_components`, like the other
+  components in items 155-156) and added `layerAssetId(String,
+  ResourceKey<EquipmentAsset>)` plus a `DataComponentGetter`
+  `addToTooltip`. The Rust handles the 1.21.4 form: TRIM is kind 45,
+  which IS in `v1_21_4::TOOLTIP_FLAGS` ([4, 10, 11, 12, 13, 33, 34, 45,
+  52]), so the show boolean is folded on read (`v1_21_4.rs:52`) and in
+  saves; the TRIM decode reads material + pattern holders (`TrimDirect`
+  for direct holders). Trim rendering uses the 1.21.4 layer form
+  (`trims.rs`: `textures/trims/entity/<layer>/<pattern>.png` recoloured
+  by palette, with equipment-asset `trim_overrides`).
+  Rank 2: 239/348.
+
+  Item 190 (report id 200, crates/horizon-client/src/game/game_mode.rs):
+  carry-over. `InventoryScreen.init` / `containerTick`: 1.21.4 checks
+  `gameMode.hasInfiniteItems()` (javap-verified:
+  `localPlayerMode.isCreative()`) where 1.21.5 checks
+  `player.hasInfiniteMaterials()` - the Rust gates on the creative
+  mode flag (`inventory_after_mode` /
+  `mode_changed_under_inventory`: a survival inventory open when the
+  player gains infinite materials becomes the creative one, with a unit
+  test pinning it), matching 1.21.4. `renderEntityInInventory` differs
+  only by `PoseStack.mulPose(Quaternionfc)` vs `(Quaternionf)`.
+  `renderEntityInInventoryFollowsMouse` differs only by `ldc` vs
+  `ldc_w` (same constants 20.0f and 0.017453292f). Rank 2: 240/348.
