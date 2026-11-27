@@ -1475,16 +1475,8 @@ impl LevelAccess for GameLevel<'_> {
         if let Some((_, comparator)) = jukebox::jukebox_signals(self.world, self.items, pos) {
             return comparator;
         }
-        if let Some(signal) = creaking::heart_signal(self.world, pos) {
-            return if self.registry.state(state).is_some_and(|s| {
-                s.properties
-                    .get("creaking_heart_state")
-                    .is_some_and(|v| v == "uprooted")
-            }) {
-                0
-            } else {
-                signal
-            };
+        if let Some(signal) = creaking::heart_signal(state, self.registry) {
+            return signal;
         }
         if let Some(signal) = books::lectern_signal(self.world, pos) {
             return signal;

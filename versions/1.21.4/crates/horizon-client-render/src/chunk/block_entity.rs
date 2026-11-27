@@ -436,7 +436,6 @@ pub struct CreakingHeart {
     /// Ticks left of the hurt effect (`emitter`) and where it heads.
     pub emitter: i32,
     pub emitter_target: Option<[f64; 3]>,
-    pub output_signal: i32,
 }
 #[derive(Clone, Debug, Default)]
 pub struct Lectern {

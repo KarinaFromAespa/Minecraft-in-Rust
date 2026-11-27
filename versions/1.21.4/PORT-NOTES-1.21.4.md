@@ -6288,3 +6288,64 @@ shape for the review batches.
   "minecraft:instant_health", "minecraft:instant_damage") and never
   the Java field names — the `MOVEMENT_SPEED` hits are the attribute,
   which was not renamed. No behaviour change. Rank 2: 340/348.
+
+  Item 340 (report id 350, widely named: world/item/crafting/display): carry-
+  over. `SlotDisplay$ItemSlotDisplay`: 1.21.5 replaces
+  `ByteBufCodecs.holderRegistry(Registries.ITEM)` with `Item.STREAM_CODEC`,
+  but `Item.STREAM_CODEC` is built as exactly
+  `ByteBufCodecs.holderRegistry(Registries.ITEM)` (1.21.5 `Item` static init)
+  — a pure refactor to a named constant. The Rust's `slot_display`
+  (lan/advancements.rs) writes the item as a varint holder id, matching both
+  forms. No behaviour change. Rank 2: 344/348.
+
+  Item 341 (report id 351, widely named: world/level/block/state/properties):
+  ported. `BlockStateProperties`: 1.21.5 removes `ACTIVE` and adds
+  `SEGMENT_AMOUNT`, `CREAKING_HEART_STATE`, `TEST_BLOCK_MODE`, `MAP`. The live
+  defect is the creaking heart: 1.21.4's `CreakingHeartBlock` registers axis +
+  `active` (bool) + `natural`, and its `updateState` only ever sets
+  `active=true` when the heart has its logs; 1.21.5 replaces `active` with the
+  `creaking_heart_state` enum (awake/dormant/uprooted) via
+  `updateCreakingState`. The Rust had the whole 1.21.5 model:
+  `heart_update_state` read the nonexistent property (`text()` returns '' for
+  a missing key, so it never changed state — hearts never activated and no
+  creaking ever spawned), the entity tick ran `updateCreakingState`, the
+  comparator used the 1.21.5 distance-based signal, the animate gate checked
+  for 'uprooted', and worldgen's `CreakingHeart` decorator errored on the
+  unknown property (`d.with` returns `Err(InvalidState)`), so pale-oak-
+  creaking trees placed no hearts. Fixed to the 1.21.4 model: new `active`
+  prop key (`creaking_heart_state` key removed); `heart_update_state` is
+  1.21.4's `updateState` (`active=true` when logs present, no night check);
+  `server_tick_update` is 1.21.4's `serverTick` (no protector + no logs ->
+  `active=false`; active + night + not peaceful + doMobSpawning + player
+  within 32 -> spawn; protector removed at daybreak / too far / stuck, then
+  `active=false` when logs are gone; unresolved protector -> nothing); the
+  `getTicker` gate is `active` (not 'uprooted'); the comparator is
+  `active?15:0` from the block state (`output_signal` field and
+  `OutputChanged` event removed — 1.21.4 has no block-entity signal); the
+  animate gate is `active=='true'`; the tear-down crumble uses
+  ('active','true'); worldgen places the default state + `natural=true`. The
+  rewritten level test (`creaking_heart_follows_its_logs`) pins `updateState`;
+  the old test pinned the 1.21.5 form and could never have run (`w.id` panics
+  on an unknown property with a fixture present; the level tests are skipped
+  without prepared 1.21.4 resources, which the VM lacks). The other three
+  properties are not defects: `SEGMENT_AMOUNT` belongs to 1.21.5's
+  `SegmentableBlock` (leaf litter, absent from all 1.21.4 jars — the Rust's
+  `LeafLitter` place arm is dead in 1.21.4, left in place); `MAP` is declared
+  but used by no block in either version; `TEST_BLOCK_MODE` is the TestBlock
+  dead support recorded in batch 73. Rank 2: 344/348.
+
+  Item 342 (report id 352, widely named: world/level/chunk/status): carry-
+  over. `ChunkStatus`: 1.21.5 only adds a `CODEC` field
+  (`BuiltInRegistries.CHUNK_STATUS.byNameCodec()`) — a pure addition, no
+  existing behaviour changed. The Rust has no chunk-status codec and needs
+  none (chunk status names are never serialized by the Rust). No behaviour
+  change. Rank 2: 344/348.
+
+  Item 343 (report id 353, widely named: world/level/entity): carry-over.
+  `PersistentEntitySectionManager`: 1.21.5 only adds `isTicking(ChunkPos)`
+  (chunkVisibility lookup + `Visibility.isTicking()`) — a new accessor for the
+  entity-ticking check. The Rust already has it: `ticket_levels.rs`
+  `entity_ticking` (`DistanceManager.inEntityTickingRange`, level <= 31,
+  `ENTITY_TICKING`) and `Game.entity_ticking_area`, used by the creature
+  ticking; block ticking is the separate level-32 check (`is_ticking_chunk`).
+  No behaviour change. Rank 2: 344/348.

@@ -1,7 +1,9 @@
-//! The creaking heart block (`CreakingHeartBlock`): its state follows the
-//! pale oak logs on both ends of its axis and the `creaking_active`
-//! environment attribute. The block entity (protector, particles, resin)
-//! lives with the entities in the client.
+//! The creaking heart block (`CreakingHeartBlock`): its `active` follows the
+//! pale oak logs on both ends of its axis (`updateState`, which only ever
+//! turns it on — only the block-entity tick turns it off, when the logs are
+//! gone). 1.21.4 has no `creaking_heart_state`: the awake/dormant/uprooted
+//! enum is 1.21.5's `updateCreakingState`. The block entity (protector,
+//! particles, resin) lives with the entities in the client.
 use super::{Behaviours, LevelAccess, Sim, Ticks, update::rel};
 use crate::registry::BlockStateId;
 use horizon_core::{geometry::Direction, position::BlockPos};
@@ -32,18 +34,15 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 && b.table.text(neighbour, b.props.axis) == axis
         })
     }
-    /// `CreakingHeartBlock.updateState`: an uprooted heart with its logs wakes
-    /// (at night) or goes dormant.
+    /// `CreakingHeartBlock.updateState`: a heart with its logs wakes — the
+    /// state only ever gains `active` here; only the block-entity tick
+    /// clears it again, when the logs are gone (1.21.4 has no
+    /// `creaking_heart_state`, and no night check here: the night gates the
+    /// protector spawn, not the waking).
     pub(crate) fn heart_update_state(&self, state: BlockStateId, pos: BlockPos) -> BlockStateId {
         let b = self.b;
-        let uprooted = b.table.text(state, b.props.creaking_heart_state) == "uprooted";
-        if uprooted && self.heart_has_required_logs(state, pos) {
-            let next = if self.creaking_active() {
-                "awake"
-            } else {
-                "dormant"
-            };
-            b.table.set_text(state, b.props.creaking_heart_state, next)
+        if self.heart_has_required_logs(state, pos) && !b.table.bool(state, b.props.active) {
+            b.table.set_bool(state, b.props.active, true)
         } else {
             state
         }

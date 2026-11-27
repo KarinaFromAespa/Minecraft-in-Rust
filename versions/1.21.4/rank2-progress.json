@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": 2,
-  "batch": 81,
-  "note": "Batch 81 closed (2026-11-27): all carry-over, no code changes \u2014 346 Abilities NBT defaults identical; 347 VariantUtils is 1.21.5-only, its behaviours exist in 1.21.4 under other names; 348 FoodData defaults identical; 349 Potions is MobEffects field renames only. Rank 2 now 340/348. Prior: Batch 80 closed (2026-11-27): 342 SummonCommand moveTo->snapTo rename only; 343 VillagerMakeLove same rename, baby spawns at the parent with age -24000; 344 OfferFlowerGoal isDay->isBrightOutside rename, same body; 345 goat ram targets now gated on the world border. Rank 2 now 336/348. Prior: Batch 79 closed (2026-11-27): 338 leaf particles ported (1.21.4 has no falling leaves); 339 Registries field reorder only; 340 SYNCHRONIZED trimmed to the 1.21.4 twelve plus the three the Rust's own client needs synced; 341 entity-data variant indices fixed (all +1) and the 1.21.5-only variant arms/saves removed. Rank 2 now 332/348. Prior: Batch 78 closed (2026-11-27): all carry-over, no code changes \u2014 334 conditional item properties identical; 335 Quadrant is 1.21.5-only (shape-rotation API); 336 Realms flow offsets only; 337 BlockStateParser TagParser static-method refactor. Rank 2 now 328/348. Prior: Batch 77 closed (2026-11-27): all carry-over, no code changes \u2014 316 shape rotation is 1.21.5-only API, absent from 1.21.4 and the Rust alike; 319 TagT",
+  "batch": 82,
+  "note": "Batch 82 closed (2026-11-27): 351 ported \u2014 the creaking heart ran the whole 1.21.5 creaking_heart_state model (awake/dormant/uprooted) while 1.21.4 has only the active bool: updateState, the entity tick, the comparator (active?15:0, not distance-based), the animate gate, the tear-down crumble and worldgen placement all rewritten to the 1.21.4 form; 350 Item.STREAM_CODEC is holderRegistry(ITEM) under a new name; 352 ChunkStatus gains only a CODEC field; 353 isTicking is a new accessor for the entity-ticking check the Rust already has (ticket_levels entity_ticking). Rank 2 now 344/348. Prior: Batch 81 closed (2026-11-27): all carry-over, no code changes \u2014 346 Abilities NBT defaults identical; 347 VariantUtils is 1.21.5-only, its behaviours exist in 1.21.4 under other names; 348 FoodData defaults identical; 349 Potions is MobEffects field renames only. Rank 2 now 340/348. Prior: Batch 80 closed (2026-11-27): 342 SummonCommand moveTo->snapTo rename only; 343 VillagerMakeLove same rename, baby spawns at the parent with age -24000; 344 OfferFlowerGoal isDay->isBrightOutside rename, same body; 345 goat ram targets now gated on the world border. Rank 2 now 336/348. Prior: Batch 79 closed (2026-11-27): 338 leaf particles ported (1.21.4 has no falling leaves); 339 Registries field reorder only; 340 SYNCHRONIZED trimmed to the 1.21.4 twelve plus the three the Rust's own client needs synced; 341 entity-data variant indices fixed (all +1) and the 1.21.5-only variant arms/saves removed. Rank 2 now 332/348. Prior: Batch 78 closed (2026-11-27): all carry-over, no code changes \u2014 334 conditional item properties identical; 335 Quadrant is 1.21.5-only (shape-rotation API); 336 Realms flow offsets only; 337 BlockStateParser TagParser static-method refactor. Rank 2 now 328/348. Prior: Batch 77 closed (2026-11-27): all carry-over, no code changes \u2014 316 shape rotation is 1.21.5-only API, absent from 1.21.4 and the Rust alike; 319 TagT",
   "items": {
     "90": {
       "module": "crates/horizon-client-render/src/block_entity_render.rs",
@@ -4067,6 +4067,38 @@
       "evidence": "Potions: the diff is only MobEffects Java field renames (JUMP -> JUMP_BOOST, MOVEMENT_SPEED -> SPEED, MOVEMENT_SLOWDOWN -> SLOWNESS, DAMAGE_RESISTANCE -> RESISTANCE, HEAL -> INSTANT_HEALTH, HARM -> INSTANT_DAMAGE); the registry ids are unchanged and the potion list is identical (the one ldc_w -> ldc is a constant-pool encoding difference for 'strong_poison', the same string). The Rust uses the registry ids as strings ('minecraft:jump_boost', 'minecraft:resistance', 'minecraft:instant_health', 'minecraft:instant_damage') and never the Java field names \u2014 the MOVEMENT_SPEED hits are the attribute, which was not renamed. No behaviour change.",
       "classes": [
         "Potions"
+      ]
+    },
+    "350": {
+      "module": "widely named: world/item/crafting/display",
+      "verdict": "carry-over",
+      "evidence": "SlotDisplay$ItemSlotDisplay: 1.21.5 replaces ByteBufCodecs.holderRegistry(Registries.ITEM) with Item.STREAM_CODEC, but Item.STREAM_CODEC is built as exactly ByteBufCodecs.holderRegistry(Registries.ITEM) (1.21.5 Item static init) \u2014 a pure refactor to a named constant. The Rust's slot_display (lan/advancements.rs) writes the item as a varint holder id, matching both forms. No behaviour change.",
+      "classes": [
+        "SlotDisplay$ItemSlotDisplay"
+      ]
+    },
+    "351": {
+      "module": "crates/horizon-client/src/mobs/creaking_heart.rs",
+      "verdict": "ported",
+      "evidence": "PORTED: BlockStateProperties \u2014 1.21.5 removes ACTIVE and adds SEGMENT_AMOUNT, CREAKING_HEART_STATE, TEST_BLOCK_MODE, MAP. The live defect is the creaking heart: 1.21.4's CreakingHeartBlock registers axis + active (bool) + natural, and its updateState only ever sets active=true when the heart has its logs; 1.21.5 replaces active with the creaking_heart_state enum (awake/dormant/uprooted) via updateCreakingState. The Rust had the whole 1.21.5 model: heart_update_state read the nonexistent property (text() returns '' for a missing key, so it never changed state \u2014 hearts never activated and no creaking ever spawned), the entity tick ran updateCreakingState, the comparator used the 1.21.5 distance-based signal, the animate gate checked for 'uprooted', and worldgen's CreakingHeart decorator errored on the unknown property (d.with returns Err(InvalidState)), so pale-oak-creaking trees placed no hearts. Fixed to the 1.21.4 model: new active prop key (creaking_heart_state key removed); heart_update_state is 1.21.4's updateState (active=true when logs present, no night check); server_tick_update is 1.21.4's serverTick (no protector + no logs -> active=false; active + night + not peaceful + doMobSpawning + player within 32 -> spawn; protector removed at daybreak / too far / stuck, then active=false when logs are gone; unresolved protector -> nothing); getTicker gate is active (not 'uprooted'); comparator is active?15:0 from the block state (output_signal field and OutputChanged event removed \u2014 1.21.4 has no block-entity signal); animate gate is active=='true'; tear-down crumble uses ('active','true'); worldgen places the default state + natural=true. The rewritten level test (creaking_heart_follows_its_logs) pins updateState; the old test pinned the 1.21.5 form and could never have run (w.id panics on an unknown property with a fixture present; the level tests are skipped without prepared 1.21.4 resources, which the VM lacks). The other three properties are not defects: SEGMENT_AMOUNT belongs to 1.21.5's SegmentableBlock (leaf litter, absent from all 1.21.4 jars \u2014 the Rust's LeafLitter place arm is dead in 1.21.4, left in place); MAP is declared but used by no block in either version; TEST_BLOCK_MODE is the TestBlock dead support recorded in batch 73.",
+      "classes": [
+        "BlockStateProperties"
+      ]
+    },
+    "352": {
+      "module": "widely named: world/level/chunk/status",
+      "verdict": "carry-over",
+      "evidence": "ChunkStatus: 1.21.5 only adds a CODEC field (BuiltInRegistries.CHUNK_STATUS.byNameCodec()) \u2014 a pure addition, no existing behaviour changed. The Rust has no chunk-status codec and needs none (chunk status names are never serialized by the Rust). No behaviour change.",
+      "classes": [
+        "ChunkStatus"
+      ]
+    },
+    "353": {
+      "module": "widely named: world/level/entity",
+      "verdict": "carry-over",
+      "evidence": "PersistentEntitySectionManager: 1.21.5 only adds isTicking(ChunkPos) (chunkVisibility lookup + Visibility.isTicking()) \u2014 a new accessor for the entity-ticking check. The Rust already has it: ticket_levels.rs entity_ticking (DistanceManager.inEntityTickingRange, level <= 31, ENTITY_TICKING) and Game.entity_ticking_area, used by the creature ticking; block ticking is the separate level-32 check (is_ticking_chunk). No behaviour change.",
+      "classes": [
+        "PersistentEntitySectionManager"
       ]
     }
   }

@@ -14,7 +14,6 @@ use horizon_client::{
 };
 use horizon_core::{
     geometry::Vec3,
-    position::BlockPos,
     random::{LegacyRandom, RandomSource},
 };
 use horizon_world::registry::BlockStateId;
@@ -22,12 +21,22 @@ use std::{collections::HashMap, sync::Arc};
 
 type Pos = (i32, i32, i32);
 
-/// Comparator input of a heart (`getAnalogOutputSignal`).
-pub(super) fn heart_signal(world: &horizon_client::world::World, pos: BlockPos) -> Option<i32> {
-    match world.block_entities.get(&(pos.x, pos.y, pos.z))? {
-        BlockEntity::CreakingHeart(h) => Some(h.output_signal),
-        _ => None,
+/// Comparator input of a heart (`CreakingHeartBlock.getAnalogOutputSignal`):
+/// 15 while its `active` is set, else 0. 1.21.4 reads the block state only —
+/// there is no block-entity signal (the distance-based one is 1.21.5's).
+pub(super) fn heart_signal(
+    state: BlockStateId,
+    registry: &horizon_world::registry::BlockRegistry,
+) -> Option<i32> {
+    let s = registry.state(state)?;
+    if s.name != "minecraft:creaking_heart" {
+        return None;
     }
+    Some(if s.properties.get("active").is_some_and(|v| v == "true") {
+        15
+    } else {
+        0
+    })
 }
 
 /// The game's mobs as a heart sees them, taken out of the game for the tick.
@@ -97,13 +106,13 @@ impl HeartHost for Host<'_> {
 }
 
 impl Game<'_> {
-    fn heart_state_name(&self, state: BlockStateId) -> String {
+    fn heart_active(&self, state: BlockStateId) -> bool {
         self.pack
             .assets
             .registry
             .state(state)
-            .and_then(|s| s.properties.get("creaking_heart_state").cloned())
-            .unwrap_or_default()
+            .and_then(|s| s.properties.get("active"))
+            .is_some_and(|v| v == "true")
     }
     /// Runs `f` on the heart at `key` with the game's mobs and level random,
     /// then applies what the heart reported. `others`: whether `f` reads the
@@ -176,7 +185,6 @@ impl Game<'_> {
                     at,
                     [0.0; 3],
                 ),
-                HeartEvent::OutputChanged(at) => self.container_changed((at[0], at[1], at[2])),
                 HeartEvent::Mob(event) => mob_events.push(event),
             }
         }
@@ -238,12 +246,7 @@ impl Game<'_> {
             }
         };
         crumble(self, "minecraft:pale_oak_wood", &[], 100);
-        crumble(
-            self,
-            "minecraft:creaking_heart",
-            &[("creaking_heart_state", "awake")],
-            10,
-        );
+        crumble(self, "minecraft:creaking_heart", &[("active", "true")], 10);
     }
     /// `CreakingHeartBlock.playerWillDestroy`: the heart's creaking twitches to
     /// death and a natural heart drops experience. `onExplosionHit` does the
@@ -303,8 +306,8 @@ impl Game<'_> {
             })?;
             return Ok(());
         }
-        // getTicker: none once uprooted.
-        if self.heart_state_name(state) != "uprooted" {
+        // getTicker: none while inactive.
+        if self.heart_active(state) {
             let pos = [key.0, key.1, key.2];
             let others = creaking_heart::tick_updates(&heart);
             self.with_heart(key, &mut heart, others, |h, w, lr, host, out| {

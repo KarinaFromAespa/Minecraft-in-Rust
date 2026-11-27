@@ -370,7 +370,6 @@ impl TreeDecorator {
                     }
                     if enclosed {
                         let state = d.default("minecraft:creaking_heart")?;
-                        let state = d.with(state, "creaking_heart_state", "dormant")?;
                         let state = d.with(state, "natural", "true")?;
                         d.set(pos, state)?;
                         break;

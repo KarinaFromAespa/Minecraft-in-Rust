@@ -2780,14 +2780,11 @@ fn clicked_bucket_pours_beside_a_refusing_block() {
 }
 
 #[test]
-fn creaking_heart_follows_its_logs_and_the_night() {
+fn creaking_heart_follows_its_logs() {
     let mut w = world!();
     let heart_at = BlockPos::new(0, 10, 0);
     let log = |w: &World, axis: &str| w.id("pale_oak_log", &[("axis", axis)]);
-    let heart = w.id(
-        "creaking_heart",
-        &[("axis", "y"), ("creaking_heart_state", "uprooted")],
-    );
+    let heart = w.id("creaking_heart", &[("axis", "y"), ("active", "false")]);
     let (below, above) = (BlockPos::new(0, 9, 0), BlockPos::new(0, 11, 0));
     w.put(heart_at, heart);
     w.put(below, log(&w, "y"));
@@ -2797,31 +2794,22 @@ fn creaking_heart_follows_its_logs_and_the_night() {
         !w.b()
             .creaking_heart_has_logs(&mut w.level, &mut w.ticks, heart_at, heart)
     );
-    // Day: a log update wakes the uprooted heart to dormant.
+    // A log update wakes the heart: `updateState` sets `active` once the
+    // trunk is complete, day or night (1.21.4 has no `creaking_heart_state`).
     let up = log(&w, "y");
     w.set(above, up);
     for _ in 0..3 {
         w.tick();
     }
-    assert_eq!(w.prop(heart_at, "creaking_heart_state"), "dormant");
-    // Night: the same trunk wakes a fresh heart up.
-    w.level.day_time = 14000;
-    w.put(heart_at, heart);
-    w.put(above, w.b().air());
-    w.set(above, up);
-    for _ in 0..3 {
-        w.tick();
-    }
-    assert_eq!(w.prop(heart_at, "creaking_heart_state"), "awake");
-    // Placed without logs it stays uprooted.
-    w.put(above, w.b().air());
-    w.put(heart_at, heart);
+    assert_eq!(w.prop(heart_at, "active"), "true");
+    // Losing the logs does not clear it here: `updateState` never turns
+    // `active` off — only the block-entity tick does that.
     let air = w.b().air();
     w.set(above, air);
     for _ in 0..3 {
         w.tick();
     }
-    assert_eq!(w.prop(heart_at, "creaking_heart_state"), "uprooted");
+    assert_eq!(w.prop(heart_at, "active"), "true");
 }
 
 #[test]

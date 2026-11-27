@@ -582,7 +582,7 @@ fn print_heart(
 ) {
     let state = registry
         .state(world.block(at[0], at[1], at[2]))
-        .and_then(|s| s.properties.get("creaking_heart_state").cloned())
+        .and_then(|s| s.properties.get("active").cloned())
         .unwrap_or_default();
     let _ = writeln!(
         out,
@@ -592,7 +592,7 @@ fn print_heart(
         at[2],
         heart.ticker,
         heart.emitter,
-        heart.output_signal,
+        if state == "true" { 15 } else { 0 },
         heart.ticks_existed,
         if heart.creaking.is_some() {
             "linked"
@@ -1525,14 +1525,14 @@ pub fn main() -> horizon_client::Result<()> {
                 horizon_client::mobs::apply_mob_pushes(m, &mut pushes);
             }
             let w = mob_world!(&snapshot);
-            // ServerLevel.tickBlockEntities: the hearts (none ticks once uprooted).
+            // ServerLevel.tickBlockEntities: the hearts (none ticks while inactive).
             heart_events.append(&mut heart_events_later);
             for (at, h) in &mut hearts {
-                let uprooted = registry
+                let active = registry
                     .state(w.world.block(at[0], at[1], at[2]))
-                    .and_then(|s| s.properties.get("creaking_heart_state").cloned())
-                    .is_some_and(|v| v == "uprooted");
-                if uprooted {
+                    .and_then(|s| s.properties.get("active").cloned())
+                    .is_some_and(|v| v == "true");
+                if !active {
                     continue;
                 }
                 let mut host = Host {

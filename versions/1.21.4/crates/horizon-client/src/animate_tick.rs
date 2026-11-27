@@ -96,7 +96,7 @@ enum Animate {
     /// An open eyeblossom (`Type.OPEN.emitSounds()`).
     OpenEyeblossom,
     PaleHangingMoss,
-    /// A creaking heart that is not uprooted (`CreakingHeartBlock.animateTick`).
+    /// An active creaking heart (`CreakingHeartBlock.animateTick`).
     CreakingHeart,
 }
 fn step(facing: &str) -> [i32; 3] {
@@ -237,9 +237,7 @@ fn classify(name: &str, prop: &dyn Fn(&str) -> Option<String>) -> Animate {
         "firefly_bush" => Animate::FireflyBush,
         "open_eyeblossom" => Animate::OpenEyeblossom,
         "pale_hanging_moss" => Animate::PaleHangingMoss,
-        "creaking_heart" if prop("creaking_heart_state").as_deref() != Some("uprooted") => {
-            Animate::CreakingHeart
-        }
+        "creaking_heart" if prop("active").as_deref() == Some("true") => Animate::CreakingHeart,
         // No desert ambient sounds in 1.21.4: no AmbientDesertBlockSoundsPlayer,
         // no desert sound tags, no dry grass blocks, and DeadBushBlock has no
         // animateTick (the dead-bush, dry-grass and sand idle sounds are 1.21.5+).

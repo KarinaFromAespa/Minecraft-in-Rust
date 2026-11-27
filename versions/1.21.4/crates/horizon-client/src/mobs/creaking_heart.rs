@@ -1,10 +1,12 @@
 //! The creaking heart's block entity (`CreakingHeartBlockEntity`): at night
-//! an awake heart in a pale oak trunk spawns a creaking that protects it
+//! an active heart in a pale oak trunk spawns a creaking that protects it
 //! (`SpawnUtil.trySpawnMob`), lets it go by day, when it strays or when a
 //! player is stuck in it, and when that creaking is hurt by a player emits
-//! trails and spreads resin over the logs. The game and the mob AI probe
-//! both tick hearts through this module; the host applies the block changes
-//! and plays what it reports.
+//! trails and spreads resin over the logs. 1.21.4 has no
+//! `creaking_heart_state`: the heart's `active` is set by the block's
+//! `updateState` (placement / neighbour change) and cleared here when the
+//! logs are gone. The game and the mob AI probe both tick hearts through
+//! this module; the host applies the block changes and plays what it reports.
 use super::{Mob, MobEvent, MobType, MobWorld, creaking};
 use crate::{collisions::SceneCollisions, containers::CreakingHeart};
 use horizon_core::{
@@ -44,8 +46,6 @@ pub enum HeartEvent {
         color: u32,
         duration: i32,
     },
-    /// `updateNeighbourForOutputSignal`: comparators read the new signal.
-    OutputChanged([i32; 3]),
     /// A mob's own sounds and effects (the spawned creaking's voice, a
     /// creaking falling apart).
     Mob(MobEvent),
@@ -164,14 +164,6 @@ fn distance_to_creaking(heart: &mut CreakingHeart, pos: [i32; 3], host: &impl He
             );
             m.distance_sqr(at).sqrt()
         })
-}
-/// `computeAnalogOutputSignal`.
-fn output_signal(heart: &mut CreakingHeart, pos: [i32; 3], host: &impl HeartHost) -> i32 {
-    if heart.creaking.is_none() || protector(heart, host).is_none() {
-        return 0;
-    }
-    let scaled = distance_to_creaking(heart, pos, host).clamp(0.0, 32.0) / 32.0;
-    15 - (scaled * 15.0).floor() as i32
 }
 /// `removeProtector`: the creaking falls apart (`tearDown`), or with a
 /// damage source (`by_player`) twitches to death.
@@ -491,14 +483,15 @@ fn liquid_in(w: &MobWorld, b: Aabb) -> bool {
     false
 }
 
-/// Whether this tick of the heart reaches its update (`updateCreakingState`
-/// and the protector checks), the only part of [`server_tick`] that reads the
-/// level's other mobs: about once a second, so a host may build them only then.
+/// Whether this tick of the heart reaches its update (the protector
+/// checks), the only part of [`server_tick`] that reads the level's other
+/// mobs: about once a second, so a host may build them only then.
 pub fn tick_updates(heart: &CreakingHeart) -> bool {
     heart.ticker < 0
 }
 
-/// `CreakingHeartBlockEntity.serverTick` (hearts that are not uprooted).
+/// `CreakingHeartBlockEntity.serverTick` (hearts that are active:
+/// `getTicker` is null otherwise).
 pub fn server_tick(
     heart: &mut CreakingHeart,
     pos: [i32; 3],
@@ -522,11 +515,6 @@ pub fn server_tick_start(
     out: &mut Vec<HeartEvent>,
 ) -> bool {
     heart.ticks_existed += 1;
-    let signal = output_signal(heart, pos, host);
-    if heart.output_signal != signal {
-        heart.output_signal = signal;
-        out.push(HeartEvent::OutputChanged(pos));
-    }
     if heart.emitter > 0 {
         if heart.emitter > 50 {
             emit_particles(heart, pos, 1, true, lr, host, out);
@@ -566,8 +554,10 @@ pub fn server_tick_start(
     ticker < 0
 }
 
-/// The rest of [`server_tick`], once [`server_tick_start`] says so:
-/// `updateCreakingState` and the protector checks.
+/// The rest of [`server_tick`], once [`server_tick_start`] says so: the
+/// protector checks. 1.21.4 has no `updateCreakingState` — the block state
+/// only ever gains `active` via the block's `updateState`, and this tick
+/// clears it when the logs are gone.
 pub fn server_tick_update(
     heart: &mut CreakingHeart,
     pos: [i32; 3],
@@ -582,41 +572,33 @@ pub fn server_tick_update(
         changed: Vec::new(),
     };
     let state = b.get(pos);
-    // updateCreakingState
-    let active = creaking_active(w);
-    let wanted = if !has_required_logs(&b, state, pos) && heart.creaking.is_none() {
-        "uprooted"
-    } else if active {
-        "awake"
-    } else {
-        "dormant"
-    };
-    let mut updated = state;
-    if b.prop(state, "creaking_heart_state").as_deref() != Some(wanted)
-        && let Some(next) = b.with_prop(state, "creaking_heart_state", wanted)
-    {
-        updated = next;
-        b.set(pos, next, out);
-        if wanted == "uprooted" {
+    // A heart with no protector: without its logs it goes dark; with them,
+    // active and at night, it spawns one for a player nearby.
+    if heart.creaking.is_none() {
+        if !has_required_logs(&b, state, pos) {
+            if b.prop(state, "active").as_deref() == Some("true")
+                && let Some(next) = b.with_prop(state, "active", "false")
+            {
+                b.set(pos, next, out);
+            }
             return;
         }
-    }
-    if heart.creaking.is_none() {
-        let awake = b.prop(updated, "creaking_heart_state").as_deref() == Some("awake");
-        if awake && host.spawning_monsters() {
-            // getNearestPlayer(pos, 32, false): no spectators.
-            let (x, y, z) = (f64::from(pos[0]), f64::from(pos[1]), f64::from(pos[2]));
-            let near = w.player.as_ref().is_some_and(|p| {
-                !p.spectator
-                    && (p.position.x - x).powi(2)
-                        + (p.position.y - y).powi(2)
-                        + (p.position.z - z).powi(2)
-                        < 32.0 * 32.0
-            });
-            if near && let Some(id) = spawn_protector(pos, w, lr, host, out) {
-                let uuid = host.uuid_for(id);
-                heart.creaking = Some((Some(id), uuid));
-            }
+        let active = b.prop(state, "active").as_deref() == Some("true");
+        if !active || !creaking_active(w) || !host.spawning_monsters() {
+            return;
+        }
+        // getNearestPlayer(pos, 32, false): no spectators.
+        let (x, y, z) = (f64::from(pos[0]), f64::from(pos[1]), f64::from(pos[2]));
+        let near = w.player.as_ref().is_some_and(|p| {
+            !p.spectator
+                && (p.position.x - x).powi(2)
+                    + (p.position.y - y).powi(2)
+                    + (p.position.z - z).powi(2)
+                    < 32.0 * 32.0
+        });
+        if near && let Some(id) = spawn_protector(pos, w, lr, host, out) {
+            let uuid = host.uuid_for(id);
+            heart.creaking = Some((Some(id), uuid));
         }
     } else if let Some(id) = protector(heart, host) {
         // playerIsStuckInYou reads the creaking's NEAREST_PLAYERS.
@@ -627,8 +609,18 @@ pub fn server_tick_update(
         });
         // 1.21.4 removes the protector at daybreak regardless of
         // persistence; 1.21.5 kept a persistent (e.g. name-tagged) one.
-        if !active || distance_to_creaking(heart, pos, host) > TOO_FAR || stuck {
+        if !creaking_active(w) || distance_to_creaking(heart, pos, host) > TOO_FAR || stuck {
             remove_protector(heart, host, false, out);
         }
+        // The protector just left and the logs are gone: the heart goes dark.
+        if !has_required_logs(&b, state, pos)
+            && heart.creaking.is_none()
+            && b.prop(state, "active").as_deref() == Some("true")
+            && let Some(next) = b.with_prop(state, "active", "false")
+        {
+            b.set(pos, next, out);
+        }
     }
+    // Otherwise the protector is recorded but unresolved: 1.21.4 returns
+    // without doing anything.
 }

@@ -561,7 +561,7 @@ props! {
     honey_level = "honey_level",
     bloom = "bloom",
     natural = "natural",
-    creaking_heart_state = "creaking_heart_state",
+    active = "active",
     cracked = "cracked",
     has_book = "has_book",
     has_record = "has_record",
