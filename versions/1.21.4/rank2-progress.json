@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": 2,
-  "batch": 75,
-  "note": "Batch 75 closed (2026-11-27): all carry-over, no code changes \u2014 308 MinecartHopper DEFAULT_ENABLED is a dead constant, NBT default true in both forms; 309 Vault Server offsets + equals->== on canonical BlockStates; 310 piston onRemove->preRemoveSideEffects relocation and getShape switch->map, same six boxes; 311 VibrationInfo javap-identical. Rank 2 now 316/348. Prior: Batch 74 closed (2026-11-27): all carry-over, no code changes \u2014 304 SpriteSource type()/codec() registration shape only; 305 RegistryDataLoader offset",
+  "batch": 76,
+  "note": "Batch 76 closed (2026-11-27): all carry-over, no code changes \u2014 312 WorldCarver setBlockState 3-arg(false) -> 2-arg; 313 StructureCheck NBT Optional API, same logic; 314 FluidState 1.21.5-only entityInside/getAABB delegates, effects live in entity tick in 1.21.4; 315 LootTable KEY_CODEC only. Rank 2 now 320/348. Prior: Batch 75 closed (2026-11-27): all carry-over, no code changes \u2014 308 MinecartHopper DEFAULT_ENABLED is a dead constant, NBT default true in both forms;",
   "items": {
     "90": {
       "module": "crates/horizon-client-render/src/block_entity_render.rs",
@@ -3874,6 +3874,38 @@
       "evidence": "VibrationInfo: the javap -c dumps are byte-identical (17,000 bytes each, empty diff) \u2014 identical fields, signatures and bytecode. The class files differ in md5 only, i.e. debug / constant-pool layout, with no semantic change.",
       "classes": [
         "VibrationInfo"
+      ]
+    },
+    "312": {
+      "module": "widely named: world/level/levelgen/carver",
+      "verdict": "carry-over",
+      "evidence": "WorldCarver: the only real change is ChunkAccess.setBlockState(pos, state, false) (3-arg, isMoving=false) in 1.21.4 -> setBlockState(pos, state) (2-arg) in 1.21.5 \u2014 the same call with the moving flag false in both forms; the rest of the normalized diff is branch-target renumbering. The Rust's carver is mask-based (horizon-core CarvingMask) with no moving flag in its apply path.",
+      "classes": [
+        "WorldCarver"
+      ]
+    },
+    "313": {
+      "module": "widely named: world/level/levelgen/structure",
+      "verdict": "carry-over",
+      "evidence": "StructureCheck.loadStructures rewritten from the 1.21.4 NBT API (contains(\"structures\", 10) + getCompound, getString/getInt) to the 1.21.5 Optional-returning API (getCompound -> Optional, getStringOr/getIntOr, asCompound/ifPresent) \u2014 same logic: absent structures/starts compounds -> skip, \"INVALID\" id skipped, \"references\" defaults to 0. The Rust's saved_structure_starts (chunk.rs:637) uses the 1.21.4 form (absent -> None).",
+      "classes": [
+        "StructureCheck"
+      ]
+    },
+    "314": {
+      "module": "widely named: world/level/material",
+      "verdict": "carry-over",
+      "evidence": "FluidState: 1.21.5 adds getAABB / entityInside as thin delegates to new Fluid methods (base Fluid.entityInside is a no-op; WaterFluid applies EXTINGUISH, LavaFluid applies LAVA_IGNITE via InsideBlockEffectApplier). 1.21.4 has no entityInside/getAABB on Fluid or FluidState at all \u2014 the effects live in entity-tick code (lavaHurt ignites 15 s, water clears fire), which is how the Rust applies them (entities.rs documents \"there is no lavaIgnite in 1.21.4\"). No FluidState hook exists in the Rust, and none is needed for 1.21.4.",
+      "classes": [
+        "FluidState"
+      ]
+    },
+    "315": {
+      "module": "widely named: world/level/storage/loot",
+      "verdict": "carry-over",
+      "evidence": "LootTable: the normalized diff is only the KEY_CODEC addition (a Codec for loot-table resource keys, initialized in the static block) plus static-init reordering and lambda renumbering (createStackSplitter $5 -> $6). Loot generation (pools, rolls, context) is untouched; the Rust reads loot tables from JSON data by id and needs no key codec.",
+      "classes": [
+        "LootTable"
       ]
     }
   }

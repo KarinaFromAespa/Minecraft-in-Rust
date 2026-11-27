@@ -6037,3 +6037,41 @@ shape for the review batches.
   (17,000 bytes each, empty diff) — identical fields, signatures and
   bytecode. The class files differ in md5 only, i.e. debug /
   constant-pool layout, with no semantic change. Rank 2: 316/348.
+
+  Item 302 (report id 312, widely named: world/level/levelgen/carver):
+  carry-over. `WorldCarver`: the only real change is
+  `ChunkAccess.setBlockState(pos, state, false)` (3-arg, `isMoving =
+  false`) in 1.21.4 -> `setBlockState(pos, state)` (2-arg) in 1.21.5 —
+  the same call with the moving flag false in both forms; the rest of
+  the normalized diff is branch-target renumbering. The Rust's carver
+  is mask-based (`horizon-core` `CarvingMask`) with no moving flag in
+  its apply path. Rank 2: 317/348.
+
+  Item 303 (report id 313, widely named: world/level/levelgen/structure):
+  carry-over. `StructureCheck.loadStructures` rewritten from the 1.21.4
+  NBT API (`contains("structures", 10)` + `getCompound`,
+  `getString` / `getInt`) to the 1.21.5 Optional-returning API
+  (`getCompound` -> `Optional`, `getStringOr` / `getIntOr`,
+  `asCompound` / `ifPresent`) — same logic: absent structures / starts
+  compounds -> skip, "INVALID" id skipped, "references" defaults to 0.
+  The Rust's `saved_structure_starts` (`chunk.rs:637`) uses the 1.21.4
+  form (absent -> `None`). Rank 2: 318/348.
+
+  Item 304 (report id 314, widely named: world/level/material):
+  carry-over. `FluidState`: 1.21.5 adds `getAABB` / `entityInside` as
+  thin delegates to new `Fluid` methods (base `Fluid.entityInside` is
+  a no-op; `WaterFluid` applies `EXTINGUISH`, `LavaFluid` applies
+  `LAVA_IGNITE` via `InsideBlockEffectApplier`). 1.21.4 has no
+  `entityInside` / `getAABB` on `Fluid` or `FluidState` at all — the
+  effects live in entity-tick code (`lavaHurt` ignites 15 s, water
+  clears fire), which is how the Rust applies them (`entities.rs`
+  documents "there is no lavaIgnite in 1.21.4"). No `FluidState` hook
+  exists in the Rust, and none is needed for 1.21.4. Rank 2: 319/348.
+
+  Item 305 (report id 315, widely named: world/level/storage/loot):
+  carry-over. `LootTable`: the normalized diff is only the `KEY_CODEC`
+  addition (a `Codec` for loot-table resource keys, initialized in the
+  static block) plus static-init reordering and lambda renumbering
+  (`createStackSplitter` $5 -> $6). Loot generation (pools, rolls,
+  context) is untouched; the Rust reads loot tables from JSON data by
+  id and needs no key codec. Rank 2: 320/348.
