@@ -4247,3 +4247,106 @@ shape for the review batches.
   `LoomMenu$6` likewise. The nautilus does not exist in
   either version (26.x mob), so its mount-menu branches are
   unreachable here. Rank 2: 213/348.
+
+  Item 169 (crates/horizon-client/src/game/glowing.rs):
+  carry-over. `EntityRenderer`: 1.21.5 adds four hitbox
+  render-state methods (`extractHitboxes` x2,
+  `getServerSideEntity`, `extractAdditionalHitboxes`) and
+  sets `state.entityType` in `extractRenderState`;
+  `renderNameTag` differs only by `mulPose(Quaternionfc)` vs
+  `(Quaternionf)`. The Rust's glowing.rs implements only
+  `extractRenderState`'s `outlineColor`
+  (`isCurrentlyGlowing` / `getTeamColor`), which is identical
+  in both versions; the hitbox render-state extraction is a
+  1.21.5-only debug feature the Rust does not implement in
+  either form, and nothing in glowing reads `entityType`.
+  Rank 2: 214/348.
+
+  Item 170 (crates/horizon-client/src/game/level_particles.rs):
+  carry-over. `PointedDripstoneBlock`: the static init builds
+  the same shapes via `Block.column` in 1.21.5 vs `Block.box`
+  in 1.21.4 (`column(6,0,16)` is `box(5,0,5,11,16,11)`)
+  with renamed fields (`SHAPE_TIP_MERGE` etc. vs
+  `TIP_MERGE_SHAPE`); `getShape` is a switch on
+  `DripstoneThickness.ordinal` in 1.21.5 vs an if-chain in
+  1.21.4 with the same mapping, and `move(Vec3)` vs
+  `move(DDD)`. `getMaxHorizontalOffset` is the
+  `MAX_HORIZONTAL_OFFSET` field in 1.21.5 vs an inline
+  `0.125f` in 1.21.4 — the field is `SHAPE_BASE.min(X)` =
+  0.125f, the same value. `spawnDripParticle`'s Y is `pos.y +
+  STALACTITE_DRIP_START_PIXEL` (`SHAPE_TIP_DOWN.min(Y)` =
+  5/16) - 0.0625 in 1.21.5 vs `(pos.y + 1) - 0.6875 -
+  0.0625` in 1.21.4 — both `pos.y + 0.25`. The Rust writes
+  `pos.y + 5.0/16.0 - 0.0625`, matching both versions.
+  Rank 2: 215/348.
+
+  Item 171 (crates/horizon-client/src/game/shield.rs):
+  ported. `Ravager.blockedByShield` (1.21.4) and
+  `blockedByItem` (1.21.5) are bytecode-identical (roarTick 0
+  and random < 0.5: stunnedTick 40, `RAVAGER_STUNNED`,
+  entity event 39, `blocker.push`; else `strongKnockback` +
+  `hurtMarked`); the Rust's `mobs/ravager.rs::blocked`
+  implements it, unchanged. The rest is a real gap: the
+  `BlocksAttacks` component and its `ItemDamageFunction` do
+  not exist in 1.21.4 at all (no class, no `BLOCKS_ATTACKS`
+  in `DataComponents`, no `Weapon` component), so the Rust's
+  component-driven shield path had nothing to read —
+  `raise_shield` returned false and `player_blocking`
+  returned None, i.e. shields could not be raised or block.
+  Fixed by synthesizing the shield's `blocks_attacks` at
+  item load (`BlocksAttacks::shield_1214`: delay 0.25s from
+  `getItemBlockingWith`'s 5 ticks, full block within 90
+  degrees from `isDamageSourceBlocked`, bypassed by
+  `#minecraft:bypasses_shield`, item damage (3.0, 1.0, 1.0)
+  from `Player.hurtCurrentlyUsedShield`'s 1 + floor(blocked)
+  at blocked >= 3, block/disabled sounds
+  `item.shield.block` / `item.shield.break` — exactly the
+  1.21.5 shield component's values, so the use duration
+  (72000), the block sound and the damage all follow). The
+  disable rule is the 1.21.4 one, not the 1.21.5 per-weapon
+  seconds: `LivingEntity.canDisableShield` is true for an
+  axe held (Warden overrides it to true), and
+  `Player.disableShield` applies a flat 100 ticks —
+  `shield_disable_seconds` (axe via the `minecraft:axes`
+  tag, or warden) replaces the weapon-component read in the
+  mob path and in lan_pvp/spear_players. The 0.5 knockback
+  is the attacker's (`LivingEntity.blockedByShield` knocks
+  the attacker away from the defender, identical in both
+  versions; `BlocksAttacks.onBlocked` only plays the sound):
+  the Rust knocked the defender back when not fully blocked,
+  which is vanilla in neither version — removed, and a
+  blocked melee hit now knocks the attacker mob back 0.5 via
+  `MobEvent::Knockback` (the ravager's override replaces
+  this, as in vanilla). Rank 2: 216/348.
+
+  Item 172 (crates/horizon-client/src/lan/advancements.rs):
+  carry-over. `TransmuteRecipe`: 1.21.4's result is a
+  `Holder<Item>`, 1.21.5's is a `TransmuteResult` (item +
+  count + component patch, new in 1.21.5). `matches`:
+  1.21.4 requires exactly 2 non-empty stacks, one
+  input-matching stack whose item != the result item and one
+  material; 1.21.5 uses `result.isResultUnchanged` (apply
+  the result, then same item and components at count 1).
+  `assemble`: 1.21.4 is `transmuteCopy(result, 1)` of the
+  first such input stack; 1.21.5 is `TransmuteResult.apply`
+  = `transmuteCopy` + the component patch. `display`:
+  1.21.4 is `ItemSlotDisplay(result holder)`, 1.21.5 is
+  `result.display()` (an `ItemStackSlotDisplay`). The Rust
+  implements the 1.21.5 form (`matches` via `over()` +
+  `same_item_same_components`, i.e. the `isResultUnchanged`
+  rule; `assemble` via `Template::over`). For every vanilla
+  1.21.4 transmute recipe the two forms agree:
+  `material_count` is absent so the bounds default to
+  (1, 1) (exactly 2 stacks, as vanilla), the input item
+  always differs from the result item (shulker/bundle
+  dyeing), and no input is damageable. Recorded, not fixed:
+  the 1.21.4 match rule is item-identity, not
+  outcome-identity (a datapack recipe with input item ==
+  result item matches in neither form's edge), and
+  `ItemStack.transmuteCopy` resets damage to 0 for
+  damageable results while the Rust's `over()` /
+  `transmute()` keep the input's damage — both unreachable
+  with vanilla 1.21.4 data. Map cloning is a separate
+  `CustomRecipe` in 1.21.4 (1 filled map + 1..8 empty maps),
+  modelled by the Rust as the same Transmute arm with
+  `add_count`, which matches. Rank 2: 217/348.

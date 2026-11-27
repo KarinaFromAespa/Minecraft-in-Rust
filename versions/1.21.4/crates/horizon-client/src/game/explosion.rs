@@ -541,12 +541,7 @@ impl Game<'_> {
         }
         self.combat.forget_noted(outcome.canceled);
         if raised {
-            let source = horizon_client::health::HurtSource {
-                damage_type,
-                causing: attacker.map_or(0, |(id, _)| *id as i32),
-                direct: 0,
-            };
-            self.after_block(outcome, (None, false), source);
+            self.after_block(outcome, (None, false));
         }
         pushed
     }

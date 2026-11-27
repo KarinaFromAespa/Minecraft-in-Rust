@@ -4392,12 +4392,7 @@ impl Game<'_> {
             });
         }
         if raised {
-            let source = HurtSource {
-                damage_type,
-                causing,
-                direct: 0,
-            };
-            self.after_block(outcome, (attacker, projectile), source);
+            self.after_block(outcome, (attacker, projectile));
         }
         // `LivingEntity.dealDefaultKnockback`: after the item's block push, so
         // a half-blocked hit pushes the defender back the way vanilla does.

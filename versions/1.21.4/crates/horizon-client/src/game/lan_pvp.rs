@@ -186,13 +186,13 @@ impl Game<'_> {
         let (xd, zd) = self.extra_knockback_direction();
         self.attack_ticks = 0;
         self.swing_arm();
-        // LivingEntity.getSecondsToDisableBlocking: the held weapon's value,
-        // none while another item is in use.
+        // `LivingEntity.canDisableShield` in 1.21.4: an axe held, else
+        // none (a player is never a warden); none while another item is
+        // in use.
         let disable_blocking = if self.using.is_some() {
             0.0
         } else {
-            self.attack_item_info()
-                .map_or(0.0, |i| i.disable_blocking_seconds)
+            super::shield::shield_disable_seconds(self.items(), false, self.attack_item.as_deref())
         };
         let ignite = self.weapon_ignite_seconds();
         Some(Strike {

@@ -263,6 +263,30 @@ pub struct BlocksAttacks {
     pub disabled_sound: Option<String>,
 }
 impl BlocksAttacks {
+    /// The shield's `blocks_attacks` in 1.21.4: there is no such
+    /// component (added in 1.21.5), so the values are the hardcoded
+    /// ones from `LivingEntity` / `Player` — a 5-tick (0.25s) delay
+    /// (`getItemBlockingWith`), a full block within 90 degrees
+    /// (`isDamageSourceBlocked`), bypassed by
+    /// `#minecraft:bypasses_shield`, and 1 + floor(blocked) damage
+    /// once blocked reaches 3 (`Player.hurtCurrentlyUsedShield`).
+    /// They are exactly the 1.21.5 shield component's values.
+    pub fn shield_1214() -> Self {
+        Self {
+            delay_seconds: 0.25,
+            disable_scale: 1.0,
+            reductions: vec![BlockReduction {
+                horizontal_angle: 90.0,
+                types: None,
+                base: 0.0,
+                factor: 1.0,
+            }],
+            item_damage: (3.0, 1.0, 1.0),
+            bypassed_by: Some("#minecraft:bypasses_shield".to_owned()),
+            block_sound: Some("minecraft:item.shield.block".to_owned()),
+            disabled_sound: Some("minecraft:item.shield.break".to_owned()),
+        }
+    }
     /// The `blocks_attacks` `stack` has: its own component when it carries
     /// one (only a test or a newer save can set it — 1.21.4 has no such
     /// component), else its item's (`item`, a shield's).
@@ -968,7 +992,8 @@ impl Items {
                     interact_vibrations: c["minecraft:use_effects"]["interact_vibrations"]
                         .as_bool()
                         .unwrap_or(true),
-                    blocks_attacks: BlocksAttacks::parse(&c["minecraft:blocks_attacks"]),
+                    blocks_attacks: BlocksAttacks::parse(&c["minecraft:blocks_attacks"])
+                        .or_else(|| (name == "minecraft:shield").then(BlocksAttacks::shield_1214)),
                     disable_blocking_seconds: c["minecraft:weapon"]["disable_blocking_for_seconds"]
                         .as_f64()
                         .unwrap_or(0.0) as f32,
@@ -3158,6 +3183,27 @@ mod tests {
         let b = BlocksAttacks::of_stack(&bare, None).expect("defaults");
         assert_eq!(b.reductions[0].horizontal_angle, 90.0);
         assert_eq!(b.disable_scale, 1.0);
+    }
+
+    #[test]
+    fn shield_1214_is_the_hardcoded_block() {
+        let b = BlocksAttacks::shield_1214();
+        assert_eq!(b.delay_seconds, 0.25);
+        assert_eq!(b.disable_scale, 1.0);
+        assert_eq!(b.reductions.len(), 1);
+        assert_eq!(b.reductions[0].horizontal_angle, 90.0);
+        assert!(b.reductions[0].types.is_none());
+        assert_eq!((b.reductions[0].base, b.reductions[0].factor), (0.0, 1.0));
+        assert_eq!(b.item_damage, (3.0, 1.0, 1.0));
+        assert_eq!(b.bypassed_by.as_deref(), Some("#minecraft:bypasses_shield"));
+        assert_eq!(
+            b.block_sound.as_deref(),
+            Some("minecraft:item.shield.block")
+        );
+        assert_eq!(
+            b.disabled_sound.as_deref(),
+            Some("minecraft:item.shield.break")
+        );
     }
 
     #[test]

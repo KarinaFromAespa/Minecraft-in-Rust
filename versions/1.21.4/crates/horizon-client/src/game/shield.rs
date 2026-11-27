@@ -1,12 +1,13 @@
 //! Shields and other `blocks_attacks` items: raising them (`ShieldItem.use`,
 //! from either hand), `LivingEntity.getItemBlockingWith` and
 //! `applyItemBlocking` inputs, and what follows a block: item damage,
-//! the block sound, attacker knockback (`blockedByItem`) and axes disabling
+//! the block sound, attacker knockback (`blockedByShield`) and axes disabling
 //! the shield (`Player.blockUsingItem`, `BlocksAttacks.disable`).
 use super::Game;
 use horizon_client::{
-    health::{BlockOutcome, Blocking, HurtSource},
+    health::{BlockOutcome, Blocking},
     items::ItemStack,
+    mobs::{Damage, DamageKind, MobEvent, Who},
 };
 use horizon_core::random::RandomSource;
 use horizon_world::blocking_rules::{BlockingRules, DamageReduction, ItemDamageFunction};
@@ -114,12 +115,11 @@ impl Game<'_> {
         })
     }
     /// After a hurt with the shield raised: `hurtBlockingItem`, `onBlocked`
-    /// and, for melee from a mob, `blockUsingItem`. `source` is the hit's.
+    /// and, for melee from a mob, `blockUsingItem`.
     pub(super) fn after_block(
         &mut self,
         outcome: BlockOutcome,
         (attacker, projectile): (Option<u32>, bool),
-        source: HurtSource<'_>,
     ) {
         let Some((slot, _)) = self.using else { return };
         let Some(stack) = self.stack_in(slot).cloned() else {
@@ -189,32 +189,29 @@ impl Game<'_> {
         }
         let Some(id) = attacker else {
             // Another player's melee hit has no mob behind it.
-            if let Some((from, disable)) = self.combat.player_attacker {
-                let fully = outcome.fully_blocked;
-                let attacker = ([from[0], from[2]], disable);
-                self.blocked_by_attacker(&component, attacker, fully, at, source);
+            if let Some((_, disable)) = self.combat.player_attacker {
+                self.blocked_by_attacker(&component, disable, at);
             }
             return;
         };
-        let fully = outcome.fully_blocked;
         let Some(m) = self.mobs.iter().find(|m| m.id == id) else {
             return;
         };
-        let (mx, mz) = (m.position.x, m.position.z);
-        // LivingEntity.getSecondsToDisableBlocking: the held weapon's value;
-        // Warden overrides it with a flat 5 seconds.
-        let disable = if m.species() == horizon_client::mobs::Species::Warden {
-            5.0
-        } else {
-            m.extra
-                .main_hand
-                .as_deref()
-                .and_then(|item| self.items().get(item))
-                .map_or(0.0, |i| i.disable_blocking_seconds)
-        };
-        // Ravager.blockedByItem: stunned half the time (the defender pushed
+        let (mx, my, mz) = (m.position.x, m.position.y, m.position.z);
+        let species = m.species();
+        // `LivingEntity.canDisableShield` in 1.21.4: the held weapon is an
+        // axe, or the attacker is a warden. `Player.disableShield` then
+        // applies a flat 100 ticks; 1.21.4 has no
+        // `getSecondsToDisableBlocking` and no `weapon` component, so the
+        // 1.21.5 per-weapon seconds do not exist here.
+        let disable = shield_disable_seconds(
+            self.items(),
+            species == horizon_client::mobs::Species::Warden,
+            m.extra.main_hand.as_deref(),
+        );
+        // Ravager.blockedByShield: stunned half the time (the defender pushed
         // apart), else the defender flung away; no roar in progress.
-        if m.species() == horizon_client::mobs::Species::Ravager {
+        if species == horizon_client::mobs::Species::Ravager {
             let mut events = Vec::new();
             let roaring = m.extra.anim_ticks != 0;
             let stunned = self
@@ -238,27 +235,38 @@ impl Game<'_> {
             let _ = self.handle_mob_events(events);
             return;
         }
-        self.blocked_by_attacker(&component, ([mx, mz], disable), fully, at, source);
+        // `LivingEntity.blockedByShield`: the attacker is knocked back 0.5
+        // away from the defender on a blocked melee hit (the ravager's
+        // override replaces this, above).
+        if let Some(p) = self.player.as_ref() {
+            let _ = self.handle_mob_events(vec![MobEvent::Knockback {
+                target: Who::Mob(id),
+                power: 0.5,
+                x: mx - p.position.x,
+                z: mz - p.position.z,
+                source: Damage {
+                    kind: DamageKind::MobAttack,
+                    attacker: Some(Who::Mob(id)),
+                    from: Some([mx, my, mz]),
+                    attacker_species: Some(species),
+                },
+            }]);
+        }
+        self.blocked_by_attacker(&component, disable, at);
     }
 
     /// What a blocked melee hit does to the defender once the shield took
-    /// it: `LivingEntity.blockedByItem` knocks them back unless fully
-    /// blocked, then `Player.blockUsingItem` disables the shield. `attacker`
-    /// is where the attacker stands (x, z) and its seconds of disabling.
+    /// it: `Player.blockUsingItem` disables the shield. The 0.5 knockback
+    /// is the attacker's, not the defender's (`LivingEntity.blockedByShield`
+    /// knocks the attacker away; the defender's own knockback is the 0.4
+    /// `dealDefaultKnockback` the hurt flow applies), so a mob attacker is
+    /// knocked back by the caller, before this runs.
     fn blocked_by_attacker(
         &mut self,
         component: &horizon_client::items::BlocksAttacks,
-        ([mx, mz], disable): ([f64; 2], f32),
-        fully: bool,
+        disable: f32,
         at: Option<[f64; 3]>,
-        source: HurtSource<'_>,
     ) {
-        // LivingEntity.blockedByItem: defender.knockback(0.5, defender - attacker,
-        // source), which moves the defender along -(xd, zd).
-        if !fully && let Some(p) = self.player.as_ref() {
-            let (xd, zd) = (p.position.x - mx, p.position.z - mz);
-            self.knock_back_player(0.5, xd, zd, source);
-        }
         // BlocksAttacks.disable: item cooldown and stopUsingItem.
         let ticks = disable * component.disable_scale;
         let ticks = if ticks > 0.0 {
@@ -328,4 +336,59 @@ fn blocking_item_max_damage(stack: &ItemStack, prototype_max: u32) -> Option<u32
         None => prototype_max,
     };
     (max > 0).then_some(max)
+}
+
+/// `LivingEntity.canDisableShield` in 1.21.4, as seconds of disabling:
+/// 5 when the attacker is a warden or holds an axe (the `minecraft:axes`
+/// tag), else 0. `Player.disableShield` applies a flat 100 ticks.
+/// 1.21.4 has no `getSecondsToDisableBlocking` and no `weapon`
+/// component, so the 1.21.5 per-weapon seconds do not exist here.
+pub(super) fn shield_disable_seconds(
+    items: &horizon_client::items::Items,
+    warden: bool,
+    hand: Option<&str>,
+) -> f32 {
+    let axe = hand.is_some_and(|id| {
+        items
+            .item_tags
+            .get("minecraft:axes")
+            .is_some_and(|t| t.contains(id))
+    });
+    if warden || axe { 5.0 } else { 0.0 }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::shield_disable_seconds;
+    use horizon_client::items::Items;
+    use std::collections::{HashMap, HashSet};
+
+    fn items() -> Items {
+        Items::for_tests(HashMap::from([(
+            "minecraft:axes".to_owned(),
+            HashSet::from([
+                "minecraft:diamond_axe".to_owned(),
+                "minecraft:wooden_axe".to_owned(),
+            ]),
+        )]))
+    }
+
+    #[test]
+    fn axe_or_warden_disables_the_shield() {
+        let items = items();
+        assert_eq!(
+            shield_disable_seconds(&items, false, Some("minecraft:diamond_axe")),
+            5.0
+        );
+        assert_eq!(shield_disable_seconds(&items, true, None), 5.0);
+        assert_eq!(
+            shield_disable_seconds(&items, true, Some("minecraft:stick")),
+            5.0
+        );
+        assert_eq!(
+            shield_disable_seconds(&items, false, Some("minecraft:diamond_sword")),
+            0.0
+        );
+        assert_eq!(shield_disable_seconds(&items, false, None), 0.0);
+    }
 }
