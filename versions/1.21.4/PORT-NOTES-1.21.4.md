@@ -5402,3 +5402,64 @@ shape for the review batches.
   (`bundle.rs:73`) implements it: nested bundle -> contents + 1/16,
   beehive with a non-empty `minecraft:bees` list -> 1, else 1 /
   max-stack. Rank 2: 268/348.
+
+  Item 227 (report id 237,
+  crates/horizon-world/src/worldgen/generator_structures.rs):
+  carry-over. `PiecesContainer.load` differs only by the NBT accessor
+  forms - `getCompoundOrEmpty` vs `getCompound`, `getStringOr("id", "")`
+  vs `getString` - the same defaults. The logic is identical (lowercase
+  id, look up the piece type, log "Unknown structure piece id", load
+  each piece, log "Exception loading structure piece with id"). The Rust
+  `generator_structures.rs:918` / `1102` implements the load (piece id
+  after its `RENAMES`, the four older ids). Rank 2: 269/348.
+
+  Item 228 (report id 238, widely named: world/entity/animal):
+  carry-over. `AbstractFish.travel`: the water-movement body is
+  identical in both (`moveRelative` 0.01, move SELF, scale 0.9, sink
+  -0.005 with no target); 1.21.5 only removed the
+  `isControlledByLocalInstance()` gate. On the server the gate is always
+  true (no controlling player -> `isEffectiveAi` -> true server-side),
+  and the Rust ticks mobs only on the server thread (`creatures.rs`
+  `tick_creatures` -> `ai.rs` `server_ai_step` -> `travel`), so the
+  Rust's `aquatic::travel` (in-water -> custom movement, 0.01 / 0.9 /
+  -0.005) matches 1.21.4 server-side exactly. `defineSynchedData`
+  identical (`FROM_BUCKET` false); `readAdditionalSaveData`
+  `getBooleanOr(false)` vs `getBoolean`, same default.
+  `MushroomCow$Variant`: 1.21.5 added a `DEFAULT` variant + `byId(int)`;
+  1.21.4 has RED / BROWN by name - the Rust `render.rs` picks
+  `mooshroom_brown` when `extra.variant == 1`, else red.
+  `Salmon$Variant`: same (SMALL / MEDIUM / LARGE by name; the Rust
+  `render.rs` maps 0 -> small, 2 -> large, else medium).
+  `Wolf$WolfPackData` is 1.21.4-only (extends `AgeableMobGroupData`, one
+  `type` `Holder<WolfVariant>` field - the spawn group data); 1.21.5
+  removed it. The Rust `tame.rs:33` `wolf_variant_for` picks the variant
+  by biome, the 1.21.4 form. Rank 2: 270/348.
+
+  Item 229 (report id 239, widely named: world/level/chunk):
+  carry-over. `UpgradeData`: 1.21.5 rewrote the serialisation with
+  codecs (`BLOCK_TICKS_CODEC` / `FLUID_TICKS_CODEC`, tick loading in the
+  constructor); 1.21.4 has the manual `loadTicks` / write lambdas. The
+  stored keys are the same (`neighbor_block_ticks`,
+  `neighbor_fluid_ticks`, `Indices`, `Sides`). The Rust's datafix layer
+  handles the tag form directly (`chunk_flatten.rs:612` writes
+  `UpgradeData`, `chunk_leaves.rs:436` reads it, `fixes_cliffs.rs:1524`
+  migrates block / fluid_ticks to `neighbor_*`).
+  `ChunkSource.updateChunkForced` returns void in 1.21.4 vs boolean in
+  1.21.5 and `getForceLoadedChunks` is 1.21.5-only - API shape; the
+  Rust's forced chunks live in `streaming.forced` (`levels.rs`).
+  `ImposterProtoChunk.setBlockState` is the boolean -> int flags
+  widening (same as items 197 / 222). Rank 2: 271/348.
+
+  Item 230 (report id 240, widely named:
+  world/level/levelgen/structure/templatesystem): carry-over.
+  `StructureTemplate$JigsawBlockInfo.pool()` is a `ResourceLocation` in
+  1.21.4 vs a `ResourceKey<StructureTemplatePool>` in 1.21.5 (same
+  location string); `of()` reads name / pool / target as strings via
+  `getString` + `ResourceLocation.parse` in 1.21.4 vs codec reads with
+  `EMPTY` / `EMPTY_ID` defaults in 1.21.5. The Rust `jigsaw.rs:78`
+  stores `pool` as a plain name string (`Cow<str>`) - the 1.21.4 form.
+  `StructureTemplateManager` `loadFromTestStructures` /
+  `listTestStructures` differ only by `testStructuresDir` being a
+  `String` (+ `Paths.get`) in 1.21.4 vs a `Path` in 1.21.5 - the same
+  test-structures folder; the Rust has no test-structure loading.
+  Rank 2: 272/348.

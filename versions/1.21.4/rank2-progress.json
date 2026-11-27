@@ -3428,6 +3428,44 @@
       "classes": [
         "BundleContents"
       ]
+    },
+    "237": {
+      "module": "worldgen/generator_structures.rs",
+      "verdict": "carry-over",
+      "evidence": "PiecesContainer.load differs only by the NBT accessor forms - getCompoundOrEmpty vs getCompound, getStringOr('id', '') vs getString - the same defaults. The logic is identical (lowercase id, look up the piece type, log 'Unknown structure piece id', load each piece, log 'Exception loading structure piece with id'). Rust generator_structures.rs:918/1102 implements the load (piece id after its RENAMES, the four older ids). No Rust change.",
+      "classes": [
+        "PiecesContainer"
+      ]
+    },
+    "238": {
+      "module": "world/entity/animal (widely named)",
+      "verdict": "carry-over",
+      "evidence": "AbstractFish.travel: the water-movement body is identical in both (moveRelative 0.01, move SELF, scale 0.9, sink -0.005 with no target); 1.21.5 only removed the isControlledByLocalInstance() gate. On the server the gate is always true (no controlling player -> isEffectiveAi -> true server-side), and the Rust ticks mobs only on the server thread (creatures.rs tick_creatures -> ai.rs server_ai_step -> travel), so the Rust's aquatic::travel (in-water -> custom movement, 0.01/0.9/-0.005) matches 1.21.4 server-side exactly. defineSynchedData identical (FROM_BUCKET false); readAdditionalSaveData getBooleanOr(false) vs getBoolean, same default. MushroomCow$Variant: 1.21.5 added a DEFAULT variant + byId(int); 1.21.4 has RED/BROWN by name - Rust render.rs picks mooshroom_brown when extra.variant == 1, else red. Salmon$Variant: same (SMALL/MEDIUM/LARGE by name; Rust render.rs maps 0 -> small, 2 -> large, else medium). Wolf$WolfPackData is 1.21.4-only (extends AgeableMobGroupData, one 'type' Holder<WolfVariant> field - the spawn group data); 1.21.5 removed it. Rust tame.rs:33 wolf_variant_for picks the variant by biome, the 1.21.4 form. No Rust change.",
+      "classes": [
+        "MushroomCow$Variant",
+        "AbstractFish",
+        "Salmon$Variant",
+        "Wolf$WolfPackData"
+      ]
+    },
+    "239": {
+      "module": "world/level/chunk (widely named)",
+      "verdict": "carry-over",
+      "evidence": "UpgradeData: 1.21.5 rewrote the serialisation with codecs (BLOCK_TICKS_CODEC/FLUID_TICKS_CODEC, tick loading in the constructor); 1.21.4 has the manual loadTicks/write lambdas. The stored keys are the same (neighbor_block_ticks, neighbor_fluid_ticks, Indices, Sides). The Rust's datafix layer handles the tag form directly (chunk_flatten.rs:612 writes UpgradeData, chunk_leaves.rs:436 reads it, fixes_cliffs.rs:1524 migrates block/fluid_ticks to neighbor_*). ChunkSource.updateChunkForced returns void in 1.21.4 vs boolean in 1.21.5 and getForceLoadedChunks is 1.21.5-only - API shape; the Rust's forced chunks live in streaming.forced (levels.rs). ImposterProtoChunk.setBlockState is the boolean -> int flags widening (same as items 197/222). No Rust change.",
+      "classes": [
+        "UpgradeData",
+        "ChunkSource",
+        "ImposterProtoChunk"
+      ]
+    },
+    "240": {
+      "module": "world/level/levelgen/structure/templatesystem (widely named)",
+      "verdict": "carry-over",
+      "evidence": "StructureTemplate$JigsawBlockInfo.pool() is a ResourceLocation in 1.21.4 vs a ResourceKey<StructureTemplatePool> in 1.21.5 (same location string); of() reads name/pool/target as strings via getString + ResourceLocation.parse in 1.21.4 vs codec reads with EMPTY/EMPTY_ID defaults in 1.21.5. Rust jigsaw.rs:78 stores pool as a plain name string (Cow<str>) - the 1.21.4 form. StructureTemplateManager loadFromTestStructures/listTestStructures differ only by testStructuresDir being a String (+ Paths.get) in 1.21.4 vs a Path in 1.21.5 - the same test-structures folder; the Rust has no test-structure loading. No Rust change.",
+      "classes": [
+        "StructureTemplate$JigsawBlockInfo",
+        "StructureTemplateManager"
+      ]
     }
   }
 }
