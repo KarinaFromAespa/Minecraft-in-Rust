@@ -4350,3 +4350,63 @@ shape for the review batches.
   `CustomRecipe` in 1.21.4 (1 filled map + 1..8 empty maps),
   modelled by the Rust as the same Transmute arm with
   `add_count`, which matches. Rank 2: 217/348.
+
+  Item 173 (crates/horizon-world/src/level/data.rs):
+  carry-over. `WallBlock`: 1.21.5 renamed the wall properties'
+  Java fields (`NORTH_WALL` to `NORTH`, `SOUTH_WALL` to
+  `SOUTH`, `EAST_WALL` to `EAST`, `WEST_WALL` to `WEST`) and
+  refactored `makeShapes` from a `Map<BlockState,
+  VoxelShape>` to a `Function<BlockState, VoxelShape>`; the
+  state property names are `north` / `south` / `east` /
+  `west` in both jars' `cobblestone_wall.json` blockstates,
+  and `connectsTo`, `sideUpdate`, `topUpdate`,
+  `updateSides`, `shouldRaisePost`, `makeWallState` and the
+  shape geometry are identical. The Rust's `wall_shape`
+  uses the version-neutral property names via
+  `direction_prop` and the `wall_cover` test boxes, so
+  nothing is to port. Rank 2: 218/348.
+
+  Item 174 (crates/horizon-protocol/src/packets/play.rs):
+  carry-over. `FriendlyByteBuf`: the wire format is
+  unchanged (the long-array helpers moved to static methods
+  in 1.21.5, `writeBlockHitResult` is identical).
+  `HashedStack` and `ProtocolInfo$Details` are new in 1.21.5
+  and absent from the 1.21.4 jars: the 1.21.4 wire sends
+  full stacks. The Rust already implements the 1.21.4 form
+  — `ContainerSetContent` and `ContainerSetSlot` read full
+  `Slot` stacks, `ContainerClick`'s `ChangedSlots` reads
+  full stacks (with comments noting the 1.21.4 form), and
+  the hashed-stack machinery in `item/hash.rs` and
+  `hash_ops.rs` is not wired into the 1.21.4 play path.
+  Rank 2: 219/348.
+
+  Item 175 (crates/horizon-client-render/src/options_ui.rs):
+  carry-over. `GameNarrator`: 1.21.5 only inlined the
+  private `narrateMessage` helper (check the narrator is
+  active, then `say`) into `say`, `sayChat`, `sayNow` and
+  `updateNarratorStatus`; the behaviour is identical. The
+  Rust's `game/narrator.rs::update_status` implements
+  `updateNarratorStatus` faithfully (clear, say
+  "options.narrator : <status>", the `NARRATOR_TOGGLE`
+  toast with enabled/disabled/notavailable via
+  `horizon_narrator::toast`), and
+  `horizon_narrator::update_status` clears and narrates.
+  Rank 2: 220/348.
+
+  Item 176 (crates/horizon-client/src/game/spill.rs):
+  carry-over, with a comment fix. `AbstractFurnaceBlockEntity`:
+  `preRemoveSideEffects` is 1.21.5-only
+  (`BlockEntity.preRemoveSideEffects` does not exist in
+  1.21.4 at all); in 1.21.4 the same effects run from
+  `AbstractFurnaceBlock.onRemove` (`Containers.dropContents`
+  plus `getRecipesToAwardAndPopExperience` at
+  `Vec3.atCenterOf`), which is exactly what the Rust's
+  `spill.rs` does (drop the slots, award the experience
+  orbs at the block centre). `RecipesUsed` is a plain
+  recipe-id to count compound in both versions' saves
+  (1.21.5 writes it via `RECIPES_USED_CODEC`, 1.21.4 builds
+  the same compound by hand) and the Rust reads and writes
+  that form; the timer loads default to 0 in both
+  (`getShort` vs `getShortOr(key, 0)`). Comment fixed:
+  `spill.rs` now cites `AbstractFurnaceBlock.onRemove`
+  instead of the 1.21.5 method. Rank 2: 221/348.

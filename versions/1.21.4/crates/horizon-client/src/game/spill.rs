@@ -603,8 +603,9 @@ impl GameLevel<'_> {
                         let stack = items.get(slot).cloned().flatten();
                         self.drop_item_stack(pos, stack);
                     }
-                    // AbstractFurnaceBlockEntity.preRemoveSideEffects: then the
-                    // experience of what it made, at the block's centre.
+                    // AbstractFurnaceBlock.onRemove (1.21.4 has no
+                    // BlockEntity.preRemoveSideEffects): then the experience
+                    // of what it made, at the block's centre.
                     if furnace && let Some(BlockEntity::Furnace(f)) = &entity {
                         let at = [
                             f64::from(pos.x) + 0.5,

@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": 2,
-  "batch": 48,
-  "note": "Batch 48 closed (2026-11-27): item 171 ported (the 1.21.5 BlocksAttacks component does not exist in 1.21.4, so shields could not be raised at all \u2014 the shield's component is now synthesized from the hardcoded 1.21.4 values, axe and warden attackers disable it for a flat 5 seconds, and a blocked melee hit knocks the attacker back 0.5 as blockedByShield does; the ravager stun itself is unchanged); items 169, 170 and 172 carry-over (the entity outline, the dripstone drip and the transmute recipe all match; the transmute damage reset and the item-identity match rule are recorded, not fixed). Rank 2: 217/348.",
+  "batch": 49,
+  "note": "Batch 49 closed (2026-11-27): items 173-176 all carry-over (WallBlock is a field rename plus a makeShapes refactor with identical logic and the same state property names; HashedStack and ProtocolInfo$Details are 1.21.5-only and the 1.21.4 container packets already send full stacks; GameNarrator is a helper inlining; the furnace's pre-remove effects run from AbstractFurnaceBlock.onRemove in 1.21.4, which the Rust already implements, with a comment fix in spill.rs). Rank 2: 221/348.",
   "items": {
     "90": {
       "module": "crates/horizon-client-render/src/block_entity_render.rs",
@@ -2950,6 +2950,40 @@
       "classes": [
         "Ravager",
         "BlocksAttacks$ItemDamageFunction"
+      ]
+    },
+    "173": {
+      "module": "crates/horizon-world/src/level/data.rs",
+      "verdict": "carry-over",
+      "evidence": "WallBlock: 1.21.5 renamed the wall properties' Java fields (NORTH_WALL to NORTH, SOUTH_WALL to SOUTH, EAST_WALL to EAST, WEST_WALL to WEST) and refactored makeShapes from a Map<BlockState, VoxelShape> to a Function; the state property names are north/south/east/west in both jars' cobblestone_wall.json blockstates, and connectsTo, sideUpdate, topUpdate, updateSides, shouldRaisePost, makeWallState and the shape geometry are identical. The Rust's wall_shape uses the version-neutral property names via direction_prop and the wall_cover test boxes, so nothing is to port.",
+      "classes": [
+        "WallBlock"
+      ]
+    },
+    "174": {
+      "module": "crates/horizon-protocol/src/packets/play.rs",
+      "verdict": "carry-over",
+      "evidence": "FriendlyByteBuf: the wire format is unchanged (the long-array helpers moved to static methods in 1.21.5, writeBlockHitResult is identical). HashedStack and ProtocolInfo$Details are new in 1.21.5 and absent from the 1.21.4 jars: the 1.21.4 wire sends full stacks. The Rust already implements the 1.21.4 form \u2014 ContainerSetContent and ContainerSetSlot read full Slot stacks, ContainerClick's ChangedSlots reads full stacks (with comments noting the 1.21.4 form), and the hashed-stack machinery in item/hash.rs and hash_ops.rs is not wired into the 1.21.4 play path.",
+      "classes": [
+        "FriendlyByteBuf",
+        "HashedStack",
+        "ProtocolInfo$Details"
+      ]
+    },
+    "175": {
+      "module": "crates/horizon-client-render/src/options_ui.rs",
+      "verdict": "carry-over",
+      "evidence": "GameNarrator: 1.21.5 only inlined the private narrateMessage helper (check the narrator is active, then say) into say, sayChat, sayNow and updateNarratorStatus; the behaviour is identical. The Rust's game/narrator.rs update_status implements updateNarratorStatus faithfully (clear, say 'options.narrator : <status>', the NARRATOR_TOGGLE toast with enabled/disabled/notavailable via horizon_narrator::toast), and horizon_narrator::update_status clears and narrates.",
+      "classes": [
+        "GameNarrator"
+      ]
+    },
+    "176": {
+      "module": "crates/horizon-client/src/game/spill.rs",
+      "verdict": "carry-over",
+      "evidence": "AbstractFurnaceBlockEntity: preRemoveSideEffects is 1.21.5-only (BlockEntity.preRemoveSideEffects does not exist in 1.21.4 at all); in 1.21.4 the same effects run from AbstractFurnaceBlock.onRemove (Containers.dropContents plus getRecipesToAwardAndPopExperience at Vec3.atCenterOf), which is exactly what the Rust's spill.rs does (drop the slots, award the experience orbs at the block centre). RecipesUsed is a plain recipe-id to count compound in both versions' saves (1.21.5 writes it via RECIPES_USED_CODEC, 1.21.4 builds the same compound by hand) and the Rust reads and writes that form; the timer loads default to 0 in both (getShort vs getShortOr(key, 0)). Comment fixed: spill.rs now cites AbstractFurnaceBlock.onRemove instead of the 1.21.5 method.",
+      "classes": [
+        "AbstractFurnaceBlockEntity"
       ]
     }
   }

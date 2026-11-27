@@ -1,6 +1,6 @@
 {
   "generated_from": "16f750e52beb6ae65e838e3289c94d309c5bce0f147fb2eaf3fe4e5b7279fb0d",
-  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 217/348 (2026-11-27, batch 48: items 169-172 \u2014 171 ported (shields work in 1.21.4: the missing blocks_attacks component is synthesized, axes and wardens disable for 5s, a blocked melee hit knocks the attacker back), 169/170/172 carry-over). Rank 3/4/5 open.",
+  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 221/348 (2026-11-27, batch 49: items 173-176 \u2014 all carry-over: WallBlock is a Java-field rename plus a makeShapes Map-to-Function refactor with identical logic, HashedStack is 1.21.5-only and the 1.21.4 wire already sends full stacks, GameNarrator is a helper inlining, furnace pre-remove effects run from AbstractFurnaceBlock.onRemove in 1.21.4 with a comment fix in spill.rs). Rank 3/4/5 open.",
   "rank1": {
     "accepted": [],
     "closed": 10,
@@ -8,7 +8,7 @@
   },
   "rank2": {
     "accepted": [],
-    "closed": 217,
+    "closed": 221,
     "total": 348
   },
   "rank3": {
