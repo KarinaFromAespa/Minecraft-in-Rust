@@ -200,10 +200,10 @@ impl HandWorld for Probe<'_> {
         speed / hardness / if harvest { 30.0 } else { 100.0 }
     }
     fn destroy_block(&mut self, pos: [i32; 3]) -> bool {
-        let item = self.stack(Hand::Main).effective().0;
-        // Item.canDestroyBlock: swords' tools cannot destroy in creative.
-        let sword = item.ends_with("_sword");
-        let ok = !(sword && self.creative) && !self.is_air(pos);
+        // 1.21.4 has no `Item.canDestroyBlock`: a creative player destroys
+        // any block, even with a sword. (1.21.5's
+        // `can_destroy_blocks_in_creative` gate was removed with item 119.)
+        let ok = !self.is_air(pos);
         if ok {
             self.blocks.insert(pos, "minecraft:air".into());
         }

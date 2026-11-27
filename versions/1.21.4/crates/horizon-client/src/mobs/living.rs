@@ -1351,8 +1351,13 @@ impl Mob {
             self.mod_block_fall(contact, landed, 0.0);
             return false;
         }
-        let power = distance + 1.0e-6 - self.kind.safe_fall_distance;
-        let mut damage = (power * f64::from(modifier) * self.kind.fall_damage_multiplier).floor();
+        // `LivingEntity.calculateFallDamage` in 1.21.4: `Mth.ceil` of
+        // `(fallDistance - safe) * multiplier * fallDamageMultiplier`,
+        // with the subtraction and the first multiplication in float.
+        // 1.21.5 moved this to `calculateFallPower` (double, +1e-6) and
+        // floors instead.
+        let power = (distance as f32 - self.kind.safe_fall_distance as f32) * modifier;
+        let mut damage = (f64::from(power) * self.kind.fall_damage_multiplier).ceil();
         // Frog.calculateFallDamage: five points less than the base damage;
         // Goat.calculateFallDamage: ten, so a long jump down a ledge is safe.
         match self.species() {

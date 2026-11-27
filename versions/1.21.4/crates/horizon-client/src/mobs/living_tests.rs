@@ -228,6 +228,103 @@ fn a_mob_bounces_off_a_bouncy_block_and_not_off_stone() {
     }
 }
 
+/// `LivingEntity.calculateFallDamage` in 1.21.4 ceils the fall power, so a
+/// 4.5-block fall onto stone costs a pig 2 health (10 -> 8); 1.21.5's
+/// `calculateFallPower` floors it instead (1 health). The pig is already on
+/// the ground, so the move adds no distance to the 4.5 set below.
+#[test]
+fn a_half_block_fall_costs_the_ceiled_damage() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../.local/horizon-client")
+        .join(horizon_core::VANILLA_VERSION);
+    if !root.join("entity-types.json").exists() || !root.join("movement-properties.nbt").exists() {
+        return;
+    }
+    let assets = crate::assets::Assets::load(&root).unwrap();
+    let registry = assets.registry;
+    let facts = crate::blocks::BlockFacts::load(&root, registry).unwrap();
+    let motion = crate::motion::MotionResources::load(&root, &assets).unwrap();
+    let data = super::super::MobData::load(&root, &facts);
+    let types = super::super::MobTypes::load(&root).unwrap();
+    let biomes = crate::biome::Biomes::load(&root).unwrap();
+    let items = crate::items::Items::load(
+        &root,
+        registry,
+        &facts,
+        &horizon_world::loot::PackOverlay::NONE,
+    )
+    .unwrap();
+    let collision = std::sync::Arc::new(crate::collisions::load(&root, registry).unwrap());
+    let suffocation =
+        crate::mobs::suffocation::bind(collision.clone(), &motion.causes_suffocation).unwrap();
+    let lid_openers = std::collections::HashMap::new();
+    let air = registry.default_state("minecraft:air").unwrap();
+    let mut world = crate::world::World::new(air, 0);
+    world.chunks.insert(
+        (0, 0),
+        std::sync::Arc::new(crate::chunk::Chunk::empty(0, 0)),
+    );
+    let floor = registry.default_state("minecraft:stone").unwrap();
+    for x in 0..=1 {
+        for z in 0..=1 {
+            world.set(x, 0, z, floor).unwrap();
+        }
+    }
+    let w = MobWorld {
+        teams: Default::default(),
+        world: &world,
+        registry,
+        facts: &facts,
+        fluid_tables: &motion.fluids,
+        movement: &motion.blocks,
+        collision: &collision,
+        suffocation: &suffocation,
+        data: &data,
+        player: None,
+        controlling_player_movement: None,
+        nearest_player: None,
+        others: &[],
+        dragon: None,
+        leash_boats: &[],
+        who_lookup: None,
+        others_grid: None,
+        others_index: None,
+        others_villagers: None,
+        others_solid: None,
+        daylight: true,
+        monsters_burn: false,
+        game_time: 1000,
+        day_time: 18000,
+        raining: false,
+        thundering: false,
+        level: horizon_core::LevelKey::OVERWORLD,
+        block_tags: &items.block_tags,
+        landing: &motion.landing,
+        biomes: &biomes,
+        universal_anger: false,
+        mob_griefing: true,
+        mob_drops: true,
+        max_entity_cramming: 24,
+        difficulty: super::super::spawning::LocalDifficulty::new(2, 18000, 0, 0.0),
+        dimension_type: horizon_world::dimension_type::DimensionFacts::overworld(),
+        world_seed: 0,
+        sea_level: 63,
+        items: Some(&items),
+        lid_openers: &lid_openers,
+        mod_effects: None,
+        border: None,
+    };
+    let kind = std::sync::Arc::new(types.types["minecraft:pig"].clone());
+    let mut m = Mob::new(1, kind, Vec3::new(0.5, 1.0, 0.5), 0.0);
+    m.velocity = Vec3::new(0.0, -1.0, 0.0);
+    m.fall_distance = 4.5;
+    m.do_move(&w, &mut Vec::new());
+    assert_eq!(
+        m.health, 8.0,
+        "a 4.5-block fall costs ceil(4.5 - 3) = 2, not floor = 1"
+    );
+}
+
 /// `LivingEntity.travelInFluid` ends with
 /// `floatInLiquidWhileRidden(FluidTags.ENTITY_FLOATABLE)`: a mount that
 /// carries a passenger, is in `minecraft:can_float_while_ridden` and sits

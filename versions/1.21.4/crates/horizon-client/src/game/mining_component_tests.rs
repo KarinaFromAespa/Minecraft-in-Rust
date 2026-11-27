@@ -186,6 +186,29 @@ fn with_survival_game(f: impl FnOnce(&mut Game<'_>)) {
 
 #[test]
 #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+fn a_sword_breaks_a_bamboo_sapling_at_once() {
+    // `BambooSaplingBlock.getDestroyProgress` in 1.21.4 returns 1.0 when
+    // the main hand holds a sword; 1.21.5 dropped the override. Any other
+    // held item mines it at the ordinary rate (hardness 1.0).
+    with_survival_game(|game| {
+        let registry = game.pack.assets.registry;
+        let pos = [5, 63, 4];
+        let sapling = registry.default_state("minecraft:bamboo_sapling").unwrap();
+        game.world.set(pos[0], pos[1], pos[2], sapling).unwrap();
+        assert!(
+            game.run_command("item replace entity @s weapon.mainhand with minecraft:diamond_sword")
+        );
+        assert_eq!(game.destroy_progress(pos), 1.0);
+        assert!(game.run_command("item replace entity @s weapon.mainhand with minecraft:stick"));
+        assert!(
+            game.destroy_progress(pos) < 1.0,
+            "a stick mines the sapling at the ordinary rate"
+        );
+    });
+}
+
+#[test]
+#[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
 fn efficiency_applies_to_a_same_item_swap() {
     with_survival_game(|game| {
         let registry = game.pack.assets.registry;

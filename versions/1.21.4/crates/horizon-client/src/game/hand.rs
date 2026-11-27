@@ -418,6 +418,19 @@ impl Game<'_> {
         let block_break_speed = self.block_break_speed();
         let state = self.world.block(pos[0], pos[1], pos[2]);
         let facts = self.res.facts().get(state);
+        // `BambooSaplingBlock.getDestroyProgress` in 1.21.4: a sword breaks
+        // the sapling at once. 1.21.5 dropped the override.
+        if &*facts.name == "minecraft:bamboo_sapling"
+            && self.held().is_some_and(|s| {
+                self.res
+                    .items()
+                    .item_tags
+                    .get("minecraft:swords")
+                    .is_some_and(|tag| tag.contains(&*s.item))
+            })
+        {
+            return 1.0;
+        }
         if facts.hardness == -1.0 {
             return 0.0;
         }
@@ -925,16 +938,9 @@ impl HandWorld for GameHands<'_, '_> {
         if self.is_air(pos) {
             return false;
         }
-        // Item.canDestroyBlock: swords, tridents and maces cannot break
-        // blocks in creative.
-        let held = self.game.held().map(|s| s.item.to_string());
-        if self.game.creative
-            && held.is_some_and(|i| {
-                i.ends_with("_sword") || i == "minecraft:trident" || i == "minecraft:mace"
-            })
-        {
-            return false;
-        }
+        // 1.21.4 has no `Item.canDestroyBlock`: a creative player destroys
+        // any block, even with a sword, trident or mace. The 1.21.5-only
+        // `can_destroy_blocks_in_creative` gate was removed with item 119.
         let state = self.game.world.block(pos[0], pos[1], pos[2]);
         self.game.tutorial_destroy(state, 1.0);
         let r = self.game.break_block(pos);

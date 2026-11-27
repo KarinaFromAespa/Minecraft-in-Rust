@@ -3381,3 +3381,78 @@ shape for the review batches.
   1.21.5's portal override returns `getShape`, 1.21.4 has no override
   (base form is the whole block) -- the Rust's `inside_blocks` already
   tests whole-block overlap, the 1.21.4 form. Rank 2: 170/348.
+
+  Item 125 (horizon-client/game/block_items.rs): PORTED.
+  `BambooSaplingBlock.getDestroyProgress` exists ONLY in 1.21.4: a
+  `SwordItem` in the main hand returns 1.0 (instant break), else it
+  delegates to `Block.getDestroyProgress`. 1.21.5 dropped the override.
+  The Rust's `destroy_progress` had no per-block override, so the
+  sapling mined at the ordinary rate (hardness 1.0: `fconst_1` then
+  `strength(1.0F)` in `Blocks`, verified in the 1.21.4 jar). Fix:
+  `destroy_progress` returns 1.0 for `minecraft:bamboo_sapling` when
+  the held item is in the `minecraft:swords` tag (the tag exists in
+  1.21.4 with all six swords), placed before the hardness check as the
+  override is before its super call. Test added:
+  `a_sword_breaks_a_bamboo_sapling_at_once` (#[ignore], needs prepared
+  resources). Incidental item-119 follow-up found while fixing: the
+  first-person `destroy_block` in the same file still had the 1.21.5
+  `Item.canDestroyBlock` guard (creative + sword/trident/mace -> cannot
+  break), which item 119 removed from `game.rs`, `remote.rs` and
+  `guide.rs` but missed here; removed, with the
+  `first_person_probe.rs` mock fixed the same way. The stems carry
+  over: shape construction is prepare-derived, `VegetationBlock` is a
+  pure rename of `BushBlock` (identical method bodies, verified), and
+  `randomTick`/`performBonemeal`/`updateShape` match.
+  `BaseContainerBlockEntity` `CustomName`: 1.21.4 uses the JSON-string
+  form, 1.21.5 the NBT codec form -- the known item-163 gap; the
+  Rust's loader already accepts both forms. Rank 2: 171/348.
+
+  Item 126 (horizon-client/mobs/living.rs): PORTED.
+  `Goat.calculateFallDamage` is `super - 10` in both versions;
+  `Breeze.causeFallDamage` plays `BREEZE_LAND` over 3.0 blocks in
+  both; both were already implemented. The real delta is the BASE
+  formula: 1.21.4 `LivingEntity.calculateFallDamage(float, float)`
+  returns `Mth.ceil((fallDistance - safe) * multiplier *
+  fallDamageMultiplier)` with the subtraction and first multiplication
+  in float; 1.21.5 moved this to `calculateFallPower(double) =
+  fallDistance + 1.0E-6 - safe` and floors the product. The Rust used
+  the 1.21.5 form. Fix: `cause_fall_damage_at` now computes `power =
+  (distance as f32 - safe as f32) * modifier` and `damage =
+  ceil(power as f64 * fallDamageMultiplier)`; the goat -10 / frog -5
+  still apply after it. Test added:
+  `a_half_block_fall_costs_the_ceiled_damage` (a 4.5-block fall onto
+  stone costs a pig ceil(1.5) = 2, health 10 -> 8; runs in CI, returns
+  early without prepared resources locally). The remaining
+  float-vs-double precision is the item-101 tree-wide question. Rank 2:
+  172/348.
+
+  Item 127 (horizon-world/loot.rs): carry-over.
+  `EntityPredicate.matches` is identical except `fallDistance` is
+  float in 1.21.4 vs double in 1.21.5 (item 101's f64 question); the
+  CODEC gains a 16th `components` field in 1.21.5. The Rust's
+  `entity_matches` does not evaluate `movement`/`distance`/`location`/
+  `effects`/`nbt`/`slots` at all -- a pre-existing loot-engine gap
+  identical in both versions, recorded. `ToggleTooltips`: 1.21.5
+  writes ids into `tooltip_display.hidden_components`; 1.21.4 mutates
+  each named component's own `show_in_tooltip` flag in place. The
+  Rust's loot function emits the tree's canonical 1.21.5 form, which
+  the tooltip layer reads; the 1.21.4 form is converted on load by
+  datafix 4307. There is no reverse conversion on save/wire (the
+  v1_21_4 protocol adapter has no tooltip handling) -- recorded as a
+  boundary gap in the same class as item 113's protocol-side
+  `DataComponentPredicate` note. `SetInstrumentFunction`: the Rust
+  already writes the 1.21.4 bare-id form. `SetWrittenBookPagesFunction`:
+  `list_operation` defaults a missing mode to `replace_all`, so a
+  1.21.4 plain pages list replaces all pages. `LootData` is
+  datagen-only. Rank 2: 173/348.
+
+  Item 128 (horizon-world/worldgen/structure/legacy.rs): carry-over.
+  All diffs are codec-form reshuffles with identical NBT and results:
+  `createTag` (`store("BB", CODEC)` vs `encodeStart` +
+  `resultOrPartial` + `ifPresent`), the tag ctor (`getIntOr` vs
+  `getInt`, `read(...).orElseThrow()` vs `parse(...).getOrThrow()`),
+  the template ctor (`getStringOr`/`getIntOr` vs `getString`/`getInt`),
+  `postProcess` (`StructureMode` via `LEGACY_CODEC` vs `getString` +
+  `valueOf`). The Rust's `piece_tag` writes exactly 1.21.4's fields
+  (`id`, `BB` int array of 6, `O`, `GD`), and the readers match the
+  1.21.4 forms. Rank 2: 174/348.
