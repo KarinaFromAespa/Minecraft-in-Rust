@@ -3262,6 +3262,40 @@
       "classes": [
         "WebBlock"
       ]
+    },
+    "210": {
+      "module": "combat.rs",
+      "verdict": "carry-over",
+      "evidence": "CombatTracker: recheckStatus differs only by the static INTENTIONAL_GAME_DESIGN_STYLE init - ClickEvent$OpenUrl/HoverEvent$ShowText (1.21.5) vs ClickEvent(Action.OPEN_URL, ...)/HoverEvent(Action.SHOW_TEXT, ...) (1.21.4), same URL (bugs.mojang.com/browse/MCPE-28723) and hover text. recordDamage differs only by LivingEntity.fallDistance being double in 1.21.5 (d2f) vs float in 1.21.4 - the same float reaches CombatEntry. Rust combat.rs uses fall_distance: f32, matching 1.21.4. No Rust change.",
+      "classes": [
+        "CombatTracker"
+      ]
+    },
+    "211": {
+      "module": "commands/data.rs",
+      "verdict": "carry-over",
+      "evidence": "ComparatorBlockEntity.loadAdditional reads OutputSignal with getIntOr(0) in 1.21.5 vs getInt in 1.21.4 - same 0 default for a missing tag; the constructor's explicit output = 0 in 1.21.5 is the field default. Rust data.rs defaults OutputSignal to 0 when missing (.unwrap_or(0)). No Rust change.",
+      "classes": [
+        "ComparatorBlockEntity"
+      ]
+    },
+    "213": {
+      "module": "machines.rs",
+      "verdict": "ported",
+      "evidence": "HopperBlockEntity.loadAdditional: 1.21.5 reads TransferCooldown with getIntOr(-1); 1.21.4 reads getInt, which is 0 when the tag lacks the key (javap-verified). The Rust's HopperState::load used the 1.21.5 -1 default. PORTED: missing-key default changed from -1 to 0, with a comment citing the jar. The -1 stays in HopperState::default (the constructor sets cooldownTime = -1, javap-verified) and in hopper_cooldown's no-tag fallback (fresh hopper). isOnCooldown is cooldownTime > 0 in 1.21.4, so -1 and 0 are both 'not on cooldown' - the load default only shows in the re-saved NBT. Hopper.isGridAligned differs only by Block.column(16,11,32) vs Block.box(0,11,0,16,32,16) - the same box. cargo check -p horizon-client passed.",
+      "classes": [
+        "Hopper",
+        "HopperBlockEntity"
+      ]
+    },
+    "214": {
+      "module": "mob_gear.rs",
+      "verdict": "carry-over",
+      "evidence": "EquipmentTable lambda$static$2: codec shape only - LootTable.KEY_CODEC (1.21.5) vs ResourceKey.codec(Registries.LOOT_TABLE) (1.21.4), the same loot-table key codec. EnchantmentsByCostWithDifficulty.enchant differs only by EnchantmentInstance record accessors (enchantment()/level()) vs fields (same as item 166). Rust mob_gear.rs resolves equipment tables via spawner::equipment_table. No Rust change.",
+      "classes": [
+        "EquipmentTable",
+        "EnchantmentsByCostWithDifficulty"
+      ]
     }
   }
 }

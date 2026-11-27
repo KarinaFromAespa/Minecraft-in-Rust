@@ -5185,3 +5185,46 @@ shape for the review batches.
   `motion.rs:2064` `web_inside` implements the 1.21.4 constants exactly
   (weaving 0.5 / 0.25 / 0.5, else 0.25 / 0.05 / 0.25), and `mobs/ai.rs:934`
   does the same for mobs. Rank 2: 248/348.
+
+  Item 200 (report id 210, crates/horizon-client/src/game/combat.rs):
+  carry-over. `CombatTracker`: `recheckStatus` differs only by the static
+  `INTENTIONAL_GAME_DESIGN_STYLE` init - `ClickEvent$OpenUrl` /
+  `HoverEvent$ShowText` (1.21.5) vs `ClickEvent(Action.OPEN_URL, ...)` /
+  `HoverEvent(Action.SHOW_TEXT, ...)` (1.21.4), same URL
+  (bugs.mojang.com/browse/MCPE-28723) and hover text. `recordDamage`
+  differs only by `LivingEntity.fallDistance` being `double` in 1.21.5
+  (`d2f`) vs `float` in 1.21.4 - the same float reaches `CombatEntry`.
+  The Rust `combat.rs` uses `fall_distance: f32`, matching 1.21.4.
+  Rank 2: 249/348.
+
+  Item 201 (report id 211,
+  crates/horizon-client/src/game/commands/data.rs): carry-over.
+  `ComparatorBlockEntity.loadAdditional` reads `OutputSignal` with
+  `getIntOr(0)` in 1.21.5 vs `getInt` in 1.21.4 - the same 0 default for a
+  missing tag; the constructor's explicit `output = 0` in 1.21.5 is the
+  field default. The Rust `data.rs` defaults `OutputSignal` to 0 when
+  missing (`.unwrap_or(0)`). Rank 2: 250/348.
+
+  Item 203 (report id 213, crates/horizon-client/src/game/machines.rs):
+  PORTED. `HopperBlockEntity.loadAdditional`: 1.21.5 reads
+  `TransferCooldown` with `getIntOr(-1)`; 1.21.4 reads `getInt`, which is
+  0 when the tag lacks the key (javap-verified). The Rust's
+  `HopperState::load` used the 1.21.5 -1 default - fixed: the missing-key
+  default is now 0, with a comment citing the jar. The -1 stays in
+  `HopperState::default` (the constructor sets `cooldownTime = -1`,
+  javap-verified) and in `hopper_cooldown`'s no-tag fallback (fresh
+  hopper). `isOnCooldown` is `cooldownTime > 0` in 1.21.4, so -1 and 0
+  are both "not on cooldown" - the load default only shows in the
+  re-saved NBT. `Hopper.isGridAligned` differs only by
+  `Block.column(16, 11, 32)` vs `Block.box(0, 11, 0, 16, 32, 16)` - the
+  same box. `cargo check -p horizon-client` passed. Rank 2: 251/348.
+
+  Item 204 (report id 214, crates/horizon-client/src/game/mob_gear.rs):
+  carry-over. `EquipmentTable` `lambda$static$2`: codec shape only -
+  `LootTable.KEY_CODEC` (1.21.5) vs
+  `ResourceKey.codec(Registries.LOOT_TABLE)` (1.21.4), the same
+  loot-table key codec. `EnchantmentsByCostWithDifficulty.enchant`
+  differs only by `EnchantmentInstance` record accessors
+  (`enchantment()` / `level()`) vs fields (same as item 166). The Rust
+  `mob_gear.rs` resolves equipment tables via
+  `spawner::equipment_table`. Rank 2: 252/348.

@@ -45,9 +45,13 @@ impl HopperState {
     /// last tick time starts at zero for the new block entity.
     pub(super) fn load(tag: &horizon_world::nbt::Tag) -> Self {
         let canonical = horizon_client::block_entity_nbt::canonical(tag);
+        // 1.21.4 `HopperBlockEntity.loadAdditional` reads `getInt`, which is
+        // 0 when the tag has no `TransferCooldown`; 1.21.5 widened it to
+        // `getIntOr(-1)`. The -1 is only the fresh-hopper field default
+        // (`HopperState::default`, the constructor), not the load default.
         let cooldown = match canonical.as_ref().and_then(|t| t.get("TransferCooldown")) {
             Some(horizon_world::nbt::Tag::Int(value)) => *value,
-            _ => -1,
+            _ => 0,
         };
         Self {
             cooldown,
