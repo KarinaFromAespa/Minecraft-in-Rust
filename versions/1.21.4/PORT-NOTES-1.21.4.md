@@ -3974,3 +3974,70 @@ shape for the review batches.
   by spacing only; `Visibility` `byName` / `getAllNames`
   (1.21.4) vs `getSerializedName` (1.21.5) is API — the Rust's
   `by_name` / `name()` matches 1.21.4. Rank 2: 201/348.
+
+  Item 157 (crates/horizon-client/src/game/consume.rs):
+  carry-over. `FoodProperties.onConsume` and
+  `TeleportRandomlyConsumeEffect.apply` differ only by the
+  `Level.playSound` overload (`Entity` in 1.21.5 vs `Player`
+  in 1.21.4 as the first argument) — the same sounds at the
+  same positions. The Rust's `TeleportConsume::apply` matches
+  the shared logic (16 attempts, `(nextDouble - 0.5) *
+  diameter` per axis, diameter 16.0 for chorus fruit; a test
+  asserts 16 tries). Rank 2: 202/348.
+
+  Item 158 (crates/horizon-client/src/game/options.rs):
+  carry-over. `FramerateLimitTracker.getFramerateLimit` in
+  1.21.5 is a switch on the factored-out
+  `getThrottleReason()`; 1.21.4 inlines the same decision
+  tree: iconified -> 10; `inactivityFpsLimit` AFK and idle >
+  600000 -> 10, > 60000 -> min(limit, 30); no level and
+  (screen or overlay) -> 60; else the option limit. The Rust's
+  `window.rs::throttle_reason` / `framerate_limit` matches
+  that tree and those constants (`WindowIconified` /
+  `LongAfk` -> 10, `ShortAfk` -> min 30, `OutOfLevelMenu` ->
+  60). The Rust's extra (`!focused && exclusive_fullscreen`)
+  -> `WindowIconified` branch expresses vanilla's
+  iconify-on-focus-loss (GLFW iconifies an exclusive-fullscreen
+  window when it loses focus, so `isIconified` is true there
+  too) — same observable 10 fps cap. `onInputReceived` is
+  identical (`latestInputTime` = now). `Options$2.process`
+  differs only by `getValue` (1.21.5) vs `getValueOrNull`
+  (1.21.4); both return null for a missing key and the
+  `process` methods fall back to the default either way.
+  `isHeavilyThrottled` / `getThrottleReason` are 1.21.5-only
+  names for the factored-out reason; the Rust has its own
+  `ThrottleReason` / `heavily_throttled` with the same values.
+  Rank 2: 203/348.
+
+  Item 159 (crates/horizon-client/src/mobs/witch.rs):
+  carry-over. `Witch.aiStep` differs only by 1.21.5's
+  `PotionContents.forEachEffect` taking a duration-scale
+  float from the `POTION_DURATION_SCALE` component (default
+  1.0); 1.21.4's takes only the consumer. The witch's drink
+  path never uses `forEachEffect` — it applies hardcoded
+  3600-tick durations for water breathing / fire resistance /
+  healing / swiftness — so there is nothing to scale.
+  `performRangedAttack` differs by the `SLOWNESS` (1.21.5
+  field name) vs `MOVEMENT_SLOWDOWN` (1.21.4 field name)
+  rename for the same `minecraft:slowness` effect (the Rust
+  uses the id) plus the `playSound` overload. The player-drink
+  path's `potion_duration_scale` read is the 1.21.5 component
+  with a 1.0 default when absent, matching 1.21.4; the tree
+  already notes there is no `potion_duration_scale` key in
+  1.21.4. Rank 2: 204/348.
+
+  Item 160 (crates/horizon-client/src/projectiles.rs):
+  carry-over. `LlamaSpit.tick`: 1.21.5 discards the spit when
+  `isInWater()`, 1.21.4 when `isInWaterOrBubble()` (=
+  `isInWater() || isInBubbleColumn()`). The Rust discards the
+  spit when `w.in_water(bounds)`, and `in_water` samples the
+  fluid table, which maps `minecraft:bubble_column` to
+  `Fluid::WATER` (same equivalence as item 139) — so a spit in
+  a bubble column is already discarded, matching 1.21.4
+  (vanilla's `BubbleColumnBlock.getFluidState` is water too).
+  `ThrowableProjectile.handleFirstTickBubbleColumn` differs
+  only by 1.21.5's `InsideBlockEffectApplier` parameter to
+  `BlockState.entityInside`; the Rust implements the first-tick
+  bubble-column push (`first_tick_bubble_column`, tested by
+  `a_throwable_spawned_in_a_bubble_column_is_pushed_on_its_first_tick`).
+  Rank 2: 205/348.
