@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": 2,
-  "batch": 77,
-  "note": "Batch 77 closed (2026-11-27): all carry-over, no code changes \u2014 316 shape rotation is 1.21.5-only API, absent from 1.21.4 and the Rust alike; 319 TagType.isValue deleted in 1.21.5; 332 Main gains only --renderDebugLabels; 333 transformNormal Vector3fc widening. Rank 2 now 324/348. Prior: Batch 76 closed (2026-11-27): all carry-over, no code changes \u2014 312 WorldCarver setBlockState 3-arg(false) -> 2-arg; 313 StructureCheck NBT Optional A",
+  "batch": 78,
+  "note": "Batch 78 closed (2026-11-27): all carry-over, no code changes \u2014 334 conditional item properties identical; 335 Quadrant is 1.21.5-only (shape-rotation API); 336 Realms flow offsets only; 337 BlockStateParser TagParser static-method refactor. Rank 2 now 328/348. Prior: Batch 77 closed (2026-11-27): all carry-over, no code changes \u2014 316 shape rotation is 1.21.5-only API, absent from 1.21.4 and the Rust alike; 319 TagT",
   "items": {
     "90": {
       "module": "crates/horizon-client-render/src/block_entity_render.rs",
@@ -3939,6 +3939,38 @@
       "evidence": "ModelPart$Cube: the only diff is PoseStack$Pose.transformNormal(Vector3f, Vector3f) -> transformNormal(Vector3fc, Vector3f) \u2014 the first parameter widened from Vector3f to the Vector3fc interface, the same pattern as batch 73's Quaternionf -> Quaternionfc widening. No behaviour change; the Rust has its own math and no JOML calls.",
       "classes": [
         "ModelPart$Cube"
+      ]
+    },
+    "334": {
+      "module": "widely named: client/renderer/item/properties/conditional",
+      "verdict": "carry-over",
+      "evidence": "ConditionalItemModelProperties: the normalized diff is 7 lines, all branch-target renumbering \u2014 the bootstrap list (custom_model_data, using_item, broken, ...) is identical in both versions. No behaviour change.",
+      "classes": [
+        "ConditionalItemModelProperties"
+      ]
+    },
+    "335": {
+      "module": "widely named: com/mojang/math",
+      "verdict": "carry-over",
+      "evidence": "Quadrant: the class does not exist in 1.21.4 at all (empty 1.21.4 dump) \u2014 a new 1.21.5 enum (R0/R90/R180/R270 + shift, with a CODEC) used by the new OctahedralGroup.fromXYAngles(Quadrant, Quadrant), part of the same 1.21.5 shape-rotation API family as item 316 (DiscreteVoxelShape.rotate). The Rust has no Quadrant; its rotation is the 1.21.4-form Rotation enum (worldgen/structure.rs). Correctly absent for 1.21.4.",
+      "classes": [
+        "Quadrant"
+      ]
+    },
+    "336": {
+      "module": "widely named: com/mojang/realmsclient/client/worldupload",
+      "verdict": "carry-over",
+      "evidence": "RealmsCreateWorldFlow: the normalized diff is 12 lines, all branch-target renumbering. No behaviour change.",
+      "classes": [
+        "RealmsCreateWorldFlow"
+      ]
+    },
+    "337": {
+      "module": "widely named: commands/arguments/blocks",
+      "verdict": "carry-over",
+      "evidence": "BlockStateParser: the only change is new TagParser(reader).readStruct() in 1.21.4 -> TagParser.parseCompoundAsArgument(reader) in 1.21.5 \u2014 the same parse via a static-method refactor of the TagParser API. The Rust's horizon-command block.rs parses the NBT tail (OpenNbt state, nbt: Option<String>) with its own parser.",
+      "classes": [
+        "BlockStateParser"
       ]
     }
   }

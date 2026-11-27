@@ -6108,3 +6108,34 @@ shape for the review batches.
   from `Vector3f` to the `Vector3fc` interface, the same pattern as
   batch 73's `Quaternionf` -> `Quaternionfc` widening. No behaviour
   change; the Rust has its own math and no JOML calls. Rank 2: 324/348.
+
+  Item 324 (report id 334, widely named:
+  client/renderer/item/properties/conditional): carry-over.
+  `ConditionalItemModelProperties`: the normalized diff is 7 lines, all
+  branch-target renumbering — the bootstrap list (`custom_model_data`,
+  `using_item`, `broken`, ...) is identical in both versions. No
+  behaviour change. Rank 2: 325/348.
+
+  Item 325 (report id 335, widely named: com/mojang/math): carry-over.
+  `Quadrant`: the class does not exist in 1.21.4 at all (empty 1.21.4
+  dump) — a new 1.21.5 enum (`R0` / `R90` / `R180` / `R270` + `shift`,
+  with a `CODEC`) used by the new
+  `OctahedralGroup.fromXYAngles(Quadrant, Quadrant)`, part of the same
+  1.21.5 shape-rotation API family as item 316
+  (`DiscreteVoxelShape.rotate`). The Rust has no `Quadrant`; its
+  rotation is the 1.21.4-form `Rotation` enum
+  (`worldgen/structure.rs`). Correctly absent for 1.21.4.
+  Rank 2: 326/348.
+
+  Item 326 (report id 336, widely named:
+  com/mojang/realmsclient/client/worldupload): carry-over.
+  `RealmsCreateWorldFlow`: the normalized diff is 12 lines, all
+  branch-target renumbering. No behaviour change. Rank 2: 327/348.
+
+  Item 327 (report id 337, widely named: commands/arguments/blocks):
+  carry-over. `BlockStateParser`: the only change is
+  `new TagParser(reader).readStruct()` in 1.21.4 ->
+  `TagParser.parseCompoundAsArgument(reader)` in 1.21.5 — the same parse
+  via a static-method refactor of the `TagParser` API. The Rust's
+  `horizon-command` `block.rs` parses the NBT tail (`OpenNbt` state,
+  `nbt: Option<String>`) with its own parser. Rank 2: 328/348.
