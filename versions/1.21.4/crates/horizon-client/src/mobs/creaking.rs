@@ -198,11 +198,10 @@ pub fn update(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
         m.health = 0.0;
     }
     // hurtServer set the invulnerability clock since the last tick: entity
-    // event 66.
+    // event 66. 1.21.4 posts no game event here (1.21.5 added
+    // `gameEvent(ENTITY_ACTION)` right after the broadcast).
     if m.extra.ints[INVULNERABLE] == INVULNERABILITY_TICKS {
         broadcast(m, 66, events);
-        // hurtServer: `gameEvent(ENTITY_ACTION)` right after the entity event.
-        entity_action(m, events);
     }
     animate(m);
     if m.extra.counter & HURT != 0 {

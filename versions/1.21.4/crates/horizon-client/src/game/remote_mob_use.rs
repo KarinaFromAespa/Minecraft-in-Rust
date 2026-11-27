@@ -7,7 +7,7 @@ use super::Game;
 use horizon_client::actions::Action;
 use horizon_client::{
     first_person::Hand,
-    mobs::{Mob, Species, armadillo, equine, llama, nautilus, panda, villager},
+    mobs::{Mob, Species, armadillo, creaking, equine, llama, nautilus, panda, villager},
 };
 
 impl Game<'_> {
@@ -34,9 +34,14 @@ impl Game<'_> {
         let item = stack.map_or("", |s| &*s.item);
         let baby = m.is_baby();
         // Mob.checkAndHandleImportantInteractions: a lead, a named name tag,
-        // a spawn egg of the mob's own kind.
+        // a spawn egg of the mob's own kind. 1.21.4's `NameTagItem` checks
+        // `canBeNameTagged`, so a heart-bound creaking does not take the tag
+        // (1.21.5 dropped the check).
+        let named_tag = item == "minecraft:name_tag"
+            && stack.is_some_and(|s| s.custom_name().is_some())
+            && !(m.species() == Species::Creaking && creaking::heart_bound(m));
         if item == "minecraft:lead"
-            || item == "minecraft:name_tag" && stack.is_some_and(|s| s.custom_name().is_some())
+            || named_tag
             || item.strip_suffix("_spawn_egg") == Some(m.kind.id.as_str())
         {
             return true;

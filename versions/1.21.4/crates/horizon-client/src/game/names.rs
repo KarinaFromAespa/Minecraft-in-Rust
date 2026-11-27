@@ -140,6 +140,15 @@ impl Game<'_> {
         if !m.alive() {
             return false;
         }
+        // `Creaking.canBeNameTagged` (1.21.4 only): a heart-bound creaking
+        // cannot be named -- `LivingEntity.canBeNameTagged` is plain true
+        // for every other mob, and 1.21.5 dropped the check from
+        // `NameTagItem` entirely.
+        if m.species() == horizon_client::mobs::Species::Creaking
+            && horizon_client::mobs::creaking::heart_bound(m)
+        {
+            return false;
+        }
         let entity_id = m.id;
         let entity_name = name.clone();
         m.custom_name = Some(name);

@@ -113,6 +113,8 @@ mod copper_golems;
 mod core_tests;
 mod cosmetics;
 mod creaking;
+#[cfg(test)]
+mod creaking_name_tag_tests;
 mod creative_hotbar;
 mod creative_screen;
 mod creatures;

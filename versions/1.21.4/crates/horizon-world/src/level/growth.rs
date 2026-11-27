@@ -371,14 +371,14 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
         None
     }
-    /// `TreeGrower.removeSapling`: the fluid's legacy block, flags 818.
+    /// `TreeGrower.removeSapling`: the fluid's legacy block, flags 4
+    /// (`UPDATE_INVISIBLE`) in 1.21.4. 1.21.5 uses 260 (`UPDATE_NONE`, which
+    /// additionally skips block-entity side effects); the mega path sets AIR
+    /// directly, which is the same here because a sapling is never
+    /// waterlogged, so its fluid's legacy block is always air.
     fn remove_sapling(&mut self, pos: BlockPos) {
         let empty = self.b.legacy_block(self.fluid_at(pos));
-        self.set_block(
-            pos,
-            empty,
-            flags::UPDATE_SKIP_ALL_SIDEEFFECTS | flags::UPDATE_CLIENTS,
-        );
+        self.set_block(pos, empty, flags::UPDATE_INVISIBLE);
     }
     /// `TreeGrower.growTree`.
     pub(crate) fn grow_tree(
@@ -398,7 +398,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 return true;
             }
             for &(s, p) in &around {
-                self.set_block(p, s, flags::UPDATE_NONE);
+                self.set_block(p, s, flags::UPDATE_INVISIBLE);
             }
             return false;
         }
@@ -418,7 +418,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         if self.place_configured_feature(feature, pos) {
             return true;
         }
-        self.set_block(pos, state, flags::UPDATE_NONE);
+        self.set_block(pos, state, flags::UPDATE_INVISIBLE);
         false
     }
     /// `TreeGrower.canGrow` (draws as vanilla: feature, then mega feature).
@@ -456,7 +456,15 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     pub(crate) fn advance_tree(&mut self, pos: BlockPos, state: BlockStateId) {
         let b = self.b;
         if b.table.int(state, b.props.stage) == 0 {
-            self.set_block(pos, b.table.cycle(state, b.props.stage), flags::UPDATE_NONE);
+            // 1.21.4 cycles the stage with flags 4 (`UPDATE_INVISIBLE`);
+            // 1.21.5 uses 260 (`UPDATE_NONE`, which additionally skips
+            // block-entity side effects — unobservable for a sapling, which
+            // has no block entity).
+            self.set_block(
+                pos,
+                b.table.cycle(state, b.props.stage),
+                flags::UPDATE_INVISIBLE,
+            );
             return;
         }
         let Some(name) = b.data(state).feature.clone() else {

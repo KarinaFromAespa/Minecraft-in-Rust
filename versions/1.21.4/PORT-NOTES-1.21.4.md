@@ -3516,3 +3516,80 @@ shape for the review batches.
   `PlayerEnderChestContainer.fromTag`'s `getCompoundOrEmpty` /
   `getByteOr` reshuffle matches the Rust's `decode_items` (missing
   Slot defaults to 0, out-of-range slots skipped). Rank 2: 178/348.
+
+  Item 133 (crates/horizon-client/src/mobs/creaking.rs): PORTED.
+  `Creaking.hurtServer` in 1.21.5 emits `gameEvent(ENTITY_ACTION)`
+  after `broadcastEntityEvent(66)`; 1.21.4 goes straight to
+  `level.getBlockEntity(home)`, so the game-event call in the Rust
+  hurtServer echo was removed (the aiStep/can-move `ENTITY_ACTION`
+  exists in both versions and stays; `activate`/`deactivate` still
+  post it, pinned by `activating_and_deactivating_post_entity_action`).
+  `Creaking.canBeNameTagged` exists ONLY in 1.21.4 (heart-bound ->
+  false); 1.21.5 dropped the check from
+  `NameTagItem.interactLivingEntity`, so a heart-bound creaking takes
+  a name tag there but not in 1.21.4. Fixed: `game/names.rs`
+  `name_mob` refuses a heart-bound creaking, and
+  `game/remote_mob_use.rs` client prediction no longer claims the
+  named tag for one. New tests
+  `game/creaking_name_tag_tests.rs` (bound refuses, free takes).
+  Recorded, not fixed: the 1.21.5 Brain additions
+  (`NEAREST_VISIBLE_ATTACKABLE_PLAYERS` memory +
+  `isAttackTargetStillReachable` stop condition, FIGHT registered
+  via `addActivityWithConditions` instead of
+  `addActivityAndRemoveMemoryWhenStopped`) -- the Rust creaking AI
+  is a custom non-Brain implementation, and adding the gate would ADD
+  1.21.5 behaviour; 1.21.4 behaviour is approximated by the generic
+  melee + activate/deactivate. Also the `tearDown` creaking-heart
+  property form (`STATE = AWAKE` enum vs `ACTIVE = true` boolean) --
+  the tree's internal block-state form is the 1.21.5 one (datafix
+  4294 renames `active` -> `creaking_heart_state` in saved data; the
+  wire adapter maps down), a tree-wide/registry-form question out of
+  scope for this item. Rank 2: 179/348.
+
+  Item 134 (crates/horizon-client/src/mobs/illager.rs): carry-over.
+  `EvokerWololoSpellGoal` differs only by the `Sheep` package move
+  (`animal/sheep/Sheep` vs `animal/Sheep`); the wololo target must
+  be a blue sheep and the cast sets it red, which the Rust's
+  `illager.rs` already does (`color == 11`, `MobEvent::Wololo`).
+  `EvokerSummonSpellGoal.performSpellCasting` differs only by
+  `Vex.snapTo` vs `Vex.moveTo` (the 1.21.5 rename of the
+  position+rotation setter); the Rust's `summon_vexes` matches
+  (three vexes at base + (-2..+2, +1, -2..+2), life
+  20*(30+nextInt(90)), `ENTITY_PLACE` game event after each).
+  Rank 2: 180/348.
+
+  Item 135 (crates/horizon-world/src/datafix/dynamic.rs): carry-over.
+  The `Tag.as*()` accessors (`asNumber`, `asByte`, `asString`,
+  `asCompound`, `asList`, ...) are a 1.21.5 API addition; 1.21.4 has
+  `getAsString()` instead. Their semantics match 1.21.4's
+  `NbtOps.getNumberValue` (numeric tags only), verified by javap on
+  both jars, and the Rust's `dynamic.rs` helpers already read numbers
+  the 1.21.4 way. Noted corner, not fixed: 1.21.5 `Tag.asBoolean`
+  maps through `asByte` (byte != 0), so a fractional Float 0.5 reads
+  false, while the Rust's `as_bool_opt` uses `double_value() !=
+  0.0`; no datafix reads a boolean from a float (every `as_bool`
+  caller reads Byte-valued flags), so no real data diverges.
+  Rank 2: 181/348.
+
+  Item 136 (crates/horizon-world/src/level/growth.rs): PORTED.
+  `SaplingBlock.advanceTree` cycles the stage with flags 4 in
+  1.21.4 (`UPDATE_INVISIBLE`) and 260 in 1.21.5 (`UPDATE_NONE`);
+  `TreeGrower.growTree` uses flags 4 for all ten of its `setBlock`
+  calls in 1.21.4 (260 in 1.21.5). The Rust used `UPDATE_NONE`
+  (260) for the stage cycle and both restores, and 818
+  (`UPDATE_SKIP_ALL_SIDEEFFECTS | UPDATE_CLIENTS`) for
+  `remove_sapling` -- 818 sends client updates and skips neighbour
+  shape updates, which 1.21.4 does not. All four sites now use
+  `flags::UPDATE_INVISIBLE`. The mega path sets AIR directly in
+  vanilla while the Rust sets the fluid's legacy block -- the same
+  here because a sapling is never waterlogged. 1.21.4's `growTree`
+  also calls `sendBlockUpdated(pos, getBlockState(pos), legacyBlock,
+  2)` after a successful single-tree placement when the spot is
+  still the legacy block -- not added: the world's `set()` logs
+  every real change into `block_log` and the game broadcasts it at
+  tick end, so the removal already reaches clients in this
+  architecture. Sapling/mushroom shapes are prepare-derived and
+  geometrically identical anyway (`column(12,0,12)` ==
+  `box(2,0,2,14,12,14)`; `column(6,0,6)` ==
+  `box(5,0,5,11,6,11)`); `MushroomBlock.randomTick` differs by
+  whitespace only. Rank 2: 182/348.
