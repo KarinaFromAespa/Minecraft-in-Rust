@@ -1,6 +1,6 @@
 {
   "generated_from": "16f750e52beb6ae65e838e3289c94d309c5bce0f147fb2eaf3fe4e5b7279fb0d",
-  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 272/348 (2026-11-27, batch 64: items 237, 238, 239, 240 \u2014 all carry-over (PiecesContainer NBT accessors; AbstractFish travel gate + fish/mooshroom/salmon/wolf variants; UpgradeData codec rework + ChunkSource forced API; JigsawBlockInfo pool key)). Total 282/548. Next batch 65 = lowest unclosed ordinals (verify against rank2-progress.json). Rank 3/4/5 open.",
+  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 276/348 (2026-11-27, batch 65: items 241, 245, 246, 248 \u2014 all carry-over (custom boss-bar NBT save form; MobEffect blend split with no Rust consumer; BlockBehaviour onRemove/affectNeighbors split + inside-collision shape; 1.21.5 multipart model rewrite vs the 1.21.4 MultiPart form)). Total 286/548. Next batch 66 = lowest unclosed ordinals (verify against rank2-progress.json). Rank 3/4/5 open.",
   "rank1": {
     "accepted": [],
     "closed": 10,
@@ -8,7 +8,7 @@
   },
   "rank2": {
     "accepted": [],
-    "closed": 272,
+    "closed": 276,
     "total": 348
   },
   "rank3": {

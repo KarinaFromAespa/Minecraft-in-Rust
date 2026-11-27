@@ -5463,3 +5463,63 @@ shape for the review batches.
   `String` (+ `Paths.get`) in 1.21.4 vs a `Path` in 1.21.5 - the same
   test-structures folder; the Rust has no test-structure loading.
   Rank 2: 272/348.
+
+  Item 231 (report id 241, crates/horizon-client-core/src/bossbar.rs):
+  carry-over. `CustomBossEvent`: `setPlayers` / `onPlayerDisconnect` /
+  `removePlayer` differ only by alignment; `lambda$getDisplayName$0`
+  only by the `HoverEvent$ShowText` vs `HoverEvent(Action.SHOW_TEXT,
+  ...)` form, same result. The save / load rework is the 1.21.5
+  `Packed` record + codec vs the 1.21.4 direct NBT save / load, but the
+  stored form is the same: `CustomBossEvents.save` writes a compound
+  keyed by the event's text id, each value the event compound with keys
+  Name / Visible / Value / Max / Color / Overlay / DarkenScreen /
+  PlayBossMusic / CreateWorldFog / Players - exactly what the Rust's
+  `BossBars::pack` writes and `unpack` reads (same defaults: Max 100,
+  Value 0, color white, style progress). Rank 2: 273/348.
+
+  Item 235 (report id 245, widely named: world/effect): carry-over.
+  `MobEffect`: 1.21.4 has a single `blendDurationTicks` field
+  (`setBlendDuration(int)`); 1.21.5 split it into blend-in / blend-out
+  / blend-out-advance (`setBlendDuration(int, int, int)`). The only
+  effect with a blend set is nausea in 1.21.5 (150 / 20 / 60); in 1.21.4
+  nausea has none. The Rust has no blend-duration consumer at all (no
+  `blendDuration` anywhere; `potions.rs:69` registers nausea with colour
+  5578058 only), so the split is unobservable in the Rust.
+  `lambda$onEffectAdded$2` differs only by the `playSound` overload
+  (Entity vs Player). `MobEffects.bootstrap` differs only by the field
+  renames (SPEED -> MOVEMENT_SPEED, SLOWNESS -> MOVEMENT_SLOWDOWN,
+  HASTE -> DIG_SPEED, MINING_FATIGUE -> DIG_SLOWDOWN, STRENGTH ->
+  DAMAGE_BOOST, INSTANT_HEALTH -> HEAL, INSTANT_DAMAGE -> HARM,
+  JUMP_BOOST -> JUMP); the registry ids ("speed", "slowness", ...) are
+  unchanged. Rank 2: 274/348.
+
+  Item 236 (report id 246, widely named: world/level/block/state):
+  carry-over. `BlockBehaviour`: 1.21.4 `onRemove` removes the block
+  entity when the old state has one and the new state's block differs
+  (javap-verified); 1.21.5 removed `onRemove` and added the new,
+  empty-base `affectNeighborsAfterRemoval` hook. The Rust's
+  `game.rs:1780` `remove_block_entity` + `level/update.rs:362`
+  implements the 1.21.4 removal flow (`removeBlockEntity` before the
+  neighbours hear of the removal). `getEntityInsideCollisionShape`:
+  both default implementations return `Shapes.block()` (the whole
+  block); only the signature widened (Level -> BlockGetter + Entity).
+  The Rust's `motion.rs:1835` / `entities.rs:1057` /
+  `falling_block.rs:168` / `arrows.rs:1313` cite it as the whole block.
+  `entityInside` is the `InsideBlockEffectApplier` widening (same as
+  item 209). `StateHolder`: `getNullableValue` public -> private,
+  `hasProperty` generic -> wildcard, `equals` / `hashCode` added - API
+  shape; the Rust has its own state model. Rank 2: 275/348.
+
+  Item 238 (report id 248, crates/horizon-assets/src/blockstate/choice.rs):
+  carry-over. The entire `MultiPartModel` hierarchy (`MultiPartModel`,
+  `Selector`, `SharedBakedState`, `Unbaked`, `Unbaked$1`,
+  `Unbaked$1Key`) and `WeightedVariants` are 1.21.5-only - the 1.21.5
+  multipart model rewrite (new `BlockStateModel` API). In 1.21.4 the
+  multipart model is `MultiPart` (`UnbakedBlockStateModel`,
+  `InstantiatedSelector` list, `bake` -> `BakedModel`), and weighted
+  variants are the `Choice<Variant>` weighted selection. The Rust
+  implements the 1.21.4 form: `bind.rs` evaluates multipart selectors
+  by property / value conditions ("unknown multipart property"),
+  `choice.rs:83` keeps multipart as `Vec<Choice<T>>` with per-selector
+  weighted variants and `nextLong` consumption for a multipart root.
+  Rank 2: 276/348.
