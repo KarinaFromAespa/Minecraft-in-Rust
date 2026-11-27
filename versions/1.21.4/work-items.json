@@ -1,6 +1,6 @@
 {
   "generated_from": "16f750e52beb6ae65e838e3289c94d309c5bce0f147fb2eaf3fe4e5b7279fb0d",
-  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 280/348 (2026-11-27, batch 66: items 251, 252, 253, 254 \u2014 all carry-over (predicate builder component rework; Axis.choose/sectionToChunk/getOrThrow additions + Vec3i stream codec; Util alignment + ChatFormatting codecs; CommonLinks/GsonHelper/ExtraCodecs utility rework)). Total 290/548. Next batch 67 = lowest unclosed ordinals (verify against rank2-progress.json). Rank 3/4/5 open.",
+  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 284/348 (2026-11-27, batch 67: items 255, 256, 258, 259 \u2014 all carry-over (Heightmap types + BelowZeroRetrogen + flat source; BlockStateModel 1.21.5 rewrite; component select property is 1.21.5-only; fishing/hurting projectiles + ThrownPotion split)). Total 294/548. Next batch 68 = lowest unclosed ordinals (verify against rank2-progress.json). Rank 3/4/5 open.",
   "rank1": {
     "accepted": [],
     "closed": 10,
@@ -8,7 +8,7 @@
   },
   "rank2": {
     "accepted": [],
-    "closed": 280,
+    "closed": 284,
     "total": 348
   },
   "rank3": {

@@ -5568,3 +5568,58 @@ shape for the review batches.
   `ExtraCodecs`: lambda renumbering, the 1.21.5-only `legacyEnum`
   codec, and the `Matrix4f` -> `Matrix4fc` JOML migration (same as item
   198). `Unit.$values` differs only by alignment. Rank 2: 280/348.
+
+  Item 245 (report id 255, widely named: world/level/levelgen):
+  carry-over. `Heightmap$Types`: the same 6 constants in both, same
+  usages (WORLDGEN / CLIENT / LIVE_WORLD) and same predicates (NOT_AIR,
+  MATERIAL_MOTION_BLOCKING; the two predicate lambdas differ only by
+  alignment). 1.21.5 only added an int id in the constructor (for the
+  new `STREAM_CODEC`) and id-lookup lambdas. `BelowZeroRetrogen`: the
+  codec lambdas differ only by alignment (same keys `target_status` /
+  `missing_bedrock`); `replaceOldBedrock` / `applyBedrockMask` differ
+  only by the `ProtoChunk.setBlockState` 2-arg vs 3-arg (boolean=false)
+  form - the same flags widening as items 197 / 222; `read(CompoundTag)`
+  is the 1.21.4 form, the 1.21.5 codec reads the same keys. The Rust's
+  datafix reads `below_zero_retrogen` (`fixes_c.rs:899`
+  `target_status`). `FlatLevelSource.fillFromNoise` differs only by the
+  same `setBlockState` form + branch offsets; the Rust's
+  `generator.rs:956` / `961` / `1672` implements the superflat layers
+  (`FlatLevelSource.buildTerrain`). Rank 2: 281/348.
+
+  Item 246 (report id 256, crates/horizon-client-render/src/models/catalog.rs):
+  carry-over. The `BlockStateModel` hierarchy (`BlockStateModel`,
+  `SimpleCachedUnbakedRoot`, `Unbaked`, `UnbakedRoot`) is 1.21.5-only -
+  the 1.21.5 model rewrite (new `BlockStateModel` API), the same rewrite
+  as item 248. In 1.21.4 block models load through
+  `UnbakedBlockStateModel` / `BakedModel`, which the Rust's `catalog.rs`
+  implements. `BlockStateModelLoader$LoadedModels` has no methods in
+  either version. Rank 2: 282/348.
+
+  Item 248 (report id 258, widely named:
+  client/renderer/item/properties/select): carry-over.
+  `SelectItemModelProperties.bootstrap`: 1.21.5 registers an additional
+  "component" select property type (`ComponentContents.castType()`)
+  that 1.21.4 lacks. The Rust's `item_model.rs:651` `SelectProperty`
+  implements the 1.21.4 set (`minecraft:has_component`, `charge_type`,
+  `display_context`, `local_time`, `context_dimension`, ...) and has no
+  "component" value-select type. `Type.create`'s rework (`validateCases`
+  extracted, `createCasesFieldCodec`) and the 1.21.5-only `valueCodec()`
+  are codec shape. Rank 2: 283/348.
+
+  Item 249 (report id 259, widely named: world/entity/projectile):
+  carry-over. `FishingHook.getPlayerOwner` / `handleEntityEvent` are
+  identical modulo alignment (owner `instanceof Player`, else null;
+  byte 31 client-side local-player hook); the constructor differs only
+  by the `snapTo` / `moveTo` rename (same as item 203). `lerpTo` is
+  1.21.4-only - the Rust's entity interpolation is generic and
+  `fishing.rs` implements cast / reel / loot, not a hook-specific lerp.
+  `AbstractHurtingProjectile`: the constructor differs only by
+  `snapTo` / `moveTo`; `readAdditionalSaveData` reads
+  `acceleration_power` with `getDouble` guarded by `contains(..., 6)`
+  in 1.21.4 vs `getDoubleOr(..., 0.1)` in 1.21.5 - the same 0.1 default
+  (the field starts at `INITAL_ACCELERATION_POWER`, 0.1, in both; the
+  Rust's `lan/entity.rs:196` / `198` documents `accelerationPower`
+  0.1). `ThrownLingeringPotion` does not exist in 1.21.4 - lingering
+  potions are `ThrownPotion` there (1.21.5 split the class); the Rust's
+  `game/potions.rs:54` has the single `ThrownPotion` form
+  (`splash_water.rs` cites `AbstractThrownPotion`). Rank 2: 284/348.
