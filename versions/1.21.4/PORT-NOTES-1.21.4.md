@@ -5777,3 +5777,50 @@ shape for the review batches.
   `addRecipes` / `removeRecipes` differ only by alignment. The Rust's
   `save.rs:4295` / `4454` reads / writes the `recipeBook` compound via
   `recipe_book::Settings`. Rank 2: 296/348.
+
+  Item 269 (report id 279, widely named:
+  world/entity/ai/attributes): carry-over.
+  `AttributeInstance.save()` / `load()`: the stored form is the same
+  keys in both - id (the attribute's `ResourceLocation` string), base
+  (double), modifiers (a list of `AttributeModifier` compounds). 1.21.4
+  writes / reads them directly (`putString` / `getDouble` / `getList` +
+  `AttributeModifier.save` / `load`); 1.21.5 uses codecs
+  (`TYPE_CODEC`, `AttributeModifier.CODEC` list) with the same keys and
+  the same 0.0 base default. The Rust's
+  `entity_nbt/saved_attributes.rs` reads the same id / modifiers keys.
+  Rank 2: 297/348.
+
+  Item 270 (report id 280, widely named:
+  world/level/levelgen/structure/pools): carry-over.
+  `JigsawPlacement$Placer`: 1.21.4's `readPoolKey` is
+  `lookup.lookup(Pools.createKey(info.pool()))` - the pool location
+  wrapped in a key plus the alias lookup; 1.21.5 inlines the same
+  (`info.pool()` is already a `ResourceKey`) - same resolution, same
+  "Empty or non-existent pool" warn on a missing / empty pool. The
+  Rust's `jigsaw.rs:1017` / `1107` / `1304` has the aliases map and
+  `alias(name)` lookup - the 1.21.4 form.
+  `StructureTemplatePool.getTemplates()` is a 1.21.5-only accessor with
+  no Rust consumer. Rank 2: 298/348.
+
+  Item 271 (report id 281, crates/horizon-client-input/src/window.rs):
+  carry-over. `Window`: the constructor differs only by the
+  `DisplayData` record accessors vs fields (1.21.5 record-ified
+  `DisplayData`) and `Math.max(width, 1)` vs the equivalent `ifle`
+  form - same clamping to >= 1. `updateVsync` differs only by
+  `assertOnRenderThread` vs `assertOnRenderThreadOrInit`.
+  `FramerateLimitTracker$FramerateThrottleReason` is 1.21.5-only as a
+  class, but the Rust's `window.rs` `ThrottleReason` has exactly its
+  five values (None, WindowIconified, LongAfk, ShortAfk,
+  OutOfLevelMenu) with the same limits (LongAfk > 600s, ShortAfk > 60s,
+  iconified / long-AFK -> 10, short-AFK -> min(30), out-of-level menu
+  -> 60) and the same vsync present-mode choice. Rank 2: 299/348.
+
+  Item 276 (report id 286, widely named: client/player): carry-over.
+  `AbstractClientPlayer`: `isCreative()` / `isSpectator()` are
+  1.21.4-only; 1.21.5 replaced them with `gameMode()` returning the
+  `GameType`. The Rust uses the 1.21.4 boolean form (a `creative` bool
+  passed through the player code, `is_spectator` in
+  `entities.rs:2082`), not a `GameType` accessor.
+  `getDeltaMovementLerped` (lerp of the previous tick's delta movement)
+  and `tick` (saving `deltaMovementOnPreviousTick`, then `Player.tick`)
+  differ only by alignment. Rank 2: 300/348.

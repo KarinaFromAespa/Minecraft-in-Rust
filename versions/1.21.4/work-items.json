@@ -1,6 +1,6 @@
 {
   "generated_from": "16f750e52beb6ae65e838e3289c94d309c5bce0f147fb2eaf3fe4e5b7279fb0d",
-  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 296/348 (2026-11-27, batch 70: items 270, 276, 277, 278 \u2014 all carry-over (skeleton goals/Halloween + ghast power default 1; tinted-leaves/firefly particles are 1.21.5-only; trim textureId vs spriteId; recipe-book NBT vs codec, same stored form)). Total 306/548. Next batch 71 = lowest unclosed ordinals (verify against rank2-progress.json). Rank 3/4/5 open.",
+  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 300/348 (2026-11-27, batch 71: items 279, 280, 281, 286 \u2014 all carry-over (attribute NBT vs codec, same keys; jigsaw pool alias lookup; window vsync + throttle reasons; player isCreative/isSpectator vs gameMode)). Total 310/548. Next batch 72 = lowest unclosed ordinals (verify against rank2-progress.json). Rank 3/4/5 open.",
   "rank1": {
     "accepted": [],
     "closed": 10,
@@ -8,7 +8,7 @@
   },
   "rank2": {
     "accepted": [],
-    "closed": 296,
+    "closed": 300,
     "total": 348
   },
   "rank3": {
