@@ -5894,3 +5894,53 @@ shape for the review batches.
   registration its own way (`SkinManager.TextureCache.registerTexture`
   at `skins.rs:693`, `SkinManager.registerTextures` at `:832`).
   `ClientAsset` has 0 methods in both. Rank 2: 304/348.
+
+  Item 283 (report id 293, crates/horizon-client-render/src/test_block.rs):
+  carry-over. `TestBlock` / `TestBlockMode`: both classes are ABSENT
+  from both 1.21.4 jars (javap finds nothing; 1.21.5-only). The Rust's
+  `test_block.rs` (`TestBlockMode` Start/Log/Fail/Accept +
+  `TestBlock` save form), `BlockEntity::TestBlock` wiring and the
+  "minecraft:test_block" NBT mapping are unreachable from vanilla
+  1.21.4 data: the blocks and block-entity types are not registered
+  in 1.21.4 (see the delta section above) and the three test-block
+  packets were removed in commit 65307b5. Removal of the dead support
+  is already recorded as needing its own focused item (rank 2:
+  166/348 and the later entry). Rank 2: 305/348.
+
+  Item 291 (report id 301, widely named: client/gui/screens):
+  carry-over. `DeathScreen`: the only javap diff (52 lines, all
+  bytecode offsets) is `ClickEvent.getAction()` (1.21.4, class method)
+  vs `ClickEvent.action()` (1.21.5, interface method); no behaviour
+  change. The Rust parses click events from JSON into its own
+  `ClickEvent` enum (`component.rs` `parse_click_event`; `chat.rs`
+  handlers), so no Java API is involved. `LoadingOverlay`: identical
+  fields and method signatures in both versions; the only diff is the
+  clear path (`GlStateManager._clearColor` / `_clear` in 1.21.4 vs
+  `GpuDevice` `CommandEncoder.clearColorTexture` in 1.21.5, same
+  colour and effect; the 520 diff lines are offset cascades). The
+  Rust's `draw_loading_overlay` fills `BRAND_BACKGROUND`
+  (`level_loading.rs:415`). Rank 2: 306/348.
+
+  Item 292 (report id 302, widely named: client/renderer/entity/state):
+  carry-over. `SheepRenderState.getWoolColor()` is 1.21.5-only, but
+  its formula is exactly 1.21.4's inline computation in
+  `SheepWoolLayer.render` (25-tick cycle, `floor(ageInTicks)/25 + id`,
+  mod 16, `ARGB.lerp` with `(age%25 + frac)/25`) — the Rust's
+  `jeb_wool_rgb` implements it with tests, and id 37 already
+  jar-verified the 1.21.4 form. Recorded, NOT fixed: the Rust also
+  renders the 1.21.5-only `SheepWoolUndercoatLayer` (class +
+  `sheep_wool_undercoat.png` + `sheep_wool.png` are absent from the
+  1.21.4 jar; 1.21.4 has only `sheep.png` + `sheep_fur.png`) and its
+  wool layer uses the 1.21.5 texture; a sheared dyed sheep keeps the
+  tinted undercoat in the Rust (pinned by the test at
+  `mobs/render.rs:3411-3433`) but shows no tinted layer in 1.21.4.
+  Needs its own focused item (id 37's area; id 37's entry does not
+  mention the undercoat). Rank 2: 307/348.
+
+  Item 293 (report id 303, widely named: client/renderer/entity):
+  carry-over. `DisplayRenderer` / `ThrownItemRenderer`: the only
+  javap diffs are `Quaternionf` -> `Quaternionfc` signature widening
+  (10 + 4 diff lines); no behaviour change. The Rust has text-display
+  rendering (`game/text_displays.rs`) and thrown projectiles
+  (`game/remote_projectiles.rs`, `potions.rs` `remote_thrown_item`).
+  Rank 2: 308/348.

@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": 2,
-  "batch": 72,
-  "note": "LEDGER RECONCILIATION (2026-11-27, Butler): rank2-progress.json re-keyed uniformly by REPORT ID (id = rank-2 ordinal + 10), verified entry-by-entry against diff-1.21.5-1.21.4/report.json by module/class match. True closed count is 216, not 220: three ordinals were counted twice under different keys and are now merged (264 under keys 274+174, 42 under keys 52+80, 59 under keys 69+110+113). Session 3 keyed batches 46-50 by ordinal, so its keys 161-180 are renumbered +10 to report ids 171-190; the batch-50 correction (225 -> 220) had found only part of the overcount. Lowest unclosed ordinals are 151-154 (report ids 161-164) = batch 51. Prior batch note: Batch 50 closed (2026-11-27): item 178 ported (the chunk-generation finalize path read cat and frog variants only from the 1.21.5-only variant data registries, so in 1.21.4 every chunk-generated cat stayed tabby (variant 0). Batch 51 closed (2026-11-27): report ids 161-164 (ordinals 151-154) - 161 ported (paletted fixture VarInt long count), 162 ported (SNBT control chars pass through raw), 163/164 carry-over. Rank 2 now 220/348. Batch 52 closed (2026-11-27): report ids 165-168 (ordinals 155-158) - all carry-over (per-component show_in_tooltip folded via TOOLTIP_FLAGS; bundle/enchantment/adventure-predicate semantics identical; 11 items added in 1.21.5 only; cake/sign/sound-effect overloads only). Rank 2 now 224/348. Batch 53 (2026-11-27): items 80, 110, 169, 170 - 169 PORTED (creaking stop-attack: 1.21.5 isAttackTargetStillReachable removed; 1.21.4's no-arg StopAttackingIfTargetInvalid.create() default condition always returns false), the rest carry-over (fluid Player->LivingEntity signature + equals-vs-identity no-op; RegistryContextSwapper refactor; component-patch codec refactor + 1.21.5-only delimited codec). Rank 2 now 228/348. Batch 54 (2026-11-27): items 113, 178, 184, 191 - all carry-over (1.21.5 DataComponentPredicate interface refactor; horse-equipment rework + loom pattern-item component; long-array framing + 1.21.5-only HashedStack; loom getSelectablePatterns component form). Rank 2 now 232/348. Batch 55 (2026-11-27): items 192, 193, 195, 196 - all carry-over (cartography onTake/quick-move overloads + Quaternionfc; NBT all-elements invokeinterface-vs-virtual; BlockGetter boxTraverseBlocks vs visitor form; ServerPackStatus FIELD_CODEC). Rank 2 now 236/348. Batch 56 (2026-11-27): items 197, 198, 199, 200 - all carry-over (ChunkAccess setBlockState flags + getPosFromTag; PoseStack JOML *fc migration; ArmorTrim showInTooltip + layerAssetId; InventoryScreen hasInfiniteItems vs hasInfiniteMaterials). Rank 2 now 240/348. Batch 72 closed (2026-11-27): report ids 287, 288, 289, 292 (ordinals 277, 278, 279, 282) - 287 PORTED (sound variants do not exist in 1.21.4 at all: no *_SOUND_VARIANT registries, no WolfSoundVariant, no DATA_SOUND_VARIANT_ID on Pig/Cow/Chicken/Cat/Wolf; removed the whole sound-variant system - sound_variants()/variant_sound()/Finalize::sound()/Extra.sound_variant/NBT key/LAN registry names, plain entity.<name>.<kind> ids at all 8 call sites, fixture + oracle updated), 288/289/292 carry-over (tadpole age logic identical; world border alignment-only; skin texture DynamicTexture form only). Rank 2 now 304/348.",
+  "batch": 73,
+  "note": "Batch 73 closed (2026-11-27): all carry-over, no code changes \u2014 293 test-block classes absent from 1.21.4 (dead support, removal already recorded); 301 DeathScreen/LoadingOverlay API-only diffs; 302 jeb formula identical to 1.21.4 inline form (undercoat-layer leak recorded, not fixed); 303 renderer Quaternionfc widening only. Rank 2 now 308/348. Prior: LEDGER RECONCILIATION (2026-11-27, Butler): rank2-progress.json re-keyed uniformly by REPORT ID (id = rank-2 ordinal + 10), verified entry-by-entry ag",
   "items": {
     "90": {
       "module": "crates/horizon-client-render/src/block_entity_render.rs",
@@ -3772,6 +3772,41 @@
       "classes": [
         "SkinTextureDownloader",
         "ClientAsset"
+      ]
+    },
+    "293": {
+      "module": "crates/horizon-client-render/src/test_block.rs",
+      "verdict": "carry-over",
+      "evidence": "TestBlock / TestBlockMode: both classes are ABSENT from both 1.21.4 jars (javap finds nothing; 1.21.5-only). The Rust's test_block.rs (TestBlockMode Start/Log/Fail/Accept + TestBlock save form), BlockEntity::TestBlock wiring and the \"minecraft:test_block\" NBT mapping are unreachable from vanilla 1.21.4 data: the blocks and block-entity types are not registered in 1.21.4 (PORT-NOTES delta section) and the three test-block packets were removed in commit 65307b5. Removal of the dead support is already recorded as needing its own focused item (PORT-NOTES, rank 2: 166/348 and the later entry).",
+      "classes": [
+        "TestBlock",
+        "TestBlockMode"
+      ]
+    },
+    "301": {
+      "module": "widely named: client/gui/screens",
+      "verdict": "carry-over",
+      "evidence": "DeathScreen: the only javap diff (52 lines, all bytecode offsets) is ClickEvent.getAction() (1.21.4, class method) vs ClickEvent.action() (1.21.5, interface method); no behaviour change. The Rust parses click events from JSON into its own ClickEvent enum (component.rs parse_click_event; chat.rs handlers), so no Java API is involved. LoadingOverlay: identical fields and method signatures in both versions; the only diff is the clear path (GlStateManager._clearColor/_clear in 1.21.4 vs GpuDevice CommandEncoder.clearColorTexture in 1.21.5, same colour and effect; the 520 diff lines are offset cascades). The Rust's draw_loading_overlay fills BRAND_BACKGROUND (level_loading.rs:415).",
+      "classes": [
+        "DeathScreen",
+        "LoadingOverlay"
+      ]
+    },
+    "302": {
+      "module": "widely named: client/renderer/entity/state",
+      "verdict": "carry-over",
+      "evidence": "SheepRenderState.getWoolColor() is 1.21.5-only, but its formula is exactly 1.21.4's inline computation in SheepWoolLayer.render (25-tick cycle, floor(ageInTicks)/25 + id, mod 16, ARGB.lerp with (age%25 + frac)/25) \u2014 the Rust's jeb_wool_rgb implements it with tests, and id 37 already jar-verified the 1.21.4 form. Recorded, NOT fixed: the Rust also renders the 1.21.5-only SheepWoolUndercoatLayer (class + sheep_wool_undercoat.png + sheep_wool.png are absent from the 1.21.4 jar; 1.21.4 has only sheep.png + sheep_fur.png) and its wool layer uses the 1.21.5 texture; a sheared dyed sheep keeps the tinted undercoat in the Rust (pinned by the test at mobs/render.rs:3411-3433) but shows no tinted layer in 1.21.4. Needs its own focused item (id 37's area; id 37's entry does not mention the undercoat).",
+      "classes": [
+        "SheepRenderState"
+      ]
+    },
+    "303": {
+      "module": "widely named: client/renderer/entity",
+      "verdict": "carry-over",
+      "evidence": "DisplayRenderer / ThrownItemRenderer: the only javap diffs are Quaternionf -> Quaternionfc signature widening (10 + 4 diff lines); no behaviour change. The Rust has text-display rendering (game/text_displays.rs) and thrown projectiles (game/remote_projectiles.rs, potions.rs remote_thrown_item).",
+      "classes": [
+        "DisplayRenderer",
+        "ThrownItemRenderer"
       ]
     }
   }
