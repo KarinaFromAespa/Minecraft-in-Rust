@@ -9,7 +9,10 @@ use super::{
     Damage, Mob, MobEvent, MobWorld, Who,
     goals::{Cx, Goal, LOOK, MOVE, goal_clone},
 };
-use horizon_core::{geometry::Vec3, random::RandomSource};
+use horizon_core::{
+    geometry::{Aabb, Axis, Vec3, border::BorderGeometry},
+    random::RandomSource,
+};
 
 /// `GoatAi.TIME_BETWEEN_RAMS` and `TIME_BETWEEN_RAMS_SCREAMER`.
 const RAMS: (i32, i32) = (600, 6000);
@@ -236,8 +239,27 @@ fn choose(m: &mut Mob, w: &MobWorld, target: Who) {
         target,
     });
 }
+/// The target's box inside the world border (`WorldBorder.isWithinBounds(AABB)`:
+/// both corners, the max one nudged in by 1e-5); no border means everything
+/// is inside. The 1.21.4 ram-target predicate also gates armor stands on
+/// mobGriefing — a stand is a target only while it is off — but armor stands
+/// are not mobs in the Rust, so no candidate can be one and that branch is
+/// moot (the 1.21.5 flip of it, which lets stands be targets while
+/// mobGriefing is on, does not apply).
+fn within_border(border: Option<&BorderGeometry>, bounds: &Aabb) -> bool {
+    border.is_none_or(|b| {
+        b.is_within_bounds(bounds.min(Axis::X), bounds.min(Axis::Z), 0.0)
+            && b.is_within_bounds(
+                bounds.max(Axis::X) - 1.0e-5,
+                bounds.max(Axis::Z) - 1.0e-5,
+                0.0,
+            )
+    })
+}
+
 /// The nearest living thing the goat sees that `RAM_TARGET_CONDITIONS`
-/// allow: not a goat, a player who is not creative or a spectator.
+/// allow: not a goat, a player who is not creative or a spectator, and
+/// inside the world border.
 fn nearest_target(m: &mut Mob, w: &MobWorld) -> Option<Who> {
     let mut best: Option<(Who, f64)> = None;
     if let Some(p) = &w.player
@@ -245,6 +267,7 @@ fn nearest_target(m: &mut Mob, w: &MobWorld) -> Option<Who> {
         && !p.creative
         && !p.spectator
         && !p.allies.contains(&m.id)
+        && within_border(w.border, &p.bounds)
         && m.distance_sqr(p.position) <= SENSE_RANGE * SENSE_RANGE
         && m.sees(w, Who::Player)
     {
@@ -253,7 +276,10 @@ fn nearest_target(m: &mut Mob, w: &MobWorld) -> Option<Who> {
     let id = m.id;
     let mobs: Vec<(u32, f64)> = w
         .nearby(m.position, SENSE_RANGE, |s| {
-            s.id != id && s.species != super::Species::Goat && !s.playing_dead
+            s.id != id
+                && s.species != super::Species::Goat
+                && !s.playing_dead
+                && within_border(w.border, &s.bounds)
         })
         .map(|s| (s.id, m.distance_sqr(s.position)))
         .collect();
@@ -574,5 +600,20 @@ mod sound_tests {
         assert_eq!(*at, [0.123456789, 64.0, -3.25]);
         assert_eq!((*volume, *pitch), (1.0, 1.0));
         assert_eq!(goat.random.next_long(), expected.next_long());
+    }
+
+    /// `WorldBorder.isWithinBounds(AABB)`: both corners inside, the max one
+    /// nudged in by 1e-5; no border means everything is inside.
+    #[test]
+    fn a_ram_target_outside_the_border_is_not_one() {
+        let border = BorderGeometry::new([0.0, 0.0], 10.0, 29999984).unwrap();
+        let inside = Aabb::new(Vec3::new(-1.0, 0.0, -1.0), Vec3::new(1.0, 2.0, 1.0));
+        assert!(within_border(Some(&border), &inside));
+        let outside = Aabb::new(Vec3::new(4.0, 0.0, -1.0), Vec3::new(6.0, 2.0, 1.0));
+        assert!(!within_border(Some(&border), &outside));
+        // A box straddling the border is out: its max corner is outside.
+        let straddling = Aabb::new(Vec3::new(4.0, 0.0, -1.0), Vec3::new(5.5, 2.0, 1.0));
+        assert!(!within_border(Some(&border), &straddling));
+        assert!(within_border(None, &outside));
     }
 }

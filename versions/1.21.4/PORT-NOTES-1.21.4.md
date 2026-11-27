@@ -6202,3 +6202,45 @@ shape for the review batches.
   loot table conditions on it) and `SpawnRegistries` still loads the
   absent pig/cow/chicken variant registries (empty in 1.21.4,
   `variant_index` falls back to 0). Rank 2: 332/348.
+
+  Item 332 (report id 342, widely named: server/commands): carry-over.
+  `SummonCommand`: the only change is `Entity.moveTo(DDDFF)` in 1.21.4
+  -> `Entity.snapTo(DDDFF)` in 1.21.5 — a pure rename, the two bodies
+  are identical (`setPosRaw` + `setYRot` + `setXRot`). The Rust's
+  summon positions via `place_summoned` (`Pos` + `Rotation` in the NBT
+  before spawn). No behaviour change. Rank 2: 333/348.
+
+  Item 333 (report id 343, widely named: world/entity/ai/behavior):
+  carry-over. `VillagerMakeLove`: the same `moveTo` -> `snapTo`
+  rename, identical bodies. The Rust spawns the baby at the parent's
+  position with age -24000 (`spawn_mob_raw` at the parent's position,
+  `child.extra.age = -24000`) — exactly vanilla's
+  `child.setAge(-24000); child.moveTo(parent.x, parent.y, parent.z, 0,
+  0); addFreshEntity`. No behaviour change. Rank 2: 334/348.
+
+  Item 334 (report id 344, widely named: world/entity/ai/goal):
+  carry-over. `OfferFlowerGoal.canUse`: 1.21.5's
+  `Level.isBrightOutside()` body (`!hasFixedTime && skyDarken < 4`) is
+  identical to 1.21.4's `Level.isDay()` body, and 1.21.5 removed
+  `isDay()` entirely — a rename preserving the check. The Rust's
+  `can_use` uses `cx.w.daylight`, which in the overworld is exactly
+  `sky_darken() < 4` = `isDay()`. Recorded edge, not fixed: the Rust's
+  `daylight` excludes the Nether outright and is true in the End
+  (`darken` 0), while 1.21.4's `isDay()` is false in the End via
+  `hasFixedTime` — that is the shared `daylight` field's model, a
+  wider item, not this goal's. Rank 2: 335/348.
+
+  Item 335 (report id 345, widely named: world/entity/animal/goat):
+  ported. `GoatAi`: the 1.21.5 diff flips the mobGriefing branch in
+  `RAM_TARGET_CONDITIONS` (an armor stand is a ram target only while
+  mobGriefing is off in 1.21.4, only while it is on in 1.21.5 — a
+  vanilla bug-fix). The Rust's `nearest_target` implemented neither
+  the armor-stand part (moot: armor stands are not a `Species` and are
+  not in the mob set, so no candidate can be one) nor the world-border
+  part (real gap: vanilla requires the target's box within the
+  border). Fixed: a `within_border` helper mirroring
+  `WorldBorder.isWithinBounds(AABB)` (both corners, the max one nudged
+  in by 1e-5, via the established `BorderGeometry::is_within_bounds`)
+  now gates both the player branch and the mob branch of
+  `nearest_target`; `MobWorld.border` is `None` when there is no
+  border. New test pins the box check. Rank 2: 336/348.

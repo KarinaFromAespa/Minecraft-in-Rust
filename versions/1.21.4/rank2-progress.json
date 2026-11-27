@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": 2,
-  "batch": 79,
-  "note": "Batch 79 closed (2026-11-27): 338 leaf particles ported (1.21.4 has no falling leaves); 339 Registries field reorder only; 340 SYNCHRONIZED trimmed to the 1.21.4 twelve plus the three the Rust's own client needs synced; 341 entity-data variant indices fixed (all +1) and the 1.21.5-only variant arms/saves removed. Rank 2 now 332/348. Prior: Batch 78 closed (2026-11-27): all carry-over, no code changes \u2014 334 conditional item properties identical; 335 Quadrant is 1.21.5-only (shape-rotation API); 336 Realms flow offsets only; 337 BlockStateParser TagParser static-method refactor. Rank 2 now 328/348. Prior: Batch 77 closed (2026-11-27): all carry-over, no code changes \u2014 316 shape rotation is 1.21.5-only API, absent from 1.21.4 and the Rust alike; 319 TagT",
+  "batch": 80,
+  "note": "Batch 80 closed (2026-11-27): 342 SummonCommand moveTo->snapTo rename only; 343 VillagerMakeLove same rename, baby spawns at the parent with age -24000; 344 OfferFlowerGoal isDay->isBrightOutside rename, same body; 345 goat ram targets now gated on the world border. Rank 2 now 336/348. Prior: Batch 79 closed (2026-11-27): 338 leaf particles ported (1.21.4 has no falling leaves); 339 Registries field reorder only; 340 SYNCHRONIZED trimmed to the 1.21.4 twelve plus the three the Rust's own client needs synced; 341 entity-data variant indices fixed (all +1) and the 1.21.5-only variant arms/saves removed. Rank 2 now 332/348. Prior: Batch 78 closed (2026-11-27): all carry-over, no code changes \u2014 334 conditional item properties identical; 335 Quadrant is 1.21.5-only (shape-rotation API); 336 Realms flow offsets only; 337 BlockStateParser TagParser static-method refactor. Rank 2 now 328/348. Prior: Batch 77 closed (2026-11-27): all carry-over, no code changes \u2014 316 shape rotation is 1.21.5-only API, absent from 1.21.4 and the Rust alike; 319 TagT",
   "items": {
     "90": {
       "module": "crates/horizon-client-render/src/block_entity_render.rs",
@@ -4003,6 +4003,38 @@
       "evidence": "PORTED: apply_registry_data used entity-data indices matching NEITHER 1.21.4 nor 1.21.5 \u2014 every variant index was +1 (Cat 20 vs 19, Wolf 23 vs 22, Frog 18 vs 17; Wolf anger 22 vs 21), so cat/wolf/frog variants and wolf anger never applied from SetEntityData. Verified by counting defineId calls per class in the 1.21.4 jars (Entity 0-7, LivingEntity 8-14, Mob 15, AgeableMob 16, TamableAnimal adds DATA_FLAGS_ID + DATA_OWNERUUID_ID; TameableAnimal does not exist \u2014 the class is spelled TamableAnimal). Fixed the indices, removed the 1.21.5-only pig/cow/chicken/zombie-nautilus arms, and narrowed saves_variant_name to Wolf/Cat/Frog (only those three write a 'variant' string in 1.21.4's addAdditionalSaveData; VariantUtils.writeVariant has 0 callers in 1.21.4; Pig/Cow/Chicken do not write it). New test pins the 1.21.4 indices. Remaining residue recorded, not fixed: species_variant_component still reports pig/cow/chicken/zombie-nautilus variant components (drops.rs chicken_variant is set from it \u2014 harmless, no 1.21.4 loot table conditions on it) and SpawnRegistries still loads the absent pig/cow/chicken variant registries (empty in 1.21.4, variant_index falls back to 0).",
       "classes": [
         "EntityDataSerializers"
+      ]
+    },
+    "342": {
+      "module": "widely named: server/commands",
+      "verdict": "carry-over",
+      "evidence": "SummonCommand: the only change is Entity.moveTo(DDDFF) in 1.21.4 -> Entity.snapTo(DDDFF) in 1.21.5 \u2014 a pure rename, the two bodies are identical (setPosRaw + setYRot + setXRot). The Rust's summon positions via place_summoned (Pos + Rotation in the NBT before spawn). No behaviour change.",
+      "classes": [
+        "SummonCommand"
+      ]
+    },
+    "343": {
+      "module": "widely named: world/entity/ai/behavior",
+      "verdict": "carry-over",
+      "evidence": "VillagerMakeLove: the same moveTo -> snapTo rename, identical bodies. The Rust spawns the baby at the parent's position with age -24000 (spawn_mob_raw at the parent's position, child.extra.age = -24000) \u2014 exactly vanilla's child.setAge(-24000); child.moveTo(parent.x, parent.y, parent.z, 0, 0); addFreshEntity. No behaviour change.",
+      "classes": [
+        "VillagerMakeLove"
+      ]
+    },
+    "344": {
+      "module": "widely named: world/entity/ai/goal",
+      "verdict": "carry-over",
+      "evidence": "OfferFlowerGoal.canUse: 1.21.5's Level.isBrightOutside() body (!hasFixedTime && skyDarken < 4) is identical to 1.21.4's Level.isDay() body, and 1.21.5 removed isDay() entirely \u2014 a rename preserving the check. The Rust's can_use uses cx.w.daylight, which in the overworld is exactly sky_darken() < 4 = isDay(). Recorded edge, not fixed: the Rust's daylight excludes the Nether outright and is true in the End (darken 0), while 1.21.4's isDay() is false in the End via hasFixedTime \u2014 that is the shared daylight field's model, a wider item, not this goal's.",
+      "classes": [
+        "OfferFlowerGoal"
+      ]
+    },
+    "345": {
+      "module": "crates/horizon-client/src/mobs/goat.rs",
+      "verdict": "ported",
+      "evidence": "PORTED: GoatAi \u2014 the 1.21.5 diff flips the mobGriefing branch in RAM_TARGET_CONDITIONS (an armor stand is a ram target only while mobGriefing is off in 1.21.4, only while it is on in 1.21.5 \u2014 a vanilla bug-fix). The Rust's nearest_target implemented neither the armor-stand part (moot: armor stands are not a Species and are not in the mob set, so no candidate can be one) nor the world-border part (real gap: vanilla requires the target's box within the border). Fixed: a within_border helper mirroring WorldBorder.isWithinBounds(AABB) (both corners, the max one nudged in by 1e-5, via the established BorderGeometry::is_within_bounds) now gates both the player branch and the mob branch of nearest_target; MobWorld.border is None when there is no border. New test pins the box check.",
+      "classes": [
+        "GoatAi"
       ]
     }
   }
