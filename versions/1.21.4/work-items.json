@@ -1,6 +1,6 @@
 {
   "generated_from": "16f750e52beb6ae65e838e3289c94d309c5bce0f147fb2eaf3fe4e5b7279fb0d",
-  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 308/348 (2026-11-27, batch 73: report ids 293, 301, 302, 303 \u2014 all carry-over, no code changes; 302 records the 1.21.5-only sheep undercoat layer as a known leak for a focused item). Rank 3/4/5 open.",
+  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 312/348 (2026-11-27, batch 74: report ids 304-307 \u2014 all carry-over, no code changes; 307 records the Rust storing the 1.21.5-only plural attackable-players list as write-only unobserved state). Rank 3/4/5 open.",
   "rank1": {
     "accepted": [],
     "closed": 10,
@@ -8,7 +8,7 @@
   },
   "rank2": {
     "accepted": [],
-    "closed": 308,
+    "closed": 312,
     "total": 348
   },
   "rank3": {

@@ -5944,3 +5944,52 @@ shape for the review batches.
   rendering (`game/text_displays.rs`) and thrown projectiles
   (`game/remote_projectiles.rs`, `potions.rs` `remote_thrown_item`).
   Rank 2: 308/348.
+
+  Item 294 (report id 304, widely named: client/renderer/texture/atlas):
+  carry-over. `SpriteSource`: the only javap diff is 1.21.4's abstract
+  `type()` returning `SpriteSourceType` vs 1.21.5's abstract `codec()`
+  returning `MapCodec`; 1.21.4's `SpriteSourceType` is already a Record
+  holding a `MapCodec`, so 1.21.5 just inlines it and deletes the class
+  (the 1.21.5 dump is empty). The Rust's `atlas_sources.rs` parses the
+  five source kinds (`directory`, `single`, `filter`, `unstitch`,
+  `paletted_permutations`) from the `atlases/*.json` files directly; no
+  Java registration shape is involved, and the JSON schema is unchanged.
+  Rank 2: 309/348.
+
+  Item 295 (report id 305, widely named: resources): carry-over.
+  `RegistryDataLoader`: the javap diff is entirely bytecode offsets /
+  constant-pool renumbering (76 KB vs 88 KB dumps, zero semantic lines).
+  No behaviour change; the Rust does not name the class.
+  Rank 2: 310/348.
+
+  Item 296 (report id 306, widely named: tags): carry-over. 1.21.5 adds
+  five tags and removes none: `EntityTypeTags` `CAN_EQUIP_SADDLE`,
+  `CAN_WEAR_HORSE_ARMOR`; `ItemTags` `FLOWERS`, `EGGS`,
+  `BOOK_CLONING_TARGET`. The Rust already uses the 1.21.4 form for all
+  of them: the saddle slot uses 1.21.4's `isSaddleable()`
+  (`mount_menu.rs` `shows_saddle`) not `canUseSlot(SADDLE)` +
+  `CAN_EQUIP_SADDLE`, and body armour only for `Species::Horse`,
+  matching 1.21.4's `canUseSlot(BODY)`; `EGGS` is already documented
+  absent in 1.21.4 (`mob_looting.rs:59`); the item `FLOWERS` tag is
+  never looked up (the only `minecraft:flowers` lookup is the block tag
+  in `growth.rs` `TreeGrower.hasFlowers`); `BOOK_CLONING_TARGET`
+  contains only `minecraft:writable_book` (verified in the 1.21.5 jar
+  data) while 1.21.4's `BookCloningRecipe` tests `Items.WRITABLE_BOOK`
+  directly — exactly what the Rust does (`crafting.rs:1722`).
+  Rank 2: 311/348.
+
+  Item 297 (report id 307, widely named: world/entity/ai/sensing):
+  carry-over. `PlayerSensor`: 1.21.5 adds
+  `NEAREST_VISIBLE_ATTACKABLE_PLAYERS` (plural list) to `requires()`
+  (3 -> 4 modules) and `doTick` (the attackable list is stored, then
+  the singular is set from its first element). 1.21.4 writes only
+  `NEAREST_PLAYERS`, `NEAREST_VISIBLE_PLAYER` and
+  `NEAREST_VISIBLE_ATTACKABLE_PLAYER` (singular). The Rust's four
+  brains (monster, villager, warden, animal) all set a
+  `nearest_visible_targetable_players` list slot — the 1.21.5 form —
+  but it is never read by any behaviour: the only behavioural reader
+  of the sensor's output is the singular at `monster_brain.rs:642`
+  (creaking `StartAttacking` finder); the plural appears only in the
+  debug-dump name tables. Gameplay matches 1.21.4; the slot is
+  write-only unobserved state, a cleanup candidate, not a behaviour
+  defect. Rank 2: 312/348.
