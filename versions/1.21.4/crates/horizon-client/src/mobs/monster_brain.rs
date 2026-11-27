@@ -479,8 +479,10 @@ enum B {
     },
     StartAttacking(bool, Finder),
     /// `StopAttackingIfTargetInvalid`: the breeze's while the target was
-    /// attackable within the last 100 ticks (`positives_left`), the
-    /// creaking's while a visible attackable player.
+    /// attackable within the last 100 ticks (`positives_left`); the
+    /// creaking has no extra stop condition in 1.21.4 (the default
+    /// condition always returns false - 1.21.5's
+    /// `isAttackTargetStillReachable` does not exist here).
     StopAttacking {
         running: bool,
         breeze: bool,
@@ -672,13 +674,16 @@ impl B {
                         *positives_left < 0
                     }
                 } else {
-                    // CreakingAi.isAttackTargetStillReachable
-                    let reachable = target == Who::Player
-                        && mem(m)
-                            .nearest_visible_targetable_players
-                            .get()
-                            .is_some_and(|l| l.contains(&Who::Player));
-                    !reachable
+                    // 1.21.4's creaking has no extra stop condition:
+                    // `StopAttackingIfTargetInvalid.create()` uses the
+                    // default condition, which always returns false
+                    // (`lambda$create$2`). 1.21.5 added
+                    // `CreakingAi.isAttackTargetStillReachable` (stop when
+                    // the target leaves the visible attackable players);
+                    // it does not exist in 1.21.4, so the creaking only
+                    // stops on the built-ins below (can't attack, tired,
+                    // dead).
+                    false
                 };
                 if !can_attack(m, cx.w, target) || tired || !alive || stop_when {
                     set_attack_target(m, None);

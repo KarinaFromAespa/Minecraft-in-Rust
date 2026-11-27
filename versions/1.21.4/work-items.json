@@ -1,6 +1,6 @@
 {
   "generated_from": "16f750e52beb6ae65e838e3289c94d309c5bce0f147fb2eaf3fe4e5b7279fb0d",
-  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 224/348 (2026-11-27, batch 52: items 165-168 \u2014 all carry-over (show_in_tooltip folded via TOOLTIP_FLAGS, bundle/enchantment semantics identical, 11 items added in 1.21.5 only, cake/sign overloads only)). LEDGER RECONCILIATION (Butler, 2026-11-27): rank2-progress.json rebuilt keyed uniformly by report id and verified entry-by-entry against the delta report \u2014 true closed count is 216, not 220 (three ordinals counted twice: 264, 42, 59). Total 234/548. Next batch 53 = ordinals 159-160 + 70, 100 (report ids 169-170 + 80, 110). Rank 3/4/5 open.",
+  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 228/348 (2026-11-27, batch 53: items 169-170 + 80, 110 \u2014 169 PORTED (creaking stop-attack: 1.21.5 isAttackTargetStillReachable removed; 1.21.4's default stop condition always returns false), the rest carry-over (fluid Player->LivingEntity signature + equals-vs-identity no-op; RegistryContextSwapper refactor; component-patch codec refactor + 1.21.5-only delimited codec)). Total 238/548. Next batch 54 = lowest unclosed ordinals (verify against rank2-progress.json). Rank 3/4/5 open.",
   "rank1": {
     "accepted": [],
     "closed": 10,
@@ -8,7 +8,7 @@
   },
   "rank2": {
     "accepted": [],
-    "closed": 224,
+    "closed": 228,
     "total": 348
   },
   "rank3": {

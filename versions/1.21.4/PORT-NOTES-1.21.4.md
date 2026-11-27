@@ -4764,3 +4764,112 @@ shape for the review batches.
   differ only by helper (`Block.box` vs `Block.column`).
   `PlaySoundConsumeEffect.apply` is identical except the
   same `playSound` overload. Rank 2: 224/348.
+
+  Item 70 (report id 80, crates/horizon-client/src/level/fluids.rs):
+  carry-over. `BarrierBlock.canPlaceLiquid` / `pickupBlock` and
+  `LiquidBlockContainer.canPlaceLiquid`: 1.21.5 changed the first
+  parameter from `Player` to `LivingEntity`; bodies behaviorally
+  identical - 1.21.4 `if (player == null || !player.isCreative())
+  return false/EMPTY; else super...`, 1.21.5 `if (!(user instanceof
+  Player p) || !p.isCreative()) return false/EMPTY; else super...`
+  (null / non-player / non-creative -> false/EMPTY in both; creative
+  player delegates in both). The Rust captures exactly this with a
+  `creative: bool` parameter (`fluids.rs` `can_place_liquid` - "only
+  a creative player may waterlog"; `pickup_block` - "only a creative
+  player drains one"; a dispenser or flowing fluid passes `false`).
+  `FlowingFluid.tick`: 1.21.5 uses reference equality (`if_acmpeq`)
+  where 1.21.4 uses `Object.equals` - no-op, because `FluidState`
+  overrides neither `equals` nor `hashCode` in EITHER jar
+  (javap-verified), so `.equals()` IS identity in 1.21.4. The Rust's
+  `fluid_tick` (`fluids.rs:641`) compares `FluidState` by value
+  (`new_fluid != fluid` - vanilla states are canonical/interned, so
+  identity == value equality). `FlowingFluid.canHoldSpecificFluid`
+  differs only by the same `canPlaceLiquid` signature.
+  Rank 2: 225/348.
+
+  Item 100 (report id 110, crates/horizon-assets/src/item_model.rs):
+  carry-over. The entire item is the 1.21.5 `RegistryContextSwapper`
+  refactor: `ClientItem` gained `withRegistrySwapper` / 3-arg
+  constructor / `registrySwapper()` (1.21.4 is a plain record; codec
+  - model + properties - is the same); `ItemModel$BakingContext`
+  takes the swapper in 1.21.5 (`contextSwapper()`), 1.21.4 has
+  `bake(ResourceLocation)`; `SpecialModelWrapper` takes
+  `ModelRenderProperties` in 1.21.5 vs `BakedModel baseModel` in
+  1.21.4 (`update` calls `setExtents` +
+  `setupSpecialModel(renderer, arg)` + `properties.applyToLayer` vs
+  `setupSpecialModel(renderer, arg, baseModel)`);
+  `ConditionalItemModel` wraps the property in an
+  `ItemModelPropertyTest` (adapted with the swapper) in 1.21.5 vs the
+  raw `ConditionalItemModelProperty` in 1.21.4, but `update` logic is
+  identical (get property -> pick onTrue/onFalse); `SelectItemModel`
+  replaces the `Object2ObjectMap` with a swapper-aware `ModelSelector`
+  in 1.21.5 (direct map get in 1.21.4) - same observable selection;
+  `SelectItemModel$ModelSelector` is a 1.21.5-only class. The Rust has
+  NO `RegistryContextSwapper` anywhere. The Rust decodes the 1.21.4
+  JSON schema in `horizon-assets/src/item_model.rs` -
+  `minecraft:condition` (property + on_true/on_false) and
+  `minecraft:select` (property + cases + fallback, with
+  duplicate/empty-case validation) - matching the 1.21.4 codec field
+  names. The item_model harness covers the baking.
+  Rank 2: 226/348.
+
+  Item 159 (report id 169,
+  crates/horizon-client/src/mobs/monster_brain.rs): PORTED. 1.21.5
+  added `isAttackTargetStillReachable(Creaking, LivingEntity)` +
+  `lambda$initFightActivity$2`, and added
+  `NEAREST_VISIBLE_ATTACKABLE_PLAYERS` to `MEMORY_TYPES` (1.21.5's
+  list has 11 entries, 1.21.4's has 10 without it). The new check:
+  `brain.getMemory(NEAREST_VISIBLE_ATTACKABLE_PLAYERS).map(list ->
+  list.contains(target)).orElse(false)`; the fight-activity condition
+  is `!isAttackTargetStillReachable(...)` (true when the target is no
+  longer visible -> stop attacking). 1.21.5's `initFightActivity`
+  takes the Creaking and passes the condition to
+  `StopAttackingIfTargetInvalid.create(condition)`, registering via
+  `addActivityWithConditions`; 1.21.4's takes only the Brain, uses the
+  no-arg `StopAttackingIfTargetInvalid.create()`, and registers via
+  `addActivityAndRemoveMemoryWhenStopped(FIGHT, ...,
+  ATTACK_TARGET)`. The no-arg create's default condition
+  `lambda$create$2` always returns false (javap-verified), so in
+  1.21.4 the creaking stops only on the built-ins (`lambda$create$4`:
+  `!canAttack`, tired > 200 ticks cant-reach, `!isAlive`, different
+  level). The Rust's `B::StopAttacking` non-breeze arm implemented the
+  1.21.5 form (stop when the target leaves
+  `nearest_visible_targetable_players`) - fixed: the creaking arm now
+  uses `false` for the extra condition, with the enum doc corrected.
+  The memory slot itself is still populated by the sensor (shared
+  sensor memory, also used by other brains) and is no longer read by
+  the creaking stop check. Rank 2: 227/348.
+
+  Item 160 (report id 170, crates/horizon-protocol/src/item.rs):
+  carry-over. `DataComponentPatch$1`: 1.21.4 is the old anonymous
+  `StreamCodec` (encode/decode with `encodeComponent`); 1.21.5
+  refactored to `createStreamCodec(CodecGetter)` with $1/$2/$3 as
+  `CodecGetter` implementations - Java-shape only. The patch wire form
+  is identical in both (readVarInt added count, readVarInt removed
+  count, per added: type id + value, per removed: type id - verified
+  from 1.21.4 $1.decode), and the Rust implements exactly the 1.21.4
+  form (`read_stack` dispatches to `v1_21_4::read_stack` when
+  `v1_21_4::reading()`; `v1_21_4::write_stack` writes values with no
+  length prefix). `DELIMITED_STREAM_CODEC` ($2) and
+  `ItemStack.OPTIONAL_UNTRUSTED_STREAM_CODEC` are 1.21.5-only:
+  1.21.4's `ServerboundSetCreativeModeSlotPacket` uses
+  `OPTIONAL_STREAM_CODEC` (plain, via `validatedStreamCodec`) -
+  javap-verified, 1.21.4's `ItemStack` has no
+  `OPTIONAL_UNTRUSTED_STREAM_CODEC`. The Rust's `DelimitedSlot` name
+  is misleading but correct for 1.21.4: both its read and write paths
+  dispatch to the 1.21.4 plain form when
+  `v1_21_4::reading()`/`writing()`. `DataComponentMap`:
+  `get`/`getOrDefault`/`getTyped` removed in 1.21.5 (moved to
+  `DataComponentGetter`) - Java-shape only; `builder()` differs only
+  by javap column alignment. `DataComponentPatch`: `forget`/`split`/
+  static lambdas differ only by formatting; 1.21.5-only additions are
+  the delimited codec. `DataComponents`: 99 vs 10 methods - 1.21.5
+  inlined registrations as per-component lambdas; the component-set
+  difference is the 1.21.5-only types (`blocks_attacks` et al., already
+  handled in item 155 - the 1.21.4 component id table
+  `v1_21_4_ids.rs` has no `blocks_attacks` entry; the Rust's component
+  ids are data-driven from 1.21.4's own registry). The 5 removed
+  classes (`DataComponentExactPredicate` + `$Builder`,
+  `DataComponentPatch$2`, `$3`, `$CodecGetter`) are 1.21.5-only,
+  confirmed absent from the 1.21.4 jar (javap: class not found).
+  Rank 2: 228/348.

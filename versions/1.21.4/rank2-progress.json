@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": 2,
-  "batch": 52,
-  "note": "LEDGER RECONCILIATION (2026-11-27, Butler): rank2-progress.json re-keyed uniformly by REPORT ID (id = rank-2 ordinal + 10), verified entry-by-entry against diff-1.21.5-1.21.4/report.json by module/class match. True closed count is 216, not 220: three ordinals were counted twice under different keys and are now merged (264 under keys 274+174, 42 under keys 52+80, 59 under keys 69+110+113). Session 3 keyed batches 46-50 by ordinal, so its keys 161-180 are renumbered +10 to report ids 171-190; the batch-50 correction (225 -> 220) had found only part of the overcount. Lowest unclosed ordinals are 151-154 (report ids 161-164) = batch 51. Prior batch note: Batch 50 closed (2026-11-27): item 178 ported (the chunk-generation finalize path read cat and frog variants only from the 1.21.5-only variant data registries, so in 1.21.4 every chunk-generated cat stayed tabby (variant 0). Batch 51 closed (2026-11-27): report ids 161-164 (ordinals 151-154) - 161 ported (paletted fixture VarInt long count), 162 ported (SNBT control chars pass through raw), 163/164 carry-over. Rank 2 now 220/348. Batch 52 closed (2026-11-27): report ids 165-168 (ordinals 155-158) - all carry-over (per-component show_in_tooltip folded via TOOLTIP_FLAGS; bundle/enchantment/adventure-predicate semantics identical; 11 items added in 1.21.5 only; cake/sign/sound-effect overloads only). Rank 2 now 224/348.",
+  "batch": 53,
+  "note": "LEDGER RECONCILIATION (2026-11-27, Butler): rank2-progress.json re-keyed uniformly by REPORT ID (id = rank-2 ordinal + 10), verified entry-by-entry against diff-1.21.5-1.21.4/report.json by module/class match. True closed count is 216, not 220: three ordinals were counted twice under different keys and are now merged (264 under keys 274+174, 42 under keys 52+80, 59 under keys 69+110+113). Session 3 keyed batches 46-50 by ordinal, so its keys 161-180 are renumbered +10 to report ids 171-190; the batch-50 correction (225 -> 220) had found only part of the overcount. Lowest unclosed ordinals are 151-154 (report ids 161-164) = batch 51. Prior batch note: Batch 50 closed (2026-11-27): item 178 ported (the chunk-generation finalize path read cat and frog variants only from the 1.21.5-only variant data registries, so in 1.21.4 every chunk-generated cat stayed tabby (variant 0). Batch 51 closed (2026-11-27): report ids 161-164 (ordinals 151-154) - 161 ported (paletted fixture VarInt long count), 162 ported (SNBT control chars pass through raw), 163/164 carry-over. Rank 2 now 220/348. Batch 52 closed (2026-11-27): report ids 165-168 (ordinals 155-158) - all carry-over (per-component show_in_tooltip folded via TOOLTIP_FLAGS; bundle/enchantment/adventure-predicate semantics identical; 11 items added in 1.21.5 only; cake/sign/sound-effect overloads only). Rank 2 now 224/348. Batch 53 (2026-11-27): items 80, 110, 169, 170 - 169 PORTED (creaking stop-attack: 1.21.5 isAttackTargetStillReachable removed; 1.21.4's no-arg StopAttackingIfTargetInvalid.create() default condition always returns false), the rest carry-over (fluid Player->LivingEntity signature + equals-vs-identity no-op; RegistryContextSwapper refactor; component-patch codec refactor + 1.21.5-only delimited codec). Rank 2 now 228/348.",
   "items": {
     "90": {
       "module": "crates/horizon-client-render/src/block_entity_render.rs",
@@ -3025,6 +3025,55 @@
         "CakeBlock",
         "CeilingHangingSignBlock",
         "PlaySoundConsumeEffect"
+      ]
+    },
+    "80": {
+      "module": "crates/horizon-client/src/level/fluids.rs",
+      "verdict": "carry-over",
+      "evidence": "BarrierBlock.canPlaceLiquid/pickupBlock and LiquidBlockContainer.canPlaceLiquid: 1.21.5 changed the first parameter from Player to LivingEntity; bodies behaviorally identical - 1.21.4 `if (player == null || !player.isCreative()) return false/EMPTY; else super...`, 1.21.5 `if (!(user instanceof Player p) || !p.isCreative()) return false/EMPTY; else super...` (null/non-player/non-creative -> false/EMPTY in both; creative player delegates in both). The Rust captures exactly this with a `creative: bool` parameter (fluids.rs can_place_liquid - \"only a creative player may waterlog\"; pickup_block - \"only a creative player drains one\"; a dispenser or flowing fluid passes false). FlowingFluid.tick: 1.21.5 uses reference equality (if_acmpeq) where 1.21.4 uses Object.equals - no-op, because FluidState overrides neither equals nor hashCode in EITHER jar (javap-verified), so .equals() IS identity in 1.21.4. The Rust's fluid_tick (fluids.rs:641) compares FluidState by value (new_fluid != fluid - vanilla states are canonical/interned, so identity == value equality). FlowingFluid.canHoldSpecificFluid differs only by the same canPlaceLiquid signature.",
+      "classes": [
+        "BarrierBlock",
+        "LiquidBlockContainer",
+        "FlowingFluid"
+      ]
+    },
+    "110": {
+      "module": "crates/horizon-assets/src/item_model.rs",
+      "verdict": "carry-over",
+      "evidence": "The entire item is the 1.21.5 RegistryContextSwapper refactor: ClientItem gained withRegistrySwapper/3-arg constructor/registrySwapper() (1.21.4 is a plain record; codec - model + properties - is the same); ItemModel$BakingContext takes the swapper in 1.21.5 (contextSwapper()), 1.21.4 has bake(ResourceLocation); SpecialModelWrapper takes ModelRenderProperties in 1.21.5 vs BakedModel baseModel in 1.21.4 (update calls setExtents + setupSpecialModel(renderer, arg) + properties.applyToLayer vs setupSpecialModel(renderer, arg, baseModel)); ConditionalItemModel wraps the property in an ItemModelPropertyTest (adapted with the swapper) in 1.21.5 vs the raw ConditionalItemModelProperty in 1.21.4, but update logic is identical (get property -> pick onTrue/onFalse); SelectItemModel replaces the Object2ObjectMap with a swapper-aware ModelSelector in 1.21.5 (direct map get in 1.21.4) - same observable selection; SelectItemModel$ModelSelector is a 1.21.5-only class. The Rust has NO RegistryContextSwapper anywhere. The Rust decodes the 1.21.4 JSON schema in horizon-assets/src/item_model.rs - minecraft:condition (property + on_true/on_false) and minecraft:select (property + cases + fallback, with duplicate/empty-case validation) - matching the 1.21.4 codec field names. The item_model harness covers the baking.",
+      "classes": [
+        "ClientItem",
+        "ItemModel$BakingContext",
+        "SpecialModelWrapper",
+        "ConditionalItemModel",
+        "ConditionalItemModel$Unbaked",
+        "SelectItemModel",
+        "SelectItemModel$UnbakedSwitch",
+        "SelectItemModel$ModelSelector"
+      ]
+    },
+    "169": {
+      "module": "crates/horizon-client/src/mobs/monster_brain.rs",
+      "verdict": "ported",
+      "evidence": "1.21.5 added isAttackTargetStillReachable(Creaking, LivingEntity) + lambda$initFightActivity$2, and added NEAREST_VISIBLE_ATTACKABLE_PLAYERS to MEMORY_TYPES (1.21.5's list has 11 entries, 1.21.4's has 10 without it). The new check: brain.getMemory(NEAREST_VISIBLE_ATTACKABLE_PLAYERS).map(list -> list.contains(target)).orElse(false); the fight-activity condition is !isAttackTargetStillReachable(...) (true when the target is no longer visible -> stop attacking). 1.21.5's initFightActivity takes the Creaking and passes the condition to StopAttackingIfTargetInvalid.create(condition), registering via addActivityWithConditions; 1.21.4's takes only the Brain, uses the no-arg StopAttackingIfTargetInvalid.create(), and registers via addActivityAndRemoveMemoryWhenStopped(FIGHT, ..., ATTACK_TARGET). The no-arg create's default condition lambda$create$2 always returns false (javap-verified), so in 1.21.4 the creaking stops only on the built-ins (lambda$create$4: !canAttack, tired > 200 ticks cant-reach, !isAlive, different level). The Rust's B::StopAttacking non-breeze arm implemented the 1.21.5 form (stop when the target leaves nearest_visible_targetable_players) - FIXED: the creaking arm now uses false for the extra condition, with the enum doc corrected. The memory slot itself is still populated by the sensor (shared sensor memory, also used by other brains) and is no longer read by the creaking stop check.",
+      "classes": [
+        "CreakingAi"
+      ]
+    },
+    "170": {
+      "module": "crates/horizon-protocol/src/item.rs",
+      "verdict": "carry-over",
+      "evidence": "DataComponentPatch$1: 1.21.4 is the old anonymous StreamCodec (encode/decode with encodeComponent); 1.21.5 refactored to createStreamCodec(CodecGetter) with $1/$2/$3 as CodecGetter implementations - Java-shape only. The patch wire form is identical in both (readVarInt added count, readVarInt removed count, per added: type id + value, per removed: type id - verified from 1.21.4 $1.decode), and the Rust implements exactly the 1.21.4 form (read_stack dispatches to v1_21_4::read_stack when v1_21_4::reading(); v1_21_4::write_stack writes values with no length prefix). DELIMITED_STREAM_CODEC ($2) and ItemStack.OPTIONAL_UNTRUSTED_STREAM_CODEC are 1.21.5-only: 1.21.4's ServerboundSetCreativeModeSlotPacket uses OPTIONAL_STREAM_CODEC (plain, via validatedStreamCodec) - javap-verified, 1.21.4's ItemStack has no OPTIONAL_UNTRUSTED_STREAM_CODEC. The Rust's DelimitedSlot name is misleading but correct for 1.21.4: both its read and write paths dispatch to the 1.21.4 plain form when v1_21_4::reading()/writing(). DataComponentMap: get/getOrDefault/getTyped removed in 1.21.5 (moved to DataComponentGetter) - Java-shape only; builder() differs only by javap column alignment. DataComponentPatch: forget/split/static lambdas differ only by formatting; 1.21.5-only additions are the delimited codec. DataComponents: 99 vs 10 methods - 1.21.5 inlined registrations as per-component lambdas; the component-set difference is the 1.21.5-only types (blocks_attacks et al., already handled in item 155 - the 1.21.4 component id table v1_21_4_ids.rs has no blocks_attacks entry; the Rust's component ids are data-driven from 1.21.4's own registry). The 5 removed classes (DataComponentExactPredicate + $Builder, DataComponentPatch$2, $3, $CodecGetter) are 1.21.5-only, confirmed absent from the 1.21.4 jar (javap: class not found).",
+      "classes": [
+        "DataComponentPatch$1",
+        "DataComponentMap",
+        "DataComponentPatch",
+        "DataComponents",
+        "DataComponentExactPredicate",
+        "DataComponentExactPredicate$Builder",
+        "DataComponentPatch$2",
+        "DataComponentPatch$3",
+        "DataComponentPatch$CodecGetter"
       ]
     }
   }
