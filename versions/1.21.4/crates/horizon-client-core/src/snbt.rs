@@ -448,7 +448,7 @@ mod tests {
         assert_eq!(rt("[L;1L]"), "[L;1L]");
         assert_eq!(quote_and_escape("say \"hi\""), "'say \"hi\"'");
         assert_eq!(quote_and_escape("it's \"x\""), "\"it's \\\"x\\\"\"");
-        assert_eq!(quote_and_escape("a\nb\\"), "\"a\\nb\\\\\"");
+        assert_eq!(quote_and_escape("a\nb\\"), "\"a\nb\\\\\"");
     }
     #[test]
     fn java_number_text() {

@@ -40,18 +40,9 @@ fn java_float_text(v: f64, plain: &str, sci: &str) -> String {
     }
 }
 
-/// `SnbtGrammar.escapeControlCharacters`.
-fn escape_control(c: char) -> Option<&'static str> {
-    Some(match c {
-        '\u{8}' => "b",
-        '\u{c}' => "f",
-        '\n' => "n",
-        '\r' => "r",
-        '\t' => "t",
-        _ => return None,
-    })
-}
-/// `StringTag.quoteAndEscape`.
+/// `StringTag.quoteAndEscape`: 1.21.4's single-arg form passes control
+/// characters through raw — there is no `SnbtGrammar` in 1.21.4, so no
+/// `escapeControlCharacters` (`\b \f \n \r \t`); 1.21.5 escapes them.
 pub fn quote_and_escape(input: &str) -> String {
     let mut out = String::from(" ");
     let mut quote = '\0';
@@ -59,13 +50,7 @@ pub fn quote_and_escape(input: &str) -> String {
         if c == '\\' {
             out.push_str("\\\\");
         } else if c != '"' && c != '\'' {
-            match escape_control(c) {
-                Some(e) => {
-                    out.push('\\');
-                    out.push_str(e);
-                }
-                None => out.push(c),
-            }
+            out.push(c);
         } else {
             if quote == '\0' {
                 quote = if c == '"' { '\'' } else { '"' };

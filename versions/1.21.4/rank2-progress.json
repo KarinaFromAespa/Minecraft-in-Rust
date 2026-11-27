@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": 2,
-  "batch": 50,
-  "note": "LEDGER RECONCILIATION (2026-11-27, Butler): rank2-progress.json re-keyed uniformly by REPORT ID (id = rank-2 ordinal + 10), verified entry-by-entry against diff-1.21.5-1.21.4/report.json by module/class match. True closed count is 216, not 220: three ordinals were counted twice under different keys and are now merged (264 under keys 274+174, 42 under keys 52+80, 59 under keys 69+110+113). Session 3 keyed batches 46-50 by ordinal, so its keys 161-180 are renumbered +10 to report ids 171-190; the batch-50 correction (225 -> 220) had found only part of the overcount. Lowest unclosed ordinals are 151-154 (report ids 161-164) = batch 51. Prior batch note: Batch 50 closed (2026-11-27): item 178 ported (the chunk-generation finalize path read cat and frog variants only from the 1.21.5-only variant data registries, so in 1.21.4 every chunk-generated cat s",
+  "batch": 51,
+  "note": "LEDGER RECONCILIATION (2026-11-27, Butler): rank2-progress.json re-keyed uniformly by REPORT ID (id = rank-2 ordinal + 10), verified entry-by-entry against diff-1.21.5-1.21.4/report.json by module/class match. True closed count is 216, not 220: three ordinals were counted twice under different keys and are now merged (264 under keys 274+174, 42 under keys 52+80, 59 under keys 69+110+113). Session 3 keyed batches 46-50 by ordinal, so its keys 161-180 are renumbered +10 to report ids 171-190; the batch-50 correction (225 -> 220) had found only part of the overcount. Lowest unclosed ordinals are 151-154 (report ids 161-164) = batch 51. Prior batch note: Batch 50 closed (2026-11-27): item 178 ported (the chunk-generation finalize path read cat and frog variants only from the 1.21.5-only variant data registries, so in 1.21.4 every chunk-generated cat stayed tabby (variant 0). Batch 51 closed (2026-11-27): report ids 161-164 (ordinals 151-154) - 161 ported (paletted fixture VarInt long count), 162 ported (SNBT control chars pass through raw), 163/164 carry-over. Rank 2 now 220/348.",
   "items": {
     "90": {
       "module": "crates/horizon-client-render/src/block_entity_render.rs",
@@ -2932,6 +2932,53 @@
         "PlayerDetector",
         "VaultState",
         "VaultState$3"
+      ]
+    },
+    "161": {
+      "module": "crates/horizon-core/examples/paletted_fixture.rs",
+      "verdict": "ported",
+      "evidence": "PalettedContainer.read / PalettedContainer$Data.write: 1.21.4 uses readLongArray/writeLongArray (a VarInt word count, then the longs); 1.21.5 uses readFixedSizeLongArray/writeFixedSizeLongArray (no count). The horizon-protocol chunk path already handles both forms (Paletted::read is the 1.21.5 fixed form, read_prefixed the 1.21.4 VarInt-counted form, used by the 1.21.4 adapter v1_21_4.rs:111, which normalizes to the internal unprefixed form); the gap was only the parity fixture paletted_fixture.rs, whose write/read emitted/consumed raw longs with NO count (the 1.21.5 form) while the Java oracle VanillaPalettedContainerOracle calls vanilla 1.21.4 PalettedContainer.write (prefixed). Fix: fixture write now emits varint(words.len()) before the longs (even 0 for bits 0, where the storage holds no words), and read consumes the VarInt count first and takes exactly that many longs. PalettedContainer::to_wire/from_wire need no change (bits, palette, words triples; the count is network framing only). Harness: versions/1.21.4/tools/test_paletted_container_parity.py.",
+      "classes": [
+        "PalettedContainer",
+        "PalettedContainer$Data"
+      ]
+    },
+    "162": {
+      "module": "crates/horizon-world/src/snbt_text.rs",
+      "verdict": "ported",
+      "evidence": "1.21.5 record-ified StringTag (field value, value()/asString(), final equals/hashCode) - Java-shape only, no Rust impact. Real delta: 1.21.5's quoteAndEscape(String, StringBuilder) escapes control characters via SnbtGrammar.escapeControlCharacters (backslash-b, backslash-f, backslash-n, backslash-r, backslash-t); 1.21.4's single-arg quoteAndEscape passes control chars through raw, and 1.21.4 has NO SnbtGrammar class at all (javap-confirmed absent; 1.21.4's StringTagVisitor calls the 1-arg form). Fix: removed the escape_control call from quote_and_escape in snbt_text.rs (control chars now pass through raw) and the now-unused escape_control fn; updated the test at crates/horizon-client-core/src/snbt.rs:451 - the input containing a real newline and a trailing backslash now expects the newline passed through raw instead of the escaped backslash-n. Other quote tests unchanged (the wrapper-picking rule is identical in both versions).",
+      "classes": [
+        "StringTag"
+      ]
+    },
+    "163": {
+      "module": "widely named: world/level/block/entity",
+      "verdict": "carry-over",
+      "evidence": "Skull/Crafter/BrewingStand/EnderChest diffs are NBT/codec API-shape only (CompoundTag.read/storeNullable vs get/parse, getIntOr/getShortOr/getByteOr vs getInt/getShort/getByte with the same 0 defaults, putIntArray(int[]) vs putIntArray(List), playSound Entity vs Player overload) - the Rust's canonical() handlers in block_entity_nbt.rs already match 1.21.4's field sets (skull: profile/note_block_sound/custom_name; crafter: crafting_ticks_remaining, disabled_slots filtered to 0..9 sorted/deduped, triggered; brewing: BrewTime, total_brew_time 400, Fuel, total_fuel 20, speed_multiplier). FuelValues: 1.21.5 adds SHORT_DRY_GRASS, TALL_DRY_GRASS, LEAF_LITTER fuel entries (burnTime/2); javap-confirmed none of the three exists as a block or item in 1.21.4, and Rust fuel is data-driven from the 1.21.4 registry, so no change. SpawnerBlockEntity$1.setNextSpawnData flags 260 (1.21.5) vs 4 (1.21.4): a server-side sendBlockUpdated flag with no Rust equivalent path - the Rust emits SpawnerEvent::BlockUpdated and reloads the client copy; the tree already carries the distinction (flags.rs UPDATE_INVISIBLE=4, UPDATE_NONE=260) and applies UPDATE_INVISIBLE where 1.21.5 uses 260 (growth.rs, tick.rs). BlockEntityType.onlyOpCanSetNbt: 1.21.4's OP_ONLY_CUSTOM_DATA is exactly {COMMAND_BLOCK, LECTERN, SIGN, HANGING_SIGN, MOB_SPAWNER, TRIAL_SPAWNER} - identical to the Rust's OP_ONLY list in block_entity_item.rs. SculkCatalyst bloom is the playSound overload only. Recorded, not fixed: TestBlockEntity, TestInstanceBlockEntity (+$1, $Data, $Status) and StructureBlockEntity$1 are ABSENT from the 1.21.4 jar (javap-confirmed; the report marks them removed) and the TEST_BLOCK/TEST_INSTANCE_BLOCK types are not registered in 1.21.4, but the tree carries test-block/test-instance-block support (TYPES entries + canonical handlers in block_entity_nbt.rs, test_block.rs, TestInstanceBlock in block_entities.rs) - unreachable from vanilla 1.21.4 data (the blocks do not exist in 1.21.4) and the tree's own game-test harnesses use it, so removal is a separate decision.",
+      "classes": [
+        "SkullBlockEntity",
+        "CrafterBlockEntity",
+        "EnderChestBlockEntity$1",
+        "BlockEntityType",
+        "BrewingStandBlockEntity",
+        "FuelValues",
+        "SculkCatalystBlockEntity$CatalystListener",
+        "SpawnerBlockEntity$1",
+        "StructureBlockEntity$1",
+        "TestBlockEntity",
+        "TestInstanceBlockEntity",
+        "TestInstanceBlockEntity$1",
+        "TestInstanceBlockEntity$Data",
+        "TestInstanceBlockEntity$Status"
+      ]
+    },
+    "164": {
+      "module": "crates/horizon-client/src/first_person.rs",
+      "verdict": "carry-over",
+      "evidence": "ItemRenderer: getLayerColorSafe gained a negative-index guard in 1.21.5 (returns -1); 1.21.4 only bounds-checks the upper end. The Rust already returns None (no tint) for index < 0 or >= tint_count (mesher.rs tint_source, line 1109) and guards tint_index >= 0 in lod/mesh.rs - the hardened behaviour is already the Rust's, on the block and item paths alike. renderModelLists (1.21.4-only), renderQuadList/renderItem/renderStatic signature changes (BakedModel vs List<BakedQuad>, tintIndex() vs getTintIndex(), the dropped leftHand boolean) are internal Java refactors; the Rust's wgpu renderer does not share the call structure. The leftHand boolean is stored as ItemStackRenderState.isLeftHand in 1.21.4 and the field is gone entirely in 1.21.5; the Rust mirrors left-hand held items at the transform level (first_person.rs:270-275, mirror * right * mirror; modern_flat_display(left)) - same observable result. MobEffectUtil: hasDigSpeed/getDigSpeedAmplification read MobEffects.DIG_SPEED in 1.21.4 vs HASTE in 1.21.5 - field rename only; the registry id is \"haste\" in BOTH jars (javap: 1.21.4 MobEffects registers ldc \"haste\"; haste.png ships in the 1.21.4 client assets), and the Rust looks up \"haste\" (effects.rs:443, hand.rs:198, potions.rs:53) - correct for 1.21.4.",
+      "classes": [
+        "ItemRenderer",
+        "MobEffectUtil"
       ]
     }
   }

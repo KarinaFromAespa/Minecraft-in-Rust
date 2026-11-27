@@ -19,7 +19,10 @@ fn varint(out: &mut Vec<u8>, mut v: u32) {
     }
     out.push(v as u8);
 }
-/// `PalettedContainer.write`.
+/// `PalettedContainer.write`: 1.21.4's `Data.write` writes the long array
+/// with `writeLongArray` — a VarInt word count, then the longs. 1.21.5's
+/// `writeFixedSizeLongArray` omits the count. The count is written even
+/// for bits 0, where the storage holds no words at all.
 fn write(c: &PalettedContainer) -> Vec<u8> {
     let (bits, palette, words) = c.to_wire();
     let mut out = vec![bits];
@@ -31,12 +34,16 @@ fn write(c: &PalettedContainer) -> Vec<u8> {
             varint(&mut out, p);
         }
     }
+    varint(&mut out, words.len() as u32);
     for w in words {
         out.extend(w.to_be_bytes());
     }
     out
 }
-/// `PalettedContainer.read` for the leading byte, palette and longs.
+/// `PalettedContainer.read` for the leading byte, palette and longs:
+/// 1.21.4's `readLongArray` takes the VarInt word count first, then
+/// exactly that many longs (1.21.5's `readFixedSizeLongArray` derives the
+/// count from the bit width instead).
 fn read(strategy: Strategy, bytes: &[u8]) -> PalettedContainer {
     let mut at = 1;
     let mut varint = || {
@@ -60,10 +67,12 @@ fn read(strategy: Strategy, bytes: &[u8]) -> PalettedContainer {
     } else {
         Vec::new()
     };
+    let n = varint() as usize;
     let words = bytes[at..]
         .as_chunks::<8>()
         .0
         .iter()
+        .take(n)
         .map(|c| u64::from_be_bytes(*c))
         .collect();
     PalettedContainer::from_wire(strategy, bits, palette, words).unwrap()
