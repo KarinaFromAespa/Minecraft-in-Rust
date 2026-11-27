@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": 2,
-  "batch": 76,
-  "note": "Batch 76 closed (2026-11-27): all carry-over, no code changes \u2014 312 WorldCarver setBlockState 3-arg(false) -> 2-arg; 313 StructureCheck NBT Optional API, same logic; 314 FluidState 1.21.5-only entityInside/getAABB delegates, effects live in entity tick in 1.21.4; 315 LootTable KEY_CODEC only. Rank 2 now 320/348. Prior: Batch 75 closed (2026-11-27): all carry-over, no code changes \u2014 308 MinecartHopper DEFAULT_ENABLED is a dead constant, NBT default true in both forms;",
+  "batch": 77,
+  "note": "Batch 77 closed (2026-11-27): all carry-over, no code changes \u2014 316 shape rotation is 1.21.5-only API, absent from 1.21.4 and the Rust alike; 319 TagType.isValue deleted in 1.21.5; 332 Main gains only --renderDebugLabels; 333 transformNormal Vector3fc widening. Rank 2 now 324/348. Prior: Batch 76 closed (2026-11-27): all carry-over, no code changes \u2014 312 WorldCarver setBlockState 3-arg(false) -> 2-arg; 313 StructureCheck NBT Optional A",
   "items": {
     "90": {
       "module": "crates/horizon-client-render/src/block_entity_render.rs",
@@ -3906,6 +3906,39 @@
       "evidence": "LootTable: the normalized diff is only the KEY_CODEC addition (a Codec for loot-table resource keys, initialized in the static block) plus static-init reordering and lambda renumbering (createStackSplitter $5 -> $6). Loot generation (pools, rolls, context) is untouched; the Rust reads loot tables from JSON data by id and needs no key codec.",
       "classes": [
         "LootTable"
+      ]
+    },
+    "316": {
+      "module": "widely named: world/phys/shapes",
+      "verdict": "carry-over",
+      "evidence": "ArrayVoxelShape.getCoords(Axis): a pattern-match switch refactor in 1.21.5 (same axis -> coords mapping; the new form throws MatchException on the unreachable default). DiscreteVoxelShape.rotate(OctahedralGroup) is NEW in 1.21.5 (identity returns self, else permutes axes via OctahedralGroup.permute and rebuilds), and Shapes.rotate / rotateAll / rotateHorizontalAxis / rotateAllAxis are all new in 1.21.5 \u2014 1.21.4's Shapes has no rotate methods at all, and the Rust's shape.rs (horizon-core geometry) has no rotation either. Correctly absent for 1.21.4.",
+      "classes": [
+        "ArrayVoxelShape",
+        "DiscreteVoxelShape"
+      ]
+    },
+    "319": {
+      "module": "crates/horizon-client/src/dialog.rs",
+      "verdict": "carry-over",
+      "evidence": "StringTag$1: 1.21.4's TagType interface has a default isValue() returning false, and StringTag$1 overrides it to return true. 1.21.5 deletes isValue() from the TagType interface entirely, taking the override with it. Java-side API removal with no NBT data-format change; the Rust's NBT implementation has no isValue concept.",
+      "classes": [
+        "StringTag$1"
+      ]
+    },
+    "332": {
+      "module": "widely named: client/main",
+      "verdict": "carry-over",
+      "evidence": "Main: the only change is the added --renderDebugLabels CLI flag (all other options identical and in the same order, just shifted by one in the dump). The Rust does not implement the 1.21.5-only flag \u2014 correct for 1.21.4.",
+      "classes": [
+        "Main"
+      ]
+    },
+    "333": {
+      "module": "widely named: client/model/geom",
+      "verdict": "carry-over",
+      "evidence": "ModelPart$Cube: the only diff is PoseStack$Pose.transformNormal(Vector3f, Vector3f) -> transformNormal(Vector3fc, Vector3f) \u2014 the first parameter widened from Vector3f to the Vector3fc interface, the same pattern as batch 73's Quaternionf -> Quaternionfc widening. No behaviour change; the Rust has its own math and no JOML calls.",
+      "classes": [
+        "ModelPart$Cube"
       ]
     }
   }

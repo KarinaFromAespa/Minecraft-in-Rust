@@ -6075,3 +6075,36 @@ shape for the review batches.
   (`createStackSplitter` $5 -> $6). Loot generation (pools, rolls,
   context) is untouched; the Rust reads loot tables from JSON data by
   id and needs no key codec. Rank 2: 320/348.
+
+  Item 306 (report id 316, widely named: world/phys/shapes): carry-over.
+  `ArrayVoxelShape.getCoords(Axis)`: a pattern-match switch refactor in
+  1.21.5 (same axis -> coords mapping; the new form throws `MatchException`
+  on the unreachable default). `DiscreteVoxelShape.rotate(OctahedralGroup)`
+  is NEW in 1.21.5 (identity returns self, else permutes axes via
+  `OctahedralGroup.permute` and rebuilds), and `Shapes.rotate` /
+  `rotateAll` / `rotateHorizontalAxis` / `rotateAllAxis` are all new in
+  1.21.5 — 1.21.4's `Shapes` has no rotate methods at all, and the Rust's
+  `shape.rs` (`horizon-core` geometry) has no rotation either. Correctly
+  absent for 1.21.4. Rank 2: 321/348.
+
+  Item 309 (report id 319, crates/horizon-client/src/dialog.rs):
+  carry-over. `StringTag$1`: 1.21.4's `TagType` interface has a default
+  `isValue()` returning false, and `StringTag$1` overrides it to return
+  true. 1.21.5 deletes `isValue()` from the `TagType` interface entirely,
+  taking the override with it. Java-side API removal with no NBT
+  data-format change; the Rust's NBT implementation has no `isValue`
+  concept. Rank 2: 322/348.
+
+  Item 322 (report id 332, widely named: client/main): carry-over.
+  `Main`: the only change is the added `--renderDebugLabels` CLI flag
+  (all other options identical and in the same order, just shifted by
+  one in the dump). The Rust does not implement the 1.21.5-only flag —
+  correct for 1.21.4. Rank 2: 323/348.
+
+  Item 323 (report id 333, widely named: client/model/geom): carry-over.
+  `ModelPart$Cube`: the only diff is
+  `PoseStack$Pose.transformNormal(Vector3f, Vector3f)` ->
+  `transformNormal(Vector3fc, Vector3f)` — the first parameter widened
+  from `Vector3f` to the `Vector3fc` interface, the same pattern as
+  batch 73's `Quaternionf` -> `Quaternionfc` widening. No behaviour
+  change; the Rust has its own math and no JOML calls. Rank 2: 324/348.
