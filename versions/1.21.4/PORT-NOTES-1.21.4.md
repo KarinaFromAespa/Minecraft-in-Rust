@@ -3660,3 +3660,56 @@ shape for the review batches.
   (pitch `(nextFloat-nextFloat)*0.2+1.0`, `spawn_item_begin`,
   `cooldownEndsAt = gameTime + ticksBetweenItemSpawners`).
   Rank 2: 186/348.
+
+  Item 141 (crates/horizon-client/src/ticket_levels.rs): carry-over.
+  `Ticket` was reworked in 1.21.5: 1.21.4's `Ticket<T>` has a key,
+  `createdTick` and `timedOut(now)` = `timeout != 0 && (now -
+  createdTick) > timeout`; 1.21.5's has `ticksLeft`,
+  `decreaseTicksLeft` / `resetTicksLeft` / `isTimedOut` and a CODEC
+  (`TicketStorage` persists portal tickets to
+  `chunk_tickets.dat`). PORTAL timeout is 300 in both versions. The
+  Rust's countdown (`ticks_left` = 300, decrement each tick, retain
+  while >= 0) survives exactly 301 ticks, the same as vanilla
+  1.21.4 (alive at C+300, out at C+301); re-adding a same
+  chunk+level ticket restarts the timeout in both. 1.21.4 has no
+  `TicketStorage`: the Rust's `load_portal_tickets` returns an empty
+  vec and documents that portal tickets are not persisted in 1.21.4.
+  Rank 2: 187/348.
+
+  Item 142 (world/entity/npc): carry-over. `VillagerData` is a
+  record in 1.21.5 (Holder type/profession, `withLevel` /
+  `withType` / `withProfession`) vs a mutable class in 1.21.4
+  (plain values, get/set, codec via `byNameCodec` not
+  `holderByNameCodec`) -- API shape; the Rust models villager data
+  as mob variants. Behaviour matches 1.21.4: NBT `{type,
+  profession, level}` with level clamped 1..5, default 1; XP
+  thresholds `[0, 10, 70, 150, 250]`; a new profession clears the
+  offers. `AbstractVillager` diffs are whitespace only.
+  Rank 2: 188/348.
+
+  Item 143 (crates/horizon-client-render/src/chunk.rs): carry-over.
+  `SerializableChunkData.write` differs only by codec form
+  (`store`/`storeNullable` vs spelled-out `encodeStart` +
+  `resultOrPartial` + `ifPresent`) -- same NBT out, and the Rust's
+  `save.rs` `encode_with` writes the 1.21.4 chunk NBT (DataVersion,
+  xPos/zPos/yPos, Status full, LastUpdate, isLightOn, sections,
+  block_entities, InhabitedTime, structures References + starts,
+  PostProcessing, Heightmaps, block/fluid ticks), preserving
+  blending_data / below_zero_retrogen / UpgradeData from the loaded
+  extras. Noted corners, not fixed (identical in both versions):
+  the Rust's References read keeps unknown-structure ids and
+  unfiltered positions where vanilla warns-and-discards unknown
+  structures and filters by `isInside`. Rank 2: 189/348.
+
+  Item 144 (crates/horizon-client-render/src/particles.rs):
+  carry-over. `WeightedRandom`: 1.21.5 generalized the pick to a
+  weight function; the algorithm is identical, and the Rust's
+  `spawner::weighted_index` matches the 1.21.4 walk (subtract
+  weights, first index where the remainder < 0). `ItemStackRenderState`:
+  the Rust has no render-state struct; its breaking-item particle
+  picks a random layer's sprite, matching 1.21.4's
+  `pickParticleIcon` (random layer -> model's particle icon, null
+  when the model is null). The 1.21.4-only `isGui3d()` /
+  `transform()` and the `clear()` `isLeftHand` reset, and the
+  1.21.5-only `visitExtents`, are API details of a struct the Rust
+  does not express. Rank 2: 190/348.
