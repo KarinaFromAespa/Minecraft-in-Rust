@@ -259,6 +259,13 @@ pub enum LevelEvent {
     /// extinguished, 1009 fire extinguished, 1502 redstone torch burnout,
     /// 2009 dripping water/sponge, 1033/1034 ... per `LevelEvent.java`).
     LevelEvent { id: i32, pos: BlockPos, data: i32 },
+    /// `ClientLevel.addDestroyBlockEffect`: the block-break particles for a
+    /// block a piston destroyed (`PistonBaseBlock.moveBlocks`), with NO
+    /// sound. It is a no-op on the server (`Level.addDestroyBlockEffect`),
+    /// so the emitter gates it to the client copy, and 1.21.4 never sends
+    /// the 2001 level event (particles plus break sound) for it — 1.21.5
+    /// does. The caller plays this only for a non-`#minecraft:fire` state.
+    DestroyParticles { pos: BlockPos, state: BlockStateId },
     /// `Level.playSound(null, pos, sound, BLOCKS, volume, pitch)`.
     Sound {
         pos: BlockPos,

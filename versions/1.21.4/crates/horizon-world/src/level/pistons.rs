@@ -565,7 +565,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let b = self.b;
         let arm = rel(piston_pos, direction);
         if !extending && b.is_block(self.state(arm), b.named.piston_head) {
-            self.set_block(arm, b.air(), 276);
+            // 1.21.4 clears the head with flags 20 (UPDATE_INVISIBLE |
+            // UPDATE_KNOWN_SHAPE); 1.21.5 uses 276, which additionally
+            // skips block-entity side effects.
+            self.set_block(arm, b.air(), 20);
         }
         let Some((to_push, to_destroy, push_direction)) =
             self.piston_resolve(piston_pos, direction, extending)
@@ -594,14 +597,17 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         for pos in to_destroy.iter().rev() {
             let state = self.state(*pos);
             self.drop_resources(state, *pos);
-            // The client's copy plays the destroy effect itself (the
-            // server sends no 2001 for piston moves).
-            let fire = b.is_block(state, b.named.fire) || b.is_block(state, b.named.soul_fire);
-            if !fire && self.level.is_client_side() {
-                self.level_event(2001, *pos, state.0 as i32);
-            }
             self.set_block(*pos, b.air(), 18);
             self.game_event(*pos, "minecraft:block_destroy");
+            // 1.21.4 then calls `addDestroyBlockEffect` for a non-fire
+            // state: particles only, no sound — and a no-op on the server,
+            // so only the client's copy plays it. 1.21.5 instead sends the
+            // 2001 level event (particles plus the break sound) when the
+            // level is client-side, before clearing the block.
+            let fire = b.is_block(state, b.named.fire) || b.is_block(state, b.named.soul_fire);
+            if !fire && self.level.is_client_side() {
+                self.emit(LevelEvent::DestroyParticles { pos: *pos, state });
+            }
             to_update.push(state);
         }
         for (i, pos) in to_push.iter().enumerate().rev() {
@@ -613,7 +619,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 b.props.facing,
                 direction,
             );
-            self.set_block(target, moving, 324);
+            self.set_block(target, moving, 68);
             self.set_moving_piston(
                 target,
                 MovingPiston {
@@ -639,7 +645,11 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             );
             let moving = self.moving_piston_state(direction, sticky);
             delete_after.remove(&PosKey(arm));
-            self.set_block(arm, moving, 324);
+            // 1.21.4 places the moving piston with flags 68
+            // (UPDATE_INVISIBLE | UPDATE_KNOWN_SHAPE |
+            // UPDATE_MOVE_BY_PISTON); 1.21.5 uses 324, which additionally
+            // skips block-entity side effects.
+            self.set_block(arm, moving, 68);
             self.set_moving_piston(
                 arm,
                 MovingPiston {
@@ -730,7 +740,8 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         } else if a == 1 || a == 2 {
             self.moving_piston_final_tick(rel(pos, direction));
             let moving = self.moving_piston_state(direction, sticky);
-            self.set_block(pos, moving, 276);
+            // 1.21.4 sets the moving piston with flags 20; 1.21.5 uses 276.
+            self.set_block(pos, moving, 20);
             let piston_default = b.table.set_dir(
                 b.default_of(b.block(state)),
                 p.facing,

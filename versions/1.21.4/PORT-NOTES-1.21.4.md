@@ -3713,3 +3713,94 @@ shape for the review batches.
   `transform()` and the `clear()` `isLeftHand` reset, and the
   1.21.5-only `visitExtents`, are API details of a struct the Rust
   does not express. Rank 2: 190/348.
+
+  Item 145 (crates/horizon-client/src/game/decorated_pot.rs):
+  carry-over. `DecoratedPotBlockEntity.loadAdditional` /
+  `saveAdditional` differ by codec form only: 1.21.5 reads the
+  sherds via `CompoundTag.read("sherds", PotDecorations.CODEC)`
+  (default EMPTY) and the item via `ItemStack.CODEC` with a
+  `RegistryOps` context; 1.21.4 uses `PotDecorations.load(tag)`
+  (EMPTY when absent or when there is no `sherds` key) and
+  `ItemStack.parse(provider, tag.getCompound("item"))` behind a
+  `contains("item", 10)` guard, falling back to EMPTY when a loot
+  table was loaded. Save mirrors it: 1.21.5 stores via
+  `PotDecorations.CODEC` only when not EMPTY and the item via
+  `ItemStack.CODEC`; 1.21.4 calls `PotDecorations.save(tag)`
+  (unchanged when EMPTY) and `ItemStack.save(provider)` when the
+  item is non-empty and no loot table is set.
+  `PotDecorations.load` / `save` use the same CODEC under the hood
+  in 1.21.4, and `splitTheItem` differs by whitespace only. The
+  Rust's `block_entity_nbt.rs` decorated-pot arm already matches
+  the 1.21.4 form (four sides as item templates, `item` loaded
+  only when there is no loot table), covered by
+  `decorated_pot_string_template_load_save_uses_item_compound`.
+  Rank 2: 191/348.
+
+  Item 146 (crates/horizon-world/src/level/pistons.rs): PORTED.
+  `PistonBaseBlock.moveBlocks` head-clear: 1.21.5 clears a held
+  piston head with `setBlock(pos, AIR, 276)`; 1.21.4 uses flags
+  20. The Rust used 276 — now 20. The two moving-piston
+  placements use 324 in 1.21.5 and 68 in 1.21.4 (the 256
+  `SKIP_BLOCK_ENTITY_SIDEEFFECTS` bit is the 1.21.5 addition);
+  the Rust used 324 — now 68. `triggerEvent`'s retract
+  moving-piston set is 276 in 1.21.5, 20 in 1.21.4; the Rust
+  used 276 — now 20. The destroy loop differs in kind, not just
+  flags: 1.21.5 sends `levelEvent(2001)` (particles plus the
+  break sound) when the level is client-side and the state is not
+  `#minecraft:fire`, before clearing the block; 1.21.4 sets AIR
+  (18), posts `BLOCK_DESTROY`, then calls `addDestroyBlockEffect`
+  (particles only, no sound). Verified by javap on both jars:
+  `Level.addDestroyBlockEffect` is a no-op on the server and
+  `ClientLevel` overrides it to `ParticleEngine.destroy`, whose
+  only caller is `moveBlocks` — so on the server the effect is
+  nothing, and the 2001 event is never sent by a 1.21.4 piston.
+  The Rust had the 1.21.5 form, so the loop now uses the 1.21.4
+  order and emits a new `LevelEvent::DestroyParticles` (particles
+  only) for a non-fire state on the client copy;
+  `game.rs::process_level_events` plays it with no break sound,
+  and `block_update_fixture.rs` has a documented no-op arm (its
+  probe level is server-side, so the event is never emitted
+  there). `checkIfExtend`, `mirror` and `rotate` differ by branch
+  offsets and `checkcast` spacing only; `getShape` and the static
+  init build the same per-direction extended shapes (1.21.5 via
+  `Shapes.rotateAll`, 1.21.4 via six AABBs) — the Rust's shapes
+  are prepare-derived. Rank 2: 192/348.
+
+  Item 147 (widely named: server/level): carry-over.
+  `TicketType` was reworked in 1.21.5: `register(name, timeout,
+  boolean, TicketUse)` plus `doesLoad` / `doesSimulate` /
+  `hasTimeout` / `persist`, final `equals` / `hashCode`, and the
+  `TicketUse` enum (LOADING / SIMULATION); 1.21.4's constructor
+  is `TicketType(name, Comparator, timeout)`. The timeouts are
+  identical in both versions (PORTAL 300, ENDER_PEARL 40, UNKNOWN
+  1; START / DRAGON / PLAYER / FORCED have none; 1.21.5 splits
+  PLAYER into `player_loading` / `player_simulation`). The Rust
+  models only PORTAL tickets (300-tick countdown, verified in
+  item 141) and chunk loading by view distance, so the rework is
+  API shape with no behaviour to port. `ServerPlayer$1`
+  (ContainerSynchronizer): `broadcastDataValue`,
+  `sendCarriedChange` and `sendSlotChange` are identical modulo
+  javap spacing; `sendInitialData` is `List` vs `NonNullList`
+  with the same content (slots + carried + data values) — the
+  Rust's `lan/containers.rs::send_menu_content` matches (menu
+  slots + 36 player slots + carried, state id incremented);
+  `createSlot` / RemoteSlot is 1.21.5-only and the Rust has no
+  remote-slot concept, correct for 1.21.4.
+  `DistanceManager$FixedPlayerDistanceChunkTracker.runAllUpdates`
+  differs by spacing only; `dumpChunks` is a 1.21.4-only debug
+  method. `ServerPlayer$1$1` and `TicketType$TicketUse` are
+  1.21.5-only. Rank 2: 193/348.
+
+  Item 148 (crates/horizon-client-render/src/audio.rs):
+  carry-over. `com/mojang/blaze3d/audio/Library.init` differs
+  only by a factor-out: 1.21.4 builds the attributes buffer
+  inline (`callocInt(3)`, putting 6554 for HRTF) and calls
+  `setHrtf(boolean)`; 1.21.5 factors the buffer into
+  `createAttributes(stack, boolean)`. Same behaviour: HRTF is
+  enabled only when the device reports `ALC_SOFT_HRTF` and the
+  option is on. `getChannelCount` and `getDefaultDeviceName`
+  differ by `ldc` vs `ldc_w` and branch offsets only. The delta
+  lives entirely inside LWJGL / OpenAL device init, which the
+  Rust does not use: `audio.rs` is the Rust's own mixer standing
+  in for OpenAL, with no HRTF or ALC device enumeration to port.
+  Rank 2: 194/348.

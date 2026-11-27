@@ -4203,6 +4203,11 @@ impl Game<'_> {
         dispense_fixture::record_events(&events);
         for event in events {
             match event {
+                LevelEvent::DestroyParticles { pos, state } => {
+                    // `ClientLevel.addDestroyBlockEffect`: the particles
+                    // alone, no break sound.
+                    self.destroy_particles([pos.x, pos.y, pos.z], state);
+                }
                 LevelEvent::LevelEvent {
                     id: 2001,
                     pos,

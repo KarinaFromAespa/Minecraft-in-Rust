@@ -467,6 +467,9 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 // The client copy of a bell's ring: no level change.
                 LevelEvent::BlockEntityEvent { .. } => {}
+                // A piston's destroy particles: only the client copy
+                // emits them, never this probe's server-side level.
+                LevelEvent::DestroyParticles { .. } => {}
                 LevelEvent::GrowTree { .. } => {
                     let _ = writeln!(result, "X grow_tree");
                 }
