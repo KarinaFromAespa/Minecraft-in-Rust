@@ -5274,3 +5274,49 @@ shape for the review batches.
   once in 1200 ticks for both, then surplus food and wanted wares tossed
   over) via `villager::meet`, and `requested_items` feeds the pickup
   scan. Rank 2: 256/348.
+
+  Item 210 (report id 220, crates/horizon-client/src/mobs/breeze.rs):
+  carry-over. `LongJump.calculateOptimalJumpVector` differs only by
+  `MobEffects.JUMP_BOOST` (1.21.5) vs `MobEffects.JUMP` (1.21.4) - a field
+  rename; the 1.21.4 `JUMP` field registers the id "jump_boost"
+  (javap-verified: `ldc "jump_boost"` before the field init). The Rust
+  `optimal_jump_vector` (`breeze.rs:191`) implements it: shuffled
+  allowed angles, first that reaches, plus the jump-boost power `0.1 *
+  (amp + 1)` on the normalised Y, looking up "minecraft:jump_boost".
+  `start` differs only by the playSound overload. Rank 2: 257/348.
+
+  Item 211 (report id 221,
+  crates/horizon-world/src/level/timeline.rs): carry-over.
+  `FlowerPotBlock`: the static SHAPE differs only by `Block.column(6, 0,
+  6)` vs `Block.box(5, 0, 5, 11, 6, 11)` - the same box. `useItemOn`
+  differs only by javap column alignment. `randomTick` differs only by
+  the playSound overload. The Rust `potted_eyeblossom_tick`
+  (`timeline.rs:113`) implements `randomTick` for potted eyeblossoms
+  (open / close toggle by day / night, particles, `open_long` /
+  `close_long` sounds). Rank 2: 258/348.
+
+  Item 212 (report id 222,
+  crates/horizon-world/src/worldgen/feature_region.rs): carry-over.
+  `ProtoChunk.setBlockState` widened from `(BlockPos, BlockState,
+  boolean)` in 1.21.4 to `(BlockPos, BlockState, int)` in 1.21.5 - the
+  same flags widening as item 197 (`ChunkAccess`). The Rust's
+  `feature_region` `set_chunk_block` calls `region.set_block_worldgen`
+  (the `ProtoChunk` write with its heightmaps, the 1.21.4 generation
+  form). Rank 2: 259/348.
+
+  Item 213 (report id 223, launcher/src/server_list.rs): carry-over.
+  `ServerData`: `getResourcePackStatus` / constructor identical modulo
+  alignment. `write` / `read` differ only by the codec forms - 1.21.5
+  uses `storeNullable` + `BASE64_STRING` for the icon and `FIELD_CODEC`
+  for the pack status; 1.21.4 writes the icon as a Base64 string (only
+  when non-null) and `acceptTextures` as a boolean (ENABLED -> true,
+  DISABLED -> false, PROMPT -> absent), and reads name / ip with
+  `getString`, the icon via Base64 decode + `validateIcon` (warn
+  "Malformed base64 server icon" on failure), `acceptTextures` via
+  `contains(99)` + `getBoolean`. The stored form is the same. The
+  launcher's `server_list.rs` keeps entries as raw compounds and writes
+  every other field back as read (so `acceptTextures` / `hidden` survive
+  round-trips); new entries get name / ip / hidden only (no
+  `acceptTextures` = PROMPT); icons are base64-decoded (malformed ->
+  dropped, where 1.21.4 logs a warn - logging only). The game's pack
+  status itself lives in `servers.rs` (item 196). Rank 2: 260/348.
