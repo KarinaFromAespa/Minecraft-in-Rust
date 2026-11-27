@@ -6139,3 +6139,66 @@ shape for the review batches.
   via a static-method refactor of the `TagParser` API. The Rust's
   `horizon-command` `block.rs` parses the NBT tail (`OpenNbt` state,
   `nbt: Option<String>`) with its own parser. Rank 2: 328/348.
+
+  Item 328 (report id 338, widely named: core/particles): ported.
+  1.21.5 adds `TINTED_LEAVES` and `FIREFLY` particle types and the new
+  `TintedParticleLeavesBlock`; 1.21.4's `LeavesBlock.animateTick` only
+  drips water when raining above (1/15, `DRIPPING_WATER`), and its
+  `LeavesBlock` is concrete with no `leafParticleChance` field
+  (`TintedParticleLeavesBlock` is absent from both 1.21.4 jars;
+  cherry/pale-oak/azalea leaves are plain `LeavesBlock`). The Rust
+  spawned falling `TintedLeaves` (0.01) from oak/birch/jungle/acacia/
+  dark_oak/mangrove/azalea, `CherryLeaves` (0.1) from cherry and
+  `PaleOakLeaves` (0.02) from pale oak — all wrong for 1.21.4. Fixed:
+  falling `None` for every 1.21.4 leaf block (the rain drip was already
+  correct). The `TintedLeaves`/`Firefly`/`CherryLeaves`/`PaleOakLeaves`
+  particle types and renderers stay (decode/render-only;
+  `CherryLeaves`/`PaleOakLeaves` are valid 1.21.4 particles a server
+  can send). The dead red/orange/yellow poplar arms stay (no poplar
+  blocks in 1.21.4) — recorded, not removed. Rank 2: 329/348.
+
+  Item 329 (report id 339, widely named: core/registries): carry-over.
+  `Registries`: the field sets are identical between versions
+  (sorted-set diff empty); the 453-line normalized diff is pure
+  field-declaration reorder. No behaviour change. Rank 2: 330/348.
+
+  Item 330 (report id 340, widely named: data/registries): ported.
+  1.21.4's `RegistryDataLoader.SYNCHRONIZED_REGISTRIES` is exactly 12
+  entries, verified by parsing the static-init bytecode (`BIOME`,
+  `CHAT_TYPE`, `TRIM_PATTERN`, `TRIM_MATERIAL`, `WOLF_VARIANT`,
+  `PAINTING_VARIANT`, `DIMENSION_TYPE`, `DAMAGE_TYPE`,
+  `BANNER_PATTERN`, `ENCHANTMENT`, `JUKEBOX_SONG`, `INSTRUMENT`). The
+  Rust's `lan/data.rs` list had 26; trimmed the 11 that do not exist in
+  1.21.4 or are not synced by it (pig/cow/chicken/zombie-nautilus
+  variants, `sulfur_cube_archetype`, `test_environment`,
+  `test_instance`, `timeline`, `decorated_pot_pattern`,
+  `block_transformer`, `worldgen/block_state_provider` — the last four
+  are read from prepared data, never from the synced `Dynamic`). Kept
+  `frog_variant`, `cat_variant` and `world_clock` with a comment: the
+  Rust's own client resolves variant names and the clock only from
+  synced registries (`Dynamic::name` has no builtin fallback), so the
+  LAN server must sync them for its own client; vanilla 1.21.4 syncs
+  none of the three. Runtime-harmless either way (the sync loop skips
+  entries absent from the kept registries). Rank 2: 331/348.
+
+  Item 331 (report id 341, widely named: network/syncher): ported.
+  `EntityDataSerializers`: `apply_registry_data` used entity-data
+  indices matching neither 1.21.4 nor 1.21.5 — every variant index was
+  +1 (Cat 20 vs 19, Wolf 23 vs 22, Frog 18 vs 17; Wolf anger 22 vs
+  21), so cat/wolf/frog variants and wolf anger never applied from
+  `SetEntityData`. Verified by counting `defineId` calls per class in
+  the 1.21.4 jars (Entity 0-7, LivingEntity 8-14, Mob 15, AgeableMob
+  16, `TamableAnimal` adds `DATA_FLAGS_ID` + `DATA_OWNERUUID_ID`;
+  `TameableAnimal` does not exist — the class is spelled
+  `TamableAnimal`). Fixed the indices, removed the 1.21.5-only
+  pig/cow/chicken/zombie-nautilus arms, and narrowed
+  `saves_variant_name` to Wolf/Cat/Frog (only those three write a
+  `variant` string in 1.21.4's `addAdditionalSaveData`;
+  `VariantUtils.writeVariant` has 0 callers in 1.21.4; Pig/Cow/Chicken
+  do not write it). New test pins the 1.21.4 indices. Remaining
+  residue recorded, not fixed: `species_variant_component` still
+  reports pig/cow/chicken/zombie-nautilus variant components
+  (`drops.rs` `chicken_variant` is set from it — harmless, no 1.21.4
+  loot table conditions on it) and `SpawnRegistries` still loads the
+  absent pig/cow/chicken variant registries (empty in 1.21.4,
+  `variant_index` falls back to 0). Rank 2: 332/348.

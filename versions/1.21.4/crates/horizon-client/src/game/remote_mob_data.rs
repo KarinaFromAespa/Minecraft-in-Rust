@@ -365,15 +365,15 @@ fn apply_registry_data(
     let species = m.species();
     for (index, _, value) in values {
         let registry = match (species, *index, value) {
-            (Species::Cat, 20, Value::Id(_)) => "minecraft:cat_variant",
-            (Species::Wolf, 23, Value::Id(_)) => "minecraft:wolf_variant",
-            (Species::Frog, 18, Value::Id(_)) => "minecraft:frog_variant",
-            (Species::Pig, 19, Value::Id(_)) => "minecraft:pig_variant",
-            (Species::Cow, 18, Value::Id(_)) => "minecraft:cow_variant",
-            (Species::Chicken, 18, Value::Id(_)) => "minecraft:chicken_variant",
-            (Species::ZombieNautilus, 21, Value::Id(_)) => "minecraft:zombie_nautilus_variant",
-            // Wolf.DATA_ANGER_END_TIME: the angry texture while it lies ahead.
-            (Species::Wolf, 22, Value::Long(end)) => {
+            // 1.21.4: Cat.DATA_VARIANT_ID 19, Wolf 22, Frog 17 — TamableAnimal
+            // adds DATA_FLAGS_ID and DATA_OWNERUUID_ID to the 17-base, so the
+            // variants sit one higher than the 17-base count; the 1.21.5+
+            // pig/cow/chicken/zombie-nautilus variants do not exist.
+            (Species::Cat, 19, Value::Id(_)) => "minecraft:cat_variant",
+            (Species::Wolf, 22, Value::Id(_)) => "minecraft:wolf_variant",
+            (Species::Frog, 17, Value::Id(_)) => "minecraft:frog_variant",
+            // Wolf.DATA_ANGER_END_TIME (21): the angry texture while it lies ahead.
+            (Species::Wolf, 21, Value::Long(end)) => {
                 m.extra.anger = (end - game_time).clamp(0, i64::from(i32::MAX)) as i32;
                 continue;
             }
@@ -992,6 +992,62 @@ mod tests {
         assert_eq!(m.extra.variant, 1);
         apply(&mut m, &[(18, s::INT, Value::Int(0))]);
         assert_eq!(m.extra.variant, 0);
+    }
+
+    /// 1.21.4's synched variant indices: Cat.DATA_VARIANT_ID 19, Wolf 22,
+    /// Frog 17, Wolf.DATA_ANGER_END_TIME 21 (TamableAnimal's two accessors
+    /// sit between the 17-base and the variants; the pig/cow/chicken
+    /// variants of 1.21.5+ do not exist in 1.21.4).
+    #[test]
+    fn a_servers_cat_wolf_and_frog_take_their_1_21_4_variant_indices() {
+        let mut registries = Dynamic::default();
+        for (registry, names) in [
+            (
+                "minecraft:cat_variant",
+                ["minecraft:tabby", "minecraft:black"],
+            ),
+            (
+                "minecraft:wolf_variant",
+                ["minecraft:pale", "minecraft:spotted"],
+            ),
+            (
+                "minecraft:frog_variant",
+                ["minecraft:temperate", "minecraft:warm"],
+            ),
+        ] {
+            registries.registries.insert(
+                registry.into(),
+                names.into_iter().map(|n| (n.into(), None)).collect(),
+            );
+        }
+        let Some(mut m) = mob("minecraft:cat") else {
+            return;
+        };
+        apply_registry_data(&mut m, &[(19, 0, Value::Id(1))], &registries, 0);
+        assert_eq!(m.extra.variant, 1);
+        // The old index 20 is the collar colour, not a variant.
+        apply_registry_data(&mut m, &[(20, 0, Value::Id(0))], &registries, 0);
+        assert_eq!(m.extra.variant, 1);
+        let Some(mut m) = mob("minecraft:wolf") else {
+            return;
+        };
+        apply_registry_data(&mut m, &[(22, 0, Value::Id(1))], &registries, 100);
+        assert_eq!(m.extra.variant, 1);
+        apply_registry_data(&mut m, &[(21, 0, Value::Long(500))], &registries, 100);
+        assert_eq!(m.extra.anger, 400);
+        // The old indices 23 (variant) and 22 (anger) never fire.
+        apply_registry_data(&mut m, &[(23, 0, Value::Id(0))], &registries, 100);
+        assert_eq!(m.extra.variant, 1);
+        apply_registry_data(&mut m, &[(22, 0, Value::Long(900))], &registries, 100);
+        assert_eq!(m.extra.anger, 400);
+        let Some(mut m) = mob("minecraft:frog") else {
+            return;
+        };
+        apply_registry_data(&mut m, &[(17, 0, Value::Id(1))], &registries, 0);
+        assert_eq!(m.extra.variant, 1);
+        // The old index 18 is the tongue target, not a variant.
+        apply_registry_data(&mut m, &[(18, 0, Value::Id(0))], &registries, 0);
+        assert_eq!(m.extra.variant, 1);
     }
 
     #[test]

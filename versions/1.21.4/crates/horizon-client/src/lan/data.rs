@@ -14,34 +14,28 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// RegistryDataLoader.SYNCHRONIZED_REGISTRIES, in vanilla's order.
+/// RegistryDataLoader.SYNCHRONIZED_REGISTRIES, in vanilla's order: the 1.21.4
+/// twelve, plus three the Rust's own client needs from the sync because it
+/// resolves them only from the synchronized registries (`Dynamic::name` has
+/// no builtin fallback) — `frog_variant` and `cat_variant` (the LAN client's
+/// `apply_registry_data` resolves cat/frog variants from them) and
+/// `world_clock` (the LAN clock path). Vanilla 1.21.4 syncs none of the three.
 pub const SYNCHRONIZED: &[&str] = &[
     "minecraft:worldgen/biome",
     "minecraft:chat_type",
     "minecraft:trim_pattern",
     "minecraft:trim_material",
     "minecraft:wolf_variant",
-    "minecraft:pig_variant",
     "minecraft:frog_variant",
     "minecraft:cat_variant",
-    "minecraft:cow_variant",
-    "minecraft:chicken_variant",
-    "minecraft:zombie_nautilus_variant",
     "minecraft:painting_variant",
-    "minecraft:sulfur_cube_archetype",
     "minecraft:dimension_type",
     "minecraft:damage_type",
     "minecraft:banner_pattern",
     "minecraft:enchantment",
     "minecraft:jukebox_song",
     "minecraft:instrument",
-    "minecraft:test_environment",
-    "minecraft:test_instance",
     "minecraft:world_clock",
-    "minecraft:timeline",
-    "minecraft:decorated_pot_pattern",
-    "minecraft:block_transformer",
-    "minecraft:worldgen/block_state_provider",
 ];
 pub const BIOME_REGISTRY: &str = "minecraft:worldgen/biome";
 /// The table a client plays a server with: `known` and the biomes of the

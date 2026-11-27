@@ -2350,21 +2350,13 @@ pub fn species_variant_component(s: Species, variant: u8) -> Option<(&'static st
     Some((component, format!("minecraft:{}", variant_name(s, variant))))
 }
 /// Whether the mob's save keeps its variant under `variant` — the registry
-/// id `VariantUtils.writeVariant` stores — rather than under its own key (a
-/// fox's and a mooshroom's `Type`) or a packed int (a horse's and a llama's
-/// `Variant`). Only these seven classes call `writeVariant`, so reporting the
-/// component does not mean the save carries the name.
+/// id the species' own `addAdditionalSaveData` stores — rather than under its
+/// own key (a fox's and a mooshroom's `Type`) or a packed int (a horse's and
+/// a llama's `Variant`). In 1.21.4 only Wolf, Cat and Frog save a `variant`
+/// string; `VariantUtils.writeVariant` and the pig/cow/chicken/zombie-nautilus
+/// variants arrive in 1.21.5, so those saves carry no `variant` name.
 pub fn saves_variant_name(s: Species) -> bool {
-    matches!(
-        s,
-        Species::Wolf
-            | Species::Cat
-            | Species::Frog
-            | Species::Pig
-            | Species::Cow
-            | Species::Chicken
-            | Species::ZombieNautilus
-    )
+    matches!(s, Species::Wolf | Species::Cat | Species::Frog)
 }
 /// The registry name of the game's variant index.
 pub fn variant_name(s: Species, index: u8) -> &'static str {
@@ -2484,9 +2476,11 @@ mod tests {
         assert_eq!(variant_index(Species::Llama, "minecraft:temperate"), 0);
         assert_eq!(variant_name(Species::Horse, 7), "white");
         assert_eq!(variant_name(Species::TraderLlama, 4), "creamy");
-        // Only `VariantUtils.writeVariant` species save the name; a horse and
-        // a llama save a packed `Variant` int, a fox and a mooshroom `Type`.
-        for species in [Species::Wolf, Species::Cat, Species::Chicken, Species::Pig] {
+        // Only Wolf, Cat and Frog save a `variant` name in 1.21.4 (their
+        // `addAdditionalSaveData` writes it); a horse and a llama save a
+        // packed `Variant` int, a fox and a mooshroom `Type`, and the
+        // pig/cow/chicken/zombie-nautilus variants do not exist yet.
+        for species in [Species::Wolf, Species::Cat, Species::Frog] {
             assert!(saves_variant_name(species), "{species:?}");
         }
         for species in [
@@ -2495,6 +2489,10 @@ mod tests {
             Species::TraderLlama,
             Species::Fox,
             Species::Mooshroom,
+            Species::Pig,
+            Species::Cow,
+            Species::Chicken,
+            Species::ZombieNautilus,
         ] {
             assert!(!saves_variant_name(species), "{species:?}");
         }

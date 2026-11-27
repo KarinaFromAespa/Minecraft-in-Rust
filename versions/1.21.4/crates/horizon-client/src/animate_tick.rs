@@ -132,17 +132,22 @@ fn classify(name: &str, prop: &dyn Fn(&str) -> Option<String>) -> Animate {
         "soul_campfire" if lit => Animate::Campfire {
             spawn_particles: false,
         },
-        "oak_leaves" | "birch_leaves" | "jungle_leaves" | "acacia_leaves" | "dark_oak_leaves"
-        | "mangrove_leaves" => Animate::Leaves(Some((T::TintedLeaves, 0.01)), None, false),
-        "cherry_leaves" => Animate::Leaves(Some((T::CherryLeaves, 0.1)), None, false),
-        "pale_oak_leaves" => Animate::Leaves(Some((T::PaleOakLeaves, 0.02)), None, false),
+        // 1.21.4 has no falling leaves: `LeavesBlock.animateTick` only drips
+        // water when it rains; the tinted/cherry/pale-oak falling particles
+        // and `TintedParticleLeavesBlock` arrive in 1.21.5.
+        "oak_leaves"
+        | "birch_leaves"
+        | "jungle_leaves"
+        | "acacia_leaves"
+        | "dark_oak_leaves"
+        | "mangrove_leaves"
+        | "cherry_leaves"
+        | "pale_oak_leaves"
+        | "azalea_leaves"
+        | "flowering_azalea_leaves" => Animate::Leaves(None, None, false),
         "red_poplar_leaves" => Animate::Leaves(Some((T::RedPoplarLeaves, 0.01)), None, true),
         "orange_poplar_leaves" => Animate::Leaves(Some((T::OrangePoplarLeaves, 0.01)), None, true),
         "yellow_poplar_leaves" => Animate::Leaves(Some((T::YellowPoplarLeaves, 0.01)), None, true),
-        // The azalea blocks drop tinted leaves of the fixed colour -9399763.
-        "azalea_leaves" | "flowering_azalea_leaves" => {
-            Animate::Leaves(Some((T::TintedLeaves, 0.01)), Some(0x0070_922D), false)
-        }
         "spruce_leaves" => Animate::Leaves(None, None, false),
         "nether_portal" => Animate::NetherPortal,
         "enchanting_table" => Animate::EnchantingTable,
