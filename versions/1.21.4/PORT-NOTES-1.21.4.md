@@ -5673,3 +5673,58 @@ shape for the review batches.
   result as the item with count 1 and the source's components
   (`createWithOriginalComponents`, `crafting.rs:1004`) - the 1.21.4
   form. Rank 2: 288/348.
+
+  Item 256 (report id 266, widely named: client/renderer/block):
+  carry-over. `ModelBlockRenderer$Cache`: `getShadeBrightness` is
+  identical modulo alignment; `getLightColor` computes the same value -
+  the difference is caching (1.21.4 caches per-position in the Cache's
+  `colorCache` capped at 100 entries with default return MAX_VALUE;
+  1.21.5 caches via a `cachedBrightnessGetter`).
+  `AmbientOcclusionRenderStorage` and `CommonRenderStorage` are
+  1.21.5-only - the 1.21.5 refactor that extracted the AO calculation
+  into a storage class. The Rust renders blocks through its own mesher
+  (`mesher.rs:1970` / `2125` / `2144` smooth lighting +
+  `lighting::ambient_occlusion` per quad) and does not mirror the Java
+  renderer internals. Rank 2: 289/348.
+
+  Item 257 (report id 267, widely named: server): carry-over.
+  `ServerScoreboard`: `createData` is the save-data codec rework
+  (1.21.4 takes `(CompoundTag, HolderLookup$Provider)`, 1.21.5 takes
+  `(ScoreboardSaveData$Packed)`) - the same rework as item 260;
+  `dataFactory()` is the 1.21.4 form, 1.21.5 uses a codec lambda.
+  `onScoreChanged` differs only by alignment (the `Score.value()` call
+  spacing). Rank 2: 290/348.
+
+  Item 258 (report id 268, widely named: util/random): carry-over.
+  `Weighted` and `WeightedList` (with `Builder` / `Compact` /
+  `Selector`) are 1.21.5-only - 1.21.5 introduced the record-based
+  `Weighted` (value + weight) and `WeightedList` API. In 1.21.4 the API
+  is `WeightedRandomList` / `WeightedRandom`. The Rust implements the
+  1.21.4 form: `spawn_selection.rs:752` `weighted_pick` documents
+  "`WeightedRandomList.getRandom` (1.21.5 renamed it `WeightedList`)"
+  and implements it (total weight, `nextInt(total)`, walk down
+  subtracting weights, first entry where selection < 0);
+  `particles.rs:3958` and `frog.rs:732` / `1070` cite
+  `WeightedRandom.getRandomItem` the same way. Rank 2: 291/348.
+
+  Item 259 (report id 269, widely named: world/entity/animal/horse):
+  carry-over. `AbstractChestedHorse`: 1.21.4 saves the chest inventory
+  with a +1 slot offset (the loop starts at inventory slot 1, writes
+  `Slot = i - 1`; slot 0 is the saddle) and reads `Slot` back into
+  inventory slot `Slot + 1`, then calls `syncSaddleToClients()`;
+  1.21.5 writes the raw inventory indices (`Slot = i`) with no offset
+  and no sync call. The Rust implements the 1.21.4 form: the saddle is
+  stored separately as `SaddleItem` (`entity_nbt.rs:1085`) and
+  `m.extra.items` is the 15 chest slots only, written by
+  `encode_items` with `Slot` = chest index (`item_nbt.rs:95`) and read
+  back by `decode_items(tag, 15)` - byte-identical to 1.21.4's save.
+  `SkeletonHorse`: `isTrap` / `setTrap` / `aiStep` / add / read differ
+  only by alignment; the constructor's explicit `isTrap=false` /
+  `trapTime=0` initialisation is the same values;
+  `checkSkeletonHorseSpawnRules` is identical
+  (`isBrightEnoughToSpawn`); `trapTime` 18000 and the
+  `SkeletonTrapTime` key are the same. `TraderLlama`:
+  `readAdditionalSaveData` reads `DespawnDelay` with `getInt` guarded
+  by `contains(..., 99)` in 1.21.4 vs `getIntOr(..., 47999)` in 1.21.5 -
+  the same 47999 default (the Rust's `llama.rs:97`
+  `DEFAULT_DESPAWN_DELAY = 47999`). Rank 2: 292/348.
