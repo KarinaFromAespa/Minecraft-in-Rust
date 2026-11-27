@@ -4410,3 +4410,118 @@ shape for the review batches.
   (`getShort` vs `getShortOr(key, 0)`). Comment fixed:
   `spill.rs` now cites `AbstractFurnaceBlock.onRemove`
   instead of the 1.21.5 method. Rank 2: 221/348.
+
+  Item 177 (crates/horizon-client/src/mobs/ai.rs):
+  carry-over. `WaterAnimal.handleAirSupply`: 1.21.4, when
+  alive and not `isInWaterOrBubble`, air minus 1, at -20
+  reset to 0 and `hurt(drown, 2.0)`, else air 300; called
+  unconditionally from `baseTick`. 1.21.5 switches to
+  `isInWater`, runs only on the server, and `hurtServer`.
+  The Rust's `needs_water` branch in `mobs/ai.rs` does
+  exactly the 1.21.4 form inside the alive gate, and its
+  fluid scan treats bubble columns as water (the existing
+  bubble-column test asserts `eye_in_water` in a bubble
+  column), so `isInWaterOrBubble` and `in_water` agree
+  wherever a water animal can stand. `Endermite`: the
+  constructor sets `life` 0 explicitly (the default),
+  `readAdditionalSaveData` is `getIntOr("Lifetime", 0)`
+  vs `getInt` (0 when absent), `aiStep` is identical,
+  `registerGoals` differs only by formatting.
+  Rank 2: 219/348.
+
+  Item 178 (crates/horizon-client/src/mobs/spawning.rs):
+  PORTED. `ArmorMaterial.createAttributes` is
+  bytecode-identical in both versions (ARMOR plus
+  ARMOR_TOUGHNESS plus KNOCKBACK_RESISTANCE when positive,
+  id `minecraft:<type>`); only its visibility changed
+  (private to public) and `humanoidProperties` /
+  `animalProperties` moved out of the class, so the Rust's
+  hardcoded horse-armor stats (leather 3, copper 4, iron 5,
+  gold 7, diamond 11/2.0) match both. `MoonBrightnessCheck`
+  is new in 1.21.5: the 1.21.5 `all_black` cat variant reads
+  `moon_brightness >= 0.9` from data, while 1.21.4 picks
+  from the `full_moon_spawns` / `default_spawns` tags
+  (moon brightness >= 0.9, i.e. phase 0). The natural-spawn
+  path already implements the 1.21.4 form
+  (`tame::cat_variant`, 11 vs 10 entries), but the
+  chunk-generation `Finalize` path read only the data
+  registries, which are empty in 1.21.4 (no `pig_variant`,
+  `cow_variant`, `chicken_variant`, `cat_variant` or
+  `frog_variant` data at all), so every chunk-generated cat
+  stayed tabby (variant 0) and every frog stayed temperate.
+  Both arms in `mobs/finalize.rs` now fall back to the
+  1.21.4 tag forms when the registry is empty: cats pick
+  uniformly from 10, or 11 with `all_black` on moon phase 0,
+  drawn from the level random; frogs read
+  `spawns_warm/cold_variant_frogs` (1/2, else 0). Pigs,
+  cows and chickens need no fallback: they have no variant
+  in 1.21.4 at all (no class, no data, one pig texture),
+  and the 1.21.4 farm-animal climate tags do not exist, so
+  the natural-spawn path already leaves them temperate.
+  Verified by `cargo check`; the finalize-spawn parity
+  harness covers cats and frogs across biomes, reasons and
+  moon phases against the 1.21.4 oracle.
+  Rank 2: 220/348.
+
+  Item 179 (crates/horizon-assets/examples/item_model_fixture.rs):
+  carry-over (re-verification of an item already closed by
+  the pre-restart session under report id 189; see the
+  ledger correction below). `PalettedPermutations`: 1.21.5
+  made the class a record and added an optional `separator`
+  field (codec `optionalFieldOf("separator", "_")`); 1.21.4
+  has no separator and always names outputs with `"_" +
+  key`. The Rust's `palette.rs` reads an optional separator
+  defaulting to `"_"`, so on 1.21.4 data (which never
+  carries the field) it behaves exactly as 1.21.4; the
+  `run` bodies differ only by that separator line and
+  lambda renumbering. The pre-restart entry for the same
+  item (report id 189) had removed the `"oversized":
+  resolved.oversized_in_gui` field from the fixture JSON;
+  that angle is preserved in the merged
+  `rank2-progress.json` entry.
+
+  Item 180 (crates/horizon-client-render/src/vault.rs):
+  carry-over (re-verification of an item already closed by
+  the pre-restart session under report id 190; see the
+  ledger correction below). `BuiltInLootTables`: the
+  loot-table key sets are identical in both jars; 1.21.5
+  only refactored the static-init lambdas into a
+  `makeDyeKeyMap` helper. `VaultRenderer.render` gained an
+  unused `Vec3` camera parameter in 1.21.5 (never loaded in
+  the body) and `updateForTopItem` lost a boolean parameter;
+  the drawn result (translate 0.5/0.4/0.5, YP spin from
+  `rotLerp` of previous/current spin,
+  `renderMultipleFromCount`) is identical, and the Rust has
+  no `VaultRenderer` drawing path. `VaultState.ejectResultItem`
+  and `VaultState$3`/`$4` `onEnter`/`onExit` differ only by
+  the `playSound` overload (`Player` in 1.21.4, `Entity` in
+  1.21.5, both passed null, both play to all); the Rust
+  emits the same events (`Eject` with the triangle spread,
+  level event 3017, `block.vault.eject_item` at 1.0 and
+  `0.8 + 0.4 * progress`). `PlayerDetector` differs only by
+  the `Sheep` package move (`animal.Sheep` to
+  `animal.sheep.Sheep`). The pre-restart entry for the same
+  item (report id 190) recorded the vault module as
+  no-change (0 diff lines between the trees); that angle is
+  preserved in the merged `rank2-progress.json` entry.
+
+  LEDGER CORRECTION (2026-11-27, batch 50): the rank-2
+  count is corrected 225 -> 220. Batches 46-50 keyed
+  `rank2-progress.json` by rank-2 ordinal, but the
+  pre-restart entries were keyed by report id
+  (id = ordinal + 10), so five items were closed twice and
+  counted twice: 162 (legacy id 172), 167 (legacy id 177),
+  173 (legacy id 183), 179 (legacy id 189) and 180 (legacy
+  id 190). The legacy angles are merged into the
+  authoritative session-3 entries and the duplicate keys
+  removed; the two legacy entries destroyed by overwrites
+  (162's in batch 48, 167's in batch 50) were recovered
+  from git history (15407218 and f149e539) and merged the
+  same way. After the correction the file reconciles
+  exactly: 220 keys, 220 distinct ordinals covered, rank 2
+  closed 220/348. The next unclosed ordinals are 151-160,
+  then 181-183, 185 onward (184 is already closed via
+  legacy id 194). Batches must keep keying by rank-2
+  ordinal and must check the report-id key (ordinal + 10)
+  before closing an item, so a pre-restart entry is merged
+  instead of re-closed.

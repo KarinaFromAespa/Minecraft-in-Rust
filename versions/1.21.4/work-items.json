@@ -1,6 +1,6 @@
 {
   "generated_from": "16f750e52beb6ae65e838e3289c94d309c5bce0f147fb2eaf3fe4e5b7279fb0d",
-  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 221/348 (2026-11-27, batch 49: items 173-176 \u2014 all carry-over: WallBlock is a Java-field rename plus a makeShapes Map-to-Function refactor with identical logic, HashedStack is 1.21.5-only and the 1.21.4 wire already sends full stacks, GameNarrator is a helper inlining, furnace pre-remove effects run from AbstractFurnaceBlock.onRemove in 1.21.4 with a comment fix in spill.rs). Rank 3/4/5 open.",
+  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 220/348 (2026-11-27, batch 50: items 177-180 \u2014 178 ported (chunk-generation finalize for cats and frogs falls back to the 1.21.4 tag forms when the 1.21.5-only variant data is absent), 177/179/180 carry-over). LEDGER CORRECTION: the count was 225, corrected to 220 \u2014 five items (162, 167, 173, 179, 180) had been closed twice under two keying schemes (pre-restart report-id keys vs session-3 rank-2-ordinal keys) and counted twice. Rank 3/4/5 open.",
   "rank1": {
     "accepted": [],
     "closed": 10,
@@ -8,7 +8,7 @@
   },
   "rank2": {
     "accepted": [],
-    "closed": 221,
+    "closed": 220,
     "total": 348
   },
   "rank3": {

@@ -1851,7 +1851,24 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
             }
             S::Cat => {
                 let g = self.ageable(m, g);
-                self.variant(m, |r| &r.cat);
+                if self.data.registries.cat.names.is_empty() {
+                    // 1.21.4 has no cat_variant data: Cat.finalizeSpawn
+                    // picks uniformly from the default_spawns tag, or the
+                    // full_moon_spawns tag (which adds all_black) when the
+                    // moon brightness is at least 0.9, i.e. moon phase 0.
+                    // (1.21.5 reads the same rule from the all_black
+                    // variant's spawn_conditions instead, via
+                    // MoonBrightnessCheck.)
+                    let at = block(m);
+                    let n = if self.level.moon_phase(at) == 0 {
+                        11
+                    } else {
+                        10
+                    };
+                    m.extra.variant = self.int(n) as u8;
+                } else {
+                    self.variant(m, |r| &r.cat);
+                }
                 self.sound(m, |r| &r.cat_sound);
                 g
             }
@@ -1878,7 +1895,27 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
                 self.ageable(m, g)
             }
             S::Frog => {
-                self.variant(m, |r| &r.frog);
+                if self.data.registries.frog.names.is_empty() {
+                    // 1.21.4 has no frog_variant data: Frog.finalizeSpawn
+                    // reads the spawn biome's tags (warm, then cold, else
+                    // temperate).
+                    let at = block(m);
+                    m.extra.variant = if self
+                        .level
+                        .biome_tag("minecraft:spawns_warm_variant_frogs", at)
+                    {
+                        1
+                    } else if self
+                        .level
+                        .biome_tag("minecraft:spawns_cold_variant_frogs", at)
+                    {
+                        2
+                    } else {
+                        0
+                    };
+                } else {
+                    self.variant(m, |r| &r.frog);
+                }
                 let jump = self.uniform(100, 140);
                 set_memory(m, "long_jump_cooling_down", i64::from(jump), i64::MAX);
                 self.ageable(m, g)
