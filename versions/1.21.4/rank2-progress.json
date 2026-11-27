@@ -3396,6 +3396,38 @@
       "classes": [
         "PiglinAi"
       ]
+    },
+    "230": {
+      "module": "mobs/control.rs",
+      "verdict": "ported",
+      "evidence": "MoveControl.tick JUMPING branch: 1.21.4 ends the jump only when the mob lands (onGround -> WAIT). 1.21.5 added a second end: in liquid AND isAffectedByFluids -> WAIT (javap-verified both forms; isAffectedByFluids is protected on Entity in 1.21.4 and public on LivingEntity in 1.21.5). The Rust's Jumping arm used the 1.21.5 form (on_ground || is_in_liquid) - PORTED: the liquid clause removed, with a comment citing the jar. A 1.21.4 mob that jumps into water stays JUMPING until it touches ground. cargo check -p horizon-client passed.",
+      "classes": [
+        "MoveControl"
+      ]
+    },
+    "231": {
+      "module": "mod_content_tests.rs",
+      "verdict": "carry-over",
+      "evidence": "StructureStart.loadStaticStart differs only by the NBT accessor forms - getStringOr('id', '') vs getString, getIntOr(..., 0) vs getInt for ChunkX/ChunkZ/references, getListOrEmpty('Children') vs getList('Children', 10) - all the same defaults ('' / 0 / empty list); the 'Unknown stucture id' typo is in both. Rust saved_starts_at (generator_structures.rs:448) implements the loading (saved starts with pieces, jigsaw via PoolPiece::from_saved, fallback to regenerated starts by name+box). No Rust change.",
+      "classes": [
+        "StructureStart"
+      ]
+    },
+    "232": {
+      "module": "version.rs",
+      "verdict": "carry-over",
+      "evidence": "SharedConstants.getProtocolVersion returns 770 in 1.21.5 vs 769 in 1.21.4 - the version constant itself. The 1.21.4 tree already pins PROTOCOL_VERSION = 769 (horizon-core/src/version.rs:9). No Rust change.",
+      "classes": [
+        "SharedConstants"
+      ]
+    },
+    "234": {
+      "module": "bundle.rs",
+      "verdict": "carry-over",
+      "evidence": "BundleContents.getWeight differs only by the bees default form - 1.21.5 Bees.EMPTY + bees() record accessor vs 1.21.4 List.of() - the same empty-list default; a beehive with a non-empty bees list weighs 1 in both. Rust item_weight (bundle.rs:73) implements it: nested bundle -> contents + 1/16, beehive with a non-empty minecraft:bees list -> 1, else 1/max-stack. No Rust change.",
+      "classes": [
+        "BundleContents"
+      ]
     }
   }
 }

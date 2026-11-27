@@ -5365,3 +5365,40 @@ shape for the review batches.
   (any stack in the `PIGLIN_SAFE_ARMOR` tag -> true). The Rust
   `wearing_gold` (`piglins.rs:226`) iterates `self.armor` and checks the
   `minecraft:piglin_safe_armor` tag. Rank 2: 264/348.
+
+  Item 220 (report id 230, crates/horizon-client/src/mobs/control.rs):
+  PORTED. `MoveControl.tick` JUMPING branch: 1.21.4 ends the jump only
+  when the mob lands (`onGround` -> WAIT). 1.21.5 added a second end: in
+  liquid AND `isAffectedByFluids` -> WAIT (javap-verified both forms;
+  `isAffectedByFluids` is protected on `Entity` in 1.21.4 and public on
+  `LivingEntity` in 1.21.5). The Rust's Jumping arm used the 1.21.5
+  form (`on_ground || is_in_liquid`) - fixed: the liquid clause
+  removed, with a comment citing the jar. A 1.21.4 mob that jumps into
+  water stays JUMPING until it touches ground. `cargo check
+  -p horizon-client` passed. Rank 2: 265/348.
+
+  Item 221 (report id 231,
+  crates/horizon-client/src/mod_content_tests.rs): carry-over.
+  `StructureStart.loadStaticStart` differs only by the NBT accessor
+  forms - `getStringOr("id", "")` vs `getString`, `getIntOr(..., 0)` vs
+  `getInt` for ChunkX / ChunkZ / references, `getListOrEmpty("Children")`
+  vs `getList("Children", 10)` - all the same defaults ("" / 0 / empty
+  list); the "Unknown stucture id" typo is in both. The Rust
+  `saved_starts_at` (`generator_structures.rs:448`) implements the
+  loading (saved starts with pieces, jigsaw via `PoolPiece::from_saved`,
+  fallback to regenerated starts by name + box). Rank 2: 266/348.
+
+  Item 222 (report id 232, crates/horizon-core/src/version.rs):
+  carry-over. `SharedConstants.getProtocolVersion` returns 770 in
+  1.21.5 vs 769 in 1.21.4 - the version constant itself. The 1.21.4
+  tree already pins `PROTOCOL_VERSION = 769`
+  (`horizon-core/src/version.rs:9`). Rank 2: 267/348.
+
+  Item 224 (report id 234, crates/horizon-items/src/bundle.rs):
+  carry-over. `BundleContents.getWeight` differs only by the bees
+  default form - 1.21.5 `Bees.EMPTY` + `bees()` record accessor vs
+  1.21.4 `List.of()` - the same empty-list default; a beehive with a
+  non-empty bees list weighs 1 in both. The Rust `item_weight`
+  (`bundle.rs:73`) implements it: nested bundle -> contents + 1/16,
+  beehive with a non-empty `minecraft:bees` list -> 1, else 1 /
+  max-stack. Rank 2: 268/348.

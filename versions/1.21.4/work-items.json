@@ -1,6 +1,6 @@
 {
   "generated_from": "16f750e52beb6ae65e838e3289c94d309c5bce0f147fb2eaf3fe4e5b7279fb0d",
-  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 264/348 (2026-11-27, batch 62: items 224, 225, 226, 228 \u2014 all carry-over (BossBar enums + Container iterator + Containers destroy split; AbstractContainerScreen infinite-materials check; ChestBlockEntity playSound overload; PiglinAi safe-armor slots)). Total 274/548. Next batch 63 = lowest unclosed ordinals (verify against rank2-progress.json). Rank 3/4/5 open.",
+  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 268/348 (2026-11-27, batch 63: items 230, 231, 232, 234 \u2014 1 ported (MoveControl Jumping ends on ground only, not in liquid), 3 carry-over (StructureStart NBT accessors; protocol 769 pinned; BundleContents bees default)). Total 278/548. Next batch 64 = lowest unclosed ordinals (verify against rank2-progress.json). Rank 3/4/5 open.",
   "rank1": {
     "accepted": [],
     "closed": 10,
@@ -8,7 +8,7 @@
   },
   "rank2": {
     "accepted": [],
-    "closed": 264,
+    "closed": 268,
     "total": 348
   },
   "rank3": {

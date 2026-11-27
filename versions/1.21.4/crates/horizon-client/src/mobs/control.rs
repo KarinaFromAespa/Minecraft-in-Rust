@@ -321,7 +321,11 @@ impl Mob {
             }
             Operation::Jumping => {
                 self.set_speed((self.ai.mov.speed_modifier * attr_speed) as f32);
-                if self.on_ground || self.is_in_liquid() {
+                // 1.21.4 `MoveControl.tick`: a jump ends only when the mob
+                // lands (`onGround`). The liquid end (`isInLiquid` and
+                // `isAffectedByFluids`) is 1.21.5-only - a 1.21.4 mob that
+                // jumps into water stays JUMPING until it touches ground.
+                if self.on_ground {
                     self.ai.mov.operation = Operation::Wait;
                 }
             }
