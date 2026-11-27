@@ -4961,3 +4961,63 @@ shape for the review batches.
   `appendHoverTextFromBannerBlockEntityTag` are 1.21.4-only; the Rust
   shows banner patterns via the `minecraft:banner_patterns` component
   path in `item_tooltip.rs` (with show/hide tests). Rank 2: 232/348.
+
+  Item 182 (report id 192, crates/horizon-client/src/game/cartography.rs):
+  carry-over. `CartographyTableMenu$5.onTake` differs only by the
+  `playSound` overload (`Entity` in 1.21.5 vs `Player` in 1.21.4) and
+  `Item.onCraftedBy` gaining a `Level` parameter in 1.21.5 - API shape
+  only. `MapRenderer.render` differs only by
+  `PoseStack.mulPose(Quaternionfc)` in 1.21.5 vs
+  `mulPose(Quaternionf)` in 1.21.4 - same rotation math.
+  `CartographyTableMenu.quickMoveStack` differs only by the
+  `onCraftedBy` `Level` parameter and branch offsets - same slot logic
+  (result slot 2 -> inventory 3..39, slot 1 -> inventory, `MAP_ID`
+  check -> slot 0). The Rust's `cartography.rs` implements the menu
+  (`map_id` via the `MAP_ID` component, paper zoom, cloning) with the
+  same slot layout. Rank 2: 233/348.
+
+  Item 183 (report id 193,
+  crates/horizon-client/src/game/storage_alias_tests.rs): carry-over.
+  `NbtPathArgument$AllElementsNode.removeTag` / `setTag` differ only
+  by `invokeinterface` vs `invokevirtual` on `CollectionTag` methods
+  (`size` / `clear` / `addTag` / `stream`) - 1.21.5 made
+  `CollectionTag` an interface, 1.21.4 has it as a class; the logic is
+  identical (`removeTag` clears the collection and returns its size;
+  `setTag` replaces all elements, returning the count). The Rust's NBT
+  path implementation (`horizon-client-core/src/nbt_path.rs`, covered
+  by `storage_alias_tests.rs`) implements the same all-elements
+  semantics. Rank 2: 234/348.
+
+  Item 185 (report id 195, crates/horizon-core/src/geometry/sweep.rs):
+  carry-over. `BlockGetter.getBlockStates(AABB)` is identical modulo
+  javap column alignment
+  (`BlockPos.betweenClosedStream(aabb).map(this::getBlockState)`).
+  1.21.4 has `boxTraverseBlocks(Vec3, Vec3, AABB)` returning
+  `Iterable<BlockPos>` and `addCollisionsAlongTravel(Set<BlockPos>,
+  ...)` filling a set; 1.21.5 replaced them with
+  `forEachBlockIntersectedBetween(..., BlockStepVisitor)` and
+  `addCollisionsAlongTravel(LongSet, ..., BlockStepVisitor)` returning
+  int. The Rust's `sweep_intersected_blocks` implements the 1.21.4
+  straight-line traversal (documented in `motion.rs`: "1.21.4
+  traverses straight-line (`BlockGetter.boxTraverseBlocks`)" vs
+  "1.21.5's `axisStepOrder`"); the bool-returning visitor and step
+  index are Rust adaptations (1.21.4's `Iterable` lets callers break
+  out of the loop; 1.21.5's `BlockStepVisitor.visit` is void). The
+  tiny-movement branch has no deduplication, matching vanilla; the
+  moving branch deduplicates via the visited set, matching
+  `addCollisionsAlongTravel`'s `Set`. Rank 2: 235/348.
+
+  Item 186 (report id 196, crates/horizon-protocol/src/servers.rs):
+  carry-over. `ServerData$ServerPackStatus` has the same 3 values in
+  both (ENABLED / DISABLED / PROMPT); 1.21.5 only added `FIELD_CODEC`
+  (`MapCodec` from `Codec.BOOL.optionalFieldOf("acceptTextures")`
+  `xmap`'d to the enum) - the stored form is the same optional
+  boolean. The Rust stores `accept_textures` as `Option<bool>` ("None
+  = prompt, Some(true) enabled, Some(false) disabled") and writes /
+  reads the `acceptTextures` byte exactly as 1.21.4 does.
+  `ServerList.set` / `get` are identical modulo formatting;
+  `saveSingleServer` is lambda-renumbered ($0 in 1.21.4 vs $1 in
+  1.21.5) and 1.21.5 added a `load$0` lambda for the codec-based load
+  path - no difference in the stored `servers.dat` form, which the
+  Rust's `load` / `save` / `add_hidden` / `prepend` mirror.
+  Rank 2: 236/348.

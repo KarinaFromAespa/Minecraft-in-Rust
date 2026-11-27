@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": 2,
-  "batch": 54,
-  "note": "LEDGER RECONCILIATION (2026-11-27, Butler): rank2-progress.json re-keyed uniformly by REPORT ID (id = rank-2 ordinal + 10), verified entry-by-entry against diff-1.21.5-1.21.4/report.json by module/class match. True closed count is 216, not 220: three ordinals were counted twice under different keys and are now merged (264 under keys 274+174, 42 under keys 52+80, 59 under keys 69+110+113). Session 3 keyed batches 46-50 by ordinal, so its keys 161-180 are renumbered +10 to report ids 171-190; the batch-50 correction (225 -> 220) had found only part of the overcount. Lowest unclosed ordinals are 151-154 (report ids 161-164) = batch 51. Prior batch note: Batch 50 closed (2026-11-27): item 178 ported (the chunk-generation finalize path read cat and frog variants only from the 1.21.5-only variant data registries, so in 1.21.4 every chunk-generated cat stayed tabby (variant 0). Batch 51 closed (2026-11-27): report ids 161-164 (ordinals 151-154) - 161 ported (paletted fixture VarInt long count), 162 ported (SNBT control chars pass through raw), 163/164 carry-over. Rank 2 now 220/348. Batch 52 closed (2026-11-27): report ids 165-168 (ordinals 155-158) - all carry-over (per-component show_in_tooltip folded via TOOLTIP_FLAGS; bundle/enchantment/adventure-predicate semantics identical; 11 items added in 1.21.5 only; cake/sign/sound-effect overloads only). Rank 2 now 224/348. Batch 53 (2026-11-27): items 80, 110, 169, 170 - 169 PORTED (creaking stop-attack: 1.21.5 isAttackTargetStillReachable removed; 1.21.4's no-arg StopAttackingIfTargetInvalid.create() default condition always returns false), the rest carry-over (fluid Player->LivingEntity signature + equals-vs-identity no-op; RegistryContextSwapper refactor; component-patch codec refactor + 1.21.5-only delimited codec). Rank 2 now 228/348. Batch 54 (2026-11-27): items 113, 178, 184, 191 - all carry-over (1.21.5 DataComponentPredicate interface refactor; horse-equipment rework + loom pattern-item component; long-array framing + 1.21.5-only HashedStack; loom getSelectablePatterns component form). Rank 2 now 232/348.",
+  "batch": 55,
+  "note": "LEDGER RECONCILIATION (2026-11-27, Butler): rank2-progress.json re-keyed uniformly by REPORT ID (id = rank-2 ordinal + 10), verified entry-by-entry against diff-1.21.5-1.21.4/report.json by module/class match. True closed count is 216, not 220: three ordinals were counted twice under different keys and are now merged (264 under keys 274+174, 42 under keys 52+80, 59 under keys 69+110+113). Session 3 keyed batches 46-50 by ordinal, so its keys 161-180 are renumbered +10 to report ids 171-190; the batch-50 correction (225 -> 220) had found only part of the overcount. Lowest unclosed ordinals are 151-154 (report ids 161-164) = batch 51. Prior batch note: Batch 50 closed (2026-11-27): item 178 ported (the chunk-generation finalize path read cat and frog variants only from the 1.21.5-only variant data registries, so in 1.21.4 every chunk-generated cat stayed tabby (variant 0). Batch 51 closed (2026-11-27): report ids 161-164 (ordinals 151-154) - 161 ported (paletted fixture VarInt long count), 162 ported (SNBT control chars pass through raw), 163/164 carry-over. Rank 2 now 220/348. Batch 52 closed (2026-11-27): report ids 165-168 (ordinals 155-158) - all carry-over (per-component show_in_tooltip folded via TOOLTIP_FLAGS; bundle/enchantment/adventure-predicate semantics identical; 11 items added in 1.21.5 only; cake/sign/sound-effect overloads only). Rank 2 now 224/348. Batch 53 (2026-11-27): items 80, 110, 169, 170 - 169 PORTED (creaking stop-attack: 1.21.5 isAttackTargetStillReachable removed; 1.21.4's no-arg StopAttackingIfTargetInvalid.create() default condition always returns false), the rest carry-over (fluid Player->LivingEntity signature + equals-vs-identity no-op; RegistryContextSwapper refactor; component-patch codec refactor + 1.21.5-only delimited codec). Rank 2 now 228/348. Batch 54 (2026-11-27): items 113, 178, 184, 191 - all carry-over (1.21.5 DataComponentPredicate interface refactor; horse-equipment rework + loom pattern-item component; long-array framing + 1.21.5-only HashedStack; loom getSelectablePatterns component form). Rank 2 now 232/348. Batch 55 (2026-11-27): items 192, 193, 195, 196 - all carry-over (cartography onTake/quick-move overloads + Quaternionfc; NBT all-elements invokeinterface-vs-virtual; BlockGetter boxTraverseBlocks vs visitor form; ServerPackStatus FIELD_CODEC). Rank 2 now 236/348.",
   "items": {
     "90": {
       "module": "crates/horizon-client-render/src/block_entity_render.rs",
@@ -3126,6 +3126,41 @@
       "classes": [
         "LoomMenu",
         "BannerItem"
+      ]
+    },
+    "192": {
+      "module": "crates/horizon-client/src/game/cartography.rs",
+      "verdict": "carry-over",
+      "evidence": "CartographyTableMenu$5.onTake differs only by the playSound overload (Entity in 1.21.5 vs Player in 1.21.4) and Item.onCraftedBy gaining a Level parameter in 1.21.5 - API shape only. MapRenderer.render differs only by PoseStack.mulPose(Quaternionfc) in 1.21.5 vs mulPose(Quaternionf) in 1.21.4 - same rotation math. CartographyTableMenu.quickMoveStack differs only by the onCraftedBy Level parameter and branch offsets - same slot logic (result slot 2 -> inventory 3..39, slot 1 -> inventory, MAP_ID check -> slot 0). The Rust's cartography.rs implements the menu (map_id via the MAP_ID component, paper zoom, cloning) with the same slot layout.",
+      "classes": [
+        "CartographyTableMenu$5",
+        "MapRenderer",
+        "CartographyTableMenu"
+      ]
+    },
+    "193": {
+      "module": "crates/horizon-client/src/game/storage_alias_tests.rs",
+      "verdict": "carry-over",
+      "evidence": "NbtPathArgument$AllElementsNode.removeTag/setTag differ only by invokeinterface vs invokevirtual on CollectionTag methods (size/clear/addTag/stream) - 1.21.5 made CollectionTag an interface, 1.21.4 has it as a class; the logic is identical (removeTag clears the collection and returns its size; setTag replaces all elements, returning the count). The Rust's NBT path implementation (horizon-client-core/src/nbt_path.rs, covered by storage_alias_tests.rs) implements the same all-elements semantics.",
+      "classes": [
+        "NbtPathArgument$AllElementsNode"
+      ]
+    },
+    "195": {
+      "module": "crates/horizon-core/src/geometry/sweep.rs",
+      "verdict": "carry-over",
+      "evidence": "BlockGetter.getBlockStates(AABB) is identical modulo javap column alignment (BlockPos.betweenClosedStream(aabb).map(this::getBlockState)). 1.21.4 has boxTraverseBlocks(Vec3, Vec3, AABB) returning Iterable<BlockPos> and addCollisionsAlongTravel(Set<BlockPos>, ...) filling a set; 1.21.5 replaced them with forEachBlockIntersectedBetween(..., BlockStepVisitor) and addCollisionsAlongTravel(LongSet, ..., BlockStepVisitor) returning int. The Rust's sweep_intersected_blocks implements the 1.21.4 straight-line traversal (documented in motion.rs: \"1.21.4 traverses straight-line (BlockGetter.boxTraverseBlocks)\" vs \"1.21.5's axisStepOrder\"); the bool-returning visitor and step index are Rust adaptations (1.21.4's Iterable lets callers break out of the loop; 1.21.5's BlockStepVisitor.visit is void). The tiny-movement branch has no deduplication, matching vanilla; the moving branch deduplicates via the visited set, matching addCollisionsAlongTravel's Set.",
+      "classes": [
+        "BlockGetter"
+      ]
+    },
+    "196": {
+      "module": "crates/horizon-protocol/src/servers.rs",
+      "verdict": "carry-over",
+      "evidence": "ServerData$ServerPackStatus has the same 3 values in both (ENABLED/DISABLED/PROMPT); 1.21.5 only added FIELD_CODEC (MapCodec from Codec.BOOL.optionalFieldOf(\"acceptTextures\") xmap'd to the enum) - the stored form is the same optional boolean. The Rust stores accept_textures as Option<bool> (\"None = prompt, Some(true) enabled, Some(false) disabled\") and writes/reads the acceptTextures byte exactly as 1.21.4 does. ServerList.set/get are identical modulo formatting; saveSingleServer is lambda-renumbered ($0 in 1.21.4 vs $1 in 1.21.5) and 1.21.5 added a load$0 lambda for the codec-based load path - no difference in the stored servers.dat form, which the Rust's load/save/add_hidden/prepend mirror.",
+      "classes": [
+        "ServerData$ServerPackStatus",
+        "ServerList"
       ]
     }
   }
