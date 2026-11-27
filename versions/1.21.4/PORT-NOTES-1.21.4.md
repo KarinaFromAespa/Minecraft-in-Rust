@@ -4648,3 +4648,119 @@ shape for the review batches.
   in the 1.21.4 client assets), and the Rust looks up
   "haste" (`effects.rs:443`, `hand.rs:198`,
   `potions.rs:53`) - correct for 1.21.4. Rank 2: 220/348.
+
+  Batch 52 (2026-11-27): ordinals 155-158 (report ids 165-168),
+  all carry-over, no code changes.
+
+  Item 155 (report id 165, widely named:
+  world/item/component): carry-over. `ItemAttributeModifiers`:
+  1.21.4 has a `showInTooltip` field (`withTooltip`,
+  equals/hashCode/toString carry it, `Mutable` passes it
+  through `toImmutable`); 1.21.5 dropped it in favour of
+  `tooltip_display.hidden_components`. The Rust already
+  folds it: kind 13 (`attribute_modifiers`) is in
+  `v1_21_4::TOOLTIP_FLAGS`, so the wire decode
+  (`v1_21_4.rs:52`) reads the trailing boolean and pushes
+  the kind into the synthesized hidden list when false, and
+  the save loader (`v1_20_3.rs:270`) folds
+  `show_in_tooltip:false` the same way;
+  `display.shows("minecraft:attribute_modifiers")` gates
+  the lines (`stations.rs:2404`). `compute` /
+  `withModifierAdded` / `forEach` are identical modulo the
+  constructor call. `BundleContents$Mutable`: `removeOne`
+  and `toggleSelectedItem` are semantically identical -
+  1.21.5 only extracted the bounds check into
+  `indexIsOutsideAllowedBounds` (i < 0 || i >= size); the
+  Rust matches (`bundle.rs` `remove_one` maps selected -1
+  or >= len to 0, `toggle_selected` deselects when already
+  selected or outside). `TooltipProvider`: 1.21.5's
+  `addToTooltip` takes an extra `DataComponentGetter` -
+  API shape only; the Rust renders tooltips from the full
+  stack data. `BlocksAttacks` (+`$DamageReduction`) and
+  `InstrumentComponent` are ABSENT from the 1.21.4 jar
+  (javap: class not found; the report marks them removed)
+  - both 1.21.5-only. `BlocksAttacks` is handled: 1.21.4
+  has no `blocks_attacks` component and the tree carries
+  blocking on `ItemInfo` instead (`piglins.rs` documents
+  it). `InstrumentComponent`'s wire form is a bare holder
+  in both versions (1.21.4 `DataComponents.INSTRUMENT` is
+  `Holder<Instrument>`; 1.21.5's record has the single
+  `EitherHolder` field, its STREAM_CODEC writes just the
+  holder) and the Rust decodes a holder (`item.rs:528`).
+  Rank 2: 221/348.
+
+  Item 156 (report id 166, widely named:
+  world/item/enchantment): carry-over. `ItemEnchantments`:
+  1.21.4 has a `showInTooltip` field (`withTooltip`,
+  equals/hashCode/toString carry it, `Mutable` carries it
+  through `toImmutable`); 1.21.5 dropped it for
+  `tooltip_display.hidden_components`. The Rust already
+  folds it: kind 10 (`enchantments`) is in
+  `v1_21_4::TOOLTIP_FLAGS`, so the wire decode reads the
+  trailing boolean into the synthesized hidden list and the
+  save loader folds `show_in_tooltip:false` the same way
+  (same mechanism as item 155). `EnchantmentInstance`:
+  1.21.5 made it a record (equals/hashCode/toString plus
+  `level()` / `weight()` / `enchantment()` accessors);
+  1.21.4 extends `WeightedEntry$IntrusiveBase` with the
+  weight from `Enchantment.getWeight()` - Java-shape only;
+  the Rust carries enchantments as (id, level) pairs with
+  weights from the registry. `ItemEnchantments$Mutable`
+  differs only by the `showInTooltip` plumbing.
+  Rank 2: 222/348.
+
+  Item 157 (report id 167, widely named: world/item):
+  carry-over. `AdventureModePredicate`: 1.21.4 has a
+  `showInTooltip` field (`withTooltip`, equals/hashCode/
+  toString carry it); kinds 11 (`can_place_on`) and 12
+  (`can_break`) are in `v1_21_4::TOOLTIP_FLAGS`, so the
+  fold into the synthesized hidden list already handles it
+  (same mechanism as items 155/156). `test()` and
+  `areSameBlocks` are identical; `computeTooltip` differs
+  only by lambda renumbering. `ItemStack$1`: the stack
+  stream codec - 1.21.4 uses `ITEM_STREAM_CODEC`
+  (`holderRegistry`) plus the static
+  `DataComponentPatch.STREAM_CODEC`, 1.21.5 uses
+  `Item.STREAM_CODEC` plus an instance `patchCodec` -
+  Java-shape only; the wire form (count varint, 0 = empty,
+  item holder, patch) is the same. `DyeColor`: the 16
+  values are identical; 1.21.5 only added a
+  `LEGACY_ID_CODEC` (byte codec) field, whose job the
+  Rust's datafix already does (`fixes_a::dye_color` maps
+  legacy numeric ids to names). `Items`: the registry
+  differs by exactly 11 items added in 1.21.5 - BLUE_EGG,
+  BROWN_EGG, BUSH, CACTUS_FLOWER, DRY_SHORT_GRASS,
+  DRY_TALL_GRASS, FIREFLY_BUSH, LEAF_LITTER, TEST_BLOCK,
+  TEST_INSTANCE_BLOCK, WILDFLOWERS - and none removed; the
+  Rust's item registry is data-driven from 1.21.4's own
+  prepared resources so it correctly lacks them, and the
+  tree already documents bush / wildflowers / leaf_litter
+  as 1.21.5-only with no 1.21.4 tint entry (`mesher.rs:859`).
+  `BoatItem`: `getBoat` differs only by the
+  `createDefaultStackConfig` overload (`LivingEntity` in
+  1.21.5 vs `Player` in 1.21.4, same player passed).
+  Recorded, not fixed (same class as item 153's test
+  blocks): `animate_tick.rs` has a `firefly_bush` arm
+  (`Animate::FireflyBush`, `firefly_bush_sounds`, the idle
+  sound) unreachable from vanilla 1.21.4 data, since the
+  block does not exist in 1.21.4; the tree already
+  documents the 1.21.5-only desert / dry-grass ambient
+  sounds as absent. Rank 2: 223/348.
+
+  Item 158 (report id 168,
+  crates/horizon-client/src/game/use_hand.rs):
+  carry-over. `CakeBlock`: `useItemOn` / `eat` /
+  `getAnalogOutputSignal` / `isPathfindable` are identical
+  modulo formatting and the `playSound` overload (`Entity`
+  in 1.21.5 vs `Player` in 1.21.4, both play to all); the
+  shape field was renamed SHAPE_BY_BITE (1.21.4) to SHAPES
+  (1.21.5). The Rust implements `CakeBlock.eat` (food 2,
+  saturation 0.1) in `level/interact.rs`.
+  `CeilingHangingSignBlock`: `getShape` is the same map
+  lookup with a default - 1.21.5
+  `SHAPES.getOrDefault(rotation, SHAPE_DEFAULT)`, 1.21.4
+  `AABBS.get(rotation)` with null falling back to SHAPE;
+  the codec lambda and static-init shape construction
+  differ only by helper (`Block.box` vs `Block.column`).
+  `PlaySoundConsumeEffect.apply` is identical except the
+  same `playSound` overload. Rank 2: 224/348.
