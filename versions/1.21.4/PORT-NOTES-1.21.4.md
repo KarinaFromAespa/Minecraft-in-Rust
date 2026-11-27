@@ -6244,3 +6244,47 @@ shape for the review batches.
   now gates both the player branch and the mob branch of
   `nearest_target`; `MobWorld.border` is `None` when there is no
   border. New test pins the box check. Rank 2: 336/348.
+
+  Item 336 (report id 346, widely named: world/entity/player):
+  carry-over. `Abilities`: 1.21.5 adds `DEFAULT_*` constants and rewrites
+  the NBT load to `getCompoundOrEmpty` / `getBooleanOr` / `getFloatOr`
+  — the same values as 1.21.4's field defaults (flySpeed 0.05,
+  walkSpeed 0.1, booleans false) and the same save keys
+  (invulnerable, flying, instabuild, mayBuild, flySpeed, walkSpeed).
+  The Rust's save writes flySpeed 0.05 / walkSpeed 0.1 / mayBuild 1
+  when absent, and its load defaults match. No behaviour change.
+  Rank 2: 337/348.
+
+  Item 337 (report id 347, widely named: world/entity/variant):
+  carry-over. `VariantUtils`: the class does not exist in 1.21.4 at all
+  (the whole file is new in 1.21.5). Its methods only name behaviours
+  1.21.4 already has: `Registry.getAny` exists in 1.21.4 and
+  `MappedRegistry.getAny` returns `byId.getFirst()` — the Rust's
+  "registry's first one" painting default (kebab, id 0) is exactly
+  1.21.4's `Painting.defineSynchedData`; `selectVariantToSpawn` is
+  emulated by the per-class `finalizeSpawn` paths (batch 79 fixed the
+  save side, and the pig/cow/chicken registries are empty in 1.21.4).
+  No `VariantUtils` reference in Rust code, only in comments naming
+  the emulated method. Correctly absent for 1.21.4. Rank 2: 338/348.
+
+  Item 338 (report id 348, widely named: world/food): carry-over.
+  `FoodData`: 1.21.5 adds `DEFAULT_TICK_TIMER` /
+  `DEFAULT_EXHAUSTION_LEVEL` and rewrites the NBT load to
+  `getIntOr` / `getFloatOr` — the same values as 1.21.4's constructor
+  (foodLevel 20, saturationLevel 5.0, exhaustionLevel 0, tickTimer 0).
+  The Rust's `FoodData::default` is exactly (20, 5.0, 0.0, 0) and the
+  player-save load defaults to the same four values when the keys are
+  absent. No behaviour change. Rank 2: 339/348.
+
+  Item 339 (report id 349, widely named: world/item/alchemy):
+  carry-over. `Potions`: the diff is only `MobEffects` Java field
+  renames (JUMP -> JUMP_BOOST, MOVEMENT_SPEED -> SPEED,
+  MOVEMENT_SLOWDOWN -> SLOWNESS, DAMAGE_RESISTANCE -> RESISTANCE, HEAL
+  -> INSTANT_HEALTH, HARM -> INSTANT_DAMAGE); the registry ids are
+  unchanged and the potion list is identical (the one `ldc_w` -> `ldc`
+  is a constant-pool encoding difference for "strong_poison", the same
+  string). The Rust uses the registry ids as strings
+  ("minecraft:jump_boost", "minecraft:resistance",
+  "minecraft:instant_health", "minecraft:instant_damage") and never
+  the Java field names — the `MOVEMENT_SPEED` hits are the attribute,
+  which was not renamed. No behaviour change. Rank 2: 340/348.

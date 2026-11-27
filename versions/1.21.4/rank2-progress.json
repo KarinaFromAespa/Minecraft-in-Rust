@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": 2,
-  "batch": 80,
-  "note": "Batch 80 closed (2026-11-27): 342 SummonCommand moveTo->snapTo rename only; 343 VillagerMakeLove same rename, baby spawns at the parent with age -24000; 344 OfferFlowerGoal isDay->isBrightOutside rename, same body; 345 goat ram targets now gated on the world border. Rank 2 now 336/348. Prior: Batch 79 closed (2026-11-27): 338 leaf particles ported (1.21.4 has no falling leaves); 339 Registries field reorder only; 340 SYNCHRONIZED trimmed to the 1.21.4 twelve plus the three the Rust's own client needs synced; 341 entity-data variant indices fixed (all +1) and the 1.21.5-only variant arms/saves removed. Rank 2 now 332/348. Prior: Batch 78 closed (2026-11-27): all carry-over, no code changes \u2014 334 conditional item properties identical; 335 Quadrant is 1.21.5-only (shape-rotation API); 336 Realms flow offsets only; 337 BlockStateParser TagParser static-method refactor. Rank 2 now 328/348. Prior: Batch 77 closed (2026-11-27): all carry-over, no code changes \u2014 316 shape rotation is 1.21.5-only API, absent from 1.21.4 and the Rust alike; 319 TagT",
+  "batch": 81,
+  "note": "Batch 81 closed (2026-11-27): all carry-over, no code changes \u2014 346 Abilities NBT defaults identical; 347 VariantUtils is 1.21.5-only, its behaviours exist in 1.21.4 under other names; 348 FoodData defaults identical; 349 Potions is MobEffects field renames only. Rank 2 now 340/348. Prior: Batch 80 closed (2026-11-27): 342 SummonCommand moveTo->snapTo rename only; 343 VillagerMakeLove same rename, baby spawns at the parent with age -24000; 344 OfferFlowerGoal isDay->isBrightOutside rename, same body; 345 goat ram targets now gated on the world border. Rank 2 now 336/348. Prior: Batch 79 closed (2026-11-27): 338 leaf particles ported (1.21.4 has no falling leaves); 339 Registries field reorder only; 340 SYNCHRONIZED trimmed to the 1.21.4 twelve plus the three the Rust's own client needs synced; 341 entity-data variant indices fixed (all +1) and the 1.21.5-only variant arms/saves removed. Rank 2 now 332/348. Prior: Batch 78 closed (2026-11-27): all carry-over, no code changes \u2014 334 conditional item properties identical; 335 Quadrant is 1.21.5-only (shape-rotation API); 336 Realms flow offsets only; 337 BlockStateParser TagParser static-method refactor. Rank 2 now 328/348. Prior: Batch 77 closed (2026-11-27): all carry-over, no code changes \u2014 316 shape rotation is 1.21.5-only API, absent from 1.21.4 and the Rust alike; 319 TagT",
   "items": {
     "90": {
       "module": "crates/horizon-client-render/src/block_entity_render.rs",
@@ -4035,6 +4035,38 @@
       "evidence": "PORTED: GoatAi \u2014 the 1.21.5 diff flips the mobGriefing branch in RAM_TARGET_CONDITIONS (an armor stand is a ram target only while mobGriefing is off in 1.21.4, only while it is on in 1.21.5 \u2014 a vanilla bug-fix). The Rust's nearest_target implemented neither the armor-stand part (moot: armor stands are not a Species and are not in the mob set, so no candidate can be one) nor the world-border part (real gap: vanilla requires the target's box within the border). Fixed: a within_border helper mirroring WorldBorder.isWithinBounds(AABB) (both corners, the max one nudged in by 1e-5, via the established BorderGeometry::is_within_bounds) now gates both the player branch and the mob branch of nearest_target; MobWorld.border is None when there is no border. New test pins the box check.",
       "classes": [
         "GoatAi"
+      ]
+    },
+    "346": {
+      "module": "widely named: world/entity/player",
+      "verdict": "carry-over",
+      "evidence": "Abilities: 1.21.5 adds DEFAULT_* constants and rewrites the NBT load to getCompoundOrEmpty / getBooleanOr / getFloatOr \u2014 the same values as 1.21.4's field defaults (flySpeed 0.05, walkSpeed 0.1, booleans false) and the same save keys (invulnerable, flying, instabuild, mayBuild, flySpeed, walkSpeed). The Rust's save writes flySpeed 0.05 / walkSpeed 0.1 / mayBuild 1 when absent, and its load defaults match. No behaviour change.",
+      "classes": [
+        "Abilities"
+      ]
+    },
+    "347": {
+      "module": "widely named: world/entity/variant",
+      "verdict": "carry-over",
+      "evidence": "VariantUtils: the class does not exist in 1.21.4 at all (the whole file is new in 1.21.5). Its methods only name behaviours 1.21.4 already has: Registry.getAny exists in 1.21.4 and MappedRegistry.getAny returns byId.getFirst() \u2014 the Rust's 'registry's first one' painting default (kebab, id 0) is exactly 1.21.4's Painting.defineSynchedData; selectVariantToSpawn is emulated by the per-class finalizeSpawn paths (batch 79 fixed the save side, and the pig/cow/chicken registries are empty in 1.21.4). No VariantUtils reference in Rust code, only in comments naming the emulated method. Correctly absent for 1.21.4.",
+      "classes": [
+        "VariantUtils"
+      ]
+    },
+    "348": {
+      "module": "widely named: world/food",
+      "verdict": "carry-over",
+      "evidence": "FoodData: 1.21.5 adds DEFAULT_TICK_TIMER / DEFAULT_EXHAUSTION_LEVEL and rewrites the NBT load to getIntOr / getFloatOr \u2014 the same values as 1.21.4's constructor (foodLevel 20, saturationLevel 5.0, exhaustionLevel 0, tickTimer 0). The Rust's FoodData::default is exactly (20, 5.0, 0.0, 0) and the player-save load defaults to the same four values when the keys are absent. No behaviour change.",
+      "classes": [
+        "FoodData"
+      ]
+    },
+    "349": {
+      "module": "widely named: world/item/alchemy",
+      "verdict": "carry-over",
+      "evidence": "Potions: the diff is only MobEffects Java field renames (JUMP -> JUMP_BOOST, MOVEMENT_SPEED -> SPEED, MOVEMENT_SLOWDOWN -> SLOWNESS, DAMAGE_RESISTANCE -> RESISTANCE, HEAL -> INSTANT_HEALTH, HARM -> INSTANT_DAMAGE); the registry ids are unchanged and the potion list is identical (the one ldc_w -> ldc is a constant-pool encoding difference for 'strong_poison', the same string). The Rust uses the registry ids as strings ('minecraft:jump_boost', 'minecraft:resistance', 'minecraft:instant_health', 'minecraft:instant_damage') and never the Java field names \u2014 the MOVEMENT_SPEED hits are the attribute, which was not renamed. No behaviour change.",
+      "classes": [
+        "Potions"
       ]
     }
   }
