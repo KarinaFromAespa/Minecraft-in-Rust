@@ -5824,3 +5824,73 @@ shape for the review batches.
   `getDeltaMovementLerped` (lerp of the previous tick's delta movement)
   and `tick` (saving `deltaMovementOnPreviousTick`, then `Player.tick`)
   differ only by alignment. Rank 2: 300/348.
+
+  Item 277 (report id 287, widely named: sounds): PORTED - the sound-variant
+  system does not exist in 1.21.4 at all. javap-verified: 1.21.4's
+  `Registries` has no `*_SOUND_VARIANT` fields (1.21.5 has only
+  `WOLF_SOUND_VARIANT`); the `WolfSoundVariant` class is absent from the
+  1.21.4 jar; `Pig` / `Cow` / `Chicken` / `Cat` / `Wolf` have no
+  `DATA_SOUND_VARIANT_ID` and no `getSoundVariant` - only the plain
+  `getAmbientSound` / `getHurtSound` / `getDeathSound` / `playStepSound`
+  and, for Cat/Wolf, the visual-variant `DATA_VARIANT_ID`. 1.21.5's Pig
+  likewise has no sound variant - only its Wolf does. The Rust had
+  implemented the 1.21.5+/26.x system: `finalize::sound_variants`
+  (pig big/classic/mini, cow classic/moody, chicken classic/picky, cat
+  classic/royal, wolf angry/big/classic/cute/grumpy/puglin/sad),
+  `variant_sound` building `entity.<name>_<variant>.<kind>` ids (absent
+  from 1.21.4's `SoundEvents`: no `entity.wolf_big.*`,
+  `entity.cow_moody.*`, `entity.baby_pig.*`, ...), a random
+  `sound_variant` draw at `finalizeSpawn` and at spawn, and a
+  `"sound_variant"` NBT key on save - so most wolves, pigs, cows,
+  chickens and cats played non-existent sound ids. Removed:
+  `sound_variants()`, `variant_sound()`, `Finalize::sound()` and the
+  `*_sound` `SpawnRegistries` fields (plus the now-unused
+  `VariantRegistry::random`), the `Extra.sound_variant` field, the
+  `spawning.rs` draw, the `entity_nbt` write/read, the `lan/data.rs`
+  `*_sound_variant` registry names, and all eight `variant_sound` call
+  sites, now the plain 1.21.4 ids (wolf growl/whine/pant, cat
+  purr/purreow/stray_ambient/beg_for_food/eat/hiss, pig/cat eat,
+  chicken/cow/pig/wolf step, and the `sounds()` ambient/hurt/death
+  triple now `m.kind.sounds`). The farm-animals NBT test now asserts
+  no `sound_variant` key is written. The `finalize_spawn` probe fixture
+  drops the sound-variant field and the `VanillaFinalizeSpawnOracle`
+  drops the `DATA_SOUND_VARIANT_ID` reads (they would throw on
+  1.21.4). NOTE (recorded, not fixed): the oracle still uses 1.21.5+
+  package names (`animal.pig.Pig` etc. vs 1.21.4's flat `animal.Pig`)
+  and the harness paths target the main-repo layout, so the
+  finalize_spawn harness is not runnable in this worktree as-is - a
+  separate harness-repair job. The `horizon-protocol` `sound_variant`
+  skip arms (`item.rs`, `raw.rs`, adapter id tables) are cross-version
+  foreign-data tolerance, left alone. Rank 2: 301/348.
+
+  Item 278 (report id 288, widely named: world/entity/animal/frog):
+  carry-over. `Tadpole`: all diffs are alignment-only plus NBT accessor
+  forms (`getIntOr("Age", 0)` vs `getInt`; `getInt` Optional vs
+  `contains` + `getInt` in `loadFromBucketTag`) and the constructor's
+  explicit `age = 0` init in 1.21.5 (same as the 1.21.4 field default).
+  Age logic identical: `ticksToBeFrog`, `ageUp` x20, `setAge` triggers
+  the frog transformation at `ticksToBeFrog`, `aiStep` +1/tick
+  server-side, `makeBrain` via `TadpoleAi`. The Rust implements it
+  (`creatures.rs`: `Tadpole.ageUp` finalizes the frog for the conversion
+  and makes it persistent; `Tadpole.feed` ages it by a tenth of the time
+  left to 24000 ticks, growing on its next tick once past 24000; age =
+  -24000 for babies). 1.21.4's `Tadpole` javap confirms `ticksToBeFrog`
+  + the `age` field + `ageUp(int)`. Rank 2: 302/348.
+
+  Item 279 (report id 289, widely named: world/level/border):
+  carry-over. `WorldBorder`: all diffs alignment-only except
+  `closestBorder` + `DistancePerDirection` (1.21.5-only new API) and
+  `DEFAULT_SETTINGS`'s initialisation site (same values in both: 0, 0,
+  0.2, 5.0, 5, 15, 5.9999968E7, 0, 0). The Rust cites
+  `WorldBorder.clampVec3ToBound` (`consume.rs:122`, `Mth.clamp`,
+  1.0E-5F inside the far edge) and `isWithinBounds`
+  (`lan_actions.rs:3376`). Rank 2: 303/348.
+
+  Item 282 (report id 292, crates/horizon-client-render/src/skins.rs):
+  carry-over. `SkinTextureDownloader` / `ClientAsset`:
+  `lambda$registerTextureInManager$2` - 1.21.5's `DynamicTexture` takes
+  a `Supplier<ResourceLocation>` + image, 1.21.4's takes just the image;
+  same registration. The Rust's `skins.rs` implements skin/cape/elytra
+  registration its own way (`SkinManager.TextureCache.registerTexture`
+  at `skins.rs:693`, `SkinManager.registerTextures` at `:832`).
+  `ClientAsset` has 0 methods in both. Rank 2: 304/348.

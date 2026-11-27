@@ -152,39 +152,21 @@ const MEMORIES: [&str; 7] = [
     "home",
 ];
 
-fn variant(m: &Mob, regs: &SpawnRegistries, v: &mut Vec<String>) {
+fn variant(m: &Mob, v: &mut Vec<String>) {
     use Species as S;
     let s = m.species();
-    let named = |reg: &finalize::VariantRegistry, i: Option<u8>| {
-        let name = i.map_or("classic", |i| {
-            reg.names.get(i as usize).map_or("?", |n| n.as_str())
-        });
-        format!("minecraft:{name}")
-    };
     let var = format!("minecraft:{}", finalize::variant_name(s, m.extra.variant));
     match s {
-        S::Pig => {
-            v.push(var);
-            v.push(named(&regs.pig_sound, m.extra.sound_variant));
-        }
-        S::Cow => {
-            v.push(var);
-            v.push(named(&regs.cow_sound, m.extra.sound_variant));
-        }
+        // 1.21.4 has no sound variants: only the visual variant is reported.
+        S::Pig => v.push(var),
+        S::Cow => v.push(var),
         S::Mooshroom => v.push(if m.extra.variant == 0 { "red" } else { "brown" }.into()),
         S::Chicken => {
             v.push(var);
-            v.push(named(&regs.chicken_sound, m.extra.sound_variant));
             v.push(format!("jockey={}", m.extra.jockey));
         }
-        S::Cat => {
-            v.push(var);
-            v.push(named(&regs.cat_sound, m.extra.sound_variant));
-        }
-        S::Wolf => {
-            v.push(var);
-            v.push(named(&regs.wolf_sound, m.extra.sound_variant));
-        }
+        S::Cat => v.push(var),
+        S::Wolf => v.push(var),
         S::Frog | S::ZombieNautilus => v.push(var),
         S::Sheep => v.push(DYE_NAMES[m.extra.color as usize & 15].into()),
         S::Horse => v.push(format!(
@@ -262,7 +244,7 @@ fn variant(m: &Mob, regs: &SpawnRegistries, v: &mut Vec<String>) {
     }
 }
 
-fn describe(m: &Mob, all: &[Mob], regs: &SpawnRegistries) -> String {
+fn describe(m: &Mob, all: &[Mob]) -> String {
     let mut t = vec![m.kind.id.clone()];
     let vehicle = m
         .extra
@@ -388,7 +370,7 @@ fn describe(m: &Mob, all: &[Mob], regs: &SpawnRegistries) -> String {
         t.push(format!("mem={}", mem.join(",")));
     }
     let mut v = Vec::new();
-    variant(m, regs, &mut v);
+    variant(m, &mut v);
     if !v.is_empty() {
         t.push(format!("v={}", v.join(" ").replace(' ', "_")));
     }
@@ -527,7 +509,7 @@ pub fn main() -> horizon_client::Result<()> {
             }
         }
         all.sort_by_key(|m| m.id);
-        let mut parts: Vec<String> = all.iter().map(|m| describe(m, &all, &registries)).collect();
+        let mut parts: Vec<String> = all.iter().map(|m| describe(m, &all)).collect();
         for m in &mut all {
             parts.push(format!("rng {}", m.random.next_long()));
         }

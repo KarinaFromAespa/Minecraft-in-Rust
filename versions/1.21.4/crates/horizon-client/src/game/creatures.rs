@@ -2931,8 +2931,8 @@ impl Game<'_> {
                 MobEvent::Hiss { mob } => {
                     if let Some(m) = self.mobs.iter().find(|m| m.id == mob) {
                         let at = m.center();
-                        let sound = horizon_client::mobs::finalize::variant_sound(m, "hiss")
-                            .unwrap_or("entity.cat.hiss");
+                        // 1.21.4 has no cat sound variants: the plain hiss.
+                        let sound = "entity.cat.hiss";
                         self.audio
                             .play(&format!("minecraft:{sound}"), Some(at), 1.0, 1.0);
                     }
@@ -3952,9 +3952,6 @@ impl Game<'_> {
             child.extra.age = -24000;
             // No Mob.finalizeSpawn either: no follow range bonus, right-handed.
             spawning::bred_offspring(child);
-            // getBreedOffspring creates the baby without finalizeSpawn: it keeps
-            // the default (`classic`) sound variant.
-            child.extra.sound_variant = None;
             // Fox.getBreedOffspring runs no finalizeSpawn: nothing in the
             // baby fox's mouth.
             if p.species() == Species::Fox {

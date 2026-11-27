@@ -1355,9 +1355,6 @@ pub struct Extra {
     pub drop_chances: Option<Box<[f32; 8]>>,
     /// `Mob.leftHanded`.
     pub left_handed: bool,
-    /// The sound variant: index in the species' `*_sound_variant` registry
-    /// (`finalize::sound_variants`); None is the default, `classic`.
-    pub sound_variant: Option<u8>,
     /// `Zombie.canBreakDoors`.
     pub can_break_doors: bool,
     /// A goat's `IsScreamingGoat` and the horns it lost (left, right).

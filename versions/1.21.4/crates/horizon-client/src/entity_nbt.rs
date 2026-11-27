@@ -897,15 +897,6 @@ pub fn mob_to_nbt(
     if species == crate::mobs::Species::Chicken {
         map.insert("EggLayTime".into(), Tag::Int(m.extra.egg_time));
     }
-    let sounds = crate::mobs::finalize::sound_variants(species);
-    if !sounds.is_empty() {
-        let sound = m.extra.sound_variant.and_then(|i| sounds.get(i as usize));
-        let sound = sound.copied().unwrap_or("classic");
-        map.insert(
-            "sound_variant".into(),
-            string(&format!("minecraft:{sound}")),
-        );
-    }
     match id {
         // Fox.addAdditionalSaveData; Horizon models only the type, the
         // flags and no trusted players yet.
@@ -2412,11 +2403,6 @@ pub fn mob_from_nbt_with_random(
         && let Some(t) = number(tag.get("EggLayTime"))
     {
         m.extra.egg_time = t as i32;
-    }
-    if let Some(v) = text(tag.get("sound_variant")) {
-        let v = v.trim_start_matches("minecraft:");
-        let sounds = crate::mobs::finalize::sound_variants(m.species());
-        m.extra.sound_variant = sounds.iter().position(|n| *n == v).map(|i| i as u8);
     }
     match m.species() {
         crate::mobs::Species::Fox => {
@@ -7079,7 +7065,7 @@ mod sheep_nbt_tests {
     }
 
     #[test]
-    fn farm_animals_keep_their_variant_and_sound_variant() {
+    fn farm_animals_keep_their_variant() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../.local/horizon-client")
             .join(horizon_core::VANILLA_VERSION);
@@ -7103,20 +7089,15 @@ mod sheep_nbt_tests {
             text(tag.get("variant")).as_deref(),
             Some("minecraft:temperate")
         );
-        assert_eq!(
-            text(tag.get("sound_variant")).as_deref(),
-            Some("minecraft:classic")
-        );
-        // Spawned in a warm biome with the mini sounds.
-        (m.extra.variant, m.extra.sound_variant) = (1, Some(2));
+        // 1.21.4 has no sound variants: no `sound_variant` key is written.
+        assert!(tag.get("sound_variant").is_none());
+        // Spawned in a warm biome.
+        m.extra.variant = 1;
         let tag = mob_to_nbt(&m, [1, 2, 3, 4], None, None, |_| None);
         assert_eq!(text(tag.get("variant")).as_deref(), Some("minecraft:warm"));
-        assert_eq!(
-            text(tag.get("sound_variant")).as_deref(),
-            Some("minecraft:mini")
-        );
+        assert!(tag.get("sound_variant").is_none());
         let back = mob_from_nbt(&tag, &types, 2, None).unwrap();
-        assert_eq!((back.extra.variant, back.extra.sound_variant), (1, Some(2)));
+        assert_eq!(back.extra.variant, 1);
         let mut hen = Mob::new(
             3,
             types["minecraft:chicken"].clone(),
@@ -7128,22 +7109,6 @@ mod sheep_nbt_tests {
         assert_eq!(text(tag.get("variant")).as_deref(), Some("minecraft:cold"));
         let back = mob_from_nbt(&tag, &types, 4, None).unwrap();
         assert_eq!((back.extra.variant, back.extra.egg_time), (2, 7795));
-        // The sound variants are indices into the registries finalizeSpawn draws from.
-        use crate::mobs::{Species, finalize};
-        let registries = finalize::SpawnRegistries::load(&root);
-        for (species, registry) in [
-            (Species::Pig, &registries.pig_sound),
-            (Species::Cow, &registries.cow_sound),
-            (Species::Chicken, &registries.chicken_sound),
-            (Species::Cat, &registries.cat_sound),
-            (Species::Wolf, &registries.wolf_sound),
-        ] {
-            assert_eq!(
-                finalize::sound_variants(species),
-                registry.names,
-                "{species:?}"
-            );
-        }
     }
 
     #[test]

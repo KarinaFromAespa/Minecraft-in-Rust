@@ -1498,28 +1498,27 @@ fn play_ambient(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
         Species::Nautilus | Species::ZombieNautilus => super::nautilus::sounds(m)[0],
         Species::Enderman if m.ai.target.is_some() => "entity.enderman.scream",
         // Wolf.isAngry reads the persistent anger timer, not the current target.
-        Species::Wolf if super::tame::angry(m) => {
-            super::finalize::variant_sound(m, "growl").unwrap_or("entity.wolf.growl")
-        }
+        Species::Wolf if super::tame::angry(m) => "entity.wolf.growl",
         Species::Wolf if m.random.next_int_bound(3).unwrap_or(1) == 0 => {
             let kind = if m.extra.tame && m.health < m.attrs.max_health / 2.0 {
                 "whine"
             } else {
                 "pant"
             };
-            super::finalize::variant_sound(m, kind).unwrap_or("entity.wolf.pant")
+            // 1.21.4 has no wolf sound variants: the plain wolf sound.
+            if kind == "whine" {
+                "entity.wolf.whine"
+            } else {
+                "entity.wolf.pant"
+            }
         }
         Species::Parrot => super::parrot::ambient(m, w),
         // Cat.getAmbientSound: purr in love, purreow one time in four, else ambient.
-        Species::Cat if m.extra.tame && m.extra.in_love > 0 => {
-            super::finalize::variant_sound(m, "purr").unwrap_or("entity.cat.purr")
-        }
+        Species::Cat if m.extra.tame && m.extra.in_love > 0 => "entity.cat.purr",
         Species::Cat if m.extra.tame && m.random.next_int_bound(4).unwrap_or(1) == 0 => {
-            super::finalize::variant_sound(m, "purreow").unwrap_or("entity.cat.purreow")
+            "entity.cat.purreow"
         }
-        Species::Cat if !m.extra.tame => {
-            super::finalize::variant_sound(m, "stray_ambient").unwrap_or("entity.cat.stray_ambient")
-        }
+        Species::Cat if !m.extra.tame => "entity.cat.stray_ambient",
         // Fox.getAmbientSound: a sleeping fox makes its sleep sound.
         Species::Fox if super::fox::flag(m, super::fox::SLEEPING) => "entity.fox.sleep",
         // Fox.playAmbientSound: the screech at volume 2. Anything else goes to
@@ -2466,14 +2465,8 @@ pub fn voice_sounds(m: &Mob) -> [&'static str; 3] {
             m.kind.sounds[1],
             m.kind.sounds[2],
         ],
-        // The mob's sound variant set, the baby one for a baby.
-        Species::Pig | Species::Cow | Species::Chicken | Species::Wolf | Species::Cat => {
-            use super::finalize::variant_sound as v;
-            match (v(m, "ambient"), v(m, "hurt"), v(m, "death")) {
-                (Some(a), Some(h), Some(d)) => [a, h, d],
-                _ => m.kind.sounds,
-            }
-        }
+        // The mob's sound set is the plain species sounds in 1.21.4 (no
+        // `*_sound_variant` registries; only the 1.21.5 wolf has one).
         _ => m.kind.sounds,
     }
 }
@@ -2608,21 +2601,14 @@ pub fn eating_sound(
         Species::Armadillo | Species::Pig | Species::SulfurCube => {
             let sound = match m.species() {
                 Species::Armadillo => "entity.armadillo.eat",
-                Species::Pig => {
-                    super::finalize::variant_sound(m, "eat").unwrap_or("entity.pig.eat")
-                }
+                Species::Pig => "entity.pig.eat",
                 _ => "entity.small_sulfur_cube.eat",
             };
             let pitch = m.voice_pitch();
             (sound, sound_volume(m), pitch, true)
         }
         // playSound(sound, 1, 1).
-        Species::Cat => (
-            super::finalize::variant_sound(m, "eat").unwrap_or("entity.cat.eat"),
-            1.0,
-            1.0,
-            true,
-        ),
+        Species::Cat => ("entity.cat.eat", 1.0, 1.0, true),
         Species::Fox => ("entity.fox.eat", 1.0, 1.0, true),
         // level().playSound(null, this, sound, NEUTRAL, volume, pitch).
         Species::Frog => ("entity.frog.eat", 2.0, 1.0, false),
@@ -3270,8 +3256,15 @@ pub fn step_sound(
         | S::Nautilus
         | S::ZombieNautilus => None,
         S::Armadillo => quiet("entity.armadillo.step"),
+        // 1.21.4 has no sound variants: the plain species step sound.
         S::Chicken | S::Cow | S::Pig | S::Wolf => {
-            super::finalize::variant_sound(m, "step").and_then(quiet)
+            let id = match m.species() {
+                S::Chicken => "entity.chicken.step",
+                S::Cow => "entity.cow.step",
+                S::Pig => "entity.pig.step",
+                _ => "entity.wolf.step",
+            };
+            quiet(id)
         }
         S::Mooshroom => quiet("entity.cow.step"),
         S::Llama | S::TraderLlama => quiet("entity.llama.step"),
