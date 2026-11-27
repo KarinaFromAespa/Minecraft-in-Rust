@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": 2,
-  "batch": 74,
-  "note": "Batch 74 closed (2026-11-27): all carry-over, no code changes \u2014 304 SpriteSource type()/codec() registration shape only; 305 RegistryDataLoader offsets only; 306 five 1.21.5-only tags, Rust already uses the 1.21.4 forms (BOOK_CLONING_TARGET is just writable_book); 307 PlayerSensor plural attackable-players list stored by the Rust but never read by any behaviour (write-only). Rank 2 now 312/348. Prior: Batch 73 closed (2026-11-27): all carry-over, no code changes \u2014 293 test-block classes absent from 1.21.4 (dead support, removal already recorded); 30",
+  "batch": 75,
+  "note": "Batch 75 closed (2026-11-27): all carry-over, no code changes \u2014 308 MinecartHopper DEFAULT_ENABLED is a dead constant, NBT default true in both forms; 309 Vault Server offsets + equals->== on canonical BlockStates; 310 piston onRemove->preRemoveSideEffects relocation and getShape switch->map, same six boxes; 311 VibrationInfo javap-identical. Rank 2 now 316/348. Prior: Batch 74 closed (2026-11-27): all carry-over, no code changes \u2014 304 SpriteSource type()/codec() registration shape only; 305 RegistryDataLoader offset",
   "items": {
     "90": {
       "module": "crates/horizon-client-render/src/block_entity_render.rs",
@@ -3840,6 +3840,40 @@
       "evidence": "PlayerSensor: 1.21.5 adds NEAREST_VISIBLE_ATTACKABLE_PLAYERS (plural list) to requires() (3 -> 4 modules) and doTick (the attackable list is stored, then the singular is set from its first element). 1.21.4 writes only NEAREST_PLAYERS, NEAREST_VISIBLE_PLAYER and NEAREST_VISIBLE_ATTACKABLE_PLAYER (singular). The Rust's four brains (monster, villager, warden, animal) all set a nearest_visible_targetable_players list slot \u2014 the 1.21.5 form \u2014 but it is never read by any behaviour: the only behavioural reader of the sensor's output is the singular at monster_brain.rs:642 (creaking StartAttacking finder); the plural appears only in the debug-dump name tables. Gameplay matches 1.21.4; the slot is write-only unobserved state, a cleanup candidate, not a behaviour defect.",
       "classes": [
         "PlayerSensor"
+      ]
+    },
+    "308": {
+      "module": "widely named: world/entity/vehicle",
+      "verdict": "carry-over",
+      "evidence": "ContainerEntity: no semantic diff. MinecartHopper: 1.21.5 adds a private static final boolean DEFAULT_ENABLED that is never referenced anywhere in the class \u2014 a dead constant. The NBT read changed shape but not effect: 1.21.4 keeps the constructor's enabled = true when \"Enabled\" is absent (contains guard), 1.21.5 uses getBooleanOr(\"Enabled\", true) \u2014 absent -> true in both. The Rust defaults true (minecarts.rs:3129 c.enabled = flag(\"Enabled\", true)); write path (putBoolean \"Enabled\") identical in both versions.",
+      "classes": [
+        "ContainerEntity",
+        "MinecartHopper"
+      ]
+    },
+    "309": {
+      "module": "widely named: world/level/block/entity/vault",
+      "verdict": "carry-over",
+      "evidence": "VaultBlockEntity$Server: with constant-pool numbers and bytecode offsets stripped, the normalized diff is 29 lines, all branch-target renumbering (iflt 95 -> 92, ifne 111 -> 108, etc.) plus one Object.equals + ifne -> if_acmpeq on two BlockState values; BlockStates are canonical singletons in vanilla, so == and .equals agree. No behaviour change.",
+      "classes": [
+        "VaultBlockEntity$Server"
+      ]
+    },
+    "310": {
+      "module": "widely named: world/level/block/piston",
+      "verdict": "carry-over",
+      "evidence": "Two pure refactors with identical observable behaviour. (a) MovingPistonBlock.onRemove in 1.21.4 (if the new state is not the same block, call PistonMovingBlockEntity.finalTick) is gone in 1.21.5; instead 1.21.5's PistonMovingBlockEntity gains preRemoveSideEffects(pos, state) which calls finalTick (absent in 1.21.4). finalTick still runs when a moving-piston block is replaced; the Rust implements it via the block-change path (update.rs: old block == moving_piston, block changed -> remove_moving_piston, i.e. the finalTick effect, progressO < 1.0 || client-side, pistons.rs moving_piston_final_tick). (b) PistonBaseBlock.getShape: 1.21.4 switches on facing over the six *_AABB fields; 1.21.5 returns SHAPES.get(facing) where SHAPES = Shapes.rotateAll(Block.boxZ(16,4,16)) \u2014 the same six rotations of the 4-thick slab, so the Direction switch map in PistonBaseBlock$1 disappears with no shape change. Piston shapes are parity-tested against the 1.21.4 jar (tests/test_piston_shape_parity.py).",
+      "classes": [
+        "MovingPistonBlock",
+        "PistonBaseBlock$1"
+      ]
+    },
+    "311": {
+      "module": "widely named: world/level/gameevent/vibrations",
+      "verdict": "carry-over",
+      "evidence": "VibrationInfo: the javap -c dumps are byte-identical (17,000 bytes each, empty diff) \u2014 identical fields, signatures and bytecode. The class files differ in md5 only, i.e. debug / constant-pool layout, with no semantic change.",
+      "classes": [
+        "VibrationInfo"
       ]
     }
   }

@@ -5993,3 +5993,47 @@ shape for the review batches.
   debug-dump name tables. Gameplay matches 1.21.4; the slot is
   write-only unobserved state, a cleanup candidate, not a behaviour
   defect. Rank 2: 312/348.
+
+  Item 298 (report id 308, widely named: world/entity/vehicle):
+  carry-over. `ContainerEntity`: no semantic diff. `MinecartHopper`:
+  1.21.5 adds a `private static final boolean DEFAULT_ENABLED` that is
+  never referenced anywhere in the class — a dead constant. The NBT
+  read changed shape but not effect: 1.21.4 keeps the constructor's
+  `enabled = true` when "Enabled" is absent (`contains` guard), 1.21.5
+  uses `getBooleanOr("Enabled", true)` — absent -> true in both. The
+  Rust defaults true (`minecarts.rs:3129`
+  `c.enabled = flag("Enabled", true)`); the write path (`putBoolean`
+  "Enabled") is identical in both versions. Rank 2: 313/348.
+
+  Item 299 (report id 309, widely named: world/level/block/entity/vault):
+  carry-over. `VaultBlockEntity$Server`: with constant-pool numbers and
+  bytecode offsets stripped, the normalized diff is 29 lines, all
+  branch-target renumbering (`iflt` 95 -> 92, `ifne` 111 -> 108, etc.)
+  plus one `Object.equals` + `ifne` -> `if_acmpeq` on two `BlockState`
+  values; BlockStates are canonical singletons in vanilla, so `==` and
+  `.equals` agree. No behaviour change. Rank 2: 314/348.
+
+  Item 300 (report id 310, widely named: world/level/block/piston):
+  carry-over. Two pure refactors with identical observable behaviour.
+  (a) `MovingPistonBlock.onRemove` in 1.21.4 (if the new state is not
+  the same block, call `PistonMovingBlockEntity.finalTick`) is gone in
+  1.21.5; instead 1.21.5's `PistonMovingBlockEntity` gains
+  `preRemoveSideEffects(pos, state)` which calls `finalTick` (absent
+  in 1.21.4). `finalTick` still runs when a moving-piston block is
+  replaced; the Rust implements it via the block-change path
+  (`update.rs`: old block == moving_piston, block changed ->
+  `remove_moving_piston`, i.e. the `finalTick` effect, `progressO <
+  1.0 || client-side`, `pistons.rs` `moving_piston_final_tick`).
+  (b) `PistonBaseBlock.getShape`: 1.21.4 switches on facing over the
+  six `*_AABB` fields; 1.21.5 returns `SHAPES.get(facing)` where
+  `SHAPES = Shapes.rotateAll(Block.boxZ(16,4,16))` — the same six
+  rotations of the 4-thick slab, so the Direction switch map in
+  `PistonBaseBlock$1` disappears with no shape change. Piston shapes
+  are parity-tested against the 1.21.4 jar
+  (`tests/test_piston_shape_parity.py`). Rank 2: 315/348.
+
+  Item 301 (report id 311, widely named: world/level/gameevent/vibrations):
+  carry-over. `VibrationInfo`: the `javap -c` dumps are byte-identical
+  (17,000 bytes each, empty diff) — identical fields, signatures and
+  bytecode. The class files differ in md5 only, i.e. debug /
+  constant-pool layout, with no semantic change. Rank 2: 316/348.
