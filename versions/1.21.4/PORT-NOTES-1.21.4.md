@@ -5728,3 +5728,52 @@ shape for the review batches.
   by `contains(..., 99)` in 1.21.4 vs `getIntOr(..., 47999)` in 1.21.5 -
   the same 47999 default (the Rust's `llama.rs:97`
   `DEFAULT_DESPAWN_DELAY = 47999`). Rank 2: 292/348.
+
+  Item 260 (report id 270, widely named: world/entity/monster):
+  carry-over. `AbstractSkeleton.registerGoals` differs only by the Wolf
+  class's package move (`animal/Wolf` in 1.21.4 vs `animal/wolf/Wolf`
+  in 1.21.5) - the same `AvoidEntityGoal` (6.0f, 1.0, 1.2).
+  `finalizeSpawn`'s Halloween pumpkin logic is identical (Oct 31, 25%
+  chance, empty head slot -> pumpkin / carved pumpkin, drop chance 0 -
+  written via `armorDropChances[HEAD.getIndex()] = 0` in 1.21.4 vs
+  `setDropChance(HEAD, 0)` in 1.21.5). `setItemSlot` (1.21.4) vs
+  `onEquipItem` (1.21.5) is the equipment-hook rename; 1.21.4's
+  `setItemSlot` calls `Monster.setItemSlot` then server-side
+  `reassessWeaponGoal()`, which the Rust's `undead.rs:658` / `704`
+  implements (bow goal, hard interval on Hard).
+  `Ghast.readAdditionalSaveData` reads `ExplosionPower` with `getByte`
+  guarded by `contains(..., 99)` in 1.21.4 vs `getByteOr(..., 1)` in
+  1.21.5 - the same default 1. Rank 2: 293/348.
+
+  Item 266 (report id 276, widely named: client/particle): carry-over.
+  `ParticleEngine.registerProviders`: 1.21.5 added `TINTED_LEAVES` and
+  `FIREFLY` registrations that 1.21.4 lacks (javap-verified: 1.21.4's
+  `ParticleTypes` has `PALE_OAK_LEAVES` but no `TINTED_LEAVES` or
+  `FIREFLY`; 1.21.5 has both). The Rust registers no tinted_leaves /
+  firefly provider and has pale_oak_leaves (`animate_tick.rs:138`) -
+  the 1.21.4 set. The `reload` / constructor differences are the
+  particles atlas id location (`PARTICLES_ATLAS_INFO` in 1.21.5 vs
+  `AtlasIds.PARTICLES` in 1.21.4) and a `TextureManager` field kept in
+  1.21.4 - internal. Rank 2: 294/348.
+
+  Item 267 (report id 277, widely named:
+  client/renderer/entity/layers): carry-over.
+  `EquipmentLayerRenderer$TrimSpriteKey`: 1.21.4 has `textureId()`
+  (computed via `getColorPaletteSuffix`) while 1.21.5 has `spriteId()`
+  - the trim key changed from a texture id to a sprite id;
+  `equals` / `hashCode` / `toString` differ only by the record shape.
+  The Rust's `trims.rs` implements the 1.21.4 form: the trim's texture
+  is `textures/trims/entity/<layer>/<pattern>.png` recoloured by
+  `PalettedTextureManager` with the material's palette
+  (`textures/palettes/trim/*`), unless the equipment asset's
+  `trim_overrides` pick another texture or palette. Rank 2: 295/348.
+
+  Item 268 (report id 278, widely named: stats): carry-over.
+  `ServerRecipeBook.fromNbt` reads "recipes" and "toBeDisplayed" as a
+  `ListTag` of strings (`getList(..., 8)`) in 1.21.4 vs via
+  `RECIPE_LIST_CODEC` (a list of recipe keys) in 1.21.5 - the same
+  stored form (a list of recipe ids); `loadRecipes` takes the `ListTag`
+  in 1.21.4 vs the decoded `List` in 1.21.5, same entries.
+  `addRecipes` / `removeRecipes` differ only by alignment. The Rust's
+  `save.rs:4295` / `4454` reads / writes the `recipeBook` compound via
+  `recipe_book::Settings`. Rank 2: 296/348.
