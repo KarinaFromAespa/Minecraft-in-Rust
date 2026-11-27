@@ -5082,3 +5082,54 @@ shape for the review batches.
   only by `PoseStack.mulPose(Quaternionfc)` vs `(Quaternionf)`.
   `renderEntityInInventoryFollowsMouse` differs only by `ldc` vs
   `ldc_w` (same constants 20.0f and 0.017453292f). Rank 2: 240/348.
+
+  Item 191 (report id 201, crates/horizon-client/src/game/lan_stations.rs):
+  carry-over. `EnchantmentMenu`: 1.21.5 record-ified `EnchantmentInstance`
+  (`enchantment()` / `level()` accessors vs 1.21.4 fields, same values -
+  the record-ification from item 166); playSound overload (`Entity` vs
+  `Player`); `clickMenuButton`: 1.21.5 `player.hasInfiniteMaterials()`
+  vs 1.21.4 `player.getAbilities().instabuild` (`hasInfiniteMaterials`
+  returns `abilities.instabuild`). Rank 2: 241/348.
+
+  Item 193 (report id 203, crates/horizon-client/src/mobs/passengers.rs):
+  carry-over. All three diffs are renames / overloads:
+  `SkeletonTrapGoal.tick`: `LightningBolt.snapTo(DDD)` in 1.21.5 vs
+  `moveTo(DDD)` in 1.21.4 (same positioning call; `snapTo` is the 1.21.5
+  rename of `moveTo`). `Husk.doUnderWaterConversion`: `levelEvent`
+  overload (`Entity` vs `Player`) only. `Spider.finalizeSpawn`:
+  `Skeleton.snapTo(DDDFF)` vs `moveTo(DDDFF)` - same rename. The Rust
+  implements the 1.21.4 behaviour: `spring_skeleton_trap` spawns the bolt
+  at the horse's position, tames the horse, spawns the skeleton rider +
+  3 skeleton horses with riders (`trap_skeleton`: iron helmet unless one
+  exists, enchant weapon + helmet always); spider finalizeSpawn has the
+  1-in-100 skeleton rider (`next_int_bound(100) == 0`). Rank 2: 242/348.
+
+  Item 194 (report id 204, crates/horizon-client/src/mobs/drops.rs):
+  carry-over. `EquipmentSlot`: 1.21.5 added the SADDLE slot (8 values vs
+  7 in 1.21.4) plus `canIncreaseExperience()` (false for the saddle).
+  The Rust's `EquipmentSlot` has 8 values including Saddle, but every
+  1.21.4-observable behaviour matches: `dropPreservedEquipment`
+  iterates `EquipmentSlot.VALUES` in both; in 1.21.4 a saddled horse's
+  saddle always drops via `AbstractHorse.dropEquipment`'s inventory
+  loop (unless `PREVENT_EQUIPMENT_DROP`), and the Rust drops it via the
+  preserved path with drop chance 2.0 for "saddle" (`drops.rs:341`) and
+  checks `prevents_equipment_drop` at `drops.rs:522` / `554`; XP reward
+  "all but the saddle" (`drops.rs:661`, citing `canIncreaseExperience`)
+  is the 7 slots in 1.21.4; `EquipmentSlotGroup` "armor" excludes the
+  saddle in both. Rank 2: 243/348.
+
+  Item 195 (report id 205, crates/horizon-client/src/mobs/equine.rs):
+  carry-over. `AbstractEquineModel`: 1.21.4 has `saddleParts` /
+  `ridingParts` fields; `setupAnim` sets `saddleParts[].visible =
+  isSaddled` and `ridingParts[].visible = isRidden && isSaddled`.
+  1.21.5 removed both fields entirely (0 references) - the saddle
+  became an equipment layer (SADDLE slot). The Rust keeps the 1.21.4
+  form: `render.rs` pushes the `{name}#saddle` part with the
+  per-species saddle texture when `m.extra.saddled && !m.is_baby()`,
+  and `anim.rs:1071` shows the reins (`left_saddle_line` /
+  `right_saddle_line`) only while ridden. The reins' ridden-only
+  condition is harmless: the whole `#saddle` group is not rendered when
+  unsaddled. The mesh-definition diffs (`createBodyMesh` /
+  `createFullScaleBabyMesh` / constructor) are the same saddle-part
+  removal; the Rust bakes the 1.21.4 model JSONs from 1.21.4 assets.
+  Rank 2: 244/348.
