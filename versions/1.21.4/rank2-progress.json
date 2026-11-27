@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": 2,
-  "batch": 53,
-  "note": "LEDGER RECONCILIATION (2026-11-27, Butler): rank2-progress.json re-keyed uniformly by REPORT ID (id = rank-2 ordinal + 10), verified entry-by-entry against diff-1.21.5-1.21.4/report.json by module/class match. True closed count is 216, not 220: three ordinals were counted twice under different keys and are now merged (264 under keys 274+174, 42 under keys 52+80, 59 under keys 69+110+113). Session 3 keyed batches 46-50 by ordinal, so its keys 161-180 are renumbered +10 to report ids 171-190; the batch-50 correction (225 -> 220) had found only part of the overcount. Lowest unclosed ordinals are 151-154 (report ids 161-164) = batch 51. Prior batch note: Batch 50 closed (2026-11-27): item 178 ported (the chunk-generation finalize path read cat and frog variants only from the 1.21.5-only variant data registries, so in 1.21.4 every chunk-generated cat stayed tabby (variant 0). Batch 51 closed (2026-11-27): report ids 161-164 (ordinals 151-154) - 161 ported (paletted fixture VarInt long count), 162 ported (SNBT control chars pass through raw), 163/164 carry-over. Rank 2 now 220/348. Batch 52 closed (2026-11-27): report ids 165-168 (ordinals 155-158) - all carry-over (per-component show_in_tooltip folded via TOOLTIP_FLAGS; bundle/enchantment/adventure-predicate semantics identical; 11 items added in 1.21.5 only; cake/sign/sound-effect overloads only). Rank 2 now 224/348. Batch 53 (2026-11-27): items 80, 110, 169, 170 - 169 PORTED (creaking stop-attack: 1.21.5 isAttackTargetStillReachable removed; 1.21.4's no-arg StopAttackingIfTargetInvalid.create() default condition always returns false), the rest carry-over (fluid Player->LivingEntity signature + equals-vs-identity no-op; RegistryContextSwapper refactor; component-patch codec refactor + 1.21.5-only delimited codec). Rank 2 now 228/348.",
+  "batch": 54,
+  "note": "LEDGER RECONCILIATION (2026-11-27, Butler): rank2-progress.json re-keyed uniformly by REPORT ID (id = rank-2 ordinal + 10), verified entry-by-entry against diff-1.21.5-1.21.4/report.json by module/class match. True closed count is 216, not 220: three ordinals were counted twice under different keys and are now merged (264 under keys 274+174, 42 under keys 52+80, 59 under keys 69+110+113). Session 3 keyed batches 46-50 by ordinal, so its keys 161-180 are renumbered +10 to report ids 171-190; the batch-50 correction (225 -> 220) had found only part of the overcount. Lowest unclosed ordinals are 151-154 (report ids 161-164) = batch 51. Prior batch note: Batch 50 closed (2026-11-27): item 178 ported (the chunk-generation finalize path read cat and frog variants only from the 1.21.5-only variant data registries, so in 1.21.4 every chunk-generated cat stayed tabby (variant 0). Batch 51 closed (2026-11-27): report ids 161-164 (ordinals 151-154) - 161 ported (paletted fixture VarInt long count), 162 ported (SNBT control chars pass through raw), 163/164 carry-over. Rank 2 now 220/348. Batch 52 closed (2026-11-27): report ids 165-168 (ordinals 155-158) - all carry-over (per-component show_in_tooltip folded via TOOLTIP_FLAGS; bundle/enchantment/adventure-predicate semantics identical; 11 items added in 1.21.5 only; cake/sign/sound-effect overloads only). Rank 2 now 224/348. Batch 53 (2026-11-27): items 80, 110, 169, 170 - 169 PORTED (creaking stop-attack: 1.21.5 isAttackTargetStillReachable removed; 1.21.4's no-arg StopAttackingIfTargetInvalid.create() default condition always returns false), the rest carry-over (fluid Player->LivingEntity signature + equals-vs-identity no-op; RegistryContextSwapper refactor; component-patch codec refactor + 1.21.5-only delimited codec). Rank 2 now 228/348. Batch 54 (2026-11-27): items 113, 178, 184, 191 - all carry-over (1.21.5 DataComponentPredicate interface refactor; horse-equipment rework + loom pattern-item component; long-array framing + 1.21.5-only HashedStack; loom getSelectablePatterns component form). Rank 2 now 232/348.",
   "items": {
     "90": {
       "module": "crates/horizon-client-render/src/block_entity_render.rs",
@@ -3074,6 +3074,58 @@
         "DataComponentPatch$2",
         "DataComponentPatch$3",
         "DataComponentPatch$CodecGetter"
+      ]
+    },
+    "113": {
+      "module": "crates/horizon-assets/src/item_model.rs",
+      "verdict": "carry-over",
+      "evidence": "DataComponentPredicate is a completely different type in 1.21.5: 1.21.4 has `public final class DataComponentPredicate implements Predicate<DataComponentMap>` (list of TypedDataComponent, test(DataComponentMap)/test(DataComponentHolder), allOf/someOf/builder, asPatch, CODEC/STREAM_CODEC/EMPTY); 1.21.5 replaced it with `public interface core.component.predicates.DataComponentPredicate` (matches(DataComponentGetter), singleCodec, SINGLE_STREAM_CODEC, Map<Type, Predicate> CODEC/STREAM_CODEC). MinMaxBounds/$Doubles/$Ints are identical in both jars (1 method each, no diff). EnchantmentsPredicate (+$Enchantments, $StoredEnchantments) and MinMaxBounds$1 are 1.21.5-only (javap: class not found in the 1.21.4 jar). The Rust has no component_predicate.rs (the report's file path is stale); item_model.rs already implements the 1.21.4 form: `minecraft:has_component` (with ignore_default - patch-only vs full components) is decoded and evaluated, and both ConditionProperty and SelectProperty explicitly reject the `component`/`ComponentMatches` property as 1.21.5-only (\"fails to decode here, as vanilla 1.21.4 rejects it\").",
+      "classes": [
+        "DataComponentPredicate",
+        "MinMaxBounds",
+        "MinMaxBounds$1",
+        "MinMaxBounds$Doubles",
+        "MinMaxBounds$Ints",
+        "EnchantmentsPredicate",
+        "EnchantmentsPredicate$Enchantments",
+        "EnchantmentsPredicate$StoredEnchantments"
+      ]
+    },
+    "178": {
+      "module": "widely named: world/inventory",
+      "verdict": "carry-over",
+      "evidence": "HorseInventoryMenu is the 1.21.5 horse-equipment rework. 1.21.4 $1.isActive is horse.isSaddleable() (1.21.5: canUseSlot(SADDLE) && type.is(CAN_EQUIP_SADDLE)); 1.21.4 $2.isActive is canUseSlot(BODY) only (1.21.5 adds type.is(CAN_WEAR_HORSE_ARMOR) || isLlama). 1.21.4 $1.mayPlace is stack.is(SADDLE) && !hasItem() && isSaddleable(); $2.mayPlace is the body-armor fit. 1.21.4 stillValid also checks armorContainer.stillValid (1.21.5 has no armorContainer - equipment-slot containers instead). 1.21.4 quickMoveStack order: armor slot (mayPlace + empty) -> saddle slot (mayPlace) -> chest -> other half of the player inventory. The Rust implements the 1.21.4 form throughout mount_menu.rs (shows_saddle documented as isSaddleable, not canUseSlot+tag; can_wear_horse_armor only Horse; body_armor_fits carpet/horse-armor/nautilus-armor; mount_slot_rules SADDLE = saddle item, ARMOR = body_armor_fits; mount_quick_move armor-first then saddle then chest then other half), and lan_mount_menu.rs lan_mount_valid covers stillValid (alive + within range). StonecutterMenu$2/LoomMenu$6 onTake differ only by the playSound overload (Entity in 1.21.5 vs Player in 1.21.4) and onCraftedBy gaining a Level parameter in 1.21.5 - API shape only. LoomMenu$5.mayPlace: 1.21.5 stack.has(PROVIDES_BANNER_PATTERNS) vs 1.21.4 instanceof BannerPatternItem; PROVIDES_BANNER_PATTERNS is absent from 1.21.4's DataComponents (javap-verified) and banner.rs reads the pattern_item/* tags as the 1.21.4 form. StonecutterMenu.quickMoveStack differs only by the onCraftedBy Level parameter and branch offsets.",
+      "classes": [
+        "HorseInventoryMenu$1",
+        "HorseInventoryMenu$2",
+        "HorseInventoryMenu",
+        "StonecutterMenu$2",
+        "LoomMenu$5",
+        "LoomMenu$6",
+        "StonecutterMenu"
+      ]
+    },
+    "184": {
+      "module": "widely named: network",
+      "verdict": "carry-over",
+      "evidence": "FriendlyByteBuf: only the long-array methods differ - 1.21.4 readLongArray/writeLongArray are VarInt-counted, 1.21.5 added readFixedSizeLongArray/writeFixedSizeLongArray (fixed-size); already handled per item 161 (Paletted::read vs read_prefixed). writeBlockHitResult differs only by javap column alignment; all other 365+ methods identical. HashedStack (+$1, $ActualItem), ProtocolInfo$Details (+$PacketVisitor), ProtocolInfo$DetailsProvider are 1.21.5-only (empty 1.21.4 dumps = javap class not found). The Rust's HashedStack code (item/hash.rs) is the shared 1.21.5+ implementation; the 1.21.4 paths send/read whole stacks - ChangedSlots reads Slot pairs with the doc \"1.21.4 sends the whole ItemStack for each changed slot and the carried item (1.21.5 sends HashedStack hashes instead)\", and remote.rs sends full stacks for container clicks with the same note.",
+      "classes": [
+        "FriendlyByteBuf",
+        "HashedStack",
+        "HashedStack$1",
+        "HashedStack$ActualItem",
+        "ProtocolInfo$Details",
+        "ProtocolInfo$Details$PacketVisitor",
+        "ProtocolInfo$DetailsProvider"
+      ]
+    },
+    "191": {
+      "module": "crates/horizon-client/src/banner.rs",
+      "verdict": "carry-over",
+      "evidence": "LoomMenu.getSelectablePatterns: 1.21.5 reads the PROVIDES_BANNER_PATTERNS component (a TagKey) from the pattern item; 1.21.4 checks instanceof BannerPatternItem and calls getBannerPattern() (a TagKey), then the same HolderGetter lookup; no item -> the no-item-required patterns in both. LoomMenu.quickMoveStack has the same component-vs-instanceof difference for routing pattern items. The Rust implements the 1.21.4 form in banner.rs: `provided` holds exactly the pattern items (from the pattern_item/* tags), is_pattern_item is membership (= the instanceof check, documented against the 1.21.5 component and the 26.3 loom_patterns tag), selectable is getSelectablePatterns (None -> no_item_required, Some -> provided patterns). Loom slot order in menu_clicks.rs (banner, dye, pattern, result, then inventory) matches LoomMenu. BannerItem.getColor is identical modulo formatting. BannerItem.appendHoverText/appendHoverTextFromBannerBlockEntityTag are 1.21.4-only; the Rust shows banner patterns via the minecraft:banner_patterns component path in item_tooltip.rs (with show/hide tests).",
+      "classes": [
+        "LoomMenu",
+        "BannerItem"
       ]
     }
   }

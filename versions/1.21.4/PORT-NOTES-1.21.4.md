@@ -4873,3 +4873,91 @@ shape for the review batches.
   `DataComponentPatch$2`, `$3`, `$CodecGetter`) are 1.21.5-only,
   confirmed absent from the 1.21.4 jar (javap: class not found).
   Rank 2: 228/348.
+
+  Item 103 (report id 113, crates/horizon-assets/src/item_model.rs):
+  carry-over. `DataComponentPredicate` is a completely different type
+  in 1.21.5: 1.21.4 has `public final class DataComponentPredicate
+  implements Predicate<DataComponentMap>` (list of TypedDataComponent,
+  `test(DataComponentMap)` / `test(DataComponentHolder)`,
+  `allOf` / `someOf` / `builder`, `asPatch`, CODEC / STREAM_CODEC /
+  EMPTY); 1.21.5 replaced it with `public interface
+  core.component.predicates.DataComponentPredicate`
+  (`matches(DataComponentGetter)`, `singleCodec`,
+  `SINGLE_STREAM_CODEC`, `Map<Type, Predicate>` CODEC / STREAM_CODEC).
+  `MinMaxBounds` / `$Doubles` / `$Ints` are identical in both jars (1
+  method each, no diff). `EnchantmentsPredicate` (+`$Enchantments`,
+  `$StoredEnchantments`) and `MinMaxBounds$1` are 1.21.5-only (javap:
+  class not found in the 1.21.4 jar). The Rust has no
+  `component_predicate.rs` (the report's file path is stale);
+  `item_model.rs` already implements the 1.21.4 form:
+  `minecraft:has_component` (with `ignore_default` - patch-only vs
+  full components) is decoded and evaluated, and both
+  `ConditionProperty` and `SelectProperty` explicitly reject the
+  `component` / `ComponentMatches` property as 1.21.5-only ("fails to
+  decode here, as vanilla 1.21.4 rejects it"). Rank 2: 229/348.
+
+  Item 168 (report id 178, widely named: world/inventory):
+  carry-over. `HorseInventoryMenu` is the 1.21.5 horse-equipment
+  rework. 1.21.4 `$1.isActive` is `horse.isSaddleable()` (1.21.5:
+  `canUseSlot(SADDLE)` && `type.is(CAN_EQUIP_SADDLE)`); 1.21.4
+  `$2.isActive` is `canUseSlot(BODY)` only (1.21.5 adds
+  `type.is(CAN_WEAR_HORSE_ARMOR)` || `isLlama`). 1.21.4 `$1.mayPlace`
+  is `stack.is(SADDLE) && !hasItem() && isSaddleable()`; `$2.mayPlace`
+  is the body-armor fit. 1.21.4 `stillValid` also checks
+  `armorContainer.stillValid` (1.21.5 has no `armorContainer` -
+  equipment-slot containers instead). 1.21.4 `quickMoveStack` order:
+  armor slot (`mayPlace` + empty) -> saddle slot (`mayPlace`) ->
+  chest -> other half of the player inventory. The Rust implements the
+  1.21.4 form throughout `mount_menu.rs` (`shows_saddle` documented as
+  `isSaddleable`, not `canUseSlot` + tag; `can_wear_horse_armor` only
+  `Horse`; `body_armor_fits` carpet / horse-armor / nautilus-armor;
+  `mount_slot_rules` SADDLE = saddle item, ARMOR = `body_armor_fits`;
+  `mount_quick_move` armor-first then saddle then chest then other
+  half), and `lan_mount_menu.rs` `lan_mount_valid` covers `stillValid`
+  (alive + within range). `StonecutterMenu$2` / `LoomMenu$6` `onTake`
+  differ only by the `playSound` overload (`Entity` in 1.21.5 vs
+  `Player` in 1.21.4) and `onCraftedBy` gaining a `Level` parameter in
+  1.21.5 - API shape only. `LoomMenu$5.mayPlace`: 1.21.5
+  `stack.has(PROVIDES_BANNER_PATTERNS)` vs 1.21.4 `instanceof
+  BannerPatternItem`; `PROVIDES_BANNER_PATTERNS` is absent from
+  1.21.4's `DataComponents` (javap-verified) and `banner.rs` reads the
+  `pattern_item/*` tags as the 1.21.4 form.
+  `StonecutterMenu.quickMoveStack` differs only by the `onCraftedBy`
+  `Level` parameter and branch offsets. Rank 2: 230/348.
+
+  Item 174 (report id 184, widely named: network): carry-over.
+  `FriendlyByteBuf`: only the long-array methods differ - 1.21.4
+  `readLongArray` / `writeLongArray` are VarInt-counted, 1.21.5 added
+  `readFixedSizeLongArray` / `writeFixedSizeLongArray` (fixed-size);
+  already handled per item 161 (`Paletted::read` vs `read_prefixed`).
+  `writeBlockHitResult` differs only by javap column alignment; all
+  other 365+ methods identical. `HashedStack` (+`$1`, `$ActualItem`),
+  `ProtocolInfo$Details` (+`$PacketVisitor`),
+  `ProtocolInfo$DetailsProvider` are 1.21.5-only (empty 1.21.4 dumps =
+  javap class not found). The Rust's `HashedStack` code
+  (`item/hash.rs`) is the shared 1.21.5+ implementation; the 1.21.4
+  paths send/read whole stacks - `ChangedSlots` reads `Slot` pairs
+  with the doc "1.21.4 sends the whole `ItemStack` for each changed
+  slot and the carried item (1.21.5 sends `HashedStack` hashes
+  instead)", and `remote.rs` sends full stacks for container clicks
+  with the same note. Rank 2: 231/348.
+
+  Item 181 (report id 191, crates/horizon-client/src/banner.rs):
+  carry-over. `LoomMenu.getSelectablePatterns`: 1.21.5 reads the
+  `PROVIDES_BANNER_PATTERNS` component (a `TagKey`) from the pattern
+  item; 1.21.4 checks `instanceof BannerPatternItem` and calls
+  `getBannerPattern()` (a `TagKey`), then the same `HolderGetter`
+  lookup; no item -> the no-item-required patterns in both.
+  `LoomMenu.quickMoveStack` has the same component-vs-instanceof
+  difference for routing pattern items. The Rust implements the 1.21.4
+  form in `banner.rs`: `provided` holds exactly the pattern items
+  (from the `pattern_item/*` tags), `is_pattern_item` is membership (=
+  the instanceof check, documented against the 1.21.5 component and the
+  26.3 `loom_patterns` tag), `selectable` is `getSelectablePatterns`
+  (`None` -> `no_item_required`, `Some` -> provided patterns). Loom
+  slot order in `menu_clicks.rs` (banner, dye, pattern, result, then
+  inventory) matches `LoomMenu`. `BannerItem.getColor` is identical
+  modulo formatting. `BannerItem.appendHoverText` /
+  `appendHoverTextFromBannerBlockEntityTag` are 1.21.4-only; the Rust
+  shows banner patterns via the `minecraft:banner_patterns` component
+  path in `item_tooltip.rs` (with show/hide tests). Rank 2: 232/348.
