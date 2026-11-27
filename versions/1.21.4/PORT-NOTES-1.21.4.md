@@ -3456,3 +3456,63 @@ shape for the review batches.
   `valueOf`). The Rust's `piece_tag` writes exactly 1.21.4's fields
   (`id`, `BB` int array of 6, `O`, `GD`), and the readers match the
   1.21.4 forms. Rank 2: 174/348.
+
+  Item 129 (crates/horizon-client/src/block_entity_item.rs):
+  carry-over. `Spawner.appendHoverText` / `getSpawnEntityDisplayName`
+  differ only by call shape (1.21.4 takes the `ItemStack` and reads the
+  `BLOCK_ENTITY_DATA` component; 1.21.5 takes the `CustomData`
+  directly); the logic is identical and the Rust already implements the
+  1.21.4 form (`spawner_entity` + the desc1/desc2 fallback in
+  `game/stations.rs`). Noted edge case, not fixed: the Rust does not
+  validate the id against the entity registry, so an unregistered or
+  unparseable id would show as a raw line where vanilla falls back to
+  desc1/desc2 -- only reachable with corrupt/modded data. Rank 2:
+  175/348.
+
+  Item 130 (crates/horizon-client/src/creative.rs): carry-over.
+  `hasInfiniteMaterials` (1.21.5) vs `hasInfiniteItems` (1.21.4) is the
+  same creative-mode condition. The 1.21.5 early return for empty
+  tooltip lines in `getTooltipFromContainerItem` is a no-op in
+  practice; the Rust's `creative_tooltip_tabs` implements the 1.21.4
+  tab-name/tag annotation. The spawn-eggs tab icon differs
+  (`CREEPER_SPAWN_EGG` vs `PIG_SPAWN_EGG`) but tab icons are
+  data-driven from the version's own prepared export, so 1.21.4
+  carries the pig egg by construction. Menu chrome per the owner's
+  principle. Rank 2: 176/348.
+
+  Item 131 (crates/horizon-client/src/game/clone_block_ticks_tests.rs):
+  PORTED. 1.21.5 added `strict` to `/clone`; 1.21.4 has none. Removed
+  the `strict` literal from the command tree
+  (`horizon-command/src/vanilla.rs`, `clone_destination`) and the
+  `ctx.has("strict")` read in `clone_between` (`game/commands.rs`):
+  destinations now place via `place_state(..., false, false)`
+  (`level_set`, flags 3, neighbours notified inline -- the same end
+  state as vanilla's flags 2 + `blockUpdated` pass, only the
+  notification ordering differs, and that ordering is a pre-existing
+  approximation, identical in both versions). The move clear was
+  using the strict 818 flags; vanilla 1.21.4 clears with
+  `setBlock(pos, AIR, 3)`, so it is now `place_state(from, air, false,
+  false)`. Tests updated: the six clone commands in
+  `clone_block_ticks_tests.rs` drop `strict` (first test renamed
+  `a_clone_copies_the_pending_block_ticks_of_its_source`; assertions
+  still hold -- the placed sand's own fall tick has the same trigger
+  as the source's, no tick advancing between the commands) and
+  `horizon-command/src/tests.rs` now asserts the strict form fails to
+  parse. `LevelChunkTicks` save/load: the Rust's `tick_data.rs`
+  already writes the 1.21.4 `SavedTick` NBT form (`i, x, y, z, t, p`);
+  `copyAreaFrom` is called by both versions and by the Rust. Rank 2:
+  177/348.
+
+  Item 132 (crates/horizon-client/src/game/storage.rs): carry-over.
+  `ShulkerBoxBlockEntity.loadFromTag`'s extra `contains("Items", 9)`
+  guard is a no-op; the 1.21.5-only `preRemoveSideEffects` override
+  is an empty return suppressing the base contents-drop, which the
+  Rust already models (`removal::pre_remove` returns `ShulkerBox`:
+  keeps its contents for the dropped box). `startOpen`/`stopOpen`
+  and the barrel's `playSound` differ only by the `Level.playSound`
+  overload (Entity vs Player); volume 0.5, pitch
+  `nextFloat()*0.1+0.9`, and the barrel's `pos + 0.5 + facing/2`
+  position are exactly what the Rust's `container_sound` does.
+  `PlayerEnderChestContainer.fromTag`'s `getCompoundOrEmpty` /
+  `getByteOr` reshuffle matches the Rust's `decode_items` (missing
+  Slot defaults to 0, out-of-range slots skipped). Rank 2: 178/348.

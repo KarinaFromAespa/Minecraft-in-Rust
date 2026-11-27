@@ -3367,18 +3367,24 @@ impl Game<'_> {
             }
         }
         if moving {
+            // 1.21.4's move clear is `setBlock(pos, AIR, 3)` (UPDATE_ALL):
+            // the source's neighbours are told, and its block entity is
+            // cleared with side effects — not the 1.21.5 `strict` 818.
             for (from, ..) in &copies {
-                self.place_state(*from, air, true, false)?;
+                self.place_state(*from, air, false, false)?;
             }
         }
         self.clone_enter(to_dim)?;
-        let strict = ctx.has("strict");
         // CloneCommands.clone sets every destination to a barrier first, so
-        // each copied state but a barrier counts as placed.
+        // each copied state but a barrier counts as placed. 1.21.4 has no
+        // `strict` mode: the placement is always the plain one (vanilla
+        // `setBlock(pos, state, 2)` then a `blockUpdated` pass; here
+        // `level_set`, flags 3, which notifies neighbours inline instead —
+        // the same end state, the ordering noted in PORT-NOTES).
         let barrier = self.pack.assets.registry.default_state("minecraft:barrier");
         let mut count = 0;
         for (_, to, s, entity, name) in copies {
-            self.place_state(to, s, strict, false)?;
+            self.place_state(to, s, false, false)?;
             if Some(s) != barrier {
                 count += 1;
             }

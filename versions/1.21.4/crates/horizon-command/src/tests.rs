@@ -211,10 +211,15 @@ fn parses_vanilla_commands() {
     assert_eq!(run("difficulty hard").unwrap().0, "difficulty");
     assert_eq!(run("say hello @p").unwrap().0, "say");
     let reg = reg();
-    let parse =
-        vanilla::dispatcher().parse("clone 0 0 0 1 1 1 5 5 5 strict filtered stone force", &reg);
+    // 1.21.4 has no `strict` in `/clone` (a 1.21.5 addition): the same
+    // command without it parses, with it it fails as an unknown argument.
+    let parse = vanilla::dispatcher().parse("clone 0 0 0 1 1 1 5 5 5 filtered stone force", &reg);
     let (ctx, _) = parse.executable().unwrap();
-    assert!(ctx.has("strict") && ctx.has("filtered") && ctx.has("force") && !ctx.has("move"));
+    assert!(!ctx.has("strict") && ctx.has("filtered") && ctx.has("force") && !ctx.has("move"));
+    assert!(
+        run("clone 0 0 0 1 1 1 5 5 5 strict filtered stone force").is_err(),
+        "`strict` is not a 1.21.4 `/clone` argument"
+    );
 }
 #[test]
 fn vanilla_error_messages() {

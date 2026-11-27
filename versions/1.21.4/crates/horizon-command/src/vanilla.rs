@@ -265,7 +265,11 @@ fn registered_with_features(dev: bool, minecart_improvements: bool) -> Dispatche
     let keep = d.literal(block, "keep");
     d.executes(keep, "fill");
 
-    // clone [from <dim>] <begin> <end> [to <dim>] <destination> [strict] [mask] [mode]
+    // clone [from <dim>] <begin> <end> [to <dim>] <destination> [mask] [mode]
+    // No `strict` in 1.21.4 (a 1.21.5 addition: `CloneCommands.clone` gained
+    // a `strict` flag that places with UPDATE_SKIP_ALL_SIDEEFFECTS and skips
+    // the `blockUpdated` pass; 1.21.4 always places with flags 2 and always
+    // notifies neighbours afterwards).
     let clone = d.literal(root, "clone");
     d.requires(clone, GAMEMASTERS);
     clone_begin(&mut d, clone);
@@ -525,8 +529,6 @@ fn clone_begin(d: &mut Dispatcher, node: usize) {
 fn clone_destination(d: &mut Dispatcher, node: usize) {
     let dest = d.argument(node, "destination", ArgType::BlockPos);
     clone_mask(d, dest);
-    let strict = d.literal(dest, "strict");
-    clone_mask(d, strict);
 }
 fn clone_mask(d: &mut Dispatcher, node: usize) {
     d.executes(node, "clone");

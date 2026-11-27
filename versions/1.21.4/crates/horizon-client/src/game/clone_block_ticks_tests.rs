@@ -65,16 +65,19 @@ fn ticks_at(game: &Game<'_>, pos: BlockPos) -> Vec<(u32, i64)> {
         .collect()
 }
 
+/// A clone copies the pending block ticks of its source: the clone places
+/// the sand, whose own fall tick has the same trigger as the source's (no
+/// tick advances between the two commands), so the destination ends up with
+/// exactly the copied tick.
 #[test]
 #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-fn a_strict_clone_copies_the_pending_block_ticks_of_its_source() {
+fn a_clone_copies_the_pending_block_ticks_of_its_source() {
     let mut game = game();
     let source = BlockPos::new(1, 101, 1);
     assert!(game.run_command("setblock 1 101 1 sand"));
     let pending = ticks_at(&game, source);
     assert_eq!(pending.len(), 1, "the placed sand's fall is queued");
-    // Strict: the clone places the sand without its own tick.
-    assert!(game.run_command("clone 1 101 1 1 101 1 3 101 1 strict replace"));
+    assert!(game.run_command("clone 1 101 1 1 101 1 3 101 1 replace"));
     assert_eq!(
         ticks_at(&game, BlockPos::new(3, 101, 1)),
         pending,
@@ -85,13 +88,13 @@ fn a_strict_clone_copies_the_pending_block_ticks_of_its_source() {
     assert!(game.run_command("setblock 5 100 1 dirt"));
     assert!(game.run_command("setblock 5 101 1 sand"));
     let pending = ticks_at(&game, BlockPos::new(5, 101, 1));
-    assert!(game.run_command("clone 5 100 1 5 101 1 7 100 1 strict filtered minecraft:sand"));
+    assert!(game.run_command("clone 5 100 1 5 101 1 7 100 1 filtered minecraft:sand"));
     assert_eq!(ticks_at(&game, BlockPos::new(7, 101, 1)), pending);
     assert_eq!(ticks_at(&game, BlockPos::new(7, 100, 1)), vec![]);
     // Move: the copy is made after the source was cleared.
     assert!(game.run_command("setblock 9 101 1 sand"));
     let pending = ticks_at(&game, BlockPos::new(9, 101, 1));
-    assert!(game.run_command("clone 9 101 1 9 101 1 11 101 1 strict replace move"));
+    assert!(game.run_command("clone 9 101 1 9 101 1 11 101 1 replace move"));
     assert_eq!(ticks_at(&game, BlockPos::new(11, 101, 1)), pending);
 }
 
@@ -121,7 +124,7 @@ fn copied_block_ticks_keep_order_priority_and_dedup() {
     let own = queued(&game, BlockPos::new(7, 101, 5));
     assert_eq!(own.len(), 1);
     assert!(game.run_command("setblock 5 101 5 sand"));
-    assert!(game.run_command("clone 5 101 5 5 101 5 7 101 5 strict replace"));
+    assert!(game.run_command("clone 5 101 5 5 101 5 7 101 5 replace"));
     assert_eq!(
         queued(&game, BlockPos::new(7, 101, 5)),
         own,
@@ -130,7 +133,7 @@ fn copied_block_ticks_keep_order_priority_and_dedup() {
     // Priority kept; ordered after what was queued before.
     assert!(game.run_command("setblock 1 101 9 sand"));
     let source = queued(&game, BlockPos::new(1, 101, 9))[0];
-    assert!(game.run_command("clone 1 101 9 1 101 9 3 101 9 strict replace"));
+    assert!(game.run_command("clone 1 101 9 1 101 9 3 101 9 replace"));
     let copied = queued(&game, BlockPos::new(3, 101, 9));
     assert_eq!(copied.len(), 1);
     assert_eq!(
@@ -147,7 +150,7 @@ fn copied_block_ticks_keep_order_priority_and_dedup() {
         pending,
         "the tick stays"
     );
-    assert!(!game.run_command("clone 9 101 9 9 101 9 11 101 9 strict replace"));
+    assert!(!game.run_command("clone 9 101 9 9 101 9 11 101 9 replace"));
     let moved: Vec<_> = queued(&game, BlockPos::new(11, 101, 9))
         .iter()
         .map(|t| (t.kind, t.trigger_tick))
