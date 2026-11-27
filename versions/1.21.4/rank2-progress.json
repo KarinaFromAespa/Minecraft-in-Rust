@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": 2,
-  "batch": 46,
-  "note": "Batch 46 closed (2026-11-27): item 163 ported (creaking heart resin spread now ungated and protector removal ignores persistence, plus the onRemove comment fix); items 161, 162 and 164 carry-over (the two 1.21.5-only gamerules are correctly absent and their behaviours are already 1.21.4-form; command storage matches the 1.21.4 persistence form; the Rust has no TextureManager equivalent). Rank 2: 209/348.",
+  "batch": 47,
+  "note": "Batch 47 closed (2026-11-27): item 168 ported (the horse body slot no longer shows for zombie horses, and the loom's pattern slot accepts BannerPatternItems via the pattern_item/* tags while the dye slot reads the colour from the <colour>_dye id); items 165, 166 and 167 carry-over (Direction's unit vector, the panda genes and the trim/custom-data codecs match; the direct trim holders' extra 1.21.4 fields are recorded, not fixed). Rank 2: 213/348.",
   "items": {
     "90": {
       "module": "crates/horizon-client-render/src/block_entity_render.rs",
@@ -2892,6 +2892,47 @@
       "evidence": "TextureManager diffs: safeClose calls texture.releaseId() after a failed close in 1.21.4 (1.21.5 only warns); the DynamicTexture ctor takes a NativeImage in 1.21.4 vs a Supplier in 1.21.5; dumpAllSheets checks RenderSystem.isOnRenderThread() and records a render call when off-thread in 1.21.4, while 1.21.5 creates the directories directly with an IOException catch; registerAndLoad is slot-only noise. The Rust has no TextureManager equivalent (wgpu atlases own the textures \u2014 no GL id to release, no DynamicTexture class); the only mapped behaviour is DumpDynamicTextures (F3+S) dumping the GUI atlas via hud.rs dump_contents, which is version-neutral.",
       "classes": [
         "TextureManager"
+      ]
+    },
+    "165": {
+      "module": "crates/horizon-client/src/item_render.rs",
+      "verdict": "carry-over",
+      "evidence": "Direction: 1.21.5 added a cached normalVec3f field and getUnitVec3f(); 1.21.4's step() builds a fresh Vector3f from getStepX/Y/Z each call. The values are identical (Down (0,-1,0), Up (0,1,0), North (0,0,-1), South (0,0,1), West (-1,0,0), East (1,0,0)), and the Rust's direction_vector returns exactly those. getYRot differs only by ldc vs ldc_w and jump targets (same 180/0/90/-90 values); rotate(Matrix4f) vs rotate(Matrix4fc) is the interface widening; LEGACY_ID_CODEC / LEGACY_ID_CODEC_2D are 1.21.5 codec-only; the rest is lambda renumbering.",
+      "classes": [
+        "Direction"
+      ]
+    },
+    "166": {
+      "module": "crates/horizon-client/src/mobs/panda.rs",
+      "verdict": "carry-over",
+      "evidence": "PandaRenderer.setupRotations differs only by mulPose(Quaternionfc) vs mulPose(Quaternionf); the TEXTURES map is identical in both versions (normal->panda.png, lazy, worried, playful, brown, weak, aggressive); extractRenderState is whitespace-only. Panda.mobInteract is whitespace-only; addAdditionalSaveData/readAdditionalSaveData differ only by codec store/read vs putString/getString plus getSerializedName/byName (same MainGene/HiddenGene string shape, NORMAL default). Panda$Gene differs only by the CODEC field type (Codec vs EnumCodec). The Rust writes MainGene/HiddenGene as serialized-name strings and gene_from_name maps names back with NORMAL (index 0) as the default \u2014 the 1.21.4 form; texture() maps genes to the same seven textures and rotations() implements setupRotations.",
+      "classes": [
+        "PandaRenderer",
+        "Panda",
+        "Panda$Gene"
+      ]
+    },
+    "167": {
+      "module": "crates/horizon-protocol/src/item/hash/raw.rs",
+      "verdict": "carry-over",
+      "evidence": "CustomData differs only by codec shape (TagParser.FLATTENED_CODEC vs AS_CODEC, getString Optional vs contains) and whitespace; the Rust hashes it as NBT passthrough, version-neutral. TrimMaterial/TrimPattern: the reference path (registry id) is correct in both versions and is what vanilla servers send. The DIRECT holders differ: 1.21.4's TrimMaterial stream is (assetName string, ingredient holder, overrideArmorAssets map, description NBT) and its TrimPattern stream is (assetId, template-item holder, description, decal), while the Rust reads the 26.3-derived forms (material: palette_id string + description; pattern: asset_id + description + decal) \u2014 the pattern read matches 1.21.5 exactly (3 fields) and the material read matches neither version's stream (1.21.5 writes a base string, an overrides map and the description). trim.rs is byte-identical between the 1.21.4 and 1.21.5 trees. Recorded, not fixed in this batch: the direct path is reachable only via inline trim values (commands/datapacks), and a correct fix needs quirk-branched wire reads in trim.rs, hash/raw.rs and skip.rs plus hash-oracle values for direct trims, which no local oracle provides.",
+      "classes": [
+        "TrimMaterial",
+        "CustomData"
+      ]
+    },
+    "168": {
+      "module": "crates/horizon-client/src/game/mount_menu.rs",
+      "verdict": "ported",
+      "evidence": "HorseInventoryMenu: 1.21.4's $2 (body) slot isActive is canUseSlot(BODY), true only for horses and llamas (LivingEntity.canUseSlot returns false; only Horse and Llama override it, both returning true); zombie horses, donkeys, mules, skeleton horses and camels get false. The Rust's can_wear_horse_armor included ZombieHorse (the CAN_WEAR_HORSE_ARMOR tag added in 1.21.5 lists only horse, and 1.21.4 has no such tag), so zombie horses wrongly showed a body slot and accepted horse armour. Narrowed to Horse only, with the test flipped. The saddle slot needs no change: 1.21.4's $1.isActive is isSaddleable() (alive, adult, tamed; llamas override false) and the menu only opens for tamed adult mounts, so shows_saddle (!llama) is the same rule; the stillValid armorContainer check is covered by tick_mount_menu's alive-and-near check, and the quickMove +1/+2 bound is implicit in the Rust's named-slot quick-move. LoomMenu$5.mayPlace: 1.21.4 is instanceof BannerPatternItem, 1.21.5 is has(PROVIDES_BANNER_PATTERNS); the Rust checked the minecraft:loom_patterns tag (absent in both versions' data) and the provides_banner_patterns component (absent in 1.21.4), so the pattern slot accepted nothing. Banners now also populates provided from the version's own pattern_item/* banner-pattern tags (10 items in 1.21.4) and is_pattern_item is membership in provided. LoomMenu$4.mayPlace is instanceof DyeItem in both versions; the Rust's loom_dye needed the absent loom_dyes tag and the absent dye component, so the dye slot also accepted nothing \u2014 it now falls back to the <colour>_dye item id. StonecutterMenu differs only by the onCraftedBy (Level, Player) vs (Player) overload and the playSound (Player) vs (Entity) overload; LoomMenu$6 likewise. The nautilus does not exist in either version (26.x mob), so its mount-menu branches are unreachable here.",
+      "classes": [
+        "HorseInventoryMenu$1",
+        "HorseInventoryMenu$2",
+        "HorseInventoryMenu",
+        "StonecutterMenu$2",
+        "LoomMenu$5",
+        "LoomMenu$6",
+        "StonecutterMenu"
       ]
     }
   }

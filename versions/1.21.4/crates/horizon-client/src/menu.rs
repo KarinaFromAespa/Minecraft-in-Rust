@@ -979,7 +979,7 @@ impl Menu {
         if let (Some(banner_stack), Some(dye)) = (
             self.containers[MAIN][0].as_ref(),
             self.containers[MAIN][1].as_ref(),
-        ) && let Some(color) = env.banners.loom_dye(env.items, dye)
+        ) && let Some(color) = env.banners.loom_dye(dye)
         {
             result = Some(banner::loom_result(banner_stack, &color, pattern));
         }
@@ -1467,8 +1467,8 @@ impl Menu {
             Role::Ingredient => env.brewing.is_reagent(stack),
             Role::BrewFuel => crate::brewing::brewing_fuel(env.items, stack).is_some(),
             Role::LoomBanner => Self::is_banner(stack),
-            Role::LoomDye => env.banners.loom_dye(env.items, stack).is_some(),
-            Role::LoomPattern => env.banners.is_pattern_item(env.items, stack),
+            Role::LoomDye => env.banners.loom_dye(stack).is_some(),
+            Role::LoomPattern => env.banners.is_pattern_item(stack),
             Role::GrindInput => crate::stations::grindstone_accepts(env.items, stack),
             Role::SmithInput(i) => env.station_recipes.smithing_accepts(i, stack),
             Role::EnchantItem => true,
@@ -2367,9 +2367,9 @@ impl Menu {
                 } else if index > 3 {
                     let target = if Self::is_banner(&stack) {
                         Some(0)
-                    } else if env.banners.loom_dye(env.items, &stack).is_some() {
+                    } else if env.banners.loom_dye(&stack).is_some() {
                         Some(1)
-                    } else if env.banners.is_pattern_item(env.items, &stack) {
+                    } else if env.banners.is_pattern_item(&stack) {
                         Some(2)
                     } else {
                         None

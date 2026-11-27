@@ -2,7 +2,7 @@
 //! `banner_patterns` layers carried by banner items, shields and placed
 //! banners, and the loom rules of `LoomMenu` (selectable patterns, the
 //! six-layer limit and the result stack).
-use crate::{block_entity_render::DYES, items::ItemStack, items::Items};
+use crate::{block_entity_render::DYES, items::ItemStack};
 use serde_json::Value;
 use std::{collections::HashMap, fs, path::Path, sync::Arc};
 
@@ -125,6 +125,31 @@ impl Banners {
                 }
             }
         }
+        // 1.21.4 has no `provides_banner_patterns` component (added in
+        // 1.21.5): a `BannerPatternItem` carries its patterns as the
+        // `pattern_item/<name>` banner-pattern tag, and the item is
+        // `<name>_banner_pattern`. Read the tag directory so the loom
+        // knows its pattern items from the version's own data; a tag
+        // the component loop already covered keeps its entry.
+        if let Ok(dir) = fs::read_dir(root.join("data/minecraft/tags/banner_pattern/pattern_item"))
+        {
+            let mut files: Vec<_> = dir.flatten().map(|e| e.path()).collect();
+            files.sort();
+            for path in files {
+                let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+                    continue;
+                };
+                if path.extension().is_some_and(|e| e != "json") {
+                    continue;
+                }
+                let id = Arc::from(format!("minecraft:{stem}_banner_pattern").as_str());
+                if !banners.provided.contains_key(&id) {
+                    banners
+                        .provided
+                        .insert(id, read_tag(root, &format!("pattern_item/{stem}"), 0));
+                }
+            }
+        }
         banners
     }
     pub fn pattern(&self, id: &str) -> Option<&Pattern> {
@@ -157,23 +182,32 @@ impl Banners {
         );
         format!("{base}.{}", layer.color)
     }
-    /// `LoomMenu.isDyeItem`: the dye colour of a loom dye.
-    pub fn loom_dye(&self, items: &Items, stack: &ItemStack) -> Option<Arc<str>> {
-        let tagged = items
-            .item_tags
-            .get("minecraft:loom_dyes")
-            .is_some_and(|t| t.contains(&*stack.item));
-        tagged
-            .then(|| self.dyes.get(&stack.item).cloned())
-            .flatten()
+    /// `LoomMenu$4.mayPlace` in 1.21.4 (and 1.21.5) is `instanceof
+    /// DyeItem`, whose colour is the item id's `<colour>_dye` suffix.
+    /// The 26.3 form checked the `minecraft:loom_dyes` tag and the
+    /// `minecraft:dye` component; neither exists in 1.21.4 data (the
+    /// tag is absent and the component arrived in 1.21.5), so fall
+    /// back to the id when the component path finds nothing.
+    pub fn loom_dye(&self, stack: &ItemStack) -> Option<Arc<str>> {
+        if let Some(color) = self.dyes.get(&stack.item).cloned() {
+            return Some(color);
+        }
+        let name = stack
+            .item
+            .strip_prefix("minecraft:")?
+            .strip_suffix("_dye")?;
+        DYES.iter()
+            .find(|(dye, _)| *dye == name)
+            .map(|(dye, _)| Arc::from(*dye))
     }
-    /// `LoomMenu.isPatternItem`.
-    pub fn is_pattern_item(&self, items: &Items, stack: &ItemStack) -> bool {
-        items
-            .item_tags
-            .get("minecraft:loom_patterns")
-            .is_some_and(|t| t.contains(&*stack.item))
-            && self.provided.contains_key(&stack.item)
+    /// `LoomMenu$5.mayPlace` in 1.21.4 is `instanceof BannerPatternItem`;
+    /// 1.21.5 changed it to `has(PROVIDES_BANNER_PATTERNS)`, and the
+    /// `minecraft:loom_patterns` tag the 26.3 form checks does not
+    /// exist in 1.21.4 data. `provided` holds exactly the pattern
+    /// items (from the `pattern_item/*` tags), so membership is the
+    /// instanceof check.
+    pub fn is_pattern_item(&self, stack: &ItemStack) -> bool {
+        self.provided.contains_key(&stack.item)
     }
     /// `LoomMenu.getSelectablePatterns`.
     pub fn selectable(&self, pattern_item: Option<&ItemStack>) -> Vec<Arc<str>> {
@@ -247,6 +281,51 @@ mod tests {
         assert_eq!(b.selectable(None).len(), 1);
         let item = ItemStack::new("minecraft:flower_banner_pattern", 1);
         assert_eq!(&*b.selectable(Some(&item))[0], "minecraft:flower");
+    }
+    #[test]
+    fn pattern_item_is_the_provided_map() {
+        let b = banners();
+        assert!(b.is_pattern_item(&ItemStack::new("minecraft:flower_banner_pattern", 1)));
+        assert!(!b.is_pattern_item(&ItemStack::new("minecraft:stone", 1)));
+    }
+    #[test]
+    fn loom_dye_comes_from_the_item_id() {
+        let b = banners();
+        assert_eq!(
+            b.loom_dye(&ItemStack::new("minecraft:red_dye", 1))
+                .as_deref(),
+            Some("red")
+        );
+        assert_eq!(
+            b.loom_dye(&ItemStack::new("minecraft:light_gray_dye", 1))
+                .as_deref(),
+            Some("light_gray")
+        );
+        assert!(
+            b.loom_dye(&ItemStack::new("minecraft:white_wool", 1))
+                .is_none()
+        );
+        assert!(
+            b.loom_dye(&ItemStack::new("minecraft:foo_dye", 1))
+                .is_none()
+        );
+    }
+    #[test]
+    fn pattern_items_load_from_pattern_item_tags() {
+        let dir = std::env::temp_dir().join(format!("horizon-loom-test-{}", std::process::id()));
+        let tags = dir.join("data/minecraft/tags/banner_pattern/pattern_item");
+        fs::create_dir_all(&tags).unwrap();
+        fs::write(
+            tags.join("creeper.json"),
+            r#"{"values": ["minecraft:creeper"]}"#,
+        )
+        .unwrap();
+        let b = Banners::load(&dir);
+        let patterns = b.provided.get("minecraft:creeper_banner_pattern");
+        assert_eq!(patterns.map(|v| v.len()), Some(1));
+        assert_eq!(&*patterns.unwrap()[0], "minecraft:creeper");
+        assert!(b.is_pattern_item(&ItemStack::new("minecraft:creeper_banner_pattern", 1)));
+        let _ = fs::remove_dir_all(&dir);
     }
     #[test]
     fn banner_colour_comes_from_the_item() {

@@ -38,8 +38,11 @@ pub(super) fn mount_columns(m: &Mob) -> usize {
 pub(super) fn has_mount_menu(species: Species) -> bool {
     equine::is_equine(species) || llama::is_llama(species) || nautilus::is_nautilus(species)
 }
-/// The saddle slot is active (`canUseSlot(SADDLE)` and `CAN_EQUIP_SADDLE`):
-/// not on llamas.
+/// The saddle slot is active: in 1.21.4 `HorseInventoryMenu$1.isActive`
+/// is `horse.isSaddleable()` (alive, adult and tamed; llamas override
+/// it to false), not the 1.21.5 `canUseSlot(SADDLE)` plus
+/// `CAN_EQUIP_SADDLE` tag. The menu only opens for a tamed adult
+/// mount, so showing it for every non-llama mount is the same rule.
 fn shows_saddle(species: Species) -> bool {
     !llama::is_llama(species)
 }
@@ -71,9 +74,13 @@ struct Open {
     show_armor: bool,
 }
 
-/// `EntityTypeTags.CAN_WEAR_HORSE_ARMOR`.
+/// `HorseInventoryMenu$2.isActive` in 1.21.4 is `canUseSlot(BODY)`,
+/// true only for horses and llamas (`LivingEntity.canUseSlot`
+/// returns false; only `Horse` and `Llama` override it). Zombie
+/// horses cannot wear horse armour in 1.21.4 — and the
+/// `CAN_WEAR_HORSE_ARMOR` tag added in 1.21.5 lists only `horse`.
 fn can_wear_horse_armor(species: Species) -> bool {
-    matches!(species, Species::Horse | Species::ZombieHorse)
+    matches!(species, Species::Horse)
 }
 /// Whether `item` fits the body slot of the species (`isEquippableInSlot`).
 fn body_armor_fits(species: Species, item: &str) -> bool {
@@ -614,7 +621,7 @@ mod tests {
             Species::Horse,
             "minecraft:iron_horse_armor"
         ));
-        assert!(body_armor_fits(
+        assert!(!body_armor_fits(
             Species::ZombieHorse,
             "minecraft:diamond_horse_armor"
         ));
