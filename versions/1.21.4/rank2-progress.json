@@ -2,7 +2,7 @@
   "release": "1.21.4",
   "rank": 2,
   "batch": 50,
-  "note": "Batch 50 closed (2026-11-27): item 178 ported (the chunk-generation finalize path read cat and frog variants only from the 1.21.5-only variant data registries, so in 1.21.4 every chunk-generated cat stayed tabby and every frog stayed temperate; both arms now fall back to the 1.21.4 tag forms when the registry is empty \u2014 cats pick uniformly from default_spawns, or full_moon_spawns with all_black on a full moon, and frogs read the warm/cold biome tags); items 177, 179 and 180 carry-over (the water-animal air rule, paletted permutations and the vault all match; the farm-animal variants are 1.21.5-only but the 1.21.4 climate tags do not exist, so the natural-spawn path already leaves them temperate). LEDGER CORRECTION in this batch: the rank-2 count is corrected 225 -> 220. Batches 46-50 keyed this file by rank-2 ordinal, but the pre-restart entries were keyed by report id (id = ordinal + 10), so five items were closed twice and counted twice: 162 (legacy id 172), 167 (legacy id 177), 173 (legacy id 183), 179 (legacy id 189) and 180 (legacy id 190). The legacy angles are merged into the authoritative entries above and the duplicate keys removed; the two legacy entries destroyed by overwrites (162's and 167's) were recovered from git history (15407218 and f149e539) and merged the same way. True distinct closed: 220. Next unclosed ordinals are 151-160, then 181-183, 185 onward (184 is already closed via legacy id 194).",
+  "note": "LEDGER RECONCILIATION (2026-11-27, Butler): rank2-progress.json re-keyed uniformly by REPORT ID (id = rank-2 ordinal + 10), verified entry-by-entry against diff-1.21.5-1.21.4/report.json by module/class match. True closed count is 216, not 220: three ordinals were counted twice under different keys and are now merged (264 under keys 274+174, 42 under keys 52+80, 59 under keys 69+110+113). Session 3 keyed batches 46-50 by ordinal, so its keys 161-180 are renumbered +10 to report ids 171-190; the batch-50 correction (225 -> 220) had found only part of the overcount. Lowest unclosed ordinals are 151-154 (report ids 161-164) = batch 51. Prior batch note: Batch 50 closed (2026-11-27): item 178 ported (the chunk-generation finalize path read cat and frog variants only from the 1.21.5-only variant data registries, so in 1.21.4 every chunk-generated cat s",
   "items": {
     "90": {
       "module": "crates/horizon-client-render/src/block_entity_render.rs",
@@ -66,7 +66,7 @@
         }
       ]
     },
-    "172": {
+    "182": {
       "module": "crates/horizon-client/src/lan/advancements.rs",
       "verdict": "carry-over",
       "evidence": "TransmuteRecipe: 1.21.4's result is a Holder<Item>, 1.21.5's is a TransmuteResult (item + count + component patch, new in 1.21.5). matches: 1.21.4 requires exactly 2 non-empty stacks, one input-matching stack whose item != the result item and one material; 1.21.5 uses result.isResultUnchanged (apply the result, then same item and components at count 1). assemble: 1.21.4 is transmuteCopy(result, 1) of the first such input stack; 1.21.5 is TransmuteResult.apply = transmuteCopy + the component patch. display: 1.21.4 is ItemSlotDisplay(result holder), 1.21.5 is result.display() (an ItemStackSlotDisplay). The Rust implements the 1.21.5 form (matches via over() + same_item_same_components, i.e. the isResultUnchanged rule; assemble via Template::over). For every vanilla 1.21.4 transmute recipe the two forms agree: material_count is absent so the bounds default to (1, 1) (exactly 2 stacks, as vanilla), the input item always differs from the result item (shulker/bundle dyeing), and no input is damageable. Recorded, not fixed: the 1.21.4 match rule is item-identity, not outcome-identity (a datapack recipe with input item == result item matches in neither form's edge), and ItemStack.transmuteCopy resets damage to 0 for damageable results while the Rust's over()/transmute() keep the input's damage \u2014 both unreachable with vanilla 1.21.4 data. Map cloning is a separate CustomRecipe in 1.21.4 (1 filled map + 1..8 empty maps), modelled by the Rust as the same Transmute arm with add_count, which matches.",
@@ -641,7 +641,7 @@
       "evidence": "1.21.5 form carried, jar-verified: read_valid - a missing list reads as empty (getList returns an empty list), settings still load, the compound is not dropped whole; write - all eight open/filter flags written true or false (RecipeBookSettings.write lambda calls putBoolean unconditionally for both open and filtering, javap-verified). Added test a_book_without_lists_still_loads_its_settings. ServerRecipeBook is in net.minecraft.stats (not net.minecraft.server); fromNbt uses getList for recipes/toBeDisplayed.",
       "classes": []
     },
-    "177": {
+    "187": {
       "module": "crates/horizon-client/src/mobs/ai.rs",
       "verdict": "carry-over",
       "evidence": "WaterAnimal.handleAirSupply: 1.21.4 is alive and not isInWaterOrBubble, air minus 1, at -20 reset to 0 and hurt(drown, 2.0), else air 300; 1.21.5 switches to isInWater, runs only on the server, and hurtServer. The Rust's needs_water branch does exactly the 1.21.4 form inside the alive gate, and its fluid scan treats bubble columns as water (the existing bubble-column test asserts eye_in_water in a bubble column), so isInWaterOrBubble and in_water agree wherever a water animal can stand. Endermite: the constructor sets life 0 explicitly (the default), readAdditionalSaveData is getIntOr(Lifetime, 0) vs getInt (0 when absent), aiStep is identical, registerGoals differs only by formatting.",
@@ -653,7 +653,7 @@
     "274": {
       "module": "crates/horizon-protocol/src/packets/play.rs",
       "verdict": "carry-over",
-      "evidence": "1.21.5 form carried: DialogHolder enum + codec removed; waypoint types removed (waypoint_operation, WaypointId, WaypointTarget, TrackedWaypoint + codec); the dialog_holder_encodes_registry_as_id_plus_one test removed from packets/play/tests.rs; the \"1.21.5 has no dialog packets\" comments fixed to \"1.21.4\" in play.rs (2), configuration.rs (3), adapter.rs (1). KEPT, jar-verified: the AddExperienceOrb packet + enum entry (1.21.4 HAS ClientboundAddExperienceOrbPacket; 1.21.5 does not - removed in 1.21.5, orbs spawn through AddEntity there) and the ABSENCE of the test-block packets (SetTestBlock, TestInstanceData, TestInstanceBlockAction, TestInstanceBlockStatus - 0 test-block classes in the 1.21.4 jar; 1.21.5 has them; the VarVec3i import difference follows from TestInstanceData). Dialog classes 0, LocatorBar/Waypoint 0 in the 1.21.4 jar.",
+      "evidence": "1.21.5 form carried: DialogHolder enum + codec removed; waypoint types removed (waypoint_operation, WaypointId, WaypointTarget, TrackedWaypoint + codec); the dialog_holder_encodes_registry_as_id_plus_one test removed from packets/play/tests.rs; the \"1.21.5 has no dialog packets\" comments fixed to \"1.21.4\" in play.rs (2), configuration.rs (3), adapter.rs (1). KEPT, jar-verified: the AddExperienceOrb packet + enum entry (1.21.4 HAS ClientboundAddExperienceOrbPacket; 1.21.5 does not - removed in 1.21.5, orbs spawn through AddEntity there) and the ABSENCE of the test-block packets (SetTestBlock, TestInstanceData, TestInstanceBlockAction, TestInstanceBlockStatus - 0 test-block classes in the 1.21.4 jar; 1.21.5 has them; the VarVec3i import difference follows from TestInstanceData). Dialog classes 0, LocatorBar/Waypoint 0 in the 1.21.4 jar.\n[also recorded under old key 174: FriendlyByteBuf: the wire format is unchanged (the long-array helpers moved to static methods in 1.21.5, writeBlockHitResult is identical). HashedStack and ProtocolInfo$Details are new in 1.21.5 and a]",
       "classes": []
     },
     "323": {
@@ -1552,7 +1552,7 @@
     "52": {
       "module": "crates/horizon-world/src/level/mod.rs",
       "verdict": "ported",
-      "evidence": "PORTED: (1) The dead update_neighbours_on_block_set is removed from level/mod.rs (23 lines): no callers since batch 16 removed the commands.rs call, the 1.21.6 form, absent from the 1.21.5 tree. (2) Removal citations carried to the 1.21.4 trigger: BlockEntity.preRemoveSideEffects does not exist in 1.21.4 (only setRemoved) \u2014 LevelChunk.setBlockState calls BlockState.onRemove, LecternBlock.onRemove + popBook and JukeboxBlock.onRemove exist (all javap-verified). removal.rs module doc, PreRemove doc, lectern_book_position doc (LecternBlock.popBook) and the level/mod.rs:796 doc now cite onRemove; the effects themselves (contents spill, jukebox pop, lectern book, dropItemStack math) are identical in both versions. The PreRemove/pre_remove identifiers stay (internal names). NO-CHANGE: BellBlock.onProjectileHit is a local-slot reshuffle (same logic; the Rust takes no entity param); BlockEntity load/save codec-vs-MapCodec differences are the item-32 components form (already handled); the update.rs:348 piston preRemoveSideEffects comment belongs to that module's item."
+      "evidence": "PORTED: (1) The dead update_neighbours_on_block_set is removed from level/mod.rs (23 lines): no callers since batch 16 removed the commands.rs call, the 1.21.6 form, absent from the 1.21.5 tree. (2) Removal citations carried to the 1.21.4 trigger: BlockEntity.preRemoveSideEffects does not exist in 1.21.4 (only setRemoved) \u2014 LevelChunk.setBlockState calls BlockState.onRemove, LecternBlock.onRemove + popBook and JukeboxBlock.onRemove exist (all javap-verified). removal.rs module doc, PreRemove doc, lectern_book_position doc (LecternBlock.popBook) and the level/mod.rs:796 doc now cite onRemove; the effects themselves (contents spill, jukebox pop, lectern book, dropItemStack math) are identical in both versions. The PreRemove/pre_remove identifiers stay (internal names). NO-CHANGE: BellBlock.onProjectileHit is a local-slot reshuffle (same logic; the Rust takes no entity param); BlockEntity load/save codec-vs-MapCodec differences are the item-32 components form (already handled); the update.rs:348 piston preRemoveSideEffects comment belongs to that module's item.\n[also recorded under old key 80: PORTED: the LevelAccess trait default can_spread_fire_around returned true with the stale \"(fire-spread radius around players)\" comment (a 26.x concept); it now returns self.game_rules().do_fire_tick,]"
     },
     "53": {
       "module": "crates/horizon-client-render/src/structure_block.rs",
@@ -1637,7 +1637,7 @@
     "69": {
       "module": "crates/horizon-assets/src/item_model.rs",
       "verdict": "no-change",
-      "evidence": "NO-CHANGE: the tree diff is only the DATA_COMPONENT_TYPES table, already the 1.21.4 list (67 entries, with hide_tooltip/hide_additional_tooltip and map_color). GrassColor#get's inline math matches the Rust's biome.rs sample (clamped temperature, downfall x temperature, (y<<8|x) index, bounds-checked fallback); ItemStackRenderState.isLeftHand is write-only in 1.21.4 (nothing reads it), so the Rust correctly carries no such field (the display context already has the left-hand variants)."
+      "evidence": "NO-CHANGE: the tree diff is only the DATA_COMPONENT_TYPES table, already the 1.21.4 list (67 entries, with hide_tooltip/hide_additional_tooltip and map_color). GrassColor#get's inline math matches the Rust's biome.rs sample (clamped temperature, downfall x temperature, (y<<8|x) index, bounds-checked fallback); ItemStackRenderState.isLeftHand is write-only in 1.21.4 (nothing reads it), so the Rust correctly carries no such field (the display context already has the left-hand variants).\n[also recorded under old key 110: PORTED: the 1.21.5-only deltas are RegistryContextSwapper threading (ClientItem.withRegistrySwapper, BakingContext 4-arg ctor + contextSwapper(), ConditionalItemModel$Unbaked.adaptProperty/swapContext]\n[also recorded under old key 113: PORTED: 1.21.5 refactored DataComponentPredicate into an interface in core.component.predicates with singleCodec(String) and a dispatched STREAM_CODEC on the new DATA_COMPONENT_PREDICATE_TYPE registry]"
     },
     "70": {
       "module": "crates/horizon-world/src/level/bonemeal.rs",
@@ -1688,11 +1688,6 @@
       "module": "crates/horizon-client/src/beehive.rs",
       "verdict": "ported",
       "evidence": "PORTED: IGNORED_BEE_TAGS is now the exact 1.21.4 30-entry set from BeehiveBlockEntity's <clinit> (javap-verified, in order): Air, ArmorDropChances, ArmorItems, Brain, CanPickUpLoot, DeathTime, FallDistance, FallFlying, Fire, HandDropChances, HandItems, HurtByTimestamp, HurtTime, LeftHanded, Motion, NoGravity, OnGround, PortalCooldown, Pos, Rotation, SleepingX, SleepingY, SleepingZ, CannotEnterHiveTicks, TicksSincePollination, CropsGrownSincePollination, hive_pos, Passengers, leash, UUID. The Rust had 25 (the 1.21.5 set): removed drop_chances, equipment, fall_distance, sleeping_pos; added ArmorDropChances, ArmorItems, FallDistance, HandDropChances, HandItems, HurtByTimestamp, SleepingX, SleepingY, SleepingZ. NO-CHANGE: Occupant.of's nectar read (entity_nbt::flag default false = 1.21.4's getBoolean(\"HasNectar\")); CampfireBlock.entityInside only delegates to super in both versions; placeLiquid playSound Entity vs Player overload is API-only (same shape as item 74). The VIRTUAL_FENCE_POST comment was verified in the batch-25 verification commit."
-    },
-    "80": {
-      "module": "crates/horizon-world/src/level/mod.rs",
-      "verdict": "ported",
-      "evidence": "PORTED: the LevelAccess trait default can_spread_fire_around returned true with the stale \"(fire-spread radius around players)\" comment (a 26.x concept); it now returns self.game_rules().do_fire_tick, matching 1.21.4, where LavaFluid.randomTick, FireBlock.tick and lightning fire all spread only while doFireTick is on (javap-verified; the GameLevel override already did this). Default rules have do_fire_tick=true, so fixtures keep returning true. NO-CHANGE: BarrierBlock canPlaceLiquid/pickupBlock (the Rust's creative: bool abstraction already matches 1.21.4's Player/null-or-non-creative -> false/EMPTY, creative -> super); FlowingFluid.tick (the Rust's value PartialEq != matches 1.21.4's .equals(); 1.21.5's reference == differs). The lava gate (lava_random_tick calls can_spread_fire_around) was verified in the batch-25 verification commit."
     },
     "81": {
       "module": "crates/horizon-command/src/item.rs",
@@ -2080,11 +2075,6 @@
       "verdict": "carry-over",
       "evidence": "CARRY-OVER (comment-only): 1.21.5 added a checksum byte to LastSeenMessages$Update (2-arg ctor -> 3-arg, read/write gain a byte, new verifyChecksum/checksum/computeChecksum); the Rust already has the 1.21.5 form and the wire delta is adapter-handled (adapter/translate.rs strips the last byte serverbound for <= V1_21_4; adapter/client_session/step_1_21_4.rs pushes 0, which 1.21.5 reads as 'not checked'; v1_21_4.rs test pins it). Validator semantics match: 1.21.4 applyOffset returns boolean and applyUpdate returns Optional (empty on failure), 1.21.5 throws ValidationException; the Rust returns Result<Vec<Signature>, String>, matching both. Server failure path matches in both: disconnect with CHAT_VALIDATION_FAILED; 1.21.4 unpackAndApplyLastSeen warns the line with no stack trace. Comment in lan/hub/chat.rs corrected to the 1.21.4 form (was: 'Vanilla logs the ValidationException's stack trace after the line.'). KeyBased.validate log wording differs only; the Rust returns false silently, no log."
     },
-    "110": {
-      "module": "crates/horizon-assets/src/item_model.rs",
-      "verdict": "ported",
-      "evidence": "PORTED: the 1.21.5-only deltas are RegistryContextSwapper threading (ClientItem.withRegistrySwapper, BakingContext 4-arg ctor + contextSwapper(), ConditionalItemModel$Unbaked.adaptProperty/swapContext), ModelSelector wrapping SelectItemModel's case map, and SpecialModelWrapper taking ModelRenderProperties (getProperties) + setting extents in update. None exists in the Rust (no swapper/properties anywhere; Select is a plain case list; Special decodes its fields directly) - the 1.21.4 form. Real gap found and fixed: the Rust's SpecialKind had no 'minecraft:bed' arm although vanilla 1.21.4 registers it in SpecialModelRenderers and all 16 bed item models use it (black_bed.json: special with base item/black_bed, model {type bed, texture minecraft:black}), so bed items failed to decode. Added SpecialKind::Bed { texture } (decode + to_json), bed_head/bed_foot layers (ModelLayers.BED_HEAD/BED_FOOT, present in the prepare-exported entity-models.json via LayerDefinitions.createRoots), and render + extents arms following BedRenderer.renderInHand (head then foot, both facing south, translate (0, 0.5625, z) with z 0 / -1, X +90 deg; the 180+180 Z turn is identity; Sheets.createBedMaterial prefixes entity/bed/). Tests: a_bed_special_model_decodes_its_colour_texture (horizon-assets, 19 item_model tests pass) and a_bed_item_draws_its_head_and_foot_in_the_beds_colour (horizon-client item_render/special, via CI). Known gap, not fixed: standing_sign/hanging_sign special types are registered in vanilla but have no Rust arm - no vanilla item uses them (signs use plain models), so only a pack referencing them fails to decode."
-    },
     "111": {
       "module": "crates/horizon-client/src/lan/hub.rs",
       "verdict": "carry-over",
@@ -2094,11 +2084,6 @@
       "module": "crates/horizon-client/src/mobs/shulker.rs",
       "verdict": "carry-over",
       "evidence": "CARRY-OVER: hitByShulkerBullet differs only by moveTo(Vec3)->snapTo(Vec3) (bodies identical, both delegate to the 3-arg form). setupRotations differs only by rotateAround(Quaternionf)->(Quaternionfc) signature. defineSynchedData: DEFAULT_ATTACH_FACE constant vs Direction.DOWN literal. addAdditionalSaveData: 1.21.5 stores AttachFace via LEGACY_ID_CODEC, 1.21.4 putByte(get3DDataValue) - the Rust already writes Tag::Byte (entity_nbt.rs, the 1.21.4 form) and reads any number, clamped 0..5. hit_by_shulker_bullet matches vanilla: teleport, other-shulkers count excluding self (= vanilla's i-1), failure chance others/5.0 on the level random, baby of the same colour spawned at the old position. rotations() matches setupRotations (rotY(PI) + rotateAround of the opposite-face rotation about (0, 0.5, 0)); all six face_quat arms verified against Direction.getRotation() of the opposite face in the 1.21.4 jar. The getInterpolation/lerpTo and component get/applyImplicitComponents reshuffles change no shulker behaviour."
-    },
-    "113": {
-      "module": "crates/horizon-assets/src/item_model.rs",
-      "verdict": "ported",
-      "evidence": "PORTED: 1.21.5 refactored DataComponentPredicate into an interface in core.component.predicates with singleCodec(String) and a dispatched STREAM_CODEC on the new DATA_COMPONENT_PREDICATE_TYPE registry; 1.21.4 has it as a final class in core.component holding a List<TypedDataComponent>, CODEC a VALUE_MAP_CODEC map and STREAM_CODEC a plain list of TypedDataComponent.STREAM_CODEC. Neither the 'component' condition property nor the 'component' select property exists in 1.21.4 (ConditionalItemModelProperties and SelectItemModelProperties gain ComponentMatches only in 1.21.5, verified in both jars' registries), but the Rust decoded the 1.21.5 singleCodec {predicate,value} form for both, so the item-model parity harness disagreed with the 1.21.4 oracle (Rust ok=true, oracle false). Removed the Component variants + decode/resolution arms from ConditionProperty and SelectProperty, deleted item_model/component_predicate.rs (decode/matches/matches_enchantment/level_matches + 2 tests), removed ItemEnv::component_matches and ItemEnv::enchantment_in_tag and the game's enchantment_in_tag override in game/item_draw.rs; both properties now fall through to the unknown-property errors, matching vanilla 1.21.4's codec rejection. MinMaxBounds/Doubles/Ints are identical between versions; EnchantmentsPredicate (+2 nested classes) is 1.21.5-only. Test: the_1_21_5_component_properties_do_not_decode_in_1_21_4 (horizon-assets, 18 item_model tests pass). Recorded, NOT fixed (needs its own focused item): the protocol-side DataComponentPredicate handling is systematically 1.21.5-shaped - horizon-protocol/src/item/skip.rs::component_matchers, item/hash/gameplay.rs::partial_predicate, item/hash/raw.rs (data_component_predicate_type id->name table 0-13), lan/guest.rs and horizon-command/src/item.rs reference the registry; 1.21.4 has no DATA_COMPONENT_PREDICATE_TYPE registry (verified in BuiltInRegistries for both jars) and its STREAM_CODEC is a plain list of TypedDataComponents (type id + value, no boolean, no predicate-type registry)."
     },
     "114": {
       "module": "widely named: network/chat",
@@ -2785,7 +2770,7 @@
         "ThrowableProjectile"
       ]
     },
-    "161": {
+    "171": {
       "module": "crates/horizon-client-core/src/gamerules.rs",
       "verdict": "carry-over",
       "evidence": "GameRules: 1.21.5 adds two rules 1.21.4 lacks \u2014 allowFireTicksAwayFromPlayer (UPDATES, default false) and tntExplodes (MISC, default true), verified by counting registered names in the javap dumps (53 vs 55). The Rust table holds neither (correct for 1.21.4) and the gated behaviours are already 1.21.4-form: can_spread_fire_around is just doFireTick (game.rs, level/mod.rs) and prime_tnt is ungated (update.rs). The table is the 26.x-form table by design (renamed rules) with the datafix translating vanilla 1.21.4 saves (fixes_c.rs game_rule_registry folds doFireTick + allowFireTicksAwayFromPlayer into fire_spread_radius_around_player and drops spawnChunkRadius); it covers all 53 vanilla 1.21.4 rules (minecartMaxSpeed behind the minecart_improvements flag, default 8) plus four 26.x extras (pvp, spawn_monsters, spawner_blocks_work, command_blocks_work) shared with the parent tree, not a 1.21.4 delta. GameRules$Type/IntegerValue/BooleanValue: 1.21.5's Type ctor gains a Class parameter for keyCodec \u2014 codec API only. SpawnData: WeightedList.codec vs SimpleWeightedRandomList.wrappedCodecAllowingEmpty and CompoundTag.read vs contains/getString \u2014 same data shape. BlockCollisions.computeNext: jump targets only. CollisionGetter.isUnobstructed: VoxelShape.move(Vec3i) vs move(DDD) \u2014 same. GameType: LEGACY_ID_CODEC added in 1.21.5 \u2014 codec only. LevelReader: whitespace-only plus the 1.21.5-only getHeight(Heightmap.Types, BlockPos) default, unused in the Rust. WorldDataConfiguration: MAP_CODEC vs CODEC \u2014 codec only. BlockGetter$BlockStepVisitor and DryFoliageColor are new in 1.21.5 (absent from 1.21.4): the former unused in the Rust, the latter already handled in biome.rs (1.21.4 ships no dry_foliage.png and no dry_foliage_color override; a missing map falls back to 0x5D4930).",
@@ -2804,7 +2789,7 @@
         "WorldDataConfiguration"
       ]
     },
-    "162": {
+    "172": {
       "module": "crates/horizon-client/src/game/command_storage.rs",
       "verdict": "carry-over",
       "evidence": "The Rust already implements the 1.21.4 form: per-namespace persistence, get returns an empty compound when unset, put removes on empty contents and marks dirty, keys lists ns:path. The vanilla delta is only the persistence backend (1.21.4: per-namespace SavedData.Factory via DimensionDataStorage with DataFixTypes.SAVED_DATA_COMMAND_STORAGE; 1.21.5: SavedDataType with a RecordCodec). Container save writes {\"contents\": {...}} and the file format {\"data\": {\"contents\": {...}}, \"DataVersion\":...} matches the Rust exactly (save.rs:748, save.rs:974, block_entity_nbt.rs:492). Known gap, not fixed in this batch: vanilla 1.21.4's createId is \"command_storage_\" + namespace, so vanilla files are data/command_storage_<ns>.dat, while the Rust writes data/<ns>/command_storage.dat; the same mismatch exists in the 1.21.5 tree, so it is not a 1.21.4 delta. Ledger note (2026-11-27): the pre-restart entry for this item (report id 172, destroyed when batch 48 overwrote key 172 with the transmute entry) recorded the same module as no-change: 0 diff lines between the 1.21.5 and 1.21.4 trees, CommandStorage/Container method-changed per jardiff with no named methods. The batch-46 entry above is authoritative (jar-verified, with the command-storage file-layout gap recorded).",
@@ -2813,7 +2798,7 @@
         "Container"
       ]
     },
-    "163": {
+    "173": {
       "module": "crates/horizon-client/src/game/creaking.rs",
       "verdict": "ported",
       "evidence": "Two logic fixes in mobs/creaking_heart.rs, jar-verified. (1) creakingHurt: 1.21.4 spreads resin on every hurt (emitParticles, then nextIntBetweenInclusive(2,3) spreadResin calls, emitter=100); 1.21.5 added an AWAKE-state gate before the loop. Removed the gate in creaking_hurt. (2) Protector removal: 1.21.5 keeps a persistent (e.g. name-tagged) creaking at daybreak; 1.21.4 removes it regardless (removes iff !isNaturalNight || distanceToCreaking() > 34.0 || playerIsStuckInYou()). Removed the !persistent exception and the now-unused persistent local in server_tick_update. Comment fix in game/creaking.rs tick_creaking_heart: the block-gone path is onRemove in 1.21.4, not preRemoveSideEffects (the 1.21.5 name). Property form unchanged by design: 1.21.4's CreakingHeartBlock has ACTIVE (boolean) + NATURAL + AXIS (12 states); 1.21.5 replaced ACTIVE with the STATE enum (18 states), verified via javap and the jars' blockstates/creaking_heart.json. The tree deliberately uses the 1.21.5 enum form internally (datafix 4294 renames active to creaking_heart_state on load; the wire adapter maps down; pinned 1.21.4 heart states 2917..2928 are active-major). Known gap, not fixed: the night window \u2014 1.21.4 isNaturalNight is natural && skyDarken >= 4 (clear-weather window about dayTime [11741, 24259], weather-sensitive) while 1.21.5 isMoonVisible is dayTime % 24000 in [12600, 23400], weather-blind; the Rust's creaking_active uses the 1.21.5 range in both mobs/creaking_heart.rs and level/creaking.rs. Fixing it needs sky_darken threaded through MobWorld (which carries only a daylight bool) and the world Sim (no sky_darken available). Also noted: level/creaking.rs heart_tick uses the 1.21.5 scheduled-tick form, while 1.21.4 has no block tick (updateShape schedules none).",
@@ -2821,7 +2806,7 @@
         "CreakingHeartBlockEntity"
       ]
     },
-    "164": {
+    "174": {
       "module": "crates/horizon-client/src/game/debug_keys.rs",
       "verdict": "carry-over",
       "evidence": "TextureManager diffs: safeClose calls texture.releaseId() after a failed close in 1.21.4 (1.21.5 only warns); the DynamicTexture ctor takes a NativeImage in 1.21.4 vs a Supplier in 1.21.5; dumpAllSheets checks RenderSystem.isOnRenderThread() and records a render call when off-thread in 1.21.4, while 1.21.5 creates the directories directly with an IOException catch; registerAndLoad is slot-only noise. The Rust has no TextureManager equivalent (wgpu atlases own the textures \u2014 no GL id to release, no DynamicTexture class); the only mapped behaviour is DumpDynamicTextures (F3+S) dumping the GUI atlas via hud.rs dump_contents, which is version-neutral.",
@@ -2829,7 +2814,7 @@
         "TextureManager"
       ]
     },
-    "165": {
+    "175": {
       "module": "crates/horizon-client/src/item_render.rs",
       "verdict": "carry-over",
       "evidence": "Direction: 1.21.5 added a cached normalVec3f field and getUnitVec3f(); 1.21.4's step() builds a fresh Vector3f from getStepX/Y/Z each call. The values are identical (Down (0,-1,0), Up (0,1,0), North (0,0,-1), South (0,0,1), West (-1,0,0), East (1,0,0)), and the Rust's direction_vector returns exactly those. getYRot differs only by ldc vs ldc_w and jump targets (same 180/0/90/-90 values); rotate(Matrix4f) vs rotate(Matrix4fc) is the interface widening; LEGACY_ID_CODEC / LEGACY_ID_CODEC_2D are 1.21.5 codec-only; the rest is lambda renumbering.",
@@ -2837,7 +2822,7 @@
         "Direction"
       ]
     },
-    "166": {
+    "176": {
       "module": "crates/horizon-client/src/mobs/panda.rs",
       "verdict": "carry-over",
       "evidence": "PandaRenderer.setupRotations differs only by mulPose(Quaternionfc) vs mulPose(Quaternionf); the TEXTURES map is identical in both versions (normal->panda.png, lazy, worried, playful, brown, weak, aggressive); extractRenderState is whitespace-only. Panda.mobInteract is whitespace-only; addAdditionalSaveData/readAdditionalSaveData differ only by codec store/read vs putString/getString plus getSerializedName/byName (same MainGene/HiddenGene string shape, NORMAL default). Panda$Gene differs only by the CODEC field type (Codec vs EnumCodec). The Rust writes MainGene/HiddenGene as serialized-name strings and gene_from_name maps names back with NORMAL (index 0) as the default \u2014 the 1.21.4 form; texture() maps genes to the same seven textures and rotations() implements setupRotations.",
@@ -2847,7 +2832,7 @@
         "Panda$Gene"
       ]
     },
-    "167": {
+    "177": {
       "module": "crates/horizon-protocol/src/item/hash/raw.rs",
       "verdict": "carry-over",
       "evidence": "CustomData differs only by codec shape (TagParser.FLATTENED_CODEC vs AS_CODEC, getString Optional vs contains) and whitespace; the Rust hashes it as NBT passthrough, version-neutral. TrimMaterial/TrimPattern: the reference path (registry id) is correct in both versions and is what vanilla servers send. The DIRECT holders differ: 1.21.4's TrimMaterial stream is (assetName string, ingredient holder, overrideArmorAssets map, description NBT) and its TrimPattern stream is (assetId, template-item holder, description, decal), while the Rust reads the 26.3-derived forms (material: palette_id string + description; pattern: asset_id + description + decal) \u2014 the pattern read matches 1.21.5 exactly (3 fields) and the material read matches neither version's stream (1.21.5 writes a base string, an overrides map and the description). trim.rs is byte-identical between the 1.21.4 and 1.21.5 trees. Recorded, not fixed in this batch: the direct path is reachable only via inline trim values (commands/datapacks), and a correct fix needs quirk-branched wire reads in trim.rs, hash/raw.rs and skip.rs plus hash-oracle values for direct trims, which no local oracle provides. Ledger note (2026-11-27): the pre-restart entry for this item (report id 177, destroyed when batch 50 overwrote key 177 with the ai.rs entry) verified the component-registry angle: against the jar-verified 67-entry 1.21.4 component registry, the mechanical publish had already re-pinned every component arm to the 1.21.4 ids (intangible_projectile 20, map_decorations 37, debug_stick_state 46, recipes 53, lock 65, container_loot 66; tooltip_style 31, note_block_sound 58; entity_data 47, bucket_entity_data 48, block_entity_data 49; trim 45, instrument 50, banner_patterns 59, pot_decorations 61, container 62, block_state 63, bees 64) and dropped the 1.21.5-only components (potion_duration_scale, provides_trim_material, weapon, blocks_attacks, break_sound) from the arms and test cases; the variant serializer arms (72-95) are unchanged from 1.21.5, arms 74/84/85/86 reference registries 1.21.4 lacks and return None; the 13 mob-variant test cases the publish's regen dropped were restored with their 1.21.5 hashes. The batch-47 entry above (trim direct-holder gap) is the jardiff-based verdict for the same item.",
@@ -2856,7 +2841,7 @@
         "CustomData"
       ]
     },
-    "168": {
+    "202": {
       "module": "crates/horizon-client/src/game/mount_menu.rs",
       "verdict": "ported",
       "evidence": "HorseInventoryMenu: 1.21.4's $2 (body) slot isActive is canUseSlot(BODY), true only for horses and llamas (LivingEntity.canUseSlot returns false; only Horse and Llama override it, both returning true); zombie horses, donkeys, mules, skeleton horses and camels get false. The Rust's can_wear_horse_armor included ZombieHorse (the CAN_WEAR_HORSE_ARMOR tag added in 1.21.5 lists only horse, and 1.21.4 has no such tag), so zombie horses wrongly showed a body slot and accepted horse armour. Narrowed to Horse only, with the test flipped. The saddle slot needs no change: 1.21.4's $1.isActive is isSaddleable() (alive, adult, tamed; llamas override false) and the menu only opens for tamed adult mounts, so shows_saddle (!llama) is the same rule; the stillValid armorContainer check is covered by tick_mount_menu's alive-and-near check, and the quickMove +1/+2 bound is implicit in the Rust's named-slot quick-move. LoomMenu$5.mayPlace: 1.21.4 is instanceof BannerPatternItem, 1.21.5 is has(PROVIDES_BANNER_PATTERNS); the Rust checked the minecraft:loom_patterns tag (absent in both versions' data) and the provides_banner_patterns component (absent in 1.21.4), so the pattern slot accepted nothing. Banners now also populates provided from the version's own pattern_item/* banner-pattern tags (10 items in 1.21.4) and is_pattern_item is membership in provided. LoomMenu$4.mayPlace is instanceof DyeItem in both versions; the Rust's loom_dye needed the absent loom_dyes tag and the absent dye component, so the dye slot also accepted nothing \u2014 it now falls back to the <colour>_dye item id. StonecutterMenu differs only by the onCraftedBy (Level, Player) vs (Player) overload and the playSound (Player) vs (Entity) overload; LoomMenu$6 likewise. The nautilus does not exist in either version (26.x mob), so its mount-menu branches are unreachable here.",
@@ -2870,7 +2855,7 @@
         "StonecutterMenu"
       ]
     },
-    "169": {
+    "179": {
       "module": "crates/horizon-client/src/game/glowing.rs",
       "verdict": "carry-over",
       "evidence": "EntityRenderer: 1.21.5 adds four hitbox render-state methods (extractHitboxes x2, getServerSideEntity, extractAdditionalHitboxes) and sets state.entityType in extractRenderState; renderNameTag differs only by mulPose(Quaternionfc) vs (Quaternionf). The Rust's glowing.rs implements only extractRenderState's outlineColor (isCurrentlyGlowing / getTeamColor), which is identical in both versions; the hitbox render-state extraction is a 1.21.5-only debug feature the Rust does not implement in either form, and nothing in glowing reads entityType.",
@@ -2878,7 +2863,7 @@
         "EntityRenderer"
       ]
     },
-    "170": {
+    "180": {
       "module": "crates/horizon-client/src/game/level_particles.rs",
       "verdict": "carry-over",
       "evidence": "PointedDripstoneBlock: the static init builds the same shapes via Block.column in 1.21.5 vs Block.box in 1.21.4 (column(6,0,16) is box(5,0,5,11,16,11)) with renamed fields (SHAPE_TIP_MERGE etc. vs TIP_MERGE_SHAPE); getShape is a switch on DripstoneThickness.ordinal in 1.21.5 vs an if-chain in 1.21.4 with the same mapping, and move(Vec3) vs move(DDD). getMaxHorizontalOffset is the MAX_HORIZONTAL_OFFSET field in 1.21.5 vs an inline 0.125f in 1.21.4 \u2014 the field is SHAPE_BASE.min(X) = 0.125f, the same value. spawnDripParticle's Y is pos.y + STALACTITE_DRIP_START_PIXEL (SHAPE_TIP_DOWN.min(Y) = 5/16) - 0.0625 in 1.21.5 vs (pos.y + 1) - 0.6875 - 0.0625 in 1.21.4 \u2014 both pos.y + 0.25. The Rust writes pos.y + 5.0/16.0 - 0.0625, matching both versions.",
@@ -2886,7 +2871,7 @@
         "PointedDripstoneBlock"
       ]
     },
-    "171": {
+    "181": {
       "module": "crates/horizon-client/src/game/shield.rs",
       "verdict": "ported",
       "evidence": "Ravager.blockedByShield (1.21.4) and blockedByItem (1.21.5) are bytecode-identical (roarTick 0 and random < 0.5: stunnedTick 40, RAVAGER_STUNNED, entity event 39, blocker.push; else strongKnockback + hurtMarked); the Rust's mobs/ravager.rs::blocked implements it, unchanged. The rest is a real gap: the BlocksAttacks component and its ItemDamageFunction do not exist in 1.21.4 at all (no class, no BLOCKS_ATTACKS in DataComponents, no Weapon component), so the Rust's component-driven shield path had nothing to read \u2014 raise_shield returned false and player_blocking returned None, i.e. shields could not be raised or block. Fixed by synthesizing the shield's blocks_attacks at item load (BlocksAttacks::shield_1214: delay 0.25s from getItemBlockingWith's 5 ticks, full block within 90 degrees from isDamageSourceBlocked, bypassed_by #minecraft:bypasses_shield, item damage (3.0, 1.0, 1.0) from Player.hurtCurrentlyUsedShield's 1 + floor(blocked) at blocked >= 3, block/disabled sounds item.shield.block / item.shield.break \u2014 exactly the 1.21.5 shield component's values, so the use duration (72000), the block sound and the damage all follow). The disable rule is the 1.21.4 one, not the 1.21.5 per-weapon seconds: LivingEntity.canDisableShield is true for an axe held (Warden overrides it to true), and Player.disableShield applies a flat 100 ticks \u2014 shield_disable_seconds (axe via the minecraft:axes tag, or warden) replaces the weapon-component read in the mob path and in lan_pvp/spear_players. The 0.5 knockback is the attacker's (LivingEntity.blockedByShield knocks the attacker away from the defender, identical in both versions; BlocksAttacks.onBlocked only plays the sound): the Rust knocked the defender back when not fully blocked, which is vanilla in neither version \u2014 removed, and a blocked melee hit now knocks the attacker mob back 0.5 via MobEvent::Knockback (the ravager's override replaces this, as in vanilla).",
@@ -2895,7 +2880,7 @@
         "BlocksAttacks$ItemDamageFunction"
       ]
     },
-    "173": {
+    "183": {
       "module": "crates/horizon-world/src/level/data.rs",
       "verdict": "carry-over",
       "evidence": "WallBlock: 1.21.5 renamed the wall properties' Java fields (NORTH_WALL to NORTH, SOUTH_WALL to SOUTH, EAST_WALL to EAST, WEST_WALL to WEST) and refactored makeShapes from a Map<BlockState, VoxelShape> to a Function; the state property names are north/south/east/west in both jars' cobblestone_wall.json blockstates, and connectsTo, sideUpdate, topUpdate, updateSides, shouldRaisePost, makeWallState and the shape geometry are identical. The Rust's wall_shape uses the version-neutral property names via direction_prop and the wall_cover test boxes, so nothing is to port. Ledger note (2026-11-27): the pre-restart entry for this item (report id 183, verdict no-change) said: module identical between the 1.21.5 and 1.21.4 trees (0 diff lines); no named method changed 1.21.5->1.21.4 per jardiff (diff-1.21.5-1.21.4-client.json) That entry was a duplicate of this one (same item, keyed by report id instead of rank-2 ordinal) and has been merged here and the duplicate key removed.",
@@ -2903,17 +2888,7 @@
         "WallBlock"
       ]
     },
-    "174": {
-      "module": "crates/horizon-protocol/src/packets/play.rs",
-      "verdict": "carry-over",
-      "evidence": "FriendlyByteBuf: the wire format is unchanged (the long-array helpers moved to static methods in 1.21.5, writeBlockHitResult is identical). HashedStack and ProtocolInfo$Details are new in 1.21.5 and absent from the 1.21.4 jars: the 1.21.4 wire sends full stacks. The Rust already implements the 1.21.4 form \u2014 ContainerSetContent and ContainerSetSlot read full Slot stacks, ContainerClick's ChangedSlots reads full stacks (with comments noting the 1.21.4 form), and the hashed-stack machinery in item/hash.rs and hash_ops.rs is not wired into the 1.21.4 play path.",
-      "classes": [
-        "FriendlyByteBuf",
-        "HashedStack",
-        "ProtocolInfo$Details"
-      ]
-    },
-    "175": {
+    "185": {
       "module": "crates/horizon-client-render/src/options_ui.rs",
       "verdict": "carry-over",
       "evidence": "GameNarrator: 1.21.5 only inlined the private narrateMessage helper (check the narrator is active, then say) into say, sayChat, sayNow and updateNarratorStatus; the behaviour is identical. The Rust's game/narrator.rs update_status implements updateNarratorStatus faithfully (clear, say 'options.narrator : <status>', the NARRATOR_TOGGLE toast with enabled/disabled/notavailable via horizon_narrator::toast), and horizon_narrator::update_status clears and narrates.",
@@ -2921,7 +2896,7 @@
         "GameNarrator"
       ]
     },
-    "176": {
+    "186": {
       "module": "crates/horizon-client/src/game/spill.rs",
       "verdict": "carry-over",
       "evidence": "AbstractFurnaceBlockEntity: preRemoveSideEffects is 1.21.5-only (BlockEntity.preRemoveSideEffects does not exist in 1.21.4 at all); in 1.21.4 the same effects run from AbstractFurnaceBlock.onRemove (Containers.dropContents plus getRecipesToAwardAndPopExperience at Vec3.atCenterOf), which is exactly what the Rust's spill.rs does (drop the slots, award the experience orbs at the block centre). RecipesUsed is a plain recipe-id to count compound in both versions' saves (1.21.5 writes it via RECIPES_USED_CODEC, 1.21.4 builds the same compound by hand) and the Rust reads and writes that form; the timer loads default to 0 in both (getShort vs getShortOr(key, 0)). Comment fixed: spill.rs now cites AbstractFurnaceBlock.onRemove instead of the 1.21.5 method.",
@@ -2929,7 +2904,7 @@
         "AbstractFurnaceBlockEntity"
       ]
     },
-    "178": {
+    "188": {
       "module": "crates/horizon-client/src/mobs/spawning.rs",
       "verdict": "ported",
       "evidence": "ArmorMaterial.createAttributes is bytecode-identical in both versions (ARMOR plus ARMOR_TOUGHNESS plus KNOCKBACK_RESISTANCE when positive, id minecraft:<type>); only its visibility changed (private to public) and humanoidProperties/animalProperties moved out of the class, so the Rust's hardcoded horse-armor stats (leather 3, copper 4, iron 5, gold 7, diamond 11/2.0) match both. MoonBrightnessCheck is new in 1.21.5: the 1.21.5 all_black cat variant reads moon_brightness >= 0.9 from data, while 1.21.4 picks from the full_moon_spawns/default_spawns tags (moon brightness >= 0.9, i.e. phase 0). The natural-spawn path already implements the 1.21.4 form (tame::cat_variant, 11 vs 10 entries), but the chunk-generation Finalize path read only the data registries, which are empty in 1.21.4 (no pig_variant/cow_variant/chicken_variant/cat_variant/frog_variant data at all), so every chunk-generated cat stayed tabby (variant 0) and every frog stayed temperate. Both arms now fall back to the 1.21.4 tag forms when the registry is empty: cats pick uniformly from 10, or 11 with all_black on moon phase 0, drawn from the level random; frogs read spawns_warm/cold_variant_frogs (1/2, else 0). Pigs, cows and chickens need no fallback: they have no variant in 1.21.4 at all (no class, no data, one pig texture), and the 1.21.4 farm-animal climate tags do not exist, so the natural-spawn path already leaves them temperate. Verified by cargo check; the finalize-spawn parity harness covers cats and frogs across biomes, reasons and moon phases against the 1.21.4 oracle.",
@@ -2938,7 +2913,7 @@
         "MoonBrightnessCheck"
       ]
     },
-    "179": {
+    "189": {
       "module": "crates/horizon-assets/examples/item_model_fixture.rs",
       "verdict": "carry-over",
       "evidence": "PalettedPermutations: 1.21.5 made the class a record and added an optional separator field (codec optionalFieldOf(separator, \"_\")); 1.21.4 has no separator and always names outputs withSuffix(\"_\" + key). The Rust's palette.rs reads an optional separator defaulting to \"_\", so on 1.21.4 data (which never carries the field) it behaves exactly as 1.21.4; the run bodies differ only by that separator line and lambda renumbering. Ledger note (2026-11-27): the pre-restart entry for this item (report id 189, verdict carry-over) said: 1.21.5 form carried: removed the \"oversized\": resolved.oversized_in_gui field from the fixture JSON. oversized_in_gui is 1.21.6-only (ItemStackRenderState, per 1.21.5 PORT-NOTES item 101); a full-jar strings search found `oversized` only in RegionFile and RealmsDownloadLatestWorldScreen in both jars. Removal from item_model.rs / item_render.rs belongs to review items 69 / 113 / 175. That entry was a duplicate of this one (same item, keyed by report id instead of rank-2 ordinal) and has been merged here and the duplicate key removed.",
@@ -2946,7 +2921,7 @@
         "PalettedPermutations"
       ]
     },
-    "180": {
+    "190": {
       "module": "crates/horizon-client-render/src/vault.rs",
       "verdict": "carry-over",
       "evidence": "BuiltInLootTables: the loot-table key sets are identical in both jars; 1.21.5 only refactored the static-init lambdas into a makeDyeKeyMap helper. VaultRenderer.render gained an unused Vec3 camera parameter in 1.21.5 (never loaded in the body) and updateForTopItem lost a boolean parameter; the drawn result (translate 0.5/0.4/0.5, YP spin from rotLerp of previous/current spin, renderMultipleFromCount) is identical, and the Rust has no VaultRenderer drawing path. VaultState.ejectResultItem and VaultState$3/$4 onEnter/onExit differ only by the playSound overload (Player in 1.21.4, Entity in 1.21.5, both passed null, both play to all); the Rust emits the same events (Eject with the triangle spread, level event 3017, block.vault.eject_item at 1.0 and 0.8 + 0.4*progress). PlayerDetector differs only by the Sheep package move (animal.Sheep to animal.sheep.Sheep). Ledger note (2026-11-27): the pre-restart entry for this item (report id 190, verdict no-change) said: module identical between the 1.21.5 and 1.21.4 trees (0 diff lines); no named method changed 1.21.5->1.21.4 per jardiff (diff-1.21.5-1.21.4-client.json) That entry was a duplicate of this one (same item, keyed by report id instead of rank-2 ordinal) and has been merged here and the duplicate key removed.",

@@ -4525,3 +4525,5 @@ shape for the review batches.
   ordinal and must check the report-id key (ordinal + 10)
   before closing an item, so a pre-restart entry is merged
   instead of re-closed.
+
+  LEDGER RECONCILIATION (2026-11-27, Butler, after the batch-50 correction): the batch-50 correction (225 -> 220) found only part of the overcount. Re-verified entry-by-entry against diff-1.21.5-1.21.4/report.json by module/class match: the true rank-2 closed count is 216, not 220. Three ordinals were covered twice under different keys and are now merged into single report-id entries (264 under keys 274+174, 42 under keys 52+80, 59 under keys 69+110+113). Root cause: the file mixes two keying schemes — pre-restart and session 2 keyed by report id (id = ordinal + 10), session 3 keyed batches 46-50 by ordinal, so its keys 161-180 are renumbered +10 to report ids 171-190 in this rebuild. Going forward every entry is keyed by REPORT ID; a batch must look up each item by id in report.json and check the id key before closing it. Batch 51 is ordinals 151-154 (report ids 161-164).
