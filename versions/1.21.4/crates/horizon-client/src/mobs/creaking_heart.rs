@@ -332,13 +332,12 @@ pub fn creaking_hurt(
         w,
         changed: Vec::new(),
     };
-    let state = b.get(pos);
-    if b.prop(state, "creaking_heart_state").as_deref() == Some("awake") {
-        let clumps = lr.next_int_between_inclusive(2, 3).unwrap_or(2);
-        for _ in 0..clumps {
-            if let Some(at) = spread_resin(&mut b, pos, lr, out) {
-                out.push(HeartEvent::Sound("block.resin.place", centre(at), 1.0, 1.0));
-            }
+    // 1.21.4 `creakingHurt` spreads resin on every hurt; 1.21.5 gated
+    // the spread on the heart being awake.
+    let clumps = lr.next_int_between_inclusive(2, 3).unwrap_or(2);
+    for _ in 0..clumps {
+        if let Some(at) = spread_resin(&mut b, pos, lr, out) {
+            out.push(HeartEvent::Sound("block.resin.place", centre(at), 1.0, 1.0));
         }
     }
     heart.emitter = 100;
@@ -620,14 +619,15 @@ pub fn server_tick_update(
             }
         }
     } else if let Some(id) = protector(heart, host) {
-        let persistent = host.mob(id).is_some_and(|m| m.persistent);
         // playerIsStuckInYou reads the creaking's NEAREST_PLAYERS.
         let stuck = host.mob_mut(id).is_some_and(|m| {
             let listed = super::monster_brain::nearest_players(m).contains(&super::Who::Player);
             let eye = w.player.as_ref().filter(|_| listed).map(|p| p.eye);
             creaking::player_is_stuck(m, eye)
         });
-        if !active && !persistent || distance_to_creaking(heart, pos, host) > TOO_FAR || stuck {
+        // 1.21.4 removes the protector at daybreak regardless of
+        // persistence; 1.21.5 kept a persistent (e.g. name-tagged) one.
+        if !active || distance_to_creaking(heart, pos, host) > TOO_FAR || stuck {
             remove_protector(heart, host, false, out);
         }
     }

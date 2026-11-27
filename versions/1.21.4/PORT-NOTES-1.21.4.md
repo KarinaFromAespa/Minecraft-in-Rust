@@ -4041,3 +4041,115 @@ shape for the review batches.
   bubble-column push (`first_tick_bubble_column`, tested by
   `a_throwable_spawned_in_a_bubble_column_is_pushed_on_its_first_tick`).
   Rank 2: 205/348.
+
+  Item 161 (crates/horizon-client-core/src/gamerules.rs):
+  carry-over. `GameRules`: 1.21.5 adds two rules 1.21.4
+  lacks — `allowFireTicksAwayFromPlayer` (UPDATES, default
+  false) and `tntExplodes` (MISC, default true), verified by
+  counting registered names in the javap dumps (53 vs 55).
+  The Rust table holds neither (correct for 1.21.4) and the
+  gated behaviours are already 1.21.4-form:
+  `can_spread_fire_around` is just `doFireTick` (game.rs,
+  level/mod.rs) and `prime_tnt` is ungated (update.rs). The
+  table is the 26.x-form table by design (renamed rules) with
+  the datafix translating vanilla 1.21.4 saves (fixes_c.rs
+  `game_rule_registry` folds `doFireTick` +
+  `allowFireTicksAwayFromPlayer` into
+  `fire_spread_radius_around_player` and drops
+  `spawnChunkRadius`); it covers all 53 vanilla 1.21.4 rules
+  (`minecartMaxSpeed` behind the `minecart_improvements`
+  flag, default 8) plus four 26.x extras (`pvp`,
+  `spawn_monsters`, `spawner_blocks_work`,
+  `command_blocks_work`) shared with the parent tree, not a
+  1.21.4 delta. `GameRules$Type` / `IntegerValue` /
+  `BooleanValue`: 1.21.5's `Type` ctor gains a `Class`
+  parameter for `keyCodec` — codec API only. `SpawnData`:
+  `WeightedList.codec` vs
+  `SimpleWeightedRandomList.wrappedCodecAllowingEmpty` and
+  `CompoundTag.read` vs `contains` / `getString` — same data
+  shape. `BlockCollisions.computeNext`: jump targets only.
+  `CollisionGetter.isUnobstructed`: `VoxelShape.move(Vec3i)`
+  vs `move(DDD)` — same. `GameType`: `LEGACY_ID_CODEC`
+  added in 1.21.5 — codec only. `LevelReader`:
+  whitespace-only plus the 1.21.5-only
+  `getHeight(Heightmap.Types, BlockPos)` default, unused in
+  the Rust. `WorldDataConfiguration`: `MAP_CODEC` vs `CODEC`
+  — codec only. `BlockGetter$BlockStepVisitor` and
+  `DryFoliageColor` are new in 1.21.5 (absent from 1.21.4):
+  the former unused in the Rust, the latter already handled
+  in biome.rs (1.21.4 ships no `dry_foliage.png` and no
+  `dry_foliage_color` override; a missing map falls back to
+  0x5D4930). Rank 2: 206/348.
+
+  Item 162 (crates/horizon-client/src/game/command_storage.rs):
+  carry-over. The Rust already implements the 1.21.4 form:
+  per-namespace persistence, `get` returns an empty compound
+  when unset, `put` removes on empty contents and marks
+  dirty, `keys` lists `ns:path`. The vanilla delta is only
+  the persistence backend (1.21.4: per-namespace
+  `SavedData.Factory` via `DimensionDataStorage` with
+  `DataFixTypes.SAVED_DATA_COMMAND_STORAGE`; 1.21.5:
+  `SavedDataType` with a `RecordCodec`). Container save
+  writes `{"contents": {...}}` and the file format
+  `{"data": {"contents": {...}}, "DataVersion":...}` matches
+  the Rust exactly (save.rs:748, save.rs:974,
+  block_entity_nbt.rs:492). Known gap, not fixed in this
+  batch: vanilla 1.21.4's `createId` is `"command_storage_"`
+  + namespace, so vanilla files are
+  `data/command_storage_<ns>.dat`, while the Rust writes
+  `data/<ns>/command_storage.dat`; the same mismatch exists
+  in the 1.21.5 tree, so it is not a 1.21.4 delta.
+  Rank 2: 207/348.
+
+  Item 163 (crates/horizon-client/src/game/creaking.rs):
+  ported. Two logic fixes in mobs/creaking_heart.rs,
+  jar-verified. (1) `creakingHurt`: 1.21.4 spreads resin on
+  every hurt (`emitParticles`, then
+  `nextIntBetweenInclusive(2,3)` `spreadResin` calls,
+  `emitter=100`); 1.21.5 added an AWAKE-state gate before
+  the loop. Removed the gate in `creaking_hurt`. (2)
+  Protector removal: 1.21.5 keeps a persistent (e.g.
+  name-tagged) creaking at daybreak; 1.21.4 removes it
+  regardless (removes iff `!isNaturalNight` ||
+  `distanceToCreaking() > 34.0` || `playerIsStuckInYou()`).
+  Removed the `!persistent` exception and the now-unused
+  `persistent` local in `server_tick_update`. Comment fix in
+  game/creaking.rs `tick_creaking_heart`: the block-gone path
+  is `onRemove` in 1.21.4, not `preRemoveSideEffects` (the
+  1.21.5 name). Property form unchanged by design: 1.21.4's
+  `CreakingHeartBlock` has `ACTIVE` (boolean) + `NATURAL` +
+  `AXIS` (12 states); 1.21.5 replaced `ACTIVE` with the
+  `STATE` enum (18 states), verified via javap and the jars'
+  `blockstates/creaking_heart.json`. The tree deliberately
+  uses the 1.21.5 enum form internally (datafix 4294 renames
+  `active` to `creaking_heart_state` on load; the wire
+  adapter maps down; pinned 1.21.4 heart states 2917..2928
+  are active-major). Known gap, not fixed: the night window
+  — 1.21.4 `isNaturalNight` is natural && `skyDarken >= 4`
+  (clear-weather window about dayTime [11741, 24259],
+  weather-sensitive) while 1.21.5 `isMoonVisible` is
+  `dayTime % 24000` in [12600, 23400], weather-blind; the
+  Rust's `creaking_active` uses the 1.21.5 range in both
+  mobs/creaking_heart.rs and level/creaking.rs. Fixing it
+  needs `sky_darken` threaded through `MobWorld` (which
+  carries only a `daylight` bool) and the world `Sim` (no
+  `sky_darken` available). Also noted:
+  level/creaking.rs `heart_tick` uses the 1.21.5
+  scheduled-tick form, while 1.21.4 has no block tick
+  (`updateShape` schedules none). Rank 2: 208/348.
+
+  Item 164 (crates/horizon-client/src/game/debug_keys.rs):
+  carry-over. `TextureManager` diffs: `safeClose` calls
+  `texture.releaseId()` after a failed close in 1.21.4
+  (1.21.5 only warns); the `DynamicTexture` ctor takes a
+  `NativeImage` in 1.21.4 vs a `Supplier` in 1.21.5;
+  `dumpAllSheets` checks `RenderSystem.isOnRenderThread()`
+  and records a render call when off-thread in 1.21.4, while
+  1.21.5 creates the directories directly with an
+  `IOException` catch; `registerAndLoad` is slot-only noise.
+  The Rust has no `TextureManager` equivalent (wgpu atlases
+  own the textures — no GL id to release, no
+  `DynamicTexture` class); the only mapped behaviour is
+  `DumpDynamicTextures` (F3+S) dumping the GUI atlas via
+  hud.rs `dump_contents`, which is version-neutral.
+  Rank 2: 209/348.

@@ -296,7 +296,7 @@ impl Game<'_> {
         };
         let state = self.world.block(key.0, key.1, key.2);
         if &*self.res.facts().get(state).name != "minecraft:creaking_heart" {
-            // The block is gone: preRemoveSideEffects.
+            // The block is gone: onRemove.
             self.world.block_entities.forget(&key);
             self.with_heart(key, &mut heart, false, |h, _, _, host, out| {
                 creaking_heart::remove_protector(h, host, false, out);
