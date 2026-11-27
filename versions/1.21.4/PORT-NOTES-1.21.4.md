@@ -3886,3 +3886,91 @@ shape for the review batches.
   `TrialSpawnerRenderer` render overloads differ only by the
   1.21.5 `Vec3` camera parameter (API);
   `renderEntityInSpawner` is identical. Rank 2: 198/348.
+
+  Item 153 (crates/horizon-client/src/lan/containers.rs):
+  carry-over. `AbstractContainerMenu`'s diffs are the 1.21.5
+  RemoteSlot / HashedStack sync rework:
+  `RemoteSlot.PLACEHOLDER` in the constructor / `addSlot`,
+  `ContainerSynchronizer.createSlot`,
+  `RemoteSlot.force` / `matches` in
+  `synchronizeCarriedToRemote` / `synchronizeSlotToRemote` /
+  `sendAllDataToRemote` / `setRemoteSlot` / `transferState`,
+  `setRemoteCarried(HashedStack)` / `setRemoteSlotUnsafe` vs
+  `setRemoteCarried(ItemStack)` / `setRemoteSlotNoCopy`.
+  `doClick`, `broadcastChanges`, `broadcastFullState`,
+  `setData`, `addDataSlot`, `stillValid` and `removed` are
+  identical modulo spacing and lambda renumbering. The Rust has
+  no RemoteSlot / HashedStack concept: `lan/containers.rs`
+  sends `ContainerSetContent` / `ContainerSetSlot` with whole
+  stacks (the 1.21.4 form) and `claimed_matches` already
+  documents "1.21.4 sends the whole stack, 1.21.5 a hash of
+  it". Nothing to port. Rank 2: 199/348.
+
+  Item 154 (crates/horizon-client/src/mobs/aquatic.rs):
+  carry-over. `Squid.aiStep`, `Squid.travel` and
+  `AgeableWaterCreature.handleAirSupply` show no substantive
+  differences — no changed calls, fields or constants, only
+  slot numbers and branch offsets. The Rust's `aquatic.rs`
+  inherits the shared logic. Rank 2: 200/348.
+
+  Item 155 (crates/horizon-client/src/mobs/vex.rs): PORTED
+  (re-verification of a batch-3 closure). `Vex`
+  `addAdditionalSaveData` / `readAdditionalSaveData`: 1.21.5
+  stores the bound origin as `bound_pos` via `BlockPos.CODEC`
+  (int array) and the life as `life_ticks`; 1.21.4 writes
+  `BoundX` / `BoundY` / `BoundZ` ints (only when `boundOrigin`
+  != null) and `LifeTicks` (only when `hasLimitedLife`). This
+  item was first closed in batch 3 as ported, but
+  re-verification in batch 44 found `vex.rs` still wrote the
+  1.21.5 form for both keys, so a 1.21.4 vanilla save's bound
+  origin and life were lost on load and a Rust-written save
+  was unreadable by vanilla 1.21.4. Fixed in batch 44:
+  `write_nbt` now writes `BoundX` / `BoundY` / `BoundZ` when
+  home is set and `LifeTicks` when `egg_time` > 0 (equivalent
+  to `hasLimitedLife` — a limited-life vex never has
+  `egg_time` 0 at save time); `read_nbt` reads `BoundX` / `Y` /
+  `Z` when `BoundX` is present and `LifeTicks`, -1 (unlimited)
+  when absent. New test
+  `a_bound_vex_saves_bound_xyz_and_life_ticks` (keys present, no
+  1.21.5 keys, round-trip restores home and `egg_time`; a free
+  vex writes neither key). `Vex.tick` differs by spacing only.
+  No count change — item 155 was already counted in batch 3.
+  Rank 2: 201/348.
+
+  Item 156 (crates/horizon-client-core/src/scoreboard.rs):
+  carry-over. The 1.21.5 scoreboard persistence rework:
+  `Objective$Packed` / `PlayerTeam$Packed` /
+  `Scoreboard$PackedScore` records and `pack()` /
+  `loadObjective` / `loadPlayerScore` / `loadPlayerTeam` /
+  `packPlayerScores` replace 1.21.4's NBT `savePlayerScores`
+  / `loadPlayerScores`. The `Packed` classes are entirely
+  1.21.5-only; `ObjectiveCriteria` has no diffs. The Rust's
+  `scoreboard.rs::pack()` writes the same top-level keys
+  (`Objectives` / `PlayerScores` / `DisplaySlots` / `Teams`)
+  and per-entry fields as 1.21.4's `ScoreboardSaveData`
+  (`Name` / `DisplayName` / `CriteriaName` / `RenderType` /
+  `display_auto_update` / `format`; `Name` / `Objective` /
+  `Score` / `Locked` / `display` / `format`; `Name` /
+  `DisplayName` / `TeamColor` / `AllowFriendlyFire` /
+  `SeeFriendlyInvisibles` / `MemberNamePrefix` /
+  `MemberNameSuffix` / `NameTagVisibility` /
+  `DeathMessageVisibility` / `CollisionRule` / `Players`) —
+  1.21.4 also writes `display_auto_update` and `format`. The
+  only difference is the writer's omission rule: the Rust
+  omits fields equal to the 1.21.5 codec defaults (empty lists,
+  `CriteriaName` dummy, `RenderType` integer,
+  `AllowFriendlyFire` / `SeeFriendlyInvisibles` true) where
+  1.21.4 writes them always. That is load-equivalent: 1.21.4's
+  load guards the booleans with `contains(key, 99)` (default
+  true), defaults a missing `CriteriaName` to dummy and a
+  missing `RenderType` to integer, and the Rust's `unpack`
+  uses the same defaults (dummy, `by_id("")` -> integer,
+  booleans true, visibilities Always). Game state round-trips
+  identically; only the file bytes differ. Recorded, not
+  fixed. `createFormattedDisplayName` / `PlayerTeam` ctor
+  differ only by the `HoverEvent$ShowText` record vs
+  `HoverEvent(Action, Object)` reshuffle;
+  `numberFormatOrDefault` and `Team$Visibility.getDisplayName`
+  by spacing only; `Visibility` `byName` / `getAllNames`
+  (1.21.4) vs `getSerializedName` (1.21.5) is API — the Rust's
+  `by_name` / `name()` matches 1.21.4. Rank 2: 201/348.

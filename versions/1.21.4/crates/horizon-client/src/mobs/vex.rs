@@ -284,32 +284,38 @@ pub fn texture(m: &Mob) -> &'static str {
     }
 }
 
-/// `Vex.addAdditionalSaveData`: the bound origin and the limited life. The
-/// owner is a plain field in 1.21.4, never saved (1.21.6's
-/// `EntityReference.store` wrote its UUID under `owner`); a stale `owner` key
-/// a loaded compound carried is dropped by the re-save.
+/// `Vex.addAdditionalSaveData`: the bound origin and the limited life.
+/// 1.21.4 writes the origin as three `BoundX` / `BoundY` / `BoundZ` ints
+/// and the life as `LifeTicks` (only while the vex has a limited life);
+/// 1.21.5 renamed both to the `bound_pos` int array and `life_ticks`.
+/// The owner is a plain field in 1.21.4, never saved (1.21.6's
+/// `EntityReference.store` wrote its UUID under `owner`); a stale `owner`
+/// key a loaded compound carried is dropped by the re-save.
 pub fn write_nbt(m: &Mob, map: &mut horizon_world::nbt::Compound) {
     use horizon_world::nbt::Tag;
     if let Some(h) = m.extra.home {
-        map.insert("bound_pos".into(), Tag::IntArray(h.to_vec()));
+        map.insert("BoundX".into(), Tag::Int(h[0]));
+        map.insert("BoundY".into(), Tag::Int(h[1]));
+        map.insert("BoundZ".into(), Tag::Int(h[2]));
     }
     if m.extra.egg_time > 0 {
-        map.insert("life_ticks".into(), Tag::Int(m.extra.egg_time));
+        map.insert("LifeTicks".into(), Tag::Int(m.extra.egg_time));
     }
     map.remove(&"owner".into());
 }
 
-/// `Vex.readAdditionalSaveData`: the bound origin and the life left (-1 when
-/// absent). The owner is not read: 1.21.4 never saved it, so a loaded vex has
-/// none, whatever the compound carries.
+/// `Vex.readAdditionalSaveData`: the bound origin (only when `BoundX`
+/// is present) and the life left (-1 when `LifeTicks` is absent, i.e.
+/// unlimited). The owner is not read: 1.21.4 never saved it, so a loaded
+/// vex has none, whatever the compound carries.
 pub fn read_nbt(m: &mut Mob, tag: &horizon_world::nbt::Tag) {
-    use horizon_world::nbt::Tag;
-    if let Some(Tag::IntArray(v)) = tag.get("bound_pos")
-        && v.len() == 3
-    {
-        m.extra.home = Some([v[0], v[1], v[2]]);
+    if tag.get("BoundX").is_some() {
+        let x = crate::save::number(tag.get("BoundX")).map_or(0, |v| v as i32);
+        let y = crate::save::number(tag.get("BoundY")).map_or(0, |v| v as i32);
+        let z = crate::save::number(tag.get("BoundZ")).map_or(0, |v| v as i32);
+        m.extra.home = Some([x, y, z]);
     }
-    m.extra.egg_time = crate::save::number(tag.get("life_ticks")).map_or(-1, |v| v as i32);
+    m.extra.egg_time = crate::save::number(tag.get("LifeTicks")).map_or(-1, |v| v as i32);
 }
 
 #[cfg(test)]
@@ -374,5 +380,33 @@ mod owner_save_tests {
         loose.extra.counter2 = 0;
         let saved = mob_to_nbt(&loose, [0; 4], Some(&stale), None, |_| None);
         assert_eq!(saved.get("owner"), None, "no owner, no key");
+    }
+
+    /// `Vex.addAdditionalSaveData` (1.21.4) writes the bound origin as
+    /// `BoundX` / `BoundY` / `BoundZ` and the life as `LifeTicks` — not
+    /// the 1.21.5 `bound_pos` array and `life_ticks`.
+    #[test]
+    fn a_bound_vex_saves_bound_xyz_and_life_ticks() {
+        let mut bound = vex();
+        bound.extra.home = Some([10, 64, -5]);
+        bound.extra.egg_time = 600;
+        let saved = mob_to_nbt(&bound, [0; 4], None, None, |_| None);
+        assert_eq!(saved.get("BoundX"), Some(&Tag::Int(10)));
+        assert_eq!(saved.get("BoundY"), Some(&Tag::Int(64)));
+        assert_eq!(saved.get("BoundZ"), Some(&Tag::Int(-5)));
+        assert_eq!(saved.get("LifeTicks"), Some(&Tag::Int(600)));
+        assert_eq!(saved.get("bound_pos"), None, "no 1.21.5 key");
+        assert_eq!(saved.get("life_ticks"), None, "no 1.21.5 key");
+        let types = [("minecraft:vex".into(), bound.kind.clone())].into();
+        let back = mob_from_nbt(&saved, &types, 2, None).unwrap();
+        assert_eq!(back.extra.home, Some([10, 64, -5]));
+        assert_eq!(back.extra.egg_time, 600);
+
+        let mut free = vex();
+        free.extra.home = None;
+        free.extra.egg_time = -1;
+        let saved = mob_to_nbt(&free, [0; 4], None, None, |_| None);
+        assert_eq!(saved.get("BoundX"), None, "no origin, no key");
+        assert_eq!(saved.get("LifeTicks"), None, "unlimited, no key");
     }
 }
