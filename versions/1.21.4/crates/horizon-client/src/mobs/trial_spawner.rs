@@ -1035,18 +1035,12 @@ impl TrialSpawnerExt for TrialSpawner {
         let data = self.next_or_create(random, events).clone();
         // EntityType.by: an unknown type spawns nothing.
         let id = data.id().filter(|id| l.entity_exists(id))?;
-        let at = match spawner::read_pos(data.entity.get(&JavaString::from("Pos"))) {
-            Some(p) => p,
-            None => {
-                let range = f64::from(self.active_config().spawn_range);
-                let x =
-                    f64::from(pos[0]) + (random.next_double() - random.next_double()) * range + 0.5;
-                let y = f64::from(pos[1] + random.next_int_bound(3).unwrap_or(0) - 1);
-                let z =
-                    f64::from(pos[2]) + (random.next_double() - random.next_double()) * range + 0.5;
-                [x, y, z]
-            }
-        };
+        let at = spawner::spawn_pos(
+            data.entity.get(&JavaString::from("Pos")),
+            pos,
+            self.active_config().spawn_range,
+            random,
+        );
         // Entity types Horizon cannot create spawn nothing.
         let (species, width, height, _) = l.mob_type(&id)?;
         let spawn_box = spawn_selection::spawn_aabb(species, at[0], at[1], at[2], width, height);

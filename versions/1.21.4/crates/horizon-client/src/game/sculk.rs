@@ -495,7 +495,9 @@ impl Game<'_> {
             if old_kind == new_kind {
                 continue;
             }
-            // SculkShriekerBlockEntity.preRemoveSideEffects.
+            // `SculkShriekerBlock.onRemove` (1.21.4; 1.21.5 moved this to
+            // `SculkShriekerBlockEntity.preRemoveSideEffects`): a shrieker
+            // being replaced while shrieking responds once.
             if old_kind == KIND_SHRIEKER
                 && let Some(BlockEntity::Sculk(e)) = self.world.block_entities.get(&key)
                 && self.shrieker_shrieking(BlockStateId(old))

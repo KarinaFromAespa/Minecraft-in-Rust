@@ -469,20 +469,12 @@ impl SpawnerExt for Spawner {
                 self.delay(random, events);
                 return;
             };
-            let at = match read_pos(data.entity.get(&JavaString::from("Pos"))) {
-                Some(p) => p,
-                None => {
-                    let range = f64::from(self.spawn_range);
-                    let x = f64::from(pos[0])
-                        + (random.next_double() - random.next_double()) * range
-                        + 0.5;
-                    let y = f64::from(pos[1] + random.next_int_bound(3).unwrap_or(0) - 1);
-                    let z = f64::from(pos[2])
-                        + (random.next_double() - random.next_double()) * range
-                        + 0.5;
-                    [x, y, z]
-                }
-            };
+            let at = spawn_pos(
+                data.entity.get(&JavaString::from("Pos")),
+                pos,
+                self.spawn_range,
+                random,
+            );
             let kind = l.mob_type(&id);
             let (species, width, height, category) = match kind {
                 Some((s, w, h, c)) => (Some(s), w, h, c),
@@ -693,27 +685,43 @@ pub fn entity_position(s: Species, at: [f64; 3]) -> [f64; 3] {
     }
 }
 
-/// `Vec3.CODEC`: a list of three doubles.
-pub(crate) fn read_pos(tag: Option<&Tag>) -> Option<[f64; 3]> {
-    let Tag::List(v) = tag? else {
-        return None;
+/// `BaseSpawner.serverTick` / `TrialSpawner.spawnMob` in 1.21.4: the
+/// spawn `Pos` is read component by component — a stored component is
+/// used as-is and only a missing one is rolled, in x, y, z order
+/// (`x`/`z`: `pos + (nextDouble() - nextDouble()) * range + 0.5`;
+/// `y`: `pos + nextInt(3) - 1`). 1.21.5 reads the whole `Pos` through
+/// `Vec3.CODEC`, so a list shorter than three rolls all three.
+pub(crate) fn spawn_pos<R: RandomSource>(
+    tag: Option<&Tag>,
+    pos: [i32; 3],
+    range: i32,
+    random: &mut R,
+) -> [f64; 3] {
+    let list = match tag {
+        Some(Tag::List(v)) => v.as_slice(),
+        _ => &[],
     };
-    if v.len() != 3 {
-        return None;
-    }
-    let mut out = [0.0; 3];
-    for (o, t) in out.iter_mut().zip(v) {
-        *o = match t {
-            Tag::Double(b) => f64::from_bits(*b),
-            Tag::Float(b) => f64::from(f32::from_bits(*b)),
-            Tag::Byte(b) => f64::from(*b),
-            Tag::Short(s) => f64::from(*s),
-            Tag::Int(i) => f64::from(*i),
-            Tag::Long(l) => *l as f64,
-            _ => return None,
-        };
-    }
-    Some(out)
+    let component = |i: usize| {
+        list.get(i).and_then(|t| match t {
+            Tag::Double(b) => Some(f64::from_bits(*b)),
+            Tag::Float(b) => Some(f64::from(f32::from_bits(*b))),
+            Tag::Byte(b) => Some(f64::from(*b)),
+            Tag::Short(s) => Some(f64::from(*s)),
+            Tag::Int(v) => Some(f64::from(*v)),
+            Tag::Long(v) => Some(*v as f64),
+            _ => None,
+        })
+    };
+    let range = f64::from(range);
+    let x = component(0).unwrap_or_else(|| {
+        f64::from(pos[0]) + (random.next_double() - random.next_double()) * range + 0.5
+    });
+    let y = component(1)
+        .unwrap_or_else(|| f64::from(pos[1] + random.next_int_bound(3).unwrap_or(0) - 1));
+    let z = component(2).unwrap_or_else(|| {
+        f64::from(pos[2]) + (random.next_double() - random.next_double()) * range + 0.5
+    });
+    [x, y, z]
 }
 
 #[cfg(test)]
@@ -787,8 +795,32 @@ mod tests {
     }
 
     #[test]
-    fn read_pos_accepts_integer_numeric_tags() {
-        assert_eq!(read_pos(Some(&tag("[1, 2, 3]"))), Some([1.0, 2.0, 3.0]));
-        assert_eq!(read_pos(Some(&tag("[1b, 2s, 3L]"))), Some([1.0, 2.0, 3.0]));
+    fn spawn_pos_reads_each_component_on_its_own() {
+        // A full list is used as-is, whatever the numbers' tag types.
+        let mut random = LegacyRandom::new(0);
+        assert_eq!(
+            spawn_pos(Some(&tag("[1, 2, 3]")), [100, 64, 200], 4, &mut random),
+            [1.0, 2.0, 3.0]
+        );
+        assert_eq!(
+            spawn_pos(Some(&tag("[1b, 2s, 3L]")), [100, 64, 200], 4, &mut random),
+            [1.0, 2.0, 3.0]
+        );
+        // A one-component list keeps x and rolls y then z, in that order.
+        let mut random = LegacyRandom::new(0);
+        let mut mirror = LegacyRandom::new(0);
+        let y = f64::from(64 + mirror.next_int_bound(3).unwrap_or(0) - 1);
+        let z = 200.0 + (mirror.next_double() - mirror.next_double()) * 4.0 + 0.5;
+        assert_eq!(
+            spawn_pos(Some(&tag("[10.5]")), [100, 64, 200], 4, &mut random),
+            [10.5, y, z]
+        );
+        // No list rolls all three, x then y then z.
+        let mut random = LegacyRandom::new(0);
+        let mut mirror = LegacyRandom::new(0);
+        let x = 100.0 + (mirror.next_double() - mirror.next_double()) * 4.0 + 0.5;
+        let y = f64::from(64 + mirror.next_int_bound(3).unwrap_or(0) - 1);
+        let z = 200.0 + (mirror.next_double() - mirror.next_double()) * 4.0 + 0.5;
+        assert_eq!(spawn_pos(None, [100, 64, 200], 4, &mut random), [x, y, z]);
     }
 }

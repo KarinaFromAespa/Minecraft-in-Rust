@@ -3804,3 +3804,85 @@ shape for the review batches.
   Rust does not use: `audio.rs` is the Rust's own mixer standing
   in for OpenAL, with no HRTF or ALC device enumeration to port.
   Rank 2: 194/348.
+
+  Item 149 (crates/horizon-client-render/src/gfx/pack_atlas.rs):
+  carry-over. `SpriteLoader.stitch` differs only by 1.21.5
+  wrapping the body in a profiler zone (`Profiler.get().zone`,
+  try-with-resources — the extra exception-table entries and
+  slot renumbering); the stitch logic (Stitcher init, the min
+  width / height across sprites, `lowestOneBit`, the mip level)
+  is identical. `SectionCompiler.compile` differs by branch
+  offsets only. The Rust's `pack_atlas.rs::stitch_mip_level`
+  matches the shared computation (smallest = min side, lowest =
+  min lowestOneBit via `side & side.wrapping_neg()`, level =
+  log2(min(smallest, lowest)) clamped to the option). The
+  lambda renumbering (`loadAndStitch` / `runSpriteSuppliers` /
+  `stitch`) is the same bodies under new numbers. Rank 2:
+  195/348.
+
+  Item 150 (crates/horizon-client/src/game/nether_portal.rs):
+  carry-over. `PositionMoveRotation.calculateDelta` /
+  `calculateAbsolute` / `of` show no substantive differences
+  (spacing and branch offsets only). The real shape difference
+  is that 1.21.5's `of` reads the `InterpolationHandler`'s
+  position / yaw / pitch when the entity is interpolating, while
+  1.21.4's `of` uses `position()` + `getKnownMovement` + yaw /
+  pitch; 1.21.4 also has a separate `ofEntityUsingLerpTarget`
+  (lerp target + known movement + yaw / pitch), which has no
+  callers in the likely classes and is a 1.21.4-only helper. The
+  Rust's `nether_portal.rs` uses the 1.21.4 forms:
+  `end_portal_rotation` implements `calculateAbsolute` for End
+  portal transitions (west-facing into the End, spawn angles
+  out, pitch clamped to +/-90), and the minecart path cites
+  `PositionMoveRotation.of(this)` taking `getKnownMovement`
+  (clamped to 0.4). No `InterpolationHandler` exists in 1.21.4,
+  so there is nothing to port. Rank 2: 196/348.
+
+  Item 151 (crates/horizon-client/src/game/sculk.rs):
+  carry-over. `SculkShriekerBlockEntity.tryShriek` /
+  `tryRespond` / `trySummonWarden` / `playWardenReplySound`
+  and `loadAdditional` / `saveAdditional` show no substantive
+  differences — the DIFFERS flags come from slot renumbering
+  and the codec / lambda reshuffle (Supplier vs Consumer
+  invokedynamic), same NBT in and out.
+  `SculkShriekerBlock.getCollisionShape` /
+  `getOcclusionShape` differ only by the `SHAPE_COLLISION` ->
+  `COLLIDER` field rename; `stepOn` the same rename. The
+  mechanism moved, not the behaviour: 1.21.4's
+  `SculkShriekerBlock.onRemove` calls `tryRespond` when the
+  block is shrieking and the new state is a different block
+  (server-side); 1.21.5's
+  `SculkShriekerBlockEntity.preRemoveSideEffects` calls
+  `tryRespond` when `SHRIEKING` on a `ServerLevel`. The Rust's
+  `sculk.rs::sculk_sync_writes` already matches both: a
+  same-kind change is skipped, then a shrieking shrieker whose
+  entity exists responds (`shrieker_respond`: warning > 0,
+  summon at 4 else the warning-level reply sound, darkness 40).
+  One comment corrected to cite the 1.21.4 `onRemove` form
+  instead of the 1.21.5 `preRemoveSideEffects` name. Rank 2:
+  197/348.
+
+  Item 152 (crates/horizon-client/src/game/spawner.rs): PORTED.
+  `TrialSpawner.spawnMob`: 1.21.5 reads `Pos` through
+  `Vec3.CODEC` with a computed-position fallback, so a list
+  shorter than three rolls all three components; 1.21.4 reads
+  the `Pos` list component by component (`getList("Pos", 6)`;
+  size >= 1 -> x from list[0], else `pos.x +
+  (nextDouble() - nextDouble()) * spawnRange + 0.5`; size >= 2
+  -> y from list[1], else `pos.y + nextInt(3) - 1`; size >= 3
+  -> z from list[2], else the same roll as x). Verified
+  1.21.4's `BaseSpawner.serverTick` uses the identical
+  per-component read. The Rust's `spawner::read_pos` required
+  exactly three entries (the 1.21.5 codec form) and was used by
+  both the base spawner and the trial spawner. Fixed with a new
+  `spawner::spawn_pos(tag, pos, range, random)` implementing
+  the 1.21.4 per-component form (random draws only for missing
+  components, in x, y, z order) and both call sites now use it.
+  New test `spawn_pos_reads_each_component_on_its_own` (full
+  list as-is including integer numerics; a one-component list
+  keeps x and rolls y then z; no list rolls all three) with
+  mirror-random expectations; runs via CI (horizon-client lib
+  tests OOM on the VM). `SpawnerRenderer` /
+  `TrialSpawnerRenderer` render overloads differ only by the
+  1.21.5 `Vec3` camera parameter (API);
+  `renderEntityInSpawner` is identical. Rank 2: 198/348.
