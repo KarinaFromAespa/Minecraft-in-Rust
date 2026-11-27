@@ -3296,6 +3296,38 @@
         "EquipmentTable",
         "EnchantmentsByCostWithDifficulty"
       ]
+    },
+    "215": {
+      "module": "pad_craft.rs",
+      "verdict": "carry-over",
+      "evidence": "CraftingMenu.quickMoveStack: the only behavioural hunk is the result-slot onCraftedBy call - 1.21.4 calls the 3-arg Item.onCraftedBy(stack, level, player) via ContainerLevelAccess.execute (the 1.21.4-only lambda$quickMoveStack$2), 1.21.5 calls the 2-arg Item.onCraftedBy(stack, player) directly (the Level parameter was dropped from onCraftedBy in 1.21.5, same as the Stonecutter/Cartography diffs in items 182/192). The slot routing is identical in both (result 0 -> moveItemStackTo(10, 46, reverse), 10..46 -> 1..10 or 37..46/10..37). The Rust's crafting quick-move (menu.rs quick_move, CraftResult arm) matches the routing and handles the filled-map post-processing (map_crafted); the Rust has no onCraftedBy hook in either form - a pre-existing absence, not a 1.21.4-vs-1.21.5 delta. No Rust change.",
+      "classes": [
+        "CraftingMenu"
+      ]
+    },
+    "217": {
+      "module": "sheep_dye.rs",
+      "verdict": "carry-over",
+      "evidence": "DyeItem.interactLivingEntity: Sheep moved package in 1.21.5 (animal/sheep/Sheep vs animal/Sheep in 1.21.4) and the playSound overload (Entity vs Player); the logic is identical (alive, not sheared, different colour -> DYE_USE, setColor, shrink). Rust mobs::sheep_dye::interact implements it exactly (sheep, alive, not sheared, different colour -> set colour, shrink). tryApplyToSign differs only by the playSound overload. No Rust change.",
+      "classes": [
+        "DyeItem"
+      ]
+    },
+    "218": {
+      "module": "sign_edit.rs",
+      "verdict": "carry-over",
+      "evidence": "HoneycombItem: both diffs are the levelEvent overload only (Entity in 1.21.5 vs Player in 1.21.4) - lambda$useOn$2 (waxing, level event 3003) and tryApplyToSign. Rust use_sign_applicator (sign_edit.rs:231) implements tryApplyToSign: waxes any sign (empty or not), plays item.honeycomb.wax_on, fires level event 3003. No Rust change.",
+      "classes": [
+        "HoneycombItem"
+      ]
+    },
+    "219": {
+      "module": "villagers.rs",
+      "verdict": "carry-over",
+      "evidence": "TradeWithVillager: figureOutWhatIAmWillingToTrade and tick differ only by the VillagerData record API - profession().value() / Holder.is(FARMER) in 1.21.5 vs getProfession() / == FARMER in 1.21.4. The logic is identical (union of both villagers' requestedItems; gossip, then farmer + hasExcessFood + wantsMoreFood -> throwHalfStack). Rust villager_meet (villagers.rs:66) implements the tick (gossip at most once in 1200 ticks for both, then surplus food and wanted wares tossed over) via villager::meet, and requested_items feeds the pickup scan. No Rust change.",
+      "classes": [
+        "TradeWithVillager"
+      ]
     }
   }
 }

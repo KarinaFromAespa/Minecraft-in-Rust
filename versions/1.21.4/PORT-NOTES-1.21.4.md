@@ -5228,3 +5228,49 @@ shape for the review batches.
   (`enchantment()` / `level()`) vs fields (same as item 166). The Rust
   `mob_gear.rs` resolves equipment tables via
   `spawner::equipment_table`. Rank 2: 252/348.
+
+  Item 205 (report id 215, crates/horizon-client/src/game/pad_craft.rs):
+  carry-over. `CraftingMenu.quickMoveStack`: the only behavioural hunk is
+  the result-slot `onCraftedBy` call - 1.21.4 calls the 3-arg
+  `Item.onCraftedBy(stack, level, player)` via
+  `ContainerLevelAccess.execute` (the 1.21.4-only
+  `lambda$quickMoveStack$2`), 1.21.5 calls the 2-arg
+  `Item.onCraftedBy(stack, player)` directly (the `Level` parameter was
+  dropped from `onCraftedBy` in 1.21.5, same as the Stonecutter /
+  Cartography diffs in items 182 / 192). The slot routing is identical
+  in both (result 0 -> `moveItemStackTo(10, 46, reverse)`, 10..46 ->
+  1..10 or 37..46 / 10..37). The Rust's crafting quick-move (`menu.rs`
+  `quick_move`, `CraftResult` arm) matches the routing and handles the
+  filled-map post-processing (`map_crafted`); the Rust has no
+  `onCraftedBy` hook in either form - a pre-existing absence, not a
+  1.21.4-vs-1.21.5 delta. Rank 2: 253/348.
+
+  Item 207 (report id 217, crates/horizon-client/src/game/sheep_dye.rs):
+  carry-over. `DyeItem.interactLivingEntity`: `Sheep` moved package in
+  1.21.5 (`animal/sheep/Sheep` vs `animal/Sheep` in 1.21.4) and the
+  playSound overload (`Entity` vs `Player`); the logic is identical
+  (alive, not sheared, different colour -> `DYE_USE`, `setColor`,
+  shrink). The Rust `mobs::sheep_dye::interact` implements it exactly
+  (sheep, alive, not sheared, different colour -> set colour, shrink).
+  `tryApplyToSign` differs only by the playSound overload.
+  Rank 2: 254/348.
+
+  Item 208 (report id 218, crates/horizon-client/src/game/sign_edit.rs):
+  carry-over. `HoneycombItem`: both diffs are the `levelEvent` overload
+  only (`Entity` in 1.21.5 vs `Player` in 1.21.4) - `lambda$useOn$2`
+  (waxing, level event 3003) and `tryApplyToSign`. The Rust
+  `use_sign_applicator` (`sign_edit.rs:231`) implements
+  `tryApplyToSign`: waxes any sign (empty or not), plays
+  `item.honeycomb.wax_on`, fires level event 3003. Rank 2: 255/348.
+
+  Item 209 (report id 219, crates/horizon-client/src/game/villagers.rs):
+  carry-over. `TradeWithVillager`: `figureOutWhatIAmWillingToTrade` and
+  `tick` differ only by the `VillagerData` record API -
+  `profession().value()` / `Holder.is(FARMER)` in 1.21.5 vs
+  `getProfession()` / `== FARMER` in 1.21.4. The logic is identical
+  (union of both villagers' `requestedItems`; gossip, then farmer +
+  `hasExcessFood` + `wantsMoreFood` -> `throwHalfStack`). The Rust
+  `villager_meet` (`villagers.rs:66`) implements the tick (gossip at most
+  once in 1200 ticks for both, then surplus food and wanted wares tossed
+  over) via `villager::meet`, and `requested_items` feeds the pickup
+  scan. Rank 2: 256/348.
