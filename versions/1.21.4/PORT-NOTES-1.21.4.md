@@ -5133,3 +5133,55 @@ shape for the review batches.
   `createFullScaleBabyMesh` / constructor) are the same saddle-part
   removal; the Rust bakes the 1.21.4 model JSONs from 1.21.4 assets.
   Rank 2: 244/348.
+
+  Item 196 (report id 206, crates/horizon-client/src/mobs/villager.rs):
+  carry-over. `GiveGiftToHero`: 1.21.5's `VillagerProfession` constants are
+  `ResourceKey`s (Holder-based) vs 1.21.4's direct `VillagerProfession`
+  objects; `getLootTableToThrow` is
+  `GIFTS.getOrDefault(profession, UNEMPLOYED_GIFT)` in both, with the same
+  13-entry GIFTS map (ARMORER..WEAPONSMITH -> `*_GIFT`). The Rust
+  `gift_table` (`villager.rs:391`) implements it: baby -> `baby_gift`,
+  none / nitwit -> `unemployed`, else `{profession}_gift`.
+  `ResetProfession` `lambda$create$0`: the same condition in both
+  (profession not NONE / NITWIT, xp == 0, level <= 1 -> set NONE); the
+  1.21.5 form only differs by the `VillagerData` record API
+  (`profession()` / `level()` / `withProfession` vs `getProfession()` /
+  `getLevel()` / `setProfession`). The Rust `B::ResetProfession`
+  (`villager_brain.rs:2126`) implements the 1.21.4 condition exactly.
+  Rank 2: 245/348.
+
+  Item 197 (report id 207,
+  crates/horizon-client-input/src/keymapping.rs): carry-over.
+  `KeyboardHandler.keyPress`: the fullscreen branch in 1.21.4 toggles the
+  window, sets the fullscreen option to the window state, calls
+  `options.save()`, and updates the `VideoSettingsScreen` button if open;
+  1.21.5 drops the save and the button update. The Rust
+  `toggle_fullscreen` (`options.rs:655`) flips `settings.fullscreen` and
+  calls `settings.save()` - the 1.21.4 save is present; the button update
+  is menu chrome (MENU PRINCIPLE) and the option-driven
+  `apply_fullscreen` keeps the state. `lambda$handleDebugKeys$0`: 1.21.5
+  uses `ClickEvent$OpenFile` vs 1.21.4 `ClickEvent(Action.OPEN_FILE,
+  path)` - same file-open result. The rest of `keyPress` is branch
+  offsets only. Rank 2: 246/348.
+
+  Item 198 (report id 208, crates/horizon-client-render/src/chat.rs):
+  carry-over. `CommandSuggestions$SuggestionsList.mouseScrolled`: 1.21.5
+  uses `MouseHandler.getScaledXPos` / `getScaledYPos(Window)`; 1.21.4
+  computes `xpos() * guiScaledWidth / screenWidth` manually - the same
+  math. The Rust `scroll` (`chat.rs:1968`) implements it: contains
+  check, offset clamped to [0, len - line_limit], amount clamped to
+  +-1. `FilterMask`: the only diff is the static `FILTERED_STYLE` init -
+  `HoverEvent$ShowText` (1.21.5) vs `HoverEvent(Action.SHOW_TEXT, ...)`
+  (1.21.4), same style; the Rust `filtered_message` (`chat.rs:23`)
+  emits exactly it (dark grey, hover show_text "chat.filtered", `#` per
+  masked UTF-16 unit). Rank 2: 247/348.
+
+  Item 199 (report id 209, crates/horizon-client-render/src/effects.rs):
+  carry-over. `WebBlock.entityInside`: the bodies are byte-identical in
+  both versions (`makeStuckInBlock` with `Vec3(0.25, 0.05, 0.25)`, or
+  `(0.5, 0.25, 0.5)` with the WEAVING effect). 1.21.5 only widened the
+  signature with the `InsideBlockEffectApplier` parameter (the 1.21.5
+  inside-block-effects rework), which the body does not use. The Rust
+  `motion.rs:2064` `web_inside` implements the 1.21.4 constants exactly
+  (weaving 0.5 / 0.25 / 0.5, else 0.25 / 0.05 / 0.25), and `mobs/ai.rs:934`
+  does the same for mobs. Rank 2: 248/348.
