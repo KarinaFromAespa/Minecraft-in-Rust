@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": 2,
-  "batch": 82,
-  "note": "Batch 82 closed (2026-11-27): 351 ported \u2014 the creaking heart ran the whole 1.21.5 creaking_heart_state model (awake/dormant/uprooted) while 1.21.4 has only the active bool: updateState, the entity tick, the comparator (active?15:0, not distance-based), the animate gate, the tear-down crumble and worldgen placement all rewritten to the 1.21.4 form; 350 Item.STREAM_CODEC is holderRegistry(ITEM) under a new name; 352 ChunkStatus gains only a CODEC field; 353 isTicking is a new accessor for the entity-ticking check the Rust already has (ticket_levels entity_ticking). Rank 2 now 344/348. Prior: Batch 81 closed (2026-11-27): all carry-over, no code changes \u2014 346 Abilities NBT defaults identical; 347 VariantUtils is 1.21.5-only, its behaviours exist in 1.21.4 under other names; 348 FoodData defaults identical; 349 Potions is MobEffects field renames only. Rank 2 now 340/348. Prior: Batch 80 closed (2026-11-27): 342 SummonCommand moveTo->snapTo rename only; 343 VillagerMakeLove same rename, baby spawns at the parent with age -24000; 344 OfferFlowerGoal isDay->isBrightOutside rename, same body; 345 goat ram targets now gated on the world border. Rank 2 now 336/348. Prior: Batch 79 closed (2026-11-27): 338 leaf particles ported (1.21.4 has no falling leaves); 339 Registries field reorder only; 340 SYNCHRONIZED trimmed to the 1.21.4 twelve plus the three the Rust's own client needs synced; 341 entity-data variant indices fixed (all +1) and the 1.21.5-only variant arms/saves removed. Rank 2 now 332/348. Prior: Batch 78 closed (2026-11-27): all carry-over, no code changes \u2014 334 conditional item properties identical; 335 Quadrant is 1.21.5-only (shape-rotation API); 336 Realms flow offsets only; 337 BlockStateParser TagParser static-method refactor. Rank 2 now 328/348. Prior: Batch 77 closed (2026-11-27): all carry-over, no code changes \u2014 316 shape rotation is 1.21.5-only API, absent from 1.21.4 and the Rust alike; 319 TagT",
+  "batch": 83,
+  "note": "Batch 83 closed (2026-11-27): all carry-over, no code changes \u2014 354 FALLEN_TREE is a 1.21.5-only feature (the Rust's FallenTreeFeature is unreachable from 1.21.4 data, which never mentions it); 355 getCompoundOrEmpty is a rename preserving 1.21.4's lenient empty-compound return; 356 AABB$Builder is entirely new in 1.21.5; 357 TickPriority gains only a CODEC field over the same int wire form. Rank 2 now 348/348 \u2014 rank 2 complete. Prior: Batch 82 closed (2026-11-27): 351 ported \u2014 the creaking heart ran the whole 1.21.5 creaking_heart_state model (awake/dormant/uprooted) while 1.21.4 has only the active bool: updateState, the entity tick, the comparator (active?15:0, not distance-based), the animate gate, the tear-down crumble and worldgen placement all rewritten to the 1.21.4 form; 350 Item.STREAM_CODEC is holderRegistry(ITEM) under a new name; 352 ChunkStatus gains only a CODEC field; 353 isTicking is a new accessor for the entity-ticking check the Rust already has (ticket_levels entity_ticking). Rank 2 now 344/348. Prior: Batch 81 closed (2026-11-27): all carry-over, no code changes \u2014 346 Abilities NBT defaults identical; 347 VariantUtils is 1.21.5-only, its behaviours exist in 1.21.4 under other names; 348 FoodData defaults identical; 349 Potions is MobEffects field renames only. Rank 2 now 340/348. Prior: Batch 80 closed (2026-11-27): 342 SummonCommand moveTo->snapTo rename only; 343 VillagerMakeLove same rename, baby spawns at the parent with age -24000; 344 OfferFlowerGoal isDay->isBrightOutside rename, same body; 345 goat ram targets now gated on the world border. Rank 2 now 336/348. Prior: Batch 79 closed (2026-11-27): 338 leaf particles ported (1.21.4 has no falling leaves); 339 Registries field reorder only; 340 SYNCHRONIZED trimmed to the 1.21.4 twelve plus the three the Rust's own client needs synced; 341 entity-data variant indices fixed (all +1) and the 1.21.5-only variant arms/saves removed. Rank 2 now 332/348. Prior: Batch 78 closed (2026-11-27): all carry-over, no code changes \u2014 334 conditional item properties identical; 335 Quadrant is 1.21.5-only (shape-rotation API); 336 Realms flow offsets only; 337 BlockStateParser TagParser static-method refactor. Rank 2 now 328/348. Prior: Batch 77 closed (2026-11-27): all carry-over, no code changes \u2014 316 shape rotation is 1.21.5-only API, absent from 1.21.4 and the Rust alike; 319 TagT",
   "items": {
     "90": {
       "module": "crates/horizon-client-render/src/block_entity_render.rs",
@@ -4099,6 +4099,38 @@
       "evidence": "PersistentEntitySectionManager: 1.21.5 only adds isTicking(ChunkPos) (chunkVisibility lookup + Visibility.isTicking()) \u2014 a new accessor for the entity-ticking check. The Rust already has it: ticket_levels.rs entity_ticking (DistanceManager.inEntityTickingRange, level <= 31, ENTITY_TICKING) and Game.entity_ticking_area, used by the creature ticking; block ticking is the separate level-32 check (is_ticking_chunk). No behaviour change.",
       "classes": [
         "PersistentEntitySectionManager"
+      ]
+    },
+    "354": {
+      "module": "widely named: world/level/levelgen/feature",
+      "verdict": "carry-over",
+      "evidence": "Feature: 1.21.5 only registers FALLEN_TREE (FallenTreeFeature + FallenTreeConfiguration) \u2014 fallen trees are a 1.21.5 addition. The Rust already has a FallenTreeFeature (worldgen/tree/fallen.rs, decoded from feature data in feature_graph.rs), but it is unreachable in 1.21.4: no 1.21.4 jar entry or JSON mentions fallen_tree anywhere, so the decoder never fires for 1.21.4 worldgen. Dead in this tree, left in place (as the poplar leaf arms were in batch 79). No behaviour change.",
+      "classes": [
+        "Feature"
+      ]
+    },
+    "355": {
+      "module": "widely named: world/level/storage",
+      "verdict": "carry-over",
+      "evidence": "LevelStorageSource$LevelStorageAccess: 1.21.5 changes one call in modifyLevelDataWithoutDatafix from CompoundTag.getCompound(\"Data\") to getCompoundOrEmpty(\"Data\") \u2014 a rename preserving the lenient behaviour: 1.21.4's getCompound returns a new empty compound when the key is absent (bytecode offsets 45-52) and throws only on a wrong type, and 1.21.5's getCompoundOrEmpty does the same via Optional.orElseGet. The Rust does not implement modifyLevelDataWithoutDatafix at all (a save-management utility, not gameplay), and its level.dat reads handle a missing \"Data\" explicitly via Option (save.rs). No behaviour change.",
+      "classes": [
+        "LevelStorageSource$LevelStorageAccess"
+      ]
+    },
+    "356": {
+      "module": "widely named: world/phys",
+      "verdict": "carry-over",
+      "evidence": "AABB$Builder: the whole class is new in 1.21.5 (109 added lines, no 1.21.4 file) \u2014 a builder accumulating min/max into an AABB. The Rust has no AABB builder anywhere and constructs AABBs via Aabb::new (horizon_core::geometry); there is no 1.21.4 behaviour to match. No behaviour change.",
+      "classes": [
+        "AABB$Builder"
+      ]
+    },
+    "357": {
+      "module": "widely named: world/ticks",
+      "verdict": "carry-over",
+      "evidence": "TickPriority: 1.21.5 only adds a CODEC field (Codec.INT.xmap(...)) \u2014 a pure addition, and the serialized form is unchanged: 1.21.4's SavedTick.saveTick already writes priority.getValue(), an int, and the 1.21.5 codec maps that same int. The Rust's TickPriority (horizon_core::ticks) is the same int-valued enum (ExtremelyHigh=-3 .. ExtremelyLow=3, by_value(i32)) used in-memory by the tick scheduling. No behaviour change.",
+      "classes": [
+        "TickPriority"
       ]
     }
   }

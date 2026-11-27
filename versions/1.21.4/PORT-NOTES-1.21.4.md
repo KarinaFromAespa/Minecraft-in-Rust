@@ -6349,3 +6349,39 @@ shape for the review batches.
   `ENTITY_TICKING`) and `Game.entity_ticking_area`, used by the creature
   ticking; block ticking is the separate level-32 check (`is_ticking_chunk`).
   No behaviour change. Rank 2: 344/348.
+
+  Item 344 (report id 354, widely named: world/level/levelgen/feature): carry-
+  over. `Feature`: 1.21.5 only registers `FALLEN_TREE` (`FallenTreeFeature` +
+  `FallenTreeConfiguration`) — fallen trees are a 1.21.5 addition. The Rust
+  already has a `FallenTreeFeature` (worldgen/tree/fallen.rs, decoded from
+  feature data in feature_graph.rs), but it is unreachable in 1.21.4: no
+  1.21.4 jar entry or JSON mentions `fallen_tree` anywhere, so the decoder
+  never fires for 1.21.4 worldgen. Dead in this tree, left in place (as the
+  poplar leaf arms were in batch 79). No behaviour change. Rank 2: 348/348.
+
+  Item 345 (report id 355, widely named: world/level/storage): carry-over.
+  `LevelStorageSource$LevelStorageAccess`: 1.21.5 changes one call in
+  `modifyLevelDataWithoutDatafix` from `CompoundTag.getCompound("Data")` to
+  `getCompoundOrEmpty("Data")` — a rename preserving the lenient behaviour:
+  1.21.4's `getCompound` returns a new empty compound when the key is absent
+  (bytecode offsets 45-52) and throws only on a wrong type, and 1.21.5's
+  `getCompoundOrEmpty` does the same via `Optional.orElseGet`. The Rust does
+  not implement `modifyLevelDataWithoutDatafix` at all (a save-management
+  utility, not gameplay), and its level.dat reads handle a missing "Data"
+  explicitly via `Option` (save.rs). No behaviour change. Rank 2: 348/348.
+
+  Item 346 (report id 356, widely named: world/phys): carry-over.
+  `AABB$Builder`: the whole class is new in 1.21.5 (109 added lines, no 1.21.4
+  file) — a builder accumulating min/max into an AABB. The Rust has no AABB
+  builder anywhere and constructs AABBs via `Aabb::new`
+  (horizon_core::geometry); there is no 1.21.4 behaviour to match. No
+  behaviour change. Rank 2: 348/348.
+
+  Item 347 (report id 357, widely named: world/ticks): carry-over.
+  `TickPriority`: 1.21.5 only adds a `CODEC` field (`Codec.INT.xmap(...)`) — a
+  pure addition, and the serialized form is unchanged: 1.21.4's
+  `SavedTick.saveTick` already writes `priority.getValue()`, an int, and the
+  1.21.5 codec maps that same int. The Rust's `TickPriority`
+  (horizon_core::ticks) is the same int-valued enum (ExtremelyHigh=-3 ..
+  ExtremelyLow=3, `by_value(i32)`) used in-memory by the tick scheduling. No
+  behaviour change. Rank 2: 348/348.
