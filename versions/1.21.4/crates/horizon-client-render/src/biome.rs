@@ -302,7 +302,12 @@ impl Biomes {
         let maps = Colormaps {
             grass: colormap(root, "grass")?,
             foliage: colormap(root, "foliage")?,
-            dry: colormap(root, "dry_foliage")?,
+            // 1.21.4 ships no dry_foliage.png (added in 1.21.5 for leaf
+            // litter, whose `dry_foliage_color` override 1.21.4's
+            // BiomeSpecialEffects also lacks): a missing map is an empty
+            // one, so sampling it falls back to 0x5D4930 and the load
+            // succeeds on 1.21.4 resources.
+            dry: colormap(root, "dry_foliage").unwrap_or_default(),
         };
         let mut list = Vec::new();
         // The folder's own files (not its subfolders'), by file name: through `json_folder`,
@@ -760,6 +765,49 @@ mod color_tests {
             .with_colors(|_, c| c.water = 0xFF00_00FF)
             .expect("changed");
         assert_eq!(blue.get(0).water, 0x0000FF);
+    }
+
+    #[test]
+    fn load_succeeds_without_a_dry_foliage_colormap() {
+        // 1.21.4 ships no dry_foliage.png (added in 1.21.5 for leaf
+        // litter): a root with only the grass/foliage maps must still
+        // load, and the dry colour falls back to 0x5D4930.
+        let path = std::env::temp_dir().join(format!(
+            "biome-1214-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let maps = path.join("assets/minecraft/textures/colormap");
+        std::fs::create_dir_all(&maps).unwrap();
+        for name in ["grass", "foliage"] {
+            let mut encoder = png::Encoder::new(
+                std::fs::File::create(maps.join(format!("{name}.png"))).unwrap(),
+                1,
+                1,
+            );
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+            encoder
+                .write_header()
+                .unwrap()
+                .write_image_data(&[63, 127, 191, 255])
+                .unwrap();
+        }
+        let biome = path.join("data/minecraft/worldgen/biome/plains.json");
+        std::fs::create_dir_all(biome.parent().unwrap()).unwrap();
+        std::fs::write(
+            biome,
+            json!({"temperature": 0.5, "downfall": 0.5, "effects": {"water_color": 4159204}})
+                .to_string(),
+        )
+        .unwrap();
+        let loaded = Biomes::load(&path).unwrap();
+        let plains = loaded.id("minecraft:plains");
+        assert_eq!(loaded.get(plains).dry_foliage, 0x5D4930);
+        std::fs::remove_dir_all(&path).unwrap();
     }
 }
 

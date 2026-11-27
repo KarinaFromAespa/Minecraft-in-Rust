@@ -3593,3 +3593,70 @@ shape for the review batches.
   `box(2,0,2,14,12,14)`; `column(6,0,6)` ==
   `box(5,0,5,11,6,11)`); `MushroomBlock.randomTick` differs by
   whitespace only. Rank 2: 182/348.
+
+  Item 137 (client/renderer/texture): carry-over. Widely named: 8
+  classes, 26 methods. The whole delta is the 1.21.5 Blaze3D
+  GPU-texture migration (`getId`/`bind`/`releaseId` + GL enums ->
+  `GpuTexture`/`AddressMode`/`createCommandEncoder`; `upload` /
+  `tickAndUpload` gain a `GpuTexture` parameter). The Rust renderer
+  is wgpu-based and never used vanilla's GL ids. `OverlayTexture`'s
+  content is identical in both versions (16x16, hurt texel
+  -1291911168 = 0xB2FF0000, white-row alpha
+  `(1-u/15*0.75)*255`); the Rust's `overlay.rs` implements exactly
+  that, JVM-verified. `InterpolationData` has no diffs at all.
+  Rank 2: 183/348.
+
+  Item 138 (crates/horizon-client-render/src/biome.rs): PORTED.
+  `Biome.getGrassColor` is identical in both versions modulo the
+  factor-out (base = override or `getGrassColorFromTexture`, then
+  the modifier); `FoliageColor.get` is a pure factor-out
+  (1.21.5's `ColorMapColorUtil.get` is byte-for-byte the 1.21.4
+  inline computation, fallback -12012264 = 0x48B518); the Rust's
+  `sample()` matches, and its grass fallback 0xFF00FF matches
+  1.21.4's -65281. The real delta: 1.21.5 added
+  `getDryFoliageColor` / a `dryFoliageColorOverride` field, and
+  1.21.4 ships no `dry_foliage.png` colormap -- but `Biomes::load`
+  required it (`colormap(root, "dry_foliage")?`). PROVEN with a
+  minimal 1.21.4 root (grass+foliage maps + plains.json):
+  `Biomes::load` FAILED with `No such file or directory`, so the
+  1.21.4 game could not load biomes (`BlockStates::load` unwraps
+  it). This overturns item 115's premise that the kept dry-foliage
+  machinery is harmless data-driven weight. Fix: the dry map load
+  is now tolerated (`unwrap_or_default`); an empty map samples to
+  the 0x5D4930 fallback, and no 1.21.4 biome or block reads it.
+  Regression test
+  `load_succeeds_without_a_dry_foliage_colormap` (root with
+  grass/foliage only) passes; biome lib tests 8 passed, mesher 65
+  passed locally. The `dry_foliage` field, `Tint::DryFoliage` /
+  `Resolver::Dry` and the Polytone `dry_foliage` function stay,
+  per item 115 -- only the hard load requirement is gone.
+  Rank 2: 184/348.
+
+  Item 139 (crates/horizon-client/src/mobs/guardian.rs): carry-over.
+  Elder sounds: 1.21.5 checks `isInWater()`, 1.21.4
+  `isInWaterOrBubble()`; the Rust's fluid table maps
+  `bubble_column` to WATER, so `in_water` is already true in a
+  bubble column and the Rust's elder-sound checks already behave
+  as 1.21.4 (vanilla's `BubbleColumnBlock.getFluidState` is water
+  too, so the 1.21.5 change is unobservable in practice).
+  `customServerAiStep`: `MINING_FATIGUE` vs `DIG_SLOWDOWN` is a
+  field rename -- the registry id is `minecraft:mining_fatigue`
+  in both, and the Rust gives it 6000/2 with the same 50-block
+  range and `endsWithin(1199)` guards. `GuardianRenderer.renderBeam`
+  differs only by `mulPose(Quaternionfc)` vs `mulPose(Quaternionf)`.
+  Rank 2: 185/348.
+
+  Item 140 (crates/horizon-client/src/mobs/trial_spawner.rs):
+  carry-over. All diffs are API renames with identical semantics:
+  `playSound` overload Entity vs Player (null first argument either
+  way); `WeightedList.getRandom` vs
+  `SimpleWeightedRandomList.getRandomValue`/`getRandom` for the
+  loot tables, spawn potentials and dispensing items; `snapTo` vs
+  `moveTo`; `lambda$tickAndGetNext$0` takes the `SpawnData`
+  directly in 1.21.5 vs unwrapping `WeightedEntry$Wrapper.data()`
+  in 1.21.4, same stored `nextSpawnData` + `markUpdated`. The Rust's
+  `tick_and_get_next` matches the state machine and
+  `spawn_ominous_item_spawner` matches the ominous-item lambda
+  (pitch `(nextFloat-nextFloat)*0.2+1.0`, `spawn_item_begin`,
+  `cooldownEndsAt = gameTime + ticksBetweenItemSpawners`).
+  Rank 2: 186/348.
