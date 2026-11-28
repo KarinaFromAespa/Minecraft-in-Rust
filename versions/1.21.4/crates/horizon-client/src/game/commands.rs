@@ -2884,12 +2884,14 @@ impl Game<'_> {
         if place_needed {
             let state = self.block_input_state(pos, &b, state)?;
             let placed = self.place_state(pos, state, false, true)?;
-            let loaded = match &b.nbt {
-                Some(nbt) => self.load_block_entity_nbt(pos, nbt),
-                None => false,
-            };
-            if !placed && !loaded {
+            // `BlockInput.place` returns the set's result, and a failed set
+            // loads nothing: 1.21.5 also loads the tag on failure and lets
+            // a changed entity flip the result to true.
+            if !placed {
                 return Err(err("commands.setblock.failed", &[]));
+            }
+            if let Some(nbt) = &b.nbt {
+                self.load_block_entity_nbt(pos, nbt);
             }
             // 1.21.4's `SetBlockCommand.setBlock` always calls `blockUpdated`
             // (no `strict` mode to skip it — that came in 1.21.5).
@@ -3175,15 +3177,18 @@ impl Game<'_> {
                         target
                     };
                     let placed = self.place_state([x, y, z], target, false, true)?;
-                    // BlockInput.place loads the tag into the block entity now
-                    // there; a tag that changed it counts the block as placed.
-                    // A hollow fill's core is plain air.
-                    let loaded = !core
-                        && block
-                            .nbt
-                            .as_deref()
-                            .is_some_and(|nbt| self.load_block_entity_nbt([x, y, z], nbt));
-                    if placed || loaded {
+                    // `BlockInput.place` loads the tag into the block entity
+                    // now there, and only when the set went in (a failed set
+                    // loads nothing, and the tag never flips the return —
+                    // 1.21.5 counts a changed entity as placed). A hollow
+                    // fill's core is plain air.
+                    if placed
+                        && !core
+                        && let Some(nbt) = block.nbt.as_deref()
+                    {
+                        self.load_block_entity_nbt([x, y, z], nbt);
+                    }
+                    if placed {
                         count += 1;
                         updated.push([x, y, z]);
                     } else if affected {
@@ -5585,6 +5590,53 @@ mod fill_note_instrument_tests {
             );
             assert_eq!(instrument(game, 4, 4), "harp");
             assert_eq!(game.world.game_time, clock);
+        });
+    }
+
+    /// `BlockInput.place` returns the set's result, and a failed set loads
+    /// nothing: setting the identical state with a new tag fails, and the
+    /// chest keeps no name (1.21.5 loads the tag anyway and lets the
+    /// changed entity succeed).
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn setblock_with_an_unchanged_state_and_new_tag_fails_without_loading_it() {
+        with_game(|game| {
+            assert!(game.run_command("setblock 4 200 4 chest"));
+            assert!(!game.run_command("setblock 4 200 4 chest{CustomName:{text:\"Named\"}}"));
+            let tag = game.block_entity_nbt([4, 200, 4]).unwrap();
+            assert_eq!(tag.get("CustomName"), None, "the tag never loaded");
+            // A state that does change places, and the tag loads with it.
+            assert!(
+                game.run_command(
+                    "setblock 4 200 4 chest[facing=east]{CustomName:{text:\"Named\"}}"
+                )
+            );
+            let tag = game.block_entity_nbt([4, 200, 4]).unwrap();
+            assert!(
+                tag.get("CustomName").is_some(),
+                "the tag loaded on a real set"
+            );
+        });
+    }
+
+    /// The same return for `/fill`: a fill over the identical state with a
+    /// new tag counts nothing and loads nothing.
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn fill_over_an_unchanged_state_and_new_tag_counts_nothing() {
+        with_game(|game| {
+            assert!(game.run_command("setblock 4 200 4 chest"));
+            assert!(!game.run_command("fill 4 200 4 4 200 4 chest{CustomName:{text:\"Named\"}}"));
+            let tag = game.block_entity_nbt([4, 200, 4]).unwrap();
+            assert_eq!(tag.get("CustomName"), None, "the tag never loaded");
+            assert!(game.run_command(
+                "fill 4 200 4 4 200 4 chest[facing=east]{CustomName:{text:\"Named\"}}"
+            ));
+            let tag = game.block_entity_nbt([4, 200, 4]).unwrap();
+            assert!(
+                tag.get("CustomName").is_some(),
+                "the tag loaded on a real fill"
+            );
         });
     }
 }

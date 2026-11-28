@@ -6596,3 +6596,37 @@ shape for the review batches.
   return is discarded by ServerPlayerGameMode.destroyBlock. The new kelp
   level test pins both updateShape branches but passes vacuously without
   prepared resources (locally and on CI, which has no prepare step).
+  Batch 89 (2026-11-28, rank 3 G1: report ids 401, 402, 406, 407). Rank 3
+  now 37/149 (13 accepted + 24 closed); total 397/548. 401 PORTED
+  (phantom): 1.21.4's anchorPoint is never null — the ctor sets it to
+  BlockPos.ZERO and a save without AX/AY/AZ leaves it there — while 1.21.5
+  made it nullable and guards all three uses; AttackStrategy.stop now
+  recomputes the anchor from the heightmap unconditionally, treating a
+  missing anchor as the origin (anchor_above_target and select_next already
+  matched: the first sets unconditionally, the second defaults a missing
+  anchor to the phantom's own position). The new stop test pins both cases
+  but passes vacuously without prepared resources (locally and on CI). 402
+  PORTED (block_edits): BlockInput.place returns the set's result and loads
+  the tag only on success — 1.21.5 also loads on failure and lets a changed
+  entity flip the result to true, and skips the neighbour-shape
+  normalization when flags & 16 (no command caller passes 16; both pass 2).
+  cmd_setblock and cmd_fill now fail/count only on placed; the tag load is
+  gated on placed in both. LevelChunk.setBlockState returning null when old
+  == new is what makes the set fail on an unchanged state (verified in the
+  jar). Two new #[ignore]d tests pin it: setblock/fill with the identical
+  state and a new CustomName tag fail/count nothing and load nothing, while
+  a changed state places and loads the tag. Caveat: fill still skips
+  normalization for non-note blocks when the stored state already equals
+  the input (place would re-normalize; only reachable with a state a
+  non-normalizing path wrote). 406 CARRY-OVER (enchant_effects):
+  PlaySoundEffect.apply differs only by the playSound Player->Entity
+  widening, UnobstructedPredicate.test only by the VoxelShape.move overload
+  (the same unit cube either way). 407 CARRY-OVER (inventory_slots):
+  renderItem's isLeftHand/zOffset differences are dead on the GUI path
+  (zOffset is always 0, never left-handed), and the chat hover dispatch
+  already implements the 1.21.4 form exactly (text split at
+  max(guiWidth/2, 200), item tooltip, entity only with advanced tooltips).
+  Method note: norm.py strips method names, so an IDENTICAL verdict hides
+  renames like setValue/trySetValue and the playSound Player->Entity
+  widening — re-check any IDENTICAL verdict with names kept before closing
+  an item on it.

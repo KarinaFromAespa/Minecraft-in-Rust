@@ -121,14 +121,18 @@ impl Goal for AttackStrategy {
         Self::anchor_above_target(m, cx);
     }
     fn stop(&mut self, m: &mut Mob, cx: &mut Cx) {
-        if let Some(a) = m.extra.home {
-            let top = cx.w.motion_blocking_height(a[0], a[2]);
-            m.extra.home = Some([
-                a[0],
-                top + 10 + m.random.next_int_bound(20).unwrap_or(0),
-                a[2],
-            ]);
-        }
+        // `PhantomAttackStrategyGoal.stop`: 1.21.4 recomputes the anchor
+        // from the heightmap unconditionally, and a phantom with no anchor
+        // has `BlockPos.ZERO` (the ctor sets it, and a save without
+        // `AX`/`AY`/`AZ` leaves it) — 1.21.5 skips the recompute when the
+        // anchor is null, which is the `if let Some` this replaces.
+        let a = m.extra.home.unwrap_or([0, 0, 0]);
+        let top = cx.w.motion_blocking_height(a[0], a[2]);
+        m.extra.home = Some([
+            a[0],
+            top + 10 + m.random.next_int_bound(20).unwrap_or(0),
+            a[2],
+        ]);
     }
     fn every_tick(&self) -> bool {
         true
@@ -539,6 +543,57 @@ mod tests {
                 },
             );
         }
+    }
+
+    /// `PhantomAttackStrategyGoal.stop`: the anchor is recomputed from the
+    /// heightmap unconditionally — a phantom with no anchor (a save without
+    /// `AX`/`AY`/`AZ` leaves `BlockPos.ZERO`) recomputes from the origin,
+    /// not kept anchorless as 1.21.5's null guard does.
+    #[test]
+    fn an_attack_strategy_stop_recomputes_a_missing_anchor_from_the_origin() {
+        with_built_test_world(
+            &[],
+            |world, registry| {
+                for x in -1..=1 {
+                    for z in -1..=1 {
+                        world.chunks.insert(
+                            (x, z),
+                            std::sync::Arc::new(crate::chunk::Chunk::empty(x, z)),
+                        );
+                    }
+                }
+                let stone = registry.default_state("minecraft:stone").unwrap();
+                world.set(0, 64, 0, stone).unwrap();
+                world.set(5, 64, 5, stone).unwrap();
+            },
+            |w, types| {
+                let kind = std::sync::Arc::new(types.types["minecraft:phantom"].clone());
+                let mut events = Vec::new();
+                let mut lr = horizon_core::random::LegacyRandom::new(0);
+                let mut cx = Cx {
+                    w,
+                    lr: &mut lr,
+                    events: &mut events,
+                };
+                // No anchor: the stop recomputes from the origin's column
+                // (stone at y 64, so the heightmap top is 65, plus 10..29).
+                let mut loose = Mob::new(1, kind.clone(), Vec3::new(0.5, 80.0, 0.5), 0.0);
+                register(&mut loose);
+                loose.extra.home = None;
+                AttackStrategy { next_sweep: 0 }.stop(&mut loose, &mut cx);
+                let home = loose.extra.home.expect("a stop always sets an anchor");
+                assert_eq!((home[0], home[2]), (0, 0), "the origin's column");
+                assert!((75..=94).contains(&home[1]), "top 65 + 10..29: {}", home[1]);
+                // An anchor: the same recompute from its own column.
+                let mut homed = Mob::new(2, kind, Vec3::new(5.5, 80.0, 5.5), 0.0);
+                register(&mut homed);
+                homed.extra.home = Some([5, 90, 5]);
+                AttackStrategy { next_sweep: 0 }.stop(&mut homed, &mut cx);
+                let home = homed.extra.home.expect("a stop keeps an anchor");
+                assert_eq!((home[0], home[2]), (5, 5), "its own column");
+                assert!((75..=94).contains(&home[1]), "top 65 + 10..29: {}", home[1]);
+            },
+        );
     }
 }
 
