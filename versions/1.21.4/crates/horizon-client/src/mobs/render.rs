@@ -691,15 +691,6 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
             if let Some(tex) = super::equine::markings(m) {
                 push(&mut v, body, tex, white, false);
             }
-            if m.extra.saddled && !m.is_baby() {
-                push(
-                    &mut v,
-                    interned(format_args!("{name}#saddle")),
-                    super::equine::saddle_texture(s),
-                    white,
-                    false,
-                );
-            }
             if let Some(armor) = m.extra.body.as_deref()
                 && let Some(material) = armor
                     .strip_prefix("minecraft:")
@@ -720,18 +711,18 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
                 push(&mut v, layer, tex, color, false);
             }
         }
-        // SimpleEquipmentLayer: pig and strider saddles.
+        // SaddleLayer: pig and strider saddles.
         S::Pig if m.extra.saddled && !m.is_baby() => push(
             &mut v,
             "pig#saddle",
-            "entity/equipment/pig_saddle/saddle",
+            "entity/pig/pig_saddle",
             white,
             false,
         ),
         S::Strider if m.extra.saddled && !m.is_baby() => push(
             &mut v,
             "strider#saddle",
-            "entity/equipment/strider_saddle/saddle",
+            "entity/strider/strider_saddle",
             white,
             false,
         ),

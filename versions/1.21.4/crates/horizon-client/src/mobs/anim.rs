@@ -1068,10 +1068,23 @@ fn vanilla_setup(
                     p.visible(part, false);
                 }
             }
-            // EquineSaddleModel.setupAnim: the reins show only while ridden
-            // (`isRidden` is `Entity.isVehicle`: a player or a mob rides it).
+            // AbstractEquineModel.setupAnim: the saddle parts show once
+            // saddled, and the reins (ridingParts) only while ridden and
+            // saddled. In 1.21.4 the saddle is part of the body model;
+            // 1.21.5 split it into a separate EquineSaddleModel layer.
+            let saddled = m.extra.saddled;
+            for part in [
+                "saddle",
+                "left_saddle_mouth",
+                "right_saddle_mouth",
+                "head_saddle",
+                "mouth_saddle_wrap",
+            ] {
+                p.visible(part, saddled);
+            }
+            let ridden = m.rider.is_some() || m.extra.rider.is_some();
             for part in ["left_saddle_line", "right_saddle_line"] {
-                p.visible(part, m.rider.is_some() || m.extra.rider.is_some());
+                p.visible(part, saddled && ridden);
             }
         }
         Anim::Hoglin => super::piglin::hoglin_anim(m, s, p),
@@ -1530,6 +1543,78 @@ mod flight_pose_tests {
         m.extra.age = -100;
         assert!(m.is_baby());
         assert_eq!(walk_position(&m, 0.5), 5.25);
+    }
+
+    /// `AbstractEquineModel.setupAnim`: the saddle parts show once saddled,
+    /// the reins only while ridden and saddled. In 1.21.4 the saddle is part
+    /// of the body model; 1.21.5 split it into a separate EquineSaddleModel
+    /// layer with its own equipment texture, which 1.21.4 has neither of.
+    #[test]
+    fn equine_saddle_parts_show_only_when_saddled_and_ridden() {
+        let leaf = |name: &str| Part {
+            name: name.into(),
+            pose: [0.0; 9],
+            polygons: Vec::new(),
+            children: Vec::new(),
+        };
+        let mut kind = crate::mobs::sensor_scan_tests::kind();
+        let k = Arc::make_mut(&mut kind);
+        k.anim = Anim::Horse;
+        k.model = Arc::new(Part {
+            name: "root".into(),
+            pose: [0.0; 9],
+            polygons: Vec::new(),
+            children: vec![Part {
+                name: "body".into(),
+                pose: [0.0; 9],
+                polygons: Vec::new(),
+                children: [
+                    "saddle",
+                    "left_saddle_mouth",
+                    "right_saddle_mouth",
+                    "head_saddle",
+                    "mouth_saddle_wrap",
+                    "left_saddle_line",
+                    "right_saddle_line",
+                ]
+                .into_iter()
+                .map(leaf)
+                .collect(),
+            }],
+        });
+        let mut m = Mob::new(1, kind, Vec3::ZERO, 0.0);
+        let state = state(&m, 0.5);
+        let saddle = [
+            "saddle",
+            "left_saddle_mouth",
+            "right_saddle_mouth",
+            "head_saddle",
+            "mouth_saddle_wrap",
+        ];
+        let reins = ["left_saddle_line", "right_saddle_line"];
+        // Unsaddled: saddle parts and reins all hidden.
+        let mut p = Poses::new(&m.kind.model);
+        setup(&m, &state, &mut p, &HashMap::new());
+        for part in saddle.iter().chain(reins.iter()) {
+            assert!(p.is_hidden_named(part), "{part} hidden unsaddled");
+        }
+        // Saddled, unridden: saddle shows, reins stay hidden.
+        m.extra.saddled = true;
+        let mut p = Poses::new(&m.kind.model);
+        setup(&m, &state, &mut p, &HashMap::new());
+        for part in saddle {
+            assert!(!p.is_hidden_named(part), "{part} shows saddled");
+        }
+        for part in reins {
+            assert!(p.is_hidden_named(part), "{part} hidden unridden");
+        }
+        // Saddled and ridden: reins show too.
+        m.extra.rider = Some(2);
+        let mut p = Poses::new(&m.kind.model);
+        setup(&m, &state, &mut p, &HashMap::new());
+        for part in reins {
+            assert!(!p.is_hidden_named(part), "{part} shows ridden");
+        }
     }
 
     /// A player: a humanoid model with a shield in its main hand.

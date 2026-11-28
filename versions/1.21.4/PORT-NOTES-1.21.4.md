@@ -7005,3 +7005,35 @@ shape for the review batches.
   1.21.4. 431 (debug_lines.rs): the dispatcher refactor touches
   internals the Rust does not implement; noted the Rust's C: line
   omits pU in both versions (template gap, not a port item).
+
+  Batch 102 (2026-11-28, rank 3 G4: report ids 432, 433, 436, 441, 442,
+  445, 446, 447). Rank 3 now 102/149 (13 accepted + 89 closed); total
+  449/548. One real fix, seven carry-overs. 432 (anim.rs): 1.21.5 split
+  the equine saddle into a separate EquineSaddleModel layer with its own
+  equipment textures, neither of which 1.21.4 has; 1.21.4 keeps the
+  saddle in the body model (AbstractEquineModel saddleParts iff
+  saddled, reins iff ridden and saddled). The Rust rendered a separate
+  #saddle layer with 1.21.5 textures and never hid the body-model
+  saddle parts when unsaddled, so unsaddled horses showed a saddle.
+  Fixed: Anim::Horse gates the 5 saddle parts on saddled and the reins
+  on saddled and ridden, the #saddle layer push and saddle_texture are
+  gone, and pig/strider saddles use 1.21.4's SaddleLayer textures
+  (entity/pig/pig_saddle, entity/strider/strider_saddle), with a test.
+  BoggedModel geometry is identical between versions; donkey chests
+  were already right. 433 (native_client_entities.rs): Display
+  Item/Block NBT forms are identical; only codec-API modernization
+  differs. 436 (moving_pistons.rs): PistonHeadRenderer.render gained a
+  camera param in 1.21.5; the Rust already renders camera-relative, and
+  two stale 1.21.5 doc citations were fixed. 441
+  (chiseled_bookshelf.rs): 1.21.4's onRemove book-drop and signal
+  update are both already covered (removal.rs pre_remove slots 6,
+  hooks.rs affect_neighbors_after_removal). 442 (test_locate.rs):
+  Rotation gained only 1.21.5-only codecs; the Rust uses the four
+  1.21.4 values. 445 (cauldrons.rs): the diff is only a playSound
+  receiver overload; the Rust plays the 1.21.4 sounds. 446
+  (locator_bar.rs): EnchantmentScreen's 730-line diff is GUI render
+  churn with no signature change; the Rust implements the book
+  animation and the offers' costs/clues. 447 (legacy_combat.rs):
+  1.21.5's extra ToolMaterial float is item_damage_per_attack for the
+  new minecraft:weapon component, absent from the 1.21.4 jar; the Rust
+  reads it only when present and falls back to weapon_damage_1214.

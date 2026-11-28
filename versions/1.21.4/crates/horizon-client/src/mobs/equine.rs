@@ -988,18 +988,6 @@ pub fn model_name(s: Species) -> &'static str {
         _ => "zombie_horse",
     }
 }
-/// The saddle layer texture.
-pub fn saddle_texture(s: Species) -> &'static str {
-    match s {
-        Species::Donkey => "entity/equipment/donkey_saddle/saddle",
-        Species::Mule => "entity/equipment/mule_saddle/saddle",
-        Species::SkeletonHorse => "entity/equipment/skeleton_horse_saddle/saddle",
-        Species::ZombieHorse => "entity/equipment/zombie_horse_saddle/saddle",
-        Species::Camel => "entity/equipment/camel_saddle/saddle",
-        Species::CamelHusk => "entity/equipment/camel_husk_saddle/saddle",
-        _ => "entity/equipment/horse_saddle/saddle",
-    }
-}
 /// `AbstractEquineModel.setupAnim` with the adult and baby offsets.
 pub fn anim(m: &Mob, s: &State, p: &mut Poses) {
     let baby = m.is_baby();

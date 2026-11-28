@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 101,
-  "note": "Batch 101 (2026-11-28, rank 3 G4: report ids 379, 380, 419, 424, 425, 426, 429, 431): two real fixes (379 SNBT visitor rules, 380+429 HoverEvent 1.21.4 contents form) and six carry-overs; G4 long-tail sweep 8/52 done. Rank 3 now 94/149 (13 accepted + 81 closed); total 441/548.",
+  "batch": 102,
+  "note": "Batch 102 (2026-11-28, rank 3 G4: report ids 432, 433, 436, 441, 442, 445, 446, 447): one real fix (432 equine saddle \u2014 1.21.5-only separate saddle layer removed, body-model saddle parts gated on saddled/ridden) and seven carry-overs; G4 long-tail verification sweep continues.",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -428,6 +428,46 @@
       "module": "crates/horizon-client/src/game/debug_lines.rs",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 101, jar-verified 2026-11-28): SectionRenderDispatcher -- the 1.21.5 refactor (SectionBuffers is a new 1.21.5-only class, absent from the 1.21.4 client jar; RebuildTask shows no signature change) touches the section compiler's internals. The Rust does not implement the dispatcher or rebuild tasks: debug_lines.rs computes its own drawn-section and pending counts for the F3 'C:' line. Note (pre-existing, version-independent, NOT a port item): the Rust's C: line omits pU (pending uploads) although both versions' getStats format is 'pC: %03d, pU: %02d, aB: %02d' -- a template gap, not a 1.21.4-vs-1.21.5 difference. No code change."
+    },
+    "432": {
+      "module": "crates/horizon-client/src/mobs/anim.rs",
+      "verdict": "closed",
+      "evidence": "FIXED (batch 102, jar-verified 2026-11-28): real defect \u2014 1.21.5 split the equine saddle into a separate EquineSaddleModel layer (new ModelLayers HORSE_SADDLE/DONKEY_SADDLE/MULE_SADDLE/SKELETON_HORSE_SADDLE/CAMEL_SADDLE + entity/equipment/*_saddle/saddle textures), all absent from 1.21.4 (no such layers in 1.21.4 ModelLayers, no such textures in the 1.21.4 jar). 1.21.4 keeps the saddle in the body model: AbstractEquineModel saddleParts visible iff isSaddled, reins (ridingParts) iff isRidden && isSaddled (setupAnim jar-verified). The Rust rendered a separate {name}#saddle layer with 1.21.5 equipment textures (render.rs) and never hid the body-model saddle parts when unsaddled, so unsaddled horses showed a saddle. Fixed: Anim::Horse now sets the 5 saddle parts visible iff m.extra.saddled and the reins iff saddled && ridden; render.rs equine #saddle push removed; equine.rs saddle_texture fn removed; pig saddle texture re-pinned to entity/pig/pig_saddle and strider to entity/strider/strider_saddle (1.21.4 SaddleLayer, textures verified in the 1.21.4 jar). DonkeyModel 5m / BoggedModel 1m: BoggedModel geometry identical between versions (red_mushroom_1 floats -3,-3,6,4, offset 3,-8,3, rot 0.7853982 in both; 282-line diff is builder-call restructuring); mushrooms.visible = !isSheared verified in 1.21.4 BoggedModel.setupAnim. Donkey chests rule already correct. Camel saddle already handled in camel.rs:464. Nautilus saddle push left alone (1.21.5-only mob, unreachable in 1.21.4). Test: equine_saddle_parts_show_only_when_saddled_and_ridden in flight_pose_tests (unsaddled all hidden, saddled unridden saddle shows/reins hidden, saddled ridden reins show). Local: cargo check -p horizon-client clean; cargo test -p horizon-client-lib --lib equine_saddle_parts 1 passed (the lib test target compiled this time, 5m20s, no OOM)."
+    },
+    "433": {
+      "module": "crates/horizon-client/src/game/native_client_entities.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 102, jar-verified 2026-11-28): Display$ItemDisplay 4m, Display$BlockDisplay 2m. Save/load NBT forms identical in both versions: ItemDisplay writes 'item' (ItemStack) + 'item_display' (ItemDisplayContext.CODEC, string names); BlockDisplay writes 'block_state' (NbtUtils form = BlockState.CODEC form, {Name, Properties}). Diffs are codec-API modernizations only (1.21.4 NbtUtils.readBlockState/writeBlockState + lambdas vs 1.21.5 tag.read(..., BlockState.CODEC) / CompoundTag.store). The Rust's lan_display_data (lan_entities.rs:579) reads 'item' via item_from_nbt, 'item_display' as a string name to ids 0-8, and 'block_state' via state_from_nbt. ItemDisplayContext has the same 9 values in both versions; the Rust's 'on_shelf' => 9 arm is dead code in both (no such context) \u2014 left alone."
+    },
+    "436": {
+      "module": "crates/horizon-client/src/game/moving_pistons.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 102, jar-verified 2026-11-28): PistonHeadRenderer.render gained a Vec3 (camera) param in 1.21.5 (render without it in 1.21.4). The Rust already takes camera: glam::DVec3 and renders camera-relative (moved - camera); same picture, API internal. Fixed two stale 1.21.5 doc citations in moving_pistons.rs (extractRenderState/submit -> 1.21.4's render; MovingBlockRenderState -> moved-block render), since 1.21.4 has neither extractRenderState nor submit."
+    },
+    "441": {
+      "module": "crates/horizon-client/src/game/chiseled_bookshelf.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 102, jar-verified 2026-11-28): ChiseledBookShelfBlock 4m \u2014 1.21.4 onRemove -> 1.21.5 affectNeighborsAfterRemoval (hook rename). 1.21.4's onRemove drops the stored books (getItem loop + Containers.dropItemStack, then clearContent) and updates the neighbour output signal; 1.21.5 splits this into BlockEntity.preRemoveSideEffects (the drop) and affectNeighborsAfterRemoval (the signal, body is just Containers.updateNeighboursAfterDestroy). Both halves are already in the Rust: level/removal.rs pre_remove('chiseled_bookshelf') -> Contents { slots: 6 } spills the books, and level/hooks.rs affect_neighbors_after_removal handles ChiseledBookShelf in the output-signal list. The Rust's chiseled_bookshelf.rs needs no onRemove hook."
+    },
+    "442": {
+      "module": "crates/horizon-client/src/game/commands/test_locate.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 102, jar-verified 2026-11-28): Rotation 4m \u2014 1.21.5 added index field + getIndex + LEGACY_CODEC + BY_ID + STREAM_CODEC. The Rust uses only the four 1.21.4 values (None/Clockwise90/Clockwise180/Counterclockwise90) + toYRot in north_turned; it does not use the 1.21.5-only codecs. Enum values/semantics identical."
+    },
+    "445": {
+      "module": "crates/horizon-client/src/game/cauldrons.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 102, jar-verified 2026-11-28): CauldronInteraction 3m \u2014 the raw diff is only Level.playSound(Player, ...) -> Level.playSound(Entity, ...) at 3 call sites; same sounds, same behaviour. The Rust's cauldron outcomes carry the 1.21.4 sounds (item.bucket.empty / empty_lava / empty_powder_snow, item.bucket.fill, item.bottle.fill / empty) and cauldrons.rs plays result.sound at the cauldron."
+    },
+    "446": {
+      "module": "crates/horizon-client/src/game/locator_bar.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 102, jar-verified 2026-11-28): EnchantmentScreen 3m, 730-line diff, NO signature change \u2014 render churn from the 1.21.5 GUI render rewrite; both versions have the same fields (ENABLED/DISABLED_LEVEL_SPRITES, slot sprites, bookModel, flip/oFlip/flipT). The Rust implements the screen's behaviour, not the Java GUI class: stations.rs has the book animation (EnchantmentScreen tickBook, flip/open state), lan_stations.rs computes the 3 offers' costs and clues (EnchantmentMenu.slotsChanged, enchant_clue), and the enchanting table is a station menu (Kind::Enchanting, item + lapis slots) in menu_clicks.rs."
+    },
+    "447": {
+      "module": "crates/horizon-client/src/legacy_combat.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 102, jar-verified 2026-11-28): ToolMaterial 3m \u2014 applyToolProperties(props, tag, float, float) in 1.21.4 -> 5 floats in 1.21.5. The extra float is item_damage_per_attack for the new minecraft:weapon component (Weapon.<init>(int, float); Weapon class present in the 1.21.5 jar, ABSENT from the 1.21.4 jar), and the 1.21.5 Tool ctor gains a boolean. The Rust already models the 1.21.4 form: items.rs reads minecraft:weapon only when the component object is present in the loaded (version) data and falls back to weapon_damage_1214 (swords/mace/trident lose 1 per hit via their own postHurtEnemy overrides; axes have no such override and take none), and the Tool component rules (deniesDrops + minesAndDrops with the material's speed field) are the same in both versions. legacy_combat.rs keeps the old getDamageVsEntity table (WOOD 0, STONE 1, IRON 2, EMERALD 3, GOLD 0) and does not call applyToolProperties. The disable_blocking_seconds field defaults to 0.0 when the component is absent; 1.21.4 axes disable shields via Player.disableShield, not a Weapon component, and no Rust path consumes the field outside items.rs."
     }
   }
 }
